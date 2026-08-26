@@ -6,9 +6,13 @@
     "dev": "pnpm --color --recursive run dev",
     "build": "pnpm --color --recursive run build",
     "test": "pnpm --color --recursive run test",
-    "check": "pnpm --color --recursive run check"
+    "check": "pnpm --color --recursive run check",
+    "lint": "prettier --write packages/*/{src,tests}/**/*.ts"
   },
   "devDependencies": {
+    "@manypkg/cli": "^0.25.1",
+    "prettier": "^3.9.6",
+    "syncpack": "^15.3.3",
     "typescript": "^7.0.2"
   },
   "engines": {

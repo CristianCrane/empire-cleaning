@@ -1,11 +1,13 @@
-import express from 'express'
+import express from "express";
 
-const app = express()
+const app = express();
 
-app.get('/health', (req, res) => {
-  res.json({
-    status: "ok"
-  }).status(200)
-})
+app.get("/health", (req, res) => {
+  res
+    .json({
+      status: "ok",
+    })
+    .status(200);
+});
 
-export { app }
+export { app };
