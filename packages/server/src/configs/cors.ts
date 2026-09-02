@@ -1,9 +1,10 @@
 import type { CorsOptions } from "cors";
 import env from "../env.ts";
+import cors from "cors";
 
-export const corsOptions: CorsOptions = {
+const corsOptions: CorsOptions = {
   origin: env.CORS_ORIGIN_URL,
   credentials: true,
 };
 
-export default corsOptions;
+export const corsPolicy = cors(corsOptions);

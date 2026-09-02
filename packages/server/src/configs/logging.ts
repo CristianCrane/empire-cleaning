@@ -15,6 +15,4 @@ const prodFormat = morgan((tokens, req, res) => {
 
 const devFormat = morgan("dev");
 
-const loggingFormat = env.APP_MODE === "dev" ? devFormat : prodFormat;
-
-export default loggingFormat;
+export const networkLogger = env.APP_MODE === "dev" ? devFormat : prodFormat;

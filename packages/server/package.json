@@ -2,6 +2,9 @@
   "name": "@empire-cleaning/server",
   "version": "0.0.0",
   "type": "module",
+  "imports": {
+    "#configs": "./src/configs/index.ts"
+  },
   "scripts": {
     "dev": "nodemon --watch src -e ts --exec \"tsx --env-file=.env src/index.ts\"",
     "start": "node src/index.ts",
