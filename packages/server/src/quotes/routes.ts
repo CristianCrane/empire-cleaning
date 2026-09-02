@@ -2,7 +2,7 @@ import { Router } from "express";
 
 const router = Router();
 
-router.get("/request", (req, res) => {
+router.post("/request", (req, res) => {
   return res.json({ message: "request quote" });
 });
 
