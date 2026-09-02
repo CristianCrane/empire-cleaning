@@ -7,4 +7,4 @@ const corsOptions: CorsOptions = {
   credentials: true,
 };
 
-export const corsPolicy = cors(corsOptions);
+export const corsMiddleware = cors(corsOptions);

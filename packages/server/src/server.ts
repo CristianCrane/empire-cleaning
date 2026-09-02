@@ -1,13 +1,13 @@
 import express from "express";
 import authRoutes from "./auth/routes.ts";
 import quoteRoutes from "./quotes/routes.ts";
-import { networkLogger, corsPolicy } from "#configs";
+import { networkLoggingMiddleware, corsMiddleware } from "#middleware";
 
 const app = express();
 
 // middleware
-app.use(corsPolicy);
-app.use(networkLogger);
+app.use(corsMiddleware);
+app.use(networkLoggingMiddleware);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
