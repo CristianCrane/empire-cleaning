@@ -1,7 +1,11 @@
 import express from "express";
 import authRoutes from "./auth/routes.ts";
 import quoteRoutes from "./quotes/routes.ts";
-import { networkLoggingMiddleware, corsMiddleware } from "#middleware";
+import {
+  networkLoggingMiddleware,
+  corsMiddleware,
+  errorHandler,
+} from "#middleware";
 
 const app = express();
 
@@ -22,5 +26,7 @@ app.get("/health", (req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/quotes", quoteRoutes);
+
+app.use(errorHandler);
 
 export { app };

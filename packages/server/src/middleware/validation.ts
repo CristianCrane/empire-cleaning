@@ -1,5 +1,10 @@
 import type { RequestHandler } from "express";
 import { z } from "zod";
+import {
+  PathParameterError,
+  QueryParameterError,
+  RequestBodyError,
+} from "./errors.ts";
 
 type ValidationMiddlewareOptions<TParamsSchema, TBodySchema, TQuerySchema> = {
   params?: TParamsSchema;
@@ -21,24 +26,21 @@ export const validate =
     if (paramsSchema) {
       const result = paramsSchema.safeParse(req.params);
       if (!result.success) {
-        res.json(z.treeifyError(result.error)).status(400);
-        return;
+        throw new PathParameterError(result.error);
       }
     }
 
     if (bodySchema) {
       const result = bodySchema.safeParse(req.body);
       if (!result.success) {
-        res.json(z.treeifyError(result.error)).status(400);
-        return;
+        throw new RequestBodyError(result.error);
       }
     }
 
     if (querySchema) {
       const result = querySchema.safeParse(req.query);
       if (!result.success) {
-        res.json(z.treeifyError(result.error)).status(400);
-        return;
+        throw new QueryParameterError(result.error);
       }
     }
 
