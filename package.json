@@ -5,8 +5,8 @@
   "scripts": {
     "dev": "pnpm --color --recursive run dev",
     "build": "pnpm --color --recursive run build",
-    "test": "pnpm --color --recursive run test",
-    "test:watch": "pnpm --color --recursive run test:watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "check": "pnpm --color --recursive run check",
     "lint": "prettier --write packages/*/{src,tests}/**/*.ts"
   },
