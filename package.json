@@ -3,12 +3,21 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "dev": "pnpm --color --recursive run dev",
+    "dev": "pnpm --color --recursive --parallel run dev",
     "build": "pnpm --color --recursive run build",
     "test": "vitest run",
     "test:watch": "vitest",
     "check": "pnpm --color --recursive run check",
-    "lint": "prettier --write packages/*/{src,tests}/**/*.ts"
+    "lint": "prettier --write packages/*/{src,tests}/**/*.ts",
+    "db:up": "docker-compose up -d",
+    "db:down": "docker-compose down",
+    "db:reset": "docker compose down -v && docker compose up -d",
+    "db:logs": "docker compose logs -f postgres",
+    "db:generate": "pnpm --filter @empire-cleaning/server db:generate",
+    "db:migrate": "pnpm --filter @empire-cleaning/server db:migrate",
+    "db:push": "pnpm --filter @empire-cleaning/server db:push",
+    "db:studio": "pnpm --filter @empire-cleaning/server db:studio",
+    "db:seed": "pnpm --filter @empire-cleaning/server db:seed"
   },
   "devDependencies": {
     "@manypkg/cli": "^0.25.1",

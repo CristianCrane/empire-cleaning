@@ -1,6 +1,6 @@
 import express from "express";
-import authRoutes from "./auth/routes.ts";
-import quoteRoutes from "./quotes/routes.ts";
+import { router as authRouter } from "#features/auth";
+import { router as quotesRouter } from "#features/quotes";
 import {
   networkLoggingMiddleware,
   corsMiddleware,
@@ -24,8 +24,8 @@ app.get("/health", (req, res) => {
     .status(200);
 });
 
-app.use("/api/auth", authRoutes);
-app.use("/api/quotes", quoteRoutes);
+app.use("/api/auth", authRouter);
+app.use("/api/quotes", quotesRouter);
 
 app.use(errorHandler);
 

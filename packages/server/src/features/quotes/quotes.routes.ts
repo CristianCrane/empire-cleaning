@@ -1,6 +1,6 @@
 import { Router } from "express";
 
-const router = Router();
+export const router = Router();
 
 router.post("/request", (req, res) => {
   return res.json({ message: "request quote" });
@@ -25,5 +25,3 @@ router.put("/:id", (req, res) => {
 router.delete("/:id", (req, res) => {
   return res.json({ message: "delete quote" });
 });
-
-export default router;
