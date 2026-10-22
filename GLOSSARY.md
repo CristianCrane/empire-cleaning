@@ -34,9 +34,49 @@ _Avoid_: Anonymous user, visitor
 A Client's or Guest's description of the cleaning they want, submitted to ask for pricing.
 _Avoid_: Enquiry, lead, quote
 
+**Turned Down**:
+A Quote Request that Office Staff have closed without quoting, with a recorded reason such as out of area, out of scope or no capacity. It is final; the Client must submit a new Quote Request.
+_Avoid_: Declined, rejected, refused
+
 **Quote**:
-A priced offer from Empire Cleaning in response to a Quote Request, covering exactly one Job or one Service Plan, with a price, an estimated duration and a proposed time. A Quote for a First Clean offers both Clean Types, each with its own price and duration, and the Client picks one on acceptance. A Quote Request may receive several Quotes, but a Quote, once sent, is never changed.
+A priced offer from Empire Cleaning in response to a Quote Request, covering exactly one Job or one Service Plan, with a price, Labour Hours, a Crew Size and a proposed time. A Quote for a First Clean offers both Clean Types, each with its own price and Labour Hours, and the Client picks one on acceptance. A Quote Request may receive several Quotes, but a Quote, once sent, is never changed.
 _Avoid_: Estimate, proposal
+
+**Price List**:
+The prices and pricing rules Office Staff maintain, from which every Suggested Price is calculated. Its rates are before tax, while Clients always see prices including tax; it holds separate tax rates for one-off Jobs, Service Plan Jobs and fees, and any Add-on may be tax-exempt. Changing it never reprices Sent Quotes or existing Service Plans.
+_Avoid_: Rate card, pricing table, tariff
+
+**Suggested Price**:
+The price the system calculates for a Quote: the Labour Hours estimated for the Property, Condition, Clean Type and Add-ons, multiplied by the residential or commercial hourly rate on the Price List, and never below the Minimum Charge. Office Staff may override it to any price, giving a reason.
+_Avoid_: Estimate, calculated price, list price
+
+**Minimum Charge**:
+The lowest Suggested Price the system will produce for a Job; set on the Price List, currently $100. Office Staff may still override a price below it.
+_Avoid_: Call-out fee, minimum fee, floor price
+
+**Labour Hours**:
+The total Staff time a Job is estimated to take, regardless of how many Staff do it; the basis of both the Suggested Price and Schedule availability.
+_Avoid_: Duration, man-hours, job length
+
+**Crew Size**:
+The number of Staff a Quote plans to send; the Job's time on site is its Labour Hours divided by its Crew Size.
+_Avoid_: Team size, headcount
+
+**Condition**:
+How dirty a Property currently is: _light_, _moderate_ or _heavy_. Stated by the Client in a Quote Request, correctable by Staff, and reported by Cleaners when they complete a Job. Service Plan Quotes assume moderate unless Staff set otherwise.
+_Avoid_: State, dirtiness, level
+
+**Add-on**:
+A priced extra task, such as cleaning inside the oven, agreed on a Quote before a Job; distinct from an Adjustment made on the day.
+_Avoid_: Extra, upgrade, option
+
+**Preferred Service Area**:
+A set of postcodes close enough to Staff that Empire Cleaning prefers to work there. Distance never changes a price; whether to take on work outside these areas is Office Staff's call.
+_Avoid_: Coverage area, zone, territory
+
+**Site Visit**:
+A free, scheduled visit by Staff to see a Property before quoting it; required for commercial Properties and optional for residential ones. It is not a Job.
+_Avoid_: Walkthrough, inspection, assessment
 
 **Quote status**:
 A Quote is _Draft_ (being written by Staff), _Sent_, or closed as _Accepted_, _Declined_, _Expired_ (its validity period, 14 days unless set otherwise, or its proposed time has passed) or _Superseded_ (replaced by a newer Quote for the same Quote Request).
@@ -107,7 +147,7 @@ Money taken from a Client's Payment Method, either a Deposit or a Balance.
 _Avoid_: Payment, invoice, bill
 
 **Plan Discount**:
-A reduction, 10% unless set otherwise on the Quote, on the base price of each Job a Service Plan generates, compared with the same visit as a one-off Job. It does not apply to Adjustments or to the First Clean.
+A reduction, 10% unless set otherwise on the Quote, on the base price of each Job a Service Plan generates, compared with the same visit as a one-off Job, including any recurring Add-ons on the plan. It does not apply to Adjustments or to the First Clean.
 _Avoid_: Loyalty discount, subscription discount, recurring rate
 
 **Adjustment**:
