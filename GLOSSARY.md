@@ -35,7 +35,7 @@ A Client's or Guest's description of the cleaning they want, submitted to ask fo
 _Avoid_: Enquiry, lead, quote
 
 **Quote**:
-A priced offer from Empire Cleaning in response to a Quote Request, covering exactly one Job or one Service Plan, with a price, an estimated duration and a proposed time. A Quote Request may receive several Quotes, but a Quote, once sent, is never changed.
+A priced offer from Empire Cleaning in response to a Quote Request, covering exactly one Job or one Service Plan, with a price, an estimated duration and a proposed time. A Quote for a First Clean offers both Clean Types, each with its own price and duration, and the Client picks one on acceptance. A Quote Request may receive several Quotes, but a Quote, once sent, is never changed.
 _Avoid_: Estimate, proposal
 
 **Quote status**:
@@ -49,8 +49,16 @@ A single cleaning visit at one Property, booked for a confirmed date and time.
 _Avoid_: Booking, appointment, clean
 
 **Service Plan**:
-An agreed recurring arrangement at one Property that generates Jobs on a set recurrence. Its terms change only by accepting a new Quote.
+An agreed recurring arrangement at one Property that generates Standard Clean Jobs on a set recurrence. It can only start once that Property has a Completed First Clean, and its terms change only by accepting a new Quote.
 _Avoid_: Subscription, contract, recurring job
+
+**First Clean**:
+The one-off Job that every Property must have Completed before a Service Plan can start there; a Deep Clean is recommended, but the Client may choose a Standard Clean.
+_Avoid_: Initial clean, onboarding clean, intro clean
+
+**Clean Type**:
+How thorough a Job is: either a _Deep Clean_ (bringing a Property up to standard) or a _Standard Clean_ (routine, less thorough and cheaper).
+_Avoid_: Service level, package, tier
 
 **Completed**:
 A Job is Completed when the assigned Staff mark it done on site; this is what triggers its Balance Charge.
@@ -97,6 +105,10 @@ _Avoid_: Remainder, final payment, outstanding amount
 **Charge**:
 Money taken from a Client's Payment Method, either a Deposit or a Balance.
 _Avoid_: Payment, invoice, bill
+
+**Plan Discount**:
+A reduction, 10% unless set otherwise on the Quote, on the base price of each Job a Service Plan generates, compared with the same visit as a one-off Job. It does not apply to Adjustments or to the First Clean.
+_Avoid_: Loyalty discount, subscription discount, recurring rate
 
 **Adjustment**:
 A recorded change to a Job's quoted price, with a reason, made by the assigned Staff at completion; increases need the Client's approval on site.
