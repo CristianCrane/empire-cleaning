@@ -1,4 +1,5 @@
 import { defineConfig } from "vitest/config";
+import { TEST_DB_URL } from "./tests/setup/testDatabase.ts";
 
 export default defineConfig({
   test: {
@@ -7,6 +8,11 @@ export default defineConfig({
     include: ["src/**/*.test.ts"],
     globals: true,
     globalSetup: ["./tests/setup/globalSetup.ts"],
+    setupFiles: ["./tests/setup/perTest.ts"],
+    env: {
+      APP_MODE: "dev",
+      DB_URL: TEST_DB_URL,
+    },
     clearMocks: true,
     restoreMocks: true,
     pool: "threads",

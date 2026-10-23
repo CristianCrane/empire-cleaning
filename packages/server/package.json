@@ -5,13 +5,14 @@
   "imports": {
     "#middleware": "./src/middleware/index.ts",
     "#db": "./src/db/index.ts",
-    "#features/*": "./src/features/*/index.ts"
+    "#features/*": "./src/features/*/index.ts",
+    "#services/*": "./src/services/*/index.ts"
   },
   "scripts": {
     "dev": "nodemon --watch src -e ts --exec \"tsx --env-file=.env src/index.ts\"",
     "start": "node src/index.ts",
     "build": "tsc -p tsconfig.build.json",
-    "check": "tsc .",
+    "check": "tsc -p tsconfig.json",
     "db:generate": "drizzle-kit generate --config=./src/db/drizzle.config.ts",
     "db:push": "drizzle-kit push --config=./src/db/drizzle.config.ts",
     "db:migrate": "drizzle-kit migrate --config=./src/db/drizzle.config.ts",
@@ -30,6 +31,7 @@
     "helmet": "^8.3.0",
     "morgan": "^1.12.0",
     "pg": "^8.23.0",
+    "resend": "^6.34.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -38,8 +40,10 @@
     "@types/morgan": "^1.9.10",
     "@types/node": "^26.2.0",
     "@types/pg": "^8.23.1",
+    "@types/supertest": "^7.2.1",
     "drizzle-kit": "1.0.0-rc.4",
     "nodemon": "^3.1.14",
+    "supertest": "^7.3.1",
     "tsx": "^4.23.13"
   }
 }
