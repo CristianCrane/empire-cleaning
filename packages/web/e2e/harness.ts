@@ -1,5 +1,5 @@
 import { test as base, expect, type Page } from "@playwright/test";
-import type { AccountRole } from "@empire-cleaning/models";
+import type { StaffRole } from "@empire-cleaning/models";
 import { controlUrl } from "../playwright.config.ts";
 
 // talks to the e2e API's control server (packages/server/tests/e2e/server.ts)
@@ -12,11 +12,15 @@ const control = async (path: string, init?: RequestInit) => {
   return res.json();
 };
 
-export const createAccount = (account: {
+// the records an Account connects to when its person signs up (ADR-0006)
+export const createStaff = (member: {
   email: string;
   name: string;
-  roles: AccountRole[];
-}) => control("/accounts", { method: "POST", body: JSON.stringify(account) });
+  roles: StaffRole[];
+}) => control("/staff", { method: "POST", body: JSON.stringify(member) });
+
+export const createClient = (client: { email: string; name: string }) =>
+  control("/clients", { method: "POST", body: JSON.stringify(client) });
 
 type Email = { to: string; subject: string; text: string };
 

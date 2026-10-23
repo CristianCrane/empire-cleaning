@@ -11,6 +11,7 @@ import { AreaLayout } from "./screens/AreaLayout.tsx";
 import { CleanerHome, OfficeHome, PortalHome } from "./screens/AreaHomes.tsx";
 import { NotFound } from "./screens/NotFound.tsx";
 import { SignIn } from "./screens/SignIn.tsx";
+import { Welcome } from "./screens/Welcome.tsx";
 import {
   areas,
   areasFor,
@@ -38,11 +39,13 @@ const rootRoute = createRootRoute({
   notFoundComponent: NotFound,
 });
 
-// where a signed-in Account belongs; Staff with both roles start in the Office
+// where a signed-in Account belongs: its first area (the Office for Staff
+// holding both roles), or the welcome page if it's connected to nothing yet
 const homeOf = async () => {
   const account = await getAccount();
-  const [first] = account ? areasFor(account) : [];
-  return first ? areas[first].path : undefined;
+  if (!account) return undefined;
+  const [first] = areasFor(account);
+  return first ? areas[first].path : "/welcome";
 };
 
 const indexRoute = createRoute({
@@ -67,6 +70,22 @@ const signInRoute = createRoute({
     if (home) throw redirect({ href: search.next ?? home });
   },
   component: SignIn,
+});
+
+const welcomeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/welcome",
+  beforeLoad: async ({ location }) => {
+    const account = await getAccount();
+    if (!account) {
+      throw redirect({ to: "/sign-in", search: { next: location.href } });
+    }
+    // once connected to something, its area is the place to be
+    const home = await homeOf();
+    if (home !== "/welcome") throw redirect({ to: home ?? "/sign-in" });
+    return { account };
+  },
+  component: Welcome,
 });
 
 // an area is only for Accounts holding its role: anyone signed out goes to
@@ -95,6 +114,7 @@ const portalRoute = areaRoute("portal");
 const routeTree = rootRoute.addChildren([
   indexRoute,
   signInRoute,
+  welcomeRoute,
   officeRoute.addChildren([
     createRoute({
       getParentRoute: () => officeRoute,

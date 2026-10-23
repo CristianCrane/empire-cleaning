@@ -6,12 +6,12 @@ import {
   timestamp,
   index,
 } from "drizzle-orm/pg-core";
-import type { AccountRole } from "@empire-cleaning/models";
 import { timestamps } from "../../db/index.ts";
 
 // Better Auth's tables, named after our glossary: Better Auth's "user" is our
 // Account, and its "account" (a linked sign-in method, e.g. Google) is an
-// account identity.
+// account identity. An Account holds no roles: what it may do comes from the
+// Client and Staff records it's connected to (ADR-0006).
 
 export const accounts = pgTable("accounts", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -19,7 +19,6 @@ export const accounts = pgTable("accounts", {
   email: text("email").notNull().unique(),
   emailVerified: boolean("email_verified").default(false).notNull(),
   image: text("image"),
-  roles: text("roles").$type<AccountRole>().array().default([]).notNull(),
   ...timestamps,
 });
 

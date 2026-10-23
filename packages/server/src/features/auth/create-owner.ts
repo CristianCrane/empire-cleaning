@@ -1,6 +1,7 @@
-import { createAccount, hasOfficeStaff } from "./accounts.ts";
+import { createStaff, hasOfficeStaff } from "../staff/staff.ts";
 
-// bootstraps the first Office Staff Account; everyone else is invited from there
+// bootstraps the first Office Staff member; everyone else is invited from
+// there. The owner then signs up with this email, which connects them.
 export async function createOwner({
   email,
   name,
@@ -10,11 +11,11 @@ export async function createOwner({
 }) {
   if (await hasOfficeStaff()) {
     throw new Error(
-      "an Office Staff Account already exists; invite further Staff from the app",
+      "an Office Staff member already exists; invite further Staff from the app",
     );
   }
 
-  return createAccount({ email, name, roles: ["office_staff"] });
+  return createStaff({ email, name, roles: ["office_staff"] });
 }
 
 const isRunningFromTerminal = import.meta.url === `file://${process.argv[1]}`;
@@ -28,9 +29,9 @@ if (isRunningFromTerminal) {
   }
 
   try {
-    const account = await createOwner({ email, name });
+    const owner = await createOwner({ email, name });
     console.log(
-      `created Office Staff Account for ${account.email}; sign in with a one-time link`,
+      `created Office Staff member ${owner.email}; sign up with that email to get in`,
     );
     process.exit(0);
   } catch (e) {

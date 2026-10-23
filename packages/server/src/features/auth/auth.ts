@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import env from "../../env.ts";
 import { db } from "../../db/index.ts";
 import { email } from "../../services/email/index.ts";
+import { connectByEmail } from "./connections.ts";
 import {
   accounts,
   sessions,
@@ -12,8 +13,7 @@ import {
   verifications,
 } from "./auth.schema.ts";
 
-// sign-in links are short-lived; longer-lived links (e.g. in Quote emails)
-// are a separate decision for the tickets that send them
+// sign-in links are short-lived; no other email can sign anyone in (ADR-0006)
 const SIGN_IN_LINK_TTL_SECONDS = 15 * 60;
 
 const sendSignInLink = async ({ to, url }: { to: string; url: string }) => {
@@ -25,12 +25,18 @@ const sendSignInLink = async ({ to, url }: { to: string; url: string }) => {
   });
 };
 
-const accountExists = async (address: string) => {
-  const [found] = await db
-    .select({ id: accounts.id })
+// connects a newly signed-in Account to its Client and Staff records, but
+// only once its email is proven, which signing up or in always does
+const connectOnSignIn = async (accountId: string) => {
+  const [account] = await db
+    .select({
+      id: accounts.id,
+      email: accounts.email,
+      proven: accounts.emailVerified,
+    })
     .from(accounts)
-    .where(eq(accounts.email, address.toLowerCase()));
-  return found !== undefined;
+    .where(eq(accounts.id, accountId));
+  if (account?.proven) await connectByEmail(account);
 };
 
 export const auth = betterAuth({
@@ -58,11 +64,11 @@ export const auth = betterAuth({
     // itself (e.g. the lock around a first sign-in), silently disabling them
     database: { generateId: () => crypto.randomUUID() },
   },
-  user: {
-    additionalFields: {
-      // roles are granted by our own code (Quote Request, Staff invite,
-      // setup script), never by the caller
-      roles: { type: "string[]", required: false, input: false },
+  // every new session (sign-up included) connects the Account to its records;
+  // what an Account may do comes from those connections, never the Account
+  databaseHooks: {
+    session: {
+      create: { after: async (session) => connectOnSignIn(session.userId) },
     },
   },
   session: {
@@ -77,21 +83,14 @@ export const auth = betterAuth({
     google: {
       clientId: env.GOOGLE_CLIENT_ID,
       clientSecret: env.GOOGLE_CLIENT_SECRET,
-      disableSignUp: true,
     },
   },
   plugins: [
-    // Accounts are only created by our own flows, never by signing in
+    // anyone may sign up (ADR-0006): the link creates the Account if it's new
     magicLink({
-      disableSignUp: true,
       expiresIn: SIGN_IN_LINK_TTL_SECONDS,
       storeToken: "hashed",
-      sendMagicLink: async ({ email: to, url }) => {
-        // same response either way, so the endpoint can't reveal who has an Account
-        if (await accountExists(to)) {
-          await sendSignInLink({ to, url });
-        }
-      },
+      sendMagicLink: async ({ email: to, url }) => sendSignInLink({ to, url }),
     }),
     // non-browser clients (e.g. a future native app) use bearer tokens instead of cookies
     bearer(),
