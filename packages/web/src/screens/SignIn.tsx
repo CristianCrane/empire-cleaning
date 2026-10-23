@@ -16,8 +16,6 @@ import { GoogleLogo } from "./GoogleLogo.tsx";
 const errorMessages: Record<string, string> = {
   INVALID_TOKEN:
     "That sign-in link has expired or has already been used. Enter your email below for a fresh one.",
-  signup_disabled:
-    "There's no Empire Cleaning account for that Google address. Use the email address we have for you, or give us a call.",
 };
 const fallbackError = "Signing in didn't work. Please try again.";
 
@@ -67,8 +65,8 @@ export function SignIn() {
             <Notice tone="success">
               <p className="font-semibold">Check your email</p>
               <p>
-                If {sentTo} has an Empire Cleaning account, a sign-in link is on
-                its way. It works once, for 15 minutes.
+                A sign-in link is on its way to {sentTo}. It works once, for 15
+                minutes.
               </p>
             </Notice>
             <Button

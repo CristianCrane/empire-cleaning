@@ -2,7 +2,9 @@ import { describe, expect, test, vi } from "vitest";
 import express from "express";
 import request from "supertest";
 import { errorHandler } from "#middleware";
-import { authorize, createAccount, signedInAccount } from "#features/auth";
+import { authorize, signedInAccount } from "#features/auth";
+import { changeClientEmail, createClient } from "#features/clients";
+import { createStaff, deactivateStaff } from "#features/staff";
 import { createOwner } from "./create-owner.ts";
 import {
   api,
@@ -12,147 +14,277 @@ import {
   testEmail,
 } from "../../../tests/harness.ts";
 
-describe("signing in with a one-time link", () => {
-  test("emails a link that signs the Account in", async () => {
-    await createAccount({
-      email: "client@example.com",
-      name: "Casey Client",
-      roles: ["client"],
-    });
+const me = async (agent: ReturnType<typeof apiAgent>) =>
+  (await agent.get("/api/me").expect(200)).body;
 
-    const agent = await signIn("client@example.com");
-    const me = await agent.get("/api/me");
+describe("signing up and in with an emailed link", () => {
+  test("a new email signs up, and its Account starts connected to nothing", async () => {
+    const agent = await signIn("new@example.com");
 
-    expect(testEmail().lastTo("client@example.com").subject).toBe(
+    expect(testEmail().lastTo("new@example.com").subject).toBe(
       "Sign in to Empire Cleaning",
     );
-    expect(me.status).toBe(200);
-    expect(me.body).toMatchObject({
-      email: "client@example.com",
-      name: "Casey Client",
-      roles: ["client"],
+    expect(await me(agent)).toMatchObject({
+      email: "new@example.com",
+      roles: [],
     });
   });
 
-  test("an unknown email gets the same response but no email", async () => {
-    const res = await api()
-      .post("/api/auth/sign-in/magic-link")
-      .send({ email: "stranger@example.com", callbackURL: "/" });
+  test("signing in again uses the same Account", async () => {
+    const first = await me(await signIn("casey@example.com"));
+    const again = await me(await signIn("casey@example.com"));
 
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual({ status: true });
-    expect(testEmail().sent).toEqual([]);
+    expect(again.id).toBe(first.id);
   });
 
   test("a link signs in only once", async () => {
-    await createAccount({
-      email: "client@example.com",
-      name: "Casey Client",
-      roles: ["client"],
-    });
-    await signIn("client@example.com");
-    const link = signInLinkFor("client@example.com");
+    await signIn("casey@example.com");
+    const link = signInLinkFor("casey@example.com");
 
     const second = apiAgent();
     await second.get(link);
-    const me = await second.get("/api/me");
 
-    expect(me.status).toBe(401);
+    expect((await second.get("/api/me")).status).toBe(401);
   });
 
-  test("signing in never creates an Account", async () => {
-    const agent = apiAgent();
-    await agent
-      .post("/api/auth/sign-in/magic-link")
-      .send({ email: "stranger@example.com", callbackURL: "/" });
+  test("signing out ends the session", async () => {
+    const agent = await signIn("casey@example.com");
 
-    const me = await agent.get("/api/me");
+    await agent.post("/api/auth/sign-out").send({}).expect(200);
 
-    expect(me.status).toBe(401);
-  });
-
-  test("signed-in callers cannot grant themselves roles", async () => {
-    await createAccount({
-      email: "client@example.com",
-      name: "Casey Client",
-      roles: ["client"],
-    });
-    const agent = await signIn("client@example.com");
-
-    const res = await agent
-      .post("/api/auth/update-user")
-      .send({ roles: ["office_staff"] });
-    const me = await agent.get("/api/me");
-
-    // 400, not 403: Clients may update their own Account, just not this field
-    expect(res.status).toBe(400);
-    expect(res.body.message).toBe("roles is not allowed to be set");
-    expect(me.body.roles).toEqual(["client"]);
+    expect((await agent.get("/api/me")).status).toBe(401);
   });
 
   // a first sign-in proves the email and clears any older access, under a
   // one-at-a-time lock that Better Auth keys by its own id; ids we generate
   // must not replace it (Better Auth warns, and the lock stops locking)
   test("a first sign-in keeps Better Auth's lock intact", async () => {
-    await createAccount({
-      email: "client@example.com",
-      name: "Casey Client",
-      roles: ["client"],
-    });
     const warn = vi.spyOn(console, "warn");
 
-    await signIn("client@example.com");
+    await signIn("casey@example.com");
 
     expect(warn.mock.calls.flat().join(" ")).not.toContain("Invalid UUID");
   });
+});
 
-  test("signing out ends the session", async () => {
-    await createAccount({
-      email: "client@example.com",
-      name: "Casey Client",
-      roles: ["client"],
+describe("connecting an Account to its records (ADR-0006)", () => {
+  test("connects to the Staff member with the same email", async () => {
+    await createStaff({
+      email: "Olive@Example.com",
+      name: "Olive Owner",
+      roles: ["office_staff"],
     });
-    const agent = await signIn("client@example.com");
 
-    await agent.post("/api/auth/sign-out").send({}).expect(200);
-    const me = await agent.get("/api/me");
+    const account = await me(await signIn("olive@example.com"));
 
-    expect(me.status).toBe(401);
+    expect(account).toMatchObject({
+      name: "Olive Owner",
+      roles: ["office_staff"],
+    });
+  });
+
+  test("connects to the Client with the same email", async () => {
+    await createClient({ email: "casey@example.com", name: "Casey Client" });
+
+    const account = await me(await signIn("casey@example.com"));
+
+    expect(account).toMatchObject({ name: "Casey Client", roles: ["client"] });
+  });
+
+  test("a record added after sign-up connects straight away", async () => {
+    const agent = await signIn("casey@example.com");
+
+    await createClient({ email: "casey@example.com", name: "Casey Client" });
+
+    expect((await me(agent)).roles).toEqual(["client"]);
+  });
+
+  test("a connection survives the record's email changing", async () => {
+    const client = await createClient({
+      email: "casey@example.com",
+      name: "Casey Client",
+    });
+    const agent = await signIn("casey@example.com");
+
+    await changeClientEmail(client.id, "casey@work.example.com");
+
+    expect((await me(agent)).roles).toEqual(["client"]);
+    expect((await me(await signIn("casey@example.com"))).roles).toEqual([
+      "client",
+    ]);
+  });
+
+  test("correcting a Client's email to a signed-up Account connects it", async () => {
+    // signed up with a different email from their Quote Request
+    const agent = await signIn("casey.personal@example.com");
+    const client = await createClient({
+      email: "casey@work.example.com",
+      name: "Casey Client",
+    });
+    expect((await me(agent)).roles).toEqual([]);
+
+    await changeClientEmail(client.id, "casey.personal@example.com");
+
+    expect((await me(agent)).roles).toEqual(["client"]);
+  });
+
+  test("one Account can be both a Client and Staff", async () => {
+    await createStaff({
+      email: "cory@example.com",
+      name: "Cory Cleaner",
+      roles: ["cleaner"],
+    });
+    await createClient({ email: "cory@example.com", name: "Cory Cleaner" });
+
+    const account = await me(await signIn("cory@example.com"));
+
+    expect(account.roles).toEqual(["cleaner", "client"]);
+  });
+
+  test("a deactivated Staff member has no Staff access", async () => {
+    const member = await createStaff({
+      email: "cory@example.com",
+      name: "Cory Cleaner",
+      roles: ["cleaner"],
+    });
+    const agent = await signIn("cory@example.com");
+
+    await deactivateStaff(member.id);
+
+    expect((await me(agent)).roles).toEqual([]);
+  });
+
+  test("callers can't give themselves Staff access", async () => {
+    const agent = await signIn("casey@example.com");
+
+    await agent.post("/api/auth/update-user").send({ roles: ["office_staff"] });
+
+    expect((await me(agent)).roles).toEqual([]);
   });
 });
 
 describe("non-browser clients", () => {
   test("can sign in with a bearer token instead of a cookie", async () => {
-    await createAccount({
-      email: "cleaner@example.com",
-      name: "Cory Cleaner",
-      roles: ["cleaner"],
-    });
     await api()
       .post("/api/auth/sign-in/magic-link")
-      .send({ email: "cleaner@example.com", callbackURL: "/" })
+      .send({ email: "cory@example.com", callbackURL: "/" })
       .expect(200);
 
-    const verify = await api().get(signInLinkFor("cleaner@example.com"));
+    const verify = await api().get(signInLinkFor("cory@example.com"));
     const token = verify.headers["set-auth-token"];
-    const me = await api()
+    const res = await api()
       .get("/api/me")
       .set("Authorization", `Bearer ${token}`);
 
-    expect(me.status).toBe(200);
-    expect(me.body.email).toBe("cleaner@example.com");
+    expect(res.status).toBe(200);
+    expect(res.body.email).toBe("cory@example.com");
   });
 
   test("a made-up bearer token is rejected", async () => {
-    const me = await api()
+    const res = await api()
       .get("/api/me")
       .set("Authorization", "Bearer not-a-real-token");
 
-    expect(me.status).toBe(401);
+    expect(res.status).toBe(401);
   });
 });
 
-describe("Google sign-in", () => {
+// signs in through the real Google flow on our side; only Google's servers are
+// stood in for. Returns the agent and the callback's response.
+const signInWithGoogle = async (profile: { sub: string; email: string }) => {
+  const agent = apiAgent();
+  const start = await agent
+    .post("/api/auth/sign-in/social")
+    .send({ provider: "google", callbackURL: "/" })
+    .expect(200);
+  const state = new URL(start.body.url).searchParams.get("state");
+
+  // what Google returns for the authorisation code: tokens, including an ID
+  // token carrying the person's Google profile
+  const now = Math.floor(Date.now() / 1000);
+  const encode = (part: object) =>
+    Buffer.from(JSON.stringify(part)).toString("base64url");
+  const idToken = [
+    encode({ alg: "none", typ: "JWT" }),
+    encode({
+      iss: "https://accounts.google.com",
+      aud: "test-google-client-id",
+      sub: profile.sub,
+      email: profile.email,
+      email_verified: true,
+      name: "Casey from Google",
+      iat: now,
+      exp: now + 3600,
+    }),
+    "",
+  ].join(".");
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    const url = input instanceof Request ? input.url : String(input);
+    if (url.startsWith("https://oauth2.googleapis.com/token")) {
+      return Response.json({
+        access_token: "google-access-token",
+        id_token: idToken,
+        token_type: "Bearer",
+        expires_in: 3600,
+        scope: "openid email profile",
+      });
+    }
+    throw new Error(`unexpected request to ${url}`);
+  });
+
+  const callback = await agent.get(
+    `/api/auth/callback/google?code=google-code&state=${state}`,
+  );
+  vi.mocked(globalThis.fetch).mockRestore();
+  return { agent, callback };
+};
+
+describe("Google", () => {
+  const google = { sub: "107229176673569254139", email: "casey@example.com" };
+
+  test("works as the very first sign-in, and again next time", async () => {
+    await createClient({ email: "casey@example.com", name: "Casey Client" });
+
+    const first = await signInWithGoogle(google);
+    const again = await signInWithGoogle(google);
+
+    for (const { agent, callback } of [first, again]) {
+      expect(callback.status).toBe(302);
+      expect(callback.headers.location).not.toContain("error");
+      expect(await me(agent)).toMatchObject({
+        email: "casey@example.com",
+        roles: ["client"],
+      });
+    }
+  });
+
+  test("signs in to the same Account as the emailed link", async () => {
+    const byLink = await me(await signIn("casey@example.com"));
+
+    const { agent } = await signInWithGoogle(google);
+
+    expect((await me(agent)).id).toBe(byLink.id);
+  });
+
+  test("a new Google address signs up, connected to nothing", async () => {
+    const { agent, callback } = await signInWithGoogle(google);
+
+    expect(callback.headers.location).not.toContain("error");
+    expect((await me(agent)).roles).toEqual([]);
+  });
+
+  test("a sign-in that fails part-way lands on the app's sign-in page", async () => {
+    // e.g. a stale or tampered callback; never Better Auth's own error page
+    const res = await api().get(
+      "/api/auth/callback/google?code=google-code&state=not-a-real-state",
+    );
+
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toMatch(
+      /^http:\/\/localhost:5173\/sign-in\?error=/,
+    );
+  });
+
   test("starts by sending the person to Google", async () => {
     const res = await api()
       .post("/api/auth/sign-in/social")
@@ -170,6 +302,9 @@ describe("authorize()", () => {
     res.json({ hello: signedInAccount(res).name });
   });
   app.get("/staff", authorize("cleaner", "office_staff"), (req, res) => {
+    res.json({ ok: true });
+  });
+  app.get("/anyone", authorize(), (req, res) => {
     res.json({ ok: true });
   });
   app.use(errorHandler);
@@ -191,34 +326,37 @@ describe("authorize()", () => {
     expect(res.body).toEqual({ message: "Unauthorized" });
   });
 
+  test("lets in any signed-in Account when no role is asked for", async () => {
+    const res = await request(app)
+      .get("/anyone")
+      .set("Cookie", await sessionCookieFor("new@example.com"));
+
+    expect(res.status).toBe(200);
+  });
+
   test("rejects Accounts without one of the roles with 403", async () => {
-    await createAccount({
-      email: "client@example.com",
-      name: "Casey Client",
-      roles: ["client"],
-    });
+    await createClient({ email: "casey@example.com", name: "Casey Client" });
 
     const res = await request(app)
       .get("/office-only")
-      .set("Cookie", await sessionCookieFor("client@example.com"));
+      .set("Cookie", await sessionCookieFor("casey@example.com"));
 
     expect(res.status).toBe(403);
     expect(res.body).toEqual({ message: "Forbidden" });
   });
 
   test("lets in Accounts holding any of the roles", async () => {
-    await createAccount({
-      email: "cleaner@example.com",
+    await createStaff({
+      email: "cory@example.com",
       name: "Cory Cleaner",
       roles: ["cleaner"],
     });
+    const cookie = await sessionCookieFor("cory@example.com");
 
-    const staff = await request(app)
-      .get("/staff")
-      .set("Cookie", await sessionCookieFor("cleaner@example.com"));
+    const staff = await request(app).get("/staff").set("Cookie", cookie);
     const officeOnly = await request(app)
       .get("/office-only")
-      .set("Cookie", await sessionCookieFor("cleaner@example.com"));
+      .set("Cookie", cookie);
 
     expect(staff.status).toBe(200);
     expect(officeOnly.status).toBe(403);
@@ -233,14 +371,14 @@ describe("authorize()", () => {
 });
 
 describe("owner setup", () => {
-  test("creates the first Office Staff Account, who can then sign in", async () => {
+  test("creates the first Office Staff member, who signs up to get in", async () => {
     await createOwner({ email: "Owner@Example.com", name: "Olive Owner" });
 
-    const agent = await signIn("owner@example.com");
-    const me = await agent.get("/api/me");
+    const account = await me(await signIn("owner@example.com"));
 
-    expect(me.body).toMatchObject({
+    expect(account).toMatchObject({
       email: "owner@example.com",
+      name: "Olive Owner",
       roles: ["office_staff"],
     });
   });
@@ -252,30 +390,19 @@ describe("owner setup", () => {
 
     await expect(
       createOwner({ email: "second@example.com", name: "Sam Second" }),
-    ).rejects.toThrow("an Office Staff Account already exists");
+    ).rejects.toThrow("an Office Staff member already exists");
   });
 
-  test("there can be any number of Office Staff Accounts", async () => {
+  test("there can be any number of Office Staff", async () => {
     await createOwner({ email: "owner@example.com", name: "Olive Owner" });
-    await createAccount({
+    await createStaff({
       email: "second@example.com",
       name: "Sam Second",
       roles: ["office_staff"],
     });
 
-    const agent = await signIn("second@example.com");
-    const me = await agent.get("/api/me");
-
-    expect(me.body.roles).toEqual(["office_staff"]);
+    expect((await me(await signIn("second@example.com"))).roles).toEqual([
+      "office_staff",
+    ]);
   });
-});
-
-test("a Client Account cannot also hold Staff roles", async () => {
-  await expect(
-    createAccount({
-      email: "mixed@example.com",
-      name: "Mixed",
-      roles: ["client", "cleaner"],
-    }),
-  ).rejects.toThrow("a Client Account cannot also hold Staff roles");
 });

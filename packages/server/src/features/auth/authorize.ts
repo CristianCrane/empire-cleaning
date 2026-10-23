@@ -3,11 +3,13 @@ import { fromNodeHeaders } from "better-auth/node";
 import type { AccountRole, SignedInAccount } from "@empire-cleaning/models";
 import { ForbiddenError, UnauthorizedError } from "../../middleware/errors.ts";
 import { auth } from "./auth.ts";
+import { accessFor } from "./connections.ts";
 
 /**
- * Declares who may call an endpoint. With no roles, any signed-in Account may;
- * with roles, the Account must hold at least one of them. Endpoints open to
- * Guests simply don't use this.
+ * Declares who may call an endpoint. With no roles, any signed-in Account may
+ * (even one connected to nothing); with roles, the Account must hold at least
+ * one of them through its connections (ADR-0006). Endpoints open to Guests
+ * simply don't use this.
  *
  *   router.get("/", authorize("office_staff"), handler)
  */
@@ -21,13 +23,14 @@ export const authorize =
       throw new UnauthorizedError();
     }
 
+    const { roles: held, name } = await accessFor(session.user);
     const account: SignedInAccount = {
       id: session.user.id,
       email: session.user.email,
-      name: session.user.name,
-      roles: (session.user.roles ?? []) as AccountRole[],
+      name,
+      roles: held,
     };
-    if (roles.length > 0 && !account.roles.some((r) => roles.includes(r))) {
+    if (roles.length > 0 && !held.some((r) => roles.includes(r))) {
       throw new ForbiddenError();
     }
 

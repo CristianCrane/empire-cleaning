@@ -1,8 +1,12 @@
 // Shared domain types live here; see GLOSSARY.md for the vocabulary.
 
-// what an Account may do: a Client Account is only ever "client";
-// a Staff Account holds "cleaner", "office_staff" or both
-export type AccountRole = "client" | "cleaner" | "office_staff";
+// the roles a Staff member can hold; one person may hold both
+export type StaffRole = "cleaner" | "office_staff";
+
+// what a signed-in Account may do, from what it's connected to (ADR-0006):
+// "client" when connected to a Client, plus the roles of an active Staff
+// member. An Account connected to nothing has none.
+export type AccountRole = "client" | StaffRole;
 
 // the signed-in caller, as GET /api/me returns it
 export type SignedInAccount = {

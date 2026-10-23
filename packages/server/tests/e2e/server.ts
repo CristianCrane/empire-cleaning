@@ -1,10 +1,11 @@
 // runs the real API for the web app's end-to-end tests (packages/web/e2e),
 // exactly as in production except that email, payments and the clock are the
 // same fakes the server tests use. A second, local-only control server lets
-// the tests reset state, create Accounts and read the emails that were "sent".
+// the tests reset state, add Staff and Clients, and read the emails that were
+// "sent". Accounts aren't created here: tests sign up, as people do (ADR-0006).
 // Started by Playwright with its environment set (packages/web/playwright.config.ts).
 import express from "express";
-import type { AccountRole } from "@empire-cleaning/models";
+import type { StaffRole } from "@empire-cleaning/models";
 import { setup as recreateTestDatabase } from "../setup/globalSetup.ts";
 
 const CONTROL_PORT = Number(process.env.E2E_CONTROL_PORT ?? 3101);
@@ -14,7 +15,8 @@ await recreateTestDatabase();
 // imported only now: the app reads its environment and database on import
 const { app } = await import("../../src/server.ts");
 const { default: env } = await import("../../src/env.ts");
-const { createAccount } = await import("../../src/features/auth/index.ts");
+const { createStaff } = await import("../../src/features/staff/index.ts");
+const { createClient } = await import("../../src/features/clients/index.ts");
 const { installFakes, resetDatabase, testEmail } =
   await import("../harness.ts");
 
@@ -35,13 +37,18 @@ control.post("/reset", async (_req, res) => {
   res.json({ status: "ok" });
 });
 
-control.post("/accounts", async (req, res) => {
+control.post("/staff", async (req, res) => {
   const { email, name, roles } = req.body as {
     email: string;
     name: string;
-    roles: AccountRole[];
+    roles: StaffRole[];
   };
-  res.json(await createAccount({ email, name, roles }));
+  res.json(await createStaff({ email, name, roles }));
+});
+
+control.post("/clients", async (req, res) => {
+  const { email, name } = req.body as { email: string; name: string };
+  res.json(await createClient({ email, name }));
 });
 
 control.get("/emails", (req, res) => {

@@ -6,12 +6,12 @@ import {
   timestamp,
   index,
 } from "drizzle-orm/pg-core";
-import type { AccountRole } from "@empire-cleaning/models";
 import { timestamps } from "../../db/index.ts";
 
 // Better Auth's tables, named after our glossary: Better Auth's "user" is our
 // Account, and its "account" (a linked sign-in method, e.g. Google) is an
-// account identity.
+// account identity. An Account holds no roles: what it may do comes from the
+// Client and Staff records it's connected to (ADR-0006).
 
 export const accounts = pgTable("accounts", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -19,7 +19,6 @@ export const accounts = pgTable("accounts", {
   email: text("email").notNull().unique(),
   emailVerified: boolean("email_verified").default(false).notNull(),
   image: text("image"),
-  roles: text("roles").$type<AccountRole>().array().default([]).notNull(),
   ...timestamps,
 });
 
@@ -43,7 +42,10 @@ export const accountIdentities = pgTable(
   "account_identities",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    accountId: uuid("account_id")
+    // the Account this identity signs in to. Not called accountId: that's
+    // Better Auth's own name for the provider's id below, and sharing it makes
+    // Better Auth look the owner up by the Google id
+    ownerId: uuid("account_id")
       .notNull()
       .references(() => accounts.id, { onDelete: "cascade" }),
     // the identity's id at the provider, e.g. the Google user id
@@ -59,7 +61,7 @@ export const accountIdentities = pgTable(
     password: text("password"),
     ...timestamps,
   },
-  (t) => [index("account_identities_account_id_idx").on(t.accountId)],
+  (t) => [index("account_identities_account_id_idx").on(t.ownerId)],
 );
 
 // one-time sign-in link tokens, and the locks Better Auth takes around them;
