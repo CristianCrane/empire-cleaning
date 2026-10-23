@@ -5,6 +5,10 @@ const envSchema = z.object({
   CORS_ORIGIN_URL: z.url().default("localhost"),
   PORT: z.coerce.number().positive().default(3000),
   DB_URL: z.url().nonempty(),
+  RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM: z
+    .string()
+    .default("Empire Cleaning <no-reply@empirecleaningandpro.com>"),
 });
 
 const result = envSchema.safeParse(process.env);

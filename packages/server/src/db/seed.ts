@@ -1,21 +1,7 @@
-import { db } from "./index.ts";
-import { quotes } from "../features/quotes/quotes.schema.ts";
-
 async function seed() {
   console.log("starting database seed...");
 
-  try {
-    console.log("deleting existing data...");
-    await db.delete(quotes);
-
-    console.log("creating quotes...");
-    await db.insert(quotes).values({
-      clientFirstName: "Seed client 1",
-    });
-  } catch (e) {
-    console.error("database seed failed", e);
-    process.exit(1);
-  }
+  // no domain tables yet; feature tickets add their seed data here
 }
 
 const isRunningFromTerminal = import.meta.url === `file://${process.argv[1]}`;
