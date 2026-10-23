@@ -5,11 +5,10 @@
   "scripts": {
     "dev": "pnpm --color --recursive --parallel run dev",
     "build": "pnpm --color --recursive run build",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "test": "pnpm --color --recursive run test",
     "check": "pnpm --color --recursive run check",
     "check:packages": "manypkg check",
-    "lint": "prettier --write packages/*/{src,tests}/**/*.ts",
+    "lint": "prettier --write \"packages/*/{src,tests,.storybook}/**/*.{ts,tsx}\"",
     "db:up": "docker-compose up -d",
     "db:down": "docker-compose down",
     "db:reset": "docker compose down -v && docker compose up -d",

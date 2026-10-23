@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#06682f" />
+    <title>Empire Cleaning</title>
+    <script>
+      // apply a pinned theme before first paint, so it never flashes the other one
+      // (keep in step with STORAGE_KEY in src/design-system/theme.tsx)
+      try {
+        const theme = localStorage.getItem("ec-theme");
+        if (theme === "light" || theme === "dark") {
+          document.documentElement.setAttribute("data-theme", theme);
+        }
+      } catch {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

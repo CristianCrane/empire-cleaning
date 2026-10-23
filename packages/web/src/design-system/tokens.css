@@ -1,0 +1,132 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@plugin "tailwindcss-react-aria-components";
+@import "@fontsource/barlow/400.css";
+@import "@fontsource/barlow/500.css";
+@import "@fontsource/barlow/600.css";
+@import "@fontsource/barlow-condensed/600.css";
+@import "@fontsource/barlow-condensed/700.css";
+
+/*
+ * The design tokens: the only place colours, type, radii and sizes are defined.
+ * Components use the semantic utilities below (bg-surface, text-fg-muted,
+ * bg-primary...), never raw palette values, so both themes come for free.
+ *
+ * Each colour is written once as light-dark(<light>, <dark>). The theme follows
+ * the device unless data-theme on <html> pins it (see theme.tsx).
+ */
+
+:root {
+  color-scheme: light dark;
+
+  /* surfaces */
+  --ec-bg: light-dark(#f0f0f0, #101923);
+  --ec-surface: light-dark(#ffffff, #18212b);
+  --ec-surface-sunken: light-dark(#f6f7f7, #1f2933);
+  --ec-overlay: light-dark(#ffffff, #222c37);
+  --ec-backdrop: light-dark(rgb(16 25 35 / 0.5), rgb(0 0 0 / 0.6));
+
+  /* text */
+  --ec-fg: light-dark(#101923, #f0f0f0);
+  --ec-fg-muted: light-dark(#55585c, #a3a7ac);
+
+  /* lines: border is decorative, border-strong outlines controls (3:1) */
+  --ec-border: light-dark(#d9dbdd, #2e3843);
+  --ec-border-strong: light-dark(#7c8085, #7c8590);
+
+  /* brand green, from the Empire Cleaning logo */
+  --ec-primary: light-dark(#06682f, #4cb572);
+  --ec-primary-hover: light-dark(#055728, #6fc28a);
+  --ec-primary-fg: light-dark(#ffffff, #101923);
+  --ec-focus: light-dark(#1a8443, #6fc28a);
+
+  --ec-danger: light-dark(#b42318, #f97066);
+  --ec-danger-hover: light-dark(#912018, #fda29b);
+  --ec-danger-fg: light-dark(#ffffff, #101923);
+
+  /* tones for status badges and messages: subtle background, strong text */
+  --ec-success-subtle: light-dark(#ecf7ef, #0e2c1b);
+  --ec-success-strong: light-dark(#055728, #8bd3a3);
+  --ec-warning-subtle: light-dark(#fff7e0, #3a2a08);
+  --ec-warning-strong: light-dark(#8a4b00, #fcd34d);
+  --ec-danger-subtle: light-dark(#fef3f2, #3a1512);
+  --ec-danger-strong: light-dark(#912018, #fda29b);
+  --ec-info-subtle: light-dark(#eaf2fd, #0f2540);
+  --ec-info-strong: light-dark(#1e4e9c, #93c0f8);
+  --ec-neutral-subtle: light-dark(#ecedee, #26303b);
+  --ec-neutral-strong: light-dark(#434345, #c8cacc);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+@theme inline {
+  /* replace Tailwind's palette: only these colours exist */
+  --color-*: initial;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+  --color-bg: var(--ec-bg);
+  --color-surface: var(--ec-surface);
+  --color-surface-sunken: var(--ec-surface-sunken);
+  --color-overlay: var(--ec-overlay);
+  --color-backdrop: var(--ec-backdrop);
+  --color-fg: var(--ec-fg);
+  --color-fg-muted: var(--ec-fg-muted);
+  --color-border: var(--ec-border);
+  --color-border-strong: var(--ec-border-strong);
+  --color-primary: var(--ec-primary);
+  --color-primary-hover: var(--ec-primary-hover);
+  --color-primary-fg: var(--ec-primary-fg);
+  --color-focus: var(--ec-focus);
+  --color-danger: var(--ec-danger);
+  --color-danger-hover: var(--ec-danger-hover);
+  --color-danger-fg: var(--ec-danger-fg);
+  --color-success-subtle: var(--ec-success-subtle);
+  --color-success-strong: var(--ec-success-strong);
+  --color-warning-subtle: var(--ec-warning-subtle);
+  --color-warning-strong: var(--ec-warning-strong);
+  --color-danger-subtle: var(--ec-danger-subtle);
+  --color-danger-strong: var(--ec-danger-strong);
+  --color-info-subtle: var(--ec-info-subtle);
+  --color-info-strong: var(--ec-info-strong);
+  --color-neutral-subtle: var(--ec-neutral-subtle);
+  --color-neutral-strong: var(--ec-neutral-strong);
+}
+
+@theme {
+  /* Barlow for reading; Barlow Condensed, set in capitals, for headings like the brand */
+  --font-sans: "Barlow", system-ui, sans-serif;
+  --font-display: "Barlow Condensed", "Barlow", system-ui, sans-serif;
+
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+
+  /* the smallest comfortable tap target, for Cleaners using the app on site */
+  --spacing-touch: 2.75rem;
+
+  --shadow-raised:
+    0 1px 2px rgb(16 25 35 / 0.08), 0 4px 12px rgb(16 25 35 / 0.08);
+  --shadow-overlay: 0 8px 32px rgb(16 25 35 / 0.24);
+}
+
+@layer base {
+  html {
+    @apply bg-bg font-sans text-fg antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}

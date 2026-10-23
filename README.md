@@ -12,7 +12,19 @@ pnpm run db:up
 pnpm run dev
 ```
 
-3. clean up when finished:
+3. browse the design system catalogue (Storybook, http://localhost:6006):
+
+```shell
+pnpm --filter @empire-cleaning/web storybook
+```
+
+4. run every package's tests (the web tests need a browser; see packages/web/README.md):
+
+```shell
+pnpm test
+```
+
+5. clean up when finished:
 
 ```shell
 pnpm run db:down
