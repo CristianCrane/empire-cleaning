@@ -12,6 +12,10 @@ _Avoid_: Customer, user, lead
 A physical location where cleaning happens, belonging to exactly one Client.
 _Avoid_: Address, site, location
 
+**Access Instructions**:
+How Staff get into and around a Property, such as gate codes, key location and pets; maintained by the Client and shown to Staff assigned to its Jobs.
+_Avoid_: Entry notes, access notes, directions
+
 **Staff**:
 A person working for Empire Cleaning, holding the Cleaner role, the Office Staff role, or both.
 _Avoid_: Employee, admin, user
@@ -23,6 +27,10 @@ _Avoid_: Technician, worker, crew member
 **Office Staff**:
 A Staff role: prices Quotes, manages the Schedule and Assignments, and chases Unpaid Jobs. One person may hold both this and the Cleaner role.
 _Avoid_: Admin, manager, dispatcher
+
+**Account**:
+A sign-in identity belonging to exactly one Client or one Staff member. A Client's Account is created with their first Quote Request; Staff Accounts exist only by invitation.
+_Avoid_: User, login, profile
 
 **Guest**:
 An unidentified visitor who has not signed in, typically submitting a Quote Request.
@@ -108,8 +116,12 @@ _Avoid_: Done, finished, closed
 The outcome of a Job where Staff could not get into the Property; it is not Completed and is charged like a Late Cancellation.
 _Avoid_: Lockout, missed job, no-show
 
+**Reschedule Request**:
+A Client's proposal to move a booked Job to a new available time, which is held for them while pending. The Job keeps its original time until Office Staff confirm the move, after which its Assignments are Offered afresh; Office Staff may instead turn it down, and the Client may withdraw it.
+_Avoid_: Reschedule, rebooking, change request
+
 **Late Cancellation**:
-A Client cancelling or rescheduling a Job less than 24 hours before it starts; the fee is the Job's Deposit amount.
+A Client cancelling, or making a Reschedule Request for, a Job less than 24 hours before it starts; the fee is the Job's Deposit amount.
 _Avoid_: No-show, short-notice cancellation
 
 **On Hold**:
@@ -125,8 +137,8 @@ The calendar of all booked Jobs.
 _Avoid_: Calendar, roster, bookings
 
 **Assignment**:
-The allocation of specific Staff to carry out a Job, made separately from, and possibly after, booking it. A Job with no Assignment is _Unassigned_ and cannot be Completed.
-_Avoid_: Dispatch, crew allocation
+The allocation of a specific Staff member to carry out a Job, made separately from, and possibly after, booking it. An Assignment is _Offered_ until the Staff member _Confirms_ it or _Releases_ it; Releasing frees that place on the Job. A Job is _Unassigned_ until all its places are Confirmed, and cannot be Completed while Unassigned.
+_Avoid_: Dispatch, crew allocation, accept, decline
 
 ## Payment
 
