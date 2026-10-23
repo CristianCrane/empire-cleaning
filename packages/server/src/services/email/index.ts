@@ -33,18 +33,10 @@ export class ResendEmailSender implements EmailSender {
   }
 }
 
-// without a Resend key (local development) emails are printed instead of sent
-export class ConsoleEmailSender implements EmailSender {
-  async send(message: EmailMessage) {
-    console.log(
-      `[email] to=${message.to} subject="${message.subject}"\n${message.text}`,
-    );
-  }
-}
-
-let current: EmailSender = env.RESEND_API_KEY
-  ? new ResendEmailSender(env.RESEND_API_KEY, env.EMAIL_FROM)
-  : new ConsoleEmailSender();
+let current: EmailSender = new ResendEmailSender(
+  env.RESEND_API_KEY,
+  env.EMAIL_FROM,
+);
 
 export const email: EmailSender = {
   send: (message) => current.send(message),

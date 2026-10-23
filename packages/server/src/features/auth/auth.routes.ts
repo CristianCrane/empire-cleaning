@@ -1,11 +1,10 @@
 import { Router } from "express";
+import { authorize, signedInAccount } from "./authorize.ts";
 
 export const router = Router();
 
-router.post("/signup", (req, res) => {
-  res.status(201).json({ message: "user signed up" });
-});
-
-router.post("/login", (req, res) => {
-  res.status(201).json({ message: "user signed in" });
+// the signed-in Account; the web app uses this to pick the area to show
+router.get("/", authorize(), (req, res) => {
+  const { id, email, name, roles } = signedInAccount(res);
+  res.json({ id, email, name, roles });
 });

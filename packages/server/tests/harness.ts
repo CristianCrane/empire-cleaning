@@ -55,3 +55,24 @@ export const resetDatabase = async () => {
 // Use apiAgent() when a test needs cookies (e.g. a signed-in session) to persist.
 export const api = () => request(app);
 export const apiAgent = () => request.agent(app);
+
+// the path and query of the sign-in link in the latest email to `address`
+export const signInLinkFor = (address: string) => {
+  const { text } = testEmail().lastTo(address);
+  const match = text.match(/https?:\/\/\S+/);
+  if (!match) throw new Error(`no sign-in link in the email to ${address}`);
+  const url = new URL(match[0]);
+  return `${url.pathname}${url.search}`;
+};
+
+// signs in the way a person does (request a link, follow it) and returns an
+// agent that carries the session cookie on every later request
+export const signIn = async (address: string) => {
+  const agent = apiAgent();
+  await agent
+    .post("/api/auth/sign-in/magic-link")
+    .send({ email: address, callbackURL: "/" })
+    .expect(200);
+  await agent.get(signInLinkFor(address)).expect(302);
+  return agent;
+};

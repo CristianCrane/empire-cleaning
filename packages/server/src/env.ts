@@ -1,26 +1,22 @@
 import { z } from "zod";
 
-const envSchema = z
-  .object({
-    APP_MODE: z.enum(["dev", "prod"]).default("dev"),
-    CORS_ORIGIN_URL: z.url().default("localhost"),
-    PORT: z.coerce.number().positive().default(3000),
-    DB_URL: z.url().nonempty(),
-    // optional in dev only: without it, emails are printed to the console
-    RESEND_API_KEY: z.string().nonempty().optional(),
-    EMAIL_FROM: z
-      .string()
-      .default("Empire Cleaning <no-reply@empirecleaningandpro.com>"),
-  })
-  .superRefine((env, ctx) => {
-    if (env.APP_MODE === "prod" && !env.RESEND_API_KEY) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["RESEND_API_KEY"],
-        message: "required when APP_MODE=prod",
-      });
-    }
-  });
+// the same variables are required in every mode; see .env.example
+const envSchema = z.object({
+  APP_MODE: z.enum(["dev", "prod"]).default("dev"),
+  CORS_ORIGIN_URL: z.url().default("localhost"),
+  PORT: z.coerce.number().positive().default(3000),
+  DB_URL: z.url().nonempty(),
+  RESEND_API_KEY: z.string().nonempty(),
+  EMAIL_FROM: z
+    .string()
+    .default("Empire Cleaning <no-reply@empirecleaningandpro.com>"),
+  // public URL of this API; sign-in links point here
+  BETTER_AUTH_URL: z.url().default("http://localhost:3000"),
+  // signs session cookies and tokens
+  BETTER_AUTH_SECRET: z.string().min(32),
+  GOOGLE_CLIENT_ID: z.string().nonempty(),
+  GOOGLE_CLIENT_SECRET: z.string().nonempty(),
+});
 
 const result = envSchema.safeParse(process.env);
 
