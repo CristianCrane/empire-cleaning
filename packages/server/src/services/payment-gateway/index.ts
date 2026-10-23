@@ -1,7 +1,9 @@
 // amounts are integer minor units (cents)
 export type SavePaymentMethodInput = {
   clientId: string;
-  // opaque token produced by the provider's client-side card form
+  // the Client types their card into the payment provider's own form in the
+  // browser; the provider returns this reference to it, so card numbers never
+  // reach our server. We only pass it back to the provider.
   token: string;
 };
 

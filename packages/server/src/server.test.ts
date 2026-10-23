@@ -7,7 +7,7 @@ import { email } from "#services/email";
 import { api, testClock, testEmail, testPayments } from "../tests/harness.ts";
 
 test("health check responds over HTTP", async () => {
-  const res = await api.get("/health");
+  const res = await api().get("/health");
 
   expect(res.status).toBe(200);
   expect(res.body).toEqual({ status: "ok" });

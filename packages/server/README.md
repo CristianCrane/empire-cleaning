@@ -7,7 +7,7 @@
 
 Tests exercise external behaviour through the seams in `tests/harness.ts`:
 
-- `api` drives the real Express app over HTTP
+- `api()` drives the real Express app over HTTP via supertest (`apiAgent()` keeps cookies between requests)
 - `testClock()` controls the time read through `#services/clock`
 - `testPayments()` is a fake Payment Gateway that records Charges and refunds and can be told to decline (`failCharges()`)
 - `testEmail()` captures every email sent through `#services/email`

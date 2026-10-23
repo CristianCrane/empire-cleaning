@@ -1,4 +1,4 @@
-import type { AddressInfo } from "node:net";
+import request from "supertest";
 import { sql } from "drizzle-orm";
 import { app } from "../src/server.ts";
 import { db } from "#db";
@@ -51,57 +51,7 @@ export const resetDatabase = async () => {
   );
 };
 
-type ApiResponse<T> = {
-  status: number;
-  headers: Headers;
-  body: T;
-};
-
-type RequestOptions = {
-  body?: unknown;
-  headers?: Record<string, string>;
-};
-
-const baseUrl = await new Promise<string>((resolve) => {
-  const server = app.listen(0, () => {
-    const { port } = server.address() as AddressInfo;
-    resolve(`http://127.0.0.1:${port}`);
-  });
-  server.unref();
-});
-
-const request = async <T = any>(
-  method: string,
-  path: string,
-  { body, headers = {} }: RequestOptions = {},
-): Promise<ApiResponse<T>> => {
-  const res = await fetch(`${baseUrl}${path}`, {
-    method,
-    headers: {
-      ...(body === undefined ? {} : { "content-type": "application/json" }),
-      ...headers,
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-
-  const text = await res.text();
-  return {
-    status: res.status,
-    headers: res.headers,
-    body: text ? JSON.parse(text) : undefined,
-  };
-};
-
-// drives the real Express app over HTTP
-export const api = {
-  get: <T = any>(path: string, opts?: RequestOptions) =>
-    request<T>("GET", path, opts),
-  post: <T = any>(path: string, opts?: RequestOptions) =>
-    request<T>("POST", path, opts),
-  put: <T = any>(path: string, opts?: RequestOptions) =>
-    request<T>("PUT", path, opts),
-  patch: <T = any>(path: string, opts?: RequestOptions) =>
-    request<T>("PATCH", path, opts),
-  delete: <T = any>(path: string, opts?: RequestOptions) =>
-    request<T>("DELETE", path, opts),
-};
+// drives the real Express app over HTTP: api().get("/health").
+// Use apiAgent() when a test needs cookies (e.g. a signed-in session) to persist.
+export const api = () => request(app);
+export const apiAgent = () => request.agent(app);
