@@ -4,7 +4,7 @@ import {
   ToastRegion,
   applyThemePreference,
   readThemePreference,
-} from "#design-system";
+} from "@empire-cleaning/ui";
 import { App } from "./App.tsx";
 
 applyThemePreference(readThemePreference());

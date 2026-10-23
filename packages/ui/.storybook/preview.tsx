@@ -1,9 +1,6 @@
 import type { Preview } from "@storybook/react-vite";
-import {
-  applyThemePreference,
-  type ThemePreference,
-} from "../src/design-system/theme.tsx";
-import "../src/design-system/tokens.css";
+import { applyThemePreference, type ThemePreference } from "../src/theme.tsx";
+import "../src/tokens.css";
 
 declare global {
   var __EC_TEST_THEME__: ThemePreference | undefined;

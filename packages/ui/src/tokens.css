@@ -1,4 +1,6 @@
 @import "tailwindcss";
+/* the apps using this package don't scan node_modules, so name our own sources */
+@source "./";
 @import "tw-animate-css";
 @plugin "tailwindcss-react-aria-components";
 @import "@fontsource/barlow/400.css";

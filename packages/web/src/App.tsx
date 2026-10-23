@@ -1,5 +1,5 @@
 import type { AccountRole } from "@empire-cleaning/models";
-import { Card, Heading, Wordmark } from "#design-system";
+import { Card, Heading, Wordmark } from "@empire-cleaning/ui";
 
 // each role has its own area of the app; sign-in and the areas themselves
 // arrive with #19

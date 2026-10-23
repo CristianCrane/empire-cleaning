@@ -1,0 +1,33 @@
+---
+import { Wordmark, buttonStyles } from "@empire-cleaning/ui";
+// its own entry point, so the island ships just the toggle, not the whole design system
+import { ThemeToggle } from "@empire-cleaning/ui/theme";
+import { Phone } from "lucide-react";
+import { business } from "../business.ts";
+---
+
+<header class="border-b border-border bg-surface">
+  <div class="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
+    <a href="/" class="rounded-md no-underline outline-offset-4 outline-focus focus-visible:outline-2">
+      <Wordmark />
+      <span class="sr-only">home</span>
+    </a>
+    <div class="flex items-center gap-2">
+      <a
+        href={business.phone.href}
+        class={buttonStyles({ variant: "quiet", className: "hidden sm:inline-flex" })}
+      >
+        <Phone aria-hidden size={18} />
+        {business.phone.display}
+      </a>
+      <a
+        href="#quote"
+        class={buttonStyles({ variant: "primary", className: "hidden sm:inline-flex" })}
+      >
+        Request a Quote
+      </a>
+      {/* the page's only JavaScript; it hydrates once the browser is idle */}
+      <ThemeToggle client:idle />
+    </div>
+  </div>
+</header>
