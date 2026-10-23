@@ -66,16 +66,13 @@ export const auth = betterAuth({
     // Google signs in to the existing Account with the same email
     accountLinking: { enabled: true, trustedProviders: ["google"] },
   },
-  socialProviders:
-    env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
-      ? {
-          google: {
-            clientId: env.GOOGLE_CLIENT_ID,
-            clientSecret: env.GOOGLE_CLIENT_SECRET,
-            disableSignUp: true,
-          },
-        }
-      : {},
+  socialProviders: {
+    google: {
+      clientId: env.GOOGLE_CLIENT_ID,
+      clientSecret: env.GOOGLE_CLIENT_SECRET,
+      disableSignUp: true,
+    },
+  },
   plugins: [
     // Accounts are only created by our own flows, never by signing in
     magicLink({

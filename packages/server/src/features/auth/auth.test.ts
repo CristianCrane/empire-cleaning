@@ -79,9 +79,14 @@ describe("signing in with a one-time link", () => {
     });
     const agent = await signIn("client@example.com");
 
-    await agent.post("/api/auth/update-user").send({ roles: ["office_staff"] });
+    const res = await agent
+      .post("/api/auth/update-user")
+      .send({ roles: ["office_staff"] });
     const me = await agent.get("/api/me");
 
+    // 400, not 403: Clients may update their own Account, just not this field
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("roles is not allowed to be set");
     expect(me.body.roles).toEqual(["client"]);
   });
 
@@ -118,9 +123,16 @@ describe("non-browser clients", () => {
       .get("/api/me")
       .set("Authorization", `Bearer ${token}`);
 
-    expect(token).toEqual(expect.any(String));
     expect(me.status).toBe(200);
     expect(me.body.email).toBe("cleaner@example.com");
+  });
+
+  test("a made-up bearer token is rejected", async () => {
+    const me = await api()
+      .get("/api/me")
+      .set("Authorization", "Bearer not-a-real-token");
+
+    expect(me.status).toBe(401);
   });
 });
 
@@ -217,12 +229,28 @@ describe("owner setup", () => {
     });
   });
 
-  test("refuses once an Office Staff Account exists", async () => {
+  // the script only bootstraps a fresh install; the owner invites further
+  // Office Staff from the app (#7)
+  test("the setup script refuses to run a second time", async () => {
     await createOwner({ email: "owner@example.com", name: "Olive Owner" });
 
     await expect(
       createOwner({ email: "second@example.com", name: "Sam Second" }),
     ).rejects.toThrow("an Office Staff Account already exists");
+  });
+
+  test("there can be any number of Office Staff Accounts", async () => {
+    await createOwner({ email: "owner@example.com", name: "Olive Owner" });
+    await createAccount({
+      email: "second@example.com",
+      name: "Sam Second",
+      roles: ["office_staff"],
+    });
+
+    const agent = await signIn("second@example.com");
+    const me = await agent.get("/api/me");
+
+    expect(me.body.roles).toEqual(["office_staff"]);
   });
 });
 

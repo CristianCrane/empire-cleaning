@@ -1,6 +1,5 @@
 # Express server starter
 
-
 ## Testing
 
 `pnpm test` runs the suite against a dedicated `empire_test` database (override with `TEST_DB_URL`), which is dropped, recreated and migrated from `drizzle/` on every run. Postgres must be up (`pnpm db:up`).
@@ -26,6 +25,6 @@ Create the first Office Staff Account (after `pnpm db:migrate`):
 pnpm auth:create-owner owner@example.com "Owner Name"
 ```
 
-In prod the server refuses to start without `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `RESEND_API_KEY`. `BETTER_AUTH_URL` is this API's public URL (sign-in links point at it).
+The server refuses to start, in dev and prod alike, without `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `RESEND_API_KEY`: copy `.env.example` to `.env` and fill them in. `BETTER_AUTH_URL` is this API's public URL (sign-in links point at it). Tests supply fake values and fake the services behind them.
 
 In tests, `signIn(email)` from `tests/harness.ts` returns a signed-in agent.
