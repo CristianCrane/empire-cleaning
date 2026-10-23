@@ -5,3 +5,6 @@ storybook-static
 *.log
 __screenshots__
 .vitest-attachments
+.astro
+test-results
+playwright-report

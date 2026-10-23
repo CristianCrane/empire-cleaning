@@ -1,11 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ToggleButton, ToggleButtonGroup } from "react-aria-components";
 import { Monitor, Moon, Sun } from "lucide-react";
+import { THEME_STORAGE_KEY as STORAGE_KEY } from "./theme-boot.ts";
 import { focusRing } from "./utils.ts";
 
 export type ThemePreference = "system" | "light" | "dark";
-
-const STORAGE_KEY = "ec-theme";
 
 // remembered per device; storage can be unavailable (private browsing), in
 // which case the app just follows the device
@@ -44,7 +43,10 @@ const options = [
 ] as const;
 
 export function ThemeToggle() {
-  const [preference, setPreference] = useState(readThemePreference);
+  // read after mounting, not during render: a page prerendered at build time
+  // (the landing site) can't know this device's choice
+  const [preference, setPreference] = useState<ThemePreference>("system");
+  useEffect(() => setPreference(readThemePreference()), []);
 
   return (
     <ToggleButtonGroup

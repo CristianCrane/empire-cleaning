@@ -1,0 +1,20 @@
+---
+import { BadgePercent } from "lucide-react";
+import Section from "./Section.astro";
+---
+
+<Section id="service-plans" title="Save 10% with a Service Plan" tone="raised">
+  <div class="flex flex-col gap-6 rounded-lg bg-primary p-6 text-primary-fg sm:flex-row sm:items-center sm:p-8">
+    <BadgePercent aria-hidden size={56} className="shrink-0" />
+    <div class="flex flex-col gap-2">
+      <p class="text-xl font-semibold">
+        Keep it clean, for less.
+      </p>
+      <p class="text-lg">
+        After your first clean, choose weekly, bi-weekly or monthly visits and
+        every one is 10% off. Skip a visit or end your plan whenever you need
+        to.
+      </p>
+    </div>
+  </div>
+</Section>

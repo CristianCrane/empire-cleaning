@@ -1,0 +1,46 @@
+---
+import "@empire-cleaning/ui/tokens.css";
+import { themeBootScript } from "@empire-cleaning/ui/theme-boot";
+import { business } from "../business.ts";
+
+// structured data so search engines can show the business (name, phone, area)
+const localBusiness = {
+  "@context": "https://schema.org",
+  "@type": "LocalBusiness",
+  name: business.name,
+  url: business.url,
+  telephone: business.phone.e164,
+  description: business.description,
+  areaServed: { "@type": "AdministrativeArea", name: "Queens, New York" },
+};
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script is:inline set:html={themeBootScript} />
+    <title>{business.title}</title>
+    <meta name="description" content={business.description} />
+    <link rel="canonical" href={business.url} />
+    <meta name="theme-color" content="#06682f" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={business.name} />
+    <meta property="og:title" content={business.title} />
+    <meta property="og:description" content={business.description} />
+    <meta property="og:url" content={business.url} />
+    <meta property="og:locale" content="en_US" />
+    <meta name="twitter:card" content="summary" />
+
+    <script
+      is:inline
+      type="application/ld+json"
+      set:html={JSON.stringify(localBusiness)}
+    />
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>

@@ -1,0 +1,45 @@
+---
+import {
+  Building2,
+  HardHat,
+  House,
+  Repeat,
+  SlidersHorizontal,
+  Sparkles,
+  SprayCan,
+  Truck,
+} from "lucide-react";
+import Section from "./Section.astro";
+
+const services = [
+  { icon: House, name: "Residential deep cleaning", text: "A top-to-bottom clean of your home, inside cabinets, behind appliances and everywhere in between." },
+  { icon: Sparkles, name: "Standard cleaning", text: "The regular upkeep that keeps a clean home feeling that way." },
+  { icon: Repeat, name: "Recurring service", text: "Weekly, bi-weekly or monthly visits on a schedule that suits you." },
+  { icon: Truck, name: "Move-in and move-out", text: "An empty home made spotless, ready for keys to change hands." },
+  { icon: HardHat, name: "Post-construction", text: "Dust, debris and residue cleared after renovation or building work." },
+  { icon: Building2, name: "Office cleaning", text: "Workspaces, kitchens and restrooms kept clean for your team and visitors." },
+  { icon: SprayCan, name: "Disinfecting", text: "Thorough disinfection of high-touch surfaces and shared spaces." },
+  { icon: SlidersHorizontal, name: "Custom cleaning", text: "Something else in mind? Tell us what you need and we'll quote it." },
+];
+---
+
+<Section
+  id="services"
+  title="What we clean"
+  intro="Homes, offices and everything in between, done properly the first time."
+  tone="raised"
+>
+  <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    {
+      services.map(({ icon: Icon, name, text }) => (
+        <li class="flex flex-col gap-3 rounded-lg border border-border bg-bg p-5">
+          <span class="flex size-12 items-center justify-center rounded-full bg-success-subtle text-success-strong">
+            <Icon aria-hidden size={24} />
+          </span>
+          <h3 class="text-lg font-semibold">{name}</h3>
+          <p class="text-fg-muted">{text}</p>
+        </li>
+      ))
+    }
+  </ul>
+</Section>

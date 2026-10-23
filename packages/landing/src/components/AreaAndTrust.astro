@@ -1,0 +1,36 @@
+---
+import { Gem, MapPin, ShieldCheck, Users } from "lucide-react";
+import { business } from "../business.ts";
+import Section from "./Section.astro";
+
+const promises = [
+  { icon: ShieldCheck, name: "Trusted and reliable", text: "We turn up when we say we will, every time." },
+  { icon: Gem, name: "Attention to every detail", text: "The corners, edges and surfaces others miss." },
+  { icon: Users, name: "Professional and insured", text: "Trained, insured cleaners you can let into your home." },
+];
+---
+
+<Section id="why-empire" title="Why Empire">
+  <div class="grid gap-8 lg:grid-cols-[1fr_2fr]">
+    <div class="flex items-start gap-4 rounded-lg border border-border bg-surface p-5">
+      <MapPin aria-hidden size={28} className="shrink-0 text-primary" />
+      <div class="flex flex-col gap-1">
+        <h3 class="text-lg font-semibold">Serving {business.area}</h3>
+        <p class="text-fg-muted">
+          Homes and businesses across the borough. Further afield? Call us; we're growing.
+        </p>
+      </div>
+    </div>
+    <ul class="grid gap-6 sm:grid-cols-3">
+      {
+        promises.map(({ icon: Icon, name, text }) => (
+          <li class="flex flex-col gap-2">
+            <Icon aria-hidden size={28} className="text-primary" />
+            <h3 class="text-lg font-semibold">{name}</h3>
+            <p class="text-fg-muted">{text}</p>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</Section>

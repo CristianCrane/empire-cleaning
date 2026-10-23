@@ -14,15 +14,18 @@ export const twMerge = extendTailwindMerge(twMergeConfig);
 export const tv = createTV({ twMergeConfig });
 
 // the keyboard focus ring every interactive component shares; React Aria only
-// sets data-focus-visible for keyboard focus, so taps and clicks don't show it
+// reports isFocusVisible for keyboard focus, so taps and clicks don't show it.
+// Plain elements styled with it (e.g. a link drawn as a button, on the landing
+// site) fall back to the browser's :focus-visible.
 export const focusRing = tv({
-  base: "outline-2 outline-offset-2 outline-focus",
+  base: "outline-offset-2 outline-focus focus-visible:outline-2",
   variants: {
     isFocusVisible: {
       false: "outline-0",
       true: "outline-2",
     },
   },
+  defaultVariants: { isFocusVisible: false },
 });
 
 // merges a caller's className into a component's own, for React Aria's

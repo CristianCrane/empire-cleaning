@@ -1,0 +1,22 @@
+---
+import { buttonStyles } from "@empire-cleaning/ui";
+import { Phone } from "lucide-react";
+import { business } from "../business.ts";
+import Section from "./Section.astro";
+---
+
+{/* the Quote Request form replaces the phone fallback in #3 */}
+<Section
+  id="quote"
+  title="Request a Quote"
+  intro="Call us and we'll put your Quote together. Online requests are coming soon."
+  tone="raised"
+>
+  <a
+    href={business.phone.href}
+    class={buttonStyles({ variant: "primary", className: "self-start px-6 text-lg" })}
+  >
+    <Phone aria-hidden size={20} />
+    Call {business.phone.display}
+  </a>
+</Section>

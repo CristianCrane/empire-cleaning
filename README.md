@@ -12,13 +12,13 @@ pnpm run db:up
 pnpm run dev
 ```
 
-3. browse the design system catalogue (Storybook, http://localhost:6006):
+3. browse the design system catalogue (Storybook, http://localhost:6006); the web app runs on http://localhost:5173 and the landing site on http://localhost:4321:
 
 ```shell
-pnpm --filter @empire-cleaning/web storybook
+pnpm --filter @empire-cleaning/ui storybook
 ```
 
-4. run every package's tests (the web tests need a browser; see packages/web/README.md):
+4. run every package's tests (the browser tests need Chromium; see packages/ui/README.md):
 
 ```shell
 pnpm test

@@ -1,0 +1,37 @@
+---
+import Section from "./Section.astro";
+
+const steps = [
+  {
+    name: "Request a Quote",
+    text: "Tell us about your place in a few minutes. No account or sign-up needed.",
+  },
+  {
+    name: "Get your Quote",
+    text: "We email you a price. We recommend a deep clean first, or choose a lighter standard clean if you prefer.",
+  },
+  {
+    name: "Book with a Deposit",
+    text: "Accept online and pay a Deposit to secure your date. The rest is charged once the job is done.",
+  },
+];
+---
+
+<Section id="how-it-works" title="How it works">
+  <ol class="grid gap-6 sm:grid-cols-3">
+    {
+      steps.map(({ name, text }, i) => (
+        <li class="flex flex-col gap-3">
+          <span
+            aria-hidden="true"
+            class="flex size-12 items-center justify-center rounded-full bg-primary font-display text-2xl font-bold text-primary-fg"
+          >
+            {i + 1}
+          </span>
+          <h3 class="text-lg font-semibold">{name}</h3>
+          <p class="text-fg-muted">{text}</p>
+        </li>
+      ))
+    }
+  </ol>
+</Section>
