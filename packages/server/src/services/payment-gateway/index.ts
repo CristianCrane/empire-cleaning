@@ -50,7 +50,7 @@ class UnconfiguredPaymentGateway implements PaymentGateway {
   }
 }
 
-// the payment provider hasn't been chosen yet (see spec #1); tests swap in a fake
+// the Stripe adapter arrives with the first real Charge (#8); tests swap in a fake
 let current: PaymentGateway = new UnconfiguredPaymentGateway();
 
 export const paymentGateway: PaymentGateway = {
