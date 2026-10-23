@@ -62,11 +62,12 @@ export const accountIdentities = pgTable(
   (t) => [index("account_identities_account_id_idx").on(t.accountId)],
 );
 
-// one-time sign-in link tokens
+// one-time sign-in link tokens, and the locks Better Auth takes around them;
+// ids are text because Better Auth names its locks itself
 export const verifications = pgTable(
   "verifications",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
+    id: text("id").primaryKey(),
     identifier: text("identifier").notNull(),
     value: text("value").notNull(),
     expiresAt: timestamp("expires_at").notNull(),

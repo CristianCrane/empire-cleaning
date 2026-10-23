@@ -4,10 +4,12 @@ import {
   ClipboardList,
   Inbox,
   LayoutDashboard,
+  User,
   Users,
 } from "lucide-react";
 import { expect } from "storybook/test";
 import { AppLayout, type NavItem } from "./AppLayout.tsx";
+import { Button } from "./Button.tsx";
 import { Card } from "./Card.tsx";
 import { Heading } from "./Heading.tsx";
 import { List, ListItem } from "./List.tsx";
@@ -28,6 +30,13 @@ const meta = {
   args: {
     area: "Office",
     nav: officeNav,
+    // the app puts its account menu here
+    account: (
+      <Button variant="quiet" className="justify-start">
+        <User aria-hidden size={20} />
+        <span className="max-md:sr-only">Olive Owner</span>
+      </Button>
+    ),
     children: (
       <div className="flex flex-col gap-4">
         <Heading level={1}>Today</Heading>

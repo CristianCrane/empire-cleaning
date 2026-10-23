@@ -14,7 +14,6 @@ const preview: Preview = {
         title: "Theme",
         icon: "mirror",
         items: [
-          { value: "system", title: "Match device" },
           { value: "light", title: "Light" },
           { value: "dark", title: "Dark" },
         ],
@@ -22,7 +21,7 @@ const preview: Preview = {
       },
     },
   },
-  initialGlobals: { theme: "system" },
+  initialGlobals: { theme: "light" },
   decorators: [
     (Story, context) => {
       // the test run pins each project to one theme, so every story is checked

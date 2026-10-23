@@ -1,79 +1,63 @@
 import { useEffect, useState } from "react";
-import { ToggleButton, ToggleButtonGroup } from "react-aria-components";
-import { Monitor, Moon, Sun } from "lucide-react";
+import { ToggleButton } from "react-aria-components";
+import { Moon, Sun } from "lucide-react";
 import { THEME_STORAGE_KEY as STORAGE_KEY } from "./theme-boot.ts";
 import { focusRing } from "./utils.ts";
 
-export type ThemePreference = "system" | "light" | "dark";
+// light unless someone chooses dark; the device's own setting isn't followed
+export type ThemePreference = "light" | "dark";
 
 // remembered per device; storage can be unavailable (private browsing), in
-// which case the app just follows the device
+// which case it's light
 export const readThemePreference = (): ThemePreference => {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored === "light" || stored === "dark" ? stored : "system";
+    return localStorage.getItem(STORAGE_KEY) === "dark" ? "dark" : "light";
   } catch {
-    return "system";
+    return "light";
   }
 };
 
 export const applyThemePreference = (preference: ThemePreference) => {
   const root = document.documentElement;
-  if (preference === "system") {
-    root.removeAttribute("data-theme");
+  if (preference === "dark") {
+    root.setAttribute("data-theme", "dark");
   } else {
-    root.setAttribute("data-theme", preference);
+    root.removeAttribute("data-theme");
   }
 
   try {
-    if (preference === "system") {
-      localStorage.removeItem(STORAGE_KEY);
+    if (preference === "dark") {
+      localStorage.setItem(STORAGE_KEY, "dark");
     } else {
-      localStorage.setItem(STORAGE_KEY, preference);
+      localStorage.removeItem(STORAGE_KEY);
     }
   } catch {
     // not remembered, still applied
   }
 };
 
-const options = [
-  { id: "system", label: "Match device", Icon: Monitor },
-  { id: "light", label: "Light", Icon: Sun },
-  { id: "dark", label: "Dark", Icon: Moon },
-] as const;
-
+// one quiet button: a moon to switch to dark, a sun to switch back
 export function ThemeToggle() {
   // read after mounting, not during render: a page prerendered at build time
   // (the landing site) can't know this device's choice
-  const [preference, setPreference] = useState<ThemePreference>("system");
+  const [preference, setPreference] = useState<ThemePreference>("light");
   useEffect(() => setPreference(readThemePreference()), []);
+  const isDark = preference === "dark";
 
   return (
-    <ToggleButtonGroup
-      aria-label="Theme"
-      selectionMode="single"
-      disallowEmptySelection
-      selectedKeys={[preference]}
-      onSelectionChange={(keys) => {
-        const [next] = [...keys] as ThemePreference[];
-        if (!next) return;
+    <ToggleButton
+      aria-label="Dark theme"
+      isSelected={isDark}
+      onChange={(dark) => {
+        const next = dark ? "dark" : "light";
         setPreference(next);
         applyThemePreference(next);
       }}
-      className="inline-flex self-start rounded-md border border-border-strong p-0.5"
+      className={(renderProps) =>
+        `${focusRing(renderProps)} flex size-touch shrink-0 items-center justify-center rounded-md text-fg-muted hover:bg-surface-sunken hover:text-fg pressed:bg-surface-sunken`
+      }
     >
-      {options.map(({ id, label, Icon }) => (
-        <ToggleButton
-          key={id}
-          id={id}
-          aria-label={label}
-          className={(renderProps) =>
-            `${focusRing(renderProps)} flex size-9 items-center justify-center rounded-sm text-fg-muted hover:text-fg selected:bg-primary selected:text-primary-fg`
-          }
-        >
-          <Icon aria-hidden size={18} />
-        </ToggleButton>
-      ))}
-    </ToggleButtonGroup>
+      {isDark ? <Sun aria-hidden size={20} /> : <Moon aria-hidden size={20} />}
+    </ToggleButton>
   );
 }

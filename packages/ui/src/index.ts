@@ -13,7 +13,9 @@ export { DatePicker, TimeField } from "./DateField.tsx";
 export { Dialog, DialogTrigger } from "./Dialog.tsx";
 export { Form } from "./Form.tsx";
 export { Heading } from "./Heading.tsx";
+export { Link } from "./Link.tsx";
 export { List, ListItem } from "./List.tsx";
+export { Notice } from "./Notice.tsx";
 export { NumberField } from "./NumberField.tsx";
 export { Select, SelectItem } from "./Select.tsx";
 export { StatusBadge, type StatusTone } from "./StatusBadge.tsx";
@@ -27,3 +29,7 @@ export {
 } from "./theme.tsx";
 export { themeBootScript } from "./theme-boot.ts";
 export { ToastRegion, showToast, type ToastContent } from "./Toast.tsx";
+
+// wiring for the app's router: design-system links navigate through it, and
+// apps declare their link type by augmenting RouterConfig on this module
+export { RouterProvider, type RouterConfig } from "react-aria-components";

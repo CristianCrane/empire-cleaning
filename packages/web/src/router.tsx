@@ -1,0 +1,127 @@
+import {
+  Outlet,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  redirect,
+  useRouter,
+} from "@tanstack/react-router";
+import { RouterProvider, ToastRegion } from "@empire-cleaning/ui";
+import { AreaLayout } from "./screens/AreaLayout.tsx";
+import { CleanerHome, OfficeHome, PortalHome } from "./screens/AreaHomes.tsx";
+import { NotFound } from "./screens/NotFound.tsx";
+import { SignIn } from "./screens/SignIn.tsx";
+import {
+  areas,
+  areasFor,
+  getAccount,
+  safeNext,
+  type AreaId,
+} from "./session.ts";
+
+// lets design-system links (Link, AppLayout's nav) navigate through the router
+function Root() {
+  const router = useRouter();
+  return (
+    <RouterProvider
+      navigate={(to, options) => router.navigate({ ...to, ...options })}
+      useHref={(to) => router.buildLocation(to).href}
+    >
+      <Outlet />
+      <ToastRegion />
+    </RouterProvider>
+  );
+}
+
+const rootRoute = createRootRoute({
+  component: Root,
+  notFoundComponent: NotFound,
+});
+
+// where a signed-in Account belongs; Staff with both roles start in the Office
+const homeOf = async () => {
+  const account = await getAccount();
+  const [first] = account ? areasFor(account) : [];
+  return first ? areas[first].path : undefined;
+};
+
+const indexRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/",
+  beforeLoad: async () => {
+    throw redirect({ to: (await homeOf()) ?? "/sign-in" });
+  },
+});
+
+export type SignInSearch = { next?: string; error?: string };
+
+const signInRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/sign-in",
+  validateSearch: (search: Record<string, unknown>): SignInSearch => ({
+    next: safeNext(typeof search.next === "string" ? search.next : undefined),
+    error: typeof search.error === "string" ? search.error : undefined,
+  }),
+  beforeLoad: async ({ search }) => {
+    const home = await homeOf();
+    if (home) throw redirect({ href: search.next ?? home });
+  },
+  component: SignIn,
+});
+
+// an area is only for Accounts holding its role: anyone signed out goes to
+// sign-in (and comes back afterwards), anyone else to their own area
+const areaRoute = (id: AreaId) =>
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: areas[id].path,
+    beforeLoad: async ({ location }) => {
+      const account = await getAccount();
+      if (!account) {
+        throw redirect({ to: "/sign-in", search: { next: location.href } });
+      }
+      if (!account.roles.includes(areas[id].role)) {
+        throw redirect({ to: (await homeOf()) ?? "/sign-in" });
+      }
+      return { account };
+    },
+    component: () => <AreaLayout area={id} />,
+  });
+
+const officeRoute = areaRoute("office");
+const cleanerRoute = areaRoute("cleaner");
+const portalRoute = areaRoute("portal");
+
+const routeTree = rootRoute.addChildren([
+  indexRoute,
+  signInRoute,
+  officeRoute.addChildren([
+    createRoute({
+      getParentRoute: () => officeRoute,
+      path: "/",
+      component: OfficeHome,
+    }),
+  ]),
+  cleanerRoute.addChildren([
+    createRoute({
+      getParentRoute: () => cleanerRoute,
+      path: "/",
+      component: CleanerHome,
+    }),
+  ]),
+  portalRoute.addChildren([
+    createRoute({
+      getParentRoute: () => portalRoute,
+      path: "/",
+      component: PortalHome,
+    }),
+  ]),
+]);
+
+export const router = createRouter({ routeTree });
+
+declare module "@tanstack/react-router" {
+  interface Register {
+    router: typeof router;
+  }
+}

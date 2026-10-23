@@ -49,7 +49,10 @@ export const auth = betterAuth({
     },
   }),
   advanced: {
-    database: { generateId: "uuid" },
+    // our ids are UUIDs, but generated here rather than with Better Auth's
+    // "uuid" setting, which would also overwrite the ids Better Auth picks
+    // itself (e.g. the lock around a first sign-in), silently disabling them
+    database: { generateId: () => crypto.randomUUID() },
   },
   user: {
     additionalFields: {

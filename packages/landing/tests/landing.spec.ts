@@ -10,9 +10,16 @@ const sections = [
   "Request a Quote",
 ];
 
-for (const colorScheme of ["light", "dark"] as const) {
-  test.describe(`${colorScheme} theme`, () => {
-    test.use({ colorScheme });
+for (const theme of ["light", "dark"] as const) {
+  test.describe(`${theme} theme`, () => {
+    // dark is something a visitor chooses, remembered on their device
+    test.beforeEach(async ({ page }) => {
+      if (theme === "dark") {
+        await page.addInitScript(() =>
+          localStorage.setItem("ec-theme", "dark"),
+        );
+      }
+    });
 
     test("shows every section", async ({ page }) => {
       await page.goto("/");
@@ -69,11 +76,27 @@ test("a chosen theme applies straight away and is remembered", async ({
   await page.goto("/");
   // the toggle hydrates once the browser is idle; Astro drops "ssr" when it has
   await expect(page.locator("astro-island")).not.toHaveAttribute("ssr");
-  await page.getByRole("radio", { name: "Dark" }).click();
+  await page.getByRole("button", { name: "Dark theme" }).click();
 
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+});
+
+test.describe("on a device set to dark mode", () => {
+  test.use({ colorScheme: "dark" });
+
+  test("the page is still light until the visitor chooses dark", async ({
+    page,
+  }) => {
+    await page.goto("/");
+
+    await expect(page.locator("html")).not.toHaveAttribute("data-theme");
+    const scheme = await page.evaluate(
+      () => getComputedStyle(document.documentElement).colorScheme,
+    );
+    expect(scheme).toBe("light");
+  });
 });
 
 test("Request a Quote leads to the quote section", async ({ page }) => {

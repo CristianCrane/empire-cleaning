@@ -1,11 +1,12 @@
-import { Link } from "react-aria-components";
+import { Link, type LinkProps } from "react-aria-components";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { ThemeToggle } from "./theme.tsx";
 import { focusRing } from "./utils.ts";
 
 export type NavItem = {
-  href: string;
+  // whatever link type the app's router declares (see RouterProvider)
+  href: NonNullable<LinkProps["href"]>;
   label: string;
   icon: LucideIcon;
   isCurrent?: boolean;
@@ -15,12 +16,19 @@ export type AppLayoutProps = {
   // which part of the app this is, e.g. "Office" or "Cleaner"
   area: string;
   nav: NavItem[];
+  // who is signed in and what they can do (switch area, sign out); shown in
+  // the top bar on a phone and at the foot of the sidebar on larger screens
+  account?: ReactNode;
   children: ReactNode;
 };
 
-export function Wordmark() {
+// the Empire Cleaning name until there's a logo; centred above a form, for
+// example on the sign-in page
+export function Wordmark({ centered = false }: { centered?: boolean }) {
   return (
-    <span className="flex flex-col leading-none">
+    <span
+      className={`flex flex-col leading-none ${centered ? "items-center text-center" : ""}`}
+    >
       <span className="font-display text-2xl font-bold tracking-wider text-fg uppercase">
         Empire
       </span>
@@ -34,7 +42,7 @@ export function Wordmark() {
 // the frame around every screen. On a phone: a top bar and a bottom tab bar
 // within thumb reach (keep nav to five items or fewer). From tablet width up:
 // a sidebar.
-export function AppLayout({ area, nav, children }: AppLayoutProps) {
+export function AppLayout({ area, nav, account, children }: AppLayoutProps) {
   return (
     <div className="min-h-dvh md:flex">
       <a
@@ -51,15 +59,21 @@ export function AppLayout({ area, nav, children }: AppLayoutProps) {
         </div>
         <nav aria-label={area} className="flex flex-1 flex-col gap-1">
           {nav.map((item) => (
-            <SidebarLink key={item.href} item={item} />
+            <SidebarLink key={item.label} item={item} />
           ))}
         </nav>
-        <ThemeToggle />
+        <div className="flex flex-col gap-3">
+          {account}
+          <ThemeToggle />
+        </div>
       </aside>
 
       <header className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-border bg-surface px-4 py-2 md:hidden">
         <Wordmark />
-        <ThemeToggle />
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          {account}
+        </div>
       </header>
 
       <main
@@ -75,7 +89,7 @@ export function AppLayout({ area, nav, children }: AppLayoutProps) {
         className="fixed inset-x-0 bottom-0 z-40 flex border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] md:hidden"
       >
         {nav.map((item) => (
-          <TabLink key={item.href} item={item} />
+          <TabLink key={item.label} item={item} />
         ))}
       </nav>
     </div>

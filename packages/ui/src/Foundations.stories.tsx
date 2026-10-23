@@ -81,7 +81,7 @@ export const Typography: Story = { render: () => <Type /> };
 export const Theme: Story = {
   render: () => (
     <div className="flex flex-col gap-2">
-      <p>Follows the device unless pinned; remembered on this device.</p>
+      <p>Light unless someone chooses dark; remembered on this device.</p>
       <ThemeToggle />
     </div>
   ),
