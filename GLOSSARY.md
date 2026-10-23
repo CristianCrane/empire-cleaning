@@ -17,7 +17,7 @@ How Staff get into and around a Property, such as gate codes, key location and p
 _Avoid_: Entry notes, access notes, directions
 
 **Staff**:
-A person working for Empire Cleaning, holding the Cleaner role, the Office Staff role, or both.
+A person working for Empire Cleaning, holding the Cleaner role, the Office Staff role, or both. Staff exist only by invitation from Office Staff, who can also deactivate them.
 _Avoid_: Employee, admin, user
 
 **Cleaner**:
@@ -29,7 +29,7 @@ A Staff role: prices Quotes, manages the Schedule and Assignments, and chases Un
 _Avoid_: Admin, manager, dispatcher
 
 **Account**:
-A sign-in identity belonging to exactly one Client or one Staff member. A Client's Account is created with their first Quote Request; Staff Accounts exist only by invitation.
+A sign-in identity with a proven email, created only when a person signs up by emailed link or Google, never on their behalf. Anyone may sign up. Being a Client or Staff member is separate: an Account is connected to a Client, a Staff member, or both, automatically when its proven email matches theirs, and that connection is what lets its holder act as them. Once made, a connection stays even if either email later changes. A Quote Request creates a Client, not an Account.
 _Avoid_: User, login, profile
 
 **Guest**:
@@ -39,7 +39,7 @@ _Avoid_: Anonymous user, visitor
 ## Quoting
 
 **Quote Request**:
-A Client's or Guest's description of the cleaning they want, submitted to ask for pricing.
+A Client's or Guest's description of the cleaning they want, submitted to ask for pricing. A Guest's first Quote Request creates their Client; one from a Guest using an existing Client's email is added to that Client, without changing their details.
 _Avoid_: Enquiry, lead, quote
 
 **Turned Down**:
