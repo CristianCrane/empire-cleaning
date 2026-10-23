@@ -1,2 +1,5 @@
 // Shared domain types live here; see GLOSSARY.md for the vocabulary.
-export {};
+
+// what an Account may do: a Client Account is only ever "client";
+// a Staff Account holds "cleaner", "office_staff" or both
+export type AccountRole = "client" | "cleaner" | "office_staff";
