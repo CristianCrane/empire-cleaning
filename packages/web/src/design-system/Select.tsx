@@ -80,7 +80,7 @@ export function SelectItem(props: ListBoxItemProps) {
     <ListBoxItem
       {...props}
       textValue={textValue}
-      className="flex min-h-touch cursor-default items-center gap-2 rounded-md px-3 text-base text-fg outline-none hover:bg-surface-sunken focus-visible:bg-surface-sunken focused:bg-surface-sunken selected:font-semibold"
+      className="flex min-h-touch items-center gap-2 rounded-md px-3 text-base text-fg outline-none hover:bg-surface-sunken focus-visible:bg-surface-sunken focused:bg-surface-sunken selected:font-semibold"
     >
       {composeRenderProps(props.children, (children, { isSelected }) => (
         <>
