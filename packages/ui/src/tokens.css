@@ -14,12 +14,12 @@
  * Components use the semantic utilities below (bg-surface, text-fg-muted,
  * bg-primary...), never raw palette values, so both themes come for free.
  *
- * Each colour is written once as light-dark(<light>, <dark>). The theme follows
- * the device unless data-theme on <html> pins it (see theme.tsx).
+ * Each colour is written once as light-dark(<light>, <dark>). The theme is light
+ * unless data-theme="dark" is set on <html> (see theme.tsx).
  */
 
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
 
   /* surfaces */
   --ec-bg: light-dark(#f0f0f0, #101923);
@@ -57,10 +57,6 @@
   --ec-info-strong: light-dark(#1e4e9c, #93c0f8);
   --ec-neutral-subtle: light-dark(#ecedee, #26303b);
   --ec-neutral-strong: light-dark(#434345, #c8cacc);
-}
-
-:root[data-theme="light"] {
-  color-scheme: light;
 }
 
 :root[data-theme="dark"] {

@@ -55,7 +55,7 @@ const pairs: [fg: string, bg: string, min: number][] = [
   ["focus", "surface", ui],
 ];
 
-afterEach(() => applyThemePreference("system"));
+afterEach(() => applyThemePreference("light"));
 
 describe.each(["light", "dark"] as const)("%s theme", (theme) => {
   test.each(pairs)("%s on %s is readable", (fg, bg, min) => {

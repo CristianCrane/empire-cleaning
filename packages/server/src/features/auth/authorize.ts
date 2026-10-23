@@ -1,15 +1,8 @@
 import type { RequestHandler, Response } from "express";
 import { fromNodeHeaders } from "better-auth/node";
-import type { AccountRole } from "@empire-cleaning/models";
+import type { AccountRole, SignedInAccount } from "@empire-cleaning/models";
 import { ForbiddenError, UnauthorizedError } from "../../middleware/errors.ts";
 import { auth } from "./auth.ts";
-
-export type SignedInAccount = {
-  id: string;
-  email: string;
-  name: string;
-  roles: AccountRole[];
-};
 
 /**
  * Declares who may call an endpoint. With no roles, any signed-in Account may;

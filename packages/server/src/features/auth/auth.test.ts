@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import express from "express";
 import request from "supertest";
 import { errorHandler } from "#middleware";
@@ -88,6 +88,22 @@ describe("signing in with a one-time link", () => {
     expect(res.status).toBe(400);
     expect(res.body.message).toBe("roles is not allowed to be set");
     expect(me.body.roles).toEqual(["client"]);
+  });
+
+  // a first sign-in proves the email and clears any older access, under a
+  // one-at-a-time lock that Better Auth keys by its own id; ids we generate
+  // must not replace it (Better Auth warns, and the lock stops locking)
+  test("a first sign-in keeps Better Auth's lock intact", async () => {
+    await createAccount({
+      email: "client@example.com",
+      name: "Casey Client",
+      roles: ["client"],
+    });
+    const warn = vi.spyOn(console, "warn");
+
+    await signIn("client@example.com");
+
+    expect(warn.mock.calls.flat().join(" ")).not.toContain("Invalid UUID");
   });
 
   test("signing out ends the session", async () => {

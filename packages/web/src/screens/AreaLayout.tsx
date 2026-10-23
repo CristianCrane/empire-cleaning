@@ -1,0 +1,104 @@
+import {
+  Outlet,
+  useMatchRoute,
+  useNavigate,
+  useRouteContext,
+} from "@tanstack/react-router";
+import { CalendarDays, House, LayoutDashboard, User } from "lucide-react";
+import type { SignedInAccount } from "@empire-cleaning/models";
+import {
+  Actions,
+  AppLayout,
+  Button,
+  Dialog,
+  DialogTrigger,
+  type NavItem,
+} from "@empire-cleaning/ui";
+import { linkTo } from "../links.ts";
+import { areas, areasFor, signOut, type AreaId } from "../session.ts";
+
+// each area's navigation; feature tickets add their screens here
+const navFor: Record<AreaId, NavItem[]> = {
+  office: [
+    { href: linkTo({ to: "/office" }), label: "Today", icon: LayoutDashboard },
+  ],
+  cleaner: [
+    { href: linkTo({ to: "/cleaner" }), label: "Today", icon: CalendarDays },
+  ],
+  portal: [{ href: linkTo({ to: "/portal" }), label: "Home", icon: House }],
+};
+
+export function AreaLayout({ area }: { area: AreaId }) {
+  const { account } = useRouteContext({ from: areas[area].path });
+  const matchRoute = useMatchRoute();
+  const nav = navFor[area].map((item) => ({
+    ...item,
+    isCurrent: Boolean(matchRoute(item.href)),
+  }));
+
+  return (
+    <AppLayout
+      area={areas[area].label}
+      nav={nav}
+      account={<AccountMenu account={account} area={area} />}
+    >
+      <Outlet />
+    </AppLayout>
+  );
+}
+
+// who's signed in, a way into their other area (Staff holding both roles)
+// and signing out
+function AccountMenu({
+  account,
+  area,
+}: {
+  account: SignedInAccount;
+  area: AreaId;
+}) {
+  const navigate = useNavigate();
+  const otherAreas = areasFor(account).filter((id) => id !== area);
+
+  return (
+    <DialogTrigger>
+      <Button variant="quiet" className="justify-start">
+        <User aria-hidden size={20} />
+        <span className="max-md:sr-only">{account.name}</span>
+      </Button>
+      <Dialog title="Account">
+        {({ close }) => (
+          <>
+            <div className="flex flex-col">
+              <span className="font-semibold">{account.name}</span>
+              <span className="text-fg-muted">{account.email}</span>
+            </div>
+            <Actions>
+              {otherAreas.map((id) => (
+                <Button
+                  key={id}
+                  variant="secondary"
+                  onPress={() => {
+                    close();
+                    void navigate({ to: areas[id].path });
+                  }}
+                >
+                  Switch to {areas[id].label}
+                </Button>
+              ))}
+              <Button
+                variant="secondary"
+                onPress={async () => {
+                  await signOut();
+                  close();
+                  void navigate({ to: "/sign-in" });
+                }}
+              >
+                Sign out
+              </Button>
+            </Actions>
+          </>
+        )}
+      </Dialog>
+    </DialogTrigger>
+  );
+}
