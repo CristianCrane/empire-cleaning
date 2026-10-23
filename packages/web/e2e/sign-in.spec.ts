@@ -105,6 +105,16 @@ test.describe("Google", () => {
     );
   });
 
+  test("someone trying Google before their first emailed link is told what to do", async ({
+    page,
+  }) => {
+    await page.goto("/sign-in?error=account_not_linked");
+
+    await expect(page.getByRole("alert")).toContainText(
+      "The first time you sign in, use an emailed link",
+    );
+  });
+
   test("a Google account with no Empire Cleaning account is told so", async ({
     page,
   }) => {

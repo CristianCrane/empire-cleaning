@@ -43,7 +43,10 @@ export const accountIdentities = pgTable(
   "account_identities",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    accountId: uuid("account_id")
+    // the Account this identity signs in to. Not called accountId: that's
+    // Better Auth's own name for the provider's id below, and sharing it makes
+    // Better Auth look the owner up by the Google id
+    ownerId: uuid("account_id")
       .notNull()
       .references(() => accounts.id, { onDelete: "cascade" }),
     // the identity's id at the provider, e.g. the Google user id
@@ -59,7 +62,7 @@ export const accountIdentities = pgTable(
     password: text("password"),
     ...timestamps,
   },
-  (t) => [index("account_identities_account_id_idx").on(t.accountId)],
+  (t) => [index("account_identities_account_id_idx").on(t.ownerId)],
 );
 
 // one-time sign-in link tokens, and the locks Better Auth takes around them;

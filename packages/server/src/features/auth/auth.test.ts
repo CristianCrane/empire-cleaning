@@ -152,7 +152,125 @@ describe("non-browser clients", () => {
   });
 });
 
+// signs in through the real Google flow on our side; only Google's servers are
+// stood in for. Returns the agent and the callback's response.
+const signInWithGoogle = async (profile: { sub: string; email: string }) => {
+  const agent = apiAgent();
+  const start = await agent
+    .post("/api/auth/sign-in/social")
+    .send({ provider: "google", callbackURL: "/" })
+    .expect(200);
+  const state = new URL(start.body.url).searchParams.get("state");
+
+  // what Google returns for the authorisation code: tokens, including an ID
+  // token carrying the person's Google profile
+  const now = Math.floor(Date.now() / 1000);
+  const encode = (part: object) =>
+    Buffer.from(JSON.stringify(part)).toString("base64url");
+  const idToken = [
+    encode({ alg: "none", typ: "JWT" }),
+    encode({
+      iss: "https://accounts.google.com",
+      aud: "test-google-client-id",
+      sub: profile.sub,
+      email: profile.email,
+      email_verified: true,
+      name: "Casey Client",
+      iat: now,
+      exp: now + 3600,
+    }),
+    "",
+  ].join(".");
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    const url = input instanceof Request ? input.url : String(input);
+    if (url.startsWith("https://oauth2.googleapis.com/token")) {
+      return Response.json({
+        access_token: "google-access-token",
+        id_token: idToken,
+        token_type: "Bearer",
+        expires_in: 3600,
+        scope: "openid email profile",
+      });
+    }
+    throw new Error(`unexpected request to ${url}`);
+  });
+
+  const callback = await agent.get(
+    `/api/auth/callback/google?code=google-code&state=${state}`,
+  );
+  vi.mocked(globalThis.fetch).mockRestore();
+  return { agent, callback };
+};
+
 describe("Google sign-in", () => {
+  test("signs in an Account, and again next time", async () => {
+    await createAccount({
+      email: "client@example.com",
+      name: "Casey Client",
+      roles: ["client"],
+    });
+    // proves the email first, as the owner did in dev
+    await signIn("client@example.com");
+    const google = {
+      sub: "107229176673569254139",
+      email: "client@example.com",
+    };
+
+    const first = await signInWithGoogle(google);
+    const again = await signInWithGoogle(google);
+
+    for (const { agent, callback } of [first, again]) {
+      expect(callback.status).toBe(302);
+      expect(callback.headers.location).not.toContain("error");
+      const me = await agent.get("/api/me");
+      expect(me.status).toBe(200);
+      expect(me.body.email).toBe("client@example.com");
+    }
+  });
+
+  // Better Auth only links Google to an Account whose email is already
+  // proven, so nobody can inherit access someone else set up; the first
+  // sign-in is by emailed link
+  test("can't be an Account's very first sign-in", async () => {
+    await createAccount({
+      email: "client@example.com",
+      name: "Casey Client",
+      roles: ["client"],
+    });
+
+    const { agent, callback } = await signInWithGoogle({
+      sub: "107229176673569254139",
+      email: "client@example.com",
+    });
+
+    expect(callback.status).toBe(302);
+    expect(callback.headers.location).toContain("error=account_not_linked");
+    expect((await agent.get("/api/me")).status).toBe(401);
+  });
+
+  test("never creates an Account for an unknown Google address", async () => {
+    const { agent, callback } = await signInWithGoogle({
+      sub: "100000000000000000001",
+      email: "stranger@example.com",
+    });
+
+    expect(callback.status).toBe(302);
+    expect(callback.headers.location).toContain("error=signup_disabled");
+    expect((await agent.get("/api/me")).status).toBe(401);
+  });
+
+  test("a sign-in that fails part-way lands on the app's sign-in page", async () => {
+    // e.g. a stale or tampered callback; never Better Auth's own error page
+    const res = await api().get(
+      "/api/auth/callback/google?code=google-code&state=not-a-real-state",
+    );
+
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toMatch(
+      /^http:\/\/localhost:5173\/sign-in\?error=/,
+    );
+  });
+
   test("starts by sending the person to Google", async () => {
     const res = await api()
       .post("/api/auth/sign-in/social")

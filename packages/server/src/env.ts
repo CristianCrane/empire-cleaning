@@ -3,7 +3,9 @@ import { z } from "zod";
 // the same variables are required in every mode; see .env.example
 const envSchema = z.object({
   APP_MODE: z.enum(["dev", "prod"]).default("dev"),
-  CORS_ORIGIN_URL: z.url().default("localhost"),
+  // the web app's origin: the only browser origin trusted to call the API,
+  // and where sign-in flows return to
+  CORS_ORIGIN_URL: z.url(),
   PORT: z.coerce.number().positive().default(3000),
   DB_URL: z.url().nonempty(),
   RESEND_API_KEY: z.string().nonempty(),

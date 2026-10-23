@@ -38,6 +38,10 @@ export const auth = betterAuth({
   basePath: "/api/auth",
   secret: env.BETTER_AUTH_SECRET,
   trustedOrigins: [env.CORS_ORIGIN_URL],
+  // when a sign-in fails part-way (e.g. a broken Google callback), send the
+  // person to the app's sign-in page, which explains ?error=, rather than
+  // Better Auth's own bare error page
+  onAPIError: { errorURL: `${env.CORS_ORIGIN_URL}/sign-in` },
   telemetry: { enabled: false },
   database: drizzleAdapter(db, {
     provider: "pg",
@@ -65,7 +69,7 @@ export const auth = betterAuth({
     fields: { userId: "accountId" },
   },
   account: {
-    fields: { userId: "accountId", accountId: "providerAccountId" },
+    fields: { userId: "ownerId", accountId: "providerAccountId" },
     // Google signs in to the existing Account with the same email
     accountLinking: { enabled: true, trustedProviders: ["google"] },
   },
