@@ -6,3 +6,4 @@ The Office workspace, Client portal and Cleaner area are one React single-page a
 
 - No business logic, authorization or data shaping may live only in the web app; anything the web app can do, another client can do through the API.
 - Sign-in must work for non-browser clients too (see ADR-0002).
+- The public landing page for prospective Clients is not part of this SPA: it's a separate static site (ADR-0005).
