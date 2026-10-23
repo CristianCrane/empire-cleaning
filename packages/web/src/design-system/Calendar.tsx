@@ -38,7 +38,7 @@ export function Calendar<T extends DateValue>(props: CalendarProps<T>) {
             <CalendarCell
               date={date}
               className={(renderProps) =>
-                `${focusRing(renderProps)} flex size-10 cursor-default items-center justify-center rounded-full text-sm tabular-nums outside-month:invisible hover:bg-surface-sunken pressed:bg-surface-sunken selected:bg-primary selected:font-semibold selected:text-primary-fg disabled:text-fg-muted disabled:opacity-50 unavailable:text-fg-muted unavailable:line-through`
+                `${focusRing(renderProps)} flex size-10 items-center justify-center rounded-full text-sm tabular-nums outside-month:invisible hover:bg-surface-sunken pressed:bg-surface-sunken selected:bg-primary selected:font-semibold selected:text-primary-fg disabled:text-fg-muted disabled:opacity-50 unavailable:text-fg-muted unavailable:line-through`
               }
             />
           )}

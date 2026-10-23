@@ -121,6 +121,15 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  /* everything that can be pressed shows the hand cursor, as on the web */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="option"]:not([aria-disabled="true"]),
+  [data-actionable],
+  label:has(input[type="checkbox"]:not(:disabled)) {
+    cursor: pointer;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
