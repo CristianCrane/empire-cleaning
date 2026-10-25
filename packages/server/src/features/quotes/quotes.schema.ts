@@ -107,5 +107,31 @@ export const quoteOptions = pgTable(
   (t) => [primaryKey({ columns: [t.quoteId, t.cleanType] })],
 );
 
+// A Client's Deposit waiting on their bank's approval (e.g. 3D Secure) in the
+// browser. Nothing is booked yet: once the payment succeeds it's booked by
+// whichever comes first, the browser's finalize call or the provider's
+// webhook. Kept once settled, so a late success for a Quote that was accepted
+// some other way meanwhile is recognised, and refunded.
+export const pendingDeposits = pgTable(
+  "pending_deposits",
+  {
+    // the Payment Gateway's id for the payment, opaque to us
+    gatewayRef: text("gateway_ref").primaryKey(),
+    quoteId: uuid("quote_id")
+      .notNull()
+      .references(() => quotes.id, { onDelete: "cascade" }),
+    cleanType: cleanType("clean_type").notNull(),
+    depositCents: integer("deposit_cents").notNull(),
+    acceptedBy: uuid("accepted_by").references(() => accounts.id, {
+      onDelete: "set null",
+    }),
+    // when it was booked, failed or refunded
+    settledAt: timestamp("settled_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [index("pending_deposits_quote_id_idx").on(t.quoteId)],
+);
+
 export type Quote = typeof quotes.$inferSelect;
+export type PendingDeposit = typeof pendingDeposits.$inferSelect;
 export type QuoteOptionRow = typeof quoteOptions.$inferSelect;

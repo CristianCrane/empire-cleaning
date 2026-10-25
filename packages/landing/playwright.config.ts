@@ -40,6 +40,7 @@ export default defineConfig({
         GOOGLE_CLIENT_SECRET: "e2e-google-client-secret",
         STRIPE_SECRET_KEY: "e2e-stripe-secret-key",
         STRIPE_PUBLISHABLE_KEY: "e2e-stripe-publishable-key",
+        STRIPE_WEBHOOK_SECRET: "e2e-stripe-webhook-secret",
       },
     },
     {

@@ -9,6 +9,7 @@ import {
   paymentMethodOf,
   savePaymentMethod,
   sendPaymentMethodLink,
+  startCardForm,
   toPaymentMethodView,
 } from "./payments.ts";
 
@@ -20,6 +21,12 @@ const ownClient = async (accountId: string) => {
   return client;
 };
 
+// which of the provider's payment forms the browser shows, e.g. for paying
+// a Deposit
+router.get("/form", authorize("client"), (req, res) => {
+  res.json(paymentGateway.paymentForm());
+});
+
 // ---- the signed-in Client's own Payment Method ----
 
 // what they have saved, or null
@@ -28,13 +35,14 @@ router.get("/mine", authorize("client"), async (req, res) => {
   res.json(toPaymentMethodView(await paymentMethodOf(client.id)));
 });
 
-// the provider's card form, to show in the browser
+// the provider's form for saving a card without paying, to show in the
+// browser
 router.post("/mine/card-form", authorize("client"), async (req, res) => {
-  await ownClient(signedInAccount(res).id);
-  res.json(await paymentGateway.startCardForm());
+  const client = await ownClient(signedInAccount(res).id);
+  res.json(await startCardForm(client));
 });
 
-// keeps what the card form set up, replacing any saved before
+// keeps what that form set up, replacing any saved before
 router.put(
   "/mine",
   authorize("client"),
@@ -45,7 +53,7 @@ router.put(
   }),
   async (req, res) => {
     const client = await ownClient(signedInAccount(res).id);
-    res.json(await savePaymentMethod(client.id, req.body.token));
+    res.json(await savePaymentMethod(client, req.body.token));
   },
 );
 

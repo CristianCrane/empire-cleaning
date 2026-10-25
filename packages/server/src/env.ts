@@ -22,8 +22,10 @@ const envSchema = z.object({
   GOOGLE_CLIENT_SECRET: z.string().nonempty(),
   // Stripe takes every payment (ADR-0004); test-mode keys in dev
   STRIPE_SECRET_KEY: z.string().nonempty(),
-  // given to the browser for Stripe's card form
+  // given to the browser for Stripe's payment form
   STRIPE_PUBLISHABLE_KEY: z.string().nonempty(),
+  // proves webhooks come from Stripe (`stripe listen` prints one locally)
+  STRIPE_WEBHOOK_SECRET: z.string().nonempty(),
 });
 
 const result = envSchema.safeParse(process.env);

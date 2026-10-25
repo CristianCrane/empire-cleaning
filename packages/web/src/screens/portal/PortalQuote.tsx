@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLoaderData, useRouter } from "@tanstack/react-router";
 import type {
+  AcceptOutcome,
   CleanType,
   PaymentMethodView,
   QuoteView,
@@ -27,7 +28,7 @@ import {
   formatMoney,
 } from "../format.ts";
 import { AddOnList, OptionCard, QuoteStatusBadge } from "../QuoteParts.tsx";
-import { CardProblem, useCardForm } from "./CardForm.tsx";
+import { CardProblem, ConsentNote, usePaymentForm } from "./CardForm.tsx";
 
 // a Quote as its Client sees it, from the link in the Quote email: open, they
 // accept it right here
@@ -122,8 +123,10 @@ function Standing({ quote }: { quote: QuoteView }) {
   }
 }
 
-// One step: choose the Clean Type, give a card (or keep the saved one), and
-// accept. The Deposit is taken and the Job booked, or neither.
+// One step: choose the Clean Type, enter a card (or keep the saved one), and
+// accept. The Deposit is taken, saving a card entered now, and the Job
+// booked, or none of it. If their bank wants them to approve the payment,
+// that happens here too, then the booking is finished.
 function Accept({
   quote,
   paymentMethod,
@@ -134,36 +137,34 @@ function Accept({
   const router = useRouter();
   const [cleanType, setCleanType] = useState<CleanType>("deep");
   const [newCard, setNewCard] = useState(!paymentMethod);
-  const card = useCardForm({ enabled: newCard });
   const [problem, setProblem] = useState<string>();
   const [isPending, setPending] = useState(false);
   const chosen = quote.options.find((o) => o.cleanType === cleanType)!;
   const balance = chosen.totalCents - chosen.depositCents;
+  const payment = usePaymentForm({
+    amountCents: chosen.depositCents,
+    showCard: newCard,
+  });
 
   const accept = async () => {
     setPending(true);
     setProblem(undefined);
     try {
-      if (newCard) await card.save();
-    } catch (e) {
-      setProblem(
-        e instanceof CardProblem || (e instanceof ApiError && e.status === 409)
-          ? e.message
-          : "Your card couldn't be saved. Please try again.",
+      const paymentToken = newCard ? await payment.token() : undefined;
+      const outcome = await postJson<AcceptOutcome>(
+        `/api/quotes/mine/${quote.id}/accept`,
+        { cleanType, paymentToken },
       );
-      setPending(false);
-      return;
-    }
-    // the card is saved now, whatever happens next
-    setNewCard(false);
-    try {
-      await postJson<QuoteView>(`/api/quotes/mine/${quote.id}/accept`, {
-        cleanType,
-      });
+      if (outcome.status === "needs_approval") {
+        await payment.approve(outcome.secret);
+        await postJson<AcceptOutcome>(
+          `/api/quotes/mine/${quote.id}/accept/finalize`,
+        );
+      }
       showToast({ tone: "success", title: "You're booked" });
     } catch (e) {
       setProblem(
-        e instanceof ApiError && e.status === 409
+        e instanceof CardProblem || (e instanceof ApiError && e.status === 409)
           ? e.message
           : "That didn't work. Please try again.",
       );
@@ -194,7 +195,7 @@ function Accept({
 
       {newCard ? (
         <div className="flex flex-col gap-2">
-          {card.field}
+          {payment.field}
           {paymentMethod && (
             <Button
               variant="secondary"
@@ -214,10 +215,7 @@ function Accept({
           <Button
             variant="secondary"
             className="self-start"
-            onPress={() => {
-              card.reset();
-              setNewCard(true);
-            }}
+            onPress={() => setNewCard(true)}
           >
             Use a different card
           </Button>
@@ -230,11 +228,12 @@ function Accept({
           : `Nothing is taken now: the ${formatMoney(chosen.totalCents)} is charged when the clean is done.`}{" "}
         Booked for {formatDateTime(quote.proposedStartsAt)}.
       </p>
+      {newCard && <ConsentNote action="paying" />}
       {problem && <Notice tone="danger">{problem}</Notice>}
       <Actions>
         <Button
           isPending={isPending}
-          isDisabled={newCard && !card.isReady}
+          isDisabled={!payment.isReady}
           onPress={() => void accept()}
         >
           {chosen.depositCents > 0

@@ -7,6 +7,7 @@
 import express from "express";
 import { eq } from "drizzle-orm";
 import type { StaffRole } from "@empire-cleaning/models";
+import type { Approval } from "../fakes/payment-gateway.ts";
 import { setup as recreateTestDatabase } from "../setup/globalSetup.ts";
 
 const CONTROL_PORT = Number(process.env.E2E_CONTROL_PORT ?? 3101);
@@ -67,6 +68,15 @@ control.post("/jobs", async (req, res) => {
 control.post("/payments/fail", (req, res) => {
   const { reason } = req.body as { reason: string | null };
   testPayments().failCharges(reason);
+  res.json({ status: "ok" });
+});
+
+// a card entered in the payment form needs the bank's approval from now on,
+// which it then gives ("approved"), refuses or is still waiting on; null to
+// stop
+control.post("/payments/approval", (req, res) => {
+  const { then } = req.body as { then: Approval | null };
+  testPayments().requireApproval(then);
   res.json({ status: "ok" });
 });
 

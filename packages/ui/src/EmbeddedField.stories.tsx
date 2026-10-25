@@ -26,3 +26,21 @@ export const Focused: Story = { args: { isFocused: true } };
 export const Invalid: Story = {
   args: { errorMessage: "Your card number is incomplete." },
 };
+
+// a provider form that draws its own boxes, such as a full payment form
+export const Unframed: Story = {
+  args: {
+    label: "Payment",
+    framed: false,
+    children: (
+      <div className="flex flex-col gap-2">
+        <span className="rounded-md border border-border p-3 text-fg-muted">
+          Card number
+        </span>
+        <span className="rounded-md border border-border p-3 text-fg-muted">
+          MM / YY · CVC
+        </span>
+      </div>
+    ),
+  },
+};

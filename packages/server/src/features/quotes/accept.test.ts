@@ -1,5 +1,7 @@
 import { describe, expect, test } from "vitest";
+import { sql } from "drizzle-orm";
 import type {
+  AcceptOutcome,
   ClientJob,
   OfficeQuote,
   PaymentMethodView,
@@ -11,6 +13,7 @@ import type {
 import { db } from "#db";
 import { sendDueReminders } from "#features/jobs";
 import { charges } from "#features/payments";
+import { FAKE_SIGNATURE } from "../../../tests/fakes/payment-gateway.ts";
 import { createStaff, setUsualWeek } from "#features/staff";
 import {
   api,
@@ -90,8 +93,33 @@ const addCard = async (client: Agent) => {
   ).body as PaymentMethodView;
 };
 
+// accepts, paying with the saved Payment Method
 const accept = (client: Agent, quote: { id: string }, cleanType = "deep") =>
   client.post(`/api/quotes/mine/${quote.id}/accept`).send({ cleanType });
+
+// accepts, paying with a card entered just now in the payment form
+const payNow = (client: Agent, quote: { id: string }, cleanType = "deep") =>
+  client
+    .post(`/api/quotes/mine/${quote.id}/accept`)
+    .send({ cleanType, paymentToken: testPayments().paymentToken() });
+
+// after the Client's bank asks them to approve the payment
+const finalize = (client: Agent, quote: { id: string }) =>
+  client.post(`/api/quotes/mine/${quote.id}/accept/finalize`);
+
+// what the provider's webhook would send
+const webhook = (event: unknown, signature = FAKE_SIGNATURE) =>
+  api()
+    .post("/api/payments/webhook")
+    .set("content-type", "application/json")
+    .set("x-fake-signature", signature)
+    .send(JSON.stringify(event));
+
+// the fake's id for the payment waiting on approval, from its secret
+const refOf = (outcome: AcceptOutcome) => {
+  if (outcome.status !== "needs_approval") throw new Error("not waiting");
+  return outcome.secret.replace(/_secret$/, "");
+};
 
 const option = (quote: OfficeQuote, cleanType: string) =>
   quote.options.find((o) => o.cleanType === cleanType)!;
@@ -121,9 +149,11 @@ describe("a Client's Payment Method", () => {
       .expect(200);
     expect(form.body).toEqual({ form: "test", secret: expect.any(String) });
 
+    // saving it is agreeing to later Charges, which the form says
     expect(await addCard(client)).toEqual({
       label: "Test card ending 4242",
       savedAt: "2026-01-05T09:00:00.000Z",
+      consentedAt: "2026-01-05T09:00:00.000Z",
     });
     testClock().advance({ days: 1 });
     await addCard(client);
@@ -175,9 +205,12 @@ describe("accepting a First Clean Quote", () => {
 
     expect(accepted.body).toMatchObject({
       status: "accepted",
-      acceptedAt: "2026-01-05T09:00:00.000Z",
-      acceptedCleanType: "standard",
-    } satisfies Partial<QuoteView>);
+      quote: {
+        status: "accepted",
+        acceptedAt: "2026-01-05T09:00:00.000Z",
+        acceptedCleanType: "standard",
+      } satisfies Partial<QuoteView>,
+    });
     expect(testPayments().charges).toEqual([
       expect.objectContaining({
         paymentMethodId: testPayments().paymentMethods[0]!.paymentMethodId,
@@ -286,7 +319,7 @@ describe("accepting a First Clean Quote", () => {
     expect(testPayments().charges).toEqual([]);
   });
 
-  test("needs a Clean Type and a saved Payment Method", async () => {
+  test("needs a Clean Type, and a card entered now or saved before", async () => {
     await cleaners();
     const office = await signInAsOffice();
     const quote = await sentQuote(office);
@@ -294,9 +327,7 @@ describe("accepting a First Clean Quote", () => {
 
     await accept(client, quote, "sparkling").expect(400);
     const refused = await accept(client, quote).expect(409);
-    expect(refused.body.message).toBe(
-      "Add a Payment Method to accept this Quote.",
-    );
+    expect(refused.body.message).toBe("Enter a card to accept this Quote.");
   });
 
   test("leaves the Quote Sent and books nothing if the Deposit fails", async () => {
@@ -445,6 +476,269 @@ describe("accepting a First Clean Quote", () => {
 
     expect(refused.body.message).toMatch(/^This Quote has expired/);
     expect(testPayments().charges).toEqual([]);
+  });
+});
+
+describe("paying the Deposit with a card entered just now", () => {
+  test("takes the Deposit and saves the card by the same payment", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+
+    const accepted = await payNow(client, quote).expect(200);
+
+    expect(accepted.body.status).toBe("accepted");
+    const [saved] = testPayments().paymentMethods;
+    expect(testPayments().charges).toEqual([
+      expect.objectContaining({
+        paymentMethodId: saved!.paymentMethodId,
+        amount: option(quote, "deep").depositCents,
+      }),
+    ]);
+    // it's their Payment Method now, for the Balance
+    expect(
+      (await client.get("/api/payment-methods/mine").expect(200)).body,
+    ).toEqual({
+      label: "Test card ending 4242",
+      savedAt: "2026-01-05T09:00:00.000Z",
+      consentedAt: "2026-01-05T09:00:00.000Z",
+    });
+    expect((await scheduleOn(office, MONDAY)).jobs).toHaveLength(1);
+    expect(testEmail().lastTo(casey.email).subject).toBe(
+      "You're booked with Empire Cleaning",
+    );
+  });
+
+  test("doesn't save a declined card", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().failCharges("card_declined");
+
+    await payNow(client, quote).expect(409);
+
+    expect(
+      (await client.get("/api/payment-methods/mine").expect(200)).body,
+    ).toBeNull();
+  });
+
+  test("waits for the bank's approval, then books once it's given", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("approved");
+
+    const waiting = await payNow(client, quote).expect(200);
+
+    expect(waiting.body).toEqual({
+      status: "needs_approval",
+      secret: expect.any(String),
+    });
+    // nothing booked or taken while the bank asks
+    expect((await scheduleOn(office, MONDAY)).jobs).toEqual([]);
+    expect(testPayments().charges).toEqual([]);
+    expect((await client.get(`/api/quotes/mine/${quote.id}`)).body.status).toBe(
+      "sent",
+    );
+
+    const finalized = await finalize(client, quote).expect(200);
+
+    expect(finalized.body).toMatchObject({
+      status: "accepted",
+      quote: { status: "accepted", acceptedCleanType: "deep" },
+    });
+    expect(testPayments().charges).toHaveLength(1);
+    expect(await depositCharges()).toHaveLength(1);
+    expect((await scheduleOn(office, MONDAY)).jobs).toHaveLength(1);
+    expect(
+      (await client.get("/api/payment-methods/mine").expect(200)).body,
+    ).toMatchObject({ label: "Test card ending 4242" });
+    expect(testEmail().lastTo(casey.email).subject).toBe(
+      "You're booked with Empire Cleaning",
+    );
+    // a second finalize finds it done
+    await finalize(client, quote).expect(200);
+    expect((await scheduleOn(office, MONDAY)).jobs).toHaveLength(1);
+  });
+
+  test("books nothing if the bank refuses, or hasn't answered yet", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("pending");
+    await payNow(client, quote).expect(200);
+
+    const early = await finalize(client, quote).expect(409);
+    expect(early.body.message).toBe(
+      "Your bank hasn't approved the payment yet. Please approve it and try again.",
+    );
+
+    testPayments().requireApproval("refused");
+    const refused = await finalize(client, quote).expect(409);
+    expect(refused.body.message).toBe(
+      "Your bank didn't approve the payment, so nothing has been booked. Please try again, or use another card.",
+    );
+    expect((await client.get(`/api/quotes/mine/${quote.id}`)).body.status).toBe(
+      "sent",
+    );
+    expect((await scheduleOn(office, MONDAY)).jobs).toEqual([]);
+    expect(testPayments().charges).toEqual([]);
+
+    // they can try again
+    testPayments().requireApproval(null);
+    await payNow(client, quote).expect(200);
+    expect((await scheduleOn(office, MONDAY)).jobs).toHaveLength(1);
+  });
+
+  test("refunds the Deposit if the day filled up while the bank was asking", async () => {
+    // 8 hours on Monday
+    await cleaners(1);
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("approved");
+    await payNow(client, quote).expect(200);
+    await bookedJob({ startsAt: "2026-01-12T19:00:00Z", labourHours: 7 });
+
+    const refused = await finalize(client, quote).expect(409);
+
+    expect(refused.body.message).toBe(
+      "Sorry, that time was booked up while your bank was approving the payment. We've refunded your Deposit and we'll be in touch with another time.",
+    );
+    const [charge] = testPayments().charges;
+    expect(testPayments().refunds).toEqual([
+      expect.objectContaining({
+        chargeId: charge!.chargeId,
+        amount: charge!.amount,
+      }),
+    ]);
+    expect(await depositCharges()).toEqual([]);
+    expect((await client.get(`/api/quotes/mine/${quote.id}`)).body.status).toBe(
+      "sent",
+    );
+  });
+
+  test("refunds the Deposit if the Quote was accepted another way meanwhile", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    await addCard(client);
+    testPayments().requireApproval("approved");
+    await payNow(client, quote).expect(200);
+    // the Office records it by phone with the saved card
+    await office
+      .post(`/api/quotes/${quote.id}/accept`)
+      .send({ cleanType: "deep" })
+      .expect(200);
+
+    await finalize(client, quote).expect(200);
+
+    // two payments taken, the late one given back
+    expect(testPayments().charges).toHaveLength(2);
+    expect(testPayments().refunds).toEqual([
+      expect.objectContaining({
+        chargeId: testPayments().charges[1]!.chargeId,
+      }),
+    ]);
+    expect((await scheduleOn(office, MONDAY)).jobs).toHaveLength(1);
+  });
+
+  test("is booked by the provider's webhook if the browser never comes back", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("approved");
+    const waiting = await payNow(client, quote).expect(200);
+
+    await webhook({
+      kind: "deposit_succeeded",
+      ref: refOf(waiting.body),
+    }).expect(200);
+
+    expect((await client.get(`/api/quotes/mine/${quote.id}`)).body.status).toBe(
+      "accepted",
+    );
+    expect((await scheduleOn(office, MONDAY)).jobs).toHaveLength(1);
+    // the browser coming back later changes nothing
+    await finalize(client, quote).expect(200);
+    await webhook({
+      kind: "deposit_succeeded",
+      ref: refOf(waiting.body),
+    }).expect(200);
+    expect(testPayments().charges).toHaveLength(1);
+    expect((await scheduleOn(office, MONDAY)).jobs).toHaveLength(1);
+  });
+
+  test("refuses a webhook that isn't signed by the provider", async () => {
+    await webhook(
+      { kind: "deposit_succeeded", ref: "pi_fake_1" },
+      "forged",
+    ).expect(400);
+    await webhook({ kind: "something_else" }).expect(200);
+  });
+});
+
+describe("when something goes wrong mid-way", () => {
+  test("refunds the Deposit if the booking can't be saved after it's taken", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    await addCard(client);
+    // the database refuses to record the Charge, after the Deposit is taken
+    await db.execute(sql`
+      create function refuse_charges() returns trigger language plpgsql as
+      $$ begin raise exception 'the database is unwell'; end $$`);
+    await db.execute(sql`
+      create trigger refuse_charges before insert on charges
+      for each row execute function refuse_charges()`);
+    try {
+      await accept(client, quote).expect(500);
+    } finally {
+      await db.execute(sql`drop trigger refuse_charges on charges`);
+      await db.execute(sql`drop function refuse_charges`);
+    }
+
+    const [charge] = testPayments().charges;
+    expect(testPayments().refunds).toEqual([
+      expect.objectContaining({
+        chargeId: charge!.chargeId,
+        amount: charge!.amount,
+      }),
+    ]);
+    expect((await client.get(`/api/quotes/mine/${quote.id}`)).body.status).toBe(
+      "sent",
+    );
+    expect((await scheduleOn(office, MONDAY)).jobs).toEqual([]);
+  });
+
+  test("books and takes nothing if the payment provider can't be reached", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    await addCard(client);
+    testPayments().goDown();
+
+    await accept(client, quote).expect(500);
+    await office
+      .post(`/api/quotes/${quote.id}/accept`)
+      .send({ cleanType: "deep" })
+      .expect(500);
+
+    expect((await client.get(`/api/quotes/mine/${quote.id}`)).body.status).toBe(
+      "sent",
+    );
+    expect((await scheduleOn(office, MONDAY)).jobs).toEqual([]);
+    expect(await depositCharges()).toEqual([]);
+    testPayments().goDown(false);
+    await accept(client, quote).expect(200);
   });
 });
 

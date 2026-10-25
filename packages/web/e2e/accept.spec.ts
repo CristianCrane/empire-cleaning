@@ -5,6 +5,7 @@ import {
   expect,
   failCharges,
   proposeNextMonday,
+  requireApproval,
   requestQuoteAsGuest,
   setUsualWeek,
   signedInAs,
@@ -71,10 +72,16 @@ test(
     ).toBeChecked();
     await accept.getByText("Standard Clean", { exact: true }).click();
     await expect(accept.getByText("Test payments: no card")).toBeVisible();
+    // paying saves the card for the Balance, which the form says
+    await expect(
+      accept.getByText("By paying, you authorise Empire Cleaning"),
+    ).toBeVisible();
     await accept.getByRole("button", { name: /^Accept and pay \$/ }).click();
 
     await expect(
-      client.getByText("You're booked: a Standard Clean on Mon, Jan 12, 9:00 AM"),
+      client.getByText(
+        "You're booked: a Standard Clean on Mon, Jan 12, 9:00 AM",
+      ),
     ).toBeVisible();
     await expect(accept).toBeHidden();
     expect((await emailsTo(casey.email)).map((e) => e.subject)).toContain(
@@ -109,19 +116,42 @@ test("a declined Deposit books nothing, and another try goes through", async ({
   await accept.getByRole("button", { name: /^Accept and pay/ }).click();
 
   await expect(
-    accept.getByText("Your card couldn't be charged, so nothing has been booked"),
+    accept.getByText(
+      "Your card couldn't be charged, so nothing has been booked",
+    ),
   ).toBeVisible();
   await expect(
     client.getByText("This Quote is open until", { exact: false }),
   ).toBeVisible();
-  // the card was kept: trying again needs no new one
-  await expect(accept.getByText("Paying with your")).toContainText(
-    "Test card ending 4242",
-  );
+  // a declined card isn't kept: the form is there for another
+  await expect(accept.getByText("Test payments: no card")).toBeVisible();
 
   await failCharges(null);
   await accept.getByRole("button", { name: /^Accept and pay/ }).click();
   await expect(client.getByText("You're booked")).toBeVisible();
+});
+
+test("a Deposit the bank asks the Client to approve is booked once approved", async ({
+  page,
+  browser,
+}) => {
+  await quoteSent(page);
+  const client = await (await browser.newContext()).newPage();
+  await signedInAs(client, casey.email);
+  await client.goto(await linkIn("Your Quote from Empire Cleaning"));
+  const accept = client.getByRole("region", { name: "Accept and book" });
+
+  await requireApproval("refused");
+  await accept.getByRole("button", { name: /^Accept and pay/ }).click();
+  await expect(
+    accept.getByText("Your bank didn't approve the payment"),
+  ).toBeVisible();
+
+  await requireApproval("approved");
+  await accept.getByRole("button", { name: /^Accept and pay/ }).click();
+  await expect(
+    client.getByText("You're booked: a Deep Clean on Mon, Jan 12, 9:00 AM"),
+  ).toBeVisible();
 });
 
 test("Office Staff email a link to add a card, then record the Client's acceptance", async ({
@@ -143,6 +173,9 @@ test("Office Staff email a link to add a card, then record the Client's acceptan
     "Payment Method",
   );
   await expect(client.getByText("You haven't saved a card yet")).toBeVisible();
+  await expect(
+    client.getByText("By saving your card, you authorise Empire Cleaning"),
+  ).toBeVisible();
   await client.getByRole("button", { name: "Save card" }).click();
   await expect(
     client.getByText("Your Test card ending 4242 is saved"),
@@ -157,8 +190,8 @@ test("Office Staff email a link to add a card, then record the Client's acceptan
     .click();
 
   await expect(page.getByText("Accepted and booked")).toBeVisible();
-  await expect(
-    page.getByRole("region", { name: "Offer" }),
-  ).toContainText("Deep Clean, booked");
+  await expect(page.getByRole("region", { name: "Offer" })).toContainText(
+    "Deep Clean, booked",
+  );
   await expect(record).toBeHidden();
 });

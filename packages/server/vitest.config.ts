@@ -22,6 +22,7 @@ export default defineConfig({
       GOOGLE_CLIENT_SECRET: "test-google-client-secret",
       STRIPE_SECRET_KEY: "test-stripe-secret-key",
       STRIPE_PUBLISHABLE_KEY: "test-stripe-publishable-key",
+      STRIPE_WEBHOOK_SECRET: "test-stripe-webhook-secret",
     },
     clearMocks: true,
     restoreMocks: true,

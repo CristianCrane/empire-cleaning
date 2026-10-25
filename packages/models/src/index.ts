@@ -425,17 +425,32 @@ export type PaymentMethodView = {
   // e.g. "Visa ending 4242"
   label: string;
   savedAt: string;
+  // when the Client agreed to later Charges to it without them there (the
+  // Balance, and late-cancellation or No Access fees)
+  consentedAt: string;
 };
 
-// the payment provider's own card form, shown in the browser so card numbers
-// never reach our server (ADR-0004): which form, and the one-time secret it
-// needs. "test" is the fake provider's, for tests.
-export type CardForm =
-  | { form: "stripe"; publishableKey: string; secret: string }
-  | { form: "test"; secret: string };
+// the payment provider's own payment form, shown in the browser so card
+// numbers never reach our server (ADR-0004). "test" is the fake provider's,
+// for tests: it needs no card.
+export type PaymentForm =
+  { form: "stripe"; publishableKey: string } | { form: "test" };
 
-// POST /api/quotes/mine/:id/accept, and the Office's /api/quotes/:id/accept
-export type AcceptQuoteInput = { cleanType: CleanType };
+// that form for saving a Payment Method without paying, with the one-time
+// secret it needs
+export type CardForm = PaymentForm & { secret: string };
+
+// POST /api/quotes/mine/:id/accept. A Client paying with a card entered just
+// now sends the payment form's token, which also saves the card; without one
+// their saved Payment Method pays. The Office's /api/quotes/:id/accept takes
+// only the Clean Type, and always charges the saved one.
+export type AcceptQuoteInput = { cleanType: CleanType; paymentToken?: string };
+
+// the Client's acceptance: done, or waiting on their bank's approval (e.g. 3D
+// Secure) in the browser with `secret`, then POST .../accept/finalize
+export type AcceptOutcome =
+  | { status: "accepted"; quote: QuoteView }
+  | { status: "needs_approval"; secret: string };
 
 // a booked Job as its Client sees it
 export type ClientJob = {

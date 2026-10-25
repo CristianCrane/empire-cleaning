@@ -12,7 +12,7 @@ import {
 import { ApiError } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { formatDate } from "../format.ts";
-import { CardProblem, useCardForm } from "./CardForm.tsx";
+import { CardProblem, ConsentNote, useCardForm } from "./CardForm.tsx";
 
 // where the Office's "add a Payment Method" email leads: the Client adds (or
 // replaces) the card that Deposits and Balances are charged to
@@ -68,6 +68,7 @@ export function PortalPaymentMethod() {
 
       <Card title={saved ? "Use a different card" : "Add a card"}>
         {card.field}
+        <ConsentNote action="saving" />
         {problem && <Notice tone="danger">{problem}</Notice>}
         <Actions>
           <Button

@@ -1,0 +1,12 @@
+# The Deposit is taken on-session, by the payment that saves the Payment Method
+
+When a Client accepts a Quote, the Deposit is an on-session payment, made while they are on the page, and that same payment saves their card as their Payment Method for later Charges. Every later Charge (the Balance on completion, acceptance Office Staff record on a Client's behalf, late-cancellation and No Access fees) is off-session, on the saved card. With Stripe, the browser's Payment Element hands our server a one-time token, and the server creates and confirms the Deposit's PaymentIntent from it, saving the card by the same payment. We chose this, Stripe's documented way to "charge a deposit and save the card for the full amount later", over saving the card first and charging the Deposit off-session at once. That two-step way is the less reliable path while the Client is present: banks are more likely to want approval that nobody is there to give.
+
+## Consequences
+
+- **Bank approval.** A Client's bank may want them to approve the Deposit (3D Secure). Then nothing is booked yet: the browser runs the approval, and the server finishes the booking when the payment has succeeded. The provider's webhook finishes it too, in case the browser never comes back. Whichever is first books it.
+- **Atomicity across approval.** The booking stays atomic (ADR-0001), though approval happens outside the transaction. Once approved, booking checks again that the Quote is still Sent and its day still has room. If not, the Deposit is refunded and nothing is booked.
+- **Cards and Link only.** Payments are limited to cards and Link, both of which succeed or fail at once. This deliberately departs from Stripe's advice to let it choose payment methods dynamically: bank debits and other delayed methods settle days later, which would break "the Deposit succeeds before anything is booked".
+- **Consent.** Saving a card is the Client's consent to later off-session Charges. The payment forms say what those are, and we record when each Client agreed.
+- **Saving without paying.** A card saved without paying (where the Office's add-a-card email leads) is set up on its own for off-session use.
+- **The Payment Gateway interface** (ADR-0004) gains "take a Deposit, saving the card it was paid with", "how did a Deposit that needed approval end", and provider events in our own terms. Stripe's objects still don't pass it.

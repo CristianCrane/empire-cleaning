@@ -6,6 +6,11 @@ export const acceptSchema = z.object({
   }),
 });
 
+// a Client may pay with a card entered just now: the payment form's token
+export const clientAcceptSchema = acceptSchema.extend({
+  paymentToken: z.string().min(1).max(255).optional(),
+});
+
 export const startSchema = z.object({
   quoteRequestId: z.uuid("Choose a Quote Request"),
 });

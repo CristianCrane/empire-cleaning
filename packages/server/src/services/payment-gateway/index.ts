@@ -1,16 +1,11 @@
-import type { CardForm } from "@empire-cleaning/models";
+import type { CardForm, PaymentForm } from "@empire-cleaning/models";
 import env from "../../env.ts";
 import { StripePaymentGateway } from "./stripe.ts";
 
-// amounts are integer minor units (cents)
-export type SavePaymentMethodInput = {
-  clientId: string;
-  // the Client types their card into the payment provider's own form in the
-  // browser (startCardForm); the form hands back this reference to what was
-  // set up, so card numbers never reach our server. We only pass it back to
-  // the provider.
-  token: string;
-};
+// A provider-neutral seam (ADR-0004): nothing past it knows which provider is
+// behind it, beyond which browser form to show. Amounts are integer minor
+// units (cents); every id is an opaque string. Calls that move money take an
+// idempotency key, so a retry never takes or gives it twice.
 
 export type SavedPaymentMethod = {
   paymentMethodId: string;
@@ -18,15 +13,46 @@ export type SavedPaymentMethod = {
   label: string;
 };
 
+// where a Deposit comes from: what the Client just entered in the browser's
+// payment form (which also saves it for later), or a Payment Method they
+// saved before
+export type DepositSource = { token: string } | { paymentMethodId: string };
+
+export type DepositInput = {
+  payerId: string;
+  source: DepositSource;
+  // 0 takes nothing, and only saves the Payment Method
+  amount: number;
+  description: string;
+  idempotencyKey: string;
+};
+
+// how taking a Deposit went. Needing approval means the Client's bank wants
+// them to approve it in the browser (e.g. 3D Secure) with `secret`; then
+// `depositOutcome(ref)` says how it ended.
+export type DepositAttempt =
+  | {
+      status: "succeeded";
+      // null when nothing was taken (a 0 Deposit)
+      chargeId: string | null;
+      // set when the source was entered just now, and so saved by this
+      saved: SavedPaymentMethod | null;
+    }
+  | { status: "needs_approval"; ref: string; secret: string }
+  | { status: "failed"; reason: string };
+
 export type ChargeInput = {
+  payerId: string;
   paymentMethodId: string;
   amount: number;
   description: string;
+  idempotencyKey: string;
 };
 
 export type RefundInput = {
   chargeId: string;
   amount: number;
+  idempotencyKey: string;
 };
 
 export type ChargeResult =
@@ -35,32 +61,63 @@ export type ChargeResult =
 export type RefundResult =
   { ok: true; refundId: string } | { ok: false; reason: string };
 
-// A provider-neutral seam (ADR-0004): nothing past it knows which provider is
-// behind it, beyond which browser card form to show.
+// a webhook request's headers, as Express gives them
+export type EventHeaders = Record<string, string | string[] | undefined>;
+
+// what the provider tells us happened, in our own terms
+export type PaymentEvent =
+  | { kind: "deposit_succeeded"; ref: string }
+  | { kind: "charge_refunded"; chargeId: string }
+  | { kind: "dispute_opened"; chargeId: string };
+
 export interface PaymentGateway {
-  // what the browser needs to show the provider's card form, once
-  startCardForm(): Promise<CardForm>;
-  // keeps what the card form set up, for charging later; throws
-  // PaymentMethodError if the provider won't keep it
-  savePaymentMethod(input: SavePaymentMethodInput): Promise<SavedPaymentMethod>;
+  // which browser form takes a payment, for the web app to show
+  paymentForm(): PaymentForm;
+  // the Client as the provider knows them; created once per Client
+  createPayer(input: {
+    clientId: string;
+    name: string;
+    email: string;
+  }): Promise<{ payerId: string }>;
+  // a browser form that only saves a Payment Method, taking nothing
+  startCardForm(payerId: string): Promise<CardForm>;
+  // keeps what that form set up; throws PaymentMethodError if it wasn't
+  savePaymentMethod(input: {
+    payerId: string;
+    token: string;
+  }): Promise<SavedPaymentMethod>;
+  // the Deposit, with the Client there to approve it if their bank asks
+  takeDeposit(input: DepositInput): Promise<DepositAttempt>;
+  // how a Deposit that needed approval ended
+  depositOutcome(ref: string): Promise<DepositAttempt>;
+  // a later Charge to a saved Payment Method, without the Client there
   charge(input: ChargeInput): Promise<ChargeResult>;
   refund(input: RefundInput): Promise<RefundResult>;
+  // checks a webhook really came from the provider (throws if not) and says
+  // what it means; null for events we don't act on
+  parseEvent(body: Buffer, headers: EventHeaders): PaymentEvent | null;
 }
 
-// the provider refused a card form's result, e.g. it was never completed;
-// the message is for the Client
+// the provider refused a form's result, e.g. it was never completed; the
+// message is for the Client
 export class PaymentMethodError extends Error {}
 
-let current: PaymentGateway = new StripePaymentGateway(
-  env.STRIPE_SECRET_KEY,
-  env.STRIPE_PUBLISHABLE_KEY,
-);
+let current: PaymentGateway = new StripePaymentGateway({
+  secretKey: env.STRIPE_SECRET_KEY,
+  publishableKey: env.STRIPE_PUBLISHABLE_KEY,
+  webhookSecret: env.STRIPE_WEBHOOK_SECRET,
+});
 
 export const paymentGateway: PaymentGateway = {
-  startCardForm: () => current.startCardForm(),
+  paymentForm: () => current.paymentForm(),
+  createPayer: (input) => current.createPayer(input),
+  startCardForm: (payerId) => current.startCardForm(payerId),
   savePaymentMethod: (input) => current.savePaymentMethod(input),
+  takeDeposit: (input) => current.takeDeposit(input),
+  depositOutcome: (ref) => current.depositOutcome(ref),
   charge: (input) => current.charge(input),
   refund: (input) => current.refund(input),
+  parseEvent: (body, headers) => current.parseEvent(body, headers),
 };
 
 // tests swap in a fake

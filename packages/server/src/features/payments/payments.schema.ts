@@ -11,6 +11,17 @@ import { timestamps } from "../../db/index.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
 
+// the Client as the payment provider knows them, made the first time they
+// pay or save a card; their Payment Methods are kept with it
+export const payers = pgTable("payers", {
+  clientId: uuid("client_id")
+    .primaryKey()
+    .references(() => clients.id, { onDelete: "cascade" }),
+  // the Payment Gateway's id for them, opaque to us
+  gatewayRef: text("gateway_ref").notNull().unique(),
+  ...timestamps,
+});
+
 // A Client's saved means of payment: one each, a new one replacing the last.
 // The card itself lives with the payment provider (ADR-0004); we hold only
 // its reference and how to describe it.
@@ -23,6 +34,9 @@ export const paymentMethods = pgTable("payment_methods", {
   // e.g. "Visa ending 4242"
   label: text("label").notNull(),
   savedAt: timestamp("saved_at", { withTimezone: true }).notNull(),
+  // when they agreed, saving it, to later Charges without them there: the
+  // Balance, and late-cancellation or No Access fees
+  consentedAt: timestamp("consented_at", { withTimezone: true }).notNull(),
   ...timestamps,
 });
 
