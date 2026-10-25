@@ -43,6 +43,37 @@ const conditionMultiplier = (list: PriceList, condition: Condition) =>
     heavy: list.conditionHeavy,
   })[condition];
 
+// what an Add-on's hours cost at the hourly rate, to the cent, before tax
+export const addOnCents = (hours: number, hourlyRateCents: number) =>
+  Math.floor((hoursUnits(hours) * hourlyRateCents + HOURS / 2) / HOURS);
+
+// the tax on a price before tax: the rate on all of it except tax-exempt
+// Add-ons' share. Used for the Suggested Price and for a price overriding it.
+export const taxOn = (
+  priceCents: number,
+  {
+    hourlyRateCents,
+    taxPercent,
+    addOns,
+  }: {
+    hourlyRateCents: number;
+    taxPercent: number;
+    addOns: { hours: number; taxExempt: boolean }[];
+  },
+) => {
+  const exemptUnits = addOns
+    .filter((addOn) => addOn.taxExempt)
+    .reduce((sum, addOn) => sum + hoursUnits(addOn.hours), 0);
+  const exemptCents = Math.min(
+    priceCents,
+    Math.floor((exemptUnits * hourlyRateCents + HOURS / 2) / HOURS),
+  );
+  const thousandths = Math.round(taxPercent * 1000);
+  return Math.floor(
+    ((priceCents - exemptCents) * thousandths + 50_000) / 100_000,
+  );
+};
+
 export const suggestedPrice = (
   list: PriceList,
   home: Home,
@@ -97,20 +128,11 @@ export const suggestedPrice = (
   const workedOutCents = dollars * 100;
   const priceCents = Math.max(workedOutCents, list.minimumChargeCents);
 
-  // tax-exempt Add-ons' share of the price isn't taxed
-  const exemptUnits = addOns
-    .filter((addOn) => addOn.taxExempt)
-    .reduce(
-      (sum, addOn) => sum + hoursUnits(addOn.hours) * MULTIPLIER * MULTIPLIER,
-      0,
-    );
-  const exemptCents = Math.min(
-    priceCents,
-    Math.floor((exemptUnits * list.hourlyRateCents + SCALE / 2) / SCALE),
-  );
-  const taxableCents = priceCents - exemptCents;
-  const thousandths = Math.round(list.taxOneOffPercent * 1000);
-  const taxCents = Math.floor((taxableCents * thousandths + 50_000) / 100_000);
+  const taxCents = taxOn(priceCents, {
+    hourlyRateCents: list.hourlyRateCents,
+    taxPercent: list.taxOneOffPercent,
+    addOns,
+  });
 
   return {
     cleanType,

@@ -35,14 +35,34 @@ const wallClock = (instant: Date) => {
 // the day an instant falls on, in New York
 export const dayOf = (instant: Date) => wallClock(instant).day;
 
-// the instant a day starts, in New York (midnight is never skipped there:
-// the clocks change at 2am)
-export const startOfDay = (day: string) => {
-  const midnightUtc = Date.parse(`${day}T00:00:00Z`);
+// the instant a New York wall-clock time happens on a day: atTime("2026-11-03",
+// "09:00"). A time skipped when the clocks go forward (2:30am) comes out an
+// hour later.
+export const atTime = (day: string, time: string) => {
+  const wallUtc = Date.parse(`${day}T${time}:00Z`);
   const offset = (at: number) =>
     wallClock(new Date(at)).asUtc - Math.floor(at / 1000) * 1000;
-  const guess = midnightUtc - offset(midnightUtc);
-  return new Date(midnightUtc - offset(guess));
+  const guess = wallUtc - offset(wallUtc);
+  return new Date(wallUtc - offset(guess));
+};
+
+// the instant a day starts, in New York (midnight is never skipped there:
+// the clocks change at 2am)
+export const startOfDay = (day: string) => atTime(day, "00:00");
+
+const timeParts = new Intl.DateTimeFormat("en-US", {
+  timeZone: BUSINESS_TIME_ZONE,
+  hourCycle: "h23",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+// the New York wall-clock time of an instant: "09:00"
+export const timeOf = (instant: Date) => {
+  const p = Object.fromEntries(
+    timeParts.formatToParts(instant).map(({ type, value }) => [type, value]),
+  );
+  return `${p.hour}:${p.minute}`;
 };
 
 export const addDays = (day: string, days: number) =>

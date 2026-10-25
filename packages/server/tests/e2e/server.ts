@@ -1,8 +1,8 @@
 // runs the real API for the web app's end-to-end tests (packages/web/e2e),
 // exactly as in production except that email, payments and the clock are the
 // same fakes the server tests use. A second, local-only control server lets
-// the tests reset state, add Staff, Clients and Jobs, and read the emails that were
-// "sent". Accounts aren't created here: tests sign up, as people do (ADR-0006).
+// the tests reset state, add Staff, Clients and Jobs, move the clock and read
+// the emails that were "sent". Accounts aren't created here: tests sign up, as people do (ADR-0006).
 // Started by Playwright with its environment set (packages/web/playwright.config.ts).
 import express from "express";
 import { eq } from "drizzle-orm";
@@ -19,7 +19,7 @@ const { default: env } = await import("../../src/env.ts");
 const { createStaff, setUsualWeek } =
   await import("../../src/features/staff/index.ts");
 const { createClient } = await import("../../src/features/clients/index.ts");
-const { installFakes, resetDatabase, testEmail } =
+const { installFakes, resetDatabase, testClock, testEmail } =
   await import("../harness.ts");
 const { bookedJob } = await import("../fixtures.ts");
 const { db } = await import("../../src/db/index.ts");
@@ -61,6 +61,13 @@ control.put("/staff/:id/usual-week", async (req, res) => {
 // accepting a Quote (#8)
 control.post("/jobs", async (req, res) => {
   res.json(await bookedJob(req.body as Parameters<typeof bookedJob>[0]));
+});
+
+// moves the API's clock, e.g. to a Quote's last two days
+control.post("/clock", (req, res) => {
+  const { at } = req.body as { at: string };
+  testClock().set(new Date(at));
+  res.json({ status: "ok" });
 });
 
 control.post("/clients", async (req, res) => {

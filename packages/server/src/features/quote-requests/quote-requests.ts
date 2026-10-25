@@ -24,6 +24,7 @@ import { properties, type Property } from "../properties/properties.schema.ts";
 import { toPropertyView } from "../properties/property-view.ts";
 import { currentPriceList } from "../price-list/price-list.ts";
 import { suggestedPrice } from "../price-list/suggested-price.ts";
+import { quotesForRequest, requestStates } from "../quotes/quote-state.ts";
 import { addOnsForRequests } from "./add-ons.ts";
 import { quoteRequestAddOns, quoteRequests } from "./quote-requests.schema.ts";
 import {
@@ -142,14 +143,14 @@ export const submitQuoteRequest = async (
     }
 
     if (!isNew) {
-      // until #5 and #6 let a request end (Quote Accepted, Declined or
-      // Expired, or Turned Down), every request is still waiting
-      const [waiting] = await tx
+      // a request is waiting until it ends: its Quote Declined (and, with
+      // #6 and #8, Turned Down or Accepted)
+      const asked = await tx
         .select({ id: quoteRequests.id })
         .from(quoteRequests)
-        .where(eq(quoteRequests.propertyId, property!.id))
-        .limit(1);
-      if (waiting) {
+        .where(eq(quoteRequests.propertyId, property!.id));
+      const states = await requestStates(asked.map((r) => r.id));
+      if ([...states.values()].some((state) => state !== "ended")) {
         throw new ConflictError(
           `You've already asked us for a Quote for this home. We'll email it to ${client.email} soon.`,
         );
@@ -226,8 +227,7 @@ const sendReceipt = async (client: Client, property: Property) => {
   });
 };
 
-// every Quote Request for the Office, newest first; Turning Down (#6) and
-// Quotes (#5) will narrow this to the open ones
+// the Quote Requests that haven't ended, for the Office, newest first
 export const openQuoteRequests = async (): Promise<OpenQuoteRequest[]> => {
   const rows = await db
     .select({
@@ -247,26 +247,35 @@ export const openQuoteRequests = async (): Promise<OpenQuoteRequest[]> => {
     .innerJoin(properties, eq(properties.id, quoteRequests.propertyId))
     .orderBy(desc(quoteRequests.createdAt));
 
-  const addOns = await addOnsForRequests(rows.map((r) => r.request.id));
-  return rows.map(({ request, client, property }) => ({
-    id: request.id,
-    propertyId: request.propertyId,
-    condition: request.condition,
-    wantsRegularService: request.wantsRegularService,
-    notes: request.notes,
-    addOns: addOns.get(request.id) ?? [],
-    createdAt: request.createdAt.toISOString(),
-    client,
-    property,
-  }));
+  const ids = rows.map((r) => r.request.id);
+  const [addOns, states] = await Promise.all([
+    addOnsForRequests(ids),
+    requestStates(ids),
+  ]);
+  return rows
+    .filter(({ request }) => states.get(request.id) !== "ended")
+    .map(({ request, client, property }) => ({
+      id: request.id,
+      propertyId: request.propertyId,
+      condition: request.condition,
+      wantsRegularService: request.wantsRegularService,
+      notes: request.notes,
+      addOns: addOns.get(request.id) ?? [],
+      createdAt: request.createdAt.toISOString(),
+      state: states.get(request.id)!,
+      client,
+      property,
+    }));
 };
 
-// the requests waiting for the Office to send a Quote, longest waiting first.
-// Until Quotes exist (#5) that's every open request; #5 leaves out those with
-// a Quote Sent.
+// the requests waiting for the Office to send a Quote, longest waiting first:
+// none sent yet, or the last one Expired
 export const quoteRequestsAwaitingQuote = async (): Promise<
   OpenQuoteRequest[]
-> => (await openQuoteRequests()).reverse();
+> =>
+  (await openQuoteRequests())
+    .filter((request) => request.state === "awaiting_quote")
+    .reverse();
 
 // one request in full for the Office, with the Suggested Price for both Clean
 // Types worked out now from the current Price List, using the home's current
@@ -283,9 +292,11 @@ export const quoteRequestDetail = async (
     .where(eq(quoteRequests.id, id));
   if (!row) return undefined;
 
-  const [list, addOns] = await Promise.all([
+  const [list, addOns, states, quotes] = await Promise.all([
     currentPriceList(),
     addOnsForRequests([id]),
+    requestStates([id]),
+    quotesForRequest(id),
   ]);
   const choices = addOns.get(id) ?? [];
   const chosen = list.addOns.filter((a) =>
@@ -319,5 +330,7 @@ export const quoteRequestDetail = async (
       standard: price("standard"),
       deep: price("deep"),
     },
+    state: states.get(id)!,
+    quotes,
   };
 };

@@ -1,4 +1,6 @@
-import { useLoaderData } from "@tanstack/react-router";
+import type { ReactNode } from "react";
+import { useLoaderData, useNavigate } from "@tanstack/react-router";
+import type { QuoteRequestState } from "@empire-cleaning/models";
 import {
   ButtonLink,
   Card,
@@ -12,11 +14,21 @@ import {
   addressOf,
   conditionLabel,
   formatDate,
+  formatDateTime,
+  formatMoney,
   homeSummary,
 } from "../format.ts";
+import { QuoteStatusBadge } from "../QuoteParts.tsx";
+
+const requestBadge: Record<QuoteRequestState, ReactNode> = {
+  awaiting_quote: <StatusBadge tone="info">Received</StatusBadge>,
+  quoted: <StatusBadge tone="success">Quoted</StatusBadge>,
+  ended: <StatusBadge>Closed</StatusBadge>,
+};
 
 export function PortalHome() {
-  const client = useLoaderData({ from: "/portal/" });
+  const { client, quotes } = useLoaderData({ from: "/portal/" });
+  const navigate = useNavigate();
   const [firstName] = client.name.split(" ");
   const homes = new Map(client.properties.map((p) => [p.id, p]));
 
@@ -28,6 +40,33 @@ export function PortalHome() {
           Request a Quote
         </ButtonLink>
       </div>
+
+      {quotes.length > 0 && (
+        <Card title="Your Quotes">
+          <List
+            aria-label="Your Quotes"
+            onAction={(id) =>
+              navigate({
+                to: "/portal/quotes/$quoteId",
+                params: { quoteId: String(id) },
+              })
+            }
+          >
+            {quotes.map((quote) => (
+              <ListItem
+                key={quote.id}
+                id={quote.id}
+                title={addressOf(quote.property)}
+                description={[
+                  `For ${formatDateTime(quote.proposedStartsAt!)}`,
+                  `Deep Clean ${formatMoney(quote.recommendedTotalCents)}`,
+                ].join(" · ")}
+                end={<QuoteStatusBadge status={quote.status} />}
+              />
+            ))}
+          </List>
+        </Card>
+      )}
 
       <Card
         title="Your Quote Requests"
@@ -57,7 +96,7 @@ export function PortalHome() {
                 ]
                   .filter(Boolean)
                   .join(" · ")}
-                end={<StatusBadge tone="info">Received</StatusBadge>}
+                end={requestBadge[request.state]}
               />
             );
           })}

@@ -39,7 +39,11 @@ const navFor: Record<AreaId, AreaNavItem[]> = {
       href: linkTo({ to: "/office/requests" }),
       label: "Requests",
       icon: Inbox,
-      alsoCurrentFor: ["/office/requests/", "/office/clients"],
+      alsoCurrentFor: [
+        "/office/requests/",
+        "/office/clients",
+        "/office/quotes",
+      ],
     },
     {
       href: linkTo({ to: "/office/schedule" }),
@@ -66,7 +70,7 @@ const navFor: Record<AreaId, AreaNavItem[]> = {
       href: linkTo({ to: "/portal" }),
       label: "Home",
       icon: House,
-      alsoCurrentFor: ["/portal/request"],
+      alsoCurrentFor: ["/portal/request", "/portal/quotes"],
     },
     {
       href: linkTo({ to: "/portal/details" }),
