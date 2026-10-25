@@ -37,3 +37,6 @@ export const patchJson = <T>(path: string, body: unknown) =>
   call<T>("PATCH", path, body);
 export const putJson = <T>(path: string, body: unknown) =>
   call<T>("PUT", path, body);
+export const postJson = <T>(path: string, body?: unknown) =>
+  call<T>("POST", path, body);
+export const deleteJson = <T>(path: string) => call<T>("DELETE", path);

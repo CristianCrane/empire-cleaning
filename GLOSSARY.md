@@ -136,6 +136,10 @@ _Avoid_: Cancelled, terminated, closed
 The calendar of all booked Jobs.
 _Avoid_: Calendar, roster, bookings
 
+**Available Hours**:
+The hours a Cleaner can work on a day: their usual hours for that weekday, unless Office Staff have set different hours for that date, such as 0 for a holiday. A day has room for a booking when its Cleaners' Available Hours, less the Labour Hours of Jobs already booked that day, cover the booking's Labour Hours. Days are Empire Cleaning's own, in New York.
+_Avoid_: Capacity, shifts, roster
+
 **Assignment**:
 The allocation of a specific Staff member to carry out a Job, made separately from, and possibly after, booking it. An Assignment is _Offered_ until the Staff member _Confirms_ it or _Releases_ it; Releasing frees that place on the Job. A Job is _Unassigned_ until all its places are Confirmed, and cannot be Completed while Unassigned.
 _Avoid_: Dispatch, crew allocation, accept, decline

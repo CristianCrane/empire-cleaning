@@ -13,6 +13,7 @@ import {
   LayoutDashboard,
   User,
   UserRound,
+  Users,
 } from "lucide-react";
 import type { SignedInAccount } from "@empire-cleaning/models";
 import {
@@ -39,6 +40,17 @@ const navFor: Record<AreaId, AreaNavItem[]> = {
       label: "Requests",
       icon: Inbox,
       alsoCurrentFor: ["/office/requests/", "/office/clients"],
+    },
+    {
+      href: linkTo({ to: "/office/schedule" }),
+      label: "Schedule",
+      icon: CalendarDays,
+    },
+    {
+      href: linkTo({ to: "/office/staff" }),
+      label: "Staff",
+      icon: Users,
+      alsoCurrentFor: ["/office/staff/"],
     },
     {
       href: linkTo({ to: "/office/price-list" }),

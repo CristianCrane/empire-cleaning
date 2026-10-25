@@ -18,6 +18,7 @@
     "@empire-cleaning/models": "workspace:*",
     "@empire-cleaning/quote-request": "workspace:*",
     "@empire-cleaning/ui": "workspace:*",
+    "@internationalized/date": "^3.12.4",
     "@tanstack/react-router": "^1.170.45",
     "better-auth": "^1.7.7",
     "lucide-react": "^1.53.0",

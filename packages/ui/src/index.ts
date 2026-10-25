@@ -5,6 +5,7 @@ import "./tokens.css";
 
 export { Actions } from "./Actions.tsx";
 export { AppLayout, Wordmark, type NavItem } from "./AppLayout.tsx";
+export { Avatar } from "./Avatar.tsx";
 export { Breadcrumbs, type Crumb } from "./Breadcrumbs.tsx";
 export { Button, buttonStyles, type ButtonProps } from "./Button.tsx";
 export { Calendar } from "./Calendar.tsx";

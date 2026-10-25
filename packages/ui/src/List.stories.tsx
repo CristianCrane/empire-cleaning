@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, fn } from "storybook/test";
+import { Avatar } from "./Avatar.tsx";
 import { List, ListItem } from "./List.tsx";
 import { StatusBadge } from "./StatusBadge.tsx";
 
@@ -48,6 +49,27 @@ export const ReadOnly: Story = {
     <List {...args}>
       <ListItem id="1" title="Inside the oven" description="$35.00" />
       <ListItem id="2" title="Inside the fridge" description="$30.00" />
+    </List>
+  ),
+};
+
+// people, each with their picture or the plain icon
+export const WithAvatars: Story = {
+  render: (args) => (
+    <List {...args}>
+      <ListItem
+        id="1"
+        title="Cory Cleaner"
+        description="Cleaner · cory@example.com"
+        start={<Avatar />}
+      />
+      <ListItem
+        id="2"
+        title="Olive Owner"
+        description="Office Staff · olive@example.com"
+        start={<Avatar />}
+        end={<StatusBadge tone="info">Invited</StatusBadge>}
+      />
     </List>
   ),
 };

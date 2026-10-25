@@ -11,6 +11,9 @@ import type {
   OpenQuoteRequest,
   PriceList,
   QuoteRequestDetail,
+  ScheduleDay,
+  StaffDetail,
+  StaffMember,
 } from "@empire-cleaning/models";
 import { RouterProvider, ToastRegion } from "@empire-cleaning/ui";
 import { getJson } from "./api.ts";
@@ -20,6 +23,14 @@ import { PriceListScreen } from "./screens/office/PriceListScreen.tsx";
 import { QuoteRequest } from "./screens/office/QuoteRequest.tsx";
 import { QuoteRequests } from "./screens/office/QuoteRequests.tsx";
 import { ClientDetail } from "./screens/office/ClientDetail.tsx";
+import { ScheduleScreen } from "./screens/office/ScheduleScreen.tsx";
+import { StaffMemberScreen } from "./screens/office/StaffMemberScreen.tsx";
+import { StaffScreen } from "./screens/office/StaffScreen.tsx";
+import {
+  isDay,
+  scheduleRange,
+  type ScheduleSearch,
+} from "./screens/office/schedule-range.ts";
 import { PortalHome } from "./screens/portal/PortalHome.tsx";
 import { PortalRequest } from "./screens/portal/PortalRequest.tsx";
 import { PortalDetails } from "./screens/portal/PortalDetails.tsx";
@@ -177,6 +188,33 @@ const officeClientRoute = createRoute({
   component: ClientDetail,
 });
 
+const officeStaffRoute = createRoute({
+  getParentRoute: () => officeRoute,
+  path: "/staff",
+  loader: () => getJson<StaffMember[]>("/api/staff"),
+  component: StaffScreen,
+});
+
+const officeStaffMemberRoute = createRoute({
+  getParentRoute: () => officeRoute,
+  path: "/staff/$staffId",
+  loader: ({ params }) => getJson<StaffDetail>(`/api/staff/${params.staffId}`),
+  component: StaffMemberScreen,
+});
+
+const officeScheduleRoute = createRoute({
+  getParentRoute: () => officeRoute,
+  path: "/schedule",
+  validateSearch: (search: Record<string, unknown>): ScheduleSearch => ({
+    from: isDay(search.from) ? search.from : undefined,
+    to: isDay(search.to) ? search.to : undefined,
+  }),
+  loaderDeps: ({ search }) => scheduleRange(search),
+  loader: ({ deps }) =>
+    getJson<ScheduleDay[]>(`/api/schedule?from=${deps.from}&to=${deps.to}`),
+  component: ScheduleScreen,
+});
+
 const cleanerHomeRoute = createRoute({
   getParentRoute: () => cleanerRoute,
   path: "/",
@@ -214,6 +252,9 @@ const routeTree = rootRoute.addChildren([
     officeRequestRoute,
     officeClientRoute,
     officePriceListRoute,
+    officeStaffRoute,
+    officeStaffMemberRoute,
+    officeScheduleRoute,
   ]),
   cleanerRoute.addChildren([cleanerHomeRoute]),
   portalRoute.addChildren([

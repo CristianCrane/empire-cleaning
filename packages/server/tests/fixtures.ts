@@ -1,8 +1,14 @@
 import type {
+  CleanType,
   NewProperty,
   QuoteRequestSubmission,
 } from "@empire-cleaning/models";
+import { db } from "#db";
+import { createClient } from "#features/clients";
+import { bookJob } from "#features/jobs";
+import { properties } from "#features/properties";
 import { createStaff } from "#features/staff";
+import { addressKey } from "../src/features/properties/address.ts";
 import { api, apiAgent, signIn } from "./harness.ts";
 
 // shared by the tests that need Quote Requests to work with
@@ -49,4 +55,43 @@ export const signInAsOffice = async () => {
     roles: ["office_staff"],
   });
   return signIn("olive@example.com");
+};
+
+// a booked Job at a home of its own. Nothing in the API books Jobs until
+// accepting a Quote (#8), so tests put them on the Schedule directly.
+let homes = 0;
+export const bookedJob = async ({
+  startsAt,
+  labourHours,
+  crewSize = 2,
+  cleanType = "deep",
+}: {
+  startsAt: string;
+  labourHours: number;
+  crewSize?: number;
+  cleanType?: CleanType;
+}) => {
+  homes += 1;
+  const client = await createClient({
+    email: `client${homes}@example.com`,
+    name: `Client ${homes}`,
+    phone: casey.phone,
+  });
+  const [property] = await db
+    .insert(properties)
+    .values({
+      ...home,
+      street: `${homes} Austin St`,
+      clientId: client.id,
+      condition: "moderate",
+      addressKey: addressKey({ ...home, street: `${homes} Austin St` }),
+    })
+    .returning();
+  return bookJob({
+    propertyId: property!.id,
+    startsAt: new Date(startsAt),
+    labourHours,
+    crewSize,
+    cleanType,
+  });
 };

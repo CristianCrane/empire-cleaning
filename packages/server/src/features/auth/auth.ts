@@ -83,6 +83,9 @@ export const auth = betterAuth({
     google: {
       clientId: env.GOOGLE_CLIENT_ID,
       clientSecret: env.GOOGLE_CLIENT_SECRET,
+      // every Google sign-in refreshes the Account's name and picture, also
+      // for an Account first made with an emailed link (Staff avatars)
+      overrideUserInfoOnSignIn: true,
     },
   },
   plugins: [

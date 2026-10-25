@@ -22,6 +22,28 @@ export const createStaff = (member: {
 export const createClient = (client: { email: string; name: string }) =>
   control("/clients", { method: "POST", body: JSON.stringify(client) });
 
+// the hours a Staff member is usually available, Monday first
+export const setUsualWeek = (staffId: string, usualWeek: number[]) =>
+  control(`/staff/${staffId}/usual-week`, {
+    method: "PUT",
+    body: JSON.stringify({ usualWeek }),
+  });
+
+// a booked Job at a home of its own (nothing in the app books Jobs until #8)
+export const bookJob = (job: {
+  startsAt: string;
+  labourHours: number;
+  crewSize?: number;
+  cleanType?: "standard" | "deep";
+}) => control("/jobs", { method: "POST", body: JSON.stringify(job) });
+
+// as if the person had signed in with Google, which has this picture of them
+export const setGooglePicture = (email: string, picture: string) =>
+  control("/accounts/picture", {
+    method: "POST",
+    body: JSON.stringify({ email, picture }),
+  });
+
 type Email = { to: string; subject: string; text: string };
 
 export const emailsTo = (address: string): Promise<Email[]> =>

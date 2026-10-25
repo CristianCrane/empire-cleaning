@@ -248,7 +248,7 @@ function Editor({ list }: { list: PriceList }) {
               key={addOn.key ?? `new-${i}`}
               className={`flex flex-col gap-3 rounded-md border border-border p-3 ${addOn.active ? "" : "bg-surface-sunken"}`}
             >
-              <div className="grid gap-3 sm:grid-cols-[2fr_1fr]">
+              <div className="grid gap-3 sm:grid-cols-[2fr_minmax(10rem,1fr)]">
                 <TextField
                   label="Name"
                   name={`addOns.${i}.name`}
@@ -365,7 +365,7 @@ function Editor({ list }: { list: PriceList }) {
         headingLevel={2}
         description="Added to the rates above, so Clients see prices with tax. Confirm these with your accountant."
       >
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-4">
           <Tax
             label="One-off Jobs (%)"
             name="taxOneOffPercent"
