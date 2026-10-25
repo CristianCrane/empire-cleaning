@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   index,
   integer,
   numeric,
@@ -10,17 +11,28 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { timestamps } from "../../db/index.ts";
+import { accounts } from "../auth/auth.schema.ts";
 import { condition, properties } from "../properties/properties.schema.ts";
 import { staff } from "../staff/staff.schema.ts";
 
 export const cleanType = pgEnum("clean_type", ["standard", "deep"]);
 
-// booked, then Completed by its assigned Staff; No Access and cancellation
-// come with their ticket (#11)
-export const jobStatus = pgEnum("job_status", ["booked", "completed"]);
+// booked, then Completed by its assigned Staff, Cancelled, or No Access when
+// they couldn't get in
+export const jobStatus = pgEnum("job_status", [
+  "booked",
+  "completed",
+  "cancelled",
+  "no_access",
+]);
+
+// who a cancellation is down to: the Client (themselves, or Office Staff on
+// their behalf), or Empire Cleaning
+export const cancelledBy = pgEnum("cancelled_by", ["client", "empire"]);
 
 // A single cleaning visit at one Property, booked for a confirmed time. The
-// Schedule is every booked or Completed Job. Accepting a Quote (#8) and
+// Schedule is every booked, Completed or No Access Job; a Cancelled one has
+// left it. Accepting a Quote (#8) and
 // Service Plans (#14) create them; an Accepted Quote points at the Job it
 // booked.
 export const jobs = pgTable(
@@ -58,6 +70,25 @@ export const jobs = pgTable(
     // cleared once what's owed is taken
     unpaidSince: timestamp("unpaid_since", { withTimezone: true }),
     unpaidReason: text("unpaid_reason"),
+    // once Cancelled: when, who it's down to and who did it, whether it was
+    // a Late Cancellation, and why, if Empire Cleaning said
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    cancelledBy: cancelledBy("cancelled_by"),
+    cancelledByAccount: uuid("cancelled_by_account").references(
+      () => accounts.id,
+      { onDelete: "set null" },
+    ),
+    lateCancellation: boolean("late_cancellation"),
+    cancellationReason: text("cancellation_reason"),
+    // once No Access: when, by whom, and what happened
+    noAccessAt: timestamp("no_access_at", { withTimezone: true }),
+    noAccessBy: uuid("no_access_by").references(() => staff.id, {
+      onDelete: "set null",
+    }),
+    noAccessReason: text("no_access_reason"),
+    // what a Cancelled or No Access Job owes, tax included: the Late
+    // Cancellation fee, or 0
+    feeCents: integer("fee_cents"),
     ...timestamps,
   },
   (t) => [

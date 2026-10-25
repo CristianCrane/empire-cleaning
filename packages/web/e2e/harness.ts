@@ -83,6 +83,17 @@ export const completeJob = (
     body: JSON.stringify({ staffId, ...input }),
   });
 
+// No Access recorded by a Cleaner with a Confirmed place on the Job
+export const recordNoAccess = (
+  jobId: string,
+  staffId: string,
+  reason: string,
+) =>
+  control(`/jobs/${jobId}/no-access`, {
+    method: "POST",
+    body: JSON.stringify({ staffId, reason }),
+  });
+
 // a place on a Job Offered to a Cleaner (and Confirmed by them, if asked)
 export const offerPlace = (
   jobId: string,

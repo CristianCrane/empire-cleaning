@@ -6,6 +6,11 @@ import {
 } from "#features/assignments";
 import { auth, router as meRouter } from "#features/auth";
 import {
+  clientCancellationRouter,
+  noAccessRouter,
+  officeCancellationRouter,
+} from "#features/cancellation";
+import {
   cleanerCompletionRouter,
   clientJobsRouter,
   officeCompletionRouter,
@@ -63,7 +68,10 @@ app.use("/api/jobs", jobsRouter);
 app.use("/api/jobs", clientJobsRouter);
 app.use("/api/jobs", jobAssignmentsRouter);
 app.use("/api/jobs", officeCompletionRouter);
+app.use("/api/jobs", clientCancellationRouter);
+app.use("/api/jobs", officeCancellationRouter);
 app.use("/api/assignments", cleanerCompletionRouter);
+app.use("/api/assignments", noAccessRouter);
 app.use("/api/assignments", assignmentsRouter);
 app.use("/api/payment-methods", paymentMethodsRouter);
 app.use("/api/dashboard", dashboardRouter);

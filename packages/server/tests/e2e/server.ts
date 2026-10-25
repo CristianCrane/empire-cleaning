@@ -28,6 +28,8 @@ const { installFakes, resetDatabase, testClock, testEmail, testPayments } =
 const { acceptedJob, bookedJob } = await import("../fixtures.ts");
 const { chaseProposedAdjustments, completeJob } =
   await import("../../src/features/completion/index.ts");
+const { recordNoAccess } =
+  await import("../../src/features/cancellation/index.ts");
 const { db } = await import("../../src/db/index.ts");
 const { accounts } = await import("../../src/features/auth/auth.schema.ts");
 
@@ -123,6 +125,14 @@ control.post("/jobs/:id/complete", async (req, res) => {
     typeof completeJob
   >[2];
   await completeJob(staffId, req.params.id, input);
+  res.json({ status: "ok" });
+});
+
+// No Access recorded by a Cleaner with a Confirmed place on the Job, as on
+// their phone
+control.post("/jobs/:id/no-access", async (req, res) => {
+  const { staffId, reason } = req.body as { staffId: string; reason: string };
+  await recordNoAccess(staffId, req.params.id, reason);
   res.json({ status: "ok" });
 });
 

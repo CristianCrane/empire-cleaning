@@ -46,7 +46,7 @@ const statusBadge: Record<AdjustmentStatus, ReactNode> = {
 };
 
 // runs a change to the Job, then reloads it; a 409's message is shown as is
-const useJobAction = (fallback: string) => {
+export const useJobAction = (fallback: string) => {
   const router = useRouter();
   const [problem, setProblem] = useState<string>();
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});

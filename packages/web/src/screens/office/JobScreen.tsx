@@ -33,12 +33,20 @@ import {
   formatDateTime,
   formatHours,
 } from "../format.ts";
+import { CancelJob, CancelledCard, NoAccessCard } from "./JobCancellation.tsx";
 import { JobCompletionCards } from "./JobCompletion.tsx";
 
-// whether every place on a Job's crew is Confirmed, or once done, that it is
+// whether every place on a Job's crew is Confirmed, or once it has happened
+// or been Cancelled, how it went
 export function AssignmentBadge({ job }: { job: ScheduledJob }) {
   if (job.status === "completed") {
     return <StatusBadge tone="success">Completed</StatusBadge>;
+  }
+  if (job.status === "no_access") {
+    return <StatusBadge tone="danger">No Access</StatusBadge>;
+  }
+  if (job.status === "cancelled") {
+    return <StatusBadge>Cancelled</StatusBadge>;
   }
   return job.assignment === "assigned" ? (
     <StatusBadge tone="info">Assigned</StatusBadge>
@@ -59,7 +67,8 @@ const sinceOf = (a: AssignmentView) =>
     : `${a.status === "confirmed" ? "Confirmed" : "Released"} ${formatDate(a.answeredAt!)}`;
 
 // a Job, and who's on it: Office Staff Offer its places to Cleaners and take
-// people off, and once it's Completed, review and correct the completion
+// people off, cancel it, and once it's Completed, review and correct the
+// completion
 export function JobScreen() {
   const job = useLoaderData({ from: "/office/jobs/$jobId" });
   const confirmed = job.assignments.filter(
@@ -110,6 +119,8 @@ export function JobScreen() {
       </Card>
 
       {job.completion && <JobCompletionCards job={job} />}
+      {job.cancellation && <CancelledCard job={job} />}
+      {job.noAccess && <NoAccessCard job={job} />}
 
       <Card
         title="Assignments"
@@ -139,6 +150,8 @@ export function JobScreen() {
           <Offer key={job.assignments.length} job={job} />
         )}
       </Card>
+
+      {job.cancelTerms && <CancelJob job={job} />}
     </div>
   );
 }

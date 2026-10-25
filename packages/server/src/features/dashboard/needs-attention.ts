@@ -6,7 +6,7 @@ import {
   unpaidJobs,
 } from "../completion/completion.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
-import { scheduledJobs } from "../jobs/schedule.ts";
+import { jobViews } from "../jobs/schedule.ts";
 import { quoteRequestsAwaitingQuote } from "../quote-requests/quote-requests.ts";
 import { noRoomSince, quotesWithoutRoom } from "../quotes/quote-room.ts";
 import { quotesExpiringWithin } from "../quotes/quote-state.ts";
@@ -32,7 +32,7 @@ const unassignedJobs: Source = async () =>
 // the Schedule's view of these Jobs, by id
 const jobsById = async (ids: string[]) =>
   new Map(
-    (ids.length === 0 ? [] : await scheduledJobs(inArray(jobs.id, ids))).map(
+    (ids.length === 0 ? [] : await jobViews(inArray(jobs.id, ids))).map(
       (job): [string, ScheduledJob] => [job.id, job],
     ),
   );

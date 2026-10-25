@@ -98,7 +98,7 @@ Jobs (`#features/jobs`) hold only what the Schedule needs so far: Property, Clea
 `#features/dashboard`, for Office Staff only.
 
 - `GET /api/dashboard/needs-attention` lists what is waiting on the Office, a kind at a time in the order to deal with them. Each item has a `kind` and that kind's own record: `quote_no_room` for Sent Quotes whose day has filled up so neither Clean Type fits (soonest proposed first; see below), `quote_request` for requests awaiting a Quote, longest waiting first, and `quote_expiring` for Sent Quotes within 48 hours of Expiring, soonest first. **To add a kind**, add its type to `NeedsAttentionItem` in `@empire-cleaning/models` and its source to `sources` in `needs-attention.ts`; the web app's `Dashboard.tsx` then needs its case to compile.
-- `GET /api/dashboard/today` is today's Schedule day (per the Clock, in New York), with each Job's `assignment` and `outcome`. Until #9, #10 and #11, every Job is `unassigned` with no outcome.
+- `GET /api/dashboard/today` is today's Schedule day (per the Clock, in New York), with each Job's `assignment` and its `outcome` once it has happened: `completed` or `no_access`.
 
 ## Quotes
 
@@ -126,3 +126,11 @@ Payment follows ADR-0001 and ADR-0008, and goes through the Payment Gateway (`#s
 - **Charges** (`charges`) record each Deposit with its Job and the gateway's id, for refunds later.
 - `GET /api/jobs/mine` is the Client's booked Jobs still to come, soonest first.
 - **Reminders**. `sendDueReminders()` (`features/jobs/reminders.ts`) emails each Client whose Job is tomorrow in New York, from 8am today by the Clock, once. A Job booked the day before gets none (its confirmation has just gone). Each Job is claimed before its email and let go if the email fails, so it's safe to run often or on several servers. `src/index.ts` runs it every 10 minutes; tests call it directly (and the e2e control server's `POST /reminders`).
+
+## Cancellation and No Access
+
+`#features/cancellation`. Money moves through `settleJob` (`completion/balance.ts`), like everything else: a Cancelled or No Access Job owes its `fee_cents`, so settling refunds whatever it has paid beyond that.
+
+- **What it costs** comes with the Job, by the Clock: `cancelTerms` on `GET /api/jobs/mine/:id` (the Client's, null once the Job has started) and on `GET /api/jobs/:id` (both sides, for the Office). More than 24 hours before the start it's free and the Deposit is refunded; from 24 hours it's a Late Cancellation and the Deposit is kept as the fee. Empire Cleaning cancelling is always free.
+- **Cancelling**. `POST /api/jobs/mine/:id/cancel` (the Client) or `POST /api/jobs/:id/cancel` (Office Staff, with `by: "client" | "empire"` and an optional reason told to the Client). Each sends the `feeCents` the person was shown; if it's no longer what cancelling costs (the cut-off passed meanwhile), it's a 409 and nothing changes. The Job leaves the Schedule (`onSchedule`), its Assignments are kept for the record, and the Client and everyone holding a place are emailed; the Office too when the Client cancelled it themselves.
+- **No Access**. `POST /api/assignments/mine/:id/no-access` with `{ reason }`, by a Cleaner with a Confirmed place once the Job has started (the rest of the crew needn't have Confirmed). It isn't Completed and keeps the Deposit as the fee; it stays on the Schedule. The Client and the Office are emailed.
