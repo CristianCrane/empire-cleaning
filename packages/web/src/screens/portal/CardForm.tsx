@@ -21,7 +21,7 @@ import { EmbeddedField, Notice } from "@empire-cleaning/ui";
 import { getJson, postJson, putJson } from "../../api.ts";
 
 // The payment provider's own form, so card numbers never reach our server
-// (ADR-0004): Stripe's Payment Element, for cards and Link only (ADR-0008).
+// (ADR-0004): Stripe's Payment Element, for cards only (ADR-0008).
 // With the test provider (end-to-end tests) there is no card to type: the
 // form says so, and paying or saving just works.
 
@@ -39,27 +39,88 @@ export function ConsentNote({ action }: { action: "paying" | "saving" }) {
   );
 }
 
-// the provider's form takes our colours and type, read from the tokens
+// Stripe's form runs in its own frame and only takes plain colours, while our
+// tokens are light-dark() pairs: each is resolved to the rgb() the page shows
+// now, in whichever theme is on
+const tokenColour = (name: string) => {
+  const probe = document.createElement("span");
+  probe.style.color = `var(${name})`;
+  document.body.append(probe);
+  const colour = getComputedStyle(probe).color;
+  probe.remove();
+  return colour;
+};
+
+const isDark = () =>
+  document.documentElement.getAttribute("data-theme") === "dark";
+
+// The provider's form drawn like our own fields (Field.tsx's fieldStyles):
+// our colours and type, a strong outline, and our focus ring
 const appearance = (): Appearance => {
-  const css = getComputedStyle(document.documentElement);
-  const token = (name: string) => css.getPropertyValue(name).trim();
+  const c = {
+    surface: tokenColour("--ec-surface"),
+    fg: tokenColour("--ec-fg"),
+    fgMuted: tokenColour("--ec-fg-muted"),
+    borderStrong: tokenColour("--ec-border-strong"),
+    primary: tokenColour("--ec-primary"),
+    focus: tokenColour("--ec-focus"),
+    danger: tokenColour("--ec-danger"),
+    dangerStrong: tokenColour("--ec-danger-strong"),
+  };
+  const focusRing = {
+    outline: `2px solid ${c.focus}`,
+    outlineOffset: "-1px",
+    boxShadow: "none",
+  };
   return {
-    theme: "stripe",
+    // Stripe's own dark base keeps the colours it works out itself readable
+    theme: isDark() ? "night" : "stripe",
+    labels: "above",
     variables: {
-      colorPrimary: token("--color-primary"),
-      colorBackground: token("--color-surface"),
-      colorText: token("--color-fg"),
-      colorTextSecondary: token("--color-fg-muted"),
-      colorDanger: token("--color-danger-strong"),
-      fontFamily: token("--font-sans"),
+      colorPrimary: c.primary,
+      colorBackground: c.surface,
+      colorText: c.fg,
+      colorTextSecondary: c.fgMuted,
+      colorTextPlaceholder: c.fgMuted,
+      colorIcon: c.fgMuted,
+      colorDanger: c.dangerStrong,
+      fontFamily: "Barlow, system-ui, sans-serif",
+      // 16px keeps phones from zooming in on focus, as in our own fields
       fontSizeBase: "16px",
-      borderRadius: token("--radius-md"),
+      borderRadius: "8px",
+    },
+    rules: {
+      ".Label": { fontSize: "14px", fontWeight: "600", color: c.fg },
+      ".Input": {
+        backgroundColor: c.surface,
+        border: `1px solid ${c.borderStrong}`,
+        boxShadow: "none",
+      },
+      ".Input:focus": focusRing,
+      ".Input--invalid": { borderColor: c.danger, boxShadow: "none" },
+      ".Error": { fontSize: "14px", fontWeight: "500", color: c.dangerStrong },
+      ".Tab": {
+        backgroundColor: c.surface,
+        border: `1px solid ${c.borderStrong}`,
+        boxShadow: "none",
+      },
+      ".Tab:focus": focusRing,
+      ".Tab--selected": { borderColor: c.primary, color: c.fg },
     },
   };
 };
 
-// card and Link only: both settle at once, as a Deposit must (ADR-0008)
-const ALLOWED_PAYMENT_METHOD_TYPES = ["card", "link"];
+// Barlow, for the frame: our own copy of the font can't reach inside it
+const FONTS = [
+  {
+    cssSrc:
+      "https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&display=swap",
+  },
+];
+
+// cards only: they settle at once, as a Deposit must (ADR-0008). Not Link,
+// which also offers bank payments.
+const ALLOWED_PAYMENT_METHOD_TYPES = ["card"];
 
 // Mounts the Payment Element into a box once Stripe has loaded, and tears it
 // down when the form changes or goes away
@@ -78,11 +139,28 @@ const useStripeElement = (
       if (!stripe || !box.current) return;
       const elements = options(stripe);
       if (!elements) return;
-      const element = elements.create("payment", { layout: "tabs" });
+      // Stripe adds Link (and its bank payments) beside cards unless told
+      // not to, whatever the intent allows
+      const element = elements.create("payment", {
+        layout: "tabs",
+        wallets: { link: "never" },
+      });
       element.on("change", () => setProblem(undefined));
       element.mount(box.current);
       mounted.current = { stripe, elements };
-      destroy = () => element.destroy();
+
+      // switching theme (theme.tsx sets data-theme) redraws the form to match
+      const themeWatch = new MutationObserver(() =>
+        elements.update({ appearance: appearance() }),
+      );
+      themeWatch.observe(document.documentElement, {
+        attributeFilter: ["data-theme"],
+      });
+
+      destroy = () => {
+        themeWatch.disconnect();
+        element.destroy();
+      };
     });
     return () => {
       destroy?.();
@@ -161,6 +239,7 @@ export function usePaymentForm({
         setupFutureUsage: "off_session",
         allowedPaymentMethodTypes: ALLOWED_PAYMENT_METHOD_TYPES,
         appearance: appearance(),
+        fonts: FONTS,
       }),
     setProblem,
   );
@@ -256,6 +335,7 @@ export function useCardForm({ enabled = true }: { enabled?: boolean } = {}) {
         ? stripe.elements({
             clientSecret: form.secret,
             appearance: appearance(),
+            fonts: FONTS,
           })
         : null,
     setProblem,

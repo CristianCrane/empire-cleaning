@@ -325,7 +325,10 @@ const routeTree = rootRoute.addChildren([
   ]),
 ]);
 
-export const router = createRouter({ routeTree });
+// Scroll restoration keeps each page's place: without it, refreshing a page's
+// data after a save (router.invalidate()) jumps it back to the top. New
+// pages still open at the top, and Back returns to where you were.
+export const router = createRouter({ routeTree, scrollRestoration: true });
 
 declare module "@tanstack/react-router" {
   interface Register {

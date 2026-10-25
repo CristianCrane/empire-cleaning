@@ -17,11 +17,12 @@ import {
 // pinned, so a Stripe upgrade never changes behaviour without a code change
 const API_VERSION = "2026-09-30.endive";
 
-// Cards and Link only, deliberately not Stripe's dynamic payment methods:
-// slower methods such as bank debits settle days later, which would break
-// "the Deposit succeeds before anything is booked" (ADR-0001, ADR-0008). The
-// web app's Payment Element allows the same two.
-const ALLOWED: ("card" | "link")[] = ["card", "link"];
+// Cards only, deliberately not Stripe's dynamic payment methods: slower
+// methods such as bank debits settle days later, which would break "the
+// Deposit succeeds before anything is booked" (ADR-0001, ADR-0008). Link is
+// left out too, as it also offers bank payments. The web app's Payment
+// Element allows the same.
+const ALLOWED: "card"[] = ["card"];
 
 // marks our Deposits, so webhooks can tell them from anything else
 const DEPOSIT = { purpose: "deposit" };
@@ -260,12 +261,8 @@ export class StripePaymentGateway implements PaymentGateway {
 const idOf = (ref: string | { id: string } | null | undefined) =>
   typeof ref === "string" ? ref : (ref?.id ?? null);
 
-// "Visa ending 4242", or "Link (casey@example.com)"
+// "Visa ending 4242"; "american_express" -> "American Express"
 const labelOf = (method: Stripe.PaymentMethod) => {
-  if (method.type === "link") {
-    return method.link?.email ? `Link (${method.link.email})` : "Link";
-  }
-  // "american_express" -> "American Express"
   const brand = (method.card?.display_brand ?? method.card?.brand ?? "card")
     .split("_")
     .map((word) => `${word[0]!.toUpperCase()}${word.slice(1)}`)
