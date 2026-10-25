@@ -11,8 +11,6 @@ export const today = async (): Promise<Today> => {
     ...day!,
     jobs: day!.jobs.map((job) => ({
       ...job,
-      // Assignments (#9) work this out from the Job's places
-      assignment: "unassigned",
       // Completed (#10) and No Access (#11) set it
       outcome: null,
     })),

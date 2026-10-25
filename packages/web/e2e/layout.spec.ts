@@ -3,6 +3,7 @@ import {
   bookJob,
   createStaff,
   expect,
+  offerPlace,
   proposeNextMonday,
   requestQuoteAsGuest,
   setUsualWeek,
@@ -68,7 +69,11 @@ test("the Office's screens fit every width", async ({ page }) => {
     roles: ["cleaner"],
   });
   await setUsualWeek(cory.id, [7.25, 8, 8, 8, 6.5, 0, 0]);
-  await bookJob({ startsAt: "2027-03-02T14:00:00Z", labourHours: 5.25 });
+  const job = (await bookJob({
+    startsAt: "2027-03-02T14:00:00Z",
+    labourHours: 5.25,
+  })) as { id: string };
+  await offerPlace(job.id, cory.id);
   // today's, for the dashboard (the API's clock is at 5 January 2026)
   await bookJob({ startsAt: "2026-01-05T14:00:00Z", labourHours: 5.25 });
   await requestQuoteAsGuest(casey, ["Inside the oven"]);
@@ -96,6 +101,7 @@ test("the Office's screens fit every width", async ({ page }) => {
     "/office/staff",
     `/office/staff/${cory.id}`,
     "/office/price-list",
+    `/office/jobs/${job.id}`,
   ]) {
     await expectFitsEveryWidth(page, path);
   }
@@ -183,12 +189,18 @@ test("signing in, the welcome page and the Cleaner area fit every width", async 
   await signedInAs(page, "new@example.com");
   await expectFitsEveryWidth(page, "/welcome");
 
-  await createStaff({
+  const cory = (await createStaff({
     name: "Cory Cleaner",
     email: "cory@example.com",
     roles: ["cleaner"],
-  });
+  })) as { id: string };
+  const job = (await bookJob({
+    startsAt: "2026-01-08T14:00:00Z",
+    labourHours: 5.25,
+  })) as { id: string };
+  await offerPlace(job.id, cory.id);
   await page.context().clearCookies();
   await signedInAs(page, "cory@example.com");
   await expectFitsEveryWidth(page, "/cleaner");
+  await expectFitsEveryWidth(page, `/cleaner/jobs/${job.id}`);
 });

@@ -1,4 +1,12 @@
-import { and, arrayContains, eq, gte, inArray, lt } from "drizzle-orm";
+import {
+  and,
+  arrayContains,
+  eq,
+  gte,
+  inArray,
+  lt,
+  type SQL,
+} from "drizzle-orm";
 import type {
   DayCapacity,
   ScheduleDay,
@@ -12,6 +20,7 @@ import {
   startOfDay,
   weekdayOf,
 } from "../../services/clock/index.ts";
+import { assignmentStatusOf } from "../assignments/places.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { properties } from "../properties/properties.schema.ts";
 import {
@@ -78,40 +87,49 @@ const cleanerHours = async (days: string[]) => {
   return byDay;
 };
 
-// the booked Jobs starting on the days of the range, by day, earliest first
-const bookedJobs = async (days: string[]) => {
+// booked Jobs as the Office sees them, earliest first
+export const scheduledJobs = async (
+  where: SQL | undefined,
+): Promise<ScheduledJob[]> => {
   const rows = await db
     .select({ job: jobs, property: properties, client: clients })
     .from(jobs)
     .innerJoin(properties, eq(properties.id, jobs.propertyId))
     .innerJoin(clients, eq(clients.id, properties.clientId))
-    .where(
-      and(
-        eq(jobs.status, "booked"),
-        gte(jobs.startsAt, startOfDay(days[0]!)),
-        lt(jobs.startsAt, startOfDay(addDays(days.at(-1)!, 1))),
-      ),
-    )
+    .where(and(eq(jobs.status, "booked"), where))
     .orderBy(jobs.startsAt);
+  const assignment = await assignmentStatusOf(rows.map((r) => r.job));
 
+  return rows.map(({ job, property, client }) => ({
+    id: job.id,
+    startsAt: job.startsAt.toISOString(),
+    cleanType: job.cleanType,
+    status: job.status,
+    labourHours: job.labourHours,
+    crewSize: job.crewSize,
+    hoursOnSite: Math.round((job.labourHours / job.crewSize) * 100) / 100,
+    client: { id: client.id, name: client.name },
+    property: {
+      id: property.id,
+      street: property.street,
+      unit: property.unit,
+      postcode: property.postcode,
+    },
+    assignment: assignment.get(job.id)!,
+  }));
+};
+
+// the booked Jobs starting on the days of the range, by day, earliest first
+const bookedJobs = async (days: string[]) => {
   const byDay = new Map(days.map((day) => [day, [] as ScheduledJob[]]));
-  for (const { job, property, client } of rows) {
-    byDay.get(dayOf(job.startsAt))?.push({
-      id: job.id,
-      startsAt: job.startsAt.toISOString(),
-      cleanType: job.cleanType,
-      status: job.status,
-      labourHours: job.labourHours,
-      crewSize: job.crewSize,
-      hoursOnSite: Math.round((job.labourHours / job.crewSize) * 100) / 100,
-      client: { id: client.id, name: client.name },
-      property: {
-        id: property.id,
-        street: property.street,
-        unit: property.unit,
-        postcode: property.postcode,
-      },
-    });
+  const booked = await scheduledJobs(
+    and(
+      gte(jobs.startsAt, startOfDay(days[0]!)),
+      lt(jobs.startsAt, startOfDay(addDays(days.at(-1)!, 1))),
+    ),
+  );
+  for (const job of booked) {
+    byDay.get(dayOf(new Date(job.startsAt)))?.push(job);
   }
   return byDay;
 };

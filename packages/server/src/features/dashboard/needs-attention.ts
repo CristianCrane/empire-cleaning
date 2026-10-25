@@ -1,4 +1,5 @@
 import type { NeedsAttentionItem } from "@empire-cleaning/models";
+import { unassignedJobsWithin } from "../assignments/assignments.ts";
 import { quoteRequestsAwaitingQuote } from "../quote-requests/quote-requests.ts";
 import { noRoomSince, quotesWithoutRoom } from "../quotes/quote-room.ts";
 import { quotesExpiringWithin } from "../quotes/quote-state.ts";
@@ -10,6 +11,15 @@ const quoteRequests: Source = async () =>
     kind: "quote_request",
     since: quoteRequest.createdAt,
     quoteRequest,
+  }));
+
+// booked Jobs within 48 hours whose places aren't all Confirmed, soonest
+// first: someone has to be found for them
+const unassignedJobs: Source = async () =>
+  (await unassignedJobsWithin(48)).map(({ job, since }) => ({
+    kind: "job_unassigned",
+    since,
+    job,
   }));
 
 // Sent Quotes Expiring within 48 hours, soonest first; each counts from when
@@ -43,6 +53,7 @@ const quotesWithoutRoomSource: Source = async () =>
 // its source here; each source returns its own items in the order to deal
 // with them.
 const sources: Source[] = [
+  unassignedJobs,
   quotesWithoutRoomSource,
   quoteRequests,
   expiringQuotes,

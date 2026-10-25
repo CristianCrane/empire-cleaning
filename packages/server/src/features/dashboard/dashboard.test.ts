@@ -118,7 +118,7 @@ describe("Today", () => {
 
     const [job] = (await today(office)).jobs;
 
-    // nothing assigns Staff (#9) or completes Jobs (#10) yet
+    // nobody has Confirmed a place, and nothing completes Jobs (#10) yet
     expect(job).toMatchObject({ assignment: "unassigned", outcome: null });
   });
 });

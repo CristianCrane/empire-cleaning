@@ -54,6 +54,17 @@ export const bookJob = (job: {
   cleanType?: "standard" | "deep";
 }) => control("/jobs", { method: "POST", body: JSON.stringify(job) });
 
+// a place on a Job Offered to a Cleaner (and Confirmed by them, if asked)
+export const offerPlace = (
+  jobId: string,
+  staffId: string,
+  { confirmed = false } = {},
+) =>
+  control(`/jobs/${jobId}/assignments`, {
+    method: "POST",
+    body: JSON.stringify({ staffId, confirmed }),
+  });
+
 // moves the API's clock (it starts at 9:00 UTC on Monday 5 January 2026)
 export const setClock = (at: string) =>
   control("/clock", { method: "POST", body: JSON.stringify({ at }) });

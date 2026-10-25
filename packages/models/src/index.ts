@@ -244,6 +244,8 @@ export type ScheduledJob = {
   hoursOnSite: number;
   client: { id: string; name: string };
   property: Pick<PropertyView, "id" | "street" | "unit" | "postcode">;
+  // whether every place on its crew is Confirmed (#9)
+  assignment: AssignmentStatus;
 };
 
 // one day of the Schedule. Only Cleaners' hours count towards it.
@@ -291,22 +293,25 @@ export type NeedsAttentionItem =
       kind: "quote_no_room";
       since: string;
       quote: QuoteSummary;
+    }
+  | {
+      // a booked Job starting within 48 hours whose places aren't all
+      // Confirmed
+      kind: "job_unassigned";
+      since: string;
+      job: ScheduledJob;
     };
 
 export type NeedsAttentionKind = NeedsAttentionItem["kind"];
 
-// A Job is Unassigned until all its places are Confirmed. Nothing assigns
-// Staff until #9, so every Job is Unassigned for now.
+// A Job is Unassigned until all its places are Confirmed
 export type AssignmentStatus = "unassigned" | "assigned";
 
 // how a Job turned out on the day; none until Completed (#10) or No Access
 // (#11) exist
 export type JobOutcome = "completed" | "no_access";
 
-export type TodayJob = ScheduledJob & {
-  assignment: AssignmentStatus;
-  outcome: JobOutcome | null;
-};
+export type TodayJob = ScheduledJob & { outcome: JobOutcome | null };
 
 // today's Schedule (per the Clock), for the Office dashboard
 export type Today = Omit<ScheduleDay, "jobs"> & { jobs: TodayJob[] };
@@ -472,3 +477,61 @@ export type ClientJob = {
   hoursOnSite: number;
   property: Pick<PropertyView, "id" | "street" | "unit" | "postcode">;
 };
+
+// ---- Assignments (#9) ----
+
+// Offered until the Staff member Confirms or Releases it. A Released one is
+// kept, so the Office can see who let a place go.
+export type AssignmentState = "offered" | "confirmed" | "released";
+
+export type AssignmentView = {
+  id: string;
+  staff: { id: string; name: string };
+  status: AssignmentState;
+  offeredAt: string;
+  // when it was Confirmed or Released
+  answeredAt: string | null;
+};
+
+// a booked Job as Office Staff manage its Assignments
+export type OfficeJob = ScheduledJob & {
+  addOns: string[];
+  // Offered and Confirmed first, then Released; each earliest Offered first
+  assignments: AssignmentView[];
+  // places nobody holds: Crew Size less those Offered or Confirmed
+  openPlaces: number;
+  // active Cleaners who could be Offered a place, with their Available Hours
+  // on the Job's day
+  cleaners: { id: string; name: string; hours: number }[];
+};
+
+// what Office Staff send to Offer a place on a Job
+export type AssignmentOffer = { staffId: string };
+
+// A Job as a Cleaner assigned to it sees it: where, what, who with, and the
+// Client's first name, never any prices or payment details. The Client's
+// phone only on the Job's day.
+export type CleanerJob = {
+  id: string;
+  startsAt: string;
+  cleanType: CleanType;
+  hoursOnSite: number;
+  addOns: string[];
+  property: Pick<
+    PropertyView,
+    "street" | "unit" | "postcode" | "accessInstructions"
+  >;
+  client: { firstName: string; phone: string | null };
+  // everyone holding a place, this Cleaner included
+  crew: { name: string; status: "offered" | "confirmed" }[];
+  // this Cleaner's own place
+  assignment: {
+    id: string;
+    status: "offered" | "confirmed";
+    // false once a Confirmed Assignment is within 48 hours of the Job
+    canRelease: boolean;
+  };
+};
+
+// a Cleaner's Jobs: today's (in New York, by the Clock) and those to come
+export type CleanerJobs = { today: CleanerJob[]; upcoming: CleanerJob[] };
