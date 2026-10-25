@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLoaderData, useRouter } from "@tanstack/react-router";
 import {
   parseDate,
@@ -11,6 +11,7 @@ import type {
   OfficeQuote,
   OfficeQuoteOption,
   QuoteDraftInput,
+  ScheduleDay,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -32,12 +33,14 @@ import {
   TimeField,
   showToast,
 } from "@empire-cleaning/ui";
-import { ApiError, patchJson, postJson } from "../../api.ts";
+import { ApiError, getJson, patchJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import {
   addressOf,
   cleanTypeLabel,
   formatDateTime,
+  formatDay,
+  formatHours,
   formatMoney,
 } from "../format.ts";
 import { AddOnList, OptionCard, QuoteStatusBadge } from "../QuoteParts.tsx";
@@ -372,6 +375,54 @@ const toInput = (fields: Fields): QuoteDraftInput => {
 
 const dollars = { style: "currency", currency: "USD" } as const;
 
+// Whether the proposed day has room for each Clean Type, from its free
+// Cleaner hours now and the Labour Hours as last saved. A warning, not a
+// rule: the Office may be about to add hours. A Quote sent for a full day
+// can't be accepted, and goes straight under Needs attention.
+function RoomOnDay({
+  day,
+  options,
+}: {
+  day: string;
+  options: OfficeQuoteOption[];
+}) {
+  const [free, setFree] = useState<{ day: string; hours: number }>();
+
+  useEffect(() => {
+    let current = true;
+    getJson<ScheduleDay[]>(`/api/schedule?from=${day}&to=${day}`)
+      .then(([found]) => current && setFree({ day, hours: found!.freeHours }))
+      // nothing to say if it can't be found out
+      .catch(() => current && setFree(undefined));
+    return () => {
+      current = false;
+    };
+  }, [day]);
+
+  if (free?.day !== day) return null;
+  // in hundredths, as the server compares them
+  const fits = (option: OfficeQuoteOption) =>
+    Math.round(free.hours * 100) >= Math.round(option.labourHours * 100);
+  const fitting = options.filter(fits);
+  const missing = options.filter((o) => !fits(o));
+  const describe = (o: OfficeQuoteOption) =>
+    `the ${cleanTypeLabel[o.cleanType]} (${formatHours(o.labourHours)})`;
+  const opening = `${formatDay(day)} has ${formatHours(Math.max(free.hours, 0))} of Cleaner time free`;
+
+  if (missing.length === 0) {
+    return (
+      <p className="text-sm text-fg-muted">{opening}: room for either clean.</p>
+    );
+  }
+  return (
+    <Notice tone="danger">
+      {fitting.length > 0
+        ? `${opening}: room for ${fitting.map(describe).join(" and ")}, but not ${missing.map(describe).join(" or ")}. The Client will only be able to choose ${fitting.length === 1 ? "that one" : "those"}.`
+        : `${opening}, not enough for ${missing.map(describe).join(" or ")}. The Client couldn't accept this Quote: choose another day, or give a Cleaner more hours that day.`}
+    </Notice>
+  );
+}
+
 function DraftEditor({ quote: loaded }: { quote: OfficeQuote }) {
   const router = useRouter();
   const [quote, setQuote] = useState(loaded);
@@ -567,6 +618,9 @@ function DraftEditor({ quote: loaded }: { quote: OfficeQuote }) {
             onChange={(time) => set({ time })}
           />
         </div>
+        {fields.date && (
+          <RoomOnDay day={fields.date.toString()} options={quote.options} />
+        )}
       </Card>
 
       <Actions>
