@@ -80,3 +80,15 @@ tax          = the one-off Jobs rate on the price, less tax-exempt Add-ons' shar
 ```
 
 It uses whole numbers throughout (hours in 1e-4, multipliers in hundredths), so a quarter-hour boundary is never missed by floating point: 3 x 0.4 h + 0.55 h is exactly 1.75 h, though it is 1.7500000000000002 as decimals.
+
+## Staff, availability and the Schedule
+
+Everything here is for Office Staff. Days are Empire Cleaning's own, in New York (`#services/clock`: `dayOf`, `startOfDay`), written `2026-11-03`: a Job at 9pm on the 3rd is on the 3rd, though it is the 4th in UTC.
+
+- `GET /api/staff` lists everyone ever invited, active first. Each has an `imageUrl`: their Google profile picture, refreshed at every Google sign-in (`overrideUserInfoOnSignIn`), or null until they've used Google. `POST /api/staff` invites someone by name, email and roles. It creates a Staff record, never an Account (ADR-0006), and emails a link to the sign-in page; the email itself grants nothing. Inviting a deactivated member again brings them back with the roles given now; inviting an active one is a 409.
+- `POST /api/staff/:id/deactivate` ends their Staff access at once and leaves their Account and any Client untouched. The last active Office Staff member can't be deactivated (409).
+- `GET /api/staff/:id` includes their availability: a **usual week** (hours per weekday, Monday first; `PUT /api/staff/:id/usual-week`) and **exceptions** for single days, which replace that day's usual hours (`PUT` and `DELETE /api/staff/:id/exceptions/:date`). Hours are in quarter-hours.
+- `GET /api/schedule?from=&to=` returns each day of the range (at most 62): its booked Jobs, the Staff hours available, the Labour Hours booked and the difference. **Only active Cleaners' hours count**, as Labour Hours are cleaning time.
+- `GET /api/schedule/capacity?date=&labourHours=` says whether a day's free hours cover a booking. Accepting a Quote (#8) will call `hasRoomFor()` directly.
+
+Jobs (`#features/jobs`) hold only what the Schedule needs so far: Property, Clean Type, start, Labour Hours, Crew Size and a `booked` status. Nothing in the API books one until #8, so tests use `bookedJob()` from `tests/fixtures.ts` (and the e2e control server's `POST /jobs`).

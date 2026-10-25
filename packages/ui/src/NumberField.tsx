@@ -16,7 +16,10 @@ export type NumberFieldProps = AriaNumberFieldProps & {
 };
 
 // for amounts and counts (prices, Labour Hours, Crew Size); pass formatOptions
-// for currency, e.g. { style: "currency", currency: "USD" }
+// for currency, e.g. { style: "currency", currency: "USD" }. The − and +
+// buttons take 88px, so give it at least 10rem: in a grid, let fields wrap
+// (grid-cols-[repeat(auto-fill,minmax(10rem,1fr))]) rather than fixing a
+// column count, which squeezes the number out of sight on some widths
 export function NumberField({
   label,
   description,

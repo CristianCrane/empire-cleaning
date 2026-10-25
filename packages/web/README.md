@@ -17,6 +17,9 @@ Every screen is built from the design system in `packages/ui` (`@empire-cleaning
 | `/office/requests`            | Office Staff: open Quote Requests                                                                          |
 | `/office/requests/$requestId` | Office Staff: a request in full, with the Suggested Price for both Clean Types and how each was worked out |
 | `/office/price-list`          | Office Staff: edit the Price List                                                                          |
+| `/office/schedule`            | Office Staff: booked Jobs and free Staff hours for a range of days, a week at a time by default            |
+| `/office/staff`               | Office Staff: everyone on Staff, and inviting someone                                                      |
+| `/office/staff/$staffId`      | Office Staff: a Staff member's usual week, days off and extra days, and deactivating them                  |
 | `/office/clients/$clientId`   | Office Staff: a Client, their homes and Quote Requests, and Condition correction                           |
 | `/welcome`                    | an Account connected to nothing: request a Quote to become a Client                                        |
 | `/`                           | sends a signed-in Account to its area                                                                      |
@@ -51,6 +54,8 @@ A plain string or a hand-written `{ to }` object doesn't compile.
 End to end with Playwright (`e2e/`): a production build of the app runs in a real Chromium against the real API and a database of its own (`empire_e2e_test`, on the test Postgres).
 
 **The phone is the main screen and runs everything; the desktop runs only the tests tagged `@desktop`**, those where a larger layout changes something (the sidebar, two-column prices, light-theme accessibility). Tests tagged `@smoke` are the quick set (`pnpm test:quick`). Tag a test with `test("…", { tag: "@desktop" }, …)`.
+
+`e2e/layout.spec.ts` opens every screen at widths from 320px to 1440px and fails if an input is narrower than its text or the page scrolls sideways. The other tests read values from the DOM, which is there whether or not anyone can see it, so they can't notice text squeezed out of sight. Add new screens to it.
 
 A test starts signed in with `signedInAs(page, email)`, which signs the person in for real through the control server and hands the browser the session; only the sign-in tests use the form, the email and the link (`signInWithLink`). Only email, payments and the clock are faked, with the same fakes the server tests use (`packages/server/tests/e2e/server.ts`). Tests sign in by following the link from the captured email, exactly as a person would.
 

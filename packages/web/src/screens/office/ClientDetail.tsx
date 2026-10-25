@@ -168,7 +168,7 @@ function Home({ home }: { home: PropertyView }) {
           <Radio value="apartment">Apartment</Radio>
           <Radio value="townhouse">Townhouse</Radio>
         </RadioGroup>
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-4">
           <NumberField
             label="Bedrooms"
             name="bedrooms"

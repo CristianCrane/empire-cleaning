@@ -182,3 +182,78 @@ export type QuoteRequestDetail = {
   property: PropertyView;
   suggested: SuggestedPrices;
 };
+
+// ---- Staff, availability and the Schedule (#7) ----
+
+// Days are Empire Cleaning's own days, in New York: "2026-11-03"
+export type IsoDate = string;
+
+// what Office Staff send to invite someone (POST /api/staff)
+export type StaffInvitation = { name: string; email: string; roles: StaffRole[] };
+
+export type StaffMember = {
+  id: string;
+  name: string;
+  email: string;
+  roles: StaffRole[];
+  // a deactivated Staff member has no Staff access; their Account is untouched
+  active: boolean;
+  // whether someone has signed up with this email yet (ADR-0006)
+  signedUp: boolean;
+  // their Google profile picture, once they've signed in with Google
+  imageUrl: string | null;
+  createdAt: string;
+};
+
+// a day that differs from a Staff member's usual week, e.g. a holiday (0 h)
+export type AvailabilityException = {
+  date: IsoDate;
+  hours: number;
+  note: string | null;
+};
+
+export type StaffAvailability = {
+  // the hours usually available each weekday, Monday first (7 numbers)
+  usualWeek: number[];
+  // from today on, soonest first
+  exceptions: AvailabilityException[];
+};
+
+export type StaffDetail = StaffMember & { availability: StaffAvailability };
+
+export type JobStatus = "booked";
+
+// a Job as the Schedule shows it to Office Staff
+export type ScheduledJob = {
+  id: string;
+  startsAt: string;
+  cleanType: CleanType;
+  status: JobStatus;
+  labourHours: number;
+  crewSize: number;
+  // Labour Hours divided by Crew Size
+  hoursOnSite: number;
+  client: { id: string; name: string };
+  property: Pick<PropertyView, "id" | "street" | "unit" | "postcode">;
+};
+
+// one day of the Schedule. Only Cleaners' hours count towards it.
+export type ScheduleDay = {
+  date: IsoDate;
+  staffHours: number;
+  bookedHours: number;
+  // staffHours less bookedHours; negative when the day is overbooked
+  freeHours: number;
+  available: { id: string; name: string; hours: number }[];
+  jobs: ScheduledJob[];
+};
+
+// whether a day can take a booking of this many Labour Hours
+export type DayCapacity = {
+  date: IsoDate;
+  labourHours: number;
+  staffHours: number;
+  bookedHours: number;
+  freeHours: number;
+  hasRoom: boolean;
+};

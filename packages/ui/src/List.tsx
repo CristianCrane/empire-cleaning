@@ -30,11 +30,19 @@ export function List<T extends object>(props: GridListProps<T>) {
 export type ListItemProps = Omit<GridListItemProps, "children"> & {
   title: string;
   description?: ReactNode;
+  // leading content, e.g. an Avatar
+  start?: ReactNode;
   // trailing content, e.g. a StatusBadge
   end?: ReactNode;
 };
 
-export function ListItem({ title, description, end, ...props }: ListItemProps) {
+export function ListItem({
+  title,
+  description,
+  start,
+  end,
+  ...props
+}: ListItemProps) {
   const opens = useContext(OpensItems) || props.onAction !== undefined;
 
   return (
@@ -48,6 +56,7 @@ export function ListItem({ title, description, end, ...props }: ListItemProps) {
     >
       {({ isDisabled }) => (
         <>
+          {start}
           <div className="flex min-w-0 flex-1 flex-col">
             <span className="truncate font-semibold text-fg">{title}</span>
             {description && (

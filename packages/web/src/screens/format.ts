@@ -43,3 +43,47 @@ export const cleanTypeLabel = {
   standard: "Standard Clean",
   deep: "Deep Clean",
 };
+
+export const roleLabel = {
+  cleaner: "Cleaner",
+  office_staff: "Office Staff",
+};
+
+// Empire Cleaning's days and times are New York's, wherever the viewer is
+const BUSINESS_TIME_ZONE = "America/New_York";
+
+const dayFormat = new Intl.DateTimeFormat("en-US", {
+  weekday: "short",
+  month: "short",
+  day: "numeric",
+  timeZone: "UTC",
+});
+// "2026-01-05" -> "Mon, Jan 5"
+export const formatDay = (day: string) =>
+  dayFormat.format(new Date(`${day}T00:00:00Z`));
+
+const timeFormat = new Intl.DateTimeFormat("en-US", {
+  hour: "numeric",
+  minute: "2-digit",
+  timeZone: BUSINESS_TIME_ZONE,
+});
+// an instant -> "9:00 AM" in New York
+export const formatTime = (iso: string) => timeFormat.format(new Date(iso));
+
+const dayParts = new Intl.DateTimeFormat("en-CA", {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  timeZone: BUSINESS_TIME_ZONE,
+});
+// today in New York: "2026-01-05"
+export const today = () => dayParts.format(new Date());
+
+export const addDays = (day: string, days: number) =>
+  new Date(Date.parse(`${day}T00:00:00Z`) + days * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+
+// the Monday of the week a day is in
+export const mondayOf = (day: string) =>
+  addDays(day, -((new Date(`${day}T00:00:00Z`).getUTCDay() + 6) % 7));
