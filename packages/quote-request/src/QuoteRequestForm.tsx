@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type {
+  AddOnChoice,
   Condition,
   NewProperty,
   PropertyType,
@@ -19,6 +20,7 @@ import {
   RadioGroup,
   TextField,
 } from "@empire-cleaning/ui";
+import { loadAddOns } from "./add-ons.ts";
 import { submitQuoteRequest } from "./submit.ts";
 
 // who is asking, which decides what the form needs from them (ADR-0006)
@@ -95,12 +97,26 @@ export function QuoteRequestForm({
   const [condition, setCondition] = useState<Condition>(
     firstFree?.condition ?? "moderate",
   );
+  const [offered, setOffered] = useState<AddOnChoice[]>([]);
+  const [chosen, setChosen] = useState<Set<string>>(new Set());
   const [wantsRegularService, setWantsRegularService] = useState(false);
   const [notes, setNotes] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [failed, setFailed] = useState(false);
   const [refusal, setRefusal] = useState<string>();
   const [isSending, setSending] = useState(false);
+
+  useEffect(() => {
+    void loadAddOns(apiUrl).then(setOffered);
+  }, [apiUrl]);
+
+  const toggleAddOn = (key: string, on: boolean) =>
+    setChosen((current) => {
+      const next = new Set(current);
+      if (on) next.add(key);
+      else next.delete(key);
+      return next;
+    });
 
   const updateHome = (change: Partial<NewProperty>) =>
     setNewHome((current) => ({ ...current, ...change }));
@@ -122,6 +138,8 @@ export function QuoteRequestForm({
         : { existing: home },
     condition,
     wantsRegularService,
+    // in the order offered, only those still offered
+    addOns: offered.filter((a) => chosen.has(a.key)).map((a) => a.key),
     notes: notes || null,
   });
 
@@ -139,6 +157,17 @@ export function QuoteRequestForm({
       onSubmitted(result.receipt);
     } else if (result.fieldErrors) {
       setFieldErrors(result.fieldErrors);
+      // an Add-on withdrawn since the form loaded: say so, and show what is
+      // on offer now
+      const addOnError = Object.entries(result.fieldErrors).find(([path]) =>
+        path.startsWith("addOns"),
+      );
+      if (addOnError) {
+        setRefusal(
+          "Some of the extras you chose are no longer offered. Please check your choices.",
+        );
+        void loadAddOns(apiUrl).then(setOffered);
+      }
     } else if (result.refusal) {
       setRefusal(result.refusal);
     } else {
@@ -258,6 +287,28 @@ export function QuoteRequestForm({
           ))}
         </RadioGroup>
       </fieldset>
+
+      {offered.length > 0 && (
+        <fieldset className="flex flex-col gap-1">
+          <legend className="contents">
+            <Heading level={headingLevel} size={3}>
+              Any extras?
+            </Heading>
+          </legend>
+          <p className="text-sm text-fg-muted">
+            Optional. Your Quote will show what each one costs.
+          </p>
+          {offered.map((addOn) => (
+            <Checkbox
+              key={addOn.key}
+              isSelected={chosen.has(addOn.key)}
+              onChange={(on) => toggleAddOn(addOn.key, on)}
+            >
+              {addOn.name}
+            </Checkbox>
+          ))}
+        </fieldset>
+      )}
 
       <Checkbox
         isSelected={wantsRegularService}

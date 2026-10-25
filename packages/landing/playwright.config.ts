@@ -21,15 +21,16 @@ export default defineConfig({
     {
       command: "pnpm --filter @empire-cleaning/server e2e:server",
       url: `${controlUrl}/health`,
+      timeout: 120_000,
       env: {
         ...process.env,
         APP_MODE: "dev",
         PORT: String(API_PORT),
         E2E_CONTROL_PORT: String(CONTROL_PORT),
         DB_URL:
-          "postgresql://postgres:password@localhost:5432/empire_e2e_landing_test",
+          "postgresql://postgres:password@localhost:5433/empire_e2e_landing_test",
         TEST_DB_URL:
-          "postgresql://postgres:password@localhost:5432/empire_e2e_landing_test",
+          "postgresql://postgres:password@localhost:5433/empire_e2e_landing_test",
         BETTER_AUTH_URL: `http://localhost:${API_PORT}`,
         BETTER_AUTH_SECRET: "e2e-secret-at-least-32-characters-long",
         CORS_ORIGIN_URL: "http://localhost:5299",
@@ -43,11 +44,18 @@ export default defineConfig({
       // built here, so the site's form points at this run's API
       command: `ASTRO_TELEMETRY_DISABLED=1 astro build && ASTRO_TELEMETRY_DISABLED=1 astro preview --port ${SITE_PORT} --ignore-lock`,
       url: siteUrl,
+      timeout: 120_000,
       env: { ...process.env, PUBLIC_API_URL: `http://localhost:${API_PORT}` },
     },
   ],
   projects: [
     { name: "phone", use: { ...devices["Pixel 7"] } },
-    { name: "desktop", use: { ...devices["Desktop Chrome"] } },
+    // the phone is the main screen, and runs everything. Desktop runs only the
+    // tests tagged @desktop: the ones where a larger layout changes something.
+    {
+      name: "desktop",
+      use: { ...devices["Desktop Chrome"] },
+      grep: /@desktop/,
+    },
   ],
 });

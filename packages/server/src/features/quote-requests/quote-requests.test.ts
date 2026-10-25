@@ -1,56 +1,14 @@
 import { describe, expect, test } from "vitest";
-import type {
-  NewProperty,
-  QuoteRequestSubmission,
-} from "@empire-cleaning/models";
 import { db } from "#db";
-import { createStaff } from "#features/staff";
-import { api, apiAgent, signIn, testEmail } from "../../../tests/harness.ts";
+import { api, signIn, testEmail } from "../../../tests/harness.ts";
+import {
+  casey,
+  guestRequest,
+  home,
+  signInAsOffice,
+  submit,
+} from "../../../tests/fixtures.ts";
 import { quoteRequests } from "./quote-requests.schema.ts";
-
-const home: NewProperty = {
-  type: "apartment",
-  street: "41-12 Austin St",
-  unit: "4B",
-  postcode: "11375",
-  bedrooms: 2,
-  bathrooms: 1.5,
-  storeys: 1,
-  pets: true,
-  floorArea: null,
-  accessInstructions: "Ring 4B; the doorman has a key.",
-};
-
-const casey = {
-  name: "Casey Client",
-  email: "casey@example.com",
-  phone: "(646) 555-0100",
-};
-
-const guestRequest = (
-  overrides: Partial<QuoteRequestSubmission> = {},
-): QuoteRequestSubmission => ({
-  contact: casey,
-  property: { new: home },
-  condition: "moderate",
-  wantsRegularService: true,
-  notes: null,
-  ...overrides,
-});
-
-const submit = (
-  body: unknown,
-  agent: ReturnType<typeof apiAgent> | ReturnType<typeof api> = api(),
-) => agent.post("/api/quote-requests").send(body as object);
-
-const signInAsOffice = async () => {
-  await createStaff({
-    email: "olive@example.com",
-    name: "Olive Owner",
-    roles: ["office_staff"],
-  });
-  return signIn("olive@example.com");
-};
 
 describe("a Guest's Quote Request", () => {
   test("creates the Client, Property and Quote Request, and no Account", async () => {

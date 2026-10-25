@@ -17,7 +17,6 @@ import {
 export function QuoteRequests() {
   const requests = useLoaderData({ from: "/office/requests" });
   const navigate = useNavigate();
-  const clientOf = new Map(requests.map((r) => [r.id, r.client.id]));
 
   return (
     <div className="flex flex-col gap-4">
@@ -27,8 +26,8 @@ export function QuoteRequests() {
           aria-label="Open Quote Requests"
           onAction={(id) =>
             navigate({
-              to: "/office/clients/$clientId",
-              params: { clientId: clientOf.get(String(id))! },
+              to: "/office/requests/$requestId",
+              params: { requestId: String(id) },
             })
           }
           renderEmptyState={() => (

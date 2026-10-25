@@ -17,5 +17,34 @@ services:
       timeout: 3s
       retries: 5
 
+  # Only the tests use this one. It lives in memory with disk syncing off:
+  # committing to disk can take tens of milliseconds a time (47 ms on one
+  # machine), which adds up across thousands of commits in a test run, and test
+  # data is disposable. Never put real data here.
+  postgres_test:
+    image: postgres:16-alpine
+    container_name: empire_postgres_test
+    restart: unless-stopped
+    command:
+      - postgres
+      - -c
+      - fsync=off
+      - -c
+      - synchronous_commit=off
+      - -c
+      - full_page_writes=off
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5433:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+
 volumes:
   postgres_data:

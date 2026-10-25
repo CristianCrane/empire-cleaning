@@ -45,6 +45,8 @@ export const conditionSchema = z.enum(["light", "moderate", "heavy"], {
 const request = {
   condition: conditionSchema,
   wantsRegularService: z.boolean(),
+  // the Add-ons chosen, by key; checked against the Price List on submit
+  addOns: z.array(z.uuid()).max(50).optional(),
   notes: z.string().trim().max(2000).nullish(),
 };
 

@@ -75,7 +75,7 @@ How dirty a Property currently is: _light_, _moderate_ or _heavy_. Stated by the
 _Avoid_: State, dirtiness, level
 
 **Add-on**:
-A priced extra task, such as cleaning inside the oven, agreed on a Quote before a Job; distinct from an Adjustment made on the day.
+A priced extra task, such as cleaning inside the oven, agreed on a Quote before a Job; distinct from an Adjustment made on the day. Clients choose Add-ons by name in a Quote Request and see what each costs on the Quote. Office Staff retire an Add-on rather than delete it, so requests that chose it still price it.
 _Avoid_: Extra, upgrade, option
 
 **Preferred Service Area**:

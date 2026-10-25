@@ -47,6 +47,8 @@ export type QuoteRequestSubmission = {
   property: { new: NewProperty } | { existing: string };
   condition: Condition;
   wantsRegularService: boolean;
+  // the Add-ons chosen, by their key (see AddOnChoice)
+  addOns?: string[];
   notes?: string | null;
 };
 
@@ -64,6 +66,7 @@ export type QuoteRequestView = {
   condition: Condition;
   wantsRegularService: boolean;
   notes: string | null;
+  addOns: AddOnChoice[];
   createdAt: string;
 };
 
@@ -80,4 +83,102 @@ export type OpenQuoteRequest = QuoteRequestView & {
     PropertyView,
     "street" | "unit" | "postcode" | "type" | "bedrooms" | "bathrooms"
   >;
+};
+
+// ---- Price List and Suggested Price (#4) ----
+
+export type CleanType = "standard" | "deep";
+
+// an Add-on as a Client picks it: a name only, never a price (prices appear
+// on the Quote). The key stays the same across Price List versions.
+export type AddOnChoice = { key: string; name: string };
+
+export type PriceListAddOn = {
+  // absent on a new Add-on; the server gives it one
+  key?: string;
+  name: string;
+  // price-relevant hours, not multiplied by Condition or Clean Type
+  hours: number;
+  taxExempt: boolean;
+  // a retired Add-on is hidden from the form but still priced for requests
+  // that already chose it
+  active: boolean;
+};
+
+// what Office Staff edit. Money is in cents, before tax; percentages are
+// whole numbers except tax rates, which may have decimals (8.875).
+export type PriceListInput = {
+  hourlyRateCents: number;
+  minimumChargeCents: number;
+  // hours every home needs for kitchen, living areas and entry
+  baseHours: number;
+  bedroomHours: number;
+  bathroomHours: number;
+  extraStoreyHours: number;
+  petHours: number;
+  conditionLight: number;
+  conditionModerate: number;
+  conditionHeavy: number;
+  deepCleanMultiplier: number;
+  depositPercent: number;
+  planDiscountPercent: number;
+  quoteValidityDays: number;
+  defaultCrewSize: number;
+  taxOneOffPercent: number;
+  taxServicePlanPercent: number;
+  taxFeePercent: number;
+  addOns: PriceListAddOn[];
+};
+
+// a saved version of the Price List; every save is a new version
+export type PriceList = Omit<PriceListInput, "addOns"> & {
+  id: string;
+  version: number;
+  // the starting figures, until Office Staff save their own
+  placeholder: boolean;
+  createdAt: string;
+  createdByName: string | null;
+  addOns: (PriceListAddOn & { key: string })[];
+};
+
+export type PriceBreakdown = {
+  cleanType: CleanType;
+  // the home's hours before Condition and Clean Type, by part
+  homeHours: { label: string; hours: number }[];
+  conditionMultiplier: number;
+  cleanTypeMultiplier: number;
+  addOns: { key: string; name: string; hours: number; taxExempt: boolean }[];
+  labourHours: number;
+  hourlyRateCents: number;
+  // Labour Hours x rate, to the whole dollar, before the Minimum Charge
+  workedOutCents: number;
+  minimumChargeCents: number;
+  minimumApplied: boolean;
+  // the Suggested Price, before tax
+  priceCents: number;
+  taxPercent: number;
+  taxCents: number;
+  // what the Client sees: tax included
+  totalCents: number;
+};
+
+export type SuggestedPrices = {
+  priceListVersion: number;
+  standard: PriceBreakdown;
+  deep: PriceBreakdown;
+};
+
+// one Quote Request in full, for the Office
+export type QuoteRequestDetail = {
+  id: string;
+  createdAt: string;
+  // as the Client stated it; the home's current Condition (which Office
+  // Staff may have corrected) is what prices use
+  statedCondition: Condition;
+  wantsRegularService: boolean;
+  notes: string | null;
+  addOns: AddOnChoice[];
+  client: ContactDetails & { id: string };
+  property: PropertyView;
+  suggested: SuggestedPrices;
 };

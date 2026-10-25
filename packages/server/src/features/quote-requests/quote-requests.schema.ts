@@ -1,4 +1,11 @@
-import { boolean, index, pgTable, text, uuid } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  index,
+  pgTable,
+  primaryKey,
+  text,
+  uuid,
+} from "drizzle-orm/pg-core";
 import { timestamps } from "../../db/index.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { condition, properties } from "../properties/properties.schema.ts";
@@ -25,6 +32,18 @@ export const quoteRequests = pgTable(
     index("quote_requests_client_id_idx").on(t.clientId),
     index("quote_requests_property_id_idx").on(t.propertyId),
   ],
+);
+
+// the Add-ons a Client chose, by key (the same across Price List versions)
+export const quoteRequestAddOns = pgTable(
+  "quote_request_add_ons",
+  {
+    quoteRequestId: uuid("quote_request_id")
+      .notNull()
+      .references(() => quoteRequests.id, { onDelete: "cascade" }),
+    addOnKey: uuid("add_on_key").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.quoteRequestId, t.addOnKey] })],
 );
 
 export type QuoteRequest = typeof quoteRequests.$inferSelect;

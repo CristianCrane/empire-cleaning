@@ -1,10 +1,10 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import {
+  signedInAs,
   createStaff,
   expect,
   requestQuoteAsGuest,
-  signInWithLink,
   test,
 } from "./harness.ts";
 
@@ -15,10 +15,7 @@ const officeStaff = {
   roles: ["office_staff" as const],
 };
 
-const signInAs = async (page: Page, email: string) => {
-  await page.goto("/sign-in");
-  await signInWithLink(page, email);
-};
+const signInAs = (page: Page, email: string) => signedInAs(page, email);
 
 // fills in the parts of the shared form every new home needs
 const describeNewHome = async (
@@ -38,25 +35,27 @@ const expectNoViolations = async (page: Page) => {
   expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
 };
 
-test("someone who signed up first becomes a Client by asking for a Quote", async ({
-  page,
-}) => {
-  await signInAs(page, "new@example.com");
-  await expect(page).toHaveURL("/welcome");
+test(
+  "someone who signed up first becomes a Client by asking for a Quote",
+  { tag: "@smoke" },
+  async ({ page }) => {
+    await signInAs(page, "new@example.com");
+    await expect(page).toHaveURL("/welcome");
 
-  await page.getByRole("textbox", { name: "Full name" }).fill("Nina New");
-  await page.getByRole("textbox", { name: "Phone" }).fill("(718) 555-0111");
-  await describeNewHome(page);
-  await page.getByRole("button", { name: "Request a Quote" }).click();
+    await page.getByRole("textbox", { name: "Full name" }).fill("Nina New");
+    await page.getByRole("textbox", { name: "Phone" }).fill("(718) 555-0111");
+    await describeNewHome(page);
+    await page.getByRole("button", { name: "Request a Quote" }).click();
 
-  await expect(page).toHaveURL("/portal");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "Welcome, Nina",
-  );
-  await expect(
-    page.getByText("35-06 Ditmars Blvd, 11375").first(),
-  ).toBeVisible();
-});
+    await expect(page).toHaveURL("/portal");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "Welcome, Nina",
+    );
+    await expect(
+      page.getByText("35-06 Ditmars Blvd, 11375").first(),
+    ).toBeVisible();
+  },
+);
 
 test("a home with a request waiting can't be asked about again", async ({
   page,
@@ -108,29 +107,33 @@ test("a Client asks about a second home", async ({ page }) => {
   ).toHaveCount(2);
 });
 
-test("the portal shows where you are", async ({ page }) => {
-  await requestQuoteAsGuest(casey);
-  await signInAs(page, casey.email);
-  const portalNav = page.getByRole("navigation", { name: "Client portal" });
+test(
+  "the portal shows where you are",
+  { tag: "@desktop" },
+  async ({ page }) => {
+    await requestQuoteAsGuest(casey);
+    await signInAs(page, casey.email);
+    const portalNav = page.getByRole("navigation", { name: "Client portal" });
 
-  await page.getByRole("link", { name: "Request a Quote" }).click();
-  await expect(page).toHaveURL("/portal/request");
+    await page.getByRole("link", { name: "Request a Quote" }).click();
+    await expect(page).toHaveURL("/portal/request");
 
-  const crumbs = page.getByLabel("Breadcrumbs");
-  await expect(crumbs.getByRole("link", { name: "Home" })).toBeVisible();
-  await expect(crumbs.getByText("Request a Quote")).toHaveAttribute(
-    "aria-current",
-    "page",
-  );
-  // the section it belongs to is marked in the navigation
-  await expect(portalNav.getByRole("link", { name: "Home" })).toHaveAttribute(
-    "aria-current",
-    "page",
-  );
+    const crumbs = page.getByLabel("Breadcrumbs");
+    await expect(crumbs.getByRole("link", { name: "Home" })).toBeVisible();
+    await expect(crumbs.getByText("Request a Quote")).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    // the section it belongs to is marked in the navigation
+    await expect(portalNav.getByRole("link", { name: "Home" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
 
-  await crumbs.getByRole("link", { name: "Home" }).click();
-  await expect(page).toHaveURL("/portal");
-});
+    await crumbs.getByRole("link", { name: "Home" }).click();
+    await expect(page).toHaveURL("/portal");
+  },
+);
 
 test("the API's explanation shows beside the field", async ({ page }) => {
   await requestQuoteAsGuest(casey);
@@ -183,6 +186,9 @@ test("Office Staff see the request, open the Client and correct a home's details
   await page.getByRole("link", { name: "Requests" }).click();
   await expect(page).toHaveURL("/office/requests");
   await page.getByText("Casey Client").click();
+  // the request first; its Client is one step further
+  await expect(page).toHaveURL(/\/office\/requests\//);
+  await page.getByRole("link", { name: "View Client" }).click();
 
   await expect(page).toHaveURL(/\/office\/clients\//);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
@@ -209,33 +215,38 @@ test("Office Staff see the request, open the Client and correct a home's details
   await expect(page.getByText("4 bedrooms")).toBeVisible();
 });
 
-test("the Office shows where you are", async ({ page }) => {
-  await requestQuoteAsGuest(casey);
-  await createStaff(officeStaff);
-  await signInAs(page, officeStaff.email);
-  const officeNav = page.getByRole("navigation", { name: "Office" });
+test(
+  "the Office shows where you are",
+  { tag: "@desktop" },
+  async ({ page }) => {
+    await requestQuoteAsGuest(casey);
+    await createStaff(officeStaff);
+    await signInAs(page, officeStaff.email);
+    const officeNav = page.getByRole("navigation", { name: "Office" });
 
-  await page.getByRole("link", { name: "Requests" }).click();
-  await page.getByText("Casey Client").click();
-  await expect(page).toHaveURL(/\/office\/clients\//);
+    await page.getByRole("link", { name: "Requests" }).click();
+    await page.getByText("Casey Client").click();
+    await page.getByRole("link", { name: "View Client" }).click();
+    await expect(page).toHaveURL(/\/office\/clients\//);
 
-  const crumbs = page.getByLabel("Breadcrumbs");
-  await expect(crumbs.getByRole("link", { name: "Requests" })).toBeVisible();
-  await expect(crumbs.getByText("Casey Client")).toHaveAttribute(
-    "aria-current",
-    "page",
-  );
-  // a Client is reached from Requests, so that's the section marked
-  await expect(
-    officeNav.getByRole("link", { name: "Requests" }),
-  ).toHaveAttribute("aria-current", "page");
-  await expect(
-    officeNav.getByRole("link", { name: "Today" }),
-  ).not.toHaveAttribute("aria-current", "page");
+    const crumbs = page.getByLabel("Breadcrumbs");
+    await expect(crumbs.getByRole("link", { name: "Requests" })).toBeVisible();
+    await expect(crumbs.getByText("Casey Client")).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    // a Client is reached from Requests, so that's the section marked
+    await expect(
+      officeNav.getByRole("link", { name: "Requests" }),
+    ).toHaveAttribute("aria-current", "page");
+    await expect(
+      officeNav.getByRole("link", { name: "Today" }),
+    ).not.toHaveAttribute("aria-current", "page");
 
-  await crumbs.getByRole("link", { name: "Requests" }).click();
-  await expect(page).toHaveURL("/office/requests");
-});
+    await crumbs.getByRole("link", { name: "Requests" }).click();
+    await expect(page).toHaveURL("/office/requests");
+  },
+);
 
 for (const theme of ["light", "dark"] as const) {
   test.describe(`${theme} theme`, () => {
@@ -247,45 +258,51 @@ for (const theme of ["light", "dark"] as const) {
       }
     });
 
-    test("the portal's screens have no accessibility violations", async ({
-      page,
-    }) => {
-      await requestQuoteAsGuest(casey);
-      await signInAs(page, casey.email);
+    test(
+      "the portal's screens have no accessibility violations",
+      { tag: theme === "light" ? "@desktop" : [] },
+      async ({ page }) => {
+        await requestQuoteAsGuest(casey);
+        await signInAs(page, casey.email);
 
-      for (const path of ["/portal", "/portal/request", "/portal/details"]) {
-        await page.goto(path);
-        await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+        for (const path of ["/portal", "/portal/request", "/portal/details"]) {
+          await page.goto(path);
+          await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+          await expectNoViolations(page);
+        }
+      },
+    );
+
+    test(
+      "the Office's screens have no accessibility violations",
+      { tag: theme === "light" ? "@desktop" : [] },
+      async ({ page }) => {
+        await requestQuoteAsGuest(casey);
+        await createStaff(officeStaff);
+        await signInAs(page, officeStaff.email);
+
+        await page.goto("/office/requests");
+        await expect(page.getByText("Casey Client")).toBeVisible();
         await expectNoViolations(page);
-      }
-    });
 
-    test("the Office's screens have no accessibility violations", async ({
-      page,
-    }) => {
-      await requestQuoteAsGuest(casey);
-      await createStaff(officeStaff);
-      await signInAs(page, officeStaff.email);
+        await page.getByText("Casey Client").click();
+        await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+          "Casey Client",
+        );
+        await expectNoViolations(page);
+      },
+    );
 
-      await page.goto("/office/requests");
-      await expect(page.getByText("Casey Client")).toBeVisible();
-      await expectNoViolations(page);
-
-      await page.getByText("Casey Client").click();
-      await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-        "Casey Client",
-      );
-      await expectNoViolations(page);
-    });
-
-    test("the welcome page's form has no accessibility violations", async ({
-      page,
-    }) => {
-      await signInAs(page, "new@example.com");
-      await expect(
-        page.getByRole("textbox", { name: "Full name" }),
-      ).toBeVisible();
-      await expectNoViolations(page);
-    });
+    test(
+      "the welcome page's form has no accessibility violations",
+      { tag: theme === "light" ? "@desktop" : [] },
+      async ({ page }) => {
+        await signInAs(page, "new@example.com");
+        await expect(
+          page.getByRole("textbox", { name: "Full name" }),
+        ).toBeVisible();
+        await expectNoViolations(page);
+      },
+    );
   });
 }

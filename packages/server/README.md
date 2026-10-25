@@ -2,7 +2,9 @@
 
 ## Testing
 
-`pnpm test` runs the suite against a dedicated `empire_test` database (override with `TEST_DB_URL`), which is dropped, recreated and migrated from `drizzle/` on every run. Postgres must be up (`pnpm db:up`).
+`pnpm test` runs the suite against a dedicated `empire_test` database on the **test Postgres** (`docker-compose.yml`, port 5433; override with `TEST_DB_URL`), which is dropped, recreated and migrated from `drizzle/` on every run. Start it with `pnpm db:up`.
+
+The test Postgres lives in memory with disk syncing off. Committing to disk took tens of milliseconds a time on a Docker volume (47 ms measured), and a test run makes thousands of commits. Test data is disposable, so nothing is lost. Never put real data there.
 
 Tests exercise external behaviour through the seams in `tests/harness.ts`:
 
@@ -11,7 +13,9 @@ Tests exercise external behaviour through the seams in `tests/harness.ts`:
 - `testPayments()` is a fake Payment Gateway that records Charges and refunds and can be told to decline (`failCharges()`)
 - `testEmail()` captures every email sent through `#services/email`
 
-Fakes are fresh and every table is truncated before each test.
+Fakes are fresh and every table is emptied before each test, with one `DELETE` transaction (`resetDatabase`). Not `TRUNCATE`: that creates and syncs fresh files for every table and index, which took about 4 s per test here and more with every table added.
+
+Test files share one loaded copy of the server (`isolate: false`), because loading it takes about 5 s. That is safe because files run one at a time and every test starts clean (`tests/setup/perTest.ts`); running them in random order (`pnpm vitest run --sequence.shuffle.files --sequence.shuffle.tests`) is a way to check.
 
 ## Accounts and sign-in
 
@@ -55,3 +59,24 @@ Validation messages are written to be shown beside the form's fields.
 - `GET /api/clients/:id` (Office Staff) is any Client.
 - `PATCH /api/properties/:id/access-instructions` is open to the Client or Office Staff.
 - `PATCH /api/properties/:id` (Office Staff only) corrects a home's details: type, bedrooms, bathrooms, floors, pets, floor area and Condition. Its address is its identity and isn't correctable.
+
+## Price List and Suggested Price
+
+The Price List (`#features/price-list`) holds every figure Suggested Prices come from. Money is in cents, before tax. **Every save is a new version**, never an edit, so a Quote can point at the exact version it used; the current one is the latest. The first read creates version 1 from placeholder figures (`placeholder: true`) until Office Staff save their own.
+
+- `GET` and `PUT /api/price-list` (Office Staff) read and save it. A save sends the whole list.
+- `GET /api/price-list/add-ons` is open to everyone: the names of the Add-ons on offer, never prices (the landing page's form lists them).
+- **Add-ons are never deleted.** Leaving one out of a save retires it, with the same key, so requests that chose it still price it.
+- `GET /api/quote-requests/:id` (Office Staff) returns a request in full with its Suggested Price for both Clean Types, worked out now from the current Price List and the home's current details and Condition.
+
+The calculation (`suggested-price.ts`):
+
+```text
+home hours   = base + bedrooms + bathrooms + (floors - 1) + pets
+Labour Hours = home hours x Condition x Clean Type, plus each Add-on's own hours
+               (not multiplied), rounded UP to the quarter-hour
+price        = Labour Hours x hourly rate, to the whole dollar, at least the Minimum Charge
+tax          = the one-off Jobs rate on the price, less tax-exempt Add-ons' share
+```
+
+It uses whole numbers throughout (hours in 1e-4, multipliers in hundredths), so a quarter-hour boundary is never missed by floating point: 3 x 0.4 h + 0.55 h is exactly 1.75 h, though it is 1.7500000000000002 as decimals.

@@ -18,11 +18,14 @@ pnpm run dev
 pnpm --filter @empire-cleaning/ui storybook
 ```
 
-4. run every package's tests (the browser tests need Chromium; see packages/ui/README.md):
+4. run the tests (the browser tests need Chromium; see packages/ui/README.md). `pnpm db:up` also starts a separate Postgres for tests, in memory and with disk syncing off, on port 5433:
 
 ```shell
-pnpm test
+pnpm test        # quick: design system, server and a handful of end-to-end journeys
+pnpm test:full   # everything; run it before merging
 ```
+
+Both run one package at a time and report every failure. See each package's README for what it covers.
 
 5. clean up when finished:
 

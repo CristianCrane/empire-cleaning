@@ -38,17 +38,40 @@ export const testClock = () => current().clock;
 export const testPayments = () => current().payments;
 export const testEmail = () => current().email;
 
-// empties every table except drizzle's migration bookkeeping
+// Empties every table except drizzle's migration bookkeeping, before every
+// test. With DELETE, not TRUNCATE: truncating creates and syncs fresh files for
+// every table and index, which takes seconds on a Docker volume (and more with
+// each table added), where deleting the few rows a test leaves takes
+// milliseconds. One transaction, so one sync.
 export const resetDatabase = async () => {
-  const { rows } = await db.execute<{ tablename: string }>(
-    sql`select tablename from pg_tables where schemaname = 'public'`,
-  );
-  if (rows.length === 0) return;
+  await db.transaction(async (tx) => {
+    // delete in any order: skip foreign key checks, as truncate ... cascade did
+    // (needs a superuser, which the local test database's user is)
+    await tx.execute(sql`set local session_replication_role = replica`);
 
-  const tables = rows.map((r) => `"public"."${r.tablename}"`).join(", ");
-  await db.execute(
-    sql.raw(`truncate table ${tables} restart identity cascade`),
-  );
+    const { rows: tables } = await tx.execute<{ tablename: string }>(
+      sql`select tablename from pg_tables where schemaname = 'public'`,
+    );
+    for (const { tablename } of tables) {
+      await tx.execute(sql.raw(`delete from "public"."${tablename}"`));
+    }
+
+    // identity columns count from 1 again, as truncate ... restart identity did
+    const { rows: identities } = await tx.execute<{
+      table_name: string;
+      column_name: string;
+    }>(
+      sql`select table_name, column_name from information_schema.columns
+          where table_schema = 'public' and is_identity = 'YES'`,
+    );
+    for (const { table_name, column_name } of identities) {
+      await tx.execute(
+        sql.raw(
+          `alter table "public"."${table_name}" alter column "${column_name}" restart`,
+        ),
+      );
+    }
+  });
 };
 
 // drives the real Express app over HTTP: api().get("/health").

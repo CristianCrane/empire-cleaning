@@ -25,5 +25,9 @@ export default defineConfig({
     restoreMocks: true,
     pool: "threads",
     fileParallelism: false, // force sequential execution for tests (prevent shared db race conditions)
+    // one copy of the server (Better Auth, Drizzle...) for every file instead of one
+    // per file: loading it takes ~5 s. Safe because files run one at a time and
+    // every test starts from fresh fakes and an empty database (tests/setup/perTest.ts)
+    isolate: false,
   },
 });
