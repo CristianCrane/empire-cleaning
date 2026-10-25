@@ -1,3 +1,4 @@
+export * from "./add-ons.ts";
 export * from "./jobs.routes.ts";
 export * from "./jobs.schema.ts";
 export * from "./jobs.ts";

@@ -21,6 +21,8 @@ const { createStaff, setUsualWeek } =
   await import("../../src/features/staff/index.ts");
 const { createClient } = await import("../../src/features/clients/index.ts");
 const { sendDueReminders } = await import("../../src/features/jobs/index.ts");
+const { confirmAssignment, offerAssignment } =
+  await import("../../src/features/assignments/index.ts");
 const { installFakes, resetDatabase, testClock, testEmail, testPayments } =
   await import("../harness.ts");
 const { bookedJob } = await import("../fixtures.ts");
@@ -62,6 +64,19 @@ control.put("/staff/:id/usual-week", async (req, res) => {
 // a booked Job at a home of its own, straight onto the Schedule
 control.post("/jobs", async (req, res) => {
   res.json(await bookedJob(req.body as Parameters<typeof bookedJob>[0]));
+});
+
+// a place on a Job Offered to a Cleaner, as Office Staff do, and Confirmed
+// by them too if `confirmed`
+control.post("/jobs/:id/assignments", async (req, res) => {
+  const { staffId, confirmed } = req.body as {
+    staffId: string;
+    confirmed?: boolean;
+  };
+  const job = await offerAssignment(req.params.id, staffId, "control");
+  const place = job.assignments.find((a) => a.staff.id === staffId)!;
+  if (confirmed) await confirmAssignment(staffId, place.id);
+  res.json(place);
 });
 
 // every Charge is declined with this reason from now on; null to stop

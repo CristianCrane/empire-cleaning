@@ -49,6 +49,7 @@ const navFor: Record<AreaId, AreaNavItem[]> = {
       href: linkTo({ to: "/office/schedule" }),
       label: "Schedule",
       icon: CalendarDays,
+      alsoCurrentFor: ["/office/jobs/"],
     },
     {
       href: linkTo({ to: "/office/staff" }),
@@ -63,7 +64,12 @@ const navFor: Record<AreaId, AreaNavItem[]> = {
     },
   ],
   cleaner: [
-    { href: linkTo({ to: "/cleaner" }), label: "Today", icon: CalendarDays },
+    {
+      href: linkTo({ to: "/cleaner" }),
+      label: "Your Jobs",
+      icon: CalendarDays,
+      alsoCurrentFor: ["/cleaner/jobs/"],
+    },
   ],
   portal: [
     {

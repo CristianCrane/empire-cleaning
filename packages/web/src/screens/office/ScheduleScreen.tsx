@@ -14,6 +14,7 @@ import {
   ListItem,
   StatusBadge,
 } from "@empire-cleaning/ui";
+import { AssignmentBadge } from "./JobScreen.tsx";
 import { scheduleRange } from "./schedule-range.ts";
 import {
   addDays,
@@ -133,6 +134,8 @@ const capacityOf = (day: ScheduleDay) => {
 };
 
 function Day({ day }: { day: ScheduleDay }) {
+  const navigate = useNavigate();
+
   return (
     <Card
       title={formatDay(day.date)}
@@ -146,7 +149,15 @@ function Day({ day }: { day: ScheduleDay }) {
       actions={capacityOf(day)}
     >
       {day.jobs.length > 0 ? (
-        <List aria-label={`Jobs on ${formatDay(day.date)}`}>
+        <List
+          aria-label={`Jobs on ${formatDay(day.date)}`}
+          onAction={(id) =>
+            navigate({
+              to: "/office/jobs/$jobId",
+              params: { jobId: String(id) },
+            })
+          }
+        >
           {day.jobs.map((job) => (
             <ListItem
               key={job.id}
@@ -159,6 +170,7 @@ function Day({ day }: { day: ScheduleDay }) {
                 `${formatHours(job.labourHours)} Labour Hours`,
                 `crew of ${job.crewSize}, ${formatHours(job.hoursOnSite)} on site`,
               ].join(" · ")}
+              end={<AssignmentBadge job={job} />}
             />
           ))}
         </List>

@@ -1,5 +1,9 @@
 import express from "express";
 import { toNodeHandler } from "better-auth/node";
+import {
+  jobAssignmentsRouter,
+  router as assignmentsRouter,
+} from "#features/assignments";
 import { auth, router as meRouter } from "#features/auth";
 import { router as clientsRouter } from "#features/clients";
 import { router as dashboardRouter } from "#features/dashboard";
@@ -51,6 +55,8 @@ app.use("/api/price-list", priceListRouter);
 app.use("/api/staff", staffRouter);
 app.use("/api/schedule", scheduleRouter);
 app.use("/api/jobs", jobsRouter);
+app.use("/api/jobs", jobAssignmentsRouter);
+app.use("/api/assignments", assignmentsRouter);
 app.use("/api/payment-methods", paymentMethodsRouter);
 app.use("/api/dashboard", dashboardRouter);
 

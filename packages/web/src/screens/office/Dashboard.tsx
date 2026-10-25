@@ -10,6 +10,7 @@ import {
   StatusBadge,
 } from "@empire-cleaning/ui";
 import { linkTo } from "../../links.ts";
+import { AssignmentBadge } from "./JobScreen.tsx";
 import {
   addressOf,
   cleanTypeLabel,
@@ -23,6 +24,7 @@ import {
 // the Office's first screen: what's waiting on them, then today's Jobs
 export function Dashboard() {
   const { needsAttention, today } = useLoaderData({ from: "/office/" });
+  const navigate = useNavigate();
 
   return (
     <div className="flex flex-col gap-4">
@@ -39,7 +41,15 @@ export function Dashboard() {
         }
       >
         {today.jobs.length > 0 ? (
-          <List aria-label="Today's Jobs">
+          <List
+            aria-label="Today's Jobs"
+            onAction={(id) =>
+              navigate({
+                to: "/office/jobs/$jobId",
+                params: { jobId: String(id) },
+              })
+            }
+          >
             {today.jobs.map((job) => (
               <ListItem
                 key={job.id}
@@ -69,9 +79,7 @@ function JobBadge({ job }: { job: TodayJob }) {
     return <StatusBadge tone="success">Completed</StatusBadge>;
   if (job.outcome === "no_access")
     return <StatusBadge tone="danger">No Access</StatusBadge>;
-  if (job.assignment === "unassigned")
-    return <StatusBadge tone="warning">Unassigned</StatusBadge>;
-  return <StatusBadge tone="info">Assigned</StatusBadge>;
+  return <AssignmentBadge job={job} />;
 }
 
 type Row = {
@@ -128,6 +136,20 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
             navigate({
               to: "/office/quotes/$quoteId",
               params: { quoteId: quote.id },
+            }),
+        };
+      }
+      case "job_unassigned": {
+        const { job } = item;
+        return {
+          key: `job_unassigned ${job.id}`,
+          title: job.client.name,
+          description: `${addressOf(job.property)} · ${formatDateTime(job.startsAt)}`,
+          badge: <StatusBadge tone="warning">Unassigned</StatusBadge>,
+          open: () =>
+            navigate({
+              to: "/office/jobs/$jobId",
+              params: { jobId: job.id },
             }),
         };
       }

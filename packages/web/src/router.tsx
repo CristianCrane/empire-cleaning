@@ -7,9 +7,12 @@ import {
   useRouter,
 } from "@tanstack/react-router";
 import type {
+  CleanerJob,
+  CleanerJobs,
   ClientJob,
   ClientView,
   NeedsAttentionItem,
+  OfficeJob,
   OfficeQuote,
   OpenQuoteRequest,
   PaymentMethodView,
@@ -25,8 +28,10 @@ import type {
 import { RouterProvider, ToastRegion } from "@empire-cleaning/ui";
 import { getJson } from "./api.ts";
 import { AreaLayout } from "./screens/AreaLayout.tsx";
-import { CleanerHome } from "./screens/AreaHomes.tsx";
+import { CleanerHome } from "./screens/cleaner/CleanerHome.tsx";
+import { CleanerJobScreen } from "./screens/cleaner/CleanerJobScreen.tsx";
 import { Dashboard } from "./screens/office/Dashboard.tsx";
+import { JobScreen } from "./screens/office/JobScreen.tsx";
 import { PriceListScreen } from "./screens/office/PriceListScreen.tsx";
 import { QuoteRequest } from "./screens/office/QuoteRequest.tsx";
 import { QuoteRequests } from "./screens/office/QuoteRequests.tsx";
@@ -240,10 +245,27 @@ const officeScheduleRoute = createRoute({
   component: ScheduleScreen,
 });
 
+const officeJobRoute = createRoute({
+  getParentRoute: () => officeRoute,
+  path: "/jobs/$jobId",
+  loader: ({ params }) => getJson<OfficeJob>(`/api/jobs/${params.jobId}`),
+  component: JobScreen,
+});
+
 const cleanerHomeRoute = createRoute({
   getParentRoute: () => cleanerRoute,
   path: "/",
+  loader: () => getJson<CleanerJobs>("/api/assignments/mine"),
   component: CleanerHome,
+});
+
+// where the Offer email's link leads
+const cleanerJobRoute = createRoute({
+  getParentRoute: () => cleanerRoute,
+  path: "/jobs/$jobId",
+  loader: ({ params }) =>
+    getJson<CleanerJob>(`/api/assignments/mine/${params.jobId}`),
+  component: CleanerJobScreen,
 });
 
 const portalHomeRoute = createRoute({
@@ -314,8 +336,9 @@ const routeTree = rootRoute.addChildren([
     officeStaffRoute,
     officeStaffMemberRoute,
     officeScheduleRoute,
+    officeJobRoute,
   ]),
-  cleanerRoute.addChildren([cleanerHomeRoute]),
+  cleanerRoute.addChildren([cleanerHomeRoute, cleanerJobRoute]),
   portalRoute.addChildren([
     portalHomeRoute,
     portalRequestRoute,
