@@ -29,7 +29,24 @@ export const setUsualWeek = (staffId: string, usualWeek: number[]) =>
     body: JSON.stringify({ usualWeek }),
   });
 
-// a booked Job at a home of its own (nothing in the app books Jobs until #8)
+// every Charge is declined with this reason from now on; null to stop
+export const failCharges = (reason: string | null = "card_declined") =>
+  control("/payments/fail", {
+    method: "POST",
+    body: JSON.stringify({ reason }),
+  });
+
+// a card entered in the payment form needs the bank's approval from now on,
+// which it gives ("approved"), refuses, or is still waiting on; null to stop
+export const requireApproval = (
+  then: "approved" | "refused" | "pending" | null = "approved",
+) =>
+  control("/payments/approval", {
+    method: "POST",
+    body: JSON.stringify({ then }),
+  });
+
+// a booked Job at a home of its own, straight onto the Schedule
 export const bookJob = (job: {
   startsAt: string;
   labourHours: number;

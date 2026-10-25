@@ -11,7 +11,7 @@ import type {
   QuoteOption,
   QuoteView,
 } from "@empire-cleaning/models";
-import { db } from "../../db/index.ts";
+import { db, type Tx } from "../../db/index.ts";
 import env from "../../env.ts";
 import {
   ConflictError,
@@ -19,8 +19,15 @@ import {
   RequestBodyError,
 } from "../../middleware/errors.ts";
 import { atTime, clock, dayOf, timeOf } from "../../services/clock/index.ts";
-import { email } from "../../services/email/index.ts";
+import {
+  compose,
+  email,
+  firstNameOf,
+  formatMoney,
+  formatWhen,
+} from "../../services/email/index.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
+import { paymentMethodOf, toPaymentMethodView } from "../payments/payments.ts";
 import { currentPriceList } from "../price-list/price-list.ts";
 import { priceLists } from "../price-list/price-list.schema.ts";
 import {
@@ -29,8 +36,10 @@ import {
   taxOn,
 } from "../price-list/suggested-price.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
+import { addressOf } from "../properties/property-view.ts";
 import { addOnsForRequests } from "../quote-requests/add-ons.ts";
 import { quoteRequests } from "../quote-requests/quote-requests.schema.ts";
+import { bookableFor } from "./quote-room.ts";
 import { requestStates, statusOf } from "./quote-state.ts";
 import {
   quoteOptions,
@@ -111,7 +120,7 @@ const priceOptions = (
 const optionsOf = (quoteId: string) =>
   db.select().from(quoteOptions).where(eq(quoteOptions.quoteId, quoteId));
 
-const toOption = (quote: Quote, row: QuoteOptionRow): QuoteOption => ({
+export const toOption = (quote: Quote, row: QuoteOptionRow): QuoteOption => ({
   cleanType: row.cleanType,
   recommended: row.cleanType === "deep",
   labourHours: row.labourHours,
@@ -144,6 +153,16 @@ const addOnsOf = (rows: QuoteOptionRow[]): QuoteAddOn[] => {
 
 const iso = (date: Date | null) => date?.toISOString() ?? null;
 
+// the Clean Types a Quote can still be booked as: none once it isn't Sent
+const bookableOf = async (quote: Quote) =>
+  statusOf(quote) === "sent"
+    ? (
+        await bookableFor([
+          { id: quote.id, proposedStartsAt: quote.proposedStartsAt! },
+        ])
+      ).get(quote.id)!
+    : [];
+
 const findQuote = async (id: string) => {
   const [quote] = await db.select().from(quotes).where(eq(quotes.id, id));
   if (!quote) throw new NotFoundError("Quote not found");
@@ -163,6 +182,7 @@ export const officeQuote = async (id: string): Promise<OfficeQuote> => {
       .where(eq(priceLists.id, quote.priceListId)),
   ]);
   const { client, property } = row!;
+  const paymentMethod = await paymentMethodOf(client.id);
 
   return {
     id: quote.id,
@@ -195,6 +215,10 @@ export const officeQuote = async (id: string): Promise<OfficeQuote> => {
     sentAt: iso(quote.sentAt),
     expiresAt: iso(quote.expiresAt),
     declinedAt: iso(quote.declinedAt),
+    acceptedAt: iso(quote.acceptedAt),
+    acceptedCleanType: quote.acceptedCleanType,
+    bookable: await bookableOf(quote),
+    paymentMethod: toPaymentMethodView(paymentMethod),
   };
 };
 
@@ -233,6 +257,9 @@ export const clientQuote = async (
     sentAt: quote.sentAt!.toISOString(),
     expiresAt: quote.expiresAt!.toISOString(),
     declinedAt: iso(quote.declinedAt),
+    acceptedAt: iso(quote.acceptedAt),
+    acceptedCleanType: quote.acceptedCleanType,
+    bookable: await bookableOf(quote),
   };
 };
 
@@ -257,7 +284,7 @@ export const startDraft = async (
     );
   if (existing)
     return { quote: await officeQuote(existing.id), started: false };
-  await refuseEnded(quoteRequestId);
+  await refuseClosed(quoteRequestId);
 
   const [list, requested] = await Promise.all([
     currentPriceList(),
@@ -289,14 +316,30 @@ export const startDraft = async (
   return { quote: await officeQuote(id), started: true };
 };
 
-// a request the Client Declined has ended: they ask again if they want to
-const refuseEnded = async (quoteRequestId: string) => {
+// a request whose Quote the Client Accepted or Declined is closed: they ask
+// again if they want something more
+const refuseClosed = async (quoteRequestId: string) => {
   const state = (await requestStates([quoteRequestId])).get(quoteRequestId);
+  if (state === "booked") {
+    throw new ConflictError(
+      "The Client accepted a Quote for this request, so it's booked. They can ask for a new Quote.",
+    );
+  }
   if (state === "ended") {
     throw new ConflictError(
       "The Client declined the last Quote for this request, so it has ended. They can ask for a new Quote.",
     );
   }
+};
+
+// holds a request until the transaction ends, so sending a Quote for it and
+// accepting one take turns
+export const lockRequest = async (tx: Tx, quoteRequestId: string) => {
+  await tx
+    .select({ id: quoteRequests.id })
+    .from(quoteRequests)
+    .where(eq(quoteRequests.id, quoteRequestId))
+    .for("update");
 };
 
 const findDraft = async (id: string) => {
@@ -362,7 +405,7 @@ export const sendQuote = async (id: string): Promise<OfficeQuote> => {
   if (quote.proposedStartsAt <= now) {
     throw fieldError(["proposedStart"], "Choose a time that's still to come");
   }
-  await refuseEnded(quote.quoteRequestId);
+  await refuseClosed(quote.quoteRequestId);
 
   const expiresAt = new Date(
     Math.min(
@@ -372,12 +415,10 @@ export const sendQuote = async (id: string): Promise<OfficeQuote> => {
   );
 
   await db.transaction(async (tx) => {
-    // one send at a time per request
-    await tx
-      .select({ id: quoteRequests.id })
-      .from(quoteRequests)
-      .where(eq(quoteRequests.id, quote.quoteRequestId))
-      .for("update");
+    // one send (or acceptance) at a time per request
+    await lockRequest(tx, quote.quoteRequestId);
+    // its open Quote may have been Accepted while this waited
+    await refuseClosed(quote.quoteRequestId);
     const [open] = await tx
       .select()
       .from(quotes)
@@ -437,57 +478,23 @@ export const declineQuote = async (
   return clientQuote(id, clientId);
 };
 
-const escapeHtml = (text: string) =>
-  text.replace(
-    /[&<>"']/g,
-    (c) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
-        c
-      ]!,
-  );
-
-const money = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-});
-const when = new Intl.DateTimeFormat("en-US", {
-  weekday: "long",
-  month: "long",
-  day: "numeric",
-  hour: "numeric",
-  minute: "2-digit",
-  timeZone: "America/New_York",
-});
-
 // a plain link to the Quote's page: it carries no sign-in power (ADR-0006), so
 // a signed-out Client signs in (or up) with this email and comes back to it
 const sendQuoteEmail = async (client: Client, quote: OfficeQuote) => {
-  const [firstName] = client.name.split(" ");
-  const address = [
-    quote.property.street,
-    quote.property.unit,
-    quote.property.postcode,
-  ]
-    .filter(Boolean)
-    .join(", ");
-  const link = `${env.CORS_ORIGIN_URL}/portal/quotes/${quote.id}`;
   const [deep, standard] = quote.options;
   const lines = [
-    `Hi ${firstName},`,
-    `Your Quote for ${address} is ready, for ${when.format(new Date(quote.proposedStartsAt!))}:`,
-    `Deep Clean (recommended): ${money.format(deep!.totalCents / 100)}\nStandard Clean: ${money.format(standard!.totalCents / 100)}`,
-    `Prices include tax. It's open until ${when.format(new Date(quote.expiresAt!))}. To see it in full, sign in with this email address (${client.email}):`,
+    `Hi ${firstNameOf(client.name)},`,
+    `Your Quote for ${addressOf(quote.property)} is ready, for ${formatWhen(new Date(quote.proposedStartsAt!))}:`,
+    `Deep Clean (recommended): ${formatMoney(deep!.totalCents)}\nStandard Clean: ${formatMoney(standard!.totalCents)}`,
+    `Prices include tax. It's open until ${formatWhen(new Date(quote.expiresAt!))}. To see it in full, sign in with this email address (${client.email}):`,
   ];
 
   await email.send({
     to: client.email,
     subject: "Your Quote from Empire Cleaning",
-    text: [...lines, link].join("\n\n"),
-    html: [
-      ...lines.map(
-        (line) => `<p>${escapeHtml(line).replaceAll("\n", "<br>")}</p>`,
-      ),
-      `<p><a href="${link}">See your Quote</a></p>`,
-    ].join(""),
+    ...compose(lines, {
+      href: `${env.CORS_ORIGIN_URL}/portal/quotes/${quote.id}`,
+      label: "See your Quote",
+    }),
   });
 };

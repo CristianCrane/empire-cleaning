@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLoaderData, useRouter } from "@tanstack/react-router";
 import {
   parseDate,
@@ -11,6 +11,7 @@ import type {
   OfficeQuote,
   OfficeQuoteOption,
   QuoteDraftInput,
+  ScheduleDay,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -19,20 +20,27 @@ import {
   Card,
   Checkbox,
   DatePicker,
+  Dialog,
+  DialogTrigger,
   Form,
   Heading,
+  Link,
   Notice,
   NumberField,
+  Radio,
+  RadioGroup,
   TextField,
   TimeField,
   showToast,
 } from "@empire-cleaning/ui";
-import { ApiError, patchJson, postJson } from "../../api.ts";
+import { ApiError, getJson, patchJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import {
   addressOf,
   cleanTypeLabel,
   formatDateTime,
+  formatDay,
+  formatHours,
   formatMoney,
 } from "../format.ts";
 import { AddOnList, OptionCard, QuoteStatusBadge } from "../QuoteParts.tsx";
@@ -94,8 +102,36 @@ function SentQuote({ quote }: { quote: OfficeQuote }) {
               <dd>{formatDateTime(quote.declinedAt)}</dd>
             </>
           )}
+          {quote.acceptedAt && (
+            <>
+              <dt className="font-semibold">Accepted</dt>
+              <dd>
+                {formatDateTime(quote.acceptedAt)}:{" "}
+                {cleanTypeLabel[quote.acceptedCleanType!]}, booked
+              </dd>
+            </>
+          )}
         </dl>
       </Card>
+      {quote.status === "sent" &&
+        (quote.bookable.length > 0 ? (
+          <RecordAcceptance quote={quote} />
+        ) : (
+          <Notice tone="danger">
+            {formatDateTime(quote.proposedStartsAt!)} has filled up since this
+            Quote was sent, so {quote.client.name} can't accept it. Draft a new
+            Quote with another time from their{" "}
+            <Link
+              href={linkTo({
+                to: "/office/requests/$requestId",
+                params: { requestId: quote.quoteRequestId },
+              })}
+            >
+              Quote Request
+            </Link>
+            : it replaces this one.
+          </Notice>
+        ))}
       <div className="grid gap-4 lg:grid-cols-2">
         {quote.options.map((option) => (
           <OptionCard
@@ -116,6 +152,151 @@ function SentQuote({ quote }: { quote: OfficeQuote }) {
         never changes: to offer something different, draft a new one.
       </p>
     </>
+  );
+}
+
+// The Client said yes another way, e.g. by phone: the Office records it,
+// charging the Deposit to the card the Client saved. Office Staff never take
+// card details, so without one they email the Client a link to add it.
+function RecordAcceptance({ quote }: { quote: OfficeQuote }) {
+  const router = useRouter();
+  const [cleanType, setCleanType] = useState<CleanType>(
+    quote.bookable.includes("deep") ? "deep" : quote.bookable[0]!,
+  );
+  const [problem, setProblem] = useState<string>();
+  const [busy, setBusy] = useState<"accept" | "link">();
+  const chosen = quote.options.find((o) => o.cleanType === cleanType)!;
+  const [firstName] = quote.client.name.split(" ");
+
+  const attempt = async (
+    action: "accept" | "link",
+    run: () => Promise<void>,
+  ) => {
+    setBusy(action);
+    setProblem(undefined);
+    try {
+      await run();
+    } catch (e) {
+      setProblem(
+        e instanceof ApiError && e.status === 409
+          ? e.message
+          : "That didn't work. Please try again.",
+      );
+    } finally {
+      setBusy(undefined);
+    }
+  };
+
+  const accept = (close: () => void) =>
+    attempt("accept", async () => {
+      await postJson<OfficeQuote>(`/api/quotes/${quote.id}/accept`, {
+        cleanType,
+      });
+      close();
+      showToast({ tone: "success", title: "Accepted and booked" });
+      await router.invalidate();
+    });
+
+  const sendLink = () =>
+    attempt("link", async () => {
+      await postJson("/api/payment-methods/requests", {
+        clientId: quote.client.id,
+      });
+      showToast({
+        tone: "success",
+        title: `Link sent to ${quote.client.email}`,
+      });
+    });
+
+  const linkButton = (
+    <Button
+      variant="secondary"
+      isPending={busy === "link"}
+      onPress={() => void sendLink()}
+    >
+      Email {firstName} a link to add a card
+    </Button>
+  );
+
+  if (!quote.paymentMethod) {
+    return (
+      <Card
+        title="Record acceptance"
+        description="If the Client accepts by phone or in person."
+      >
+        <Notice>
+          {quote.client.name} hasn't saved a Payment Method yet. We never take
+          card details for them: email them a link to add one, then record their
+          acceptance here.
+        </Notice>
+        {problem && <Notice tone="danger">{problem}</Notice>}
+        <Actions>{linkButton}</Actions>
+      </Card>
+    );
+  }
+
+  return (
+    <Card
+      title="Record acceptance"
+      description="If the Client accepts by phone or in person."
+    >
+      <RadioGroup
+        label="Clean Type they chose"
+        value={cleanType}
+        onChange={(value) => setCleanType(value as CleanType)}
+      >
+        {quote.options.map((option) => (
+          <Radio
+            key={option.cleanType}
+            value={option.cleanType}
+            isDisabled={!quote.bookable.includes(option.cleanType)}
+            description={
+              quote.bookable.includes(option.cleanType)
+                ? `${formatMoney(option.totalCents)}, Deposit ${formatMoney(option.depositCents)}`
+                : "No longer fits: the day has filled up"
+            }
+          >
+            {cleanTypeLabel[option.cleanType]}
+          </Radio>
+        ))}
+      </RadioGroup>
+      <p className="text-sm text-fg-muted">
+        Charged to their {quote.paymentMethod.label}, saved{" "}
+        {formatDateTime(quote.paymentMethod.savedAt)}.
+      </p>
+      {problem && <Notice tone="danger">{problem}</Notice>}
+      <Actions>
+        {linkButton}
+        <DialogTrigger>
+          <Button>Record acceptance</Button>
+          <Dialog title="Record acceptance?" role="alertdialog">
+            {({ close }) => (
+              <>
+                <p>
+                  This charges the {formatMoney(chosen.depositCents)} Deposit to{" "}
+                  {quote.client.name}'s {quote.paymentMethod!.label} and books
+                  their {cleanTypeLabel[cleanType]} for{" "}
+                  {formatDateTime(quote.proposedStartsAt!)}. Only do this if
+                  they've told you they accept.
+                </p>
+                {problem && <Notice tone="danger">{problem}</Notice>}
+                <Actions>
+                  <Button variant="secondary" onPress={close}>
+                    Cancel
+                  </Button>
+                  <Button
+                    isPending={busy === "accept"}
+                    onPress={() => void accept(close)}
+                  >
+                    Charge and book
+                  </Button>
+                </Actions>
+              </>
+            )}
+          </Dialog>
+        </DialogTrigger>
+      </Actions>
+    </Card>
   );
 }
 
@@ -193,6 +374,54 @@ const toInput = (fields: Fields): QuoteDraftInput => {
 };
 
 const dollars = { style: "currency", currency: "USD" } as const;
+
+// Whether the proposed day has room for each Clean Type, from its free
+// Cleaner hours now and the Labour Hours as last saved. A warning, not a
+// rule: the Office may be about to add hours. A Quote sent for a full day
+// can't be accepted, and goes straight under Needs attention.
+function RoomOnDay({
+  day,
+  options,
+}: {
+  day: string;
+  options: OfficeQuoteOption[];
+}) {
+  const [free, setFree] = useState<{ day: string; hours: number }>();
+
+  useEffect(() => {
+    let current = true;
+    getJson<ScheduleDay[]>(`/api/schedule?from=${day}&to=${day}`)
+      .then(([found]) => current && setFree({ day, hours: found!.freeHours }))
+      // nothing to say if it can't be found out
+      .catch(() => current && setFree(undefined));
+    return () => {
+      current = false;
+    };
+  }, [day]);
+
+  if (free?.day !== day) return null;
+  // in hundredths, as the server compares them
+  const fits = (option: OfficeQuoteOption) =>
+    Math.round(free.hours * 100) >= Math.round(option.labourHours * 100);
+  const fitting = options.filter(fits);
+  const missing = options.filter((o) => !fits(o));
+  const describe = (o: OfficeQuoteOption) =>
+    `the ${cleanTypeLabel[o.cleanType]} (${formatHours(o.labourHours)})`;
+  const opening = `${formatDay(day)} has ${formatHours(Math.max(free.hours, 0))} of Cleaner time free`;
+
+  if (missing.length === 0) {
+    return (
+      <p className="text-sm text-fg-muted">{opening}: room for either clean.</p>
+    );
+  }
+  return (
+    <Notice tone="danger">
+      {fitting.length > 0
+        ? `${opening}: room for ${fitting.map(describe).join(" and ")}, but not ${missing.map(describe).join(" or ")}. The Client will only be able to choose ${fitting.length === 1 ? "that one" : "those"}.`
+        : `${opening}, not enough for ${missing.map(describe).join(" or ")}. The Client couldn't accept this Quote: choose another day, or give a Cleaner more hours that day.`}
+    </Notice>
+  );
+}
 
 function DraftEditor({ quote: loaded }: { quote: OfficeQuote }) {
   const router = useRouter();
@@ -389,6 +618,9 @@ function DraftEditor({ quote: loaded }: { quote: OfficeQuote }) {
             onChange={(time) => set({ time })}
           />
         </div>
+        {fields.date && (
+          <RoomOnDay day={fields.date.toString()} options={quote.options} />
+        )}
       </Card>
 
       <Actions>

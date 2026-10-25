@@ -23,6 +23,7 @@
     "test:coverage": "vitest run --coverage",
     "auth:create-owner": "tsx --env-file=.env ./src/features/auth/create-owner.ts",
     "e2e:server": "tsx tests/e2e/server.ts",
+    "stripe:sandbox": "tsx --env-file=.env tests/stripe-sandbox.ts",
     "test:quick": "vitest run"
   },
   "dependencies": {
@@ -36,6 +37,7 @@
     "morgan": "^1.12.0",
     "pg": "^8.23.0",
     "resend": "^6.34.1",
+    "stripe": "^23.0.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {

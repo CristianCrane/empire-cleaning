@@ -15,16 +15,17 @@ import {
 import type { PriceBreakdown } from "@empire-cleaning/models";
 import { timestamps } from "../../db/index.ts";
 import { accounts } from "../auth/auth.schema.ts";
-import { cleanType } from "../jobs/jobs.schema.ts";
+import { cleanType, jobs } from "../jobs/jobs.schema.ts";
 import { priceLists } from "../price-list/price-list.schema.ts";
 import { quoteRequests } from "../quote-requests/quote-requests.schema.ts";
 
-// Accepted comes with #8. A Sent Quote whose time is up is Expired whether or
-// not this says so: "expired" is only written when a newer Quote is sent, so
-// the one-Sent-Quote rule below can hold.
+// A Sent Quote whose time is up is Expired whether or not this says so:
+// "expired" is only written when a newer Quote is sent, so the
+// one-Sent-Quote rule below can hold.
 export const quoteStatus = pgEnum("quote_status", [
   "draft",
   "sent",
+  "accepted",
   "declined",
   "expired",
   "superseded",
@@ -54,6 +55,14 @@ export const quotes = pgTable(
     // sending
     expiresAt: timestamp("expires_at", { withTimezone: true }),
     declinedAt: timestamp("declined_at", { withTimezone: true }),
+    // once Accepted: when, the Clean Type chosen, the Job it booked, and who
+    // accepted (the Client, or Office Staff on their behalf)
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    acceptedCleanType: cleanType("accepted_clean_type"),
+    jobId: uuid("job_id").references(() => jobs.id, { onDelete: "restrict" }),
+    acceptedBy: uuid("accepted_by").references(() => accounts.id, {
+      onDelete: "set null",
+    }),
     createdBy: uuid("created_by").references(() => accounts.id, {
       onDelete: "set null",
     }),
@@ -98,5 +107,31 @@ export const quoteOptions = pgTable(
   (t) => [primaryKey({ columns: [t.quoteId, t.cleanType] })],
 );
 
+// A Client's Deposit waiting on their bank's approval (e.g. 3D Secure) in the
+// browser. Nothing is booked yet: once the payment succeeds it's booked by
+// whichever comes first, the browser's finalize call or the provider's
+// webhook. Kept once settled, so a late success for a Quote that was accepted
+// some other way meanwhile is recognised, and refunded.
+export const pendingDeposits = pgTable(
+  "pending_deposits",
+  {
+    // the Payment Gateway's id for the payment, opaque to us
+    gatewayRef: text("gateway_ref").primaryKey(),
+    quoteId: uuid("quote_id")
+      .notNull()
+      .references(() => quotes.id, { onDelete: "cascade" }),
+    cleanType: cleanType("clean_type").notNull(),
+    depositCents: integer("deposit_cents").notNull(),
+    acceptedBy: uuid("accepted_by").references(() => accounts.id, {
+      onDelete: "set null",
+    }),
+    // when it was booked, failed or refunded
+    settledAt: timestamp("settled_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [index("pending_deposits_quote_id_idx").on(t.quoteId)],
+);
+
 export type Quote = typeof quotes.$inferSelect;
+export type PendingDeposit = typeof pendingDeposits.$inferSelect;
 export type QuoteOptionRow = typeof quoteOptions.$inferSelect;

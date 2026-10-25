@@ -153,6 +153,20 @@ test("a saved Price List prices new requests, and a new Add-on appears on the fo
   ).toBeVisible();
 });
 
+test("saving keeps your place on the page", async ({ page }) => {
+  await signInAsOffice(page);
+  await page.goto("/office/price-list");
+  const save = page.getByRole("button", { name: "Save Price List" });
+  await save.scrollIntoViewIfNeeded();
+  expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+
+  await save.click();
+  // the page's data is fetched again after a save; that mustn't jump to the
+  // top (the placeholder notice going may still nudge it a little)
+  await expect(page.getByText(/Version 2, saved by Olive Owner/)).toBeVisible();
+  await expect(save).toBeInViewport();
+});
+
 test("a mistake is explained beside the field", async ({ page }) => {
   await signInAsOffice(page);
   await page.goto("/office/price-list");

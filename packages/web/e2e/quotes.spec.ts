@@ -1,12 +1,14 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import {
+  bookJob,
   createStaff,
   emailsTo,
   expect,
   proposeNextMonday,
   requestQuoteAsGuest,
   setClock,
+  setUsualWeek,
   signedInAs,
   signInWithLink,
   test,
@@ -21,7 +23,14 @@ const casey = { name: "Casey Client", email: "casey@example.com" };
 
 // the API's clock is at 4am on Monday 5 January 2026 in New York
 
+// with a Cleaner free on weekdays, so the days Quotes propose have room
 const signInAsOffice = async (page: Page) => {
+  const cory = await createStaff({
+    name: "Cory Cleaner",
+    email: "cory@example.com",
+    roles: ["cleaner"],
+  });
+  await setUsualWeek(cory.id, [8, 8, 8, 8, 8, 0, 0]);
   await createStaff(olive);
   await signedInAs(page, olive.email);
   await expect(page).toHaveURL("/office");
@@ -210,4 +219,31 @@ test("Quote screens pass automated accessibility checks", async ({
   );
   ({ violations } = await new AxeBuilder({ page: client }).analyze());
   expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+});
+
+test("the draft says whether the proposed day has room for each clean", async ({
+  page,
+}) => {
+  await requestQuoteAsGuest(casey);
+  await signInAsOffice(page);
+  // Cory's 8 hours on Monday, half of them already booked: room for the
+  // Standard Clean (3.25 h) but not the Deep Clean (5 h)
+  await bookJob({ startsAt: "2026-01-12T19:00:00Z", labourHours: 4 });
+  await startDraft(page);
+  const proposed = page.getByRole("region", { name: "Proposed time" });
+
+  await proposeNextMonday(page);
+  await expect(proposed).toContainText(
+    "Mon, Jan 12 has 4 h of Cleaner time free: room for the Standard Clean (3.25 h), but not the Deep Clean (5 h)",
+  );
+
+  // Tuesday is clear
+  await page
+    .getByRole("group", { name: "Date" })
+    .getByRole("spinbutton", { name: /day/i })
+    .click();
+  await page.keyboard.type("13");
+  await expect(proposed).toContainText(
+    "Tue, Jan 13 has 8 h of Cleaner time free: room for either clean.",
+  );
 });

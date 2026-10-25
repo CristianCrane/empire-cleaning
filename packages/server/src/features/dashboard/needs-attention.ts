@@ -1,5 +1,6 @@
 import type { NeedsAttentionItem } from "@empire-cleaning/models";
 import { quoteRequestsAwaitingQuote } from "../quote-requests/quote-requests.ts";
+import { noRoomSince, quotesWithoutRoom } from "../quotes/quote-room.ts";
 import { quotesExpiringWithin } from "../quotes/quote-state.ts";
 
 type Source = () => Promise<NeedsAttentionItem[]>;
@@ -26,11 +27,26 @@ const expiringQuotes: Source = async () =>
     quote,
   }));
 
+// Sent Quotes whose day has filled up under them, soonest proposed first:
+// their Clients can't accept them, so they need another time
+const quotesWithoutRoomSource: Source = async () =>
+  Promise.all(
+    (await quotesWithoutRoom()).map(async (quote) => ({
+      kind: "quote_no_room" as const,
+      since: await noRoomSince(quote),
+      quote,
+    })),
+  );
+
 // Where each kind of item comes from, in the order the Office should deal
 // with them. A ticket adding a kind adds its type to NeedsAttentionItem and
 // its source here; each source returns its own items in the order to deal
 // with them.
-const sources: Source[] = [quoteRequests, expiringQuotes];
+const sources: Source[] = [
+  quotesWithoutRoomSource,
+  quoteRequests,
+  expiringQuotes,
+];
 
 // everything waiting on the Office, a kind at a time
 export const needsAttention = async (): Promise<NeedsAttentionItem[]> =>

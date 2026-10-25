@@ -1,5 +1,16 @@
 import { z } from "zod";
 
+export const acceptSchema = z.object({
+  cleanType: z.enum(["deep", "standard"], {
+    error: "Choose a Deep Clean or a Standard Clean",
+  }),
+});
+
+// a Client may pay with a card entered just now: the payment form's token
+export const clientAcceptSchema = acceptSchema.extend({
+  paymentToken: z.string().min(1).max(255).optional(),
+});
+
 export const startSchema = z.object({
   quoteRequestId: z.uuid("Choose a Quote Request"),
 });

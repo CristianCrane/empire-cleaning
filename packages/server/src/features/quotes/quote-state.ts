@@ -50,10 +50,15 @@ export const requestStates = async (requestIds: string[]) => {
     // Expired goes back to awaiting a Quote, so the Office can send another
     // without the Client asking again
     if (status === "sent") states.set(quote.quoteRequestId, "quoted");
+    if (status === "accepted") states.set(quote.quoteRequestId, "booked");
     if (status === "declined") states.set(quote.quoteRequestId, "ended");
   }
   return states;
 };
+
+// a closed request takes no more Quotes, and its home can be asked about again
+export const isClosed = (state: QuoteRequestState) =>
+  state === "booked" || state === "ended";
 
 const summaries = async (where: SQL | undefined) => {
   const rows = await db
@@ -107,6 +112,10 @@ export const quotesForClient = (clientId: string) =>
   summaries(
     and(eq(quoteRequests.clientId, clientId), ne(quotes.status, "draft")),
   );
+
+// every Sent Quote still open (not yet Expired), newest first
+export const openQuotes = () =>
+  summaries(and(eq(quotes.status, "sent"), gt(quotes.expiresAt, clock.now())));
 
 // Sent Quotes that Expire within this many hours, soonest first
 export const quotesExpiringWithin = async (hours: number) => {

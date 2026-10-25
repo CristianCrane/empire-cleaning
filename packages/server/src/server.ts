@@ -3,7 +3,11 @@ import { toNodeHandler } from "better-auth/node";
 import { auth, router as meRouter } from "#features/auth";
 import { router as clientsRouter } from "#features/clients";
 import { router as dashboardRouter } from "#features/dashboard";
-import { router as scheduleRouter } from "#features/jobs";
+import { jobsRouter, router as scheduleRouter } from "#features/jobs";
+import {
+  router as paymentMethodsRouter,
+  webhookRouter,
+} from "#features/payments";
 import { router as priceListRouter } from "#features/price-list";
 import { router as propertiesRouter } from "#features/properties";
 import { router as quoteRequestsRouter } from "#features/quote-requests";
@@ -21,8 +25,10 @@ const app = express();
 app.use(corsMiddleware);
 app.use(networkLoggingMiddleware);
 
-// Better Auth reads the raw request body, so it is mounted before express.json()
+// Better Auth and the payment provider's webhook read the raw request body,
+// so they are mounted before express.json()
 app.all("/api/auth/{*any}", toNodeHandler(auth));
+app.use("/api/payments/webhook", webhookRouter);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -44,6 +50,8 @@ app.use("/api/properties", propertiesRouter);
 app.use("/api/price-list", priceListRouter);
 app.use("/api/staff", staffRouter);
 app.use("/api/schedule", scheduleRouter);
+app.use("/api/jobs", jobsRouter);
+app.use("/api/payment-methods", paymentMethodsRouter);
 app.use("/api/dashboard", dashboardRouter);
 
 app.use(errorHandler);

@@ -284,6 +284,13 @@ export type NeedsAttentionItem =
       kind: "quote_expiring";
       since: string;
       quote: QuoteSummary;
+    }
+  | {
+      // a Sent Quote whose proposed day no longer has room for either Clean
+      // Type, so its Client can't accept it: it needs another time
+      kind: "quote_no_room";
+      since: string;
+      quote: QuoteSummary;
     };
 
 export type NeedsAttentionKind = NeedsAttentionItem["kind"];
@@ -308,14 +315,16 @@ export type Today = Omit<ScheduleDay, "jobs"> & { jobs: TodayJob[] };
 
 // Draft is being written by Staff and never shown to the Client; Expired is
 // worked out from the Clock (validity end or proposed time, whichever is
-// first). Accepted comes with #8.
+// first). Accepted means the Deposit was taken and the Job booked.
 export type QuoteStatus =
-  "draft" | "sent" | "declined" | "expired" | "superseded";
+  "draft" | "sent" | "accepted" | "declined" | "expired" | "superseded";
 
 // where a Quote Request stands, from its latest Quote that isn't a Draft:
-// none yet or Expired, it's awaiting a Quote; Sent, it's quoted; Declined,
-// it has ended and the Client may ask again
-export type QuoteRequestState = "awaiting_quote" | "quoted" | "ended";
+// none yet or Expired, it's awaiting a Quote; Sent, it's quoted; Accepted,
+// it's booked; Declined, it has ended. Booked and ended requests are closed:
+// they take no more Quotes, and the Client may ask again about that home.
+export type QuoteRequestState =
+  "awaiting_quote" | "quoted" | "booked" | "ended";
 
 // a day and a wall-clock time in New York: { date: "2026-11-03", time: "09:00" }
 export type LocalDateTime = { date: IsoDate; time: string };
@@ -353,6 +362,12 @@ export type QuoteView = {
   sentAt: string;
   expiresAt: string;
   declinedAt: string | null;
+  // once Accepted: when, and the Clean Type chosen
+  acceptedAt: string | null;
+  acceptedCleanType: CleanType | null;
+  // the Clean Types that can still be booked: those the proposed day has room
+  // for now, while the Quote is Sent; none once it's closed
+  bookable: CleanType[];
 };
 
 // one Clean Type's offer for the Office: the Suggested Price worked out, and
@@ -379,6 +394,9 @@ export type OfficeQuote = Omit<
   // the Add-ons that can be put on it: those on offer, and any the request
   // chose that have since been retired
   addOnChoices: AddOnChoice[];
+  // the Client's saved Payment Method, which recording acceptance on their
+  // behalf charges; null until they add one
+  paymentMethod: PaymentMethodView | null;
 };
 
 // what Office Staff change on a Draft (PATCH /api/quotes/:id); prices are
@@ -407,4 +425,50 @@ export type QuoteSummary = {
   sentAt: string | null;
   expiresAt: string | null;
   createdAt: string;
+};
+
+// ---- Accepting a Quote (#8) ----
+
+// a Client's saved Payment Method, as far as we can describe it without the
+// card itself
+export type PaymentMethodView = {
+  // e.g. "Visa ending 4242"
+  label: string;
+  savedAt: string;
+  // when the Client agreed to later Charges to it without them there (the
+  // Balance, and late-cancellation or No Access fees)
+  consentedAt: string;
+};
+
+// the payment provider's own payment form, shown in the browser so card
+// numbers never reach our server (ADR-0004). "test" is the fake provider's,
+// for tests: it needs no card.
+export type PaymentForm =
+  { form: "stripe"; publishableKey: string } | { form: "test" };
+
+// that form for saving a Payment Method without paying, with the one-time
+// secret it needs
+export type CardForm = PaymentForm & { secret: string };
+
+// POST /api/quotes/mine/:id/accept. A Client paying with a card entered just
+// now sends the payment form's token, which also saves the card; without one
+// their saved Payment Method pays. The Office's /api/quotes/:id/accept takes
+// only the Clean Type, and always charges the saved one.
+export type AcceptQuoteInput = { cleanType: CleanType; paymentToken?: string };
+
+// the Client's acceptance: done, or waiting on their bank's approval (e.g. 3D
+// Secure) in the browser with `secret`, then POST .../accept/finalize
+export type AcceptOutcome =
+  | { status: "accepted"; quote: QuoteView }
+  | { status: "needs_approval"; secret: string };
+
+// a booked Job as its Client sees it
+export type ClientJob = {
+  id: string;
+  startsAt: string;
+  cleanType: CleanType;
+  crewSize: number;
+  // Labour Hours divided by Crew Size
+  hoursOnSite: number;
+  property: Pick<PropertyView, "id" | "street" | "unit" | "postcode">;
 };

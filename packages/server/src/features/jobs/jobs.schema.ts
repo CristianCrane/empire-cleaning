@@ -18,7 +18,7 @@ export const jobStatus = pgEnum("job_status", ["booked"]);
 
 // A single cleaning visit at one Property, booked for a confirmed time. The
 // Schedule is every booked Job. Accepting a Quote (#8) and Service Plans (#14)
-// create them; until then only tests do.
+// create them; an Accepted Quote points at the Job it booked.
 export const jobs = pgTable(
   "jobs",
   {
@@ -35,6 +35,12 @@ export const jobs = pgTable(
       mode: "number",
     }).notNull(),
     crewSize: integer("crew_size").notNull(),
+    // by the Clock (created_at is the database's own time)
+    bookedAt: timestamp("booked_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    // when the day-before reminder went to the Client
+    reminderSentAt: timestamp("reminder_sent_at", { withTimezone: true }),
     ...timestamps,
   },
   (t) => [index("jobs_starts_at_idx").on(t.startsAt)],

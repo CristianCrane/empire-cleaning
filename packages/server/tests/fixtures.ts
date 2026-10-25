@@ -57,8 +57,8 @@ export const signInAsOffice = async () => {
   return signIn("olive@example.com");
 };
 
-// a booked Job at a home of its own. Nothing in the API books Jobs until
-// accepting a Quote (#8), so tests put them on the Schedule directly.
+// a booked Job at a home of its own, put on the Schedule directly, for tests
+// about the Schedule rather than about accepting a Quote
 let homes = 0;
 export const bookedJob = async ({
   startsAt,

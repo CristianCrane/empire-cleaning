@@ -7,10 +7,12 @@ import {
   useRouter,
 } from "@tanstack/react-router";
 import type {
+  ClientJob,
   ClientView,
   NeedsAttentionItem,
   OfficeQuote,
   OpenQuoteRequest,
+  PaymentMethodView,
   PriceList,
   QuoteRequestDetail,
   QuoteSummary,
@@ -39,6 +41,7 @@ import {
   type ScheduleSearch,
 } from "./screens/office/schedule-range.ts";
 import { PortalHome } from "./screens/portal/PortalHome.tsx";
+import { PortalPaymentMethod } from "./screens/portal/PortalPaymentMethod.tsx";
 import { PortalQuote } from "./screens/portal/PortalQuote.tsx";
 import { PortalRequest } from "./screens/portal/PortalRequest.tsx";
 import { PortalDetails } from "./screens/portal/PortalDetails.tsx";
@@ -247,23 +250,40 @@ const portalHomeRoute = createRoute({
   getParentRoute: () => portalRoute,
   path: "/",
   loader: async () => {
-    const [client, quotes] = await Promise.all([
+    const [client, quotes, jobs] = await Promise.all([
       ownClient(),
       getJson<QuoteSummary[]>("/api/quotes/mine"),
+      getJson<ClientJob[]>("/api/jobs/mine"),
     ]);
-    return { client, quotes };
+    return { client, quotes, jobs };
   },
   component: PortalHome,
 });
 
 // where the Quote email's link leads: signed out, the portal sends the
 // Client to sign in (or up) and back here
+const ownPaymentMethod = () =>
+  getJson<PaymentMethodView | null>("/api/payment-methods/mine");
+
 const portalQuoteRoute = createRoute({
   getParentRoute: () => portalRoute,
   path: "/quotes/$quoteId",
-  loader: ({ params }) =>
-    getJson<QuoteView>(`/api/quotes/mine/${params.quoteId}`),
+  loader: async ({ params }) => {
+    const [quote, paymentMethod] = await Promise.all([
+      getJson<QuoteView>(`/api/quotes/mine/${params.quoteId}`),
+      ownPaymentMethod(),
+    ]);
+    return { quote, paymentMethod };
+  },
   component: PortalQuote,
+});
+
+// where the Office's "add a Payment Method" email leads
+const portalPaymentMethodRoute = createRoute({
+  getParentRoute: () => portalRoute,
+  path: "/payment-method",
+  loader: ownPaymentMethod,
+  component: PortalPaymentMethod,
 });
 
 const portalRequestRoute = createRoute({
@@ -301,10 +321,14 @@ const routeTree = rootRoute.addChildren([
     portalRequestRoute,
     portalQuoteRoute,
     portalDetailsRoute,
+    portalPaymentMethodRoute,
   ]),
 ]);
 
-export const router = createRouter({ routeTree });
+// Scroll restoration keeps each page's place: without it, refreshing a page's
+// data after a save (router.invalidate()) jumps it back to the top. New
+// pages still open at the top, and Back returns to where you were.
+export const router = createRouter({ routeTree, scrollRestoration: true });
 
 declare module "@tanstack/react-router" {
   interface Register {

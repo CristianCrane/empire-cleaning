@@ -1,9 +1,16 @@
 import { Router } from "express";
 import { z } from "zod";
-import { NotFoundError } from "../../middleware/errors.ts";
+import type { AcceptOutcome } from "@empire-cleaning/models";
+import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { validate } from "../../middleware/validation.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { clientForAccount } from "../clients/clients.ts";
+import {
+  acceptQuote,
+  finalizeDeposit,
+  finalizeProblem,
+  pendingDepositFor,
+} from "./accept.ts";
 import { quotesForClient } from "./quote-state.ts";
 import {
   clientQuote,
@@ -13,7 +20,12 @@ import {
   sendQuote,
   startDraft,
 } from "./quotes.ts";
-import { draftSchema, startSchema } from "./quotes.validation.ts";
+import {
+  acceptSchema,
+  clientAcceptSchema,
+  draftSchema,
+  startSchema,
+} from "./quotes.validation.ts";
 
 export const router = Router();
 
@@ -39,6 +51,54 @@ router.get(
   async (req, res) => {
     const client = await ownClient(signedInAccount(res).id);
     res.json(await clientQuote(String(req.params.id), client.id));
+  },
+);
+
+// accepts with the Clean Type chosen, taking the Deposit (from a card
+// entered just now, or the saved one) and booking the Job; or, if their bank
+// wants them to approve the payment first, says so
+router.post(
+  "/mine/:id/accept",
+  authorize("client"),
+  validate({ ...byId, body: clientAcceptSchema }),
+  async (req, res) => {
+    const account = signedInAccount(res);
+    const client = await ownClient(account.id);
+    const id = String(req.params.id);
+    const result = await acceptQuote(id, req.body, {
+      by: "client",
+      clientId: client.id,
+      accountId: account.id,
+    });
+    const outcome: AcceptOutcome =
+      result.status === "accepted"
+        ? { status: "accepted", quote: await clientQuote(id, client.id) }
+        : result;
+    res.json(outcome);
+  },
+);
+
+// after the Client approves the payment with their bank: books it
+router.post(
+  "/mine/:id/accept/finalize",
+  authorize("client"),
+  validate(byId),
+  async (req, res) => {
+    const client = await ownClient(signedInAccount(res).id);
+    const id = String(req.params.id);
+    // theirs, or a 404
+    await clientQuote(id, client.id);
+    const pending = await pendingDepositFor(id);
+    // the webhook may have booked it already
+    const finalized = pending
+      ? await finalizeDeposit(pending.gatewayRef)
+      : ({ status: "settled" } as const);
+    const quote = await clientQuote(id, client.id);
+    if (quote.status !== "accepted") {
+      throw new ConflictError(finalizeProblem(finalized));
+    }
+    const outcome: AcceptOutcome = { status: "accepted", quote };
+    res.json(outcome);
   },
 );
 
@@ -92,5 +152,22 @@ router.post(
   validate(byId),
   async (req, res) => {
     res.json(await sendQuote(String(req.params.id)));
+  },
+);
+
+// records the Client's acceptance on their behalf, e.g. by phone; charges
+// their saved Payment Method
+router.post(
+  "/:id/accept",
+  authorize("office_staff"),
+  validate({ ...byId, body: acceptSchema }),
+  async (req, res) => {
+    const id = String(req.params.id);
+    await acceptQuote(
+      id,
+      { cleanType: req.body.cleanType },
+      { by: "office", accountId: signedInAccount(res).id },
+    );
+    res.json(await officeQuote(id));
   },
 );
