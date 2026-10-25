@@ -329,9 +329,11 @@ describe("a Cleaner's Jobs", () => {
       outcome: null,
       started: false,
       canComplete: false,
+      canRecordNoAccess: false,
       // a Job no Quote booked has nothing to report
       reportable: { quoted: [], others: [] },
       completion: null,
+      noAccess: null,
     });
     expect(JSON.stringify(seen)).not.toMatch(/cents|price|deposit|payment/i);
 

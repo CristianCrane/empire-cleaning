@@ -22,10 +22,11 @@ import {
 } from "../format.ts";
 import { PlaceBadge } from "./CleanerHome.tsx";
 import { CompleteJob, Completed, NotYet } from "./CompleteJob.tsx";
+import { NoAccessRecorded, RecordNoAccess } from "./NoAccess.tsx";
 
 // One Job as its Cleaner sees it: where, what, and who with, never prices.
 // They Confirm or Release their place here, and on the day mark it
-// Completed.
+// Completed, or record No Access if they couldn't get in.
 export function CleanerJobScreen() {
   const job = useLoaderData({ from: "/cleaner/jobs/$jobId" });
 
@@ -46,10 +47,13 @@ export function CleanerJobScreen() {
 
       {job.outcome === "completed" ? (
         <Completed job={job} />
+      ) : job.outcome === "no_access" ? (
+        <NoAccessRecorded job={job} />
       ) : (
         <>
           <NotYet job={job} />
           {job.canComplete && <CompleteJob job={job} />}
+          {job.canRecordNoAccess && <RecordNoAccess job={job} />}
           <YourPlace job={job} />
         </>
       )}

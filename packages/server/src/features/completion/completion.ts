@@ -32,6 +32,11 @@ import {
 } from "../../services/email/index.ts";
 import { assignments } from "../assignments/assignments.schema.ts";
 import { assignmentStatusOf } from "../assignments/places.ts";
+import {
+  cancellationOf,
+  cancelTermsOf,
+  noAccessOf,
+} from "../cancellation/cancellation.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
@@ -326,11 +331,12 @@ export const officeCompletionOf = async (
 
 type CleanerExtras = Pick<
   CleanerJob,
-  "outcome" | "reportable" | "completion"
+  "outcome" | "reportable" | "completion" | "noAccess"
 > & { assigned: boolean };
 
 // what the Cleaner area shows about completing each Job: whether every
-// place is Confirmed, what can be reported, and once Completed, what was
+// place is Confirmed, what can be reported, and once Completed, what was; or
+// once No Access, what happened
 export const cleanerCompletionsOf = async (
   list: Job[],
 ): Promise<Map<string, CleanerExtras>> => {
@@ -345,7 +351,9 @@ export const cleanerCompletionsOf = async (
       .where(
         inArray(
           staff.id,
-          list.map((j) => j.completedBy).filter((id) => id !== null),
+          list
+            .flatMap((j) => [j.completedBy, j.noAccessBy])
+            .filter((id) => id !== null),
         ),
       ),
   ]);
@@ -354,16 +362,18 @@ export const cleanerCompletionsOf = async (
   const extras = await Promise.all(
     list.map(async (job): Promise<[string, CleanerExtras]> => {
       const completed = job.status === "completed";
+      const noAccess = job.status === "no_access";
       return [
         job.id,
         {
           assigned: assigned.get(job.id) === "assigned",
-          outcome: completed ? "completed" : null,
-          reportable: completed
-            ? { quoted: [], others: [] }
-            : await quotedJob(job.id)
-                .then(reportableAddOns)
-                .catch(() => ({ quoted: [], others: [] })),
+          outcome: completed ? "completed" : noAccess ? "no_access" : null,
+          reportable:
+            job.status !== "booked"
+              ? { quoted: [], others: [] }
+              : await quotedJob(job.id)
+                  .then(reportableAddOns)
+                  .catch(() => ({ quoted: [], others: [] })),
           completion: completed
             ? {
                 completedAt: job.completedAt!.toISOString(),
@@ -379,6 +389,15 @@ export const cleanerCompletionsOf = async (
                     hours: r.hours,
                     reason: r.reason,
                   })),
+              }
+            : null,
+          noAccess: noAccess
+            ? {
+                recordedAt: job.noAccessAt!.toISOString(),
+                recordedBy: job.noAccessBy
+                  ? (nameOf.get(job.noAccessBy) ?? null)
+                  : null,
+                reason: job.noAccessReason ?? "",
               }
             : null,
         },
@@ -679,7 +698,7 @@ export const retryBalance = async (jobId: string) => {
 // ---- the Client ----
 
 // the Client's Jobs, through their Properties
-const ownJob = async (clientId: string, jobId: string) => {
+export const ownJob = async (clientId: string, jobId: string) => {
   const [found] = await db
     .select({ job: jobs, property: properties })
     .from(jobs)
@@ -707,13 +726,19 @@ const clientJobOf = (job: Job, property: Property) => ({
 const shownToClient = (a: Pick<AdjustmentView, "status">) =>
   a.status !== "reported" && a.status !== "dismissed";
 
-// one of the Client's Jobs, with its receipt once Completed
+// one of the Client's Jobs: what cancelling it would cost while it's still
+// to come, its receipt once Completed, or how it ended
 export const clientJob = async (
   clientId: string,
   jobId: string,
 ): Promise<ClientJobDetail> => {
   const { job, property } = await ownJob(clientId, jobId);
-  const completion = await officeCompletionOf(job);
+  const [completion, cancellation, noAccess, terms] = await Promise.all([
+    officeCompletionOf(job),
+    cancellationOf(job),
+    noAccessOf(job),
+    cancelTermsOf(job),
+  ]);
   return {
     ...clientJobOf(job, property),
     status: job.status,
@@ -723,6 +748,15 @@ export const clientJob = async (
       adjustments: completion.adjustments.filter(shownToClient),
       payment: completion.payment,
     },
+    cancellation,
+    noAccess: noAccess && {
+      recordedAt: noAccess.recordedAt,
+      reason: noAccess.reason,
+      feeCents: noAccess.feeCents,
+      payment: noAccess.payment,
+    },
+    // once it has started, it's the Office's to cancel
+    cancelTerms: job.startsAt > clock.now() ? (terms?.client ?? null) : null,
   };
 };
 

@@ -1,13 +1,17 @@
 import type { Page } from "@playwright/test";
 import {
+  acceptedJob,
   bookJob,
   createStaff,
   expect,
   offerPlace,
   proposeNextMonday,
+  recordNoAccess,
   requestQuoteAsGuest,
+  setClock,
   setUsualWeek,
   signedInAs,
+  signUp,
   test,
 } from "./harness.ts";
 
@@ -179,6 +183,61 @@ test("an Accepted Quote and the Client's upcoming Jobs fit every width", async (
   await expectFitsEveryWidth(page, quote);
   await expectFitsEveryWidth(client, own);
   await expectFitsEveryWidth(client, "/portal");
+});
+
+test("cancelling, Cancelled and No Access Jobs fit every width", async ({
+  page,
+  browser,
+}) => {
+  await createStaff(olive);
+  await signUp(olive.email);
+  const cory = (await createStaff({
+    name: "Cory Cleaner",
+    email: "cory@example.com",
+    roles: ["cleaner"],
+  })) as { id: string };
+  await setUsualWeek(cory.id, [8, 8, 8, 8, 8, 0, 0]);
+  const booked = await acceptedJob({
+    startsAt: "2026-01-12T14:00:00Z",
+    officeEmail: olive.email,
+  });
+  await offerPlace(booked.id, cory.id, { confirmed: true });
+  const client = await (await browser.newContext()).newPage();
+  await signedInAs(client, casey.email);
+  await signedInAs(page, olive.email);
+
+  // still to come: cancelling, with what it costs
+  await expectFitsEveryWidth(client, `/portal/jobs/${booked.id}`);
+  await expectFitsEveryWidth(page, `/office/jobs/${booked.id}`);
+
+  // No Access, recorded on the day
+  await setClock("2026-01-12T14:30:00Z");
+  const cleaner = await (await browser.newContext()).newPage();
+  await signedInAs(cleaner, "cory@example.com");
+  await expectFitsEveryWidth(cleaner, `/cleaner/jobs/${booked.id}`);
+  await recordNoAccess(booked.id, cory.id, "Nobody answered");
+  await expectFitsEveryWidth(cleaner, `/cleaner/jobs/${booked.id}`);
+  await expectFitsEveryWidth(client, `/portal/jobs/${booked.id}`);
+  await expectFitsEveryWidth(page, `/office/jobs/${booked.id}`);
+
+  // Cancelled, by Empire Cleaning
+  const cancelled = await acceptedJob({
+    startsAt: "2026-01-19T14:00:00Z",
+    officeEmail: olive.email,
+  });
+  await page.goto(`/office/jobs/${cancelled.id}`);
+  await page.getByRole("button", { name: "Cancel Job" }).click();
+  await page.getByText("Empire Cleaning can't do it").click();
+  await page
+    .getByRole("textbox", { name: "Why? (told to the Client)" })
+    .fill("Our crew is unwell.");
+  await page
+    .getByRole("alertdialog")
+    .getByRole("button", { name: "Cancel Job" })
+    .click();
+  await expect(page.getByRole("region", { name: "Cancelled" })).toBeVisible();
+  await expectFitsEveryWidth(page, `/office/jobs/${cancelled.id}`);
+  await expectFitsEveryWidth(client, `/portal/jobs/${cancelled.id}`);
 });
 
 test("signing in, the welcome page and the Cleaner area fit every width", async ({

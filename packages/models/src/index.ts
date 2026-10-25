@@ -230,8 +230,9 @@ export type StaffAvailability = {
 
 export type StaffDetail = StaffMember & { availability: StaffAvailability };
 
-// booked, then Completed by its assigned Staff (#10)
-export type JobStatus = "booked" | "completed";
+// booked, then Completed by its assigned Staff (#10), Cancelled, or No
+// Access when they couldn't get in (#11)
+export type JobStatus = "booked" | "completed" | "cancelled" | "no_access";
 
 // a Job as the Schedule shows it to Office Staff
 export type ScheduledJob = {
@@ -324,7 +325,7 @@ export type NeedsAttentionKind = NeedsAttentionItem["kind"];
 // A Job is Unassigned until all its places are Confirmed
 export type AssignmentStatus = "unassigned" | "assigned";
 
-// how a Job turned out on the day; No Access comes with #11
+// how a Job turned out on the day
 export type JobOutcome = "completed" | "no_access";
 
 export type TodayJob = ScheduledJob & { outcome: JobOutcome | null };
@@ -513,6 +514,11 @@ export type AssignmentView = {
 // its Adjustments and payment
 export type OfficeJob = ScheduledJob & {
   completion: JobCompletion | null;
+  cancellation: JobCancellation | null;
+  noAccess: JobNoAccess | null;
+  // what cancelling it would cost now, either way; null once it isn't
+  // booked
+  cancelTerms: Record<CancelledBy, CancellationTerms> | null;
   addOns: string[];
   // Offered and Confirmed first, then Released; each earliest Offered first
   assignments: AssignmentView[];
@@ -555,6 +561,9 @@ export type CleanerJob = {
   // whether this Cleaner can mark it Completed now: their place Confirmed,
   // every place Confirmed, and the Job started
   canComplete: boolean;
+  // whether this Cleaner can record No Access now: their place Confirmed and
+  // the Job started, though others' places needn't be
+  canRecordNoAccess: boolean;
   // what can be reported at completion, by name: the Quote's Add-ons (as
   // not done) and the Price List's others (as done)
   reportable: { quoted: AddOnChoice[]; others: AddOnChoice[] };
@@ -564,6 +573,12 @@ export type CleanerJob = {
     completedBy: string | null;
     condition: Condition;
     reports: CleanerReport[];
+  } | null;
+  // once No Access is recorded: when, by whom, and what happened
+  noAccess: {
+    recordedAt: string;
+    recordedBy: string | null;
+    reason: string;
   } | null;
 };
 
@@ -707,4 +722,66 @@ export type ClientPastJob = ClientJob & {
 export type ClientJobDetail = ClientJob & {
   status: JobStatus;
   completion: Omit<JobCompletion, "completedBy"> | null;
+  cancellation: JobCancellation | null;
+  noAccess: Omit<JobNoAccess, "recordedBy"> | null;
+  // what cancelling it would cost now; null once it can't be cancelled in
+  // the portal (it isn't booked, or it has started)
+  cancelTerms: CancellationTerms | null;
+};
+
+// ---- Cancellation and No Access (#11) ----
+
+// who a cancellation is down to: the Client (themselves, or Office Staff on
+// their behalf), or Empire Cleaning
+export type CancelledBy = "client" | "empire";
+
+// What cancelling a booked Job would cost, by the Clock. The Client
+// cancelling more than 24 hours before it starts pays nothing and has their
+// Deposit refunded; within 24 hours it's a Late Cancellation, and the Deposit
+// is kept as the fee. Empire Cleaning cancelling always refunds it in full.
+export type CancellationTerms = {
+  by: CancelledBy;
+  late: boolean;
+  // tax included; 0 when it's free
+  feeCents: number;
+  // what goes back to the Client's card
+  refundCents: number;
+  // until when the Client can cancel for free
+  freeUntil: string;
+};
+
+// POST /api/jobs/mine/:id/cancel: the fee the Client was shown, so one that
+// has become late since is refused rather than charged
+export type CancelInput = { feeCents: number };
+
+// POST /api/jobs/:id/cancel, by Office Staff
+export type OfficeCancelInput = {
+  by: CancelledBy;
+  // the fee they were shown, as for the Client
+  feeCents: number;
+  // told to the Client
+  reason?: string | null;
+};
+
+export type JobCancellation = {
+  cancelledAt: string;
+  by: CancelledBy;
+  late: boolean;
+  reason: string | null;
+  feeCents: number;
+  payment: JobPayment;
+};
+
+// POST /api/assignments/mine/:jobId/no-access
+export type NoAccessInput = { reason: string };
+
+// the assigned Staff couldn't get in: not Completed, and charged like a Late
+// Cancellation
+export type JobNoAccess = {
+  recordedAt: string;
+  recordedBy: { id: string; name: string } | null;
+  // what happened, from the Cleaner
+  reason: string;
+  feeCents: number;
+  payment: JobPayment;
 };

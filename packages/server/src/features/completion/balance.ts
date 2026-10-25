@@ -35,8 +35,9 @@ type Ledger = {
 };
 
 // What the Job should have taken against what it has. A Completed Job owes
-// its price with the Adjustments that count; one that isn't Completed (or
-// whose completion was undone) owes only its Deposit.
+// its price with the Adjustments that count; a booked one (or one whose
+// completion was undone) owes only its Deposit; a Cancelled or No Access one
+// owes its fee, which is 0 unless it was a Late Cancellation or No Access.
 const ledgerOf = async (job: Job, tx: Tx | typeof db): Promise<Ledger> => {
   const [quoted, rows, taken] = await Promise.all([
     quotedJob(job.id, tx),
@@ -77,7 +78,12 @@ const ledgerOf = async (job: Job, tx: Tx | typeof db): Promise<Ledger> => {
   const depositCents = taken
     .filter((c) => c.kind === "deposit")
     .reduce((sum, c) => sum + c.amountCents, 0);
-  const owes = job.status === "completed" ? totalCents : depositCents;
+  const owes =
+    job.status === "completed"
+      ? totalCents
+      : job.status === "booked"
+        ? depositCents
+        : (job.feeCents ?? 0);
 
   return {
     quotedCents: quoted.totalCents,

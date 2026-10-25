@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useLoaderData, useRouter } from "@tanstack/react-router";
 import type {
   AdjustmentView,
+  CancellationTerms,
   ClientJobDetail,
   JobPayment,
 } from "@empire-cleaning/models";
@@ -11,7 +12,10 @@ import {
   Button,
   ButtonLink,
   Card,
+  Dialog,
+  DialogTrigger,
   Heading,
+  Link,
   Notice,
   StatusBadge,
   showToast,
@@ -28,9 +32,10 @@ import {
   formatMoney,
 } from "../format.ts";
 
-// one of the Client's Jobs, from the links in their receipt and approval
-// emails: once Completed, its receipt; any extra work proposed to them to
-// approve or decline; and if it couldn't be charged, the way to pay
+// one of the Client's Jobs, from the links in their emails: while it's to come,
+// cancelling it; once Completed, its receipt; any extra work proposed to them
+// to approve or decline; if it couldn't be charged, the way to pay; and if
+// it was Cancelled or No Access, what happened to their Deposit
 export function PortalJob() {
   const job = useLoaderData({ from: "/portal/jobs/$jobId" });
   const { completion } = job;
@@ -50,6 +55,10 @@ export function PortalJob() {
             <StatusBadge tone="danger">Unpaid</StatusBadge>
           ) : completion ? (
             <StatusBadge tone="success">Done</StatusBadge>
+          ) : job.cancellation ? (
+            <StatusBadge>Cancelled</StatusBadge>
+          ) : job.noAccess ? (
+            <StatusBadge tone="danger">No Access</StatusBadge>
           ) : (
             <StatusBadge tone="success">Booked</StatusBadge>
           )}
@@ -59,13 +68,20 @@ export function PortalJob() {
         </p>
       </div>
 
-      {!completion ? (
-        <Card title="Your clean">
-          <p>
-            About {formatHours(job.hoursOnSite)} on site, with a crew of{" "}
-            {job.crewSize}. We'll email a reminder the day before.
-          </p>
-        </Card>
+      {job.cancellation ? (
+        <Cancelled job={job} />
+      ) : job.noAccess ? (
+        <NoAccess job={job} />
+      ) : !completion ? (
+        <>
+          <Card title="Your clean">
+            <p>
+              About {formatHours(job.hoursOnSite)} on site, with a crew of{" "}
+              {job.crewSize}. We'll email a reminder the day before.
+            </p>
+          </Card>
+          {job.cancelTerms && <Cancel job={job} terms={job.cancelTerms} />}
+        </>
       ) : (
         <>
           {completion.payment.unpaid && (
@@ -80,6 +96,185 @@ export function PortalJob() {
         </>
       )}
     </div>
+  );
+}
+
+// The Client cancels a clean still to come, seeing first what it costs: free
+// until 24 hours before, then a Late Cancellation that keeps the Deposit
+function Cancel({
+  job,
+  terms,
+}: {
+  job: ClientJobDetail;
+  terms: CancellationTerms;
+}) {
+  const router = useRouter();
+  const [problem, setProblem] = useState<string>();
+  const [isPending, setPending] = useState(false);
+
+  const cost =
+    terms.feeCents > 0
+      ? `Your ${formatMoney(terms.feeCents)} Deposit is kept as the Late Cancellation fee.`
+      : terms.refundCents > 0
+        ? `There's no charge, and we'll refund your ${formatMoney(terms.refundCents)} Deposit.`
+        : "There's no charge.";
+
+  const cancel = async (close: () => void) => {
+    setPending(true);
+    setProblem(undefined);
+    try {
+      await postJson(`/api/jobs/mine/${job.id}/cancel`, {
+        feeCents: terms.feeCents,
+      });
+      showToast({ tone: "success", title: "Your clean is cancelled" });
+      close();
+      await router.invalidate();
+    } catch (e) {
+      setProblem(
+        e instanceof ApiError && e.status === 409
+          ? e.message
+          : "Your clean wasn't cancelled. Please try again.",
+      );
+      // what it costs may have changed since the page loaded
+      await router.invalidate();
+    } finally {
+      setPending(false);
+    }
+  };
+
+  return (
+    <Card title="Need to cancel?">
+      {terms.late ? (
+        <p>
+          It's less than 24 hours until your clean, so cancelling now is a Late
+          Cancellation. {cost}
+        </p>
+      ) : (
+        <p>
+          You can cancel for free until{" "}
+          <strong>{formatDateTime(terms.freeUntil)}</strong>
+          {terms.refundCents > 0 &&
+            `, and we'll refund your ${formatMoney(terms.refundCents)} Deposit`}
+          . After that, it's a Late Cancellation and the Deposit is kept as the
+          fee.
+        </p>
+      )}
+      <Actions>
+        <DialogTrigger>
+          <Button variant="secondary">Cancel clean</Button>
+          <Dialog title="Cancel your clean?" role="alertdialog">
+            {({ close }) => (
+              <>
+                <p>
+                  {cleanTypeLabel[job.cleanType]} at {addressOf(job.property)},{" "}
+                  {formatDateTime(job.startsAt)}.
+                </p>
+                <p>
+                  <strong>{cost}</strong>
+                </p>
+                {problem && <Notice tone="danger">{problem}</Notice>}
+                <Actions>
+                  <Button variant="secondary" onPress={close}>
+                    Keep my clean
+                  </Button>
+                  <Button
+                    variant="danger"
+                    isPending={isPending}
+                    onPress={() => void cancel(close)}
+                  >
+                    Cancel clean
+                  </Button>
+                </Actions>
+              </>
+            )}
+          </Dialog>
+        </DialogTrigger>
+      </Actions>
+    </Card>
+  );
+}
+
+// what's been refunded so far, and what's still on its way
+function Refund({ payment }: { payment: JobPayment }) {
+  const refunded = payment.charges.reduce((sum, c) => sum + c.refundedCents, 0);
+  const card = payment.paymentMethod ?? "card";
+  return (
+    <>
+      {refunded > 0 && (
+        <p>
+          We've refunded {formatMoney(refunded)} to your {card}. It can take a
+          few days to reach you.
+        </p>
+      )}
+      {payment.owedCents < 0 && (
+        <p>
+          We're refunding {formatMoney(-payment.owedCents)} to your {card}.
+        </p>
+      )}
+    </>
+  );
+}
+
+const bookAgain = (
+  <Actions>
+    <ButtonLink href={linkTo({ to: "/portal/request" })}>
+      Request a Quote
+    </ButtonLink>
+  </Actions>
+);
+
+function Cancelled({ job }: { job: ClientJobDetail }) {
+  const cancellation = job.cancellation!;
+  return (
+    <Card
+      title="Cancelled"
+      description={`Cancelled ${formatDateTime(cancellation.cancelledAt)}.`}
+    >
+      {cancellation.by === "empire" ? (
+        <p>
+          We're sorry: we had to cancel this clean.
+          {cancellation.reason && ` ${cancellation.reason}`} You haven't been
+          charged anything for it.
+        </p>
+      ) : cancellation.feeCents > 0 ? (
+        <p>
+          It was cancelled less than 24 hours before it was due, so your{" "}
+          {formatMoney(cancellation.feeCents)} Deposit was kept as the Late
+          Cancellation fee.
+        </p>
+      ) : (
+        <p>There was no charge for cancelling.</p>
+      )}
+      <Refund payment={cancellation.payment} />
+      {bookAgain}
+    </Card>
+  );
+}
+
+function NoAccess({ job }: { job: ClientJobDetail }) {
+  const noAccess = job.noAccess!;
+  return (
+    <Card title="We couldn't get in">
+      <p>
+        Our team came at {formatDateTime(noAccess.recordedAt)}, but couldn't get
+        in: "{noAccess.reason}".
+      </p>
+      {noAccess.feeCents > 0 && (
+        <p>
+          As with a Late Cancellation, your {formatMoney(noAccess.feeCents)}{" "}
+          Deposit was kept as the fee.
+        </p>
+      )}
+      <Refund payment={noAccess.payment} />
+      <p>
+        Before booking again, please{" "}
+        <Link href={linkTo({ to: "/portal/details" })}>
+          check your Access Instructions
+        </Link>
+        .
+      </p>
+      {bookAgain}
+    </Card>
   );
 }
 

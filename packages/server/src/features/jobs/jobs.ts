@@ -5,8 +5,10 @@ import { clock } from "../../services/clock/index.ts";
 import { properties } from "../properties/properties.schema.ts";
 import { jobs } from "./jobs.schema.ts";
 
-// Jobs on the Schedule, taking up their day's hours: booked or Completed
-export const onSchedule = () => inArray(jobs.status, ["booked", "completed"]);
+// Jobs on the Schedule, taking up their day's hours: booked, Completed or No
+// Access. A Cancelled Job has left it.
+export const onSchedule = () =>
+  inArray(jobs.status, ["booked", "completed", "no_access"]);
 
 type NewJob = {
   propertyId: string;

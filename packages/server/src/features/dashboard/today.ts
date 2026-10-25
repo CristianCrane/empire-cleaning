@@ -11,8 +11,10 @@ export const today = async (): Promise<Today> => {
     ...day!,
     jobs: day!.jobs.map((job) => ({
       ...job,
-      // No Access (#11) sets it too
-      outcome: job.status === "completed" ? ("completed" as const) : null,
+      outcome:
+        job.status === "completed" || job.status === "no_access"
+          ? job.status
+          : null,
     })),
   };
 };

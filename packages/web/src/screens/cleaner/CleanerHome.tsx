@@ -20,6 +20,9 @@ export function PlaceBadge({ job }: { job: CleanerJob }) {
   if (job.outcome === "completed") {
     return <StatusBadge tone="success">Completed</StatusBadge>;
   }
+  if (job.outcome === "no_access") {
+    return <StatusBadge tone="danger">No Access</StatusBadge>;
+  }
   return job.assignment.status === "confirmed" ? (
     <StatusBadge tone="success">Confirmed</StatusBadge>
   ) : (

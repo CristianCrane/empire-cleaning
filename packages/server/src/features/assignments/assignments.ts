@@ -15,6 +15,11 @@ import {
   firstNameOf,
   formatWhen,
 } from "../../services/email/index.ts";
+import {
+  cancellationOf,
+  cancelTermsOf,
+  noAccessOf,
+} from "../cancellation/cancellation.ts";
 import { clients } from "../clients/clients.schema.ts";
 import {
   cleanerCompletionsOf,
@@ -23,7 +28,7 @@ import {
 import { addOnsOf } from "../jobs/add-ons.ts";
 import { onSchedule } from "../jobs/jobs.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
-import { scheduleFor, scheduledJobs } from "../jobs/schedule.ts";
+import { jobViews, scheduleFor, scheduledJobs } from "../jobs/schedule.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
 import { staff } from "../staff/staff.schema.ts";
@@ -78,14 +83,24 @@ const toView = (
   answeredAt: assignment.answeredAt?.toISOString() ?? null,
 });
 
-// a Job on the Schedule with everyone Offered a place on it, the Cleaners
-// who could be, and once Completed, its Adjustments and payment
+// a Job, on the Schedule or Cancelled, with everyone Offered a place on it,
+// the Cleaners who could be, what cancelling it would cost, and once it has
+// happened or been Cancelled, how it went and its payment
 export const officeJob = async (jobId: string): Promise<OfficeJob> => {
-  const [job] = await scheduledJobs(eq(jobs.id, jobId));
+  const [job] = await jobViews(eq(jobs.id, jobId));
   if (!job) throw new NotFoundError("Job not found");
 
   const [row] = await db.select().from(jobs).where(eq(jobs.id, jobId));
-  const [rows, addOns, [day], cleaners, completion] = await Promise.all([
+  const [
+    rows,
+    addOns,
+    [day],
+    cleaners,
+    completion,
+    cancellation,
+    noAccess,
+    cancelTerms,
+  ] = await Promise.all([
     db
       .select({ assignment: assignments, member: staff })
       .from(assignments)
@@ -100,6 +115,9 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
       .where(eq(staff.active, true))
       .orderBy(asc(staff.name)),
     officeCompletionOf(row!),
+    cancellationOf(row!),
+    noAccessOf(row!),
+    cancelTermsOf(row!),
   ]);
 
   const holding = rows.filter((r) => r.assignment.status !== "released");
@@ -110,6 +128,9 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
   return {
     ...job,
     completion,
+    cancellation,
+    noAccess,
+    cancelTerms,
     addOns: addOns.get(jobId)!,
     assignments: [...holding, ...released].map((r) =>
       toView(r.assignment, r.member),
@@ -345,6 +366,10 @@ const cleanerJobs = async (
         assigned &&
         job.status === "booked" &&
         job.startsAt <= now,
+      canRecordNoAccess:
+        status === "confirmed" &&
+        job.status === "booked" &&
+        job.startsAt <= now,
     };
   });
 };
@@ -463,7 +488,9 @@ export const unassignedJobsWithin = async (hours: number) => {
       lte(jobs.startsAt, new Date(now.getTime() + hours * 3_600_000)),
     ),
   );
-  const unassigned = soon.filter((job) => job.assignment === "unassigned");
+  const unassigned = soon.filter(
+    (job) => job.status === "booked" && job.assignment === "unassigned",
+  );
   if (unassigned.length === 0) return [];
 
   const booked = await db

@@ -88,8 +88,9 @@ const cleanerHours = async (days: string[]) => {
   return byDay;
 };
 
-// Jobs on the Schedule as the Office sees them, earliest first
-export const scheduledJobs = async (
+// Jobs as the Office sees them, earliest first, whether or not they're on
+// the Schedule
+export const jobViews = async (
   where: SQL | undefined,
 ): Promise<ScheduledJob[]> => {
   const rows = await db
@@ -97,7 +98,7 @@ export const scheduledJobs = async (
     .from(jobs)
     .innerJoin(properties, eq(properties.id, jobs.propertyId))
     .innerJoin(clients, eq(clients.id, properties.clientId))
-    .where(and(onSchedule(), where))
+    .where(where)
     .orderBy(jobs.startsAt);
   const assignment = await assignmentStatusOf(rows.map((r) => r.job));
 
@@ -119,6 +120,10 @@ export const scheduledJobs = async (
     assignment: assignment.get(job.id)!,
   }));
 };
+
+// Jobs on the Schedule as the Office sees them, earliest first
+export const scheduledJobs = (where: SQL | undefined) =>
+  jobViews(and(onSchedule(), where));
 
 // the booked Jobs starting on the days of the range, by day, earliest first
 const bookedJobs = async (days: string[]) => {
