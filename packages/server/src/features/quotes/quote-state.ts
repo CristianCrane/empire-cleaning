@@ -113,6 +113,10 @@ export const quotesForClient = (clientId: string) =>
     and(eq(quoteRequests.clientId, clientId), ne(quotes.status, "draft")),
   );
 
+// every Sent Quote still open (not yet Expired), newest first
+export const openQuotes = () =>
+  summaries(and(eq(quotes.status, "sent"), gt(quotes.expiresAt, clock.now())));
+
 // Sent Quotes that Expire within this many hours, soonest first
 export const quotesExpiringWithin = async (hours: number) => {
   const now = clock.now();

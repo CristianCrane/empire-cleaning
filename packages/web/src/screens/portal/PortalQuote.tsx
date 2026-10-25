@@ -81,7 +81,17 @@ export function PortalQuote() {
 
       {quote.status === "sent" && (
         <>
-          <Accept quote={quote} paymentMethod={paymentMethod} />
+          {quote.bookable.length > 0 ? (
+            <Accept quote={quote} paymentMethod={paymentMethod} />
+          ) : (
+            // its day filled up after it was sent: nothing to pay for
+            <Notice tone="info">
+              Sorry, {formatDateTime(quote.proposedStartsAt)} has been fully
+              booked since we sent this Quote, so it can't be accepted. We've
+              let our team know, and we'll send you a new Quote for another
+              time.
+            </Notice>
+          )}
           <Decline quote={quote} />
         </>
       )}
@@ -135,7 +145,10 @@ function Accept({
   paymentMethod: PaymentMethodView | null;
 }) {
   const router = useRouter();
-  const [cleanType, setCleanType] = useState<CleanType>("deep");
+  // the recommended Deep Clean, unless only the Standard Clean still fits
+  const [cleanType, setCleanType] = useState<CleanType>(
+    quote.bookable.includes("deep") ? "deep" : quote.bookable[0]!,
+  );
   const [newCard, setNewCard] = useState(!paymentMethod);
   const [problem, setProblem] = useState<string>();
   const [isPending, setPending] = useState(false);
@@ -185,7 +198,12 @@ function Accept({
           <Radio
             key={option.cleanType}
             value={option.cleanType}
-            description={`${formatMoney(option.totalCents)}, with a ${formatMoney(option.depositCents)} Deposit today`}
+            isDisabled={!quote.bookable.includes(option.cleanType)}
+            description={
+              quote.bookable.includes(option.cleanType)
+                ? `${formatMoney(option.totalCents)}, with a ${formatMoney(option.depositCents)} Deposit today`
+                : "No longer fits on that day: it's been booked up since we sent this Quote"
+            }
           >
             {cleanTypeLabel[option.cleanType]}
             {option.recommended && " (recommended)"}

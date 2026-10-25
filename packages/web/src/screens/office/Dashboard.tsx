@@ -117,6 +117,20 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
             }),
         };
       }
+      case "quote_no_room": {
+        const { quote } = item;
+        return {
+          key: `quote_no_room ${quote.id}`,
+          title: quote.client.name,
+          description: `${addressOf(quote.property)} · ${formatDateTime(quote.proposedStartsAt!)} is full`,
+          badge: <StatusBadge tone="danger">Needs another time</StatusBadge>,
+          open: () =>
+            navigate({
+              to: "/office/quotes/$quoteId",
+              params: { quoteId: quote.id },
+            }),
+        };
+      }
     }
   };
 

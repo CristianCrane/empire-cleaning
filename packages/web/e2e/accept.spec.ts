@@ -1,5 +1,6 @@
 import type { Page } from "@playwright/test";
 import {
+  bookJob,
   createStaff,
   emailsTo,
   expect,
@@ -194,4 +195,41 @@ test("Office Staff email a link to add a card, then record the Client's acceptan
     "Deep Clean, booked",
   );
   await expect(record).toBeHidden();
+});
+
+test("a Quote whose day has filled up can't be paid for, and the Office is asked for another time", async ({
+  page,
+  browser,
+}) => {
+  await quoteSent(page);
+  // another booking takes all of Monday's 8 hours
+  await bookJob({ startsAt: "2026-01-12T19:00:00Z", labourHours: 8 });
+
+  const client = await (await browser.newContext()).newPage();
+  await signedInAs(client, casey.email);
+  await client.goto(await linkIn("Your Quote from Empire Cleaning"));
+  await expect(
+    client.getByText(
+      "Sorry, Mon, Jan 12, 9:00 AM has been fully booked since we sent this Quote",
+    ),
+  ).toBeVisible();
+  // nothing to pay for, but they can still say no
+  await expect(
+    client.getByRole("region", { name: "Accept and book" }),
+  ).toHaveCount(0);
+  await expect(
+    client.getByRole("button", { name: "Decline this Quote" }),
+  ).toBeVisible();
+
+  await page.goto("/office");
+  const needs = page.getByRole("grid", { name: "Needs attention" });
+  await expect(needs).toContainText("Needs another time");
+  await needs.getByText(casey.name).click();
+  await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
+  await expect(
+    page.getByText(`can't accept it. Draft a new Quote with another time`),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Record acceptance" }),
+  ).toHaveCount(0);
 });

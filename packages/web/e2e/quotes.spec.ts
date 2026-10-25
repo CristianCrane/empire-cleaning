@@ -7,6 +7,7 @@ import {
   proposeNextMonday,
   requestQuoteAsGuest,
   setClock,
+  setUsualWeek,
   signedInAs,
   signInWithLink,
   test,
@@ -21,7 +22,14 @@ const casey = { name: "Casey Client", email: "casey@example.com" };
 
 // the API's clock is at 4am on Monday 5 January 2026 in New York
 
+// with a Cleaner free on weekdays, so the days Quotes propose have room
 const signInAsOffice = async (page: Page) => {
+  const cory = await createStaff({
+    name: "Cory Cleaner",
+    email: "cory@example.com",
+    roles: ["cleaner"],
+  });
+  await setUsualWeek(cory.id, [8, 8, 8, 8, 8, 0, 0]);
   await createStaff(olive);
   await signedInAs(page, olive.email);
   await expect(page).toHaveURL("/office");

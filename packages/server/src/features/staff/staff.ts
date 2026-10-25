@@ -169,6 +169,20 @@ export const deactivateStaff = async (id: string) => {
   return { ...view, active: updated!.active };
 };
 
+// where notices for the Office go: every active Office Staff member
+export const officeStaffEmails = async () =>
+  (
+    await db
+      .select({ email: staff.email })
+      .from(staff)
+      .where(
+        and(
+          arrayContains(staff.roles, ["office_staff"]),
+          eq(staff.active, true),
+        ),
+      )
+  ).map((s) => s.email);
+
 export const hasOfficeStaff = async () => {
   const [found] = await db
     .select({ id: staff.id })

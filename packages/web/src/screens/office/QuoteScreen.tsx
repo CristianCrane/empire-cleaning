@@ -23,6 +23,7 @@ import {
   DialogTrigger,
   Form,
   Heading,
+  Link,
   Notice,
   NumberField,
   Radio,
@@ -109,7 +110,25 @@ function SentQuote({ quote }: { quote: OfficeQuote }) {
           )}
         </dl>
       </Card>
-      {quote.status === "sent" && <RecordAcceptance quote={quote} />}
+      {quote.status === "sent" &&
+        (quote.bookable.length > 0 ? (
+          <RecordAcceptance quote={quote} />
+        ) : (
+          <Notice tone="danger">
+            {formatDateTime(quote.proposedStartsAt!)} has filled up since this
+            Quote was sent, so {quote.client.name} can't accept it. Draft a new
+            Quote with another time from their{" "}
+            <Link
+              href={linkTo({
+                to: "/office/requests/$requestId",
+                params: { requestId: quote.quoteRequestId },
+              })}
+            >
+              Quote Request
+            </Link>
+            : it replaces this one.
+          </Notice>
+        ))}
       <div className="grid gap-4 lg:grid-cols-2">
         {quote.options.map((option) => (
           <OptionCard
@@ -138,7 +157,9 @@ function SentQuote({ quote }: { quote: OfficeQuote }) {
 // card details, so without one they email the Client a link to add it.
 function RecordAcceptance({ quote }: { quote: OfficeQuote }) {
   const router = useRouter();
-  const [cleanType, setCleanType] = useState<CleanType>("deep");
+  const [cleanType, setCleanType] = useState<CleanType>(
+    quote.bookable.includes("deep") ? "deep" : quote.bookable[0]!,
+  );
   const [problem, setProblem] = useState<string>();
   const [busy, setBusy] = useState<"accept" | "link">();
   const chosen = quote.options.find((o) => o.cleanType === cleanType)!;
@@ -225,7 +246,12 @@ function RecordAcceptance({ quote }: { quote: OfficeQuote }) {
           <Radio
             key={option.cleanType}
             value={option.cleanType}
-            description={`${formatMoney(option.totalCents)}, Deposit ${formatMoney(option.depositCents)}`}
+            isDisabled={!quote.bookable.includes(option.cleanType)}
+            description={
+              quote.bookable.includes(option.cleanType)
+                ? `${formatMoney(option.totalCents)}, Deposit ${formatMoney(option.depositCents)}`
+                : "No longer fits: the day has filled up"
+            }
           >
             {cleanTypeLabel[option.cleanType]}
           </Radio>

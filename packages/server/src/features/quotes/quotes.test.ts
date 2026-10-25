@@ -473,9 +473,13 @@ describe("Expiry", () => {
 });
 
 describe("Needs attention", () => {
+  // with no Cleaners here every Sent Quote's day has no room, which is its
+  // own kind of item (accept.test.ts): these tests leave it out
   const items = async (office: Agent) =>
-    (await office.get("/api/dashboard/needs-attention").expect(200))
-      .body as NeedsAttentionItem[];
+    (
+      (await office.get("/api/dashboard/needs-attention").expect(200))
+        .body as NeedsAttentionItem[]
+    ).filter((i) => i.kind !== "quote_no_room");
 
   test("drops a request once its Quote is Sent", async () => {
     const quoteRequestId = await asked();

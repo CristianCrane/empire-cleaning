@@ -284,6 +284,13 @@ export type NeedsAttentionItem =
       kind: "quote_expiring";
       since: string;
       quote: QuoteSummary;
+    }
+  | {
+      // a Sent Quote whose proposed day no longer has room for either Clean
+      // Type, so its Client can't accept it: it needs another time
+      kind: "quote_no_room";
+      since: string;
+      quote: QuoteSummary;
     };
 
 export type NeedsAttentionKind = NeedsAttentionItem["kind"];
@@ -358,6 +365,9 @@ export type QuoteView = {
   // once Accepted: when, and the Clean Type chosen
   acceptedAt: string | null;
   acceptedCleanType: CleanType | null;
+  // the Clean Types that can still be booked: those the proposed day has room
+  // for now, while the Quote is Sent; none once it's closed
+  bookable: CleanType[];
 };
 
 // one Clean Type's offer for the Office: the Suggested Price worked out, and

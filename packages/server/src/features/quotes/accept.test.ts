@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import { sql } from "drizzle-orm";
 import type {
   AcceptOutcome,
+  NeedsAttentionItem,
   ClientJob,
   OfficeQuote,
   PaymentMethodView,
@@ -966,5 +967,139 @@ describe("the reminder the day before a Job", () => {
     testEmail().sendNormally();
     expect(await sendDueReminders()).toBe(1);
     expect(reminders()).toHaveLength(1);
+  });
+});
+
+describe("when a Quote's day fills up before it's accepted", () => {
+  const needsAttention = async (office: Agent) =>
+    (await office.get("/api/dashboard/needs-attention").expect(200))
+      .body as NeedsAttentionItem[];
+
+  const drewRequest = () =>
+    guestRequest({
+      contact: { ...casey, name: "Drew Client", email: "drew@example.com" },
+      property: { new: { ...home, street: "7 Queens Blvd" } },
+    });
+
+  test("the Quote shows which Clean Types still fit, and none once nothing does", async () => {
+    // 8 hours on Monday
+    await cleaners(1);
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    const ownView = async () =>
+      (await client.get(`/api/quotes/mine/${quote.id}`).expect(200))
+        .body as QuoteView;
+    expect((await ownView()).bookable).toEqual(["deep", "standard"]);
+
+    // room left for exactly the Standard Clean
+    const standard = option(quote, "standard").labourHours;
+    await bookedJob({
+      startsAt: "2026-01-12T19:00:00Z",
+      labourHours: 8 - standard,
+    });
+    expect((await ownView()).bookable).toEqual(["standard"]);
+    expect(
+      (
+        (await office.get(`/api/quotes/${quote.id}`).expect(200))
+          .body as OfficeQuote
+      ).bookable,
+    ).toEqual(["standard"]);
+
+    await bookedJob({ startsAt: "2026-01-12T21:00:00Z", labourHours: 0.25 });
+    expect((await ownView()).bookable).toEqual([]);
+
+    // a closed Quote can't be booked at all
+    await client.post(`/api/quotes/mine/${quote.id}/decline`).expect(200);
+    expect((await ownView()).bookable).toEqual([]);
+  });
+
+  test("is under Needs attention until the Office sends another time", async () => {
+    await cleaners(1);
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    testClock().set(new Date("2026-01-06T15:00:00Z"));
+    await bookedJob({ startsAt: "2026-01-12T19:00:00Z", labourHours: 8 });
+
+    const items = (await needsAttention(office)).filter(
+      (i) => i.kind === "quote_no_room",
+    );
+    expect(items).toEqual([
+      {
+        kind: "quote_no_room",
+        // when the booking that filled the day was made
+        since: "2026-01-06T15:00:00.000Z",
+        quote: expect.objectContaining({ id: quote.id, status: "sent" }),
+      },
+    ]);
+
+    // a new Quote for Tuesday replaces it
+    const draft = (
+      await office
+        .post("/api/quotes")
+        .send({ quoteRequestId: quote.quoteRequestId })
+        .expect(201)
+    ).body as OfficeQuote;
+    await office
+      .patch(`/api/quotes/${draft.id}`)
+      .send({
+        addOns: [],
+        crewSize: draft.crewSize,
+        depositPercent: draft.depositPercent,
+        validityDays: draft.validityDays,
+        proposedStart: { date: "2026-01-13", time: "09:00" },
+        overrides: { deep: null, standard: null },
+      })
+      .expect(200);
+    await office.post(`/api/quotes/${draft.id}/send`).expect(200);
+
+    expect(
+      (await needsAttention(office)).filter((i) => i.kind === "quote_no_room"),
+    ).toEqual([]);
+  });
+
+  test("the Office is emailed when a booking crowds out another Quote for that day", async () => {
+    // room on Monday for exactly one Deep Clean
+    await cleaners(1);
+    const office = await signInAsOffice();
+    const caseys = await sentQuote(office);
+    const drews = await sentQuote(office, drewRequest());
+    await bookedJob({
+      startsAt: "2026-01-12T19:00:00Z",
+      labourHours: 8 - option(drews, "deep").labourHours,
+    });
+    const drew = await signIn("drew@example.com");
+    await addCard(drew);
+
+    await accept(drew, drews).expect(200);
+
+    const notice = testEmail().lastTo("olive@example.com");
+    expect(notice.subject).toBe("A Quote needs another time");
+    expect(notice.text).toContain("Casey Client, 41-12 Austin St, 4B, 11375");
+    expect(notice.text).toContain("/office");
+    // and Casey's Quote can't be taken
+    expect(
+      (
+        (await office.get(`/api/quotes/${caseys.id}`).expect(200))
+          .body as OfficeQuote
+      ).bookable,
+    ).toEqual([]);
+  });
+
+  test("the Office isn't emailed when the other Quotes for that day still fit", async () => {
+    await cleaners(2);
+    const office = await signInAsOffice();
+    await sentQuote(office);
+    const drews = await sentQuote(office, drewRequest());
+    const drew = await signIn("drew@example.com");
+    await addCard(drew);
+
+    await accept(drew, drews).expect(200);
+
+    expect(
+      testEmail()
+        .to("olive@example.com")
+        .filter((m) => m.subject.includes("another time")),
+    ).toEqual([]);
   });
 });

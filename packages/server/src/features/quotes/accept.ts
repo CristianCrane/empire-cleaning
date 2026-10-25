@@ -33,6 +33,7 @@ import { charges } from "../payments/payments.schema.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
 import { quoteRequests } from "../quote-requests/quote-requests.schema.ts";
+import { warnOfficeOfQuotesWithoutRoom } from "./quote-room.ts";
 import { statusOf } from "./quote-state.ts";
 import { lockRequest, toOption } from "./quotes.ts";
 import {
@@ -349,6 +350,7 @@ export const acceptQuote = async (
 
   if (outcome.status === "needs_approval") return outcome;
   await confirmBooking(client, property, outcome.job, option, outcome.paidWith);
+  await warnOfficeOfQuotesWithoutRoom(dayOf(outcome.job.startsAt));
   return { status: "accepted", job: outcome.job };
 };
 
@@ -442,6 +444,7 @@ export const finalizeDeposit = async (ref: string): Promise<Finalized> => {
   const paidWith =
     attempt.saved?.label ?? (await paymentMethodOf(client.id))!.label;
   await confirmBooking(client, property, result.job, option, paidWith);
+  await warnOfficeOfQuotesWithoutRoom(dayOf(result.job.startsAt));
   return { status: "accepted" };
 };
 
