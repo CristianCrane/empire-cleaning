@@ -1,6 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import {
+  signedInAs,
   createClient,
   createStaff,
   expect,
@@ -33,16 +34,20 @@ const startGoogle = async (page: Page) => {
 };
 
 test.describe("signing up and in with an emailed link", () => {
-  test("Office Staff land in the Office", async ({ page }) => {
-    await createStaff(officeStaff);
+  test(
+    "Office Staff land in the Office",
+    { tag: "@smoke" },
+    async ({ page }) => {
+      await createStaff(officeStaff);
 
-    await page.goto("/");
-    await expect(page).toHaveURL(/\/sign-in/);
-    await signInWithLink(page, officeStaff.email);
+      await page.goto("/");
+      await expect(page).toHaveURL(/\/sign-in/);
+      await signInWithLink(page, officeStaff.email);
 
-    await expect(page).toHaveURL("/office");
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Today");
-  });
+      await expect(page).toHaveURL("/office");
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText("Today");
+    },
+  );
 
   test("Cleaners land in the Cleaner area", async ({ page }) => {
     await createStaff(cleaner);
@@ -65,18 +70,22 @@ test.describe("signing up and in with an emailed link", () => {
     );
   });
 
-  test("a new email signs up and is welcomed, with a way to a Quote", async ({
-    page,
-  }) => {
-    await page.goto("/sign-in");
-    await signInWithLink(page, "new@example.com");
+  test(
+    "a new email signs up and is welcomed, with a way to a Quote",
+    { tag: "@smoke" },
+    async ({ page }) => {
+      await page.goto("/sign-in");
+      await signInWithLink(page, "new@example.com");
 
-    await expect(page).toHaveURL("/welcome");
-    await expect(page.getByText("signed in as new@example.com")).toBeVisible();
-    await expect(
-      page.getByText("Asked us for a Quote with a different email?"),
-    ).toBeVisible();
-  });
+      await expect(page).toHaveURL("/welcome");
+      await expect(
+        page.getByText("signed in as new@example.com"),
+      ).toBeVisible();
+      await expect(
+        page.getByText("Asked us for a Quote with a different email?"),
+      ).toBeVisible();
+    },
+  );
 
   test("returns to the page that was asked for", async ({ page }) => {
     await createClient(client);
@@ -140,8 +149,7 @@ test.describe("areas", () => {
 
   test("a wrong area sends you to your own", async ({ page }) => {
     await createClient(client);
-    await page.goto("/sign-in");
-    await signInWithLink(page, client.email);
+    await signedInAs(page, client.email);
 
     await page.goto("/office");
 
@@ -151,38 +159,39 @@ test.describe("areas", () => {
   test("an Account connected to nothing can't reach any area", async ({
     page,
   }) => {
-    await page.goto("/sign-in");
-    await signInWithLink(page, "new@example.com");
+    await signedInAs(page, "new@example.com");
 
     await page.goto("/portal");
 
     await expect(page).toHaveURL("/welcome");
   });
 
-  test("Staff with both roles switch areas without signing in again", async ({
-    page,
-  }) => {
-    await createStaff({ ...officeStaff, roles: ["office_staff", "cleaner"] });
-    await page.goto("/sign-in");
-    await signInWithLink(page, officeStaff.email);
-    await expect(page).toHaveURL("/office");
+  test(
+    "Staff with both roles switch areas without signing in again",
+    { tag: "@desktop" },
+    async ({ page }) => {
+      await createStaff({ ...officeStaff, roles: ["office_staff", "cleaner"] });
+      await signedInAs(page, officeStaff.email);
+      await expect(page).toHaveURL("/office");
 
-    await page.getByRole("button", { name: officeStaff.name }).click();
-    await page.getByRole("button", { name: "Switch to Cleaner area" }).click();
-    await expect(page).toHaveURL("/cleaner");
+      await page.getByRole("button", { name: officeStaff.name }).click();
+      await page
+        .getByRole("button", { name: "Switch to Cleaner area" })
+        .click();
+      await expect(page).toHaveURL("/cleaner");
 
-    await page.getByRole("button", { name: officeStaff.name }).click();
-    await page.getByRole("button", { name: "Switch to Office" }).click();
-    await expect(page).toHaveURL("/office");
-  });
+      await page.getByRole("button", { name: officeStaff.name }).click();
+      await page.getByRole("button", { name: "Switch to Office" }).click();
+      await expect(page).toHaveURL("/office");
+    },
+  );
 
   test("someone who is both Staff and a Client switches to the portal", async ({
     page,
   }) => {
     await createStaff(cleaner);
     await createClient({ email: cleaner.email, name: cleaner.name });
-    await page.goto("/sign-in");
-    await signInWithLink(page, cleaner.email);
+    await signedInAs(page, cleaner.email);
     await expect(page).toHaveURL("/cleaner");
 
     await page.getByRole("button", { name: cleaner.name }).click();
@@ -193,8 +202,7 @@ test.describe("areas", () => {
 
   test("signing out ends the session", async ({ page }) => {
     await createStaff(cleaner);
-    await page.goto("/sign-in");
-    await signInWithLink(page, cleaner.email);
+    await signedInAs(page, cleaner.email);
 
     await page.getByRole("button", { name: cleaner.name }).click();
     await page.getByRole("button", { name: "Sign out" }).click();
@@ -237,33 +245,41 @@ for (const theme of ["light", "dark"] as const) {
       }
     });
 
-    test("sign-in has no accessibility violations", async ({ page }) => {
-      await page.goto("/sign-in?error=INVALID_TOKEN");
-      await expect(page.getByRole("alert")).toBeVisible();
+    test(
+      "sign-in has no accessibility violations",
+      { tag: theme === "light" ? "@desktop" : [] },
+      async ({ page }) => {
+        await page.goto("/sign-in?error=INVALID_TOKEN");
+        await expect(page.getByRole("alert")).toBeVisible();
 
-      const { violations } = await new AxeBuilder({ page }).analyze();
-      expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
-    });
+        const { violations } = await new AxeBuilder({ page }).analyze();
+        expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+      },
+    );
 
-    test("an area has no accessibility violations", async ({ page }) => {
-      await createStaff(officeStaff);
-      await page.goto("/sign-in");
-      await signInWithLink(page, officeStaff.email);
-      await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    test(
+      "an area has no accessibility violations",
+      { tag: theme === "light" ? "@desktop" : [] },
+      async ({ page }) => {
+        await createStaff(officeStaff);
+        await signedInAs(page, officeStaff.email);
+        await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 
-      const { violations } = await new AxeBuilder({ page }).analyze();
-      expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
-    });
+        const { violations } = await new AxeBuilder({ page }).analyze();
+        expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+      },
+    );
 
-    test("the welcome page has no accessibility violations", async ({
-      page,
-    }) => {
-      await page.goto("/sign-in");
-      await signInWithLink(page, "new@example.com");
-      await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    test(
+      "the welcome page has no accessibility violations",
+      { tag: theme === "light" ? "@desktop" : [] },
+      async ({ page }) => {
+        await signedInAs(page, "new@example.com");
+        await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 
-      const { violations } = await new AxeBuilder({ page }).analyze();
-      expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
-    });
+        const { violations } = await new AxeBuilder({ page }).analyze();
+        expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+      },
+    );
   });
 }

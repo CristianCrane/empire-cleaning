@@ -22,7 +22,8 @@
     "test:watch": "vitest --watch",
     "test:coverage": "vitest run --coverage",
     "auth:create-owner": "tsx --env-file=.env ./src/features/auth/create-owner.ts",
-    "e2e:server": "tsx tests/e2e/server.ts"
+    "e2e:server": "tsx tests/e2e/server.ts",
+    "test:quick": "vitest run"
   },
   "dependencies": {
     "@empire-cleaning/models": "workspace:*",

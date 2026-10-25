@@ -6,18 +6,20 @@ Every screen is built from the design system in `packages/ui` (`@empire-cleaning
 
 ## Areas and sign-in
 
-| URL                         | For                                                                              |
-| --------------------------- | -------------------------------------------------------------------------------- |
-| `/sign-in`                  | anyone: emailed link or Google                                                   |
-| `/office`                   | Office Staff                                                                     |
-| `/cleaner`                  | Cleaners                                                                         |
-| `/portal`                   | Clients: their Quote Requests and homes                                          |
-| `/portal/request`           | Clients: request a Quote for a new home or one of theirs                         |
-| `/portal/details`           | Clients: contact details and Access Instructions                                 |
-| `/office/requests`          | Office Staff: open Quote Requests                                                |
-| `/office/clients/$clientId` | Office Staff: a Client, their homes and Quote Requests, and Condition correction |
-| `/welcome`                  | an Account connected to nothing: request a Quote to become a Client              |
-| `/`                         | sends a signed-in Account to its area                                            |
+| URL                           | For                                                                                                        |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `/sign-in`                    | anyone: emailed link or Google                                                                             |
+| `/office`                     | Office Staff                                                                                               |
+| `/cleaner`                    | Cleaners                                                                                                   |
+| `/portal`                     | Clients: their Quote Requests and homes                                                                    |
+| `/portal/request`             | Clients: request a Quote for a new home or one of theirs                                                   |
+| `/portal/details`             | Clients: contact details and Access Instructions                                                           |
+| `/office/requests`            | Office Staff: open Quote Requests                                                                          |
+| `/office/requests/$requestId` | Office Staff: a request in full, with the Suggested Price for both Clean Types and how each was worked out |
+| `/office/price-list`          | Office Staff: edit the Price List                                                                          |
+| `/office/clients/$clientId`   | Office Staff: a Client, their homes and Quote Requests, and Condition correction                           |
+| `/welcome`                    | an Account connected to nothing: request a Quote to become a Client                                        |
+| `/`                           | sends a signed-in Account to its area                                                                      |
 
 - Someone signed out who opens an area goes to `/sign-in?next=…` and comes back to that page afterwards.
 - An Account opening another role's area is sent to its own area.
@@ -46,7 +48,11 @@ A plain string or a hand-written `{ to }` object doesn't compile.
 
 ## Testing
 
-End to end with Playwright (`e2e/`): a production build of the app runs in a real Chromium, on a phone and a desktop, against the real API and a database of its own (`empire_e2e_test`). Only email, payments and the clock are faked, with the same fakes the server tests use (`packages/server/tests/e2e/server.ts`). Tests sign in by following the link from the captured email, exactly as a person would.
+End to end with Playwright (`e2e/`): a production build of the app runs in a real Chromium against the real API and a database of its own (`empire_e2e_test`, on the test Postgres).
+
+**The phone is the main screen and runs everything; the desktop runs only the tests tagged `@desktop`**, those where a larger layout changes something (the sidebar, two-column prices, light-theme accessibility). Tests tagged `@smoke` are the quick set (`pnpm test:quick`). Tag a test with `test("…", { tag: "@desktop" }, …)`.
+
+A test starts signed in with `signedInAs(page, email)`, which signs the person in for real through the control server and hands the browser the session; only the sign-in tests use the form, the email and the link (`signInWithLink`). Only email, payments and the clock are faked, with the same fakes the server tests use (`packages/server/tests/e2e/server.ts`). Tests sign in by following the link from the captured email, exactly as a person would.
 
 ```sh
 pnpm --filter @empire-cleaning/web test       # needs Postgres (pnpm db:up) and Chromium

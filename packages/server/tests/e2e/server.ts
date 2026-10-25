@@ -57,6 +57,37 @@ control.post("/clients", async (req, res) => {
   );
 });
 
+// Signs a person in the way the app does (ask for a link, follow it from the
+// email) but without a browser, and returns the session cookies. For tests
+// whose subject isn't signing in: they start signed in without the form, the
+// email and the page loads. The sign-in tests still do all of it for real.
+control.post("/sessions", async (req, res) => {
+  const { email } = req.body as { email: string };
+  const api = `http://localhost:${env.PORT}`;
+
+  const asked = await fetch(`${api}/api/auth/sign-in/magic-link`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: env.CORS_ORIGIN_URL,
+    },
+    body: JSON.stringify({ email, callbackURL: "/" }),
+  });
+  if (!asked.ok) throw new Error(`sign-in link refused: ${asked.status}`);
+
+  const link = testEmail()
+    .lastTo(email)
+    .text.match(/https?:\/\/\S+/)![0];
+  const verified = await fetch(link, { redirect: "manual" });
+  res.json(
+    verified.headers.getSetCookie().map((cookie) => {
+      const pair = cookie.split(";")[0]!;
+      const at = pair.indexOf("=");
+      return { name: pair.slice(0, at), value: pair.slice(at + 1) };
+    }),
+  );
+});
+
 control.get("/emails", (req, res) => {
   res.json(testEmail().to(String(req.query.to)));
 });

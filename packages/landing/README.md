@@ -16,7 +16,7 @@ The public page for prospective Clients at empirecleaningandpro.com: a static si
 
 ## Testing
 
-`pnpm --filter @empire-cleaning/landing test` builds the site, serves the result and tests it with Playwright in a real Chromium, on a phone and a desktop. The Quote Request form talks to the real API and a database of its own (`empire_e2e_landing_test`), so Postgres must be up (`pnpm db:up`). The tests cover:
+`pnpm --filter @empire-cleaning/landing test` builds the site, serves the result and tests it with Playwright in a real Chromium, on a phone (everything) and a desktop (the tests tagged `@desktop`, where layout matters; `@smoke` is the quick set). The Quote Request form talks to the real API and a database of its own (`empire_e2e_landing_test`), so Postgres must be up (`pnpm db:up`). The tests cover:
 
 - every section, in light and dark
 - an axe accessibility check in both themes

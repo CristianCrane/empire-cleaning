@@ -35,3 +35,5 @@ const call = async <T>(method: string, path: string, body?: unknown) => {
 export const getJson = <T>(path: string) => call<T>("GET", path);
 export const patchJson = <T>(path: string, body: unknown) =>
   call<T>("PATCH", path, body);
+export const putJson = <T>(path: string, body: unknown) =>
+  call<T>("PUT", path, body);

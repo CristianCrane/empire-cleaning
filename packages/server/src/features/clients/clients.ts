@@ -3,6 +3,8 @@ import type { ClientView } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
 import { connectSignedUpAccount } from "../auth/connections.ts";
 import { properties } from "../properties/properties.schema.ts";
+import { toPropertyView } from "../properties/property-view.ts";
+import { addOnsForRequests } from "../quote-requests/add-ons.ts";
 import { quoteRequests } from "../quote-requests/quote-requests.schema.ts";
 import { clients } from "./clients.schema.ts";
 
@@ -75,32 +77,21 @@ export const clientView = async (
     .from(quoteRequests)
     .where(eq(quoteRequests.clientId, id))
     .orderBy(desc(quoteRequests.createdAt));
+  const addOns = await addOnsForRequests(requests.map((r) => r.id));
 
   return {
     id: client.id,
     name: client.name,
     email: client.email,
     phone: client.phone,
-    properties: ownProperties.map((p) => ({
-      id: p.id,
-      type: p.type,
-      street: p.street,
-      unit: p.unit,
-      postcode: p.postcode,
-      bedrooms: p.bedrooms,
-      bathrooms: p.bathrooms,
-      storeys: p.storeys,
-      pets: p.pets,
-      floorArea: p.floorArea,
-      condition: p.condition,
-      accessInstructions: p.accessInstructions,
-    })),
+    properties: ownProperties.map(toPropertyView),
     quoteRequests: requests.map((r) => ({
       id: r.id,
       propertyId: r.propertyId,
       condition: r.condition,
       wantsRegularService: r.wantsRegularService,
       notes: r.notes,
+      addOns: addOns.get(r.id) ?? [],
       createdAt: r.createdAt.toISOString(),
     })),
   };

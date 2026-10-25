@@ -1,9 +1,9 @@
 import {
+  signedInAs,
   createClient,
   createStaff,
   expect,
   returnToTab,
-  signInWithLink,
   test,
 } from "./harness.ts";
 
@@ -21,8 +21,7 @@ test("coming back to the tab notices a Client record connected meanwhile", async
   page,
 }) => {
   await createStaff(olive);
-  await page.goto("/sign-in");
-  await signInWithLink(page, olive.email);
+  await signedInAs(page, olive.email);
   await expect(page).toHaveURL("/office");
 
   // e.g. Olive asks for a Quote from the landing page, in another tab
@@ -41,8 +40,7 @@ test("switching areas notices a Client record connected meanwhile", async ({
   page,
 }) => {
   await createStaff({ ...olive, roles: ["office_staff", "cleaner"] });
-  await page.goto("/sign-in");
-  await signInWithLink(page, olive.email);
+  await signedInAs(page, olive.email);
   // the app has asked who this is, and been told: Staff, nothing more
   await expect(page).toHaveURL("/office");
   await createClient({ email: olive.email, name: "Olive Owner" });
@@ -63,8 +61,7 @@ test("signing out in another tab signs this one out when you return", async ({
   page,
 }) => {
   await createStaff(olive);
-  await page.goto("/sign-in");
-  await signInWithLink(page, olive.email);
+  await signedInAs(page, olive.email);
   await expect(page).toHaveURL("/office");
 
   const other = await context.newPage();
@@ -82,8 +79,7 @@ test("moving between pages in an area doesn't ask who you are each time", async 
   page,
 }) => {
   await createStaff(olive);
-  await page.goto("/sign-in");
-  await signInWithLink(page, olive.email);
+  await signedInAs(page, olive.email);
   await expect(page).toHaveURL("/office");
   const asked: string[] = [];
   page.on("request", (request) => {

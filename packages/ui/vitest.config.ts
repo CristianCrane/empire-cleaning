@@ -17,9 +17,9 @@ const browser = (name: string) => ({
   instances: [{ browser: "chromium" as const, name }],
 });
 
-// Three projects each open many browser pages at once, and the repo's other
-// suites run beside them (pnpm test). Unlimited, the pages starve each other
-// and a test can sit for 15 seconds; a few at a time is still fast.
+// Three projects each open many browser pages at once. A few at a time
+// measured faster than all at once (about 45 s against 66 s) and steadier, and
+// the longer timeouts leave room for a slow machine.
 const limits = { maxWorkers: 3, testTimeout: 30_000, hookTimeout: 30_000 };
 
 // renders every story and runs its interactions and accessibility checks

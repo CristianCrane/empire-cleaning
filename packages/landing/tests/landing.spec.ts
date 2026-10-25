@@ -7,6 +7,8 @@ import { emailsTo, expect, test } from "./harness.ts";
 const openQuoteForm = async (page: Page) => {
   await page.goto("/#quote");
   await expect(page.getByRole("textbox", { name: "Full name" })).toBeVisible();
+  // the Add-ons arrive from the API a moment after the form
+  await expect(page.getByRole("group", { name: "Any extras?" })).toBeVisible();
 };
 
 const sections = [
@@ -28,47 +30,61 @@ for (const theme of ["light", "dark"] as const) {
       }
     });
 
-    test("shows every section", async ({ page }) => {
-      await page.goto("/");
+    test(
+      "shows every section",
+      { tag: theme === "light" ? "@desktop" : [] },
+      async ({ page }) => {
+        await page.goto("/");
 
-      await expect(
-        page.getByRole("heading", { level: 1, name: /clean spaces/i }),
-      ).toBeVisible();
-      for (const name of sections) {
         await expect(
-          page.getByRole("heading", { level: 2, name }),
+          page.getByRole("heading", { level: 1, name: /clean spaces/i }),
         ).toBeVisible();
-      }
-    });
+        for (const name of sections) {
+          await expect(
+            page.getByRole("heading", { level: 2, name }),
+          ).toBeVisible();
+        }
+      },
+    );
 
-    test("has no accessibility violations", async ({ page }) => {
-      await openQuoteForm(page);
+    test(
+      "has no accessibility violations",
+      { tag: theme === "light" ? "@desktop" : [] },
+      async ({ page }) => {
+        await openQuoteForm(page);
 
-      const { violations } = await new AxeBuilder({ page }).analyze();
+        const { violations } = await new AxeBuilder({ page }).analyze();
 
-      expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
-    });
+        expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+      },
+    );
   });
 }
 
-test("everything reads and works without JavaScript", async ({ browser }) => {
-  const context = await browser.newContext({ javaScriptEnabled: false });
-  const page = await context.newPage();
-  await page.goto("/");
+test(
+  "everything reads and works without JavaScript",
+  { tag: "@smoke" },
+  async ({ browser }) => {
+    const context = await browser.newContext({ javaScriptEnabled: false });
+    const page = await context.newPage();
+    await page.goto("/");
 
-  for (const name of sections) {
-    await expect(page.getByRole("heading", { level: 2, name })).toBeVisible();
-  }
-  await expect(
-    page.getByRole("link", { name: `Call ${business.phone.display}` }).first(),
-  ).toHaveAttribute("href", business.phone.href);
-  // no form that couldn't send anything: the Quote section offers the phone
-  await expect(page.locator("#quote form")).toHaveCount(0);
-  await expect(page.locator("#quote")).toContainText(
-    "and we'll put your Quote together",
-  );
-  await context.close();
-});
+    for (const name of sections) {
+      await expect(page.getByRole("heading", { level: 2, name })).toBeVisible();
+    }
+    await expect(
+      page
+        .getByRole("link", { name: `Call ${business.phone.display}` })
+        .first(),
+    ).toHaveAttribute("href", business.phone.href);
+    // no form that couldn't send anything: the Quote section offers the phone
+    await expect(page.locator("#quote form")).toHaveCount(0);
+    await expect(page.locator("#quote")).toContainText(
+      "and we'll put your Quote together",
+    );
+    await context.close();
+  },
+);
 
 test.describe("requesting a Quote", () => {
   const fillIn = async (page: Page, zip = "11375") => {
@@ -84,29 +100,31 @@ test.describe("requesting a Quote", () => {
     await page.getByRole("textbox", { name: "ZIP code" }).fill(zip);
   };
 
-  test("a Guest sends it and is told where the Quote will go", async ({
-    page,
-  }) => {
-    await openQuoteForm(page);
-    await fillIn(page);
-    await page.getByText("Heavy", { exact: true }).click();
-    await page
-      .getByText("After my first clean, I'd like regular visits", {
-        exact: false,
-      })
-      .click();
+  test(
+    "a Guest sends it and is told where the Quote will go",
+    { tag: "@smoke" },
+    async ({ page }) => {
+      await openQuoteForm(page);
+      await fillIn(page);
+      await page.getByText("Heavy", { exact: true }).click();
+      await page
+        .getByText("After my first clean, I'd like regular visits", {
+          exact: false,
+        })
+        .click();
 
-    await page.getByRole("button", { name: "Request a Quote" }).click();
+      await page.getByRole("button", { name: "Request a Quote" }).click();
 
-    await expect(
-      page.getByText("Thanks, we've got your request"),
-    ).toBeVisible();
-    await expect(
-      page.getByText("We'll email your Quote to casey@example.com"),
-    ).toBeVisible();
-    const [receipt] = await emailsTo("casey@example.com");
-    expect(receipt?.subject).toBe("We've received your Quote Request");
-  });
+      await expect(
+        page.getByText("Thanks, we've got your request"),
+      ).toBeVisible();
+      await expect(
+        page.getByText("We'll email your Quote to casey@example.com"),
+      ).toBeVisible();
+      const [receipt] = await emailsTo("casey@example.com");
+      expect(receipt?.subject).toBe("We've received your Quote Request");
+    },
+  );
 
   test("the API's explanation shows beside the field", async ({ page }) => {
     await openQuoteForm(page);
@@ -145,6 +163,26 @@ test.describe("requesting a Quote", () => {
       page.getByRole("textbox", { name: "Full name" }),
     ).toBeVisible();
     expect(await emailsTo("casey@example.com")).toHaveLength(1);
+  });
+
+  test("extras are offered by name, with no prices, and can be chosen", async ({
+    page,
+  }) => {
+    await openQuoteForm(page);
+    const extras = page.getByRole("group", { name: "Any extras?" });
+    await expect(extras.getByRole("checkbox")).toHaveCount(4);
+    await expect(extras).not.toContainText("$");
+
+    await extras.getByText("Inside the fridge").click();
+    await expect(
+      extras.getByRole("checkbox", { name: "Inside the fridge" }),
+    ).toBeChecked();
+    await fillIn(page);
+    await page.getByRole("button", { name: "Request a Quote" }).click();
+
+    await expect(
+      page.getByText("Thanks, we've got your request"),
+    ).toBeVisible();
   });
 
   test("required details are asked for before anything is sent", async ({
@@ -222,14 +260,18 @@ test("Request a Quote leads to the quote section", async ({ page }) => {
   ).toBeInViewport();
 });
 
-test("fits the screen without sideways scrolling", async ({ page }) => {
-  await page.goto("/");
+test(
+  "fits the screen without sideways scrolling",
+  { tag: "@desktop" },
+  async ({ page }) => {
+    await page.goto("/");
 
-  const overflow = await page.evaluate(
-    () => document.documentElement.scrollWidth - window.innerWidth,
-  );
-  expect(overflow).toBeLessThanOrEqual(0);
-});
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth,
+    );
+    expect(overflow).toBeLessThanOrEqual(0);
+  },
+);
 
 test.describe("search engines", () => {
   test("get a title, description and link preview", async ({ page }) => {

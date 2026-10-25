@@ -11,7 +11,8 @@
     "test": "vitest run && playwright test",
     "test:watch": "vitest --watch",
     "test:install-browser": "playwright install chromium",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:quick": "playwright test --project phone --grep @smoke"
   },
   "dependencies": {
     "@empire-cleaning/models": "workspace:*",

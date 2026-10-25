@@ -44,6 +44,27 @@ export const signInWithLink = async (page: Page, email: string) => {
   await page.goto(await signInLinkFor(email));
 };
 
+// Starts a test signed in, without the sign-in form, the email or the extra
+// page loads: the control server signs the person in for real and the session
+// goes into the browser. Use it when signing in is not what the test is about;
+// the sign-in tests use signInWithLink.
+export const signedInAs = async (page: Page, email: string) => {
+  const cookies = (await control("/sessions", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  })) as { name: string; value: string }[];
+  await page.context().addCookies(
+    cookies.map((cookie) => ({
+      ...cookie,
+      domain: "localhost",
+      path: "/",
+      httpOnly: true,
+      sameSite: "Lax" as const,
+    })),
+  );
+  await page.goto("/");
+};
+
 // every test starts from an empty database and no emails
 export const test = base.extend<{ cleanSlate: void }>({
   cleanSlate: [
@@ -59,10 +80,18 @@ export { expect };
 
 // a Quote Request as a Guest sends it from the landing page, straight to the
 // e2e API (packages/web/playwright.config.ts runs it on port 3100)
-export const requestQuoteAsGuest = async (contact: {
-  name: string;
-  email: string;
-}) => {
+export const requestQuoteAsGuest = async (
+  contact: { name: string; email: string },
+  addOnNames: string[] = [],
+) => {
+  // Add-ons are chosen by key, from those on offer
+  const offered = (await (
+    await fetch("http://localhost:3100/api/price-list/add-ons")
+  ).json()) as { key: string; name: string }[];
+  const addOns = offered
+    .filter((addOn) => addOnNames.includes(addOn.name))
+    .map((addOn) => addOn.key);
+
   const res = await fetch("http://localhost:3100/api/quote-requests", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -82,6 +111,7 @@ export const requestQuoteAsGuest = async (contact: {
       },
       condition: "moderate",
       wantsRegularService: true,
+      addOns,
     }),
   });
   if (!res.ok) throw new Error(`quote request: ${res.status}`);

@@ -75,6 +75,8 @@ export function ClientDetail() {
                 description={[
                   formatDate(request.createdAt),
                   `Stated ${conditionLabel[request.condition].toLowerCase()}`,
+                  request.addOns.length > 0 &&
+                    `Extras: ${request.addOns.map((a) => a.name).join(", ")}`,
                   request.notes,
                 ]
                   .filter(Boolean)

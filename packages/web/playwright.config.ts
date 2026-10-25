@@ -20,14 +20,15 @@ export default defineConfig({
     {
       command: "pnpm --filter @empire-cleaning/server e2e:server",
       url: `${controlUrl}/health`,
+      timeout: 120_000,
       env: {
         ...process.env,
         APP_MODE: "dev",
         PORT: String(API_PORT),
         E2E_CONTROL_PORT: String(CONTROL_PORT),
-        DB_URL: "postgresql://postgres:password@localhost:5432/empire_e2e_test",
+        DB_URL: "postgresql://postgres:password@localhost:5433/empire_e2e_test",
         TEST_DB_URL:
-          "postgresql://postgres:password@localhost:5432/empire_e2e_test",
+          "postgresql://postgres:password@localhost:5433/empire_e2e_test",
         BETTER_AUTH_URL: `http://localhost:${API_PORT}`,
         BETTER_AUTH_SECRET: "e2e-secret-at-least-32-characters-long",
         CORS_ORIGIN_URL: appUrl,
@@ -40,11 +41,18 @@ export default defineConfig({
     {
       command: `vite build && vite preview --port ${APP_PORT} --strictPort`,
       url: appUrl,
+      timeout: 120_000,
       env: { ...process.env, API_URL: `http://localhost:${API_PORT}` },
     },
   ],
   projects: [
     { name: "phone", use: { ...devices["Pixel 7"] } },
-    { name: "desktop", use: { ...devices["Desktop Chrome"] } },
+    // the phone is the main screen, and runs everything. Desktop runs only the
+    // tests tagged @desktop: the ones where a larger layout changes something.
+    {
+      name: "desktop",
+      use: { ...devices["Desktop Chrome"] },
+      grep: /@desktop/,
+    },
   ],
 });

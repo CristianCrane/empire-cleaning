@@ -1,7 +1,8 @@
 import { and, desc, eq } from "drizzle-orm";
-import type { z } from "zod";
+import { z } from "zod";
 import type {
   OpenQuoteRequest,
+  QuoteRequestDetail,
   QuoteRequestReceipt,
   SignedInAccount,
 } from "@empire-cleaning/models";
@@ -20,7 +21,11 @@ import {
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { addressKey } from "../properties/address.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
-import { quoteRequests } from "./quote-requests.schema.ts";
+import { toPropertyView } from "../properties/property-view.ts";
+import { currentPriceList } from "../price-list/price-list.ts";
+import { suggestedPrice } from "../price-list/suggested-price.ts";
+import { addOnsForRequests } from "./add-ons.ts";
+import { quoteRequestAddOns, quoteRequests } from "./quote-requests.schema.ts";
 import {
   accountSubmission,
   clientSubmission,
@@ -58,11 +63,34 @@ const clientFor = async (caller: SignedInAccount | null, body: unknown) => {
   return { client, submission };
 };
 
+// only Add-ons currently on offer can be chosen
+const checkAddOns = async (keys: string[]) => {
+  if (keys.length === 0) return;
+  const offered = new Set(
+    (await currentPriceList()).addOns.filter((a) => a.active).map((a) => a.key),
+  );
+  const unknown = keys.findIndex((key) => !offered.has(key));
+  if (unknown !== -1) {
+    throw new RequestBodyError(
+      new z.ZodError([
+        {
+          code: "custom",
+          path: ["addOns", unknown],
+          message: "Choose from the Add-ons listed",
+          input: keys[unknown],
+        },
+      ]),
+    );
+  }
+};
+
 export const submitQuoteRequest = async (
   caller: SignedInAccount | null,
   body: unknown,
 ): Promise<QuoteRequestReceipt> => {
   const { client, submission } = await clientFor(caller, body);
+  const addOnKeys = [...new Set(submission.addOns ?? [])];
+  await checkAddOns(addOnKeys);
 
   // one address is one home, and a home has one request waiting at a time.
   // Done under a lock on the home so two requests at once can't both get in.
@@ -146,6 +174,14 @@ export const submitQuoteRequest = async (
         notes: submission.notes,
       })
       .returning();
+    if (addOnKeys.length > 0) {
+      await tx.insert(quoteRequestAddOns).values(
+        addOnKeys.map((addOnKey) => ({
+          quoteRequestId: request!.id,
+          addOnKey,
+        })),
+      );
+    }
     return { property: property!, request: request! };
   });
 
@@ -211,14 +247,70 @@ export const openQuoteRequests = async (): Promise<OpenQuoteRequest[]> => {
     .innerJoin(properties, eq(properties.id, quoteRequests.propertyId))
     .orderBy(desc(quoteRequests.createdAt));
 
+  const addOns = await addOnsForRequests(rows.map((r) => r.request.id));
   return rows.map(({ request, client, property }) => ({
     id: request.id,
     propertyId: request.propertyId,
     condition: request.condition,
     wantsRegularService: request.wantsRegularService,
     notes: request.notes,
+    addOns: addOns.get(request.id) ?? [],
     createdAt: request.createdAt.toISOString(),
     client,
     property,
   }));
+};
+
+// one request in full for the Office, with the Suggested Price for both Clean
+// Types worked out now from the current Price List, using the home's current
+// details and Condition (which Staff may have corrected). Freezing it into a
+// Quote is #5.
+export const quoteRequestDetail = async (
+  id: string,
+): Promise<QuoteRequestDetail | undefined> => {
+  const [row] = await db
+    .select({ request: quoteRequests, client: clients, property: properties })
+    .from(quoteRequests)
+    .innerJoin(clients, eq(clients.id, quoteRequests.clientId))
+    .innerJoin(properties, eq(properties.id, quoteRequests.propertyId))
+    .where(eq(quoteRequests.id, id));
+  if (!row) return undefined;
+
+  const [list, addOns] = await Promise.all([
+    currentPriceList(),
+    addOnsForRequests([id]),
+  ]);
+  const choices = addOns.get(id) ?? [];
+  const chosen = list.addOns.filter((a) =>
+    choices.some((c) => c.key === a.key),
+  );
+  const price = (cleanType: "standard" | "deep") =>
+    suggestedPrice(
+      list,
+      row.property,
+      row.property.condition,
+      cleanType,
+      chosen,
+    );
+
+  return {
+    id: row.request.id,
+    createdAt: row.request.createdAt.toISOString(),
+    statedCondition: row.request.condition,
+    wantsRegularService: row.request.wantsRegularService,
+    notes: row.request.notes,
+    addOns: choices,
+    client: {
+      id: row.client.id,
+      name: row.client.name,
+      email: row.client.email,
+      phone: row.client.phone,
+    },
+    property: toPropertyView(row.property),
+    suggested: {
+      priceListVersion: list.version,
+      standard: price("standard"),
+      deep: price("deep"),
+    },
+  };
 };

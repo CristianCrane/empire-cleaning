@@ -6,11 +6,18 @@ import {
   redirect,
   useRouter,
 } from "@tanstack/react-router";
-import type { ClientView, OpenQuoteRequest } from "@empire-cleaning/models";
+import type {
+  ClientView,
+  OpenQuoteRequest,
+  PriceList,
+  QuoteRequestDetail,
+} from "@empire-cleaning/models";
 import { RouterProvider, ToastRegion } from "@empire-cleaning/ui";
 import { getJson } from "./api.ts";
 import { AreaLayout } from "./screens/AreaLayout.tsx";
 import { CleanerHome, OfficeHome } from "./screens/AreaHomes.tsx";
+import { PriceListScreen } from "./screens/office/PriceListScreen.tsx";
+import { QuoteRequest } from "./screens/office/QuoteRequest.tsx";
 import { QuoteRequests } from "./screens/office/QuoteRequests.tsx";
 import { ClientDetail } from "./screens/office/ClientDetail.tsx";
 import { PortalHome } from "./screens/portal/PortalHome.tsx";
@@ -147,6 +154,21 @@ const officeRequestsRoute = createRoute({
   component: QuoteRequests,
 });
 
+const officeRequestRoute = createRoute({
+  getParentRoute: () => officeRoute,
+  path: "/requests/$requestId",
+  loader: ({ params }) =>
+    getJson<QuoteRequestDetail>(`/api/quote-requests/${params.requestId}`),
+  component: QuoteRequest,
+});
+
+const officePriceListRoute = createRoute({
+  getParentRoute: () => officeRoute,
+  path: "/price-list",
+  loader: () => getJson<PriceList>("/api/price-list"),
+  component: PriceListScreen,
+});
+
 const officeClientRoute = createRoute({
   getParentRoute: () => officeRoute,
   path: "/clients/$clientId",
@@ -189,7 +211,9 @@ const routeTree = rootRoute.addChildren([
   officeRoute.addChildren([
     officeHomeRoute,
     officeRequestsRoute,
+    officeRequestRoute,
     officeClientRoute,
+    officePriceListRoute,
   ]),
   cleanerRoute.addChildren([cleanerHomeRoute]),
   portalRoute.addChildren([

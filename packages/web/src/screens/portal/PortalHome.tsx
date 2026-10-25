@@ -51,6 +51,8 @@ export function PortalHome() {
                 description={[
                   `Sent ${formatDate(request.createdAt)}`,
                   `${conditionLabel[request.condition]} clean`,
+                  request.addOns.length > 0 &&
+                    `Extras: ${request.addOns.map((a) => a.name).join(", ")}`,
                   request.wantsRegularService && "Regular visits wanted",
                 ]
                   .filter(Boolean)
