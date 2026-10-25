@@ -1,9 +1,10 @@
-import { and, eq, gte, inArray, lt, max } from "drizzle-orm";
+import { and, gte, inArray, lt, max } from "drizzle-orm";
 import type { CleanType, QuoteSummary } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
 import env from "../../env.ts";
 import { addDays, dayOf, startOfDay } from "../../services/clock/index.ts";
 import { compose, email, formatWhen } from "../../services/email/index.ts";
+import { onSchedule } from "../jobs/jobs.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
 import { hasRoomFor } from "../jobs/schedule.ts";
 import { addressOf } from "../properties/property-view.ts";
@@ -85,7 +86,7 @@ export const noRoomSince = async (quote: QuoteSummary) => {
     .from(jobs)
     .where(
       and(
-        eq(jobs.status, "booked"),
+        onSchedule(),
         gte(jobs.startsAt, startOfDay(day)),
         lt(jobs.startsAt, startOfDay(addDays(day, 1))),
       ),

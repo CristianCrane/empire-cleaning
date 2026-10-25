@@ -230,7 +230,8 @@ export type StaffAvailability = {
 
 export type StaffDetail = StaffMember & { availability: StaffAvailability };
 
-export type JobStatus = "booked";
+// booked, then Completed by its assigned Staff (#10)
+export type JobStatus = "booked" | "completed";
 
 // a Job as the Schedule shows it to Office Staff
 export type ScheduledJob = {
@@ -272,8 +273,8 @@ export type DayCapacity = {
 // ---- Office dashboard (#18) ----
 
 // One thing waiting on the Office, of a kind told by `kind`. Later tickets add
-// their kinds to this union: expiring Quotes (#5), Unassigned Jobs (#9),
-// Unpaid Jobs (#10), Reschedule Requests (#20), On Hold Service Plans (#15).
+// their kinds to this union: Reschedule Requests (#20), On Hold Service Plans
+// (#15).
 export type NeedsAttentionItem =
   | {
       kind: "quote_request";
@@ -300,6 +301,22 @@ export type NeedsAttentionItem =
       kind: "job_unassigned";
       since: string;
       job: ScheduledJob;
+    }
+  | {
+      // a Completed Job whose Balance, or part of it, couldn't be charged
+      kind: "job_unpaid";
+      since: string;
+      job: ScheduledJob;
+      owedCents: number;
+      reason: string;
+    }
+  | {
+      // increases Staff reported at completion, waiting on the Office to
+      // propose them to the Client or dismiss them
+      kind: "adjustments_reported";
+      since: string;
+      job: ScheduledJob;
+      count: number;
     };
 
 export type NeedsAttentionKind = NeedsAttentionItem["kind"];
@@ -307,8 +324,7 @@ export type NeedsAttentionKind = NeedsAttentionItem["kind"];
 // A Job is Unassigned until all its places are Confirmed
 export type AssignmentStatus = "unassigned" | "assigned";
 
-// how a Job turned out on the day; none until Completed (#10) or No Access
-// (#11) exist
+// how a Job turned out on the day; No Access comes with #11
 export type JobOutcome = "completed" | "no_access";
 
 export type TodayJob = ScheduledJob & { outcome: JobOutcome | null };
@@ -493,8 +509,10 @@ export type AssignmentView = {
   answeredAt: string | null;
 };
 
-// a booked Job as Office Staff manage its Assignments
+// a booked Job as Office Staff manage its Assignments, and once Completed,
+// its Adjustments and payment
 export type OfficeJob = ScheduledJob & {
+  completion: JobCompletion | null;
   addOns: string[];
   // Offered and Confirmed first, then Released; each earliest Offered first
   assignments: AssignmentView[];
@@ -531,7 +549,162 @@ export type CleanerJob = {
     // false once a Confirmed Assignment is within 48 hours of the Job
     canRelease: boolean;
   };
+  outcome: JobOutcome | null;
+  // whether its start time has come, by the Clock
+  started: boolean;
+  // whether this Cleaner can mark it Completed now: their place Confirmed,
+  // every place Confirmed, and the Job started
+  canComplete: boolean;
+  // what can be reported at completion, by name: the Quote's Add-ons (as
+  // not done) and the Price List's others (as done)
+  reportable: { quoted: AddOnChoice[]; others: AddOnChoice[] };
+  // once Completed: what was reported, without prices
+  completion: {
+    completedAt: string;
+    completedBy: string | null;
+    condition: Condition;
+    reports: CleanerReport[];
+  } | null;
 };
 
 // a Cleaner's Jobs: today's (in New York, by the Clock) and those to come
 export type CleanerJobs = { today: CleanerJob[]; upcoming: CleanerJob[] };
+
+// ---- Completing a Job (#10) ----
+
+// what the assigned Staff can report at completion; Staff never set amounts:
+// each is priced from the Price List the Job's Quote used (ADR-0009)
+export type AdjustmentKind = "add_on_done" | "add_on_not_done" | "extra_time";
+
+export type CompletionReport =
+  | {
+      // an Add-on that wasn't on the Quote, done on the day
+      kind: "add_on_done";
+      addOnKey: string;
+      reason: string;
+    }
+  | {
+      // an Add-on on the Quote that couldn't be done
+      kind: "add_on_not_done";
+      addOnKey: string;
+      reason: string;
+    }
+  | {
+      // extra Labour Hours, all the crew's together
+      kind: "extra_time";
+      hours: number;
+      reason: string;
+    };
+
+// POST /api/assignments/mine/:jobId/complete
+export type CompletionInput = {
+  // the Property's Condition as found
+  condition: Condition;
+  reports: CompletionReport[];
+};
+
+// a report as the Cleaner sees it afterwards
+export type CleanerReport = {
+  kind: AdjustmentKind;
+  addOnName: string | null;
+  hours: number | null;
+  reason: string;
+};
+
+// A reduction is applied at once. An increase is reported until Office Staff
+// propose it to the Client or dismiss it; a proposed one is approved or
+// declined by the Client, or lapses unanswered after 7 days. Only applied
+// and approved Adjustments count towards the price.
+export type AdjustmentStatus =
+  | "applied"
+  | "reported"
+  | "dismissed"
+  | "proposed"
+  | "approved"
+  | "declined"
+  | "lapsed";
+
+export type AdjustmentView = {
+  id: string;
+  kind: AdjustmentKind;
+  addOnName: string | null;
+  hours: number | null;
+  // the Cleaner's
+  reason: string;
+  status: AdjustmentStatus;
+  // as worked out from the Price List, before tax
+  workedOutCents: number;
+  // the price, before tax: the worked-out one or the Office's; with tax,
+  // what it changes the Job's total by (negative for a reduction)
+  priceCents: number;
+  taxCents: number;
+  totalCents: number;
+  // why Office Staff changed the price
+  officeReason: string | null;
+  reportedAt: string;
+  proposedAt: string | null;
+  answeredAt: string | null;
+  // when a proposed one lapses unanswered
+  lapsesAt: string | null;
+};
+
+// one Charge on a Job, and how much of it has been refunded
+export type ChargeView = {
+  kind: "deposit" | "balance";
+  amountCents: number;
+  refundedCents: number;
+  chargedAt: string;
+};
+
+// where a Job's money stands. All amounts tax included.
+export type JobPayment = {
+  quotedCents: number;
+  // what the Adjustments that count add or take off
+  adjustmentsCents: number;
+  // the price: quoted plus Adjustments, never below 0
+  totalCents: number;
+  charges: ChargeView[];
+  // what has been taken, less refunds
+  paidCents: number;
+  // still to take (positive) or to give back (negative)
+  owedCents: number;
+  // the Client's saved Payment Method, e.g. "Visa ending 4242"
+  paymentMethod: string | null;
+  unpaid: { since: string; reason: string } | null;
+};
+
+export type JobCompletion = {
+  completedAt: string;
+  completedBy: { id: string; name: string } | null;
+  condition: Condition;
+  adjustments: AdjustmentView[];
+  payment: JobPayment;
+};
+
+// Office Staff proposing a reported increase to the Client: at its
+// worked-out price, or at one they set (before tax) with a reason
+export type AdjustmentProposal = {
+  priceCents?: number | null;
+  reason?: string | null;
+};
+
+// Office Staff correcting an Adjustment's price (before tax, as a positive
+// amount: a reduction stays a reduction), with a reason
+export type AdjustmentCorrection = { priceCents: number; reason: string };
+
+// a Completed Job in the Client's past Jobs
+export type ClientPastJob = ClientJob & {
+  completedAt: string;
+  totalCents: number;
+  unpaid: boolean;
+  // increases proposed to them, waiting on their answer
+  awaitingAnswer: number;
+};
+
+// one of the Client's Jobs, with its receipt once Completed. They see only
+// Adjustments that were applied or proposed to them, never ones still with
+// the Office.
+export type ClientJobDetail = ClientJob & {
+  status: JobStatus;
+  completion: Omit<JobCompletion, "completedBy"> | null;
+};

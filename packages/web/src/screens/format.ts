@@ -1,4 +1,8 @@
-import type { Condition, PropertyView } from "@empire-cleaning/models";
+import type {
+  AdjustmentKind,
+  Condition,
+  PropertyView,
+} from "@empire-cleaning/models";
 
 export const addressOf = (
   p: Pick<PropertyView, "street" | "unit" | "postcode">,
@@ -117,3 +121,16 @@ export const quoteStatusTone = {
   expired: "warning",
   superseded: "neutral",
 } as const;
+
+// for NumberField's formatOptions on prices
+export const dollars = { style: "currency", currency: "USD" } as const;
+
+// what was reported: "Inside the oven, not done", "1.5 extra hours"
+export const adjustmentLabel = (a: {
+  kind: AdjustmentKind;
+  addOnName: string | null;
+  hours: number | null;
+}) =>
+  a.kind === "extra_time"
+    ? `${a.hours} extra ${a.hours === 1 ? "hour" : "hours"}`
+    : `${a.addOnName}, ${a.kind === "add_on_done" ? "done on the day" : "not done"}`;

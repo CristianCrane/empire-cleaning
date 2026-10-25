@@ -1,9 +1,12 @@
-import { and, asc, eq, gt, sql } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, sql } from "drizzle-orm";
 import type { ClientJob, CleanType } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { clock } from "../../services/clock/index.ts";
 import { properties } from "../properties/properties.schema.ts";
 import { jobs } from "./jobs.schema.ts";
+
+// Jobs on the Schedule, taking up their day's hours: booked or Completed
+export const onSchedule = () => inArray(jobs.status, ["booked", "completed"]);
 
 type NewJob = {
   propertyId: string;

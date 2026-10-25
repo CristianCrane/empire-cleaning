@@ -40,8 +40,9 @@ export const paymentMethods = pgTable("payment_methods", {
   ...timestamps,
 });
 
-// a Balance Charge comes with Completed Jobs (#10)
-export const chargeKind = pgEnum("charge_kind", ["deposit"]);
+// the Deposit at acceptance, or the Balance once Completed, which may be
+// taken in parts: at completion, then as the Client approves increases
+export const chargeKind = pgEnum("charge_kind", ["deposit", "balance"]);
 
 // money taken from a Client's Payment Method, for a Job
 export const charges = pgTable(
@@ -61,4 +62,23 @@ export const charges = pgTable(
   (t) => [index("charges_job_id_idx").on(t.jobId)],
 );
 
+// money given back from a Charge: a negative Balance, a correction, or an
+// undone completion
+export const refunds = pgTable(
+  "refunds",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    chargeId: uuid("charge_id")
+      .notNull()
+      .references(() => charges.id, { onDelete: "restrict" }),
+    amountCents: integer("amount_cents").notNull(),
+    // the Payment Gateway's id for it
+    gatewayRef: text("gateway_ref").notNull(),
+    refundedAt: timestamp("refunded_at", { withTimezone: true }).notNull(),
+    ...timestamps,
+  },
+  (t) => [index("refunds_charge_id_idx").on(t.chargeId)],
+);
+
+export type Charge = typeof charges.$inferSelect;
 export type PaymentMethodRow = typeof paymentMethods.$inferSelect;

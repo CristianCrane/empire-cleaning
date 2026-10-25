@@ -33,9 +33,13 @@ import {
   formatDateTime,
   formatHours,
 } from "../format.ts";
+import { JobCompletionCards } from "./JobCompletion.tsx";
 
-// whether every place on a Job's crew is Confirmed
+// whether every place on a Job's crew is Confirmed, or once done, that it is
 export function AssignmentBadge({ job }: { job: ScheduledJob }) {
+  if (job.status === "completed") {
+    return <StatusBadge tone="success">Completed</StatusBadge>;
+  }
   return job.assignment === "assigned" ? (
     <StatusBadge tone="info">Assigned</StatusBadge>
   ) : (
@@ -54,8 +58,8 @@ const sinceOf = (a: AssignmentView) =>
     ? `Offered ${formatDate(a.offeredAt)}`
     : `${a.status === "confirmed" ? "Confirmed" : "Released"} ${formatDate(a.answeredAt!)}`;
 
-// a booked Job, and who's on it: Office Staff Offer its places to Cleaners
-// and take people off
+// a Job, and who's on it: Office Staff Offer its places to Cleaners and take
+// people off, and once it's Completed, review and correct the completion
 export function JobScreen() {
   const job = useLoaderData({ from: "/office/jobs/$jobId" });
   const confirmed = job.assignments.filter(
@@ -105,6 +109,8 @@ export function JobScreen() {
         </dl>
       </Card>
 
+      {job.completion && <JobCompletionCards job={job} />}
+
       <Card
         title="Assignments"
         description={`${confirmed} of ${job.crewSize} ${job.crewSize === 1 ? "place" : "places"} Confirmed`}
@@ -120,7 +126,7 @@ export function JobScreen() {
                 end={
                   <>
                     {stateBadge[a.status]}
-                    {a.status !== "released" && (
+                    {job.status === "booked" && a.status !== "released" && (
                       <Remove job={job} assignment={a} />
                     )}
                   </>
@@ -129,7 +135,9 @@ export function JobScreen() {
             ))}
           </List>
         )}
-        <Offer key={job.assignments.length} job={job} />
+        {job.status === "booked" && (
+          <Offer key={job.assignments.length} job={job} />
+        )}
       </Card>
     </div>
   );

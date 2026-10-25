@@ -16,7 +16,12 @@ import {
   formatWhen,
 } from "../../services/email/index.ts";
 import { clients } from "../clients/clients.schema.ts";
+import {
+  cleanerCompletionsOf,
+  officeCompletionOf,
+} from "../completion/completion.ts";
 import { addOnsOf } from "../jobs/add-ons.ts";
+import { onSchedule } from "../jobs/jobs.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { scheduleFor, scheduledJobs } from "../jobs/schedule.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
@@ -73,13 +78,14 @@ const toView = (
   answeredAt: assignment.answeredAt?.toISOString() ?? null,
 });
 
-// a booked Job with everyone Offered a place on it, and the Cleaners who
-// could be
+// a Job on the Schedule with everyone Offered a place on it, the Cleaners
+// who could be, and once Completed, its Adjustments and payment
 export const officeJob = async (jobId: string): Promise<OfficeJob> => {
   const [job] = await scheduledJobs(eq(jobs.id, jobId));
   if (!job) throw new NotFoundError("Job not found");
 
-  const [rows, addOns, [day], cleaners] = await Promise.all([
+  const [row] = await db.select().from(jobs).where(eq(jobs.id, jobId));
+  const [rows, addOns, [day], cleaners, completion] = await Promise.all([
     db
       .select({ assignment: assignments, member: staff })
       .from(assignments)
@@ -93,6 +99,7 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
       .from(staff)
       .where(eq(staff.active, true))
       .orderBy(asc(staff.name)),
+    officeCompletionOf(row!),
   ]);
 
   const holding = rows.filter((r) => r.assignment.status !== "released");
@@ -102,6 +109,7 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
 
   return {
     ...job,
+    completion,
     addOns: addOns.get(jobId)!,
     assignments: [...holding, ...released].map((r) =>
       toView(r.assignment, r.member),
@@ -240,7 +248,8 @@ export const removeAssignment = async (
 
 // ---- the Cleaner ----
 
-// the Jobs a Cleaner holds a place on, from the start of today, soonest first
+// the Jobs a Cleaner holds a place on, booked or Completed, from the start of
+// today, soonest first
 const cleanerJobs = async (
   staffId: string,
   jobId?: string,
@@ -254,7 +263,7 @@ const cleanerJobs = async (
       and(
         eq(assignments.staffId, staffId),
         ne(assignments.status, "released"),
-        eq(jobs.status, "booked"),
+        onSchedule(),
         gte(jobs.startsAt, startOfDay(dayOf(clock.now()))),
         jobId ? eq(jobs.id, jobId) : undefined,
       ),
@@ -263,7 +272,7 @@ const cleanerJobs = async (
   if (mine.length === 0) return [];
 
   const jobIds = mine.map((m) => m.job.id);
-  const [crews, owners, addOns] = await Promise.all([
+  const [crews, owners, addOns, completions] = await Promise.all([
     db
       .select({
         jobId: assignments.jobId,
@@ -290,13 +299,16 @@ const cleanerJobs = async (
         ),
       ),
     addOnsOf(jobIds),
+    cleanerCompletionsOf(mine.map((m) => m.job)),
   ]);
+  const now = clock.now();
   const clientOf = new Map(owners.map((o) => [o.propertyId, o.client]));
   const today = dayOf(clock.now());
 
   return mine.map(({ assignment, job, property }) => {
     const client = clientOf.get(property.id)!;
     const status = assignment.status as "offered" | "confirmed";
+    const { assigned, ...completion } = completions.get(job.id)!;
     return {
       id: job.id,
       startsAt: job.startsAt.toISOString(),
@@ -322,8 +334,17 @@ const cleanerJobs = async (
       assignment: {
         id: assignment.id,
         status,
-        canRelease: status === "offered" || !releaseClosed(job),
+        canRelease:
+          job.status === "booked" &&
+          (status === "offered" || !releaseClosed(job)),
       },
+      ...completion,
+      started: job.startsAt <= now,
+      canComplete:
+        status === "confirmed" &&
+        assigned &&
+        job.status === "booked" &&
+        job.startsAt <= now,
     };
   });
 };

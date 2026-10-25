@@ -5,6 +5,11 @@ import {
   router as assignmentsRouter,
 } from "#features/assignments";
 import { auth, router as meRouter } from "#features/auth";
+import {
+  cleanerCompletionRouter,
+  clientJobsRouter,
+  officeCompletionRouter,
+} from "#features/completion";
 import { router as clientsRouter } from "#features/clients";
 import { router as dashboardRouter } from "#features/dashboard";
 import { jobsRouter, router as scheduleRouter } from "#features/jobs";
@@ -55,7 +60,10 @@ app.use("/api/price-list", priceListRouter);
 app.use("/api/staff", staffRouter);
 app.use("/api/schedule", scheduleRouter);
 app.use("/api/jobs", jobsRouter);
+app.use("/api/jobs", clientJobsRouter);
 app.use("/api/jobs", jobAssignmentsRouter);
+app.use("/api/jobs", officeCompletionRouter);
+app.use("/api/assignments", cleanerCompletionRouter);
 app.use("/api/assignments", assignmentsRouter);
 app.use("/api/payment-methods", paymentMethodsRouter);
 app.use("/api/dashboard", dashboardRouter);

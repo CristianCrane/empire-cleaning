@@ -18,6 +18,7 @@ import {
   formatDateTime,
   formatDay,
   formatHours,
+  formatMoney,
   formatTime,
 } from "../format.ts";
 
@@ -146,6 +147,34 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
           title: job.client.name,
           description: `${addressOf(job.property)} · ${formatDateTime(job.startsAt)}`,
           badge: <StatusBadge tone="warning">Unassigned</StatusBadge>,
+          open: () =>
+            navigate({
+              to: "/office/jobs/$jobId",
+              params: { jobId: job.id },
+            }),
+        };
+      }
+      case "job_unpaid": {
+        const { job } = item;
+        return {
+          key: `job_unpaid ${job.id}`,
+          title: job.client.name,
+          description: `${formatMoney(item.owedCents)} owed · ${addressOf(job.property)} · ${formatDate(job.startsAt)}`,
+          badge: <StatusBadge tone="danger">Unpaid</StatusBadge>,
+          open: () =>
+            navigate({
+              to: "/office/jobs/$jobId",
+              params: { jobId: job.id },
+            }),
+        };
+      }
+      case "adjustments_reported": {
+        const { job } = item;
+        return {
+          key: `adjustments_reported ${job.id}`,
+          title: job.client.name,
+          description: `${item.count === 1 ? "1 extra" : `${item.count} extras`} to review · ${addressOf(job.property)} · ${formatDate(job.startsAt)}`,
+          badge: <StatusBadge tone="info">Adjustments</StatusBadge>,
           open: () =>
             navigate({
               to: "/office/jobs/$jobId",

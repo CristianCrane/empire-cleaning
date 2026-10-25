@@ -10,6 +10,8 @@ import type {
   CleanerJob,
   CleanerJobs,
   ClientJob,
+  ClientJobDetail,
+  ClientPastJob,
   ClientView,
   NeedsAttentionItem,
   OfficeJob,
@@ -46,6 +48,7 @@ import {
   type ScheduleSearch,
 } from "./screens/office/schedule-range.ts";
 import { PortalHome } from "./screens/portal/PortalHome.tsx";
+import { PortalJob } from "./screens/portal/PortalJob.tsx";
 import { PortalPaymentMethod } from "./screens/portal/PortalPaymentMethod.tsx";
 import { PortalQuote } from "./screens/portal/PortalQuote.tsx";
 import { PortalRequest } from "./screens/portal/PortalRequest.tsx";
@@ -272,12 +275,13 @@ const portalHomeRoute = createRoute({
   getParentRoute: () => portalRoute,
   path: "/",
   loader: async () => {
-    const [client, quotes, jobs] = await Promise.all([
+    const [client, quotes, jobs, pastJobs] = await Promise.all([
       ownClient(),
       getJson<QuoteSummary[]>("/api/quotes/mine"),
       getJson<ClientJob[]>("/api/jobs/mine"),
+      getJson<ClientPastJob[]>("/api/jobs/mine/past"),
     ]);
-    return { client, quotes, jobs };
+    return { client, quotes, jobs, pastJobs };
   },
   component: PortalHome,
 });
@@ -298,6 +302,15 @@ const portalQuoteRoute = createRoute({
     return { quote, paymentMethod };
   },
   component: PortalQuote,
+});
+
+// where the receipt, approval and Unpaid emails lead
+const portalJobRoute = createRoute({
+  getParentRoute: () => portalRoute,
+  path: "/jobs/$jobId",
+  loader: ({ params }) =>
+    getJson<ClientJobDetail>(`/api/jobs/mine/${params.jobId}`),
+  component: PortalJob,
 });
 
 // where the Office's "add a Payment Method" email leads
@@ -343,6 +356,7 @@ const routeTree = rootRoute.addChildren([
     portalHomeRoute,
     portalRequestRoute,
     portalQuoteRoute,
+    portalJobRoute,
     portalDetailsRoute,
     portalPaymentMethodRoute,
   ]),

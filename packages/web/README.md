@@ -10,9 +10,10 @@ Every screen is built from the design system in `packages/ui` (`@empire-cleaning
 | ----------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | `/sign-in`                    | anyone: emailed link or Google                                                                             |
 | `/office`                     | Office Staff: Needs attention and today's Jobs with their Assignment status                                |
-| `/cleaner`                    | Cleaners: their Jobs today and coming up, Offered or Confirmed                                             |
-| `/cleaner/jobs/$jobId`        | Cleaners: a Job they're on, where the Offer email leads; Confirm or Release their place                    |
-| `/portal`                     | Clients: their upcoming Jobs, Quotes, Quote Requests and homes                                             |
+| `/cleaner`                    | Cleaners: their Jobs today and coming up, Offered, Confirmed or Completed                                  |
+| `/cleaner/jobs/$jobId`        | Cleaners: a Job they're on, where the Offer email leads; Confirm or Release their place, and complete it   |
+| `/portal`                     | Clients: their upcoming and past Jobs, Quotes, Quote Requests and homes                                    |
+| `/portal/jobs/$jobId`         | Clients: a Job's receipt, approving extra work, and paying an Unpaid Job; where those emails lead          |
 | `/portal/request`             | Clients: request a Quote for a new home or one of theirs                                                   |
 | `/portal/details`             | Clients: contact details and Access Instructions                                                           |
 | `/portal/quotes/$quoteId`     | Clients: a Quote, where its email's link leads; accept it in one step (Clean Type, card, pay), or Decline  |
@@ -22,7 +23,7 @@ Every screen is built from the design system in `packages/ui` (`@empire-cleaning
 | `/office/quotes/$quoteId`     | Office Staff: a Draft to price and send, or a Sent one, with recording acceptance and the add-a-card email |
 | `/office/price-list`          | Office Staff: edit the Price List                                                                          |
 | `/office/schedule`            | Office Staff: booked Jobs and free Staff hours for a range of days, a week at a time by default            |
-| `/office/jobs/$jobId`         | Office Staff: a booked Job, Offering its places to Cleaners and taking people off                          |
+| `/office/jobs/$jobId`         | Office Staff: a Job's places, and once Completed, reviewing Adjustments and correcting the completion      |
 | `/office/staff`               | Office Staff: everyone on Staff, and inviting someone                                                      |
 | `/office/staff/$staffId`      | Office Staff: a Staff member's usual week, days off and extra days, and deactivating them                  |
 | `/office/clients/$clientId`   | Office Staff: a Client, their homes and Quote Requests, and Condition correction                           |
