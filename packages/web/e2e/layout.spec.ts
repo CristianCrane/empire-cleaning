@@ -68,6 +68,8 @@ test("the Office's screens fit every width", async ({ page }) => {
   });
   await setUsualWeek(cory.id, [7.25, 8, 8, 8, 6.5, 0, 0]);
   await bookJob({ startsAt: "2027-03-02T14:00:00Z", labourHours: 5.25 });
+  // today's, for the dashboard (the API's clock is at 5 January 2026)
+  await bookJob({ startsAt: "2026-01-05T14:00:00Z", labourHours: 5.25 });
   await requestQuoteAsGuest(casey, ["Inside the oven"]);
   await createStaff(olive);
   await signedInAs(page, olive.email);

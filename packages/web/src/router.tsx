@@ -8,17 +8,20 @@ import {
 } from "@tanstack/react-router";
 import type {
   ClientView,
+  NeedsAttentionItem,
   OpenQuoteRequest,
   PriceList,
   QuoteRequestDetail,
   ScheduleDay,
   StaffDetail,
   StaffMember,
+  Today,
 } from "@empire-cleaning/models";
 import { RouterProvider, ToastRegion } from "@empire-cleaning/ui";
 import { getJson } from "./api.ts";
 import { AreaLayout } from "./screens/AreaLayout.tsx";
-import { CleanerHome, OfficeHome } from "./screens/AreaHomes.tsx";
+import { CleanerHome } from "./screens/AreaHomes.tsx";
+import { Dashboard } from "./screens/office/Dashboard.tsx";
 import { PriceListScreen } from "./screens/office/PriceListScreen.tsx";
 import { QuoteRequest } from "./screens/office/QuoteRequest.tsx";
 import { QuoteRequests } from "./screens/office/QuoteRequests.tsx";
@@ -155,7 +158,14 @@ const portalRoute = areaRoute("portal");
 const officeHomeRoute = createRoute({
   getParentRoute: () => officeRoute,
   path: "/",
-  component: OfficeHome,
+  loader: async () => {
+    const [needsAttention, today] = await Promise.all([
+      getJson<NeedsAttentionItem[]>("/api/dashboard/needs-attention"),
+      getJson<Today>("/api/dashboard/today"),
+    ]);
+    return { needsAttention, today };
+  },
+  component: Dashboard,
 });
 
 const officeRequestsRoute = createRoute({

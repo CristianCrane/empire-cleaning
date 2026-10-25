@@ -189,7 +189,11 @@ export type QuoteRequestDetail = {
 export type IsoDate = string;
 
 // what Office Staff send to invite someone (POST /api/staff)
-export type StaffInvitation = { name: string; email: string; roles: StaffRole[] };
+export type StaffInvitation = {
+  name: string;
+  email: string;
+  roles: StaffRole[];
+};
 
 export type StaffMember = {
   id: string;
@@ -257,3 +261,33 @@ export type DayCapacity = {
   freeHours: number;
   hasRoom: boolean;
 };
+
+// ---- Office dashboard (#18) ----
+
+// One thing waiting on the Office, of a kind told by `kind`. Later tickets add
+// their kinds to this union: expiring Quotes (#5), Unassigned Jobs (#9),
+// Unpaid Jobs (#10), Reschedule Requests (#20), On Hold Service Plans (#15).
+export type NeedsAttentionItem = {
+  kind: "quote_request";
+  // when it started needing attention; oldest first within a kind
+  since: string;
+  quoteRequest: OpenQuoteRequest;
+};
+
+export type NeedsAttentionKind = NeedsAttentionItem["kind"];
+
+// A Job is Unassigned until all its places are Confirmed. Nothing assigns
+// Staff until #9, so every Job is Unassigned for now.
+export type AssignmentStatus = "unassigned" | "assigned";
+
+// how a Job turned out on the day; none until Completed (#10) or No Access
+// (#11) exist
+export type JobOutcome = "completed" | "no_access";
+
+export type TodayJob = ScheduledJob & {
+  assignment: AssignmentStatus;
+  outcome: JobOutcome | null;
+};
+
+// today's Schedule (per the Clock), for the Office dashboard
+export type Today = Omit<ScheduleDay, "jobs"> & { jobs: TodayJob[] };

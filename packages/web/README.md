@@ -9,7 +9,7 @@ Every screen is built from the design system in `packages/ui` (`@empire-cleaning
 | URL                           | For                                                                                                        |
 | ----------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | `/sign-in`                    | anyone: emailed link or Google                                                                             |
-| `/office`                     | Office Staff                                                                                               |
+| `/office`                     | Office Staff: Needs attention (new Quote Requests so far) and today's Jobs with their Assignment status    |
 | `/cleaner`                    | Cleaners                                                                                                   |
 | `/portal`                     | Clients: their Quote Requests and homes                                                                    |
 | `/portal/request`             | Clients: request a Quote for a new home or one of theirs                                                   |
