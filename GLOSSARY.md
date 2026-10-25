@@ -117,12 +117,16 @@ The outcome of a Job where Staff could not get into the Property; it is not Comp
 _Avoid_: Lockout, missed job, no-show
 
 **Reschedule Request**:
-A Client's proposal to move a booked Job to a new available time, which is held for them while pending. The Job keeps its original time until Office Staff confirm the move, after which its Assignments are Offered afresh; Office Staff may instead turn it down, and the Client may withdraw it.
+A Client's proposal to move a booked Job to a new available time, which is held for them while pending. The Job keeps its original time until Office Staff confirm the move, after which its Assignments are Offered afresh; Office Staff may instead turn it down, and the Client may withdraw it. One made less than 24 hours before the Job is a Late Reschedule (ADR-0010).
 _Avoid_: Reschedule, rebooking, change request
 
 **Late Cancellation**:
-A Client cancelling, or making a Reschedule Request for, a Job less than 24 hours before it starts; the fee is the Job's Deposit amount.
+A Client cancelling a Job less than 24 hours before it starts, or moving it by a second Late Reschedule; the fee is the Job's Deposit amount (ADR-0010).
 _Avoid_: No-show, short-notice cancellation
+
+**Late Reschedule**:
+A Reschedule Request made less than 24 hours before the Job starts, judged when it is made. The first one confirmed for a Job is free and its Deposit still counts towards the price; any later one confirmed for the same Job is a Late Cancellation, though the Job still moves (ADR-0010).
+_Avoid_: Late move, short-notice reschedule
 
 **On Hold**:
 A Service Plan that is temporarily generating no new Jobs until its Client resolves an Unpaid Job.
