@@ -35,6 +35,8 @@ export const validate =
       if (!result.success) {
         throw new RequestBodyError(result.error);
       }
+      // handlers see the parsed body, e.g. trimmed strings
+      req.body = result.data;
     }
 
     if (querySchema) {

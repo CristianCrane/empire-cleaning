@@ -1,10 +1,18 @@
 import {
   Outlet,
+  useLocation,
   useMatchRoute,
   useNavigate,
   useRouteContext,
 } from "@tanstack/react-router";
-import { CalendarDays, House, LayoutDashboard, User } from "lucide-react";
+import {
+  CalendarDays,
+  House,
+  Inbox,
+  LayoutDashboard,
+  User,
+  UserRound,
+} from "lucide-react";
 import type { SignedInAccount } from "@empire-cleaning/models";
 import {
   Actions,
@@ -17,24 +25,51 @@ import {
 import { linkTo } from "../links.ts";
 import { areas, areasFor, signOut, type AreaId } from "../session.ts";
 
+// an item is current on its own page, and on the pages that belong to its
+// section (alsoCurrentFor: URL prefixes), e.g. a Client reached from Requests
+type AreaNavItem = NavItem & { alsoCurrentFor?: string[] };
+
 // each area's navigation; feature tickets add their screens here
-const navFor: Record<AreaId, NavItem[]> = {
+const navFor: Record<AreaId, AreaNavItem[]> = {
   office: [
     { href: linkTo({ to: "/office" }), label: "Today", icon: LayoutDashboard },
+    {
+      href: linkTo({ to: "/office/requests" }),
+      label: "Requests",
+      icon: Inbox,
+      alsoCurrentFor: ["/office/clients"],
+    },
   ],
   cleaner: [
     { href: linkTo({ to: "/cleaner" }), label: "Today", icon: CalendarDays },
   ],
-  portal: [{ href: linkTo({ to: "/portal" }), label: "Home", icon: House }],
+  portal: [
+    {
+      href: linkTo({ to: "/portal" }),
+      label: "Home",
+      icon: House,
+      alsoCurrentFor: ["/portal/request"],
+    },
+    {
+      href: linkTo({ to: "/portal/details" }),
+      label: "Your details",
+      icon: UserRound,
+    },
+  ],
 };
 
 export function AreaLayout({ area }: { area: AreaId }) {
   const { account } = useRouteContext({ from: areas[area].path });
   const matchRoute = useMatchRoute();
-  const nav = navFor[area].map((item) => ({
-    ...item,
-    isCurrent: Boolean(matchRoute(item.href)),
-  }));
+  const { pathname } = useLocation();
+  const nav: NavItem[] = navFor[area].map(
+    ({ alsoCurrentFor = [], ...item }) => ({
+      ...item,
+      isCurrent:
+        Boolean(matchRoute(item.href)) ||
+        alsoCurrentFor.some((prefix) => pathname.startsWith(prefix)),
+    }),
+  );
 
   return (
     <AppLayout

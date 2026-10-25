@@ -1,9 +1,23 @@
-import type { RequestHandler, Response } from "express";
+import type { Request, RequestHandler, Response } from "express";
 import { fromNodeHeaders } from "better-auth/node";
 import type { AccountRole, SignedInAccount } from "@empire-cleaning/models";
 import { ForbiddenError, UnauthorizedError } from "../../middleware/errors.ts";
 import { auth } from "./auth.ts";
 import { accessFor } from "./connections.ts";
+
+// the caller, if they're signed in, with what their connections let them do;
+// null for Guests. For endpoints open to both, such as a Quote Request.
+export const currentAccount = async (
+  req: Request,
+): Promise<SignedInAccount | null> => {
+  const session = await auth.api.getSession({
+    headers: fromNodeHeaders(req.headers),
+  });
+  if (!session) return null;
+
+  const { roles, name } = await accessFor(session.user);
+  return { id: session.user.id, email: session.user.email, name, roles };
+};
 
 /**
  * Declares who may call an endpoint. With no roles, any signed-in Account may
@@ -16,21 +30,11 @@ import { accessFor } from "./connections.ts";
 export const authorize =
   (...roles: AccountRole[]): RequestHandler =>
   async (req, res, next) => {
-    const session = await auth.api.getSession({
-      headers: fromNodeHeaders(req.headers),
-    });
-    if (!session) {
+    const account = await currentAccount(req);
+    if (!account) {
       throw new UnauthorizedError();
     }
-
-    const { roles: held, name } = await accessFor(session.user);
-    const account: SignedInAccount = {
-      id: session.user.id,
-      email: session.user.email,
-      name,
-      roles: held,
-    };
-    if (roles.length > 0 && !held.some((r) => roles.includes(r))) {
+    if (roles.length > 0 && !account.roles.some((r) => roles.includes(r))) {
       throw new ForbiddenError();
     }
 

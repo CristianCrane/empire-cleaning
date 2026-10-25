@@ -17,6 +17,11 @@ const browser = (name: string) => ({
   instances: [{ browser: "chromium" as const, name }],
 });
 
+// Three projects each open many browser pages at once, and the repo's other
+// suites run beside them (pnpm test). Unlimited, the pages starve each other
+// and a test can sit for 15 seconds; a few at a time is still fast.
+const limits = { maxWorkers: 3, testTimeout: 30_000, hookTimeout: 30_000 };
+
 // renders every story and runs its interactions and accessibility checks
 // (including colour contrast), once per theme
 const storybookProject = (
@@ -27,6 +32,7 @@ const storybookProject = (
     storybookTest({ configDir: path.join(import.meta.dirname, ".storybook") }),
   ],
   test: {
+    ...limits,
     setupFiles: [`./.storybook/test-theme-${theme}.ts`],
     browser: browser(`ui-storybook-${theme}`),
   },
@@ -40,6 +46,7 @@ export default mergeConfig(
         {
           extends: true,
           test: {
+            ...limits,
             include: ["src/**/*.test.tsx"],
             setupFiles: ["./src/test-setup.ts"],
             browser: browser("ui"),

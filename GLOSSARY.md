@@ -9,7 +9,7 @@ A person or business Empire Cleaning has a relationship with, from their first Q
 _Avoid_: Customer, user, lead
 
 **Property**:
-A physical location where cleaning happens, belonging to exactly one Client.
+A physical location where cleaning happens, belonging to exactly one Client. One address is one Property per Client, however it is typed; separate units in a building (apartments, floors) are separate Properties. Its price-affecting details are as first given and only Office Staff correct them.
 _Avoid_: Address, site, location
 
 **Access Instructions**:
@@ -39,7 +39,7 @@ _Avoid_: Anonymous user, visitor
 ## Quoting
 
 **Quote Request**:
-A Client's or Guest's description of the cleaning they want, submitted to ask for pricing. A Guest's first Quote Request creates their Client; one from a Guest using an existing Client's email is added to that Client, without changing their details.
+A Client's or Guest's description of the cleaning they want, submitted to ask for pricing. A Guest's first Quote Request creates their Client; one from a Guest using an existing Client's email is added to that Client, without changing their details. A Property has at most one Quote Request waiting at a time.
 _Avoid_: Enquiry, lead, quote
 
 **Turned Down**:

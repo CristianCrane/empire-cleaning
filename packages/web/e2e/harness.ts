@@ -56,3 +56,37 @@ export const test = base.extend<{ cleanSlate: void }>({
 });
 
 export { expect };
+
+// a Quote Request as a Guest sends it from the landing page, straight to the
+// e2e API (packages/web/playwright.config.ts runs it on port 3100)
+export const requestQuoteAsGuest = async (contact: {
+  name: string;
+  email: string;
+}) => {
+  const res = await fetch("http://localhost:3100/api/quote-requests", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      contact: { ...contact, phone: "(646) 555-0100" },
+      property: {
+        new: {
+          type: "apartment",
+          street: "41-12 Austin St",
+          unit: "4B",
+          postcode: "11375",
+          bedrooms: 2,
+          bathrooms: 1.5,
+          storeys: 1,
+          pets: false,
+        },
+      },
+      condition: "moderate",
+      wantsRegularService: true,
+    }),
+  });
+  if (!res.ok) throw new Error(`quote request: ${res.status}`);
+};
+
+// what the browser does when the person comes back to this tab
+export const returnToTab = (page: import("@playwright/test").Page) =>
+  page.evaluate(() => window.dispatchEvent(new Event("focus")));

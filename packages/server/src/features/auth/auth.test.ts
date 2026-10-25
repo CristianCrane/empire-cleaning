@@ -84,7 +84,11 @@ describe("connecting an Account to its records (ADR-0006)", () => {
   });
 
   test("connects to the Client with the same email", async () => {
-    await createClient({ email: "casey@example.com", name: "Casey Client" });
+    await createClient({
+      email: "casey@example.com",
+      name: "Casey Client",
+      phone: "(646) 555-0100",
+    });
 
     const account = await me(await signIn("casey@example.com"));
 
@@ -94,7 +98,11 @@ describe("connecting an Account to its records (ADR-0006)", () => {
   test("a record added after sign-up connects straight away", async () => {
     const agent = await signIn("casey@example.com");
 
-    await createClient({ email: "casey@example.com", name: "Casey Client" });
+    await createClient({
+      email: "casey@example.com",
+      name: "Casey Client",
+      phone: "(646) 555-0100",
+    });
 
     expect((await me(agent)).roles).toEqual(["client"]);
   });
@@ -103,6 +111,7 @@ describe("connecting an Account to its records (ADR-0006)", () => {
     const client = await createClient({
       email: "casey@example.com",
       name: "Casey Client",
+      phone: "(646) 555-0100",
     });
     const agent = await signIn("casey@example.com");
 
@@ -120,6 +129,7 @@ describe("connecting an Account to its records (ADR-0006)", () => {
     const client = await createClient({
       email: "casey@work.example.com",
       name: "Casey Client",
+      phone: "(646) 555-0100",
     });
     expect((await me(agent)).roles).toEqual([]);
 
@@ -134,7 +144,11 @@ describe("connecting an Account to its records (ADR-0006)", () => {
       name: "Cory Cleaner",
       roles: ["cleaner"],
     });
-    await createClient({ email: "cory@example.com", name: "Cory Cleaner" });
+    await createClient({
+      email: "cory@example.com",
+      name: "Cory Cleaner",
+      phone: "(646) 555-0100",
+    });
 
     const account = await me(await signIn("cory@example.com"));
 
@@ -243,7 +257,11 @@ describe("Google", () => {
   const google = { sub: "107229176673569254139", email: "casey@example.com" };
 
   test("works as the very first sign-in, and again next time", async () => {
-    await createClient({ email: "casey@example.com", name: "Casey Client" });
+    await createClient({
+      email: "casey@example.com",
+      name: "Casey Client",
+      phone: "(646) 555-0100",
+    });
 
     const first = await signInWithGoogle(google);
     const again = await signInWithGoogle(google);
@@ -335,7 +353,11 @@ describe("authorize()", () => {
   });
 
   test("rejects Accounts without one of the roles with 403", async () => {
-    await createClient({ email: "casey@example.com", name: "Casey Client" });
+    await createClient({
+      email: "casey@example.com",
+      name: "Casey Client",
+      phone: "(646) 555-0100",
+    });
 
     const res = await request(app)
       .get("/office-only")

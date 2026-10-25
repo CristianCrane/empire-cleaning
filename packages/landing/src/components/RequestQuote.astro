@@ -1,22 +1,24 @@
 ---
-import { buttonStyles } from "@empire-cleaning/ui";
-import { Phone } from "lucide-react";
 import { business } from "../business.ts";
+import { QuoteForm } from "./QuoteForm.tsx";
 import Section from "./Section.astro";
+
+// where the Guest form sends Quote Requests: the API's public address
+const apiUrl = import.meta.env.PUBLIC_API_URL ?? "http://localhost:3000";
 ---
 
-{/* the Quote Request form replaces the phone fallback in #3 */}
 <Section
   id="quote"
   title="Request a Quote"
-  intro="Call us and we'll put your Quote together. Online requests are coming soon."
+  intro="Tell us about your home and we'll email you a Quote, usually within a working day. No account needed."
   tone="raised"
 >
-  <a
-    href={business.phone.href}
-    class={buttonStyles({ variant: "primary", className: "self-start px-6 text-lg" })}
-  >
-    <Phone aria-hidden size={20} />
-    Call {business.phone.display}
-  </a>
+  {/* loads when the section scrolls into view */}
+  <QuoteForm client:visible apiUrl={apiUrl} />
+  <p class="text-sm text-fg-muted">
+    Prefer to talk? Call us on
+    <a href={business.phone.href} class="font-semibold text-fg"
+      >{business.phone.display}</a
+    >.
+  </p>
 </Section>
