@@ -1,17 +1,6 @@
 import { Card, Heading } from "@empire-cleaning/ui";
 
-// each area's first screen, empty until the feature tickets fill it in
-
-export function OfficeHome() {
-  return (
-    <div className="flex flex-col gap-4">
-      <Heading level={1}>Today</Heading>
-      <Card>
-        <p className="text-fg-muted">Nothing needs attention right now.</p>
-      </Card>
-    </div>
-  );
-}
+// the Cleaner area's first screen, empty until its feature tickets fill it in
 
 export function CleanerHome() {
   return (

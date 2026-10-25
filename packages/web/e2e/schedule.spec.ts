@@ -96,7 +96,10 @@ test("the Schedule opens on this week, and moves a week at a time", async ({
 }) => {
   await signInAsOffice(page);
 
-  await page.getByRole("link", { name: "Schedule" }).click();
+  await page
+    .getByRole("navigation", { name: "Office" })
+    .getByRole("link", { name: "Schedule" })
+    .click();
   const days = page.getByRole("list", { name: "Days" }).getByRole("listitem");
   await expect(days).toHaveCount(7);
   await expect(days.first()).toContainText(/^Mon,/);

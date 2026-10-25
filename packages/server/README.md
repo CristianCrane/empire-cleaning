@@ -92,3 +92,10 @@ Everything here is for Office Staff. Days are Empire Cleaning's own, in New York
 - `GET /api/schedule/capacity?date=&labourHours=` says whether a day's free hours cover a booking. Accepting a Quote (#8) will call `hasRoomFor()` directly.
 
 Jobs (`#features/jobs`) hold only what the Schedule needs so far: Property, Clean Type, start, Labour Hours, Crew Size and a `booked` status. Nothing in the API books one until #8, so tests use `bookedJob()` from `tests/fixtures.ts` (and the e2e control server's `POST /jobs`).
+
+## Office dashboard
+
+`#features/dashboard`, for Office Staff only.
+
+- `GET /api/dashboard/needs-attention` lists what is waiting on the Office, a kind at a time in the order to deal with them, oldest first within each kind. Each item has a `kind` and that kind's own record. So far the only kind is `quote_request`: requests awaiting a Quote (every open request, until #5). **To add a kind**, add its type to `NeedsAttentionItem` in `@empire-cleaning/models` and its source to `sources` in `needs-attention.ts`; the web app's `Dashboard.tsx` then needs its case to compile.
+- `GET /api/dashboard/today` is today's Schedule day (per the Clock, in New York), with each Job's `assignment` and `outcome`. Until #9, #10 and #11, every Job is `unassigned` with no outcome.

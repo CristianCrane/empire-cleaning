@@ -261,6 +261,13 @@ export const openQuoteRequests = async (): Promise<OpenQuoteRequest[]> => {
   }));
 };
 
+// the requests waiting for the Office to send a Quote, longest waiting first.
+// Until Quotes exist (#5) that's every open request; #5 leaves out those with
+// a Quote Sent.
+export const quoteRequestsAwaitingQuote = async (): Promise<
+  OpenQuoteRequest[]
+> => (await openQuoteRequests()).reverse();
+
 // one request in full for the Office, with the Suggested Price for both Clean
 // Types worked out now from the current Price List, using the home's current
 // details and Condition (which Staff may have corrected). Freezing it into a
