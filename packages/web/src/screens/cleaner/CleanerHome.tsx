@@ -15,8 +15,11 @@ import {
   formatTime,
 } from "../format.ts";
 
-// whether the Cleaner has taken their place yet
+// whether the Cleaner has taken their place yet, or once done, that it is
 export function PlaceBadge({ job }: { job: CleanerJob }) {
+  if (job.outcome === "completed") {
+    return <StatusBadge tone="success">Completed</StatusBadge>;
+  }
   return job.assignment.status === "confirmed" ? (
     <StatusBadge tone="success">Confirmed</StatusBadge>
   ) : (

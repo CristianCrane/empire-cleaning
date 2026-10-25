@@ -4,8 +4,18 @@ import type {
   QuoteRequestSubmission,
 } from "@empire-cleaning/models";
 import { db } from "#db";
-import { createClient } from "#features/clients";
+import { findClientByEmail, createClient } from "#features/clients";
 import { bookJob } from "#features/jobs";
+import { savePaymentMethod, startCardForm } from "#features/payments";
+import { currentPriceList } from "#features/price-list";
+import { submitQuoteRequest } from "#features/quote-requests";
+import {
+  acceptQuote,
+  saveDraft,
+  sendQuote,
+  startDraft,
+} from "#features/quotes";
+import { dayOf, timeOf } from "#services/clock";
 import { properties } from "#features/properties";
 import { createStaff } from "#features/staff";
 import { addressKey } from "../src/features/properties/address.ts";
@@ -94,4 +104,57 @@ export const bookedJob = async ({
     crewSize,
     cleanType,
   });
+};
+
+/**
+ * A Deep Clean booked the way the business books them, for tests about Jobs
+ * that need a price: a Guest's Quote Request (with these Add-ons, by name),
+ * Quoted and Sent by `byAccountId`, a card saved by the Client, and
+ * acceptance recorded by the Office, which takes the Deposit.
+ */
+export const acceptedJob = async ({
+  startsAt,
+  byAccountId,
+  crewSize = 1,
+  depositPercent = 25,
+  addOns = [],
+  client = casey,
+}: {
+  startsAt: string;
+  byAccountId: string;
+  crewSize?: number;
+  depositPercent?: number;
+  addOns?: string[];
+  client?: typeof casey;
+}) => {
+  const list = await currentPriceList();
+  const keys = list.addOns
+    .filter((a) => addOns.includes(a.name))
+    .map((a) => a.key);
+  const receipt = await submitQuoteRequest(
+    null,
+    guestRequest({ contact: client, addOns: keys }),
+  );
+  const { quote } = await startDraft(receipt.id, byAccountId);
+  const at = new Date(startsAt);
+  await saveDraft(quote.id, {
+    addOns: keys,
+    crewSize,
+    depositPercent,
+    validityDays: quote.validityDays,
+    proposedStart: { date: dayOf(at), time: timeOf(at) },
+    overrides: { deep: null, standard: null },
+  });
+  await sendQuote(quote.id);
+
+  const owner = (await findClientByEmail(client.email))!;
+  const form = await startCardForm(owner);
+  await savePaymentMethod(owner, form.secret);
+  const accepted = await acceptQuote(
+    quote.id,
+    { cleanType: "deep" },
+    { by: "office", accountId: byAccountId },
+  );
+  if (accepted.status !== "accepted") throw new Error("not accepted");
+  return accepted.job;
 };

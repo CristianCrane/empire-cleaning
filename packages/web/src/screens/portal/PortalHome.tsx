@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { Key, ReactNode } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import type { QuoteRequestState } from "@empire-cleaning/models";
 import {
@@ -30,10 +30,14 @@ const requestBadge: Record<QuoteRequestState, ReactNode> = {
 };
 
 export function PortalHome() {
-  const { client, quotes, jobs } = useLoaderData({ from: "/portal/" });
+  const { client, quotes, jobs, pastJobs } = useLoaderData({
+    from: "/portal/",
+  });
   const navigate = useNavigate();
   const [firstName] = client.name.split(" ");
   const homes = new Map(client.properties.map((p) => [p.id, p]));
+  const openJob = (id: Key) =>
+    navigate({ to: "/portal/jobs/$jobId", params: { jobId: String(id) } });
 
   return (
     <div className="flex flex-col gap-6">
@@ -49,7 +53,7 @@ export function PortalHome() {
           title="Your upcoming Jobs"
           description="We email a reminder the day before each one."
         >
-          <List aria-label="Your upcoming Jobs">
+          <List aria-label="Your upcoming Jobs" onAction={openJob}>
             {jobs.map((job) => (
               <ListItem
                 key={job.id}
@@ -61,6 +65,34 @@ export function PortalHome() {
                   `About ${formatHours(job.hoursOnSite)} on site`,
                 ].join(" · ")}
                 end={<StatusBadge tone="success">Booked</StatusBadge>}
+              />
+            ))}
+          </List>
+        </Card>
+      )}
+
+      {pastJobs.length > 0 && (
+        <Card title="Your past Jobs" description="Each with its receipt.">
+          <List aria-label="Your past Jobs" onAction={openJob}>
+            {pastJobs.map((job) => (
+              <ListItem
+                key={job.id}
+                id={job.id}
+                title={formatDateTime(job.startsAt)}
+                description={[
+                  cleanTypeLabel[job.cleanType],
+                  addressOf(job.property),
+                  formatMoney(job.totalCents),
+                ].join(" · ")}
+                end={
+                  job.unpaid ? (
+                    <StatusBadge tone="danger">Unpaid</StatusBadge>
+                  ) : job.awaitingAnswer > 0 ? (
+                    <StatusBadge tone="warning">Needs your answer</StatusBadge>
+                  ) : (
+                    <StatusBadge tone="success">Done</StatusBadge>
+                  )
+                }
               />
             ))}
           </List>

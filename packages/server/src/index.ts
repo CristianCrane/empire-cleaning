@@ -1,3 +1,4 @@
+import { chaseProposedAdjustments } from "#features/completion";
 import { sendDueReminders } from "#features/jobs";
 import { app } from "./server.ts";
 import env from "./env.ts";
@@ -9,9 +10,15 @@ app.listen(env.PORT, () => {
 // day-before reminders go out from 8am; looking every 10 minutes sends them
 // soon after, and running twice (or on two servers) sends nothing twice
 const REMINDER_CHECK_MS = 10 * 60 * 1000;
+// and so do reminders and lapses of increases proposed to Clients
 const remind = () =>
-  sendDueReminders().catch((error) =>
-    console.error("reminders not sent:", error),
-  );
+  Promise.all([
+    sendDueReminders().catch((error) =>
+      console.error("reminders not sent:", error),
+    ),
+    chaseProposedAdjustments().catch((error) =>
+      console.error("proposed Adjustments not chased:", error),
+    ),
+  ]);
 void remind();
 setInterval(remind, REMINDER_CHECK_MS);

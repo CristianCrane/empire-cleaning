@@ -54,6 +54,35 @@ export const bookJob = (job: {
   cleanType?: "standard" | "deep";
 }) => control("/jobs", { method: "POST", body: JSON.stringify(job) });
 
+// a Deep Clean booked by accepting a Quote, so it has a price: Quoted by
+// the Office Staff member with `officeEmail` (signed up already), with a
+// card saved by the Client and the Deposit taken
+export const acceptedJob = (job: {
+  startsAt: string;
+  officeEmail: string;
+  crewSize?: number;
+  depositPercent?: number;
+  addOns?: string[];
+}) =>
+  control("/jobs/accepted", {
+    method: "POST",
+    body: JSON.stringify(job),
+  }) as Promise<{ id: string }>;
+
+// a Job marked Completed by a Cleaner with a Confirmed place on it
+export const completeJob = (
+  jobId: string,
+  staffId: string,
+  input: {
+    condition: "light" | "moderate" | "heavy";
+    reports: { kind: "extra_time"; hours: number; reason: string }[];
+  },
+) =>
+  control(`/jobs/${jobId}/complete`, {
+    method: "POST",
+    body: JSON.stringify({ staffId, ...input }),
+  });
+
 // a place on a Job Offered to a Cleaner (and Confirmed by them, if asked)
 export const offerPlace = (
   jobId: string,
@@ -68,6 +97,10 @@ export const offerPlace = (
 // moves the API's clock (it starts at 9:00 UTC on Monday 5 January 2026)
 export const setClock = (at: string) =>
   control("/clock", { method: "POST", body: JSON.stringify({ at }) });
+
+// an Account for this email, signed up the way people do, without a browser
+export const signUp = (email: string) =>
+  control("/sessions", { method: "POST", body: JSON.stringify({ email }) });
 
 // as if the person had signed in with Google, which has this picture of them
 export const setGooglePicture = (email: string, picture: string) =>

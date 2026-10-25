@@ -326,6 +326,12 @@ describe("a Cleaner's Jobs", () => {
         { name: "Dee Cleaner", status: "offered" },
       ],
       assignment: { id: assignmentId, status: "offered", canRelease: true },
+      outcome: null,
+      started: false,
+      canComplete: false,
+      // a Job no Quote booked has nothing to report
+      reportable: { quoted: [], others: [] },
+      completion: null,
     });
     expect(JSON.stringify(seen)).not.toMatch(/cents|price|deposit|payment/i);
 

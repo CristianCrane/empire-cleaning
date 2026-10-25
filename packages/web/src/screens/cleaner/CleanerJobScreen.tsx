@@ -21,9 +21,11 @@ import {
   formatHours,
 } from "../format.ts";
 import { PlaceBadge } from "./CleanerHome.tsx";
+import { CompleteJob, Completed, NotYet } from "./CompleteJob.tsx";
 
 // One Job as its Cleaner sees it: where, what, and who with, never prices.
-// They Confirm or Release their place here.
+// They Confirm or Release their place here, and on the day mark it
+// Completed.
 export function CleanerJobScreen() {
   const job = useLoaderData({ from: "/cleaner/jobs/$jobId" });
 
@@ -42,7 +44,15 @@ export function CleanerJobScreen() {
         </div>
       </div>
 
-      <YourPlace job={job} />
+      {job.outcome === "completed" ? (
+        <Completed job={job} />
+      ) : (
+        <>
+          <NotYet job={job} />
+          {job.canComplete && <CompleteJob job={job} />}
+          <YourPlace job={job} />
+        </>
+      )}
 
       <Card title="Where">
         <p>{addressOf(job.property)}</p>

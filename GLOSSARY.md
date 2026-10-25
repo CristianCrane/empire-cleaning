@@ -155,7 +155,7 @@ A partial payment, taken when a Quote is accepted, that must succeed before anyt
 _Avoid_: Down payment, prepayment, booking fee
 
 **Balance**:
-What is charged when a Job is Completed: its price including Adjustments, less any Deposit already paid. A negative Balance is refunded.
+What is charged when a Job is Completed: its price including Adjustments, less any Deposit already paid. A negative Balance is refunded. An increase the Client approves after completion is charged then, as the rest of the Balance.
 _Avoid_: Remainder, final payment, outstanding amount
 
 **Charge**:
@@ -167,9 +167,9 @@ A reduction, 10% unless set otherwise on the Quote, on the base price of each Jo
 _Avoid_: Loyalty discount, subscription discount, recurring rate
 
 **Adjustment**:
-A recorded change to a Job's quoted price, with a reason, made by the assigned Staff at completion; increases need the Client's approval on site.
+A recorded change to a Job's quoted price, with a reason, from what the assigned Staff report at completion: an Add-on done on the day, a quoted Add-on not done, or extra time. Staff never set amounts: each is priced from the Price List the Job's Quote used. Reductions count at once; an increase counts only once Office Staff have proposed it and the Client has approved it in the portal, within 7 days (ADR-0009).
 _Avoid_: Surcharge, discount, extra
 
 **Unpaid**:
-A Completed Job whose Balance Charge has failed and not yet been recovered.
+A Completed Job whose Balance, or part of it, failed to be charged and has not yet been recovered.
 _Avoid_: Overdue, outstanding, failed payment

@@ -1,5 +1,12 @@
-import type { NeedsAttentionItem } from "@empire-cleaning/models";
+import { inArray } from "drizzle-orm";
+import type { NeedsAttentionItem, ScheduledJob } from "@empire-cleaning/models";
 import { unassignedJobsWithin } from "../assignments/assignments.ts";
+import {
+  jobsWithReportedAdjustments,
+  unpaidJobs,
+} from "../completion/completion.ts";
+import { jobs } from "../jobs/jobs.schema.ts";
+import { scheduledJobs } from "../jobs/schedule.ts";
 import { quoteRequestsAwaitingQuote } from "../quote-requests/quote-requests.ts";
 import { noRoomSince, quotesWithoutRoom } from "../quotes/quote-room.ts";
 import { quotesExpiringWithin } from "../quotes/quote-state.ts";
@@ -21,6 +28,41 @@ const unassignedJobs: Source = async () =>
     since,
     job,
   }));
+
+// the Schedule's view of these Jobs, by id
+const jobsById = async (ids: string[]) =>
+  new Map(
+    (ids.length === 0 ? [] : await scheduledJobs(inArray(jobs.id, ids))).map(
+      (job): [string, ScheduledJob] => [job.id, job],
+    ),
+  );
+
+// Completed Jobs whose Balance couldn't be charged, longest Unpaid first:
+// the Office chases them
+const unpaidJobsSource: Source = async () => {
+  const unpaid = await unpaidJobs();
+  const byId = await jobsById(unpaid.map((u) => u.jobId));
+  return unpaid.map(({ jobId, since, owedCents, reason }) => ({
+    kind: "job_unpaid",
+    since,
+    job: byId.get(jobId)!,
+    owedCents,
+    reason,
+  }));
+};
+
+// Completed Jobs with increases reported by their Cleaner, earliest first:
+// the Office proposes them to the Client or dismisses them
+const reportedAdjustments: Source = async () => {
+  const reported = await jobsWithReportedAdjustments();
+  const byId = await jobsById(reported.map((r) => r.jobId));
+  return reported.map(({ jobId, since, count }) => ({
+    kind: "adjustments_reported",
+    since,
+    job: byId.get(jobId)!,
+    count,
+  }));
+};
 
 // Sent Quotes Expiring within 48 hours, soonest first; each counts from when
 // it came within 48 hours
@@ -54,6 +96,8 @@ const quotesWithoutRoomSource: Source = async () =>
 // with them.
 const sources: Source[] = [
   unassignedJobs,
+  unpaidJobsSource,
+  reportedAdjustments,
   quotesWithoutRoomSource,
   quoteRequests,
   expiringQuotes,

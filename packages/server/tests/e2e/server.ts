@@ -25,7 +25,9 @@ const { confirmAssignment, offerAssignment } =
   await import("../../src/features/assignments/index.ts");
 const { installFakes, resetDatabase, testClock, testEmail, testPayments } =
   await import("../harness.ts");
-const { bookedJob } = await import("../fixtures.ts");
+const { acceptedJob, bookedJob } = await import("../fixtures.ts");
+const { chaseProposedAdjustments, completeJob } =
+  await import("../../src/features/completion/index.ts");
 const { db } = await import("../../src/db/index.ts");
 const { accounts } = await import("../../src/features/auth/auth.schema.ts");
 
@@ -66,6 +68,20 @@ control.post("/jobs", async (req, res) => {
   res.json(await bookedJob(req.body as Parameters<typeof bookedJob>[0]));
 });
 
+// a Deep Clean booked by accepting a Quote, so it has a price: Quoted by the
+// Office Staff member with `officeEmail` (who must have signed up), with a
+// card saved by the Client and the Deposit taken
+control.post("/jobs/accepted", async (req, res) => {
+  const { officeEmail, ...job } = req.body as {
+    officeEmail: string;
+  } & Omit<Parameters<typeof acceptedJob>[0], "byAccountId">;
+  const [account] = await db
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(eq(accounts.email, officeEmail));
+  res.json(await acceptedJob({ ...job, byAccountId: account!.id }));
+});
+
 // a place on a Job Offered to a Cleaner, as Office Staff do, and Confirmed
 // by them too if `confirmed`
 control.post("/jobs/:id/assignments", async (req, res) => {
@@ -98,6 +114,22 @@ control.post("/payments/approval", (req, res) => {
 // what the server's reminder timer does (it doesn't run here)
 control.post("/reminders", async (_req, res) => {
   res.json({ sent: await sendDueReminders() });
+});
+
+// a Job marked Completed by a Cleaner with a Confirmed place on it, as on
+// their phone
+control.post("/jobs/:id/complete", async (req, res) => {
+  const { staffId, ...input } = req.body as { staffId: string } & Parameters<
+    typeof completeJob
+  >[2];
+  await completeJob(staffId, req.params.id, input);
+  res.json({ status: "ok" });
+});
+
+// what the server's timer does to increases proposed to Clients
+control.post("/adjustments/chase", async (_req, res) => {
+  await chaseProposedAdjustments();
+  res.json({ status: "ok" });
 });
 
 // moves the API's clock, e.g. to a Quote's last two days

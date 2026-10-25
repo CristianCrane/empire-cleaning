@@ -28,6 +28,7 @@ import {
   staffAvailabilityExceptions,
   staffUsualHours,
 } from "../staff/staff.schema.ts";
+import { onSchedule } from "./jobs.ts";
 import { jobs } from "./jobs.schema.ts";
 
 // Hours are added in hundredths, so sums of 7.25 and 0.1 never drift
@@ -87,7 +88,7 @@ const cleanerHours = async (days: string[]) => {
   return byDay;
 };
 
-// booked Jobs as the Office sees them, earliest first
+// Jobs on the Schedule as the Office sees them, earliest first
 export const scheduledJobs = async (
   where: SQL | undefined,
 ): Promise<ScheduledJob[]> => {
@@ -96,7 +97,7 @@ export const scheduledJobs = async (
     .from(jobs)
     .innerJoin(properties, eq(properties.id, jobs.propertyId))
     .innerJoin(clients, eq(clients.id, properties.clientId))
-    .where(and(eq(jobs.status, "booked"), where))
+    .where(and(onSchedule(), where))
     .orderBy(jobs.startsAt);
   const assignment = await assignmentStatusOf(rows.map((r) => r.job));
 
