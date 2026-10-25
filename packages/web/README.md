@@ -14,8 +14,10 @@ Every screen is built from the design system in `packages/ui` (`@empire-cleaning
 | `/portal`                     | Clients: their Quote Requests and homes                                                                    |
 | `/portal/request`             | Clients: request a Quote for a new home or one of theirs                                                   |
 | `/portal/details`             | Clients: contact details and Access Instructions                                                           |
+| `/portal/quotes/$quoteId`     | Clients: a Quote, where its email's link leads; Decline it                                                 |
 | `/office/requests`            | Office Staff: open Quote Requests                                                                          |
 | `/office/requests/$requestId` | Office Staff: a request in full, with the Suggested Price for both Clean Types and how each was worked out |
+| `/office/quotes/$quoteId`     | Office Staff: a Draft Quote to price and send, or a Sent one as it was sent                                |
 | `/office/price-list`          | Office Staff: edit the Price List                                                                          |
 | `/office/schedule`            | Office Staff: booked Jobs and free Staff hours for a range of days, a week at a time by default            |
 | `/office/staff`               | Office Staff: everyone on Staff, and inviting someone                                                      |

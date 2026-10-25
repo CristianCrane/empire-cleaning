@@ -14,6 +14,7 @@ import {
   addressOf,
   cleanTypeLabel,
   formatDate,
+  formatDateTime,
   formatDay,
   formatHours,
   formatTime,
@@ -99,6 +100,20 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
             navigate({
               to: "/office/requests/$requestId",
               params: { requestId: request.id },
+            }),
+        };
+      }
+      case "quote_expiring": {
+        const { quote } = item;
+        return {
+          key: `quote_expiring ${quote.id}`,
+          title: quote.client.name,
+          description: `${addressOf(quote.property)} · expires ${formatDateTime(quote.expiresAt!)}`,
+          badge: <StatusBadge tone="warning">Quote expiring</StatusBadge>,
+          open: () =>
+            navigate({
+              to: "/office/quotes/$quoteId",
+              params: { quoteId: quote.id },
             }),
         };
       }

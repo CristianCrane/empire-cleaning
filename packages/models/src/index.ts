@@ -68,6 +68,8 @@ export type QuoteRequestView = {
   notes: string | null;
   addOns: AddOnChoice[];
   createdAt: string;
+  // where it stands, from its latest Quote
+  state: QuoteRequestState;
 };
 
 export type ClientView = ContactDetails & {
@@ -181,6 +183,9 @@ export type QuoteRequestDetail = {
   client: ContactDetails & { id: string };
   property: PropertyView;
   suggested: SuggestedPrices;
+  state: QuoteRequestState;
+  // every Quote for it, newest first
+  quotes: QuoteSummary[];
 };
 
 // ---- Staff, availability and the Schedule (#7) ----
@@ -267,12 +272,19 @@ export type DayCapacity = {
 // One thing waiting on the Office, of a kind told by `kind`. Later tickets add
 // their kinds to this union: expiring Quotes (#5), Unassigned Jobs (#9),
 // Unpaid Jobs (#10), Reschedule Requests (#20), On Hold Service Plans (#15).
-export type NeedsAttentionItem = {
-  kind: "quote_request";
-  // when it started needing attention; oldest first within a kind
-  since: string;
-  quoteRequest: OpenQuoteRequest;
-};
+export type NeedsAttentionItem =
+  | {
+      kind: "quote_request";
+      // when it started needing attention
+      since: string;
+      quoteRequest: OpenQuoteRequest;
+    }
+  | {
+      // a Sent Quote within 48 hours of Expiring
+      kind: "quote_expiring";
+      since: string;
+      quote: QuoteSummary;
+    };
 
 export type NeedsAttentionKind = NeedsAttentionItem["kind"];
 
@@ -291,3 +303,108 @@ export type TodayJob = ScheduledJob & {
 
 // today's Schedule (per the Clock), for the Office dashboard
 export type Today = Omit<ScheduleDay, "jobs"> & { jobs: TodayJob[] };
+
+// ---- First Clean Quotes (#5) ----
+
+// Draft is being written by Staff and never shown to the Client; Expired is
+// worked out from the Clock (validity end or proposed time, whichever is
+// first). Accepted comes with #8.
+export type QuoteStatus =
+  "draft" | "sent" | "declined" | "expired" | "superseded";
+
+// where a Quote Request stands, from its latest Quote that isn't a Draft:
+// none yet or Expired, it's awaiting a Quote; Sent, it's quoted; Declined,
+// it has ended and the Client may ask again
+export type QuoteRequestState = "awaiting_quote" | "quoted" | "ended";
+
+// a day and a wall-clock time in New York: { date: "2026-11-03", time: "09:00" }
+export type LocalDateTime = { date: IsoDate; time: string };
+
+// one Clean Type's offer on a Quote, as the Client sees it: tax included
+export type QuoteOption = {
+  cleanType: CleanType;
+  recommended: boolean;
+  labourHours: number;
+  // Labour Hours divided by Crew Size
+  hoursOnSite: number;
+  // before tax
+  priceCents: number;
+  taxCents: number;
+  totalCents: number;
+  // the Deposit percentage of the total
+  depositCents: number;
+};
+
+// an Add-on on a Quote, with what it costs, tax included
+export type QuoteAddOn = { key: string; name: string; totalCents: number };
+
+// a Quote as its Client sees it (never a Draft)
+export type QuoteView = {
+  id: string;
+  quoteRequestId: string;
+  status: QuoteStatus;
+  property: Pick<PropertyView, "id" | "street" | "unit" | "postcode">;
+  // Deep Clean first, recommended
+  options: QuoteOption[];
+  addOns: QuoteAddOn[];
+  crewSize: number;
+  depositPercent: number;
+  proposedStartsAt: string;
+  sentAt: string;
+  expiresAt: string;
+  declinedAt: string | null;
+};
+
+// one Clean Type's offer for the Office: the Suggested Price worked out, and
+// the override that replaced it, if any
+export type OfficeQuoteOption = QuoteOption & {
+  suggested: PriceBreakdown;
+  overrideCents: number | null;
+  overrideReason: string | null;
+};
+
+// a Quote in full, for the Office
+export type OfficeQuote = Omit<
+  QuoteView,
+  "options" | "proposedStartsAt" | "sentAt" | "expiresAt"
+> & {
+  client: { id: string; name: string; email: string };
+  options: OfficeQuoteOption[];
+  priceListVersion: number;
+  validityDays: number;
+  proposedStart: LocalDateTime | null;
+  proposedStartsAt: string | null;
+  sentAt: string | null;
+  expiresAt: string | null;
+  // the Add-ons that can be put on it: those on offer, and any the request
+  // chose that have since been retired
+  addOnChoices: AddOnChoice[];
+};
+
+// what Office Staff change on a Draft (PATCH /api/quotes/:id); prices are
+// worked out again from the current Price List on every save
+export type QuoteDraftInput = {
+  addOns: string[];
+  crewSize: number;
+  depositPercent: number;
+  validityDays: number;
+  proposedStart: LocalDateTime | null;
+  // a price before tax replacing the Suggested Price, with a reason; null
+  // keeps the Suggested Price
+  overrides: Record<CleanType, { priceCents: number; reason: string } | null>;
+};
+
+// a Quote in a list, for the Office or its Client
+export type QuoteSummary = {
+  id: string;
+  quoteRequestId: string;
+  status: QuoteStatus;
+  client: { id: string; name: string };
+  property: Pick<PropertyView, "id" | "street" | "unit" | "postcode">;
+  // the recommended (Deep Clean) total, tax included
+  recommendedTotalCents: number;
+  proposedStartsAt: string | null;
+  sentAt: string | null;
+  expiresAt: string | null;
+  createdAt: string;
+};

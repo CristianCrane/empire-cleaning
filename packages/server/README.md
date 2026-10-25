@@ -49,7 +49,7 @@ In tests, `signIn(email)` from `tests/harness.ts` signs up or in the way a perso
 - **A Client** sends neither: just a new home or one of their own.
 
 - **One address is one home** per Client. Addresses are compared after normalising capitals, punctuation, spacing and common abbreviations (`features/properties/address.ts`), so "41-12 Austin Street, Apt 4B" is "41 12 austin st #4b". A different unit is a different home. Entering a known address again uses that home with the details it was first given, and only restates its Condition.
-- **One request waiting per home.** A second request for a home that already has one is refused with a 409 and a plain message. Until Quotes and Turning Down exist (#5, #6), every request is waiting.
+- **One request waiting per home.** A second request for a home that already has one waiting is refused with a 409 and a plain message. A request stops waiting when it ends: its Quote Declined (and, with #6 and #8, Turned Down or Accepted).
 - **The receipt** goes to the Client's own address, with no sign-in link. If it can't be sent, the request is still saved and the failure is logged.
 
 Validation messages are written to be shown beside the form's fields.
@@ -97,5 +97,15 @@ Jobs (`#features/jobs`) hold only what the Schedule needs so far: Property, Clea
 
 `#features/dashboard`, for Office Staff only.
 
-- `GET /api/dashboard/needs-attention` lists what is waiting on the Office, a kind at a time in the order to deal with them, oldest first within each kind. Each item has a `kind` and that kind's own record. So far the only kind is `quote_request`: requests awaiting a Quote (every open request, until #5). **To add a kind**, add its type to `NeedsAttentionItem` in `@empire-cleaning/models` and its source to `sources` in `needs-attention.ts`; the web app's `Dashboard.tsx` then needs its case to compile.
+- `GET /api/dashboard/needs-attention` lists what is waiting on the Office, a kind at a time in the order to deal with them. Each item has a `kind` and that kind's own record: `quote_request` for requests awaiting a Quote, longest waiting first, and `quote_expiring` for Sent Quotes within 48 hours of Expiring, soonest first. **To add a kind**, add its type to `NeedsAttentionItem` in `@empire-cleaning/models` and its source to `sources` in `needs-attention.ts`; the web app's `Dashboard.tsx` then needs its case to compile.
 - `GET /api/dashboard/today` is today's Schedule day (per the Clock, in New York), with each Job's `assignment` and `outcome`. Until #9, #10 and #11, every Job is `unassigned` with no outcome.
+
+## Quotes
+
+`#features/quotes`. A First Clean Quote offers both Clean Types, Deep Clean first and recommended, each with its own price, tax, total, Labour Hours and Deposit.
+
+- **Drafting** (Office Staff). `POST /api/quotes` with `{ quoteRequestId }` starts a Draft pre-filled from the Suggested Price, the Add-ons the Client chose and the Price List's Crew Size, Deposit percentage and validity (201); a request has one Draft at a time, so if it has one that's returned (200). `PATCH /api/quotes/:id` saves Add-ons, Crew Size, Deposit, validity, the proposed time (New York date and time) and **overrides**: a price before tax for either Clean Type, which needs a reason and has no lower bound. Every save prices the Draft afresh from the current Price List and the home's current details.
+- **Sending**. `POST /api/quotes/:id/send` sends the Draft exactly as last saved. It needs a proposed time still to come. It Supersedes the request's open Quote in the same transaction (a partial unique index allows one Sent Quote per request), then emails the Client a plain link to `/portal/quotes/:id`, with no sign-in power (ADR-0006). A Sent Quote never changes (409). Its options keep the whole Suggested Price breakdown they used, so Price List changes never touch it.
+- **Expiry** is at the end of validity or at the proposed time, whichever is first, read from the Clock (`statusOf` in `quote-state.ts`). Nothing runs to expire a Quote: `expired` is only written when a newer Quote is sent.
+- **Clients** (`/api/quotes/mine`, `/mine/:id`, `POST /mine/:id/decline`) see their own Quotes but never Drafts, without the Office's Suggested Price or override reasons. Only a Sent Quote can be Declined.
+- **A Quote Request's state** comes from its latest Quote that isn't a Draft: none yet or Expired is `awaiting_quote` (so the Office can send another without the Client asking again), Sent is `quoted`, Declined is `ended`. An ended request takes no more Quotes, and the Client can ask again about that home.

@@ -9,9 +9,12 @@ import {
 import type {
   ClientView,
   NeedsAttentionItem,
+  OfficeQuote,
   OpenQuoteRequest,
   PriceList,
   QuoteRequestDetail,
+  QuoteSummary,
+  QuoteView,
   ScheduleDay,
   StaffDetail,
   StaffMember,
@@ -25,6 +28,7 @@ import { Dashboard } from "./screens/office/Dashboard.tsx";
 import { PriceListScreen } from "./screens/office/PriceListScreen.tsx";
 import { QuoteRequest } from "./screens/office/QuoteRequest.tsx";
 import { QuoteRequests } from "./screens/office/QuoteRequests.tsx";
+import { QuoteScreen } from "./screens/office/QuoteScreen.tsx";
 import { ClientDetail } from "./screens/office/ClientDetail.tsx";
 import { ScheduleScreen } from "./screens/office/ScheduleScreen.tsx";
 import { StaffMemberScreen } from "./screens/office/StaffMemberScreen.tsx";
@@ -35,6 +39,7 @@ import {
   type ScheduleSearch,
 } from "./screens/office/schedule-range.ts";
 import { PortalHome } from "./screens/portal/PortalHome.tsx";
+import { PortalQuote } from "./screens/portal/PortalQuote.tsx";
 import { PortalRequest } from "./screens/portal/PortalRequest.tsx";
 import { PortalDetails } from "./screens/portal/PortalDetails.tsx";
 import { NotFound } from "./screens/NotFound.tsx";
@@ -183,6 +188,13 @@ const officeRequestRoute = createRoute({
   component: QuoteRequest,
 });
 
+const officeQuoteRoute = createRoute({
+  getParentRoute: () => officeRoute,
+  path: "/quotes/$quoteId",
+  loader: ({ params }) => getJson<OfficeQuote>(`/api/quotes/${params.quoteId}`),
+  component: QuoteScreen,
+});
+
 const officePriceListRoute = createRoute({
   getParentRoute: () => officeRoute,
   path: "/price-list",
@@ -234,8 +246,24 @@ const cleanerHomeRoute = createRoute({
 const portalHomeRoute = createRoute({
   getParentRoute: () => portalRoute,
   path: "/",
-  loader: ownClient,
+  loader: async () => {
+    const [client, quotes] = await Promise.all([
+      ownClient(),
+      getJson<QuoteSummary[]>("/api/quotes/mine"),
+    ]);
+    return { client, quotes };
+  },
   component: PortalHome,
+});
+
+// where the Quote email's link leads: signed out, the portal sends the
+// Client to sign in (or up) and back here
+const portalQuoteRoute = createRoute({
+  getParentRoute: () => portalRoute,
+  path: "/quotes/$quoteId",
+  loader: ({ params }) =>
+    getJson<QuoteView>(`/api/quotes/mine/${params.quoteId}`),
+  component: PortalQuote,
 });
 
 const portalRequestRoute = createRoute({
@@ -260,6 +288,7 @@ const routeTree = rootRoute.addChildren([
     officeHomeRoute,
     officeRequestsRoute,
     officeRequestRoute,
+    officeQuoteRoute,
     officeClientRoute,
     officePriceListRoute,
     officeStaffRoute,
@@ -270,6 +299,7 @@ const routeTree = rootRoute.addChildren([
   portalRoute.addChildren([
     portalHomeRoute,
     portalRequestRoute,
+    portalQuoteRoute,
     portalDetailsRoute,
   ]),
 ]);

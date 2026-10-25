@@ -6,6 +6,7 @@ import { properties } from "../properties/properties.schema.ts";
 import { toPropertyView } from "../properties/property-view.ts";
 import { addOnsForRequests } from "../quote-requests/add-ons.ts";
 import { quoteRequests } from "../quote-requests/quote-requests.schema.ts";
+import { requestStates } from "../quotes/quote-state.ts";
 import { clients } from "./clients.schema.ts";
 
 type NewClient = { email: string; name: string; phone: string };
@@ -77,7 +78,11 @@ export const clientView = async (
     .from(quoteRequests)
     .where(eq(quoteRequests.clientId, id))
     .orderBy(desc(quoteRequests.createdAt));
-  const addOns = await addOnsForRequests(requests.map((r) => r.id));
+  const ids = requests.map((r) => r.id);
+  const [addOns, states] = await Promise.all([
+    addOnsForRequests(ids),
+    requestStates(ids),
+  ]);
 
   return {
     id: client.id,
@@ -93,6 +98,7 @@ export const clientView = async (
       notes: r.notes,
       addOns: addOns.get(r.id) ?? [],
       createdAt: r.createdAt.toISOString(),
+      state: states.get(r.id)!,
     })),
   };
 };

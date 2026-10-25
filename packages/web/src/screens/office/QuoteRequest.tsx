@@ -1,19 +1,30 @@
-import { useLoaderData } from "@tanstack/react-router";
-import type { PriceBreakdown } from "@empire-cleaning/models";
+import { useState } from "react";
+import { useLoaderData, useNavigate } from "@tanstack/react-router";
+import type {
+  OfficeQuote,
+  PriceBreakdown,
+  QuoteRequestDetail,
+} from "@empire-cleaning/models";
 import {
   Breadcrumbs,
+  Button,
   Card,
   Heading,
   Link,
+  List,
+  ListItem,
   Notice,
   StatusBadge,
 } from "@empire-cleaning/ui";
+import { ApiError, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
+import { QuoteStatusBadge } from "../QuoteParts.tsx";
 import {
   addressOf,
   cleanTypeLabel,
   conditionLabel,
   formatDate,
+  formatDateTime,
   formatHours,
   formatMoney,
   homeSummary,
@@ -89,6 +100,8 @@ export function QuoteRequest() {
         </dl>
       </Card>
 
+      <Quotes request={request} />
+
       <section
         aria-labelledby="suggested-title"
         className="flex flex-col gap-4"
@@ -107,6 +120,81 @@ export function QuoteRequest() {
         </p>
       </section>
     </div>
+  );
+}
+
+// the request's Quotes, newest first, and the way to draft the next one
+function Quotes({ request }: { request: QuoteRequestDetail }) {
+  const navigate = useNavigate();
+  const [failure, setFailure] = useState<string>();
+  const [isStarting, setStarting] = useState(false);
+  const draft = request.quotes.find((q) => q.status === "draft");
+  const open = (quoteId: string) =>
+    navigate({ to: "/office/quotes/$quoteId", params: { quoteId } });
+
+  const start = async () => {
+    setStarting(true);
+    setFailure(undefined);
+    try {
+      const quote = await postJson<OfficeQuote>("/api/quotes", {
+        quoteRequestId: request.id,
+      });
+      await open(quote.id);
+    } catch (e) {
+      setFailure(
+        e instanceof ApiError && e.status === 409
+          ? e.message
+          : "The Draft couldn't be started. Please try again.",
+      );
+      setStarting(false);
+    }
+  };
+
+  return (
+    <Card
+      title="Quotes"
+      actions={
+        request.state !== "ended" &&
+        (draft ? (
+          <Button variant="secondary" onPress={() => void open(draft.id)}>
+            Continue the Draft
+          </Button>
+        ) : (
+          <Button isPending={isStarting} onPress={() => void start()}>
+            Draft a Quote
+          </Button>
+        ))
+      }
+    >
+      {failure && <Notice tone="danger">{failure}</Notice>}
+      {request.state === "ended" && (
+        <Notice>
+          The Client declined, so this request has ended. They can ask for a new
+          Quote.
+        </Notice>
+      )}
+      <List
+        aria-label="Quotes for this request"
+        onAction={(id) => void open(String(id))}
+        renderEmptyState={() => (
+          <p className="p-6 text-center text-fg-muted">No Quotes yet.</p>
+        )}
+      >
+        {request.quotes.map((quote) => (
+          <ListItem
+            key={quote.id}
+            id={quote.id}
+            title={`Deep Clean ${formatMoney(quote.recommendedTotalCents)}`}
+            description={
+              quote.sentAt
+                ? `Sent ${formatDate(quote.sentAt)} · for ${formatDateTime(quote.proposedStartsAt!)}`
+                : `Started ${formatDate(quote.createdAt)}`
+            }
+            end={<QuoteStatusBadge status={quote.status} />}
+          />
+        ))}
+      </List>
+    </Card>
   );
 }
 

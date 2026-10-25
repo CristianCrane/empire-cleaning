@@ -87,3 +87,31 @@ export const addDays = (day: string, days: number) =>
 // the Monday of the week a day is in
 export const mondayOf = (day: string) =>
   addDays(day, -((new Date(`${day}T00:00:00Z`).getUTCDay() + 6) % 7));
+
+const dateTimeFormat = new Intl.DateTimeFormat("en-US", {
+  weekday: "short",
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+  timeZone: BUSINESS_TIME_ZONE,
+});
+// an instant -> "Mon, Jan 12, 9:00 AM" in New York
+export const formatDateTime = (iso: string) =>
+  dateTimeFormat.format(new Date(iso));
+
+export const quoteStatusLabel = {
+  draft: "Draft",
+  sent: "Sent",
+  declined: "Declined",
+  expired: "Expired",
+  superseded: "Superseded",
+};
+
+export const quoteStatusTone = {
+  draft: "neutral",
+  sent: "info",
+  declined: "neutral",
+  expired: "warning",
+  superseded: "neutral",
+} as const;

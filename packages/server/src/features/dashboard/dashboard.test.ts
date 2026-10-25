@@ -54,12 +54,11 @@ describe("Needs attention", () => {
     ).expect(201);
     const office = await signInAsOffice();
 
-    const items = await needsAttention(office);
+    const items = (await needsAttention(office)).filter(
+      (i) => i.kind === "quote_request",
+    );
 
-    expect(items.map((i) => i.kind)).toEqual([
-      "quote_request",
-      "quote_request",
-    ]);
+    expect(items).toHaveLength(2);
     expect(items.map((i) => i.quoteRequest.client.name)).toEqual([
       "Casey Client",
       "Drew Client",

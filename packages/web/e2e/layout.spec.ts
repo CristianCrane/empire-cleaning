@@ -3,6 +3,7 @@ import {
   bookJob,
   createStaff,
   expect,
+  proposeNextMonday,
   requestQuoteAsGuest,
   setUsualWeek,
   signedInAs,
@@ -80,12 +81,17 @@ test("the Office's screens fit every width", async ({ page }) => {
   const request = new URL(page.url()).pathname;
   await page.getByRole("link", { name: "View Client" }).click();
   const client = new URL(page.url()).pathname;
+  await page.goto(request);
+  await page.getByRole("button", { name: "Draft a Quote" }).click();
+  await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
+  const draft = new URL(page.url()).pathname;
 
   for (const path of [
     "/office",
     "/office/requests",
     request,
     client,
+    draft,
     "/office/schedule?from=2027-03-01&to=2027-03-07",
     "/office/staff",
     `/office/staff/${cory.id}`,
@@ -102,6 +108,32 @@ test("the portal's screens fit every width", async ({ page }) => {
   for (const path of ["/portal", "/portal/request", "/portal/details"]) {
     await expectFitsEveryWidth(page, path);
   }
+});
+
+test("a Sent Quote fits every width, for the Office and the Client", async ({
+  page,
+  browser,
+}) => {
+  await requestQuoteAsGuest(casey, ["Inside the oven"]);
+  await createStaff(olive);
+  await signedInAs(page, olive.email);
+  await page.goto("/office/requests");
+  await page.getByText("Casey Client").click();
+  await page.getByRole("button", { name: "Draft a Quote" }).click();
+  await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
+  const quote = new URL(page.url()).pathname;
+  await proposeNextMonday(page);
+  await page.getByRole("button", { name: "Send to Casey Client" }).click();
+  await expect(page.getByRole("region", { name: "Offer" })).toBeVisible();
+
+  await expectFitsEveryWidth(page, quote);
+
+  const client = await (await browser.newContext()).newPage();
+  await signedInAs(client, casey.email);
+  await expectFitsEveryWidth(
+    client,
+    quote.replace("/office/quotes/", "/portal/quotes/"),
+  );
 });
 
 test("signing in, the welcome page and the Cleaner area fit every width", async ({

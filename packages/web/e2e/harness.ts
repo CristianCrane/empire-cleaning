@@ -37,6 +37,10 @@ export const bookJob = (job: {
   cleanType?: "standard" | "deep";
 }) => control("/jobs", { method: "POST", body: JSON.stringify(job) });
 
+// moves the API's clock (it starts at 9:00 UTC on Monday 5 January 2026)
+export const setClock = (at: string) =>
+  control("/clock", { method: "POST", body: JSON.stringify({ at }) });
+
 // as if the person had signed in with Google, which has this picture of them
 export const setGooglePicture = (email: string, picture: string) =>
   control("/accounts/picture", {
@@ -137,6 +141,21 @@ export const requestQuoteAsGuest = async (
     }),
   });
   if (!res.ok) throw new Error(`quote request: ${res.status}`);
+};
+
+// on a Draft Quote, typed segment by segment as people do: Monday 12
+// January 2026 at 9:00 AM, a week after the API's clock
+export const proposeNextMonday = async (page: Page) => {
+  await page
+    .getByRole("group", { name: "Date" })
+    .getByRole("spinbutton", { name: /month/i })
+    .click();
+  await page.keyboard.type("01122026");
+  await page
+    .getByRole("group", { name: "Start time" })
+    .getByRole("spinbutton", { name: /hour/i })
+    .click();
+  await page.keyboard.type("0900AM");
 };
 
 // what the browser does when the person comes back to this tab

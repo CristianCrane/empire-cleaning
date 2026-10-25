@@ -47,9 +47,14 @@ export function QuoteRequests() {
                 `${conditionLabel[request.condition]} · ${formatDate(request.createdAt)}`,
               ].join(" · ")}
               end={
-                request.wantsRegularService && (
-                  <StatusBadge tone="success">Regular visits</StatusBadge>
-                )
+                <div className="flex flex-wrap justify-end gap-2">
+                  {request.state === "quoted" && (
+                    <StatusBadge tone="info">Quoted</StatusBadge>
+                  )}
+                  {request.wantsRegularService && (
+                    <StatusBadge tone="success">Regular visits</StatusBadge>
+                  )}
+                </div>
               }
             />
           ))}
