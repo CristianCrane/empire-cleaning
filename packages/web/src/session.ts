@@ -24,7 +24,10 @@ export const areasFor = (account: SignedInAccount): AreaId[] =>
     account.roles.includes(areas[id].role),
   );
 
-// the signed-in Account, asked of the API once and remembered until sign-out
+// the signed-in Account, asked of the API and remembered, not asked on every
+// click. It is asked again when the person switches area or returns to the
+// tab (see router.tsx and main.tsx), and after something that can connect
+// their Account to a record (forgetAccount).
 let current: Promise<SignedInAccount | null> | undefined;
 
 export const getAccount = () =>
@@ -32,9 +35,14 @@ export const getAccount = () =>
     res.ok ? (res.json() as Promise<SignedInAccount>) : null,
   ));
 
+// asks the API again next time it is needed, e.g. after becoming a Client
+export const forgetAccount = () => {
+  current = undefined;
+};
+
 export const signOut = async () => {
   await authClient.signOut();
-  current = undefined;
+  forgetAccount();
 };
 
 // only paths inside this app, so a crafted ?next= can't send people elsewhere

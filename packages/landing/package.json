@@ -8,12 +8,14 @@
     "build": "ASTRO_TELEMETRY_DISABLED=1 astro build",
     "check": "ASTRO_TELEMETRY_DISABLED=1 astro sync && tsc -p tsconfig.json",
     "preview": "ASTRO_TELEMETRY_DISABLED=1 astro preview --port 4321",
-    "test": "ASTRO_TELEMETRY_DISABLED=1 astro build && playwright test",
+    "test": "playwright test",
     "test:install-browser": "playwright install chromium"
   },
   "dependencies": {
     "@astrojs/react": "^7.0.1",
     "@astrojs/sitemap": "^3.7.4",
+    "@empire-cleaning/models": "workspace:*",
+    "@empire-cleaning/quote-request": "workspace:*",
     "@empire-cleaning/ui": "workspace:*",
     "@tailwindcss/vite": "^4.3.3",
     "astro": "^7.3.8",

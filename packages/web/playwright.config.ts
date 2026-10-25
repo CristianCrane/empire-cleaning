@@ -31,6 +31,7 @@ export default defineConfig({
         BETTER_AUTH_URL: `http://localhost:${API_PORT}`,
         BETTER_AUTH_SECRET: "e2e-secret-at-least-32-characters-long",
         CORS_ORIGIN_URL: appUrl,
+        LANDING_ORIGIN_URL: "http://localhost:4399",
         RESEND_API_KEY: "e2e-resend-api-key",
         GOOGLE_CLIENT_ID: "e2e-google-client-id",
         GOOGLE_CLIENT_SECRET: "e2e-google-client-secret",

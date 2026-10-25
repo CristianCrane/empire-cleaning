@@ -6,6 +6,8 @@ const envSchema = z.object({
   // the web app's origin: the only browser origin trusted to call the API,
   // and where sign-in flows return to
   CORS_ORIGIN_URL: z.url(),
+  // the landing site's origin, allowed to submit Guest Quote Requests
+  LANDING_ORIGIN_URL: z.url(),
   PORT: z.coerce.number().positive().default(3000),
   DB_URL: z.url().nonempty(),
   RESEND_API_KEY: z.string().nonempty(),

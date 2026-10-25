@@ -13,6 +13,7 @@ export default defineConfig({
       APP_MODE: "dev",
       DB_URL: TEST_DB_URL,
       CORS_ORIGIN_URL: "http://localhost:5173",
+      LANDING_ORIGIN_URL: "http://localhost:4321",
       // fake credentials: the services behind them are faked in tests, and
       // Google only needs them to build sign-in URLs
       RESEND_API_KEY: "test-resend-api-key",

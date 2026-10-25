@@ -1,7 +1,9 @@
 import express from "express";
 import { toNodeHandler } from "better-auth/node";
 import { auth, router as meRouter } from "#features/auth";
-import { router as quotesRouter } from "#features/quotes";
+import { router as clientsRouter } from "#features/clients";
+import { router as propertiesRouter } from "#features/properties";
+import { router as quoteRequestsRouter } from "#features/quote-requests";
 import {
   networkLoggingMiddleware,
   corsMiddleware,
@@ -30,7 +32,9 @@ app.get("/health", (req, res) => {
 });
 
 app.use("/api/me", meRouter);
-app.use("/api/quotes", quotesRouter);
+app.use("/api/quote-requests", quoteRequestsRouter);
+app.use("/api/clients", clientsRouter);
+app.use("/api/properties", propertiesRouter);
 
 app.use(errorHandler);
 

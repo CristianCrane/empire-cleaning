@@ -6,15 +6,23 @@ import {
   redirect,
   useRouter,
 } from "@tanstack/react-router";
+import type { ClientView, OpenQuoteRequest } from "@empire-cleaning/models";
 import { RouterProvider, ToastRegion } from "@empire-cleaning/ui";
+import { getJson } from "./api.ts";
 import { AreaLayout } from "./screens/AreaLayout.tsx";
-import { CleanerHome, OfficeHome, PortalHome } from "./screens/AreaHomes.tsx";
+import { CleanerHome, OfficeHome } from "./screens/AreaHomes.tsx";
+import { QuoteRequests } from "./screens/office/QuoteRequests.tsx";
+import { ClientDetail } from "./screens/office/ClientDetail.tsx";
+import { PortalHome } from "./screens/portal/PortalHome.tsx";
+import { PortalRequest } from "./screens/portal/PortalRequest.tsx";
+import { PortalDetails } from "./screens/portal/PortalDetails.tsx";
 import { NotFound } from "./screens/NotFound.tsx";
 import { SignIn } from "./screens/SignIn.tsx";
 import { Welcome } from "./screens/Welcome.tsx";
 import {
   areas,
   areasFor,
+  forgetAccount,
   getAccount,
   safeNext,
   type AreaId,
@@ -88,13 +96,22 @@ const welcomeRoute = createRoute({
   component: Welcome,
 });
 
+// the area the person was last in; moving to another is a moment to look
+// again at what their Account is connected to
+let lastArea: AreaId | undefined;
+
 // an area is only for Accounts holding its role: anyone signed out goes to
 // sign-in (and comes back afterwards), anyone else to their own area
-const areaRoute = (id: AreaId) =>
+const areaRoute = <Id extends AreaId>(id: Id) =>
   createRoute({
     getParentRoute: () => rootRoute,
-    path: areas[id].path,
+    // the area's own path as a literal type, so its child routes are typed
+    path: areas[id].path as (typeof areas)[Id]["path"],
     beforeLoad: async ({ location }) => {
+      if (lastArea !== id) {
+        forgetAccount();
+        lastArea = id;
+      }
       const account = await getAccount();
       if (!account) {
         throw redirect({ to: "/sign-in", search: { next: location.href } });
@@ -107,34 +124,78 @@ const areaRoute = (id: AreaId) =>
     component: () => <AreaLayout area={id} />,
   });
 
+// the signed-in Client with their homes and Quote Requests
+const ownClient = () => getJson<ClientView>("/api/clients/me");
+
 const officeRoute = areaRoute("office");
 const cleanerRoute = areaRoute("cleaner");
 const portalRoute = areaRoute("portal");
+
+// every route is a named constant: TanStack loses a route's types (and with
+// them every link's checking) when it's written inline inside addChildren()
+
+const officeHomeRoute = createRoute({
+  getParentRoute: () => officeRoute,
+  path: "/",
+  component: OfficeHome,
+});
+
+const officeRequestsRoute = createRoute({
+  getParentRoute: () => officeRoute,
+  path: "/requests",
+  loader: () => getJson<OpenQuoteRequest[]>("/api/quote-requests"),
+  component: QuoteRequests,
+});
+
+const officeClientRoute = createRoute({
+  getParentRoute: () => officeRoute,
+  path: "/clients/$clientId",
+  loader: ({ params }) =>
+    getJson<ClientView>(`/api/clients/${params.clientId}`),
+  component: ClientDetail,
+});
+
+const cleanerHomeRoute = createRoute({
+  getParentRoute: () => cleanerRoute,
+  path: "/",
+  component: CleanerHome,
+});
+
+const portalHomeRoute = createRoute({
+  getParentRoute: () => portalRoute,
+  path: "/",
+  loader: ownClient,
+  component: PortalHome,
+});
+
+const portalRequestRoute = createRoute({
+  getParentRoute: () => portalRoute,
+  path: "/request",
+  loader: ownClient,
+  component: PortalRequest,
+});
+
+const portalDetailsRoute = createRoute({
+  getParentRoute: () => portalRoute,
+  path: "/details",
+  loader: ownClient,
+  component: PortalDetails,
+});
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
   signInRoute,
   welcomeRoute,
   officeRoute.addChildren([
-    createRoute({
-      getParentRoute: () => officeRoute,
-      path: "/",
-      component: OfficeHome,
-    }),
+    officeHomeRoute,
+    officeRequestsRoute,
+    officeClientRoute,
   ]),
-  cleanerRoute.addChildren([
-    createRoute({
-      getParentRoute: () => cleanerRoute,
-      path: "/",
-      component: CleanerHome,
-    }),
-  ]),
+  cleanerRoute.addChildren([cleanerHomeRoute]),
   portalRoute.addChildren([
-    createRoute({
-      getParentRoute: () => portalRoute,
-      path: "/",
-      component: PortalHome,
-    }),
+    portalHomeRoute,
+    portalRequestRoute,
+    portalDetailsRoute,
   ]),
 ]);
 

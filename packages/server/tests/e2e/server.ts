@@ -47,8 +47,14 @@ control.post("/staff", async (req, res) => {
 });
 
 control.post("/clients", async (req, res) => {
-  const { email, name } = req.body as { email: string; name: string };
-  res.json(await createClient({ email, name }));
+  const { email, name, phone } = req.body as {
+    email: string;
+    name: string;
+    phone?: string;
+  };
+  res.json(
+    await createClient({ email, name, phone: phone ?? "(646) 555-0100" }),
+  );
 });
 
 control.get("/emails", (req, res) => {

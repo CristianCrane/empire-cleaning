@@ -2,7 +2,7 @@ import type { ErrorRequestHandler } from "express";
 import type { ZodError } from "zod";
 import env from "../env.ts";
 
-type StatusCode = 400 | 401 | 403 | 404 | 500;
+type StatusCode = 400 | 401 | 403 | 404 | 409 | 500;
 
 export class APIError extends Error {
   public readonly statusCode: StatusCode;
@@ -87,6 +87,14 @@ export class ForbiddenError extends APIError {
 export class NotFoundError extends APIError {
   constructor(message: string = "Not found") {
     super(message, 404);
+  }
+}
+
+// the request is fine but clashes with what already exists, e.g. a Quote
+// Request for a home that already has one waiting
+export class ConflictError extends APIError {
+  constructor(message: string) {
+    super(message, 409);
   }
 }
 

@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Link } from "./Link.tsx";
+import { ButtonLink, Link } from "./Link.tsx";
 
 const meta = {
   title: "Components/Link",
@@ -18,4 +18,8 @@ export const InText: Story = {
       Your Quote is ready. <Link {...args} /> to accept it.
     </p>
   ),
+};
+
+export const AsAButton: Story = {
+  render: () => <ButtonLink href="#">Request a Quote</ButtonLink>,
 };

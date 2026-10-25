@@ -2,9 +2,21 @@ import type { EmailMessage, EmailSender } from "#services/email";
 
 export class FakeEmailSender implements EmailSender {
   readonly sent: EmailMessage[] = [];
+  private failing = false;
 
   async send(message: EmailMessage) {
+    if (this.failing) throw new Error("the email service is down");
     this.sent.push(message);
+  }
+
+  // sends fail from now on, as when the email service is down, until
+  // sendNormally()
+  failSending() {
+    this.failing = true;
+  }
+
+  sendNormally() {
+    this.failing = false;
   }
 
   to(address: string) {

@@ -4,8 +4,7 @@ import { accounts } from "../auth/auth.schema.ts";
 
 // a person or business Empire Cleaning has a relationship with, from their
 // first Quote Request onward. Created by Quote Requests, never by signing
-// up; an Account is connected to it by proven email (ADR-0006). The rest of
-// a Client's details arrive with Quote Requests (#3).
+// up; an Account is connected to it by proven email (ADR-0006).
 export const clients = pgTable("clients", {
   id: uuid("id").primaryKey().defaultRandom(),
   // the Account connected to this Client, once someone has signed up with
@@ -16,6 +15,8 @@ export const clients = pgTable("clients", {
   name: text("name").notNull(),
   // where we send Quotes and notices; stored lowercased
   email: text("email").notNull().unique(),
+  // shown to the Cleaners assigned to a Job, on the day
+  phone: text("phone").notNull(),
   ...timestamps,
 });
 

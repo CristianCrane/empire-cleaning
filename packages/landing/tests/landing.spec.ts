@@ -1,6 +1,13 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import { business } from "../src/business.ts";
+import { emailsTo, expect, test } from "./harness.ts";
+
+// the form loads once its section scrolls into view
+const openQuoteForm = async (page: Page) => {
+  await page.goto("/#quote");
+  await expect(page.getByRole("textbox", { name: "Full name" })).toBeVisible();
+};
 
 const sections = [
   "What we clean",
@@ -35,7 +42,7 @@ for (const theme of ["light", "dark"] as const) {
     });
 
     test("has no accessibility violations", async ({ page }) => {
-      await page.goto("/");
+      await openQuoteForm(page);
 
       const { violations } = await new AxeBuilder({ page }).analyze();
 
@@ -55,19 +62,119 @@ test("everything reads and works without JavaScript", async ({ browser }) => {
   await expect(
     page.getByRole("link", { name: `Call ${business.phone.display}` }).first(),
   ).toHaveAttribute("href", business.phone.href);
+  // no form that couldn't send anything: the Quote section offers the phone
+  await expect(page.locator("#quote form")).toHaveCount(0);
+  await expect(page.locator("#quote")).toContainText(
+    "and we'll put your Quote together",
+  );
   await context.close();
 });
 
-test("the theme toggle is the only JavaScript on the page", async ({
+test.describe("requesting a Quote", () => {
+  const fillIn = async (page: Page, zip = "11375") => {
+    await page.getByRole("textbox", { name: "Full name" }).fill("Casey Client");
+    await page
+      .getByRole("textbox", { name: "Email" })
+      .fill("casey@example.com");
+    await page.getByRole("textbox", { name: "Phone" }).fill("(646) 555-0100");
+    await page.getByText("Apartment", { exact: true }).click();
+    await page
+      .getByRole("textbox", { name: "Street address" })
+      .fill("41-12 Austin St");
+    await page.getByRole("textbox", { name: "ZIP code" }).fill(zip);
+  };
+
+  test("a Guest sends it and is told where the Quote will go", async ({
+    page,
+  }) => {
+    await openQuoteForm(page);
+    await fillIn(page);
+    await page.getByText("Heavy", { exact: true }).click();
+    await page
+      .getByText("After my first clean, I'd like regular visits", {
+        exact: false,
+      })
+      .click();
+
+    await page.getByRole("button", { name: "Request a Quote" }).click();
+
+    await expect(
+      page.getByText("Thanks, we've got your request"),
+    ).toBeVisible();
+    await expect(
+      page.getByText("We'll email your Quote to casey@example.com"),
+    ).toBeVisible();
+    const [receipt] = await emailsTo("casey@example.com");
+    expect(receipt?.subject).toBe("We've received your Quote Request");
+  });
+
+  test("the API's explanation shows beside the field", async ({ page }) => {
+    await openQuoteForm(page);
+    await fillIn(page, "1137");
+
+    await page.getByRole("button", { name: "Request a Quote" }).click();
+
+    const zip = page.getByRole("textbox", { name: "ZIP code" });
+    await expect(zip).toHaveAttribute("aria-invalid", "true");
+    await expect(zip).toHaveAccessibleDescription(/Enter a 5-digit ZIP code/);
+    expect(await emailsTo("casey@example.com")).toEqual([]);
+  });
+
+  test("asking again about the same home explains a Quote is on its way", async ({
+    page,
+  }) => {
+    await openQuoteForm(page);
+    await fillIn(page);
+    await page.getByRole("button", { name: "Request a Quote" }).click();
+    await expect(
+      page.getByText("Thanks, we've got your request"),
+    ).toBeVisible();
+
+    await page.reload();
+    await openQuoteForm(page);
+    await fillIn(page);
+    await page.getByRole("button", { name: "Request a Quote" }).click();
+
+    await expect(
+      page.getByText(
+        "You've already asked us for a Quote for this home. We'll email it to casey@example.com soon.",
+      ),
+    ).toBeVisible();
+    // the form stays, nothing was sent twice
+    await expect(
+      page.getByRole("textbox", { name: "Full name" }),
+    ).toBeVisible();
+    expect(await emailsTo("casey@example.com")).toHaveLength(1);
+  });
+
+  test("required details are asked for before anything is sent", async ({
+    page,
+  }) => {
+    await openQuoteForm(page);
+
+    await page.getByRole("button", { name: "Request a Quote" }).click();
+
+    await expect(
+      page.getByRole("textbox", { name: "Full name" }),
+    ).toHaveAttribute("aria-invalid", "true");
+    await expect(page.getByText("Thanks, we've got your request")).toHaveCount(
+      0,
+    );
+  });
+});
+
+test("the only JavaScript is the theme toggle and the Quote form", async ({
   page,
 }) => {
   await page.goto("/");
 
-  await expect(page.locator("astro-island")).toHaveCount(1);
-  await expect(page.locator("astro-island")).toHaveAttribute(
-    "component-export",
-    "ThemeToggle",
-  );
+  const islands = page.locator("astro-island");
+  await expect(islands).toHaveCount(2);
+  expect(
+    await islands.evaluateAll((all) =>
+      all.map((i) => i.getAttribute("component-export")).sort(),
+    ),
+  ).toEqual(["QuoteForm", "ThemeToggle"]);
 });
 
 test("a chosen theme applies straight away and is remembered", async ({
@@ -75,7 +182,9 @@ test("a chosen theme applies straight away and is remembered", async ({
 }) => {
   await page.goto("/");
   // the toggle hydrates once the browser is idle; Astro drops "ssr" when it has
-  await expect(page.locator("astro-island")).not.toHaveAttribute("ssr");
+  await expect(
+    page.locator(`astro-island[component-export="ThemeToggle"]`),
+  ).not.toHaveAttribute("ssr");
   await page.getByRole("button", { name: "Dark theme" }).click();
 
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
