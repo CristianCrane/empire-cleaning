@@ -21,10 +21,14 @@ import {
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { addressKey } from "../properties/address.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
-import { toPropertyView } from "../properties/property-view.ts";
+import { addressOf, toPropertyView } from "../properties/property-view.ts";
 import { currentPriceList } from "../price-list/price-list.ts";
 import { suggestedPrice } from "../price-list/suggested-price.ts";
-import { quotesForRequest, requestStates } from "../quotes/quote-state.ts";
+import {
+  isClosed,
+  quotesForRequest,
+  requestStates,
+} from "../quotes/quote-state.ts";
 import { addOnsForRequests } from "./add-ons.ts";
 import { quoteRequestAddOns, quoteRequests } from "./quote-requests.schema.ts";
 import {
@@ -143,14 +147,14 @@ export const submitQuoteRequest = async (
     }
 
     if (!isNew) {
-      // a request is waiting until it ends: its Quote Declined (and, with
-      // #6 and #8, Turned Down or Accepted)
+      // a request is waiting until it closes: its Quote Accepted or Declined
+      // (and, with #6, Turned Down)
       const asked = await tx
         .select({ id: quoteRequests.id })
         .from(quoteRequests)
         .where(eq(quoteRequests.propertyId, property!.id));
       const states = await requestStates(asked.map((r) => r.id));
-      if ([...states.values()].some((state) => state !== "ended")) {
+      if ([...states.values()].some((state) => !isClosed(state))) {
         throw new ConflictError(
           `You've already asked us for a Quote for this home. We'll email it to ${client.email} soon.`,
         );
@@ -205,9 +209,6 @@ const escapeHtml = (text: string) =>
       ]!,
   );
 
-export const addressOf = (p: Pick<Property, "street" | "unit" | "postcode">) =>
-  [p.street, p.unit, p.postcode].filter(Boolean).join(", ");
-
 // always to the Client's own address, so an existing Client hears about any
 // request made with their email; it carries no sign-in power (ADR-0006)
 const sendReceipt = async (client: Client, property: Property) => {
@@ -227,7 +228,7 @@ const sendReceipt = async (client: Client, property: Property) => {
   });
 };
 
-// the Quote Requests that haven't ended, for the Office, newest first
+// the Quote Requests that haven't closed, for the Office, newest first
 export const openQuoteRequests = async (): Promise<OpenQuoteRequest[]> => {
   const rows = await db
     .select({
@@ -253,7 +254,7 @@ export const openQuoteRequests = async (): Promise<OpenQuoteRequest[]> => {
     requestStates(ids),
   ]);
   return rows
-    .filter(({ request }) => states.get(request.id) !== "ended")
+    .filter(({ request }) => !isClosed(states.get(request.id)!))
     .map(({ request, client, property }) => ({
       id: request.id,
       propertyId: request.propertyId,

@@ -308,14 +308,16 @@ export type Today = Omit<ScheduleDay, "jobs"> & { jobs: TodayJob[] };
 
 // Draft is being written by Staff and never shown to the Client; Expired is
 // worked out from the Clock (validity end or proposed time, whichever is
-// first). Accepted comes with #8.
+// first). Accepted means the Deposit was taken and the Job booked.
 export type QuoteStatus =
-  "draft" | "sent" | "declined" | "expired" | "superseded";
+  "draft" | "sent" | "accepted" | "declined" | "expired" | "superseded";
 
 // where a Quote Request stands, from its latest Quote that isn't a Draft:
-// none yet or Expired, it's awaiting a Quote; Sent, it's quoted; Declined,
-// it has ended and the Client may ask again
-export type QuoteRequestState = "awaiting_quote" | "quoted" | "ended";
+// none yet or Expired, it's awaiting a Quote; Sent, it's quoted; Accepted,
+// it's booked; Declined, it has ended. Booked and ended requests are closed:
+// they take no more Quotes, and the Client may ask again about that home.
+export type QuoteRequestState =
+  "awaiting_quote" | "quoted" | "booked" | "ended";
 
 // a day and a wall-clock time in New York: { date: "2026-11-03", time: "09:00" }
 export type LocalDateTime = { date: IsoDate; time: string };
@@ -353,6 +355,9 @@ export type QuoteView = {
   sentAt: string;
   expiresAt: string;
   declinedAt: string | null;
+  // once Accepted: when, and the Clean Type chosen
+  acceptedAt: string | null;
+  acceptedCleanType: CleanType | null;
 };
 
 // one Clean Type's offer for the Office: the Suggested Price worked out, and
@@ -379,6 +384,9 @@ export type OfficeQuote = Omit<
   // the Add-ons that can be put on it: those on offer, and any the request
   // chose that have since been retired
   addOnChoices: AddOnChoice[];
+  // the Client's saved Payment Method, which recording acceptance on their
+  // behalf charges; null until they add one
+  paymentMethod: PaymentMethodView | null;
 };
 
 // what Office Staff change on a Draft (PATCH /api/quotes/:id); prices are
@@ -407,4 +415,35 @@ export type QuoteSummary = {
   sentAt: string | null;
   expiresAt: string | null;
   createdAt: string;
+};
+
+// ---- Accepting a Quote (#8) ----
+
+// a Client's saved Payment Method, as far as we can describe it without the
+// card itself
+export type PaymentMethodView = {
+  // e.g. "Visa ending 4242"
+  label: string;
+  savedAt: string;
+};
+
+// the payment provider's own card form, shown in the browser so card numbers
+// never reach our server (ADR-0004): which form, and the one-time secret it
+// needs. "test" is the fake provider's, for tests.
+export type CardForm =
+  | { form: "stripe"; publishableKey: string; secret: string }
+  | { form: "test"; secret: string };
+
+// POST /api/quotes/mine/:id/accept, and the Office's /api/quotes/:id/accept
+export type AcceptQuoteInput = { cleanType: CleanType };
+
+// a booked Job as its Client sees it
+export type ClientJob = {
+  id: string;
+  startsAt: string;
+  cleanType: CleanType;
+  crewSize: number;
+  // Labour Hours divided by Crew Size
+  hoursOnSite: number;
+  property: Pick<PropertyView, "id" | "street" | "unit" | "postcode">;
 };

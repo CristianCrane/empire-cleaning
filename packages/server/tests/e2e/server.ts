@@ -19,7 +19,8 @@ const { default: env } = await import("../../src/env.ts");
 const { createStaff, setUsualWeek } =
   await import("../../src/features/staff/index.ts");
 const { createClient } = await import("../../src/features/clients/index.ts");
-const { installFakes, resetDatabase, testClock, testEmail } =
+const { sendDueReminders } = await import("../../src/features/jobs/index.ts");
+const { installFakes, resetDatabase, testClock, testEmail, testPayments } =
   await import("../harness.ts");
 const { bookedJob } = await import("../fixtures.ts");
 const { db } = await import("../../src/db/index.ts");
@@ -57,10 +58,21 @@ control.put("/staff/:id/usual-week", async (req, res) => {
   res.json(await setUsualWeek(req.params.id, usualWeek));
 });
 
-// a booked Job at a home of its own: nothing in the API books Jobs until
-// accepting a Quote (#8)
+// a booked Job at a home of its own, straight onto the Schedule
 control.post("/jobs", async (req, res) => {
   res.json(await bookedJob(req.body as Parameters<typeof bookedJob>[0]));
+});
+
+// every Charge is declined with this reason from now on; null to stop
+control.post("/payments/fail", (req, res) => {
+  const { reason } = req.body as { reason: string | null };
+  testPayments().failCharges(reason);
+  res.json({ status: "ok" });
+});
+
+// what the server's reminder timer does (it doesn't run here)
+control.post("/reminders", async (_req, res) => {
+  res.json({ sent: await sendDueReminders() });
 });
 
 // moves the API's clock, e.g. to a Quote's last two days

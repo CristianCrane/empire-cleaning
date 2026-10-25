@@ -12,9 +12,11 @@ import {
 import { linkTo } from "../../links.ts";
 import {
   addressOf,
+  cleanTypeLabel,
   conditionLabel,
   formatDate,
   formatDateTime,
+  formatHours,
   formatMoney,
   homeSummary,
 } from "../format.ts";
@@ -23,11 +25,12 @@ import { QuoteStatusBadge } from "../QuoteParts.tsx";
 const requestBadge: Record<QuoteRequestState, ReactNode> = {
   awaiting_quote: <StatusBadge tone="info">Received</StatusBadge>,
   quoted: <StatusBadge tone="success">Quoted</StatusBadge>,
+  booked: <StatusBadge tone="success">Booked</StatusBadge>,
   ended: <StatusBadge>Closed</StatusBadge>,
 };
 
 export function PortalHome() {
-  const { client, quotes } = useLoaderData({ from: "/portal/" });
+  const { client, quotes, jobs } = useLoaderData({ from: "/portal/" });
   const navigate = useNavigate();
   const [firstName] = client.name.split(" ");
   const homes = new Map(client.properties.map((p) => [p.id, p]));
@@ -40,6 +43,29 @@ export function PortalHome() {
           Request a Quote
         </ButtonLink>
       </div>
+
+      {jobs.length > 0 && (
+        <Card
+          title="Your upcoming Jobs"
+          description="We email a reminder the day before each one."
+        >
+          <List aria-label="Your upcoming Jobs">
+            {jobs.map((job) => (
+              <ListItem
+                key={job.id}
+                id={job.id}
+                title={formatDateTime(job.startsAt)}
+                description={[
+                  cleanTypeLabel[job.cleanType],
+                  addressOf(job.property),
+                  `About ${formatHours(job.hoursOnSite)} on site`,
+                ].join(" · ")}
+                end={<StatusBadge tone="success">Booked</StatusBadge>}
+              />
+            ))}
+          </List>
+        </Card>
+      )}
 
       {quotes.length > 0 && (
         <Card title="Your Quotes">

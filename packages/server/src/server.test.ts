@@ -30,9 +30,11 @@ test("time can be set and advanced through the injected clock", () => {
 });
 
 test("payments go to the fake gateway, which records them", async () => {
+  const form = await paymentGateway.startCardForm();
+  expect(form.form).toBe("test");
   const { paymentMethodId } = await paymentGateway.savePaymentMethod({
     clientId: "client-1",
-    token: "tok_visa",
+    token: form.secret,
   });
   const charge = await paymentGateway.charge({
     paymentMethodId,

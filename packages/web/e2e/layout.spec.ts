@@ -105,7 +105,12 @@ test("the portal's screens fit every width", async ({ page }) => {
   await requestQuoteAsGuest(casey);
   await signedInAs(page, casey.email);
 
-  for (const path of ["/portal", "/portal/request", "/portal/details"]) {
+  for (const path of [
+    "/portal",
+    "/portal/request",
+    "/portal/details",
+    "/portal/payment-method",
+  ]) {
     await expectFitsEveryWidth(page, path);
   }
 });
@@ -134,6 +139,40 @@ test("a Sent Quote fits every width, for the Office and the Client", async ({
     client,
     quote.replace("/office/quotes/", "/portal/quotes/"),
   );
+});
+
+test("an Accepted Quote and the Client's upcoming Jobs fit every width", async ({
+  page,
+  browser,
+}) => {
+  const cory = await createStaff({
+    name: "Cory Cleaner",
+    email: "cory@example.com",
+    roles: ["cleaner"],
+  });
+  await setUsualWeek(cory.id, [8, 8, 8, 8, 8, 0, 0]);
+  await requestQuoteAsGuest(casey, ["Inside the oven"]);
+  await createStaff(olive);
+  await signedInAs(page, olive.email);
+  await page.goto("/office/requests");
+  await page.getByText("Casey Client").click();
+  await page.getByRole("button", { name: "Draft a Quote" }).click();
+  await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
+  const quote = new URL(page.url()).pathname;
+  await proposeNextMonday(page);
+  await page.getByRole("button", { name: "Send to Casey Client" }).click();
+  await expect(page.getByRole("region", { name: "Offer" })).toBeVisible();
+
+  const client = await (await browser.newContext()).newPage();
+  await signedInAs(client, casey.email);
+  const own = quote.replace("/office/quotes/", "/portal/quotes/");
+  await client.goto(own);
+  await client.getByRole("button", { name: /^Accept and pay/ }).click();
+  await expect(client.getByText("You're booked")).toBeVisible();
+
+  await expectFitsEveryWidth(page, quote);
+  await expectFitsEveryWidth(client, own);
+  await expectFitsEveryWidth(client, "/portal");
 });
 
 test("signing in, the welcome page and the Cleaner area fit every width", async ({

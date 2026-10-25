@@ -10,7 +10,7 @@ Tests exercise external behaviour through the seams in `tests/harness.ts`:
 
 - `api()` drives the real Express app over HTTP via supertest (`apiAgent()` keeps cookies between requests)
 - `testClock()` controls the time read through `#services/clock`
-- `testPayments()` is a fake Payment Gateway that records Charges and refunds and can be told to decline (`failCharges()`)
+- `testPayments()` is a fake Payment Gateway that records Charges and refunds and can be told to decline (`failCharges()`). Its card form is the web app's "test" one: any secret it handed out saves as "Test card ending 4242"
 - `testEmail()` captures every email sent through `#services/email`
 
 Fakes are fresh and every table is emptied before each test, with one `DELETE` transaction (`resetDatabase`). Not `TRUNCATE`: that creates and syncs fresh files for every table and index, which took about 4 s per test here and more with every table added.
@@ -36,7 +36,7 @@ Create the first Office Staff member (after `pnpm db:migrate`), then sign up wit
 pnpm auth:create-owner owner@example.com "Owner Name"
 ```
 
-The server refuses to start, in dev and prod alike, without `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `RESEND_API_KEY` and `CORS_ORIGIN_URL` (the web app's address): copy `.env.example` to `.env` and fill them in. `BETTER_AUTH_URL` is this API's public URL (sign-in links point at it). Tests supply fake values and fake the services behind them.
+The server refuses to start, in dev and prod alike, without `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `RESEND_API_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY` (Stripe's test-mode keys in dev) and `CORS_ORIGIN_URL` (the web app's address): copy `.env.example` to `.env` and fill them in. `BETTER_AUTH_URL` is this API's public URL (sign-in links point at it). Tests supply fake values and fake the services behind them.
 
 In tests, `signIn(email)` from `tests/harness.ts` signs up or in the way a person does and returns a signed-in agent; add the Staff or Client record first for it to connect to.
 
@@ -89,9 +89,9 @@ Everything here is for Office Staff. Days are Empire Cleaning's own, in New York
 - `POST /api/staff/:id/deactivate` ends their Staff access at once and leaves their Account and any Client untouched. The last active Office Staff member can't be deactivated (409).
 - `GET /api/staff/:id` includes their availability: a **usual week** (hours per weekday, Monday first; `PUT /api/staff/:id/usual-week`) and **exceptions** for single days, which replace that day's usual hours (`PUT` and `DELETE /api/staff/:id/exceptions/:date`). Hours are in quarter-hours.
 - `GET /api/schedule?from=&to=` returns each day of the range (at most 62): its booked Jobs, the Staff hours available, the Labour Hours booked and the difference. **Only active Cleaners' hours count**, as Labour Hours are cleaning time.
-- `GET /api/schedule/capacity?date=&labourHours=` says whether a day's free hours cover a booking. Accepting a Quote (#8) will call `hasRoomFor()` directly.
+- `GET /api/schedule/capacity?date=&labourHours=` says whether a day's free hours cover a booking. Accepting a Quote calls `hasRoomFor()` directly.
 
-Jobs (`#features/jobs`) hold only what the Schedule needs so far: Property, Clean Type, start, Labour Hours, Crew Size and a `booked` status. Nothing in the API books one until #8, so tests use `bookedJob()` from `tests/fixtures.ts` (and the e2e control server's `POST /jobs`).
+Jobs (`#features/jobs`) hold only what the Schedule needs so far: Property, Clean Type, start, Labour Hours, Crew Size, a `booked` status, when it was booked (by the Clock) and when its reminder went. Accepting a Quote books them; tests about the Schedule itself use `bookedJob()` from `tests/fixtures.ts` (and the e2e control server's `POST /jobs`).
 
 ## Office dashboard
 
@@ -108,4 +108,15 @@ Jobs (`#features/jobs`) hold only what the Schedule needs so far: Property, Clea
 - **Sending**. `POST /api/quotes/:id/send` sends the Draft exactly as last saved. It needs a proposed time still to come. It Supersedes the request's open Quote in the same transaction (a partial unique index allows one Sent Quote per request), then emails the Client a plain link to `/portal/quotes/:id`, with no sign-in power (ADR-0006). A Sent Quote never changes (409). Its options keep the whole Suggested Price breakdown they used, so Price List changes never touch it.
 - **Expiry** is at the end of validity or at the proposed time, whichever is first, read from the Clock (`statusOf` in `quote-state.ts`). Nothing runs to expire a Quote: `expired` is only written when a newer Quote is sent.
 - **Clients** (`/api/quotes/mine`, `/mine/:id`, `POST /mine/:id/decline`) see their own Quotes but never Drafts, without the Office's Suggested Price or override reasons. Only a Sent Quote can be Declined.
-- **A Quote Request's state** comes from its latest Quote that isn't a Draft: none yet or Expired is `awaiting_quote` (so the Office can send another without the Client asking again), Sent is `quoted`, Declined is `ended`. An ended request takes no more Quotes, and the Client can ask again about that home.
+- **A Quote Request's state** comes from its latest Quote that isn't a Draft: none yet or Expired is `awaiting_quote` (so the Office can send another without the Client asking again), Sent is `quoted`, Accepted is `booked`, Declined is `ended`. Booked and ended requests are closed (`isClosed`): they take no more Quotes, and the Client can ask again about that home.
+
+## Accepting a Quote
+
+Payment follows ADR-0001 and goes through the Payment Gateway (`#services/payment-gateway`, ADR-0004), with Stripe behind it (`stripe.ts`). Nothing outside that file knows it's Stripe, apart from the web app's card form.
+
+- **Payment Methods** (`#features/payments`, Clients only). `POST /api/payment-methods/mine/card-form` starts the provider's card form in the browser (`{ form, secret }`; Stripe's adds its publishable key). The browser sets the card up with the provider, so card numbers never reach us, and hands back a token for `PUT /api/payment-methods/mine`, which keeps it as the Client's one Payment Method (a new one replaces it). `GET /api/payment-methods/mine` is what's saved, or null. With Stripe the card is set up by a SetupIntent for off-session use and kept on a Stripe Customer of its own; we store only its id and a label such as "Visa ending 4242".
+- **Accepting**. `POST /api/quotes/mine/:id/accept` with `{ cleanType }` (the Client), or `POST /api/quotes/:id/accept` (Office Staff recording it on the Client's behalf, charging the card the Client saved). Only a Sent Quote that hasn't Expired can be Accepted, and the Client needs a saved Payment Method. In one transaction it locks the request and the day (`lockDay`, so two acceptances can't both take a day's last hours), checks the day has room, books the Job, charges the Deposit (none at 0%) and marks the Quote Accepted. If the day has no room nothing is charged; if the Deposit fails nothing is booked; either way it's a 409 with a message to show, and the Quote stays Sent. A Deposit charged when the booking then fails to save is refunded. The Client is emailed a booking confirmation; if it can't go, the booking stands and the failure is logged.
+- **The add-a-card link**. Office Staff never enter card details: `POST /api/payment-methods/requests` with `{ clientId }` emails the Client a plain link to `/portal/payment-method` (no sign-in power, ADR-0006).
+- **Charges** (`charges`) record each Deposit with its Job and the gateway's id, for refunds later.
+- `GET /api/jobs/mine` is the Client's booked Jobs still to come, soonest first.
+- **Reminders**. `sendDueReminders()` (`features/jobs/reminders.ts`) emails each Client whose Job is tomorrow in New York, from 8am today by the Clock, once. A Job booked the day before gets none (its confirmation has just gone). Each Job is claimed before its email and let go if the email fails, so it's safe to run often or on several servers. `src/index.ts` runs it every 10 minutes; tests call it directly (and the e2e control server's `POST /reminders`).

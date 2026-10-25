@@ -38,6 +38,8 @@ export default defineConfig({
         RESEND_API_KEY: "e2e-resend-api-key",
         GOOGLE_CLIENT_ID: "e2e-google-client-id",
         GOOGLE_CLIENT_SECRET: "e2e-google-client-secret",
+        STRIPE_SECRET_KEY: "e2e-stripe-secret-key",
+        STRIPE_PUBLISHABLE_KEY: "e2e-stripe-publishable-key",
       },
     },
     {

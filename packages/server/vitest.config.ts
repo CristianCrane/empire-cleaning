@@ -20,6 +20,8 @@ export default defineConfig({
       BETTER_AUTH_SECRET: "test-secret-at-least-32-characters-long",
       GOOGLE_CLIENT_ID: "test-google-client-id",
       GOOGLE_CLIENT_SECRET: "test-google-client-secret",
+      STRIPE_SECRET_KEY: "test-stripe-secret-key",
+      STRIPE_PUBLISHABLE_KEY: "test-stripe-publishable-key",
     },
     clearMocks: true,
     restoreMocks: true,

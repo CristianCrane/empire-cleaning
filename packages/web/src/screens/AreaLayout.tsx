@@ -76,6 +76,7 @@ const navFor: Record<AreaId, AreaNavItem[]> = {
       href: linkTo({ to: "/portal/details" }),
       label: "Your details",
       icon: UserRound,
+      alsoCurrentFor: ["/portal/payment-method"],
     },
   ],
 };

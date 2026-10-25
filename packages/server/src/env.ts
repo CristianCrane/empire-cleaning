@@ -20,6 +20,10 @@ const envSchema = z.object({
   BETTER_AUTH_SECRET: z.string().min(32),
   GOOGLE_CLIENT_ID: z.string().nonempty(),
   GOOGLE_CLIENT_SECRET: z.string().nonempty(),
+  // Stripe takes every payment (ADR-0004); test-mode keys in dev
+  STRIPE_SECRET_KEY: z.string().nonempty(),
+  // given to the browser for Stripe's card form
+  STRIPE_PUBLISHABLE_KEY: z.string().nonempty(),
 });
 
 const result = envSchema.safeParse(process.env);

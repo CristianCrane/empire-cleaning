@@ -19,10 +19,14 @@ import {
   Card,
   Checkbox,
   DatePicker,
+  Dialog,
+  DialogTrigger,
   Form,
   Heading,
   Notice,
   NumberField,
+  Radio,
+  RadioGroup,
   TextField,
   TimeField,
   showToast,
@@ -94,8 +98,18 @@ function SentQuote({ quote }: { quote: OfficeQuote }) {
               <dd>{formatDateTime(quote.declinedAt)}</dd>
             </>
           )}
+          {quote.acceptedAt && (
+            <>
+              <dt className="font-semibold">Accepted</dt>
+              <dd>
+                {formatDateTime(quote.acceptedAt)}:{" "}
+                {cleanTypeLabel[quote.acceptedCleanType!]}, booked
+              </dd>
+            </>
+          )}
         </dl>
       </Card>
+      {quote.status === "sent" && <RecordAcceptance quote={quote} />}
       <div className="grid gap-4 lg:grid-cols-2">
         {quote.options.map((option) => (
           <OptionCard
@@ -116,6 +130,144 @@ function SentQuote({ quote }: { quote: OfficeQuote }) {
         never changes: to offer something different, draft a new one.
       </p>
     </>
+  );
+}
+
+// The Client said yes another way, e.g. by phone: the Office records it,
+// charging the Deposit to the card the Client saved. Office Staff never take
+// card details, so without one they email the Client a link to add it.
+function RecordAcceptance({ quote }: { quote: OfficeQuote }) {
+  const router = useRouter();
+  const [cleanType, setCleanType] = useState<CleanType>("deep");
+  const [problem, setProblem] = useState<string>();
+  const [busy, setBusy] = useState<"accept" | "link">();
+  const chosen = quote.options.find((o) => o.cleanType === cleanType)!;
+  const [firstName] = quote.client.name.split(" ");
+
+  const attempt = async (
+    action: "accept" | "link",
+    run: () => Promise<void>,
+  ) => {
+    setBusy(action);
+    setProblem(undefined);
+    try {
+      await run();
+    } catch (e) {
+      setProblem(
+        e instanceof ApiError && e.status === 409
+          ? e.message
+          : "That didn't work. Please try again.",
+      );
+    } finally {
+      setBusy(undefined);
+    }
+  };
+
+  const accept = (close: () => void) =>
+    attempt("accept", async () => {
+      await postJson<OfficeQuote>(`/api/quotes/${quote.id}/accept`, {
+        cleanType,
+      });
+      close();
+      showToast({ tone: "success", title: "Accepted and booked" });
+      await router.invalidate();
+    });
+
+  const sendLink = () =>
+    attempt("link", async () => {
+      await postJson("/api/payment-methods/requests", {
+        clientId: quote.client.id,
+      });
+      showToast({
+        tone: "success",
+        title: `Link sent to ${quote.client.email}`,
+      });
+    });
+
+  const linkButton = (
+    <Button
+      variant="secondary"
+      isPending={busy === "link"}
+      onPress={() => void sendLink()}
+    >
+      Email {firstName} a link to add a card
+    </Button>
+  );
+
+  if (!quote.paymentMethod) {
+    return (
+      <Card
+        title="Record acceptance"
+        description="If the Client accepts by phone or in person."
+      >
+        <Notice>
+          {quote.client.name} hasn't saved a Payment Method yet. We never take
+          card details for them: email them a link to add one, then record their
+          acceptance here.
+        </Notice>
+        {problem && <Notice tone="danger">{problem}</Notice>}
+        <Actions>{linkButton}</Actions>
+      </Card>
+    );
+  }
+
+  return (
+    <Card
+      title="Record acceptance"
+      description="If the Client accepts by phone or in person."
+    >
+      <RadioGroup
+        label="Clean Type they chose"
+        value={cleanType}
+        onChange={(value) => setCleanType(value as CleanType)}
+      >
+        {quote.options.map((option) => (
+          <Radio
+            key={option.cleanType}
+            value={option.cleanType}
+            description={`${formatMoney(option.totalCents)}, Deposit ${formatMoney(option.depositCents)}`}
+          >
+            {cleanTypeLabel[option.cleanType]}
+          </Radio>
+        ))}
+      </RadioGroup>
+      <p className="text-sm text-fg-muted">
+        Charged to their {quote.paymentMethod.label}, saved{" "}
+        {formatDateTime(quote.paymentMethod.savedAt)}.
+      </p>
+      {problem && <Notice tone="danger">{problem}</Notice>}
+      <Actions>
+        {linkButton}
+        <DialogTrigger>
+          <Button>Record acceptance</Button>
+          <Dialog title="Record acceptance?" role="alertdialog">
+            {({ close }) => (
+              <>
+                <p>
+                  This charges the {formatMoney(chosen.depositCents)} Deposit to{" "}
+                  {quote.client.name}'s {quote.paymentMethod!.label} and books
+                  their {cleanTypeLabel[cleanType]} for{" "}
+                  {formatDateTime(quote.proposedStartsAt!)}. Only do this if
+                  they've told you they accept.
+                </p>
+                {problem && <Notice tone="danger">{problem}</Notice>}
+                <Actions>
+                  <Button variant="secondary" onPress={close}>
+                    Cancel
+                  </Button>
+                  <Button
+                    isPending={busy === "accept"}
+                    onPress={() => void accept(close)}
+                  >
+                    Charge and book
+                  </Button>
+                </Actions>
+              </>
+            )}
+          </Dialog>
+        </DialogTrigger>
+      </Actions>
+    </Card>
   );
 }
 

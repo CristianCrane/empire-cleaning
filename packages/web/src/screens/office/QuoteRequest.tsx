@@ -155,6 +155,7 @@ function Quotes({ request }: { request: QuoteRequestDetail }) {
       title="Quotes"
       actions={
         request.state !== "ended" &&
+        request.state !== "booked" &&
         (draft ? (
           <Button variant="secondary" onPress={() => void open(draft.id)}>
             Continue the Draft
@@ -167,6 +168,12 @@ function Quotes({ request }: { request: QuoteRequestDetail }) {
       }
     >
       {failure && <Notice tone="danger">{failure}</Notice>}
+      {request.state === "booked" && (
+        <Notice tone="success">
+          The Client accepted a Quote, so this request is booked. They can ask
+          for a new Quote.
+        </Notice>
+      )}
       {request.state === "ended" && (
         <Notice>
           The Client declined, so this request has ended. They can ask for a new

@@ -45,3 +45,5 @@ export const email: EmailSender = {
 export const setEmailSender = (next: EmailSender) => {
   current = next;
 };
+
+export * from "./compose.ts";

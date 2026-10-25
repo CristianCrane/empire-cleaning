@@ -103,6 +103,7 @@ export const formatDateTime = (iso: string) =>
 export const quoteStatusLabel = {
   draft: "Draft",
   sent: "Sent",
+  accepted: "Accepted",
   declined: "Declined",
   expired: "Expired",
   superseded: "Superseded",
@@ -111,6 +112,7 @@ export const quoteStatusLabel = {
 export const quoteStatusTone = {
   draft: "neutral",
   sent: "info",
+  accepted: "success",
   declined: "neutral",
   expired: "warning",
   superseded: "neutral",

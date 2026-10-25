@@ -15,16 +15,17 @@ import {
 import type { PriceBreakdown } from "@empire-cleaning/models";
 import { timestamps } from "../../db/index.ts";
 import { accounts } from "../auth/auth.schema.ts";
-import { cleanType } from "../jobs/jobs.schema.ts";
+import { cleanType, jobs } from "../jobs/jobs.schema.ts";
 import { priceLists } from "../price-list/price-list.schema.ts";
 import { quoteRequests } from "../quote-requests/quote-requests.schema.ts";
 
-// Accepted comes with #8. A Sent Quote whose time is up is Expired whether or
-// not this says so: "expired" is only written when a newer Quote is sent, so
-// the one-Sent-Quote rule below can hold.
+// A Sent Quote whose time is up is Expired whether or not this says so:
+// "expired" is only written when a newer Quote is sent, so the
+// one-Sent-Quote rule below can hold.
 export const quoteStatus = pgEnum("quote_status", [
   "draft",
   "sent",
+  "accepted",
   "declined",
   "expired",
   "superseded",
@@ -54,6 +55,14 @@ export const quotes = pgTable(
     // sending
     expiresAt: timestamp("expires_at", { withTimezone: true }),
     declinedAt: timestamp("declined_at", { withTimezone: true }),
+    // once Accepted: when, the Clean Type chosen, the Job it booked, and who
+    // accepted (the Client, or Office Staff on their behalf)
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    acceptedCleanType: cleanType("accepted_clean_type"),
+    jobId: uuid("job_id").references(() => jobs.id, { onDelete: "restrict" }),
+    acceptedBy: uuid("accepted_by").references(() => accounts.id, {
+      onDelete: "set null",
+    }),
     createdBy: uuid("created_by").references(() => accounts.id, {
       onDelete: "set null",
     }),

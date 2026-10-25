@@ -4,6 +4,7 @@ import { NotFoundError } from "../../middleware/errors.ts";
 import { validate } from "../../middleware/validation.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { clientForAccount } from "../clients/clients.ts";
+import { acceptQuote } from "./accept.ts";
 import { quotesForClient } from "./quote-state.ts";
 import {
   clientQuote,
@@ -13,7 +14,7 @@ import {
   sendQuote,
   startDraft,
 } from "./quotes.ts";
-import { draftSchema, startSchema } from "./quotes.validation.ts";
+import { acceptSchema, draftSchema, startSchema } from "./quotes.validation.ts";
 
 export const router = Router();
 
@@ -39,6 +40,25 @@ router.get(
   async (req, res) => {
     const client = await ownClient(signedInAccount(res).id);
     res.json(await clientQuote(String(req.params.id), client.id));
+  },
+);
+
+// accepts with the Clean Type chosen, charging the Deposit to the Client's
+// saved Payment Method and booking the Job
+router.post(
+  "/mine/:id/accept",
+  authorize("client"),
+  validate({ ...byId, body: acceptSchema }),
+  async (req, res) => {
+    const account = signedInAccount(res);
+    const client = await ownClient(account.id);
+    const id = String(req.params.id);
+    await acceptQuote(id, req.body.cleanType, {
+      by: "client",
+      clientId: client.id,
+      accountId: account.id,
+    });
+    res.json(await clientQuote(id, client.id));
   },
 );
 
@@ -92,5 +112,21 @@ router.post(
   validate(byId),
   async (req, res) => {
     res.json(await sendQuote(String(req.params.id)));
+  },
+);
+
+// records the Client's acceptance on their behalf, e.g. by phone; charges
+// their saved Payment Method
+router.post(
+  "/:id/accept",
+  authorize("office_staff"),
+  validate({ ...byId, body: acceptSchema }),
+  async (req, res) => {
+    const id = String(req.params.id);
+    await acceptQuote(id, req.body.cleanType, {
+      by: "office",
+      accountId: signedInAccount(res).id,
+    });
+    res.json(await officeQuote(id));
   },
 );
