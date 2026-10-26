@@ -53,7 +53,10 @@ function OpenTimes({
   const dates = Array.from({ length: daysIn(range.from, range.to) }, (_, i) =>
     addDays(range.from, i),
   );
-  const times = [...(limits?.times ?? [])].sort();
+  // every time on offer on some day, for the rows; each day shows its own
+  const times = [...new Set(limits?.flatMap((d) => d.times) ?? [])].sort();
+  const timesOn = (day: string) =>
+    limits?.find((d) => d.date === day)?.times ?? [];
   const axis = axisFor(
     [],
     times.map((t) => ({ start: hoursOf(t), end: hoursOf(t) + 1 })),
@@ -64,15 +67,15 @@ function OpenTimes({
       i + 1 < times.length ? hoursOf(times[i + 1]!) - hoursOf(times[i]!) : 1,
       1,
     );
-  const isOpen = (day: string) => limits?.days.includes(day) ?? false;
+  const isOpen = (day: string) => timesOn(day).length > 0;
   const isNow = (day: string, t: string) =>
     day === current?.date && t === current.time;
 
   return (
     <>
       <p className="text-sm text-fg-muted">
-        Choose a start time. A day without times has no room for your clean. New
-        York time.
+        Choose a start time. A day or time that isn't shown has no room for your
+        clean. New York time.
       </p>
       <RangeBar
         from={range.from}
@@ -116,7 +119,7 @@ function OpenTimes({
                 {formatClock(t)} Your clean now
               </div>
             ) : (
-              isOpen(day) && (
+              timesOn(day).includes(t) && (
                 <PickSlot
                   key={t}
                   at={{ date: day, time: t }}

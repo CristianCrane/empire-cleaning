@@ -23,9 +23,11 @@ import {
 } from "../format.ts";
 import {
   axisFor,
+  crewAt,
   hoursOf,
   lanesFor,
   type Block,
+  type Crew,
   snap,
   SNAP_HOURS,
   spanOf,
@@ -53,6 +55,11 @@ const toneOf = (job: ScheduledJob) =>
             label: "Unassigned",
             block: "border-warning-strong bg-warning-subtle",
           };
+
+// a time without a crew free for the clean: striped, so it reads as
+// blocked even before it's pointed at
+const NO_CREW =
+  "bg-[repeating-linear-gradient(135deg,transparent_0_6px,var(--color-danger-subtle)_6px_12px)]";
 
 // whether a Job can move onto a day: its own day always has room for it
 const hasRoomFor = (day: ScheduleDay, job: ScheduledJob) =>
@@ -87,7 +94,9 @@ type Dragging = { job: ScheduledJob; grabbedAtPx: number };
  * moves it. To choose a time instead (onPick), the Jobs are only there to
  * see, and clicking a free half hour picks it, or with limits, one of the
  * start times on offer on a day that has them; a proposed clean is drawn
- * where it would go.
+ * where it would go. Given the clean's crew, times without a crew free for
+ * it are marked: they can still be picked, for a Quote the Office may add a
+ * Cleaner for, but the server refuses to book there.
  */
 export function ScheduleCalendar({
   days,
@@ -95,12 +104,14 @@ export function ScheduleCalendar({
   onPick,
   limits,
   proposed,
+  crew,
 }: {
   days: ScheduleDay[];
   onDrop?: (job: ScheduledJob, to: LocalDateTime) => void;
   onPick?: (at: LocalDateTime) => void;
   limits?: TimePickerProps["limits"];
   proposed?: Proposed;
+  crew?: Crew & { hoursOnSite: number };
 }) {
   const proposedStart = proposed && hoursOf(proposed.start.time);
   const axis = axisFor(
@@ -109,14 +120,21 @@ export function ScheduleCalendar({
       ? []
       : [{ start: proposedStart, end: proposedStart + proposed!.hoursOnSite }],
   );
-  // the times to pick from: those on offer, or every half hour
-  const times = (
-    limits?.times ??
-    Array.from({ length: (axis.end - axis.start) / PICK_HOURS }, (_, i) =>
-      timeAt(axis.start + i * PICK_HOURS),
-    )
-  ).filter((t) => hoursOf(t) >= axis.start && hoursOf(t) < axis.end);
-  const isOpen = (date: string) => !limits || limits.days.includes(date);
+  // the times to pick from on a day: those on offer there, or every half hour
+  const everyHalfHour = Array.from(
+    { length: (axis.end - axis.start) / PICK_HOURS },
+    (_, i) => timeAt(axis.start + i * PICK_HOURS),
+  );
+  const timesOn = (date: string) =>
+    (limits
+      ? (limits.find((d) => d.date === date)?.times ?? [])
+      : everyHalfHour
+    ).filter((t) => hoursOf(t) >= axis.start && hoursOf(t) < axis.end);
+  const isOpen = (date: string) =>
+    !limits || limits.some((d) => d.date === date);
+  // whether the clean's crew would be free at a time
+  const hasCrew = (day: ScheduleDay, time: string) =>
+    !crew || crewAt(day, time, crew.hoursOnSite, crew).hasCrew;
   // which Job is being dragged, and how far down it was grabbed, so it lands
   // where it's let go; state too, so days without room for it fade
   const dragging = useRef<Dragging>(undefined);
@@ -181,23 +199,29 @@ export function ScheduleCalendar({
           <>
             {onPick &&
               isOpen(day.date) &&
-              times.map((time) => (
-                <PickSlot
-                  key={time}
-                  at={{ date: day.date, time }}
-                  axisStart={axis.start}
-                  hours={PICK_HOURS}
-                  onPick={onPick}
-                >
-                  {/* every half hour shows its time when pointed at; only
-                      some on offer, they always do */}
-                  <span
-                    className={`text-fg-muted ${limits ? "" : "opacity-0 group-hover:opacity-100"}`}
+              timesOn(day.date).map((time) => {
+                const crewFree = hasCrew(day, time);
+                return (
+                  <PickSlot
+                    key={time}
+                    at={{ date: day.date, time }}
+                    axisStart={axis.start}
+                    hours={PICK_HOURS}
+                    className={crewFree ? "" : NO_CREW}
+                    label={crewFree ? undefined : "no crew free"}
+                    onPick={onPick}
                   >
-                    {formatClock(time)}
-                  </span>
-                </PickSlot>
-              ))}
+                    {/* every half hour shows its time when pointed at; only
+                        some on offer, they always do */}
+                    <span
+                      className={`text-fg-muted ${limits ? "" : "opacity-0 group-hover:opacity-100"}`}
+                    >
+                      {formatClock(time)}
+                      {!crewFree && " · no crew free"}
+                    </span>
+                  </PickSlot>
+                );
+              })}
             <DayJobs
               jobs={day.jobs}
               proposed={

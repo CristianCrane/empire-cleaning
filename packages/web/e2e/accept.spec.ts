@@ -24,14 +24,16 @@ const casey = { name: "Casey Client", email: "casey@example.com" };
 // the API's clock is at 4am on Monday 5 January 2026 in New York; Quotes here
 // are for 9am on Monday 12 January
 
-// a Cleaner free on weekdays, so the proposed day has room
+// two Cleaners free on weekdays, so the proposed time has room for a crew of 2
 const cleanerAvailable = async () => {
-  const cory = await createStaff({
-    name: "Cory Cleaner",
-    email: "cory@example.com",
-    roles: ["cleaner"],
-  });
-  await setUsualWeek(cory.id, [8, 8, 8, 8, 8, 0, 0]);
+  for (const name of ["Cory Cleaner", "Dee Cleaner"]) {
+    const member = await createStaff({
+      name,
+      email: `${name.split(" ")[0]!.toLowerCase()}@example.com`,
+      roles: ["cleaner"],
+    });
+    await setUsualWeek(member.id, [8, 8, 8, 8, 8, 0, 0]);
+  }
 };
 
 // the Office sends Casey a Quote, and stays on its page
@@ -202,8 +204,8 @@ test("a Quote whose day has filled up can't be paid for, and the Office is asked
   browser,
 }) => {
   await quoteSent(page);
-  // another booking takes all of Monday's 8 hours
-  await bookJob({ startsAt: "2026-01-12T19:00:00Z", labourHours: 8 });
+  // another booking takes all of Monday's 16 hours, from 2pm
+  await bookJob({ startsAt: "2026-01-12T19:00:00Z", labourHours: 16 });
 
   const client = await (await browser.newContext()).newPage();
   await signedInAs(client, casey.email);

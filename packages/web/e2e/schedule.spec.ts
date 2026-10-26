@@ -70,6 +70,8 @@ test(
     const moving = (await bookJob({
       startsAt: "2027-03-04T14:00:00Z",
       labourHours: 3,
+      // Wednesday has one Cleaner
+      crewSize: 1,
     })) as { id: string };
     await setClock("2027-02-25T14:00:00Z");
     await requestReschedule(moving.id, { date: "2027-03-03", time: "13:00" });
@@ -254,8 +256,13 @@ test("Office Staff move a Job from the Job screen, at any width", async ({
   page,
 }) => {
   const job = await caseysJob();
-  // Thursday is full
+  // Thursday is full, and on Friday Cory is at another home from 9 to 10
   await bookJob({ startsAt: "2027-03-04T14:00:00Z", labourHours: 8 });
+  await bookJob({
+    startsAt: "2027-03-05T14:00:00Z",
+    labourHours: 1,
+    crewSize: 1,
+  });
   await signedInAs(page, olive.email);
   await page.goto(`/office/jobs/${job.id}`);
 
@@ -273,6 +280,10 @@ test("Office Staff move a Job from the Job screen, at any width", async ({
 
   await dayField.getByRole("spinbutton", { name: /^day/ }).click();
   await page.keyboard.type("05");
+  await expect(dialog).toContainText(
+    "Not enough Cleaners are free at 9:00 AM: this Job needs 1, and 0 of the 1 available that day are.",
+  );
+  await expect(moveButton).toBeDisabled();
   await dialog
     .getByRole("group", { name: "Start time" })
     .getByRole("spinbutton", { name: /hour/i })

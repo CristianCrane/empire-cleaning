@@ -49,6 +49,7 @@ import {
   adjustmentLabel,
   cleanTypeLabel,
   conditionLabel,
+  formatClock,
   formatDate,
   formatDateTime,
   formatDay,
@@ -66,6 +67,7 @@ import {
   QuoteStatusBadge,
   planTitle,
 } from "../QuoteParts.tsx";
+import { crewAt } from "../schedule-layout.ts";
 import { homeCrumbs } from "./PropertyScreen.tsx";
 import { PickFromSchedule } from "./SchedulePicker.tsx";
 
@@ -342,7 +344,7 @@ function RecordAcceptance({ quote }: { quote: OfficeQuote }) {
               description={
                 quote.bookable.includes(option.cleanType)
                   ? `${formatMoney(option.totalCents)}, Deposit ${formatMoney(option.depositCents)}`
-                  : "No longer fits: the day has filled up"
+                  : "No longer fits: its time has filled up"
               }
             >
               {cleanTypeLabel[option.cleanType]}
@@ -489,54 +491,90 @@ const toInput = (fields: Fields): QuoteDraftInput => {
 const dollars = { style: "currency", currency: "USD" } as const;
 
 // Whether the proposed day has room for each Clean Type, from its free
-// Cleaner hours now and the Labour Hours as last saved. A warning, not a
-// rule: the Office may be about to add hours. A Quote sent for a full day
+// Cleaner hours now and the Labour Hours as last saved, and whether a crew
+// is free at the proposed time (#62). A warning, not a rule: the Office may
+// be about to add hours or a Cleaner. A Quote sent for a full day or time
 // can't be accepted, and goes straight under Needs attention.
 function RoomOnDay({
   day,
+  time,
+  crewSize,
   options,
 }: {
   day: string;
+  time?: string;
+  crewSize: number;
   options: OfficeQuoteOption[];
 }) {
-  const [free, setFree] = useState<{ day: string; hours: number }>();
+  const [found, setFound] = useState<ScheduleDay>();
 
   useEffect(() => {
     let current = true;
     getJson<ScheduleDay[]>(`/api/schedule?from=${day}&to=${day}`)
-      .then(([found]) => current && setFree({ day, hours: found!.freeHours }))
+      .then(([found]) => current && setFound(found))
       // nothing to say if it can't be found out
-      .catch(() => current && setFree(undefined));
+      .catch(() => current && setFound(undefined));
     return () => {
       current = false;
     };
   }, [day]);
 
-  if (free?.day !== day) return null;
+  if (found?.date !== day) return null;
+  const free = { day, hours: found.freeHours };
   // in hundredths, as the server compares them
   const fits = (option: OfficeQuoteOption) =>
     Math.round(free.hours * 100) >= Math.round(option.labourHours * 100);
+  const crew = (option: OfficeQuoteOption) =>
+    time ? crewAt(found, time, option.hoursOnSite, { crewSize }) : undefined;
+  // those with the hours but no crew free then
+  const crewless = options.filter((o) => fits(o) && crew(o)?.hasCrew === false);
+  const crewNotice = crewless.length > 0 && time && (
+    <Notice tone="danger">
+      {noCrewAt(time, crewSize, crew(crewless[0]!)!)}{" "}
+      {crewless.length === options.length
+        ? `The Client couldn't accept this Quote: choose another time, or give a Cleaner hours that day.`
+        : `The Client couldn't choose ${crewless.map(describeOption).join(" or ")}.`}
+    </Notice>
+  );
   const fitting = options.filter(fits);
   const missing = options.filter((o) => !fits(o));
-  const describe = (o: OfficeQuoteOption) =>
-    `the ${cleanTypeLabel[o.cleanType]} (${formatHours(o.labourHours)})`;
+  const describe = describeOption;
   const opening = `${formatDay(day)} has ${formatHours(Math.max(free.hours, 0))} of Cleaner time free`;
 
   if (missing.length === 0) {
     return (
-      <p className="text-sm text-fg-muted">
-        {opening}: room for {options.length === 1 ? "it" : "either clean"}.
-      </p>
+      <>
+        <p className="text-sm text-fg-muted">
+          {opening}: room for {options.length === 1 ? "it" : "either clean"}.
+        </p>
+        {crewNotice}
+      </>
     );
   }
   return (
-    <Notice tone="danger">
-      {fitting.length > 0
-        ? `${opening}: room for ${fitting.map(describe).join(" and ")}, but not ${missing.map(describe).join(" or ")}. The Client will only be able to choose ${fitting.length === 1 ? "that one" : "those"}.`
-        : `${opening}, not enough for ${missing.map(describe).join(" or ")}. The Client couldn't accept this Quote: choose another day, or give a Cleaner more hours that day.`}
-    </Notice>
+    <>
+      <Notice tone="danger">
+        {fitting.length > 0
+          ? `${opening}: room for ${fitting.map(describe).join(" and ")}, but not ${missing.map(describe).join(" or ")}. The Client will only be able to choose ${fitting.length === 1 ? "that one" : "those"}.`
+          : `${opening}, not enough for ${missing.map(describe).join(" or ")}. The Client couldn't accept this Quote: choose another day, or give a Cleaner more hours that day.`}
+      </Notice>
+      {crewNotice}
+    </>
   );
 }
+
+const describeOption = (o: OfficeQuoteOption) =>
+  `the ${cleanTypeLabel[o.cleanType]} (${formatHours(o.labourHours)})`;
+
+// why a crew can't be had at a time
+const noCrewAt = (
+  time: string,
+  crewSize: number,
+  { busy, cleaners }: { busy: number; cleaners: number },
+) => {
+  const free = Math.max(cleaners - busy, 0);
+  return `Not enough Cleaners are free at ${formatClock(time)}: a crew of ${crewSize} is needed, and ${free} of the ${cleaners} available that day ${free === 1 ? "is" : "are"}.`;
+};
 
 // A Service Plan Quote's own terms: how often, the Plan Discount, and the
 // Condition it's priced for, which is moderate unless changed here (the
@@ -967,6 +1005,7 @@ function DraftEditor({ quote: loaded }: { quote: OfficeQuote }) {
               .filter((o) => !plan || o.cleanType === plan.cleanType)
               .map((o) => o.hoursOnSite),
           )}
+          crew={{ crewSize: fields.crewSize }}
           repeats={
             plan
               ? {
@@ -980,7 +1019,12 @@ function DraftEditor({ quote: loaded }: { quote: OfficeQuote }) {
           }
         />
         {fields.date && (
-          <RoomOnDay day={fields.date.toString()} options={quote.options} />
+          <RoomOnDay
+            day={fields.date.toString()}
+            time={fields.time?.toString().slice(0, 5)}
+            crewSize={fields.crewSize}
+            options={quote.options}
+          />
         )}
       </Card>
 

@@ -124,9 +124,25 @@ describe("Office Staff moving a Job", () => {
       `That day doesn't have room: the Job needs ${job.labourHours} Labour Hours and 1 are free.`,
     );
 
-    // Monday fills up under it, yet it can still move within Monday
+    // Monday fills up under it from 2pm, yet it can still move within Monday
     await otherJob({ startsAt: "2026-01-12T19:00:00Z", labourHours: 16 });
-    await move(office, jobId, { date: "2026-01-12", time: "13:00" }).expect(
+    await move(office, jobId, { date: "2026-01-12", time: "08:00" }).expect(
+      200,
+    );
+  });
+
+  test("needs a crew free at the new time", async () => {
+    const { office, jobId } = await bookedJob();
+    // another Client's crew of 2 on Wednesday from 10:30 to 11:30
+    await otherJob({ startsAt: WEDNESDAY_10_30AM, labourHours: 2 });
+
+    const refused = await move(office, jobId, WEDNESDAY).expect(409);
+    expect(refused.body.message).toBe(
+      "Not enough Cleaners are free then: the Job needs 1, and 0 of the 2 available that day are.",
+    );
+
+    // once they've gone
+    await move(office, jobId, { date: "2026-01-14", time: "11:30" }).expect(
       200,
     );
   });

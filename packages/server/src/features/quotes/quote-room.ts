@@ -1,4 +1,4 @@
-import { and, gte, inArray, lt, max } from "drizzle-orm";
+import { and, eq, gte, inArray, lt, max } from "drizzle-orm";
 import type { CleanType, QuoteSummary } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
 import env from "../../env.ts";
@@ -6,14 +6,14 @@ import { addDays, dayOf, startOfDay } from "../../services/clock/index.ts";
 import { compose, email, formatWhen } from "../../services/email/index.ts";
 import { onSchedule } from "../jobs/jobs.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
-import { hasRoomFor } from "../jobs/schedule.ts";
+import { roomFor } from "../jobs/schedule.ts";
 import { addressOf } from "../properties/property-view.ts";
 import { officeStaffEmails } from "../staff/staff.ts";
 import { openQuotes } from "./quote-state.ts";
-import { quoteOptions } from "./quotes.schema.ts";
+import { quoteOptions, quotes } from "./quotes.schema.ts";
 
 // A Sent Quote doesn't hold its time: a booking for another Client, or fewer
-// Cleaner hours, can fill its proposed day under it. Then it can't be
+// Cleaners or hours, can fill its proposed day or time under it. Then it can't be
 // accepted (acceptQuote checks again), the Client is told so on the Quote,
 // and the Office is told it needs another time.
 
@@ -21,8 +21,9 @@ import { quoteOptions } from "./quotes.schema.ts";
 const CLEAN_TYPES: CleanType[] = ["deep", "standard"];
 
 /**
- * The Clean Types each open Sent Quote can still be booked as: those whose
- * Labour Hours its proposed day still has room for, as of now.
+ * The Clean Types each open Sent Quote can still be booked as: those its
+ * proposed time still has room for, as of now: the Labour Hours on its day,
+ * and a crew of its Crew Size then.
  */
 export const bookableFor = async (
   open: { id: string; proposedStartsAt: Date }[],
@@ -35,23 +36,24 @@ export const bookableFor = async (
       quoteId: quoteOptions.quoteId,
       cleanType: quoteOptions.cleanType,
       labourHours: quoteOptions.labourHours,
+      crewSize: quotes.crewSize,
     })
     .from(quoteOptions)
+    .innerJoin(quotes, eq(quotes.id, quoteOptions.quoteId))
     .where(
       inArray(
         quoteOptions.quoteId,
         open.map((q) => q.id),
       ),
     );
-  const dayOfQuote = new Map(
-    open.map((q) => [q.id, dayOf(q.proposedStartsAt)]),
-  );
+  const startOfQuote = new Map(open.map((q) => [q.id, q.proposedStartsAt]));
 
   for (const option of options) {
-    const { hasRoom } = await hasRoomFor(
-      dayOfQuote.get(option.quoteId)!,
-      option.labourHours,
-    );
+    const { hasRoom } = await roomFor({
+      startsAt: startOfQuote.get(option.quoteId)!,
+      labourHours: option.labourHours,
+      crewSize: option.crewSize,
+    });
     if (hasRoom) bookable.get(option.quoteId)!.push(option.cleanType);
   }
   for (const types of bookable.values()) {
@@ -109,8 +111,8 @@ export const warnOfficeOfQuotesWithoutRoom = async (day: string) => {
     const recipients = await officeStaffEmails();
     const lines = [
       crowdedOut.length === 1
-        ? "A booking has filled the day this Quote was proposed for, so its Client can't accept it:"
-        : "A booking has filled the day these Quotes were proposed for, so their Clients can't accept them:",
+        ? "A booking has filled the time this Quote was proposed for, so its Client can't accept it:"
+        : "A booking has filled the time these Quotes were proposed for, so their Clients can't accept them:",
       crowdedOut
         .map(
           (q) =>

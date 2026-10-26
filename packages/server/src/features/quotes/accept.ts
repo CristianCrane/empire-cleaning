@@ -26,7 +26,7 @@ import {
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { bookJob, lockDay } from "../jobs/jobs.ts";
 import type { Job } from "../jobs/jobs.schema.ts";
-import { hasRoomFor } from "../jobs/schedule.ts";
+import { roomFor } from "../jobs/schedule.ts";
 import {
   payerFor,
   paymentMethodOf,
@@ -134,8 +134,8 @@ const optionFor = async (quote: Quote, cleanType: CleanType) => {
 /**
  * Holds what booking needs until the transaction ends: the Property (so a
  * newer Quote can't be sent meanwhile), the Quote, and the proposed day (so
- * two acceptances can't both take its last free hours). Then says whether
- * the Quote can still be booked: open, and its day with room.
+ * two acceptances can't both take its last free hours or crew). Then says
+ * whether the Quote can still be booked: open, and its time with room.
  */
 const holdForBooking = async (
   tx: Tx,
@@ -157,9 +157,12 @@ const holdForBooking = async (
     return { reason: "has_plan" };
   }
 
-  const day = dayOf(quote.proposedStartsAt!);
-  await lockDay(tx, day);
-  const { hasRoom } = await hasRoomFor(day, option.labourHours);
+  await lockDay(tx, dayOf(quote.proposedStartsAt!));
+  const { hasRoom } = await roomFor({
+    startsAt: quote.proposedStartsAt!,
+    labourHours: option.labourHours,
+    crewSize: quote.crewSize,
+  });
   return hasRoom ? null : { reason: "no_room" };
 };
 

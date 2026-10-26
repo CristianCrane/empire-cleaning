@@ -167,12 +167,15 @@ test("an Accepted Quote and the Client's upcoming Jobs fit every width", async (
   page,
   browser,
 }) => {
-  const cory = await createStaff({
-    name: "Cory Cleaner",
-    email: "cory@example.com",
-    roles: ["cleaner"],
-  });
-  await setUsualWeek(cory.id, [8, 8, 8, 8, 8, 0, 0]);
+  // two Cleaners, so the Quote's crew of 2 has room
+  for (const name of ["Cory Cleaner", "Dee Cleaner"]) {
+    const member = await createStaff({
+      name,
+      email: `${name.split(" ")[0]!.toLowerCase()}@example.com`,
+      roles: ["cleaner"],
+    });
+    await setUsualWeek(member.id, [8, 8, 8, 8, 8, 0, 0]);
+  }
   await requestQuoteAsGuest(casey, ["Inside the oven"]);
   await createStaff(olive);
   await signedInAs(page, olive.email);

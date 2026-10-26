@@ -192,8 +192,19 @@ test(
   { tag: ["@desktop"] },
   async ({ page }) => {
     const job = await bookedJob();
-    // another Client's clean on the Wednesday
-    await bookJob({ startsAt: "2026-01-14T15:00:00Z", labourHours: 2 });
+    // another Client's clean on the Wednesday, from 10 to 11 with a crew of
+    // 2: Dee and whoever else is free, so nobody is left for Casey's then
+    const dee = await createStaff({
+      name: "Dee Cleaner",
+      email: "dee@example.com",
+      roles: ["cleaner"],
+    });
+    await setUsualWeek(dee.id, [8, 8, 8, 8, 8, 0, 0]);
+    await bookJob({
+      startsAt: "2026-01-14T15:00:00Z",
+      labourHours: 2,
+      crewSize: 2,
+    });
     await signedInAs(page, casey.email);
     await page.goto(`/portal/jobs/${job.id}`);
 
@@ -218,12 +229,16 @@ test(
       name: "Wed, Jan 14",
       exact: true,
     });
+    // no crew is free at 10, so it isn't offered; 11 is
+    await expect(
+      wednesday.getByRole("button", { name: "Wed, Jan 14, 11:00 AM" }),
+    ).toBeVisible();
     await expect(
       wednesday.getByRole("button", { name: "Wed, Jan 14, 10:00 AM" }),
-    ).toBeVisible();
+    ).toHaveCount(0);
     await expect(calendar).not.toContainText(/Client \d/);
     await wednesday
-      .getByRole("button", { name: "Wed, Jan 14, 10:00 AM" })
+      .getByRole("button", { name: "Wed, Jan 14, 11:00 AM" })
       .click();
 
     await expect(calendar).toBeHidden();
@@ -232,11 +247,11 @@ test(
     );
     await expect(
       dialog.getByRole("button", { name: /Start time$/ }),
-    ).toContainText("10:00 AM");
+    ).toContainText("11:00 AM");
     await dialog.getByRole("button", { name: "Send request" }).click();
     await expect(
       page.getByRole("region", { name: "Moving your clean" }),
-    ).toContainText("You've asked to move it to Wed, Jan 14, 10:00 AM.");
+    ).toContainText("You've asked to move it to Wed, Jan 14, 11:00 AM.");
   },
 );
 

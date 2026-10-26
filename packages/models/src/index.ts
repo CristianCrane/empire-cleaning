@@ -299,16 +299,37 @@ export type ScheduleDay = {
   freeHours: number;
   available: { id: string; name: string; hours: number }[];
   jobs: ScheduledJob[];
+  // the new times pending Reschedule Requests hold on this day, a move
+  // within the day included: each holds a crew there until it's answered
+  held: HeldTime[];
 };
 
-// whether a day can take a booking of this many Labour Hours
+// a new time held for a pending Reschedule Request, with its Job's crew
+export type HeldTime = {
+  jobId: string;
+  startsAt: string;
+  labourHours: number;
+  crewSize: number;
+};
+
+// whether a clean has room at a time: its day has the Labour Hours free, and
+// enough Cleaners for its crew alongside the crews at work then (#62)
 export type DayCapacity = {
   date: IsoDate;
+  startsAt: string;
   labourHours: number;
+  crewSize: number;
   staffHours: number;
   bookedHours: number;
   heldHours: number;
   freeHours: number;
+  hasHours: boolean;
+  // the Cleaners with Available Hours that day
+  cleaners: number;
+  // the most crews at work at once during the clean's time on site
+  crewsBusy: number;
+  hasCrew: boolean;
+  // both: the hours and a crew
   hasRoom: boolean;
 };
 
@@ -983,11 +1004,11 @@ export type RescheduleRequestView = {
 };
 
 // the times a Job can be moved to: the days from tomorrow with room for its
-// Labour Hours (counting what's held for other requests), and the start
-// times on offer
+// Labour Hours (counting what's held for other requests), each with the
+// start times on offer that have a crew free (#62). A day without any is
+// left out.
 export type RescheduleTimes = {
-  days: IsoDate[];
-  times: string[];
+  days: { date: IsoDate; times: string[] }[];
 };
 
 // POST /api/jobs/mine/:id/reschedule-request (and the Office's

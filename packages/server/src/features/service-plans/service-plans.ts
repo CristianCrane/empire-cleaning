@@ -36,7 +36,7 @@ import { assignments } from "../assignments/assignments.schema.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { bookJob, lockDay, upcomingJobsFor } from "../jobs/jobs.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
-import { hasRoomFor, jobViews } from "../jobs/schedule.ts";
+import { jobViews, roomFor } from "../jobs/schedule.ts";
 import { charges } from "../payments/payments.schema.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { warnOfficeOfQuotesWithoutRoom } from "../quotes/quote-room.ts";
@@ -183,8 +183,8 @@ const afterBooking = async (
   await warnOfficeOfQuotesWithoutRoom(dayOf(job.startsAt));
 };
 
-// Books a plan's visit on `day` at its usual time, inside a transaction: when
-// the day still has room for its Labour Hours, and the time is still to come.
+// Books a plan's visit at `startsAt`, inside a transaction: when it still has
+// room (the Labour Hours on its day, and a crew then), and is still to come.
 // The day is held until the transaction ends, as accepting a Quote holds it.
 const bookOnto = async (
   tx: Tx,
@@ -192,9 +192,12 @@ const bookOnto = async (
   startsAt: Date,
 ): Promise<{ job: Job; offered: Offered[] } | null> => {
   if (startsAt <= clock.now()) return null;
-  const day = dayOf(startsAt);
-  await lockDay(tx, day);
-  const { hasRoom } = await hasRoomFor(day, plan.labourHours);
+  await lockDay(tx, dayOf(startsAt));
+  const { hasRoom } = await roomFor({
+    startsAt,
+    labourHours: plan.labourHours,
+    crewSize: plan.crewSize,
+  });
   if (!hasRoom) return null;
   const job = await bookJob(
     {
@@ -262,7 +265,8 @@ const propertyOf = async (propertyId: string) => {
 /**
  * Puts every active Service Plan's Jobs on the Schedule as the Clock
  * advances, up to HORIZON_DAYS ahead, each on its recurrence's weekday at its
- * first Job's time. A date whose day has no room is booked nothing, and
+ * first Job's time. A date with no room then (the hours that day, or a crew
+ * at that time) is booked nothing, and
  * waits under Needs attention for the Office. Safe to run as often as you
  * like, and on more than one server: each date is generated once. Only the
  * plan given, if one is.
@@ -333,7 +337,7 @@ const findVisit = async (tx: Tx, planId: string, visitId: string) => {
 
 /**
  * Office Staff book a visit its day had no room for at another time they've
- * agreed with the Client, as its plan's Job: the new day must have room, and
+ * agreed with the Client, as its plan's Job: the new time must have room, and
  * the previous Job's crew is Offered places, as for any plan Job.
  */
 export const bookVisit = async (
@@ -350,7 +354,7 @@ export const bookVisit = async (
     const booked = await bookOnto(tx, plan, startsAt);
     if (!booked) {
       throw new ConflictError(
-        "That day doesn't have room for this Job. Choose another.",
+        "That time doesn't have room for this Job: not enough free Cleaner hours that day, or no crew free then. Choose another.",
       );
     }
     await tx

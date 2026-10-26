@@ -28,7 +28,7 @@ import { depositOf } from "../cancellation/cancellation.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { lockDay } from "../jobs/jobs.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
-import { hasRoomFor, scheduleFor } from "../jobs/schedule.ts";
+import { roomFor, roomOn, scheduleFor, whyNoRoom } from "../jobs/schedule.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
 import { warnOfficeOfQuotesWithoutRoom } from "../quotes/quote-room.ts";
@@ -183,22 +183,29 @@ const timesFor = (job: Job) =>
 
 /**
  * The times a booked Job can be moved to: days from tomorrow with room for
- * its Labour Hours, counting what other pending requests hold, and the
- * start times on offer. Its own day always has room for it.
+ * its Labour Hours, counting what other pending requests hold, each with the
+ * start times on offer that have a crew free (#62). Its own day always has
+ * the hours for it.
  */
 export const rescheduleTimesFor = async (
   job: Job,
 ): Promise<RescheduleTimes> => {
   const { from, to } = bookableRange();
-  const own = dayOf(job.startsAt);
   const days = (await scheduleFor(from, to))
-    .filter(
-      (day) =>
-        day.date === own ||
-        Math.round(day.freeHours * 100) >= Math.round(job.labourHours * 100),
-    )
-    .map((day) => day.date);
-  return { days, times: timesFor(job) };
+    .map((day) => ({
+      date: day.date,
+      times: timesFor(job).filter(
+        (time) =>
+          roomOn(day, {
+            startsAt: atTime(day.date, time),
+            labourHours: job.labourHours,
+            crewSize: job.crewSize,
+            jobId: job.id,
+          }).hasRoom,
+      ),
+    }))
+    .filter((day) => day.times.length > 0);
+  return { days };
 };
 
 // ---- asking ----
@@ -218,9 +225,9 @@ const costLabel: Record<RescheduleCost, string> = {
 };
 
 /**
- * Asks to move a booked Job to a new time, on a day from tomorrow with room
- * for it, at one of the start times on offer. Its Labour Hours are held on
- * that day until Office Staff confirm or turn it down, or the Client
+ * Asks to move a booked Job to a new time, from tomorrow, with room for it
+ * (the hours that day, and a crew then), at one of the start times on offer.
+ * A crew is held at that time, and on another day its Labour Hours, until Office Staff confirm or turn it down, or the Client
  * withdraws it. Refused if what it costs isn't what the person asking was
  * shown, as when the 24-hour cut-off has passed since.
  *
@@ -279,16 +286,19 @@ export const requestReschedule = async (
       );
     }
 
-    // a move to another day holds its hours there, so two requests (or a
-    // request and an acceptance) can't both take its last free hours
-    if (to.date !== dayOf(job.startsAt)) {
-      await lockDay(tx, to.date);
-      const { hasRoom } = await hasRoomFor(to.date, job.labourHours);
-      if (!hasRoom) {
-        throw new ConflictError(
-          "That day has just filled up. Please choose another.",
-        );
-      }
+    // the new time holds a crew, and on another day the hours, so two
+    // requests (or a request and an acceptance) can't both take the last
+    await lockDay(tx, to.date);
+    const { hasRoom } = await roomFor({
+      startsAt,
+      labourHours: job.labourHours,
+      crewSize: job.crewSize,
+      jobId,
+    });
+    if (!hasRoom) {
+      throw new ConflictError(
+        "That time has just filled up. Please choose another.",
+      );
     }
 
     await tx.insert(rescheduleRequests).values({
@@ -304,9 +314,7 @@ export const requestReschedule = async (
     return found;
   });
 
-  if (to.date !== dayOf(job.startsAt)) {
-    await warnOfficeOfQuotesWithoutRoom(to.date);
-  }
+  await warnOfficeOfQuotesWithoutRoom(to.date);
   if (asking.byClient) {
     const client = await ownerOf(job);
     await notify(
@@ -434,7 +442,9 @@ export const turnDownReschedule = async (
  * Office Staff confirm a pending request: the Job moves to its new time, and
  * every place on it is Offered afresh, so the crew each Confirm the new time
  * or Release it. A second Late Reschedule keeps the Deposit as the fee
- * (ADR-0010); nothing is charged now, as the Deposit has been paid. The
+ * (ADR-0010); nothing is charged now, as the Deposit has been paid. Refused
+ * if the time asked for no longer has room, as when a Cleaner's hours that
+ * day were cut since. The
  * Client and the crew are emailed.
  */
 export const confirmReschedule = async (jobId: string, byAccountId: string) => {
@@ -450,6 +460,19 @@ export const confirmReschedule = async (jobId: string, byAccountId: string) => {
     if (pending.startsAt <= now) {
       throw new ConflictError(
         "The time asked for has passed. Turn the request down instead.",
+      );
+    }
+    // what it held may no longer be enough: fewer Cleaners or hours that day
+    await lockDay(tx, dayOf(pending.startsAt));
+    const room = await roomFor({
+      startsAt: pending.startsAt,
+      labourHours: job.labourHours,
+      crewSize: job.crewSize,
+      jobId,
+    });
+    if (!room.hasRoom) {
+      throw new ConflictError(
+        `${whyNoRoom(room)} Turn the request down, or give a Cleaner hours that day.`,
       );
     }
 
@@ -568,8 +591,9 @@ const tellCrewOfMove = async (
  * (#52). It's the Office's own action, not a Reschedule Request: nothing is
  * held, and it costs the Client nothing. Otherwise it works like confirming
  * one: every place is Offered afresh, the reminder goes again, and the
- * Client and the crew are emailed. A new day must have room for the Job's
- * Labour Hours, counting held hours; its own day always has room.
+ * Client and the crew are emailed. The new time must have room: a new day
+ * the Job's Labour Hours, counting held hours (its own day always has), and
+ * a crew free then.
  *
  * Refused once the Job has started or isn't booked, and while a Reschedule
  * Request for it is waiting: that's answered first.
@@ -605,24 +629,21 @@ export const moveJob = async (jobId: string, to: LocalDateTime) => {
     }
 
     // as asking does, so a move and another booking can't both take a day's
-    // last free hours
-    if (to.date !== dayOf(job.startsAt)) {
-      await lockDay(tx, to.date);
-      const { hasRoom, freeHours } = await hasRoomFor(to.date, job.labourHours);
-      if (!hasRoom) {
-        throw new ConflictError(
-          `That day doesn't have room: the Job needs ${job.labourHours} Labour Hours and ${Math.max(freeHours, 0)} are free.`,
-        );
-      }
-    }
+    // last free hours or crew
+    await lockDay(tx, to.date);
+    const room = await roomFor({
+      startsAt,
+      labourHours: job.labourHours,
+      crewSize: job.crewSize,
+      jobId,
+    });
+    if (!room.hasRoom) throw new ConflictError(whyNoRoom(room));
 
     const crew = await moveTo(tx, jobId, startsAt);
     return { ...found, crew };
   });
 
-  if (to.date !== dayOf(job.startsAt)) {
-    await warnOfficeOfQuotesWithoutRoom(to.date);
-  }
+  await warnOfficeOfQuotesWithoutRoom(to.date);
   const moved = { ...job, startsAt };
   const client = await ownerOf(job);
   await notify(`Move notice for Job ${jobId}`, () =>

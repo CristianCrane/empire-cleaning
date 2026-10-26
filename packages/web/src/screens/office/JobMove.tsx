@@ -26,33 +26,41 @@ import {
   formatDateTime,
   formatDay,
   formatHours,
+  formatTime,
   timeOfDay,
 } from "../format.ts";
 import { useJobAction } from "./JobCompletion.tsx";
 import { PickFromSchedule } from "./SchedulePicker.tsx";
 
-// whether the day a Job would move to has room for it, counting held hours:
-// "own" on its own day, which always has; undefined while it's checked
-const useRoom = (job: ScheduledJob, date: string | null) => {
-  const own = date === dayOfInstant(job.startsAt);
-  const [capacity, setCapacity] = useState<DayCapacity>();
+// whether a time a Job would move to has room for it: the hours on its day,
+// counting held hours (its own day always has them), and a crew free then.
+// Undefined while it's checked.
+const useRoom = (job: ScheduledJob, to: Partial<LocalDateTime>) => {
+  const query =
+    to.date && to.time
+      ? new URLSearchParams({
+          date: to.date,
+          time: to.time,
+          labourHours: String(job.labourHours),
+          crewSize: String(job.crewSize),
+          jobId: job.id,
+        }).toString()
+      : undefined;
+  const [found, setFound] = useState<{ query: string; room: DayCapacity }>();
 
   useEffect(() => {
-    if (!date || own) return;
+    if (!query) return;
     let current = true;
-    getJson<DayCapacity>(
-      `/api/schedule/capacity?date=${date}&labourHours=${job.labourHours}`,
-    )
-      .then((found) => current && setCapacity(found))
+    getJson<DayCapacity>(`/api/schedule/capacity?${query}`)
+      .then((room) => current && setFound({ query, room }))
       // moving checks again, and says why if it can't
       .catch(() => {});
     return () => {
       current = false;
     };
-  }, [date, own, job.labourHours]);
+  }, [query]);
 
-  if (own) return "own";
-  return capacity?.date === date ? capacity : undefined;
+  return found && found.query === query ? found.room : undefined;
 };
 
 type MoveProps = {
@@ -67,12 +75,12 @@ type MoveProps = {
  */
 export function ConfirmMove({ job, to, close }: MoveProps) {
   const action = useJobAction("The Job wasn't moved. Please try again.");
-  const room = useRoom(job, to.date ?? null);
+  const room = useRoom(job, to);
   const unchanged =
     to.date === dayOfInstant(job.startsAt) &&
     to.time === timeOfDay(job.startsAt);
   const chosen = to.date && to.time;
-  const fits = room === "own" || room?.hasRoom === true;
+  const fits = room?.hasRoom === true;
 
   const move = async () => {
     if (
@@ -101,20 +109,7 @@ export function ConfirmMove({ job, to, close }: MoveProps) {
           That's when it's booked. Choose a new day or start time.
         </p>
       )}
-      {room && room !== "own" && !room.hasRoom && (
-        <Notice tone="danger">
-          {formatDay(room.date)} doesn't have room: this Job needs{" "}
-          {formatHours(job.labourHours)} and{" "}
-          {formatHours(Math.max(room.freeHours, 0))}{" "}
-          {room.freeHours === 1 ? "is" : "are"} free.
-        </Notice>
-      )}
-      {room && room !== "own" && room.hasRoom && (
-        <p className="text-sm text-fg-muted">
-          {formatDay(room.date)} has {formatHours(room.freeHours)} free; this
-          Job needs {formatHours(job.labourHours)}.
-        </p>
-      )}
+      {room && !unchanged && <RoomAt room={room} job={job} />}
       <p className="text-sm text-fg-muted">
         Every place on it is Offered afresh, so the crew each confirm the new
         time. Its reminder is reset, and the Client and the crew are emailed. It
@@ -134,6 +129,37 @@ export function ConfirmMove({ job, to, close }: MoveProps) {
         </Button>
       </Actions>
     </>
+  );
+}
+
+// what the time chosen has room for, or why it hasn't
+function RoomAt({ room, job }: { room: DayCapacity; job: ScheduledJob }) {
+  const day = formatDay(room.date);
+  if (!room.hasHours) {
+    return (
+      <Notice tone="danger">
+        {day} doesn't have room: this Job needs {formatHours(job.labourHours)}{" "}
+        and {formatHours(Math.max(room.freeHours, 0))}{" "}
+        {room.freeHours === 1 ? "is" : "are"} free.
+      </Notice>
+    );
+  }
+  if (!room.hasCrew) {
+    const free = Math.max(room.cleaners - room.crewsBusy, 0);
+    return (
+      <Notice tone="danger">
+        Not enough Cleaners are free at {formatTime(room.startsAt)}: this Job
+        needs {job.crewSize}, and {free} of the {room.cleaners} available that
+        day {free === 1 ? "is" : "are"}.
+      </Notice>
+    );
+  }
+  return (
+    <p className="text-sm text-fg-muted">
+      {room.date === dayOfInstant(job.startsAt)
+        ? `It stays on ${day}, and a crew is free then.`
+        : `${day} has ${formatHours(room.freeHours)} free; this Job needs ${formatHours(job.labourHours)}, and a crew is free then.`}
+    </p>
   );
 }
 
@@ -173,6 +199,7 @@ function ChooseTime({ job, close }: Omit<MoveProps, "to">) {
         date={date?.toString()}
         time={time?.toString().slice(0, 5)}
         hoursOnSite={job.hoursOnSite}
+        crew={{ crewSize: job.crewSize, jobId: job.id }}
         current={{
           date: dayOfInstant(job.startsAt),
           time: timeOfDay(job.startsAt),

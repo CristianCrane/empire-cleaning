@@ -114,6 +114,15 @@ function NewTimeForm({
 
   const unchanged =
     date === dayOfInstant(job.startsAt) && time === timeOfDay(job.startsAt);
+  // the start times on offer on the day chosen: each day has its own, as a
+  // crew may be free at some and not others
+  const timesOn = (day: string | null) =>
+    times?.days.find((d) => d.date === day)?.times ?? [];
+  // a day chosen keeps the start time only if it's on offer there
+  const choose = (day: string | null, at = time) => {
+    setDate(day);
+    setTime(at && timesOn(day).includes(at) ? at : null);
+  };
 
   const send = async () => {
     if (!date || !time) {
@@ -161,10 +170,10 @@ function NewTimeForm({
             placeholder="Choose a day"
             selectedKey={date}
             onSelectionChange={(key) =>
-              setDate(key === null ? null : String(key))
+              choose(key === null ? null : String(key))
             }
           >
-            {times.days.map((day) => (
+            {times.days.map(({ date: day }) => (
               <SelectItem key={day} id={day} textValue={formatDay(day)}>
                 {formatDay(day)}
               </SelectItem>
@@ -172,13 +181,19 @@ function NewTimeForm({
           </Select>
           <Select
             label="Start time"
-            description="New York time."
+            description={
+              date
+                ? "New York time. Only times with a crew free are shown."
+                : "New York time. Choose a day first."
+            }
+            placeholder="Choose a time"
+            isDisabled={!date}
             selectedKey={time}
             onSelectionChange={(key) =>
               setTime(key === null ? null : String(key))
             }
           >
-            {times.times.map((t) => (
+            {timesOn(date).map((t) => (
               <SelectItem key={t} id={t} textValue={formatClock(t)}>
                 {formatClock(t)}
               </SelectItem>
@@ -192,11 +207,8 @@ function NewTimeForm({
               date: dayOfInstant(job.startsAt),
               time: timeOfDay(job.startsAt),
             }}
-            limits={times}
-            onPick={(at) => {
-              setDate(at.date);
-              setTime(at.time);
-            }}
+            limits={times.days}
+            onPick={(at) => choose(at.date, at.time)}
           />
         </>
       )}

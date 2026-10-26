@@ -209,6 +209,7 @@ function ChooseVisitTime({
         date={date?.toString()}
         time={time?.toString().slice(0, 5)}
         hoursOnSite={plan.hoursOnSite}
+        crew={{ crewSize: plan.crewSize }}
         onPick={(picked) => {
           setDate(parseDate(picked.date));
           setTime(parseTime(picked.time));
