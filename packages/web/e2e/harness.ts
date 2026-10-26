@@ -97,6 +97,20 @@ export const sentServicePlanQuote = (plan: {
     body: JSON.stringify(plan),
   }) as Promise<{ id: string }>;
 
+// a Service Plan started from such a Quote, its acceptance recorded by the
+// Office on the Client's saved card
+export const startedServicePlan = (plan: {
+  officeEmail: string;
+  propertyId: string;
+  startsAt: string;
+  recurrence?: "weekly" | "fortnightly" | "four_weekly";
+  crewSize?: number;
+}) =>
+  control("/service-plans/started", {
+    method: "POST",
+    body: JSON.stringify(plan),
+  }) as Promise<{ planId: string; firstJob: { id: string } }>;
+
 // a Job marked Completed by a Cleaner with a Confirmed place on it
 export const completeJob = (
   jobId: string,

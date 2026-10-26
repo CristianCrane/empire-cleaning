@@ -35,6 +35,7 @@ import { assignmentStatusOf } from "../assignments/places.ts";
 import {
   cancellationOf,
   cancelTermsOf,
+  planOfJob,
   noAccessOf,
 } from "../cancellation/cancellation.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
@@ -267,7 +268,7 @@ const sendReceipt = async (jobId: string, settled: Settled) => {
       `Total: ${formatMoney(payment.totalCents)}`,
       ...(payment.rescheduleFeeCents > 0
         ? [
-            `Late Reschedule fee (your Deposit, kept): ${formatMoney(payment.rescheduleFeeCents)}`,
+            `Late Reschedule fee${deposit > 0 ? " (your Deposit, kept)" : ""}: ${formatMoney(payment.rescheduleFeeCents)}`,
           ]
         : []),
       ...(deposit > 0 ? [`Deposit paid: ${formatMoney(deposit)}`] : []),
@@ -545,6 +546,23 @@ const sendCorrection = async (jobId: string, settled: Settled) => {
   }
   const { job, property, client } = await jobWithOwner(jobId);
   const payment = await paymentOf(job);
+  if (job.status !== "completed") {
+    await notify(`Fee notice for Job ${jobId}`, () =>
+      email.send({
+        to: client.email,
+        subject: "We've taken the fee for your clean",
+        ...compose(
+          [
+            `Hi ${firstNameOf(client.name)},`,
+            `This is the ${formatMoney(job.feeCents ?? 0)} fee for ${describe(job, property)}.`,
+            ...moneyLines(settled, payment.owedCents),
+          ],
+          portalLink(jobId, "See your clean"),
+        ),
+      }),
+    );
+    return;
+  }
   await notify(`Correction notice for Job ${jobId}`, () =>
     email.send({
       to: client.email,
@@ -628,6 +646,22 @@ const completedJob = async (jobId: string) => {
   return job;
 };
 
+// a Job that can owe money: Completed, or Cancelled or No Access with a fee
+// to charge, as a plan Job's is
+const owingJob = async (jobId: string) => {
+  const [job] = await db
+    .select()
+    .from(jobs)
+    .where(
+      and(
+        eq(jobs.id, jobId),
+        inArray(jobs.status, ["completed", "cancelled", "no_access"]),
+      ),
+    );
+  if (!job) throw new ConflictError("This Job hasn't been Completed");
+  return job;
+};
+
 // Office Staff correct the Condition reported, which is the Property's too
 export const correctCondition = async (jobId: string, condition: Condition) => {
   const job = await completedJob(jobId);
@@ -693,7 +727,7 @@ export const undoCompletion = async (jobId: string) => {
 
 // tries again to take what an Unpaid Job owes; says why if it still can't
 export const retryBalance = async (jobId: string) => {
-  const job = await completedJob(jobId);
+  const job = await owingJob(jobId);
   if (!job.unpaidSince) return;
   const settled = await settleJob(jobId);
   if (settled.failure) {
@@ -749,6 +783,7 @@ export const clientJob = async (
     terms,
     rescheduleTerms,
     rescheduleRequest,
+    servicePlanId,
   ] = await Promise.all([
     officeCompletionOf(job),
     cancellationOf(job),
@@ -756,6 +791,7 @@ export const clientJob = async (
     cancelTermsOf(job),
     rescheduleTermsOf(job),
     rescheduleRequestOf(job),
+    planOfJob(job.id),
   ]);
   return {
     ...clientJobOf(job, property),
@@ -777,6 +813,7 @@ export const clientJob = async (
     cancelTerms: job.startsAt > clock.now() ? (terms?.client ?? null) : null,
     rescheduleTerms,
     rescheduleRequest,
+    servicePlanId,
   };
 };
 
@@ -873,7 +910,7 @@ export const answerAdjustment = async (
 // the Client tries their Unpaid Job's Balance again
 export const clientRetryBalance = async (clientId: string, jobId: string) => {
   await ownJob(clientId, jobId);
-  const job = await completedJob(jobId);
+  const job = await owingJob(jobId);
   if (!job.unpaidSince) return;
   const settled = await settleJob(jobId);
   if (settled.failure) {

@@ -23,6 +23,7 @@ import {
 import { dayOf, timeOf } from "#services/clock";
 import { properties } from "#features/properties";
 import { createStaff, setUsualWeek } from "#features/staff";
+import { servicePlans } from "#features/service-plans";
 import { addressKey } from "../src/features/properties/address.ts";
 import { api, apiAgent, signIn, testClock } from "./harness.ts";
 
@@ -258,4 +259,26 @@ export const sentServicePlanQuote = async ({
     },
   });
   return sendQuote(quote.id);
+};
+
+/**
+ * A Service Plan started at the home from `sentServicePlanQuote`, as the
+ * Office records the Client's acceptance on their saved card. Returns the
+ * plan and its first Job.
+ */
+export const startedServicePlan = async (
+  plan: Parameters<typeof sentServicePlanQuote>[0],
+) => {
+  const quote = await sentServicePlanQuote(plan);
+  const accepted = await acceptQuote(
+    quote.id,
+    { cleanType: "standard" },
+    { by: "office", accountId: plan.byAccountId },
+  );
+  if (accepted.status !== "accepted") throw new Error("not accepted");
+  const [started] = await db
+    .select({ id: servicePlans.id })
+    .from(servicePlans)
+    .where(eq(servicePlans.quoteId, quote.id));
+  return { planId: started!.id, firstJob: accepted.job };
 };

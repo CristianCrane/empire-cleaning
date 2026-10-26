@@ -18,6 +18,7 @@ import {
 import {
   cancellationOf,
   cancelTermsOf,
+  planOfJob,
   noAccessOf,
 } from "../cancellation/cancellation.ts";
 import { clients } from "../clients/clients.schema.ts";
@@ -110,6 +111,7 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
     rescheduleTerms,
     rescheduleRequest,
     canOfferServicePlan,
+    servicePlanId,
   ] = await Promise.all([
     db
       .select({ assignment: assignments, member: staff })
@@ -131,6 +133,7 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
     rescheduleTermsOf(row!),
     rescheduleRequestOf(row!),
     row!.status === "completed" && firstCleanCompleted(row!.propertyId),
+    planOfJob(jobId),
   ]);
 
   const holding = rows.filter((r) => r.assignment.status !== "released");
@@ -155,6 +158,7 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
       .filter((c) => c.roles.includes("cleaner") && !onJob.has(c.id))
       .map((c) => ({ id: c.id, name: c.name, hours: hoursOf.get(c.id) ?? 0 })),
     canOfferServicePlan,
+    servicePlanId,
   };
 };
 

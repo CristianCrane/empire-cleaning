@@ -5,5 +5,6 @@ Accepting a Quote charges a Deposit (a standard percentage, overridable per Quot
 ## Consequences
 
 - A Service Plan holds a single Deposit for its whole life rather than one per Job; plan Jobs charge their full price on completion, and the held Deposit is applied to the final Job when the plan Ends.
+- So a plan Job has no Deposit to keep as its fee. A Late Cancellation or No Access of one charges a fee of the plan's Deposit amount when it happens, leaving the held Deposit untouched; a second Late Reschedule adds that fee to the price charged on completion. If the fee can't be charged, the Job is Unpaid (#15).
 - An on-time cancellation, or any cancellation by Empire Cleaning, refunds the Deposit in full.
 - A reduction Adjustment can push the Balance negative, in which case the difference is refunded.

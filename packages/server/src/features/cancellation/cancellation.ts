@@ -23,6 +23,7 @@ import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { charges, refunds } from "../payments/payments.schema.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
+import { servicePlanVisits } from "../service-plans/service-plans.schema.ts";
 import { staff } from "../staff/staff.schema.ts";
 import { officeStaffEmails } from "../staff/staff.ts";
 
@@ -57,11 +58,36 @@ const freeUntilOf = (job: Pick<Job, "startsAt">) =>
 
 // the Deposit taken for a Job, which a Late Cancellation or No Access keeps
 // as its fee
-export const depositOf = async (jobId: string, tx: Tx | typeof db = db) => {
+const depositOf = async (jobId: string, tx: Tx | typeof db = db) => {
   const [row] = await tx
     .select({ cents: sum(charges.amountCents).mapWith(Number) })
     .from(charges)
     .where(and(eq(charges.jobId, jobId), eq(charges.kind, "deposit")));
+  return row?.cents ?? 0;
+};
+
+// the Service Plan a Job was generated for; null for a one-off Job
+export const planOfJob = async (jobId: string, tx: Tx | typeof db = db) => {
+  const [visit] = await tx
+    .select({ planId: servicePlanVisits.servicePlanId })
+    .from(servicePlanVisits)
+    .where(eq(servicePlanVisits.jobId, jobId));
+  return visit?.planId ?? null;
+};
+
+/**
+ * The fee for a Late Cancellation or No Access of a Job, or a second Late
+ * Reschedule of it: the Deposit amount. A one-off Job's own Deposit is kept
+ * as the fee. A plan Job has none of its own, so the fee is the amount of
+ * its plan's Deposit, charged afresh, and the held Deposit is untouched.
+ */
+export const lateFeeOf = async (jobId: string, tx: Tx | typeof db = db) => {
+  const planId = await planOfJob(jobId, tx);
+  if (!planId) return depositOf(jobId, tx);
+  const [row] = await tx
+    .select({ cents: sum(charges.amountCents).mapWith(Number) })
+    .from(charges)
+    .where(and(eq(charges.servicePlanId, planId), eq(charges.kind, "deposit")));
   return row?.cents ?? 0;
 };
 
@@ -81,14 +107,14 @@ const paidOf = async (jobId: string) => {
   return (taken?.cents ?? 0) - (given?.cents ?? 0);
 };
 
-// what cancelling a Job costs, by the Clock: the Deposit, if the Client
-// cancels within 24 hours of it starting; nothing otherwise. A Deposit
-// already kept by a Late Reschedule (ADR-0010) stays kept, however early
+// what cancelling a Job costs, by the Clock: the Late Cancellation fee, if
+// the Client cancels within 24 hours of it starting; nothing otherwise. A
+// fee already due for a Late Reschedule (ADR-0010) stays due, however early
 // the Client cancels, but nothing more is charged.
-const feeOf = (job: Job, by: CancelledBy, depositCents: number) => {
+const feeOf = (job: Job, by: CancelledBy, lateFeeCents: number) => {
   const late = by === "client" && clock.now() >= freeUntilOf(job);
   const kept = by === "client" ? job.rescheduleFeeCents : 0;
-  return { late, feeCents: Math.max(late ? depositCents : 0, kept) };
+  return { late, feeCents: Math.max(late ? lateFeeCents : 0, kept) };
 };
 
 /**
@@ -100,12 +126,12 @@ export const cancelTermsOf = async (
   job: Job,
 ): Promise<Record<CancelledBy, CancellationTerms> | null> => {
   if (job.status !== "booked") return null;
-  const [depositCents, paidCents] = await Promise.all([
-    depositOf(job.id),
+  const [lateFeeCents, paidCents] = await Promise.all([
+    lateFeeOf(job.id),
     paidOf(job.id),
   ]);
   const terms = (by: CancelledBy): CancellationTerms => {
-    const { late, feeCents } = feeOf(job, by, depositCents);
+    const { late, feeCents } = feeOf(job, by, lateFeeCents);
     return {
       by,
       late,
@@ -132,7 +158,9 @@ type Cancellation = {
 /**
  * Cancels a booked Job: it leaves the Schedule, and the Client is refunded
  * their Deposit unless it was a Late Cancellation, which keeps it as the fee.
- * Refused if what it costs isn't what the person cancelling was shown, as
+ * Cancelling a plan Job skips it, and the plan carries on; a Late
+ * Cancellation of one charges its fee now, and if that fails the Job is
+ * Unpaid. Refused if what it costs isn't what the person cancelling was shown, as
  * when the 24-hour cut-off has passed since. A Client can't cancel once it
  * has started; Office Staff can.
  *
@@ -163,12 +191,13 @@ export const cancelJob = async (jobId: string, cancellation: Cancellation) => {
     const { late, feeCents } = feeOf(
       job,
       cancellation.by,
-      await depositOf(jobId, tx),
+      await lateFeeOf(jobId, tx),
     );
     if (feeCents !== cancellation.feeCents) {
+      const onPlan = (await planOfJob(jobId, tx)) !== null;
       throw new ConflictError(
         late
-          ? `It's now less than ${CANCELLATION_CUTOFF_HOURS} hours before the clean, so cancelling is a Late Cancellation: the ${formatMoney(feeCents)} Deposit is kept as the fee. Please check and confirm again.`
+          ? `It's now less than ${CANCELLATION_CUTOFF_HOURS} hours before the clean, so ${onPlan ? `skipping it is a Late Cancellation, with a ${formatMoney(feeCents)} fee` : `cancelling is a Late Cancellation: the ${formatMoney(feeCents)} Deposit is kept as the fee`}. Please check and confirm again.`
           : "What cancelling costs has changed. Please check and confirm again.",
       );
     }
@@ -189,9 +218,12 @@ export const cancelJob = async (jobId: string, cancellation: Cancellation) => {
   });
 
   const settled = await settleJob(jobId);
-  await sendCancelled(jobId, settled);
+  const onPlan = (await planOfJob(jobId)) !== null;
+  await sendCancelled(jobId, settled, onPlan);
   await tellCrew(job);
-  if (cancellation.byClient) await tellOffice(job, late, feeCents);
+  if (cancellation.byClient) {
+    await tellOffice(job, { late, feeCents, onPlan, settled });
+  }
 };
 
 const ownerOf = async (job: Job) => {
@@ -211,34 +243,66 @@ const refundLine = (settled: Settled) =>
       ]
     : [];
 
-const sendCancelled = async (jobId: string, settled: Settled) => {
+// how taking a plan Job's fee went, as a line for the Client
+const feeChargeLine = (settled: Settled) => {
+  const card = settled.paymentMethod ?? "card";
+  if (settled.chargedCents > 0) return [`We've charged it to your ${card}.`];
+  if (settled.failure) {
+    return [
+      `We couldn't charge it to your ${card}. Please update your Payment Method, and we'll try again straight away.`,
+    ];
+  }
+  return [];
+};
+
+const sendCancelled = async (
+  jobId: string,
+  settled: Settled,
+  onPlan: boolean,
+) => {
   const [job] = await db.select().from(jobs).where(eq(jobs.id, jobId));
   const { property, client } = await ownerOf(job!);
   const what = describe(job!, property);
+  const fee = job!.feeCents ?? 0;
   const lines =
     job!.cancelledBy === "empire"
       ? [
           `We're sorry: we've had to cancel ${what}.${job!.cancellationReason ? ` ${job!.cancellationReason}` : ""}`,
           "You won't be charged anything for it.",
         ]
-      : [
-          `We've cancelled ${what}, as you asked.`,
-          job!.lateCancellation && job!.feeCents! > 0
-            ? `As it was less than ${CANCELLATION_CUTOFF_HOURS} hours before the clean, it's a Late Cancellation: your ${formatMoney(job!.feeCents!)} Deposit is kept as the fee.`
-            : job!.feeCents! > 0
-              ? `Your ${formatMoney(job!.feeCents!)} Deposit was already kept as the fee for a Late Reschedule, so there's nothing more to pay.`
-              : "There's no charge for cancelling.",
-        ];
+      : onPlan
+        ? [
+            `We've skipped ${what}, as you asked.`,
+            job!.lateCancellation && fee > 0
+              ? `As it was less than ${CANCELLATION_CUTOFF_HOURS} hours before the clean, it's a Late Cancellation, with a ${formatMoney(fee)} fee: the same as your plan's Deposit, which stays held.`
+              : fee > 0
+                ? `The ${formatMoney(fee)} fee for an earlier Late Reschedule is still to pay.`
+                : "There's no charge for skipping it.",
+            ...feeChargeLine(settled),
+          ]
+        : [
+            `We've cancelled ${what}, as you asked.`,
+            job!.lateCancellation && job!.feeCents! > 0
+              ? `As it was less than ${CANCELLATION_CUTOFF_HOURS} hours before the clean, it's a Late Cancellation: your ${formatMoney(job!.feeCents!)} Deposit is kept as the fee.`
+              : job!.feeCents! > 0
+                ? `Your ${formatMoney(job!.feeCents!)} Deposit was already kept as the fee for a Late Reschedule, so there's nothing more to pay.`
+                : "There's no charge for cancelling.",
+          ];
   await notify(`Cancellation notice for Job ${jobId}`, () =>
     email.send({
       to: client.email,
-      subject: "Your clean is cancelled",
+      subject:
+        onPlan && job!.cancelledBy === "client"
+          ? "Your clean is skipped"
+          : "Your clean is cancelled",
       ...compose(
         [
           `Hi ${firstNameOf(client.name)},`,
           ...lines,
           ...refundLine(settled),
-          "To book another clean, request a Quote from your account.",
+          onPlan
+            ? "Your Service Plan carries on as usual."
+            : "To book another clean, request a Quote from your account.",
         ],
         portalLink(jobId),
       ),
@@ -277,21 +341,44 @@ const tellCrew = async (job: Job) => {
 };
 
 // the Office hears when a Client cancels a Job themselves
-const tellOffice = async (job: Job, late: boolean, feeCents: number) => {
+const tellOffice = async (
+  job: Job,
+  {
+    late,
+    feeCents,
+    onPlan,
+    settled,
+  }: { late: boolean; feeCents: number; onPlan: boolean; settled: Settled },
+) => {
   const { property, client } = await ownerOf(job);
   await notify(`Cancellation of Job ${job.id} to the Office`, async () => {
     for (const to of await officeStaffEmails()) {
       await email.send({
         to,
-        subject: `${client.name} cancelled a Job`,
+        subject: onPlan
+          ? `${client.name} skipped a plan Job`
+          : `${client.name} cancelled a Job`,
         ...compose(
           [
-            `${client.name} has cancelled ${describe(job, property)}.`,
-            late
-              ? "It was a Late Cancellation, so the Deposit is kept as the fee."
-              : feeCents > 0
-                ? "It was more than 24 hours ahead, but a Late Reschedule had already kept the Deposit as the fee."
-                : "It was more than 24 hours ahead, so the Deposit has been refunded.",
+            onPlan
+              ? `${client.name} has skipped ${describe(job, property)}. Their Service Plan carries on.`
+              : `${client.name} has cancelled ${describe(job, property)}.`,
+            onPlan
+              ? late
+                ? `It was a Late Cancellation, so the ${formatMoney(feeCents)} fee is charged.`
+                : feeCents > 0
+                  ? `It was more than 24 hours ahead, but the ${formatMoney(feeCents)} fee for a Late Reschedule is charged.`
+                  : "It was more than 24 hours ahead, so there's no fee."
+              : late
+                ? "It was a Late Cancellation, so the Deposit is kept as the fee."
+                : feeCents > 0
+                  ? "It was more than 24 hours ahead, but a Late Reschedule had already kept the Deposit as the fee."
+                  : "It was more than 24 hours ahead, so the Deposit has been refunded.",
+            ...(settled.failure
+              ? [
+                  `The fee couldn't be charged (${settled.failure}), so the Job is Unpaid.`,
+                ]
+              : []),
           ],
           {
             href: `${env.CORS_ORIGIN_URL}/office/jobs/${job.id}`,
@@ -308,8 +395,8 @@ const tellOffice = async (job: Job, late: boolean, feeCents: number) => {
 /**
  * The assigned Cleaner records that they couldn't get into the Property,
  * saying what happened. The Job isn't Completed and is charged like a Late
- * Cancellation: the Deposit is kept as the fee. The Client and the Office
- * are emailed.
+ * Cancellation: the Deposit is kept as the fee, or for a plan Job, the fee
+ * is charged now. The Client and the Office are emailed.
  *
  * Only someone with a Confirmed place may, once the Job has started; the
  * rest of the crew needn't have Confirmed.
@@ -357,13 +444,14 @@ export const recordNoAccess = async (
         noAccessAt: clock.now(),
         noAccessBy: staffId,
         noAccessReason: reason,
-        feeCents: await depositOf(jobId, tx),
+        feeCents: await lateFeeOf(jobId, tx),
       })
       .where(eq(jobs.id, jobId));
     return job!;
   });
 
   const settled = await settleJob(jobId);
+  const onPlan = (await planOfJob(jobId)) !== null;
   const [after] = await db.select().from(jobs).where(eq(jobs.id, jobId));
   const { property, client } = await ownerOf(job);
   const [member] = await db.select().from(staff).where(eq(staff.id, staffId));
@@ -376,11 +464,16 @@ export const recordNoAccess = async (
         [
           `Hi ${firstNameOf(client.name)},`,
           `Our team came for ${describe(job, property)}, but couldn't get in ("${reason}").`,
-          after!.feeCents! > 0
-            ? `As with a Late Cancellation, your ${formatMoney(after!.feeCents!)} Deposit is kept as the fee.`
-            : "There's no charge for it.",
+          after!.feeCents! === 0
+            ? "There's no charge for it."
+            : onPlan
+              ? `As with a Late Cancellation, there's a ${formatMoney(after!.feeCents!)} fee: the same as your plan's Deposit, which stays held.`
+              : `As with a Late Cancellation, your ${formatMoney(after!.feeCents!)} Deposit is kept as the fee.`,
+          ...(onPlan ? feeChargeLine(settled) : []),
           ...refundLine(settled),
-          "To book another clean, request a Quote from your account. Please check your Access Instructions first.",
+          onPlan
+            ? "Your Service Plan carries on as usual. Please check your Access Instructions before your next clean."
+            : "To book another clean, request a Quote from your account. Please check your Access Instructions first.",
         ],
         portalLink(jobId),
       ),
@@ -394,7 +487,11 @@ export const recordNoAccess = async (
         ...compose(
           [
             `${member!.name} couldn't get in for ${describe(job, property)} ("${reason}").`,
-            `${client.name} has been told, and the Deposit is kept as the fee.`,
+            onPlan
+              ? settled.failure
+                ? `${client.name} has been told. The fee couldn't be charged (${settled.failure}), so the Job is Unpaid.`
+                : `${client.name} has been told, and the fee is charged.`
+              : `${client.name} has been told, and the Deposit is kept as the fee.`,
           ],
           {
             href: `${env.CORS_ORIGIN_URL}/office/jobs/${jobId}`,

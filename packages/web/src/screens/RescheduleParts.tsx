@@ -25,32 +25,51 @@ import {
   timeOfDay,
 } from "./format.ts";
 
-// what moving a Job costs, the same rules for the Office and its Client
-// (ADR-0010), told to the Client
-export const costForClient = (cost: RescheduleCost, feeCents: number) => {
+// What moving a Job costs, the same rules for the Office and its Client
+// (ADR-0010), told to the Client. A plan Job has no Deposit of its own: its
+// fee is the plan's Deposit amount, charged with the price.
+export const costForClient = (
+  cost: RescheduleCost,
+  feeCents: number,
+  onPlan = false,
+) => {
   switch (cost) {
     case "free":
       return "There's no charge for moving it.";
     case "free_late":
-      return "It's less than 24 hours until your clean, so this is a Late Reschedule. Your first one is free, and your Deposit still counts towards the price.";
+      return onPlan
+        ? "It's less than 24 hours until your clean, so this is a Late Reschedule. Your first one is free."
+        : "It's less than 24 hours until your clean, so this is a Late Reschedule. Your first one is free, and your Deposit still counts towards the price.";
     case "late_cancellation":
-      return feeCents > 0
-        ? `It's less than 24 hours until your clean and you've used your free Late Reschedule, so moving it is a Late Cancellation: your ${formatMoney(feeCents)} Deposit is kept as the fee, and the full price is charged when it's done.`
-        : "It's less than 24 hours until your clean. Your Deposit was already kept as the fee for an earlier Late Reschedule, so moving it costs nothing more.";
+      return feeCents === 0
+        ? onPlan
+          ? "It's less than 24 hours until your clean. An earlier Late Reschedule already made the fee due, so moving it costs nothing more."
+          : "It's less than 24 hours until your clean. Your Deposit was already kept as the fee for an earlier Late Reschedule, so moving it costs nothing more."
+        : onPlan
+          ? `It's less than 24 hours until your clean and you've used your free Late Reschedule, so moving it is a Late Cancellation, with a ${formatMoney(feeCents)} fee (the same as your plan's Deposit), charged with the price when it's done.`
+          : `It's less than 24 hours until your clean and you've used your free Late Reschedule, so moving it is a Late Cancellation: your ${formatMoney(feeCents)} Deposit is kept as the fee, and the full price is charged when it's done.`;
   }
 };
 
 // the same, told to Office Staff
-export const costForOffice = (cost: RescheduleCost, feeCents: number) => {
+export const costForOffice = (
+  cost: RescheduleCost,
+  feeCents: number,
+  onPlan = false,
+) => {
   switch (cost) {
     case "free":
       return "Free.";
     case "free_late":
-      return "A Late Reschedule, free as this Job's first. The Deposit still counts towards the price.";
+      return onPlan
+        ? "A Late Reschedule, free as this Job's first."
+        : "A Late Reschedule, free as this Job's first. The Deposit still counts towards the price.";
     case "late_cancellation":
-      return feeCents > 0
-        ? `A second Late Reschedule, so a Late Cancellation: the ${formatMoney(feeCents)} Deposit is kept as the fee and the full price is charged on completion.`
-        : "A Late Reschedule. An earlier one already kept the Deposit as the fee, so nothing more.";
+      return feeCents === 0
+        ? "A Late Reschedule. An earlier one already made the fee due, so nothing more."
+        : onPlan
+          ? `A second Late Reschedule, so a Late Cancellation: a ${formatMoney(feeCents)} fee, the plan's Deposit amount, is charged with the price on completion.`
+          : `A second Late Reschedule, so a Late Cancellation: the ${formatMoney(feeCents)} Deposit is kept as the fee and the full price is charged on completion.`;
   }
 };
 

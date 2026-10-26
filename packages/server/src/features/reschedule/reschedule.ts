@@ -24,7 +24,7 @@ import {
   formatWhen,
 } from "../../services/email/index.ts";
 import { assignments } from "../assignments/assignments.schema.ts";
-import { depositOf } from "../cancellation/cancellation.ts";
+import { lateFeeOf, planOfJob } from "../cancellation/cancellation.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { lockDay } from "../jobs/jobs.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
@@ -83,8 +83,8 @@ const freeUntilOf = (job: Pick<Job, "startsAt">) =>
  * What asking to move a Job costs now, by the Clock (ADR-0010). Free 24
  * hours or more before it starts. Less than that, it's a Late Reschedule:
  * free if none has been confirmed for the Job yet, otherwise a Late
- * Cancellation that keeps the Deposit as the fee, unless an earlier one has
- * kept it already.
+ * Cancellation, with the Deposit amount as the fee, unless an earlier one has
+ * made it due already.
  */
 const termsOf = async (
   job: Job,
@@ -112,7 +112,7 @@ const termsOf = async (
   if (!usedFree) return terms("free_late");
   return terms(
     "late_cancellation",
-    job.rescheduleFeeCents > 0 ? 0 : await depositOf(job.id, tx),
+    job.rescheduleFeeCents > 0 ? 0 : await lateFeeOf(job.id, tx),
   );
 };
 
@@ -221,7 +221,7 @@ type Asking = {
 const costLabel: Record<RescheduleCost, string> = {
   free: "free",
   free_late: "a Late Reschedule, free as the Job's first",
-  late_cancellation: "a Late Cancellation, keeping the Deposit as the fee",
+  late_cancellation: "a Late Cancellation, with the Deposit amount as the fee",
 };
 
 /**
@@ -441,8 +441,9 @@ export const turnDownReschedule = async (
 /**
  * Office Staff confirm a pending request: the Job moves to its new time, and
  * every place on it is Offered afresh, so the crew each Confirm the new time
- * or Release it. A second Late Reschedule keeps the Deposit as the fee
- * (ADR-0010); nothing is charged now, as the Deposit has been paid. Refused
+ * or Release it. A second Late Reschedule makes the Deposit amount due as a
+ * fee (ADR-0010), charged with the Balance on completion: a one-off Job's
+ * Deposit is kept as it, and a plan Job, which has none, pays it then. Refused
  * if the time asked for no longer has room, as when a Cleaner's hours that
  * day were cut since. The
  * Client and the crew are emailed.
@@ -487,14 +488,19 @@ export const confirmReschedule = async (jobId: string, byAccountId: string) => {
   });
 
   const client = await ownerOf(job);
+  const onPlan = (await planOfJob(jobId)) !== null;
   const costLine =
     pending.cost === "free"
       ? "There's no charge for moving it."
       : pending.cost === "free_late"
-        ? `As it was less than ${LATE_RESCHEDULE_HOURS} hours before the clean, it's a Late Reschedule. Your first one is free, and your Deposit still counts towards the price.`
+        ? `As it was less than ${LATE_RESCHEDULE_HOURS} hours before the clean, it's a Late Reschedule. Your first one is free${onPlan ? "" : ", and your Deposit still counts towards the price"}.`
         : pending.feeCents > 0
-          ? `As it's a second Late Reschedule, it's a Late Cancellation: your ${formatMoney(pending.feeCents)} Deposit is kept as the fee, and the full price is charged when the clean is done.`
-          : "Your Deposit was already kept as the fee for an earlier Late Reschedule, so there's nothing more to pay for moving it.";
+          ? onPlan
+            ? `As it's a second Late Reschedule, it's a Late Cancellation, with a ${formatMoney(pending.feeCents)} fee (the same as your plan's Deposit), charged with the price when the clean is done.`
+            : `As it's a second Late Reschedule, it's a Late Cancellation: your ${formatMoney(pending.feeCents)} Deposit is kept as the fee, and the full price is charged when the clean is done.`
+          : onPlan
+            ? "An earlier Late Reschedule already made the fee due, so there's nothing more to pay for moving it."
+            : "Your Deposit was already kept as the fee for an earlier Late Reschedule, so there's nothing more to pay for moving it.";
   await notify(`Reschedule confirmation for Job ${jobId}`, () =>
     email.send({
       to: client.email,

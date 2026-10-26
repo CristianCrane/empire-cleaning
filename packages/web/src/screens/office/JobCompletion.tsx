@@ -470,7 +470,7 @@ function UndoCompletion({ job }: { job: OfficeJob }) {
   );
 }
 
-const chargeLabel = { deposit: "Deposit", balance: "Balance" };
+const chargeLabel = { deposit: "Deposit", balance: "Balance", fee: "Fee" };
 
 function PaymentCard({
   job,
