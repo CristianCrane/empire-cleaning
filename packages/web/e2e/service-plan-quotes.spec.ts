@@ -36,6 +36,15 @@ const atPlanDraft = async (page: Page) => {
   );
 };
 
+// a price card on a plan Draft: the choice of Clean Type, with its prices
+const planCard = (page: Page, name: string) =>
+  page.locator("label").filter({ has: page.getByRole("radio", { name }) });
+
+const saved = (page: Page) =>
+  expect(
+    page.getByRole("status").filter({ hasText: /saved|prices/ }),
+  ).toHaveText("All changes saved");
+
 // offered from the First Clean Job's screen
 const startPlan = async (page: Page) => {
   const { job } = await firstCleanDone(page);
@@ -121,35 +130,51 @@ test(
     // a Standard Clean every 2 weeks at moderate Condition and 10% off, to
     // start with: $206 with tax is $224.28 as a one-off, and $185.40 with
     // tax is $201.85
-    let offer = page.getByRole("region", {
-      name: "Standard Clean, every 2 weeks",
-    });
-    await expect(offer).toContainText("$201.85");
-    await expect(offer).toContainText("$224.28");
-    await expect(offer).toContainText("Save $22.43 a clean");
+    const standard = planCard(page, "Standard Clean, every 2 weeks");
+    await expect(standard).toContainText("$201.85");
+    await expect(standard).toContainText("$224.28");
+    await expect(standard).toContainText("Save $22.43 a clean");
+    await expect(
+      page.getByRole("radio", { name: "Standard Clean, every 2 weeks" }),
+    ).toBeChecked();
+    // the Deep Clean beside it, to compare
+    await expect(planCard(page, "Deep Clean, every 2 weeks")).toContainText(
+      "a clean",
+    );
     const terms = page.getByRole("region", { name: "Plan" });
     await expect(
       terms.getByRole("button", { name: /Priced for Condition/ }),
     ).toContainText("Moderate");
-    await expect(
-      terms.getByRole("radio", { name: "Standard Clean" }),
-    ).toBeChecked();
 
+    // the prices follow each change, without saving by hand
     await terms.getByText("Every week").click();
     await terms.getByRole("textbox", { name: "Plan Discount (%)" }).fill("15");
-    await offer.getByText("Override the one-off price").click();
-    await offer
+    const price = page.getByRole("region", { name: "Standard Clean price" });
+    await price.getByText("Override the one-off price").click();
+    await price
       .getByRole("textbox", { name: "One-off price before tax" })
       .fill("250");
-    await offer
+    await price
       .getByRole("textbox", { name: "Reason for the override" })
       .fill("Big garden room");
+    await price
+      .getByRole("textbox", { name: "Reason for the override" })
+      .blur();
+    // 15% off the $250 override: $212.50, with tax $231.36, against $272.19
+    await expect(planCard(page, "Standard Clean, every week")).toContainText(
+      "$231.36",
+    );
+    await saved(page);
+    await expect(
+      page.getByText(/^Standard Clean every week: \$231\.36 a clean$/),
+    ).toBeVisible();
     await startOn19th(page);
     await page.getByRole("button", { name: `Send to ${casey.name}` }).click();
     await expect(page.getByText(`Quote sent to ${casey.email}`)).toBeVisible();
 
-    // 15% off the $250 override: $212.50, with tax $231.36, against $272.19
-    offer = page.getByRole("region", { name: "Standard Clean, every week" });
+    const offer = page.getByRole("region", {
+      name: "Standard Clean, every week",
+    });
     await expect(offer).toContainText("$231.36");
     await expect(offer).toContainText("$272.19");
     await expect(offer).toContainText("Overridden to $250.00 before tax");
@@ -207,12 +232,13 @@ test(
 
 test("a Service Plan of Deep Cleans", async ({ page, browser }) => {
   await startPlan(page);
-  const terms = page.getByRole("region", { name: "Plan" });
-  await terms.getByText("Deep Clean").click();
-  await page.getByRole("button", { name: "Save draft" }).click();
-  await expect(page.getByText("Draft saved")).toBeVisible();
+  await planCard(page, "Deep Clean, every 2 weeks").click();
+  await saved(page);
   await expect(
-    page.getByRole("region", { name: "Deep Clean, every 2 weeks" }),
+    page.getByRole("radio", { name: "Deep Clean, every 2 weeks" }),
+  ).toBeChecked();
+  await expect(
+    page.getByRole("region", { name: "Deep Clean price" }),
   ).toBeVisible();
 
   await startOn19th(page);

@@ -493,6 +493,11 @@ export type OfficeQuote = Omit<
   // on a Service Plan Quote, what the Property's First Clean found, to price
   // the plan by; null on a one-off Quote
   firstClean: FirstCleanFindings | null;
+  // on a Service Plan Draft, the plan priced as each Clean Type, Standard
+  // first, for Office Staff to choose between: its own Clean Type as last
+  // saved, the other worked out now from the same terms and Add-ons. Null
+  // once Sent, and on a one-off Quote.
+  planChoices: PlanChoice[] | null;
   priceListVersion: number;
   validityDays: number;
   proposedStart: LocalDateTime | null;
@@ -522,6 +527,9 @@ export type QuoteDraftInput = {
   // required on a Service Plan Quote, and only there
   plan?: ServicePlanInput | null;
 };
+
+// a Service Plan Draft priced as one Clean Type
+export type PlanChoice = { option: OfficeQuoteOption; plan: ServicePlanTerms };
 
 // what a Property's First Clean found, shown beside a Service Plan Quote
 export type FirstCleanFindings = {

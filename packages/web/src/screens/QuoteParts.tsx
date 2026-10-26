@@ -95,23 +95,56 @@ export function PlanCard({
 }) {
   return (
     <Card
-      title={`${cleanTypeLabel[option.cleanType]}, ${recurrenceLabel[plan.recurrence].toLowerCase()}`}
+      title={planTitle(option, plan)}
       headingLevel={3}
-      actions={
-        <StatusBadge tone="success">
-          Save {formatMoney(plan.savingCents)} a clean
-        </StatusBadge>
-      }
+      actions={<PlanSaving plan={plan} />}
     >
-      <div className="flex flex-col gap-1">
-        <p className="font-display text-4xl font-bold tracking-wide">
+      <PlanFigures
+        option={option}
+        plan={plan}
+        crewSize={crewSize}
+        depositPercent={depositPercent}
+      />
+      {children}
+    </Card>
+  );
+}
+
+// "Standard Clean, every 2 weeks"
+export const planTitle = (option: QuoteOption, plan: ServicePlanTerms) =>
+  `${cleanTypeLabel[option.cleanType]}, ${recurrenceLabel[plan.recurrence].toLowerCase()}`;
+
+export function PlanSaving({ plan }: { plan: ServicePlanTerms }) {
+  return (
+    <StatusBadge tone="success">
+      Save {formatMoney(plan.savingCents)} a clean
+    </StatusBadge>
+  );
+}
+
+// a plan clean's price, against the same clean as a one-off Job
+export function PlanFigures({
+  option,
+  plan,
+  crewSize,
+  depositPercent,
+}: {
+  option: QuoteOption;
+  plan: ServicePlanTerms;
+  crewSize: number;
+  depositPercent: number;
+}) {
+  return (
+    <>
+      <span className="flex flex-col gap-1">
+        <span className="font-display text-4xl font-bold tracking-wide">
           {formatMoney(option.totalCents)}
           <span className="text-base font-normal text-fg-muted"> a clean</span>
-        </p>
-        <p className="text-sm text-fg-muted">
+        </span>
+        <span className="text-sm text-fg-muted">
           Includes {formatMoney(option.taxCents)} tax
-        </p>
-      </div>
+        </span>
+      </span>
       <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-sm">
         <dt className="text-fg-muted">As a one-off clean</dt>
         <dd className="text-right tabular-nums">
@@ -144,8 +177,7 @@ export function PlanCard({
           {formatMoney(option.depositCents)}
         </dd>
       </dl>
-      {children}
-    </Card>
+    </>
   );
 }
 

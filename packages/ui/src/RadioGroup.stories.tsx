@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect } from "storybook/test";
-import { Radio, RadioGroup } from "./RadioGroup.tsx";
+import { Radio, RadioCard, RadioGroup } from "./RadioGroup.tsx";
 
 const meta = {
   title: "Components/RadioGroup",
@@ -63,4 +63,30 @@ export const Invalid: Story = {
 
 export const Disabled: Story = {
   args: { children: conditions, defaultValue: "light", isDisabled: true },
+};
+
+export const Cards: Story = {
+  args: {
+    label: "Clean Type",
+    layout: "cards",
+    defaultValue: "standard",
+    children: (
+      <>
+        <RadioCard value="standard" title="Standard Clean">
+          <span className="font-display text-3xl font-bold">$201.85</span>
+          <span className="text-sm text-fg-muted">a clean, every 2 weeks</span>
+        </RadioCard>
+        <RadioCard value="deep" title="Deep Clean">
+          <span className="font-display text-3xl font-bold">$351.92</span>
+          <span className="text-sm text-fg-muted">a clean, every 2 weeks</span>
+        </RadioCard>
+      </>
+    ),
+  },
+  play: async ({ canvas, userEvent }) => {
+    await userEvent.click(canvas.getByText("$351.92"));
+    await expect(
+      canvas.getByRole("radio", { name: "Deep Clean" }),
+    ).toBeChecked();
+  },
 };

@@ -353,6 +353,65 @@ describe("drafting a Service Plan Quote", () => {
     });
   });
 
+  test("shows the plan priced as each Clean Type to choose between, until it's Sent", async () => {
+    const { office, propertyId } = await firstCleanDone();
+    const draft = await startPlan(office, propertyId);
+    const oven = draft.addOnChoices.find((a) => a.name === "Inside the oven")!;
+
+    const saved = await save(office, draft, {
+      addOns: [oven.key],
+      overrides: {
+        deep: null,
+        standard: { priceCents: 25000, reason: "Big garden room" },
+      },
+    });
+
+    const [standard, deep] = saved.planChoices!;
+    // its own Clean Type as saved, override and all
+    expect(standard).toEqual({
+      option: saved.options[0],
+      plan: saved.plan && {
+        recurrence: saved.plan.recurrence,
+        cleanType: "standard",
+        discountPercent: 10,
+        oneOffPriceCents: 25000,
+        oneOffTaxCents: saved.plan.oneOffTaxCents,
+        oneOffTotalCents: saved.plan.oneOffTotalCents,
+        discountCents: 2500,
+        savingCents: saved.plan.savingCents,
+      },
+    });
+    // the other at its Suggested Price, with the same terms and Add-ons
+    expect(deep!.option).toMatchObject({
+      cleanType: "deep",
+      overrideCents: null,
+    });
+    expect(deep!.option.suggested.addOns).toMatchObject([
+      { name: "Inside the oven" },
+    ]);
+    const oneOff = deep!.option.suggested.priceCents;
+    expect(deep!.plan).toMatchObject({
+      cleanType: "deep",
+      recurrence: "fortnightly",
+      oneOffPriceCents: oneOff,
+      discountCents: Math.floor((oneOff * 10 + 50) / 100),
+    });
+
+    // choosing it makes it the plan's
+    const chosen = await save(office, saved, {
+      overrides: { deep: null, standard: null },
+      plan: { ...edit(saved).plan!, cleanType: "deep" },
+    });
+    expect(chosen.options).toEqual([deep!.option]);
+    expect(chosen.planChoices!.map((c) => c.option.cleanType)).toEqual([
+      "standard",
+      "deep",
+    ]);
+
+    const sent = await send(office, chosen);
+    expect(sent.planChoices).toBeNull();
+  });
+
   test("the Plan Discount is overridable, and comes off an overridden price", async () => {
     const { office, propertyId } = await firstCleanDone();
     const draft = await startPlan(office, propertyId);
@@ -474,6 +533,7 @@ describe("drafting a Service Plan Quote", () => {
       kind: "one_off",
       plan: null,
       firstClean: null,
+      planChoices: null,
     });
     const withPlan = await office
       .patch(`/api/quotes/${oneOff.id}`)

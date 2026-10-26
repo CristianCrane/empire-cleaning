@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useLoaderData, useRouter } from "@tanstack/react-router";
 import {
   parseDate,
@@ -34,6 +34,7 @@ import {
   Notice,
   NumberField,
   Radio,
+  RadioCard,
   RadioGroup,
   Select,
   SelectItem,
@@ -59,7 +60,10 @@ import {
   AddOnList,
   OptionCard,
   PlanCard,
+  PlanFigures,
+  PlanSaving,
   QuoteStatusBadge,
+  planTitle,
 } from "../QuoteParts.tsx";
 
 // where a Quote was started from: the request it answers, or for a Service
@@ -508,9 +512,10 @@ function RoomOnDay({
   );
 }
 
-// A Service Plan Quote's own terms: how often, the Clean Type, the Plan
-// Discount, and the Condition it's priced for, which is moderate unless
-// changed here (the home's own Condition is left as it is)
+// A Service Plan Quote's own terms: how often, the Plan Discount, and the
+// Condition it's priced for, which is moderate unless changed here (the
+// home's own Condition is left as it is). Its Clean Type is chosen from the
+// price cards.
 function PlanTerms({
   plan,
   onChange,
@@ -519,10 +524,7 @@ function PlanTerms({
   onChange: (change: Partial<ServicePlanInput>) => void;
 }) {
   return (
-    <Card
-      title="Plan"
-      description="Saving works the prices out again with these."
-    >
+    <Card title="Plan">
       <RadioGroup
         label="How often"
         name="plan.recurrence"
@@ -532,19 +534,6 @@ function PlanTerms({
         {(["weekly", "fortnightly", "four_weekly"] as const).map((r) => (
           <Radio key={r} value={r}>
             {recurrenceLabel[r]}
-          </Radio>
-        ))}
-      </RadioGroup>
-      <RadioGroup
-        label="Clean Type"
-        name="plan.cleanType"
-        orientation="horizontal"
-        value={plan.cleanType}
-        onChange={(value) => onChange({ cleanType: value as CleanType })}
-      >
-        {(["standard", "deep"] as const).map((t) => (
-          <Radio key={t} value={t}>
-            {cleanTypeLabel[t]}
           </Radio>
         ))}
       </RadioGroup>
@@ -573,16 +562,115 @@ function PlanTerms({
   );
 }
 
+// the Suggested Price, and the way to replace it with a price and a reason
+function OverrideFields({
+  option,
+  override,
+  label,
+  onChange,
+}: {
+  option: OfficeQuoteOption;
+  override: Override;
+  // what the price is called: "Deep Clean", or a plan's "one-off"
+  label: string;
+  onChange: (change: Partial<Override>) => void;
+}) {
+  return (
+    <>
+      <p className="text-sm text-fg-muted">
+        Suggested Price {formatMoney(option.suggested.priceCents)} before tax,
+        for {option.suggested.labourHours} Labour Hours.
+      </p>
+      <Checkbox isSelected={override.on} onChange={(on) => onChange({ on })}>
+        Override the {label} price
+      </Checkbox>
+      {override.on && (
+        <div className="flex flex-col gap-4">
+          <NumberField
+            label={`${label === "one-off" ? "One-off" : label} price before tax`}
+            name={`overrides.${option.cleanType}.priceCents`}
+            minValue={0}
+            formatOptions={dollars}
+            value={override.price}
+            onChange={(price) => onChange({ price })}
+          />
+          <TextField
+            label="Reason for the override"
+            name={`overrides.${option.cleanType}.reason`}
+            value={override.reason}
+            onChange={(reason) => onChange({ reason })}
+          />
+        </div>
+      )}
+    </>
+  );
+}
+
+// where the Draft stands against what's on screen
+type SaveState =
+  | "saved"
+  // changed, and about to be saved
+  | "changed"
+  | "saving"
+  // an override without its reason yet: nothing to save until it has one
+  | "incomplete"
+  // the API refused it: see the fields marked
+  | "invalid"
+  | "failed";
+
+const saveStateLabel: Record<SaveState, string> = {
+  saved: "All changes saved",
+  changed: "Updating prices…",
+  saving: "Updating prices…",
+  incomplete: "Give a reason for the override to update the prices",
+  invalid: "Fix the fields marked to update the prices",
+  failed: "Changes couldn't be saved. They'll be tried again as you edit.",
+};
+
+// how long after the last change the Draft is saved and priced again
+const SAVE_DELAY_MS = 500;
+
+// the prices as last worked out, in a line: what the bar at the bottom shows
+const priceSummary = (quote: OfficeQuote) => {
+  if (quote.plan) {
+    const [option] = quote.options;
+    return `${cleanTypeLabel[option!.cleanType]} ${recurrenceLabel[quote.plan.recurrence].toLowerCase()}: ${formatMoney(option!.totalCents)} a clean`;
+  }
+  return quote.options
+    .map((o) => `${cleanTypeLabel[o.cleanType]} ${formatMoney(o.totalCents)}`)
+    .join(" · ");
+};
+
+/**
+ * A Draft, saved and priced again by the server a moment after each change,
+ * so the prices always follow what's on screen; a bar at the bottom keeps
+ * them in view wherever the change was made. On a Service Plan Quote, the
+ * plan's Clean Type is chosen from its price cards.
+ */
 function DraftEditor({ quote: loaded }: { quote: OfficeQuote }) {
   const router = useRouter();
   const [quote, setQuote] = useState(loaded);
   const [fields, setFields] = useState(() => toFields(loaded));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [failure, setFailure] = useState<string>();
-  const [busy, setBusy] = useState<"save" | "send">();
+  const [saveState, setSaveState] = useState<SaveState>("saved");
+  const [isSending, setSending] = useState(false);
 
-  const set = (change: Partial<Fields>) =>
-    setFields((current) => ({ ...current, ...change }));
+  // every change counts up; a save records the change it saved, so a save
+  // started before a later change doesn't count as saving it
+  const latest = useRef(fields);
+  const edits = useRef(0);
+  const saved = useRef({ edit: 0, ok: true });
+  const queue = useRef<Promise<boolean>>(Promise.resolve(true));
+
+  const set = (change: Partial<Fields>) => {
+    edits.current += 1;
+    setFields((current) => {
+      latest.current = { ...current, ...change };
+      return latest.current;
+    });
+    setSaveState("changed");
+  };
   const setOverride = (cleanType: CleanType, change: Partial<Override>) =>
     set({
       overrides: {
@@ -591,13 +679,68 @@ function DraftEditor({ quote: loaded }: { quote: OfficeQuote }) {
       },
     });
 
-  // errors beside their fields where the API names one, otherwise above
-  const attempt = async (action: "save" | "send", run: () => Promise<void>) => {
-    setBusy(action);
+  const missingReason = (f: Fields) =>
+    (Object.keys(f.overrides) as CleanType[]).some(
+      (t) =>
+        f.overrides[t].on &&
+        !f.overrides[t].reason.trim() &&
+        (!f.plan || f.plan.cleanType === t),
+    );
+
+  // saves what's on screen, one save at a time; says whether it's all saved
+  const saveNow = (): Promise<boolean> => {
+    queue.current = queue.current.then(async () => {
+      const edit = edits.current;
+      if (edit === saved.current.edit) return saved.current.ok;
+      setSaveState("saving");
+      try {
+        setQuote(
+          await patchJson<OfficeQuote>(
+            `/api/quotes/${quote.id}`,
+            toInput(latest.current),
+          ),
+        );
+        setFieldErrors({});
+        setFailure(undefined);
+        saved.current = { edit, ok: true };
+      } catch (e) {
+        const invalid =
+          e instanceof ApiError && Object.keys(e.fieldErrors).length > 0;
+        if (invalid) setFieldErrors(e.fieldErrors);
+        saved.current = { edit, ok: false };
+        if (edit === edits.current)
+          setSaveState(invalid ? "invalid" : "failed");
+        return false;
+      }
+      if (edit === edits.current) setSaveState("saved");
+      return true;
+    });
+    return queue.current;
+  };
+
+  useEffect(() => {
+    if (edits.current === saved.current.edit) return;
+    if (missingReason(fields)) {
+      setSaveState("incomplete");
+      return;
+    }
+    const timer = setTimeout(() => void saveNow(), SAVE_DELAY_MS);
+    return () => clearTimeout(timer);
+    // saveNow reads the latest fields itself
+  }, [fields]);
+
+  // what's on screen is what's sent: save it, then send it
+  const onSend = async () => {
+    setSending(true);
     setFailure(undefined);
     try {
-      await run();
-      setFieldErrors({});
+      if (!(await saveNow())) return;
+      await postJson<OfficeQuote>(`/api/quotes/${quote.id}/send`);
+      showToast({
+        tone: "success",
+        title: `Quote sent to ${quote.client.email}`,
+      });
+      await router.invalidate();
     } catch (e) {
       if (e instanceof ApiError && Object.keys(e.fieldErrors).length) {
         setFieldErrors(e.fieldErrors);
@@ -609,106 +752,105 @@ function DraftEditor({ quote: loaded }: { quote: OfficeQuote }) {
         );
       }
     } finally {
-      setBusy(undefined);
+      setSending(false);
     }
   };
 
-  const save = () =>
-    patchJson<OfficeQuote>(`/api/quotes/${quote.id}`, toInput(fields));
-
-  const onSave = () =>
-    attempt("save", async () => {
-      setQuote(await save());
-      showToast({ tone: "success", title: "Draft saved" });
-    });
-
-  // what's on screen is what's sent: save it, then send it
-  const onSend = () =>
-    attempt("send", async () => {
-      setQuote(await save());
-      await postJson<OfficeQuote>(`/api/quotes/${quote.id}/send`);
-      showToast({
-        tone: "success",
-        title: `Quote sent to ${quote.client.email}`,
-      });
-      await router.invalidate();
-    });
+  const stale = saveState === "changed" || saveState === "saving";
+  const plan = fields.plan;
+  const chosen =
+    plan &&
+    quote.planChoices?.find((c) => c.option.cleanType === plan.cleanType);
 
   return (
     <Form
       validationErrors={fieldErrors}
       onSubmit={(e) => {
         e.preventDefault();
-        void onSave();
+        void saveNow();
       }}
     >
       {failure && <Notice tone="danger">{failure}</Notice>}
 
-      <section aria-labelledby="prices-title" className="flex flex-col gap-4">
+      <section
+        aria-labelledby="prices-title"
+        aria-busy={stale}
+        className="flex flex-col gap-4"
+      >
         <Heading level={2} id="prices-title">
           Prices
         </Heading>
-        <div className="grid gap-4 lg:grid-cols-2">
-          {quote.options.map((option) => {
-            const override = fields.overrides[option.cleanType];
-            // on a Service Plan Quote, the Plan Discount comes off the
-            // one-off price, overridden or not
-            const label = quote.plan
-              ? "one-off"
-              : cleanTypeLabel[option.cleanType];
-            return (
-              <OfferCard key={option.cleanType} quote={quote} option={option}>
-                <p className="text-sm text-fg-muted">
-                  Suggested Price {formatMoney(option.suggested.priceCents)}{" "}
-                  before tax, for {option.suggested.labourHours} Labour Hours.
-                </p>
-                <Checkbox
-                  isSelected={override.on}
-                  onChange={(on) => setOverride(option.cleanType, { on })}
+        <div
+          className={`flex flex-col gap-4 transition-opacity ${stale ? "opacity-60" : ""}`}
+        >
+          {plan && quote.planChoices ? (
+            <>
+              <RadioGroup
+                label="Clean Type"
+                description="Choose the one the plan is for. The Client is offered only that."
+                layout="cards"
+                value={plan.cleanType}
+                onChange={(value) =>
+                  set({ plan: { ...plan, cleanType: value as CleanType } })
+                }
+              >
+                {quote.planChoices.map((choice) => (
+                  <RadioCard
+                    key={choice.option.cleanType}
+                    value={choice.option.cleanType}
+                    title={planTitle(choice.option, choice.plan)}
+                    badge={<PlanSaving plan={choice.plan} />}
+                  >
+                    <PlanFigures
+                      option={choice.option}
+                      plan={choice.plan}
+                      crewSize={quote.crewSize}
+                      depositPercent={quote.depositPercent}
+                    />
+                  </RadioCard>
+                ))}
+              </RadioGroup>
+              {chosen && (
+                <Card
+                  title={`${cleanTypeLabel[plan.cleanType]} price`}
+                  headingLevel={3}
+                  description="The Plan Discount comes off the one-off price, overridden or not."
                 >
-                  Override the {label} price
-                </Checkbox>
-                {override.on && (
-                  <div className="flex flex-col gap-4">
-                    <NumberField
-                      label={
-                        quote.plan
-                          ? "One-off price before tax"
-                          : `${label} price before tax`
-                      }
-                      name={`overrides.${option.cleanType}.priceCents`}
-                      minValue={0}
-                      formatOptions={dollars}
-                      value={override.price}
-                      onChange={(price) =>
-                        setOverride(option.cleanType, { price })
-                      }
-                    />
-                    <TextField
-                      label="Reason for the override"
-                      name={`overrides.${option.cleanType}.reason`}
-                      value={override.reason}
-                      onChange={(reason) =>
-                        setOverride(option.cleanType, { reason })
-                      }
-                    />
-                  </div>
-                )}
-              </OfferCard>
-            );
-          })}
+                  <OverrideFields
+                    option={chosen.option}
+                    override={fields.overrides[plan.cleanType]}
+                    label="one-off"
+                    onChange={(change) => setOverride(plan.cleanType, change)}
+                  />
+                </Card>
+              )}
+            </>
+          ) : (
+            <div className="grid gap-4 lg:grid-cols-2">
+              {quote.options.map((option) => (
+                <OfferCard key={option.cleanType} quote={quote} option={option}>
+                  <OverrideFields
+                    option={option}
+                    override={fields.overrides[option.cleanType]}
+                    label={cleanTypeLabel[option.cleanType]}
+                    onChange={(change) => setOverride(option.cleanType, change)}
+                  />
+                </OfferCard>
+              ))}
+            </div>
+          )}
         </div>
         <p className="text-sm text-fg-muted">
           Prices are worked out again from the current Price List (version{" "}
-          {quote.priceListVersion}) and the home's details each time you save.
+          {quote.priceListVersion}) and the home's details as you make changes.
           Sending fixes them.
         </p>
       </section>
 
-      {fields.plan && (
+      {plan && (
         <PlanTerms
-          plan={fields.plan}
-          onChange={(change) => set({ plan: { ...fields.plan!, ...change } })}
+          plan={plan}
+          onChange={(change) => set({ plan: { ...plan, ...change } })}
         />
       )}
       {quote.firstClean && <FirstCleanCard firstClean={quote.firstClean} />}
@@ -772,8 +914,8 @@ function DraftEditor({ quote: loaded }: { quote: OfficeQuote }) {
       <Card
         title={quote.plan ? "Start" : "Proposed time"}
         description={
-          fields.plan
-            ? `New York time. Then ${recurrenceLabel[fields.plan.recurrence].toLowerCase()} on the same weekday. The Quote Expires at this time if it isn't accepted first.`
+          plan
+            ? `New York time. Then ${recurrenceLabel[plan.recurrence].toLowerCase()} on the same weekday. The Quote Expires at this time if it isn't accepted first.`
             : "New York time. The Quote Expires at this time if it isn't accepted first."
         }
       >
@@ -795,14 +937,20 @@ function DraftEditor({ quote: loaded }: { quote: OfficeQuote }) {
         )}
       </Card>
 
-      <Actions>
-        <Button type="submit" variant="secondary" isPending={busy === "save"}>
-          Save draft
-        </Button>
-        <Button isPending={busy === "send"} onPress={() => void onSend()}>
+      {/* the prices stay in view wherever the change was made */}
+      <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center gap-3 border-t border-border bg-surface px-4 py-3 shadow-raised sm:mx-0 sm:rounded-lg sm:border">
+        <div className="flex min-w-0 flex-1 flex-col">
+          <span className="font-semibold tabular-nums">
+            {priceSummary(quote)}
+          </span>
+          <span role="status" className="text-sm text-fg-muted">
+            {saveStateLabel[saveState]}
+          </span>
+        </div>
+        <Button isPending={isSending} onPress={() => void onSend()}>
           Send to {quote.client.name}
         </Button>
-      </Actions>
+      </div>
     </Form>
   );
 }

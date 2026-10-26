@@ -107,18 +107,33 @@ test(
   },
 );
 
-test("an override needs a reason", async ({ page }) => {
+test("prices follow the Draft as it changes, and an override waits for its reason", async ({
+  page,
+}) => {
   await requestQuoteAsGuest(casey);
   await signInAsOffice(page);
   await startDraft(page);
 
   const standard = page.getByRole("region", { name: "Standard Clean" });
   await standard.getByText("Override the Standard Clean price").click();
-  await page.getByRole("button", { name: "Save draft" }).click();
-
+  await standard
+    .getByRole("textbox", { name: "Standard Clean price before tax" })
+    .fill("250");
+  const status = page.getByRole("status").filter({ hasText: /prices|saved/ });
+  await expect(status).toHaveText(
+    "Give a reason for the override to update the prices",
+  );
+  await page.getByRole("button", { name: `Send to ${casey.name}` }).click();
   await expect(
     standard.getByText("Say why you're changing the Suggested Price"),
   ).toBeVisible();
+
+  await standard
+    .getByRole("textbox", { name: "Reason for the override" })
+    .fill("Small flat");
+  // $250 plus 8.875% tax, without saving by hand
+  await expect(standard).toContainText("$272.19");
+  await expect(status).toHaveText("All changes saved");
 });
 
 test("a Quote can't be sent without a proposed time", async ({ page }) => {

@@ -7,6 +7,7 @@ import type {
   FirstCleanFindings,
   OfficeQuote,
   OfficeQuoteOption,
+  PlanChoice,
   PriceList,
   QuoteAddOn,
   QuoteDraftInput,
@@ -297,6 +298,50 @@ const findingsOf = async (
   };
 };
 
+const officeOption = (
+  quote: Quote,
+  row: QuoteOptionRow,
+): OfficeQuoteOption => ({
+  ...toOption(quote, row),
+  suggested: row.suggested,
+  overrideCents: row.overrideCents,
+  overrideReason: row.overrideReason,
+});
+
+// Standard first: it's what a plan is unless Office Staff choose otherwise
+const PLAN_CLEAN_TYPES: CleanType[] = ["standard", "deep"];
+
+// A Service Plan Draft priced as each Clean Type, for Office Staff to choose
+// between: its own Clean Type as saved, and the other worked out now from
+// the current Price List with the same terms and Add-ons, at its Suggested
+// Price (an override is only ever for the Clean Type chosen)
+const planChoicesOf = (
+  quote: Quote,
+  [saved]: QuoteOptionRow[],
+  list: PriceList,
+  property: Property,
+): PlanChoice[] =>
+  PLAN_CLEAN_TYPES.map((cleanType) => {
+    const row =
+      cleanType === saved!.cleanType
+        ? saved!
+        : {
+            ...priceOptions(
+              list,
+              property,
+              saved!.suggested.addOns.map((a) => a.key),
+              { deep: null, standard: null },
+              planTerms({
+                cleanType,
+                condition: quote.condition!,
+                planDiscountPercent: quote.planDiscountPercent!,
+              }),
+            )[0]!,
+            quoteId: quote.id,
+          };
+    return { option: officeOption(quote, row), plan: planOf(quote, [row])! };
+  });
+
 // a Quote in full, for the Office
 export const officeQuote = async (id: string): Promise<OfficeQuote> => {
   const quote = await findQuote(id);
@@ -328,15 +373,14 @@ export const officeQuote = async (id: string): Promise<OfficeQuote> => {
       unit: property.unit,
       postcode: property.postcode,
     },
-    options: sortOptions(rows).map((r): OfficeQuoteOption => ({
-      ...toOption(quote, r),
-      suggested: r.suggested,
-      overrideCents: r.overrideCents,
-      overrideReason: r.overrideReason,
-    })),
+    options: sortOptions(rows).map((r) => officeOption(quote, r)),
     // with the Condition it's priced for, which is the Office's working
     plan: plan && { ...plan, condition: quote.condition! },
     firstClean,
+    planChoices:
+      quote.kind === "service_plan" && quote.status === "draft"
+        ? planChoicesOf(quote, rows, list, property)
+        : null,
     addOns: addOnsOf(rows),
     addOnChoices: await addOnChoices(list, quote.quoteRequestId),
     crewSize: quote.crewSize,
