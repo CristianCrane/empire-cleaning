@@ -51,8 +51,12 @@ export function QuoteRequests() {
                   {request.state === "quoted" && (
                     <StatusBadge tone="info">Quoted</StatusBadge>
                   )}
-                  {request.wantsRegularService && (
-                    <StatusBadge tone="success">Regular visits</StatusBadge>
+                  {request.servicePlanId ? (
+                    <StatusBadge tone="info">Plan change</StatusBadge>
+                  ) : (
+                    request.wantsRegularService && (
+                      <StatusBadge tone="success">Regular visits</StatusBadge>
+                    )
                   )}
                 </div>
               }

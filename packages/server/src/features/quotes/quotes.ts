@@ -1,4 +1,4 @@
-import { and, eq, or } from "drizzle-orm";
+import { and, asc, eq, or } from "drizzle-orm";
 import { z } from "zod";
 import type {
   AddOnChoice,
@@ -46,7 +46,8 @@ import { properties, type Property } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
 import { addOnsForRequests } from "../quote-requests/add-ons.ts";
 import { quoteRequests } from "../quote-requests/quote-requests.schema.ts";
-import { servicePlans } from "../service-plans/service-plans.schema.ts";
+import { planChangeOf } from "../service-plans/changing.ts";
+import { servicePlanVisits } from "../service-plans/service-plans.schema.ts";
 import { bookableFor } from "./quote-room.ts";
 import {
   firstCleanCompleted,
@@ -263,15 +264,31 @@ const addOnsOf = (rows: QuoteOptionRow[]): QuoteAddOn[] => {
 
 const iso = (date: Date | null) => date?.toISOString() ?? null;
 
-// the Service Plan an Accepted Service Plan Quote started
-const servicePlanIdOf = async (quote: Quote) => {
-  if (quote.kind !== "service_plan" || quote.status !== "accepted") return null;
+// the Service Plan an Accepted Service Plan Quote started, or changed: one
+// that changed it didn't book its first visit
+const acceptedPlanOf = async (quote: Quote) => {
+  const none = { servicePlanId: null, changedPlan: false };
+  if (quote.kind !== "service_plan" || quote.status !== "accepted") return none;
   const [plan] = await db
-    .select({ id: servicePlans.id })
-    .from(servicePlans)
-    .where(eq(servicePlans.quoteId, quote.id));
-  return plan?.id ?? null;
+    .select({ id: servicePlanVisits.servicePlanId })
+    .from(servicePlanVisits)
+    .where(eq(servicePlanVisits.quoteId, quote.id))
+    .limit(1);
+  if (!plan) return none;
+  const [first] = await db
+    .select({ quoteId: servicePlanVisits.quoteId })
+    .from(servicePlanVisits)
+    .where(eq(servicePlanVisits.servicePlanId, plan.id))
+    .orderBy(asc(servicePlanVisits.createdAt))
+    .limit(1);
+  return { servicePlanId: plan.id, changedPlan: first!.quoteId !== quote.id };
 };
+
+// what a Service Plan Quote would do to its home's plan, while it's open
+const planChangeFor = (quote: Quote) =>
+  quote.kind === "service_plan" && ["draft", "sent"].includes(statusOf(quote))
+    ? planChangeOf(quote.propertyId, quote.proposedStartsAt)
+    : null;
 
 // the Clean Types a Quote can still be booked as: none once it isn't Sent
 const bookableOf = async (quote: Quote) =>
@@ -408,7 +425,8 @@ export const officeQuote = async (id: string): Promise<OfficeQuote> => {
     declinedAt: iso(quote.declinedAt),
     acceptedAt: iso(quote.acceptedAt),
     acceptedCleanType: quote.acceptedCleanType,
-    servicePlanId: await servicePlanIdOf(quote),
+    ...(await acceptedPlanOf(quote)),
+    changesPlan: await planChangeFor(quote),
     bookable: await bookableOf(quote),
     paymentMethod: toPaymentMethodView(paymentMethod),
   };
@@ -452,7 +470,8 @@ export const clientQuote = async (
     declinedAt: iso(quote.declinedAt),
     acceptedAt: iso(quote.acceptedAt),
     acceptedCleanType: quote.acceptedCleanType,
-    servicePlanId: await servicePlanIdOf(quote),
+    ...(await acceptedPlanOf(quote)),
+    changesPlan: await planChangeFor(quote),
     bookable: await bookableOf(quote),
   };
 };

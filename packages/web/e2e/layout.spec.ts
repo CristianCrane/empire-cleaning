@@ -278,6 +278,16 @@ test("a Service Plan fits every width, for the Office and the Client", async ({
   );
   await expectFitsEveryWidth(page, `/office/properties/${propertyId}`);
   await expectFitsEveryWidth(page, "/office");
+
+  // new terms for it, replacing its booked Jobs from then on
+  const change = await sentServicePlanQuote({
+    officeEmail: olive.email,
+    propertyId,
+    startsAt: "2026-01-28T14:00:00Z",
+    recurrence: "fortnightly",
+  });
+  await expectFitsEveryWidth(client, `/portal/quotes/${change.id}`);
+  await expectFitsEveryWidth(page, `/office/quotes/${change.id}`);
 });
 
 test("cancelling, Cancelled and No Access Jobs fit every width", async ({

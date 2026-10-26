@@ -40,8 +40,15 @@ export function useStartDraft() {
 }
 
 // offers a home a Service Plan, unprompted, once its First Clean is
-// Completed
-export function OfferServicePlan({ propertyId }: { propertyId: string }) {
+// Completed; or, for a home with a plan, new terms for it, which accepting
+// changes the plan to
+export function OfferServicePlan({
+  propertyId,
+  label = "Offer a Service Plan",
+}: {
+  propertyId: string;
+  label?: string;
+}) {
   const { start, starting, failure } = useStartDraft();
   return (
     <div className="flex flex-col gap-2">
@@ -50,7 +57,7 @@ export function OfferServicePlan({ propertyId }: { propertyId: string }) {
         isPending={starting !== undefined}
         onPress={() => void start({ propertyId, kind: "service_plan" })}
       >
-        Offer a Service Plan
+        {label}
       </Button>
       {failure && <Notice tone="danger">{failure}</Notice>}
     </div>

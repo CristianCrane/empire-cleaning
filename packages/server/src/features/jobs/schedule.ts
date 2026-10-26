@@ -336,9 +336,27 @@ export const whyNoRoom = (room: DayCapacity) => {
 
 // Whether a clean has room at its time, as roomOn says. Accepting a Quote
 // (#8), Reschedule Requests (#20), moving a Job (#52) and Service Plan Jobs
-// (#14) ask this, holding the day (lockDay) while they book.
-export const roomFor = async (clean: Clean): Promise<DayCapacity> => {
+// (#14) ask this, holding the day (lockDay) while they book. Jobs it
+// replaces, as a plan's new terms replace its booked Jobs (#15), count as
+// gone.
+export const roomFor = async (
+  clean: Clean,
+  replacing: string[] = [],
+): Promise<DayCapacity> => {
   const date = dayOf(clean.startsAt);
   const [day] = await scheduleFor(date, date);
-  return roomOn(day!, clean);
+  const gone = day!.jobs.filter((job) => replacing.includes(job.id));
+  return roomOn(
+    {
+      ...day!,
+      jobs: day!.jobs.filter((job) => !gone.includes(job)),
+      freeHours: fromHundredths(
+        gone.reduce(
+          (free, job) => free + hundredths(job.labourHours),
+          hundredths(day!.freeHours),
+        ),
+      ),
+    },
+    clean,
+  );
 };

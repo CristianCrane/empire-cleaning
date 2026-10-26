@@ -37,6 +37,7 @@ import { EndPlan, OnHold, PlanStatusBadge, PlanTerms } from "../PlanParts.tsx";
 import { useJobAction } from "./JobCompletion.tsx";
 import { homeCrumbs, jobStatusLabel } from "./PropertyScreen.tsx";
 import { PickFromSchedule } from "./SchedulePicker.tsx";
+import { OfferServicePlan } from "./StartDraft.tsx";
 
 // a Service Plan for the Office: its terms, every Job it has booked, and the
 // dates it came round with no room, for Office Staff to book at another time
@@ -100,7 +101,7 @@ export function ServicePlanScreen() {
         title={`${cleanTypeLabel[plan.cleanType]}, ${recurrenceLabel[plan.recurrence].toLowerCase()}`}
         description={
           <>
-            Accepted from{" "}
+            On the terms of{" "}
             <Link
               href={linkTo({
                 to: "/office/quotes/$quoteId",
@@ -109,8 +110,17 @@ export function ServicePlanScreen() {
             >
               its Service Plan Quote
             </Link>
-            , which its Jobs are priced from.
+            , which prices its Jobs from {formatDateTime(plan.firstStartsAt)}.
+            New terms take a new Quote, accepted by the Client.
           </>
+        }
+        actions={
+          plan.status !== "ended" && (
+            <OfferServicePlan
+              propertyId={plan.property.id}
+              label="Change terms"
+            />
+          )
         }
       >
         <PlanTerms plan={plan} />

@@ -36,8 +36,13 @@ import { charges } from "../payments/payments.schema.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
 import {
+  afterTermsChanged,
+  changeServicePlanTerms,
+  holdForChange,
+} from "../service-plans/changing.ts";
+import {
+  currentPlanOf,
   generateServicePlanJobs,
-  hasServicePlan,
   startServicePlan,
 } from "../service-plans/service-plans.ts";
 import type { ServicePlan } from "../service-plans/service-plans.schema.ts";
@@ -89,20 +94,24 @@ const refuseUnlessOpen = (quote: Quote, acceptor: Acceptor) => {
 type Unbookable =
   | { reason: "closed"; status: QuoteStatus }
   | { reason: "no_room" }
-  // a Service Plan Quote for a home with a plan already: changing a plan's
-  // terms by a new Quote is #15's
-  | { reason: "has_plan" };
-
-const hasPlanMessage = (acceptor: Acceptor["by"]) =>
-  acceptor === "client"
-    ? "This home already has a Service Plan, so nothing has been charged. We'll be in touch about changing it."
-    : "This home already has a Service Plan, so nothing was charged. Changing a plan's terms isn't possible yet.";
+  // a Service Plan Quote starting a plan, for a home whose plan started
+  // while the Client's bank was approving its Deposit
+  | { reason: "has_plan" }
+  // a Service Plan Quote whose home's plan started or Ended just then
+  | { reason: "plan_changed" };
 
 const unbookableMessage = (unbookable: Unbookable, acceptor: Acceptor) => {
   if (unbookable.reason === "closed") {
     return closedMessage(unbookable.status, acceptor.by);
   }
-  if (unbookable.reason === "has_plan") return hasPlanMessage(acceptor.by);
+  if (
+    unbookable.reason === "has_plan" ||
+    unbookable.reason === "plan_changed"
+  ) {
+    return acceptor.by === "client"
+      ? "This home's Service Plan changed just then, so nothing has been booked. Please reload the page and try again."
+      : "This home's Service Plan changed just then, so nothing was booked. Reload the page and try again.";
+  }
   return acceptor.by === "client"
     ? "Sorry, that time has just been booked up, so nothing has been charged. We'll be in touch with another time."
     : "That day no longer has room for this Job, so nothing was charged. Send a Quote for another time.";
@@ -131,17 +140,29 @@ const optionFor = async (quote: Quote, cleanType: CleanType) => {
   return toOption(quote, row!);
 };
 
+// a Service Plan Quote changing its home's plan: the plan, and its booked
+// Jobs the new terms replace
+type Change = { plan: ServicePlan; replaced: Job[] };
+
+type Hold =
+  | { unbookable: Unbookable; change?: never }
+  | { unbookable: null; change: Change | null };
+
 /**
  * Holds what booking needs until the transaction ends: the Property (so a
- * newer Quote can't be sent meanwhile), the Quote, and the proposed day (so
- * two acceptances can't both take its last free hours or crew). Then says
- * whether the Quote can still be booked: open, and its time with room.
+ * newer Quote can't be sent meanwhile), the Quote, a plan whose terms it
+ * changes with the Jobs it replaces, and the proposed day (so two
+ * acceptances can't both take its last free hours or crew). Then says
+ * whether the Quote can still be booked: open, its home's plan still the one
+ * expected (`changing`: none for a Quote starting one), and its time with
+ * room, the Jobs it replaces counting as gone.
  */
 const holdForBooking = async (
   tx: Tx,
   quote: Quote,
   option: QuoteOption,
-): Promise<Unbookable | null> => {
+  changing: string | null,
+): Promise<Hold> => {
   await lockProperty(tx, quote.propertyId);
   const [current] = await tx
     .select()
@@ -149,21 +170,33 @@ const holdForBooking = async (
     .where(eq(quotes.id, quote.id))
     .for("update");
   const status = statusOf(current!);
-  if (status !== "sent") return { reason: "closed", status };
-  if (
-    quote.kind === "service_plan" &&
-    (await hasServicePlan(quote.propertyId, tx))
-  ) {
-    return { reason: "has_plan" };
+  if (status !== "sent") return { unbookable: { reason: "closed", status } };
+
+  let change: Change | null = null;
+  if (quote.kind === "service_plan") {
+    const plan = await currentPlanOf(quote.propertyId, tx);
+    if ((plan?.id ?? null) !== changing) {
+      return {
+        unbookable: { reason: changing ? "plan_changed" : "has_plan" },
+      };
+    }
+    if (plan) {
+      change = await holdForChange(tx, plan.id, quote.proposedStartsAt!);
+    }
   }
 
   await lockDay(tx, dayOf(quote.proposedStartsAt!));
-  const { hasRoom } = await roomFor({
-    startsAt: quote.proposedStartsAt!,
-    labourHours: option.labourHours,
-    crewSize: quote.crewSize,
-  });
-  return hasRoom ? null : { reason: "no_room" };
+  const { hasRoom } = await roomFor(
+    {
+      startsAt: quote.proposedStartsAt!,
+      labourHours: option.labourHours,
+      crewSize: quote.crewSize,
+    },
+    change?.replaced.map((j) => j.id),
+  );
+  return hasRoom
+    ? { unbookable: null, change }
+    : { unbookable: { reason: "no_room" } };
 };
 
 type Booking = {
@@ -175,15 +208,24 @@ type Booking = {
   acceptedBy: string | null;
 };
 
+type Booked = {
+  job: Job;
+  plan: ServicePlan | null;
+  // the plan's Jobs its new terms replaced, when the Quote changed them
+  replaced: Job[] | null;
+};
+
 // books the Job and Accepts the Quote, with its Deposit paid; inside a
 // transaction holding them (holdForBooking). A Service Plan Quote starts its
 // plan, with the Job as its first, and the Deposit is the plan's: held for
-// its life, not counted towards that Job's price.
+// its life, not counted towards that Job's price. Or it changes its home's
+// plan from that Job on, which takes no Deposit: the plan's carries over.
 const recordAcceptance = async (
   tx: Tx,
   booking: Booking,
   paid: Extract<DepositAttempt, { status: "succeeded" }>,
-): Promise<{ job: Job; plan: ServicePlan | null }> => {
+  change: Change | null,
+): Promise<Booked> => {
   const { quote, property, cleanType, option } = booking;
   const now = clock.now();
   const job = await bookJob(
@@ -196,8 +238,15 @@ const recordAcceptance = async (
     },
     tx,
   );
-  const plan =
-    quote.kind === "service_plan"
+  const plan = change
+    ? await changeServicePlanTerms(tx, {
+        ...change,
+        quote,
+        option,
+        firstJob: job,
+        changedBy: booking.acceptedBy,
+      })
+    : quote.kind === "service_plan"
       ? await startServicePlan(tx, {
           quote,
           option,
@@ -228,7 +277,7 @@ const recordAcceptance = async (
       acceptedBy: booking.acceptedBy,
     })
     .where(eq(quotes.id, quote.id));
-  return { job, plan };
+  return { job, plan, replaced: change?.replaced ?? null };
 };
 
 // a Deposit was taken but nothing was booked: give it back
@@ -264,6 +313,9 @@ const describe = (booking: Booking) =>
  * finalizeDeposit() books it once approved. Office Staff always charge the
  * saved Payment Method, without the Client there.
  *
+ * A Service Plan Quote for a home that has a plan changes that plan's terms
+ * from its proposed time on (changeServicePlanTerms), taking no Deposit.
+ *
  * Everything from checking the day has room to booking it happens in one
  * transaction holding the day, with the Deposit taken inside it, and
  * refunded if the booking then fails to save.
@@ -295,14 +347,17 @@ export const acceptQuote = async (
         `This Service Plan is for a ${cleanTypeLabel[offered!.cleanType]}.`,
       );
     }
-    if (await hasServicePlan(property.id, db)) {
-      throw new ConflictError(hasPlanMessage(acceptor.by));
-    }
   }
+  // a Service Plan Quote for a home with a plan changes that plan's terms
+  const changing =
+    quote.kind === "service_plan"
+      ? ((await currentPlanOf(property.id))?.id ?? null)
+      : null;
 
   const saved = await paymentMethodOf(client.id);
   const token = acceptor.by === "client" ? paymentToken : undefined;
-  if (!token && !saved) {
+  // changing a plan takes no Deposit: the plan's carries over
+  if (!changing && !token && !saved) {
     throw new ConflictError(
       acceptor.by === "client"
         ? "Enter a card to accept this Quote."
@@ -311,7 +366,6 @@ export const acceptQuote = async (
   }
 
   const option = await optionFor(quote, cleanType);
-  const payerId = await payerFor(client);
   const booking: Booking = {
     quote,
     property,
@@ -324,15 +378,13 @@ export const acceptQuote = async (
   // a card entered just now is used once, so its token keys the Deposit; a
   // saved one is keyed per attempt, so a retry after a refund can't replay a
   // payment that was given back
-  const takeDeposit = (): Promise<DepositAttempt> => {
-    // a 0% Deposit from a saved card has nothing to take or save
-    if (option.depositCents === 0 && !token) {
-      return Promise.resolve({
-        status: "succeeded",
-        chargeId: null,
-        saved: null,
-      });
+  const takeDeposit = async (): Promise<DepositAttempt> => {
+    // a 0% Deposit from a saved card has nothing to take or save, and nor
+    // does changing a plan
+    if (changing || (option.depositCents === 0 && !token)) {
+      return { status: "succeeded", chargeId: null, saved: null };
     }
+    const payerId = await payerFor(client);
     if (acceptor.by === "client") {
       return paymentGateway.takeDeposit({
         payerId,
@@ -363,9 +415,9 @@ export const acceptQuote = async (
   let outcome;
   try {
     outcome = await db.transaction(async (tx) => {
-      const unbookable = await holdForBooking(tx, quote, option);
-      if (unbookable) {
-        throw new ConflictError(unbookableMessage(unbookable, acceptor));
+      const hold = await holdForBooking(tx, quote, option, changing);
+      if (hold.unbookable) {
+        throw new ConflictError(unbookableMessage(hold.unbookable, acceptor));
       }
 
       const attempt = await takeDeposit();
@@ -390,11 +442,11 @@ export const acceptQuote = async (
       }
 
       chargeId = attempt.chargeId;
-      const booked = await recordAcceptance(tx, booking, attempt);
+      const booked = await recordAcceptance(tx, booking, attempt, hold.change);
       return {
         status: "accepted",
         booked,
-        paidWith: attempt.saved?.label ?? saved!.label,
+        paidWith: attempt.saved?.label ?? saved?.label ?? null,
       } as const;
     });
   } catch (error) {
@@ -483,10 +535,13 @@ export const finalizeDeposit = async (ref: string): Promise<Finalized> => {
         .for("update");
       if (current!.settledAt) return { status: "settled" } as const;
 
-      const unbookable = await holdForBooking(tx, quote, option);
+      // a Deposit was being taken, so the Quote starts its home's plan
+      const hold = await holdForBooking(tx, quote, option, null);
       await settle(ref, tx);
-      if (unbookable) return { status: "refunded", unbookable } as const;
-      const booked = await recordAcceptance(tx, booking, attempt);
+      if (hold.unbookable) {
+        return { status: "refunded", unbookable: hold.unbookable } as const;
+      }
+      const booked = await recordAcceptance(tx, booking, attempt, null);
       return { status: "accepted", booked } as const;
     });
   } catch (error) {
@@ -534,8 +589,9 @@ export const finalizeProblem = (finalized: Finalized) => {
     case "refunded":
       return finalized.unbookable.reason === "no_room"
         ? "Sorry, that time was booked up while your bank was approving the payment. We've refunded your Deposit and we'll be in touch with another time."
-        : finalized.unbookable.reason === "has_plan"
-          ? "This home already has a Service Plan, so we've refunded your Deposit. We'll be in touch about changing it."
+        : finalized.unbookable.reason === "has_plan" ||
+            finalized.unbookable.reason === "plan_changed"
+          ? "This home's Service Plan started while your bank was approving the payment, so we've refunded your Deposit."
           : "This Quote closed while your bank was approving the payment, so we've refunded your Deposit.";
     default:
       return "There's no payment waiting for approval on this Quote.";
@@ -544,30 +600,43 @@ export const finalizeProblem = (finalized: Finalized) => {
 
 // Once the acceptance is saved: the Client's confirmation, the Office told of
 // Sent Quotes the booking left without room, and a Service Plan's next Jobs
-// put on the Schedule. An email that can't go mustn't make it look as though
-// nothing was booked.
+// put on the Schedule; when it changed a plan, the crews of the Jobs it
+// replaced told they're off. An email that can't go mustn't make it look as
+// though nothing was booked.
 const afterAcceptance = async (
   client: Client,
   property: Property,
-  { job, plan }: { job: Job; plan: ServicePlan | null },
+  { job, plan, replaced }: Booked,
   option: QuoteOption,
-  paidWith: string,
+  paidWith: string | null,
 ) => {
   const paid = {
     depositCents: option.depositCents,
     totalCents: option.totalCents,
     paymentMethod: paidWith,
   };
+  if (replaced) await afterTermsChanged(replaced);
   try {
-    await (plan
-      ? sendPlanConfirmation(client, property, job, plan, paid)
-      : sendBookingConfirmation(client, property, job, paid));
+    await (replaced
+      ? sendPlanChangeConfirmation(client, property, job, plan!, replaced, paid)
+      : plan
+        ? sendPlanConfirmation(client, property, job, plan, paid)
+        : sendBookingConfirmation(client, property, job, paid));
   } catch (error) {
     console.error(`booking confirmation for Job ${job.id} not sent:`, error);
   }
   await warnOfficeOfQuotesWithoutRoom(dayOf(job.startsAt));
   if (plan) await generateServicePlanJobs(plan.id);
 };
+
+type Paid = {
+  depositCents: number;
+  totalCents: number;
+  paymentMethod: string | null;
+};
+
+const chargedTo = (paid: Paid) =>
+  paid.paymentMethod ? `your ${paid.paymentMethod}` : "your card";
 
 const recurrenceLabel: Record<Recurrence, string> = {
   weekly: "every week",
@@ -582,7 +651,7 @@ const sendPlanConfirmation = async (
   property: Property,
   job: Job,
   plan: ServicePlan,
-  paid: { depositCents: number; totalCents: number; paymentMethod: string },
+  paid: Paid,
 ) => {
   await email.send({
     to: client.email,
@@ -591,7 +660,7 @@ const sendPlanConfirmation = async (
       [
         `Hi ${firstNameOf(client.name)},`,
         `Your Service Plan has started: a ${cleanTypeLabel[plan.cleanType]} at ${addressOf(property)} ${recurrenceLabel[plan.recurrence]}, on ${weekdayName(job.startsAt)}s at ${formatTime(job.startsAt)}. The first is on ${formatWhen(job.startsAt)}.`,
-        `Each clean is ${formatMoney(paid.totalCents)}, charged to your ${paid.paymentMethod} when it's done.`,
+        `Each clean is ${formatMoney(paid.totalCents)}, charged to ${chargedTo(paid)} when it's done.`,
         ...(paid.depositCents > 0
           ? [
               `We've taken your Deposit of ${formatMoney(paid.depositCents)}. We hold it for as long as the plan runs, and it comes off your last clean when the plan ends.`,
@@ -607,11 +676,44 @@ const sendPlanConfirmation = async (
   });
 };
 
+// the plan's new terms, from the first Job on them, and the Jobs they
+// replaced
+const sendPlanChangeConfirmation = async (
+  client: Client,
+  property: Property,
+  job: Job,
+  plan: ServicePlan,
+  replaced: Job[],
+  paid: Paid,
+) => {
+  await email.send({
+    to: client.email,
+    subject: "Your Service Plan with Empire Cleaning has changed",
+    ...compose(
+      [
+        `Hi ${firstNameOf(client.name)},`,
+        `Your Service Plan at ${addressOf(property)} has changed: from ${formatWhen(job.startsAt)}, it's a ${cleanTypeLabel[plan.cleanType]} ${recurrenceLabel[plan.recurrence]}, on ${weekdayName(job.startsAt)}s at ${formatTime(job.startsAt)}.`,
+        `Each clean is now ${formatMoney(paid.totalCents)}, charged to ${chargedTo(paid)} when it's done. Cleans before then go ahead as they were.`,
+        ...(replaced.length > 0
+          ? [
+              `The ${replaced.length === 1 ? "clean" : "cleans"} you had booked from then on (${replaced.map((j) => formatWhen(j.startsAt)).join("; ")}) ${replaced.length === 1 ? "is" : "are"} cancelled, at no charge.`,
+            ]
+          : []),
+        "Your Deposit stays as it is: we hold it for as long as the plan runs, and it comes off your last clean when the plan ends.",
+      ],
+      {
+        href: `${env.CORS_ORIGIN_URL}/portal/plans/${plan.id}`,
+        label: "See your Service Plan",
+      },
+    ),
+  });
+};
+
 const sendBookingConfirmation = async (
   client: Client,
   property: Property,
   job: Job,
-  paid: { depositCents: number; totalCents: number; paymentMethod: string },
+  paid: Paid,
 ) => {
   const balance = paid.totalCents - paid.depositCents;
   await email.send({
@@ -622,8 +724,8 @@ const sendBookingConfirmation = async (
         `Hi ${firstNameOf(client.name)},`,
         `You're booked: a ${cleanTypeLabel[job.cleanType]} at ${addressOf(property)} on ${formatWhen(job.startsAt)}.`,
         paid.depositCents > 0
-          ? `We've taken your Deposit of ${formatMoney(paid.depositCents)} from your ${paid.paymentMethod}. The rest, ${formatMoney(balance)}, is charged to it when the clean is done.`
-          : `The ${formatMoney(paid.totalCents)} is charged to your ${paid.paymentMethod} when the clean is done.`,
+          ? `We've taken your Deposit of ${formatMoney(paid.depositCents)} from ${chargedTo(paid)}. The rest, ${formatMoney(balance)}, is charged to it when the clean is done.`
+          : `The ${formatMoney(paid.totalCents)} is charged to ${chargedTo(paid)} when the clean is done.`,
         "We'll remind you the day before. Please check your Access Instructions, so our team can get in:",
       ],
       {

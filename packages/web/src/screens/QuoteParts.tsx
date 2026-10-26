@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type {
+  PlanChange,
   QuoteAddOn,
   QuoteOption,
   QuoteStatus,
@@ -84,12 +85,15 @@ export function PlanCard({
   plan,
   crewSize,
   depositPercent,
+  change,
   children,
 }: {
   option: QuoteOption;
   plan: ServicePlanTerms;
   crewSize: number;
   depositPercent: number;
+  // when it changes the home's plan, whose Deposit carries over
+  change?: PlanChange | null;
   // anything more, e.g. the Office's override
   children?: ReactNode;
 }) {
@@ -104,6 +108,7 @@ export function PlanCard({
         plan={plan}
         crewSize={crewSize}
         depositPercent={depositPercent}
+        change={change}
       />
       {children}
     </Card>
@@ -128,11 +133,13 @@ export function PlanFigures({
   plan,
   crewSize,
   depositPercent,
+  change,
 }: {
   option: QuoteOption;
   plan: ServicePlanTerms;
   crewSize: number;
   depositPercent: number;
+  change?: PlanChange | null;
 }) {
   return (
     <>
@@ -171,10 +178,12 @@ export function PlanFigures({
           {formatHours(option.hoursOnSite)}
         </dd>
         <dt className="text-fg-muted">
-          Deposit ({depositPercent}%), held while the plan runs
+          {change
+            ? "Deposit, carried over from the plan"
+            : `Deposit (${depositPercent}%), held while the plan runs`}
         </dt>
         <dd className="text-right tabular-nums">
-          {formatMoney(option.depositCents)}
+          {formatMoney(change ? change.depositCents : option.depositCents)}
         </dd>
       </dl>
     </>

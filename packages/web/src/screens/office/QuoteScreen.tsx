@@ -12,6 +12,7 @@ import type {
   FirstCleanFindings,
   OfficeQuote,
   OfficeQuoteOption,
+  PlanChange,
   QuoteDraftInput,
   Recurrence,
   ScheduleDay,
@@ -106,7 +107,7 @@ function OfferCard({
     depositPercent: quote.depositPercent,
   };
   return quote.plan ? (
-    <PlanCard {...terms} plan={quote.plan}>
+    <PlanCard {...terms} plan={quote.plan} change={quote.changesPlan}>
       {children}
     </PlanCard>
   ) : (
@@ -138,6 +139,9 @@ export function QuoteScreen() {
         </div>
         <p className="text-fg-muted">{addressOf(quote.property)}</p>
       </div>
+      {quote.changesPlan && (
+        <PlanChangeNotice quote={quote} change={quote.changesPlan} />
+      )}
       {quote.status === "draft" ? (
         // a save gives fresh prices; the form keeps what's typed
         <DraftEditor key={quote.id} quote={quote} />
@@ -148,13 +152,57 @@ export function QuoteScreen() {
   );
 }
 
+// what accepting a Quote for a home with a plan does to that plan
+function PlanChangeNotice({
+  quote,
+  change,
+}: {
+  quote: OfficeQuote;
+  change: PlanChange;
+}) {
+  const from = quote.proposedStartsAt
+    ? formatDateTime(quote.proposedStartsAt)
+    : "its start";
+  return (
+    <Notice>
+      <p>
+        <strong>This changes {quote.client.name}'s </strong>
+        <Link
+          href={linkTo({
+            to: "/office/service-plans/$planId",
+            params: { planId: change.servicePlanId },
+          })}
+        >
+          Service Plan
+        </Link>
+        <strong> from {from}.</strong> Its Jobs before then go ahead as they
+        are.
+      </p>
+      {change.replaces.length > 0 && (
+        <p>
+          Its booked Jobs from then on are cancelled, free:{" "}
+          {change.replaces.map((at) => formatDateTime(at)).join("; ")}.
+        </p>
+      )}
+      <p>
+        The plan's {formatMoney(change.depositCents)} Deposit carries over, so
+        accepting charges nothing.
+      </p>
+    </Notice>
+  );
+}
+
 function SentQuote({ quote }: { quote: OfficeQuote }) {
   return (
     <>
       <Card title="Offer">
         <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
           <dt className="font-semibold">
-            {quote.plan ? "Starts" : "Proposed time"}
+            {quote.changesPlan || quote.changedPlan
+              ? "New terms start"
+              : quote.plan
+                ? "Starts"
+                : "Proposed time"}
           </dt>
           <dd>{formatDateTime(quote.proposedStartsAt!)}</dd>
           {quote.plan && (
@@ -194,7 +242,9 @@ function SentQuote({ quote }: { quote: OfficeQuote }) {
                       params: { planId: quote.servicePlanId },
                     })}
                   >
-                    its Service Plan has started
+                    {quote.changedPlan
+                      ? "its Service Plan has changed"
+                      : "its Service Plan has started"}
                   </Link>
                 ) : (
                   `${cleanTypeLabel[quote.acceptedCleanType!]}, booked`
@@ -280,9 +330,11 @@ function RecordAcceptance({ quote }: { quote: OfficeQuote }) {
       close();
       showToast({
         tone: "success",
-        title: quote.plan
-          ? "Accepted: the Service Plan has started"
-          : "Accepted and booked",
+        title: quote.changesPlan
+          ? "Accepted: the Service Plan has changed"
+          : quote.plan
+            ? "Accepted: the Service Plan has started"
+            : "Accepted and booked",
       });
       await router.invalidate();
     });
@@ -307,6 +359,49 @@ function RecordAcceptance({ quote }: { quote: OfficeQuote }) {
       Email {firstName} a link to add a card
     </Button>
   );
+
+  // changing a plan charges nothing: its Deposit carries over
+  if (quote.changesPlan) {
+    return (
+      <Card
+        title="Record acceptance"
+        description="If the Client accepts by phone or in person."
+      >
+        {problem && <Notice tone="danger">{problem}</Notice>}
+        <Actions>
+          <DialogTrigger>
+            <Button>Record acceptance</Button>
+            <Dialog title="Record acceptance?" role="alertdialog">
+              {({ close }) => (
+                <>
+                  <p>
+                    This changes {quote.client.name}'s Service Plan to{" "}
+                    {cleanTypeLabel[cleanType]}s{" "}
+                    {recurrenceLabel[quote.plan!.recurrence].toLowerCase()} from{" "}
+                    {formatDateTime(quote.proposedStartsAt!)}, cancelling its
+                    booked Jobs from then on. Nothing is charged. Only do this
+                    if they've told you they accept.
+                  </p>
+                  {problem && <Notice tone="danger">{problem}</Notice>}
+                  <Actions>
+                    <Button variant="secondary" onPress={close}>
+                      Cancel
+                    </Button>
+                    <Button
+                      isPending={busy === "accept"}
+                      onPress={() => void accept(close)}
+                    >
+                      Change the plan
+                    </Button>
+                  </Actions>
+                </>
+              )}
+            </Dialog>
+          </DialogTrigger>
+        </Actions>
+      </Card>
+    );
+  }
 
   if (!quote.paymentMethod) {
     return (

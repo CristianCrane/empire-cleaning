@@ -132,7 +132,12 @@ function History({ home }: { home: OfficePropertyView }) {
     <Card
       title="History"
       actions={
-        home.firstCleanCompleted && <OfferServicePlan propertyId={home.id} />
+        home.firstCleanCompleted && (
+          <OfferServicePlan
+            propertyId={home.id}
+            label={home.servicePlan ? "Change its Service Plan" : undefined}
+          />
+        )
       }
     >
       <Heading level={3}>Quote Requests</Heading>
