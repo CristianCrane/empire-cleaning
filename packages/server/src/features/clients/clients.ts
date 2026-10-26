@@ -13,7 +13,8 @@ import { quoteRequests } from "../quote-requests/quote-requests.schema.ts";
 import { quoteRequestViews } from "../quote-requests/request-views.ts";
 import { clients } from "./clients.schema.ts";
 
-type NewClient = { email: string; name: string; phone: string };
+// no email only when the Office enters a caller without one (#34)
+type NewClient = { email: string | null; name: string; phone: string };
 
 const normalise = (email: string) => email.trim().toLowerCase();
 
@@ -22,9 +23,9 @@ const normalise = (email: string) => email.trim().toLowerCase();
 export const createClient = async ({ email, name, phone }: NewClient) => {
   const [client] = await db
     .insert(clients)
-    .values({ email: normalise(email), name, phone })
+    .values({ email: email && normalise(email), name, phone })
     .returning();
-  await connectSignedUpAccount(client!.email);
+  if (client!.email) await connectSignedUpAccount(client!.email);
 
   return client!;
 };
@@ -65,6 +66,27 @@ export const updateContactDetails = async (
     .where(eq(clients.id, id));
 };
 
+// Office Staff correcting a Client's contact details, or adding the email of
+// one entered without it. A Client's email can be changed but never
+// removed, and once it's theirs, an Account that signed up with it connects
+// straight away.
+export const officeUpdateContactDetails = async (
+  id: string,
+  { name, email, phone }: { name: string; email: string | null; phone: string },
+) => {
+  const [client] = await db.select().from(clients).where(eq(clients.id, id));
+  if (!client) return undefined;
+  const address = email ? normalise(email) : client.email;
+  await db
+    .update(clients)
+    .set({ name, email: address, phone })
+    .where(eq(clients.id, id));
+  if (address && address !== client.email) {
+    await connectSignedUpAccount(address);
+  }
+  return officeClientView(id);
+};
+
 // a Client with their Properties and Quote Requests, newest requests first
 export const clientView = async (
   id: string,
@@ -79,7 +101,8 @@ export const clientView = async (
   return {
     id: client.id,
     name: client.name,
-    email: client.email,
+    // the Client's own view: they signed in with a proven email that's theirs
+    email: client.email!,
     phone: client.phone,
     properties: ownProperties.map(toPropertyView),
     quoteRequests: requests,

@@ -77,7 +77,9 @@ export function ClientsScreen() {
                     client.email,
                     client.phone,
                     propertyCount(client.propertyCount),
-                  ].join(" · ")}
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
                 </span>
               }
             />

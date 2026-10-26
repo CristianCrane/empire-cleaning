@@ -5,7 +5,7 @@ A cleaning business serving residential and commercial clients with one-off and 
 ## People
 
 **Client**:
-A person or business Empire Cleaning has a relationship with, from their first Quote Request onward, whether or not they have bought anything.
+A person or business Empire Cleaning has a relationship with, from their first Quote Request onward, whether or not they have bought anything. Office Staff may enter one for a caller with just a name and phone: without an email they can't sign in or be sent a Quote until Office Staff add one (ADR-0012).
 _Avoid_: Customer, user, lead
 
 **Property**:
@@ -29,7 +29,7 @@ A Staff role: prices Quotes, manages the Schedule and Assignments, and chases Un
 _Avoid_: Admin, manager, dispatcher
 
 **Account**:
-A sign-in identity with a proven email, created only when a person signs up by emailed link or Google, never on their behalf. Anyone may sign up. Being a Client or Staff member is separate: an Account is connected to a Client, a Staff member, or both, automatically when its proven email matches theirs, and that connection is what lets its holder act as them. Once made, a connection stays even if either email later changes. A Quote Request creates a Client, not an Account.
+A sign-in identity with a proven email, created only when a person signs up by emailed link or Google, never on their behalf. Anyone may sign up. Being a Client or Staff member is separate: an Account is connected to a Client, a Staff member, or both, automatically when its proven email matches theirs, and that connection is what lets its holder act as them. Once made, a connection stays even if either email later changes. A Quote Request creates a Client, not an Account, and a Client the Office entered without an email has none to connect until one is added.
 _Avoid_: User, login, profile
 
 **Guest**:
@@ -39,7 +39,7 @@ _Avoid_: Anonymous user, visitor
 ## Quoting
 
 **Quote Request**:
-A Client's or Guest's description of the cleaning they want, submitted to ask for pricing. A Guest's first Quote Request creates their Client; one from a Guest using an existing Client's email is added to that Client, without changing their details. A Property has at most one Quote Request waiting at a time.
+A Client's or Guest's description of the cleaning they want, submitted to ask for pricing. A Guest's first Quote Request creates their Client; one from a Guest using an existing Client's email is added to that Client, without changing their details. Office Staff may enter one for a caller, which goes straight to a Quote Draft with no receipt sent. A Property has at most one Quote Request waiting at a time.
 _Avoid_: Enquiry, lead, quote
 
 **Turned Down**:

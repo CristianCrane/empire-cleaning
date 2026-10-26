@@ -44,6 +44,10 @@ import { PriceListScreen } from "./screens/office/PriceListScreen.tsx";
 import { QuoteRequest } from "./screens/office/QuoteRequest.tsx";
 import { QuoteRequests } from "./screens/office/QuoteRequests.tsx";
 import { QuoteScreen } from "./screens/office/QuoteScreen.tsx";
+import {
+  NewQuoteScreen,
+  type NewQuoteSearch,
+} from "./screens/office/NewQuoteScreen.tsx";
 import { ClientDetail } from "./screens/office/ClientDetail.tsx";
 import {
   ClientsScreen,
@@ -210,6 +214,21 @@ const officeRequestRoute = createRoute({
   loader: ({ params }) =>
     getJson<QuoteRequestDetail>(`/api/quote-requests/${params.requestId}`),
   component: QuoteRequest,
+});
+
+// quoting someone who phones (#34), for a Client found already if given
+const officeNewQuoteRoute = createRoute({
+  getParentRoute: () => officeRoute,
+  path: "/quotes/new",
+  validateSearch: (search: Record<string, unknown>): NewQuoteSearch => ({
+    clientId: typeof search.clientId === "string" ? search.clientId : undefined,
+  }),
+  loaderDeps: ({ search }) => ({ clientId: search.clientId }),
+  loader: ({ deps }) =>
+    deps.clientId
+      ? getJson<OfficeClientView>(`/api/clients/${deps.clientId}`)
+      : null,
+  component: NewQuoteScreen,
 });
 
 const officeQuoteRoute = createRoute({
@@ -400,6 +419,7 @@ const routeTree = rootRoute.addChildren([
     officeHomeRoute,
     officeRequestsRoute,
     officeRequestRoute,
+    officeNewQuoteRoute,
     officeQuoteRoute,
     officeClientsRoute,
     officeClientRoute,

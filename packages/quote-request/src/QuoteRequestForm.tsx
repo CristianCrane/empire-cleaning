@@ -21,7 +21,7 @@ import {
   TextField,
 } from "@empire-cleaning/ui";
 import { loadAddOns } from "./add-ons.ts";
-import { submitQuoteRequest } from "./submit.ts";
+import { submitQuoteRequest, type SubmitResult } from "./submit.ts";
 
 // who is asking, which decides what the form needs from them (ADR-0006)
 export type Asker =
@@ -32,16 +32,59 @@ export type Asker =
   // a Client: a new home or one of theirs; their details are already known.
   // A home with a request still waiting can't be asked about again, so it is
   // listed but not selectable.
-  | { kind: "client"; properties: PropertyView[]; waiting?: string[] };
+  | { kind: "client"; properties: PropertyView[]; waiting?: string[] }
+  // Office Staff entering a caller's request (#34): for a Client they found,
+  // with their homes as for a Client, or a new one, whose email is optional
+  | {
+      kind: "office";
+      client: {
+        id: string;
+        properties: PropertyView[];
+        waiting: string[];
+      } | null;
+    };
 
-export type QuoteRequestFormProps = {
+export type QuoteRequestFormProps<R = QuoteRequestReceipt> = {
   asker: Asker;
   // the API's origin; "" when the page is served alongside it (the web app)
   apiUrl?: string;
   // the level of the form's section headings: one below the page's heading
   // it sits under, so the outline never skips a level
   headingLevel?: 2 | 3;
-  onSubmitted: (receipt: QuoteRequestReceipt) => void;
+  // where the request goes, if not the API's own Quote Request endpoint
+  submit?: (body: object) => Promise<SubmitResult<R>>;
+  onSubmitted: (receipt: R) => void;
+};
+
+// the form speaks to whoever fills it in: the person asking, or Office Staff
+// on a caller's behalf
+const ownWords = {
+  details: "Your details",
+  email: "Email",
+  emailNote: "We'll email your Quote here.",
+  phoneNote: "Your Cleaners can reach you on the day.",
+  home: "Your home",
+  extrasNote: "Optional. Your Quote will show what each one costs.",
+  regular:
+    "After my first clean, I'd like regular visits (weekly, bi-weekly or monthly) at 10% off.",
+  submit: "Request a Quote",
+  waiting: "We're preparing your Quote for this home.",
+  failed:
+    "Your request didn't go through. Please try again, or call us on (646) 320-9076.",
+};
+const officeWords: typeof ownWords = {
+  details: "Their details",
+  email: "Email (optional)",
+  emailNote:
+    "Their Quote is emailed here. Without an email it can't be sent until one is added.",
+  phoneNote: "Their Cleaners can reach them on the day.",
+  home: "Their home",
+  extrasNote: "Optional. The Quote shows what each one costs.",
+  regular:
+    "After their first clean, they'd like regular visits (weekly, bi-weekly or monthly) at 10% off.",
+  submit: "Draft a Quote",
+  waiting: "A Quote Request for this home is waiting already.",
+  failed: "The request didn't save. Please try again.",
 };
 
 const NEW_HOME = "new";
@@ -80,16 +123,31 @@ const blankHome: NewProperty = {
 const addressOf = (p: Pick<PropertyView, "street" | "unit" | "postcode">) =>
   [p.street, p.unit, p.postcode].filter(Boolean).join(", ");
 
-// the Quote Request form, shared by the landing page (Guests) and the Client
-// portal. The API validates everything; its messages show beside each field.
-export function QuoteRequestForm({
+// the Quote Request form, shared by the landing page (Guests), the Client
+// portal and the Office (callers). The API validates everything; its
+// messages show beside each field.
+export function QuoteRequestForm<R = QuoteRequestReceipt>({
   asker,
   apiUrl = "",
   headingLevel = 3,
+  submit,
   onSubmitted,
-}: QuoteRequestFormProps) {
-  const ownHomes = asker.kind === "client" ? asker.properties : [];
-  const waiting = new Set(asker.kind === "client" ? asker.waiting : []);
+}: QuoteRequestFormProps<R>) {
+  const words = asker.kind === "office" ? officeWords : ownWords;
+  // whose homes are offered: a Client's own, or the one the Office found
+  const homesOf =
+    asker.kind === "client"
+      ? asker
+      : asker.kind === "office"
+        ? asker.client
+        : null;
+  const ownHomes = homesOf?.properties ?? [];
+  const waiting = new Set(homesOf?.waiting);
+  // contact details: a Guest's or Account's own, or a new caller's
+  const asksContact =
+    asker.kind === "guest" ||
+    asker.kind === "account" ||
+    (asker.kind === "office" && !asker.client);
   const firstFree = ownHomes.find((p) => !waiting.has(p.id));
   const [contact, setContact] = useState({ name: "", email: "", phone: "" });
   const [home, setHome] = useState<string>(firstFree?.id ?? NEW_HOME);
@@ -121,11 +179,20 @@ export function QuoteRequestForm({
   const updateHome = (change: Partial<NewProperty>) =>
     setNewHome((current) => ({ ...current, ...change }));
 
-  const submission = (): QuoteRequestSubmission => ({
+  // a Quote Request, or for the Office, one with its Client: one they found
+  // or a new one, without an email if they gave none
+  const submission = (): QuoteRequestSubmission & {
+    clientId?: string;
+    contact?: { email?: string | null };
+  } => ({
     ...(asker.kind === "guest" && { contact }),
     ...(asker.kind === "account" && {
       contact: { name: contact.name, phone: contact.phone },
     }),
+    ...(asker.kind === "office" &&
+      (asker.client
+        ? { clientId: asker.client.id }
+        : { contact: { ...contact, email: contact.email || null } })),
     property:
       home === NEW_HOME
         ? {
@@ -147,11 +214,13 @@ export function QuoteRequestForm({
     setSending(true);
     setFailed(false);
     setRefusal(undefined);
-    const result = await submitQuoteRequest(
-      apiUrl,
-      submission(),
-      asker.kind === "guest",
-    );
+    const result = submit
+      ? await submit(submission())
+      : ((await submitQuoteRequest(
+          apiUrl,
+          submission(),
+          asker.kind === "guest",
+        )) as SubmitResult<R>);
     setSending(false);
     if (result.ok) {
       onSubmitted(result.receipt);
@@ -186,46 +255,46 @@ export function QuoteRequestForm({
         void send();
       }}
     >
-      {asker.kind !== "client" && (
+      {asksContact && (
         <fieldset className="flex flex-col gap-4">
           <legend className="contents">
             <Heading level={headingLevel} size={3}>
-              Your details
+              {words.details}
             </Heading>
           </legend>
           <TextField
             label="Full name"
             name="contact.name"
-            autoComplete="name"
+            autoComplete={asker.kind === "office" ? "off" : "name"}
             isRequired
             value={contact.name}
             onChange={(name) => setContact({ ...contact, name })}
             errorMessage={error("contact.name")}
           />
-          {asker.kind === "guest" ? (
+          {asker.kind === "account" ? (
+            <p className="text-sm text-fg-muted">
+              We'll email your Quote to {asker.email}.
+            </p>
+          ) : (
             <TextField
-              label="Email"
+              label={words.email}
               name="contact.email"
               type="email"
-              autoComplete="email"
-              isRequired
-              description="We'll email your Quote here."
+              autoComplete={asker.kind === "office" ? "off" : "email"}
+              isRequired={asker.kind === "guest"}
+              description={words.emailNote}
               value={contact.email}
               onChange={(email) => setContact({ ...contact, email })}
               errorMessage={error("contact.email")}
             />
-          ) : (
-            <p className="text-sm text-fg-muted">
-              We'll email your Quote to {asker.email}.
-            </p>
           )}
           <TextField
             label="Phone"
             name="contact.phone"
             type="tel"
-            autoComplete="tel"
+            autoComplete={asker.kind === "office" ? "off" : "tel"}
             isRequired
-            description="Your Cleaners can reach you on the day."
+            description={words.phoneNote}
             value={contact.phone}
             onChange={(phone) => setContact({ ...contact, phone })}
             errorMessage={error("contact.phone")}
@@ -236,7 +305,7 @@ export function QuoteRequestForm({
       <fieldset className="flex flex-col gap-4">
         <legend className="contents">
           <Heading level={headingLevel} size={3}>
-            Your home
+            {words.home}
           </Heading>
         </legend>
 
@@ -255,11 +324,7 @@ export function QuoteRequestForm({
                 key={p.id}
                 value={p.id}
                 isDisabled={waiting.has(p.id)}
-                description={
-                  waiting.has(p.id)
-                    ? "We're preparing your Quote for this home."
-                    : undefined
-                }
+                description={waiting.has(p.id) ? words.waiting : undefined}
               >
                 {addressOf(p)}
               </Radio>
@@ -295,9 +360,7 @@ export function QuoteRequestForm({
               Any extras?
             </Heading>
           </legend>
-          <p className="text-sm text-fg-muted">
-            Optional. Your Quote will show what each one costs.
-          </p>
+          <p className="text-sm text-fg-muted">{words.extrasNote}</p>
           {offered.map((addOn) => (
             <Checkbox
               key={addOn.key}
@@ -314,8 +377,7 @@ export function QuoteRequestForm({
         isSelected={wantsRegularService}
         onChange={setWantsRegularService}
       >
-        After my first clean, I'd like regular visits (weekly, bi-weekly or
-        monthly) at 10% off.
+        {words.regular}
       </Checkbox>
 
       <TextField
@@ -329,16 +391,11 @@ export function QuoteRequestForm({
 
       {refusal && <Notice>{refusal}</Notice>}
 
-      {failed && (
-        <Notice tone="danger">
-          Your request didn't go through. Please try again, or call us on (646)
-          320-9076.
-        </Notice>
-      )}
+      {failed && <Notice tone="danger">{words.failed}</Notice>}
 
       <Actions>
         <Button type="submit" isPending={isSending} className="sm:w-full">
-          Request a Quote
+          {words.submit}
         </Button>
       </Actions>
     </Form>

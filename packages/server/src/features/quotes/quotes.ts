@@ -741,6 +741,13 @@ export const sendQuote = async (id: string): Promise<OfficeQuote> => {
     throw fieldError(["proposedStart"], "Choose a time that's still to come");
   }
   await refuseUnquotable(quote.kind, quote.propertyId, quote.quoteRequestId);
+  // it goes by email, and is accepted signed in with that email (#34)
+  const { client } = (await homeOf(quote.propertyId))!;
+  if (!client.email) {
+    throw new ConflictError(
+      `${client.name} has no email yet, so the Quote can't be sent. Add their email on their Client screen, then send it.`,
+    );
+  }
 
   const expiresAt = new Date(
     Math.min(

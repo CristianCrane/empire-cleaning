@@ -39,6 +39,13 @@ export type NewProperty = {
 
 export type ContactDetails = { name: string; email: string; phone: string };
 
+// a Client's contact details as the Office sees them: the Office may enter a
+// caller without an email, who can't sign in or be sent a Quote until one is
+// added (#34)
+export type OfficeContactDetails = Omit<ContactDetails, "email"> & {
+  email: string | null;
+};
+
 // what the Quote Request form sends to POST /api/quote-requests. Guests send
 // their contact details; a signed-in Account not yet connected to a Client
 // sends its name and phone (its proven email is used); a Client sends neither.
@@ -54,6 +61,10 @@ export type QuoteRequestSubmission = {
 
 // the reply: where the Quote will be emailed
 export type QuoteRequestReceipt = { id: string; emailedTo: string };
+
+// what POST /api/quote-requests/office returns: the request Office Staff
+// entered for a caller, and the one-off Quote Draft started for it (#34)
+export type OfficeRequestEntry = { quoteRequestId: string; quoteId: string };
 
 export type PropertyView = NewProperty & {
   id: string;
@@ -89,14 +100,14 @@ export type PropertyStatus =
   | { kind: "nothing_booked" };
 
 // a Client in the Office's list of Clients
-export type ClientListItem = ContactDetails & {
+export type ClientListItem = OfficeContactDetails & {
   id: string;
   propertyCount: number;
 };
 
 // a Client for the Office: their contact details and their homes, each with
 // where it stands. A home's history is on its own page (ADR-0011).
-export type OfficeClientView = ContactDetails & {
+export type OfficeClientView = OfficeContactDetails & {
   id: string;
   properties: (PropertyView & { status: PropertyStatus })[];
 };
@@ -219,7 +230,7 @@ export type QuoteRequestDetail = {
   wantsRegularService: boolean;
   notes: string | null;
   addOns: AddOnChoice[];
-  client: ContactDetails & { id: string };
+  client: OfficeContactDetails & { id: string };
   property: PropertyView;
   suggested: SuggestedPrices;
   state: QuoteRequestState;
@@ -575,7 +586,8 @@ export type OfficeQuote = Omit<
   QuoteView,
   "options" | "plan" | "proposedStartsAt" | "sentAt" | "expiresAt"
 > & {
-  client: { id: string; name: string; email: string };
+  // no email until the Office adds one: then it can't be Sent (#34)
+  client: { id: string; name: string; email: string | null };
   options: OfficeQuoteOption[];
   // with the Condition it's priced for
   plan: (ServicePlanTerms & { condition: Condition }) | null;

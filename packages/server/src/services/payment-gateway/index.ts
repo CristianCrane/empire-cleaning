@@ -77,7 +77,8 @@ export interface PaymentGateway {
   createPayer(input: {
     clientId: string;
     name: string;
-    email: string;
+    // none for a Client the Office entered without one (#34)
+    email: string | null;
   }): Promise<{ payerId: string }>;
   // a browser form that only saves a Payment Method, taking nothing
   startCardForm(payerId: string): Promise<CardForm>;

@@ -1,6 +1,7 @@
 import { and, desc, eq, ne } from "drizzle-orm";
 import { z } from "zod";
 import type {
+  Condition,
   OpenQuoteRequest,
   QuoteRequestDetail,
   QuoteRequestReceipt,
@@ -37,6 +38,8 @@ import {
   accountSubmission,
   clientSubmission,
   guestSubmission,
+  newPropertySchema,
+  officeSubmission,
 } from "./quote-requests.validation.ts";
 
 const parse = <T>(schema: z.ZodType<T>, body: unknown): T => {
@@ -96,12 +99,65 @@ export const submitQuoteRequest = async (
   body: unknown,
 ): Promise<QuoteRequestReceipt> => {
   const { client, submission } = await clientFor(caller, body);
+  const { property, request } = await recordRequest(client, submission, null);
+
+  // the request is saved: a receipt that can't be sent mustn't make it look
+  // as though it wasn't
+  try {
+    await sendReceipt(client, property);
+  } catch (error) {
+    console.error(`receipt for Quote Request ${request.id} not sent:`, error);
+  }
+  // a Guest gave one, and a signed-in Account proved one
+  return { id: request.id, emailedTo: client.email! };
+};
+
+/**
+ * Office Staff enter a caller's Quote Request (#34): for an existing Client,
+ * or a new one, whose email is optional. As for a Guest, a new Client gets no
+ * Account, and an email that's already a Client's adds the request to that
+ * Client without changing their details. No receipt is sent: the Office
+ * quotes them straight away.
+ */
+export const enterQuoteRequest = async (enteredBy: string, body: unknown) => {
+  const submission = parse(officeSubmission, body);
+  let client: Client | undefined;
+  if (submission.clientId) {
+    [client] = await db
+      .select()
+      .from(clients)
+      .where(eq(clients.id, submission.clientId));
+    if (!client) throw new NotFoundError("Client not found");
+  } else {
+    const contact = submission.contact!;
+    client =
+      (contact.email ? await findClientByEmail(contact.email) : undefined) ??
+      (await createClient({ ...contact, email: contact.email ?? null }));
+  }
+  const { request } = await recordRequest(client, submission, enteredBy);
+  return request;
+};
+
+type Submission = {
+  property: { new: z.infer<typeof newPropertySchema> } | { existing: string };
+  condition: Condition;
+  wantsRegularService: boolean;
+  addOns?: string[];
+  notes?: string | null;
+};
+
+// Saves a request for the Client: one address is one home, and a home has
+// one request waiting at a time. Done under a lock on the home so two
+// requests at once can't both get in.
+const recordRequest = async (
+  client: Client,
+  submission: Submission,
+  enteredBy: string | null,
+) => {
   const addOnKeys = [...new Set(submission.addOns ?? [])];
   await checkAddOns(addOnKeys);
 
-  // one address is one home, and a home has one request waiting at a time.
-  // Done under a lock on the home so two requests at once can't both get in.
-  const { property, request } = await db.transaction(async (tx) => {
+  return db.transaction(async (tx) => {
     let property: Property | undefined;
     let isNew = false;
 
@@ -158,7 +214,9 @@ export const submitQuoteRequest = async (
       const states = await requestStates(asked.map((r) => r.id));
       if ([...states.values()].some((state) => !isClosed(state))) {
         throw new ConflictError(
-          `You've already asked us for a Quote for this home. We'll email it to ${client.email} soon.`,
+          enteredBy
+            ? "This home has a Quote Request waiting already: answer that one from Requests."
+            : `You've already asked us for a Quote for this home. We'll email it to ${client.email} soon.`,
         );
       }
 
@@ -179,6 +237,7 @@ export const submitQuoteRequest = async (
         condition: submission.condition,
         wantsRegularService: submission.wantsRegularService,
         notes: submission.notes,
+        enteredBy,
       })
       .returning();
     if (addOnKeys.length > 0) {
@@ -191,15 +250,6 @@ export const submitQuoteRequest = async (
     }
     return { property: property!, request: request! };
   });
-
-  // the request is saved: a receipt that can't be sent mustn't make it look
-  // as though it wasn't
-  try {
-    await sendReceipt(client, property);
-  } catch (error) {
-    console.error(`receipt for Quote Request ${request.id} not sent:`, error);
-  }
-  return { id: request.id, emailedTo: client.email };
 };
 
 const escapeHtml = (text: string) =>

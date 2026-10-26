@@ -13,8 +13,10 @@ export const clients = pgTable("clients", {
     .unique()
     .references(() => accounts.id, { onDelete: "set null" }),
   name: text("name").notNull(),
-  // where we send Quotes and notices; stored lowercased
-  email: text("email").notNull().unique(),
+  // where we send Quotes and notices; stored lowercased. None for a Client
+  // the Office entered without one, who can't sign in or be sent a Quote
+  // until it's added (#34)
+  email: text("email").unique(),
   // shown to the Cleaners assigned to a Job, on the day
   phone: text("phone").notNull(),
   ...timestamps,

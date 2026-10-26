@@ -67,10 +67,10 @@ export class StripePaymentGateway implements PaymentGateway {
   }: {
     clientId: string;
     name: string;
-    email: string;
+    email: string | null;
   }) {
     const customer = await this.stripe.customers.create(
-      { name, email, metadata: { clientId } },
+      { name, email: email ?? undefined, metadata: { clientId } },
       { idempotencyKey: `customer:${clientId}` },
     );
     return { payerId: customer.id };

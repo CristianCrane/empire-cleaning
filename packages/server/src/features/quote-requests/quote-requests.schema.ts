@@ -7,6 +7,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { timestamps } from "../../db/index.ts";
+import { accounts } from "../auth/auth.schema.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { condition, properties } from "../properties/properties.schema.ts";
 
@@ -26,6 +27,11 @@ export const quoteRequests = pgTable(
     // asks the Office to follow up with a Service Plan after the First Clean
     wantsRegularService: boolean("wants_regular_service").notNull(),
     notes: text("notes"),
+    // the Office Staff member who entered it for a caller; null when the
+    // Client asked themselves
+    enteredBy: uuid("entered_by").references(() => accounts.id, {
+      onDelete: "set null",
+    }),
     ...timestamps,
   },
   (t) => [
