@@ -1,5 +1,9 @@
-import { asc, eq } from "drizzle-orm";
-import type { ClientView, OfficeClientView } from "@empire-cleaning/models";
+import { and, asc, count, eq, exists, ilike, or, sql } from "drizzle-orm";
+import type {
+  ClientListItem,
+  ClientView,
+  OfficeClientView,
+} from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
 import { connectSignedUpAccount } from "../auth/connections.ts";
 import { properties } from "../properties/properties.schema.ts";
@@ -109,4 +113,57 @@ export const officeClientView = async (
       status: statuses.get(p.id)!,
     })),
   };
+};
+
+// matches anywhere in the text, ignoring case: "nud" finds "1 Nudge Lane"
+const containing = (text: string) => `%${text.replace(/[\\%_]/g, "\\$&")}%`;
+
+// a search that could be (part of) a phone number, however it's written
+const phoneLike = /^[\d\s()+.-]+$/;
+
+// every Client in name order, or those whose name, email, phone or Property
+// address matches the search. A phone matches on its digits alone, so
+// "(718) 555" and "718555" find the same Client.
+export const listClients = async (
+  search?: string,
+): Promise<ClientListItem[]> => {
+  const text = search?.trim();
+  const pattern = text ? containing(text) : undefined;
+  const digits = text && phoneLike.test(text) ? text.replace(/\D/g, "") : "";
+
+  const matches = pattern
+    ? or(
+        ilike(clients.name, pattern),
+        ilike(clients.email, pattern),
+        exists(
+          db
+            .select()
+            .from(properties)
+            .where(
+              and(
+                eq(properties.clientId, clients.id),
+                // the address as it's shown: "41-12 Austin St, 4B, 11375"
+                sql`concat_ws(', ', ${properties.street}, ${properties.unit}, ${properties.postcode}) ilike ${pattern}`,
+              ),
+            ),
+        ),
+        digits
+          ? sql`regexp_replace(${clients.phone}, '\\D', '', 'g') like ${`%${digits}%`}`
+          : undefined,
+      )
+    : undefined;
+
+  return db
+    .select({
+      id: clients.id,
+      name: clients.name,
+      email: clients.email,
+      phone: clients.phone,
+      propertyCount: count(properties.id),
+    })
+    .from(clients)
+    .leftJoin(properties, eq(properties.clientId, clients.id))
+    .where(matches)
+    .groupBy(clients.id)
+    .orderBy(asc(sql`lower(${clients.name})`), asc(clients.createdAt));
 };

@@ -8,6 +8,7 @@ import {
   clientForAccount,
   clientView,
   findClientByEmail,
+  listClients,
   officeClientView,
   updateContactDetails,
 } from "./clients.ts";
@@ -51,6 +52,16 @@ router.patch(
 
     await updateContactDetails(client.id, details);
     res.json(await clientView(client.id));
+  },
+);
+
+// every Client for the Office, or those matching ?q= (see listClients)
+router.get(
+  "/",
+  authorize("office_staff"),
+  validate({ query: z.object({ q: z.string().max(200).optional() }) }),
+  async (req, res) => {
+    res.json(await listClients(req.query.q));
   },
 );
 

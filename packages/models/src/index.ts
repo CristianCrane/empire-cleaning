@@ -88,6 +88,12 @@ export type PropertyStatus =
   | { kind: "first_clean_done" }
   | { kind: "nothing_booked" };
 
+// a Client in the Office's list of Clients
+export type ClientListItem = ContactDetails & {
+  id: string;
+  propertyCount: number;
+};
+
 // a Client for the Office: their contact details and their homes, each with
 // where it stands. A home's history is on its own page (ADR-0011).
 export type OfficeClientView = ContactDetails & {

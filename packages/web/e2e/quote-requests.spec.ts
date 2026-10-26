@@ -242,21 +242,20 @@ test(
     await crumbs.getByRole("link", { name: "Casey Client" }).click();
     await expect(page).toHaveURL(/\/office\/clients\//);
 
-    await expect(crumbs.getByRole("link", { name: "Requests" })).toBeVisible();
     await expect(crumbs.getByText("Casey Client")).toHaveAttribute(
       "aria-current",
       "page",
     );
-    // a Client is reached from Requests, so that's the section marked
+    // however a Client is reached, they belong to Clients
     await expect(
-      officeNav.getByRole("link", { name: "Requests" }),
+      officeNav.getByRole("link", { name: "Clients" }),
     ).toHaveAttribute("aria-current", "page");
     await expect(
-      officeNav.getByRole("link", { name: "Today" }),
+      officeNav.getByRole("link", { name: "Requests" }),
     ).not.toHaveAttribute("aria-current", "page");
 
-    await crumbs.getByRole("link", { name: "Requests" }).click();
-    await expect(page).toHaveURL("/office/requests");
+    await crumbs.getByRole("link", { name: "Clients" }).click();
+    await expect(page).toHaveURL("/office/clients");
   },
 );
 
@@ -301,6 +300,10 @@ for (const theme of ["light", "dark"] as const) {
         await expect(page.getByRole("heading", { level: 1 })).toHaveText(
           "Casey Client",
         );
+        await expectNoViolations(page);
+
+        await page.goto("/office/clients");
+        await expect(page.getByText("Casey Client")).toBeVisible();
         await expectNoViolations(page);
       },
     );

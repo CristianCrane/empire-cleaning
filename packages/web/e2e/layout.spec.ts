@@ -108,6 +108,7 @@ test("the Office's screens fit every width", async ({ page }) => {
   for (const path of [
     "/office",
     "/office/requests",
+    "/office/clients",
     request,
     client,
     property,

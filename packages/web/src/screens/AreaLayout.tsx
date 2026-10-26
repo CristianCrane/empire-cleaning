@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-router";
 import {
   CalendarDays,
+  ContactRound,
   House,
   Inbox,
   Tag,
@@ -28,7 +29,7 @@ import { linkTo } from "../links.ts";
 import { areas, areasFor, signOut, type AreaId } from "../session.ts";
 
 // an item is current on its own page, and on the pages that belong to its
-// section (alsoCurrentFor: URL prefixes), e.g. a Client reached from Requests
+// section (alsoCurrentFor: URL prefixes), e.g. a Quote reached from Requests
 type AreaNavItem = NavItem & { alsoCurrentFor?: string[] };
 
 // each area's navigation; feature tickets add their screens here
@@ -39,12 +40,13 @@ const navFor: Record<AreaId, AreaNavItem[]> = {
       href: linkTo({ to: "/office/requests" }),
       label: "Requests",
       icon: Inbox,
-      alsoCurrentFor: [
-        "/office/requests/",
-        "/office/clients",
-        "/office/properties",
-        "/office/quotes",
-      ],
+      alsoCurrentFor: ["/office/requests/", "/office/quotes"],
+    },
+    {
+      href: linkTo({ to: "/office/clients" }),
+      label: "Clients",
+      icon: ContactRound,
+      alsoCurrentFor: ["/office/clients/", "/office/properties"],
     },
     {
       href: linkTo({ to: "/office/schedule" }),
