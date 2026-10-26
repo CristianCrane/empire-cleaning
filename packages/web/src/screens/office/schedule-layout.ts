@@ -26,12 +26,14 @@ export const spanOf = (job: ScheduledJob) => {
 };
 
 // the working day the axis shows, widened to whole hours to fit any Job
-// outside it
-export const axisFor = (jobs: ScheduledJob[]) => {
+// outside it, or anything else to be placed on it
+export const axisFor = (
+  jobs: ScheduledJob[],
+  more: { start: number; end: number }[] = [],
+) => {
   let start = 7;
   let end = 19;
-  for (const job of jobs) {
-    const span = spanOf(job);
+  for (const span of [...jobs.map(spanOf), ...more]) {
     start = Math.min(start, Math.floor(span.start));
     end = Math.max(end, Math.ceil(span.end));
   }
