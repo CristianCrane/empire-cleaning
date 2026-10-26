@@ -1,7 +1,12 @@
 import { addDays, mondayOf, today } from "../format.ts";
 
 // the dates asked for; without valid ones, the Schedule shows this week
-export type ScheduleSearch = { from?: string; to?: string };
+export type ScheduleSearch = {
+  from?: string;
+  to?: string;
+  // PROTOTYPE: which Schedule view variant to show
+  variant?: string;
+};
 
 export const isDay = (value: unknown): value is string =>
   typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);

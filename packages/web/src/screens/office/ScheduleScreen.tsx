@@ -16,6 +16,7 @@ import {
 } from "@empire-cleaning/ui";
 import { AssignmentBadge } from "./JobScreen.tsx";
 import { scheduleRange } from "./schedule-range.ts";
+import { ScheduleViewsPrototype } from "./schedule-views.prototype.tsx";
 import {
   addDays,
   addressOf,
@@ -29,9 +30,13 @@ import {
 // unless Office Staff choose other dates
 export function ScheduleScreen() {
   const days = useLoaderData({ from: "/office/schedule" });
-  const { from, to } = scheduleRange(useSearch({ from: "/office/schedule" }));
+  const search = useSearch({ from: "/office/schedule" });
+  const { from, to } = scheduleRange(search);
   const navigate = useNavigate({ from: "/office/schedule" });
   const length = days.length;
+
+  // PROTOTYPE: ?variant= swaps in one of the prototype views
+  if (search.variant) return <ScheduleViewsPrototype days={days} />;
 
   const show = (range: { from: string; to: string }) =>
     navigate({ search: range });

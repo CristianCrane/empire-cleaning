@@ -241,8 +241,12 @@ const officeScheduleRoute = createRoute({
   validateSearch: (search: Record<string, unknown>): ScheduleSearch => ({
     from: isDay(search.from) ? search.from : undefined,
     to: isDay(search.to) ? search.to : undefined,
+    variant: typeof search.variant === "string" ? search.variant : undefined,
   }),
-  loaderDeps: ({ search }) => scheduleRange(search),
+  loaderDeps: ({ search }) => {
+    const { from, to } = scheduleRange(search);
+    return { from, to };
+  },
   loader: ({ deps }) =>
     getJson<ScheduleDay[]>(`/api/schedule?from=${deps.from}&to=${deps.to}`),
   component: ScheduleScreen,
