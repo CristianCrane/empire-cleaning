@@ -5,12 +5,16 @@ A cleaning business serving residential and commercial clients with one-off and 
 ## People
 
 **Client**:
-A person or business Empire Cleaning has a relationship with, from their first Quote Request onward, whether or not they have bought anything. Office Staff may enter one for a caller with just a name and phone: without an email they can't sign in or be sent a Quote until Office Staff add one (ADR-0012).
+A person or business Empire Cleaning has a relationship with, from their first Quote Request onward, whether or not they have bought anything. A business has a business name, and the Client's name, email and phone are those of the person Empire Cleaning deals with there. Office Staff may enter one for a caller with just a name and phone: without an email they can't sign in or be sent a Quote until Office Staff add one (ADR-0012).
 _Avoid_: Customer, user, lead
 
 **Property**:
-A physical location where cleaning happens, belonging to exactly one Client. One address is one Property per Client, however it is typed; separate units in a building (apartments, floors) are separate Properties. Its price-affecting details are as first given and only Office Staff correct them.
+A physical location where cleaning happens, belonging to exactly one Client. One address is one Property per Client, however it is typed; separate units in a building (apartments, floors) are separate Properties. A Property is either _residential_, a home described by its rooms, or _commercial_, business premises described by their Premises Type and floor area. Its price-affecting details are as first given and only Office Staff correct them, from a Site Visit or otherwise.
 _Avoid_: Address, site, location
+
+**Premises Type**:
+What kind of business premises a commercial Property is, such as office, retail or medical; it sets how long cleaning each part of its floor area takes. Office Staff keep the list on the Price List and retire a Premises Type rather than delete it.
+_Avoid_: Business type, sector, category
 
 **Access Instructions**:
 How Staff get into and around a Property, such as gate codes, key location and pets; maintained by the Client and shown to Staff assigned to its Jobs.
@@ -47,15 +51,15 @@ A Quote Request that Office Staff have closed without quoting, with a recorded r
 _Avoid_: Declined, rejected, refused
 
 **Quote**:
-A priced offer from Empire Cleaning for one Property, with a price, Labour Hours, a Crew Size and a proposed time. It is either a _one-off Quote_, for a single Job, offering both Clean Types (Deep Clean recommended) for the Client to pick one on acceptance; or a _Service Plan Quote_, for a Service Plan, offering one Clean Type at the Plan Discount, which can only be offered once the Property's First Clean is Completed. A one-off Quote answers a Quote Request; a Service Plan Quote may answer one, or be offered without one. A Property has at most one Sent Quote of each kind at a time, and a Quote, once sent, is never changed.
+A priced offer from Empire Cleaning for one Property, with a price, Labour Hours, a Crew Size and a proposed time. It is either a _one-off Quote_, for a single Job, offering both Clean Types (Deep Clean recommended) for the Client to pick one on acceptance; or a _Service Plan Quote_, for a Service Plan, offering one Clean Type at the Plan Discount, which can only be offered once the Property's First Clean is Completed. A one-off Quote answers a Quote Request; a Service Plan Quote may answer one, or be offered without one. A Service Plan Quote for a commercial Property needs no First Clean: it can be offered once a Site Visit has recorded its findings (ADR-0014). No Quote for a commercial Property can be Sent before then. A Property has at most one Sent Quote of each kind at a time, and a Quote, once sent, is never changed.
 _Avoid_: Estimate, proposal
 
 **Price List**:
-The prices and pricing rules Office Staff maintain, from which every Suggested Price is calculated. Its rates are before tax, while Clients always see prices including tax; it holds separate tax rates for one-off Jobs, Service Plan Jobs and fees, and any Add-on may be tax-exempt. Changing it never reprices Sent Quotes or existing Service Plans.
+The prices and pricing rules Office Staff maintain, from which every Suggested Price is calculated. It holds a residential and a commercial hourly rate, and the Premises Types. Its rates are before tax, while Clients always see prices including tax; it holds separate tax rates for residential one-off Jobs, residential Service Plan Jobs, commercial Jobs and fees, and any Add-on may be tax-exempt. Changing it never reprices Sent Quotes or existing Service Plans.
 _Avoid_: Rate card, pricing table, tariff
 
 **Suggested Price**:
-The price the system calculates for a Quote: the Labour Hours estimated for the Property, Condition, Clean Type and Add-ons, multiplied by the residential or commercial hourly rate on the Price List, and never below the Minimum Charge. Office Staff may override it to any price, giving a reason.
+The price the system calculates for a Quote: the Labour Hours estimated for the Property, Condition, Clean Type and Add-ons, multiplied by the residential or commercial hourly rate on the Price List, and never below the Minimum Charge. A home's hours come from its rooms; commercial premises' hours come from their floor area and Premises Type. Office Staff may override it to any price, giving a reason.
 _Avoid_: Estimate, calculated price, list price
 
 **Minimum Charge**:
@@ -75,7 +79,7 @@ How dirty a Property currently is: _light_, _moderate_ or _heavy_. Stated by the
 _Avoid_: State, dirtiness, level
 
 **Add-on**:
-A priced extra task, such as cleaning inside the oven, agreed on a Quote before a Job; distinct from an Adjustment made on the day. Clients choose Add-ons by name in a Quote Request and see what each costs on the Quote. Office Staff retire an Add-on rather than delete it, so requests that chose it still price it.
+A priced extra task, such as cleaning inside the oven, agreed on a Quote before a Job; distinct from an Adjustment made on the day. Each is offered for homes, for businesses, or both. Clients choose Add-ons by name in a Quote Request and see what each costs on the Quote. Office Staff retire an Add-on rather than delete it, so requests that chose it still price it.
 _Avoid_: Extra, upgrade, option
 
 **Preferred Service Area**:
@@ -83,7 +87,7 @@ A set of postcodes close enough to Staff that Empire Cleaning prefers to work th
 _Avoid_: Coverage area, zone, territory
 
 **Site Visit**:
-A free, scheduled visit by Staff to see a Property before quoting it; required for commercial Properties and optional for residential ones. It is not a Job.
+A free, scheduled visit by one Staff member to see a Property before quoting it; required for commercial Properties and optional for residential ones. It is not a Job: it is never charged and has no Assignments, though it appears on the Schedule (ADR-0015). Office Staff book, move and cancel it, telling the Client each time. It ends _Done_, when its findings (for business premises, the Premises Type, floor area and Condition) are recorded on the Property, or _Cancelled_. Office Staff may record findings as already done without a visit, for premises they know.
 _Avoid_: Walkthrough, inspection, assessment
 
 **Quote status**:
@@ -97,11 +101,11 @@ A single cleaning visit at one Property, booked for a confirmed date and time.
 _Avoid_: Booking, appointment, clean
 
 **Service Plan**:
-An agreed recurring arrangement at one Property that generates Jobs of one Clean Type (a Standard Clean unless the plan says Deep Clean) on a set recurrence: every week, every 2 weeks or every 4 weeks, always on the same weekday. It can only start once that Property has a Completed First Clean, and its terms change only by accepting a new Service Plan Quote for the Property, which the Client can ask for: from that Quote's proposed time, its booked Jobs are cancelled free and it carries on on the new terms, its Jobs before then going ahead as they were and its Deposit carrying over. A Client skips one of its Jobs by cancelling it, under the usual rules, and the plan carries on. Having one never stops the Property getting one-off Quotes.
+An agreed recurring arrangement at one Property that generates Jobs on a set recurrence: either on one weekday every week, every 2 weeks or every 4 weeks, or every week on several weekdays (ADR-0013). Each of its weekdays has its own time and its own visit: a Clean Type (a Standard Clean unless the plan says Deep Clean), Labour Hours, Crew Size and price. A residential plan can only start once that Property has a Completed First Clean; a commercial one once a Site Visit has recorded its findings (ADR-0014). Its terms change only by accepting a new Service Plan Quote for the Property, which the Client can ask for: from that Quote's proposed time, its booked Jobs are cancelled free and it carries on on the new terms, its Jobs before then going ahead as they were and its Deposit carrying over. A Client skips one of its Jobs by cancelling it, under the usual rules, and the plan carries on. Having one never stops the Property getting one-off Quotes.
 _Avoid_: Subscription, contract, recurring job
 
 **First Clean**:
-The first one-off Job Completed at a Property, which every Property must have Completed before a Service Plan can start there: a trial for both sides, in which the Client sees how Empire Cleaning works and Empire Cleaning checks the Property is as described before committing to recurring work. A Deep Clean is recommended, but the Client may choose a Standard Clean.
+The first one-off Job Completed at a Property, which every residential Property must have Completed before a Service Plan can start there: a trial for both sides, in which the Client sees how Empire Cleaning works and Empire Cleaning checks the Property is as described before committing to recurring work. A Deep Clean is recommended, but the Client may choose a Standard Clean.
 _Avoid_: Initial clean, onboarding clean, intro clean
 
 **Clean Type**:
@@ -121,7 +125,7 @@ A Client's proposal to move a booked Job to a new available time, which is held 
 _Avoid_: Reschedule, rebooking, change request
 
 **Late Cancellation**:
-A Client cancelling a Job less than 24 hours before it starts, or moving it by a second Late Reschedule; the fee is the Job's Deposit amount (ADR-0010). A one-off Job's Deposit is kept as the fee. A plan Job has no Deposit of its own, so its fee is its plan's Deposit amount, charged as a Charge of its own, and the plan's held Deposit is untouched.
+A Client cancelling a Job less than 24 hours before it starts, or moving it by a second Late Reschedule; the fee is the Job's Deposit amount (ADR-0010). A one-off Job's Deposit is kept as the fee. A plan Job has no Deposit of its own, so its fee is the plan's Deposit percentage of that Job's price, charged as a Charge of its own, and the plan's held Deposit is untouched (ADR-0013).
 _Avoid_: No-show, short-notice cancellation
 
 **Late Reschedule**:
@@ -137,11 +141,11 @@ A Service Plan permanently stopped by its Client, or by Office Staff for them, a
 _Avoid_: Cancelled, terminated, closed
 
 **Schedule**:
-The calendar of all booked Jobs. Office Staff may move a booked Job that hasn't started straight to a new time with room for it; this is their own action, not a Reschedule Request, so it costs the Client nothing, but like a confirmed request it Offers the Job's Assignments afresh and tells the Client and the crew.
+The calendar of all booked Jobs and Site Visits. Office Staff may move a booked Job that hasn't started straight to a new time with room for it; this is their own action, not a Reschedule Request, so it costs the Client nothing, but like a confirmed request it Offers the Job's Assignments afresh and tells the Client and the crew.
 _Avoid_: Calendar, roster, bookings
 
 **Available Hours**:
-The hours a Cleaner can work on a day: their usual hours for that weekday, unless Office Staff have set different hours for that date, such as 0 for a holiday. A booking has room when two rules hold. Hours: its day's Cleaners' Available Hours, less the Labour Hours of Jobs already booked that day, cover the booking's Labour Hours. Headcount: the Crew Sizes of the Jobs at work at the same time (their time on site, and the new times held for Reschedule Requests), plus the booking's own Crew Size, are no more than the number of Cleaners with Available Hours that day. Anyone available that day is taken to be free at any time of it, and travel between homes isn't counted. Days are Empire Cleaning's own, in New York.
+The hours a Cleaner can work on a day: their usual hours for that weekday, unless Office Staff have set different hours for that date, such as 0 for a holiday. A booking has room when two rules hold. Hours: its day's Cleaners' Available Hours, less the Labour Hours of Jobs already booked that day, cover the booking's Labour Hours. Headcount: the Crew Sizes of the Jobs at work at the same time (their time on site, and the new times held for Reschedule Requests), plus the booking's own Crew Size, are no more than the number of Cleaners with Available Hours that day. A Site Visit by a Cleaner with Available Hours that day is booked like a Job with a Crew Size of one, its length as its Labour Hours; one by Office Staff alone takes no room. Anyone available that day is taken to be free at any time of it, and travel between homes isn't counted. Days are Empire Cleaning's own, in New York.
 _Avoid_: Capacity, shifts, roster
 
 **Assignment**:
@@ -155,7 +159,7 @@ A Client's saved means of payment, captured when they accept a Quote.
 _Avoid_: Card, billing details
 
 **Deposit**:
-A partial payment, taken when a Quote is accepted, that must succeed before anything is booked onto the Schedule. A Job's Deposit counts towards its price; a Service Plan holds one Deposit for its whole life, applied to its final Job when it Ends.
+A partial payment, taken when a Quote is accepted, that must succeed before anything is booked onto the Schedule. A Job's Deposit counts towards its price; a Service Plan holds one Deposit for its whole life, the Deposit percentage of one Job on each of its weekdays, applied to its final Job when it Ends (ADR-0013).
 _Avoid_: Down payment, prepayment, booking fee
 
 **Balance**:
