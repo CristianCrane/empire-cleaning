@@ -126,3 +126,28 @@ export const crewAt = (
   const cleaners = day.available.length;
   return { busy, cleaners, hasCrew: busy + crewSize <= cleaners };
 };
+
+/**
+ * Which blocks to draw when no more than `maxLanes` fit side by side: those
+ * in `keep` always, then the rest in `order`, each drawn if it still fits,
+ * and the others left to list instead. A narrow column shows what it can
+ * read rather than slivers of everything.
+ */
+export const fitLanes = (
+  blocks: Block[],
+  maxLanes: number,
+  {
+    keep = [],
+    order,
+  }: { keep?: string[]; order: (a: Block, b: Block) => number },
+) => {
+  const shown = blocks.filter((b) => keep.includes(b.id));
+  const hidden: Block[] = [];
+  const widest = (placed: Map<string, { lanes: number }>) =>
+    Math.max(0, ...[...placed.values()].map((p) => p.lanes));
+  for (const block of blocks.filter((b) => !keep.includes(b.id)).sort(order)) {
+    if (widest(lanesFor([...shown, block])) <= maxLanes) shown.push(block);
+    else hidden.push(block);
+  }
+  return { shown, hidden };
+};
