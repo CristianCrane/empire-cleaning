@@ -19,8 +19,11 @@ export const createStaff = (member: {
   roles: StaffRole[];
 }) => control("/staff", { method: "POST", body: JSON.stringify(member) });
 
-export const createClient = (client: { email: string; name: string }) =>
-  control("/clients", { method: "POST", body: JSON.stringify(client) });
+export const createClient = (client: {
+  email: string;
+  name: string;
+  phone?: string;
+}) => control("/clients", { method: "POST", body: JSON.stringify(client) });
 
 // the hours a Staff member is usually available, Monday first
 export const setUsualWeek = (staffId: string, usualWeek: number[]) =>

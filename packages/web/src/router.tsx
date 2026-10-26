@@ -9,6 +9,7 @@ import {
 import type {
   CleanerJob,
   CleanerJobs,
+  ClientListItem,
   ClientJob,
   ClientJobDetail,
   ClientPastJob,
@@ -44,6 +45,10 @@ import { QuoteRequest } from "./screens/office/QuoteRequest.tsx";
 import { QuoteRequests } from "./screens/office/QuoteRequests.tsx";
 import { QuoteScreen } from "./screens/office/QuoteScreen.tsx";
 import { ClientDetail } from "./screens/office/ClientDetail.tsx";
+import {
+  ClientsScreen,
+  type ClientsSearch,
+} from "./screens/office/ClientsScreen.tsx";
 import { PropertyScreen } from "./screens/office/PropertyScreen.tsx";
 import { ScheduleScreen } from "./screens/office/ScheduleScreen.tsx";
 import { ServicePlanScreen } from "./screens/office/ServicePlanScreen.tsx";
@@ -221,6 +226,24 @@ const officePriceListRoute = createRoute({
   component: PriceListScreen,
 });
 
+const officeClientsRoute = createRoute({
+  getParentRoute: () => officeRoute,
+  path: "/clients",
+  validateSearch: (search: Record<string, unknown>): ClientsSearch => ({
+    // a number-like search ("718555") comes back from the URL as a number
+    q:
+      typeof search.q === "string" || typeof search.q === "number"
+        ? String(search.q) || undefined
+        : undefined,
+  }),
+  loaderDeps: ({ search }) => ({ q: search.q }),
+  loader: ({ deps }) =>
+    getJson<ClientListItem[]>(
+      `/api/clients${deps.q ? `?q=${encodeURIComponent(deps.q)}` : ""}`,
+    ),
+  component: ClientsScreen,
+});
+
 const officeClientRoute = createRoute({
   getParentRoute: () => officeRoute,
   path: "/clients/$clientId",
@@ -378,6 +401,7 @@ const routeTree = rootRoute.addChildren([
     officeRequestsRoute,
     officeRequestRoute,
     officeQuoteRoute,
+    officeClientsRoute,
     officeClientRoute,
     officePropertyRoute,
     officeServicePlanRoute,

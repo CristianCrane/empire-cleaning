@@ -54,7 +54,7 @@ export function PropertyScreen() {
       <div className="flex flex-col gap-4">
         <Breadcrumbs
           trail={[
-            { label: "Requests", href: linkTo({ to: "/office/requests" }) },
+            { label: "Clients", href: linkTo({ to: "/office/clients" }) },
             clientCrumb(home.client),
             { label: addressOf(home) },
           ]}
