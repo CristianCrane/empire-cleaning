@@ -117,7 +117,11 @@ export const jobViews = async (
     labourHours: job.labourHours,
     crewSize: job.crewSize,
     hoursOnSite: Math.round((job.labourHours / job.crewSize) * 100) / 100,
-    client: { id: client.id, name: client.name },
+    client: {
+      id: client.id,
+      name: client.name,
+      businessName: client.businessName,
+    },
     property: {
       id: property.id,
       street: property.street,

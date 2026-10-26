@@ -59,8 +59,8 @@ const refuseOthersEmail = async (clientId: string, email: string | null) => {
   }
 };
 
-// Office Staff correcting a Client's contact details, or adding the email of
-// one they entered without it; an email can't be removed
+// Office Staff correcting a Client's contact details and business name, or
+// adding the email of one they entered without it; an email can't be removed
 router.patch(
   "/:id",
   authorize("office_staff"),
@@ -68,6 +68,11 @@ router.patch(
     params: z.object({ id: z.uuid() }),
     body: contactSchema.extend({
       email: contactSchema.shape.email.nullable(),
+      businessName: z
+        .string()
+        .trim()
+        .max(200, "Use a shorter business name")
+        .nullish(),
     }),
   }),
   async (req, res) => {

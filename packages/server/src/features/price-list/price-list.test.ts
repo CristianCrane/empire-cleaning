@@ -16,6 +16,7 @@ import {
 // figures chosen so every expected answer below can be checked by hand
 const figures: PriceListInput = {
   hourlyRateCents: 5000,
+  commercialHourlyRateCents: 6000,
   minimumChargeCents: 10000,
   baseHours: 1,
   bedroomHours: 0.5,
@@ -32,10 +33,27 @@ const figures: PriceListInput = {
   defaultCrewSize: 2,
   taxOneOffPercent: 8,
   taxServicePlanPercent: 8,
+  taxCommercialPercent: 10,
   taxFeePercent: 8,
   addOns: [
-    { name: "Inside the oven", hours: 0.5, taxExempt: false, active: true },
-    { name: "Carpet shampooing", hours: 1, taxExempt: true, active: true },
+    {
+      name: "Inside the oven",
+      hours: 0.5,
+      taxExempt: false,
+      offeredFor: "homes",
+      active: true,
+    },
+    {
+      name: "Carpet shampooing",
+      hours: 1,
+      taxExempt: true,
+      offeredFor: "both",
+      active: true,
+    },
+  ],
+  premisesTypes: [
+    { name: "Office", hoursPerThousandSqFt: 0.5, active: true },
+    { name: "Medical", hoursPerThousandSqFt: 0.8, active: true },
   ],
 };
 
@@ -139,7 +157,15 @@ describe("the Price List", () => {
       conditionHeavy: 99,
       taxOneOffPercent: 40,
       depositPercent: 12.5,
-      addOns: [{ name: "", hours: -1, taxExempt: false, active: true }],
+      addOns: [
+        {
+          name: "",
+          hours: -1,
+          taxExempt: false,
+          offeredFor: "homes",
+          active: true,
+        },
+      ],
     });
 
     expect(res.status).toBe(400);
@@ -164,8 +190,20 @@ describe("the Price List", () => {
 
     const res = await save(office, {
       addOns: [
-        { name: "Oven", hours: 0.5, taxExempt: false, active: true },
-        { name: "oven", hours: 1, taxExempt: false, active: true },
+        {
+          name: "Oven",
+          hours: 0.5,
+          taxExempt: false,
+          offeredFor: "homes",
+          active: true,
+        },
+        {
+          name: "oven",
+          hours: 1,
+          taxExempt: false,
+          offeredFor: "homes",
+          active: true,
+        },
       ],
     });
 
@@ -188,6 +226,7 @@ describe("the Price List", () => {
           name: "Inside the oven",
           hours: 0.5,
           taxExempt: false,
+          offeredFor: "homes",
           active: true,
         },
       ],
@@ -218,6 +257,7 @@ describe("the Price List", () => {
           name: "Ghost",
           hours: 1,
           taxExempt: false,
+          offeredFor: "homes",
           active: true,
         },
       ],
@@ -237,6 +277,7 @@ describe("the Price List", () => {
           name: "Inside the oven",
           hours: 0.5,
           taxExempt: false,
+          offeredFor: "homes",
           active: false,
         },
         {
@@ -244,6 +285,7 @@ describe("the Price List", () => {
           name: "Carpet shampooing",
           hours: 1,
           taxExempt: true,
+          offeredFor: "homes",
           active: true,
         },
       ],
@@ -255,6 +297,187 @@ describe("the Price List", () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual([
       { key: keys["Carpet shampooing"], name: "Carpet shampooing" },
+    ]);
+  });
+});
+
+describe("Premises Types", () => {
+  const premisesKeys = async (office: Office) =>
+    Object.fromEntries(
+      (await getList(office)).premisesTypes
+        .filter((t) => t.active)
+        .map((t) => [t.name, t.key]),
+    );
+
+  test("start as Office, Retail, Medical and Other, with a commercial rate and tax rate", async () => {
+    const office = await signInAsOffice();
+
+    const list = await getList(office);
+
+    expect(list).toMatchObject({
+      commercialHourlyRateCents: 5500,
+      taxCommercialPercent: 8.875,
+    });
+    expect(list.premisesTypes.map((t) => t.name)).toEqual([
+      "Office",
+      "Retail",
+      "Medical",
+      "Other",
+    ]);
+  });
+
+  test("can be added, renamed, given new hours and retired, keeping their keys", async () => {
+    const office = await signInAsOffice();
+    await save(office).expect(200);
+    const keys = await premisesKeys(office);
+
+    await save(office, {
+      premisesTypes: [
+        {
+          key: keys["Office"],
+          name: "Offices",
+          hoursPerThousandSqFt: 0.6,
+          active: true,
+        },
+        { name: "Gym", hoursPerThousandSqFt: 0.7, active: true },
+      ],
+    }).expect(200);
+
+    const { premisesTypes } = await getList(office);
+    expect(premisesTypes.filter((t) => t.active)).toEqual([
+      {
+        key: keys["Office"],
+        name: "Offices",
+        hoursPerThousandSqFt: 0.6,
+        active: true,
+      },
+      {
+        key: expect.any(String),
+        name: "Gym",
+        hoursPerThousandSqFt: 0.7,
+        active: true,
+      },
+    ]);
+    // left out, so retired, never deleted
+    expect(premisesTypes.find((t) => t.key === keys["Medical"])).toEqual({
+      key: keys["Medical"],
+      name: "Medical",
+      hoursPerThousandSqFt: 0.8,
+      active: false,
+    });
+  });
+
+  test("must leave at least one on offer, with distinct names", async () => {
+    const office = await signInAsOffice();
+
+    const none = await save(office, {
+      premisesTypes: [
+        { name: "Office", hoursPerThousandSqFt: 0.5, active: false },
+      ],
+    });
+    const twice = await save(office, {
+      premisesTypes: [
+        { name: "Office", hoursPerThousandSqFt: 0.5, active: true },
+        { name: "office", hoursPerThousandSqFt: 0.6, active: true },
+      ],
+    });
+    const unknown = await save(office, {
+      premisesTypes: [
+        {
+          key: "00000000-0000-4000-8000-000000000000",
+          name: "Ghost",
+          hoursPerThousandSqFt: 1,
+          active: true,
+        },
+      ],
+    });
+
+    expect(none.body.details).toContainEqual({
+      path: "premisesTypes",
+      issue: "Offer at least one Premises Type",
+    });
+    expect(twice.body.details).toContainEqual({
+      path: "premisesTypes.1.name",
+      issue: "Another Premises Type already has this name",
+    });
+    expect(unknown.status).toBe(400);
+  });
+
+  test("are offered by name to anyone, only those on offer", async () => {
+    const office = await signInAsOffice();
+    await save(office).expect(200);
+    const keys = await premisesKeys(office);
+    await save(office, {
+      premisesTypes: [
+        {
+          key: keys["Office"],
+          name: "Office",
+          hoursPerThousandSqFt: 0.5,
+          active: true,
+        },
+        {
+          key: keys["Medical"],
+          name: "Medical",
+          hoursPerThousandSqFt: 0.8,
+          active: false,
+        },
+      ],
+    }).expect(200);
+
+    const res = await api().get("/api/price-list/premises-types").expect(200);
+
+    expect(res.body).toEqual([{ key: keys["Office"], name: "Office" }]);
+  });
+});
+
+describe("Add-ons for homes and businesses", () => {
+  test("only those offered for homes are on the Quote Request form", async () => {
+    const office = await signInAsOffice();
+    await save(office, {
+      addOns: [
+        {
+          name: "Inside the oven",
+          hours: 0.5,
+          taxExempt: false,
+          offeredFor: "homes",
+          active: true,
+        },
+        {
+          name: "Interior windows",
+          hours: 1,
+          taxExempt: false,
+          offeredFor: "both",
+          active: true,
+        },
+        {
+          name: "Breakroom fridge",
+          hours: 0.5,
+          taxExempt: false,
+          offeredFor: "businesses",
+          active: true,
+        },
+      ],
+    }).expect(200);
+    const keys = await addOnKeys(office);
+
+    const res = await api().get("/api/price-list/add-ons").expect(200);
+    const forBusiness = await submit(
+      guestRequest({ addOns: [keys["Breakroom fridge"]!] }),
+    );
+
+    expect(res.body.map((a: { name: string }) => a.name)).toEqual([
+      "Inside the oven",
+      "Interior windows",
+    ]);
+    expect(forBusiness.status).toBe(400);
+    expect(
+      (await getList(office)).addOns
+        .filter((a) => a.active)
+        .map((a) => [a.name, a.offeredFor]),
+    ).toEqual([
+      ["Inside the oven", "homes"],
+      ["Interior windows", "both"],
+      ["Breakroom fridge", "businesses"],
     ]);
   });
 });

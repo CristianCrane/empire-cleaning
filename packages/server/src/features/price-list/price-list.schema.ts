@@ -3,6 +3,7 @@ import {
   index,
   integer,
   numeric,
+  pgEnum,
   pgTable,
   text,
   timestamp,
@@ -25,7 +26,9 @@ export const priceLists = pgTable("price_lists", {
   // the starting figures, until Office Staff save their own
   placeholder: boolean("placeholder").notNull().default(false),
 
+  // residential
   hourlyRateCents: integer("hourly_rate_cents").notNull(),
+  commercialHourlyRateCents: integer("commercial_hourly_rate_cents").notNull(),
   minimumChargeCents: integer("minimum_charge_cents").notNull(),
 
   baseHours: decimal("base_hours"),
@@ -46,6 +49,7 @@ export const priceLists = pgTable("price_lists", {
 
   taxOneOffPercent: decimal("tax_one_off_percent", 6, 3),
   taxServicePlanPercent: decimal("tax_service_plan_percent", 6, 3),
+  taxCommercialPercent: decimal("tax_commercial_percent", 6, 3),
   taxFeePercent: decimal("tax_fee_percent", 6, 3),
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -53,6 +57,13 @@ export const priceLists = pgTable("price_lists", {
     onDelete: "set null",
   }),
 });
+
+// which kind of Property an Add-on is offered for
+export const offeredFor = pgEnum("offered_for", [
+  "homes",
+  "businesses",
+  "both",
+]);
 
 // An Add-on in one version of the Price List. Its key is the same in every
 // version, so a Quote Request that chose it keeps meaning the same thing after
@@ -68,6 +79,7 @@ export const priceListAddOns = pgTable(
     name: text("name").notNull(),
     hours: decimal("hours"),
     taxExempt: boolean("tax_exempt").notNull().default(false),
+    offeredFor: offeredFor("offered_for").notNull().default("homes"),
     active: boolean("active").notNull().default(true),
     position: integer("position").notNull(),
   },
@@ -77,5 +89,29 @@ export const priceListAddOns = pgTable(
   ],
 );
 
+// A Premises Type in one version of the Price List, keyed like an Add-on:
+// its key is the same in every version, and retiring it keeps its row, so a
+// commercial Property of that type still prices
+export const priceListPremisesTypes = pgTable(
+  "price_list_premises_types",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    priceListId: uuid("price_list_id")
+      .notNull()
+      .references(() => priceLists.id, { onDelete: "cascade" }),
+    key: uuid("key").notNull(),
+    name: text("name").notNull(),
+    hoursPerThousandSqFt: decimal("hours_per_thousand_sq_ft"),
+    active: boolean("active").notNull().default(true),
+    position: integer("position").notNull(),
+  },
+  (t) => [
+    unique("price_list_premises_types_version_key").on(t.priceListId, t.key),
+    index("price_list_premises_types_price_list_id_idx").on(t.priceListId),
+  ],
+);
+
 export type PriceListRow = typeof priceLists.$inferSelect;
 export type PriceListAddOnRow = typeof priceListAddOns.$inferSelect;
+export type PriceListPremisesTypeRow =
+  typeof priceListPremisesTypes.$inferSelect;

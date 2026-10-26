@@ -162,7 +162,11 @@ const summaries = async (where: SQL | undefined) => {
   const rows = await db
     .select({
       quote: quotes,
-      client: { id: clients.id, name: clients.name },
+      client: {
+        id: clients.id,
+        name: clients.name,
+        businessName: clients.businessName,
+      },
       property: {
         id: properties.id,
         street: properties.street,

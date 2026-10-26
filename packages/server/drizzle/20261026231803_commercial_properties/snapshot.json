@@ -1,0 +1,6022 @@
+{
+  "version": "8",
+  "dialect": "postgres",
+  "id": "34a04a13-0818-4f67-b888-be6da5a6e269",
+  "prevIds": [
+    "876cfba8-3fe8-4c52-908f-858e33f101ad"
+  ],
+  "ddl": [
+    {
+      "values": [
+        "offered",
+        "confirmed",
+        "released"
+      ],
+      "name": "assignment_status",
+      "entityType": "enums",
+      "schema": "public"
+    },
+    {
+      "values": [
+        "add_on_done",
+        "add_on_not_done",
+        "extra_time"
+      ],
+      "name": "adjustment_kind",
+      "entityType": "enums",
+      "schema": "public"
+    },
+    {
+      "values": [
+        "applied",
+        "reported",
+        "dismissed",
+        "proposed",
+        "approved",
+        "declined",
+        "lapsed"
+      ],
+      "name": "adjustment_status",
+      "entityType": "enums",
+      "schema": "public"
+    },
+    {
+      "values": [
+        "client",
+        "empire"
+      ],
+      "name": "cancelled_by",
+      "entityType": "enums",
+      "schema": "public"
+    },
+    {
+      "values": [
+        "standard",
+        "deep"
+      ],
+      "name": "clean_type",
+      "entityType": "enums",
+      "schema": "public"
+    },
+    {
+      "values": [
+        "booked",
+        "completed",
+        "cancelled",
+        "no_access"
+      ],
+      "name": "job_status",
+      "entityType": "enums",
+      "schema": "public"
+    },
+    {
+      "values": [
+        "deposit",
+        "balance",
+        "fee"
+      ],
+      "name": "charge_kind",
+      "entityType": "enums",
+      "schema": "public"
+    },
+    {
+      "values": [
+        "homes",
+        "businesses",
+        "both"
+      ],
+      "name": "offered_for",
+      "entityType": "enums",
+      "schema": "public"
+    },
+    {
+      "values": [
+        "light",
+        "moderate",
+        "heavy"
+      ],
+      "name": "condition",
+      "entityType": "enums",
+      "schema": "public"
+    },
+    {
+      "values": [
+        "residential",
+        "commercial"
+      ],
+      "name": "property_kind",
+      "entityType": "enums",
+      "schema": "public"
+    },
+    {
+      "values": [
+        "house",
+        "apartment",
+        "townhouse"
+      ],
+      "name": "property_type",
+      "entityType": "enums",
+      "schema": "public"
+    },
+    {
+      "values": [
+        "one_off",
+        "service_plan"
+      ],
+      "name": "quote_kind",
+      "entityType": "enums",
+      "schema": "public"
+    },
+    {
+      "values": [
+        "draft",
+        "sent",
+        "accepted",
+        "declined",
+        "expired",
+        "superseded"
+      ],
+      "name": "quote_status",
+      "entityType": "enums",
+      "schema": "public"
+    },
+    {
+      "values": [
+        "weekly",
+        "fortnightly",
+        "four_weekly"
+      ],
+      "name": "recurrence",
+      "entityType": "enums",
+      "schema": "public"
+    },
+    {
+      "values": [
+        "free",
+        "free_late",
+        "late_cancellation"
+      ],
+      "name": "reschedule_cost",
+      "entityType": "enums",
+      "schema": "public"
+    },
+    {
+      "values": [
+        "pending",
+        "confirmed",
+        "turned_down",
+        "withdrawn"
+      ],
+      "name": "reschedule_status",
+      "entityType": "enums",
+      "schema": "public"
+    },
+    {
+      "values": [
+        "active",
+        "on_hold",
+        "ended"
+      ],
+      "name": "service_plan_status",
+      "entityType": "enums",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "assignments",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "account_identities",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "accounts",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "sessions",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "verifications",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "clients",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "adjustments",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "jobs",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "charges",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "payers",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "payment_methods",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "refunds",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "price_list_add_ons",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "price_list_premises_types",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "price_lists",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "properties",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "quote_request_add_ons",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "quote_requests",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "pending_deposits",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "quote_options",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "quotes",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "reschedule_requests",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "service_plan_visits",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "service_plans",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "staff",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "staff_availability_exceptions",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "staff_usual_hours",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "assignments"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "job_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "assignments"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "staff_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "assignments"
+    },
+    {
+      "type": "assignment_status",
+      "typeSchema": "public",
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'offered'",
+      "generated": null,
+      "identity": null,
+      "name": "status",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "assignments"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "offered_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "assignments"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "answered_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "assignments"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "assignments"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "assignments"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "account_identities"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "account_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "account_identities"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "provider_account_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "account_identities"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "provider_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "account_identities"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "access_token",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "account_identities"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "refresh_token",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "account_identities"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "id_token",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "account_identities"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "access_token_expires_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "account_identities"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "refresh_token_expires_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "account_identities"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "scope",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "account_identities"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "password",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "account_identities"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "account_identities"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "account_identities"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "accounts"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "name",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "accounts"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "email",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "accounts"
+    },
+    {
+      "type": "boolean",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "false",
+      "generated": null,
+      "identity": null,
+      "name": "email_verified",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "accounts"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "image",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "accounts"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "accounts"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "accounts"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "sessions"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "account_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "sessions"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "token",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "sessions"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "expires_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "sessions"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "ip_address",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "sessions"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "user_agent",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "sessions"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "sessions"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "sessions"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "verifications"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "identifier",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "verifications"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "value",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "verifications"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "expires_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "verifications"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "verifications"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "verifications"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "clients"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "account_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "clients"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "name",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "clients"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "business_name",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "clients"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "email",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "clients"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "phone",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "clients"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "clients"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "clients"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "adjustments"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "job_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "adjustments"
+    },
+    {
+      "type": "adjustment_kind",
+      "typeSchema": "public",
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "kind",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "adjustments"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "add_on_key",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "adjustments"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "add_on_name",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "adjustments"
+    },
+    {
+      "type": "numeric(6,2)",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "hours",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "adjustments"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "reason",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "adjustments"
+    },
+    {
+      "type": "adjustment_status",
+      "typeSchema": "public",
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "status",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "adjustments"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "worked_out_cents",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "adjustments"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "price_cents",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "adjustments"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "tax_cents",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "adjustments"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "total_cents",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "adjustments"
+    },
+    {
+      "type": "boolean",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "false",
+      "generated": null,
+      "identity": null,
+      "name": "tax_exempt",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "adjustments"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "office_reason",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "adjustments"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "reported_by",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "adjustments"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "reported_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "adjustments"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "reviewed_by",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "adjustments"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "reviewed_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "adjustments"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "proposed_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "adjustments"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "answered_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "adjustments"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "reminder_sent_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "adjustments"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "adjustments"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "adjustments"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "jobs"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "property_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "jobs"
+    },
+    {
+      "type": "clean_type",
+      "typeSchema": "public",
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "clean_type",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "jobs"
+    },
+    {
+      "type": "job_status",
+      "typeSchema": "public",
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'booked'",
+      "generated": null,
+      "identity": null,
+      "name": "status",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "jobs"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "starts_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "jobs"
+    },
+    {
+      "type": "numeric(6,2)",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "labour_hours",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "jobs"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "crew_size",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "jobs"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "booked_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "jobs"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "reminder_sent_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "jobs"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "completed_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "jobs"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "completed_by",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "jobs"
+    },
+    {
+      "type": "condition",
+      "typeSchema": "public",
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "reported_condition",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "jobs"
+    },
+    {
+      "type": "condition",
+      "typeSchema": "public",
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "condition_before",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "jobs"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "unpaid_since",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "jobs"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "unpaid_reason",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "jobs"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "cancelled_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "jobs"
+    },
+    {
+      "type": "cancelled_by",
+      "typeSchema": "public",
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "cancelled_by",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "jobs"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "cancelled_by_account",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "jobs"
+    },
+    {
+      "type": "boolean",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "late_cancellation",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "jobs"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "cancellation_reason",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "jobs"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "no_access_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "jobs"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "no_access_by",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "jobs"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "no_access_reason",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "jobs"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "fee_cents",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "jobs"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "0",
+      "generated": null,
+      "identity": null,
+      "name": "reschedule_fee_cents",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "jobs"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "jobs"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "jobs"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "charges"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "job_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "charges"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "service_plan_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "charges"
+    },
+    {
+      "type": "charge_kind",
+      "typeSchema": "public",
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "kind",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "charges"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "amount_cents",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "charges"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "gateway_ref",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "charges"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "charged_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "charges"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "charges"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "charges"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "client_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "payers"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "gateway_ref",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "payers"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "payers"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "payers"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "client_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "payment_methods"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "gateway_ref",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "payment_methods"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "label",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "payment_methods"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "saved_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "payment_methods"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "consented_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "payment_methods"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "payment_methods"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "payment_methods"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "refunds"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "charge_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "refunds"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "amount_cents",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "refunds"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "gateway_ref",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "refunds"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "refunded_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "refunds"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "refunds"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "refunds"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_list_add_ons"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "price_list_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_list_add_ons"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "key",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_list_add_ons"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "name",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_list_add_ons"
+    },
+    {
+      "type": "numeric(6,2)",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "hours",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_list_add_ons"
+    },
+    {
+      "type": "boolean",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "false",
+      "generated": null,
+      "identity": null,
+      "name": "tax_exempt",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_list_add_ons"
+    },
+    {
+      "type": "offered_for",
+      "typeSchema": "public",
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'homes'",
+      "generated": null,
+      "identity": null,
+      "name": "offered_for",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_list_add_ons"
+    },
+    {
+      "type": "boolean",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "true",
+      "generated": null,
+      "identity": null,
+      "name": "active",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_list_add_ons"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "position",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_list_add_ons"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_list_premises_types"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "price_list_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_list_premises_types"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "key",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_list_premises_types"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "name",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_list_premises_types"
+    },
+    {
+      "type": "numeric(6,2)",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "hours_per_thousand_sq_ft",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_list_premises_types"
+    },
+    {
+      "type": "boolean",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "true",
+      "generated": null,
+      "identity": null,
+      "name": "active",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_list_premises_types"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "position",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_list_premises_types"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_lists"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": {
+        "type": "always",
+        "name": "price_lists_version_seq",
+        "increment": "1",
+        "startWith": "1",
+        "minValue": "1",
+        "maxValue": "2147483647",
+        "cache": 1,
+        "cycle": false
+      },
+      "name": "version",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_lists"
+    },
+    {
+      "type": "boolean",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "false",
+      "generated": null,
+      "identity": null,
+      "name": "placeholder",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_lists"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "hourly_rate_cents",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_lists"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "commercial_hourly_rate_cents",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_lists"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "minimum_charge_cents",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_lists"
+    },
+    {
+      "type": "numeric(6,2)",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "base_hours",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_lists"
+    },
+    {
+      "type": "numeric(6,2)",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "bedroom_hours",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_lists"
+    },
+    {
+      "type": "numeric(6,2)",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "bathroom_hours",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_lists"
+    },
+    {
+      "type": "numeric(6,2)",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "extra_storey_hours",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_lists"
+    },
+    {
+      "type": "numeric(6,2)",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "pet_hours",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_lists"
+    },
+    {
+      "type": "numeric(6,2)",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "condition_light",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_lists"
+    },
+    {
+      "type": "numeric(6,2)",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "condition_moderate",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_lists"
+    },
+    {
+      "type": "numeric(6,2)",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "condition_heavy",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_lists"
+    },
+    {
+      "type": "numeric(6,2)",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "deep_clean_multiplier",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_lists"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "deposit_percent",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_lists"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "plan_discount_percent",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_lists"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "quote_validity_days",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_lists"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "default_crew_size",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_lists"
+    },
+    {
+      "type": "numeric(6,3)",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "tax_one_off_percent",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_lists"
+    },
+    {
+      "type": "numeric(6,3)",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "tax_service_plan_percent",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_lists"
+    },
+    {
+      "type": "numeric(6,3)",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "tax_commercial_percent",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_lists"
+    },
+    {
+      "type": "numeric(6,3)",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "tax_fee_percent",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_lists"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_lists"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "created_by",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "price_lists"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "properties"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "client_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "properties"
+    },
+    {
+      "type": "property_kind",
+      "typeSchema": "public",
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'residential'",
+      "generated": null,
+      "identity": null,
+      "name": "kind",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "properties"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "street",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "properties"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "unit",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "properties"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "postcode",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "properties"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "address_key",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "properties"
+    },
+    {
+      "type": "property_type",
+      "typeSchema": "public",
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "type",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "properties"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "bedrooms",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "properties"
+    },
+    {
+      "type": "numeric(3,1)",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "bathrooms",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "properties"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "storeys",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "properties"
+    },
+    {
+      "type": "boolean",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "pets",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "properties"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "premises_type_key",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "properties"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "floor_area",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "properties"
+    },
+    {
+      "type": "condition",
+      "typeSchema": "public",
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "condition",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "properties"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "access_instructions",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "properties"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "properties"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "properties"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "quote_request_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quote_request_add_ons"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "add_on_key",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quote_request_add_ons"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quote_requests"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "client_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quote_requests"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "property_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quote_requests"
+    },
+    {
+      "type": "condition",
+      "typeSchema": "public",
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "condition",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quote_requests"
+    },
+    {
+      "type": "boolean",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "wants_regular_service",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quote_requests"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 1,
+      "default": "'{}'",
+      "generated": null,
+      "identity": null,
+      "name": "weekdays",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quote_requests"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "preferred_time",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quote_requests"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "notes",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quote_requests"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "entered_by",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quote_requests"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quote_requests"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quote_requests"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "gateway_ref",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "pending_deposits"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "quote_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "pending_deposits"
+    },
+    {
+      "type": "clean_type",
+      "typeSchema": "public",
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "clean_type",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "pending_deposits"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "deposit_cents",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "pending_deposits"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "accepted_by",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "pending_deposits"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "settled_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "pending_deposits"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "pending_deposits"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "pending_deposits"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "quote_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quote_options"
+    },
+    {
+      "type": "clean_type",
+      "typeSchema": "public",
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "clean_type",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quote_options"
+    },
+    {
+      "type": "jsonb",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "suggested",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quote_options"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "override_cents",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quote_options"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "override_reason",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quote_options"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "0",
+      "generated": null,
+      "identity": null,
+      "name": "discount_cents",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quote_options"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "price_cents",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quote_options"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "tax_cents",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quote_options"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "total_cents",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quote_options"
+    },
+    {
+      "type": "numeric(6,2)",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "labour_hours",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quote_options"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quotes"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "property_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quotes"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "quote_request_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quotes"
+    },
+    {
+      "type": "quote_kind",
+      "typeSchema": "public",
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'one_off'",
+      "generated": null,
+      "identity": null,
+      "name": "kind",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quotes"
+    },
+    {
+      "type": "quote_status",
+      "typeSchema": "public",
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'draft'",
+      "generated": null,
+      "identity": null,
+      "name": "status",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quotes"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "price_list_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quotes"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "crew_size",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quotes"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "deposit_percent",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quotes"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "validity_days",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quotes"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "proposed_starts_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quotes"
+    },
+    {
+      "type": "recurrence",
+      "typeSchema": "public",
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "recurrence",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quotes"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "plan_discount_percent",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quotes"
+    },
+    {
+      "type": "condition",
+      "typeSchema": "public",
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "condition",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quotes"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "sent_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quotes"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "expires_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quotes"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "declined_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quotes"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "accepted_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quotes"
+    },
+    {
+      "type": "clean_type",
+      "typeSchema": "public",
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "accepted_clean_type",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quotes"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "job_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quotes"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "accepted_by",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quotes"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "created_by",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quotes"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quotes"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "quotes"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "reschedule_requests"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "job_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "reschedule_requests"
+    },
+    {
+      "type": "reschedule_status",
+      "typeSchema": "public",
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'pending'",
+      "generated": null,
+      "identity": null,
+      "name": "status",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "reschedule_requests"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "from_starts_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "reschedule_requests"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "starts_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "reschedule_requests"
+    },
+    {
+      "type": "reschedule_cost",
+      "typeSchema": "public",
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "cost",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "reschedule_requests"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "fee_cents",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "reschedule_requests"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "requested_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "reschedule_requests"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "requested_by",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "reschedule_requests"
+    },
+    {
+      "type": "boolean",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "by_client",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "reschedule_requests"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "answered_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "reschedule_requests"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "answered_by",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "reschedule_requests"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "reason",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "reschedule_requests"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "reschedule_requests"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "reschedule_requests"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "service_plan_visits"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "service_plan_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "service_plan_visits"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "quote_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "service_plan_visits"
+    },
+    {
+      "type": "date",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "due_on",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "service_plan_visits"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "job_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "service_plan_visits"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "generated_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "service_plan_visits"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "skipped_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "service_plan_visits"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "service_plan_visits"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "service_plan_visits"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "service_plans"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "property_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "service_plans"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "quote_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "service_plans"
+    },
+    {
+      "type": "service_plan_status",
+      "typeSchema": "public",
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'active'",
+      "generated": null,
+      "identity": null,
+      "name": "status",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "service_plans"
+    },
+    {
+      "type": "recurrence",
+      "typeSchema": "public",
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "recurrence",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "service_plans"
+    },
+    {
+      "type": "clean_type",
+      "typeSchema": "public",
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "clean_type",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "service_plans"
+    },
+    {
+      "type": "numeric(6,2)",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "labour_hours",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "service_plans"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "crew_size",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "service_plans"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "first_starts_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "service_plans"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "started_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "service_plans"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "started_by",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "service_plans"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "ended_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "service_plans"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "ended_by",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "service_plans"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "service_plans"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "service_plans"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "staff"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "account_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "staff"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "name",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "staff"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "email",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "staff"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 1,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "roles",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "staff"
+    },
+    {
+      "type": "boolean",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "true",
+      "generated": null,
+      "identity": null,
+      "name": "active",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "staff"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "staff"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "staff"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "staff_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "staff_availability_exceptions"
+    },
+    {
+      "type": "date",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "date",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "staff_availability_exceptions"
+    },
+    {
+      "type": "numeric(4,2)",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "hours",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "staff_availability_exceptions"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "note",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "staff_availability_exceptions"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "staff_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "staff_usual_hours"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "weekday",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "staff_usual_hours"
+    },
+    {
+      "type": "numeric(4,2)",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "hours",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "staff_usual_hours"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "job_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "assignments_job_id_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "assignments"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "staff_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "assignments_staff_id_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "assignments"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "job_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "staff_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": true,
+      "where": "\"status\" <> 'released'",
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "assignments_one_place_per_staff",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "assignments"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "account_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "account_identities_account_id_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "account_identities"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "account_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "sessions_account_id_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "sessions"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "identifier",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "verifications_identifier_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "verifications"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "job_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "adjustments_job_id_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "adjustments"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "starts_at",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "jobs_starts_at_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "jobs"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "unpaid_since",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": "\"unpaid_since\" is not null",
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "jobs_unpaid_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "jobs"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "job_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "charges_job_id_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "charges"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "service_plan_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "charges_service_plan_id_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "charges"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "charge_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "refunds_charge_id_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "refunds"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "price_list_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "price_list_add_ons_price_list_id_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "price_list_add_ons"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "price_list_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "price_list_premises_types_price_list_id_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "price_list_premises_types"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "client_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "address_key",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "properties_client_id_address_key_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "properties"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "client_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "quote_requests_client_id_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "quote_requests"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "property_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "quote_requests_property_id_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "quote_requests"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "quote_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "pending_deposits_quote_id_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "pending_deposits"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "property_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "quotes_property_id_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "quotes"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "quote_request_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "quotes_quote_request_id_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "quotes"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "property_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "kind",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": true,
+      "where": "\"status\" = 'sent'",
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "quotes_one_sent_per_property_kind",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "quotes"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "quote_request_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": true,
+      "where": "\"status\" = 'draft' and \"quote_request_id\" is not null",
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "quotes_one_draft_per_request",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "quotes"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "property_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": true,
+      "where": "\"status\" = 'draft' and \"kind\" = 'service_plan'",
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "quotes_one_plan_draft_per_property",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "quotes"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "job_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "reschedule_requests_job_id_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "reschedule_requests"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "starts_at",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": "\"status\" = 'pending'",
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "reschedule_requests_starts_at_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "reschedule_requests"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "job_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": true,
+      "where": "\"status\" = 'pending'",
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "reschedule_requests_one_pending_per_job",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "reschedule_requests"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "generated_at",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": "\"job_id\" is null and \"skipped_at\" is null",
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "service_plan_visits_unplaced_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "service_plan_visits"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "property_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": true,
+      "where": "\"status\" <> 'ended'",
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "service_plans_one_per_property",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "service_plans"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "job_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "jobs",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "assignments_job_id_jobs_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "assignments"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "staff_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "staff",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "name": "assignments_staff_id_staff_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "assignments"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "account_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "accounts",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "account_identities_account_id_accounts_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "account_identities"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "account_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "accounts",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "sessions_account_id_accounts_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "sessions"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "account_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "accounts",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "SET NULL",
+      "name": "clients_account_id_accounts_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "clients"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "job_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "jobs",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "adjustments_job_id_jobs_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "adjustments"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "reported_by"
+      ],
+      "schemaTo": "public",
+      "tableTo": "staff",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "SET NULL",
+      "name": "adjustments_reported_by_staff_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "adjustments"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "reviewed_by"
+      ],
+      "schemaTo": "public",
+      "tableTo": "accounts",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "SET NULL",
+      "name": "adjustments_reviewed_by_accounts_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "adjustments"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "property_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "properties",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "name": "jobs_property_id_properties_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "jobs"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "completed_by"
+      ],
+      "schemaTo": "public",
+      "tableTo": "staff",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "SET NULL",
+      "name": "jobs_completed_by_staff_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "jobs"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "cancelled_by_account"
+      ],
+      "schemaTo": "public",
+      "tableTo": "accounts",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "SET NULL",
+      "name": "jobs_cancelled_by_account_accounts_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "jobs"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "no_access_by"
+      ],
+      "schemaTo": "public",
+      "tableTo": "staff",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "SET NULL",
+      "name": "jobs_no_access_by_staff_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "jobs"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "job_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "jobs",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "name": "charges_job_id_jobs_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "charges"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "service_plan_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "service_plans",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "name": "charges_service_plan_id_service_plans_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "charges"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "client_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "clients",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "payers_client_id_clients_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "payers"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "client_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "clients",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "payment_methods_client_id_clients_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "payment_methods"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "charge_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "charges",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "name": "refunds_charge_id_charges_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "refunds"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "price_list_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "price_lists",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "price_list_add_ons_price_list_id_price_lists_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "price_list_add_ons"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "price_list_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "price_lists",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "price_list_premises_types_price_list_id_price_lists_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "price_list_premises_types"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "created_by"
+      ],
+      "schemaTo": "public",
+      "tableTo": "accounts",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "SET NULL",
+      "name": "price_lists_created_by_accounts_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "price_lists"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "client_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "clients",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "properties_client_id_clients_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "properties"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "quote_request_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "quote_requests",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "quote_request_add_ons_quote_request_id_quote_requests_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "quote_request_add_ons"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "client_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "clients",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "quote_requests_client_id_clients_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "quote_requests"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "property_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "properties",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "quote_requests_property_id_properties_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "quote_requests"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "entered_by"
+      ],
+      "schemaTo": "public",
+      "tableTo": "accounts",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "SET NULL",
+      "name": "quote_requests_entered_by_accounts_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "quote_requests"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "quote_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "quotes",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "pending_deposits_quote_id_quotes_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "pending_deposits"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "accepted_by"
+      ],
+      "schemaTo": "public",
+      "tableTo": "accounts",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "SET NULL",
+      "name": "pending_deposits_accepted_by_accounts_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "pending_deposits"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "quote_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "quotes",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "quote_options_quote_id_quotes_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "quote_options"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "property_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "properties",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "quotes_property_id_properties_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "quotes"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "quote_request_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "quote_requests",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "quotes_quote_request_id_quote_requests_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "quotes"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "price_list_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "price_lists",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "name": "quotes_price_list_id_price_lists_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "quotes"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "job_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "jobs",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "name": "quotes_job_id_jobs_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "quotes"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "accepted_by"
+      ],
+      "schemaTo": "public",
+      "tableTo": "accounts",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "SET NULL",
+      "name": "quotes_accepted_by_accounts_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "quotes"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "created_by"
+      ],
+      "schemaTo": "public",
+      "tableTo": "accounts",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "SET NULL",
+      "name": "quotes_created_by_accounts_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "quotes"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "job_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "jobs",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "reschedule_requests_job_id_jobs_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "reschedule_requests"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "requested_by"
+      ],
+      "schemaTo": "public",
+      "tableTo": "accounts",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "SET NULL",
+      "name": "reschedule_requests_requested_by_accounts_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "reschedule_requests"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "answered_by"
+      ],
+      "schemaTo": "public",
+      "tableTo": "accounts",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "SET NULL",
+      "name": "reschedule_requests_answered_by_accounts_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "reschedule_requests"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "service_plan_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "service_plans",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "service_plan_visits_service_plan_id_service_plans_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "service_plan_visits"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "quote_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "quotes",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "name": "service_plan_visits_quote_id_quotes_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "service_plan_visits"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "job_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "jobs",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "name": "service_plan_visits_job_id_jobs_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "service_plan_visits"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "property_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "properties",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "name": "service_plans_property_id_properties_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "service_plans"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "quote_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "quotes",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "name": "service_plans_quote_id_quotes_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "service_plans"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "started_by"
+      ],
+      "schemaTo": "public",
+      "tableTo": "accounts",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "SET NULL",
+      "name": "service_plans_started_by_accounts_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "service_plans"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "ended_by"
+      ],
+      "schemaTo": "public",
+      "tableTo": "accounts",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "SET NULL",
+      "name": "service_plans_ended_by_accounts_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "service_plans"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "account_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "accounts",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "SET NULL",
+      "name": "staff_account_id_accounts_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "staff"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "staff_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "staff",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "staff_availability_exceptions_staff_id_staff_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "staff_availability_exceptions"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "staff_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "staff",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "staff_usual_hours_staff_id_staff_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "staff_usual_hours"
+    },
+    {
+      "columns": [
+        "quote_request_id",
+        "add_on_key"
+      ],
+      "nameExplicit": false,
+      "name": "quote_request_add_ons_pkey",
+      "entityType": "pks",
+      "schema": "public",
+      "table": "quote_request_add_ons"
+    },
+    {
+      "columns": [
+        "quote_id",
+        "clean_type"
+      ],
+      "nameExplicit": false,
+      "name": "quote_options_pkey",
+      "entityType": "pks",
+      "schema": "public",
+      "table": "quote_options"
+    },
+    {
+      "columns": [
+        "staff_id",
+        "date"
+      ],
+      "nameExplicit": false,
+      "name": "staff_availability_exceptions_pkey",
+      "entityType": "pks",
+      "schema": "public",
+      "table": "staff_availability_exceptions"
+    },
+    {
+      "columns": [
+        "staff_id",
+        "weekday"
+      ],
+      "nameExplicit": false,
+      "name": "staff_usual_hours_pkey",
+      "entityType": "pks",
+      "schema": "public",
+      "table": "staff_usual_hours"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "assignments_pkey",
+      "schema": "public",
+      "table": "assignments",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "account_identities_pkey",
+      "schema": "public",
+      "table": "account_identities",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "accounts_pkey",
+      "schema": "public",
+      "table": "accounts",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "sessions_pkey",
+      "schema": "public",
+      "table": "sessions",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "verifications_pkey",
+      "schema": "public",
+      "table": "verifications",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "clients_pkey",
+      "schema": "public",
+      "table": "clients",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "adjustments_pkey",
+      "schema": "public",
+      "table": "adjustments",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "jobs_pkey",
+      "schema": "public",
+      "table": "jobs",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "charges_pkey",
+      "schema": "public",
+      "table": "charges",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "client_id"
+      ],
+      "nameExplicit": false,
+      "name": "payers_pkey",
+      "schema": "public",
+      "table": "payers",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "client_id"
+      ],
+      "nameExplicit": false,
+      "name": "payment_methods_pkey",
+      "schema": "public",
+      "table": "payment_methods",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "refunds_pkey",
+      "schema": "public",
+      "table": "refunds",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "price_list_add_ons_pkey",
+      "schema": "public",
+      "table": "price_list_add_ons",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "price_list_premises_types_pkey",
+      "schema": "public",
+      "table": "price_list_premises_types",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "price_lists_pkey",
+      "schema": "public",
+      "table": "price_lists",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "properties_pkey",
+      "schema": "public",
+      "table": "properties",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "quote_requests_pkey",
+      "schema": "public",
+      "table": "quote_requests",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "gateway_ref"
+      ],
+      "nameExplicit": false,
+      "name": "pending_deposits_pkey",
+      "schema": "public",
+      "table": "pending_deposits",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "quotes_pkey",
+      "schema": "public",
+      "table": "quotes",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "reschedule_requests_pkey",
+      "schema": "public",
+      "table": "reschedule_requests",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "service_plan_visits_pkey",
+      "schema": "public",
+      "table": "service_plan_visits",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "service_plans_pkey",
+      "schema": "public",
+      "table": "service_plans",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "staff_pkey",
+      "schema": "public",
+      "table": "staff",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "price_list_id",
+        "key"
+      ],
+      "nullsNotDistinct": false,
+      "name": "price_list_add_ons_version_key",
+      "entityType": "uniques",
+      "schema": "public",
+      "table": "price_list_add_ons"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "price_list_id",
+        "key"
+      ],
+      "nullsNotDistinct": false,
+      "name": "price_list_premises_types_version_key",
+      "entityType": "uniques",
+      "schema": "public",
+      "table": "price_list_premises_types"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "service_plan_id",
+        "quote_id",
+        "due_on"
+      ],
+      "nullsNotDistinct": false,
+      "name": "service_plan_visits_one_per_day",
+      "entityType": "uniques",
+      "schema": "public",
+      "table": "service_plan_visits"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "email"
+      ],
+      "nullsNotDistinct": false,
+      "name": "accounts_email_key",
+      "schema": "public",
+      "table": "accounts",
+      "entityType": "uniques"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "token"
+      ],
+      "nullsNotDistinct": false,
+      "name": "sessions_token_key",
+      "schema": "public",
+      "table": "sessions",
+      "entityType": "uniques"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "account_id"
+      ],
+      "nullsNotDistinct": false,
+      "name": "clients_account_id_key",
+      "schema": "public",
+      "table": "clients",
+      "entityType": "uniques"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "email"
+      ],
+      "nullsNotDistinct": false,
+      "name": "clients_email_key",
+      "schema": "public",
+      "table": "clients",
+      "entityType": "uniques"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "gateway_ref"
+      ],
+      "nullsNotDistinct": false,
+      "name": "payers_gateway_ref_key",
+      "schema": "public",
+      "table": "payers",
+      "entityType": "uniques"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "version"
+      ],
+      "nullsNotDistinct": false,
+      "name": "price_lists_version_key",
+      "schema": "public",
+      "table": "price_lists",
+      "entityType": "uniques"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "job_id"
+      ],
+      "nullsNotDistinct": false,
+      "name": "service_plan_visits_job_id_key",
+      "schema": "public",
+      "table": "service_plan_visits",
+      "entityType": "uniques"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "quote_id"
+      ],
+      "nullsNotDistinct": false,
+      "name": "service_plans_quote_id_key",
+      "schema": "public",
+      "table": "service_plans",
+      "entityType": "uniques"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "account_id"
+      ],
+      "nullsNotDistinct": false,
+      "name": "staff_account_id_key",
+      "schema": "public",
+      "table": "staff",
+      "entityType": "uniques"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "email"
+      ],
+      "nullsNotDistinct": false,
+      "name": "staff_email_key",
+      "schema": "public",
+      "table": "staff",
+      "entityType": "uniques"
+    },
+    {
+      "value": "(\"job_id\" is null) <> (\"service_plan_id\" is null)",
+      "name": "charges_job_or_service_plan",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "charges"
+    },
+    {
+      "value": "(\"kind\" = 'residential' and \"type\" is not null and \"bedrooms\" is not null and \"bathrooms\" is not null and \"storeys\" is not null and \"pets\" is not null and \"condition\" is not null and \"premises_type_key\" is null)\n        or (\"kind\" = 'commercial' and \"premises_type_key\" is not null and \"type\" is null and \"bedrooms\" is null and \"bathrooms\" is null and \"storeys\" is null and \"pets\" is null)",
+      "name": "properties_kind_details",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "properties"
+    }
+  ],
+  "renames": []
+}

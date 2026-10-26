@@ -12,7 +12,10 @@ export const clients = pgTable("clients", {
   accountId: uuid("account_id")
     .unique()
     .references(() => accounts.id, { onDelete: "set null" }),
+  // the contact person's, for a business
   name: text("name").notNull(),
+  // a business Client's own name (#72)
+  businessName: text("business_name"),
   // where we send Quotes and notices; stored lowercased. None for a Client
   // the Office entered without one, who can't sign in or be sent a Quote
   // until it's added (#34)

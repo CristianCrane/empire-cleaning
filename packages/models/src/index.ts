@@ -20,42 +20,76 @@ export type SignedInAccount = {
 
 export type PropertyType = "house" | "apartment" | "townhouse";
 
+// a Property is a home, described by its rooms, or business premises,
+// described by their Premises Type and floor area (#72)
+export type PropertyKind = "residential" | "commercial";
+
 // how dirty a Property is: stated by the Client, correctable by Staff
 export type Condition = "light" | "moderate" | "heavy";
 
-export type NewProperty = {
-  type: PropertyType;
+// the days of the week, Monday first: 0 is Monday, 6 is Sunday
+export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
+type NewAddress = {
   street: string;
   unit?: string | null;
   postcode: string;
+  accessInstructions?: string | null;
+};
+
+// a home, as the Quote Request form describes it
+export type NewHome = NewAddress & {
+  kind: "residential";
+  type: PropertyType;
   bedrooms: number;
   // half-baths allowed, e.g. 1.5
   bathrooms: number;
   storeys: number;
   pets: boolean;
   floorArea?: number | null;
-  accessInstructions?: string | null;
 };
+
+// business premises, as the Quote Request form describes them; the floor
+// area is optional, as the Client may not know it (a Site Visit finds it)
+export type NewPremises = NewAddress & {
+  kind: "commercial";
+  // a Premises Type on the Price List, by key
+  premisesType: string;
+  floorArea?: number | null;
+};
+
+export type NewProperty = NewHome | NewPremises;
 
 export type ContactDetails = { name: string; email: string; phone: string };
 
 // a Client's contact details as the Office sees them: the Office may enter a
 // caller without an email, who can't sign in or be sent a Quote until one is
-// added (#34)
+// added (#34). A business's are those of the person dealt with there; its
+// own name is `businessName` (#72).
 export type OfficeContactDetails = Omit<ContactDetails, "email"> & {
   email: string | null;
+  businessName: string | null;
 };
 
 // what the Quote Request form sends to POST /api/quote-requests. Guests send
 // their contact details; a signed-in Account not yet connected to a Client
 // sends its name and phone (its proven email is used); a Client sends neither.
+//
+// A home's request states its Condition and may choose Add-ons. A business's
+// gives its business name instead, and which weekdays it wants cleaned and
+// when, or none for a one-off; a Site Visit finds its Condition (#72).
 export type QuoteRequestSubmission = {
   contact?: ContactDetails | Omit<ContactDetails, "email">;
+  businessName?: string | null;
   property: { new: NewProperty } | { existing: string };
-  condition: Condition;
+  condition?: Condition;
   wantsRegularService: boolean;
   // the Add-ons chosen, by their key (see AddOnChoice)
   addOns?: string[];
+  // business premises wanting regular cleaning: the weekdays, and a
+  // preferred start time ("08:00")
+  weekdays?: Weekday[];
+  preferredTime?: string | null;
   notes?: string | null;
 };
 
@@ -66,16 +100,46 @@ export type QuoteRequestReceipt = { id: string; emailedTo: string };
 // entered for a caller, and the one-off Quote Draft started for it (#34)
 export type OfficeRequestEntry = { quoteRequestId: string; quoteId: string };
 
-export type PropertyView = NewProperty & {
+type PropertyBase = {
   id: string;
-  condition: Condition;
+  street: string;
+  unit: string | null;
+  postcode: string;
+  floorArea: number | null;
+  // the latest known; none for business premises until a Site Visit (or
+  // Office Staff) records it, and priced as moderate until then
+  condition: Condition | null;
+  accessInstructions: string | null;
 };
+
+export type HomeView = PropertyBase & {
+  kind: "residential";
+  type: PropertyType;
+  bedrooms: number;
+  bathrooms: number;
+  storeys: number;
+  pets: boolean;
+};
+
+export type PremisesView = PropertyBase & {
+  kind: "commercial";
+  // retired Premises Types keep their names
+  premisesType: PremisesTypeChoice;
+};
+
+export type PropertyView = HomeView | PremisesView;
+
 
 export type QuoteRequestView = {
   id: string;
   propertyId: string;
-  condition: Condition;
+  // as the Client stated it; none on a business's request
+  condition: Condition | null;
   wantsRegularService: boolean;
+  // a business's request for regular cleaning: the weekdays and preferred
+  // start time it asked for; empty and null otherwise
+  weekdays: Weekday[];
+  preferredTime: string | null;
   notes: string | null;
   addOns: AddOnChoice[];
   createdAt: string;
@@ -83,8 +147,17 @@ export type QuoteRequestView = {
   state: QuoteRequestState;
 };
 
+// a Client as the Office names them: a business by its business name, with
+// the person dealt with there (#72)
+export type ClientName = {
+  id: string;
+  name: string;
+  businessName: string | null;
+};
+
 export type ClientView = ContactDetails & {
   id: string;
+  businessName: string | null;
   properties: PropertyView[];
   quoteRequests: QuoteRequestView[];
 };
@@ -115,7 +188,7 @@ export type OfficeClientView = OfficeContactDetails & {
 // a Property for the Office, with its whole history: its requests, every
 // Quote (Drafts included) and every Job, newest first
 export type OfficePropertyView = PropertyView & {
-  client: { id: string; name: string };
+  client: ClientName;
   // whether its First Clean is Completed, so it can be offered a Service Plan
   firstCleanCompleted: boolean;
   // its Service Plan, unless it has none or it has Ended
@@ -127,11 +200,8 @@ export type OfficePropertyView = PropertyView & {
 
 // one row of the Office's open Quote Requests
 export type OpenQuoteRequest = QuoteRequestView & {
-  client: { id: string; name: string };
-  property: Pick<
-    PropertyView,
-    "street" | "unit" | "postcode" | "type" | "bedrooms" | "bathrooms"
-  >;
+  client: ClientName;
+  property: PropertyView;
   // its home's Service Plan, unless it has none or it has Ended: a Service
   // Plan Quote answering it changes that plan
   servicePlanId: string | null;
@@ -145,6 +215,9 @@ export type CleanType = "standard" | "deep";
 // on the Quote). The key stays the same across Price List versions.
 export type AddOnChoice = { key: string; name: string };
 
+// which kind of Property an Add-on is offered for (#72)
+export type OfferedFor = "homes" | "businesses" | "both";
+
 export type PriceListAddOn = {
   // absent on a new Add-on; the server gives it one
   key?: string;
@@ -152,15 +225,33 @@ export type PriceListAddOn = {
   // price-relevant hours, not multiplied by Condition or Clean Type
   hours: number;
   taxExempt: boolean;
+  offeredFor: OfferedFor;
   // a retired Add-on is hidden from the form but still priced for requests
   // that already chose it
+  active: boolean;
+};
+
+// a Premises Type as the Quote Request form offers it: its name. The key
+// stays the same across Price List versions.
+export type PremisesTypeChoice = { key: string; name: string };
+
+// a kind of business premises, which sets how long cleaning its floor area
+// takes; retired rather than deleted, so Properties of that type still price
+export type PriceListPremisesType = {
+  // absent on a new Premises Type; the server gives it one
+  key?: string;
+  name: string;
+  // Labour Hours per 1,000 sq ft, before Condition and Clean Type
+  hoursPerThousandSqFt: number;
   active: boolean;
 };
 
 // what Office Staff edit. Money is in cents, before tax; percentages are
 // whole numbers except tax rates, which may have decimals (8.875).
 export type PriceListInput = {
+  // the residential hourly rate
   hourlyRateCents: number;
+  commercialHourlyRateCents: number;
   minimumChargeCents: number;
   // hours every home needs for kitchen, living areas and entry
   baseHours: number;
@@ -176,14 +267,18 @@ export type PriceListInput = {
   planDiscountPercent: number;
   quoteValidityDays: number;
   defaultCrewSize: number;
+  // residential one-off and Service Plan Jobs
   taxOneOffPercent: number;
   taxServicePlanPercent: number;
+  // commercial Jobs, one-off or on a plan
+  taxCommercialPercent: number;
   taxFeePercent: number;
   addOns: PriceListAddOn[];
+  premisesTypes: PriceListPremisesType[];
 };
 
 // a saved version of the Price List; every save is a new version
-export type PriceList = Omit<PriceListInput, "addOns"> & {
+export type PriceList = Omit<PriceListInput, "addOns" | "premisesTypes"> & {
   id: string;
   version: number;
   // the starting figures, until Office Staff save their own
@@ -191,11 +286,15 @@ export type PriceList = Omit<PriceListInput, "addOns"> & {
   createdAt: string;
   createdByName: string | null;
   addOns: (PriceListAddOn & { key: string })[];
+  premisesTypes: (PriceListPremisesType & { key: string })[];
 };
 
 export type PriceBreakdown = {
   cleanType: CleanType;
-  // the home's hours before Condition and Clean Type, by part
+  // what was priced: a home by its rooms, or business premises by floor
+  // area. Absent on breakdowns saved before #72, which are all homes.
+  propertyKind?: PropertyKind;
+  // the Property's hours before Condition and Clean Type, by part
   homeHours: { label: string; hours: number }[];
   conditionMultiplier: number;
   cleanTypeMultiplier: number;
@@ -225,9 +324,11 @@ export type QuoteRequestDetail = {
   id: string;
   createdAt: string;
   // as the Client stated it; the home's current Condition (which Office
-  // Staff may have corrected) is what prices use
-  statedCondition: Condition;
+  // Staff may have corrected) is what prices use. None on a business's.
+  statedCondition: Condition | null;
   wantsRegularService: boolean;
+  weekdays: Weekday[];
+  preferredTime: string | null;
   notes: string | null;
   addOns: AddOnChoice[];
   client: OfficeContactDetails & { id: string };
@@ -300,7 +401,7 @@ export type ScheduledJob = {
   crewSize: number;
   // Labour Hours divided by Crew Size
   hoursOnSite: number;
-  client: { id: string; name: string };
+  client: ClientName;
   property: Pick<PropertyView, "id" | "street" | "unit" | "postcode">;
   // whether every place on its crew is Confirmed (#9)
   assignment: AssignmentStatus;
@@ -424,7 +525,7 @@ export type NeedsAttentionItem =
       // nothing was booked: the Office books it at another time or skips it
       kind: "plan_visit_unplaced";
       since: string;
-      plan: ServicePlanSummary & { client: { id: string; name: string } };
+      plan: ServicePlanSummary & { client: ClientName };
       visit: UnplacedVisit;
     }
   | {
@@ -432,7 +533,7 @@ export type NeedsAttentionItem =
       // owe `owedCents` between them; `since` the first became Unpaid
       kind: "plan_on_hold";
       since: string;
-      plan: ServicePlanSummary & { client: { id: string; name: string } };
+      plan: ServicePlanSummary & { client: ClientName };
       owedCents: number;
     };
 
@@ -587,7 +688,7 @@ export type OfficeQuote = Omit<
   "options" | "plan" | "proposedStartsAt" | "sentAt" | "expiresAt"
 > & {
   // no email until the Office adds one: then it can't be Sent (#34)
-  client: { id: string; name: string; email: string | null };
+  client: ClientName & { email: string | null };
   options: OfficeQuoteOption[];
   // with the Condition it's priced for
   plan: (ServicePlanTerms & { condition: Condition }) | null;
@@ -648,7 +749,7 @@ export type QuoteSummary = {
   quoteRequestId: string | null;
   kind: QuoteKind;
   status: QuoteStatus;
-  client: { id: string; name: string };
+  client: ClientName;
   property: Pick<PropertyView, "id" | "street" | "unit" | "postcode">;
   // the total it leads with, tax included: a one-off Quote's recommended
   // Deep Clean, or a Service Plan Quote's price per Job
@@ -1151,7 +1252,7 @@ export type UnplacedVisit = { id: string; dueOn: IsoDate; since: string };
 // a Service Plan for the Office: with its Client, every Job it has booked,
 // soonest first, and its visits waiting to be booked
 export type OfficeServicePlan = Omit<ServicePlanView, "upcoming"> & {
-  client: { id: string; name: string };
+  client: ClientName;
   jobs: ScheduledJob[];
   unplaced: UnplacedVisit[];
 };

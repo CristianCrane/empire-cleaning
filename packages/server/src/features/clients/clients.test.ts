@@ -66,6 +66,7 @@ describe("the Office's list of Clients", () => {
       {
         id: expect.any(String),
         name: "Casey Client",
+        businessName: null,
         email: "casey@example.com",
         phone: "(646) 555-0100",
         propertyCount: 2,
@@ -73,6 +74,7 @@ describe("the Office's list of Clients", () => {
       {
         id: expect.any(String),
         name: "sam Seed",
+        businessName: null,
         email: "sam@example.com",
         phone: "718-555-0199",
         propertyCount: 1,

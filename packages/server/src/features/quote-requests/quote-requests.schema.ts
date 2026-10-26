@@ -1,6 +1,7 @@
 import {
   boolean,
   index,
+  integer,
   pgTable,
   primaryKey,
   text,
@@ -22,10 +23,15 @@ export const quoteRequests = pgTable(
     propertyId: uuid("property_id")
       .notNull()
       .references(() => properties.id, { onDelete: "cascade" }),
-    // the Condition as the Client stated it in this request
-    condition: condition("condition").notNull(),
-    // asks the Office to follow up with a Service Plan after the First Clean
+    // the Condition as the Client stated it in this request; a business
+    // states none (a Site Visit finds it)
+    condition: condition("condition"),
+    // a home: asks the Office to follow up with a Service Plan after the
+    // First Clean. Business premises: wants cleaning on `weekdays` (0 is
+    // Monday), starting around `preferredTime` ("08:00")
     wantsRegularService: boolean("wants_regular_service").notNull(),
+    weekdays: integer("weekdays").array().notNull().default([]),
+    preferredTime: text("preferred_time"),
     notes: text("notes"),
     // the Office Staff member who entered it for a caller; null when the
     // Client asked themselves
