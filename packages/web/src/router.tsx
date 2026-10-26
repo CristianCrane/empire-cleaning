@@ -14,6 +14,7 @@ import type {
   ClientPastJob,
   ClientView,
   OfficeClientView,
+  OfficePropertyView,
   NeedsAttentionItem,
   OfficeJob,
   OfficeQuote,
@@ -40,6 +41,7 @@ import { QuoteRequest } from "./screens/office/QuoteRequest.tsx";
 import { QuoteRequests } from "./screens/office/QuoteRequests.tsx";
 import { QuoteScreen } from "./screens/office/QuoteScreen.tsx";
 import { ClientDetail } from "./screens/office/ClientDetail.tsx";
+import { PropertyScreen } from "./screens/office/PropertyScreen.tsx";
 import { ScheduleScreen } from "./screens/office/ScheduleScreen.tsx";
 import { StaffMemberScreen } from "./screens/office/StaffMemberScreen.tsx";
 import { StaffScreen } from "./screens/office/StaffScreen.tsx";
@@ -222,6 +224,14 @@ const officeClientRoute = createRoute({
   component: ClientDetail,
 });
 
+const officePropertyRoute = createRoute({
+  getParentRoute: () => officeRoute,
+  path: "/properties/$propertyId",
+  loader: ({ params }) =>
+    getJson<OfficePropertyView>(`/api/properties/${params.propertyId}`),
+  component: PropertyScreen,
+});
+
 const officeStaffRoute = createRoute({
   getParentRoute: () => officeRoute,
   path: "/staff",
@@ -346,6 +356,7 @@ const routeTree = rootRoute.addChildren([
     officeRequestRoute,
     officeQuoteRoute,
     officeClientRoute,
+    officePropertyRoute,
     officePriceListRoute,
     officeStaffRoute,
     officeStaffMemberRoute,

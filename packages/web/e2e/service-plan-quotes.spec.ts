@@ -116,7 +116,8 @@ test(
       .getByRole("row")
       .filter({ hasText: "Offer a Service Plan" })
       .click();
-    await expect(page).toHaveURL(/\/office\/jobs\/[0-9a-f-]{36}$/);
+    // the home's page, with its history
+    await expect(page).toHaveURL(/\/office\/properties\/[0-9a-f-]{36}$/);
     await page.getByRole("button", { name: "Offer a Service Plan" }).click();
     await atPlanDraft(page);
 
@@ -187,12 +188,12 @@ test(
     await expect(
       page.getByRole("button", { name: "Record acceptance" }),
     ).toHaveCount(0);
-    // offered unprompted: it belongs to the Client, not a request
+    // offered unprompted: it belongs to the home, not a request
     await page
       .getByLabel("Breadcrumbs")
-      .getByRole("link", { name: casey.name })
+      .getByRole("link", { name: "41-12 Austin St, 4B, 11375" })
       .click();
-    await expect(page).toHaveURL(/\/office\/clients\/[0-9a-f-]{36}$/);
+    await expect(page).toHaveURL(/\/office\/properties\/[0-9a-f-]{36}$/);
 
     const client = await (await browser.newContext()).newPage();
     await signedInAs(client, casey.email);
@@ -257,7 +258,7 @@ test("a Service Plan of Deep Cleans", async ({ page, browser }) => {
   await expect(client.getByText(/^A Deep Clean every 2 weeks/)).toBeVisible();
 });
 
-test("the Client screen lists each home's history and offers a plan", async ({
+test("the Client screen lists each home, whose own page holds its history and offers a plan", async ({
   page,
 }) => {
   const { job } = await firstCleanDone(page);
@@ -268,22 +269,32 @@ test("the Client screen lists each home's history and offers a plan", async ({
     .click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(casey.name);
 
-  const home = page.getByRole("region", { name: /41-12 Austin St/ });
+  const homes = page.getByRole("grid", { name: /Properties/ });
+  await expect(homes.getByRole("row")).toHaveCount(1);
+  await expect(homes.getByRole("row")).toContainText("First Clean done");
+  // no history here: that's on the home's page
+  await expect(page.getByRole("grid", { name: /^Jobs/ })).toHaveCount(0);
+  await homes.getByRole("row", { name: /41-12 Austin St/ }).click();
+
+  await expect(page).toHaveURL(/\/office\/properties\/[0-9a-f-]{36}$/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "41-12 Austin St, 4B, 11375",
+  );
   await expect(
-    home.getByRole("grid", { name: /Quote Requests/ }).getByRole("row"),
+    page.getByRole("grid", { name: /Quote Requests/ }).getByRole("row"),
   ).toHaveCount(1);
   await expect(
-    home.getByRole("grid", { name: /^Quotes/ }).getByRole("row"),
+    page.getByRole("grid", { name: /^Quotes/ }).getByRole("row"),
   ).toContainText(["Deep Clean"]);
   await expect(
-    home.getByRole("grid", { name: /^Jobs/ }).getByRole("row"),
+    page.getByRole("grid", { name: /^Jobs/ }).getByRole("row"),
   ).toContainText(["Completed"]);
 
-  await home.getByRole("button", { name: "Offer a Service Plan" }).click();
+  await page.getByRole("button", { name: "Offer a Service Plan" }).click();
   await atPlanDraft(page);
   await page.goBack();
   await expect(
-    home
+    page
       .getByRole("grid", { name: /^Quotes/ })
       .getByRole("row")
       .filter({ hasText: "Service Plan" }),
@@ -308,7 +319,7 @@ test("a request for a home whose First Clean is done can be answered with either
   // it answers the request, so leads back there
   await page
     .getByLabel("Breadcrumbs")
-    .getByRole("link", { name: casey.name })
+    .getByRole("link", { name: "Quote Request" })
     .click();
   await expect(page).toHaveURL(new RegExp(`/office/requests/${asked}$`));
   await expect(
@@ -346,7 +357,9 @@ test("a Service Plan Quote and the Client's view of it pass an accessibility che
   expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
 });
 
-test("the Client screen passes an accessibility check", async ({ page }) => {
+test("the Client and Property screens pass an accessibility check", async ({
+  page,
+}) => {
   const { job } = await firstCleanDone(page);
   await page.goto(`/office/jobs/${job.id}`);
   await page
@@ -355,7 +368,18 @@ test("the Client screen passes an accessibility check", async ({ page }) => {
     .click();
   await page.reload();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(casey.name);
-  const { violations } = await new AxeBuilder({ page }).analyze();
+  let { violations } = await new AxeBuilder({ page }).analyze();
+  expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+
+  await page
+    .getByRole("grid", { name: /Properties/ })
+    .getByRole("row")
+    .click();
+  await page.reload();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "41-12 Austin St, 4B, 11375",
+  );
+  ({ violations } = await new AxeBuilder({ page }).analyze());
   expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
 });
 

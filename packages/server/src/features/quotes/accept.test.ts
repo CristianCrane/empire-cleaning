@@ -4,6 +4,7 @@ import type {
   AcceptOutcome,
   NeedsAttentionItem,
   ClientJob,
+  OfficeClientView,
   OfficeQuote,
   PaymentMethodView,
   QuoteDraftInput,
@@ -296,6 +297,23 @@ describe("accepting a First Clean Quote", () => {
       .send({ quoteRequestId: quote.quoteRequestId })
       .expect(409);
     await submit(guestRequest()).expect(201);
+  });
+
+  test("shows the home's Job booked on the Client screen", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    await addCard(client);
+
+    await accept(client, quote).expect(200);
+
+    const { properties } = (
+      await office.get(`/api/clients/${quote.client.id}`).expect(200)
+    ).body as OfficeClientView;
+    expect(properties.map((p) => p.status)).toEqual([
+      { kind: "job_booked", startsAt: "2026-01-12T14:00:00.000Z" },
+    ]);
   });
 
   test("needs the signed-in Client whose Quote it is", async () => {

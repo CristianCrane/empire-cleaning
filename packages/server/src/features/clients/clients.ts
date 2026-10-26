@@ -1,18 +1,12 @@
-import { asc, desc, eq, inArray } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import type { ClientView, OfficeClientView } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
 import { connectSignedUpAccount } from "../auth/connections.ts";
-import { jobs } from "../jobs/jobs.schema.ts";
-import { jobViews } from "../jobs/schedule.ts";
 import { properties } from "../properties/properties.schema.ts";
+import { propertyStatuses } from "../properties/property-history.ts";
 import { toPropertyView } from "../properties/property-view.ts";
-import { addOnsForRequests } from "../quote-requests/add-ons.ts";
 import { quoteRequests } from "../quote-requests/quote-requests.schema.ts";
-import {
-  firstCleansOf,
-  quotesForClient,
-  requestStates,
-} from "../quotes/quote-state.ts";
+import { quoteRequestViews } from "../quote-requests/request-views.ts";
 import { clients } from "./clients.schema.ts";
 
 type NewClient = { email: string; name: string; phone: string };
@@ -74,64 +68,45 @@ export const clientView = async (
   const [client] = await db.select().from(clients).where(eq(clients.id, id));
   if (!client) return undefined;
 
-  const ownProperties = await db
-    .select()
-    .from(properties)
-    .where(eq(properties.clientId, id))
-    .orderBy(asc(properties.createdAt));
-  const requests = await db
-    .select()
-    .from(quoteRequests)
-    .where(eq(quoteRequests.clientId, id))
-    .orderBy(desc(quoteRequests.createdAt));
-  const ids = requests.map((r) => r.id);
-  const [addOns, states] = await Promise.all([
-    addOnsForRequests(ids),
-    requestStates(ids),
+  const [ownProperties, requests] = await Promise.all([
+    propertiesOf(id),
+    quoteRequestViews(eq(quoteRequests.clientId, id)),
   ]);
-
   return {
     id: client.id,
     name: client.name,
     email: client.email,
     phone: client.phone,
     properties: ownProperties.map(toPropertyView),
-    quoteRequests: requests.map((r) => ({
-      id: r.id,
-      propertyId: r.propertyId,
-      condition: r.condition,
-      wantsRegularService: r.wantsRegularService,
-      notes: r.notes,
-      addOns: addOns.get(r.id) ?? [],
-      createdAt: r.createdAt.toISOString(),
-      state: states.get(r.id)!,
-    })),
+    quoteRequests: requests,
   };
 };
 
-// A Client for the Office: with each Property's whole history (every Quote,
-// Drafts included, and every Job, newest first), and which Properties have
-// a Completed First Clean, so can be offered a Service Plan
+const propertiesOf = (clientId: string) =>
+  db
+    .select()
+    .from(properties)
+    .where(eq(properties.clientId, clientId))
+    .orderBy(asc(properties.createdAt));
+
+// A Client for the Office: their contact details and their homes, each with
+// where it stands; a home's history is on its own page (ADR-0011)
 export const officeClientView = async (
   id: string,
 ): Promise<OfficeClientView | undefined> => {
-  const view = await clientView(id);
-  if (!view) return undefined;
-  const propertyIds = view.properties.map((p) => p.id);
-  const [quotes, ownJobs, firstCleans] = await Promise.all([
-    quotesForClient(id, { drafts: true }),
-    propertyIds.length === 0
-      ? []
-      : jobViews(inArray(jobs.propertyId, propertyIds)),
-    firstCleansOf(propertyIds),
-  ]);
+  const [client] = await db.select().from(clients).where(eq(clients.id, id));
+  if (!client) return undefined;
+
+  const ownProperties = await propertiesOf(id);
+  const statuses = await propertyStatuses(ownProperties.map((p) => p.id));
   return {
-    ...view,
-    properties: view.properties.map((p) => ({
-      ...p,
-      firstCleanCompleted: firstCleans.has(p.id),
+    id: client.id,
+    name: client.name,
+    email: client.email,
+    phone: client.phone,
+    properties: ownProperties.map((p) => ({
+      ...toPropertyView(p),
+      status: statuses.get(p.id)!,
     })),
-    quotes,
-    jobs: ownJobs.reverse(),
   };
 };

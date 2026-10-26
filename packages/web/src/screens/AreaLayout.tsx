@@ -42,6 +42,7 @@ const navFor: Record<AreaId, AreaNavItem[]> = {
       alsoCurrentFor: [
         "/office/requests/",
         "/office/clients",
+        "/office/properties",
         "/office/quotes",
       ],
     },

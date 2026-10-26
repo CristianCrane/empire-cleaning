@@ -176,7 +176,7 @@ test("a Client edits their contact details and Access Instructions", async ({
   ).toHaveValue("Key in the lockbox, code 4821");
 });
 
-test("Office Staff see the request, open the Client and correct a home's details", async ({
+test("Office Staff see the request, open the home and correct its details", async ({
   page,
 }) => {
   await requestQuoteAsGuest(casey);
@@ -186,13 +186,13 @@ test("Office Staff see the request, open the Client and correct a home's details
   await page.getByRole("link", { name: "Requests" }).click();
   await expect(page).toHaveURL("/office/requests");
   await page.getByText("Casey Client").click();
-  // the request first; its Client is one step further
+  // the request first; its home is one step further
   await expect(page).toHaveURL(/\/office\/requests\//);
-  await page.getByRole("link", { name: "View Client" }).click();
+  await page.getByRole("link", { name: "View Property" }).click();
 
-  await expect(page).toHaveURL(/\/office\/clients\//);
+  await expect(page).toHaveURL(/\/office\/properties\//);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "Casey Client",
+    "41-12 Austin St, 4B, 11375",
   );
   const save = page.getByRole("button", { name: "Save corrections" });
   await expect(save).toBeDisabled();
@@ -226,10 +226,22 @@ test(
 
     await page.getByRole("link", { name: "Requests" }).click();
     await page.getByText("Casey Client").click();
-    await page.getByRole("link", { name: "View Client" }).click();
+    const crumbs = page.getByLabel("Breadcrumbs");
+    const address = "41-12 Austin St, 4B, 11375";
+    // a request sits below its home, which sits below its Client
+    await expect(crumbs.getByText("Quote Request")).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    await crumbs.getByRole("link", { name: address }).click();
+    await expect(page).toHaveURL(/\/office\/properties\//);
+    await expect(crumbs.getByText(address)).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    await crumbs.getByRole("link", { name: "Casey Client" }).click();
     await expect(page).toHaveURL(/\/office\/clients\//);
 
-    const crumbs = page.getByLabel("Breadcrumbs");
     await expect(crumbs.getByRole("link", { name: "Requests" })).toBeVisible();
     await expect(crumbs.getByText("Casey Client")).toHaveAttribute(
       "aria-current",

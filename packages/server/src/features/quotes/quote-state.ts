@@ -213,18 +213,13 @@ const summaries = async (where: SQL | undefined) => {
 export const quotesForRequest = (quoteRequestId: string) =>
   summaries(eq(quotes.quoteRequestId, quoteRequestId));
 
-// a Client's Quotes, newest first; Drafts are never shown to them, but the
-// Office sees them
-export const quotesForClient = (
-  clientId: string,
-  { drafts = false }: { drafts?: boolean } = {},
-) =>
-  summaries(
-    and(
-      eq(properties.clientId, clientId),
-      drafts ? undefined : ne(quotes.status, "draft"),
-    ),
-  );
+// a Client's own Quotes, newest first; Drafts are never shown to them
+export const quotesForClient = (clientId: string) =>
+  summaries(and(eq(properties.clientId, clientId), ne(quotes.status, "draft")));
+
+// every Quote for a Property, newest first, Drafts included (for the Office)
+export const quotesForProperty = (propertyId: string) =>
+  summaries(eq(quotes.propertyId, propertyId));
 
 // every Sent Quote still open (not yet Expired), newest first
 export const openQuotes = () =>
