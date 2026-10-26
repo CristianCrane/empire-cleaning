@@ -1,4 +1,15 @@
-import { and, desc, eq, gt, inArray, lte, ne, type SQL } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gt,
+  inArray,
+  lte,
+  ne,
+  or,
+  type SQL,
+} from "drizzle-orm";
 import type {
   QuoteRequestState,
   QuoteStatus,
@@ -7,6 +18,7 @@ import type {
 import { db } from "../../db/index.ts";
 import { clock } from "../../services/clock/index.ts";
 import { clients } from "../clients/clients.schema.ts";
+import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { properties } from "../properties/properties.schema.ts";
 import { quoteRequests } from "../quote-requests/quote-requests.schema.ts";
 import { quoteOptions, quotes, type Quote } from "./quotes.schema.ts";
@@ -20,7 +32,13 @@ export const statusOf = (
     ? "expired"
     : quote.status;
 
-// where each request stands, from its latest Quote that isn't a Draft
+/**
+ * Where each request stands, from the Quotes that answer it (an offer nobody
+ * asked for never counts): booked once one is Accepted, quoted while one is
+ * open, ended if the latest sent was Declined, and otherwise awaiting a
+ * Quote. An Expired one goes back to awaiting a Quote, so the Office can send
+ * another without the Client asking again.
+ */
 export const requestStates = async (requestIds: string[]) => {
   const states = new Map<string, QuoteRequestState>(
     requestIds.map((id) => [id, "awaiting_quote"]),
@@ -42,16 +60,12 @@ export const requestStates = async (requestIds: string[]) => {
     )
     .orderBy(desc(quotes.sentAt));
 
-  const seen = new Set<string>();
-  for (const quote of sent) {
-    if (seen.has(quote.quoteRequestId)) continue;
-    seen.add(quote.quoteRequestId);
-    const status = statusOf(quote);
-    // Expired goes back to awaiting a Quote, so the Office can send another
-    // without the Client asking again
-    if (status === "sent") states.set(quote.quoteRequestId, "quoted");
-    if (status === "accepted") states.set(quote.quoteRequestId, "booked");
-    if (status === "declined") states.set(quote.quoteRequestId, "ended");
+  const byRequest = Map.groupBy(sent, (q) => q.quoteRequestId!);
+  for (const [id, answers] of byRequest) {
+    const statuses = answers.map(statusOf);
+    if (statuses.includes("accepted")) states.set(id, "booked");
+    else if (statuses.includes("sent")) states.set(id, "quoted");
+    else if (statuses[0] === "declined") states.set(id, "ended");
   }
   return states;
 };
@@ -59,6 +73,90 @@ export const requestStates = async (requestIds: string[]) => {
 // a closed request takes no more Quotes, and its home can be asked about again
 export const isClosed = (state: QuoteRequestState) =>
   state === "booked" || state === "ended";
+
+/**
+ * Each Property's First Clean, where it's Completed: the first Job a one-off
+ * Quote booked there to be Completed, with the request that Quote answered.
+ * Only a Property with one can be offered a Service Plan. Every Property
+ * with one, if no ids are given.
+ */
+export const firstCleansOf = async (propertyIds?: string[]) => {
+  const firstCleans = new Map<string, { job: Job; quoteRequestId: string }>();
+  if (propertyIds?.length === 0) return firstCleans;
+  const done = await db
+    .select({ job: jobs, quoteRequestId: quotes.quoteRequestId })
+    .from(jobs)
+    .innerJoin(quotes, eq(quotes.jobId, jobs.id))
+    .where(
+      and(
+        propertyIds ? inArray(jobs.propertyId, propertyIds) : undefined,
+        eq(jobs.status, "completed"),
+        eq(quotes.kind, "one_off"),
+      ),
+    )
+    .orderBy(asc(jobs.completedAt));
+  for (const { job, quoteRequestId } of done) {
+    if (!firstCleans.has(job.propertyId)) {
+      firstCleans.set(job.propertyId, {
+        job,
+        quoteRequestId: quoteRequestId!,
+      });
+    }
+  }
+  return firstCleans;
+};
+
+export const firstCleanCompleted = async (propertyId: string) =>
+  (await firstCleansOf([propertyId])).has(propertyId);
+
+/**
+ * The First Cleans whose Property should now be offered a Service Plan,
+ * earliest Completed first: the request the First Clean answered wanted
+ * regular visits, and no Service Plan Quote there is open, Accepted or
+ * Declined (one that Expired or was Superseded unanswered doesn't count).
+ */
+export const servicePlansDue = async () => {
+  const firstCleans = await firstCleansOf();
+  if (firstCleans.size === 0) return [];
+  const [wanting, offered] = await Promise.all([
+    db
+      .select({ id: quoteRequests.id })
+      .from(quoteRequests)
+      .where(
+        and(
+          inArray(
+            quoteRequests.id,
+            [...firstCleans.values()].map((f) => f.quoteRequestId),
+          ),
+          eq(quoteRequests.wantsRegularService, true),
+        ),
+      ),
+    db
+      .select({
+        propertyId: quotes.propertyId,
+        status: quotes.status,
+        expiresAt: quotes.expiresAt,
+      })
+      .from(quotes)
+      .where(
+        and(
+          inArray(quotes.propertyId, [...firstCleans.keys()]),
+          eq(quotes.kind, "service_plan"),
+          inArray(quotes.status, ["sent", "accepted", "declined"]),
+        ),
+      ),
+  ]);
+  const wanted = new Set(wanting.map((r) => r.id));
+  const answered = new Set(
+    offered.filter((q) => statusOf(q) !== "expired").map((q) => q.propertyId),
+  );
+  return [...firstCleans.entries()]
+    .filter(
+      ([propertyId, { quoteRequestId }]) =>
+        wanted.has(quoteRequestId) && !answered.has(propertyId),
+    )
+    .map(([, { job }]) => ({ jobId: job.id, since: job.completedAt! }));
+};
 
 const summaries = async (where: SQL | undefined) => {
   const rows = await db
@@ -71,46 +169,61 @@ const summaries = async (where: SQL | undefined) => {
         unit: properties.unit,
         postcode: properties.postcode,
       },
-      recommendedTotalCents: quoteOptions.totalCents,
+      headline: {
+        cleanType: quoteOptions.cleanType,
+        totalCents: quoteOptions.totalCents,
+      },
     })
     .from(quotes)
-    .innerJoin(quoteRequests, eq(quoteRequests.id, quotes.quoteRequestId))
-    .innerJoin(clients, eq(clients.id, quoteRequests.clientId))
-    .innerJoin(properties, eq(properties.id, quoteRequests.propertyId))
+    .innerJoin(properties, eq(properties.id, quotes.propertyId))
+    .innerJoin(clients, eq(clients.id, properties.clientId))
+    // a one-off Quote leads with its Deep Clean; a Service Plan Quote has
+    // only its own Clean Type
     .innerJoin(
       quoteOptions,
       and(
         eq(quoteOptions.quoteId, quotes.id),
-        eq(quoteOptions.cleanType, "deep"),
+        or(eq(quoteOptions.cleanType, "deep"), eq(quotes.kind, "service_plan")),
       ),
     )
     .where(where)
     .orderBy(desc(quotes.createdAt));
 
-  return rows.map(
-    ({ quote, client, property, recommendedTotalCents }): QuoteSummary => ({
-      id: quote.id,
-      quoteRequestId: quote.quoteRequestId,
-      status: statusOf(quote),
-      client,
-      property,
-      recommendedTotalCents,
-      proposedStartsAt: quote.proposedStartsAt?.toISOString() ?? null,
-      sentAt: quote.sentAt?.toISOString() ?? null,
-      expiresAt: quote.expiresAt?.toISOString() ?? null,
-      createdAt: quote.createdAt.toISOString(),
-    }),
-  );
+  return rows.map(({ quote, client, property, headline }): QuoteSummary => ({
+    id: quote.id,
+    quoteRequestId: quote.quoteRequestId,
+    kind: quote.kind,
+    status: statusOf(quote),
+    client,
+    property,
+    headlineTotalCents: headline.totalCents,
+    plan:
+      quote.kind === "service_plan"
+        ? { recurrence: quote.recurrence!, cleanType: headline.cleanType }
+        : null,
+    proposedStartsAt: quote.proposedStartsAt?.toISOString() ?? null,
+    sentAt: quote.sentAt?.toISOString() ?? null,
+    expiresAt: quote.expiresAt?.toISOString() ?? null,
+    createdAt: quote.createdAt.toISOString(),
+  }));
 };
 
-// every Quote for a request, newest first, Drafts included (for the Office)
+// every Quote answering a request, newest first, Drafts included (for the
+// Office)
 export const quotesForRequest = (quoteRequestId: string) =>
   summaries(eq(quotes.quoteRequestId, quoteRequestId));
 
-// a Client's Quotes, newest first; Drafts are never shown to them
-export const quotesForClient = (clientId: string) =>
+// a Client's Quotes, newest first; Drafts are never shown to them, but the
+// Office sees them
+export const quotesForClient = (
+  clientId: string,
+  { drafts = false }: { drafts?: boolean } = {},
+) =>
   summaries(
-    and(eq(quoteRequests.clientId, clientId), ne(quotes.status, "draft")),
+    and(
+      eq(properties.clientId, clientId),
+      drafts ? undefined : ne(quotes.status, "draft"),
+    ),
   );
 
 // every Sent Quote still open (not yet Expired), newest first

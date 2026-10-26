@@ -9,7 +9,10 @@ import { jobs } from "../jobs/jobs.schema.ts";
 import { jobViews } from "../jobs/schedule.ts";
 import { quoteRequestsAwaitingQuote } from "../quote-requests/quote-requests.ts";
 import { noRoomSince, quotesWithoutRoom } from "../quotes/quote-room.ts";
-import { quotesExpiringWithin } from "../quotes/quote-state.ts";
+import {
+  quotesExpiringWithin,
+  servicePlansDue,
+} from "../quotes/quote-state.ts";
 import { pendingRescheduleRequests } from "../reschedule/reschedule.ts";
 
 type Source = () => Promise<NeedsAttentionItem[]>;
@@ -78,6 +81,18 @@ const rescheduleRequests: Source = async () => {
   }));
 };
 
+// homes whose First Clean is done, for Clients who wanted regular visits and
+// haven't been offered a Service Plan yet, earliest done first
+const servicePlansDueSource: Source = async () => {
+  const due = await servicePlansDue();
+  const byId = await jobsById(due.map((d) => d.jobId));
+  return due.map(({ jobId, since }) => ({
+    kind: "service_plan_due",
+    since: since.toISOString(),
+    job: byId.get(jobId)!,
+  }));
+};
+
 // Sent Quotes Expiring within 48 hours, soonest first; each counts from when
 // it came within 48 hours
 const EXPIRING_HOURS = 48;
@@ -115,6 +130,7 @@ const sources: Source[] = [
   reportedAdjustments,
   quotesWithoutRoomSource,
   quoteRequests,
+  servicePlansDueSource,
   expiringQuotes,
 ];
 

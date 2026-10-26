@@ -8,6 +8,7 @@ import {
   clientForAccount,
   clientView,
   findClientByEmail,
+  officeClientView,
   updateContactDetails,
 } from "./clients.ts";
 
@@ -53,13 +54,13 @@ router.patch(
   },
 );
 
-// any Client, for the Office
+// any Client, for the Office, with their Quotes and Jobs
 router.get(
   "/:id",
   authorize("office_staff"),
   validate({ params: z.object({ id: z.uuid() }) }),
   async (req, res) => {
-    const view = await clientView(String(req.params.id));
+    const view = await officeClientView(String(req.params.id));
     if (!view) throw new NotFoundError("Client not found");
     res.json(view);
   },

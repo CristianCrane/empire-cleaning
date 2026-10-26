@@ -5,6 +5,7 @@ import type {
   CleanType,
   PaymentMethodView,
   QuoteView,
+  ServicePlanTerms,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -26,8 +27,14 @@ import {
   cleanTypeLabel,
   formatDateTime,
   formatMoney,
+  recurrenceLabel,
 } from "../format.ts";
-import { AddOnList, OptionCard, QuoteStatusBadge } from "../QuoteParts.tsx";
+import {
+  AddOnList,
+  OptionCard,
+  PlanCard,
+  QuoteStatusBadge,
+} from "../QuoteParts.tsx";
 import { CardProblem, ConsentNote, usePaymentForm } from "./CardForm.tsx";
 
 // a Quote as its Client sees it, from the link in the Quote email: open, they
@@ -47,7 +54,9 @@ export function PortalQuote() {
           ]}
         />
         <div className="flex flex-wrap items-center gap-3">
-          <Heading level={1}>Your Quote</Heading>
+          <Heading level={1}>
+            {quote.plan ? "Your Service Plan Quote" : "Your Quote"}
+          </Heading>
           <QuoteStatusBadge status={quote.status} />
         </div>
         <p className="text-fg-muted">{addressOf(quote.property)}</p>
@@ -55,6 +64,82 @@ export function PortalQuote() {
 
       <Standing quote={quote} />
 
+      {quote.plan ? (
+        <PlanOffer quote={quote} plan={quote.plan} />
+      ) : (
+        <OneOffOffer quote={quote} />
+      )}
+
+      {quote.status === "sent" && (
+        <>
+          {quote.bookable.length === 0 ? (
+            // its day filled up after it was sent: nothing to pay for
+            <Notice tone="info">
+              Sorry, {formatDateTime(quote.proposedStartsAt)} has been fully
+              booked since we sent this Quote, so it can't be accepted. We've
+              let our team know, and we'll send you a new Quote for another
+              time.
+            </Notice>
+          ) : quote.plan ? (
+            // until a Service Plan can start online (#14)
+            <Notice tone="info">
+              You can't accept a Service Plan online just yet. We'll be in touch
+              to set it up.
+            </Notice>
+          ) : (
+            <Accept quote={quote} paymentMethod={paymentMethod} />
+          )}
+          <Decline quote={quote} />
+        </>
+      )}
+    </div>
+  );
+}
+
+// a Service Plan Quote: each clean's price, and what it saves on a one-off
+function PlanOffer({
+  quote,
+  plan,
+}: {
+  quote: QuoteView;
+  plan: ServicePlanTerms;
+}) {
+  return (
+    <>
+      <section aria-labelledby="plan-title" className="flex flex-col gap-4">
+        <Heading level={2} id="plan-title">
+          Your Service Plan
+        </Heading>
+        <p className="text-fg-muted">
+          A {cleanTypeLabel[plan.cleanType]}{" "}
+          {recurrenceLabel[plan.recurrence].toLowerCase()}, on the same day of
+          the week as the first. Each clean is {plan.discountPercent}% off what
+          it would cost as a one-off. Prices include tax.
+        </p>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <PlanCard
+            option={quote.options[0]!}
+            plan={plan}
+            crewSize={quote.crewSize}
+            depositPercent={quote.depositPercent}
+          />
+        </div>
+      </section>
+
+      <Card
+        title="Extras"
+        description="Done on every clean, and included in the price above."
+      >
+        <AddOnList addOns={quote.addOns} />
+      </Card>
+    </>
+  );
+}
+
+// a one-off Quote: both Clean Types, the Deep Clean recommended
+function OneOffOffer({ quote }: { quote: QuoteView }) {
+  return (
+    <>
       <section aria-labelledby="options-title" className="flex flex-col gap-4">
         <Heading level={2} id="options-title">
           {quote.status === "accepted" ? "Your clean" : "Choose your clean"}
@@ -78,24 +163,7 @@ export function PortalQuote() {
       <Card title="Extras" description="Included in both prices above.">
         <AddOnList addOns={quote.addOns} />
       </Card>
-
-      {quote.status === "sent" && (
-        <>
-          {quote.bookable.length > 0 ? (
-            <Accept quote={quote} paymentMethod={paymentMethod} />
-          ) : (
-            // its day filled up after it was sent: nothing to pay for
-            <Notice tone="info">
-              Sorry, {formatDateTime(quote.proposedStartsAt)} has been fully
-              booked since we sent this Quote, so it can't be accepted. We've
-              let our team know, and we'll send you a new Quote for another
-              time.
-            </Notice>
-          )}
-          <Decline quote={quote} />
-        </>
-      )}
-    </div>
+    </>
   );
 }
 
@@ -107,7 +175,8 @@ function Standing({ quote }: { quote: QuoteView }) {
     case "sent":
       return (
         <Notice tone="info">
-          Proposed for {proposed}. This Quote is open until {until}.
+          {quote.plan ? "Starting" : "Proposed for"} {proposed}. This Quote is
+          open until {until}.
         </Notice>
       );
     case "accepted":

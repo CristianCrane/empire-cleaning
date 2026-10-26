@@ -6,7 +6,7 @@ import {
   type RadioProps as AriaRadioProps,
   type ValidationResult,
 } from "react-aria-components";
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import { Description, FieldError, Label } from "./Field.tsx";
 import { composeTailwindRenderProps, focusRing, tv } from "./utils.ts";
 
@@ -14,6 +14,8 @@ export type RadioGroupProps = Omit<AriaRadioGroupProps, "children"> & {
   label: string;
   description?: string;
   errorMessage?: string | ((validation: ValidationResult) => string);
+  // "cards" lays RadioCards out side by side on wider screens
+  layout?: "list" | "cards";
   children: ReactNode;
 };
 
@@ -23,6 +25,7 @@ export function RadioGroup({
   label,
   description,
   errorMessage,
+  layout = "list",
   children,
   ...props
 }: RadioGroupProps) {
@@ -36,7 +39,13 @@ export function RadioGroup({
     >
       <Label>{label}</Label>
       {description && <Description>{description}</Description>}
-      <div className="flex flex-col gap-2 orientation-horizontal:flex-row orientation-horizontal:flex-wrap">
+      <div
+        className={
+          layout === "cards"
+            ? "grid gap-4 lg:grid-cols-2"
+            : "flex flex-col gap-2 orientation-horizontal:flex-row orientation-horizontal:flex-wrap"
+        }
+      >
         {children}
       </div>
       <FieldError>{errorMessage}</FieldError>
@@ -90,6 +99,67 @@ export function Radio({ children, description, ...props }: RadioProps) {
               <span className="text-sm text-fg-muted">{description}</span>
             )}
           </span>
+        </>
+      )}
+    </AriaRadio>
+  );
+}
+
+const card = tv({
+  extend: focusRing,
+  base: "flex cursor-pointer flex-col gap-3 rounded-lg border-2 bg-surface p-4 text-fg shadow-raised transition-colors sm:p-5",
+  variants: {
+    isSelected: {
+      false: "border-border hover:border-border-strong",
+      true: "border-primary",
+    },
+    isInvalid: { true: "border-danger" },
+    isDisabled: { true: "cursor-default opacity-50" },
+  },
+});
+
+export type RadioCardProps = Omit<AriaRadioProps, "children"> & {
+  // the choice's name, which is how it's announced
+  title: string;
+  // beside the title, e.g. a StatusBadge
+  badge?: ReactNode;
+  // what the choice means, read out after its name; nothing interactive,
+  // since the whole card is the control
+  children?: ReactNode;
+};
+
+// a choice shown as a card, for options that need more than a line to
+// compare (e.g. prices); put them in a RadioGroup with layout="cards"
+export function RadioCard({
+  title,
+  badge,
+  children,
+  ...props
+}: RadioCardProps) {
+  const detailsId = useId();
+  return (
+    <AriaRadio
+      {...props}
+      aria-label={title}
+      aria-describedby={children ? detailsId : undefined}
+      className={composeRenderProps(props.className, (className, renderProps) =>
+        card({ ...renderProps, className }),
+      )}
+    >
+      {({ isSelected }) => (
+        <>
+          <span className="flex items-start gap-3">
+            <span aria-hidden className={dot({ isSelected })} />
+            <span className="flex-1 font-display text-lg font-semibold">
+              {title}
+            </span>
+            {badge}
+          </span>
+          {children && (
+            <span id={detailsId} className="flex flex-col gap-3">
+              {children}
+            </span>
+          )}
         </>
       )}
     </AriaRadio>

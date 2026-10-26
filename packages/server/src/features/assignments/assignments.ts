@@ -31,6 +31,7 @@ import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { jobViews, scheduleFor, scheduledJobs } from "../jobs/schedule.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
+import { firstCleanCompleted } from "../quotes/quote-state.ts";
 import {
   rescheduleRequestOf,
   rescheduleTermsOf,
@@ -90,7 +91,8 @@ const toView = (
 // a Job, on the Schedule or Cancelled, with everyone Offered a place on it,
 // the Cleaners who could be, what cancelling or moving it would cost, any
 // request to move it, and once it has
-// happened or been Cancelled, how it went and its payment
+// happened or been Cancelled, how it went and its payment, and whether its
+// Property can be offered a Service Plan from it
 export const officeJob = async (jobId: string): Promise<OfficeJob> => {
   const [job] = await jobViews(eq(jobs.id, jobId));
   if (!job) throw new NotFoundError("Job not found");
@@ -107,6 +109,7 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
     cancelTerms,
     rescheduleTerms,
     rescheduleRequest,
+    canOfferServicePlan,
   ] = await Promise.all([
     db
       .select({ assignment: assignments, member: staff })
@@ -127,6 +130,7 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
     cancelTermsOf(row!),
     rescheduleTermsOf(row!),
     rescheduleRequestOf(row!),
+    row!.status === "completed" && firstCleanCompleted(row!.propertyId),
   ]);
 
   const holding = rows.filter((r) => r.assignment.status !== "released");
@@ -150,6 +154,7 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
     cleaners: cleaners
       .filter((c) => c.roles.includes("cleaner") && !onJob.has(c.id))
       .map((c) => ({ id: c.id, name: c.name, hours: hoursOf.get(c.id) ?? 0 })),
+    canOfferServicePlan,
   };
 };
 

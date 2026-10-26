@@ -47,7 +47,7 @@ A Quote Request that Office Staff have closed without quoting, with a recorded r
 _Avoid_: Declined, rejected, refused
 
 **Quote**:
-A priced offer from Empire Cleaning in response to a Quote Request, covering exactly one Job or one Service Plan, with a price, Labour Hours, a Crew Size and a proposed time. A Quote for a First Clean offers both Clean Types, each with its own price and Labour Hours, and the Client picks one on acceptance. A Quote Request may receive several Quotes, but a Quote, once sent, is never changed.
+A priced offer from Empire Cleaning for one Property, with a price, Labour Hours, a Crew Size and a proposed time. It is either a _one-off Quote_, for a single Job, offering both Clean Types (Deep Clean recommended) for the Client to pick one on acceptance; or a _Service Plan Quote_, for a Service Plan, offering one Clean Type at the Plan Discount, which can only be offered once the Property's First Clean is Completed. A one-off Quote answers a Quote Request; a Service Plan Quote may answer one, or be offered without one. A Property has at most one Sent Quote of each kind at a time, and a Quote, once sent, is never changed.
 _Avoid_: Estimate, proposal
 
 **Price List**:
@@ -87,7 +87,7 @@ A free, scheduled visit by Staff to see a Property before quoting it; required f
 _Avoid_: Walkthrough, inspection, assessment
 
 **Quote status**:
-A Quote is _Draft_ (being written by Staff), _Sent_, or closed as _Accepted_, _Declined_, _Expired_ (its validity period, 14 days unless set otherwise, or its proposed time has passed) or _Superseded_ (replaced by a newer Quote for the same Quote Request).
+A Quote is _Draft_ (being written by Staff), _Sent_, or closed as _Accepted_, _Declined_, _Expired_ (its validity period, 14 days unless set otherwise, or its proposed time has passed) or _Superseded_ (replaced by a newer Quote of the same kind for the same Property).
 _Avoid_: Pending, approved, rejected, revised
 
 ## Work
@@ -97,11 +97,11 @@ A single cleaning visit at one Property, booked for a confirmed date and time.
 _Avoid_: Booking, appointment, clean
 
 **Service Plan**:
-An agreed recurring arrangement at one Property that generates Standard Clean Jobs on a set recurrence. It can only start once that Property has a Completed First Clean, and its terms change only by accepting a new Quote.
+An agreed recurring arrangement at one Property that generates Jobs of one Clean Type (a Standard Clean unless the plan says Deep Clean) on a set recurrence: every week, every 2 weeks or every 4 weeks, always on the same weekday. It can only start once that Property has a Completed First Clean, and its terms change only by accepting a new Service Plan Quote. Having one never stops the Property getting one-off Quotes.
 _Avoid_: Subscription, contract, recurring job
 
 **First Clean**:
-The one-off Job that every Property must have Completed before a Service Plan can start there; a Deep Clean is recommended, but the Client may choose a Standard Clean.
+The first one-off Job Completed at a Property, which every Property must have Completed before a Service Plan can start there: a trial for both sides, in which the Client sees how Empire Cleaning works and Empire Cleaning checks the Property is as described before committing to recurring work. A Deep Clean is recommended, but the Client may choose a Standard Clean.
 _Avoid_: Initial clean, onboarding clean, intro clean
 
 **Clean Type**:

@@ -196,6 +196,20 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
             }),
         };
       }
+      case "service_plan_due": {
+        const { job } = item;
+        return {
+          key: `service_plan_due ${job.id}`,
+          title: job.client.name,
+          description: `${addressOf(job.property)} · First Clean done ${formatDate(item.since)}, wants regular visits`,
+          badge: <StatusBadge tone="info">Offer a Service Plan</StatusBadge>,
+          open: () =>
+            navigate({
+              to: "/office/jobs/$jobId",
+              params: { jobId: job.id },
+            }),
+        };
+      }
     }
   };
 

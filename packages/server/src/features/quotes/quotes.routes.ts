@@ -114,14 +114,16 @@ router.post(
 
 // ---- the Office ----
 
-// starts a Draft for a Quote Request, or returns the one it has
+// starts a Draft answering a Quote Request (a one-off Quote unless said
+// otherwise), or a Service Plan Quote offered for a Property unprompted; or
+// returns the Draft it has
 router.post(
   "/",
   authorize("office_staff"),
   validate({ body: startSchema }),
   async (req, res) => {
     const { quote, started } = await startDraft(
-      req.body.quoteRequestId,
+      req.body,
       signedInAccount(res).id,
     );
     res.status(started ? 201 : 200).json(quote);

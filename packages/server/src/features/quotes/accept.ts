@@ -32,10 +32,9 @@ import {
 import { charges } from "../payments/payments.schema.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
-import { quoteRequests } from "../quote-requests/quote-requests.schema.ts";
 import { warnOfficeOfQuotesWithoutRoom } from "./quote-room.ts";
 import { statusOf } from "./quote-state.ts";
-import { lockRequest, toOption } from "./quotes.ts";
+import { lockProperty, toOption } from "./quotes.ts";
 import {
   pendingDeposits,
   quoteOptions,
@@ -94,9 +93,8 @@ const findForAcceptance = async (id: string) => {
   const [found] = await db
     .select({ quote: quotes, client: clients, property: properties })
     .from(quotes)
-    .innerJoin(quoteRequests, eq(quoteRequests.id, quotes.quoteRequestId))
-    .innerJoin(clients, eq(clients.id, quoteRequests.clientId))
-    .innerJoin(properties, eq(properties.id, quoteRequests.propertyId))
+    .innerJoin(properties, eq(properties.id, quotes.propertyId))
+    .innerJoin(clients, eq(clients.id, properties.clientId))
     .where(eq(quotes.id, id));
   return found;
 };
@@ -115,7 +113,7 @@ const optionFor = async (quote: Quote, cleanType: CleanType) => {
 };
 
 /**
- * Holds what booking needs until the transaction ends: the request (so a
+ * Holds what booking needs until the transaction ends: the Property (so a
  * newer Quote can't be sent meanwhile), the Quote, and the proposed day (so
  * two acceptances can't both take its last free hours). Then says whether
  * the Quote can still be booked: open, and its day with room.
@@ -125,7 +123,7 @@ const holdForBooking = async (
   quote: Quote,
   option: QuoteOption,
 ): Promise<Unbookable | null> => {
-  await lockRequest(tx, quote.quoteRequestId);
+  await lockProperty(tx, quote.propertyId);
   const [current] = await tx
     .select()
     .from(quotes)
@@ -247,6 +245,14 @@ export const acceptQuote = async (
   }
   const { quote, client, property } = found;
   refuseUnlessOpen(quote, acceptor);
+  // until a Service Plan can start (#14)
+  if (quote.kind === "service_plan") {
+    throw new ConflictError(
+      acceptor.by === "client"
+        ? "A Service Plan Quote can't be accepted online yet. We'll be in touch to set it up."
+        : "Service Plan Quotes can't be accepted yet.",
+    );
+  }
 
   const saved = await paymentMethodOf(client.id);
   const token = acceptor.by === "client" ? paymentToken : undefined;

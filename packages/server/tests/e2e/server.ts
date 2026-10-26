@@ -25,7 +25,8 @@ const { confirmAssignment, offerAssignment } =
   await import("../../src/features/assignments/index.ts");
 const { installFakes, resetDatabase, testClock, testEmail, testPayments } =
   await import("../harness.ts");
-const { acceptedJob, bookedJob } = await import("../fixtures.ts");
+const { acceptedJob, bookedJob, completedFirstClean } =
+  await import("../fixtures.ts");
 const { chaseProposedAdjustments, completeJob } =
   await import("../../src/features/completion/index.ts");
 const { recordNoAccess } =
@@ -84,6 +85,19 @@ control.post("/jobs/accepted", async (req, res) => {
     .from(accounts)
     .where(eq(accounts.email, officeEmail));
   res.json(await acceptedJob({ ...job, byAccountId: account!.id }));
+});
+
+// a home whose First Clean is Completed, so it can be offered a Service
+// Plan: Casey's Deep Clean at 9am on Monday 12 January, Quoted by the Office
+// Staff member with `officeEmail` and done by Cory (added here) at 11am,
+// where the clock is left
+control.post("/first-cleans/completed", async (req, res) => {
+  const { officeEmail } = req.body as { officeEmail: string };
+  const [account] = await db
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(eq(accounts.email, officeEmail));
+  res.json(await completedFirstClean({ byAccountId: account!.id }));
 });
 
 // a place on a Job Offered to a Cleaner, as Office Staff do, and Confirmed

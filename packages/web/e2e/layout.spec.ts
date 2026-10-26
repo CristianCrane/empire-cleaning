@@ -2,6 +2,7 @@ import type { Page } from "@playwright/test";
 import {
   acceptedJob,
   bookJob,
+  completedFirstClean,
   createStaff,
   expect,
   offerPlace,
@@ -184,6 +185,53 @@ test("an Accepted Quote and the Client's upcoming Jobs fit every width", async (
 
   await expectFitsEveryWidth(page, quote);
   await expectFitsEveryWidth(client, own);
+  await expectFitsEveryWidth(client, "/portal");
+});
+
+test("a Service Plan Quote fits every width, Draft and Sent, for the Office and the Client", async ({
+  page,
+  browser,
+}) => {
+  await createStaff(olive);
+  await signedInAs(page, olive.email);
+  const { job } = await completedFirstClean(olive.email);
+  const firstClean = `/office/jobs/${job.id}`;
+  await page.goto(firstClean);
+  await page.getByRole("button", { name: "Offer a Service Plan" }).click();
+  await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
+  const quote = new URL(page.url()).pathname;
+
+  await expectFitsEveryWidth(page, firstClean);
+  await expectFitsEveryWidth(page, quote);
+
+  // its first Job on Monday 19 January 2026 at 9:00 AM
+  await page
+    .getByRole("group", { name: "Date" })
+    .getByRole("spinbutton", { name: /month/i })
+    .click();
+  await page.keyboard.type("01192026");
+  await page
+    .getByRole("group", { name: "Start time" })
+    .getByRole("spinbutton", { name: /hour/i })
+    .click();
+  await page.keyboard.type("0900AM");
+  await page.getByRole("button", { name: "Send to Casey Client" }).click();
+  await expect(page.getByRole("region", { name: "Offer" })).toBeVisible();
+  await expectFitsEveryWidth(page, quote);
+  // the Client screen, with the home's history
+  await page
+    .getByLabel("Breadcrumbs")
+    .getByRole("link", { name: "Casey Client" })
+    .click();
+  await expect(page).toHaveURL(/\/office\/clients\/[0-9a-f-]{36}$/);
+  await expectFitsEveryWidth(page, new URL(page.url()).pathname);
+
+  const client = await (await browser.newContext()).newPage();
+  await signedInAs(client, casey.email);
+  await expectFitsEveryWidth(
+    client,
+    quote.replace("/office/quotes/", "/portal/quotes/"),
+  );
   await expectFitsEveryWidth(client, "/portal");
 });
 

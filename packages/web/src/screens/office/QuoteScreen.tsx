@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useLoaderData, useRouter } from "@tanstack/react-router";
 import {
   parseDate,
@@ -8,10 +8,14 @@ import {
 } from "@internationalized/date";
 import type {
   CleanType,
+  Condition,
+  FirstCleanFindings,
   OfficeQuote,
   OfficeQuoteOption,
   QuoteDraftInput,
+  Recurrence,
   ScheduleDay,
+  ServicePlanInput,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -25,10 +29,15 @@ import {
   Form,
   Heading,
   Link,
+  List,
+  ListItem,
   Notice,
   NumberField,
   Radio,
+  RadioCard,
   RadioGroup,
+  Select,
+  SelectItem,
   TextField,
   TimeField,
   showToast,
@@ -37,13 +46,68 @@ import { ApiError, getJson, patchJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import {
   addressOf,
+  adjustmentLabel,
   cleanTypeLabel,
+  conditionLabel,
+  formatDate,
   formatDateTime,
   formatDay,
   formatHours,
   formatMoney,
+  recurrenceLabel,
 } from "../format.ts";
-import { AddOnList, OptionCard, QuoteStatusBadge } from "../QuoteParts.tsx";
+import {
+  AddOnList,
+  OptionCard,
+  PlanCard,
+  PlanFigures,
+  PlanSaving,
+  QuoteStatusBadge,
+  planTitle,
+} from "../QuoteParts.tsx";
+
+// where a Quote was started from: the request it answers, or for a Service
+// Plan offered unprompted, its Client
+const homeOf = (quote: OfficeQuote) =>
+  quote.quoteRequestId
+    ? {
+        label: "Quote Request",
+        href: linkTo({
+          to: "/office/requests/$requestId",
+          params: { requestId: quote.quoteRequestId },
+        }),
+      }
+    : {
+        label: "page",
+        href: linkTo({
+          to: "/office/clients/$clientId",
+          params: { clientId: quote.client.id },
+        }),
+      };
+
+// a one-off Quote's options, or a Service Plan Quote's one, as cards
+function OfferCard({
+  quote,
+  option,
+  children,
+}: {
+  quote: OfficeQuote;
+  option: OfficeQuoteOption;
+  children: ReactNode;
+}) {
+  const terms = {
+    option,
+    crewSize: quote.crewSize,
+    depositPercent: quote.depositPercent,
+  };
+  return quote.plan ? (
+    <PlanCard {...terms} plan={quote.plan}>
+      {children}
+    </PlanCard>
+  ) : (
+    <OptionCard {...terms}>{children}</OptionCard>
+  );
+}
 
 // one Quote for the Office: edited while it's a Draft, read-only once Sent
 export function QuoteScreen() {
@@ -55,18 +119,15 @@ export function QuoteScreen() {
         <Breadcrumbs
           trail={[
             { label: "Requests", href: linkTo({ to: "/office/requests" }) },
-            {
-              label: quote.client.name,
-              href: linkTo({
-                to: "/office/requests/$requestId",
-                params: { requestId: quote.quoteRequestId },
-              }),
-            },
-            { label: "Quote" },
+            { label: quote.client.name, href: homeOf(quote).href },
+            { label: quote.plan ? "Service Plan Quote" : "Quote" },
           ]}
         />
         <div className="flex flex-wrap items-center gap-3">
-          <Heading level={1}>Quote for {quote.client.name}</Heading>
+          <Heading level={1}>
+            {quote.plan ? "Service Plan Quote" : "Quote"} for{" "}
+            {quote.client.name}
+          </Heading>
           <QuoteStatusBadge status={quote.status} />
         </div>
         <p className="text-fg-muted">{addressOf(quote.property)}</p>
@@ -86,8 +147,21 @@ function SentQuote({ quote }: { quote: OfficeQuote }) {
     <>
       <Card title="Offer">
         <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
-          <dt className="font-semibold">Proposed time</dt>
+          <dt className="font-semibold">
+            {quote.plan ? "Starts" : "Proposed time"}
+          </dt>
           <dd>{formatDateTime(quote.proposedStartsAt!)}</dd>
+          {quote.plan && (
+            <>
+              <dt className="font-semibold">Then</dt>
+              <dd>
+                {cleanTypeLabel[quote.plan.cleanType]}s{" "}
+                {recurrenceLabel[quote.plan.recurrence].toLowerCase()}, priced
+                for {conditionLabel[quote.plan.condition].toLowerCase()}{" "}
+                Condition
+              </dd>
+            </>
+          )}
           <dt className="font-semibold">Sent</dt>
           <dd>
             {formatDateTime(quote.sentAt!)} to {quote.client.email}
@@ -115,38 +189,39 @@ function SentQuote({ quote }: { quote: OfficeQuote }) {
       </Card>
       {quote.status === "sent" &&
         (quote.bookable.length > 0 ? (
-          <RecordAcceptance quote={quote} />
+          quote.plan ? (
+            <Notice>
+              Service Plan Quotes can't be accepted yet, by {quote.client.name}{" "}
+              or for them.
+            </Notice>
+          ) : (
+            <RecordAcceptance quote={quote} />
+          )
         ) : (
           <Notice tone="danger">
             {formatDateTime(quote.proposedStartsAt!)} has filled up since this
             Quote was sent, so {quote.client.name} can't accept it. Draft a new
             Quote with another time from their{" "}
-            <Link
-              href={linkTo({
-                to: "/office/requests/$requestId",
-                params: { requestId: quote.quoteRequestId },
-              })}
-            >
-              Quote Request
-            </Link>
-            : it replaces this one.
+            <Link href={homeOf(quote).href}>{homeOf(quote).label}</Link>: it
+            replaces this one.
           </Notice>
         ))}
       <div className="grid gap-4 lg:grid-cols-2">
         {quote.options.map((option) => (
-          <OptionCard
-            key={option.cleanType}
-            option={option}
-            crewSize={quote.crewSize}
-            depositPercent={quote.depositPercent}
-          >
+          <OfferCard key={option.cleanType} quote={quote} option={option}>
             <PricedFrom option={option} />
-          </OptionCard>
+          </OfferCard>
         ))}
       </div>
-      <Card title="Add-ons">
+      <Card
+        title="Add-ons"
+        description={
+          quote.plan ? "On every clean, before the Plan Discount." : undefined
+        }
+      >
         <AddOnList addOns={quote.addOns} />
       </Card>
+      {quote.firstClean && <FirstCleanCard firstClean={quote.firstClean} />}
       <p className="text-sm text-fg-muted">
         Priced from Price List version {quote.priceListVersion}. A Sent Quote
         never changes: to offer something different, draft a new one.
@@ -329,15 +404,18 @@ type Fields = {
   date: CalendarDate | null;
   time: Time | null;
   overrides: Record<CleanType, Override>;
+  // a Service Plan Quote's
+  plan: ServicePlanInput | null;
 };
 
 const toFields = (quote: OfficeQuote): Fields => {
+  // a Service Plan Quote has only its own Clean Type to override
   const override = (cleanType: CleanType): Override => {
-    const option = quote.options.find((o) => o.cleanType === cleanType)!;
+    const option = quote.options.find((o) => o.cleanType === cleanType);
     return {
-      on: option.overrideCents !== null,
-      price: (option.overrideCents ?? option.suggested.priceCents) / 100,
-      reason: option.overrideReason ?? "",
+      on: option?.overrideCents != null,
+      price: (option?.overrideCents ?? option?.suggested.priceCents ?? 0) / 100,
+      reason: option?.overrideReason ?? "",
     };
   };
   return {
@@ -345,6 +423,12 @@ const toFields = (quote: OfficeQuote): Fields => {
     crewSize: quote.crewSize,
     depositPercent: quote.depositPercent,
     validityDays: quote.validityDays,
+    plan: quote.plan && {
+      recurrence: quote.plan.recurrence,
+      cleanType: quote.plan.cleanType,
+      discountPercent: quote.plan.discountPercent,
+      condition: quote.plan.condition,
+    },
     date: quote.proposedStart && parseDate(quote.proposedStart.date),
     time: quote.proposedStart && parseTime(quote.proposedStart.time),
     overrides: { deep: override("deep"), standard: override("standard") },
@@ -352,8 +436,13 @@ const toFields = (quote: OfficeQuote): Fields => {
 };
 
 const toInput = (fields: Fields): QuoteDraftInput => {
-  const override = ({ on, price, reason }: Override) =>
-    on ? { priceCents: Math.round(price * 100), reason } : null;
+  // a Service Plan Quote's only for its own Clean Type
+  const override = (cleanType: CleanType) => {
+    const { on, price, reason } = fields.overrides[cleanType];
+    return on && (!fields.plan || fields.plan.cleanType === cleanType)
+      ? { priceCents: Math.round(price * 100), reason }
+      : null;
+  };
   return {
     addOns: fields.addOns,
     crewSize: fields.crewSize,
@@ -366,10 +455,8 @@ const toInput = (fields: Fields): QuoteDraftInput => {
             time: fields.time.toString().slice(0, 5),
           }
         : null,
-    overrides: {
-      deep: override(fields.overrides.deep),
-      standard: override(fields.overrides.standard),
-    },
+    overrides: { deep: override("deep"), standard: override("standard") },
+    plan: fields.plan,
   };
 };
 
@@ -411,7 +498,9 @@ function RoomOnDay({
 
   if (missing.length === 0) {
     return (
-      <p className="text-sm text-fg-muted">{opening}: room for either clean.</p>
+      <p className="text-sm text-fg-muted">
+        {opening}: room for {options.length === 1 ? "it" : "either clean"}.
+      </p>
     );
   }
   return (
@@ -423,16 +512,165 @@ function RoomOnDay({
   );
 }
 
+// A Service Plan Quote's own terms: how often, the Plan Discount, and the
+// Condition it's priced for, which is moderate unless changed here (the
+// home's own Condition is left as it is). Its Clean Type is chosen from the
+// price cards.
+function PlanTerms({
+  plan,
+  onChange,
+}: {
+  plan: ServicePlanInput;
+  onChange: (change: Partial<ServicePlanInput>) => void;
+}) {
+  return (
+    <Card title="Plan">
+      <RadioGroup
+        label="How often"
+        name="plan.recurrence"
+        value={plan.recurrence}
+        onChange={(value) => onChange({ recurrence: value as Recurrence })}
+      >
+        {(["weekly", "fortnightly", "four_weekly"] as const).map((r) => (
+          <Radio key={r} value={r}>
+            {recurrenceLabel[r]}
+          </Radio>
+        ))}
+      </RadioGroup>
+      <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(10rem,1fr))]">
+        <NumberField
+          label="Plan Discount (%)"
+          name="plan.discountPercent"
+          minValue={0}
+          maxValue={100}
+          value={plan.discountPercent}
+          onChange={(discountPercent) => onChange({ discountPercent })}
+        />
+        <Select
+          label="Priced for Condition"
+          selectedKey={plan.condition}
+          onSelectionChange={(key) => onChange({ condition: key as Condition })}
+        >
+          {(["light", "moderate", "heavy"] as const).map((c) => (
+            <SelectItem key={c} id={c}>
+              {conditionLabel[c]}
+            </SelectItem>
+          ))}
+        </Select>
+      </div>
+    </Card>
+  );
+}
+
+// the Suggested Price, and the way to replace it with a price and a reason
+function OverrideFields({
+  option,
+  override,
+  label,
+  onChange,
+}: {
+  option: OfficeQuoteOption;
+  override: Override;
+  // what the price is called: "Deep Clean", or a plan's "one-off"
+  label: string;
+  onChange: (change: Partial<Override>) => void;
+}) {
+  return (
+    <>
+      <p className="text-sm text-fg-muted">
+        Suggested Price {formatMoney(option.suggested.priceCents)} before tax,
+        for {option.suggested.labourHours} Labour Hours.
+      </p>
+      <Checkbox isSelected={override.on} onChange={(on) => onChange({ on })}>
+        Override the {label} price
+      </Checkbox>
+      {override.on && (
+        <div className="flex flex-col gap-4">
+          <NumberField
+            label={`${label === "one-off" ? "One-off" : label} price before tax`}
+            name={`overrides.${option.cleanType}.priceCents`}
+            minValue={0}
+            formatOptions={dollars}
+            value={override.price}
+            onChange={(price) => onChange({ price })}
+          />
+          <TextField
+            label="Reason for the override"
+            name={`overrides.${option.cleanType}.reason`}
+            value={override.reason}
+            onChange={(reason) => onChange({ reason })}
+          />
+        </div>
+      )}
+    </>
+  );
+}
+
+// where the Draft stands against what's on screen
+type SaveState =
+  | "saved"
+  // changed, and about to be saved
+  | "changed"
+  | "saving"
+  // an override without its reason yet: nothing to save until it has one
+  | "incomplete"
+  // the API refused it: see the fields marked
+  | "invalid"
+  | "failed";
+
+const saveStateLabel: Record<SaveState, string> = {
+  saved: "All changes saved",
+  changed: "Updating prices…",
+  saving: "Updating prices…",
+  incomplete: "Give a reason for the override to update the prices",
+  invalid: "Fix the fields marked to update the prices",
+  failed: "Changes couldn't be saved. They'll be tried again as you edit.",
+};
+
+// how long after the last change the Draft is saved and priced again
+const SAVE_DELAY_MS = 500;
+
+// the prices as last worked out, in a line: what the bar at the bottom shows
+const priceSummary = (quote: OfficeQuote) => {
+  if (quote.plan) {
+    const [option] = quote.options;
+    return `${cleanTypeLabel[option!.cleanType]} ${recurrenceLabel[quote.plan.recurrence].toLowerCase()}: ${formatMoney(option!.totalCents)} a clean`;
+  }
+  return quote.options
+    .map((o) => `${cleanTypeLabel[o.cleanType]} ${formatMoney(o.totalCents)}`)
+    .join(" · ");
+};
+
+/**
+ * A Draft, saved and priced again by the server a moment after each change,
+ * so the prices always follow what's on screen; a bar at the bottom keeps
+ * them in view wherever the change was made. On a Service Plan Quote, the
+ * plan's Clean Type is chosen from its price cards.
+ */
 function DraftEditor({ quote: loaded }: { quote: OfficeQuote }) {
   const router = useRouter();
   const [quote, setQuote] = useState(loaded);
   const [fields, setFields] = useState(() => toFields(loaded));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [failure, setFailure] = useState<string>();
-  const [busy, setBusy] = useState<"save" | "send">();
+  const [saveState, setSaveState] = useState<SaveState>("saved");
+  const [isSending, setSending] = useState(false);
 
-  const set = (change: Partial<Fields>) =>
-    setFields((current) => ({ ...current, ...change }));
+  // every change counts up; a save records the change it saved, so a save
+  // started before a later change doesn't count as saving it
+  const latest = useRef(fields);
+  const edits = useRef(0);
+  const saved = useRef({ edit: 0, ok: true });
+  const queue = useRef<Promise<boolean>>(Promise.resolve(true));
+
+  const set = (change: Partial<Fields>) => {
+    edits.current += 1;
+    setFields((current) => {
+      latest.current = { ...current, ...change };
+      return latest.current;
+    });
+    setSaveState("changed");
+  };
   const setOverride = (cleanType: CleanType, change: Partial<Override>) =>
     set({
       overrides: {
@@ -441,13 +679,68 @@ function DraftEditor({ quote: loaded }: { quote: OfficeQuote }) {
       },
     });
 
-  // errors beside their fields where the API names one, otherwise above
-  const attempt = async (action: "save" | "send", run: () => Promise<void>) => {
-    setBusy(action);
+  const missingReason = (f: Fields) =>
+    (Object.keys(f.overrides) as CleanType[]).some(
+      (t) =>
+        f.overrides[t].on &&
+        !f.overrides[t].reason.trim() &&
+        (!f.plan || f.plan.cleanType === t),
+    );
+
+  // saves what's on screen, one save at a time; says whether it's all saved
+  const saveNow = (): Promise<boolean> => {
+    queue.current = queue.current.then(async () => {
+      const edit = edits.current;
+      if (edit === saved.current.edit) return saved.current.ok;
+      setSaveState("saving");
+      try {
+        setQuote(
+          await patchJson<OfficeQuote>(
+            `/api/quotes/${quote.id}`,
+            toInput(latest.current),
+          ),
+        );
+        setFieldErrors({});
+        setFailure(undefined);
+        saved.current = { edit, ok: true };
+      } catch (e) {
+        const invalid =
+          e instanceof ApiError && Object.keys(e.fieldErrors).length > 0;
+        if (invalid) setFieldErrors(e.fieldErrors);
+        saved.current = { edit, ok: false };
+        if (edit === edits.current)
+          setSaveState(invalid ? "invalid" : "failed");
+        return false;
+      }
+      if (edit === edits.current) setSaveState("saved");
+      return true;
+    });
+    return queue.current;
+  };
+
+  useEffect(() => {
+    if (edits.current === saved.current.edit) return;
+    if (missingReason(fields)) {
+      setSaveState("incomplete");
+      return;
+    }
+    const timer = setTimeout(() => void saveNow(), SAVE_DELAY_MS);
+    return () => clearTimeout(timer);
+    // saveNow reads the latest fields itself
+  }, [fields]);
+
+  // what's on screen is what's sent: save it, then send it
+  const onSend = async () => {
+    setSending(true);
     setFailure(undefined);
     try {
-      await run();
-      setFieldErrors({});
+      if (!(await saveNow())) return;
+      await postJson<OfficeQuote>(`/api/quotes/${quote.id}/send`);
+      showToast({
+        tone: "success",
+        title: `Quote sent to ${quote.client.email}`,
+      });
+      await router.invalidate();
     } catch (e) {
       if (e instanceof ApiError && Object.keys(e.fieldErrors).length) {
         setFieldErrors(e.fieldErrors);
@@ -459,100 +752,117 @@ function DraftEditor({ quote: loaded }: { quote: OfficeQuote }) {
         );
       }
     } finally {
-      setBusy(undefined);
+      setSending(false);
     }
   };
 
-  const save = () =>
-    patchJson<OfficeQuote>(`/api/quotes/${quote.id}`, toInput(fields));
-
-  const onSave = () =>
-    attempt("save", async () => {
-      setQuote(await save());
-      showToast({ tone: "success", title: "Draft saved" });
-    });
-
-  // what's on screen is what's sent: save it, then send it
-  const onSend = () =>
-    attempt("send", async () => {
-      setQuote(await save());
-      await postJson<OfficeQuote>(`/api/quotes/${quote.id}/send`);
-      showToast({
-        tone: "success",
-        title: `Quote sent to ${quote.client.email}`,
-      });
-      await router.invalidate();
-    });
+  const stale = saveState === "changed" || saveState === "saving";
+  const plan = fields.plan;
+  const chosen =
+    plan &&
+    quote.planChoices?.find((c) => c.option.cleanType === plan.cleanType);
 
   return (
     <Form
       validationErrors={fieldErrors}
       onSubmit={(e) => {
         e.preventDefault();
-        void onSave();
+        void saveNow();
       }}
     >
       {failure && <Notice tone="danger">{failure}</Notice>}
 
-      <section aria-labelledby="prices-title" className="flex flex-col gap-4">
+      <section
+        aria-labelledby="prices-title"
+        aria-busy={stale}
+        className="flex flex-col gap-4"
+      >
         <Heading level={2} id="prices-title">
           Prices
         </Heading>
-        <div className="grid gap-4 lg:grid-cols-2">
-          {quote.options.map((option) => {
-            const override = fields.overrides[option.cleanType];
-            const label = cleanTypeLabel[option.cleanType];
-            return (
-              <OptionCard
-                key={option.cleanType}
-                option={option}
-                crewSize={quote.crewSize}
-                depositPercent={quote.depositPercent}
+        <div
+          className={`flex flex-col gap-4 transition-opacity ${stale ? "opacity-60" : ""}`}
+        >
+          {plan && quote.planChoices ? (
+            <>
+              <RadioGroup
+                label="Clean Type"
+                description="Choose the one the plan is for. The Client is offered only that."
+                layout="cards"
+                value={plan.cleanType}
+                onChange={(value) =>
+                  set({ plan: { ...plan, cleanType: value as CleanType } })
+                }
               >
-                <p className="text-sm text-fg-muted">
-                  Suggested Price {formatMoney(option.suggested.priceCents)}{" "}
-                  before tax, for {option.suggested.labourHours} Labour Hours.
-                </p>
-                <Checkbox
-                  isSelected={override.on}
-                  onChange={(on) => setOverride(option.cleanType, { on })}
+                {quote.planChoices.map((choice) => (
+                  <RadioCard
+                    key={choice.option.cleanType}
+                    value={choice.option.cleanType}
+                    title={planTitle(choice.option, choice.plan)}
+                    badge={<PlanSaving plan={choice.plan} />}
+                  >
+                    <PlanFigures
+                      option={choice.option}
+                      plan={choice.plan}
+                      crewSize={quote.crewSize}
+                      depositPercent={quote.depositPercent}
+                    />
+                  </RadioCard>
+                ))}
+              </RadioGroup>
+              {chosen && (
+                <Card
+                  title={`${cleanTypeLabel[plan.cleanType]} price`}
+                  headingLevel={3}
+                  description="The Plan Discount comes off the one-off price, overridden or not."
                 >
-                  Override the {label} price
-                </Checkbox>
-                {override.on && (
-                  <div className="flex flex-col gap-4">
-                    <NumberField
-                      label={`${label} price before tax`}
-                      name={`overrides.${option.cleanType}.priceCents`}
-                      minValue={0}
-                      formatOptions={dollars}
-                      value={override.price}
-                      onChange={(price) =>
-                        setOverride(option.cleanType, { price })
-                      }
-                    />
-                    <TextField
-                      label="Reason for the override"
-                      name={`overrides.${option.cleanType}.reason`}
-                      value={override.reason}
-                      onChange={(reason) =>
-                        setOverride(option.cleanType, { reason })
-                      }
-                    />
-                  </div>
-                )}
-              </OptionCard>
-            );
-          })}
+                  <OverrideFields
+                    option={chosen.option}
+                    override={fields.overrides[plan.cleanType]}
+                    label="one-off"
+                    onChange={(change) => setOverride(plan.cleanType, change)}
+                  />
+                </Card>
+              )}
+            </>
+          ) : (
+            <div className="grid gap-4 lg:grid-cols-2">
+              {quote.options.map((option) => (
+                <OfferCard key={option.cleanType} quote={quote} option={option}>
+                  <OverrideFields
+                    option={option}
+                    override={fields.overrides[option.cleanType]}
+                    label={cleanTypeLabel[option.cleanType]}
+                    onChange={(change) => setOverride(option.cleanType, change)}
+                  />
+                </OfferCard>
+              ))}
+            </div>
+          )}
         </div>
         <p className="text-sm text-fg-muted">
           Prices are worked out again from the current Price List (version{" "}
-          {quote.priceListVersion}) and the home's details each time you save.
+          {quote.priceListVersion}) and the home's details as you make changes.
           Sending fixes them.
         </p>
       </section>
 
-      <Card title="Add-ons" description="Each adds its hours to both prices.">
+      {plan && (
+        <PlanTerms
+          plan={plan}
+          onChange={(change) => set({ plan: { ...plan, ...change } })}
+        />
+      )}
+      {quote.firstClean && <FirstCleanCard firstClean={quote.firstClean} />}
+
+      <Card
+        title="Add-ons"
+        description={
+          quote.plan
+            ? "Done on every clean. Each adds its hours to the price, and the Plan Discount comes off it too."
+            : "Each adds its hours to both prices."
+        }
+      >
         <div className="flex flex-col">
           {quote.addOnChoices.map((addOn) => (
             <Checkbox
@@ -602,8 +912,12 @@ function DraftEditor({ quote: loaded }: { quote: OfficeQuote }) {
       </Card>
 
       <Card
-        title="Proposed time"
-        description="New York time. The Quote Expires at this time if it isn't accepted first."
+        title={quote.plan ? "Start" : "Proposed time"}
+        description={
+          plan
+            ? `New York time. Then ${recurrenceLabel[plan.recurrence].toLowerCase()} on the same weekday. The Quote Expires at this time if it isn't accepted first.`
+            : "New York time. The Quote Expires at this time if it isn't accepted first."
+        }
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <DatePicker
@@ -623,14 +937,61 @@ function DraftEditor({ quote: loaded }: { quote: OfficeQuote }) {
         )}
       </Card>
 
-      <Actions>
-        <Button type="submit" variant="secondary" isPending={busy === "save"}>
-          Save draft
-        </Button>
-        <Button isPending={busy === "send"} onPress={() => void onSend()}>
+      {/* the prices stay in view wherever the change was made */}
+      <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center gap-3 border-t border-border bg-surface px-4 py-3 shadow-raised sm:mx-0 sm:rounded-lg sm:border">
+        <div className="flex min-w-0 flex-1 flex-col">
+          <span className="font-semibold tabular-nums">
+            {priceSummary(quote)}
+          </span>
+          <span role="status" className="text-sm text-fg-muted">
+            {saveStateLabel[saveState]}
+          </span>
+        </div>
+        <Button isPending={isSending} onPress={() => void onSend()}>
           Send to {quote.client.name}
         </Button>
-      </Actions>
+      </div>
     </Form>
+  );
+}
+
+// What the home's First Clean found, to price the plan by: the Condition
+// its Cleaner reported, and any Adjustments
+function FirstCleanCard({ firstClean }: { firstClean: FirstCleanFindings }) {
+  const { job } = firstClean;
+  return (
+    <Card
+      title="First Clean"
+      description={`${cleanTypeLabel[job.cleanType]} on ${formatDateTime(job.startsAt)}, Completed ${formatDate(firstClean.completedAt)}`}
+      actions={
+        <Link
+          href={linkTo({
+            to: "/office/jobs/$jobId",
+            params: { jobId: job.id },
+          })}
+        >
+          See the Job
+        </Link>
+      }
+    >
+      <p>
+        Its Cleaner found the home{" "}
+        <strong>{conditionLabel[firstClean.condition].toLowerCase()}</strong>.
+      </p>
+      {firstClean.adjustments.length === 0 ? (
+        <p className="text-fg-muted">No Adjustments.</p>
+      ) : (
+        <List aria-label="First Clean Adjustments">
+          {firstClean.adjustments.map((a) => (
+            <ListItem
+              key={a.id}
+              id={a.id}
+              title={`${adjustmentLabel(a)}: ${formatMoney(a.totalCents)}`}
+              description={`"${a.reason}"`}
+            />
+          ))}
+        </List>
+      )}
+    </Card>
   );
 }

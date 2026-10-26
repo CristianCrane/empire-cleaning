@@ -17,6 +17,7 @@ import { timestamps } from "../../db/index.ts";
 import { accounts } from "../auth/auth.schema.ts";
 import { cleanType, jobs } from "../jobs/jobs.schema.ts";
 import { priceLists } from "../price-list/price-list.schema.ts";
+import { condition, properties } from "../properties/properties.schema.ts";
 import { quoteRequests } from "../quote-requests/quote-requests.schema.ts";
 
 // A Sent Quote whose time is up is Expired whether or not this says so:
@@ -31,16 +32,36 @@ export const quoteStatus = pgEnum("quote_status", [
   "superseded",
 ]);
 
-// A priced offer answering a Quote Request. A First Clean Quote offers both
-// Clean Types (quote_options). While a Draft it's priced afresh from the
-// current Price List on every save; once Sent it never changes.
+// what a Quote offers: one Job, or a Service Plan, which a Property can only
+// be offered once its First Clean is Completed
+export const quoteKind = pgEnum("quote_kind", ["one_off", "service_plan"]);
+
+// how often a Service Plan's Job comes round; always on the same weekday
+export const recurrence = pgEnum("recurrence", [
+  "weekly",
+  "fortnightly",
+  "four_weekly",
+]);
+
+// A priced offer for a Property (ADR-0011). A one-off Quote answers a Quote
+// Request and offers both Clean Types (quote_options); a Service Plan Quote
+// offers the one Clean Type Office Staff chose, on a recurrence, at the Plan
+// Discount, and may answer a request or be offered unprompted. While a Draft
+// it's priced afresh from the current Price List on every save; once Sent it
+// never changes.
 export const quotes = pgTable(
   "quotes",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    quoteRequestId: uuid("quote_request_id")
+    propertyId: uuid("property_id")
       .notNull()
-      .references(() => quoteRequests.id, { onDelete: "cascade" }),
+      .references(() => properties.id, { onDelete: "cascade" }),
+    // the request it answers; always set on a one-off Quote
+    quoteRequestId: uuid("quote_request_id").references(
+      () => quoteRequests.id,
+      { onDelete: "cascade" },
+    ),
+    kind: quoteKind("kind").notNull().default("one_off"),
     status: quoteStatus("status").notNull().default("draft"),
     // the version the prices were worked out from at the last save
     priceListId: uuid("price_list_id")
@@ -49,7 +70,14 @@ export const quotes = pgTable(
     crewSize: integer("crew_size").notNull(),
     depositPercent: integer("deposit_percent").notNull(),
     validityDays: integer("validity_days").notNull(),
+    // the time of the (first) Job
     proposedStartsAt: timestamp("proposed_starts_at", { withTimezone: true }),
+    // a Service Plan Quote's terms: how often, the Plan Discount, and the
+    // Condition it's priced for (moderate unless Office Staff say otherwise,
+    // whatever the Property's own); null on a one-off Quote
+    recurrence: recurrence("recurrence"),
+    planDiscountPercent: integer("plan_discount_percent"),
+    condition: condition("condition"),
     sentAt: timestamp("sent_at", { withTimezone: true }),
     // the end of validity or the proposed time, whichever is first; set on
     // sending
@@ -69,20 +97,28 @@ export const quotes = pgTable(
     ...timestamps,
   },
   (t) => [
+    index("quotes_property_id_idx").on(t.propertyId),
     index("quotes_quote_request_id_idx").on(t.quoteRequestId),
-    // at most one Sent and one Draft per Quote Request
-    uniqueIndex("quotes_one_sent_per_request")
-      .on(t.quoteRequestId)
+    // at most one Sent Quote of each kind per Property, so a one-off offer
+    // and a plan offer can stand side by side
+    uniqueIndex("quotes_one_sent_per_property_kind")
+      .on(t.propertyId, t.kind)
       .where(sql`${t.status} = 'sent'`),
+    // at most one Draft per Quote Request, and one Service Plan Draft per
+    // Property
     uniqueIndex("quotes_one_draft_per_request")
       .on(t.quoteRequestId)
-      .where(sql`${t.status} = 'draft'`),
+      .where(sql`${t.status} = 'draft' and ${t.quoteRequestId} is not null`),
+    uniqueIndex("quotes_one_plan_draft_per_property")
+      .on(t.propertyId)
+      .where(sql`${t.status} = 'draft' and ${t.kind} = 'service_plan'`),
   ],
 );
 
 // One Clean Type's offer on a Quote. The Suggested Price is kept with every
 // Price List figure it used, so it reads the same however the Price List
-// changes later.
+// changes later. A Service Plan Quote has one, for its Clean Type, priced as a
+// one-off Job, less the Plan Discount.
 export const quoteOptions = pgTable(
   "quote_options",
   {
@@ -94,7 +130,10 @@ export const quoteOptions = pgTable(
     // a price before tax replacing the Suggested Price, and why
     overrideCents: integer("override_cents"),
     overrideReason: text("override_reason"),
-    // the final price: the override if there is one, else the Suggested Price
+    // the Plan Discount off the one-off price (the override if there is one,
+    // else the Suggested Price), before tax; 0 on a one-off Quote
+    discountCents: integer("discount_cents").notNull().default(0),
+    // the final price: the one-off price less any Plan Discount
     priceCents: integer("price_cents").notNull(),
     taxCents: integer("tax_cents").notNull(),
     totalCents: integer("total_cents").notNull(),

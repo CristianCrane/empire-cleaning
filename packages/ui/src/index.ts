@@ -20,7 +20,7 @@ export { ButtonLink, Link } from "./Link.tsx";
 export { List, ListItem } from "./List.tsx";
 export { Notice } from "./Notice.tsx";
 export { NumberField } from "./NumberField.tsx";
-export { Radio, RadioGroup } from "./RadioGroup.tsx";
+export { Radio, RadioCard, RadioGroup } from "./RadioGroup.tsx";
 export { Select, SelectItem } from "./Select.tsx";
 export { StatusBadge, type StatusTone } from "./StatusBadge.tsx";
 export { Cell, Column, Row, Table, TableBody, TableHeader } from "./Table.tsx";

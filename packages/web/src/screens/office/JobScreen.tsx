@@ -36,6 +36,7 @@ import {
 import { CancelJob, CancelledCard, NoAccessCard } from "./JobCancellation.tsx";
 import { JobCompletionCards } from "./JobCompletion.tsx";
 import { JobReschedule } from "./JobReschedule.tsx";
+import { OfferServicePlan } from "./StartDraft.tsx";
 
 // whether every place on a Job's crew is Confirmed, or once it has happened
 // or been Cancelled, how it went
@@ -120,6 +121,14 @@ export function JobScreen() {
       </Card>
 
       {job.completion && <JobCompletionCards job={job} />}
+      {job.canOfferServicePlan && (
+        <Card
+          title="Service Plan"
+          description="This home's First Clean is Completed, so it can be offered regular cleaning."
+        >
+          <OfferServicePlan propertyId={job.property.id} />
+        </Card>
+      )}
       {job.cancellation && <CancelledCard job={job} />}
       {job.noAccess && <NoAccessCard job={job} />}
 

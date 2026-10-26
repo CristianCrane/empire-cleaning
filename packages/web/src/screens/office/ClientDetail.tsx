@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { useLoaderData, useRouter } from "@tanstack/react-router";
+import { useLoaderData, useNavigate, useRouter } from "@tanstack/react-router";
 import type {
   Condition,
+  JobStatus,
+  OfficeClientView,
   PropertyType,
   PropertyView,
 } from "@empire-cleaning/models";
@@ -28,15 +30,20 @@ import { ApiError, patchJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import {
   addressOf,
+  cleanTypeLabel,
   conditionLabel,
   formatDate,
+  formatDateTime,
   homeSummary,
+  quoteHeadline,
 } from "../format.ts";
+import { QuoteStatusBadge } from "../QuoteParts.tsx";
+import { OfferServicePlan } from "./StartDraft.tsx";
 
-// a Client with their homes and Quote Requests, for the Office
+// a Client for the Office: each home with its details and its whole
+// history, its Quote Requests, Quotes and Jobs
 export function ClientDetail() {
   const client = useLoaderData({ from: "/office/clients/$clientId" });
-  const homes = new Map(client.properties.map((p) => [p.id, p]));
 
   return (
     <div className="flex flex-col gap-6">
@@ -60,40 +67,129 @@ export function ClientDetail() {
       </Card>
 
       {client.properties.map((home) => (
-        <Home key={home.id} home={home} />
+        <section
+          key={home.id}
+          aria-label={addressOf(home)}
+          className="flex flex-col gap-4"
+        >
+          <Heading level={2}>{addressOf(home)}</Heading>
+          <History client={client} home={home} />
+          <Home home={home} />
+        </section>
       ))}
-
-      <Card title="Quote Requests">
-        <List aria-label="Quote Requests">
-          {client.quoteRequests.map((request) => {
-            const home = homes.get(request.propertyId);
-            return (
-              <ListItem
-                key={request.id}
-                id={request.id}
-                title={home ? addressOf(home) : "Home"}
-                description={[
-                  formatDate(request.createdAt),
-                  `Stated ${conditionLabel[request.condition].toLowerCase()}`,
-                  request.addOns.length > 0 &&
-                    `Extras: ${request.addOns.map((a) => a.name).join(", ")}`,
-                  request.notes,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-                end={
-                  request.wantsRegularService && (
-                    <StatusBadge tone="success">Regular visits</StatusBadge>
-                  )
-                }
-              />
-            );
-          })}
-        </List>
-      </Card>
     </div>
   );
 }
+
+type Client = OfficeClientView;
+type ClientHome = Client["properties"][number];
+
+// a home's requests, Quotes and Jobs, newest first, each opening its own
+// screen; and once its First Clean is Completed, the way to offer it a plan
+function History({ client, home }: { client: Client; home: ClientHome }) {
+  const navigate = useNavigate();
+  const requests = client.quoteRequests.filter((r) => r.propertyId === home.id);
+  const quotes = client.quotes.filter((q) => q.property.id === home.id);
+  const jobs = client.jobs.filter((j) => j.property.id === home.id);
+  const empty = (what: string) => () => (
+    <p className="p-4 text-center text-fg-muted">No {what} yet.</p>
+  );
+
+  return (
+    <Card
+      title="History"
+      actions={
+        home.firstCleanCompleted && <OfferServicePlan propertyId={home.id} />
+      }
+    >
+      <Heading level={3}>Quote Requests</Heading>
+      <List
+        aria-label={`Quote Requests for ${addressOf(home)}`}
+        renderEmptyState={empty("Quote Requests")}
+      >
+        {requests.map((request) => (
+          <ListItem
+            key={request.id}
+            id={request.id}
+            title={formatDate(request.createdAt)}
+            description={[
+              `Stated ${conditionLabel[request.condition].toLowerCase()}`,
+              request.addOns.length > 0 &&
+                `Extras: ${request.addOns.map((a) => a.name).join(", ")}`,
+              request.notes,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+            end={
+              request.wantsRegularService && (
+                <StatusBadge tone="success">Regular visits</StatusBadge>
+              )
+            }
+            onAction={() =>
+              void navigate({
+                to: "/office/requests/$requestId",
+                params: { requestId: request.id },
+              })
+            }
+          />
+        ))}
+      </List>
+      <Heading level={3}>Quotes</Heading>
+      <List
+        aria-label={`Quotes for ${addressOf(home)}`}
+        renderEmptyState={empty("Quotes")}
+      >
+        {quotes.map((quote) => (
+          <ListItem
+            key={quote.id}
+            id={quote.id}
+            title={quoteHeadline(quote)}
+            description={
+              quote.sentAt
+                ? `Sent ${formatDate(quote.sentAt)}${quote.quoteRequestId ? "" : ", unprompted"}`
+                : `Started ${formatDate(quote.createdAt)}`
+            }
+            end={<QuoteStatusBadge status={quote.status} />}
+            onAction={() =>
+              void navigate({
+                to: "/office/quotes/$quoteId",
+                params: { quoteId: quote.id },
+              })
+            }
+          />
+        ))}
+      </List>
+      <Heading level={3}>Jobs</Heading>
+      <List
+        aria-label={`Jobs at ${addressOf(home)}`}
+        renderEmptyState={empty("Jobs")}
+      >
+        {jobs.map((job) => (
+          <ListItem
+            key={job.id}
+            id={job.id}
+            title={formatDateTime(job.startsAt)}
+            description={cleanTypeLabel[job.cleanType]}
+            end={<StatusBadge>{jobStatusLabel[job.status]}</StatusBadge>}
+            onAction={() =>
+              void navigate({
+                to: "/office/jobs/$jobId",
+                params: { jobId: job.id },
+              })
+            }
+          />
+        ))}
+      </List>
+    </Card>
+  );
+}
+
+const jobStatusLabel: Record<JobStatus, string> = {
+  booked: "Booked",
+  completed: "Completed",
+  cancelled: "Cancelled",
+  no_access: "No Access",
+};
 
 // the details that affect the price. Clients keep what they first gave and ask
 // for a new Quote to change it; the Office corrects it here. The address is
@@ -144,7 +240,7 @@ function Home({ home }: { home: PropertyView }) {
   };
 
   return (
-    <Card title={addressOf(home)} description={homeSummary(home)}>
+    <Card title="Details" description={homeSummary(home)}>
       <p className="text-sm text-fg-muted">
         Access Instructions:{" "}
         <span className="whitespace-pre-line text-fg">

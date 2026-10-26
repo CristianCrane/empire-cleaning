@@ -25,6 +25,7 @@ import { addressOf, toPropertyView } from "../properties/property-view.ts";
 import { currentPriceList } from "../price-list/price-list.ts";
 import { suggestedPrice } from "../price-list/suggested-price.ts";
 import {
+  firstCleanCompleted,
   isClosed,
   quotesForRequest,
   requestStates,
@@ -293,11 +294,12 @@ export const quoteRequestDetail = async (
     .where(eq(quoteRequests.id, id));
   if (!row) return undefined;
 
-  const [list, addOns, states, quotes] = await Promise.all([
+  const [list, addOns, states, quotes, firstCleanDone] = await Promise.all([
     currentPriceList(),
     addOnsForRequests([id]),
     requestStates([id]),
     quotesForRequest(id),
+    firstCleanCompleted(row.property.id),
   ]);
   const choices = addOns.get(id) ?? [];
   const chosen = list.addOns.filter((a) =>
@@ -333,5 +335,6 @@ export const quoteRequestDetail = async (
     },
     state: states.get(id)!,
     quotes,
+    firstCleanCompleted: firstCleanDone,
   };
 };

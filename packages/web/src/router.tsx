@@ -13,6 +13,7 @@ import type {
   ClientJobDetail,
   ClientPastJob,
   ClientView,
+  OfficeClientView,
   NeedsAttentionItem,
   OfficeJob,
   OfficeQuote,
@@ -217,7 +218,7 @@ const officeClientRoute = createRoute({
   getParentRoute: () => officeRoute,
   path: "/clients/$clientId",
   loader: ({ params }) =>
-    getJson<ClientView>(`/api/clients/${params.clientId}`),
+    getJson<OfficeClientView>(`/api/clients/${params.clientId}`),
   component: ClientDetail,
 });
 

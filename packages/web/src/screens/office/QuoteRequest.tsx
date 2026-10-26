@@ -1,8 +1,7 @@
-import { useState } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import type {
-  OfficeQuote,
   PriceBreakdown,
+  QuoteKind,
   QuoteRequestDetail,
 } from "@empire-cleaning/models";
 import {
@@ -16,9 +15,9 @@ import {
   Notice,
   StatusBadge,
 } from "@empire-cleaning/ui";
-import { ApiError, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { QuoteStatusBadge } from "../QuoteParts.tsx";
+import { useStartDraft } from "./StartDraft.tsx";
 import {
   addressOf,
   cleanTypeLabel,
@@ -28,6 +27,7 @@ import {
   formatHours,
   formatMoney,
   homeSummary,
+  quoteHeadline,
 } from "../format.ts";
 
 // one Quote Request in full, with the Suggested Price for both Clean Types and
@@ -123,47 +123,44 @@ export function QuoteRequest() {
   );
 }
 
-// the request's Quotes, newest first, and the way to draft the next one
+// The request's Quotes, newest first, and the way to draft the next one
+// while it's open: once the home's First Clean is Completed, it can be
+// answered with a one-off Quote or a Service Plan Quote
 function Quotes({ request }: { request: QuoteRequestDetail }) {
   const navigate = useNavigate();
-  const [failure, setFailure] = useState<string>();
-  const [isStarting, setStarting] = useState(false);
+  const { start, starting, failure } = useStartDraft();
+  const isOpen = request.state !== "booked" && request.state !== "ended";
+  // a request has at most one Draft, of either kind
   const draft = request.quotes.find((q) => q.status === "draft");
   const open = (quoteId: string) =>
     navigate({ to: "/office/quotes/$quoteId", params: { quoteId } });
-
-  const start = async () => {
-    setStarting(true);
-    setFailure(undefined);
-    try {
-      const quote = await postJson<OfficeQuote>("/api/quotes", {
-        quoteRequestId: request.id,
-      });
-      await open(quote.id);
-    } catch (e) {
-      setFailure(
-        e instanceof ApiError && e.status === 409
-          ? e.message
-          : "The Draft couldn't be started. Please try again.",
-      );
-      setStarting(false);
-    }
-  };
+  const draftButton = (kind: QuoteKind, label: string, primary: boolean) => (
+    <Button
+      variant={primary ? "primary" : "secondary"}
+      isPending={starting?.kind === kind}
+      isDisabled={starting !== undefined}
+      onPress={() => void start({ quoteRequestId: request.id, kind })}
+    >
+      {label}
+    </Button>
+  );
 
   return (
     <Card
       title="Quotes"
       actions={
-        request.state !== "ended" &&
-        request.state !== "booked" &&
+        isOpen &&
         (draft ? (
           <Button variant="secondary" onPress={() => void open(draft.id)}>
             Continue the Draft
           </Button>
+        ) : request.firstCleanCompleted ? (
+          <div className="flex flex-wrap gap-2">
+            {draftButton("one_off", "Draft a one-off Quote", false)}
+            {draftButton("service_plan", "Draft a Service Plan Quote", true)}
+          </div>
         ) : (
-          <Button isPending={isStarting} onPress={() => void start()}>
-            Draft a Quote
-          </Button>
+          draftButton("one_off", "Draft a Quote", true)
         ))
       }
     >
@@ -191,7 +188,7 @@ function Quotes({ request }: { request: QuoteRequestDetail }) {
           <ListItem
             key={quote.id}
             id={quote.id}
-            title={`Deep Clean ${formatMoney(quote.recommendedTotalCents)}`}
+            title={quoteHeadline(quote)}
             description={
               quote.sentAt
                 ? `Sent ${formatDate(quote.sentAt)} · for ${formatDateTime(quote.proposedStartsAt!)}`
