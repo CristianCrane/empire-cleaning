@@ -1,4 +1,4 @@
-import { and, eq, inArray, sum } from "drizzle-orm";
+import { and, eq, inArray, ne, sum } from "drizzle-orm";
 import type {
   CancellationTerms,
   CancelledBy,
@@ -23,7 +23,10 @@ import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { charges, refunds } from "../payments/payments.schema.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
-import { servicePlanVisits } from "../service-plans/service-plans.schema.ts";
+import {
+  servicePlans,
+  servicePlanVisits,
+} from "../service-plans/service-plans.schema.ts";
 import { staff } from "../staff/staff.schema.ts";
 import { officeStaffEmails } from "../staff/staff.ts";
 
@@ -66,12 +69,20 @@ const depositOf = async (jobId: string, tx: Tx | typeof db = db) => {
   return row?.cents ?? 0;
 };
 
-// the Service Plan a Job was generated for; null for a one-off Job
+// The Service Plan a Job was generated for; null for a one-off Job, or once
+// its plan has Ended: then its last Job holds the plan's Deposit as its own,
+// and goes ahead as a one-off Job would.
 export const planOfJob = async (jobId: string, tx: Tx | typeof db = db) => {
   const [visit] = await tx
     .select({ planId: servicePlanVisits.servicePlanId })
     .from(servicePlanVisits)
-    .where(eq(servicePlanVisits.jobId, jobId));
+    .innerJoin(
+      servicePlans,
+      eq(servicePlans.id, servicePlanVisits.servicePlanId),
+    )
+    .where(
+      and(eq(servicePlanVisits.jobId, jobId), ne(servicePlans.status, "ended")),
+    );
   return visit?.planId ?? null;
 };
 
@@ -250,10 +261,15 @@ const feeChargeLine = (settled: Settled) => {
   if (settled.failure) {
     return [
       `We couldn't charge it to your ${card}. Please update your Payment Method, and we'll try again straight away.`,
+      ...(settled.plan === "held" ? [ON_HOLD_LINE] : []),
     ];
   }
   return [];
 };
+
+// for a Client whose plan an Unpaid Job has put On Hold
+export const ON_HOLD_LINE =
+  "Until it's paid, your Service Plan is On Hold: cleans already booked go ahead, but we won't book any more.";
 
 const sendCancelled = async (
   jobId: string,
@@ -311,7 +327,7 @@ const sendCancelled = async (
 };
 
 // everyone holding a place on a Job hears it's off
-const tellCrew = async (job: Job) => {
+export const tellCrew = async (job: Job) => {
   const { property } = await ownerOf(job);
   const crew = await db
     .select({ id: staff.id, name: staff.name, email: staff.email })

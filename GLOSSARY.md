@@ -129,11 +129,11 @@ A Reschedule Request made less than 24 hours before the Job starts, judged when 
 _Avoid_: Late move, short-notice reschedule
 
 **On Hold**:
-A Service Plan that is temporarily generating no new Jobs until its Client resolves an Unpaid Job.
+A Service Plan that is temporarily generating no new Jobs while any of its Jobs is Unpaid. Its Jobs already booked go ahead. Once nothing is Unpaid it carries on, from its next date still to come: dates that passed while it was On Hold are never booked. On Hold plans appear in Needs attention.
 _Avoid_: Paused, suspended
 
 **Ended**:
-A Service Plan permanently stopped by its Client; it never generates Jobs again.
+A Service Plan permanently stopped by its Client, or by Office Staff for them, at any time; it never generates Jobs again, and its Property may start a new plan. Ending it cancels its booked Jobs more than 24 hours away, free, and those within 24 hours go ahead. Its Deposit is applied to its final Job: the last that goes ahead or has happened, a Late Cancellation or No Access with a fee counting as having happened. That Job then counts the Deposit as its own, as a one-off Job does, and whatever the Deposit doesn't cover is still owed, while anything it doesn't need is refunded.
 _Avoid_: Cancelled, terminated, closed
 
 **Schedule**:

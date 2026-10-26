@@ -225,6 +225,20 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
             }),
         };
       }
+      case "plan_on_hold": {
+        const { plan } = item;
+        return {
+          key: `plan_on_hold ${plan.id}`,
+          title: plan.client.name,
+          description: `${addressOf(plan.property)} · Service Plan: ${formatMoney(item.owedCents)} Unpaid, no new Jobs booked`,
+          badge: <StatusBadge tone="warning">On Hold</StatusBadge>,
+          open: () =>
+            navigate({
+              to: "/office/service-plans/$planId",
+              params: { planId: plan.id },
+            }),
+        };
+      }
     }
   };
 

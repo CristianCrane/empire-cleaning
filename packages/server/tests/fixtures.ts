@@ -1,9 +1,12 @@
 import { eq } from "drizzle-orm";
 import type {
+  AcceptOutcome,
   CleanType,
   Condition,
   NewProperty,
+  OfficeServicePlan,
   QuoteRequestSubmission,
+  SignedInAccount,
 } from "@empire-cleaning/models";
 import { db } from "#db";
 import { confirmAssignment, offerAssignment } from "#features/assignments";
@@ -281,4 +284,43 @@ export const startedServicePlan = async (
     .from(servicePlans)
     .where(eq(servicePlans.quoteId, quote.id));
   return { planId: started!.id, firstJob: accepted.job };
+};
+
+/**
+ * Casey's weekly Standard Clean plan from 9am on Monday 19 January 2026,
+ * accepted in the portal with the card saved at their First Clean, done by
+ * Cory, who holds a Confirmed place on its first Job. The clock is left at
+ * 11am on Monday the 12th, so its Jobs are booked up to 9 February.
+ */
+export const crewedServicePlan = async () => {
+  const office = await signInAsOffice();
+  const me = (await office.get("/api/me").expect(200)).body as SignedInAccount;
+  const { propertyId } = await completedFirstClean({ byAccountId: me.id });
+  const quote = await sentServicePlanQuote({
+    propertyId,
+    byAccountId: me.id,
+    startsAt: "2026-01-19T14:00:00.000Z",
+  });
+  const client = await signIn(casey.email);
+  const outcome = (
+    await client
+      .post(`/api/quotes/mine/${quote.id}/accept`)
+      .send({ cleanType: "standard" })
+      .expect(200)
+  ).body as AcceptOutcome;
+  if (outcome.status !== "accepted") throw new Error("not accepted");
+  const planId = outcome.quote.servicePlanId!;
+
+  const plan = (await office.get(`/api/service-plans/${planId}`).expect(200))
+    .body as OfficeServicePlan;
+  const jobId = plan.jobs[0]!.id;
+  const staff = (await office.get("/api/staff").expect(200)).body as {
+    id: string;
+    email: string;
+  }[];
+  const cleanerId = staff.find((s) => s.email === "cory@example.com")!.id;
+  const offered = await offerAssignment(jobId, cleanerId, me.id);
+  await confirmAssignment(cleanerId, offered.assignments[0]!.id);
+
+  return { office, client, planId, jobId, cleanerId };
 };

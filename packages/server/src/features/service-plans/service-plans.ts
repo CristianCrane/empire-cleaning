@@ -1,4 +1,5 @@
 import {
+  type AnyColumn,
   and,
   arrayContains,
   asc,
@@ -11,6 +12,7 @@ import {
   max,
   min,
   ne,
+  or,
   sum,
 } from "drizzle-orm";
 import type {
@@ -34,6 +36,7 @@ import {
 import { emailOffer } from "../assignments/assignments.ts";
 import { assignments } from "../assignments/assignments.schema.ts";
 import { clients } from "../clients/clients.schema.ts";
+import { paymentOf } from "../completion/balance.ts";
 import { bookJob, lockDay, upcomingJobsFor } from "../jobs/jobs.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { jobViews, roomFor } from "../jobs/schedule.ts";
@@ -42,6 +45,7 @@ import { properties, type Property } from "../properties/properties.schema.ts";
 import { warnOfficeOfQuotesWithoutRoom } from "../quotes/quote-room.ts";
 import { quoteOptions, quotes, type Quote } from "../quotes/quotes.schema.ts";
 import { staff } from "../staff/staff.schema.ts";
+import { endServicePlan, endTermsOf } from "./ending.ts";
 import {
   servicePlans,
   servicePlanVisits,
@@ -233,18 +237,17 @@ const generateNext = async (planId: string) =>
       .where(eq(servicePlanVisits.servicePlanId, planId))) as [
       { last: string | null },
     ];
-    const day = addDays(
+    const now = clock.now();
+    const at = (day: string) => atTime(day, timeOf(plan.firstStartsAt));
+    let day = addDays(
       last ?? dayOf(plan.firstStartsAt),
       INTERVAL_DAYS[plan.recurrence],
     );
-    const now = clock.now();
+    // dates that came and went while it was On Hold are never generated
+    while (at(day) <= now) day = addDays(day, INTERVAL_DAYS[plan.recurrence]);
     if (day > addDays(dayOf(now), HORIZON_DAYS)) return null;
 
-    const booked = await bookOnto(
-      tx,
-      plan,
-      atTime(day, timeOf(plan.firstStartsAt)),
-    );
+    const booked = await bookOnto(tx, plan, at(day));
     await tx.insert(servicePlanVisits).values({
       servicePlanId: planId,
       dueOn: day,
@@ -438,9 +441,9 @@ const ownersOf = async (propertyIds: string[]) => {
 };
 
 // each plan's Jobs, by visit
-const planJobs = (planId: string) =>
+const planJobs = (planId: string, column: AnyColumn = jobs.id) =>
   inArray(
-    jobs.id,
+    column,
     db
       .select({ id: servicePlanVisits.jobId })
       .from(servicePlanVisits)
@@ -517,11 +520,27 @@ const findPlan = async (where: ReturnType<typeof and>) => {
   return found;
 };
 
+// its Jobs that are Unpaid, soonest first, with what each owes
+const unpaidOf = async (planId: string) => {
+  const rows = await db
+    .select()
+    .from(jobs)
+    .where(and(planJobs(planId), isNotNull(jobs.unpaidSince)))
+    .orderBy(asc(jobs.startsAt));
+  return Promise.all(
+    rows.map(async (job) => ({
+      jobId: job.id,
+      startsAt: job.startsAt.toISOString(),
+      owedCents: (await paymentOf(job)).owedCents,
+    })),
+  );
+};
+
 // a plan's terms and price, from the Quote it was accepted from
 const detailOf = async (
   plan: ServicePlan,
 ): Promise<Omit<ServicePlanView, "upcoming">> => {
-  const [[summary], [priced], [deposit]] = await Promise.all([
+  const [[summary], [priced], [deposit], unpaid, endTerms] = await Promise.all([
     summariesOf([plan]).then((m) => [m.get(plan.id)!]),
     db
       .select({ quote: quotes, option: quoteOptions })
@@ -532,8 +551,17 @@ const detailOf = async (
       .select({ cents: sum(charges.amountCents).mapWith(Number) })
       .from(charges)
       .where(
-        and(eq(charges.servicePlanId, plan.id), eq(charges.kind, "deposit")),
+        and(
+          // held by the plan, or by its final Job once it has Ended
+          or(
+            eq(charges.servicePlanId, plan.id),
+            planJobs(plan.id, charges.jobId),
+          ),
+          eq(charges.kind, "deposit"),
+        ),
       ),
+    unpaidOf(plan.id),
+    endTermsOf(plan),
   ]);
   const { quote, option } = priced!;
   return {
@@ -550,6 +578,9 @@ const detailOf = async (
     addOns: option.suggested.addOns.map((a) => a.name),
     depositCents: deposit?.cents ?? 0,
     quoteId: quote.id,
+    unpaid,
+    endTerms,
+    endedAt: plan.endedAt?.toISOString() ?? null,
   };
 };
 
@@ -624,4 +655,49 @@ export const servicePlansOfQuotes = async (quoteIds: string[]) => {
     .from(servicePlans)
     .where(inArray(servicePlans.quoteId, quoteIds));
   return new Map(rows.map((r) => [r.quoteId, r.id]));
+};
+
+// ---- On Hold and Ending ----
+
+// plans On Hold, with what their Unpaid Jobs owe, the longest On Hold first
+export const plansOnHold = async () => {
+  const held = await db
+    .select()
+    .from(servicePlans)
+    .where(eq(servicePlans.status, "on_hold"));
+  const [summaries, owners] = await Promise.all([
+    summariesOf(held),
+    ownersOf(held.map((p) => p.propertyId)),
+  ]);
+  const items = await Promise.all(
+    held.map(async (plan) => {
+      const [[first], unpaid] = await Promise.all([
+        db
+          .select({ since: min(jobs.unpaidSince) })
+          .from(jobs)
+          .where(planJobs(plan.id)),
+        unpaidOf(plan.id),
+      ]);
+      return {
+        since: first?.since?.toISOString() ?? plan.updatedAt.toISOString(),
+        plan: {
+          ...summaries.get(plan.id)!,
+          client: owners.get(plan.propertyId)!,
+        },
+        owedCents: unpaid.reduce((total, u) => total + u.owedCents, 0),
+      };
+    }),
+  );
+  return items.sort((a, b) => a.since.localeCompare(b.since));
+};
+
+// the Client Ends one of their plans; anyone else's doesn't exist for them
+export const clientEndServicePlan = async (
+  clientId: string,
+  planId: string,
+  ending: Parameters<typeof endServicePlan>[1],
+) => {
+  await findPlan(and(eq(servicePlans.id, planId), eq(clients.id, clientId)));
+  await endServicePlan(planId, ending);
+  return clientServicePlan(clientId, planId);
 };
