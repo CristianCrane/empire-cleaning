@@ -44,7 +44,7 @@ import {
   taxOn,
 } from "../price-list/suggested-price.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
-import { addressOf } from "../properties/property-view.ts";
+import { addressOf, toPropertyView } from "../properties/property-view.ts";
 import { addOnsForRequests } from "../quote-requests/add-ons.ts";
 import { quoteRequests } from "../quote-requests/quote-requests.schema.ts";
 import { planChangeOf } from "../service-plans/changing.ts";
@@ -406,12 +406,7 @@ export const officeQuote = async (id: string): Promise<OfficeQuote> => {
       businessName: client.businessName,
       email: client.email,
     },
-    property: {
-      id: property.id,
-      street: property.street,
-      unit: property.unit,
-      postcode: property.postcode,
-    },
+    property: toPropertyView(property, list),
     options: sortOptions(rows).map((r) => officeOption(quote, r)),
     // with the Condition it's priced for, which is the Office's working
     plan: plan && { ...plan, condition: quote.condition! },

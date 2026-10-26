@@ -29,6 +29,7 @@ import { linkTo } from "../../links.ts";
 import {
   addressOf,
   cleanTypeLabel,
+  clientName,
   formatDate,
   formatDateTime,
   formatHours,
@@ -104,7 +105,7 @@ export function JobScreen() {
                 params: { clientId: job.client.id },
               })}
             >
-              {job.client.name}
+              {clientName(job.client)}
             </Link>
           </dd>
           <dt className="font-semibold">Home</dt>

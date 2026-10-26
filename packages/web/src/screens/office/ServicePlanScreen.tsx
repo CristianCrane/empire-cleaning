@@ -28,6 +28,7 @@ import { linkTo } from "../../links.ts";
 import {
   addressOf,
   cleanTypeLabel,
+  clientName,
   formatDateTime,
   formatDay,
   recurrenceLabel,
@@ -61,7 +62,7 @@ export function ServicePlanScreen() {
           <PlanStatusBadge status={plan.status} />
         </div>
         <p className="text-fg-muted">
-          {plan.client.name} · {addressOf(plan.property)}
+          {clientName(plan.client)} · {addressOf(plan.property)}
         </p>
       </div>
 

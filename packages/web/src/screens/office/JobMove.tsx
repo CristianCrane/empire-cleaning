@@ -21,6 +21,7 @@ import {
 } from "@empire-cleaning/ui";
 import { getJson, postJson } from "../../api.ts";
 import {
+  clientName,
   dayOfInstant,
   formatClock,
   formatDateTime,
@@ -96,7 +97,7 @@ export function ConfirmMove({ job, to, close }: MoveProps) {
     <>
       <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2">
         <dt className="font-semibold">Job</dt>
-        <dd>{job.client.name}</dd>
+        <dd>{clientName(job.client)}</dd>
         <dt className="font-semibold">From</dt>
         <dd>{formatDateTime(job.startsAt)}</dd>
         <dt className="font-semibold">To</dt>

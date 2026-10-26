@@ -22,13 +22,16 @@ import { useStartDraft } from "./StartDraft.tsx";
 import {
   addressOf,
   cleanTypeLabel,
+  clientName,
   conditionLabel,
+  conditionText,
   formatDate,
   formatDateTime,
   formatHours,
   formatMoney,
-  homeSummary,
+  propertySummary,
   quoteHeadline,
+  wantedCleaning,
 } from "../format.ts";
 
 // one Quote Request in full, with the Suggested Price for both Clean Types and
@@ -37,8 +40,10 @@ import {
 export function QuoteRequest() {
   const request = useLoaderData({ from: "/office/requests/$requestId" });
   const { client, property, suggested } = request;
-  const conditionNow = conditionLabel[property.condition];
-  const corrected = request.statedCondition !== property.condition;
+  const stated = request.statedCondition;
+  // a business states none: a Site Visit finds it
+  const corrected = stated !== null && stated !== property.condition;
+  const premises = property.kind === "commercial";
 
   return (
     <div className="flex flex-col gap-6">
@@ -50,12 +55,12 @@ export function QuoteRequest() {
             { label: "Quote Request" },
           ]}
         />
-        <Heading level={1}>{client.name}</Heading>
+        <Heading level={1}>{clientName(client)}</Heading>
       </div>
 
       <Card
         title={addressOf(property)}
-        description={homeSummary(property)}
+        description={propertySummary(property)}
         actions={
           <Link
             href={linkTo({
@@ -72,27 +77,35 @@ export function QuoteRequest() {
           <dd>{formatDate(request.createdAt)}</dd>
           <dt className="font-semibold">Condition</dt>
           <dd>
-            {conditionNow}
+            {conditionText(property.condition)}
             {corrected && (
               <span className="text-fg-muted">
                 {" "}
-                (the Client said{" "}
-                {conditionLabel[request.statedCondition].toLowerCase()})
+                (the Client said {conditionLabel[stated].toLowerCase()})
               </span>
             )}
           </dd>
-          <dt className="font-semibold">Extras</dt>
-          <dd>
-            {request.addOns.length > 0
-              ? request.addOns.map((a) => a.name).join(", ")
-              : "None"}
-          </dd>
-          <dt className="font-semibold">Regular visits</dt>
-          <dd>
-            {request.wantsRegularService
-              ? "Wanted after the first clean"
-              : "Not asked for"}
-          </dd>
+          {premises ? (
+            <>
+              <dt className="font-semibold">Cleaning wanted</dt>
+              <dd>{wantedCleaning(request)}</dd>
+            </>
+          ) : (
+            <>
+              <dt className="font-semibold">Extras</dt>
+              <dd>
+                {request.addOns.length > 0
+                  ? request.addOns.map((a) => a.name).join(", ")
+                  : "None"}
+              </dd>
+              <dt className="font-semibold">Regular visits</dt>
+              <dd>
+                {request.wantsRegularService
+                  ? "Wanted after the first clean"
+                  : "Not asked for"}
+              </dd>
+            </>
+          )}
           {request.notes && (
             <>
               <dt className="font-semibold">Notes</dt>
@@ -115,10 +128,27 @@ export function QuoteRequest() {
           <PriceCard breakdown={suggested.deep} recommended />
           <PriceCard breakdown={suggested.standard} />
         </div>
+        {premises && (property.floorArea === null || !property.condition) && (
+          <Notice>
+            {property.floorArea === null
+              ? "The floor area isn't known yet, so this is the Minimum Charge."
+              : "No Condition is recorded yet, so this assumes moderate."}{" "}
+            Record what you know on the{" "}
+            <Link
+              href={linkTo({
+                to: "/office/properties/$propertyId",
+                params: { propertyId: property.id },
+              })}
+            >
+              Property
+            </Link>
+            .
+          </Notice>
+        )}
         <p className="text-sm text-fg-muted">
           Worked out from Price List version {suggested.priceListVersion}, using
-          the home's details and Condition as they are now. It becomes final
-          only in a Quote.
+          the {premises ? "premises'" : "home's"} details and Condition as they
+          are now. It becomes final only in a Quote.
         </p>
       </section>
     </div>
@@ -230,6 +260,8 @@ function PriceCard({
 }) {
   const b = breakdown;
   const homeHours = b.homeHours.reduce((sum, part) => sum + part.hours, 0);
+  // breakdowns from before #72 have no kind: they're all homes
+  const premises = b.propertyKind === "commercial";
 
   return (
     <Card
@@ -266,7 +298,11 @@ function PriceCard({
               value={formatHours(part.hours)}
             />
           ))}
-          <Row label="The home" value={formatHours(homeHours)} strong />
+          <Row
+            label={premises ? "The premises" : "The home"}
+            value={formatHours(homeHours)}
+            strong
+          />
           <Row label={`× Condition (${b.conditionMultiplier})`} value="" />
           <Row
             label={`× ${cleanTypeLabel[b.cleanType]} (${b.cleanTypeMultiplier})`}
@@ -285,7 +321,7 @@ function PriceCard({
             strong
           />
           <Row
-            label={`× ${formatMoney(b.hourlyRateCents)} an hour, to the whole dollar`}
+            label={`× ${formatMoney(b.hourlyRateCents)} an hour${premises ? " (commercial)" : ""}, to the whole dollar`}
             value={formatMoney(b.workedOutCents)}
           />
           <Row

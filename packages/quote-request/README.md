@@ -11,6 +11,8 @@ The one Quote Request form (#3), used by the landing site for Guests and by the 
 />
 ```
 
+It starts by asking whether it's about a home or business premises (#72). A home is described by its rooms and Condition, with any Add-ons for homes and a wish for regular visits; business premises by the business's name, a Premises Type (loaded from `GET /api/price-list/premises-types`), an optional floor area, and either the weekdays and preferred start time to clean or a one-off. Their Condition and extras are agreed after a Site Visit, so they aren't asked.
+
 A signed-in Client's form lists their homes, with `waiting` (the ids of homes whose request is still waiting) shown but not selectable; asking again about a waiting home is refused by the API with a message the form shows.
 
 The form lists the Add-ons on offer by name ("Any extras?"), loaded from `GET /api/price-list/add-ons`, with no prices: those are on the Quote. If they can't be loaded the section is simply absent.

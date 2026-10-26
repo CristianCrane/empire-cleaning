@@ -48,6 +48,7 @@ In tests, `signIn(email)` from `tests/harness.ts` signs up or in the way a perso
 - **An Account connected to no Client** sends a name and phone, and becomes a new Client with its proven email, connected straight away.
 - **A Client** sends neither: just a new home or one of their own.
 
+- **A home or business premises** (#72). A Property is `residential`, described by its rooms, or `commercial`, described by a Premises Type (by key) and an optional floor area. A home's request states its Condition and may choose Add-ons; a business's gives its business name (required for new premises), and either the weekdays (0 is Monday) and a preferred start time it wants cleaned, or none for a one-off. It states no Condition or Add-ons: a Site Visit finds those (#73), so business premises have no Condition until Office Staff record one. A business name fills in a Client that has none, from the Client themselves or the Office, never from a Guest using an existing Client's email, and never renames one.
 - **One address is one home** per Client. Addresses are compared after normalising capitals, punctuation, spacing and common abbreviations (`features/properties/address.ts`), so "41-12 Austin Street, Apt 4B" is "41 12 austin st #4b". A different unit is a different home. Entering a known address again uses that home with the details it was first given, and only restates its Condition.
 - **One request waiting per home.** A second request for a home that already has one waiting is refused with a 409 and a plain message. A request stops waiting when it ends: its Quote Declined (and, with #6 and #8, Turned Down or Accepted).
 - **The receipt** goes to the Client's own address, with no sign-in link. If it can't be sent, the request is still saved and the failure is logged.
@@ -58,25 +59,31 @@ Validation messages are written to be shown beside the form's fields.
 - `GET` and `PATCH /api/clients/me` are a Client's own record and contact details.
 - `GET /api/clients/:id` (Office Staff) is any Client.
 - `PATCH /api/properties/:id/access-instructions` is open to the Client or Office Staff.
-- `PATCH /api/properties/:id` (Office Staff only) corrects a home's details: type, bedrooms, bathrooms, floors, pets, floor area and Condition. Its address is its identity and isn't correctable.
+- `PATCH /api/properties/:id` (Office Staff only) corrects a home's details (type, bedrooms, bathrooms, floors, pets, floor area and Condition) or business premises' (Premises Type, floor area and Condition). Its address is its identity and isn't correctable, and nor is its kind.
+- `PATCH /api/clients/:id` (Office Staff) may also set or clear a business name. Everywhere the Office sees a Client named, it has `businessName` beside `name`.
 
 ## Price List and Suggested Price
 
 The Price List (`#features/price-list`) holds every figure Suggested Prices come from. Money is in cents, before tax. **Every save is a new version**, never an edit, so a Quote can point at the exact version it used; the current one is the latest. The first read creates version 1 from placeholder figures (`placeholder: true`) until Office Staff save their own.
 
 - `GET` and `PUT /api/price-list` (Office Staff) read and save it. A save sends the whole list.
-- `GET /api/price-list/add-ons` is open to everyone: the names of the Add-ons on offer, never prices (the landing page's form lists them).
-- **Add-ons are never deleted.** Leaving one out of a save retires it, with the same key, so requests that chose it still price it.
+- `GET /api/price-list/add-ons` is open to everyone: the names of the Add-ons on offer for homes, never prices (the landing page's form lists them). Each Add-on is `offeredFor` homes, businesses or both; a Quote offers those for its Property's kind.
+- `GET /api/price-list/premises-types` is open to everyone too: the Premises Types on offer, by name.
+- **Add-ons and Premises Types are never deleted.** Leaving one out of a save retires it, with the same key, so what chose or used it still prices. A save must leave at least one Premises Type on offer.
 - `GET /api/quote-requests/:id` (Office Staff) returns a request in full with its Suggested Price for both Clean Types, worked out now from the current Price List and the home's current details and Condition.
 
 The calculation (`suggested-price.ts`):
 
 ```text
-home hours   = base + bedrooms + bathrooms + (floors - 1) + pets
-Labour Hours = home hours x Condition x Clean Type, plus each Add-on's own hours
-               (not multiplied), rounded UP to the quarter-hour
-price        = Labour Hours x hourly rate, to the whole dollar, at least the Minimum Charge
-tax          = the one-off Jobs rate on the price, less tax-exempt Add-ons' share
+home hours     = base + bedrooms + bathrooms + (floors - 1) + pets
+premises hours = floor area / 1,000 x the Premises Type's hours (0 until the floor area is known)
+Labour Hours   = those hours x Condition x Clean Type, plus each Add-on's own hours
+                 (not multiplied), rounded UP to the quarter-hour; no Condition yet is moderate
+price          = Labour Hours x the residential or commercial hourly rate, to the whole
+                 dollar, at least the Minimum Charge
+tax            = the residential one-off rate, or the commercial rate, on the price,
+                 less tax-exempt Add-ons' share. A residential plan Job uses the Service
+                 Plan rate; a commercial one, plan or not, the commercial rate
 ```
 
 It uses whole numbers throughout (hours in 1e-4, multipliers in hundredths), so a quarter-hour boundary is never missed by floating point: 3 x 0.4 h + 0.55 h is exactly 1.75 h, though it is 1.7500000000000002 as decimals.

@@ -1,7 +1,12 @@
 import { useState } from "react";
 import { useLoaderData, useRouter } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
-import type { PriceList, PriceListAddOn } from "@empire-cleaning/models";
+import type {
+  OfferedFor,
+  PriceList,
+  PriceListAddOn,
+  PriceListPremisesType,
+} from "@empire-cleaning/models";
 import {
   Actions,
   Button,
@@ -11,6 +16,8 @@ import {
   Heading,
   Notice,
   NumberField,
+  Select,
+  SelectItem,
   StatusBadge,
   TextField,
   showToast,
@@ -27,12 +34,16 @@ type Draft = Omit<
   | "createdAt"
   | "createdByName"
   | "hourlyRateCents"
+  | "commercialHourlyRateCents"
   | "minimumChargeCents"
   | "addOns"
+  | "premisesTypes"
 > & {
   hourlyRate: number;
+  commercialHourlyRate: number;
   minimumCharge: number;
   addOns: PriceListAddOn[];
+  premisesTypes: PriceListPremisesType[];
 };
 
 const toDraft = (list: PriceList): Draft => {
@@ -43,23 +54,39 @@ const toDraft = (list: PriceList): Draft => {
     createdAt: _createdAt,
     createdByName: _createdByName,
     hourlyRateCents,
+    commercialHourlyRateCents,
     minimumChargeCents,
     addOns,
+    premisesTypes,
     ...figures
   } = list;
   return {
     ...figures,
     hourlyRate: hourlyRateCents / 100,
+    commercialHourlyRate: commercialHourlyRateCents / 100,
     minimumCharge: minimumChargeCents / 100,
     addOns,
+    premisesTypes,
   };
 };
 
-const toInput = ({ hourlyRate, minimumCharge, ...rest }: Draft) => ({
+const toInput = ({
+  hourlyRate,
+  commercialHourlyRate,
+  minimumCharge,
+  ...rest
+}: Draft) => ({
   ...rest,
   hourlyRateCents: Math.round(hourlyRate * 100),
+  commercialHourlyRateCents: Math.round(commercialHourlyRate * 100),
   minimumChargeCents: Math.round(minimumCharge * 100),
 });
+
+const offeredForLabel: Record<OfferedFor, string> = {
+  homes: "Homes",
+  businesses: "Businesses",
+  both: "Homes and businesses",
+};
 
 const dollars = { style: "currency", currency: "USD" } as const;
 const rate = { maximumFractionDigits: 3 } as const;
@@ -104,6 +131,15 @@ function Editor({ list }: { list: PriceList }) {
         i === index ? { ...a, ...change } : a,
       ),
     });
+  const setPremisesType = (
+    index: number,
+    change: Partial<PriceListPremisesType>,
+  ) =>
+    set({
+      premisesTypes: draft.premisesTypes.map((t, i) =>
+        i === index ? { ...t, ...change } : t,
+      ),
+    });
 
   const save = async () => {
     setSaving(true);
@@ -136,18 +172,26 @@ function Editor({ list }: { list: PriceList }) {
       }}
     >
       <Card
-        title="Rate"
+        title="Rates"
         headingLevel={2}
-        description="What an hour of Labour costs, before tax."
+        description="What an hour of Labour costs, before tax: at a home, and at business premises."
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <NumberField
-            label="Hourly rate"
+            label="Residential hourly rate"
             name="hourlyRateCents"
             minValue={1}
             formatOptions={dollars}
             value={draft.hourlyRate}
             onChange={(hourlyRate) => set({ hourlyRate })}
+          />
+          <NumberField
+            label="Commercial hourly rate"
+            name="commercialHourlyRateCents"
+            minValue={1}
+            formatOptions={dollars}
+            value={draft.commercialHourlyRate}
+            onChange={(commercialHourlyRate) => set({ commercialHourlyRate })}
           />
           <NumberField
             label="Minimum Charge"
@@ -204,9 +248,95 @@ function Editor({ list }: { list: PriceList }) {
       </Card>
 
       <Card
+        title="Hours for business premises"
+        headingLevel={2}
+        description="How long each 1,000 sq ft of each type of premises takes, before Condition and Clean Type apply. Retire a type to stop offering it: premises of that type still price by it."
+      >
+        <ul className="flex flex-col gap-4">
+          {draft.premisesTypes.map((premisesType, i) => (
+            <li
+              key={premisesType.key ?? `new-${i}`}
+              className={`flex flex-col gap-3 rounded-md border border-border p-3 ${premisesType.active ? "" : "bg-surface-sunken"}`}
+            >
+              <div className="grid gap-3 sm:grid-cols-[2fr_minmax(10rem,1fr)]">
+                <TextField
+                  label="Type of premises"
+                  name={`premisesTypes.${i}.name`}
+                  value={premisesType.name}
+                  isDisabled={!premisesType.active}
+                  onChange={(name) => setPremisesType(i, { name })}
+                />
+                <NumberField
+                  label="Hours per 1,000 sq ft"
+                  name={`premisesTypes.${i}.hoursPerThousandSqFt`}
+                  minValue={0.01}
+                  step={0.05}
+                  formatOptions={{ maximumFractionDigits: 2 }}
+                  isDisabled={!premisesType.active}
+                  value={premisesType.hoursPerThousandSqFt}
+                  onChange={(hoursPerThousandSqFt) =>
+                    setPremisesType(i, { hoursPerThousandSqFt })
+                  }
+                />
+              </div>
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                {!premisesType.active && <StatusBadge>Retired</StatusBadge>}
+                {premisesType.key ? (
+                  <Button
+                    variant="quiet"
+                    size="sm"
+                    aria-label={`${premisesType.active ? "Retire" : "Restore"} ${premisesType.name || "this type"}`}
+                    onPress={() =>
+                      setPremisesType(i, { active: !premisesType.active })
+                    }
+                  >
+                    {premisesType.active ? "Retire" : "Restore"}
+                  </Button>
+                ) : (
+                  // not saved yet: no premises are of it, so it can just go
+                  <Button
+                    variant="quiet"
+                    size="sm"
+                    aria-label={`Remove ${premisesType.name || "this type"}`}
+                    onPress={() =>
+                      set({
+                        premisesTypes: draft.premisesTypes.filter(
+                          (_, j) => j !== i,
+                        ),
+                      })
+                    }
+                  >
+                    Remove
+                  </Button>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+        {fieldErrors.premisesTypes && (
+          <Notice tone="danger">{fieldErrors.premisesTypes}</Notice>
+        )}
+        <Button
+          variant="secondary"
+          className="self-start"
+          onPress={() =>
+            set({
+              premisesTypes: [
+                ...draft.premisesTypes,
+                { name: "", hoursPerThousandSqFt: 0.5, active: true },
+              ],
+            })
+          }
+        >
+          <Plus aria-hidden size={18} />
+          Add a type of premises
+        </Button>
+      </Card>
+
+      <Card
         title="Multipliers"
         headingLevel={2}
-        description="They multiply the home's hours. Add-ons are not multiplied."
+        description="They multiply a home's or premises' hours. Add-ons are not multiplied."
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <Multiplier
@@ -240,7 +370,7 @@ function Editor({ list }: { list: PriceList }) {
       <Card
         title="Add-ons"
         headingLevel={2}
-        description="Extras a Client can ask for. Clients see their names; the price is on the Quote. Retire one to stop offering it: requests that already chose it still price it."
+        description="Extras for homes, businesses or both. Clients asking about a home see the names of those for homes; the price is on the Quote. Business premises' are agreed after a visit. Retire one to stop offering it: requests that already chose it still price it."
       >
         <ul className="flex flex-col gap-4">
           {draft.addOns.map((addOn, i) => (
@@ -267,6 +397,21 @@ function Editor({ list }: { list: PriceList }) {
                   onChange={(hours) => setAddOn(i, { hours })}
                 />
               </div>
+              <Select
+                label="Offered for"
+                name={`addOns.${i}.offeredFor`}
+                isDisabled={!addOn.active}
+                selectedKey={addOn.offeredFor}
+                onSelectionChange={(key) =>
+                  setAddOn(i, { offeredFor: key as OfferedFor })
+                }
+              >
+                {(["homes", "businesses", "both"] as const).map((k) => (
+                  <SelectItem key={k} id={k}>
+                    {offeredForLabel[k]}
+                  </SelectItem>
+                ))}
+              </Select>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <Checkbox
                   isSelected={addOn.taxExempt}
@@ -311,7 +456,13 @@ function Editor({ list }: { list: PriceList }) {
             set({
               addOns: [
                 ...draft.addOns,
-                { name: "", hours: 0.5, taxExempt: false, active: true },
+                {
+                  name: "",
+                  hours: 0.5,
+                  taxExempt: false,
+                  offeredFor: "homes",
+                  active: true,
+                },
               ],
             })
           }
@@ -367,14 +518,20 @@ function Editor({ list }: { list: PriceList }) {
       >
         <div className="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-4">
           <Tax
-            label="One-off Jobs (%)"
+            label="Residential one-off Jobs (%)"
             name="taxOneOffPercent"
             draft={draft}
             set={set}
           />
           <Tax
-            label="Service Plan Jobs (%)"
+            label="Residential Service Plan Jobs (%)"
             name="taxServicePlanPercent"
+            draft={draft}
+            set={set}
+          />
+          <Tax
+            label="Commercial Jobs (%)"
+            name="taxCommercialPercent"
             draft={draft}
             set={set}
           />
@@ -396,7 +553,7 @@ function Editor({ list }: { list: PriceList }) {
   );
 }
 
-type Numbers = Exclude<keyof Draft, "addOns">;
+type Numbers = Exclude<keyof Draft, "addOns" | "premisesTypes">;
 type FieldProps = {
   label: string;
   name: Numbers;

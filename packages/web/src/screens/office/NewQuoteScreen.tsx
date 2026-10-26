@@ -20,6 +20,7 @@ import {
 } from "@empire-cleaning/ui";
 import { getJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
+import { clientName } from "../format.ts";
 
 export type NewQuoteSearch = { clientId?: string };
 
@@ -60,7 +61,7 @@ export function NewQuoteScreen() {
 
       {client ? (
         <Card
-          title={client.name}
+          title={clientName(client)}
           description={[client.email ?? "No email", client.phone].join(" · ")}
           actions={
             <Button variant="secondary" onPress={() => choose(undefined)}>
@@ -115,6 +116,7 @@ export function NewQuoteScreen() {
 // a Client's homes for the form, those with a request waiting not offered
 const homesOf = (client: OfficeClientView) => ({
   id: client.id,
+  businessName: client.businessName,
   properties: client.properties,
   waiting: client.properties
     .filter((p) => p.status.kind === "request_waiting")
@@ -183,7 +185,7 @@ function FindClient({
             <ListItem
               key={client.id}
               id={client.id}
-              title={client.name}
+              title={clientName(client)}
               description={
                 <span className="[overflow-wrap:anywhere]">
                   {[client.email, client.phone].filter(Boolean).join(" · ")}

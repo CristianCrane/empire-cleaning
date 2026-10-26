@@ -18,7 +18,12 @@ import {
 } from "@empire-cleaning/ui";
 import { ApiError, patchJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
-import { addressOf, formatDateTime, homeSummary } from "../format.ts";
+import {
+  addressOf,
+  clientName,
+  formatDateTime,
+  propertySummary,
+} from "../format.ts";
 
 // a Client for the Office: their contact details, which Office Staff can
 // correct (or add an email to), and their homes, each with where it stands
@@ -34,11 +39,11 @@ export function ClientDetail() {
         <Breadcrumbs
           trail={[
             { label: "Clients", href: linkTo({ to: "/office/clients" }) },
-            { label: client.name },
+            { label: clientName(client) },
           ]}
         />
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Heading level={1}>{client.name}</Heading>
+          <Heading level={1}>{clientName(client)}</Heading>
           <Button
             onPress={() =>
               void navigate({
@@ -54,6 +59,14 @@ export function ClientDetail() {
 
       <Card title="Contact details" actions={<EditContact client={client} />}>
         <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
+          {client.businessName && (
+            <>
+              <dt className="font-semibold">Business</dt>
+              <dd>{client.businessName}</dd>
+              <dt className="font-semibold">Contact</dt>
+              <dd>{client.name}</dd>
+            </>
+          )}
           <dt className="font-semibold">Email</dt>
           <dd className="[overflow-wrap:anywhere]">
             {client.email ??
@@ -66,7 +79,7 @@ export function ClientDetail() {
 
       <Card title="Properties">
         <List
-          aria-label={`${client.name}'s Properties`}
+          aria-label={`${clientName(client)}'s Properties`}
           renderEmptyState={() => (
             <p className="p-4 text-center text-fg-muted">No Properties yet.</p>
           )}
@@ -76,7 +89,7 @@ export function ClientDetail() {
               key={home.id}
               id={home.id}
               title={addressOf(home)}
-              description={`${statusLine(home.status)} · ${homeSummary(home)}`}
+              description={`${statusLine(home.status)} · ${propertySummary(home)}`}
               onAction={() =>
                 void navigate({
                   to: "/office/properties/$propertyId",
@@ -108,8 +121,9 @@ const statusLine = (status: PropertyStatus) => {
   }
 };
 
-// Office Staff correcting a Client's name, email or phone. An email can be
-// added or changed but not removed: Quotes and notices go there.
+// Office Staff correcting a Client's name, business name, email or phone.
+// An email can be added or changed but not removed: Quotes and notices go
+// there.
 function EditContact({ client }: { client: OfficeClientView }) {
   const router = useRouter();
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -122,6 +136,7 @@ function EditContact({ client }: { client: OfficeClientView }) {
     try {
       await patchJson<OfficeClientView>(`/api/clients/${client.id}`, {
         name: form.get("name"),
+        businessName: form.get("businessName") || null,
         email: form.get("email") || null,
         phone: form.get("phone"),
       });
@@ -152,11 +167,18 @@ function EditContact({ client }: { client: OfficeClientView }) {
             }}
           >
             <TextField
-              label="Full name"
+              label={client.businessName ? "Contact's full name" : "Full name"}
               name="name"
               defaultValue={client.name}
               isRequired
               autoFocus
+            />
+            <TextField
+              label="Business name (optional)"
+              name="businessName"
+              autoComplete="off"
+              defaultValue={client.businessName ?? ""}
+              description="For a business: the name above is the person they deal with there."
             />
             <TextField
               label={client.email ? "Email" : "Email (optional)"}

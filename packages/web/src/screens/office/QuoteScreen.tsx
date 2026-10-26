@@ -49,6 +49,7 @@ import {
   addressOf,
   adjustmentLabel,
   cleanTypeLabel,
+  clientName,
   conditionLabel,
   formatClock,
   formatDate,
@@ -56,6 +57,7 @@ import {
   formatDay,
   formatHours,
   formatMoney,
+  propertySummary,
   recurrenceLabel,
   recurrenceWeeks,
 } from "../format.ts";
@@ -133,11 +135,13 @@ export function QuoteScreen() {
         <div className="flex flex-wrap items-center gap-3">
           <Heading level={1}>
             {quote.plan ? "Service Plan Quote" : "Quote"} for{" "}
-            {quote.client.name}
+            {clientName(quote.client)}
           </Heading>
           <QuoteStatusBadge status={quote.status} />
         </div>
-        <p className="text-fg-muted">{addressOf(quote.property)}</p>
+        <p className="text-fg-muted">
+          {addressOf(quote.property)} · {propertySummary(quote.property)}
+        </p>
       </div>
       {quote.changesPlan && (
         <PlanChangeNotice quote={quote} change={quote.changesPlan} />

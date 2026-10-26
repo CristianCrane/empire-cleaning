@@ -129,7 +129,6 @@ export type PremisesView = PropertyBase & {
 
 export type PropertyView = HomeView | PremisesView;
 
-
 export type QuoteRequestView = {
   id: string;
   propertyId: string;
@@ -685,8 +684,10 @@ export type OfficeQuoteOption = QuoteOption & {
 // a Quote in full, for the Office
 export type OfficeQuote = Omit<
   QuoteView,
-  "options" | "plan" | "proposedStartsAt" | "sentAt" | "expiresAt"
+  "options" | "plan" | "proposedStartsAt" | "sentAt" | "expiresAt" | "property"
 > & {
+  // what the Property is: its rooms, or its Premises Type and floor area
+  property: PropertyView;
   // no email until the Office adds one: then it can't be Sent (#34)
   client: ClientName & { email: string | null };
   options: OfficeQuoteOption[];

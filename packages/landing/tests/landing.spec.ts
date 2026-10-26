@@ -185,6 +185,43 @@ test.describe("requesting a Quote", () => {
     ).toBeVisible();
   });
 
+  test("a business asks for its premises to be cleaned on chosen days", async ({
+    page,
+  }) => {
+    await openQuoteForm(page);
+    await page.getByText("Business premises", { exact: true }).click();
+    // a Site Visit finds these, so they aren't asked
+    await expect(page.getByRole("group", { name: "Any extras?" })).toHaveCount(
+      0,
+    );
+    await page
+      .getByRole("textbox", { name: "Business name" })
+      .fill("Acme Dental");
+    await page.getByRole("textbox", { name: "Full name" }).fill("Casey Client");
+    await page
+      .getByRole("textbox", { name: "Email" })
+      .fill("casey@example.com");
+    await page.getByRole("textbox", { name: "Phone" }).fill("(646) 555-0100");
+    await page
+      .getByRole("textbox", { name: "Street address" })
+      .fill("200 Park Ave S");
+    await page.getByRole("textbox", { name: "ZIP code" }).fill("10003");
+    await page.getByRole("button", { name: /Type of premises/ }).click();
+    await page.getByRole("option", { name: "Medical" }).click();
+    await page.getByText("Tuesday", { exact: true }).click();
+    await page.getByText("Thursday", { exact: true }).click();
+    await page.getByRole("button", { name: /Preferred start time/ }).click();
+    await page.getByRole("option", { name: "7:30 PM" }).click();
+
+    await page.getByRole("button", { name: "Request a Quote" }).click();
+
+    await expect(
+      page.getByText("We'll email your Quote to casey@example.com"),
+    ).toBeVisible();
+    const [receipt] = await emailsTo("casey@example.com");
+    expect(receipt?.text).toContain("200 Park Ave S, 10003");
+  });
+
   test("required details are asked for before anything is sent", async ({
     page,
   }) => {

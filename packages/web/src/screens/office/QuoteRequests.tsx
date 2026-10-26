@@ -10,9 +10,11 @@ import {
 } from "@empire-cleaning/ui";
 import {
   addressOf,
-  conditionLabel,
+  clientName,
+  conditionText,
   formatDate,
-  homeSummary,
+  propertySummary,
+  wantedCleaning,
 } from "../format.ts";
 
 // the Office's open Quote Requests, newest first; open one to see its Client.
@@ -49,11 +51,14 @@ export function QuoteRequests() {
             <ListItem
               key={request.id}
               id={request.id}
-              title={request.client.name}
+              title={clientName(request.client)}
               description={[
                 addressOf(request.property),
-                homeSummary(request.property),
-                `${conditionLabel[request.condition]} · ${formatDate(request.createdAt)}`,
+                propertySummary(request.property),
+                request.property.kind === "commercial"
+                  ? wantedCleaning(request)
+                  : conditionText(request.condition),
+                formatDate(request.createdAt),
               ].join(" · ")}
               end={
                 <div className="flex flex-wrap justify-end gap-2">
