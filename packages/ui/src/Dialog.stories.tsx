@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, fn, waitFor, within } from "storybook/test";
 import { Actions } from "./Actions.tsx";
@@ -125,4 +126,56 @@ export const WithForm: Story = {
       </Dialog>
     </DialogTrigger>
   ),
+};
+
+// opened from code (here a button, in an app something being dropped) rather
+// than a DialogTrigger; closing it tells its owner
+function FromCode({ onConfirm, ...args }: Args) {
+  const [isOpen, setOpen] = useState(false);
+  return (
+    <>
+      <Button variant="secondary" onPress={() => setOpen(true)}>
+        Drop a Job
+      </Button>
+      <Dialog {...args} isOpen={isOpen} onOpenChange={setOpen}>
+        {({ close }) => (
+          <>
+            <p className="text-fg-muted">
+              From Mon, Mar 1, 9:00 AM to Wed, Mar 3, 10:30 AM.
+            </p>
+            <Actions>
+              <Button variant="secondary" onPress={close}>
+                Keep it
+              </Button>
+              <Button
+                onPress={() => {
+                  onConfirm();
+                  close();
+                }}
+              >
+                Move Job
+              </Button>
+            </Actions>
+          </>
+        )}
+      </Dialog>
+    </>
+  );
+}
+
+export const OpenedFromCode: Story = {
+  args: { title: "Move this Job?" },
+  render: (args) => <FromCode {...args} />,
+  play: async ({ args, canvas, canvasElement, userEvent }) => {
+    await userEvent.click(canvas.getByRole("button", { name: "Drop a Job" }));
+    const dialog = await within(canvasElement.ownerDocument.body).findByRole(
+      "dialog",
+      { name: "Move this Job?" },
+    );
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Move Job" }),
+    );
+    await expect(args.onConfirm).toHaveBeenCalled();
+    await waitFor(() => expect(dialog).not.toBeInTheDocument());
+  },
 };

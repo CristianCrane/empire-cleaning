@@ -79,7 +79,7 @@ export function AppLayout({ area, nav, account, children }: AppLayoutProps) {
       <main
         id="main"
         tabIndex={-1}
-        className="mx-auto w-full max-w-5xl flex-1 px-4 pt-4 pb-28 outline-none md:px-8 md:py-8"
+        className="mx-auto w-full max-w-5xl min-w-0 flex-1 px-4 pt-4 pb-28 outline-none md:px-8 md:py-8"
       >
         {children}
       </main>

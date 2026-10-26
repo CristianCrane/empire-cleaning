@@ -11,12 +11,17 @@ import { clientJob, ownJob } from "../completion/completion.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
 import {
   confirmReschedule,
+  moveJob,
   requestReschedule,
   rescheduleTimesFor,
   turnDownReschedule,
   withdrawReschedule,
 } from "./reschedule.ts";
-import { rescheduleSchema, turnDownSchema } from "./reschedule.validation.ts";
+import {
+  moveSchema,
+  rescheduleSchema,
+  turnDownSchema,
+} from "./reschedule.validation.ts";
 
 const job = z.object({ id: z.uuid() });
 
@@ -127,6 +132,19 @@ officeRescheduleRouter.post(
   async (req, res) => {
     const id = String(req.params.id);
     await turnDownReschedule(id, req.body.reason, signedInAccount(res).id);
+    res.json(await officeJob(id));
+  },
+);
+
+// straight to a new time, the Office's own action rather than a request
+officeRescheduleRouter.post(
+  "/:id/move",
+  authorize("office_staff"),
+  validate({ params: job, body: moveSchema }),
+  async (req, res) => {
+    const id = String(req.params.id);
+    const { date, time } = req.body;
+    await moveJob(id, { date, time });
     res.json(await officeJob(id));
   },
 );

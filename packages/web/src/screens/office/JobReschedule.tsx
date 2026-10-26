@@ -13,6 +13,7 @@ import { postJson } from "../../api.ts";
 import { formatDateTime } from "../format.ts";
 import { ChooseNewTime, costForOffice } from "../RescheduleParts.tsx";
 import { useJobAction } from "./JobCompletion.tsx";
+import { MoveJob } from "./JobMove.tsx";
 
 const answered = {
   confirmed: "Moved",
@@ -20,8 +21,9 @@ const answered = {
   withdrawn: "Withdrawn by the Client",
 };
 
-// Office Staff confirm or turn down a pending Reschedule Request, or ask for
-// a new time on the Client's behalf, e.g. by phone
+// Office Staff confirm or turn down a pending Reschedule Request; otherwise
+// they move the Job themselves, or ask for a new time on the Client's behalf,
+// e.g. by phone
 export function JobReschedule({ job }: { job: OfficeJob }) {
   const request = job.rescheduleRequest;
   const action = useJobAction("That didn't work. Please try again.");
@@ -76,7 +78,13 @@ export function JobReschedule({ job }: { job: OfficeJob }) {
         </p>
       )}
       <p>If asked now: {costForOffice(terms.cost, terms.feeCents)}</p>
+      <p className="text-sm text-fg-muted">
+        Move Job moves it straight away, at no charge to the Client. If the
+        Client has asked to move it, ask for a new time for them instead, so
+        moving costs what it would cost them.
+      </p>
       <Actions>
+        <MoveJob job={job} />
         <ChooseNewTime
           job={job}
           terms={terms}

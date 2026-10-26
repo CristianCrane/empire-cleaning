@@ -137,7 +137,7 @@ A Service Plan permanently stopped by its Client; it never generates Jobs again.
 _Avoid_: Cancelled, terminated, closed
 
 **Schedule**:
-The calendar of all booked Jobs.
+The calendar of all booked Jobs. Office Staff may move a booked Job that hasn't started straight to a new time with room for it; this is their own action, not a Reschedule Request, so it costs the Client nothing, but like a confirmed request it Offers the Job's Assignments afresh and tells the Client and the crew.
 _Avoid_: Calendar, roster, bookings
 
 **Available Hours**:

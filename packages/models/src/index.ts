@@ -248,6 +248,10 @@ export type ScheduledJob = {
   property: Pick<PropertyView, "id" | "street" | "unit" | "postcode">;
   // whether every place on its crew is Confirmed (#9)
   assignment: AssignmentStatus;
+  // who holds its places, Offered or Confirmed, by name
+  crew: { id: string; name: string }[];
+  // whether Office Staff can move it: booked and not yet started (#52)
+  movable: boolean;
 };
 
 // one day of the Schedule. Only Cleaners' hours count towards it.
@@ -865,3 +869,7 @@ export type RescheduleInput = LocalDateTime & { cost: RescheduleCost };
 
 // POST /api/jobs/:id/reschedule-request/turn-down
 export type TurnDownRescheduleInput = { reason?: string | null };
+
+// POST /api/jobs/:id/move: Office Staff move a booked Job straight to a new
+// time, New York (#52)
+export type MoveJobInput = LocalDateTime;
