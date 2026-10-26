@@ -11,8 +11,39 @@ export const clientAcceptSchema = acceptSchema.extend({
   paymentToken: z.string().min(1).max(255).optional(),
 });
 
-export const startSchema = z.object({
-  quoteRequestId: z.uuid("Choose a Quote Request"),
+// a Quote for a Quote Request (a one-off Quote unless said otherwise), or a
+// Service Plan Quote offered for a Property unprompted
+export const startSchema = z.union(
+  [
+    z.object({
+      quoteRequestId: z.uuid("Choose a Quote Request"),
+      kind: z.enum(["one_off", "service_plan"]).default("one_off"),
+    }),
+    z.object({
+      propertyId: z.uuid("Choose a home"),
+      kind: z.literal("service_plan", {
+        error: "A one-off Quote answers a Quote Request",
+      }),
+    }),
+  ],
+  { error: "Choose a Quote Request, or a home to offer a Service Plan" },
+);
+
+const plan = z.object({
+  recurrence: z.enum(["weekly", "fortnightly", "four_weekly"], {
+    error: "Choose every week, every 2 weeks or every 4 weeks",
+  }),
+  cleanType: z.enum(["deep", "standard"], {
+    error: "Choose a Deep Clean or a Standard Clean",
+  }),
+  discountPercent: z
+    .number({ error: "Enter a Plan Discount percentage" })
+    .int("Use a whole percentage")
+    .min(0, "The Plan Discount can't be below 0%")
+    .max(100, "The Plan Discount can't be more than 100%"),
+  condition: z.enum(["light", "moderate", "heavy"], {
+    error: "Choose light, moderate or heavy",
+  }),
 });
 
 // no lower bound but nothing: Office Staff have the final say (the reason
@@ -57,4 +88,6 @@ export const draftSchema = z.object({
     })
     .nullable(),
   overrides: z.object({ deep: override, standard: override }),
+  // a Service Plan Quote's terms, and only theirs
+  plan: plan.nullable().optional(),
 });

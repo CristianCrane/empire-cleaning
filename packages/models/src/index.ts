@@ -78,6 +78,16 @@ export type ClientView = ContactDetails & {
   quoteRequests: QuoteRequestView[];
 };
 
+// a Client for the Office, with each Property's whole history: its requests,
+// every Quote (Drafts included) and every Job, newest first
+export type OfficeClientView = Omit<ClientView, "properties"> & {
+  // with whether its First Clean is Completed, so it can be offered a
+  // Service Plan
+  properties: (PropertyView & { firstCleanCompleted: boolean })[];
+  quotes: QuoteSummary[];
+  jobs: ScheduledJob[];
+};
+
 // one row of the Office's open Quote Requests
 export type OpenQuoteRequest = QuoteRequestView & {
   client: { id: string; name: string };
@@ -186,6 +196,9 @@ export type QuoteRequestDetail = {
   state: QuoteRequestState;
   // every Quote for it, newest first
   quotes: QuoteSummary[];
+  // whether its Property's First Clean is Completed, so it can be answered
+  // with a Service Plan Quote
+  firstCleanCompleted: boolean;
 };
 
 // ---- Staff, availability and the Schedule (#7) ----
@@ -333,6 +346,14 @@ export type NeedsAttentionItem =
       since: string;
       job: ScheduledJob;
       request: RescheduleRequestView;
+    }
+  | {
+      // a Property whose First Clean is Completed, on a request that wanted
+      // regular visits, with no Service Plan Quote open, Accepted or
+      // Declined: the Office should offer one. `job` is the First Clean.
+      kind: "service_plan_due";
+      since: string;
+      job: ScheduledJob;
     };
 
 export type NeedsAttentionKind = NeedsAttentionItem["kind"];
@@ -366,6 +387,46 @@ export type QuoteRequestState =
 // a day and a wall-clock time in New York: { date: "2026-11-03", time: "09:00" }
 export type LocalDateTime = { date: IsoDate; time: string };
 
+// ---- Service Plan Quotes (#13) ----
+
+// what a Quote offers (ADR-0011): one Job, answering a Quote Request; or a
+// Service Plan, which a Property can only be offered once its First Clean is
+// Completed, answering a request or offered unprompted
+export type QuoteKind = "one_off" | "service_plan";
+
+// how often a Service Plan's Job comes round, always on the same weekday:
+// every week, every 2 weeks or every 4 weeks
+export type Recurrence = "weekly" | "fortnightly" | "four_weekly";
+
+// A Service Plan Quote's terms, and the saving: its Clean Type priced as a
+// one-off Job (its Suggested Price or the override), with one-off tax,
+// against each plan Job's price, which is that less the Plan Discount, with
+// Service Plan tax. Its single option holds the per-Job price.
+export type ServicePlanTerms = {
+  recurrence: Recurrence;
+  // a Standard Clean unless Office Staff chose a Deep Clean
+  cleanType: CleanType;
+  discountPercent: number;
+  // before tax
+  oneOffPriceCents: number;
+  oneOffTaxCents: number;
+  oneOffTotalCents: number;
+  // the Plan Discount off the one-off price, before tax
+  discountCents: number;
+  // what each Job saves, tax included: the one-off total less the per-Job
+  // total
+  savingCents: number;
+};
+
+// what Office Staff set on a Service Plan Quote, beyond what every Quote has
+export type ServicePlanInput = {
+  recurrence: Recurrence;
+  cleanType: CleanType;
+  discountPercent: number;
+  // the Condition it's priced for: moderate unless they say otherwise
+  condition: Condition;
+};
+
 // one Clean Type's offer on a Quote, as the Client sees it: tax included
 export type QuoteOption = {
   cleanType: CleanType;
@@ -387,11 +448,16 @@ export type QuoteAddOn = { key: string; name: string; totalCents: number };
 // a Quote as its Client sees it (never a Draft)
 export type QuoteView = {
   id: string;
-  quoteRequestId: string;
+  // the request it answers; null on a Service Plan Quote offered unprompted
+  quoteRequestId: string | null;
+  kind: QuoteKind;
   status: QuoteStatus;
   property: Pick<PropertyView, "id" | "street" | "unit" | "postcode">;
-  // Deep Clean first, recommended
+  // a one-off Quote's: Deep Clean first, recommended, then Standard Clean. A
+  // Service Plan Quote's: its one Clean Type, at the per-Job price.
   options: QuoteOption[];
+  // a Service Plan Quote's terms and saving; null on a one-off Quote
+  plan: ServicePlanTerms | null;
   addOns: QuoteAddOn[];
   crewSize: number;
   depositPercent: number;
@@ -418,18 +484,23 @@ export type OfficeQuoteOption = QuoteOption & {
 // a Quote in full, for the Office
 export type OfficeQuote = Omit<
   QuoteView,
-  "options" | "proposedStartsAt" | "sentAt" | "expiresAt"
+  "options" | "plan" | "proposedStartsAt" | "sentAt" | "expiresAt"
 > & {
   client: { id: string; name: string; email: string };
   options: OfficeQuoteOption[];
+  // with the Condition it's priced for
+  plan: (ServicePlanTerms & { condition: Condition }) | null;
+  // on a Service Plan Quote, what the Property's First Clean found, to price
+  // the plan by; null on a one-off Quote
+  firstClean: FirstCleanFindings | null;
   priceListVersion: number;
   validityDays: number;
   proposedStart: LocalDateTime | null;
   proposedStartsAt: string | null;
   sentAt: string | null;
   expiresAt: string | null;
-  // the Add-ons that can be put on it: those on offer, and any the request
-  // chose that have since been retired
+  // the Add-ons that can be put on it: those on offer, and any the request it
+  // answers chose that have since been retired
   addOnChoices: AddOnChoice[];
   // the Client's saved Payment Method, which recording acceptance on their
   // behalf charges; null until they add one
@@ -445,19 +516,36 @@ export type QuoteDraftInput = {
   validityDays: number;
   proposedStart: LocalDateTime | null;
   // a price before tax replacing the Suggested Price, with a reason; null
-  // keeps the Suggested Price
+  // keeps the Suggested Price. A Service Plan Quote has only its Clean
+  // Type's, its one-off price, which the Plan Discount then comes off.
   overrides: Record<CleanType, { priceCents: number; reason: string } | null>;
+  // required on a Service Plan Quote, and only there
+  plan?: ServicePlanInput | null;
+};
+
+// what a Property's First Clean found, shown beside a Service Plan Quote
+export type FirstCleanFindings = {
+  job: { id: string; startsAt: string; cleanType: CleanType };
+  completedAt: string;
+  // the Condition its Cleaner reported
+  condition: Condition;
+  adjustments: AdjustmentView[];
 };
 
 // a Quote in a list, for the Office or its Client
 export type QuoteSummary = {
   id: string;
-  quoteRequestId: string;
+  // the request it answers; null on a Service Plan Quote offered unprompted
+  quoteRequestId: string | null;
+  kind: QuoteKind;
   status: QuoteStatus;
   client: { id: string; name: string };
   property: Pick<PropertyView, "id" | "street" | "unit" | "postcode">;
-  // the recommended (Deep Clean) total, tax included
-  recommendedTotalCents: number;
+  // the total it leads with, tax included: a one-off Quote's recommended
+  // Deep Clean, or a Service Plan Quote's price per Job
+  headlineTotalCents: number;
+  // a Service Plan Quote's; null on a one-off Quote
+  plan: { recurrence: Recurrence; cleanType: CleanType } | null;
   proposedStartsAt: string | null;
   sentAt: string | null;
   expiresAt: string | null;
@@ -547,6 +635,9 @@ export type OfficeJob = ScheduledJob & {
   // active Cleaners who could be Offered a place, with their Available Hours
   // on the Job's day
   cleaners: { id: string; name: string; hours: number }[];
+  // whether Office Staff can offer its Property a Service Plan from here:
+  // it's Completed, and so is the Property's First Clean
+  canOfferServicePlan: boolean;
 };
 
 // what Office Staff send to Offer a place on a Job

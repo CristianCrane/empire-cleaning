@@ -285,7 +285,7 @@ describe("accepting a First Clean Quote", () => {
 
     await accept(client, quote).expect(200);
 
-    expect((await requestDetail(office, quote.quoteRequestId)).state).toBe(
+    expect((await requestDetail(office, quote.quoteRequestId!)).state).toBe(
       "booked",
     );
     expect((await office.get("/api/quote-requests").expect(200)).body).toEqual(

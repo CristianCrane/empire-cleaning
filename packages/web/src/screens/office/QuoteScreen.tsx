@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useLoaderData, useRouter } from "@tanstack/react-router";
 import {
   parseDate,
@@ -8,10 +8,14 @@ import {
 } from "@internationalized/date";
 import type {
   CleanType,
+  Condition,
+  FirstCleanFindings,
   OfficeQuote,
   OfficeQuoteOption,
   QuoteDraftInput,
+  Recurrence,
   ScheduleDay,
+  ServicePlanInput,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -25,10 +29,14 @@ import {
   Form,
   Heading,
   Link,
+  List,
+  ListItem,
   Notice,
   NumberField,
   Radio,
   RadioGroup,
+  Select,
+  SelectItem,
   TextField,
   TimeField,
   showToast,
@@ -37,13 +45,65 @@ import { ApiError, getJson, patchJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import {
   addressOf,
+  adjustmentLabel,
   cleanTypeLabel,
+  conditionLabel,
+  formatDate,
   formatDateTime,
   formatDay,
   formatHours,
   formatMoney,
+  recurrenceLabel,
 } from "../format.ts";
-import { AddOnList, OptionCard, QuoteStatusBadge } from "../QuoteParts.tsx";
+import {
+  AddOnList,
+  OptionCard,
+  PlanCard,
+  QuoteStatusBadge,
+} from "../QuoteParts.tsx";
+
+// where a Quote was started from: the request it answers, or for a Service
+// Plan offered unprompted, its Client
+const homeOf = (quote: OfficeQuote) =>
+  quote.quoteRequestId
+    ? {
+        label: "Quote Request",
+        href: linkTo({
+          to: "/office/requests/$requestId",
+          params: { requestId: quote.quoteRequestId },
+        }),
+      }
+    : {
+        label: "page",
+        href: linkTo({
+          to: "/office/clients/$clientId",
+          params: { clientId: quote.client.id },
+        }),
+      };
+
+// a one-off Quote's options, or a Service Plan Quote's one, as cards
+function OfferCard({
+  quote,
+  option,
+  children,
+}: {
+  quote: OfficeQuote;
+  option: OfficeQuoteOption;
+  children: ReactNode;
+}) {
+  const terms = {
+    option,
+    crewSize: quote.crewSize,
+    depositPercent: quote.depositPercent,
+  };
+  return quote.plan ? (
+    <PlanCard {...terms} plan={quote.plan}>
+      {children}
+    </PlanCard>
+  ) : (
+    <OptionCard {...terms}>{children}</OptionCard>
+  );
+}
 
 // one Quote for the Office: edited while it's a Draft, read-only once Sent
 export function QuoteScreen() {
@@ -55,18 +115,15 @@ export function QuoteScreen() {
         <Breadcrumbs
           trail={[
             { label: "Requests", href: linkTo({ to: "/office/requests" }) },
-            {
-              label: quote.client.name,
-              href: linkTo({
-                to: "/office/requests/$requestId",
-                params: { requestId: quote.quoteRequestId },
-              }),
-            },
-            { label: "Quote" },
+            { label: quote.client.name, href: homeOf(quote).href },
+            { label: quote.plan ? "Service Plan Quote" : "Quote" },
           ]}
         />
         <div className="flex flex-wrap items-center gap-3">
-          <Heading level={1}>Quote for {quote.client.name}</Heading>
+          <Heading level={1}>
+            {quote.plan ? "Service Plan Quote" : "Quote"} for{" "}
+            {quote.client.name}
+          </Heading>
           <QuoteStatusBadge status={quote.status} />
         </div>
         <p className="text-fg-muted">{addressOf(quote.property)}</p>
@@ -86,8 +143,21 @@ function SentQuote({ quote }: { quote: OfficeQuote }) {
     <>
       <Card title="Offer">
         <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
-          <dt className="font-semibold">Proposed time</dt>
+          <dt className="font-semibold">
+            {quote.plan ? "Starts" : "Proposed time"}
+          </dt>
           <dd>{formatDateTime(quote.proposedStartsAt!)}</dd>
+          {quote.plan && (
+            <>
+              <dt className="font-semibold">Then</dt>
+              <dd>
+                {cleanTypeLabel[quote.plan.cleanType]}s{" "}
+                {recurrenceLabel[quote.plan.recurrence].toLowerCase()}, priced
+                for {conditionLabel[quote.plan.condition].toLowerCase()}{" "}
+                Condition
+              </dd>
+            </>
+          )}
           <dt className="font-semibold">Sent</dt>
           <dd>
             {formatDateTime(quote.sentAt!)} to {quote.client.email}
@@ -115,38 +185,39 @@ function SentQuote({ quote }: { quote: OfficeQuote }) {
       </Card>
       {quote.status === "sent" &&
         (quote.bookable.length > 0 ? (
-          <RecordAcceptance quote={quote} />
+          quote.plan ? (
+            <Notice>
+              Service Plan Quotes can't be accepted yet, by {quote.client.name}{" "}
+              or for them.
+            </Notice>
+          ) : (
+            <RecordAcceptance quote={quote} />
+          )
         ) : (
           <Notice tone="danger">
             {formatDateTime(quote.proposedStartsAt!)} has filled up since this
             Quote was sent, so {quote.client.name} can't accept it. Draft a new
             Quote with another time from their{" "}
-            <Link
-              href={linkTo({
-                to: "/office/requests/$requestId",
-                params: { requestId: quote.quoteRequestId },
-              })}
-            >
-              Quote Request
-            </Link>
-            : it replaces this one.
+            <Link href={homeOf(quote).href}>{homeOf(quote).label}</Link>: it
+            replaces this one.
           </Notice>
         ))}
       <div className="grid gap-4 lg:grid-cols-2">
         {quote.options.map((option) => (
-          <OptionCard
-            key={option.cleanType}
-            option={option}
-            crewSize={quote.crewSize}
-            depositPercent={quote.depositPercent}
-          >
+          <OfferCard key={option.cleanType} quote={quote} option={option}>
             <PricedFrom option={option} />
-          </OptionCard>
+          </OfferCard>
         ))}
       </div>
-      <Card title="Add-ons">
+      <Card
+        title="Add-ons"
+        description={
+          quote.plan ? "On every clean, before the Plan Discount." : undefined
+        }
+      >
         <AddOnList addOns={quote.addOns} />
       </Card>
+      {quote.firstClean && <FirstCleanCard firstClean={quote.firstClean} />}
       <p className="text-sm text-fg-muted">
         Priced from Price List version {quote.priceListVersion}. A Sent Quote
         never changes: to offer something different, draft a new one.
@@ -329,15 +400,18 @@ type Fields = {
   date: CalendarDate | null;
   time: Time | null;
   overrides: Record<CleanType, Override>;
+  // a Service Plan Quote's
+  plan: ServicePlanInput | null;
 };
 
 const toFields = (quote: OfficeQuote): Fields => {
+  // a Service Plan Quote has only its own Clean Type to override
   const override = (cleanType: CleanType): Override => {
-    const option = quote.options.find((o) => o.cleanType === cleanType)!;
+    const option = quote.options.find((o) => o.cleanType === cleanType);
     return {
-      on: option.overrideCents !== null,
-      price: (option.overrideCents ?? option.suggested.priceCents) / 100,
-      reason: option.overrideReason ?? "",
+      on: option?.overrideCents != null,
+      price: (option?.overrideCents ?? option?.suggested.priceCents ?? 0) / 100,
+      reason: option?.overrideReason ?? "",
     };
   };
   return {
@@ -345,6 +419,12 @@ const toFields = (quote: OfficeQuote): Fields => {
     crewSize: quote.crewSize,
     depositPercent: quote.depositPercent,
     validityDays: quote.validityDays,
+    plan: quote.plan && {
+      recurrence: quote.plan.recurrence,
+      cleanType: quote.plan.cleanType,
+      discountPercent: quote.plan.discountPercent,
+      condition: quote.plan.condition,
+    },
     date: quote.proposedStart && parseDate(quote.proposedStart.date),
     time: quote.proposedStart && parseTime(quote.proposedStart.time),
     overrides: { deep: override("deep"), standard: override("standard") },
@@ -352,8 +432,13 @@ const toFields = (quote: OfficeQuote): Fields => {
 };
 
 const toInput = (fields: Fields): QuoteDraftInput => {
-  const override = ({ on, price, reason }: Override) =>
-    on ? { priceCents: Math.round(price * 100), reason } : null;
+  // a Service Plan Quote's only for its own Clean Type
+  const override = (cleanType: CleanType) => {
+    const { on, price, reason } = fields.overrides[cleanType];
+    return on && (!fields.plan || fields.plan.cleanType === cleanType)
+      ? { priceCents: Math.round(price * 100), reason }
+      : null;
+  };
   return {
     addOns: fields.addOns,
     crewSize: fields.crewSize,
@@ -366,10 +451,8 @@ const toInput = (fields: Fields): QuoteDraftInput => {
             time: fields.time.toString().slice(0, 5),
           }
         : null,
-    overrides: {
-      deep: override(fields.overrides.deep),
-      standard: override(fields.overrides.standard),
-    },
+    overrides: { deep: override("deep"), standard: override("standard") },
+    plan: fields.plan,
   };
 };
 
@@ -411,7 +494,9 @@ function RoomOnDay({
 
   if (missing.length === 0) {
     return (
-      <p className="text-sm text-fg-muted">{opening}: room for either clean.</p>
+      <p className="text-sm text-fg-muted">
+        {opening}: room for {options.length === 1 ? "it" : "either clean"}.
+      </p>
     );
   }
   return (
@@ -420,6 +505,71 @@ function RoomOnDay({
         ? `${opening}: room for ${fitting.map(describe).join(" and ")}, but not ${missing.map(describe).join(" or ")}. The Client will only be able to choose ${fitting.length === 1 ? "that one" : "those"}.`
         : `${opening}, not enough for ${missing.map(describe).join(" or ")}. The Client couldn't accept this Quote: choose another day, or give a Cleaner more hours that day.`}
     </Notice>
+  );
+}
+
+// A Service Plan Quote's own terms: how often, the Clean Type, the Plan
+// Discount, and the Condition it's priced for, which is moderate unless
+// changed here (the home's own Condition is left as it is)
+function PlanTerms({
+  plan,
+  onChange,
+}: {
+  plan: ServicePlanInput;
+  onChange: (change: Partial<ServicePlanInput>) => void;
+}) {
+  return (
+    <Card
+      title="Plan"
+      description="Saving works the prices out again with these."
+    >
+      <RadioGroup
+        label="How often"
+        name="plan.recurrence"
+        value={plan.recurrence}
+        onChange={(value) => onChange({ recurrence: value as Recurrence })}
+      >
+        {(["weekly", "fortnightly", "four_weekly"] as const).map((r) => (
+          <Radio key={r} value={r}>
+            {recurrenceLabel[r]}
+          </Radio>
+        ))}
+      </RadioGroup>
+      <RadioGroup
+        label="Clean Type"
+        name="plan.cleanType"
+        orientation="horizontal"
+        value={plan.cleanType}
+        onChange={(value) => onChange({ cleanType: value as CleanType })}
+      >
+        {(["standard", "deep"] as const).map((t) => (
+          <Radio key={t} value={t}>
+            {cleanTypeLabel[t]}
+          </Radio>
+        ))}
+      </RadioGroup>
+      <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(10rem,1fr))]">
+        <NumberField
+          label="Plan Discount (%)"
+          name="plan.discountPercent"
+          minValue={0}
+          maxValue={100}
+          value={plan.discountPercent}
+          onChange={(discountPercent) => onChange({ discountPercent })}
+        />
+        <Select
+          label="Priced for Condition"
+          selectedKey={plan.condition}
+          onSelectionChange={(key) => onChange({ condition: key as Condition })}
+        >
+          {(["light", "moderate", "heavy"] as const).map((c) => (
+            <SelectItem key={c} id={c}>
+              {conditionLabel[c]}
+            </SelectItem>
+          ))}
+        </Select>
+      </div>
+    </Card>
   );
 }
 
@@ -501,14 +651,13 @@ function DraftEditor({ quote: loaded }: { quote: OfficeQuote }) {
         <div className="grid gap-4 lg:grid-cols-2">
           {quote.options.map((option) => {
             const override = fields.overrides[option.cleanType];
-            const label = cleanTypeLabel[option.cleanType];
+            // on a Service Plan Quote, the Plan Discount comes off the
+            // one-off price, overridden or not
+            const label = quote.plan
+              ? "one-off"
+              : cleanTypeLabel[option.cleanType];
             return (
-              <OptionCard
-                key={option.cleanType}
-                option={option}
-                crewSize={quote.crewSize}
-                depositPercent={quote.depositPercent}
-              >
+              <OfferCard key={option.cleanType} quote={quote} option={option}>
                 <p className="text-sm text-fg-muted">
                   Suggested Price {formatMoney(option.suggested.priceCents)}{" "}
                   before tax, for {option.suggested.labourHours} Labour Hours.
@@ -522,7 +671,11 @@ function DraftEditor({ quote: loaded }: { quote: OfficeQuote }) {
                 {override.on && (
                   <div className="flex flex-col gap-4">
                     <NumberField
-                      label={`${label} price before tax`}
+                      label={
+                        quote.plan
+                          ? "One-off price before tax"
+                          : `${label} price before tax`
+                      }
                       name={`overrides.${option.cleanType}.priceCents`}
                       minValue={0}
                       formatOptions={dollars}
@@ -541,7 +694,7 @@ function DraftEditor({ quote: loaded }: { quote: OfficeQuote }) {
                     />
                   </div>
                 )}
-              </OptionCard>
+              </OfferCard>
             );
           })}
         </div>
@@ -552,7 +705,22 @@ function DraftEditor({ quote: loaded }: { quote: OfficeQuote }) {
         </p>
       </section>
 
-      <Card title="Add-ons" description="Each adds its hours to both prices.">
+      {fields.plan && (
+        <PlanTerms
+          plan={fields.plan}
+          onChange={(change) => set({ plan: { ...fields.plan!, ...change } })}
+        />
+      )}
+      {quote.firstClean && <FirstCleanCard firstClean={quote.firstClean} />}
+
+      <Card
+        title="Add-ons"
+        description={
+          quote.plan
+            ? "Done on every clean. Each adds its hours to the price, and the Plan Discount comes off it too."
+            : "Each adds its hours to both prices."
+        }
+      >
         <div className="flex flex-col">
           {quote.addOnChoices.map((addOn) => (
             <Checkbox
@@ -602,8 +770,12 @@ function DraftEditor({ quote: loaded }: { quote: OfficeQuote }) {
       </Card>
 
       <Card
-        title="Proposed time"
-        description="New York time. The Quote Expires at this time if it isn't accepted first."
+        title={quote.plan ? "Start" : "Proposed time"}
+        description={
+          fields.plan
+            ? `New York time. Then ${recurrenceLabel[fields.plan.recurrence].toLowerCase()} on the same weekday. The Quote Expires at this time if it isn't accepted first.`
+            : "New York time. The Quote Expires at this time if it isn't accepted first."
+        }
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <DatePicker
@@ -632,5 +804,46 @@ function DraftEditor({ quote: loaded }: { quote: OfficeQuote }) {
         </Button>
       </Actions>
     </Form>
+  );
+}
+
+// What the home's First Clean found, to price the plan by: the Condition
+// its Cleaner reported, and any Adjustments
+function FirstCleanCard({ firstClean }: { firstClean: FirstCleanFindings }) {
+  const { job } = firstClean;
+  return (
+    <Card
+      title="First Clean"
+      description={`${cleanTypeLabel[job.cleanType]} on ${formatDateTime(job.startsAt)}, Completed ${formatDate(firstClean.completedAt)}`}
+      actions={
+        <Link
+          href={linkTo({
+            to: "/office/jobs/$jobId",
+            params: { jobId: job.id },
+          })}
+        >
+          See the Job
+        </Link>
+      }
+    >
+      <p>
+        Its Cleaner found the home{" "}
+        <strong>{conditionLabel[firstClean.condition].toLowerCase()}</strong>.
+      </p>
+      {firstClean.adjustments.length === 0 ? (
+        <p className="text-fg-muted">No Adjustments.</p>
+      ) : (
+        <List aria-label="First Clean Adjustments">
+          {firstClean.adjustments.map((a) => (
+            <ListItem
+              key={a.id}
+              id={a.id}
+              title={`${adjustmentLabel(a)}: ${formatMoney(a.totalCents)}`}
+              description={`"${a.reason}"`}
+            />
+          ))}
+        </List>
+      )}
+    </Card>
   );
 }

@@ -2,6 +2,8 @@ import type {
   AdjustmentKind,
   Condition,
   PropertyView,
+  QuoteSummary,
+  Recurrence,
 } from "@empire-cleaning/models";
 
 export const addressOf = (
@@ -152,3 +154,18 @@ export const formatClock = (time: string) => {
   const [hours, minutes] = time.split(":").map(Number);
   return `${hours! % 12 || 12}:${String(minutes).padStart(2, "0")} ${hours! < 12 ? "AM" : "PM"}`;
 };
+
+export const recurrenceLabel: Record<Recurrence, string> = {
+  weekly: "Every week",
+  fortnightly: "Every 2 weeks",
+  four_weekly: "Every 4 weeks",
+};
+
+// how a Quote reads in a list: "Deep Clean $391.04", or "Service Plan,
+// Standard Clean every 2 weeks: $201.85 a clean"
+export const quoteHeadline = (
+  quote: Pick<QuoteSummary, "headlineTotalCents" | "plan">,
+) =>
+  quote.plan
+    ? `Service Plan, ${cleanTypeLabel[quote.plan.cleanType]} ${recurrenceLabel[quote.plan.recurrence].toLowerCase()}: ${formatMoney(quote.headlineTotalCents)} a clean`
+    : `Deep Clean ${formatMoney(quote.headlineTotalCents)}`;

@@ -69,6 +69,20 @@ export const acceptedJob = (job: {
     body: JSON.stringify(job),
   }) as Promise<{ id: string }>;
 
+// a home whose First Clean is Completed, so it can be offered a Service
+// Plan: Casey's Deep Clean at 9am on Monday 12 January, Quoted by the Office
+// Staff member with `officeEmail` (signed up already) and done at 11am by
+// Cory, a Cleaner added for it. The clock is left at 11am that day.
+export const completedFirstClean = (officeEmail: string) =>
+  control("/first-cleans/completed", {
+    method: "POST",
+    body: JSON.stringify({ officeEmail }),
+  }) as Promise<{
+    quoteRequestId: string;
+    propertyId: string;
+    job: { id: string };
+  }>;
+
 // a Job marked Completed by a Cleaner with a Confirmed place on it
 export const completeJob = (
   jobId: string,

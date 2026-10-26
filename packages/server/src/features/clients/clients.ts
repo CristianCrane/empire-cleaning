@@ -1,12 +1,18 @@
-import { asc, desc, eq } from "drizzle-orm";
-import type { ClientView } from "@empire-cleaning/models";
+import { asc, desc, eq, inArray } from "drizzle-orm";
+import type { ClientView, OfficeClientView } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
 import { connectSignedUpAccount } from "../auth/connections.ts";
+import { jobs } from "../jobs/jobs.schema.ts";
+import { jobViews } from "../jobs/schedule.ts";
 import { properties } from "../properties/properties.schema.ts";
 import { toPropertyView } from "../properties/property-view.ts";
 import { addOnsForRequests } from "../quote-requests/add-ons.ts";
 import { quoteRequests } from "../quote-requests/quote-requests.schema.ts";
-import { requestStates } from "../quotes/quote-state.ts";
+import {
+  firstCleansOf,
+  quotesForClient,
+  requestStates,
+} from "../quotes/quote-state.ts";
 import { clients } from "./clients.schema.ts";
 
 type NewClient = { email: string; name: string; phone: string };
@@ -100,5 +106,32 @@ export const clientView = async (
       createdAt: r.createdAt.toISOString(),
       state: states.get(r.id)!,
     })),
+  };
+};
+
+// A Client for the Office: with each Property's whole history (every Quote,
+// Drafts included, and every Job, newest first), and which Properties have
+// a Completed First Clean, so can be offered a Service Plan
+export const officeClientView = async (
+  id: string,
+): Promise<OfficeClientView | undefined> => {
+  const view = await clientView(id);
+  if (!view) return undefined;
+  const propertyIds = view.properties.map((p) => p.id);
+  const [quotes, ownJobs, firstCleans] = await Promise.all([
+    quotesForClient(id, { drafts: true }),
+    propertyIds.length === 0
+      ? []
+      : jobViews(inArray(jobs.propertyId, propertyIds)),
+    firstCleansOf(propertyIds),
+  ]);
+  return {
+    ...view,
+    properties: view.properties.map((p) => ({
+      ...p,
+      firstCleanCompleted: firstCleans.has(p.id),
+    })),
+    quotes,
+    jobs: ownJobs.reverse(),
   };
 };

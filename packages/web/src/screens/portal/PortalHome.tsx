@@ -19,6 +19,7 @@ import {
   formatHours,
   formatMoney,
   homeSummary,
+  quoteHeadline,
 } from "../format.ts";
 import { QuoteStatusBadge } from "../QuoteParts.tsx";
 
@@ -116,8 +117,8 @@ export function PortalHome() {
                 id={quote.id}
                 title={addressOf(quote.property)}
                 description={[
-                  `For ${formatDateTime(quote.proposedStartsAt!)}`,
-                  `Deep Clean ${formatMoney(quote.recommendedTotalCents)}`,
+                  `${quote.plan ? "Starting" : "For"} ${formatDateTime(quote.proposedStartsAt!)}`,
+                  quoteHeadline(quote),
                 ].join(" · ")}
                 end={<QuoteStatusBadge status={quote.status} />}
               />

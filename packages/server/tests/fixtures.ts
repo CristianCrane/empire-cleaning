@@ -1,25 +1,30 @@
+import { eq } from "drizzle-orm";
 import type {
   CleanType,
+  Condition,
   NewProperty,
   QuoteRequestSubmission,
 } from "@empire-cleaning/models";
 import { db } from "#db";
+import { confirmAssignment, offerAssignment } from "#features/assignments";
 import { findClientByEmail, createClient } from "#features/clients";
+import { completeJob } from "#features/completion";
 import { bookJob } from "#features/jobs";
 import { savePaymentMethod, startCardForm } from "#features/payments";
 import { currentPriceList } from "#features/price-list";
 import { submitQuoteRequest } from "#features/quote-requests";
 import {
   acceptQuote,
+  quotes,
   saveDraft,
   sendQuote,
   startDraft,
 } from "#features/quotes";
 import { dayOf, timeOf } from "#services/clock";
 import { properties } from "#features/properties";
-import { createStaff } from "#features/staff";
+import { createStaff, setUsualWeek } from "#features/staff";
 import { addressKey } from "../src/features/properties/address.ts";
-import { api, apiAgent, signIn } from "./harness.ts";
+import { api, apiAgent, signIn, testClock } from "./harness.ts";
 
 // shared by the tests that need Quote Requests to work with
 
@@ -119,6 +124,7 @@ export const acceptedJob = async ({
   depositPercent = 25,
   addOns = [],
   client = casey,
+  wantsRegularService = true,
 }: {
   startsAt: string;
   byAccountId: string;
@@ -126,6 +132,7 @@ export const acceptedJob = async ({
   depositPercent?: number;
   addOns?: string[];
   client?: typeof casey;
+  wantsRegularService?: boolean;
 }) => {
   const list = await currentPriceList();
   const keys = list.addOns
@@ -133,9 +140,12 @@ export const acceptedJob = async ({
     .map((a) => a.key);
   const receipt = await submitQuoteRequest(
     null,
-    guestRequest({ contact: client, addOns: keys }),
+    guestRequest({ contact: client, addOns: keys, wantsRegularService }),
   );
-  const { quote } = await startDraft(receipt.id, byAccountId);
+  const { quote } = await startDraft(
+    { quoteRequestId: receipt.id, kind: "one_off" },
+    byAccountId,
+  );
   const at = new Date(startsAt);
   await saveDraft(quote.id, {
     addOns: keys,
@@ -157,4 +167,48 @@ export const acceptedJob = async ({
   );
   if (accepted.status !== "accepted") throw new Error("not accepted");
   return accepted.job;
+};
+
+/**
+ * A home whose First Clean is Completed, so it can be offered a Service
+ * Plan: a Deep Clean booked as acceptedJob() books it, at 9am on Monday 12
+ * January, done at 11am that day by Cory, who reports the home's Condition
+ * as `condition`. Its request wanted regular visits unless
+ * `wantsRegularService` is false. The clock is left at 11am. Returns the Quote Request the
+ * First Clean answered, its Property, and its Job.
+ */
+export const completedFirstClean = async ({
+  byAccountId,
+  condition = "moderate",
+  wantsRegularService,
+}: {
+  byAccountId: string;
+  condition?: Condition;
+  wantsRegularService?: boolean;
+}) => {
+  const cory = await createStaff({
+    name: "Cory Cleaner",
+    email: "cory@example.com",
+    roles: ["cleaner"],
+  });
+  await setUsualWeek(cory.id, [8, 8, 8, 8, 8, 0, 0]);
+  const job = await acceptedJob({
+    startsAt: "2026-01-12T14:00:00Z",
+    byAccountId,
+    wantsRegularService,
+  });
+  const offered = await offerAssignment(job.id, cory.id, byAccountId);
+  await confirmAssignment(cory.id, offered.assignments[0]!.id);
+  testClock().set(new Date("2026-01-12T16:00:00Z"));
+  await completeJob(cory.id, job.id, { condition, reports: [] });
+
+  const [quote] = await db
+    .select({ quoteRequestId: quotes.quoteRequestId })
+    .from(quotes)
+    .where(eq(quotes.jobId, job.id));
+  return {
+    quoteRequestId: quote!.quoteRequestId!,
+    propertyId: job.propertyId,
+    job,
+  };
 };
