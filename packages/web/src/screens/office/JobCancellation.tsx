@@ -25,9 +25,11 @@ import { useJobAction } from "./JobCompletion.tsx";
 export const describeTerms = (terms: CancellationTerms) =>
   terms.late
     ? `It's a Late Cancellation: the ${formatMoney(terms.feeCents)} Deposit is kept as the fee.`
-    : terms.refundCents > 0
-      ? `It's free: the ${formatMoney(terms.refundCents)} Deposit is refunded.`
-      : "It's free.";
+    : terms.feeCents > 0
+      ? `The ${formatMoney(terms.feeCents)} Deposit was already kept as the fee for a Late Reschedule, and isn't refunded.`
+      : terms.refundCents > 0
+        ? `It's free: the ${formatMoney(terms.refundCents)} Deposit is refunded.`
+        : "It's free.";
 
 // Office Staff cancel a booked Job, for the Client (by the cancellation
 // policy) or because Empire Cleaning can't do it (always refunded in full)

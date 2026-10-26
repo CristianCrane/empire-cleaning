@@ -142,6 +142,9 @@ function Day({ day }: { day: ScheduleDay }) {
       description={[
         `${formatHours(day.staffHours)} available`,
         `${formatHours(day.bookedHours)} booked`,
+        ...(day.heldHours > 0
+          ? [`${formatHours(day.heldHours)} held for a move`]
+          : []),
         day.freeHours < 0
           ? `${formatHours(-day.freeHours)} over`
           : `${formatHours(day.freeHours)} free`,

@@ -41,6 +41,10 @@ import { clients, type Client } from "../clients/clients.schema.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
+import {
+  rescheduleRequestOf,
+  rescheduleTermsOf,
+} from "../reschedule/reschedule.ts";
 import { staff } from "../staff/staff.schema.ts";
 import { counts, paymentOf, settleJob, type Settled } from "./balance.ts";
 import { adjustments, type Adjustment } from "./completion.schema.ts";
@@ -261,6 +265,11 @@ const sendReceipt = async (jobId: string, settled: Settled) => {
         .filter(counts)
         .map((a) => `${adjustmentLabel(a)}: ${formatMoney(a.totalCents)}`),
       `Total: ${formatMoney(payment.totalCents)}`,
+      ...(payment.rescheduleFeeCents > 0
+        ? [
+            `Late Reschedule fee (your Deposit, kept): ${formatMoney(payment.rescheduleFeeCents)}`,
+          ]
+        : []),
       ...(deposit > 0 ? [`Deposit paid: ${formatMoney(deposit)}`] : []),
     ].join("\n"),
     ...moneyLines(settled, payment.owedCents),
@@ -726,18 +735,27 @@ const clientJobOf = (job: Job, property: Property) => ({
 const shownToClient = (a: Pick<AdjustmentView, "status">) =>
   a.status !== "reported" && a.status !== "dismissed";
 
-// one of the Client's Jobs: what cancelling it would cost while it's still
-// to come, its receipt once Completed, or how it ended
+// one of the Client's Jobs: what cancelling or moving it would cost while
+// it's still to come, its receipt once Completed, or how it ended
 export const clientJob = async (
   clientId: string,
   jobId: string,
 ): Promise<ClientJobDetail> => {
   const { job, property } = await ownJob(clientId, jobId);
-  const [completion, cancellation, noAccess, terms] = await Promise.all([
+  const [
+    completion,
+    cancellation,
+    noAccess,
+    terms,
+    rescheduleTerms,
+    rescheduleRequest,
+  ] = await Promise.all([
     officeCompletionOf(job),
     cancellationOf(job),
     noAccessOf(job),
     cancelTermsOf(job),
+    rescheduleTermsOf(job),
+    rescheduleRequestOf(job),
   ]);
   return {
     ...clientJobOf(job, property),
@@ -757,6 +775,8 @@ export const clientJob = async (
     },
     // once it has started, it's the Office's to cancel
     cancelTerms: job.startsAt > clock.now() ? (terms?.client ?? null) : null,
+    rescheduleTerms,
+    rescheduleRequest,
   };
 };
 

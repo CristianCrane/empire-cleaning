@@ -22,6 +22,7 @@ import {
 } from "@empire-cleaning/ui";
 import { ApiError, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
+import { ChooseNewTime, costForClient } from "../RescheduleParts.tsx";
 import {
   addressOf,
   adjustmentLabel,
@@ -33,7 +34,7 @@ import {
 } from "../format.ts";
 
 // one of the Client's Jobs, from the links in their emails: while it's to come,
-// cancelling it; once Completed, its receipt; any extra work proposed to them
+// moving or cancelling it; once Completed, its receipt; any extra work proposed to them
 // to approve or decline; if it couldn't be charged, the way to pay; and if
 // it was Cancelled or No Access, what happened to their Deposit
 export function PortalJob() {
@@ -80,6 +81,7 @@ export function PortalJob() {
               {job.crewSize}. We'll email a reminder the day before.
             </p>
           </Card>
+          <Reschedule job={job} />
           {job.cancelTerms && <Cancel job={job} terms={job.cancelTerms} />}
         </>
       ) : (
@@ -113,11 +115,13 @@ function Cancel({
   const [isPending, setPending] = useState(false);
 
   const cost =
-    terms.feeCents > 0
-      ? `Your ${formatMoney(terms.feeCents)} Deposit is kept as the Late Cancellation fee.`
-      : terms.refundCents > 0
-        ? `There's no charge, and we'll refund your ${formatMoney(terms.refundCents)} Deposit.`
-        : "There's no charge.";
+    terms.feeCents > 0 && !terms.late
+      ? `Your ${formatMoney(terms.feeCents)} Deposit was already kept as the fee for a Late Reschedule, so cancelling costs nothing more.`
+      : terms.feeCents > 0
+        ? `Your ${formatMoney(terms.feeCents)} Deposit is kept as the Late Cancellation fee.`
+        : terms.refundCents > 0
+          ? `There's no charge, and we'll refund your ${formatMoney(terms.refundCents)} Deposit.`
+          : "There's no charge.";
 
   const cancel = async (close: () => void) => {
     setPending(true);
@@ -149,6 +153,8 @@ function Cancel({
           It's less than 24 hours until your clean, so cancelling now is a Late
           Cancellation. {cost}
         </p>
+      ) : terms.feeCents > 0 ? (
+        <p>{cost}</p>
       ) : (
         <p>
           You can cancel for free until{" "}
@@ -189,6 +195,77 @@ function Cancel({
             )}
           </Dialog>
         </DialogTrigger>
+      </Actions>
+    </Card>
+  );
+}
+
+// The Client asks to move a clean still to come, seeing first what it costs
+// (ADR-0010); while the request is pending, they can withdraw it
+function Reschedule({ job }: { job: ClientJobDetail }) {
+  const action = useJobAction(
+    "Your request wasn't withdrawn. Please try again.",
+  );
+  const request = job.rescheduleRequest;
+
+  if (request?.status === "pending") {
+    return (
+      <Card title="Moving your clean">
+        <p>
+          You've asked to move it to{" "}
+          <strong>{formatDateTime(request.startsAt)}</strong>. That time is held
+          for you while the Office confirms it. Until then, your clean stays
+          booked for {formatDateTime(job.startsAt)}.
+        </p>
+        <p>{costForClient(request.cost, request.feeCents)}</p>
+        {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+        <Actions>
+          <Button
+            variant="secondary"
+            isPending={action.isPending === "withdraw"}
+            onPress={() =>
+              void action.run(
+                "withdraw",
+                `/api/jobs/mine/${job.id}/reschedule-request/withdraw`,
+                "Request withdrawn",
+              )
+            }
+          >
+            Withdraw request
+          </Button>
+        </Actions>
+      </Card>
+    );
+  }
+
+  const terms = job.rescheduleTerms;
+  if (!terms) return null;
+  return (
+    <Card title="Need another time?">
+      {request?.status === "turned_down" && (
+        <Notice>
+          We couldn't move it to {formatDateTime(request.startsAt)}.
+          {request.reason && ` ${request.reason}`}
+        </Notice>
+      )}
+      {terms.cost === "free" ? (
+        <p>
+          You can move it for free until{" "}
+          <strong>{formatDateTime(terms.freeUntil)}</strong>. After that, it's a
+          Late Reschedule, and only one per clean is free.
+        </p>
+      ) : (
+        <p>{costForClient(terms.cost, terms.feeCents)}</p>
+      )}
+      <Actions>
+        <ChooseNewTime
+          job={job}
+          terms={terms}
+          base={`/api/jobs/mine/${job.id}`}
+          label="Choose a new time"
+          describeCost={costForClient}
+          done="Request sent"
+        />
       </Actions>
     </Card>
   );
@@ -236,11 +313,16 @@ function Cancelled({ job }: { job: ClientJobDetail }) {
           {cancellation.reason && ` ${cancellation.reason}`} You haven't been
           charged anything for it.
         </p>
-      ) : cancellation.feeCents > 0 ? (
+      ) : cancellation.late && cancellation.feeCents > 0 ? (
         <p>
           It was cancelled less than 24 hours before it was due, so your{" "}
           {formatMoney(cancellation.feeCents)} Deposit was kept as the Late
           Cancellation fee.
+        </p>
+      ) : cancellation.feeCents > 0 ? (
+        <p>
+          Your {formatMoney(cancellation.feeCents)} Deposit was already kept as
+          the fee for a Late Reschedule, so there was nothing more to pay.
         </p>
       ) : (
         <p>There was no charge for cancelling.</p>
@@ -416,6 +498,14 @@ function Receipt({ job }: { job: ClientJobDetail }) {
         <dd className="text-end font-semibold">
           {formatMoney(payment.totalCents)}
         </dd>
+        {payment.rescheduleFeeCents > 0 && (
+          <>
+            <dt>Late Reschedule fee (your Deposit, kept)</dt>
+            <dd className="text-end">
+              {formatMoney(payment.rescheduleFeeCents)}
+            </dd>
+          </>
+        )}
         {payment.charges.map((c, i) => (
           <div key={i} className="contents">
             <dt>

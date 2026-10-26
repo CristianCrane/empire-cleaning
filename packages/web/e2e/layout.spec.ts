@@ -8,6 +8,7 @@ import {
   proposeNextMonday,
   recordNoAccess,
   requestQuoteAsGuest,
+  requestReschedule,
   setClock,
   setUsualWeek,
   signedInAs,
@@ -238,6 +239,33 @@ test("cancelling, Cancelled and No Access Jobs fit every width", async ({
   await expect(page.getByRole("region", { name: "Cancelled" })).toBeVisible();
   await expectFitsEveryWidth(page, `/office/jobs/${cancelled.id}`);
   await expectFitsEveryWidth(client, `/portal/jobs/${cancelled.id}`);
+});
+
+test("Reschedule Requests fit every width", async ({ page, browser }) => {
+  await createStaff(olive);
+  await signUp(olive.email);
+  const cory = (await createStaff({
+    name: "Cory Cleaner",
+    email: "cory@example.com",
+    roles: ["cleaner"],
+  })) as { id: string };
+  await setUsualWeek(cory.id, [8, 8, 8, 8, 8, 0, 0]);
+  const booked = await acceptedJob({
+    startsAt: "2026-01-12T14:00:00Z",
+    officeEmail: olive.email,
+  });
+  const client = await (await browser.newContext()).newPage();
+  await signedInAs(client, casey.email);
+  await signedInAs(page, olive.email);
+
+  // what moving costs, before asking
+  await expectFitsEveryWidth(client, `/portal/jobs/${booked.id}`);
+
+  // pending, for the Client, the Office and Needs attention
+  await requestReschedule(booked.id, { date: "2026-01-14", time: "10:00" });
+  await expectFitsEveryWidth(client, `/portal/jobs/${booked.id}`);
+  await expectFitsEveryWidth(page, `/office/jobs/${booked.id}`);
+  await expectFitsEveryWidth(page, "/office");
 });
 
 test("signing in, the welcome page and the Cleaner area fit every width", async ({

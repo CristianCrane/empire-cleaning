@@ -234,6 +234,7 @@ describe("whether a day has room for a booking", () => {
       labourHours: 4.25,
       staffHours: 8,
       bookedHours: 3.75,
+      heldHours: 0,
       freeHours: 4.25,
       hasRoom: true,
     });

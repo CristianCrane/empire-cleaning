@@ -57,7 +57,7 @@ const freeUntilOf = (job: Pick<Job, "startsAt">) =>
 
 // the Deposit taken for a Job, which a Late Cancellation or No Access keeps
 // as its fee
-const depositOf = async (jobId: string, tx: Tx | typeof db = db) => {
+export const depositOf = async (jobId: string, tx: Tx | typeof db = db) => {
   const [row] = await tx
     .select({ cents: sum(charges.amountCents).mapWith(Number) })
     .from(charges)
@@ -82,10 +82,13 @@ const paidOf = async (jobId: string) => {
 };
 
 // what cancelling a Job costs, by the Clock: the Deposit, if the Client
-// cancels within 24 hours of it starting; nothing otherwise
+// cancels within 24 hours of it starting; nothing otherwise. A Deposit
+// already kept by a Late Reschedule (ADR-0010) stays kept, however early
+// the Client cancels, but nothing more is charged.
 const feeOf = (job: Job, by: CancelledBy, depositCents: number) => {
   const late = by === "client" && clock.now() >= freeUntilOf(job);
-  return { late, feeCents: late ? depositCents : 0 };
+  const kept = by === "client" ? job.rescheduleFeeCents : 0;
+  return { late, feeCents: Math.max(late ? depositCents : 0, kept) };
 };
 
 /**
@@ -137,7 +140,7 @@ type Cancellation = {
  * Office is too when the Client cancelled it themselves.
  */
 export const cancelJob = async (jobId: string, cancellation: Cancellation) => {
-  const { job, late } = await db.transaction(async (tx) => {
+  const { job, late, feeCents } = await db.transaction(async (tx) => {
     const [job] = await tx
       .select()
       .from(jobs)
@@ -182,13 +185,13 @@ export const cancelJob = async (jobId: string, cancellation: Cancellation) => {
         feeCents,
       })
       .where(eq(jobs.id, jobId));
-    return { job, late };
+    return { job, late, feeCents };
   });
 
   const settled = await settleJob(jobId);
   await sendCancelled(jobId, settled);
   await tellCrew(job);
-  if (cancellation.byClient) await tellOffice(job, late);
+  if (cancellation.byClient) await tellOffice(job, late, feeCents);
 };
 
 const ownerOf = async (job: Job) => {
@@ -222,7 +225,9 @@ const sendCancelled = async (jobId: string, settled: Settled) => {
           `We've cancelled ${what}, as you asked.`,
           job!.lateCancellation && job!.feeCents! > 0
             ? `As it was less than ${CANCELLATION_CUTOFF_HOURS} hours before the clean, it's a Late Cancellation: your ${formatMoney(job!.feeCents!)} Deposit is kept as the fee.`
-            : "There's no charge for cancelling.",
+            : job!.feeCents! > 0
+              ? `Your ${formatMoney(job!.feeCents!)} Deposit was already kept as the fee for a Late Reschedule, so there's nothing more to pay.`
+              : "There's no charge for cancelling.",
         ];
   await notify(`Cancellation notice for Job ${jobId}`, () =>
     email.send({
@@ -272,7 +277,7 @@ const tellCrew = async (job: Job) => {
 };
 
 // the Office hears when a Client cancels a Job themselves
-const tellOffice = async (job: Job, late: boolean) => {
+const tellOffice = async (job: Job, late: boolean, feeCents: number) => {
   const { property, client } = await ownerOf(job);
   await notify(`Cancellation of Job ${job.id} to the Office`, async () => {
     for (const to of await officeStaffEmails()) {
@@ -284,7 +289,9 @@ const tellOffice = async (job: Job, late: boolean) => {
             `${client.name} has cancelled ${describe(job, property)}.`,
             late
               ? "It was a Late Cancellation, so the Deposit is kept as the fee."
-              : "It was more than 24 hours ahead, so the Deposit has been refunded.",
+              : feeCents > 0
+                ? "It was more than 24 hours ahead, but a Late Reschedule had already kept the Deposit as the fee."
+                : "It was more than 24 hours ahead, so the Deposit has been refunded.",
           ],
           {
             href: `${env.CORS_ORIGIN_URL}/office/jobs/${job.id}`,

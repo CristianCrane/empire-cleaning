@@ -31,6 +31,10 @@ import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { jobViews, scheduleFor, scheduledJobs } from "../jobs/schedule.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
+import {
+  rescheduleRequestOf,
+  rescheduleTermsOf,
+} from "../reschedule/reschedule.ts";
 import { staff } from "../staff/staff.schema.ts";
 import { officeStaffEmails } from "../staff/staff.ts";
 import { assignments, type Assignment } from "./assignments.schema.ts";
@@ -84,7 +88,8 @@ const toView = (
 });
 
 // a Job, on the Schedule or Cancelled, with everyone Offered a place on it,
-// the Cleaners who could be, what cancelling it would cost, and once it has
+// the Cleaners who could be, what cancelling or moving it would cost, any
+// request to move it, and once it has
 // happened or been Cancelled, how it went and its payment
 export const officeJob = async (jobId: string): Promise<OfficeJob> => {
   const [job] = await jobViews(eq(jobs.id, jobId));
@@ -100,6 +105,8 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
     cancellation,
     noAccess,
     cancelTerms,
+    rescheduleTerms,
+    rescheduleRequest,
   ] = await Promise.all([
     db
       .select({ assignment: assignments, member: staff })
@@ -118,6 +125,8 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
     cancellationOf(row!),
     noAccessOf(row!),
     cancelTermsOf(row!),
+    rescheduleTermsOf(row!),
+    rescheduleRequestOf(row!),
   ]);
 
   const holding = rows.filter((r) => r.assignment.status !== "released");
@@ -131,6 +140,8 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
     cancellation,
     noAccess,
     cancelTerms,
+    rescheduleTerms,
+    rescheduleRequest,
     addOns: addOns.get(jobId)!,
     assignments: [...holding, ...released].map((r) =>
       toView(r.assignment, r.member),
