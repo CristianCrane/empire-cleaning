@@ -219,27 +219,34 @@ export const offerAssignment = async (
 
   if (!offered.self) {
     const { job, property } = await findJob(jobId);
-    const { member } = offered;
-    await notify(`Offer of Job ${jobId} to Staff ${member.id}`, () =>
-      email.send({
-        to: member.email,
-        subject: "You've been offered a Job",
-        ...compose(
-          [
-            `Hi ${firstNameOf(member.name)},`,
-            `You've been offered a place on ${describe(job, property)}.`,
-            "Please confirm it, or release it if you can't make it.",
-          ],
-          {
-            href: `${env.CORS_ORIGIN_URL}/cleaner/jobs/${jobId}`,
-            label: "See the Job",
-          },
-        ),
-      }),
-    );
+    await emailOffer(offered.member, job, property);
   }
   return officeJob(jobId);
 };
+
+// tells a Cleaner they've been offered a place, once it's saved
+export const emailOffer = (
+  member: { id: string; name: string; email: string },
+  job: Job,
+  property: Property,
+) =>
+  notify(`Offer of Job ${job.id} to Staff ${member.id}`, () =>
+    email.send({
+      to: member.email,
+      subject: "You've been offered a Job",
+      ...compose(
+        [
+          `Hi ${firstNameOf(member.name)},`,
+          `You've been offered a place on ${describe(job, property)}.`,
+          "Please confirm it, or release it if you can't make it.",
+        ],
+        {
+          href: `${env.CORS_ORIGIN_URL}/cleaner/jobs/${job.id}`,
+          label: "See the Job",
+        },
+      ),
+    }),
+  );
 
 // Office Staff take someone off a Job, Offered or Confirmed, freeing their
 // place; they're emailed unless they took themselves off

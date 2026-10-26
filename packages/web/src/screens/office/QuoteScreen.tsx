@@ -185,7 +185,18 @@ function SentQuote({ quote }: { quote: OfficeQuote }) {
               <dt className="font-semibold">Accepted</dt>
               <dd>
                 {formatDateTime(quote.acceptedAt)}:{" "}
-                {cleanTypeLabel[quote.acceptedCleanType!]}, booked
+                {quote.servicePlanId ? (
+                  <Link
+                    href={linkTo({
+                      to: "/office/service-plans/$planId",
+                      params: { planId: quote.servicePlanId },
+                    })}
+                  >
+                    its Service Plan has started
+                  </Link>
+                ) : (
+                  `${cleanTypeLabel[quote.acceptedCleanType!]}, booked`
+                )}
               </dd>
             </>
           )}
@@ -193,14 +204,7 @@ function SentQuote({ quote }: { quote: OfficeQuote }) {
       </Card>
       {quote.status === "sent" &&
         (quote.bookable.length > 0 ? (
-          quote.plan ? (
-            <Notice>
-              Service Plan Quotes can't be accepted yet, by {quote.client.name}{" "}
-              or for them.
-            </Notice>
-          ) : (
-            <RecordAcceptance quote={quote} />
-          )
+          <RecordAcceptance quote={quote} />
         ) : (
           <Notice tone="danger">
             {formatDateTime(quote.proposedStartsAt!)} has filled up since this
@@ -272,7 +276,12 @@ function RecordAcceptance({ quote }: { quote: OfficeQuote }) {
         cleanType,
       });
       close();
-      showToast({ tone: "success", title: "Accepted and booked" });
+      showToast({
+        tone: "success",
+        title: quote.plan
+          ? "Accepted: the Service Plan has started"
+          : "Accepted and booked",
+      });
       await router.invalidate();
     });
 
@@ -319,26 +328,28 @@ function RecordAcceptance({ quote }: { quote: OfficeQuote }) {
       title="Record acceptance"
       description="If the Client accepts by phone or in person."
     >
-      <RadioGroup
-        label="Clean Type they chose"
-        value={cleanType}
-        onChange={(value) => setCleanType(value as CleanType)}
-      >
-        {quote.options.map((option) => (
-          <Radio
-            key={option.cleanType}
-            value={option.cleanType}
-            isDisabled={!quote.bookable.includes(option.cleanType)}
-            description={
-              quote.bookable.includes(option.cleanType)
-                ? `${formatMoney(option.totalCents)}, Deposit ${formatMoney(option.depositCents)}`
-                : "No longer fits: the day has filled up"
-            }
-          >
-            {cleanTypeLabel[option.cleanType]}
-          </Radio>
-        ))}
-      </RadioGroup>
+      {!quote.plan && (
+        <RadioGroup
+          label="Clean Type they chose"
+          value={cleanType}
+          onChange={(value) => setCleanType(value as CleanType)}
+        >
+          {quote.options.map((option) => (
+            <Radio
+              key={option.cleanType}
+              value={option.cleanType}
+              isDisabled={!quote.bookable.includes(option.cleanType)}
+              description={
+                quote.bookable.includes(option.cleanType)
+                  ? `${formatMoney(option.totalCents)}, Deposit ${formatMoney(option.depositCents)}`
+                  : "No longer fits: the day has filled up"
+              }
+            >
+              {cleanTypeLabel[option.cleanType]}
+            </Radio>
+          ))}
+        </RadioGroup>
+      )}
       <p className="text-sm text-fg-muted">
         Charged to their {quote.paymentMethod.label}, saved{" "}
         {formatDateTime(quote.paymentMethod.savedAt)}.
@@ -351,13 +362,24 @@ function RecordAcceptance({ quote }: { quote: OfficeQuote }) {
           <Dialog title="Record acceptance?" role="alertdialog">
             {({ close }) => (
               <>
-                <p>
-                  This charges the {formatMoney(chosen.depositCents)} Deposit to{" "}
-                  {quote.client.name}'s {quote.paymentMethod!.label} and books
-                  their {cleanTypeLabel[cleanType]} for{" "}
-                  {formatDateTime(quote.proposedStartsAt!)}. Only do this if
-                  they've told you they accept.
-                </p>
+                {quote.plan ? (
+                  <p>
+                    This charges the {formatMoney(chosen.depositCents)} Deposit
+                    to {quote.client.name}'s {quote.paymentMethod!.label}, held
+                    for the life of the plan, and starts their Service Plan with
+                    its first {cleanTypeLabel[cleanType]} on{" "}
+                    {formatDateTime(quote.proposedStartsAt!)}. Only do this if
+                    they've told you they accept.
+                  </p>
+                ) : (
+                  <p>
+                    This charges the {formatMoney(chosen.depositCents)} Deposit
+                    to {quote.client.name}'s {quote.paymentMethod!.label} and
+                    books their {cleanTypeLabel[cleanType]} for{" "}
+                    {formatDateTime(quote.proposedStartsAt!)}. Only do this if
+                    they've told you they accept.
+                  </p>
+                )}
                 {problem && <Notice tone="danger">{problem}</Notice>}
                 <Actions>
                   <Button variant="secondary" onPress={close}>

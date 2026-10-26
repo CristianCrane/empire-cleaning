@@ -156,7 +156,7 @@ export class StripePaymentGateway implements PaymentGateway {
       );
       return outcomeOf(intent, "token" in source);
     } catch (error) {
-      return { status: "failed", reason: reasonOf(error) };
+      return { status: "failed", reason: reasonOf(error, "a Deposit") };
     }
   }
 
@@ -203,7 +203,7 @@ export class StripePaymentGateway implements PaymentGateway {
     } catch (error) {
       // declined, or the bank wants the cardholder there to approve it
       // (authentication_required): either way, not charged
-      return { ok: false, reason: reasonOf(error) };
+      return { ok: false, reason: reasonOf(error, "a Charge") };
     }
   }
 
@@ -221,7 +221,7 @@ export class StripePaymentGateway implements PaymentGateway {
         ? { ok: false, reason: refund.failure_reason ?? refund.status }
         : { ok: true, refundId: refund.id };
     } catch (error) {
-      return { ok: false, reason: reasonOf(error) };
+      return { ok: false, reason: reasonOf(error, "a refund") };
     }
   }
 
@@ -312,8 +312,11 @@ const outcomeOf = (
   }
 };
 
-const reasonOf = (error: unknown) => {
+// Stripe's short code for why it refused, which callers pass on; its full
+// message (e.g. "No such customer: 'cus_123'") goes to the log, for us
+const reasonOf = (error: unknown, what: string) => {
   if (error instanceof Stripe.errors.StripeError) {
+    console.error(`Stripe refused ${what}: ${error.message}`);
     return error.decline_code ?? error.code ?? error.type;
   }
   throw error;

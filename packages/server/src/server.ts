@@ -30,6 +30,7 @@ import {
   clientRescheduleRouter,
   officeRescheduleRouter,
 } from "#features/reschedule";
+import { router as servicePlansRouter } from "#features/service-plans";
 import { router as staffRouter } from "#features/staff";
 import {
   networkLoggingMiddleware,
@@ -81,6 +82,7 @@ app.use("/api/assignments", noAccessRouter);
 app.use("/api/assignments", assignmentsRouter);
 app.use("/api/payment-methods", paymentMethodsRouter);
 app.use("/api/dashboard", dashboardRouter);
+app.use("/api/service-plans", servicePlansRouter);
 
 app.use(errorHandler);
 

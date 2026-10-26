@@ -1,5 +1,6 @@
 import { chaseProposedAdjustments } from "#features/completion";
 import { sendDueReminders } from "#features/jobs";
+import { generateServicePlanJobs } from "#features/service-plans";
 import { app } from "./server.ts";
 import env from "./env.ts";
 
@@ -10,7 +11,8 @@ app.listen(env.PORT, () => {
 // day-before reminders go out from 8am; looking every 10 minutes sends them
 // soon after, and running twice (or on two servers) sends nothing twice
 const REMINDER_CHECK_MS = 10 * 60 * 1000;
-// and so do reminders and lapses of increases proposed to Clients
+// and so do reminders and lapses of increases proposed to Clients, and
+// Service Plans' Jobs coming within reach of the Schedule
 const remind = () =>
   Promise.all([
     sendDueReminders().catch((error) =>
@@ -18,6 +20,9 @@ const remind = () =>
     ),
     chaseProposedAdjustments().catch((error) =>
       console.error("proposed Adjustments not chased:", error),
+    ),
+    generateServicePlanJobs().catch((error) =>
+      console.error("Service Plan Jobs not generated:", error),
     ),
   ]);
 void remind();

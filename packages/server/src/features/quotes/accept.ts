@@ -4,6 +4,7 @@ import type {
   CleanType,
   QuoteOption,
   QuoteStatus,
+  Recurrence,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import env from "../../env.ts";
@@ -14,7 +15,9 @@ import {
   email,
   firstNameOf,
   formatMoney,
+  formatTime,
   formatWhen,
+  weekdayName,
 } from "../../services/email/index.ts";
 import {
   paymentGateway,
@@ -32,6 +35,12 @@ import {
 import { charges } from "../payments/payments.schema.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
+import {
+  generateServicePlanJobs,
+  hasServicePlan,
+  startServicePlan,
+} from "../service-plans/service-plans.ts";
+import type { ServicePlan } from "../service-plans/service-plans.schema.ts";
 import { warnOfficeOfQuotesWithoutRoom } from "./quote-room.ts";
 import { statusOf } from "./quote-state.ts";
 import { lockProperty, toOption } from "./quotes.ts";
@@ -78,12 +87,22 @@ const refuseUnlessOpen = (quote: Quote, acceptor: Acceptor) => {
 
 // why a Deposit that has been taken can't be booked after all
 type Unbookable =
-  { reason: "closed"; status: QuoteStatus } | { reason: "no_room" };
+  | { reason: "closed"; status: QuoteStatus }
+  | { reason: "no_room" }
+  // a Service Plan Quote for a home with a plan already: changing a plan's
+  // terms by a new Quote is #15's
+  | { reason: "has_plan" };
+
+const hasPlanMessage = (acceptor: Acceptor["by"]) =>
+  acceptor === "client"
+    ? "This home already has a Service Plan, so nothing has been charged. We'll be in touch about changing it."
+    : "This home already has a Service Plan, so nothing was charged. Changing a plan's terms isn't possible yet.";
 
 const unbookableMessage = (unbookable: Unbookable, acceptor: Acceptor) => {
   if (unbookable.reason === "closed") {
     return closedMessage(unbookable.status, acceptor.by);
   }
+  if (unbookable.reason === "has_plan") return hasPlanMessage(acceptor.by);
   return acceptor.by === "client"
     ? "Sorry, that time has just been booked up, so nothing has been charged. We'll be in touch with another time."
     : "That day no longer has room for this Job, so nothing was charged. Send a Quote for another time.";
@@ -131,6 +150,12 @@ const holdForBooking = async (
     .for("update");
   const status = statusOf(current!);
   if (status !== "sent") return { reason: "closed", status };
+  if (
+    quote.kind === "service_plan" &&
+    (await hasServicePlan(quote.propertyId, tx))
+  ) {
+    return { reason: "has_plan" };
+  }
 
   const day = dayOf(quote.proposedStartsAt!);
   await lockDay(tx, day);
@@ -148,12 +173,14 @@ type Booking = {
 };
 
 // books the Job and Accepts the Quote, with its Deposit paid; inside a
-// transaction holding them (holdForBooking)
+// transaction holding them (holdForBooking). A Service Plan Quote starts its
+// plan, with the Job as its first, and the Deposit is the plan's: held for
+// its life, not counted towards that Job's price.
 const recordAcceptance = async (
   tx: Tx,
   booking: Booking,
   paid: Extract<DepositAttempt, { status: "succeeded" }>,
-) => {
+): Promise<{ job: Job; plan: ServicePlan | null }> => {
   const { quote, property, cleanType, option } = booking;
   const now = clock.now();
   const job = await bookJob(
@@ -166,9 +193,18 @@ const recordAcceptance = async (
     },
     tx,
   );
+  const plan =
+    quote.kind === "service_plan"
+      ? await startServicePlan(tx, {
+          quote,
+          option,
+          firstJob: job,
+          startedBy: booking.acceptedBy,
+        })
+      : null;
   if (paid.chargeId) {
     await tx.insert(charges).values({
-      jobId: job.id,
+      ...(plan ? { servicePlanId: plan.id } : { jobId: job.id }),
       kind: "deposit",
       amountCents: option.depositCents,
       gatewayRef: paid.chargeId,
@@ -189,7 +225,7 @@ const recordAcceptance = async (
       acceptedBy: booking.acceptedBy,
     })
     .where(eq(quotes.id, quote.id));
-  return job;
+  return { job, plan };
 };
 
 // a Deposit was taken but nothing was booked: give it back
@@ -245,13 +281,20 @@ export const acceptQuote = async (
   }
   const { quote, client, property } = found;
   refuseUnlessOpen(quote, acceptor);
-  // until a Service Plan can start (#14)
   if (quote.kind === "service_plan") {
-    throw new ConflictError(
-      acceptor.by === "client"
-        ? "A Service Plan Quote can't be accepted online yet. We'll be in touch to set it up."
-        : "Service Plan Quotes can't be accepted yet.",
-    );
+    // a Service Plan Quote offers the one Clean Type
+    const [offered] = await db
+      .select()
+      .from(quoteOptions)
+      .where(eq(quoteOptions.quoteId, quote.id));
+    if (offered!.cleanType !== cleanType) {
+      throw new ConflictError(
+        `This Service Plan is for a ${cleanTypeLabel[offered!.cleanType]}.`,
+      );
+    }
+    if (await hasServicePlan(property.id, db)) {
+      throw new ConflictError(hasPlanMessage(acceptor.by));
+    }
   }
 
   const saved = await paymentMethodOf(client.id);
@@ -324,6 +367,8 @@ export const acceptQuote = async (
 
       const attempt = await takeDeposit();
       if (attempt.status === "failed") {
+        // the Client is told only that their card wasn't charged
+        console.error(`Deposit for Quote ${id} not taken (${attempt.reason})`);
         throw new ConflictError(
           acceptor.by === "client"
             ? "Your card couldn't be charged, so nothing has been booked. Please try another card."
@@ -342,10 +387,10 @@ export const acceptQuote = async (
       }
 
       chargeId = attempt.chargeId;
-      const job = await recordAcceptance(tx, booking, attempt);
+      const booked = await recordAcceptance(tx, booking, attempt);
       return {
         status: "accepted",
-        job,
+        booked,
         paidWith: attempt.saved?.label ?? saved!.label,
       } as const;
     });
@@ -355,9 +400,14 @@ export const acceptQuote = async (
   }
 
   if (outcome.status === "needs_approval") return outcome;
-  await confirmBooking(client, property, outcome.job, option, outcome.paidWith);
-  await warnOfficeOfQuotesWithoutRoom(dayOf(outcome.job.startsAt));
-  return { status: "accepted", job: outcome.job };
+  await afterAcceptance(
+    client,
+    property,
+    outcome.booked,
+    option,
+    outcome.paidWith,
+  );
+  return { status: "accepted", job: outcome.booked.job };
 };
 
 // how finishing a Deposit that needed approval went
@@ -400,6 +450,9 @@ export const finalizeDeposit = async (ref: string): Promise<Finalized> => {
   const attempt = await paymentGateway.depositOutcome(ref);
   if (attempt.status === "needs_approval") return { status: "waiting" };
   if (attempt.status === "failed") {
+    console.error(
+      `Deposit ${ref} for Quote ${pending.quoteId} not approved (${attempt.reason})`,
+    );
     await settle(ref);
     return { status: "failed", reason: attempt.reason };
   }
@@ -430,8 +483,8 @@ export const finalizeDeposit = async (ref: string): Promise<Finalized> => {
       const unbookable = await holdForBooking(tx, quote, option);
       await settle(ref, tx);
       if (unbookable) return { status: "refunded", unbookable } as const;
-      const job = await recordAcceptance(tx, booking, attempt);
-      return { status: "accepted", job } as const;
+      const booked = await recordAcceptance(tx, booking, attempt);
+      return { status: "accepted", booked } as const;
     });
   } catch (error) {
     if (attempt.chargeId) {
@@ -449,8 +502,7 @@ export const finalizeDeposit = async (ref: string): Promise<Finalized> => {
 
   const paidWith =
     attempt.saved?.label ?? (await paymentMethodOf(client.id))!.label;
-  await confirmBooking(client, property, result.job, option, paidWith);
-  await warnOfficeOfQuotesWithoutRoom(dayOf(result.job.startsAt));
+  await afterAcceptance(client, property, result.booked, option, paidWith);
   return { status: "accepted" };
 };
 
@@ -479,30 +531,77 @@ export const finalizeProblem = (finalized: Finalized) => {
     case "refunded":
       return finalized.unbookable.reason === "no_room"
         ? "Sorry, that time was booked up while your bank was approving the payment. We've refunded your Deposit and we'll be in touch with another time."
-        : "This Quote closed while your bank was approving the payment, so we've refunded your Deposit.";
+        : finalized.unbookable.reason === "has_plan"
+          ? "This home already has a Service Plan, so we've refunded your Deposit. We'll be in touch about changing it."
+          : "This Quote closed while your bank was approving the payment, so we've refunded your Deposit.";
     default:
       return "There's no payment waiting for approval on this Quote.";
   }
 };
 
-// the Job is booked: an email that can't go mustn't make it look as though
-// it wasn't
-const confirmBooking = async (
+// Once the acceptance is saved: the Client's confirmation, the Office told of
+// Sent Quotes the booking left without room, and a Service Plan's next Jobs
+// put on the Schedule. An email that can't go mustn't make it look as though
+// nothing was booked.
+const afterAcceptance = async (
   client: Client,
   property: Property,
-  job: Job,
+  { job, plan }: { job: Job; plan: ServicePlan | null },
   option: QuoteOption,
   paidWith: string,
 ) => {
+  const paid = {
+    depositCents: option.depositCents,
+    totalCents: option.totalCents,
+    paymentMethod: paidWith,
+  };
   try {
-    await sendBookingConfirmation(client, property, job, {
-      depositCents: option.depositCents,
-      totalCents: option.totalCents,
-      paymentMethod: paidWith,
-    });
+    await (plan
+      ? sendPlanConfirmation(client, property, job, plan, paid)
+      : sendBookingConfirmation(client, property, job, paid));
   } catch (error) {
     console.error(`booking confirmation for Job ${job.id} not sent:`, error);
   }
+  await warnOfficeOfQuotesWithoutRoom(dayOf(job.startsAt));
+  if (plan) await generateServicePlanJobs(plan.id);
+};
+
+const recurrenceLabel: Record<Recurrence, string> = {
+  weekly: "every week",
+  fortnightly: "every 2 weeks",
+  four_weekly: "every 4 weeks",
+};
+
+// one email for the whole plan: its Jobs after the first get only the
+// day-before reminder
+const sendPlanConfirmation = async (
+  client: Client,
+  property: Property,
+  job: Job,
+  plan: ServicePlan,
+  paid: { depositCents: number; totalCents: number; paymentMethod: string },
+) => {
+  await email.send({
+    to: client.email,
+    subject: "Your Service Plan with Empire Cleaning has started",
+    ...compose(
+      [
+        `Hi ${firstNameOf(client.name)},`,
+        `Your Service Plan has started: a ${cleanTypeLabel[plan.cleanType]} at ${addressOf(property)} ${recurrenceLabel[plan.recurrence]}, on ${weekdayName(job.startsAt)}s at ${formatTime(job.startsAt)}. The first is on ${formatWhen(job.startsAt)}.`,
+        `Each clean is ${formatMoney(paid.totalCents)}, charged to your ${paid.paymentMethod} when it's done.`,
+        ...(paid.depositCents > 0
+          ? [
+              `We've taken your Deposit of ${formatMoney(paid.depositCents)}. We hold it for as long as the plan runs, and it comes off your last clean when the plan ends.`,
+            ]
+          : []),
+        "We'll remind you the day before each clean. Please check your Access Instructions, so our team can get in:",
+      ],
+      {
+        href: `${env.CORS_ORIGIN_URL}/portal/details`,
+        label: "Check your Access Instructions",
+      },
+    ),
+  });
 };
 
 const sendBookingConfirmation = async (

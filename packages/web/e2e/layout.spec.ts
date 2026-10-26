@@ -10,6 +10,7 @@ import {
   recordNoAccess,
   requestQuoteAsGuest,
   requestReschedule,
+  sentServicePlanQuote,
   setClock,
   setUsualWeek,
   signedInAs,
@@ -241,6 +242,38 @@ test("a Service Plan Quote fits every width, Draft and Sent, for the Office and 
     quote.replace("/office/quotes/", "/portal/quotes/"),
   );
   await expectFitsEveryWidth(client, "/portal");
+});
+
+test("a Service Plan fits every width, for the Office and the Client", async ({
+  page,
+  browser,
+}) => {
+  await createStaff(olive);
+  await signedInAs(page, olive.email);
+  const { propertyId } = await completedFirstClean(olive.email);
+  const quote = await sentServicePlanQuote({
+    officeEmail: olive.email,
+    propertyId,
+    startsAt: "2026-01-19T14:00:00Z",
+  });
+  // its third Monday is full, so a visit waits for the Office
+  await bookJob({ startsAt: "2026-02-02T14:00:00Z", labourHours: 8 });
+  const client = await (await browser.newContext()).newPage();
+  await signedInAs(client, casey.email);
+  await client.goto(`/portal/quotes/${quote.id}`);
+  await client.getByRole("button", { name: /^Accept and pay/ }).click();
+  await client.getByRole("link", { name: "See your Service Plan" }).click();
+  await expect(client).toHaveURL(/\/portal\/plans\/[0-9a-f-]{36}$/);
+  const plan = new URL(client.url()).pathname;
+
+  await expectFitsEveryWidth(client, plan);
+  await expectFitsEveryWidth(client, "/portal");
+  await expectFitsEveryWidth(
+    page,
+    plan.replace("/portal/plans/", "/office/service-plans/"),
+  );
+  await expectFitsEveryWidth(page, `/office/properties/${propertyId}`);
+  await expectFitsEveryWidth(page, "/office");
 });
 
 test("cancelling, Cancelled and No Access Jobs fit every width", async ({

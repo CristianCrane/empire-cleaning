@@ -20,7 +20,9 @@ import {
   formatMoney,
   homeSummary,
   quoteHeadline,
+  recurrenceLabel,
 } from "../format.ts";
+import { PlanStatusBadge } from "../PlanParts.tsx";
 import { QuoteStatusBadge } from "../QuoteParts.tsx";
 
 const requestBadge: Record<QuoteRequestState, ReactNode> = {
@@ -31,7 +33,7 @@ const requestBadge: Record<QuoteRequestState, ReactNode> = {
 };
 
 export function PortalHome() {
-  const { client, quotes, jobs, pastJobs } = useLoaderData({
+  const { client, plans, quotes, jobs, pastJobs } = useLoaderData({
     from: "/portal/",
   });
   const navigate = useNavigate();
@@ -48,6 +50,39 @@ export function PortalHome() {
           Request a Quote
         </ButtonLink>
       </div>
+
+      {plans.length > 0 && (
+        <Card
+          title={
+            plans.length === 1 ? "Your Service Plan" : "Your Service Plans"
+          }
+        >
+          <List
+            aria-label="Your Service Plans"
+            onAction={(id) =>
+              navigate({
+                to: "/portal/plans/$planId",
+                params: { planId: String(id) },
+              })
+            }
+          >
+            {plans.map((plan) => (
+              <ListItem
+                key={plan.id}
+                id={plan.id}
+                title={`${cleanTypeLabel[plan.cleanType]}, ${recurrenceLabel[plan.recurrence].toLowerCase()}`}
+                description={[
+                  addressOf(plan.property),
+                  plan.nextStartsAt
+                    ? `Next: ${formatDateTime(plan.nextStartsAt)}`
+                    : "No clean booked just now",
+                ].join(" · ")}
+                end={<PlanStatusBadge status={plan.status} />}
+              />
+            ))}
+          </List>
+        </Card>
+      )}
 
       {jobs.length > 0 && (
         <Card

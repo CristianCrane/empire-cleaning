@@ -6,6 +6,7 @@ import type {
   OfficePropertyView,
   PropertyType,
   PropertyView,
+  ServicePlanSummary,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -37,7 +38,9 @@ import {
   formatDateTime,
   homeSummary,
   quoteHeadline,
+  recurrenceLabel,
 } from "../format.ts";
+import { PlanStatusBadge } from "../PlanParts.tsx";
 import { QuoteStatusBadge } from "../QuoteParts.tsx";
 import { OfferServicePlan } from "./StartDraft.tsx";
 
@@ -58,6 +61,7 @@ export function PropertyScreen() {
         />
         <Heading level={1}>{addressOf(home)}</Heading>
       </div>
+      {home.servicePlan && <PlanLink plan={home.servicePlan} />}
       <History home={home} />
       <Home home={home} />
     </div>
@@ -87,6 +91,33 @@ export const homeCrumbs = (
     }),
   },
 ];
+
+// the home's Service Plan, opening its own screen
+function PlanLink({ plan }: { plan: ServicePlanSummary }) {
+  const navigate = useNavigate();
+  return (
+    <Card title="Service Plan">
+      <List aria-label="Service Plan">
+        <ListItem
+          id={plan.id}
+          title={`${cleanTypeLabel[plan.cleanType]}, ${recurrenceLabel[plan.recurrence].toLowerCase()}`}
+          description={
+            plan.nextStartsAt
+              ? `Next: ${formatDateTime(plan.nextStartsAt)}`
+              : "No Job booked just now"
+          }
+          end={<PlanStatusBadge status={plan.status} />}
+          onAction={() =>
+            void navigate({
+              to: "/office/service-plans/$planId",
+              params: { planId: plan.id },
+            })
+          }
+        />
+      </List>
+    </Card>
+  );
+}
 
 // a home's requests, Quotes and Jobs, newest first, each opening its own
 // screen; and once its First Clean is Completed, the way to offer it a plan
@@ -186,7 +217,7 @@ function History({ home }: { home: OfficePropertyView }) {
   );
 }
 
-const jobStatusLabel: Record<JobStatus, string> = {
+export const jobStatusLabel: Record<JobStatus, string> = {
   booked: "Booked",
   completed: "Completed",
   cancelled: "Cancelled",

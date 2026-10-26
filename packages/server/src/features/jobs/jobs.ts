@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, sql, type SQL } from "drizzle-orm";
 import type { ClientJob, CleanType } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { clock } from "../../services/clock/index.ts";
@@ -37,9 +37,11 @@ export const bookJob = async (job: NewJob, tx: Tx | typeof db = db) => {
   return booked!;
 };
 
-// a Client's booked Jobs still to come, soonest first
+// a Client's booked Jobs still to come, soonest first; only those `where`
+// picks, if given
 export const upcomingJobsFor = async (
   clientId: string,
+  where?: SQL,
 ): Promise<ClientJob[]> => {
   const rows = await db
     .select({ job: jobs, property: properties })
@@ -50,6 +52,7 @@ export const upcomingJobsFor = async (
         eq(properties.clientId, clientId),
         eq(jobs.status, "booked"),
         gt(jobs.startsAt, clock.now()),
+        where,
       ),
     )
     .orderBy(asc(jobs.startsAt));

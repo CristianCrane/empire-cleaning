@@ -10,6 +10,7 @@ import { clients } from "../clients/clients.schema.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
 import { jobViews } from "../jobs/schedule.ts";
 import { quoteRequests } from "../quote-requests/quote-requests.schema.ts";
+import { propertyServicePlan } from "../service-plans/service-plans.ts";
 import { quoteRequestViews } from "../quote-requests/request-views.ts";
 import {
   firstCleansOf,
@@ -32,16 +33,19 @@ export const officePropertyView = async (
     .where(eq(properties.id, id));
   if (!row) return undefined;
 
-  const [requests, ownQuotes, ownJobs, firstCleans] = await Promise.all([
-    quoteRequestViews(eq(quoteRequests.propertyId, id)),
-    quotesForProperty(id),
-    jobViews(eq(jobs.propertyId, id)),
-    firstCleansOf([id]),
-  ]);
+  const [requests, ownQuotes, ownJobs, firstCleans, servicePlan] =
+    await Promise.all([
+      quoteRequestViews(eq(quoteRequests.propertyId, id)),
+      quotesForProperty(id),
+      jobViews(eq(jobs.propertyId, id)),
+      firstCleansOf([id]),
+      propertyServicePlan(id),
+    ]);
   return {
     ...toPropertyView(row.property),
     client: { id: row.client.id, name: row.client.name },
     firstCleanCompleted: firstCleans.has(id),
+    servicePlan,
     quoteRequests: requests,
     quotes: ownQuotes,
     jobs: ownJobs.reverse(),

@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type {
   AddOnChoice,
   CompletionReport,
@@ -6,9 +6,12 @@ import type {
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError } from "../../middleware/errors.ts";
-import { priceListAddOns } from "../price-list/price-list.schema.ts";
+import {
+  priceListAddOns,
+  priceLists,
+} from "../price-list/price-list.schema.ts";
 import { addOnCents, taxOn } from "../price-list/suggested-price.ts";
-import { quoteOptions, quotes } from "../quotes/quotes.schema.ts";
+import { jobQuotes } from "../quotes/job-quotes.ts";
 
 // What a Job was quoted at, with the figures its Adjustments are priced from:
 // the Clean Type its Client accepted on the Quote that booked it, and the
@@ -19,27 +22,28 @@ export type QuotedJob = {
   priceListId: string;
 };
 
+// A Service Plan's Job is quoted at its discounted price; its Adjustments are
+// at the full hourly rate, with no Plan Discount, but taxed as a Service Plan
+// Job, at the rate its Quote's Price List version set for those.
 export const quotedJob = async (
   jobId: string,
   tx: Tx | typeof db = db,
 ): Promise<QuotedJob> => {
-  const [row] = await tx
-    .select({ quote: quotes, option: quoteOptions })
-    .from(quotes)
-    .innerJoin(
-      quoteOptions,
-      and(
-        eq(quoteOptions.quoteId, quotes.id),
-        eq(quoteOptions.cleanType, quotes.acceptedCleanType),
-      ),
-    )
-    .where(eq(quotes.jobId, jobId));
-  // every Job is booked by accepting a Quote, until Service Plans (#14)
+  const [row] = await jobQuotes([jobId], tx);
   if (!row) throw new ConflictError("This Job has no Quote to price it from");
+  const { quote, option } = row;
+  let { suggested } = option;
+  if (quote.kind === "service_plan") {
+    const [list] = await tx
+      .select({ taxPercent: priceLists.taxServicePlanPercent })
+      .from(priceLists)
+      .where(eq(priceLists.id, quote.priceListId));
+    suggested = { ...suggested, taxPercent: list!.taxPercent };
+  }
   return {
-    totalCents: row.option.totalCents,
-    suggested: row.option.suggested,
-    priceListId: row.quote.priceListId,
+    totalCents: option.totalCents,
+    suggested,
+    priceListId: quote.priceListId,
   };
 };
 
