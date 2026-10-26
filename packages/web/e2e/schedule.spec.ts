@@ -368,7 +368,8 @@ test(
       crewSize: 2,
     });
     await signInAsOffice(page);
-    await page.goto(week);
+    // three days, which always show every lane, even at phone width
+    await page.goto("/office/schedule?from=2027-03-02&to=2027-03-04");
 
     for (const name of ["Tue, Mar 2", "Wed, Mar 3"]) {
       const blocks = jobsOn(page, name).getByRole("link");
@@ -386,6 +387,66 @@ test(
     await expect(short).toHaveAccessibleName(
       /9:30 AM Client \d+ ?, Unassigned, No crew yet/,
     );
+  },
+);
+
+test(
+  "a busy day in the week view lists the Jobs that don't fit side by side",
+  { tag: ["@desktop"] },
+  async ({ page }) => {
+    const cory = await cleaner("Cory Cleaner", [8, 8, 8, 8, 8, 0, 0]);
+    for (const name of ["Dee", "Eve", "Fay"]) {
+      await cleaner(`${name} Cleaner`, [8, 8, 8, 8, 8, 0, 0]);
+    }
+    // four crews at once on Tuesday morning: the earliest has its crew, the
+    // other three don't yet
+    const assigned = (await bookJob({
+      startsAt: "2027-03-02T13:00:00Z",
+      labourHours: 4,
+      crewSize: 1,
+    })) as { id: string };
+    await offerPlace(assigned.id, cory.id, { confirmed: true });
+    for (const startsAt of [
+      TUESDAY_9AM,
+      "2027-03-02T14:30:00Z",
+      "2027-03-02T15:00:00Z",
+    ]) {
+      await bookJob({ startsAt, labourHours: 4, crewSize: 1 });
+    }
+    await signInAsOffice(page);
+    await page.goto(week);
+
+    // too narrow for all four: the Unassigned ones stay in sight, and none
+    // is a sliver
+    const tuesday = day(page, "Tue, Mar 2");
+    const blocks = jobsOn(page, "Tue, Mar 2").getByRole("link");
+    await expect(blocks.first()).toBeVisible();
+    const shown = await blocks.count();
+    expect(shown).toBeLessThan(4);
+    for (const block of await blocks.all()) {
+      await expect(block).toContainText("Unassigned");
+      expect((await block.boundingBox())!.width).toBeGreaterThanOrEqual(50);
+    }
+    await expect(blocks.filter({ hasText: "9:00 AM" })).toHaveCount(1);
+    await expect(blocks.filter({ hasText: "8:00 AM" })).toHaveCount(0);
+
+    // the rest are listed, and each opens its Job
+    await tuesday.getByRole("button", { name: `+${4 - shown} more` }).click();
+    const more = page.getByRole("dialog", { name: "More Jobs on Tue, Mar 2" });
+    const rows = more.getByRole("row");
+    await expect(rows).toHaveCount(4 - shown);
+    await expect(rows.first()).toContainText("8:00 AM");
+    await expect(rows.first()).toContainText("Assigned");
+    await expect(rows.first()).toContainText("Cory Cleaner");
+    await rows.first().click();
+    await expect(page).toHaveURL(`/office/jobs/${assigned.id}`);
+
+    // with the room of a single day, every Job shows side by side
+    await page.goto("/office/schedule?from=2027-03-02&to=2027-03-02");
+    await expect(jobsOn(page, "Tue, Mar 2").getByRole("link")).toHaveCount(4);
+    await expect(
+      day(page, "Tue, Mar 2").getByRole("button", { name: /more$/ }),
+    ).toHaveCount(0);
   },
 );
 
