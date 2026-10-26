@@ -320,3 +320,60 @@ test("the Schedule passes automated accessibility checks", async ({ page }) => {
   const { violations } = await new AxeBuilder({ page }).analyze();
   expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
 });
+
+// two boxes on screen share no area
+const apart = (
+  a: { x: number; y: number; width: number; height: number },
+  b: { x: number; y: number; width: number; height: number },
+) =>
+  a.x + a.width <= b.x ||
+  b.x + b.width <= a.x ||
+  a.y + a.height <= b.y ||
+  b.y + b.height <= a.y;
+
+test(
+  "Jobs at the same time sit side by side, short ones too",
+  { tag: ["@desktop"] },
+  async ({ page }) => {
+    await cleaner("Cory Cleaner", [8, 8, 8, 8, 8, 0, 0]);
+    await cleaner("Dee Cleaner", [8, 8, 8, 8, 8, 0, 0]);
+    // two crews on Tuesday morning
+    await bookJob({ startsAt: TUESDAY_9AM, labourHours: 4, crewSize: 1 });
+    await bookJob({
+      startsAt: "2027-03-02T15:00:00Z",
+      labourHours: 2,
+      crewSize: 1,
+    });
+    // on Wednesday, half an hour on site at 9:00 and again at 9:30: drawn
+    // taller than that, they'd cover each other if they shared a lane
+    await bookJob({
+      startsAt: "2027-03-03T14:00:00Z",
+      labourHours: 1,
+      crewSize: 2,
+    });
+    await bookJob({
+      startsAt: "2027-03-03T14:30:00Z",
+      labourHours: 0.5,
+      crewSize: 2,
+    });
+    await signInAsOffice(page);
+    await page.goto(week);
+
+    for (const name of ["Tue, Mar 2", "Wed, Mar 3"]) {
+      const blocks = jobsOn(page, name).getByRole("link");
+      await expect(blocks).toHaveCount(2);
+      const [a, b] = await blocks.all();
+      expect(apart((await a!.boundingBox())!, (await b!.boundingBox())!)).toBe(
+        true,
+      );
+    }
+    // too short for every line, a block still says them all to a screen
+    // reader
+    const short = jobsOn(page, "Wed, Mar 3")
+      .getByRole("link")
+      .filter({ hasText: "9:30 AM" });
+    await expect(short).toHaveAccessibleName(
+      /9:30 AM Client \d+ ?, Unassigned, No crew yet/,
+    );
+  },
+);

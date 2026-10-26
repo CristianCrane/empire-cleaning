@@ -269,7 +269,8 @@ test(
   async ({ page }) => {
     await requestQuoteAsGuest(casey);
     await signInAsOffice(page);
-    // half of Cory's Monday booked, from 2pm
+    // most of Cory's Monday booked: an hour from 9am, four from 2pm
+    await bookJob({ startsAt: "2026-01-12T14:00:00Z", labourHours: 1 });
     await bookJob({ startsAt: "2026-01-12T19:00:00Z", labourHours: 4 });
     await startDraft(page);
     await proposeNextMonday(page);
@@ -286,12 +287,24 @@ test(
       name: "Mon, Jan 12",
       exact: true,
     });
-    await expect(monday).toContainText("4 h booked · 4 h free");
+    await expect(monday).toContainText("5 h booked · 3 h free");
     await expect(monday).toContainText("Starts");
     await expect(monday).toContainText("9:00 AM This clean");
     await expect(
       schedule.getByRole("group", { name: "Jobs on Mon, Jan 12" }),
     ).toContainText("2:00 PM");
+    // another crew's Job at the proposed time: the new clean sits beside it
+    const ninesJob = (await schedule
+      .getByRole("group", { name: "Jobs on Mon, Jan 12" })
+      .getByText(/^9:00 AM Client/)
+      .boundingBox())!;
+    const thisClean = (await monday
+      .getByText("9:00 AM This clean")
+      .boundingBox())!;
+    expect(
+      thisClean.x >= ninesJob.x + ninesJob.width ||
+        ninesJob.x >= thisClean.x + thisClean.width,
+    ).toBe(true);
 
     const { violations } = await new AxeBuilder({ page })
       .include("[role=dialog]")

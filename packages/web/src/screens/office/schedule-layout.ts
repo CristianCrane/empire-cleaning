@@ -40,15 +40,18 @@ export const axisFor = (
   return { start, end: Math.min(end, 24) };
 };
 
+// a block on the time axis: from when to when it's drawn, in hours
+export type Block = { id: string; start: number; end: number };
+
 /**
- * Side by side, as a calendar lays out events that overlap: each Job's lane,
- * counting from 0, and how many lanes its group of overlapping Jobs needs.
+ * Side by side, as a calendar lays out events that overlap: each block's
+ * lane, counting from 0, and how many lanes its group of overlapping blocks
+ * needs. Blocks overlap by where they're drawn, so a short Job drawn taller
+ * than its time on site doesn't cover the next.
  */
-export const lanesFor = (jobs: ScheduledJob[]) => {
+export const lanesFor = (blocks: Block[]) => {
   const placed = new Map<string, { lane: number; lanes: number }>();
-  const sorted = jobs
-    .map((job) => ({ job, ...spanOf(job) }))
-    .sort((a, b) => a.start - b.start || b.end - a.end);
+  const sorted = [...blocks].sort((a, b) => a.start - b.start || b.end - a.end);
 
   let group: { id: string; lane: number }[] = [];
   let laneEnds: number[] = [];
@@ -61,7 +64,7 @@ export const lanesFor = (jobs: ScheduledJob[]) => {
     laneEnds = [];
   };
 
-  for (const { job, start, end } of sorted) {
+  for (const { id, start, end } of sorted) {
     // overlapping nothing so far: a group of its own
     if (start >= groupEnd) {
       close();
@@ -70,7 +73,7 @@ export const lanesFor = (jobs: ScheduledJob[]) => {
     let lane = laneEnds.findIndex((laneEnd) => laneEnd <= start);
     if (lane === -1) lane = laneEnds.push(end) - 1;
     else laneEnds[lane] = end;
-    group.push({ id: job.id, lane });
+    group.push({ id, lane });
     groupEnd = Math.max(groupEnd, end);
   }
   close();

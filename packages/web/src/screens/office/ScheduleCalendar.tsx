@@ -28,6 +28,7 @@ import {
   axisFor,
   hoursOf,
   lanesFor,
+  type Block,
   snap,
   SNAP_HOURS,
   spanOf,
@@ -38,7 +39,9 @@ import { daysIn, SPANS, type Span } from "./schedule-range.ts";
 // how tall an hour is on the time axis
 const HOUR_PX = 48;
 // a short Job is still tall enough to read its time and Client
-const MIN_BLOCK_PX = 26;
+const MIN_BLOCK_PX = 22;
+// shorter than this, a Job's block has room for only that one line
+const COMPACT_PX = 44;
 // a time is picked to the half hour, then fine-tuned in the time field
 const PICK_HOURS = 0.5;
 
@@ -294,6 +297,14 @@ export function ScheduleCalendar({
                 ))}
               <DayJobs
                 jobs={day.jobs}
+                proposed={
+                  proposed?.start.date === day.date
+                    ? {
+                        time: proposed.start.time,
+                        hoursOnSite: proposed.hoursOnSite,
+                      }
+                    : undefined
+                }
                 axisStart={axis.start}
                 interactive={onDrop !== undefined}
                 onDragStart={(grabbed) => {
@@ -305,20 +316,6 @@ export function ScheduleCalendar({
                   setDraggedJob(undefined);
                 }}
               />
-              {proposed?.start.date === day.date && (
-                <div
-                  className="pointer-events-none absolute inset-x-0.5 overflow-hidden rounded-md border-2 border-dashed border-primary bg-primary/15 px-1.5 py-1 text-xs leading-tight font-semibold"
-                  style={{
-                    top: (proposedStart! - axis.start) * HOUR_PX + 1,
-                    height: Math.max(
-                      proposed.hoursOnSite * HOUR_PX - 2,
-                      MIN_BLOCK_PX,
-                    ),
-                  }}
-                >
-                  {formatClock(proposed.start.time)} This clean
-                </div>
-              )}
             </div>
           </section>
         ))}
@@ -375,75 +372,118 @@ function DayHeader({ day, marker }: { day: ScheduleDay; marker?: string }) {
   );
 }
 
-// each Job's block; on the Schedule, a link to the Job that can be dragged,
-// otherwise only to see, letting clicks through to the time under it
+// where a block is drawn: from its start for its time on site, but never
+// shorter than a line of words
+const drawn = (id: string, start: number, hoursOnSite: number): Block => ({
+  id,
+  start,
+  end: start + Math.max(hoursOnSite, (MIN_BLOCK_PX + 2) / HOUR_PX),
+});
+
+const PROPOSED = "proposed";
+
+// a day's blocks: each Job's, and the proposed clean's; side by side where
+// they'd overlap, so Jobs at the same time with different crews all show.
+// On the Schedule, a Job is a link that can be dragged; otherwise only to
+// see, letting clicks through to the time under it
 function DayJobs({
   jobs,
+  proposed,
   axisStart,
   interactive,
   onDragStart,
   onDragEnd,
 }: {
   jobs: ScheduledJob[];
+  proposed?: { time: string; hoursOnSite: number };
   axisStart: number;
   interactive: boolean;
   onDragStart: (grabbed: Dragging) => void;
   onDragEnd: () => void;
 }) {
-  const lanes = lanesFor(jobs);
+  const blocks = jobs.map((job) =>
+    drawn(job.id, spanOf(job).start, job.hoursOnSite),
+  );
+  const proposedBlock =
+    proposed && drawn(PROPOSED, hoursOf(proposed.time), proposed.hoursOnSite);
+  const lanes = lanesFor(proposedBlock ? [...blocks, proposedBlock] : blocks);
+  const place = (block: Block) => {
+    const { lane, lanes: of } = lanes.get(block.id)!;
+    return {
+      top: (block.start - axisStart) * HOUR_PX + 1,
+      height: (block.end - block.start) * HOUR_PX - 2,
+      left: `calc(${(lane / of) * 100}% + 2px)`,
+      width: `calc(${100 / of}% - 4px)`,
+    };
+  };
 
-  return jobs.map((job) => {
-    const { start } = spanOf(job);
-    const { lane, lanes: of } = lanes.get(job.id)!;
-    const tone = toneOf(job);
-    const crew = job.crew.map((c) => c.name).join(", ");
-    const words = (
-      <>
-        <span className="truncate font-semibold">
-          {formatTime(job.startsAt)} {job.client.name}
-        </span>
-        <span className="truncate">{tone.label}</span>
-        <span className="truncate text-fg-muted">{crew || "No crew yet"}</span>
-      </>
-    );
-    const inside =
-      "flex h-full flex-col px-1.5 py-1 text-xs leading-tight font-normal text-fg no-underline";
-    return (
-      <div
-        key={job.id}
-        draggable={interactive && job.movable}
-        onDragStart={(e) => {
-          e.dataTransfer.effectAllowed = "move";
-          e.dataTransfer.setData("text/plain", job.id);
-          onDragStart({
-            job,
-            grabbedAtPx:
-              e.clientY - e.currentTarget.getBoundingClientRect().top,
-          });
-        }}
-        onDragEnd={onDragEnd}
-        className={`absolute overflow-hidden rounded-md border-s-4 shadow-sm ${tone.block} ${!interactive ? "pointer-events-none" : job.movable ? "cursor-grab active:cursor-grabbing" : ""}`}
-        style={{
-          top: (start - axisStart) * HOUR_PX + 1,
-          height: Math.max(job.hoursOnSite * HOUR_PX - 2, MIN_BLOCK_PX),
-          left: `calc(${(lane / of) * 100}% + 2px)`,
-          width: `calc(${100 / of}% - 4px)`,
-        }}
-      >
-        {interactive ? (
-          <Link
-            href={linkTo({
-              to: "/office/jobs/$jobId",
-              params: { jobId: job.id },
-            })}
-            className={inside}
-          >
-            {words}
-          </Link>
+  return (
+    <>
+      {jobs.map((job, i) => {
+        const style = place(blocks[i]!);
+        const tone = toneOf(job);
+        const crew = job.crew.map((c) => c.name).join(", ") || "No crew yet";
+        // too short for three lines: the time and Client, the rest unseen
+        // but still read out
+        const compact = style.height < COMPACT_PX;
+        const words = compact ? (
+          <span className="truncate font-semibold">
+            {formatTime(job.startsAt)} {job.client.name}
+            <span className="sr-only">
+              , {tone.label}, {crew}
+            </span>
+          </span>
         ) : (
-          <div className={inside}>{words}</div>
-        )}
-      </div>
-    );
-  });
+          <>
+            <span className="truncate font-semibold">
+              {formatTime(job.startsAt)} {job.client.name}
+            </span>
+            <span className="truncate">{tone.label}</span>
+            <span className="truncate text-fg-muted">{crew}</span>
+          </>
+        );
+        const inside = `flex h-full flex-col px-1.5 text-xs leading-tight font-normal text-fg no-underline ${compact ? "justify-center" : "py-1"}`;
+        return (
+          <div
+            key={job.id}
+            draggable={interactive && job.movable}
+            onDragStart={(e) => {
+              e.dataTransfer.effectAllowed = "move";
+              e.dataTransfer.setData("text/plain", job.id);
+              onDragStart({
+                job,
+                grabbedAtPx:
+                  e.clientY - e.currentTarget.getBoundingClientRect().top,
+              });
+            }}
+            onDragEnd={onDragEnd}
+            className={`absolute overflow-hidden rounded-md border-s-4 shadow-sm ${tone.block} ${!interactive ? "pointer-events-none" : job.movable ? "cursor-grab active:cursor-grabbing" : ""}`}
+            style={style}
+          >
+            {interactive ? (
+              <Link
+                href={linkTo({
+                  to: "/office/jobs/$jobId",
+                  params: { jobId: job.id },
+                })}
+                className={inside}
+              >
+                {words}
+              </Link>
+            ) : (
+              <div className={inside}>{words}</div>
+            )}
+          </div>
+        );
+      })}
+      {proposed && proposedBlock && (
+        <div
+          className="pointer-events-none absolute overflow-hidden rounded-md border-2 border-dashed border-primary bg-primary/15 px-1.5 py-0.5 text-xs leading-tight font-semibold"
+          style={place(proposedBlock)}
+        >
+          {formatClock(proposed.time)} This clean
+        </div>
+      )}
+    </>
+  );
 }
