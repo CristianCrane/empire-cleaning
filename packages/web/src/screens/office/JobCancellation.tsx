@@ -21,20 +21,29 @@ import { postJson } from "../../api.ts";
 import { formatDate, formatDateTime, formatMoney } from "../format.ts";
 import { useJobAction } from "./JobCompletion.tsx";
 
-// what cancelling costs, in a sentence
-export const describeTerms = (terms: CancellationTerms) =>
-  terms.late
-    ? `It's a Late Cancellation: the ${formatMoney(terms.feeCents)} Deposit is kept as the fee.`
-    : terms.feeCents > 0
-      ? `The ${formatMoney(terms.feeCents)} Deposit was already kept as the fee for a Late Reschedule, and isn't refunded.`
-      : terms.refundCents > 0
-        ? `It's free: the ${formatMoney(terms.refundCents)} Deposit is refunded.`
-        : "It's free.";
+// What cancelling costs, in a sentence. A plan Job has no Deposit of its
+// own: its fee is the plan's Deposit amount, charged to the saved card.
+export const describeTerms = (terms: CancellationTerms, onPlan = false) =>
+  onPlan
+    ? terms.late
+      ? `It's a Late Cancellation: a ${formatMoney(terms.feeCents)} fee, the plan's Deposit amount, is charged. The plan's Deposit stays held.`
+      : terms.feeCents > 0
+        ? `The ${formatMoney(terms.feeCents)} fee for a Late Reschedule is charged.`
+        : "It's free."
+    : terms.late
+      ? `It's a Late Cancellation: the ${formatMoney(terms.feeCents)} Deposit is kept as the fee.`
+      : terms.feeCents > 0
+        ? `The ${formatMoney(terms.feeCents)} Deposit was already kept as the fee for a Late Reschedule, and isn't refunded.`
+        : terms.refundCents > 0
+          ? `It's free: the ${formatMoney(terms.refundCents)} Deposit is refunded.`
+          : "It's free.";
 
 // Office Staff cancel a booked Job, for the Client (by the cancellation
-// policy) or because Empire Cleaning can't do it (always refunded in full)
+// policy) or because Empire Cleaning can't do it (always refunded in full).
+// A plan Job is skipped, and the plan carries on.
 export function CancelJob({ job }: { job: OfficeJob }) {
   const terms = job.cancelTerms!;
+  const onPlan = job.servicePlanId !== null;
   const router = useRouter();
   const [by, setBy] = useState<CancelledBy>("client");
   const [reason, setReason] = useState("");
@@ -73,13 +82,13 @@ export function CancelJob({ job }: { job: OfficeJob }) {
                 >
                   <Radio
                     value="client"
-                    description={describeTerms(terms.client)}
+                    description={describeTerms(terms.client, onPlan)}
                   >
                     The Client asked
                   </Radio>
                   <Radio
                     value="empire"
-                    description={describeTerms(terms.empire)}
+                    description={describeTerms(terms.empire, onPlan)}
                   >
                     Empire Cleaning can't do it
                   </Radio>
@@ -93,8 +102,9 @@ export function CancelJob({ job }: { job: OfficeJob }) {
                   />
                 )}
                 <p className="text-sm text-fg-muted">
-                  It comes off the Schedule. The Client and everyone with a
-                  place on it are emailed.
+                  It comes off the Schedule.
+                  {onPlan && " The Service Plan carries on."} The Client and
+                  everyone with a place on it are emailed.
                 </p>
                 {action.problem && (
                   <Notice tone="danger">{action.problem}</Notice>
@@ -120,61 +130,96 @@ export function CancelJob({ job }: { job: OfficeJob }) {
   );
 }
 
-const chargeLabel = { deposit: "Deposit", balance: "Balance" };
+const chargeLabel = { deposit: "Deposit", balance: "Balance", fee: "Fee" };
 
-// the money on a Job that didn't happen
+// the money on a Job that didn't happen; a plan Job's fee is charged, and
+// can be retried if that failed
 function FeePayment({
+  job,
   feeCents,
   payment,
 }: {
+  job: OfficeJob;
   feeCents: number;
   payment: JobPayment;
 }) {
+  const action = useJobAction("It wasn't retried. Please try again.");
   return (
-    <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
-      <dt className="font-semibold">Fee</dt>
-      <dd>{feeCents > 0 ? formatMoney(feeCents) : "None"}</dd>
-      <dt className="font-semibold">Charges</dt>
-      <dd>
-        <ul>
-          {payment.charges.map((c, i) => (
-            <li key={i}>
-              {chargeLabel[c.kind]} {formatMoney(c.amountCents)},{" "}
-              {formatDate(c.chargedAt)}
-              {c.refundedCents > 0 &&
-                ` (${formatMoney(c.refundedCents)} refunded)`}
-            </li>
-          ))}
-        </ul>
-      </dd>
-      <dt className="font-semibold">Paid</dt>
-      <dd>{formatMoney(payment.paidCents)}</dd>
-      {payment.owedCents < 0 && (
-        <>
-          <dt className="font-semibold">Still to refund</dt>
-          <dd>{formatMoney(-payment.owedCents)}</dd>
-        </>
+    <>
+      {payment.unpaid && (
+        <Notice tone="danger">
+          Unpaid since {formatDate(payment.unpaid.since)}: the{" "}
+          {formatMoney(payment.owedCents)} fee couldn't be charged (
+          {payment.unpaid.reason}). The Client has been emailed to update their
+          Payment Method, which tries again.
+        </Notice>
       )}
-    </dl>
+      <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
+        <dt className="font-semibold">Fee</dt>
+        <dd>{feeCents > 0 ? formatMoney(feeCents) : "None"}</dd>
+        <dt className="font-semibold">Charges</dt>
+        <dd>
+          <ul>
+            {payment.charges.map((c, i) => (
+              <li key={i}>
+                {chargeLabel[c.kind]} {formatMoney(c.amountCents)},{" "}
+                {formatDate(c.chargedAt)}
+                {c.refundedCents > 0 &&
+                  ` (${formatMoney(c.refundedCents)} refunded)`}
+              </li>
+            ))}
+          </ul>
+        </dd>
+        <dt className="font-semibold">Paid</dt>
+        <dd>{formatMoney(payment.paidCents)}</dd>
+        {payment.owedCents !== 0 && (
+          <>
+            <dt className="font-semibold">
+              {payment.owedCents > 0 ? "Still owed" : "Still to refund"}
+            </dt>
+            <dd>{formatMoney(Math.abs(payment.owedCents))}</dd>
+          </>
+        )}
+      </dl>
+      {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+      {payment.unpaid && (
+        <Actions>
+          <Button
+            variant="secondary"
+            isPending={action.isPending}
+            onPress={() =>
+              void action.run(
+                () => postJson(`/api/jobs/${job.id}/balance/retry`),
+                "Charged",
+              )
+            }
+          >
+            Try the charge again
+          </Button>
+        </Actions>
+      )}
+    </>
   );
 }
 
 // how a Cancelled Job was cancelled, and its money
 export function CancelledCard({ job }: { job: OfficeJob }) {
   const cancellation = job.cancellation!;
+  const skipped = job.servicePlanId !== null && cancellation.by === "client";
   const why =
     cancellation.by === "empire"
       ? "By Empire Cleaning, refunded in full"
       : cancellation.late
-        ? "By the Client, a Late Cancellation"
-        : "By the Client, more than 24 hours ahead";
+        ? `By the Client, a Late Cancellation${skipped ? "; the plan carries on" : ""}`
+        : `By the Client, more than 24 hours ahead${skipped ? "; the plan carries on" : ""}`;
   return (
     <Card
-      title="Cancelled"
+      title={skipped ? "Skipped" : "Cancelled"}
       description={`${formatDateTime(cancellation.cancelledAt)}. ${why}.`}
     >
       {cancellation.reason && <p>{cancellation.reason}</p>}
       <FeePayment
+        job={job}
         feeCents={cancellation.feeCents}
         payment={cancellation.payment}
       />
@@ -191,7 +236,11 @@ export function NoAccessCard({ job }: { job: OfficeJob }) {
       description={`${formatDateTime(noAccess.recordedAt)}${noAccess.recordedBy ? ` by ${noAccess.recordedBy.name}` : ""}. Charged like a Late Cancellation.`}
     >
       <p>"{noAccess.reason}"</p>
-      <FeePayment feeCents={noAccess.feeCents} payment={noAccess.payment} />
+      <FeePayment
+        job={job}
+        feeCents={noAccess.feeCents}
+        payment={noAccess.payment}
+      />
     </Card>
   );
 }

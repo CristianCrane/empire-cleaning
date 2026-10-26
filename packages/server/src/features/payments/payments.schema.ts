@@ -44,8 +44,10 @@ export const paymentMethods = pgTable("payment_methods", {
 });
 
 // the Deposit at acceptance, or the Balance once Completed, which may be
-// taken in parts: at completion, then as the Client approves increases
-export const chargeKind = pgEnum("charge_kind", ["deposit", "balance"]);
+// taken in parts: at completion, then as the Client approves increases; or
+// the fee for a Late Cancellation or No Access of a plan Job, which has no
+// Deposit of its own to keep
+export const chargeKind = pgEnum("charge_kind", ["deposit", "balance", "fee"]);
 
 // money taken from a Client's Payment Method, for a Job, or a Service Plan's
 // Deposit, which is held for the plan's life and counts towards no Job's

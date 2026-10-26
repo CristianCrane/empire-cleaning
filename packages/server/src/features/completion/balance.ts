@@ -36,11 +36,12 @@ type Ledger = {
 };
 
 // What the Job should have taken against what it has. A Completed Job owes
-// its price with the Adjustments that count, plus the Deposit kept if a
-// second Late Reschedule moved it (ADR-0010); a booked one (or one whose
-// completion was undone) owes only its Deposit; a Cancelled or No Access one
-// owes its fee, which is 0 unless it was a Late Cancellation or No Access,
-// or a Late Reschedule kept the Deposit.
+// its price with the Adjustments that count, plus the fee if a second Late
+// Reschedule moved it (ADR-0010); a booked one (or one whose completion was
+// undone) owes only its Deposit; a Cancelled or No Access one owes its fee,
+// which is 0 unless it was a Late Cancellation or No Access, or a Late
+// Reschedule made one due. A one-off Job's fee is its Deposit, kept; a plan
+// Job has none, so its fee is charged.
 const ledgerOf = async (job: Job, tx: Tx | typeof db): Promise<Ledger> => {
   const [quoted, rows, taken] = await Promise.all([
     quotedJob(job.id, tx),
@@ -146,12 +147,28 @@ export type Settled = {
   paymentMethod: string | null;
 };
 
+// what a Charge is for: the Balance of a Completed Job, or the fee for one
+// that didn't happen
+const kindOf = (job: Job) =>
+  job.status === "cancelled" || job.status === "no_access"
+    ? ("fee" as const)
+    : ("balance" as const);
+
+const feeLabel = {
+  cancelled: "Late Cancellation fee",
+  no_access: "No Access fee",
+};
+
 const describe = async (job: Job) => {
   const [property] = await db
     .select()
     .from(properties)
     .where(eq(properties.id, job.propertyId));
-  return `Balance: ${cleanTypeLabel[job.cleanType]} at ${addressOf(property!)}, ${formatWhen(job.startsAt)}`;
+  const what =
+    job.status === "cancelled" || job.status === "no_access"
+      ? feeLabel[job.status]
+      : "Balance";
+  return `${what}: ${cleanTypeLabel[job.cleanType]} at ${addressOf(property!)}, ${formatWhen(job.startsAt)}`;
 };
 
 // gives back `amount`, from the latest Charges first; stops at the first
@@ -246,7 +263,7 @@ export const settleJob = async (jobId: string): Promise<Settled> =>
             paymentMethodId: method.gatewayRef,
             amount: ledger.owedCents,
             description: await describe(job!),
-            idempotencyKey: `balance:${jobId}:${randomUUID()}`,
+            idempotencyKey: `${kindOf(job!)}:${jobId}:${randomUUID()}`,
           })
           .catch((error: unknown) => {
             // TODO(#41): the payment_gateway_error signal
@@ -259,7 +276,7 @@ export const settleJob = async (jobId: string): Promise<Settled> =>
         if (result.ok) {
           await tx.insert(charges).values({
             jobId,
-            kind: "balance",
+            kind: kindOf(job!),
             amountCents: ledger.owedCents,
             gatewayRef: result.chargeId,
             chargedAt: clock.now(),

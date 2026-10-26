@@ -25,8 +25,13 @@ const { confirmAssignment, offerAssignment } =
   await import("../../src/features/assignments/index.ts");
 const { installFakes, resetDatabase, testClock, testEmail, testPayments } =
   await import("../harness.ts");
-const { acceptedJob, bookedJob, completedFirstClean, sentServicePlanQuote } =
-  await import("../fixtures.ts");
+const {
+  acceptedJob,
+  bookedJob,
+  completedFirstClean,
+  sentServicePlanQuote,
+  startedServicePlan,
+} = await import("../fixtures.ts");
 const { chaseProposedAdjustments, completeJob } =
   await import("../../src/features/completion/index.ts");
 const { recordNoAccess } =
@@ -114,6 +119,20 @@ control.post("/service-plan-quotes", async (req, res) => {
     .from(accounts)
     .where(eq(accounts.email, officeEmail));
   res.json(await sentServicePlanQuote({ ...plan, byAccountId: account!.id }));
+});
+
+// a Service Plan started at the home from a Quote Sent by the Office Staff
+// member with `officeEmail`, who records its acceptance on the saved card
+control.post("/service-plans/started", async (req, res) => {
+  const { officeEmail, ...plan } = req.body as { officeEmail: string } & Omit<
+    Parameters<typeof startedServicePlan>[0],
+    "byAccountId"
+  >;
+  const [account] = await db
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(eq(accounts.email, officeEmail));
+  res.json(await startedServicePlan({ ...plan, byAccountId: account!.id }));
 });
 
 // a place on a Job Offered to a Cleaner, as Office Staff do, and Confirmed

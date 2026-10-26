@@ -1,0 +1,1 @@
+ALTER TYPE "charge_kind" ADD VALUE 'fee';

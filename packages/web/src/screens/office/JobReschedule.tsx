@@ -27,6 +27,7 @@ const answered = {
 // e.g. by phone
 export function JobReschedule({ job }: { job: OfficeJob }) {
   const request = job.rescheduleRequest;
+  const onPlan = job.servicePlanId !== null;
   const action = useJobAction("That didn't work. Please try again.");
 
   if (request?.status === "pending") {
@@ -42,7 +43,7 @@ export function JobReschedule({ job }: { job: OfficeJob }) {
           <dt className="font-semibold">To</dt>
           <dd>{formatDateTime(request.startsAt)}</dd>
           <dt className="font-semibold">Cost</dt>
-          <dd>{costForOffice(request.cost, request.feeCents)}</dd>
+          <dd>{costForOffice(request.cost, request.feeCents, onPlan)}</dd>
         </dl>
         <p className="text-sm text-fg-muted">
           Confirming moves the Job and Offers every place on it afresh. The
@@ -78,7 +79,7 @@ export function JobReschedule({ job }: { job: OfficeJob }) {
           {request.answeredAt && ` ${formatDateTime(request.answeredAt)}`}.
         </p>
       )}
-      <p>If asked now: {costForOffice(terms.cost, terms.feeCents)}</p>
+      <p>If asked now: {costForOffice(terms.cost, terms.feeCents, onPlan)}</p>
       <p className="text-sm text-fg-muted">
         Move Job moves it straight away, at no charge to the Client. If the
         Client has asked to move it, ask for a new time for them instead, so
@@ -91,7 +92,9 @@ export function JobReschedule({ job }: { job: OfficeJob }) {
           terms={terms}
           base={`/api/jobs/${job.id}`}
           label="Ask for a new time"
-          describeCost={costForOffice}
+          describeCost={(cost, feeCents) =>
+            costForOffice(cost, feeCents, onPlan)
+          }
           done="Reschedule Request made"
           Picker={PickFromSchedule}
         />

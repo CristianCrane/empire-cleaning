@@ -97,7 +97,7 @@ A single cleaning visit at one Property, booked for a confirmed date and time.
 _Avoid_: Booking, appointment, clean
 
 **Service Plan**:
-An agreed recurring arrangement at one Property that generates Jobs of one Clean Type (a Standard Clean unless the plan says Deep Clean) on a set recurrence: every week, every 2 weeks or every 4 weeks, always on the same weekday. It can only start once that Property has a Completed First Clean, and its terms change only by accepting a new Service Plan Quote. Having one never stops the Property getting one-off Quotes.
+An agreed recurring arrangement at one Property that generates Jobs of one Clean Type (a Standard Clean unless the plan says Deep Clean) on a set recurrence: every week, every 2 weeks or every 4 weeks, always on the same weekday. It can only start once that Property has a Completed First Clean, and its terms change only by accepting a new Service Plan Quote. A Client skips one of its Jobs by cancelling it, under the usual rules, and the plan carries on. Having one never stops the Property getting one-off Quotes.
 _Avoid_: Subscription, contract, recurring job
 
 **First Clean**:
@@ -121,7 +121,7 @@ A Client's proposal to move a booked Job to a new available time, which is held 
 _Avoid_: Reschedule, rebooking, change request
 
 **Late Cancellation**:
-A Client cancelling a Job less than 24 hours before it starts, or moving it by a second Late Reschedule; the fee is the Job's Deposit amount (ADR-0010).
+A Client cancelling a Job less than 24 hours before it starts, or moving it by a second Late Reschedule; the fee is the Job's Deposit amount (ADR-0010). A one-off Job's Deposit is kept as the fee. A plan Job has no Deposit of its own, so its fee is its plan's Deposit amount, charged as a Charge of its own, and the plan's held Deposit is untouched.
 _Avoid_: No-show, short-notice cancellation
 
 **Late Reschedule**:
@@ -163,7 +163,7 @@ What is charged when a Job is Completed: its price including Adjustments, less a
 _Avoid_: Remainder, final payment, outstanding amount
 
 **Charge**:
-Money taken from a Client's Payment Method, either a Deposit or a Balance.
+Money taken from a Client's Payment Method: a Deposit, a Balance, or a plan Job's Late Cancellation or No Access fee.
 _Avoid_: Payment, invoice, bill
 
 **Plan Discount**:
@@ -175,5 +175,5 @@ A recorded change to a Job's quoted price, with a reason, from what the assigned
 _Avoid_: Surcharge, discount, extra
 
 **Unpaid**:
-A Completed Job whose Balance, or part of it, failed to be charged and has not yet been recovered.
+A Job whose Balance, or part of it, or whose fee failed to be charged and has not yet been recovered.
 _Avoid_: Overdue, outstanding, failed payment

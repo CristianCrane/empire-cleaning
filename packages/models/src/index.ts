@@ -691,6 +691,8 @@ export type OfficeJob = ScheduledJob & {
   assignments: AssignmentView[];
   // places nobody holds: Crew Size less those Offered or Confirmed
   openPlaces: number;
+  // the Service Plan it was generated for; null for a one-off Job
+  servicePlanId: string | null;
   // active Cleaners who could be Offered a place, with their Available Hours
   // on the Job's day
   cleaners: { id: string; name: string; hours: number }[];
@@ -835,7 +837,7 @@ export type AdjustmentView = {
 
 // one Charge on a Job, and how much of it has been refunded
 export type ChargeView = {
-  kind: "deposit" | "balance";
+  kind: "deposit" | "balance" | "fee";
   amountCents: number;
   refundedCents: number;
   chargedAt: string;
@@ -848,8 +850,8 @@ export type JobPayment = {
   adjustmentsCents: number;
   // the price: quoted plus Adjustments, never below 0
   totalCents: number;
-  // the Deposit kept as a Late Cancellation fee by a second Late Reschedule
-  // (ADR-0010), owed on top of the price; 0 if none
+  // the Late Cancellation fee a second Late Reschedule made due (ADR-0010),
+  // owed on top of the price; 0 if none
   rescheduleFeeCents: number;
   charges: ChargeView[];
   // what has been taken, less refunds
@@ -905,6 +907,9 @@ export type ClientJobDetail = ClientJob & {
   rescheduleTerms: RescheduleTerms | null;
   // its latest Reschedule Request, pending or answered; null if none
   rescheduleRequest: RescheduleRequestView | null;
+  // the Service Plan it was generated for, which cancelling it skips; null
+  // for a one-off Job
+  servicePlanId: string | null;
 };
 
 // ---- Cancellation and No Access (#11) ----
@@ -916,7 +921,9 @@ export type CancelledBy = "client" | "empire";
 // What cancelling a booked Job would cost, by the Clock. The Client
 // cancelling more than 24 hours before it starts pays nothing and has their
 // Deposit refunded; within 24 hours it's a Late Cancellation, and the Deposit
-// is kept as the fee. Empire Cleaning cancelling always refunds it in full.
+// is kept as the fee. A plan Job has no Deposit of its own: its fee is its
+// plan's Deposit amount, charged, and the held Deposit is untouched. Empire
+// Cleaning cancelling always refunds it in full.
 export type CancellationTerms = {
   by: CancelledBy;
   late: boolean;
@@ -974,8 +981,9 @@ export type RescheduleCost = "free" | "free_late" | "late_cancellation";
 
 export type RescheduleTerms = {
   cost: RescheduleCost;
-  // the Deposit kept if a Late Cancellation is confirmed; 0 otherwise, and
-  // 0 when an earlier Late Reschedule has kept it already
+  // the fee if a Late Cancellation is confirmed (the Deposit, or a plan
+  // Job's plan's Deposit amount); 0 otherwise, and 0 when an earlier Late
+  // Reschedule has made it due already
   feeCents: number;
   // until when moving is free, by the Clock
   freeUntil: string;
