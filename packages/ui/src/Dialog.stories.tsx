@@ -128,6 +128,43 @@ export const WithForm: Story = {
   ),
 };
 
+// for something that needs the room, e.g. a week's calendar; still a sheet on
+// a phone
+export const Wide: Story = {
+  args: { title: "Pick from the Schedule", size: "wide" },
+  render: ({ onConfirm, ...args }) => (
+    <DialogTrigger>
+      <Button variant="secondary">Pick from the Schedule</Button>
+      <Dialog {...args}>
+        {({ close }) => (
+          <>
+            <div className="grid h-64 grid-cols-7 gap-px overflow-hidden rounded-lg border border-border bg-border">
+              {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+                <div key={d} className="bg-surface p-2 text-sm font-semibold">
+                  {d}
+                </div>
+              ))}
+            </div>
+            <Actions>
+              <Button variant="secondary" onPress={close}>
+                Cancel
+              </Button>
+              <Button
+                onPress={() => {
+                  onConfirm();
+                  close();
+                }}
+              >
+                Choose
+              </Button>
+            </Actions>
+          </>
+        )}
+      </Dialog>
+    </DialogTrigger>
+  ),
+};
+
 // opened from code (here a button, in an app something being dropped) rather
 // than a DialogTrigger; closing it tells its owner
 function FromCode({ onConfirm, ...args }: Args) {

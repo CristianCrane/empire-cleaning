@@ -262,3 +262,69 @@ test("the draft says whether the proposed day has room for each clean", async ({
     "Tue, Jan 13 has 8 h of Cleaner time free: room for either clean.",
   );
 });
+
+test(
+  "Office Staff pick a Quote's start from the Schedule, seeing what's booked",
+  { tag: ["@desktop"] },
+  async ({ page }) => {
+    await requestQuoteAsGuest(casey);
+    await signInAsOffice(page);
+    // most of Cory's Monday booked: an hour from 9am, four from 2pm
+    await bookJob({ startsAt: "2026-01-12T14:00:00Z", labourHours: 1 });
+    await bookJob({ startsAt: "2026-01-12T19:00:00Z", labourHours: 4 });
+    await startDraft(page);
+    await proposeNextMonday(page);
+
+    await page
+      .getByRole("region", { name: "Proposed time" })
+      .getByRole("button", { name: "Pick from the Schedule" })
+      .click();
+    const schedule = page.getByRole("dialog", {
+      name: "Pick from the Schedule",
+    });
+    // the week around the chosen day on a desktop, the day itself on a phone
+    const monday = schedule.getByRole("region", {
+      name: "Mon, Jan 12",
+      exact: true,
+    });
+    await expect(monday).toContainText("5 h booked · 3 h free");
+    await expect(monday).toContainText("Starts");
+    await expect(monday).toContainText("9:00 AM This clean");
+    await expect(
+      schedule.getByRole("group", { name: "Jobs on Mon, Jan 12" }),
+    ).toContainText("2:00 PM");
+    // another crew's Job at the proposed time: the new clean sits beside it
+    const ninesJob = (await schedule
+      .getByRole("group", { name: "Jobs on Mon, Jan 12" })
+      .getByText(/^9:00 AM Client/)
+      .boundingBox())!;
+    const thisClean = (await monday
+      .getByText("9:00 AM This clean")
+      .boundingBox())!;
+    expect(
+      thisClean.x >= ninesJob.x + ninesJob.width ||
+        ninesJob.x >= thisClean.x + thisClean.width,
+    ).toBe(true);
+
+    const { violations } = await new AxeBuilder({ page })
+      .include("[role=dialog]")
+      .analyze();
+    expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+
+    if (page.viewportSize()!.width < 768) {
+      await schedule.getByRole("button", { name: "Next day" }).click();
+    }
+    await schedule
+      .getByRole("button", { name: "Tue, Jan 13, 10:30 AM" })
+      .click();
+    await expect(schedule).toBeHidden();
+    await expect(
+      page.getByRole("region", { name: "Proposed time" }),
+    ).toContainText("Tue, Jan 13 has 8 h of Cleaner time free");
+
+    await send(page);
+    await expect(page.getByRole("region", { name: "Offer" })).toContainText(
+      "Tue, Jan 13, 10:30 AM",
+    );
+  },
+);

@@ -1,4 +1,4 @@
-import { addDays, mondayOf, today } from "../format.ts";
+import { addDays, mondayOf, today } from "./format.ts";
 
 // the dates asked for; without valid ones, the Schedule shows this week, or
 // today on a phone
@@ -12,7 +12,7 @@ export const isDay = (value: unknown): value is string =>
 export type Span = 1 | 3 | 7;
 export const SPANS: Span[] = [1, 3, 7];
 
-const daysIn = (from: string, to: string) =>
+export const daysIn = (from: string, to: string) =>
   (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) /
     86_400_000 +
   1;
@@ -25,7 +25,7 @@ export const rangeShowing = (span: Span, day: string) => {
 };
 
 // wide enough for a week's columns
-const isWide = () =>
+export const isWide = () =>
   typeof window === "undefined" ||
   window.matchMedia("(min-width: 48rem)").matches;
 

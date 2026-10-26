@@ -29,6 +29,7 @@ import {
   timeOfDay,
 } from "../format.ts";
 import { useJobAction } from "./JobCompletion.tsx";
+import { PickFromSchedule } from "./SchedulePicker.tsx";
 
 // whether the day a Job would move to has room for it, counting held hours:
 // "own" on its own day, which always has; undefined while it's checked
@@ -168,6 +169,20 @@ function ChooseTime({ job, close }: Omit<MoveProps, "to">) {
           onChange={setTime}
         />
       </div>
+      <PickFromSchedule
+        date={date?.toString()}
+        time={time?.toString().slice(0, 5)}
+        hoursOnSite={job.hoursOnSite}
+        current={{
+          date: dayOfInstant(job.startsAt),
+          time: timeOfDay(job.startsAt),
+        }}
+        label="New time"
+        onPick={(at) => {
+          setDate(parseDate(at.date));
+          setTime(parseTime(at.time));
+        }}
+      />
       <ConfirmMove
         job={job}
         to={{

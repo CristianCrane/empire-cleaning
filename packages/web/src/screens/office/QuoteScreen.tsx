@@ -55,6 +55,7 @@ import {
   formatHours,
   formatMoney,
   recurrenceLabel,
+  recurrenceWeeks,
 } from "../format.ts";
 import {
   AddOnList,
@@ -66,6 +67,7 @@ import {
   planTitle,
 } from "../QuoteParts.tsx";
 import { homeCrumbs } from "./PropertyScreen.tsx";
+import { PickFromSchedule } from "./SchedulePicker.tsx";
 
 // where a Quote was started from: the request it answers, or for a Service
 // Plan offered unprompted, its home
@@ -934,6 +936,27 @@ function DraftEditor({ quote: loaded }: { quote: OfficeQuote }) {
             onChange={(time) => set({ time })}
           />
         </div>
+        <PickFromSchedule
+          date={fields.date?.toString()}
+          time={fields.time?.toString().slice(0, 5)}
+          hoursOnSite={Math.max(
+            0,
+            ...quote.options
+              .filter((o) => !plan || o.cleanType === plan.cleanType)
+              .map((o) => o.hoursOnSite),
+          )}
+          repeats={
+            plan
+              ? {
+                  everyWeeks: recurrenceWeeks[plan.recurrence],
+                  label: recurrenceLabel[plan.recurrence],
+                }
+              : undefined
+          }
+          onPick={({ date, time }) =>
+            set({ date: parseDate(date), time: parseTime(time) })
+          }
+        />
         {fields.date && (
           <RoomOnDay day={fields.date.toString()} options={quote.options} />
         )}

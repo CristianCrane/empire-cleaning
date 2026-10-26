@@ -22,6 +22,7 @@ import {
 } from "@empire-cleaning/ui";
 import { ApiError, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
+import { PickAvailableTime } from "../AvailabilityPicker.tsx";
 import { ChooseNewTime, costForClient } from "../RescheduleParts.tsx";
 import {
   addressOf,
@@ -265,6 +266,7 @@ function Reschedule({ job }: { job: ClientJobDetail }) {
           label="Choose a new time"
           describeCost={costForClient}
           done="Request sent"
+          Picker={PickAvailableTime}
         />
       </Actions>
     </Card>

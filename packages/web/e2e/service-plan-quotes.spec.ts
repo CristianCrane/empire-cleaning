@@ -439,3 +439,35 @@ test("a home whose First Clean isn't Completed is answered with a one-off Quote"
     page.getByRole("button", { name: "Draft a Service Plan Quote" }),
   ).toHaveCount(0);
 });
+
+test("picking a plan's start from the Schedule marks the days it repeats on", async ({
+  page,
+}) => {
+  await startPlan(page);
+  await startOn19th(page);
+  await saved(page);
+
+  await page
+    .getByRole("region", { name: "Start" })
+    .getByRole("button", { name: "Pick from the Schedule" })
+    .click();
+  const schedule = page.getByRole("dialog", {
+    name: "Pick from the Schedule",
+  });
+  await expect(schedule).toContainText("Then every 2 weeks on Mondays.");
+  await expect(
+    schedule.getByRole("region", { name: "Mon, Jan 19", exact: true }),
+  ).toContainText("Starts");
+
+  // a week at a time, on a phone too
+  await schedule.getByRole("button", { name: /Show$/ }).click();
+  await page.getByRole("option", { name: "Week" }).click();
+  await schedule.getByRole("button", { name: "Next week" }).click();
+  await expect(
+    schedule.getByRole("region", { name: "Mon, Jan 26", exact: true }),
+  ).not.toContainText("Repeats");
+  await schedule.getByRole("button", { name: "Next week" }).click();
+  await expect(
+    schedule.getByRole("region", { name: "Mon, Feb 2", exact: true }),
+  ).toContainText("Repeats");
+});

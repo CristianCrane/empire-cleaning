@@ -12,6 +12,7 @@ import {
 import { postJson } from "../../api.ts";
 import { formatDateTime } from "../format.ts";
 import { ChooseNewTime, costForOffice } from "../RescheduleParts.tsx";
+import { PickFromSchedule } from "./SchedulePicker.tsx";
 import { useJobAction } from "./JobCompletion.tsx";
 import { MoveJob } from "./JobMove.tsx";
 
@@ -92,6 +93,7 @@ export function JobReschedule({ job }: { job: OfficeJob }) {
           label="Ask for a new time"
           describeCost={costForOffice}
           done="Reschedule Request made"
+          Picker={PickFromSchedule}
         />
       </Actions>
     </Card>
