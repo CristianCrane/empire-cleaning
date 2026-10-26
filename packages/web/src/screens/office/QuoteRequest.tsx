@@ -166,6 +166,23 @@ function Quotes({ request }: { request: QuoteRequestDetail }) {
         ))
       }
     >
+      {isOpen && request.servicePlanId && (
+        <Notice>
+          <p>
+            This home has a{" "}
+            <Link
+              href={linkTo({
+                to: "/office/service-plans/$planId",
+                params: { planId: request.servicePlanId },
+              })}
+            >
+              Service Plan
+            </Link>
+            . A Service Plan Quote answering this request changes its terms once
+            the Client accepts it.
+          </p>
+        </Notice>
+      )}
       {failure && <Notice tone="danger">{failure}</Notice>}
       {request.state === "booked" && (
         <Notice tone="success">

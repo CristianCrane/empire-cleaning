@@ -4,6 +4,7 @@ import type {
   AcceptOutcome,
   CleanType,
   PaymentMethodView,
+  PlanChange,
   QuoteView,
   ServicePlanTerms,
 } from "@empire-cleaning/models";
@@ -64,6 +65,9 @@ export function PortalQuote() {
       </div>
 
       <Standing quote={quote} />
+      {quote.changesPlan && quote.status === "sent" && (
+        <PlanChangeNotice quote={quote} change={quote.changesPlan} />
+      )}
 
       {quote.plan ? (
         <PlanOffer quote={quote} plan={quote.plan} />
@@ -81,6 +85,8 @@ export function PortalQuote() {
               let our team know, and we'll send you a new Quote for another
               time.
             </Notice>
+          ) : quote.changesPlan ? (
+            <AcceptChange quote={quote} />
           ) : (
             <Accept quote={quote} paymentMethod={paymentMethod} />
           )}
@@ -117,6 +123,7 @@ function PlanOffer({
             plan={plan}
             crewSize={quote.crewSize}
             depositPercent={quote.depositPercent}
+            change={quote.changesPlan}
           />
         </div>
       </section>
@@ -170,15 +177,21 @@ function Standing({ quote }: { quote: QuoteView }) {
     case "sent":
       return (
         <Notice tone="info">
-          {quote.plan ? "Starting" : "Proposed for"} {proposed}. This Quote is
-          open until {until}.
+          {quote.changesPlan
+            ? "Your new terms start"
+            : quote.plan
+              ? "Starting"
+              : "Proposed for"}{" "}
+          {proposed}. This Quote is open until {until}.
         </Notice>
       );
     case "accepted":
       return quote.servicePlanId ? (
         <Notice tone="success">
-          Your Service Plan has started: its first clean is on {proposed}. You
-          accepted this Quote on {formatDateTime(quote.acceptedAt!)}.{" "}
+          {quote.changedPlan
+            ? `Your Service Plan has changed: it's on these terms from ${proposed}.`
+            : `Your Service Plan has started: its first clean is on ${proposed}.`}{" "}
+          You accepted this Quote on {formatDateTime(quote.acceptedAt!)}.{" "}
           <Link
             href={linkTo({
               to: "/portal/plans/$planId",
@@ -210,12 +223,44 @@ function Standing({ quote }: { quote: QuoteView }) {
   }
 }
 
+// what accepting a Quote for a home with a plan does to that plan
+function PlanChangeNotice({
+  quote,
+  change,
+}: {
+  quote: QuoteView;
+  change: PlanChange;
+}) {
+  return (
+    <Notice tone="info">
+      <strong>This changes your Service Plan</strong>
+      <p>
+        From {formatDateTime(quote.proposedStartsAt)}, your plan moves to the
+        terms below. Cleans before then go ahead as they are.
+      </p>
+      {change.replaces.length > 0 && (
+        <p>
+          {change.replaces.length === 1
+            ? "The clean you have booked from then on is cancelled, at no charge:"
+            : "The cleans you have booked from then on are cancelled, at no charge:"}{" "}
+          {change.replaces.map((at) => formatDateTime(at)).join("; ")}.
+        </p>
+      )}
+      <p>
+        Your {formatMoney(change.depositCents)} Deposit stays as it is, so
+        nothing is charged now.
+      </p>
+    </Notice>
+  );
+}
+
 // One step: choose the Clean Type, enter a card (or keep the saved one), and
 // accept. The Deposit is taken, saving a card entered now, and the Job
 // booked, or none of it. If their bank wants them to approve the payment,
 // that happens here too, then the booking is finished. A Service Plan Quote
 // has its one Clean Type, and accepting it starts the plan, whose Deposit is
-// held for as long as it runs.
+// held for as long as it runs; or changes the home's plan, taking nothing, as
+// its Deposit carries over.
 function Accept({
   quote,
   paymentMethod,
@@ -344,6 +389,50 @@ function Accept({
           {chosen.depositCents > 0
             ? `Accept and pay ${formatMoney(chosen.depositCents)}`
             : "Accept and book"}
+        </Button>
+      </Actions>
+    </Card>
+  );
+}
+
+// accepting a Quote that changes the home's plan: nothing to pay, as the
+// plan's Deposit carries over
+function AcceptChange({ quote }: { quote: QuoteView }) {
+  const router = useRouter();
+  const [problem, setProblem] = useState<string>();
+  const [isPending, setPending] = useState(false);
+  const option = quote.options[0]!;
+
+  const accept = async () => {
+    setPending(true);
+    setProblem(undefined);
+    try {
+      await postJson<AcceptOutcome>(`/api/quotes/mine/${quote.id}/accept`, {
+        cleanType: option.cleanType,
+      });
+      showToast({ tone: "success", title: "Your Service Plan has changed" });
+    } catch (e) {
+      setProblem(
+        e instanceof ApiError && e.status === 409
+          ? e.message
+          : "That didn't work. Please try again.",
+      );
+    } finally {
+      setPending(false);
+      await router.invalidate();
+    }
+  };
+
+  return (
+    <Card title="Accept the new terms">
+      <p className="text-sm text-fg-muted">
+        Nothing is charged now. Each clean, {formatMoney(option.totalCents)}, is
+        charged when it's done, from {formatDateTime(quote.proposedStartsAt)}.
+      </p>
+      {problem && <Notice tone="danger">{problem}</Notice>}
+      <Actions>
+        <Button isPending={isPending} onPress={() => void accept()}>
+          Accept the new terms
         </Button>
       </Actions>
     </Card>

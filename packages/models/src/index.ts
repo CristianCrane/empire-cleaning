@@ -115,6 +115,9 @@ export type OpenQuoteRequest = QuoteRequestView & {
     PropertyView,
     "street" | "unit" | "postcode" | "type" | "bedrooms" | "bathrooms"
   >;
+  // its home's Service Plan, unless it has none or it has Ended: a Service
+  // Plan Quote answering it changes that plan
+  servicePlanId: string | null;
 };
 
 // ---- Price List and Suggested Price (#4) ----
@@ -219,6 +222,9 @@ export type QuoteRequestDetail = {
   // whether its Property's First Clean is Completed, so it can be answered
   // with a Service Plan Quote
   firstCleanCompleted: boolean;
+  // its home's Service Plan, unless it has none or it has Ended: a Service
+  // Plan Quote answering it changes that plan
+  servicePlanId: string | null;
 };
 
 // ---- Staff, availability and the Schedule (#7) ----
@@ -525,11 +531,29 @@ export type QuoteView = {
   // once Accepted: when, and the Clean Type chosen
   acceptedAt: string | null;
   acceptedCleanType: CleanType | null;
-  // the Service Plan it started, once Accepted; null on a one-off Quote
+  // the Service Plan it started or changed, once Accepted; null on a one-off
+  // Quote
   servicePlanId: string | null;
+  // once Accepted, whether it changed its home's plan rather than starting it
+  changedPlan: boolean;
+  // on a Service Plan Quote for a home that has a plan, while it's a Draft or
+  // Sent: what accepting it does to that plan. Null otherwise.
+  changesPlan: PlanChange | null;
   // the Clean Types that can still be booked: those the proposed day has room
   // for now, while the Quote is Sent; none once it's closed
   bookable: CleanType[];
+};
+
+// Accepting a Service Plan Quote for a home that has a plan changes that
+// plan's terms from the Quote's proposed time on: its booked Jobs from then
+// are cancelled free, and those before go ahead as they were. The plan's
+// Deposit carries over, so none is taken.
+export type PlanChange = {
+  servicePlanId: string;
+  // the Deposit the plan holds, which carries over
+  depositCents: number;
+  // when its booked Jobs that the new terms replace start, soonest first
+  replaces: string[];
 };
 
 // one Clean Type's offer for the Office: the Suggested Price worked out, and

@@ -248,15 +248,20 @@ describe("accepting a Service Plan Quote", () => {
     });
   });
 
-  test("is refused while the home already has a plan", async () => {
-    const { office, propertyId, client } = await startedPlan();
+  test("for a home that has a plan changes that plan, rather than starting another", async () => {
+    const { office, propertyId, client, planId } = await startedPlan();
     testClock().advance({ days: 1 });
     const another = await sentPlan(office, propertyId, {
       proposedStart: { date: "2026-01-21", time: "09:00" },
     });
 
-    const refused = await accept(client, another).expect(409);
-    expect(refused.body.message).toMatch(/already has a Service Plan/);
+    const outcome = (await accept(client, another).expect(200))
+      .body as AcceptOutcome;
+    expect(outcome).toMatchObject({
+      status: "accepted",
+      quote: { servicePlanId: planId },
+    });
+    expect((await officePlan(office, planId)).quoteId).toBe(another.id);
   });
 });
 

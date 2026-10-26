@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, ne } from "drizzle-orm";
 import { z } from "zod";
 import type {
   OpenQuoteRequest,
@@ -30,6 +30,7 @@ import {
   quotesForRequest,
   requestStates,
 } from "../quotes/quote-state.ts";
+import { servicePlans } from "../service-plans/service-plans.schema.ts";
 import { addOnsForRequests } from "./add-ons.ts";
 import { quoteRequestAddOns, quoteRequests } from "./quote-requests.schema.ts";
 import {
@@ -229,12 +230,19 @@ const sendReceipt = async (client: Client, property: Property) => {
   });
 };
 
+// its home's Service Plan, unless it has none or it has Ended
+const currentPlanOfRequest = and(
+  eq(servicePlans.propertyId, quoteRequests.propertyId),
+  ne(servicePlans.status, "ended"),
+);
+
 // the Quote Requests that haven't closed, for the Office, newest first
 export const openQuoteRequests = async (): Promise<OpenQuoteRequest[]> => {
   const rows = await db
     .select({
       request: quoteRequests,
       client: { id: clients.id, name: clients.name },
+      servicePlanId: servicePlans.id,
       property: {
         street: properties.street,
         unit: properties.unit,
@@ -247,6 +255,7 @@ export const openQuoteRequests = async (): Promise<OpenQuoteRequest[]> => {
     .from(quoteRequests)
     .innerJoin(clients, eq(clients.id, quoteRequests.clientId))
     .innerJoin(properties, eq(properties.id, quoteRequests.propertyId))
+    .leftJoin(servicePlans, currentPlanOfRequest)
     .orderBy(desc(quoteRequests.createdAt));
 
   const ids = rows.map((r) => r.request.id);
@@ -256,7 +265,7 @@ export const openQuoteRequests = async (): Promise<OpenQuoteRequest[]> => {
   ]);
   return rows
     .filter(({ request }) => !isClosed(states.get(request.id)!))
-    .map(({ request, client, property }) => ({
+    .map(({ request, client, property, servicePlanId }) => ({
       id: request.id,
       propertyId: request.propertyId,
       condition: request.condition,
@@ -267,6 +276,7 @@ export const openQuoteRequests = async (): Promise<OpenQuoteRequest[]> => {
       state: states.get(request.id)!,
       client,
       property,
+      servicePlanId,
     }));
 };
 
@@ -287,10 +297,16 @@ export const quoteRequestDetail = async (
   id: string,
 ): Promise<QuoteRequestDetail | undefined> => {
   const [row] = await db
-    .select({ request: quoteRequests, client: clients, property: properties })
+    .select({
+      request: quoteRequests,
+      client: clients,
+      property: properties,
+      servicePlanId: servicePlans.id,
+    })
     .from(quoteRequests)
     .innerJoin(clients, eq(clients.id, quoteRequests.clientId))
     .innerJoin(properties, eq(properties.id, quoteRequests.propertyId))
+    .leftJoin(servicePlans, currentPlanOfRequest)
     .where(eq(quoteRequests.id, id));
   if (!row) return undefined;
 
@@ -336,5 +352,6 @@ export const quoteRequestDetail = async (
     state: states.get(id)!,
     quotes,
     firstCleanCompleted: firstCleanDone,
+    servicePlanId: row.servicePlanId,
   };
 };

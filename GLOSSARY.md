@@ -97,7 +97,7 @@ A single cleaning visit at one Property, booked for a confirmed date and time.
 _Avoid_: Booking, appointment, clean
 
 **Service Plan**:
-An agreed recurring arrangement at one Property that generates Jobs of one Clean Type (a Standard Clean unless the plan says Deep Clean) on a set recurrence: every week, every 2 weeks or every 4 weeks, always on the same weekday. It can only start once that Property has a Completed First Clean, and its terms change only by accepting a new Service Plan Quote. A Client skips one of its Jobs by cancelling it, under the usual rules, and the plan carries on. Having one never stops the Property getting one-off Quotes.
+An agreed recurring arrangement at one Property that generates Jobs of one Clean Type (a Standard Clean unless the plan says Deep Clean) on a set recurrence: every week, every 2 weeks or every 4 weeks, always on the same weekday. It can only start once that Property has a Completed First Clean, and its terms change only by accepting a new Service Plan Quote for the Property, which the Client can ask for: from that Quote's proposed time, its booked Jobs are cancelled free and it carries on on the new terms, its Jobs before then going ahead as they were and its Deposit carrying over. A Client skips one of its Jobs by cancelling it, under the usual rules, and the plan carries on. Having one never stops the Property getting one-off Quotes.
 _Avoid_: Subscription, contract, recurring job
 
 **First Clean**:

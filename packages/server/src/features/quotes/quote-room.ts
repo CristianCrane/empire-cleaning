@@ -8,6 +8,7 @@ import { onSchedule } from "../jobs/jobs.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
 import { roomFor } from "../jobs/schedule.ts";
 import { addressOf } from "../properties/property-view.ts";
+import { jobsReplacedAt } from "../service-plans/changing.ts";
 import { officeStaffEmails } from "../staff/staff.ts";
 import { openQuotes } from "./quote-state.ts";
 import { quoteOptions, quotes } from "./quotes.schema.ts";
@@ -23,7 +24,8 @@ const CLEAN_TYPES: CleanType[] = ["deep", "standard"];
 /**
  * The Clean Types each open Sent Quote can still be booked as: those its
  * proposed time still has room for, as of now: the Labour Hours on its day,
- * and a crew of its Crew Size then.
+ * and a crew of its Crew Size then. A Service Plan Quote changing its home's
+ * plan doesn't count the plan's Jobs it would replace.
  */
 export const bookableFor = async (
   open: { id: string; proposedStartsAt: Date }[],
@@ -37,6 +39,8 @@ export const bookableFor = async (
       cleanType: quoteOptions.cleanType,
       labourHours: quoteOptions.labourHours,
       crewSize: quotes.crewSize,
+      kind: quotes.kind,
+      propertyId: quotes.propertyId,
     })
     .from(quoteOptions)
     .innerJoin(quotes, eq(quotes.id, quoteOptions.quoteId))
@@ -49,11 +53,17 @@ export const bookableFor = async (
   const startOfQuote = new Map(open.map((q) => [q.id, q.proposedStartsAt]));
 
   for (const option of options) {
-    const { hasRoom } = await roomFor({
-      startsAt: startOfQuote.get(option.quoteId)!,
-      labourHours: option.labourHours,
-      crewSize: option.crewSize,
-    });
+    const startsAt = startOfQuote.get(option.quoteId)!;
+    const { hasRoom } = await roomFor(
+      {
+        startsAt,
+        labourHours: option.labourHours,
+        crewSize: option.crewSize,
+      },
+      option.kind === "service_plan"
+        ? await jobsReplacedAt(option.propertyId, startsAt)
+        : [],
+    );
     if (hasRoom) bookable.get(option.quoteId)!.push(option.cleanType);
   }
   for (const types of bookable.values()) {

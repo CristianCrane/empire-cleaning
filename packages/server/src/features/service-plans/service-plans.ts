@@ -100,6 +100,7 @@ export const startServicePlan = async (
     .returning();
   await tx.insert(servicePlanVisits).values({
     servicePlanId: plan!.id,
+    quoteId: quote.id,
     dueOn: dayOf(firstJob.startsAt),
     jobId: firstJob.id,
     generatedAt: now,
@@ -107,19 +108,22 @@ export const startServicePlan = async (
   return plan!;
 };
 
-// whether the Property has a Service Plan that hasn't Ended
-export const hasServicePlan = async (propertyId: string, tx: Tx | typeof db) =>
-  (
-    await tx
-      .select({ id: servicePlans.id })
-      .from(servicePlans)
-      .where(
-        and(
-          eq(servicePlans.propertyId, propertyId),
-          ne(servicePlans.status, "ended"),
-        ),
-      )
-  ).length > 0;
+// the Property's Service Plan that hasn't Ended, if it has one
+export const currentPlanOf = async (
+  propertyId: string,
+  tx: Tx | typeof db = db,
+): Promise<ServicePlan | undefined> => {
+  const [plan] = await tx
+    .select()
+    .from(servicePlans)
+    .where(
+      and(
+        eq(servicePlans.propertyId, propertyId),
+        ne(servicePlans.status, "ended"),
+      ),
+    );
+  return plan;
+};
 
 // ---- generating Jobs ----
 
@@ -234,9 +238,13 @@ const generateNext = async (planId: string) =>
     const [{ last }] = (await tx
       .select({ last: max(servicePlanVisits.dueOn) })
       .from(servicePlanVisits)
-      .where(eq(servicePlanVisits.servicePlanId, planId))) as [
-      { last: string | null },
-    ];
+      .where(
+        and(
+          eq(servicePlanVisits.servicePlanId, planId),
+          // counting on from the first date on its current terms
+          eq(servicePlanVisits.quoteId, plan.quoteId),
+        ),
+      )) as [{ last: string | null }];
     const now = clock.now();
     const at = (day: string) => atTime(day, timeOf(plan.firstStartsAt));
     let day = addDays(
@@ -250,6 +258,7 @@ const generateNext = async (planId: string) =>
     const booked = await bookOnto(tx, plan, at(day));
     await tx.insert(servicePlanVisits).values({
       servicePlanId: planId,
+      quoteId: plan.quoteId,
       dueOn: day,
       jobId: booked?.job.id ?? null,
       generatedAt: now,
@@ -647,13 +656,16 @@ export const propertyServicePlan = async (propertyId: string) => {
   return (await summariesOf([plan])).get(plan.id)!;
 };
 
-// the plan each Quote started, for those that started one
+// the plan each Quote started or changed, for those that did
 export const servicePlansOfQuotes = async (quoteIds: string[]) => {
   if (quoteIds.length === 0) return new Map<string, string>();
   const rows = await db
-    .select({ id: servicePlans.id, quoteId: servicePlans.quoteId })
-    .from(servicePlans)
-    .where(inArray(servicePlans.quoteId, quoteIds));
+    .selectDistinct({
+      id: servicePlanVisits.servicePlanId,
+      quoteId: servicePlanVisits.quoteId,
+    })
+    .from(servicePlanVisits)
+    .where(inArray(servicePlanVisits.quoteId, quoteIds));
   return new Map(rows.map((r) => [r.quoteId, r.id]));
 };
 
