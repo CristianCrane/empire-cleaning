@@ -211,6 +211,20 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
             }),
         };
       }
+      case "plan_visit_unplaced": {
+        const { plan, visit } = item;
+        return {
+          key: `plan_visit_unplaced ${visit.id}`,
+          title: plan.client.name,
+          description: `${addressOf(plan.property)} · Service Plan visit on ${formatDay(visit.dueOn)}: no room that day`,
+          badge: <StatusBadge tone="danger">Needs another time</StatusBadge>,
+          open: () =>
+            navigate({
+              to: "/office/service-plans/$planId",
+              params: { planId: plan.id },
+            }),
+        };
+      }
     }
   };
 

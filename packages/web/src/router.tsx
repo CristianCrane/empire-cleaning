@@ -18,6 +18,7 @@ import type {
   NeedsAttentionItem,
   OfficeJob,
   OfficeQuote,
+  OfficeServicePlan,
   OpenQuoteRequest,
   PaymentMethodView,
   PriceList,
@@ -25,6 +26,8 @@ import type {
   QuoteSummary,
   QuoteView,
   ScheduleDay,
+  ServicePlanSummary,
+  ServicePlanView,
   StaffDetail,
   StaffMember,
   Today,
@@ -43,6 +46,7 @@ import { QuoteScreen } from "./screens/office/QuoteScreen.tsx";
 import { ClientDetail } from "./screens/office/ClientDetail.tsx";
 import { PropertyScreen } from "./screens/office/PropertyScreen.tsx";
 import { ScheduleScreen } from "./screens/office/ScheduleScreen.tsx";
+import { ServicePlanScreen } from "./screens/office/ServicePlanScreen.tsx";
 import { StaffMemberScreen } from "./screens/office/StaffMemberScreen.tsx";
 import { StaffScreen } from "./screens/office/StaffScreen.tsx";
 import {
@@ -53,6 +57,7 @@ import {
 import { PortalHome } from "./screens/portal/PortalHome.tsx";
 import { PortalJob } from "./screens/portal/PortalJob.tsx";
 import { PortalPaymentMethod } from "./screens/portal/PortalPaymentMethod.tsx";
+import { PortalPlan } from "./screens/portal/PortalPlan.tsx";
 import { PortalQuote } from "./screens/portal/PortalQuote.tsx";
 import { PortalRequest } from "./screens/portal/PortalRequest.tsx";
 import { PortalDetails } from "./screens/portal/PortalDetails.tsx";
@@ -232,6 +237,14 @@ const officePropertyRoute = createRoute({
   component: PropertyScreen,
 });
 
+const officeServicePlanRoute = createRoute({
+  getParentRoute: () => officeRoute,
+  path: "/service-plans/$planId",
+  loader: ({ params }) =>
+    getJson<OfficeServicePlan>(`/api/service-plans/${params.planId}`),
+  component: ServicePlanScreen,
+});
+
 const officeStaffRoute = createRoute({
   getParentRoute: () => officeRoute,
   path: "/staff",
@@ -286,13 +299,14 @@ const portalHomeRoute = createRoute({
   getParentRoute: () => portalRoute,
   path: "/",
   loader: async () => {
-    const [client, quotes, jobs, pastJobs] = await Promise.all([
+    const [client, plans, quotes, jobs, pastJobs] = await Promise.all([
       ownClient(),
+      getJson<ServicePlanSummary[]>("/api/service-plans/mine"),
       getJson<QuoteSummary[]>("/api/quotes/mine"),
       getJson<ClientJob[]>("/api/jobs/mine"),
       getJson<ClientPastJob[]>("/api/jobs/mine/past"),
     ]);
-    return { client, quotes, jobs, pastJobs };
+    return { client, plans, quotes, jobs, pastJobs };
   },
   component: PortalHome,
 });
@@ -313,6 +327,15 @@ const portalQuoteRoute = createRoute({
     return { quote, paymentMethod };
   },
   component: PortalQuote,
+});
+
+// where the acceptance and the portal's home lead
+const portalPlanRoute = createRoute({
+  getParentRoute: () => portalRoute,
+  path: "/plans/$planId",
+  loader: ({ params }) =>
+    getJson<ServicePlanView>(`/api/service-plans/mine/${params.planId}`),
+  component: PortalPlan,
 });
 
 // where the receipt, approval and Unpaid emails lead
@@ -357,6 +380,7 @@ const routeTree = rootRoute.addChildren([
     officeQuoteRoute,
     officeClientRoute,
     officePropertyRoute,
+    officeServicePlanRoute,
     officePriceListRoute,
     officeStaffRoute,
     officeStaffMemberRoute,
@@ -368,6 +392,7 @@ const routeTree = rootRoute.addChildren([
     portalHomeRoute,
     portalRequestRoute,
     portalQuoteRoute,
+    portalPlanRoute,
     portalJobRoute,
     portalDetailsRoute,
     portalPaymentMethodRoute,

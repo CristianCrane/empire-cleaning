@@ -101,6 +101,8 @@ export type OfficePropertyView = PropertyView & {
   client: { id: string; name: string };
   // whether its First Clean is Completed, so it can be offered a Service Plan
   firstCleanCompleted: boolean;
+  // its Service Plan, unless it has none or it has Ended
+  servicePlan: ServicePlanSummary | null;
   quoteRequests: QuoteRequestView[];
   quotes: QuoteSummary[];
   jobs: ScheduledJob[];
@@ -372,6 +374,14 @@ export type NeedsAttentionItem =
       kind: "service_plan_due";
       since: string;
       job: ScheduledJob;
+    }
+  | {
+      // a date a Service Plan came round with no room on the Schedule, so
+      // nothing was booked: the Office books it at another time or skips it
+      kind: "plan_visit_unplaced";
+      since: string;
+      plan: ServicePlanSummary & { client: { id: string; name: string } };
+      visit: UnplacedVisit;
     };
 
 export type NeedsAttentionKind = NeedsAttentionItem["kind"];
@@ -486,6 +496,8 @@ export type QuoteView = {
   // once Accepted: when, and the Clean Type chosen
   acceptedAt: string | null;
   acceptedCleanType: CleanType | null;
+  // the Service Plan it started, once Accepted; null on a one-off Quote
+  servicePlanId: string | null;
   // the Clean Types that can still be booked: those the proposed day has room
   // for now, while the Quote is Sent; none once it's closed
   bookable: CleanType[];
@@ -990,3 +1002,58 @@ export type TurnDownRescheduleInput = { reason?: string | null };
 // POST /api/jobs/:id/move: Office Staff move a booked Job straight to a new
 // time, New York (#52)
 export type MoveJobInput = LocalDateTime;
+
+// ---- Service Plans (#14) ----
+
+// generating Jobs, until On Hold or Ended (#15)
+export type ServicePlanStatus = "active" | "on_hold" | "ended";
+
+// a Service Plan in a line: on the Property page, and the Client's home screen
+export type ServicePlanSummary = {
+  id: string;
+  status: ServicePlanStatus;
+  recurrence: Recurrence;
+  cleanType: CleanType;
+  property: Pick<PropertyView, "id" | "street" | "unit" | "postcode">;
+  // its next booked Job, if one is on the Schedule
+  nextStartsAt: string | null;
+};
+
+// A Service Plan as its Client sees it: its terms, what each Job costs, the
+// Deposit held for its life, and its booked Jobs still to come, soonest first.
+// Jobs come round on the weekday and at the time of its first.
+export type ServicePlanView = ServicePlanSummary & {
+  firstStartsAt: string;
+  startedAt: string;
+  crewSize: number;
+  labourHours: number;
+  // Labour Hours divided by Crew Size
+  hoursOnSite: number;
+  discountPercent: number;
+  // each Job's price, Plan Discount off, before and with tax
+  priceCents: number;
+  taxCents: number;
+  totalCents: number;
+  addOns: string[];
+  // taken at acceptance, and applied to its final Job when it Ends
+  depositCents: number;
+  // the Service Plan Quote it was accepted from
+  quoteId: string;
+  upcoming: ClientJob[];
+};
+
+// a date the plan came round with no room on the Schedule: nothing was
+// booked, and the Office books it at another time or skips it
+export type UnplacedVisit = { id: string; dueOn: IsoDate; since: string };
+
+// a Service Plan for the Office: with its Client, every Job it has booked,
+// soonest first, and its visits waiting to be booked
+export type OfficeServicePlan = Omit<ServicePlanView, "upcoming"> & {
+  client: { id: string; name: string };
+  jobs: ScheduledJob[];
+  unplaced: UnplacedVisit[];
+};
+
+// POST /api/service-plans/:id/visits/:visitId/book: the time, New York, the
+// Office books an unplaced visit at
+export type BookVisitInput = LocalDateTime;

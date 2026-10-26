@@ -28,6 +28,21 @@ const when = new Intl.DateTimeFormat("en-US", {
 // "Monday, January 12 at 9:00 AM", in New York
 export const formatWhen = (instant: Date) => when.format(instant);
 
+const weekday = new Intl.DateTimeFormat("en-US", {
+  weekday: "long",
+  timeZone: "America/New_York",
+});
+// "Monday", in New York
+export const weekdayName = (instant: Date) => weekday.format(instant);
+
+const time = new Intl.DateTimeFormat("en-US", {
+  hour: "numeric",
+  minute: "2-digit",
+  timeZone: "America/New_York",
+});
+// "9:00 AM", in New York
+export const formatTime = (instant: Date) => time.format(instant);
+
 // each line a paragraph (a "\n" inside one is a line break), then the link
 export const compose = (
   lines: string[],

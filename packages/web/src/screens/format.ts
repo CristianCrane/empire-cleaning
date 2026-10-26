@@ -184,3 +184,11 @@ export const quoteHeadline = (
   quote.plan
     ? `Service Plan, ${cleanTypeLabel[quote.plan.cleanType]} ${recurrenceLabel[quote.plan.recurrence].toLowerCase()}: ${formatMoney(quote.headlineTotalCents)} a clean`
     : `Deep Clean ${formatMoney(quote.headlineTotalCents)}`;
+
+// when a Service Plan's cleans come round, from its first: "Every week, on
+// Mondays at 9:00 AM"
+export const planRhythm = (plan: {
+  recurrence: Recurrence;
+  firstStartsAt: string;
+}) =>
+  `${recurrenceLabel[plan.recurrence]}, on ${weekdayOf(dayOfInstant(plan.firstStartsAt))}s at ${formatClock(timeOfDay(plan.firstStartsAt))}`;

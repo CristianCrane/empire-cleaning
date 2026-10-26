@@ -46,6 +46,7 @@ import { properties, type Property } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
 import { addOnsForRequests } from "../quote-requests/add-ons.ts";
 import { quoteRequests } from "../quote-requests/quote-requests.schema.ts";
+import { servicePlans } from "../service-plans/service-plans.schema.ts";
 import { bookableFor } from "./quote-room.ts";
 import {
   firstCleanCompleted,
@@ -262,6 +263,16 @@ const addOnsOf = (rows: QuoteOptionRow[]): QuoteAddOn[] => {
 
 const iso = (date: Date | null) => date?.toISOString() ?? null;
 
+// the Service Plan an Accepted Service Plan Quote started
+const servicePlanIdOf = async (quote: Quote) => {
+  if (quote.kind !== "service_plan" || quote.status !== "accepted") return null;
+  const [plan] = await db
+    .select({ id: servicePlans.id })
+    .from(servicePlans)
+    .where(eq(servicePlans.quoteId, quote.id));
+  return plan?.id ?? null;
+};
+
 // the Clean Types a Quote can still be booked as: none once it isn't Sent
 const bookableOf = async (quote: Quote) =>
   statusOf(quote) === "sent"
@@ -397,6 +408,7 @@ export const officeQuote = async (id: string): Promise<OfficeQuote> => {
     declinedAt: iso(quote.declinedAt),
     acceptedAt: iso(quote.acceptedAt),
     acceptedCleanType: quote.acceptedCleanType,
+    servicePlanId: await servicePlanIdOf(quote),
     bookable: await bookableOf(quote),
     paymentMethod: toPaymentMethodView(paymentMethod),
   };
@@ -440,6 +452,7 @@ export const clientQuote = async (
     declinedAt: iso(quote.declinedAt),
     acceptedAt: iso(quote.acceptedAt),
     acceptedCleanType: quote.acceptedCleanType,
+    servicePlanId: await servicePlanIdOf(quote),
     bookable: await bookableOf(quote),
   };
 };

@@ -212,3 +212,43 @@ export const completedFirstClean = async ({
     job,
   };
 };
+
+/**
+ * A Service Plan Quote for the home, offered unprompted and Sent by
+ * `byAccountId`: a Standard Clean on `recurrence` from `startsAt`, at
+ * moderate Condition and the Price List's Plan Discount, with no Add-ons.
+ */
+export const sentServicePlanQuote = async ({
+  propertyId,
+  byAccountId,
+  startsAt,
+  recurrence = "weekly",
+  crewSize = 1,
+}: {
+  propertyId: string;
+  byAccountId: string;
+  startsAt: string;
+  recurrence?: "weekly" | "fortnightly" | "four_weekly";
+  crewSize?: number;
+}) => {
+  const { quote } = await startDraft(
+    { propertyId, kind: "service_plan" },
+    byAccountId,
+  );
+  const at = new Date(startsAt);
+  await saveDraft(quote.id, {
+    addOns: [],
+    crewSize,
+    depositPercent: quote.depositPercent,
+    validityDays: quote.validityDays,
+    proposedStart: { date: dayOf(at), time: timeOf(at) },
+    overrides: { deep: null, standard: null },
+    plan: {
+      recurrence,
+      cleanType: "standard",
+      discountPercent: quote.plan!.discountPercent,
+      condition: "moderate",
+    },
+  });
+  return sendQuote(quote.id);
+};

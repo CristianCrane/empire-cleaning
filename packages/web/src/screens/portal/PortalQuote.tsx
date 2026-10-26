@@ -15,6 +15,7 @@ import {
   Dialog,
   DialogTrigger,
   Heading,
+  Link,
   Notice,
   Radio,
   RadioGroup,
@@ -79,12 +80,6 @@ export function PortalQuote() {
               booked since we sent this Quote, so it can't be accepted. We've
               let our team know, and we'll send you a new Quote for another
               time.
-            </Notice>
-          ) : quote.plan ? (
-            // until a Service Plan can start online (#14)
-            <Notice tone="info">
-              You can't accept a Service Plan online just yet. We'll be in touch
-              to set it up.
             </Notice>
           ) : (
             <Accept quote={quote} paymentMethod={paymentMethod} />
@@ -180,7 +175,20 @@ function Standing({ quote }: { quote: QuoteView }) {
         </Notice>
       );
     case "accepted":
-      return (
+      return quote.servicePlanId ? (
+        <Notice tone="success">
+          Your Service Plan has started: its first clean is on {proposed}. You
+          accepted this Quote on {formatDateTime(quote.acceptedAt!)}.{" "}
+          <Link
+            href={linkTo({
+              to: "/portal/plans/$planId",
+              params: { planId: quote.servicePlanId },
+            })}
+          >
+            See your Service Plan
+          </Link>
+        </Notice>
+      ) : (
         <Notice tone="success">
           You're booked: a {cleanTypeLabel[quote.acceptedCleanType!]} on{" "}
           {proposed}. You accepted this Quote on{" "}
@@ -205,7 +213,9 @@ function Standing({ quote }: { quote: QuoteView }) {
 // One step: choose the Clean Type, enter a card (or keep the saved one), and
 // accept. The Deposit is taken, saving a card entered now, and the Job
 // booked, or none of it. If their bank wants them to approve the payment,
-// that happens here too, then the booking is finished.
+// that happens here too, then the booking is finished. A Service Plan Quote
+// has its one Clean Type, and accepting it starts the plan, whose Deposit is
+// held for as long as it runs.
 function Accept({
   quote,
   paymentMethod,
@@ -243,7 +253,10 @@ function Accept({
           `/api/quotes/mine/${quote.id}/accept/finalize`,
         );
       }
-      showToast({ tone: "success", title: "You're booked" });
+      showToast({
+        tone: "success",
+        title: quote.plan ? "Your Service Plan has started" : "You're booked",
+      });
     } catch (e) {
       setProblem(
         e instanceof CardProblem || (e instanceof ApiError && e.status === 409)
@@ -257,28 +270,30 @@ function Accept({
   };
 
   return (
-    <Card title="Accept and book">
-      <RadioGroup
-        label="Your clean"
-        value={cleanType}
-        onChange={(value) => setCleanType(value as CleanType)}
-      >
-        {quote.options.map((option) => (
-          <Radio
-            key={option.cleanType}
-            value={option.cleanType}
-            isDisabled={!quote.bookable.includes(option.cleanType)}
-            description={
-              quote.bookable.includes(option.cleanType)
-                ? `${formatMoney(option.totalCents)}, with a ${formatMoney(option.depositCents)} Deposit today`
-                : "No longer fits on that day: it's been booked up since we sent this Quote"
-            }
-          >
-            {cleanTypeLabel[option.cleanType]}
-            {option.recommended && " (recommended)"}
-          </Radio>
-        ))}
-      </RadioGroup>
+    <Card title={quote.plan ? "Accept and start your plan" : "Accept and book"}>
+      {!quote.plan && (
+        <RadioGroup
+          label="Your clean"
+          value={cleanType}
+          onChange={(value) => setCleanType(value as CleanType)}
+        >
+          {quote.options.map((option) => (
+            <Radio
+              key={option.cleanType}
+              value={option.cleanType}
+              isDisabled={!quote.bookable.includes(option.cleanType)}
+              description={
+                quote.bookable.includes(option.cleanType)
+                  ? `${formatMoney(option.totalCents)}, with a ${formatMoney(option.depositCents)} Deposit today`
+                  : "No longer fits on that day: it's been booked up since we sent this Quote"
+              }
+            >
+              {cleanTypeLabel[option.cleanType]}
+              {option.recommended && " (recommended)"}
+            </Radio>
+          ))}
+        </RadioGroup>
+      )}
 
       {newCard ? (
         <div className="flex flex-col gap-2">
@@ -310,10 +325,13 @@ function Accept({
       )}
 
       <p className="text-sm text-fg-muted">
-        {chosen.depositCents > 0
-          ? `We take the ${formatMoney(chosen.depositCents)} Deposit now and the rest, ${formatMoney(balance)}, when the clean is done.`
-          : `Nothing is taken now: the ${formatMoney(chosen.totalCents)} is charged when the clean is done.`}{" "}
-        Booked for {formatDateTime(quote.proposedStartsAt)}.
+        {quote.plan
+          ? `${chosen.depositCents > 0 ? `We take the ${formatMoney(chosen.depositCents)} Deposit now and hold it for as long as your plan runs: it comes off your last clean when the plan ends. ` : ""}Each clean, ${formatMoney(chosen.totalCents)}, is charged when it's done. The first is on ${formatDateTime(quote.proposedStartsAt)}.`
+          : `${
+              chosen.depositCents > 0
+                ? `We take the ${formatMoney(chosen.depositCents)} Deposit now and the rest, ${formatMoney(balance)}, when the clean is done.`
+                : `Nothing is taken now: the ${formatMoney(chosen.totalCents)} is charged when the clean is done.`
+            } Booked for ${formatDateTime(quote.proposedStartsAt)}.`}
       </p>
       {newCard && <ConsentNote action="paying" />}
       {problem && <Notice tone="danger">{problem}</Notice>}

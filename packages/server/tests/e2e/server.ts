@@ -25,7 +25,7 @@ const { confirmAssignment, offerAssignment } =
   await import("../../src/features/assignments/index.ts");
 const { installFakes, resetDatabase, testClock, testEmail, testPayments } =
   await import("../harness.ts");
-const { acceptedJob, bookedJob, completedFirstClean } =
+const { acceptedJob, bookedJob, completedFirstClean, sentServicePlanQuote } =
   await import("../fixtures.ts");
 const { chaseProposedAdjustments, completeJob } =
   await import("../../src/features/completion/index.ts");
@@ -33,6 +33,8 @@ const { recordNoAccess } =
   await import("../../src/features/cancellation/index.ts");
 const { requestReschedule } =
   await import("../../src/features/reschedule/index.ts");
+const { generateServicePlanJobs } =
+  await import("../../src/features/service-plans/index.ts");
 const { db } = await import("../../src/db/index.ts");
 const { accounts } = await import("../../src/features/auth/auth.schema.ts");
 
@@ -100,6 +102,20 @@ control.post("/first-cleans/completed", async (req, res) => {
   res.json(await completedFirstClean({ byAccountId: account!.id }));
 });
 
+// a Service Plan Quote Sent for the home by the Office Staff member with
+// `officeEmail`
+control.post("/service-plan-quotes", async (req, res) => {
+  const { officeEmail, ...plan } = req.body as { officeEmail: string } & Omit<
+    Parameters<typeof sentServicePlanQuote>[0],
+    "byAccountId"
+  >;
+  const [account] = await db
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(eq(accounts.email, officeEmail));
+  res.json(await sentServicePlanQuote({ ...plan, byAccountId: account!.id }));
+});
+
 // a place on a Job Offered to a Cleaner, as Office Staff do, and Confirmed
 // by them too if `confirmed`
 control.post("/jobs/:id/assignments", async (req, res) => {
@@ -132,6 +148,11 @@ control.post("/payments/approval", (req, res) => {
 // what the server's reminder timer does (it doesn't run here)
 control.post("/reminders", async (_req, res) => {
   res.json({ sent: await sendDueReminders() });
+});
+
+// and what its Service Plan timer does
+control.post("/service-plans/generate", async (_req, res) => {
+  res.json({ generated: await generateServicePlanJobs() });
 });
 
 // a Job marked Completed by a Cleaner with a Confirmed place on it, as on

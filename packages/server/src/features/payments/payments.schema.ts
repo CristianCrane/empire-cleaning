@@ -1,4 +1,6 @@
+import { sql } from "drizzle-orm";
 import {
+  check,
   index,
   integer,
   pgEnum,
@@ -10,6 +12,7 @@ import {
 import { timestamps } from "../../db/index.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
+import { servicePlans } from "../service-plans/service-plans.schema.ts";
 
 // the Client as the payment provider knows them, made the first time they
 // pay or save a card; their Payment Methods are kept with it
@@ -44,14 +47,17 @@ export const paymentMethods = pgTable("payment_methods", {
 // taken in parts: at completion, then as the Client approves increases
 export const chargeKind = pgEnum("charge_kind", ["deposit", "balance"]);
 
-// money taken from a Client's Payment Method, for a Job
+// money taken from a Client's Payment Method, for a Job, or a Service Plan's
+// Deposit, which is held for the plan's life and counts towards no Job's
+// price until the plan Ends (#15)
 export const charges = pgTable(
   "charges",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    jobId: uuid("job_id")
-      .notNull()
-      .references(() => jobs.id, { onDelete: "restrict" }),
+    jobId: uuid("job_id").references(() => jobs.id, { onDelete: "restrict" }),
+    servicePlanId: uuid("service_plan_id").references(() => servicePlans.id, {
+      onDelete: "restrict",
+    }),
     kind: chargeKind("kind").notNull(),
     amountCents: integer("amount_cents").notNull(),
     // the Payment Gateway's id for it, for refunds
@@ -59,7 +65,14 @@ export const charges = pgTable(
     chargedAt: timestamp("charged_at", { withTimezone: true }).notNull(),
     ...timestamps,
   },
-  (t) => [index("charges_job_id_idx").on(t.jobId)],
+  (t) => [
+    index("charges_job_id_idx").on(t.jobId),
+    index("charges_service_plan_id_idx").on(t.servicePlanId),
+    check(
+      "charges_job_or_service_plan",
+      sql`(${t.jobId} is null) <> (${t.servicePlanId} is null)`,
+    ),
+  ],
 );
 
 // money given back from a Charge: a negative Balance, a correction, or an

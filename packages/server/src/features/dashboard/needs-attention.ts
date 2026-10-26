@@ -14,6 +14,7 @@ import {
   servicePlansDue,
 } from "../quotes/quote-state.ts";
 import { pendingRescheduleRequests } from "../reschedule/reschedule.ts";
+import { unplacedVisits } from "../service-plans/service-plans.ts";
 
 type Source = () => Promise<NeedsAttentionItem[]>;
 
@@ -119,6 +120,16 @@ const quotesWithoutRoomSource: Source = async () =>
     })),
   );
 
+// dates Service Plans came round with no room, soonest due first: the Office
+// books each at another time with the Client, or skips it
+const unplacedVisitsSource: Source = async () =>
+  (await unplacedVisits()).map(({ visit, plan }) => ({
+    kind: "plan_visit_unplaced",
+    since: visit.since,
+    plan,
+    visit,
+  }));
+
 // Where each kind of item comes from, in the order the Office should deal
 // with them. A ticket adding a kind adds its type to NeedsAttentionItem and
 // its source here; each source returns its own items in the order to deal
@@ -126,6 +137,7 @@ const quotesWithoutRoomSource: Source = async () =>
 const sources: Source[] = [
   unassignedJobs,
   rescheduleRequests,
+  unplacedVisitsSource,
   unpaidJobsSource,
   reportedAdjustments,
   quotesWithoutRoomSource,

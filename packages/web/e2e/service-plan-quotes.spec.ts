@@ -182,12 +182,10 @@ test(
     await expect(page.getByRole("region", { name: "Offer" })).toContainText(
       "Mon, Jan 19, 9:00 AM",
     );
+    // Casey hasn't been asked to accept by phone, but could be
     await expect(
-      page.getByText("Service Plan Quotes can't be accepted yet"),
+      page.getByRole("region", { name: "Record acceptance" }),
     ).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: "Record acceptance" }),
-    ).toHaveCount(0);
     // offered unprompted: it belongs to the home, not a request
     await page
       .getByLabel("Breadcrumbs")
@@ -212,9 +210,8 @@ test(
       client.getByText(/^Starting Mon, Jan 19, 9:00 AM/),
     ).toBeVisible();
     await expect(
-      client.getByText("You can't accept a Service Plan online just yet"),
+      client.getByRole("region", { name: "Accept and start your plan" }),
     ).toBeVisible();
-    await expect(client.getByRole("button", { name: /Accept/ })).toHaveCount(0);
     await expect(
       client.getByRole("button", { name: "Decline this Quote" }),
     ).toBeVisible();

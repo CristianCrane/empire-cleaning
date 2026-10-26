@@ -727,22 +727,6 @@ describe("a Sent Service Plan Quote", () => {
       proposedStart: { date: "2026-01-26", time: "09:00" },
     });
   });
-
-  test("can't be accepted yet", async () => {
-    const { office, propertyId } = await firstCleanDone();
-    const quote = await sentPlan(office, propertyId);
-    const client = await signIn(casey.email);
-
-    await client
-      .post(`/api/quotes/mine/${quote.id}/accept`)
-      .send({ cleanType: "standard" })
-      .expect(409);
-    await office
-      .post(`/api/quotes/${quote.id}/accept`)
-      .send({ cleanType: "standard" })
-      .expect(409);
-    expect((await officeQuote(office, quote.id)).status).toBe("sent");
-  });
 });
 
 describe("where the Office offers a Service Plan", () => {
