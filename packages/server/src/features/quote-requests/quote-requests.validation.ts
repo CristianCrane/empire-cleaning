@@ -87,3 +87,26 @@ export const propertyCorrectionSchema = newPropertySchema
   .extend({ condition: conditionSchema })
   .partial()
   .refine((changes) => Object.keys(changes).length > 0, "Nothing to change");
+
+// Office Staff entering a caller's request (#34): an existing Client, or a
+// new one whose email is optional; a new Property or one of the Client's
+export const officeSubmission = z
+  .object({
+    ...request,
+    clientId: z.uuid().optional(),
+    contact: contactSchema
+      .extend({
+        email: z
+          .email("Enter a full email address, like name@example.com")
+          .nullish(),
+      })
+      .optional(),
+    property: z.union([
+      z.object({ new: newPropertySchema }),
+      z.object({ existing: z.uuid() }),
+    ]),
+  })
+  .refine((s) => (s.clientId === undefined) !== (s.contact === undefined), {
+    path: ["clientId"],
+    message: "Choose a Client, or enter a new one",
+  });

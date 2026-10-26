@@ -38,8 +38,13 @@ let current: EmailSender = new ResendEmailSender(
   env.EMAIL_FROM,
 );
 
-export const email: EmailSender = {
-  send: (message) => current.send(message),
+// A message to nobody is not sent: a Client the Office entered without an
+// email gets no emails until one is added (#34)
+export const email = {
+  send: async (message: Omit<EmailMessage, "to"> & { to: string | null }) => {
+    if (message.to === null) return;
+    await current.send({ ...message, to: message.to });
+  },
 };
 
 export const setEmailSender = (next: EmailSender) => {

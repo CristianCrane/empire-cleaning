@@ -10,6 +10,7 @@ import {
   findClientByEmail,
   listClients,
   officeClientView,
+  officeUpdateContactDetails,
   updateContactDetails,
 } from "./clients.ts";
 
@@ -35,23 +36,46 @@ router.patch(
     const client = await ownClient(signedInAccount(res).id);
     const details = req.body;
 
-    // each Client has their own email: Quotes and notices go there
-    const other = await findClientByEmail(details.email);
-    if (other && other.id !== client.id) {
-      throw new RequestBodyError(
-        new z.ZodError([
-          {
-            code: "custom",
-            path: ["email"],
-            message: "That email is already used by another Client",
-            input: details.email,
-          },
-        ]),
-      );
-    }
-
+    await refuseOthersEmail(client.id, details.email);
     await updateContactDetails(client.id, details);
     res.json(await clientView(client.id));
+  },
+);
+
+// each Client has their own email: Quotes and notices go there
+const refuseOthersEmail = async (clientId: string, email: string | null) => {
+  const other = email ? await findClientByEmail(email) : undefined;
+  if (other && other.id !== clientId) {
+    throw new RequestBodyError(
+      new z.ZodError([
+        {
+          code: "custom",
+          path: ["email"],
+          message: "That email is already used by another Client",
+          input: email,
+        },
+      ]),
+    );
+  }
+};
+
+// Office Staff correcting a Client's contact details, or adding the email of
+// one they entered without it; an email can't be removed
+router.patch(
+  "/:id",
+  authorize("office_staff"),
+  validate({
+    params: z.object({ id: z.uuid() }),
+    body: contactSchema.extend({
+      email: contactSchema.shape.email.nullable(),
+    }),
+  }),
+  async (req, res) => {
+    const id = String(req.params.id);
+    await refuseOthersEmail(id, req.body.email);
+    const view = await officeUpdateContactDetails(id, req.body);
+    if (!view) throw new NotFoundError("Client not found");
+    res.json(view);
   },
 );
 

@@ -3,8 +3,8 @@ import type {
   QuoteRequestSubmission,
 } from "@empire-cleaning/models";
 
-export type SubmitResult =
-  | { ok: true; receipt: QuoteRequestReceipt }
+export type SubmitResult<R = QuoteRequestReceipt> =
+  | { ok: true; receipt: R }
   | {
       ok: false;
       // the API's per-field messages, keyed by the field's path (e.g. "contact.email")
@@ -14,27 +14,26 @@ export type SubmitResult =
       refusal?: string;
     };
 
-// posts a Quote Request to the API. A Guest's goes without cookies, so a
-// visitor who happens to be signed in to the app is still treated as a Guest
-// on the landing page; the portal's carries the session.
-export const submitQuoteRequest = async (
-  apiUrl: string,
-  submission: QuoteRequestSubmission,
-  asGuest: boolean,
-): Promise<SubmitResult> => {
+// posts a Quote Request to `url`, and reads the API's answer: what it
+// returned, its messages for each field, or why it refused
+export const postQuoteRequest = async <R>(
+  url: string,
+  body: object,
+  credentials: RequestCredentials,
+): Promise<SubmitResult<R>> => {
   let res: Response;
   try {
-    res = await fetch(`${apiUrl}/api/quote-requests`, {
+    res = await fetch(url, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      credentials: asGuest ? "omit" : "same-origin",
-      body: JSON.stringify(submission),
+      credentials,
+      body: JSON.stringify(body),
     });
   } catch {
     return { ok: false };
   }
 
-  if (res.ok) return { ok: true, receipt: await res.json() };
+  if (res.ok) return { ok: true, receipt: (await res.json()) as R };
 
   if (res.status === 400) {
     const body = (await res.json()) as {
@@ -57,3 +56,17 @@ export const submitQuoteRequest = async (
   }
   return { ok: false };
 };
+
+// posts a Quote Request to the API. A Guest's goes without cookies, so a
+// visitor who happens to be signed in to the app is still treated as a Guest
+// on the landing page; the portal's carries the session.
+export const submitQuoteRequest = (
+  apiUrl: string,
+  submission: QuoteRequestSubmission,
+  asGuest: boolean,
+) =>
+  postQuoteRequest<QuoteRequestReceipt>(
+    `${apiUrl}/api/quote-requests`,
+    submission,
+    asGuest ? "omit" : "same-origin",
+  );

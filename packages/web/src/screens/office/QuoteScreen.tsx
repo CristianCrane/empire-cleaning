@@ -1123,6 +1123,25 @@ function DraftEditor({ quote: loaded }: { quote: OfficeQuote }) {
         )}
       </Card>
 
+      {/* a Quote goes by email, and is accepted signed in with it (#34) */}
+      {!quote.client.email && (
+        <Notice>
+          <p>
+            {quote.client.name} has no email yet, so this Quote can't be sent.
+            Add their email on{" "}
+            <Link
+              href={linkTo({
+                to: "/office/clients/$clientId",
+                params: { clientId: quote.client.id },
+              })}
+            >
+              their Client screen
+            </Link>
+            , then send it.
+          </p>
+        </Notice>
+      )}
+
       {/* the prices stay in view wherever the change was made */}
       <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center gap-3 border-t border-border bg-surface px-4 py-3 shadow-raised sm:mx-0 sm:rounded-lg sm:border">
         <div className="flex min-w-0 flex-1 flex-col">
@@ -1133,7 +1152,11 @@ function DraftEditor({ quote: loaded }: { quote: OfficeQuote }) {
             {saveStateLabel[saveState]}
           </span>
         </div>
-        <Button isPending={isSending} onPress={() => void onSend()}>
+        <Button
+          isPending={isSending}
+          isDisabled={!quote.client.email}
+          onPress={() => void onSend()}
+        >
           Send to {quote.client.name}
         </Button>
       </div>

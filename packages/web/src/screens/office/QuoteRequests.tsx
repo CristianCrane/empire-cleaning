@@ -1,5 +1,7 @@
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
+import { Phone } from "lucide-react";
 import {
+  Button,
   Card,
   Heading,
   List,
@@ -13,14 +15,21 @@ import {
   homeSummary,
 } from "../format.ts";
 
-// the Office's open Quote Requests, newest first; open one to see its Client
+// the Office's open Quote Requests, newest first; open one to see its Client.
+// A New Quote is for someone who phones (#34).
 export function QuoteRequests() {
   const requests = useLoaderData({ from: "/office/requests" });
   const navigate = useNavigate();
 
   return (
     <div className="flex flex-col gap-4">
-      <Heading level={1}>Quote Requests</Heading>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Heading level={1}>Quote Requests</Heading>
+        <Button onPress={() => void navigate({ to: "/office/quotes/new" })}>
+          <Phone aria-hidden size={18} />
+          New Quote
+        </Button>
+      </div>
       <Card>
         <List
           aria-label="Open Quote Requests"

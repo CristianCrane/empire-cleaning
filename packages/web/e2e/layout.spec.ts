@@ -109,6 +109,7 @@ test("the Office's screens fit every width", async ({ page }) => {
     "/office",
     "/office/requests",
     "/office/clients",
+    "/office/quotes/new",
     request,
     client,
     property,

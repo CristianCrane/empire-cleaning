@@ -2,8 +2,14 @@ import { Router } from "express";
 import { z } from "zod";
 import { NotFoundError } from "../../middleware/errors.ts";
 import { validate } from "../../middleware/validation.ts";
-import { authorize, currentAccount } from "../auth/authorize.ts";
 import {
+  authorize,
+  currentAccount,
+  signedInAccount,
+} from "../auth/authorize.ts";
+import { startDraft } from "../quotes/quotes.ts";
+import {
+  enterQuoteRequest,
   openQuoteRequests,
   quoteRequestDetail,
   submitQuoteRequest,
@@ -15,6 +21,18 @@ export const router = Router();
 router.post("/", async (req, res) => {
   const receipt = await submitQuoteRequest(await currentAccount(req), req.body);
   res.status(201).json(receipt);
+});
+
+// Office Staff entering a caller's request, and starting its Quote Draft
+// straight away (#34)
+router.post("/office", authorize("office_staff"), async (req, res) => {
+  const { id } = signedInAccount(res);
+  const request = await enterQuoteRequest(id, req.body);
+  const { quote } = await startDraft(
+    { quoteRequestId: request.id, kind: "one_off" },
+    id,
+  );
+  res.status(201).json({ quoteRequestId: request.id, quoteId: quote.id });
 });
 
 router.get("/", authorize("office_staff"), async (req, res) => {
