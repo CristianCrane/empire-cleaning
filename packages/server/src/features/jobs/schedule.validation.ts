@@ -19,8 +19,18 @@ export const rangeSchema = z
 
 export const capacitySchema = z.object({
   date: day,
+  time: z
+    .string({ error: "Enter a start time" })
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use a time like 09:30"),
   labourHours: z.coerce
     .number({ error: "Enter Labour Hours" })
     .positive("Labour Hours must be more than 0")
     .max(200, "That's more Labour Hours than any Job needs"),
+  crewSize: z.coerce
+    .number({ error: "Enter a Crew Size" })
+    .int("Enter a whole number of Cleaners")
+    .positive("A crew needs at least 1 Cleaner")
+    .max(20, "That's more Cleaners than any crew needs"),
+  // a booked Job being moved, so it isn't counted against itself
+  jobId: z.uuid().optional(),
 });

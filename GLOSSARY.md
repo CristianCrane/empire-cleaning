@@ -141,7 +141,7 @@ The calendar of all booked Jobs. Office Staff may move a booked Job that hasn't 
 _Avoid_: Calendar, roster, bookings
 
 **Available Hours**:
-The hours a Cleaner can work on a day: their usual hours for that weekday, unless Office Staff have set different hours for that date, such as 0 for a holiday. A day has room for a booking when its Cleaners' Available Hours, less the Labour Hours of Jobs already booked that day, cover the booking's Labour Hours. Days are Empire Cleaning's own, in New York.
+The hours a Cleaner can work on a day: their usual hours for that weekday, unless Office Staff have set different hours for that date, such as 0 for a holiday. A booking has room when two rules hold. Hours: its day's Cleaners' Available Hours, less the Labour Hours of Jobs already booked that day, cover the booking's Labour Hours. Headcount: the Crew Sizes of the Jobs at work at the same time (their time on site, and the new times held for Reschedule Requests), plus the booking's own Crew Size, are no more than the number of Cleaners with Available Hours that day. Anyone available that day is taken to be free at any time of it, and travel between homes isn't counted. Days are Empire Cleaning's own, in New York.
 _Avoid_: Capacity, shifts, roster
 
 **Assignment**:

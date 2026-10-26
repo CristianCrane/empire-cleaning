@@ -123,7 +123,7 @@ describe("the times a Job can move to", () => {
 
     // from Tuesday the 6th, weekdays only (nobody works weekends), never the
     // full Tuesday, but always the Job's own Monday
-    expect(times.days.slice(0, 8)).toEqual([
+    expect(times.days.slice(0, 8).map((d) => d.date)).toEqual([
       "2026-01-06",
       "2026-01-07",
       "2026-01-08",
@@ -133,8 +133,8 @@ describe("the times a Job can move to", () => {
       "2026-01-15",
       "2026-01-16",
     ]);
-    expect(times.days.at(-1)! <= "2026-03-02").toBe(true);
-    expect(times.times).toEqual([
+    expect(times.days.at(-1)!.date <= "2026-03-02").toBe(true);
+    expect(times.days[0]!.times).toEqual([
       "08:00",
       "09:00",
       "10:00",
@@ -201,9 +201,10 @@ describe("asking to move a Job", () => {
 
   test("can't take hours another request holds", async () => {
     const { client, jobId, job } = await bookedJob();
-    // Wednesday has room for this Job once, not twice
+    // Wednesday has room for this Job once, not twice; the other Job is at
+    // 7pm, clear of its crew
     await otherJob({
-      startsAt: "2026-01-14T19:00:00Z",
+      startsAt: "2026-01-15T00:00:00Z",
       labourHours: 16 - job.labourHours * 1.5,
     });
     const other = await otherJob({
@@ -218,20 +219,59 @@ describe("asking to move a Job", () => {
       .send({ ...WEDNESDAY, cost: "free" })
       .expect(409);
     expect(refused.body.message).toBe(
-      "That day has just filled up. Please choose another.",
+      "That time has just filled up. Please choose another.",
     );
     const times = (
       await office.get(`/api/jobs/${other.id}/reschedule-times`).expect(200)
     ).body as RescheduleTimes;
-    expect(times.days).not.toContain("2026-01-14");
+    expect(times.days.map((d) => d.date)).not.toContain("2026-01-14");
   });
 
   test("to another time on its own day needs no more room", async () => {
     const { client, office, jobId } = await bookedJob();
     await otherJob({ startsAt: "2026-01-12T19:00:00Z", labourHours: 10 });
 
-    await ask(client, jobId, { date: "2026-01-12", time: "13:00" }).expect(201);
+    await ask(client, jobId, { date: "2026-01-12", time: "08:00" }).expect(201);
     expect((await scheduleDay(office, "2026-01-12")).heldHours).toBe(0);
+  });
+
+  test("can't take a crew another request holds at that time", async () => {
+    const { client, office, jobId } = await bookedJob();
+    // another Client's crew of 2 asks for Wednesday at 10am first, there
+    // until 11am
+    const other = await otherJob({
+      startsAt: "2026-01-16T14:00:00Z",
+      labourHours: 2,
+    });
+    await office
+      .post(`/api/jobs/${other.id}/reschedule-request`)
+      .send({ ...WEDNESDAY, cost: "free" })
+      .expect(201);
+
+    const refused = await ask(client, jobId, WEDNESDAY).expect(409);
+    expect(refused.body.message).toBe(
+      "That time has just filled up. Please choose another.",
+    );
+    // the Client isn't offered it, but Wednesday's later times still
+    const times = (
+      await client.get(`/api/jobs/mine/${jobId}/reschedule-times`).expect(200)
+    ).body as RescheduleTimes;
+    const wednesday = times.days.find((d) => d.date === "2026-01-14")!;
+    expect(wednesday.times).not.toContain("10:00");
+    expect(wednesday.times).toContain("11:00");
+    await ask(client, jobId, { date: "2026-01-14", time: "11:00" }).expect(201);
+  });
+
+  test("leaves out a day with no crew free at any time on offer", async () => {
+    const { client, jobId } = await bookedJob();
+    // a crew of 2 all Wednesday, 7am to 7pm, on 24 of the 16 hours: the day
+    // is short of hours too, but a crew of 2 at 7pm would still need both
+    await otherJob({ startsAt: "2026-01-14T12:00:00Z", labourHours: 24 });
+
+    const times = (
+      await client.get(`/api/jobs/mine/${jobId}/reschedule-times`).expect(200)
+    ).body as RescheduleTimes;
+    expect(times.days.map((d) => d.date)).not.toContain("2026-01-14");
   });
 
   test("only for a time on offer, one at a time", async () => {
@@ -244,7 +284,7 @@ describe("asking to move a Job", () => {
           409,
         )
       ).body.message,
-    ).toBe("That day has just filled up. Please choose another.");
+    ).toBe("That time has just filled up. Please choose another.");
     expect(
       (
         await ask(client, jobId, { date: "2026-01-14", time: "10:30" }).expect(
@@ -388,6 +428,29 @@ describe("Office Staff answering", () => {
       .post(`/api/jobs/${jobId}/reschedule-request/turn-down`)
       .send({})
       .expect(200);
+  });
+
+  test("confirming is refused when the time asked for no longer has a crew free", async () => {
+    const { client, office, jobId } = await bookedJob();
+    await ask(client, jobId, WEDNESDAY).expect(201);
+    // Dee takes Wednesday off, and Cory is given another Job at 10am
+    const staffList = (await office.get("/api/staff").expect(200)).body as {
+      id: string;
+      name: string;
+    }[];
+    const dee = staffList.find((s) => s.name === "Dee Cleaner")!;
+    await office
+      .put(`/api/staff/${dee.id}/exceptions/2026-01-14`)
+      .send({ hours: 0 });
+    await otherJob({ startsAt: WEDNESDAY_10AM, labourHours: 1, crewSize: 1 });
+
+    const refused = await confirm(office, jobId).expect(409);
+    expect(refused.body.message).toBe(
+      "Not enough Cleaners are free then: the Job needs 1, and 0 of the 1 available that day are. Turn the request down, or give a Cleaner hours that day.",
+    );
+    expect((await officeJob(office, jobId)).startsAt).toBe(
+      new Date(STARTS_AT).toISOString(),
+    );
   });
 
   test("is for Office Staff only", async () => {

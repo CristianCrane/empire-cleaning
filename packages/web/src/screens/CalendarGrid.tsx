@@ -172,6 +172,7 @@ export function PickSlot({
   hours,
   isSelected,
   className = "",
+  label,
   children,
   onPick,
 }: {
@@ -181,6 +182,8 @@ export function PickSlot({
   hours: number;
   isSelected?: boolean;
   className?: string;
+  // more to read out after its day and time
+  label?: string;
   children: ReactNode;
   onPick: (at: LocalDateTime) => void;
 }) {
@@ -188,7 +191,9 @@ export function PickSlot({
     <Button
       variant={isSelected ? "primary" : "quiet"}
       excludeFromTabOrder
-      aria-label={`${formatDay(at.date)}, ${formatClock(at.time)}`}
+      aria-label={[formatDay(at.date), formatClock(at.time), label]
+        .filter(Boolean)
+        .join(", ")}
       className={`group absolute inset-x-0.5 min-h-0 items-start justify-start rounded-md px-1.5 py-0.5 text-xs font-normal ${className}`}
       style={{
         top: (hoursOf(at.time) - axisStart) * HOUR_PX + 1,
@@ -203,12 +208,12 @@ export function PickSlot({
 
 // what a calendar to pick a clean's time from is given: what's chosen so
 // far, how long the clean is on site, where it's booked now if it is, and
-// for a Reschedule Request, the only days and start times on offer
+// for a Reschedule Request, the only days on offer, each with its start times
 export type TimePickerProps = {
   date?: string;
   time?: string;
   hoursOnSite: number;
   current?: LocalDateTime;
-  limits?: { days: string[]; times: string[] };
+  limits?: { date: string; times: string[] }[];
   onPick: (at: LocalDateTime) => void;
 };

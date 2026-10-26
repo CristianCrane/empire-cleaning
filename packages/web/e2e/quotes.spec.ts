@@ -23,14 +23,17 @@ const casey = { name: "Casey Client", email: "casey@example.com" };
 
 // the API's clock is at 4am on Monday 5 January 2026 in New York
 
-// with a Cleaner free on weekdays, so the days Quotes propose have room
+// with two Cleaners free for 4 hours on weekdays, so the days Quotes propose
+// have 8 hours, and a crew of 2
 const signInAsOffice = async (page: Page) => {
-  const cory = await createStaff({
-    name: "Cory Cleaner",
-    email: "cory@example.com",
-    roles: ["cleaner"],
-  });
-  await setUsualWeek(cory.id, [8, 8, 8, 8, 8, 0, 0]);
+  for (const name of ["Cory Cleaner", "Dee Cleaner"]) {
+    const member = await createStaff({
+      name,
+      email: `${name.split(" ")[0]!.toLowerCase()}@example.com`,
+      roles: ["cleaner"],
+    });
+    await setUsualWeek(member.id, [4, 4, 4, 4, 4, 0, 0]);
+  }
   await createStaff(olive);
   await signedInAs(page, olive.email);
   await expect(page).toHaveURL("/office");
@@ -241,9 +244,11 @@ test("the draft says whether the proposed day has room for each clean", async ({
 }) => {
   await requestQuoteAsGuest(casey);
   await signInAsOffice(page);
-  // Cory's 8 hours on Monday, half of them already booked: room for the
+  // Monday's 8 hours, half of them already booked from 2pm: room for the
   // Standard Clean (3.25 h) but not the Deep Clean (5 h)
   await bookJob({ startsAt: "2026-01-12T19:00:00Z", labourHours: 4 });
+  // and on Tuesday, both Cleaners at another home from 9 to 9:30
+  await bookJob({ startsAt: "2026-01-13T14:00:00Z", labourHours: 1 });
   await startDraft(page);
   const proposed = page.getByRole("region", { name: "Proposed time" });
 
@@ -252,14 +257,17 @@ test("the draft says whether the proposed day has room for each clean", async ({
     "Mon, Jan 12 has 4 h of Cleaner time free: room for the Standard Clean (3.25 h), but not the Deep Clean (5 h)",
   );
 
-  // Tuesday is clear
+  // Tuesday has the hours, but no crew at 9am
   await page
     .getByRole("group", { name: "Date" })
     .getByRole("spinbutton", { name: /day/i })
     .click();
   await page.keyboard.type("13");
   await expect(proposed).toContainText(
-    "Tue, Jan 13 has 8 h of Cleaner time free: room for either clean.",
+    "Tue, Jan 13 has 7 h of Cleaner time free: room for either clean.",
+  );
+  await expect(proposed).toContainText(
+    "Not enough Cleaners are free at 9:00 AM: a crew of 2 is needed, and 0 of the 2 available that day are. The Client couldn't accept this Quote: choose another time, or give a Cleaner hours that day.",
   );
 });
 
@@ -269,7 +277,8 @@ test(
   async ({ page }) => {
     await requestQuoteAsGuest(casey);
     await signInAsOffice(page);
-    // most of Cory's Monday booked: an hour from 9am, four from 2pm
+    // most of Monday booked: an hour from 9am, four from 2pm, each with both
+    // Cleaners
     await bookJob({ startsAt: "2026-01-12T14:00:00Z", labourHours: 1 });
     await bookJob({ startsAt: "2026-01-12T19:00:00Z", labourHours: 4 });
     await startDraft(page);
@@ -305,6 +314,16 @@ test(
       thisClean.x >= ninesJob.x + ninesJob.width ||
         ninesJob.x >= thisClean.x + thisClean.width,
     ).toBe(true);
+    // nobody is free for it at 9, while that Job is on: marked, though it
+    // can still be picked; free again from 9:30
+    await expect(
+      monday.getByRole("button", {
+        name: "Mon, Jan 12, 9:00 AM, no crew free",
+      }),
+    ).toBeVisible();
+    await expect(
+      monday.getByRole("button", { name: "Mon, Jan 12, 9:30 AM", exact: true }),
+    ).toBeAttached();
 
     const { violations } = await new AxeBuilder({ page })
       .include("[role=dialog]")

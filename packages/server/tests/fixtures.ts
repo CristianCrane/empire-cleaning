@@ -192,6 +192,13 @@ export const completedFirstClean = async ({
     roles: ["cleaner"],
   });
   await setUsualWeek(cory.id, [8, 8, 8, 8, 8, 0, 0]);
+  // a second Cleaner, so a crew of 2 has room
+  const bea = await createStaff({
+    name: "Bea Cleaner",
+    email: "bea@example.com",
+    roles: ["cleaner"],
+  });
+  await setUsualWeek(bea.id, [8, 8, 8, 8, 8, 0, 0]);
   const job = await acceptedJob({
     startsAt: "2026-01-12T14:00:00Z",
     byAccountId,

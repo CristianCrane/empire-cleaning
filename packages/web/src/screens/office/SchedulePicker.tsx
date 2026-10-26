@@ -11,6 +11,7 @@ import {
 import { getJson } from "../../api.ts";
 import { RangeBar, type TimePickerProps } from "../CalendarGrid.tsx";
 import { today, weekdayOf } from "../format.ts";
+import type { Crew } from "../schedule-layout.ts";
 import { isWide, rangeShowing } from "../schedule-range.ts";
 import { ScheduleCalendar } from "./ScheduleCalendar.tsx";
 
@@ -19,13 +20,16 @@ type Props = TimePickerProps & {
   repeats?: { everyWeeks: number; label: string };
   // what the chosen time's block is called: "This clean" unless said
   label?: string;
+  // the clean's crew, to mark the times without one free (#62)
+  crew?: Crew;
 };
 
 /**
  * Office Staff choosing when a clean starts from the Schedule: the week
  * around the date chosen so far, with its Jobs and free Cleaner hours.
  * Choosing a time sets the date and start time: any half hour, or for a
- * Reschedule Request, one of the times on offer on a day with room.
+ * Reschedule Request, one of the times on offer on a day with room. Times
+ * with no crew free for the clean are marked.
  */
 export function PickFromSchedule(props: Props) {
   return (
@@ -49,6 +53,7 @@ function PickStart({
   limits,
   repeats,
   label = "This clean",
+  crew,
   onPick,
   close,
 }: Props & { close: () => void }) {
@@ -85,6 +90,7 @@ function PickStart({
         {limits
           ? "Choose one of the start times on offer. Days without room for this clean are greyed out."
           : "Choose a time to start the clean there."}{" "}
+        {crew && !limits && "Striped times have no crew free for it. "}
         New York time.
         {date &&
           repeats &&
@@ -105,6 +111,7 @@ function PickStart({
         <ScheduleCalendar
           days={days}
           limits={limits}
+          crew={crew && { ...crew, hoursOnSite }}
           proposed={
             chosen && {
               start: chosen,

@@ -307,9 +307,13 @@ describe("a Service Plan's Jobs", () => {
     });
     await setUsualWeek(dee.id, [8, 8, 8, 8, 8, 0, 0]);
     const latest = cory.at(-1)!;
-    const [{ id: coryId }] = (await office.get("/api/staff").expect(200))
-      .body as { id: string; name: string }[];
-    await offerAssignment(latest.id, coryId!, me.id);
+    const { id: coryId } = (
+      (await office.get("/api/staff").expect(200)).body as {
+        id: string;
+        name: string;
+      }[]
+    ).find((s) => s.name === "Cory Cleaner")!;
+    await offerAssignment(latest.id, coryId, me.id);
     await offerAssignment(latest.id, dee.id, me.id);
 
     testClock().advance({ days: 7 });
@@ -335,7 +339,7 @@ describe("a Service Plan's Jobs", () => {
       propertyId,
       cleanType: "deep",
       startsAt: new Date(MONDAYS[2]!),
-      labourHours: 8,
+      labourHours: 16,
       crewSize: 2,
     });
     const client = await signIn(casey.email);
@@ -385,6 +389,41 @@ describe("a Service Plan's Jobs", () => {
       .expect(409);
   });
 
+  test("at a time with no crew free are booked nothing, though the hours are", async () => {
+    const { office, propertyId } = await firstCleanDone();
+    const quote = await sentPlan(office, propertyId);
+    // on the 2nd of February, both Cleaners are at another Job from 9 to 10
+    await bookJob({
+      propertyId,
+      cleanType: "deep",
+      startsAt: new Date(MONDAYS[2]!),
+      labourHours: 2,
+      crewSize: 2,
+    });
+    const client = await signIn(casey.email);
+    const outcome = (await accept(client, quote).expect(200))
+      .body as AcceptOutcome;
+    if (outcome.status !== "accepted") throw new Error("not accepted");
+    const planId = outcome.quote.servicePlanId!;
+
+    const plan = await officePlan(office, planId);
+    expect(startsOf(plan)).toEqual([MONDAYS[0], MONDAYS[1], MONDAYS[3]]);
+    expect(plan.unplaced).toEqual([
+      expect.objectContaining({ dueOn: "2026-02-02" }),
+    ]);
+
+    // the Office can't book it then either, but can once they've gone
+    const [visit] = plan.unplaced;
+    const book = (time: string) =>
+      office
+        .post(`/api/service-plans/${planId}/visits/${visit!.id}/book`)
+        .send({ date: "2026-02-02", time });
+    expect((await book("09:30").expect(409)).body.message).toMatch(
+      /no crew free then/,
+    );
+    await book("10:00").expect(200);
+  });
+
   test("can be skipped by the Office when there's no room", async () => {
     const { office, propertyId } = await firstCleanDone();
     const quote = await sentPlan(office, propertyId);
@@ -392,7 +431,7 @@ describe("a Service Plan's Jobs", () => {
       propertyId,
       cleanType: "deep",
       startsAt: new Date(MONDAYS[1]!),
-      labourHours: 8,
+      labourHours: 16,
       crewSize: 2,
     });
     await office
@@ -421,12 +460,15 @@ describe("completing a plan Job", () => {
   ) => {
     const { office, me, planId } = started;
     const [first] = (await officePlan(office, planId)).jobs;
-    const [{ id: coryId }] = (await office.get("/api/staff").expect(200))
+    const [{ id: cleanerId }] = (await office.get("/api/staff").expect(200))
       .body as { id: string }[];
-    const offered = await offerAssignment(first!.id, coryId!, me.id);
-    await confirmAssignment(coryId!, offered.assignments[0]!.id);
+    const offered = await offerAssignment(first!.id, cleanerId!, me.id);
+    await confirmAssignment(cleanerId!, offered.assignments[0]!.id);
     testClock().set(new Date("2026-01-19T16:00:00Z"));
-    await completeJob(coryId!, first!.id, { condition: "moderate", reports });
+    await completeJob(cleanerId!, first!.id, {
+      condition: "moderate",
+      reports,
+    });
     return first!.id;
   };
 

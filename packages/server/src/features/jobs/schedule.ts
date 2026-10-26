@@ -9,6 +9,7 @@ import {
 } from "drizzle-orm";
 import type {
   DayCapacity,
+  HeldTime,
   ScheduleDay,
   ScheduledJob,
 } from "@empire-cleaning/models";
@@ -148,16 +149,21 @@ const bookedJobs = async (days: string[]) => {
   return byDay;
 };
 
-// The Labour Hours held on each day of the range for pending Reschedule
-// Requests moving booked Jobs onto it. A Job moving to another time on its
-// own day holds nothing: its hours are booked there already.
-const heldHours = async (days: string[]) => {
-  const byDay = new Map(days.map((day) => [day, 0]));
+// The new times pending Reschedule Requests hold on each day of the range
+// for booked Jobs, and the Labour Hours they hold there. A Job moving to
+// another time on its own day holds a crew at that time, but no hours: its
+// hours are booked there already.
+const heldTimes = async (days: string[]) => {
+  const byDay = new Map(
+    days.map((day) => [day, { units: 0, held: [] as HeldTime[] }]),
+  );
   const pending = await db
     .select({
+      jobId: jobs.id,
       startsAt: rescheduleRequests.startsAt,
       jobStartsAt: jobs.startsAt,
       labourHours: jobs.labourHours,
+      crewSize: jobs.crewSize,
     })
     .from(rescheduleRequests)
     .innerJoin(jobs, eq(jobs.id, rescheduleRequests.jobId))
@@ -170,9 +176,17 @@ const heldHours = async (days: string[]) => {
       ),
     );
   for (const request of pending) {
-    const day = dayOf(request.startsAt);
-    if (day === dayOf(request.jobStartsAt)) continue;
-    byDay.set(day, byDay.get(day)! + hundredths(request.labourHours));
+    const day = byDay.get(dayOf(request.startsAt))!;
+    const { jobId, startsAt, labourHours, crewSize } = request;
+    day.held.push({
+      jobId,
+      startsAt: startsAt.toISOString(),
+      labourHours,
+      crewSize,
+    });
+    if (dayOf(startsAt) !== dayOf(request.jobStartsAt)) {
+      day.units += hundredths(labourHours);
+    }
   }
   return byDay;
 };
@@ -183,10 +197,10 @@ export const scheduleFor = async (
   to: string,
 ): Promise<ScheduleDay[]> => {
   const days = daysFrom(from, to);
-  const [hours, booked, held] = await Promise.all([
+  const [hours, booked, holds] = await Promise.all([
     cleanerHours(days),
     bookedJobs(days),
-    heldHours(days),
+    heldTimes(days),
   ]);
 
   return days.map((date) => {
@@ -197,7 +211,7 @@ export const scheduleFor = async (
       (sum, job) => sum + hundredths(job.labourHours),
       0,
     );
-    const heldUnits = held.get(date)!;
+    const { units: heldUnits, held } = holds.get(date)!;
     return {
       date,
       staffHours: fromHundredths(staffUnits),
@@ -210,27 +224,121 @@ export const scheduleFor = async (
         hours: fromHundredths(units),
       })),
       jobs: dayJobs,
+      held,
     };
   });
 };
 
-// Whether a day has enough free Staff hours for a booking of this many Labour
-// Hours, counting the Jobs already booked that day and the hours held for
-// pending Reschedule Requests. Accepting a Quote (#8) and Reschedule
-// Requests (#20) ask this.
-export const hasRoomFor = async (
-  date: string,
+// a clean to find room for; a booked Job being moved gives its id, so it
+// doesn't stand in its own way
+export type Clean = {
+  startsAt: Date;
+  labourHours: number;
+  crewSize: number;
+  jobId?: string;
+};
+
+const HOUR_MS = 3_600_000;
+
+// a crew at work: from when to when, in milliseconds, and how many
+type CrewSpan = { start: number; end: number; crewSize: number };
+
+const crewSpan = (
+  startsAt: Date,
   labourHours: number,
-): Promise<DayCapacity> => {
-  const [day] = await scheduleFor(date, date);
-  const { staffHours, bookedHours, heldHours, freeHours } = day!;
+  crewSize: number,
+): CrewSpan => {
+  const start = startsAt.getTime();
+  return { start, end: start + (labourHours / crewSize) * HOUR_MS, crewSize };
+};
+
+// The most crews at work at once between start and end. The count only goes
+// up when a crew starts, so it's highest at `start` or at one of their starts.
+const crewsBusyDuring = (spans: CrewSpan[], start: number, end: number) => {
+  const during = spans.filter((s) => s.start < end && s.end > start);
+  const starts = [
+    start,
+    ...during.map((s) => s.start).filter((t) => t > start),
+  ];
+  return Math.max(
+    ...starts.map((t) =>
+      during
+        .filter((s) => s.start <= t && s.end > t)
+        .reduce((sum, s) => sum + s.crewSize, 0),
+    ),
+  );
+};
+
+/**
+ * Whether a clean has room on a day of the Schedule, by two rules:
+ *
+ * - Hours: the day's free Cleaner hours, after the Jobs booked that day and
+ *   the hours held for pending Reschedule Requests, cover its Labour Hours.
+ *   A Job moving within its own day always has them.
+ * - Headcount (#62): the Crew Sizes of the Jobs at work during its time on
+ *   site, and of held new times, plus its own Crew Size, are no more than
+ *   that day's Cleaners with Available Hours. Anyone available that day is
+ *   taken to be free at any time of it. Only time on site counts, not travel.
+ *
+ * Completed and No Access Jobs count as they did. A Job being moved isn't
+ * counted against itself, at its booked time or a time held for it.
+ */
+export const roomOn = (day: ScheduleDay, clean: Clean): DayCapacity => {
+  const { startsAt, labourHours, crewSize, jobId } = clean;
+  const ownDay = day.jobs.some((job) => job.id === jobId);
+  // what it holds on this day already, moving onto it from another
+  const ownHeld = day.held
+    .filter((h) => h.jobId === jobId && !ownDay)
+    .reduce((sum, h) => sum + hundredths(h.labourHours), 0);
+  const hasHours =
+    ownDay || hundredths(day.freeHours) + ownHeld >= hundredths(labourHours);
+
+  const spans = [
+    ...day.jobs
+      .filter((job) => job.id !== jobId)
+      .map((job) =>
+        crewSpan(new Date(job.startsAt), job.labourHours, job.crewSize),
+      ),
+    ...day.held
+      .filter((h) => h.jobId !== jobId)
+      .map((h) => crewSpan(new Date(h.startsAt), h.labourHours, h.crewSize)),
+  ];
+  const own = crewSpan(startsAt, labourHours, crewSize);
+  const crewsBusy = crewsBusyDuring(spans, own.start, own.end);
+  const cleaners = day.available.length;
+  const hasCrew = crewsBusy + crewSize <= cleaners;
+
   return {
-    date,
+    date: day.date,
+    startsAt: startsAt.toISOString(),
     labourHours,
-    staffHours,
-    bookedHours,
-    heldHours,
-    freeHours,
-    hasRoom: hundredths(freeHours) >= hundredths(labourHours),
+    crewSize,
+    staffHours: day.staffHours,
+    bookedHours: day.bookedHours,
+    heldHours: day.heldHours,
+    freeHours: day.freeHours,
+    hasHours,
+    cleaners,
+    crewsBusy,
+    hasCrew,
+    hasRoom: hasHours && hasCrew,
   };
+};
+
+// why a clean has no room, for Office Staff
+export const whyNoRoom = (room: DayCapacity) => {
+  if (!room.hasHours) {
+    return `That day doesn't have room: the Job needs ${room.labourHours} Labour Hours and ${Math.max(room.freeHours, 0)} are free.`;
+  }
+  const free = Math.max(room.cleaners - room.crewsBusy, 0);
+  return `Not enough Cleaners are free then: the Job needs ${room.crewSize}, and ${free} of the ${room.cleaners} available that day ${free === 1 ? "is" : "are"}.`;
+};
+
+// Whether a clean has room at its time, as roomOn says. Accepting a Quote
+// (#8), Reschedule Requests (#20), moving a Job (#52) and Service Plan Jobs
+// (#14) ask this, holding the day (lockDay) while they book.
+export const roomFor = async (clean: Clean): Promise<DayCapacity> => {
+  const date = dayOf(clean.startsAt);
+  const [day] = await scheduleFor(date, date);
+  return roomOn(day!, clean);
 };

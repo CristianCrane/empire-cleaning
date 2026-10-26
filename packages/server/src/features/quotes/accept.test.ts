@@ -40,16 +40,16 @@ type Agent = Awaited<ReturnType<typeof signIn>>;
 const MONDAY = "2026-01-12";
 const nextMonday = { date: MONDAY, time: "09:00" };
 
-// Cleaners with 8 hours each on weekdays, so a day has room unless a test
-// fills it
-const cleaners = async (count = 2) => {
+// Cleaners with 8 hours each on weekdays, or as many as given, so a day has
+// room unless a test fills it
+const cleaners = async (count = 2, hours = 8) => {
   for (let i = 1; i <= count; i++) {
     const member = await createStaff({
       name: `Cleaner ${i}`,
       email: `cleaner${i}@example.com`,
       roles: ["cleaner"],
     });
-    await setUsualWeek(member.id, [8, 8, 8, 8, 8, 0, 0]);
+    await setUsualWeek(member.id, [hours, hours, hours, hours, hours, 0, 0]);
   }
 };
 
@@ -381,7 +381,7 @@ describe("accepting a First Clean Quote", () => {
 
   test("charges nothing and books nothing if the day has no room left", async () => {
     // 8 hours on Monday, nearly all booked
-    await cleaners(1);
+    await cleaners(2, 4);
     await bookedJob({ startsAt: "2026-01-12T19:00:00Z", labourHours: 7 });
     const office = await signInAsOffice();
     const quote = await sentQuote(office);
@@ -398,9 +398,31 @@ describe("accepting a First Clean Quote", () => {
     expect((await scheduleOn(office, MONDAY)).jobs).toHaveLength(1);
   });
 
+  test("charges nothing and books nothing if no crew is free at its time", async () => {
+    // 16 hours on Monday, but both Cleaners are at another home from 9 to 10
+    await cleaners();
+    await bookedJob({ startsAt: "2026-01-12T14:00:00Z", labourHours: 2 });
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    await addCard(client);
+    expect(
+      (
+        (await client.get(`/api/quotes/mine/${quote.id}`).expect(200))
+          .body as QuoteView
+      ).bookable,
+    ).toEqual([]);
+
+    const refused = await accept(client, quote).expect(409);
+
+    expect(refused.body.message).toMatch(/that time has just been booked up/);
+    expect(testPayments().charges).toEqual([]);
+    expect((await scheduleOn(office, MONDAY)).jobs).toHaveLength(1);
+  });
+
   test("gives the last free hours to one of two acceptances at once", async () => {
     // room on Monday for one of the two
-    await cleaners(1);
+    await cleaners(2, 4);
     const office = await signInAsOffice();
     const first = await sentQuote(office);
     const second = await sentQuote(
@@ -615,7 +637,7 @@ describe("paying the Deposit with a card entered just now", () => {
 
   test("refunds the Deposit if the day filled up while the bank was asking", async () => {
     // 8 hours on Monday
-    await cleaners(1);
+    await cleaners(2, 4);
     const office = await signInAsOffice();
     const quote = await sentQuote(office);
     const client = await signIn(casey.email);
@@ -882,7 +904,8 @@ describe("Office Staff recording acceptance on a Client's behalf", () => {
 
 describe("a Client's upcoming Jobs", () => {
   test("are their own booked Jobs still to come, soonest first", async () => {
-    await cleaners();
+    // room for a crew of 2 at 9am alongside someone else's at 10am
+    await cleaners(4);
     const office = await signInAsOffice();
     const later = await sentQuote(office, guestRequest(), {
       proposedStart: { date: "2026-01-20", time: "13:30" },
@@ -1001,7 +1024,7 @@ describe("when a Quote's day fills up before it's accepted", () => {
 
   test("the Quote shows which Clean Types still fit, and none once nothing does", async () => {
     // 8 hours on Monday
-    await cleaners(1);
+    await cleaners(2, 4);
     const office = await signInAsOffice();
     const quote = await sentQuote(office);
     const client = await signIn(casey.email);
@@ -1033,7 +1056,7 @@ describe("when a Quote's day fills up before it's accepted", () => {
   });
 
   test("is under Needs attention until the Office sends another time", async () => {
-    await cleaners(1);
+    await cleaners(2, 4);
     const office = await signInAsOffice();
     const quote = await sentQuote(office);
     testClock().set(new Date("2026-01-06T15:00:00Z"));
@@ -1078,7 +1101,7 @@ describe("when a Quote's day fills up before it's accepted", () => {
 
   test("the Office is emailed when a booking crowds out another Quote for that day", async () => {
     // room on Monday for exactly one Deep Clean
-    await cleaners(1);
+    await cleaners(2, 4);
     const office = await signInAsOffice();
     const caseys = await sentQuote(office);
     const drews = await sentQuote(office, drewRequest());
@@ -1105,7 +1128,8 @@ describe("when a Quote's day fills up before it's accepted", () => {
   });
 
   test("the Office isn't emailed when the other Quotes for that day still fit", async () => {
-    await cleaners(2);
+    // a crew for each, both at 9am
+    await cleaners(4);
     const office = await signInAsOffice();
     await sentQuote(office);
     const drews = await sentQuote(office, drewRequest());
