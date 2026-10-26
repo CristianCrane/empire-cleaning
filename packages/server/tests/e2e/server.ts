@@ -30,6 +30,8 @@ const { chaseProposedAdjustments, completeJob } =
   await import("../../src/features/completion/index.ts");
 const { recordNoAccess } =
   await import("../../src/features/cancellation/index.ts");
+const { requestReschedule } =
+  await import("../../src/features/reschedule/index.ts");
 const { db } = await import("../../src/db/index.ts");
 const { accounts } = await import("../../src/features/auth/auth.schema.ts");
 
@@ -133,6 +135,20 @@ control.post("/jobs/:id/complete", async (req, res) => {
 control.post("/jobs/:id/no-access", async (req, res) => {
   const { staffId, reason } = req.body as { staffId: string; reason: string };
   await recordNoAccess(staffId, req.params.id, reason);
+  res.json({ status: "ok" });
+});
+
+// a Reschedule Request, as the Client sends it from the portal, at the cost
+// it has now
+control.post("/jobs/:id/reschedule", async (req, res) => {
+  const { date, time, cost } = req.body as Parameters<
+    typeof requestReschedule
+  >[1] & { cost: Parameters<typeof requestReschedule>[2]["cost"] };
+  await requestReschedule(
+    req.params.id,
+    { date, time },
+    { cost, byAccountId: null, byClient: true },
+  );
   res.json({ status: "ok" });
 });
 

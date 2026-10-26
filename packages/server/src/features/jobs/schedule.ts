@@ -23,6 +23,7 @@ import {
 import { assignmentStatusOf } from "../assignments/places.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { properties } from "../properties/properties.schema.ts";
+import { rescheduleRequests } from "../reschedule/reschedule.schema.ts";
 import {
   staff,
   staffAvailabilityExceptions,
@@ -140,15 +141,45 @@ const bookedJobs = async (days: string[]) => {
   return byDay;
 };
 
+// The Labour Hours held on each day of the range for pending Reschedule
+// Requests moving booked Jobs onto it. A Job moving to another time on its
+// own day holds nothing: its hours are booked there already.
+const heldHours = async (days: string[]) => {
+  const byDay = new Map(days.map((day) => [day, 0]));
+  const pending = await db
+    .select({
+      startsAt: rescheduleRequests.startsAt,
+      jobStartsAt: jobs.startsAt,
+      labourHours: jobs.labourHours,
+    })
+    .from(rescheduleRequests)
+    .innerJoin(jobs, eq(jobs.id, rescheduleRequests.jobId))
+    .where(
+      and(
+        eq(rescheduleRequests.status, "pending"),
+        eq(jobs.status, "booked"),
+        gte(rescheduleRequests.startsAt, startOfDay(days[0]!)),
+        lt(rescheduleRequests.startsAt, startOfDay(addDays(days.at(-1)!, 1))),
+      ),
+    );
+  for (const request of pending) {
+    const day = dayOf(request.startsAt);
+    if (day === dayOf(request.jobStartsAt)) continue;
+    byDay.set(day, byDay.get(day)! + hundredths(request.labourHours));
+  }
+  return byDay;
+};
+
 // the Schedule for the days from `from` to `to`, both included
 export const scheduleFor = async (
   from: string,
   to: string,
 ): Promise<ScheduleDay[]> => {
   const days = daysFrom(from, to);
-  const [hours, booked] = await Promise.all([
+  const [hours, booked, held] = await Promise.all([
     cleanerHours(days),
     bookedJobs(days),
+    heldHours(days),
   ]);
 
   return days.map((date) => {
@@ -159,11 +190,13 @@ export const scheduleFor = async (
       (sum, job) => sum + hundredths(job.labourHours),
       0,
     );
+    const heldUnits = held.get(date)!;
     return {
       date,
       staffHours: fromHundredths(staffUnits),
       bookedHours: fromHundredths(bookedUnits),
-      freeHours: fromHundredths(staffUnits - bookedUnits),
+      heldHours: fromHundredths(heldUnits),
+      freeHours: fromHundredths(staffUnits - bookedUnits - heldUnits),
       available: available.map(({ id, name, units }) => ({
         id,
         name,
@@ -175,19 +208,21 @@ export const scheduleFor = async (
 };
 
 // Whether a day has enough free Staff hours for a booking of this many Labour
-// Hours, counting the Jobs already booked that day. Accepting a Quote (#8)
-// and Reschedule Requests (#20) ask this.
+// Hours, counting the Jobs already booked that day and the hours held for
+// pending Reschedule Requests. Accepting a Quote (#8) and Reschedule
+// Requests (#20) ask this.
 export const hasRoomFor = async (
   date: string,
   labourHours: number,
 ): Promise<DayCapacity> => {
   const [day] = await scheduleFor(date, date);
-  const { staffHours, bookedHours, freeHours } = day!;
+  const { staffHours, bookedHours, heldHours, freeHours } = day!;
   return {
     date,
     labourHours,
     staffHours,
     bookedHours,
+    heldHours,
     freeHours,
     hasRoom: hundredths(freeHours) >= hundredths(labourHours),
   };

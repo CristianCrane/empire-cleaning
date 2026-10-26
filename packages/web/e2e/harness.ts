@@ -94,6 +94,21 @@ export const recordNoAccess = (
     body: JSON.stringify({ staffId, reason }),
   });
 
+// a Reschedule Request, as the Client sends it from the portal, at what it
+// costs now
+export const requestReschedule = (
+  jobId: string,
+  to: {
+    date: string;
+    time: string;
+    cost?: "free" | "free_late" | "late_cancellation";
+  },
+) =>
+  control(`/jobs/${jobId}/reschedule`, {
+    method: "POST",
+    body: JSON.stringify({ cost: "free", ...to }),
+  });
+
 // a place on a Job Offered to a Cleaner (and Confirmed by them, if asked)
 export const offerPlace = (
   jobId: string,

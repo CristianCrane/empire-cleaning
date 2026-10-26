@@ -255,7 +255,10 @@ export type ScheduleDay = {
   date: IsoDate;
   staffHours: number;
   bookedHours: number;
-  // staffHours less bookedHours; negative when the day is overbooked
+  // held for pending Reschedule Requests moving Jobs onto this day (#20)
+  heldHours: number;
+  // staffHours less bookedHours and heldHours; negative when the day is
+  // overbooked
   freeHours: number;
   available: { id: string; name: string; hours: number }[];
   jobs: ScheduledJob[];
@@ -267,6 +270,7 @@ export type DayCapacity = {
   labourHours: number;
   staffHours: number;
   bookedHours: number;
+  heldHours: number;
   freeHours: number;
   hasRoom: boolean;
 };
@@ -274,8 +278,7 @@ export type DayCapacity = {
 // ---- Office dashboard (#18) ----
 
 // One thing waiting on the Office, of a kind told by `kind`. Later tickets add
-// their kinds to this union: Reschedule Requests (#20), On Hold Service Plans
-// (#15).
+// their kinds to this union: On Hold Service Plans (#15).
 export type NeedsAttentionItem =
   | {
       kind: "quote_request";
@@ -318,6 +321,14 @@ export type NeedsAttentionItem =
       since: string;
       job: ScheduledJob;
       count: number;
+    }
+  | {
+      // a pending Reschedule Request, waiting on the Office to confirm or
+      // turn it down
+      kind: "reschedule_requested";
+      since: string;
+      job: ScheduledJob;
+      request: RescheduleRequestView;
     };
 
 export type NeedsAttentionKind = NeedsAttentionItem["kind"];
@@ -519,6 +530,11 @@ export type OfficeJob = ScheduledJob & {
   // what cancelling it would cost now, either way; null once it isn't
   // booked
   cancelTerms: Record<CancelledBy, CancellationTerms> | null;
+  // what moving it would cost if asked now; null once it can't be moved or
+  // while a request is pending
+  rescheduleTerms: RescheduleTerms | null;
+  // its latest Reschedule Request, pending or answered; null if none
+  rescheduleRequest: RescheduleRequestView | null;
   addOns: string[];
   // Offered and Confirmed first, then Released; each earliest Offered first
   assignments: AssignmentView[];
@@ -678,6 +694,9 @@ export type JobPayment = {
   adjustmentsCents: number;
   // the price: quoted plus Adjustments, never below 0
   totalCents: number;
+  // the Deposit kept as a Late Cancellation fee by a second Late Reschedule
+  // (ADR-0010), owed on top of the price; 0 if none
+  rescheduleFeeCents: number;
   charges: ChargeView[];
   // what has been taken, less refunds
   paidCents: number;
@@ -727,6 +746,11 @@ export type ClientJobDetail = ClientJob & {
   // what cancelling it would cost now; null once it can't be cancelled in
   // the portal (it isn't booked, or it has started)
   cancelTerms: CancellationTerms | null;
+  // what moving it would cost if asked now; null once it can't be moved in
+  // the portal (it isn't booked, it has started, or a request is pending)
+  rescheduleTerms: RescheduleTerms | null;
+  // its latest Reschedule Request, pending or answered; null if none
+  rescheduleRequest: RescheduleRequestView | null;
 };
 
 // ---- Cancellation and No Access (#11) ----
@@ -785,3 +809,59 @@ export type JobNoAccess = {
   feeCents: number;
   payment: JobPayment;
 };
+
+// ---- Reschedule Requests (#20) ----
+
+// What moving a Job costs, judged when the request is made (ADR-0010): free
+// 24 hours or more before it; less than that, a Late Reschedule, free the
+// first time one is confirmed for the Job and a Late Cancellation after
+// that, which keeps the Deposit as the fee while the Job still moves.
+export type RescheduleCost = "free" | "free_late" | "late_cancellation";
+
+export type RescheduleTerms = {
+  cost: RescheduleCost;
+  // the Deposit kept if a Late Cancellation is confirmed; 0 otherwise, and
+  // 0 when an earlier Late Reschedule has kept it already
+  feeCents: number;
+  // until when moving is free, by the Clock
+  freeUntil: string;
+};
+
+// pending until Office Staff confirm it or turn it down, or the Client
+// withdraws it
+export type RescheduleRequestStatus =
+  "pending" | "confirmed" | "turned_down" | "withdrawn";
+
+export type RescheduleRequestView = {
+  id: string;
+  status: RescheduleRequestStatus;
+  // the Job's time when it was asked, and the new time asked for
+  fromStartsAt: string;
+  startsAt: string;
+  // what it costs, as judged when it was made
+  cost: RescheduleCost;
+  feeCents: number;
+  requestedAt: string;
+  // whether the Client asked in the portal, rather than the Office for them
+  byClient: boolean;
+  answeredAt: string | null;
+  // why Office Staff turned it down, told to the Client
+  reason: string | null;
+};
+
+// the times a Job can be moved to: the days from tomorrow with room for its
+// Labour Hours (counting what's held for other requests), and the start
+// times on offer
+export type RescheduleTimes = {
+  days: IsoDate[];
+  times: string[];
+};
+
+// POST /api/jobs/mine/:id/reschedule-request (and the Office's
+// /api/jobs/:id/reschedule-request): the new time, and the cost the person
+// asking was shown, so one that has become late since is refused rather
+// than sent
+export type RescheduleInput = LocalDateTime & { cost: RescheduleCost };
+
+// POST /api/jobs/:id/reschedule-request/turn-down
+export type TurnDownRescheduleInput = { reason?: string | null };

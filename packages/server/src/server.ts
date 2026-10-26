@@ -26,6 +26,10 @@ import { router as priceListRouter } from "#features/price-list";
 import { router as propertiesRouter } from "#features/properties";
 import { router as quoteRequestsRouter } from "#features/quote-requests";
 import { router as quotesRouter } from "#features/quotes";
+import {
+  clientRescheduleRouter,
+  officeRescheduleRouter,
+} from "#features/reschedule";
 import { router as staffRouter } from "#features/staff";
 import {
   networkLoggingMiddleware,
@@ -70,6 +74,8 @@ app.use("/api/jobs", jobAssignmentsRouter);
 app.use("/api/jobs", officeCompletionRouter);
 app.use("/api/jobs", clientCancellationRouter);
 app.use("/api/jobs", officeCancellationRouter);
+app.use("/api/jobs", clientRescheduleRouter);
+app.use("/api/jobs", officeRescheduleRouter);
 app.use("/api/assignments", cleanerCompletionRouter);
 app.use("/api/assignments", noAccessRouter);
 app.use("/api/assignments", assignmentsRouter);

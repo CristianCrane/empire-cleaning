@@ -35,6 +35,7 @@ import {
 } from "../format.ts";
 import { CancelJob, CancelledCard, NoAccessCard } from "./JobCancellation.tsx";
 import { JobCompletionCards } from "./JobCompletion.tsx";
+import { JobReschedule } from "./JobReschedule.tsx";
 
 // whether every place on a Job's crew is Confirmed, or once it has happened
 // or been Cancelled, how it went
@@ -67,7 +68,7 @@ const sinceOf = (a: AssignmentView) =>
     : `${a.status === "confirmed" ? "Confirmed" : "Released"} ${formatDate(a.answeredAt!)}`;
 
 // a Job, and who's on it: Office Staff Offer its places to Cleaners and take
-// people off, cancel it, and once it's Completed, review and correct the
+// people off, move or cancel it, and once it's Completed, review and correct the
 // completion
 export function JobScreen() {
   const job = useLoaderData({ from: "/office/jobs/$jobId" });
@@ -151,6 +152,7 @@ export function JobScreen() {
         )}
       </Card>
 
+      <JobReschedule job={job} />
       {job.cancelTerms && <CancelJob job={job} />}
     </div>
   );

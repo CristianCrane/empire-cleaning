@@ -134,3 +134,21 @@ export const adjustmentLabel = (a: {
   a.kind === "extra_time"
     ? `${a.hours} extra ${a.hours === 1 ? "hour" : "hours"}`
     : `${a.addOnName}, ${a.kind === "add_on_done" ? "done on the day" : "not done"}`;
+
+const clockParts = new Intl.DateTimeFormat("en-US", {
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+  timeZone: BUSINESS_TIME_ZONE,
+});
+// an instant -> its New York wall-clock time, "09:00"
+export const timeOfDay = (iso: string) => clockParts.format(new Date(iso));
+
+// an instant -> the New York day it falls on, "2026-01-12"
+export const dayOfInstant = (iso: string) => dayParts.format(new Date(iso));
+
+// "09:00" -> "9:00 AM"
+export const formatClock = (time: string) => {
+  const [hours, minutes] = time.split(":").map(Number);
+  return `${hours! % 12 || 12}:${String(minutes).padStart(2, "0")} ${hours! < 12 ? "AM" : "PM"}`;
+};

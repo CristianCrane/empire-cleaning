@@ -29,15 +29,18 @@ type Ledger = {
   quotedCents: number;
   adjustmentsCents: number;
   totalCents: number;
+  rescheduleFeeCents: number;
   charges: (Charge & { refundedCents: number })[];
   paidCents: number;
   owedCents: number;
 };
 
 // What the Job should have taken against what it has. A Completed Job owes
-// its price with the Adjustments that count; a booked one (or one whose
+// its price with the Adjustments that count, plus the Deposit kept if a
+// second Late Reschedule moved it (ADR-0010); a booked one (or one whose
 // completion was undone) owes only its Deposit; a Cancelled or No Access one
-// owes its fee, which is 0 unless it was a Late Cancellation or No Access.
+// owes its fee, which is 0 unless it was a Late Cancellation or No Access,
+// or a Late Reschedule kept the Deposit.
 const ledgerOf = async (job: Job, tx: Tx | typeof db): Promise<Ledger> => {
   const [quoted, rows, taken] = await Promise.all([
     quotedJob(job.id, tx),
@@ -80,7 +83,7 @@ const ledgerOf = async (job: Job, tx: Tx | typeof db): Promise<Ledger> => {
     .reduce((sum, c) => sum + c.amountCents, 0);
   const owes =
     job.status === "completed"
-      ? totalCents
+      ? totalCents + job.rescheduleFeeCents
       : job.status === "booked"
         ? depositCents
         : (job.feeCents ?? 0);
@@ -89,6 +92,7 @@ const ledgerOf = async (job: Job, tx: Tx | typeof db): Promise<Ledger> => {
     quotedCents: quoted.totalCents,
     adjustmentsCents,
     totalCents,
+    rescheduleFeeCents: job.rescheduleFeeCents,
     charges: withRefunds,
     paidCents,
     owedCents: owes - paidCents,
@@ -112,6 +116,7 @@ export const paymentOf = async (job: Job): Promise<JobPayment> => {
     quotedCents: ledger.quotedCents,
     adjustmentsCents: ledger.adjustmentsCents,
     totalCents: ledger.totalCents,
+    rescheduleFeeCents: ledger.rescheduleFeeCents,
     charges: [...ledger.charges].reverse().map((c) => ({
       kind: c.kind,
       amountCents: c.amountCents,

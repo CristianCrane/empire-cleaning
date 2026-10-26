@@ -168,6 +168,20 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
             }),
         };
       }
+      case "reschedule_requested": {
+        const { job, request } = item;
+        return {
+          key: `reschedule_requested ${request.id}`,
+          title: job.client.name,
+          description: `${addressOf(job.property)} · ${formatDateTime(request.fromStartsAt)} to ${formatDateTime(request.startsAt)}`,
+          badge: <StatusBadge tone="warning">Reschedule Request</StatusBadge>,
+          open: () =>
+            navigate({
+              to: "/office/jobs/$jobId",
+              params: { jobId: job.id },
+            }),
+        };
+      }
       case "adjustments_reported": {
         const { job } = item;
         return {

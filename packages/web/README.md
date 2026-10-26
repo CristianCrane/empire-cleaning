@@ -6,29 +6,29 @@ Every screen is built from the design system in `packages/ui` (`@empire-cleaning
 
 ## Areas and sign-in
 
-| URL                           | For                                                                                                                                      |
-| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `/sign-in`                    | anyone: emailed link or Google                                                                                                           |
-| `/office`                     | Office Staff: Needs attention and today's Jobs with their Assignment status                                                              |
-| `/cleaner`                    | Cleaners: their Jobs today and coming up, Offered, Confirmed or Completed                                                                |
-| `/cleaner/jobs/$jobId`        | Cleaners: a Job they're on, where the Offer email leads; Confirm or Release their place, complete it, or record No Access                |
-| `/portal`                     | Clients: their upcoming and past Jobs, Quotes, Quote Requests and homes                                                                  |
-| `/portal/jobs/$jobId`         | Clients: a Job: cancelling it (with what it costs), its receipt, approving extra work, and paying an Unpaid Job; where those emails lead |
-| `/portal/request`             | Clients: request a Quote for a new home or one of theirs                                                                                 |
-| `/portal/details`             | Clients: contact details and Access Instructions                                                                                         |
-| `/portal/quotes/$quoteId`     | Clients: a Quote, where its email's link leads; accept it in one step (Clean Type, card, pay), or Decline                                |
-| `/portal/payment-method`      | Clients: add or replace their card, where the Office's add-a-card email leads                                                            |
-| `/office/requests`            | Office Staff: open Quote Requests                                                                                                        |
-| `/office/requests/$requestId` | Office Staff: a request in full, with the Suggested Price for both Clean Types and how each was worked out                               |
-| `/office/quotes/$quoteId`     | Office Staff: a Draft to price and send, or a Sent one, with recording acceptance and the add-a-card email                               |
-| `/office/price-list`          | Office Staff: edit the Price List                                                                                                        |
-| `/office/schedule`            | Office Staff: booked Jobs and free Staff hours for a range of days, a week at a time by default                                          |
-| `/office/jobs/$jobId`         | Office Staff: a Job's places, cancelling it, and once Completed, reviewing Adjustments and correcting the completion                     |
-| `/office/staff`               | Office Staff: everyone on Staff, and inviting someone                                                                                    |
-| `/office/staff/$staffId`      | Office Staff: a Staff member's usual week, days off and extra days, and deactivating them                                                |
-| `/office/clients/$clientId`   | Office Staff: a Client, their homes and Quote Requests, and Condition correction                                                         |
-| `/welcome`                    | an Account connected to nothing: request a Quote to become a Client                                                                      |
-| `/`                           | sends a signed-in Account to its area                                                                                                    |
+| URL                           | For                                                                                                                                                                             |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/sign-in`                    | anyone: emailed link or Google                                                                                                                                                  |
+| `/office`                     | Office Staff: Needs attention and today's Jobs with their Assignment status                                                                                                     |
+| `/cleaner`                    | Cleaners: their Jobs today and coming up, Offered, Confirmed or Completed                                                                                                       |
+| `/cleaner/jobs/$jobId`        | Cleaners: a Job they're on, where the Offer email leads; Confirm or Release their place, complete it, or record No Access                                                       |
+| `/portal`                     | Clients: their upcoming and past Jobs, Quotes, Quote Requests and homes                                                                                                         |
+| `/portal/jobs/$jobId`         | Clients: a Job: moving or cancelling it (with what it costs), its receipt, approving extra work, and paying an Unpaid Job; where those emails lead                              |
+| `/portal/request`             | Clients: request a Quote for a new home or one of theirs                                                                                                                        |
+| `/portal/details`             | Clients: contact details and Access Instructions                                                                                                                                |
+| `/portal/quotes/$quoteId`     | Clients: a Quote, where its email's link leads; accept it in one step (Clean Type, card, pay), or Decline                                                                       |
+| `/portal/payment-method`      | Clients: add or replace their card, where the Office's add-a-card email leads                                                                                                   |
+| `/office/requests`            | Office Staff: open Quote Requests                                                                                                                                               |
+| `/office/requests/$requestId` | Office Staff: a request in full, with the Suggested Price for both Clean Types and how each was worked out                                                                      |
+| `/office/quotes/$quoteId`     | Office Staff: a Draft to price and send, or a Sent one, with recording acceptance and the add-a-card email                                                                      |
+| `/office/price-list`          | Office Staff: edit the Price List                                                                                                                                               |
+| `/office/schedule`            | Office Staff: booked Jobs and free Staff hours for a range of days, a week at a time by default                                                                                 |
+| `/office/jobs/$jobId`         | Office Staff: a Job's places, confirming or turning down a Reschedule Request, moving or cancelling it, and once Completed, reviewing Adjustments and correcting the completion |
+| `/office/staff`               | Office Staff: everyone on Staff, and inviting someone                                                                                                                           |
+| `/office/staff/$staffId`      | Office Staff: a Staff member's usual week, days off and extra days, and deactivating them                                                                                       |
+| `/office/clients/$clientId`   | Office Staff: a Client, their homes and Quote Requests, and Condition correction                                                                                                |
+| `/welcome`                    | an Account connected to nothing: request a Quote to become a Client                                                                                                             |
+| `/`                           | sends a signed-in Account to its area                                                                                                                                           |
 
 - Someone signed out who opens an area goes to `/sign-in?next=…` and comes back to that page afterwards.
 - An Account opening another role's area is sent to its own area.

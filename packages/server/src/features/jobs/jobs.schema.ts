@@ -89,6 +89,9 @@ export const jobs = pgTable(
     // what a Cancelled or No Access Job owes, tax included: the Late
     // Cancellation fee, or 0
     feeCents: integer("fee_cents"),
+    // the Deposit kept as a Late Cancellation fee when a second Late
+    // Reschedule moved it (ADR-0010), owed on top of its price; 0 if none
+    rescheduleFeeCents: integer("reschedule_fee_cents").notNull().default(0),
     ...timestamps,
   },
   (t) => [

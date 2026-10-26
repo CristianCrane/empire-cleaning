@@ -10,6 +10,7 @@ import { jobViews } from "../jobs/schedule.ts";
 import { quoteRequestsAwaitingQuote } from "../quote-requests/quote-requests.ts";
 import { noRoomSince, quotesWithoutRoom } from "../quotes/quote-room.ts";
 import { quotesExpiringWithin } from "../quotes/quote-state.ts";
+import { pendingRescheduleRequests } from "../reschedule/reschedule.ts";
 
 type Source = () => Promise<NeedsAttentionItem[]>;
 
@@ -64,6 +65,19 @@ const reportedAdjustments: Source = async () => {
   }));
 };
 
+// pending Reschedule Requests, earliest asked first: the Client is waiting,
+// and the new time's hours are held until the Office answers
+const rescheduleRequests: Source = async () => {
+  const pending = await pendingRescheduleRequests();
+  const byId = await jobsById(pending.map((p) => p.jobId));
+  return pending.map(({ jobId, request }) => ({
+    kind: "reschedule_requested",
+    since: request.requestedAt,
+    job: byId.get(jobId)!,
+    request,
+  }));
+};
+
 // Sent Quotes Expiring within 48 hours, soonest first; each counts from when
 // it came within 48 hours
 const EXPIRING_HOURS = 48;
@@ -96,6 +110,7 @@ const quotesWithoutRoomSource: Source = async () =>
 // with them.
 const sources: Source[] = [
   unassignedJobs,
+  rescheduleRequests,
   unpaidJobsSource,
   reportedAdjustments,
   quotesWithoutRoomSource,
