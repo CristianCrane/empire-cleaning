@@ -16,6 +16,7 @@ import {
 } from "../payments/payments.schema.ts";
 import { properties } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
+import { holdOrResume } from "../service-plans/on-hold.ts";
 import { adjustments, type Adjustment } from "./completion.schema.ts";
 import { quotedJob } from "./pricing.ts";
 
@@ -145,6 +146,8 @@ export type Settled = {
   // whether this settling made it Unpaid, when it wasn't before
   becameUnpaid: boolean;
   paymentMethod: string | null;
+  // what it did to the plan of a plan Job: put it On Hold, or resumed it
+  plan: "held" | "resumed" | null;
 };
 
 // what a Charge is for: the Balance of a Completed Job, or the fee for one
@@ -219,7 +222,8 @@ const giveBack = async (
  * A Charge is taken off-session from the Client's saved Payment Method. If
  * it can't be (declined, no card saved, the provider unreachable), the Job
  * is Unpaid until a later settling takes it. One settling of a Job at a
- * time: the Job is held while its money moves.
+ * time: the Job is held while its money moves. A plan Job's plan is On Hold
+ * while any of its Jobs is Unpaid.
  */
 export const settleJob = async (jobId: string): Promise<Settled> =>
   db.transaction(async (tx) => {
@@ -242,6 +246,7 @@ export const settleJob = async (jobId: string): Promise<Settled> =>
       failure: null,
       becameUnpaid: false,
       paymentMethod: method?.label ?? null,
+      plan: null,
     };
 
     if (ledger.owedCents < 0) {
@@ -303,5 +308,6 @@ export const settleJob = async (jobId: string): Promise<Settled> =>
         .set({ unpaidSince: null, unpaidReason: null })
         .where(eq(jobs.id, jobId));
     }
+    settled.plan = await holdOrResume(tx, jobId);
     return settled;
   });

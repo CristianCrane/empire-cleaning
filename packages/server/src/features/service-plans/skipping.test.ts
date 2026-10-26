@@ -1,13 +1,11 @@
 import { describe, expect, test } from "vitest";
 import type {
-  AcceptOutcome,
   ClientJobDetail,
   NeedsAttentionItem,
   OfficeJob,
   OfficeServicePlan,
-  SignedInAccount,
 } from "@empire-cleaning/models";
-import { confirmAssignment, offerAssignment } from "#features/assignments";
+import { confirmAssignment } from "#features/assignments";
 import { completeJob } from "#features/completion";
 import {
   signIn,
@@ -15,12 +13,7 @@ import {
   testEmail,
   testPayments,
 } from "../../../tests/harness.ts";
-import {
-  casey,
-  completedFirstClean,
-  sentServicePlanQuote,
-  signInAsOffice,
-} from "../../../tests/fixtures.ts";
+import { casey, crewedServicePlan } from "../../../tests/fixtures.ts";
 
 type Agent = Awaited<ReturnType<typeof signIn>>;
 
@@ -28,7 +21,6 @@ type Agent = Awaited<ReturnType<typeof signIn>>;
 // and the clock is left there. The plan is weekly from 9am on Monday the
 // 19th, for a crew of 1, so its first Job can be skipped free until 9am on
 // Sunday the 18th.
-const FIRST_JOB = "2026-01-19T14:00:00.000Z";
 const SUNDAY_8_59AM = new Date("2026-01-18T13:59:00Z");
 const SUNDAY_10AM = new Date("2026-01-18T15:00:00Z");
 const MONDAY_9_30AM = new Date("2026-01-19T14:30:00Z");
@@ -40,41 +32,8 @@ const PLAN_DEPOSIT = 5046;
 
 const CORY = "cory@example.com";
 
-// Casey's weekly plan, accepted with the card saved at their First Clean,
-// and the Cleaner who did that clean holding a Confirmed place on its first
-// Job
-const startedPlan = async () => {
-  const office = await signInAsOffice();
-  const me = (await office.get("/api/me").expect(200)).body as SignedInAccount;
-  const { propertyId } = await completedFirstClean({ byAccountId: me.id });
-  const quote = await sentServicePlanQuote({
-    propertyId,
-    byAccountId: me.id,
-    startsAt: FIRST_JOB,
-  });
-  const client = await signIn(casey.email);
-  const outcome = (
-    await client
-      .post(`/api/quotes/mine/${quote.id}/accept`)
-      .send({ cleanType: "standard" })
-      .expect(200)
-  ).body as AcceptOutcome;
-  if (outcome.status !== "accepted") throw new Error("not accepted");
-  const planId = outcome.quote.servicePlanId!;
-
-  const plan = await officePlan(office, planId);
-  const jobId = plan.jobs.find((j) => j.startsAt === FIRST_JOB)!.id;
-  // Cory, who did the First Clean
-  const staff = (await office.get("/api/staff").expect(200)).body as {
-    id: string;
-    email: string;
-  }[];
-  const cleanerId = staff.find((s) => s.email === CORY)!.id;
-  const offered = await offerAssignment(jobId, cleanerId, me.id);
-  await confirmAssignment(cleanerId, offered.assignments[0]!.id);
-
-  return { office, client, planId, jobId, cleanerId };
-};
+// Casey's plan, with Cory Confirmed on its first Job
+const startedPlan = crewedServicePlan;
 
 const officePlan = async (office: Agent, id: string) =>
   (await office.get(`/api/service-plans/${id}`).expect(200))

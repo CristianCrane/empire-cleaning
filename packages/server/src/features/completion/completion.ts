@@ -35,6 +35,7 @@ import { assignmentStatusOf } from "../assignments/places.ts";
 import {
   cancellationOf,
   cancelTermsOf,
+  ON_HOLD_LINE,
   planOfJob,
   noAccessOf,
 } from "../cancellation/cancellation.ts";
@@ -122,12 +123,18 @@ const moneyLines = (settled: Settled, owedCents: number) => {
       `We couldn't charge the ${formatMoney(owedCents)} still to pay to your ${card}. Please update your Payment Method and we'll try again straight away.`,
     );
   }
+  // putting it On Hold is told in the Unpaid notice
+  if (settled.plan === "resumed") {
+    lines.push(
+      "Your Service Plan is back on, and we'll book your cleans as usual.",
+    );
+  }
   return lines;
 };
 
 // tells the Client a Job they owe on couldn't be charged, the first time it
 // becomes Unpaid
-const sendUnpaid = async (jobId: string) => {
+const sendUnpaid = async (jobId: string, settled: Settled) => {
   const { job, property, client } = await jobWithOwner(jobId);
   const payment = await paymentOf(job);
   await notify(`Unpaid notice for Job ${jobId}`, () =>
@@ -139,6 +146,7 @@ const sendUnpaid = async (jobId: string) => {
           `Hi ${firstNameOf(client.name)},`,
           `We couldn't charge ${formatMoney(payment.owedCents)} for ${describe(job, property)} to your ${payment.paymentMethod ?? "card"}.`,
           "Please update your Payment Method and we'll try again straight away:",
+          ...(settled.plan === "held" ? [ON_HOLD_LINE] : []),
         ],
         portalLink(jobId, "Update your Payment Method"),
       ),
@@ -244,7 +252,7 @@ export const completeJob = async (
 
   const settled = await settleJob(jobId);
   await sendReceipt(jobId, settled);
-  if (settled.becameUnpaid) await sendUnpaid(jobId);
+  if (settled.becameUnpaid) await sendUnpaid(jobId, settled);
 };
 
 // the Client's receipt for a Completed Job
@@ -582,7 +590,7 @@ const sendCorrection = async (jobId: string, settled: Settled) => {
 const settleAfterCorrection = async (jobId: string) => {
   const settled = await settleJob(jobId);
   await sendCorrection(jobId, settled);
-  if (settled.becameUnpaid) await sendUnpaid(jobId);
+  if (settled.becameUnpaid) await sendUnpaid(jobId, settled);
 };
 
 /**
@@ -904,7 +912,7 @@ export const answerAdjustment = async (
       ),
     }),
   );
-  if (settled.becameUnpaid) await sendUnpaid(jobId);
+  if (settled.becameUnpaid) await sendUnpaid(jobId, settled);
 };
 
 // the Client tries their Unpaid Job's Balance again

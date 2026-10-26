@@ -15,10 +15,11 @@ import {
   formatDateTime,
   formatHours,
 } from "../format.ts";
-import { PlanStatusBadge, PlanTerms } from "../PlanParts.tsx";
+import { EndPlan, OnHold, PlanStatusBadge, PlanTerms } from "../PlanParts.tsx";
 
 // one of the Client's Service Plans: its terms, what each clean costs, the
-// Deposit held for it, and its cleans on the Schedule
+// Deposit held for it, and its cleans on the Schedule; why it's On Hold, if
+// it is; and Ending it
 export function PortalPlan() {
   const plan = useLoaderData({ from: "/portal/plans/$planId" });
   const navigate = useNavigate();
@@ -41,6 +42,14 @@ export function PortalPlan() {
         <p className="text-fg-muted">{addressOf(plan.property)}</p>
       </div>
 
+      <OnHold
+        plan={plan}
+        forClient
+        jobHref={(jobId) =>
+          linkTo({ to: "/portal/jobs/$jobId", params: { jobId } })
+        }
+      />
+
       <Card title={cleanTypeLabel[plan.cleanType]}>
         <PlanTerms plan={plan} />
         <p className="text-sm text-fg-muted">
@@ -58,7 +67,9 @@ export function PortalPlan() {
           onAction={openJob}
           renderEmptyState={() => (
             <p className="p-6 text-center text-fg-muted">
-              No cleans booked just now. We'll be in touch about your next one.
+              {plan.status === "ended"
+                ? "No cleans booked."
+                : "No cleans booked just now. We'll be in touch about your next one."}
             </p>
           )}
         >
@@ -73,6 +84,12 @@ export function PortalPlan() {
           ))}
         </List>
       </Card>
+
+      <EndPlan
+        plan={plan}
+        forClient
+        endPath={`/api/service-plans/mine/${plan.id}/end`}
+      />
     </div>
   );
 }

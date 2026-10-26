@@ -14,7 +14,7 @@ import {
   servicePlansDue,
 } from "../quotes/quote-state.ts";
 import { pendingRescheduleRequests } from "../reschedule/reschedule.ts";
-import { unplacedVisits } from "../service-plans/service-plans.ts";
+import { plansOnHold, unplacedVisits } from "../service-plans/service-plans.ts";
 
 type Source = () => Promise<NeedsAttentionItem[]>;
 
@@ -42,8 +42,8 @@ const jobsById = async (ids: string[]) =>
     ),
   );
 
-// Completed Jobs whose Balance couldn't be charged, longest Unpaid first:
-// the Office chases them
+// Jobs whose Balance or fee couldn't be charged, longest Unpaid first: the
+// Office chases them
 const unpaidJobsSource: Source = async () => {
   const unpaid = await unpaidJobs();
   const byId = await jobsById(unpaid.map((u) => u.jobId));
@@ -130,6 +130,11 @@ const unplacedVisitsSource: Source = async () =>
     visit,
   }));
 
+// Service Plans On Hold, longest On Hold first: their Unpaid Jobs are to be
+// chased, after which they book Jobs again
+const plansOnHoldSource: Source = async () =>
+  (await plansOnHold()).map((item) => ({ kind: "plan_on_hold", ...item }));
+
 // Where each kind of item comes from, in the order the Office should deal
 // with them. A ticket adding a kind adds its type to NeedsAttentionItem and
 // its source here; each source returns its own items in the order to deal
@@ -139,6 +144,7 @@ const sources: Source[] = [
   rescheduleRequests,
   unplacedVisitsSource,
   unpaidJobsSource,
+  plansOnHoldSource,
   reportedAdjustments,
   quotesWithoutRoomSource,
   quoteRequests,
