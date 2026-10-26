@@ -17,6 +17,7 @@ import {
 } from "@empire-cleaning/ui";
 import { linkTo } from "../../links.ts";
 import { QuoteStatusBadge } from "../QuoteParts.tsx";
+import { homeCrumbs } from "./PropertyScreen.tsx";
 import { useStartDraft } from "./StartDraft.tsx";
 import {
   addressOf,
@@ -45,7 +46,8 @@ export function QuoteRequest() {
         <Breadcrumbs
           trail={[
             { label: "Requests", href: linkTo({ to: "/office/requests" }) },
-            { label: client.name },
+            ...homeCrumbs(client, property),
+            { label: "Quote Request" },
           ]}
         />
         <Heading level={1}>{client.name}</Heading>
@@ -57,11 +59,11 @@ export function QuoteRequest() {
         actions={
           <Link
             href={linkTo({
-              to: "/office/clients/$clientId",
-              params: { clientId: client.id },
+              to: "/office/properties/$propertyId",
+              params: { propertyId: property.id },
             })}
           >
-            View Client
+            View Property
           </Link>
         }
       >

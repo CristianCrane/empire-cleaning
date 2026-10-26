@@ -90,7 +90,14 @@ test("the Office's screens fit every width", async ({ page }) => {
   await page.getByText("Casey Client").click();
   await expect(page).toHaveURL(/\/office\/requests\/[0-9a-f-]{36}$/);
   const request = new URL(page.url()).pathname;
-  await page.getByRole("link", { name: "View Client" }).click();
+  await page.getByRole("link", { name: "View Property" }).click();
+  await expect(page).toHaveURL(/\/office\/properties\/[0-9a-f-]{36}$/);
+  const property = new URL(page.url()).pathname;
+  await page
+    .getByLabel("Breadcrumbs")
+    .getByRole("link", { name: "Casey Client" })
+    .click();
+  await expect(page).toHaveURL(/\/office\/clients\/[0-9a-f-]{36}$/);
   const client = new URL(page.url()).pathname;
   await page.goto(request);
   await page.getByRole("button", { name: "Draft a Quote" }).click();
@@ -102,6 +109,7 @@ test("the Office's screens fit every width", async ({ page }) => {
     "/office/requests",
     request,
     client,
+    property,
     draft,
     "/office/schedule?from=2027-03-01&to=2027-03-07",
     "/office/schedule?from=2027-03-01&to=2027-03-03",
@@ -218,12 +226,12 @@ test("a Service Plan Quote fits every width, Draft and Sent, for the Office and 
   await page.getByRole("button", { name: "Send to Casey Client" }).click();
   await expect(page.getByRole("region", { name: "Offer" })).toBeVisible();
   await expectFitsEveryWidth(page, quote);
-  // the Client screen, with the home's history
+  // the home's page, with its history
   await page
     .getByLabel("Breadcrumbs")
-    .getByRole("link", { name: "Casey Client" })
+    .getByRole("link", { name: /41-12 Austin St/ })
     .click();
-  await expect(page).toHaveURL(/\/office\/clients\/[0-9a-f-]{36}$/);
+  await expect(page).toHaveURL(/\/office\/properties\/[0-9a-f-]{36}$/);
   await expectFitsEveryWidth(page, new URL(page.url()).pathname);
 
   const client = await (await browser.newContext()).newPage();

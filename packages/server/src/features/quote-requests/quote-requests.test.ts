@@ -466,7 +466,7 @@ describe("Office Staff", () => {
     ).toEqual(["Dana Doe", "Casey Client"]);
   });
 
-  test("view a Client with their Properties and Quote Requests", async () => {
+  test("view a Client with their Properties, each with where it stands", async () => {
     await submit(guestRequest());
     const office = await signInAsOffice();
     const [request] = (await office.get("/api/quote-requests")).body;
@@ -477,8 +477,33 @@ describe("Office Staff", () => {
       name: "Casey Client",
       email: "casey@example.com",
     });
-    expect(client.properties).toHaveLength(1);
-    expect(client.quoteRequests).toHaveLength(1);
+    expect(client.properties).toEqual([
+      expect.objectContaining({
+        id: request.propertyId,
+        status: { kind: "request_waiting" },
+      }),
+    ]);
+  });
+
+  test("view a Property with its Quote Requests", async () => {
+    await submit(guestRequest());
+    const office = await signInAsOffice();
+    const [request] = (await office.get("/api/quote-requests")).body;
+
+    const property = (
+      await office.get(`/api/properties/${request.propertyId}`).expect(200)
+    ).body;
+
+    expect(property).toMatchObject({
+      street: "41-12 Austin St",
+      client: { id: request.client.id, name: "Casey Client" },
+      firstCleanCompleted: false,
+      quotes: [],
+      jobs: [],
+    });
+    expect(property.quoteRequests.map((r: { id: string }) => r.id)).toEqual([
+      request.id,
+    ]);
   });
 
   test("correct any of a Property's details, but not its address", async () => {

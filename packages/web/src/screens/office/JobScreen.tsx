@@ -36,6 +36,7 @@ import {
 import { CancelJob, CancelledCard, NoAccessCard } from "./JobCancellation.tsx";
 import { JobCompletionCards } from "./JobCompletion.tsx";
 import { JobReschedule } from "./JobReschedule.tsx";
+import { homeCrumbs } from "./PropertyScreen.tsx";
 import { OfferServicePlan } from "./StartDraft.tsx";
 
 // whether every place on a Job's crew is Confirmed, or once it has happened
@@ -83,7 +84,8 @@ export function JobScreen() {
         <Breadcrumbs
           trail={[
             { label: "Schedule", href: linkTo({ to: "/office/schedule" }) },
-            { label: job.client.name },
+            ...homeCrumbs(job.client, job.property),
+            { label: "Job" },
           ]}
         />
         <div className="flex flex-wrap items-center gap-3">
@@ -106,7 +108,16 @@ export function JobScreen() {
             </Link>
           </dd>
           <dt className="font-semibold">Home</dt>
-          <dd>{addressOf(job.property)}</dd>
+          <dd>
+            <Link
+              href={linkTo({
+                to: "/office/properties/$propertyId",
+                params: { propertyId: job.property.id },
+              })}
+            >
+              {addressOf(job.property)}
+            </Link>
+          </dd>
           <dt className="font-semibold">Clean</dt>
           <dd>{cleanTypeLabel[job.cleanType]}</dd>
           <dt className="font-semibold">Add-ons</dt>

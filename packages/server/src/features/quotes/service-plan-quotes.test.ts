@@ -3,6 +3,7 @@ import type {
   NeedsAttentionItem,
   OfficeClientView,
   OfficeJob,
+  OfficePropertyView,
   OfficeQuote,
   PriceList,
   QuoteDraftInput,
@@ -758,31 +759,70 @@ describe("where the Office offers a Service Plan", () => {
     expect(booked.canOfferServicePlan).toBe(false);
   });
 
-  test("from the Client, whose homes list their Quotes, Drafts included, and Jobs", async () => {
+  test("from the Property, whose page lists its requests, its Quotes, Drafts included, and its Jobs", async () => {
     const { office, propertyId, job } = await firstCleanDone();
-    const draft = await startPlan(office, propertyId);
-    const { body } = await submit(
+    await startPlan(office, propertyId);
+    const other = await submit(
       guestRequest({ property: { new: { ...home, street: "9 Elm St" } } }),
     ).expect(201);
 
-    const client = (
-      await office.get(`/api/clients/${draft.client.id}`).expect(200)
-    ).body as OfficeClientView;
+    const property = (
+      await office.get(`/api/properties/${propertyId}`).expect(200)
+    ).body as OfficePropertyView;
 
-    expect(
-      client.properties.map((p) => [p.street, p.firstCleanCompleted]),
-    ).toEqual([
-      [home.street, true],
-      ["9 Elm St", false],
-    ]);
-    expect(client.quotes.map((q) => [q.kind, q.status])).toEqual([
+    expect(property).toMatchObject({
+      street: home.street,
+      client: { name: casey.name },
+      firstCleanCompleted: true,
+    });
+    expect(property.quotes.map((q) => [q.kind, q.status])).toEqual([
       ["service_plan", "draft"],
       ["one_off", "accepted"],
     ]);
-    expect(client.jobs.map((j) => [j.id, j.status])).toEqual([
+    expect(property.jobs.map((j) => [j.id, j.status])).toEqual([
       [job.id, "completed"],
     ]);
-    expect(client.quoteRequests.map((r) => r.id)).toContain(body.id);
+    expect(property.quoteRequests).toHaveLength(1);
+    expect(property.quoteRequests[0]!.id).not.toBe(other.body.id);
+  });
+});
+
+describe("the Client screen", () => {
+  const homesOf = async (office: Agent, clientId: string) =>
+    (
+      (await office.get(`/api/clients/${clientId}`).expect(200))
+        .body as OfficeClientView
+    ).properties.map((p) => [p.street, p.status]);
+
+  test("lists each home with where it stands", async () => {
+    const { office, propertyId } = await firstCleanDone();
+    const draft = await startPlan(office, propertyId);
+    await submit(
+      guestRequest({ property: { new: { ...home, street: "9 Elm St" } } }),
+    ).expect(201);
+
+    // a Draft isn't sent, so the First Clean is the latest news
+    expect(await homesOf(office, draft.client.id)).toEqual([
+      [home.street, { kind: "first_clean_done" }],
+      ["9 Elm St", { kind: "request_waiting" }],
+    ]);
+
+    await send(office, draft);
+    expect((await homesOf(office, draft.client.id))[0]).toEqual([
+      home.street,
+      { kind: "quote_sent", quoteKind: "service_plan" },
+    ]);
+  });
+
+  test("puts a request waiting on the Office before an open Quote", async () => {
+    const { office, propertyId } = await firstCleanDone();
+    const draft = await sentPlan(office, propertyId);
+    await askAgain();
+
+    expect((await homesOf(office, draft.client.id))[0]).toEqual([
+      home.street,
+      { kind: "request_waiting" },
+    ]);
   });
 });
 

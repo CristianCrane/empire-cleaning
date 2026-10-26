@@ -8,10 +8,23 @@ import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { propertyCorrectionSchema } from "../quote-requests/quote-requests.validation.ts";
 import { properties } from "./properties.schema.ts";
+import { officePropertyView } from "./property-history.ts";
 
 export const router = Router();
 
 const params = z.object({ id: z.uuid() });
+
+// any Property, for the Office, with its whole history
+router.get(
+  "/:id",
+  authorize("office_staff"),
+  validate({ params }),
+  async (req, res) => {
+    const view = await officePropertyView(String(req.params.id));
+    if (!view) throw new NotFoundError("Property not found");
+    res.json(view);
+  },
+);
 
 // Access Instructions are the Client's to maintain (Office Staff may too);
 // a Client can only reach their own Properties

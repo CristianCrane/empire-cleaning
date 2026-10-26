@@ -54,7 +54,7 @@ router.patch(
   },
 );
 
-// any Client, for the Office, with their Quotes and Jobs
+// any Client, for the Office, with where each of their homes stands
 router.get(
   "/:id",
   authorize("office_staff"),

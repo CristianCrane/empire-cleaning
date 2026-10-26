@@ -65,9 +65,10 @@ import {
   QuoteStatusBadge,
   planTitle,
 } from "../QuoteParts.tsx";
+import { homeCrumbs } from "./PropertyScreen.tsx";
 
 // where a Quote was started from: the request it answers, or for a Service
-// Plan offered unprompted, its Client
+// Plan offered unprompted, its home
 const homeOf = (quote: OfficeQuote) =>
   quote.quoteRequestId
     ? {
@@ -78,10 +79,10 @@ const homeOf = (quote: OfficeQuote) =>
         }),
       }
     : {
-        label: "page",
+        label: "home's page",
         href: linkTo({
-          to: "/office/clients/$clientId",
-          params: { clientId: quote.client.id },
+          to: "/office/properties/$propertyId",
+          params: { propertyId: quote.property.id },
         }),
       };
 
@@ -119,7 +120,8 @@ export function QuoteScreen() {
         <Breadcrumbs
           trail={[
             { label: "Requests", href: linkTo({ to: "/office/requests" }) },
-            { label: quote.client.name, href: homeOf(quote).href },
+            ...homeCrumbs(quote.client, quote.property),
+            ...(quote.quoteRequestId ? [homeOf(quote)] : []),
             { label: quote.plan ? "Service Plan Quote" : "Quote" },
           ]}
         />

@@ -8,4 +8,4 @@ The spec (#1, story 58) had every Quote answer a Quote Request, with the Service
 - A Property has at most one Sent Quote of each kind: a new one Supersedes only the Sent Quote of its own kind, so a one-off offer and a plan offer can stand side by side.
 - A Quote Request's state counts only the Quotes that answer it. An offer nobody asked for never books, re-opens or ends a request.
 - A Client asking for regular cleaning after their First Clean uses an ordinary Quote Request, which the Office answers with a Service Plan Quote.
-- The Office starts a Service Plan Quote from the completed First Clean Job or from the Property on the Client screen, not from a request.
+- The Office starts a Service Plan Quote from the completed First Clean Job or from the Property's own page, not from a request.

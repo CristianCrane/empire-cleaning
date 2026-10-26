@@ -78,12 +78,30 @@ export type ClientView = ContactDetails & {
   quoteRequests: QuoteRequestView[];
 };
 
-// a Client for the Office, with each Property's whole history: its requests,
-// every Quote (Drafts included) and every Job, newest first
-export type OfficeClientView = Omit<ClientView, "properties"> & {
-  // with whether its First Clean is Completed, so it can be offered a
-  // Service Plan
-  properties: (PropertyView & { firstCleanCompleted: boolean })[];
+// where a home stands, as one line on its Client's screen: the most pressing
+// of a request waiting on the Office, a Sent Quote open (a plan's first), the
+// next booked Job, a Completed First Clean, or none of these
+export type PropertyStatus =
+  | { kind: "request_waiting" }
+  | { kind: "quote_sent"; quoteKind: QuoteKind }
+  | { kind: "job_booked"; startsAt: string }
+  | { kind: "first_clean_done" }
+  | { kind: "nothing_booked" };
+
+// a Client for the Office: their contact details and their homes, each with
+// where it stands. A home's history is on its own page (ADR-0011).
+export type OfficeClientView = ContactDetails & {
+  id: string;
+  properties: (PropertyView & { status: PropertyStatus })[];
+};
+
+// a Property for the Office, with its whole history: its requests, every
+// Quote (Drafts included) and every Job, newest first
+export type OfficePropertyView = PropertyView & {
+  client: { id: string; name: string };
+  // whether its First Clean is Completed, so it can be offered a Service Plan
+  firstCleanCompleted: boolean;
+  quoteRequests: QuoteRequestView[];
   quotes: QuoteSummary[];
   jobs: ScheduledJob[];
 };
