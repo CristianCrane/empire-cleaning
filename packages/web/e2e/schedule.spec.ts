@@ -377,3 +377,39 @@ test(
     );
   },
 );
+
+test(
+  "Office Staff pick where to move a Job from the Schedule",
+  { tag: ["@desktop"] },
+  async ({ page }) => {
+    const job = await caseysJob();
+    await signedInAs(page, olive.email);
+    await page.goto(`/office/jobs/${job.id}`);
+
+    await page.getByRole("button", { name: "Move Job" }).click();
+    const dialog = page.getByRole("dialog", { name: "Move this Job" });
+    await dialog
+      .getByRole("button", { name: "Pick from the Schedule" })
+      .click();
+    const schedule = page.getByRole("dialog", {
+      name: "Pick from the Schedule",
+    });
+    // the Job where it is now, on Tuesday
+    await expect(
+      schedule.getByRole("group", { name: "Jobs on Tue, Mar 2" }),
+    ).toContainText("9:00 AM");
+    if (page.viewportSize()!.width < 768) {
+      for (let i = 0; i < 3; i += 1) {
+        await schedule.getByRole("button", { name: "Next day" }).click();
+      }
+    }
+    await schedule.getByRole("button", { name: "Fri, Mar 5, 1:00 PM" }).click();
+
+    await expect(schedule).toBeHidden();
+    await expect(dialog).toContainText("ToFri, Mar 5, 1:00 PM");
+    await dialog.getByRole("button", { name: "Move Job" }).click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "Fri, Mar 5, 1:00 PM",
+    );
+  },
+);

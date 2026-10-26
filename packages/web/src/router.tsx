@@ -49,7 +49,7 @@ import {
   isDay,
   scheduleRange,
   type ScheduleSearch,
-} from "./screens/office/schedule-range.ts";
+} from "./screens/schedule-range.ts";
 import { PortalHome } from "./screens/portal/PortalHome.tsx";
 import { PortalJob } from "./screens/portal/PortalJob.tsx";
 import { PortalPaymentMethod } from "./screens/portal/PortalPaymentMethod.tsx";

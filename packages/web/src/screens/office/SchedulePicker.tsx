@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { CalendarDays } from "lucide-react";
-import type { LocalDateTime, ScheduleDay } from "@empire-cleaning/models";
+import type { ScheduleDay } from "@empire-cleaning/models";
 import {
   Actions,
   Button,
@@ -9,25 +9,23 @@ import {
   Notice,
 } from "@empire-cleaning/ui";
 import { getJson } from "../../api.ts";
+import { RangeBar, type TimePickerProps } from "../CalendarGrid.tsx";
 import { today, weekdayOf } from "../format.ts";
-import { RangeBar, ScheduleCalendar } from "./ScheduleCalendar.tsx";
-import { isWide, rangeShowing } from "./schedule-range.ts";
+import { isWide, rangeShowing } from "../schedule-range.ts";
+import { ScheduleCalendar } from "./ScheduleCalendar.tsx";
 
-type Props = {
-  // what's chosen so far, if anything
-  date?: string;
-  time?: string;
-  // the clean's time on site, to draw it that long
-  hoursOnSite: number;
+type Props = TimePickerProps & {
   // a Service Plan's: how many weeks apart its cleans are, and in words
   repeats?: { everyWeeks: number; label: string };
-  onPick: (at: LocalDateTime) => void;
+  // what the chosen time's block is called: "This clean" unless said
+  label?: string;
 };
 
 /**
- * Choosing when a new clean starts from the Schedule: the week around the
- * date chosen so far, with its Jobs and free Cleaner hours. Choosing a free
- * half hour sets the date and start time.
+ * Office Staff choosing when a clean starts from the Schedule: the week
+ * around the date chosen so far, with its Jobs and free Cleaner hours.
+ * Choosing a time sets the date and start time: any half hour, or for a
+ * Reschedule Request, one of the times on offer on a day with room.
  */
 export function PickFromSchedule(props: Props) {
   return (
@@ -47,13 +45,16 @@ function PickStart({
   date,
   time,
   hoursOnSite,
+  current,
+  limits,
   repeats,
+  label = "This clean",
   onPick,
   close,
 }: Props & { close: () => void }) {
   // a week where there's room for one, otherwise a day
   const [range, setRange] = useState(() =>
-    rangeShowing(isWide() ? 7 : 1, date ?? today()),
+    rangeShowing(isWide() ? 7 : 1, date ?? current?.date ?? today()),
   );
   const query = `from=${range.from}&to=${range.to}`;
   const [found, setFound] = useState<{ query: string; days: ScheduleDay[] }>();
@@ -72,11 +73,19 @@ function PickStart({
 
   // the range on screen, not one asked for before it
   const days = found?.query === query ? found.days : undefined;
+  // a time chosen, other than where the clean is now, which shows already
+  const chosen =
+    date && time && !(date === current?.date && time === current.time)
+      ? { date, time }
+      : undefined;
 
   return (
     <>
       <p className="text-sm text-fg-muted">
-        Choose a time to start the clean there. New York time.
+        {limits
+          ? "Choose one of the start times on offer. Days without room for this clean are greyed out."
+          : "Choose a time to start the clean there."}{" "}
+        New York time.
         {date &&
           repeats &&
           ` Then ${repeats.label.toLowerCase()} on ${weekdayOf(date)}s.`}
@@ -95,14 +104,14 @@ function PickStart({
       {days && (
         <ScheduleCalendar
           days={days}
+          limits={limits}
           proposed={
-            date && time
-              ? {
-                  start: { date, time },
-                  hoursOnSite,
-                  everyWeeks: repeats?.everyWeeks,
-                }
-              : undefined
+            chosen && {
+              start: chosen,
+              hoursOnSite,
+              label,
+              everyWeeks: repeats?.everyWeeks,
+            }
           }
           onPick={(at) => {
             onPick(at);

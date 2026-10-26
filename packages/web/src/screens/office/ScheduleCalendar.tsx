@@ -1,21 +1,18 @@
 import { useRef, useState, type DragEvent } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import type {
   LocalDateTime,
   ScheduleDay,
   ScheduledJob,
 } from "@empire-cleaning/models";
-import {
-  Button,
-  Heading,
-  Link,
-  Select,
-  SelectItem,
-  StatusBadge,
-} from "@empire-cleaning/ui";
+import { Heading, Link, StatusBadge } from "@empire-cleaning/ui";
 import { linkTo } from "../../links.ts";
 import {
-  addDays,
+  HOUR_PX,
+  PickSlot,
+  TimeGrid,
+  type TimePickerProps,
+} from "../CalendarGrid.tsx";
+import {
   dayOfInstant,
   formatClock,
   formatDay,
@@ -33,20 +30,15 @@ import {
   SNAP_HOURS,
   spanOf,
   timeAt,
-} from "./schedule-layout.ts";
-import { daysIn, SPANS, type Span } from "./schedule-range.ts";
+} from "../schedule-layout.ts";
+import { daysIn } from "../schedule-range.ts";
 
-// how tall an hour is on the time axis
-const HOUR_PX = 48;
 // a short Job is still tall enough to read its time and Client
 const MIN_BLOCK_PX = 22;
 // shorter than this, a Job's block has room for only that one line
 const COMPACT_PX = 44;
 // a time is picked to the half hour, then fine-tuned in the time field
 const PICK_HOURS = 0.5;
-
-const spanLabel: Record<Span, string> = { 1: "Day", 3: "3 days", 7: "Week" };
-const stepLabel: Record<Span, string> = { 1: "day", 3: "3 days", 7: "week" };
 
 // a Job's colour and its words for it: how it turned out, or whether its
 // crew is Confirmed
@@ -67,76 +59,13 @@ const hasRoomFor = (day: ScheduleDay, job: ScheduledJob) =>
   day.date === dayOfInstant(job.startsAt) ||
   Math.round(day.freeHours * 100) >= Math.round(job.labourHours * 100);
 
-/**
- * Moving through the Schedule: back and forward a step, back to today, and
- * how many days to show at once.
- */
-export function RangeBar({
-  from,
-  to,
-  onShow,
-}: {
-  from: string;
-  to: string;
-  onShow: (span: Span, day: string) => void;
-}) {
-  const span = daysIn(from, to) as Span;
-  // the day to keep in view when the span changes: today, if it's shown
-  const anchor = today() >= from && today() <= to ? today() : from;
-
-  return (
-    <div className="flex flex-wrap items-end justify-between gap-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          variant="quiet"
-          size="icon"
-          aria-label={`Previous ${stepLabel[span]}`}
-          onPress={() => onShow(span, addDays(from, -span))}
-        >
-          <ChevronLeft aria-hidden size={20} />
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          onPress={() => onShow(span, today())}
-        >
-          {span === 7 ? "This week" : "Today"}
-        </Button>
-        <Button
-          variant="quiet"
-          size="icon"
-          aria-label={`Next ${stepLabel[span]}`}
-          onPress={() => onShow(span, addDays(from, span))}
-        >
-          <ChevronRight aria-hidden size={20} />
-        </Button>
-        <p className="font-semibold" aria-live="polite">
-          {from === to
-            ? formatDay(from)
-            : `${formatDay(from)} – ${formatDay(to)}`}
-        </p>
-      </div>
-      <Select
-        label="Show"
-        className="w-32"
-        selectedKey={span}
-        onSelectionChange={(key) => onShow(Number(key) as Span, anchor)}
-      >
-        {SPANS.map((s) => (
-          <SelectItem key={s} id={s} textValue={spanLabel[s]}>
-            {spanLabel[s]}
-          </SelectItem>
-        ))}
-      </Select>
-    </div>
-  );
-}
-
-// a clean not yet booked, placed on the calendar: when it starts, its time on
-// site, and for a Service Plan, how many weeks apart its cleans are
+// a clean placed on the calendar before it's booked there: when it starts,
+// its time on site, what it's called, and for a Service Plan, how many
+// weeks apart its cleans are
 export type Proposed = {
   start: LocalDateTime;
   hoursOnSite: number;
+  label: string;
   everyWeeks?: number;
 };
 
@@ -156,18 +85,21 @@ type Dragging = { job: ScheduledJob; grabbedAtPx: number };
  *
  * On the Schedule itself (onDrop), clicking a Job opens it and dragging one
  * moves it. To choose a time instead (onPick), the Jobs are only there to
- * see, and clicking a free half hour picks it; a proposed clean is drawn
+ * see, and clicking a free half hour picks it, or with limits, one of the
+ * start times on offer on a day that has them; a proposed clean is drawn
  * where it would go.
  */
 export function ScheduleCalendar({
   days,
   onDrop,
   onPick,
+  limits,
   proposed,
 }: {
   days: ScheduleDay[];
   onDrop?: (job: ScheduledJob, to: LocalDateTime) => void;
   onPick?: (at: LocalDateTime) => void;
+  limits?: TimePickerProps["limits"];
   proposed?: Proposed;
 }) {
   const proposedStart = proposed && hoursOf(proposed.start.time);
@@ -177,19 +109,18 @@ export function ScheduleCalendar({
       ? []
       : [{ start: proposedStart, end: proposedStart + proposed!.hoursOnSite }],
   );
-  const hours = Array.from(
-    { length: axis.end - axis.start },
-    (_, i) => axis.start + i,
-  );
-  const slots = Array.from(
-    { length: (axis.end - axis.start) / PICK_HOURS },
-    (_, i) => axis.start + i * PICK_HOURS,
-  );
+  // the times to pick from: those on offer, or every half hour
+  const times = (
+    limits?.times ??
+    Array.from({ length: (axis.end - axis.start) / PICK_HOURS }, (_, i) =>
+      timeAt(axis.start + i * PICK_HOURS),
+    )
+  ).filter((t) => hoursOf(t) >= axis.start && hoursOf(t) < axis.end);
+  const isOpen = (date: string) => !limits || limits.days.includes(date);
   // which Job is being dragged, and how far down it was grabbed, so it lands
   // where it's let go; state too, so days without room for it fade
   const dragging = useRef<Dragging>(undefined);
   const [draggedJob, setDraggedJob] = useState<ScheduledJob>();
-  const wide = days.length === 7;
 
   const drop = (day: ScheduleDay, e: DragEvent<HTMLElement>) => {
     const grabbed = dragging.current;
@@ -214,113 +145,85 @@ export function ScheduleCalendar({
   };
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border bg-surface">
-      <div
-        className="grid grid-rows-[auto_1fr]"
-        style={{
-          gridTemplateColumns: `3.5rem repeat(${days.length}, minmax(${wide ? "6.5rem" : "0"}, 1fr))`,
-        }}
-      >
-        <div className="row-span-2 grid grid-rows-subgrid">
-          <div className="border-b border-border" />
-          {/* each hour's label level with its line, the first just below
-              the header */}
-          <div aria-hidden className="relative">
-            {hours.map((h, i) => (
-              <div
-                key={h}
-                className="absolute inset-x-0 pe-2 text-end text-xs leading-none text-fg-muted"
-                style={{ top: i === 0 ? 2 : i * HOUR_PX - 6 }}
-              >
-                {formatClock(timeAt(h))}
-              </div>
-            ))}
-          </div>
-        </div>
-        {days.map((day) => (
-          <section
-            key={day.date}
-            aria-label={formatDay(day.date)}
-            className={`row-span-2 grid min-w-0 grid-rows-subgrid border-s border-border transition-opacity ${draggedJob && !hasRoomFor(day, draggedJob) ? "opacity-40" : ""}`}
-          >
-            <DayHeader
-              day={day}
-              marker={
-                proposed?.start.date === day.date
-                  ? "Starts"
-                  : repeatsOn(proposed, day.date)
-                    ? "Repeats"
-                    : undefined
-              }
-            />
-            <div
-              role="group"
-              aria-label={`Jobs on ${formatDay(day.date)}`}
-              className={`relative ${day.staffHours === 0 ? "bg-surface-sunken" : ""}`}
-              style={{ height: hours.length * HOUR_PX }}
-              onDragOver={(e) => {
-                const grabbed = dragging.current;
-                if (grabbed && hasRoomFor(day, grabbed.job)) {
-                  e.preventDefault();
-                  e.dataTransfer.dropEffect = "move";
-                }
-              }}
-              onDrop={(e) => drop(day, e)}
-            >
-              {hours.map((h) => (
-                <div
-                  key={h}
-                  className="border-t border-border first:border-t-0"
-                  style={{ height: HOUR_PX }}
-                />
-              ))}
-              {/* the keyboard's way is the date and time fields, so the
-                  slots stay out of the tab order */}
-              {onPick &&
-                slots.map((at) => (
-                  <Button
-                    key={at}
-                    variant="quiet"
-                    excludeFromTabOrder
-                    aria-label={`${formatDay(day.date)}, ${formatClock(timeAt(at))}`}
-                    className="group absolute inset-x-0 min-h-0 justify-start rounded-none px-1 text-xs font-normal text-fg-muted"
-                    style={{
-                      top: (at - axis.start) * HOUR_PX,
-                      height: HOUR_PX * PICK_HOURS,
-                    }}
-                    onPress={() => onPick({ date: day.date, time: timeAt(at) })}
+    <TimeGrid
+      axis={axis}
+      columns={days.map((day) => ({
+        date: day.date,
+        className:
+          (draggedJob && !hasRoomFor(day, draggedJob)) || !isOpen(day.date)
+            ? "opacity-40"
+            : "",
+        header: (
+          <DayHeader
+            day={day}
+            marker={
+              proposed?.start.date === day.date
+                ? "Starts"
+                : repeatsOn(proposed, day.date)
+                  ? "Repeats"
+                  : undefined
+            }
+          />
+        ),
+        bodyLabel: `Jobs on ${formatDay(day.date)}`,
+        bodyProps: {
+          className: day.staffHours === 0 ? "bg-surface-sunken" : "",
+          onDragOver: (e) => {
+            const grabbed = dragging.current;
+            if (grabbed && hasRoomFor(day, grabbed.job)) {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "move";
+            }
+          },
+          onDrop: (e) => drop(day, e),
+        },
+        body: (
+          <>
+            {onPick &&
+              isOpen(day.date) &&
+              times.map((time) => (
+                <PickSlot
+                  key={time}
+                  at={{ date: day.date, time }}
+                  axisStart={axis.start}
+                  hours={PICK_HOURS}
+                  onPick={onPick}
+                >
+                  {/* every half hour shows its time when pointed at; only
+                      some on offer, they always do */}
+                  <span
+                    className={`text-fg-muted ${limits ? "" : "opacity-0 group-hover:opacity-100"}`}
                   >
-                    <span className="opacity-0 group-hover:opacity-100">
-                      {formatClock(timeAt(at))}
-                    </span>
-                  </Button>
-                ))}
-              <DayJobs
-                jobs={day.jobs}
-                proposed={
-                  proposed?.start.date === day.date
-                    ? {
-                        time: proposed.start.time,
-                        hoursOnSite: proposed.hoursOnSite,
-                      }
-                    : undefined
-                }
-                axisStart={axis.start}
-                interactive={onDrop !== undefined}
-                onDragStart={(grabbed) => {
-                  dragging.current = grabbed;
-                  setDraggedJob(grabbed.job);
-                }}
-                onDragEnd={() => {
-                  dragging.current = undefined;
-                  setDraggedJob(undefined);
-                }}
-              />
-            </div>
-          </section>
-        ))}
-      </div>
-    </div>
+                    {formatClock(time)}
+                  </span>
+                </PickSlot>
+              ))}
+            <DayJobs
+              jobs={day.jobs}
+              proposed={
+                proposed?.start.date === day.date
+                  ? {
+                      time: proposed.start.time,
+                      hoursOnSite: proposed.hoursOnSite,
+                      label: proposed.label,
+                    }
+                  : undefined
+              }
+              axisStart={axis.start}
+              interactive={onDrop !== undefined}
+              onDragStart={(grabbed) => {
+                dragging.current = grabbed;
+                setDraggedJob(grabbed.job);
+              }}
+              onDragEnd={() => {
+                dragging.current = undefined;
+                setDraggedJob(undefined);
+              }}
+            />
+          </>
+        ),
+      }))}
+    />
   );
 }
 
@@ -395,7 +298,7 @@ function DayJobs({
   onDragEnd,
 }: {
   jobs: ScheduledJob[];
-  proposed?: { time: string; hoursOnSite: number };
+  proposed?: { time: string; hoursOnSite: number; label: string };
   axisStart: number;
   interactive: boolean;
   onDragStart: (grabbed: Dragging) => void;
@@ -481,7 +384,7 @@ function DayJobs({
           className="pointer-events-none absolute overflow-hidden rounded-md border-2 border-dashed border-primary bg-primary/15 px-1.5 py-0.5 text-xs leading-tight font-semibold"
           style={place(proposedBlock)}
         >
-          {formatClock(proposed.time)} This clean
+          {formatClock(proposed.time)} {proposed.label}
         </div>
       )}
     </>

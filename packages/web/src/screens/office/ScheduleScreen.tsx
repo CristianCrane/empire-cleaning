@@ -3,8 +3,9 @@ import { useLoaderData, useNavigate, useSearch } from "@tanstack/react-router";
 import type { LocalDateTime, ScheduledJob } from "@empire-cleaning/models";
 import { Dialog, Heading, StatusBadge } from "@empire-cleaning/ui";
 import { ConfirmMove } from "./JobMove.tsx";
-import { RangeBar, ScheduleCalendar } from "./ScheduleCalendar.tsx";
-import { rangeShowing, scheduleRange, type Span } from "./schedule-range.ts";
+import { RangeBar } from "../CalendarGrid.tsx";
+import { ScheduleCalendar } from "./ScheduleCalendar.tsx";
+import { rangeShowing, scheduleRange, type Span } from "../schedule-range.ts";
 
 /**
  * The Schedule as a calendar: days as columns over a time axis, each Job a

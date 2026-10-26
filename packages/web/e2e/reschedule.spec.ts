@@ -1,7 +1,8 @@
 import AxeBuilder from "@axe-core/playwright";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import {
   acceptedJob,
+  bookJob,
   createStaff,
   emailsTo,
   expect,
@@ -177,3 +178,114 @@ test("Office Staff turn down a Reschedule Request, and the Client sees why", asy
     "We couldn't move it to Wed, Jan 14, 10:00 AM. We're fully booked that morning.",
   );
 });
+
+// on a phone a picker shows a day at a time: step on to the day wanted
+const stepDays = async (dialog: Locator, page: Page, days: number) => {
+  if (page.viewportSize()!.width >= 768) return;
+  for (let i = 0; i < days; i += 1) {
+    await dialog.getByRole("button", { name: "Next day" }).click();
+  }
+};
+
+test(
+  "a Client picks a new time on a calendar of open times, seeing no one else's Jobs",
+  { tag: ["@desktop"] },
+  async ({ page }) => {
+    const job = await bookedJob();
+    // another Client's clean on the Wednesday
+    await bookJob({ startsAt: "2026-01-14T15:00:00Z", labourHours: 2 });
+    await signedInAs(page, casey.email);
+    await page.goto(`/portal/jobs/${job.id}`);
+
+    await page
+      .getByRole("region", { name: "Need another time?" })
+      .getByRole("button", { name: "Choose a new time" })
+      .click();
+    const dialog = page.getByRole("dialog", { name: "Choose a new time" });
+    await dialog.getByRole("button", { name: "Pick on the calendar" }).click();
+    const calendar = page.getByRole("dialog", { name: "Open times" });
+    // the week of the clean on a desktop, its day on a phone
+    const monday = calendar.getByRole("region", {
+      name: "Mon, Jan 12",
+      exact: true,
+    });
+    await expect(monday).toContainText("Your clean");
+    await expect(monday).toContainText("9:00 AM Your clean now");
+    await expectAccessible(page);
+
+    await stepDays(calendar, page, 2);
+    const wednesday = calendar.getByRole("region", {
+      name: "Wed, Jan 14",
+      exact: true,
+    });
+    await expect(
+      wednesday.getByRole("button", { name: "Wed, Jan 14, 10:00 AM" }),
+    ).toBeVisible();
+    await expect(calendar).not.toContainText(/Client \d/);
+    await wednesday
+      .getByRole("button", { name: "Wed, Jan 14, 10:00 AM" })
+      .click();
+
+    await expect(calendar).toBeHidden();
+    await expect(dialog.getByRole("button", { name: /Day$/ })).toContainText(
+      "Wed, Jan 14",
+    );
+    await expect(
+      dialog.getByRole("button", { name: /Start time$/ }),
+    ).toContainText("10:00 AM");
+    await dialog.getByRole("button", { name: "Send request" }).click();
+    await expect(
+      page.getByRole("region", { name: "Moving your clean" }),
+    ).toContainText("You've asked to move it to Wed, Jan 14, 10:00 AM.");
+  },
+);
+
+test(
+  "Office Staff ask for a new time from the Schedule, only where it's on offer",
+  { tag: ["@desktop"] },
+  async ({ page }) => {
+    const job = await bookedJob();
+    await signedInAs(page, olive.email);
+    await page.goto(`/office/jobs/${job.id}`);
+
+    await page.getByRole("button", { name: "Ask for a new time" }).click();
+    const dialog = page.getByRole("dialog", { name: "Choose a new time" });
+    await dialog
+      .getByRole("button", { name: "Pick from the Schedule" })
+      .click();
+    const schedule = page.getByRole("dialog", {
+      name: "Pick from the Schedule",
+    });
+    await expect(schedule).toContainText(
+      "Choose one of the start times on offer",
+    );
+    await expect(
+      schedule
+        .getByRole("group", { name: "Jobs on Mon, Jan 12" })
+        .getByText(/^9:00 AM Casey Client/),
+    ).toBeVisible();
+
+    // nobody works Saturdays, so it has no times to pick
+    await stepDays(schedule, page, 5);
+    await expect(
+      schedule
+        .getByRole("region", { name: "Sat, Jan 17", exact: true })
+        .getByRole("button"),
+    ).toHaveCount(0);
+    if (page.viewportSize()!.width < 768) {
+      for (let i = 0; i < 3; i += 1) {
+        await schedule.getByRole("button", { name: "Previous day" }).click();
+      }
+    }
+    await schedule
+      .getByRole("button", { name: "Wed, Jan 14, 10:00 AM" })
+      .click();
+
+    await expect(schedule).toBeHidden();
+    await expect(dialog.getByRole("button", { name: /Day$/ })).toContainText(
+      "Wed, Jan 14",
+    );
+    await dialog.getByRole("button", { name: "Send request" }).click();
+    await expect(page.getByText("Reschedule Request made")).toBeVisible();
+  },
+);

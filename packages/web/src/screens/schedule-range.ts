@@ -1,4 +1,4 @@
-import { addDays, mondayOf, today } from "../format.ts";
+import { addDays, mondayOf, today } from "./format.ts";
 
 // the dates asked for; without valid ones, the Schedule shows this week, or
 // today on a phone

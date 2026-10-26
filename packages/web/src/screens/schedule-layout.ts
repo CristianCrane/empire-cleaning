@@ -1,5 +1,5 @@
 import type { ScheduledJob } from "@empire-cleaning/models";
-import { timeOfDay } from "../format.ts";
+import { timeOfDay } from "./format.ts";
 
 // "09:30" -> 9.5
 export const hoursOf = (time: string) => {

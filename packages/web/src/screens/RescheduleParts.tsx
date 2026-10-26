@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 import { useRouter } from "@tanstack/react-router";
 import type {
   RescheduleCost,
@@ -16,6 +16,7 @@ import {
   showToast,
 } from "@empire-cleaning/ui";
 import { ApiError, getJson, postJson } from "../api.ts";
+import type { TimePickerProps } from "./CalendarGrid.tsx";
 import {
   dayOfInstant,
   formatClock,
@@ -54,7 +55,7 @@ export const costForOffice = (cost: RescheduleCost, feeCents: number) => {
 };
 
 type Props = {
-  job: { id: string; startsAt: string };
+  job: { id: string; startsAt: string; hoursOnSite: number };
   terms: RescheduleTerms;
   // where the Job's reschedule endpoints are: /api/jobs/mine/:id for the
   // Client, /api/jobs/:id for the Office
@@ -63,6 +64,9 @@ type Props = {
   label: string;
   describeCost: (cost: RescheduleCost, feeCents: number) => string;
   done: string;
+  // the calendar to pick from: the Schedule for the Office, open times for
+  // the Client
+  Picker: ComponentType<TimePickerProps>;
 };
 
 // a dialog to choose a new time for a Job from those on offer, and send the
@@ -84,6 +88,7 @@ function NewTimeForm({
   base,
   describeCost,
   done,
+  Picker,
   close,
 }: Props & { close: () => void }) {
   const router = useRouter();
@@ -179,6 +184,20 @@ function NewTimeForm({
               </SelectItem>
             ))}
           </Select>
+          <Picker
+            date={date ?? undefined}
+            time={time ?? undefined}
+            hoursOnSite={job.hoursOnSite}
+            current={{
+              date: dayOfInstant(job.startsAt),
+              time: timeOfDay(job.startsAt),
+            }}
+            limits={times}
+            onPick={(at) => {
+              setDate(at.date);
+              setTime(at.time);
+            }}
+          />
         </>
       )}
       <p>
