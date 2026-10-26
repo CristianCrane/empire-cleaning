@@ -17,7 +17,8 @@ import { cleanType, jobs } from "../jobs/jobs.schema.ts";
 import { properties } from "../properties/properties.schema.ts";
 import { quotes, recurrence } from "../quotes/quotes.schema.ts";
 
-// active, generating Jobs; On Hold and Ended are #15's
+// active, generating Jobs; On Hold, generating none while one of its Jobs is
+// Unpaid; or Ended, for good
 export const servicePlanStatus = pgEnum("service_plan_status", [
   "active",
   "on_hold",
@@ -55,6 +56,11 @@ export const servicePlans = pgTable(
     }).notNull(),
     startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
     startedBy: uuid("started_by").references(() => accounts.id, {
+      onDelete: "set null",
+    }),
+    // when it Ended, and who Ended it: its Client, or Office Staff for them
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+    endedBy: uuid("ended_by").references(() => accounts.id, {
       onDelete: "set null",
     }),
     ...timestamps,

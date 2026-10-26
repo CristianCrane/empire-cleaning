@@ -4,8 +4,10 @@ import { NotFoundError } from "../../middleware/errors.ts";
 import { validate } from "../../middleware/validation.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { clientForAccount } from "../clients/clients.ts";
+import { endServicePlan } from "./ending.ts";
 import {
   bookVisit,
+  clientEndServicePlan,
   clientServicePlan,
   clientServicePlans,
   officeServicePlan,
@@ -24,6 +26,10 @@ const bookVisitSchema = z.object({
     .string({ error: "Choose a start time" })
     .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Choose a start time"),
 });
+
+// Ending a plan: the Jobs going ahead that the person Ending it was shown,
+// by when they start
+const endSchema = z.object({ goingAhead: z.array(z.iso.datetime()) });
 
 // ---- the signed-in Client: /api/service-plans/mine ----
 
@@ -48,6 +54,23 @@ router.get(
   },
 );
 
+router.post(
+  "/mine/:id/end",
+  authorize("client"),
+  validate({ params: plan, body: endSchema }),
+  async (req, res) => {
+    const account = signedInAccount(res);
+    const client = await signedInClient(account.id);
+    res.json(
+      await clientEndServicePlan(client.id, String(req.params.id), {
+        goingAhead: req.body.goingAhead,
+        byAccountId: account.id,
+        byClient: true,
+      }),
+    );
+  },
+);
+
 // ---- the Office ----
 
 router.get(
@@ -56,6 +79,22 @@ router.get(
   validate({ params: plan }),
   async (req, res) => {
     res.json(await officeServicePlan(String(req.params.id)));
+  },
+);
+
+// Office Staff End a plan for its Client
+router.post(
+  "/:id/end",
+  authorize("office_staff"),
+  validate({ params: plan, body: endSchema }),
+  async (req, res) => {
+    const id = String(req.params.id);
+    await endServicePlan(id, {
+      goingAhead: req.body.goingAhead,
+      byAccountId: signedInAccount(res).id,
+      byClient: false,
+    });
+    res.json(await officeServicePlan(id));
   },
 );
 

@@ -33,14 +33,15 @@ import {
   recurrenceLabel,
   timeOfDay,
 } from "../format.ts";
-import { PlanStatusBadge, PlanTerms } from "../PlanParts.tsx";
+import { EndPlan, OnHold, PlanStatusBadge, PlanTerms } from "../PlanParts.tsx";
 import { useJobAction } from "./JobCompletion.tsx";
 import { homeCrumbs, jobStatusLabel } from "./PropertyScreen.tsx";
 import { PickFromSchedule } from "./SchedulePicker.tsx";
 
 // a Service Plan for the Office: its terms, every Job it has booked, and the
 // dates it came round with no room, for Office Staff to book at another time
-// they agree with the Client, or skip
+// they agree with the Client, or skip; why it's On Hold, if it is; and
+// Ending it for the Client
 export function ServicePlanScreen() {
   const plan = useLoaderData({ from: "/office/service-plans/$planId" });
   const navigate = useNavigate();
@@ -62,6 +63,14 @@ export function ServicePlanScreen() {
           {plan.client.name} · {addressOf(plan.property)}
         </p>
       </div>
+
+      <OnHold
+        plan={plan}
+        forClient={false}
+        jobHref={(jobId) =>
+          linkTo({ to: "/office/jobs/$jobId", params: { jobId } })
+        }
+      />
 
       {plan.unplaced.length > 0 && (
         <Card
@@ -148,6 +157,12 @@ export function ServicePlanScreen() {
           ))}
         </List>
       </Card>
+
+      <EndPlan
+        plan={plan}
+        forClient={false}
+        endPath={`/api/service-plans/${plan.id}/end`}
+      />
     </div>
   );
 }

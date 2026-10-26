@@ -342,7 +342,7 @@ export type DayCapacity = {
 // ---- Office dashboard (#18) ----
 
 // One thing waiting on the Office, of a kind told by `kind`. Later tickets add
-// their kinds to this union: On Hold Service Plans (#15).
+// their kinds to this union.
 export type NeedsAttentionItem =
   | {
       kind: "quote_request";
@@ -409,6 +409,14 @@ export type NeedsAttentionItem =
       since: string;
       plan: ServicePlanSummary & { client: { id: string; name: string } };
       visit: UnplacedVisit;
+    }
+  | {
+      // a Service Plan On Hold, booking no new Jobs, while its Unpaid Jobs
+      // owe `owedCents` between them; `since` the first became Unpaid
+      kind: "plan_on_hold";
+      since: string;
+      plan: ServicePlanSummary & { client: { id: string; name: string } };
+      owedCents: number;
     };
 
 export type NeedsAttentionKind = NeedsAttentionItem["kind"];
@@ -1040,7 +1048,8 @@ export type MoveJobInput = LocalDateTime;
 
 // ---- Service Plans (#14) ----
 
-// generating Jobs, until On Hold or Ended (#15)
+// generating Jobs; On Hold, generating none while one of its Jobs is Unpaid;
+// or Ended, for good
 export type ServicePlanStatus = "active" | "on_hold" | "ended";
 
 // a Service Plan in a line: on the Property page, and the Client's home screen
@@ -1074,7 +1083,29 @@ export type ServicePlanView = ServicePlanSummary & {
   depositCents: number;
   // the Service Plan Quote it was accepted from
   quoteId: string;
+  // its Jobs that are Unpaid, which keep it On Hold, soonest first
+  unpaid: { jobId: string; startsAt: string; owedCents: number }[];
+  // what Ending it would do now; null once it has Ended
+  endTerms: EndPlanTerms | null;
+  endedAt: string | null;
   upcoming: ClientJob[];
+};
+
+// What Ending a Service Plan does, by the Clock: its booked Jobs more than
+// 24 hours out are cancelled free, those within 24 hours go ahead, and its
+// Deposit goes towards its final Job, which is the last that goes ahead or
+// has happened (a fee counting). Whatever of the Deposit that Job doesn't
+// need is refunded.
+export type EndPlanTerms = {
+  // when each Job cancelled starts
+  cancelled: string[];
+  goingAhead: string[];
+  depositCents: number;
+  // it comes off the price of a Job going ahead; goes towards what a Job
+  // that has happened owes; or, with nothing owed, is refunded
+  deposit: "comes_off" | "goes_towards" | "refunded";
+  // with its status as it will be once the plan has Ended
+  finalJob: { id: string; startsAt: string; status: JobStatus };
 };
 
 // a date the plan came round with no room on the Schedule: nothing was
