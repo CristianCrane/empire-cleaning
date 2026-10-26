@@ -103,6 +103,7 @@ test("the Office's screens fit every width", async ({ page }) => {
     client,
     draft,
     "/office/schedule?from=2027-03-01&to=2027-03-07",
+    "/office/schedule?from=2027-03-01&to=2027-03-03",
     "/office/staff",
     `/office/staff/${cory.id}`,
     "/office/price-list",

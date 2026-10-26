@@ -15,17 +15,23 @@ export type DialogProps = Omit<AriaDialogProps, "children"> & {
   children: ReactNode | ((opts: { close: () => void }) => ReactNode);
   // what the overlay passes through to the modal
   isDismissable?: ModalOverlayProps["isDismissable"];
+  // to open it from code rather than a DialogTrigger, e.g. when something is
+  // dropped: whether it's open, and told when it closes
+  isOpen?: ModalOverlayProps["isOpen"];
+  onOpenChange?: ModalOverlayProps["onOpenChange"];
 };
 
 // a modal dialog: a sheet rising from the bottom on a phone, centred on larger
-// screens. Use inside a DialogTrigger after the Button that opens it, and end
-// it with an <Actions> row. For a
+// screens. Use inside a DialogTrigger after the Button that opens it (or pass
+// isOpen and onOpenChange), and end it with an <Actions> row. For a
 // destructive confirmation, pass role="alertdialog" (not dismissable by tapping
 // outside).
 export function Dialog({
   title,
   children,
   isDismissable,
+  isOpen,
+  onOpenChange,
   ...props
 }: DialogProps) {
   const isAlert = props.role === "alertdialog";
@@ -33,6 +39,8 @@ export function Dialog({
   return (
     <ModalOverlay
       isDismissable={isDismissable ?? !isAlert}
+      isOpen={isOpen}
+      onOpenChange={onOpenChange}
       className="fixed inset-0 z-50 flex items-end justify-center bg-backdrop entering:animate-in entering:fade-in exiting:animate-out exiting:fade-out sm:items-center sm:p-4"
     >
       <Modal className="max-h-[90dvh] w-full overflow-auto rounded-t-xl bg-overlay text-fg shadow-overlay entering:animate-in entering:slide-in-from-bottom-8 exiting:animate-out exiting:slide-out-to-bottom-8 sm:max-w-md sm:rounded-lg">

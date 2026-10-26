@@ -453,29 +453,13 @@ export const confirmReschedule = async (jobId: string, byAccountId: string) => {
       );
     }
 
-    await tx
-      .update(jobs)
-      .set({
-        startsAt: pending.startsAt,
-        // the day-before reminder goes again, for the new day
-        reminderSentAt: null,
-        rescheduleFeeCents: job.rescheduleFeeCents + pending.feeCents,
-      })
-      .where(eq(jobs.id, jobId));
+    const crew = await moveTo(tx, jobId, pending.startsAt, {
+      rescheduleFeeCents: job.rescheduleFeeCents + pending.feeCents,
+    });
     await tx
       .update(rescheduleRequests)
       .set({ status: "confirmed", answeredAt: now, answeredBy: byAccountId })
       .where(eq(rescheduleRequests.id, pending.id));
-    const crew = await tx
-      .update(assignments)
-      .set({ status: "offered", offeredAt: now, answeredAt: null })
-      .where(
-        and(
-          eq(assignments.jobId, jobId),
-          inArray(assignments.status, ["offered", "confirmed"]),
-        ),
-      )
-      .returning({ staffId: assignments.staffId });
     return { ...found, crew };
   });
 
@@ -503,6 +487,50 @@ export const confirmReschedule = async (jobId: string, byAccountId: string) => {
     }),
   );
 
+  await tellCrewOfMove(
+    { ...job, startsAt: pending.startsAt },
+    property,
+    crew,
+    pending.fromStartsAt,
+  );
+};
+
+// ---- moving: confirming a request, or the Office moving a Job itself ----
+
+/**
+ * Moves a locked Job to a new time and Offers every place on it afresh, so
+ * the crew each Confirm the new time or Release it. Its day-before reminder
+ * goes again, for the new day. Returns the crew, to tell them.
+ */
+const moveTo = async (
+  tx: Tx,
+  jobId: string,
+  startsAt: Date,
+  also: Partial<Pick<Job, "rescheduleFeeCents">> = {},
+) => {
+  await tx
+    .update(jobs)
+    .set({ startsAt, reminderSentAt: null, ...also })
+    .where(eq(jobs.id, jobId));
+  return tx
+    .update(assignments)
+    .set({ status: "offered", offeredAt: clock.now(), answeredAt: null })
+    .where(
+      and(
+        eq(assignments.jobId, jobId),
+        inArray(assignments.status, ["offered", "confirmed"]),
+      ),
+    )
+    .returning({ staffId: assignments.staffId });
+};
+
+// emails each of a moved Job's crew to Confirm the new time or Release it
+const tellCrewOfMove = async (
+  job: Job,
+  property: Property,
+  crew: { staffId: string }[],
+  fromStartsAt: Date,
+) => {
   if (crew.length === 0) return;
   const members = await db
     .select()
@@ -515,24 +543,103 @@ export const confirmReschedule = async (jobId: string, byAccountId: string) => {
     )
     .orderBy(asc(staff.name));
   for (const member of members) {
-    await notify(`Move of Job ${jobId} to Staff ${member.id}`, () =>
+    await notify(`Move of Job ${job.id} to Staff ${member.id}`, () =>
       email.send({
         to: member.email,
         subject: "A Job you're on has moved",
         ...compose(
           [
             `Hi ${firstNameOf(member.name)},`,
-            `The ${cleanTypeLabel[job.cleanType]} at ${addressOf(property)} has moved from ${formatWhen(pending.fromStartsAt)} to ${formatWhen(pending.startsAt)}.`,
+            `The ${cleanTypeLabel[job.cleanType]} at ${addressOf(property)} has moved from ${formatWhen(fromStartsAt)} to ${formatWhen(job.startsAt)}.`,
             "Please confirm your place at the new time, or release it if you can't make it.",
           ],
           {
-            href: `${env.CORS_ORIGIN_URL}/cleaner/jobs/${jobId}`,
+            href: `${env.CORS_ORIGIN_URL}/cleaner/jobs/${job.id}`,
             label: "See the Job",
           },
         ),
       }),
     );
   }
+};
+
+/**
+ * Office Staff move a booked Job straight to a new time, from the Schedule
+ * (#52). It's the Office's own action, not a Reschedule Request: nothing is
+ * held, and it costs the Client nothing. Otherwise it works like confirming
+ * one: every place is Offered afresh, the reminder goes again, and the
+ * Client and the crew are emailed. A new day must have room for the Job's
+ * Labour Hours, counting held hours; its own day always has room.
+ *
+ * Refused once the Job has started or isn't booked, and while a Reschedule
+ * Request for it is waiting: that's answered first.
+ */
+export const moveJob = async (jobId: string, to: LocalDateTime) => {
+  const startsAt = atTime(to.date, to.time);
+  const { job, property, crew } = await db.transaction(async (tx) => {
+    const [found] = await tx
+      .select({ job: jobs, property: properties })
+      .from(jobs)
+      .innerJoin(properties, eq(properties.id, jobs.propertyId))
+      .where(eq(jobs.id, jobId))
+      .for("update", { of: jobs });
+    if (!found) throw new NotFoundError("Job not found");
+    const { job } = found;
+    const now = clock.now();
+    if (job.status !== "booked") {
+      throw new ConflictError("This Job is no longer booked, so it can't move");
+    }
+    if (job.startsAt <= now) {
+      throw new ConflictError("This Job has already started, so it can't move");
+    }
+    if (startsAt <= now) {
+      throw new ConflictError("Choose a time that's still to come");
+    }
+    if (startsAt.getTime() === job.startsAt.getTime()) {
+      throw new ConflictError("That's when the Job is already booked");
+    }
+    if (await pendingOf(jobId, tx)) {
+      throw new ConflictError(
+        "The Client has asked to move this Job. Confirm or turn down their request first.",
+      );
+    }
+
+    // as asking does, so a move and another booking can't both take a day's
+    // last free hours
+    if (to.date !== dayOf(job.startsAt)) {
+      await lockDay(tx, to.date);
+      const { hasRoom, freeHours } = await hasRoomFor(to.date, job.labourHours);
+      if (!hasRoom) {
+        throw new ConflictError(
+          `That day doesn't have room: the Job needs ${job.labourHours} Labour Hours and ${Math.max(freeHours, 0)} are free.`,
+        );
+      }
+    }
+
+    const crew = await moveTo(tx, jobId, startsAt);
+    return { ...found, crew };
+  });
+
+  if (to.date !== dayOf(job.startsAt)) {
+    await warnOfficeOfQuotesWithoutRoom(to.date);
+  }
+  const moved = { ...job, startsAt };
+  const client = await ownerOf(job);
+  await notify(`Move notice for Job ${jobId}`, () =>
+    email.send({
+      to: client.email,
+      subject: "Your clean has moved",
+      ...compose(
+        [
+          `Hi ${firstNameOf(client.name)},`,
+          `We've moved ${describe(job, property)} from ${formatWhen(job.startsAt)} to ${formatWhen(startsAt)}.`,
+          "There's no charge for this. If the new time doesn't suit you, you can ask for another from your account, or call us.",
+        ],
+        portalLink(jobId),
+      ),
+    }),
+  );
+  await tellCrewOfMove(moved, property, crew, job.startsAt);
 };
 
 // ---- the Office's list ----

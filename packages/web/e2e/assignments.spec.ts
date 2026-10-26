@@ -65,9 +65,9 @@ test(
     await signInAsOffice(page);
 
     await page.goto("/office/schedule?from=2026-01-05&to=2026-01-11");
-    const thursday = page.getByRole("grid", { name: "Jobs on Thu, Jan 8" });
+    const thursday = page.getByRole("group", { name: "Jobs on Thu, Jan 8" });
     await expect(thursday).toContainText("Unassigned");
-    await thursday.getByRole("row").click();
+    await thursday.getByRole("link").click();
     await expect(page).toHaveURL(JOB_SCREEN);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
       "Thu, Jan 8, 9:00 AM",

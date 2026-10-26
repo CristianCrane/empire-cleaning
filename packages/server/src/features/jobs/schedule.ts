@@ -15,12 +15,13 @@ import type {
 import { db } from "../../db/index.ts";
 import {
   addDays,
+  clock,
   dayOf,
   daysFrom,
   startOfDay,
   weekdayOf,
 } from "../../services/clock/index.ts";
-import { assignmentStatusOf } from "../assignments/places.ts";
+import { assignmentStatusOf, crewOf } from "../assignments/places.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { properties } from "../properties/properties.schema.ts";
 import { rescheduleRequests } from "../reschedule/reschedule.schema.ts";
@@ -101,7 +102,11 @@ export const jobViews = async (
     .innerJoin(clients, eq(clients.id, properties.clientId))
     .where(where)
     .orderBy(jobs.startsAt);
-  const assignment = await assignmentStatusOf(rows.map((r) => r.job));
+  const [assignment, crews] = await Promise.all([
+    assignmentStatusOf(rows.map((r) => r.job)),
+    crewOf(rows.map((r) => r.job.id)),
+  ]);
+  const now = clock.now();
 
   return rows.map(({ job, property, client }) => ({
     id: job.id,
@@ -119,6 +124,8 @@ export const jobViews = async (
       postcode: property.postcode,
     },
     assignment: assignment.get(job.id)!,
+    crew: crews.get(job.id)!,
+    movable: job.status === "booked" && job.startsAt > now,
   }));
 };
 
