@@ -12,12 +12,13 @@ Every screen is built from the design system in `packages/ui` (`@empire-cleaning
 | `/office`                     | Office Staff: Needs attention and today's Jobs with their Assignment status                                                                                                     |
 | `/cleaner`                    | Cleaners: their Jobs today and coming up, Offered, Confirmed or Completed                                                                                                       |
 | `/cleaner/jobs/$jobId`        | Cleaners: a Job they're on, where the Offer email leads; Confirm or Release their place, complete it, or record No Access                                                       |
-| `/portal`                     | Clients: their upcoming and past Jobs, Quotes, Quote Requests and homes                                                                                                         |
+| `/portal`                     | Clients: their upcoming and past Jobs, Bills, Quotes, Quote Requests and homes                                                                                                  |
 | `/portal/jobs/$jobId`         | Clients: a Job: moving or cancelling it (with what it costs), its receipt, approving extra work, and paying an Unpaid Job; where those emails lead                              |
 | `/portal/request`             | Clients: request a Quote for a new home or one of theirs                                                                                                                        |
 | `/portal/details`             | Clients: contact details and Access Instructions                                                                                                                                |
 | `/portal/quotes/$quoteId`     | Clients: a Quote, where its email's link leads; accept it in one step (Clean Type, card, pay), or Decline                                                                       |
 | `/portal/payment-method`      | Clients: add or replace their card, where the Office's add-a-card email leads                                                                                                   |
+| `/portal/bills/$billId`       | Clients: a weekly Bill, where its emails lead; printing it, and paying it by card or ACH Direct Debit while it's due                                                            |
 | `/office/requests`            | Office Staff: open Quote Requests                                                                                                                                               |
 | `/office/requests/$requestId` | Office Staff: a request in full, with the Suggested Price for both Clean Types and how each was worked out                                                                      |
 | `/office/quotes/$quoteId`     | Office Staff: a Draft to price and send, or a Sent one, with recording acceptance and the add-a-card email                                                                      |
@@ -26,7 +27,8 @@ Every screen is built from the design system in `packages/ui` (`@empire-cleaning
 | `/office/jobs/$jobId`         | Office Staff: a Job's places, confirming or turning down a Reschedule Request, moving or cancelling it, and once Completed, reviewing Adjustments and correcting the completion |
 | `/office/staff`               | Office Staff: everyone on Staff, and inviting someone                                                                                                                           |
 | `/office/staff/$staffId`      | Office Staff: a Staff member's usual week, days off and extra days, and deactivating them                                                                                       |
-| `/office/clients/$clientId`   | Office Staff: a Client, their homes and Quote Requests, and Condition correction                                                                                                |
+| `/office/clients/$clientId`   | Office Staff: a Client, their homes and Quote Requests, and Condition correction; for a business, weekly billing and their Bills                                                |
+| `/office/bills/$billId`       | Office Staff: a weekly Bill, voiding it while unpaid, and recording a payment made another way                                                                                  |
 | `/welcome`                    | an Account connected to nothing: request a Quote to become a Client                                                                                                             |
 | `/`                           | sends a signed-in Account to its area                                                                                                                                           |
 

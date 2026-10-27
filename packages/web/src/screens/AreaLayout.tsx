@@ -46,7 +46,11 @@ const navFor: Record<AreaId, AreaNavItem[]> = {
       href: linkTo({ to: "/office/clients" }),
       label: "Clients",
       icon: ContactRound,
-      alsoCurrentFor: ["/office/clients/", "/office/properties"],
+      alsoCurrentFor: [
+        "/office/clients/",
+        "/office/properties",
+        "/office/bills/",
+      ],
     },
     {
       href: linkTo({ to: "/office/schedule" }),

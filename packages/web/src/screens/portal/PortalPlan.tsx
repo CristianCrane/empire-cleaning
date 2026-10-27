@@ -22,6 +22,16 @@ import { linkTo } from "../../links.ts";
 import { addressOf, formatDateTime, formatHours, planName } from "../format.ts";
 import { EndPlan, OnHold, PlanStatusBadge, PlanTerms } from "../PlanParts.tsx";
 
+// how the Client pays for their cleans: each when it's done, or on a weekly
+// Bill (ADR-0016), charged or paid on its page
+const paymentLine = {
+  per_clean: "Each clean is charged to your saved card when it's done.",
+  automatic:
+    "Each week's cleans go on one Bill, made the following Monday and charged to your saved Payment Method.",
+  on_page:
+    "Each week's cleans go on one Bill, made the following Monday, which you pay on its page by its due date.",
+};
+
 // one of the Client's Service Plans: its terms, what each clean costs, the
 // Deposit held for it, and its cleans on the Schedule; why it's On Hold, if
 // it is; asking for different terms; and Ending it
@@ -53,13 +63,16 @@ export function PortalPlan() {
         jobHref={(jobId) =>
           linkTo({ to: "/portal/jobs/$jobId", params: { jobId } })
         }
+        billHref={(billId) =>
+          linkTo({ to: "/portal/bills/$billId", params: { billId } })
+        }
       />
 
       <Card title={planName(plan)}>
         <PlanTerms plan={plan} />
         <p className="text-sm text-fg-muted">
-          Each clean is charged to your saved card when it's done. We email a
-          reminder the day before.
+          {paymentLine[plan.weeklyBill ?? "per_clean"]} We email a reminder the
+          day before.
         </p>
       </Card>
 

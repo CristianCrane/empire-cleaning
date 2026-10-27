@@ -35,6 +35,8 @@ import {
 } from "../../services/clock/index.ts";
 import { emailOffer } from "../assignments/assignments.ts";
 import { assignments } from "../assignments/assignments.schema.ts";
+import { billLines, bills } from "../bills/bills.schema.ts";
+import { billNumber } from "../bills/bills.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { paymentOf } from "../completion/balance.ts";
 import { bookJob, lockDay, upcomingJobsFor } from "../jobs/jobs.ts";
@@ -602,31 +604,71 @@ const unpaidOf = async (planId: string) => {
   );
 };
 
+// the Unpaid Bills with any of its Jobs on them (ADR-0016), oldest Unpaid
+// first, with when each became Unpaid
+const unpaidBillsOf = async (planId: string) =>
+  (
+    await db
+      .selectDistinct({
+        billId: bills.id,
+        number: bills.number,
+        totalCents: bills.totalCents,
+        since: bills.unpaidSince,
+      })
+      .from(bills)
+      .innerJoin(billLines, eq(billLines.billId, bills.id))
+      .where(
+        and(planJobs(planId, billLines.jobId), isNotNull(bills.unpaidSince)),
+      )
+      .orderBy(asc(bills.unpaidSince))
+  ).map(({ number, since, ...bill }) => ({
+    ...bill,
+    number: billNumber(number),
+    since: since!.toISOString(),
+  }));
+
 // a plan's terms and price, from the Quote it was accepted from
 const detailOf = async (
   plan: ServicePlan,
 ): Promise<Omit<ServicePlanView, "upcoming">> => {
-  const [[summary], [quote], days, [deposit], unpaid, endTerms] =
-    await Promise.all([
-      summariesOf([plan]).then((m) => [m.get(plan.id)!]),
-      db.select().from(quotes).where(eq(quotes.id, plan.quoteId)),
-      daysOfQuote(plan.quoteId),
-      db
-        .select({ cents: sum(charges.amountCents).mapWith(Number) })
-        .from(charges)
-        .where(
-          and(
-            // held by the plan, or by its final Job once it has Ended
-            or(
-              eq(charges.servicePlanId, plan.id),
-              planJobs(plan.id, charges.jobId),
-            ),
-            eq(charges.kind, "deposit"),
+  const [
+    [summary],
+    [quote],
+    days,
+    [deposit],
+    unpaid,
+    unpaidBills,
+    endTerms,
+    [owner],
+  ] = await Promise.all([
+    summariesOf([plan]).then((m) => [m.get(plan.id)!]),
+    db.select().from(quotes).where(eq(quotes.id, plan.quoteId)),
+    daysOfQuote(plan.quoteId),
+    db
+      .select({ cents: sum(charges.amountCents).mapWith(Number) })
+      .from(charges)
+      .where(
+        and(
+          // held by the plan, or by its final Job once it has Ended
+          or(
+            eq(charges.servicePlanId, plan.id),
+            planJobs(plan.id, charges.jobId),
           ),
+          eq(charges.kind, "deposit"),
         ),
-      unpaidOf(plan.id),
-      endTermsOf(plan),
-    ]);
+      ),
+    unpaidOf(plan.id),
+    unpaidBillsOf(plan.id),
+    endTermsOf(plan),
+    db
+      .select({
+        billedWeeklyFrom: clients.billedWeeklyFrom,
+        billPayment: clients.billPayment,
+      })
+      .from(properties)
+      .innerJoin(clients, eq(clients.id, properties.clientId))
+      .where(eq(properties.id, plan.propertyId)),
+  ]);
   return {
     ...summary!,
     days: days.map((day) => ({
@@ -647,6 +689,8 @@ const detailOf = async (
     depositCents: deposit?.cents ?? 0,
     quoteId: plan.quoteId,
     unpaid,
+    unpaidBills: unpaidBills.map(({ since: _, ...bill }) => bill),
+    weeklyBill: owner!.billedWeeklyFrom ? owner!.billPayment : null,
     endTerms,
     endedAt: plan.endedAt?.toISOString() ?? null,
   };
@@ -746,20 +790,25 @@ export const plansOnHold = async () => {
   ]);
   const items = await Promise.all(
     held.map(async (plan) => {
-      const [[first], unpaid] = await Promise.all([
+      const [[first], unpaid, unpaidBills] = await Promise.all([
         db
           .select({ since: min(jobs.unpaidSince) })
           .from(jobs)
           .where(planJobs(plan.id)),
         unpaidOf(plan.id),
+        unpaidBillsOf(plan.id),
       ]);
+      const since = [first?.since?.toISOString(), unpaidBills[0]?.since].filter(
+        (s) => s !== undefined,
+      );
       return {
-        since: first?.since?.toISOString() ?? plan.updatedAt.toISOString(),
+        since: since.sort()[0] ?? plan.updatedAt.toISOString(),
         plan: {
           ...summaries.get(plan.id)!,
           client: owners.get(plan.propertyId)!,
         },
         owedCents: unpaid.reduce((total, u) => total + u.owedCents, 0),
+        bills: unpaidBills.map((b) => b.number),
       };
     }),
   );

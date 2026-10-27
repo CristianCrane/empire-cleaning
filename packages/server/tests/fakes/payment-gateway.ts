@@ -86,6 +86,15 @@ export class FakePaymentGateway implements PaymentGateway {
           : this.takeBillPayment(ref, payment.input);
   }
 
+  // The web app's test form stands in for the provider's in the browser, so
+  // nothing there finishes a Bill payment: from now on one still waiting is
+  // finished this way when asked how it went, as if the Client had paid;
+  // null to stop (the end-to-end tests)
+  private browserPays: "card" | "bank" | null = null;
+  payBillsInBrowser(by: "card" | "bank" | null) {
+    this.browserPays = by;
+  }
+
   // a bank debit paying a Bill clears, or fails
   clearBankDebit(ref: string, cleared = true) {
     const payment = this.billPayments.get(ref)!;
@@ -287,6 +296,10 @@ export class FakePaymentGateway implements PaymentGateway {
 
   async billPaymentOutcome(ref: string): Promise<BillPaymentOutcome> {
     this.check();
+    const payment = this.billPayments.get(ref);
+    if (this.browserPays && payment?.outcome.status === "waiting") {
+      this.payBill(ref, this.browserPays);
+    }
     return (
       this.billPayments.get(ref)?.outcome ?? {
         status: "failed",

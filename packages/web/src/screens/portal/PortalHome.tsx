@@ -24,6 +24,7 @@ import {
   quoteHeadline,
   planName,
 } from "../format.ts";
+import { BillStatusBadge, billLine } from "../BillParts.tsx";
 import { PlanStatusBadge } from "../PlanParts.tsx";
 import { QuoteStatusBadge } from "../QuoteParts.tsx";
 
@@ -44,9 +45,8 @@ const placesTitle = (places: PropertyView[]) => {
 };
 
 export function PortalHome() {
-  const { client, plans, quotes, jobs, pastJobs, siteVisits } = useLoaderData({
-    from: "/portal/",
-  });
+  const { client, plans, quotes, jobs, pastJobs, siteVisits, bills } =
+    useLoaderData({ from: "/portal/" });
   const navigate = useNavigate();
   const [firstName] = client.name.split(" ");
   const homes = new Map(client.properties.map((p) => [p.id, p]));
@@ -61,6 +61,33 @@ export function PortalHome() {
           Request a Quote
         </ButtonLink>
       </div>
+
+      {bills.length > 0 && (
+        <Card
+          title="Your Bills"
+          description="Each week's cleans on one Bill, made the following Monday."
+        >
+          <List
+            aria-label="Your Bills"
+            onAction={(id) =>
+              navigate({
+                to: "/portal/bills/$billId",
+                params: { billId: String(id) },
+              })
+            }
+          >
+            {bills.map((bill) => (
+              <ListItem
+                key={bill.id}
+                id={bill.id}
+                title={`Bill ${bill.number}`}
+                description={billLine(bill)}
+                end={<BillStatusBadge bill={bill} />}
+              />
+            ))}
+          </List>
+        </Card>
+      )}
 
       {plans.length > 0 && (
         <Card

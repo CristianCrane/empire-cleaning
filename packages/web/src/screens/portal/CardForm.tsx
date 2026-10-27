@@ -13,6 +13,7 @@ import {
   type StripeElements,
 } from "@stripe/stripe-js";
 import type {
+  BillPaymentForm,
   CardForm,
   PaymentForm,
   PaymentMethodView,
@@ -21,7 +22,8 @@ import { EmbeddedField, Notice } from "@empire-cleaning/ui";
 import { getJson, postJson, putJson } from "../../api.ts";
 
 // The payment provider's own form, so card numbers never reach our server
-// (ADR-0004): Stripe's Payment Element, for cards only (ADR-0008).
+// (ADR-0004): Stripe's Payment Element, for cards only (ADR-0008), except a
+// Bill paid on its page, by card or bank debit (ADR-0016).
 // With the test provider (end-to-end tests) there is no card to type: the
 // form says so, and paying or saving just works.
 
@@ -380,6 +382,97 @@ export function useCardForm({ enabled = true }: { enabled?: boolean } = {}) {
         formField(form, box, problem)
       ),
     save,
+    reset,
+    isReady: Boolean(form),
+  };
+}
+
+/**
+ * The form a Bill is paid with on its page (ADR-0016), by card or by ACH
+ * Direct Debit from a US bank account: nothing is saved for later. Each form
+ * is a payment started with the provider, so one is only started when it's
+ * shown. `pay()` completes it there and hands back what our server then asks
+ * the provider about. After a payment is refused, `reset()` starts afresh.
+ */
+export function useBillPaymentForm(billId: string, enabled: boolean) {
+  const [form, setForm] = useState<BillPaymentForm>();
+  const [attempt, setAttempt] = useState(0);
+  const [problem, setProblem] = useState<string>();
+
+  useEffect(() => {
+    if (!enabled) return;
+    let current = true;
+    setForm(undefined);
+    postJson<BillPaymentForm>(`/api/bills/mine/${billId}/payment-form`)
+      .then((next) => current && setForm(next))
+      .catch(
+        () =>
+          current &&
+          setProblem("The payment form didn't load. Please refresh the page."),
+      );
+    return () => {
+      current = false;
+    };
+  }, [attempt, billId, enabled]);
+
+  const { box, mounted } = useStripeElement(
+    form,
+    (stripe) =>
+      form?.form === "stripe"
+        ? stripe.elements({
+            clientSecret: form.secret,
+            appearance: appearance(),
+            fonts: FONTS,
+          })
+        : null,
+    setProblem,
+  );
+
+  const pay = useCallback(async () => {
+    if (!form) throw new CardProblem("The payment form is still loading.");
+    if (form.form === "stripe") {
+      if (!mounted.current) {
+        throw new CardProblem("The payment form is still loading.");
+      }
+      const { stripe, elements } = mounted.current;
+      const result = await stripe.confirmPayment({
+        elements,
+        redirect: "if_required",
+        confirmParams: { return_url: window.location.href },
+      });
+      if (result.error) {
+        setProblem(result.error.message);
+        throw new CardProblem(
+          result.error.message ?? "Your payment didn't go through.",
+        );
+      }
+    }
+    return form.ref;
+  }, [form, mounted]);
+
+  const reset = useCallback(() => {
+    setProblem(undefined);
+    setAttempt((n) => n + 1);
+  }, []);
+
+  return {
+    field:
+      form?.form === "test" ? (
+        <Notice>
+          Test payments: no card or bank account is needed. Paying uses a test
+          one.
+        </Notice>
+      ) : (
+        <EmbeddedField
+          label="Payment"
+          description="Pay by card or straight from your US bank account. Entered into our payment provider's secure form: we never see your card or account number."
+          errorMessage={problem}
+          framed={false}
+        >
+          <div ref={box} className="min-h-24" />
+        </EmbeddedField>
+      ),
+    pay,
     reset,
     isReady: Boolean(form),
   };

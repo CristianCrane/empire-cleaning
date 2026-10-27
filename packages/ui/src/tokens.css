@@ -63,6 +63,14 @@
   color-scheme: dark;
 }
 
+/* on paper, always the light theme: ink on white, whatever the screen shows */
+@media print {
+  :root,
+  :root[data-theme="dark"] {
+    color-scheme: light;
+  }
+}
+
 @theme inline {
   /* replace Tailwind's palette: only these colours exist */
   --color-*: initial;
@@ -115,7 +123,7 @@
 
 @layer base {
   html {
-    @apply bg-bg font-sans text-fg antialiased;
+    @apply bg-bg font-sans text-fg antialiased print:bg-surface;
     -webkit-tap-highlight-color: transparent;
   }
 

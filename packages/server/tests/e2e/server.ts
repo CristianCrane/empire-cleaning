@@ -27,6 +27,7 @@ const { installFakes, resetDatabase, testClock, testEmail, testPayments } =
   await import("../harness.ts");
 const {
   acceptedJob,
+  billedWeek,
   bookedJob,
   completedFirstClean,
   sentServicePlanQuote,
@@ -47,7 +48,14 @@ const { staff } = await import("../../src/features/staff/index.ts");
 const { db } = await import("../../src/db/index.ts");
 const { accounts } = await import("../../src/features/auth/auth.schema.ts");
 
-installFakes();
+// fresh fakes, whose payments the browser's test form makes: a Bill paid on
+// its page is paid by card unless a test says otherwise
+const freshFakes = () => {
+  installFakes();
+  testPayments().payBillsInBrowser("card");
+};
+
+freshFakes();
 app.listen(env.PORT, () => console.log(`e2e API on port ${env.PORT}`));
 
 const control = express();
@@ -59,7 +67,7 @@ control.get("/health", (_req, res) => {
 
 // a clean slate before each test
 control.post("/reset", async (_req, res) => {
-  installFakes();
+  freshFakes();
   await resetDatabase();
   res.json({ status: "ok" });
 });
@@ -181,6 +189,28 @@ control.post("/jobs/:id/assignments", async (req, res) => {
   const place = job.assignments.find((a) => a.staff.id === staffId)!;
   if (confirmed) await confirmAssignment(staffId, place.id);
   res.json(place);
+});
+
+// a week billed for Casey, a business now (see billedWeek in fixtures.ts),
+// Quoted by the Office Staff member with `officeEmail`
+control.post("/bills/billed-week", async (req, res) => {
+  const { officeEmail, ...week } = req.body as { officeEmail: string } & Omit<
+    Parameters<typeof billedWeek>[0],
+    "byAccountId"
+  >;
+  const [account] = await db
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(eq(accounts.email, officeEmail));
+  res.json(await billedWeek({ ...week, byAccountId: account!.id }));
+});
+
+// how the test payment form pays a Bill: by card, or a bank debit that stays
+// processing
+control.post("/payments/bills-in-browser", (req, res) => {
+  const { by } = req.body as { by: "card" | "bank" };
+  testPayments().payBillsInBrowser(by);
+  res.json({ status: "ok" });
 });
 
 // every Charge is declined with this reason from now on; null to stop
