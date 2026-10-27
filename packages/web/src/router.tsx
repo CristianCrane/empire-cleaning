@@ -46,9 +46,8 @@ import { BillScreen } from "./screens/office/BillScreen.tsx";
 import { Dashboard } from "./screens/office/Dashboard.tsx";
 import { JobScreen } from "./screens/office/JobScreen.tsx";
 import { PriceListScreen } from "./screens/office/PriceListScreen.tsx";
-import { QuoteRequest } from "./screens/office/QuoteRequest.tsx";
-import { QuoteRequests } from "./screens/office/QuoteRequests.tsx";
 import { QuoteScreen } from "./screens/office/QuoteScreen.tsx";
+import { QuotesScreen } from "./screens/office/QuotesScreen.tsx";
 import {
   NewQuoteScreen,
   type NewQuoteSearch,
@@ -209,19 +208,31 @@ const officeHomeRoute = createRoute({
   component: Dashboard,
 });
 
+const officeQuotesRoute = createRoute({
+  getParentRoute: () => officeRoute,
+  path: "/quotes",
+  loader: () => getJson<QuoteSummary[]>("/api/quotes"),
+  component: QuotesScreen,
+});
+
+// Requests became Quotes (ADR-0017): old links still lead there
 const officeRequestsRoute = createRoute({
   getParentRoute: () => officeRoute,
   path: "/requests",
-  loader: () => getJson<QuoteSummary[]>("/api/quotes"),
-  component: QuoteRequests,
+  beforeLoad: () => {
+    throw redirect({ to: "/office/quotes" });
+  },
 });
 
 const officeRequestRoute = createRoute({
   getParentRoute: () => officeRoute,
   path: "/requests/$requestId",
-  loader: ({ params }) =>
-    getJson<OfficeQuote>(`/api/quotes/${params.requestId}`),
-  component: QuoteRequest,
+  beforeLoad: ({ params }) => {
+    throw redirect({
+      to: "/office/quotes/$quoteId",
+      params: { quoteId: params.requestId },
+    });
+  },
 });
 
 // quoting someone who phones (#34), for a Client found already if given
@@ -474,6 +485,7 @@ const routeTree = rootRoute.addChildren([
   welcomeRoute,
   officeRoute.addChildren([
     officeHomeRoute,
+    officeQuotesRoute,
     officeRequestsRoute,
     officeRequestRoute,
     officeNewQuoteRoute,

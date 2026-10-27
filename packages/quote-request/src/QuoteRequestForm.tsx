@@ -105,8 +105,8 @@ const officeWords: typeof ownWords = {
   regular:
     "After their first clean, they'd like regular visits (weekly, bi-weekly or monthly) at 10% off.",
   submit: "Draft a Quote",
-  waiting: "A Quote Request for this home is waiting already.",
-  premisesWaiting: "A Quote Request for these premises is waiting already.",
+  waiting: "This home has a Quote open already.",
+  premisesWaiting: "These premises have a Quote open already.",
   businessName: "Business name",
   contactNote: "The person we'll deal with at the business.",
   failed: "The request didn't save. Please try again.",

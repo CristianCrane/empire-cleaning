@@ -37,12 +37,14 @@ test(
     await requestQuoteAsGuest(casey);
     await signInAsOffice(page);
 
-    await page.getByRole("link", { name: "Requests" }).click();
+    await page.getByRole("link", { name: "Quotes", exact: true }).click();
     await page.getByText("Casey Client").click();
 
-    await expect(page).toHaveURL(/\/office\/requests\/[0-9a-f-]{36}$/);
+    await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
     const crumbs = page.getByLabel("Breadcrumbs");
-    await expect(crumbs.getByRole("link", { name: "Requests" })).toBeVisible();
+    await expect(
+      crumbs.getByRole("link", { name: "Quotes", exact: true }),
+    ).toBeVisible();
     const deep = page.getByRole("region", { name: "Deep Clean" });
     const standard = page.getByRole("region", { name: "Standard Clean" });
     await expect(deep).toContainText("$299.41");
@@ -57,21 +59,21 @@ test(
     await expect(
       page.getByText("Worked out from Price List version 1"),
     ).toBeVisible();
-    // Requests stays marked in the navigation
+    // Quotes stays marked in the navigation
     await expect(
       page
         .getByRole("navigation", { name: "Office" })
-        .getByRole("link", { name: "Requests" }),
+        .getByRole("link", { name: "Quotes", exact: true }),
     ).toHaveAttribute("aria-current", "page");
   },
 );
 
-test("a request's extras are priced, and shown with their hours", async ({
+test("the extras asked for are priced, and shown with their hours", async ({
   page,
 }) => {
   await requestQuoteAsGuest(casey, ["Inside the oven"]);
   await signInAsOffice(page);
-  await page.getByRole("link", { name: "Requests" }).click();
+  await page.getByRole("link", { name: "Quotes", exact: true }).click();
   await page.getByText("Casey Client").click();
 
   await expect(page.getByText("Inside the oven").first()).toBeVisible();
@@ -133,7 +135,7 @@ test(
   },
 );
 
-test("a saved Price List prices new requests, and a new Add-on appears on the form", async ({
+test("a saved Price List prices new Quotes, and a new Add-on appears on the form", async ({
   page,
 }) => {
   await signInAsOffice(page);
@@ -145,7 +147,7 @@ test("a saved Price List prices new requests, and a new Add-on appears on the fo
   await expect(page.getByText("Price List saved as version 2")).toBeVisible();
 
   await requestQuoteAsGuest(casey);
-  await page.goto("/office/requests");
+  await page.goto("/office/quotes");
   await page.getByText("Casey Client").click();
 
   // 3.25 h x $60 = $195, + 8.875% = $212.31
@@ -218,7 +220,7 @@ test("the request form offers the Add-ons by name, and the choice reaches the Of
   const office = await browser.newPage();
   await createStaff(olive);
   await signedInAs(office, olive.email);
-  await office.getByRole("link", { name: "Requests" }).click();
+  await office.getByRole("link", { name: "Quotes", exact: true }).click();
   await office.getByText("Nina New").click();
   await expect(office.getByText("Inside the oven").first()).toBeVisible();
   await office.close();
@@ -249,12 +251,12 @@ for (const theme of ["light", "dark"] as const) {
     );
 
     test(
-      "a Quote Request's page has no accessibility violations",
+      "a Requested Quote's page has no accessibility violations",
       { tag: theme === "light" ? "@desktop" : [] },
       async ({ page }) => {
         await requestQuoteAsGuest(casey, ["Inside the oven"]);
         await signInAsOffice(page);
-        await page.goto("/office/requests");
+        await page.goto("/office/quotes");
         await page.getByText("Casey Client").click();
         await expect(
           page.getByRole("region", { name: "Deep Clean" }),

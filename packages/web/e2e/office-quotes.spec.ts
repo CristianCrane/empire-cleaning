@@ -19,7 +19,7 @@ const casey = { name: "Casey Client", email: "casey@example.com" };
 const startNewQuote = async (page: Page) => {
   await createStaff(olive);
   await signedInAs(page, olive.email);
-  await page.goto("/office/requests");
+  await page.goto("/office/quotes");
   await page.getByRole("button", { name: "New Quote" }).click();
   await expect(page).toHaveURL("/office/quotes/new");
 };

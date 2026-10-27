@@ -42,7 +42,7 @@ const quoteSent = async (page: Page) => {
   await requestQuoteAsGuest(casey);
   await createStaff(olive);
   await signedInAs(page, olive.email);
-  await page.goto("/office/requests");
+  await page.goto("/office/quotes");
   await page.getByText(casey.name).click();
   await page.getByRole("button", { name: "Draft a Quote" }).click();
   await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);

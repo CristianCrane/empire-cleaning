@@ -130,7 +130,7 @@ function ActionFirstRows() {
               id="1"
               title="Maria Lopez"
               description="41-12 Austin St · asked Oct 26"
-              end={<StatusBadge tone="info">Quote Request</StatusBadge>}
+              end={<StatusBadge tone="info">Requested</StatusBadge>}
             />
             <ListItem
               id="2"

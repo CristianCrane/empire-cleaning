@@ -47,7 +47,7 @@ test(
     await requestQuoteForPremises(casey, "Acme Dental");
     await signInAsOffice(page);
 
-    await page.goto("/office/requests");
+    await page.goto("/office/quotes");
     await expect(page.getByText("Needs Site Visit")).toBeVisible();
     await page.getByText("Acme Dental").click();
     await expect(
@@ -82,7 +82,7 @@ test(
     expect(email!.text).toContain("Tuesday, January 6 at 10:00 AM");
     const visit = page.url();
 
-    await page.goto("/office/requests");
+    await page.goto("/office/quotes");
     await expect(page.getByText("Site Visit booked")).toBeVisible();
 
     await page.goto(visit);
@@ -113,7 +113,7 @@ test("a Quote for business premises can't be sent until a Site Visit's findings 
 }) => {
   await requestQuoteForPremises(casey, "Acme Dental");
   await signInAsOffice(page);
-  await page.goto("/office/requests");
+  await page.goto("/office/quotes");
   await page.getByText("Acme Dental").click();
   await page.getByRole("button", { name: "Draft a one-off Quote" }).click();
   await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);

@@ -39,8 +39,10 @@ import {
   Radio,
   RadioCard,
   RadioGroup,
+  Section,
   Select,
   SelectItem,
+  StatusBadge,
   TextField,
   TimeField,
   showToast,
@@ -79,49 +81,30 @@ import {
 } from "../QuoteParts.tsx";
 import { crewAt } from "../schedule-layout.ts";
 import { homeCrumbs } from "./PropertyScreen.tsx";
+import {
+  AskedCard,
+  FirstRevision,
+  SiteVisitCard,
+  SuggestedPrices,
+  TurnDownQuote,
+  turnDownLabel,
+} from "./QuoteAsked.tsx";
 import { PickFromSchedule } from "./SchedulePicker.tsx";
 
-// The Quote as this screen shows it, on one Revision: the one being
-// drafted, or else the offer, so it's edited while there's a Draft Revision
-// and read-only otherwise. #101 reshapes the screen around Revisions.
+// The Quote with one of its Revisions in hand: the one being drafted, or
+// else the offer, so it's edited while there's a Draft Revision and
+// read-only otherwise
 type ShownQuote = Omit<OfficeQuote, "draft" | "offer"> &
   Omit<OfficeRevision, "id" | "number" | "status"> & {
     // the Revision shown
     revision: number;
-    // a Revision of a Sent Quote being drafted
-    revising: boolean;
   };
 
 const shownOf = (quote: OfficeQuote): ShownQuote => {
   const { draft, offer, ...rest } = quote;
   const { id: _id, number, status: _status, ...fields } = (draft ?? offer)!;
-  return {
-    ...rest,
-    ...fields,
-    revision: number,
-    revising: draft !== null && offer !== null,
-    status: draft ? "draft" : quote.status,
-  };
+  return { ...rest, ...fields, revision: number };
 };
-
-// where a Quote was started from: what was asked, or for a Service Plan
-// offered unprompted, its home
-const homeOf = (quote: ShownQuote) =>
-  quote.asked
-    ? {
-        label: "What was asked",
-        href: linkTo({
-          to: "/office/requests/$requestId",
-          params: { requestId: quote.id },
-        }),
-      }
-    : {
-        label: "home's page",
-        href: linkTo({
-          to: "/office/properties/$propertyId",
-          params: { propertyId: quote.property.id },
-        }),
-      };
 
 // a one-off Quote's options as cards, or a Service Plan Quote's weekdays,
 // with their Deposit and, on several, a week's total
@@ -172,45 +155,108 @@ function OfferCards({
   );
 }
 
-// one Quote for the Office: edited while a Revision is being drafted,
-// read-only once it's Sent
+/**
+ * One Quote for the Office, from asking to booking (ADR-0017): what was
+ * asked, its Site Visit, and its Revisions. While Requested it shows the
+ * Suggested Price and the way to draft it; while a Revision is drafted, that
+ * Revision, edited (on a Sent Quote, marked as Draft changes, the offer
+ * standing until it's sent); otherwise the offer, read-only. Every Sent
+ * Revision is listed below as its history.
+ */
 export function QuoteScreen() {
-  const loaded = useLoaderData({ from: "/office/quotes/$quoteId" });
-  if (!loaded.draft && !loaded.offer) return <NothingDrafted quote={loaded} />;
-  const quote = shownOf(loaded);
+  const quote = useLoaderData({ from: "/office/quotes/$quoteId" });
+  const kind = quote.kind === "service_plan" ? "Service Plan Quote" : "Quote";
+  const shown = quote.draft || quote.offer ? shownOf(quote) : null;
+  const revising = quote.draft !== null && quote.offer !== null;
+  const closed = quote.status === "turned_down";
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4">
         <Breadcrumbs
           trail={[
-            { label: "Requests", href: linkTo({ to: "/office/requests" }) },
+            { label: "Quotes", href: linkTo({ to: "/office/quotes" }) },
             ...homeCrumbs(quote.client, quote.property),
-            ...(quote.asked ? [homeOf(quote)] : []),
-            { label: quote.plan ? "Service Plan Quote" : "Quote" },
+            { label: kind },
           ]}
         />
         <div className="flex flex-wrap items-center gap-3">
           <Heading level={1}>
-            {quote.plan ? "Service Plan Quote" : "Quote"} for{" "}
-            {clientName(quote.client)}
+            {kind} for {clientName(quote.client)}
           </Heading>
           <QuoteStatusBadge status={quote.status} />
+          {revising && <StatusBadge tone="info">Draft changes</StatusBadge>}
+          {unsent(quote) && (
+            <div className="ml-auto">
+              <TurnDownQuote quote={quote} />
+            </div>
+          )}
         </div>
         <p className="text-fg-muted">
           {addressOf(quote.property)} · {propertySummary(quote.property)}
         </p>
       </div>
-      {quote.changesPlan && (
-        <PlanChangeNotice quote={quote} change={quote.changesPlan} />
+      {closed && (
+        <Notice>
+          Turned Down {formatDate(quote.turnedDownAt!)}:{" "}
+          {turnDownLabel[quote.turnDownReason!].toLowerCase()}. The Client can
+          ask for a new Quote.
+        </Notice>
       )}
-      {quote.status === "draft" ? (
-        // a save gives fresh prices; the form keeps what's typed
-        <DraftEditor key={quote.id} quote={quote} />
+      {!closed && shown?.changesPlan && (
+        <PlanChangeNotice quote={shown} change={shown.changesPlan} />
+      )}
+      <AskedCard quote={quote} />
+      <SiteVisitCard quote={quote} />
+      {closed ? null : !shown ? (
+        <>
+          <FirstRevision quote={quote} />
+          <SuggestedPrices quote={quote} />
+        </>
+      ) : quote.draft ? (
+        <>
+          {revising && (
+            <Notice>
+              You're drafting Revision {shown.revision}. {quote.client.name}{" "}
+              still sees Revision {quote.offer!.number} until you send it.
+            </Notice>
+          )}
+          {/* a save gives fresh prices; the form keeps what's typed */}
+          <DraftEditor key={quote.id} quote={shown} />
+        </>
       ) : (
-        <SentQuote quote={quote} />
+        <SentQuote quote={shown} />
       )}
+      <RevisionHistory quote={quote} />
     </div>
+  );
+}
+
+// nothing of it Sent yet, so it may still be Turned Down
+const unsent = (quote: OfficeQuote) =>
+  quote.status === "requested" || quote.status === "draft";
+
+// every Sent Revision, newest first: the offer, then those it replaced
+function RevisionHistory({ quote }: { quote: OfficeQuote }) {
+  if (quote.revisions.length === 0) return null;
+  return (
+    <Section title="Revisions">
+      <List aria-label="Revisions">
+        {quote.revisions.map((revision) => (
+          <ListItem
+            key={revision.id}
+            id={revision.id}
+            title={`Revision ${revision.number}, sent ${formatDate(revision.sentAt)}`}
+            description={`${formatMoney(revision.headlineTotalCents)} · for ${formatDateTime(revision.proposedStartsAt)}`}
+            end={
+              revision.id === quote.offer?.id && (
+                <StatusBadge tone="info">The offer</StatusBadge>
+              )
+            }
+          />
+        ))}
+      </List>
+    </Section>
   );
 }
 
@@ -386,24 +432,6 @@ function NewRevision({ quote }: { quote: ShownQuote }) {
       </Actions>
       {failure && <Notice tone="danger">{failure}</Notice>}
     </div>
-  );
-}
-
-// a Quote asked for, with no Revision yet: drafted from what was asked
-function NothingDrafted({ quote }: { quote: OfficeQuote }) {
-  return (
-    <Notice>
-      Nothing has been drafted for this Quote yet. See{" "}
-      <Link
-        href={linkTo({
-          to: "/office/requests/$requestId",
-          params: { requestId: quote.id },
-        })}
-      >
-        what was asked
-      </Link>{" "}
-      to draft it.
-    </Notice>
   );
 }
 

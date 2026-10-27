@@ -194,7 +194,7 @@ test("business premises can be offered a Service Plan with no First Clean, Sent 
   await requestQuoteForPremises(casey, "Acme Dental");
   await createStaff(olive);
   await signedInAs(page, olive.email);
-  await page.goto("/office/requests");
+  await page.goto("/office/quotes");
   await page.getByText("Acme Dental").click();
 
   await page

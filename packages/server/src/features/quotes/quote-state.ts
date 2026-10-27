@@ -328,10 +328,24 @@ export const quotesForClient = (clientId: string) =>
 export const quotesForProperty = (propertyId: string) =>
   summaries(eq(quotes.propertyId, propertyId));
 
-// the Office's open Quotes, newest first: Requested, Draft, and Sent (an
-// Expired one too, which may be revived)
+// how long an Expired Quote stays on the Office's list, to be revived
+export const RECENTLY_EXPIRED_DAYS = 30;
+
+// the Office's open Quotes, newest first: Requested, Draft and Sent, and
+// those Expired in the last RECENTLY_EXPIRED_DAYS, which may be revived
 export const openQuoteList = () =>
-  summaries(inArray(quotes.status, ["requested", "draft", "sent"]));
+  summaries(
+    or(
+      inArray(quotes.status, ["requested", "draft"]),
+      and(
+        eq(quotes.status, "sent"),
+        gt(
+          offers.expiresAt,
+          new Date(clock.now().getTime() - RECENTLY_EXPIRED_DAYS * 86_400_000),
+        ),
+      ),
+    ),
+  );
 
 // Quotes someone asked for that wait on the Office, longest waiting first:
 // Requested, or a Draft whose first Revision isn't Sent yet

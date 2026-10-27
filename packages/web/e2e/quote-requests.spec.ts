@@ -176,18 +176,18 @@ test("a Client edits their contact details and Access Instructions", async ({
   ).toHaveValue("Key in the lockbox, code 4821");
 });
 
-test("Office Staff see the request, open the home and correct its details", async ({
+test("Office Staff see the Quote, open the home and correct its details", async ({
   page,
 }) => {
   await requestQuoteAsGuest(casey);
   await createStaff(officeStaff);
   await signInAs(page, officeStaff.email);
 
-  await page.getByRole("link", { name: "Requests" }).click();
-  await expect(page).toHaveURL("/office/requests");
+  await page.getByRole("link", { name: "Quotes", exact: true }).click();
+  await expect(page).toHaveURL("/office/quotes");
   await page.getByText("Casey Client").click();
-  // the request first; its home is one step further
-  await expect(page).toHaveURL(/\/office\/requests\//);
+  // the Quote first; its home is one step further
+  await expect(page).toHaveURL(/\/office\/quotes\//);
   await page.getByRole("link", { name: "View Property" }).click();
 
   await expect(page).toHaveURL(/\/office\/properties\//);
@@ -224,12 +224,12 @@ test(
     await signInAs(page, officeStaff.email);
     const officeNav = page.getByRole("navigation", { name: "Office" });
 
-    await page.getByRole("link", { name: "Requests" }).click();
+    await page.getByRole("link", { name: "Quotes", exact: true }).click();
     await page.getByText("Casey Client").click();
     const crumbs = page.getByLabel("Breadcrumbs");
     const address = "41-12 Austin St, 4B, 11375";
-    // a request sits below its home, which sits below its Client
-    await expect(crumbs.getByText("Quote Request")).toHaveAttribute(
+    // a Quote sits below its home, which sits below its Client
+    await expect(crumbs.getByText("Quote", { exact: true })).toHaveAttribute(
       "aria-current",
       "page",
     );
@@ -251,7 +251,7 @@ test(
       officeNav.getByRole("link", { name: "Clients" }),
     ).toHaveAttribute("aria-current", "page");
     await expect(
-      officeNav.getByRole("link", { name: "Requests" }),
+      officeNav.getByRole("link", { name: "Quotes", exact: true }),
     ).not.toHaveAttribute("aria-current", "page");
 
     await crumbs.getByRole("link", { name: "Clients" }).click();
@@ -292,13 +292,13 @@ for (const theme of ["light", "dark"] as const) {
         await createStaff(officeStaff);
         await signInAs(page, officeStaff.email);
 
-        await page.goto("/office/requests");
+        await page.goto("/office/quotes");
         await expect(page.getByText("Casey Client")).toBeVisible();
         await expectNoViolations(page);
 
         await page.getByText("Casey Client").click();
         await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-          "Casey Client",
+          "Quote for Casey Client",
         );
         await expectNoViolations(page);
 
