@@ -133,7 +133,7 @@ A Reschedule Request made less than 24 hours before the Job starts, judged when 
 _Avoid_: Late move, short-notice reschedule
 
 **On Hold**:
-A Service Plan that is temporarily generating no new Jobs while any of its Jobs is Unpaid. Its Jobs already booked go ahead. Once nothing is Unpaid it carries on, from its next date still to come: dates that passed while it was On Hold are never booked. On Hold plans appear in Needs attention.
+A Service Plan that is temporarily generating no new Jobs while any of its Jobs, or a Bill with any of its Jobs on it, is Unpaid. Its Jobs already booked go ahead. Once nothing is Unpaid it carries on, from its next date still to come: dates that passed while it was On Hold are never booked. On Hold plans appear in Needs attention.
 _Avoid_: Paused, suspended
 
 **Ended**:
@@ -163,12 +163,12 @@ A partial payment, taken when a Quote is accepted, that must succeed before anyt
 _Avoid_: Down payment, prepayment, booking fee
 
 **Balance**:
-What is charged when a Job is Completed: its price including Adjustments, less any Deposit already paid. A negative Balance is refunded. An increase the Client approves after completion is charged then, as the rest of the Balance.
+What is charged when a Job is Completed: its price including Adjustments, less any Deposit already paid. A negative Balance is refunded. An increase the Client approves after completion is charged then, as the rest of the Balance. For a Client billed weekly, it goes on a Bill instead (ADR-0016).
 _Avoid_: Remainder, final payment, outstanding amount
 
 **Charge**:
-Money taken from a Client's Payment Method: a Deposit, a Balance, or a plan Job's Late Cancellation or No Access fee.
-_Avoid_: Payment, invoice, bill
+Money taken from a Client's Payment Method: a Deposit, a Balance, a plan Job's Late Cancellation or No Access fee, or a Bill.
+_Avoid_: Payment, invoice
 
 **Plan Discount**:
 A reduction, 10% unless set otherwise on the Quote, on the base price of each Job a Service Plan generates, compared with the same visit as a one-off Job, including any recurring Add-ons on the plan. It does not apply to Adjustments or to the First Clean.
@@ -178,6 +178,10 @@ _Avoid_: Loyalty discount, subscription discount, recurring rate
 A recorded change to a Job's quoted price, with a reason, from what the assigned Staff report at completion: an Add-on done on the day, a quoted Add-on not done, or extra time. Staff never set amounts: each is priced from the Price List the Job's Quote used. Reductions count at once; an increase counts only once Office Staff have proposed it and the Client has approved it in the portal, within 7 days (ADR-0009).
 _Avoid_: Surcharge, discount, extra
 
+**Bill**:
+Everything a commercial Client billed weekly owes for one week, Monday to Sunday: the Balances of their Jobs that started that week and were Completed, their fees, and approved Adjustments, as lines, made the following Monday (ADR-0016). It is charged to their saved Payment Method then, or, if Office Staff set it so, paid on its page by its due date. It never changes once made: mistakes are put right on the next Bill, and an unpaid one can be voided. One below zero is a credit on the next.
+_Avoid_: Invoice, statement
+
 **Unpaid**:
-A Job whose Balance, or part of it, or whose fee failed to be charged and has not yet been recovered.
+A Job whose Balance, or part of it, or whose fee failed to be charged and has not yet been recovered; or a Bill whose Charge failed, or that is still unpaid after its due date.
 _Avoid_: Overdue, outstanding, failed payment
