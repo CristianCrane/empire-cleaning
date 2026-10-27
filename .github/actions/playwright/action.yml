@@ -1,0 +1,21 @@
+name: Set up Playwright
+description: Playwright's Chromium, cached per Playwright version, and the system libraries it needs
+
+runs:
+  using: composite
+  steps:
+    - id: version
+      run: echo "version=$(pnpm --filter @empire-cleaning/web exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+      shell: bash
+    - id: cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/ms-playwright
+        key: playwright-${{ runner.os }}-${{ steps.version.outputs.version }}
+    - if: steps.cache.outputs.cache-hit != 'true'
+      run: pnpm --filter @empire-cleaning/web exec playwright install --with-deps chromium
+      shell: bash
+    # the browser came from the cache, but the system libraries didn't
+    - if: steps.cache.outputs.cache-hit == 'true'
+      run: pnpm --filter @empire-cleaning/web exec playwright install-deps chromium
+      shell: bash

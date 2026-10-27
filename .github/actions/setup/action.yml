@@ -1,0 +1,18 @@
+name: Set up
+description: Node, pnpm and the workspace's dependencies, as a contributor has them after `pnpm install`
+
+runs:
+  using: composite
+  steps:
+    # the version comes from `packageManager` in the root package.json
+    - uses: pnpm/action-setup@v4
+    - uses: actions/setup-node@v5
+      with:
+        node-version: 24 # `engines` in the root package.json
+        cache: pnpm
+    - run: pnpm install --frozen-lockfile
+      shell: bash
+    # the other packages read the shared types from models' build output, which
+    # isn't committed
+    - run: pnpm --filter @empire-cleaning/models build
+      shell: bash
