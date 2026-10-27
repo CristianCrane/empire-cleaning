@@ -35,6 +35,7 @@ export default defineConfig({
         CORS_ORIGIN_URL: appUrl,
         LANDING_ORIGIN_URL: "http://localhost:4399",
         RESEND_API_KEY: "e2e-resend-api-key",
+        OFFICE_EMAIL: "office@example.com",
         GOOGLE_CLIENT_ID: "e2e-google-client-id",
         GOOGLE_CLIENT_SECRET: "e2e-google-client-secret",
         STRIPE_SECRET_KEY: "e2e-stripe-secret-key",

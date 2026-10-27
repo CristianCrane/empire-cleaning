@@ -3,6 +3,8 @@ import env from "../../env.ts";
 
 export type EmailMessage = {
   to: string;
+  // copied, unseen by `to`
+  bcc?: string;
   subject: string;
   html: string;
   text: string;

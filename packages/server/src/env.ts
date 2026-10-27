@@ -14,6 +14,8 @@ const envSchema = z.object({
   EMAIL_FROM: z
     .string()
     .default("Empire Cleaning <no-reply@empirecleaningandpro.com>"),
+  // the Office's shared inbox, copied on reminders for late Bills
+  OFFICE_EMAIL: z.email(),
   // public URL of this API; sign-in links point here
   BETTER_AUTH_URL: z.url().default("http://localhost:3000"),
   // signs session cookies and tokens

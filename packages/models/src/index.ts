@@ -653,7 +653,8 @@ export type NeedsAttentionItem =
       bills: string[];
     }
   | {
-      // a weekly Bill whose automatic Charge failed (ADR-0016)
+      // a weekly Bill whose automatic Charge failed, or not paid on its page
+      // by its due date (ADR-0016)
       kind: "bill_unpaid";
       since: string;
       bill: BillSummary;

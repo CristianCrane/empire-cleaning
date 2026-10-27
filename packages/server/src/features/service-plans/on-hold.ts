@@ -27,7 +27,8 @@ export const holdOrResume = async (
 
 /**
  * Puts a Service Plan On Hold while any of its Jobs, or a Bill with any of
- * its Jobs on it (ADR-0016), is Unpaid, and back to active once none is.
+ * its Jobs on it (ADR-0016), is Unpaid, and back to active once none is. A
+ * Bill with a bank debit paying it on its way holds nothing while it clears.
  */
 export const holdOrResumePlan = async (
   tx: Tx,
@@ -61,6 +62,8 @@ export const holdOrResumePlan = async (
         and(
           eq(servicePlanVisits.servicePlanId, planId),
           isNotNull(bills.unpaidSince),
+          // not while a bank debit paying it clears
+          eq(bills.status, "due"),
         ),
       ),
   ])) as [[{ unpaidJobs: number }], [{ unpaidBills: number }]];

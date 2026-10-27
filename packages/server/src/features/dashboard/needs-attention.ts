@@ -131,7 +131,8 @@ const unplacedVisitsSource: Source = async () =>
     visit,
   }));
 
-// weekly Bills whose automatic Charge failed, longest Unpaid first: the
+// weekly Bills whose automatic Charge failed, or not paid on their page by
+// their due date, longest Unpaid first: the
 // Office chases them (ADR-0016)
 const unpaidBillsSource: Source = async () =>
   (await listBills({ unpaid: true }))

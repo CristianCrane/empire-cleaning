@@ -92,6 +92,16 @@ function Standing({ bill }: { bill: BillView }) {
     );
   }
   if (bill.status !== "due") return null;
+  if (bill.unpaid && bill.payment === "on_page") {
+    return (
+      <Notice tone="danger">
+        It wasn't paid by its due date, {formatDay(bill.dueOn)}. The Client's
+        Service Plans with Jobs on it are On Hold until it's paid, on its page
+        or by a payment you record. They're reminded each week until then, and
+        the Office inbox gets a copy.
+      </Notice>
+    );
+  }
   if (bill.unpaid) {
     return (
       <Notice tone="danger">

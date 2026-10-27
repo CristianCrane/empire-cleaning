@@ -133,7 +133,7 @@ A Reschedule Request made less than 24 hours before the Job starts, judged when 
 _Avoid_: Late move, short-notice reschedule
 
 **On Hold**:
-A Service Plan that is temporarily generating no new Jobs while any of its Jobs, or a Bill with any of its Jobs on it, is Unpaid. Its Jobs already booked go ahead. Once nothing is Unpaid it carries on, from its next date still to come: dates that passed while it was On Hold are never booked. On Hold plans appear in Needs attention.
+A Service Plan that is temporarily generating no new Jobs while any of its Jobs, or a Bill with any of its Jobs on it, is Unpaid; a Bill with a bank payment for it on its way holds nothing while it clears. Its Jobs already booked go ahead. Once nothing is Unpaid it carries on, from its next date still to come: dates that passed while it was On Hold are never booked. On Hold plans appear in Needs attention.
 _Avoid_: Paused, suspended
 
 **Ended**:
