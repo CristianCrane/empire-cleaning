@@ -2,8 +2,10 @@ import { useState } from "react";
 import { useLoaderData, useNavigate, useRouter } from "@tanstack/react-router";
 import type {
   BillPayment,
+  ClientBillingSaved,
   OfficeClientView,
   PropertyStatus,
+  SettledJobView,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -32,6 +34,7 @@ import {
   clientName,
   formatDateTime,
   formatDay,
+  formatMoney,
   propertySummary,
 } from "../format.ts";
 
@@ -186,20 +189,26 @@ function EditBilling({ client }: { client: OfficeClientView }) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [problem, setProblem] = useState<string>();
   const [isSaving, setSaving] = useState(false);
+  // what switching weekly billing off settled per Job, shown once saved
+  const [settled, setSettled] = useState<SettledJobView[]>([]);
 
   const save = async (form: FormData, close: () => void) => {
     setSaving(true);
     setProblem(undefined);
     setFieldErrors({});
     try {
-      await putJson<OfficeClientView>(`/api/clients/${client.id}/billing`, {
-        weekly,
-        payment,
-        termsDays,
-        billingEmail: String(form.get("billingEmail") ?? "").trim() || null,
-      });
+      const saved = await putJson<ClientBillingSaved>(
+        `/api/clients/${client.id}/billing`,
+        {
+          weekly,
+          payment,
+          termsDays,
+          billingEmail: String(form.get("billingEmail") ?? "").trim() || null,
+        },
+      );
       showToast({ tone: "success", title: "Billing saved" });
-      close();
+      if (saved.settled.length > 0) setSettled(saved.settled);
+      else close();
       await router.invalidate();
     } catch (e) {
       if (e instanceof ApiError && Object.keys(e.fieldErrors).length) {
@@ -217,84 +226,128 @@ function EditBilling({ client }: { client: OfficeClientView }) {
   };
 
   return (
-    <DialogTrigger>
+    <DialogTrigger onOpenChange={(isOpen) => !isOpen && setSettled([])}>
       <Button variant="secondary">Edit</Button>
       <Dialog title="Billing">
-        {({ close }) => (
-          <Form
-            validationErrors={fieldErrors}
-            onSubmit={(e) => {
-              e.preventDefault();
-              void save(new FormData(e.currentTarget), close);
-            }}
-          >
-            <Checkbox isSelected={weekly} onChange={setWeekly}>
-              Bill weekly
-            </Checkbox>
-            <p className="text-sm text-fg-muted">
-              {weekly
-                ? "Everything they owe for a week, Monday to Sunday, goes on one Bill made the following Monday, from this week on."
-                : billing.weeklyFrom
-                  ? "Bills already made stay due. Anything not billed yet is charged per Job."
-                  : "Each Job is charged to their card when it's done."}
-            </p>
-            {weekly && (
-              <>
-                <RadioGroup
-                  label="How they pay"
-                  value={payment}
-                  onChange={(value) => setPayment(value as BillPayment)}
-                >
-                  <Radio
-                    value="automatic"
-                    description="Each Bill is charged to their saved Payment Method when it's made, and emailed as a receipt."
+        {({ close }) =>
+          settled.length > 0 ? (
+            <Settled settled={settled} close={close} />
+          ) : (
+            <Form
+              validationErrors={fieldErrors}
+              onSubmit={(e) => {
+                e.preventDefault();
+                void save(new FormData(e.currentTarget), close);
+              }}
+            >
+              <Checkbox isSelected={weekly} onChange={setWeekly}>
+                Bill weekly
+              </Checkbox>
+              <p className="text-sm text-fg-muted">
+                {weekly
+                  ? "Everything they owe for a week, Monday to Sunday, goes on one Bill made the following Monday, from this week on."
+                  : billing.weeklyFrom
+                    ? "Bills already made stay due. Anything not billed yet is charged per Job."
+                    : "Each Job is charged to their card when it's done."}
+              </p>
+              {weekly && (
+                <>
+                  <RadioGroup
+                    label="How they pay"
+                    value={payment}
+                    onChange={(value) => setPayment(value as BillPayment)}
                   >
-                    Charged automatically
-                  </Radio>
-                  <Radio
-                    value="on_page"
-                    description="They pay each Bill on its page, by card or bank debit, by its due date."
-                  >
-                    On the Bill's page
-                  </Radio>
-                </RadioGroup>
-                {payment === "on_page" && (
-                  <NumberField
-                    label="Terms, in days"
-                    name="termsDays"
-                    description="From the Monday a Bill is made to its due date."
-                    minValue={1}
-                    maxValue={90}
-                    value={termsDays}
-                    onChange={(days) =>
-                      setTermsDays(Number.isNaN(days) ? 14 : days)
-                    }
-                    className="max-w-xs"
-                  />
-                )}
-              </>
-            )}
-            <TextField
-              label="Billing email (optional)"
-              name="billingEmail"
-              type="email"
-              autoComplete="off"
-              defaultValue={billing.billingEmail ?? ""}
-              description={`Bills and their receipts go here instead of ${client.email ?? "their own email"}.`}
-            />
-            {problem && <Notice tone="danger">{problem}</Notice>}
-            <Actions>
-              <Button variant="secondary" onPress={close}>
-                Cancel
-              </Button>
-              <Button type="submit" isPending={isSaving}>
-                Save
-              </Button>
-            </Actions>
-          </Form>
-        )}
+                    <Radio
+                      value="automatic"
+                      description="Each Bill is charged to their saved Payment Method when it's made, and emailed as a receipt."
+                    >
+                      Charged automatically
+                    </Radio>
+                    <Radio
+                      value="on_page"
+                      description="They pay each Bill on its page, by card or bank debit, by its due date."
+                    >
+                      On the Bill's page
+                    </Radio>
+                  </RadioGroup>
+                  {payment === "on_page" && (
+                    <NumberField
+                      label="Terms, in days"
+                      name="termsDays"
+                      description="From the Monday a Bill is made to its due date."
+                      minValue={1}
+                      maxValue={90}
+                      value={termsDays}
+                      onChange={(days) =>
+                        setTermsDays(Number.isNaN(days) ? 14 : days)
+                      }
+                      className="max-w-xs"
+                    />
+                  )}
+                </>
+              )}
+              <TextField
+                label="Billing email (optional)"
+                name="billingEmail"
+                type="email"
+                autoComplete="off"
+                defaultValue={billing.billingEmail ?? ""}
+                description={`Bills and their receipts go here instead of ${client.email ?? "their own email"}.`}
+              />
+              {problem && <Notice tone="danger">{problem}</Notice>}
+              <Actions>
+                <Button variant="secondary" onPress={close}>
+                  Cancel
+                </Button>
+                <Button type="submit" isPending={isSaving}>
+                  Save
+                </Button>
+              </Actions>
+            </Form>
+          )
+        }
       </Dialog>
     </DialogTrigger>
+  );
+}
+
+// what switching weekly billing off charged, refunded or left Unpaid, per
+// Job; the Client is emailed the same
+function Settled({
+  settled,
+  close,
+}: {
+  settled: SettledJobView[];
+  close: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-4">
+      <p>
+        Anything no Bill had taken yet is now settled per Job. We've emailed the
+        Client what we did:
+      </p>
+      <ul className="flex flex-col gap-2">
+        {settled.map((s) => (
+          <li key={s.jobId}>
+            <p>{s.label}</p>
+            <p className="text-sm text-fg-muted">
+              {[
+                s.chargedCents > 0 && `Charged ${formatMoney(s.chargedCents)}`,
+                s.refundedCents > 0 &&
+                  `Refunded ${formatMoney(s.refundedCents)}`,
+                s.unpaidCents !== null &&
+                  `Unpaid: couldn't charge ${formatMoney(s.unpaidCents)}`,
+              ]
+                .filter(Boolean)
+                .join(". ")}
+            </p>
+          </li>
+        ))}
+      </ul>
+      <Actions>
+        <Button onPress={close}>Done</Button>
+      </Actions>
+    </div>
   );
 }
 

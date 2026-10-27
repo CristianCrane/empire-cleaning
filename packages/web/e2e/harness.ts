@@ -187,20 +187,23 @@ export const offerPlace = (
 // automatically or paid on its page, as `payment` says. With `plan`, a weekly
 // plan at the home from Thursday the 8th has its first Job on it too. With
 // `failing`, its automatic Charge is declined, and Charges keep failing
-// until failCharges(null). The clock is left at 10am on Monday the 12th.
+// until failCharges(null). The clock is left at 10am on Monday the 12th; with
+// `unbilled`, at noon on the day the last Job was done, before any Bill.
 export const billedWeek = (week: {
   officeEmail: string;
   payment?: "automatic" | "on_page";
   billingEmail?: string;
   plan?: boolean;
   failing?: boolean;
+  unbilled?: boolean;
 }) =>
   control("/bills/billed-week", {
     method: "POST",
     body: JSON.stringify(week),
   }) as Promise<{
     clientId: string;
-    billId: string;
+    // none while `unbilled`
+    billId: string | null;
     jobId: string;
     planId: string | null;
   }>;
