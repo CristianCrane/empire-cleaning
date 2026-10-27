@@ -64,7 +64,10 @@ test("Office Staff see today's Jobs and whether they're assigned", async ({
   await signInAsOffice(page);
 
   const today = page.getByRole("region", { name: "Today's Schedule" });
-  await expect(today).toContainText("Mon, Jan 5 · 8 h available · 5 h booked");
+  // the day's header says how full it is
+  await expect(today.getByRole("region", { name: "Mon, Jan 5" })).toContainText(
+    "5 h booked · 3 h free",
+  );
   // one day of the Schedule's calendar, locked to today
   const jobs = today.getByRole("group", { name: "Jobs on Mon, Jan 5" });
   await expect(jobs.getByRole("link")).toHaveCount(1);

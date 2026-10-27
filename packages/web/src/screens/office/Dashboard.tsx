@@ -32,7 +32,6 @@ import {
   formatDate,
   formatDateTime,
   formatDay,
-  formatHours,
   formatMoney,
 } from "../format.ts";
 
@@ -47,11 +46,6 @@ export function Dashboard() {
       <NeedsAttention items={needsAttention} />
       <Section
         title="Today's Schedule"
-        description={[
-          formatDay(today.date),
-          `${formatHours(today.staffHours)} available`,
-          `${formatHours(today.bookedHours)} booked`,
-        ].join(" · ")}
         actions={
           <ButtonLink
             href={linkTo({ to: "/office/schedule" })}
