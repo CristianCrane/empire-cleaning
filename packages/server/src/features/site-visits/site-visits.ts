@@ -191,7 +191,7 @@ const tellClient = async (
  */
 export const bookSiteVisit = async (
   input: BookSiteVisitInput,
-  byAccountId: string,
+  byAccountId: string | null,
 ): Promise<OfficeSiteVisit> => {
   const { property, client } = await propertyOf(input.propertyId);
   const visitor = await visitorOf(input.staffId);

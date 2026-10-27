@@ -1146,6 +1146,25 @@ function DraftEditor({ quote: loaded }: { quote: OfficeQuote }) {
         </Notice>
       )}
 
+      {/* business premises are seen before they're quoted (ADR-0014) */}
+      {quote.needsSiteVisit && (
+        <Notice>
+          <p>
+            These premises haven't had a Site Visit, so this Quote can't be
+            sent. Book one or record its findings on{" "}
+            <Link
+              href={linkTo({
+                to: "/office/properties/$propertyId",
+                params: { propertyId: quote.property.id },
+              })}
+            >
+              the Property
+            </Link>
+            , then send it.
+          </p>
+        </Notice>
+      )}
+
       {/* the prices stay in view wherever the change was made */}
       <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center gap-3 border-t border-border bg-surface px-4 py-3 shadow-raised sm:mx-0 sm:rounded-lg sm:border">
         <div className="flex min-w-0 flex-1 flex-col">
@@ -1158,7 +1177,7 @@ function DraftEditor({ quote: loaded }: { quote: OfficeQuote }) {
         </div>
         <Button
           isPending={isSending}
-          isDisabled={!quote.client.email}
+          isDisabled={!quote.client.email || quote.needsSiteVisit}
           onPress={() => void onSend()}
         >
           Send to {quote.client.name}

@@ -11,6 +11,7 @@ import type {
   LocalDateTime,
   ScheduleDay,
   ScheduledJob,
+  ScheduledSiteVisit,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -36,6 +37,7 @@ import {
   formatClock,
   formatDay,
   formatHours,
+  formatMinutes,
   formatTime,
   shortClientName,
   timeOfDay,
@@ -102,6 +104,12 @@ const toneOf = (
 const crewOf = (job: ScheduledJob) =>
   job.crew.map((c) => c.name).join(", ") || "No crew yet";
 
+// a Site Visit's place on the time axis
+const visitSpanOf = (visit: ScheduledSiteVisit) => {
+  const start = hoursOf(timeOfDay(visit.startsAt));
+  return { start, end: start + visit.minutes / 60 };
+};
+
 // a time without a crew free for the clean: striped, so it reads as
 // blocked even before it's pointed at
 const NO_CREW =
@@ -162,9 +170,17 @@ export function ScheduleCalendar({
   const proposedStart = proposed && hoursOf(proposed.start.time);
   const axis = axisFor(
     days.flatMap((d) => d.jobs),
-    proposedStart === undefined
-      ? []
-      : [{ start: proposedStart, end: proposedStart + proposed!.hoursOnSite }],
+    [
+      ...days.flatMap((d) => d.siteVisits.map(visitSpanOf)),
+      ...(proposedStart === undefined
+        ? []
+        : [
+            {
+              start: proposedStart,
+              end: proposedStart + proposed!.hoursOnSite,
+            },
+          ]),
+    ],
   );
   // the times to pick from on a day: those on offer there, or every half hour
   const everyHalfHour = Array.from(
@@ -228,6 +244,7 @@ export function ScheduleCalendar({
         columns={days.map((day) => {
           const layout = layoutDay(
             day.jobs,
+            day.siteVisits,
             proposed?.start.date === day.date
               ? {
                   time: proposed.start.time,
@@ -472,20 +489,25 @@ const PROPOSED = "proposed";
 type ProposedOnDay = { time: string; hoursOnSite: number; label: string };
 
 /**
- * A day's blocks: each Job's, and the proposed clean's; side by side where
- * they'd overlap, so Jobs at the same time with different crews all show.
- * When more overlap than `maxLanes` fit, the proposed clean always keeps
- * its lane, then Unassigned Jobs are drawn first, as the ones to act on,
- * then the earliest; the rest are hidden, earliest first, to list instead.
+ * A day's blocks: each Job's, each Site Visit's, and the proposed clean's;
+ * side by side where they'd overlap, so Jobs at the same time with
+ * different crews all show. When more overlap than `maxLanes` fit, the
+ * proposed clean and Site Visits always keep their lanes, then Unassigned
+ * Jobs are drawn first, as the ones to act on, then the earliest; the rest
+ * are hidden, earliest first, to list instead.
  */
 const layoutDay = (
   jobs: ScheduledJob[],
+  visits: ScheduledSiteVisit[],
   proposed: ProposedOnDay | undefined,
   maxLanes: number,
 ) => {
-  const blocks = jobs.map((job) =>
-    drawn(job.id, spanOf(job).start, job.hoursOnSite),
-  );
+  const blocks = [
+    ...jobs.map((job) => drawn(job.id, spanOf(job).start, job.hoursOnSite)),
+    ...visits.map((visit) =>
+      drawn(visit.id, visitSpanOf(visit).start, visit.minutes / 60),
+    ),
+  ];
   const proposedBlock =
     proposed && drawn(PROPOSED, hoursOf(proposed.time), proposed.hoursOnSite);
   const unassigned = new Set(
@@ -495,22 +517,27 @@ const layoutDay = (
     proposedBlock ? [...blocks, proposedBlock] : blocks,
     maxLanes,
     {
-      keep: [PROPOSED],
+      keep: [PROPOSED, ...visits.map((v) => v.id)],
       order: (a, b) =>
         Number(unassigned.has(b.id)) - Number(unassigned.has(a.id)) ||
         a.start - b.start,
     },
   );
   const byId = new Map(jobs.map((job) => [job.id, job]));
+  const visitById = new Map(visits.map((visit) => [visit.id, visit]));
   return {
     lanes: lanesFor(shown),
     jobs: shown.flatMap((block) => {
       const job = byId.get(block.id);
       return job ? [{ job, block }] : [];
     }),
+    visits: shown.flatMap((block) => {
+      const visit = visitById.get(block.id);
+      return visit ? [{ visit, block }] : [];
+    }),
     hidden: hidden
       .sort((a, b) => a.start - b.start)
-      .map((block) => byId.get(block.id)!),
+      .flatMap((block) => byId.get(block.id) ?? []),
     proposed: proposed &&
       proposedBlock && { ...proposed, block: proposedBlock },
   };
@@ -520,7 +547,7 @@ const layoutDay = (
 // dragged; otherwise only to see, letting clicks through to the time under it.
 // In the week's narrow days, a Job's time and Client each get a line
 function DayJobs({
-  layout: { lanes, jobs, proposed },
+  layout: { lanes, jobs, visits, proposed },
   axisStart,
   narrow,
   interactive,
@@ -603,6 +630,45 @@ function DayJobs({
                 href={linkTo({
                   to: "/office/jobs/$jobId",
                   params: { jobId: job.id },
+                })}
+                className={inside}
+              >
+                {words}
+              </Link>
+            ) : (
+              <div className={inside}>{words}</div>
+            )}
+          </div>
+        );
+      })}
+      {visits.map(({ visit, block }) => {
+        const style = place(block);
+        const compact = style.height < COMPACT_PX;
+        const words = (
+          <>
+            <span className="truncate font-semibold">
+              {formatTime(visit.startsAt)} {shortClientName(visit.client)}
+            </span>
+            <span className={compact ? "sr-only" : "truncate"}>
+              Site Visit · {formatMinutes(visit.minutes)}
+            </span>
+            <span className={compact ? "sr-only" : "truncate text-fg-muted"}>
+              {visit.visitor?.name}
+            </span>
+          </>
+        );
+        const inside = `flex h-full flex-col ${narrow ? "px-1" : "px-1.5"} text-xs leading-tight font-normal text-fg no-underline ${compact ? "justify-center" : "py-1"}`;
+        return (
+          <div
+            key={visit.id}
+            className={`absolute overflow-hidden rounded-md border-s-4 border-neutral-strong bg-neutral-subtle shadow-sm ${interactive ? "" : "pointer-events-none"}`}
+            style={style}
+          >
+            {interactive ? (
+              <Link
+                href={linkTo({
+                  to: "/office/site-visits/$visitId",
+                  params: { visitId: visit.id },
                 })}
                 className={inside}
               >

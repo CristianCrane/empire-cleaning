@@ -29,6 +29,7 @@ import {
   Select,
   SelectItem,
   StatusBadge,
+  TextField,
   showToast,
   type Crumb,
 } from "@empire-cleaning/ui";
@@ -48,10 +49,16 @@ import {
 } from "../format.ts";
 import { PlanStatusBadge } from "../PlanParts.tsx";
 import { QuoteStatusBadge } from "../QuoteParts.tsx";
+import {
+  BookSiteVisit,
+  RecordFindingsWithoutVisit,
+  SiteVisitBadge,
+  visitSummary,
+} from "./SiteVisitParts.tsx";
 import { OfferServicePlan } from "./StartDraft.tsx";
 
 // a home for the Office: its whole history (ADR-0011), its Quote Requests,
-// Quotes and Jobs, and its details
+// Quotes and Jobs, its Site Visits, and its details
 export function PropertyScreen() {
   const { home, premisesTypes } = useLoaderData({
     from: "/office/properties/$propertyId",
@@ -70,6 +77,7 @@ export function PropertyScreen() {
         <Heading level={1}>{addressOf(home)}</Heading>
       </div>
       {home.servicePlan && <PlanLink plan={home.servicePlan} />}
+      <SiteVisits home={home} premisesTypes={premisesTypes} />
       <History home={home} />
       <Details home={home} premisesTypes={premisesTypes} />
     </div>
@@ -99,6 +107,82 @@ export const homeCrumbs = (
     }),
   },
 ];
+
+/**
+ * Its Site Visits, newest first, each opening its own screen (#73). Business
+ * premises need one with findings recorded before a Quote is Sent
+ * (ADR-0014); premises the Office knows can have them recorded with no
+ * visit. A Property has one booked at a time.
+ */
+function SiteVisits({
+  home,
+  premisesTypes,
+}: {
+  home: OfficePropertyView;
+  premisesTypes: PremisesTypeChoice[];
+}) {
+  const navigate = useNavigate();
+  const premises = home.kind === "commercial";
+  const booked = home.siteVisits.some((v) => v.status === "booked");
+  if (!premises && home.siteVisits.length === 0) {
+    return (
+      <Card
+        title="Site Visits"
+        description="Optional for a home: book one to see it before quoting."
+        actions={<BookSiteVisit propertyId={home.id} />}
+      />
+    );
+  }
+
+  return (
+    <Card title="Site Visits">
+      {premises && !home.findingsRecorded && (
+        <Notice>
+          {booked
+            ? "Record what the Site Visit finds, and a Quote can be sent."
+            : "Business premises are seen before they're quoted. Book a Site Visit, or record findings you know already."}
+        </Notice>
+      )}
+      {/* in the body, not the header, so they wrap at phone width */}
+      {!booked && (
+        <div className="flex flex-wrap gap-2">
+          <BookSiteVisit
+            propertyId={home.id}
+            primary={premises && !home.findingsRecorded}
+          />
+          {premises && (
+            <RecordFindingsWithoutVisit
+              property={home}
+              officeNotes={home.officeNotes}
+              premisesTypes={premisesTypes}
+            />
+          )}
+        </div>
+      )}
+      <List
+        aria-label={`Site Visits to ${addressOf(home)}`}
+        renderEmptyState={() => (
+          <p className="p-4 text-center text-fg-muted">No Site Visits yet.</p>
+        )}
+        onAction={(id) =>
+          void navigate({
+            to: "/office/site-visits/$visitId",
+            params: { visitId: String(id) },
+          })
+        }
+      >
+        {home.siteVisits.map((visit) => (
+          <ListItem
+            key={visit.id}
+            id={visit.id}
+            title={visitSummary(visit)}
+            end={<SiteVisitBadge status={visit.status} />}
+          />
+        ))}
+      </List>
+    </Card>
+  );
+}
 
 // the home's Service Plan, opening its own screen
 function PlanLink({ plan }: { plan: ServicePlanSummary }) {
@@ -288,14 +372,14 @@ function useCorrection<T extends Record<string, unknown>>(
 }
 
 // the details that affect the price. Clients keep what they first gave and ask
-// for a new Quote to change it; the Office corrects it here (until a Site
-// Visit records business premises' for them, #73). The address is the
-// Property's identity, so it isn't editable.
+// for a new Quote to change it; the Office corrects it here, or a Site
+// Visit's findings do (#73). The address is the Property's identity, so it
+// isn't editable.
 function Details({
   home,
   premisesTypes,
 }: {
-  home: PropertyView;
+  home: OfficePropertyView;
   premisesTypes: PremisesTypeChoice[];
 }) {
   return (
@@ -307,9 +391,13 @@ function Details({
         </span>
       </p>
       {home.kind === "commercial" ? (
-        <PremisesDetails premises={home} premisesTypes={premisesTypes} />
+        <PremisesDetails
+          premises={home}
+          officeNotes={home.officeNotes}
+          premisesTypes={premisesTypes}
+        />
       ) : (
-        <HomeDetails home={home} />
+        <HomeDetails home={home} officeNotes={home.officeNotes} />
       )}
     </Card>
   );
@@ -371,7 +459,33 @@ function ConditionSelect({
   );
 }
 
-function HomeDetails({ home }: { home: HomeView }) {
+// the Office's own notes on it, from a Site Visit or otherwise
+function OfficeNotesField({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (notes: string) => void;
+}) {
+  return (
+    <TextField
+      label="Office notes"
+      name="officeNotes"
+      description="Only Office Staff see these."
+      multiline
+      value={value}
+      onChange={onChange}
+    />
+  );
+}
+
+function HomeDetails({
+  home,
+  officeNotes,
+}: {
+  home: HomeView;
+  officeNotes: string | null;
+}) {
   const correction = useCorrection(home, {
     type: home.type,
     bedrooms: home.bedrooms,
@@ -380,6 +494,7 @@ function HomeDetails({ home }: { home: HomeView }) {
     pets: home.pets,
     floorArea: home.floorArea,
     condition: home.condition,
+    officeNotes: officeNotes ?? "",
   });
   const { details, change } = correction;
 
@@ -440,6 +555,10 @@ function HomeDetails({ home }: { home: HomeView }) {
         value={details.condition}
         onChange={(condition) => change({ condition })}
       />
+      <OfficeNotesField
+        value={details.officeNotes}
+        onChange={(notes) => change({ officeNotes: notes })}
+      />
     </CorrectionForm>
   );
 }
@@ -448,15 +567,18 @@ function HomeDetails({ home }: { home: HomeView }) {
 // they have), floor area and Condition
 function PremisesDetails({
   premises,
+  officeNotes,
   premisesTypes,
 }: {
   premises: PremisesView;
+  officeNotes: string | null;
   premisesTypes: PremisesTypeChoice[];
 }) {
   const correction = useCorrection(premises, {
     premisesType: premises.premisesType.key,
     floorArea: premises.floorArea,
     condition: premises.condition,
+    officeNotes: officeNotes ?? "",
   });
   const { details, change } = correction;
   const choices = premisesTypes.some((t) => t.key === premises.premisesType.key)
@@ -492,6 +614,10 @@ function PremisesDetails({
       <ConditionSelect
         value={details.condition}
         onChange={(condition) => change({ condition })}
+      />
+      <OfficeNotesField
+        value={details.officeNotes}
+        onChange={(notes) => change({ officeNotes: notes })}
       />
     </CorrectionForm>
   );

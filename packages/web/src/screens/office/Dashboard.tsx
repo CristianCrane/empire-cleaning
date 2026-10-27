@@ -11,6 +11,7 @@ import {
 } from "@empire-cleaning/ui";
 import { linkTo } from "../../links.ts";
 import { AssignmentBadge } from "./JobScreen.tsx";
+import { SiteVisitBadge } from "./SiteVisitParts.tsx";
 import {
   addressOf,
   cleanTypeLabel,
@@ -19,11 +20,13 @@ import {
   formatDateTime,
   formatDay,
   formatHours,
+  formatMinutes,
   formatMoney,
   formatTime,
 } from "../format.ts";
 
-// the Office's first screen: what's waiting on them, then today's Jobs
+// the Office's first screen: what's waiting on them, then today's Jobs and
+// Site Visits
 export function Dashboard() {
   const { needsAttention, today } = useLoaderData({ from: "/office/" });
   const navigate = useNavigate();
@@ -69,6 +72,32 @@ export function Dashboard() {
           </List>
         ) : (
           <p className="text-sm text-fg-muted">No Jobs today.</p>
+        )}
+        {today.siteVisits.length > 0 && (
+          <List
+            aria-label="Today's Site Visits"
+            onAction={(id) =>
+              navigate({
+                to: "/office/site-visits/$visitId",
+                params: { visitId: String(id) },
+              })
+            }
+          >
+            {today.siteVisits.map((visit) => (
+              <ListItem
+                key={visit.id}
+                id={visit.id}
+                textValue={`${formatTime(visit.startsAt)} Site Visit ${clientName(visit.client)}`}
+                title={`${formatTime(visit.startsAt)} · Site Visit · ${clientName(visit.client)}`}
+                description={[
+                  addressOf(visit.property),
+                  visit.visitor?.name,
+                  formatMinutes(visit.minutes),
+                ].join(" · ")}
+                end={<SiteVisitBadge status={visit.status} />}
+              />
+            ))}
+          </List>
         )}
       </Card>
     </div>

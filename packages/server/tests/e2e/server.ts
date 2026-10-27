@@ -40,6 +40,10 @@ const { requestReschedule } =
   await import("../../src/features/reschedule/index.ts");
 const { generateServicePlanJobs } =
   await import("../../src/features/service-plans/index.ts");
+const { bookSiteVisit } =
+  await import("../../src/features/site-visits/index.ts");
+const { properties } = await import("../../src/features/properties/index.ts");
+const { staff } = await import("../../src/features/staff/index.ts");
 const { db } = await import("../../src/db/index.ts");
 const { accounts } = await import("../../src/features/auth/auth.schema.ts");
 
@@ -78,6 +82,37 @@ control.put("/staff/:id/usual-week", async (req, res) => {
 // a booked Job at a home of its own, straight onto the Schedule
 control.post("/jobs", async (req, res) => {
   res.json(await bookedJob(req.body as Parameters<typeof bookedJob>[0]));
+});
+
+// a Site Visit booked at the Property on `street`, for the Staff member with
+// `staffEmail`, as Office Staff book one
+control.post("/site-visits", async (req, res) => {
+  const { street, staffEmail, ...booking } = req.body as {
+    street: string;
+    staffEmail: string;
+    date: string;
+    time: string;
+    minutes?: number;
+  };
+  const [property] = await db
+    .select({ id: properties.id })
+    .from(properties)
+    .where(eq(properties.street, street));
+  const [member] = await db
+    .select({ id: staff.id })
+    .from(staff)
+    .where(eq(staff.email, staffEmail));
+  res.json(
+    await bookSiteVisit(
+      {
+        ...booking,
+        minutes: booking.minutes ?? 30,
+        propertyId: property!.id,
+        staffId: member!.id,
+      },
+      null,
+    ),
+  );
 });
 
 // a Deep Clean booked by accepting a Quote, so it has a price: Quoted by the

@@ -57,6 +57,20 @@ export const bookJob = (job: {
   cleanType?: "standard" | "deep";
 }) => control("/jobs", { method: "POST", body: JSON.stringify(job) });
 
+// a Site Visit at the Property on `street`, booked for the Staff member
+// with `staffEmail` as Office Staff book one (the Client is emailed)
+export const bookSiteVisit = (visit: {
+  street: string;
+  staffEmail: string;
+  date: string;
+  time: string;
+  minutes?: number;
+}) =>
+  control("/site-visits", {
+    method: "POST",
+    body: JSON.stringify(visit),
+  }) as Promise<{ id: string }>;
+
 // a Deep Clean booked by accepting a Quote, so it has a price: Quoted by
 // the Office Staff member with `officeEmail` (signed up already), with a
 // card saved by the Client and the Deposit taken

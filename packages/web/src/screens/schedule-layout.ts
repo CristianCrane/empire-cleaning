@@ -80,34 +80,50 @@ export const lanesFor = (blocks: Block[]) => {
   return placed;
 };
 
-// a clean's crew, to find room for on the Schedule; a booked Job being moved
-// gives its id, so it isn't counted against itself
-export type Crew = { crewSize: number; jobId?: string };
+// a clean's crew, to find room for on the Schedule; a booked Job or Site
+// Visit being moved gives its id, so it isn't counted against itself
+export type Crew = { crewSize: number; jobId?: string; siteVisitId?: string };
 
 /**
  * Whether a crew is free for a clean starting at `time` on a day, by the
  * headcount rule the server keeps (roomOn): the most crews at work at once
- * during its time on site, Jobs and the new times held for Reschedule
- * Requests both, plus its own, are no more than the day's available
- * Cleaners. Says how many Cleaners those crews take, of how many.
+ * during its time on site, Jobs, the new times held for Reschedule Requests
+ * and Site Visits by Cleaners (a crew of one each) all, plus its own, are no
+ * more than the day's available Cleaners. Says how many Cleaners those crews
+ * take, of how many.
  */
 export const crewAt = (
   day: ScheduleDay,
   time: string,
   hoursOnSite: number,
-  { crewSize, jobId }: Crew,
+  { crewSize, jobId, siteVisitId }: Crew,
 ) => {
   const spans = [
     ...day.jobs.filter((job) => job.id !== jobId),
     ...day.held.filter((held) => held.jobId !== jobId),
-  ].map((other) => {
-    const start = hoursOf(timeOfDay(other.startsAt));
-    return {
-      start,
-      end: start + other.labourHours / other.crewSize,
+  ]
+    .map((other) => ({
+      startsAt: other.startsAt,
+      hoursOnSite: other.labourHours / other.crewSize,
       crewSize: other.crewSize,
-    };
-  });
+    }))
+    .concat(
+      day.siteVisits
+        .filter((visit) => visit.takesRoom && visit.id !== siteVisitId)
+        .map((visit) => ({
+          startsAt: visit.startsAt,
+          hoursOnSite: visit.minutes / 60,
+          crewSize: 1,
+        })),
+    )
+    .map((other) => {
+      const start = hoursOf(timeOfDay(other.startsAt));
+      return {
+        start,
+        end: start + other.hoursOnSite,
+        crewSize: other.crewSize,
+      };
+    });
   const start = hoursOf(time);
   const end = start + hoursOnSite;
   const during = spans.filter((s) => s.start < end && s.end > start);

@@ -62,6 +62,12 @@ export function QuoteRequests() {
               ].join(" · ")}
               end={
                 <div className="flex flex-wrap justify-end gap-2">
+                  {request.siteVisit === "needed" && (
+                    <StatusBadge tone="warning">Needs Site Visit</StatusBadge>
+                  )}
+                  {request.siteVisit === "booked" && (
+                    <StatusBadge tone="info">Site Visit booked</StatusBadge>
+                  )}
                   {request.state === "quoted" && (
                     <StatusBadge tone="info">Quoted</StatusBadge>
                   )}

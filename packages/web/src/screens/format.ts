@@ -246,3 +246,18 @@ export const planRhythm = (plan: {
   firstStartsAt: string;
 }) =>
   `${recurrenceLabel[plan.recurrence]}, on ${weekdayOf(dayOfInstant(plan.firstStartsAt))}s at ${formatClock(timeOfDay(plan.firstStartsAt))}`;
+
+// a Site Visit's length: 30 -> "30 min", 90 -> "1 h 30 min"
+export const formatMinutes = (minutes: number) => {
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return [hours > 0 && `${hours} h`, rest > 0 && `${rest} min`]
+    .filter(Boolean)
+    .join(" ");
+};
+
+export const siteVisitStatusLabel = {
+  booked: "Booked",
+  done: "Done",
+  cancelled: "Cancelled",
+} as const;
