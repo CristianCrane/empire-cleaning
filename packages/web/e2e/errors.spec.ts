@@ -108,6 +108,10 @@ test("a page that fails to load says something went wrong, without details, and 
   // or home instead
   await page.route("**/api/clients/me", (route) => route.abort());
   await page.reload();
+  // the reload has to fail before the route is lifted, or it loads fine
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Something went wrong" }),
+  ).toBeVisible();
   await page.unroute("**/api/clients/me");
   await page.getByRole("link", { name: "Go to your home page" }).click();
   await expect(page).toHaveURL("/portal");

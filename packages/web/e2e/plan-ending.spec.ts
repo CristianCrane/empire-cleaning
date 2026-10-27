@@ -168,7 +168,11 @@ test(
     await expectAccessible(page);
     await dialog.getByRole("button", { name: "End plan" }).click();
 
-    await expect(page.getByText("Service Plan Ended")).toBeVisible();
+    // the toast: the page's own "This Service Plan Ended on…" shows at the
+    // same time
+    await expect(
+      page.getByText("Service Plan Ended", { exact: true }),
+    ).toBeVisible();
     await expect(page.getByRole("region", { name: "Ended" })).toBeVisible();
     expect((await emailsTo(casey.email)).at(-1)!.subject).toBe(
       "Your Service Plan has Ended",
