@@ -63,6 +63,9 @@ export const properties = pgTable(
     condition: condition("condition"),
     // maintained by the Client; shown to Staff assigned to its Jobs
     accessInstructions: text("access_instructions"),
+    // the Office's own, from a Site Visit or otherwise; never shown to the
+    // Client
+    officeNotes: text("office_notes"),
     ...timestamps,
   },
   (t) => [

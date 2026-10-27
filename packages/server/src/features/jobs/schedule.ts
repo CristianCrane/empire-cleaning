@@ -12,6 +12,7 @@ import type {
   HeldTime,
   ScheduleDay,
   ScheduledJob,
+  ScheduledSiteVisit,
 } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
 import {
@@ -26,6 +27,8 @@ import { assignmentStatusOf, crewOf } from "../assignments/places.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { properties } from "../properties/properties.schema.ts";
 import { rescheduleRequests } from "../reschedule/reschedule.schema.ts";
+import { siteVisits } from "../site-visits/site-visits.schema.ts";
+import { siteVisitViews } from "../site-visits/views.ts";
 import {
   staff,
   staffAvailabilityExceptions,
@@ -195,26 +198,59 @@ const heldTimes = async (days: string[]) => {
   return byDay;
 };
 
+// A Site Visit's length as Labour Hours. Lengths are whole quarter-hours,
+// so they're exact in hundredths.
+export const visitHours = (visit: { minutes: number }) => visit.minutes / 60;
+
+// The booked and Done Site Visits on each day of the range (#73), earliest
+// first. One by a Cleaner with Available Hours that day takes room like a
+// Job with a Crew Size of one; one by Office Staff alone takes none.
+const siteVisitsOn = async (
+  days: string[],
+  hours: Awaited<ReturnType<typeof cleanerHours>>,
+) => {
+  const byDay = new Map(days.map((day) => [day, [] as ScheduledSiteVisit[]]));
+  const visits = await siteVisitViews(
+    and(
+      inArray(siteVisits.status, ["booked", "done"]),
+      gte(siteVisits.startsAt, startOfDay(days[0]!)),
+      lt(siteVisits.startsAt, startOfDay(addDays(days.at(-1)!, 1))),
+    ),
+  );
+  for (const visit of visits) {
+    const date = dayOf(new Date(visit.startsAt!));
+    byDay.get(date)?.push({
+      ...visit,
+      startsAt: visit.startsAt!,
+      takesRoom: hours.get(date)!.some((c) => c.id === visit.visitor?.id),
+    });
+  }
+  return byDay;
+};
+
 // the Schedule for the days from `from` to `to`, both included
 export const scheduleFor = async (
   from: string,
   to: string,
 ): Promise<ScheduleDay[]> => {
   const days = daysFrom(from, to);
-  const [hours, booked, holds] = await Promise.all([
-    cleanerHours(days),
+  const hours = await cleanerHours(days);
+  const [booked, holds, visits] = await Promise.all([
     bookedJobs(days),
     heldTimes(days),
+    siteVisitsOn(days, hours),
   ]);
 
   return days.map((date) => {
     const available = hours.get(date)!;
     const dayJobs = booked.get(date)!;
+    const dayVisits = visits.get(date)!;
     const staffUnits = available.reduce((sum, c) => sum + c.units, 0);
-    const bookedUnits = dayJobs.reduce(
-      (sum, job) => sum + hundredths(job.labourHours),
-      0,
-    );
+    const bookedUnits =
+      dayJobs.reduce((sum, job) => sum + hundredths(job.labourHours), 0) +
+      dayVisits
+        .filter((v) => v.takesRoom)
+        .reduce((sum, v) => sum + hundredths(visitHours(v)), 0);
     const { units: heldUnits, held } = holds.get(date)!;
     return {
       date,
@@ -229,17 +265,19 @@ export const scheduleFor = async (
       })),
       jobs: dayJobs,
       held,
+      siteVisits: dayVisits,
     };
   });
 };
 
 // a clean to find room for; a booked Job being moved gives its id, so it
-// doesn't stand in its own way
+// doesn't stand in its own way, and so does a Site Visit being moved
 export type Clean = {
   startsAt: Date;
   labourHours: number;
   crewSize: number;
   jobId?: string;
+  siteVisitId?: string;
 };
 
 const HOUR_MS = 3_600_000;
@@ -285,17 +323,24 @@ const crewsBusyDuring = (spans: CrewSpan[], start: number, end: number) => {
  *   taken to be free at any time of it. Only time on site counts, not travel.
  *
  * Completed and No Access Jobs count as they did. A Job being moved isn't
- * counted against itself, at its booked time or a time held for it.
+ * counted against itself, at its booked time or a time held for it. Site
+ * Visits that take room (#73) count like Jobs with a Crew Size of one, and
+ * one being moved isn't counted against itself either.
  */
 export const roomOn = (day: ScheduleDay, clean: Clean): DayCapacity => {
-  const { startsAt, labourHours, crewSize, jobId } = clean;
+  const { startsAt, labourHours, crewSize, jobId, siteVisitId } = clean;
   const ownDay = day.jobs.some((job) => job.id === jobId);
   // what it holds on this day already, moving onto it from another
   const ownHeld = day.held
     .filter((h) => h.jobId === jobId && !ownDay)
     .reduce((sum, h) => sum + hundredths(h.labourHours), 0);
+  // a Site Visit's own hours, if it's on this day already and takes room
+  const ownVisit = day.siteVisits
+    .filter((v) => v.id === siteVisitId && v.takesRoom)
+    .reduce((sum, v) => sum + hundredths(visitHours(v)), 0);
   const hasHours =
-    ownDay || hundredths(day.freeHours) + ownHeld >= hundredths(labourHours);
+    ownDay ||
+    hundredths(day.freeHours) + ownHeld + ownVisit >= hundredths(labourHours);
 
   const spans = [
     ...day.jobs
@@ -306,6 +351,9 @@ export const roomOn = (day: ScheduleDay, clean: Clean): DayCapacity => {
     ...day.held
       .filter((h) => h.jobId !== jobId)
       .map((h) => crewSpan(new Date(h.startsAt), h.labourHours, h.crewSize)),
+    ...day.siteVisits
+      .filter((v) => v.takesRoom && v.id !== siteVisitId)
+      .map((v) => crewSpan(new Date(v.startsAt), visitHours(v), 1)),
   ];
   const own = crewSpan(startsAt, labourHours, crewSize);
   const crewsBusy = crewsBusyDuring(spans, own.start, own.end);

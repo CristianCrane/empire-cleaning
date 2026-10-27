@@ -31,6 +31,10 @@ import {
   officeRescheduleRouter,
 } from "#features/reschedule";
 import { router as servicePlansRouter } from "#features/service-plans";
+import {
+  propertyFindingsRouter,
+  router as siteVisitsRouter,
+} from "#features/site-visits";
 import { router as staffRouter } from "#features/staff";
 import {
   networkLoggingMiddleware,
@@ -66,6 +70,7 @@ app.use("/api/quote-requests", quoteRequestsRouter);
 app.use("/api/quotes", quotesRouter);
 app.use("/api/clients", clientsRouter);
 app.use("/api/properties", propertiesRouter);
+app.use("/api/properties", propertyFindingsRouter);
 app.use("/api/price-list", priceListRouter);
 app.use("/api/staff", staffRouter);
 app.use("/api/schedule", scheduleRouter);
@@ -83,6 +88,7 @@ app.use("/api/assignments", assignmentsRouter);
 app.use("/api/payment-methods", paymentMethodsRouter);
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/service-plans", servicePlansRouter);
+app.use("/api/site-visits", siteVisitsRouter);
 
 app.use(errorHandler);
 
