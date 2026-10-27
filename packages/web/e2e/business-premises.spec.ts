@@ -107,13 +107,16 @@ test(
 
     await page.getByRole("link", { name: "Quotes", exact: true }).click();
     const row = page.getByRole("row", { name: /Acme Dental \(Casey Client\)/ });
-    await expect(row).toContainText("Office · 4,500 sq ft");
-    await expect(row).toContainText("Monday, Wednesday and Friday at 6:00 PM");
     await row.click();
 
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
       "Quote for Acme Dental (Casey Client)",
     );
+    // what the business is and asked for, on its Quote
+    await expect(page.getByText("Office · 4,500 sq ft")).toBeVisible();
+    await expect(
+      page.getByText("Monday, Wednesday and Friday at 6:00 PM"),
+    ).toBeVisible();
     await expect(page.getByText("Not recorded yet")).toBeVisible();
     await expect(
       page.getByText("No Condition is recorded yet", { exact: false }),
