@@ -14,7 +14,7 @@ import {
 } from "@empire-cleaning/ui";
 import { ApiError, patchJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
-import { addressOf, homeSummary } from "../format.ts";
+import { addressOf, propertySummary } from "../format.ts";
 
 // a Client's own contact details and Access Instructions. A home's size and
 // Condition are read-only here: changing them needs a new Quote.
@@ -148,7 +148,7 @@ function AccessInstructions({ home }: { home: PropertyView }) {
   };
 
   return (
-    <Card title={addressOf(home)} description={homeSummary(home)}>
+    <Card title={addressOf(home)} description={propertySummary(home)}>
       <Form
         onSubmit={(e) => {
           e.preventDefault();

@@ -1,6 +1,6 @@
 import type { Key, ReactNode } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
-import type { QuoteRequestState } from "@empire-cleaning/models";
+import type { PropertyView, QuoteRequestState } from "@empire-cleaning/models";
 import {
   ButtonLink,
   Card,
@@ -18,7 +18,8 @@ import {
   formatDateTime,
   formatHours,
   formatMoney,
-  homeSummary,
+  propertySummary,
+  wantedCleaning,
   quoteHeadline,
   recurrenceLabel,
 } from "../format.ts";
@@ -30,6 +31,15 @@ const requestBadge: Record<QuoteRequestState, ReactNode> = {
   quoted: <StatusBadge tone="success">Quoted</StatusBadge>,
   booked: <StatusBadge tone="success">Booked</StatusBadge>,
   ended: <StatusBadge>Closed</StatusBadge>,
+};
+
+// "Your homes", "Your premises", or both
+const placesTitle = (places: PropertyView[]) => {
+  const commercial = places.filter((p) => p.kind === "commercial").length;
+  if (commercial === 0) return "Your homes";
+  return commercial === places.length
+    ? "Your premises"
+    : "Your homes and premises";
 };
 
 export function PortalHome() {
@@ -183,10 +193,14 @@ export function PortalHome() {
                 title={home ? addressOf(home) : "Your home"}
                 description={[
                   `Sent ${formatDate(request.createdAt)}`,
-                  `${conditionLabel[request.condition]} clean`,
+                  request.condition
+                    ? `${conditionLabel[request.condition]} clean`
+                    : wantedCleaning(request),
                   request.addOns.length > 0 &&
                     `Extras: ${request.addOns.map((a) => a.name).join(", ")}`,
-                  request.wantsRegularService && "Regular visits wanted",
+                  request.wantsRegularService &&
+                    request.condition &&
+                    "Regular visits wanted",
                 ]
                   .filter(Boolean)
                   .join(" · ")}
@@ -197,14 +211,14 @@ export function PortalHome() {
         </List>
       </Card>
 
-      <Card title="Your homes">
-        <List aria-label="Your homes">
+      <Card title={placesTitle(client.properties)}>
+        <List aria-label={placesTitle(client.properties)}>
           {client.properties.map((home) => (
             <ListItem
               key={home.id}
               id={home.id}
               title={addressOf(home)}
-              description={homeSummary(home)}
+              description={propertySummary(home)}
             />
           ))}
         </List>

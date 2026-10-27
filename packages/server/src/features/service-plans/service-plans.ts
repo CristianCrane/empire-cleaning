@@ -440,13 +440,16 @@ export const unplacedVisits = async () => {
 const ownersOf = async (propertyIds: string[]) => {
   if (propertyIds.length === 0) return new Map<string, never>();
   const rows = await db
-    .select({ propertyId: properties.id, id: clients.id, name: clients.name })
+    .select({
+      propertyId: properties.id,
+      id: clients.id,
+      name: clients.name,
+      businessName: clients.businessName,
+    })
     .from(properties)
     .innerJoin(clients, eq(clients.id, properties.clientId))
     .where(inArray(properties.id, propertyIds));
-  return new Map(
-    rows.map(({ propertyId, id, name }) => [propertyId, { id, name }]),
-  );
+  return new Map(rows.map(({ propertyId, ...client }) => [propertyId, client]));
 };
 
 // each plan's Jobs, by visit
@@ -635,7 +638,11 @@ export const officeServicePlan = async (
   ]);
   return {
     ...detail,
-    client: { id: client.id, name: client.name },
+    client: {
+      id: client.id,
+      name: client.name,
+      businessName: client.businessName,
+    },
     jobs: planned,
     unplaced: unplaced.map(({ visit }) => toUnplaced(visit)),
   };

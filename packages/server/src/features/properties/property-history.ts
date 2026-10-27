@@ -18,6 +18,7 @@ import {
   requestStates,
 } from "../quotes/quote-state.ts";
 import { quotes } from "../quotes/quotes.schema.ts";
+import { currentPriceList } from "../price-list/price-list.ts";
 import { properties } from "./properties.schema.ts";
 import { toPropertyView } from "./property-view.ts";
 
@@ -33,17 +34,22 @@ export const officePropertyView = async (
     .where(eq(properties.id, id));
   if (!row) return undefined;
 
-  const [requests, ownQuotes, ownJobs, firstCleans, servicePlan] =
+  const [requests, ownQuotes, ownJobs, firstCleans, servicePlan, list] =
     await Promise.all([
       quoteRequestViews(eq(quoteRequests.propertyId, id)),
       quotesForProperty(id),
       jobViews(eq(jobs.propertyId, id)),
       firstCleansOf([id]),
       propertyServicePlan(id),
+      currentPriceList(),
     ]);
   return {
-    ...toPropertyView(row.property),
-    client: { id: row.client.id, name: row.client.name },
+    ...toPropertyView(row.property, list),
+    client: {
+      id: row.client.id,
+      name: row.client.name,
+      businessName: row.client.businessName,
+    },
     firstCleanCompleted: firstCleans.has(id),
     servicePlan,
     quoteRequests: requests,

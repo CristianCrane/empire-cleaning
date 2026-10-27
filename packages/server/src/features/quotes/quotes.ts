@@ -39,11 +39,12 @@ import { currentPriceList } from "../price-list/price-list.ts";
 import { priceLists } from "../price-list/price-list.schema.ts";
 import {
   addOnCents,
+  pricedOf,
   suggestedPrice,
   taxOn,
 } from "../price-list/suggested-price.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
-import { addressOf } from "../properties/property-view.ts";
+import { addressOf, toPropertyView } from "../properties/property-view.ts";
 import { addOnsForRequests } from "../quote-requests/add-ons.ts";
 import { quoteRequests } from "../quote-requests/quote-requests.schema.ts";
 import { planChangeOf } from "../service-plans/changing.ts";
@@ -105,12 +106,14 @@ const homeOf = async (propertyId: string) => {
   return row;
 };
 
-// the Add-ons a Quote can carry: those on offer, and any the request it
-// answers chose that have since been retired
+// the Add-ons a Quote can carry: those on offer for its kind of Property,
+// and any the request it answers chose that have since been retired
 const addOnChoices = async (
   list: PriceList,
+  property: Property,
   quoteRequestId: string | null,
 ): Promise<AddOnChoice[]> => {
+  const notFor = property.kind === "commercial" ? "homes" : "businesses";
   const requested = new Set(
     quoteRequestId
       ? (
@@ -119,18 +122,20 @@ const addOnChoices = async (
       : [],
   );
   return list.addOns
-    .filter((a) => a.active || requested.has(a.key))
+    .filter(
+      (a) => (a.active && a.offeredFor !== notFor) || requested.has(a.key),
+    )
     .map(({ key, name }) => ({ key, name }));
 };
 
-// What a Quote is priced for besides the home and its Add-ons: a one-off
-// Quote both Clean Types at the home's own Condition, undiscounted; a
-// Service Plan Quote its one Clean Type at the Condition and Plan Discount
-// on the Quote
+// What a Quote is priced for besides the Property and its Add-ons: a
+// one-off Quote both Clean Types at the Property's own Condition (moderate
+// while business premises have none recorded), undiscounted; a Service Plan
+// Quote its one Clean Type at the Condition and Plan Discount on the Quote
 type Terms = {
   kind: QuoteKind;
   cleanTypes: CleanType[];
-  condition: Condition;
+  condition: Condition | null;
   discountPercent: number;
 };
 
@@ -156,10 +161,11 @@ const planTerms = (plan: {
 const percentOf = (cents: number, percent: number) =>
   Math.floor((cents * percent + 50) / 100);
 
-// The Quote's Clean Types priced from the Price List for the home as it is
-// now, with any override in place of the Suggested Price, then any Plan
+// The Quote's Clean Types priced from the Price List for the Property as it
+// is now, with any override in place of the Suggested Price, then any Plan
 // Discount off that, overridden or not. Tax is on what's left, at the rate
-// for the kind of Job, with tax-exempt Add-ons discounted alike.
+// for the kind of Job (a commercial one's, plan or not, is the commercial
+// rate), with tax-exempt Add-ons discounted alike.
 const priceOptions = (
   list: PriceList,
   property: Property,
@@ -172,7 +178,7 @@ const priceOptions = (
   return terms.cleanTypes.map((cleanType) => {
     const suggested = suggestedPrice(
       list,
-      property,
+      pricedOf(property),
       terms.condition,
       cleanType,
       chosen,
@@ -184,7 +190,7 @@ const priceOptions = (
     const taxCents = taxOn(priceCents, {
       hourlyRateCents: suggested.hourlyRateCents,
       taxPercent:
-        terms.kind === "service_plan"
+        terms.kind === "service_plan" && property.kind === "residential"
           ? list.taxServicePlanPercent
           : suggested.taxPercent,
       addOns: suggested.addOns.map((a) => ({ ...a, hours: a.hours * kept })),
@@ -394,13 +400,13 @@ export const officeQuote = async (id: string): Promise<OfficeQuote> => {
     quoteRequestId: quote.quoteRequestId,
     kind: quote.kind,
     status: statusOf(quote),
-    client: { id: client.id, name: client.name, email: client.email },
-    property: {
-      id: property.id,
-      street: property.street,
-      unit: property.unit,
-      postcode: property.postcode,
+    client: {
+      id: client.id,
+      name: client.name,
+      businessName: client.businessName,
+      email: client.email,
     },
+    property: toPropertyView(property, list),
     options: sortOptions(rows).map((r) => officeOption(quote, r)),
     // with the Condition it's priced for, which is the Office's working
     plan: plan && { ...plan, condition: quote.condition! },
@@ -410,7 +416,7 @@ export const officeQuote = async (id: string): Promise<OfficeQuote> => {
         ? planChoicesOf(quote, rows, list, property)
         : null,
     addOns: addOnsOf(rows),
-    addOnChoices: await addOnChoices(list, quote.quoteRequestId),
+    addOnChoices: await addOnChoices(list, property, quote.quoteRequestId),
     crewSize: quote.crewSize,
     depositPercent: quote.depositPercent,
     validityDays: quote.validityDays,
@@ -661,7 +667,9 @@ export const saveDraft = async (
   ]);
 
   const allowed = new Set(
-    (await addOnChoices(list, quote.quoteRequestId)).map((a) => a.key),
+    (await addOnChoices(list, home!.property, quote.quoteRequestId)).map(
+      (a) => a.key,
+    ),
   );
   const unknown = input.addOns.findIndex((key) => !allowed.has(key));
   if (unknown !== -1) {

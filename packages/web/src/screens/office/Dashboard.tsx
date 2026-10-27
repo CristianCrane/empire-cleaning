@@ -14,6 +14,7 @@ import { AssignmentBadge } from "./JobScreen.tsx";
 import {
   addressOf,
   cleanTypeLabel,
+  clientName,
   formatDate,
   formatDateTime,
   formatDay,
@@ -55,8 +56,8 @@ export function Dashboard() {
               <ListItem
                 key={job.id}
                 id={job.id}
-                textValue={`${formatTime(job.startsAt)} ${job.client.name}`}
-                title={`${formatTime(job.startsAt)} · ${job.client.name}`}
+                textValue={`${formatTime(job.startsAt)} ${clientName(job.client)}`}
+                title={`${formatTime(job.startsAt)} · ${clientName(job.client)}`}
                 description={[
                   addressOf(job.property),
                   cleanTypeLabel[job.cleanType],
@@ -102,7 +103,7 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
         const request = item.quoteRequest;
         return {
           key: `quote_request ${request.id}`,
-          title: request.client.name,
+          title: clientName(request.client),
           description: `${addressOf(request.property)} · asked ${formatDate(item.since)}`,
           badge: <StatusBadge tone="info">Quote Request</StatusBadge>,
           open: () =>
@@ -116,7 +117,7 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
         const { quote } = item;
         return {
           key: `quote_expiring ${quote.id}`,
-          title: quote.client.name,
+          title: clientName(quote.client),
           description: `${addressOf(quote.property)} · expires ${formatDateTime(quote.expiresAt!)}`,
           badge: <StatusBadge tone="warning">Quote expiring</StatusBadge>,
           open: () =>
@@ -130,7 +131,7 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
         const { quote } = item;
         return {
           key: `quote_no_room ${quote.id}`,
-          title: quote.client.name,
+          title: clientName(quote.client),
           description: `${addressOf(quote.property)} · ${formatDateTime(quote.proposedStartsAt!)} is full`,
           badge: <StatusBadge tone="danger">Needs another time</StatusBadge>,
           open: () =>
@@ -144,7 +145,7 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
         const { job } = item;
         return {
           key: `job_unassigned ${job.id}`,
-          title: job.client.name,
+          title: clientName(job.client),
           description: `${addressOf(job.property)} · ${formatDateTime(job.startsAt)}`,
           badge: <StatusBadge tone="warning">Unassigned</StatusBadge>,
           open: () =>
@@ -158,7 +159,7 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
         const { job } = item;
         return {
           key: `job_unpaid ${job.id}`,
-          title: job.client.name,
+          title: clientName(job.client),
           description: `${formatMoney(item.owedCents)} owed · ${addressOf(job.property)} · ${formatDate(job.startsAt)}`,
           badge: <StatusBadge tone="danger">Unpaid</StatusBadge>,
           open: () =>
@@ -172,7 +173,7 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
         const { job, request } = item;
         return {
           key: `reschedule_requested ${request.id}`,
-          title: job.client.name,
+          title: clientName(job.client),
           description: `${addressOf(job.property)} · ${formatDateTime(request.fromStartsAt)} to ${formatDateTime(request.startsAt)}`,
           badge: <StatusBadge tone="warning">Reschedule Request</StatusBadge>,
           open: () =>
@@ -186,7 +187,7 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
         const { job } = item;
         return {
           key: `adjustments_reported ${job.id}`,
-          title: job.client.name,
+          title: clientName(job.client),
           description: `${item.count === 1 ? "1 extra" : `${item.count} extras`} to review · ${addressOf(job.property)} · ${formatDate(job.startsAt)}`,
           badge: <StatusBadge tone="info">Adjustments</StatusBadge>,
           open: () =>
@@ -200,7 +201,7 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
         const { job } = item;
         return {
           key: `service_plan_due ${job.id}`,
-          title: job.client.name,
+          title: clientName(job.client),
           description: `${addressOf(job.property)} · First Clean done ${formatDate(item.since)}, wants regular visits`,
           badge: <StatusBadge tone="info">Offer a Service Plan</StatusBadge>,
           // the home's page, where its history is beside the offer
@@ -215,7 +216,7 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
         const { plan, visit } = item;
         return {
           key: `plan_visit_unplaced ${visit.id}`,
-          title: plan.client.name,
+          title: clientName(plan.client),
           description: `${addressOf(plan.property)} · Service Plan visit on ${formatDay(visit.dueOn)}: no room that day`,
           badge: <StatusBadge tone="danger">Needs another time</StatusBadge>,
           open: () =>
@@ -229,7 +230,7 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
         const { plan } = item;
         return {
           key: `plan_on_hold ${plan.id}`,
-          title: plan.client.name,
+          title: clientName(plan.client),
           description: `${addressOf(plan.property)} · Service Plan: ${formatMoney(item.owedCents)} Unpaid, no new Jobs booked`,
           badge: <StatusBadge tone="warning">On Hold</StatusBadge>,
           open: () =>

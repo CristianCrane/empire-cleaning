@@ -37,6 +37,7 @@ import {
   formatDay,
   formatHours,
   formatTime,
+  shortClientName,
   timeOfDay,
   today,
 } from "../format.ts";
@@ -379,8 +380,8 @@ function MoreJobs({
                   <ListItem
                     key={job.id}
                     id={job.id}
-                    textValue={`${formatTime(job.startsAt)} ${job.client.name}`}
-                    title={`${formatTime(job.startsAt)} · ${job.client.name}`}
+                    textValue={`${formatTime(job.startsAt)} ${shortClientName(job.client)}`}
+                    title={`${formatTime(job.startsAt)} · ${shortClientName(job.client)}`}
                     description={crewOf(job)}
                     end={
                       <StatusBadge tone={tone.tone}>{tone.label}</StatusBadge>
@@ -554,7 +555,7 @@ function DayJobs({
         const compact = style.height < COMPACT_PX;
         const words = compact ? (
           <span className="truncate font-semibold">
-            {formatTime(job.startsAt)} {job.client.name}
+            {formatTime(job.startsAt)} {shortClientName(job.client)}
             <span className="sr-only">
               , {tone.label}, {crew}
             </span>
@@ -567,12 +568,12 @@ function DayJobs({
                   {formatTime(job.startsAt)}
                 </span>{" "}
                 <span className="truncate font-semibold">
-                  {job.client.name}
+                  {shortClientName(job.client)}
                 </span>
               </>
             ) : (
               <span className="truncate font-semibold">
-                {formatTime(job.startsAt)} {job.client.name}
+                {formatTime(job.startsAt)} {shortClientName(job.client)}
               </span>
             )}
             <span className="truncate">{tone.label}</span>

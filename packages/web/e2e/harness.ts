@@ -262,6 +262,7 @@ export const requestQuoteAsGuest = async (
       contact: { ...contact, phone: "(646) 555-0100" },
       property: {
         new: {
+          kind: "residential",
           type: "apartment",
           street: "41-12 Austin St",
           unit: "4B",
@@ -282,6 +283,40 @@ export const requestQuoteAsGuest = async (
 
 // on a Draft Quote, typed segment by segment as people do: Monday 12
 // January 2026 at 9:00 AM, a week after the API's clock
+// a business asking, as a Guest, for its Office premises (4,500 sq ft) to be
+// cleaned on Monday, Wednesday and Friday evenings
+export const requestQuoteForPremises = async (
+  contact: { name: string; email: string },
+  businessName: string,
+) => {
+  const types = (await (
+    await fetch("http://localhost:3100/api/price-list/premises-types")
+  ).json()) as { key: string; name: string }[];
+
+  const res = await fetch("http://localhost:3100/api/quote-requests", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      contact: { ...contact, phone: "(646) 555-0100" },
+      businessName,
+      property: {
+        new: {
+          kind: "commercial",
+          street: "200 Park Ave S",
+          unit: "Floor 3",
+          postcode: "10003",
+          premisesType: types.find((t) => t.name === "Office")!.key,
+          floorArea: 4500,
+        },
+      },
+      wantsRegularService: true,
+      weekdays: [0, 2, 4],
+      preferredTime: "18:00",
+    }),
+  });
+  if (!res.ok) throw new Error(`quote request: ${res.status}`);
+};
+
 export const proposeNextMonday = async (page: Page) => {
   await page
     .getByRole("group", { name: "Date" })

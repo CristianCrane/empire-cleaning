@@ -83,6 +83,7 @@ const askAgain = async () => {
       contact: { ...casey, phone: "(646) 555-0100" },
       property: {
         new: {
+          kind: "residential",
           type: "apartment",
           street: "41-12 Austin St",
           unit: "4B",
@@ -411,6 +412,7 @@ test("a home whose First Clean isn't Completed is answered with a one-off Quote"
       contact: { ...casey, phone: "(646) 555-0100" },
       property: {
         new: {
+          kind: "residential",
           type: "house",
           street: "9 Elm St",
           postcode: "11375",

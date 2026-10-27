@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLoaderData, useNavigate, useSearch } from "@tanstack/react-router";
 import { Card, Heading, List, ListItem, TextField } from "@empire-cleaning/ui";
+import { clientName } from "../format.ts";
 
 export type ClientsSearch = { q?: string };
 
@@ -70,7 +71,7 @@ export function ClientsScreen() {
             <ListItem
               key={client.id}
               id={client.id}
-              title={client.name}
+              title={clientName(client)}
               description={
                 <span className="[overflow-wrap:anywhere]">
                   {[

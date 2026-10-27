@@ -3,7 +3,7 @@ import type {
   AcceptOutcome,
   CleanType,
   Condition,
-  NewProperty,
+  NewHome,
   OfficeServicePlan,
   QuoteRequestSubmission,
   SignedInAccount,
@@ -32,7 +32,8 @@ import { api, apiAgent, signIn, testClock } from "./harness.ts";
 
 // shared by the tests that need Quote Requests to work with
 
-export const home: NewProperty = {
+export const home: NewHome = {
+  kind: "residential",
   type: "apartment",
   street: "41-12 Austin St",
   unit: "4B",

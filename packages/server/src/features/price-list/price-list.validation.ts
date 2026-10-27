@@ -39,16 +39,55 @@ const addOn = z.object({
     .max(80, "Use a shorter name"),
   hours: hours,
   taxExempt: z.boolean(),
+  offeredFor: z.enum(["homes", "businesses", "both"], {
+    error: "Choose who the Add-on is offered to",
+  }),
   active: z.boolean(),
 });
 
+const premisesType = z.object({
+  key: z.uuid().optional(),
+  name: z
+    .string()
+    .trim()
+    .min(1, "Name the Premises Type")
+    .max(80, "Use a shorter name"),
+  hoursPerThousandSqFt: z
+    .number({ error: "Enter a number of hours" })
+    .min(0.01, "Cleaning takes some time")
+    .max(24, "That's more than a day")
+    .refine(decimals(2), "Use at most two decimal places"),
+  active: z.boolean(),
+});
+
+const hourlyRate = z
+  .number({ error: "Enter an hourly rate" })
+  .int()
+  .min(100, "The hourly rate must be at least $1")
+  .max(100_000, "That's over $1,000 an hour");
+
+// two live items with the same name would be indistinguishable on the form
+const uniqueNames =
+  (field: "addOns" | "premisesTypes", message: string) =>
+  (
+    list: Record<typeof field, { name: string; active: boolean }[]>,
+    ctx: z.RefinementCtx,
+  ) => {
+    const seen = new Set<string>();
+    list[field].forEach((item, i) => {
+      if (!item.active) return;
+      const name = item.name.toLowerCase();
+      if (seen.has(name)) {
+        ctx.addIssue({ code: "custom", path: [field, i, "name"], message });
+      }
+      seen.add(name);
+    });
+  };
+
 export const priceListSchema = z
   .object({
-    hourlyRateCents: z
-      .number({ error: "Enter an hourly rate" })
-      .int()
-      .min(100, "The hourly rate must be at least $1")
-      .max(100_000, "That's over $1,000 an hour"),
+    hourlyRateCents: hourlyRate,
+    commercialHourlyRateCents: hourlyRate,
     minimumChargeCents: z
       .number({ error: "Enter a Minimum Charge" })
       .int()
@@ -77,24 +116,20 @@ export const priceListSchema = z
       .max(20, "That's a very large crew"),
     taxOneOffPercent: taxPercent,
     taxServicePlanPercent: taxPercent,
+    taxCommercialPercent: taxPercent,
     taxFeePercent: taxPercent,
     addOns: z
       .array(addOn)
       .max(50, "That's more Add-ons than the form can offer"),
+    premisesTypes: z
+      .array(premisesType)
+      .max(50, "That's more Premises Types than the form can offer")
+      .refine(
+        (types) => types.some((t) => t.active),
+        "Offer at least one Premises Type",
+      ),
   })
-  .superRefine((list, ctx) => {
-    // two live Add-ons with the same name would be indistinguishable on the form
-    const seen = new Map<string, number>();
-    list.addOns.forEach((a, i) => {
-      if (!a.active) return;
-      const name = a.name.toLowerCase();
-      if (seen.has(name)) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["addOns", i, "name"],
-          message: "Another Add-on already has this name",
-        });
-      }
-      seen.set(name, i);
-    });
-  });
+  .superRefine(uniqueNames("addOns", "Another Add-on already has this name"))
+  .superRefine(
+    uniqueNames("premisesTypes", "Another Premises Type already has this name"),
+  );

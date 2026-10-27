@@ -1,9 +1,13 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useLoaderData, useNavigate, useRouter } from "@tanstack/react-router";
 import type {
+  ClientName,
   Condition,
+  HomeView,
   JobStatus,
   OfficePropertyView,
+  PremisesTypeChoice,
+  PremisesView,
   PropertyType,
   PropertyView,
   ServicePlanSummary,
@@ -33,10 +37,12 @@ import { linkTo } from "../../links.ts";
 import {
   addressOf,
   cleanTypeLabel,
+  clientName,
   conditionLabel,
   formatDate,
   formatDateTime,
-  homeSummary,
+  propertySummary,
+  wantedCleaning,
   quoteHeadline,
   recurrenceLabel,
 } from "../format.ts";
@@ -47,7 +53,9 @@ import { OfferServicePlan } from "./StartDraft.tsx";
 // a home for the Office: its whole history (ADR-0011), its Quote Requests,
 // Quotes and Jobs, and its details
 export function PropertyScreen() {
-  const home = useLoaderData({ from: "/office/properties/$propertyId" });
+  const { home, premisesTypes } = useLoaderData({
+    from: "/office/properties/$propertyId",
+  });
 
   return (
     <div className="flex flex-col gap-6">
@@ -63,13 +71,13 @@ export function PropertyScreen() {
       </div>
       {home.servicePlan && <PlanLink plan={home.servicePlan} />}
       <History home={home} />
-      <Home home={home} />
+      <Details home={home} premisesTypes={premisesTypes} />
     </div>
   );
 }
 
-const clientCrumb = (client: { id: string; name: string }): Crumb => ({
-  label: client.name,
+const clientCrumb = (client: ClientName): Crumb => ({
+  label: clientName(client),
   href: linkTo({
     to: "/office/clients/$clientId",
     params: { clientId: client.id },
@@ -79,7 +87,7 @@ const clientCrumb = (client: { id: string; name: string }): Crumb => ({
 // the crumbs for a screen below a home (a Quote Request, Quote or Job): its
 // Client, then the home
 export const homeCrumbs = (
-  client: { id: string; name: string },
+  client: ClientName,
   home: Pick<PropertyView, "id" | "street" | "unit" | "postcode">,
 ): Crumb[] => [
   clientCrumb(client),
@@ -151,7 +159,9 @@ function History({ home }: { home: OfficePropertyView }) {
             id={request.id}
             title={formatDate(request.createdAt)}
             description={[
-              `Stated ${conditionLabel[request.condition].toLowerCase()}`,
+              request.condition
+                ? `Stated ${conditionLabel[request.condition].toLowerCase()}`
+                : wantedCleaning(request),
               request.addOns.length > 0 &&
                 `Extras: ${request.addOns.map((a) => a.name).join(", ")}`,
               request.notes,
@@ -229,34 +239,23 @@ export const jobStatusLabel: Record<JobStatus, string> = {
   no_access: "No Access",
 };
 
-// the details that affect the price. Clients keep what they first gave and ask
-// for a new Quote to change it; the Office corrects it here. The address is
-// the home's identity, so it isn't editable.
-function Home({ home }: { home: PropertyView }) {
+// Corrections to the details that affect the price: only what differs from
+// what's saved is sent
+function useCorrection<T extends Record<string, unknown>>(
+  home: PropertyView,
+  saved: T,
+) {
   const router = useRouter();
-  const [details, setDetails] = useState({
-    type: home.type,
-    bedrooms: home.bedrooms,
-    bathrooms: home.bathrooms,
-    storeys: home.storeys,
-    pets: home.pets,
-    floorArea: home.floorArea,
-    condition: home.condition,
-  });
+  const [details, setDetails] = useState(saved);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [isSaving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
 
-  const change = (update: Partial<typeof details>) =>
+  const change = (update: Partial<T>) =>
     setDetails((current) => ({ ...current, ...update }));
-
-  // send only what differs from what's saved
   const changes = Object.fromEntries(
-    Object.entries(details).filter(
-      ([key, value]) => value !== home[key as keyof typeof details],
-    ),
+    Object.entries(details).filter(([key, value]) => value !== saved[key]),
   );
-  const hasChanges = Object.keys(changes).length > 0;
 
   const save = async () => {
     setSaving(true);
@@ -277,100 +276,223 @@ function Home({ home }: { home: PropertyView }) {
     }
   };
 
+  return {
+    details,
+    change,
+    hasChanges: Object.keys(changes).length > 0,
+    save,
+    fieldErrors,
+    isSaving,
+    failed,
+  };
+}
+
+// the details that affect the price. Clients keep what they first gave and ask
+// for a new Quote to change it; the Office corrects it here (until a Site
+// Visit records business premises' for them, #73). The address is the
+// Property's identity, so it isn't editable.
+function Details({
+  home,
+  premisesTypes,
+}: {
+  home: PropertyView;
+  premisesTypes: PremisesTypeChoice[];
+}) {
   return (
-    <Card title="Details" description={homeSummary(home)}>
+    <Card title="Details" description={propertySummary(home)}>
       <p className="text-sm text-fg-muted">
         Access Instructions:{" "}
         <span className="whitespace-pre-line text-fg">
           {home.accessInstructions || "None given"}
         </span>
       </p>
-      <Form
-        validationErrors={fieldErrors}
-        onSubmit={(e) => {
-          e.preventDefault();
-          void save();
-        }}
-      >
-        <RadioGroup
-          label="Type of home"
-          orientation="horizontal"
-          value={details.type}
-          onChange={(type) => change({ type: type as PropertyType })}
-        >
-          <Radio value="house">House</Radio>
-          <Radio value="apartment">Apartment</Radio>
-          <Radio value="townhouse">Townhouse</Radio>
-        </RadioGroup>
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-4">
-          <NumberField
-            label="Bedrooms"
-            name="bedrooms"
-            minValue={0}
-            maxValue={20}
-            value={details.bedrooms}
-            onChange={(bedrooms) => change({ bedrooms })}
-          />
-          <NumberField
-            label="Bathrooms"
-            name="bathrooms"
-            minValue={0.5}
-            maxValue={20}
-            step={0.5}
-            value={details.bathrooms}
-            onChange={(bathrooms) => change({ bathrooms })}
-          />
-          <NumberField
-            label="Floors"
-            name="storeys"
-            minValue={1}
-            maxValue={5}
-            value={details.storeys}
-            onChange={(storeys) => change({ storeys })}
-          />
-        </div>
-        <NumberField
-          label="Floor area in sq ft (optional)"
-          name="floorArea"
-          minValue={100}
-          maxValue={100_000}
-          step={50}
-          value={details.floorArea ?? Number.NaN}
-          onChange={(area) =>
-            change({ floorArea: Number.isNaN(area) ? null : area })
-          }
-        />
-        <Checkbox
-          isSelected={details.pets}
-          onChange={(pets) => change({ pets })}
-        >
-          There are pets at home
-        </Checkbox>
-        <Select
-          label="Condition"
-          selectedKey={details.condition}
-          onSelectionChange={(key) => change({ condition: key as Condition })}
-        >
-          <SelectItem id="light">Light</SelectItem>
-          <SelectItem id="moderate">Moderate</SelectItem>
-          <SelectItem id="heavy">Heavy</SelectItem>
-        </Select>
-        {failed && (
-          <Notice tone="danger">
-            The corrections weren't saved. Please try again.
-          </Notice>
-        )}
-        <Actions>
-          <Button
-            type="submit"
-            variant="secondary"
-            isDisabled={!hasChanges}
-            isPending={isSaving}
-          >
-            Save corrections
-          </Button>
-        </Actions>
-      </Form>
+      {home.kind === "commercial" ? (
+        <PremisesDetails premises={home} premisesTypes={premisesTypes} />
+      ) : (
+        <HomeDetails home={home} />
+      )}
     </Card>
+  );
+}
+
+function CorrectionForm({
+  correction,
+  children,
+}: {
+  correction: ReturnType<typeof useCorrection>;
+  children: ReactNode;
+}) {
+  return (
+    <Form
+      validationErrors={correction.fieldErrors}
+      onSubmit={(e) => {
+        e.preventDefault();
+        void correction.save();
+      }}
+    >
+      {children}
+      {correction.failed && (
+        <Notice tone="danger">
+          The corrections weren't saved. Please try again.
+        </Notice>
+      )}
+      <Actions>
+        <Button
+          type="submit"
+          variant="secondary"
+          isDisabled={!correction.hasChanges}
+          isPending={correction.isSaving}
+        >
+          Save corrections
+        </Button>
+      </Actions>
+    </Form>
+  );
+}
+
+function ConditionSelect({
+  value,
+  onChange,
+}: {
+  value: Condition | null;
+  onChange: (condition: Condition) => void;
+}) {
+  return (
+    <Select
+      label="Condition"
+      placeholder="Not recorded yet"
+      selectedKey={value}
+      onSelectionChange={(key) => onChange(key as Condition)}
+    >
+      <SelectItem id="light">Light</SelectItem>
+      <SelectItem id="moderate">Moderate</SelectItem>
+      <SelectItem id="heavy">Heavy</SelectItem>
+    </Select>
+  );
+}
+
+function HomeDetails({ home }: { home: HomeView }) {
+  const correction = useCorrection(home, {
+    type: home.type,
+    bedrooms: home.bedrooms,
+    bathrooms: home.bathrooms,
+    storeys: home.storeys,
+    pets: home.pets,
+    floorArea: home.floorArea,
+    condition: home.condition,
+  });
+  const { details, change } = correction;
+
+  return (
+    <CorrectionForm correction={correction}>
+      <RadioGroup
+        label="Type of home"
+        orientation="horizontal"
+        value={details.type}
+        onChange={(type) => change({ type: type as PropertyType })}
+      >
+        <Radio value="house">House</Radio>
+        <Radio value="apartment">Apartment</Radio>
+        <Radio value="townhouse">Townhouse</Radio>
+      </RadioGroup>
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-4">
+        <NumberField
+          label="Bedrooms"
+          name="bedrooms"
+          minValue={0}
+          maxValue={20}
+          value={details.bedrooms}
+          onChange={(bedrooms) => change({ bedrooms })}
+        />
+        <NumberField
+          label="Bathrooms"
+          name="bathrooms"
+          minValue={0.5}
+          maxValue={20}
+          step={0.5}
+          value={details.bathrooms}
+          onChange={(bathrooms) => change({ bathrooms })}
+        />
+        <NumberField
+          label="Floors"
+          name="storeys"
+          minValue={1}
+          maxValue={5}
+          value={details.storeys}
+          onChange={(storeys) => change({ storeys })}
+        />
+      </div>
+      <NumberField
+        label="Floor area in sq ft (optional)"
+        name="floorArea"
+        minValue={100}
+        maxValue={100_000}
+        step={50}
+        value={details.floorArea ?? Number.NaN}
+        onChange={(area) =>
+          change({ floorArea: Number.isNaN(area) ? null : area })
+        }
+      />
+      <Checkbox isSelected={details.pets} onChange={(pets) => change({ pets })}>
+        There are pets at home
+      </Checkbox>
+      <ConditionSelect
+        value={details.condition}
+        onChange={(condition) => change({ condition })}
+      />
+    </CorrectionForm>
+  );
+}
+
+// business premises: their Premises Type (one on offer, or the retired one
+// they have), floor area and Condition
+function PremisesDetails({
+  premises,
+  premisesTypes,
+}: {
+  premises: PremisesView;
+  premisesTypes: PremisesTypeChoice[];
+}) {
+  const correction = useCorrection(premises, {
+    premisesType: premises.premisesType.key,
+    floorArea: premises.floorArea,
+    condition: premises.condition,
+  });
+  const { details, change } = correction;
+  const choices = premisesTypes.some((t) => t.key === premises.premisesType.key)
+    ? premisesTypes
+    : [premises.premisesType, ...premisesTypes];
+
+  return (
+    <CorrectionForm correction={correction}>
+      <Select
+        label="Type of premises"
+        name="premisesType"
+        selectedKey={details.premisesType}
+        onSelectionChange={(key) => change({ premisesType: String(key) })}
+      >
+        {choices.map((t) => (
+          <SelectItem key={t.key} id={t.key}>
+            {t.name}
+          </SelectItem>
+        ))}
+      </Select>
+      <NumberField
+        label="Floor area in sq ft"
+        name="floorArea"
+        description="Leave empty until it's known: it's priced at the Minimum Charge until then."
+        minValue={100}
+        maxValue={1_000_000}
+        step={100}
+        value={details.floorArea ?? Number.NaN}
+        onChange={(area) =>
+          change({ floorArea: Number.isNaN(area) ? null : area })
+        }
+      />
+      <ConditionSelect
+        value={details.condition}
+        onChange={(condition) => change({ condition })}
+      />
+    </CorrectionForm>
   );
 }

@@ -9,6 +9,7 @@ import {
   proposeNextMonday,
   recordNoAccess,
   requestQuoteAsGuest,
+  requestQuoteForPremises,
   requestReschedule,
   sentServicePlanQuote,
   setClock,
@@ -123,6 +124,43 @@ test("the Office's screens fit every width", async ({ page }) => {
   ]) {
     await expectFitsEveryWidth(page, path);
   }
+});
+
+test("business premises' screens fit every width, the form included", async ({
+  page,
+}) => {
+  await requestQuoteForPremises(casey, "Acme Dental Group of Queens");
+  await createStaff(olive);
+  await signedInAs(page, olive.email);
+
+  await page.goto("/office/requests");
+  await page.getByText(/Acme Dental Group/).click();
+  await expect(page).toHaveURL(/\/office\/requests\/[0-9a-f-]{36}$/);
+  const request = new URL(page.url()).pathname;
+  await page.getByRole("link", { name: "View Property" }).click();
+  await expect(page).toHaveURL(/\/office\/properties\/[0-9a-f-]{36}$/);
+  const property = new URL(page.url()).pathname;
+  await page.goto(request);
+  await page.getByRole("button", { name: "Draft a Quote" }).click();
+  await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
+  const draft = new URL(page.url()).pathname;
+
+  for (const path of [request, property, draft]) {
+    await expectFitsEveryWidth(page, path);
+  }
+
+  // the form, asking about business premises
+  await page.goto("/office/quotes/new");
+  await page.getByRole("button", { name: "New Client" }).click();
+  await page.getByText("Business premises", { exact: true }).click();
+  const problems: string[] = [];
+  for (const width of widths) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const problem of await problemsAt(page)) {
+      problems.push(`the business form at ${width}px: ${problem}`);
+    }
+  }
+  expect.soft(problems).toEqual([]);
 });
 
 test("the portal's screens fit every width", async ({ page }) => {

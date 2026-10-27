@@ -23,7 +23,12 @@ export function PortalRequest() {
       <Card>
         <QuoteRequestForm
           headingLevel={2}
-          asker={{ kind: "client", properties: client.properties, waiting }}
+          asker={{
+            kind: "client",
+            properties: client.properties,
+            waiting,
+            businessName: client.businessName,
+          }}
           onSubmitted={async (receipt) => {
             showToast({
               tone: "success",

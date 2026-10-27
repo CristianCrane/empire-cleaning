@@ -1,5 +1,5 @@
 import { desc, type SQL } from "drizzle-orm";
-import type { QuoteRequestView } from "@empire-cleaning/models";
+import type { QuoteRequestView, Weekday } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
 import { requestStates } from "../quotes/quote-state.ts";
 import { addOnsForRequests } from "./add-ons.ts";
@@ -25,6 +25,8 @@ export const quoteRequestViews = async (
     propertyId: r.propertyId,
     condition: r.condition,
     wantsRegularService: r.wantsRegularService,
+    weekdays: r.weekdays as Weekday[],
+    preferredTime: r.preferredTime,
     notes: r.notes,
     addOns: addOns.get(r.id) ?? [],
     createdAt: r.createdAt.toISOString(),

@@ -22,6 +22,7 @@ import type {
   OfficeServicePlan,
   OpenQuoteRequest,
   PaymentMethodView,
+  PremisesTypeChoice,
   PriceList,
   QuoteRequestDetail,
   QuoteSummary,
@@ -274,8 +275,14 @@ const officeClientRoute = createRoute({
 const officePropertyRoute = createRoute({
   getParentRoute: () => officeRoute,
   path: "/properties/$propertyId",
-  loader: ({ params }) =>
-    getJson<OfficePropertyView>(`/api/properties/${params.propertyId}`),
+  // business premises are corrected to a Premises Type on offer
+  loader: async ({ params }) => {
+    const [home, premisesTypes] = await Promise.all([
+      getJson<OfficePropertyView>(`/api/properties/${params.propertyId}`),
+      getJson<PremisesTypeChoice[]>("/api/price-list/premises-types"),
+    ]);
+    return { home, premisesTypes };
+  },
   component: PropertyScreen,
 });
 

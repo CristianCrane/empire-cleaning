@@ -1,9 +1,11 @@
 import type {
   AdjustmentKind,
+  ClientName,
   Condition,
   PropertyView,
   QuoteSummary,
   Recurrence,
+  Weekday,
 } from "@empire-cleaning/models";
 
 export const addressOf = (
@@ -23,17 +25,69 @@ export const conditionLabel: Record<Condition, string> = {
   heavy: "Heavy",
 };
 
+// business premises have none until a Site Visit records it
+export const conditionText = (condition: Condition | null) =>
+  condition ? conditionLabel[condition] : "Not recorded yet";
+
 const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
 
-// "Apartment · 2 bedrooms · 1.5 bathrooms"
-export const homeSummary = (
-  p: Pick<PropertyView, "type" | "bedrooms" | "bathrooms">,
-) =>
-  [
-    p.type[0]!.toUpperCase() + p.type.slice(1),
-    p.bedrooms === 0 ? "Studio" : plural(p.bedrooms, "bedroom"),
-    plural(p.bathrooms, "bathroom"),
-  ].join(" · ");
+const sqFt = new Intl.NumberFormat("en-US");
+// 4500 -> "4,500 sq ft"
+export const formatFloorArea = (area: number) => `${sqFt.format(area)} sq ft`;
+
+// what a Property is: "Apartment · 2 bedrooms · 1.5 bathrooms", or
+// "Office · 4,500 sq ft" for business premises
+export const propertySummary = (p: PropertyView) =>
+  p.kind === "commercial"
+    ? [
+        p.premisesType.name,
+        p.floorArea === null
+          ? "floor area not known yet"
+          : formatFloorArea(p.floorArea),
+      ].join(" · ")
+    : [
+        p.type[0]!.toUpperCase() + p.type.slice(1),
+        p.bedrooms === 0 ? "Studio" : plural(p.bedrooms, "bedroom"),
+        plural(p.bathrooms, "bathroom"),
+      ].join(" · ");
+
+// a Client as the Office names them: "Acme Dental (Casey Client)" for a
+// business, else just the person
+export const clientName = (c: Pick<ClientName, "name" | "businessName">) =>
+  c.businessName ? `${c.businessName} (${c.name})` : c.name;
+
+// where there's room for only one name, such as the Schedule's blocks: a
+// business's own
+export const shortClientName = (c: Pick<ClientName, "name" | "businessName">) =>
+  c.businessName ?? c.name;
+
+// when a business wants cleaning: "Monday, Wednesday and Friday at 6:00 PM",
+// or a one-off
+export const wantedCleaning = (request: {
+  weekdays: Weekday[];
+  preferredTime: string | null;
+}) =>
+  request.weekdays.length > 0
+    ? `${weekdaysText(request.weekdays)}${request.preferredTime ? ` at ${formatClock(request.preferredTime)}` : ""}`
+    : "A one-off clean";
+
+export const weekdayNames = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+] as const;
+
+// [0, 2, 4] -> "Monday, Wednesday and Friday"
+export const weekdaysText = (days: Weekday[]) => {
+  const names = days.map((d) => weekdayNames[d]);
+  return names.length > 1
+    ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`
+    : (names[0] ?? "");
+};
 
 const money = new Intl.NumberFormat("en-US", {
   style: "currency",

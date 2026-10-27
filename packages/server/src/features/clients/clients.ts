@@ -5,6 +5,7 @@ import type {
   OfficeClientView,
 } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
+import { currentPriceList } from "../price-list/price-list.ts";
 import { connectSignedUpAccount } from "../auth/connections.ts";
 import { properties } from "../properties/properties.schema.ts";
 import { propertyStatuses } from "../properties/property-history.ts";
@@ -13,17 +14,33 @@ import { quoteRequests } from "../quote-requests/quote-requests.schema.ts";
 import { quoteRequestViews } from "../quote-requests/request-views.ts";
 import { clients } from "./clients.schema.ts";
 
-// no email only when the Office enters a caller without one (#34)
-type NewClient = { email: string | null; name: string; phone: string };
+// no email only when the Office enters a caller without one (#34); a
+// business name only for a business (#72)
+type NewClient = {
+  email: string | null;
+  name: string;
+  phone: string;
+  businessName?: string | null;
+};
 
 const normalise = (email: string) => email.trim().toLowerCase();
 
 // adds a Client; Quote Requests are what create them. If someone has already
 // signed up with this email, their Account is connected straight away.
-export const createClient = async ({ email, name, phone }: NewClient) => {
+export const createClient = async ({
+  email,
+  name,
+  phone,
+  businessName,
+}: NewClient) => {
   const [client] = await db
     .insert(clients)
-    .values({ email: email && normalise(email), name, phone })
+    .values({
+      email: email && normalise(email),
+      name,
+      phone,
+      businessName: businessName || null,
+    })
     .returning();
   if (client!.email) await connectSignedUpAccount(client!.email);
 
@@ -72,14 +89,32 @@ export const updateContactDetails = async (
 // straight away.
 export const officeUpdateContactDetails = async (
   id: string,
-  { name, email, phone }: { name: string; email: string | null; phone: string },
+  {
+    name,
+    email,
+    phone,
+    businessName,
+  }: {
+    name: string;
+    email: string | null;
+    phone: string;
+    // absent leaves it as it is
+    businessName?: string | null;
+  },
 ) => {
   const [client] = await db.select().from(clients).where(eq(clients.id, id));
   if (!client) return undefined;
   const address = email ? normalise(email) : client.email;
   await db
     .update(clients)
-    .set({ name, email: address, phone })
+    .set({
+      name,
+      email: address,
+      phone,
+      ...(businessName !== undefined && {
+        businessName: businessName || null,
+      }),
+    })
     .where(eq(clients.id, id));
   if (address && address !== client.email) {
     await connectSignedUpAccount(address);
@@ -94,17 +129,19 @@ export const clientView = async (
   const [client] = await db.select().from(clients).where(eq(clients.id, id));
   if (!client) return undefined;
 
-  const [ownProperties, requests] = await Promise.all([
+  const [ownProperties, requests, list] = await Promise.all([
     propertiesOf(id),
     quoteRequestViews(eq(quoteRequests.clientId, id)),
+    currentPriceList(),
   ]);
   return {
     id: client.id,
     name: client.name,
+    businessName: client.businessName,
     // the Client's own view: they signed in with a proven email that's theirs
     email: client.email!,
     phone: client.phone,
-    properties: ownProperties.map(toPropertyView),
+    properties: ownProperties.map((p) => toPropertyView(p, list)),
     quoteRequests: requests,
   };
 };
@@ -124,15 +161,19 @@ export const officeClientView = async (
   const [client] = await db.select().from(clients).where(eq(clients.id, id));
   if (!client) return undefined;
 
-  const ownProperties = await propertiesOf(id);
+  const [ownProperties, list] = await Promise.all([
+    propertiesOf(id),
+    currentPriceList(),
+  ]);
   const statuses = await propertyStatuses(ownProperties.map((p) => p.id));
   return {
     id: client.id,
     name: client.name,
+    businessName: client.businessName,
     email: client.email,
     phone: client.phone,
     properties: ownProperties.map((p) => ({
-      ...toPropertyView(p),
+      ...toPropertyView(p, list),
       status: statuses.get(p.id)!,
     })),
   };
@@ -144,9 +185,10 @@ const containing = (text: string) => `%${text.replace(/[\\%_]/g, "\\$&")}%`;
 // a search that could be (part of) a phone number, however it's written
 const phoneLike = /^[\d\s()+.-]+$/;
 
-// every Client in name order, or those whose name, email, phone or Property
-// address matches the search. A phone matches on its digits alone, so
-// "(718) 555" and "718555" find the same Client.
+// every Client in name order (a business by its own), or those whose name,
+// business name, email, phone or Property address matches the search. A
+// phone matches on its digits alone, so "(718) 555" and "718555" find the
+// same Client.
 export const listClients = async (
   search?: string,
 ): Promise<ClientListItem[]> => {
@@ -157,6 +199,7 @@ export const listClients = async (
   const matches = pattern
     ? or(
         ilike(clients.name, pattern),
+        ilike(clients.businessName, pattern),
         ilike(clients.email, pattern),
         exists(
           db
@@ -176,17 +219,24 @@ export const listClients = async (
       )
     : undefined;
 
-  return db
-    .select({
-      id: clients.id,
-      name: clients.name,
-      email: clients.email,
-      phone: clients.phone,
-      propertyCount: count(properties.id),
-    })
-    .from(clients)
-    .leftJoin(properties, eq(properties.clientId, clients.id))
-    .where(matches)
-    .groupBy(clients.id)
-    .orderBy(asc(sql`lower(${clients.name})`), asc(clients.createdAt));
+  return (
+    db
+      .select({
+        id: clients.id,
+        name: clients.name,
+        businessName: clients.businessName,
+        email: clients.email,
+        phone: clients.phone,
+        propertyCount: count(properties.id),
+      })
+      .from(clients)
+      .leftJoin(properties, eq(properties.clientId, clients.id))
+      .where(matches)
+      .groupBy(clients.id)
+      // a business by its own name
+      .orderBy(
+        asc(sql`lower(coalesce(${clients.businessName}, ${clients.name}))`),
+        asc(clients.createdAt),
+      )
+  );
 };

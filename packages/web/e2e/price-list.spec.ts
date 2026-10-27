@@ -95,7 +95,9 @@ test(
     // placeholders, until the Office saves their own
     await expect(page.getByText("These are placeholder figures")).toBeVisible();
 
-    await page.getByRole("textbox", { name: "Hourly rate" }).fill("$60");
+    await page
+      .getByRole("textbox", { name: "Residential hourly rate" })
+      .fill("$60");
     await page
       .getByRole("button", { name: "Retire Inside the fridge" })
       .click();
@@ -119,7 +121,7 @@ test(
       page.getByText(/Version 2, saved by Olive Owner/),
     ).toBeVisible();
     await expect(
-      page.getByRole("textbox", { name: "Hourly rate" }),
+      page.getByRole("textbox", { name: "Residential hourly rate" }),
     ).toHaveValue("$60.00");
     await expect(
       page.getByRole("textbox", { name: "Name" }).last(),
@@ -136,7 +138,9 @@ test("a saved Price List prices new requests, and a new Add-on appears on the fo
 }) => {
   await signInAsOffice(page);
   await page.goto("/office/price-list");
-  await page.getByRole("textbox", { name: "Hourly rate" }).fill("$60");
+  await page
+    .getByRole("textbox", { name: "Residential hourly rate" })
+    .fill("$60");
   await page.getByRole("button", { name: "Save Price List" }).click();
   await expect(page.getByText("Price List saved as version 2")).toBeVisible();
 

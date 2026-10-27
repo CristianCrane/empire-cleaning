@@ -3,6 +3,7 @@ import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { validate } from "../../middleware/validation.ts";
 import {
   choosableAddOns,
+  choosablePremisesTypes,
   currentPriceList,
   savePriceList,
 } from "./price-list.ts";
@@ -14,6 +15,12 @@ export const router = Router();
 // because the landing page's Quote Request form lists them
 router.get("/add-ons", async (req, res) => {
   res.json(await choosableAddOns());
+});
+
+// the Premises Types business premises can be described as, by name; open
+// to Guests for the same reason
+router.get("/premises-types", async (req, res) => {
+  res.json(await choosablePremisesTypes());
 });
 
 router.get("/", authorize("office_staff"), async (req, res) => {
