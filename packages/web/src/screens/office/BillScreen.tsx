@@ -97,7 +97,8 @@ function Standing({ bill }: { bill: BillView }) {
       <Notice tone="danger">
         It wasn't paid by its due date, {formatDay(bill.dueOn)}. The Client's
         Service Plans with Jobs on it are On Hold until it's paid, on its page
-        or by a payment you record. They're reminded each week until then.
+        or by a payment you record. They're reminded each week until then, and
+        the Office inbox gets a copy.
       </Notice>
     );
   }

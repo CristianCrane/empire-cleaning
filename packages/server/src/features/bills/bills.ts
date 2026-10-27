@@ -1139,6 +1139,8 @@ const sendBillReminders = async () => {
             : [
                 "If it isn't paid by then, your Service Plan goes On Hold until it is: cleans already booked go ahead, but we won't book any more.",
               ],
+        // the Office is copied once it's late, to chase it
+        claimed.unpaidSince ? env.OFFICE_EMAIL : undefined,
       );
       sent += 1;
     } catch (error) {
@@ -1277,6 +1279,8 @@ const sendBill = async (
   billId: string,
   occasion: Occasion,
   extra: string[] = [],
+  // a copy, as for the Office
+  bcc?: string,
 ) => {
   const [found] = await db
     .select({ bill: bills, client: clients, method: paymentMethods })
@@ -1361,6 +1365,7 @@ const sendBill = async (
   const lines = await linesOf(billId);
   await email.send({
     to: client.billingEmail ?? client.email,
+    bcc,
     subject: subject!,
     ...compose(
       [

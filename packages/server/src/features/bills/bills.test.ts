@@ -587,6 +587,8 @@ describe("reminders and late Bills", () => {
     expect(before.subject).toBe("Bill EC-000001 is due Monday, January 26");
     expect(before.text).toContain("Due by: Monday, January 26");
     expect(before.html).toContain(`/portal/bills/${id}`);
+    // the Office is copied only once it's late
+    expect(before.bcc).toBeUndefined();
 
     testClock().set(at("2026-01-26"));
     await Promise.all([chaseBills(), chaseBills()]);
@@ -605,6 +607,7 @@ describe("reminders and late Bills", () => {
     expect(testEmail().lastTo(BILLING_EMAIL).subject).toBe(
       "Bill EC-000001 is overdue",
     );
+    expect(testEmail().lastTo(BILLING_EMAIL).bcc).toBe("office@example.com");
     expect((await billOf(office, id)).unpaid).toEqual({
       since: "2026-01-27T05:00:00.000Z",
       reason: "not paid by its due date",
@@ -631,6 +634,7 @@ describe("reminders and late Bills", () => {
     expect(testEmail().lastTo(BILLING_EMAIL).subject).toBe(
       "Bill EC-000001 is overdue",
     );
+    expect(testEmail().lastTo(BILLING_EMAIL).bcc).toBe("office@example.com");
 
     // none once it's paid
     const client = await signIn(casey.email);
