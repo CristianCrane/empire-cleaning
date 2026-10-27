@@ -22,12 +22,9 @@ import { QuoteStatusBadge } from "../QuoteParts.tsx";
 import {
   addressOf,
   clientName,
-  conditionText,
   formatDate,
   formatMoney,
-  propertySummary,
   quoteStatusLabel,
-  wantedCleaning,
 } from "../format.ts";
 
 // the statuses the list holds, in the order a Quote moves through them
@@ -62,13 +59,15 @@ const expiringSoon = (quote: QuoteSummary) =>
   quote.expiresAt !== null &&
   Date.parse(quote.expiresAt) - Date.now() < EXPIRING_MS;
 
-// what they asked for, in a few words
-const askedText = (quote: QuoteSummary) =>
-  quote.asked
-    ? quote.property.kind === "commercial"
-      ? wantedCleaning(quote.asked)
-      : conditionText(quote.asked.condition)
-    : "Offered unprompted";
+// the cleaning it's for, the same on every row: regular visits (asked for,
+// or a Service Plan offered), new terms for the home's Service Plan, or a
+// single clean. A one-off Quote for a home with a plan is still One-off.
+const cleaning = (quote: QuoteSummary) => {
+  const regular =
+    quote.kind === "service_plan" || !!quote.asked?.wantsRegularService;
+  if (regular && quote.homePlanId) return "Plan change";
+  return regular ? "Regular" : "One-off";
+};
 
 // the words a search looks through: who, and where
 const searchable = (quote: QuoteSummary) =>
@@ -161,7 +160,7 @@ export function QuotesScreen() {
           Client
         </Column>
         <Column id="property">Property</Column>
-        <Column id="asked">Asked for</Column>
+        <Column id="cleaning">Cleaning</Column>
         <Column id="status" allowsSorting>
           Status
         </Column>
@@ -192,26 +191,8 @@ export function QuotesScreen() {
             <Cell>
               <span className="font-semibold">{clientName(quote.client)}</span>
             </Cell>
-            <Cell>
-              <div className="flex flex-col">
-                <span>{addressOf(quote.property)}</span>
-                <span className="text-xs text-fg-muted">
-                  {propertySummary(quote.property)}
-                </span>
-              </div>
-            </Cell>
-            <Cell>
-              <div className="flex flex-col items-start gap-1">
-                <span>{askedText(quote)}</span>
-                {quote.homePlanId
-                  ? quote.asked && (
-                      <StatusBadge tone="info">Plan change</StatusBadge>
-                    )
-                  : quote.asked?.wantsRegularService && (
-                      <StatusBadge tone="success">Regular visits</StatusBadge>
-                    )}
-              </div>
-            </Cell>
+            <Cell>{addressOf(quote.property)}</Cell>
+            <Cell className="whitespace-nowrap">{cleaning(quote)}</Cell>
             <Cell>
               <div className="flex flex-wrap gap-1">
                 <QuoteStatusBadge status={quote.status} />
