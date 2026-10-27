@@ -1,13 +1,27 @@
-import type { ReactNode } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import type { NeedsAttentionItem, TodayJob } from "@empire-cleaning/models";
 import {
+  CalendarClock,
+  CalendarX,
+  CircleDollarSign,
+  CirclePause,
+  ClipboardList,
+  Hourglass,
+  Inbox,
+  Receipt,
+  Repeat,
+  UserX,
+  type LucideIcon,
+} from "lucide-react";
+import {
   Heading,
+  IconTile,
   Link,
   List,
   ListItem,
   Section,
   StatusBadge,
+  type StatusTone,
 } from "@empire-cleaning/ui";
 import { linkTo } from "../../links.ts";
 import { billWeek } from "../BillParts.tsx";
@@ -114,11 +128,15 @@ function JobBadge({ job }: { job: TodayJob }) {
   return <AssignmentBadge job={job} />;
 }
 
+// a row leads with what the Office should do; the icon says what kind of
+// item it is, and who it's for comes first in the description
 type Row = {
   key: string;
-  title: string;
+  action: string;
+  icon: LucideIcon;
+  tone: StatusTone;
+  client: string;
   description: string;
-  badge: ReactNode;
   open: () => void;
 };
 
@@ -133,9 +151,11 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
         const request = item.quoteRequest;
         return {
           key: `quote_request ${request.id}`,
-          title: clientName(request.client),
+          action: "Send a Quote",
+          icon: Inbox,
+          tone: "info",
+          client: clientName(request.client),
           description: `${addressOf(request.property)} · asked ${formatDate(item.since)}`,
-          badge: <StatusBadge tone="info">Quote Request</StatusBadge>,
           open: () =>
             navigate({
               to: "/office/requests/$requestId",
@@ -147,9 +167,11 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
         const { quote } = item;
         return {
           key: `quote_expiring ${quote.id}`,
-          title: clientName(quote.client),
+          action: "Follow up before it expires",
+          icon: Hourglass,
+          tone: "warning",
+          client: clientName(quote.client),
           description: `${addressOf(quote.property)} · expires ${formatDateTime(quote.expiresAt!)}`,
-          badge: <StatusBadge tone="warning">Quote expiring</StatusBadge>,
           open: () =>
             navigate({
               to: "/office/quotes/$quoteId",
@@ -161,9 +183,11 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
         const { quote } = item;
         return {
           key: `quote_no_room ${quote.id}`,
-          title: clientName(quote.client),
+          action: "Pick another time for the Quote",
+          icon: CalendarX,
+          tone: "danger",
+          client: clientName(quote.client),
           description: `${addressOf(quote.property)} · ${formatDateTime(quote.proposedStartsAt!)} is full`,
-          badge: <StatusBadge tone="danger">Needs another time</StatusBadge>,
           open: () =>
             navigate({
               to: "/office/quotes/$quoteId",
@@ -175,9 +199,11 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
         const { job } = item;
         return {
           key: `job_unassigned ${job.id}`,
-          title: clientName(job.client),
+          action: "Assign Staff",
+          icon: UserX,
+          tone: "warning",
+          client: clientName(job.client),
           description: `${addressOf(job.property)} · ${formatDateTime(job.startsAt)}`,
-          badge: <StatusBadge tone="warning">Unassigned</StatusBadge>,
           open: () =>
             navigate({
               to: "/office/jobs/$jobId",
@@ -189,9 +215,11 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
         const { job } = item;
         return {
           key: `job_unpaid ${job.id}`,
-          title: clientName(job.client),
+          action: "Collect the Balance",
+          icon: CircleDollarSign,
+          tone: "danger",
+          client: clientName(job.client),
           description: `${formatMoney(item.owedCents)} owed · ${addressOf(job.property)} · ${formatDate(job.startsAt)}`,
-          badge: <StatusBadge tone="danger">Unpaid</StatusBadge>,
           open: () =>
             navigate({
               to: "/office/jobs/$jobId",
@@ -203,9 +231,11 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
         const { job, request } = item;
         return {
           key: `reschedule_requested ${request.id}`,
-          title: clientName(job.client),
+          action: "Confirm or turn down the new time",
+          icon: CalendarClock,
+          tone: "warning",
+          client: clientName(job.client),
           description: `${addressOf(job.property)} · ${formatDateTime(request.fromStartsAt)} to ${formatDateTime(request.startsAt)}`,
-          badge: <StatusBadge tone="warning">Reschedule Request</StatusBadge>,
           open: () =>
             navigate({
               to: "/office/jobs/$jobId",
@@ -217,9 +247,11 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
         const { job } = item;
         return {
           key: `adjustments_reported ${job.id}`,
-          title: clientName(job.client),
+          action: "Review extras Staff reported",
+          icon: ClipboardList,
+          tone: "info",
+          client: clientName(job.client),
           description: `${item.count === 1 ? "1 extra" : `${item.count} extras`} to review · ${addressOf(job.property)} · ${formatDate(job.startsAt)}`,
-          badge: <StatusBadge tone="info">Adjustments</StatusBadge>,
           open: () =>
             navigate({
               to: "/office/jobs/$jobId",
@@ -231,9 +263,11 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
         const { job } = item;
         return {
           key: `service_plan_due ${job.id}`,
-          title: clientName(job.client),
+          action: "Offer a Service Plan",
+          icon: Repeat,
+          tone: "info",
+          client: clientName(job.client),
           description: `${addressOf(job.property)} · First Clean done ${formatDate(item.since)}, wants regular visits`,
-          badge: <StatusBadge tone="info">Offer a Service Plan</StatusBadge>,
           // the home's page, where its history is beside the offer
           open: () =>
             navigate({
@@ -246,9 +280,11 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
         const { plan, visit } = item;
         return {
           key: `plan_visit_unplaced ${visit.id}`,
-          title: clientName(plan.client),
+          action: "Book the visit or skip it",
+          icon: CalendarX,
+          tone: "danger",
+          client: clientName(plan.client),
           description: `${addressOf(plan.property)} · Service Plan visit on ${formatDay(visit.dueOn)}: no room that day`,
-          badge: <StatusBadge tone="danger">Needs another time</StatusBadge>,
           open: () =>
             navigate({
               to: "/office/service-plans/$planId",
@@ -260,9 +296,11 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
         const { bill } = item;
         return {
           key: `bill_unpaid ${bill.id}`,
-          title: clientName(bill.client),
+          action: "Collect the Bill",
+          icon: Receipt,
+          tone: "danger",
+          client: clientName(bill.client),
           description: `Bill ${bill.number} · ${formatMoney(bill.totalCents)} · ${billWeek(bill)}`,
-          badge: <StatusBadge tone="danger">Unpaid</StatusBadge>,
           open: () =>
             navigate({
               to: "/office/bills/$billId",
@@ -280,9 +318,11 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
           .join(", ");
         return {
           key: `plan_on_hold ${plan.id}`,
-          title: clientName(plan.client),
+          action: "Collect what's owed to resume the plan",
+          icon: CirclePause,
+          tone: "warning",
+          client: clientName(plan.client),
           description: `${addressOf(plan.property)} · Service Plan: ${unpaid}, no new Jobs booked`,
-          badge: <StatusBadge tone="warning">On Hold</StatusBadge>,
           open: () =>
             navigate({
               to: "/office/service-plans/$planId",
@@ -307,9 +347,16 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
           <ListItem
             key={row.key}
             id={row.key}
-            title={row.title}
-            description={row.description}
-            end={row.badge}
+            textValue={`${row.action} ${row.client}`}
+            title={row.action}
+            description={
+              <>
+                <span className="font-semibold text-fg">{row.client}</span>
+                {" · "}
+                {row.description}
+              </>
+            }
+            start={<IconTile icon={row.icon} tone={row.tone} />}
             onAction={row.open}
           />
         ))}

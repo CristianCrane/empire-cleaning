@@ -147,7 +147,7 @@ test(
     const held = page
       .getByRole("grid", { name: "Needs attention" })
       .getByRole("row")
-      .filter({ hasText: "On Hold" });
+      .filter({ hasText: "Collect what's owed to resume the plan" });
     await expect(held).toContainText(
       "Service Plan: $50.46 Unpaid, no new Jobs booked",
     );

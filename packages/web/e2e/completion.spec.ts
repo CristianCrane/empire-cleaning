@@ -187,7 +187,7 @@ test("a Job that couldn't be charged is Unpaid until the Client saves a new card
   await signedInAs(page, olive.email);
   const attention = page.getByRole("grid", { name: "Needs attention" });
   await expect(
-    attention.getByRole("row").filter({ hasText: "Unpaid" }),
+    attention.getByRole("row").filter({ hasText: "Collect the Balance" }),
   ).toBeVisible();
 
   const client = await asCasey(browser);

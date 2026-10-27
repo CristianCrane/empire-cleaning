@@ -37,7 +37,7 @@ test(
     const needsAttention = page.getByRole("grid", { name: "Needs attention" });
     const request = needsAttention.getByRole("row", { name: /Casey Client/ });
     await expect(request).toContainText("41-12 Austin St, 4B, 11375");
-    await expect(request).toContainText("Quote Request");
+    await expect(request).toContainText("Send a Quote");
 
     await request.click();
     await expect(page).toHaveURL(/\/office\/requests\/[0-9a-f-]{36}$/);

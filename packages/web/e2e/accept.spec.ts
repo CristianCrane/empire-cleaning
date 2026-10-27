@@ -228,7 +228,7 @@ test("a Quote whose day has filled up can't be paid for, and the Office is asked
 
   await page.goto("/office");
   const needs = page.getByRole("grid", { name: "Needs attention" });
-  await expect(needs).toContainText("Needs another time");
+  await expect(needs).toContainText("Pick another time for the Quote");
   await needs.getByText(casey.name).click();
   await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
   await expect(

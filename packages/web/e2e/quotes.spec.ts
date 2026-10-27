@@ -199,7 +199,7 @@ test("a Quote about to Expire needs attention", async ({ page }) => {
   const item = page
     .getByRole("grid", { name: "Needs attention" })
     .getByRole("row", { name: new RegExp(casey.name) });
-  await expect(item).toContainText("Quote expiring");
+  await expect(item).toContainText("Follow up before it expires");
   await expect(item).toContainText("expires Mon, Jan 12, 9:00 AM");
   await item.click();
   await expect(page).toHaveURL(/\/office\/quotes\//);
