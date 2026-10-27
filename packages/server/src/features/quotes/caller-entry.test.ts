@@ -6,7 +6,7 @@ import type {
   OfficeQuote,
 } from "@empire-cleaning/models";
 import { db } from "#db";
-import { accounts } from "#features/auth";
+import { accounts } from "#features/auth/auth.schema";
 import { api, signIn, testEmail } from "../../../tests/harness.ts";
 import {
   casey,

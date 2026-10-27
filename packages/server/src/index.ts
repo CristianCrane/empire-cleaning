@@ -1,7 +1,7 @@
-import { chaseBills, makeDueBills } from "#features/bills";
-import { chaseProposedAdjustments } from "#features/completion";
-import { sendDueReminders } from "#features/jobs";
-import { generateServicePlanJobs } from "#features/service-plans";
+import { chaseBills, makeDueBills } from "#features/bills/bills";
+import { chaseProposedAdjustments } from "#features/completion/completion";
+import { sendDueReminders } from "#features/jobs/reminders";
+import { generateServicePlanJobs } from "#features/service-plans/service-plans";
 import { app } from "./server.ts";
 import env from "./env.ts";
 

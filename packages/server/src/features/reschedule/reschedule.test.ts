@@ -9,7 +9,7 @@ import type {
   ScheduleDay,
   SignedInAccount,
 } from "@empire-cleaning/models";
-import { createStaff, setUsualWeek } from "#features/staff";
+import { createStaff, setUsualWeek } from "#features/staff/staff";
 import {
   api,
   signIn,

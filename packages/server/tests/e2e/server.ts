@@ -18,11 +18,12 @@ await recreateTestDatabase();
 const { app } = await import("../../src/server.ts");
 const { default: env } = await import("../../src/env.ts");
 const { createStaff, setUsualWeek } =
-  await import("../../src/features/staff/index.ts");
-const { createClient } = await import("../../src/features/clients/index.ts");
-const { sendDueReminders } = await import("../../src/features/jobs/index.ts");
+  await import("../../src/features/staff/staff.ts");
+const { createClient } = await import("../../src/features/clients/clients.ts");
+const { sendDueReminders } =
+  await import("../../src/features/jobs/reminders.ts");
 const { confirmAssignment, offerAssignment } =
-  await import("../../src/features/assignments/index.ts");
+  await import("../../src/features/assignments/assignments.ts");
 const { installFakes, resetDatabase, testClock, testEmail, testPayments } =
   await import("../harness.ts");
 const {
@@ -34,17 +35,18 @@ const {
   startedServicePlan,
 } = await import("../fixtures.ts");
 const { chaseProposedAdjustments, completeJob } =
-  await import("../../src/features/completion/index.ts");
+  await import("../../src/features/completion/completion.ts");
 const { recordNoAccess } =
-  await import("../../src/features/cancellation/index.ts");
+  await import("../../src/features/cancellation/cancellation.ts");
 const { requestReschedule } =
-  await import("../../src/features/reschedule/index.ts");
+  await import("../../src/features/reschedule/reschedule.ts");
 const { generateServicePlanJobs } =
-  await import("../../src/features/service-plans/index.ts");
+  await import("../../src/features/service-plans/service-plans.ts");
 const { bookSiteVisit } =
-  await import("../../src/features/site-visits/index.ts");
-const { properties } = await import("../../src/features/properties/index.ts");
-const { staff } = await import("../../src/features/staff/index.ts");
+  await import("../../src/features/site-visits/site-visits.ts");
+const { properties } =
+  await import("../../src/features/properties/properties.schema.ts");
+const { staff } = await import("../../src/features/staff/staff.schema.ts");
 const { quotes } = await import("../../src/features/quotes/quotes.schema.ts");
 const { db } = await import("../../src/db/index.ts");
 const { accounts } = await import("../../src/features/auth/auth.schema.ts");

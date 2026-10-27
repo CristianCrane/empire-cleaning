@@ -4,7 +4,7 @@ import type {
   OfficeServicePlan,
   ServicePlanView,
 } from "@empire-cleaning/models";
-import { completeJob } from "#features/completion";
+import { completeJob } from "#features/completion/completion";
 import {
   signIn,
   testClock,

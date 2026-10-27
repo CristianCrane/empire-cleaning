@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import type { DayCapacity, ScheduleDay } from "@empire-cleaning/models";
 import { eq } from "drizzle-orm";
 import { db } from "../../db/index.ts";
-import { createStaff } from "#features/staff";
+import { createStaff } from "#features/staff/staff";
 import { jobs } from "./jobs.schema.ts";
 import { api, signIn } from "../../../tests/harness.ts";
 import { bookedJob, signInAsOffice } from "../../../tests/fixtures.ts";

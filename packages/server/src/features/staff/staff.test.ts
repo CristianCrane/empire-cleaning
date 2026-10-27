@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import type { StaffDetail, StaffMember } from "@empire-cleaning/models";
-import { createClient } from "#features/clients";
-import { createStaff } from "#features/staff";
+import { createClient } from "#features/clients/clients";
+import { createStaff } from "#features/staff/staff";
 import { api, signIn, testClock, testEmail } from "../../../tests/harness.ts";
 import { signInAsOffice } from "../../../tests/fixtures.ts";
 import { signInWithGoogle } from "../../../tests/google.ts";

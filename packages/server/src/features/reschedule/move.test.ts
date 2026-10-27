@@ -7,8 +7,8 @@ import type {
   SignedInAccount,
 } from "@empire-cleaning/models";
 import { db } from "#db";
-import { jobs } from "#features/jobs";
-import { createStaff, setUsualWeek } from "#features/staff";
+import { jobs } from "#features/jobs/jobs.schema";
+import { createStaff, setUsualWeek } from "#features/staff/staff";
 import { api, signIn, testClock, testEmail } from "../../../tests/harness.ts";
 import {
   acceptedJob,

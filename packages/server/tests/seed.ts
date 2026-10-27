@@ -20,22 +20,24 @@ import type {
   SignedInAccount,
 } from "@empire-cleaning/models";
 import { db } from "#db";
-import { confirmAssignment, offerAssignment } from "#features/assignments";
-import { findClientByEmail } from "#features/clients";
-import { completeJob } from "#features/completion";
-import { savePaymentMethod, startCardForm } from "#features/payments";
-import { currentPriceList } from "#features/price-list";
 import {
-  acceptQuote,
-  askForQuote,
-  enterCallerAsk,
+  confirmAssignment,
+  offerAssignment,
+} from "#features/assignments/assignments";
+import { findClientByEmail } from "#features/clients/clients";
+import { completeJob } from "#features/completion/completion";
+import { savePaymentMethod, startCardForm } from "#features/payments/payments";
+import { currentPriceList } from "#features/price-list/price-list";
+import { acceptQuote } from "#features/quotes/accept";
+import { askForQuote, enterCallerAsk } from "#features/quotes/asking";
+import {
   saveDraft,
   sendQuote,
   startRevision,
   turnDownQuote,
-} from "#features/quotes";
-import { bookSiteVisit } from "#features/site-visits";
-import { createStaff, setUsualWeek } from "#features/staff";
+} from "#features/quotes/quotes";
+import { bookSiteVisit } from "#features/site-visits/site-visits";
+import { createStaff, setUsualWeek } from "#features/staff/staff";
 import { addDays, dayOf, weekdayOf } from "#services/clock";
 import { installFakes, signIn, testClock } from "./harness.ts";
 import { sentServicePlanQuote, startedServicePlan } from "./fixtures.ts";

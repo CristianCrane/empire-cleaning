@@ -10,8 +10,8 @@ import type {
   QuoteView,
   SignedInAccount,
 } from "@empire-cleaning/models";
-import { bookJob } from "#features/jobs";
-import { createStaff, setUsualWeek } from "#features/staff";
+import { bookJob } from "#features/jobs/jobs";
+import { createStaff, setUsualWeek } from "#features/staff/staff";
 import {
   api,
   signIn,

@@ -14,9 +14,9 @@ import type {
   Today,
 } from "@empire-cleaning/models";
 import { db } from "#db";
-import { chaseProposedAdjustments } from "#features/completion";
-import { properties } from "#features/properties";
-import { createStaff, setUsualWeek } from "#features/staff";
+import { chaseProposedAdjustments } from "#features/completion/completion";
+import { properties } from "#features/properties/properties.schema";
+import { createStaff, setUsualWeek } from "#features/staff/staff";
 import {
   api,
   signIn,

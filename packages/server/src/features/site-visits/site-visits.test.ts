@@ -9,7 +9,7 @@ import type {
   QuoteSummary,
   ScheduleDay,
 } from "@empire-cleaning/models";
-import { createStaff, setUsualWeek } from "#features/staff";
+import { createStaff, setUsualWeek } from "#features/staff/staff";
 import { api, signIn, testEmail } from "../../../tests/harness.ts";
 import {
   bookedJob,

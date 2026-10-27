@@ -2,9 +2,9 @@ import { describe, expect, test, vi } from "vitest";
 import express from "express";
 import request from "supertest";
 import { errorHandler } from "#middleware";
-import { authorize, signedInAccount } from "#features/auth";
-import { changeClientEmail, createClient } from "#features/clients";
-import { createStaff, deactivateStaff } from "#features/staff";
+import { authorize, signedInAccount } from "#features/auth/authorize";
+import { changeClientEmail, createClient } from "#features/clients/clients";
+import { createStaff, deactivateStaff } from "#features/staff/staff";
 import { createOwner } from "./create-owner.ts";
 import {
   api,

@@ -11,26 +11,30 @@ import type {
   SignedInAccount,
 } from "@empire-cleaning/models";
 import { db } from "#db";
-import { confirmAssignment, offerAssignment } from "#features/assignments";
-import { bills, makeDueBills, setBilling } from "#features/bills";
-import { findClientByEmail, createClient } from "#features/clients";
-import { completeJob } from "#features/completion";
-import { bookJob } from "#features/jobs";
-import { savePaymentMethod, startCardForm } from "#features/payments";
-import { currentPriceList } from "#features/price-list";
 import {
-  acceptQuote,
-  askForQuote,
+  confirmAssignment,
+  offerAssignment,
+} from "#features/assignments/assignments";
+import { bills } from "#features/bills/bills.schema";
+import { makeDueBills, setBilling } from "#features/bills/bills";
+import { findClientByEmail, createClient } from "#features/clients/clients";
+import { completeJob } from "#features/completion/completion";
+import { bookJob } from "#features/jobs/jobs";
+import { savePaymentMethod, startCardForm } from "#features/payments/payments";
+import { currentPriceList } from "#features/price-list/price-list";
+import { acceptQuote } from "#features/quotes/accept";
+import { askForQuote } from "#features/quotes/asking";
+import { quotes } from "#features/quotes/quotes.schema";
+import {
   offerServicePlan,
-  quotes,
   saveDraft,
   sendQuote,
   startRevision,
-} from "#features/quotes";
+} from "#features/quotes/quotes";
 import { dayOf, timeOf } from "#services/clock";
-import { properties } from "#features/properties";
-import { createStaff, setUsualWeek } from "#features/staff";
-import { servicePlans } from "#features/service-plans";
+import { properties } from "#features/properties/properties.schema";
+import { createStaff, setUsualWeek } from "#features/staff/staff";
+import { servicePlans } from "#features/service-plans/service-plans.schema";
 import { addressKey } from "../src/features/properties/address.ts";
 import { api, apiAgent, signIn, testClock, testPayments } from "./harness.ts";
 

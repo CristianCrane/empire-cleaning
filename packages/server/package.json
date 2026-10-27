@@ -5,7 +5,7 @@
   "imports": {
     "#middleware": "./src/middleware/index.ts",
     "#db": "./src/db/index.ts",
-    "#features/*": "./src/features/*/index.ts",
+    "#features/*": "./src/features/*.ts",
     "#services/*": "./src/services/*/index.ts"
   },
   "scripts": {

@@ -15,11 +15,14 @@ import type {
   SignedInAccount,
 } from "@empire-cleaning/models";
 import { db } from "#db";
-import { confirmAssignment, offerAssignment } from "#features/assignments";
-import { completeJob } from "#features/completion";
-import { bookJob } from "#features/jobs";
-import { charges } from "#features/payments";
-import { createStaff, setUsualWeek } from "#features/staff";
+import {
+  confirmAssignment,
+  offerAssignment,
+} from "#features/assignments/assignments";
+import { completeJob } from "#features/completion/completion";
+import { bookJob } from "#features/jobs/jobs";
+import { charges } from "#features/payments/payments.schema";
+import { createStaff, setUsualWeek } from "#features/staff/staff";
 import {
   signIn,
   testClock,

@@ -5,8 +5,8 @@ import type {
   OfficeJob,
   OfficeServicePlan,
 } from "@empire-cleaning/models";
-import { confirmAssignment } from "#features/assignments";
-import { completeJob } from "#features/completion";
+import { confirmAssignment } from "#features/assignments/assignments";
+import { completeJob } from "#features/completion/completion";
 import {
   signIn,
   testClock,

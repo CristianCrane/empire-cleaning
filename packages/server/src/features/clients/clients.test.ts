@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { ClientListItem } from "@empire-cleaning/models";
-import { createStaff } from "#features/staff";
+import { createStaff } from "#features/staff/staff";
 import { api, signIn } from "../../../tests/harness.ts";
 import {
   casey,

@@ -3,39 +3,42 @@ import { toNodeHandler } from "better-auth/node";
 import {
   jobAssignmentsRouter,
   router as assignmentsRouter,
-} from "#features/assignments";
-import { auth, router as meRouter } from "#features/auth";
-import { clientBillingRouter, router as billsRouter } from "#features/bills";
+} from "#features/assignments/assignments.routes";
+import { router as meRouter } from "#features/auth/auth.routes";
+import { auth } from "#features/auth/auth";
+import {
+  clientBillingRouter,
+  router as billsRouter,
+} from "#features/bills/bills.routes";
 import {
   clientCancellationRouter,
   noAccessRouter,
   officeCancellationRouter,
-} from "#features/cancellation";
+} from "#features/cancellation/cancellation.routes";
 import {
   cleanerCompletionRouter,
   clientJobsRouter,
   officeCompletionRouter,
-} from "#features/completion";
-import { router as clientsRouter } from "#features/clients";
-import { router as dashboardRouter } from "#features/dashboard";
-import { jobsRouter, router as scheduleRouter } from "#features/jobs";
-import {
-  router as paymentMethodsRouter,
-  webhookRouter,
-} from "#features/payments";
-import { router as priceListRouter } from "#features/price-list";
-import { router as propertiesRouter } from "#features/properties";
-import { router as quotesRouter } from "#features/quotes";
+} from "#features/completion/completion.routes";
+import { router as clientsRouter } from "#features/clients/clients.routes";
+import { router as dashboardRouter } from "#features/dashboard/dashboard.routes";
+import { jobsRouter } from "#features/jobs/jobs.routes";
+import { router as scheduleRouter } from "#features/jobs/schedule.routes";
+import { router as paymentMethodsRouter } from "#features/payments/payments.routes";
+import { webhookRouter } from "#features/payments/webhook.routes";
+import { router as priceListRouter } from "#features/price-list/price-list.routes";
+import { router as propertiesRouter } from "#features/properties/properties.routes";
+import { router as quotesRouter } from "#features/quotes/quotes.routes";
 import {
   clientRescheduleRouter,
   officeRescheduleRouter,
-} from "#features/reschedule";
-import { router as servicePlansRouter } from "#features/service-plans";
+} from "#features/reschedule/reschedule.routes";
+import { router as servicePlansRouter } from "#features/service-plans/service-plans.routes";
 import {
   propertyFindingsRouter,
   router as siteVisitsRouter,
-} from "#features/site-visits";
-import { router as staffRouter } from "#features/staff";
+} from "#features/site-visits/site-visits.routes";
+import { router as staffRouter } from "#features/staff/staff.routes";
 import {
   networkLoggingMiddleware,
   corsMiddleware,

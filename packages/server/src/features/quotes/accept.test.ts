@@ -12,10 +12,10 @@ import type {
   ScheduleDay,
 } from "@empire-cleaning/models";
 import { db } from "#db";
-import { sendDueReminders } from "#features/jobs";
-import { charges } from "#features/payments";
+import { sendDueReminders } from "#features/jobs/reminders";
+import { charges } from "#features/payments/payments.schema";
 import { FAKE_SIGNATURE } from "../../../tests/fakes/payment-gateway.ts";
-import { createStaff, setUsualWeek } from "#features/staff";
+import { createStaff, setUsualWeek } from "#features/staff/staff";
 import {
   api,
   signIn,

@@ -13,23 +13,26 @@ import type {
   SignedInAccount,
 } from "@empire-cleaning/models";
 import { db } from "#db";
-import { confirmAssignment, offerAssignment } from "#features/assignments";
-import { chaseBills, makeDueBills } from "#features/bills";
-import { cancelJob } from "#features/cancellation";
-import { findClientByEmail } from "#features/clients";
 import {
-  adjustments,
+  confirmAssignment,
+  offerAssignment,
+} from "#features/assignments/assignments";
+import { chaseBills, makeDueBills } from "#features/bills/bills";
+import { cancelJob } from "#features/cancellation/cancellation";
+import { findClientByEmail } from "#features/clients/clients";
+import { paymentOf } from "#features/completion/balance";
+import { adjustments } from "#features/completion/completion.schema";
+import {
   answerAdjustment,
   completeJob,
-  paymentOf,
   proposeAdjustment,
   undoCompletion,
-} from "#features/completion";
-import { jobs } from "#features/jobs";
-import { currentPriceList } from "#features/price-list";
-import { servicePlans } from "#features/service-plans";
+} from "#features/completion/completion";
+import { jobs } from "#features/jobs/jobs.schema";
+import { currentPriceList } from "#features/price-list/price-list";
+import { servicePlans } from "#features/service-plans/service-plans.schema";
 import { formatMoney } from "#services/email";
-import { createStaff, setUsualWeek } from "#features/staff";
+import { createStaff, setUsualWeek } from "#features/staff/staff";
 import {
   api,
   signIn,
