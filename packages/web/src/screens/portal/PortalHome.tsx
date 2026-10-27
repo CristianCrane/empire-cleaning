@@ -17,6 +17,7 @@ import {
   formatDate,
   formatDateTime,
   formatHours,
+  formatMinutes,
   formatMoney,
   propertySummary,
   wantedCleaning,
@@ -43,7 +44,7 @@ const placesTitle = (places: PropertyView[]) => {
 };
 
 export function PortalHome() {
-  const { client, plans, quotes, jobs, pastJobs } = useLoaderData({
+  const { client, plans, quotes, jobs, pastJobs, siteVisits } = useLoaderData({
     from: "/portal/",
   });
   const navigate = useNavigate();
@@ -88,6 +89,30 @@ export function PortalHome() {
                     : "No clean booked just now",
                 ].join(" · ")}
                 end={<PlanStatusBadge status={plan.status} />}
+              />
+            ))}
+          </List>
+        </Card>
+      )}
+
+      {siteVisits.length > 0 && (
+        <Card
+          title={
+            siteVisits.length === 1 ? "Your Site Visit" : "Your Site Visits"
+          }
+          description="Free: we come to see it before we quote. To change the time, please call us."
+        >
+          <List aria-label="Your Site Visits">
+            {siteVisits.map((visit) => (
+              <ListItem
+                key={visit.id}
+                id={visit.id}
+                title={formatDateTime(visit.startsAt)}
+                description={[
+                  addressOf(visit.property),
+                  `${visit.visitorName} visits for about ${formatMinutes(visit.minutes)}`,
+                ].join(" · ")}
+                end={<StatusBadge tone="info">Booked</StatusBadge>}
               />
             ))}
           </List>
@@ -204,7 +229,13 @@ export function PortalHome() {
                 ]
                   .filter(Boolean)
                   .join(" · ")}
-                end={requestBadge[request.state]}
+                end={
+                  request.siteVisit === "booked" ? (
+                    <StatusBadge tone="info">Site Visit booked</StatusBadge>
+                  ) : (
+                    requestBadge[request.state]
+                  )
+                }
               />
             );
           })}

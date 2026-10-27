@@ -18,6 +18,11 @@ import {
 import { linkTo } from "../../links.ts";
 import { QuoteStatusBadge } from "../QuoteParts.tsx";
 import { homeCrumbs } from "./PropertyScreen.tsx";
+import {
+  BookSiteVisit,
+  SiteVisitBadge,
+  visitSummary,
+} from "./SiteVisitParts.tsx";
 import { useStartDraft } from "./StartDraft.tsx";
 import {
   addressOf,
@@ -115,6 +120,7 @@ export function QuoteRequest() {
         </dl>
       </Card>
 
+      <SiteVisit request={request} />
       <Quotes request={request} />
 
       <section
@@ -247,6 +253,78 @@ function Quotes({ request }: { request: QuoteRequestDetail }) {
           />
         ))}
       </List>
+    </Card>
+  );
+}
+
+// Business premises are seen before they're quoted (ADR-0014): the Office
+// books a Site Visit, or records findings it knows already on the Property.
+// A home may have one too. Shown while the request awaits a Quote.
+function SiteVisit({ request }: { request: QuoteRequestDetail }) {
+  const navigate = useNavigate();
+  const { property, bookedSiteVisit: booked } = request;
+  if (request.state !== "awaiting_quote") return null;
+  const premises = property.kind === "commercial";
+  if (!premises && !booked) {
+    return (
+      <Card
+        title="Site Visit"
+        description="Optional for a home: book one to see it before quoting."
+        actions={<BookSiteVisit propertyId={property.id} />}
+      />
+    );
+  }
+
+  return (
+    <Card
+      title="Site Visit"
+      actions={
+        request.siteVisit === "needed" && (
+          <BookSiteVisit propertyId={property.id} primary />
+        )
+      }
+    >
+      {request.siteVisit === "needed" && (
+        <Notice>
+          <p>
+            Business premises are seen before they're quoted, so a Quote can't
+            be sent yet. Book a Site Visit, or if you know the premises already,
+            record what you know on the{" "}
+            <Link
+              href={linkTo({
+                to: "/office/properties/$propertyId",
+                params: { propertyId: property.id },
+              })}
+            >
+              Property
+            </Link>
+            .
+          </p>
+        </Notice>
+      )}
+      {booked && (
+        <List
+          aria-label="Booked Site Visit"
+          onAction={() =>
+            void navigate({
+              to: "/office/site-visits/$visitId",
+              params: { visitId: booked.id },
+            })
+          }
+        >
+          <ListItem
+            id={booked.id}
+            title={visitSummary(booked)}
+            description="Open it to move it, cancel it or record what it found."
+            end={<SiteVisitBadge status={booked.status} />}
+          />
+        </List>
+      )}
+      {premises && request.findingsRecorded && !booked && (
+        <p className="text-fg-muted">
+          Its findings are recorded, so a Quote can be sent.
+        </p>
+      )}
     </Card>
   );
 }

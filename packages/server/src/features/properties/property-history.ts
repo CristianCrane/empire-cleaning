@@ -18,6 +18,8 @@ import {
   requestStates,
 } from "../quotes/quote-state.ts";
 import { quotes } from "../quotes/quotes.schema.ts";
+import { siteVisits } from "../site-visits/site-visits.schema.ts";
+import { siteVisitViews } from "../site-visits/views.ts";
 import { currentPriceList } from "../price-list/price-list.ts";
 import { properties } from "./properties.schema.ts";
 import { toPropertyView } from "./property-view.ts";
@@ -34,7 +36,7 @@ export const officePropertyView = async (
     .where(eq(properties.id, id));
   if (!row) return undefined;
 
-  const [requests, ownQuotes, ownJobs, firstCleans, servicePlan, list] =
+  const [requests, ownQuotes, ownJobs, firstCleans, servicePlan, list, visits] =
     await Promise.all([
       quoteRequestViews(eq(quoteRequests.propertyId, id)),
       quotesForProperty(id),
@@ -42,6 +44,7 @@ export const officePropertyView = async (
       firstCleansOf([id]),
       propertyServicePlan(id),
       currentPriceList(),
+      siteVisitViews(eq(siteVisits.propertyId, id)),
     ]);
   return {
     ...toPropertyView(row.property, list),
@@ -55,6 +58,13 @@ export const officePropertyView = async (
     quoteRequests: requests,
     quotes: ownQuotes,
     jobs: ownJobs.reverse(),
+    // newest first: by when it is, or for findings without a visit, when
+    // they were recorded
+    siteVisits: visits.sort((a, b) =>
+      (b.startsAt ?? b.doneAt!).localeCompare(a.startsAt ?? a.doneAt!),
+    ),
+    findingsRecorded: visits.some((v) => v.status === "done"),
+    officeNotes: row.property.officeNotes,
   };
 };
 

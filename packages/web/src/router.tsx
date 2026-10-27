@@ -9,6 +9,8 @@ import {
 import type {
   CleanerJob,
   CleanerJobs,
+  CleanerSiteVisits,
+  ClientSiteVisit,
   ClientListItem,
   ClientJob,
   ClientJobDetail,
@@ -20,6 +22,7 @@ import type {
   OfficeJob,
   OfficeQuote,
   OfficeServicePlan,
+  OfficeSiteVisit,
   OpenQuoteRequest,
   PaymentMethodView,
   PremisesTypeChoice,
@@ -57,6 +60,7 @@ import {
 import { PropertyScreen } from "./screens/office/PropertyScreen.tsx";
 import { ScheduleScreen } from "./screens/office/ScheduleScreen.tsx";
 import { ServicePlanScreen } from "./screens/office/ServicePlanScreen.tsx";
+import { SiteVisitScreen } from "./screens/office/SiteVisitScreen.tsx";
 import { StaffMemberScreen } from "./screens/office/StaffMemberScreen.tsx";
 import { StaffScreen } from "./screens/office/StaffScreen.tsx";
 import {
@@ -294,6 +298,20 @@ const officeServicePlanRoute = createRoute({
   component: ServicePlanScreen,
 });
 
+// findings are recorded to a Premises Type on offer
+const officeSiteVisitRoute = createRoute({
+  getParentRoute: () => officeRoute,
+  path: "/site-visits/$visitId",
+  loader: async ({ params }) => {
+    const [visit, premisesTypes] = await Promise.all([
+      getJson<OfficeSiteVisit>(`/api/site-visits/${params.visitId}`),
+      getJson<PremisesTypeChoice[]>("/api/price-list/premises-types"),
+    ]);
+    return { visit, premisesTypes };
+  },
+  component: SiteVisitScreen,
+});
+
 const officeStaffRoute = createRoute({
   getParentRoute: () => officeRoute,
   path: "/staff",
@@ -331,7 +349,13 @@ const officeJobRoute = createRoute({
 const cleanerHomeRoute = createRoute({
   getParentRoute: () => cleanerRoute,
   path: "/",
-  loader: () => getJson<CleanerJobs>("/api/assignments/mine"),
+  loader: async () => {
+    const [jobs, siteVisits] = await Promise.all([
+      getJson<CleanerJobs>("/api/assignments/mine"),
+      getJson<CleanerSiteVisits>("/api/site-visits/visiting"),
+    ]);
+    return { ...jobs, siteVisits };
+  },
   component: CleanerHome,
 });
 
@@ -348,14 +372,16 @@ const portalHomeRoute = createRoute({
   getParentRoute: () => portalRoute,
   path: "/",
   loader: async () => {
-    const [client, plans, quotes, jobs, pastJobs] = await Promise.all([
-      ownClient(),
-      getJson<ServicePlanSummary[]>("/api/service-plans/mine"),
-      getJson<QuoteSummary[]>("/api/quotes/mine"),
-      getJson<ClientJob[]>("/api/jobs/mine"),
-      getJson<ClientPastJob[]>("/api/jobs/mine/past"),
-    ]);
-    return { client, plans, quotes, jobs, pastJobs };
+    const [client, plans, quotes, jobs, pastJobs, siteVisits] =
+      await Promise.all([
+        ownClient(),
+        getJson<ServicePlanSummary[]>("/api/service-plans/mine"),
+        getJson<QuoteSummary[]>("/api/quotes/mine"),
+        getJson<ClientJob[]>("/api/jobs/mine"),
+        getJson<ClientPastJob[]>("/api/jobs/mine/past"),
+        getJson<ClientSiteVisit[]>("/api/site-visits/mine"),
+      ]);
+    return { client, plans, quotes, jobs, pastJobs, siteVisits };
   },
   component: PortalHome,
 });
@@ -432,6 +458,7 @@ const routeTree = rootRoute.addChildren([
     officeClientRoute,
     officePropertyRoute,
     officeServicePlanRoute,
+    officeSiteVisitRoute,
     officePriceListRoute,
     officeStaffRoute,
     officeStaffMemberRoute,

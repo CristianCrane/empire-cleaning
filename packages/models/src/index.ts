@@ -144,6 +144,10 @@ export type QuoteRequestView = {
   createdAt: string;
   // where it stands, from its latest Quote
   state: QuoteRequestState;
+  // While it awaits a Quote and its Property has no Site Visit findings:
+  // business premises need one before they're quoted (ADR-0014), and a
+  // home may have one booked. Null otherwise.
+  siteVisit: "needed" | "booked" | null;
 };
 
 // a Client as the Office names them: a business by its business name, with
@@ -195,6 +199,12 @@ export type OfficePropertyView = PropertyView & {
   quoteRequests: QuoteRequestView[];
   quotes: QuoteSummary[];
   jobs: ScheduledJob[];
+  // its Site Visits, newest first, and whether any has recorded findings,
+  // which business premises need before a Quote is Sent (ADR-0014)
+  siteVisits: SiteVisitView[];
+  findingsRecorded: boolean;
+  // the Office's own notes on it, never shown to the Client
+  officeNotes: string | null;
 };
 
 // one row of the Office's open Quote Requests
@@ -342,6 +352,11 @@ export type QuoteRequestDetail = {
   // its home's Service Plan, unless it has none or it has Ended: a Service
   // Plan Quote answering it changes that plan
   servicePlanId: string | null;
+  // as on QuoteRequestView, and its Property's booked Site Visit, if any
+  siteVisit: QuoteRequestView["siteVisit"];
+  bookedSiteVisit: SiteVisitView | null;
+  // whether its Property has Site Visit findings recorded (ADR-0014)
+  findingsRecorded: boolean;
 };
 
 // ---- Staff, availability and the Schedule (#7) ----
@@ -425,6 +440,104 @@ export type ScheduleDay = {
   // the new times pending Reschedule Requests hold on this day, a move
   // within the day included: each holds a crew there until it's answered
   held: HeldTime[];
+  // its booked and Done Site Visits, earliest first (#73); bookedHours
+  // counts those that take room
+  siteVisits: ScheduledSiteVisit[];
+};
+
+// ---- Site Visits (#73) ----
+
+// booked, then Done once its findings are recorded, or Cancelled
+export type SiteVisitStatus = "booked" | "done" | "cancelled";
+
+// A Site Visit as the Office sees it (ADR-0015): a free visit by one Staff
+// member to see a Property before it's quoted. Findings recorded without a
+// visit, for premises the Office knew, are a Done one with no time or
+// visitor.
+export type SiteVisitView = {
+  id: string;
+  status: SiteVisitStatus;
+  startsAt: string | null;
+  // how long it's booked for: 30 minutes unless set otherwise
+  minutes: number;
+  visitor: { id: string; name: string } | null;
+  client: ClientName;
+  property: Pick<PropertyView, "id" | "street" | "unit" | "postcode" | "kind">;
+  bookedAt: string;
+  doneAt: string | null;
+  cancelledAt: string | null;
+};
+
+// a Site Visit on a day of the Schedule. One by a Cleaner with Available
+// Hours that day takes room like a Job with a Crew Size of one, its length
+// as its Labour Hours; one by Office Staff alone takes none.
+export type ScheduledSiteVisit = SiteVisitView & {
+  startsAt: string;
+  takesRoom: boolean;
+};
+
+// a Site Visit in full, for the Office: the Property's details, which its
+// findings update, and the Office's own notes on it
+export type OfficeSiteVisit = Omit<SiteVisitView, "property"> & {
+  property: PropertyView;
+  officeNotes: string | null;
+};
+
+// what Office Staff send to book a Site Visit, or to move one (no
+// propertyId): when, who visits, and for how long
+export type SiteVisitBooking = LocalDateTime & {
+  staffId: string;
+  minutes: number;
+};
+
+export type BookSiteVisitInput = SiteVisitBooking & { propertyId: string };
+
+// What a Site Visit found, recorded on the Property: its price-affecting
+// details and Condition, and the Office's notes. For business premises, the
+// Premises Type and floor area; for a home, its rooms.
+export type PremisesFindings = {
+  premisesType: string;
+  floorArea: number;
+  condition: Condition;
+  officeNotes?: string | null;
+};
+
+export type HomeFindings = Pick<
+  HomeView,
+  "type" | "bedrooms" | "bathrooms" | "storeys" | "pets"
+> & {
+  floorArea?: number | null;
+  condition: Condition;
+  officeNotes?: string | null;
+};
+
+export type SiteVisitFindings = PremisesFindings | HomeFindings;
+
+// a booked Site Visit as its Client sees it in the portal
+export type ClientSiteVisit = {
+  id: string;
+  startsAt: string;
+  minutes: number;
+  property: Pick<PropertyView, "id" | "street" | "unit" | "postcode">;
+  // who's coming, by first name
+  visitorName: string;
+};
+
+// a booked Site Visit as the Cleaner making it sees it
+export type CleanerSiteVisit = {
+  id: string;
+  startsAt: string;
+  minutes: number;
+  client: ClientName & { phone: string };
+  property: Pick<
+    PropertyView,
+    "id" | "street" | "unit" | "postcode" | "accessInstructions"
+  >;
+};
+
+export type CleanerSiteVisits = {
+  today: CleanerSiteVisit[];
+  upcoming: CleanerSiteVisit[];
 };
 
 // a new time held for a pending Reschedule Request, with its Job's crew
@@ -690,6 +803,9 @@ export type OfficeQuote = Omit<
   property: PropertyView;
   // no email until the Office adds one: then it can't be Sent (#34)
   client: ClientName & { email: string | null };
+  // business premises with no Site Visit findings yet: it can't be Sent
+  // until they're recorded (ADR-0014)
+  needsSiteVisit: boolean;
   options: OfficeQuoteOption[];
   // with the Condition it's priced for
   plan: (ServicePlanTerms & { condition: Condition }) | null;

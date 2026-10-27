@@ -49,6 +49,7 @@ import { addOnsForRequests } from "../quote-requests/add-ons.ts";
 import { quoteRequests } from "../quote-requests/quote-requests.schema.ts";
 import { planChangeOf } from "../service-plans/changing.ts";
 import { servicePlanVisits } from "../service-plans/service-plans.schema.ts";
+import { findingsRecorded } from "../site-visits/site-visits.ts";
 import { bookableFor } from "./quote-room.ts";
 import {
   firstCleanCompleted,
@@ -95,6 +96,12 @@ const fieldError = (path: (string | number)[], message: string) =>
   new RequestBodyError(
     new z.ZodError([{ code: "custom", path, message, input: undefined }]),
   );
+
+// business premises with no Site Visit findings recorded, which no Quote
+// can be Sent for (ADR-0014)
+const needsSiteVisit = async (property: Pick<Property, "id" | "kind">) =>
+  property.kind === "commercial" &&
+  !(await findingsRecorded([property.id])).has(property.id);
 
 // a Property with its Client
 const homeOf = async (propertyId: string) => {
@@ -406,6 +413,7 @@ export const officeQuote = async (id: string): Promise<OfficeQuote> => {
       businessName: client.businessName,
       email: client.email,
     },
+    needsSiteVisit: await needsSiteVisit(property),
     property: toPropertyView(property, list),
     options: sortOptions(rows).map((r) => officeOption(quote, r)),
     // with the Condition it's priced for, which is the Office's working
@@ -750,10 +758,16 @@ export const sendQuote = async (id: string): Promise<OfficeQuote> => {
   }
   await refuseUnquotable(quote.kind, quote.propertyId, quote.quoteRequestId);
   // it goes by email, and is accepted signed in with that email (#34)
-  const { client } = (await homeOf(quote.propertyId))!;
+  const { client, property } = (await homeOf(quote.propertyId))!;
   if (!client.email) {
     throw new ConflictError(
       `${client.name} has no email yet, so the Quote can't be sent. Add their email on their Client screen, then send it.`,
+    );
+  }
+  // business premises are seen before they're quoted (ADR-0014)
+  if (await needsSiteVisit(property)) {
+    throw new ConflictError(
+      "These premises haven't had a Site Visit, so the Quote can't be sent. Record its findings on the Property, then send it.",
     );
   }
 

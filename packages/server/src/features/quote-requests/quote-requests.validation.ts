@@ -26,13 +26,13 @@ const address = {
   accessInstructions: z.string().trim().max(2000).nullish(),
 };
 
-const floorArea = z
+export const floorArea = z
   .number({ error: "Enter the floor area in sq ft" })
   .int("Use whole sq ft")
   .min(100, "That's smaller than any premises we clean")
   .max(1_000_000, "That's larger than we can clean");
 
-const premisesType = z.uuid("Choose the type of premises");
+export const premisesType = z.uuid("Choose the type of premises");
 
 export const newHomeSchema = z.object({
   kind: z.literal("residential"),
@@ -191,6 +191,15 @@ export const clientSubmission = z
   })
   .superRefine(forKind);
 
+// the Office's own notes on a Property, never shown to the Client; empty
+// clears them
+export const officeNotes = z
+  .string()
+  .trim()
+  .max(4000, "Keep the notes under 4,000 characters")
+  .nullable()
+  .transform((notes) => notes || null);
+
 // the Office correcting a Property's details (the address is its identity,
 // so it isn't correctable, and nor is whether it's a home); send only what
 // changes
@@ -203,7 +212,7 @@ export const homeCorrectionSchema = newHomeSchema
     pets: true,
     floorArea: true,
   })
-  .extend({ condition: conditionSchema })
+  .extend({ condition: conditionSchema, officeNotes })
   .partial()
   .refine((changes) => Object.keys(changes).length > 0, "Nothing to change");
 
@@ -212,6 +221,7 @@ export const premisesCorrectionSchema = z
     premisesType,
     floorArea: floorArea.nullable(),
     condition: conditionSchema,
+    officeNotes,
   })
   .partial()
   .refine((changes) => Object.keys(changes).length > 0, "Nothing to change");

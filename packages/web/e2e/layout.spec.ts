@@ -2,6 +2,7 @@ import type { Page } from "@playwright/test";
 import {
   acceptedJob,
   bookJob,
+  bookSiteVisit,
   completedFirstClean,
   createStaff,
   expect,
@@ -131,6 +132,12 @@ test("business premises' screens fit every width, the form included", async ({
 }) => {
   await requestQuoteForPremises(casey, "Acme Dental Group of Queens");
   await createStaff(olive);
+  const visit = await bookSiteVisit({
+    street: "200 Park Ave S",
+    staffEmail: olive.email,
+    date: "2026-01-06",
+    time: "10:00",
+  });
   await signedInAs(page, olive.email);
 
   await page.goto("/office/requests");
@@ -145,7 +152,12 @@ test("business premises' screens fit every width, the form included", async ({
   await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
   const draft = new URL(page.url()).pathname;
 
-  for (const path of [request, property, draft]) {
+  for (const path of [
+    request,
+    property,
+    draft,
+    `/office/site-visits/${visit.id}`,
+  ]) {
     await expectFitsEveryWidth(page, path);
   }
 
@@ -233,7 +245,7 @@ test("an Accepted Quote and the Client's upcoming Jobs fit every width", async (
   const own = quote.replace("/office/quotes/", "/portal/quotes/");
   await client.goto(own);
   await client.getByRole("button", { name: /^Accept and pay/ }).click();
-  await expect(client.getByText("You're booked")).toBeVisible();
+  await expect(client.getByText(/^You're booked: a Deep Clean/)).toBeVisible();
 
   await expectFitsEveryWidth(page, quote);
   await expectFitsEveryWidth(client, own);

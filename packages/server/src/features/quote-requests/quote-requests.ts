@@ -33,7 +33,14 @@ import {
   requestStates,
 } from "../quotes/quote-state.ts";
 import { servicePlans } from "../service-plans/service-plans.schema.ts";
+import { siteVisits } from "../site-visits/site-visits.schema.ts";
+import {
+  findingsRecorded,
+  siteVisitStages,
+} from "../site-visits/site-visits.ts";
+import { siteVisitViews } from "../site-visits/views.ts";
 import { addOnsForRequests } from "./add-ons.ts";
+import { siteVisitOf } from "./request-views.ts";
 import { quoteRequestAddOns, quoteRequests } from "./quote-requests.schema.ts";
 import {
   accountSubmission,
@@ -404,10 +411,11 @@ export const openQuoteRequests = async (): Promise<OpenQuoteRequest[]> => {
     .orderBy(desc(quoteRequests.createdAt));
 
   const ids = rows.map((r) => r.request.id);
-  const [addOns, states, list] = await Promise.all([
+  const [addOns, states, list, stages] = await Promise.all([
     addOnsForRequests(ids),
     requestStates(ids),
     currentPriceList(),
+    siteVisitStages(rows.map((r) => r.request.propertyId)),
   ]);
   return rows
     .filter(({ request }) => !isClosed(states.get(request.id)!))
@@ -422,6 +430,10 @@ export const openQuoteRequests = async (): Promise<OpenQuoteRequest[]> => {
       addOns: addOns.get(request.id) ?? [],
       createdAt: request.createdAt.toISOString(),
       state: states.get(request.id)!,
+      siteVisit: siteVisitOf(
+        states.get(request.id)!,
+        stages.get(request.propertyId),
+      ),
       client,
       property: toPropertyView(property, list),
       servicePlanId,
@@ -458,13 +470,23 @@ export const quoteRequestDetail = async (
     .where(eq(quoteRequests.id, id));
   if (!row) return undefined;
 
-  const [list, addOns, states, quotes, firstCleanDone] = await Promise.all([
-    currentPriceList(),
-    addOnsForRequests([id]),
-    requestStates([id]),
-    quotesForRequest(id),
-    firstCleanCompleted(row.property.id),
-  ]);
+  const propertyId = row.property.id;
+  const [list, addOns, states, quotes, firstCleanDone, stages, visits, done] =
+    await Promise.all([
+      currentPriceList(),
+      addOnsForRequests([id]),
+      requestStates([id]),
+      quotesForRequest(id),
+      firstCleanCompleted(propertyId),
+      siteVisitStages([propertyId]),
+      siteVisitViews(
+        and(
+          eq(siteVisits.propertyId, propertyId),
+          eq(siteVisits.status, "booked"),
+        ),
+      ),
+      findingsRecorded([propertyId]),
+    ]);
   const choices = addOns.get(id) ?? [];
   const chosen = list.addOns.filter((a) =>
     choices.some((c) => c.key === a.key),
@@ -504,5 +526,8 @@ export const quoteRequestDetail = async (
     quotes,
     firstCleanCompleted: firstCleanDone,
     servicePlanId: row.servicePlanId,
+    siteVisit: siteVisitOf(states.get(id)!, stages.get(propertyId)),
+    bookedSiteVisit: visits[0] ?? null,
+    findingsRecorded: done.has(propertyId),
   };
 };
