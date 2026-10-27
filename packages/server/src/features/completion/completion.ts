@@ -71,7 +71,7 @@ const describe = (job: Job, property: Property) =>
   `the ${cleanTypeLabel[job.cleanType]} at ${addressOf(property)} on ${formatWhen(job.startsAt)}`;
 
 // "Inside the oven, done on the day", "1.5 extra hours"
-const adjustmentLabel = (
+export const adjustmentLabel = (
   a: Pick<Adjustment, "kind" | "addOnName" | "hours">,
 ) =>
   a.kind === "extra_time"
@@ -107,6 +107,9 @@ const portalLink = (jobId: string, label = "See your clean") => ({
 // what settling moved, as lines for the Client
 const moneyLines = (settled: Settled, owedCents: number) => {
   const lines: string[] = [];
+  if (settled.billed) {
+    lines.push("It goes on your weekly bill.");
+  }
   const card = settled.paymentMethod ?? "card";
   if (settled.chargedCents > 0) {
     lines.push(

@@ -10,6 +10,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { timestamps } from "../../db/index.ts";
+import { bills } from "../bills/bills.schema.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
 import { servicePlans } from "../service-plans/service-plans.schema.ts";
@@ -46,18 +47,26 @@ export const paymentMethods = pgTable("payment_methods", {
 // the Deposit at acceptance, or the Balance once Completed, which may be
 // taken in parts: at completion, then as the Client approves increases; or
 // the fee for a Late Cancellation or No Access of a plan Job, which has no
-// Deposit of its own to keep
-export const chargeKind = pgEnum("charge_kind", ["deposit", "balance", "fee"]);
+// Deposit of its own to keep; or a weekly Bill (ADR-0016)
+export const chargeKind = pgEnum("charge_kind", [
+  "deposit",
+  "balance",
+  "fee",
+  "bill",
+]);
 
 // money taken from a Client's Payment Method, for a Job, or a Service Plan's
 // Deposit, which is held for the plan's life and counts towards no Job's
-// price until the plan Ends (#15)
+// price until the plan Ends (#15), or a Bill, by card or bank debit
 export const charges = pgTable(
   "charges",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     jobId: uuid("job_id").references(() => jobs.id, { onDelete: "restrict" }),
     servicePlanId: uuid("service_plan_id").references(() => servicePlans.id, {
+      onDelete: "restrict",
+    }),
+    billId: uuid("bill_id").references(() => bills.id, {
       onDelete: "restrict",
     }),
     kind: chargeKind("kind").notNull(),
@@ -70,9 +79,11 @@ export const charges = pgTable(
   (t) => [
     index("charges_job_id_idx").on(t.jobId),
     index("charges_service_plan_id_idx").on(t.servicePlanId),
+    index("charges_bill_id_idx").on(t.billId),
+    // for exactly one of them
     check(
-      "charges_job_or_service_plan",
-      sql`(${t.jobId} is null) <> (${t.servicePlanId} is null)`,
+      "charges_job_or_service_plan_or_bill",
+      sql`num_nonnulls(${t.jobId}, ${t.servicePlanId}, ${t.billId}) = 1`,
     ),
   ],
 );

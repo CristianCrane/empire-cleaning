@@ -43,6 +43,16 @@ const time = new Intl.DateTimeFormat("en-US", {
 // "9:00 AM", in New York
 export const formatTime = (instant: Date) => time.format(instant);
 
+const day = new Intl.DateTimeFormat("en-US", {
+  weekday: "long",
+  month: "long",
+  day: "numeric",
+  timeZone: "UTC",
+});
+// "2026-01-12" as "Monday, January 12"
+export const formatDay = (isoDate: string) =>
+  day.format(new Date(`${isoDate}T12:00:00Z`));
+
 // each line a paragraph (a "\n" inside one is a line break), then the link
 export const compose = (
   lines: string[],

@@ -5,6 +5,7 @@ import {
   router as assignmentsRouter,
 } from "#features/assignments";
 import { auth, router as meRouter } from "#features/auth";
+import { clientBillingRouter, router as billsRouter } from "#features/bills";
 import {
   clientCancellationRouter,
   noAccessRouter,
@@ -69,6 +70,7 @@ app.use("/api/me", meRouter);
 app.use("/api/quote-requests", quoteRequestsRouter);
 app.use("/api/quotes", quotesRouter);
 app.use("/api/clients", clientsRouter);
+app.use("/api/clients", clientBillingRouter);
 app.use("/api/properties", propertiesRouter);
 app.use("/api/properties", propertyFindingsRouter);
 app.use("/api/price-list", priceListRouter);
@@ -89,6 +91,7 @@ app.use("/api/payment-methods", paymentMethodsRouter);
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/service-plans", servicePlansRouter);
 app.use("/api/site-visits", siteVisitsRouter);
+app.use("/api/bills", billsRouter);
 
 app.use(errorHandler);
 

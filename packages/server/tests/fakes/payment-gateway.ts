@@ -1,6 +1,8 @@
 import type { CardForm, PaymentForm } from "@empire-cleaning/models";
 import {
   PaymentMethodError,
+  type BillPaymentInput,
+  type BillPaymentOutcome,
   type ChargeInput,
   type ChargeResult,
   type DepositAttempt,
@@ -46,6 +48,11 @@ export class FakePaymentGateway implements PaymentGateway {
   private readonly forms = new Set<string>();
   private readonly waiting = new Map<string, DepositInput>();
   private readonly replies = new Map<string, unknown>();
+  // Bill payments started in the browser, by ref, and how each stands
+  private readonly billPayments = new Map<
+    string,
+    { input: BillPaymentInput; outcome: BillPaymentOutcome }
+  >();
   private nextId = 1;
 
   // every Charge and Deposit is declined with `reason` until failCharges(null)
@@ -63,6 +70,54 @@ export class FakePaymentGateway implements PaymentGateway {
   // goDown(false)
   goDown(isDown = true) {
     this.down = isDown;
+  }
+
+  // the Client finishes paying a Bill in the browser: by card it succeeds
+  // at once, unless Charges are failing; by bank debit it's processing
+  // until clearBankDebit()
+  payBill(ref: string, by: "card" | "bank" = "card") {
+    const payment = this.billPayments.get(ref);
+    if (!payment) throw new Error(`no Bill payment ${ref}`);
+    payment.outcome =
+      by === "bank"
+        ? { status: "processing" }
+        : this.chargeFailure
+          ? { status: "failed", reason: this.chargeFailure }
+          : this.takeBillPayment(ref, payment.input);
+  }
+
+  // a bank debit paying a Bill clears, or fails
+  clearBankDebit(ref: string, cleared = true) {
+    const payment = this.billPayments.get(ref)!;
+    payment.outcome = cleared
+      ? this.takeBillPayment(ref, payment.input)
+      : { status: "failed", reason: "insufficient_funds" };
+  }
+
+  // the latest Bill payment started in the browser
+  lastBillPayment() {
+    const ref = [...this.billPayments.keys()].at(-1);
+    if (!ref) throw new Error("no Bill payment was started");
+    return { ref, ...this.billPayments.get(ref)!.input };
+  }
+
+  private takeBillPayment(
+    ref: string,
+    input: BillPaymentInput,
+  ): BillPaymentOutcome {
+    this.charges.push({
+      payerId: input.payerId,
+      paymentMethodId: null,
+      amount: input.amount,
+      description: input.description,
+      chargeId: ref,
+    });
+    return {
+      status: "succeeded",
+      chargeId: ref,
+      amount: input.amount,
+      reference: input.reference,
+    };
   }
 
   // a card "entered" in the test payment form
@@ -221,6 +276,25 @@ export class FakePaymentGateway implements PaymentGateway {
     });
   }
 
+  async startBillPayment(input: BillPaymentInput) {
+    this.check();
+    return this.once(input.idempotencyKey, () => {
+      const ref = this.id("pi");
+      this.billPayments.set(ref, { input, outcome: { status: "waiting" } });
+      return { ref, secret: `${ref}_secret` };
+    });
+  }
+
+  async billPaymentOutcome(ref: string): Promise<BillPaymentOutcome> {
+    this.check();
+    return (
+      this.billPayments.get(ref)?.outcome ?? {
+        status: "failed",
+        reason: "unknown_payment",
+      }
+    );
+  }
+
   async refund(input: RefundInput): Promise<RefundResult> {
     this.check();
     return this.once(input.idempotencyKey, (): RefundResult => {
@@ -249,9 +323,13 @@ export class FakePaymentGateway implements PaymentGateway {
       throw new Error("the webhook isn't signed");
     }
     const event = JSON.parse(body.toString()) as { kind?: string };
-    return ["deposit_succeeded", "charge_refunded", "dispute_opened"].includes(
-      event.kind ?? "",
-    )
+    return [
+      "deposit_succeeded",
+      "bill_payment_succeeded",
+      "bill_payment_failed",
+      "charge_refunded",
+      "dispute_opened",
+    ].includes(event.kind ?? "")
       ? (event as PaymentEvent)
       : null;
   }

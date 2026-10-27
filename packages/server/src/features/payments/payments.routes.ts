@@ -5,6 +5,7 @@ import { validate } from "../../middleware/validation.ts";
 import { paymentGateway } from "../../services/payment-gateway/index.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { clientForAccount } from "../clients/clients.ts";
+import { retryUnpaidBillsFor } from "../bills/bills.ts";
 import { retryUnpaidJobsFor } from "../completion/completion.ts";
 import {
   paymentMethodOf,
@@ -44,7 +45,7 @@ router.post("/mine/card-form", authorize("client"), async (req, res) => {
 });
 
 // keeps what that form set up, replacing any saved before, and tries any
-// Unpaid Jobs again with it
+// Unpaid Jobs and Bills again with it
 router.put(
   "/mine",
   authorize("client"),
@@ -57,6 +58,7 @@ router.put(
     const client = await ownClient(signedInAccount(res).id);
     const saved = await savePaymentMethod(client, req.body.token);
     await retryUnpaidJobsFor(client.id);
+    await retryUnpaidBillsFor(client.id);
     res.json(saved);
   },
 );
