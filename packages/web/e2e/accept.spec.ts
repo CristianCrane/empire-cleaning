@@ -131,7 +131,10 @@ test("a declined Deposit books nothing, and another try goes through", async ({
 
   await failCharges(null);
   await accept.getByRole("button", { name: /^Accept and pay/ }).click();
-  await expect(client.getByText("You're booked")).toBeVisible();
+  // the page's own banner: the "You're booked" toast shows at the same time
+  await expect(
+    client.getByText("You're booked: a Deep Clean on Mon, Jan 12, 9:00 AM"),
+  ).toBeVisible();
 });
 
 test("a Deposit the bank asks the Client to approve is booked once approved", async ({

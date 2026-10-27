@@ -1,5 +1,6 @@
 import { and, count, eq, isNotNull } from "drizzle-orm";
 import type { Tx } from "../../db/index.ts";
+import { billLines, bills } from "../bills/bills.schema.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
 import { servicePlans, servicePlanVisits } from "./service-plans.schema.ts";
 
@@ -21,31 +22,54 @@ export const holdOrResume = async (
     .from(servicePlanVisits)
     .where(eq(servicePlanVisits.jobId, jobId));
   if (!visit) return null;
+  return holdOrResumePlan(tx, visit.planId);
+};
 
+/**
+ * Puts a Service Plan On Hold while any of its Jobs, or a Bill with any of
+ * its Jobs on it (ADR-0016), is Unpaid, and back to active once none is.
+ */
+export const holdOrResumePlan = async (
+  tx: Tx,
+  planId: string,
+): Promise<"held" | "resumed" | null> => {
   // held while its Jobs are counted, so two Jobs settling at once take turns
   const [plan] = await tx
     .select({ status: servicePlans.status })
     .from(servicePlans)
-    .where(eq(servicePlans.id, visit.planId))
+    .where(eq(servicePlans.id, planId))
     .for("update");
   if (plan!.status === "ended") return null;
 
-  const [{ unpaid }] = (await tx
-    .select({ unpaid: count() })
-    .from(servicePlanVisits)
-    .innerJoin(jobs, eq(jobs.id, servicePlanVisits.jobId))
-    .where(
-      and(
-        eq(servicePlanVisits.servicePlanId, visit.planId),
-        isNotNull(jobs.unpaidSince),
+  const [[{ unpaidJobs }], [{ unpaidBills }]] = (await Promise.all([
+    tx
+      .select({ unpaidJobs: count() })
+      .from(servicePlanVisits)
+      .innerJoin(jobs, eq(jobs.id, servicePlanVisits.jobId))
+      .where(
+        and(
+          eq(servicePlanVisits.servicePlanId, planId),
+          isNotNull(jobs.unpaidSince),
+        ),
       ),
-    )) as [{ unpaid: number }];
-  const status = unpaid > 0 ? "on_hold" : "active";
+    tx
+      .select({ unpaidBills: count() })
+      .from(servicePlanVisits)
+      .innerJoin(billLines, eq(billLines.jobId, servicePlanVisits.jobId))
+      .innerJoin(bills, eq(bills.id, billLines.billId))
+      .where(
+        and(
+          eq(servicePlanVisits.servicePlanId, planId),
+          isNotNull(bills.unpaidSince),
+        ),
+      ),
+  ])) as [[{ unpaidJobs: number }], [{ unpaidBills: number }]];
+  const status = unpaidJobs + unpaidBills > 0 ? "on_hold" : "active";
   if (status === plan!.status) return null;
 
   await tx
     .update(servicePlans)
     .set({ status })
-    .where(eq(servicePlans.id, visit.planId));
+    .where(eq(servicePlans.id, planId));
   return status === "on_hold" ? "held" : "resumed";
 };

@@ -262,6 +262,11 @@ const tellClient = async (
           `We've charged the ${formatMoney(settled.chargedCents)} still to pay to your ${card}.`,
         ]
       : []),
+    ...(settled.billed
+      ? [
+          "Whatever your final clean still owes, or is owed, goes on your next weekly bill.",
+        ]
+      : []),
     "To book another clean, request a Quote from your account.",
   ];
   await notify(`End of Service Plan ${plan.id} notice`, () =>

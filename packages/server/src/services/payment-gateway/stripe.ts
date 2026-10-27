@@ -2,6 +2,8 @@ import Stripe from "stripe";
 import type { CardForm, PaymentForm } from "@empire-cleaning/models";
 import {
   PaymentMethodError,
+  type BillPaymentInput,
+  type BillPaymentOutcome,
   type ChargeInput,
   type ChargeResult,
   type DepositAttempt,
@@ -26,6 +28,15 @@ const ALLOWED: "card"[] = ["card"];
 
 // marks our Deposits, so webhooks can tell them from anything else
 const DEPOSIT = { purpose: "deposit" };
+// and our Bill payments
+const BILL = "bill";
+
+// A Bill is paid on its page by card or ACH Direct Debit (ADR-0016): nothing
+// waits on a Bill payment clearing, so a bank debit's days are no matter
+const BILL_ALLOWED: ("card" | "us_bank_account")[] = [
+  "card",
+  "us_bank_account",
+];
 
 // Stripe behind our Payment Gateway (ADR-0004, ADR-0008). Nothing Stripe-shaped
 // leaves this file: its ids are opaque strings to everyone else, and its
@@ -40,6 +51,9 @@ const DEPOSIT = { purpose: "deposit" };
 //   client secret and we ask again how it ended.
 // - Later Charges (the Office recording acceptance, the Balance) are
 //   off-session PaymentIntents on the saved card.
+// - A Bill paid on its page is a PaymentIntent the browser confirms, by card
+//   or bank debit; a bank debit is processing until it clears, which a
+//   webhook tells us.
 // - Our charge ids are PaymentIntent ids.
 export class StripePaymentGateway implements PaymentGateway {
   private readonly stripe: Stripe;
@@ -207,6 +221,54 @@ export class StripePaymentGateway implements PaymentGateway {
     }
   }
 
+  async startBillPayment({
+    payerId,
+    amount,
+    description,
+    reference,
+    idempotencyKey,
+  }: BillPaymentInput) {
+    const intent = await this.stripe.paymentIntents.create(
+      {
+        amount,
+        currency: "usd",
+        customer: payerId,
+        allowed_payment_method_types: BILL_ALLOWED,
+        description,
+        metadata: { purpose: BILL, reference },
+      },
+      { idempotencyKey },
+    );
+    return { ref: intent.id, secret: intent.client_secret! };
+  }
+
+  async billPaymentOutcome(ref: string): Promise<BillPaymentOutcome> {
+    const intent = await this.stripe.paymentIntents.retrieve(ref);
+    switch (intent.status) {
+      case "succeeded":
+        return {
+          status: "succeeded",
+          chargeId: intent.id,
+          amount: intent.amount_received,
+          reference: intent.metadata?.reference ?? "",
+        };
+      case "processing":
+        return { status: "processing" };
+      case "canceled":
+        return { status: "failed", reason: "canceled" };
+      default: {
+        // a failed attempt leaves it waiting for another payment method
+        const error = intent.last_payment_error;
+        return error
+          ? {
+              status: "failed",
+              reason: error.decline_code ?? error.code ?? intent.status,
+            }
+          : { status: "waiting" };
+      }
+    }
+  }
+
   async refund({
     chargeId,
     amount,
@@ -237,7 +299,29 @@ export class StripePaymentGateway implements PaymentGateway {
       this.webhookSecret,
     );
     switch (event.type) {
-      case "payment_intent.succeeded":
+      case "payment_intent.succeeded": {
+        const intent = event.data.object;
+        if (intent.metadata?.purpose === BILL) {
+          return {
+            kind: "bill_payment_succeeded",
+            ref: intent.id,
+            reference: intent.metadata.reference ?? "",
+          };
+        }
+        return intent.metadata?.purpose === DEPOSIT.purpose
+          ? { kind: "deposit_succeeded", ref: intent.id }
+          : null;
+      }
+      case "payment_intent.payment_failed": {
+        const intent = event.data.object;
+        return intent.metadata?.purpose === BILL
+          ? {
+              kind: "bill_payment_failed",
+              ref: intent.id,
+              reference: intent.metadata.reference ?? "",
+            }
+          : null;
+      }
       case "setup_intent.succeeded": {
         const intent = event.data.object;
         return intent.metadata?.purpose === DEPOSIT.purpose

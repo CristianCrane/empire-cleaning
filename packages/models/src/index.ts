@@ -186,6 +186,8 @@ export type ClientListItem = OfficeContactDetails & {
 export type OfficeClientView = OfficeContactDetails & {
   id: string;
   properties: (PropertyView & { status: PropertyStatus })[];
+  // how they're billed (ADR-0016)
+  billing: ClientBilling;
 };
 
 // a Property for the Office, with its whole history: its requests, every
@@ -1163,6 +1165,8 @@ export type JobPayment = {
   charges: ChargeView[];
   // what has been taken, less refunds
   paidCents: number;
+  // what weekly Bills have billed for it (ADR-0016), which they now owe
+  billedCents: number;
   // still to take (positive) or to give back (negative)
   owedCents: number;
   // the Client's saved Payment Method, e.g. "Visa ending 4242"
@@ -1432,3 +1436,91 @@ export type OfficeServicePlan = Omit<ServicePlanView, "upcoming"> & {
 // POST /api/service-plans/:id/visits/:visitId/book: the time, New York, the
 // Office books an unplaced visit at
 export type BookVisitInput = LocalDateTime;
+
+// ---- Weekly Bills (#81, ADR-0016) ----
+
+// how a Client billed weekly pays each Bill: charged to their saved Payment
+// Method when it's made, or paid by them on its page by its due date
+export type BillPayment = "automatic" | "on_page";
+
+// a Client's weekly billing, for the Office. Only a commercial Client can be
+// switched to it; how they pay and their terms stay set while it's off.
+export type ClientBilling = {
+  // the Monday of the week it was switched on, or null while it's off
+  weeklyFrom: IsoDate | null;
+  canBillWeekly: boolean;
+  payment: BillPayment;
+  // days from a Bill being made to its due date, when paid on its page
+  termsDays: number;
+  // where Bills and receipts go instead of the Client's own email
+  billingEmail: string | null;
+};
+
+// PUT /api/clients/:id/billing
+export type ClientBillingInput = {
+  weekly: boolean;
+  payment: BillPayment;
+  termsDays: number;
+  billingEmail: string | null;
+};
+
+// due until paid, or voided by Office Staff; processing while a bank debit
+// paying it clears
+export type BillStatus = "due" | "processing" | "paid" | "void";
+
+// how a paid Bill was paid: its automatic Charge, on its page, a payment
+// Office Staff recorded, or nothing to pay
+export type BillPaidVia = "charge" | "page" | "outside" | "nothing_due";
+
+// one thing a Bill charges or credits, tax included; a Job's lines link to
+// it, an earlier Bill's credit has no Job
+export type BillLineView = {
+  jobId: string | null;
+  label: string;
+  amountCents: number;
+  taxCents: number;
+};
+
+export type BillSummary = {
+  id: string;
+  // "EC-000123"
+  number: string;
+  client: ClientName;
+  // Monday to Sunday, New York
+  weekStart: IsoDate;
+  weekEnd: IsoDate;
+  madeAt: string;
+  payment: BillPayment;
+  dueOn: IsoDate;
+  status: BillStatus;
+  // tax included; below 0 it's a credit on the next Bill
+  totalCents: number;
+  taxCents: number;
+  // its automatic Charge failed, and it hasn't been paid since
+  unpaid: { since: string; reason: string } | null;
+  paidAt: string | null;
+  paidVia: BillPaidVia | null;
+};
+
+export type BillView = BillSummary & {
+  lines: BillLineView[];
+  // Office Staff's note on a payment made another way
+  paymentNote: string | null;
+  voidedAt: string | null;
+  voidReason: string | null;
+  // whether the Client can pay it on its page now
+  payable: boolean;
+};
+
+// the payment provider's form for paying a Bill on its page, by card or bank
+// debit, with what POST /api/bills/mine/:id/payment then sends back
+export type BillPaymentForm = PaymentForm & { secret: string; ref: string };
+
+// POST /api/bills/mine/:id/payment, once the form is done
+export type PayBillInput = { ref: string };
+
+// POST /api/bills/:id/void
+export type VoidBillInput = { reason: string };
+
+// POST /api/bills/:id/outside-payment: a cheque or bank transfer
+export type OutsidePaymentInput = { note: string };

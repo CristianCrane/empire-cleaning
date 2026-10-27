@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { desc, eq, inArray } from "drizzle-orm";
-import type { JobPayment } from "@empire-cleaning/models";
+import type { ChargeView, JobPayment } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { clock } from "../../services/clock/index.ts";
 import { formatWhen } from "../../services/email/index.ts";
 import { paymentGateway } from "../../services/payment-gateway/index.ts";
+import { billedOf, isBilledWeekly } from "../bills/billed-weekly.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { payerFor } from "../payments/payments.ts";
@@ -33,6 +34,10 @@ type Ledger = {
   rescheduleFeeCents: number;
   charges: (Charge & { refundedCents: number })[];
   paidCents: number;
+  // what Bills not voided have billed for it (ADR-0016)
+  billedCents: number;
+  // whether any has
+  billedLines: number;
   owedCents: number;
 };
 
@@ -43,8 +48,9 @@ type Ledger = {
 // which is 0 unless it was a Late Cancellation or No Access, or a Late
 // Reschedule made one due. A one-off Job's fee is its Deposit, kept; a plan
 // Job has none, so its fee is charged.
+// What a weekly Bill has billed for it counts as taken: the Bill owes it now.
 const ledgerOf = async (job: Job, tx: Tx | typeof db): Promise<Ledger> => {
-  const [quoted, rows, taken] = await Promise.all([
+  const [quoted, rows, taken, billed] = await Promise.all([
     quotedJob(job.id, tx),
     tx.select().from(adjustments).where(eq(adjustments.jobId, job.id)),
     tx
@@ -52,6 +58,7 @@ const ledgerOf = async (job: Job, tx: Tx | typeof db): Promise<Ledger> => {
       .from(charges)
       .where(eq(charges.jobId, job.id))
       .orderBy(desc(charges.chargedAt), desc(charges.createdAt)),
+    billedOf(job.id, tx),
   ]);
   const given =
     taken.length === 0
@@ -97,7 +104,9 @@ const ledgerOf = async (job: Job, tx: Tx | typeof db): Promise<Ledger> => {
     rescheduleFeeCents: job.rescheduleFeeCents,
     charges: withRefunds,
     paidCents,
-    owedCents: owes - paidCents,
+    billedCents: billed.cents,
+    billedLines: billed.lines,
+    owedCents: owes - paidCents - billed.cents,
   };
 };
 
@@ -120,12 +129,14 @@ export const paymentOf = async (job: Job): Promise<JobPayment> => {
     totalCents: ledger.totalCents,
     rescheduleFeeCents: ledger.rescheduleFeeCents,
     charges: [...ledger.charges].reverse().map((c) => ({
-      kind: c.kind,
+      // a Job's own Charges are never a Bill's
+      kind: c.kind as ChargeView["kind"],
       amountCents: c.amountCents,
       refundedCents: c.refundedCents,
       chargedAt: c.chargedAt.toISOString(),
     })),
     paidCents: ledger.paidCents,
+    billedCents: ledger.billedCents,
     owedCents: ledger.owedCents,
     paymentMethod: owner?.label ?? null,
     unpaid: job.unpaidSince
@@ -148,6 +159,9 @@ export type Settled = {
   paymentMethod: string | null;
   // what it did to the plan of a plan Job: put it On Hold, or resumed it
   plan: "held" | "resumed" | null;
+  // its money goes on its Client's weekly Bill instead (ADR-0016), so none
+  // moved now
+  billed: boolean;
 };
 
 // what a Charge is for: the Balance of a Completed Job, or the fee for one
@@ -224,6 +238,9 @@ const giveBack = async (
  * is Unpaid until a later settling takes it. One settling of a Job at a
  * time: the Job is held while its money moves. A plan Job's plan is On Hold
  * while any of its Jobs is Unpaid.
+ *
+ * A Job whose Client is billed weekly moves no money here: its next Bill
+ * bills whatever is owed then (ADR-0016).
  */
 export const settleJob = async (jobId: string): Promise<Settled> =>
   db.transaction(async (tx) => {
@@ -247,9 +264,14 @@ export const settleJob = async (jobId: string): Promise<Settled> =>
       becameUnpaid: false,
       paymentMethod: method?.label ?? null,
       plan: null,
+      billed: isBilledWeekly(job!, client, {
+        lines: ledger.billedLines,
+      }),
     };
 
-    if (ledger.owedCents < 0) {
+    // billed weekly, nothing moves: the next Bill takes it, and a Job
+    // Unpaid before weekly billing was switched on this week no longer is
+    if (!settled.billed && ledger.owedCents < 0) {
       settled.refundedCents = await giveBack(
         tx,
         ledger,
@@ -258,7 +280,7 @@ export const settleJob = async (jobId: string): Promise<Settled> =>
       );
     }
 
-    if (ledger.owedCents > 0) {
+    if (!settled.billed && ledger.owedCents > 0) {
       if (!method) {
         settled.failure = "no Payment Method is saved";
       } else {

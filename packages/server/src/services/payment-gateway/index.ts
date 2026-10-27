@@ -61,12 +61,39 @@ export type ChargeResult =
 export type RefundResult =
   { ok: true; refundId: string } | { ok: false; reason: string };
 
+// a Bill the Client pays on its page (ADR-0016), in the browser, by card or
+// bank debit; `reference` is ours (the Bill), and comes back in its events
+export type BillPaymentInput = {
+  payerId: string;
+  amount: number;
+  description: string;
+  reference: string;
+  idempotencyKey: string;
+};
+
+// how a Bill payment started in the browser stands. A bank debit is
+// processing for days until it clears or fails; waiting means the Client
+// hasn't finished the form.
+export type BillPaymentOutcome =
+  | {
+      status: "succeeded";
+      chargeId: string;
+      // what it paid, and for what: the reference it was started with
+      amount: number;
+      reference: string;
+    }
+  | { status: "processing" }
+  | { status: "waiting" }
+  | { status: "failed"; reason: string };
+
 // a webhook request's headers, as Express gives them
 export type EventHeaders = Record<string, string | string[] | undefined>;
 
 // what the provider tells us happened, in our own terms
 export type PaymentEvent =
   | { kind: "deposit_succeeded"; ref: string }
+  | { kind: "bill_payment_succeeded"; ref: string; reference: string }
+  | { kind: "bill_payment_failed"; ref: string; reference: string }
   | { kind: "charge_refunded"; chargeId: string }
   | { kind: "dispute_opened"; chargeId: string };
 
@@ -93,6 +120,12 @@ export interface PaymentGateway {
   depositOutcome(ref: string): Promise<DepositAttempt>;
   // a later Charge to a saved Payment Method, without the Client there
   charge(input: ChargeInput): Promise<ChargeResult>;
+  // a payment the Client makes in the browser, with `secret`; `ref` asks how
+  // it went
+  startBillPayment(
+    input: BillPaymentInput,
+  ): Promise<{ ref: string; secret: string }>;
+  billPaymentOutcome(ref: string): Promise<BillPaymentOutcome>;
   refund(input: RefundInput): Promise<RefundResult>;
   // checks a webhook really came from the provider (throws if not) and says
   // what it means; null for events we don't act on
@@ -117,6 +150,8 @@ export const paymentGateway: PaymentGateway = {
   takeDeposit: (input) => current.takeDeposit(input),
   depositOutcome: (ref) => current.depositOutcome(ref),
   charge: (input) => current.charge(input),
+  startBillPayment: (input) => current.startBillPayment(input),
+  billPaymentOutcome: (ref) => current.billPaymentOutcome(ref),
   refund: (input) => current.refund(input),
   parseEvent: (body, headers) => current.parseEvent(body, headers),
 };

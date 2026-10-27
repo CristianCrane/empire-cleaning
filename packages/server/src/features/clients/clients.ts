@@ -176,6 +176,13 @@ export const officeClientView = async (
       ...toPropertyView(p, list),
       status: statuses.get(p.id)!,
     })),
+    billing: {
+      weeklyFrom: client.billedWeeklyFrom,
+      canBillWeekly: ownProperties.some((p) => p.kind === "commercial"),
+      payment: client.billPayment,
+      termsDays: client.billTermsDays,
+      billingEmail: client.billingEmail,
+    },
   };
 };
 

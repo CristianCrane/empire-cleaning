@@ -258,6 +258,7 @@ const refundLine = (settled: Settled) =>
 
 // how taking a plan Job's fee went, as a line for the Client
 const feeChargeLine = (settled: Settled) => {
+  if (settled.billed) return ["It goes on your weekly bill."];
   const card = settled.paymentMethod ?? "card";
   if (settled.chargedCents > 0) return [`We've charged it to your ${card}.`];
   if (settled.failure) {
