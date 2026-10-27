@@ -1,14 +1,12 @@
-import { randomUUID } from "node:crypto";
 import { desc, eq, inArray } from "drizzle-orm";
 import type { ChargeView, JobPayment } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { clock } from "../../services/clock/index.ts";
 import { formatWhen } from "../../services/email/index.ts";
-import { paymentGateway } from "../../services/payment-gateway/index.ts";
 import { billedOf, isBilledWeekly } from "../bills/billed-weekly.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
-import { payerFor } from "../payments/payments.ts";
+import { chargeSaved, refundFrom } from "../payments/money.ts";
 import {
   charges,
   paymentMethods,
@@ -188,44 +186,6 @@ const describe = async (job: Job) => {
   return `${what}: ${cleanTypeLabel[job.cleanType]} at ${addressOf(property!)}, ${formatWhen(job.startsAt)}`;
 };
 
-// gives back `amount`, from the latest Charges first; stops at the first
-// refund that fails, which the next settling tries again
-const giveBack = async (
-  tx: Tx,
-  ledger: Ledger,
-  amount: number,
-  jobId: string,
-) => {
-  let left = amount;
-  for (const charge of ledger.charges) {
-    if (left === 0) break;
-    const part = Math.min(left, charge.amountCents - charge.refundedCents);
-    if (part === 0) continue;
-    const refunded = await paymentGateway
-      .refund({
-        chargeId: charge.gatewayRef,
-        amount: part,
-        idempotencyKey: `refund:${charge.id}:${charge.refundedCents}:${part}`,
-      })
-      .catch((e: unknown) => ({ ok: false, reason: String(e) }) as const);
-    if (!refunded.ok) {
-      // TODO(#41): the refund_failed signal
-      console.error(
-        `${part} cents for Job ${jobId} couldn't be refunded from Charge ${charge.id} (${refunded.reason}); settling the Job again retries it`,
-      );
-      break;
-    }
-    await tx.insert(refunds).values({
-      chargeId: charge.id,
-      amountCents: part,
-      gatewayRef: refunded.refundId,
-      refundedAt: clock.now(),
-    });
-    left -= part;
-  }
-  return amount - left;
-};
-
 /**
  * Settles a Job's money: works out afresh what it owes (its price with the
  * Adjustments that count, once Completed; its Deposit, if not), against what
@@ -270,49 +230,26 @@ export const settleJob = async (jobId: string): Promise<Settled> =>
     };
 
     // billed weekly, nothing moves: the next Bill takes it, and a Job
-    // Unpaid before weekly billing was switched on this week no longer is
+    // Unpaid before weekly billing was switched on this week no longer is.
+    // A refund that fails is tried again by the next settling.
     if (!settled.billed && ledger.owedCents < 0) {
-      settled.refundedCents = await giveBack(
+      settled.refundedCents = await refundFrom(
         tx,
-        ledger,
+        ledger.charges,
         -ledger.owedCents,
-        jobId,
       );
     }
 
     if (!settled.billed && ledger.owedCents > 0) {
-      if (!method) {
-        settled.failure = "no Payment Method is saved";
-      } else {
-        const result = await paymentGateway
-          .charge({
-            payerId: await payerFor(client),
-            paymentMethodId: method.gatewayRef,
-            amount: ledger.owedCents,
-            description: await describe(job!),
-            idempotencyKey: `${kindOf(job!)}:${jobId}:${randomUUID()}`,
-          })
-          .catch((error: unknown) => {
-            // TODO(#41): the payment_gateway_error signal
-            console.error(`Balance for Job ${jobId} not charged:`, error);
-            return {
-              ok: false,
-              reason: "the payment provider couldn't be reached",
-            } as const;
-          });
-        if (result.ok) {
-          await tx.insert(charges).values({
-            jobId,
-            kind: kindOf(job!),
-            amountCents: ledger.owedCents,
-            gatewayRef: result.chargeId,
-            chargedAt: clock.now(),
-          });
-          settled.chargedCents = ledger.owedCents;
-        } else {
-          settled.failure = result.reason;
-        }
-      }
+      const charged = await chargeSaved(tx, {
+        client,
+        method,
+        amount: ledger.owedCents,
+        description: await describe(job!),
+        for: { jobId, kind: kindOf(job!) },
+      });
+      if (charged.ok) settled.chargedCents = ledger.owedCents;
+      else settled.failure = charged.reason;
     }
 
     if (settled.failure) {
