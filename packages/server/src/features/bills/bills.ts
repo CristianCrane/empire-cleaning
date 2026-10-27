@@ -56,6 +56,7 @@ import { adjustments } from "../completion/completion.schema.ts";
 import { adjustmentLabel } from "../completion/completion.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { REMINDER_TIME } from "../jobs/reminders.ts";
+import { chargeSaved, refundFrom } from "../payments/money.ts";
 import { payerFor } from "../payments/payments.ts";
 import {
   charges,
@@ -450,38 +451,14 @@ export const chargeBill = async (billId: string): Promise<Charged | null> =>
     const { client, method } = owner!;
     const now = clock.now();
 
-    let failure: string | null = null;
-    if (!method) {
-      failure = "no Payment Method is saved";
-    } else {
-      const result = await paymentGateway
-        .charge({
-          payerId: await payerFor(client),
-          paymentMethodId: method.gatewayRef,
-          amount: bill.totalCents,
-          description: `Empire Cleaning bill ${billNumber(bill.number)}`,
-          idempotencyKey: `bill:${bill.id}:${randomUUID()}`,
-        })
-        .catch((error: unknown) => {
-          // TODO(#41): the payment_gateway_error signal
-          console.error(`Bill ${bill.id} not charged:`, error);
-          return {
-            ok: false,
-            reason: "the payment provider couldn't be reached",
-          } as const;
-        });
-      if (result.ok) {
-        await tx.insert(charges).values({
-          billId: bill.id,
-          kind: "bill",
-          amountCents: bill.totalCents,
-          gatewayRef: result.chargeId,
-          chargedAt: now,
-        });
-      } else {
-        failure = result.reason;
-      }
-    }
+    const charged = await chargeSaved(tx, {
+      client,
+      method,
+      amount: bill.totalCents,
+      description: `Empire Cleaning bill ${billNumber(bill.number)}`,
+      for: { billId: bill.id, kind: "bill" },
+    });
+    const failure = charged.ok ? null : charged.reason;
 
     await tx
       .update(bills)
@@ -713,24 +690,14 @@ export const finishBillPayment = async (
   });
 
   if (done?.kind === "refund") {
-    // TODO(#41): the refund_failed signal, if this one fails
-    const refunded = await paymentGateway
-      .refund({
-        chargeId: done.charge.gatewayRef,
-        amount: done.charge.amountCents,
-        idempotencyKey: `refund:${done.charge.id}:0:${done.charge.amountCents}`,
-      })
-      .catch((e: unknown) => ({ ok: false, reason: String(e) }) as const);
-    if (refunded.ok) {
-      await db.insert(refunds).values({
-        chargeId: done.charge.id,
-        amountCents: done.charge.amountCents,
-        gatewayRef: refunded.refundId,
-        refundedAt: clock.now(),
-      });
-    } else {
+    const refunded = await refundFrom(
+      db,
+      [done.charge],
+      done.charge.amountCents,
+    );
+    if (refunded < done.charge.amountCents) {
       console.error(
-        `a second payment for Bill ${billId} couldn't be refunded (${refunded.reason})`,
+        `a second payment for Bill ${billId} couldn't be refunded: refund it by hand`,
       );
     }
   }
@@ -1110,8 +1077,9 @@ const refundCredit = async (clientId: string, cutoff: Date) =>
     const credit = await openCreditOf(clientId, tx);
     if (!credit || credit.bill.madeAt > cutoff) return null;
 
-    // the Client's Charges, for Bills and Jobs, latest first; a plan's held
-    // Deposit isn't theirs to take back while the plan runs
+    // the Client's Charges, for Bills and Jobs; a plan's held Deposit isn't
+    // theirs to take back while the plan runs. What isn't refunded now, the
+    // next run tries again.
     const theirs = await tx
       .select({ charge: charges })
       .from(charges)
@@ -1120,58 +1088,18 @@ const refundCredit = async (clientId: string, cutoff: Date) =>
       .leftJoin(properties, eq(properties.id, jobs.propertyId))
       .where(
         or(eq(bills.clientId, clientId), eq(properties.clientId, clientId)),
-      )
-      .orderBy(desc(charges.chargedAt), desc(charges.createdAt));
-    const given =
-      theirs.length === 0
-        ? []
-        : await tx
-            .select()
-            .from(refunds)
-            .where(
-              inArray(
-                refunds.chargeId,
-                theirs.map((t) => t.charge.id),
-              ),
-            );
-
-    let left = credit.cents;
-    for (const { charge } of theirs) {
-      if (left === 0) break;
-      const already = given
-        .filter((r) => r.chargeId === charge.id)
-        .reduce((s, r) => s + r.amountCents, 0);
-      const part = Math.min(left, charge.amountCents - already);
-      if (part <= 0) continue;
-      const refunded = await paymentGateway
-        .refund({
-          chargeId: charge.gatewayRef,
-          amount: part,
-          idempotencyKey: `credit:${credit.bill.id}:${charge.id}:${already}:${part}`,
-        })
-        .catch((e: unknown) => ({ ok: false, reason: String(e) }) as const);
-      if (!refunded.ok) {
-        // TODO(#41): the refund_failed signal
-        console.error(
-          `${part} cents of Bill ${credit.bill.id}'s credit couldn't be refunded from Charge ${charge.id} (${refunded.reason}); the next run tries again`,
-        );
-        break;
-      }
-      await tx.insert(refunds).values({
-        chargeId: charge.id,
-        amountCents: part,
-        gatewayRef: refunded.refundId,
-        refundedAt: clock.now(),
-      });
-      left -= part;
-    }
-    const cents = credit.cents - left;
+      );
+    const cents = await refundFrom(
+      tx,
+      theirs.map((t) => t.charge),
+      credit.cents,
+    );
     if (cents === 0) return null;
     await tx
       .update(bills)
       .set({
         creditRefundedCents: credit.bill.creditRefundedCents + cents,
-        ...(left === 0 && { creditRefundedAt: clock.now() }),
+        ...(cents === credit.cents && { creditRefundedAt: clock.now() }),
       })
       .where(eq(bills.id, credit.bill.id));
     return { billId: credit.bill.id, cents };
