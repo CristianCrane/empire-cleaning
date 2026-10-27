@@ -30,7 +30,7 @@ import { InArea } from "./MessagePage.tsx";
 import { areas, areasFor, signOut, type AreaId } from "../session.ts";
 
 // an item is current on its own page, and on the pages that belong to its
-// section (alsoCurrentFor: URL prefixes), e.g. a Quote reached from Requests
+// section (alsoCurrentFor: URL prefixes), e.g. a Quote reached from Quotes
 type AreaNavItem = NavItem & { alsoCurrentFor?: string[] };
 
 // each area's navigation; feature tickets add their screens here
@@ -38,10 +38,10 @@ const navFor: Record<AreaId, AreaNavItem[]> = {
   office: [
     { href: linkTo({ to: "/office" }), label: "Today", icon: LayoutDashboard },
     {
-      href: linkTo({ to: "/office/requests" }),
-      label: "Requests",
+      href: linkTo({ to: "/office/quotes" }),
+      label: "Quotes",
       icon: Inbox,
-      alsoCurrentFor: ["/office/requests/", "/office/quotes"],
+      alsoCurrentFor: ["/office/quotes/"],
     },
     {
       href: linkTo({ to: "/office/clients" }),

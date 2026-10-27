@@ -97,8 +97,8 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
           description: `${addressOf(quote.property)} · asked ${formatDate(item.since)}`,
           open: () =>
             navigate({
-              to: "/office/requests/$requestId",
-              params: { requestId: quote.id },
+              to: "/office/quotes/$quoteId",
+              params: { quoteId: quote.id },
             }),
         };
       }

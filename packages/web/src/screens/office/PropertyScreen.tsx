@@ -57,7 +57,7 @@ import {
 } from "./SiteVisitParts.tsx";
 import { OfferServicePlan } from "./StartDraft.tsx";
 
-// a home for the Office: its whole history (ADR-0011), its Quote Requests,
+// a home for the Office: its whole history (ADR-0011): its
 // Quotes and Jobs, its Site Visits, and its details
 export function PropertyScreen() {
   const { home, premisesTypes } = useLoaderData({
@@ -92,8 +92,8 @@ const clientCrumb = (client: ClientName): Crumb => ({
   }),
 });
 
-// the crumbs for a screen below a home (a Quote Request, Quote or Job): its
-// Client, then the home
+// the crumbs for a screen below a home (a Quote or Job): its Client, then
+// the home
 export const homeCrumbs = (
   client: ClientName,
   home: Pick<PropertyView, "id" | "street" | "unit" | "postcode">,
@@ -217,7 +217,7 @@ function PlanLink({ plan }: { plan: ServicePlanSummary }) {
   );
 }
 
-// a home's requests, Quotes and Jobs, newest first, each opening its own
+// a home's Quotes and Jobs, newest first, each opening its own
 // screen; and the way to offer it a plan: a home once its First Clean is
 // Completed, business premises at any time (ADR-0014)
 function History({ home }: { home: OfficePropertyView }) {
@@ -256,17 +256,10 @@ function History({ home }: { home: OfficePropertyView }) {
             }
             end={<QuoteStatusBadge status={quote.status} />}
             onAction={() =>
-              void navigate(
-                quote.status === "requested"
-                  ? {
-                      to: "/office/requests/$requestId",
-                      params: { requestId: quote.id },
-                    }
-                  : {
-                      to: "/office/quotes/$quoteId",
-                      params: { quoteId: quote.id },
-                    },
-              )
+              void navigate({
+                to: "/office/quotes/$quoteId",
+                params: { quoteId: quote.id },
+              })
             }
           />
         ))}

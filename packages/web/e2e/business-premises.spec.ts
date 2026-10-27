@@ -99,20 +99,20 @@ test("a business wanting regular cleaning is asked which days, or may ask for a 
 });
 
 test(
-  "Office Staff see a business's request priced from its floor area, and correct its premises",
+  "Office Staff see a business's Quote priced from its floor area, and correct its premises",
   { tag: "@desktop" },
   async ({ page }) => {
     await requestQuoteForPremises(casey, "Acme Dental");
     await signInAsOffice(page);
 
-    await page.getByRole("link", { name: "Requests" }).click();
+    await page.getByRole("link", { name: "Quotes", exact: true }).click();
     const row = page.getByRole("row", { name: /Acme Dental \(Casey Client\)/ });
     await expect(row).toContainText("Office · 4,500 sq ft");
     await expect(row).toContainText("Monday, Wednesday and Friday at 6:00 PM");
     await row.click();
 
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-      "Acme Dental (Casey Client)",
+      "Quote for Acme Dental (Casey Client)",
     );
     await expect(page.getByText("Not recorded yet")).toBeVisible();
     await expect(

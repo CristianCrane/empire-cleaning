@@ -11,7 +11,7 @@ import { composeTailwindRenderProps, focusRing } from "./utils.ts";
 // whether rows open something, set by the List's (or a row's own) onAction
 const OpensItems = createContext(false);
 
-// the phone-first way to show a collection (today's Jobs, Quote Requests):
+// the phone-first way to show a collection (today's Jobs, open Quotes):
 // one tappable row per item. Give onAction to open an item.
 export function List<T extends object>(props: GridListProps<T>) {
   return (

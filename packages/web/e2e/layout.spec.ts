@@ -90,9 +90,9 @@ test("the Office's screens fit every width", async ({ page }) => {
   await createStaff(olive);
   await signedInAs(page, olive.email);
 
-  await page.goto("/office/requests");
+  await page.goto("/office/quotes");
   await page.getByText("Casey Client").click();
-  await expect(page).toHaveURL(/\/office\/requests\/[0-9a-f-]{36}$/);
+  await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
   const request = new URL(page.url()).pathname;
   await page.getByRole("link", { name: "View Property" }).click();
   await expect(page).toHaveURL(/\/office\/properties\/[0-9a-f-]{36}$/);
@@ -110,7 +110,7 @@ test("the Office's screens fit every width", async ({ page }) => {
 
   for (const path of [
     "/office",
-    "/office/requests",
+    "/office/quotes",
     "/office/clients",
     "/office/quotes/new",
     request,
@@ -141,9 +141,9 @@ test("business premises' screens fit every width, the form included", async ({
   });
   await signedInAs(page, olive.email);
 
-  await page.goto("/office/requests");
+  await page.goto("/office/quotes");
   await page.getByText(/Acme Dental Group/).click();
-  await expect(page).toHaveURL(/\/office\/requests\/[0-9a-f-]{36}$/);
+  await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
   const request = new URL(page.url()).pathname;
   await page.getByRole("link", { name: "View Property" }).click();
   await expect(page).toHaveURL(/\/office\/properties\/[0-9a-f-]{36}$/);
@@ -211,7 +211,7 @@ test("a Sent Quote fits every width, for the Office and the Client", async ({
   await requestQuoteAsGuest(casey, ["Inside the oven"]);
   await createStaff(olive);
   await signedInAs(page, olive.email);
-  await page.goto("/office/requests");
+  await page.goto("/office/quotes");
   await page.getByText("Casey Client").click();
   await page.getByRole("button", { name: "Draft a Quote" }).click();
   await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
@@ -246,7 +246,7 @@ test("an Accepted Quote and the Client's upcoming Jobs fit every width", async (
   await requestQuoteAsGuest(casey, ["Inside the oven"]);
   await createStaff(olive);
   await signedInAs(page, olive.email);
-  await page.goto("/office/requests");
+  await page.goto("/office/quotes");
   await page.getByText("Casey Client").click();
   await page.getByRole("button", { name: "Draft a Quote" }).click();
   await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);

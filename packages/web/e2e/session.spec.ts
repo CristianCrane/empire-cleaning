@@ -88,12 +88,12 @@ test("moving between pages in an area doesn't ask who you are each time", async 
   });
   const nav = page.getByRole("navigation", { name: "Office" });
 
-  await nav.getByRole("link", { name: "Requests" }).click();
-  await expect(page).toHaveURL("/office/requests");
+  await nav.getByRole("link", { name: "Quotes", exact: true }).click();
+  await expect(page).toHaveURL("/office/quotes");
   await nav.getByRole("link", { name: "Today" }).click();
   await expect(page).toHaveURL("/office");
-  await nav.getByRole("link", { name: "Requests" }).click();
-  await expect(page).toHaveURL("/office/requests");
+  await nav.getByRole("link", { name: "Quotes", exact: true }).click();
+  await expect(page).toHaveURL("/office/quotes");
 
   expect(asked).toEqual([]);
 });

@@ -291,7 +291,7 @@ export const test = base.extend<{ cleanSlate: void }>({
 
 export { expect };
 
-// a Quote Request as a Guest sends it from the landing page, straight to the
+// a Quote as a Guest asks for it from the landing page, straight to the
 // e2e API (packages/web/playwright.config.ts runs it on port 3100)
 export const requestQuoteAsGuest = async (
   contact: { name: string; email: string },

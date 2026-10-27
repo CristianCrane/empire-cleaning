@@ -33,7 +33,7 @@ export const QuoteStatuses: Story = {
       <StatusBadge tone="success">Accepted</StatusBadge>
       <StatusBadge tone="danger">Declined</StatusBadge>
       <StatusBadge tone="neutral">Expired</StatusBadge>
-      <StatusBadge tone="neutral">Superseded</StatusBadge>
+      <StatusBadge tone="neutral">Turned Down</StatusBadge>
     </div>
   ),
 };

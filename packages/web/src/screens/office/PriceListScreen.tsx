@@ -370,7 +370,7 @@ function Editor({ list }: { list: PriceList }) {
       <Card
         title="Add-ons"
         headingLevel={2}
-        description="Extras for homes, businesses or both. Clients asking about a home see the names of those for homes; the price is on the Quote. Business premises' are agreed after a visit. Retire one to stop offering it: requests that already chose it still price it."
+        description="Extras for homes, businesses or both. Clients asking about a home see the names of those for homes; the price is on the Quote. Business premises' are agreed after a visit. Retire one to stop offering it: Quotes that already asked for it still price it."
       >
         <ul className="flex flex-col gap-4">
           {draft.addOns.map((addOn, i) => (

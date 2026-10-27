@@ -27,6 +27,7 @@ test("a record that doesn't exist is a page not found in the Office, with a way 
     `/office/quotes/${missing}`,
     `/office/service-plans/${missing}`,
     `/office/bills/${missing}`,
+    // an old Requests link leads to the Quote, which isn't there either
     `/office/requests/${missing}`,
     `/office/staff/${missing}`,
     `/office/clients/${missing}`,

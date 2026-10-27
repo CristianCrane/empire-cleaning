@@ -582,6 +582,22 @@ describe("Expiry", () => {
     });
   });
 
+  test("stays on the Office's list for 30 days, to be revived", async () => {
+    const quoteId = await asked();
+    const office = await signInAsOffice();
+    const first = await sentQuote(office, quoteId);
+    const listed = async () =>
+      (
+        (await office.get("/api/quotes").expect(200)).body as QuoteSummary[]
+      ).map((q) => [q.id, q.status]);
+
+    const expiry = new Date(first.offer!.expiresAt!).getTime();
+    testClock().set(new Date(expiry + 30 * 86_400_000 - 60_000));
+    expect(await listed()).toEqual([[quoteId, "expired"]]);
+    testClock().set(new Date(expiry + 30 * 86_400_000));
+    expect(await listed()).toEqual([]);
+  });
+
   test("lets the Client ask again, which starts a new Quote", async () => {
     const quoteId = await asked();
     const office = await signInAsOffice();

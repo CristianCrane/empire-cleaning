@@ -304,7 +304,7 @@ test("a request for a home whose First Clean is done can be answered with either
   await firstCleanDone(page);
   const asked = await askAgain();
 
-  await page.goto(`/office/requests/${asked}`);
+  await page.goto(`/office/quotes/${asked}`);
 
   await expect(
     page.getByRole("button", { name: "Draft a one-off Quote" }),
@@ -313,15 +313,11 @@ test("a request for a home whose First Clean is done can be answered with either
     .getByRole("button", { name: "Draft a Service Plan Quote" })
     .click();
   await atPlanDraft(page);
-  // it was asked for, so leads back to what was asked
-  await page
-    .getByLabel("Breadcrumbs")
-    .getByRole("link", { name: "What was asked" })
-    .click();
-  await expect(page).toHaveURL(new RegExp(`/office/requests/${asked}$`));
+  // the same Quote, with what was asked beside its Draft
+  await expect(page).toHaveURL(new RegExp(`/office/quotes/${asked}$`));
   await expect(
-    page.getByRole("button", { name: "Continue the Draft" }),
-  ).toBeVisible();
+    page.getByRole("region", { name: "What was asked" }),
+  ).toContainText("Wanted after the first clean");
 });
 
 test("a Service Plan Quote and the Client's view of it pass an accessibility check", async ({
@@ -428,7 +424,7 @@ test("a home whose First Clean isn't Completed is answered with a one-off Quote"
   });
   const { id } = (await res.json()) as { id: string };
 
-  await page.goto(`/office/requests/${id}`);
+  await page.goto(`/office/quotes/${id}`);
 
   await expect(
     page.getByRole("button", { name: "Draft a Quote" }),

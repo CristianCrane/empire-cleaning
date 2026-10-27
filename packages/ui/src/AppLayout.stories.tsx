@@ -44,7 +44,7 @@ const meta = {
           <List aria-label="Needs attention">
             <ListItem
               id="1"
-              title="Quote Request from Dana Doe"
+              title="Quote asked for by Dana Doe"
               description="108-20 71st Ave · 2 hours ago"
               end={<StatusBadge tone="info">New</StatusBadge>}
             />

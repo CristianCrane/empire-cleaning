@@ -25,7 +25,7 @@ const signInAsOffice = async (page: Page) => {
 // the API's fake clock is at 4am on Monday 5 January 2026 in New York
 
 test(
-  "Office Staff see new Quote Requests and open one",
+  "Office Staff see Quotes asked for and open one",
   { tag: ["@smoke", "@desktop"] },
   async ({ page }) => {
     await requestQuoteAsGuest({
@@ -40,7 +40,7 @@ test(
     await expect(request).toContainText("Send a Quote");
 
     await request.click();
-    await expect(page).toHaveURL(/\/office\/requests\/[0-9a-f-]{36}$/);
+    await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
   },
 );
 

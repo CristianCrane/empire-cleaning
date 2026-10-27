@@ -29,9 +29,10 @@ const SEARCH_DELAY_MS = 250;
 
 /**
  * Quoting someone who phones (#34): find them among the Clients, or enter
- * them (email optional), then describe the home as the Quote Request form
- * asks. That records their request, marked as entered by the Office, and
- * opens a one-off Quote Draft answering it. No receipt is emailed.
+ * them (email optional), then describe the home as the form for asking
+ * for a Quote does. That records what they asked, marked as entered by the
+ * Office, and opens the Quote with its first Revision drafted, one-off. No
+ * receipt is emailed.
  */
 export function NewQuoteScreen() {
   const client = useLoaderData({ from: "/office/quotes/new" });
@@ -48,7 +49,7 @@ export function NewQuoteScreen() {
       <div className="flex flex-col gap-4">
         <Breadcrumbs
           trail={[
-            { label: "Requests", href: linkTo({ to: "/office/requests" }) },
+            { label: "Quotes", href: linkTo({ to: "/office/quotes" }) },
             { label: "New Quote" },
           ]}
         />

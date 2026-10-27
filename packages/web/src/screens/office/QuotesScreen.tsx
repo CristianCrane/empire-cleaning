@@ -2,10 +2,10 @@ import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import { Phone } from "lucide-react";
 import {
   Button,
-  Card,
   Heading,
   List,
   ListItem,
+  Section,
   StatusBadge,
 } from "@empire-cleaning/ui";
 import { QuoteStatusBadge } from "../QuoteParts.tsx";
@@ -18,44 +18,34 @@ import {
   wantedCleaning,
 } from "../format.ts";
 
-// The Office's open Quotes, newest first: Requested, Draft and Sent; open
-// one asked for to see what was asked, or a Draft or Sent one to work on
-// it. A New Quote is for someone who phones (#34). #101 and #103 reshape
-// this list.
-export function QuoteRequests() {
-  const quotes = useLoaderData({ from: "/office/requests" });
+// The Office's open Quotes, newest first: Requested, Draft and Sent, and
+// those Expired lately, which may be revived. Closed ones are on their
+// Client's and Property's pages. A New Quote is for someone who phones
+// (#34). #103 prototypes this list's layout.
+export function QuotesScreen() {
+  const quotes = useLoaderData({ from: "/office/quotes" });
   const navigate = useNavigate();
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Heading level={1}>Quote Requests</Heading>
+        <Heading level={1}>Quotes</Heading>
         <Button onPress={() => void navigate({ to: "/office/quotes/new" })}>
           <Phone aria-hidden size={18} />
           New Quote
         </Button>
       </div>
-      <Card>
+      <Section title="Open Quotes">
         <List
-          aria-label="Open Quote Requests"
-          onAction={(id) => {
-            const quote = quotes.find((q) => q.id === id)!;
-            void navigate(
-              quote.status === "requested"
-                ? {
-                    to: "/office/requests/$requestId",
-                    params: { requestId: quote.id },
-                  }
-                : {
-                    to: "/office/quotes/$quoteId",
-                    params: { quoteId: quote.id },
-                  },
-            );
-          }}
+          aria-label="Open Quotes"
+          onAction={(id) =>
+            void navigate({
+              to: "/office/quotes/$quoteId",
+              params: { quoteId: String(id) },
+            })
+          }
           renderEmptyState={() => (
-            <p className="p-6 text-center text-fg-muted">
-              No open Quote Requests.
-            </p>
+            <p className="p-6 text-center text-fg-muted">No open Quotes.</p>
           )}
         >
           {quotes.map((quote) => (
@@ -74,7 +64,8 @@ export function QuoteRequests() {
                 formatDate(quote.createdAt),
               ].join(" · ")}
               end={
-                <div className="flex flex-wrap justify-end gap-2">
+                // at most half the row, wrapping, so the name keeps room
+                <div className="flex max-w-1/2 flex-wrap justify-end gap-2">
                   {quote.siteVisit === "needed" && (
                     <StatusBadge tone="warning">Needs Site Visit</StatusBadge>
                   )}
@@ -88,16 +79,17 @@ export function QuoteRequests() {
                     : quote.asked?.wantsRegularService && (
                         <StatusBadge tone="success">Regular visits</StatusBadge>
                       )}
-                  {/* this list was asks, so only a further status shows */}
-                  {quote.status !== "requested" && (
-                    <QuoteStatusBadge status={quote.status} />
-                  )}
+                  <QuoteStatusBadge status={quote.status} />
+                  {quote.drafting &&
+                    (quote.status === "sent" || quote.status === "expired") && (
+                      <StatusBadge tone="info">Draft changes</StatusBadge>
+                    )}
                 </div>
               }
             />
           ))}
         </List>
-      </Card>
+      </Section>
     </div>
   );
 }

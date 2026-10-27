@@ -140,7 +140,7 @@ test(
     ).toBeVisible();
 
     await signedInAs(page, olive.email);
-    await page.goto("/office/requests");
+    await page.goto("/office/quotes");
     const row = page.getByRole("row", { name: /Casey Client/ });
     await expect(row).toContainText("Plan change");
     await row.click();

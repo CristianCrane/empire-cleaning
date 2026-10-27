@@ -39,9 +39,9 @@ const signInAsOffice = async (page: Page) => {
   await expect(page).toHaveURL("/office");
 };
 
-// from the Office's Quote Request screen to a new Draft
+// from the Office's Requested Quote to a new Draft
 const startDraft = async (page: Page) => {
-  await page.goto("/office/requests");
+  await page.goto("/office/quotes");
   await page.getByText(casey.name).click();
   await page.getByRole("button", { name: "Draft a Quote" }).click();
   await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
@@ -179,6 +179,104 @@ test("the Client Declines a Quote from the portal", async ({
   await expect(
     page.getByRole("term").filter({ hasText: "Declined" }),
   ).toBeVisible();
+});
+
+test("Office Staff draft a new Revision of a Sent Quote, which keeps the last as history", async ({
+  page,
+}) => {
+  await requestQuoteAsGuest(casey);
+  await signInAsOffice(page);
+  await startDraft(page);
+  await proposeNextMonday(page);
+  await send(page);
+  const quote = page.url();
+  const revisions = page.getByRole("grid", { name: "Revisions" });
+  await expect(revisions.getByRole("row")).toHaveCount(1);
+  await expect(revisions.getByRole("row")).toContainText(
+    /Revision 1, sent .*The offer/,
+  );
+
+  await page.getByRole("button", { name: "Draft a new Revision" }).click();
+  // still Sent, the offer standing while the changes are drafted
+  await expect(page.getByText("Draft changes")).toBeVisible();
+  await expect(page.getByText("Sent", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText(
+      `You're drafting Revision 2. ${casey.name} still sees Revision 1 until you send it.`,
+    ),
+  ).toBeVisible();
+  await page.goto("/office/quotes");
+  await expect(
+    page.getByRole("row", { name: new RegExp(casey.name) }),
+  ).toContainText("Draft changes");
+
+  await page.goto(quote);
+  await send(page);
+  await expect(page.getByText("Draft changes")).toBeHidden();
+  const rows = revisions.getByRole("row");
+  await expect(rows).toHaveCount(2);
+  await expect(rows.first()).toContainText(/Revision 2, sent .*The offer/);
+  await expect(rows.last()).toContainText("Revision 1");
+  await expect(rows.last()).not.toContainText("The offer");
+});
+
+test("Office Staff Turn Down a Quote asked for, and the Client is told why", async ({
+  page,
+}) => {
+  await requestQuoteAsGuest(casey);
+  await signInAsOffice(page);
+  await page.goto("/office/quotes");
+  await page.getByText(casey.name).click();
+
+  await page.getByRole("button", { name: "Turn Down" }).click();
+  const dialog = page.getByRole("alertdialog", {
+    name: "Turn Down this Quote?",
+  });
+  await dialog.getByText("Outside the area we clean").click();
+  await dialog.getByRole("button", { name: "Turn Down" }).click();
+
+  await expect(page.getByText("Quote Turned Down")).toBeVisible();
+  await expect(
+    page.getByText(/Turned Down .*: outside the area we clean\./),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Turn Down" })).toBeHidden();
+  await expect(
+    page.getByRole("button", { name: "Draft a Quote" }),
+  ).toBeHidden();
+  const told = (await emailsTo(casey.email)).find(
+    (e) => e.subject === "About your Quote from Empire Cleaning",
+  );
+  expect(told?.text).toContain("it is outside the area we clean");
+  // closed, so off the list of open Quotes
+  await page.goto("/office/quotes");
+  await expect(page.getByText("No open Quotes.")).toBeVisible();
+});
+
+test("a Sent Quote can't be Turned Down", async ({ page }) => {
+  await requestQuoteAsGuest(casey);
+  await signInAsOffice(page);
+  await startDraft(page);
+  await expect(page.getByRole("button", { name: "Turn Down" })).toBeVisible();
+  await proposeNextMonday(page);
+  await send(page);
+
+  await expect(page.getByRole("button", { name: "Turn Down" })).toBeHidden();
+});
+
+test("old Requests links lead to Quotes", async ({ page }) => {
+  await requestQuoteAsGuest(casey);
+  await signInAsOffice(page);
+  await page.goto("/office/quotes");
+  await page.getByText(casey.name).click();
+  const id = new URL(page.url()).pathname.split("/").at(-1);
+
+  await page.goto("/office/requests");
+  await expect(page).toHaveURL("/office/quotes");
+  await page.goto(`/office/requests/${id}`);
+  await expect(page).toHaveURL(`/office/quotes/${id}`);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    `Quote for ${casey.name}`,
+  );
 });
 
 test("a Quote about to Expire needs attention", async ({ page }) => {
