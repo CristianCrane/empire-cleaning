@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 import {
   acceptedJob,
+  billedWeek,
   bookJob,
   bookSiteVisit,
   completedFirstClean,
@@ -490,4 +491,38 @@ test("signing in, the welcome page and the Cleaner area fit every width", async 
   await signedInAs(page, "cory@example.com");
   await expectFitsEveryWidth(page, "/cleaner");
   await expectFitsEveryWidth(page, `/cleaner/jobs/${job.id}`);
+});
+
+test("weekly Bills fit every width, for the Office and the Client", async ({
+  page,
+  browser,
+}) => {
+  await createStaff(olive);
+  await signUp(olive.email);
+  // Unpaid, with the most to show: its plan On Hold, and paying it
+  const { clientId, billId, planId } = await billedWeek({
+    officeEmail: olive.email,
+    billingEmail: "accounts@acme.example.com",
+    plan: true,
+    failing: true,
+  });
+  await signedInAs(page, olive.email);
+  for (const path of [
+    "/office",
+    `/office/clients/${clientId}`,
+    `/office/bills/${billId}`,
+    `/office/service-plans/${planId}`,
+  ]) {
+    await expectFitsEveryWidth(page, path);
+  }
+
+  const client = await (await browser.newContext()).newPage();
+  await signedInAs(client, casey.email);
+  for (const path of [
+    "/portal",
+    `/portal/bills/${billId}`,
+    `/portal/plans/${planId}`,
+  ]) {
+    await expectFitsEveryWidth(client, path);
+  }
 });

@@ -180,6 +180,38 @@ export const offerPlace = (
     body: JSON.stringify({ staffId, confirmed }),
   });
 
+// A week billed for Casey, a business now, with premises: their Deep Clean
+// at 9am on Wednesday 7 January, Quoted by the Office Staff member with
+// `officeEmail` (signed up already) and done at noon by Cory, a Cleaner added
+// for it, goes on bill EC-000001, made on Monday the 12th. It's charged
+// automatically or paid on its page, as `payment` says. With `plan`, a weekly
+// plan at the home from Thursday the 8th has its first Job on it too. With
+// `failing`, its automatic Charge is declined, and Charges keep failing
+// until failCharges(null). The clock is left at 10am on Monday the 12th.
+export const billedWeek = (week: {
+  officeEmail: string;
+  payment?: "automatic" | "on_page";
+  billingEmail?: string;
+  plan?: boolean;
+  failing?: boolean;
+}) =>
+  control("/bills/billed-week", {
+    method: "POST",
+    body: JSON.stringify(week),
+  }) as Promise<{
+    clientId: string;
+    billId: string;
+    jobId: string;
+    planId: string | null;
+  }>;
+
+// how the test payment form pays a Bill on its page from now on: by card
+// (the default), or by a bank debit that stays processing
+export const payBillsBy = (by: "card" | "bank") =>
+  control("/payments/bills-in-browser", {
+    method: "POST",
+    body: JSON.stringify({ by }),
+  });
 // moves the API's clock (it starts at 9:00 UTC on Monday 5 January 2026)
 export const setClock = (at: string) =>
   control("/clock", { method: "POST", body: JSON.stringify({ at }) });

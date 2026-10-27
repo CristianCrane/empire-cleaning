@@ -7,6 +7,8 @@ import type {
   BillView,
   OfficeClientView,
   CompletionInput,
+  NeedsAttentionItem,
+  OfficeServicePlan,
   SignedInAccount,
 } from "@empire-cleaning/models";
 import { db } from "#db";
@@ -23,7 +25,6 @@ import {
   undoCompletion,
 } from "#features/completion";
 import { jobs } from "#features/jobs";
-import { properties } from "#features/properties";
 import { servicePlans } from "#features/service-plans";
 import { createStaff, setUsualWeek } from "#features/staff";
 import {
@@ -36,11 +37,11 @@ import {
 import { FAKE_SIGNATURE } from "../../../tests/fakes/payment-gateway.ts";
 import {
   acceptedJob,
+  addPremises,
   casey,
   signInAsOffice,
   startedServicePlan,
 } from "../../../tests/fixtures.ts";
-import { addressKey } from "../properties/address.ts";
 
 type Agent = Awaited<ReturnType<typeof signIn>>;
 
@@ -51,23 +52,6 @@ const WEDNESDAY_9AM = "2026-01-07T14:00:00Z";
 const WEDNESDAY_NOON = new Date("2026-01-07T17:00:00Z");
 const NEXT_MONDAY = new Date("2026-01-12T15:00:00Z");
 const BILLING_EMAIL = "accounts@acme.example.com";
-
-// Casey has a home, and now business premises too: a commercial Client
-const addPremises = async (clientId: string) => {
-  const premises = {
-    street: "200 Park Ave S",
-    unit: "Floor 3",
-    postcode: "10003",
-  };
-  await db.insert(properties).values({
-    ...premises,
-    clientId,
-    kind: "commercial",
-    premisesTypeKey: randomUUID(),
-    floorArea: 4500,
-    addressKey: addressKey(premises),
-  });
-};
 
 // Cory, who works weekdays, so the Schedule has room
 const cory = async () => {
@@ -483,6 +467,35 @@ describe("Unpaid Bills", () => {
     expect(
       (await office.get("/api/bills?unpaid=true").expect(200)).body,
     ).toHaveLength(1);
+    // the plan says which Bill holds it, and the Office is to chase both
+    expect(
+      (
+        (await office.get(`/api/service-plans/${planId}`).expect(200))
+          .body as OfficeServicePlan
+      ).unpaidBills,
+    ).toEqual([
+      {
+        billId: summary!.id,
+        number: "EC-000001",
+        totalCents: summary!.totalCents,
+      },
+    ]);
+    const attention = (
+      await office.get("/api/dashboard/needs-attention").expect(200)
+    ).body as NeedsAttentionItem[];
+    expect(attention).toContainEqual(
+      expect.objectContaining({
+        kind: "bill_unpaid",
+        bill: expect.objectContaining({ id: summary!.id }),
+      }),
+    );
+    expect(attention).toContainEqual(
+      expect.objectContaining({
+        kind: "plan_on_hold",
+        owedCents: 0,
+        bills: ["EC-000001"],
+      }),
+    );
 
     testPayments().failCharges(null);
     const agent = await signIn(casey.email);

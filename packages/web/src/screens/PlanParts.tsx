@@ -111,26 +111,33 @@ type Viewer = {
   endPath: string;
 };
 
-// why a plan is On Hold, and the way to its Unpaid Jobs
+// why a plan is On Hold, and the way to its Unpaid Jobs and Bills
 export function OnHold({
   plan,
   forClient,
   jobHref,
-}: { plan: Omit<ServicePlanView, "upcoming"> } & Omit<Viewer, "endPath">) {
+  billHref,
+}: {
+  plan: Omit<ServicePlanView, "upcoming">;
+  billHref: (billId: string) => AppHref;
+} & Omit<Viewer, "endPath">) {
   if (plan.status !== "on_hold") return null;
+  const unpaid = [
+    ...plan.unpaid.map(
+      (u) =>
+        `the clean on ${formatDateTime(u.startsAt)} (${formatMoney(u.owedCents)})`,
+    ),
+    ...plan.unpaidBills.map(
+      (b) => `bill ${b.number} (${formatMoney(b.totalCents)})`,
+    ),
+  ];
   return (
     <Card title="On Hold">
       <p>
         {forClient
           ? "We couldn't take payment for "
           : "The Client's payment couldn't be taken for "}
-        {plan.unpaid
-          .map(
-            (u) =>
-              `the clean on ${formatDateTime(u.startsAt)} (${formatMoney(u.owedCents)})`,
-          )
-          .join(" and ")}
-        .{" "}
+        {unpaid.join(" and ")}.{" "}
         {forClient
           ? "Cleans already booked go ahead, but we won't book any more until it's paid."
           : "Jobs already booked go ahead, but no more are booked until it's paid."}
@@ -144,6 +151,11 @@ export function OnHold({
               : forClient
                 ? "that clean"
                 : "the Job"}
+          </ButtonLink>
+        ))}
+        {plan.unpaidBills.map((b) => (
+          <ButtonLink key={b.billId} href={billHref(b.billId)}>
+            {forClient ? "Pay" : "See"} bill {b.number}
           </ButtonLink>
         ))}
       </Actions>

@@ -27,7 +27,7 @@ export function Card({
     <section
       aria-labelledby={title ? headingId : undefined}
       className={twMerge(
-        "flex flex-col gap-4 rounded-lg border border-border bg-surface p-4 text-fg shadow-raised sm:p-5",
+        "flex flex-col gap-4 rounded-lg border border-border bg-surface p-4 text-fg shadow-raised sm:p-5 print:break-inside-avoid print:shadow-none",
         className,
       )}
     >

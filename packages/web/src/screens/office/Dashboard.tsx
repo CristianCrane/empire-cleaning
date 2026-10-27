@@ -10,6 +10,7 @@ import {
   StatusBadge,
 } from "@empire-cleaning/ui";
 import { linkTo } from "../../links.ts";
+import { billWeek } from "../BillParts.tsx";
 import { AssignmentBadge } from "./JobScreen.tsx";
 import { SiteVisitBadge } from "./SiteVisitParts.tsx";
 import {
@@ -255,12 +256,32 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
             }),
         };
       }
+      case "bill_unpaid": {
+        const { bill } = item;
+        return {
+          key: `bill_unpaid ${bill.id}`,
+          title: clientName(bill.client),
+          description: `Bill ${bill.number} · ${formatMoney(bill.totalCents)} · ${billWeek(bill)}`,
+          badge: <StatusBadge tone="danger">Unpaid</StatusBadge>,
+          open: () =>
+            navigate({
+              to: "/office/bills/$billId",
+              params: { billId: bill.id },
+            }),
+        };
+      }
       case "plan_on_hold": {
         const { plan } = item;
+        const unpaid = [
+          item.owedCents > 0 && `${formatMoney(item.owedCents)} Unpaid`,
+          item.bills.length > 0 && `Bill ${item.bills.join(" and ")} Unpaid`,
+        ]
+          .filter(Boolean)
+          .join(", ");
         return {
           key: `plan_on_hold ${plan.id}`,
           title: clientName(plan.client),
-          description: `${addressOf(plan.property)} · Service Plan: ${formatMoney(item.owedCents)} Unpaid, no new Jobs booked`,
+          description: `${addressOf(plan.property)} · Service Plan: ${unpaid}, no new Jobs booked`,
           badge: <StatusBadge tone="warning">On Hold</StatusBadge>,
           open: () =>
             navigate({

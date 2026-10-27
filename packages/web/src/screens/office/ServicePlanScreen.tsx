@@ -73,6 +73,9 @@ export function ServicePlanScreen() {
         jobHref={(jobId) =>
           linkTo({ to: "/office/jobs/$jobId", params: { jobId } })
         }
+        billHref={(billId) =>
+          linkTo({ to: "/office/bills/$billId", params: { billId } })
+        }
       />
 
       {plan.unplaced.length > 0 && (

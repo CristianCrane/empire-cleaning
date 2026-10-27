@@ -53,6 +53,9 @@ export function PortalPlan() {
         jobHref={(jobId) =>
           linkTo({ to: "/portal/jobs/$jobId", params: { jobId } })
         }
+        billHref={(billId) =>
+          linkTo({ to: "/portal/bills/$billId", params: { billId } })
+        }
       />
 
       <Card title={planName(plan)}>

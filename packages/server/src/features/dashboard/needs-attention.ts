@@ -1,6 +1,7 @@
 import { inArray } from "drizzle-orm";
 import type { NeedsAttentionItem, ScheduledJob } from "@empire-cleaning/models";
 import { unassignedJobsWithin } from "../assignments/assignments.ts";
+import { listBills } from "../bills/bills.ts";
 import {
   jobsWithReportedAdjustments,
   unpaidJobs,
@@ -130,8 +131,19 @@ const unplacedVisitsSource: Source = async () =>
     visit,
   }));
 
-// Service Plans On Hold, longest On Hold first: their Unpaid Jobs are to be
-// chased, after which they book Jobs again
+// weekly Bills whose automatic Charge failed, longest Unpaid first: the
+// Office chases them (ADR-0016)
+const unpaidBillsSource: Source = async () =>
+  (await listBills({ unpaid: true }))
+    .map((bill) => ({
+      kind: "bill_unpaid" as const,
+      since: bill.unpaid!.since,
+      bill,
+    }))
+    .sort((a, b) => a.since.localeCompare(b.since));
+
+// Service Plans On Hold, longest On Hold first: their Unpaid Jobs and Bills
+// are to be chased, after which they book Jobs again
 const plansOnHoldSource: Source = async () =>
   (await plansOnHold()).map((item) => ({ kind: "plan_on_hold", ...item }));
 
@@ -144,6 +156,7 @@ const sources: Source[] = [
   rescheduleRequests,
   unplacedVisitsSource,
   unpaidJobsSource,
+  unpaidBillsSource,
   plansOnHoldSource,
   reportedAdjustments,
   quotesWithoutRoomSource,

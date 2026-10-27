@@ -1,11 +1,16 @@
 import { useState } from "react";
 import { useLoaderData, useNavigate, useRouter } from "@tanstack/react-router";
-import type { OfficeClientView, PropertyStatus } from "@empire-cleaning/models";
+import type {
+  BillPayment,
+  OfficeClientView,
+  PropertyStatus,
+} from "@empire-cleaning/models";
 import {
   Actions,
   Breadcrumbs,
   Button,
   Card,
+  Checkbox,
   Dialog,
   DialogTrigger,
   Form,
@@ -13,24 +18,32 @@ import {
   List,
   ListItem,
   Notice,
+  NumberField,
+  Radio,
+  RadioGroup,
   TextField,
   showToast,
 } from "@empire-cleaning/ui";
-import { ApiError, patchJson } from "../../api.ts";
+import { ApiError, patchJson, putJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
+import { BillStatusBadge, billLine } from "../BillParts.tsx";
 import {
   addressOf,
   clientName,
   formatDateTime,
+  formatDay,
   propertySummary,
 } from "../format.ts";
 
 // a Client for the Office: their contact details, which Office Staff can
 // correct (or add an email to), and their homes, each with where it stands
-// and opening its own page, which holds its history; and quoting them
-// afresh, as when they phone (#34)
+// and opening its own page, which holds its history; quoting them afresh,
+// as when they phone (#34); and for a business, how they're billed and their
+// weekly Bills (ADR-0016)
 export function ClientDetail() {
-  const client = useLoaderData({ from: "/office/clients/$clientId" });
+  const { client, bills } = useLoaderData({
+    from: "/office/clients/$clientId",
+  });
   const navigate = useNavigate();
 
   return (
@@ -100,7 +113,188 @@ export function ClientDetail() {
           ))}
         </List>
       </Card>
+
+      {(client.billing.canBillWeekly || client.billing.weeklyFrom) && (
+        <Billing client={client} />
+      )}
+
+      {bills.length > 0 && (
+        <Card title="Bills" description="Newest first.">
+          <List
+            aria-label={`${clientName(client)}'s Bills`}
+            onAction={(id) =>
+              void navigate({
+                to: "/office/bills/$billId",
+                params: { billId: String(id) },
+              })
+            }
+          >
+            {bills.map((bill) => (
+              <ListItem
+                key={bill.id}
+                id={bill.id}
+                title={bill.number}
+                description={billLine(bill)}
+                end={<BillStatusBadge bill={bill} />}
+              />
+            ))}
+          </List>
+        </Card>
+      )}
     </div>
+  );
+}
+
+// how a commercial Client is billed (ADR-0016): per Job, as every Client is
+// until Office Staff switch them to weekly Bills, and how they pay those
+function Billing({ client }: { client: OfficeClientView }) {
+  const { billing } = client;
+  return (
+    <Card title="Billing" actions={<EditBilling client={client} />}>
+      <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
+        <dt className="font-semibold">Billed</dt>
+        <dd>
+          {billing.weeklyFrom
+            ? `Weekly, from the week of ${formatDay(billing.weeklyFrom)}`
+            : "Per Job, when each is done"}
+        </dd>
+        {billing.weeklyFrom && (
+          <>
+            <dt className="font-semibold">Pays</dt>
+            <dd>
+              {billing.payment === "automatic"
+                ? "Charged to their saved Payment Method when each Bill is made"
+                : `On each Bill's page within ${billing.termsDays} ${billing.termsDays === 1 ? "day" : "days"}, by card or bank debit`}
+            </dd>
+          </>
+        )}
+        <dt className="font-semibold">Billing email</dt>
+        <dd className="[overflow-wrap:anywhere]">
+          {billing.billingEmail ?? "None: Bills go to their own email"}
+        </dd>
+      </dl>
+    </Card>
+  );
+}
+
+function EditBilling({ client }: { client: OfficeClientView }) {
+  const router = useRouter();
+  const { billing } = client;
+  const [weekly, setWeekly] = useState(billing.weeklyFrom !== null);
+  const [payment, setPayment] = useState<BillPayment>(billing.payment);
+  const [termsDays, setTermsDays] = useState(billing.termsDays);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [problem, setProblem] = useState<string>();
+  const [isSaving, setSaving] = useState(false);
+
+  const save = async (form: FormData, close: () => void) => {
+    setSaving(true);
+    setProblem(undefined);
+    setFieldErrors({});
+    try {
+      await putJson<OfficeClientView>(`/api/clients/${client.id}/billing`, {
+        weekly,
+        payment,
+        termsDays,
+        billingEmail: String(form.get("billingEmail") ?? "").trim() || null,
+      });
+      showToast({ tone: "success", title: "Billing saved" });
+      close();
+      await router.invalidate();
+    } catch (e) {
+      if (e instanceof ApiError && Object.keys(e.fieldErrors).length) {
+        setFieldErrors(e.fieldErrors);
+      } else {
+        setProblem(
+          e instanceof ApiError && e.status === 409
+            ? e.message
+            : "Billing wasn't saved. Please try again.",
+        );
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <DialogTrigger>
+      <Button variant="secondary">Edit</Button>
+      <Dialog title="Billing">
+        {({ close }) => (
+          <Form
+            validationErrors={fieldErrors}
+            onSubmit={(e) => {
+              e.preventDefault();
+              void save(new FormData(e.currentTarget), close);
+            }}
+          >
+            <Checkbox isSelected={weekly} onChange={setWeekly}>
+              Bill weekly
+            </Checkbox>
+            <p className="text-sm text-fg-muted">
+              {weekly
+                ? "Everything they owe for a week, Monday to Sunday, goes on one Bill made the following Monday, from this week on."
+                : billing.weeklyFrom
+                  ? "Bills already made stay due. Anything not billed yet is charged per Job."
+                  : "Each Job is charged to their card when it's done."}
+            </p>
+            {weekly && (
+              <>
+                <RadioGroup
+                  label="How they pay"
+                  value={payment}
+                  onChange={(value) => setPayment(value as BillPayment)}
+                >
+                  <Radio
+                    value="automatic"
+                    description="Each Bill is charged to their saved Payment Method when it's made, and emailed as a receipt."
+                  >
+                    Charged automatically
+                  </Radio>
+                  <Radio
+                    value="on_page"
+                    description="They pay each Bill on its page, by card or bank debit, by its due date."
+                  >
+                    On the Bill's page
+                  </Radio>
+                </RadioGroup>
+                {payment === "on_page" && (
+                  <NumberField
+                    label="Terms, in days"
+                    name="termsDays"
+                    description="From the Monday a Bill is made to its due date."
+                    minValue={1}
+                    maxValue={90}
+                    value={termsDays}
+                    onChange={(days) =>
+                      setTermsDays(Number.isNaN(days) ? 14 : days)
+                    }
+                    className="max-w-xs"
+                  />
+                )}
+              </>
+            )}
+            <TextField
+              label="Billing email (optional)"
+              name="billingEmail"
+              type="email"
+              autoComplete="off"
+              defaultValue={billing.billingEmail ?? ""}
+              description={`Bills and their receipts go here instead of ${client.email ?? "their own email"}.`}
+            />
+            {problem && <Notice tone="danger">{problem}</Notice>}
+            <Actions>
+              <Button variant="secondary" onPress={close}>
+                Cancel
+              </Button>
+              <Button type="submit" isPending={isSaving}>
+                Save
+              </Button>
+            </Actions>
+          </Form>
+        )}
+      </Dialog>
+    </DialogTrigger>
   );
 }
 

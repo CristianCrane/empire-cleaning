@@ -644,11 +644,19 @@ export type NeedsAttentionItem =
     }
   | {
       // a Service Plan On Hold, booking no new Jobs, while its Unpaid Jobs
-      // owe `owedCents` between them; `since` the first became Unpaid
+      // owe `owedCents` between them, or Unpaid Bills (`bills`, by number)
+      // have its Jobs on them; `since` the first became Unpaid
       kind: "plan_on_hold";
       since: string;
       plan: ServicePlanSummary & { client: ClientName };
       owedCents: number;
+      bills: string[];
+    }
+  | {
+      // a weekly Bill whose automatic Charge failed (ADR-0016)
+      kind: "bill_unpaid";
+      since: string;
+      bill: BillSummary;
     };
 
 export type NeedsAttentionKind = NeedsAttentionItem["kind"];
@@ -1398,6 +1406,9 @@ export type ServicePlanView = Omit<ServicePlanSummary, "days"> & {
   quoteId: string;
   // its Jobs that are Unpaid, which keep it On Hold, soonest first
   unpaid: { jobId: string; startsAt: string; owedCents: number }[];
+  // and its Unpaid Bills: those with any of its Jobs on them, which keep it
+  // On Hold too (ADR-0016), oldest first
+  unpaidBills: { billId: string; number: string; totalCents: number }[];
   // what Ending it would do now; null once it has Ended
   endTerms: EndPlanTerms | null;
   endedAt: string | null;

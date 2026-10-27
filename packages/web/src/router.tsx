@@ -7,6 +7,8 @@ import {
   useRouter,
 } from "@tanstack/react-router";
 import type {
+  BillSummary,
+  BillView,
   CleanerJob,
   CleanerJobs,
   CleanerSiteVisits,
@@ -42,6 +44,7 @@ import { getJson } from "./api.ts";
 import { AreaLayout } from "./screens/AreaLayout.tsx";
 import { CleanerHome } from "./screens/cleaner/CleanerHome.tsx";
 import { CleanerJobScreen } from "./screens/cleaner/CleanerJobScreen.tsx";
+import { BillScreen } from "./screens/office/BillScreen.tsx";
 import { Dashboard } from "./screens/office/Dashboard.tsx";
 import { JobScreen } from "./screens/office/JobScreen.tsx";
 import { PriceListScreen } from "./screens/office/PriceListScreen.tsx";
@@ -68,6 +71,7 @@ import {
   scheduleRange,
   type ScheduleSearch,
 } from "./screens/schedule-range.ts";
+import { PortalBill } from "./screens/portal/PortalBill.tsx";
 import { PortalHome } from "./screens/portal/PortalHome.tsx";
 import { PortalJob } from "./screens/portal/PortalJob.tsx";
 import { PortalPaymentMethod } from "./screens/portal/PortalPaymentMethod.tsx";
@@ -271,9 +275,21 @@ const officeClientsRoute = createRoute({
 const officeClientRoute = createRoute({
   getParentRoute: () => officeRoute,
   path: "/clients/$clientId",
-  loader: ({ params }) =>
-    getJson<OfficeClientView>(`/api/clients/${params.clientId}`),
+  loader: async ({ params }) => {
+    const [client, bills] = await Promise.all([
+      getJson<OfficeClientView>(`/api/clients/${params.clientId}`),
+      getJson<BillSummary[]>(`/api/bills?clientId=${params.clientId}`),
+    ]);
+    return { client, bills };
+  },
   component: ClientDetail,
+});
+
+const officeBillRoute = createRoute({
+  getParentRoute: () => officeRoute,
+  path: "/bills/$billId",
+  loader: ({ params }) => getJson<BillView>(`/api/bills/${params.billId}`),
+  component: BillScreen,
 });
 
 const officePropertyRoute = createRoute({
@@ -372,7 +388,7 @@ const portalHomeRoute = createRoute({
   getParentRoute: () => portalRoute,
   path: "/",
   loader: async () => {
-    const [client, plans, quotes, jobs, pastJobs, siteVisits] =
+    const [client, plans, quotes, jobs, pastJobs, siteVisits, bills] =
       await Promise.all([
         ownClient(),
         getJson<ServicePlanSummary[]>("/api/service-plans/mine"),
@@ -380,8 +396,9 @@ const portalHomeRoute = createRoute({
         getJson<ClientJob[]>("/api/jobs/mine"),
         getJson<ClientPastJob[]>("/api/jobs/mine/past"),
         getJson<ClientSiteVisit[]>("/api/site-visits/mine"),
+        getJson<BillSummary[]>("/api/bills/mine"),
       ]);
-    return { client, plans, quotes, jobs, pastJobs, siteVisits };
+    return { client, plans, quotes, jobs, pastJobs, siteVisits, bills };
   },
   component: PortalHome,
 });
@@ -420,6 +437,14 @@ const portalJobRoute = createRoute({
   loader: ({ params }) =>
     getJson<ClientJobDetail>(`/api/jobs/mine/${params.jobId}`),
   component: PortalJob,
+});
+
+// where a weekly Bill's emails lead
+const portalBillRoute = createRoute({
+  getParentRoute: () => portalRoute,
+  path: "/bills/$billId",
+  loader: ({ params }) => getJson<BillView>(`/api/bills/mine/${params.billId}`),
+  component: PortalBill,
 });
 
 // where the Office's "add a Payment Method" email leads
@@ -464,6 +489,7 @@ const routeTree = rootRoute.addChildren([
     officeStaffMemberRoute,
     officeScheduleRoute,
     officeJobRoute,
+    officeBillRoute,
   ]),
   cleanerRoute.addChildren([cleanerHomeRoute, cleanerJobRoute]),
   portalRoute.addChildren([
@@ -472,6 +498,7 @@ const routeTree = rootRoute.addChildren([
     portalQuoteRoute,
     portalPlanRoute,
     portalJobRoute,
+    portalBillRoute,
     portalDetailsRoute,
     portalPaymentMethodRoute,
   ]),
