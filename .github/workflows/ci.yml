@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# a newer push to a pull request cancels the run still going; runs on main
+# each finish
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+# No secrets: email, payments and the clock are faked in tests. The jobs that
+# need Postgres each start the test one from docker-compose.yml (port 5433, in
+# memory, disk syncing off), so they run in parallel without sharing a database.
+jobs:
+  checks:
+    name: Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup
+      - name: Typecheck
+        run: pnpm check
+      - name: Formatting
+        run: pnpm lint:check
+      - name: Package consistency
+        run: pnpm check:packages
+
+  server:
+    name: Server tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup
+      - run: docker compose up --detach --wait postgres_test
+      - run: pnpm --filter @empire-cleaning/server test
+
+  ui:
+    name: Design-system tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup
+      - uses: ./.github/actions/playwright
+      - run: pnpm --filter @empire-cleaning/ui test
+
+  web:
+    name: Web end-to-end tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup
+      - uses: ./.github/actions/playwright
+      - run: docker compose up --detach --wait postgres_test
+      - run: pnpm --filter @empire-cleaning/web test
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-playwright-report
+          path: |
+            packages/web/playwright-report
+            packages/web/test-results
+          retention-days: 14
+
+  landing:
+    name: Landing site tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup
+      - uses: ./.github/actions/playwright
+      - run: docker compose up --detach --wait postgres_test
+      - run: pnpm --filter @empire-cleaning/landing test
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: landing-playwright-report
+          path: |
+            packages/landing/playwright-report
+            packages/landing/test-results
+          retention-days: 14

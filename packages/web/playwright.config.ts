@@ -14,8 +14,9 @@ export default defineConfig({
   testDir: "./e2e",
   workers: 1,
   fullyParallel: false,
-  reporter: "list",
-  use: { baseURL: appUrl },
+  // CI also keeps an HTML report, and the trace of every failed test
+  reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
+  use: { baseURL: appUrl, trace: "retain-on-failure" },
   webServer: [
     {
       command: "pnpm --filter @empire-cleaning/server e2e:server",
