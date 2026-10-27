@@ -5,13 +5,16 @@ import type {
   OfficeJob,
   OfficePropertyView,
   OfficeQuote,
+  PlanDayInput,
   PriceList,
   QuoteDraftInput,
   QuoteRequestDetail,
   QuoteSummary,
   QuoteView,
+  ServicePlanInput,
   SignedInAccount,
 } from "@empire-cleaning/models";
+import { dayOf, timeOf } from "#services/clock";
 import { signIn, testClock, testEmail } from "../../../tests/harness.ts";
 import {
   casey,
@@ -53,31 +56,59 @@ const startPlan = async (office: Agent, propertyId: string) =>
       .expect(201)
   ).body as OfficeQuote;
 
+// what changes on a Service Plan Draft: its terms, and its first weekday's
+// visit, or every weekday's
+type PlanEdit = Partial<
+  Pick<QuoteDraftInput, "addOns" | "depositPercent" | "validityDays">
+> &
+  Partial<Omit<ServicePlanInput, "days">> &
+  Partial<PlanDayInput> & { days?: PlanDayInput[] };
+
+// a weekday as it is on a Draft, as a PATCH body has it
+const dayInput = (quote: OfficeQuote, i: number): PlanDayInput => {
+  const day = quote.plan!.days[i]!;
+  const option = quote.options[i]!;
+  const at = day.startsAt ? new Date(day.startsAt) : null;
+  return {
+    start: at && { date: dayOf(at), time: timeOf(at) },
+    cleanType: day.cleanType,
+    crewSize: day.crewSize,
+    override:
+      option.overrideCents === null
+        ? null
+        : { priceCents: option.overrideCents, reason: option.overrideReason! },
+  };
+};
+
 // what a Service Plan Draft is now, as a PATCH body, with changes
 const edit = (
   quote: OfficeQuote,
-  changes: Partial<QuoteDraftInput> = {},
-): QuoteDraftInput => ({
-  addOns: quote.addOns.map((a) => a.key),
-  crewSize: quote.crewSize,
-  depositPercent: quote.depositPercent,
-  validityDays: quote.validityDays,
-  proposedStart: quote.proposedStart,
-  overrides: { deep: null, standard: null },
-  plan: quote.plan && {
-    recurrence: quote.plan.recurrence,
-    cleanType: quote.plan.cleanType,
-    discountPercent: quote.plan.discountPercent,
-    condition: quote.plan.condition,
-  },
-  ...changes,
-});
+  {
+    addOns,
+    depositPercent,
+    validityDays,
+    recurrence,
+    discountPercent,
+    condition,
+    days,
+    ...first
+  }: PlanEdit = {},
+): QuoteDraftInput => {
+  const [day, ...others] = quote.plan!.days.map((_, i) => dayInput(quote, i));
+  return {
+    addOns: addOns ?? quote.addOns.map((a) => a.key),
+    depositPercent: depositPercent ?? quote.depositPercent,
+    validityDays: validityDays ?? quote.validityDays,
+    plan: {
+      recurrence: recurrence ?? quote.plan!.recurrence,
+      discountPercent: discountPercent ?? quote.plan!.discountPercent,
+      condition: condition ?? quote.plan!.condition,
+      days: days ?? [{ ...day!, ...first }, ...others],
+    },
+  };
+};
 
-const save = async (
-  office: Agent,
-  quote: OfficeQuote,
-  changes: Partial<QuoteDraftInput>,
-) =>
+const save = async (office: Agent, quote: OfficeQuote, changes: PlanEdit) =>
   (
     await office
       .patch(`/api/quotes/${quote.id}`)
@@ -88,9 +119,9 @@ const save = async (
 const send = async (
   office: Agent,
   draft: OfficeQuote,
-  changes: Partial<QuoteDraftInput> = {},
+  changes: PlanEdit = {},
 ) => {
-  await save(office, draft, { proposedStart: plansStart, ...changes });
+  await save(office, draft, { start: plansStart, ...changes });
   return (await office.post(`/api/quotes/${draft.id}/send`).expect(200))
     .body as OfficeQuote;
 };
@@ -98,7 +129,7 @@ const send = async (
 const sentPlan = async (
   office: Agent,
   propertyId: string,
-  changes: Partial<QuoteDraftInput> = {},
+  changes: PlanEdit = {},
 ) => send(office, await startPlan(office, propertyId), changes);
 
 const requestDetail = async (office: Agent, id: string) =>
@@ -159,7 +190,7 @@ describe("starting a Service Plan Quote", () => {
   test("sending is refused once the First Clean's completion is undone", async () => {
     const { office, propertyId, job } = await firstCleanDone();
     const draft = await startPlan(office, propertyId);
-    await save(office, draft, { proposedStart: plansStart });
+    await save(office, draft, { start: plansStart });
 
     // the completion was a mistake: the First Clean is booked again
     await office.delete(`/api/jobs/${job.id}/completion`).expect(200);
@@ -264,14 +295,22 @@ describe("starting a Service Plan Quote", () => {
     const oneOffTotal = STANDARD_MODERATE + tax(STANDARD_MODERATE, 8.875);
     expect(draft.plan).toEqual({
       recurrence: "fortnightly",
-      cleanType: "standard",
       discountPercent: 10,
       condition: "moderate",
-      oneOffPriceCents: STANDARD_MODERATE,
-      oneOffTaxCents: tax(STANDARD_MODERATE, 8.875),
-      oneOffTotalCents: oneOffTotal,
-      discountCents: 2060,
-      savingCents: oneOffTotal - option!.totalCents,
+      days: [
+        {
+          startsAt: null,
+          cleanType: "standard",
+          crewSize: draft.crewSize,
+          oneOffPriceCents: STANDARD_MODERATE,
+          oneOffTaxCents: tax(STANDARD_MODERATE, 8.875),
+          oneOffTotalCents: oneOffTotal,
+          discountCents: 2060,
+          savingCents: oneOffTotal - option!.totalCents,
+        },
+      ],
+      roundTotalCents: option!.totalCents,
+      depositCents: option!.depositCents,
     });
     expect(draft.firstClean).toEqual({
       job: {
@@ -292,19 +331,14 @@ describe("drafting a Service Plan Quote", () => {
     const draft = await startPlan(office, propertyId);
 
     const saved = await save(office, draft, {
-      plan: {
-        recurrence: "weekly",
-        cleanType: "standard",
-        discountPercent: 10,
-        condition: "heavy",
-      },
+      recurrence: "weekly",
+      condition: "heavy",
     });
 
     expect(saved.plan).toMatchObject({
       recurrence: "weekly",
       condition: "heavy",
-      oneOffPriceCents: STANDARD_HEAVY,
-      discountCents: 2890,
+      days: [{ oneOffPriceCents: STANDARD_HEAVY, discountCents: 2890 }],
     });
     expect(saved.options[0]!.priceCents).toBe(STANDARD_HEAVY - 2890);
   });
@@ -312,9 +346,7 @@ describe("drafting a Service Plan Quote", () => {
   test("can be a plan of Deep Cleans, with only the Deep Clean's price to override", async () => {
     const { office, propertyId } = await firstCleanDone();
     const draft = await startPlan(office, propertyId);
-    const deepPlan = { ...edit(draft).plan!, cleanType: "deep" as const };
-
-    const saved = await save(office, draft, { plan: deepPlan });
+    const saved = await save(office, draft, { cleanType: "deep" });
 
     expect(saved.options.map((o) => o.cleanType)).toEqual(["deep"]);
     const [option] = saved.options;
@@ -322,31 +354,30 @@ describe("drafting a Service Plan Quote", () => {
     expect(option!.suggested.cleanType).toBe("deep");
     const oneOff = option!.suggested.priceCents;
     expect(oneOff).toBeGreaterThan(STANDARD_MODERATE);
-    expect(saved.plan).toMatchObject({
-      cleanType: "deep",
-      oneOffPriceCents: oneOff,
-      discountCents: Math.floor((oneOff * 10 + 50) / 100),
-    });
+    expect(saved.plan!.days).toMatchObject([
+      {
+        cleanType: "deep",
+        oneOffPriceCents: oneOff,
+        discountCents: Math.floor((oneOff * 10 + 50) / 100),
+      },
+    ]);
 
+    // each weekday's price is overridden on that weekday
     const standard = await office
       .patch(`/api/quotes/${draft.id}`)
-      .send(
-        edit(saved, {
-          overrides: {
-            deep: null,
-            standard: { priceCents: 30000, reason: "x" },
-          },
-        }),
-      )
+      .send({
+        ...edit(saved),
+        overrides: {
+          deep: null,
+          standard: { priceCents: 30000, reason: "x" },
+        },
+      })
       .expect(400);
     expect(standard.body.details).toContainEqual(
       expect.objectContaining({ path: "overrides.standard" }),
     );
     const overridden = await save(office, saved, {
-      overrides: {
-        deep: { priceCents: 40000, reason: "Big home" },
-        standard: null,
-      },
+      override: { priceCents: 40000, reason: "Big home" },
     });
     expect(overridden.options[0]).toMatchObject({
       overrideCents: 40000,
@@ -361,26 +392,19 @@ describe("drafting a Service Plan Quote", () => {
 
     const saved = await save(office, draft, {
       addOns: [oven.key],
-      overrides: {
-        deep: null,
-        standard: { priceCents: 25000, reason: "Big garden room" },
-      },
+      override: { priceCents: 25000, reason: "Big garden room" },
     });
 
-    const [standard, deep] = saved.planChoices!;
+    const [standard, deep] = saved.planChoices![0]!;
     // its own Clean Type as saved, override and all
     expect(standard).toEqual({
       option: saved.options[0],
-      plan: saved.plan && {
-        recurrence: saved.plan.recurrence,
-        cleanType: "standard",
-        discountPercent: 10,
-        oneOffPriceCents: 25000,
-        oneOffTaxCents: saved.plan.oneOffTaxCents,
-        oneOffTotalCents: saved.plan.oneOffTotalCents,
-        discountCents: 2500,
-        savingCents: saved.plan.savingCents,
-      },
+      day: saved.plan!.days[0],
+    });
+    expect(standard!.day).toMatchObject({
+      cleanType: "standard",
+      oneOffPriceCents: 25000,
+      discountCents: 2500,
     });
     // the other at its Suggested Price, with the same terms and Add-ons
     expect(deep!.option).toMatchObject({
@@ -391,20 +415,19 @@ describe("drafting a Service Plan Quote", () => {
       { name: "Inside the oven" },
     ]);
     const oneOff = deep!.option.suggested.priceCents;
-    expect(deep!.plan).toMatchObject({
+    expect(deep!.day).toMatchObject({
       cleanType: "deep",
-      recurrence: "fortnightly",
       oneOffPriceCents: oneOff,
       discountCents: Math.floor((oneOff * 10 + 50) / 100),
     });
 
     // choosing it makes it the plan's
     const chosen = await save(office, saved, {
-      overrides: { deep: null, standard: null },
-      plan: { ...edit(saved).plan!, cleanType: "deep" },
+      override: null,
+      cleanType: "deep",
     });
     expect(chosen.options).toEqual([deep!.option]);
-    expect(chosen.planChoices!.map((c) => c.option.cleanType)).toEqual([
+    expect(chosen.planChoices![0]!.map((c) => c.option.cleanType)).toEqual([
       "standard",
       "deep",
     ]);
@@ -418,16 +441,9 @@ describe("drafting a Service Plan Quote", () => {
     const draft = await startPlan(office, propertyId);
 
     const saved = await save(office, draft, {
-      overrides: {
-        deep: null,
-        standard: { priceCents: 25000, reason: "Big garden room" },
-      },
-      plan: {
-        recurrence: "four_weekly",
-        cleanType: "standard",
-        discountPercent: 15,
-        condition: "moderate",
-      },
+      override: { priceCents: 25000, reason: "Big garden room" },
+      recurrence: "four_weekly",
+      discountPercent: 15,
     });
 
     // 15% off $250 is $37.50
@@ -442,9 +458,13 @@ describe("drafting a Service Plan Quote", () => {
     expect(saved.plan).toMatchObject({
       recurrence: "four_weekly",
       discountPercent: 15,
-      oneOffPriceCents: 25000,
-      oneOffTotalCents: 25000 + tax(25000, 8.875),
-      discountCents: 3750,
+      days: [
+        {
+          oneOffPriceCents: 25000,
+          oneOffTotalCents: 25000 + tax(25000, 8.875),
+          discountCents: 3750,
+        },
+      ],
     });
   });
 
@@ -457,10 +477,9 @@ describe("drafting a Service Plan Quote", () => {
 
     // half an hour more: 4.25 hours is $233.75, so $234
     expect(saved.addOns).toMatchObject([{ name: "Inside the oven" }]);
-    expect(saved.plan).toMatchObject({
-      oneOffPriceCents: 23400,
-      discountCents: 2340,
-    });
+    expect(saved.plan!.days).toMatchObject([
+      { oneOffPriceCents: 23400, discountCents: 2340 },
+    ]);
     expect(saved.options[0]!.priceCents).toBe(23400 - 2340);
   });
 
@@ -486,13 +505,15 @@ describe("drafting a Service Plan Quote", () => {
       taxCents: tax(perJob, 4.5),
       totalCents: perJob + tax(perJob, 4.5),
     });
-    expect(draft.plan).toMatchObject({
-      oneOffTaxCents: tax(STANDARD_MODERATE, 8.875),
-      savingCents:
-        STANDARD_MODERATE +
-        tax(STANDARD_MODERATE, 8.875) -
-        (perJob + tax(perJob, 4.5)),
-    });
+    expect(draft.plan!.days).toMatchObject([
+      {
+        oneOffTaxCents: tax(STANDARD_MODERATE, 8.875),
+        savingCents:
+          STANDARD_MODERATE +
+          tax(STANDARD_MODERATE, 8.875) -
+          (perJob + tax(perJob, 4.5)),
+      },
+    ]);
   });
 
   test("needs its plan terms, and a one-off Quote has none", async () => {
@@ -501,7 +522,7 @@ describe("drafting a Service Plan Quote", () => {
 
     const missing = await office
       .patch(`/api/quotes/${draft.id}`)
-      .send(edit(draft, { plan: null }))
+      .send({ ...edit(draft), plan: null })
       .expect(400);
     expect(missing.body.details).toContainEqual(
       expect.objectContaining({ path: "plan" }),
@@ -511,12 +532,8 @@ describe("drafting a Service Plan Quote", () => {
       .patch(`/api/quotes/${draft.id}`)
       .send(
         edit(draft, {
-          plan: {
-            recurrence: "monthly" as "weekly",
-            cleanType: "standard",
-            discountPercent: 101,
-            condition: "moderate",
-          },
+          recurrence: "monthly" as "weekly",
+          discountPercent: 101,
         }),
       )
       .expect(400);
@@ -563,9 +580,7 @@ describe("a Sent Service Plan Quote", () => {
 
     testClock().advance({ hours: 1 });
     const draft = await startPlan(office, propertyId);
-    await send(office, draft, {
-      plan: { ...edit(draft).plan!, recurrence: "weekly", cleanType: "deep" },
-    });
+    await send(office, draft, { recurrence: "weekly", cleanType: "deep" });
     expect(testEmail().lastTo(casey.email).text).toContain(
       "a Deep Clean every week",
     );
@@ -598,13 +613,21 @@ describe("a Sent Service Plan Quote", () => {
     // the Condition it's priced for is the Office's working
     expect(view.plan).toEqual({
       recurrence: "fortnightly",
-      cleanType: "standard",
       discountPercent: 10,
-      oneOffPriceCents: 20600,
-      oneOffTaxCents: 1828,
-      oneOffTotalCents: 22428,
-      discountCents: 2060,
-      savingCents: 2243,
+      days: [
+        {
+          startsAt: "2026-01-19T14:00:00.000Z",
+          cleanType: "standard",
+          crewSize: view.crewSize,
+          oneOffPriceCents: 20600,
+          oneOffTaxCents: 1828,
+          oneOffTotalCents: 22428,
+          discountCents: 2060,
+          savingCents: 2243,
+        },
+      ],
+      roundTotalCents: 20185,
+      depositCents: 5046,
     });
 
     const mine = (await client.get("/api/quotes/mine").expect(200))
@@ -616,7 +639,12 @@ describe("a Sent Service Plan Quote", () => {
         "service_plan",
         "sent",
         20185,
-        { recurrence: "fortnightly", cleanType: "standard" },
+        {
+          recurrence: "fortnightly",
+          days: [
+            { startsAt: "2026-01-19T14:00:00.000Z", cleanType: "standard" },
+          ],
+        },
       ],
       ["one_off", "accepted", expect.any(Number), null],
     ]);
@@ -633,7 +661,14 @@ describe("a Sent Service Plan Quote", () => {
     ).body as OfficeQuote;
     await office
       .patch(`/api/quotes/${oneOffDraft.id}`)
-      .send({ ...edit(oneOffDraft, { proposedStart: plansStart }), plan: null })
+      .send({
+        addOns: [],
+        crewSize: oneOffDraft.crewSize,
+        depositPercent: oneOffDraft.depositPercent,
+        validityDays: oneOffDraft.validityDays,
+        proposedStart: plansStart,
+        overrides: { deep: null, standard: null },
+      } satisfies QuoteDraftInput)
       .expect(200);
     const oneOff = (
       await office.post(`/api/quotes/${oneOffDraft.id}/send`).expect(200)
@@ -649,12 +684,9 @@ describe("a Sent Service Plan Quote", () => {
 
     testClock().advance({ hours: 1 });
     const newer = await sentPlan(office, propertyId, {
-      plan: {
-        recurrence: "weekly",
-        cleanType: "standard",
-        discountPercent: 12,
-        condition: "light",
-      },
+      recurrence: "weekly",
+      discountPercent: 12,
+      condition: "light",
     });
 
     expect(newer.status).toBe("sent");
@@ -711,7 +743,7 @@ describe("a Sent Service Plan Quote", () => {
 
     testClock().advance({ days: 30 });
     const again = await sentPlan(office, propertyId, {
-      proposedStart: { date: "2026-02-16", time: "09:00" },
+      start: { date: "2026-02-16", time: "09:00" },
     });
     expect(again.status).toBe("sent");
   });
@@ -724,7 +756,7 @@ describe("a Sent Service Plan Quote", () => {
 
     expect((await officeQuote(office, quote.id)).status).toBe("expired");
     await sentPlan(office, propertyId, {
-      proposedStart: { date: "2026-01-26", time: "09:00" },
+      start: { date: "2026-01-26", time: "09:00" },
     });
   });
 });
@@ -834,7 +866,7 @@ describe("Needs attention", () => {
     expect(await plansDue(office)).toHaveLength(1);
 
     const again = await sentPlan(office, propertyId, {
-      proposedStart: { date: "2026-01-26", time: "09:00" },
+      start: { date: "2026-01-26", time: "09:00" },
     });
     const client = await signIn(casey.email);
     await client.post(`/api/quotes/mine/${again.id}/decline`).expect(200);

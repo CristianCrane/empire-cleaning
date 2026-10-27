@@ -2,12 +2,14 @@ import { describe, expect, test } from "vitest";
 import { eq } from "drizzle-orm";
 import type {
   AcceptOutcome,
+  LocalDateTime,
   NeedsAttentionItem,
   OfficePropertyView,
   OfficeQuote,
   OfficeServicePlan,
   PriceList,
   QuoteDraftInput,
+  Recurrence,
   ServicePlanSummary,
   ServicePlanView,
   SignedInAccount,
@@ -58,10 +60,18 @@ const firstCleanDone = async () => {
   return { office, me, ...done };
 };
 
+// what a plan here differs in: how often, its crew, and its weekdays' first
+// cleans (one, at 9am on Monday the 19th, unless said)
+type PlanChanges = {
+  recurrence?: Recurrence;
+  crewSize?: number;
+  starts?: LocalDateTime[];
+};
+
 const sentPlan = async (
   office: Agent,
   propertyId: string,
-  changes: Partial<QuoteDraftInput> = {},
+  { recurrence = "weekly", crewSize, starts = [plansStart] }: PlanChanges = {},
 ) => {
   const draft = (
     await office
@@ -73,19 +83,20 @@ const sentPlan = async (
     .patch(`/api/quotes/${draft.id}`)
     .send({
       addOns: [],
-      crewSize: draft.crewSize,
       depositPercent: draft.depositPercent,
       validityDays: draft.validityDays,
-      proposedStart: plansStart,
-      overrides: { deep: null, standard: null },
       plan: {
-        recurrence: "weekly",
-        cleanType: draft.plan!.cleanType,
+        recurrence,
         discountPercent: draft.plan!.discountPercent,
         condition: draft.plan!.condition,
+        days: starts.map((start) => ({
+          start,
+          cleanType: "standard",
+          crewSize: crewSize ?? draft.crewSize,
+          override: null,
+        })),
       },
-      ...changes,
-    })
+    } satisfies QuoteDraftInput)
     .expect(200);
   return (await office.post(`/api/quotes/${draft.id}/send`).expect(200))
     .body as OfficeQuote;
@@ -97,7 +108,7 @@ const accept = (client: Agent, quote: OfficeQuote, cleanType = "standard") =>
 // Casey accepts a weekly Standard Clean plan with the card saved at their
 // First Clean; `beforeQuote` runs once the First Clean is done
 const startedPlan = async (
-  changes: Partial<QuoteDraftInput> = {},
+  changes: PlanChanges = {},
   beforeQuote?: (office: Agent) => Promise<unknown>,
 ) => {
   const first = await firstCleanDone();
@@ -132,9 +143,7 @@ describe("accepting a Service Plan Quote", () => {
     expect(plan).toMatchObject({
       status: "active",
       recurrence: "weekly",
-      cleanType: "standard",
-      crewSize: 2,
-      totalCents: PLAN_TOTAL,
+      days: [{ cleanType: "standard", crewSize: 2, totalCents: PLAN_TOTAL }],
       depositCents: PLAN_DEPOSIT,
       quoteId: quote.id,
       client: { name: casey.name },
@@ -252,7 +261,7 @@ describe("accepting a Service Plan Quote", () => {
     const { office, propertyId, client, planId } = await startedPlan();
     testClock().advance({ days: 1 });
     const another = await sentPlan(office, propertyId, {
-      proposedStart: { date: "2026-01-21", time: "09:00" },
+      starts: [{ date: "2026-01-21", time: "09:00" }],
     });
 
     const outcome = (await accept(client, another).expect(200))
@@ -267,14 +276,7 @@ describe("accepting a Service Plan Quote", () => {
 
 describe("a Service Plan's Jobs", () => {
   test("come within reach as the Clock advances, each date once", async () => {
-    const { office, planId } = await startedPlan({
-      plan: {
-        recurrence: "fortnightly",
-        cleanType: "standard",
-        discountPercent: 10,
-        condition: "moderate",
-      },
-    });
+    const { office, planId } = await startedPlan({ recurrence: "fortnightly" });
     expect(startsOf(await officePlan(office, planId))).toEqual([
       MONDAYS[0],
       MONDAYS[2],
@@ -516,7 +518,7 @@ describe("the Client's Service Plans", () => {
       expect.objectContaining({
         id: planId,
         recurrence: "weekly",
-        cleanType: "standard",
+        days: [{ startsAt: MONDAYS[0], cleanType: "standard" }],
         nextStartsAt: MONDAYS[0],
       }),
     ]);
@@ -524,10 +526,15 @@ describe("the Client's Service Plans", () => {
     const plan = await clientPlan(client, planId);
     expect(plan).toMatchObject({
       discountPercent: 10,
-      priceCents: PLAN_PRICE,
-      totalCents: PLAN_TOTAL,
+      days: [
+        {
+          startsAt: MONDAYS[0],
+          priceCents: PLAN_PRICE,
+          totalCents: PLAN_TOTAL,
+        },
+      ],
+      roundTotalCents: PLAN_TOTAL,
       depositCents: PLAN_DEPOSIT,
-      firstStartsAt: MONDAYS[0],
     });
     expect(plan.upcoming).toHaveLength(4);
   });

@@ -24,8 +24,10 @@ const CLEAN_TYPES: CleanType[] = ["deep", "standard"];
 /**
  * The Clean Types each open Sent Quote can still be booked as: those its
  * proposed time still has room for, as of now: the Labour Hours on its day,
- * and a crew of its Crew Size then. A Service Plan Quote changing its home's
- * plan doesn't count the plan's Jobs it would replace.
+ * and a crew of its Crew Size then. A Service Plan Quote is booked whole, so
+ * it can be while the first clean on each of its weekdays has room, and
+ * then offers its weekdays' Clean Types; one changing its home's plan
+ * doesn't count the plan's Jobs it would replace.
  */
 export const bookableFor = async (
   open: { id: string; proposedStartsAt: Date }[],
@@ -38,7 +40,8 @@ export const bookableFor = async (
       quoteId: quoteOptions.quoteId,
       cleanType: quoteOptions.cleanType,
       labourHours: quoteOptions.labourHours,
-      crewSize: quotes.crewSize,
+      crewSize: quoteOptions.crewSize,
+      startsAt: quoteOptions.startsAt,
       kind: quotes.kind,
       propertyId: quotes.propertyId,
     })
@@ -52,33 +55,50 @@ export const bookableFor = async (
     );
   const startOfQuote = new Map(open.map((q) => [q.id, q.proposedStartsAt]));
 
-  for (const option of options) {
-    const startsAt = startOfQuote.get(option.quoteId)!;
-    const { hasRoom } = await roomFor(
-      {
-        startsAt,
-        labourHours: option.labourHours,
-        crewSize: option.crewSize,
-      },
-      option.kind === "service_plan"
-        ? await jobsReplacedAt(option.propertyId, startsAt)
+  for (const [quoteId, offered] of Map.groupBy(options, (o) => o.quoteId)) {
+    const proposed = startOfQuote.get(quoteId)!;
+    const [{ kind, propertyId }] = offered as [(typeof offered)[number]];
+    const replacing =
+      kind === "service_plan" ? await jobsReplacedAt(propertyId, proposed) : [];
+    const fitting: CleanType[] = [];
+    for (const option of offered) {
+      const { hasRoom } = await roomFor(
+        {
+          startsAt: option.startsAt ?? proposed,
+          labourHours: option.labourHours,
+          crewSize: option.crewSize,
+        },
+        replacing,
+      );
+      if (hasRoom) fitting.push(option.cleanType);
+    }
+    const whole = kind === "one_off" || fitting.length === offered.length;
+    bookable.set(
+      quoteId,
+      whole
+        ? [...new Set(fitting)].sort(
+            (a, b) => CLEAN_TYPES.indexOf(a) - CLEAN_TYPES.indexOf(b),
+          )
         : [],
     );
-    if (hasRoom) bookable.get(option.quoteId)!.push(option.cleanType);
-  }
-  for (const types of bookable.values()) {
-    types.sort((a, b) => CLEAN_TYPES.indexOf(a) - CLEAN_TYPES.indexOf(b));
   }
   return bookable;
 };
 
 const startOf = (quote: QuoteSummary) => new Date(quote.proposedStartsAt!);
 
-// open Sent Quotes, on `day` if given, whose day has room for neither Clean
-// Type, soonest proposed first
+// the days a Quote would book a clean on first: a Service Plan Quote's on
+// each of its weekdays
+const firstDaysOf = (quote: QuoteSummary) =>
+  quote.plan
+    ? quote.plan.days.map((d) => dayOf(new Date(d.startsAt!)))
+    : [dayOf(startOf(quote))];
+
+// open Sent Quotes with a clean on `day` if given, that can't be booked for
+// lack of room, soonest proposed first
 export const quotesWithoutRoom = async (day?: string) => {
   const open = (await openQuotes()).filter(
-    (q) => !day || dayOf(startOf(q)) === day,
+    (q) => !day || firstDaysOf(q).includes(day),
   );
   const bookable = await bookableFor(
     open.map((q) => ({ id: q.id, proposedStartsAt: startOf(q) })),

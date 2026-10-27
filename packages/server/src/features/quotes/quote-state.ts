@@ -7,7 +7,6 @@ import {
   inArray,
   lte,
   ne,
-  or,
   type SQL,
 } from "drizzle-orm";
 import type {
@@ -173,43 +172,57 @@ const summaries = async (where: SQL | undefined) => {
         unit: properties.unit,
         postcode: properties.postcode,
       },
-      headline: {
-        cleanType: quoteOptions.cleanType,
-        totalCents: quoteOptions.totalCents,
-      },
     })
     .from(quotes)
     .innerJoin(properties, eq(properties.id, quotes.propertyId))
     .innerJoin(clients, eq(clients.id, properties.clientId))
-    // a one-off Quote leads with its Deep Clean; a Service Plan Quote has
-    // only its own Clean Type
-    .innerJoin(
-      quoteOptions,
-      and(
-        eq(quoteOptions.quoteId, quotes.id),
-        or(eq(quoteOptions.cleanType, "deep"), eq(quotes.kind, "service_plan")),
-      ),
-    )
     .where(where)
     .orderBy(desc(quotes.createdAt));
+  const options =
+    rows.length === 0
+      ? []
+      : await db
+          .select()
+          .from(quoteOptions)
+          .where(
+            inArray(
+              quoteOptions.quoteId,
+              rows.map((r) => r.quote.id),
+            ),
+          )
+          .orderBy(asc(quoteOptions.position));
+  const optionsOf = Map.groupBy(options, (o) => o.quoteId);
 
-  return rows.map(({ quote, client, property, headline }): QuoteSummary => ({
-    id: quote.id,
-    quoteRequestId: quote.quoteRequestId,
-    kind: quote.kind,
-    status: statusOf(quote),
-    client,
-    property,
-    headlineTotalCents: headline.totalCents,
-    plan:
-      quote.kind === "service_plan"
-        ? { recurrence: quote.recurrence!, cleanType: headline.cleanType }
+  return rows.map(({ quote, client, property }): QuoteSummary => {
+    const offered = optionsOf.get(quote.id) ?? [];
+    const plan = quote.kind === "service_plan";
+    return {
+      id: quote.id,
+      quoteRequestId: quote.quoteRequestId,
+      kind: quote.kind,
+      status: statusOf(quote),
+      client,
+      property,
+      // a one-off Quote leads with its Deep Clean; a Service Plan Quote with
+      // a clean on each of its weekdays
+      headlineTotalCents: plan
+        ? offered.reduce((total, o) => total + o.totalCents, 0)
+        : offered.find((o) => o.cleanType === "deep")!.totalCents,
+      plan: plan
+        ? {
+            recurrence: quote.recurrence!,
+            days: offered.map((o) => ({
+              startsAt: o.startsAt?.toISOString() ?? null,
+              cleanType: o.cleanType,
+            })),
+          }
         : null,
-    proposedStartsAt: quote.proposedStartsAt?.toISOString() ?? null,
-    sentAt: quote.sentAt?.toISOString() ?? null,
-    expiresAt: quote.expiresAt?.toISOString() ?? null,
-    createdAt: quote.createdAt.toISOString(),
-  }));
+      proposedStartsAt: quote.proposedStartsAt?.toISOString() ?? null,
+      sentAt: quote.sentAt?.toISOString() ?? null,
+      expiresAt: quote.expiresAt?.toISOString() ?? null,
+      createdAt: quote.createdAt.toISOString(),
+    };
+  });
 };
 
 // every Quote answering a request, newest first, Drafts included (for the
