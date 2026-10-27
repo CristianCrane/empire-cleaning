@@ -2,11 +2,11 @@ import type { ReactNode } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import type { NeedsAttentionItem, TodayJob } from "@empire-cleaning/models";
 import {
-  Card,
   Heading,
   Link,
   List,
   ListItem,
+  Section,
   StatusBadge,
 } from "@empire-cleaning/ui";
 import { linkTo } from "../../links.ts";
@@ -33,10 +33,10 @@ export function Dashboard() {
   const navigate = useNavigate();
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-8">
       <Heading level={1}>Today</Heading>
       <NeedsAttention items={needsAttention} />
-      <Card
+      <Section
         title={formatDay(today.date)}
         description={[
           `${formatHours(today.staffHours)} available`,
@@ -100,7 +100,7 @@ export function Dashboard() {
             ))}
           </List>
         )}
-      </Card>
+      </Section>
     </div>
   );
 }
@@ -294,7 +294,7 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
   };
 
   return (
-    <Card title="Needs attention">
+    <Section title="Needs attention">
       <List
         aria-label="Needs attention"
         renderEmptyState={() => (
@@ -314,6 +314,6 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
           />
         ))}
       </List>
-    </Card>
+    </Section>
   );
 }
