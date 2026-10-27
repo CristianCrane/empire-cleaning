@@ -1,3 +1,7 @@
+---
+status: accepted, partly superseded by ADR-0017 (a Quote holds its own request; there are no separate Quote Requests)
+---
+
 # Quotes belong to Properties; a Quote Request is optional
 
 The spec (#1, story 58) had every Quote answer a Quote Request, with the Service Plan Quote sent "on the same Quote Request" as the First Clean so the history stayed together. That breaks down once the First Clean is understood as a trial for both sides: what follows it is the business's offer, not something the Client asked for, and it needn't resemble the First Clean (another Clean Type, other Add-ons). Filing it under the old request left that request booked yet still taking Quotes, let a declined plan offer end the request the First Clean was booked on, and would force every later change of plan terms onto a request from months before. So a Quote belongs to a Property, and through it a Client, and may answer a Quote Request. A one-off Quote always does (Office Staff enter a request for a Client who phones, #34); a Service Plan Quote may answer one, or be offered for any Property whose First Clean is Completed, whether or not anyone asked. A Property's history (its requests, Quotes, Jobs and Service Plan) stays together on the Property instead.

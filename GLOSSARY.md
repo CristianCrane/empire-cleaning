@@ -1,11 +1,11 @@
 # Empire Cleaning
 
-A cleaning business serving residential and commercial clients with one-off and recurring cleaning work, from first enquiry through to delivered cleans.
+A cleaning business serving residential and commercial clients with one-off and recurring cleaning work, from a first Quote through to delivered cleans.
 
 ## People
 
 **Client**:
-A person or business Empire Cleaning has a relationship with, from their first Quote Request onward, whether or not they have bought anything. A business has a business name, and the Client's name, email and phone are those of the person Empire Cleaning deals with there. Office Staff may enter one for a caller with just a name and phone: without an email they can't sign in or be sent a Quote until Office Staff add one (ADR-0012).
+A person or business Empire Cleaning has a relationship with, from first asking for a Quote onward, whether or not they have bought anything. A business has a business name, and the Client's name, email and phone are those of the person Empire Cleaning deals with there. Office Staff may enter one for a caller with just a name and phone: without an email they can't sign in or be sent a Quote until Office Staff add one (ADR-0012).
 _Avoid_: Customer, user, lead
 
 **Property**:
@@ -33,26 +33,26 @@ A Staff role: prices Quotes, manages the Schedule and Assignments, and chases Un
 _Avoid_: Admin, manager, dispatcher
 
 **Account**:
-A sign-in identity with a proven email, created only when a person signs up by emailed link or Google, never on their behalf. Anyone may sign up. Being a Client or Staff member is separate: an Account is connected to a Client, a Staff member, or both, automatically when its proven email matches theirs, and that connection is what lets its holder act as them. Once made, a connection stays even if either email later changes. A Quote Request creates a Client, not an Account, and a Client the Office entered without an email has none to connect until one is added.
+A sign-in identity with a proven email, created only when a person signs up by emailed link or Google, never on their behalf. Anyone may sign up. Being a Client or Staff member is separate: an Account is connected to a Client, a Staff member, or both, automatically when its proven email matches theirs, and that connection is what lets its holder act as them. Once made, a connection stays even if either email later changes. Asking for a Quote creates a Client, not an Account, and a Client the Office entered without an email has none to connect until one is added.
 _Avoid_: User, login, profile
 
 **Guest**:
-An unidentified visitor who has not signed in, typically submitting a Quote Request.
+An unidentified visitor who has not signed in, typically asking for a Quote.
 _Avoid_: Anonymous user, visitor
 
 ## Quoting
 
-**Quote Request**:
-A Client's or Guest's description of the cleaning they want, submitted to ask for pricing. A Guest's first Quote Request creates their Client; one from a Guest using an existing Client's email is added to that Client, without changing their details. Office Staff may enter one for a caller, which goes straight to a Quote Draft with no receipt sent. A Property has at most one Quote Request waiting at a time.
-_Avoid_: Enquiry, lead, quote
+**Quote**:
+Empire Cleaning's priced offer for one Property, from the moment it's asked for or Office Staff start it through to its outcome. It keeps what the Client asked for, unchanged, and its Revisions; the latest Sent Revision is the offer. It is either a _one-off Quote_, for a single Job, offering both Clean Types (Deep Clean recommended) for the Client to pick one on acceptance; or a _Service Plan Quote_, for a Service Plan, offering a visit on each of its weekdays, each of one Clean Type with its own time and Crew Size, at the Plan Discount and accepted whole (ADR-0013). Its first Revision sets which. A Guest's first Quote creates their Client; one from a Guest using an existing Client's email is added to that Client, without changing their details. Office Staff may start one for a caller, recording what they asked, with no receipt sent, or offer a Service Plan Quote nobody asked for (ADR-0017). A Service Plan Quote can only be offered once the Property's First Clean is Completed, or for a commercial Property once a Site Visit has recorded its findings (ADR-0014); no Quote for a commercial Property can be Sent before then. A Property has at most one open Quote of each kind.
+_Avoid_: Quote Request, enquiry, lead, estimate, proposal
+
+**Revision**:
+One priced version of a Quote: its price, Labour Hours, Crew Size and proposed time, or for a Service Plan Quote its visits. Office Staff draft a Revision and send it; once Sent it is never changed, and a newer Sent Revision takes its place as the offer. Clients only ever see the latest Sent Revision.
+_Avoid_: Version, offer, Superseded Quote
 
 **Turned Down**:
-A Quote Request that Office Staff have closed without quoting, with a recorded reason such as out of area, out of scope or no capacity. It is final; the Client must submit a new Quote Request.
-_Avoid_: Declined, rejected, refused
-
-**Quote**:
-A priced offer from Empire Cleaning for one Property, with a price, Labour Hours, a Crew Size and a proposed time. It is either a _one-off Quote_, for a single Job, offering both Clean Types (Deep Clean recommended) for the Client to pick one on acceptance; or a _Service Plan Quote_, for a Service Plan, offering a visit on each of its weekdays, each of one Clean Type with its own time and Crew Size, at the Plan Discount and accepted whole (ADR-0013), which can only be offered once the Property's First Clean is Completed. A one-off Quote answers a Quote Request; a Service Plan Quote may answer one, or be offered without one. A Service Plan Quote for a commercial Property needs no First Clean: it can be offered once a Site Visit has recorded its findings (ADR-0014). No Quote for a commercial Property can be Sent before then. A Property has at most one Sent Quote of each kind at a time, and a Quote, once sent, is never changed.
-_Avoid_: Estimate, proposal
+A Quote that Office Staff have closed before sending any Revision, with a recorded reason such as out of area, out of scope or no capacity. It is final; the Client asks for a new Quote.
+_Avoid_: Declined, rejected, refused, withdrawn
 
 **Price List**:
 The prices and pricing rules Office Staff maintain, from which every Suggested Price is calculated. It holds a residential and a commercial hourly rate, and the Premises Types. Its rates are before tax, while Clients always see prices including tax; it holds separate tax rates for residential one-off Jobs, residential Service Plan Jobs, commercial Jobs and fees, and any Add-on may be tax-exempt. Changing it never reprices Sent Quotes or existing Service Plans.
@@ -75,11 +75,11 @@ The number of Staff a Quote plans to send; the Job's time on site is its Labour 
 _Avoid_: Team size, headcount
 
 **Condition**:
-How dirty a Property currently is: _light_, _moderate_ or _heavy_. Stated by the Client in a Quote Request, correctable by Staff, and reported by Cleaners when they complete a Job. Service Plan Quotes assume moderate unless Staff set otherwise.
+How dirty a Property currently is: _light_, _moderate_ or _heavy_. Stated by the Client when asking for a Quote, correctable by Staff, and reported by Cleaners when they complete a Job. Service Plan Quotes assume moderate unless Staff set otherwise.
 _Avoid_: State, dirtiness, level
 
 **Add-on**:
-A priced extra task, such as cleaning inside the oven, agreed on a Quote before a Job; distinct from an Adjustment made on the day. Each is offered for homes, for businesses, or both. Clients choose Add-ons by name in a Quote Request and see what each costs on the Quote. Office Staff retire an Add-on rather than delete it, so requests that chose it still price it.
+A priced extra task, such as cleaning inside the oven, agreed on a Quote before a Job; distinct from an Adjustment made on the day. Each is offered for homes, for businesses, or both. Clients choose Add-ons by name when asking for a Quote and see what each costs on it. Office Staff retire an Add-on rather than delete it, so Quotes that asked for it still price it.
 _Avoid_: Extra, upgrade, option
 
 **Preferred Service Area**:
@@ -87,12 +87,12 @@ A set of postcodes close enough to Staff that Empire Cleaning prefers to work th
 _Avoid_: Coverage area, zone, territory
 
 **Site Visit**:
-A free, scheduled visit by one Staff member to see a Property before quoting it; required for commercial Properties and optional for residential ones. It is not a Job: it is never charged and has no Assignments, though it appears on the Schedule (ADR-0015). Office Staff book, move and cancel it, telling the Client each time. It ends _Done_, when its findings (for business premises, the Premises Type, floor area and Condition) are recorded on the Property, or _Cancelled_. Office Staff may record findings as already done without a visit, for premises they know.
+A free, scheduled visit by one Staff member to see a Property for a Quote, before its first Revision is Sent; required for commercial Properties and optional for residential ones. It is not a Job: it is never charged and has no Assignments, though it appears on the Schedule (ADR-0015). Office Staff book, move and cancel it, telling the Client each time. It ends _Done_, when its findings (for business premises, the Premises Type, floor area and Condition) are recorded on the Property, or _Cancelled_. Office Staff may record findings as already done without a visit, for premises they know.
 _Avoid_: Walkthrough, inspection, assessment
 
 **Quote status**:
-A Quote is _Draft_ (being written by Staff), _Sent_, or closed as _Accepted_, _Declined_, _Expired_ (its validity period, 14 days unless set otherwise, or its proposed time has passed) or _Superseded_ (replaced by a newer Quote of the same kind for the same Property).
-_Avoid_: Pending, approved, rejected, revised
+A Quote is _Requested_ (asked for by a Client, no Revision yet), _Draft_ (its first Revision being written by Staff), _Sent_, or closed as _Accepted_, _Declined_ (by the Client), _Expired_ (its latest Revision's validity period, 14 days unless set otherwise, or its proposed time has passed) or _Turned Down_. Drafting changes to a Sent Quote leaves it Sent. Office Staff may revive an Expired Quote by sending a new Revision; the others are final.
+_Avoid_: Pending, approved, rejected, Superseded
 
 ## Work
 
