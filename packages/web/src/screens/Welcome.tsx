@@ -41,7 +41,7 @@ export function Welcome() {
             forgetAccount();
             showToast({
               tone: "success",
-              title: "Quote Request sent",
+              title: "Quote requested",
               description: `We'll email your Quote to ${receipt.emailedTo}.`,
             });
             await navigate({ to: "/portal" });

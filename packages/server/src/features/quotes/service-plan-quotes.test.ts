@@ -221,8 +221,12 @@ describe("starting a Service Plan Quote", () => {
       .send({ propertyId, kind: "service_plan" })
       .expect(200);
     expect(again.body.id).toBe(draft.id);
+    // nobody asked, so the Client sees nothing of it until it's Sent
+    const client = await signIn(casey.email);
+    await client.get(`/api/quotes/mine/${draft.id}`).expect(404);
     // once it's Sent, one open at a time
     await send(office, draft);
+    await client.get(`/api/quotes/mine/${draft.id}`).expect(200);
     const refused = await office
       .post("/api/quotes")
       .send({ propertyId, kind: "service_plan" })

@@ -44,7 +44,10 @@ describe("Turning Down a Quote", () => {
     });
     const sent = testEmail().lastTo(casey.email);
     expect(sent.subject).toBe("About your Quote from Empire Cleaning");
-    expect(sent.text).toContain("it is outside the area we clean");
+    expect(sent.text).toContain(
+      "we can't quote for it: it's outside the area we clean.",
+    );
+    expect(sent.text).toContain(`/portal/quotes/${id}`);
     // closed: off the Office's open list and Needs attention
     expect((await office.get("/api/quotes").expect(200)).body).toEqual([]);
     const waiting = (
@@ -57,6 +60,14 @@ describe("Turning Down a Quote", () => {
     const mine = (await client.get("/api/quotes/mine").expect(200))
       .body as QuoteSummary[];
     expect(mine.map((q) => [q.id, q.status])).toEqual([[id, "turned_down"]]);
+    expect(
+      (await client.get(`/api/quotes/mine/${id}`).expect(200)).body,
+    ).toMatchObject({
+      status: "turned_down",
+      sentAt: null,
+      turnedDownAt: "2026-01-05T09:00:00.000Z",
+      turnDownReason: "out_of_area",
+    });
     const again = await submit(guestAsk()).expect(201);
     expect(again.body.id).not.toBe(id);
   });
@@ -75,7 +86,7 @@ describe("Turning Down a Quote", () => {
       turnDownReason: "no_capacity",
     });
     expect(testEmail().lastTo(casey.email).text).toContain(
-      "is more than we have room for at the moment",
+      "we don't have room for it at the moment",
     );
     // final
     await office.post(`/api/quotes/${id}/revisions`).send({}).expect(409);

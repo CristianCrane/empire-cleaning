@@ -8,7 +8,7 @@ import { forgetAccount } from "./session.ts";
 applyThemePreference(readThemePreference());
 
 // Who the person is and what their Account is connected to can change behind
-// the app's back: another tab signing out, a Quote Request from the landing
+// the app's back: another tab signing out, asking for a Quote on the landing
 // page, the Office adding a record. So look again whenever they come back to
 // the tab, rather than on every click.
 let lastLook = 0;

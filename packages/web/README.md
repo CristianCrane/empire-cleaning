@@ -12,7 +12,7 @@ Every screen is built from the design system in `packages/ui` (`@empire-cleaning
 | `/office`                     | Office Staff: Needs attention and today's Jobs with their Assignment status                                                                                                     |
 | `/cleaner`                    | Cleaners: their Jobs today and coming up, Offered, Confirmed or Completed                                                                                                       |
 | `/cleaner/jobs/$jobId`        | Cleaners: a Job they're on, where the Offer email leads; Confirm or Release their place, complete it, or record No Access                                                       |
-| `/portal`                     | Clients: their upcoming and past Jobs, Bills, Quotes, Quote Requests and homes                                                                                                  |
+| `/portal`                     | Clients: their upcoming and past Jobs, Bills, Quotes (asked for, offered and closed) and homes                                                                                                  |
 | `/portal/jobs/$jobId`         | Clients: a Job: moving or cancelling it (with what it costs), its receipt, approving extra work, and paying an Unpaid Job; where those emails lead                              |
 | `/portal/request`             | Clients: request a Quote for a new home or one of theirs                                                                                                                        |
 | `/portal/details`             | Clients: contact details and Access Instructions                                                                                                                                |
@@ -27,7 +27,7 @@ Every screen is built from the design system in `packages/ui` (`@empire-cleaning
 | `/office/jobs/$jobId`         | Office Staff: a Job's places, confirming or turning down a Reschedule Request, moving or cancelling it, and once Completed, reviewing Adjustments and correcting the completion |
 | `/office/staff`               | Office Staff: everyone on Staff, and inviting someone                                                                                                                           |
 | `/office/staff/$staffId`      | Office Staff: a Staff member's usual week, days off and extra days, and deactivating them                                                                                       |
-| `/office/clients/$clientId`   | Office Staff: a Client, their homes and Quote Requests, and Condition correction; for a business, weekly billing and their Bills                                                |
+| `/office/clients/$clientId`   | Office Staff: a Client, their homes and Quotes, and Condition correction; for a business, weekly billing and their Bills                                                |
 | `/office/bills/$billId`       | Office Staff: a weekly Bill, voiding it while unpaid, and recording a payment made another way                                                                                  |
 | `/welcome`                    | an Account connected to nothing: request a Quote to become a Client                                                                                                             |
 | `/`                           | sends a signed-in Account to its area                                                                                                                                           |
@@ -39,7 +39,7 @@ Every screen is built from the design system in `packages/ui` (`@empire-cleaning
 
 `src/session.ts` holds the Better Auth browser client (functions only, no UI), the areas and the signed-in Account, asked of `GET /api/me` once and remembered until sign-out. The route guards live in `src/router.tsx`.
 
-The signed-in Account is remembered, not asked for on every click. The app asks `GET /api/me` again when the person switches to another area, comes back to the tab (`src/main.tsx`), or does something that can connect their Account to a record. That is when it can have changed behind the app's back: a Quote Request from the landing page, the Office adding a record, signing out in another tab.
+The signed-in Account is remembered, not asked for on every click. The app asks `GET /api/me` again when the person switches to another area, comes back to the tab (`src/main.tsx`), or does something that can connect their Account to a record. That is when it can have changed behind the app's back: asking for a Quote on the landing page, the Office adding a record, signing out in another tab.
 
 In dev, Vite forwards `/api` to the server (`API_URL`, by default http://localhost:3000), so the app and the API share an origin and sign-in cookies just work. Production should do the same: serve the app and route `/api` to the server on one domain.
 

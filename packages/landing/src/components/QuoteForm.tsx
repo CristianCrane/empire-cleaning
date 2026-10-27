@@ -4,7 +4,7 @@ import { QuoteRequestForm } from "@empire-cleaning/quote-request";
 import { Notice } from "@empire-cleaning/ui";
 import { business } from "../business.ts";
 
-// the Guest Quote Request form (#3, ADR-0005). Until it has loaded, and if
+// the Guest Request a Quote form (#3, ADR-0005). Until it has loaded, and if
 // JavaScript is off, the section offers the phone number instead of a form
 // that couldn't send anything.
 export function QuoteForm({ apiUrl }: { apiUrl: string }) {

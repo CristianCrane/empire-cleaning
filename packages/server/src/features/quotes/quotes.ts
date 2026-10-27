@@ -3,6 +3,7 @@ import { z } from "zod";
 import type {
   AddOnChoice,
   CleanType,
+  ClientQuoteView,
   Condition,
   FirstCleanFindings,
   OfficeQuote,
@@ -66,6 +67,7 @@ import {
 } from "../service-plans/service-plans.schema.ts";
 import { siteVisits } from "../site-visits/site-visits.schema.ts";
 import {
+  clientSiteVisits,
   findingsRecorded,
   siteVisitStages,
 } from "../site-visits/site-visits.ts";
@@ -694,6 +696,8 @@ export const clientQuote = async (
     depositPercent: offer.depositPercent,
     proposedStartsAt: offer.proposedStartsAt!.toISOString(),
     sentAt: offer.sentAt!.toISOString(),
+    // the email for a later Revision says it's updated, too
+    updatedAt: offer.number > 1 ? offer.sentAt!.toISOString() : null,
     expiresAt: offer.expiresAt!.toISOString(),
     declinedAt: iso(quote.declinedAt),
     acceptedAt: iso(quote.acceptedAt),
@@ -701,6 +705,49 @@ export const clientQuote = async (
     ...(await acceptedPlanOf(quote)),
     changesPlan: await planChangeFor(quote, status, offer),
     bookable: await bookableOf(quote, status, offer),
+  };
+};
+
+// A Client's own Quote, wherever it stands (ADR-0017): its offer once a
+// Revision is Sent; before that, what they asked, Requested or Turned Down.
+// One the Office started that hasn't been Sent, or another Client's,
+// doesn't exist for them.
+export const clientQuoteView = async (
+  id: string,
+  clientId: string,
+): Promise<ClientQuoteView> => {
+  const [found] = await db
+    .select({ quote: quotes, property: properties })
+    .from(quotes)
+    .innerJoin(properties, eq(properties.id, quotes.propertyId))
+    .where(and(eq(quotes.id, id), eq(properties.clientId, clientId)));
+  if (!found) throw new NotFoundError("Quote not found");
+  const { quote, property } = found;
+  if (quote.sentRevisionId) return clientQuote(id, clientId);
+  if (quote.origin === "office") throw new NotFoundError("Quote not found");
+  const [addOns, visits] = await Promise.all([
+    askedAddOns([id]),
+    clientSiteVisits(clientId),
+  ]);
+
+  return {
+    id: quote.id,
+    status: quote.status === "turned_down" ? "turned_down" : "requested",
+    property: {
+      id: property.id,
+      street: property.street,
+      unit: property.unit,
+      postcode: property.postcode,
+    },
+    asked: askedOf(quote, addOns.get(id) ?? [])!,
+    createdAt: quote.createdAt.toISOString(),
+    sentAt: null,
+    siteVisit:
+      quote.status === "turned_down"
+        ? null
+        : (visits.find((v) => v.property.id === property.id) ?? null),
+    turnedDownAt: iso(quote.turnedDownAt),
+    turnDownReason: quote.turnDownReason,
   };
 };
 
@@ -1351,10 +1398,11 @@ export const declineQuote = async (
   return clientQuote(id, clientId);
 };
 
+// why, as the Client is told it
 const turnDownWording: Record<TurnDownReason, string> = {
-  out_of_area: "is outside the area we clean",
-  out_of_scope: "is more than the cleaning we offer",
-  no_capacity: "is more than we have room for at the moment",
+  out_of_area: "it's outside the area we clean",
+  out_of_scope: "it needs more than the cleaning we offer",
+  no_capacity: "we don't have room for it at the moment",
 };
 
 /**
@@ -1390,7 +1438,7 @@ export const turnDownQuote = async (
   const { client, property } = (await homeOf(quote.propertyId))!;
   if (client.email) {
     try {
-      await sendTurnDownEmail(client, property, reason);
+      await sendTurnDownEmail(client, property, id, reason);
     } catch (error) {
       console.error(`Turn Down email for Quote ${id} not sent:`, error);
     }
@@ -1401,6 +1449,7 @@ export const turnDownQuote = async (
 const sendTurnDownEmail = async (
   client: Client,
   property: Property,
+  quoteId: string,
   reason: TurnDownReason,
 ) => {
   await email.send({
@@ -1409,12 +1458,12 @@ const sendTurnDownEmail = async (
     ...compose(
       [
         `Hi ${firstNameOf(client.name)},`,
-        `Thanks for asking Empire Cleaning for a Quote for ${addressOf(property)}. We're sorry, but we can't quote for it: it ${turnDownWording[reason]}.`,
+        `Thanks for asking Empire Cleaning for a Quote for ${addressOf(property)}. We're sorry, but we can't quote for it: ${turnDownWording[reason]}.`,
         "If anything changes, you're welcome to ask us again.",
       ],
       {
-        href: `${env.CORS_ORIGIN_URL}/portal`,
-        label: "Go to your account",
+        href: `${env.CORS_ORIGIN_URL}/portal/quotes/${quoteId}`,
+        label: "See your Quote",
       },
     ),
   });

@@ -37,7 +37,7 @@ export type Asker =
   // signed up but not yet a Client: their proven email is used
   | { kind: "account"; email: string }
   // a Client: a new home or one of theirs; their details are already known.
-  // A home with a request still waiting can't be asked about again, so it is
+  // A home with a Quote open can't be asked about again, so it is
   // listed but not selectable. A business Client's name isn't asked again.
   | {
       kind: "client";
@@ -64,7 +64,7 @@ export type QuoteRequestFormProps<R = QuoteAskReceipt> = {
   // the level of the form's section headings: one below the page's heading
   // it sits under, so the outline never skips a level
   headingLevel?: 2 | 3;
-  // where the request goes, if not the API's own Quote Request endpoint
+  // where the request goes, if not the API's own endpoint for asking
   submit?: (body: object) => Promise<SubmitResult<R>>;
   onSubmitted: (receipt: R) => void;
 };
@@ -84,8 +84,8 @@ const ownWords = {
   regular:
     "After my first clean, I'd like regular visits (weekly, bi-weekly or monthly) at 10% off.",
   submit: "Request a Quote",
-  waiting: "We're preparing your Quote for this home.",
-  premisesWaiting: "We're preparing your Quote for these premises.",
+  waiting: "This home has a Quote open already.",
+  premisesWaiting: "These premises have a Quote open already.",
   businessName: "Business name",
   contactNote: "The person we'll deal with at the business.",
   failed:
@@ -181,7 +181,7 @@ const startTimes = Array.from({ length: 37 }, (_, i) => {
 const addressOf = (p: Pick<PropertyView, "street" | "unit" | "postcode">) =>
   [p.street, p.unit, p.postcode].filter(Boolean).join(", ");
 
-// the Quote Request form, shared by the landing page (Guests), the Client
+// the Request a Quote form, shared by the landing page (Guests), the Client
 // portal and the Office (callers). The API validates everything; its
 // messages show beside each field.
 export function QuoteRequestForm<R = QuoteAskReceipt>({
@@ -280,7 +280,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
     };
   };
 
-  // a Quote Request, or for the Office, one with its Client: one they found
+  // what was asked, or for the Office, with its Client: one they found
   // or a new one, without an email if they gave none
   const submission = (): QuoteAsk & {
     clientId?: string;

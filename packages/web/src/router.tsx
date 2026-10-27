@@ -17,6 +17,7 @@ import type {
   ClientJob,
   ClientJobDetail,
   ClientPastJob,
+  ClientQuoteView,
   ClientView,
   OfficeClientView,
   OfficePropertyView,
@@ -29,7 +30,6 @@ import type {
   PremisesTypeChoice,
   PriceList,
   QuoteSummary,
-  QuoteView,
   ScheduleDay,
   ServicePlanSummary,
   ServicePlanView,
@@ -423,7 +423,7 @@ const portalQuoteRoute = createRoute({
   path: "/quotes/$quoteId",
   loader: async ({ params }) => {
     const [quote, paymentMethod] = await Promise.all([
-      getJson<QuoteView>(`/api/quotes/mine/${params.quoteId}`),
+      getJson<ClientQuoteView>(`/api/quotes/mine/${params.quoteId}`),
       ownPaymentMethod(),
     ]);
     return { quote, paymentMethod };

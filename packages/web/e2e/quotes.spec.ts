@@ -220,8 +220,54 @@ test("Office Staff draft a new Revision of a Sent Quote, which keeps the last as
   await expect(rows.last()).not.toContainText("The offer");
 });
 
+test("the Client sees only the latest Revision, from any of its emails", async ({
+  page,
+  browser,
+}) => {
+  await requestQuoteAsGuest(casey);
+  await signInAsOffice(page);
+  await startDraft(page);
+  await proposeNextMonday(page);
+  await send(page);
+  const link = await quoteLink();
+  const client = await (await browser.newContext()).newPage();
+  await signedInAs(client, casey.email);
+  await client.goto(link);
+  await expect(
+    client.getByRole("region", { name: "Deep Clean" }),
+  ).toBeVisible();
+  await expect(client.getByText(/Updated/)).toBeHidden();
+
+  await page.getByRole("button", { name: "Draft a new Revision" }).click();
+  const deep = page.getByRole("region", { name: "Deep Clean" });
+  await deep.getByText("Override the Deep Clean price").click();
+  await deep
+    .getByRole("textbox", { name: "Deep Clean price before tax" })
+    .fill("250");
+  await deep
+    .getByRole("textbox", { name: "Reason for the override" })
+    .fill("Regular Client's friend");
+  await send(page);
+
+  // the first email's link opens the new offer, which says it's changed
+  await client.goto(link);
+  await expect(
+    client.getByText("41-12 Austin St, 4B, 11375 · Updated Jan 5, 2026"),
+  ).toBeVisible();
+  // $250 plus 8.875% tax
+  await expect(
+    client.getByRole("region", { name: "Deep Clean" }),
+  ).toContainText("$272.19");
+  await expect(client.getByText(/Revision/)).toBeHidden();
+  await client.goto("/portal");
+  await expect(
+    client.getByRole("grid", { name: "Your Quotes" }).getByRole("row"),
+  ).toHaveCount(1);
+});
+
 test("Office Staff Turn Down a Quote asked for, and the Client is told why", async ({
   page,
+  browser,
 }) => {
   await requestQuoteAsGuest(casey);
   await signInAsOffice(page);
@@ -246,7 +292,17 @@ test("Office Staff Turn Down a Quote asked for, and the Client is told why", asy
   const told = (await emailsTo(casey.email)).find(
     (e) => e.subject === "About your Quote from Empire Cleaning",
   );
-  expect(told?.text).toContain("it is outside the area we clean");
+  expect(told?.text).toContain("it's outside the area we clean");
+  // the email's link shows them the same
+  const client = await (await browser.newContext()).newPage();
+  await signedInAs(client, casey.email);
+  await client.goto(new URL(told!.text.match(/https?:\/\/\S+/)![0]).pathname);
+  await expect(
+    client.getByText(
+      "We're sorry, but we can't quote for this home: it's outside the area we clean.",
+    ),
+  ).toBeVisible();
+  await expect(client.getByText("Turned Down")).toBeVisible();
   // closed, so off the list of open Quotes
   await page.goto("/office/quotes");
   await expect(page.getByText("No open Quotes.")).toBeVisible();

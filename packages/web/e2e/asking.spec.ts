@@ -57,7 +57,7 @@ test(
   },
 );
 
-test("a home with a request waiting can't be asked about again", async ({
+test("a home with a Quote open can't be asked about again, and points to it", async ({
   page,
 }) => {
   await requestQuoteAsGuest(casey);
@@ -71,7 +71,10 @@ test("a home with a request waiting can't be asked about again", async ({
   });
   await expect(existing).toBeDisabled();
   await expect(
-    page.getByText("We're preparing your Quote for this home."),
+    page.getByText("This home has a Quote open already."),
+  ).toBeVisible();
+  await expect(
+    page.getByText("We're preparing your Quote for 41-12 Austin St"),
   ).toBeVisible();
 
   // typing the same address another way is still the same home
@@ -86,6 +89,41 @@ test("a home with a request waiting can't be asked about again", async ({
     page.getByText("You've already asked us for a Quote for this home."),
   ).toBeVisible();
   await expect(page).toHaveURL("/portal/request");
+
+  // the way on is the Quote they have
+  await page.getByRole("link", { name: "41-12 Austin St, 4B, 11375" }).click();
+  await expect(page).toHaveURL(/\/portal\/quotes\/[0-9a-f-]{36}$/);
+  await expect(page.getByText("We're preparing your Quote")).toBeVisible();
+});
+
+test("a Client sees a Quote they asked for in Your Quotes, as they asked it", async ({
+  page,
+}) => {
+  await requestQuoteAsGuest(casey, ["Inside the oven"]);
+  await signInAs(page, casey.email);
+
+  const quotes = page.getByRole("grid", { name: "Your Quotes" });
+  const row = quotes.getByRole("row");
+  await expect(row).toHaveCount(1);
+  await expect(row).toContainText("41-12 Austin St, 4B, 11375");
+  await expect(row).toContainText("Extras: Inside the oven");
+  await expect(row).toContainText("Requested");
+  await row.click();
+
+  await expect(page).toHaveURL(/\/portal\/quotes\/[0-9a-f-]{36}$/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "Your Quote",
+  );
+  await expect(
+    page.getByText(
+      "We're preparing your Quote, and we'll email it to you, usually within a working day.",
+    ),
+  ).toBeVisible();
+  const asked = page.getByRole("region", { name: "What you asked for" });
+  await expect(asked).toContainText("Inside the oven");
+  await expect(asked).toContainText("Wanted after the first clean");
+  // nothing to accept until it's Sent
+  await expect(page.getByRole("button", { name: /Accept/ })).toBeHidden();
 });
 
 test("a Client asks about a second home", async ({ page }) => {
@@ -98,9 +136,9 @@ test("a Client asks about a second home", async ({ page }) => {
   await page.getByRole("button", { name: "Request a Quote" }).click();
 
   await expect(page).toHaveURL("/portal");
-  await expect(page.getByText("Quote Request sent")).toBeVisible();
+  await expect(page.getByText("Quote requested")).toBeVisible();
   await expect(
-    page.getByRole("grid", { name: "Your Quote Requests" }).getByRole("row"),
+    page.getByRole("grid", { name: "Your Quotes" }).getByRole("row"),
   ).toHaveCount(2);
   await expect(
     page.getByRole("grid", { name: "Your homes" }).getByRole("row"),
@@ -281,6 +319,15 @@ for (const theme of ["light", "dark"] as const) {
           await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
           await expectNoViolations(page);
         }
+
+        // a Quote they asked for, not yet Sent
+        await page.goto("/portal");
+        await page
+          .getByRole("grid", { name: "Your Quotes" })
+          .getByRole("row")
+          .click();
+        await expect(page.getByText("What you asked for")).toBeVisible();
+        await expectNoViolations(page);
       },
     );
 

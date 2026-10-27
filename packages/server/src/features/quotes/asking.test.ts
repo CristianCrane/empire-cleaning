@@ -45,7 +45,7 @@ describe("a Guest asking for a Quote", () => {
   });
 
   test("emails a receipt saying where the Quote will go", async () => {
-    await submit(guestAsk());
+    const { body } = await submit(guestAsk()).expect(201);
 
     const receipt = testEmail().lastTo("casey@example.com");
     expect(receipt.subject).toBe("We've received your request for a Quote");
@@ -53,8 +53,11 @@ describe("a Guest asking for a Quote", () => {
     expect(receipt.text).toContain(
       "We'll email your Quote to casey@example.com",
     );
-    // a receipt never signs anyone in (ADR-0006)
-    expect(receipt.text).not.toMatch(/https?:\/\//);
+    // its only link is to the Quote's page, which never signs anyone in
+    // (ADR-0006): it shows the offer once it's Sent
+    expect(receipt.text.match(/https?:\/\/\S+/g)).toEqual([
+      expect.stringMatching(new RegExp(`/portal/quotes/${body.id}$`)),
+    ]);
   });
 
   test("is connected to the Account when that email signs up later", async () => {
