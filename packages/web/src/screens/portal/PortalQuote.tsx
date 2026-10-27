@@ -29,12 +29,13 @@ import {
   cleanTypeLabel,
   formatDateTime,
   formatMoney,
-  recurrenceLabel,
+  planRhythm,
 } from "../format.ts";
 import {
   AddOnList,
   OptionCard,
-  PlanCard,
+  PlanDayCard,
+  PlanTotals,
   QuoteStatusBadge,
 } from "../QuoteParts.tsx";
 import { CardProblem, ConsentNote, usePaymentForm } from "./CardForm.tsx";
@@ -80,10 +81,13 @@ export function PortalQuote() {
           {quote.bookable.length === 0 ? (
             // its day filled up after it was sent: nothing to pay for
             <Notice tone="info">
-              Sorry, {formatDateTime(quote.proposedStartsAt)} has been fully
-              booked since we sent this Quote, so it can't be accepted. We've
-              let our team know, and we'll send you a new Quote for another
-              time.
+              Sorry,{" "}
+              {quote.plan && quote.plan.days.length > 1
+                ? "one of the days your plan starts on has"
+                : `${formatDateTime(quote.proposedStartsAt)} has`}{" "}
+              been fully booked since we sent this Quote, so it can't be
+              accepted. We've let our team know, and we'll send you a new Quote
+              for another time.
             </Notice>
           ) : quote.changesPlan ? (
             <AcceptChange quote={quote} />
@@ -97,7 +101,8 @@ export function PortalQuote() {
   );
 }
 
-// a Service Plan Quote: each clean's price, and what it saves on a one-off
+// a Service Plan Quote: each weekday's clean and its price, what each saves
+// on a one-off, and the Deposit
 function PlanOffer({
   quote,
   plan,
@@ -112,20 +117,28 @@ function PlanOffer({
           Your Service Plan
         </Heading>
         <p className="text-fg-muted">
-          A {cleanTypeLabel[plan.cleanType]}{" "}
-          {recurrenceLabel[plan.recurrence].toLowerCase()}, on the same day of
-          the week as the first. Each clean is {plan.discountPercent}% off what
-          it would cost as a one-off. Prices include tax.
+          {planRhythm(plan)}
+          {plan.days.length > 1 ? ", one clean a day" : ""}. Each clean is{" "}
+          {plan.discountPercent}% off what it would cost as a one-off. Prices
+          include tax.
         </p>
         <div className="grid gap-4 lg:grid-cols-2">
-          <PlanCard
-            option={quote.options[0]!}
+          {plan.days.map((day, i) => (
+            <PlanDayCard
+              key={day.startsAt}
+              option={quote.options[i]!}
+              day={day}
+              discountPercent={plan.discountPercent}
+            />
+          ))}
+        </div>
+        <Card title={plan.days.length > 1 ? "Each week" : "Deposit"}>
+          <PlanTotals
             plan={plan}
-            crewSize={quote.crewSize}
             depositPercent={quote.depositPercent}
             change={quote.changesPlan}
           />
-        </div>
+        </Card>
       </section>
 
       <Card
@@ -258,9 +271,9 @@ function PlanChangeNotice({
 // accept. The Deposit is taken, saving a card entered now, and the Job
 // booked, or none of it. If their bank wants them to approve the payment,
 // that happens here too, then the booking is finished. A Service Plan Quote
-// has its one Clean Type, and accepting it starts the plan, whose Deposit is
-// held for as long as it runs; or changes the home's plan, taking nothing, as
-// its Deposit carries over.
+// is accepted whole, with a clean on each of its weekdays, and starts the
+// plan, whose Deposit is held for as long as it runs; or changes the home's
+// plan, taking nothing, as its Deposit carries over.
 function Accept({
   quote,
   paymentMethod,
@@ -278,8 +291,9 @@ function Accept({
   const [isPending, setPending] = useState(false);
   const chosen = quote.options.find((o) => o.cleanType === cleanType)!;
   const balance = chosen.totalCents - chosen.depositCents;
+  const depositCents = quote.plan?.depositCents ?? chosen.depositCents;
   const payment = usePaymentForm({
-    amountCents: chosen.depositCents,
+    amountCents: depositCents,
     showCard: newCard,
   });
 
@@ -290,7 +304,8 @@ function Accept({
       const paymentToken = newCard ? await payment.token() : undefined;
       const outcome = await postJson<AcceptOutcome>(
         `/api/quotes/mine/${quote.id}/accept`,
-        { cleanType, paymentToken },
+        // a plan is accepted whole
+        quote.plan ? { paymentToken } : { cleanType, paymentToken },
       );
       if (outcome.status === "needs_approval") {
         await payment.approve(outcome.secret);
@@ -371,7 +386,7 @@ function Accept({
 
       <p className="text-sm text-fg-muted">
         {quote.plan
-          ? `${chosen.depositCents > 0 ? `We take the ${formatMoney(chosen.depositCents)} Deposit now and hold it for as long as your plan runs: it comes off your last clean when the plan ends. ` : ""}Each clean, ${formatMoney(chosen.totalCents)}, is charged when it's done. The first is on ${formatDateTime(quote.proposedStartsAt)}.`
+          ? `${depositCents > 0 ? `We take the ${formatMoney(depositCents)} Deposit now and hold it for as long as your plan runs: it comes off your last clean when the plan ends. ` : ""}${quote.plan.days.length === 1 ? `Each clean, ${formatMoney(chosen.totalCents)},` : "Each clean"} is charged when it's done. The first is on ${formatDateTime(quote.proposedStartsAt)}.`
           : `${
               chosen.depositCents > 0
                 ? `We take the ${formatMoney(chosen.depositCents)} Deposit now and the rest, ${formatMoney(balance)}, when the clean is done.`
@@ -386,8 +401,8 @@ function Accept({
           isDisabled={!payment.isReady}
           onPress={() => void accept()}
         >
-          {chosen.depositCents > 0
-            ? `Accept and pay ${formatMoney(chosen.depositCents)}`
+          {depositCents > 0
+            ? `Accept and pay ${formatMoney(depositCents)}`
             : "Accept and book"}
         </Button>
       </Actions>
@@ -401,15 +416,13 @@ function AcceptChange({ quote }: { quote: QuoteView }) {
   const router = useRouter();
   const [problem, setProblem] = useState<string>();
   const [isPending, setPending] = useState(false);
-  const option = quote.options[0]!;
+  const [only, ...others] = quote.options;
 
   const accept = async () => {
     setPending(true);
     setProblem(undefined);
     try {
-      await postJson<AcceptOutcome>(`/api/quotes/mine/${quote.id}/accept`, {
-        cleanType: option.cleanType,
-      });
+      await postJson<AcceptOutcome>(`/api/quotes/mine/${quote.id}/accept`, {});
       showToast({ tone: "success", title: "Your Service Plan has changed" });
     } catch (e) {
       setProblem(
@@ -426,7 +439,8 @@ function AcceptChange({ quote }: { quote: QuoteView }) {
   return (
     <Card title="Accept the new terms">
       <p className="text-sm text-fg-muted">
-        Nothing is charged now. Each clean, {formatMoney(option.totalCents)}, is
+        Nothing is charged now. Each clean
+        {others.length === 0 ? `, ${formatMoney(only!.totalCents)},` : ""} is
         charged when it's done, from {formatDateTime(quote.proposedStartsAt)}.
       </p>
       {problem && <Notice tone="danger">{problem}</Notice>}

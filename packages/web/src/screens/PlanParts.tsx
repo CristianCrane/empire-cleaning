@@ -15,10 +15,12 @@ import {
 import { ApiError, postJson } from "../api.ts";
 import type { AppHref } from "../links.ts";
 import {
+  cleanTypeLabel,
   formatDate,
   formatDateTime,
   formatHours,
   formatMoney,
+  planDayWhen,
   planRhythm,
 } from "./format.ts";
 
@@ -38,25 +40,50 @@ export function PlanStatusBadge({
   }
 }
 
-// a Service Plan's terms, as its Client agreed them
+// a Service Plan's terms, as its Client agreed them: on several weekdays,
+// each one's clean
 export function PlanTerms({
   plan,
 }: {
   plan: Omit<ServicePlanView, "upcoming">;
 }) {
+  const [only] = plan.days;
   return (
     <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
       <dt className="font-semibold">When</dt>
       <dd>{planRhythm(plan)}</dd>
-      <dt className="font-semibold">Each clean</dt>
-      <dd>
-        {formatMoney(plan.totalCents)} including tax, {plan.discountPercent}%
-        off a one-off clean
-      </dd>
-      <dt className="font-semibold">On site</dt>
-      <dd>
-        About {formatHours(plan.hoursOnSite)}, with a crew of {plan.crewSize}
-      </dd>
+      {plan.days.length === 1 ? (
+        <>
+          <dt className="font-semibold">Each clean</dt>
+          <dd>
+            {formatMoney(only!.totalCents)} including tax,{" "}
+            {plan.discountPercent}% off a one-off clean
+          </dd>
+          <dt className="font-semibold">On site</dt>
+          <dd>
+            About {formatHours(only!.hoursOnSite)}, with a crew of{" "}
+            {only!.crewSize}
+          </dd>
+        </>
+      ) : (
+        <>
+          {plan.days.map((day) => (
+            <div key={day.startsAt} className="contents">
+              <dt className="font-semibold">{planDayWhen(day.startsAt)}</dt>
+              <dd>
+                {cleanTypeLabel[day.cleanType]}, {formatMoney(day.totalCents)}{" "}
+                including tax. About {formatHours(day.hoursOnSite)} on site,
+                with a crew of {day.crewSize}
+              </dd>
+            </div>
+          ))}
+          <dt className="font-semibold">Each week</dt>
+          <dd>
+            {formatMoney(plan.roundTotalCents)} including tax,{" "}
+            {plan.discountPercent}% off one-off cleans
+          </dd>
+        </>
+      )}
       <dt className="font-semibold">Extras</dt>
       <dd>{plan.addOns.length > 0 ? plan.addOns.join(", ") : "None"}</dd>
       <dt className="font-semibold">

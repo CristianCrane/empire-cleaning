@@ -168,14 +168,14 @@ test(
     );
     await saved(page);
     await expect(
-      page.getByText(/^Standard Clean every week: \$231\.36 a clean$/),
+      page.getByText(/^Standard Clean, every week: \$231\.36 a clean$/),
     ).toBeVisible();
     await startOn19th(page);
     await page.getByRole("button", { name: `Send to ${casey.name}` }).click();
     await expect(page.getByText(`Quote sent to ${casey.email}`)).toBeVisible();
 
     const offer = page.getByRole("region", {
-      name: "Standard Clean, every week",
+      name: "Mondays at 9:00 AM: Standard Clean",
     });
     await expect(offer).toContainText("$231.36");
     await expect(offer).toContainText("$272.19");
@@ -201,7 +201,7 @@ test(
       "Your Service Plan Quote",
     );
     const plan = client.getByRole("region", {
-      name: "Standard Clean, every week",
+      name: "Mondays at 9:00 AM: Standard Clean",
     });
     await expect(plan).toContainText("$231.36 a clean");
     await expect(plan).toContainText("As a one-off clean$272.19");
@@ -222,9 +222,9 @@ test(
       client
         .getByRole("grid", { name: "Your Quotes" })
         .getByRole("row")
-        .filter({ hasText: "Service Plan, Standard Clean every week" }),
+        .filter({ hasText: "Service Plan, Standard Clean, every week" }),
     ).toContainText(
-      "Starting Mon, Jan 19, 9:00 AM · Service Plan, Standard Clean every week: $231.36 a clean",
+      "Starting Mon, Jan 19, 9:00 AM · Service Plan, Standard Clean, every week: $231.36 a clean",
     );
   },
 );
@@ -244,16 +244,18 @@ test("a Service Plan of Deep Cleans", async ({ page, browser }) => {
   await page.getByRole("button", { name: `Send to ${casey.name}` }).click();
   await expect(page.getByText(`Quote sent to ${casey.email}`)).toBeVisible();
   await expect(page.getByRole("region", { name: "Offer" })).toContainText(
-    "Deep Cleans every 2 weeks",
+    "Every 2 weeks, on Mondays at 9:00 AM",
   );
 
   const client = await (await browser.newContext()).newPage();
   await signedInAs(client, casey.email);
   await client.goto(await quoteLink());
   await expect(
-    client.getByRole("region", { name: "Deep Clean, every 2 weeks" }),
+    client.getByRole("region", { name: "Mondays at 9:00 AM: Deep Clean" }),
   ).toBeVisible();
-  await expect(client.getByText(/^A Deep Clean every 2 weeks/)).toBeVisible();
+  await expect(
+    client.getByText(/^Every 2 weeks, on Mondays at 9:00 AM\./),
+  ).toBeVisible();
 });
 
 test("the Client screen lists each home, whose own page holds its history and offers a plan", async ({
@@ -447,7 +449,7 @@ test("picking a plan's start from the Schedule marks the days it repeats on", as
   await saved(page);
 
   await page
-    .getByRole("region", { name: "Start" })
+    .getByRole("region", { name: "Time and crew" })
     .getByRole("button", { name: "Pick from the Schedule" })
     .click();
   const schedule = page.getByRole("dialog", {

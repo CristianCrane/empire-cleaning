@@ -22,7 +22,7 @@ import {
   propertySummary,
   wantedCleaning,
   quoteHeadline,
-  recurrenceLabel,
+  planName,
 } from "../format.ts";
 import { PlanStatusBadge } from "../PlanParts.tsx";
 import { QuoteStatusBadge } from "../QuoteParts.tsx";
@@ -81,7 +81,7 @@ export function PortalHome() {
               <ListItem
                 key={plan.id}
                 id={plan.id}
-                title={`${cleanTypeLabel[plan.cleanType]}, ${recurrenceLabel[plan.recurrence].toLowerCase()}`}
+                title={planName(plan)}
                 description={[
                   addressOf(plan.property),
                   plan.nextStartsAt

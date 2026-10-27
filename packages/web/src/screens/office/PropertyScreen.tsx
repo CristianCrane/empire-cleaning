@@ -45,7 +45,7 @@ import {
   propertySummary,
   wantedCleaning,
   quoteHeadline,
-  recurrenceLabel,
+  planName,
 } from "../format.ts";
 import { PlanStatusBadge } from "../PlanParts.tsx";
 import { QuoteStatusBadge } from "../QuoteParts.tsx";
@@ -192,7 +192,7 @@ function PlanLink({ plan }: { plan: ServicePlanSummary }) {
       <List aria-label="Service Plan">
         <ListItem
           id={plan.id}
-          title={`${cleanTypeLabel[plan.cleanType]}, ${recurrenceLabel[plan.recurrence].toLowerCase()}`}
+          title={planName(plan)}
           description={
             plan.nextStartsAt
               ? `Next: ${formatDateTime(plan.nextStartsAt)}`
@@ -212,7 +212,8 @@ function PlanLink({ plan }: { plan: ServicePlanSummary }) {
 }
 
 // a home's requests, Quotes and Jobs, newest first, each opening its own
-// screen; and once its First Clean is Completed, the way to offer it a plan
+// screen; and the way to offer it a plan: a home once its First Clean is
+// Completed, business premises at any time (ADR-0014)
 function History({ home }: { home: OfficePropertyView }) {
   const navigate = useNavigate();
   const { quoteRequests: requests, quotes, jobs } = home;
@@ -224,7 +225,7 @@ function History({ home }: { home: OfficePropertyView }) {
     <Card
       title="History"
       actions={
-        home.firstCleanCompleted && (
+        (home.firstCleanCompleted || home.kind === "commercial") && (
           <OfferServicePlan
             propertyId={home.id}
             label={home.servicePlan ? "Change its Service Plan" : undefined}

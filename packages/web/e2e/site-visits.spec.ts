@@ -115,7 +115,7 @@ test("a Quote for business premises can't be sent until a Site Visit's findings 
   await signInAsOffice(page);
   await page.goto("/office/requests");
   await page.getByText("Acme Dental").click();
-  await page.getByRole("button", { name: "Draft a Quote" }).click();
+  await page.getByRole("button", { name: "Draft a one-off Quote" }).click();
   await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
   const quote = page.url();
 

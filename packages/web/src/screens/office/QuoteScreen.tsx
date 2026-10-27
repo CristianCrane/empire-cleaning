@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useLoaderData, useRouter } from "@tanstack/react-router";
 import {
   parseDate,
@@ -13,6 +13,7 @@ import type {
   OfficeQuote,
   OfficeQuoteOption,
   PlanChange,
+  PlanChoice,
   QuoteDraftInput,
   Recurrence,
   ScheduleDay,
@@ -51,24 +52,29 @@ import {
   cleanTypeLabel,
   clientName,
   conditionLabel,
+  dayOfInstant,
   formatClock,
   formatDate,
   formatDateTime,
   formatDay,
   formatHours,
   formatMoney,
+  planName,
+  planRhythm,
   propertySummary,
   recurrenceLabel,
   recurrenceWeeks,
+  timeOfDay,
+  weekdayOf,
 } from "../format.ts";
 import {
   AddOnList,
   OptionCard,
-  PlanCard,
+  PlanDayCard,
   PlanFigures,
   PlanSaving,
+  PlanTotals,
   QuoteStatusBadge,
-  planTitle,
 } from "../QuoteParts.tsx";
 import { crewAt } from "../schedule-layout.ts";
 import { homeCrumbs } from "./PropertyScreen.tsx";
@@ -93,27 +99,52 @@ const homeOf = (quote: OfficeQuote) =>
         }),
       };
 
-// a one-off Quote's options, or a Service Plan Quote's one, as cards
-function OfferCard({
+// a one-off Quote's options as cards, or a Service Plan Quote's weekdays,
+// with their Deposit and, on several, a week's total
+function OfferCards({
   quote,
-  option,
   children,
 }: {
   quote: OfficeQuote;
-  option: OfficeQuoteOption;
-  children: ReactNode;
+  // anything more on each option, e.g. how it's priced
+  children: (option: OfficeQuoteOption) => ReactNode;
 }) {
-  const terms = {
-    option,
-    crewSize: quote.crewSize,
-    depositPercent: quote.depositPercent,
-  };
-  return quote.plan ? (
-    <PlanCard {...terms} plan={quote.plan} change={quote.changesPlan}>
-      {children}
-    </PlanCard>
-  ) : (
-    <OptionCard {...terms}>{children}</OptionCard>
+  const { plan } = quote;
+  return (
+    <>
+      <div className="grid gap-4 lg:grid-cols-2">
+        {plan
+          ? plan.days.map((day, i) => (
+              <PlanDayCard
+                key={day.startsAt ?? i}
+                option={quote.options[i]!}
+                day={day}
+                discountPercent={plan.discountPercent}
+              >
+                {children(quote.options[i]!)}
+              </PlanDayCard>
+            ))
+          : quote.options.map((option) => (
+              <OptionCard
+                key={option.cleanType}
+                option={option}
+                crewSize={quote.crewSize}
+                depositPercent={quote.depositPercent}
+              >
+                {children(option)}
+              </OptionCard>
+            ))}
+      </div>
+      {plan && (
+        <Card title={plan.days.length > 1 ? "Each week" : "Deposit"}>
+          <PlanTotals
+            plan={plan}
+            depositPercent={quote.depositPercent}
+            change={quote.changesPlan}
+          />
+        </Card>
+      )}
+    </>
   );
 }
 
@@ -213,10 +244,8 @@ function SentQuote({ quote }: { quote: OfficeQuote }) {
             <>
               <dt className="font-semibold">Then</dt>
               <dd>
-                {cleanTypeLabel[quote.plan.cleanType]}s{" "}
-                {recurrenceLabel[quote.plan.recurrence].toLowerCase()}, priced
-                for {conditionLabel[quote.plan.condition].toLowerCase()}{" "}
-                Condition
+                {planRhythm(quote.plan)}, priced for{" "}
+                {conditionLabel[quote.plan.condition].toLowerCase()} Condition
               </dd>
             </>
           )}
@@ -263,20 +292,18 @@ function SentQuote({ quote }: { quote: OfficeQuote }) {
           <RecordAcceptance quote={quote} />
         ) : (
           <Notice tone="danger">
-            {formatDateTime(quote.proposedStartsAt!)} has filled up since this
-            Quote was sent, so {quote.client.name} can't accept it. Draft a new
-            Quote with another time from their{" "}
+            {quote.plan && quote.plan.days.length > 1
+              ? "A day its first cleans are on has"
+              : `${formatDateTime(quote.proposedStartsAt!)} has`}{" "}
+            filled up since this Quote was sent, so {quote.client.name} can't
+            accept it. Draft a new Quote with another time from their{" "}
             <Link href={homeOf(quote).href}>{homeOf(quote).label}</Link>: it
             replaces this one.
           </Notice>
         ))}
-      <div className="grid gap-4 lg:grid-cols-2">
-        {quote.options.map((option) => (
-          <OfferCard key={option.cleanType} quote={quote} option={option}>
-            <PricedFrom option={option} />
-          </OfferCard>
-        ))}
-      </div>
+      <OfferCards quote={quote}>
+        {(option) => <PricedFrom option={option} />}
+      </OfferCards>
       <Card
         title="Add-ons"
         description={
@@ -305,6 +332,7 @@ function RecordAcceptance({ quote }: { quote: OfficeQuote }) {
   const [problem, setProblem] = useState<string>();
   const [busy, setBusy] = useState<"accept" | "link">();
   const chosen = quote.options.find((o) => o.cleanType === cleanType)!;
+  const depositCents = quote.plan?.depositCents ?? chosen.depositCents;
   const [firstName] = quote.client.name.split(" ");
 
   const attempt = async (
@@ -328,9 +356,11 @@ function RecordAcceptance({ quote }: { quote: OfficeQuote }) {
 
   const accept = (close: () => void) =>
     attempt("accept", async () => {
-      await postJson<OfficeQuote>(`/api/quotes/${quote.id}/accept`, {
-        cleanType,
-      });
+      // a plan is accepted whole
+      await postJson<OfficeQuote>(
+        `/api/quotes/${quote.id}/accept`,
+        quote.plan ? {} : { cleanType },
+      );
       close();
       showToast({
         tone: "success",
@@ -380,8 +410,7 @@ function RecordAcceptance({ quote }: { quote: OfficeQuote }) {
                 <>
                   <p>
                     This changes {quote.client.name}'s Service Plan to{" "}
-                    {cleanTypeLabel[cleanType]}s{" "}
-                    {recurrenceLabel[quote.plan!.recurrence].toLowerCase()} from{" "}
+                    {planName(quote.plan!)} from{" "}
                     {formatDateTime(quote.proposedStartsAt!)}, cancelling its
                     booked Jobs from then on. Nothing is charged. Only do this
                     if they've told you they accept.
@@ -465,10 +494,10 @@ function RecordAcceptance({ quote }: { quote: OfficeQuote }) {
               <>
                 {quote.plan ? (
                   <p>
-                    This charges the {formatMoney(chosen.depositCents)} Deposit
-                    to {quote.client.name}'s {quote.paymentMethod!.label}, held
-                    for the life of the plan, and starts their Service Plan with
-                    its first {cleanTypeLabel[cleanType]} on{" "}
+                    This charges the {formatMoney(depositCents)} Deposit to{" "}
+                    {quote.client.name}'s {quote.paymentMethod!.label}, held for
+                    the life of the plan, and starts their Service Plan,{" "}
+                    {planName(quote.plan)}, with its first clean on{" "}
                     {formatDateTime(quote.proposedStartsAt!)}. Only do this if
                     they've told you they accept.
                   </p>
@@ -523,6 +552,20 @@ function PricedFrom({ option }: { option: OfficeQuoteOption }) {
 
 // what's on screen: money in dollars, the time as the pickers hold it
 type Override = { on: boolean; price: number; reason: string };
+
+// one of a Service Plan Draft's weekdays, as the pickers hold it; `key` is
+// the screen's own, to tell the weekdays apart as they're added and removed
+type DayFields = {
+  key: number;
+  date: CalendarDate | null;
+  time: Time | null;
+  cleanType: CleanType;
+  crewSize: number;
+  override: Override;
+};
+
+type PlanFields = Omit<ServicePlanInput, "days"> & { days: DayFields[] };
+
 type Fields = {
   addOns: string[];
   crewSize: number;
@@ -531,20 +574,27 @@ type Fields = {
   date: CalendarDate | null;
   time: Time | null;
   overrides: Record<CleanType, Override>;
-  // a Service Plan Quote's
-  plan: ServicePlanInput | null;
+  // a Service Plan Quote's terms, and its weekdays, each with its own time,
+  // crew and override
+  plan: PlanFields | null;
 };
 
+let lastKey = 0;
+const nextKey = () => (lastKey += 1);
+
+const overrideOf = (option: OfficeQuoteOption | undefined): Override => ({
+  on: option?.overrideCents != null,
+  price: (option?.overrideCents ?? option?.suggested.priceCents ?? 0) / 100,
+  reason: option?.overrideReason ?? "",
+});
+
 const toFields = (quote: OfficeQuote): Fields => {
-  // a Service Plan Quote has only its own Clean Type to override
-  const override = (cleanType: CleanType): Override => {
-    const option = quote.options.find((o) => o.cleanType === cleanType);
-    return {
-      on: option?.overrideCents != null,
-      price: (option?.overrideCents ?? option?.suggested.priceCents ?? 0) / 100,
-      reason: option?.overrideReason ?? "",
-    };
-  };
+  const override = (cleanType: CleanType) =>
+    overrideOf(
+      quote.plan
+        ? undefined
+        : quote.options.find((o) => o.cleanType === cleanType),
+    );
   return {
     addOns: quote.addOns.map((a) => a.key),
     crewSize: quote.crewSize,
@@ -552,9 +602,16 @@ const toFields = (quote: OfficeQuote): Fields => {
     validityDays: quote.validityDays,
     plan: quote.plan && {
       recurrence: quote.plan.recurrence,
-      cleanType: quote.plan.cleanType,
       discountPercent: quote.plan.discountPercent,
       condition: quote.plan.condition,
+      days: quote.plan.days.map((day, i) => ({
+        key: nextKey(),
+        date: day.startsAt ? parseDate(dayOfInstant(day.startsAt)) : null,
+        time: day.startsAt ? parseTime(timeOfDay(day.startsAt)) : null,
+        cleanType: day.cleanType,
+        crewSize: day.crewSize,
+        override: overrideOf(quote.options[i]),
+      })),
     },
     date: quote.proposedStart && parseDate(quote.proposedStart.date),
     time: quote.proposedStart && parseTime(quote.proposedStart.time),
@@ -562,28 +619,44 @@ const toFields = (quote: OfficeQuote): Fields => {
   };
 };
 
+const startOf = (date: CalendarDate | null, time: Time | null) =>
+  date && time
+    ? { date: date.toString(), time: time.toString().slice(0, 5) }
+    : null;
+
+const priced = ({ on, price, reason }: Override) =>
+  on ? { priceCents: Math.round(price * 100), reason } : null;
+
 const toInput = (fields: Fields): QuoteDraftInput => {
-  // a Service Plan Quote's only for its own Clean Type
-  const override = (cleanType: CleanType) => {
-    const { on, price, reason } = fields.overrides[cleanType];
-    return on && (!fields.plan || fields.plan.cleanType === cleanType)
-      ? { priceCents: Math.round(price * 100), reason }
-      : null;
-  };
-  return {
+  const terms = {
     addOns: fields.addOns,
-    crewSize: fields.crewSize,
     depositPercent: fields.depositPercent,
     validityDays: fields.validityDays,
-    proposedStart:
-      fields.date && fields.time
-        ? {
-            date: fields.date.toString(),
-            time: fields.time.toString().slice(0, 5),
-          }
-        : null,
-    overrides: { deep: override("deep"), standard: override("standard") },
-    plan: fields.plan,
+  };
+  // a Service Plan Quote's time, crew and override are each weekday's
+  if (fields.plan) {
+    const { days, ...plan } = fields.plan;
+    return {
+      ...terms,
+      plan: {
+        ...plan,
+        days: days.map((day) => ({
+          start: startOf(day.date, day.time),
+          cleanType: day.cleanType,
+          crewSize: day.crewSize,
+          override: priced(day.override),
+        })),
+      },
+    };
+  }
+  return {
+    ...terms,
+    crewSize: fields.crewSize,
+    proposedStart: startOf(fields.date, fields.time),
+    overrides: {
+      deep: priced(fields.overrides.deep),
+      standard: priced(fields.overrides.standard),
+    },
   };
 };
 
@@ -677,25 +750,31 @@ const noCrewAt = (
 
 // A Service Plan Quote's own terms: how often, the Plan Discount, and the
 // Condition it's priced for, which is moderate unless changed here (the
-// home's own Condition is left as it is). Its Clean Type is chosen from the
-// price cards.
+// home's own Condition is left as it is). Each weekday's Clean Type is chosen
+// from its price cards. A plan on several weekdays comes round every week.
 function PlanTerms({
   plan,
   onChange,
 }: {
-  plan: ServicePlanInput;
-  onChange: (change: Partial<ServicePlanInput>) => void;
+  plan: PlanFields;
+  onChange: (change: Partial<Omit<ServicePlanInput, "days">>) => void;
 }) {
+  const several = plan.days.length > 1;
   return (
     <Card title="Plan">
       <RadioGroup
         label="How often"
         name="plan.recurrence"
+        description={
+          several
+            ? "A plan on several weekdays comes round every week."
+            : undefined
+        }
         value={plan.recurrence}
         onChange={(value) => onChange({ recurrence: value as Recurrence })}
       >
         {(["weekly", "fortnightly", "four_weekly"] as const).map((r) => (
-          <Radio key={r} value={r}>
+          <Radio key={r} value={r} isDisabled={several && r !== "weekly"}>
             {recurrenceLabel[r]}
           </Radio>
         ))}
@@ -730,12 +809,16 @@ function OverrideFields({
   option,
   override,
   label,
+  name,
   onChange,
 }: {
   option: OfficeQuoteOption;
   override: Override;
   // what the price is called: "Deep Clean", or a plan's "one-off"
   label: string;
+  // where its fields' errors are reported: "overrides.deep", or a plan's
+  // "plan.days.0.override"
+  name: string;
   onChange: (change: Partial<Override>) => void;
 }) {
   return (
@@ -751,7 +834,7 @@ function OverrideFields({
         <div className="flex flex-col gap-4">
           <NumberField
             label={`${label === "one-off" ? "One-off" : label} price before tax`}
-            name={`overrides.${option.cleanType}.priceCents`}
+            name={`${name}.priceCents`}
             minValue={0}
             formatOptions={dollars}
             value={override.price}
@@ -759,7 +842,7 @@ function OverrideFields({
           />
           <TextField
             label="Reason for the override"
-            name={`overrides.${option.cleanType}.reason`}
+            name={`${name}.reason`}
             value={override.reason}
             onChange={(reason) => onChange({ reason })}
           />
@@ -795,9 +878,11 @@ const SAVE_DELAY_MS = 500;
 
 // the prices as last worked out, in a line: what the bar at the bottom shows
 const priceSummary = (quote: OfficeQuote) => {
-  if (quote.plan) {
-    const [option] = quote.options;
-    return `${cleanTypeLabel[option!.cleanType]} ${recurrenceLabel[quote.plan.recurrence].toLowerCase()}: ${formatMoney(option!.totalCents)} a clean`;
+  const { plan } = quote;
+  if (plan) {
+    return plan.days.length === 1
+      ? `${planName(plan)}: ${formatMoney(quote.options[0]!.totalCents)} a clean`
+      : `${plan.days.length} cleans a week: ${formatMoney(plan.roundTotalCents)} a week`;
   }
   return quote.options
     .map((o) => `${cleanTypeLabel[o.cleanType]} ${formatMoney(o.totalCents)}`)
@@ -826,29 +911,48 @@ function DraftEditor({ quote: loaded }: { quote: OfficeQuote }) {
   const saved = useRef({ edit: 0, ok: true });
   const queue = useRef<Promise<boolean>>(Promise.resolve(true));
 
-  const set = (change: Partial<Fields>) => {
+  // a change worked out from what's on screen as it is then, so two changes
+  // in a row (a field committed on blur, then the click that blurred it)
+  // both count
+  const update = (change: (current: Fields) => Partial<Fields>) => {
     edits.current += 1;
     setFields((current) => {
-      latest.current = { ...current, ...change };
+      latest.current = { ...current, ...change(current) };
       return latest.current;
     });
     setSaveState("changed");
   };
+  const set = (change: Partial<Fields>) => update(() => change);
   const setOverride = (cleanType: CleanType, change: Partial<Override>) =>
-    set({
+    update(({ overrides }) => ({
       overrides: {
-        ...fields.overrides,
-        [cleanType]: { ...fields.overrides[cleanType], ...change },
+        ...overrides,
+        [cleanType]: { ...overrides[cleanType], ...change },
       },
+    }));
+  const setPlan = (change: (plan: PlanFields) => Partial<PlanFields>) =>
+    update(({ plan }) => ({ plan: { ...plan!, ...change(plan!) } }));
+
+  // a Service Plan's weekdays: one changed, added or removed
+  const setDays = (change: (days: DayFields[]) => DayFields[]) =>
+    setPlan(({ days }) => {
+      const changed = change(days);
+      // several come round every week
+      return changed.length > 1
+        ? { days: changed, recurrence: "weekly" }
+        : { days: changed };
     });
+  const setDay = (key: number, change: Partial<DayFields>) =>
+    setDays((days) =>
+      days.map((d) => (d.key === key ? { ...d, ...change } : d)),
+    );
 
   const missingReason = (f: Fields) =>
-    (Object.keys(f.overrides) as CleanType[]).some(
-      (t) =>
-        f.overrides[t].on &&
-        !f.overrides[t].reason.trim() &&
-        (!f.plan || f.plan.cleanType === t),
-    );
+    f.plan
+      ? f.plan.days.some((d) => d.override.on && !d.override.reason.trim())
+      : (Object.keys(f.overrides) as CleanType[]).some(
+          (t) => f.overrides[t].on && !f.overrides[t].reason.trim(),
+        );
 
   // saves what's on screen, one save at a time; says whether it's all saved
   const saveNow = (): Promise<boolean> => {
@@ -921,9 +1025,6 @@ function DraftEditor({ quote: loaded }: { quote: OfficeQuote }) {
 
   const stale = saveState === "changed" || saveState === "saving";
   const plan = fields.plan;
-  const chosen =
-    plan &&
-    quote.planChoices?.find((c) => c.option.cleanType === plan.cleanType);
 
   return (
     <Form
@@ -946,61 +1047,61 @@ function DraftEditor({ quote: loaded }: { quote: OfficeQuote }) {
         <div
           className={`flex flex-col gap-4 transition-opacity ${stale ? "opacity-60" : ""}`}
         >
-          {plan && quote.planChoices ? (
+          {plan ? (
             <>
-              <RadioGroup
-                label="Clean Type"
-                description="Choose the one the plan is for. The Client is offered only that."
-                layout="cards"
-                value={plan.cleanType}
-                onChange={(value) =>
-                  set({ plan: { ...plan, cleanType: value as CleanType } })
-                }
+              {plan.days.map((day, i) => (
+                <PlanDayFields
+                  key={day.key}
+                  index={i}
+                  day={day}
+                  plan={plan}
+                  // as last saved, at the same place
+                  option={quote.options[i]}
+                  choices={quote.planChoices?.[i]}
+                  onChange={(change) => setDay(day.key, change)}
+                  onRemove={
+                    plan.days.length > 1
+                      ? () =>
+                          setDays((days) =>
+                            days.filter((d) => d.key !== day.key),
+                          )
+                      : undefined
+                  }
+                />
+              ))}
+              <Button
+                variant="secondary"
+                className="self-start"
+                isDisabled={plan.days.length >= 7}
+                onPress={() => setDays((days) => [...days, anotherDay(days)])}
               >
-                {quote.planChoices.map((choice) => (
-                  <RadioCard
-                    key={choice.option.cleanType}
-                    value={choice.option.cleanType}
-                    title={planTitle(choice.option, choice.plan)}
-                    badge={<PlanSaving plan={choice.plan} />}
-                  >
-                    <PlanFigures
-                      option={choice.option}
-                      plan={choice.plan}
-                      crewSize={quote.crewSize}
-                      depositPercent={quote.depositPercent}
-                    />
-                  </RadioCard>
-                ))}
-              </RadioGroup>
-              {chosen && (
+                Add a weekday
+              </Button>
+              {quote.plan && (
                 <Card
-                  title={`${cleanTypeLabel[plan.cleanType]} price`}
+                  title={quote.plan.days.length > 1 ? "Each week" : "Deposit"}
                   headingLevel={3}
-                  description="The Plan Discount comes off the one-off price, overridden or not."
                 >
-                  <OverrideFields
-                    option={chosen.option}
-                    override={fields.overrides[plan.cleanType]}
-                    label="one-off"
-                    onChange={(change) => setOverride(plan.cleanType, change)}
+                  <PlanTotals
+                    plan={quote.plan}
+                    depositPercent={quote.depositPercent}
+                    change={quote.changesPlan}
                   />
                 </Card>
               )}
             </>
           ) : (
-            <div className="grid gap-4 lg:grid-cols-2">
-              {quote.options.map((option) => (
-                <OfferCard key={option.cleanType} quote={quote} option={option}>
-                  <OverrideFields
-                    option={option}
-                    override={fields.overrides[option.cleanType]}
-                    label={cleanTypeLabel[option.cleanType]}
-                    onChange={(change) => setOverride(option.cleanType, change)}
-                  />
-                </OfferCard>
-              ))}
-            </div>
+            <OfferCards quote={quote}>
+              {(option) => (
+                <OverrideFields
+                  option={option}
+                  override={fields.overrides[option.cleanType]}
+                  label={cleanTypeLabel[option.cleanType]}
+                  name={`overrides.${option.cleanType}`}
+                  onChange={(change) => setOverride(option.cleanType, change)}
+                />
+              )}
+            </OfferCards>
           )}
         </div>
         <p className="text-sm text-fg-muted">
@@ -1011,10 +1112,7 @@ function DraftEditor({ quote: loaded }: { quote: OfficeQuote }) {
       </section>
 
       {plan && (
-        <PlanTerms
-          plan={plan}
-          onChange={(change) => set({ plan: { ...plan, ...change } })}
-        />
+        <PlanTerms plan={plan} onChange={(change) => setPlan(() => change)} />
       )}
       {quote.firstClean && <FirstCleanCard firstClean={quote.firstClean} />}
 
@@ -1047,14 +1145,17 @@ function DraftEditor({ quote: loaded }: { quote: OfficeQuote }) {
 
       <Card title="Terms">
         <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(10rem,1fr))]">
-          <NumberField
-            label="Crew Size"
-            name="crewSize"
-            minValue={1}
-            maxValue={10}
-            value={fields.crewSize}
-            onChange={(crewSize) => set({ crewSize })}
-          />
+          {/* each of a plan's weekdays has its own */}
+          {!plan && (
+            <NumberField
+              label="Crew Size"
+              name="crewSize"
+              minValue={1}
+              maxValue={10}
+              value={fields.crewSize}
+              onChange={(crewSize) => set({ crewSize })}
+            />
+          )}
           <NumberField
             label="Deposit (%)"
             name="depositPercent"
@@ -1074,58 +1175,47 @@ function DraftEditor({ quote: loaded }: { quote: OfficeQuote }) {
         </div>
       </Card>
 
-      <Card
-        title={quote.plan ? "Start" : "Proposed time"}
-        description={
-          plan
-            ? `New York time. Then ${recurrenceLabel[plan.recurrence].toLowerCase()} on the same weekday. The Quote Expires at this time if it isn't accepted first.`
-            : "New York time. The Quote Expires at this time if it isn't accepted first."
-        }
-      >
-        <div className="grid gap-4 sm:grid-cols-2">
-          <DatePicker
-            label="Date"
-            name="proposedStart"
-            value={fields.date}
-            onChange={(date) => set({ date })}
-          />
-          <TimeField
-            label="Start time"
-            value={fields.time}
-            onChange={(time) => set({ time })}
-          />
-        </div>
-        <PickFromSchedule
-          date={fields.date?.toString()}
-          time={fields.time?.toString().slice(0, 5)}
-          hoursOnSite={Math.max(
-            0,
-            ...quote.options
-              .filter((o) => !plan || o.cleanType === plan.cleanType)
-              .map((o) => o.hoursOnSite),
-          )}
-          crew={{ crewSize: fields.crewSize }}
-          repeats={
-            plan
-              ? {
-                  everyWeeks: recurrenceWeeks[plan.recurrence],
-                  label: recurrenceLabel[plan.recurrence],
-                }
-              : undefined
-          }
-          onPick={({ date, time }) =>
-            set({ date: parseDate(date), time: parseTime(time) })
-          }
-        />
-        {fields.date && (
-          <RoomOnDay
-            day={fields.date.toString()}
+      {/* a plan's weekdays each have their own, above */}
+      {!plan && (
+        <Card
+          title="Proposed time"
+          description="New York time. The Quote Expires at this time if it isn't accepted first."
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            <DatePicker
+              label="Date"
+              name="proposedStart"
+              value={fields.date}
+              onChange={(date) => set({ date })}
+            />
+            <TimeField
+              label="Start time"
+              value={fields.time}
+              onChange={(time) => set({ time })}
+            />
+          </div>
+          <PickFromSchedule
+            date={fields.date?.toString()}
             time={fields.time?.toString().slice(0, 5)}
-            crewSize={fields.crewSize}
-            options={quote.options}
+            hoursOnSite={Math.max(
+              0,
+              ...quote.options.map((o) => o.hoursOnSite),
+            )}
+            crew={{ crewSize: fields.crewSize }}
+            onPick={({ date, time }) =>
+              set({ date: parseDate(date), time: parseTime(time) })
+            }
           />
-        )}
-      </Card>
+          {fields.date && (
+            <RoomOnDay
+              day={fields.date.toString()}
+              time={fields.time?.toString().slice(0, 5)}
+              crewSize={fields.crewSize}
+              options={quote.options}
+            />
+          )}
+        </Card>
+      )}
 
       {/* a Quote goes by email, and is accepted signed in with it (#34) */}
       {!quote.client.email && (
@@ -1184,6 +1274,191 @@ function DraftEditor({ quote: loaded }: { quote: OfficeQuote }) {
         </Button>
       </div>
     </Form>
+  );
+}
+
+// A new weekday for a Service Plan Draft: like the last, on the day after
+// it if that's still within a week of the first, at the same time
+const anotherDay = (days: DayFields[]): DayFields => {
+  const last = days.at(-1)!;
+  const dates = days.flatMap((d) => (d.date ? [d.date] : []));
+  const first = dates.reduce<CalendarDate | undefined>(
+    (min, d) => (!min || d.compare(min) < 0 ? d : min),
+    undefined,
+  );
+  const next = last.date?.add({ days: 1 });
+  const taken = (d: CalendarDate) =>
+    dates.some((t) => weekdayOf(t.toString()) === weekdayOf(d.toString()));
+  return {
+    key: nextKey(),
+    date:
+      next && first && next.compare(first.add({ days: 7 })) < 0 && !taken(next)
+        ? next
+        : null,
+    time: last.time,
+    cleanType: last.cleanType,
+    crewSize: last.crewSize,
+    override: { on: false, price: 0, reason: "" },
+  };
+};
+
+/**
+ * One weekday of a Service Plan Draft: its first clean's day and time,
+ * picked from the Schedule too, which every later one there repeats, and
+ * its crew; its Clean Type, chosen from its price cards; and its own
+ * override. `option` and `choices` are its prices as last saved, while
+ * there are any.
+ */
+function PlanDayFields({
+  index,
+  day,
+  plan,
+  option,
+  choices,
+  onChange,
+  onRemove,
+}: {
+  index: number;
+  day: DayFields;
+  plan: PlanFields;
+  option: OfficeQuoteOption | undefined;
+  choices: PlanChoice[] | undefined;
+  onChange: (change: Partial<DayFields>) => void;
+  // none while it's the plan's only weekday
+  onRemove: (() => void) | undefined;
+}) {
+  const headingId = useId();
+  const name = `plan.days.${index}`;
+  const time = day.time?.toString().slice(0, 5);
+  const chosen = choices?.find((c) => c.option.cleanType === day.cleanType);
+  const one = plan.days.length === 1;
+  const title = day.date
+    ? `${weekdayOf(day.date.toString())}s`
+    : `Weekday ${index + 1}`;
+  return (
+    <section aria-labelledby={headingId} className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Heading level={3} id={headingId}>
+          {title}
+        </Heading>
+        {onRemove && (
+          <Button variant="secondary" onPress={onRemove}>
+            Remove {title}
+          </Button>
+        )}
+      </div>
+      <Card
+        title="Time and crew"
+        headingLevel={4}
+        description={
+          one
+            ? `Its first clean, New York time. Then ${recurrenceLabel[plan.recurrence].toLowerCase()} on the same weekday. The Quote Expires at the plan's first clean if it isn't accepted first.`
+            : "Its first clean, New York time. Then every week on the same weekday."
+        }
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <DatePicker
+            label="Date"
+            name={`${name}.start`}
+            value={day.date}
+            onChange={(date) => onChange({ date })}
+          />
+          <TimeField
+            label="Start time"
+            value={day.time}
+            onChange={(time) => onChange({ time })}
+          />
+        </div>
+        <PickFromSchedule
+          date={day.date?.toString()}
+          time={time}
+          hoursOnSite={chosen?.option.hoursOnSite ?? option?.hoursOnSite ?? 0}
+          crew={{ crewSize: day.crewSize }}
+          repeats={{
+            everyWeeks: recurrenceWeeks[plan.recurrence],
+            label: recurrenceLabel[plan.recurrence],
+          }}
+          onPick={(picked) =>
+            onChange({
+              date: parseDate(picked.date),
+              time: parseTime(picked.time),
+            })
+          }
+        />
+        {day.date && option && (
+          <RoomOnDay
+            day={day.date.toString()}
+            time={time}
+            crewSize={day.crewSize}
+            options={[option]}
+          />
+        )}
+        <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(10rem,1fr))]">
+          <NumberField
+            label="Crew Size"
+            name={`${name}.crewSize`}
+            minValue={1}
+            maxValue={10}
+            value={day.crewSize}
+            onChange={(crewSize) => onChange({ crewSize })}
+          />
+        </div>
+      </Card>
+      {choices && (
+        <RadioGroup
+          label="Clean Type"
+          description={
+            one
+              ? "Choose the one the plan is for. The Client is offered only that."
+              : "Choose the one for this weekday. The Client is offered only that."
+          }
+          layout="cards"
+          value={day.cleanType}
+          onChange={(value) => onChange({ cleanType: value as CleanType })}
+        >
+          {choices.map((choice) => (
+            <RadioCard
+              key={choice.option.cleanType}
+              value={choice.option.cleanType}
+              title={
+                // on one weekday, how often too
+                one
+                  ? `${cleanTypeLabel[choice.option.cleanType]}, ${recurrenceLabel[plan.recurrence].toLowerCase()}`
+                  : cleanTypeLabel[choice.option.cleanType]
+              }
+              badge={<PlanSaving day={choice.day} />}
+            >
+              <PlanFigures
+                option={choice.option}
+                day={choice.day}
+                discountPercent={plan.discountPercent}
+              />
+            </RadioCard>
+          ))}
+        </RadioGroup>
+      )}
+      {chosen && (
+        <Card
+          title={
+            one
+              ? `${cleanTypeLabel[day.cleanType]} price`
+              : `${title}: ${cleanTypeLabel[day.cleanType]} price`
+          }
+          headingLevel={4}
+          description="The Plan Discount comes off the one-off price, overridden or not."
+        >
+          <OverrideFields
+            option={chosen.option}
+            override={day.override}
+            label="one-off"
+            name={`${name}.override`}
+            onChange={(change) =>
+              onChange({ override: { ...day.override, ...change } })
+            }
+          />
+        </Card>
+      )}
+    </section>
   );
 }
 

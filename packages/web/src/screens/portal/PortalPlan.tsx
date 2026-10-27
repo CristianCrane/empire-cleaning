@@ -19,12 +19,7 @@ import {
 } from "@empire-cleaning/ui";
 import { ApiError, getJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
-import {
-  addressOf,
-  cleanTypeLabel,
-  formatDateTime,
-  formatHours,
-} from "../format.ts";
+import { addressOf, formatDateTime, formatHours, planName } from "../format.ts";
 import { EndPlan, OnHold, PlanStatusBadge, PlanTerms } from "../PlanParts.tsx";
 
 // one of the Client's Service Plans: its terms, what each clean costs, the
@@ -60,7 +55,7 @@ export function PortalPlan() {
         }
       />
 
-      <Card title={cleanTypeLabel[plan.cleanType]}>
+      <Card title={planName(plan)}>
         <PlanTerms plan={plan} />
         <p className="text-sm text-fg-muted">
           Each clean is charged to your saved card when it's done. We email a
