@@ -232,7 +232,7 @@ test("a Quote whose day has filled up can't be paid for, and the Office is asked
   await needs.getByText(casey.name).click();
   await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
   await expect(
-    page.getByText(`can't accept it. Draft a new Quote with another time`),
+    page.getByText(`can't accept it. Draft a new Revision with another time`),
   ).toBeVisible();
   await expect(
     page.getByRole("region", { name: "Record acceptance" }),

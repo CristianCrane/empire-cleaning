@@ -11,7 +11,7 @@ import { addressOf } from "../properties/property-view.ts";
 import { jobsReplacedAt } from "../service-plans/changing.ts";
 import { officeStaffEmails } from "../staff/staff.ts";
 import { openQuotes } from "./quote-state.ts";
-import { quoteOptions, quotes } from "./quotes.schema.ts";
+import { quotes, revisionOptions } from "./quotes.schema.ts";
 
 // A Sent Quote doesn't hold its time: a booking for another Client, or fewer
 // Cleaners or hours, can fill its proposed day or time under it. Then it can't be
@@ -35,21 +35,22 @@ export const bookableFor = async (
   const bookable = new Map<string, CleanType[]>(open.map((q) => [q.id, []]));
   if (open.length === 0) return bookable;
 
+  // each Quote's offer: its latest Sent Revision
   const options = await db
     .select({
-      quoteId: quoteOptions.quoteId,
-      cleanType: quoteOptions.cleanType,
-      labourHours: quoteOptions.labourHours,
-      crewSize: quoteOptions.crewSize,
-      startsAt: quoteOptions.startsAt,
+      quoteId: quotes.id,
+      cleanType: revisionOptions.cleanType,
+      labourHours: revisionOptions.labourHours,
+      crewSize: revisionOptions.crewSize,
+      startsAt: revisionOptions.startsAt,
       kind: quotes.kind,
       propertyId: quotes.propertyId,
     })
-    .from(quoteOptions)
-    .innerJoin(quotes, eq(quotes.id, quoteOptions.quoteId))
+    .from(revisionOptions)
+    .innerJoin(quotes, eq(quotes.sentRevisionId, revisionOptions.revisionId))
     .where(
       inArray(
-        quoteOptions.quoteId,
+        quotes.id,
         open.map((q) => q.id),
       ),
     );

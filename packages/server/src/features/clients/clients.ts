@@ -10,8 +10,7 @@ import { connectSignedUpAccount } from "../auth/connections.ts";
 import { properties } from "../properties/properties.schema.ts";
 import { propertyStatuses } from "../properties/property-history.ts";
 import { toPropertyView } from "../properties/property-view.ts";
-import { quoteRequests } from "../quote-requests/quote-requests.schema.ts";
-import { quoteRequestViews } from "../quote-requests/request-views.ts";
+import { quotesForClient } from "../quotes/quote-state.ts";
 import { clients } from "./clients.schema.ts";
 
 // no email only when the Office enters a caller without one (#34); a
@@ -25,7 +24,7 @@ type NewClient = {
 
 const normalise = (email: string) => email.trim().toLowerCase();
 
-// adds a Client; Quote Requests are what create them. If someone has already
+// adds a Client; asking for a Quote is what creates them. If someone has already
 // signed up with this email, their Account is connected straight away.
 export const createClient = async ({
   email,
@@ -64,7 +63,7 @@ export const clientForAccount = async (accountId: string) => {
 };
 
 // e.g. Office Staff correcting a Client who signed up with a different email
-// from their Quote Request; if that Account exists it connects straight away
+// from asking for a Quote; if that Account exists it connects straight away
 export const changeClientEmail = async (id: string, email: string) => {
   const address = normalise(email);
   await db.update(clients).set({ email: address }).where(eq(clients.id, id));
@@ -122,16 +121,16 @@ export const officeUpdateContactDetails = async (
   return officeClientView(id);
 };
 
-// a Client with their Properties and Quote Requests, newest requests first
+// a Client with their Properties and Quotes, newest Quotes first
 export const clientView = async (
   id: string,
 ): Promise<ClientView | undefined> => {
   const [client] = await db.select().from(clients).where(eq(clients.id, id));
   if (!client) return undefined;
 
-  const [ownProperties, requests, list] = await Promise.all([
+  const [ownProperties, ownQuotes, list] = await Promise.all([
     propertiesOf(id),
-    quoteRequestViews(eq(quoteRequests.clientId, id)),
+    quotesForClient(id),
     currentPriceList(),
   ]);
   return {
@@ -142,7 +141,7 @@ export const clientView = async (
     email: client.email!,
     phone: client.phone,
     properties: ownProperties.map((p) => toPropertyView(p, list)),
-    quoteRequests: requests,
+    quotes: ownQuotes,
   };
 };
 

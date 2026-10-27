@@ -35,6 +35,7 @@ import { currentPriceList } from "../price-list/price-list.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { addressOf, toPropertyView } from "../properties/property-view.ts";
 import { warnOfficeOfQuotesWithoutRoom } from "../quotes/quote-room.ts";
+import { quotes } from "../quotes/quotes.schema.ts";
 import { staff, type Staff } from "../staff/staff.schema.ts";
 import { siteVisits } from "./site-visits.schema.ts";
 import {
@@ -184,16 +185,30 @@ const tellClient = async (
 
 // ---- booking, moving and cancelling ----
 
+// the Quote a Site Visit is for: one with no Revision Sent yet
+const quoteToVisitFor = async (quoteId: string) => {
+  const [quote] = await db.select().from(quotes).where(eq(quotes.id, quoteId));
+  if (!quote) throw new NotFoundError("Quote not found");
+  if (quote.status !== "requested" && quote.status !== "draft") {
+    throw new ConflictError(
+      "A Site Visit is for a Quote before it's sent: this one has been sent, or has closed.",
+    );
+  }
+  return quote;
+};
+
 /**
- * Office Staff book a Site Visit at a Property for one named Staff member,
- * with no Offer or Confirm (ADR-0015), and the Client is emailed. A
- * Property has one booked at a time.
+ * Office Staff book a Site Visit for a Quote, at its Property, for one
+ * named Staff member, with no Offer or Confirm (ADR-0015), and the Client is
+ * emailed. A Property has one booked at a time, and a Quote's Site Visit
+ * comes before any Revision of it is Sent (ADR-0017).
  */
 export const bookSiteVisit = async (
   input: BookSiteVisitInput,
   byAccountId: string | null,
 ): Promise<OfficeSiteVisit> => {
-  const { property, client } = await propertyOf(input.propertyId);
+  const quote = await quoteToVisitFor(input.quoteId);
+  const { property, client } = await propertyOf(quote.propertyId);
   const visitor = await visitorOf(input.staffId);
   const startsAt = atTime(input.date, input.time);
 
@@ -218,6 +233,7 @@ export const bookSiteVisit = async (
       .insert(siteVisits)
       .values({
         propertyId: property.id,
+        quoteId: quote.id,
         staffId: visitor.id,
         startsAt,
         minutes: input.minutes,

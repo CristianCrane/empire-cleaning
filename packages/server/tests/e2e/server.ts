@@ -5,7 +5,7 @@
 // the emails that were "sent". Accounts aren't created here: tests sign up, as people do (ADR-0006).
 // Started by Playwright with its environment set (packages/web/playwright.config.ts).
 import express from "express";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import type { StaffRole } from "@empire-cleaning/models";
 import type { Approval } from "../fakes/payment-gateway.ts";
 import { setup as recreateTestDatabase } from "../setup/globalSetup.ts";
@@ -45,6 +45,7 @@ const { bookSiteVisit } =
   await import("../../src/features/site-visits/index.ts");
 const { properties } = await import("../../src/features/properties/index.ts");
 const { staff } = await import("../../src/features/staff/index.ts");
+const { quotes } = await import("../../src/features/quotes/quotes.schema.ts");
 const { db } = await import("../../src/db/index.ts");
 const { accounts } = await import("../../src/features/auth/auth.schema.ts");
 
@@ -92,8 +93,8 @@ control.post("/jobs", async (req, res) => {
   res.json(await bookedJob(req.body as Parameters<typeof bookedJob>[0]));
 });
 
-// a Site Visit booked at the Property on `street`, for the Staff member with
-// `staffEmail`, as Office Staff book one
+// a Site Visit booked for the latest Quote at the Property on `street`, for
+// the Staff member with `staffEmail`, as Office Staff book one
 control.post("/site-visits", async (req, res) => {
   const { street, staffEmail, ...booking } = req.body as {
     street: string;
@@ -102,10 +103,13 @@ control.post("/site-visits", async (req, res) => {
     time: string;
     minutes?: number;
   };
-  const [property] = await db
-    .select({ id: properties.id })
-    .from(properties)
-    .where(eq(properties.street, street));
+  const [quote] = await db
+    .select({ id: quotes.id })
+    .from(quotes)
+    .innerJoin(properties, eq(properties.id, quotes.propertyId))
+    .where(eq(properties.street, street))
+    .orderBy(desc(quotes.createdAt))
+    .limit(1);
   const [member] = await db
     .select({ id: staff.id })
     .from(staff)
@@ -115,7 +119,7 @@ control.post("/site-visits", async (req, res) => {
       {
         ...booking,
         minutes: booking.minutes ?? 30,
-        propertyId: property!.id,
+        quoteId: quote!.id,
         staffId: member!.id,
       },
       null,

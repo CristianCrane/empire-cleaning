@@ -124,12 +124,16 @@ function SiteVisits({
   const navigate = useNavigate();
   const premises = home.kind === "commercial";
   const booked = home.siteVisits.some((v) => v.status === "booked");
+  // a Site Visit is for a Quote with nothing Sent yet
+  const unsent = home.quotes.find(
+    (q) => q.status === "requested" || q.status === "draft",
+  );
   if (!premises && home.siteVisits.length === 0) {
     return (
       <Card
         title="Site Visits"
         description="Optional for a home: book one to see it before quoting."
-        actions={<BookSiteVisit propertyId={home.id} />}
+        actions={unsent && <BookSiteVisit quoteId={unsent.id} />}
       />
     );
   }
@@ -146,10 +150,12 @@ function SiteVisits({
       {/* in the body, not the header, so they wrap at phone width */}
       {!booked && (
         <div className="flex flex-wrap gap-2">
-          <BookSiteVisit
-            propertyId={home.id}
-            primary={premises && !home.findingsRecorded}
-          />
+          {unsent && (
+            <BookSiteVisit
+              quoteId={unsent.id}
+              primary={premises && !home.findingsRecorded}
+            />
+          )}
           {premises && (
             <RecordFindingsWithoutVisit
               property={home}
@@ -216,7 +222,7 @@ function PlanLink({ plan }: { plan: ServicePlanSummary }) {
 // Completed, business premises at any time (ADR-0014)
 function History({ home }: { home: OfficePropertyView }) {
   const navigate = useNavigate();
-  const { quoteRequests: requests, quotes, jobs } = home;
+  const { quotes, jobs } = home;
   const empty = (what: string) => () => (
     <p className="p-4 text-center text-fg-muted">No {what} yet.</p>
   );
@@ -233,40 +239,6 @@ function History({ home }: { home: OfficePropertyView }) {
         )
       }
     >
-      <Heading level={3}>Quote Requests</Heading>
-      <List
-        aria-label={`Quote Requests for ${addressOf(home)}`}
-        renderEmptyState={empty("Quote Requests")}
-      >
-        {requests.map((request) => (
-          <ListItem
-            key={request.id}
-            id={request.id}
-            title={formatDate(request.createdAt)}
-            description={[
-              request.condition
-                ? `Stated ${conditionLabel[request.condition].toLowerCase()}`
-                : wantedCleaning(request),
-              request.addOns.length > 0 &&
-                `Extras: ${request.addOns.map((a) => a.name).join(", ")}`,
-              request.notes,
-            ]
-              .filter(Boolean)
-              .join(" · ")}
-            end={
-              request.wantsRegularService && (
-                <StatusBadge tone="success">Regular visits</StatusBadge>
-              )
-            }
-            onAction={() =>
-              void navigate({
-                to: "/office/requests/$requestId",
-                params: { requestId: request.id },
-              })
-            }
-          />
-        ))}
-      </List>
       <Heading level={3}>Quotes</Heading>
       <List
         aria-label={`Quotes for ${addressOf(home)}`}
@@ -279,15 +251,22 @@ function History({ home }: { home: OfficePropertyView }) {
             title={quoteHeadline(quote)}
             description={
               quote.sentAt
-                ? `Sent ${formatDate(quote.sentAt)}${quote.quoteRequestId ? "" : ", unprompted"}`
-                : `Started ${formatDate(quote.createdAt)}`
+                ? `Sent ${formatDate(quote.sentAt)}${quote.origin === "office" ? ", unprompted" : ""}`
+                : `Asked ${formatDate(quote.createdAt)}`
             }
             end={<QuoteStatusBadge status={quote.status} />}
             onAction={() =>
-              void navigate({
-                to: "/office/quotes/$quoteId",
-                params: { quoteId: quote.id },
-              })
+              void navigate(
+                quote.status === "requested"
+                  ? {
+                      to: "/office/requests/$requestId",
+                      params: { requestId: quote.id },
+                    }
+                  : {
+                      to: "/office/quotes/$quoteId",
+                      params: { quoteId: quote.id },
+                    },
+              )
             }
           />
         ))}

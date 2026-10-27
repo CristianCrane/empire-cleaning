@@ -4,14 +4,15 @@ import type { OfficeQuote, QuoteKind } from "@empire-cleaning/models";
 import { Button, Notice } from "@empire-cleaning/ui";
 import { ApiError, postJson } from "../../api.ts";
 
-// what a Draft is started for: a Quote Request, answered with either kind
-// of Quote, or a home offered a Service Plan unprompted (ADR-0011)
+// what a Draft is started for: a Quote's next Revision (its first setting
+// its kind), or a home offered a Service Plan unprompted (ADR-0011,
+// ADR-0017)
 export type DraftTarget =
-  | { quoteRequestId: string; kind: QuoteKind }
+  | { quoteId: string; kind: QuoteKind }
   | { propertyId: string; kind: "service_plan" };
 
-// Starts a Draft (or finds the one already started) and opens it; says why
-// if it can't
+// Starts a Draft (or finds the Revision already being drafted) and opens it;
+// says why if it can't
 export function useStartDraft() {
   const navigate = useNavigate();
   const [failure, setFailure] = useState<string>();
@@ -21,7 +22,11 @@ export function useStartDraft() {
     setStarting(target);
     setFailure(undefined);
     try {
-      const quote = await postJson<OfficeQuote>("/api/quotes", target);
+      const quote = await ("quoteId" in target
+        ? postJson<OfficeQuote>(`/api/quotes/${target.quoteId}/revisions`, {
+            kind: target.kind,
+          })
+        : postJson<OfficeQuote>("/api/quotes", target));
       await navigate({
         to: "/office/quotes/$quoteId",
         params: { quoteId: quote.id },

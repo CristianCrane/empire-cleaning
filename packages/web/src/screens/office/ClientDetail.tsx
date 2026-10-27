@@ -353,8 +353,8 @@ function Settled({
 
 const statusLine = (status: PropertyStatus) => {
   switch (status.kind) {
-    case "request_waiting":
-      return "Quote Request waiting";
+    case "quote_requested":
+      return "Quote asked for";
     case "quote_sent":
       return status.quoteKind === "service_plan"
         ? "Service Plan Quote sent"

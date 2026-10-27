@@ -1,9 +1,6 @@
-import type {
-  QuoteRequestReceipt,
-  QuoteRequestSubmission,
-} from "@empire-cleaning/models";
+import type { QuoteAskReceipt, QuoteAsk } from "@empire-cleaning/models";
 
-export type SubmitResult<R = QuoteRequestReceipt> =
+export type SubmitResult<R = QuoteAskReceipt> =
   | { ok: true; receipt: R }
   | {
       ok: false;
@@ -62,11 +59,11 @@ export const postQuoteRequest = async <R>(
 // on the landing page; the portal's carries the session.
 export const submitQuoteRequest = (
   apiUrl: string,
-  submission: QuoteRequestSubmission,
+  submission: QuoteAsk,
   asGuest: boolean,
 ) =>
-  postQuoteRequest<QuoteRequestReceipt>(
-    `${apiUrl}/api/quote-requests`,
+  postQuoteRequest<QuoteAskReceipt>(
+    `${apiUrl}/api/quotes/ask`,
     submission,
     asGuest ? "omit" : "same-origin",
   );

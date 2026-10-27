@@ -4,14 +4,13 @@ import type {
   ClientListItem,
   OfficeClientView,
   OfficeQuote,
-  QuoteRequestDetail,
 } from "@empire-cleaning/models";
 import { db } from "#db";
 import { accounts } from "#features/auth";
 import { api, signIn, testEmail } from "../../../tests/harness.ts";
 import {
   casey,
-  guestRequest,
+  guestAsk,
   home,
   signInAsOffice,
   submit,
@@ -36,7 +35,7 @@ const entry = (who: object, changes: object = {}) => ({
 });
 
 const enter = (office: Agent, body: object) =>
-  office.post("/api/quote-requests/office").send(body);
+  office.post("/api/quotes/caller").send(body);
 
 const officeQuote = async (office: Agent, id: string) =>
   (await office.get(`/api/quotes/${id}`).expect(200)).body as OfficeQuote;
@@ -49,12 +48,12 @@ const clientNamed = async (office: Agent, name: string) =>
 // gives the Draft a proposed time, then tries to send it
 const send = async (office: Agent, quote: OfficeQuote) => {
   await office
-    .patch(`/api/quotes/${quote.id}`)
+    .patch(`/api/quotes/${quote.id}/draft`)
     .send({
       addOns: [],
-      crewSize: quote.crewSize,
-      depositPercent: quote.depositPercent,
-      validityDays: quote.validityDays,
+      crewSize: quote.draft!.crewSize,
+      depositPercent: quote.draft!.depositPercent,
+      validityDays: quote.draft!.validityDays,
       proposedStart: nextMonday,
       overrides: { deep: null, standard: null },
     })
@@ -62,17 +61,17 @@ const send = async (office: Agent, quote: OfficeQuote) => {
   return await office.post(`/api/quotes/${quote.id}/send`);
 };
 
-describe("Office Staff entering a caller's Quote Request", () => {
+describe("Office Staff entering a caller's ask", () => {
   test("is only for Office Staff", async () => {
     await enter(api() as unknown as Agent, entry({ contact: caller })).expect(
       401,
     );
-    await submit(guestRequest()).expect(201);
+    await submit(guestAsk()).expect(201);
     const client = await signIn(casey.email);
     await enter(client, entry({ contact: caller })).expect(403);
   });
 
-  test("records the request for a new Client and opens a one-off Quote Draft answering it, with no receipt and no Account", async () => {
+  test("starts a one-off Quote for a new Client, a Draft holding what they asked, with no receipt and no Account", async () => {
     const office = await signInAsOffice();
 
     const { body } = await enter(
@@ -84,16 +83,16 @@ describe("Office Staff entering a caller's Quote Request", () => {
     expect(quote).toMatchObject({
       kind: "one_off",
       status: "draft",
-      quoteRequestId: body.quoteRequestId,
-      client: { name: "Pat Phoner", email: "pat@example.com" },
-    });
-    const request = (
-      await office.get(`/api/quote-requests/${body.quoteRequestId}`).expect(200)
-    ).body as QuoteRequestDetail;
-    expect(request).toMatchObject({
-      notes: "Called in; prefers mornings",
-      client: { phone: "(718) 555-0123" },
+      origin: "caller",
+      asked: { notes: "Called in; prefers mornings", condition: "moderate" },
+      client: {
+        name: "Pat Phoner",
+        email: "pat@example.com",
+        phone: "(718) 555-0123",
+      },
       property: { street: "41-12 Austin St" },
+      draft: { number: 1, status: "draft" },
+      offer: null,
     });
     expect(testEmail().to("pat@example.com")).toEqual([]);
     expect(
@@ -128,9 +127,9 @@ describe("Office Staff entering a caller's Quote Request", () => {
     );
   });
 
-  test("for a new Client with an existing Client's email adds the request to that Client, unchanged", async () => {
+  test("for a new Client with an existing Client's email adds the Quote to that Client, unchanged", async () => {
     const office = await signInAsOffice();
-    await submit(guestRequest()).expect(201);
+    await submit(guestAsk()).expect(201);
 
     await enter(
       office,
@@ -156,7 +155,7 @@ describe("Office Staff entering a caller's Quote Request", () => {
       await office.get(`/api/clients/${client.id}`).expect(200)
     ).body as OfficeClientView;
 
-    // that home's request is waiting on its Quote
+    // that home's Quote is open, a Draft
     const waiting = await enter(
       office,
       entry(
@@ -165,7 +164,7 @@ describe("Office Staff entering a caller's Quote Request", () => {
       ),
     ).expect(409);
     expect(waiting.body.message).toBe(
-      "This home has a Quote Request waiting already: answer that one from Requests.",
+      "This home has a Quote open already: carry on with that one.",
     );
 
     await enter(
@@ -206,7 +205,7 @@ describe("Office Staff entering a caller's Quote Request", () => {
 describe("Office Staff editing a Client's contact details", () => {
   test("can't take another Client's email, or remove one", async () => {
     const office = await signInAsOffice();
-    await submit(guestRequest()).expect(201);
+    await submit(guestAsk()).expect(201);
     const { body } = await enter(
       office,
       entry({ contact: { ...caller, email: "pat@example.com" } }),
@@ -237,7 +236,7 @@ describe("Office Staff editing a Client's contact details", () => {
   });
 
   test("is only for Office Staff", async () => {
-    await submit(guestRequest()).expect(201);
+    await submit(guestAsk()).expect(201);
     const client = await signIn(casey.email);
     const me = (await client.get("/api/clients/me").expect(200)).body;
     await client

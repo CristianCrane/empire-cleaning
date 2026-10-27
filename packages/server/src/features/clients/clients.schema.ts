@@ -14,8 +14,8 @@ import { accounts } from "../auth/auth.schema.ts";
 export const billPayment = pgEnum("bill_payment", ["automatic", "on_page"]);
 
 // a person or business Empire Cleaning has a relationship with, from their
-// first Quote Request onward. Created by Quote Requests, never by signing
-// up; an Account is connected to it by proven email (ADR-0006).
+// first asking for a Quote onward. Created by asking for one, never by
+// signing up; an Account is connected to it by proven email (ADR-0006).
 export const clients = pgTable("clients", {
   id: uuid("id").primaryKey().defaultRandom(),
   // the Account connected to this Client, once someone has signed up with

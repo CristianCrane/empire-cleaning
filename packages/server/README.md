@@ -21,7 +21,7 @@ Test files share one loaded copy of the server (`isolate: false`), because loadi
 
 Better Auth (ADR-0002) is mounted at `/api/auth/*`; signing up and in are by emailed one-time link or Google, never a password. `GET /api/me` returns the signed-in Account.
 
-Accounts come only from signing up, so an Account's email is always proven (ADR-0006). Clients (`#features/clients`, created by Quote Requests) and Staff (`#features/staff`, created by invitation or the owner setup below) are separate records. An Account is connected to the records whose email matches its own, at sign-up, at every later sign-in, and straight away when a record is added for an email that has already signed up. A connection is stored once made, so it survives either email changing. An Account connected to nothing has no roles.
+Accounts come only from signing up, so an Account's email is always proven (ADR-0006). Clients (`#features/clients`, created by asking for a Quote) and Staff (`#features/staff`, created by invitation or the owner setup below) are separate records. An Account is connected to the records whose email matches its own, at sign-up, at every later sign-in, and straight away when a record is added for an email that has already signed up. A connection is stored once made, so it survives either email changing. An Account connected to nothing has no roles.
 
 Protect an endpoint with `authorize()` from `#features/auth`. Roles come from the caller's connections: the roles of an active Staff member, plus `client` for a connected Client.
 

@@ -129,7 +129,7 @@ function AskToChange({ plan }: { plan: ServicePlanView }) {
       // the home's latest Condition, as the Client last gave it
       const me = await getJson<ClientView>("/api/clients/me");
       const home = me.properties.find((p) => p.id === plan.property.id)!;
-      await postJson("/api/quote-requests", {
+      await postJson("/api/quotes/ask", {
         property: { existing: plan.property.id },
         condition: home.condition,
         wantsRegularService: true,

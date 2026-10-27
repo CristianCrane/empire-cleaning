@@ -1,4 +1,4 @@
-import { and, asc, eq, or } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, max, ne, or } from "drizzle-orm";
 import { z } from "zod";
 import type {
   AddOnChoice,
@@ -7,6 +7,7 @@ import type {
   FirstCleanFindings,
   OfficeQuote,
   OfficeQuoteOption,
+  OfficeRevision,
   PlanChoice,
   PlanDayTerms,
   PriceList,
@@ -14,10 +15,12 @@ import type {
   QuoteDraftInput,
   QuoteKind,
   QuoteOption,
+  QuoteStatus,
   QuoteView,
   Recurrence,
   ServicePlanInput,
   ServicePlanTerms,
+  TurnDownReason,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import env from "../../env.ts";
@@ -56,24 +59,36 @@ import {
 } from "../price-list/suggested-price.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { addressOf, toPropertyView } from "../properties/property-view.ts";
-import { addOnsForRequests } from "../quote-requests/add-ons.ts";
-import { quoteRequests } from "../quote-requests/quote-requests.schema.ts";
 import { planChangeOf } from "../service-plans/changing.ts";
-import { servicePlanVisits } from "../service-plans/service-plans.schema.ts";
-import { findingsRecorded } from "../site-visits/site-visits.ts";
+import {
+  servicePlans,
+  servicePlanVisits,
+} from "../service-plans/service-plans.schema.ts";
+import { siteVisits } from "../site-visits/site-visits.schema.ts";
+import {
+  findingsRecorded,
+  siteVisitStages,
+} from "../site-visits/site-visits.ts";
+import { siteVisitViews } from "../site-visits/views.ts";
+import { askedAddOns } from "./asked-add-ons.ts";
 import { describePlan, percentOf } from "./plan-days.ts";
 import { bookableFor } from "./quote-room.ts";
 import {
+  askedOf,
   firstCleanCompleted,
   firstCleansOf,
-  requestStates,
+  offers,
+  revisionHistory,
+  siteVisitOf,
   statusOf,
 } from "./quote-state.ts";
 import {
-  quoteOptions,
+  quoteRevisions,
   quotes,
+  revisionOptions,
   type Quote,
-  type QuoteOptionRow,
+  type Revision,
+  type RevisionOptionRow,
 } from "./quotes.schema.ts";
 
 // Deep Clean first: it's the one Empire Cleaning recommends
@@ -109,7 +124,16 @@ const fieldError = (path: (string | number)[], message: string) =>
     new z.ZodError([{ code: "custom", path, message, input: undefined }]),
   );
 
-// business premises with no Site Visit findings recorded, which no Quote
+// A Revision with its Quote's kind, which is set by the first Revision and
+// never changes: what prices and shows it
+export type KindedRevision = Revision & { kind: QuoteKind };
+
+const kinded = (quote: Quote, revision: Revision): KindedRevision => ({
+  ...revision,
+  kind: quote.kind!,
+});
+
+// business premises with no Site Visit findings recorded, which no Revision
 // can be Sent for (ADR-0014)
 const needsSiteVisit = async (property: Pick<Property, "id" | "kind">) =>
   property.kind === "commercial" &&
@@ -125,33 +149,27 @@ const homeOf = async (propertyId: string) => {
   return row;
 };
 
-// the Add-ons a Quote can carry: those on offer for its kind of Property,
-// and any the request it answers chose that have since been retired
+// the Add-ons a Revision can carry: those on offer for its kind of Property,
+// and any asked for that have since been retired
 const addOnChoices = async (
   list: PriceList,
   property: Property,
-  quoteRequestId: string | null,
+  quoteId: string,
 ): Promise<AddOnChoice[]> => {
   const notFor = property.kind === "commercial" ? "homes" : "businesses";
-  const requested = new Set(
-    quoteRequestId
-      ? (
-          (await addOnsForRequests([quoteRequestId])).get(quoteRequestId) ?? []
-        ).map((a) => a.key)
-      : [],
+  const asked = new Set(
+    ((await askedAddOns([quoteId])).get(quoteId) ?? []).map((a) => a.key),
   );
   return list.addOns
-    .filter(
-      (a) => (a.active && a.offeredFor !== notFor) || requested.has(a.key),
-    )
+    .filter((a) => (a.active && a.offeredFor !== notFor) || asked.has(a.key))
     .map(({ key, name }) => ({ key, name }));
 };
 
-// What a Quote is priced for besides the Property and its Add-ons: a
+// What a Revision is priced for besides the Property and its Add-ons: a
 // one-off Quote both Clean Types at the Property's own Condition (moderate
 // while business premises have none recorded), undiscounted; a Service Plan
 // Quote each of its weekdays' visits at the Condition and Plan Discount on
-// the Quote
+// the Revision
 type Terms = {
   kind: QuoteKind;
   visits: Visit[];
@@ -169,12 +187,14 @@ type Visit = {
   override: { priceCents: number; reason: string } | null;
 };
 
-const NO_OVERRIDES = { deep: null, standard: null };
+type Overrides = Required<QuoteDraftInput>["overrides"];
+
+const NO_OVERRIDES: Overrides = { deep: null, standard: null };
 
 const oneOffTerms = (
   property: Property,
   crewSize: number,
-  overrides: Required<QuoteDraftInput>["overrides"],
+  overrides: Overrides,
 ): Terms => ({
   kind: "one_off",
   visits: CLEAN_TYPES.map((cleanType) => ({
@@ -198,7 +218,7 @@ const planTerms = (
   discountPercent: plan.planDiscountPercent,
 });
 
-// The Quote's visits priced from the Price List for the Property as it is
+// The Revision's visits priced from the Price List for the Property as it is
 // now, with any override in place of the Suggested Price, then any Plan
 // Discount off that, overridden or not. Tax is on what's left, at the rate
 // for the kind of Job (a commercial one's, plan or not, is the commercial
@@ -255,7 +275,7 @@ const priceOptions = (
 // A Service Plan Quote's weekday and its saving, from its option: the
 // one-off price, taxed as a one-off Job the way its Suggested Price was,
 // against the plan clean's price
-const dayTermsOf = (row: QuoteOptionRow): PlanDayTerms => {
+const dayTermsOf = (row: RevisionOptionRow): PlanDayTerms => {
   const oneOffPriceCents = row.priceCents + row.discountCents;
   const oneOffTaxCents = taxOn(oneOffPriceCents, row.suggested);
   const oneOffTotalCents = oneOffPriceCents + oneOffTaxCents;
@@ -271,39 +291,47 @@ const dayTermsOf = (row: QuoteOptionRow): PlanDayTerms => {
   };
 };
 
-// a Service Plan Quote's terms, from its options, one for each weekday
+// a Service Plan Quote's terms, from its Revision's options, one for each
+// weekday
 const planOf = (
-  quote: Quote,
-  rows: QuoteOptionRow[],
+  revision: KindedRevision,
+  rows: RevisionOptionRow[],
 ): ServicePlanTerms | null => {
-  if (quote.kind !== "service_plan") return null;
+  if (revision.kind !== "service_plan") return null;
   const days = inOrder(rows);
   return {
-    recurrence: quote.recurrence!,
-    discountPercent: quote.planDiscountPercent!,
+    recurrence: revision.recurrence!,
+    discountPercent: revision.planDiscountPercent!,
     days: days.map(dayTermsOf),
     roundTotalCents: days.reduce((total, row) => total + row.totalCents, 0),
     // each day's own Deposit, as each would be a one-off Job's (ADR-0013)
     depositCents: days.reduce(
-      (total, row) => total + percentOf(row.totalCents, quote.depositPercent),
+      (total, row) =>
+        total + percentOf(row.totalCents, revision.depositPercent),
       0,
     ),
   };
 };
 
-const optionsOf = (quoteId: string) =>
-  db.select().from(quoteOptions).where(eq(quoteOptions.quoteId, quoteId));
+export const optionsOf = (revisionId: string, tx: Tx | typeof db = db) =>
+  tx
+    .select()
+    .from(revisionOptions)
+    .where(eq(revisionOptions.revisionId, revisionId));
 
-export const toOption = (quote: Quote, row: QuoteOptionRow): QuoteOption => ({
+export const toOption = (
+  revision: Pick<KindedRevision, "kind" | "depositPercent">,
+  row: RevisionOptionRow,
+): QuoteOption => ({
   cleanType: row.cleanType,
   // a Service Plan's Clean Types are the ones chosen for it
-  recommended: quote.kind === "one_off" && row.cleanType === "deep",
+  recommended: revision.kind === "one_off" && row.cleanType === "deep",
   labourHours: row.labourHours,
   hoursOnSite: Math.round((row.labourHours / row.crewSize) * 100) / 100,
   priceCents: row.priceCents,
   taxCents: row.taxCents,
   totalCents: row.totalCents,
-  depositCents: percentOf(row.totalCents, quote.depositPercent),
+  depositCents: percentOf(row.totalCents, revision.depositPercent),
 });
 
 // a Service Plan Quote's weekdays in order; a one-off Quote's Deep Clean
@@ -317,9 +345,9 @@ export const inOrder = <T extends { position: number; cleanType: CleanType }>(
       CLEAN_TYPES.indexOf(a.cleanType) - CLEAN_TYPES.indexOf(b.cleanType),
   );
 
-// what each Add-on on the Quote costs, tax included, from the figures the
-// Quote was priced with
-const addOnsOf = (rows: QuoteOptionRow[]): QuoteAddOn[] => {
+// what each Add-on on the Revision costs, tax included, from the figures it
+// was priced with
+const addOnsOf = (rows: RevisionOptionRow[]): QuoteAddOn[] => {
   const { suggested } = rows[0]!;
   return suggested.addOns.map((addOn) => {
     const cents = addOnCents(addOn.hours, suggested.hourlyRateCents);
@@ -352,27 +380,60 @@ const acceptedPlanOf = async (quote: Quote) => {
   return { servicePlanId: plan.id, changedPlan: first!.quoteId !== quote.id };
 };
 
-// what a Service Plan Quote would do to its home's plan, while it's open
-const planChangeFor = (quote: Quote) =>
-  quote.kind === "service_plan" && ["draft", "sent"].includes(statusOf(quote))
-    ? planChangeOf(quote.propertyId, quote.proposedStartsAt)
+// what a Service Plan Quote would do to its home's plan, while it's open,
+// from the time of `revision`
+const planChangeFor = (
+  quote: Quote,
+  status: QuoteStatus,
+  revision: Revision | undefined,
+) =>
+  quote.kind === "service_plan" && (status === "draft" || status === "sent")
+    ? planChangeOf(quote.propertyId, revision?.proposedStartsAt ?? null)
     : null;
 
 // the Clean Types a Quote can still be booked as: none once it isn't Sent
-const bookableOf = async (quote: Quote) =>
-  statusOf(quote) === "sent"
+const bookableOf = async (
+  quote: Quote,
+  status: QuoteStatus,
+  offer: Revision | undefined,
+) =>
+  status === "sent"
     ? (
         await bookableFor([
-          { id: quote.id, proposedStartsAt: quote.proposedStartsAt! },
+          { id: quote.id, proposedStartsAt: offer!.proposedStartsAt! },
         ])
       ).get(quote.id)!
     : [];
 
-const findQuote = async (id: string) => {
-  const [quote] = await db.select().from(quotes).where(eq(quotes.id, id));
+const findQuote = async (id: string, tx: Tx | typeof db = db) => {
+  const [quote] = await tx.select().from(quotes).where(eq(quotes.id, id));
   if (!quote) throw new NotFoundError("Quote not found");
   return quote;
 };
+
+const findRevision = async (id: string | null) => {
+  if (!id) return undefined;
+  const [revision] = await db
+    .select()
+    .from(quoteRevisions)
+    .where(eq(quoteRevisions.id, id));
+  return revision;
+};
+
+// the Revision being written for a Quote, if any
+const draftRevisionOf = async (quoteId: string, tx: Tx | typeof db = db) => {
+  const [draft] = await tx
+    .select()
+    .from(quoteRevisions)
+    .where(
+      and(eq(quoteRevisions.quoteId, quoteId), isNull(quoteRevisions.sentAt)),
+    );
+  return draft;
+};
+
+// a Quote's status, with its offer's expiry
+const currentStatusOf = (quote: Quote, offer: Revision | undefined) =>
+  statusOf({ status: quote.status, expiresAt: offer?.expiresAt ?? null });
 
 // what the Property's First Clean found, to price a plan by
 const findingsOf = async (
@@ -395,10 +456,10 @@ const findingsOf = async (
 };
 
 const officeOption = (
-  quote: Quote,
-  row: QuoteOptionRow,
+  revision: KindedRevision,
+  row: RevisionOptionRow,
 ): OfficeQuoteOption => ({
-  ...toOption(quote, row),
+  ...toOption(revision, row),
   suggested: row.suggested,
   overrideCents: row.overrideCents,
   overrideReason: row.overrideReason,
@@ -407,14 +468,14 @@ const officeOption = (
 // Standard first: it's what a plan is unless Office Staff choose otherwise
 const PLAN_CLEAN_TYPES: CleanType[] = ["standard", "deep"];
 
-// A Service Plan Draft's weekdays each priced as each Clean Type, for Office
-// Staff to choose between: the day's own Clean Type as saved, and the other
-// worked out now from the current Price List with the same terms and
-// Add-ons, at its Suggested Price (an override is only ever for the Clean
-// Type chosen)
+// An unsent Service Plan Revision's weekdays each priced as each Clean Type,
+// for Office Staff to choose between: the day's own Clean Type as saved, and
+// the other worked out now from the current Price List with the same terms
+// and Add-ons, at its Suggested Price (an override is only ever for the
+// Clean Type chosen)
 const planChoicesOf = (
-  quote: Quote,
-  rows: QuoteOptionRow[],
+  revision: KindedRevision,
+  rows: RevisionOptionRow[],
   list: PriceList,
   property: Property,
 ): PlanChoice[][] =>
@@ -430,123 +491,216 @@ const planChoicesOf = (
                 saved.suggested.addOns.map((a) => a.key),
                 planTerms(
                   {
-                    condition: quote.condition!,
-                    planDiscountPercent: quote.planDiscountPercent!,
+                    condition: revision.condition!,
+                    planDiscountPercent: revision.planDiscountPercent!,
                   },
                   [{ ...saved, cleanType, override: null }],
                 ),
               )[0]!,
               position: saved.position,
-              quoteId: quote.id,
+              revisionId: revision.id,
             };
-      return { option: officeOption(quote, row), day: dayTermsOf(row) };
+      return { option: officeOption(revision, row), day: dayTermsOf(row) };
     }),
   );
 
-// a Quote in full, for the Office
-export const officeQuote = async (id: string): Promise<OfficeQuote> => {
-  const quote = await findQuote(id);
-  const [home, rows, list, [priced]] = await Promise.all([
-    homeOf(quote.propertyId),
-    optionsOf(id),
-    currentPriceList(),
+// one Revision in full, for the Office
+const officeRevision = async (
+  revision: KindedRevision,
+  list: PriceList,
+  property: Property,
+): Promise<OfficeRevision> => {
+  const [rows, [priced]] = await Promise.all([
+    optionsOf(revision.id),
     db
       .select({ version: priceLists.version })
       .from(priceLists)
-      .where(eq(priceLists.id, quote.priceListId)),
+      .where(eq(priceLists.id, revision.priceListId)),
+  ]);
+  const plan = planOf(revision, rows);
+  const sent = revision.sentAt !== null;
+  return {
+    id: revision.id,
+    number: revision.number,
+    status: sent ? "sent" : "draft",
+    options: inOrder(rows).map((r) => officeOption(revision, r)),
+    // with the Condition it's priced for, which is the Office's working
+    plan: plan && { ...plan, condition: revision.condition! },
+    planChoices:
+      revision.kind === "service_plan" && !sent
+        ? planChoicesOf(revision, rows, list, property)
+        : null,
+    addOns: addOnsOf(rows),
+    crewSize: revision.crewSize,
+    depositPercent: revision.depositPercent,
+    validityDays: revision.validityDays,
+    priceListVersion: priced!.version,
+    proposedStart: revision.proposedStartsAt && {
+      date: dayOf(revision.proposedStartsAt),
+      time: timeOf(revision.proposedStartsAt),
+    },
+    proposedStartsAt: iso(revision.proposedStartsAt),
+    sentAt: iso(revision.sentAt),
+    expiresAt: iso(revision.expiresAt),
+  };
+};
+
+// its home's Service Plan, unless it has none or it has Ended
+const homePlanIdOf = async (propertyId: string) => {
+  const [plan] = await db
+    .select({ id: servicePlans.id })
+    .from(servicePlans)
+    .where(
+      and(
+        eq(servicePlans.propertyId, propertyId),
+        ne(servicePlans.status, "ended"),
+      ),
+    );
+  return plan?.id ?? null;
+};
+
+// A Quote in full, for the Office (ADR-0017): what was asked, with the
+// Suggested Price for both Clean Types worked out now from the current
+// Price List and the Property's current details and Condition (which Staff
+// may have corrected); the Revision being drafted and the offer; and every
+// Sent Revision
+export const officeQuote = async (id: string): Promise<OfficeQuote> => {
+  const quote = await findQuote(id);
+  const [home, list, draft, offer] = await Promise.all([
+    homeOf(quote.propertyId),
+    currentPriceList(),
+    draftRevisionOf(id),
+    findRevision(quote.sentRevisionId),
   ]);
   const { client, property } = home!;
-  const [paymentMethod, firstClean] = await Promise.all([
+  const propertyId = property.id;
+  const status = currentStatusOf(quote, offer);
+  const [
+    paymentMethod,
+    firstClean,
+    addOns,
+    stages,
+    booked,
+    done,
+    firstCleanDone,
+    homePlanId,
+    revisions,
+  ] = await Promise.all([
     paymentMethodOf(client.id),
-    quote.kind === "service_plan" ? findingsOf(property.id) : null,
+    quote.kind === "service_plan" ? findingsOf(propertyId) : null,
+    askedAddOns([id]),
+    siteVisitStages([propertyId]),
+    siteVisitViews(
+      and(
+        eq(siteVisits.propertyId, propertyId),
+        eq(siteVisits.status, "booked"),
+      ),
+    ),
+    findingsRecorded([propertyId]),
+    firstCleanCompleted(propertyId),
+    homePlanIdOf(propertyId),
+    revisionHistory(quote),
   ]);
-  const plan = planOf(quote, rows);
+  const asked = addOns.get(id) ?? [];
+  const chosen = list.addOns.filter((a) => asked.some((c) => c.key === a.key));
+  const price = (cleanType: CleanType) =>
+    suggestedPrice(
+      list,
+      pricedOf(property),
+      property.condition,
+      cleanType,
+      chosen,
+    );
 
   return {
     id: quote.id,
-    quoteRequestId: quote.quoteRequestId,
     kind: quote.kind,
-    status: statusOf(quote),
+    status,
+    origin: quote.origin,
+    asked: askedOf(quote, asked),
+    createdAt: quote.createdAt.toISOString(),
     client: {
       id: client.id,
       name: client.name,
       businessName: client.businessName,
       email: client.email,
+      phone: client.phone,
+    },
+    property: toPropertyView(property, list),
+    suggested: {
+      priceListVersion: list.version,
+      standard: price("standard"),
+      deep: price("deep"),
     },
     needsSiteVisit: await needsSiteVisit(property),
-    property: toPropertyView(property, list),
-    options: inOrder(rows).map((r) => officeOption(quote, r)),
-    // with the Condition it's priced for, which is the Office's working
-    plan: plan && { ...plan, condition: quote.condition! },
+    siteVisit: siteVisitOf(status, stages.get(propertyId)),
+    bookedSiteVisit: booked[0] ?? null,
+    findingsRecorded: done.has(propertyId),
+    firstCleanCompleted: firstCleanDone,
+    homePlanId,
     firstClean,
-    planChoices:
-      quote.kind === "service_plan" && quote.status === "draft"
-        ? planChoicesOf(quote, rows, list, property)
-        : null,
-    addOns: addOnsOf(rows),
-    addOnChoices: await addOnChoices(list, property, quote.quoteRequestId),
-    crewSize: quote.crewSize,
-    depositPercent: quote.depositPercent,
-    validityDays: quote.validityDays,
-    priceListVersion: priced!.version,
-    proposedStart: quote.proposedStartsAt && {
-      date: dayOf(quote.proposedStartsAt),
-      time: timeOf(quote.proposedStartsAt),
-    },
-    proposedStartsAt: iso(quote.proposedStartsAt),
-    sentAt: iso(quote.sentAt),
-    expiresAt: iso(quote.expiresAt),
+    addOnChoices: await addOnChoices(list, property, id),
+    draft: draft
+      ? await officeRevision(kinded(quote, draft), list, property)
+      : null,
+    offer: offer
+      ? await officeRevision(kinded(quote, offer), list, property)
+      : null,
+    revisions,
     declinedAt: iso(quote.declinedAt),
     acceptedAt: iso(quote.acceptedAt),
     acceptedCleanType: quote.acceptedCleanType,
     ...(await acceptedPlanOf(quote)),
-    changesPlan: await planChangeFor(quote),
-    bookable: await bookableOf(quote),
+    changesPlan: await planChangeFor(quote, status, draft ?? offer),
+    bookable: await bookableOf(quote, status, offer),
+    turnedDownAt: iso(quote.turnedDownAt),
+    turnDownReason: quote.turnDownReason,
     paymentMethod: toPaymentMethodView(paymentMethod),
   };
 };
 
-// a Client's own Quote; Drafts and other Clients' Quotes don't exist for them
+// A Client's own Quote, as its offer: one with nothing Sent, or another
+// Client's, doesn't exist for them
 export const clientQuote = async (
   id: string,
   clientId: string,
 ): Promise<QuoteView> => {
   const [found] = await db
-    .select({ quote: quotes, property: properties })
+    .select({ quote: quotes, offer: offers, property: properties })
     .from(quotes)
+    .innerJoin(offers, eq(offers.id, quotes.sentRevisionId))
     .innerJoin(properties, eq(properties.id, quotes.propertyId))
     .where(and(eq(quotes.id, id), eq(properties.clientId, clientId)));
-  if (!found || found.quote.status === "draft") {
-    throw new NotFoundError("Quote not found");
-  }
-  const { quote, property } = found;
-  const rows = await optionsOf(id);
+  if (!found) throw new NotFoundError("Quote not found");
+  const { quote, offer, property } = found;
+  const revision = kinded(quote, offer);
+  const rows = await optionsOf(offer.id);
+  const status = currentStatusOf(quote, offer);
 
   return {
     id: quote.id,
-    quoteRequestId: quote.quoteRequestId,
-    kind: quote.kind,
-    status: statusOf(quote),
+    kind: quote.kind!,
+    status,
     property: {
       id: property.id,
       street: property.street,
       unit: property.unit,
       postcode: property.postcode,
     },
-    options: inOrder(rows).map((r) => toOption(quote, r)),
-    plan: planOf(quote, rows),
+    options: inOrder(rows).map((r) => toOption(revision, r)),
+    plan: planOf(revision, rows),
     addOns: addOnsOf(rows),
-    crewSize: quote.crewSize,
-    depositPercent: quote.depositPercent,
-    proposedStartsAt: quote.proposedStartsAt!.toISOString(),
-    sentAt: quote.sentAt!.toISOString(),
-    expiresAt: quote.expiresAt!.toISOString(),
+    crewSize: offer.crewSize,
+    depositPercent: offer.depositPercent,
+    proposedStartsAt: offer.proposedStartsAt!.toISOString(),
+    sentAt: offer.sentAt!.toISOString(),
+    expiresAt: offer.expiresAt!.toISOString(),
     declinedAt: iso(quote.declinedAt),
     acceptedAt: iso(quote.acceptedAt),
     acceptedCleanType: quote.acceptedCleanType,
     ...(await acceptedPlanOf(quote)),
-    changesPlan: await planChangeFor(quote),
-    bookable: await bookableOf(quote),
+    changesPlan: await planChangeFor(quote, status, offer),
+    bookable: await bookableOf(quote, status, offer),
   };
 };
 
@@ -555,157 +709,15 @@ const kindLabel: Record<QuoteKind, string> = {
   service_plan: "Service Plan Quote",
 };
 
-// what a Draft is started for: a Quote Request, answered with a one-off
-// Quote or a Service Plan Quote; or a Property offered a Service Plan
-// unprompted
-export type DraftTarget =
-  | { quoteRequestId: string; kind: QuoteKind }
-  | { propertyId: string; kind: "service_plan" };
-
 /**
- * Starts a Draft, pre-filled from the Suggested Price and the Price List's
- * defaults. A one-off Quote starts with the Add-ons the Client chose; a
- * Service Plan Quote with the plan defaults (a Standard Clean every 2 weeks
- * at moderate Condition, no Add-ons, the Price List's Plan Discount). A
- * request has at most one Draft, and a Property one Service Plan Draft, so
- * if the one asked for exists already that's the one returned.
- */
-export const startDraft = async (
-  target: DraftTarget,
-  accountId: string,
-): Promise<{ quote: OfficeQuote; started: boolean }> => {
-  const { kind } = target;
-  let quoteRequestId: string | null = null;
-  let propertyId: string;
-  if ("quoteRequestId" in target) {
-    const [request] = await db
-      .select({ id: quoteRequests.id, propertyId: quoteRequests.propertyId })
-      .from(quoteRequests)
-      .where(eq(quoteRequests.id, target.quoteRequestId));
-    if (!request) throw new NotFoundError("Quote Request not found");
-    quoteRequestId = request.id;
-    propertyId = request.propertyId;
-  } else {
-    propertyId = target.propertyId;
-  }
-  const home = await homeOf(propertyId);
-  if (!home) throw new NotFoundError("Home not found");
-
-  // the request's Draft, and the home's Service Plan Draft
-  const drafts = await db
-    .select({
-      id: quotes.id,
-      kind: quotes.kind,
-      quoteRequestId: quotes.quoteRequestId,
-    })
-    .from(quotes)
-    .where(
-      and(
-        eq(quotes.status, "draft"),
-        or(
-          quoteRequestId
-            ? eq(quotes.quoteRequestId, quoteRequestId)
-            : undefined,
-          kind === "service_plan"
-            ? and(
-                eq(quotes.propertyId, propertyId),
-                eq(quotes.kind, "service_plan"),
-              )
-            : undefined,
-        ),
-      ),
-    );
-  const same = drafts.find(
-    (d) => d.kind === kind && d.quoteRequestId === quoteRequestId,
-  );
-  if (same) return { quote: await officeQuote(same.id), started: false };
-  const [other] = drafts;
-  if (other) {
-    throw new ConflictError(
-      other.quoteRequestId === quoteRequestId
-        ? `This request has a ${kindLabel[other.kind]} Draft already: send that first, or carry on with it.`
-        : "This home has a Service Plan Quote Draft already: send that first, or carry on with it.",
-    );
-  }
-  await refuseUnquotable(kind, home.property, quoteRequestId);
-
-  const list = await currentPriceList();
-  const plan =
-    kind === "service_plan"
-      ? { ...PLAN_DEFAULTS, planDiscountPercent: list.planDiscountPercent }
-      : null;
-  const addOnKeys =
-    plan || !quoteRequestId
-      ? []
-      : (
-          (await addOnsForRequests([quoteRequestId])).get(quoteRequestId) ?? []
-        ).map((a) => a.key);
-  const options = priceOptions(
-    list,
-    home.property,
-    addOnKeys,
-    plan
-      ? planTerms(plan, [
-          {
-            cleanType: plan.cleanType,
-            startsAt: null,
-            crewSize: list.defaultCrewSize,
-            override: null,
-          },
-        ])
-      : oneOffTerms(home.property, list.defaultCrewSize, NO_OVERRIDES),
-  );
-
-  const id = await db.transaction(async (tx) => {
-    const [quote] = await tx
-      .insert(quotes)
-      .values({
-        propertyId,
-        quoteRequestId,
-        kind,
-        priceListId: list.id,
-        crewSize: list.defaultCrewSize,
-        depositPercent: list.depositPercent,
-        validityDays: list.quoteValidityDays,
-        recurrence: plan?.recurrence,
-        planDiscountPercent: plan?.planDiscountPercent,
-        condition: plan?.condition,
-        createdBy: accountId,
-      })
-      .returning();
-    await tx
-      .insert(quoteOptions)
-      .values(options.map((o) => ({ ...o, quoteId: quote!.id })));
-    return quote!.id;
-  });
-  return { quote: await officeQuote(id), started: true };
-};
-
-/**
- * A request whose Quote the Client Accepted or Declined is closed to Quotes
- * of either kind: they ask again if they want something more (and the
- * Office can still offer a plan unprompted). A Service Plan Quote for a home
- * also needs its First Clean Completed; business premises need none, only
- * the Site Visit every Quote for them needs before it's Sent (ADR-0014).
+ * A Service Plan Quote for a home also needs its First Clean Completed;
+ * business premises need none, only the Site Visit every Quote for them
+ * needs before it's Sent (ADR-0014).
  */
 const refuseUnquotable = async (
   kind: QuoteKind,
   property: Pick<Property, "id" | "kind">,
-  quoteRequestId: string | null,
 ) => {
-  if (quoteRequestId) {
-    const state = (await requestStates([quoteRequestId])).get(quoteRequestId);
-    if (state === "booked") {
-      throw new ConflictError(
-        "The Client accepted a Quote for this request, so it's booked. They can ask for a new Quote.",
-      );
-    }
-    if (state === "ended") {
-      throw new ConflictError(
-        "The Client declined the last Quote for this request, so it has ended. They can ask for a new Quote.",
-      );
-    }
-  }
   if (
     kind === "service_plan" &&
     property.kind === "residential" &&
@@ -717,8 +729,8 @@ const refuseUnquotable = async (
   }
 };
 
-// holds a Property until the transaction ends, so sending a Quote for it and
-// accepting one take turns
+// holds a Property until the transaction ends, so starting, sending and
+// accepting its Quotes take turns
 export const lockProperty = async (tx: Tx, propertyId: string) => {
   await tx
     .select({ id: properties.id })
@@ -727,12 +739,298 @@ export const lockProperty = async (tx: Tx, propertyId: string) => {
     .for("update");
 };
 
-const findDraft = async (id: string) => {
-  const quote = await findQuote(id);
-  if (quote.status !== "draft") {
-    throw new ConflictError("A Quote can't be changed once it's been sent");
+/**
+ * Refuses a Quote of `kind` becoming open at the Property while another is
+ * (ADR-0017): a Requested one counts as both kinds. Sent ones whose offer
+ * has Expired are written as Expired, so they stand aside. Inside a
+ * transaction holding the Property (lockProperty).
+ */
+const refuseAnotherOpen = async (
+  tx: Tx,
+  quote: Pick<Quote, "propertyId"> & { id: string | null },
+  kind: QuoteKind,
+  message: string,
+) => {
+  const others = await tx
+    .select({
+      id: quotes.id,
+      kind: quotes.kind,
+      status: quotes.status,
+      expiresAt: offers.expiresAt,
+    })
+    .from(quotes)
+    .leftJoin(offers, eq(offers.id, quotes.sentRevisionId))
+    .where(
+      and(
+        eq(quotes.propertyId, quote.propertyId),
+        quote.id ? ne(quotes.id, quote.id) : undefined,
+        or(eq(quotes.kind, kind), isNull(quotes.kind)),
+        inArray(quotes.status, ["requested", "draft", "sent"]),
+      ),
+    );
+  const lapsed = others.filter((q) => statusOf(q) === "expired");
+  if (lapsed.length < others.length) throw new ConflictError(message);
+  if (lapsed.length > 0) {
+    await tx
+      .update(quotes)
+      .set({ status: "expired" })
+      .where(
+        inArray(
+          quotes.id,
+          lapsed.map((q) => q.id),
+        ),
+      );
   }
-  return quote;
+};
+
+// what a new Revision starts from: a copy of the offer's terms, or for the
+// first, the Price List's defaults and the Add-ons asked for (none on a
+// Service Plan Quote)
+const newRevisionOptions = async (
+  quote: Quote,
+  kind: QuoteKind,
+  property: Property,
+  list: PriceList,
+) => {
+  const offer = await findRevision(quote.sentRevisionId);
+  if (offer) {
+    const rows = inOrder(await optionsOf(offer.id));
+    const addOnKeys = rows[0]!.suggested.addOns.map((a) => a.key);
+    const overrideOf = (row: RevisionOptionRow) =>
+      row.overrideCents === null
+        ? null
+        : { priceCents: row.overrideCents, reason: row.overrideReason! };
+    const terms =
+      kind === "service_plan"
+        ? planTerms(
+            {
+              condition: offer.condition!,
+              planDiscountPercent: offer.planDiscountPercent!,
+            },
+            rows.map((row) => ({ ...row, override: overrideOf(row) })),
+          )
+        : oneOffTerms(property, offer.crewSize, {
+            deep: overrideOf(rows.find((r) => r.cleanType === "deep")!),
+            standard: overrideOf(rows.find((r) => r.cleanType === "standard")!),
+          });
+    return {
+      revision: {
+        crewSize: offer.crewSize,
+        depositPercent: offer.depositPercent,
+        validityDays: offer.validityDays,
+        proposedStartsAt: offer.proposedStartsAt,
+        recurrence: offer.recurrence,
+        planDiscountPercent: offer.planDiscountPercent,
+        condition: offer.condition,
+      },
+      options: priceOptions(list, property, addOnKeys, terms),
+    };
+  }
+
+  const plan =
+    kind === "service_plan"
+      ? { ...PLAN_DEFAULTS, planDiscountPercent: list.planDiscountPercent }
+      : null;
+  const addOnKeys = plan
+    ? []
+    : ((await askedAddOns([quote.id])).get(quote.id) ?? []).map((a) => a.key);
+  return {
+    revision: {
+      crewSize: list.defaultCrewSize,
+      depositPercent: list.depositPercent,
+      validityDays: list.quoteValidityDays,
+      proposedStartsAt: null,
+      recurrence: plan?.recurrence ?? null,
+      planDiscountPercent: plan?.planDiscountPercent ?? null,
+      condition: plan?.condition ?? null,
+    },
+    options: priceOptions(
+      list,
+      property,
+      addOnKeys,
+      plan
+        ? planTerms(plan, [
+            {
+              cleanType: plan.cleanType,
+              startsAt: null,
+              crewSize: list.defaultCrewSize,
+              override: null,
+            },
+          ])
+        : oneOffTerms(property, list.defaultCrewSize, NO_OVERRIDES),
+    ),
+  };
+};
+
+// inserts a Quote's next Revision, unsent
+const insertRevision = async (
+  tx: Tx,
+  quote: Quote,
+  kind: QuoteKind,
+  property: Property,
+  accountId: string,
+) => {
+  const list = await currentPriceList();
+  const { revision, options } = await newRevisionOptions(
+    quote,
+    kind,
+    property,
+    list,
+  );
+  const [{ last }] = (await tx
+    .select({ last: max(quoteRevisions.number) })
+    .from(quoteRevisions)
+    .where(eq(quoteRevisions.quoteId, quote.id))) as [{ last: number | null }];
+  const [inserted] = await tx
+    .insert(quoteRevisions)
+    .values({
+      ...revision,
+      quoteId: quote.id,
+      number: (last ?? 0) + 1,
+      priceListId: list.id,
+      createdBy: accountId,
+    })
+    .returning();
+  await tx
+    .insert(revisionOptions)
+    .values(options.map((o) => ({ ...o, revisionId: inserted!.id })));
+};
+
+const closedMessage: Partial<Record<QuoteStatus, string>> = {
+  accepted:
+    "The Client accepted this Quote, so it's booked. They can ask for a new Quote.",
+  declined:
+    "The Client declined this Quote, so it has ended. They can ask for a new Quote.",
+  turned_down:
+    "This Quote was Turned Down. The Client can ask for a new Quote.",
+};
+
+/**
+ * Starts a Quote's Draft Revision, pre-filled: the first from the Suggested
+ * Price and the Price List's defaults (a one-off Quote with the Add-ons
+ * asked for; a Service Plan Quote with the plan defaults, a Standard Clean
+ * every 2 weeks at moderate Condition, no Add-ons, the Price List's Plan
+ * Discount), a later one from the offer's terms. A Requested Quote's first
+ * sets its kind, one-off unless said otherwise, which then never changes.
+ * A Quote drafts one Revision at a time, so if it has one, that's the one
+ * returned. An Expired Quote may be revived this way unless a newer Quote
+ * of its kind is open for the Property (ADR-0017).
+ */
+export const startRevision = async (
+  id: string,
+  wanted: QuoteKind | undefined,
+  accountId: string,
+): Promise<{ quote: OfficeQuote; started: boolean }> => {
+  const quote = await findQuote(id);
+  const closed = closedMessage[quote.status];
+  if (closed) throw new ConflictError(closed);
+  const kind = quote.kind ?? wanted ?? "one_off";
+  if (wanted && wanted !== kind) {
+    throw new ConflictError(
+      `This is a ${kindLabel[kind]}: its kind can't change. Start a new Quote for the other.`,
+    );
+  }
+  if (await draftRevisionOf(id)) {
+    return { quote: await officeQuote(id), started: false };
+  }
+  const { property } = (await homeOf(quote.propertyId))!;
+  await refuseUnquotable(kind, property);
+
+  await db.transaction(async (tx) => {
+    await lockProperty(tx, quote.propertyId);
+    const current = await findQuote(id, tx);
+    if (closedMessage[current.status]) {
+      throw new ConflictError(closedMessage[current.status]!);
+    }
+    // two at once: the other started it
+    if (await draftRevisionOf(id, tx)) return;
+    const offer = await findRevision(current.sentRevisionId);
+    if (currentStatusOf(current, offer) === "expired") {
+      await refuseAnotherOpen(
+        tx,
+        current,
+        kind,
+        `A newer ${kindLabel[kind]} is open for this ${property.kind === "commercial" ? "business" : "home"}: carry on with that one.`,
+      );
+    }
+    if (current.status === "requested") {
+      await refuseAnotherOpen(
+        tx,
+        current,
+        kind,
+        `This ${property.kind === "commercial" ? "business" : "home"} has a ${kindLabel[kind]} open already: carry on with that one.`,
+      );
+      await tx
+        .update(quotes)
+        .set({ kind, status: "draft" })
+        .where(eq(quotes.id, id));
+    }
+    await insertRevision(tx, { ...current, kind }, kind, property, accountId);
+  });
+  return { quote: await officeQuote(id), started: true };
+};
+
+/**
+ * Office Staff offer a Service Plan nobody asked for (ADR-0011, ADR-0017):
+ * a Service Plan Quote with nothing asked, starting as a Draft with its
+ * first Revision. If the Office has one for the Property still a Draft,
+ * that's the one returned; otherwise it's refused while the Property has a
+ * Service Plan Quote, or a Requested one, open.
+ */
+export const offerServicePlan = async (
+  propertyId: string,
+  accountId: string,
+): Promise<{ quote: OfficeQuote; started: boolean }> => {
+  const home = await homeOf(propertyId);
+  if (!home) throw new NotFoundError("Home not found");
+  const { property } = home;
+  await refuseUnquotable("service_plan", property);
+  const { id, started } = await db.transaction(async (tx) => {
+    await lockProperty(tx, propertyId);
+    const [drafting] = await tx
+      .select({ id: quotes.id })
+      .from(quotes)
+      .where(
+        and(
+          eq(quotes.propertyId, propertyId),
+          eq(quotes.kind, "service_plan"),
+          eq(quotes.status, "draft"),
+          eq(quotes.origin, "office"),
+        ),
+      );
+    if (drafting) return { id: drafting.id, started: false };
+    await refuseAnotherOpen(
+      tx,
+      { id: null, propertyId },
+      "service_plan",
+      "This home has a Service Plan Quote, or a Quote asked for, open already: carry on with that one.",
+    );
+    const [quote] = await tx
+      .insert(quotes)
+      .values({
+        propertyId,
+        kind: "service_plan",
+        status: "draft",
+        origin: "office",
+        createdBy: accountId,
+      })
+      .returning();
+    await insertRevision(tx, quote!, "service_plan", property, accountId);
+    return { id: quote!.id, started: true };
+  });
+  return { quote: await officeQuote(id), started };
+};
+
+// the Revision being drafted, which is all Office Staff can change
+const findDraftRevision = async (id: string) => {
+  const quote = await findQuote(id);
+  const draft = await draftRevisionOf(id);
+  if (!draft) {
+    throw new ConflictError(
+      "A Revision can't be changed once it's been sent: start a new one.",
+    );
+  }
+  return { quote, draft: kinded(quote, draft) };
 };
 
 // A Service Plan Draft's weekdays as Office Staff set them, in their order:
@@ -772,22 +1070,20 @@ const planVisits = (plan: ServicePlanInput) => {
   return days;
 };
 
-// saves what Office Staff set on a Draft, pricing it afresh from the current
-// Price List and the home's current details
+// saves what Office Staff set on a Quote's Draft Revision, pricing it afresh
+// from the current Price List and the home's current details
 export const saveDraft = async (
   id: string,
   input: QuoteDraftInput,
 ): Promise<OfficeQuote> => {
-  const quote = await findDraft(id);
+  const { quote, draft } = await findDraftRevision(id);
   const [home, list] = await Promise.all([
     homeOf(quote.propertyId),
     currentPriceList(),
   ]);
 
   const allowed = new Set(
-    (await addOnChoices(list, home!.property, quote.quoteRequestId)).map(
-      (a) => a.key,
-    ),
+    (await addOnChoices(list, home!.property, id)).map((a) => a.key),
   );
   const unknown = input.addOns.findIndex((key) => !allowed.has(key));
   if (unknown !== -1) {
@@ -797,7 +1093,7 @@ export const saveDraft = async (
   const plan = input.plan ?? null;
   let terms: Terms;
   let timing: { crewSize: number; proposedStartsAt: Date | null };
-  if (quote.kind === "service_plan") {
+  if (draft.kind === "service_plan") {
     if (!plan) {
       throw fieldError(
         ["plan"],
@@ -853,7 +1149,7 @@ export const saveDraft = async (
   );
   await db.transaction(async (tx) => {
     await tx
-      .update(quotes)
+      .update(quoteRevisions)
       .set({
         priceListId: list.id,
         depositPercent: input.depositPercent,
@@ -865,36 +1161,41 @@ export const saveDraft = async (
           condition: plan.condition,
         }),
       })
-      .where(eq(quotes.id, id));
-    await tx.delete(quoteOptions).where(eq(quoteOptions.quoteId, id));
+      .where(eq(quoteRevisions.id, draft.id));
     await tx
-      .insert(quoteOptions)
-      .values(options.map((o) => ({ ...o, quoteId: id })));
+      .delete(revisionOptions)
+      .where(eq(revisionOptions.revisionId, draft.id));
+    await tx
+      .insert(revisionOptions)
+      .values(options.map((o) => ({ ...o, revisionId: draft.id })));
   });
   return officeQuote(id);
 };
 
 const HOUR_MS = 3_600_000;
 
-// Each clean a Draft would book first, with the field that sets its time: a
-// one-off Quote's Job, the longer of its Clean Types; a Service Plan Quote's
-// first on each weekday. Each must have a time still to come, and end by
-// midnight.
-const refuseUntimely = (quote: Quote, rows: QuoteOptionRow[]) => {
+// Each clean a Draft Revision would book first, with the field that sets its
+// time: a one-off Quote's Job, the longer of its Clean Types; a Service Plan
+// Quote's first on each weekday. Each must have a time still to come, and
+// end by midnight.
+const refuseUntimely = (
+  revision: KindedRevision,
+  rows: RevisionOptionRow[],
+) => {
   const now = clock.now();
   const cleans =
-    quote.kind === "service_plan"
+    revision.kind === "service_plan"
       ? inOrder(rows).map((row, i) => ({
           path: ["plan", "days", i, "start"],
           startsAt: row.startsAt,
-          option: toOption(quote, row),
+          option: toOption(revision, row),
         }))
       : [
           {
             path: ["proposedStart"],
-            startsAt: quote.proposedStartsAt,
+            startsAt: revision.proposedStartsAt,
             option: rows
-              .map((row) => toOption(quote, row))
+              .map((row) => toOption(revision, row))
               .sort((a, b) => b.hoursOnSite - a.hoursOnSite)[0]!,
           },
         ];
@@ -902,7 +1203,7 @@ const refuseUntimely = (quote: Quote, rows: QuoteOptionRow[]) => {
     if (!startsAt) {
       throw fieldError(
         path,
-        quote.kind === "service_plan"
+        revision.kind === "service_plan"
           ? "Choose when this weekday's first clean is"
           : "Choose a proposed time",
       );
@@ -923,18 +1224,19 @@ const refuseUntimely = (quote: Quote, rows: QuoteOptionRow[]) => {
   }
 };
 
-// Sends a Draft as it was last saved, and emails the Client a link to it. It
-// Supersedes the Property's open Quote of the same kind, if any, in the same
-// step, so a Property never has two of a kind open; one of the other kind
-// stands beside it. A Service Plan Quote's weekdays are put in order,
-// earliest first.
+// Sends a Quote's Draft Revision as it was last saved, making it the offer,
+// and emails the Client a link to the Quote. A Service Plan Quote's weekdays
+// are put in order, earliest first. Sending one on an Expired Quote revives
+// it, unless a newer Quote of its kind is open for the Property.
 export const sendQuote = async (id: string): Promise<OfficeQuote> => {
-  const quote = await findDraft(id);
+  const { quote, draft } = await findDraftRevision(id);
+  const closed = closedMessage[quote.status];
+  if (closed) throw new ConflictError(closed);
   const now = clock.now();
-  const rows = await optionsOf(id);
-  refuseUntimely(quote, rows);
+  const rows = await optionsOf(draft.id);
+  refuseUntimely(draft, rows);
   const { client, property } = (await homeOf(quote.propertyId))!;
-  await refuseUnquotable(quote.kind, property, quote.quoteRequestId);
+  await refuseUnquotable(draft.kind, property);
   // it goes by email, and is accepted signed in with that email (#34)
   if (!client.email) {
     throw new ConflictError(
@@ -950,12 +1252,12 @@ export const sendQuote = async (id: string): Promise<OfficeQuote> => {
 
   const expiresAt = new Date(
     Math.min(
-      now.getTime() + quote.validityDays * DAY_MS,
-      quote.proposedStartsAt!.getTime(),
+      now.getTime() + draft.validityDays * DAY_MS,
+      draft.proposedStartsAt!.getTime(),
     ),
   );
   const days =
-    quote.kind === "service_plan"
+    draft.kind === "service_plan"
       ? [...rows]
           .sort((a, b) => a.startsAt!.getTime() - b.startsAt!.getTime())
           .map((row, position) => ({ ...row, position }))
@@ -964,43 +1266,46 @@ export const sendQuote = async (id: string): Promise<OfficeQuote> => {
   await db.transaction(async (tx) => {
     // one send (or acceptance) at a time per Property
     await lockProperty(tx, quote.propertyId);
-    // a Quote for its request may have been Accepted while this waited
-    await refuseUnquotable(quote.kind, property, quote.quoteRequestId);
-    const [open] = await tx
-      .select()
-      .from(quotes)
-      .where(
-        and(
-          eq(quotes.propertyId, quote.propertyId),
-          eq(quotes.kind, quote.kind),
-          eq(quotes.status, "sent"),
-        ),
+    // it may have been Accepted while this waited
+    const current = await findQuote(id, tx);
+    if (closedMessage[current.status]) {
+      throw new ConflictError(closedMessage[current.status]!);
+    }
+    const offer = await findRevision(current.sentRevisionId);
+    if (currentStatusOf(current, offer) === "expired") {
+      await refuseAnotherOpen(
+        tx,
+        current,
+        draft.kind,
+        `A newer ${kindLabel[draft.kind]} is open for this ${property.kind === "commercial" ? "business" : "home"}, so this one can't be sent again.`,
       );
-    if (open) {
-      await tx
-        .update(quotes)
-        .set({
-          status: statusOf(open) === "expired" ? "expired" : "superseded",
-        })
-        .where(eq(quotes.id, open.id));
     }
     const [sent] = await tx
-      .update(quotes)
+      .update(quoteRevisions)
       .set({
-        status: "sent",
         sentAt: now,
         expiresAt,
         ...(days && { crewSize: days[0]!.crewSize }),
       })
-      .where(and(eq(quotes.id, id), eq(quotes.status, "draft")))
+      .where(
+        and(eq(quoteRevisions.id, draft.id), isNull(quoteRevisions.sentAt)),
+      )
       .returning();
     if (!sent) {
-      throw new ConflictError("A Quote can't be changed once it's been sent");
+      throw new ConflictError(
+        "A Revision can't be changed once it's been sent: start a new one.",
+      );
     }
     if (days) {
-      await tx.delete(quoteOptions).where(eq(quoteOptions.quoteId, id));
-      await tx.insert(quoteOptions).values(days);
+      await tx
+        .delete(revisionOptions)
+        .where(eq(revisionOptions.revisionId, draft.id));
+      await tx.insert(revisionOptions).values(days);
     }
+    await tx
+      .update(quotes)
+      .set({ status: "sent", sentRevisionId: draft.id })
+      .where(eq(quotes.id, id));
   });
 
   const view = await officeQuote(id);
@@ -1013,6 +1318,14 @@ export const sendQuote = async (id: string): Promise<OfficeQuote> => {
   }
   return view;
 };
+
+// a closed Quote's unsent Revision can never be sent, so it goes
+export const dropDraftRevision = (tx: Tx | typeof db, quoteId: string) =>
+  tx
+    .delete(quoteRevisions)
+    .where(
+      and(eq(quoteRevisions.quoteId, quoteId), isNull(quoteRevisions.sentAt)),
+    );
 
 // the Client says no to a Sent Quote; nothing else can be Declined
 export const declineQuote = async (
@@ -1027,23 +1340,100 @@ export const declineQuote = async (
         : "This Quote is no longer open.",
     );
   }
-  await db
-    .update(quotes)
-    .set({ status: "declined", declinedAt: clock.now() })
-    .where(and(eq(quotes.id, id), eq(quotes.status, "sent")));
+  await db.transaction(async (tx) => {
+    const [declined] = await tx
+      .update(quotes)
+      .set({ status: "declined", declinedAt: clock.now() })
+      .where(and(eq(quotes.id, id), eq(quotes.status, "sent")))
+      .returning({ id: quotes.id });
+    if (declined) await dropDraftRevision(tx, id);
+  });
   return clientQuote(id, clientId);
+};
+
+const turnDownWording: Record<TurnDownReason, string> = {
+  out_of_area: "is outside the area we clean",
+  out_of_scope: "is more than the cleaning we offer",
+  no_capacity: "is more than we have room for at the moment",
+};
+
+/**
+ * Office Staff Turn Down a Quote before any Revision of it is Sent, with a
+ * reason, and the Client is emailed (unless the Office entered them without
+ * an email). It's final: the Client asks for a new Quote.
+ */
+export const turnDownQuote = async (
+  id: string,
+  reason: TurnDownReason,
+  accountId: string,
+): Promise<OfficeQuote> => {
+  const quote = await findQuote(id);
+  const [turned] = await db
+    .update(quotes)
+    .set({
+      status: "turned_down",
+      turnedDownAt: clock.now(),
+      turnDownReason: reason,
+      turnedDownBy: accountId,
+    })
+    .where(
+      and(eq(quotes.id, id), inArray(quotes.status, ["requested", "draft"])),
+    )
+    .returning();
+  if (!turned) {
+    throw new ConflictError(
+      quote.sentRevisionId
+        ? "A Revision of this Quote has been sent, so it can't be Turned Down: the Client declines it, or it Expires."
+        : "This Quote has closed already.",
+    );
+  }
+  const { client, property } = (await homeOf(quote.propertyId))!;
+  if (client.email) {
+    try {
+      await sendTurnDownEmail(client, property, reason);
+    } catch (error) {
+      console.error(`Turn Down email for Quote ${id} not sent:`, error);
+    }
+  }
+  return officeQuote(id);
+};
+
+const sendTurnDownEmail = async (
+  client: Client,
+  property: Property,
+  reason: TurnDownReason,
+) => {
+  await email.send({
+    to: client.email,
+    subject: "About your Quote from Empire Cleaning",
+    ...compose(
+      [
+        `Hi ${firstNameOf(client.name)},`,
+        `Thanks for asking Empire Cleaning for a Quote for ${addressOf(property)}. We're sorry, but we can't quote for it: it ${turnDownWording[reason]}.`,
+        "If anything changes, you're welcome to ask us again.",
+      ],
+      {
+        href: `${env.CORS_ORIGIN_URL}/portal`,
+        label: "Go to your account",
+      },
+    ),
+  });
 };
 
 // a Service Plan Quote's offer, in an email: on one weekday, what each clean
 // saves; on several, each weekday and what a week of them costs
-const planOffer = (quote: OfficeQuote, plan: ServicePlanTerms) => {
-  const starting = formatWhen(new Date(quote.proposedStartsAt!));
+const planOffer = (
+  quote: OfficeQuote,
+  offer: OfficeRevision,
+  plan: ServicePlanTerms,
+) => {
+  const starting = formatWhen(new Date(offer.proposedStartsAt!));
   const address = addressOf(quote.property);
   if (plan.days.length === 1) {
     const [day] = plan.days;
     return [
       `Your Service Plan Quote for ${address} is ready: a ${cleanTypeLabel[day!.cleanType]} ${recurrenceLabel[plan.recurrence]}, starting ${starting}.`,
-      `${formatMoney(quote.options[0]!.totalCents)} a clean, saving ${formatMoney(day!.savingCents)} on the one-off price of ${formatMoney(day!.oneOffTotalCents)} (Plan Discount ${plan.discountPercent}%).`,
+      `${formatMoney(offer.options[0]!.totalCents)} a clean, saving ${formatMoney(day!.savingCents)} on the one-off price of ${formatMoney(day!.oneOffTotalCents)} (Plan Discount ${plan.discountPercent}%).`,
     ];
   }
   return [
@@ -1051,7 +1441,7 @@ const planOffer = (quote: OfficeQuote, plan: ServicePlanTerms) => {
       plan.recurrence,
       plan.days.map((d) => ({ ...d, startsAt: new Date(d.startsAt!) })),
     )}, starting ${starting}.`,
-    quote.options
+    offer.options
       .map(
         (option, i) =>
           `${weekdayName(new Date(plan.days[i]!.startsAt!))}: ${formatMoney(option.totalCents)}`,
@@ -1061,30 +1451,37 @@ const planOffer = (quote: OfficeQuote, plan: ServicePlanTerms) => {
   ];
 };
 
-// a plain link to the Quote's page: it carries no sign-in power (ADR-0006), so
-// a signed-out Client signs in (or up) with this email and comes back to it
+// A plain link to the Quote's page, not the Revision's: it carries no
+// sign-in power (ADR-0006), so a signed-out Client signs in (or up) with
+// this email and comes back to it. A later Revision says the Quote has
+// changed.
 const sendQuoteEmail = async (client: Client, quote: OfficeQuote) => {
-  const [first, second] = quote.options;
-  const offer = quote.plan
-    ? planOffer(quote, quote.plan)
+  const offer = quote.offer!;
+  const [first, second] = offer.options;
+  const lines = offer.plan
+    ? planOffer(quote, offer, offer.plan)
     : [
-        `Your Quote for ${addressOf(quote.property)} is ready, for ${formatWhen(new Date(quote.proposedStartsAt!))}:`,
+        `Your Quote for ${addressOf(quote.property)} is ready, for ${formatWhen(new Date(offer.proposedStartsAt!))}:`,
         `Deep Clean (recommended): ${formatMoney(first!.totalCents)}\nStandard Clean: ${formatMoney(second!.totalCents)}`,
       ];
-  const lines = [
-    `Hi ${firstNameOf(client.name)},`,
-    ...offer,
-    `Prices include tax. It's open until ${formatWhen(new Date(quote.expiresAt!))}. To see it in full, sign in with this email address (${client.email}):`,
-  ];
+  const revised = offer.number > 1;
+  if (revised) {
+    lines[0] = lines[0]!.replace(" is ready", " has been updated");
+  }
 
   await email.send({
     to: client.email,
-    subject: quote.plan
-      ? "Your Service Plan Quote from Empire Cleaning"
-      : "Your Quote from Empire Cleaning",
-    ...compose(lines, {
-      href: `${env.CORS_ORIGIN_URL}/portal/quotes/${quote.id}`,
-      label: "See your Quote",
-    }),
+    subject: `${revised ? "Your updated" : "Your"} ${offer.plan ? "Service Plan Quote" : "Quote"} from Empire Cleaning`,
+    ...compose(
+      [
+        `Hi ${firstNameOf(client.name)},`,
+        ...lines,
+        `Prices include tax. It's open until ${formatWhen(new Date(offer.expiresAt!))}. To see it in full, sign in with this email address (${client.email}):`,
+      ],
+      {
+        href: `${env.CORS_ORIGIN_URL}/portal/quotes/${quote.id}`,
+        label: "See your Quote",
+      },
+    ),
   });
 };

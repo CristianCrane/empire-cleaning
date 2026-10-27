@@ -1,8 +1,12 @@
 import type { Tx } from "../../db/index.ts";
 import { clock, dayOf } from "../../services/clock/index.ts";
 import type { Job } from "../jobs/jobs.schema.ts";
-import type { Quote } from "../quotes/quotes.schema.ts";
+import type { Quote, Revision } from "../quotes/quotes.schema.ts";
 import { servicePlanVisits } from "./service-plans.schema.ts";
+
+// an Accepted Service Plan Quote, on its accepted Revision's terms
+export type AcceptedQuote = Pick<Quote, "id" | "propertyId"> &
+  Pick<Revision, "proposedStartsAt" | "recurrence">;
 
 // the first Job booked on each of a Quote's weekdays, by its position
 export type FirstJobs = { position: number; job: Job }[];
@@ -11,7 +15,7 @@ export type FirstJobs = { position: number; job: Job }[];
 export const recordFirstVisits = async (
   tx: Tx,
   planId: string,
-  quote: Quote,
+  quote: AcceptedQuote,
   firstJobs: FirstJobs,
 ) => {
   const now = clock.now();

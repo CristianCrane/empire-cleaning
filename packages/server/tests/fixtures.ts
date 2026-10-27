@@ -7,7 +7,7 @@ import type {
   Condition,
   NewHome,
   OfficeServicePlan,
-  QuoteRequestSubmission,
+  QuoteAsk,
   SignedInAccount,
 } from "@empire-cleaning/models";
 import { db } from "#db";
@@ -18,13 +18,14 @@ import { completeJob } from "#features/completion";
 import { bookJob } from "#features/jobs";
 import { savePaymentMethod, startCardForm } from "#features/payments";
 import { currentPriceList } from "#features/price-list";
-import { submitQuoteRequest } from "#features/quote-requests";
 import {
   acceptQuote,
+  askForQuote,
+  offerServicePlan,
   quotes,
   saveDraft,
   sendQuote,
-  startDraft,
+  startRevision,
 } from "#features/quotes";
 import { dayOf, timeOf } from "#services/clock";
 import { properties } from "#features/properties";
@@ -33,7 +34,7 @@ import { servicePlans } from "#features/service-plans";
 import { addressKey } from "../src/features/properties/address.ts";
 import { api, apiAgent, signIn, testClock, testPayments } from "./harness.ts";
 
-// shared by the tests that need Quote Requests to work with
+// shared by the tests that need Quotes asked for to work with
 
 export const home: NewHome = {
   kind: "residential",
@@ -55,9 +56,7 @@ export const casey = {
   phone: "(646) 555-0100",
 };
 
-export const guestRequest = (
-  overrides: Partial<QuoteRequestSubmission> = {},
-): QuoteRequestSubmission => ({
+export const guestAsk = (overrides: Partial<QuoteAsk> = {}): QuoteAsk => ({
   contact: casey,
   property: { new: home },
   condition: "moderate",
@@ -69,7 +68,7 @@ export const guestRequest = (
 export const submit = (
   body: unknown,
   agent: ReturnType<typeof apiAgent> | ReturnType<typeof api> = api(),
-) => agent.post("/api/quote-requests").send(body as object);
+) => agent.post("/api/quotes/ask").send(body as object);
 
 export const signInAsOffice = async () => {
   await createStaff({
@@ -121,8 +120,8 @@ export const bookedJob = async ({
 
 /**
  * A Deep Clean booked the way the business books them, for tests about Jobs
- * that need a price: a Guest's Quote Request (with these Add-ons, by name),
- * Quoted and Sent by `byAccountId`, a card saved by the Client, and
+ * that need a price: a Quote a Guest asked for (with these Add-ons, by
+ * name), its first Revision drafted and Sent by `byAccountId`, a card saved by the Client, and
  * acceptance recorded by the Office, which takes the Deposit.
  */
 export const acceptedJob = async ({
@@ -146,20 +145,17 @@ export const acceptedJob = async ({
   const keys = list.addOns
     .filter((a) => addOns.includes(a.name))
     .map((a) => a.key);
-  const receipt = await submitQuoteRequest(
+  const receipt = await askForQuote(
     null,
-    guestRequest({ contact: client, addOns: keys, wantsRegularService }),
+    guestAsk({ contact: client, addOns: keys, wantsRegularService }),
   );
-  const { quote } = await startDraft(
-    { quoteRequestId: receipt.id, kind: "one_off" },
-    byAccountId,
-  );
+  const { quote } = await startRevision(receipt.id, "one_off", byAccountId);
   const at = new Date(startsAt);
   await saveDraft(quote.id, {
     addOns: keys,
     crewSize,
     depositPercent,
-    validityDays: quote.validityDays,
+    validityDays: quote.draft!.validityDays,
     proposedStart: { date: dayOf(at), time: timeOf(at) },
     overrides: { deep: null, standard: null },
   });
@@ -181,9 +177,9 @@ export const acceptedJob = async ({
  * A home whose First Clean is Completed, so it can be offered a Service
  * Plan: a Deep Clean booked as acceptedJob() books it, at 9am on Monday 12
  * January, done at 11am that day by Cory, who reports the home's Condition
- * as `condition`. Its request wanted regular visits unless
- * `wantsRegularService` is false. The clock is left at 11am. Returns the Quote Request the
- * First Clean answered, its Property, and its Job.
+ * as `condition`. Its Quote asked for regular visits unless
+ * `wantsRegularService` is false. The clock is left at 11am. Returns the
+ * Quote that booked the First Clean, its Property, and its Job.
  */
 export const completedFirstClean = async ({
   byAccountId,
@@ -218,11 +214,11 @@ export const completedFirstClean = async ({
   await completeJob(cory.id, job.id, { condition, reports: [] });
 
   const [quote] = await db
-    .select({ quoteRequestId: quotes.quoteRequestId })
+    .select({ id: quotes.id })
     .from(quotes)
     .where(eq(quotes.jobId, job.id));
   return {
-    quoteRequestId: quote!.quoteRequestId!,
+    quoteId: quote!.id,
     propertyId: job.propertyId,
     job,
   };
@@ -249,17 +245,14 @@ export const sentServicePlanQuote = async ({
   crewSize?: number;
   depositPercent?: number;
 }) => {
-  const { quote } = await startDraft(
-    { propertyId, kind: "service_plan" },
-    byAccountId,
-  );
+  const { quote } = await offerServicePlan(propertyId, byAccountId);
   await saveDraft(quote.id, {
     addOns: [],
-    depositPercent: depositPercent ?? quote.depositPercent,
-    validityDays: quote.validityDays,
+    depositPercent: depositPercent ?? quote.draft!.depositPercent,
+    validityDays: quote.draft!.validityDays,
     plan: {
       recurrence,
-      discountPercent: quote.plan!.discountPercent,
+      discountPercent: quote.draft!.plan!.discountPercent,
       condition: "moderate",
       days: [startsAt].flat().map((s) => {
         const at = new Date(s);

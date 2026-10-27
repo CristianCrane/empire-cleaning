@@ -8,8 +8,10 @@ export function PortalRequest() {
   const client = useLoaderData({ from: "/portal/request" });
   const navigate = useNavigate();
   const router = useRouter();
-  // until Quotes can end a request, every request is still waiting
-  const waiting = client.quoteRequests.map((r) => r.propertyId);
+  // a home with a Quote open can't be asked about again
+  const waiting = client.quotes
+    .filter((q) => q.status === "requested" || q.status === "sent")
+    .map((q) => q.property.id);
 
   return (
     <div className="flex flex-col gap-4">

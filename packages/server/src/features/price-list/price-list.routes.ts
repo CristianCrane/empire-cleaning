@@ -12,7 +12,7 @@ import { priceListSchema } from "./price-list.validation.ts";
 export const router = Router();
 
 // the names a Client can pick as Add-ons, never their prices; open to Guests
-// because the landing page's Quote Request form lists them
+// because the landing page's "Request a Quote" form lists them
 router.get("/add-ons", async (req, res) => {
   res.json(await choosableAddOns());
 });

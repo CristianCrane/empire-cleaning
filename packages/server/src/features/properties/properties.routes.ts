@@ -10,7 +10,7 @@ import { currentPriceList } from "../price-list/price-list.ts";
 import {
   homeCorrectionSchema,
   premisesCorrectionSchema,
-} from "../quote-requests/quote-requests.validation.ts";
+} from "../quotes/asking.validation.ts";
 import { properties } from "./properties.schema.ts";
 import { officePropertyView } from "./property-history.ts";
 import { toPropertyView } from "./property-view.ts";

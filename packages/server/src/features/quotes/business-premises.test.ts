@@ -3,14 +3,13 @@ import type {
   ClientListItem,
   ClientView,
   OfficeQuote,
-  OpenQuoteRequest,
   PriceList,
-  QuoteRequestDetail,
+  QuoteSummary,
 } from "@empire-cleaning/models";
 import { api, signIn, testEmail } from "../../../tests/harness.ts";
 import {
   casey,
-  guestRequest,
+  guestAsk,
   home,
   signInAsOffice,
   submit,
@@ -66,7 +65,7 @@ const premises = (premisesType: string, changes: object = {}) => ({
 });
 
 // a business asking for cleaning three evenings a week
-const businessRequest = (premisesType: string, changes: object = {}) => ({
+const businessAsk = (premisesType: string, changes: object = {}) => ({
   contact: casey,
   businessName: "Acme Dental",
   property: { new: premises(premisesType) },
@@ -77,40 +76,40 @@ const businessRequest = (premisesType: string, changes: object = {}) => ({
   ...changes,
 });
 
-const openRequests = async (office: Agent) =>
-  (await office.get("/api/quote-requests").expect(200))
-    .body as OpenQuoteRequest[];
+const openQuotes = async (office: Agent) =>
+  (await office.get("/api/quotes").expect(200)).body as QuoteSummary[];
 
 const detailOf = async (office: Agent, id: string) =>
-  (await office.get(`/api/quote-requests/${id}`).expect(200))
-    .body as QuoteRequestDetail;
+  (await office.get(`/api/quotes/${id}`).expect(200)).body as OfficeQuote;
 
-// the one request waiting, in full
-const onlyRequest = async (office: Agent) => {
-  const [request] = await openRequests(office);
-  return detailOf(office, request!.id);
+// the one Quote open, in full
+const onlyQuote = async (office: Agent) => {
+  const [quote] = await openQuotes(office);
+  return detailOf(office, quote!.id);
 };
 
-describe("a Quote Request for business premises", () => {
+describe("a Quote asked for business premises", () => {
   test("records the business, its premises and when it wants cleaning, with no Condition", async () => {
     const office = await signInAsOffice();
     const { Office } = await premisesTypes();
 
-    const res = await submit(businessRequest(Office!));
+    const res = await submit(businessAsk(Office!));
 
     expect(res.status).toBe(201);
     expect(res.body.emailedTo).toBe(casey.email);
     expect(testEmail().lastTo(casey.email).text).toContain(
       "200 Park Ave S, Floor 3, 10003",
     );
-    const detail = await onlyRequest(office);
+    const detail = await onlyQuote(office);
     expect(detail).toMatchObject({
-      statedCondition: null,
-      wantsRegularService: true,
-      weekdays: [0, 2, 4],
-      preferredTime: "18:00",
-      notes: "After the last patient leaves",
-      addOns: [],
+      asked: {
+        condition: null,
+        wantsRegularService: true,
+        weekdays: [0, 2, 4],
+        preferredTime: "18:00",
+        notes: "After the last patient leaves",
+        addOns: [],
+      },
       client: { name: casey.name, businessName: "Acme Dental" },
       property: {
         kind: "commercial",
@@ -121,10 +120,11 @@ describe("a Quote Request for business premises", () => {
         accessInstructions: "Reception has the key",
       },
     });
-    const [listed] = await openRequests(office);
+    const [listed] = await openQuotes(office);
     expect(listed).toMatchObject({
       client: { businessName: "Acme Dental" },
-      property: { kind: "commercial", premisesType: { name: "Office" } },
+      property: { kind: "commercial" },
+      siteVisit: "needed",
     });
   });
 
@@ -133,7 +133,7 @@ describe("a Quote Request for business premises", () => {
     const { Retail } = await premisesTypes();
 
     await submit(
-      businessRequest(Retail!, {
+      businessAsk(Retail!, {
         wantsRegularService: false,
         weekdays: [],
         preferredTime: null,
@@ -141,10 +141,8 @@ describe("a Quote Request for business premises", () => {
       }),
     ).expect(201);
 
-    expect(await onlyRequest(office)).toMatchObject({
-      wantsRegularService: false,
-      weekdays: [],
-      preferredTime: null,
+    expect(await onlyQuote(office)).toMatchObject({
+      asked: { wantsRegularService: false, weekdays: [], preferredTime: null },
       property: { floorArea: null },
     });
   });
@@ -153,7 +151,7 @@ describe("a Quote Request for business premises", () => {
     const { Office } = await premisesTypes();
 
     const res = await submit(
-      businessRequest(Office!, {
+      businessAsk(Office!, {
         businessName: "  ",
         weekdays: [],
         preferredTime: null,
@@ -174,7 +172,7 @@ describe("a Quote Request for business premises", () => {
     const { Office } = await premisesTypes();
 
     const res = await submit(
-      businessRequest(Office!, {
+      businessAsk(Office!, {
         condition: "heavy",
         addOns: ["00000000-0000-4000-8000-000000000000"],
       }),
@@ -199,9 +197,9 @@ describe("a Quote Request for business premises", () => {
       })
       .expect(200);
 
-    const retired = await submit(businessRequest(medical.key));
+    const retired = await submit(businessAsk(medical.key));
     const unknown = await submit(
-      businessRequest("00000000-0000-4000-8000-000000000000"),
+      businessAsk("00000000-0000-4000-8000-000000000000"),
     );
 
     for (const res of [retired, unknown]) {
@@ -216,10 +214,10 @@ describe("a Quote Request for business premises", () => {
   });
 
   test("a signed-in Client's names their business if they have no name for it yet, and never renames it", async () => {
-    await submit(guestRequest()).expect(201);
+    await submit(guestAsk()).expect(201);
     const client = await signIn(casey.email);
     const { Office } = await premisesTypes();
-    const { contact: _contact, ...asClient } = businessRequest(Office!);
+    const { contact: _contact, ...asClient } = businessAsk(Office!);
 
     await submit(asClient, client).expect(201);
     await submit(
@@ -243,10 +241,10 @@ describe("a Quote Request for business premises", () => {
 
   test("from a Guest with an existing Client's email leaves that Client's name for their business alone", async () => {
     const office = await signInAsOffice();
-    await submit(guestRequest()).expect(201);
+    await submit(guestAsk()).expect(201);
     const { Office } = await premisesTypes();
 
-    await submit(businessRequest(Office!)).expect(201);
+    await submit(businessAsk(Office!)).expect(201);
 
     const [listed] = (await office.get("/api/clients").expect(200))
       .body as ClientListItem[];
@@ -254,10 +252,10 @@ describe("a Quote Request for business premises", () => {
   });
 
   test("for an address the Client already has as their home is refused", async () => {
-    await submit(guestRequest()).expect(201);
+    await submit(guestAsk()).expect(201);
     const client = await signIn(casey.email);
     const { Office } = await premisesTypes();
-    const { contact: _contact, ...asClient } = businessRequest(Office!, {
+    const { contact: _contact, ...asClient } = businessAsk(Office!, {
       property: {
         new: premises(Office!, {
           street: home.street,
@@ -277,9 +275,9 @@ describe("a Quote Request for business premises", () => {
 
   test("again, while one is waiting, is refused in the words for premises", async () => {
     const { Office } = await premisesTypes();
-    await submit(businessRequest(Office!)).expect(201);
+    await submit(businessAsk(Office!)).expect(201);
 
-    const res = await submit(businessRequest(Office!));
+    const res = await submit(businessAsk(Office!));
 
     expect(res.status).toBe(409);
     expect(res.body.message).toBe(
@@ -293,9 +291,9 @@ describe("the Suggested Price for business premises", () => {
     const office = await signInAsOffice();
     await setPrices(office);
     const { Office } = await premisesTypes();
-    await submit(businessRequest(Office!)).expect(201);
+    await submit(businessAsk(Office!)).expect(201);
 
-    const { suggested } = await onlyRequest(office);
+    const { suggested } = await onlyQuote(office);
 
     // 4,500 sq ft / 1,000 x 0.5 h = 2.25 h, moderate (none recorded yet)
     expect(suggested.standard).toMatchObject({
@@ -325,12 +323,12 @@ describe("the Suggested Price for business premises", () => {
     await setPrices(office);
     const { Office } = await premisesTypes();
     await submit(
-      businessRequest(Office!, {
+      businessAsk(Office!, {
         property: { new: premises(Office!, { floorArea: null }) },
       }),
     ).expect(201);
 
-    const { suggested } = await onlyRequest(office);
+    const { suggested } = await onlyQuote(office);
 
     expect(suggested.standard).toMatchObject({
       homeHours: [{ label: "Floor area not recorded yet (Office)", hours: 0 }],
@@ -343,8 +341,8 @@ describe("the Suggested Price for business premises", () => {
     const office = await signInAsOffice();
     await setPrices(office);
     const { Office, Medical } = await premisesTypes();
-    await submit(businessRequest(Office!)).expect(201);
-    const { id, property } = await onlyRequest(office);
+    await submit(businessAsk(Office!)).expect(201);
+    const { id, property } = await onlyQuote(office);
 
     const res = await office
       .patch(`/api/properties/${property.id}`)
@@ -368,8 +366,8 @@ describe("the Suggested Price for business premises", () => {
   test("corrections are a Property's own kind: no rooms for premises", async () => {
     const office = await signInAsOffice();
     const { Office } = await premisesTypes();
-    await submit(businessRequest(Office!)).expect(201);
-    const { property } = await onlyRequest(office);
+    await submit(businessAsk(Office!)).expect(201);
+    const { property } = await onlyQuote(office);
 
     const rooms = await office
       .patch(`/api/properties/${property.id}`)
@@ -384,14 +382,14 @@ describe("the Suggested Price for business premises", () => {
 });
 
 describe("Office Staff and business Clients", () => {
-  test("enter a business caller's request, drafting a Quote with Add-ons offered for businesses, taxed at the commercial rate", async () => {
+  test("enter a business caller's ask, drafting a Quote with Add-ons offered for businesses, taxed at the commercial rate", async () => {
     const office = await signInAsOffice();
     await setPrices(office);
     const { Office } = await premisesTypes();
     const list = (await office.get("/api/price-list")).body as PriceList;
 
     const { body } = await office
-      .post("/api/quote-requests/office")
+      .post("/api/quotes/caller")
       .send({
         contact: { name: "Pat Phoner", phone: "(718) 555-0123", email: null },
         businessName: "Phoner & Co",
@@ -409,7 +407,7 @@ describe("Office Staff and business Clients", () => {
     });
     // the placeholder Add-ons: only Interior windows is for businesses too
     expect(quote.addOnChoices.map((a) => a.name)).toEqual(["Interior windows"]);
-    const deep = quote.options.find((o) => o.cleanType === "deep")!;
+    const deep = quote.draft!.options.find((o) => o.cleanType === "deep")!;
     expect(deep).toMatchObject({
       priceCents: 27000,
       taxCents: 2700,
@@ -417,11 +415,11 @@ describe("Office Staff and business Clients", () => {
     });
 
     const oven = list.addOns.find((a) => a.name === "Inside the oven")!;
-    const refused = await office.patch(`/api/quotes/${quote.id}`).send({
+    const refused = await office.patch(`/api/quotes/${quote.id}/draft`).send({
       addOns: [oven.key],
-      crewSize: quote.crewSize,
-      depositPercent: quote.depositPercent,
-      validityDays: quote.validityDays,
+      crewSize: quote.draft!.crewSize,
+      depositPercent: quote.draft!.depositPercent,
+      validityDays: quote.draft!.validityDays,
       proposedStart: null,
       overrides: { deep: null, standard: null },
     });
@@ -431,12 +429,12 @@ describe("Office Staff and business Clients", () => {
   test("find a Client by their business's name, listed by it, and can correct it", async () => {
     const office = await signInAsOffice();
     await submit(
-      guestRequest({
+      guestAsk({
         contact: { ...casey, name: "Zed Zimmer", email: "zed@example.com" },
       }),
     ).expect(201);
     const { Office } = await premisesTypes();
-    await submit(businessRequest(Office!)).expect(201);
+    await submit(businessAsk(Office!)).expect(201);
 
     const all = (await office.get("/api/clients").expect(200))
       .body as ClientListItem[];

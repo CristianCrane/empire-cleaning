@@ -25,7 +25,6 @@ import {
 } from "#features/payments";
 import { router as priceListRouter } from "#features/price-list";
 import { router as propertiesRouter } from "#features/properties";
-import { router as quoteRequestsRouter } from "#features/quote-requests";
 import { router as quotesRouter } from "#features/quotes";
 import {
   clientRescheduleRouter,
@@ -67,7 +66,6 @@ app.get("/health", (req, res) => {
 });
 
 app.use("/api/me", meRouter);
-app.use("/api/quote-requests", quoteRequestsRouter);
 app.use("/api/quotes", quotesRouter);
 app.use("/api/clients", clientsRouter);
 app.use("/api/clients", clientBillingRouter);

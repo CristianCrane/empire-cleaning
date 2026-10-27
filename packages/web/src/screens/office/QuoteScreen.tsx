@@ -12,6 +12,7 @@ import type {
   FirstCleanFindings,
   OfficeQuote,
   OfficeQuoteOption,
+  OfficeRevision,
   PlanChange,
   PlanChoice,
   QuoteDraftInput,
@@ -80,15 +81,38 @@ import { crewAt } from "../schedule-layout.ts";
 import { homeCrumbs } from "./PropertyScreen.tsx";
 import { PickFromSchedule } from "./SchedulePicker.tsx";
 
-// where a Quote was started from: the request it answers, or for a Service
-// Plan offered unprompted, its home
-const homeOf = (quote: OfficeQuote) =>
-  quote.quoteRequestId
+// The Quote as this screen shows it, on one Revision: the one being
+// drafted, or else the offer, so it's edited while there's a Draft Revision
+// and read-only otherwise. #101 reshapes the screen around Revisions.
+type ShownQuote = Omit<OfficeQuote, "draft" | "offer"> &
+  Omit<OfficeRevision, "id" | "number" | "status"> & {
+    // the Revision shown
+    revision: number;
+    // a Revision of a Sent Quote being drafted
+    revising: boolean;
+  };
+
+const shownOf = (quote: OfficeQuote): ShownQuote => {
+  const { draft, offer, ...rest } = quote;
+  const { id: _id, number, status: _status, ...fields } = (draft ?? offer)!;
+  return {
+    ...rest,
+    ...fields,
+    revision: number,
+    revising: draft !== null && offer !== null,
+    status: draft ? "draft" : quote.status,
+  };
+};
+
+// where a Quote was started from: what was asked, or for a Service Plan
+// offered unprompted, its home
+const homeOf = (quote: ShownQuote) =>
+  quote.asked
     ? {
-        label: "Quote Request",
+        label: "What was asked",
         href: linkTo({
           to: "/office/requests/$requestId",
-          params: { requestId: quote.quoteRequestId },
+          params: { requestId: quote.id },
         }),
       }
     : {
@@ -105,7 +129,7 @@ function OfferCards({
   quote,
   children,
 }: {
-  quote: OfficeQuote;
+  quote: ShownQuote;
   // anything more on each option, e.g. how it's priced
   children: (option: OfficeQuoteOption) => ReactNode;
 }) {
@@ -148,9 +172,12 @@ function OfferCards({
   );
 }
 
-// one Quote for the Office: edited while it's a Draft, read-only once Sent
+// one Quote for the Office: edited while a Revision is being drafted,
+// read-only once it's Sent
 export function QuoteScreen() {
-  const quote = useLoaderData({ from: "/office/quotes/$quoteId" });
+  const loaded = useLoaderData({ from: "/office/quotes/$quoteId" });
+  if (!loaded.draft && !loaded.offer) return <NothingDrafted quote={loaded} />;
+  const quote = shownOf(loaded);
 
   return (
     <div className="flex flex-col gap-6">
@@ -159,7 +186,7 @@ export function QuoteScreen() {
           trail={[
             { label: "Requests", href: linkTo({ to: "/office/requests" }) },
             ...homeCrumbs(quote.client, quote.property),
-            ...(quote.quoteRequestId ? [homeOf(quote)] : []),
+            ...(quote.asked ? [homeOf(quote)] : []),
             { label: quote.plan ? "Service Plan Quote" : "Quote" },
           ]}
         />
@@ -192,7 +219,7 @@ function PlanChangeNotice({
   quote,
   change,
 }: {
-  quote: OfficeQuote;
+  quote: ShownQuote;
   change: PlanChange;
 }) {
   const from = quote.proposedStartsAt
@@ -227,7 +254,7 @@ function PlanChangeNotice({
   );
 }
 
-function SentQuote({ quote }: { quote: OfficeQuote }) {
+function SentQuote({ quote }: { quote: ShownQuote }) {
   return (
     <>
       <Card title="Offer">
@@ -296,11 +323,13 @@ function SentQuote({ quote }: { quote: OfficeQuote }) {
               ? "A day its first cleans are on has"
               : `${formatDateTime(quote.proposedStartsAt!)} has`}{" "}
             filled up since this Quote was sent, so {quote.client.name} can't
-            accept it. Draft a new Quote with another time from their{" "}
-            <Link href={homeOf(quote).href}>{homeOf(quote).label}</Link>: it
-            replaces this one.
+            accept it. Draft a new Revision with another time: it replaces this
+            offer.
           </Notice>
         ))}
+      {(quote.status === "sent" || quote.status === "expired") && (
+        <NewRevision quote={quote} />
+      )}
       <OfferCards quote={quote}>
         {(option) => <PricedFrom option={option} />}
       </OfferCards>
@@ -314,17 +343,74 @@ function SentQuote({ quote }: { quote: OfficeQuote }) {
       </Card>
       {quote.firstClean && <FirstCleanCard firstClean={quote.firstClean} />}
       <p className="text-sm text-fg-muted">
-        Priced from Price List version {quote.priceListVersion}. A Sent Quote
+        Priced from Price List version {quote.priceListVersion}. A Sent Revision
         never changes: to offer something different, draft a new one.
       </p>
     </>
   );
 }
 
+// starts a new Revision of a Sent or Expired Quote, from the offer's terms
+function NewRevision({ quote }: { quote: ShownQuote }) {
+  const router = useRouter();
+  const [failure, setFailure] = useState<string>();
+  const [isPending, setPending] = useState(false);
+  return (
+    <div className="flex flex-col gap-2">
+      <Actions>
+        <Button
+          variant="secondary"
+          isPending={isPending}
+          onPress={async () => {
+            setPending(true);
+            setFailure(undefined);
+            try {
+              await postJson<OfficeQuote>(
+                `/api/quotes/${quote.id}/revisions`,
+                {},
+              );
+              await router.invalidate();
+            } catch (e) {
+              setFailure(
+                e instanceof ApiError && e.status === 409
+                  ? e.message
+                  : "The new Revision couldn't be started. Please try again.",
+              );
+            } finally {
+              setPending(false);
+            }
+          }}
+        >
+          Draft a new Revision
+        </Button>
+      </Actions>
+      {failure && <Notice tone="danger">{failure}</Notice>}
+    </div>
+  );
+}
+
+// a Quote asked for, with no Revision yet: drafted from what was asked
+function NothingDrafted({ quote }: { quote: OfficeQuote }) {
+  return (
+    <Notice>
+      Nothing has been drafted for this Quote yet. See{" "}
+      <Link
+        href={linkTo({
+          to: "/office/requests/$requestId",
+          params: { requestId: quote.id },
+        })}
+      >
+        what was asked
+      </Link>{" "}
+      to draft it.
+    </Notice>
+  );
+}
+
 // The Client said yes another way, e.g. by phone: the Office records it,
 // charging the Deposit to the card the Client saved. Office Staff never take
 // card details, so without one they email the Client a link to add it.
-function RecordAcceptance({ quote }: { quote: OfficeQuote }) {
+function RecordAcceptance({ quote }: { quote: ShownQuote }) {
   const router = useRouter();
   const [cleanType, setCleanType] = useState<CleanType>(
     quote.bookable.includes("deep") ? "deep" : quote.bookable[0]!,
@@ -588,7 +674,7 @@ const overrideOf = (option: OfficeQuoteOption | undefined): Override => ({
   reason: option?.overrideReason ?? "",
 });
 
-const toFields = (quote: OfficeQuote): Fields => {
+const toFields = (quote: ShownQuote): Fields => {
   const override = (cleanType: CleanType) =>
     overrideOf(
       quote.plan
@@ -877,7 +963,7 @@ const saveStateLabel: Record<SaveState, string> = {
 const SAVE_DELAY_MS = 500;
 
 // the prices as last worked out, in a line: what the bar at the bottom shows
-const priceSummary = (quote: OfficeQuote) => {
+const priceSummary = (quote: ShownQuote) => {
   const { plan } = quote;
   if (plan) {
     return plan.days.length === 1
@@ -895,7 +981,7 @@ const priceSummary = (quote: OfficeQuote) => {
  * them in view wherever the change was made. On a Service Plan Quote, the
  * plan's Clean Type is chosen from its price cards.
  */
-function DraftEditor({ quote: loaded }: { quote: OfficeQuote }) {
+function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
   const router = useRouter();
   const [quote, setQuote] = useState(loaded);
   const [fields, setFields] = useState(() => toFields(loaded));
@@ -962,9 +1048,11 @@ function DraftEditor({ quote: loaded }: { quote: OfficeQuote }) {
       setSaveState("saving");
       try {
         setQuote(
-          await patchJson<OfficeQuote>(
-            `/api/quotes/${quote.id}`,
-            toInput(latest.current),
+          shownOf(
+            await patchJson<OfficeQuote>(
+              `/api/quotes/${quote.id}/draft`,
+              toInput(latest.current),
+            ),
           ),
         );
         setFieldErrors({});

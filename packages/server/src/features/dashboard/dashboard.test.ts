@@ -5,7 +5,7 @@ import { api, signIn, testClock } from "../../../tests/harness.ts";
 import {
   bookedJob,
   casey,
-  guestRequest,
+  guestAsk,
   home,
   signInAsOffice,
   submit,
@@ -44,10 +44,10 @@ describe("Needs attention", () => {
     expect(await needsAttention(office)).toEqual([]);
   });
 
-  test("lists new Quote Requests awaiting a Quote, longest waiting first", async () => {
-    await submit(guestRequest()).expect(201);
+  test("lists Quotes asked for with nothing Sent yet, longest waiting first", async () => {
+    await submit(guestAsk()).expect(201);
     await submit(
-      guestRequest({
+      guestAsk({
         contact: { ...casey, name: "Drew Client", email: "drew@example.com" },
         property: { new: { ...home, street: "7 Queens Blvd" } },
       }),
@@ -55,19 +55,19 @@ describe("Needs attention", () => {
     const office = await signInAsOffice();
 
     const items = (await needsAttention(office)).filter(
-      (i) => i.kind === "quote_request",
+      (i) => i.kind === "quote_requested",
     );
 
     expect(items).toHaveLength(2);
-    expect(items.map((i) => i.quoteRequest.client.name)).toEqual([
+    expect(items.map((i) => i.quote.client.name)).toEqual([
       "Casey Client",
       "Drew Client",
     ]);
     expect(items[0]).toMatchObject({
-      since: items[0]!.quoteRequest.createdAt,
-      quoteRequest: {
-        condition: "moderate",
-        wantsRegularService: true,
+      since: items[0]!.quote.createdAt,
+      quote: {
+        status: "requested",
+        asked: { condition: "moderate", wantsRegularService: true },
         property: { street: home.street, postcode: home.postcode },
       },
     });

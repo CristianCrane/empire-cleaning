@@ -2,16 +2,16 @@ import { describe, expect, test } from "vitest";
 import type {
   NeedsAttentionItem,
   OfficeQuote,
+  OfficeQuoteOption,
   PriceList,
   QuoteDraftInput,
-  QuoteRequestDetail,
   QuoteSummary,
   QuoteView,
 } from "@empire-cleaning/models";
 import { api, signIn, testClock, testEmail } from "../../../tests/harness.ts";
 import {
   casey,
-  guestRequest,
+  guestAsk,
   home,
   signInAsOffice,
   submit,
@@ -29,39 +29,42 @@ const asked = async (addOnNames: string[] = []) => {
   const addOns = offered
     .filter((a) => addOnNames.includes(a.name))
     .map((a) => a.key);
-  const { body } = await submit(guestRequest({ addOns })).expect(201);
+  const { body } = await submit(guestAsk({ addOns })).expect(201);
   return body.id as string;
 };
 
-const requestDetail = async (office: Agent, id: string) =>
-  (await office.get(`/api/quote-requests/${id}`).expect(200))
-    .body as QuoteRequestDetail;
+const quoteOf = async (office: Agent, id: string) =>
+  (await office.get(`/api/quotes/${id}`).expect(200)).body as OfficeQuote;
 
-const startDraft = async (office: Agent, quoteRequestId: string) =>
-  (await office.post("/api/quotes").send({ quoteRequestId }).expect(201))
+const startDraft = async (office: Agent, quoteId: string) =>
+  (await office.post(`/api/quotes/${quoteId}/revisions`).send({}).expect(201))
     .body as OfficeQuote;
 
-// what a Draft is now, as a PATCH body, with changes
+// what a Quote's Draft Revision is now (or, with none, its offer), as a
+// PATCH body, with changes
 const edit = (
   quote: OfficeQuote,
   changes: Partial<QuoteDraftInput> = {},
-): QuoteDraftInput => ({
-  addOns: quote.addOns.map((a) => a.key),
-  crewSize: quote.crewSize,
-  depositPercent: quote.depositPercent,
-  validityDays: quote.validityDays,
-  proposedStart: quote.proposedStart,
-  overrides: {
-    deep: quote.options[0]!.overrideCents
-      ? {
-          priceCents: quote.options[0]!.overrideCents,
-          reason: quote.options[0]!.overrideReason!,
-        }
-      : null,
-    standard: null,
-  },
-  ...changes,
-});
+): QuoteDraftInput => {
+  const revision = (quote.draft ?? quote.offer)!;
+  return {
+    addOns: revision.addOns.map((a) => a.key),
+    crewSize: revision.crewSize,
+    depositPercent: revision.depositPercent,
+    validityDays: revision.validityDays,
+    proposedStart: revision.proposedStart,
+    overrides: {
+      deep: revision.options[0]!.overrideCents
+        ? {
+            priceCents: revision.options[0]!.overrideCents,
+            reason: revision.options[0]!.overrideReason!,
+          }
+        : null,
+      standard: null,
+    },
+    ...changes,
+  };
+};
 
 const save = async (
   office: Agent,
@@ -70,61 +73,72 @@ const save = async (
 ) =>
   (
     await office
-      .patch(`/api/quotes/${quote.id}`)
+      .patch(`/api/quotes/${quote.id}/draft`)
       .send(edit(quote, changes))
       .expect(200)
   ).body as OfficeQuote;
 
-// the request's Draft (started now, or the one it has) with a proposed
-// time, sent
+// the Quote's Draft Revision (started now, or the one it has) with a
+// proposed time, sent
 const sentQuote = async (
   office: Agent,
-  quoteRequestId: string,
+  quoteId: string,
   changes: Partial<QuoteDraftInput> = {},
 ) => {
-  const draft = (await office.post("/api/quotes").send({ quoteRequestId }))
+  const draft = (await office.post(`/api/quotes/${quoteId}/revisions`).send({}))
     .body as OfficeQuote;
   await save(office, draft, { proposedStart: nextMonday, ...changes });
   return (await office.post(`/api/quotes/${draft.id}/send`).expect(200))
     .body as OfficeQuote;
 };
 
-const option = (
-  quote: { options: OfficeQuote["options"] },
-  cleanType: string,
-) => quote.options.find((o) => o.cleanType === cleanType)!;
+// a Clean Type's option on the Quote's Draft Revision, or else its offer
+const option = (quote: OfficeQuote, cleanType: string): OfficeQuoteOption =>
+  (quote.draft ?? quote.offer)!.options.find((o) => o.cleanType === cleanType)!;
 
 describe("drafting a First Clean Quote", () => {
   test("is only for Office Staff", async () => {
-    const quoteRequestId = await asked();
-    await api().post("/api/quotes").send({ quoteRequestId }).expect(401);
+    const quoteId = await asked();
+    await api().post(`/api/quotes/${quoteId}/revisions`).send({}).expect(401);
     const client = await signIn(casey.email);
-    await client.post("/api/quotes").send({ quoteRequestId }).expect(403);
+    await client.post(`/api/quotes/${quoteId}/revisions`).send({}).expect(403);
 
     const office = await signInAsOffice();
-    const draft = await startDraft(office, quoteRequestId);
+    const draft = await startDraft(office, quoteId);
     await client.get(`/api/quotes/${draft.id}`).expect(403);
-    await client.patch(`/api/quotes/${draft.id}`).send(edit(draft)).expect(403);
+    await client
+      .patch(`/api/quotes/${draft.id}/draft`)
+      .send(edit(draft))
+      .expect(403);
     await client.post(`/api/quotes/${draft.id}/send`).expect(403);
   });
 
   test("starts from the Suggested Price for both Clean Types, Deep Clean recommended", async () => {
-    const quoteRequestId = await asked(["Inside the oven"]);
+    const quoteId = await asked(["Inside the oven"]);
     const office = await signInAsOffice();
-    const { suggested } = await requestDetail(office, quoteRequestId);
+    const { suggested } = await quoteOf(office, quoteId);
 
-    const draft = await startDraft(office, quoteRequestId);
+    const draft = await startDraft(office, quoteId);
 
     expect(draft).toMatchObject({
+      kind: "one_off",
       status: "draft",
-      crewSize: 2,
-      depositPercent: 25,
-      validityDays: 14,
-      proposedStart: null,
-      sentAt: null,
-      addOns: [{ name: "Inside the oven" }],
+      offer: null,
+      revisions: [],
+      draft: {
+        number: 1,
+        status: "draft",
+        crewSize: 2,
+        depositPercent: 25,
+        validityDays: 14,
+        proposedStart: null,
+        sentAt: null,
+        addOns: [{ name: "Inside the oven" }],
+      },
     });
-    expect(draft.options.map((o) => [o.cleanType, o.recommended])).toEqual([
+    expect(
+      draft.draft!.options.map((o) => [o.cleanType, o.recommended]),
+    ).toEqual([
       ["deep", true],
       ["standard", false],
     ]);
@@ -142,26 +156,41 @@ describe("drafting a First Clean Quote", () => {
     );
   });
 
-  test("a request has one Draft at a time", async () => {
-    const quoteRequestId = await asked();
+  test("a Quote drafts one Revision at a time", async () => {
+    const quoteId = await asked();
     const office = await signInAsOffice();
-    const draft = await startDraft(office, quoteRequestId);
+    const draft = await startDraft(office, quoteId);
 
-    const again = await office
-      .post("/api/quotes")
-      .send({ quoteRequestId })
-      .expect(200);
+    const again = (
+      await office.post(`/api/quotes/${quoteId}/revisions`).send({}).expect(200)
+    ).body as OfficeQuote;
 
-    expect(again.body.id).toBe(draft.id);
+    expect(again.draft!.id).toBe(draft.draft!.id);
+  });
+
+  test("its first Revision sets its kind, which then can't change", async () => {
+    const quoteId = await asked();
+    const office = await signInAsOffice();
+    await startDraft(office, quoteId);
+
+    const other = await office
+      .post(`/api/quotes/${quoteId}/revisions`)
+      .send({ kind: "service_plan" })
+      .expect(409);
+
+    expect(other.body.message).toBe(
+      "This is a one-off Quote: its kind can't change. Start a new Quote for the other.",
+    );
+    expect((await quoteOf(office, quoteId)).kind).toBe("one_off");
   });
 
   test("an override needs a reason, and has no lower bound", async () => {
-    const quoteRequestId = await asked();
+    const quoteId = await asked();
     const office = await signInAsOffice();
-    const draft = await startDraft(office, quoteRequestId);
+    const draft = await startDraft(office, quoteId);
 
     const refused = await office
-      .patch(`/api/quotes/${draft.id}`)
+      .patch(`/api/quotes/${draft.id}/draft`)
       .send(
         edit(draft, {
           overrides: {
@@ -201,9 +230,9 @@ describe("drafting a First Clean Quote", () => {
   });
 
   test("Add-ons, Crew Size, Deposit and validity can be changed", async () => {
-    const quoteRequestId = await asked();
+    const quoteId = await asked();
     const office = await signInAsOffice();
-    const draft = await startDraft(office, quoteRequestId);
+    const draft = await startDraft(office, quoteId);
     const oven = draft.addOnChoices.find((a) => a.name === "Inside the oven")!;
 
     const saved = await save(office, draft, {
@@ -213,12 +242,12 @@ describe("drafting a First Clean Quote", () => {
       validityDays: 7,
     });
 
-    expect(saved).toMatchObject({
+    expect(saved.draft).toMatchObject({
       crewSize: 3,
       depositPercent: 50,
       validityDays: 7,
     });
-    expect(saved.addOns).toEqual([
+    expect(saved.draft!.addOns).toEqual([
       // 0.5 h at $55, plus 8.875% tax
       { key: oven.key, name: "Inside the oven", totalCents: 2994 },
     ]);
@@ -230,7 +259,7 @@ describe("drafting a First Clean Quote", () => {
     expect(deep.depositCents).toBe(Math.round(deep.totalCents / 2));
 
     await office
-      .patch(`/api/quotes/${draft.id}`)
+      .patch(`/api/quotes/${draft.id}/draft`)
       .send(edit(draft, { addOns: [crypto.randomUUID()] }))
       .expect(400);
   });
@@ -238,9 +267,9 @@ describe("drafting a First Clean Quote", () => {
 
 describe("sending a Quote", () => {
   test("needs a proposed time that's still to come", async () => {
-    const quoteRequestId = await asked();
+    const quoteId = await asked();
     const office = await signInAsOffice();
-    const draft = await startDraft(office, quoteRequestId);
+    const draft = await startDraft(office, quoteId);
 
     const none = await office.post(`/api/quotes/${draft.id}/send`).expect(400);
     expect(none.body.details[0]).toMatchObject({
@@ -258,16 +287,21 @@ describe("sending a Quote", () => {
   });
 
   test("emails the Client a plain link to the Quote", async () => {
-    const quoteRequestId = await asked();
+    const quoteId = await asked();
     const office = await signInAsOffice();
 
-    const quote = await sentQuote(office, quoteRequestId);
+    const quote = await sentQuote(office, quoteId);
 
     expect(quote).toMatchObject({
       status: "sent",
-      proposedStart: nextMonday,
-      proposedStartsAt: "2026-01-12T14:00:00.000Z",
-      sentAt: "2026-01-05T09:00:00.000Z",
+      draft: null,
+      offer: {
+        number: 1,
+        status: "sent",
+        proposedStart: nextMonday,
+        proposedStartsAt: "2026-01-12T14:00:00.000Z",
+        sentAt: "2026-01-05T09:00:00.000Z",
+      },
     });
     const sent = testEmail().lastTo(casey.email);
     expect(sent.subject).toBe("Your Quote from Empire Cleaning");
@@ -278,22 +312,22 @@ describe("sending a Quote", () => {
     ]);
   });
 
-  test("a Sent Quote never changes", async () => {
-    const quoteRequestId = await asked();
+  test("a Sent Revision never changes", async () => {
+    const quoteId = await asked();
     const office = await signInAsOffice();
-    const quote = await sentQuote(office, quoteRequestId);
+    const quote = await sentQuote(office, quoteId);
 
     await office
-      .patch(`/api/quotes/${quote.id}`)
+      .patch(`/api/quotes/${quote.id}/draft`)
       .send(edit(quote, { crewSize: 4 }))
       .expect(409);
     await office.post(`/api/quotes/${quote.id}/send`).expect(409);
   });
 
   test("changing the Price List doesn't change a Sent Quote", async () => {
-    const quoteRequestId = await asked(["Inside the oven"]);
+    const quoteId = await asked(["Inside the oven"]);
     const office = await signInAsOffice();
-    const quote = await sentQuote(office, quoteRequestId);
+    const quote = await sentQuote(office, quoteId);
     const client = await signIn(casey.email);
     const before = (
       await client.get(`/api/quotes/mine/${quote.id}`).expect(200)
@@ -308,36 +342,109 @@ describe("sending a Quote", () => {
 
     const office2 = (await office.get(`/api/quotes/${quote.id}`).expect(200))
       .body as OfficeQuote;
-    expect(office2.options).toEqual(quote.options);
-    expect(office2.addOns).toEqual(quote.addOns);
+    expect(office2.offer!.options).toEqual(quote.offer!.options);
+    expect(office2.offer!.addOns).toEqual(quote.offer!.addOns);
     expect(
       (await client.get(`/api/quotes/mine/${quote.id}`).expect(200)).body,
     ).toEqual(before);
   });
+});
 
-  test("sending another Supersedes the open one", async () => {
-    const quoteRequestId = await asked();
+describe("a new Revision", () => {
+  test("starts from the offer's terms, and leaves the Quote Sent until it's sent", async () => {
+    const quoteId = await asked();
     const office = await signInAsOffice();
-    const first = await sentQuote(office, quoteRequestId);
+    const first = await sentQuote(office, quoteId, { crewSize: 3 });
+    const client = await signIn(casey.email);
 
-    const second = await sentQuote(office, quoteRequestId, { crewSize: 3 });
+    const revising = await startDraft(office, quoteId);
 
-    const { quotes } = await requestDetail(office, quoteRequestId);
-    expect(quotes.map((q) => [q.id, q.status])).toEqual([
-      [second.id, "sent"],
-      [first.id, "superseded"],
+    expect(revising).toMatchObject({
+      status: "sent",
+      draft: { number: 2, crewSize: 3, proposedStart: nextMonday },
+      offer: { number: 1 },
+    });
+    // the Client sees only the offer, and no Draft
+    const mine = (await client.get(`/api/quotes/mine/${quoteId}`).expect(200))
+      .body as QuoteView;
+    expect(mine).toMatchObject({ status: "sent", crewSize: 3 });
+    expect(mine.sentAt).toBe(first.offer!.sentAt);
+  });
+
+  test("replaces the offer when sent, in the same Quote, with the older one kept as history", async () => {
+    const quoteId = await asked();
+    const office = await signInAsOffice();
+    const first = await sentQuote(office, quoteId);
+    testClock().advance({ hours: 1 });
+
+    const second = await sentQuote(office, quoteId, { crewSize: 3 });
+
+    expect(second.id).toBe(first.id);
+    expect(second).toMatchObject({
+      status: "sent",
+      draft: null,
+      offer: { number: 2, crewSize: 3, sentAt: "2026-01-05T10:00:00.000Z" },
+    });
+    expect(second.revisions.map((r) => [r.number, r.sentAt])).toEqual([
+      [2, "2026-01-05T10:00:00.000Z"],
+      [1, "2026-01-05T09:00:00.000Z"],
     ]);
+    // never changed: the first is as it was sent
+    expect(second.revisions[1]).toEqual(first.revisions[0]);
+    const listed = (await office.get("/api/quotes").expect(200))
+      .body as QuoteSummary[];
+    expect(listed.map((q) => [q.id, q.status])).toEqual([[quoteId, "sent"]]);
+    // its email says the Quote has changed, and links to the same Quote
+    const sent = testEmail().lastTo(casey.email);
+    expect(sent.subject).toBe("Your updated Quote from Empire Cleaning");
+    expect(sent.text).toContain("has been updated");
+    expect(sent.text).toContain(`/portal/quotes/${quoteId}`);
+    const client = await signIn(casey.email);
+    expect(
+      (
+        (await client.get(`/api/quotes/mine/${quoteId}`).expect(200))
+          .body as QuoteView
+      ).crewSize,
+    ).toBe(3);
+  });
+
+  test("can't be started once the Quote is Accepted, Declined or Turned Down", async () => {
+    const quoteId = await asked();
+    const office = await signInAsOffice();
+    await sentQuote(office, quoteId);
+    const client = await signIn(casey.email);
+    await client.post(`/api/quotes/mine/${quoteId}/decline`).expect(200);
+
+    const refused = await office
+      .post(`/api/quotes/${quoteId}/revisions`)
+      .send({})
+      .expect(409);
+
+    expect(refused.body.message).toBe(
+      "The Client declined this Quote, so it has ended. They can ask for a new Quote.",
+    );
   });
 });
 
 describe("a Client's Quotes", () => {
-  test("never include Drafts", async () => {
-    const quoteRequestId = await asked();
+  test("show what they asked for, but never a Draft Revision", async () => {
+    const quoteId = await asked();
     const office = await signInAsOffice();
-    const draft = await startDraft(office, quoteRequestId);
+    const draft = await startDraft(office, quoteId);
     const client = await signIn(casey.email);
 
-    expect((await client.get("/api/quotes/mine").expect(200)).body).toEqual([]);
+    const asking = (await client.get("/api/quotes/mine").expect(200))
+      .body as QuoteSummary[];
+    expect(asking).toMatchObject([
+      {
+        id: quoteId,
+        status: "requested",
+        asked: { condition: "moderate" },
+        headlineTotalCents: null,
+        proposedStartsAt: null,
+        drafting: false,
+      },
+    ]);
     await client.get(`/api/quotes/mine/${draft.id}`).expect(404);
 
     await save(office, draft, { proposedStart: nextMonday });
@@ -348,9 +455,9 @@ describe("a Client's Quotes", () => {
   });
 
   test("show both Clean Types with tax, Deposit and time on site", async () => {
-    const quoteRequestId = await asked(["Inside the oven"]);
+    const quoteId = await asked(["Inside the oven"]);
     const office = await signInAsOffice();
-    const sent = await sentQuote(office, quoteRequestId);
+    const sent = await sentQuote(office, quoteId);
     const client = await signIn(casey.email);
 
     const quote = (await client.get(`/api/quotes/mine/${sent.id}`).expect(200))
@@ -381,11 +488,11 @@ describe("a Client's Quotes", () => {
   });
 
   test("are only their own", async () => {
-    const quoteRequestId = await asked();
+    const quoteId = await asked();
     const office = await signInAsOffice();
-    const quote = await sentQuote(office, quoteRequestId);
+    const quote = await sentQuote(office, quoteId);
     await submit(
-      guestRequest({
+      guestAsk({
         contact: { ...casey, name: "Drew Client", email: "drew@example.com" },
         property: { new: { ...home, street: "7 Queens Blvd" } },
       }),
@@ -394,13 +501,16 @@ describe("a Client's Quotes", () => {
 
     await drew.get(`/api/quotes/mine/${quote.id}`).expect(404);
     await drew.post(`/api/quotes/mine/${quote.id}/decline`).expect(404);
-    expect((await drew.get("/api/quotes/mine").expect(200)).body).toEqual([]);
+    // only the one Drew asked for
+    const mine = (await drew.get("/api/quotes/mine").expect(200))
+      .body as QuoteSummary[];
+    expect(mine.map((q) => q.property.street)).toEqual(["7 Queens Blvd"]);
   });
 
-  test("can Decline a Sent Quote, which ends the request", async () => {
-    const quoteRequestId = await asked();
+  test("can Decline a Sent Quote, which ends it", async () => {
+    const quoteId = await asked();
     const office = await signInAsOffice();
-    const quote = await sentQuote(office, quoteRequestId);
+    const quote = await sentQuote(office, quoteId);
     const client = await signIn(casey.email);
 
     const declined = await client
@@ -412,23 +522,24 @@ describe("a Client's Quotes", () => {
     });
     await client.post(`/api/quotes/mine/${quote.id}/decline`).expect(409);
 
-    expect((await requestDetail(office, quoteRequestId)).state).toBe("ended");
-    await office.post("/api/quotes").send({ quoteRequestId }).expect(409);
-    // the Client can ask again about the same home
-    await submit(guestRequest()).expect(201);
+    expect((await quoteOf(office, quoteId)).status).toBe("declined");
+    await office.post(`/api/quotes/${quoteId}/revisions`).send({}).expect(409);
+    // the Client can ask again about the same home: a new Quote
+    const again = await submit(guestAsk()).expect(201);
+    expect(again.body.id).not.toBe(quoteId);
   });
 });
 
 describe("Expiry", () => {
   test("comes at the end of the validity period", async () => {
-    const quoteRequestId = await asked();
+    const quoteId = await asked();
     const office = await signInAsOffice();
-    const quote = await sentQuote(office, quoteRequestId, {
+    const quote = await sentQuote(office, quoteId, {
       proposedStart: { date: "2026-03-02", time: "09:00" },
       validityDays: 7,
     });
     const client = await signIn(casey.email);
-    expect(quote.expiresAt).toBe("2026-01-12T09:00:00.000Z");
+    expect(quote.offer!.expiresAt).toBe("2026-01-12T09:00:00.000Z");
 
     testClock().set(new Date("2026-01-12T08:59:00Z"));
     expect((await client.get(`/api/quotes/mine/${quote.id}`)).body.status).toBe(
@@ -442,33 +553,70 @@ describe("Expiry", () => {
   });
 
   test("comes at the proposed time if that's sooner", async () => {
-    const quoteRequestId = await asked();
+    const quoteId = await asked();
     const office = await signInAsOffice();
-    const quote = await sentQuote(office, quoteRequestId);
+    const quote = await sentQuote(office, quoteId);
 
-    expect(quote.expiresAt).toBe(quote.proposedStartsAt);
-    testClock().set(new Date(quote.proposedStartsAt!));
+    expect(quote.offer!.expiresAt).toBe(quote.offer!.proposedStartsAt);
+    testClock().set(new Date(quote.offer!.proposedStartsAt!));
     expect(
       (await office.get(`/api/quotes/${quote.id}`).expect(200)).body.status,
     ).toBe("expired");
   });
 
-  test("puts the request back to awaiting a Quote, for the Office to send another", async () => {
-    const quoteRequestId = await asked();
+  test("can be revived by Office Staff sending a new Revision", async () => {
+    const quoteId = await asked();
     const office = await signInAsOffice();
-    const first = await sentQuote(office, quoteRequestId);
-    expect((await requestDetail(office, quoteRequestId)).state).toBe("quoted");
+    const first = await sentQuote(office, quoteId);
 
-    testClock().set(new Date(first.expiresAt!));
-    expect((await requestDetail(office, quoteRequestId)).state).toBe(
-      "awaiting_quote",
-    );
+    testClock().set(new Date(first.offer!.expiresAt!));
+    expect((await quoteOf(office, quoteId)).status).toBe("expired");
 
-    await sentQuote(office, quoteRequestId, {
+    const revived = await sentQuote(office, quoteId, {
       proposedStart: { date: "2026-01-20", time: "09:00" },
     });
-    const { quotes } = await requestDetail(office, quoteRequestId);
-    expect(quotes.map((q) => q.status)).toEqual(["sent", "expired"]);
+    expect(revived).toMatchObject({
+      id: quoteId,
+      status: "sent",
+      offer: { number: 2 },
+    });
+  });
+
+  test("lets the Client ask again, which starts a new Quote", async () => {
+    const quoteId = await asked();
+    const office = await signInAsOffice();
+    const first = await sentQuote(office, quoteId);
+    const refused = await submit(guestAsk()).expect(409);
+    expect(refused.body.message).toBe(
+      "We've sent you a Quote for this home already: you'll find it in your account.",
+    );
+
+    testClock().set(new Date(first.offer!.expiresAt!));
+    const again = await submit(guestAsk()).expect(201);
+
+    expect(again.body.id).not.toBe(quoteId);
+    expect((await quoteOf(office, again.body.id)).status).toBe("requested");
+  });
+
+  test("can't be revived while a newer Quote of its kind is open", async () => {
+    const quoteId = await asked();
+    const office = await signInAsOffice();
+    const first = await sentQuote(office, quoteId);
+    testClock().set(new Date(first.offer!.expiresAt!));
+    const newer = await submit(guestAsk()).expect(201);
+
+    const whileRequested = await office
+      .post(`/api/quotes/${quoteId}/revisions`)
+      .send({})
+      .expect(409);
+    expect(whileRequested.body.message).toBe(
+      "A newer one-off Quote is open for this home: carry on with that one.",
+    );
+
+    await startDraft(office, newer.body.id);
+    await office.post(`/api/quotes/${quoteId}/revisions`).send({}).expect(409);
+    // stood aside for the newer one
+    expect((await quoteOf(office, quoteId)).status).toBe("expired");
   });
 });
 
@@ -481,21 +629,26 @@ describe("Needs attention", () => {
         .body as NeedsAttentionItem[]
     ).filter((i) => i.kind !== "quote_no_room");
 
-  test("drops a request once its Quote is Sent", async () => {
-    const quoteRequestId = await asked();
+  test("shows a Quote asked for until a Revision of it is Sent", async () => {
+    const quoteId = await asked();
     const office = await signInAsOffice();
-    await startDraft(office, quoteRequestId);
-    expect((await items(office)).map((i) => i.kind)).toEqual(["quote_request"]);
+    expect((await items(office)).map((i) => i.kind)).toEqual([
+      "quote_requested",
+    ]);
+    await startDraft(office, quoteId);
+    expect((await items(office)).map((i) => i.kind)).toEqual([
+      "quote_requested",
+    ]);
 
-    await sentQuote(office, quoteRequestId);
+    await sentQuote(office, quoteId);
 
     expect(await items(office)).toEqual([]);
   });
 
   test("shows Sent Quotes within 48 hours of Expiring", async () => {
-    const quoteRequestId = await asked();
+    const quoteId = await asked();
     const office = await signInAsOffice();
-    const quote = await sentQuote(office, quoteRequestId, {
+    const quote = await sentQuote(office, quoteId, {
       proposedStart: { date: "2026-03-02", time: "09:00" },
     });
     // Expires on 19 January at 09:00 UTC

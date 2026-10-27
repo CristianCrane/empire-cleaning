@@ -80,19 +80,19 @@ const sentPlan = async (
       .expect(201)
   ).body as OfficeQuote;
   await office
-    .patch(`/api/quotes/${draft.id}`)
+    .patch(`/api/quotes/${draft.id}/draft`)
     .send({
       addOns: [],
-      depositPercent: draft.depositPercent,
-      validityDays: draft.validityDays,
+      depositPercent: draft.draft!.depositPercent,
+      validityDays: draft.draft!.validityDays,
       plan: {
         recurrence,
-        discountPercent: draft.plan!.discountPercent,
-        condition: draft.plan!.condition,
+        discountPercent: draft.draft!.plan!.discountPercent,
+        condition: draft.draft!.plan!.condition,
         days: starts.map((start) => ({
           start,
           cleanType: "standard",
-          crewSize: crewSize ?? draft.crewSize,
+          crewSize: crewSize ?? draft.draft!.crewSize,
           override: null,
         })),
       },

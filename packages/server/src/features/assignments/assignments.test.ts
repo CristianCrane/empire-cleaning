@@ -12,7 +12,7 @@ import { api, signIn, testClock, testEmail } from "../../../tests/harness.ts";
 import {
   bookedJob,
   casey,
-  guestRequest,
+  guestAsk,
   signInAsOffice,
   submit,
 } from "../../../tests/fixtures.ts";
@@ -194,21 +194,21 @@ describe("Offering Assignments", () => {
   test("shows the Add-ons on the Quote the Client accepted", async () => {
     await cleaner("Cory Cleaner");
     const office = await signInAsOffice();
-    const { body: request } = await submit(guestRequest()).expect(201);
+    const { body: request } = await submit(guestAsk()).expect(201);
     const draft = (
       await office
-        .post("/api/quotes")
-        .send({ quoteRequestId: request.id })
+        .post(`/api/quotes/${request.id}/revisions`)
+        .send({})
         .expect(201)
     ).body as OfficeQuote;
     const oven = draft.addOnChoices.find((a) => a.name === "Inside the oven")!;
     await office
-      .patch(`/api/quotes/${draft.id}`)
+      .patch(`/api/quotes/${draft.id}/draft`)
       .send({
         addOns: [oven.key],
         crewSize: 1,
-        depositPercent: draft.depositPercent,
-        validityDays: draft.validityDays,
+        depositPercent: draft.draft!.depositPercent,
+        validityDays: draft.draft!.validityDays,
         proposedStart: { date: "2026-01-08", time: "09:00" },
         overrides: { deep: null, standard: null },
       })
