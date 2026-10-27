@@ -19,6 +19,7 @@ import { askForQuote, enterCallerAsk } from "./asking.ts";
 import { openQuoteList, quotesForClient } from "./quote-state.ts";
 import {
   clientQuote,
+  clientQuoteView,
   declineQuote,
   offerServicePlan,
   officeQuote,
@@ -78,7 +79,7 @@ router.get(
   validate(byId),
   async (req, res) => {
     const client = await ownClient(signedInAccount(res).id);
-    res.json(await clientQuote(String(req.params.id), client.id));
+    res.json(await clientQuoteView(String(req.params.id), client.id));
   },
 );
 

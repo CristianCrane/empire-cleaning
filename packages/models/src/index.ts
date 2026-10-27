@@ -756,8 +756,9 @@ export type QuoteOption = {
 // an Add-on on a Quote, with what it costs, tax included
 export type QuoteAddOn = { key: string; name: string; totalCents: number };
 
-// A Quote as its Client sees it: its latest Sent Revision, the offer. One
-// with no Revision Sent yet isn't shown to them this way.
+// A Quote as its Client sees it: its latest Sent Revision, the offer, never
+// the Revisions before it (ADR-0017). One with no Revision Sent yet is an
+// AskedQuoteView.
 export type QuoteView = {
   id: string;
   kind: QuoteKind;
@@ -777,6 +778,9 @@ export type QuoteView = {
   // a one-off Quote's Job; a Service Plan Quote's first clean
   proposedStartsAt: string;
   sentAt: string;
+  // when the offer replaced an earlier Sent Revision: its sentAt. Null on
+  // the first.
+  updatedAt: string | null;
   expiresAt: string;
   declinedAt: string | null;
   // once Accepted: when, and the Clean Type chosen
@@ -796,6 +800,25 @@ export type QuoteView = {
   // and none otherwise.
   bookable: CleanType[];
 };
+
+// A Quote its Client asked for, with nothing Sent yet: what they asked, and
+// whether the Office Turned it Down. A Draft is still being written, so to
+// its Client it's Requested.
+export type AskedQuoteView = {
+  id: string;
+  status: "requested" | "turned_down";
+  property: Pick<PropertyView, "id" | "street" | "unit" | "postcode">;
+  asked: QuoteAsked;
+  createdAt: string;
+  sentAt: null;
+  // the Site Visit booked to see the premises before they're quoted
+  siteVisit: ClientSiteVisit | null;
+  turnedDownAt: string | null;
+  turnDownReason: TurnDownReason | null;
+};
+
+// GET /api/quotes/mine/:id: the offer, or, with nothing Sent, what was asked
+export type ClientQuoteView = QuoteView | AskedQuoteView;
 
 // Accepting a Service Plan Quote for a home that has a plan changes that
 // plan's terms from the Quote's proposed time on: its booked Jobs from then

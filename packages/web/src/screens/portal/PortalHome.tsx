@@ -1,6 +1,6 @@
-import type { Key, ReactNode } from "react";
+import type { Key } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
-import type { PropertyView, QuoteStatus } from "@empire-cleaning/models";
+import type { PropertyView, QuoteSummary } from "@empire-cleaning/models";
 import {
   ButtonLink,
   Card,
@@ -28,15 +28,28 @@ import { BillStatusBadge, billLine } from "../BillParts.tsx";
 import { PlanStatusBadge } from "../PlanParts.tsx";
 import { QuoteStatusBadge } from "../QuoteParts.tsx";
 
-// where what a Client asked for stands (#102 reshapes this)
-const requestBadge: Record<QuoteStatus, ReactNode> = {
-  requested: <StatusBadge tone="info">Received</StatusBadge>,
-  draft: <StatusBadge tone="info">Received</StatusBadge>,
-  sent: <StatusBadge tone="success">Quoted</StatusBadge>,
-  accepted: <StatusBadge tone="success">Booked</StatusBadge>,
-  declined: <StatusBadge>Closed</StatusBadge>,
-  expired: <StatusBadge>Closed</StatusBadge>,
-  turned_down: <StatusBadge>Closed</StatusBadge>,
+// a Quote in the list: its offer once Sent, otherwise what was asked
+const quoteLine = (quote: QuoteSummary) => {
+  const { asked } = quote;
+  if (quote.sentAt !== null) {
+    return [
+      `${quote.plan ? "Starting" : "For"} ${formatDateTime(quote.proposedStartsAt!)}`,
+      quoteHeadline(quote),
+    ].join(" · ");
+  }
+  return [
+    `Asked ${formatDate(quote.createdAt)}`,
+    asked &&
+      (asked.condition
+        ? `${conditionLabel[asked.condition]} clean`
+        : wantedCleaning(asked)),
+    asked &&
+      asked.addOns.length > 0 &&
+      `Extras: ${asked.addOns.map((a) => a.name).join(", ")}`,
+    asked?.wantsRegularService && asked.condition && "Regular visits wanted",
+  ]
+    .filter(Boolean)
+    .join(" · ");
 };
 
 // "Your homes", "Your premises", or both
@@ -49,13 +62,10 @@ const placesTitle = (places: PropertyView[]) => {
 };
 
 export function PortalHome() {
-  const { client, plans, jobs, pastJobs, siteVisits, bills, ...loaded } =
+  const { client, plans, quotes, jobs, pastJobs, siteVisits, bills } =
     useLoaderData({ from: "/portal/" });
-  // the offers: what was asked, with nothing Sent yet, is listed below
-  const quotes = loaded.quotes.filter((q) => q.sentAt !== null);
   const navigate = useNavigate();
   const [firstName] = client.name.split(" ");
-  const homes = new Map(client.properties.map((p) => [p.id, p]));
   const openJob = (id: Key) =>
     navigate({ to: "/portal/jobs/$jobId", params: { jobId: String(id) } });
 
@@ -203,77 +213,38 @@ export function PortalHome() {
         </Card>
       )}
 
-      {quotes.length > 0 && (
-        <Card title="Your Quotes">
-          <List
-            aria-label="Your Quotes"
-            onAction={(id) =>
-              navigate({
-                to: "/portal/quotes/$quoteId",
-                params: { quoteId: String(id) },
-              })
-            }
-          >
-            {quotes.map((quote) => (
-              <ListItem
-                key={quote.id}
-                id={quote.id}
-                title={addressOf(quote.property)}
-                description={[
-                  `${quote.plan ? "Starting" : "For"} ${formatDateTime(quote.proposedStartsAt!)}`,
-                  quoteHeadline(quote),
-                ].join(" · ")}
-                end={<QuoteStatusBadge status={quote.status} />}
-              />
-            ))}
-          </List>
-        </Card>
-      )}
-
+      {/* one list from asking to booking (ADR-0017), newest first */}
       <Card
-        title="Your Quote Requests"
+        title="Your Quotes"
         description="We email your Quote, usually within a working day."
       >
         <List
-          aria-label="Your Quote Requests"
+          aria-label="Your Quotes"
+          onAction={(id) =>
+            navigate({
+              to: "/portal/quotes/$quoteId",
+              params: { quoteId: String(id) },
+            })
+          }
           renderEmptyState={() => (
-            <p className="p-6 text-center text-fg-muted">
-              No Quote Requests yet.
-            </p>
+            <p className="p-6 text-center text-fg-muted">No Quotes yet.</p>
           )}
         >
-          {client.quotes.flatMap((quote) => {
-            const { asked } = quote;
-            if (!asked) return [];
-            const home = homes.get(quote.property.id);
-            return [
-              <ListItem
-                key={quote.id}
-                id={quote.id}
-                title={home ? addressOf(home) : "Your home"}
-                description={[
-                  `Sent ${formatDate(quote.createdAt)}`,
-                  asked.condition
-                    ? `${conditionLabel[asked.condition]} clean`
-                    : wantedCleaning(asked),
-                  asked.addOns.length > 0 &&
-                    `Extras: ${asked.addOns.map((a) => a.name).join(", ")}`,
-                  asked.wantsRegularService &&
-                    asked.condition &&
-                    "Regular visits wanted",
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-                end={
-                  quote.siteVisit === "booked" ? (
-                    <StatusBadge tone="info">Site Visit booked</StatusBadge>
-                  ) : (
-                    requestBadge[quote.status]
-                  )
-                }
-              />,
-            ];
-          })}
+          {quotes.map((quote) => (
+            <ListItem
+              key={quote.id}
+              id={quote.id}
+              title={addressOf(quote.property)}
+              description={quoteLine(quote)}
+              end={
+                quote.siteVisit === "booked" ? (
+                  <StatusBadge tone="info">Site Visit booked</StatusBadge>
+                ) : (
+                  <QuoteStatusBadge status={quote.status} />
+                )
+              }
+            />
+          ))}
         </List>
       </Card>
 

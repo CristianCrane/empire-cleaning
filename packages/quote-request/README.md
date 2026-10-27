@@ -1,6 +1,6 @@
-# Quote Request form
+# Request a Quote form
 
-The one Quote Request form (#3), used by the landing site for Guests and by the web app's portal and welcome page for signed-in people. It's built from the design system and posts to `POST /api/quotes/ask`.
+The one Request a Quote form (#3), used by the landing site for Guests and by the web app's portal and welcome page for signed-in people. It's built from the design system and posts to `POST /api/quotes/ask`.
 
 ```tsx
 <QuoteRequestForm

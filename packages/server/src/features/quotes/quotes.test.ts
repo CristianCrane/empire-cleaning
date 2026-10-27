@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type {
+  AskedQuoteView,
   NeedsAttentionItem,
   OfficeQuote,
   OfficeQuoteOption,
@@ -367,7 +368,11 @@ describe("a new Revision", () => {
     // the Client sees only the offer, and no Draft
     const mine = (await client.get(`/api/quotes/mine/${quoteId}`).expect(200))
       .body as QuoteView;
-    expect(mine).toMatchObject({ status: "sent", crewSize: 3 });
+    expect(mine).toMatchObject({
+      status: "sent",
+      crewSize: 3,
+      updatedAt: null,
+    });
     expect(mine.sentAt).toBe(first.offer!.sentAt);
   });
 
@@ -399,13 +404,15 @@ describe("a new Revision", () => {
     expect(sent.subject).toBe("Your updated Quote from Empire Cleaning");
     expect(sent.text).toContain("has been updated");
     expect(sent.text).toContain(`/portal/quotes/${quoteId}`);
+    // the Client sees only the new offer, which says it was updated
     const client = await signIn(casey.email);
     expect(
-      (
-        (await client.get(`/api/quotes/mine/${quoteId}`).expect(200))
-          .body as QuoteView
-      ).crewSize,
-    ).toBe(3);
+      (await client.get(`/api/quotes/mine/${quoteId}`).expect(200)).body,
+    ).toMatchObject({
+      crewSize: 3,
+      sentAt: "2026-01-05T10:00:00.000Z",
+      updatedAt: "2026-01-05T10:00:00.000Z",
+    });
   });
 
   test("can't be started once the Quote is Accepted, Declined or Turned Down", async () => {
@@ -445,7 +452,25 @@ describe("a Client's Quotes", () => {
         drafting: false,
       },
     ]);
-    await client.get(`/api/quotes/mine/${draft.id}`).expect(404);
+    // what they asked, Requested still, with nothing of the Draft
+    expect(
+      (await client.get(`/api/quotes/mine/${draft.id}`).expect(200)).body,
+    ).toEqual({
+      id: quoteId,
+      status: "requested",
+      property: {
+        id: draft.property.id,
+        street: home.street,
+        unit: home.unit ?? null,
+        postcode: home.postcode,
+      },
+      asked: expect.objectContaining({ condition: "moderate" }),
+      createdAt: draft.createdAt,
+      sentAt: null,
+      siteVisit: null,
+      turnedDownAt: null,
+      turnDownReason: null,
+    } satisfies AskedQuoteView);
 
     await save(office, draft, { proposedStart: nextMonday });
     await office.post(`/api/quotes/${draft.id}/send`).expect(200);

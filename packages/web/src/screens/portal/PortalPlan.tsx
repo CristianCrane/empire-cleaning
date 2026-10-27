@@ -115,7 +115,7 @@ export function PortalPlan() {
 }
 
 // A different day, how often, or what's included: the Client says what
-// they'd like, which reaches the Office as a Quote Request for the home. The
+// they'd like, which reaches the Office as a Requested Quote for the home. The
 // Office answers with a new Service Plan Quote; nothing changes until the
 // Client accepts it.
 function AskToChange({ plan }: { plan: ServicePlanView }) {

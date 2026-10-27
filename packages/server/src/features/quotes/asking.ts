@@ -6,12 +6,13 @@ import type {
   SignedInAccount,
 } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
+import env from "../../env.ts";
 import {
   ConflictError,
   NotFoundError,
   RequestBodyError,
 } from "../../middleware/errors.ts";
-import { email } from "../../services/email/index.ts";
+import { compose, email, firstNameOf } from "../../services/email/index.ts";
 import {
   clientForAccount,
   createClient,
@@ -144,7 +145,7 @@ export const askForQuote = async (
   // the Quote is saved: a receipt that can't be sent mustn't make it look as
   // though it wasn't
   try {
-    await sendReceipt(client, property);
+    await sendReceipt(client, property, quote.id);
   } catch (error) {
     console.error(`receipt for Quote ${quote.id} not sent:`, error);
   }
@@ -357,30 +358,28 @@ const recordAsk = async (
   });
 };
 
-const escapeHtml = (text: string) =>
-  text.replace(
-    /[&<>"']/g,
-    (c) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
-        c
-      ]!,
-  );
-
-// always to the Client's own address, so an existing Client hears about any
-// Quote asked for with their email; it carries no sign-in power (ADR-0006)
-const sendReceipt = async (client: Client, property: Property) => {
-  const [firstName] = client.name.split(" ");
-  const address = addressOf(property);
-  const lines = [
-    `Hi ${firstName},`,
-    `Thanks for asking Empire Cleaning for a Quote for ${address}. We'll email your Quote to ${client.email}, usually within a working day.`,
-    `If you didn't ask for a Quote, you can ignore this email, or reply and let us know.`,
-  ];
-
+// Always to the Client's own address, so an existing Client hears about any
+// Quote asked for with their email. Like every Quote email it links to the
+// Quote, with no sign-in power (ADR-0006): the same page shows the offer
+// once it's Sent.
+const sendReceipt = async (
+  client: Client,
+  property: Property,
+  quoteId: string,
+) => {
   await email.send({
     to: client.email,
     subject: "We've received your request for a Quote",
-    text: lines.join("\n\n"),
-    html: lines.map((line) => `<p>${escapeHtml(line)}</p>`).join(""),
+    ...compose(
+      [
+        `Hi ${firstNameOf(client.name)},`,
+        `Thanks for asking Empire Cleaning for a Quote for ${addressOf(property)}. We'll email your Quote to ${client.email}, usually within a working day.`,
+        `If you didn't ask for a Quote, you can ignore this email, or reply and let us know.`,
+      ],
+      {
+        href: `${env.CORS_ORIGIN_URL}/portal/quotes/${quoteId}`,
+        label: "See your Quote",
+      },
+    ),
   });
 };

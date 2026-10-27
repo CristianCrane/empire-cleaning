@@ -7,7 +7,7 @@ export const siteUrl = `http://localhost:${SITE_PORT}`;
 export const controlUrl = `http://127.0.0.1:${CONTROL_PORT}`;
 
 // tests the built site in a real Chromium, as a visitor gets it, on a phone
-// and a desktop. Its Quote Request form talks to the real API and a database
+// and a desktop. Its Request a Quote form talks to the real API and a database
 // of its own (packages/server/tests/e2e/server.ts), separate from the web
 // app's, so both suites can run at once. Tests share that database, so they
 // run one at a time.

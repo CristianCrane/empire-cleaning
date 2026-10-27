@@ -2,11 +2,14 @@ import { useState } from "react";
 import { useLoaderData, useRouter } from "@tanstack/react-router";
 import type {
   AcceptOutcome,
+  AskedQuoteView,
   CleanType,
+  ClientQuoteView,
   PaymentMethodView,
   PlanChange,
   QuoteView,
   ServicePlanTerms,
+  TurnDownReason,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -27,9 +30,13 @@ import { linkTo } from "../../links.ts";
 import {
   addressOf,
   cleanTypeLabel,
+  conditionLabel,
+  formatDate,
   formatDateTime,
+  formatMinutes,
   formatMoney,
   planRhythm,
+  wantedCleaning,
 } from "../format.ts";
 import {
   AddOnList,
@@ -40,30 +47,152 @@ import {
 } from "../QuoteParts.tsx";
 import { CardProblem, ConsentNote, usePaymentForm } from "./CardForm.tsx";
 
-// a Quote as its Client sees it, from the link in the Quote email: open, they
-// accept it right here
+// A Quote as its Client sees it, from the link in every Quote email (ADR-0017):
+// only its offer, the latest Sent Revision, which they accept right here; or,
+// with nothing Sent yet, what they asked for
 export function PortalQuote() {
   const { quote, paymentMethod } = useLoaderData({
     from: "/portal/quotes/$quoteId",
   });
 
+  return quote.sentAt === null ? (
+    <AskedQuote quote={quote} />
+  ) : (
+    <OfferedQuote quote={quote} paymentMethod={paymentMethod} />
+  );
+}
+
+function QuoteHeader({
+  quote,
+  title,
+  updatedAt = null,
+}: {
+  quote: ClientQuoteView;
+  title: string;
+  updatedAt?: string | null;
+}) {
+  return (
+    <div className="flex flex-col gap-4">
+      <Breadcrumbs
+        trail={[
+          { label: "Home", href: linkTo({ to: "/portal" }) },
+          { label: "Your Quote" },
+        ]}
+      />
+      <div className="flex flex-wrap items-center gap-3">
+        <Heading level={1}>{title}</Heading>
+        <QuoteStatusBadge status={quote.status} />
+      </div>
+      <p className="text-fg-muted">
+        {addressOf(quote.property)}
+        {/* a resend replaced the offer they may have seen before */}
+        {updatedAt && ` · Updated ${formatDate(updatedAt)}`}
+      </p>
+    </div>
+  );
+}
+
+// why the Office couldn't quote, as the Turned Down email says it
+const turnDownWording: Record<TurnDownReason, string> = {
+  out_of_area: "it's outside the area we clean",
+  out_of_scope: "it needs more than the cleaning we offer",
+  no_capacity: "we don't have room for it at the moment",
+};
+
+// what they asked for, while the Office prepares the Quote, or once it's
+// Turned Down
+function AskedQuote({ quote }: { quote: AskedQuoteView }) {
+  const { asked, siteVisit } = quote;
+  // a business states no Condition: a Site Visit finds it
+  const premises = asked.condition === null;
+
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4">
-        <Breadcrumbs
-          trail={[
-            { label: "Home", href: linkTo({ to: "/portal" }) },
-            { label: "Your Quote" },
-          ]}
-        />
-        <div className="flex flex-wrap items-center gap-3">
-          <Heading level={1}>
-            {quote.plan ? "Your Service Plan Quote" : "Your Quote"}
-          </Heading>
-          <QuoteStatusBadge status={quote.status} />
-        </div>
-        <p className="text-fg-muted">{addressOf(quote.property)}</p>
-      </div>
+      <QuoteHeader quote={quote} title="Your Quote" />
+
+      {quote.status === "turned_down" ? (
+        <Notice>
+          <p>
+            We're sorry, but we can't quote for{" "}
+            {premises ? "these premises" : "this home"}:{" "}
+            {turnDownWording[quote.turnDownReason!]}. If anything changes,
+            you're welcome to ask us again.
+          </p>
+          <p>
+            <Link href={linkTo({ to: "/portal/request" })}>
+              Request a Quote
+            </Link>
+          </p>
+        </Notice>
+      ) : siteVisit ? (
+        <Notice tone="info">
+          We'll come to see {premises ? "the premises" : "your home"} first, for
+          free: {siteVisit.visitorName} visits on{" "}
+          {formatDateTime(siteVisit.startsAt)}, for about{" "}
+          {formatMinutes(siteVisit.minutes)}. We email your Quote after the
+          visit. To change the time, please call us.
+        </Notice>
+      ) : (
+        <Notice tone="info">
+          We're preparing your Quote, and we'll email it to you, usually within
+          a working day.
+        </Notice>
+      )}
+
+      <Card title="What you asked for">
+        <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
+          <dt className="font-semibold">Asked</dt>
+          <dd>{formatDate(quote.createdAt)}</dd>
+          {premises ? (
+            <>
+              <dt className="font-semibold">Cleaning wanted</dt>
+              <dd>{wantedCleaning(asked)}</dd>
+            </>
+          ) : (
+            <>
+              <dt className="font-semibold">Condition</dt>
+              <dd>{conditionLabel[asked.condition!]}</dd>
+              <dt className="font-semibold">Extras</dt>
+              <dd>
+                {asked.addOns.length > 0
+                  ? asked.addOns.map((a) => a.name).join(", ")
+                  : "None"}
+              </dd>
+              <dt className="font-semibold">Regular visits</dt>
+              <dd>
+                {asked.wantsRegularService
+                  ? "Wanted after the first clean"
+                  : "Not asked for"}
+              </dd>
+            </>
+          )}
+          {asked.notes && (
+            <>
+              <dt className="font-semibold">Notes</dt>
+              <dd className="whitespace-pre-line">{asked.notes}</dd>
+            </>
+          )}
+        </dl>
+      </Card>
+    </div>
+  );
+}
+
+// the offer: open, they accept or decline it here
+function OfferedQuote({
+  quote,
+  paymentMethod,
+}: {
+  quote: QuoteView;
+  paymentMethod: PaymentMethodView | null;
+}) {
+  return (
+    <div className="flex flex-col gap-6">
+      <QuoteHeader
+        quote={quote}
+        title={quote.plan ? "Your Service Plan Quote" : "Your Quote"}
+        updatedAt={quote.updatedAt}
+      />
 
       <Standing quote={quote} />
       {quote.changesPlan && quote.status === "sent" && (
@@ -230,9 +359,8 @@ function Standing({ quote }: { quote: QuoteView }) {
     case "expired":
       return <Notice>This Quote expired on {until}.</Notice>;
     default:
-      return (
-        <Notice>We've sent you a newer Quote, which replaces this one.</Notice>
-      );
+      // nothing else has an offer
+      return null;
   }
 }
 

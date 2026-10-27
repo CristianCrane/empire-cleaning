@@ -7,11 +7,11 @@ export type SubmitResult<R = QuoteAskReceipt> =
       // the API's per-field messages, keyed by the field's path (e.g. "contact.email")
       fieldErrors?: Record<string, string>;
       // the API refused the request and said why in words fit to show, e.g.
-      // that this home already has a Quote Request waiting
+      // that this home already has a Quote open
       refusal?: string;
     };
 
-// posts a Quote Request to `url`, and reads the API's answer: what it
+// posts an ask for a Quote to `url`, and reads the API's answer: what it
 // returned, its messages for each field, or why it refused
 export const postQuoteRequest = async <R>(
   url: string,
@@ -54,7 +54,7 @@ export const postQuoteRequest = async <R>(
   return { ok: false };
 };
 
-// posts a Quote Request to the API. A Guest's goes without cookies, so a
+// posts an ask for a Quote to the API. A Guest's goes without cookies, so a
 // visitor who happens to be signed in to the app is still treated as a Guest
 // on the landing page; the portal's carries the session.
 export const submitQuoteRequest = (
