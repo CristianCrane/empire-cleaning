@@ -16,6 +16,7 @@ export { Dialog, DialogTrigger } from "./Dialog.tsx";
 export { EmbeddedField } from "./EmbeddedField.tsx";
 export { Form } from "./Form.tsx";
 export { Heading } from "./Heading.tsx";
+export { IconTile } from "./IconTile.tsx";
 export { ButtonLink, Link } from "./Link.tsx";
 export { List, ListItem } from "./List.tsx";
 export { Notice } from "./Notice.tsx";

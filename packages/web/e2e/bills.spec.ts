@@ -237,8 +237,10 @@ test("a Bill whose Charge failed is under Needs attention, holds the plan, and p
   const unpaidBill = attention
     .getByRole("row")
     .filter({ hasText: "Bill EC-000001 ·" });
-  await expect(unpaidBill).toContainText("Unpaid");
-  const onHold = attention.getByRole("row").filter({ hasText: "On Hold" });
+  await expect(unpaidBill).toContainText("Collect the Bill");
+  const onHold = attention
+    .getByRole("row")
+    .filter({ hasText: "Collect what's owed to resume the plan" });
   await expect(onHold).toContainText("Bill EC-000001 Unpaid");
   await unpaidBill.click();
   await expect(page).toHaveURL(`/office/bills/${billId}`);
