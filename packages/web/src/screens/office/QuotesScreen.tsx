@@ -22,7 +22,6 @@ import { QuoteStatusBadge } from "../QuoteParts.tsx";
 import {
   addressOf,
   clientName,
-  formatDate,
   formatMoney,
   quoteStatusLabel,
 } from "../format.ts";
@@ -38,26 +37,19 @@ type ListStatus = (typeof quoteListStatuses)[number];
 
 export type QuotesSearch = { q?: string; status?: ListStatus };
 
-type SortColumn = "client" | "status" | "total" | "waiting" | "expires";
+type SortColumn = "client" | "status" | "total" | "waiting";
 type Sort = { column: SortColumn; direction: "ascending" | "descending" };
 
 // how long typing pauses before the list follows it
 const SEARCH_DELAY_MS = 250;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-// as Today's "Follow up before it expires"
-const EXPIRING_MS = 2 * DAY_MS;
 
 // how long since it was asked for (or offered): "today", "3 days"
 const waiting = (quote: QuoteSummary) => {
   const days = Math.floor((Date.now() - Date.parse(quote.createdAt)) / DAY_MS);
   return days === 0 ? "today" : days === 1 ? "1 day" : `${days} days`;
 };
-
-const expiringSoon = (quote: QuoteSummary) =>
-  quote.status === "sent" &&
-  quote.expiresAt !== null &&
-  Date.parse(quote.expiresAt) - Date.now() < EXPIRING_MS;
 
 // the words a search looks through: who, and where
 const searchable = (quote: QuoteSummary) =>
@@ -73,8 +65,6 @@ const sortKey = (quote: QuoteSummary, column: SortColumn) => {
       return quoteListStatuses.indexOf(quote.status as ListStatus);
     case "total":
       return quote.headlineTotalCents ?? -1;
-    case "expires":
-      return quote.expiresAt ? Date.parse(quote.expiresAt) : Infinity;
     case "waiting":
       // the longest waiting is the oldest
       return Date.parse(quote.createdAt);
@@ -159,9 +149,6 @@ export function QuotesScreen() {
         <Column id="waiting" allowsSorting>
           Waiting
         </Column>
-        <Column id="expires" allowsSorting>
-          Expires
-        </Column>
       </TableHeader>
       <TableBody
         items={shown}
@@ -202,11 +189,6 @@ export function QuotesScreen() {
                 : formatMoney(quote.headlineTotalCents)}
             </Cell>
             <Cell className="whitespace-nowrap">{waiting(quote)}</Cell>
-            <Cell
-              className={`whitespace-nowrap ${expiringSoon(quote) ? "font-semibold text-warning-strong" : ""}`}
-            >
-              {quote.expiresAt ? formatDate(quote.expiresAt) : "—"}
-            </Cell>
           </Row>
         )}
       </TableBody>
