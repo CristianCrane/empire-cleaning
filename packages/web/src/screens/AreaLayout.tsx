@@ -26,6 +26,7 @@ import {
   type NavItem,
 } from "@empire-cleaning/ui";
 import { linkTo } from "../links.ts";
+import { InArea } from "./MessagePage.tsx";
 import { areas, areasFor, signOut, type AreaId } from "../session.ts";
 
 // an item is current on its own page, and on the pages that belong to its
@@ -113,7 +114,9 @@ export function AreaLayout({ area }: { area: AreaId }) {
       nav={nav}
       account={<AccountMenu account={account} area={area} />}
     >
-      <Outlet />
+      <InArea value>
+        <Outlet />
+      </InArea>
     </AppLayout>
   );
 }

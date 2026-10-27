@@ -221,8 +221,9 @@ test("only the Client can open their Bill", async ({ page }) => {
   );
   await signedInAs(page, "dana@example.com");
   await page.goto(`/portal/bills/${billId}`);
-  // (the router's own error screen, as for any record that isn't theirs)
-  await expect(page.getByText("Something went wrong!")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Page not found" }),
+  ).toBeVisible();
   await expect(page.getByText("Bill EC-000001")).toBeHidden();
 });
 
