@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useLoaderData, useNavigate } from "@tanstack/react-router";
+import { useLoaderData, useNavigate, useSearch } from "@tanstack/react-router";
 import type { NeedsAttentionItem, TodayJob } from "@empire-cleaning/models";
 import {
   Heading,
@@ -13,6 +13,7 @@ import { linkTo } from "../../links.ts";
 import { billWeek } from "../BillParts.tsx";
 import { AssignmentBadge } from "./JobScreen.tsx";
 import { SiteVisitBadge } from "./SiteVisitParts.tsx";
+import { AttentionItemsPrototype } from "./attention-items.prototype.tsx";
 import {
   addressOf,
   cleanTypeLabel,
@@ -114,7 +115,7 @@ function JobBadge({ job }: { job: TodayJob }) {
   return <AssignmentBadge job={job} />;
 }
 
-type Row = {
+export type Row = {
   key: string;
   title: string;
   description: string;
@@ -122,7 +123,8 @@ type Row = {
   open: () => void;
 };
 
-function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
+// PROTOTYPE: rows pulled out so the attention-item variants can share them
+export function useAttentionRows(items: NeedsAttentionItem[]): Row[] {
   const navigate = useNavigate();
 
   // how each kind of item reads, and where it opens; tickets adding a kind
@@ -293,6 +295,15 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
     }
   };
 
+  return items.map(rowFor);
+}
+
+function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
+  const rows = useAttentionRows(items);
+  // PROTOTYPE: ?variant= swaps in one of the attention-item variants
+  const { variant } = useSearch({ from: "/office/" });
+  if (variant) return <AttentionItemsPrototype rows={rows} />;
+
   return (
     <Section title="Needs attention">
       <List
@@ -303,7 +314,7 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
           </p>
         )}
       >
-        {items.map(rowFor).map((row) => (
+        {rows.map((row) => (
           <ListItem
             key={row.key}
             id={row.key}
