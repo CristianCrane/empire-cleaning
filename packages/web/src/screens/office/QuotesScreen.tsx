@@ -59,16 +59,6 @@ const expiringSoon = (quote: QuoteSummary) =>
   quote.expiresAt !== null &&
   Date.parse(quote.expiresAt) - Date.now() < EXPIRING_MS;
 
-// the cleaning it's for, the same on every row: regular visits (asked for,
-// or a Service Plan offered), new terms for the home's Service Plan, or a
-// single clean. A one-off Quote for a home with a plan is still One-off.
-const cleaning = (quote: QuoteSummary) => {
-  const regular =
-    quote.kind === "service_plan" || !!quote.asked?.wantsRegularService;
-  if (regular && quote.homePlanId) return "Plan change";
-  return regular ? "Regular" : "One-off";
-};
-
 // the words a search looks through: who, and where
 const searchable = (quote: QuoteSummary) =>
   [quote.client.name, quote.client.businessName, addressOf(quote.property)]
@@ -160,7 +150,6 @@ export function QuotesScreen() {
           Client
         </Column>
         <Column id="property">Property</Column>
-        <Column id="cleaning">Cleaning</Column>
         <Column id="status" allowsSorting>
           Status
         </Column>
@@ -192,7 +181,6 @@ export function QuotesScreen() {
               <span className="font-semibold">{clientName(quote.client)}</span>
             </Cell>
             <Cell>{addressOf(quote.property)}</Cell>
-            <Cell className="whitespace-nowrap">{cleaning(quote)}</Cell>
             <Cell>
               <div className="flex flex-wrap gap-1">
                 <QuoteStatusBadge status={quote.status} />

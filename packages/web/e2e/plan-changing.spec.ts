@@ -142,7 +142,6 @@ test(
     await signedInAs(page, olive.email);
     await page.goto("/office/quotes");
     const row = page.getByRole("row", { name: /Casey Client/ });
-    await expect(row).toContainText("Plan change");
     await row.click();
     await expect(
       page.getByText("Could we move to Wednesdays, every 2 weeks?"),
