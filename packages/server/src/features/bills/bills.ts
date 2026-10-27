@@ -681,11 +681,13 @@ export const finishBillPayment = async (
         plan: await holdOrResumePlansOf(bill.id, tx),
       } as const;
     }
+    // a bank debit on its way lifts On Hold while it clears
     if (outcome.status === "processing" && bill.status === "due") {
       await tx
         .update(bills)
         .set({ status: "processing", paymentRef: ref })
         .where(eq(bills.id, bill.id));
+      await holdOrResumePlansOf(bill.id, tx);
     }
     if (
       outcome.status === "failed" &&
@@ -696,7 +698,10 @@ export const finishBillPayment = async (
         .update(bills)
         .set({ status: "due", paymentRef: null })
         .where(eq(bills.id, bill.id));
-      return { kind: "debit_failed" } as const;
+      return {
+        kind: "debit_failed",
+        plan: await holdOrResumePlansOf(bill.id, tx),
+      } as const;
     }
     return null;
   });
@@ -724,7 +729,7 @@ export const finishBillPayment = async (
     }
   }
   if (done?.kind === "paid") await tellPaid(billId, done.plan);
-  if (done?.kind === "debit_failed") await tellDebitFailed(billId);
+  if (done?.kind === "debit_failed") await tellDebitFailed(billId, done.plan);
   return outcome.status === "failed" ? outcome.reason : null;
 };
 
@@ -1013,12 +1018,14 @@ const refundCredit = async (clientId: string, cutoff: Date) =>
 // ---- the Clock: reminders and late Bills ----
 
 // The day of the latest reminder a Bill paid on its page is owed by `today`:
-// 3 days before it's due, on the day, then each week after while it's
-// unpaid; null before the first.
+// 3 days before it's due, on the day, the day after (when it's Unpaid), then
+// each week after the due date while it's unpaid; null before the first.
 export const reminderDayOf = (dueOn: string, today: string) => {
   if (today < addDays(dueOn, -BILL_REMINDER_DAYS)) return null;
   if (today < dueOn) return addDays(dueOn, -BILL_REMINDER_DAYS);
-  let day = dueOn;
+  if (today === dueOn) return dueOn;
+  if (today < addDays(dueOn, 7)) return addDays(dueOn, 1);
+  let day = addDays(dueOn, 7);
   while (addDays(day, 7) <= today) day = addDays(day, 7);
   return day;
 };
@@ -1394,9 +1401,9 @@ const tellPaid = (billId: string, plan: "held" | "resumed" | null) =>
     ),
   );
 
-const tellDebitFailed = (billId: string) =>
+const tellDebitFailed = (billId: string, plan: "held" | "resumed" | null) =>
   notify(`Failed bank payment notice for Bill ${billId}`, () =>
-    sendBill(billId, "debit_failed"),
+    sendBill(billId, "debit_failed", plan === "held" ? [ON_HOLD_LINE] : []),
   );
 
 const tellCreditRefunded = async (billId: string, cents: number) => {

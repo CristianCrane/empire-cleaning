@@ -596,9 +596,15 @@ describe("reminders and late Bills", () => {
     ]);
     expect((await billOf(office, id)).unpaid).toBeNull();
 
-    // Unpaid from the next day, and under Needs attention
-    testClock().set(at("2026-01-27"));
+    // Unpaid from the next day, told so, and under Needs attention
+    testClock().set(at("2026-01-27", "06:00"));
     expect(await chaseBills()).toBe(0);
+    expect((await billOf(office, id)).unpaid).not.toBeNull();
+    testClock().set(at("2026-01-27"));
+    expect(await chaseBills()).toBe(1);
+    expect(testEmail().lastTo(BILLING_EMAIL).subject).toBe(
+      "Bill EC-000001 is overdue",
+    );
     expect((await billOf(office, id)).unpaid).toEqual({
       since: "2026-01-27T05:00:00.000Z",
       reason: "not paid by its due date",
@@ -614,6 +620,8 @@ describe("reminders and late Bills", () => {
     );
 
     // weekly while late
+    testClock().set(at("2026-02-01"));
+    expect(await chaseBills()).toBe(0);
     testClock().set(at("2026-02-02"));
     expect(await chaseBills()).toBe(1);
     testClock().set(at("2026-02-08"));
@@ -637,7 +645,7 @@ describe("reminders and late Bills", () => {
     expect((await billOf(office, id)).unpaid).toBeNull();
     testClock().set(at("2026-02-16"));
     expect(await chaseBills()).toBe(0);
-    expect(reminders()).toHaveLength(4);
+    expect(reminders()).toHaveLength(5);
   });
 
   test("a voided Bill, or one charged automatically, is never reminded", async () => {
@@ -723,9 +731,30 @@ describe("reminders and late Bills", () => {
           .body as OfficeServicePlan
       ).unpaidBills,
     ).toHaveLength(1);
+    expect(testEmail().lastTo(BILLING_EMAIL).text).toContain(
+      "your Service Plan is On Hold",
+    );
 
+    // a bank debit on its way lifts On Hold; failing, it holds again
+    const agent = await signIn(casey.email);
+    const form = (
+      await agent.post(`/api/bills/mine/${id}/payment-form`).expect(200)
+    ).body as BillPaymentForm;
+    testPayments().payBill(form.ref, "bank");
+    await agent
+      .post(`/api/bills/mine/${id}/payment`)
+      .send({ ref: form.ref })
+      .expect(200);
+    expect(await planStatus()).toBe("active");
     testClock().set(at("2026-02-02"));
-    await chaseBills();
+    expect(await chaseBills()).toBe(0);
+    testPayments().clearBankDebit(form.ref, false);
+    await webhook({
+      kind: "bill_payment_failed",
+      ref: form.ref,
+      reference: id,
+    }).expect(200);
+    expect(await planStatus()).toBe("on_hold");
     expect(testEmail().lastTo(BILLING_EMAIL).text).toContain(
       "your Service Plan is On Hold",
     );
