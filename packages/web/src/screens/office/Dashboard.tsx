@@ -1,7 +1,8 @@
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
-import type { NeedsAttentionItem, TodayJob } from "@empire-cleaning/models";
+import type { NeedsAttentionItem } from "@empire-cleaning/models";
 import {
   CalendarClock,
+  CalendarDays,
   CalendarX,
   CircleDollarSign,
   CirclePause,
@@ -14,118 +15,62 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import {
+  ButtonLink,
   Heading,
   IconTile,
-  Link,
   List,
   ListItem,
   Section,
-  StatusBadge,
   type StatusTone,
 } from "@empire-cleaning/ui";
 import { linkTo } from "../../links.ts";
 import { billWeek } from "../BillParts.tsx";
-import { AssignmentBadge } from "./JobScreen.tsx";
-import { SiteVisitBadge } from "./SiteVisitParts.tsx";
+import { ScheduleCalendar } from "./ScheduleCalendar.tsx";
 import {
   addressOf,
-  cleanTypeLabel,
   clientName,
   formatDate,
   formatDateTime,
   formatDay,
   formatHours,
-  formatMinutes,
   formatMoney,
-  formatTime,
 } from "../format.ts";
 
 // the Office's first screen: what's waiting on them, then today's Jobs and
-// Site Visits
+// Site Visits on a one-day Schedule
 export function Dashboard() {
   const { needsAttention, today } = useLoaderData({ from: "/office/" });
-  const navigate = useNavigate();
 
   return (
     <div className="flex flex-col gap-8">
       <Heading level={1}>Today</Heading>
       <NeedsAttention items={needsAttention} />
       <Section
-        title={formatDay(today.date)}
+        title="Today's Schedule"
         description={[
+          formatDay(today.date),
           `${formatHours(today.staffHours)} available`,
           `${formatHours(today.bookedHours)} booked`,
         ].join(" · ")}
         actions={
-          <Link href={linkTo({ to: "/office/schedule" })}>Schedule</Link>
+          <ButtonLink
+            href={linkTo({ to: "/office/schedule" })}
+            variant="secondary"
+            size="sm"
+          >
+            <CalendarDays aria-hidden size={16} />
+            Week
+          </ButtonLink>
         }
       >
-        {today.jobs.length > 0 ? (
-          <List
-            aria-label="Today's Jobs"
-            onAction={(id) =>
-              navigate({
-                to: "/office/jobs/$jobId",
-                params: { jobId: String(id) },
-              })
-            }
-          >
-            {today.jobs.map((job) => (
-              <ListItem
-                key={job.id}
-                id={job.id}
-                textValue={`${formatTime(job.startsAt)} ${clientName(job.client)}`}
-                title={`${formatTime(job.startsAt)} · ${clientName(job.client)}`}
-                description={[
-                  addressOf(job.property),
-                  cleanTypeLabel[job.cleanType],
-                  `crew of ${job.crewSize}, ${formatHours(job.hoursOnSite)} on site`,
-                ].join(" · ")}
-                end={<JobBadge job={job} />}
-              />
-            ))}
-          </List>
+        {today.jobs.length > 0 || today.siteVisits.length > 0 ? (
+          <ScheduleCalendar days={[today]} opensJobs />
         ) : (
           <p className="text-sm text-fg-muted">No Jobs today.</p>
-        )}
-        {today.siteVisits.length > 0 && (
-          <List
-            aria-label="Today's Site Visits"
-            onAction={(id) =>
-              navigate({
-                to: "/office/site-visits/$visitId",
-                params: { visitId: String(id) },
-              })
-            }
-          >
-            {today.siteVisits.map((visit) => (
-              <ListItem
-                key={visit.id}
-                id={visit.id}
-                textValue={`${formatTime(visit.startsAt)} Site Visit ${clientName(visit.client)}`}
-                title={`${formatTime(visit.startsAt)} · Site Visit · ${clientName(visit.client)}`}
-                description={[
-                  addressOf(visit.property),
-                  visit.visitor?.name,
-                  formatMinutes(visit.minutes),
-                ].join(" · ")}
-                end={<SiteVisitBadge status={visit.status} />}
-              />
-            ))}
-          </List>
         )}
       </Section>
     </div>
   );
-}
-
-// how a Job turned out, or until then whether its Staff are all Confirmed
-function JobBadge({ job }: { job: TodayJob }) {
-  if (job.outcome === "completed")
-    return <StatusBadge tone="success">Completed</StatusBadge>;
-  if (job.outcome === "no_access")
-    return <StatusBadge tone="danger">No Access</StatusBadge>;
-  return <AssignmentBadge job={job} />;
 }
 
 // a row leads with what the Office should do; the icon says what kind of

@@ -63,15 +63,19 @@ test("Office Staff see today's Jobs and whether they're assigned", async ({
   await bookJob({ startsAt: "2026-01-06T14:00:00Z", labourHours: 3 });
   await signInAsOffice(page);
 
-  const today = page.getByRole("region", { name: "Mon, Jan 5" });
-  await expect(today).toContainText("8 h available · 5 h booked");
-  const jobs = today.getByRole("grid", { name: "Today's Jobs" });
-  await expect(jobs.getByRole("row")).toHaveCount(1);
-  await expect(jobs).toContainText("9:00 AM · Client");
-  await expect(jobs).toContainText("Standard Clean · crew of 2, 2.5 h on site");
+  const today = page.getByRole("region", { name: "Today's Schedule" });
+  await expect(today).toContainText("Mon, Jan 5 · 8 h available · 5 h booked");
+  // one day of the Schedule's calendar, locked to today
+  const jobs = today.getByRole("group", { name: "Jobs on Mon, Jan 5" });
+  await expect(jobs.getByRole("link")).toHaveCount(1);
+  await expect(jobs).toContainText("9:00 AM Client");
   await expect(jobs).toContainText("Unassigned");
+  await expect(today.getByRole("group", { name: /Jobs on/ })).toHaveCount(1);
 
-  await today.getByRole("link", { name: "Schedule" }).click();
+  await jobs.getByRole("link").click();
+  await expect(page).toHaveURL(/\/office\/jobs\/[0-9a-f-]{36}$/);
+  await page.goBack();
+  await today.getByRole("link", { name: "Week" }).click();
   await expect(page).toHaveURL(/\/office\/schedule/);
 });
 
@@ -93,7 +97,9 @@ test("the dashboard passes automated accessibility checks", async ({
   });
   await bookJob({ startsAt: "2026-01-05T14:00:00Z", labourHours: 5 });
   await signInAsOffice(page);
-  await expect(page.getByRole("region", { name: "Mon, Jan 5" })).toBeVisible();
+  await expect(
+    page.getByRole("group", { name: "Jobs on Mon, Jan 5" }),
+  ).toBeVisible();
 
   const { violations } = await new AxeBuilder({ page }).analyze();
   expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
