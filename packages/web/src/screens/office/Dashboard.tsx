@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useLoaderData, useNavigate } from "@tanstack/react-router";
+import { useLoaderData, useNavigate, useSearch } from "@tanstack/react-router";
 import type { NeedsAttentionItem, TodayJob } from "@empire-cleaning/models";
 import {
   Card,
@@ -13,6 +13,7 @@ import { linkTo } from "../../links.ts";
 import { billWeek } from "../BillParts.tsx";
 import { AssignmentBadge } from "./JobScreen.tsx";
 import { SiteVisitBadge } from "./SiteVisitParts.tsx";
+import { TodayCardsPrototype } from "./today-cards.prototype.tsx";
 import {
   addressOf,
   cleanTypeLabel,
@@ -31,8 +32,10 @@ import {
 export function Dashboard() {
   const { needsAttention, today } = useLoaderData({ from: "/office/" });
   const navigate = useNavigate();
+  // PROTOTYPE: ?variant= swaps in one of the card-nesting variants
+  const { variant } = useSearch({ from: "/office/" });
 
-  return (
+  const page = (
     <div className="flex flex-col gap-4">
       <Heading level={1}>Today</Heading>
       <NeedsAttention items={needsAttention} />
@@ -103,10 +106,19 @@ export function Dashboard() {
       </Card>
     </div>
   );
+  if (variant)
+    return (
+      <TodayCardsPrototype
+        needsAttention={needsAttention}
+        today={today}
+        current={page}
+      />
+    );
+  return page;
 }
 
 // how a Job turned out, or until then whether its Staff are all Confirmed
-function JobBadge({ job }: { job: TodayJob }) {
+export function JobBadge({ job }: { job: TodayJob }) {
   if (job.outcome === "completed")
     return <StatusBadge tone="success">Completed</StatusBadge>;
   if (job.outcome === "no_access")
@@ -114,7 +126,7 @@ function JobBadge({ job }: { job: TodayJob }) {
   return <AssignmentBadge job={job} />;
 }
 
-type Row = {
+export type Row = {
   key: string;
   title: string;
   description: string;
@@ -122,7 +134,8 @@ type Row = {
   open: () => void;
 };
 
-function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
+// PROTOTYPE: rows pulled out so the card-nesting variants can share them
+export function useAttentionRows(items: NeedsAttentionItem[]): Row[] {
   const navigate = useNavigate();
 
   // how each kind of item reads, and where it opens; tickets adding a kind
@@ -293,6 +306,12 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
     }
   };
 
+  return items.map(rowFor);
+}
+
+function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
+  const rows = useAttentionRows(items);
+
   return (
     <Card title="Needs attention">
       <List
@@ -303,7 +322,7 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
           </p>
         )}
       >
-        {items.map(rowFor).map((row) => (
+        {rows.map((row) => (
           <ListItem
             key={row.key}
             id={row.key}

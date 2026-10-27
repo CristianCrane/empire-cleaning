@@ -200,6 +200,10 @@ const portalRoute = areaRoute("portal");
 const officeHomeRoute = createRoute({
   getParentRoute: () => officeRoute,
   path: "/",
+  // PROTOTYPE: ?variant= picks a card-nesting variant
+  validateSearch: (search: Record<string, unknown>): { variant?: string } => ({
+    variant: typeof search.variant === "string" ? search.variant : undefined,
+  }),
   loader: async () => {
     const [needsAttention, today] = await Promise.all([
       getJson<NeedsAttentionItem[]>("/api/dashboard/needs-attention"),
