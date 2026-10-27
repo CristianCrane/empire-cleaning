@@ -100,12 +100,13 @@ export const completedFirstClean = (officeEmail: string) =>
     job: { id: string };
   }>;
 
-// a Service Plan Quote for the home, a Standard Clean from `startsAt`, Sent
-// by the Office Staff member with `officeEmail` (signed up already)
+// a Service Plan Quote for the home, a Standard Clean from `startsAt` (or
+// every week from each of several), Sent by the Office Staff member with
+// `officeEmail` (signed up already)
 export const sentServicePlanQuote = (plan: {
   officeEmail: string;
   propertyId: string;
-  startsAt: string;
+  startsAt: string | string[];
   recurrence?: "weekly" | "fortnightly" | "four_weekly";
   crewSize?: number;
 }) =>

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type {
   PlanChange,
+  PlanDayTerms,
   QuoteAddOn,
   QuoteOption,
   QuoteStatus,
@@ -11,9 +12,9 @@ import {
   cleanTypeLabel,
   formatHours,
   formatMoney,
+  planDayWhen,
   quoteStatusLabel,
   quoteStatusTone,
-  recurrenceLabel,
 } from "./format.ts";
 
 // how a Quote reads, the same for the Office and its Client: prices include
@@ -78,51 +79,47 @@ export function OptionCard({
   );
 }
 
-// A Service Plan Quote's offer: each clean's price, and the saving against
-// the same clean as a one-off Job
-export function PlanCard({
+// One weekday of a Service Plan Quote: when, its clean's price, and the
+// saving against the same clean as a one-off Job
+export function PlanDayCard({
   option,
-  plan,
-  crewSize,
-  depositPercent,
-  change,
+  day,
+  discountPercent,
   children,
 }: {
   option: QuoteOption;
-  plan: ServicePlanTerms;
-  crewSize: number;
-  depositPercent: number;
-  // when it changes the home's plan, whose Deposit carries over
-  change?: PlanChange | null;
+  day: PlanDayTerms;
+  discountPercent: number;
   // anything more, e.g. the Office's override
   children?: ReactNode;
 }) {
   return (
     <Card
-      title={planTitle(option, plan)}
+      title={planDayTitle(day)}
       headingLevel={3}
-      actions={<PlanSaving plan={plan} />}
+      actions={<PlanSaving day={day} />}
     >
       <PlanFigures
         option={option}
-        plan={plan}
-        crewSize={crewSize}
-        depositPercent={depositPercent}
-        change={change}
+        day={day}
+        discountPercent={discountPercent}
       />
       {children}
     </Card>
   );
 }
 
-// "Standard Clean, every 2 weeks"
-export const planTitle = (option: QuoteOption, plan: ServicePlanTerms) =>
-  `${cleanTypeLabel[option.cleanType]}, ${recurrenceLabel[plan.recurrence].toLowerCase()}`;
+// "Mondays at 9:00 AM: Standard Clean", or a Draft's weekday with no time
+// yet, "Standard Clean"
+export const planDayTitle = (day: PlanDayTerms) =>
+  day.startsAt
+    ? `${planDayWhen(day.startsAt)}: ${cleanTypeLabel[day.cleanType]}`
+    : cleanTypeLabel[day.cleanType];
 
-export function PlanSaving({ plan }: { plan: ServicePlanTerms }) {
+export function PlanSaving({ day }: { day: PlanDayTerms }) {
   return (
     <StatusBadge tone="success">
-      Save {formatMoney(plan.savingCents)} a clean
+      Save {formatMoney(day.savingCents)} a clean
     </StatusBadge>
   );
 }
@@ -130,16 +127,12 @@ export function PlanSaving({ plan }: { plan: ServicePlanTerms }) {
 // a plan clean's price, against the same clean as a one-off Job
 export function PlanFigures({
   option,
-  plan,
-  crewSize,
-  depositPercent,
-  change,
+  day,
+  discountPercent,
 }: {
   option: QuoteOption;
-  plan: ServicePlanTerms;
-  crewSize: number;
-  depositPercent: number;
-  change?: PlanChange | null;
+  day: PlanDayTerms;
+  discountPercent: number;
 }) {
   return (
     <>
@@ -155,13 +148,11 @@ export function PlanFigures({
       <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-sm">
         <dt className="text-fg-muted">As a one-off clean</dt>
         <dd className="text-right tabular-nums">
-          {formatMoney(plan.oneOffTotalCents)}
+          {formatMoney(day.oneOffTotalCents)}
         </dd>
-        <dt className="text-fg-muted">
-          Plan Discount ({plan.discountPercent}%)
-        </dt>
+        <dt className="text-fg-muted">Plan Discount ({discountPercent}%)</dt>
         <dd className="text-right tabular-nums">
-          −{formatMoney(plan.savingCents)}
+          −{formatMoney(day.savingCents)}
         </dd>
         <dt className="font-semibold">On the plan</dt>
         <dd className="text-right font-semibold tabular-nums">
@@ -172,21 +163,47 @@ export function PlanFigures({
           {formatHours(option.labourHours)}
         </dd>
         <dt className="text-fg-muted">
-          Time on site, with a crew of {crewSize}
+          Time on site, with a crew of {day.crewSize}
         </dt>
         <dd className="text-right tabular-nums">
           {formatHours(option.hoursOnSite)}
         </dd>
-        <dt className="text-fg-muted">
-          {change
-            ? "Deposit, carried over from the plan"
-            : `Deposit (${depositPercent}%), held while the plan runs`}
-        </dt>
-        <dd className="text-right tabular-nums">
-          {formatMoney(change ? change.depositCents : option.depositCents)}
-        </dd>
       </dl>
     </>
+  );
+}
+
+// A Service Plan Quote as a whole: what a week of cleans costs, on several
+// weekdays, and its Deposit, for one clean on each, or the plan's own when
+// it changes the home's plan
+export function PlanTotals({
+  plan,
+  depositPercent,
+  change,
+}: {
+  plan: ServicePlanTerms;
+  depositPercent: number;
+  change?: PlanChange | null;
+}) {
+  return (
+    <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1">
+      {plan.days.length > 1 && (
+        <>
+          <dt>A week, with a clean on each day</dt>
+          <dd className="text-right font-semibold tabular-nums">
+            {formatMoney(plan.roundTotalCents)}
+          </dd>
+        </>
+      )}
+      <dt>
+        {change
+          ? "Deposit, carried over from the plan"
+          : `Deposit (${depositPercent}%${plan.days.length > 1 ? " of a clean on each day" : ""}), held while the plan runs`}
+      </dt>
+      <dd className="text-right tabular-nums">
+        {formatMoney(change ? change.depositCents : plan.depositCents)}
+      </dd>
+    </dl>
   );
 }
 

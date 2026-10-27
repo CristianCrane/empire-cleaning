@@ -8,6 +8,7 @@ import type {
   OfficeQuote,
   OfficeQuoteOption,
   PlanChoice,
+  PlanDayTerms,
   PriceList,
   QuoteAddOn,
   QuoteDraftInput,
@@ -15,6 +16,7 @@ import type {
   QuoteOption,
   QuoteView,
   Recurrence,
+  ServicePlanInput,
   ServicePlanTerms,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
@@ -24,13 +26,22 @@ import {
   NotFoundError,
   RequestBodyError,
 } from "../../middleware/errors.ts";
-import { atTime, clock, dayOf, timeOf } from "../../services/clock/index.ts";
+import {
+  addDays,
+  atTime,
+  clock,
+  dayOf,
+  startOfDay,
+  timeOf,
+  weekdayOf,
+} from "../../services/clock/index.ts";
 import {
   compose,
   email,
   firstNameOf,
   formatMoney,
   formatWhen,
+  weekdayName,
 } from "../../services/email/index.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { officeCompletionOf } from "../completion/completion.ts";
@@ -50,6 +61,7 @@ import { quoteRequests } from "../quote-requests/quote-requests.schema.ts";
 import { planChangeOf } from "../service-plans/changing.ts";
 import { servicePlanVisits } from "../service-plans/service-plans.schema.ts";
 import { findingsRecorded } from "../site-visits/site-visits.ts";
+import { describePlan, percentOf } from "./plan-days.ts";
 import { bookableFor } from "./quote-room.ts";
 import {
   firstCleanCompleted,
@@ -138,38 +150,56 @@ const addOnChoices = async (
 // What a Quote is priced for besides the Property and its Add-ons: a
 // one-off Quote both Clean Types at the Property's own Condition (moderate
 // while business premises have none recorded), undiscounted; a Service Plan
-// Quote its one Clean Type at the Condition and Plan Discount on the Quote
+// Quote each of its weekdays' visits at the Condition and Plan Discount on
+// the Quote
 type Terms = {
   kind: QuoteKind;
-  cleanTypes: CleanType[];
+  visits: Visit[];
   condition: Condition | null;
   discountPercent: number;
 };
 
-const oneOffTerms = (property: Property): Terms => ({
+// one visit to price: one of a one-off Quote's Clean Types, or a Service
+// Plan Quote's weekday, with its first clean's time
+type Visit = {
+  position: number;
+  cleanType: CleanType;
+  startsAt: Date | null;
+  crewSize: number;
+  override: { priceCents: number; reason: string } | null;
+};
+
+const NO_OVERRIDES = { deep: null, standard: null };
+
+const oneOffTerms = (
+  property: Property,
+  crewSize: number,
+  overrides: Required<QuoteDraftInput>["overrides"],
+): Terms => ({
   kind: "one_off",
-  cleanTypes: CLEAN_TYPES,
+  visits: CLEAN_TYPES.map((cleanType) => ({
+    position: 0,
+    cleanType,
+    startsAt: null,
+    crewSize,
+    override: overrides[cleanType],
+  })),
   condition: property.condition,
   discountPercent: 0,
 });
 
-const planTerms = (plan: {
-  cleanType: CleanType;
-  condition: Condition;
-  planDiscountPercent: number;
-}): Terms => ({
+const planTerms = (
+  plan: { condition: Condition; planDiscountPercent: number },
+  days: Omit<Visit, "position">[],
+): Terms => ({
   kind: "service_plan",
-  cleanTypes: [plan.cleanType],
+  visits: days.map((day, position) => ({ ...day, position })),
   condition: plan.condition,
   discountPercent: plan.planDiscountPercent,
 });
 
-// a percentage of an amount, to the cent, halves up
-const percentOf = (cents: number, percent: number) =>
-  Math.floor((cents * percent + 50) / 100);
-
-// The Quote's Clean Types priced from the Price List for the Property as it
-// is now, with any override in place of the Suggested Price, then any Plan
+// The Quote's visits priced from the Price List for the Property as it is
+// now, with any override in place of the Suggested Price, then any Plan
 // Discount off that, overridden or not. Tax is on what's left, at the rate
 // for the kind of Job (a commercial one's, plan or not, is the commercial
 // rate), with tax-exempt Add-ons discounted alike.
@@ -177,66 +207,87 @@ const priceOptions = (
   list: PriceList,
   property: Property,
   addOnKeys: string[],
-  overrides: QuoteDraftInput["overrides"],
   terms: Terms,
 ) => {
   const chosen = list.addOns.filter((a) => addOnKeys.includes(a.key));
   const kept = (100 - terms.discountPercent) / 100;
-  return terms.cleanTypes.map((cleanType) => {
-    const suggested = suggestedPrice(
-      list,
-      pricedOf(property),
-      terms.condition,
-      cleanType,
-      chosen,
-    );
-    const override = overrides[cleanType];
-    const oneOffCents = override?.priceCents ?? suggested.priceCents;
-    const discountCents = percentOf(oneOffCents, terms.discountPercent);
-    const priceCents = oneOffCents - discountCents;
-    const taxCents = taxOn(priceCents, {
-      hourlyRateCents: suggested.hourlyRateCents,
-      taxPercent:
-        terms.kind === "service_plan" && property.kind === "residential"
-          ? list.taxServicePlanPercent
-          : suggested.taxPercent,
-      addOns: suggested.addOns.map((a) => ({ ...a, hours: a.hours * kept })),
-    });
-    return {
-      cleanType,
-      suggested,
-      overrideCents: override?.priceCents ?? null,
-      overrideReason: override?.reason ?? null,
-      discountCents,
-      priceCents,
-      taxCents,
-      totalCents: priceCents + taxCents,
-      labourHours: suggested.labourHours,
-    };
-  });
+  return terms.visits.map(
+    ({ position, cleanType, startsAt, crewSize, override }) => {
+      const suggested = suggestedPrice(
+        list,
+        pricedOf(property),
+        terms.condition,
+        cleanType,
+        chosen,
+      );
+      const oneOffCents = override?.priceCents ?? suggested.priceCents;
+      const discountCents = percentOf(oneOffCents, terms.discountPercent);
+      const priceCents = oneOffCents - discountCents;
+      const taxCents = taxOn(priceCents, {
+        hourlyRateCents: suggested.hourlyRateCents,
+        taxPercent:
+          terms.kind === "service_plan" && property.kind === "residential"
+            ? list.taxServicePlanPercent
+            : suggested.taxPercent,
+        addOns: suggested.addOns.map((a) => ({
+          ...a,
+          hours: a.hours * kept,
+        })),
+      });
+      return {
+        position,
+        cleanType,
+        startsAt,
+        crewSize,
+        suggested,
+        overrideCents: override?.priceCents ?? null,
+        overrideReason: override?.reason ?? null,
+        discountCents,
+        priceCents,
+        taxCents,
+        totalCents: priceCents + taxCents,
+        labourHours: suggested.labourHours,
+      };
+    },
+  );
 };
 
-// A Service Plan Quote's terms and saving, from its one option: the one-off
-// price, taxed as a one-off Job the way its Suggested Price was, against the
-// per-Job price
+// A Service Plan Quote's weekday and its saving, from its option: the
+// one-off price, taxed as a one-off Job the way its Suggested Price was,
+// against the plan clean's price
+const dayTermsOf = (row: QuoteOptionRow): PlanDayTerms => {
+  const oneOffPriceCents = row.priceCents + row.discountCents;
+  const oneOffTaxCents = taxOn(oneOffPriceCents, row.suggested);
+  const oneOffTotalCents = oneOffPriceCents + oneOffTaxCents;
+  return {
+    startsAt: iso(row.startsAt),
+    cleanType: row.cleanType,
+    crewSize: row.crewSize,
+    oneOffPriceCents,
+    oneOffTaxCents,
+    oneOffTotalCents,
+    discountCents: row.discountCents,
+    savingCents: oneOffTotalCents - row.totalCents,
+  };
+};
+
+// a Service Plan Quote's terms, from its options, one for each weekday
 const planOf = (
   quote: Quote,
   rows: QuoteOptionRow[],
 ): ServicePlanTerms | null => {
   if (quote.kind !== "service_plan") return null;
-  const [row] = rows;
-  const oneOffPriceCents = row!.priceCents + row!.discountCents;
-  const oneOffTaxCents = taxOn(oneOffPriceCents, row!.suggested);
-  const oneOffTotalCents = oneOffPriceCents + oneOffTaxCents;
+  const days = inOrder(rows);
   return {
     recurrence: quote.recurrence!,
-    cleanType: row!.cleanType,
     discountPercent: quote.planDiscountPercent!,
-    oneOffPriceCents,
-    oneOffTaxCents,
-    oneOffTotalCents,
-    discountCents: row!.discountCents,
-    savingCents: oneOffTotalCents - row!.totalCents,
+    days: days.map(dayTermsOf),
+    roundTotalCents: days.reduce((total, row) => total + row.totalCents, 0),
+    // each day's own Deposit, as each would be a one-off Job's (ADR-0013)
+    depositCents: days.reduce(
+      (total, row) => total + percentOf(row.totalCents, quote.depositPercent),
+      0,
+    ),
   };
 };
 
@@ -245,20 +296,24 @@ const optionsOf = (quoteId: string) =>
 
 export const toOption = (quote: Quote, row: QuoteOptionRow): QuoteOption => ({
   cleanType: row.cleanType,
-  // a Service Plan's one Clean Type is the one chosen for it
+  // a Service Plan's Clean Types are the ones chosen for it
   recommended: quote.kind === "one_off" && row.cleanType === "deep",
   labourHours: row.labourHours,
-  hoursOnSite: Math.round((row.labourHours / quote.crewSize) * 100) / 100,
+  hoursOnSite: Math.round((row.labourHours / row.crewSize) * 100) / 100,
   priceCents: row.priceCents,
   taxCents: row.taxCents,
   totalCents: row.totalCents,
-  // halves up, like the other roundings
-  depositCents: Math.floor((row.totalCents * quote.depositPercent + 50) / 100),
+  depositCents: percentOf(row.totalCents, quote.depositPercent),
 });
 
-const sortOptions = <T extends { cleanType: CleanType }>(options: T[]) =>
+// a Service Plan Quote's weekdays in order; a one-off Quote's Deep Clean
+// first
+export const inOrder = <T extends { position: number; cleanType: CleanType }>(
+  options: T[],
+) =>
   [...options].sort(
     (a, b) =>
+      a.position - b.position ||
       CLEAN_TYPES.indexOf(a.cleanType) - CLEAN_TYPES.indexOf(b.cleanType),
   );
 
@@ -352,36 +407,41 @@ const officeOption = (
 // Standard first: it's what a plan is unless Office Staff choose otherwise
 const PLAN_CLEAN_TYPES: CleanType[] = ["standard", "deep"];
 
-// A Service Plan Draft priced as each Clean Type, for Office Staff to choose
-// between: its own Clean Type as saved, and the other worked out now from
-// the current Price List with the same terms and Add-ons, at its Suggested
-// Price (an override is only ever for the Clean Type chosen)
+// A Service Plan Draft's weekdays each priced as each Clean Type, for Office
+// Staff to choose between: the day's own Clean Type as saved, and the other
+// worked out now from the current Price List with the same terms and
+// Add-ons, at its Suggested Price (an override is only ever for the Clean
+// Type chosen)
 const planChoicesOf = (
   quote: Quote,
-  [saved]: QuoteOptionRow[],
+  rows: QuoteOptionRow[],
   list: PriceList,
   property: Property,
-): PlanChoice[] =>
-  PLAN_CLEAN_TYPES.map((cleanType) => {
-    const row =
-      cleanType === saved!.cleanType
-        ? saved!
-        : {
-            ...priceOptions(
-              list,
-              property,
-              saved!.suggested.addOns.map((a) => a.key),
-              { deep: null, standard: null },
-              planTerms({
-                cleanType,
-                condition: quote.condition!,
-                planDiscountPercent: quote.planDiscountPercent!,
-              }),
-            )[0]!,
-            quoteId: quote.id,
-          };
-    return { option: officeOption(quote, row), plan: planOf(quote, [row])! };
-  });
+): PlanChoice[][] =>
+  inOrder(rows).map((saved) =>
+    PLAN_CLEAN_TYPES.map((cleanType) => {
+      const row =
+        cleanType === saved.cleanType
+          ? saved
+          : {
+              ...priceOptions(
+                list,
+                property,
+                saved.suggested.addOns.map((a) => a.key),
+                planTerms(
+                  {
+                    condition: quote.condition!,
+                    planDiscountPercent: quote.planDiscountPercent!,
+                  },
+                  [{ ...saved, cleanType, override: null }],
+                ),
+              )[0]!,
+              position: saved.position,
+              quoteId: quote.id,
+            };
+      return { option: officeOption(quote, row), day: dayTermsOf(row) };
+    }),
+  );
 
 // a Quote in full, for the Office
 export const officeQuote = async (id: string): Promise<OfficeQuote> => {
@@ -415,7 +475,7 @@ export const officeQuote = async (id: string): Promise<OfficeQuote> => {
     },
     needsSiteVisit: await needsSiteVisit(property),
     property: toPropertyView(property, list),
-    options: sortOptions(rows).map((r) => officeOption(quote, r)),
+    options: inOrder(rows).map((r) => officeOption(quote, r)),
     // with the Condition it's priced for, which is the Office's working
     plan: plan && { ...plan, condition: quote.condition! },
     firstClean,
@@ -473,7 +533,7 @@ export const clientQuote = async (
       unit: property.unit,
       postcode: property.postcode,
     },
-    options: sortOptions(rows).map((r) => toOption(quote, r)),
+    options: inOrder(rows).map((r) => toOption(quote, r)),
     plan: planOf(quote, rows),
     addOns: addOnsOf(rows),
     crewSize: quote.crewSize,
@@ -567,7 +627,7 @@ export const startDraft = async (
         : "This home has a Service Plan Quote Draft already: send that first, or carry on with it.",
     );
   }
-  await refuseUnquotable(kind, propertyId, quoteRequestId);
+  await refuseUnquotable(kind, home.property, quoteRequestId);
 
   const list = await currentPriceList();
   const plan =
@@ -584,8 +644,16 @@ export const startDraft = async (
     list,
     home.property,
     addOnKeys,
-    { deep: null, standard: null },
-    plan ? planTerms(plan) : oneOffTerms(home.property),
+    plan
+      ? planTerms(plan, [
+          {
+            cleanType: plan.cleanType,
+            startsAt: null,
+            crewSize: list.defaultCrewSize,
+            override: null,
+          },
+        ])
+      : oneOffTerms(home.property, list.defaultCrewSize, NO_OVERRIDES),
   );
 
   const id = await db.transaction(async (tx) => {
@@ -616,12 +684,13 @@ export const startDraft = async (
 /**
  * A request whose Quote the Client Accepted or Declined is closed to Quotes
  * of either kind: they ask again if they want something more (and the
- * Office can still offer a plan unprompted). A Service Plan Quote also needs
- * the Property's First Clean Completed.
+ * Office can still offer a plan unprompted). A Service Plan Quote for a home
+ * also needs its First Clean Completed; business premises need none, only
+ * the Site Visit every Quote for them needs before it's Sent (ADR-0014).
  */
 const refuseUnquotable = async (
   kind: QuoteKind,
-  propertyId: string,
+  property: Pick<Property, "id" | "kind">,
   quoteRequestId: string | null,
 ) => {
   if (quoteRequestId) {
@@ -637,7 +706,11 @@ const refuseUnquotable = async (
       );
     }
   }
-  if (kind === "service_plan" && !(await firstCleanCompleted(propertyId))) {
+  if (
+    kind === "service_plan" &&
+    property.kind === "residential" &&
+    !(await firstCleanCompleted(property.id))
+  ) {
     throw new ConflictError(
       "A Service Plan can only start once this home's First Clean is Completed.",
     );
@@ -660,6 +733,43 @@ const findDraft = async (id: string) => {
     throw new ConflictError("A Quote can't be changed once it's been sent");
   }
   return quote;
+};
+
+// A Service Plan Draft's weekdays as Office Staff set them, in their order:
+// each on a weekday of its own, all within a week of the first, and on
+// several only every week (ADR-0013). Days not yet timed are left be.
+const planVisits = (plan: ServicePlanInput) => {
+  const days = plan.days.map((day) => ({
+    cleanType: day.cleanType,
+    crewSize: day.crewSize,
+    override: day.override,
+    startsAt: day.start && atTime(day.start.date, day.start.time),
+  }));
+  if (days.length > 1 && plan.recurrence !== "weekly") {
+    throw fieldError(
+      ["plan", "recurrence"],
+      "A plan on several weekdays comes round every week",
+    );
+  }
+  const timed = days.flatMap((d, i) =>
+    d.startsAt ? [{ i, day: dayOf(d.startsAt) }] : [],
+  );
+  const first = timed.map((t) => t.day).sort()[0];
+  for (const [n, { i, day }] of timed.entries()) {
+    if (timed.slice(0, n).some((t) => weekdayOf(t.day) === weekdayOf(day))) {
+      throw fieldError(
+        ["plan", "days", i, "start"],
+        "Another day of this plan is on that weekday: choose another",
+      );
+    }
+    if (day >= addDays(first!, 7)) {
+      throw fieldError(
+        ["plan", "days", i, "start"],
+        "Start each weekday within a week of the plan's first clean",
+      );
+    }
+  }
+  return days;
 };
 
 // saves what Office Staff set on a Draft, pricing it afresh from the current
@@ -685,54 +795,75 @@ export const saveDraft = async (
   }
 
   const plan = input.plan ?? null;
+  let terms: Terms;
+  let timing: { crewSize: number; proposedStartsAt: Date | null };
   if (quote.kind === "service_plan") {
     if (!plan) {
       throw fieldError(
         ["plan"],
-        "Choose how often, the Clean Type, the Plan Discount and the Condition",
+        "Choose how often, the Plan Discount, the Condition and the weekdays",
       );
     }
-    // only the plan's own Clean Type has a price to override
-    const other = CLEAN_TYPES.find(
-      (t) => t !== plan.cleanType && input.overrides[t],
-    );
+    // each weekday has its own
+    const other = CLEAN_TYPES.find((t) => input.overrides?.[t]);
     if (other) {
       throw fieldError(
         ["overrides", other],
-        `This Service Plan's Jobs are ${cleanTypeLabel[plan.cleanType]}s`,
+        "Override each weekday's price on that weekday",
       );
     }
-  } else if (plan) {
-    throw fieldError(["plan"], "Only a Service Plan Quote has plan terms");
+    const days = planVisits(plan);
+    terms = planTerms(
+      { condition: plan.condition, planDiscountPercent: plan.discountPercent },
+      days,
+    );
+    // its first clean, once every weekday has one
+    const starts = days.map((d) => d.startsAt);
+    timing = {
+      crewSize: days[0]!.crewSize,
+      proposedStartsAt: starts.every((s) => s !== null)
+        ? new Date(Math.min(...starts.map((s) => s.getTime())))
+        : null,
+    };
+  } else {
+    if (plan) {
+      throw fieldError(["plan"], "Only a Service Plan Quote has plan terms");
+    }
+    if (input.crewSize === undefined) {
+      throw fieldError(["crewSize"], "Enter a Crew Size");
+    }
+    terms = oneOffTerms(
+      home!.property,
+      input.crewSize,
+      input.overrides ?? NO_OVERRIDES,
+    );
+    timing = {
+      crewSize: input.crewSize,
+      proposedStartsAt: input.proposedStart
+        ? atTime(input.proposedStart.date, input.proposedStart.time)
+        : null,
+    };
   }
 
-  const addOnKeys = [...new Set(input.addOns)];
-  const planColumns = plan && {
-    recurrence: plan.recurrence,
-    planDiscountPercent: plan.discountPercent,
-    condition: plan.condition,
-  };
   const options = priceOptions(
     list,
     home!.property,
-    addOnKeys,
-    input.overrides,
-    plan
-      ? planTerms({ ...planColumns!, cleanType: plan.cleanType })
-      : oneOffTerms(home!.property),
+    [...new Set(input.addOns)],
+    terms,
   );
   await db.transaction(async (tx) => {
     await tx
       .update(quotes)
       .set({
         priceListId: list.id,
-        crewSize: input.crewSize,
         depositPercent: input.depositPercent,
         validityDays: input.validityDays,
-        proposedStartsAt:
-          input.proposedStart &&
-          atTime(input.proposedStart.date, input.proposedStart.time),
-        ...planColumns,
+        ...timing,
+        ...(plan && {
+          recurrence: plan.recurrence,
+          planDiscountPercent: plan.discountPercent,
+          condition: plan.condition,
+        }),
       })
       .where(eq(quotes.id, id));
     await tx.delete(quoteOptions).where(eq(quoteOptions.quoteId, id));
@@ -743,22 +874,68 @@ export const saveDraft = async (
   return officeQuote(id);
 };
 
+const HOUR_MS = 3_600_000;
+
+// Each clean a Draft would book first, with the field that sets its time: a
+// one-off Quote's Job, the longer of its Clean Types; a Service Plan Quote's
+// first on each weekday. Each must have a time still to come, and end by
+// midnight.
+const refuseUntimely = (quote: Quote, rows: QuoteOptionRow[]) => {
+  const now = clock.now();
+  const cleans =
+    quote.kind === "service_plan"
+      ? inOrder(rows).map((row, i) => ({
+          path: ["plan", "days", i, "start"],
+          startsAt: row.startsAt,
+          option: toOption(quote, row),
+        }))
+      : [
+          {
+            path: ["proposedStart"],
+            startsAt: quote.proposedStartsAt,
+            option: rows
+              .map((row) => toOption(quote, row))
+              .sort((a, b) => b.hoursOnSite - a.hoursOnSite)[0]!,
+          },
+        ];
+  for (const { path, startsAt, option } of cleans) {
+    if (!startsAt) {
+      throw fieldError(
+        path,
+        quote.kind === "service_plan"
+          ? "Choose when this weekday's first clean is"
+          : "Choose a proposed time",
+      );
+    }
+    if (startsAt <= now) {
+      throw fieldError(path, "Choose a time that's still to come");
+    }
+    const midnight = startOfDay(addDays(dayOf(startsAt), 1));
+    if (
+      startsAt.getTime() + option.hoursOnSite * HOUR_MS >
+      midnight.getTime()
+    ) {
+      throw fieldError(
+        path,
+        "Cleans end by midnight: choose an earlier start time",
+      );
+    }
+  }
+};
+
 // Sends a Draft as it was last saved, and emails the Client a link to it. It
 // Supersedes the Property's open Quote of the same kind, if any, in the same
 // step, so a Property never has two of a kind open; one of the other kind
-// stands beside it.
+// stands beside it. A Service Plan Quote's weekdays are put in order,
+// earliest first.
 export const sendQuote = async (id: string): Promise<OfficeQuote> => {
   const quote = await findDraft(id);
   const now = clock.now();
-  if (!quote.proposedStartsAt) {
-    throw fieldError(["proposedStart"], "Choose a proposed time");
-  }
-  if (quote.proposedStartsAt <= now) {
-    throw fieldError(["proposedStart"], "Choose a time that's still to come");
-  }
-  await refuseUnquotable(quote.kind, quote.propertyId, quote.quoteRequestId);
-  // it goes by email, and is accepted signed in with that email (#34)
+  const rows = await optionsOf(id);
+  refuseUntimely(quote, rows);
   const { client, property } = (await homeOf(quote.propertyId))!;
+  await refuseUnquotable(quote.kind, property, quote.quoteRequestId);
+  // it goes by email, and is accepted signed in with that email (#34)
   if (!client.email) {
     throw new ConflictError(
       `${client.name} has no email yet, so the Quote can't be sent. Add their email on their Client screen, then send it.`,
@@ -774,15 +951,21 @@ export const sendQuote = async (id: string): Promise<OfficeQuote> => {
   const expiresAt = new Date(
     Math.min(
       now.getTime() + quote.validityDays * DAY_MS,
-      quote.proposedStartsAt.getTime(),
+      quote.proposedStartsAt!.getTime(),
     ),
   );
+  const days =
+    quote.kind === "service_plan"
+      ? [...rows]
+          .sort((a, b) => a.startsAt!.getTime() - b.startsAt!.getTime())
+          .map((row, position) => ({ ...row, position }))
+      : null;
 
   await db.transaction(async (tx) => {
     // one send (or acceptance) at a time per Property
     await lockProperty(tx, quote.propertyId);
     // a Quote for its request may have been Accepted while this waited
-    await refuseUnquotable(quote.kind, quote.propertyId, quote.quoteRequestId);
+    await refuseUnquotable(quote.kind, property, quote.quoteRequestId);
     const [open] = await tx
       .select()
       .from(quotes)
@@ -803,20 +986,28 @@ export const sendQuote = async (id: string): Promise<OfficeQuote> => {
     }
     const [sent] = await tx
       .update(quotes)
-      .set({ status: "sent", sentAt: now, expiresAt })
+      .set({
+        status: "sent",
+        sentAt: now,
+        expiresAt,
+        ...(days && { crewSize: days[0]!.crewSize }),
+      })
       .where(and(eq(quotes.id, id), eq(quotes.status, "draft")))
       .returning();
     if (!sent) {
       throw new ConflictError("A Quote can't be changed once it's been sent");
     }
+    if (days) {
+      await tx.delete(quoteOptions).where(eq(quoteOptions.quoteId, id));
+      await tx.insert(quoteOptions).values(days);
+    }
   });
 
   const view = await officeQuote(id);
-  const home = await homeOf(quote.propertyId);
   // the Quote is sent: an email that can't go mustn't make it look as though
   // it wasn't
   try {
-    await sendQuoteEmail(home!.client, view);
+    await sendQuoteEmail(client, view);
   } catch (error) {
     console.error(`email for Quote ${id} not sent:`, error);
   }
@@ -843,15 +1034,39 @@ export const declineQuote = async (
   return clientQuote(id, clientId);
 };
 
+// a Service Plan Quote's offer, in an email: on one weekday, what each clean
+// saves; on several, each weekday and what a week of them costs
+const planOffer = (quote: OfficeQuote, plan: ServicePlanTerms) => {
+  const starting = formatWhen(new Date(quote.proposedStartsAt!));
+  const address = addressOf(quote.property);
+  if (plan.days.length === 1) {
+    const [day] = plan.days;
+    return [
+      `Your Service Plan Quote for ${address} is ready: a ${cleanTypeLabel[day!.cleanType]} ${recurrenceLabel[plan.recurrence]}, starting ${starting}.`,
+      `${formatMoney(quote.options[0]!.totalCents)} a clean, saving ${formatMoney(day!.savingCents)} on the one-off price of ${formatMoney(day!.oneOffTotalCents)} (Plan Discount ${plan.discountPercent}%).`,
+    ];
+  }
+  return [
+    `Your Service Plan Quote for ${address} is ready: ${describePlan(
+      plan.recurrence,
+      plan.days.map((d) => ({ ...d, startsAt: new Date(d.startsAt!) })),
+    )}, starting ${starting}.`,
+    quote.options
+      .map(
+        (option, i) =>
+          `${weekdayName(new Date(plan.days[i]!.startsAt!))}: ${formatMoney(option.totalCents)}`,
+      )
+      .join("\n"),
+    `${formatMoney(plan.roundTotalCents)} a week, ${plan.discountPercent}% off the one-off prices (Plan Discount).`,
+  ];
+};
+
 // a plain link to the Quote's page: it carries no sign-in power (ADR-0006), so
 // a signed-out Client signs in (or up) with this email and comes back to it
 const sendQuoteEmail = async (client: Client, quote: OfficeQuote) => {
   const [first, second] = quote.options;
   const offer = quote.plan
-    ? [
-        `Your Service Plan Quote for ${addressOf(quote.property)} is ready: a ${cleanTypeLabel[quote.plan.cleanType]} ${recurrenceLabel[quote.plan.recurrence]}, starting ${formatWhen(new Date(quote.proposedStartsAt!))}.`,
-        `${formatMoney(first!.totalCents)} a clean, saving ${formatMoney(quote.plan.savingCents)} on the one-off price of ${formatMoney(quote.plan.oneOffTotalCents)} (Plan Discount ${quote.plan.discountPercent}%).`,
-      ]
+    ? planOffer(quote, quote.plan)
     : [
         `Your Quote for ${addressOf(quote.property)} is ready, for ${formatWhen(new Date(quote.proposedStartsAt!))}:`,
         `Deep Clean (recommended): ${formatMoney(first!.totalCents)}\nStandard Clean: ${formatMoney(second!.totalCents)}`,

@@ -2,6 +2,7 @@ import type {
   AdjustmentKind,
   ClientName,
   Condition,
+  PlanDaySummary,
   PropertyView,
   QuoteSummary,
   Recurrence,
@@ -230,22 +231,51 @@ const weekdayFormat = new Intl.DateTimeFormat("en-US", {
 export const weekdayOf = (day: string) =>
   weekdayFormat.format(new Date(`${day}T00:00:00Z`));
 
+// a Service Plan, or a Service Plan Quote, with its weekdays
+type PlanDays = { recurrence: Recurrence; days: PlanDaySummary[] };
+
+// "Monday", or a Draft's weekday that has no time yet
+const weekdayOfStart = (startsAt: string | null) =>
+  startsAt ? weekdayOf(dayOfInstant(startsAt)) : null;
+
+const listed = (items: string[]) =>
+  items.length > 1
+    ? `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`
+    : (items[0] ?? "");
+
+// a weekday's clean and when: "Mondays at 9:00 AM"
+export const planDayWhen = (startsAt: string) =>
+  `${weekdayOfStart(startsAt)}s at ${formatClock(timeOfDay(startsAt))}`;
+
+// what a Service Plan is, in a line: "Standard Clean, every 2 weeks", or
+// "Standard and Deep Cleans, every week on Mon, Wed and Fri"
+export const planName = ({ recurrence, days }: PlanDays) => {
+  const types = [...new Set(days.map((d) => d.cleanType))];
+  const what =
+    types.length === 1 ? cleanTypeLabel[types[0]!] : "Standard and Deep Cleans";
+  const on = days.flatMap((d) => weekdayOfStart(d.startsAt)?.slice(0, 3) ?? []);
+  return days.length === 1
+    ? `${what}, ${recurrenceLabel[recurrence].toLowerCase()}`
+    : `${what}, every week${on.length > 0 ? ` on ${listed(on)}` : ""}`;
+};
+
 // how a Quote reads in a list: "Deep Clean $391.04", or "Service Plan,
-// Standard Clean every 2 weeks: $201.85 a clean"
+// Standard Clean, every 2 weeks: $201.85 a clean", or for several weekdays
+// "...: $650.10 a week"
 export const quoteHeadline = (
   quote: Pick<QuoteSummary, "headlineTotalCents" | "plan">,
 ) =>
   quote.plan
-    ? `Service Plan, ${cleanTypeLabel[quote.plan.cleanType]} ${recurrenceLabel[quote.plan.recurrence].toLowerCase()}: ${formatMoney(quote.headlineTotalCents)} a clean`
+    ? `Service Plan, ${planName(quote.plan)}: ${formatMoney(quote.headlineTotalCents)} ${quote.plan.days.length === 1 ? "a clean" : "a week"}`
     : `Deep Clean ${formatMoney(quote.headlineTotalCents)}`;
 
-// when a Service Plan's cleans come round, from its first: "Every week, on
-// Mondays at 9:00 AM"
-export const planRhythm = (plan: {
-  recurrence: Recurrence;
-  firstStartsAt: string;
-}) =>
-  `${recurrenceLabel[plan.recurrence]}, on ${weekdayOf(dayOfInstant(plan.firstStartsAt))}s at ${formatClock(timeOfDay(plan.firstStartsAt))}`;
+// when a Service Plan's cleans come round, each weekday from its first:
+// "Every week, on Mondays at 9:00 AM", or "Every week, on Mondays at 9:00 AM
+// and Wednesdays at 1:00 PM"
+export const planRhythm = ({ recurrence, days }: PlanDays) =>
+  `${recurrenceLabel[recurrence]}, on ${listed(
+    days.flatMap((d) => (d.startsAt ? [planDayWhen(d.startsAt)] : [])),
+  )}`;
 
 // a Site Visit's length: 30 -> "30 min", 90 -> "1 h 30 min"
 export const formatMinutes = (minutes: number) => {

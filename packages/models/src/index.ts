@@ -691,33 +691,64 @@ export type QuoteKind = "one_off" | "service_plan";
 // every week, every 2 weeks or every 4 weeks
 export type Recurrence = "weekly" | "fortnightly" | "four_weekly";
 
-// A Service Plan Quote's terms, and the saving: its Clean Type priced as a
-// one-off Job (its Suggested Price or the override), with one-off tax,
-// against each plan Job's price, which is that less the Plan Discount, with
-// Service Plan tax. Its single option holds the per-Job price.
-export type ServicePlanTerms = {
-  recurrence: Recurrence;
+// One weekday of a Service Plan Quote (ADR-0013), with its own visit: its
+// Clean Type priced as a one-off Job (its Suggested Price or the override),
+// with one-off tax, against the plan clean's price, which is that less the
+// Plan Discount, with Service Plan tax. The Quote's option at the same place
+// in its list holds that price.
+export type PlanDayTerms = {
+  // its first clean, which every later one on this weekday repeats; null on
+  // a Draft until it's chosen
+  startsAt: string | null;
   // a Standard Clean unless Office Staff chose a Deep Clean
   cleanType: CleanType;
-  discountPercent: number;
+  crewSize: number;
   // before tax
   oneOffPriceCents: number;
   oneOffTaxCents: number;
   oneOffTotalCents: number;
   // the Plan Discount off the one-off price, before tax
   discountCents: number;
-  // what each Job saves, tax included: the one-off total less the per-Job
-  // total
+  // what each clean saves, tax included: the one-off total less the plan
+  // clean's total
   savingCents: number;
+};
+
+// A Service Plan Quote's terms: how often, the Plan Discount, and its
+// weekdays, earliest first (as entered, on a Draft not yet timed). A plan on
+// one weekday repeats every 1, 2 or 4 weeks; one on several, every week. The
+// Client accepts them whole.
+export type ServicePlanTerms = {
+  recurrence: Recurrence;
+  discountPercent: number;
+  days: PlanDayTerms[];
+  // one round: a clean on each of its weekdays, tax included
+  roundTotalCents: number;
+  // the Deposit percentage of one clean on each of its weekdays, held for
+  // the plan's life
+  depositCents: number;
+};
+
+// one weekday Office Staff set on a Service Plan Quote, with its own visit
+export type PlanDayInput = {
+  // its first clean, New York; the weekday is that day's
+  start: LocalDateTime | null;
+  cleanType: CleanType;
+  crewSize: number;
+  // its one-off price before tax replacing the Suggested Price, with a
+  // reason; null keeps the Suggested Price. The Plan Discount comes off it.
+  override: { priceCents: number; reason: string } | null;
 };
 
 // what Office Staff set on a Service Plan Quote, beyond what every Quote has
 export type ServicePlanInput = {
+  // every week when it has several weekdays
   recurrence: Recurrence;
-  cleanType: CleanType;
   discountPercent: number;
   // the Condition it's priced for: moderate unless they say otherwise
   condition: Condition;
+  // at least one, each on a different weekday, all within one week
+  days: PlanDayInput[];
 };
 
 // one Clean Type's offer on a Quote, as the Client sees it: tax included
@@ -747,13 +778,17 @@ export type QuoteView = {
   status: QuoteStatus;
   property: Pick<PropertyView, "id" | "street" | "unit" | "postcode">;
   // a one-off Quote's: Deep Clean first, recommended, then Standard Clean. A
-  // Service Plan Quote's: its one Clean Type, at the per-Job price.
+  // Service Plan Quote's: one for each weekday, in the order its plan's days
+  // list them, at the plan clean's price.
   options: QuoteOption[];
   // a Service Plan Quote's terms and saving; null on a one-off Quote
   plan: ServicePlanTerms | null;
   addOns: QuoteAddOn[];
+  // a one-off Quote's; on a Service Plan Quote, its first weekday's (each
+  // has its own)
   crewSize: number;
   depositPercent: number;
+  // a one-off Quote's Job; a Service Plan Quote's first clean
   proposedStartsAt: string;
   sentAt: string;
   expiresAt: string;
@@ -770,7 +805,9 @@ export type QuoteView = {
   // Sent: what accepting it does to that plan. Null otherwise.
   changesPlan: PlanChange | null;
   // the Clean Types that can still be booked: those the proposed day has room
-  // for now, while the Quote is Sent; none once it's closed
+  // for now, while the Quote is Sent; none once it's closed. A Service Plan
+  // Quote's are its days' while the first clean on each of them has room,
+  // and none otherwise.
   bookable: CleanType[];
 };
 
@@ -812,11 +849,11 @@ export type OfficeQuote = Omit<
   // on a Service Plan Quote, what the Property's First Clean found, to price
   // the plan by; null on a one-off Quote
   firstClean: FirstCleanFindings | null;
-  // on a Service Plan Draft, the plan priced as each Clean Type, Standard
-  // first, for Office Staff to choose between: its own Clean Type as last
-  // saved, the other worked out now from the same terms and Add-ons. Null
-  // once Sent, and on a one-off Quote.
-  planChoices: PlanChoice[] | null;
+  // on a Service Plan Draft, each weekday priced as each Clean Type,
+  // Standard first, for Office Staff to choose between: its own Clean Type
+  // as last saved, the other worked out now from the same terms and Add-ons.
+  // Null once Sent, and on a one-off Quote.
+  planChoices: PlanChoice[][] | null;
   priceListVersion: number;
   validityDays: number;
   proposedStart: LocalDateTime | null;
@@ -832,23 +869,25 @@ export type OfficeQuote = Omit<
 };
 
 // what Office Staff change on a Draft (PATCH /api/quotes/:id); prices are
-// worked out again from the current Price List on every save
+// worked out again from the current Price List on every save. A Service Plan
+// Quote's time, crew and override are each weekday's own, so it leaves out
+// crewSize, proposedStart and overrides.
 export type QuoteDraftInput = {
   addOns: string[];
-  crewSize: number;
+  // required on a one-off Quote
+  crewSize?: number;
   depositPercent: number;
   validityDays: number;
-  proposedStart: LocalDateTime | null;
+  proposedStart?: LocalDateTime | null;
   // a price before tax replacing the Suggested Price, with a reason; null
-  // keeps the Suggested Price. A Service Plan Quote has only its Clean
-  // Type's, its one-off price, which the Plan Discount then comes off.
-  overrides: Record<CleanType, { priceCents: number; reason: string } | null>;
+  // keeps the Suggested Price
+  overrides?: Record<CleanType, { priceCents: number; reason: string } | null>;
   // required on a Service Plan Quote, and only there
   plan?: ServicePlanInput | null;
 };
 
-// a Service Plan Draft priced as one Clean Type
-export type PlanChoice = { option: OfficeQuoteOption; plan: ServicePlanTerms };
+// a Service Plan Draft's weekday priced as one Clean Type
+export type PlanChoice = { option: OfficeQuoteOption; day: PlanDayTerms };
 
 // what a Property's First Clean found, shown beside a Service Plan Quote
 export type FirstCleanFindings = {
@@ -869,10 +908,10 @@ export type QuoteSummary = {
   client: ClientName;
   property: Pick<PropertyView, "id" | "street" | "unit" | "postcode">;
   // the total it leads with, tax included: a one-off Quote's recommended
-  // Deep Clean, or a Service Plan Quote's price per Job
+  // Deep Clean, or a Service Plan Quote's round, a clean on each weekday
   headlineTotalCents: number;
   // a Service Plan Quote's; null on a one-off Quote
-  plan: { recurrence: Recurrence; cleanType: CleanType } | null;
+  plan: { recurrence: Recurrence; days: PlanDaySummary[] } | null;
   proposedStartsAt: string | null;
   sentAt: string | null;
   expiresAt: string | null;
@@ -1306,32 +1345,48 @@ export type MoveJobInput = LocalDateTime;
 // or Ended, for good
 export type ServicePlanStatus = "active" | "on_hold" | "ended";
 
+// one of a Service Plan's weekdays in a line: its first clean, whose weekday
+// and time every later one repeats (null on a Draft until chosen), and its
+// Clean Type
+export type PlanDaySummary = { startsAt: string | null; cleanType: CleanType };
+
 // a Service Plan in a line: on the Property page, and the Client's home screen
 export type ServicePlanSummary = {
   id: string;
   status: ServicePlanStatus;
   recurrence: Recurrence;
-  cleanType: CleanType;
+  // on its current terms, earliest first
+  days: PlanDaySummary[];
   property: Pick<PropertyView, "id" | "street" | "unit" | "postcode">;
   // its next booked Job, if one is on the Schedule
   nextStartsAt: string | null;
 };
 
-// A Service Plan as its Client sees it: its terms, what each Job costs, the
-// Deposit held for its life, and its booked Jobs still to come, soonest first.
-// Jobs come round on the weekday and at the time of its first.
-export type ServicePlanView = ServicePlanSummary & {
-  firstStartsAt: string;
-  startedAt: string;
+// one of a Service Plan's weekdays: its visit, and what each clean on it
+// costs, Plan Discount off
+export type PlanDayView = {
+  // its first clean on the plan's current terms
+  startsAt: string;
+  cleanType: CleanType;
   crewSize: number;
   labourHours: number;
   // Labour Hours divided by Crew Size
   hoursOnSite: number;
-  discountPercent: number;
-  // each Job's price, Plan Discount off, before and with tax
+  // before and with tax
   priceCents: number;
   taxCents: number;
   totalCents: number;
+};
+
+// A Service Plan as its Client sees it: its terms, what each Job costs, the
+// Deposit held for its life, and its booked Jobs still to come, soonest first.
+// Jobs come round on each of its weekdays at the time of the first there.
+export type ServicePlanView = Omit<ServicePlanSummary, "days"> & {
+  days: PlanDayView[];
+  startedAt: string;
+  discountPercent: number;
+  // one round: a clean on each weekday, tax included
+  roundTotalCents: number;
   addOns: string[];
   // taken at acceptance, and applied to its final Job when it Ends
   depositCents: number;

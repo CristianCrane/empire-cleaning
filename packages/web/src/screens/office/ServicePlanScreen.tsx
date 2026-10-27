@@ -27,12 +27,13 @@ import { postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import {
   addressOf,
-  cleanTypeLabel,
   clientName,
+  dayOfInstant,
   formatDateTime,
   formatDay,
-  recurrenceLabel,
+  planName,
   timeOfDay,
+  weekdayOf,
 } from "../format.ts";
 import { EndPlan, OnHold, PlanStatusBadge, PlanTerms } from "../PlanParts.tsx";
 import { useJobAction } from "./JobCompletion.tsx";
@@ -99,7 +100,7 @@ export function ServicePlanScreen() {
       )}
 
       <Card
-        title={`${cleanTypeLabel[plan.cleanType]}, ${recurrenceLabel[plan.recurrence].toLowerCase()}`}
+        title={planName(plan)}
         description={
           <>
             On the terms of{" "}
@@ -111,8 +112,9 @@ export function ServicePlanScreen() {
             >
               its Service Plan Quote
             </Link>
-            , which prices its Jobs from {formatDateTime(plan.firstStartsAt)}.
-            New terms take a new Quote, accepted by the Client.
+            , which prices its Jobs from{" "}
+            {formatDateTime(plan.days[0]!.startsAt)}. New terms take a new
+            Quote, accepted by the Client.
           </>
         }
         actions={
@@ -200,7 +202,12 @@ function ChooseVisitTime({
   visit,
   close,
 }: VisitProps & { close: () => void }) {
-  const usual = timeOfDay(plan.firstStartsAt);
+  // the weekday it came round on: its usual time, and its visit
+  const day =
+    plan.days.find(
+      (d) => weekdayOf(dayOfInstant(d.startsAt)) === weekdayOf(visit.dueOn),
+    ) ?? plan.days[0]!;
+  const usual = timeOfDay(day.startsAt);
   const [date, setDate] = useState<CalendarDate | null>(parseDate(visit.dueOn));
   const [time, setTime] = useState<Time | null>(parseTime(usual));
   const action = useJobAction("The visit wasn't booked. Please try again.");
@@ -234,8 +241,8 @@ function ChooseVisitTime({
       <PickFromSchedule
         date={date?.toString()}
         time={time?.toString().slice(0, 5)}
-        hoursOnSite={plan.hoursOnSite}
-        crew={{ crewSize: plan.crewSize }}
+        hoursOnSite={day.hoursOnSite}
+        crew={{ crewSize: day.crewSize }}
         onPick={(picked) => {
           setDate(parseDate(picked.date));
           setTime(parseTime(picked.time));

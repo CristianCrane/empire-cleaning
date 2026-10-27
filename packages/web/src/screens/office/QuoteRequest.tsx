@@ -5,6 +5,7 @@ import type {
   QuoteRequestDetail,
 } from "@empire-cleaning/models";
 import {
+  Actions,
   Breadcrumbs,
   Button,
   Card,
@@ -162,8 +163,9 @@ export function QuoteRequest() {
 }
 
 // The request's Quotes, newest first, and the way to draft the next one
-// while it's open: once the home's First Clean is Completed, it can be
-// answered with a one-off Quote or a Service Plan Quote
+// while it's open: once the home's First Clean is Completed, or for business
+// premises at any time (ADR-0014), it can be answered with a one-off Quote or
+// a Service Plan Quote
 function Quotes({ request }: { request: QuoteRequestDetail }) {
   const navigate = useNavigate();
   const { start, starting, failure } = useStartDraft();
@@ -172,6 +174,8 @@ function Quotes({ request }: { request: QuoteRequestDetail }) {
   const draft = request.quotes.find((q) => q.status === "draft");
   const open = (quoteId: string) =>
     navigate({ to: "/office/quotes/$quoteId", params: { quoteId } });
+  const eitherKind =
+    request.firstCleanCompleted || request.property.kind === "commercial";
   const draftButton = (kind: QuoteKind, label: string, primary: boolean) => (
     <Button
       variant={primary ? "primary" : "secondary"}
@@ -192,16 +196,18 @@ function Quotes({ request }: { request: QuoteRequestDetail }) {
           <Button variant="secondary" onPress={() => void open(draft.id)}>
             Continue the Draft
           </Button>
-        ) : request.firstCleanCompleted ? (
-          <div className="flex flex-wrap gap-2">
-            {draftButton("one_off", "Draft a one-off Quote", false)}
-            {draftButton("service_plan", "Draft a Service Plan Quote", true)}
-          </div>
         ) : (
-          draftButton("one_off", "Draft a Quote", true)
+          // both kinds go below, where they can wrap on a phone
+          !eitherKind && draftButton("one_off", "Draft a Quote", true)
         ))
       }
     >
+      {isOpen && !draft && eitherKind && (
+        <Actions>
+          {draftButton("one_off", "Draft a one-off Quote", false)}
+          {draftButton("service_plan", "Draft a Service Plan Quote", true)}
+        </Actions>
+      )}
       {isOpen && request.servicePlanId && (
         <Notice>
           <p>

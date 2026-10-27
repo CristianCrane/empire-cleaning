@@ -1,5 +1,5 @@
 import { and, desc, eq, gte, inArray, isNull, ne, sum } from "drizzle-orm";
-import type { PlanChange, QuoteOption } from "@empire-cleaning/models";
+import type { PlanChange } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError } from "../../middleware/errors.ts";
 import { clock, dayOf } from "../../services/clock/index.ts";
@@ -13,6 +13,7 @@ import {
   servicePlanVisits,
   type ServicePlan,
 } from "./service-plans.schema.ts";
+import { recordFirstVisits, type FirstJobs } from "./first-visits.ts";
 
 // the plan's booked Jobs from `startsAt` on, latest first
 const bookedFrom = async (tx: Tx | typeof db, planId: string, startsAt: Date) =>
@@ -72,10 +73,11 @@ export const holdForChange = async (
 
 /**
  * Puts a plan on an accepted Service Plan Quote's terms, inside the
- * acceptance's transaction, once the first Job on them is booked at the
- * Quote's proposed time: its booked Jobs from then on (held by holdForChange)
- * are cancelled free, and dates from then on still waiting for the Office
- * are dropped. Jobs before it go ahead, priced as they were. Its Deposit
+ * acceptance's transaction, once the first Job on each of its weekdays is
+ * booked, the earliest at the Quote's proposed time: its booked Jobs from
+ * then on (held by holdForChange) are cancelled free, and dates from then on
+ * still waiting for the Office are dropped. Jobs before it go ahead, priced
+ * as they were. The new terms may have more weekdays or fewer. Its Deposit
  * stays as it is, and so does its status: a plan On Hold carries on, on the
  * new terms, once nothing is Unpaid.
  */
@@ -85,18 +87,17 @@ export const changeServicePlanTerms = async (
     plan,
     replaced,
     quote,
-    option,
-    firstJob,
+    firstJobs,
     changedBy,
   }: {
     plan: ServicePlan;
     replaced: Job[];
     quote: Quote;
-    option: QuoteOption;
-    firstJob: Job;
+    firstJobs: FirstJobs;
     changedBy: string | null;
   },
 ) => {
+  const from = quote.proposedStartsAt!;
   const now = clock.now();
   for (const job of replaced) {
     await tx
@@ -121,28 +122,15 @@ export const changeServicePlanTerms = async (
         eq(servicePlanVisits.servicePlanId, plan.id),
         isNull(servicePlanVisits.jobId),
         isNull(servicePlanVisits.skippedAt),
-        gte(servicePlanVisits.dueOn, dayOf(firstJob.startsAt)),
+        gte(servicePlanVisits.dueOn, dayOf(from)),
       ),
     );
   const [changed] = await tx
     .update(servicePlans)
-    .set({
-      quoteId: quote.id,
-      recurrence: quote.recurrence!,
-      cleanType: option.cleanType,
-      labourHours: option.labourHours,
-      crewSize: quote.crewSize,
-      firstStartsAt: firstJob.startsAt,
-    })
+    .set({ quoteId: quote.id, recurrence: quote.recurrence! })
     .where(eq(servicePlans.id, plan.id))
     .returning();
-  await tx.insert(servicePlanVisits).values({
-    servicePlanId: plan.id,
-    quoteId: quote.id,
-    dueOn: dayOf(firstJob.startsAt),
-    jobId: firstJob.id,
-    generatedAt: now,
-  });
+  await recordFirstVisits(tx, plan.id, quote, firstJobs);
   return changed!;
 };
 

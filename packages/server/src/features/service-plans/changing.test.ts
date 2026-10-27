@@ -56,7 +56,8 @@ const sentChange = async (
     cleanType = "standard",
     crewSize = 1,
   }: {
-    startsAt: string;
+    // a weekday's first clean, or each of several weekdays'
+    startsAt: string | string[];
     recurrence?: Recurrence;
     cleanType?: CleanType;
     crewSize?: number;
@@ -68,19 +69,23 @@ const sentChange = async (
     { propertyId: property.id, kind: "service_plan" },
     me.id,
   );
-  const at = new Date(startsAt);
   await saveDraft(quote.id, {
     addOns: [],
-    crewSize,
     depositPercent: quote.depositPercent,
     validityDays: quote.validityDays,
-    proposedStart: { date: dayOf(at), time: timeOf(at) },
-    overrides: { deep: null, standard: null },
     plan: {
       recurrence,
-      cleanType,
       discountPercent: quote.plan!.discountPercent,
       condition: "moderate",
+      days: [startsAt].flat().map((s) => {
+        const at = new Date(s);
+        return {
+          start: { date: dayOf(at), time: timeOf(at) },
+          cleanType,
+          crewSize,
+          override: null,
+        };
+      }),
     },
   });
   return sendQuote(quote.id);
@@ -131,7 +136,7 @@ describe("accepting a Service Plan Quote for a home with a plan", () => {
       recurrence: "fortnightly",
       quoteId: quote.id,
       depositCents: PLAN_DEPOSIT,
-      firstStartsAt: WEDNESDAY_28TH,
+      days: [{ startsAt: WEDNESDAY_28TH }],
     });
     expect(startsOf(plan)).toEqual([MONDAYS[0], MONDAYS[1], WEDNESDAY_28TH]);
     expect(startsOf(plan, "cancelled")).toEqual([MONDAYS[2], MONDAYS[3]]);
@@ -181,7 +186,7 @@ describe("accepting a Service Plan Quote for a home with a plan", () => {
     await accept(client, quote.id, "deep");
 
     const plan = await officePlan(office, planId);
-    expect(plan.cleanType).toBe("deep");
+    expect(plan.days.map((d) => d.cleanType)).toEqual(["deep"]);
     const booked = plan.jobs.filter((j) => j.status === "booked");
     const totals = await totalsOf(booked.map((j) => j.id));
     const before = booked.filter((j) => j.startsAt < WEDNESDAY_28TH);
@@ -199,7 +204,7 @@ describe("accepting a Service Plan Quote for a home with a plan", () => {
     const deepTotal = totals.get(after[0]!.id)!;
     expect(deepTotal).toBeGreaterThan(PLAN_TOTAL);
     expect(totals.get(after[1]!.id)).toBe(deepTotal);
-    expect(plan.totalCents).toBe(deepTotal);
+    expect(plan.days[0]!.totalCents).toBe(deepTotal);
   });
 
   test("can take the time of a Job it replaces, which no longer counts against the day", async () => {
@@ -304,12 +309,21 @@ describe("a Client asking to change their plan", () => {
       .patch(`/api/quotes/${draft.id}`)
       .send({
         addOns: [],
-        crewSize: 1,
         depositPercent: draft.depositPercent,
         validityDays: draft.validityDays,
-        proposedStart: { date: "2026-01-28", time: "09:00" },
-        overrides: { deep: null, standard: null },
-        plan: { ...draft.plan!, recurrence: "fortnightly" },
+        plan: {
+          recurrence: "fortnightly",
+          discountPercent: draft.plan!.discountPercent,
+          condition: draft.plan!.condition,
+          days: [
+            {
+              start: { date: "2026-01-28", time: "09:00" },
+              cleanType: "standard",
+              crewSize: 1,
+              override: null,
+            },
+          ],
+        },
       })
       .expect(200);
     await office.post(`/api/quotes/${draft.id}/send`).expect(200);

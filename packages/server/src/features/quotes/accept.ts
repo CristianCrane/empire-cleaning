@@ -1,21 +1,24 @@
 import { randomUUID } from "node:crypto";
 import { and, desc, eq, isNull } from "drizzle-orm";
+import { z } from "zod";
 import type {
   CleanType,
   QuoteOption,
   QuoteStatus,
-  Recurrence,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import env from "../../env.ts";
-import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
+import {
+  ConflictError,
+  NotFoundError,
+  RequestBodyError,
+} from "../../middleware/errors.ts";
 import { clock, dayOf } from "../../services/clock/index.ts";
 import {
   compose,
   email,
   firstNameOf,
   formatMoney,
-  formatTime,
   formatWhen,
   weekdayName,
 } from "../../services/email/index.ts";
@@ -45,10 +48,12 @@ import {
   generateServicePlanJobs,
   startServicePlan,
 } from "../service-plans/service-plans.ts";
+import type { FirstJobs } from "../service-plans/first-visits.ts";
 import type { ServicePlan } from "../service-plans/service-plans.schema.ts";
+import { describePlan } from "./plan-days.ts";
 import { warnOfficeOfQuotesWithoutRoom } from "./quote-room.ts";
 import { statusOf } from "./quote-state.ts";
-import { lockProperty, toOption } from "./quotes.ts";
+import { inOrder, lockProperty, toOption } from "./quotes.ts";
 import {
   pendingDeposits,
   quoteOptions,
@@ -127,17 +132,84 @@ const findForAcceptance = async (id: string) => {
   return found;
 };
 
-const optionFor = async (quote: Quote, cleanType: CleanType) => {
-  const [row] = await db
-    .select()
-    .from(quoteOptions)
-    .where(
-      and(
-        eq(quoteOptions.quoteId, quote.id),
-        eq(quoteOptions.cleanType, cleanType),
-      ),
+// a clean accepting books: a one-off Quote's Job, or the first on one of a
+// Service Plan Quote's weekdays
+type Clean = {
+  position: number;
+  startsAt: Date;
+  crewSize: number;
+  option: QuoteOption;
+};
+
+// What accepting a Quote books and takes: a one-off Quote's Job, of the
+// Clean Type chosen, with its Deposit; or a Service Plan Quote's first clean
+// on each of its weekdays, earliest first, with the Deposit for one on each
+// (ADR-0013), accepted whole. `cleanType` is the one chosen, or a plan's
+// first weekday's.
+type Offer = {
+  cleanType: CleanType;
+  cleans: Clean[];
+  depositCents: number;
+};
+
+const describeTypes = (types: CleanType[]) =>
+  [...new Set(types)].map((t) => `a ${cleanTypeLabel[t]}`).join(" and ");
+
+const offerFor = async (
+  quote: Quote,
+  cleanType: CleanType | undefined,
+): Promise<Offer> => {
+  const rows = inOrder(
+    await db
+      .select()
+      .from(quoteOptions)
+      .where(eq(quoteOptions.quoteId, quote.id)),
+  );
+  if (quote.kind === "one_off") {
+    const row = rows.find((r) => r.cleanType === cleanType);
+    if (!row) {
+      throw new RequestBodyError(
+        new z.ZodError([
+          {
+            code: "custom",
+            path: ["cleanType"],
+            message: "Choose a Deep Clean or a Standard Clean",
+            input: undefined,
+          },
+        ]),
+      );
+    }
+    const option = toOption(quote, row);
+    return {
+      cleanType: row.cleanType,
+      cleans: [
+        {
+          position: 0,
+          startsAt: quote.proposedStartsAt!,
+          crewSize: row.crewSize,
+          option,
+        },
+      ],
+      depositCents: option.depositCents,
+    };
+  }
+  // a Service Plan Quote offers its weekdays' Clean Types, and only those
+  if (cleanType && !rows.some((r) => r.cleanType === cleanType)) {
+    throw new ConflictError(
+      `This Service Plan is for ${describeTypes(rows.map((r) => r.cleanType))}.`,
     );
-  return toOption(quote, row!);
+  }
+  const cleans = rows.map((row) => ({
+    position: row.position,
+    startsAt: row.startsAt!,
+    crewSize: row.crewSize,
+    option: toOption(quote, row),
+  }));
+  return {
+    cleanType: rows[0]!.cleanType,
+    cleans,
+    depositCents: cleans.reduce((sum, c) => sum + c.option.depositCents, 0),
+  };
 };
 
 // a Service Plan Quote changing its home's plan: the plan, and its booked
@@ -151,16 +223,16 @@ type Hold =
 /**
  * Holds what booking needs until the transaction ends: the Property (so a
  * newer Quote can't be sent meanwhile), the Quote, a plan whose terms it
- * changes with the Jobs it replaces, and the proposed day (so two
- * acceptances can't both take its last free hours or crew). Then says
- * whether the Quote can still be booked: open, its home's plan still the one
- * expected (`changing`: none for a Quote starting one), and its time with
- * room, the Jobs it replaces counting as gone.
+ * changes with the Jobs it replaces, and the day of each clean it books (so
+ * two acceptances can't both take a day's last free hours or crew). Then
+ * says whether the Quote can still be booked: open, its home's plan still
+ * the one expected (`changing`: none for a Quote starting one), and every
+ * clean's time with room, the Jobs it replaces counting as gone.
  */
 const holdForBooking = async (
   tx: Tx,
   quote: Quote,
-  option: QuoteOption,
+  offer: Offer,
   changing: string | null,
 ): Promise<Hold> => {
   await lockProperty(tx, quote.propertyId);
@@ -185,80 +257,86 @@ const holdForBooking = async (
     }
   }
 
-  await lockDay(tx, dayOf(quote.proposedStartsAt!));
-  const { hasRoom } = await roomFor(
-    {
-      startsAt: quote.proposedStartsAt!,
-      labourHours: option.labourHours,
-      crewSize: quote.crewSize,
-    },
-    change?.replaced.map((j) => j.id),
-  );
-  return hasRoom
-    ? { unbookable: null, change }
-    : { unbookable: { reason: "no_room" } };
+  // earliest first, so two acceptances hold their days in the same order
+  for (const clean of offer.cleans) await lockDay(tx, dayOf(clean.startsAt));
+  for (const clean of offer.cleans) {
+    const { hasRoom } = await roomFor(
+      {
+        startsAt: clean.startsAt,
+        labourHours: clean.option.labourHours,
+        crewSize: clean.crewSize,
+      },
+      change?.replaced.map((j) => j.id),
+    );
+    if (!hasRoom) return { unbookable: { reason: "no_room" } };
+  }
+  return { unbookable: null, change };
 };
 
 type Booking = {
   quote: Quote;
   property: Property;
-  cleanType: CleanType;
-  option: QuoteOption;
+  offer: Offer;
   clientId: string;
   acceptedBy: string | null;
 };
 
 type Booked = {
-  job: Job;
+  // earliest first: one, unless a Service Plan Quote booked several weekdays
+  jobs: Job[];
   plan: ServicePlan | null;
   // the plan's Jobs its new terms replaced, when the Quote changed them
   replaced: Job[] | null;
 };
 
-// books the Job and Accepts the Quote, with its Deposit paid; inside a
+// Books the Jobs and Accepts the Quote, with its Deposit paid; inside a
 // transaction holding them (holdForBooking). A Service Plan Quote starts its
-// plan, with the Job as its first, and the Deposit is the plan's: held for
-// its life, not counted towards that Job's price. Or it changes its home's
-// plan from that Job on, which takes no Deposit: the plan's carries over.
+// plan, with its first Job on each weekday, and the Deposit is the plan's:
+// held for its life, not counted towards any Job's price. Or it changes its
+// home's plan from its first Job on, which takes no Deposit: the plan's
+// carries over.
 const recordAcceptance = async (
   tx: Tx,
   booking: Booking,
   paid: Extract<DepositAttempt, { status: "succeeded" }>,
   change: Change | null,
 ): Promise<Booked> => {
-  const { quote, property, cleanType, option } = booking;
+  const { quote, property, offer } = booking;
   const now = clock.now();
-  const job = await bookJob(
-    {
-      propertyId: property.id,
-      cleanType,
-      startsAt: quote.proposedStartsAt!,
-      labourHours: option.labourHours,
-      crewSize: quote.crewSize,
-    },
-    tx,
-  );
+  const firstJobs: FirstJobs = [];
+  for (const clean of offer.cleans) {
+    const job = await bookJob(
+      {
+        propertyId: property.id,
+        cleanType: clean.option.cleanType,
+        startsAt: clean.startsAt,
+        labourHours: clean.option.labourHours,
+        crewSize: clean.crewSize,
+      },
+      tx,
+    );
+    firstJobs.push({ position: clean.position, job });
+  }
+  const [first] = firstJobs;
   const plan = change
     ? await changeServicePlanTerms(tx, {
         ...change,
         quote,
-        option,
-        firstJob: job,
+        firstJobs,
         changedBy: booking.acceptedBy,
       })
     : quote.kind === "service_plan"
       ? await startServicePlan(tx, {
           quote,
-          option,
-          firstJob: job,
+          firstJobs,
           startedBy: booking.acceptedBy,
         })
       : null;
   if (paid.chargeId) {
     await tx.insert(charges).values({
-      ...(plan ? { servicePlanId: plan.id } : { jobId: job.id }),
+      ...(plan ? { servicePlanId: plan.id } : { jobId: first!.job.id }),
       kind: "deposit",
-      amountCents: option.depositCents,
+      amountCents: offer.depositCents,
       gatewayRef: paid.chargeId,
       chargedAt: now,
     });
@@ -272,12 +350,17 @@ const recordAcceptance = async (
     .set({
       status: "accepted",
       acceptedAt: now,
-      acceptedCleanType: cleanType,
-      jobId: job.id,
+      acceptedCleanType: offer.cleanType,
+      // a plan's first
+      jobId: first!.job.id,
       acceptedBy: booking.acceptedBy,
     })
     .where(eq(quotes.id, quote.id));
-  return { job, plan, replaced: change?.replaced ?? null };
+  return {
+    jobs: firstJobs.map((f) => f.job),
+    plan,
+    replaced: change?.replaced ?? null,
+  };
 };
 
 // a Deposit was taken but nothing was booked: give it back
@@ -297,14 +380,18 @@ const refundUnbooked = async (
   }
 };
 
-const describe = (booking: Booking) =>
-  `Deposit: ${cleanTypeLabel[booking.cleanType]} at ${addressOf(booking.property)}, ${formatWhen(booking.quote.proposedStartsAt!)}`;
+const describe = ({ quote, property, offer }: Booking) =>
+  quote.kind === "service_plan"
+    ? `Deposit: Service Plan at ${addressOf(property)}, from ${formatWhen(quote.proposedStartsAt!)}`
+    : `Deposit: ${cleanTypeLabel[offer.cleanType]} at ${addressOf(property)}, ${formatWhen(quote.proposedStartsAt!)}`;
 
 /**
  * Accepts a Sent Quote with the Clean Type chosen, as one step: the proposed
  * day must still have room for its Labour Hours, and the Deposit must be
  * taken; only then is the Quote Accepted and the Job booked (ADR-0001). If
- * either fails, nothing changes and the Quote stays Sent.
+ * either fails, nothing changes and the Quote stays Sent. A Service Plan
+ * Quote is accepted whole: the first clean on each of its weekdays must have
+ * room, and all are booked (ADR-0013).
  *
  * A Client pays with a card entered just now (`paymentToken`, from the
  * provider's form in their browser), which the same payment saves for later
@@ -322,7 +409,10 @@ const describe = (booking: Booking) =>
  */
 export const acceptQuote = async (
   id: string,
-  { cleanType, paymentToken }: { cleanType: CleanType; paymentToken?: string },
+  {
+    cleanType,
+    paymentToken,
+  }: { cleanType?: CleanType | undefined; paymentToken?: string | undefined },
   acceptor: Acceptor,
 ): Promise<AcceptResult> => {
   const found = await findForAcceptance(id);
@@ -336,18 +426,7 @@ export const acceptQuote = async (
   }
   const { quote, client, property } = found;
   refuseUnlessOpen(quote, acceptor);
-  if (quote.kind === "service_plan") {
-    // a Service Plan Quote offers the one Clean Type
-    const [offered] = await db
-      .select()
-      .from(quoteOptions)
-      .where(eq(quoteOptions.quoteId, quote.id));
-    if (offered!.cleanType !== cleanType) {
-      throw new ConflictError(
-        `This Service Plan is for a ${cleanTypeLabel[offered!.cleanType]}.`,
-      );
-    }
-  }
+  const offer = await offerFor(quote, cleanType);
   // a Service Plan Quote for a home with a plan changes that plan's terms
   const changing =
     quote.kind === "service_plan"
@@ -365,12 +444,10 @@ export const acceptQuote = async (
     );
   }
 
-  const option = await optionFor(quote, cleanType);
   const booking: Booking = {
     quote,
     property,
-    cleanType,
-    option,
+    offer,
     clientId: client.id,
     acceptedBy: acceptor.accountId,
   };
@@ -381,7 +458,7 @@ export const acceptQuote = async (
   const takeDeposit = async (): Promise<DepositAttempt> => {
     // a 0% Deposit from a saved card has nothing to take or save, and nor
     // does changing a plan
-    if (changing || (option.depositCents === 0 && !token)) {
+    if (changing || (offer.depositCents === 0 && !token)) {
       return { status: "succeeded", chargeId: null, saved: null };
     }
     const payerId = await payerFor(client);
@@ -389,7 +466,7 @@ export const acceptQuote = async (
       return paymentGateway.takeDeposit({
         payerId,
         source: token ? { token } : { paymentMethodId: saved!.gatewayRef },
-        amount: option.depositCents,
+        amount: offer.depositCents,
         description: describe(booking),
         idempotencyKey: `deposit:${id}:${token ?? randomUUID()}`,
       });
@@ -399,7 +476,7 @@ export const acceptQuote = async (
       .charge({
         payerId,
         paymentMethodId: saved!.gatewayRef,
-        amount: option.depositCents,
+        amount: offer.depositCents,
         description: describe(booking),
         idempotencyKey: `deposit:${id}:${randomUUID()}`,
       })
@@ -415,7 +492,7 @@ export const acceptQuote = async (
   let outcome;
   try {
     outcome = await db.transaction(async (tx) => {
-      const hold = await holdForBooking(tx, quote, option, changing);
+      const hold = await holdForBooking(tx, quote, offer, changing);
       if (hold.unbookable) {
         throw new ConflictError(unbookableMessage(hold.unbookable, acceptor));
       }
@@ -434,8 +511,8 @@ export const acceptQuote = async (
         await tx.insert(pendingDeposits).values({
           gatewayRef: attempt.ref,
           quoteId: id,
-          cleanType,
-          depositCents: option.depositCents,
+          cleanType: offer.cleanType,
+          depositCents: offer.depositCents,
           acceptedBy: acceptor.accountId,
         });
         return { status: "needs_approval", secret: attempt.secret } as const;
@@ -450,7 +527,7 @@ export const acceptQuote = async (
       } as const;
     });
   } catch (error) {
-    if (chargeId) await refundUnbooked(chargeId, option.depositCents, id);
+    if (chargeId) await refundUnbooked(chargeId, offer.depositCents, id);
     throw error;
   }
 
@@ -459,10 +536,10 @@ export const acceptQuote = async (
     client,
     property,
     outcome.booked,
-    option,
+    offer,
     outcome.paidWith,
   );
-  return { status: "accepted", job: outcome.booked.job };
+  return { status: "accepted", job: outcome.booked.jobs[0]! };
 };
 
 // how finishing a Deposit that needed approval went
@@ -515,12 +592,11 @@ export const finalizeDeposit = async (ref: string): Promise<Finalized> => {
   const { quote, client, property } = (await findForAcceptance(
     pending.quoteId,
   ))!;
-  const option = await optionFor(quote, pending.cleanType);
+  const offer = await offerFor(quote, pending.cleanType);
   const booking: Booking = {
     quote,
     property,
-    cleanType: pending.cleanType,
-    option,
+    offer,
     clientId: client.id,
     acceptedBy: pending.acceptedBy,
   };
@@ -536,7 +612,7 @@ export const finalizeDeposit = async (ref: string): Promise<Finalized> => {
       if (current!.settledAt) return { status: "settled" } as const;
 
       // a Deposit was being taken, so the Quote starts its home's plan
-      const hold = await holdForBooking(tx, quote, option, null);
+      const hold = await holdForBooking(tx, quote, offer, null);
       await settle(ref, tx);
       if (hold.unbookable) {
         return { status: "refunded", unbookable: hold.unbookable } as const;
@@ -560,7 +636,7 @@ export const finalizeDeposit = async (ref: string): Promise<Finalized> => {
 
   const paidWith =
     attempt.saved?.label ?? (await paymentMethodOf(client.id))!.label;
-  await afterAcceptance(client, property, result.booked, option, paidWith);
+  await afterAcceptance(client, property, result.booked, offer, paidWith);
   return { status: "accepted" };
 };
 
@@ -599,38 +675,51 @@ export const finalizeProblem = (finalized: Finalized) => {
 };
 
 // Once the acceptance is saved: the Client's confirmation, the Office told of
-// Sent Quotes the booking left without room, and a Service Plan's next Jobs
+// Sent Quotes the bookings left without room, and a Service Plan's next Jobs
 // put on the Schedule; when it changed a plan, the crews of the Jobs it
 // replaced told they're off. An email that can't go mustn't make it look as
 // though nothing was booked.
 const afterAcceptance = async (
   client: Client,
   property: Property,
-  { job, plan, replaced }: Booked,
-  option: QuoteOption,
+  { jobs, plan, replaced }: Booked,
+  offer: Offer,
   paidWith: string | null,
 ) => {
   const paid = {
-    depositCents: option.depositCents,
-    totalCents: option.totalCents,
+    depositCents: offer.depositCents,
+    totalCents: offer.cleans[0]!.option.totalCents,
     paymentMethod: paidWith,
   };
   if (replaced) await afterTermsChanged(replaced);
   try {
     await (replaced
-      ? sendPlanChangeConfirmation(client, property, job, plan!, replaced, paid)
+      ? sendPlanChangeConfirmation(
+          client,
+          property,
+          offer,
+          plan!,
+          replaced,
+          paid,
+        )
       : plan
-        ? sendPlanConfirmation(client, property, job, plan, paid)
-        : sendBookingConfirmation(client, property, job, paid));
+        ? sendPlanConfirmation(client, property, offer, plan, paid)
+        : sendBookingConfirmation(client, property, jobs[0]!, paid));
   } catch (error) {
-    console.error(`booking confirmation for Job ${job.id} not sent:`, error);
+    console.error(
+      `booking confirmation for Job ${jobs[0]!.id} not sent:`,
+      error,
+    );
   }
-  await warnOfficeOfQuotesWithoutRoom(dayOf(job.startsAt));
+  for (const day of new Set(jobs.map((j) => dayOf(j.startsAt)))) {
+    await warnOfficeOfQuotesWithoutRoom(day);
+  }
   if (plan) await generateServicePlanJobs(plan.id);
 };
 
 type Paid = {
   depositCents: number;
+  // a one-off Job's, or a plan's first clean's
   totalCents: number;
   paymentMethod: string | null;
 };
@@ -638,29 +727,47 @@ type Paid = {
 const chargedTo = (paid: Paid) =>
   paid.paymentMethod ? `your ${paid.paymentMethod}` : "your card";
 
-const recurrenceLabel: Record<Recurrence, string> = {
-  weekly: "every week",
-  fortnightly: "every 2 weeks",
-  four_weekly: "every 4 weeks",
-};
+// a plan's weekdays, and what each clean on them costs
+const planPrices = (offer: Offer, paid: Paid, now = "") =>
+  offer.cleans.length === 1
+    ? `Each clean is ${now}${formatMoney(paid.totalCents)}, charged to ${chargedTo(paid)} when it's done.`
+    : `Each clean is charged to ${chargedTo(paid)} when it's done: ${offer.cleans
+        .map(
+          (c) =>
+            `${formatMoney(c.option.totalCents)} on ${weekdayName(c.startsAt)}s`,
+        )
+        .join(", ")}.`;
+
+const planOf = (plan: ServicePlan, offer: Offer, where = "") =>
+  describePlan(
+    plan.recurrence,
+    offer.cleans.map((c) => ({
+      startsAt: c.startsAt,
+      cleanType: c.option.cleanType,
+    })),
+    where,
+  );
 
 // one email for the whole plan: its Jobs after the first get only the
 // day-before reminder
 const sendPlanConfirmation = async (
   client: Client,
   property: Property,
-  job: Job,
+  offer: Offer,
   plan: ServicePlan,
   paid: Paid,
 ) => {
+  const first = offer.cleans[0]!.startsAt;
   await email.send({
     to: client.email,
     subject: "Your Service Plan with Empire Cleaning has started",
     ...compose(
       [
         `Hi ${firstNameOf(client.name)},`,
-        `Your Service Plan has started: a ${cleanTypeLabel[plan.cleanType]} at ${addressOf(property)} ${recurrenceLabel[plan.recurrence]}, on ${weekdayName(job.startsAt)}s at ${formatTime(job.startsAt)}. The first is on ${formatWhen(job.startsAt)}.`,
-        `Each clean is ${formatMoney(paid.totalCents)}, charged to ${chargedTo(paid)} when it's done.`,
+        offer.cleans.length === 1
+          ? `Your Service Plan has started: ${planOf(plan, offer, ` at ${addressOf(property)}`)}. The first is on ${formatWhen(first)}.`
+          : `Your Service Plan at ${addressOf(property)} has started: ${planOf(plan, offer)}. The first is on ${formatWhen(first)}.`,
+        planPrices(offer, paid),
         ...(paid.depositCents > 0
           ? [
               `We've taken your Deposit of ${formatMoney(paid.depositCents)}. We hold it for as long as the plan runs, and it comes off your last clean when the plan ends.`,
@@ -681,19 +788,20 @@ const sendPlanConfirmation = async (
 const sendPlanChangeConfirmation = async (
   client: Client,
   property: Property,
-  job: Job,
+  offer: Offer,
   plan: ServicePlan,
   replaced: Job[],
   paid: Paid,
 ) => {
+  const first = offer.cleans[0]!.startsAt;
   await email.send({
     to: client.email,
     subject: "Your Service Plan with Empire Cleaning has changed",
     ...compose(
       [
         `Hi ${firstNameOf(client.name)},`,
-        `Your Service Plan at ${addressOf(property)} has changed: from ${formatWhen(job.startsAt)}, it's a ${cleanTypeLabel[plan.cleanType]} ${recurrenceLabel[plan.recurrence]}, on ${weekdayName(job.startsAt)}s at ${formatTime(job.startsAt)}.`,
-        `Each clean is now ${formatMoney(paid.totalCents)}, charged to ${chargedTo(paid)} when it's done. Cleans before then go ahead as they were.`,
+        `Your Service Plan at ${addressOf(property)} has changed: from ${formatWhen(first)}, it's ${planOf(plan, offer)}.`,
+        `${planPrices(offer, paid, "now ")} Cleans before then go ahead as they were.`,
         ...(replaced.length > 0
           ? [
               `The ${replaced.length === 1 ? "clean" : "cleans"} you had booked from then on (${replaced.map((j) => formatWhen(j.startsAt)).join("; ")}) ${replaced.length === 1 ? "is" : "are"} cancelled, at no charge.`,

@@ -228,7 +228,8 @@ export const completedFirstClean = async ({
 /**
  * A Service Plan Quote for the home, offered unprompted and Sent by
  * `byAccountId`: a Standard Clean on `recurrence` from `startsAt`, at
- * moderate Condition and the Price List's Plan Discount, with no Add-ons.
+ * moderate Condition and the Price List's Plan Discount, with no Add-ons. Or
+ * every week on several weekdays, a Standard Clean from each of `startsAt`.
  */
 export const sentServicePlanQuote = async ({
   propertyId,
@@ -236,30 +237,36 @@ export const sentServicePlanQuote = async ({
   startsAt,
   recurrence = "weekly",
   crewSize = 1,
+  depositPercent,
 }: {
   propertyId: string;
   byAccountId: string;
-  startsAt: string;
+  startsAt: string | string[];
   recurrence?: "weekly" | "fortnightly" | "four_weekly";
   crewSize?: number;
+  depositPercent?: number;
 }) => {
   const { quote } = await startDraft(
     { propertyId, kind: "service_plan" },
     byAccountId,
   );
-  const at = new Date(startsAt);
   await saveDraft(quote.id, {
     addOns: [],
-    crewSize,
-    depositPercent: quote.depositPercent,
+    depositPercent: depositPercent ?? quote.depositPercent,
     validityDays: quote.validityDays,
-    proposedStart: { date: dayOf(at), time: timeOf(at) },
-    overrides: { deep: null, standard: null },
     plan: {
       recurrence,
-      cleanType: "standard",
       discountPercent: quote.plan!.discountPercent,
       condition: "moderate",
+      days: [startsAt].flat().map((s) => {
+        const at = new Date(s);
+        return {
+          start: { date: dayOf(at), time: timeOf(at) },
+          cleanType: "standard" as const,
+          crewSize,
+          override: null,
+        };
+      }),
     },
   });
   return sendQuote(quote.id);
@@ -276,7 +283,7 @@ export const startedServicePlan = async (
   const quote = await sentServicePlanQuote(plan);
   const accepted = await acceptQuote(
     quote.id,
-    { cleanType: "standard" },
+    {},
     { by: "office", accountId: plan.byAccountId },
   );
   if (accepted.status !== "accepted") throw new Error("not accepted");

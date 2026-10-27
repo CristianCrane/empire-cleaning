@@ -23,6 +23,8 @@ import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { charges, refunds } from "../payments/payments.schema.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
+import { jobQuotes } from "../quotes/job-quotes.ts";
+import { percentOf } from "../quotes/plan-days.ts";
 import {
   servicePlans,
   servicePlanVisits,
@@ -89,17 +91,17 @@ export const planOfJob = async (jobId: string, tx: Tx | typeof db = db) => {
 /**
  * The fee for a Late Cancellation or No Access of a Job, or a second Late
  * Reschedule of it: the Deposit amount. A one-off Job's own Deposit is kept
- * as the fee. A plan Job has none of its own, so the fee is the amount of
- * its plan's Deposit, charged afresh, and the held Deposit is untouched.
+ * as the fee. A plan Job has none of its own, so the fee is the Deposit
+ * percentage of its own price, as its Quote set them, charged afresh; the
+ * plan's held Deposit is untouched (ADR-0013).
  */
 export const lateFeeOf = async (jobId: string, tx: Tx | typeof db = db) => {
   const planId = await planOfJob(jobId, tx);
   if (!planId) return depositOf(jobId, tx);
-  const [row] = await tx
-    .select({ cents: sum(charges.amountCents).mapWith(Number) })
-    .from(charges)
-    .where(and(eq(charges.servicePlanId, planId), eq(charges.kind, "deposit")));
-  return row?.cents ?? 0;
+  const [{ quote, option }] = (await jobQuotes([jobId], tx)) as [
+    Awaited<ReturnType<typeof jobQuotes>>[number],
+  ];
+  return percentOf(option.totalCents, quote.depositPercent);
 };
 
 // what has been taken for a Job, less refunds
