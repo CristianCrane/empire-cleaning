@@ -8,6 +8,9 @@ import { ButtonLink } from "./Link.tsx";
 import { List, ListItem } from "./List.tsx";
 import { Section } from "./Section.tsx";
 import { StatusBadge } from "./StatusBadge.tsx";
+import { Cell, Column, Row, Table, TableBody, TableHeader } from "./Table.tsx";
+import { Tab, TabList, TabPanel, Tabs } from "./Tabs.tsx";
+import { TextField } from "./TextField.tsx";
 
 // how the components go together on a screen: the decisions the UX pass
 // made, each picked from a prototype. #96 has the variants, why each won,
@@ -189,6 +192,77 @@ function SchedulesAreCalendars() {
   );
 }
 
+function WorkListsAreTables() {
+  const quotes = [
+    { id: "1", client: "Priya Shah", status: "Requested", waiting: "3 days" },
+    { id: "2", client: "Ortiz Dental", status: "Requested", waiting: "5 days" },
+    { id: "3", client: "Sam Ng", status: "Sent", waiting: "8 days" },
+  ];
+  return (
+    <div className="flex flex-col gap-6">
+      <Rule title="A growing work list is a Table, with status Tabs and a search">
+        <p>
+          A list the Office works through, many items in a few statuses (open
+          Quotes), is a <code>Table</code>: sortable columns, longest waiting
+          first. A <code>Tab</code> per status, each with its count, narrows it,
+          and a search box above finds a Client or address. Keep both in the
+          URL, so coming Back keeps them.
+        </p>
+        <p>
+          Keep such a list to the work in hand (closed items live on their
+          Client's pages), so it can load whole and search in the browser,
+          without pages.
+        </p>
+      </Rule>
+      <Example verdict="Do">
+        <div className="flex flex-col gap-4">
+          <TextField
+            label="Search Quotes"
+            type="search"
+            placeholder="Client, business or address"
+          />
+          <Tabs>
+            <TabList aria-label="Status">
+              <Tab id="all" count={3}>
+                All
+              </Tab>
+              <Tab id="requested" count={2}>
+                Requested
+              </Tab>
+              <Tab id="sent" count={1}>
+                Sent
+              </Tab>
+            </TabList>
+            <TabPanel id="all">
+              <Table aria-label="Open Quotes">
+                <TableHeader>
+                  <Column isRowHeader>Client</Column>
+                  <Column>Status</Column>
+                  <Column>Waiting</Column>
+                </TableHeader>
+                <TableBody items={quotes}>
+                  {(q) => (
+                    <Row id={q.id}>
+                      <Cell>{q.client}</Cell>
+                      <Cell>
+                        <StatusBadge
+                          tone={q.status === "Sent" ? "info" : "warning"}
+                        >
+                          {q.status}
+                        </StatusBadge>
+                      </Cell>
+                      <Cell>{q.waiting}</Cell>
+                    </Row>
+                  )}
+                </TableBody>
+              </Table>
+            </TabPanel>
+          </Tabs>
+        </div>
+      </Example>
+    </div>
+  );
+}
 const meta = {
   title: "Patterns",
   parameters: { layout: "padded" },
@@ -207,4 +281,8 @@ export const ActionFirstToDoRows: Story = {
 
 export const SchedulesAsCalendars: Story = {
   render: () => <SchedulesAreCalendars />,
+};
+
+export const WorkListsAsTables: Story = {
+  render: () => <WorkListsAreTables />,
 };
