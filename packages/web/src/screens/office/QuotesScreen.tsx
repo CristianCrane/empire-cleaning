@@ -17,6 +17,7 @@ import {
   propertySummary,
   wantedCleaning,
 } from "../format.ts";
+import { QuotesListPrototype } from "./quotes-list.prototype.tsx";
 
 // The Office's open Quotes, newest first: Requested, Draft and Sent, and
 // those Expired lately, which may be revived. Closed ones are on their
@@ -35,61 +36,72 @@ export function QuotesScreen() {
           New Quote
         </Button>
       </div>
-      <Section title="Open Quotes">
-        <List
-          aria-label="Open Quotes"
-          onAction={(id) =>
-            void navigate({
-              to: "/office/quotes/$quoteId",
-              params: { quoteId: String(id) },
-            })
-          }
-          renderEmptyState={() => (
-            <p className="p-6 text-center text-fg-muted">No open Quotes.</p>
-          )}
-        >
-          {quotes.map((quote) => (
-            <ListItem
-              key={quote.id}
-              id={quote.id}
-              title={clientName(quote.client)}
-              description={[
-                addressOf(quote.property),
-                propertySummary(quote.property),
-                quote.asked
-                  ? quote.property.kind === "commercial"
-                    ? wantedCleaning(quote.asked)
-                    : conditionText(quote.asked.condition)
-                  : "Offered unprompted",
-                formatDate(quote.createdAt),
-              ].join(" · ")}
-              end={
-                // at most half the row, wrapping, so the name keeps room
-                <div className="flex max-w-1/2 flex-wrap justify-end gap-2">
-                  {quote.siteVisit === "needed" && (
-                    <StatusBadge tone="warning">Needs Site Visit</StatusBadge>
-                  )}
-                  {quote.siteVisit === "booked" && (
-                    <StatusBadge tone="info">Site Visit booked</StatusBadge>
-                  )}
-                  {quote.homePlanId
-                    ? quote.asked && (
-                        <StatusBadge tone="info">Plan change</StatusBadge>
-                      )
-                    : quote.asked?.wantsRegularService && (
-                        <StatusBadge tone="success">Regular visits</StatusBadge>
-                      )}
-                  <QuoteStatusBadge status={quote.status} />
-                  {quote.drafting &&
-                    (quote.status === "sent" || quote.status === "expired") && (
-                      <StatusBadge tone="info">Draft changes</StatusBadge>
-                    )}
-                </div>
+      {/* PROTOTYPE: the list's layouts, flipped with ?variant= (#103) */}
+      <QuotesListPrototype
+        quotes={quotes}
+        current={
+          <Section title="Open Quotes">
+            <List
+              aria-label="Open Quotes"
+              onAction={(id) =>
+                void navigate({
+                  to: "/office/quotes/$quoteId",
+                  params: { quoteId: String(id) },
+                })
               }
-            />
-          ))}
-        </List>
-      </Section>
+              renderEmptyState={() => (
+                <p className="p-6 text-center text-fg-muted">No open Quotes.</p>
+              )}
+            >
+              {quotes.map((quote) => (
+                <ListItem
+                  key={quote.id}
+                  id={quote.id}
+                  title={clientName(quote.client)}
+                  description={[
+                    addressOf(quote.property),
+                    propertySummary(quote.property),
+                    quote.asked
+                      ? quote.property.kind === "commercial"
+                        ? wantedCleaning(quote.asked)
+                        : conditionText(quote.asked.condition)
+                      : "Offered unprompted",
+                    formatDate(quote.createdAt),
+                  ].join(" · ")}
+                  end={
+                    // at most half the row, wrapping, so the name keeps room
+                    <div className="flex max-w-1/2 flex-wrap justify-end gap-2">
+                      {quote.siteVisit === "needed" && (
+                        <StatusBadge tone="warning">
+                          Needs Site Visit
+                        </StatusBadge>
+                      )}
+                      {quote.siteVisit === "booked" && (
+                        <StatusBadge tone="info">Site Visit booked</StatusBadge>
+                      )}
+                      {quote.homePlanId
+                        ? quote.asked && (
+                            <StatusBadge tone="info">Plan change</StatusBadge>
+                          )
+                        : quote.asked?.wantsRegularService && (
+                            <StatusBadge tone="success">
+                              Regular visits
+                            </StatusBadge>
+                          )}
+                      <QuoteStatusBadge status={quote.status} />
+                      {quote.drafting &&
+                        (quote.status === "sent" ||
+                          quote.status === "expired") && (
+                          <StatusBadge tone="info">Draft changes</StatusBadge>
+                        )}
+                    </div>
+                  }
+                />
+              ))}
+            </List>
+          </Section>
+        }
+      />
     </div>
   );
 }
