@@ -130,7 +130,7 @@ test("an Unassigned Job within 48 hours needs attention", async ({ page }) => {
   const item = page
     .getByRole("grid", { name: "Needs attention" })
     .getByRole("row", { name: /Client/ });
-  await expect(item).toContainText("Unassigned");
+  await expect(item).toContainText("Assign Staff");
   await expect(item).toContainText("Tue, Jan 6, 9:00 AM");
   await item.click();
   await expect(page).toHaveURL(JOB_SCREEN);

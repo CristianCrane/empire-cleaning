@@ -151,6 +151,9 @@ type Dragging = { job: ScheduledJob; grabbedAtPx: number };
  * where it would go. Given the clean's crew, times without a crew free for
  * it are marked: they can still be picked, for a Quote the Office may add a
  * Cleaner for, but the server refuses to book there.
+ *
+ * To only look and open (opensJobs, as on the Today screen), clicking a Job
+ * opens it and nothing moves.
  */
 export function ScheduleCalendar({
   days,
@@ -159,14 +162,18 @@ export function ScheduleCalendar({
   limits,
   proposed,
   crew,
+  opensJobs = false,
 }: {
   days: ScheduleDay[];
   onDrop?: (job: ScheduledJob, to: LocalDateTime) => void;
+  opensJobs?: boolean;
   onPick?: (at: LocalDateTime) => void;
   limits?: TimePickerProps["limits"];
   proposed?: Proposed;
   crew?: Crew & { hoursOnSite: number };
 }) {
+  // whether Jobs open on click, and whether they can be dragged to move
+  const opens = onDrop !== undefined || opensJobs;
   const proposedStart = proposed && hoursOf(proposed.start.time);
   const axis = axisFor(
     days.flatMap((d) => d.jobs),
@@ -268,7 +275,7 @@ export function ScheduleCalendar({
                     <MoreJobs
                       date={day.date}
                       jobs={layout.hidden}
-                      interactive={onDrop !== undefined}
+                      interactive={opens}
                     />
                   )
                 }
@@ -324,7 +331,8 @@ export function ScheduleCalendar({
                   layout={layout}
                   axisStart={axis.start}
                   narrow={maxLanes !== Infinity}
-                  interactive={onDrop !== undefined}
+                  interactive={opens}
+                  movable={onDrop !== undefined}
                   onDragStart={(grabbed) => {
                     dragging.current = grabbed;
                     setDraggedJob(grabbed.job);
@@ -551,6 +559,7 @@ function DayJobs({
   axisStart,
   narrow,
   interactive,
+  movable,
   onDragStart,
   onDragEnd,
 }: {
@@ -558,6 +567,7 @@ function DayJobs({
   axisStart: number;
   narrow: boolean;
   interactive: boolean;
+  movable: boolean;
   onDragStart: (grabbed: Dragging) => void;
   onDragEnd: () => void;
 }) {
@@ -611,7 +621,7 @@ function DayJobs({
         return (
           <div
             key={job.id}
-            draggable={interactive && job.movable}
+            draggable={movable && job.movable}
             onDragStart={(e) => {
               e.dataTransfer.effectAllowed = "move";
               e.dataTransfer.setData("text/plain", job.id);
@@ -622,7 +632,7 @@ function DayJobs({
               });
             }}
             onDragEnd={onDragEnd}
-            className={`absolute overflow-hidden rounded-md border-s-4 shadow-sm ${tone.block} ${!interactive ? "pointer-events-none" : job.movable ? "cursor-grab active:cursor-grabbing" : ""}`}
+            className={`absolute overflow-hidden rounded-md border-s-4 shadow-sm ${tone.block} ${!interactive ? "pointer-events-none" : movable && job.movable ? "cursor-grab active:cursor-grabbing" : ""}`}
             style={style}
           >
             {interactive ? (
