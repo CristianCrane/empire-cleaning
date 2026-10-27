@@ -190,6 +190,20 @@ test("the portal's screens fit every width", async ({ page }) => {
   }
 });
 
+test("page not found and something went wrong fit every width, in an area and out", async ({
+  page,
+}) => {
+  await requestQuoteAsGuest(casey);
+  await signedInAs(page, casey.email);
+  await expectFitsEveryWidth(page, "/no-such-page");
+  await expectFitsEveryWidth(
+    page,
+    "/portal/bills/00000000-0000-4000-8000-000000000000",
+  );
+  await page.route("**/api/clients/me", (route) => route.abort());
+  await expectFitsEveryWidth(page, "/portal/details");
+});
+
 test("a Sent Quote fits every width, for the Office and the Client", async ({
   page,
   browser,

@@ -80,6 +80,7 @@ import { PortalQuote } from "./screens/portal/PortalQuote.tsx";
 import { PortalRequest } from "./screens/portal/PortalRequest.tsx";
 import { PortalDetails } from "./screens/portal/PortalDetails.tsx";
 import { NotFound } from "./screens/NotFound.tsx";
+import { PageError } from "./screens/PageError.tsx";
 import { SignIn } from "./screens/SignIn.tsx";
 import { Welcome } from "./screens/Welcome.tsx";
 import {
@@ -507,7 +508,12 @@ const routeTree = rootRoute.addChildren([
 // Scroll restoration keeps each page's place: without it, refreshing a page's
 // data after a save (router.invalidate()) jumps it back to the top. New
 // pages still open at the top, and Back returns to where you were.
-export const router = createRouter({ routeTree, scrollRestoration: true });
+// A page that can't load shows PageError in its place, within its area.
+export const router = createRouter({
+  routeTree,
+  scrollRestoration: true,
+  defaultErrorComponent: PageError,
+});
 
 declare module "@tanstack/react-router" {
   interface Register {
