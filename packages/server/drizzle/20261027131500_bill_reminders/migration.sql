@@ -1,0 +1,1 @@
+ALTER TABLE "bills" ADD COLUMN "reminded_on" date;

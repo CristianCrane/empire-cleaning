@@ -18,7 +18,7 @@ import { jobs } from "../jobs/jobs.schema.ts";
 
 // due until it's paid, or voided by Office Staff; processing while a bank
 // debit paying it clears. Unpaid is separate (unpaid_since): a due Bill whose
-// automatic Charge failed.
+// automatic Charge failed, or one paid on its page and not by its due date.
 export const billStatus = pgEnum("bill_status", [
   "due",
   "processing",
@@ -69,7 +69,8 @@ export const bills = pgTable(
     // when its automatic Charge was first tried, so making Bills again tries
     // one never tried, as after a crash, and nothing twice
     chargeAttemptedAt: timestamp("charge_attempted_at", { withTimezone: true }),
-    // Unpaid: since its Charge first failed, and why the latest did
+    // Unpaid: since its Charge first failed, and why the latest did; or
+    // since the day after it was due, unpaid
     unpaidSince: timestamp("unpaid_since", { withTimezone: true }),
     unpaidReason: text("unpaid_reason"),
     // the payment the Client last started on its page, while a bank debit
@@ -78,6 +79,9 @@ export const bills = pgTable(
     // when it went to the Client: once made, and charged if it's charged
     // automatically
     sentAt: timestamp("sent_at", { withTimezone: true }),
+    // a Bill paid on its page: the day its latest reminder was for, so each
+    // goes once
+    remindedOn: date("reminded_on", { mode: "string" }),
     paidAt: timestamp("paid_at", { withTimezone: true }),
     paidVia: billPaidVia("paid_via"),
     // Office Staff recording a payment made another way

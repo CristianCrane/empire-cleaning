@@ -78,6 +78,16 @@ function Standing({ bill }: { bill: BillView }) {
     );
   }
   if (bill.status !== "due") return null;
+  if (bill.unpaid && bill.payment === "on_page") {
+    return (
+      <Notice tone="danger">
+        This Bill was due by {formatDay(bill.dueOn)} and hasn't been paid.
+        Please pay {formatMoney(bill.totalCents)} below. Until it's paid, any
+        Service Plan with cleans on it is On Hold: cleans already booked go
+        ahead, but we won't book any more.
+      </Notice>
+    );
+  }
   if (bill.unpaid) {
     return (
       <div className="flex flex-col gap-3 print:hidden">

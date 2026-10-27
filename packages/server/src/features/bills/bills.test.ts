@@ -13,7 +13,7 @@ import type {
 } from "@empire-cleaning/models";
 import { db } from "#db";
 import { confirmAssignment, offerAssignment } from "#features/assignments";
-import { makeDueBills } from "#features/bills";
+import { chaseBills, makeDueBills } from "#features/bills";
 import { cancelJob } from "#features/cancellation";
 import { findClientByEmail } from "#features/clients";
 import {
@@ -551,6 +551,193 @@ describe("Unpaid Bills", () => {
       .post(`/api/bills/${id}/outside-payment`)
       .send({ note: "again" })
       .expect(409);
+  });
+});
+
+describe("reminders and late Bills", () => {
+  // 3pm in New York, or 7am, before reminders go out
+  const at = (day: string, time = "20:00") => new Date(`${day}T${time}:00Z`);
+  const reminders = () =>
+    testEmail()
+      .to(BILLING_EMAIL)
+      .map((m) => m.subject)
+      .filter((s) => s.startsWith("Bill EC-000001 is"));
+
+  test("a Bill paid on its page is reminded 3 days before it's due, on the day, and weekly while late, each once", async () => {
+    const { office, clientId } = await billedJob({ payment: "on_page" });
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    const [{ id }] = (await billsOf(office, clientId)) as [BillSummary];
+    expect((await billOf(office, id)).dueOn).toBe("2026-01-26");
+
+    // none until 3 days before, from 8am
+    testClock().set(at("2026-01-22"));
+    expect(await chaseBills()).toBe(0);
+    testClock().set(at("2026-01-23", "12:00"));
+    expect(await chaseBills()).toBe(0);
+
+    // an email that fails goes on the next run
+    testClock().set(at("2026-01-23"));
+    testEmail().failSending();
+    expect(await chaseBills()).toBe(0);
+    testEmail().sendNormally();
+    expect(await chaseBills()).toBe(1);
+    expect(await chaseBills()).toBe(0);
+    const before = testEmail().lastTo(BILLING_EMAIL);
+    expect(before.subject).toBe("Bill EC-000001 is due Monday, January 26");
+    expect(before.text).toContain("Due by: Monday, January 26");
+    expect(before.html).toContain(`/portal/bills/${id}`);
+
+    testClock().set(at("2026-01-26"));
+    await Promise.all([chaseBills(), chaseBills()]);
+    expect(reminders()).toEqual([
+      "Bill EC-000001 is due Monday, January 26",
+      "Bill EC-000001 is due today",
+    ]);
+    expect((await billOf(office, id)).unpaid).toBeNull();
+
+    // Unpaid from the next day, and under Needs attention
+    testClock().set(at("2026-01-27"));
+    expect(await chaseBills()).toBe(0);
+    expect((await billOf(office, id)).unpaid).toEqual({
+      since: "2026-01-27T05:00:00.000Z",
+      reason: "not paid by its due date",
+    });
+    expect(
+      (await office.get("/api/dashboard/needs-attention").expect(200))
+        .body as NeedsAttentionItem[],
+    ).toContainEqual(
+      expect.objectContaining({
+        kind: "bill_unpaid",
+        bill: expect.objectContaining({ id }),
+      }),
+    );
+
+    // weekly while late
+    testClock().set(at("2026-02-02"));
+    expect(await chaseBills()).toBe(1);
+    testClock().set(at("2026-02-08"));
+    expect(await chaseBills()).toBe(0);
+    testClock().set(at("2026-02-09"));
+    expect(await chaseBills()).toBe(1);
+    expect(testEmail().lastTo(BILLING_EMAIL).subject).toBe(
+      "Bill EC-000001 is overdue",
+    );
+
+    // none once it's paid
+    const client = await signIn(casey.email);
+    const form = (
+      await client.post(`/api/bills/mine/${id}/payment-form`).expect(200)
+    ).body as BillPaymentForm;
+    testPayments().payBill(form.ref, "card");
+    await client
+      .post(`/api/bills/mine/${id}/payment`)
+      .send({ ref: form.ref })
+      .expect(200);
+    expect((await billOf(office, id)).unpaid).toBeNull();
+    testClock().set(at("2026-02-16"));
+    expect(await chaseBills()).toBe(0);
+    expect(reminders()).toHaveLength(4);
+  });
+
+  test("a voided Bill, or one charged automatically, is never reminded", async () => {
+    const { office, clientId } = await billedJob({ payment: "on_page" });
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    const [{ id }] = (await billsOf(office, clientId)) as [BillSummary];
+    await office
+      .post(`/api/bills/${id}/void`)
+      .send({ reason: "Sent to the wrong address" })
+      .expect(200);
+    for (const day of ["2026-01-23", "2026-01-26", "2026-01-27"]) {
+      testClock().set(at(day));
+      expect(await chaseBills()).toBe(0);
+    }
+    expect((await billOf(office, id)).unpaid).toBeNull();
+
+    // the next week's, charged automatically and declined, is Unpaid but
+    // not reminded
+    await setBilling(office, clientId).expect(200);
+    testPayments().failCharges();
+    testClock().set(at("2026-01-19"));
+    await makeDueBills();
+    testClock().set(at("2026-01-26"));
+    expect(await chaseBills()).toBe(0);
+  });
+
+  test("a late Bill puts the Client's plan On Hold, until a payment Office Staff record lifts it", async () => {
+    const office = await signInAsOffice();
+    const me = (await office.get("/api/me").expect(200))
+      .body as SignedInAccount;
+    const { id: coryId } = await cory();
+    const first = await acceptedJob({
+      startsAt: WEDNESDAY_9AM,
+      byAccountId: me.id,
+    });
+    const offered = await offerAssignment(first.id, coryId, me.id);
+    await confirmAssignment(coryId, offered.assignments[0]!.id);
+    testClock().set(WEDNESDAY_NOON);
+    await completeJob(coryId, first.id, {
+      condition: "moderate",
+      reports: [],
+    });
+    const { planId, firstJob } = await startedServicePlan({
+      propertyId: first.propertyId,
+      byAccountId: me.id,
+      startsAt: "2026-01-08T14:00:00Z",
+    });
+    const client = (await findClientByEmail(casey.email))!;
+    await addPremises(client.id);
+    await setBilling(office, client.id, { payment: "on_page" }).expect(200);
+    const placed = await offerAssignment(firstJob.id, coryId, me.id);
+    await confirmAssignment(coryId, placed.assignments[0]!.id);
+    testClock().set(new Date("2026-01-08T17:00:00Z"));
+    await completeJob(coryId, firstJob.id, {
+      condition: "moderate",
+      reports: [],
+    });
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    const [{ id }] = (await billsOf(office, client.id)) as [BillSummary];
+    const planStatus = async () =>
+      (
+        await db
+          .select({ status: servicePlans.status })
+          .from(servicePlans)
+          .where(eq(servicePlans.id, planId))
+      )[0]!.status;
+
+    testClock().set(at("2026-01-26"));
+    await chaseBills();
+    expect(testEmail().lastTo(BILLING_EMAIL).text).toContain(
+      "If it isn't paid by then, your Service Plan goes On Hold",
+    );
+    expect(await planStatus()).toBe("active");
+
+    testClock().set(at("2026-01-27"));
+    await chaseBills();
+    expect(await planStatus()).toBe("on_hold");
+    expect(
+      (
+        (await office.get(`/api/service-plans/${planId}`).expect(200))
+          .body as OfficeServicePlan
+      ).unpaidBills,
+    ).toHaveLength(1);
+
+    testClock().set(at("2026-02-02"));
+    await chaseBills();
+    expect(testEmail().lastTo(BILLING_EMAIL).text).toContain(
+      "your Service Plan is On Hold",
+    );
+
+    await office
+      .post(`/api/bills/${id}/outside-payment`)
+      .send({ note: "Cheque 1042" })
+      .expect(200);
+    expect(await planStatus()).toBe("active");
+    expect(testEmail().lastTo(BILLING_EMAIL).text).toContain(
+      "Your Service Plan is back on",
+    );
   });
 });
 

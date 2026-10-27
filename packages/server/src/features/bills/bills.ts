@@ -4,6 +4,7 @@ import {
   asc,
   desc,
   eq,
+  gt,
   gte,
   inArray,
   isNotNull,
@@ -29,6 +30,7 @@ import {
   clock,
   dayOf,
   startOfDay,
+  timeOf,
   weekdayOf,
 } from "../../services/clock/index.ts";
 import {
@@ -47,6 +49,7 @@ import { counts, settleJob } from "../completion/balance.ts";
 import { adjustments } from "../completion/completion.schema.ts";
 import { adjustmentLabel } from "../completion/completion.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
+import { REMINDER_TIME } from "../jobs/reminders.ts";
 import { payerFor } from "../payments/payments.ts";
 import {
   charges,
@@ -57,12 +60,19 @@ import { properties, type Property } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
 import { jobQuotes } from "../quotes/job-quotes.ts";
 import { holdOrResumePlan } from "../service-plans/on-hold.ts";
-import { servicePlanVisits } from "../service-plans/service-plans.schema.ts";
+import {
+  servicePlans,
+  servicePlanVisits,
+} from "../service-plans/service-plans.schema.ts";
 import { billedOf, isBilledWeekly, owesOnBill } from "./billed-weekly.ts";
 import { billLines, bills, type Bill, type BillLine } from "./bills.schema.ts";
 
 // a credit no Bill follows within this long is refunded (ADR-0016)
 export const CREDIT_REFUND_DAYS = 30;
+// a Bill paid on its page is first reminded this many days before it's due
+export const BILL_REMINDER_DAYS = 3;
+// why a Bill paid on its page is Unpaid
+export const LATE_REASON = "not paid by its due date";
 const DAY_MS = 86_400_000;
 
 const cleanTypeLabel = { deep: "Deep Clean", standard: "Standard Clean" };
@@ -1000,6 +1010,156 @@ const refundCredit = async (clientId: string, cutoff: Date) =>
     return { billId: credit.bill.id, cents };
   });
 
+// ---- the Clock: reminders and late Bills ----
+
+// The day of the latest reminder a Bill paid on its page is owed by `today`:
+// 3 days before it's due, on the day, then each week after while it's
+// unpaid; null before the first.
+export const reminderDayOf = (dueOn: string, today: string) => {
+  if (today < addDays(dueOn, -BILL_REMINDER_DAYS)) return null;
+  if (today < dueOn) return addDays(dueOn, -BILL_REMINDER_DAYS);
+  let day = dueOn;
+  while (addDays(day, 7) <= today) day = addDays(day, 7);
+  return day;
+};
+
+// a Bill paid on its page with something still to pay, and no bank debit
+// paying it on its way
+const onPageToPay = () =>
+  and(
+    eq(bills.payment, "on_page"),
+    eq(bills.status, "due"),
+    gt(bills.totalCents, 0),
+  );
+
+/**
+ * Makes each Bill paid on its page and not paid by its due date Unpaid,
+ * from the day after, so the Client's Service Plans with Jobs on it are On
+ * Hold until it's paid; then sends the reminders such Bills are owed. Safe
+ * to run as often as you like, and on more than one server.
+ *
+ * Nothing calls this but the timer in src/index.ts (and tests).
+ */
+export const chaseBills = async () => {
+  const late = await db
+    .select({ id: bills.id })
+    .from(bills)
+    .where(
+      and(
+        onPageToPay(),
+        isNull(bills.unpaidSince),
+        lt(bills.dueOn, dayOf(clock.now())),
+      ),
+    );
+  for (const { id } of late) {
+    try {
+      await markLate(id);
+    } catch (error) {
+      console.error(`Bill ${id} not made Unpaid:`, error);
+    }
+  }
+  return sendBillReminders();
+};
+
+const markLate = (billId: string) =>
+  db.transaction(async (tx) => {
+    const [bill] = await tx
+      .select()
+      .from(bills)
+      .where(eq(bills.id, billId))
+      .for("update");
+    if (bill?.status !== "due" || bill.unpaidSince) return;
+    await tx
+      .update(bills)
+      .set({
+        unpaidSince: startOfDay(addDays(bill.dueOn, 1)),
+        unpaidReason: LATE_REASON,
+      })
+      .where(eq(bills.id, billId));
+    await holdOrResumePlansOf(billId, tx);
+  });
+
+/**
+ * From 8am (New York), emails each reminder a Bill paid on its page is owed
+ * (see reminderDayOf), once, while it's still to pay: none for a day on or
+ * before the one the Bill itself went out, and after a gap only the latest.
+ * Each is claimed before its email goes, and let go again if the email
+ * fails, so the next run tries again.
+ */
+const sendBillReminders = async () => {
+  const now = clock.now();
+  if (timeOf(now) < REMINDER_TIME) return 0;
+  const today = dayOf(now);
+  const owed = await db
+    .select()
+    .from(bills)
+    .where(
+      and(
+        onPageToPay(),
+        isNotNull(bills.sentAt),
+        lte(bills.dueOn, addDays(today, BILL_REMINDER_DAYS)),
+      ),
+    )
+    .orderBy(asc(bills.dueOn));
+
+  let sent = 0;
+  for (const bill of owed) {
+    const day = reminderDayOf(bill.dueOn, today)!;
+    if (day <= dayOf(bill.sentAt!)) continue;
+    if (bill.remindedOn && bill.remindedOn >= day) continue;
+    const [claimed] = await db
+      .update(bills)
+      .set({ remindedOn: day })
+      .where(
+        and(
+          eq(bills.id, bill.id),
+          onPageToPay(),
+          or(isNull(bills.remindedOn), lt(bills.remindedOn, day)),
+        ),
+      )
+      .returning();
+    if (!claimed) continue;
+
+    try {
+      const plans = await hasLivePlansOn(bill.id);
+      await sendBill(
+        bill.id,
+        "reminder",
+        !plans
+          ? []
+          : claimed.unpaidSince
+            ? [ON_HOLD_LINE]
+            : [
+                "If it isn't paid by then, your Service Plan goes On Hold until it is: cleans already booked go ahead, but we won't book any more.",
+              ],
+      );
+      sent += 1;
+    } catch (error) {
+      console.error(`reminder for Bill ${bill.id} not sent:`, error);
+      await db
+        .update(bills)
+        .set({ remindedOn: bill.remindedOn })
+        .where(and(eq(bills.id, bill.id), eq(bills.remindedOn, day)));
+    }
+  }
+  return sent;
+};
+
+// whether a Bill has Jobs on it from Service Plans that haven't Ended
+const hasLivePlansOn = async (billId: string) => {
+  const [found] = await db
+    .select({ id: servicePlans.id })
+    .from(billLines)
+    .innerJoin(servicePlanVisits, eq(servicePlanVisits.jobId, billLines.jobId))
+    .innerJoin(
+      servicePlans,
+      eq(servicePlans.id, servicePlanVisits.servicePlanId),
+    )
+    .where(and(eq(billLines.billId, billId), ne(servicePlans.status, "ended")))
+    .limit(1);
+  return found !== undefined;
+};
+
 // ---- views ----
 
 const toSummary = (
@@ -1101,7 +1261,7 @@ const notify = async (what: string, send: () => Promise<void>) => {
   }
 };
 
-type Occasion = "made" | "paid" | "voided" | "debit_failed";
+type Occasion = "made" | "reminder" | "paid" | "voided" | "debit_failed";
 
 // The whole Bill, as an email to the billing email, or else the Client's:
 // its number, week, due date, each line, tax and total, with why it's sent
@@ -1149,6 +1309,25 @@ const sendBill = async (
               `Your bill ${number} from Empire Cleaning`,
               `Here's your bill for the week: ${total}, due by ${formatDay(bill.dueOn)}. You can pay it by card or bank transfer on its page.`,
             ];
+      case "reminder": {
+        const today = dayOf(clock.now());
+        if (today < bill.dueOn) {
+          return [
+            `Bill ${number} is due ${formatDay(bill.dueOn)}`,
+            `A reminder that bill ${number}, ${total}, is due by ${formatDay(bill.dueOn)}. You can pay it by card or bank transfer on its page.`,
+          ];
+        }
+        if (today === bill.dueOn) {
+          return [
+            `Bill ${number} is due today`,
+            `A reminder that bill ${number}, ${total}, is due today. You can pay it by card or bank transfer on its page.`,
+          ];
+        }
+        return [
+          `Bill ${number} is overdue`,
+          `Bill ${number}, ${total}, was due by ${formatDay(bill.dueOn)} and hasn't been paid yet. Please pay it on its page, by card or bank transfer.`,
+        ];
+      }
       case "paid":
         return [
           `Your receipt for bill ${number}`,
