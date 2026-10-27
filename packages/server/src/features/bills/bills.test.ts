@@ -5,6 +5,7 @@ import type {
   BillPaymentForm,
   BillSummary,
   BillView,
+  ClientBillingSaved,
   OfficeClientView,
   CompletionInput,
   NeedsAttentionItem,
@@ -25,7 +26,9 @@ import {
   undoCompletion,
 } from "#features/completion";
 import { jobs } from "#features/jobs";
+import { currentPriceList } from "#features/price-list";
 import { servicePlans } from "#features/service-plans";
+import { formatMoney } from "#services/email";
 import { createStaff, setUsualWeek } from "#features/staff";
 import {
   api,
@@ -83,13 +86,15 @@ const setBilling = (
   });
 
 /**
- * Casey's Deep Clean on Wednesday, booked with a 25% Deposit, done by Cory
- * at noon; Casey has business premises and is billed weekly, as `billing`
- * sets, from this week. The clock is left at noon on Wednesday.
+ * Casey's Deep Clean on Wednesday, booked with a 25% Deposit and no Add-ons
+ * unless `booked` says otherwise, done by Cory at noon; Casey has business
+ * premises and is billed weekly, as `billing` sets, from this week. The
+ * clock is left at noon on Wednesday.
  */
 const billedJob = async (
   billing: Parameters<typeof setBilling>[2] = {},
   reports: CompletionInput["reports"] = [],
+  booked: { depositPercent?: number; addOns?: string[] } = {},
 ) => {
   const office = await signInAsOffice();
   const me = (await office.get("/api/me").expect(200)).body as SignedInAccount;
@@ -97,6 +102,7 @@ const billedJob = async (
   const job = await acceptedJob({
     startsAt: WEDNESDAY_9AM,
     byAccountId: me.id,
+    ...booked,
   });
   const client = (await findClientByEmail(casey.email))!;
   await addPremises(client.id);
@@ -161,9 +167,9 @@ describe("weekly billing settings", () => {
         termsDays: 30,
         billingEmail: "Accounts@Acme.example.com",
       }).expect(200)
-    ).body as OfficeClientView;
+    ).body as ClientBillingSaved;
     // from the Monday of this week
-    expect(on.billing).toEqual({
+    expect(on.client.billing).toEqual({
       weeklyFrom: "2026-01-05",
       canBillWeekly: true,
       payment: "on_page",
@@ -173,8 +179,11 @@ describe("weekly billing settings", () => {
 
     const off = (
       await setBilling(office, client.id, { weekly: false }).expect(200)
-    ).body as OfficeClientView;
-    expect(off.billing.weeklyFrom).toBeNull();
+    ).body as ClientBillingSaved;
+    expect(off.client.billing.weeklyFrom).toBeNull();
+    // nothing was done, so nothing owed is settled
+    expect(off.settled).toEqual([]);
+    expect(testEmail().to(BILLING_EMAIL)).toEqual([]);
   });
 });
 
@@ -879,17 +888,159 @@ describe("putting Bills right", () => {
     await makeDueBills();
     expect(testPayments().refunds).toHaveLength(1);
   });
+});
 
-  test("switching weekly billing off charges what isn't billed yet per Job", async () => {
-    const { office, clientId, priceCents, depositCents } = await billedJob();
+describe("switching weekly billing off", () => {
+  const switchOff = async (office: Agent, clientId: string) =>
+    (await setBilling(office, clientId, { weekly: false }).expect(200))
+      .body as ClientBillingSaved;
+
+  test("charges what isn't billed yet per Job, and tells the Client and the Office what it charged", async () => {
+    const { office, clientId, jobId, priceCents, depositCents } =
+      await billedJob();
     expect(testPayments().charges).toHaveLength(1);
 
-    await setBilling(office, clientId, { weekly: false }).expect(200);
-    expect(testPayments().charges.at(-1)!.amount).toBe(
-      priceCents - depositCents,
+    const { settled } = await switchOff(office, clientId);
+    const owed = priceCents - depositCents;
+    expect(testPayments().charges.at(-1)!.amount).toBe(owed);
+    expect(settled).toEqual([
+      {
+        jobId,
+        label: expect.stringMatching(/^Deep Clean at .*, Wednesday, January 7/),
+        chargedCents: owed,
+        refundedCents: 0,
+        unpaidCents: null,
+      },
+    ]);
+    const notice = testEmail().lastTo(BILLING_EMAIL);
+    expect(notice.subject).toBe("You're now charged per clean");
+    expect(notice.text).toContain(
+      `${settled[0]!.label}: charged ${formatMoney(owed)}`,
     );
+    expect(notice.text).toContain("Bills already sent stay due");
+
     testClock().set(NEXT_MONDAY);
     await makeDueBills();
     expect(await billsOf(office, clientId)).toEqual([]);
+  });
+
+  test("refunds what a Job no longer owes", async () => {
+    const oven = (await currentPriceList()).addOns.find(
+      (a) => a.name === "Inside the oven",
+    )!;
+    const { office, clientId } = await billedJob(
+      {},
+      [{ kind: "add_on_not_done", addOnKey: oven.key, reason: "In use" }],
+      { depositPercent: 100, addOns: [oven.name] },
+    );
+    // its Deposit covered more than it now owes, but that's for the Bill
+    expect(testPayments().refunds).toEqual([]);
+
+    const { settled } = await switchOff(office, clientId);
+    const [refund] = testPayments().refunds;
+    expect(refund!.amount).toBeGreaterThan(0);
+    expect(settled).toMatchObject([
+      { chargedCents: 0, refundedCents: refund!.amount, unpaidCents: null },
+    ]);
+    expect(testEmail().lastTo(BILLING_EMAIL).text).toContain(
+      `refunded ${formatMoney(refund!.amount)}`,
+    );
+  });
+
+  test("a Charge that fails leaves the Job Unpaid and the plan On Hold, and says so", async () => {
+    const office = await signInAsOffice();
+    const me = (await office.get("/api/me").expect(200))
+      .body as SignedInAccount;
+    const { id: coryId } = await cory();
+    const first = await acceptedJob({
+      startsAt: WEDNESDAY_9AM,
+      byAccountId: me.id,
+    });
+    const offered = await offerAssignment(first.id, coryId, me.id);
+    await confirmAssignment(coryId, offered.assignments[0]!.id);
+    testClock().set(WEDNESDAY_NOON);
+    await completeJob(coryId, first.id, {
+      condition: "moderate",
+      reports: [],
+    });
+    // a weekly plan from Thursday the 8th, its first clean billed weekly
+    const { planId, firstJob } = await startedServicePlan({
+      propertyId: first.propertyId,
+      byAccountId: me.id,
+      startsAt: "2026-01-08T14:00:00Z",
+    });
+    const client = (await findClientByEmail(casey.email))!;
+    await addPremises(client.id);
+    await setBilling(office, client.id).expect(200);
+    const placed = await offerAssignment(firstJob.id, coryId, me.id);
+    await confirmAssignment(coryId, placed.assignments[0]!.id);
+    testClock().set(new Date("2026-01-08T17:00:00Z"));
+    await completeJob(coryId, firstJob.id, {
+      condition: "moderate",
+      reports: [],
+    });
+
+    testPayments().failCharges();
+    const { settled } = await switchOff(office, client.id);
+    // the first Job was paid in full when it was done, so only the plan's
+    // is settled
+    expect(settled).toEqual([
+      expect.objectContaining({
+        jobId: firstJob.id,
+        chargedCents: 0,
+        unpaidCents: expect.any(Number),
+      }),
+    ]);
+    const [job] = await db.select().from(jobs).where(eq(jobs.id, firstJob.id));
+    expect(job!.unpaidSince).not.toBeNull();
+    const [plan] = await db
+      .select()
+      .from(servicePlans)
+      .where(eq(servicePlans.id, planId));
+    expect(plan!.status).toBe("on_hold");
+
+    const notice = testEmail().lastTo(BILLING_EMAIL);
+    expect(notice.subject).toBe("We couldn't take payment for your cleans");
+    expect(notice.text).toContain(
+      `couldn't charge ${formatMoney(settled[0]!.unpaidCents!)}`,
+    );
+    expect(notice.text).toContain("update your Payment Method");
+    expect(notice.text).toContain("Service Plan is On Hold");
+    expect(notice.html).toContain("/portal/payment-method");
+  });
+
+  test("with nothing owed, sends nothing about money", async () => {
+    const { office, clientId } = await billedJob({ payment: "on_page" });
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    const sent = testEmail().to(BILLING_EMAIL).length;
+    const charged = testPayments().charges.length;
+
+    // the Job is on Monday's Bill, which stays due
+    const { settled } = await switchOff(office, clientId);
+    expect(settled).toEqual([]);
+    expect(testPayments().charges).toHaveLength(charged);
+    expect(testEmail().to(BILLING_EMAIL)).toHaveLength(sent);
+  });
+
+  test("voiding a Bill afterwards charges its Jobs per Job, and says what it charged", async () => {
+    const { office, clientId, priceCents, depositCents } = await billedJob({
+      payment: "on_page",
+    });
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    const [{ id }] = (await billsOf(office, clientId)) as [BillSummary];
+    await switchOff(office, clientId);
+
+    await office
+      .post(`/api/bills/${id}/void`)
+      .send({ reason: "Sent to the wrong address" })
+      .expect(200);
+    const owed = priceCents - depositCents;
+    expect(testPayments().charges.at(-1)!.amount).toBe(owed);
+    const notice = testEmail().lastTo(BILLING_EMAIL);
+    expect(notice.subject).toBe("Bill EC-000001 is cancelled");
+    expect(notice.text).toContain("Here's what we've settled for it per clean");
+    expect(notice.text).toContain(`charged ${formatMoney(owed)}`);
   });
 });

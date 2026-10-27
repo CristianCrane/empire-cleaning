@@ -363,7 +363,8 @@ export const addPremises = async (clientId: string) => {
  * home from Thursday the 8th, whose first Job, done that day, is on the Bill
  * too. With `failing`, its automatic Charge is declined, so it's Unpaid (and
  * the plan On Hold), and Charges keep failing until failCharges(null). The
- * clock is left at 10am on Monday the 12th.
+ * clock is left at 10am on Monday the 12th; with `unbilled`, it stops before
+ * then, at noon on the day the last Job was done, and no Bill is made yet.
  */
 export const billedWeek = async ({
   byAccountId,
@@ -371,12 +372,14 @@ export const billedWeek = async ({
   billingEmail = null,
   plan = false,
   failing = false,
+  unbilled = false,
 }: {
   byAccountId: string;
   payment?: BillPayment;
   billingEmail?: string | null;
   plan?: boolean;
   failing?: boolean;
+  unbilled?: boolean;
 }) => {
   const cory = await createStaff({
     name: "Cory Cleaner",
@@ -421,6 +424,9 @@ export const billedWeek = async ({
     });
   }
 
+  if (unbilled) {
+    return { clientId: client.id, billId: null, jobId: job.id, planId };
+  }
   testClock().set(new Date("2026-01-12T15:00:00Z"));
   if (failing) testPayments().failCharges();
   await makeDueBills();

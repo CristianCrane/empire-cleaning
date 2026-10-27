@@ -75,6 +75,30 @@ test(
   },
 );
 
+test("switching weekly billing off shows what it charged per Job", async ({
+  page,
+}) => {
+  const { clientId } = await billed({ unbilled: true });
+  await signedInAs(page, olive.email);
+  await page.goto(`/office/clients/${clientId}`);
+
+  const billing = page.getByRole("region", { name: "Billing" });
+  await billing.getByRole("button", { name: "Edit" }).click();
+  const dialog = page.getByRole("dialog", { name: "Billing" });
+  await dialog.getByText("Bill weekly").click();
+  await dialog.getByRole("button", { name: "Save" }).click();
+
+  await expect(dialog).toContainText("We've emailed the Client what we did");
+  await expect(dialog).toContainText(/Deep Clean at 41-12 Austin St/);
+  await expect(dialog).toContainText(/Charged \$\d/);
+  expect((await emailsTo(casey.email)).at(-1)!.subject).toBe(
+    "You're now charged per clean",
+  );
+  await dialog.getByRole("button", { name: "Done" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(billing).toContainText("Per Job, when each is done");
+});
+
 test("a Client with only a home has no weekly billing to set", async ({
   page,
 }) => {

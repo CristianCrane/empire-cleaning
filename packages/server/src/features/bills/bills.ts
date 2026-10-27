@@ -20,7 +20,8 @@ import type {
   BillSummary,
   BillView,
   ClientBillingInput,
-  OfficeClientView,
+  ClientBillingSaved,
+  SettledJobView,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import env from "../../env.ts";
@@ -45,7 +46,12 @@ import { paymentGateway } from "../../services/payment-gateway/index.ts";
 import { ON_HOLD_LINE } from "../cancellation/cancellation.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { officeClientView } from "../clients/clients.ts";
-import { counts, settleJob } from "../completion/balance.ts";
+import {
+  counts,
+  paymentOf,
+  settleJob,
+  type Settled,
+} from "../completion/balance.ts";
 import { adjustments } from "../completion/completion.schema.ts";
 import { adjustmentLabel } from "../completion/completion.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
@@ -778,11 +784,20 @@ export const voidBill = async (
     .select()
     .from(clients)
     .where(eq(clients.id, voided.clientId));
-  if (!client!.billedWeeklyFrom) {
-    for (const jobId of await jobsOn(billId)) await settleJob(jobId);
-  }
+  const settled = client!.billedWeeklyFrom
+    ? []
+    : await settleEach(await jobsOn(billId));
   await notify(`Voided notice for Bill ${billId}`, () =>
-    sendBill(billId, "voided"),
+    sendBill(
+      billId,
+      "voided",
+      settled.length > 0
+        ? [
+            "Here's what we've settled for it per clean:",
+            ...settledLines(settled),
+          ]
+        : [],
+    ),
   );
   return billView(billId);
 };
@@ -854,7 +869,7 @@ const commercial = async (clientId: string) => {
 export const setBilling = async (
   clientId: string,
   input: ClientBillingInput,
-): Promise<OfficeClientView> => {
+): Promise<ClientBillingSaved> => {
   const [client] = await db
     .select()
     .from(clients)
@@ -883,6 +898,7 @@ export const setBilling = async (
     .where(eq(clients.id, clientId));
 
   const was = client.billedWeeklyFrom;
+  let settled: SettledJob[] = [];
   if (from !== was) {
     // switched on, its Unpaid Jobs this week wait for the Bill; switched
     // off, everything owed since is charged or refunded per Job
@@ -902,9 +918,155 @@ export const setBilling = async (
         ),
       )
       .orderBy(asc(jobs.startsAt));
-    for (const { id } of affected) await settleJob(id);
+    if (from) {
+      for (const { id } of affected) await settleJob(id);
+    } else {
+      settled = await settleEach(affected.map((j) => j.id));
+      if (settled.length > 0) {
+        await notify(`Per-clean billing notice for Client ${clientId}`, () =>
+          tellChargedPerClean(clientId, settled),
+        );
+      }
+    }
   }
-  return (await officeClientView(clientId))!;
+  return {
+    client: (await officeClientView(clientId))!,
+    settled: settled.map(toSettledView),
+  };
+};
+
+// ---- settling per Job, once weekly billing no longer takes a Job ----
+
+// a Job settled on its own whose money moved, or couldn't be taken
+type SettledJob = {
+  job: Job;
+  property: Property;
+  settled: Settled;
+  // what its failed Charge left owing
+  unpaidCents: number | null;
+};
+
+// Settles each Job on its own, in order, and keeps those whose money moved
+// or couldn't be taken
+const settleEach = async (jobIds: string[]) => {
+  const moved: SettledJob[] = [];
+  for (const jobId of jobIds) {
+    const settled = await settleJob(jobId);
+    if (!settled.chargedCents && !settled.refundedCents && !settled.failure) {
+      continue;
+    }
+    const [found] = await db
+      .select({ job: jobs, property: properties })
+      .from(jobs)
+      .innerJoin(properties, eq(properties.id, jobs.propertyId))
+      .where(eq(jobs.id, jobId));
+    const { job, property } = found!;
+    moved.push({
+      job,
+      property,
+      settled,
+      unpaidCents: settled.failure ? (await paymentOf(job)).owedCents : null,
+    });
+  }
+  return moved;
+};
+
+// what a Job is, as its lines on a Bill name it
+const labelOf = (job: Job, property: Property) => {
+  const what = `${cleanTypeLabel[job.cleanType]} at ${addressOf(property)}, ${formatWhen(job.startsAt)}`;
+  return job.status === "cancelled" || job.status === "no_access"
+    ? `${feeLabel[job.status]}: ${what}`
+    : what;
+};
+
+const toSettledView = (s: SettledJob): SettledJobView => ({
+  jobId: s.job.id,
+  label: labelOf(s.job, s.property),
+  chargedCents: s.settled.chargedCents,
+  refundedCents: s.settled.refundedCents,
+  unpaidCents: s.unpaidCents,
+});
+
+// What settling per Job moved, as lines for the Client: each Job with what
+// was charged, refunded or couldn't be, then what to do about one that
+// couldn't, and what that did to their Service Plan
+const settledLines = (settled: SettledJob[]) => {
+  const card = settled[0]?.settled.paymentMethod ?? "card";
+  const lines = [
+    settled
+      .map((s) => {
+        const moved = [
+          ...(s.settled.chargedCents > 0
+            ? [`charged ${formatMoney(s.settled.chargedCents)}`]
+            : []),
+          ...(s.settled.refundedCents > 0
+            ? [`refunded ${formatMoney(s.settled.refundedCents)}`]
+            : []),
+          ...(s.unpaidCents !== null
+            ? [`couldn't charge ${formatMoney(s.unpaidCents)}`]
+            : []),
+        ];
+        return `${labelOf(s.job, s.property)}: ${moved.join(", ")}`;
+      })
+      .join("\n"),
+  ];
+  const charged = settled.some((s) => s.settled.chargedCents > 0);
+  const refunded = settled.some((s) => s.settled.refundedCents > 0);
+  if (charged || refunded) {
+    const what =
+      charged && refunded
+        ? "Charges and refunds are"
+        : charged
+          ? "Charges are"
+          : "Refunds are";
+    lines.push(
+      `${what} to your ${card}.${refunded ? " A refund can take a few days to reach you." : ""}`,
+    );
+  }
+  if (settled.some((s) => s.unpaidCents !== null)) {
+    lines.push(
+      `We couldn't charge your ${card}. Please update your Payment Method and we'll try again straight away.`,
+    );
+  }
+  if (settled.some((s) => s.settled.plan === "held")) {
+    lines.push(ON_HOLD_LINE);
+  } else if (settled.some((s) => s.settled.plan === "resumed")) {
+    lines.push(
+      "Your Service Plan is back on, and we'll book your cleans as usual.",
+    );
+  }
+  return lines;
+};
+
+// tells the Client they're charged per clean again, and what that charged
+// for what no Bill had taken yet
+const tellChargedPerClean = async (clientId: string, settled: SettledJob[]) => {
+  const [client] = await db
+    .select()
+    .from(clients)
+    .where(eq(clients.id, clientId));
+  const unpaid = settled.some((s) => s.unpaidCents !== null);
+  await email.send({
+    to: client!.billingEmail ?? client!.email,
+    subject: unpaid
+      ? "We couldn't take payment for your cleans"
+      : "You're now charged per clean",
+    ...compose(
+      [
+        `Hi ${firstNameOf(client!.name)},`,
+        "We've stopped billing you weekly, so from now on each clean is charged to your card when it's done. Bills already sent stay due as they are.",
+        "Here's what we've settled for cleans no bill has covered yet:",
+        ...settledLines(settled),
+        "Prices include tax.",
+      ],
+      unpaid
+        ? {
+            href: `${env.CORS_ORIGIN_URL}/portal/payment-method`,
+            label: "Update your Payment Method",
+          }
+        : { href: `${env.CORS_ORIGIN_URL}/portal`, label: "See your cleans" },
+    ),
+  });
 };
 
 // ---- the Clock: credits ----

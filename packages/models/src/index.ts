@@ -1479,6 +1479,25 @@ export type ClientBillingInput = {
   billingEmail: string | null;
 };
 
+// what settling one Job on its own moved, once weekly billing no longer
+// takes it
+export type SettledJobView = {
+  jobId: string;
+  // "Deep Clean at 41-12 Austin St, 4B, 11375, Wednesday, January 7 at 9:00 AM"
+  label: string;
+  chargedCents: number;
+  refundedCents: number;
+  // what its failed Charge left owing: it's Unpaid
+  unpaidCents: number | null;
+};
+
+// the reply to PUT /api/clients/:id/billing: the Client, and what switching
+// weekly billing off charged, refunded or left Unpaid, per Job
+export type ClientBillingSaved = {
+  client: OfficeClientView;
+  settled: SettledJobView[];
+};
+
 // due until paid, or voided by Office Staff; processing while a bank debit
 // paying it clears
 export type BillStatus = "due" | "processing" | "paid" | "void";
