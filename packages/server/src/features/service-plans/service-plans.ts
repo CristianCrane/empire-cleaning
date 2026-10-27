@@ -631,28 +631,44 @@ const unpaidBillsOf = async (planId: string) =>
 const detailOf = async (
   plan: ServicePlan,
 ): Promise<Omit<ServicePlanView, "upcoming">> => {
-  const [[summary], [quote], days, [deposit], unpaid, unpaidBills, endTerms] =
-    await Promise.all([
-      summariesOf([plan]).then((m) => [m.get(plan.id)!]),
-      db.select().from(quotes).where(eq(quotes.id, plan.quoteId)),
-      daysOfQuote(plan.quoteId),
-      db
-        .select({ cents: sum(charges.amountCents).mapWith(Number) })
-        .from(charges)
-        .where(
-          and(
-            // held by the plan, or by its final Job once it has Ended
-            or(
-              eq(charges.servicePlanId, plan.id),
-              planJobs(plan.id, charges.jobId),
-            ),
-            eq(charges.kind, "deposit"),
+  const [
+    [summary],
+    [quote],
+    days,
+    [deposit],
+    unpaid,
+    unpaidBills,
+    endTerms,
+    [owner],
+  ] = await Promise.all([
+    summariesOf([plan]).then((m) => [m.get(plan.id)!]),
+    db.select().from(quotes).where(eq(quotes.id, plan.quoteId)),
+    daysOfQuote(plan.quoteId),
+    db
+      .select({ cents: sum(charges.amountCents).mapWith(Number) })
+      .from(charges)
+      .where(
+        and(
+          // held by the plan, or by its final Job once it has Ended
+          or(
+            eq(charges.servicePlanId, plan.id),
+            planJobs(plan.id, charges.jobId),
           ),
+          eq(charges.kind, "deposit"),
         ),
-      unpaidOf(plan.id),
-      unpaidBillsOf(plan.id),
-      endTermsOf(plan),
-    ]);
+      ),
+    unpaidOf(plan.id),
+    unpaidBillsOf(plan.id),
+    endTermsOf(plan),
+    db
+      .select({
+        billedWeeklyFrom: clients.billedWeeklyFrom,
+        billPayment: clients.billPayment,
+      })
+      .from(properties)
+      .innerJoin(clients, eq(clients.id, properties.clientId))
+      .where(eq(properties.id, plan.propertyId)),
+  ]);
   return {
     ...summary!,
     days: days.map((day) => ({
@@ -674,6 +690,7 @@ const detailOf = async (
     quoteId: plan.quoteId,
     unpaid,
     unpaidBills: unpaidBills.map(({ since: _, ...bill }) => bill),
+    weeklyBill: owner!.billedWeeklyFrom ? owner!.billPayment : null,
     endTerms,
     endedAt: plan.endedAt?.toISOString() ?? null,
   };

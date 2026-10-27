@@ -92,6 +92,11 @@ test(
     await expect(
       client.getByText(/^\$50\.46, which comes off the last clean/),
     ).toBeVisible();
+    await expect(
+      client.getByText(
+        /^Each clean is charged to your saved card when it's done\./,
+      ),
+    ).toBeVisible();
     const upcoming = client
       .getByRole("grid", { name: "Your upcoming cleans" })
       .getByRole("row");

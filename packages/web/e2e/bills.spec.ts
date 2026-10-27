@@ -270,6 +270,12 @@ test("a Bill whose Charge failed is under Needs attention, holds the plan, and p
 
   await client.goto(`/portal/plans/${planId}`);
   await expect(client.getByText("Active", { exact: true })).toBeVisible();
+  // its cleans go on Bills, not charged one by one
+  await expect(
+    client.getByText(
+      /^Each week's cleans go on one Bill, made the following Monday and charged to your saved Payment Method\./,
+    ),
+  ).toBeVisible();
   await expect(client.getByRole("region", { name: "On Hold" })).toBeHidden();
 });
 

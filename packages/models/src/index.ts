@@ -1409,6 +1409,9 @@ export type ServicePlanView = Omit<ServicePlanSummary, "days"> & {
   // and its Unpaid Bills: those with any of its Jobs on them, which keep it
   // On Hold too (ADR-0016), oldest first
   unpaidBills: { billId: string; number: string; totalCents: number }[];
+  // how its Client pays the weekly Bill its cleans go on (ADR-0016), or null
+  // while each clean is charged when it's done
+  weeklyBill: BillPayment | null;
   // what Ending it would do now; null once it has Ended
   endTerms: EndPlanTerms | null;
   endedAt: string | null;
