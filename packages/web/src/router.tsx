@@ -47,7 +47,11 @@ import { Dashboard } from "./screens/office/Dashboard.tsx";
 import { JobScreen } from "./screens/office/JobScreen.tsx";
 import { PriceListScreen } from "./screens/office/PriceListScreen.tsx";
 import { QuoteScreen } from "./screens/office/QuoteScreen.tsx";
-import { QuotesScreen } from "./screens/office/QuotesScreen.tsx";
+import {
+  QuotesScreen,
+  quoteListStatuses,
+  type QuotesSearch,
+} from "./screens/office/QuotesScreen.tsx";
 import {
   NewQuoteScreen,
   type NewQuoteSearch,
@@ -211,6 +215,14 @@ const officeHomeRoute = createRoute({
 const officeQuotesRoute = createRoute({
   getParentRoute: () => officeRoute,
   path: "/quotes",
+  validateSearch: (search: Record<string, unknown>): QuotesSearch => ({
+    // a number-like search (a house number) comes back as a number
+    q:
+      typeof search.q === "string" || typeof search.q === "number"
+        ? String(search.q) || undefined
+        : undefined,
+    status: quoteListStatuses.find((s) => s === search.status),
+  }),
   loader: () => getJson<QuoteSummary[]>("/api/quotes"),
   component: QuotesScreen,
 });
