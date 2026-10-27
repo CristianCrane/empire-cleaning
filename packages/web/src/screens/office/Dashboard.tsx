@@ -1,4 +1,4 @@
-import { useLoaderData, useNavigate } from "@tanstack/react-router";
+import { useLoaderData, useNavigate, useSearch } from "@tanstack/react-router";
 import type { NeedsAttentionItem, TodayJob } from "@empire-cleaning/models";
 import {
   CalendarClock,
@@ -27,6 +27,7 @@ import { linkTo } from "../../links.ts";
 import { billWeek } from "../BillParts.tsx";
 import { AssignmentBadge } from "./JobScreen.tsx";
 import { SiteVisitBadge } from "./SiteVisitParts.tsx";
+import { TodaySchedulePrototype } from "./today-schedule.prototype.tsx";
 import {
   addressOf,
   cleanTypeLabel,
@@ -45,82 +46,90 @@ import {
 export function Dashboard() {
   const { needsAttention, today } = useLoaderData({ from: "/office/" });
   const navigate = useNavigate();
+  // PROTOTYPE: ?variant= swaps in one of the Today's Schedule variants
+  const { variant } = useSearch({ from: "/office/" });
+
+  const current = (
+    <Section
+      title={formatDay(today.date)}
+      description={[
+        `${formatHours(today.staffHours)} available`,
+        `${formatHours(today.bookedHours)} booked`,
+      ].join(" · ")}
+      actions={<Link href={linkTo({ to: "/office/schedule" })}>Schedule</Link>}
+    >
+      {today.jobs.length > 0 ? (
+        <List
+          aria-label="Today's Jobs"
+          onAction={(id) =>
+            navigate({
+              to: "/office/jobs/$jobId",
+              params: { jobId: String(id) },
+            })
+          }
+        >
+          {today.jobs.map((job) => (
+            <ListItem
+              key={job.id}
+              id={job.id}
+              textValue={`${formatTime(job.startsAt)} ${clientName(job.client)}`}
+              title={`${formatTime(job.startsAt)} · ${clientName(job.client)}`}
+              description={[
+                addressOf(job.property),
+                cleanTypeLabel[job.cleanType],
+                `crew of ${job.crewSize}, ${formatHours(job.hoursOnSite)} on site`,
+              ].join(" · ")}
+              end={<JobBadge job={job} />}
+            />
+          ))}
+        </List>
+      ) : (
+        <p className="text-sm text-fg-muted">No Jobs today.</p>
+      )}
+      {today.siteVisits.length > 0 && (
+        <List
+          aria-label="Today's Site Visits"
+          onAction={(id) =>
+            navigate({
+              to: "/office/site-visits/$visitId",
+              params: { visitId: String(id) },
+            })
+          }
+        >
+          {today.siteVisits.map((visit) => (
+            <ListItem
+              key={visit.id}
+              id={visit.id}
+              textValue={`${formatTime(visit.startsAt)} Site Visit ${clientName(visit.client)}`}
+              title={`${formatTime(visit.startsAt)} · Site Visit · ${clientName(visit.client)}`}
+              description={[
+                addressOf(visit.property),
+                visit.visitor?.name,
+                formatMinutes(visit.minutes),
+              ].join(" · ")}
+              end={<SiteVisitBadge status={visit.status} />}
+            />
+          ))}
+        </List>
+      )}
+    </Section>
+  );
 
   return (
     <div className="flex flex-col gap-8">
       <Heading level={1}>Today</Heading>
       <NeedsAttention items={needsAttention} />
-      <Section
-        title={formatDay(today.date)}
-        description={[
-          `${formatHours(today.staffHours)} available`,
-          `${formatHours(today.bookedHours)} booked`,
-        ].join(" · ")}
-        actions={
-          <Link href={linkTo({ to: "/office/schedule" })}>Schedule</Link>
-        }
-      >
-        {today.jobs.length > 0 ? (
-          <List
-            aria-label="Today's Jobs"
-            onAction={(id) =>
-              navigate({
-                to: "/office/jobs/$jobId",
-                params: { jobId: String(id) },
-              })
-            }
-          >
-            {today.jobs.map((job) => (
-              <ListItem
-                key={job.id}
-                id={job.id}
-                textValue={`${formatTime(job.startsAt)} ${clientName(job.client)}`}
-                title={`${formatTime(job.startsAt)} · ${clientName(job.client)}`}
-                description={[
-                  addressOf(job.property),
-                  cleanTypeLabel[job.cleanType],
-                  `crew of ${job.crewSize}, ${formatHours(job.hoursOnSite)} on site`,
-                ].join(" · ")}
-                end={<JobBadge job={job} />}
-              />
-            ))}
-          </List>
-        ) : (
-          <p className="text-sm text-fg-muted">No Jobs today.</p>
-        )}
-        {today.siteVisits.length > 0 && (
-          <List
-            aria-label="Today's Site Visits"
-            onAction={(id) =>
-              navigate({
-                to: "/office/site-visits/$visitId",
-                params: { visitId: String(id) },
-              })
-            }
-          >
-            {today.siteVisits.map((visit) => (
-              <ListItem
-                key={visit.id}
-                id={visit.id}
-                textValue={`${formatTime(visit.startsAt)} Site Visit ${clientName(visit.client)}`}
-                title={`${formatTime(visit.startsAt)} · Site Visit · ${clientName(visit.client)}`}
-                description={[
-                  addressOf(visit.property),
-                  visit.visitor?.name,
-                  formatMinutes(visit.minutes),
-                ].join(" · ")}
-                end={<SiteVisitBadge status={visit.status} />}
-              />
-            ))}
-          </List>
-        )}
-      </Section>
+      {variant ? (
+        <TodaySchedulePrototype today={today} current={current} />
+      ) : (
+        current
+      )}
     </div>
   );
 }
 
 // how a Job turned out, or until then whether its Staff are all Confirmed
-function JobBadge({ job }: { job: TodayJob }) {
+export function JobBadge({ job }: { job: TodayJob }) {
   if (job.outcome === "completed")
     return <StatusBadge tone="success">Completed</StatusBadge>;
   if (job.outcome === "no_access")
