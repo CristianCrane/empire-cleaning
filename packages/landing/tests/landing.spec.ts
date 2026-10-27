@@ -122,7 +122,7 @@ test.describe("requesting a Quote", () => {
         page.getByText("We'll email your Quote to casey@example.com"),
       ).toBeVisible();
       const [receipt] = await emailsTo("casey@example.com");
-      expect(receipt?.subject).toBe("We've received your Quote Request");
+      expect(receipt?.subject).toBe("We've received your request for a Quote");
     },
   );
 

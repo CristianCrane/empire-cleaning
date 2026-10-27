@@ -21,7 +21,7 @@ import {
   acceptedJob,
   bookedJob as otherJob,
   casey,
-  guestRequest,
+  guestAsk,
   signInAsOffice,
   submit,
 } from "../../../tests/fixtures.ts";
@@ -320,7 +320,7 @@ describe("asking to move a Job", () => {
       email: "ollie@example.com",
       phone: "(646) 555-0199",
     };
-    await submit(guestRequest({ contact: other })).expect(201);
+    await submit(guestAsk({ contact: other })).expect(201);
 
     await ask(await signIn(other.email), jobId, WEDNESDAY).expect(404);
     await ask(asCory, jobId, WEDNESDAY).expect(403);

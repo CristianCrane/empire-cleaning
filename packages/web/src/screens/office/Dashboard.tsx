@@ -86,19 +86,19 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
   // add its case here
   const rowFor = (item: NeedsAttentionItem): Row => {
     switch (item.kind) {
-      case "quote_request": {
-        const request = item.quoteRequest;
+      case "quote_requested": {
+        const { quote } = item;
         return {
-          key: `quote_request ${request.id}`,
+          key: `quote_requested ${quote.id}`,
           action: "Send a Quote",
           icon: Inbox,
           tone: "info",
-          client: clientName(request.client),
-          description: `${addressOf(request.property)} · asked ${formatDate(item.since)}`,
+          client: clientName(quote.client),
+          description: `${addressOf(quote.property)} · asked ${formatDate(item.since)}`,
           open: () =>
             navigate({
               to: "/office/requests/$requestId",
-              params: { requestId: request.id },
+              params: { requestId: quote.id },
             }),
         };
       }

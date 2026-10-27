@@ -1,6 +1,6 @@
 import type { Key, ReactNode } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
-import type { PropertyView, QuoteRequestState } from "@empire-cleaning/models";
+import type { PropertyView, QuoteStatus } from "@empire-cleaning/models";
 import {
   ButtonLink,
   Card,
@@ -28,11 +28,15 @@ import { BillStatusBadge, billLine } from "../BillParts.tsx";
 import { PlanStatusBadge } from "../PlanParts.tsx";
 import { QuoteStatusBadge } from "../QuoteParts.tsx";
 
-const requestBadge: Record<QuoteRequestState, ReactNode> = {
-  awaiting_quote: <StatusBadge tone="info">Received</StatusBadge>,
-  quoted: <StatusBadge tone="success">Quoted</StatusBadge>,
-  booked: <StatusBadge tone="success">Booked</StatusBadge>,
-  ended: <StatusBadge>Closed</StatusBadge>,
+// where what a Client asked for stands (#102 reshapes this)
+const requestBadge: Record<QuoteStatus, ReactNode> = {
+  requested: <StatusBadge tone="info">Received</StatusBadge>,
+  draft: <StatusBadge tone="info">Received</StatusBadge>,
+  sent: <StatusBadge tone="success">Quoted</StatusBadge>,
+  accepted: <StatusBadge tone="success">Booked</StatusBadge>,
+  declined: <StatusBadge>Closed</StatusBadge>,
+  expired: <StatusBadge>Closed</StatusBadge>,
+  turned_down: <StatusBadge>Closed</StatusBadge>,
 };
 
 // "Your homes", "Your premises", or both
@@ -45,8 +49,10 @@ const placesTitle = (places: PropertyView[]) => {
 };
 
 export function PortalHome() {
-  const { client, plans, quotes, jobs, pastJobs, siteVisits, bills } =
+  const { client, plans, jobs, pastJobs, siteVisits, bills, ...loaded } =
     useLoaderData({ from: "/portal/" });
+  // the offers: what was asked, with nothing Sent yet, is listed below
+  const quotes = loaded.quotes.filter((q) => q.sentAt !== null);
   const navigate = useNavigate();
   const [firstName] = client.name.split(" ");
   const homes = new Map(client.properties.map((p) => [p.id, p]));
@@ -236,35 +242,37 @@ export function PortalHome() {
             </p>
           )}
         >
-          {client.quoteRequests.map((request) => {
-            const home = homes.get(request.propertyId);
-            return (
+          {client.quotes.flatMap((quote) => {
+            const { asked } = quote;
+            if (!asked) return [];
+            const home = homes.get(quote.property.id);
+            return [
               <ListItem
-                key={request.id}
-                id={request.id}
+                key={quote.id}
+                id={quote.id}
                 title={home ? addressOf(home) : "Your home"}
                 description={[
-                  `Sent ${formatDate(request.createdAt)}`,
-                  request.condition
-                    ? `${conditionLabel[request.condition]} clean`
-                    : wantedCleaning(request),
-                  request.addOns.length > 0 &&
-                    `Extras: ${request.addOns.map((a) => a.name).join(", ")}`,
-                  request.wantsRegularService &&
-                    request.condition &&
+                  `Sent ${formatDate(quote.createdAt)}`,
+                  asked.condition
+                    ? `${conditionLabel[asked.condition]} clean`
+                    : wantedCleaning(asked),
+                  asked.addOns.length > 0 &&
+                    `Extras: ${asked.addOns.map((a) => a.name).join(", ")}`,
+                  asked.wantsRegularService &&
+                    asked.condition &&
                     "Regular visits wanted",
                 ]
                   .filter(Boolean)
                   .join(" · ")}
                 end={
-                  request.siteVisit === "booked" ? (
+                  quote.siteVisit === "booked" ? (
                     <StatusBadge tone="info">Site Visit booked</StatusBadge>
                   ) : (
-                    requestBadge[request.state]
+                    requestBadge[quote.status]
                   )
                 }
-              />
-            );
+              />,
+            ];
           })}
         </List>
       </Card>

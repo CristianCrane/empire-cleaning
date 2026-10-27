@@ -305,7 +305,7 @@ export const requestQuoteAsGuest = async (
     .filter((addOn) => addOnNames.includes(addOn.name))
     .map((addOn) => addOn.key);
 
-  const res = await fetch("http://localhost:3100/api/quote-requests", {
+  const res = await fetch("http://localhost:3100/api/quotes/ask", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
@@ -343,7 +343,7 @@ export const requestQuoteForPremises = async (
     await fetch("http://localhost:3100/api/price-list/premises-types")
   ).json()) as { key: string; name: string }[];
 
-  const res = await fetch("http://localhost:3100/api/quote-requests", {
+  const res = await fetch("http://localhost:3100/api/quotes/ask", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({

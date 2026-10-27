@@ -52,11 +52,18 @@ import type { FirstJobs } from "../service-plans/first-visits.ts";
 import type { ServicePlan } from "../service-plans/service-plans.schema.ts";
 import { describePlan } from "./plan-days.ts";
 import { warnOfficeOfQuotesWithoutRoom } from "./quote-room.ts";
-import { statusOf } from "./quote-state.ts";
-import { inOrder, lockProperty, toOption } from "./quotes.ts";
+import { offers, statusOf } from "./quote-state.ts";
+import {
+  dropDraftRevision,
+  inOrder,
+  lockProperty,
+  optionsOf,
+  toOption,
+  type KindedRevision,
+} from "./quotes.ts";
 import {
   pendingDeposits,
-  quoteOptions,
+  quoteRevisions,
   quotes,
   type Quote,
 } from "./quotes.schema.ts";
@@ -76,6 +83,7 @@ const cleanTypeLabel = { deep: "Deep Clean", standard: "Standard Clean" };
 
 const closedMessage = (status: QuoteStatus, acceptor: Acceptor["by"]) =>
   ({
+    requested: "Send the Quote before recording its acceptance.",
     draft: "Send the Quote before recording its acceptance.",
     sent: "",
     accepted: "This Quote has already been accepted.",
@@ -84,12 +92,16 @@ const closedMessage = (status: QuoteStatus, acceptor: Acceptor["by"]) =>
       acceptor === "client"
         ? "This Quote has expired, so it can't be accepted. Ask us for a new Quote and we'll find another time."
         : "This Quote has expired, so it can't be accepted. Send a new one.",
-    superseded: "A newer Quote replaces this one, so it can't be accepted.",
+    turned_down: "This Quote was Turned Down, so it can't be accepted.",
   })[status];
 
-// only a Sent Quote can be Accepted, and only before it Expires
-const refuseUnlessOpen = (quote: Quote, acceptor: Acceptor) => {
-  const status = statusOf(quote);
+// only a Sent Quote can be Accepted, and only before its offer Expires
+const refuseUnlessOpen = (
+  quote: Quote,
+  revision: KindedRevision,
+  acceptor: Acceptor,
+) => {
+  const status = statusOf({ ...quote, expiresAt: revision.expiresAt });
   if (status !== "sent") {
     throw new ConflictError(closedMessage(status, acceptor.by));
   }
@@ -98,6 +110,8 @@ const refuseUnlessOpen = (quote: Quote, acceptor: Acceptor) => {
 // why a Deposit that has been taken can't be booked after all
 type Unbookable =
   | { reason: "closed"; status: QuoteStatus }
+  // a newer Revision was Sent: the offer accepted isn't the offer any more
+  | { reason: "revised" }
   | { reason: "no_room" }
   // a Service Plan Quote starting a plan, for a home whose plan started
   // while the Client's bank was approving its Deposit
@@ -108,6 +122,11 @@ type Unbookable =
 const unbookableMessage = (unbookable: Unbookable, acceptor: Acceptor) => {
   if (unbookable.reason === "closed") {
     return closedMessage(unbookable.status, acceptor.by);
+  }
+  if (unbookable.reason === "revised") {
+    return acceptor.by === "client"
+      ? "This Quote has just been updated, so nothing has been booked. Please reload the page to see it."
+      : "A newer Revision of this Quote was just sent, so nothing was booked. Reload the page to see it.";
   }
   if (
     unbookable.reason === "has_plan" ||
@@ -124,8 +143,14 @@ const unbookableMessage = (unbookable: Unbookable, acceptor: Acceptor) => {
 
 const findForAcceptance = async (id: string) => {
   const [found] = await db
-    .select({ quote: quotes, client: clients, property: properties })
+    .select({
+      quote: quotes,
+      revision: offers,
+      client: clients,
+      property: properties,
+    })
     .from(quotes)
+    .leftJoin(offers, eq(offers.id, quotes.sentRevisionId))
     .innerJoin(properties, eq(properties.id, quotes.propertyId))
     .innerJoin(clients, eq(clients.id, properties.clientId))
     .where(eq(quotes.id, id));
@@ -156,16 +181,11 @@ const describeTypes = (types: CleanType[]) =>
   [...new Set(types)].map((t) => `a ${cleanTypeLabel[t]}`).join(" and ");
 
 const offerFor = async (
-  quote: Quote,
+  revision: KindedRevision,
   cleanType: CleanType | undefined,
 ): Promise<Offer> => {
-  const rows = inOrder(
-    await db
-      .select()
-      .from(quoteOptions)
-      .where(eq(quoteOptions.quoteId, quote.id)),
-  );
-  if (quote.kind === "one_off") {
+  const rows = inOrder(await optionsOf(revision.id));
+  if (revision.kind === "one_off") {
     const row = rows.find((r) => r.cleanType === cleanType);
     if (!row) {
       throw new RequestBodyError(
@@ -179,13 +199,13 @@ const offerFor = async (
         ]),
       );
     }
-    const option = toOption(quote, row);
+    const option = toOption(revision, row);
     return {
       cleanType: row.cleanType,
       cleans: [
         {
           position: 0,
-          startsAt: quote.proposedStartsAt!,
+          startsAt: revision.proposedStartsAt!,
           crewSize: row.crewSize,
           option,
         },
@@ -203,7 +223,7 @@ const offerFor = async (
     position: row.position,
     startsAt: row.startsAt!,
     crewSize: row.crewSize,
-    option: toOption(quote, row),
+    option: toOption(revision, row),
   }));
   return {
     cleanType: rows[0]!.cleanType,
@@ -222,16 +242,18 @@ type Hold =
 
 /**
  * Holds what booking needs until the transaction ends: the Property (so a
- * newer Quote can't be sent meanwhile), the Quote, a plan whose terms it
+ * newer Revision can't be sent meanwhile), the Quote, a plan whose terms it
  * changes with the Jobs it replaces, and the day of each clean it books (so
  * two acceptances can't both take a day's last free hours or crew). Then
- * says whether the Quote can still be booked: open, its home's plan still
+ * says whether the Quote can still be booked: open, `revision` still its
+ * offer, its home's plan still
  * the one expected (`changing`: none for a Quote starting one), and every
  * clean's time with room, the Jobs it replaces counting as gone.
  */
 const holdForBooking = async (
   tx: Tx,
   quote: Quote,
+  revision: KindedRevision,
   offer: Offer,
   changing: string | null,
 ): Promise<Hold> => {
@@ -241,7 +263,10 @@ const holdForBooking = async (
     .from(quotes)
     .where(eq(quotes.id, quote.id))
     .for("update");
-  const status = statusOf(current!);
+  if (current!.sentRevisionId !== revision.id) {
+    return { unbookable: { reason: "revised" } };
+  }
+  const status = statusOf({ ...current!, expiresAt: revision.expiresAt });
   if (status !== "sent") return { unbookable: { reason: "closed", status } };
 
   let change: Change | null = null;
@@ -253,7 +278,7 @@ const holdForBooking = async (
       };
     }
     if (plan) {
-      change = await holdForChange(tx, plan.id, quote.proposedStartsAt!);
+      change = await holdForChange(tx, plan.id, revision.proposedStartsAt!);
     }
   }
 
@@ -275,6 +300,7 @@ const holdForBooking = async (
 
 type Booking = {
   quote: Quote;
+  revision: KindedRevision;
   property: Property;
   offer: Offer;
   clientId: string;
@@ -301,8 +327,15 @@ const recordAcceptance = async (
   paid: Extract<DepositAttempt, { status: "succeeded" }>,
   change: Change | null,
 ): Promise<Booked> => {
-  const { quote, property, offer } = booking;
+  const { quote, revision, property, offer } = booking;
   const now = clock.now();
+  // the Quote, on its accepted Revision's terms
+  const accepted = {
+    id: quote.id,
+    propertyId: quote.propertyId,
+    proposedStartsAt: revision.proposedStartsAt,
+    recurrence: revision.recurrence,
+  };
   const firstJobs: FirstJobs = [];
   for (const clean of offer.cleans) {
     const job = await bookJob(
@@ -321,13 +354,13 @@ const recordAcceptance = async (
   const plan = change
     ? await changeServicePlanTerms(tx, {
         ...change,
-        quote,
+        quote: accepted,
         firstJobs,
         changedBy: booking.acceptedBy,
       })
     : quote.kind === "service_plan"
       ? await startServicePlan(tx, {
-          quote,
+          quote: accepted,
           firstJobs,
           startedBy: booking.acceptedBy,
         })
@@ -356,6 +389,7 @@ const recordAcceptance = async (
       acceptedBy: booking.acceptedBy,
     })
     .where(eq(quotes.id, quote.id));
+  await dropDraftRevision(tx, quote.id);
   return {
     jobs: firstJobs.map((f) => f.job),
     plan,
@@ -380,10 +414,10 @@ const refundUnbooked = async (
   }
 };
 
-const describe = ({ quote, property, offer }: Booking) =>
-  quote.kind === "service_plan"
-    ? `Deposit: Service Plan at ${addressOf(property)}, from ${formatWhen(quote.proposedStartsAt!)}`
-    : `Deposit: ${cleanTypeLabel[offer.cleanType]} at ${addressOf(property)}, ${formatWhen(quote.proposedStartsAt!)}`;
+const describe = ({ revision, property, offer }: Booking) =>
+  revision.kind === "service_plan"
+    ? `Deposit: Service Plan at ${addressOf(property)}, from ${formatWhen(revision.proposedStartsAt!)}`
+    : `Deposit: ${cleanTypeLabel[offer.cleanType]} at ${addressOf(property)}, ${formatWhen(revision.proposedStartsAt!)}`;
 
 /**
  * Accepts a Sent Quote with the Clean Type chosen, as one step: the proposed
@@ -416,17 +450,23 @@ export const acceptQuote = async (
   acceptor: Acceptor,
 ): Promise<AcceptResult> => {
   const found = await findForAcceptance(id);
-  // Drafts and other Clients' Quotes don't exist for a Client
+  // Quotes with nothing Sent, and other Clients' Quotes, don't exist for a
+  // Client
   if (
     !found ||
     (acceptor.by === "client" &&
-      (found.client.id !== acceptor.clientId || found.quote.status === "draft"))
+      (found.client.id !== acceptor.clientId || !found.revision))
   ) {
     throw new NotFoundError("Quote not found");
   }
   const { quote, client, property } = found;
-  refuseUnlessOpen(quote, acceptor);
-  const offer = await offerFor(quote, cleanType);
+  if (!found.revision) {
+    throw new ConflictError(closedMessage(quote.status, acceptor.by));
+  }
+  // the offer: its latest Sent Revision
+  const revision: KindedRevision = { ...found.revision, kind: quote.kind! };
+  refuseUnlessOpen(quote, revision, acceptor);
+  const offer = await offerFor(revision, cleanType);
   // a Service Plan Quote for a home with a plan changes that plan's terms
   const changing =
     quote.kind === "service_plan"
@@ -446,6 +486,7 @@ export const acceptQuote = async (
 
   const booking: Booking = {
     quote,
+    revision,
     property,
     offer,
     clientId: client.id,
@@ -492,7 +533,7 @@ export const acceptQuote = async (
   let outcome;
   try {
     outcome = await db.transaction(async (tx) => {
-      const hold = await holdForBooking(tx, quote, offer, changing);
+      const hold = await holdForBooking(tx, quote, revision, offer, changing);
       if (hold.unbookable) {
         throw new ConflictError(unbookableMessage(hold.unbookable, acceptor));
       }
@@ -511,6 +552,7 @@ export const acceptQuote = async (
         await tx.insert(pendingDeposits).values({
           gatewayRef: attempt.ref,
           quoteId: id,
+          revisionId: revision.id,
           cleanType: offer.cleanType,
           depositCents: offer.depositCents,
           acceptedBy: acceptor.accountId,
@@ -592,9 +634,16 @@ export const finalizeDeposit = async (ref: string): Promise<Finalized> => {
   const { quote, client, property } = (await findForAcceptance(
     pending.quoteId,
   ))!;
-  const offer = await offerFor(quote, pending.cleanType);
+  // the Revision the Deposit was for, which must still be the offer
+  const [pendingRevision] = await db
+    .select()
+    .from(quoteRevisions)
+    .where(eq(quoteRevisions.id, pending.revisionId));
+  const revision: KindedRevision = { ...pendingRevision!, kind: quote.kind! };
+  const offer = await offerFor(revision, pending.cleanType);
   const booking: Booking = {
     quote,
+    revision,
     property,
     offer,
     clientId: client.id,
@@ -612,7 +661,7 @@ export const finalizeDeposit = async (ref: string): Promise<Finalized> => {
       if (current!.settledAt) return { status: "settled" } as const;
 
       // a Deposit was being taken, so the Quote starts its home's plan
-      const hold = await holdForBooking(tx, quote, offer, null);
+      const hold = await holdForBooking(tx, quote, revision, offer, null);
       await settle(ref, tx);
       if (hold.unbookable) {
         return { status: "refunded", unbookable: hold.unbookable } as const;
@@ -668,7 +717,9 @@ export const finalizeProblem = (finalized: Finalized) => {
         : finalized.unbookable.reason === "has_plan" ||
             finalized.unbookable.reason === "plan_changed"
           ? "This home's Service Plan started while your bank was approving the payment, so we've refunded your Deposit."
-          : "This Quote closed while your bank was approving the payment, so we've refunded your Deposit.";
+          : finalized.unbookable.reason === "revised"
+            ? "This Quote was updated while your bank was approving the payment, so we've refunded your Deposit. Please look at the new Quote."
+            : "This Quote closed while your bank was approving the payment, so we've refunded your Deposit.";
     default:
       return "There's no payment waiting for approval on this Quote.";
   }

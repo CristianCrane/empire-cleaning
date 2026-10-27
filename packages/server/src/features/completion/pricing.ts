@@ -31,19 +31,19 @@ export const quotedJob = async (
 ): Promise<QuotedJob> => {
   const [row] = await jobQuotes([jobId], tx);
   if (!row) throw new ConflictError("This Job has no Quote to price it from");
-  const { quote, option } = row;
+  const { quote, revision, option } = row;
   let { suggested } = option;
   if (quote.kind === "service_plan") {
     const [list] = await tx
       .select({ taxPercent: priceLists.taxServicePlanPercent })
       .from(priceLists)
-      .where(eq(priceLists.id, quote.priceListId));
+      .where(eq(priceLists.id, revision.priceListId));
     suggested = { ...suggested, taxPercent: list!.taxPercent };
   }
   return {
     totalCents: option.totalCents,
     suggested,
-    priceListId: quote.priceListId,
+    priceListId: revision.priceListId,
   };
 };
 

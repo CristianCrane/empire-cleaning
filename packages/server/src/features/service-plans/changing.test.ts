@@ -4,14 +4,14 @@ import type {
   AcceptOutcome,
   CleanType,
   OfficeQuote,
+  QuoteSummary,
   OfficeServicePlan,
-  OpenQuoteRequest,
   Recurrence,
   SignedInAccount,
 } from "@empire-cleaning/models";
 import { db } from "#db";
 import { offerAssignment } from "#features/assignments";
-import { saveDraft, sendQuote, startDraft } from "#features/quotes";
+import { offerServicePlan, saveDraft, sendQuote } from "#features/quotes";
 import { dayOf, timeOf } from "#services/clock";
 import {
   signIn,
@@ -65,17 +65,14 @@ const sentChange = async (
 ) => {
   const me = (await office.get("/api/me").expect(200)).body as SignedInAccount;
   const { property } = await officePlan(office, planId);
-  const { quote } = await startDraft(
-    { propertyId: property.id, kind: "service_plan" },
-    me.id,
-  );
+  const { quote } = await offerServicePlan(property.id, me.id);
   await saveDraft(quote.id, {
     addOns: [],
-    depositPercent: quote.depositPercent,
-    validityDays: quote.validityDays,
+    depositPercent: quote.draft!.depositPercent,
+    validityDays: quote.draft!.validityDays,
     plan: {
       recurrence,
-      discountPercent: quote.plan!.discountPercent,
+      discountPercent: quote.draft!.plan!.discountPercent,
       condition: "moderate",
       days: [startsAt].flat().map((s) => {
         const at = new Date(s);
@@ -278,12 +275,12 @@ describe("accepting a Service Plan Quote for a home with a plan", () => {
 });
 
 describe("a Client asking to change their plan", () => {
-  test("reaches the Office as a request for the home, answered by a Service Plan Quote that changes the plan", async () => {
+  test("reaches the Office as a Requested Quote for the home, made a Service Plan Quote that changes the plan", async () => {
     const { office, client, planId } = await crewedServicePlan();
     const { property } = await officePlan(office, planId);
 
     await client
-      .post("/api/quote-requests")
+      .post("/api/quotes/ask")
       .send({
         property: { existing: property.id },
         condition: "moderate",
@@ -292,29 +289,33 @@ describe("a Client asking to change their plan", () => {
       })
       .expect(201);
 
-    const [request] = (await office.get("/api/quote-requests").expect(200))
-      .body as OpenQuoteRequest[];
-    expect(request).toMatchObject({
-      notes: "Could we move to Wednesdays, every 2 weeks?",
-      servicePlanId: planId,
+    const [listed] = (await office.get("/api/quotes").expect(200))
+      .body as QuoteSummary[];
+    const requested = (
+      await office.get(`/api/quotes/${listed!.id}`).expect(200)
+    ).body as OfficeQuote;
+    expect(requested).toMatchObject({
+      status: "requested",
+      asked: { notes: "Could we move to Wednesdays, every 2 weeks?" },
+      homePlanId: planId,
     });
     const draft = (
       await office
-        .post("/api/quotes")
-        .send({ quoteRequestId: request!.id, kind: "service_plan" })
+        .post(`/api/quotes/${listed!.id}/revisions`)
+        .send({ kind: "service_plan" })
         .expect(201)
     ).body as OfficeQuote;
     expect(draft.changesPlan).toMatchObject({ servicePlanId: planId });
     await office
-      .patch(`/api/quotes/${draft.id}`)
+      .patch(`/api/quotes/${draft.id}/draft`)
       .send({
         addOns: [],
-        depositPercent: draft.depositPercent,
-        validityDays: draft.validityDays,
+        depositPercent: draft.draft!.depositPercent,
+        validityDays: draft.draft!.validityDays,
         plan: {
           recurrence: "fortnightly",
-          discountPercent: draft.plan!.discountPercent,
-          condition: draft.plan!.condition,
+          discountPercent: draft.draft!.plan!.discountPercent,
+          condition: draft.draft!.plan!.condition,
           days: [
             {
               start: { date: "2026-01-28", time: "09:00" },
@@ -332,8 +333,6 @@ describe("a Client asking to change their plan", () => {
 
     expect((await officePlan(office, planId)).quoteId).toBe(draft.id);
     // answered: it no longer waits for the Office
-    expect((await office.get("/api/quote-requests").expect(200)).body).toEqual(
-      [],
-    );
+    expect((await office.get("/api/quotes").expect(200)).body).toEqual([]);
   });
 });

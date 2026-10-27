@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { QuoteRequestReceipt } from "@empire-cleaning/models";
+import type { QuoteAskReceipt } from "@empire-cleaning/models";
 import { QuoteRequestForm } from "@empire-cleaning/quote-request";
 import { Notice } from "@empire-cleaning/ui";
 import { business } from "../business.ts";
@@ -9,7 +9,7 @@ import { business } from "../business.ts";
 // that couldn't send anything.
 export function QuoteForm({ apiUrl }: { apiUrl: string }) {
   const [ready, setReady] = useState(false);
-  const [receipt, setReceipt] = useState<QuoteRequestReceipt>();
+  const [receipt, setReceipt] = useState<QuoteAskReceipt>();
   useEffect(() => setReady(true), []);
 
   if (receipt) {

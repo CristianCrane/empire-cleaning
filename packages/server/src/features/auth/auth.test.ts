@@ -125,7 +125,7 @@ describe("connecting an Account to its records (ADR-0006)", () => {
   });
 
   test("correcting a Client's email to a signed-up Account connects it", async () => {
-    // signed up with a different email from their Quote Request
+    // signed up with a different email from the one they asked for a Quote with
     const agent = await signIn("casey.personal@example.com");
     const client = await createClient({
       email: "casey@work.example.com",

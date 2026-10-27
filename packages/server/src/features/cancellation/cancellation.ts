@@ -98,10 +98,10 @@ export const planOfJob = async (jobId: string, tx: Tx | typeof db = db) => {
 export const lateFeeOf = async (jobId: string, tx: Tx | typeof db = db) => {
   const planId = await planOfJob(jobId, tx);
   if (!planId) return depositOf(jobId, tx);
-  const [{ quote, option }] = (await jobQuotes([jobId], tx)) as [
+  const [{ revision, option }] = (await jobQuotes([jobId], tx)) as [
     Awaited<ReturnType<typeof jobQuotes>>[number],
   ];
-  return percentOf(option.totalCents, quote.depositPercent);
+  return percentOf(option.totalCents, revision.depositPercent);
 };
 
 // what has been taken for a Job, less refunds

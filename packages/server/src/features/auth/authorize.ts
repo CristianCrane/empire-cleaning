@@ -6,7 +6,7 @@ import { auth } from "./auth.ts";
 import { accessFor } from "./connections.ts";
 
 // the caller, if they're signed in, with what their connections let them do;
-// null for Guests. For endpoints open to both, such as a Quote Request.
+// null for Guests. For endpoints open to both, such as asking for a Quote.
 export const currentAccount = async (
   req: Request,
 ): Promise<SignedInAccount | null> => {

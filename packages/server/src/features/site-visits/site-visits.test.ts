@@ -6,8 +6,7 @@ import type {
   OfficePropertyView,
   OfficeQuote,
   OfficeSiteVisit,
-  OpenQuoteRequest,
-  QuoteRequestDetail,
+  QuoteSummary,
   ScheduleDay,
 } from "@empire-cleaning/models";
 import { createStaff, setUsualWeek } from "#features/staff";
@@ -15,7 +14,7 @@ import { api, signIn, testEmail } from "../../../tests/harness.ts";
 import {
   bookedJob,
   casey,
-  guestRequest,
+  guestAsk,
   signInAsOffice,
   submit,
 } from "../../../tests/fixtures.ts";
@@ -37,7 +36,7 @@ const premisesTypes = async () =>
   );
 
 // Acme Dental asking for cleaning three evenings a week
-const businessRequest = async () => {
+const businessAsk = async () => {
   const { Office } = await premisesTypes();
   await submit({
     contact: casey,
@@ -66,7 +65,7 @@ const cleaner = async (name: string, week = [8, 8, 8, 8, 8, 0, 0]) => {
   return { ...member, email };
 };
 
-// the Office, Olive (Office Staff only), Cory (a Cleaner), and Acme's request
+// the Office, Olive (Office Staff only), Cory (a Cleaner), and Acme's Quote
 const setUp = async () => {
   const office = await signInAsOffice();
   const me = (await office.get("/api/staff").expect(200)).body as {
@@ -74,22 +73,22 @@ const setUp = async () => {
   }[];
   const olive = me[0]!;
   const cory = await cleaner("Cory Cleaner");
-  const premisesType = await businessRequest();
-  const [request] = (await office.get("/api/quote-requests").expect(200))
-    .body as OpenQuoteRequest[];
-  return { office, olive, cory, premisesType, request: request! };
+  const premisesType = await businessAsk();
+  const [quote] = (await office.get("/api/quotes").expect(200))
+    .body as QuoteSummary[];
+  return { office, olive, cory, premisesType, quote: quote! };
 };
 
 const book = (
   office: Agent,
-  propertyId: string,
+  quoteId: string,
   staffId: string,
   time = "10:00",
   changes: object = {},
 ) =>
   office
     .post("/api/site-visits")
-    .send({ propertyId, staffId, date: TUESDAY, time, ...changes });
+    .send({ quoteId, staffId, date: TUESDAY, time, ...changes });
 
 const scheduleDay = async (office: Agent, date = TUESDAY) => {
   const [day] = (
@@ -98,16 +97,15 @@ const scheduleDay = async (office: Agent, date = TUESDAY) => {
   return day!;
 };
 
-const requestOf = async (office: Agent, id: string) =>
-  (await office.get(`/api/quote-requests/${id}`).expect(200))
-    .body as QuoteRequestDetail;
+const quoteOf = async (office: Agent, id: string) =>
+  (await office.get(`/api/quotes/${id}`).expect(200)).body as OfficeQuote;
 
 describe("booking a Site Visit", () => {
-  test("books one Staff member for 30 minutes, emails the Client and shows on the request, the Schedule and the portal", async () => {
-    const { office, olive, request } = await setUp();
-    expect((await requestOf(office, request.id)).siteVisit).toBe("needed");
+  test("books one Staff member for 30 minutes, emails the Client and shows on the Quote, the Schedule and the portal", async () => {
+    const { office, olive, quote } = await setUp();
+    expect((await quoteOf(office, quote.id)).siteVisit).toBe("needed");
 
-    const res = await book(office, request.propertyId, olive.id);
+    const res = await book(office, quote.id, olive.id);
 
     expect(res.status).toBe(201);
     const visit = res.body as OfficeSiteVisit;
@@ -125,11 +123,11 @@ describe("booking a Site Visit", () => {
     expect(sent.text).toContain("Olive from Empire Cleaning");
     expect(sent.text).toContain("There's no charge");
 
-    const detail = await requestOf(office, request.id);
+    const detail = await quoteOf(office, quote.id);
     expect(detail.siteVisit).toBe("booked");
     expect(detail.bookedSiteVisit?.id).toBe(visit.id);
-    const [listed] = (await office.get("/api/quote-requests").expect(200))
-      .body as OpenQuoteRequest[];
+    const [listed] = (await office.get("/api/quotes").expect(200))
+      .body as QuoteSummary[];
     expect(listed!.siteVisit).toBe("booked");
 
     const day = await scheduleDay(office);
@@ -146,7 +144,7 @@ describe("booking a Site Visit", () => {
         startsAt: "2026-01-06T15:00:00.000Z",
         minutes: 30,
         property: {
-          id: request.propertyId,
+          id: quote.property.id,
           street: "200 Park Ave S",
           unit: "Floor 3",
           postcode: "10003",
@@ -157,9 +155,9 @@ describe("booking a Site Visit", () => {
   });
 
   test("by a Cleaner takes room like a one-person Job, its length as its Labour Hours", async () => {
-    const { office, cory, request } = await setUp();
+    const { office, cory, quote } = await setUp();
 
-    await book(office, request.propertyId, cory.id, "09:00", {
+    await book(office, quote.id, cory.id, "09:00", {
       minutes: 90,
     }).expect(201);
 
@@ -182,19 +180,19 @@ describe("booking a Site Visit", () => {
   });
 
   test("by a Cleaner is refused where the day has no room, or they have no hours", async () => {
-    const { office, cory, request } = await setUp();
+    const { office, cory, quote } = await setUp();
     await bookedJob({
       startsAt: "2026-01-06T14:00:00Z",
       labourHours: 8,
       crewSize: 1,
     });
 
-    const full = await book(office, request.propertyId, cory.id, "15:00");
+    const full = await book(office, quote.id, cory.id, "15:00");
     expect(full.status).toBe(409);
     expect(full.body.message).toContain("doesn't have room");
 
     // Saturday is a day off for Cory, who isn't Office Staff
-    const dayOff = await book(office, request.propertyId, cory.id, "10:00", {
+    const dayOff = await book(office, quote.id, cory.id, "10:00", {
       date: "2026-01-10",
     });
     expect(dayOff.status).toBe(409);
@@ -204,43 +202,43 @@ describe("booking a Site Visit", () => {
   });
 
   test("by Office Staff takes no room, and is refused only over their other Site Visits", async () => {
-    const { office, olive, request } = await setUp();
+    const { office, olive, quote } = await setUp();
     // a full day: Office Staff still visit
     await bookedJob({ startsAt: "2026-01-06T14:00:00Z", labourHours: 8 });
-    await book(office, request.propertyId, olive.id, "10:00").expect(201);
+    await book(office, quote.id, olive.id, "10:00").expect(201);
 
     // another business, at a time overlapping Olive's visit
     await submit(
-      guestRequest({ contact: { ...casey, email: "zed@example.com" } }),
+      guestAsk({ contact: { ...casey, email: "zed@example.com" } }),
     ).expect(201);
-    const requests = (await office.get("/api/quote-requests").expect(200))
-      .body as OpenQuoteRequest[];
+    const requests = (await office.get("/api/quotes").expect(200))
+      .body as QuoteSummary[];
     const home = requests.find((r) => r.property.kind === "residential")!;
-    const clash = await book(office, home.propertyId, olive.id, "10:15");
+    const clash = await book(office, home.id, olive.id, "10:15");
     expect(clash.status).toBe(409);
     expect(clash.body.message).toBe(
       "Olive Owner has another Site Visit then, at 10:00 AM.",
     );
-    await book(office, home.propertyId, olive.id, "10:30").expect(201);
-    expect((await requestOf(office, home.id)).siteVisit).toBe("booked");
+    await book(office, home.id, olive.id, "10:30").expect(201);
+    expect((await quoteOf(office, home.id)).siteVisit).toBe("booked");
   });
 
   test("allows one booked at a time per Property, in the future, for 15 minutes to 8 hours", async () => {
-    const { office, olive, request } = await setUp();
-    await book(office, request.propertyId, olive.id).expect(201);
+    const { office, olive, quote } = await setUp();
+    await book(office, quote.id, olive.id).expect(201);
 
-    const again = await book(office, request.propertyId, olive.id, "14:00");
+    const again = await book(office, quote.id, olive.id, "14:00");
     expect(again.status).toBe(409);
 
     const past = await office.post("/api/site-visits").send({
-      propertyId: request.propertyId,
+      quoteId: quote.id,
       staffId: olive.id,
       date: "2026-01-02",
       time: "10:00",
     });
     expect(past.status).toBe(409);
 
-    const odd = await book(office, request.propertyId, olive.id, "14:00", {
+    const odd = await book(office, quote.id, olive.id, "14:00", {
       minutes: 20,
     });
     expect(odd.status).toBe(400);
@@ -250,24 +248,42 @@ describe("booking a Site Visit", () => {
   });
 
   test("is for Office Staff only", async () => {
-    const { request, olive } = await setUp();
+    const { quote, olive } = await setUp();
     const asCasey = await signIn(casey.email);
-    await book(asCasey, request.propertyId, olive.id).expect(403);
+    await book(asCasey, quote.id, olive.id).expect(403);
+  });
+
+  test("belongs to a Quote, and only before any Revision of it is Sent", async () => {
+    const { office, olive, quote } = await setUp();
+
+    const visit = (await book(office, quote.id, olive.id).expect(201))
+      .body as OfficeSiteVisit;
+    expect(visit.quoteId).toBe(quote.id);
+    await office.post(`/api/site-visits/${visit.id}/cancel`).expect(200);
+
+    await office
+      .post(`/api/quotes/${quote.id}/turn-down`)
+      .send({ reason: "out_of_area" })
+      .expect(200);
+    const refused = await book(office, quote.id, olive.id).expect(409);
+    expect(refused.body.message).toBe(
+      "A Site Visit is for a Quote before it's sent: this one has been sent, or has closed.",
+    );
+    await book(office, crypto.randomUUID(), olive.id).expect(404);
   });
 });
 
 describe("moving and cancelling a Site Visit", () => {
   test("moves it to a new time, emailing the Client; it doesn't stand in its own way", async () => {
-    const { office, cory, request } = await setUp();
+    const { office, cory, quote } = await setUp();
     // 7.5 of Cory's 8 hours booked, and his visit takes the rest
     await bookedJob({
       startsAt: "2026-01-06T13:00:00Z",
       labourHours: 7.5,
       crewSize: 1,
     });
-    const visit = (
-      await book(office, request.propertyId, cory.id, "16:00").expect(201)
-    ).body as OfficeSiteVisit;
+    const visit = (await book(office, quote.id, cory.id, "16:00").expect(201))
+      .body as OfficeSiteVisit;
 
     const moved = await office
       .post(`/api/site-visits/${visit.id}/move`)
@@ -288,9 +304,9 @@ describe("moving and cancelling a Site Visit", () => {
     expect(longer.status).toBe(409);
   });
 
-  test("cancels it, emailing the Client; it leaves the Schedule and the request needs one again", async () => {
-    const { office, olive, request } = await setUp();
-    const visit = (await book(office, request.propertyId, olive.id).expect(201))
+  test("cancels it, emailing the Client; it leaves the Schedule and the Quote needs one again", async () => {
+    const { office, olive, quote } = await setUp();
+    const visit = (await book(office, quote.id, olive.id).expect(201))
       .body as OfficeSiteVisit;
 
     const res = await office.post(`/api/site-visits/${visit.id}/cancel`);
@@ -301,25 +317,25 @@ describe("moving and cancelling a Site Visit", () => {
       "Your Site Visit is cancelled",
     );
     expect((await scheduleDay(office)).siteVisits).toEqual([]);
-    expect((await requestOf(office, request.id)).siteVisit).toBe("needed");
+    expect((await quoteOf(office, quote.id)).siteVisit).toBe("needed");
     await office.post(`/api/site-visits/${visit.id}/cancel`).expect(409);
   });
 });
 
 describe("Site Visit findings", () => {
-  const draftQuote = async (office: Agent, quoteRequestId: string) => {
+  const draftQuote = async (office: Agent, quoteId: string) => {
     const { body } = await office
-      .post("/api/quotes")
-      .send({ quoteRequestId })
+      .post(`/api/quotes/${quoteId}/revisions`)
+      .send({})
       .expect(201);
     const quote = body as OfficeQuote;
     await office
-      .patch(`/api/quotes/${quote.id}`)
+      .patch(`/api/quotes/${quote.id}/draft`)
       .send({
         addOns: [],
-        crewSize: quote.crewSize,
-        depositPercent: quote.depositPercent,
-        validityDays: quote.validityDays,
+        crewSize: quote.draft!.crewSize,
+        depositPercent: quote.draft!.depositPercent,
+        validityDays: quote.draft!.validityDays,
         proposedStart: { date: "2026-01-12", time: "18:00" },
         overrides: { deep: null, standard: null },
       })
@@ -328,10 +344,10 @@ describe("Site Visit findings", () => {
   };
 
   test("update the premises' details and mark the visit Done; only then can a Quote be Sent", async () => {
-    const { office, olive, request, premisesType } = await setUp();
-    const visit = (await book(office, request.propertyId, olive.id).expect(201))
+    const { office, olive, quote, premisesType } = await setUp();
+    const visit = (await book(office, quote.id, olive.id).expect(201))
       .body as OfficeSiteVisit;
-    const quoteId = await draftQuote(office, request.id);
+    const quoteId = await draftQuote(office, quote.id);
     const draft = (await office.get(`/api/quotes/${quoteId}`).expect(200))
       .body as OfficeQuote;
     expect(draft.needsSiteVisit).toBe(true);
@@ -355,20 +371,20 @@ describe("Site Visit findings", () => {
       officeNotes: "Two treatment rooms need extra care",
     });
     const home = (
-      await office.get(`/api/properties/${request.propertyId}`).expect(200)
+      await office.get(`/api/properties/${quote.property.id}`).expect(200)
     ).body as OfficePropertyView;
     expect(home).toMatchObject({
       findingsRecorded: true,
       officeNotes: "Two treatment rooms need extra care",
       siteVisits: [{ id: visit.id, status: "done" }],
     });
-    expect((await requestOf(office, request.id)).siteVisit).toBeNull();
+    expect((await quoteOf(office, quote.id)).siteVisit).toBeNull();
     // the Quote prices from the details found on its next save
-    await office.patch(`/api/quotes/${quoteId}`).send({
+    await office.patch(`/api/quotes/${quoteId}/draft`).send({
       addOns: [],
-      crewSize: draft.crewSize,
-      depositPercent: draft.depositPercent,
-      validityDays: draft.validityDays,
+      crewSize: draft.draft!.crewSize,
+      depositPercent: draft.draft!.depositPercent,
+      validityDays: draft.draft!.validityDays,
       proposedStart: { date: "2026-01-12", time: "18:00" },
       overrides: { deep: null, standard: null },
     });
@@ -381,8 +397,8 @@ describe("Site Visit findings", () => {
   });
 
   test("need the floor area and Condition of business premises", async () => {
-    const { office, olive, request, premisesType } = await setUp();
-    const visit = (await book(office, request.propertyId, olive.id).expect(201))
+    const { office, olive, quote, premisesType } = await setUp();
+    const visit = (await book(office, quote.id, olive.id).expect(201))
       .body as OfficeSiteVisit;
 
     const res = await office
@@ -401,14 +417,13 @@ describe("Site Visit findings", () => {
     const [olive] = (await office.get("/api/staff").expect(200)).body as {
       id: string;
     }[];
-    await submit(guestRequest()).expect(201);
-    const [request] = (await office.get("/api/quote-requests").expect(200))
-      .body as OpenQuoteRequest[];
+    await submit(guestAsk()).expect(201);
+    const [quote] = (await office.get("/api/quotes").expect(200))
+      .body as QuoteSummary[];
     // a home needs none, but may have one
-    expect(request!.siteVisit).toBeNull();
-    const visit = (
-      await book(office, request!.propertyId, olive!.id).expect(201)
-    ).body as OfficeSiteVisit;
+    expect(quote!.siteVisit).toBeNull();
+    const visit = (await book(office, quote!.id, olive!.id).expect(201))
+      .body as OfficeSiteVisit;
 
     const res = await office
       .post(`/api/site-visits/${visit.id}/findings`)
@@ -432,11 +447,11 @@ describe("Site Visit findings", () => {
   });
 
   test("can be recorded with no visit booked, for premises the Office knows", async () => {
-    const { office, olive, request, premisesType } = await setUp();
+    const { office, olive, quote, premisesType } = await setUp();
     const findings = { premisesType, floorArea: 3000, condition: "moderate" };
 
     const res = await office
-      .post(`/api/properties/${request.propertyId}/findings`)
+      .post(`/api/properties/${quote.property.id}/findings`)
       .send(findings);
 
     expect(res.status).toBe(201);
@@ -446,13 +461,13 @@ describe("Site Visit findings", () => {
       visitor: null,
       property: { floorArea: 3000, condition: "moderate" },
     });
-    expect((await requestOf(office, request.id)).findingsRecorded).toBe(true);
+    expect((await quoteOf(office, quote.id)).findingsRecorded).toBe(true);
     expect(testEmail().to(casey.email)).toHaveLength(1); // the receipt only
 
     // with one booked, they're recorded there
-    await book(office, request.propertyId, olive.id).expect(201);
+    await book(office, quote.id, olive.id).expect(201);
     await office
-      .post(`/api/properties/${request.propertyId}/findings`)
+      .post(`/api/properties/${quote.property.id}/findings`)
       .send(findings)
       .expect(409);
   });
@@ -460,8 +475,8 @@ describe("Site Visit findings", () => {
 
 describe("a Cleaner's own Site Visits", () => {
   test("show in their day", async () => {
-    const { office, cory, request } = await setUp();
-    await book(office, request.propertyId, cory.id, "09:00", {
+    const { office, cory, quote } = await setUp();
+    await book(office, quote.id, cory.id, "09:00", {
       date: "2026-01-05",
     }).expect(201);
 

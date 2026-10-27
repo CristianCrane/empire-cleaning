@@ -21,7 +21,7 @@ import {
 import {
   acceptedJob,
   casey,
-  guestRequest,
+  guestAsk,
   signInAsOffice,
   submit,
 } from "../../../tests/fixtures.ts";
@@ -235,7 +235,7 @@ describe("the Client cancelling", () => {
       email: "ollie@example.com",
       phone: "(646) 555-0199",
     };
-    await submit(guestRequest({ contact: other })).expect(201);
+    await submit(guestAsk({ contact: other })).expect(201);
 
     await cancel(await signIn(other.email), jobId, 0).expect(404);
     await cancel(asCory, jobId, 0).expect(403);

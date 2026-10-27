@@ -221,12 +221,12 @@ function BookingForm({
   );
 }
 
-// books a Site Visit at a Property, then opens it
+// books a Site Visit for a Quote, at its Property, then opens it
 export function BookSiteVisit({
-  propertyId,
+  quoteId,
   primary = false,
 }: {
-  propertyId: string;
+  quoteId: string;
   primary?: boolean;
 }) {
   const navigate = useNavigate();
@@ -249,7 +249,7 @@ export function BookSiteVisit({
               await action.run(async () => {
                 booked = await postJson<OfficeSiteVisit>("/api/site-visits", {
                   ...booking,
-                  propertyId,
+                  quoteId,
                 });
               }, "Site Visit booked");
               if (booked) {

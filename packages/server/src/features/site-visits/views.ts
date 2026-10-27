@@ -16,6 +16,7 @@ export const toSiteVisitView = (
   visitor: { id: string; name: string } | null,
 ): SiteVisitView => ({
   id: visit.id,
+  quoteId: visit.quoteId,
   status: visit.status,
   startsAt: visit.startsAt?.toISOString() ?? null,
   minutes: visit.minutes,

@@ -5,7 +5,7 @@ import {
   newHomeSchema,
   officeNotes as notes,
   premisesType,
-} from "../quote-requests/quote-requests.validation.ts";
+} from "../quotes/asking.validation.ts";
 
 // the messages are shown beside the form's fields, so they're written for people
 
@@ -26,7 +26,9 @@ export const bookingSchema = z.object({
   minutes: minutes.default(30),
 });
 
-export const newVisitSchema = bookingSchema.extend({ propertyId: z.uuid() });
+export const newVisitSchema = bookingSchema.extend({
+  quoteId: z.uuid("Choose the Quote it's for"),
+});
 
 const officeNotes = notes.optional();
 
@@ -42,7 +44,7 @@ export const premisesFindingsSchema = z.object({
   officeNotes,
 });
 
-// what a visit found at a home: its rooms, as a Quote Request gives them
+// what a visit found at a home: its rooms, as asking for a Quote gives them
 export const homeFindingsSchema = newHomeSchema
   .pick({
     type: true,

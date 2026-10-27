@@ -76,7 +76,7 @@ const quoteLink = async () => {
 
 // Casey asks about the same home again, wanting regular visits
 const askAgain = async () => {
-  const res = await fetch("http://localhost:3100/api/quote-requests", {
+  const res = await fetch("http://localhost:3100/api/quotes/ask", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
@@ -281,9 +281,6 @@ test("the Client screen lists each home, whose own page holds its history and of
     "41-12 Austin St, 4B, 11375",
   );
   await expect(
-    page.getByRole("grid", { name: /Quote Requests/ }).getByRole("row"),
-  ).toHaveCount(1);
-  await expect(
     page.getByRole("grid", { name: /^Quotes/ }).getByRole("row"),
   ).toContainText(["Deep Clean"]);
   await expect(
@@ -316,10 +313,10 @@ test("a request for a home whose First Clean is done can be answered with either
     .getByRole("button", { name: "Draft a Service Plan Quote" })
     .click();
   await atPlanDraft(page);
-  // it answers the request, so leads back there
+  // it was asked for, so leads back to what was asked
   await page
     .getByLabel("Breadcrumbs")
-    .getByRole("link", { name: "Quote Request" })
+    .getByRole("link", { name: "What was asked" })
     .click();
   await expect(page).toHaveURL(new RegExp(`/office/requests/${asked}$`));
   await expect(
@@ -407,7 +404,7 @@ test("a home whose First Clean isn't Completed is answered with a one-off Quote"
 }) => {
   await createStaff(olive);
   await signedInAs(page, olive.email);
-  const res = await fetch("http://localhost:3100/api/quote-requests", {
+  const res = await fetch("http://localhost:3100/api/quotes/ask", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({

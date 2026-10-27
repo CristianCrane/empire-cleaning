@@ -3,16 +3,16 @@ import { db } from "#db";
 import { api, signIn, testEmail } from "../../../tests/harness.ts";
 import {
   casey,
-  guestRequest,
+  guestAsk,
   home,
   signInAsOffice,
   submit,
 } from "../../../tests/fixtures.ts";
-import { quoteRequests } from "./quote-requests.schema.ts";
+import { quotes } from "./quotes.schema.ts";
 
-describe("a Guest's Quote Request", () => {
-  test("creates the Client, Property and Quote Request, and no Account", async () => {
-    const res = await submit(guestRequest());
+describe("a Guest asking for a Quote", () => {
+  test("creates the Client, Property and a Requested Quote, and no Account", async () => {
+    const res = await submit(guestAsk());
 
     expect(res.status).toBe(201);
     expect(res.body).toEqual({
@@ -23,20 +23,32 @@ describe("a Guest's Quote Request", () => {
     expect(res.headers["set-cookie"]).toBeUndefined();
 
     const office = await signInAsOffice();
-    const [listed] = (await office.get("/api/quote-requests")).body;
+    const [listed] = (await office.get("/api/quotes")).body;
     expect(listed).toMatchObject({
+      id: res.body.id,
+      kind: null,
+      status: "requested",
+      origin: "client",
       client: { name: "Casey Client" },
+      property: { street: "41-12 Austin St", unit: "4B" },
+      asked: { condition: "moderate", wantsRegularService: true },
+      headlineTotalCents: null,
+    });
+    const quote = (await office.get(`/api/quotes/${listed.id}`).expect(200))
+      .body;
+    expect(quote).toMatchObject({
       property: { street: "41-12 Austin St", unit: "4B", bathrooms: 1.5 },
-      condition: "moderate",
-      wantsRegularService: true,
+      draft: null,
+      offer: null,
+      revisions: [],
     });
   });
 
   test("emails a receipt saying where the Quote will go", async () => {
-    await submit(guestRequest());
+    await submit(guestAsk());
 
     const receipt = testEmail().lastTo("casey@example.com");
-    expect(receipt.subject).toBe("We've received your Quote Request");
+    expect(receipt.subject).toBe("We've received your request for a Quote");
     expect(receipt.text).toContain("41-12 Austin St, 4B, 11375");
     expect(receipt.text).toContain(
       "We'll email your Quote to casey@example.com",
@@ -46,21 +58,21 @@ describe("a Guest's Quote Request", () => {
   });
 
   test("is connected to the Account when that email signs up later", async () => {
-    await submit(guestRequest());
+    await submit(guestAsk());
 
     const agent = await signIn("casey@example.com");
     const me = (await agent.get("/api/clients/me")).body;
 
     expect(me).toMatchObject({ name: "Casey Client", phone: casey.phone });
     expect(me.properties).toHaveLength(1);
-    expect(me.quoteRequests).toHaveLength(1);
+    expect(me.quotes).toHaveLength(1);
   });
 
   test("with an existing Client's email, joins that Client without changing them", async () => {
-    await submit(guestRequest());
+    await submit(guestAsk());
 
     await submit(
-      guestRequest({
+      guestAsk({
         contact: {
           name: "Someone Else",
           email: "CASEY@example.com",
@@ -75,17 +87,17 @@ describe("a Guest's Quote Request", () => {
     ).body;
     expect(me).toMatchObject({ name: "Casey Client", phone: casey.phone });
     expect(me.properties).toHaveLength(2);
-    expect(me.quoteRequests).toHaveLength(2);
+    expect(me.quotes).toHaveLength(2);
     // the real owner hears about it, at their own address
     const receipts = testEmail()
       .to("casey@example.com")
-      .filter((m) => m.subject === "We've received your Quote Request");
+      .filter((m) => m.subject === "We've received your request for a Quote");
     expect(receipts).toHaveLength(2);
   });
 
   test("explains what's wrong, field by field, in the API's error format", async () => {
     const res = await submit(
-      guestRequest({
+      guestAsk({
         contact: { ...casey, email: "casey@", phone: "555" },
         property: { new: { ...home, postcode: "1137", bathrooms: 1.25 } },
       }),
@@ -109,7 +121,7 @@ describe("a Guest's Quote Request", () => {
 
   test("can't name an existing Property", async () => {
     const res = await submit(
-      guestRequest({
+      guestAsk({
         property: { existing: "00000000-0000-4000-8000-000000000000" },
       }),
     );
@@ -119,7 +131,7 @@ describe("a Guest's Quote Request", () => {
 
   test("is accepted from the landing site", async () => {
     const res = await api()
-      .options("/api/quote-requests")
+      .options("/api/quotes/ask")
       .set("Origin", "http://localhost:4321")
       .set("Access-Control-Request-Method", "POST");
 
@@ -133,41 +145,41 @@ const ownHomes = async (email: string) =>
   (await (await signIn(email)).get("/api/clients/me")).body;
 
 describe("one address is one home", () => {
-  // Quote Requests stay waiting until #5 and #6 let them end, so a home is
-  // freed for a new request by removing its request here
-  const resolveAll = () => db.delete(quoteRequests);
+  // a Requested Quote stays open until the Office answers it, so a home is
+  // freed for a new ask by removing its Quote here
+  const resolveAll = () => db.delete(quotes);
 
   test.each([
     ["spelled out", "41-12 Austin Street", "Apt 4B"],
     ["with punctuation and capitals", "41-12 AUSTIN ST.", "#4b"],
     ["with the hyphen as a space", "41 12 Austin St", "apartment 4B"],
   ])("the same address %s is the same home", async (_, street, unit) => {
-    await submit(guestRequest());
+    await submit(guestAsk());
     await resolveAll();
 
     await submit(
-      guestRequest({ property: { new: { ...home, street, unit } } }),
+      guestAsk({ property: { new: { ...home, street, unit } } }),
     ).expect(201);
 
     expect((await ownHomes("casey@example.com")).properties).toHaveLength(1);
   });
 
   test("a different unit in the same building is a different home", async () => {
-    await submit(guestRequest());
+    await submit(guestAsk());
 
     await submit(
-      guestRequest({ property: { new: { ...home, unit: "5A" } } }),
+      guestAsk({ property: { new: { ...home, unit: "5A" } } }),
     ).expect(201);
 
     expect((await ownHomes("casey@example.com")).properties).toHaveLength(2);
   });
 
   test("a home keeps its details when the address is entered again", async () => {
-    await submit(guestRequest());
+    await submit(guestAsk());
     await resolveAll();
 
     await submit(
-      guestRequest({
+      guestAsk({
         condition: "heavy",
         property: { new: { ...home, bedrooms: 5, pets: false } },
       }),
@@ -184,9 +196,9 @@ describe("one address is one home", () => {
   });
 
   test("each Client has their own record of an address", async () => {
-    await submit(guestRequest());
+    await submit(guestAsk());
     await submit(
-      guestRequest({
+      guestAsk({
         contact: {
           name: "Dana Doe",
           email: "dana@example.com",
@@ -200,28 +212,28 @@ describe("one address is one home", () => {
   });
 });
 
-describe("one pending request per home", () => {
+describe("one open Quote per home", () => {
   const refusal =
     "You've already asked us for a Quote for this home. We'll email it to casey@example.com soon.";
 
   test("a Guest asking again about the same home is told one is on its way", async () => {
-    await submit(guestRequest());
+    await submit(guestAsk());
 
-    const res = await submit(guestRequest());
+    const res = await submit(guestAsk());
 
     expect(res.status).toBe(409);
     expect(res.body.message).toBe(refusal);
     const me = await ownHomes("casey@example.com");
-    expect(me.quoteRequests).toHaveLength(1);
+    expect(me.quotes).toHaveLength(1);
     // no second receipt either
     const receipts = testEmail()
       .to("casey@example.com")
-      .filter((m) => m.subject === "We've received your Quote Request");
+      .filter((m) => m.subject === "We've received your request for a Quote");
     expect(receipts).toHaveLength(1);
   });
 
   test("a Client choosing one of their homes is told the same", async () => {
-    await submit(guestRequest());
+    await submit(guestAsk());
     const agent = await signIn("casey@example.com");
     const [property] = (await agent.get("/api/clients/me")).body.properties;
 
@@ -238,8 +250,8 @@ describe("one pending request per home", () => {
     expect(res.body.message).toBe(refusal);
   });
 
-  test("a Client entering the address of a home with a pending request is told the same", async () => {
-    await submit(guestRequest());
+  test("a Client entering the address of a home with a Requested Quote is told the same", async () => {
+    await submit(guestAsk());
     const agent = await signIn("casey@example.com");
 
     const res = await submit(
@@ -259,12 +271,12 @@ describe("the receipt email", () => {
   test("failing to send doesn't lose or fail the request", async () => {
     testEmail().failSending();
 
-    const res = await submit(guestRequest());
+    const res = await submit(guestAsk());
     testEmail().sendNormally();
 
     expect(res.status).toBe(201);
     expect(res.body.emailedTo).toBe("casey@example.com");
-    expect((await ownHomes("casey@example.com")).quoteRequests).toHaveLength(1);
+    expect((await ownHomes("casey@example.com")).quotes).toHaveLength(1);
   });
 });
 
@@ -273,22 +285,20 @@ describe("a signed-in Account connected to no Client", () => {
     const agent = await signIn("casey@example.com");
 
     const res = await submit(
-      { ...guestRequest(), contact: { name: casey.name, phone: casey.phone } },
+      { ...guestAsk(), contact: { name: casey.name, phone: casey.phone } },
       agent,
     );
 
     expect(res.status).toBe(201);
     expect(res.body.emailedTo).toBe("casey@example.com");
     expect((await agent.get("/api/me")).body.roles).toEqual(["client"]);
-    expect(
-      (await agent.get("/api/clients/me")).body.quoteRequests,
-    ).toHaveLength(1);
+    expect((await agent.get("/api/clients/me")).body.quotes).toHaveLength(1);
   });
 
   test("needs a name and phone", async () => {
     const agent = await signIn("casey@example.com");
 
-    const res = await submit({ ...guestRequest(), contact: undefined }, agent);
+    const res = await submit({ ...guestAsk(), contact: undefined }, agent);
 
     expect(res.status).toBe(400);
   });
@@ -296,7 +306,7 @@ describe("a signed-in Account connected to no Client", () => {
 
 describe("a signed-in Client", () => {
   const asClient = async () => {
-    await submit(guestRequest());
+    await submit(guestAsk());
     const agent = await signIn("casey@example.com");
     const me = (await agent.get("/api/clients/me")).body;
     return { agent, property: me.properties[0] };
@@ -321,8 +331,8 @@ describe("a signed-in Client", () => {
 
   test("can ask again about one of their Properties, restating its Condition", async () => {
     const { agent, property } = await asClient();
-    // the earlier request has been dealt with (see "one address is one home")
-    await db.delete(quoteRequests);
+    // the earlier Quote has been dealt with (see "one address is one home")
+    await db.delete(quotes);
 
     await submit(
       {
@@ -338,9 +348,9 @@ describe("a signed-in Client", () => {
     expect(me.properties).toEqual([
       expect.objectContaining({ id: property.id, condition: "heavy" }),
     ]);
-    expect(me.quoteRequests[0]).toMatchObject({
-      condition: "heavy",
-      notes: "After a party",
+    expect(me.quotes[0]).toMatchObject({
+      status: "requested",
+      asked: { condition: "heavy", notes: "After a party" },
     });
   });
 
@@ -349,7 +359,7 @@ describe("a signed-in Client", () => {
     const stranger = await signIn("stranger@example.com");
     await submit(
       {
-        ...guestRequest(),
+        ...guestAsk(),
         contact: { name: "Sam Stranger", phone: casey.phone },
       },
       stranger,
@@ -388,7 +398,7 @@ describe("a signed-in Client", () => {
   test("can't take another Client's email", async () => {
     const { agent } = await asClient();
     await submit(
-      guestRequest({ contact: { ...casey, email: "dana@example.com" } }),
+      guestAsk({ contact: { ...casey, email: "dana@example.com" } }),
     );
 
     const res = await agent
@@ -435,7 +445,7 @@ describe("a signed-in Client", () => {
     const { property } = await asClient();
     const dana = await signIn("dana@example.com");
     await submit(
-      { ...guestRequest(), contact: { name: "Dana Doe", phone: casey.phone } },
+      { ...guestAsk(), contact: { name: "Dana Doe", phone: casey.phone } },
       dana,
     );
 
@@ -450,16 +460,16 @@ describe("a signed-in Client", () => {
 });
 
 describe("Office Staff", () => {
-  test("see open Quote Requests, newest first", async () => {
-    await submit(guestRequest());
+  test("see open Quotes, newest first", async () => {
+    await submit(guestAsk());
     await submit(
-      guestRequest({
+      guestAsk({
         contact: { ...casey, name: "Dana Doe", email: "dana@example.com" },
       }),
     );
     const office = await signInAsOffice();
 
-    const listed = (await office.get("/api/quote-requests")).body;
+    const listed = (await office.get("/api/quotes")).body;
 
     expect(
       listed.map((r: { client: { name: string } }) => r.client.name),
@@ -467,9 +477,9 @@ describe("Office Staff", () => {
   });
 
   test("view a Client with their Properties, each with where it stands", async () => {
-    await submit(guestRequest());
+    await submit(guestAsk());
     const office = await signInAsOffice();
-    const [request] = (await office.get("/api/quote-requests")).body;
+    const [request] = (await office.get("/api/quotes")).body;
 
     const client = (await office.get(`/api/clients/${request.client.id}`)).body;
 
@@ -479,40 +489,39 @@ describe("Office Staff", () => {
     });
     expect(client.properties).toEqual([
       expect.objectContaining({
-        id: request.propertyId,
-        status: { kind: "request_waiting" },
+        id: request.property.id,
+        status: { kind: "quote_requested" },
       }),
     ]);
   });
 
-  test("view a Property with its Quote Requests", async () => {
-    await submit(guestRequest());
+  test("view a Property with its Quotes", async () => {
+    await submit(guestAsk());
     const office = await signInAsOffice();
-    const [request] = (await office.get("/api/quote-requests")).body;
+    const [request] = (await office.get("/api/quotes")).body;
 
     const property = (
-      await office.get(`/api/properties/${request.propertyId}`).expect(200)
+      await office.get(`/api/properties/${request.property.id}`).expect(200)
     ).body;
 
     expect(property).toMatchObject({
       street: "41-12 Austin St",
       client: { id: request.client.id, name: "Casey Client" },
       firstCleanCompleted: false,
-      quotes: [],
       jobs: [],
     });
-    expect(property.quoteRequests.map((r: { id: string }) => r.id)).toEqual([
+    expect(property.quotes.map((r: { id: string }) => r.id)).toEqual([
       request.id,
     ]);
   });
 
   test("correct any of a Property's details, but not its address", async () => {
-    await submit(guestRequest());
+    await submit(guestAsk());
     const office = await signInAsOffice();
-    const [request] = (await office.get("/api/quote-requests")).body;
+    const [request] = (await office.get("/api/quotes")).body;
 
     await office
-      .patch(`/api/properties/${request.propertyId}`)
+      .patch(`/api/properties/${request.property.id}`)
       .send({
         type: "townhouse",
         bedrooms: 3,
@@ -538,12 +547,12 @@ describe("Office Staff", () => {
   });
 
   test("correcting details explains what's wrong, field by field", async () => {
-    await submit(guestRequest());
+    await submit(guestAsk());
     const office = await signInAsOffice();
-    const [request] = (await office.get("/api/quote-requests")).body;
+    const [request] = (await office.get("/api/quotes")).body;
 
     const res = await office
-      .patch(`/api/properties/${request.propertyId}`)
+      .patch(`/api/properties/${request.property.id}`)
       .send({ bathrooms: 1.25 });
 
     expect(res.status).toBe(400);
@@ -554,10 +563,10 @@ describe("Office Staff", () => {
   });
 
   test("are the only ones who see the list", async () => {
-    await submit(guestRequest());
+    await submit(guestAsk());
     const agent = await signIn("casey@example.com");
 
-    expect((await agent.get("/api/quote-requests")).status).toBe(403);
-    expect((await api().get("/api/quote-requests")).status).toBe(401);
+    expect((await agent.get("/api/quotes")).status).toBe(403);
+    expect((await api().get("/api/quotes")).status).toBe(401);
   });
 });

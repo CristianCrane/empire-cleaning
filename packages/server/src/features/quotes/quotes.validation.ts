@@ -15,23 +15,25 @@ export const clientAcceptSchema = acceptSchema.extend({
   paymentToken: z.string().min(1).max(255).optional(),
 });
 
-// a Quote for a Quote Request (a one-off Quote unless said otherwise), or a
-// Service Plan Quote offered for a Property unprompted
-export const startSchema = z.union(
-  [
-    z.object({
-      quoteRequestId: z.uuid("Choose a Quote Request"),
-      kind: z.enum(["one_off", "service_plan"]).default("one_off"),
-    }),
-    z.object({
-      propertyId: z.uuid("Choose a home"),
-      kind: z.literal("service_plan", {
-        error: "A one-off Quote answers a Quote Request",
-      }),
-    }),
-  ],
-  { error: "Choose a Quote Request, or a home to offer a Service Plan" },
-);
+// a Service Plan Quote Office Staff offer for a Property unprompted
+export const startSchema = z.object({
+  propertyId: z.uuid("Choose a home"),
+  kind: z.literal("service_plan", {
+    error: "A one-off Quote starts from what a Client asks for",
+  }),
+});
+
+// a Requested Quote's first Revision sets its kind, one-off unless said
+// otherwise; after that it's fixed
+export const startRevisionSchema = z.object({
+  kind: z.enum(["one_off", "service_plan"]).optional(),
+});
+
+export const turnDownSchema = z.object({
+  reason: z.enum(["out_of_area", "out_of_scope", "no_capacity"], {
+    error: "Choose why: out of area, out of scope or no capacity",
+  }),
+});
 
 // no lower bound but nothing: Office Staff have the final say (the reason
 // shows where the Price List is wrong)

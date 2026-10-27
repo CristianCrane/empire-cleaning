@@ -66,7 +66,7 @@ export const offeredFor = pgEnum("offered_for", [
 ]);
 
 // An Add-on in one version of the Price List. Its key is the same in every
-// version, so a Quote Request that chose it keeps meaning the same thing after
+// version, so a Quote that asked for it keeps meaning the same thing after
 // the Price List changes; retiring an Add-on keeps its row.
 export const priceListAddOns = pgTable(
   "price_list_add_ons",

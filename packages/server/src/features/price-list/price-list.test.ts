@@ -2,12 +2,12 @@ import { describe, expect, test } from "vitest";
 import type {
   PriceList,
   PriceListInput,
-  QuoteRequestDetail,
+  OfficeQuote,
 } from "@empire-cleaning/models";
 import { api, signIn } from "../../../tests/harness.ts";
 import {
   casey,
-  guestRequest,
+  guestAsk,
   home,
   signInAsOffice,
   submit,
@@ -73,18 +73,18 @@ const addOnKeys = async (office: Office) =>
       .map((a) => [a.name, a.key]),
   );
 
-// what the Office sees for a Quote Request, by sending one and opening it
+// what the Office sees for a Quote asked for, by asking and opening it
 const detailOf = async (
   office: Office,
-  request: ReturnType<typeof guestRequest> = guestRequest(),
+  request: ReturnType<typeof guestAsk> = guestAsk(),
 ) => {
   await submit(request).expect(201);
-  const list = (await office.get("/api/quote-requests")).body;
+  const list = (await office.get("/api/quotes")).body;
   const id = list.find(
     (r: { client: { name: string } }) => r.client.name === casey.name,
   ).id;
-  return (await office.get(`/api/quote-requests/${id}`).expect(200))
-    .body as QuoteRequestDetail;
+  return (await office.get(`/api/quotes/${id}`).expect(200))
+    .body as OfficeQuote;
 };
 
 describe("the Price List", () => {
@@ -431,7 +431,7 @@ describe("Premises Types", () => {
 });
 
 describe("Add-ons for homes and businesses", () => {
-  test("only those offered for homes are on the Quote Request form", async () => {
+  test("only those offered for homes are on the 'Request a Quote' form", async () => {
     const office = await signInAsOffice();
     await save(office, {
       addOns: [
@@ -462,7 +462,7 @@ describe("Add-ons for homes and businesses", () => {
 
     const res = await api().get("/api/price-list/add-ons").expect(200);
     const forBusiness = await submit(
-      guestRequest({ addOns: [keys["Breakroom fridge"]!] }),
+      guestAsk({ addOns: [keys["Breakroom fridge"]!] }),
     );
 
     expect(res.body.map((a: { name: string }) => a.name)).toEqual([
@@ -522,10 +522,7 @@ describe("the Suggested Price", () => {
     await save(office).expect(200);
     const oven = (await addOnKeys(office))["Inside the oven"];
 
-    const { suggested } = await detailOf(
-      office,
-      guestRequest({ addOns: [oven!] }),
-    );
+    const { suggested } = await detailOf(office, guestAsk({ addOns: [oven!] }));
 
     // standard: 3.625 + 0.5 = 4.125 h, up to 4.25 h = $212.50, to $213
     expect(suggested.standard.labourHours).toBe(4.25);
@@ -545,7 +542,7 @@ describe("the Suggested Price", () => {
 
     const { suggested } = await detailOf(
       office,
-      guestRequest({ addOns: [carpet!] }),
+      guestAsk({ addOns: [carpet!] }),
     );
 
     // 3.625 + 1 = 4.625 h, up to 4.75 h = $237.50, to $238. Carpet's 1 h at
@@ -562,7 +559,7 @@ describe("the Suggested Price", () => {
     // a studio with one bathroom, light: (1 + 0 + 0.75) x 0.8 = 1.4 h, up to 1.5 h = $75
     const { suggested } = await detailOf(
       office,
-      guestRequest({
+      guestAsk({
         condition: "light",
         property: {
           new: {
@@ -599,7 +596,7 @@ describe("the Suggested Price", () => {
 
     const { suggested } = await detailOf(
       office,
-      guestRequest({
+      guestAsk({
         property: {
           new: { ...home, bedrooms: 3, bathrooms: 1, pets: false, storeys: 1 },
         },
@@ -621,12 +618,12 @@ describe("the Suggested Price", () => {
       .patch(`/api/properties/${detail.property.id}`)
       .send({ condition: "heavy" })
       .expect(200);
-    const after = (
-      await office.get(`/api/quote-requests/${detail.id}`).expect(200)
-    ).body as QuoteRequestDetail;
+    const after = (await office.get(`/api/quotes/${detail.id}`).expect(200))
+      .body as OfficeQuote;
 
     // 3.625 x 1.5 = 5.4375 h, up to 5.5 h = $275
-    expect(after.statedCondition).toBe("moderate");
+    // as asked
+    expect(after.asked!.condition).toBe("moderate");
     expect(after.suggested.standard).toMatchObject({
       conditionMultiplier: 1.5,
       labourHours: 5.5,
@@ -640,9 +637,8 @@ describe("the Suggested Price", () => {
     const before = await detailOf(office);
 
     await save(office, { hourlyRateCents: 6000 }).expect(200);
-    const after = (
-      await office.get(`/api/quote-requests/${before.id}`).expect(200)
-    ).body as QuoteRequestDetail;
+    const after = (await office.get(`/api/quotes/${before.id}`).expect(200))
+      .body as OfficeQuote;
 
     expect(before.suggested.standard.priceCents).toBe(18800);
     // 3.75 h x $60 = $225
@@ -654,19 +650,20 @@ describe("the Suggested Price", () => {
     const office = await signInAsOffice();
     await save(office).expect(200);
     const oven = (await addOnKeys(office))["Inside the oven"];
-    const before = await detailOf(office, guestRequest({ addOns: [oven!] }));
+    const before = await detailOf(office, guestAsk({ addOns: [oven!] }));
 
     await save(office, { addOns: [] }).expect(200);
-    const after = (
-      await office.get(`/api/quote-requests/${before.id}`).expect(200)
-    ).body as QuoteRequestDetail;
+    const after = (await office.get(`/api/quotes/${before.id}`).expect(200))
+      .body as OfficeQuote;
 
-    expect(after.addOns).toEqual([{ key: oven, name: "Inside the oven" }]);
+    expect(after.asked!.addOns).toEqual([
+      { key: oven, name: "Inside the oven" },
+    ]);
     expect(after.suggested.standard.labourHours).toBe(4.25);
   });
 });
 
-describe("Add-ons on a Quote Request", () => {
+describe("Add-ons asked for on a Quote", () => {
   test("are chosen by key from those on offer, and shown to the Office", async () => {
     const office = await signInAsOffice();
     await save(office).expect(200);
@@ -674,13 +671,13 @@ describe("Add-ons on a Quote Request", () => {
 
     const detail = await detailOf(
       office,
-      guestRequest({
+      guestAsk({
         addOns: [keys["Carpet shampooing"]!, keys["Inside the oven"]!],
       }),
     );
 
     // in the Price List's order, however they were sent
-    expect(detail.addOns.map((a) => a.name)).toEqual([
+    expect(detail.asked!.addOns.map((a) => a.name)).toEqual([
       "Inside the oven",
       "Carpet shampooing",
     ]);
@@ -692,9 +689,9 @@ describe("Add-ons on a Quote Request", () => {
     const oven = (await addOnKeys(office))["Inside the oven"];
     await save(office, { addOns: [] }).expect(200);
 
-    const retired = await submit(guestRequest({ addOns: [oven!] }));
+    const retired = await submit(guestAsk({ addOns: [oven!] }));
     const unknown = await submit(
-      guestRequest({ addOns: ["00000000-0000-4000-8000-000000000000"] }),
+      guestAsk({ addOns: ["00000000-0000-4000-8000-000000000000"] }),
     );
 
     for (const res of [retired, unknown]) {
@@ -711,25 +708,25 @@ describe("Add-ons on a Quote Request", () => {
 
     const detail = await detailOf(office);
 
-    expect(detail.addOns).toEqual([]);
+    expect(detail.asked!.addOns).toEqual([]);
   });
 });
 
-describe("a Quote Request in full", () => {
+describe("a Quote asked for, in full", () => {
   test("is for Office Staff only", async () => {
     const office = await signInAsOffice();
     const { id } = await detailOf(office);
     const client = await signIn("casey@example.com");
 
-    expect((await api().get(`/api/quote-requests/${id}`)).status).toBe(401);
-    expect((await client.get(`/api/quote-requests/${id}`)).status).toBe(403);
+    expect((await api().get(`/api/quotes/${id}`)).status).toBe(401);
+    expect((await client.get(`/api/quotes/${id}`)).status).toBe(403);
   });
 
-  test("is not found when there is no such request", async () => {
+  test("is not found when there is no such Quote", async () => {
     const office = await signInAsOffice();
 
     const res = await office.get(
-      "/api/quote-requests/00000000-0000-4000-8000-000000000000",
+      "/api/quotes/00000000-0000-4000-8000-000000000000",
     );
 
     expect(res.status).toBe(404);

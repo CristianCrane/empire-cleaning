@@ -46,14 +46,18 @@ import { charges } from "../payments/payments.schema.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { warnOfficeOfQuotesWithoutRoom } from "../quotes/quote-room.ts";
 import {
-  quoteOptions,
+  quoteRevisions,
   quotes,
-  type Quote,
-  type QuoteOptionRow,
+  revisionOptions,
+  type RevisionOptionRow,
 } from "../quotes/quotes.schema.ts";
 import { staff } from "../staff/staff.schema.ts";
 import { endServicePlan, endTermsOf } from "./ending.ts";
-import { recordFirstVisits, type FirstJobs } from "./first-visits.ts";
+import {
+  recordFirstVisits,
+  type AcceptedQuote,
+  type FirstJobs,
+} from "./first-visits.ts";
 import {
   servicePlans,
   servicePlanVisits,
@@ -85,7 +89,7 @@ export const startServicePlan = async (
     firstJobs,
     startedBy,
   }: {
-    quote: Quote;
+    quote: AcceptedQuote;
     firstJobs: FirstJobs;
     startedBy: string | null;
   },
@@ -104,16 +108,19 @@ export const startServicePlan = async (
   return plan!;
 };
 
-// A plan's weekdays on a Quote's terms, in order: the Quote's options, each
-// with its first clean's time, its visit and price
+// A plan's weekdays on an Accepted Quote's terms, in order: the options of
+// the Revision accepted, each with its first clean's time, its visit and
+// price
 export const daysOfQuote = (quoteId: string, tx: Tx | typeof db = db) =>
   tx
-    .select()
-    .from(quoteOptions)
-    .where(eq(quoteOptions.quoteId, quoteId))
-    .orderBy(asc(quoteOptions.position));
+    .select({ day: revisionOptions })
+    .from(revisionOptions)
+    .innerJoin(quotes, eq(quotes.sentRevisionId, revisionOptions.revisionId))
+    .where(eq(quotes.id, quoteId))
+    .orderBy(asc(revisionOptions.position))
+    .then((rows) => rows.map((r) => r.day));
 
-type Day = QuoteOptionRow;
+type Day = RevisionOptionRow;
 
 // the Property's Service Plan that hasn't Ended, if it has one
 export const currentPlanOf = async (
@@ -535,18 +542,19 @@ const summariesOf = async (plans: ServicePlan[]) => {
       .groupBy(servicePlanVisits.servicePlanId),
     db
       .select({
-        quoteId: quoteOptions.quoteId,
-        startsAt: quoteOptions.startsAt,
-        cleanType: quoteOptions.cleanType,
+        quoteId: quotes.id,
+        startsAt: revisionOptions.startsAt,
+        cleanType: revisionOptions.cleanType,
       })
-      .from(quoteOptions)
+      .from(revisionOptions)
+      .innerJoin(quotes, eq(quotes.sentRevisionId, revisionOptions.revisionId))
       .where(
         inArray(
-          quoteOptions.quoteId,
+          quotes.id,
           plans.map((p) => p.quoteId),
         ),
       )
-      .orderBy(asc(quoteOptions.position)),
+      .orderBy(asc(revisionOptions.position)),
   ]);
   const homeOf = new Map(homes.map((h) => [h.id, h]));
   const nextOf = new Map(next.map((n) => [n.planId, n.startsAt]));
@@ -642,7 +650,11 @@ const detailOf = async (
     [owner],
   ] = await Promise.all([
     summariesOf([plan]).then((m) => [m.get(plan.id)!]),
-    db.select().from(quotes).where(eq(quotes.id, plan.quoteId)),
+    db
+      .select({ planDiscountPercent: quoteRevisions.planDiscountPercent })
+      .from(quotes)
+      .innerJoin(quoteRevisions, eq(quoteRevisions.id, quotes.sentRevisionId))
+      .where(eq(quotes.id, plan.quoteId)),
     daysOfQuote(plan.quoteId),
     db
       .select({ cents: sum(charges.amountCents).mapWith(Number) })

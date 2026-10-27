@@ -3,7 +3,7 @@ import { z } from "zod";
 import { NotFoundError, RequestBodyError } from "../../middleware/errors.ts";
 import { validate } from "../../middleware/validation.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
-import { contactSchema } from "../quote-requests/quote-requests.validation.ts";
+import { contactSchema } from "../quotes/asking.validation.ts";
 import {
   clientForAccount,
   clientView,
@@ -22,7 +22,7 @@ const ownClient = async (accountId: string) => {
   return client;
 };
 
-// the signed-in Client, with their Properties and Quote Requests
+// the signed-in Client, with their Properties and Quotes
 router.get("/me", authorize("client"), async (req, res) => {
   const client = await ownClient(signedInAccount(res).id);
   res.json(await clientView(client.id));

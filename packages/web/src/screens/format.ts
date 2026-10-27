@@ -162,21 +162,23 @@ export const formatDateTime = (iso: string) =>
   dateTimeFormat.format(new Date(iso));
 
 export const quoteStatusLabel = {
+  requested: "Requested",
   draft: "Draft",
   sent: "Sent",
   accepted: "Accepted",
   declined: "Declined",
   expired: "Expired",
-  superseded: "Superseded",
+  turned_down: "Turned Down",
 };
 
 export const quoteStatusTone = {
+  requested: "warning",
   draft: "neutral",
   sent: "info",
   accepted: "success",
   declined: "neutral",
   expired: "warning",
-  superseded: "neutral",
+  turned_down: "neutral",
 } as const;
 
 // for NumberField's formatOptions on prices
@@ -265,9 +267,11 @@ export const planName = ({ recurrence, days }: PlanDays) => {
 export const quoteHeadline = (
   quote: Pick<QuoteSummary, "headlineTotalCents" | "plan">,
 ) =>
-  quote.plan
-    ? `Service Plan, ${planName(quote.plan)}: ${formatMoney(quote.headlineTotalCents)} ${quote.plan.days.length === 1 ? "a clean" : "a week"}`
-    : `Deep Clean ${formatMoney(quote.headlineTotalCents)}`;
+  quote.headlineTotalCents === null
+    ? "Not priced yet"
+    : quote.plan
+      ? `Service Plan, ${planName(quote.plan)}: ${formatMoney(quote.headlineTotalCents)} ${quote.plan.days.length === 1 ? "a clean" : "a week"}`
+      : `Deep Clean ${formatMoney(quote.headlineTotalCents)}`;
 
 // when a Service Plan's cleans come round, each weekday from its first:
 // "Every week, on Mondays at 9:00 AM", or "Every week, on Mondays at 9:00 AM

@@ -25,11 +25,9 @@ import type {
   OfficeQuote,
   OfficeServicePlan,
   OfficeSiteVisit,
-  OpenQuoteRequest,
   PaymentMethodView,
   PremisesTypeChoice,
   PriceList,
-  QuoteRequestDetail,
   QuoteSummary,
   QuoteView,
   ScheduleDay,
@@ -188,7 +186,7 @@ const areaRoute = <Id extends AreaId>(id: Id) =>
     component: () => <AreaLayout area={id} />,
   });
 
-// the signed-in Client with their homes and Quote Requests
+// the signed-in Client with their homes and Quotes
 const ownClient = () => getJson<ClientView>("/api/clients/me");
 
 const officeRoute = areaRoute("office");
@@ -214,7 +212,7 @@ const officeHomeRoute = createRoute({
 const officeRequestsRoute = createRoute({
   getParentRoute: () => officeRoute,
   path: "/requests",
-  loader: () => getJson<OpenQuoteRequest[]>("/api/quote-requests"),
+  loader: () => getJson<QuoteSummary[]>("/api/quotes"),
   component: QuoteRequests,
 });
 
@@ -222,7 +220,7 @@ const officeRequestRoute = createRoute({
   getParentRoute: () => officeRoute,
   path: "/requests/$requestId",
   loader: ({ params }) =>
-    getJson<QuoteRequestDetail>(`/api/quote-requests/${params.requestId}`),
+    getJson<OfficeQuote>(`/api/quotes/${params.requestId}`),
   component: QuoteRequest,
 });
 

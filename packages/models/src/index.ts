@@ -16,7 +16,7 @@ export type SignedInAccount = {
   roles: AccountRole[];
 };
 
-// ---- Quote Requests (#3) ----
+// ---- Asking for a Quote (#3) ----
 
 export type PropertyType = "house" | "apartment" | "townhouse";
 
@@ -37,7 +37,7 @@ type NewAddress = {
   accessInstructions?: string | null;
 };
 
-// a home, as the Quote Request form describes it
+// a home, as the "Request a Quote" form describes it
 export type NewHome = NewAddress & {
   kind: "residential";
   type: PropertyType;
@@ -49,7 +49,7 @@ export type NewHome = NewAddress & {
   floorArea?: number | null;
 };
 
-// business premises, as the Quote Request form describes them; the floor
+// business premises, as the "Request a Quote" form describes them; the floor
 // area is optional, as the Client may not know it (a Site Visit finds it)
 export type NewPremises = NewAddress & {
   kind: "commercial";
@@ -71,14 +71,14 @@ export type OfficeContactDetails = Omit<ContactDetails, "email"> & {
   businessName: string | null;
 };
 
-// what the Quote Request form sends to POST /api/quote-requests. Guests send
+// what the "Request a Quote" form sends to POST /api/quotes/ask. Guests send
 // their contact details; a signed-in Account not yet connected to a Client
 // sends its name and phone (its proven email is used); a Client sends neither.
 //
-// A home's request states its Condition and may choose Add-ons. A business's
+// A home's ask states its Condition and may choose Add-ons. A business's
 // gives its business name instead, and which weekdays it wants cleaned and
 // when, or none for a one-off; a Site Visit finds its Condition (#72).
-export type QuoteRequestSubmission = {
+export type QuoteAsk = {
   contact?: ContactDetails | Omit<ContactDetails, "email">;
   businessName?: string | null;
   property: { new: NewProperty } | { existing: string };
@@ -93,12 +93,26 @@ export type QuoteRequestSubmission = {
   notes?: string | null;
 };
 
-// the reply: where the Quote will be emailed
-export type QuoteRequestReceipt = { id: string; emailedTo: string };
+// the reply: the Requested Quote, and where it will be emailed
+export type QuoteAskReceipt = { id: string; emailedTo: string };
 
-// what POST /api/quote-requests/office returns: the request Office Staff
-// entered for a caller, and the one-off Quote Draft started for it (#34)
-export type OfficeRequestEntry = { quoteRequestId: string; quoteId: string };
+// what POST /api/quotes/caller returns: the one-off Quote Office Staff
+// started for a caller, a Draft holding what they asked (#34, ADR-0017)
+export type CallerQuoteEntry = { quoteId: string };
+
+// What a Quote was asked for, never changed (ADR-0017): as the Client stated
+// it, or as Office Staff recorded a caller's ask
+export type QuoteAsked = {
+  // a home's Condition; none on a business's
+  condition: Condition | null;
+  wantsRegularService: boolean;
+  // business premises asking for regular cleaning: the weekdays and
+  // preferred start time; empty and null otherwise
+  weekdays: Weekday[];
+  preferredTime: string | null;
+  notes: string | null;
+  addOns: AddOnChoice[];
+};
 
 type PropertyBase = {
   id: string;
@@ -129,26 +143,10 @@ export type PremisesView = PropertyBase & {
 
 export type PropertyView = HomeView | PremisesView;
 
-export type QuoteRequestView = {
-  id: string;
-  propertyId: string;
-  // as the Client stated it; none on a business's request
-  condition: Condition | null;
-  wantsRegularService: boolean;
-  // a business's request for regular cleaning: the weekdays and preferred
-  // start time it asked for; empty and null otherwise
-  weekdays: Weekday[];
-  preferredTime: string | null;
-  notes: string | null;
-  addOns: AddOnChoice[];
-  createdAt: string;
-  // where it stands, from its latest Quote
-  state: QuoteRequestState;
-  // While it awaits a Quote and its Property has no Site Visit findings:
-  // business premises need one before they're quoted (ADR-0014), and a
-  // home may have one booked. Null otherwise.
-  siteVisit: "needed" | "booked" | null;
-};
+// Where a Quote stands for a Site Visit while no Revision of it has been
+// Sent and its Property has no findings: business premises need one before
+// they're quoted (ADR-0014), and a home may have one booked. Null otherwise.
+export type SiteVisitStage = "needed" | "booked" | null;
 
 // a Client as the Office names them: a business by its business name, with
 // the person dealt with there (#72)
@@ -162,14 +160,16 @@ export type ClientView = ContactDetails & {
   id: string;
   businessName: string | null;
   properties: PropertyView[];
-  quoteRequests: QuoteRequestView[];
+  // their Quotes as they see them, newest first (see GET /api/quotes/mine)
+  quotes: QuoteSummary[];
 };
 
 // where a home stands, as one line on its Client's screen: the most pressing
-// of a request waiting on the Office, a Sent Quote open (a plan's first), the
-// next booked Job, a Completed First Clean, or none of these
+// of a Quote waiting on the Office (asked for, no Revision Sent yet), a Sent
+// Quote open (a plan's first), the next booked Job, a Completed First Clean,
+// or none of these
 export type PropertyStatus =
-  | { kind: "request_waiting" }
+  | { kind: "quote_requested" }
   | { kind: "quote_sent"; quoteKind: QuoteKind }
   | { kind: "job_booked"; startsAt: string }
   | { kind: "first_clean_done" }
@@ -190,15 +190,14 @@ export type OfficeClientView = OfficeContactDetails & {
   billing: ClientBilling;
 };
 
-// a Property for the Office, with its whole history: its requests, every
-// Quote (Drafts included) and every Job, newest first
+// a Property for the Office, with its whole history: every Quote and every
+// Job, newest first
 export type OfficePropertyView = PropertyView & {
   client: ClientName;
   // whether its First Clean is Completed, so it can be offered a Service Plan
   firstCleanCompleted: boolean;
   // its Service Plan, unless it has none or it has Ended
   servicePlan: ServicePlanSummary | null;
-  quoteRequests: QuoteRequestView[];
   quotes: QuoteSummary[];
   jobs: ScheduledJob[];
   // its Site Visits, newest first, and whether any has recorded findings,
@@ -207,15 +206,6 @@ export type OfficePropertyView = PropertyView & {
   findingsRecorded: boolean;
   // the Office's own notes on it, never shown to the Client
   officeNotes: string | null;
-};
-
-// one row of the Office's open Quote Requests
-export type OpenQuoteRequest = QuoteRequestView & {
-  client: ClientName;
-  property: PropertyView;
-  // its home's Service Plan, unless it has none or it has Ended: a Service
-  // Plan Quote answering it changes that plan
-  servicePlanId: string | null;
 };
 
 // ---- Price List and Suggested Price (#4) ----
@@ -242,7 +232,7 @@ export type PriceListAddOn = {
   active: boolean;
 };
 
-// a Premises Type as the Quote Request form offers it: its name. The key
+// a Premises Type as the "Request a Quote" form offers it: its name. The key
 // stays the same across Price List versions.
 export type PremisesTypeChoice = { key: string; name: string };
 
@@ -328,37 +318,6 @@ export type SuggestedPrices = {
   priceListVersion: number;
   standard: PriceBreakdown;
   deep: PriceBreakdown;
-};
-
-// one Quote Request in full, for the Office
-export type QuoteRequestDetail = {
-  id: string;
-  createdAt: string;
-  // as the Client stated it; the home's current Condition (which Office
-  // Staff may have corrected) is what prices use. None on a business's.
-  statedCondition: Condition | null;
-  wantsRegularService: boolean;
-  weekdays: Weekday[];
-  preferredTime: string | null;
-  notes: string | null;
-  addOns: AddOnChoice[];
-  client: OfficeContactDetails & { id: string };
-  property: PropertyView;
-  suggested: SuggestedPrices;
-  state: QuoteRequestState;
-  // every Quote for it, newest first
-  quotes: QuoteSummary[];
-  // whether its Property's First Clean is Completed, so it can be answered
-  // with a Service Plan Quote
-  firstCleanCompleted: boolean;
-  // its home's Service Plan, unless it has none or it has Ended: a Service
-  // Plan Quote answering it changes that plan
-  servicePlanId: string | null;
-  // as on QuoteRequestView, and its Property's booked Site Visit, if any
-  siteVisit: QuoteRequestView["siteVisit"];
-  bookedSiteVisit: SiteVisitView | null;
-  // whether its Property has Site Visit findings recorded (ADR-0014)
-  findingsRecorded: boolean;
 };
 
 // ---- Staff, availability and the Schedule (#7) ----
@@ -453,11 +412,12 @@ export type ScheduleDay = {
 export type SiteVisitStatus = "booked" | "done" | "cancelled";
 
 // A Site Visit as the Office sees it (ADR-0015): a free visit by one Staff
-// member to see a Property before it's quoted. Findings recorded without a
-// visit, for premises the Office knew, are a Done one with no time or
-// visitor.
+// member to see a Property for a Quote, before it's quoted. Findings
+// recorded without a visit, for premises the Office knew, are a Done one
+// with no time, visitor or Quote.
 export type SiteVisitView = {
   id: string;
+  quoteId: string | null;
   status: SiteVisitStatus;
   startsAt: string | null;
   // how long it's booked for: 30 minutes unless set otherwise
@@ -485,14 +445,14 @@ export type OfficeSiteVisit = Omit<SiteVisitView, "property"> & {
   officeNotes: string | null;
 };
 
-// what Office Staff send to book a Site Visit, or to move one (no
-// propertyId): when, who visits, and for how long
+// what Office Staff send to book a Site Visit for a Quote, or to move one
+// (no quoteId): when, who visits, and for how long
 export type SiteVisitBooking = LocalDateTime & {
   staffId: string;
   minutes: number;
 };
 
-export type BookSiteVisitInput = SiteVisitBooking & { propertyId: string };
+export type BookSiteVisitInput = SiteVisitBooking & { quoteId: string };
 
 // What a Site Visit found, recorded on the Property: its price-affecting
 // details and Condition, and the Office's notes. For business premises, the
@@ -577,10 +537,12 @@ export type DayCapacity = {
 // their kinds to this union.
 export type NeedsAttentionItem =
   | {
-      kind: "quote_request";
-      // when it started needing attention
+      // a Quote someone asked for with no Revision Sent yet: Requested, or
+      // a Draft still being written
+      kind: "quote_requested";
+      // when it started needing attention: when it was asked for
       since: string;
-      quoteRequest: OpenQuoteRequest;
+      quote: QuoteSummary;
     }
   | {
       // a Sent Quote within 48 hours of Expiring
@@ -675,27 +637,41 @@ export type Today = Omit<ScheduleDay, "jobs"> & { jobs: TodayJob[] };
 
 // ---- First Clean Quotes (#5) ----
 
-// Draft is being written by Staff and never shown to the Client; Expired is
-// worked out from the Clock (validity end or proposed time, whichever is
-// first). Accepted means the Deposit was taken and the Job booked.
+// Where a Quote stands (ADR-0017). Requested: asked for by a Client, no
+// Revision yet. Draft: its first Revision being written by Staff, never
+// shown to the Client. Sent: its latest Sent Revision is the offer, while a
+// newer Revision may be being drafted. Expired is worked out from the Clock
+// (the offer's validity end or proposed time, whichever is first); Office
+// Staff may revive it by sending a new Revision. Accepted means the Deposit
+// was taken and the Job booked. Accepted, Declined and Turned Down are
+// final.
 export type QuoteStatus =
-  "draft" | "sent" | "accepted" | "declined" | "expired" | "superseded";
+  | "requested"
+  | "draft"
+  | "sent"
+  | "accepted"
+  | "declined"
+  | "expired"
+  | "turned_down";
 
-// where a Quote Request stands, from its latest Quote that isn't a Draft:
-// none yet or Expired, it's awaiting a Quote; Sent, it's quoted; Accepted,
-// it's booked; Declined, it has ended. Booked and ended requests are closed:
-// they take no more Quotes, and the Client may ask again about that home.
-export type QuoteRequestState =
-  "awaiting_quote" | "quoted" | "booked" | "ended";
+// how a Quote started: a Client's (or Guest's) own ask; Office Staff
+// entering a caller's; or Office Staff offering a Service Plan unprompted
+export type QuoteOrigin = "client" | "caller" | "office";
+
+// why Office Staff Turned Down a Quote
+export type TurnDownReason = "out_of_area" | "out_of_scope" | "no_capacity";
+
+// POST /api/quotes/:id/turn-down: only before any Revision is Sent
+export type TurnDownQuoteInput = { reason: TurnDownReason };
 
 // a day and a wall-clock time in New York: { date: "2026-11-03", time: "09:00" }
 export type LocalDateTime = { date: IsoDate; time: string };
 
 // ---- Service Plan Quotes (#13) ----
 
-// what a Quote offers (ADR-0011): one Job, answering a Quote Request; or a
-// Service Plan, which a Property can only be offered once its First Clean is
-// Completed, answering a request or offered unprompted
+// what a Quote offers (ADR-0011), set by its first Revision: one Job; or a
+// Service Plan, which a home can only be offered once its First Clean is
+// Completed, asked for or offered unprompted
 export type QuoteKind = "one_off" | "service_plan";
 
 // how often a Service Plan's Job comes round, always on the same weekday:
@@ -780,11 +756,10 @@ export type QuoteOption = {
 // an Add-on on a Quote, with what it costs, tax included
 export type QuoteAddOn = { key: string; name: string; totalCents: number };
 
-// a Quote as its Client sees it (never a Draft)
+// A Quote as its Client sees it: its latest Sent Revision, the offer. One
+// with no Revision Sent yet isn't shown to them this way.
 export type QuoteView = {
   id: string;
-  // the request it answers; null on a Service Plan Quote offered unprompted
-  quoteRequestId: string | null;
   kind: QuoteKind;
   status: QuoteStatus;
   property: Pick<PropertyView, "id" | "street" | "unit" | "postcode">;
@@ -812,8 +787,8 @@ export type QuoteView = {
   servicePlanId: string | null;
   // once Accepted, whether it changed its home's plan rather than starting it
   changedPlan: boolean;
-  // on a Service Plan Quote for a home that has a plan, while it's a Draft or
-  // Sent: what accepting it does to that plan. Null otherwise.
+  // on a Service Plan Quote for a home that has a plan, while it's open:
+  // what accepting it does to that plan. Null otherwise.
   changesPlan: PlanChange | null;
   // the Clean Types that can still be booked: those the proposed day has room
   // for now, while the Quote is Sent; none once it's closed. A Service Plan
@@ -842,47 +817,115 @@ export type OfficeQuoteOption = QuoteOption & {
   overrideReason: string | null;
 };
 
-// a Quote in full, for the Office
-export type OfficeQuote = Omit<
-  QuoteView,
-  "options" | "plan" | "proposedStartsAt" | "sentAt" | "expiresAt" | "property"
-> & {
-  // what the Property is: its rooms, or its Premises Type and floor area
-  property: PropertyView;
-  // no email until the Office adds one: then it can't be Sent (#34)
-  client: ClientName & { email: string | null };
-  // business premises with no Site Visit findings yet: it can't be Sent
-  // until they're recorded (ADR-0014)
-  needsSiteVisit: boolean;
+// One Revision of a Quote in full, for the Office: unsent ("draft"), priced
+// afresh on every save, or Sent, never changed again.
+export type OfficeRevision = {
+  id: string;
+  // 1 for the first, counting up
+  number: number;
+  status: "draft" | "sent";
   options: OfficeQuoteOption[];
-  // with the Condition it's priced for
+  // a Service Plan Quote's, with the Condition it's priced for
   plan: (ServicePlanTerms & { condition: Condition }) | null;
-  // on a Service Plan Quote, what the Property's First Clean found, to price
-  // the plan by; null on a one-off Quote
-  firstClean: FirstCleanFindings | null;
-  // on a Service Plan Draft, each weekday priced as each Clean Type,
-  // Standard first, for Office Staff to choose between: its own Clean Type
-  // as last saved, the other worked out now from the same terms and Add-ons.
-  // Null once Sent, and on a one-off Quote.
+  // on an unsent Service Plan Revision, each weekday priced as each Clean
+  // Type, Standard first, for Office Staff to choose between: its own Clean
+  // Type as last saved, the other worked out now from the same terms and
+  // Add-ons. Null once Sent, and on a one-off Quote.
   planChoices: PlanChoice[][] | null;
-  priceListVersion: number;
+  addOns: QuoteAddOn[];
+  crewSize: number;
+  depositPercent: number;
   validityDays: number;
+  priceListVersion: number;
   proposedStart: LocalDateTime | null;
   proposedStartsAt: string | null;
   sentAt: string | null;
   expiresAt: string | null;
-  // the Add-ons that can be put on it: those on offer, and any the request it
-  // answers chose that have since been retired
+};
+
+// a Sent Revision in a Quote's history
+export type RevisionSummary = {
+  id: string;
+  number: number;
+  // what it led with, tax included, as QuoteSummary's headlineTotalCents
+  headlineTotalCents: number;
+  proposedStartsAt: string;
+  sentAt: string;
+  expiresAt: string;
+};
+
+// A Quote in full, for the Office (ADR-0017): what was asked, the Revision
+// being drafted, the offer, and every Sent Revision before it
+export type OfficeQuote = {
+  id: string;
+  // set by its first Revision; null while Requested
+  kind: QuoteKind | null;
+  status: QuoteStatus;
+  origin: QuoteOrigin;
+  // null on a Quote the Office offered unprompted
+  asked: QuoteAsked | null;
+  createdAt: string;
+  // no email until the Office adds one: then it can't be Sent (#34)
+  client: OfficeContactDetails & { id: string };
+  // what the Property is now: its rooms, or its Premises Type and floor area
+  property: PropertyView;
+  // the Suggested Price for both Clean Types, worked out now from the
+  // current Price List, the Property's current details and Condition, and
+  // the Add-ons asked for
+  suggested: SuggestedPrices;
+  // business premises with no Site Visit findings yet: no Revision can be
+  // Sent until they're recorded (ADR-0014)
+  needsSiteVisit: boolean;
+  siteVisit: SiteVisitStage;
+  // its booked Site Visit, if any
+  bookedSiteVisit: SiteVisitView | null;
+  // whether its Property has Site Visit findings recorded (ADR-0014)
+  findingsRecorded: boolean;
+  // whether its Property's First Clean is Completed, so it can be a Service
+  // Plan Quote
+  firstCleanCompleted: boolean;
+  // its home's Service Plan, unless it has none or it has Ended: a Service
+  // Plan Quote changes that plan
+  homePlanId: string | null;
+  // on a Service Plan Quote, what the Property's First Clean found, to price
+  // the plan by; null otherwise
+  firstClean: FirstCleanFindings | null;
+  // the Add-ons that can be put on a Revision: those on offer, and any asked
+  // for that have since been retired
   addOnChoices: AddOnChoice[];
+  // the Revision being written, if any, and the latest Sent one, the offer
+  draft: OfficeRevision | null;
+  offer: OfficeRevision | null;
+  // every Sent Revision, newest first, the offer included
+  revisions: RevisionSummary[];
+  declinedAt: string | null;
+  acceptedAt: string | null;
+  acceptedCleanType: CleanType | null;
+  // the Service Plan it started or changed, once Accepted
+  servicePlanId: string | null;
+  changedPlan: boolean;
+  changesPlan: PlanChange | null;
+  bookable: CleanType[];
+  turnedDownAt: string | null;
+  turnDownReason: TurnDownReason | null;
   // the Client's saved Payment Method, which recording acceptance on their
   // behalf charges; null until they add one
   paymentMethod: PaymentMethodView | null;
 };
 
-// what Office Staff change on a Draft (PATCH /api/quotes/:id); prices are
-// worked out again from the current Price List on every save. A Service Plan
-// Quote's time, crew and override are each weekday's own, so it leaves out
-// crewSize, proposedStart and overrides.
+// POST /api/quotes: Office Staff offering a Service Plan nobody asked for
+export type StartQuoteInput = { propertyId: string; kind: "service_plan" };
+
+// POST /api/quotes/:id/revisions: starts the Draft Revision. A Requested
+// Quote's first sets its kind (one-off unless said otherwise); after that
+// it's fixed.
+export type StartRevisionInput = { kind?: QuoteKind };
+
+// what Office Staff change on a Draft Revision (PATCH
+// /api/quotes/:id/draft); prices are worked out again from the current Price
+// List on every save. A Service Plan Quote's time, crew and override are
+// each weekday's own, so it leaves out crewSize, proposedStart and
+// overrides.
 export type QuoteDraftInput = {
   addOns: string[];
   // required on a one-off Quote
@@ -909,23 +952,32 @@ export type FirstCleanFindings = {
   adjustments: AdjustmentView[];
 };
 
-// a Quote in a list, for the Office or its Client
+// A Quote in a list, for the Office or its Client. Its offer's figures are
+// its latest Sent Revision's; for the Office, until one is Sent, its Draft
+// Revision's, if it has one.
 export type QuoteSummary = {
   id: string;
-  // the request it answers; null on a Service Plan Quote offered unprompted
-  quoteRequestId: string | null;
-  kind: QuoteKind;
+  kind: QuoteKind | null;
   status: QuoteStatus;
+  origin: QuoteOrigin;
+  asked: QuoteAsked | null;
   client: ClientName;
-  property: Pick<PropertyView, "id" | "street" | "unit" | "postcode">;
+  property: PropertyView;
+  // its home's Service Plan, unless it has none or it has Ended: a Service
+  // Plan Quote, or one asked for, may change it
+  homePlanId: string | null;
   // the total it leads with, tax included: a one-off Quote's recommended
-  // Deep Clean, or a Service Plan Quote's round, a clean on each weekday
-  headlineTotalCents: number;
-  // a Service Plan Quote's; null on a one-off Quote
+  // Deep Clean, or a Service Plan Quote's round, a clean on each weekday;
+  // null with no Revision
+  headlineTotalCents: number | null;
+  // a Service Plan Quote's; null otherwise
   plan: { recurrence: Recurrence; days: PlanDaySummary[] } | null;
   proposedStartsAt: string | null;
   sentAt: string | null;
   expiresAt: string | null;
+  // for the Office: whether a Revision is being drafted
+  drafting: boolean;
+  siteVisit: SiteVisitStage;
   createdAt: string;
 };
 

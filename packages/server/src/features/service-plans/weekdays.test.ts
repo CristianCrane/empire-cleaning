@@ -85,11 +85,11 @@ const body = (
   recurrence: "weekly" | "fortnightly" = "weekly",
 ): QuoteDraftInput => ({
   addOns: [],
-  depositPercent: draft.depositPercent,
-  validityDays: draft.validityDays,
+  depositPercent: draft.draft!.depositPercent,
+  validityDays: draft.draft!.validityDays,
   plan: {
     recurrence,
-    discountPercent: draft.plan!.discountPercent,
+    discountPercent: draft.draft!.plan!.discountPercent,
     condition: "moderate",
     days,
   },
@@ -101,7 +101,9 @@ const save = (
   days: PlanDayInput[],
   recurrence?: "weekly" | "fortnightly",
 ) =>
-  office.patch(`/api/quotes/${draft.id}`).send(body(draft, days, recurrence));
+  office
+    .patch(`/api/quotes/${draft.id}/draft`)
+    .send(body(draft, days, recurrence));
 
 const sentPlan = async (
   office: Agent,
@@ -146,8 +148,8 @@ describe("a Service Plan Quote on several weekdays", () => {
     const saved = (await save(office, draft, MONDAY_AND_WEDNESDAY).expect(200))
       .body as OfficeQuote;
 
-    const [monday, wednesday] = saved.options;
-    expect(saved.plan!.days).toMatchObject([
+    const [monday, wednesday] = saved.draft!.options;
+    expect(saved.draft!.plan!.days).toMatchObject([
       { startsAt: MONDAYS[0], cleanType: "standard", crewSize: 1 },
       { startsAt: WEDNESDAYS[0], cleanType: "deep", crewSize: 2 },
     ]);
@@ -155,7 +157,7 @@ describe("a Service Plan Quote on several weekdays", () => {
     expect(wednesday!.cleanType).toBe("deep");
     expect(wednesday!.hoursOnSite).toBe(wednesday!.labourHours / 2);
     expect(wednesday!.totalCents).toBeGreaterThan(monday!.totalCents);
-    expect(saved.plan).toMatchObject({
+    expect(saved.draft!.plan).toMatchObject({
       recurrence: "weekly",
       roundTotalCents: monday!.totalCents + wednesday!.totalCents,
       // each weekday's own 25%, added up
@@ -163,10 +165,10 @@ describe("a Service Plan Quote on several weekdays", () => {
         percent(monday!.totalCents, 25) + percent(wednesday!.totalCents, 25),
     });
     // the plan's first clean is the earliest
-    expect(saved.proposedStartsAt).toBe(MONDAYS[0]);
+    expect(saved.draft!.proposedStartsAt).toBe(MONDAYS[0]);
     // and each weekday has both Clean Types priced to choose between
     expect(
-      saved.planChoices!.map((d) => d.map((c) => c.option.cleanType)),
+      saved.draft!.planChoices!.map((d) => d.map((c) => c.option.cleanType)),
     ).toEqual([
       ["standard", "deep"],
       ["standard", "deep"],
@@ -186,9 +188,12 @@ describe("a Service Plan Quote on several weekdays", () => {
       ]).expect(200)
     ).body as OfficeQuote;
 
-    expect(saved.options.map((o) => o.overrideCents)).toEqual([null, 30000]);
+    expect(saved.draft!.options.map((o) => o.overrideCents)).toEqual([
+      null,
+      30000,
+    ]);
     // 10% off $300
-    expect(saved.options[1]!.priceCents).toBe(27000);
+    expect(saved.draft!.options[1]!.priceCents).toBe(27000);
   });
 
   test("on several weekdays comes round every week", async () => {
@@ -293,15 +298,15 @@ describe("accepting a Service Plan Quote on several weekdays", () => {
     const { office, quote, planId } = await startedPlan();
 
     expect(testPayments().charges.at(-1)!.amount).toBe(
-      quote.plan!.depositCents,
+      quote.offer!.plan!.depositCents,
     );
     const plan = await officePlan(office, planId);
-    expect(plan.depositCents).toBe(quote.plan!.depositCents);
+    expect(plan.depositCents).toBe(quote.offer!.plan!.depositCents);
     expect(plan.days).toMatchObject([
       { startsAt: MONDAYS[0], cleanType: "standard", crewSize: 1 },
       { startsAt: WEDNESDAYS[0], cleanType: "deep", crewSize: 2 },
     ]);
-    expect(plan.roundTotalCents).toBe(quote.plan!.roundTotalCents);
+    expect(plan.roundTotalCents).toBe(quote.offer!.plan!.roundTotalCents);
     const jobs = booked(plan);
     expect(jobs.map((j) => j.startsAt)).toEqual(
       [...MONDAYS, ...WEDNESDAYS].sort(),
@@ -448,10 +453,7 @@ describe("a commercial Service Plan", () => {
       weekdays: [0, 2, 4],
       preferredTime: "18:00",
     }).expect(201);
-    const request = (
-      await office.get(`/api/quote-requests/${body.id}`).expect(200)
-    ).body as { property: { id: string } };
-    return { office, premisesType, propertyId: request.property.id };
+    return { office, premisesType, quoteId: body.id as string };
   };
 
   const evenings = [
@@ -461,10 +463,17 @@ describe("a commercial Service Plan", () => {
   ];
 
   test("needs no First Clean, only the Site Visit's findings, to be Sent and accepted", async () => {
-    const { office, premisesType, propertyId } = await premises();
+    const { office, premisesType, quoteId } = await premises();
 
-    // a Draft can be written at any time
-    const draft = await draftPlan(office, propertyId);
+    // the business asked for regular cleaning: its Quote is made a Service
+    // Plan Quote, whose Draft can be written at any time
+    const draft = (
+      await office
+        .post(`/api/quotes/${quoteId}/revisions`)
+        .send({ kind: "service_plan" })
+        .expect(201)
+    ).body as OfficeQuote;
+    const propertyId = draft.property.id;
     await save(office, draft, evenings).expect(200);
     const unseen = await office
       .post(`/api/quotes/${draft.id}/send`)
@@ -479,7 +488,7 @@ describe("a commercial Service Plan", () => {
     await save(office, draft, evenings).expect(200);
     const sent = (await office.post(`/api/quotes/${draft.id}/send`).expect(200))
       .body as OfficeQuote;
-    expect(sent.plan!.days).toHaveLength(3);
+    expect(sent.offer!.plan!.days).toHaveLength(3);
     expect(sent.firstClean).toBeNull();
 
     // Casey saves a card on accepting

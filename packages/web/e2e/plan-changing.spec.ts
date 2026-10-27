@@ -149,7 +149,7 @@ test(
     ).toBeVisible();
     await expect(
       page.getByText(
-        "A Service Plan Quote answering this request changes its terms once the Client accepts it.",
+        "A Service Plan Quote changes its terms once the Client accepts it.",
         { exact: false },
       ),
     ).toBeVisible();

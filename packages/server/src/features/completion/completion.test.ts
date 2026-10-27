@@ -26,7 +26,7 @@ import {
 } from "../../../tests/harness.ts";
 import {
   casey,
-  guestRequest,
+  guestAsk,
   signInAsOffice,
   submit,
 } from "../../../tests/fixtures.ts";
@@ -76,15 +76,12 @@ const bookedJob = async ({
   const list = (await office.get("/api/price-list").expect(200))
     .body as PriceList;
 
-  const { body } = await submit(guestRequest()).expect(201);
+  const { body } = await submit(guestAsk()).expect(201);
   const draft = (
-    await office
-      .post("/api/quotes")
-      .send({ quoteRequestId: body.id })
-      .expect(201)
+    await office.post(`/api/quotes/${body.id}/revisions`).send({}).expect(201)
   ).body as OfficeQuote;
   await office
-    .patch(`/api/quotes/${draft.id}`)
+    .patch(`/api/quotes/${draft.id}/draft`)
     .send({
       addOns: [keyOf(list, "Inside the oven")],
       crewSize,
@@ -132,7 +129,7 @@ const bookedJob = async ({
 };
 
 const deepOf = (quote: OfficeQuote) =>
-  quote.options.find((o) => o.cleanType === "deep")!;
+  quote.offer!.options.find((o) => o.cleanType === "deep")!;
 
 const complete = (
   agent: Agent,

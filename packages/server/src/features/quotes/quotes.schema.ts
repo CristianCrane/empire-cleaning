@@ -1,5 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
+  check,
   index,
   integer,
   jsonb,
@@ -12,6 +14,7 @@ import {
   timestamp,
   uniqueIndex,
   uuid,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import type { PriceBreakdown } from "@empire-cleaning/models";
 import { timestamps } from "../../db/index.ts";
@@ -19,24 +22,40 @@ import { accounts } from "../auth/auth.schema.ts";
 import { cleanType, jobs } from "../jobs/jobs.schema.ts";
 import { priceLists } from "../price-list/price-list.schema.ts";
 import { condition, properties } from "../properties/properties.schema.ts";
-import { quoteRequests } from "../quote-requests/quote-requests.schema.ts";
 
-// A Sent Quote whose time is up is Expired whether or not this says so:
-// "expired" is only written when a newer Quote is sent, so the
-// one-Sent-Quote rule below can hold.
+// A Sent Quote whose offer's time is up is Expired whether or not this says
+// so: "expired" is only written when another Quote of its kind is started
+// for the Property, so the one-open-of-each-kind rule below can hold.
 export const quoteStatus = pgEnum("quote_status", [
+  "requested",
   "draft",
   "sent",
   "accepted",
   "declined",
   "expired",
-  "superseded",
+  "turned_down",
 ]);
 
 // what a Quote offers: one Job, or a Service Plan, which a home can only be
 // offered once its First Clean is Completed (business premises need no First
 // Clean, ADR-0014)
 export const quoteKind = pgEnum("quote_kind", ["one_off", "service_plan"]);
+
+// how a Quote started (ADR-0017): a Client's (or Guest's) own ask; Office
+// Staff entering a caller's; or Office Staff offering a Service Plan nobody
+// asked for, which has nothing asked
+export const quoteOrigin = pgEnum("quote_origin", [
+  "client",
+  "caller",
+  "office",
+]);
+
+// why Office Staff Turned Down a Quote
+export const turnDownReason = pgEnum("turn_down_reason", [
+  "out_of_area",
+  "out_of_scope",
+  "no_capacity",
+]);
 
 // how often a Service Plan comes round on each of its weekdays: every week,
 // always, when it has several
@@ -46,13 +65,10 @@ export const recurrence = pgEnum("recurrence", [
   "four_weekly",
 ]);
 
-// A priced offer for a Property (ADR-0011). A one-off Quote answers a Quote
-// Request and offers both Clean Types (quote_options); a Service Plan Quote
-// offers a visit on each of its weekdays (quote_options too), on a
-// recurrence, at the Plan Discount, and may answer a request or be offered
-// unprompted. While a Draft
-// it's priced afresh from the current Price List on every save; once Sent it
-// never changes.
+// Empire Cleaning's offer for one Property, from the ask (or the Office
+// starting it) to its outcome (ADR-0017). It keeps what was asked, never
+// changed, and its Revisions, the latest Sent one being the offer. Its kind
+// is set by its first Revision; a Requested Quote has none yet.
 export const quotes = pgTable(
   "quotes",
   {
@@ -60,13 +76,95 @@ export const quotes = pgTable(
     propertyId: uuid("property_id")
       .notNull()
       .references(() => properties.id, { onDelete: "cascade" }),
-    // the request it answers; always set on a one-off Quote
-    quoteRequestId: uuid("quote_request_id").references(
-      () => quoteRequests.id,
-      { onDelete: "cascade" },
+    kind: quoteKind("kind"),
+    status: quoteStatus("status").notNull(),
+    origin: quoteOrigin("origin").notNull(),
+
+    // what was asked, as the Client (or the caller) said it; nothing on a
+    // Quote the Office offered unprompted. A home's Condition; a business
+    // states none (a Site Visit finds it). A home may ask the Office to
+    // follow up with a Service Plan after the First Clean; business premises
+    // wanting regular cleaning ask for `weekdays` (0 is Monday), starting
+    // around `preferredTime` ("08:00"). The Add-ons are quote_add_ons.
+    condition: condition("condition"),
+    wantsRegularService: boolean("wants_regular_service")
+      .notNull()
+      .default(false),
+    weekdays: integer("weekdays").array().notNull().default([]),
+    preferredTime: text("preferred_time"),
+    notes: text("notes"),
+
+    // the latest Sent Revision: the offer, and once Accepted the one accepted
+    sentRevisionId: uuid("sent_revision_id").references(
+      (): AnyPgColumn => quoteRevisions.id,
+      { onDelete: "restrict" },
     ),
-    kind: quoteKind("kind").notNull().default("one_off"),
-    status: quoteStatus("status").notNull().default("draft"),
+    declinedAt: timestamp("declined_at", { withTimezone: true }),
+    // once Accepted: when, the Clean Type chosen, the Job it booked (a
+    // plan's first), and who accepted (the Client, or Office Staff on their
+    // behalf)
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    acceptedCleanType: cleanType("accepted_clean_type"),
+    jobId: uuid("job_id").references(() => jobs.id, { onDelete: "restrict" }),
+    acceptedBy: uuid("accepted_by").references(() => accounts.id, {
+      onDelete: "set null",
+    }),
+    // once Turned Down: when, why, and by whom
+    turnedDownAt: timestamp("turned_down_at", { withTimezone: true }),
+    turnDownReason: turnDownReason("turn_down_reason"),
+    turnedDownBy: uuid("turned_down_by").references(() => accounts.id, {
+      onDelete: "set null",
+    }),
+    // the Office Staff member who started it; null when a Client asked
+    createdBy: uuid("created_by").references(() => accounts.id, {
+      onDelete: "set null",
+    }),
+    ...timestamps,
+  },
+  (t) => [
+    index("quotes_property_id_idx").on(t.propertyId),
+    // only a Requested Quote, or one Turned Down while Requested, has no
+    // kind yet
+    check(
+      "quotes_kind_set",
+      sql`${t.kind} is not null or ${t.status} in ('requested', 'turned_down')`,
+    ),
+    // at most one open Quote of each kind per Property, so a one-off offer
+    // and a plan offer can stand side by side. A Requested Quote counts as
+    // both, which asking checks under a lock on the Property.
+    uniqueIndex("quotes_one_open_per_property_kind")
+      .on(t.propertyId, t.kind)
+      .where(sql`${t.status} in ('draft', 'sent')`),
+  ],
+);
+
+// the Add-ons a Client asked for, by key (the same across Price List
+// versions)
+export const quoteAddOns = pgTable(
+  "quote_add_ons",
+  {
+    quoteId: uuid("quote_id")
+      .notNull()
+      .references(() => quotes.id, { onDelete: "cascade" }),
+    addOnKey: uuid("add_on_key").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.quoteId, t.addOnKey] })],
+);
+
+// One priced version of a Quote. A one-off Quote's offers both Clean Types
+// (revision_options); a Service Plan Quote's a visit on each of its weekdays
+// (revision_options too), on a recurrence, at the Plan Discount. While
+// unsent it's priced afresh from the current Price List on every save; once
+// Sent it never changes. A Quote has one unsent at a time.
+export const quoteRevisions = pgTable(
+  "quote_revisions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    quoteId: uuid("quote_id")
+      .notNull()
+      .references(() => quotes.id, { onDelete: "cascade" }),
+    // 1 for the first, counting up
+    number: integer("number").notNull(),
     // the version the prices were worked out from at the last save
     priceListId: uuid("price_list_id")
       .notNull()
@@ -89,57 +187,37 @@ export const quotes = pgTable(
     // the end of validity or the proposed time, whichever is first; set on
     // sending
     expiresAt: timestamp("expires_at", { withTimezone: true }),
-    declinedAt: timestamp("declined_at", { withTimezone: true }),
-    // once Accepted: when, the Clean Type chosen, the Job it booked, and who
-    // accepted (the Client, or Office Staff on their behalf)
-    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
-    acceptedCleanType: cleanType("accepted_clean_type"),
-    jobId: uuid("job_id").references(() => jobs.id, { onDelete: "restrict" }),
-    acceptedBy: uuid("accepted_by").references(() => accounts.id, {
-      onDelete: "set null",
-    }),
     createdBy: uuid("created_by").references(() => accounts.id, {
       onDelete: "set null",
     }),
     ...timestamps,
   },
   (t) => [
-    index("quotes_property_id_idx").on(t.propertyId),
-    index("quotes_quote_request_id_idx").on(t.quoteRequestId),
-    // at most one Sent Quote of each kind per Property, so a one-off offer
-    // and a plan offer can stand side by side
-    uniqueIndex("quotes_one_sent_per_property_kind")
-      .on(t.propertyId, t.kind)
-      .where(sql`${t.status} = 'sent'`),
-    // at most one Draft per Quote Request, and one Service Plan Draft per
-    // Property
-    uniqueIndex("quotes_one_draft_per_request")
-      .on(t.quoteRequestId)
-      .where(sql`${t.status} = 'draft' and ${t.quoteRequestId} is not null`),
-    uniqueIndex("quotes_one_plan_draft_per_property")
-      .on(t.propertyId)
-      .where(sql`${t.status} = 'draft' and ${t.kind} = 'service_plan'`),
+    uniqueIndex("quote_revisions_number").on(t.quoteId, t.number),
+    uniqueIndex("quote_revisions_one_unsent")
+      .on(t.quoteId)
+      .where(sql`${t.sentAt} is null`),
   ],
 );
 
-// One Clean Type's offer on a Quote. The Suggested Price is kept with every
-// Price List figure it used, so it reads the same however the Price List
-// changes later. A Service Plan Quote has one for each of its weekdays
-// (ADR-0013), each its own visit: its Clean Type priced as a one-off Job,
-// less the Plan Discount, its first clean's time and its crew.
-export const quoteOptions = pgTable(
-  "quote_options",
+// One Clean Type's offer on a Revision. The Suggested Price is kept with
+// every Price List figure it used, so it reads the same however the Price
+// List changes later. A Service Plan Quote's Revision has one for each of
+// its weekdays (ADR-0013), each its own visit: its Clean Type priced as a
+// one-off Job, less the Plan Discount, its first clean's time and its crew.
+export const revisionOptions = pgTable(
+  "revision_options",
   {
-    quoteId: uuid("quote_id")
+    revisionId: uuid("revision_id")
       .notNull()
-      .references(() => quotes.id, { onDelete: "cascade" }),
+      .references(() => quoteRevisions.id, { onDelete: "cascade" }),
     // which of a Service Plan Quote's weekdays, from 0, earliest first once
     // they're all timed; 0 on a one-off Quote
     position: smallint("position").notNull().default(0),
     cleanType: cleanType("clean_type").notNull(),
     // a Service Plan weekday's first clean, which every later one there
-    // repeats; null on a one-off Quote (its Quote's proposed time is its
-    // Job's), and on a Draft's weekday until it's chosen
+    // repeats; null on a one-off Quote (its Revision's proposed time is its
+    // Job's), and on an unsent weekday until it's chosen
     startsAt: timestamp("starts_at", { withTimezone: true }),
     // the crew each clean gets: a one-off Quote's, or its weekday's
     crewSize: integer("crew_size").notNull(),
@@ -160,7 +238,7 @@ export const quoteOptions = pgTable(
       mode: "number",
     }).notNull(),
   },
-  (t) => [primaryKey({ columns: [t.quoteId, t.position, t.cleanType] })],
+  (t) => [primaryKey({ columns: [t.revisionId, t.position, t.cleanType] })],
 );
 
 // A Client's Deposit waiting on their bank's approval (e.g. 3D Secure) in the
@@ -176,6 +254,11 @@ export const pendingDeposits = pgTable(
     quoteId: uuid("quote_id")
       .notNull()
       .references(() => quotes.id, { onDelete: "cascade" }),
+    // the Revision being accepted: a newer one Sent meanwhile isn't booked
+    // on this one's Deposit
+    revisionId: uuid("revision_id")
+      .notNull()
+      .references(() => quoteRevisions.id, { onDelete: "cascade" }),
     // the Clean Type chosen; a Service Plan Quote's first weekday's
     cleanType: cleanType("clean_type").notNull(),
     depositCents: integer("deposit_cents").notNull(),
@@ -190,5 +273,6 @@ export const pendingDeposits = pgTable(
 );
 
 export type Quote = typeof quotes.$inferSelect;
+export type Revision = typeof quoteRevisions.$inferSelect;
 export type PendingDeposit = typeof pendingDeposits.$inferSelect;
-export type QuoteOptionRow = typeof quoteOptions.$inferSelect;
+export type RevisionOptionRow = typeof revisionOptions.$inferSelect;

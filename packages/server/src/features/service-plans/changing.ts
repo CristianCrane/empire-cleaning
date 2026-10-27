@@ -7,13 +7,16 @@ import { tellCrew } from "../cancellation/cancellation.ts";
 import { settleJob } from "../completion/balance.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { charges } from "../payments/payments.schema.ts";
-import type { Quote } from "../quotes/quotes.schema.ts";
 import {
   servicePlans,
   servicePlanVisits,
   type ServicePlan,
 } from "./service-plans.schema.ts";
-import { recordFirstVisits, type FirstJobs } from "./first-visits.ts";
+import {
+  recordFirstVisits,
+  type AcceptedQuote,
+  type FirstJobs,
+} from "./first-visits.ts";
 
 // the plan's booked Jobs from `startsAt` on, latest first
 const bookedFrom = async (tx: Tx | typeof db, planId: string, startsAt: Date) =>
@@ -92,7 +95,7 @@ export const changeServicePlanTerms = async (
   }: {
     plan: ServicePlan;
     replaced: Job[];
-    quote: Quote;
+    quote: AcceptedQuote;
     firstJobs: FirstJobs;
     changedBy: string | null;
   },

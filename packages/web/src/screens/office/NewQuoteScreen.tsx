@@ -3,7 +3,7 @@ import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import type {
   ClientListItem,
   OfficeClientView,
-  OfficeRequestEntry,
+  CallerQuoteEntry,
 } from "@empire-cleaning/models";
 import {
   postQuoteRequest,
@@ -88,14 +88,14 @@ export function NewQuoteScreen() {
 
       {(client || isNewClient) && (
         <Card>
-          <QuoteRequestForm<OfficeRequestEntry>
+          <QuoteRequestForm<CallerQuoteEntry>
             // a fresh form for each Client
             key={client?.id ?? "new"}
             headingLevel={2}
             asker={{ kind: "office", client: client && homesOf(client) }}
             submit={(body) =>
-              postQuoteRequest<OfficeRequestEntry>(
-                "/api/quote-requests/office",
+              postQuoteRequest<CallerQuoteEntry>(
+                "/api/quotes/caller",
                 body,
                 "same-origin",
               )
@@ -113,13 +113,16 @@ export function NewQuoteScreen() {
   );
 }
 
-// a Client's homes for the form, those with a request waiting not offered
+// a Client's homes for the form, those with a Quote open not offered
 const homesOf = (client: OfficeClientView) => ({
   id: client.id,
   businessName: client.businessName,
   properties: client.properties,
   waiting: client.properties
-    .filter((p) => p.status.kind === "request_waiting")
+    .filter(
+      (p) =>
+        p.status.kind === "quote_requested" || p.status.kind === "quote_sent",
+    )
     .map((p) => p.id),
 });
 

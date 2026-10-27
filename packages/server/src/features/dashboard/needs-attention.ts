@@ -8,9 +8,9 @@ import {
 } from "../completion/completion.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
 import { jobViews } from "../jobs/schedule.ts";
-import { quoteRequestsAwaitingQuote } from "../quote-requests/quote-requests.ts";
 import { noRoomSince, quotesWithoutRoom } from "../quotes/quote-room.ts";
 import {
+  quotesAwaitingOffice,
   quotesExpiringWithin,
   servicePlansDue,
 } from "../quotes/quote-state.ts";
@@ -19,11 +19,12 @@ import { plansOnHold, unplacedVisits } from "../service-plans/service-plans.ts";
 
 type Source = () => Promise<NeedsAttentionItem[]>;
 
-const quoteRequests: Source = async () =>
-  (await quoteRequestsAwaitingQuote()).map((quoteRequest) => ({
-    kind: "quote_request",
-    since: quoteRequest.createdAt,
-    quoteRequest,
+// Quotes someone asked for with no Revision Sent yet, longest waiting first
+const requestedQuotes: Source = async () =>
+  (await quotesAwaitingOffice()).map((quote) => ({
+    kind: "quote_requested",
+    since: quote.createdAt,
+    quote,
   }));
 
 // booked Jobs within 48 hours whose places aren't all Confirmed, soonest
@@ -161,7 +162,7 @@ const sources: Source[] = [
   plansOnHoldSource,
   reportedAdjustments,
   quotesWithoutRoomSource,
-  quoteRequests,
+  requestedQuotes,
   servicePlansDueSource,
   expiringQuotes,
 ];

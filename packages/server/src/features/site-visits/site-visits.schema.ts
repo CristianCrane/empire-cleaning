@@ -12,6 +12,7 @@ import {
 import { timestamps } from "../../db/index.ts";
 import { accounts } from "../auth/auth.schema.ts";
 import { properties } from "../properties/properties.schema.ts";
+import { quotes } from "../quotes/quotes.schema.ts";
 import { staff } from "../staff/staff.schema.ts";
 
 // booked, then Done once its findings are recorded, or Cancelled
@@ -21,8 +22,9 @@ export const siteVisitStatus = pgEnum("site_visit_status", [
   "cancelled",
 ]);
 
-// A free visit by one Staff member to see a Property before it's quoted
-// (ADR-0015). It's not a Job: no Quote, Deposit, Charges or Assignments.
+// A free visit by one Staff member to see a Property for a Quote, before its
+// first Revision is Sent (ADR-0015, ADR-0017); its findings go on the
+// Property. It's not a Job: no Deposit, Charges or Assignments.
 // Office Staff book it for a named Staff member, with no Offer or Confirm;
 // it ends Done when its findings are recorded on the Property, or
 // Cancelled. Findings recorded without a visit, for premises the Office
@@ -34,6 +36,10 @@ export const siteVisits = pgTable(
     propertyId: uuid("property_id")
       .notNull()
       .references(() => properties.id, { onDelete: "cascade" }),
+    // the Quote it's for; none on findings recorded without a visit
+    quoteId: uuid("quote_id").references(() => quotes.id, {
+      onDelete: "cascade",
+    }),
     status: siteVisitStatus("status").notNull().default("booked"),
     // who visits, when, and for how long
     staffId: uuid("staff_id").references(() => staff.id, {
@@ -64,6 +70,7 @@ export const siteVisits = pgTable(
     ),
     index("site_visits_starts_at_idx").on(t.startsAt),
     index("site_visits_property_id_idx").on(t.propertyId),
+    index("site_visits_quote_id_idx").on(t.quoteId),
     // one booked at a time per Property
     uniqueIndex("site_visits_one_booked_per_property")
       .on(t.propertyId)

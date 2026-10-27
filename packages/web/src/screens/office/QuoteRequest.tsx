@@ -1,8 +1,8 @@
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import type {
+  OfficeQuote,
   PriceBreakdown,
   QuoteKind,
-  QuoteRequestDetail,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -36,17 +36,24 @@ import {
   formatHours,
   formatMoney,
   propertySummary,
-  quoteHeadline,
   wantedCleaning,
 } from "../format.ts";
 
-// one Quote Request in full, with the Suggested Price for both Clean Types and
-// how each was worked out. Nothing here is a Quote yet: it's worked out afresh
-// from the Price List as it is now.
+// What a Quote was asked for, in full, with the Suggested Price for both
+// Clean Types and how each was worked out, afresh from the Price List as it
+// is now; and its Revisions. #101 reshapes this into the Quote's own screen.
 export function QuoteRequest() {
   const request = useLoaderData({ from: "/office/requests/$requestId" });
   const { client, property, suggested } = request;
-  const stated = request.statedCondition;
+  const asked = request.asked ?? {
+    condition: null,
+    wantsRegularService: false,
+    weekdays: [],
+    preferredTime: null,
+    notes: null,
+    addOns: [],
+  };
+  const stated = asked.condition;
   // a business states none: a Site Visit finds it
   const corrected = stated !== null && stated !== property.condition;
   const premises = property.kind === "commercial";
@@ -94,28 +101,28 @@ export function QuoteRequest() {
           {premises ? (
             <>
               <dt className="font-semibold">Cleaning wanted</dt>
-              <dd>{wantedCleaning(request)}</dd>
+              <dd>{wantedCleaning(asked)}</dd>
             </>
           ) : (
             <>
               <dt className="font-semibold">Extras</dt>
               <dd>
-                {request.addOns.length > 0
-                  ? request.addOns.map((a) => a.name).join(", ")
+                {asked.addOns.length > 0
+                  ? asked.addOns.map((a) => a.name).join(", ")
                   : "None"}
               </dd>
               <dt className="font-semibold">Regular visits</dt>
               <dd>
-                {request.wantsRegularService
+                {asked.wantsRegularService
                   ? "Wanted after the first clean"
                   : "Not asked for"}
               </dd>
             </>
           )}
-          {request.notes && (
+          {asked.notes && (
             <>
               <dt className="font-semibold">Notes</dt>
-              <dd className="whitespace-pre-line">{request.notes}</dd>
+              <dd className="whitespace-pre-line">{asked.notes}</dd>
             </>
           )}
         </dl>
@@ -162,18 +169,19 @@ export function QuoteRequest() {
   );
 }
 
-// The request's Quotes, newest first, and the way to draft the next one
-// while it's open: once the home's First Clean is Completed, or for business
-// premises at any time (ADR-0014), it can be answered with a one-off Quote or
-// a Service Plan Quote
-function Quotes({ request }: { request: QuoteRequestDetail }) {
+// The Quote's Sent Revisions, newest first, and the way on: while it's
+// Requested, drafting its first Revision, which sets its kind (once the
+// home's First Clean is Completed, or for business premises at any time,
+// ADR-0014, either kind); after that, the Quote's own screen
+function Quotes({ request }: { request: OfficeQuote }) {
   const navigate = useNavigate();
   const { start, starting, failure } = useStartDraft();
-  const isOpen = request.state !== "booked" && request.state !== "ended";
-  // a request has at most one Draft, of either kind
-  const draft = request.quotes.find((q) => q.status === "draft");
-  const open = (quoteId: string) =>
-    navigate({ to: "/office/quotes/$quoteId", params: { quoteId } });
+  const requested = request.status === "requested";
+  const open = () =>
+    navigate({
+      to: "/office/quotes/$quoteId",
+      params: { quoteId: request.id },
+    });
   const eitherKind =
     request.firstCleanCompleted || request.property.kind === "commercial";
   const draftButton = (kind: QuoteKind, label: string, primary: boolean) => (
@@ -181,7 +189,7 @@ function Quotes({ request }: { request: QuoteRequestDetail }) {
       variant={primary ? "primary" : "secondary"}
       isPending={starting?.kind === kind}
       isDisabled={starting !== undefined}
-      onPress={() => void start({ quoteRequestId: request.id, kind })}
+      onPress={() => void start({ quoteId: request.id, kind })}
     >
       {label}
     </Button>
@@ -191,71 +199,74 @@ function Quotes({ request }: { request: QuoteRequestDetail }) {
     <Card
       title="Quotes"
       actions={
-        isOpen &&
-        (draft ? (
-          <Button variant="secondary" onPress={() => void open(draft.id)}>
-            Continue the Draft
-          </Button>
-        ) : (
+        requested ? (
           // both kinds go below, where they can wrap on a phone
           !eitherKind && draftButton("one_off", "Draft a Quote", true)
-        ))
+        ) : (
+          <Button variant="secondary" onPress={() => void open()}>
+            {request.draft ? "Continue the Draft" : "Open the Quote"}
+          </Button>
+        )
       }
     >
-      {isOpen && !draft && eitherKind && (
+      {requested && eitherKind && (
         <Actions>
           {draftButton("one_off", "Draft a one-off Quote", false)}
           {draftButton("service_plan", "Draft a Service Plan Quote", true)}
         </Actions>
       )}
-      {isOpen && request.servicePlanId && (
+      {requested && request.homePlanId && (
         <Notice>
           <p>
             This home has a{" "}
             <Link
               href={linkTo({
                 to: "/office/service-plans/$planId",
-                params: { planId: request.servicePlanId },
+                params: { planId: request.homePlanId },
               })}
             >
               Service Plan
             </Link>
-            . A Service Plan Quote answering this request changes its terms once
-            the Client accepts it.
+            . A Service Plan Quote changes its terms once the Client accepts it.
           </p>
         </Notice>
       )}
       {failure && <Notice tone="danger">{failure}</Notice>}
-      {request.state === "booked" && (
+      {request.status === "accepted" && (
         <Notice tone="success">
-          The Client accepted a Quote, so this request is booked. They can ask
-          for a new Quote.
+          The Client accepted this Quote, so it's booked. They can ask for a new
+          Quote.
         </Notice>
       )}
-      {request.state === "ended" && (
+      {request.status === "declined" && (
         <Notice>
-          The Client declined, so this request has ended. They can ask for a new
+          The Client declined, so this Quote has ended. They can ask for a new
           Quote.
+        </Notice>
+      )}
+      {request.status === "turned_down" && (
+        <Notice>
+          This Quote was Turned Down. The Client can ask for a new Quote.
         </Notice>
       )}
       <List
         aria-label="Quotes for this request"
-        onAction={(id) => void open(String(id))}
+        onAction={() => void open()}
         renderEmptyState={() => (
           <p className="p-6 text-center text-fg-muted">No Quotes yet.</p>
         )}
       >
-        {request.quotes.map((quote) => (
+        {request.revisions.map((revision) => (
           <ListItem
-            key={quote.id}
-            id={quote.id}
-            title={quoteHeadline(quote)}
-            description={
-              quote.sentAt
-                ? `Sent ${formatDate(quote.sentAt)} · for ${formatDateTime(quote.proposedStartsAt!)}`
-                : `Started ${formatDate(quote.createdAt)}`
+            key={revision.id}
+            id={revision.id}
+            title={`Revision ${revision.number}: ${formatMoney(revision.headlineTotalCents)}`}
+            description={`Sent ${formatDate(revision.sentAt)} · for ${formatDateTime(revision.proposedStartsAt)}`}
+            end={
+              revision.id === request.offer?.id && (
+                <QuoteStatusBadge status={request.status} />
+              )
             }
-            end={<QuoteStatusBadge status={quote.status} />}
           />
         ))}
       </List>
@@ -265,18 +276,20 @@ function Quotes({ request }: { request: QuoteRequestDetail }) {
 
 // Business premises are seen before they're quoted (ADR-0014): the Office
 // books a Site Visit, or records findings it knows already on the Property.
-// A home may have one too. Shown while the request awaits a Quote.
-function SiteVisit({ request }: { request: QuoteRequestDetail }) {
+// A home may have one too. Shown while nothing of the Quote is Sent.
+function SiteVisit({ request }: { request: OfficeQuote }) {
   const navigate = useNavigate();
   const { property, bookedSiteVisit: booked } = request;
-  if (request.state !== "awaiting_quote") return null;
+  if (request.status !== "requested" && request.status !== "draft") {
+    return null;
+  }
   const premises = property.kind === "commercial";
   if (!premises && !booked) {
     return (
       <Card
         title="Site Visit"
         description="Optional for a home: book one to see it before quoting."
-        actions={<BookSiteVisit propertyId={property.id} />}
+        actions={<BookSiteVisit quoteId={request.id} />}
       />
     );
   }
@@ -286,7 +299,7 @@ function SiteVisit({ request }: { request: QuoteRequestDetail }) {
       title="Site Visit"
       actions={
         request.siteVisit === "needed" && (
-          <BookSiteVisit propertyId={property.id} primary />
+          <BookSiteVisit quoteId={request.id} primary />
         )
       }
     >

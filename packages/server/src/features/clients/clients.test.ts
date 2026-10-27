@@ -4,7 +4,7 @@ import { createStaff } from "#features/staff";
 import { api, signIn } from "../../../tests/harness.ts";
 import {
   casey,
-  guestRequest,
+  guestAsk,
   home,
   signInAsOffice,
   submit,
@@ -20,14 +20,14 @@ const sam = {
 
 // Casey with two homes, and Sam with one at 1 Nudge Lane
 const twoClients = async () => {
-  await submit(guestRequest()).expect(201);
+  await submit(guestAsk()).expect(201);
   await submit(
-    guestRequest({
+    guestAsk({
       property: { new: { ...home, street: "35-06 Ditmars Blvd", unit: null } },
     }),
   ).expect(201);
   await submit(
-    guestRequest({
+    guestAsk({
       contact: sam,
       property: { new: { ...home, street: "1 Nudge Lane", unit: null } },
     }),
@@ -44,7 +44,7 @@ describe("the Office's list of Clients", () => {
   test("is only for Office Staff", async () => {
     await api().get("/api/clients").expect(401);
 
-    await submit(guestRequest()).expect(201);
+    await submit(guestAsk()).expect(201);
     const client = await signIn(casey.email);
     await client.get("/api/clients").expect(403);
 

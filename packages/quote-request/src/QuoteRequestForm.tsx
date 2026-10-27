@@ -8,8 +8,8 @@ import type {
   PropertyKind,
   PropertyType,
   PropertyView,
-  QuoteRequestReceipt,
-  QuoteRequestSubmission,
+  QuoteAskReceipt,
+  QuoteAsk,
   Weekday,
 } from "@empire-cleaning/models";
 import {
@@ -57,7 +57,7 @@ export type Asker =
       } | null;
     };
 
-export type QuoteRequestFormProps<R = QuoteRequestReceipt> = {
+export type QuoteRequestFormProps<R = QuoteAskReceipt> = {
   asker: Asker;
   // the API's origin; "" when the page is served alongside it (the web app)
   apiUrl?: string;
@@ -184,7 +184,7 @@ const addressOf = (p: Pick<PropertyView, "street" | "unit" | "postcode">) =>
 // the Quote Request form, shared by the landing page (Guests), the Client
 // portal and the Office (callers). The API validates everything; its
 // messages show beside each field.
-export function QuoteRequestForm<R = QuoteRequestReceipt>({
+export function QuoteRequestForm<R = QuoteAskReceipt>({
   asker,
   apiUrl = "",
   headingLevel = 3,
@@ -282,7 +282,7 @@ export function QuoteRequestForm<R = QuoteRequestReceipt>({
 
   // a Quote Request, or for the Office, one with its Client: one they found
   // or a new one, without an email if they gave none
-  const submission = (): QuoteRequestSubmission & {
+  const submission = (): QuoteAsk & {
     clientId?: string;
     contact?: { email?: string | null };
   } => ({

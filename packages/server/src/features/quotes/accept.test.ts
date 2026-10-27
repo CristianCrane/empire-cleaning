@@ -8,7 +8,6 @@ import type {
   OfficeQuote,
   PaymentMethodView,
   QuoteDraftInput,
-  QuoteRequestDetail,
   QuoteView,
   ScheduleDay,
 } from "@empire-cleaning/models";
@@ -27,7 +26,7 @@ import {
 import {
   bookedJob,
   casey,
-  guestRequest,
+  guestAsk,
   home,
   signInAsOffice,
   submit,
@@ -53,32 +52,54 @@ const cleaners = async (count = 2, hours = 8) => {
   }
 };
 
-// a Guest's Quote Request, Quoted and Sent by the Office
+// a Quote a Guest asked for, its first Revision drafted and Sent by the Office
 const sentQuote = async (
   office: Agent,
-  request = guestRequest(),
+  request = guestAsk(),
   changes: Partial<QuoteDraftInput> = {},
 ) => {
   const { body } = await submit(request).expect(201);
   const draft = (
-    await office
-      .post("/api/quotes")
-      .send({ quoteRequestId: body.id })
-      .expect(201)
+    await office.post(`/api/quotes/${body.id}/revisions`).send({}).expect(201)
   ).body as OfficeQuote;
   await office
-    .patch(`/api/quotes/${draft.id}`)
+    .patch(`/api/quotes/${draft.id}/draft`)
     .send({
       addOns: [],
-      crewSize: draft.crewSize,
-      depositPercent: draft.depositPercent,
-      validityDays: draft.validityDays,
+      crewSize: draft.draft!.crewSize,
+      depositPercent: draft.draft!.depositPercent,
+      validityDays: draft.draft!.validityDays,
       proposedStart: nextMonday,
       overrides: { deep: null, standard: null },
       ...changes,
     })
     .expect(200);
   return (await office.post(`/api/quotes/${draft.id}/send`).expect(200))
+    .body as OfficeQuote;
+};
+
+// a new Revision of a Sent Quote, with these changes, sent
+const revise = async (
+  office: Agent,
+  quote: OfficeQuote,
+  changes: Record<string, unknown>,
+) => {
+  const draft = (
+    await office.post(`/api/quotes/${quote.id}/revisions`).send({}).expect(201)
+  ).body as OfficeQuote;
+  await office
+    .patch(`/api/quotes/${quote.id}/draft`)
+    .send({
+      addOns: [],
+      crewSize: draft.draft!.crewSize,
+      depositPercent: draft.draft!.depositPercent,
+      validityDays: draft.draft!.validityDays,
+      proposedStart: draft.draft!.proposedStart,
+      overrides: { deep: null, standard: null },
+      ...changes,
+    })
+    .expect(200);
+  return (await office.post(`/api/quotes/${quote.id}/send`).expect(200))
     .body as OfficeQuote;
 };
 
@@ -124,7 +145,7 @@ const refOf = (outcome: AcceptOutcome) => {
 };
 
 const option = (quote: OfficeQuote, cleanType: string) =>
-  quote.options.find((o) => o.cleanType === cleanType)!;
+  quote.offer!.options.find((o) => o.cleanType === cleanType)!;
 
 const scheduleOn = async (office: Agent, day: string) =>
   (
@@ -132,15 +153,14 @@ const scheduleOn = async (office: Agent, day: string) =>
       .body as ScheduleDay[]
   )[0]!;
 
-const requestDetail = async (office: Agent, id: string) =>
-  (await office.get(`/api/quote-requests/${id}`).expect(200))
-    .body as QuoteRequestDetail;
+const quoteOf = async (office: Agent, id: string) =>
+  (await office.get(`/api/quotes/${id}`).expect(200)).body as OfficeQuote;
 
 const depositCharges = () => db.select().from(charges);
 
 describe("a Client's Payment Method", () => {
   test("is saved from the provider's card form, a new one replacing the last", async () => {
-    await submit(guestRequest()).expect(201);
+    await submit(guestAsk()).expect(201);
     const client = await signIn(casey.email);
     expect(
       (await client.get("/api/payment-methods/mine").expect(200)).body,
@@ -167,7 +187,7 @@ describe("a Client's Payment Method", () => {
   });
 
   test("needs a card form the provider set up", async () => {
-    await submit(guestRequest()).expect(201);
+    await submit(guestAsk()).expect(201);
     const client = await signIn(casey.email);
 
     const refused = await client
@@ -234,13 +254,39 @@ describe("accepting a First Clean Quote", () => {
         startsAt: "2026-01-12T14:00:00.000Z",
         cleanType: "standard",
         labourHours: standard.labourHours,
-        crewSize: quote.crewSize,
+        crewSize: quote.offer!.crewSize,
         client: expect.objectContaining({ name: casey.name }),
       }),
     ]);
     expect(
       (await office.get(`/api/quotes/${quote.id}`).expect(200)).body,
     ).toMatchObject({ status: "accepted", acceptedCleanType: "standard" });
+  });
+
+  test("takes the latest Sent Revision, not one still being drafted", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const first = await sentQuote(office);
+    const revised = await revise(office, first, { crewSize: 1 });
+    // a third, drafted but not sent
+    await office.post(`/api/quotes/${first.id}/revisions`).send({}).expect(201);
+    const client = await signIn(casey.email);
+    await addCard(client);
+
+    await accept(client, revised).expect(200);
+
+    const deep = option(revised, "deep");
+    expect(testPayments().charges[0]!.amount).toBe(deep.depositCents);
+    expect((await scheduleOn(office, MONDAY)).jobs).toEqual([
+      expect.objectContaining({ crewSize: 1, labourHours: deep.labourHours }),
+    ]);
+    // the unsent one can never be sent now
+    const accepted = await quoteOf(office, first.id);
+    expect(accepted).toMatchObject({
+      status: "accepted",
+      draft: null,
+      offer: { number: 2 },
+    });
   });
 
   test("emails the Client a booking confirmation", async () => {
@@ -277,7 +323,7 @@ describe("accepting a First Clean Quote", () => {
     expect((await scheduleOn(office, MONDAY)).jobs).toHaveLength(1);
   });
 
-  test("closes the request: it takes no more Quotes, and the home can be asked about again", async () => {
+  test("closes the Quote: it takes no more Revisions, and the home can be asked about again", async () => {
     await cleaners();
     const office = await signInAsOffice();
     const quote = await sentQuote(office);
@@ -286,17 +332,10 @@ describe("accepting a First Clean Quote", () => {
 
     await accept(client, quote).expect(200);
 
-    expect((await requestDetail(office, quote.quoteRequestId!)).state).toBe(
-      "booked",
-    );
-    expect((await office.get("/api/quote-requests").expect(200)).body).toEqual(
-      [],
-    );
-    await office
-      .post("/api/quotes")
-      .send({ quoteRequestId: quote.quoteRequestId })
-      .expect(409);
-    await submit(guestRequest()).expect(201);
+    expect((await quoteOf(office, quote.id)).status).toBe("accepted");
+    expect((await office.get("/api/quotes").expect(200)).body).toEqual([]);
+    await office.post(`/api/quotes/${quote.id}/revisions`).send({}).expect(409);
+    await submit(guestAsk()).expect(201);
   });
 
   test("shows the home's Job booked on the Client screen", async () => {
@@ -321,7 +360,7 @@ describe("accepting a First Clean Quote", () => {
     const office = await signInAsOffice();
     const quote = await sentQuote(office);
     await submit(
-      guestRequest({
+      guestAsk({
         contact: { ...casey, name: "Drew Client", email: "drew@example.com" },
         property: { new: { ...home, street: "7 Queens Blvd" } },
       }),
@@ -427,7 +466,7 @@ describe("accepting a First Clean Quote", () => {
     const first = await sentQuote(office);
     const second = await sentQuote(
       office,
-      guestRequest({
+      guestAsk({
         contact: { ...casey, name: "Drew Client", email: "drew@example.com" },
         property: { new: { ...home, street: "7 Queens Blvd" } },
       }),
@@ -451,7 +490,7 @@ describe("accepting a First Clean Quote", () => {
   test("with a 0% Deposit charges nothing now, and still books", async () => {
     await cleaners();
     const office = await signInAsOffice();
-    const quote = await sentQuote(office, guestRequest(), {
+    const quote = await sentQuote(office, guestAsk(), {
       depositPercent: 0,
     });
     const client = await signIn(casey.email);
@@ -475,29 +514,7 @@ describe("accepting a First Clean Quote", () => {
       "This Quote was declined, so it can't be accepted.",
     );
 
-    const superseded = await sentQuote(office);
-    const newer = (
-      await office
-        .post("/api/quotes")
-        .send({ quoteRequestId: superseded.quoteRequestId })
-        .expect(201)
-    ).body as OfficeQuote;
-    await office
-      .patch(`/api/quotes/${newer.id}`)
-      .send({
-        addOns: [],
-        crewSize: 2,
-        depositPercent: 25,
-        validityDays: 14,
-        proposedStart: nextMonday,
-        overrides: { deep: null, standard: null },
-      })
-      .expect(200);
-    await office.post(`/api/quotes/${newer.id}/send`).expect(200);
-    expect((await accept(client, superseded).expect(409)).body.message).toBe(
-      "A newer Quote replaces this one, so it can't be accepted.",
-    );
-
+    const newer = await sentQuote(office);
     await accept(client, newer).expect(200);
     expect((await accept(client, newer).expect(409)).body.message).toBe(
       "This Quote has already been accepted.",
@@ -511,7 +528,7 @@ describe("accepting a First Clean Quote", () => {
     const quote = await sentQuote(office);
     const client = await signIn(casey.email);
     await addCard(client);
-    testClock().set(new Date(quote.expiresAt!));
+    testClock().set(new Date(quote.offer!.expiresAt!));
 
     const refused = await accept(client, quote).expect(409);
 
@@ -689,6 +706,25 @@ describe("paying the Deposit with a card entered just now", () => {
     expect((await scheduleOn(office, MONDAY)).jobs).toHaveLength(1);
   });
 
+  test("refunds the Deposit if a new Revision was sent while the bank was asking", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().requireApproval("approved");
+    await payNow(client, quote).expect(200);
+    await revise(office, quote, { crewSize: 1 });
+
+    const refused = await finalize(client, quote).expect(409);
+
+    expect(refused.body.message).toBe(
+      "This Quote was updated while your bank was approving the payment, so we've refunded your Deposit. Please look at the new Quote.",
+    );
+    expect(testPayments().refunds).toHaveLength(1);
+    expect((await scheduleOn(office, MONDAY)).jobs).toEqual([]);
+    expect((await quoteOf(office, quote.id)).status).toBe("sent");
+  });
+
   test("is booked by the provider's webhook if the browser never comes back", async () => {
     await cleaners();
     const office = await signInAsOffice();
@@ -848,9 +884,9 @@ describe("Office Staff recording acceptance on a Client's behalf", () => {
 
   test("can't accept a Draft", async () => {
     const office = await signInAsOffice();
-    const { body } = await submit(guestRequest()).expect(201);
+    const { body } = await submit(guestAsk()).expect(201);
     const draft = (
-      await office.post("/api/quotes").send({ quoteRequestId: body.id })
+      await office.post(`/api/quotes/${body.id}/revisions`).send({})
     ).body as OfficeQuote;
     await addCard(await signIn(casey.email));
 
@@ -907,12 +943,12 @@ describe("a Client's upcoming Jobs", () => {
     // room for a crew of 2 at 9am alongside someone else's at 10am
     await cleaners(4);
     const office = await signInAsOffice();
-    const later = await sentQuote(office, guestRequest(), {
+    const later = await sentQuote(office, guestAsk(), {
       proposedStart: { date: "2026-01-20", time: "13:30" },
     });
     const sooner = await sentQuote(
       office,
-      guestRequest({ property: { new: { ...home, unit: "5C" } } }),
+      guestAsk({ property: { new: { ...home, unit: "5C" } } }),
     );
     // someone else's
     await bookedJob({ startsAt: "2026-01-12T15:00:00Z", labourHours: 2 });
@@ -1017,7 +1053,7 @@ describe("when a Quote's day fills up before it's accepted", () => {
       .body as NeedsAttentionItem[];
 
   const drewRequest = () =>
-    guestRequest({
+    guestAsk({
       contact: { ...casey, name: "Drew Client", email: "drew@example.com" },
       property: { new: { ...home, street: "7 Queens Blvd" } },
     });
@@ -1074,20 +1110,20 @@ describe("when a Quote's day fills up before it's accepted", () => {
       },
     ]);
 
-    // a new Quote for Tuesday replaces it
+    // a new Revision for Tuesday replaces it
     const draft = (
       await office
-        .post("/api/quotes")
-        .send({ quoteRequestId: quote.quoteRequestId })
+        .post(`/api/quotes/${quote.id}/revisions`)
+        .send({})
         .expect(201)
     ).body as OfficeQuote;
     await office
-      .patch(`/api/quotes/${draft.id}`)
+      .patch(`/api/quotes/${draft.id}/draft`)
       .send({
         addOns: [],
-        crewSize: draft.crewSize,
-        depositPercent: draft.depositPercent,
-        validityDays: draft.validityDays,
+        crewSize: draft.draft!.crewSize,
+        depositPercent: draft.draft!.depositPercent,
+        validityDays: draft.draft!.validityDays,
         proposedStart: { date: "2026-01-13", time: "09:00" },
         overrides: { deep: null, standard: null },
       })

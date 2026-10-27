@@ -1,12 +1,9 @@
-import { and, desc, eq, ne } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import type {
-  OpenQuoteRequest,
   PriceList,
-  QuoteRequestDetail,
-  QuoteRequestReceipt,
+  QuoteAskReceipt,
   SignedInAccount,
-  Weekday,
 } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
 import {
@@ -23,32 +20,17 @@ import {
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { addressKey } from "../properties/address.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
-import { addressOf, toPropertyView } from "../properties/property-view.ts";
+import { addressOf } from "../properties/property-view.ts";
 import { currentPriceList } from "../price-list/price-list.ts";
-import { pricedOf, suggestedPrice } from "../price-list/suggested-price.ts";
-import {
-  firstCleanCompleted,
-  isClosed,
-  quotesForRequest,
-  requestStates,
-} from "../quotes/quote-state.ts";
-import { servicePlans } from "../service-plans/service-plans.schema.ts";
-import { siteVisits } from "../site-visits/site-visits.schema.ts";
-import {
-  findingsRecorded,
-  siteVisitStages,
-} from "../site-visits/site-visits.ts";
-import { siteVisitViews } from "../site-visits/views.ts";
-import { addOnsForRequests } from "./add-ons.ts";
-import { siteVisitOf } from "./request-views.ts";
-import { quoteRequestAddOns, quoteRequests } from "./quote-requests.schema.ts";
 import {
   accountSubmission,
   checkForKind,
   clientSubmission,
   guestSubmission,
   officeSubmission,
-} from "./quote-requests.validation.ts";
+} from "./asking.validation.ts";
+import { isOpen, offers, statusOf } from "./quote-state.ts";
+import { quoteAddOns, quotes } from "./quotes.schema.ts";
 
 const parse = <T>(schema: z.ZodType<T>, body: unknown): T => {
   const result = schema.safeParse(body);
@@ -56,7 +38,7 @@ const parse = <T>(schema: z.ZodType<T>, body: unknown): T => {
   return result.data;
 };
 
-// who the request is for (ADR-0006), and whether it may give them a business
+// who the Quote is for (ADR-0006), and whether it may give them a business
 // name they lack:
 // - a Guest: the Client with their email, whose details a Guest never
 //   changes, or a new Client (no Account)
@@ -96,7 +78,7 @@ const clientFor = async (caller: SignedInAccount | null, body: unknown) => {
   return { client, submission, mayNameBusiness: true };
 };
 
-// the business name a request for new business premises gives
+// the business name an ask for new business premises gives
 const businessNameOf = (submission: Submission) =>
   "new" in submission.property && submission.property.new.kind === "commercial"
     ? submission.businessName || null
@@ -143,37 +125,41 @@ const checkPremisesType = (list: PriceList, key: string) => {
   }
 };
 
-export const submitQuoteRequest = async (
+/**
+ * A Client (or Guest) asks for a Quote: it starts Requested, holding what
+ * they asked, and they're sent a receipt (ADR-0017).
+ */
+export const askForQuote = async (
   caller: SignedInAccount | null,
   body: unknown,
-): Promise<QuoteRequestReceipt> => {
+): Promise<QuoteAskReceipt> => {
   const { client, submission, mayNameBusiness } = await clientFor(caller, body);
-  const { property, request } = await recordRequest(
+  const { property, quote } = await recordAsk(
     client,
     submission,
     null,
     mayNameBusiness,
   );
 
-  // the request is saved: a receipt that can't be sent mustn't make it look
-  // as though it wasn't
+  // the Quote is saved: a receipt that can't be sent mustn't make it look as
+  // though it wasn't
   try {
     await sendReceipt(client, property);
   } catch (error) {
-    console.error(`receipt for Quote Request ${request.id} not sent:`, error);
+    console.error(`receipt for Quote ${quote.id} not sent:`, error);
   }
   // a Guest gave one, and a signed-in Account proved one
-  return { id: request.id, emailedTo: client.email! };
+  return { id: quote.id, emailedTo: client.email! };
 };
 
 /**
- * Office Staff enter a caller's Quote Request (#34): for an existing Client,
- * or a new one, whose email is optional. As for a Guest, a new Client gets no
- * Account, and an email that's already a Client's adds the request to that
+ * Office Staff enter a caller's ask (#34): for an existing Client, or a new
+ * one, whose email is optional. As for a Guest, a new Client gets no
+ * Account, and an email that's already a Client's adds the Quote to that
  * Client without changing their details. No receipt is sent: the Office
- * quotes them straight away.
+ * quotes them straight away, so the caller's routes start its Draft.
  */
-export const enterQuoteRequest = async (enteredBy: string, body: unknown) => {
+export const enterCallerAsk = async (enteredBy: string, body: unknown) => {
   const submission = parse(officeSubmission, body);
   let client: Client | undefined;
   if (submission.clientId) {
@@ -192,8 +178,8 @@ export const enterQuoteRequest = async (enteredBy: string, body: unknown) => {
         businessName: businessNameOf(submission),
       }));
   }
-  const { request } = await recordRequest(client, submission, enteredBy, true);
-  return request;
+  const { quote } = await recordAsk(client, submission, enteredBy, true);
+  return quote;
 };
 
 type Submission = z.infer<typeof clientSubmission>;
@@ -202,11 +188,13 @@ type Submission = z.infer<typeof clientSubmission>;
 const thisPlace = (kind: Property["kind"]) =>
   kind === "commercial" ? "these premises" : "this home";
 
-// Saves a request for the Client: one address is one Property, and a
-// Property has one request waiting at a time. Done under a lock on the
-// Property so two requests at once can't both get in. A business that has no
-// business name yet is given the one asked with, where `mayNameBusiness`.
-const recordRequest = async (
+// Saves a Requested Quote for the Client, holding what was asked: one
+// address is one Property, and a Requested Quote counts as an open Quote of
+// both kinds, so none can be asked for while the Property has one open
+// (ADR-0017). Done under a lock on the Property so two asks at once can't
+// both get in. A business that has no business name yet is given the one
+// asked with, where `mayNameBusiness`.
+const recordAsk = async (
   client: Client,
   submission: Submission,
   enteredBy: string | null,
@@ -284,19 +272,30 @@ const recordRequest = async (
       if (problems.length > 0)
         throw new RequestBodyError(new z.ZodError(problems));
 
-      // a request is waiting until it closes: its Quote Accepted or Declined
-      // (and, with #6, Turned Down)
-      const asked = await tx
-        .select({ id: quoteRequests.id })
-        .from(quoteRequests)
-        .where(eq(quoteRequests.propertyId, property!.id));
-      const states = await requestStates(asked.map((r) => r.id));
-      if ([...states.values()].some((state) => !isClosed(state))) {
+      // a Quote is open until it's Accepted, Declined, Turned Down or
+      // Expired; asking after one Expired starts a new Quote
+      const open = (
+        await tx
+          .select({ status: quotes.status, expiresAt: offers.expiresAt })
+          .from(quotes)
+          .leftJoin(offers, eq(offers.id, quotes.sentRevisionId))
+          .where(
+            and(
+              eq(quotes.propertyId, property!.id),
+              inArray(quotes.status, ["requested", "draft", "sent"]),
+            ),
+          )
+      )
+        .map(statusOf)
+        .filter(isOpen);
+      if (open.length > 0) {
         const place = thisPlace(property!.kind);
         throw new ConflictError(
           enteredBy
-            ? `${place[0]!.toUpperCase()}${place.slice(1)} ${property!.kind === "commercial" ? "have" : "has"} a Quote Request waiting already: answer that one from Requests.`
-            : `You've already asked us for a Quote for ${place}. We'll email it to ${client.email} soon.`,
+            ? `${place[0]!.toUpperCase()}${place.slice(1)} ${property!.kind === "commercial" ? "have" : "has"} a Quote open already: carry on with that one.`
+            : open.includes("sent")
+              ? `We've sent you a Quote for ${place} already: you'll find it in your account.`
+              : `You've already asked us for a Quote for ${place}. We'll email it to ${client.email} soon.`,
         );
       }
 
@@ -324,11 +323,13 @@ const recordRequest = async (
     }
 
     const regular = submission.wantsRegularService;
-    const [request] = await tx
-      .insert(quoteRequests)
+    const [quote] = await tx
+      .insert(quotes)
       .values({
-        clientId: client.id,
         propertyId: property!.id,
+        // a caller's starts as a Draft once its first Revision is started
+        status: "requested",
+        origin: enteredBy ? "caller" : "client",
         condition:
           property!.kind === "residential" ? submission.condition : null,
         wantsRegularService: regular,
@@ -342,18 +343,17 @@ const recordRequest = async (
             ? submission.preferredTime
             : null,
         notes: submission.notes,
-        enteredBy,
+        createdBy: enteredBy,
       })
       .returning();
     if (addOnKeys.length > 0) {
-      await tx.insert(quoteRequestAddOns).values(
-        addOnKeys.map((addOnKey) => ({
-          quoteRequestId: request!.id,
-          addOnKey,
-        })),
-      );
+      await tx
+        .insert(quoteAddOns)
+        .values(
+          addOnKeys.map((addOnKey) => ({ quoteId: quote!.id, addOnKey })),
+        );
     }
-    return { property: property!, request: request! };
+    return { property: property!, quote: quote! };
   });
 };
 
@@ -367,7 +367,7 @@ const escapeHtml = (text: string) =>
   );
 
 // always to the Client's own address, so an existing Client hears about any
-// request made with their email; it carries no sign-in power (ADR-0006)
+// Quote asked for with their email; it carries no sign-in power (ADR-0006)
 const sendReceipt = async (client: Client, property: Property) => {
   const [firstName] = client.name.split(" ");
   const address = addressOf(property);
@@ -379,155 +379,8 @@ const sendReceipt = async (client: Client, property: Property) => {
 
   await email.send({
     to: client.email,
-    subject: "We've received your Quote Request",
+    subject: "We've received your request for a Quote",
     text: lines.join("\n\n"),
     html: lines.map((line) => `<p>${escapeHtml(line)}</p>`).join(""),
   });
-};
-
-// its home's Service Plan, unless it has none or it has Ended
-const currentPlanOfRequest = and(
-  eq(servicePlans.propertyId, quoteRequests.propertyId),
-  ne(servicePlans.status, "ended"),
-);
-
-// the Quote Requests that haven't closed, for the Office, newest first
-export const openQuoteRequests = async (): Promise<OpenQuoteRequest[]> => {
-  const rows = await db
-    .select({
-      request: quoteRequests,
-      client: {
-        id: clients.id,
-        name: clients.name,
-        businessName: clients.businessName,
-      },
-      servicePlanId: servicePlans.id,
-      property: properties,
-    })
-    .from(quoteRequests)
-    .innerJoin(clients, eq(clients.id, quoteRequests.clientId))
-    .innerJoin(properties, eq(properties.id, quoteRequests.propertyId))
-    .leftJoin(servicePlans, currentPlanOfRequest)
-    .orderBy(desc(quoteRequests.createdAt));
-
-  const ids = rows.map((r) => r.request.id);
-  const [addOns, states, list, stages] = await Promise.all([
-    addOnsForRequests(ids),
-    requestStates(ids),
-    currentPriceList(),
-    siteVisitStages(rows.map((r) => r.request.propertyId)),
-  ]);
-  return rows
-    .filter(({ request }) => !isClosed(states.get(request.id)!))
-    .map(({ request, client, property, servicePlanId }) => ({
-      id: request.id,
-      propertyId: request.propertyId,
-      condition: request.condition,
-      wantsRegularService: request.wantsRegularService,
-      weekdays: request.weekdays as Weekday[],
-      preferredTime: request.preferredTime,
-      notes: request.notes,
-      addOns: addOns.get(request.id) ?? [],
-      createdAt: request.createdAt.toISOString(),
-      state: states.get(request.id)!,
-      siteVisit: siteVisitOf(
-        states.get(request.id)!,
-        stages.get(request.propertyId),
-      ),
-      client,
-      property: toPropertyView(property, list),
-      servicePlanId,
-    }));
-};
-
-// the requests waiting for the Office to send a Quote, longest waiting first:
-// none sent yet, or the last one Expired
-export const quoteRequestsAwaitingQuote = async (): Promise<
-  OpenQuoteRequest[]
-> =>
-  (await openQuoteRequests())
-    .filter((request) => request.state === "awaiting_quote")
-    .reverse();
-
-// one request in full for the Office, with the Suggested Price for both Clean
-// Types worked out now from the current Price List, using the home's current
-// details and Condition (which Staff may have corrected). Freezing it into a
-// Quote is #5.
-export const quoteRequestDetail = async (
-  id: string,
-): Promise<QuoteRequestDetail | undefined> => {
-  const [row] = await db
-    .select({
-      request: quoteRequests,
-      client: clients,
-      property: properties,
-      servicePlanId: servicePlans.id,
-    })
-    .from(quoteRequests)
-    .innerJoin(clients, eq(clients.id, quoteRequests.clientId))
-    .innerJoin(properties, eq(properties.id, quoteRequests.propertyId))
-    .leftJoin(servicePlans, currentPlanOfRequest)
-    .where(eq(quoteRequests.id, id));
-  if (!row) return undefined;
-
-  const propertyId = row.property.id;
-  const [list, addOns, states, quotes, firstCleanDone, stages, visits, done] =
-    await Promise.all([
-      currentPriceList(),
-      addOnsForRequests([id]),
-      requestStates([id]),
-      quotesForRequest(id),
-      firstCleanCompleted(propertyId),
-      siteVisitStages([propertyId]),
-      siteVisitViews(
-        and(
-          eq(siteVisits.propertyId, propertyId),
-          eq(siteVisits.status, "booked"),
-        ),
-      ),
-      findingsRecorded([propertyId]),
-    ]);
-  const choices = addOns.get(id) ?? [];
-  const chosen = list.addOns.filter((a) =>
-    choices.some((c) => c.key === a.key),
-  );
-  const price = (cleanType: "standard" | "deep") =>
-    suggestedPrice(
-      list,
-      pricedOf(row.property),
-      row.property.condition,
-      cleanType,
-      chosen,
-    );
-
-  return {
-    id: row.request.id,
-    createdAt: row.request.createdAt.toISOString(),
-    statedCondition: row.request.condition,
-    wantsRegularService: row.request.wantsRegularService,
-    weekdays: row.request.weekdays as Weekday[],
-    preferredTime: row.request.preferredTime,
-    notes: row.request.notes,
-    addOns: choices,
-    client: {
-      id: row.client.id,
-      name: row.client.name,
-      businessName: row.client.businessName,
-      email: row.client.email,
-      phone: row.client.phone,
-    },
-    property: toPropertyView(row.property, list),
-    suggested: {
-      priceListVersion: list.version,
-      standard: price("standard"),
-      deep: price("deep"),
-    },
-    state: states.get(id)!,
-    quotes,
-    firstCleanCompleted: firstCleanDone,
-    servicePlanId: row.servicePlanId,
-    siteVisit: siteVisitOf(states.get(id)!, stages.get(propertyId)),
-    bookedSiteVisit: visits[0] ?? null,
-    findingsRecorded: done.has(propertyId),
-  };
 };
