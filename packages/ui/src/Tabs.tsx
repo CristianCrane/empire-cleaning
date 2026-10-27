@@ -33,7 +33,9 @@ export function TabList<T extends object>(props: TabListProps<T>) {
       {...props}
       className={composeTailwindRenderProps(
         props.className,
-        "flex overflow-x-auto border-b border-border",
+        // the baseline drawn inside, under the Tabs' own underlines: a border
+        // would need the Tabs to overlap it, which overflows and scrolls
+        "flex overflow-x-auto shadow-[inset_0_-1px_0_var(--color-border)]",
       )}
     />
   );
@@ -53,7 +55,7 @@ export function Tab({
       className={composeRenderProps(
         props.className,
         (className, renderProps) =>
-          `${focusRing(renderProps)} -mb-px flex min-h-touch cursor-pointer items-center gap-2 border-b-2 px-3 text-sm font-semibold whitespace-nowrap -outline-offset-2 ${renderProps.isSelected ? "border-primary text-fg" : "border-transparent text-fg-muted hover:text-fg"} ${className ?? ""}`,
+          `${focusRing(renderProps)} flex min-h-touch cursor-pointer items-center gap-2 border-b-2 px-3 text-sm font-semibold whitespace-nowrap -outline-offset-2 ${renderProps.isSelected ? "border-primary text-fg" : "border-transparent text-fg-muted hover:text-fg"} ${className ?? ""}`,
       )}
     >
       {props.children}
