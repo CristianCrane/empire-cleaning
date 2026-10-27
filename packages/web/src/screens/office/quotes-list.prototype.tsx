@@ -7,8 +7,8 @@
 //      action-first rows, oldest waiting first
 //   C  Table + filters: status tabs with counts, sortable columns
 //   D  Board: a column per status, left to right as a Quote moves
-// The dev data has few Quotes, so "(sample)" Quotes fill in every case;
-// those open nothing.
+// With no Quotes in the database, "(sample)" Quotes fill in every case;
+// those open nothing. packages/server/tests/seed-dev.ts seeds real ones.
 import { useMemo, useState, type ReactNode } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 type SortDescriptor = {
@@ -70,7 +70,7 @@ export function QuotesListPrototype({
 }) {
   const { variant = "A" } = useSearch({ from: "/office/quotes" });
   const navigate = useNavigate();
-  const quotes = useMemo(() => [...real, ...samples()], [real]);
+  const quotes = useMemo(() => (real.length > 0 ? real : samples()), [real]);
   const open = (id: string) => {
     if (id.startsWith("sample")) return;
     void navigate({
