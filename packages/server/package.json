@@ -17,7 +17,7 @@
     "db:push": "drizzle-kit push --config=./src/db/drizzle.config.ts",
     "db:migrate": "drizzle-kit migrate --config=./src/db/drizzle.config.ts",
     "db:studio": "drizzle-kit studio --config=./src/db/drizzle.config.ts",
-    "db:seed": "tsx --env-file=.env ./src/db/seed.ts",
+    "db:seed": "tsx --env-file=.env ./tests/seed.ts",
     "test": "vitest run",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest run --coverage",
