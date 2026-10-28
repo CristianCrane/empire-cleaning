@@ -2,7 +2,7 @@
 
 ## Testing
 
-`pnpm test` runs the suite against a dedicated `empire_test` database on the **test Postgres** (`docker-compose.yml`, port 5433; override with `TEST_DB_URL`), which is dropped, recreated and migrated from `drizzle/` on every run. Start it with `pnpm db:up`.
+`pnpm test` runs the suite on the **test Postgres** (`docker-compose.yml`, port 5433). Start it with `pnpm db:up`. Test files run in parallel, and each Vitest worker has a database of its own (`empire_test_1`, `empire_test_2`, …; `tests/setup/workerDatabase.ts`). On every run `empire_test` (override with `TEST_DB_URL`) is dropped, recreated and migrated from `drizzle/`, and the workers' databases are copied from it (`CREATE DATABASE … TEMPLATE`), so the migrations run once.
 
 The test Postgres lives in memory with disk syncing off. Committing to disk took tens of milliseconds a time on a Docker volume (47 ms measured), and a test run makes thousands of commits. Test data is disposable, so nothing is lost. Never put real data there.
 
@@ -15,7 +15,7 @@ Tests exercise external behaviour through the seams in `tests/harness.ts`:
 
 Fakes are fresh and every table is emptied before each test, with one `DELETE` transaction (`resetDatabase`). Not `TRUNCATE`: that creates and syncs fresh files for every table and index, which took about 4 s per test here and more with every table added.
 
-Test files share one loaded copy of the server (`isolate: false`), because loading it takes about 5 s. That is safe because files run one at a time and every test starts clean (`tests/setup/perTest.ts`); running them in random order (`pnpm vitest run --sequence.shuffle.files --sequence.shuffle.tests`) is a way to check.
+A worker's test files share one loaded copy of the server (`isolate: false`), because loading it takes about 5 s. That is safe because a worker runs its files one at a time and every test starts clean (`tests/setup/perTest.ts`); running them in random order (`pnpm vitest run --sequence.shuffle.files --sequence.shuffle.tests`) is a way to check.
 
 ## Accounts and sign-in
 

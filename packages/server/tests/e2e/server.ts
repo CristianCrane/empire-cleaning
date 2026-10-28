@@ -8,11 +8,11 @@ import express from "express";
 import { desc, eq } from "drizzle-orm";
 import type { StaffRole } from "@empire-cleaning/models";
 import type { Approval } from "../fakes/payment-gateway.ts";
-import { setup as recreateTestDatabase } from "../setup/globalSetup.ts";
+import { recreateTestDatabase, TEST_DB_URL } from "../setup/testDatabase.ts";
 
 const CONTROL_PORT = Number(process.env.E2E_CONTROL_PORT ?? 3101);
 
-await recreateTestDatabase();
+await recreateTestDatabase(TEST_DB_URL);
 
 // imported only now: the app reads its environment and database on import
 const { app } = await import("../../src/server.ts");

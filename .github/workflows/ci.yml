@@ -50,19 +50,28 @@ jobs:
       - uses: ./.github/actions/playwright
       - run: pnpm --filter @empire-cleaning/ui test
 
+  # the slowest suite, so it's split across jobs, each running a share of the
+  # tests in parallel (packages/web/e2e/slots.ts)
   web:
-    name: Web end-to-end tests
+    name: Web end-to-end tests (${{ matrix.shard }}/3)
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/setup
       - uses: ./.github/actions/playwright
       - run: docker compose up --detach --wait postgres_test
-      - run: pnpm --filter @empire-cleaning/web test
+      # the few browser tests in src/, once
+      - if: matrix.shard == 1
+        run: pnpm --filter @empire-cleaning/web exec vitest run
+      - run: pnpm --filter @empire-cleaning/web exec playwright test --shard ${{ matrix.shard }}/3
       - if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: web-playwright-report
+          name: web-playwright-report-${{ matrix.shard }}
           path: |
             packages/web/playwright-report
             packages/web/test-results
