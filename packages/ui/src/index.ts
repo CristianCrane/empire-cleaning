@@ -11,6 +11,13 @@ export { Button, buttonStyles, type ButtonProps } from "./Button.tsx";
 export { Calendar } from "./Calendar.tsx";
 export { Card } from "./Card.tsx";
 export { Checkbox } from "./Checkbox.tsx";
+// PROTOTYPE: quieter choices for the quote form (#96)
+export {
+  Chip,
+  ChipGroup,
+  Segment,
+  SegmentedControl,
+} from "./Choices.prototype.tsx";
 export { DatePicker, TimeField } from "./DateField.tsx";
 export { Dialog, DialogTrigger } from "./Dialog.tsx";
 export { EmbeddedField } from "./EmbeddedField.tsx";
