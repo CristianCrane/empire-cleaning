@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Pencil } from "lucide-react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import type {
   BillPayment,
@@ -23,10 +24,12 @@ import {
   NumberField,
   Radio,
   RadioGroup,
+  Section,
   TextField,
 } from "@empire-cleaning/ui";
 import { patchJson, putJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
+import { QuoteIcon } from "../icons.ts";
 import { useAction } from "../action.ts";
 import { BillStatusBadge, billLine } from "../BillParts.tsx";
 import {
@@ -68,32 +71,38 @@ export function ClientDetail() {
               })
             }
           >
+            <QuoteIcon aria-hidden size={18} />
             New Quote
           </Button>
         </div>
       </div>
 
-      <Card title="Contact details" actions={<EditContact client={client} />}>
-        <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
-          {client.businessName && (
-            <>
-              <dt className="font-semibold">Business</dt>
-              <dd>{client.businessName}</dd>
-              <dt className="font-semibold">Contact</dt>
-              <dd>{client.name}</dd>
-            </>
-          )}
-          <dt className="font-semibold">Email</dt>
-          <dd className="[overflow-wrap:anywhere]">
-            {client.email ??
-              "None yet: Quotes can't be sent to them until one is added."}
-          </dd>
-          <dt className="font-semibold">Phone</dt>
-          <dd>{client.phone}</dd>
-        </dl>
-      </Card>
+      <Section
+        title="Contact details"
+        actions={<EditContact client={client} />}
+      >
+        <Card>
+          <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
+            {client.businessName && (
+              <>
+                <dt className="font-semibold">Business</dt>
+                <dd>{client.businessName}</dd>
+                <dt className="font-semibold">Contact</dt>
+                <dd>{client.name}</dd>
+              </>
+            )}
+            <dt className="font-semibold">Email</dt>
+            <dd className="[overflow-wrap:anywhere]">
+              {client.email ??
+                "None yet: Quotes can't be sent to them until one is added."}
+            </dd>
+            <dt className="font-semibold">Phone</dt>
+            <dd>{client.phone}</dd>
+          </dl>
+        </Card>
+      </Section>
 
-      <Card title="Properties">
+      <Section title="Properties">
         <List
           aria-label={`${clientName(client)}'s Properties`}
           renderEmptyState={() => (
@@ -115,14 +124,14 @@ export function ClientDetail() {
             />
           ))}
         </List>
-      </Card>
+      </Section>
 
       {(client.billing.canBillWeekly || client.billing.weeklyFrom) && (
         <Billing client={client} />
       )}
 
       {bills.length > 0 && (
-        <Card title="Bills" description="Newest first.">
+        <Section title="Bills" description="Newest first.">
           <List
             aria-label={`${clientName(client)}'s Bills`}
             onAction={(id) =>
@@ -142,7 +151,7 @@ export function ClientDetail() {
               />
             ))}
           </List>
-        </Card>
+        </Section>
       )}
     </div>
   );
@@ -153,30 +162,32 @@ export function ClientDetail() {
 function Billing({ client }: { client: OfficeClientView }) {
   const { billing } = client;
   return (
-    <Card title="Billing" actions={<EditBilling client={client} />}>
-      <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
-        <dt className="font-semibold">Billed</dt>
-        <dd>
-          {billing.weeklyFrom
-            ? `Weekly, from the week of ${formatDay(billing.weeklyFrom)}`
-            : "Per Job, when each is done"}
-        </dd>
-        {billing.weeklyFrom && (
-          <>
-            <dt className="font-semibold">Pays</dt>
-            <dd>
-              {billing.payment === "automatic"
-                ? "Charged to their saved Payment Method when each Bill is made"
-                : `On each Bill's page within ${billing.termsDays} ${billing.termsDays === 1 ? "day" : "days"}, by card or bank debit`}
-            </dd>
-          </>
-        )}
-        <dt className="font-semibold">Billing email</dt>
-        <dd className="[overflow-wrap:anywhere]">
-          {billing.billingEmail ?? "None: Bills go to their own email"}
-        </dd>
-      </dl>
-    </Card>
+    <Section title="Billing" actions={<EditBilling client={client} />}>
+      <Card>
+        <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
+          <dt className="font-semibold">Billed</dt>
+          <dd>
+            {billing.weeklyFrom
+              ? `Weekly, from the week of ${formatDay(billing.weeklyFrom)}`
+              : "Per Job, when each is done"}
+          </dd>
+          {billing.weeklyFrom && (
+            <>
+              <dt className="font-semibold">Pays</dt>
+              <dd>
+                {billing.payment === "automatic"
+                  ? "Charged to their saved Payment Method when each Bill is made"
+                  : `On each Bill's page within ${billing.termsDays} ${billing.termsDays === 1 ? "day" : "days"}, by card or bank debit`}
+              </dd>
+            </>
+          )}
+          <dt className="font-semibold">Billing email</dt>
+          <dd className="[overflow-wrap:anywhere]">
+            {billing.billingEmail ?? "None: Bills go to their own email"}
+          </dd>
+        </dl>
+      </Card>
+    </Section>
   );
 }
 
@@ -206,7 +217,10 @@ function EditBilling({ client }: { client: OfficeClientView }) {
 
   return (
     <DialogTrigger onOpenChange={(isOpen) => !isOpen && setSettled([])}>
-      <Button variant="secondary">Edit</Button>
+      <Button variant="text" size="sm">
+        <Pencil aria-hidden size={16} />
+        Edit
+      </Button>
       <Dialog title="Billing">
         {({ close }) =>
           settled.length > 0 ? (
@@ -371,7 +385,10 @@ function EditContact({ client }: { client: OfficeClientView }) {
 
   return (
     <DialogTrigger>
-      <Button variant="secondary">Edit</Button>
+      <Button variant="text" size="sm">
+        <Pencil aria-hidden size={16} />
+        Edit
+      </Button>
       <Dialog title="Edit contact details">
         {({ close }) => (
           <Form

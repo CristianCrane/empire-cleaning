@@ -8,7 +8,6 @@ import {
   CirclePause,
   ClipboardList,
   Hourglass,
-  Inbox,
   Receipt,
   Repeat,
   UserX,
@@ -24,6 +23,7 @@ import {
   type StatusTone,
 } from "@empire-cleaning/ui";
 import { linkTo } from "../../links.ts";
+import { QuoteIcon } from "../icons.ts";
 import { billWeek } from "../BillParts.tsx";
 import { ScheduleCalendar } from "./ScheduleCalendar.tsx";
 import {
@@ -49,7 +49,7 @@ export function Dashboard() {
         actions={
           <ButtonLink
             href={linkTo({ to: "/office/schedule" })}
-            variant="secondary"
+            variant="text"
             size="sm"
           >
             <CalendarDays aria-hidden size={16} />
@@ -91,7 +91,7 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
         return {
           key: `quote_requested ${quote.id}`,
           action: "Send a Quote",
-          icon: Inbox,
+          icon: QuoteIcon,
           tone: "info",
           client: clientName(quote.client),
           description: `${addressOf(quote.property)} · asked ${formatDate(item.since)}`,

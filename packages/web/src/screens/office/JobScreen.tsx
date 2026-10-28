@@ -137,9 +137,8 @@ export function JobScreen() {
         <Card
           title="Service Plan"
           description="This home's First Clean is Completed, so it can be offered regular cleaning."
-        >
-          <OfferServicePlan propertyId={job.property.id} />
-        </Card>
+          actions={<OfferServicePlan propertyId={job.property.id} />}
+        />
       )}
       {job.cancellation && <CancelledCard job={job} />}
       {job.noAccess && <NoAccessCard job={job} />}

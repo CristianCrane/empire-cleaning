@@ -18,6 +18,9 @@ export const buttonStyles = tv({
         "border border-border-strong bg-surface text-fg hover:bg-surface-sunken pressed:bg-surface-sunken",
       quiet:
         "bg-transparent text-fg hover:bg-surface-sunken pressed:bg-surface-sunken",
+      // a secondary action on a Section or page, like Edit: reads as text in
+      // the brand colour, tinted on hover. Lead it with an icon
+      text: "bg-transparent text-primary hover:bg-primary/10 pressed:bg-primary/15",
       danger:
         "bg-danger text-danger-fg hover:bg-danger-hover pressed:bg-danger-hover",
     },

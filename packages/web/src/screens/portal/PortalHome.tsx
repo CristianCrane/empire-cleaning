@@ -10,6 +10,7 @@ import {
   StatusBadge,
 } from "@empire-cleaning/ui";
 import { linkTo } from "../../links.ts";
+import { QuoteIcon } from "../icons.ts";
 import {
   addressOf,
   cleanTypeLabel,
@@ -74,6 +75,7 @@ export function PortalHome() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <Heading level={1}>Welcome, {firstName}</Heading>
         <ButtonLink href={linkTo({ to: "/portal/request" })}>
+          <QuoteIcon aria-hidden size={18} />
           Request a Quote
         </ButtonLink>
       </div>

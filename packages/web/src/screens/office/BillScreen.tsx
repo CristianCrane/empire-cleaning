@@ -1,4 +1,5 @@
 import { useLoaderData } from "@tanstack/react-router";
+import { Ban, Banknote } from "lucide-react";
 import type { BillView } from "@empire-cleaning/models";
 import {
   Actions,
@@ -137,7 +138,10 @@ function RecordPayment({ bill }: { bill: BillView }) {
   const action = useBillAction(bill, "outside-payment", "Payment recorded");
   return (
     <DialogTrigger>
-      <Button variant="secondary">Record a payment</Button>
+      <Button variant="text" size="sm">
+        <Banknote aria-hidden size={16} />
+        Record a payment
+      </Button>
       <Dialog title="Record a payment">
         {({ close }) => (
           <Form
@@ -180,7 +184,10 @@ function VoidBill({ bill }: { bill: BillView }) {
   const action = useBillAction(bill, "void", "Bill voided");
   return (
     <DialogTrigger>
-      <Button variant="secondary">Void</Button>
+      <Button variant="text" size="sm">
+        <Ban aria-hidden size={16} />
+        Void
+      </Button>
       <Dialog title={`Void bill ${bill.number}?`}>
         {({ close }) => (
           <Form

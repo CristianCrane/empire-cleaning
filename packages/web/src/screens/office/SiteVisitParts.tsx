@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { CalendarPlus } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import {
   parseDate,
@@ -233,7 +234,11 @@ export function BookSiteVisit({
   const action = useAction("The Site Visit wasn't booked. Please try again.");
   return (
     <DialogTrigger>
-      <Button variant={primary ? "primary" : "secondary"}>
+      <Button
+        variant={primary ? "primary" : "text"}
+        size={primary ? "md" : "sm"}
+      >
+        <CalendarPlus aria-hidden size={primary ? 18 : 16} />
         Book a Site Visit
       </Button>
       <Dialog title="Book a Site Visit">

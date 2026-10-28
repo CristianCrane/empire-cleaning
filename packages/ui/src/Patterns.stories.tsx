@@ -5,10 +5,12 @@ import {
   CalendarDays,
   CircleDollarSign,
   House,
-  Inbox,
+  ClipboardPenLine,
+  Pencil,
   Store,
   UserX,
 } from "lucide-react";
+import { Button } from "./Button.tsx";
 import { Card } from "./Card.tsx";
 import { Checkbox } from "./Checkbox.tsx";
 import { Chip, ChipGroup } from "./ChipGroup.tsx";
@@ -76,6 +78,15 @@ const jobs = (
   </List>
 );
 
+const contact = (
+  <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
+    <dt className="font-semibold">Email</dt>
+    <dd>dev.patel@example.com</dd>
+    <dt className="font-semibold">Phone</dt>
+    <dd>(555) 010-4477</dd>
+  </dl>
+);
+
 function SectionsNotCards() {
   return (
     <div className="flex flex-col gap-6">
@@ -87,6 +98,14 @@ function SectionsNotCards() {
           Property's details, a summary, a form. Sections are spaced further
           apart than a Card's contents, so they stay distinct without borders.
         </p>
+        <p>
+          A Card on a page with Sections goes inside one, untitled, so every
+          title on the page sits outside its box, Edit button and all. A
+          Section's actions, and a page's besides its main one, are{" "}
+          <code>text</code>
+          Buttons led by an icon; the main action next to the page title is
+          primary, with an icon too.
+        </p>
       </Rule>
       <div className="flex flex-col gap-4 md:flex-row">
         <Example verdict="Do">
@@ -94,6 +113,29 @@ function SectionsNotCards() {
         </Example>
         <Example verdict="Don't">
           <Card title="Tomorrow's Jobs">{jobs}</Card>
+        </Example>
+      </div>
+      <div className="flex flex-col gap-4 md:flex-row">
+        <Example verdict="Do">
+          <Section
+            title="Contact details"
+            actions={
+              <Button variant="text" size="sm">
+                <Pencil aria-hidden size={16} />
+                Edit
+              </Button>
+            }
+          >
+            <Card>{contact}</Card>
+          </Section>
+        </Example>
+        <Example verdict="Don't">
+          <Card
+            title="Billing contact"
+            actions={<Button variant="secondary">Edit</Button>}
+          >
+            {contact}
+          </Card>
         </Example>
       </div>
     </div>
@@ -124,7 +166,7 @@ function ActionFirstRows() {
               id="1"
               title="Send a Quote"
               description="Maria Lopez · 41-12 Austin St · asked Oct 26"
-              start={<IconTile icon={Inbox} tone="info" />}
+              start={<IconTile icon={ClipboardPenLine} tone="info" />}
             />
             <ListItem
               id="2"
