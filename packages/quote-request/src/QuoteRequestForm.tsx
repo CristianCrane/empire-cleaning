@@ -20,6 +20,8 @@ import {
   ChipGroup,
   Form,
   Heading,
+  IconChoice,
+  IconChoiceGroup,
   Notice,
   NumberField,
   Radio,
@@ -32,6 +34,7 @@ import {
 } from "@empire-cleaning/ui";
 import { loadAddOns } from "./add-ons.ts";
 import { Optional } from "./Optional.tsx";
+import { PrototypeSwitcher, useHomeVariant } from "./prototype.tsx";
 import { loadPremisesTypes } from "./premises-types.ts";
 import { submitQuoteRequest, type SubmitResult } from "./submit.ts";
 
@@ -249,6 +252,8 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
   const [refusal, setRefusal] = useState<string>();
   const [isSending, setSending] = useState(false);
   const [step, setStep] = useState(0);
+  // PROTOTYPE (#96): how the type of home is asked
+  const homeVariant = useHomeVariant();
 
   useEffect(() => {
     void loadAddOns(apiUrl).then(setOffered);
@@ -315,16 +320,81 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
   // a field's message from the API, by its path in the request
   const error = (path: string) => fieldErrors[path];
 
-  const kindField = (
-    <SegmentedControl
-      label={words.what}
-      value={kind}
-      onChange={(value) => chooseKind(value as PropertyKind)}
-    >
-      <Segment value="residential">A home</Segment>
-      <Segment value="commercial">Business premises</Segment>
-    </SegmentedControl>
-  );
+  const setType = (type: PropertyType) =>
+    setNewHome((current) => ({ ...current, type }));
+
+  // PROTOTYPE: E asks the kind and the type of home as one question
+  const kindField =
+    homeVariant === "E" ? (
+      <IconChoiceGroup
+        look="tile"
+        label={words.what}
+        value={premises ? "commercial" : newHome.type}
+        onChange={(value) => {
+          if (value === "commercial") return chooseKind("commercial");
+          if (premises) chooseKind("residential");
+          setType(value as PropertyType);
+        }}
+      >
+        <IconChoice value="house" icon="house">
+          House
+        </IconChoice>
+        <IconChoice value="apartment" icon="apartment">
+          Apartment
+        </IconChoice>
+        <IconChoice value="townhouse" icon="townhouse">
+          Townhouse
+        </IconChoice>
+        <IconChoice value="commercial" icon="commercial">
+          Business
+        </IconChoice>
+      </IconChoiceGroup>
+    ) : (
+      <SegmentedControl
+        label={words.what}
+        value={kind}
+        onChange={(value) => chooseKind(value as PropertyKind)}
+      >
+        <Segment value="residential">A home</Segment>
+        <Segment value="commercial">Business premises</Segment>
+      </SegmentedControl>
+    );
+
+  // PROTOTYPE: B–D try other looks for the type of home
+  const lookOf = { B: "tile", C: "pill", D: "plain" } as const;
+  const typeField =
+    homeVariant === "E" ? null : homeVariant in lookOf ? (
+      <IconChoiceGroup
+        look={lookOf[homeVariant as keyof typeof lookOf]}
+        label="Type of home"
+        name="property.new.type"
+        value={newHome.type}
+        onChange={(type) => setType(type as PropertyType)}
+        errorMessage={error("property.new.type")}
+      >
+        <IconChoice value="house" icon="house">
+          House
+        </IconChoice>
+        <IconChoice value="apartment" icon="apartment">
+          Apartment
+        </IconChoice>
+        <IconChoice value="townhouse" icon="townhouse">
+          Townhouse
+        </IconChoice>
+      </IconChoiceGroup>
+    ) : (
+      <SegmentedControl
+        label="Type of home"
+        name="property.new.type"
+        value={newHome.type}
+        onChange={(type) => setType(type as PropertyType)}
+        errorMessage={error("property.new.type")}
+      >
+        <Segment value="house">House</Segment>
+        <Segment value="apartment">Apartment</Segment>
+        <Segment value="townhouse">Townhouse</Segment>
+      </SegmentedControl>
+    );
 
   const businessNameField = (
     <TextField
@@ -429,22 +499,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
           />
         ) : (
           <>
-            <SegmentedControl
-              label="Type of home"
-              name="property.new.type"
-              value={newHome.type}
-              onChange={(type) =>
-                setNewHome((current) => ({
-                  ...current,
-                  type: type as PropertyType,
-                }))
-              }
-              errorMessage={error("property.new.type")}
-            >
-              <Segment value="house">House</Segment>
-              <Segment value="apartment">Apartment</Segment>
-              <Segment value="townhouse">Townhouse</Segment>
-            </SegmentedControl>
+            {typeField}
             <AddressFields
               place={newHome}
               unitLabel="Apartment or unit (optional)"
@@ -670,53 +725,56 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
   };
 
   return (
-    <Form
-      validationErrors={fieldErrors}
-      // Next submits too, so the browser checks the step's required fields
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (isLast) void send();
-        else setStep(at + 1);
-      }}
-    >
-      <div
-        ref={heading}
-        tabIndex={-1}
-        className="flex flex-col gap-2 outline-none"
+    <>
+      <Form
+        validationErrors={fieldErrors}
+        // Next submits too, so the browser checks the step's required fields
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (isLast) void send();
+          else setStep(at + 1);
+        }}
       >
-        <div className="flex gap-1" aria-hidden>
-          {steps.map((s, i) => (
-            <span
-              key={s.title}
-              className={`h-1 flex-1 rounded-full ${i <= at ? "bg-primary" : "bg-surface-sunken"}`}
-            />
-          ))}
+        <div
+          ref={heading}
+          tabIndex={-1}
+          className="flex flex-col gap-2 outline-none"
+        >
+          <div className="flex gap-1" aria-hidden>
+            {steps.map((s, i) => (
+              <span
+                key={s.title}
+                className={`h-1 flex-1 rounded-full ${i <= at ? "bg-primary" : "bg-surface-sunken"}`}
+              />
+            ))}
+          </div>
+          <p className="text-sm text-fg-muted">
+            Step {at + 1} of {steps.length}
+          </p>
+          <Heading level={headingLevel} size={3}>
+            {steps[at]!.title}
+          </Heading>
         </div>
-        <p className="text-sm text-fg-muted">
-          Step {at + 1} of {steps.length}
-        </p>
-        <Heading level={headingLevel} size={3}>
-          {steps[at]!.title}
-        </Heading>
-      </div>
 
-      {steps[at]!.fields}
+        {steps[at]!.fields}
 
-      {refusal && <Notice>{refusal}</Notice>}
+        {refusal && <Notice>{refusal}</Notice>}
 
-      {failed && <Notice tone="danger">{words.failed}</Notice>}
+        {failed && <Notice tone="danger">{words.failed}</Notice>}
 
-      <Actions>
-        {at > 0 && (
-          <Button variant="secondary" onPress={() => setStep(at - 1)}>
-            Back
+        <Actions>
+          {at > 0 && (
+            <Button variant="secondary" onPress={() => setStep(at - 1)}>
+              Back
+            </Button>
+          )}
+          <Button type="submit" isPending={isLast && isSending}>
+            {isLast ? words.submit : "Next"}
           </Button>
-        )}
-        <Button type="submit" isPending={isLast && isSending}>
-          {isLast ? words.submit : "Next"}
-        </Button>
-      </Actions>
-    </Form>
+        </Actions>
+      </Form>
+      <PrototypeSwitcher current={homeVariant} />
+    </>
   );
 }
 

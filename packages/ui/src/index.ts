@@ -18,6 +18,8 @@ export { EmbeddedField } from "./EmbeddedField.tsx";
 export { Form } from "./Form.tsx";
 export { Heading } from "./Heading.tsx";
 export { IconTile } from "./IconTile.tsx";
+// PROTOTYPE: type of home choices for the quote form (#96)
+export { IconChoice, IconChoiceGroup } from "./IconChoice.prototype.tsx";
 export { ButtonLink, Link } from "./Link.tsx";
 export { List, ListItem } from "./List.tsx";
 export { Notice } from "./Notice.tsx";
