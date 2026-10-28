@@ -1,4 +1,4 @@
-import { useState, type Key } from "react";
+import type { Key } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import type { ClientView, ServicePlanView } from "@empire-cleaning/models";
 import {
@@ -15,10 +15,10 @@ import {
   Notice,
   StatusBadge,
   TextField,
-  showToast,
 } from "@empire-cleaning/ui";
-import { ApiError, getJson, postJson } from "../../api.ts";
+import { getJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
+import { useAction } from "../action.ts";
 import { addressOf, formatDateTime, formatHours, planName } from "../format.ts";
 import { EndPlan, OnHold, PlanStatusBadge, PlanTerms } from "../PlanParts.tsx";
 
@@ -119,13 +119,10 @@ export function PortalPlan() {
 // Office answers with a new Service Plan Quote; nothing changes until the
 // Client accepts it.
 function AskToChange({ plan }: { plan: ServicePlanView }) {
-  const [problem, setProblem] = useState<string>();
-  const [isSending, setSending] = useState(false);
+  const action = useAction("That didn't send. Please try again.");
 
   const ask = async (notes: string, close: () => void) => {
-    setSending(true);
-    setProblem(undefined);
-    try {
+    const ok = await action.run(async () => {
       // the home's latest Condition, as the Client last gave it
       const me = await getJson<ClientView>("/api/clients/me");
       const home = me.properties.find((p) => p.id === plan.property.id)!;
@@ -135,20 +132,8 @@ function AskToChange({ plan }: { plan: ServicePlanView }) {
         wantsRegularService: true,
         notes,
       });
-      showToast({
-        tone: "success",
-        title: "Sent: we'll send you a new Service Plan Quote",
-      });
-      close();
-    } catch (e) {
-      setProblem(
-        e instanceof ApiError && e.status === 409
-          ? e.message
-          : "That didn't send. Please try again.",
-      );
-    } finally {
-      setSending(false);
-    }
+    }, "Sent: we'll send you a new Service Plan Quote");
+    if (ok) close();
   };
 
   return (
@@ -176,12 +161,14 @@ function AskToChange({ plan }: { plan: ServicePlanView }) {
                 isRequired
                 autoFocus
               />
-              {problem && <Notice tone="danger">{problem}</Notice>}
+              {action.problem && (
+                <Notice tone="danger">{action.problem}</Notice>
+              )}
               <Actions>
                 <Button variant="secondary" onPress={close}>
                   Cancel
                 </Button>
-                <Button type="submit" isPending={isSending}>
+                <Button type="submit" isPending={action.isPending}>
                   Send
                 </Button>
               </Actions>

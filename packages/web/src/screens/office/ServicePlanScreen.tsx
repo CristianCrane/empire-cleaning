@@ -36,7 +36,7 @@ import {
   weekdayOf,
 } from "../format.ts";
 import { EndPlan, OnHold, PlanStatusBadge, PlanTerms } from "../PlanParts.tsx";
-import { useJobAction } from "./JobCompletion.tsx";
+import { useAction } from "../action.ts";
 import { homeCrumbs, jobStatusLabel } from "./PropertyScreen.tsx";
 import { PickFromSchedule } from "./SchedulePicker.tsx";
 import { OfferServicePlan } from "./StartDraft.tsx";
@@ -213,7 +213,7 @@ function ChooseVisitTime({
   const usual = timeOfDay(day.startsAt);
   const [date, setDate] = useState<CalendarDate | null>(parseDate(visit.dueOn));
   const [time, setTime] = useState<Time | null>(parseTime(usual));
-  const action = useJobAction("The visit wasn't booked. Please try again.");
+  const action = useAction("The visit wasn't booked. Please try again.");
   const at = date &&
     time && {
       date: date.toString(),
@@ -274,7 +274,7 @@ function ChooseVisitTime({
 
 // skips the visit: nothing is booked for it
 function SkipVisit(props: VisitProps) {
-  const action = useJobAction("The visit wasn't skipped. Please try again.");
+  const action = useAction("The visit wasn't skipped. Please try again.");
   return (
     <DialogTrigger>
       <Button variant="secondary">Skip</Button>

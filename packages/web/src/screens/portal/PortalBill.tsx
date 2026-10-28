@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { useLoaderData, useRouter } from "@tanstack/react-router";
+import { useLoaderData } from "@tanstack/react-router";
 import type { BillView } from "@empire-cleaning/models";
 import {
   Actions,
@@ -9,10 +8,10 @@ import {
   Card,
   Heading,
   Notice,
-  showToast,
 } from "@empire-cleaning/ui";
 import { ApiError, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
+import { useAction } from "../action.ts";
 import {
   BillDetail,
   BillLetterhead,
@@ -21,7 +20,7 @@ import {
   billWeek,
 } from "../BillParts.tsx";
 import { formatDay, formatMoney } from "../format.ts";
-import { CardProblem, useBillPaymentForm } from "./CardForm.tsx";
+import { useBillPaymentForm } from "./CardForm.tsx";
 
 // one of the Client's weekly Bills (ADR-0016), where its emails lead: the
 // whole Bill, which prints cleanly, and paying it here by card or bank debit
@@ -117,39 +116,26 @@ function Standing({ bill }: { bill: BillView }) {
 // paying it here, by card or bank debit: a card pays at once, a bank debit
 // is processing until it clears
 function PayBill({ bill }: { bill: BillView }) {
-  const router = useRouter();
   const payment = useBillPaymentForm(bill.id, true);
-  const [problem, setProblem] = useState<string>();
-  const [isPending, setPending] = useState(false);
+  const action = useAction("That didn't work. Please try again.");
 
-  const pay = async () => {
-    setPending(true);
-    setProblem(undefined);
-    try {
-      const ref = await payment.pay();
-      const paid = await postJson<BillView>(
-        `/api/bills/mine/${bill.id}/payment`,
-        { ref },
-      );
-      showToast({
-        tone: "success",
-        title:
-          paid.status === "processing"
-            ? "Your bank payment is on its way"
-            : "Thank you: your Bill is paid",
-      });
-      await router.invalidate();
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 409) payment.reset();
-      setProblem(
-        e instanceof CardProblem || (e instanceof ApiError && e.status === 409)
-          ? e.message
-          : "That didn't work. Please try again.",
-      );
-    } finally {
-      setPending(false);
-    }
-  };
+  const pay = () =>
+    action.run(
+      async () => {
+        const ref = await payment.pay();
+        return postJson<BillView>(`/api/bills/mine/${bill.id}/payment`, {
+          ref,
+        }).catch((e: unknown) => {
+          // the payment started is no good now: start afresh
+          if (e instanceof ApiError && e.status === 409) payment.reset();
+          throw e;
+        });
+      },
+      (paid) =>
+        paid.status === "processing"
+          ? "Your bank payment is on its way"
+          : "Thank you: your Bill is paid",
+    );
 
   return (
     <Card
@@ -158,11 +144,11 @@ function PayBill({ bill }: { bill: BillView }) {
       className="print:hidden"
     >
       {payment.field}
-      {problem && <Notice tone="danger">{problem}</Notice>}
+      {action.problem && <Notice tone="danger">{action.problem}</Notice>}
       <Actions>
         <Button
           onPress={() => void pay()}
-          isPending={isPending}
+          isPending={action.isPending}
           isDisabled={!payment.isReady}
         >
           Pay {formatMoney(bill.totalCents)}

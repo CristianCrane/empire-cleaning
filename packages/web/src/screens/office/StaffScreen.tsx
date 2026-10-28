@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLoaderData, useNavigate, useRouter } from "@tanstack/react-router";
+import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import { UserPlus } from "lucide-react";
 import type { StaffMember, StaffRole } from "@empire-cleaning/models";
 import {
@@ -17,9 +17,9 @@ import {
   Notice,
   StatusBadge,
   TextField,
-  showToast,
 } from "@empire-cleaning/ui";
-import { ApiError, postJson } from "../../api.ts";
+import { postJson } from "../../api.ts";
+import { useAction } from "../action.ts";
 import { roleLabel } from "../format.ts";
 
 // everyone on Staff, active first; open one to set their availability or
@@ -78,11 +78,8 @@ export function MemberStatus({ member }: { member: StaffMember }) {
 }
 
 function InviteForm({ close }: { close: () => void }) {
-  const router = useRouter();
   const [roles, setRoles] = useState<StaffRole[]>(["cleaner"]);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [problem, setProblem] = useState<string>();
-  const [isSending, setSending] = useState(false);
+  const action = useAction("The invitation wasn't sent. Please try again.");
 
   const toggle = (role: StaffRole, on: boolean) =>
     setRoles((current) =>
@@ -90,37 +87,21 @@ function InviteForm({ close }: { close: () => void }) {
     );
 
   const invite = async (form: FormData) => {
-    setSending(true);
-    setProblem(undefined);
-    try {
-      const member = await postJson<StaffMember>("/api/staff", {
-        name: form.get("name"),
-        email: form.get("email"),
-        roles,
-      });
-      showToast({
-        tone: "success",
-        title: `Invitation sent to ${member.email}`,
-      });
-      close();
-      await router.invalidate();
-    } catch (e) {
-      if (e instanceof ApiError && Object.keys(e.fieldErrors).length) {
-        setFieldErrors(e.fieldErrors);
-      } else if (e instanceof ApiError && e.status === 409) {
-        setFieldErrors({});
-        setProblem(e.message);
-      } else {
-        setProblem("The invitation wasn't sent. Please try again.");
-      }
-    } finally {
-      setSending(false);
-    }
+    const ok = await action.run(
+      () =>
+        postJson<StaffMember>("/api/staff", {
+          name: form.get("name"),
+          email: form.get("email"),
+          roles,
+        }),
+      (member) => `Invitation sent to ${member.email}`,
+    );
+    if (ok) close();
   };
 
   return (
     <Form
-      validationErrors={fieldErrors}
+      validationErrors={action.fieldErrors}
       onSubmit={(e) => {
         e.preventDefault();
         void invite(new FormData(e.currentTarget));
@@ -153,13 +134,15 @@ function InviteForm({ close }: { close: () => void }) {
           Office Staff: runs the Office workspace
         </Checkbox>
       </fieldset>
-      {fieldErrors.roles && <Notice tone="danger">{fieldErrors.roles}</Notice>}
-      {problem && <Notice tone="danger">{problem}</Notice>}
+      {action.fieldErrors.roles && (
+        <Notice tone="danger">{action.fieldErrors.roles}</Notice>
+      )}
+      {action.problem && <Notice tone="danger">{action.problem}</Notice>}
       <Actions>
         <Button variant="secondary" onPress={close}>
           Cancel
         </Button>
-        <Button type="submit" isPending={isSending}>
+        <Button type="submit" isPending={action.isPending}>
           Send invitation
         </Button>
       </Actions>

@@ -1,5 +1,4 @@
 import { useState, type ReactNode } from "react";
-import { useRouter } from "@tanstack/react-router";
 import type {
   AdjustmentStatus,
   AdjustmentView,
@@ -23,9 +22,9 @@ import {
   SelectItem,
   StatusBadge,
   TextField,
-  showToast,
 } from "@empire-cleaning/ui";
-import { ApiError, deleteJson, patchJson, postJson } from "../../api.ts";
+import { deleteJson, patchJson, postJson } from "../../api.ts";
+import { useAction } from "../action.ts";
 import {
   adjustmentLabel,
   conditionLabel,
@@ -43,38 +42,6 @@ const statusBadge: Record<AdjustmentStatus, ReactNode> = {
   approved: <StatusBadge tone="success">Approved</StatusBadge>,
   declined: <StatusBadge>Declined</StatusBadge>,
   lapsed: <StatusBadge>Lapsed</StatusBadge>,
-};
-
-// runs a change to the Job, then reloads it; a 409's message is shown as is
-export const useJobAction = (fallback: string) => {
-  const router = useRouter();
-  const [problem, setProblem] = useState<string>();
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [isPending, setPending] = useState(false);
-
-  const run = async (change: () => Promise<unknown>, done: string) => {
-    setPending(true);
-    setProblem(undefined);
-    setFieldErrors({});
-    try {
-      await change();
-      showToast({ tone: "success", title: done });
-      await router.invalidate();
-      return true;
-    } catch (e) {
-      if (e instanceof ApiError && Object.keys(e.fieldErrors).length) {
-        setFieldErrors(e.fieldErrors);
-      } else {
-        setProblem(
-          e instanceof ApiError && e.status === 409 ? e.message : fallback,
-        );
-      }
-      return false;
-    } finally {
-      setPending(false);
-    }
-  };
-  return { run, problem, fieldErrors, isPending };
 };
 
 // how a Completed Job went, and its money: Office Staff review increases the
@@ -144,7 +111,7 @@ function ConditionField({
   job: OfficeJob;
   completion: JobCompletion;
 }) {
-  const action = useJobAction("The Condition wasn't saved. Please try again.");
+  const action = useAction("The Condition wasn't saved. Please try again.");
   return (
     <Select
       label="Condition reported"
@@ -246,7 +213,7 @@ function Review({
   job: OfficeJob;
   adjustment: AdjustmentView;
 }) {
-  const action = useJobAction("It wasn't saved. Please try again.");
+  const action = useAction("It wasn't saved. Please try again.");
   const label = adjustmentLabel(adjustment);
 
   return (
@@ -322,7 +289,7 @@ function Correct({
   job: OfficeJob;
   adjustment: AdjustmentView;
 }) {
-  const action = useJobAction("It wasn't corrected. Please try again.");
+  const action = useAction("It wasn't corrected. Please try again.");
   const label = adjustmentLabel(adjustment);
   const current = Math.abs(adjustment.priceCents);
 
@@ -380,7 +347,7 @@ function Remove({
   job: OfficeJob;
   adjustment: AdjustmentView;
 }) {
-  const action = useJobAction("It wasn't removed. Please try again.");
+  const action = useAction("It wasn't removed. Please try again.");
   const label = adjustmentLabel(adjustment);
 
   return (
@@ -426,9 +393,7 @@ function Remove({
 }
 
 function UndoCompletion({ job }: { job: OfficeJob }) {
-  const action = useJobAction(
-    "The completion wasn't undone. Please try again.",
-  );
+  const action = useAction("The completion wasn't undone. Please try again.");
   return (
     <DialogTrigger>
       <Button variant="secondary" size="sm">
@@ -479,7 +444,7 @@ function PaymentCard({
   job: OfficeJob;
   payment: JobPayment;
 }) {
-  const action = useJobAction("It wasn't retried. Please try again.");
+  const action = useAction("It wasn't retried. Please try again.");
   return (
     <Card title="Payment" description="Tax included.">
       {payment.unpaid && (

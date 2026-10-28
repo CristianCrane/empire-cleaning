@@ -30,7 +30,7 @@ import {
   formatTime,
   timeOfDay,
 } from "../format.ts";
-import { useJobAction } from "./JobCompletion.tsx";
+import { useAction } from "../action.ts";
 import { PickFromSchedule } from "./SchedulePicker.tsx";
 
 // whether a time a Job would move to has room for it: the hours on its day,
@@ -75,7 +75,7 @@ type MoveProps = {
  * the new time, whether its day has room, and what moving does.
  */
 export function ConfirmMove({ job, to, close }: MoveProps) {
-  const action = useJobAction("The Job wasn't moved. Please try again.");
+  const action = useAction("The Job wasn't moved. Please try again.");
   const room = useRoom(job, to);
   const unchanged =
     to.date === dayOfInstant(job.startsAt) &&

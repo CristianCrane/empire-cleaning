@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { useLoaderData, useRouter } from "@tanstack/react-router";
+import { useLoaderData } from "@tanstack/react-router";
 import {
   Actions,
   Breadcrumbs,
@@ -7,40 +6,24 @@ import {
   Card,
   Heading,
   Notice,
-  showToast,
 } from "@empire-cleaning/ui";
-import { ApiError } from "../../api.ts";
 import { linkTo } from "../../links.ts";
+import { useAction } from "../action.ts";
 import { formatDate } from "../format.ts";
-import { CardProblem, ConsentNote, useCardForm } from "./CardForm.tsx";
+import { ConsentNote, useCardForm } from "./CardForm.tsx";
 
 // where the Office's "add a Payment Method" email leads: the Client adds (or
 // replaces) the card that Deposits and Balances are charged to
 export function PortalPaymentMethod() {
   const saved = useLoaderData({ from: "/portal/payment-method" });
-  const router = useRouter();
   const card = useCardForm();
-  const [problem, setProblem] = useState<string>();
-  const [isPending, setPending] = useState(false);
+  const action = useAction("Your card couldn't be saved. Please try again.");
 
-  const save = async () => {
-    setPending(true);
-    setProblem(undefined);
-    try {
+  const save = () =>
+    action.run(async () => {
       await card.save();
-      showToast({ tone: "success", title: "Card saved" });
       card.reset();
-      await router.invalidate();
-    } catch (e) {
-      setProblem(
-        e instanceof CardProblem || (e instanceof ApiError && e.status === 409)
-          ? e.message
-          : "Your card couldn't be saved. Please try again.",
-      );
-    } finally {
-      setPending(false);
-    }
-  };
+    }, "Card saved");
 
   return (
     <div className="flex flex-col gap-6">
@@ -70,10 +53,10 @@ export function PortalPaymentMethod() {
       <Card title={saved ? "Use a different card" : "Add a card"}>
         {card.field}
         <ConsentNote action="saving" />
-        {problem && <Notice tone="danger">{problem}</Notice>}
+        {action.problem && <Notice tone="danger">{action.problem}</Notice>}
         <Actions>
           <Button
-            isPending={isPending}
+            isPending={action.isPending}
             isDisabled={!card.isReady}
             onPress={() => void save()}
           >

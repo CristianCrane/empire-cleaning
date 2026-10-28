@@ -49,6 +49,7 @@ import {
 } from "@empire-cleaning/ui";
 import { ApiError, getJson, patchJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
+import { useAction } from "../action.ts";
 import {
   addressOf,
   adjustmentLabel,
@@ -398,39 +399,25 @@ function SentQuote({ quote }: { quote: ShownQuote }) {
 
 // starts a new Revision of a Sent or Expired Quote, from the offer's terms
 function NewRevision({ quote }: { quote: ShownQuote }) {
-  const router = useRouter();
-  const [failure, setFailure] = useState<string>();
-  const [isPending, setPending] = useState(false);
+  const action = useAction(
+    "The new Revision couldn't be started. Please try again.",
+  );
   return (
     <div className="flex flex-col gap-2">
       <Actions>
         <Button
           variant="secondary"
-          isPending={isPending}
-          onPress={async () => {
-            setPending(true);
-            setFailure(undefined);
-            try {
-              await postJson<OfficeQuote>(
-                `/api/quotes/${quote.id}/revisions`,
-                {},
-              );
-              await router.invalidate();
-            } catch (e) {
-              setFailure(
-                e instanceof ApiError && e.status === 409
-                  ? e.message
-                  : "The new Revision couldn't be started. Please try again.",
-              );
-            } finally {
-              setPending(false);
-            }
-          }}
+          isPending={action.isPending}
+          onPress={() =>
+            void action.run(() =>
+              postJson<OfficeQuote>(`/api/quotes/${quote.id}/revisions`, {}),
+            )
+          }
         >
           Draft a new Revision
         </Button>
       </Actions>
-      {failure && <Notice tone="danger">{failure}</Notice>}
+      {action.problem && <Notice tone="danger">{action.problem}</Notice>}
     </div>
   );
 }
@@ -439,69 +426,46 @@ function NewRevision({ quote }: { quote: ShownQuote }) {
 // charging the Deposit to the card the Client saved. Office Staff never take
 // card details, so without one they email the Client a link to add it.
 function RecordAcceptance({ quote }: { quote: ShownQuote }) {
-  const router = useRouter();
   const [cleanType, setCleanType] = useState<CleanType>(
     quote.bookable.includes("deep") ? "deep" : quote.bookable[0]!,
   );
-  const [problem, setProblem] = useState<string>();
-  const [busy, setBusy] = useState<"accept" | "link">();
+  const action = useAction("That didn't work. Please try again.");
   const chosen = quote.options.find((o) => o.cleanType === cleanType)!;
   const depositCents = quote.plan?.depositCents ?? chosen.depositCents;
   const [firstName] = quote.client.name.split(" ");
 
-  const attempt = async (
-    action: "accept" | "link",
-    run: () => Promise<void>,
-  ) => {
-    setBusy(action);
-    setProblem(undefined);
-    try {
-      await run();
-    } catch (e) {
-      setProblem(
-        e instanceof ApiError && e.status === 409
-          ? e.message
-          : "That didn't work. Please try again.",
-      );
-    } finally {
-      setBusy(undefined);
-    }
+  const accept = async (close: () => void) => {
+    const ok = await action.run(
+      // a plan is accepted whole
+      () =>
+        postJson<OfficeQuote>(
+          `/api/quotes/${quote.id}/accept`,
+          quote.plan ? {} : { cleanType },
+        ),
+      quote.changesPlan
+        ? "Accepted: the Service Plan has changed"
+        : quote.plan
+          ? "Accepted: the Service Plan has started"
+          : "Accepted and booked",
+      "accept",
+    );
+    if (ok) close();
   };
 
-  const accept = (close: () => void) =>
-    attempt("accept", async () => {
-      // a plan is accepted whole
-      await postJson<OfficeQuote>(
-        `/api/quotes/${quote.id}/accept`,
-        quote.plan ? {} : { cleanType },
-      );
-      close();
-      showToast({
-        tone: "success",
-        title: quote.changesPlan
-          ? "Accepted: the Service Plan has changed"
-          : quote.plan
-            ? "Accepted: the Service Plan has started"
-            : "Accepted and booked",
-      });
-      await router.invalidate();
-    });
-
   const sendLink = () =>
-    attempt("link", async () => {
-      await postJson("/api/payment-methods/requests", {
-        clientId: quote.client.id,
-      });
-      showToast({
-        tone: "success",
-        title: `Link sent to ${quote.client.email}`,
-      });
-    });
+    action.run(
+      () =>
+        postJson("/api/payment-methods/requests", {
+          clientId: quote.client.id,
+        }),
+      `Link sent to ${quote.client.email}`,
+      "link",
+    );
 
   const linkButton = (
     <Button
       variant="secondary"
-      isPending={busy === "link"}
+      isPending={action.pending === "link"}
       onPress={() => void sendLink()}
     >
       Email {firstName} a link to add a card
@@ -515,7 +479,7 @@ function RecordAcceptance({ quote }: { quote: ShownQuote }) {
         title="Record acceptance"
         description="If the Client accepts by phone or in person."
       >
-        {problem && <Notice tone="danger">{problem}</Notice>}
+        {action.problem && <Notice tone="danger">{action.problem}</Notice>}
         <Actions>
           <DialogTrigger>
             <Button>Record acceptance</Button>
@@ -529,13 +493,15 @@ function RecordAcceptance({ quote }: { quote: ShownQuote }) {
                     booked Jobs from then on. Nothing is charged. Only do this
                     if they've told you they accept.
                   </p>
-                  {problem && <Notice tone="danger">{problem}</Notice>}
+                  {action.problem && (
+                    <Notice tone="danger">{action.problem}</Notice>
+                  )}
                   <Actions>
                     <Button variant="secondary" onPress={close}>
                       Cancel
                     </Button>
                     <Button
-                      isPending={busy === "accept"}
+                      isPending={action.pending === "accept"}
                       onPress={() => void accept(close)}
                     >
                       Change the plan
@@ -561,7 +527,7 @@ function RecordAcceptance({ quote }: { quote: ShownQuote }) {
           card details for them: email them a link to add one, then record their
           acceptance here.
         </Notice>
-        {problem && <Notice tone="danger">{problem}</Notice>}
+        {action.problem && <Notice tone="danger">{action.problem}</Notice>}
         <Actions>{linkButton}</Actions>
       </Card>
     );
@@ -598,7 +564,7 @@ function RecordAcceptance({ quote }: { quote: ShownQuote }) {
         Charged to their {quote.paymentMethod.label}, saved{" "}
         {formatDateTime(quote.paymentMethod.savedAt)}.
       </p>
-      {problem && <Notice tone="danger">{problem}</Notice>}
+      {action.problem && <Notice tone="danger">{action.problem}</Notice>}
       <Actions>
         {linkButton}
         <DialogTrigger>
@@ -624,13 +590,15 @@ function RecordAcceptance({ quote }: { quote: ShownQuote }) {
                     they've told you they accept.
                   </p>
                 )}
-                {problem && <Notice tone="danger">{problem}</Notice>}
+                {action.problem && (
+                  <Notice tone="danger">{action.problem}</Notice>
+                )}
                 <Actions>
                   <Button variant="secondary" onPress={close}>
                     Cancel
                   </Button>
                   <Button
-                    isPending={busy === "accept"}
+                    isPending={action.pending === "accept"}
                     onPress={() => void accept(close)}
                   >
                     Charge and book

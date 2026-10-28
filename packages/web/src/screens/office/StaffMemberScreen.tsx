@@ -20,8 +20,9 @@ import {
   TextField,
   showToast,
 } from "@empire-cleaning/ui";
-import { ApiError, deleteJson, postJson, putJson } from "../../api.ts";
+import { deleteJson, postJson, putJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
+import { useAction } from "../action.ts";
 import { formatDay, formatHours, roleLabel, today } from "../format.ts";
 import { MemberStatus } from "./StaffScreen.tsx";
 
@@ -93,27 +94,14 @@ export function StaffMemberScreen() {
 }
 
 function Deactivate({ member }: { member: StaffDetail }) {
-  const router = useRouter();
-  const [problem, setProblem] = useState<string>();
-  const [isPending, setPending] = useState(false);
+  const action = useAction("They weren't deactivated. Please try again.");
 
   const deactivate = async (close: () => void) => {
-    setPending(true);
-    setProblem(undefined);
-    try {
-      await postJson(`/api/staff/${member.id}/deactivate`);
-      showToast({ tone: "success", title: `${member.name} deactivated` });
-      close();
-      await router.invalidate();
-    } catch (e) {
-      setProblem(
-        e instanceof ApiError && e.status === 409
-          ? e.message
-          : "They weren't deactivated. Please try again.",
-      );
-    } finally {
-      setPending(false);
-    }
+    const ok = await action.run(
+      () => postJson(`/api/staff/${member.id}/deactivate`),
+      `${member.name} deactivated`,
+    );
+    if (ok) close();
   };
 
   return (
@@ -128,14 +116,14 @@ function Deactivate({ member }: { member: StaffDetail }) {
               They'll lose Staff access straight away. Anything they do as a
               Client is unaffected. You can invite them again later.
             </p>
-            {problem && <Notice tone="danger">{problem}</Notice>}
+            {action.problem && <Notice tone="danger">{action.problem}</Notice>}
             <Actions>
               <Button variant="secondary" onPress={close}>
                 Cancel
               </Button>
               <Button
                 variant="danger"
-                isPending={isPending}
+                isPending={action.isPending}
                 onPress={() => void deactivate(close)}
               >
                 Deactivate
@@ -149,32 +137,17 @@ function Deactivate({ member }: { member: StaffDetail }) {
 }
 
 function UsualWeek({ member }: { member: StaffDetail }) {
-  const router = useRouter();
   const [week, setWeek] = useState(member.availability.usualWeek);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [failed, setFailed] = useState(false);
-  const [isSaving, setSaving] = useState(false);
+  const action = useAction("The usual week wasn't saved. Please try again.");
 
-  const save = async () => {
-    setSaving(true);
-    setFailed(false);
-    try {
-      await putJson(`/api/staff/${member.id}/usual-week`, {
-        usualWeek: week.map((h) => (Number.isNaN(h) ? 0 : h)),
-      });
-      setFieldErrors({});
-      showToast({ tone: "success", title: "Usual week saved" });
-      await router.invalidate();
-    } catch (e) {
-      if (e instanceof ApiError && Object.keys(e.fieldErrors).length) {
-        setFieldErrors(e.fieldErrors);
-      } else {
-        setFailed(true);
-      }
-    } finally {
-      setSaving(false);
-    }
-  };
+  const save = () =>
+    action.run(
+      () =>
+        putJson(`/api/staff/${member.id}/usual-week`, {
+          usualWeek: week.map((h) => (Number.isNaN(h) ? 0 : h)),
+        }),
+      "Usual week saved",
+    );
 
   return (
     <Card
@@ -182,7 +155,7 @@ function UsualWeek({ member }: { member: StaffDetail }) {
       description="The hours they can usually work each day. Days off are 0."
     >
       <Form
-        validationErrors={fieldErrors}
+        validationErrors={action.fieldErrors}
         onSubmit={(e) => {
           e.preventDefault();
           void save();
@@ -209,13 +182,13 @@ function UsualWeek({ member }: { member: StaffDetail }) {
             />
           ))}
         </div>
-        {failed && (
-          <Notice tone="danger">
-            The usual week wasn't saved. Please try again.
-          </Notice>
-        )}
+        {action.problem && <Notice tone="danger">{action.problem}</Notice>}
         <Actions>
-          <Button type="submit" variant="secondary" isPending={isSaving}>
+          <Button
+            type="submit"
+            variant="secondary"
+            isPending={action.isPending}
+          >
             Save usual week
           </Button>
         </Actions>
@@ -229,41 +202,26 @@ function Exceptions({ member }: { member: StaffDetail }) {
   const [date, setDate] = useState<CalendarDate | null>(null);
   const [hours, setHours] = useState(0);
   const [note, setNote] = useState("");
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [problem, setProblem] = useState<string>();
-  const [isSaving, setSaving] = useState(false);
+  const action = useAction("That day wasn't saved. Please try again.");
   const { exceptions } = member.availability;
 
   const add = async () => {
     if (!date) {
-      setFieldErrors({ date: "Choose a day" });
+      action.fail(undefined, { date: "Choose a day" });
       return;
     }
-    setSaving(true);
-    setProblem(undefined);
-    try {
-      await putJson(`/api/staff/${member.id}/exceptions/${date.toString()}`, {
-        hours: Number.isNaN(hours) ? 0 : hours,
-        note,
-      });
-      setFieldErrors({});
-      setDate(null);
-      setHours(0);
-      setNote("");
-      showToast({
-        tone: "success",
-        title: `${formatDay(date.toString())} saved`,
-      });
-      await router.invalidate();
-    } catch (e) {
-      if (e instanceof ApiError && Object.keys(e.fieldErrors).length) {
-        setFieldErrors(e.fieldErrors);
-      } else {
-        setProblem("That day wasn't saved. Please try again.");
-      }
-    } finally {
-      setSaving(false);
-    }
+    await action.run(
+      async () => {
+        await putJson(`/api/staff/${member.id}/exceptions/${date.toString()}`, {
+          hours: Number.isNaN(hours) ? 0 : hours,
+          note,
+        });
+        setDate(null);
+        setHours(0);
+        setNote("");
+      },
+      `${formatDay(date.toString())} saved`,
+    );
   };
 
   const remove = async (day: string) => {
@@ -308,7 +266,7 @@ function Exceptions({ member }: { member: StaffDetail }) {
         </List>
       )}
       <Form
-        validationErrors={fieldErrors}
+        validationErrors={action.fieldErrors}
         onSubmit={(e) => {
           e.preventDefault();
           void add();
@@ -321,8 +279,8 @@ function Exceptions({ member }: { member: StaffDetail }) {
             value={date}
             onChange={setDate}
             minValue={parseDate(today())}
-            isInvalid={Boolean(fieldErrors.date)}
-            errorMessage={fieldErrors.date}
+            isInvalid={Boolean(action.fieldErrors.date)}
+            errorMessage={action.fieldErrors.date}
           />
           <NumberField
             label="Hours that day"
@@ -341,9 +299,13 @@ function Exceptions({ member }: { member: StaffDetail }) {
             onChange={setNote}
           />
         </div>
-        {problem && <Notice tone="danger">{problem}</Notice>}
+        {action.problem && <Notice tone="danger">{action.problem}</Notice>}
         <Actions>
-          <Button type="submit" variant="secondary" isPending={isSaving}>
+          <Button
+            type="submit"
+            variant="secondary"
+            isPending={action.isPending}
+          >
             Save day
           </Button>
         </Actions>

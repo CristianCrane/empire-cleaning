@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLoaderData, useNavigate, useRouter } from "@tanstack/react-router";
+import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import type { CleanerJob } from "@empire-cleaning/models";
 import {
   Actions,
@@ -14,6 +14,7 @@ import {
 } from "@empire-cleaning/ui";
 import { ApiError, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
+import { useAction } from "../action.ts";
 import {
   addressOf,
   cleanTypeLabel,
@@ -103,33 +104,23 @@ export function CleanerJobScreen() {
 }
 
 function YourPlace({ job }: { job: CleanerJob }) {
-  const router = useRouter();
-  const [problem, setProblem] = useState<string>();
-  const [isPending, setPending] = useState(false);
+  const action = useAction("Your place wasn't confirmed. Please try again.");
   const { assignment } = job;
 
-  const confirm = async () => {
-    setPending(true);
-    setProblem(undefined);
-    try {
-      await postJson(`/api/assignments/${assignment.id}/confirm`);
-      showToast({ tone: "success", title: "Place confirmed" });
-      await router.invalidate();
-    } catch {
-      setProblem("Your place wasn't confirmed. Please try again.");
-    } finally {
-      setPending(false);
-    }
-  };
+  const confirm = () =>
+    action.run(
+      () => postJson(`/api/assignments/${assignment.id}/confirm`),
+      "Place confirmed",
+    );
 
   if (assignment.status === "offered") {
     return (
       <Card title="Your place">
         <p>You've been offered a place on this Job. Can you make it?</p>
-        {problem && <Notice tone="danger">{problem}</Notice>}
+        {action.problem && <Notice tone="danger">{action.problem}</Notice>}
         <Actions>
           <Release job={job} />
-          <Button isPending={isPending} onPress={() => void confirm()}>
+          <Button isPending={action.isPending} onPress={() => void confirm()}>
             Confirm
           </Button>
         </Actions>

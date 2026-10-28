@@ -13,7 +13,7 @@ import { postJson } from "../../api.ts";
 import { formatDateTime } from "../format.ts";
 import { ChooseNewTime, costForOffice } from "../RescheduleParts.tsx";
 import { PickFromSchedule } from "./SchedulePicker.tsx";
-import { useJobAction } from "./JobCompletion.tsx";
+import { useAction } from "../action.ts";
 import { MoveJob } from "./JobMove.tsx";
 
 const answered = {
@@ -28,7 +28,7 @@ const answered = {
 export function JobReschedule({ job }: { job: OfficeJob }) {
   const request = job.rescheduleRequest;
   const onPlan = job.servicePlanId !== null;
-  const action = useJobAction("That didn't work. Please try again.");
+  const action = useAction("That didn't work. Please try again.");
 
   if (request?.status === "pending") {
     const path = `/api/jobs/${job.id}/reschedule-request`;
@@ -105,9 +105,7 @@ export function JobReschedule({ job }: { job: OfficeJob }) {
 
 function TurnDown({ path }: { path: string }) {
   const [reason, setReason] = useState("");
-  const action = useJobAction(
-    "The request wasn't turned down. Please try again.",
-  );
+  const action = useAction("The request wasn't turned down. Please try again.");
 
   const turnDown = async (close: () => void) => {
     if (

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLoaderData, useRouter } from "@tanstack/react-router";
+import { useLoaderData } from "@tanstack/react-router";
 import type { ClientView, PropertyView } from "@empire-cleaning/models";
 import {
   Actions,
@@ -10,10 +10,10 @@ import {
   Heading,
   Notice,
   TextField,
-  showToast,
 } from "@empire-cleaning/ui";
-import { ApiError, patchJson } from "../../api.ts";
+import { patchJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
+import { useAction } from "../action.ts";
 import { addressOf, propertySummary } from "../format.ts";
 
 // a Client's own contact details and Access Instructions. A home's size and
@@ -45,39 +45,20 @@ export function PortalDetails() {
 }
 
 function ContactDetails({ client }: { client: ClientView }) {
-  const router = useRouter();
   const [details, setDetails] = useState({
     name: client.name,
     email: client.email,
     phone: client.phone,
   });
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [failed, setFailed] = useState(false);
-  const [isSaving, setSaving] = useState(false);
+  const action = useAction("Your details weren't saved. Please try again.");
 
-  const save = async () => {
-    setSaving(true);
-    setFailed(false);
-    try {
-      await patchJson("/api/clients/me", details);
-      setFieldErrors({});
-      showToast({ tone: "success", title: "Details saved" });
-      await router.invalidate();
-    } catch (e) {
-      if (e instanceof ApiError && Object.keys(e.fieldErrors).length) {
-        setFieldErrors(e.fieldErrors);
-      } else {
-        setFailed(true);
-      }
-    } finally {
-      setSaving(false);
-    }
-  };
+  const save = () =>
+    action.run(() => patchJson("/api/clients/me", details), "Details saved");
 
   return (
     <Card title="Contact details">
       <Form
-        validationErrors={fieldErrors}
+        validationErrors={action.fieldErrors}
         onSubmit={(e) => {
           e.preventDefault();
           void save();
@@ -110,13 +91,9 @@ function ContactDetails({ client }: { client: ClientView }) {
           value={details.phone}
           onChange={(phone) => setDetails({ ...details, phone })}
         />
-        {failed && (
-          <Notice tone="danger">
-            Your details weren't saved. Please try again.
-          </Notice>
-        )}
+        {action.problem && <Notice tone="danger">{action.problem}</Notice>}
         <Actions>
-          <Button type="submit" isPending={isSaving}>
+          <Button type="submit" isPending={action.isPending}>
             Save details
           </Button>
         </Actions>
@@ -126,26 +103,19 @@ function ContactDetails({ client }: { client: ClientView }) {
 }
 
 function AccessInstructions({ home }: { home: PropertyView }) {
-  const router = useRouter();
   const [text, setText] = useState(home.accessInstructions ?? "");
-  const [isSaving, setSaving] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const action = useAction(
+    "Your Access Instructions weren't saved. Please try again.",
+  );
 
-  const save = async () => {
-    setSaving(true);
-    setFailed(false);
-    try {
-      await patchJson(`/api/properties/${home.id}/access-instructions`, {
-        accessInstructions: text || null,
-      });
-      showToast({ tone: "success", title: "Access Instructions saved" });
-      await router.invalidate();
-    } catch {
-      setFailed(true);
-    } finally {
-      setSaving(false);
-    }
-  };
+  const save = () =>
+    action.run(
+      () =>
+        patchJson(`/api/properties/${home.id}/access-instructions`, {
+          accessInstructions: text || null,
+        }),
+      "Access Instructions saved",
+    );
 
   return (
     <Card title={addressOf(home)} description={propertySummary(home)}>
@@ -162,13 +132,13 @@ function AccessInstructions({ home }: { home: PropertyView }) {
           value={text}
           onChange={setText}
         />
-        {failed && (
-          <Notice tone="danger">
-            Your Access Instructions weren't saved. Please try again.
-          </Notice>
-        )}
+        {action.problem && <Notice tone="danger">{action.problem}</Notice>}
         <Actions>
-          <Button type="submit" variant="secondary" isPending={isSaving}>
+          <Button
+            type="submit"
+            variant="secondary"
+            isPending={action.isPending}
+          >
             Save Access Instructions
           </Button>
         </Actions>

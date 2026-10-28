@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLoaderData, useNavigate, useRouter } from "@tanstack/react-router";
+import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import type {
   BillPayment,
   ClientBillingSaved,
@@ -24,10 +24,10 @@ import {
   Radio,
   RadioGroup,
   TextField,
-  showToast,
 } from "@empire-cleaning/ui";
-import { ApiError, patchJson, putJson } from "../../api.ts";
+import { patchJson, putJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
+import { useAction } from "../action.ts";
 import { BillStatusBadge, billLine } from "../BillParts.tsx";
 import {
   addressOf,
@@ -181,22 +181,16 @@ function Billing({ client }: { client: OfficeClientView }) {
 }
 
 function EditBilling({ client }: { client: OfficeClientView }) {
-  const router = useRouter();
   const { billing } = client;
   const [weekly, setWeekly] = useState(billing.weeklyFrom !== null);
   const [payment, setPayment] = useState<BillPayment>(billing.payment);
   const [termsDays, setTermsDays] = useState(billing.termsDays);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [problem, setProblem] = useState<string>();
-  const [isSaving, setSaving] = useState(false);
+  const action = useAction("Billing wasn't saved. Please try again.");
   // what switching weekly billing off settled per Job, shown once saved
   const [settled, setSettled] = useState<SettledJobView[]>([]);
 
-  const save = async (form: FormData, close: () => void) => {
-    setSaving(true);
-    setProblem(undefined);
-    setFieldErrors({});
-    try {
+  const save = (form: FormData, close: () => void) =>
+    action.run(async () => {
       const saved = await putJson<ClientBillingSaved>(
         `/api/clients/${client.id}/billing`,
         {
@@ -206,24 +200,9 @@ function EditBilling({ client }: { client: OfficeClientView }) {
           billingEmail: String(form.get("billingEmail") ?? "").trim() || null,
         },
       );
-      showToast({ tone: "success", title: "Billing saved" });
       if (saved.settled.length > 0) setSettled(saved.settled);
       else close();
-      await router.invalidate();
-    } catch (e) {
-      if (e instanceof ApiError && Object.keys(e.fieldErrors).length) {
-        setFieldErrors(e.fieldErrors);
-      } else {
-        setProblem(
-          e instanceof ApiError && e.status === 409
-            ? e.message
-            : "Billing wasn't saved. Please try again.",
-        );
-      }
-    } finally {
-      setSaving(false);
-    }
-  };
+    }, "Billing saved");
 
   return (
     <DialogTrigger onOpenChange={(isOpen) => !isOpen && setSettled([])}>
@@ -234,7 +213,7 @@ function EditBilling({ client }: { client: OfficeClientView }) {
             <Settled settled={settled} close={close} />
           ) : (
             <Form
-              validationErrors={fieldErrors}
+              validationErrors={action.fieldErrors}
               onSubmit={(e) => {
                 e.preventDefault();
                 void save(new FormData(e.currentTarget), close);
@@ -294,12 +273,14 @@ function EditBilling({ client }: { client: OfficeClientView }) {
                 defaultValue={billing.billingEmail ?? ""}
                 description={`Bills and their receipts go here instead of ${client.email ?? "their own email"}.`}
               />
-              {problem && <Notice tone="danger">{problem}</Notice>}
+              {action.problem && (
+                <Notice tone="danger">{action.problem}</Notice>
+              )}
               <Actions>
                 <Button variant="secondary" onPress={close}>
                   Cancel
                 </Button>
-                <Button type="submit" isPending={isSaving}>
+                <Button type="submit" isPending={action.isPending}>
                   Save
                 </Button>
               </Actions>
@@ -372,33 +353,20 @@ const statusLine = (status: PropertyStatus) => {
 // An email can be added or changed but not removed: Quotes and notices go
 // there.
 function EditContact({ client }: { client: OfficeClientView }) {
-  const router = useRouter();
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [problem, setProblem] = useState<string>();
-  const [isSaving, setSaving] = useState(false);
+  const action = useAction("The details weren't saved. Please try again.");
 
   const save = async (form: FormData, close: () => void) => {
-    setSaving(true);
-    setProblem(undefined);
-    try {
-      await patchJson<OfficeClientView>(`/api/clients/${client.id}`, {
-        name: form.get("name"),
-        businessName: form.get("businessName") || null,
-        email: form.get("email") || null,
-        phone: form.get("phone"),
-      });
-      showToast({ tone: "success", title: "Contact details saved" });
-      close();
-      await router.invalidate();
-    } catch (e) {
-      if (e instanceof ApiError && Object.keys(e.fieldErrors).length) {
-        setFieldErrors(e.fieldErrors);
-      } else {
-        setProblem("The details weren't saved. Please try again.");
-      }
-    } finally {
-      setSaving(false);
-    }
+    const ok = await action.run(
+      () =>
+        patchJson<OfficeClientView>(`/api/clients/${client.id}`, {
+          name: form.get("name"),
+          businessName: form.get("businessName") || null,
+          email: form.get("email") || null,
+          phone: form.get("phone"),
+        }),
+      "Contact details saved",
+    );
+    if (ok) close();
   };
 
   return (
@@ -407,7 +375,7 @@ function EditContact({ client }: { client: OfficeClientView }) {
       <Dialog title="Edit contact details">
         {({ close }) => (
           <Form
-            validationErrors={fieldErrors}
+            validationErrors={action.fieldErrors}
             onSubmit={(e) => {
               e.preventDefault();
               void save(new FormData(e.currentTarget), close);
@@ -444,12 +412,12 @@ function EditContact({ client }: { client: OfficeClientView }) {
               defaultValue={client.phone}
               isRequired
             />
-            {problem && <Notice tone="danger">{problem}</Notice>}
+            {action.problem && <Notice tone="danger">{action.problem}</Notice>}
             <Actions>
               <Button variant="secondary" onPress={close}>
                 Cancel
               </Button>
-              <Button type="submit" isPending={isSaving}>
+              <Button type="submit" isPending={action.isPending}>
                 Save
               </Button>
             </Actions>

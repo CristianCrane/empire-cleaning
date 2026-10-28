@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, useRouter } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import type {
   OfficeQuote,
   PriceBreakdown,
@@ -20,10 +20,10 @@ import {
   Radio,
   RadioGroup,
   StatusBadge,
-  showToast,
 } from "@empire-cleaning/ui";
-import { ApiError, postJson } from "../../api.ts";
+import { postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
+import { useAction } from "../action.ts";
 import {
   BookSiteVisit,
   SiteVisitBadge,
@@ -245,34 +245,22 @@ export const turnDownLabel: Record<TurnDownReason, string> = {
 // emailed; once a Revision is Sent, only the Client's Decline or Expiry
 // closes it
 export function TurnDownQuote({ quote }: { quote: OfficeQuote }) {
-  const router = useRouter();
   const [reason, setReason] = useState<TurnDownReason>();
-  const [problem, setProblem] = useState<string>();
-  const [isPending, setPending] = useState(false);
+  const action = useAction("The Quote wasn't Turned Down. Please try again.");
 
   const turnDown = async (close: () => void) => {
     if (!reason) {
-      setProblem("Choose why it's being Turned Down.");
+      action.fail("Choose why it's being Turned Down.");
       return;
     }
-    setPending(true);
-    setProblem(undefined);
-    try {
-      await postJson<OfficeQuote>(`/api/quotes/${quote.id}/turn-down`, {
-        reason,
-      });
-      close();
-      showToast({ tone: "success", title: "Quote Turned Down" });
-      await router.invalidate();
-    } catch (e) {
-      setProblem(
-        e instanceof ApiError && e.status === 409
-          ? e.message
-          : "The Quote wasn't Turned Down. Please try again.",
-      );
-    } finally {
-      setPending(false);
-    }
+    const ok = await action.run(
+      () =>
+        postJson<OfficeQuote>(`/api/quotes/${quote.id}/turn-down`, {
+          reason,
+        }),
+      "Quote Turned Down",
+    );
+    if (ok) close();
   };
 
   return (
@@ -297,14 +285,14 @@ export function TurnDownQuote({ quote }: { quote: OfficeQuote }) {
                 </Radio>
               ))}
             </RadioGroup>
-            {problem && <Notice tone="danger">{problem}</Notice>}
+            {action.problem && <Notice tone="danger">{action.problem}</Notice>}
             <Actions>
               <Button variant="secondary" onPress={close}>
                 Keep it
               </Button>
               <Button
                 variant="danger"
-                isPending={isPending}
+                isPending={action.isPending}
                 onPress={() => void turnDown(close)}
               >
                 Turn Down

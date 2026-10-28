@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useRouter } from "@tanstack/react-router";
 import type {
   AddOnChoice,
   CleanerJob,
@@ -18,9 +17,9 @@ import {
   Radio,
   RadioGroup,
   TextField,
-  showToast,
 } from "@empire-cleaning/ui";
-import { ApiError, postJson } from "../../api.ts";
+import { postJson } from "../../api.ts";
+import { useAction } from "../action.ts";
 import { adjustmentLabel, conditionLabel, formatTime } from "../format.ts";
 
 // the reason given for each Add-on ticked, by its key
@@ -31,15 +30,15 @@ type Ticked = Record<string, string>;
 // works those out from the Price List, and asks the Client before charging
 // anything extra (ADR-0009).
 export function CompleteJob({ job }: { job: CleanerJob }) {
-  const router = useRouter();
   const [condition, setCondition] = useState<Condition | null>(null);
   const [notDone, setNotDone] = useState<Ticked>({});
   const [done, setDone] = useState<Ticked>({});
   const [extraHours, setExtraHours] = useState(0);
   const [extraReason, setExtraReason] = useState("");
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [problem, setProblem] = useState<string>();
-  const [isPending, setPending] = useState(false);
+  const action = useAction(
+    "The Job wasn't marked Completed. Please try again.",
+    { fieldsProblem: "Some details need fixing." },
+  );
 
   const reports = (): CompletionReport[] => [
     ...Object.entries(notDone).map(([addOnKey, reason]) => ({
@@ -65,33 +64,17 @@ export function CompleteJob({ job }: { job: CleanerJob }) {
 
   const complete = async () => {
     if (!condition) {
-      setFieldErrors({ condition: "Say how the home was" });
+      action.fail(undefined, { condition: "Say how the home was" });
       return;
     }
-    setPending(true);
-    setProblem(undefined);
-    setFieldErrors({});
-    try {
-      await postJson(`/api/assignments/mine/${job.id}/complete`, {
-        condition,
-        reports: reports(),
-      });
-      showToast({ tone: "success", title: "Job Completed" });
-      await router.invalidate();
-    } catch (e) {
-      if (e instanceof ApiError && Object.keys(e.fieldErrors).length) {
-        setFieldErrors(e.fieldErrors);
-        setProblem("Some details need fixing.");
-      } else {
-        setProblem(
-          e instanceof ApiError && e.status === 409
-            ? e.message
-            : "The Job wasn't marked Completed. Please try again.",
-        );
-      }
-    } finally {
-      setPending(false);
-    }
+    await action.run(
+      () =>
+        postJson(`/api/assignments/mine/${job.id}/complete`, {
+          condition,
+          reports: reports(),
+        }),
+      "Job Completed",
+    );
   };
 
   return (
@@ -100,7 +83,7 @@ export function CompleteJob({ job }: { job: CleanerJob }) {
       description="When you've finished, tell us how it went. If anything was different from the Quote, the Office will sort out the price with the Client."
     >
       <Form
-        validationErrors={fieldErrors}
+        validationErrors={action.fieldErrors}
         onSubmit={(e) => {
           e.preventDefault();
           void complete();
@@ -161,9 +144,9 @@ export function CompleteJob({ job }: { job: CleanerJob }) {
           )}
         </fieldset>
 
-        {problem && <Notice tone="danger">{problem}</Notice>}
+        {action.problem && <Notice tone="danger">{action.problem}</Notice>}
         <Actions>
-          <Button type="submit" isPending={isPending}>
+          <Button type="submit" isPending={action.isPending}>
             Mark Completed
           </Button>
         </Actions>
