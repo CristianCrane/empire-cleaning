@@ -28,6 +28,10 @@ import {
 } from "@empire-cleaning/ui";
 import { patchJson, putJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
+import {
+  SectionAction,
+  SectionActionsSwitcher,
+} from "./section-actions.prototype.tsx";
 import { useAction } from "../action.ts";
 import { BillStatusBadge, billLine } from "../BillParts.tsx";
 import {
@@ -150,6 +154,7 @@ export function ClientDetail() {
           </List>
         </Section>
       )}
+      <SectionActionsSwitcher />
     </div>
   );
 }
@@ -214,7 +219,7 @@ function EditBilling({ client }: { client: OfficeClientView }) {
 
   return (
     <DialogTrigger onOpenChange={(isOpen) => !isOpen && setSettled([])}>
-      <Button variant="secondary">Edit</Button>
+      <SectionAction>Edit</SectionAction>
       <Dialog title="Billing">
         {({ close }) =>
           settled.length > 0 ? (
@@ -379,7 +384,7 @@ function EditContact({ client }: { client: OfficeClientView }) {
 
   return (
     <DialogTrigger>
-      <Button variant="secondary">Edit</Button>
+      <SectionAction>Edit</SectionAction>
       <Dialog title="Edit contact details">
         {({ close }) => (
           <Form

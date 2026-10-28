@@ -313,6 +313,10 @@ const officeClientsRoute = createRoute({
 const officeClientRoute = createRoute({
   getParentRoute: () => officeRoute,
   path: "/clients/$clientId",
+  // PROTOTYPE: ?variant= picks a Section action style
+  validateSearch: (search: Record<string, unknown>): { variant?: string } => ({
+    variant: typeof search.variant === "string" ? search.variant : undefined,
+  }),
   loader: async ({ params }) => {
     const [client, bills] = await Promise.all([
       getJson<OfficeClientView>(`/api/clients/${params.clientId}`),
