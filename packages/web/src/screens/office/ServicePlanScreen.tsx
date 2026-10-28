@@ -65,6 +65,7 @@ export function ServicePlanScreen() {
         </p>
       </div>
       <PlanDetails plan={plan} />
+      <PlanJobs plan={plan} />
     </div>
   );
 }
@@ -72,7 +73,7 @@ export function ServicePlanScreen() {
 // a Service Plan for the Office: why it's On Hold, if it is; the dates it
 // came round with no room, for Office Staff to book at another time they
 // agree with the Client, or skip; its terms, with the way to change them;
-// every Job it has booked; and Ending it for the Client
+// and Ending it for the Client. Its Jobs are in its home's History
 export function PlanDetails({
   plan,
   changeTerms = plan.status !== "ended" && (
@@ -86,8 +87,6 @@ export function PlanDetails({
   // a line in its terms, e.g. new terms waiting on the Client
   termsNote?: ReactNode;
 }) {
-  const navigate = useNavigate();
-
   return (
     <div className="flex flex-col gap-6">
       <OnHold
@@ -160,54 +159,58 @@ export function PlanDetails({
         </Card>
       </Section>
 
-      <Section
-        title="Jobs"
-        description="Each goes on the Schedule about 4 weeks ahead, Offered to the crew of the one before."
-      >
-        <List
-          aria-label="The plan's Jobs"
-          renderEmptyState={() => (
-            <p className="p-4 text-center text-fg-muted">No Jobs yet.</p>
-          )}
-        >
-          {plan.jobs.map((job) => (
-            <ListItem
-              key={job.id}
-              id={job.id}
-              title={formatDateTime(job.startsAt)}
-              description={
-                job.crew.length > 0
-                  ? job.crew.map((c) => c.name).join(", ")
-                  : "Nobody Offered yet"
-              }
-              end={
-                job.status === "booked" ? (
-                  <StatusBadge
-                    tone={job.assignment === "assigned" ? "success" : "warning"}
-                  >
-                    {job.assignment === "assigned" ? "Assigned" : "Unassigned"}
-                  </StatusBadge>
-                ) : (
-                  <StatusBadge>{jobStatusLabel[job.status]}</StatusBadge>
-                )
-              }
-              onAction={() =>
-                void navigate({
-                  to: "/office/jobs/$jobId",
-                  params: { jobId: job.id },
-                })
-              }
-            />
-          ))}
-        </List>
-      </Section>
-
       <EndPlan
         plan={plan}
         forClient={false}
         endPath={`/api/service-plans/${plan.id}/end`}
       />
     </div>
+  );
+}
+
+// every Job the plan booked, opening each: on an Ended plan's page. A
+// current plan's are in its home's History
+function PlanJobs({ plan }: { plan: OfficeServicePlan }) {
+  const navigate = useNavigate();
+  return (
+    <Section title="Jobs">
+      <List
+        aria-label="The plan's Jobs"
+        renderEmptyState={() => (
+          <p className="p-4 text-center text-fg-muted">No Jobs yet.</p>
+        )}
+      >
+        {plan.jobs.map((job) => (
+          <ListItem
+            key={job.id}
+            id={job.id}
+            title={formatDateTime(job.startsAt)}
+            description={
+              job.crew.length > 0
+                ? job.crew.map((c) => c.name).join(", ")
+                : "Nobody Offered yet"
+            }
+            end={
+              job.status === "booked" ? (
+                <StatusBadge
+                  tone={job.assignment === "assigned" ? "success" : "warning"}
+                >
+                  {job.assignment === "assigned" ? "Assigned" : "Unassigned"}
+                </StatusBadge>
+              ) : (
+                <StatusBadge>{jobStatusLabel[job.status]}</StatusBadge>
+              )
+            }
+            onAction={() =>
+              void navigate({
+                to: "/office/jobs/$jobId",
+                params: { jobId: job.id },
+              })
+            }
+          />
+        ))}
+      </List>
+    </Section>
   );
 }
 
