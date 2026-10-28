@@ -122,7 +122,13 @@ const officeWords: typeof ownWords = {
 
 const NEW_PLACE = "new";
 
-const conditions: { value: Condition; label: string; description: string }[] = [
+// how much cleaning a place needs, as asked here and wherever the Office
+// records it
+export const conditions: {
+  value: Condition;
+  label: string;
+  description: string;
+}[] = [
   {
     value: "light",
     label: "Light",

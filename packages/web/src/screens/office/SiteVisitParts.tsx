@@ -16,7 +16,6 @@ import type {
   Condition,
   OfficeSiteVisit,
   PremisesTypeChoice,
-  PropertyType,
   PropertyView,
   SiteVisitBooking,
   SiteVisitStatus,
@@ -33,8 +32,6 @@ import {
   Form,
   Notice,
   NumberField,
-  Radio,
-  RadioGroup,
   Select,
   SelectItem,
   StatusBadge,
@@ -51,6 +48,7 @@ import {
   timeOfDay,
 } from "../format.ts";
 import { useAction, type Action } from "../action.ts";
+import { ConditionField, PlaceTiles } from "./PropertyFields.tsx";
 import { PickFromSchedule } from "./SchedulePicker.tsx";
 
 // Site Visits (#73, ADR-0015): free visits by one Staff member to see a
@@ -354,14 +352,6 @@ export function CancelSiteVisit({ visit }: { visit: OfficeSiteVisit }) {
   );
 }
 
-const conditionChoices = (
-  <>
-    <SelectItem id="light">Light</SelectItem>
-    <SelectItem id="moderate">Moderate</SelectItem>
-    <SelectItem id="heavy">Heavy</SelectItem>
-  </>
-);
-
 /**
  * What a visit found, pre-filled from the Property as it is: business
  * premises' Premises Type, floor area and Condition, or a home's rooms and
@@ -425,6 +415,7 @@ export function FindingsForm({
     >
       {property.kind === "commercial" ? (
         <>
+          <PlaceTiles value="commercial" />
           <Select
             label="Type of premises"
             name="premisesType"
@@ -451,18 +442,10 @@ export function FindingsForm({
       ) : (
         home && (
           <>
-            <RadioGroup
-              label="Type of home"
-              orientation="horizontal"
+            <PlaceTiles
               value={home.type}
-              onChange={(type) =>
-                setHome({ ...home, type: type as PropertyType })
-              }
-            >
-              <Radio value="house">House</Radio>
-              <Radio value="apartment">Apartment</Radio>
-              <Radio value="townhouse">Townhouse</Radio>
-            </RadioGroup>
+              onChange={(type) => setHome({ ...home, type })}
+            />
             <div className="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-4">
               <NumberField
                 label="Bedrooms"
@@ -508,15 +491,7 @@ export function FindingsForm({
           </>
         )
       )}
-      <Select
-        label="Condition"
-        name="condition"
-        placeholder="Choose one"
-        selectedKey={condition}
-        onSelectionChange={(key) => setCondition(key as Condition)}
-      >
-        {conditionChoices}
-      </Select>
+      <ConditionField value={condition} onChange={setCondition} />
       <TextField
         label="Office notes (optional)"
         name="officeNotes"
@@ -553,7 +528,7 @@ export function RecordFindings({
         <ClipboardCheck aria-hidden size={18} />
         Record findings
       </Button>
-      <Dialog title="What the Site Visit found">
+      <Dialog title="What the Site Visit found" size="lg">
         {({ close }) => (
           <FindingsForm
             property={visit.property}
@@ -594,7 +569,7 @@ export function RecordFindingsWithoutVisit({
   return (
     <DialogTrigger>
       <Button variant="secondary">Record findings without a visit</Button>
-      <Dialog title="Record findings without a visit">
+      <Dialog title="Record findings without a visit" size="lg">
         {({ close }) => (
           <>
             <p className="text-sm text-fg-muted">

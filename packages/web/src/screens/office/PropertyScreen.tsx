@@ -1,19 +1,14 @@
 import { useState, type ReactNode } from "react";
 import { useLoaderData, useNavigate, useSearch } from "@tanstack/react-router";
 import {
-  Building2,
   CalendarCheck,
-  House,
-  Houses,
   MapPin,
   Repeat,
   Sparkles,
-  Store,
   type LucideIcon,
 } from "lucide-react";
 import type {
   ClientName,
-  Condition,
   HomeView,
   JobStatus,
   OfficePropertyView,
@@ -21,7 +16,6 @@ import type {
   OfficeSiteVisit,
   PremisesTypeChoice,
   PremisesView,
-  PropertyType,
   PropertyView,
 } from "@empire-cleaning/models";
 import {
@@ -31,8 +25,6 @@ import {
   Card,
   Cell,
   Checkbox,
-  ChoiceTile,
-  ChoiceTiles,
   Column,
   EmptyState,
   Form,
@@ -72,6 +64,7 @@ import {
   RecordFindingsWithoutVisit,
   SiteVisitBadge,
 } from "./SiteVisitParts.tsx";
+import { ConditionField, PlaceTiles } from "./PropertyFields.tsx";
 import { PlanDetails } from "./ServicePlanScreen.tsx";
 import { VisitDetails } from "./SiteVisitScreen.tsx";
 import { OfferServicePlan } from "./StartDraft.tsx";
@@ -577,27 +570,6 @@ function CorrectionForm({
   );
 }
 
-function ConditionSelect({
-  value,
-  onChange,
-}: {
-  value: Condition | null;
-  onChange: (condition: Condition) => void;
-}) {
-  return (
-    <Select
-      label="Condition"
-      placeholder="Not recorded yet"
-      selectedKey={value}
-      onSelectionChange={(key) => onChange(key as Condition)}
-    >
-      <SelectItem id="light">Light</SelectItem>
-      <SelectItem id="moderate">Moderate</SelectItem>
-      <SelectItem id="heavy">Heavy</SelectItem>
-    </Select>
-  );
-}
-
 // how the crew gets in: the Client's to keep, which the Office may
 // correct too
 function AccessInstructionsField({
@@ -703,7 +675,7 @@ function HomeDetails({
       <Checkbox isSelected={details.pets} onChange={(pets) => change({ pets })}>
         There are pets at home
       </Checkbox>
-      <ConditionSelect
+      <ConditionField
         value={details.condition}
         onChange={(condition) => change({ condition })}
       />
@@ -769,7 +741,7 @@ function PremisesDetails({
           change({ floorArea: Number.isNaN(area) ? null : area })
         }
       />
-      <ConditionSelect
+      <ConditionField
         value={details.condition}
         onChange={(condition) => change({ condition })}
       />
@@ -782,43 +754,5 @@ function PremisesDetails({
         onChange={(notes) => change({ officeNotes: notes })}
       />
     </CorrectionForm>
-  );
-}
-
-// what kind of place it is, asked as the quote form asks it. A home and
-// business premises are priced from different details, so one can't be
-// corrected into the other: a home's type is the only choice
-function PlaceTiles({
-  value,
-  onChange,
-}: {
-  value: PropertyType | "commercial";
-  onChange?: (type: PropertyType) => void;
-}) {
-  const premises = value === "commercial";
-  return (
-    <ChoiceTiles
-      label="Kind of place"
-      value={value}
-      onChange={(type) => onChange?.(type as PropertyType)}
-      description={
-        premises
-          ? "Business premises can't be corrected into a home."
-          : "A home can't be corrected into business premises."
-      }
-    >
-      <ChoiceTile value="house" icon={House} isDisabled={premises}>
-        House
-      </ChoiceTile>
-      <ChoiceTile value="apartment" icon={Building2} isDisabled={premises}>
-        Apartment
-      </ChoiceTile>
-      <ChoiceTile value="townhouse" icon={Houses} isDisabled={premises}>
-        Townhouse
-      </ChoiceTile>
-      <ChoiceTile value="commercial" icon={Store} isDisabled={!premises}>
-        Business premises
-      </ChoiceTile>
-    </ChoiceTiles>
   );
 }

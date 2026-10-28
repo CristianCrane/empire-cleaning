@@ -219,6 +219,11 @@ test("business premises' screens fit every width, the form included", async ({
     `${property}?tab=visit`,
     "Move or change",
   );
+  await expectDialogFitsEveryWidth(
+    page,
+    `${property}?tab=visit`,
+    "Record findings",
+  );
   await page.getByRole("button", { name: "Cancel visit" }).click();
   await page.getByRole("button", { name: "Cancel Site Visit" }).click();
   await expect(page.getByText("Site Visit cancelled")).toBeVisible();

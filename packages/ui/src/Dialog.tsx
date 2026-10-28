@@ -19,8 +19,9 @@ export type DialogProps = Omit<AriaDialogProps, "children"> & {
   // dropped: whether it's open, and told when it closes
   isOpen?: ModalOverlayProps["isOpen"];
   onOpenChange?: ModalOverlayProps["onOpenChange"];
-  // wide for something that needs the room, e.g. a week's calendar
-  size?: "md" | "wide";
+  // lg for a form with rows of choices, e.g. what a Site Visit found; wide
+  // for something that needs the room, e.g. a week's calendar
+  size?: "md" | "lg" | "wide";
 };
 
 // a modal dialog: a sheet rising from the bottom on a phone, centred on larger
@@ -47,7 +48,7 @@ export function Dialog({
       className="fixed inset-0 z-50 flex items-end justify-center bg-backdrop entering:animate-in entering:fade-in exiting:animate-out exiting:fade-out sm:items-center sm:p-4"
     >
       <Modal
-        className={`max-h-[90dvh] w-full overflow-auto rounded-t-xl bg-overlay text-fg shadow-overlay entering:animate-in entering:slide-in-from-bottom-8 exiting:animate-out exiting:slide-out-to-bottom-8 sm:rounded-lg ${size === "wide" ? "sm:max-w-6xl" : "sm:max-w-md"}`}
+        className={`max-h-[90dvh] w-full overflow-auto rounded-t-xl bg-overlay text-fg shadow-overlay entering:animate-in entering:slide-in-from-bottom-8 exiting:animate-out exiting:slide-out-to-bottom-8 sm:rounded-lg ${{ md: "sm:max-w-md", lg: "sm:max-w-2xl", wide: "sm:max-w-6xl" }[size]}`}
       >
         <AriaDialog
           {...props}
