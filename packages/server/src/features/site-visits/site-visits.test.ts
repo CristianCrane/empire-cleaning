@@ -18,6 +18,7 @@ import {
   signInAsOffice,
   submit,
 } from "../../../tests/fixtures.ts";
+import { SEEDED } from "#features/services";
 
 type Agent = Awaited<ReturnType<typeof signIn>>;
 
@@ -337,7 +338,7 @@ describe("Site Visit findings", () => {
         depositPercent: quote.draft!.depositPercent,
         validityDays: quote.draft!.validityDays,
         proposedStart: { date: "2026-01-12", time: "18:00" },
-        overrides: { deep: null, standard: null },
+        overrides: {},
       })
       .expect(200);
     return quote.id;
@@ -386,7 +387,7 @@ describe("Site Visit findings", () => {
       depositPercent: draft.draft!.depositPercent,
       validityDays: draft.draft!.validityDays,
       proposedStart: { date: "2026-01-12", time: "18:00" },
-      overrides: { deep: null, standard: null },
+      overrides: {},
     });
     await office.post(`/api/quotes/${quoteId}/send`).expect(200);
     // a Done visit stays as it was

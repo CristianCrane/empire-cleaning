@@ -2,22 +2,22 @@ import { useState } from "react";
 import { Link, useLoaderData } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 import type {
-  OfferedFor,
   PriceList,
   PriceListAddOn,
   PriceListPremisesType,
+  Service,
 } from "@empire-cleaning/models";
 import {
   Actions,
   Button,
   Card,
   Checkbox,
+  Chip,
+  ChipGroup,
   Form,
   Heading,
   Notice,
   NumberField,
-  Select,
-  SelectItem,
   StatusBadge,
   TextField,
 } from "@empire-cleaning/ui";
@@ -52,16 +52,10 @@ const toDraft = (list: PriceList): Draft => {
   return figures;
 };
 
-const offeredForLabel: Record<OfferedFor, string> = {
-  homes: "Homes",
-  businesses: "Businesses",
-  both: "Homes and businesses",
-};
-
 const rate = { maximumFractionDigits: 3 } as const;
 
 export function PriceListScreen() {
-  const list = useLoaderData({ from: "/office/price-list" });
+  const { list, services } = useLoaderData({ from: "/office/price-list" });
 
   return (
     <div className="flex flex-col gap-4">
@@ -85,12 +79,16 @@ export function PriceListScreen() {
         </Notice>
       )}
       {/* a new version starts the form afresh, with the keys the server gave */}
-      <Editor key={list.version} list={list} />
+      <Editor key={list.version} list={list} services={services} />
     </div>
   );
 }
 
-function Editor({ list }: { list: PriceList }) {
+function Editor({ list, services }: { list: PriceList; services: Service[] }) {
+  // the Services an Add-on can go with: those on offer, and any retired one
+  // it already does
+  const servicesFor = (addOn: PriceListAddOn) =>
+    services.filter((s) => s.active || addOn.serviceKeys.includes(s.key));
   const [draft, setDraft] = useState(() => toDraft(list));
   const action = useAction("The Price List wasn't saved. Please try again.");
 
@@ -267,21 +265,19 @@ function Editor({ list }: { list: PriceList }) {
                   onChange={(hours) => setAddOn(i, { hours })}
                 />
               </div>
-              <Select
-                label="Offered for"
-                name={`addOns.${i}.offeredFor`}
+              <ChipGroup
+                label="Goes with"
+                name={`addOns.${i}.serviceKeys`}
                 isDisabled={!addOn.active}
-                selectedKey={addOn.offeredFor}
-                onSelectionChange={(key) =>
-                  setAddOn(i, { offeredFor: key as OfferedFor })
-                }
+                value={addOn.serviceKeys}
+                onChange={(serviceKeys) => setAddOn(i, { serviceKeys })}
               >
-                {(["homes", "businesses", "both"] as const).map((k) => (
-                  <SelectItem key={k} id={k}>
-                    {offeredForLabel[k]}
-                  </SelectItem>
+                {servicesFor(addOn).map((s) => (
+                  <Chip key={s.key} value={s.key}>
+                    {s.name}
+                  </Chip>
                 ))}
-              </Select>
+              </ChipGroup>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <Checkbox
                   isSelected={addOn.taxExempt}
@@ -330,7 +326,10 @@ function Editor({ list }: { list: PriceList }) {
                   name: "",
                   hours: 0.5,
                   taxExempt: false,
-                  offeredFor: "homes",
+                  // a home's, until Office Staff choose
+                  serviceKeys: services
+                    .filter((s) => s.active && s.offeredFor !== "businesses")
+                    .map((s) => s.key),
                   active: true,
                 },
               ],

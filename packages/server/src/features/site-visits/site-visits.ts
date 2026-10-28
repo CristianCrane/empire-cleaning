@@ -489,18 +489,13 @@ export const findingsRecorded = async (propertyIds: string[]) => {
 };
 
 /**
- * Where each Property stands for a Site Visit, before it's quoted: "booked"
- * if one is booked and none is Done yet, "needed" for business premises
- * with neither (ADR-0014), and otherwise nothing, once findings are
- * recorded, or for a home that has none booked.
+ * Where each Property stands for a Site Visit: "done" once findings are
+ * recorded, "booked" if one is booked and none is Done yet, and otherwise
+ * nothing. Whether a Quote needs one is its Service's (ADR-0018).
  */
 export const siteVisitStages = async (propertyIds: string[]) => {
-  const stages = new Map<string, "needed" | "booked">();
+  const stages = new Map<string, "done" | "booked">();
   if (propertyIds.length === 0) return stages;
-  const rows = await db
-    .select({ id: properties.id, kind: properties.kind })
-    .from(properties)
-    .where(inArray(properties.id, propertyIds));
   const visits = await db
     .select({ propertyId: siteVisits.propertyId, status: siteVisits.status })
     .from(siteVisits)
@@ -510,11 +505,10 @@ export const siteVisitStages = async (propertyIds: string[]) => {
         inArray(siteVisits.status, ["booked", "done"]),
       ),
     );
-  for (const { id, kind } of rows) {
+  for (const id of propertyIds) {
     const own = visits.filter((v) => v.propertyId === id);
-    if (own.some((v) => v.status === "done")) continue;
-    if (own.some((v) => v.status === "booked")) stages.set(id, "booked");
-    else if (kind === "commercial") stages.set(id, "needed");
+    if (own.some((v) => v.status === "done")) stages.set(id, "done");
+    else if (own.some((v) => v.status === "booked")) stages.set(id, "booked");
   }
   return stages;
 };

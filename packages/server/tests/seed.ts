@@ -35,6 +35,7 @@ import {
   turnDownQuote,
 } from "#features/quotes";
 import { bookSiteVisit } from "#features/site-visits";
+import { SEEDED } from "#features/services";
 import { createStaff, setUsualWeek } from "#features/staff";
 import { addDays, dayOf, weekdayOf } from "#services/clock";
 import { installFakes, signIn, testClock } from "./harness.ts";
@@ -220,7 +221,7 @@ async function seed() {
       depositPercent: 25,
       validityDays,
       proposedStart: weekdayFrom(startIn),
-      overrides: { deep: null, standard: null },
+      overrides: {},
     });
     return sendQuote(id);
   };
@@ -284,7 +285,7 @@ async function seed() {
     depositPercent: 25,
     validityDays: 7,
     proposedStart: weekdayFrom(6),
-    overrides: { deep: null, standard: null },
+    overrides: {},
   });
 
   // ---- Sent ----
@@ -390,7 +391,7 @@ async function seed() {
     await savePaymentMethod(owner, form.secret);
     const accepted = await acceptQuote(
       asked.id,
-      { cleanType: "deep" },
+      { serviceKey: SEEDED.deep },
       { by: "office", accountId: by },
     );
     if (accepted.status !== "accepted") throw new Error("not accepted");

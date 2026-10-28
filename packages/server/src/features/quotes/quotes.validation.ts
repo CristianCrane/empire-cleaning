@@ -1,13 +1,9 @@
 import { z } from "zod";
 
-// the Clean Type chosen, on a one-off Quote; a Service Plan Quote is
+// the Service chosen, by key, on a one-off Quote; a Service Plan Quote is
 // accepted whole, so it needs none
 export const acceptSchema = z.object({
-  cleanType: z
-    .enum(["deep", "standard"], {
-      error: "Choose a Deep Clean or a Standard Clean",
-    })
-    .optional(),
+  serviceKey: z.uuid("Choose one of the Quote's Services").optional(),
 });
 
 // a Client may pay with a card entered just now: the payment form's token
@@ -70,14 +66,13 @@ const start = z
 // one of a Service Plan's weekdays, with its own visit (ADR-0013)
 const planDay = z.object({
   start,
-  cleanType: z.enum(["deep", "standard"], {
-    error: "Choose a Deep Clean or a Standard Clean",
-  }),
   crewSize,
   override,
 });
 
 const plan = z.object({
+  // every day's
+  serviceKey: z.uuid("Choose a Service"),
   recurrence: z.enum(["weekly", "fortnightly", "four_weekly"], {
     error: "Choose every week, every 2 weeks or every 4 weeks",
   }),
@@ -97,6 +92,8 @@ const plan = z.object({
 });
 
 export const draftSchema = z.object({
+  // a one-off Quote's Service
+  serviceKey: z.uuid("Choose a Service").optional(),
   addOns: z.array(z.uuid()).max(50),
   // a one-off Quote's; a Service Plan Quote's are its weekdays'
   crewSize: crewSize.optional(),
@@ -111,7 +108,8 @@ export const draftSchema = z.object({
     .min(1, "Valid for at least 1 day")
     .max(90, "Valid for at most 90 days"),
   proposedStart: start.optional(),
-  overrides: z.object({ deep: override, standard: override }).optional(),
+  // by the option's Service
+  overrides: z.record(z.uuid(), override).optional(),
   // a Service Plan Quote's terms, and only theirs
   plan: plan.nullable().optional(),
 });

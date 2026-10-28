@@ -9,8 +9,6 @@ import type {
 } from "@empire-cleaning/models";
 import { Card, StatusBadge } from "@empire-cleaning/ui";
 import {
-  cleanTypeLabel,
-  optionLabel,
   formatHours,
   formatMoney,
   planDayWhen,
@@ -43,7 +41,7 @@ export function OptionCard({
 }) {
   return (
     <Card
-      title={optionLabel(option)}
+      title={option.serviceName}
       headingLevel={3}
       actions={
         option.recommended && (
@@ -114,8 +112,8 @@ export function PlanDayCard({
 // yet, "Standard Clean"
 export const planDayTitle = (day: PlanDayTerms) =>
   day.startsAt
-    ? `${planDayWhen(day.startsAt)}: ${cleanTypeLabel[day.cleanType]}`
-    : cleanTypeLabel[day.cleanType];
+    ? `${planDayWhen(day.startsAt)}: ${day.serviceName}`
+    : day.serviceName;
 
 export function PlanSaving({ day }: { day: PlanDayTerms }) {
   return (

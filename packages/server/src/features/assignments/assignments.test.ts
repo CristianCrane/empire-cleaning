@@ -16,6 +16,7 @@ import {
   signInAsOffice,
   submit,
 } from "../../../tests/fixtures.ts";
+import { SEEDED } from "#features/services";
 
 type Agent = Awaited<ReturnType<typeof signIn>>;
 
@@ -210,7 +211,7 @@ describe("Offering Assignments", () => {
         depositPercent: draft.draft!.depositPercent,
         validityDays: draft.draft!.validityDays,
         proposedStart: { date: "2026-01-08", time: "09:00" },
-        overrides: { deep: null, standard: null },
+        overrides: {},
       })
       .expect(200);
     await office.post(`/api/quotes/${draft.id}/send`).expect(200);
@@ -224,7 +225,7 @@ describe("Offering Assignments", () => {
       .expect(200);
     await client
       .post(`/api/quotes/mine/${draft.id}/accept`)
-      .send({ cleanType: "standard" })
+      .send({ serviceKey: SEEDED.standard })
       .expect(200);
     const [day] = (
       await office
@@ -311,7 +312,7 @@ describe("a Cleaner's Jobs", () => {
     expect(seen).toEqual({
       id: job.id,
       startsAt: "2026-01-08T14:00:00.000Z",
-      cleanType: "deep",
+      serviceName: "Deep Clean",
       hoursOnSite: 3,
       addOns: [],
       property: {

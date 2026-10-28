@@ -18,11 +18,10 @@ import { clients } from "../clients/clients.schema.ts";
 import { properties } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
 import { jobs } from "./jobs.schema.ts";
+import { serviceNameOf } from "../services/services.ts";
 
 // reminders go out from this time, New York, on the day before
 export const REMINDER_TIME = "08:00";
-
-const cleanTypeLabel = { deep: "Deep Clean", standard: "Standard Clean" };
 
 /**
  * Emails each Client whose Job is tomorrow (New York) a reminder, once, from
@@ -70,7 +69,7 @@ export const sendDueReminders = async () => {
         ...compose(
           [
             `Hi ${firstNameOf(client.name)},`,
-            `A reminder that your ${cleanTypeLabel[job.cleanType]} at ${addressOf(property)} is tomorrow, ${formatWhen(job.startsAt)}.`,
+            `A reminder that your ${await serviceNameOf(job.serviceId)} at ${addressOf(property)} is tomorrow, ${formatWhen(job.startsAt)}.`,
             "Please make sure our team can get in. If anything has changed, such as a gate code or where the key is, update your Access Instructions:",
           ],
           {

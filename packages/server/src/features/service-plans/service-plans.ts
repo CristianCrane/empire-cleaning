@@ -234,7 +234,7 @@ const bookOnto = async (
   const job = await bookJob(
     {
       propertyId: plan.propertyId,
-      cleanType: day.cleanType,
+      serviceId: day.serviceId,
       startsAt,
       labourHours: day.labourHours,
       crewSize: day.crewSize,
@@ -544,7 +544,7 @@ const summariesOf = async (plans: ServicePlan[]) => {
       .select({
         quoteId: quotes.id,
         startsAt: revisionOptions.startsAt,
-        cleanType: revisionOptions.cleanType,
+        suggested: revisionOptions.suggested,
       })
       .from(revisionOptions)
       .innerJoin(quotes, eq(quotes.sentRevisionId, revisionOptions.revisionId))
@@ -570,7 +570,7 @@ const summariesOf = async (plans: ServicePlan[]) => {
           recurrence: plan.recurrence,
           days: daysOf.get(plan.quoteId)!.map((d) => ({
             startsAt: d.startsAt!.toISOString(),
-            cleanType: d.cleanType,
+            serviceName: d.suggested.serviceName,
           })),
           property: {
             id: home.id,
@@ -685,7 +685,7 @@ const detailOf = async (
     ...summary!,
     days: days.map((day) => ({
       startsAt: day.startsAt!.toISOString(),
-      cleanType: day.cleanType,
+      serviceName: day.suggested.serviceName,
       crewSize: day.crewSize,
       labourHours: day.labourHours,
       hoursOnSite: Math.round((day.labourHours / day.crewSize) * 100) / 100,

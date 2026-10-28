@@ -13,7 +13,6 @@ import { linkTo } from "../../links.ts";
 import { QuoteIcon } from "../icons.ts";
 import {
   addressOf,
-  cleanTypeLabel,
   conditionLabel,
   formatDate,
   formatDateTime,
@@ -176,7 +175,7 @@ export function PortalHome() {
                 id={job.id}
                 title={formatDateTime(job.startsAt)}
                 description={[
-                  cleanTypeLabel[job.cleanType],
+                  job.serviceName,
                   addressOf(job.property),
                   `About ${formatHours(job.hoursOnSite)} on site`,
                 ].join(" · ")}
@@ -196,7 +195,7 @@ export function PortalHome() {
                 id={job.id}
                 title={formatDateTime(job.startsAt)}
                 description={[
-                  cleanTypeLabel[job.cleanType],
+                  job.serviceName,
                   addressOf(job.property),
                   formatMoney(job.totalCents),
                 ].join(" · ")}

@@ -9,7 +9,6 @@ import {
 } from "@empire-cleaning/ui";
 import {
   addressOf,
-  cleanTypeLabel,
   clientName,
   formatDateTime,
   formatHours,
@@ -100,7 +99,7 @@ function Jobs({
           title={when(job)}
           description={[
             addressOf(job.property),
-            cleanTypeLabel[job.cleanType],
+            job.serviceName,
             `${formatHours(job.hoursOnSite)} on site`,
           ].join(" · ")}
           end={<PlaceBadge job={job} />}

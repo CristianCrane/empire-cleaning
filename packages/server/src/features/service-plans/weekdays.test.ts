@@ -26,6 +26,7 @@ import {
   submit,
 } from "../../../tests/fixtures.ts";
 import { generateServicePlanJobs } from "./service-plans.ts";
+import { findService, SEEDED } from "#features/services";
 
 type Agent = Awaited<ReturnType<typeof signIn>>;
 
@@ -58,18 +59,13 @@ const day = (
   changes: Partial<PlanDayInput> = {},
 ): PlanDayInput => ({
   start,
-  cleanType: "standard",
   crewSize: 1,
   override: null,
   ...changes,
 });
 
-// a Standard Clean on Mondays, and a Deep Clean for a crew of 2 on
-// Wednesdays afternoons
-const MONDAY_AND_WEDNESDAY = [
-  day(MONDAY),
-  day(WEDNESDAY, { cleanType: "deep", crewSize: 2 }),
-];
+// a Standard Clean on Mondays, and on Wednesday afternoons for a crew of 2
+const MONDAY_AND_WEDNESDAY = [day(MONDAY), day(WEDNESDAY, { crewSize: 2 })];
 
 const draftPlan = async (office: Agent, propertyId: string) =>
   (
@@ -88,6 +84,7 @@ const body = (
   depositPercent: draft.draft!.depositPercent,
   validityDays: draft.draft!.validityDays,
   plan: {
+    serviceKey: draft.draft!.serviceKey,
     recurrence,
     discountPercent: draft.draft!.plan!.discountPercent,
     condition: "moderate",
@@ -150,13 +147,18 @@ describe("a Service Plan Quote on several weekdays", () => {
 
     const [monday, wednesday] = saved.draft!.options;
     expect(saved.draft!.plan!.days).toMatchObject([
-      { startsAt: MONDAYS[0], cleanType: "standard", crewSize: 1 },
-      { startsAt: WEDNESDAYS[0], cleanType: "deep", crewSize: 2 },
+      { startsAt: MONDAYS[0], serviceKey: SEEDED.standard, crewSize: 1 },
+      { startsAt: WEDNESDAYS[0], serviceKey: SEEDED.standard, crewSize: 2 },
     ]);
-    expect(monday).toMatchObject({ cleanType: "standard", hoursOnSite: 3.75 });
-    expect(wednesday!.cleanType).toBe("deep");
-    expect(wednesday!.hoursOnSite).toBe(wednesday!.labourHours / 2);
-    expect(wednesday!.totalCents).toBeGreaterThan(monday!.totalCents);
+    expect(monday).toMatchObject({
+      serviceKey: SEEDED.standard,
+      hoursOnSite: 3.75,
+    });
+    expect(wednesday!.serviceKey).toBe(SEEDED.standard);
+    // on site for half as long, to the hundredth
+    expect(wednesday!.hoursOnSite).toBe(1.88);
+    // a bigger crew takes less time, for the same price
+    expect(wednesday!.totalCents).toBe(monday!.totalCents);
     expect(saved.draft!.plan).toMatchObject({
       recurrence: "weekly",
       roundTotalCents: monday!.totalCents + wednesday!.totalCents,
@@ -166,13 +168,6 @@ describe("a Service Plan Quote on several weekdays", () => {
     });
     // the plan's first clean is the earliest
     expect(saved.draft!.proposedStartsAt).toBe(MONDAYS[0]);
-    // and each weekday has both Clean Types priced to choose between
-    expect(
-      saved.draft!.planChoices!.map((d) => d.map((c) => c.option.cleanType)),
-    ).toEqual([
-      ["standard", "deep"],
-      ["standard", "deep"],
-    ]);
   });
 
   test("each weekday's price can be overridden on its own", async () => {
@@ -273,7 +268,10 @@ describe("a Service Plan Quote on several weekdays", () => {
     const view = (await client.get(`/api/quotes/mine/${quote.id}`).expect(200))
       .body as QuoteView;
 
-    expect(view.options.map((o) => o.cleanType)).toEqual(["standard", "deep"]);
+    expect(view.options.map((o) => o.serviceKey)).toEqual([
+      SEEDED.standard,
+      SEEDED.standard,
+    ]);
     expect(view.plan!.days.map((d) => d.startsAt)).toEqual([
       MONDAYS[0],
       WEDNESDAYS[0],
@@ -281,13 +279,13 @@ describe("a Service Plan Quote on several weekdays", () => {
     expect(view.plan!.roundTotalCents).toBe(
       view.options[0]!.totalCents + view.options[1]!.totalCents,
     );
-    expect(view.bookable).toEqual(["deep", "standard"]);
+    expect(view.bookable).toEqual([SEEDED.standard]);
 
     const sent = testEmail()
       .to(casey.email)
       .find((m) => /Service Plan Quote/.test(m.subject))!;
     expect(sent.text).toContain(
-      "every week: a Standard Clean on Mondays at 9:00 AM and a Deep Clean on Wednesdays at 1:00 PM",
+      "a Standard Clean every week, on Mondays at 9:00 AM and Wednesdays at 1:00 PM",
     );
     expect(sent.text).toContain(`Wednesday: $`);
   });
@@ -303,17 +301,17 @@ describe("accepting a Service Plan Quote on several weekdays", () => {
     const plan = await officePlan(office, planId);
     expect(plan.depositCents).toBe(quote.offer!.plan!.depositCents);
     expect(plan.days).toMatchObject([
-      { startsAt: MONDAYS[0], cleanType: "standard", crewSize: 1 },
-      { startsAt: WEDNESDAYS[0], cleanType: "deep", crewSize: 2 },
+      { startsAt: MONDAYS[0], serviceName: "Standard Clean", crewSize: 1 },
+      { startsAt: WEDNESDAYS[0], serviceName: "Standard Clean", crewSize: 2 },
     ]);
     expect(plan.roundTotalCents).toBe(quote.offer!.plan!.roundTotalCents);
     const jobs = booked(plan);
     expect(jobs.map((j) => j.startsAt)).toEqual(
       [...MONDAYS, ...WEDNESDAYS].sort(),
     );
-    expect(jobs.map((j) => [j.cleanType, j.crewSize]).slice(0, 2)).toEqual([
-      ["standard", 1],
-      ["deep", 2],
+    expect(jobs.map((j) => [j.serviceName, j.crewSize]).slice(0, 2)).toEqual([
+      ["Standard Clean", 1],
+      ["Standard Clean", 2],
     ]);
 
     testClock().advance({ days: 3 });
@@ -325,8 +323,9 @@ describe("accepting a Service Plan Quote on several weekdays", () => {
     const confirmation = testEmail()
       .sent.filter((m) => m.to === casey.email)
       .find((m) => /has started/.test(m.subject))!;
-    expect(confirmation.text).toContain("on Mondays at 9:00 AM");
-    expect(confirmation.text).toContain("on Wednesdays at 1:00 PM");
+    expect(confirmation.text).toContain(
+      "a Standard Clean at 41-12 Austin St, 4B, 11375 every week, on Mondays at 9:00 AM and Wednesdays at 1:00 PM",
+    );
   });
 
   test("is refused unless the first clean on each weekday has room", async () => {
@@ -335,7 +334,7 @@ describe("accepting a Service Plan Quote on several weekdays", () => {
     // both Cleaners' day on the first Wednesday
     await bookJob({
       propertyId,
-      cleanType: "deep",
+      serviceId: (await findService(SEEDED.deep)).id,
       startsAt: new Date(WEDNESDAYS[0]!),
       labourHours: 16,
       crewSize: 2,

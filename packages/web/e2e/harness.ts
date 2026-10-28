@@ -54,7 +54,8 @@ export const bookJob = (job: {
   startsAt: string;
   labourHours: number;
   crewSize?: number;
-  cleanType?: "standard" | "deep";
+  // one of the seeded Services; a Deep Clean unless said
+  service?: "standard" | "deep" | "moveInOut" | "commercial";
 }) => control("/jobs", { method: "POST", body: JSON.stringify(job) });
 
 // a Site Visit at the Property on `street`, booked for the Staff member

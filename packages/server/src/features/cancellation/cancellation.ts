@@ -31,17 +31,16 @@ import {
 } from "../service-plans/service-plans.schema.ts";
 import { staff } from "../staff/staff.schema.ts";
 import { officeStaffEmails } from "../staff/staff.ts";
+import { serviceNameOf } from "../services/services.ts";
 
 // cancelling is free until this long before a Job starts; after that it's a
 // Late Cancellation
 export const CANCELLATION_CUTOFF_HOURS = 24;
 const HOUR_MS = 3_600_000;
 
-const cleanTypeLabel = { deep: "Deep Clean", standard: "Standard Clean" };
-
 // "the Deep Clean at 41-12 Austin St, 4B, 11375 on Monday, January 12 at 9:00 AM"
-const describe = (job: Job, property: Property) =>
-  `the ${cleanTypeLabel[job.cleanType]} at ${addressOf(property)} on ${formatWhen(job.startsAt)}`;
+const describe = async (job: Job, property: Property) =>
+  `the ${await serviceNameOf(job.serviceId)} at ${addressOf(property)} on ${formatWhen(job.startsAt)}`;
 
 // emails go out after the change is saved; one that fails is logged, and the
 // change stands
@@ -281,7 +280,7 @@ const sendCancelled = async (
 ) => {
   const [job] = await db.select().from(jobs).where(eq(jobs.id, jobId));
   const { property, client } = await ownerOf(job!);
-  const what = describe(job!, property);
+  const what = await describe(job!, property);
   const fee = job!.feeCents ?? 0;
   const lines =
     job!.cancelledBy === "empire"
@@ -343,18 +342,20 @@ export const tellCrew = async (job: Job) => {
       ),
     );
   for (const member of crew) {
-    await notify(`Cancellation of Job ${job.id} to Staff ${member.id}`, () =>
-      email.send({
-        to: member.email,
-        subject: "A Job you're on is cancelled",
-        ...compose(
-          [
-            `Hi ${firstNameOf(member.name)},`,
-            `We've cancelled ${describe(job, property)}. You don't need to go.`,
-          ],
-          { href: `${env.CORS_ORIGIN_URL}/cleaner`, label: "See your Jobs" },
-        ),
-      }),
+    await notify(
+      `Cancellation of Job ${job.id} to Staff ${member.id}`,
+      async () =>
+        email.send({
+          to: member.email,
+          subject: "A Job you're on is cancelled",
+          ...compose(
+            [
+              `Hi ${firstNameOf(member.name)},`,
+              `We've cancelled ${await describe(job, property)}. You don't need to go.`,
+            ],
+            { href: `${env.CORS_ORIGIN_URL}/cleaner`, label: "See your Jobs" },
+          ),
+        }),
     );
   }
 };
@@ -380,8 +381,8 @@ const tellOffice = async (
         ...compose(
           [
             onPlan
-              ? `${client.name} has skipped ${describe(job, property)}. Their Service Plan carries on.`
-              : `${client.name} has cancelled ${describe(job, property)}.`,
+              ? `${client.name} has skipped ${await describe(job, property)}. Their Service Plan carries on.`
+              : `${client.name} has cancelled ${await describe(job, property)}.`,
             onPlan
               ? late
                 ? `It was a Late Cancellation, so the ${formatMoney(feeCents)} fee is charged.`
@@ -475,14 +476,14 @@ export const recordNoAccess = async (
   const { property, client } = await ownerOf(job);
   const [member] = await db.select().from(staff).where(eq(staff.id, staffId));
 
-  await notify(`No Access notice for Job ${jobId}`, () =>
+  await notify(`No Access notice for Job ${jobId}`, async () =>
     email.send({
       to: client.email,
       subject: "We couldn't get in for your clean",
       ...compose(
         [
           `Hi ${firstNameOf(client.name)},`,
-          `Our team came for ${describe(job, property)}, but couldn't get in ("${reason}").`,
+          `Our team came for ${await describe(job, property)}, but couldn't get in ("${reason}").`,
           after!.feeCents! === 0
             ? "There's no charge for it."
             : onPlan
@@ -505,7 +506,7 @@ export const recordNoAccess = async (
         subject: `No Access at ${addressOf(property)}`,
         ...compose(
           [
-            `${member!.name} couldn't get in for ${describe(job, property)} ("${reason}").`,
+            `${member!.name} couldn't get in for ${await describe(job, property)} ("${reason}").`,
             onPlan
               ? settled.failure
                 ? `${client.name} has been told. The fee couldn't be charged (${settled.failure}), so the Job is Unpaid.`

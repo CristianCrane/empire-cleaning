@@ -18,6 +18,8 @@ import type {
   QuoteStatus,
   QuoteSummary,
   RevisionSummary,
+  Service,
+  SiteVisitStage,
   Weekday,
 } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
@@ -28,6 +30,8 @@ import { currentPriceList } from "../price-list/price-list.ts";
 import { properties } from "../properties/properties.schema.ts";
 import { toPropertyView } from "../properties/property-view.ts";
 import { servicePlans } from "../service-plans/service-plans.schema.ts";
+import { services } from "../services/services.schema.ts";
+import { choiceOf, currentServices, serviceOf } from "../services/services.ts";
 import { siteVisitStages } from "../site-visits/site-visits.ts";
 import { askedAddOns } from "./asked-add-ons.ts";
 import {
@@ -53,8 +57,9 @@ export const statusOf = (quote: {
     ? "expired"
     : quote.status;
 
-// Requested, Draft and Sent Quotes are open: a Property has at most one of
-// each kind, a Requested one counting as both (ADR-0017)
+// Requested, Draft and Sent Quotes are open: a Property has at most one
+// one-off Quote per Service and one Service Plan Quote, a Requested one
+// counting as both where its Service can recur (ADR-0018)
 export const isOpen = (status: QuoteStatus) =>
   status === "requested" || status === "draft" || status === "sent";
 
@@ -66,10 +71,12 @@ export const unsent = (status: QuoteStatus) =>
 export const askedOf = (
   quote: Quote,
   addOns: QuoteAsked["addOns"],
+  all: Service[],
 ): QuoteAsked | null =>
   quote.origin === "office"
     ? null
     : {
+        service: choiceOf(serviceOf(all, quote.askedServiceKey!)),
         condition: quote.condition,
         wantsRegularService: quote.wantsRegularService,
         weekdays: quote.weekdays as Weekday[],
@@ -89,21 +96,23 @@ export const optionsOfRevisions = async (revisionIds: string[]) => {
   return Map.groupBy(rows, (o) => o.revisionId);
 };
 
-// what a Revision leads with, tax included: a one-off Quote's recommended
-// Deep Clean (or business premises' one option), or a Service Plan Quote's round, a clean on each weekday
+// what a Revision leads with, tax included: a one-off Quote's first option,
+// the recommended one where there is one, or a Service Plan Quote's round, a
+// clean on each weekday. The options are in order.
 export const headlineOf = (
   kind: Quote["kind"],
   options: RevisionOptionRow[],
 ) =>
   kind === "service_plan"
     ? options.reduce((total, o) => total + o.totalCents, 0)
-    : (options.find((o) => o.cleanType === "deep") ?? options[0]!).totalCents;
+    : options[0]!.totalCents;
 
 /**
- * Each Property's First Clean, where it's Completed: the first Job a one-off
- * Quote booked there to be Completed, with that Quote. Only a home with one
- * can be offered a Service Plan. Every Property with one, if no ids are
- * given.
+ * Each Property's First Clean, where it's Completed (ADR-0018): the first
+ * Job a one-off Quote booked there to be Completed, of a Service that can
+ * recur, with that Quote. A Move-out doesn't count. A Service Plan of a
+ * Service that needs no Site Visit needs one. Every Property with one, if no
+ * ids are given.
  */
 export const firstCleansOf = async (propertyIds?: string[]) => {
   const firstCleans = new Map<string, { job: Job; quoteId: string }>();
@@ -112,11 +121,13 @@ export const firstCleansOf = async (propertyIds?: string[]) => {
     .select({ job: jobs, quoteId: quotes.id })
     .from(jobs)
     .innerJoin(quotes, eq(quotes.jobId, jobs.id))
+    .innerJoin(services, eq(services.id, jobs.serviceId))
     .where(
       and(
         propertyIds ? inArray(jobs.propertyId, propertyIds) : undefined,
         eq(jobs.status, "completed"),
         eq(quotes.kind, "one_off"),
+        eq(services.canRecur, true),
       ),
     )
     .orderBy(asc(jobs.completedAt));
@@ -130,6 +141,21 @@ export const firstCleansOf = async (propertyIds?: string[]) => {
 
 export const firstCleanCompleted = async (propertyId: string) =>
   (await firstCleansOf([propertyId])).has(propertyId);
+
+// whether any Job at the Property is Completed: until one is, a Quote offers
+// its Service's first-visit recommendation too (ADR-0018)
+export const hasCompletedJob = async (propertyId: string) => {
+  const [done] = await db
+    .select({ id: jobs.id })
+    .from(jobs)
+    .where(and(eq(jobs.propertyId, propertyId), eq(jobs.status, "completed")))
+    .limit(1);
+  return done !== undefined;
+};
+
+// whether any of these Services needs a Site Visit before it's quoted
+export const needSiteVisit = (all: Service[], keys: string[]) =>
+  keys.some((key) => serviceOf(all, key).needsSiteVisit);
 
 /**
  * The First Cleans whose Property should now be offered a Service Plan,
@@ -181,11 +207,20 @@ export const servicePlansDue = async () => {
     .map(([, { job }]) => ({ jobId: job.id, since: job.completedAt! }));
 };
 
-// Where a Quote stands for a Site Visit: only while nothing is Sent
+// Where a Quote stands for a Site Visit, only while nothing is Sent: one
+// booked, or one needed by its Services with no findings recorded
 export const siteVisitOf = (
   status: QuoteStatus,
-  stage: "needed" | "booked" | undefined,
-) => (unsent(status) ? (stage ?? null) : null);
+  stage: "done" | "booked" | undefined,
+  needed: boolean,
+): SiteVisitStage =>
+  !unsent(status)
+    ? null
+    : stage === "booked"
+      ? "booked"
+      : stage === undefined && needed
+        ? "needed"
+        : null;
 
 // Quotes in a list, newest first. A Client sees only their offers (their
 // latest Sent Revisions) and what they asked; the Office sees a Draft
@@ -241,7 +276,10 @@ const summaries = async (
     askedAddOns(ids),
     siteVisitStages(rows.map((r) => r.property.id)),
   ]);
-  const list = await currentPriceList();
+  const [list, all] = await Promise.all([
+    currentPriceList(),
+    currentServices(),
+  ]);
 
   return rows.map(
     ({ quote, offer, client, property, homePlanId }): QuoteSummary => {
@@ -260,7 +298,8 @@ const summaries = async (
         // a Draft is still being written: to its Client it's as they asked
         status: forClient && status === "draft" ? "requested" : status,
         origin: quote.origin,
-        asked: askedOf(quote, addOns.get(quote.id) ?? []),
+        asked: askedOf(quote, addOns.get(quote.id) ?? [], all),
+        service: choiceOf(serviceOf(all, quote.serviceKey)),
         client,
         property: toPropertyView(property, list),
         homePlanId,
@@ -272,7 +311,7 @@ const summaries = async (
                 recurrence: shown.recurrence!,
                 days: offered.map((o) => ({
                   startsAt: o.startsAt?.toISOString() ?? null,
-                  cleanType: o.cleanType,
+                  serviceName: o.suggested.serviceName,
                 })),
               }
             : null,
@@ -280,7 +319,14 @@ const summaries = async (
         sentAt: offer?.sentAt?.toISOString() ?? null,
         expiresAt: offer?.expiresAt?.toISOString() ?? null,
         drafting: !forClient && draft !== undefined,
-        siteVisit: siteVisitOf(status, stages.get(property.id)),
+        siteVisit: siteVisitOf(
+          status,
+          stages.get(property.id),
+          needSiteVisit(all, [
+            quote.serviceKey,
+            ...offered.map((o) => o.serviceKey),
+          ]),
+        ),
         createdAt: quote.createdAt.toISOString(),
       };
     },

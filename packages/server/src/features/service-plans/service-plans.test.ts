@@ -33,6 +33,7 @@ import {
   signInAsOffice,
 } from "../../../tests/fixtures.ts";
 import { generateServicePlanJobs } from "./service-plans.ts";
+import { findService, SEEDED } from "#features/services";
 
 type Agent = Awaited<ReturnType<typeof signIn>>;
 
@@ -87,12 +88,12 @@ const sentPlan = async (
       depositPercent: draft.draft!.depositPercent,
       validityDays: draft.draft!.validityDays,
       plan: {
+        serviceKey: SEEDED.standard,
         recurrence,
         discountPercent: draft.draft!.plan!.discountPercent,
         condition: draft.draft!.plan!.condition,
         days: starts.map((start) => ({
           start,
-          cleanType: "standard",
           crewSize: crewSize ?? draft.draft!.crewSize,
           override: null,
         })),
@@ -103,8 +104,14 @@ const sentPlan = async (
     .body as OfficeQuote;
 };
 
-const accept = (client: Agent, quote: OfficeQuote, cleanType = "standard") =>
-  client.post(`/api/quotes/mine/${quote.id}/accept`).send({ cleanType });
+const accept = (
+  client: Agent,
+  quote: OfficeQuote,
+  service: "deep" | "standard" = "standard",
+) =>
+  client
+    .post(`/api/quotes/mine/${quote.id}/accept`)
+    .send({ serviceKey: SEEDED[service] });
 
 // Casey accepts a weekly Standard Clean plan with the card saved at their
 // First Clean; `beforeQuote` runs once the First Clean is done
@@ -144,14 +151,18 @@ describe("accepting a Service Plan Quote", () => {
     expect(plan).toMatchObject({
       status: "active",
       recurrence: "weekly",
-      days: [{ cleanType: "standard", crewSize: 2, totalCents: PLAN_TOTAL }],
+      days: [
+        { serviceName: "Standard Clean", crewSize: 2, totalCents: PLAN_TOTAL },
+      ],
       depositCents: PLAN_DEPOSIT,
       quoteId: quote.id,
       client: { name: casey.name },
       unplaced: [],
     });
     expect(startsOf(plan)).toEqual(MONDAYS);
-    expect(plan.jobs.every((j) => j.cleanType === "standard")).toBe(true);
+    expect(plan.jobs.every((j) => j.serviceName === "Standard Clean")).toBe(
+      true,
+    );
 
     // the Deposit is the plan's, not its first Job's
     const deposits = await db
@@ -212,7 +223,7 @@ describe("accepting a Service Plan Quote", () => {
     const quote = await sentPlan(office, propertyId);
     await bookJob({
       propertyId,
-      cleanType: "deep",
+      serviceId: (await findService(SEEDED.deep)).id,
       startsAt: new Date(MONDAYS[0]!),
       labourHours: 8,
       crewSize: 2,
@@ -229,7 +240,7 @@ describe("accepting a Service Plan Quote", () => {
     ).toBe("sent");
   });
 
-  test("is for the plan's own Clean Type", async () => {
+  test("is for the plan's own Service", async () => {
     const { office, propertyId } = await firstCleanDone();
     const quote = await sentPlan(office, propertyId);
     const client = await signIn(casey.email);
@@ -246,7 +257,7 @@ describe("accepting a Service Plan Quote", () => {
 
     await office
       .post(`/api/quotes/${quote.id}/accept`)
-      .send({ cleanType: "standard" })
+      .send({ serviceKey: SEEDED.standard })
       .expect(200);
 
     const home = (await office.get(`/api/properties/${propertyId}`).expect(200))
@@ -345,7 +356,7 @@ describe("a Service Plan's Jobs", () => {
     // the 2nd of February is full
     await bookJob({
       propertyId,
-      cleanType: "deep",
+      serviceId: (await findService(SEEDED.deep)).id,
       startsAt: new Date(MONDAYS[2]!),
       labourHours: 16,
       crewSize: 2,
@@ -403,7 +414,7 @@ describe("a Service Plan's Jobs", () => {
     // on the 2nd of February, both Cleaners are at another Job from 9 to 10
     await bookJob({
       propertyId,
-      cleanType: "deep",
+      serviceId: (await findService(SEEDED.deep)).id,
       startsAt: new Date(MONDAYS[2]!),
       labourHours: 2,
       crewSize: 2,
@@ -437,14 +448,14 @@ describe("a Service Plan's Jobs", () => {
     const quote = await sentPlan(office, propertyId);
     await bookJob({
       propertyId,
-      cleanType: "deep",
+      serviceId: (await findService(SEEDED.deep)).id,
       startsAt: new Date(MONDAYS[1]!),
       labourHours: 16,
       crewSize: 2,
     });
     await office
       .post(`/api/quotes/${quote.id}/accept`)
-      .send({ cleanType: "standard" })
+      .send({ serviceKey: SEEDED.standard })
       .expect(200);
     const home = (await office.get(`/api/properties/${propertyId}`).expect(200))
       .body as OfficePropertyView;
@@ -514,7 +525,7 @@ describe("the Client's Service Plans", () => {
       expect.objectContaining({
         id: planId,
         recurrence: "weekly",
-        days: [{ startsAt: MONDAYS[0], cleanType: "standard" }],
+        days: [{ startsAt: MONDAYS[0], serviceName: "Standard Clean" }],
         nextStartsAt: MONDAYS[0],
       }),
     ]);

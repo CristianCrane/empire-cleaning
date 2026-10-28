@@ -12,7 +12,7 @@ import { addOnCents, taxOn } from "../price-list/suggested-price.ts";
 import { jobQuotes } from "../quotes/job-quotes.ts";
 
 // What a Job was quoted at, with the figures its Adjustments are priced from:
-// the Clean Type its Client accepted on the Quote that booked it, and the
+// the Service its Client accepted on the Quote that booked it, and the
 // Price List version that Quote used (ADR-0009). Tax included.
 export type QuotedJob = {
   totalCents: number;

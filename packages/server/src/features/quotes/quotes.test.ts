@@ -1,5 +1,7 @@
 import { describe, expect, test } from "vitest";
 import type {
+  PriceBreakdown,
+  SuggestedPrices,
   AskedQuoteView,
   NeedsAttentionItem,
   OfficeQuote,
@@ -18,6 +20,20 @@ import {
   signInAsOffice,
   submit,
 } from "../../../tests/fixtures.ts";
+import { SEEDED } from "#features/services";
+
+// one Service's Suggested Price, as an option records it
+const priceOf = (
+  suggested: SuggestedPrices,
+  service: "deep" | "standard",
+): PriceBreakdown => {
+  const {
+    serviceKey: _,
+    recommended: __,
+    ...price
+  } = suggested.prices.find((p) => p.serviceKey === SEEDED[service])!;
+  return price;
+};
 
 type Agent = Awaited<ReturnType<typeof signIn>>;
 
@@ -55,15 +71,14 @@ const edit = (
     depositPercent: revision.depositPercent,
     validityDays: revision.validityDays,
     proposedStart: revision.proposedStart,
-    overrides: {
-      deep: revision.options[0]!.overrideCents
-        ? {
-            priceCents: revision.options[0]!.overrideCents,
-            reason: revision.options[0]!.overrideReason!,
-          }
-        : null,
-      standard: null,
-    },
+    overrides: Object.fromEntries(
+      revision.options.map((o) => [
+        o.serviceKey,
+        o.overrideCents === null
+          ? null
+          : { priceCents: o.overrideCents, reason: o.overrideReason! },
+      ]),
+    ),
     ...changes,
   };
 };
@@ -94,9 +109,14 @@ const sentQuote = async (
     .body as OfficeQuote;
 };
 
-// a Clean Type's option on the Quote's Draft Revision, or else its offer
-const option = (quote: OfficeQuote, cleanType: string): OfficeQuoteOption =>
-  (quote.draft ?? quote.offer)!.options.find((o) => o.cleanType === cleanType)!;
+// a Service's option on the Quote's Draft Revision, or else its offer
+const option = (
+  quote: OfficeQuote,
+  service: "deep" | "standard",
+): OfficeQuoteOption =>
+  (quote.draft ?? quote.offer)!.options.find(
+    (o) => o.serviceKey === SEEDED[service],
+  )!;
 
 describe("drafting a First Clean Quote", () => {
   test("is only for Office Staff", async () => {
@@ -115,7 +135,7 @@ describe("drafting a First Clean Quote", () => {
     await client.post(`/api/quotes/${draft.id}/send`).expect(403);
   });
 
-  test("starts from the Suggested Price for both Clean Types, Deep Clean recommended", async () => {
+  test("starts from the Suggested Price for its Service and the Deep Clean it recommends for a first visit", async () => {
     const quoteId = await asked(["Inside the oven"]);
     const office = await signInAsOffice();
     const { suggested } = await quoteOf(office, quoteId);
@@ -139,22 +159,22 @@ describe("drafting a First Clean Quote", () => {
       },
     });
     expect(
-      draft.draft!.options.map((o) => [o.cleanType, o.recommended]),
+      draft.draft!.options.map((o) => [o.serviceName, o.recommended]),
     ).toEqual([
-      ["deep", true],
-      ["standard", false],
+      ["Deep Clean", true],
+      ["Standard Clean", false],
     ]);
     expect(option(draft, "deep")).toMatchObject({
-      suggested: suggested.deep,
+      suggested: priceOf(suggested, "deep"),
       overrideCents: null,
-      priceCents: suggested.deep!.priceCents,
-      taxCents: suggested.deep!.taxCents,
-      totalCents: suggested.deep!.totalCents,
-      labourHours: suggested.deep!.labourHours,
-      hoursOnSite: suggested.deep!.labourHours / 2,
+      priceCents: priceOf(suggested, "deep").priceCents,
+      taxCents: priceOf(suggested, "deep").taxCents,
+      totalCents: priceOf(suggested, "deep").totalCents,
+      labourHours: priceOf(suggested, "deep").labourHours,
+      hoursOnSite: priceOf(suggested, "deep").labourHours / 2,
     });
     expect(option(draft, "standard").totalCents).toBe(
-      suggested.standard.totalCents,
+      priceOf(suggested, "standard").totalCents,
     );
   });
 
@@ -196,15 +216,15 @@ describe("drafting a First Clean Quote", () => {
       .send(
         edit(draft, {
           overrides: {
-            deep: { priceCents: 5000, reason: " " },
-            standard: null,
+            [SEEDED.deep]: { priceCents: 5000, reason: " " },
+            [SEEDED.standard]: null,
           },
         }),
       )
       .expect(400);
     expect(refused.body.details).toContainEqual(
       expect.objectContaining({
-        path: "overrides.deep.reason",
+        path: `overrides.${SEEDED.deep}.reason`,
         issue: "Say why you're changing the Suggested Price",
       }),
     );
@@ -212,8 +232,8 @@ describe("drafting a First Clean Quote", () => {
     // below the $100 Minimum Charge
     const saved = await save(office, draft, {
       overrides: {
-        deep: { priceCents: 5000, reason: "Friend of the owner" },
-        standard: null,
+        [SEEDED.deep]: { priceCents: 5000, reason: "Friend of the owner" },
+        [SEEDED.standard]: null,
       },
     });
     expect(option(saved, "deep")).toMatchObject({
@@ -482,7 +502,7 @@ describe("a Client's Quotes", () => {
     expect(mine.map((q) => [q.id, q.status])).toEqual([[draft.id, "sent"]]);
   });
 
-  test("show both Clean Types with tax, Deposit and time on site", async () => {
+  test("show each Service offered with tax, Deposit and time on site", async () => {
     const quoteId = await asked(["Inside the oven"]);
     const office = await signInAsOffice();
     const sent = await sentQuote(office, quoteId);
@@ -502,7 +522,7 @@ describe("a Client's Quotes", () => {
     });
     const deep = option(sent, "deep");
     expect(quote.options[0]).toEqual({
-      cleanType: "deep",
+      serviceKey: SEEDED.deep,
       serviceName: "Deep Clean",
       recommended: true,
       labourHours: deep.labourHours,

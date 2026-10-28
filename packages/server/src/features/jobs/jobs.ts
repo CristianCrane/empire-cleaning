@@ -1,9 +1,10 @@
 import { and, asc, eq, gt, inArray, sql, type SQL } from "drizzle-orm";
-import type { ClientJob, CleanType } from "@empire-cleaning/models";
+import type { ClientJob } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { clock } from "../../services/clock/index.ts";
 import { properties } from "../properties/properties.schema.ts";
 import { jobs } from "./jobs.schema.ts";
+import { serviceVersions } from "../services/services.ts";
 
 // Jobs on the Schedule, taking up their day's hours: booked, Completed or No
 // Access. A Cancelled Job has left it.
@@ -12,7 +13,8 @@ export const onSchedule = () =>
 
 type NewJob = {
   propertyId: string;
-  cleanType: CleanType;
+  // the Service version it's priced with
+  serviceId: string;
   startsAt: Date;
   labourHours: number;
   crewSize: number;
@@ -56,10 +58,11 @@ export const upcomingJobsFor = async (
       ),
     )
     .orderBy(asc(jobs.startsAt));
+  const versions = await serviceVersions(rows.map((r) => r.job.serviceId));
   return rows.map(({ job, property }) => ({
     id: job.id,
     startsAt: job.startsAt.toISOString(),
-    cleanType: job.cleanType,
+    serviceName: versions.get(job.serviceId)!.name,
     crewSize: job.crewSize,
     hoursOnSite: Math.round((job.labourHours / job.crewSize) * 100) / 100,
     property: {

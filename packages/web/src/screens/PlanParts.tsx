@@ -16,7 +16,6 @@ import { postJson } from "../api.ts";
 import type { AppHref } from "../links.ts";
 import { useAction } from "./action.ts";
 import {
-  cleanTypeLabel,
   formatDate,
   formatDateTime,
   formatHours,
@@ -76,9 +75,9 @@ export function PlanTerms({
             <div key={day.startsAt} className="contents">
               <dt className="font-semibold">{planDayWhen(day.startsAt)}</dt>
               <dd>
-                {cleanTypeLabel[day.cleanType]}, {formatMoney(day.totalCents)}{" "}
-                including tax. About {formatHours(day.hoursOnSite)} on site,
-                with a crew of {day.crewSize}
+                {day.serviceName}, {formatMoney(day.totalCents)} including tax.
+                About {formatHours(day.hoursOnSite)} on site, with a crew of{" "}
+                {day.crewSize}
               </dd>
             </div>
           ))}

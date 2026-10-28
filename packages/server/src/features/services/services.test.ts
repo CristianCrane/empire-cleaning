@@ -1,5 +1,7 @@
 import { describe, expect, test } from "vitest";
 import type {
+  PriceBreakdown,
+  SuggestedPrices,
   OfficeQuote,
   Service,
   ServiceInput,
@@ -12,6 +14,19 @@ import {
   submit,
 } from "../../../tests/fixtures.ts";
 import { SEEDED } from "./services.ts";
+
+// one Service's Suggested Price, as an option records it
+const priceOf = (
+  suggested: SuggestedPrices,
+  service: "deep" | "standard",
+): PriceBreakdown => {
+  const {
+    serviceKey: _,
+    recommended: __,
+    ...price
+  } = suggested.prices.find((p) => p.serviceKey === SEEDED[service])!;
+  return price;
+};
 
 type Office = Awaited<ReturnType<typeof signInAsOffice>>;
 
@@ -221,7 +236,7 @@ describe("Services", () => {
 });
 
 describe("the Suggested Price, from Services", () => {
-  test("is each Clean Type's Service's own hours, rate and tax", async () => {
+  test("is each Service's own hours, rate and tax", async () => {
     const office = await signInAsOffice();
     await setService(office, "standard", {
       hourlyRateCents: 4000,
@@ -241,14 +256,14 @@ describe("the Suggested Price, from Services", () => {
 
     // the placeholder home: 1 + 2 x 0.5 + 1.5 x 0.75 + 0 + 0.5 = 3.625 h,
     // up to 3.75 h; x $40 = $150, taxed at 5%
-    expect(suggested.standard).toMatchObject({
+    expect(priceOf(suggested, "standard")).toMatchObject({
       serviceName: "Standard Clean",
       labourHours: 3.75,
       priceCents: 15000,
       taxPercent: 5,
     });
     // its own hours, each twice as long: 7.25 h, at its own $55 and 8.875%
-    expect(suggested.deep).toMatchObject({
+    expect(priceOf(suggested, "deep")).toMatchObject({
       serviceName: "Deep Clean",
       labourHours: 7.25,
       hourlyRateCents: 5500,

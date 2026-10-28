@@ -40,16 +40,15 @@ import {
 import { staff } from "../staff/staff.schema.ts";
 import { officeStaffEmails } from "../staff/staff.ts";
 import { assignments, type Assignment } from "./assignments.schema.ts";
+import { serviceNameOf, serviceVersions } from "../services/services.ts";
 
 // a Confirmed place can't be Released this close to the Job: the Office needs
 // time to find someone else
 export const RELEASE_CUTOFF_HOURS = 48;
 
-const cleanTypeLabel = { deep: "Deep Clean", standard: "Standard Clean" };
-
 // "the Deep Clean at 41-12 Austin St, 4B, 11375, Monday, January 12 at 9:00 AM"
-const describe = (job: Job, property: Property) =>
-  `the ${cleanTypeLabel[job.cleanType]} at ${addressOf(property)}, ${formatWhen(job.startsAt)}`;
+const describe = async (job: Job, property: Property) =>
+  `the ${await serviceNameOf(job.serviceId)} at ${addressOf(property)}, ${formatWhen(job.startsAt)}`;
 
 const releaseClosed = (job: Job) =>
   job.startsAt.getTime() - clock.now().getTime() <
@@ -234,14 +233,14 @@ export const emailOffer = (
   job: Job,
   property: Property,
 ) =>
-  notify(`Offer of Job ${job.id} to Staff ${member.id}`, () =>
+  notify(`Offer of Job ${job.id} to Staff ${member.id}`, async () =>
     email.send({
       to: member.email,
       subject: "You've been offered a Job",
       ...compose(
         [
           `Hi ${firstNameOf(member.name)},`,
-          `You've been offered a place on ${describe(job, property)}.`,
+          `You've been offered a place on ${await describe(job, property)}.`,
           "Please confirm it, or release it if you can't make it.",
         ],
         {
@@ -277,14 +276,14 @@ export const removeAssignment = async (
     .from(staff)
     .where(eq(staff.id, removed.staffId));
   if (member && member.accountId !== byAccountId) {
-    await notify(`Removal from Job ${jobId} to Staff ${member.id}`, () =>
+    await notify(`Removal from Job ${jobId} to Staff ${member.id}`, async () =>
       email.send({
         to: member.email,
         subject: "You're no longer on a Job",
         ...compose(
           [
             `Hi ${firstNameOf(member.name)},`,
-            `The Office has taken you off ${describe(job, property)}. You don't need to go.`,
+            `The Office has taken you off ${await describe(job, property)}. You don't need to go.`,
           ],
           { href: `${env.CORS_ORIGIN_URL}/cleaner`, label: "See your Jobs" },
         ),
@@ -349,6 +348,7 @@ const cleanerJobs = async (
     addOnsOf(jobIds),
     cleanerCompletionsOf(mine.map((m) => m.job)),
   ]);
+  const versions = await serviceVersions(mine.map((m) => m.job.serviceId));
   const now = clock.now();
   const clientOf = new Map(owners.map((o) => [o.propertyId, o.client]));
   const today = dayOf(clock.now());
@@ -360,7 +360,7 @@ const cleanerJobs = async (
     return {
       id: job.id,
       startsAt: job.startsAt.toISOString(),
-      cleanType: job.cleanType,
+      serviceName: versions.get(job.serviceId)!.name,
       hoursOnSite: Math.round((job.labourHours / job.crewSize) * 100) / 100,
       addOns: addOns.get(job.id)!,
       property: {
@@ -491,7 +491,7 @@ export const releaseAssignment = async (
         subject: `${member!.name} released a place on a Job`,
         ...compose(
           [
-            `${member!.name} has released their place on ${describe(job, property)}.`,
+            `${member!.name} has released their place on ${await describe(job, property)}.`,
             "The place is free for someone else.",
           ],
           {

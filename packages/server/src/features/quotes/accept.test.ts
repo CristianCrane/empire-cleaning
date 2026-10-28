@@ -31,6 +31,7 @@ import {
   signInAsOffice,
   submit,
 } from "../../../tests/fixtures.ts";
+import { SEEDED } from "#features/services";
 
 type Agent = Awaited<ReturnType<typeof signIn>>;
 
@@ -70,7 +71,7 @@ const sentQuote = async (
       depositPercent: draft.draft!.depositPercent,
       validityDays: draft.draft!.validityDays,
       proposedStart: nextMonday,
-      overrides: { deep: null, standard: null },
+      overrides: {},
       ...changes,
     })
     .expect(200);
@@ -95,7 +96,7 @@ const revise = async (
       depositPercent: draft.draft!.depositPercent,
       validityDays: draft.draft!.validityDays,
       proposedStart: draft.draft!.proposedStart,
-      overrides: { deep: null, standard: null },
+      overrides: {},
       ...changes,
     })
     .expect(200);
@@ -117,14 +118,25 @@ const addCard = async (client: Agent) => {
 };
 
 // accepts, paying with the saved Payment Method
-const accept = (client: Agent, quote: { id: string }, cleanType = "deep") =>
-  client.post(`/api/quotes/mine/${quote.id}/accept`).send({ cleanType });
-
-// accepts, paying with a card entered just now in the payment form
-const payNow = (client: Agent, quote: { id: string }, cleanType = "deep") =>
+const accept = (
+  client: Agent,
+  quote: { id: string },
+  service: "deep" | "standard" = "deep",
+) =>
   client
     .post(`/api/quotes/mine/${quote.id}/accept`)
-    .send({ cleanType, paymentToken: testPayments().paymentToken() });
+    .send({ serviceKey: SEEDED[service] });
+
+// accepts, paying with a card entered just now in the payment form
+const payNow = (
+  client: Agent,
+  quote: { id: string },
+  service: "deep" | "standard" = "deep",
+) =>
+  client.post(`/api/quotes/mine/${quote.id}/accept`).send({
+    serviceKey: SEEDED[service],
+    paymentToken: testPayments().paymentToken(),
+  });
 
 // after the Client's bank asks them to approve the payment
 const finalize = (client: Agent, quote: { id: string }) =>
@@ -144,8 +156,8 @@ const refOf = (outcome: AcceptOutcome) => {
   return outcome.secret.replace(/_secret$/, "");
 };
 
-const option = (quote: OfficeQuote, cleanType: string) =>
-  quote.offer!.options.find((o) => o.cleanType === cleanType)!;
+const option = (quote: OfficeQuote, service: "deep" | "standard") =>
+  quote.offer!.options.find((o) => o.serviceKey === SEEDED[service])!;
 
 const scheduleOn = async (office: Agent, day: string) =>
   (
@@ -215,7 +227,7 @@ describe("a Client's Payment Method", () => {
 });
 
 describe("accepting a First Clean Quote", () => {
-  test("charges the Deposit and books the Job with the Clean Type chosen", async () => {
+  test("charges the Deposit and books the Job with the Service chosen", async () => {
     await cleaners();
     const office = await signInAsOffice();
     const quote = await sentQuote(office);
@@ -230,7 +242,7 @@ describe("accepting a First Clean Quote", () => {
       quote: {
         status: "accepted",
         acceptedAt: "2026-01-05T09:00:00.000Z",
-        acceptedCleanType: "standard",
+        acceptedServiceKey: SEEDED.standard,
       } satisfies Partial<QuoteView>,
     });
     expect(testPayments().charges).toEqual([
@@ -252,7 +264,7 @@ describe("accepting a First Clean Quote", () => {
     expect(monday.jobs).toEqual([
       expect.objectContaining({
         startsAt: "2026-01-12T14:00:00.000Z",
-        cleanType: "standard",
+        serviceName: "Standard Clean",
         labourHours: standard.labourHours,
         crewSize: quote.offer!.crewSize,
         client: expect.objectContaining({ name: casey.name }),
@@ -260,7 +272,10 @@ describe("accepting a First Clean Quote", () => {
     ]);
     expect(
       (await office.get(`/api/quotes/${quote.id}`).expect(200)).body,
-    ).toMatchObject({ status: "accepted", acceptedCleanType: "standard" });
+    ).toMatchObject({
+      status: "accepted",
+      acceptedServiceKey: SEEDED.standard,
+    });
   });
 
   test("takes the latest Sent Revision, not one still being drafted", async () => {
@@ -370,20 +385,23 @@ describe("accepting a First Clean Quote", () => {
 
     await api()
       .post(`/api/quotes/mine/${quote.id}/accept`)
-      .send({ cleanType: "deep" })
+      .send({ serviceKey: SEEDED.deep })
       .expect(401);
     await accept(drew, quote).expect(404);
     await accept(office, quote).expect(403);
     expect(testPayments().charges).toEqual([]);
   });
 
-  test("needs a Clean Type, and a card entered now or saved before", async () => {
+  test("needs one of its Services, and a card entered now or saved before", async () => {
     await cleaners();
     const office = await signInAsOffice();
     const quote = await sentQuote(office);
     const client = await signIn(casey.email);
 
-    await accept(client, quote, "sparkling").expect(400);
+    await client
+      .post(`/api/quotes/mine/${quote.id}/accept`)
+      .send({ serviceKey: "sparkling" })
+      .expect(400);
     const refused = await accept(client, quote).expect(409);
     expect(refused.body.message).toBe("Enter a card to accept this Quote.");
   });
@@ -606,7 +624,7 @@ describe("paying the Deposit with a card entered just now", () => {
 
     expect(finalized.body).toMatchObject({
       status: "accepted",
-      quote: { status: "accepted", acceptedCleanType: "deep" },
+      quote: { status: "accepted", acceptedServiceKey: SEEDED.deep },
     });
     expect(testPayments().charges).toHaveLength(1);
     expect(await depositCharges()).toHaveLength(1);
@@ -691,7 +709,7 @@ describe("paying the Deposit with a card entered just now", () => {
     // the Office records it by phone with the saved card
     await office
       .post(`/api/quotes/${quote.id}/accept`)
-      .send({ cleanType: "deep" })
+      .send({ serviceKey: SEEDED.deep })
       .expect(200);
 
     await finalize(client, quote).expect(200);
@@ -806,7 +824,7 @@ describe("when something goes wrong mid-way", () => {
     await accept(client, quote).expect(500);
     await office
       .post(`/api/quotes/${quote.id}/accept`)
-      .send({ cleanType: "deep" })
+      .send({ serviceKey: SEEDED.deep })
       .expect(500);
 
     expect((await client.get(`/api/quotes/mine/${quote.id}`)).body.status).toBe(
@@ -833,12 +851,12 @@ describe("Office Staff recording acceptance on a Client's behalf", () => {
 
     const accepted = await office
       .post(`/api/quotes/${quote.id}/accept`)
-      .send({ cleanType: "deep" })
+      .send({ serviceKey: SEEDED.deep })
       .expect(200);
 
     expect(accepted.body).toMatchObject({
       status: "accepted",
-      acceptedCleanType: "deep",
+      acceptedServiceKey: SEEDED.deep,
     });
     expect(testPayments().charges).toEqual([
       expect.objectContaining({ amount: option(quote, "deep").depositCents }),
@@ -857,7 +875,7 @@ describe("Office Staff recording acceptance on a Client's behalf", () => {
 
     const refused = await office
       .post(`/api/quotes/${quote.id}/accept`)
-      .send({ cleanType: "deep" })
+      .send({ serviceKey: SEEDED.deep })
       .expect(409);
 
     expect(refused.body.message).toBe(
@@ -874,7 +892,7 @@ describe("Office Staff recording acceptance on a Client's behalf", () => {
 
     const refused = await office
       .post(`/api/quotes/${quote.id}/accept`)
-      .send({ cleanType: "deep" })
+      .send({ serviceKey: SEEDED.deep })
       .expect(409);
 
     expect(refused.body.message).toBe(
@@ -892,7 +910,7 @@ describe("Office Staff recording acceptance on a Client's behalf", () => {
 
     const refused = await office
       .post(`/api/quotes/${draft.id}/accept`)
-      .send({ cleanType: "deep" })
+      .send({ serviceKey: SEEDED.deep })
       .expect(409);
     expect(refused.body.message).toBe(
       "Send the Quote before recording its acceptance.",
@@ -908,7 +926,7 @@ describe("Office Staff recording acceptance on a Client's behalf", () => {
 
     await client
       .post(`/api/quotes/${quote.id}/accept`)
-      .send({ cleanType: "deep" })
+      .send({ serviceKey: SEEDED.deep })
       .expect(403);
     await client
       .post("/api/payment-methods/requests")
@@ -964,14 +982,14 @@ describe("a Client's upcoming Jobs", () => {
       {
         id: expect.any(String),
         startsAt: "2026-01-12T14:00:00.000Z",
-        cleanType: "deep",
+        serviceName: "Deep Clean",
         crewSize: 2,
         hoursOnSite: option(sooner, "deep").hoursOnSite,
         property: expect.objectContaining({ unit: "5C" }),
       },
       expect.objectContaining({
         startsAt: "2026-01-20T18:30:00.000Z",
-        cleanType: "standard",
+        serviceName: "Standard Clean",
       }),
     ]);
 
@@ -1058,7 +1076,7 @@ describe("when a Quote's day fills up before it's accepted", () => {
       property: { new: { ...home, street: "7 Queens Blvd" } },
     });
 
-  test("the Quote shows which Clean Types still fit, and none once nothing does", async () => {
+  test("the Quote shows which Services still fit, and none once nothing does", async () => {
     // 8 hours on Monday
     await cleaners(2, 4);
     const office = await signInAsOffice();
@@ -1067,7 +1085,7 @@ describe("when a Quote's day fills up before it's accepted", () => {
     const ownView = async () =>
       (await client.get(`/api/quotes/mine/${quote.id}`).expect(200))
         .body as QuoteView;
-    expect((await ownView()).bookable).toEqual(["deep", "standard"]);
+    expect((await ownView()).bookable).toEqual([SEEDED.deep, SEEDED.standard]);
 
     // room left for exactly the Standard Clean
     const standard = option(quote, "standard").labourHours;
@@ -1075,13 +1093,13 @@ describe("when a Quote's day fills up before it's accepted", () => {
       startsAt: "2026-01-12T19:00:00Z",
       labourHours: 8 - standard,
     });
-    expect((await ownView()).bookable).toEqual(["standard"]);
+    expect((await ownView()).bookable).toEqual([SEEDED.standard]);
     expect(
       (
         (await office.get(`/api/quotes/${quote.id}`).expect(200))
           .body as OfficeQuote
       ).bookable,
-    ).toEqual(["standard"]);
+    ).toEqual([SEEDED.standard]);
 
     await bookedJob({ startsAt: "2026-01-12T21:00:00Z", labourHours: 0.25 });
     expect((await ownView()).bookable).toEqual([]);
@@ -1125,7 +1143,7 @@ describe("when a Quote's day fills up before it's accepted", () => {
         depositPercent: draft.draft!.depositPercent,
         validityDays: draft.draft!.validityDays,
         proposedStart: { date: "2026-01-13", time: "09:00" },
-        overrides: { deep: null, standard: null },
+        overrides: {},
       })
       .expect(200);
     await office.post(`/api/quotes/${draft.id}/send`).expect(200);

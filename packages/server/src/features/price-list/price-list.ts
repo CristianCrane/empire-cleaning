@@ -8,6 +8,12 @@ import type {
 import { db, type Tx } from "../../db/index.ts";
 import { RequestBodyError } from "../../middleware/errors.ts";
 import { z } from "zod";
+import {
+  currentServices,
+  defaultServiceFor,
+  findService,
+} from "../services/services.ts";
+import { SEEDED, SEEDED_FOR_HOMES } from "../services/seeded.ts";
 import { staff } from "../staff/staff.schema.ts";
 import {
   priceListAddOns,
@@ -21,7 +27,8 @@ import {
 // The starting figures, until Office Staff save their own. They are
 // placeholders (the real ones are the business's to supply) and the Price List
 // screen says so. The fee tax is the NYC combined rate, pending the
-// accountant. Premises Types are against an office (#72).
+// accountant. Premises Types are against an office (#72). Add-ons go with
+// the seeded Services for homes, and windows with every one.
 const placeholders: PriceListInput = {
   conditionLight: 0.85,
   conditionModerate: 1,
@@ -36,28 +43,28 @@ const placeholders: PriceListInput = {
       name: "Inside the oven",
       hours: 0.5,
       taxExempt: false,
-      offeredFor: "homes",
+      serviceKeys: SEEDED_FOR_HOMES,
       active: true,
     },
     {
       name: "Inside the fridge",
       hours: 0.5,
       taxExempt: false,
-      offeredFor: "homes",
+      serviceKeys: SEEDED_FOR_HOMES,
       active: true,
     },
     {
       name: "Inside the cabinets",
       hours: 1,
       taxExempt: false,
-      offeredFor: "homes",
+      serviceKeys: SEEDED_FOR_HOMES,
       active: true,
     },
     {
       name: "Interior windows",
       hours: 1,
       taxExempt: false,
-      offeredFor: "both",
+      serviceKeys: [...SEEDED_FOR_HOMES, SEEDED.commercial],
       active: true,
     },
   ],
@@ -97,7 +104,7 @@ const toPriceList = (
       name: a.name,
       hours: a.hours,
       taxExempt: a.taxExempt,
-      offeredFor: a.offeredFor,
+      serviceKeys: a.serviceKeys,
       active: a.active,
     })),
   premisesTypes: [...premisesTypes]
@@ -236,12 +243,32 @@ const keepRetired = <T extends { key?: string; name: string; active: boolean }>(
   return [...withKeys(submitted), ...left];
 };
 
+// an Add-on goes only with Services there are
+const checkServiceKeys = async (input: PriceListInput) => {
+  const known = new Set((await currentServices()).map((s) => s.key));
+  for (const [i, addOn] of input.addOns.entries()) {
+    if (addOn.serviceKeys.some((key) => !known.has(key))) {
+      throw new RequestBodyError(
+        new z.ZodError([
+          {
+            code: "custom",
+            path: ["addOns", i, "serviceKeys"],
+            message: "Choose from the Services listed",
+            input: addOn.serviceKeys,
+          },
+        ]),
+      );
+    }
+  }
+};
+
 // Saves a new version. Add-ons and Premises Types are never deleted: one left
 // out of the submission is kept, retired.
 export const savePriceList = async (
   input: PriceListInput,
   createdBy: string,
 ): Promise<PriceList> => {
+  await checkServiceKeys(input);
   const current = await currentPriceList();
   const addOns = keepRetired(
     input.addOns,
@@ -266,13 +293,21 @@ export const savePriceList = async (
   return currentPriceList();
 };
 
-// the Add-ons a Client can pick for a home now: names only, never prices
-// (those are on the Quote). Open to everyone, as the landing page's form
-// needs it. A business's request picks none: its Site Visit comes first.
-export const choosableAddOns = async (): Promise<AddOnChoice[]> => {
-  const list = await currentPriceList();
+// The Add-ons a Client can pick now for a Service, by default the first on
+// offer for homes: names only, never prices (those are on the Quote). Open
+// to everyone, as the landing page's form needs it. A business's request
+// picks none: its Site Visit comes first.
+export const choosableAddOns = async (
+  serviceKey?: string,
+): Promise<AddOnChoice[]> => {
+  const [list, service] = await Promise.all([
+    currentPriceList(),
+    serviceKey
+      ? findService(serviceKey)
+      : currentServices().then((all) => defaultServiceFor(all, "residential")),
+  ]);
   return list.addOns
-    .filter((a) => a.active && a.offeredFor !== "businesses")
+    .filter((a) => a.active && service && a.serviceKeys.includes(service.key))
     .map(({ key, name }) => ({ key, name }));
 };
 

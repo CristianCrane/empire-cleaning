@@ -3,6 +3,7 @@ import { z } from "zod";
 import type {
   PriceList,
   QuoteAskReceipt,
+  Service,
   SignedInAccount,
 } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
@@ -23,6 +24,7 @@ import { addressKey } from "../properties/address.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
 import { currentPriceList } from "../price-list/price-list.ts";
+import { currentServices, onOfferAt } from "../services/services.ts";
 import {
   accountSubmission,
   checkForKind,
@@ -30,7 +32,7 @@ import {
   guestSubmission,
   officeSubmission,
 } from "./asking.validation.ts";
-import { isOpen, offers, statusOf } from "./quote-state.ts";
+import { openAlongside } from "./quotes.ts";
 import { quoteAddOns, quotes } from "./quotes.schema.ts";
 
 const parse = <T>(schema: z.ZodType<T>, body: unknown): T => {
@@ -89,12 +91,12 @@ const refuse = (issues: z.core.$ZodIssue[]) => {
   throw new RequestBodyError(new z.ZodError(issues));
 };
 
-// only Add-ons on offer for homes now can be chosen
-const checkAddOns = async (list: PriceList, keys: string[]) => {
+// only Add-ons on offer now that go with the Service can be chosen
+const checkAddOns = (list: PriceList, service: Service, keys: string[]) => {
   if (keys.length === 0) return;
   const offered = new Set(
     list.addOns
-      .filter((a) => a.active && a.offeredFor !== "businesses")
+      .filter((a) => a.active && a.serviceKeys.includes(service.key))
       .map((a) => a.key),
   );
   const unknown = keys.findIndex((key) => !offered.has(key));
@@ -189,10 +191,33 @@ type Submission = z.infer<typeof clientSubmission>;
 const thisPlace = (kind: Property["kind"]) =>
   kind === "commercial" ? "these premises" : "this home";
 
+// The Service asked for: one on offer for the kind of Property, or without
+// one, the first that is (until the form asks, #122)
+const askedService = (
+  all: Service[],
+  kind: Property["kind"],
+  key: string | undefined,
+) => {
+  const offered = onOfferAt(all, kind);
+  const service = key ? offered.find((s) => s.key === key) : offered[0];
+  if (!service) {
+    refuse([
+      {
+        code: "custom",
+        path: ["serviceKey"],
+        message: "Choose from the Services listed",
+        input: key,
+      },
+    ]);
+  }
+  return service!;
+};
+
 // Saves a Requested Quote for the Client, holding what was asked: one
-// address is one Property, and a Requested Quote counts as an open Quote of
-// both kinds, so none can be asked for while the Property has one open
-// (ADR-0017). Done under a lock on the Property so two asks at once can't
+// address is one Property, and a Requested Quote counts as an open one-off
+// Quote for its Service and, if that can recur, as an open Service Plan
+// Quote, so it can't be asked for while the Property has one of those open
+// (ADR-0018). Done under a lock on the Property so two asks at once can't
 // both get in. A business that has no business name yet is given the one
 // asked with, where `mayNameBusiness`.
 const recordAsk = async (
@@ -201,11 +226,18 @@ const recordAsk = async (
   enteredBy: string | null,
   mayNameBusiness: boolean,
 ) => {
-  const list = await currentPriceList();
+  const [list, all] = await Promise.all([
+    currentPriceList(),
+    currentServices(),
+  ]);
   const addOnKeys = [...new Set(submission.addOns ?? [])];
-  await checkAddOns(list, addOnKeys);
   if ("new" in submission.property) {
     const { new: place } = submission.property;
+    checkAddOns(
+      list,
+      askedService(all, place.kind, submission.serviceKey),
+      addOnKeys,
+    );
     if (place.kind === "commercial")
       checkPremisesType(list, place.premisesType);
   }
@@ -266,29 +298,23 @@ const recordAsk = async (
       }
     }
 
+    const service = askedService(all, property!.kind, submission.serviceKey);
     if (!isNew) {
       const problems = checkForKind(property!.kind, submission, {
         isNew: false,
       });
       if (problems.length > 0)
         throw new RequestBodyError(new z.ZodError(problems));
+      checkAddOns(list, service, addOnKeys);
 
       // a Quote is open until it's Accepted, Declined, Turned Down or
       // Expired; asking after one Expired starts a new Quote
-      const open = (
-        await tx
-          .select({ status: quotes.status, expiresAt: offers.expiresAt })
-          .from(quotes)
-          .leftJoin(offers, eq(offers.id, quotes.sentRevisionId))
-          .where(
-            and(
-              eq(quotes.propertyId, property!.id),
-              inArray(quotes.status, ["requested", "draft", "sent"]),
-            ),
-          )
-      )
-        .map(statusOf)
-        .filter(isOpen);
+      const open = await openAlongside(
+        tx,
+        { id: null, propertyId: property!.id },
+        { kind: null, serviceKey: service.key },
+        all,
+      );
       if (open.length > 0) {
         const place = thisPlace(property!.kind);
         throw new ConflictError(
@@ -331,6 +357,8 @@ const recordAsk = async (
         // a caller's starts as a Draft once its first Revision is started
         status: "requested",
         origin: enteredBy ? "caller" : "client",
+        serviceKey: service.key,
+        askedServiceKey: service.key,
         condition:
           property!.kind === "residential" ? submission.condition : null,
         wantsRegularService: regular,

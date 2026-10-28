@@ -52,7 +52,6 @@ import { linkTo, type AppHref } from "../../links.ts";
 import { useAction } from "../action.ts";
 import {
   addressOf,
-  cleanTypeLabel,
   clientName,
   formatDate,
   propertySummary,
@@ -392,7 +391,7 @@ const historyOf = (home: OfficePropertyView): HistoryEvent[] =>
       on: job.startsAt,
       icon: Sparkles,
       kind: "Job",
-      what: cleanTypeLabel[job.cleanType],
+      what: job.serviceName,
       status: <JobStatusBadge status={job.status} />,
       href: linkTo({ to: "/office/jobs/$jobId", params: { jobId: job.id } }),
     })),

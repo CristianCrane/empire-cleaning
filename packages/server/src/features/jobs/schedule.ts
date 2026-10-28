@@ -36,6 +36,7 @@ import {
 } from "../staff/staff.schema.ts";
 import { onSchedule } from "./jobs.ts";
 import { jobs } from "./jobs.schema.ts";
+import { serviceVersions } from "../services/services.ts";
 
 // Hours are added in hundredths, so sums of 7.25 and 0.1 never drift
 const hundredths = (hours: number) => Math.round(hours * 100);
@@ -110,12 +111,13 @@ export const jobViews = async (
     assignmentStatusOf(rows.map((r) => r.job)),
     crewOf(rows.map((r) => r.job.id)),
   ]);
+  const versions = await serviceVersions(rows.map((r) => r.job.serviceId));
   const now = clock.now();
 
   return rows.map(({ job, property, client }) => ({
     id: job.id,
     startsAt: job.startsAt.toISOString(),
-    cleanType: job.cleanType,
+    serviceName: versions.get(job.serviceId)!.name,
     status: job.status,
     labourHours: job.labourHours,
     crewSize: job.crewSize,

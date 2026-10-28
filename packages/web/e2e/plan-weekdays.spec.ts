@@ -20,9 +20,9 @@ const casey = { name: "Casey Client", email: "casey@example.com" };
 // Casey's First Clean is done at 11am on Monday 12 January 2026, New York
 // time, with their card saved, and the API's clock is left there. Cory and
 // Bea work 8 hours each weekday. Their plan here is a Standard Clean for the
-// usual crew of 2 on Mondays at 9am from the 19th, and a Deep Clean for one
-// Cleaner on Wednesdays at 1pm from the 21st.
+// usual crew of 2 on Mondays at 9am from the 19th, and for one Cleaner on
 
+// Wednesdays at 1pm from the 21st.
 const saved = (page: Page) =>
   expect(
     page.getByRole("status").filter({ hasText: /saved|prices/ }),
@@ -87,11 +87,6 @@ test(
     const tuesday = page.getByRole("region", { name: "Tuesdays" });
     await startOn(page, tuesday, "01212026", "0100PM");
     const wednesday = page.getByRole("region", { name: "Wednesdays" });
-    // the price card, as the radio inside it is hidden
-    await wednesday
-      .locator("label")
-      .filter({ has: page.getByRole("radio", { name: "Deep Clean" }) })
-      .click();
     await wednesday.getByRole("textbox", { name: "Crew Size" }).fill("1");
     await wednesday.getByRole("textbox", { name: "Crew Size" }).blur();
     await saved(page);
@@ -107,9 +102,6 @@ test(
     await expect(
       page.getByText(/^2 cleans a week: \$[\d,.]+ a week$/),
     ).toBeVisible();
-    await expect(
-      wednesday.getByRole("radio", { name: "Deep Clean" }),
-    ).toBeChecked();
     await expect(page.getByRole("region", { name: "Each week" })).toContainText(
       "A week, with a clean on each day",
     );
@@ -123,7 +115,9 @@ test(
       page.getByRole("region", { name: "Mondays at 9:00 AM: Standard Clean" }),
     ).toContainText("Time on site, with a crew of 2");
     await expect(
-      page.getByRole("region", { name: "Wednesdays at 1:00 PM: Deep Clean" }),
+      page.getByRole("region", {
+        name: "Wednesdays at 1:00 PM: Standard Clean",
+      }),
     ).toContainText("Time on site, with a crew of 1");
     const deposit = (await page
       .getByRole("region", { name: "Each week" })
@@ -147,7 +141,9 @@ test(
       }),
     ).toBeVisible();
     await expect(
-      client.getByRole("region", { name: "Wednesdays at 1:00 PM: Deep Clean" }),
+      client.getByRole("region", {
+        name: "Wednesdays at 1:00 PM: Standard Clean",
+      }),
     ).toBeVisible();
     await expect(
       client.getByRole("region", { name: "Each week" }),
@@ -168,7 +164,7 @@ test(
     await client.getByRole("link", { name: "See your Service Plan" }).click();
     await expect(
       client.getByRole("heading", {
-        name: "Standard and Deep Cleans, every week on Mon and Wed",
+        name: "Standard Clean, every week on Mon and Wed",
       }),
     ).toBeVisible();
     await expect(

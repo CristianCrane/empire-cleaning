@@ -51,9 +51,20 @@ const waiting = (quote: QuoteSummary) => {
   return days === 0 ? "today" : days === 1 ? "1 day" : `${days} days`;
 };
 
-// the words a search looks through: who, and where
+// what it's a Quote of: its Service, or a Service Plan of it
+const serviceOf = (quote: QuoteSummary) =>
+  quote.kind === "service_plan"
+    ? `${quote.service.name} plan`
+    : quote.service.name;
+
+// the words a search looks through: who, where, and what
 const searchable = (quote: QuoteSummary) =>
-  [quote.client.name, quote.client.businessName, addressOf(quote.property)]
+  [
+    quote.client.name,
+    quote.client.businessName,
+    addressOf(quote.property),
+    serviceOf(quote),
+  ]
     .join(" ")
     .toLowerCase();
 
@@ -140,6 +151,7 @@ export function QuotesScreen() {
           Client
         </Column>
         <Column id="property">Property</Column>
+        <Column id="service">Service</Column>
         <Column id="status" allowsSorting>
           Status
         </Column>
@@ -168,6 +180,7 @@ export function QuotesScreen() {
               <span className="font-semibold">{clientName(quote.client)}</span>
             </Cell>
             <Cell>{addressOf(quote.property)}</Cell>
+            <Cell>{serviceOf(quote)}</Cell>
             <Cell>
               <div className="flex flex-wrap gap-1">
                 <QuoteStatusBadge status={quote.status} />

@@ -62,7 +62,7 @@ test(
       startsAt: TUESDAY_9AM,
       labourHours: 5,
       crewSize: 2,
-      cleanType: "standard",
+      service: "standard",
     })) as { id: string };
     await offerPlace(job.id, cory.id, { confirmed: true });
     // another Client's Job asks to move onto Wednesday, holding its hours

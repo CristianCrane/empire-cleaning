@@ -32,7 +32,7 @@ const expectNoViolations = async (page: Page) => {
 //   standard 3.25 h x $55 = $178.75, to $179, + 8.875% tax = $194.89
 //   deep     5 h    x $55 = $275,            + 8.875% tax = $299.41
 test(
-  "Office Staff see the Suggested Price for both Clean Types, with the working",
+  "Office Staff see the Suggested Price for the Service and its first-visit recommendation, with the working",
   { tag: ["@smoke", "@desktop"] },
   async ({ page }) => {
     await requestQuoteAsGuest(casey);

@@ -72,6 +72,8 @@ export const conditionSchema = z.enum(["light", "moderate", "heavy"], {
 // Property: `forKind` checks a new one's here, and recordRequest an existing
 // one's once it's found.
 const request = {
+  // the Service asked for, by key; checked against those on offer on submit
+  serviceKey: z.uuid("Choose a Service").optional(),
   // a home's
   condition: conditionSchema.optional(),
   // the Add-ons chosen, by key; checked against the Price List on submit
@@ -92,6 +94,7 @@ const request = {
 };
 
 type RequestFields = {
+  serviceKey?: string;
   condition?: z.infer<typeof conditionSchema>;
   addOns?: string[];
   businessName?: string | null;

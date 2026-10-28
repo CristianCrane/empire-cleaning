@@ -67,7 +67,7 @@ export const Disabled: Story = {
 
 export const Cards: Story = {
   args: {
-    label: "Clean Type",
+    label: "Your clean",
     layout: "cards",
     defaultValue: "standard",
     children: (

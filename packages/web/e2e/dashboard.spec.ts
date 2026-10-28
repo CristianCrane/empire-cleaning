@@ -57,7 +57,7 @@ test("Office Staff see today's Jobs and whether they're assigned", async ({
     startsAt: "2026-01-05T14:00:00Z", // 9am in New York
     labourHours: 5,
     crewSize: 2,
-    cleanType: "standard",
+    service: "standard",
   });
   // tomorrow's isn't today's
   await bookJob({ startsAt: "2026-01-06T14:00:00Z", labourHours: 3 });

@@ -19,7 +19,7 @@ import {
 import type { PriceBreakdown } from "@empire-cleaning/models";
 import { timestamps } from "../../db/index.ts";
 import { accounts } from "../auth/auth.schema.ts";
-import { cleanType, jobs } from "../jobs/jobs.schema.ts";
+import { jobs } from "../jobs/jobs.schema.ts";
 import { services } from "../services/services.schema.ts";
 import { priceLists } from "../price-list/price-list.schema.ts";
 import { condition, properties } from "../properties/properties.schema.ts";
@@ -80,6 +80,9 @@ export const quotes = pgTable(
     kind: quoteKind("kind"),
     status: quoteStatus("status").notNull(),
     origin: quoteOrigin("origin").notNull(),
+    // the Service it's for, by key (ADR-0018): as asked, until Office Staff
+    // change it on a Draft; a Service Plan Quote's every day is of it
+    serviceKey: uuid("service_key").notNull(),
 
     // what was asked, as the Client (or the caller) said it; nothing on a
     // Quote the Office offered unprompted. A home's Condition; a business
@@ -87,6 +90,7 @@ export const quotes = pgTable(
     // follow up with a Service Plan after the First Clean; business premises
     // wanting regular cleaning ask for `weekdays` (0 is Monday), starting
     // around `preferredTime` ("08:00"). The Add-ons are quote_add_ons.
+    askedServiceKey: uuid("asked_service_key"),
     condition: condition("condition"),
     wantsRegularService: boolean("wants_regular_service")
       .notNull()
@@ -101,11 +105,11 @@ export const quotes = pgTable(
       { onDelete: "restrict" },
     ),
     declinedAt: timestamp("declined_at", { withTimezone: true }),
-    // once Accepted: when, the Clean Type chosen, the Job it booked (a
-    // plan's first), and who accepted (the Client, or Office Staff on their
-    // behalf)
+    // once Accepted: when, the Service chosen (a plan's first day's), the
+    // Job it booked (a plan's first), and who accepted (the Client, or Office
+    // Staff on their behalf)
     acceptedAt: timestamp("accepted_at", { withTimezone: true }),
-    acceptedCleanType: cleanType("accepted_clean_type"),
+    acceptedServiceKey: uuid("accepted_service_key"),
     jobId: uuid("job_id").references(() => jobs.id, { onDelete: "restrict" }),
     acceptedBy: uuid("accepted_by").references(() => accounts.id, {
       onDelete: "set null",
@@ -130,12 +134,19 @@ export const quotes = pgTable(
       "quotes_kind_set",
       sql`${t.kind} is not null or ${t.status} in ('requested', 'turned_down')`,
     ),
-    // at most one open Quote of each kind per Property, so a one-off offer
-    // and a plan offer can stand side by side. A Requested Quote counts as
-    // both, which asking checks under a lock on the Property.
-    uniqueIndex("quotes_one_open_per_property_kind")
-      .on(t.propertyId, t.kind)
-      .where(sql`${t.status} in ('draft', 'sent')`),
+    // at most one open one-off Quote per Service per Property, and one open
+    // Service Plan Quote, so offers for different Services can stand side by
+    // side (ADR-0018). A Requested Quote counts as its Service's one-off and,
+    // if that Service can recur, as the Service Plan Quote, which is checked
+    // under a lock on the Property.
+    uniqueIndex("quotes_one_open_one_off_per_service")
+      .on(t.propertyId, t.serviceKey)
+      .where(sql`${t.kind} = 'one_off' and ${t.status} in ('draft', 'sent')`),
+    uniqueIndex("quotes_one_open_service_plan")
+      .on(t.propertyId)
+      .where(
+        sql`${t.kind} = 'service_plan' and ${t.status} in ('draft', 'sent')`,
+      ),
   ],
 );
 
@@ -152,11 +163,12 @@ export const quoteAddOns = pgTable(
   (t) => [primaryKey({ columns: [t.quoteId, t.addOnKey] })],
 );
 
-// One priced version of a Quote. A one-off Quote's offers both Clean Types
+// One priced version of a Quote. A one-off Quote's offers its Service, and
+// the one recommended in its place for a first visit where that's offered
 // (revision_options); a Service Plan Quote's a visit on each of its weekdays
 // (revision_options too), on a recurrence, at the Plan Discount. While
-// unsent it's priced afresh from the current Price List on every save; once
-// Sent it never changes. A Quote has one unsent at a time.
+// unsent it's priced afresh from the current Services and Price List on
+// every save; once Sent it never changes. A Quote has one unsent at a time.
 export const quoteRevisions = pgTable(
   "quote_revisions",
   {
@@ -170,6 +182,9 @@ export const quoteRevisions = pgTable(
     priceListId: uuid("price_list_id")
       .notNull()
       .references(() => priceLists.id, { onDelete: "restrict" }),
+    // its Service, by key: a one-off Revision's options are for it, and a
+    // Service Plan Revision's every day is
+    serviceKey: uuid("service_key").notNull(),
     // a one-off Quote's crew; a Service Plan Quote's first weekday's, each
     // having its own
     crewSize: integer("crew_size").notNull(),
@@ -201,11 +216,11 @@ export const quoteRevisions = pgTable(
   ],
 );
 
-// One Clean Type's offer on a Revision. The Suggested Price is kept with
-// every Price List figure it used, so it reads the same however the Price
-// List changes later. A Service Plan Quote's Revision has one for each of
-// its weekdays (ADR-0013), each its own visit: its Clean Type priced as a
-// one-off Job, less the Plan Discount, its first clean's time and its crew.
+// One Service's offer on a Revision. The Suggested Price is kept with every
+// figure it used, so it reads the same however the Services and Price List
+// change later. A Service Plan Quote's Revision has one for each of its
+// weekdays (ADR-0013), each its own visit: its Service priced as a one-off
+// Job, less the Plan Discount, its first clean's time and its crew.
 export const revisionOptions = pgTable(
   "revision_options",
   {
@@ -213,10 +228,11 @@ export const revisionOptions = pgTable(
       .notNull()
       .references(() => quoteRevisions.id, { onDelete: "cascade" }),
     // which of a Service Plan Quote's weekdays, from 0, earliest first once
-    // they're all timed; 0 on a one-off Quote
+    // they're all timed. On a one-off Quote, 0 for the Service recommended
+    // for a first visit, then 1 for its own (0 when it's alone).
     position: smallint("position").notNull().default(0),
-    cleanType: cleanType("clean_type").notNull(),
-    // the Service version it was priced with (ADR-0018)
+    serviceKey: uuid("service_key").notNull(),
+    // that Service's version it was priced with (ADR-0018)
     serviceId: uuid("service_id")
       .notNull()
       .references(() => services.id, { onDelete: "restrict" }),
@@ -243,7 +259,7 @@ export const revisionOptions = pgTable(
       mode: "number",
     }).notNull(),
   },
-  (t) => [primaryKey({ columns: [t.revisionId, t.position, t.cleanType] })],
+  (t) => [primaryKey({ columns: [t.revisionId, t.position, t.serviceKey] })],
 );
 
 // A Client's Deposit waiting on their bank's approval (e.g. 3D Secure) in the
@@ -264,8 +280,8 @@ export const pendingDeposits = pgTable(
     revisionId: uuid("revision_id")
       .notNull()
       .references(() => quoteRevisions.id, { onDelete: "cascade" }),
-    // the Clean Type chosen; a Service Plan Quote's first weekday's
-    cleanType: cleanType("clean_type").notNull(),
+    // the Service chosen, by key; a Service Plan Quote's first weekday's
+    serviceKey: uuid("service_key").notNull(),
     depositCents: integer("deposit_cents").notNull(),
     acceptedBy: uuid("accepted_by").references(() => accounts.id, {
       onDelete: "set null",

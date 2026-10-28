@@ -2,7 +2,6 @@ import { describe, expect, test } from "vitest";
 import { eq } from "drizzle-orm";
 import type {
   AcceptOutcome,
-  CleanType,
   OfficeQuote,
   QuoteSummary,
   OfficeServicePlan,
@@ -23,6 +22,7 @@ import { crewedServicePlan } from "../../../tests/fixtures.ts";
 import { jobQuotes } from "../quotes/job-quotes.ts";
 import { servicePlans } from "./service-plans.schema.ts";
 import { generateServicePlanJobs } from "./service-plans.ts";
+import { SEEDED } from "#features/services";
 
 type Agent = Awaited<ReturnType<typeof signIn>>;
 
@@ -53,13 +53,13 @@ const sentChange = async (
   {
     startsAt,
     recurrence = "fortnightly",
-    cleanType = "standard",
+    service = "standard",
     crewSize = 1,
   }: {
     // a weekday's first clean, or each of several weekdays'
     startsAt: string | string[];
     recurrence?: Recurrence;
-    cleanType?: CleanType;
+    service?: "deep" | "standard";
     crewSize?: number;
   },
 ) => {
@@ -71,6 +71,7 @@ const sentChange = async (
     depositPercent: quote.draft!.depositPercent,
     validityDays: quote.draft!.validityDays,
     plan: {
+      serviceKey: SEEDED[service],
       recurrence,
       discountPercent: quote.draft!.plan!.discountPercent,
       condition: "moderate",
@@ -78,7 +79,6 @@ const sentChange = async (
         const at = new Date(s);
         return {
           start: { date: dayOf(at), time: timeOf(at) },
-          cleanType,
           crewSize,
           override: null,
         };
@@ -88,11 +88,15 @@ const sentChange = async (
   return sendQuote(quote.id);
 };
 
-const accept = async (client: Agent, quoteId: string, cleanType = "standard") =>
+const accept = async (
+  client: Agent,
+  quoteId: string,
+  service: "deep" | "standard" = "standard",
+) =>
   (
     await client
       .post(`/api/quotes/mine/${quoteId}/accept`)
-      .send({ cleanType })
+      .send({ serviceKey: SEEDED[service] })
       .expect(200)
   ).body as AcceptOutcome;
 
@@ -178,17 +182,20 @@ describe("accepting a Service Plan Quote for a home with a plan", () => {
     const quote = await sentChange(office, planId, {
       startsAt: WEDNESDAY_28TH,
       recurrence: "weekly",
-      cleanType: "deep",
+      service: "deep",
     });
     await accept(client, quote.id, "deep");
 
     const plan = await officePlan(office, planId);
-    expect(plan.days.map((d) => d.cleanType)).toEqual(["deep"]);
+    expect(plan.days.map((d) => d.serviceName)).toEqual(["Deep Clean"]);
     const booked = plan.jobs.filter((j) => j.status === "booked");
     const totals = await totalsOf(booked.map((j) => j.id));
     const before = booked.filter((j) => j.startsAt < WEDNESDAY_28TH);
     const after = booked.filter((j) => j.startsAt >= WEDNESDAY_28TH);
-    expect(before.map((j) => j.cleanType)).toEqual(["standard", "standard"]);
+    expect(before.map((j) => j.serviceName)).toEqual([
+      "Standard Clean",
+      "Standard Clean",
+    ]);
     expect(before.map((j) => totals.get(j.id))).toEqual([
       PLAN_TOTAL,
       PLAN_TOTAL,
@@ -197,7 +204,10 @@ describe("accepting a Service Plan Quote for a home with a plan", () => {
       WEDNESDAY_28TH,
       "2026-02-04T14:00:00.000Z",
     ]);
-    expect(after.map((j) => j.cleanType)).toEqual(["deep", "deep"]);
+    expect(after.map((j) => j.serviceName)).toEqual([
+      "Deep Clean",
+      "Deep Clean",
+    ]);
     const deepTotal = totals.get(after[0]!.id)!;
     expect(deepTotal).toBeGreaterThan(PLAN_TOTAL);
     expect(totals.get(after[1]!.id)).toBe(deepTotal);
@@ -216,7 +226,7 @@ describe("accepting a Service Plan Quote for a home with a plan", () => {
     expect(
       (await client.get(`/api/quotes/mine/${quote.id}`).expect(200)).body
         .bookable,
-    ).toEqual(["standard"]);
+    ).toEqual([SEEDED.standard]);
 
     await accept(client, quote.id);
 
@@ -266,7 +276,7 @@ describe("accepting a Service Plan Quote for a home with a plan", () => {
 
     await office
       .post(`/api/quotes/${quote.id}/accept`)
-      .send({ cleanType: "standard" })
+      .send({ serviceKey: SEEDED.standard })
       .expect(200);
 
     expect(testPayments().charges).toHaveLength(charged);
@@ -313,13 +323,13 @@ describe("a Client asking to change their plan", () => {
         depositPercent: draft.draft!.depositPercent,
         validityDays: draft.draft!.validityDays,
         plan: {
+          serviceKey: SEEDED.standard,
           recurrence: "fortnightly",
           discountPercent: draft.draft!.plan!.discountPercent,
           condition: draft.draft!.plan!.condition,
           days: [
             {
               start: { date: "2026-01-28", time: "09:00" },
-              cleanType: "standard",
               crewSize: 1,
               override: null,
             },

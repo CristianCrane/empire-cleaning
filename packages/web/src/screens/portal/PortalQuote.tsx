@@ -3,7 +3,6 @@ import { useLoaderData } from "@tanstack/react-router";
 import type {
   AcceptOutcome,
   AskedQuoteView,
-  CleanType,
   ClientQuoteView,
   PaymentMethodView,
   PlanChange,
@@ -29,8 +28,6 @@ import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import {
   addressOf,
-  cleanTypeLabel,
-  optionLabel,
   conditionLabel,
   formatDate,
   formatDateTime,
@@ -281,22 +278,30 @@ function PlanOffer({
   );
 }
 
-// a one-off Quote: both Clean Types, the Deep Clean recommended
+// a one-off Quote: its Service, after the one recommended for a first
+// visit where that's offered too
 function OneOffOffer({ quote }: { quote: QuoteView }) {
+  const [recommended, own] = quote.options;
+  const choosing = quote.options.length > 1;
   return (
     <>
       <section aria-labelledby="options-title" className="flex flex-col gap-4">
         <Heading level={2} id="options-title">
-          {quote.status === "accepted" ? "Your clean" : "Choose your clean"}
+          {quote.status === "accepted"
+            ? "Your clean"
+            : choosing
+              ? "Choose your clean"
+              : "Your clean"}
         </Heading>
         <p className="text-fg-muted">
-          We recommend a Deep Clean for a first visit: it brings your home up to
-          standard. A Standard Clean costs less. Prices include tax.
+          {choosing &&
+            `We recommend a ${recommended!.serviceName} for a first visit: it brings your home up to standard. A ${own!.serviceName} costs less. `}
+          Prices include tax.
         </p>
         <div className="grid gap-4 lg:grid-cols-2">
           {quote.options.map((option) => (
             <OptionCard
-              key={option.cleanType}
+              key={option.serviceKey}
               option={option}
               crewSize={quote.crewSize}
               depositPercent={quote.depositPercent}
@@ -346,8 +351,12 @@ function Standing({ quote }: { quote: QuoteView }) {
         </Notice>
       ) : (
         <Notice tone="success">
-          You're booked: a {cleanTypeLabel[quote.acceptedCleanType!]} on{" "}
-          {proposed}. You accepted this Quote on{" "}
+          You're booked: a{" "}
+          {
+            quote.options.find((o) => o.serviceKey === quote.acceptedServiceKey)
+              ?.serviceName
+          }{" "}
+          on {proposed}. You accepted this Quote on{" "}
           {formatDateTime(quote.acceptedAt!)}.
         </Notice>
       );
@@ -396,7 +405,7 @@ function PlanChangeNotice({
   );
 }
 
-// One step: choose the Clean Type, enter a card (or keep the saved one), and
+// One step: choose the Service, enter a card (or keep the saved one), and
 // accept. The Deposit is taken, saving a card entered now, and the Job
 // booked, or none of it. If their bank wants them to approve the payment,
 // that happens here too, then the booking is finished. A Service Plan Quote
@@ -410,16 +419,17 @@ function Accept({
   quote: QuoteView;
   paymentMethod: PaymentMethodView | null;
 }) {
-  // the recommended Deep Clean, unless only the Standard Clean still fits
-  const [cleanType, setCleanType] = useState<CleanType>(
-    quote.bookable.includes("deep") ? "deep" : quote.bookable[0]!,
+  // the recommended Service, unless only the other still fits
+  const [serviceKey, setServiceKey] = useState(
+    quote.options.find((o) => quote.bookable.includes(o.serviceKey))!
+      .serviceKey,
   );
   const [newCard, setNewCard] = useState(!paymentMethod);
   // what's bookable may have changed since the page loaded
   const action = useAction("That didn't work. Please try again.", {
     reloadOnFailure: true,
   });
-  const chosen = quote.options.find((o) => o.cleanType === cleanType)!;
+  const chosen = quote.options.find((o) => o.serviceKey === serviceKey)!;
   const balance = chosen.totalCents - chosen.depositCents;
   const depositCents = quote.plan?.depositCents ?? chosen.depositCents;
   const payment = usePaymentForm({
@@ -434,7 +444,7 @@ function Accept({
         const outcome = await postJson<AcceptOutcome>(
           `/api/quotes/mine/${quote.id}/accept`,
           // a plan is accepted whole
-          quote.plan ? { paymentToken } : { cleanType, paymentToken },
+          quote.plan ? { paymentToken } : { serviceKey, paymentToken },
         );
         if (outcome.status === "needs_approval") {
           await payment.approve(outcome.secret);
@@ -451,21 +461,21 @@ function Accept({
       {!quote.plan && (
         <RadioGroup
           label="Your clean"
-          value={cleanType}
-          onChange={(value) => setCleanType(value as CleanType)}
+          value={serviceKey}
+          onChange={setServiceKey}
         >
           {quote.options.map((option) => (
             <Radio
-              key={option.cleanType}
-              value={option.cleanType}
-              isDisabled={!quote.bookable.includes(option.cleanType)}
+              key={option.serviceKey}
+              value={option.serviceKey}
+              isDisabled={!quote.bookable.includes(option.serviceKey)}
               description={
-                quote.bookable.includes(option.cleanType)
+                quote.bookable.includes(option.serviceKey)
                   ? `${formatMoney(option.totalCents)}, with a ${formatMoney(option.depositCents)} Deposit today`
                   : "No longer fits on that day: it's been booked up since we sent this Quote"
               }
             >
-              {optionLabel(option)}
+              {option.serviceName}
               {option.recommended && " (recommended)"}
             </Radio>
           ))}

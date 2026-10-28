@@ -286,7 +286,13 @@ const officeQuoteRoute = createRoute({
 const officePriceListRoute = createRoute({
   getParentRoute: () => officeRoute,
   path: "/price-list",
-  loader: () => getJson<PriceList>("/api/price-list"),
+  loader: async () => {
+    const [list, services] = await Promise.all([
+      getJson<PriceList>("/api/price-list"),
+      getJson<Service[]>("/api/services"),
+    ]);
+    return { list, services };
+  },
   component: PriceListScreen,
 });
 

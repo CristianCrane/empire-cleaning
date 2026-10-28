@@ -9,6 +9,8 @@ import { desc, eq } from "drizzle-orm";
 import type { StaffRole } from "@empire-cleaning/models";
 import type { Approval } from "../fakes/payment-gateway.ts";
 import { recreateTestDatabase, TEST_DB_URL } from "../setup/testDatabase.ts";
+// keys only: it reads nothing on import
+import { SEEDED } from "../../src/features/services/seeded.ts";
 
 const CONTROL_PORT = Number(process.env.E2E_CONTROL_PORT ?? 3101);
 
@@ -89,8 +91,12 @@ control.put("/staff/:id/usual-week", async (req, res) => {
 });
 
 // a booked Job at a home of its own, straight onto the Schedule
+// one of the seeded Services, by its name in SEEDED
 control.post("/jobs", async (req, res) => {
-  res.json(await bookedJob(req.body as Parameters<typeof bookedJob>[0]));
+  const { service, ...job } = req.body as Parameters<typeof bookedJob>[0] & {
+    service?: keyof typeof SEEDED;
+  };
+  res.json(await bookedJob({ ...job, serviceKey: service && SEEDED[service] }));
 });
 
 // a Site Visit booked for the latest Quote at the Property on `street`, for
