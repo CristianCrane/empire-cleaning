@@ -1,8 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import {
   CalendarDays,
-  ClipboardList,
-  Inbox,
+  ClipboardPenLine,
   LayoutDashboard,
   User,
   Users,
@@ -17,8 +16,7 @@ import { StatusBadge } from "./StatusBadge.tsx";
 
 const officeNav: NavItem[] = [
   { href: "#today", label: "Today", icon: LayoutDashboard, isCurrent: true },
-  { href: "#requests", label: "Requests", icon: Inbox },
-  { href: "#quotes", label: "Quotes", icon: ClipboardList },
+  { href: "#quotes", label: "Quotes", icon: ClipboardPenLine },
   { href: "#schedule", label: "Schedule", icon: CalendarDays },
   { href: "#clients", label: "Clients", icon: Users },
 ];

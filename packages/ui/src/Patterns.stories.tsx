@@ -5,7 +5,7 @@ import {
   CalendarDays,
   CircleDollarSign,
   House,
-  Inbox,
+  ClipboardPenLine,
   Pencil,
   Store,
   UserX,
@@ -166,7 +166,7 @@ function ActionFirstRows() {
               id="1"
               title="Send a Quote"
               description="Maria Lopez · 41-12 Austin St · asked Oct 26"
-              start={<IconTile icon={Inbox} tone="info" />}
+              start={<IconTile icon={ClipboardPenLine} tone="info" />}
             />
             <ListItem
               id="2"

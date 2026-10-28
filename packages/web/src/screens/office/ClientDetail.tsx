@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pencil, Phone } from "lucide-react";
+import { Pencil } from "lucide-react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import type {
   BillPayment,
@@ -29,6 +29,7 @@ import {
 } from "@empire-cleaning/ui";
 import { patchJson, putJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
+import { QuoteIcon } from "../icons.ts";
 import { useAction } from "../action.ts";
 import { BillStatusBadge, billLine } from "../BillParts.tsx";
 import {
@@ -70,7 +71,7 @@ export function ClientDetail() {
               })
             }
           >
-            <Phone aria-hidden size={18} />
+            <QuoteIcon aria-hidden size={18} />
             New Quote
           </Button>
         </div>

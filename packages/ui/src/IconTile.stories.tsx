@@ -1,12 +1,17 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { CalendarClock, CircleDollarSign, Inbox, UserX } from "lucide-react";
+import {
+  CalendarClock,
+  CircleDollarSign,
+  ClipboardPenLine,
+  UserX,
+} from "lucide-react";
 import { IconTile } from "./IconTile.tsx";
 import { List, ListItem } from "./List.tsx";
 
 const meta = {
   title: "Components/IconTile",
   component: IconTile,
-  args: { icon: Inbox, tone: "info" },
+  args: { icon: ClipboardPenLine, tone: "info" },
 } satisfies Meta<typeof IconTile>;
 
 export default meta;
@@ -22,7 +27,7 @@ export const InAList: Story = {
         id="1"
         title="Send a Quote"
         description="Maria Lopez · 41-12 Austin St · asked Oct 26"
-        start={<IconTile icon={Inbox} tone="info" />}
+        start={<IconTile icon={ClipboardPenLine} tone="info" />}
       />
       <ListItem
         id="2"
