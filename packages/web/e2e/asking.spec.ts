@@ -356,7 +356,7 @@ for (const theme of ["light", "dark"] as const) {
         );
         await expectNoViolations(page);
 
-        await page.goto("/office/clients");
+        await page.goto("/office/clients?tab=all");
         await expect(page.getByText("Casey Client")).toBeVisible();
         await expectNoViolations(page);
       },

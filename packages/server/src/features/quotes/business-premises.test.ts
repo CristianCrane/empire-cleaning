@@ -246,8 +246,8 @@ describe("a Quote asked for business premises", () => {
 
     await submit(businessAsk(Office!)).expect(201);
 
-    const [listed] = (await office.get("/api/clients").expect(200))
-      .body as ClientListItem[];
+    const [listed] = (await office.get("/api/clients").expect(200)).body
+      .clients as ClientListItem[];
     expect(listed!.businessName).toBeNull();
   });
 
@@ -436,10 +436,10 @@ describe("Office Staff and business Clients", () => {
     const { Office } = await premisesTypes();
     await submit(businessAsk(Office!)).expect(201);
 
-    const all = (await office.get("/api/clients").expect(200))
-      .body as ClientListItem[];
-    const found = (await office.get("/api/clients?q=dental").expect(200))
-      .body as ClientListItem[];
+    const all = (await office.get("/api/clients").expect(200)).body
+      .clients as ClientListItem[];
+    const found = (await office.get("/api/clients?q=dental").expect(200)).body
+      .clients as ClientListItem[];
 
     // Acme Dental before Zed Zimmer
     expect(all.map((c) => c.businessName ?? c.name)).toEqual([
@@ -453,7 +453,7 @@ describe("Office Staff and business Clients", () => {
       .send({ ...casey, businessName: "Acme Dental Group" })
       .expect(200);
     const [renamed] = (await office.get("/api/clients?q=dental").expect(200))
-      .body as ClientListItem[];
+      .body.clients as ClientListItem[];
     expect(renamed!.businessName).toBe("Acme Dental Group");
   });
 });

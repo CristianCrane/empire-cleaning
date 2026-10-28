@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import type {
+  ClientList,
   ClientListItem,
   OfficeClientView,
   CallerQuoteEntry,
@@ -151,9 +152,9 @@ function FindClient({
     }
     const timer = setTimeout(
       () =>
-        void getJson<ClientListItem[]>(
-          `/api/clients?q=${encodeURIComponent(q)}`,
-        ).then((clients) => setFound({ q, clients })),
+        void getJson<ClientList>(
+          `/api/clients?q=${encodeURIComponent(q)}&standing=all`,
+        ).then(({ clients }) => setFound({ q, clients })),
       SEARCH_DELAY_MS,
     );
     return () => clearTimeout(timer);

@@ -37,8 +37,12 @@ const openClients = async (page: Page) => {
   await expect(page).toHaveURL("/office/clients");
 };
 
+// the Table's Clients, without its header
 const rows = (page: Page) =>
-  page.getByRole("grid", { name: "Clients" }).getByRole("row");
+  page
+    .getByRole("grid", { name: "Clients" })
+    .getByRole("row")
+    .filter({ has: page.getByRole("rowheader") });
 
 test(
   "Office Staff find a Client by searching, and Back keeps the search",
@@ -50,14 +54,17 @@ test(
     // ready to type straight away
     const search = page.getByRole("searchbox", { name: "Search Clients" });
     await expect(search).toBeFocused();
-    await expect(rows(page)).toHaveCount(2);
-    await expect(rows(page).first()).toContainText("Casey Client");
-    // how to reach them, without opening them
-    await expect(rows(page).first()).toContainText("casey@example.com");
 
+    // a search looks through every Client, whatever their standing
     await page.keyboard.type("austin");
     await expect(page).toHaveURL("/office/clients?q=austin");
+    await expect(page.getByRole("tab", { name: /All/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
     await expect(rows(page)).toHaveCount(1);
+    // how to reach them, without opening them
+    await expect(rows(page).first()).toContainText("casey@example.com");
 
     await rows(page).first().click();
     await expect(
@@ -102,6 +109,7 @@ test(
     const officeNav = page.getByRole("navigation", { name: "Office" });
     const crumbs = page.getByLabel("Breadcrumbs");
 
+    await page.getByRole("tab", { name: /All/ }).click();
     await rows(page).first().click();
     await page.getByRole("row", { name: /41-12 Austin St/ }).click();
     await expect(page).toHaveURL(/\/office\/properties\//);
@@ -115,3 +123,46 @@ test(
     await expect(page).toHaveURL("/office/clients");
   },
 );
+
+test("Clients are listed by standing, Active first, with how many in each", async ({
+  page,
+}) => {
+  // Casey is waiting on a Quote; Sam has nothing on
+  await twoClients();
+  await openClients(page);
+
+  const tab = (name: RegExp) => page.getByRole("tab", { name });
+  await expect(tab(/Active/)).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByText("No Active Clients.")).toBeVisible();
+  await expect(tab(/Quoting/)).toContainText("1");
+  await expect(tab(/Past/)).toContainText("1");
+  await expect(tab(/All/)).toContainText("2");
+
+  await tab(/Quoting/).click();
+  await expect(page).toHaveURL("/office/clients?tab=quoting");
+  await expect(rows(page)).toHaveCount(1);
+  await expect(rows(page).first()).toContainText("Casey Client");
+
+  await tab(/Past/).click();
+  await expect(rows(page)).toHaveCount(1);
+  await expect(rows(page).first()).toContainText("Sam Seed");
+});
+
+test("a long list shows 50 at a time, with Show more", async ({ page }) => {
+  for (let i = 0; i < 53; i += 1) {
+    await createClient({
+      name: `Client ${String(i).padStart(2, "0")}`,
+      email: `client${i}@example.com`,
+      phone: "(718) 555-0100",
+    });
+  }
+  await openClients(page);
+  await page.getByRole("tab", { name: /Past/ }).click();
+
+  await expect(rows(page)).toHaveCount(50);
+  await expect(page.getByText("Showing 50 of 53")).toBeVisible();
+  await page.getByRole("button", { name: "Show more" }).click();
+
+  await expect(rows(page)).toHaveCount(53);
+  await expect(page.getByRole("button", { name: "Show more" })).toHaveCount(0);
+});

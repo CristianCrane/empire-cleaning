@@ -175,12 +175,25 @@ export type PropertyStatus =
   | { kind: "first_clean_done" }
   | { kind: "nothing_booked" };
 
+// where a Client stands with Empire Cleaning now, for the Office's list:
+// Active with a Service Plan (active or On Hold) or a Job coming up or in the
+// last 90 days; otherwise Quoting while a Quote is open; otherwise Past
+export type ClientStanding = "active" | "quoting" | "past";
+
 // a Client in the Office's list of Clients
 export type ClientListItem = OfficeContactDetails & {
   id: string;
   // their Google profile picture, once they've signed up and signed in
   // with Google
   imageUrl: string | null;
+  standing: ClientStanding;
+};
+
+// a page of the Office's list of Clients, and how many match the search
+// in each standing, for the list's Tabs
+export type ClientList = {
+  clients: ClientListItem[];
+  counts: Record<ClientStanding | "all", number>;
 };
 
 // a Client for the Office: their contact details and their homes, each with

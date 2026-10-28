@@ -42,7 +42,8 @@ const officeQuote = async (office: Agent, id: string) =>
 
 const clientNamed = async (office: Agent, name: string) =>
   (
-    (await office.get("/api/clients").expect(200)).body as ClientListItem[]
+    (await office.get("/api/clients").expect(200)).body
+      .clients as ClientListItem[]
   ).filter((c) => c.name === name);
 
 // a Client's homes, from their page
