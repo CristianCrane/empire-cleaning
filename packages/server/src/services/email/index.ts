@@ -2,6 +2,7 @@ import { Resend } from "resend";
 import env from "../../env.ts";
 import { withAppUrl, type Email } from "./blocks.ts";
 import { renderEmail } from "./render.tsx";
+import { routeEmail } from "./routing.ts";
 
 export type EmailMessage = {
   to: string;
@@ -45,7 +46,7 @@ let current: EmailSender = new ResendEmailSender(
 );
 
 // Every email comes from a builder (e.g. signInEmail) and is rendered through
-// the shared layout. A message to nobody is not sent: a Client the Office
+// the shared layout, then routed for the test site. A message to nobody is not sent: a Client the Office
 // entered without an email gets no emails until one is added (#34).
 export const email = {
   send: async (message: { to: string | null; bcc?: string } & Email) => {
@@ -53,14 +54,23 @@ export const email = {
     const { subject, html, text } = await renderEmail(
       withAppUrl(message, env.CORS_ORIGIN_URL),
     );
-    await current.send({
-      to: message.to,
-      ...(message.bcc ? { bcc: message.bcc } : {}),
-      replyTo: env.OFFICE_EMAIL,
-      subject,
-      html,
-      text,
-    });
+    await current.send(
+      routeEmail(
+        {
+          to: message.to,
+          ...(message.bcc ? { bcc: message.bcc } : {}),
+          replyTo: env.OFFICE_EMAIL,
+          subject,
+          html,
+          text,
+        },
+        {
+          mode: env.APP_MODE,
+          allowed: env.EMAIL_ALLOWED,
+          office: env.OFFICE_EMAIL,
+        },
+      ),
+    );
   },
 };
 

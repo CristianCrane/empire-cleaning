@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   Outlet,
   createRootRoute,
@@ -31,6 +32,7 @@ import type {
   PremisesTypeChoice,
   PriceList,
   Service,
+  Site,
   QuoteSummary,
   ScheduleDay,
   ServicePlanSummary,
@@ -39,7 +41,11 @@ import type {
   StaffMember,
   Today,
 } from "@empire-cleaning/models";
-import { RouterProvider, ToastRegion } from "@empire-cleaning/ui";
+import {
+  RouterProvider,
+  TestSiteBanner,
+  ToastRegion,
+} from "@empire-cleaning/ui";
 import { getJson } from "./api.ts";
 import { AreaLayout } from "./screens/AreaLayout.tsx";
 import { CleanerHome } from "./screens/cleaner/CleanerHome.tsx";
@@ -110,13 +116,22 @@ import {
 } from "./session.ts";
 
 // lets design-system links (Link, AppLayout's nav) navigate through the router
+// asked once: which site this is doesn't change while the app is open. The
+// banner is only a label, so it isn't worth holding up the page for
+const site = getJson<Site>("/api/site").catch(() => null);
+
 function Root() {
   const router = useRouter();
+  const [isTestSite, setIsTestSite] = useState(false);
+  useEffect(() => {
+    void site.then((found) => setIsTestSite(found?.mode === "test"));
+  }, []);
   return (
     <RouterProvider
       navigate={(to, options) => router.navigate({ ...to, ...options })}
       useHref={(to) => router.buildLocation(to).href}
     >
+      {isTestSite && <TestSiteBanner />}
       <Outlet />
       <ToastRegion />
     </RouterProvider>

@@ -2,7 +2,9 @@ import { z } from "zod";
 
 // the same variables are required in every mode; see .env.example
 const envSchema = z.object({
-  APP_MODE: z.enum(["dev", "prod"]).default("dev"),
+  // test is the test site (ADR-0020): set up as prod, but it says so
+  // everywhere and emails only allowed addresses
+  APP_MODE: z.enum(["dev", "test", "prod"]).default("dev"),
   // the web app's origin: the only browser origin trusted to call the API,
   // and where sign-in flows return to
   CORS_ORIGIN_URL: z.url(),
@@ -16,6 +18,18 @@ const envSchema = z.object({
     .default("Empire Cleaning <no-reply@empirecleaningandpro.com>"),
   // the Office's shared inbox, copied on reminders for late Bills
   OFFICE_EMAIL: z.email(),
+  // on the test site, who may be emailed: comma-separated addresses or
+  // patterns with * (e.g. owner+*@gmail.com); the rest goes to OFFICE_EMAIL.
+  // Empty sends to anyone
+  EMAIL_ALLOWED: z
+    .string()
+    .default("")
+    .transform((list) =>
+      list
+        .split(",")
+        .map((address) => address.trim())
+        .filter(Boolean),
+    ),
   // public URL of this API; sign-in links point here
   BETTER_AUTH_URL: z.url().default("http://localhost:3000"),
   // signs session cookies and tokens

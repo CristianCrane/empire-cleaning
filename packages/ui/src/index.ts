@@ -31,6 +31,7 @@ export { Select, SelectItem } from "./Select.tsx";
 export { StatusBadge, type StatusTone } from "./StatusBadge.tsx";
 export { Cell, Column, Row, Table, TableBody, TableHeader } from "./Table.tsx";
 export { Tab, TabList, TabPanel, Tabs } from "./Tabs.tsx";
+export { TestSiteBanner } from "./TestSiteBanner.tsx";
 export { TextField } from "./TextField.tsx";
 export {
   ThemeToggle,
