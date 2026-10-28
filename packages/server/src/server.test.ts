@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import { db } from "#db";
 import { clock } from "#services/clock";
 import { paymentGateway } from "#services/payment-gateway";
-import { email } from "#services/email";
+import { email, paragraph } from "#services/email";
 import { api, testClock, testEmail, testPayments } from "../tests/harness.ts";
 
 test("health check responds over HTTP", async () => {
@@ -103,8 +103,7 @@ test("emails are captured by the fake sender", async () => {
   await email.send({
     to: "client@example.com",
     subject: "Your Quote",
-    html: "<p>hello</p>",
-    text: "hello",
+    blocks: [paragraph("hello")],
   });
 
   expect(testEmail().lastTo("client@example.com").subject).toBe("Your Quote");

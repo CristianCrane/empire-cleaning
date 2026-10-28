@@ -3,21 +3,13 @@ import { and, desc, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import type { QuoteOption, QuoteStatus } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
-import env from "../../env.ts";
 import {
   ConflictError,
   NotFoundError,
   RequestBodyError,
 } from "../../middleware/errors.ts";
 import { clock, dayOf } from "../../services/clock/index.ts";
-import {
-  compose,
-  email,
-  firstNameOf,
-  formatMoney,
-  formatWhen,
-  weekdayName,
-} from "../../services/email/index.ts";
+import { email, formatWhen } from "../../services/email/index.ts";
 import {
   paymentGateway,
   type DepositAttempt,
@@ -46,8 +38,14 @@ import {
 } from "../service-plans/service-plans.ts";
 import type { FirstJobs } from "../service-plans/first-visits.ts";
 import type { ServicePlan } from "../service-plans/service-plans.schema.ts";
-import { serviceNameOf } from "../services/services.ts";
-import { describePlan } from "./plan-days.ts";
+import { cleanOf } from "../services/services.ts";
+import {
+  bookingConfirmationEmail,
+  planChangeEmail,
+  planConfirmationEmail,
+  type Paid,
+  type PlanCleans,
+} from "./emails.ts";
 import { warnOfficeOfQuotesWithoutRoom } from "./quote-room.ts";
 import { offers, statusOf } from "./quote-state.ts";
 import {
@@ -767,36 +765,15 @@ const afterAcceptance = async (
   if (plan) await generateServicePlanJobs(plan.id);
 };
 
-type Paid = {
-  depositCents: number;
-  // a one-off Job's, or a plan's first clean's
-  totalCents: number;
-  paymentMethod: string | null;
-};
-
-const chargedTo = (paid: Paid) =>
-  paid.paymentMethod ? `your ${paid.paymentMethod}` : "your card";
-
-// a plan's weekdays, and what each clean on them costs
-const planPrices = (offer: Offer, paid: Paid, now = "") =>
-  offer.cleans.length === 1
-    ? `Each clean is ${now}${formatMoney(paid.totalCents)}, charged to ${chargedTo(paid)} when it's done.`
-    : `Each clean is charged to ${chargedTo(paid)} when it's done: ${offer.cleans
-        .map(
-          (c) =>
-            `${formatMoney(c.option.totalCents)} on ${weekdayName(c.startsAt)}s`,
-        )
-        .join(", ")}.`;
-
-const planOf = (plan: ServicePlan, offer: Offer, where = "") =>
-  describePlan(
-    plan.recurrence,
-    offer.cleans.map((c) => ({
-      startsAt: c.startsAt,
-      serviceName: c.option.serviceName,
-    })),
-    where,
-  );
+// a plan's cleans, as its emails give them
+const cleansOf = (plan: ServicePlan, offer: Offer): PlanCleans => ({
+  recurrence: plan.recurrence,
+  cleans: offer.cleans.map((c) => ({
+    startsAt: c.startsAt,
+    serviceName: c.option.serviceName,
+    totalCents: c.option.totalCents,
+  })),
+});
 
 // one email for the whole plan: its Jobs after the first get only the
 // day-before reminder
@@ -807,27 +784,14 @@ const sendPlanConfirmation = async (
   plan: ServicePlan,
   paid: Paid,
 ) => {
-  const first = offer.cleans[0]!.startsAt;
   await email.send({
     to: client.email,
-    subject: "Your Service Plan with Empire Cleaning has started",
-    ...compose(
-      [
-        `Hi ${firstNameOf(client.name)},`,
-        `Your Service Plan has started: ${planOf(plan, offer, ` at ${addressOf(property)}`)}. The first is on ${formatWhen(first)}.`,
-        planPrices(offer, paid),
-        ...(paid.depositCents > 0
-          ? [
-              `We've taken your Deposit of ${formatMoney(paid.depositCents)}. We hold it for as long as the plan runs, and it comes off your last clean when the plan ends.`,
-            ]
-          : []),
-        "We'll remind you the day before each clean. Please check your Access Instructions, so our team can get in:",
-      ],
-      {
-        href: `${env.CORS_ORIGIN_URL}/portal/details`,
-        label: "Check your Access Instructions",
-      },
-    ),
+    ...planConfirmationEmail({
+      name: client.name,
+      address: addressOf(property),
+      plan: cleansOf(plan, offer),
+      paid,
+    }),
   });
 };
 
@@ -841,27 +805,16 @@ const sendPlanChangeConfirmation = async (
   replaced: Job[],
   paid: Paid,
 ) => {
-  const first = offer.cleans[0]!.startsAt;
   await email.send({
     to: client.email,
-    subject: "Your Service Plan with Empire Cleaning has changed",
-    ...compose(
-      [
-        `Hi ${firstNameOf(client.name)},`,
-        `Your Service Plan at ${addressOf(property)} has changed: from ${formatWhen(first)}, it's ${planOf(plan, offer)}.`,
-        `${planPrices(offer, paid, "now ")} Cleans before then go ahead as they were.`,
-        ...(replaced.length > 0
-          ? [
-              `The ${replaced.length === 1 ? "clean" : "cleans"} you had booked from then on (${replaced.map((j) => formatWhen(j.startsAt)).join("; ")}) ${replaced.length === 1 ? "is" : "are"} cancelled, at no charge.`,
-            ]
-          : []),
-        "Your Deposit stays as it is: we hold it for as long as the plan runs, and it comes off your last clean when the plan ends.",
-      ],
-      {
-        href: `${env.CORS_ORIGIN_URL}/portal/plans/${plan.id}`,
-        label: "See your Service Plan",
-      },
-    ),
+    ...planChangeEmail({
+      name: client.name,
+      address: addressOf(property),
+      planId: plan.id,
+      plan: cleansOf(plan, offer),
+      replaced: replaced.map((j) => j.startsAt),
+      paid,
+    }),
   });
 };
 
@@ -871,23 +824,12 @@ const sendBookingConfirmation = async (
   job: Job,
   paid: Paid,
 ) => {
-  const balance = paid.totalCents - paid.depositCents;
   await email.send({
     to: client.email,
-    subject: "You're booked with Empire Cleaning",
-    ...compose(
-      [
-        `Hi ${firstNameOf(client.name)},`,
-        `You're booked: a ${await serviceNameOf(job.serviceId)} at ${addressOf(property)} on ${formatWhen(job.startsAt)}.`,
-        paid.depositCents > 0
-          ? `We've taken your Deposit of ${formatMoney(paid.depositCents)} from ${chargedTo(paid)}. The rest, ${formatMoney(balance)}, is charged to it when the clean is done.`
-          : `The ${formatMoney(paid.totalCents)} is charged to ${chargedTo(paid)} when the clean is done.`,
-        "We'll remind you the day before. Please check your Access Instructions, so our team can get in:",
-      ],
-      {
-        href: `${env.CORS_ORIGIN_URL}/portal/details`,
-        label: "Check your Access Instructions",
-      },
-    ),
+    ...bookingConfirmationEmail({
+      name: client.name,
+      clean: await cleanOf(job, property),
+      paid,
+    }),
   });
 };

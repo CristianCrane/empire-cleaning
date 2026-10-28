@@ -6,15 +6,9 @@ import type {
   OfficeJob,
 } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
-import env from "../../env.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock, dayOf, startOfDay } from "../../services/clock/index.ts";
-import {
-  compose,
-  email,
-  firstNameOf,
-  formatWhen,
-} from "../../services/email/index.ts";
+import { email, firstNameOf } from "../../services/email/index.ts";
 import {
   cancellationOf,
   cancelTermsOf,
@@ -31,7 +25,6 @@ import { onSchedule } from "../jobs/jobs.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { jobViews, scheduleFor, scheduledJobs } from "../jobs/schedule.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
-import { addressOf } from "../properties/property-view.ts";
 import { firstCleanCompleted } from "../quotes/quote-state.ts";
 import {
   rescheduleRequestOf,
@@ -41,15 +34,12 @@ import { staff } from "../staff/staff.schema.ts";
 import { officeStaffEmails } from "../staff/staff.ts";
 import { assignments, type Assignment } from "./assignments.schema.ts";
 import { emailOpenPlaces, openToOf, placeReopened } from "./open-places.ts";
-import { serviceNameOf, serviceVersions } from "../services/services.ts";
+import { cleanOf, serviceVersions } from "../services/services.ts";
+import { offerEmail, releasedEmail, takenOffEmail } from "./emails.ts";
 
 // a Confirmed place can't be Released this close to the Job: the Office needs
 // time to find someone else
 export const RELEASE_CUTOFF_HOURS = 48;
-
-// "the Deep Clean at 41-12 Austin St, 4B, 11375, Monday, January 12 at 9:00 AM"
-const describe = async (job: Job, property: Property) =>
-  `the ${await serviceNameOf(job.serviceId)} at ${addressOf(property)}, ${formatWhen(job.startsAt)}`;
 
 const releaseClosed = (job: Job) =>
   job.startsAt.getTime() - clock.now().getTime() <
@@ -240,18 +230,11 @@ export const emailOffer = (
   notify(`Offer of Job ${job.id} to Staff ${member.id}`, async () =>
     email.send({
       to: member.email,
-      subject: "You've been offered a Job",
-      ...compose(
-        [
-          `Hi ${firstNameOf(member.name)},`,
-          `You've been offered a place on ${await describe(job, property)}.`,
-          "Please confirm it, or release it if you can't make it.",
-        ],
-        {
-          href: `${env.CORS_ORIGIN_URL}/cleaner/jobs/${job.id}`,
-          label: "See the Job",
-        },
-      ),
+      ...offerEmail({
+        name: member.name,
+        jobId: job.id,
+        clean: await cleanOf(job, property),
+      }),
     }),
   );
 
@@ -285,14 +268,10 @@ export const removeAssignment = async (
     await notify(`Removal from Job ${jobId} to Staff ${member.id}`, async () =>
       email.send({
         to: member.email,
-        subject: "You're no longer on a Job",
-        ...compose(
-          [
-            `Hi ${firstNameOf(member.name)},`,
-            `The Office has taken you off ${await describe(job, property)}. You don't need to go.`,
-          ],
-          { href: `${env.CORS_ORIGIN_URL}/cleaner`, label: "See your Jobs" },
-        ),
+        ...takenOffEmail({
+          name: member.name,
+          clean: await cleanOf(job, property),
+        }),
       }),
     );
   }
@@ -498,17 +477,11 @@ export const releaseAssignment = async (
     for (const to of await officeStaffEmails()) {
       await email.send({
         to,
-        subject: `${member!.name} released a place on a Job`,
-        ...compose(
-          [
-            `${member!.name} has released their place on ${await describe(job, property)}.`,
-            "It's open to every free Cleaner now, or you can offer it to someone.",
-          ],
-          {
-            href: `${env.CORS_ORIGIN_URL}/office/jobs/${job.id}`,
-            label: "See the Job",
-          },
-        ),
+        ...releasedEmail({
+          cleaner: member!.name,
+          jobId: job.id,
+          clean: await cleanOf(job, property),
+        }),
       });
     }
   });

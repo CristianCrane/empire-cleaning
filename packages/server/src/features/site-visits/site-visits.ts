@@ -8,7 +8,6 @@ import type {
   SiteVisitBooking,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
-import env from "../../env.ts";
 import {
   ConflictError,
   NotFoundError,
@@ -21,13 +20,13 @@ import {
   dayOf,
   startOfDay,
 } from "../../services/clock/index.ts";
+import { email, firstNameOf, formatTime } from "../../services/email/index.ts";
+import type { Email } from "../../services/email/blocks.ts";
 import {
-  compose,
-  email,
-  firstNameOf,
-  formatTime,
-  formatWhen,
-} from "../../services/email/index.ts";
+  siteVisitBookedEmail,
+  siteVisitCancelledEmail,
+  siteVisitChangedEmail,
+} from "./emails.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { lockDay } from "../jobs/jobs.ts";
 import { roomOn, scheduleFor, visitHours } from "../jobs/schedule.ts";
@@ -160,27 +159,12 @@ const notify = async (what: string, send: () => Promise<void>) => {
 };
 
 const place = (property: Property) =>
-  property.kind === "commercial" ? "premises" : "home";
+  property.kind === "commercial" ? ("premises" as const) : ("home" as const);
 
-// A Client is emailed when a Site Visit is booked, moved or cancelled; they
-// ask for changes by phone. One the Office entered without an email isn't.
-const tellClient = async (
-  client: Client,
-  what: string,
-  subject: string,
-  lines: string[],
-) => {
+// One the Office entered without an email isn't told
+const tellClient = async (client: Client, what: string, message: Email) => {
   if (!client.email) return;
-  await notify(what, () =>
-    email.send({
-      to: client.email!,
-      subject,
-      ...compose([`Hi ${firstNameOf(client.name)},`, ...lines], {
-        href: `${env.CORS_ORIGIN_URL}/portal`,
-        label: "See it in your account",
-      }),
-    }),
-  );
+  await notify(what, () => email.send({ to: client.email!, ...message }));
 };
 
 // ---- booking, moving and cancelling ----
@@ -248,11 +232,14 @@ export const bookSiteVisit = async (
   await tellClient(
     client,
     `Booking notice for Site Visit ${id}`,
-    "Your Site Visit is booked",
-    [
-      `We've booked a free Site Visit at ${addressOf(property)} for ${formatWhen(startsAt)}. ${firstNameOf(visitor.name)} from Empire Cleaning will come to see the ${place(property)} before we quote, which takes about ${input.minutes} minutes.`,
-      "There's no charge. If the time doesn't suit you, please call us to change it.",
-    ],
+    siteVisitBookedEmail({
+      name: client.name,
+      address: addressOf(property),
+      startsAt,
+      visitor: visitor.name,
+      minutes: input.minutes,
+      place: place(property),
+    }),
   );
   return officeSiteVisit(id);
 };
@@ -315,13 +302,15 @@ export const moveSiteVisit = async (
   await tellClient(
     client,
     `Move notice for Site Visit ${id}`,
-    moved ? "Your Site Visit has moved" : "Your Site Visit has changed",
-    [
-      moved
-        ? `We've moved your free Site Visit at ${addressOf(property)} from ${formatWhen(before.startsAt!)} to ${formatWhen(startsAt)}.`
-        : `Your free Site Visit at ${addressOf(property)} is still ${formatWhen(startsAt)}.`,
-      `${firstNameOf(visitor.name)} from Empire Cleaning will come then, for about ${input.minutes} minutes. If the time doesn't suit you, please call us to change it.`,
-    ],
+    siteVisitChangedEmail({
+      name: client.name,
+      address: addressOf(property),
+      startsAt,
+      ...(moved ? { was: before.startsAt! } : {}),
+      visitor: visitor.name,
+      minutes: input.minutes,
+      place: place(property),
+    }),
   );
   return officeSiteVisit(id);
 };
@@ -348,11 +337,11 @@ export const cancelSiteVisit = async (
   await tellClient(
     client,
     `Cancellation notice for Site Visit ${id}`,
-    "Your Site Visit is cancelled",
-    [
-      `We've cancelled your Site Visit at ${addressOf(property)} on ${formatWhen(visit.startsAt!)}.`,
-      "If you'd still like us to come and see it, please call us to book another.",
-    ],
+    siteVisitCancelledEmail({
+      name: client.name,
+      address: addressOf(property),
+      startsAt: visit.startsAt!,
+    }),
   );
   return officeSiteVisit(id);
 };

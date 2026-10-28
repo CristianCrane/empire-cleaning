@@ -2,12 +2,10 @@ import { business } from "@empire-cleaning/models";
 import {
   Body,
   Button,
-  Column,
   Container,
   Head,
   Html,
   Preview,
-  Row as TableRow,
   Section,
   Text,
 } from "react-email";
@@ -48,43 +46,53 @@ const Lines = ({ text }: { text: string }) =>
     </span>
   ));
 
+// one table, so every row's columns line up (React Email's Row is a table
+// of its own)
 const LabelledRows = ({ rows, total }: { rows: Row[]; total?: Row }) => (
-  <Section
+  <table
+    role="presentation"
+    width="100%"
+    border={0}
+    cellPadding={0}
+    cellSpacing={0}
     style={{
       margin: "0 0 16px",
       border: `1px solid ${colour.border}`,
       borderRadius: "6px",
+      borderCollapse: "separate",
     }}
   >
-    {[...rows, ...(total ? [total] : [])].map((row, i) => {
-      const isTotal = total !== undefined && i === rows.length;
-      const cell: CSSProperties = {
-        ...text,
-        margin: 0,
-        padding: "8px 12px",
-        borderTop: i > 0 ? `1px solid ${colour.border}` : undefined,
-        fontWeight: isTotal ? 700 : 400,
-        verticalAlign: "top",
-      };
-      return (
-        <TableRow key={i}>
-          <Column
-            style={{
-              ...cell,
-              color: isTotal ? colour.ink : colour.muted,
-              // details' labels only as wide as the longest one
-              ...(total ? {} : { width: "1%", whiteSpace: "nowrap" }),
-            }}
-          >
-            {row.label}
-          </Column>
-          <Column style={{ ...cell, textAlign: total ? "right" : "left" }}>
-            {row.value}
-          </Column>
-        </TableRow>
-      );
-    })}
-  </Section>
+    <tbody>
+      {[...rows, ...(total ? [total] : [])].map((row, i) => {
+        const isTotal = total !== undefined && i === rows.length;
+        const cell: CSSProperties = {
+          ...text,
+          margin: 0,
+          padding: "8px 12px",
+          borderTop: i > 0 ? `1px solid ${colour.border}` : undefined,
+          fontWeight: isTotal ? 700 : 400,
+          verticalAlign: "top",
+        };
+        return (
+          <tr key={i}>
+            <td
+              style={{
+                ...cell,
+                color: isTotal ? colour.ink : colour.muted,
+                // details' labels only as wide as the longest one
+                ...(total ? {} : { width: "1%", whiteSpace: "nowrap" }),
+              }}
+            >
+              {row.label}
+            </td>
+            <td style={{ ...cell, textAlign: total ? "right" : "left" }}>
+              {row.value}
+            </td>
+          </tr>
+        );
+      })}
+    </tbody>
+  </table>
 );
 
 // bulletproof: the cell's background shows in Outlook, which ignores the

@@ -7,7 +7,6 @@ import type {
   StaffRole,
 } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
-import env from "../../env.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock, dayOf } from "../../services/clock/index.ts";
 import { email } from "../../services/email/index.ts";
@@ -58,11 +57,7 @@ const selectStaff = () =>
 const sendInvitation = async (member: Staff) => {
   await email.send({
     to: member.email,
-    ...staffInviteEmail({
-      name: member.name,
-      email: member.email,
-      signInUrl: `${env.CORS_ORIGIN_URL}/sign-in`,
-    }),
+    ...staffInviteEmail({ name: member.name, email: member.email }),
   });
 };
 

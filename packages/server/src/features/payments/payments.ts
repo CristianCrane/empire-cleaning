@@ -1,16 +1,16 @@
 import { eq } from "drizzle-orm";
 import type { PaymentMethodView } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
-import env from "../../env.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock } from "../../services/clock/index.ts";
-import { compose, email, firstNameOf } from "../../services/email/index.ts";
+import { email } from "../../services/email/index.ts";
 import {
   paymentGateway,
   PaymentMethodError,
   type SavedPaymentMethod,
 } from "../../services/payment-gateway/index.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
+import { paymentMethodLinkEmail } from "./emails.ts";
 import {
   payers,
   paymentMethods,
@@ -118,20 +118,11 @@ export const sendPaymentMethodLink = async (clientId: string) => {
     .where(eq(clients.id, clientId));
   if (!client) throw new NotFoundError("Client not found");
 
-  await email.send({
-    to: client.email,
-    subject: "Add a Payment Method for Empire Cleaning",
-    ...compose(
-      [
-        `Hi ${firstNameOf(client.name)},`,
-        "To book your clean we need a card on file: we take the Deposit when you book and the rest when the clean is done. You enter it yourself, straight into our payment provider's secure form, so we never see your card number.",
-        `Sign in with this email address (${client.email}) to add it:`,
-      ],
-      {
-        href: `${env.CORS_ORIGIN_URL}/portal/payment-method`,
-        label: "Add a Payment Method",
-      },
-    ),
-  });
+  if (client.email) {
+    await email.send({
+      to: client.email,
+      ...paymentMethodLinkEmail({ name: client.name, email: client.email }),
+    });
+  }
   return { sentTo: client.email };
 };

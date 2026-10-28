@@ -8,13 +8,12 @@ import type {
   SignedInAccount,
 } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
-import env from "../../env.ts";
 import {
   ConflictError,
   NotFoundError,
   RequestBodyError,
 } from "../../middleware/errors.ts";
-import { compose, email, firstNameOf } from "../../services/email/index.ts";
+import { email } from "../../services/email/index.ts";
 import {
   clientForAccount,
   createClient,
@@ -35,6 +34,7 @@ import {
   guestSubmission,
   officeSubmission,
 } from "./asking.validation.ts";
+import { quoteReceivedEmail } from "./emails.ts";
 import { openAlongside } from "./quotes.ts";
 import { quoteAddOns, quotes } from "./quotes.schema.ts";
 
@@ -444,28 +444,19 @@ const recordAsk = async (
   });
 };
 
-// Always to the Client's own address, so an existing Client hears about any
-// Quote asked for with their email. Like every Quote email it links to the
-// Quote, with no sign-in power (ADR-0006): the same page shows the offer
-// once it's Sent.
 const sendReceipt = async (
   client: Client,
   property: Property,
   quoteId: string,
 ) => {
+  if (!client.email) return;
   await email.send({
     to: client.email,
-    subject: "We've received your request for a Quote",
-    ...compose(
-      [
-        `Hi ${firstNameOf(client.name)},`,
-        `Thanks for asking Empire Cleaning for a Quote for ${addressOf(property)}. We'll email your Quote to ${client.email}, usually within a working day.`,
-        `If you didn't ask for a Quote, you can ignore this email, or reply and let us know.`,
-      ],
-      {
-        href: `${env.CORS_ORIGIN_URL}/portal/quotes/${quoteId}`,
-        label: "See your Quote",
-      },
-    ),
+    ...quoteReceivedEmail({
+      name: client.name,
+      email: client.email,
+      address: addressOf(property),
+      quoteId,
+    }),
   });
 };

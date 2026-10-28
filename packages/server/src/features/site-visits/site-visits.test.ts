@@ -296,7 +296,7 @@ describe("moving and cancelling a Site Visit", () => {
     const sent = testEmail().lastTo(casey.email);
     expect(sent.subject).toBe("Your Site Visit has moved");
     expect(sent.text).toContain(
-      "from Tuesday, January 6 at 4:00 PM to Tuesday, January 6 at 4:30 PM",
+      "When: Tuesday, January 6 at 4:30 PM\nWas: Tuesday, January 6 at 4:00 PM",
     );
 
     // but it can't grow past the day's hours

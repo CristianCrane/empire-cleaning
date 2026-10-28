@@ -1,15 +1,15 @@
 import { and, asc, eq, gte, inArray, lt, max } from "drizzle-orm";
 import type { QuoteSummary } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
-import env from "../../env.ts";
 import { addDays, dayOf, startOfDay } from "../../services/clock/index.ts";
-import { compose, email, formatWhen } from "../../services/email/index.ts";
+import { email } from "../../services/email/index.ts";
 import { onSchedule } from "../jobs/jobs.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
 import { roomFor } from "../jobs/schedule.ts";
 import { addressOf } from "../properties/property-view.ts";
 import { jobsReplacedAt } from "../service-plans/changing.ts";
 import { officeStaffEmails } from "../staff/staff.ts";
+import { quotesWithoutRoomEmail } from "./emails.ts";
 import { openQuotes } from "./quote-state.ts";
 import { quotes, revisionOptions } from "./quotes.schema.ts";
 
@@ -132,30 +132,15 @@ export const warnOfficeOfQuotesWithoutRoom = async (day: string) => {
     const crowdedOut = await quotesWithoutRoom(day);
     if (crowdedOut.length === 0) return;
     const recipients = await officeStaffEmails();
-    const lines = [
-      crowdedOut.length === 1
-        ? "A booking has filled the time this Quote was proposed for, so its Client can't accept it:"
-        : "A booking has filled the time these Quotes were proposed for, so their Clients can't accept them:",
-      crowdedOut
-        .map(
-          (q) =>
-            `${q.client.name}, ${addressOf(q.property)}: ${formatWhen(startOf(q))}`,
-        )
-        .join("\n"),
-      "Send each a new Quote for another time. They're under Needs attention until you do.",
-    ];
+    const notice = quotesWithoutRoomEmail({
+      quotes: crowdedOut.map((q) => ({
+        client: q.client.name,
+        address: addressOf(q.property),
+        startsAt: startOf(q),
+      })),
+    });
     for (const to of recipients) {
-      await email.send({
-        to,
-        subject:
-          crowdedOut.length === 1
-            ? "A Quote needs another time"
-            : `${crowdedOut.length} Quotes need another time`,
-        ...compose(lines, {
-          href: `${env.CORS_ORIGIN_URL}/office`,
-          label: "Open Needs attention",
-        }),
-      });
+      await email.send({ to, ...notice });
     }
   } catch (error) {
     console.error(`Office not told of Quotes without room on ${day}:`, error);

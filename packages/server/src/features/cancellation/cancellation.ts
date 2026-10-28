@@ -6,23 +6,15 @@ import type {
   JobNoAccess,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
-import env from "../../env.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock } from "../../services/clock/index.ts";
-import {
-  compose,
-  email,
-  firstNameOf,
-  formatMoney,
-  formatWhen,
-} from "../../services/email/index.ts";
+import { email, formatMoney } from "../../services/email/index.ts";
 import { assignments } from "../assignments/assignments.schema.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { paymentOf, settleJob, type Settled } from "../completion/balance.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { charges, refunds } from "../payments/payments.schema.ts";
-import { properties, type Property } from "../properties/properties.schema.ts";
-import { addressOf } from "../properties/property-view.ts";
+import { properties } from "../properties/properties.schema.ts";
 import { jobQuotes } from "../quotes/job-quotes.ts";
 import { percentOf } from "../quotes/plan-days.ts";
 import {
@@ -31,16 +23,19 @@ import {
 } from "../service-plans/service-plans.schema.ts";
 import { staff } from "../staff/staff.schema.ts";
 import { officeStaffEmails } from "../staff/staff.ts";
-import { serviceNameOf } from "../services/services.ts";
+import { cleanOf } from "../services/services.ts";
+import {
+  cancelledEmail,
+  crewCancelledEmail,
+  noAccessEmail,
+  officeCancelledEmail,
+  officeNoAccessEmail,
+} from "./emails.ts";
 
 // cancelling is free until this long before a Job starts; after that it's a
 // Late Cancellation
 export const CANCELLATION_CUTOFF_HOURS = 24;
 const HOUR_MS = 3_600_000;
-
-// "the Deep Clean at 41-12 Austin St, 4B, 11375 on Monday, January 12 at 9:00 AM"
-const describe = async (job: Job, property: Property) =>
-  `the ${await serviceNameOf(job.serviceId)} at ${addressOf(property)} on ${formatWhen(job.startsAt)}`;
 
 // emails go out after the change is saved; one that fails is logged, and the
 // change stands
@@ -51,11 +46,6 @@ const notify = async (what: string, send: () => Promise<void>) => {
     console.error(`${what} not sent:`, error);
   }
 };
-
-const portalLink = (jobId: string) => ({
-  href: `${env.CORS_ORIGIN_URL}/portal/jobs/${jobId}`,
-  label: "See your clean",
-});
 
 const freeUntilOf = (job: Pick<Job, "startsAt">) =>
   new Date(job.startsAt.getTime() - CANCELLATION_CUTOFF_HOURS * HOUR_MS);
@@ -247,32 +237,6 @@ const ownerOf = async (job: Job) => {
   return found!;
 };
 
-// what was refunded, as a line for the Client
-const refundLine = (settled: Settled) =>
-  settled.refundedCents > 0
-    ? [
-        `We've refunded ${formatMoney(settled.refundedCents)} to your ${settled.paymentMethod ?? "card"}. It can take a few days to reach you.`,
-      ]
-    : [];
-
-// how taking a plan Job's fee went, as a line for the Client
-const feeChargeLine = (settled: Settled) => {
-  if (settled.billed) return ["It goes on your weekly bill."];
-  const card = settled.paymentMethod ?? "card";
-  if (settled.chargedCents > 0) return [`We've charged it to your ${card}.`];
-  if (settled.failure) {
-    return [
-      `We couldn't charge it to your ${card}. Please update your Payment Method, and we'll try again straight away.`,
-      ...(settled.plan === "held" ? [ON_HOLD_LINE] : []),
-    ];
-  }
-  return [];
-};
-
-// for a Client whose plan an Unpaid Job has put On Hold
-export const ON_HOLD_LINE =
-  "Until it's paid, your Service Plan is On Hold: cleans already booked go ahead, but we won't book any more.";
-
 const sendCancelled = async (
   jobId: string,
   settled: Settled,
@@ -280,50 +244,21 @@ const sendCancelled = async (
 ) => {
   const [job] = await db.select().from(jobs).where(eq(jobs.id, jobId));
   const { property, client } = await ownerOf(job!);
-  const what = await describe(job!, property);
-  const fee = job!.feeCents ?? 0;
-  const lines =
-    job!.cancelledBy === "empire"
-      ? [
-          `We're sorry: we've had to cancel ${what}.${job!.cancellationReason ? ` ${job!.cancellationReason}` : ""}`,
-          "You won't be charged anything for it.",
-        ]
-      : onPlan
-        ? [
-            `We've skipped ${what}, as you asked.`,
-            job!.lateCancellation && fee > 0
-              ? `As it was less than ${CANCELLATION_CUTOFF_HOURS} hours before the clean, it's a Late Cancellation, with a ${formatMoney(fee)} fee: the same as your plan's Deposit, which stays held.`
-              : fee > 0
-                ? `The ${formatMoney(fee)} fee for an earlier Late Reschedule is still to pay.`
-                : "There's no charge for skipping it.",
-            ...feeChargeLine(settled),
-          ]
-        : [
-            `We've cancelled ${what}, as you asked.`,
-            job!.lateCancellation && job!.feeCents! > 0
-              ? `As it was less than ${CANCELLATION_CUTOFF_HOURS} hours before the clean, it's a Late Cancellation: your ${formatMoney(job!.feeCents!)} Deposit is kept as the fee.`
-              : job!.feeCents! > 0
-                ? `Your ${formatMoney(job!.feeCents!)} Deposit was already kept as the fee for a Late Reschedule, so there's nothing more to pay.`
-                : "There's no charge for cancelling.",
-          ];
-  await notify(`Cancellation notice for Job ${jobId}`, () =>
+  await notify(`Cancellation notice for Job ${jobId}`, async () =>
     email.send({
       to: client.email,
-      subject:
-        onPlan && job!.cancelledBy === "client"
-          ? "Your clean is skipped"
-          : "Your clean is cancelled",
-      ...compose(
-        [
-          `Hi ${firstNameOf(client.name)},`,
-          ...lines,
-          ...refundLine(settled),
-          onPlan
-            ? "Your Service Plan carries on as usual."
-            : "To book another clean, request a Quote from your account.",
-        ],
-        portalLink(jobId),
-      ),
+      ...cancelledEmail({
+        name: client.name,
+        jobId,
+        clean: await cleanOf(job!, property),
+        by: job!.cancelledBy === "empire" ? "empire" : "client",
+        reason: job!.cancellationReason,
+        onPlan,
+        late: job!.lateCancellation ?? false,
+        feeCents: job!.feeCents ?? 0,
+        settled,
+        cutoffHours: CANCELLATION_CUTOFF_HOURS,
+      }),
     }),
   );
 };
@@ -347,14 +282,10 @@ export const tellCrew = async (job: Job) => {
       async () =>
         email.send({
           to: member.email,
-          subject: "A Job you're on is cancelled",
-          ...compose(
-            [
-              `Hi ${firstNameOf(member.name)},`,
-              `We've cancelled ${await describe(job, property)}. You don't need to go.`,
-            ],
-            { href: `${env.CORS_ORIGIN_URL}/cleaner`, label: "See your Jobs" },
-          ),
+          ...crewCancelledEmail({
+            name: member.name,
+            clean: await cleanOf(job, property),
+          }),
         }),
     );
   }
@@ -375,36 +306,15 @@ const tellOffice = async (
     for (const to of await officeStaffEmails()) {
       await email.send({
         to,
-        subject: onPlan
-          ? `${client.name} skipped a plan Job`
-          : `${client.name} cancelled a Job`,
-        ...compose(
-          [
-            onPlan
-              ? `${client.name} has skipped ${await describe(job, property)}. Their Service Plan carries on.`
-              : `${client.name} has cancelled ${await describe(job, property)}.`,
-            onPlan
-              ? late
-                ? `It was a Late Cancellation, so the ${formatMoney(feeCents)} fee is charged.`
-                : feeCents > 0
-                  ? `It was more than 24 hours ahead, but the ${formatMoney(feeCents)} fee for a Late Reschedule is charged.`
-                  : "It was more than 24 hours ahead, so there's no fee."
-              : late
-                ? "It was a Late Cancellation, so the Deposit is kept as the fee."
-                : feeCents > 0
-                  ? "It was more than 24 hours ahead, but a Late Reschedule had already kept the Deposit as the fee."
-                  : "It was more than 24 hours ahead, so the Deposit has been refunded.",
-            ...(settled.failure
-              ? [
-                  `The fee couldn't be charged (${settled.failure}), so the Job is Unpaid.`,
-                ]
-              : []),
-          ],
-          {
-            href: `${env.CORS_ORIGIN_URL}/office/jobs/${job.id}`,
-            label: "See the Job",
-          },
-        ),
+        ...officeCancelledEmail({
+          client: client.name,
+          jobId: job.id,
+          clean: await cleanOf(job, property),
+          onPlan,
+          late,
+          feeCents,
+          failure: settled.failure,
+        }),
       });
     }
   });
@@ -479,45 +389,30 @@ export const recordNoAccess = async (
   await notify(`No Access notice for Job ${jobId}`, async () =>
     email.send({
       to: client.email,
-      subject: "We couldn't get in for your clean",
-      ...compose(
-        [
-          `Hi ${firstNameOf(client.name)},`,
-          `Our team came for ${await describe(job, property)}, but couldn't get in ("${reason}").`,
-          after!.feeCents! === 0
-            ? "There's no charge for it."
-            : onPlan
-              ? `As with a Late Cancellation, there's a ${formatMoney(after!.feeCents!)} fee: the same as your plan's Deposit, which stays held.`
-              : `As with a Late Cancellation, your ${formatMoney(after!.feeCents!)} Deposit is kept as the fee.`,
-          ...(onPlan ? feeChargeLine(settled) : []),
-          ...refundLine(settled),
-          onPlan
-            ? "Your Service Plan carries on as usual. Please check your Access Instructions before your next clean."
-            : "To book another clean, request a Quote from your account. Please check your Access Instructions first.",
-        ],
-        portalLink(jobId),
-      ),
+      ...noAccessEmail({
+        name: client.name,
+        jobId,
+        clean: await cleanOf(job, property),
+        reason,
+        feeCents: after!.feeCents!,
+        onPlan,
+        settled,
+      }),
     }),
   );
   await notify(`No Access of Job ${jobId} to the Office`, async () => {
     for (const to of await officeStaffEmails()) {
       await email.send({
         to,
-        subject: `No Access at ${addressOf(property)}`,
-        ...compose(
-          [
-            `${member!.name} couldn't get in for ${await describe(job, property)} ("${reason}").`,
-            onPlan
-              ? settled.failure
-                ? `${client.name} has been told. The fee couldn't be charged (${settled.failure}), so the Job is Unpaid.`
-                : `${client.name} has been told, and the fee is charged.`
-              : `${client.name} has been told, and the Deposit is kept as the fee.`,
-          ],
-          {
-            href: `${env.CORS_ORIGIN_URL}/office/jobs/${jobId}`,
-            label: "See the Job",
-          },
-        ),
+        ...officeNoAccessEmail({
+          cleaner: member!.name,
+          client: client.name,
+          jobId,
+          clean: await cleanOf(job, property),
+          reason,
+          onPlan,
+          failure: settled.failure,
+        }),
       });
     }
   });

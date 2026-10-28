@@ -7,7 +7,6 @@ import type {
   RescheduleTimes,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
-import env from "../../env.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import {
   addDays,
@@ -16,13 +15,7 @@ import {
   dayOf,
   timeOf,
 } from "../../services/clock/index.ts";
-import {
-  compose,
-  email,
-  firstNameOf,
-  formatMoney,
-  formatWhen,
-} from "../../services/email/index.ts";
+import { email } from "../../services/email/index.ts";
 import { assignments } from "../assignments/assignments.schema.ts";
 import {
   emailOpenPlaces,
@@ -35,7 +28,6 @@ import { lockDay } from "../jobs/jobs.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { roomFor, roomOn, scheduleFor, whyNoRoom } from "../jobs/schedule.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
-import { addressOf } from "../properties/property-view.ts";
 import { warnOfficeOfQuotesWithoutRoom } from "../quotes/quote-room.ts";
 import { staff } from "../staff/staff.schema.ts";
 import { officeStaffEmails } from "../staff/staff.ts";
@@ -43,7 +35,16 @@ import {
   rescheduleRequests,
   type RescheduleRequest,
 } from "./reschedule.schema.ts";
-import { serviceNameOf } from "../services/services.ts";
+import { cleanOf } from "../services/services.ts";
+import {
+  costLabel,
+  crewLostEmail,
+  crewMovedEmail,
+  jobMovedEmail,
+  rescheduleAskedEmail,
+  rescheduleConfirmedEmail,
+  rescheduleTurnedDownEmail,
+} from "./emails.ts";
 
 // moving a Job is free until this long before it starts; after that it's a
 // Late Reschedule (ADR-0010)
@@ -65,10 +66,6 @@ export const START_TIMES = [
   "15:00",
   "16:00",
 ];
-
-// "the Deep Clean at 41-12 Austin St, 4B, 11375"
-const describe = async (job: Job, property: Property) =>
-  `the ${await serviceNameOf(job.serviceId)} at ${addressOf(property)}`;
 
 // emails go out after the change is saved; one that fails is logged, and the
 // change stands
@@ -222,12 +219,6 @@ type Asking = {
   byClient: boolean;
 };
 
-const costLabel: Record<RescheduleCost, string> = {
-  free: "free",
-  free_late: "a Late Reschedule, free as the Job's first",
-  late_cancellation: "a Late Cancellation, with the Deposit amount as the fee",
-};
-
 /**
  * Asks to move a booked Job to a new time, from tomorrow, with room for it
  * (the hours that day, and a crew then), at one of the start times on offer.
@@ -327,30 +318,19 @@ export const requestReschedule = async (
         for (const address of await officeStaffEmails()) {
           await email.send({
             to: address,
-            subject: `${client.name} asked to move a Job`,
-            ...compose(
-              [
-                `${client.name} has asked to move ${await describe(job, property)} from ${formatWhen(job.startsAt)} to ${formatWhen(startsAt)}.`,
-                `It's ${costLabel[asking.cost]}. The new time is held for them until you confirm it or turn it down.`,
-              ],
-              officeLink(jobId),
-            ),
+            ...rescheduleAskedEmail({
+              client: client.name,
+              jobId,
+              clean: await cleanOf({ ...job, startsAt }, property),
+              from: job.startsAt,
+              cost: asking.cost,
+            }),
           });
         }
       },
     );
   }
 };
-
-const officeLink = (jobId: string) => ({
-  href: `${env.CORS_ORIGIN_URL}/office/jobs/${jobId}`,
-  label: "See the Job",
-});
-
-const portalLink = (jobId: string) => ({
-  href: `${env.CORS_ORIGIN_URL}/portal/jobs/${jobId}`,
-  label: "See your clean",
-});
 
 const ownerOf = async (job: Job) => {
   const [found] = await db
@@ -429,15 +409,13 @@ export const turnDownReschedule = async (
   await notify(`Reschedule turned down for Job ${jobId}`, async () =>
     email.send({
       to: client.email,
-      subject: "We couldn't move your clean",
-      ...compose(
-        [
-          `Hi ${firstNameOf(client.name)},`,
-          `We're sorry: we can't move ${await describe(job, property)} to ${formatWhen(pending.startsAt)}.${reason ? ` ${reason}` : ""}`,
-          `It stays booked for ${formatWhen(job.startsAt)}, and there's no charge. You can ask for another time from your account.`,
-        ],
-        portalLink(jobId),
-      ),
+      ...rescheduleTurnedDownEmail({
+        name: client.name,
+        jobId,
+        clean: await cleanOf(job, property),
+        asked: pending.startsAt,
+        reason,
+      }),
     }),
   );
 };
@@ -493,30 +471,19 @@ export const confirmReschedule = async (jobId: string, byAccountId: string) => {
 
   const client = await ownerOf(job);
   const onPlan = (await planOfJob(jobId)) !== null;
-  const costLine =
-    pending.cost === "free"
-      ? "There's no charge for moving it."
-      : pending.cost === "free_late"
-        ? `As it was less than ${LATE_RESCHEDULE_HOURS} hours before the clean, it's a Late Reschedule. Your first one is free${onPlan ? "" : ", and your Deposit still counts towards the price"}.`
-        : pending.feeCents > 0
-          ? onPlan
-            ? `As it's a second Late Reschedule, it's a Late Cancellation, with a ${formatMoney(pending.feeCents)} fee (the same as your plan's Deposit), charged with the price when the clean is done.`
-            : `As it's a second Late Reschedule, it's a Late Cancellation: your ${formatMoney(pending.feeCents)} Deposit is kept as the fee, and the full price is charged when the clean is done.`
-          : onPlan
-            ? "An earlier Late Reschedule already made the fee due, so there's nothing more to pay for moving it."
-            : "Your Deposit was already kept as the fee for an earlier Late Reschedule, so there's nothing more to pay for moving it.";
   await notify(`Reschedule confirmation for Job ${jobId}`, async () =>
     email.send({
       to: client.email,
-      subject: "Your clean has moved",
-      ...compose(
-        [
-          `Hi ${firstNameOf(client.name)},`,
-          `We've moved ${await describe(job, property)} from ${formatWhen(pending.fromStartsAt)} to ${formatWhen(pending.startsAt)}, as you asked.`,
-          costLine,
-        ],
-        portalLink(jobId),
-      ),
+      ...rescheduleConfirmedEmail({
+        name: client.name,
+        jobId,
+        clean: await cleanOf({ ...job, startsAt: pending.startsAt }, property),
+        from: pending.fromStartsAt,
+        cost: pending.cost,
+        feeCents: pending.feeCents,
+        onPlan,
+        lateHours: LATE_RESCHEDULE_HOURS,
+      }),
     }),
   );
 
@@ -614,18 +581,12 @@ const tellCrewOfMove = async (
     await notify(`Move of Job ${job.id} to Staff ${member.id}`, async () =>
       email.send({
         to: member.email,
-        subject: "A Job you're on has moved",
-        ...compose(
-          [
-            `Hi ${firstNameOf(member.name)},`,
-            `The ${await serviceNameOf(job.serviceId)} at ${addressOf(property)} has moved from ${formatWhen(fromStartsAt)} to ${formatWhen(job.startsAt)}.`,
-            "Please confirm your place at the new time, or release it if you can't make it.",
-          ],
-          {
-            href: `${env.CORS_ORIGIN_URL}/cleaner/jobs/${job.id}`,
-            label: "See the Job",
-          },
-        ),
+        ...crewMovedEmail({
+          name: member.name,
+          jobId: job.id,
+          clean: await cleanOf(job, property),
+          from: fromStartsAt,
+        }),
       }),
     );
   }
@@ -695,15 +656,12 @@ export const moveJob = async (jobId: string, to: LocalDateTime) => {
   await notify(`Move notice for Job ${jobId}`, async () =>
     email.send({
       to: client.email,
-      subject: "Your clean has moved",
-      ...compose(
-        [
-          `Hi ${firstNameOf(client.name)},`,
-          `We've moved ${await describe(job, property)} from ${formatWhen(job.startsAt)} to ${formatWhen(startsAt)}.`,
-          "There's no charge for this. If the new time doesn't suit you, you can ask for another from your account, or call us.",
-        ],
-        portalLink(jobId),
-      ),
+      ...jobMovedEmail({
+        name: client.name,
+        jobId,
+        clean: await cleanOf(moved, property),
+        from: job.startsAt,
+      }),
     }),
   );
   await tellCrewOfMove(moved, property, crew, job.startsAt);
@@ -732,14 +690,11 @@ const tellLost = async (
     await notify(`Move of Job ${job.id} off Staff ${member.id}`, async () =>
       email.send({
         to: member.email,
-        subject: "You're no longer on a Job",
-        ...compose(
-          [
-            `Hi ${firstNameOf(member.name)},`,
-            `The ${await serviceNameOf(job.serviceId)} at ${addressOf(property)} has moved from ${formatWhen(fromStartsAt)} to ${formatWhen(job.startsAt)}, when you aren't free, so you're no longer on it. You don't need to go.`,
-          ],
-          { href: `${env.CORS_ORIGIN_URL}/cleaner`, label: "See your Jobs" },
-        ),
+        ...crewLostEmail({
+          name: member.name,
+          clean: await cleanOf(job, property),
+          from: fromStartsAt,
+        }),
       }),
     );
   }
