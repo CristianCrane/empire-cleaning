@@ -693,6 +693,7 @@ const detailOf = async (
       taxCents: day.taxCents,
       totalCents: day.totalCents,
     })),
+    serviceKey: days[0]!.serviceKey,
     startedAt: plan.startedAt.toISOString(),
     discountPercent: quote!.planDiscountPercent!,
     roundTotalCents: days.reduce((total, day) => total + day.totalCents, 0),

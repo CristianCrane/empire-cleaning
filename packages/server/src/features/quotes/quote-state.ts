@@ -14,6 +14,7 @@ import {
 } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import type {
+  OpenQuote,
   QuoteAsked,
   QuoteStatus,
   QuoteSummary,
@@ -107,6 +108,36 @@ export const headlineOf = (
   kind === "service_plan"
     ? options.reduce((total, o) => total + o.totalCents, 0)
     : options[0]!.totalCents;
+
+// the Quotes open at these Properties, for the "Request a Quote" form
+export const openQuotesAt = async (
+  propertyIds: string[],
+): Promise<OpenQuote[]> => {
+  if (propertyIds.length === 0) return [];
+  const rows = await db
+    .select({
+      propertyId: quotes.propertyId,
+      serviceKey: quotes.serviceKey,
+      kind: quotes.kind,
+      status: quotes.status,
+      expiresAt: offers.expiresAt,
+    })
+    .from(quotes)
+    .leftJoin(offers, eq(offers.id, quotes.sentRevisionId))
+    .where(
+      and(
+        inArray(quotes.propertyId, propertyIds),
+        inArray(quotes.status, ["requested", "draft", "sent"]),
+      ),
+    );
+  return rows
+    .filter((q) => isOpen(statusOf(q)))
+    .map(({ propertyId, serviceKey, kind }) => ({
+      propertyId,
+      serviceKey,
+      kind,
+    }));
+};
 
 /**
  * Each Property's First Clean, where it's Completed (ADR-0018): the first

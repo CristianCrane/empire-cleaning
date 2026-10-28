@@ -28,6 +28,7 @@ const caller = { name: "Pat Phoner", phone: "(718) 555-0123" };
 const entry = (who: object, changes: object = {}) => ({
   ...who,
   property: { new: home },
+  serviceKey: SEEDED.standard,
   condition: "moderate",
   wantsRegularService: false,
   addOns: [],

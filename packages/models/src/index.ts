@@ -20,6 +20,17 @@ export type SignedInAccount = {
 
 export type PropertyType = "house" | "apartment" | "townhouse";
 
+// a home's rooms, which price the Services priced from them. Known all
+// together or not at all: a home asked about only for a Service priced
+// otherwise (Painting) needn't give them.
+export type HomeRooms = {
+  bedrooms: number;
+  // half-baths allowed, e.g. 1.5
+  bathrooms: number;
+  storeys: number;
+  pets: boolean;
+};
+
 // a Property is a home, described by its rooms, or business premises,
 // described by their Premises Type and floor area (#72)
 export type PropertyKind = "residential" | "commercial";
@@ -37,17 +48,15 @@ type NewAddress = {
   accessInstructions?: string | null;
 };
 
-// a home, as the "Request a Quote" form describes it
-export type NewHome = NewAddress & {
-  kind: "residential";
-  type: PropertyType;
-  bedrooms: number;
-  // half-baths allowed, e.g. 1.5
-  bathrooms: number;
-  storeys: number;
-  pets: boolean;
-  floorArea?: number | null;
-};
+// a home, as the "Request a Quote" form describes it: its rooms where the
+// Service asked for is priced from them, and otherwise if the Client likes
+// (all four rooms, or none)
+export type NewHome = NewAddress &
+  Partial<HomeRooms> & {
+    kind: "residential";
+    type: PropertyType;
+    floorArea?: number | null;
+  };
 
 // business premises, as the "Request a Quote" form describes them; the floor
 // area is optional, as the Client may not know it (a Site Visit finds it)
@@ -81,10 +90,12 @@ export type OfficeContactDetails = Omit<ContactDetails, "email"> & {
 export type QuoteAsk = {
   contact?: ContactDetails | Omit<ContactDetails, "email">;
   businessName?: string | null;
-  property: { new: NewProperty } | { existing: string };
-  // the Service asked for, by key; without one, the first on offer for the
-  // kind of Property (until the form asks, #122)
-  serviceKey?: string;
+  // an existing home without its rooms gives them when the Service asked for
+  // is priced from them
+  property: { new: NewProperty } | { existing: string; rooms?: HomeRooms };
+  // the Service asked for, by key (see ServiceOffer)
+  serviceKey: string;
+  // a home's, where the Service says Condition applies
   condition?: Condition;
   wantsRegularService: boolean;
   // the Add-ons chosen, by their key (see AddOnChoice)
@@ -96,6 +107,16 @@ export type QuoteAsk = {
   // for a Service priced by area, a rough area in sq ft
   area?: number | null;
   notes?: string | null;
+};
+
+// a Quote open at a Property, as the "Request a Quote" form needs it to tell
+// whether that Property can be asked about for a Service (ADR-0018): its
+// Service, and whether it's one-off or for a Service Plan, or null while
+// Requested
+export type OpenQuote = {
+  propertyId: string;
+  serviceKey: string;
+  kind: QuoteKind | null;
 };
 
 // the reply: the Requested Quote, and where it will be emailed
@@ -135,13 +156,12 @@ type PropertyBase = {
   accessInstructions: string | null;
 };
 
+// its rooms are all null while they aren't known
 export type HomeView = PropertyBase & {
+  [K in keyof HomeRooms]: HomeRooms[K] | null;
+} & {
   kind: "residential";
   type: PropertyType;
-  bedrooms: number;
-  bathrooms: number;
-  storeys: number;
-  pets: boolean;
 };
 
 export type PremisesView = PropertyBase & {
@@ -209,7 +229,12 @@ export type ClientList = {
 // where it stands. A home's history is on its own page (ADR-0011).
 export type OfficeClientView = OfficeContactDetails & {
   id: string;
-  properties: (PropertyView & { status: PropertyStatus })[];
+  // each with its open Quotes, so a caller's ask can tell which Services
+  // it can be asked about for
+  properties: (PropertyView & {
+    status: PropertyStatus;
+    openQuotes: OpenQuote[];
+  })[];
   // how they're billed (ADR-0016)
   billing: ClientBilling;
 };
@@ -386,6 +411,18 @@ export type ServiceInput = {
   active: boolean;
 };
 
+// a Service as the "Request a Quote" form offers it: what the Client sees,
+// and what decides the questions asked about it. Open to Guests.
+export type ServiceOffer = Pick<
+  ServiceInput,
+  | "name"
+  | "description"
+  | "offeredFor"
+  | "method"
+  | "conditionApplies"
+  | "canRecur"
+> & { key: string };
+
 // a Service as a Quote names it, by key, with how it's priced
 export type ServiceChoice = {
   key: string;
@@ -549,10 +586,8 @@ export type PremisesFindings = {
   officeNotes?: string | null;
 };
 
-export type HomeFindings = Pick<
-  HomeView,
-  "type" | "bedrooms" | "bathrooms" | "storeys" | "pets"
-> & {
+export type HomeFindings = HomeRooms & {
+  type: PropertyType;
   floorArea?: number | null;
   condition: Condition;
   officeNotes?: string | null;
@@ -1577,6 +1612,9 @@ export type PlanDayView = {
 // Jobs come round on each of its weekdays at the time of the first there.
 export type ServicePlanView = Omit<ServicePlanSummary, "days"> & {
   days: PlanDayView[];
+  // the one Service it's for (ADR-0018), by key, which asking to change it
+  // asks for again
+  serviceKey: string;
   startedAt: string;
   discountPercent: number;
   // one round: a clean on each weekday, tax included

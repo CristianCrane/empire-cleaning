@@ -140,6 +140,44 @@ describe("a Quote for a Service priced by area", () => {
     expect(sent.offer!.area).toBe(900);
   });
 
+  test("at a home without its rooms can't become a cleaning Quote until they're recorded", async () => {
+    const office = await signInAsOffice();
+    const {
+      bedrooms: _b,
+      bathrooms: _ba,
+      storeys: _s,
+      pets: _p,
+      ...roomless
+    } = home;
+    const draft = await startDraft(
+      office,
+      await paintingAsk({ property: { new: roomless } }),
+    );
+
+    const cleaning = await save(office, draft, {
+      serviceKey: SEEDED.moveInOut,
+    });
+
+    expect(pricedOf(cleaning)).toMatchObject({
+      homeHours: [{ label: "Rooms not recorded yet", hours: 0 }],
+      priceCents: 10000,
+    });
+    const refused = await office
+      .post(`/api/quotes/${draft.id}/send`)
+      .expect(409);
+    expect(refused.body.message).toBe(
+      "This home's rooms aren't recorded yet, so the Quote can't be sent. Record them on the Property, then send it.",
+    );
+    const property = `/api/properties/${draft.property.id}`;
+    await office.patch(property).send({ bedrooms: 2 }).expect(400);
+    await office
+      .patch(property)
+      .send({ bedrooms: 2, bathrooms: 1, storeys: 1, pets: false })
+      .expect(200);
+    await save(office, cleaning, { serviceKey: SEEDED.moveInOut });
+    await office.post(`/api/quotes/${draft.id}/send`).expect(200);
+  });
+
   test("keeps a Sent Revision's area for the next one", async () => {
     const office = await signInAsOffice();
     const draft = await startDraft(office, await paintingAsk({ area: 1200 }));

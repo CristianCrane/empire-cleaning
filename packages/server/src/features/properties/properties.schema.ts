@@ -43,7 +43,9 @@ export const properties = pgTable(
     postcode: text("postcode").notNull(),
     // the address, normalised (see address.ts): one address is one home per Client
     addressKey: text("address_key").notNull(),
-    // price-affecting details: read-only to Clients once given. A home's:
+    // price-affecting details: read-only to Clients once given. A home's,
+    // whose rooms are known all together or not at all (a home asked about
+    // only for Painting needn't give them):
     type: propertyType("type"),
     bedrooms: integer("bedrooms"),
     bathrooms: numeric("bathrooms", {
@@ -59,7 +61,8 @@ export const properties = pgTable(
     // Site Visit
     floorArea: integer("floor_area"),
     // the latest known: stated by the Client, correctable by Staff. Business
-    // premises have none until a Site Visit records it
+    // premises have none until a Site Visit records it, nor has a home only
+    // asked about for a Service Condition doesn't apply to (Painting)
     condition: condition("condition"),
     // maintained by the Client; shown to Staff assigned to its Jobs
     accessInstructions: text("access_instructions"),
@@ -71,7 +74,9 @@ export const properties = pgTable(
   (t) => [
     check(
       "properties_kind_details",
-      sql`(${t.kind} = 'residential' and ${t.type} is not null and ${t.bedrooms} is not null and ${t.bathrooms} is not null and ${t.storeys} is not null and ${t.pets} is not null and ${t.condition} is not null and ${t.premisesTypeKey} is null)
+      sql`(${t.kind} = 'residential' and ${t.type} is not null and ${t.premisesTypeKey} is null
+          and ((${t.bedrooms} is not null and ${t.bathrooms} is not null and ${t.storeys} is not null and ${t.pets} is not null)
+            or (${t.bedrooms} is null and ${t.bathrooms} is null and ${t.storeys} is null and ${t.pets} is null)))
         or (${t.kind} = 'commercial' and ${t.premisesTypeKey} is not null and ${t.type} is null and ${t.bedrooms} is null and ${t.bathrooms} is null and ${t.storeys} is null and ${t.pets} is null)`,
     ),
     uniqueIndex("properties_client_id_address_key_idx").on(

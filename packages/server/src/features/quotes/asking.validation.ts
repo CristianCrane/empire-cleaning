@@ -34,12 +34,12 @@ export const floorArea = z
 
 export const premisesType = z.uuid("Choose the type of premises");
 
-export const newHomeSchema = z.object({
-  kind: z.literal("residential"),
-  type: z.enum(["house", "apartment", "townhouse"], {
-    error: "Choose the type of home",
-  }),
-  ...address,
+const homeType = z.enum(["house", "apartment", "townhouse"], {
+  error: "Choose the type of home",
+});
+
+// a home's rooms, all four together
+export const roomsSchema = z.object({
   bedrooms: z.number().int().min(0).max(20),
   bathrooms: z
     .number()
@@ -48,7 +48,24 @@ export const newHomeSchema = z.object({
     .multipleOf(0.5, "Use whole or half bathrooms, like 1.5"),
   storeys: z.number().int().min(1).max(5),
   pets: z.boolean(),
-  floorArea: z.number().int().min(100).max(100_000).nullish(),
+});
+
+const homeFloorArea = z.number().int().min(100).max(100_000).nullish();
+
+// its rooms are optional here: the Service asked for decides whether
+// they're needed (checkRooms)
+export const newHomeSchema = z.object({
+  kind: z.literal("residential"),
+  type: homeType,
+  ...address,
+  ...roomsSchema.partial().shape,
+  floorArea: homeFloorArea,
+});
+
+// a home's details found on a Site Visit: its rooms, as asking gives them
+export const homeDetailsSchema = roomsSchema.extend({
+  type: homeType,
+  floorArea: homeFloorArea,
 });
 
 export const newPremisesSchema = z.object({
@@ -73,8 +90,8 @@ export const conditionSchema = z.enum(["light", "moderate", "heavy"], {
 // one's once it's found.
 const request = {
   // the Service asked for, by key; checked against those on offer on submit
-  serviceKey: z.uuid("Choose a Service").optional(),
-  // a home's
+  serviceKey: z.uuid("Choose a Service"),
+  // a home's, where the Service says Condition applies (checked on submit)
   condition: conditionSchema.optional(),
   // the Add-ons chosen, by key; checked against the Price List on submit
   addOns: z.array(z.uuid()).max(50).optional(),
@@ -101,7 +118,7 @@ const request = {
 };
 
 type RequestFields = {
-  serviceKey?: string;
+  serviceKey: string;
   condition?: z.infer<typeof conditionSchema>;
   addOns?: string[];
   businessName?: string | null;
@@ -117,21 +134,17 @@ const issue = (path: (string | number)[], message: string) => ({
   input: undefined,
 });
 
-// A request's fields for its kind of Property: a home's states its
-// Condition and may choose Add-ons; business premises give, when new, the
-// business's name, and for regular cleaning the weekdays and a preferred
-// time, and state no Condition or Add-ons (a Site Visit finds those).
-// Returns the problems, for the form's fields.
+// A request's fields for its kind of Property: a home's may choose
+// Add-ons (its Condition depends on the Service: checkCondition); business
+// premises give, when new, the business's name, and for regular cleaning the
+// weekdays and a preferred time, and state no Condition or Add-ons (a Site
+// Visit finds those). Returns the problems, for the form's fields.
 export const checkForKind = (
   kind: "residential" | "commercial",
   fields: RequestFields,
   { isNew }: { isNew: boolean },
 ) => {
-  if (kind === "residential") {
-    return fields.condition
-      ? []
-      : [issue(["condition"], "Choose how much cleaning the home needs")];
-  }
+  if (kind === "residential") return [];
   const problems = [];
   if (isNew && !fields.businessName) {
     problems.push(issue(["businessName"], "Enter the business's name"));
@@ -157,6 +170,42 @@ export const checkForKind = (
   return problems;
 };
 
+const ROOMS = ["bedrooms", "bathrooms", "storeys", "pets"] as const;
+
+// A home's rooms, as a request or correction gives them: all four, or none.
+// Where the Service is priced from rooms (`needed`), a home that has none
+// must give them. `at` is where they are in the request.
+export const checkRooms = (
+  given: Partial<Record<(typeof ROOMS)[number], unknown>> | undefined,
+  { needed, at }: { needed: boolean; at: string[] },
+) => {
+  const missing = ROOMS.filter(
+    (r) => given?.[r] === undefined || given[r] === null,
+  );
+  if (missing.length === 0 || (missing.length === ROOMS.length && !needed)) {
+    return [];
+  }
+  return missing.map((r) =>
+    issue(
+      [...at, r],
+      needed
+        ? "Tell us about the home's rooms"
+        : "Give all of the home's rooms, or none",
+    ),
+  );
+};
+
+// a home's request states its Condition where the Service asked for says
+// Condition applies
+export const checkCondition = (
+  kind: "residential" | "commercial",
+  conditionApplies: boolean,
+  fields: Pick<RequestFields, "condition">,
+) =>
+  kind === "residential" && conditionApplies && !fields.condition
+    ? [issue(["condition"], "Choose how much cleaning the home needs")]
+    : [];
+
 // a new Property's request has the fields its kind needs
 const forKind = (
   submission: RequestFields & {
@@ -171,6 +220,13 @@ const forKind = (
     ctx.addIssue(problem);
   }
 };
+
+// a new Property, or one of the Client's, which, being a home without its
+// rooms, may give them
+const existingOrNew = z.union([
+  z.object({ new: newPropertySchema }),
+  z.object({ existing: z.uuid(), rooms: roomsSchema.optional() }),
+]);
 
 // a Guest: full contact details and a new Property
 export const guestSubmission = z
@@ -194,10 +250,7 @@ export const accountSubmission = z
 export const clientSubmission = z
   .object({
     ...request,
-    property: z.union([
-      z.object({ new: newPropertySchema }),
-      z.object({ existing: z.uuid() }),
-    ]),
+    property: existingOrNew,
   })
   .superRefine(forKind);
 
@@ -213,15 +266,7 @@ export const officeNotes = z
 // the Office correcting a Property's details (the address is its identity,
 // so it isn't correctable, and nor is whether it's a home); send only what
 // changes
-export const homeCorrectionSchema = newHomeSchema
-  .pick({
-    type: true,
-    bedrooms: true,
-    bathrooms: true,
-    storeys: true,
-    pets: true,
-    floorArea: true,
-  })
+export const homeCorrectionSchema = homeDetailsSchema
   .extend({ condition: conditionSchema, officeNotes })
   .partial()
   .refine((changes) => Object.keys(changes).length > 0, "Nothing to change");
@@ -249,10 +294,7 @@ export const officeSubmission = z
           .nullish(),
       })
       .optional(),
-    property: z.union([
-      z.object({ new: newPropertySchema }),
-      z.object({ existing: z.uuid() }),
-    ]),
+    property: existingOrNew,
   })
   .refine((s) => (s.clientId === undefined) !== (s.contact === undefined), {
     path: ["clientId"],

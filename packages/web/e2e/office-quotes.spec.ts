@@ -5,6 +5,7 @@ import {
   emailsTo,
   expect,
   nextStep,
+  chooseService,
   requestQuoteAsGuest,
   requestQuoteForPremises,
   signedInAs,
@@ -48,6 +49,7 @@ test(
     ).toBeFocused();
 
     await page.getByRole("button", { name: "New Client" }).click();
+    await chooseService(page);
     await describeNewHome(page);
     await expectNoViolations(page);
     await nextStep(page);
@@ -105,7 +107,9 @@ test(
     await expect(
       page.getByRole("heading", { name: "Casey Client" }),
     ).toBeVisible();
+    await chooseService(page);
     // its request is still waiting, so that home can't be asked about again
+    // for this
     await expect(
       page.getByRole("radio", { name: /41-12 Austin St/ }),
     ).toBeDisabled();

@@ -8,6 +8,7 @@ import {
   expect,
   signedInAs,
   test,
+  serviceKey,
 } from "./harness.ts";
 
 const olive = {
@@ -97,6 +98,7 @@ const askAgain = async () => {
           accessInstructions: "Ring 4B; the doorman has a key.",
         },
       },
+      serviceKey: await serviceKey("Standard Clean"),
       condition: "moderate",
       wantsRegularService: true,
       notes: null,
@@ -422,6 +424,7 @@ test("a home whose First Clean isn't Completed is answered with a one-off Quote"
           pets: false,
         },
       },
+      serviceKey: await serviceKey("Standard Clean"),
       condition: "moderate",
       wantsRegularService: true,
       addOns: [],

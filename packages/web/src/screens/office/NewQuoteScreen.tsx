@@ -123,17 +123,13 @@ export function NewQuoteScreen() {
   );
 }
 
-// a Client's homes for the form, those with a Quote open not offered
+// a Client's homes for the form, with their open Quotes, so a home isn't
+// offered for a Service one of them would overlap
 const homesOf = (client: OfficeClientView) => ({
   id: client.id,
   businessName: client.businessName,
   properties: client.properties,
-  waiting: client.properties
-    .filter(
-      (p) =>
-        p.status.kind === "quote_requested" || p.status.kind === "quote_sent",
-    )
-    .map((p) => p.id),
+  open: client.properties.flatMap((p) => p.openQuotes),
 });
 
 // the Clients search, as on the Clients screen: name, email, phone or

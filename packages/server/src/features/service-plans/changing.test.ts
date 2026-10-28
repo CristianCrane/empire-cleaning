@@ -293,6 +293,7 @@ describe("a Client asking to change their plan", () => {
       .post("/api/quotes/ask")
       .send({
         property: { existing: property.id },
+        serviceKey: SEEDED.standard,
         condition: "moderate",
         wantsRegularService: true,
         notes: "Could we move to Wednesdays, every 2 weeks?",

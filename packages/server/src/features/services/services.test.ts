@@ -158,6 +158,29 @@ describe("Services", () => {
     ).toMatchObject({ active: false, name: "Move-in/out Clean" });
   });
 
+  test("on offer are listed for the Quote form, open to Guests, without their figures", async () => {
+    const office = await signInAsOffice();
+    await setService(office, "moveInOut", { active: false });
+
+    const res = await api().get("/api/services/on-offer").expect(200);
+
+    expect(res.body.map((s: { name: string }) => s.name)).toEqual([
+      "Standard Clean",
+      "Deep Clean",
+      "Commercial cleaning",
+      "Painting",
+    ]);
+    expect(res.body[3]).toEqual({
+      key: SEEDED.painting,
+      name: "Painting",
+      description: expect.any(String),
+      offeredFor: "both",
+      method: "area",
+      conditionApplies: false,
+      canRecur: false,
+    });
+  });
+
   test("explain what's wrong, field by field", async () => {
     const office = await signInAsOffice();
 

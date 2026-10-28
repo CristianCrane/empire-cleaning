@@ -5,6 +5,7 @@ import {
   createStaff,
   expect,
   nextStep,
+  chooseService,
   requestQuoteAsGuest,
   test,
 } from "./harness.ts";
@@ -43,6 +44,7 @@ test(
     await signInAs(page, "new@example.com");
     await expect(page).toHaveURL("/welcome");
 
+    await chooseService(page);
     await describeNewHome(page);
     await nextStep(page);
     await nextStep(page);
@@ -67,18 +69,27 @@ test("a home with a Quote open can't be asked about again, and points to it", as
   await signInAs(page, casey.email);
   await page.getByRole("link", { name: "Request a Quote" }).click();
   await expect(page).toHaveURL("/portal/request");
+  await expect(
+    page.getByText("We're preparing your Quote for 41-12 Austin St"),
+  ).toBeVisible();
 
-  // their home is listed, but not selectable: its Quote is on the way
+  // their home is listed, but not selectable for the same Service: its
+  // Quote is on the way
+  await chooseService(page);
   const existing = page.getByRole("radio", {
     name: /41-12 Austin St, 4B, 11375/,
   });
   await expect(existing).toBeDisabled();
   await expect(
-    page.getByText("This home has a Quote open already."),
+    page.getByText("This home has a Quote open already for this."),
   ).toBeVisible();
-  await expect(
-    page.getByText("We're preparing your Quote for 41-12 Austin St"),
-  ).toBeVisible();
+
+  // but it can be for Painting, which can't overlap a Standard Clean
+  await page.getByRole("button", { name: "Back" }).click();
+  await chooseService(page, "Painting");
+  await expect(existing).toBeEnabled();
+  await page.getByRole("button", { name: "Back" }).click();
+  await chooseService(page);
 
   // typing the same address another way is still the same home
   await page.getByText("A different home", { exact: true }).click();
@@ -130,11 +141,40 @@ test("a Client sees a Quote they asked for in Your Quotes, as they asked it", as
   await expect(page.getByRole("button", { name: /Accept/ })).toBeHidden();
 });
 
+test("a home asked about only for Painting gives its rooms when it's asked about for cleaning", async ({
+  page,
+}) => {
+  await signInAs(page, "new@example.com");
+  await chooseService(page, "Painting");
+  await describeNewHome(page);
+  await nextStep(page);
+  // only cleaning is priced from a home's rooms
+  await expect(page.getByText("Bedrooms", { exact: true })).toHaveCount(0);
+  await nextStep(page);
+  await page.getByRole("textbox", { name: "Full name" }).fill("Nina New");
+  await page.getByRole("textbox", { name: "Phone" }).fill("(718) 555-0111");
+  await page.getByRole("button", { name: "Request a Quote" }).click();
+  await expect(page).toHaveURL("/portal");
+
+  await page.getByRole("link", { name: "Request a Quote" }).click();
+  await chooseService(page, "Move-in/out Clean");
+  await expect(
+    page.getByRole("radio", { name: /35-06 Ditmars Blvd/ }),
+  ).toBeChecked();
+  await nextStep(page);
+  await page.getByRole("textbox", { name: "Bedrooms" }).fill("3");
+  await page.getByRole("button", { name: "Request a Quote" }).click();
+
+  await expect(page).toHaveURL("/portal");
+  await expect(page.getByText(/Apartment · 3 bedrooms/).first()).toBeVisible();
+});
+
 test("a Client asks about a second home", async ({ page }) => {
   await requestQuoteAsGuest(casey);
   await signInAs(page, casey.email);
   await page.goto("/portal/request");
 
+  await chooseService(page);
   await page.getByText("A different home", { exact: true }).click();
   await describeNewHome(page);
   await nextStep(page);
@@ -183,6 +223,7 @@ test("the API's explanation shows beside the field", async ({ page }) => {
   await signInAs(page, casey.email);
   await page.goto("/portal/request");
 
+  await chooseService(page);
   await page.getByText("A different home", { exact: true }).click();
   await describeNewHome(page, { zip: "1137" });
   await nextStep(page);
@@ -369,8 +410,10 @@ for (const theme of ["light", "dark"] as const) {
       async ({ page }) => {
         await signInAs(page, "new@example.com");
         await expect(
-          page.getByRole("textbox", { name: "Street address" }),
+          page.getByRole("radio", { name: /^Standard Clean/ }),
         ).toBeVisible();
+        await expectNoViolations(page);
+        await chooseService(page);
         await expectNoViolations(page);
         await describeNewHome(page);
         await nextStep(page);

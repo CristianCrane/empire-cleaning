@@ -8,6 +8,7 @@ import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { currentPriceList } from "../price-list/price-list.ts";
 import {
+  checkRooms,
   homeCorrectionSchema,
   premisesCorrectionSchema,
 } from "../quotes/asking.validation.ts";
@@ -75,6 +76,7 @@ router.patch(
 // keeps the details they first gave, and asks for a new Quote to change them.
 // A home's are its rooms; business premises' their Premises Type (one on
 // offer, or the one they have) and floor area. Either's Condition.
+// A home whose rooms aren't known yet gets them all together.
 router.patch(
   "/:id",
   authorize("office_staff"),
@@ -113,6 +115,13 @@ router.patch(
     } else {
       const parsed = homeCorrectionSchema.safeParse(req.body);
       if (!parsed.success) throw new RequestBodyError(parsed.error);
+      // a home without its rooms is given all four at once
+      const problems =
+        property.bedrooms === null
+          ? checkRooms(parsed.data, { needed: false, at: [] })
+          : [];
+      if (problems.length > 0)
+        throw new RequestBodyError(new z.ZodError(problems));
       changes = parsed.data;
     }
 

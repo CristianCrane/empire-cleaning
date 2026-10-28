@@ -36,8 +36,9 @@ const sqFt = new Intl.NumberFormat("en-US");
 // 4500 -> "4,500 sq ft"
 export const formatFloorArea = (area: number) => `${sqFt.format(area)} sq ft`;
 
-// what a Property is: "Apartment · 2 bedrooms · 1.5 bathrooms", or
-// "Office · 4,500 sq ft" for business premises
+// what a Property is: "Apartment · 2 bedrooms · 1.5 bathrooms" ("Apartment ·
+// rooms not known yet" before they're given), or "Office · 4,500 sq ft" for
+// business premises
 export const propertySummary = (p: PropertyView) =>
   p.kind === "commercial"
     ? [
@@ -48,8 +49,12 @@ export const propertySummary = (p: PropertyView) =>
       ].join(" · ")
     : [
         p.type[0]!.toUpperCase() + p.type.slice(1),
-        p.bedrooms === 0 ? "Studio" : plural(p.bedrooms, "bedroom"),
-        plural(p.bathrooms, "bathroom"),
+        ...(p.bedrooms === null
+          ? ["rooms not known yet"]
+          : [
+              p.bedrooms === 0 ? "Studio" : plural(p.bedrooms, "bedroom"),
+              plural(p.bathrooms!, "bathroom"),
+            ]),
       ].join(" · ");
 
 // a Client as the Office names them: "Acme Dental (Casey Client)" for a

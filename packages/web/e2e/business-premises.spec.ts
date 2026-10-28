@@ -4,6 +4,7 @@ import {
   createStaff,
   expect,
   nextStep,
+  chooseService,
   requestQuoteForPremises,
   signedInAs,
   test,
@@ -30,7 +31,7 @@ const choose = async (page: Page, label: RegExp, option: string) => {
 // the shared form's first two steps for new business premises: where they
 // are, then what they are
 const describeNewPremises = async (page: Page) => {
-  await page.getByText("Business premises", { exact: true }).click();
+  await chooseService(page, "Commercial cleaning");
   await page
     .getByRole("textbox", { name: "Street address" })
     .fill("200 Park Ave S");
@@ -195,7 +196,7 @@ test("Office Staff quote a business caller from New Quote", async ({
   await page.goto("/office/quotes/new");
 
   await page.getByRole("button", { name: "New Client" }).click();
-  await page.getByText("Business premises", { exact: true }).click();
+  await chooseService(page, "Commercial cleaning");
   await page.getByRole("textbox", { name: "Street address" }).fill("9 Main St");
   await page.getByRole("textbox", { name: "ZIP code" }).fill("11375");
   await nextStep(page);

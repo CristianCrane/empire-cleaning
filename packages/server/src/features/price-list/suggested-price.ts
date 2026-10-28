@@ -1,4 +1,5 @@
 import type {
+  HomeRooms,
   Condition,
   PriceBreakdown,
   PriceList,
@@ -34,17 +35,12 @@ const hoursUnits = (hours: number) => Math.round(hours * HOURS);
 const multiplierUnits = (multiplier: number) =>
   Math.round(multiplier * MULTIPLIER);
 
-// what is priced: a home by its rooms, or business premises by their
-// Premises Type, and for a Service priced by area, the area it's priced on
-// (ADR-0018), which has no hours until it's known
+// what is priced: a home by its rooms, which have no hours until they're
+// known, or business premises by their Premises Type, and for a Service
+// priced by area, the area it's priced on (ADR-0018), which has no hours
+// until it's known either
 export type Priced = (
-  | {
-      kind: "residential";
-      bedrooms: number;
-      bathrooms: number;
-      storeys: number;
-      pets: boolean;
-    }
+  | { kind: "residential"; rooms: HomeRooms | null }
   | {
       kind: "commercial";
       premisesTypeKey: string;
@@ -52,7 +48,7 @@ export type Priced = (
 ) & { area: number | null };
 
 // a Property row as priced, on an area (its floor area unless said);
-// the database guarantees each kind's details
+// the database guarantees each kind's details, a home's rooms all or none
 export const pricedOf = (
   p: {
     kind: "residential" | "commercial";
@@ -69,19 +65,22 @@ export const pricedOf = (
     ? { kind: "commercial", premisesTypeKey: p.premisesTypeKey!, area }
     : {
         kind: "residential",
-        bedrooms: p.bedrooms!,
-        bathrooms: p.bathrooms!,
-        storeys: p.storeys!,
-        pets: p.pets!,
+        rooms:
+          p.bedrooms === null
+            ? null
+            : {
+                bedrooms: p.bedrooms,
+                bathrooms: p.bathrooms!,
+                storeys: p.storeys!,
+                pets: p.pets!,
+              },
         area,
       };
 
 const sqFt = new Intl.NumberFormat("en-US");
 
-const homeParts = (
-  hours: RoomHours,
-  home: Extract<Priced, { kind: "residential" }>,
-) => {
+const homeParts = (hours: RoomHours, home: HomeRooms | null) => {
+  if (home === null) return [{ label: "Rooms not recorded yet", units: 0 }];
   const extraStoreys = Math.max(0, home.storeys - 1);
   return [
     {
@@ -204,7 +203,7 @@ export const suggestedPrice = (
       ? areaParts(list, service, property)
       : homeParts(
           service.roomHours!,
-          property as Extract<Priced, { kind: "residential" }>,
+          (property as Extract<Priced, { kind: "residential" }>).rooms,
         );
   const { hourlyRateCents, minimumChargeCents } = service;
   const taxPercent = service.taxOneOffPercent;

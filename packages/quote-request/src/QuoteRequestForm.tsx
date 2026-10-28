@@ -3,14 +3,17 @@ import { Building2, House, Houses, Store } from "lucide-react";
 import type {
   AddOnChoice,
   Condition,
+  HomeRooms,
   NewHome,
   NewPremises,
+  OpenQuote,
   PremisesTypeChoice,
   PropertyKind,
   PropertyType,
   PropertyView,
   QuoteAskReceipt,
   QuoteAsk,
+  ServiceOffer,
   Weekday,
 } from "@empire-cleaning/models";
 import {
@@ -36,6 +39,7 @@ import {
 import { loadAddOns } from "./add-ons.ts";
 import { Optional } from "./Optional.tsx";
 import { loadPremisesTypes } from "./premises-types.ts";
+import { isHeld, loadServices, offeredAt } from "./services.ts";
 import { submitQuoteRequest, type SubmitResult } from "./submit.ts";
 
 // who is asking, which decides what the form needs from them (ADR-0006)
@@ -45,12 +49,12 @@ export type Asker =
   // signed up but not yet a Client: their proven email is used
   | { kind: "account"; email: string }
   // a Client: a new home or one of theirs; their details are already known.
-  // A home with a Quote open can't be asked about again, so it is
+  // A home with a Quote open that the Service asked for would overlap is
   // listed but not selectable. A business Client's name isn't asked again.
   | {
       kind: "client";
       properties: PropertyView[];
-      waiting?: string[];
+      open?: OpenQuote[];
       businessName?: string | null;
     }
   // Office Staff entering a caller's request (#34): for a Client they found,
@@ -60,7 +64,7 @@ export type Asker =
       client: {
         id: string;
         properties: PropertyView[];
-        waiting: string[];
+        open: OpenQuote[];
         businessName: string | null;
       } | null;
     };
@@ -80,7 +84,11 @@ export type QuoteRequestFormProps<R = QuoteAskReceipt> = {
 // the form speaks to whoever fills it in: the person asking, or Office Staff
 // on a caller's behalf
 const ownWords = {
-  what: "What needs cleaning?",
+  need: "What you need",
+  service: "What can we help with?",
+  servicesFailed:
+    "We couldn't load what we offer. Please try again, or call us on (646) 320-9076.",
+  what: "What kind of place is it?",
   details: "Your details",
   email: "Email",
   emailNote: "We'll email your Quote here.",
@@ -92,15 +100,18 @@ const ownWords = {
   regular:
     "After my first clean, I'd like regular visits (weekly, bi-weekly or monthly) at 10% off.",
   submit: "Request a Quote",
-  waiting: "This home has a Quote open already.",
-  premisesWaiting: "These premises have a Quote open already.",
+  waiting: "This home has a Quote open already for this.",
+  premisesWaiting: "These premises have a Quote open already for this.",
   businessName: "Business name",
   contactNote: "The person we'll deal with at the business.",
   failed:
     "Your request didn't go through. Please try again, or call us on (646) 320-9076.",
 };
 const officeWords: typeof ownWords = {
-  what: "What needs cleaning?",
+  need: "What they need",
+  service: "What can we help them with?",
+  servicesFailed: "The Services didn't load. Please try again.",
+  what: "What kind of place is it?",
   details: "Their details",
   email: "Email (optional)",
   emailNote:
@@ -113,8 +124,8 @@ const officeWords: typeof ownWords = {
   regular:
     "After their first clean, they'd like regular visits (weekly, bi-weekly or monthly) at 10% off.",
   submit: "Draft a Quote",
-  waiting: "This home has a Quote open already.",
-  premisesWaiting: "These premises have a Quote open already.",
+  waiting: "This home has a Quote open already for this.",
+  premisesWaiting: "These premises have a Quote open already for this.",
   businessName: "Business name",
   contactNote: "The person we'll deal with at the business.",
   failed: "The request didn't save. Please try again.",
@@ -152,12 +163,16 @@ const blankHome: NewHome = {
   street: "",
   unit: "",
   postcode: "",
+  floorArea: null,
+  accessInstructions: "",
+};
+
+// a home's rooms, as asked before anything is changed
+const blankRooms: HomeRooms = {
   bedrooms: 2,
   bathrooms: 1,
   storeys: 1,
   pets: false,
-  floorArea: null,
-  accessInstructions: "",
 };
 
 const blankPremises: NewPremises = {
@@ -195,16 +210,17 @@ const startTimes = Array.from({ length: 37 }, (_, i) => {
 const addressOf = (p: Pick<PropertyView, "street" | "unit" | "postcode">) =>
   [p.street, p.unit, p.postcode].filter(Boolean).join(", ");
 
-// the fields on the first step: what the place is and where. A message from
-// the API for any of them sends the form back there.
+// the fields on the second step: what the place is and where. A message
+// from the API for any of them sends the form back there.
 const WHERE_FIELDS =
   /^(property\.existing|property\.new\.(type|street|unit|postcode))$/;
 
 // the Request a Quote form, shared by the landing page (Guests), the Client
 // portal and the Office (callers). It asks in steps, so only a few fields
-// show at once (#96): what and where, then about the place, then who is
-// asking (when the form needs that). The API validates everything; its
-// messages show beside each field, on its step.
+// show at once (#96): the Service, from those on offer now (#122), then what
+// and where, then about the place, asking only what that Service needs, then
+// who is asking (when the form needs that). The API validates everything;
+// its messages show beside each field, on its step.
 export function QuoteRequestForm<R = QuoteAskReceipt>({
   asker,
   apiUrl = "",
@@ -221,7 +237,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
         ? asker.client
         : null;
   const ownPlaces = placesOf?.properties ?? [];
-  const waiting = new Set(placesOf?.waiting);
+  const open = placesOf?.open ?? [];
   // a business Client's name, which isn't asked again
   const knownBusinessName = placesOf?.businessName ?? null;
   // contact details: a Guest's or Account's own, or a new caller's
@@ -229,16 +245,21 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
     asker.kind === "guest" ||
     asker.kind === "account" ||
     (asker.kind === "office" && !asker.client);
+  const [services, setServices] = useState<ServiceOffer[]>();
+  const [serviceKey, setServiceKey] = useState<string | null>(null);
+  const service = services?.find((s) => s.key === serviceKey);
+  // whether a Property can't be asked about for the Service chosen
+  const held = (propertyId: string) =>
+    !!services &&
+    !!serviceKey &&
+    isHeld(services, open, propertyId, serviceKey);
   const firstFree = (kind: PropertyKind) =>
-    ownPlaces.find((p) => p.kind === kind && !waiting.has(p.id));
+    ownPlaces.find((p) => p.kind === kind && !held(p.id));
   const [contact, setContact] = useState({ name: "", email: "", phone: "" });
-  const [kind, setKind] = useState<PropertyKind>(
-    firstFree("residential") || !firstFree("commercial")
-      ? "residential"
-      : "commercial",
-  );
-  const [place, setPlace] = useState<string>(firstFree(kind)?.id ?? NEW_PLACE);
+  const [kind, setKind] = useState<PropertyKind>("residential");
+  const [place, setPlace] = useState<string>(NEW_PLACE);
   const [newHome, setNewHome] = useState<NewHome>(blankHome);
+  const [rooms, setRooms] = useState<HomeRooms>(blankRooms);
   const [newPremises, setNewPremises] = useState<NewPremises>(blankPremises);
   const [condition, setCondition] = useState<Condition>(
     firstFree("residential")?.condition ?? "moderate",
@@ -246,6 +267,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
   const [offered, setOffered] = useState<AddOnChoice[]>([]);
   const [premisesTypes, setPremisesTypes] = useState<PremisesTypeChoice[]>();
   const [chosen, setChosen] = useState<string[]>([]);
+  const [area, setArea] = useState<number | null>(null);
   const [wantsRegularService, setWantsRegularService] = useState(false);
   const [businessName, setBusinessName] = useState("");
   // business premises: regular cleaning on some weekdays, or a one-off
@@ -260,25 +282,88 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
   const [step, setStep] = useState(0);
 
   useEffect(() => {
-    void loadAddOns(apiUrl).then(setOffered);
+    void loadServices(apiUrl).then(setServices);
   }, [apiUrl]);
+  // a home's Add-ons are the Service's own
+  useEffect(() => {
+    if (!serviceKey) return;
+    void loadAddOns(apiUrl, serviceKey).then(setOffered);
+  }, [apiUrl, serviceKey]);
   useEffect(() => {
     void loadPremisesTypes(apiUrl).then(setPremisesTypes);
   }, [apiUrl]);
 
   const premises = kind === "commercial";
   const places = ownPlaces.filter((p) => p.kind === kind);
+  // the kinds of place the Service is offered for: both, or only one, which
+  // then isn't asked
+  const forHomes = !service || offeredAt(service, false);
+  const forPremises = !service || offeredAt(service, true);
+  // a Service priced by area that Condition doesn't apply to, like
+  // Painting, is for part of a place: the Client gives a rough area to work
+  // on. Commercial cleaning's is the premises' floor area, asked about them.
+  const asksArea = service?.method === "area" && !service.conditionApplies;
+  const asksCondition = !premises && !!service?.conditionApplies;
+  // a home's rooms, where the Service is priced from them: a new home's, or
+  // one of the Client's that hasn't given them yet (it was asked about only
+  // for something else, like Painting)
+  const asksRooms = !premises && service?.method === "rooms";
+  const chosenPlace = places.find((p) => p.id === place);
+  const givesRooms =
+    asksRooms &&
+    chosenPlace?.kind === "residential" &&
+    chosenPlace.bedrooms === null;
+  const canRecur = !!service?.canRecur;
+
+  // a place to start from at a kind of place: the first that can be asked
+  // about for the Service, or a new one
+  const startAt = (next: PropertyKind, key: string | null) => {
+    const free = ownPlaces.find(
+      (p) =>
+        p.kind === next &&
+        !(services && key && isHeld(services, open, p.id, key)),
+    );
+    setPlace(free?.id ?? NEW_PLACE);
+    if (free?.condition) setCondition(free.condition);
+  };
 
   const chooseKind = (next: PropertyKind) => {
     setKind(next);
-    setPlace(firstFree(next)?.id ?? NEW_PLACE);
+    startAt(next, serviceKey);
     setFieldErrors({});
     setRefusal(undefined);
   };
 
+  // the kind of place follows the Service: where it's offered for only one,
+  // that one; otherwise where the Client has a place free to ask about
+  const chooseService = (key: string) => {
+    const next = services!.find((s) => s.key === key)!;
+    setServiceKey(key);
+    setChosen([]);
+    setFieldErrors({});
+    setRefusal(undefined);
+    const homes = offeredAt(next, false);
+    const businesses = offeredAt(next, true);
+    const free = (k: PropertyKind) =>
+      ownPlaces.some(
+        (p) => p.kind === k && !isHeld(services!, open, p.id, key),
+      );
+    const nextKind: PropertyKind = !businesses
+      ? "residential"
+      : !homes
+        ? "commercial"
+        : free("residential") || !free("commercial")
+          ? "residential"
+          : "commercial";
+    setKind(nextKind);
+    startAt(nextKind, key);
+  };
+
   // the new Property as the API takes it: empty optional fields as null
   const newPlace = () => {
-    const fresh = premises ? newPremises : newHome;
+    const fresh = premises
+      ? newPremises
+      : { ...newHome, ...(asksRooms && rooms) };
     return {
       ...fresh,
       unit: fresh.unit || null,
@@ -300,20 +385,28 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
       (asker.client
         ? { clientId: asker.client.id }
         : { contact: { ...contact, email: contact.email || null } })),
-    property: place === NEW_PLACE ? { new: newPlace() } : { existing: place },
+    property:
+      place === NEW_PLACE
+        ? { new: newPlace() }
+        : { existing: place, ...(givesRooms && { rooms }) },
+    serviceKey: serviceKey!,
     notes: notes || null,
+    ...(asksArea && { area }),
     ...(premises
       ? {
           businessName: knownBusinessName ?? (businessName || null),
-          wantsRegularService: regular,
-          weekdays: regular
-            ? weekdays.map((w) => w.day).filter((d) => days.includes(String(d)))
-            : [],
-          preferredTime: regular ? preferredTime : null,
+          wantsRegularService: canRecur && regular,
+          weekdays:
+            canRecur && regular
+              ? weekdays
+                  .map((w) => w.day)
+                  .filter((d) => days.includes(String(d)))
+              : [],
+          preferredTime: canRecur && regular ? preferredTime : null,
         }
       : {
-          condition,
-          wantsRegularService,
+          ...(asksCondition && { condition }),
+          wantsRegularService: canRecur && wantsRegularService,
           // in the order offered, only those still offered
           addOns: offered
             .filter((a) => chosen.includes(a.key))
@@ -324,10 +417,35 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
   // a field's message from the API, by its path in the request
   const error = (path: string) => fieldErrors[path];
 
+  // the Services on offer, each with what it is. Nothing is chosen at first:
+  // the Client says what they want.
+  const serviceField =
+    services?.length === 0 ? (
+      <Notice tone="danger">{words.servicesFailed}</Notice>
+    ) : (
+      services && (
+        <RadioGroup
+          label={words.service}
+          name="serviceKey"
+          isRequired
+          value={serviceKey}
+          onChange={chooseService}
+          errorMessage={error("serviceKey")}
+        >
+          {services.map((s) => (
+            <Radio key={s.key} value={s.key} description={s.description}>
+              {s.name}
+            </Radio>
+          ))}
+        </RadioGroup>
+      )
+    );
+
   // one question for what kind of place and, for a home, its type: business
   // premises are just another kind of place (#96). A home's type only
-  // matters for a new one.
-  const kindField = (
+  // matters for a new one. A Service for business premises alone doesn't
+  // ask it.
+  const kindField = !forHomes ? null : (
     <ChoiceTiles
       label={words.what}
       name="property.new.type"
@@ -348,9 +466,11 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
       <ChoiceTile value="townhouse" icon={Houses}>
         Townhouse
       </ChoiceTile>
-      <ChoiceTile value="commercial" icon={Store}>
-        Business premises
-      </ChoiceTile>
+      {forPremises && (
+        <ChoiceTile value="commercial" icon={Store}>
+          Business premises
+        </ChoiceTile>
+      )}
     </ChoiceTiles>
   );
 
@@ -427,9 +547,9 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
             <Radio
               key={p.id}
               value={p.id}
-              isDisabled={waiting.has(p.id)}
+              isDisabled={held(p.id)}
               description={
-                waiting.has(p.id)
+                held(p.id)
                   ? premises
                     ? words.premisesWaiting
                     : words.waiting
@@ -468,6 +588,22 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
     </>
   );
 
+  // the rough area to work on, for a Service like Painting: its main
+  // question, so it comes first
+  const areaField = asksArea && (
+    <NumberField
+      label="Area in sq ft (optional)"
+      name="area"
+      description="Roughly how much there is to do. If you're not sure, we'll measure on our visit."
+      minValue={10}
+      maxValue={1_000_000}
+      step={50}
+      value={area ?? Number.NaN}
+      onChange={(value) => setArea(Number.isNaN(value) ? null : value)}
+      errorMessage={error("area")}
+    />
+  );
+
   const notesField = (
     <Optional add="Add a note" shown={!!notes || !!error("notes")}>
       <TextField
@@ -483,30 +619,49 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
 
   const homeFields = (
     <>
+      {areaField}
       {place === NEW_PLACE && (
         <NewHomeFields
           home={newHome}
+          rooms={asksRooms ? rooms : null}
           update={(change) =>
             setNewHome((current) => ({ ...current, ...change }))
+          }
+          updateRooms={(change) =>
+            setRooms((current) => ({ ...current, ...change }))
           }
           error={error}
         />
       )}
-      <SegmentedControl
-        label="How much cleaning does it need?"
-        name="condition"
-        isRequired
-        value={condition}
-        onChange={(value) => setCondition(value as Condition)}
-        description={conditions.find((c) => c.value === condition)?.description}
-        errorMessage={error("condition")}
-      >
-        {conditions.map((c) => (
-          <Segment key={c.value} value={c.value}>
-            {c.label}
-          </Segment>
-        ))}
-      </SegmentedControl>
+      {givesRooms && (
+        <RoomsFields
+          rooms={rooms}
+          at="property.rooms"
+          update={(change) =>
+            setRooms((current) => ({ ...current, ...change }))
+          }
+          error={error}
+        />
+      )}
+      {asksCondition && (
+        <SegmentedControl
+          label="How much cleaning does it need?"
+          name="condition"
+          isRequired
+          value={condition}
+          onChange={(value) => setCondition(value as Condition)}
+          description={
+            conditions.find((c) => c.value === condition)?.description
+          }
+          errorMessage={error("condition")}
+        >
+          {conditions.map((c) => (
+            <Segment key={c.value} value={c.value}>
+              {c.label}
+            </Segment>
+          ))}
+        </SegmentedControl>
+      )}
       {offered.length > 0 && (
         <ChipGroup
           label="Any extras?"
@@ -521,28 +676,20 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
           ))}
         </ChipGroup>
       )}
-      <Checkbox
-        isSelected={wantsRegularService}
-        onChange={setWantsRegularService}
-      >
-        {words.regular}
-      </Checkbox>
+      {canRecur && (
+        <Checkbox
+          isSelected={wantsRegularService}
+          onChange={setWantsRegularService}
+        >
+          {words.regular}
+        </Checkbox>
+      )}
     </>
   );
 
-  const premisesFields = (
+  // when business premises want cleaning, for a Service that can recur
+  const whenFields = (
     <>
-      {!asksContact && !knownBusinessName && businessNameField}
-      {place === NEW_PLACE && (
-        <NewPremisesFields
-          premises={newPremises}
-          premisesTypes={premisesTypes}
-          update={(change) =>
-            setNewPremises((current) => ({ ...current, ...change }))
-          }
-          error={error}
-        />
-      )}
       <Heading level={headingLevel === 2 ? 3 : 4} size={4}>
         {words.when}
       </Heading>
@@ -588,9 +735,28 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
     </>
   );
 
+  const premisesFields = (
+    <>
+      {!asksContact && !knownBusinessName && businessNameField}
+      {areaField}
+      {place === NEW_PLACE && (
+        <NewPremisesFields
+          premises={newPremises}
+          premisesTypes={premisesTypes}
+          update={(change) =>
+            setNewPremises((current) => ({ ...current, ...change }))
+          }
+          error={error}
+        />
+      )}
+      {canRecur && whenFields}
+    </>
+  );
+
   const steps: { title: string; fields: ReactNode }[] = [
+    { title: words.need, fields: serviceField },
     {
-      title: "What and where",
+      title: kindField ? "What and where" : "Where",
       fields: (
         <>
           {kindField}
@@ -624,16 +790,18 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
   const at = Math.min(step, steps.length - 1);
   const isLast = at === steps.length - 1;
 
-  // the step with a field the API refused: who's asking last, where first,
-  // and everything about the place in between
+  // the step with a field the API refused: the Service first, then where,
+  // who's asking last, and everything about the place in between
   const stepOf = (path: string) =>
-    WHERE_FIELDS.test(path)
+    path === "serviceKey"
       ? 0
-      : path.startsWith("contact.") ||
-          path === "notes" ||
-          (path === "businessName" && asksContact)
-        ? steps.length - 1
-        : 1;
+      : WHERE_FIELDS.test(path)
+        ? 1
+        : path.startsWith("contact.") ||
+            path === "notes" ||
+            (path === "businessName" && asksContact)
+          ? steps.length - 1
+          : 2;
 
   // a new step takes the focus to its heading, for screen readers and so a
   // long page scrolls back to its top
@@ -670,7 +838,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
         setRefusal(
           "Some of the extras you chose are no longer offered. Please check your choices.",
         );
-        void loadAddOns(apiUrl).then(setOffered);
+        void loadAddOns(apiUrl, serviceKey!).then(setOffered);
       }
     } else if (result.refusal) {
       setRefusal(result.refusal);
@@ -861,18 +1029,19 @@ function AddressFields({
   );
 }
 
-// a new home's rooms and what the Cleaners should know. Its type and
-// address are asked first.
-function NewHomeFields({
-  home,
+// a home's rooms, all four, at `at` in the request
+function RoomsFields({
+  rooms,
+  at,
   update,
   error,
 }: {
-  home: NewHome;
-  update: (change: Partial<NewHome>) => void;
+  rooms: HomeRooms;
+  at: string;
+  update: (change: Partial<HomeRooms>) => void;
   error: (path: string) => string | undefined;
 }) {
-  const field = (name: keyof NewHome) => `property.new.${name}`;
+  const field = (name: keyof HomeRooms) => `${at}.${name}`;
 
   return (
     <>
@@ -883,7 +1052,7 @@ function NewHomeFields({
           description="0 for a studio"
           minValue={0}
           maxValue={20}
-          value={home.bedrooms}
+          value={rooms.bedrooms}
           onChange={(bedrooms) => update({ bedrooms })}
           errorMessage={error(field("bedrooms"))}
         />
@@ -894,7 +1063,7 @@ function NewHomeFields({
           minValue={0.5}
           maxValue={20}
           step={0.5}
-          value={home.bathrooms}
+          value={rooms.bathrooms}
           onChange={(bathrooms) => update({ bathrooms })}
           errorMessage={error(field("bathrooms"))}
         />
@@ -903,31 +1072,65 @@ function NewHomeFields({
           name={field("storeys")}
           minValue={1}
           maxValue={5}
-          value={home.storeys}
+          value={rooms.storeys}
           onChange={(storeys) => update({ storeys })}
           errorMessage={error(field("storeys"))}
         />
       </div>
-      <Optional
-        add="Add the floor area"
-        shown={home.floorArea !== null || !!error(field("floorArea"))}
-      >
-        <NumberField
-          label="Floor area in sq ft (optional)"
-          name={field("floorArea")}
-          minValue={100}
-          maxValue={100_000}
-          step={50}
-          value={home.floorArea ?? Number.NaN}
-          onChange={(area) =>
-            update({ floorArea: Number.isNaN(area) ? null : area })
-          }
-          errorMessage={error(field("floorArea"))}
-        />
-      </Optional>
-      <Checkbox isSelected={home.pets} onChange={(pets) => update({ pets })}>
+      <Checkbox isSelected={rooms.pets} onChange={(pets) => update({ pets })}>
         There are pets at home
       </Checkbox>
+    </>
+  );
+}
+
+// a new home's rooms, where the Service is priced from them (`rooms` null
+// otherwise), and what the Cleaners should know. Its type and address are
+// asked first.
+function NewHomeFields({
+  home,
+  rooms,
+  update,
+  updateRooms,
+  error,
+}: {
+  home: NewHome;
+  rooms: HomeRooms | null;
+  update: (change: Partial<NewHome>) => void;
+  updateRooms: (change: Partial<HomeRooms>) => void;
+  error: (path: string) => string | undefined;
+}) {
+  const field = (name: keyof NewHome) => `property.new.${name}`;
+
+  return (
+    <>
+      {rooms && (
+        <>
+          <RoomsFields
+            rooms={rooms}
+            at="property.new"
+            update={updateRooms}
+            error={error}
+          />
+          <Optional
+            add="Add the floor area"
+            shown={home.floorArea !== null || !!error(field("floorArea"))}
+          >
+            <NumberField
+              label="Floor area in sq ft (optional)"
+              name={field("floorArea")}
+              minValue={100}
+              maxValue={100_000}
+              step={50}
+              value={home.floorArea ?? Number.NaN}
+              onChange={(area) =>
+                update({ floorArea: Number.isNaN(area) ? null : area })
+              }
+              errorMessage={error(field("floorArea"))}
+            />
+          </Optional>
+        </>
+      )}
       <Optional
         add="Add how we get in"
         shown={

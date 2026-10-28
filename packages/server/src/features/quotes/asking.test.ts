@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { db } from "#db";
+import { SEEDED } from "#features/services";
 import { api, signIn, testEmail } from "../../../tests/harness.ts";
 import {
   casey,
@@ -147,6 +148,163 @@ describe("a Guest asking for a Quote", () => {
 const ownHomes = async (email: string) =>
   (await (await signIn(email)).get("/api/clients/me")).body;
 
+describe("the Service asked for", () => {
+  test("must be named, and on offer for the kind of Property", async () => {
+    const { serviceKey: _, ...unnamed } = guestAsk();
+
+    const none = await submit(unnamed);
+    const forBusinesses = await submit(
+      guestAsk({ serviceKey: SEEDED.commercial }),
+    );
+
+    expect(none.status).toBe(400);
+    expect(none.body.details).toContainEqual(
+      expect.objectContaining({ path: "serviceKey" }),
+    );
+    expect(forBusinesses.status).toBe(400);
+    expect(forBusinesses.body.details).toEqual([
+      expect.objectContaining({
+        path: "serviceKey",
+        issue: "Choose from the Services listed",
+      }),
+    ]);
+  });
+
+  test("decides whether a home's Condition is asked: Painting's isn't", async () => {
+    const { condition: _, ...unstated } = guestAsk();
+
+    const cleaning = await submit(unstated);
+    const painting = await submit(
+      guestAsk({
+        condition: undefined,
+        serviceKey: SEEDED.painting,
+        wantsRegularService: false,
+        area: 400,
+      }),
+    ).expect(201);
+
+    expect(cleaning.status).toBe(400);
+    expect(cleaning.body.details).toEqual([
+      { path: "condition", issue: "Choose how much cleaning the home needs" },
+    ]);
+    const office = await signInAsOffice();
+    const quote = (await office.get(`/api/quotes/${painting.body.id}`)).body;
+    expect(quote.asked).toMatchObject({ condition: null, area: 400 });
+    expect(quote.property.condition).toBeNull();
+  });
+
+  test("asks for regular visits only if it can recur", async () => {
+    const { body } = await submit(
+      guestAsk({ serviceKey: SEEDED.moveInOut, wantsRegularService: true }),
+    ).expect(201);
+
+    const office = await signInAsOffice();
+    const quote = (await office.get(`/api/quotes/${body.id}`)).body;
+    expect(quote.asked.wantsRegularService).toBe(false);
+  });
+
+  test("may be another alongside a Quote open for a different one", async () => {
+    await submit(guestAsk()).expect(201);
+
+    const painting = await submit(
+      guestAsk({ serviceKey: SEEDED.painting, wantsRegularService: false }),
+    );
+    // a Deep Clean could become a Service Plan, as the Standard Clean asked
+    // for could
+    const deep = await submit(guestAsk({ serviceKey: SEEDED.deep }));
+
+    expect(painting.status).toBe(201);
+    expect(deep.status).toBe(409);
+  });
+});
+
+describe("a home's rooms", () => {
+  // the home, as asked about for Painting alone: no rooms
+  const {
+    bedrooms: _b,
+    bathrooms: _ba,
+    storeys: _s,
+    pets: _p,
+    ...roomless
+  } = home;
+  const painting = { serviceKey: SEEDED.painting, wantsRegularService: false };
+
+  test("aren't asked for a Service priced otherwise, and are for one priced from them", async () => {
+    const forPainting = await submit(
+      guestAsk({ ...painting, property: { new: roomless } }),
+    );
+    const forCleaning = await submit(
+      guestAsk({
+        property: { new: { ...roomless, street: "9 Elm St" } },
+      }),
+    );
+
+    expect(forPainting.status).toBe(201);
+    expect((await ownHomes(casey.email)).properties[0]).toMatchObject({
+      bedrooms: null,
+      bathrooms: null,
+      storeys: null,
+      pets: null,
+    });
+    expect(forCleaning.status).toBe(400);
+    expect(
+      forCleaning.body.details.map((d: { path: string }) => d.path),
+    ).toEqual([
+      "property.new.bedrooms",
+      "property.new.bathrooms",
+      "property.new.storeys",
+      "property.new.pets",
+    ]);
+  });
+
+  test("are given all together, or not at all", async () => {
+    const res = await submit(
+      guestAsk({
+        ...painting,
+        property: { new: { ...roomless, bedrooms: 2 } },
+      }),
+    );
+
+    expect(res.status).toBe(400);
+    expect(res.body.details).toContainEqual({
+      path: "property.new.bathrooms",
+      issue: "Give all of the home's rooms, or none",
+    });
+  });
+
+  test("are given by a home without them when it's asked about for cleaning", async () => {
+    await submit(guestAsk({ ...painting, property: { new: roomless } })).expect(
+      201,
+    );
+    const agent = await signIn(casey.email);
+    const [property] = (await ownHomes(casey.email)).properties;
+
+    const without = await submit(
+      {
+        property: { existing: property.id },
+        serviceKey: SEEDED.moveInOut,
+        condition: "light",
+        wantsRegularService: false,
+      },
+      agent,
+    );
+    const rooms = { bedrooms: 3, bathrooms: 2, storeys: 2, pets: false };
+    await submit(
+      {
+        property: { existing: property.id, rooms },
+        serviceKey: SEEDED.moveInOut,
+        condition: "light",
+        wantsRegularService: false,
+      },
+      agent,
+    ).expect(201);
+
+    expect(without.status).toBe(400);
+    expect(without.body.details[0].path).toBe("property.rooms.bedrooms");
+    expect((await ownHomes(casey.email)).properties[0]).toMatchObject(rooms);
+  });
+});
+
 describe("one address is one home", () => {
   // a Requested Quote stays open until the Office answers it, so a home is
   // freed for a new ask by removing its Quote here
@@ -242,6 +400,7 @@ describe("one open Quote per home", () => {
 
     const res = await submit(
       {
+        serviceKey: SEEDED.standard,
         property: { existing: property.id },
         condition: "light",
         wantsRegularService: false,
@@ -259,6 +418,7 @@ describe("one open Quote per home", () => {
 
     const res = await submit(
       {
+        serviceKey: SEEDED.standard,
         property: { new: { ...home, street: "41-12 Austin Street" } },
         condition: "light",
         wantsRegularService: false,
@@ -320,6 +480,7 @@ describe("a signed-in Client", () => {
 
     await submit(
       {
+        serviceKey: SEEDED.standard,
         property: { new: { ...home, street: "35-06 Ditmars Blvd" } },
         condition: "light",
         wantsRegularService: false,
@@ -339,6 +500,7 @@ describe("a signed-in Client", () => {
 
     await submit(
       {
+        serviceKey: SEEDED.standard,
         property: { existing: property.id },
         condition: "heavy",
         wantsRegularService: false,
@@ -370,6 +532,7 @@ describe("a signed-in Client", () => {
 
     const res = await submit(
       {
+        serviceKey: SEEDED.standard,
         property: { existing: property.id },
         condition: "light",
         wantsRegularService: false,
@@ -494,6 +657,14 @@ describe("Office Staff", () => {
       expect.objectContaining({
         id: request.property.id,
         status: { kind: "quote_requested" },
+        // for the form, so a caller's ask can tell what it may be for
+        openQuotes: [
+          {
+            propertyId: request.property.id,
+            serviceKey: SEEDED.standard,
+            kind: null,
+          },
+        ],
       }),
     ]);
   });

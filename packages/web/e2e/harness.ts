@@ -299,17 +299,32 @@ export const nextStep = async (page: Page) => {
   await expect(step).not.toHaveText(before!);
 };
 
+// the quote form's first step: the Service asked for, then on
+export const chooseService = async (page: Page, name = "Standard Clean") => {
+  await page.locator("form").getByText(name, { exact: true }).click();
+  await nextStep(page);
+};
+
 export { expect };
 
-// a Quote as a Guest asks for it from the landing page, straight to the
-// e2e API of this worker (e2e/slots.ts)
+// a Service on offer, by its name, as the form offers them
+export const serviceKey = async (name: string) => {
+  const offered = (await (
+    await fetch(`${apiUrl}/api/services/on-offer`)
+  ).json()) as { key: string; name: string }[];
+  return offered.find((s) => s.name === name)!.key;
+};
+
+// a Standard Clean as a Guest asks for it from the landing page, straight
+// to the e2e API of this worker (e2e/slots.ts)
 export const requestQuoteAsGuest = async (
   contact: { name: string; email: string },
   addOnNames: string[] = [],
 ) => {
+  const standard = await serviceKey("Standard Clean");
   // Add-ons are chosen by key, from those on offer
   const offered = (await (
-    await fetch(`${apiUrl}/api/price-list/add-ons`)
+    await fetch(`${apiUrl}/api/price-list/add-ons?service=${standard}`)
   ).json()) as { key: string; name: string }[];
   const addOns = offered
     .filter((addOn) => addOnNames.includes(addOn.name))
@@ -333,6 +348,7 @@ export const requestQuoteAsGuest = async (
           pets: false,
         },
       },
+      serviceKey: standard,
       condition: "moderate",
       wantsRegularService: true,
       addOns,
@@ -369,6 +385,7 @@ export const requestQuoteForPremises = async (
           floorArea: 4500,
         },
       },
+      serviceKey: await serviceKey("Commercial cleaning"),
       wantsRegularService: true,
       weekdays: [0, 2, 4],
       preferredTime: "18:00",

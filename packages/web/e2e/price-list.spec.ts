@@ -5,6 +5,7 @@ import {
   createStaff,
   expect,
   nextStep,
+  chooseService,
   requestQuoteAsGuest,
   test,
 } from "./harness.ts";
@@ -193,6 +194,7 @@ test("the request form offers the Add-ons by name, and the choice reaches the Of
 }) => {
   await signedInAs(page, "new@example.com");
   await expect(page).toHaveURL("/welcome");
+  await chooseService(page);
   await page.getByText("Apartment", { exact: true }).click();
   await page
     .getByRole("textbox", { name: "Street address" })

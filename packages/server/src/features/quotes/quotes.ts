@@ -1559,6 +1559,16 @@ export const sendQuote = async (id: string): Promise<OfficeQuote> => {
   if (byArea && (byArea.suggested.area ?? null) === null) {
     throw fieldError(["area"], "Enter the area to price it on");
   }
+  // and one priced from a home's rooms needs them known
+  if (
+    property.kind === "residential" &&
+    property.bedrooms === null &&
+    rows.some((r) => priced.get(r.serviceId)!.method === "rooms")
+  ) {
+    throw new ConflictError(
+      "This home's rooms aren't recorded yet, so the Quote can't be sent. Record them on the Property, then send it.",
+    );
+  }
 
   const expiresAt = new Date(
     Math.min(

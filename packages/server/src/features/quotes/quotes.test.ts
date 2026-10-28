@@ -42,8 +42,11 @@ type Agent = Awaited<ReturnType<typeof signIn>>;
 const nextMonday = { date: "2026-01-12", time: "09:00" };
 
 const asked = async (addOnNames: string[] = []) => {
-  const offered = (await api().get("/api/price-list/add-ons").expect(200))
-    .body as { key: string; name: string }[];
+  const offered = (
+    await api()
+      .get(`/api/price-list/add-ons?service=${SEEDED.standard}`)
+      .expect(200)
+  ).body as { key: string; name: string }[];
   const addOns = offered
     .filter((a) => addOnNames.includes(a.name))
     .map((a) => a.key);

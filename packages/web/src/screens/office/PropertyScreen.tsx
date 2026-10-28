@@ -496,6 +496,8 @@ export function JobStatusBadge({ status }: { status: JobStatus }) {
 function useCorrection<T extends Record<string, unknown>>(
   home: PropertyView,
   saved: T,
+  // what is sent of the changes, if not just them
+  toSend: (changes: Partial<T>, details: T) => Partial<T> = (c) => c,
 ) {
   const [details, setDetails] = useState(saved);
   const action = useAction("The corrections weren't saved. Please try again.");
@@ -504,10 +506,10 @@ function useCorrection<T extends Record<string, unknown>>(
     setDetails((current) => ({ ...current, ...update }));
   const changes = Object.fromEntries(
     Object.entries(details).filter(([key, value]) => value !== saved[key]),
-  );
+  ) as Partial<T>;
 
   // Access Instructions are saved apart: the Client keeps them too
-  const { accessInstructions, ...priced } = changes;
+  const { accessInstructions, ...priced } = toSend(changes, details);
   const save = () =>
     action.run(async () => {
       if (Object.keys(priced).length > 0)
@@ -628,6 +630,8 @@ function OfficeNotesField({
   );
 }
 
+const ROOMS = ["bedrooms", "bathrooms", "storeys", "pets"] as const;
+
 function HomeDetails({
   home,
   officeNotes,
@@ -635,30 +639,50 @@ function HomeDetails({
   home: HomeView;
   officeNotes: string | null;
 }) {
-  const correction = useCorrection(home, {
-    type: home.type,
-    bedrooms: home.bedrooms,
-    bathrooms: home.bathrooms,
-    storeys: home.storeys,
-    pets: home.pets,
-    floorArea: home.floorArea,
-    condition: home.condition,
-    officeNotes: officeNotes ?? "",
-    accessInstructions: home.accessInstructions ?? "",
-  });
+  const noRooms = home.bedrooms === null;
+  const correction = useCorrection(
+    home,
+    {
+      type: home.type,
+      bedrooms: home.bedrooms,
+      bathrooms: home.bathrooms,
+      storeys: home.storeys,
+      pets: home.pets ?? false,
+      floorArea: home.floorArea,
+      condition: home.condition,
+      officeNotes: officeNotes ?? "",
+      accessInstructions: home.accessInstructions ?? "",
+    },
+    // a home without its rooms is given all four at once
+    (changes, details) =>
+      noRooms && ROOMS.some((r) => r in changes)
+        ? {
+            ...changes,
+            ...Object.fromEntries(ROOMS.map((r) => [r, details[r]])),
+          }
+        : changes,
+  );
   const { details, change } = correction;
+  // a cleared field is no number
+  const count = (value: number) => (Number.isNaN(value) ? null : value);
 
   return (
     <CorrectionForm correction={correction}>
       <PlaceTiles value={details.type} onChange={(type) => change({ type })} />
+      {noRooms && (
+        <Notice>
+          Its rooms aren't recorded yet: it was asked about for a Service that
+          isn't priced from them. Enter them to quote it for one that is.
+        </Notice>
+      )}
       <div className="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-4">
         <NumberField
           label="Bedrooms"
           name="bedrooms"
           minValue={0}
           maxValue={20}
-          value={details.bedrooms}
-          onChange={(bedrooms) => change({ bedrooms })}
+          value={details.bedrooms ?? Number.NaN}
+          onChange={(bedrooms) => change({ bedrooms: count(bedrooms) })}
         />
         <NumberField
           label="Bathrooms"
@@ -666,16 +690,16 @@ function HomeDetails({
           minValue={0.5}
           maxValue={20}
           step={0.5}
-          value={details.bathrooms}
-          onChange={(bathrooms) => change({ bathrooms })}
+          value={details.bathrooms ?? Number.NaN}
+          onChange={(bathrooms) => change({ bathrooms: count(bathrooms) })}
         />
         <NumberField
           label="Floors"
           name="storeys"
           minValue={1}
           maxValue={5}
-          value={details.storeys}
-          onChange={(storeys) => change({ storeys })}
+          value={details.storeys ?? Number.NaN}
+          onChange={(storeys) => change({ storeys: count(storeys) })}
         />
       </div>
       <NumberField

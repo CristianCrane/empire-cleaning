@@ -75,6 +75,7 @@ const businessAsk = (premisesType: string, changes: object = {}) => ({
   contact: casey,
   businessName: "Acme Dental",
   property: { new: premises(premisesType) },
+  serviceKey: SEEDED.commercial,
   wantsRegularService: true,
   weekdays: [4, 0, 2],
   preferredTime: "18:00",
@@ -398,6 +399,7 @@ describe("Office Staff and business Clients", () => {
         contact: { name: "Pat Phoner", phone: "(718) 555-0123", email: null },
         businessName: "Phoner & Co",
         property: { new: premises(Office!) },
+        serviceKey: SEEDED.commercial,
         wantsRegularService: false,
         notes: null,
       })

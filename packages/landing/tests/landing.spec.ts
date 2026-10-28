@@ -3,11 +3,12 @@ import type { Page } from "@playwright/test";
 import { business } from "../src/business.ts";
 import { emailsTo, expect, test } from "./harness.ts";
 
-// the form loads once its section scrolls into view
+// the form loads once its section scrolls into view, and lists the Services
+// once they arrive from the API
 const openQuoteForm = async (page: Page) => {
   await page.goto("/#quote");
   await expect(
-    page.getByRole("textbox", { name: "Street address" }),
+    page.getByRole("radio", { name: /^Standard Clean/ }),
   ).toBeVisible();
 };
 
@@ -18,6 +19,12 @@ const next = async (page: Page) => {
   const before = await step.textContent();
   await page.getByRole("button", { name: "Next", exact: true }).click();
   await expect(step).not.toHaveText(before!);
+};
+
+// the first step: the Service asked for
+const chooseService = async (page: Page, name = "Standard Clean") => {
+  await page.locator("form").getByText(name, { exact: true }).click();
+  await next(page);
 };
 
 const sections = [
@@ -68,6 +75,8 @@ for (const theme of ["light", "dark"] as const) {
 
         // each step of the form
         await check();
+        await chooseService(page);
+        await check();
         await page
           .getByRole("textbox", { name: "Street address" })
           .fill("41-12 Austin St");
@@ -114,8 +123,9 @@ test(
 );
 
 test.describe("requesting a Quote", () => {
-  // step 1: what and where
+  // steps 1 and 2: a Standard Clean, then what and where
   const fillWhere = async (page: Page, zip = "11375") => {
+    await chooseService(page);
     await page.getByText("Apartment", { exact: true }).click();
     await page
       .getByRole("textbox", { name: "Street address" })
@@ -232,11 +242,48 @@ test.describe("requesting a Quote", () => {
     ).toBeVisible();
   });
 
+  test("a Service like Painting asks only what it needs: a rough area, no Condition or visits", async ({
+    page,
+  }) => {
+    await openQuoteForm(page);
+    await expect(page.getByText(/^Walls, ceilings and trim/)).toBeVisible();
+    await chooseService(page, "Painting");
+    // offered for homes and businesses alike
+    await expect(
+      page.getByText("Business premises", { exact: true }),
+    ).toBeVisible();
+    await page.getByText("Apartment", { exact: true }).click();
+    await page
+      .getByRole("textbox", { name: "Street address" })
+      .fill("41-12 Austin St");
+    await page.getByRole("textbox", { name: "ZIP code" }).fill("11375");
+    await next(page);
+
+    await expect(page.getByText("How much cleaning does it need?")).toHaveCount(
+      0,
+    );
+    await expect(page.getByText(/regular visits/)).toHaveCount(0);
+    // nor its rooms, which only price cleaning
+    await expect(page.getByText("Bedrooms", { exact: true })).toHaveCount(0);
+    await page
+      .getByRole("textbox", { name: "Area in sq ft (optional)" })
+      .fill("350");
+    await next(page);
+    await fillDetails(page);
+    await page.getByRole("button", { name: "Request a Quote" }).click();
+
+    await expect(
+      page.getByText("We'll email your Quote to casey@example.com"),
+    ).toBeVisible();
+  });
+
   test("a business asks for its premises to be cleaned on chosen days", async ({
     page,
   }) => {
     await openQuoteForm(page);
-    await page.getByText("Business premises", { exact: true }).click();
+    // for business premises alone, so where is all the next step asks
+    await chooseService(page, "Commercial cleaning");
+    await expect(page.getByText("Apartment", { exact: true })).toHaveCount(0);
     await page
       .getByRole("textbox", { name: "Street address" })
       .fill("200 Park Ave S");
@@ -277,10 +324,14 @@ test.describe("requesting a Quote", () => {
 
     await page.getByRole("button", { name: "Next", exact: true }).click();
 
-    // still on the first step
+    // still on the first step, then the second
+    await expect(page.getByText("Step 1 of 4")).toBeVisible();
+    await chooseService(page);
+    await page.getByRole("button", { name: "Next", exact: true }).click();
     await expect(
       page.getByRole("textbox", { name: "Street address" }),
     ).toHaveAttribute("aria-invalid", "true");
+    await page.getByRole("button", { name: "Back" }).click();
     await fillWhere(page);
     await next(page);
     await next(page);

@@ -2,7 +2,7 @@ import { z } from "zod";
 import {
   conditionSchema,
   floorArea,
-  newHomeSchema,
+  homeDetailsSchema,
   officeNotes as notes,
   premisesType,
 } from "../quotes/asking.validation.ts";
@@ -45,13 +45,7 @@ export const premisesFindingsSchema = z.object({
 });
 
 // what a visit found at a home: its rooms, as asking for a Quote gives them
-export const homeFindingsSchema = newHomeSchema
-  .pick({
-    type: true,
-    bedrooms: true,
-    bathrooms: true,
-    storeys: true,
-    pets: true,
-    floorArea: true,
-  })
-  .extend({ condition: conditionSchema, officeNotes });
+export const homeFindingsSchema = homeDetailsSchema.extend({
+  condition: conditionSchema,
+  officeNotes,
+});
