@@ -178,6 +178,7 @@ describe("Services", () => {
       method: "area",
       conditionApplies: false,
       canRecur: false,
+      icon: "paint-roller",
     });
   });
 

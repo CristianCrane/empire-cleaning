@@ -12,11 +12,12 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? "http://localhost:3000";
   title="Request a Quote"
   intro="Tell us about your home and we'll email you a Quote, usually within a working day. No account needed."
   tone="raised"
+  align="center"
 >
   {/* loads when the section scrolls into view */}
   <QuoteForm client:visible apiUrl={apiUrl} />
-  <p class="text-sm text-fg-muted">
-    Prefer to talk? Call us on
+  <p class="text-center text-sm text-fg-muted">
+    Prefer to talk? Call us on{" "}
     <a href={business.phone.href} class="font-semibold text-fg"
       >{business.phone.display}</a
     >.

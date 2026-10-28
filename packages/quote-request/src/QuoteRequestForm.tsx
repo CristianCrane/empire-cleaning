@@ -1,5 +1,15 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Building2, House, Houses, Store } from "lucide-react";
+import {
+  Building2,
+  House,
+  Houses,
+  PaintRoller,
+  SlidersHorizontal,
+  Sparkles,
+  Store,
+  Truck,
+  type LucideIcon,
+} from "lucide-react";
 import type {
   AddOnChoice,
   Condition,
@@ -13,6 +23,7 @@ import type {
   PropertyView,
   QuoteAskReceipt,
   QuoteAsk,
+  ServiceIcon,
   ServiceOffer,
   Weekday,
 } from "@empire-cleaning/models";
@@ -132,6 +143,16 @@ const officeWords: typeof ownWords = {
 };
 
 const NEW_PLACE = "new";
+
+// each Service's picture, as the landing page's "What we clean" draws it
+const serviceIcons: Record<ServiceIcon, LucideIcon> = {
+  sparkles: Sparkles,
+  house: House,
+  truck: Truck,
+  building: Building2,
+  "paint-roller": PaintRoller,
+  custom: SlidersHorizontal,
+};
 
 // how much cleaning a place needs, as asked here and wherever the Office
 // records it
@@ -417,27 +438,28 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
   // a field's message from the API, by its path in the request
   const error = (path: string) => fieldErrors[path];
 
-  // the Services on offer, each with what it is. Nothing is chosen at first:
-  // the Client says what they want.
+  // the Services on offer as tiles, the one chosen saying what it is.
+  // Nothing is chosen at first: the Client says what they want.
   const serviceField =
     services?.length === 0 ? (
       <Notice tone="danger">{words.servicesFailed}</Notice>
     ) : (
       services && (
-        <RadioGroup
+        <ChoiceTiles
           label={words.service}
           name="serviceKey"
           isRequired
           value={serviceKey}
           onChange={chooseService}
+          description={service?.description}
           errorMessage={error("serviceKey")}
         >
           {services.map((s) => (
-            <Radio key={s.key} value={s.key} description={s.description}>
+            <ChoiceTile key={s.key} value={s.key} icon={serviceIcons[s.icon]}>
               {s.name}
-            </Radio>
+            </ChoiceTile>
           ))}
-        </RadioGroup>
+        </ChoiceTiles>
       )
     );
 

@@ -411,6 +411,17 @@ export type ServiceInput = {
   active: boolean;
 };
 
+// the picture a Service is shown with on the "Request a Quote" form, as the
+// landing page's "What we clean" shows the same kind of work; "custom" for
+// one the Office added
+export type ServiceIcon =
+  | "sparkles"
+  | "house"
+  | "truck"
+  | "building"
+  | "paint-roller"
+  | "custom";
+
 // a Service as the "Request a Quote" form offers it: what the Client sees,
 // and what decides the questions asked about it. Open to Guests.
 export type ServiceOffer = Pick<
@@ -421,7 +432,7 @@ export type ServiceOffer = Pick<
   | "method"
   | "conditionApplies"
   | "canRecur"
-> & { key: string };
+> & { key: string; icon: ServiceIcon };
 
 // a Service as a Quote names it, by key, with how it's priced
 export type ServiceChoice = {

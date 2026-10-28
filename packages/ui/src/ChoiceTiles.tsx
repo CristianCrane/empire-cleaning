@@ -20,9 +20,10 @@ export type ChoiceTilesProps = Omit<
   children: ReactNode;
 };
 
-// one of three or four things that are easiest told apart by a picture, as
-// tiles with an icon over a short name (#96), e.g. what needs cleaning. Three
-// sit in a row; four sit two by two on a phone.
+// one of a few things that are easiest told apart by a picture, as tiles
+// with an icon over a short name (#96), e.g. what needs cleaning. Three sit
+// in a row; four sit two by two on a phone; more sit two to a row on a phone
+// and three on a wider screen.
 export function ChoiceTiles({
   label,
   description,
@@ -44,7 +45,9 @@ export function ChoiceTiles({
         className={
           Children.count(children) === 4
             ? "grid grid-cols-2 gap-2 sm:grid-cols-4"
-            : "grid grid-cols-3 gap-2"
+            : Children.count(children) > 4
+              ? "grid grid-cols-2 gap-2 sm:grid-cols-3"
+              : "grid grid-cols-3 gap-2"
         }
       >
         {children}

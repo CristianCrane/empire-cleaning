@@ -26,7 +26,7 @@ export function QuoteForm({ apiUrl }: { apiUrl: string }) {
 
   if (!ready) {
     return (
-      <p className="text-fg-muted">
+      <p className="text-center text-fg-muted">
         Call us on{" "}
         <a href={business.phone.href} className="font-semibold text-fg">
           {business.phone.display}
@@ -37,7 +37,7 @@ export function QuoteForm({ apiUrl }: { apiUrl: string }) {
   }
 
   return (
-    <div className="max-w-2xl">
+    <div>
       <QuoteRequestForm
         asker={{ kind: "guest" }}
         apiUrl={apiUrl}

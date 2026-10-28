@@ -338,10 +338,11 @@ function QuietForms() {
           a <code>SegmentedControl</code> (with the picked option's meaning
           under it), and a choice of several short options is a{" "}
           <code>ChipGroup</code>. Things easiest told apart by a picture (a
-          house, an apartment, business premises) are <code>ChoiceTiles</code>;
-          ask one question rather than two back to back. Keep{" "}
-          <code>RadioGroup</code> for options that are long or vary, like a
-          Client's homes.
+          house, an apartment, business premises; the Services, with the picture
+          "What we clean" uses for the same work) are <code>ChoiceTiles</code>,
+          the chosen one's meaning under them; ask one question rather than two
+          back to back. Keep <code>RadioGroup</code> for options that are long
+          or vary, like a Client's homes.
         </p>
         <p>
           Optional fields wait behind a "+ Add …" link until they're wanted. A
