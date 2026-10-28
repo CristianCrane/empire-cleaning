@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { useLoaderData, useNavigate, useRouter } from "@tanstack/react-router";
+import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import type {
   ClientName,
   Condition,
@@ -30,11 +30,11 @@ import {
   SelectItem,
   StatusBadge,
   TextField,
-  showToast,
   type Crumb,
 } from "@empire-cleaning/ui";
-import { ApiError, patchJson } from "../../api.ts";
+import { patchJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
+import { useAction } from "../action.ts";
 import {
   addressOf,
   cleanTypeLabel,
@@ -302,11 +302,8 @@ function useCorrection<T extends Record<string, unknown>>(
   home: PropertyView,
   saved: T,
 ) {
-  const router = useRouter();
   const [details, setDetails] = useState(saved);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [isSaving, setSaving] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const action = useAction("The corrections weren't saved. Please try again.");
 
   const change = (update: Partial<T>) =>
     setDetails((current) => ({ ...current, ...update }));
@@ -314,33 +311,20 @@ function useCorrection<T extends Record<string, unknown>>(
     Object.entries(details).filter(([key, value]) => value !== saved[key]),
   );
 
-  const save = async () => {
-    setSaving(true);
-    setFailed(false);
-    try {
-      await patchJson(`/api/properties/${home.id}`, changes);
-      setFieldErrors({});
-      showToast({ tone: "success", title: "Details corrected" });
-      await router.invalidate();
-    } catch (e) {
-      if (e instanceof ApiError && Object.keys(e.fieldErrors).length) {
-        setFieldErrors(e.fieldErrors);
-      } else {
-        setFailed(true);
-      }
-    } finally {
-      setSaving(false);
-    }
-  };
+  const save = () =>
+    action.run(
+      () => patchJson(`/api/properties/${home.id}`, changes),
+      "Details corrected",
+    );
 
   return {
     details,
     change,
     hasChanges: Object.keys(changes).length > 0,
     save,
-    fieldErrors,
-    isSaving,
-    failed,
+    fieldErrors: action.fieldErrors,
+    isSaving: action.isPending,
+    problem: action.problem,
   };
 }
 
@@ -392,10 +376,8 @@ function CorrectionForm({
       }}
     >
       {children}
-      {correction.failed && (
-        <Notice tone="danger">
-          The corrections weren't saved. Please try again.
-        </Notice>
+      {correction.problem && (
+        <Notice tone="danger">{correction.problem}</Notice>
       )}
       <Actions>
         <Button

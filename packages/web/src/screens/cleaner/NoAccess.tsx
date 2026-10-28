@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useRouter } from "@tanstack/react-router";
 import type { CleanerJob } from "@empire-cleaning/models";
 import {
   Actions,
@@ -10,43 +9,24 @@ import {
   Form,
   Notice,
   TextField,
-  showToast,
 } from "@empire-cleaning/ui";
-import { ApiError, postJson } from "../../api.ts";
+import { postJson } from "../../api.ts";
+import { useAction } from "../action.ts";
 import { formatTime } from "../format.ts";
 
 // The Cleaner couldn't get into the home. Recording it ends the Job without
 // it being Completed, and the Client and the Office are told; the Office
 // sorts out what's next.
 export function RecordNoAccess({ job }: { job: CleanerJob }) {
-  const router = useRouter();
   const [reason, setReason] = useState("");
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [problem, setProblem] = useState<string>();
-  const [isPending, setPending] = useState(false);
+  const action = useAction("No Access wasn't recorded. Please try again.");
 
   const record = async (close: () => void) => {
-    setPending(true);
-    setProblem(undefined);
-    setFieldErrors({});
-    try {
-      await postJson(`/api/assignments/mine/${job.id}/no-access`, { reason });
-      showToast({ tone: "success", title: "No Access recorded" });
-      close();
-      await router.invalidate();
-    } catch (e) {
-      if (e instanceof ApiError && Object.keys(e.fieldErrors).length) {
-        setFieldErrors(e.fieldErrors);
-      } else {
-        setProblem(
-          e instanceof ApiError && e.status === 409
-            ? e.message
-            : "No Access wasn't recorded. Please try again.",
-        );
-      }
-    } finally {
-      setPending(false);
-    }
+    const ok = await action.run(
+      () => postJson(`/api/assignments/mine/${job.id}/no-access`, { reason }),
+      "No Access recorded",
+    );
+    if (ok) close();
   };
 
   return (
@@ -60,7 +40,7 @@ export function RecordNoAccess({ job }: { job: CleanerJob }) {
           <Dialog title="Record No Access?" role="alertdialog">
             {({ close }) => (
               <Form
-                validationErrors={fieldErrors}
+                validationErrors={action.fieldErrors}
                 onSubmit={(e) => {
                   e.preventDefault();
                   void record(close);
@@ -79,12 +59,18 @@ export function RecordNoAccess({ job }: { job: CleanerJob }) {
                   multiline
                   isRequired
                 />
-                {problem && <Notice tone="danger">{problem}</Notice>}
+                {action.problem && (
+                  <Notice tone="danger">{action.problem}</Notice>
+                )}
                 <Actions>
                   <Button variant="secondary" onPress={close}>
                     Go back
                   </Button>
-                  <Button type="submit" variant="danger" isPending={isPending}>
+                  <Button
+                    type="submit"
+                    variant="danger"
+                    isPending={action.isPending}
+                  >
                     Record No Access
                   </Button>
                 </Actions>

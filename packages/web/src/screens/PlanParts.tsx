@@ -1,5 +1,3 @@
-import { useState } from "react";
-import { useRouter } from "@tanstack/react-router";
 import type { EndPlanTerms, ServicePlanView } from "@empire-cleaning/models";
 import {
   Actions,
@@ -10,10 +8,10 @@ import {
   DialogTrigger,
   Notice,
   StatusBadge,
-  showToast,
 } from "@empire-cleaning/ui";
-import { ApiError, postJson } from "../api.ts";
+import { postJson } from "../api.ts";
 import type { AppHref } from "../links.ts";
+import { useAction } from "./action.ts";
 import {
   cleanTypeLabel,
   formatDate,
@@ -191,9 +189,10 @@ export function EndPlan({
   forClient,
   endPath,
 }: { plan: Omit<ServicePlanView, "upcoming"> } & Omit<Viewer, "jobHref">) {
-  const router = useRouter();
-  const [problem, setProblem] = useState<string>();
-  const [isPending, setPending] = useState(false);
+  // what Ending does may have changed since the page loaded
+  const action = useAction("The plan wasn't Ended. Please try again.", {
+    reloadOnFailure: true,
+  });
   if (plan.status === "ended") {
     return (
       <Card title="Ended">
@@ -208,27 +207,11 @@ export function EndPlan({
   const lines = endingLines(terms, forClient);
 
   const end = async (close: () => void) => {
-    setPending(true);
-    setProblem(undefined);
-    try {
-      await postJson(endPath, { goingAhead: terms.goingAhead });
-      showToast({
-        tone: "success",
-        title: forClient ? "Your Service Plan has Ended" : "Service Plan Ended",
-      });
-      close();
-      await router.invalidate();
-    } catch (e) {
-      setProblem(
-        e instanceof ApiError && e.status === 409
-          ? e.message
-          : "The plan wasn't Ended. Please try again.",
-      );
-      // what Ending does may have changed since the page loaded
-      await router.invalidate();
-    } finally {
-      setPending(false);
-    }
+    const ok = await action.run(
+      () => postJson(endPath, { goingAhead: terms.goingAhead }),
+      forClient ? "Your Service Plan has Ended" : "Service Plan Ended",
+    );
+    if (ok) close();
   };
 
   return (
@@ -258,14 +241,16 @@ export function EndPlan({
                 <p>
                   <strong>An Ended plan can't be started again.</strong>
                 </p>
-                {problem && <Notice tone="danger">{problem}</Notice>}
+                {action.problem && (
+                  <Notice tone="danger">{action.problem}</Notice>
+                )}
                 <Actions>
                   <Button variant="secondary" onPress={close}>
                     {forClient ? "Keep my plan" : "Keep the plan"}
                   </Button>
                   <Button
                     variant="danger"
-                    isPending={isPending}
+                    isPending={action.isPending}
                     onPress={() => void end(close)}
                   >
                     End plan

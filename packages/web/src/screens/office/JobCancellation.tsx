@@ -19,7 +19,7 @@ import {
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
 import { formatDate, formatDateTime, formatMoney } from "../format.ts";
-import { useJobAction } from "./JobCompletion.tsx";
+import { useAction } from "../action.ts";
 
 // What cancelling costs, in a sentence. A plan Job has no Deposit of its
 // own: its fee is the plan's Deposit amount, charged to the saved card.
@@ -47,7 +47,7 @@ export function CancelJob({ job }: { job: OfficeJob }) {
   const router = useRouter();
   const [by, setBy] = useState<CancelledBy>("client");
   const [reason, setReason] = useState("");
-  const action = useJobAction("The Job wasn't cancelled. Please try again.");
+  const action = useAction("The Job wasn't cancelled. Please try again.");
 
   const cancel = async (close: () => void) => {
     const ok = await action.run(
@@ -143,7 +143,7 @@ function FeePayment({
   feeCents: number;
   payment: JobPayment;
 }) {
-  const action = useJobAction("It wasn't retried. Please try again.");
+  const action = useAction("It wasn't retried. Please try again.");
   return (
     <>
       {payment.unpaid && (

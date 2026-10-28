@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { useLoaderData, useRouter } from "@tanstack/react-router";
+import { useLoaderData } from "@tanstack/react-router";
 import type {
   AssignmentState,
   AssignmentView,
@@ -22,10 +22,10 @@ import {
   Select,
   SelectItem,
   StatusBadge,
-  showToast,
 } from "@empire-cleaning/ui";
-import { ApiError, deleteJson, postJson } from "../../api.ts";
+import { deleteJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
+import { useAction } from "../action.ts";
 import {
   addressOf,
   cleanTypeLabel,
@@ -180,10 +180,8 @@ export function JobScreen() {
 }
 
 function Offer({ job }: { job: OfficeJob }) {
-  const router = useRouter();
   const [staffId, setStaffId] = useState<string | null>(null);
-  const [problem, setProblem] = useState<string>();
-  const [isPending, setPending] = useState(false);
+  const action = useAction("The place wasn't offered. Please try again.");
 
   if (job.openPlaces === 0) {
     return (
@@ -203,27 +201,14 @@ function Offer({ job }: { job: OfficeJob }) {
 
   const offer = async () => {
     if (!staffId) {
-      setProblem("Choose a Cleaner");
+      action.fail("Choose a Cleaner");
       return;
     }
-    setPending(true);
-    setProblem(undefined);
-    try {
-      await postJson(`/api/jobs/${job.id}/assignments`, {
-        staffId,
-      });
-      const name = job.cleaners.find((c) => c.id === staffId)?.name;
-      showToast({ tone: "success", title: `Place offered to ${name}` });
-      await router.invalidate();
-    } catch (e) {
-      setProblem(
-        e instanceof ApiError && e.status === 409
-          ? e.message
-          : "The place wasn't offered. Please try again.",
-      );
-    } finally {
-      setPending(false);
-    }
+    const name = job.cleaners.find((c) => c.id === staffId)?.name;
+    await action.run(
+      () => postJson(`/api/jobs/${job.id}/assignments`, { staffId }),
+      `Place offered to ${name}`,
+    );
   };
 
   return (
@@ -248,9 +233,9 @@ function Offer({ job }: { job: OfficeJob }) {
           </SelectItem>
         ))}
       </Select>
-      {problem && <Notice tone="danger">{problem}</Notice>}
+      {action.problem && <Notice tone="danger">{action.problem}</Notice>}
       <Actions>
-        <Button type="submit" variant="secondary" isPending={isPending}>
+        <Button type="submit" variant="secondary" isPending={action.isPending}>
           Offer place
         </Button>
       </Actions>
@@ -265,24 +250,15 @@ function Remove({
   job: OfficeJob;
   assignment: AssignmentView;
 }) {
-  const router = useRouter();
-  const [problem, setProblem] = useState<string>();
-  const [isPending, setPending] = useState(false);
+  const action = useAction("They weren't taken off. Please try again.");
   const name = assignment.staff.name;
 
   const remove = async (close: () => void) => {
-    setPending(true);
-    setProblem(undefined);
-    try {
-      await deleteJson(`/api/jobs/${job.id}/assignments/${assignment.id}`);
-      showToast({ tone: "success", title: `${name} taken off the Job` });
-      close();
-      await router.invalidate();
-    } catch {
-      setProblem("They weren't taken off. Please try again.");
-    } finally {
-      setPending(false);
-    }
+    const ok = await action.run(
+      () => deleteJson(`/api/jobs/${job.id}/assignments/${assignment.id}`),
+      `${name} taken off the Job`,
+    );
+    if (ok) close();
   };
 
   return (
@@ -297,14 +273,14 @@ function Remove({
               Their place becomes free to offer to someone else. We'll email{" "}
               {name} to say they don't need to go.
             </p>
-            {problem && <Notice tone="danger">{problem}</Notice>}
+            {action.problem && <Notice tone="danger">{action.problem}</Notice>}
             <Actions>
               <Button variant="secondary" onPress={close}>
                 Cancel
               </Button>
               <Button
                 variant="danger"
-                isPending={isPending}
+                isPending={action.isPending}
                 onPress={() => void remove(close)}
               >
                 Remove

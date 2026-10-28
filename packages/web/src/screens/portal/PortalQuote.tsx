@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLoaderData, useRouter } from "@tanstack/react-router";
+import { useLoaderData } from "@tanstack/react-router";
 import type {
   AcceptOutcome,
   AskedQuoteView,
@@ -23,10 +23,10 @@ import {
   Notice,
   Radio,
   RadioGroup,
-  showToast,
 } from "@empire-cleaning/ui";
-import { ApiError, postJson } from "../../api.ts";
+import { postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
+import { useAction } from "../action.ts";
 import {
   addressOf,
   cleanTypeLabel,
@@ -45,7 +45,7 @@ import {
   PlanTotals,
   QuoteStatusBadge,
 } from "../QuoteParts.tsx";
-import { CardProblem, ConsentNote, usePaymentForm } from "./CardForm.tsx";
+import { ConsentNote, usePaymentForm } from "./CardForm.tsx";
 
 // A Quote as its Client sees it, from the link in every Quote email (ADR-0017):
 // only its offer, the latest Sent Revision, which they accept right here; or,
@@ -409,14 +409,15 @@ function Accept({
   quote: QuoteView;
   paymentMethod: PaymentMethodView | null;
 }) {
-  const router = useRouter();
   // the recommended Deep Clean, unless only the Standard Clean still fits
   const [cleanType, setCleanType] = useState<CleanType>(
     quote.bookable.includes("deep") ? "deep" : quote.bookable[0]!,
   );
   const [newCard, setNewCard] = useState(!paymentMethod);
-  const [problem, setProblem] = useState<string>();
-  const [isPending, setPending] = useState(false);
+  // what's bookable may have changed since the page loaded
+  const action = useAction("That didn't work. Please try again.", {
+    reloadOnFailure: true,
+  });
   const chosen = quote.options.find((o) => o.cleanType === cleanType)!;
   const balance = chosen.totalCents - chosen.depositCents;
   const depositCents = quote.plan?.depositCents ?? chosen.depositCents;
@@ -425,37 +426,24 @@ function Accept({
     showCard: newCard,
   });
 
-  const accept = async () => {
-    setPending(true);
-    setProblem(undefined);
-    try {
-      const paymentToken = newCard ? await payment.token() : undefined;
-      const outcome = await postJson<AcceptOutcome>(
-        `/api/quotes/mine/${quote.id}/accept`,
-        // a plan is accepted whole
-        quote.plan ? { paymentToken } : { cleanType, paymentToken },
-      );
-      if (outcome.status === "needs_approval") {
-        await payment.approve(outcome.secret);
-        await postJson<AcceptOutcome>(
-          `/api/quotes/mine/${quote.id}/accept/finalize`,
+  const accept = () =>
+    action.run(
+      async () => {
+        const paymentToken = newCard ? await payment.token() : undefined;
+        const outcome = await postJson<AcceptOutcome>(
+          `/api/quotes/mine/${quote.id}/accept`,
+          // a plan is accepted whole
+          quote.plan ? { paymentToken } : { cleanType, paymentToken },
         );
-      }
-      showToast({
-        tone: "success",
-        title: quote.plan ? "Your Service Plan has started" : "You're booked",
-      });
-    } catch (e) {
-      setProblem(
-        e instanceof CardProblem || (e instanceof ApiError && e.status === 409)
-          ? e.message
-          : "That didn't work. Please try again.",
-      );
-    } finally {
-      setPending(false);
-      await router.invalidate();
-    }
-  };
+        if (outcome.status === "needs_approval") {
+          await payment.approve(outcome.secret);
+          await postJson<AcceptOutcome>(
+            `/api/quotes/mine/${quote.id}/accept/finalize`,
+          );
+        }
+      },
+      quote.plan ? "Your Service Plan has started" : "You're booked",
+    );
 
   return (
     <Card title={quote.plan ? "Accept and start your plan" : "Accept and book"}>
@@ -522,10 +510,10 @@ function Accept({
             } Booked for ${formatDateTime(quote.proposedStartsAt)}.`}
       </p>
       {newCard && <ConsentNote action="paying" />}
-      {problem && <Notice tone="danger">{problem}</Notice>}
+      {action.problem && <Notice tone="danger">{action.problem}</Notice>}
       <Actions>
         <Button
-          isPending={isPending}
+          isPending={action.isPending}
           isDisabled={!payment.isReady}
           onPress={() => void accept()}
         >
@@ -541,28 +529,16 @@ function Accept({
 // accepting a Quote that changes the home's plan: nothing to pay, as the
 // plan's Deposit carries over
 function AcceptChange({ quote }: { quote: QuoteView }) {
-  const router = useRouter();
-  const [problem, setProblem] = useState<string>();
-  const [isPending, setPending] = useState(false);
+  const action = useAction("That didn't work. Please try again.", {
+    reloadOnFailure: true,
+  });
   const [only, ...others] = quote.options;
 
-  const accept = async () => {
-    setPending(true);
-    setProblem(undefined);
-    try {
-      await postJson<AcceptOutcome>(`/api/quotes/mine/${quote.id}/accept`, {});
-      showToast({ tone: "success", title: "Your Service Plan has changed" });
-    } catch (e) {
-      setProblem(
-        e instanceof ApiError && e.status === 409
-          ? e.message
-          : "That didn't work. Please try again.",
-      );
-    } finally {
-      setPending(false);
-      await router.invalidate();
-    }
-  };
+  const accept = () =>
+    action.run(
+      () => postJson<AcceptOutcome>(`/api/quotes/mine/${quote.id}/accept`, {}),
+      "Your Service Plan has changed",
+    );
 
   return (
     <Card title="Accept the new terms">
@@ -571,9 +547,9 @@ function AcceptChange({ quote }: { quote: QuoteView }) {
         {others.length === 0 ? `, ${formatMoney(only!.totalCents)},` : ""} is
         charged when it's done, from {formatDateTime(quote.proposedStartsAt)}.
       </p>
-      {problem && <Notice tone="danger">{problem}</Notice>}
+      {action.problem && <Notice tone="danger">{action.problem}</Notice>}
       <Actions>
-        <Button isPending={isPending} onPress={() => void accept()}>
+        <Button isPending={action.isPending} onPress={() => void accept()}>
           Accept the new terms
         </Button>
       </Actions>
@@ -582,27 +558,14 @@ function AcceptChange({ quote }: { quote: QuoteView }) {
 }
 
 function Decline({ quote }: { quote: QuoteView }) {
-  const router = useRouter();
-  const [problem, setProblem] = useState<string>();
-  const [isPending, setPending] = useState(false);
+  const action = useAction("That didn't work. Please try again.");
 
   const decline = async (close: () => void) => {
-    setPending(true);
-    setProblem(undefined);
-    try {
-      await postJson(`/api/quotes/mine/${quote.id}/decline`);
-      showToast({ tone: "success", title: "Quote declined" });
-      close();
-      await router.invalidate();
-    } catch (e) {
-      setProblem(
-        e instanceof ApiError && e.status === 409
-          ? e.message
-          : "That didn't work. Please try again.",
-      );
-    } finally {
-      setPending(false);
-    }
+    const ok = await action.run(
+      () => postJson(`/api/quotes/mine/${quote.id}/decline`),
+      "Quote declined",
+    );
+    if (ok) close();
   };
 
   return (
@@ -617,14 +580,14 @@ function Decline({ quote }: { quote: QuoteView }) {
               We'll let the team know you're not going ahead. You can ask for a
               new Quote whenever you like.
             </p>
-            {problem && <Notice tone="danger">{problem}</Notice>}
+            {action.problem && <Notice tone="danger">{action.problem}</Notice>}
             <Actions>
               <Button variant="secondary" onPress={close}>
                 Keep it
               </Button>
               <Button
                 variant="danger"
-                isPending={isPending}
+                isPending={action.isPending}
                 onPress={() => void decline(close)}
               >
                 Decline

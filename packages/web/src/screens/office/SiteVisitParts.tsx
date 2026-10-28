@@ -44,7 +44,7 @@ import {
   siteVisitStatusLabel,
   timeOfDay,
 } from "../format.ts";
-import { useJobAction } from "./JobCompletion.tsx";
+import { useAction, type Action } from "../action.ts";
 import { PickFromSchedule } from "./SchedulePicker.tsx";
 
 // Site Visits (#73, ADR-0015): free visits by one Staff member to see a
@@ -112,7 +112,7 @@ function BookingForm({
   visitId?: string;
   onSubmit: (booking: SiteVisitBooking) => Promise<void>;
   close: () => void;
-  action: ReturnType<typeof useJobAction>;
+  action: Action;
 }) {
   const { staff, problem } = useStaff();
   const [staffId, setStaffId] = useState(initial?.visitor?.id);
@@ -230,9 +230,7 @@ export function BookSiteVisit({
   primary?: boolean;
 }) {
   const navigate = useNavigate();
-  const action = useJobAction(
-    "The Site Visit wasn't booked. Please try again.",
-  );
+  const action = useAction("The Site Visit wasn't booked. Please try again.");
   return (
     <DialogTrigger>
       <Button variant={primary ? "primary" : "secondary"}>
@@ -268,9 +266,7 @@ export function BookSiteVisit({
 }
 
 export function MoveSiteVisit({ visit }: { visit: OfficeSiteVisit }) {
-  const action = useJobAction(
-    "The Site Visit wasn't changed. Please try again.",
-  );
+  const action = useAction("The Site Visit wasn't changed. Please try again.");
   return (
     <DialogTrigger>
       <Button variant="secondary">Move or change</Button>
@@ -299,7 +295,7 @@ export function MoveSiteVisit({ visit }: { visit: OfficeSiteVisit }) {
 }
 
 export function CancelSiteVisit({ visit }: { visit: OfficeSiteVisit }) {
-  const action = useJobAction(
+  const action = useAction(
     "The Site Visit wasn't cancelled. Please try again.",
   );
   return (
@@ -368,7 +364,7 @@ export function FindingsForm({
   submitLabel: string;
   onSubmit: (findings: object) => Promise<void>;
   close: () => void;
-  action: ReturnType<typeof useJobAction>;
+  action: Action;
 }) {
   const [condition, setCondition] = useState<Condition | null>(
     property.condition,
@@ -532,7 +528,7 @@ export function RecordFindings({
   visit: OfficeSiteVisit;
   premisesTypes: PremisesTypeChoice[];
 }) {
-  const action = useJobAction("The findings weren't saved. Please try again.");
+  const action = useAction("The findings weren't saved. Please try again.");
   return (
     <DialogTrigger>
       <Button>Record findings</Button>
@@ -573,7 +569,7 @@ export function RecordFindingsWithoutVisit({
   officeNotes: string | null;
   premisesTypes: PremisesTypeChoice[];
 }) {
-  const action = useJobAction("The findings weren't saved. Please try again.");
+  const action = useAction("The findings weren't saved. Please try again.");
   return (
     <DialogTrigger>
       <Button variant="secondary">Record findings without a visit</Button>

@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { useLoaderData, useRouter } from "@tanstack/react-router";
+import { useLoaderData } from "@tanstack/react-router";
 import type { BillView } from "@empire-cleaning/models";
 import {
   Actions,
@@ -11,9 +10,8 @@ import {
   Heading,
   Notice,
   TextField,
-  showToast,
 } from "@empire-cleaning/ui";
-import { ApiError, postJson } from "../../api.ts";
+import { postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import {
   BillDetail,
@@ -22,6 +20,7 @@ import {
   PrintBill,
   billWeek,
 } from "../BillParts.tsx";
+import { useAction } from "../action.ts";
 import { clientName, formatDate, formatDay, formatMoney } from "../format.ts";
 
 // one weekly Bill for the Office (ADR-0016): the whole Bill as the Client
@@ -122,36 +121,15 @@ function Standing({ bill }: { bill: BillView }) {
 // a short note, required, sent with the action; the API's message shown if
 // it's turned down
 function useBillAction(bill: BillView, path: string, done: string) {
-  const router = useRouter();
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [problem, setProblem] = useState<string>();
-  const [isPending, setPending] = useState(false);
-
+  const action = useAction("That didn't work. Please try again.");
   const run = async (body: Record<string, unknown>, close: () => void) => {
-    setPending(true);
-    setProblem(undefined);
-    setFieldErrors({});
-    try {
-      await postJson<BillView>(`/api/bills/${bill.id}/${path}`, body);
-      showToast({ tone: "success", title: done });
-      close();
-      await router.invalidate();
-    } catch (e) {
-      if (e instanceof ApiError && Object.keys(e.fieldErrors).length) {
-        setFieldErrors(e.fieldErrors);
-      } else {
-        setProblem(
-          e instanceof ApiError && e.status === 409
-            ? e.message
-            : "That didn't work. Please try again.",
-        );
-      }
-    } finally {
-      setPending(false);
-    }
+    const ok = await action.run(
+      () => postJson<BillView>(`/api/bills/${bill.id}/${path}`, body),
+      done,
+    );
+    if (ok) close();
   };
-
-  return { fieldErrors, problem, isPending, run };
+  return { ...action, run };
 }
 
 // a cheque or bank transfer the Client paid, which settles the Bill

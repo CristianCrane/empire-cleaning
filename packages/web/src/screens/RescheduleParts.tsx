@@ -1,5 +1,4 @@
 import { useEffect, useState, type ComponentType } from "react";
-import { useRouter } from "@tanstack/react-router";
 import type {
   RescheduleCost,
   RescheduleTerms,
@@ -13,9 +12,9 @@ import {
   Notice,
   Select,
   SelectItem,
-  showToast,
 } from "@empire-cleaning/ui";
-import { ApiError, getJson, postJson } from "../api.ts";
+import { getJson, postJson } from "../api.ts";
+import { useAction } from "./action.ts";
 import type { TimePickerProps } from "./CalendarGrid.tsx";
 import {
   dayOfInstant,
@@ -110,12 +109,13 @@ function NewTimeForm({
   Picker,
   close,
 }: Props & { close: () => void }) {
-  const router = useRouter();
   const [times, setTimes] = useState<RescheduleTimes>();
   const [date, setDate] = useState<string | null>(null);
   const [time, setTime] = useState<string | null>(timeOfDay(job.startsAt));
-  const [problem, setProblem] = useState<string>();
-  const [isPending, setPending] = useState(false);
+  // what it costs, or the days with room, may have changed since
+  const action = useAction("The request wasn't sent. Please try again.", {
+    reloadOnFailure: true,
+  });
 
   useEffect(() => {
     let current = true;
@@ -124,7 +124,7 @@ function NewTimeForm({
       .catch(
         () =>
           current &&
-          setProblem("The times couldn't be loaded. Please try again."),
+          action.fail("The times couldn't be loaded. Please try again."),
       );
     return () => {
       current = false;
@@ -145,36 +145,26 @@ function NewTimeForm({
 
   const send = async () => {
     if (!date || !time) {
-      setProblem("Choose a day and a start time");
+      action.fail("Choose a day and a start time");
       return;
     }
-    setPending(true);
-    setProblem(undefined);
-    try {
-      await postJson(`${base}/reschedule-request`, {
-        date,
-        time,
-        cost: terms.cost,
-      });
-      showToast({ tone: "success", title: done });
-      close();
-      await router.invalidate();
-    } catch (e) {
-      setProblem(
-        e instanceof ApiError && e.status === 409
-          ? e.message
-          : "The request wasn't sent. Please try again.",
-      );
-      // what it costs, or the days with room, may have changed since
-      await router.invalidate();
-    } finally {
-      setPending(false);
-    }
+    const ok = await action.run(
+      () =>
+        postJson(`${base}/reschedule-request`, {
+          date,
+          time,
+          cost: terms.cost,
+        }),
+      done,
+    );
+    if (ok) close();
   };
 
   return (
     <>
-      {!times && !problem && <p className="text-fg-muted">Finding times…</p>}
+      {!times && !action.problem && (
+        <p className="text-fg-muted">Finding times…</p>
+      )}
       {times && times.days.length === 0 && (
         <Notice>
           There's no day with room in the next few weeks. Please call the
@@ -239,13 +229,13 @@ function NewTimeForm({
         stays booked for its current time.
       </p>
       {unchanged && <Notice>That's when the clean is already booked.</Notice>}
-      {problem && <Notice tone="danger">{problem}</Notice>}
+      {action.problem && <Notice tone="danger">{action.problem}</Notice>}
       <Actions>
         <Button variant="secondary" onPress={close}>
           Keep the current time
         </Button>
         <Button
-          isPending={isPending}
+          isPending={action.isPending}
           isDisabled={!times || times.days.length === 0 || unchanged}
           onPress={() => void send()}
         >

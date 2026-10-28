@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLoaderData, useRouter } from "@tanstack/react-router";
+import { useLoaderData } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 import type {
   OfferedFor,
@@ -20,9 +20,9 @@ import {
   SelectItem,
   StatusBadge,
   TextField,
-  showToast,
 } from "@empire-cleaning/ui";
-import { ApiError, putJson } from "../../api.ts";
+import { putJson } from "../../api.ts";
+import { useAction } from "../action.ts";
 import { formatDate } from "../format.ts";
 
 // Money is shown in dollars and kept in cents; a draft is what's on screen.
@@ -117,11 +117,8 @@ export function PriceListScreen() {
 }
 
 function Editor({ list }: { list: PriceList }) {
-  const router = useRouter();
   const [draft, setDraft] = useState(() => toDraft(list));
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [failed, setFailed] = useState(false);
-  const [isSaving, setSaving] = useState(false);
+  const action = useAction("The Price List wasn't saved. Please try again.");
 
   const set = (change: Partial<Draft>) =>
     setDraft((current) => ({ ...current, ...change }));
@@ -141,31 +138,15 @@ function Editor({ list }: { list: PriceList }) {
       ),
     });
 
-  const save = async () => {
-    setSaving(true);
-    setFailed(false);
-    try {
-      const saved = await putJson<PriceList>("/api/price-list", toInput(draft));
-      setFieldErrors({});
-      showToast({
-        tone: "success",
-        title: `Price List saved as version ${saved.version}`,
-      });
-      await router.invalidate();
-    } catch (e) {
-      if (e instanceof ApiError && Object.keys(e.fieldErrors).length) {
-        setFieldErrors(e.fieldErrors);
-      } else {
-        setFailed(true);
-      }
-    } finally {
-      setSaving(false);
-    }
-  };
+  const save = () =>
+    action.run(
+      () => putJson<PriceList>("/api/price-list", toInput(draft)),
+      (saved) => `Price List saved as version ${saved.version}`,
+    );
 
   return (
     <Form
-      validationErrors={fieldErrors}
+      validationErrors={action.fieldErrors}
       onSubmit={(e) => {
         e.preventDefault();
         void save();
@@ -313,8 +294,8 @@ function Editor({ list }: { list: PriceList }) {
             </li>
           ))}
         </ul>
-        {fieldErrors.premisesTypes && (
-          <Notice tone="danger">{fieldErrors.premisesTypes}</Notice>
+        {action.fieldErrors.premisesTypes && (
+          <Notice tone="danger">{action.fieldErrors.premisesTypes}</Notice>
         )}
         <Button
           variant="secondary"
@@ -539,13 +520,9 @@ function Editor({ list }: { list: PriceList }) {
         </div>
       </Card>
 
-      {failed && (
-        <Notice tone="danger">
-          The Price List wasn't saved. Please try again.
-        </Notice>
-      )}
+      {action.problem && <Notice tone="danger">{action.problem}</Notice>}
       <Actions>
-        <Button type="submit" isPending={isSaving}>
+        <Button type="submit" isPending={action.isPending}>
           Save Price List
         </Button>
       </Actions>

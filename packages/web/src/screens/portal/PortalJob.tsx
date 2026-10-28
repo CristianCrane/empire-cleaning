@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { useLoaderData, useRouter } from "@tanstack/react-router";
+import { useLoaderData } from "@tanstack/react-router";
 import type {
   AdjustmentView,
   CancellationTerms,
@@ -18,9 +17,9 @@ import {
   Link,
   Notice,
   StatusBadge,
-  showToast,
 } from "@empire-cleaning/ui";
-import { ApiError, postJson } from "../../api.ts";
+import { postJson } from "../../api.ts";
+import { useAction } from "../action.ts";
 import { linkTo } from "../../links.ts";
 import { PickAvailableTime } from "../AvailabilityPicker.tsx";
 import { ChooseNewTime, costForClient } from "../RescheduleParts.tsx";
@@ -127,10 +126,12 @@ function Cancel({
   job: ClientJobDetail;
   terms: CancellationTerms;
 }) {
-  const router = useRouter();
-  const [problem, setProblem] = useState<string>();
-  const [isPending, setPending] = useState(false);
   const onPlan = job.servicePlanId !== null;
+  // what it costs may have changed since the page loaded
+  const action = useAction(
+    `Your clean wasn't ${onPlan ? "skipped" : "cancelled"}. Please try again.`,
+    { reloadOnFailure: true },
+  );
   const fee = formatMoney(terms.feeCents);
   const doing = onPlan ? "skipping" : "cancelling";
 
@@ -149,29 +150,14 @@ function Cancel({
           : "There's no charge.";
 
   const cancel = async (close: () => void) => {
-    setPending(true);
-    setProblem(undefined);
-    try {
-      await postJson(`/api/jobs/mine/${job.id}/cancel`, {
-        feeCents: terms.feeCents,
-      });
-      showToast({
-        tone: "success",
-        title: onPlan ? "Your clean is skipped" : "Your clean is cancelled",
-      });
-      close();
-      await router.invalidate();
-    } catch (e) {
-      setProblem(
-        e instanceof ApiError && e.status === 409
-          ? e.message
-          : `Your clean wasn't ${onPlan ? "skipped" : "cancelled"}. Please try again.`,
-      );
-      // what it costs may have changed since the page loaded
-      await router.invalidate();
-    } finally {
-      setPending(false);
-    }
+    const ok = await action.run(
+      () =>
+        postJson(`/api/jobs/mine/${job.id}/cancel`, {
+          feeCents: terms.feeCents,
+        }),
+      onPlan ? "Your clean is skipped" : "Your clean is cancelled",
+    );
+    if (ok) close();
   };
 
   return (
@@ -222,14 +208,16 @@ function Cancel({
                 <p>
                   <strong>{cost}</strong>
                 </p>
-                {problem && <Notice tone="danger">{problem}</Notice>}
+                {action.problem && (
+                  <Notice tone="danger">{action.problem}</Notice>
+                )}
                 <Actions>
                   <Button variant="secondary" onPress={close}>
                     Keep my clean
                   </Button>
                   <Button
                     variant="danger"
-                    isPending={isPending}
+                    isPending={action.isPending}
                     onPress={() => void cancel(close)}
                   >
                     {onPlan ? "Skip this clean" : "Cancel clean"}
@@ -247,9 +235,7 @@ function Cancel({
 // The Client asks to move a clean still to come, seeing first what it costs
 // (ADR-0010); while the request is pending, they can withdraw it
 function Reschedule({ job }: { job: ClientJobDetail }) {
-  const action = useJobAction(
-    "Your request wasn't withdrawn. Please try again.",
-  );
+  const action = useAction("Your request wasn't withdrawn. Please try again.");
   const request = job.rescheduleRequest;
   const onPlan = job.servicePlanId !== null;
 
@@ -267,12 +253,15 @@ function Reschedule({ job }: { job: ClientJobDetail }) {
         <Actions>
           <Button
             variant="secondary"
-            isPending={action.isPending === "withdraw"}
+            isPending={action.pending === "withdraw"}
             onPress={() =>
               void action.run(
-                "withdraw",
-                `/api/jobs/mine/${job.id}/reschedule-request/withdraw`,
+                () =>
+                  postJson(
+                    `/api/jobs/mine/${job.id}/reschedule-request/withdraw`,
+                  ),
                 "Request withdrawn",
+                "withdraw",
               )
             }
           >
@@ -448,30 +437,6 @@ function NoAccess({ job }: { job: ClientJobDetail }) {
   );
 }
 
-// runs an action on the Job, then reloads it
-const useJobAction = (fallback: string) => {
-  const router = useRouter();
-  const [problem, setProblem] = useState<string>();
-  const [isPending, setPending] = useState<string>();
-
-  const run = async (which: string, path: string, done: string) => {
-    setPending(which);
-    setProblem(undefined);
-    try {
-      await postJson(path);
-      showToast({ tone: "success", title: done });
-      await router.invalidate();
-    } catch (e) {
-      setProblem(
-        e instanceof ApiError && e.status === 409 ? e.message : fallback,
-      );
-    } finally {
-      setPending(undefined);
-    }
-  };
-  return { run, problem, isPending };
-};
-
 function Unpaid({
   job,
   payment,
@@ -479,7 +444,7 @@ function Unpaid({
   job: ClientJobDetail;
   payment: JobPayment;
 }) {
-  const action = useJobAction("We couldn't try again. Please try later.");
+  const action = useAction("We couldn't try again. Please try later.");
   return (
     <Card title="Payment needed">
       <Notice tone="danger">
@@ -491,12 +456,12 @@ function Unpaid({
       <Actions>
         <Button
           variant="secondary"
-          isPending={action.isPending === "retry"}
+          isPending={action.pending === "retry"}
           onPress={() =>
             void action.run(
-              "retry",
-              `/api/jobs/mine/${job.id}/balance/retry`,
+              () => postJson(`/api/jobs/mine/${job.id}/balance/retry`),
               "Payment taken",
+              "retry",
             )
           }
         >
@@ -518,7 +483,7 @@ function Proposal({
   job: ClientJobDetail;
   adjustment: AdjustmentView;
 }) {
-  const action = useJobAction("Your answer wasn't saved. Please try again.");
+  const action = useAction("Your answer wasn't saved. Please try again.");
   const path = `/api/jobs/mine/${job.id}/adjustments/${adjustment.id}`;
 
   return (
@@ -537,17 +502,25 @@ function Proposal({
       <Actions>
         <Button
           variant="secondary"
-          isPending={action.isPending === "decline"}
+          isPending={action.pending === "decline"}
           onPress={() =>
-            void action.run("decline", `${path}/decline`, "Declined")
+            void action.run(
+              () => postJson(`${path}/decline`),
+              "Declined",
+              "decline",
+            )
           }
         >
           Decline
         </Button>
         <Button
-          isPending={action.isPending === "approve"}
+          isPending={action.pending === "approve"}
           onPress={() =>
-            void action.run("approve", `${path}/approve`, "Approved")
+            void action.run(
+              () => postJson(`${path}/approve`),
+              "Approved",
+              "approve",
+            )
           }
         >
           Approve {formatMoney(adjustment.totalCents)}
