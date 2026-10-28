@@ -7,9 +7,12 @@ interface Props {
   title: string;
   intro?: string;
   tone?: "plain" | "raised";
+  // "center" puts the title, intro and everything under them in one column
+  // down the middle, e.g. a form
+  align?: "start" | "center";
 }
 
-const { id, title, intro, tone = "plain" } = Astro.props;
+const { id, title, intro, tone = "plain", align = "start" } = Astro.props;
 const headingId = `${id}-title`;
 ---
 
@@ -21,8 +24,18 @@ const headingId = `${id}-title`;
     tone === "raised" && "border-y border-border bg-surface",
   ]}
 >
-  <div class="mx-auto flex max-w-5xl flex-col gap-8 px-4">
-    <div class="flex max-w-2xl flex-col gap-3">
+  <div
+    class:list={[
+      "mx-auto flex flex-col gap-8 px-4",
+      align === "center" ? "max-w-2xl" : "max-w-5xl",
+    ]}
+  >
+    <div
+      class:list={[
+        "flex max-w-2xl flex-col gap-3",
+        align === "center" && "items-center text-center",
+      ]}
+    >
       <Heading level={2} id={headingId}>{title}</Heading>
       {intro && <p class="text-lg text-fg-muted">{intro}</p>}
     </div>

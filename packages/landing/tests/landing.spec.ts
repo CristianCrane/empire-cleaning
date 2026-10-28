@@ -246,8 +246,10 @@ test.describe("requesting a Quote", () => {
     page,
   }) => {
     await openQuoteForm(page);
+    // the Service chosen says what it is
+    await page.locator("form").getByText("Painting", { exact: true }).click();
     await expect(page.getByText(/^Walls, ceilings and trim/)).toBeVisible();
-    await chooseService(page, "Painting");
+    await next(page);
     // offered for homes and businesses alike
     await expect(
       page.getByText("Business premises", { exact: true }),

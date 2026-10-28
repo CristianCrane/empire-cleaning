@@ -5,6 +5,7 @@ import type {
   Service,
   ServiceChoice,
   ServiceInput,
+  ServiceIcon,
   ServiceOffer,
 } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
@@ -240,6 +241,16 @@ export const offeredAt = (service: Service, kind: PropertyKind) =>
 export const onOfferAt = (all: Service[], kind: PropertyKind) =>
   all.filter((s) => s.active && offeredAt(s, kind));
 
+// the seeded Services' pictures, matching the landing page's "What we
+// clean"; any other Service is a custom one
+const icons: Record<string, ServiceIcon> = {
+  [SEEDED.standard]: "sparkles",
+  [SEEDED.deep]: "house",
+  [SEEDED.moveInOut]: "truck",
+  [SEEDED.commercial]: "building",
+  [SEEDED.painting]: "paint-roller",
+};
+
 // The Services a new Quote can be asked for, in the list's order, as the
 // "Request a Quote" form offers them
 export const servicesOnOffer = async (): Promise<ServiceOffer[]> =>
@@ -253,6 +264,7 @@ export const servicesOnOffer = async (): Promise<ServiceOffer[]> =>
       method: s.method,
       conditionApplies: s.conditionApplies,
       canRecur: s.canRecur,
+      icon: icons[s.key] ?? "custom",
     }));
 
 // The Services a one-off Quote for `service` offers: the one it recommends
