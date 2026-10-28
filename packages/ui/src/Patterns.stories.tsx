@@ -452,7 +452,11 @@ function EmptyStatesOfferTheAction() {
 function StatusColours() {
   const tones: [StatusTone, string, string[]][] = [
     ["info", "just so, nothing to do", ["Booked", "Sent", "Accepted"]],
-    ["success", "finished well", ["Completed", "Done"]],
+    [
+      "success",
+      "finished well, or running as it should",
+      ["Completed", "Done", "Active", "Confirmed"],
+    ],
     ["warning", "someone needs to act", ["Requested", "Unassigned", "Expired"]],
     ["danger", "went wrong", ["No Access", "Unpaid"]],
     [
@@ -468,7 +472,9 @@ function StatusColours() {
           A <code>StatusBadge</code>'s tone says what the status means, not
           which screen it's on: the same word is always the same colour, so a
           table mixing Quotes, Jobs and Site Visits reads at a glance. Keep each
-          kind's tones in one map beside its labels.
+          kind's tones in one map beside its labels. Green is for the Office's
+          view of what's going right: done, or running as it should (an Active
+          plan, a Confirmed place); blue is for what's simply so.
         </p>
       </Rule>
       <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-[auto_1fr]">
