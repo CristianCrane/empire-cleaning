@@ -285,6 +285,8 @@ const officeClientsRoute = createRoute({
       typeof search.q === "string" || typeof search.q === "number"
         ? String(search.q) || undefined
         : undefined,
+    // PROTOTYPE: a list layout (#96)
+    variant: typeof search.variant === "string" ? search.variant : undefined,
   }),
   loaderDeps: ({ search }) => ({ q: search.q }),
   loader: ({ deps }) =>

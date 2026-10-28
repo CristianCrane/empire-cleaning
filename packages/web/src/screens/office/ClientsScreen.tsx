@@ -8,8 +8,11 @@ import {
   TextField,
 } from "@empire-cleaning/ui";
 import { clientName } from "../format.ts";
+import { PrototypeSwitcher } from "../PrototypeSwitcher.tsx";
+import { ClientsList, variants } from "./clients-list.prototype.tsx";
 
-export type ClientsSearch = { q?: string };
+// PROTOTYPE: variant picks a list layout (#96)
+export type ClientsSearch = { q?: string; variant?: string };
 
 // how long typing pauses before the list follows it
 const SEARCH_DELAY_MS = 250;
@@ -19,7 +22,7 @@ const SEARCH_DELAY_MS = 250;
 // so coming Back from a Client keeps it.
 export function ClientsScreen() {
   const clients = useLoaderData({ from: "/office/clients" });
-  const { q = "" } = useSearch({ from: "/office/clients" });
+  const { q = "", variant = "A" } = useSearch({ from: "/office/clients" });
   const navigate = useNavigate();
   const [text, setText] = useState(q);
 
@@ -31,7 +34,7 @@ export function ClientsScreen() {
       () =>
         void navigate({
           to: "/office/clients",
-          search: { q: wanted || undefined },
+          search: (prev) => ({ ...prev, q: wanted || undefined }),
           replace: true,
         }),
       SEARCH_DELAY_MS,
@@ -55,35 +58,19 @@ export function ClientsScreen() {
         onChange={setText}
         autoFocus
       />
-      <List
-        aria-label="Clients"
-        onAction={(id) =>
-          navigate({
-            to: "/office/clients/$clientId",
-            params: { clientId: String(id) },
+      {/* PROTOTYPE: the list's layouts, flipped with ?variant= (#96) */}
+      <ClientsList variant={variant} real={clients} q={q} />
+      <PrototypeSwitcher
+        variants={variants}
+        current={variant}
+        onChange={(key) =>
+          void navigate({
+            to: "/office/clients",
+            search: (prev) => ({ ...prev, variant: key }),
+            replace: true,
           })
         }
-        renderEmptyState={() => (
-          <p className="p-6 text-center text-fg-muted">
-            {q ? `No Clients match “${q}”.` : "No Clients yet."}
-          </p>
-        )}
-      >
-        {clients.map((client) => (
-          <ListItem
-            key={client.id}
-            id={client.id}
-            title={clientName(client)}
-            start={<Avatar src={client.imageUrl} />}
-            // how to reach them, without opening them
-            description={
-              <span className="[overflow-wrap:anywhere]">
-                {[client.email, client.phone].filter(Boolean).join(" · ")}
-              </span>
-            }
-          />
-        ))}
-      </List>
+      />
     </div>
   );
 }
