@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
+import { apiUrl } from "../playwright.config.ts";
 import {
   completedFirstClean,
   createStaff,
@@ -76,7 +77,7 @@ const quoteLink = async () => {
 
 // Casey asks about the same home again, wanting regular visits
 const askAgain = async () => {
-  const res = await fetch("http://localhost:3100/api/quotes/ask", {
+  const res = await fetch(`${apiUrl}/api/quotes/ask`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
@@ -400,7 +401,7 @@ test("a home whose First Clean isn't Completed is answered with a one-off Quote"
 }) => {
   await createStaff(olive);
   await signedInAs(page, olive.email);
-  const res = await fetch("http://localhost:3100/api/quotes/ask", {
+  const res = await fetch(`${apiUrl}/api/quotes/ask`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({

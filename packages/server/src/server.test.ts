@@ -18,7 +18,8 @@ test("tests run against the dedicated test database", async () => {
     sql`select current_database() as name`,
   );
 
-  expect(rows[0]?.name).toBe("empire_test");
+  // one of the workers' copies of empire_test (tests/setup/workerDatabase.ts)
+  expect(rows[0]?.name).toMatch(/^empire_test_\d+$/);
 });
 
 test("time can be set and advanced through the injected clock", () => {

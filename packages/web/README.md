@@ -59,7 +59,9 @@ A plain string or a hand-written `{ to }` object doesn't compile.
 
 ## Testing
 
-End to end with Playwright (`e2e/`): a production build of the app runs in a real Chromium against the real API and a database of its own (`empire_e2e_test`, on the test Postgres).
+End to end with Playwright (`e2e/`): a production build of the app runs in a real Chromium against the real API and a real database, on the test Postgres.
+
+**Tests run in parallel, and each worker has a slot of its own** (`e2e/slots.ts`): an API with its control server and database (`empire_e2e_test_0`, `_1`, …), and the built app served in front of it. A test only ever sees its own slot's data, emails and clock, so any test can run beside any other. There are half as many workers as CPU cores, up to 6 (more weren't faster); `E2E_WORKERS=2` sets it. A test reaches its API through `apiUrl` from `playwright.config.ts`, never a fixed port. CI splits the suite across three jobs (`--shard`).
 
 **The phone is the main screen and runs everything; the desktop runs only the tests tagged `@desktop`**, those where a larger layout changes something (the sidebar, two-column prices, light-theme accessibility). Tests tagged `@smoke` are the quick set (`pnpm test:quick`). Tag a test with `test("…", { tag: "@desktop" }, …)`.
 
@@ -71,5 +73,16 @@ A test starts signed in with `signedInAs(page, email)`, which signs the person i
 pnpm --filter @empire-cleaning/web test       # needs Postgres (pnpm db:up) and Chromium
 pnpm --filter @empire-cleaning/web test:e2e   # just the end-to-end tests
 ```
+
+While working on a change, run only what it touches and leave the full suites to CI before merging:
+
+```sh
+pnpm --filter @empire-cleaning/web exec playwright test --only-changed=main   # specs changed since main, and specs importing changed files
+pnpm --filter @empire-cleaning/web exec playwright test e2e/bills.spec.ts     # one spec
+pnpm --filter @empire-cleaning/server exec vitest run --changed main         # server tests affected by changes since main
+pnpm test                                                                     # the @smoke set and quick suites of every package
+```
+
+`--only-changed` follows imports from the specs only, so a change in `src/` picks no spec up: name the specs for the screens you changed.
 
 Small screen-only behaviour can still use Vitest browser tests (`src/**/*.test.tsx`), as the design system does.

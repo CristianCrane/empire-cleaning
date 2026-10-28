@@ -1,36 +1,17 @@
-import pg from "pg";
-import { drizzle } from "drizzle-orm/node-postgres";
-import { migrate } from "drizzle-orm/node-postgres/migrator";
-import { MIGRATIONS_FOLDER, TEST_DB_URL } from "./testDatabase.ts";
+import {
+  copyTestDatabase,
+  recreateTestDatabase,
+  TEST_DB_URL,
+  TEST_WORKERS,
+  withSuffix,
+} from "./testDatabase.ts";
 
-const testDbName = () => new URL(TEST_DB_URL).pathname.slice(1);
-
-// connect to the server's maintenance database to (re)create the test database
-const adminUrl = () => {
-  const url = new URL(TEST_DB_URL);
-  url.pathname = "/postgres";
-  return url.toString();
-};
-
+// Test files run in parallel, each worker on a database of its own
+// (setup/workerDatabase.ts): copies of one migrated here, so the migrations
+// run once.
 export async function setup() {
-  const name = testDbName();
-  if (!/^[a-z0-9_]+$/.test(name) || !name.includes("test")) {
-    throw new Error(`refusing to recreate "${name}": not a test database`);
-  }
-
-  const admin = new pg.Client({ connectionString: adminUrl() });
-  await admin.connect();
-  try {
-    await admin.query(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`);
-    await admin.query(`CREATE DATABASE "${name}"`);
-  } finally {
-    await admin.end();
-  }
-
-  const db = drizzle(TEST_DB_URL);
-  try {
-    await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
-  } finally {
-    await db.$client.end();
+  await recreateTestDatabase(TEST_DB_URL);
+  for (let worker = 1; worker <= TEST_WORKERS; worker++) {
+    await copyTestDatabase(TEST_DB_URL, withSuffix(TEST_DB_URL, worker));
   }
 }

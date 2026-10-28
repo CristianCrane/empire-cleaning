@@ -1,6 +1,6 @@
 import { test as base, expect, type Page } from "@playwright/test";
 import type { StaffRole } from "@empire-cleaning/models";
-import { controlUrl } from "../playwright.config.ts";
+import { apiUrl, controlUrl } from "../playwright.config.ts";
 
 // talks to the e2e API's control server (packages/server/tests/e2e/server.ts)
 const control = async (path: string, init?: RequestInit) => {
@@ -301,20 +301,20 @@ export const nextStep = async (page: Page) => {
 export { expect };
 
 // a Quote as a Guest asks for it from the landing page, straight to the
-// e2e API (packages/web/playwright.config.ts runs it on port 3100)
+// e2e API of this worker (e2e/slots.ts)
 export const requestQuoteAsGuest = async (
   contact: { name: string; email: string },
   addOnNames: string[] = [],
 ) => {
   // Add-ons are chosen by key, from those on offer
   const offered = (await (
-    await fetch("http://localhost:3100/api/price-list/add-ons")
+    await fetch(`${apiUrl}/api/price-list/add-ons`)
   ).json()) as { key: string; name: string }[];
   const addOns = offered
     .filter((addOn) => addOnNames.includes(addOn.name))
     .map((addOn) => addOn.key);
 
-  const res = await fetch("http://localhost:3100/api/quotes/ask", {
+  const res = await fetch(`${apiUrl}/api/quotes/ask`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
@@ -349,10 +349,10 @@ export const requestQuoteForPremises = async (
   businessName: string,
 ) => {
   const types = (await (
-    await fetch("http://localhost:3100/api/price-list/premises-types")
+    await fetch(`${apiUrl}/api/price-list/premises-types`)
   ).json()) as { key: string; name: string }[];
 
-  const res = await fetch("http://localhost:3100/api/quotes/ask", {
+  const res = await fetch(`${apiUrl}/api/quotes/ask`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({

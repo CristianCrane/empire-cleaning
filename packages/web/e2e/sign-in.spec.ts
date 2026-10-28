@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
+import { apiUrl } from "../playwright.config.ts";
 import {
   signedInAs,
   createClient,
@@ -126,7 +127,7 @@ test.describe("Google", () => {
     const google = await startGoogle(page);
 
     expect(google.searchParams.get("redirect_uri")).toBe(
-      "http://localhost:3100/api/auth/callback/google",
+      `${apiUrl}/api/auth/callback/google`,
     );
   });
 
