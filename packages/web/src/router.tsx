@@ -333,6 +333,10 @@ const officeBillRoute = createRoute({
 const officePropertyRoute = createRoute({
   getParentRoute: () => officeRoute,
   path: "/properties/$propertyId",
+  // PROTOTYPE: ?variant= picks a page layout
+  validateSearch: (search: Record<string, unknown>): { variant?: string } => ({
+    variant: typeof search.variant === "string" ? search.variant : undefined,
+  }),
   // business premises are corrected to a Premises Type on offer
   loader: async ({ params }) => {
     const [home, premisesTypes] = await Promise.all([

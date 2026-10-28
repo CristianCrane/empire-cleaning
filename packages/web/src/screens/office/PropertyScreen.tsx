@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { useLoaderData, useNavigate } from "@tanstack/react-router";
+import { useLoaderData, useNavigate, useSearch } from "@tanstack/react-router";
 import type {
   ClientName,
   Condition,
@@ -56,6 +56,7 @@ import {
   visitSummary,
 } from "./SiteVisitParts.tsx";
 import { OfferServicePlan } from "./StartDraft.tsx";
+import { PropertyPrototype } from "./property-page.prototype.tsx";
 
 // a home for the Office: its whole history (ADR-0011): its
 // Quotes and Jobs, its Site Visits, and its details
@@ -63,6 +64,9 @@ export function PropertyScreen() {
   const { home, premisesTypes } = useLoaderData({
     from: "/office/properties/$propertyId",
   });
+  // PROTOTYPE: ?variant= swaps in a page layout
+  const { variant } = useSearch({ from: "/office/properties/$propertyId" });
+  if (variant) return <PropertyPrototype />;
 
   return (
     <div className="flex flex-col gap-6">
@@ -114,7 +118,7 @@ export const homeCrumbs = (
  * (ADR-0014); premises the Office knows can have them recorded with no
  * visit. A Property has one booked at a time.
  */
-function SiteVisits({
+export function SiteVisits({
   home,
   premisesTypes,
 }: {
@@ -191,7 +195,7 @@ function SiteVisits({
 }
 
 // the home's Service Plan, opening its own screen
-function PlanLink({ plan }: { plan: ServicePlanSummary }) {
+export function PlanLink({ plan }: { plan: ServicePlanSummary }) {
   const navigate = useNavigate();
   return (
     <Card title="Service Plan">
@@ -220,7 +224,7 @@ function PlanLink({ plan }: { plan: ServicePlanSummary }) {
 // a home's Quotes and Jobs, newest first, each opening its own
 // screen; and the way to offer it a plan: a home once its First Clean is
 // Completed, business premises at any time (ADR-0014)
-function History({ home }: { home: OfficePropertyView }) {
+export function History({ home }: { home: OfficePropertyView }) {
   const navigate = useNavigate();
   const { quotes, jobs } = home;
   const empty = (what: string) => () => (
@@ -332,7 +336,7 @@ function useCorrection<T extends Record<string, unknown>>(
 // for a new Quote to change it; the Office corrects it here, or a Site
 // Visit's findings do (#73). The address is the Property's identity, so it
 // isn't editable.
-function Details({
+export function Details({
   home,
   premisesTypes,
 }: {
@@ -434,7 +438,7 @@ function OfficeNotesField({
   );
 }
 
-function HomeDetails({
+export function HomeDetails({
   home,
   officeNotes,
 }: {
@@ -520,7 +524,7 @@ function HomeDetails({
 
 // business premises: their Premises Type (one on offer, or the retired one
 // they have), floor area and Condition
-function PremisesDetails({
+export function PremisesDetails({
   premises,
   officeNotes,
   premisesTypes,
