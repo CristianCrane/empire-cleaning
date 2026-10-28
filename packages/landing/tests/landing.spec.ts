@@ -6,9 +6,18 @@ import { emailsTo, expect, test } from "./harness.ts";
 // the form loads once its section scrolls into view
 const openQuoteForm = async (page: Page) => {
   await page.goto("/#quote");
-  await expect(page.getByRole("textbox", { name: "Full name" })).toBeVisible();
-  // the Add-ons arrive from the API a moment after the form
-  await expect(page.getByRole("group", { name: "Any extras?" })).toBeVisible();
+  await expect(
+    page.getByRole("textbox", { name: "Street address" }),
+  ).toBeVisible();
+};
+
+// the form asks in steps; Next checks the step's required fields, and
+// this waits for the next one to show
+const next = async (page: Page) => {
+  const step = page.getByText(/^Step \d of \d$/);
+  const before = await step.textContent();
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await expect(step).not.toHaveText(before!);
 };
 
 const sections = [
@@ -52,10 +61,28 @@ for (const theme of ["light", "dark"] as const) {
       { tag: theme === "light" ? "@desktop" : [] },
       async ({ page }) => {
         await openQuoteForm(page);
+        const check = async () => {
+          const { violations } = await new AxeBuilder({ page }).analyze();
+          expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+        };
 
-        const { violations } = await new AxeBuilder({ page }).analyze();
-
-        expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+        // each step of the form
+        await check();
+        await page
+          .getByRole("textbox", { name: "Street address" })
+          .fill("41-12 Austin St");
+        await page.getByRole("textbox", { name: "ZIP code" }).fill("11375");
+        await next(page);
+        // the Add-ons arrive from the API a moment after the step
+        await expect(
+          page.getByRole("group", { name: "Any extras?" }),
+        ).toBeVisible();
+        await check();
+        await next(page);
+        await expect(
+          page.getByRole("textbox", { name: "Full name" }),
+        ).toBeVisible();
+        await check();
       },
     );
   });
@@ -87,12 +114,8 @@ test(
 );
 
 test.describe("requesting a Quote", () => {
-  const fillIn = async (page: Page, zip = "11375") => {
-    await page.getByRole("textbox", { name: "Full name" }).fill("Casey Client");
-    await page
-      .getByRole("textbox", { name: "Email" })
-      .fill("casey@example.com");
-    await page.getByRole("textbox", { name: "Phone" }).fill("(646) 555-0100");
+  // step 1: what and where
+  const fillWhere = async (page: Page, zip = "11375") => {
     await page.getByText("Apartment", { exact: true }).click();
     await page
       .getByRole("textbox", { name: "Street address" })
@@ -100,18 +123,38 @@ test.describe("requesting a Quote", () => {
     await page.getByRole("textbox", { name: "ZIP code" }).fill(zip);
   };
 
+  // the last step: who's asking
+  const fillDetails = async (page: Page) => {
+    await page.getByRole("textbox", { name: "Full name" }).fill("Casey Client");
+    await page
+      .getByRole("textbox", { name: "Email" })
+      .fill("casey@example.com");
+    await page.getByRole("textbox", { name: "Phone" }).fill("(646) 555-0100");
+  };
+
+  // every step, taking the home as it comes
+  const fillIn = async (page: Page, zip = "11375") => {
+    await fillWhere(page, zip);
+    await next(page);
+    await next(page);
+    await fillDetails(page);
+  };
+
   test(
     "a Guest sends it and is told where the Quote will go",
     { tag: "@smoke" },
     async ({ page }) => {
       await openQuoteForm(page);
-      await fillIn(page);
+      await fillWhere(page);
+      await next(page);
       await page.getByText("Heavy", { exact: true }).click();
       await page
         .getByText("After my first clean, I'd like regular visits", {
           exact: false,
         })
         .click();
+      await next(page);
+      await fillDetails(page);
 
       await page.getByRole("button", { name: "Request a Quote" }).click();
 
@@ -132,6 +175,7 @@ test.describe("requesting a Quote", () => {
 
     await page.getByRole("button", { name: "Request a Quote" }).click();
 
+    // back on the step with the field
     const zip = page.getByRole("textbox", { name: "ZIP code" });
     await expect(zip).toHaveAttribute("aria-invalid", "true");
     await expect(zip).toHaveAccessibleDescription(/Enter a 5-digit ZIP code/);
@@ -169,6 +213,8 @@ test.describe("requesting a Quote", () => {
     page,
   }) => {
     await openQuoteForm(page);
+    await fillWhere(page);
+    await next(page);
     const extras = page.getByRole("group", { name: "Any extras?" });
     await expect(extras.getByRole("checkbox")).toHaveCount(4);
     await expect(extras).not.toContainText("$");
@@ -177,7 +223,8 @@ test.describe("requesting a Quote", () => {
     await expect(
       extras.getByRole("checkbox", { name: "Inside the fridge" }),
     ).toBeChecked();
-    await fillIn(page);
+    await next(page);
+    await fillDetails(page);
     await page.getByRole("button", { name: "Request a Quote" }).click();
 
     await expect(
@@ -190,28 +237,29 @@ test.describe("requesting a Quote", () => {
   }) => {
     await openQuoteForm(page);
     await page.getByText("Business premises", { exact: true }).click();
-    // a Site Visit finds these, so they aren't asked
-    await expect(page.getByRole("group", { name: "Any extras?" })).toHaveCount(
-      0,
-    );
-    await page
-      .getByRole("textbox", { name: "Business name" })
-      .fill("Acme Dental");
-    await page.getByRole("textbox", { name: "Full name" }).fill("Casey Client");
-    await page
-      .getByRole("textbox", { name: "Email" })
-      .fill("casey@example.com");
-    await page.getByRole("textbox", { name: "Phone" }).fill("(646) 555-0100");
     await page
       .getByRole("textbox", { name: "Street address" })
       .fill("200 Park Ave S");
     await page.getByRole("textbox", { name: "ZIP code" }).fill("10003");
+    await next(page);
+    // a Site Visit finds these, so they aren't asked
+    await expect(page.getByText("How much cleaning does it need?")).toHaveCount(
+      0,
+    );
+    await expect(page.getByRole("group", { name: "Any extras?" })).toHaveCount(
+      0,
+    );
     await page.getByRole("button", { name: /Type of premises/ }).click();
     await page.getByRole("option", { name: "Medical" }).click();
-    await page.getByText("Tuesday", { exact: true }).click();
-    await page.getByText("Thursday", { exact: true }).click();
+    await page.getByText("Tue", { exact: true }).click();
+    await page.getByText("Thu", { exact: true }).click();
     await page.getByRole("button", { name: /Preferred start time/ }).click();
     await page.getByRole("option", { name: "7:30 PM" }).click();
+    await next(page);
+    await page
+      .getByRole("textbox", { name: "Business name" })
+      .fill("Acme Dental");
+    await fillDetails(page);
 
     await page.getByRole("button", { name: "Request a Quote" }).click();
 
@@ -227,8 +275,16 @@ test.describe("requesting a Quote", () => {
   }) => {
     await openQuoteForm(page);
 
-    await page.getByRole("button", { name: "Request a Quote" }).click();
+    await page.getByRole("button", { name: "Next", exact: true }).click();
 
+    // still on the first step
+    await expect(
+      page.getByRole("textbox", { name: "Street address" }),
+    ).toHaveAttribute("aria-invalid", "true");
+    await fillWhere(page);
+    await next(page);
+    await next(page);
+    await page.getByRole("button", { name: "Request a Quote" }).click();
     await expect(
       page.getByRole("textbox", { name: "Full name" }),
     ).toHaveAttribute("aria-invalid", "true");

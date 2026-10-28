@@ -57,10 +57,12 @@ const isDark = () =>
   document.documentElement.getAttribute("data-theme") === "dark";
 
 // The provider's form drawn like our own fields (Field.tsx's fieldStyles):
-// our colours and type, a strong outline, and our focus ring
+// our colours and type, a tinted box with a strong line along its bottom,
+// and our focus ring
 const appearance = (): Appearance => {
   const c = {
     surface: tokenColour("--ec-surface"),
+    surfaceSunken: tokenColour("--ec-surface-sunken"),
     fg: tokenColour("--ec-fg"),
     fgMuted: tokenColour("--ec-fg-muted"),
     borderStrong: tokenColour("--ec-border-strong"),
@@ -94,8 +96,11 @@ const appearance = (): Appearance => {
     rules: {
       ".Label": { fontSize: "14px", fontWeight: "600", color: c.fg },
       ".Input": {
-        backgroundColor: c.surface,
-        border: `1px solid ${c.borderStrong}`,
+        backgroundColor: c.surfaceSunken,
+        border: "1px solid transparent",
+        borderBottom: `1px solid ${c.borderStrong}`,
+        borderBottomLeftRadius: "0",
+        borderBottomRightRadius: "0",
         boxShadow: "none",
       },
       ".Input:focus": focusRing,

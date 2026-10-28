@@ -49,12 +49,16 @@ export function FieldError(props: FieldErrorProps) {
   );
 }
 
-// the outline of a text box; 16px text keeps phones from zooming in on focus
+// a text box: a tinted box with a line along its bottom, quieter than a full
+// outline (#96); 16px text keeps phones from zooming in on focus
 export const fieldStyles = tv({
-  base: "min-h-touch w-full rounded-md border bg-surface px-3 text-base text-fg outline-none transition-colors placeholder:text-fg-muted",
+  base: "min-h-touch w-full rounded-md rounded-b-none border bg-surface-sunken px-3 text-base text-fg outline-none transition-colors placeholder:text-fg-muted",
   variants: {
     isFocused: { true: "outline-2 -outline-offset-1 outline-focus" },
-    isInvalid: { true: "border-danger", false: "border-border-strong" },
+    isInvalid: {
+      true: "border-danger",
+      false: "border-transparent border-b-border-strong",
+    },
     isDisabled: { true: "opacity-50" },
   },
 });
@@ -82,13 +86,16 @@ export function TextArea(props: TextAreaProps) {
 }
 
 // a field made of several parts (date segments, stepper buttons) in one
-// outline; parts stretch to its height rather than setting their own, so it
+// box; parts stretch to its height rather than setting their own, so it
 // matches a plain text box
 export const fieldGroupStyles = tv({
-  base: "flex min-h-touch w-full items-center overflow-hidden rounded-md border bg-surface text-base text-fg",
+  base: "flex min-h-touch w-full items-center overflow-hidden rounded-md rounded-b-none border bg-surface-sunken text-base text-fg",
   variants: {
     isFocusWithin: { true: "outline-2 -outline-offset-1 outline-focus" },
-    isInvalid: { true: "border-danger", false: "border-border-strong" },
+    isInvalid: {
+      true: "border-danger",
+      false: "border-transparent border-b-border-strong",
+    },
     isDisabled: { true: "opacity-50" },
   },
 });

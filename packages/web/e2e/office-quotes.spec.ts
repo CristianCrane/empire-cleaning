@@ -4,6 +4,7 @@ import {
   createStaff,
   emailsTo,
   expect,
+  nextStep,
   requestQuoteAsGuest,
   requestQuoteForPremises,
   signedInAs,
@@ -25,7 +26,7 @@ const startNewQuote = async (page: Page) => {
   await expect(page).toHaveURL("/office/quotes/new");
 };
 
-// the parts of the shared form every new home needs
+// the shared form's first step for a new home: what and where
 const describeNewHome = async (page: Page, street = "35-06 Ditmars Blvd") => {
   await page.getByText("Apartment", { exact: true }).click();
   await page.getByRole("textbox", { name: "Street address" }).fill(street);
@@ -47,9 +48,13 @@ test(
     ).toBeFocused();
 
     await page.getByRole("button", { name: "New Client" }).click();
+    await describeNewHome(page);
+    await expectNoViolations(page);
+    await nextStep(page);
+    await expectNoViolations(page);
+    await nextStep(page);
     await page.getByRole("textbox", { name: "Full name" }).fill("Pat Phoner");
     await page.getByRole("textbox", { name: "Phone" }).fill("(718) 555-0123");
-    await describeNewHome(page);
     await expectNoViolations(page);
     await page.getByRole("button", { name: "Draft a Quote" }).click();
 
@@ -108,6 +113,7 @@ test(
       page.getByRole("radio", { name: "A different home" }),
     ).toBeChecked();
     await describeNewHome(page);
+    await nextStep(page);
     await page.getByRole("button", { name: "Draft a Quote" }).click();
 
     await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
