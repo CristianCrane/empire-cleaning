@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Building2, House, Houses, Store } from "lucide-react";
 import type {
   AddOnChoice,
   Condition,
@@ -18,6 +19,8 @@ import {
   Checkbox,
   Chip,
   ChipGroup,
+  ChoiceTile,
+  ChoiceTiles,
   Form,
   Heading,
   Notice,
@@ -315,15 +318,34 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
   // a field's message from the API, by its path in the request
   const error = (path: string) => fieldErrors[path];
 
+  // one question for what kind of place and, for a home, its type: business
+  // premises are just another kind of place (#96). A home's type only
+  // matters for a new one.
   const kindField = (
-    <SegmentedControl
+    <ChoiceTiles
       label={words.what}
-      value={kind}
-      onChange={(value) => chooseKind(value as PropertyKind)}
+      name="property.new.type"
+      value={premises ? "commercial" : newHome.type}
+      onChange={(value) => {
+        if (value === "commercial") return chooseKind("commercial");
+        if (premises) chooseKind("residential");
+        setNewHome((current) => ({ ...current, type: value as PropertyType }));
+      }}
+      errorMessage={error("property.new.type")}
     >
-      <Segment value="residential">A home</Segment>
-      <Segment value="commercial">Business premises</Segment>
-    </SegmentedControl>
+      <ChoiceTile value="house" icon={House}>
+        House
+      </ChoiceTile>
+      <ChoiceTile value="apartment" icon={Building2}>
+        Apartment
+      </ChoiceTile>
+      <ChoiceTile value="townhouse" icon={Houses}>
+        Townhouse
+      </ChoiceTile>
+      <ChoiceTile value="commercial" icon={Store}>
+        Business premises
+      </ChoiceTile>
+    </ChoiceTiles>
   );
 
   const businessNameField = (
@@ -428,32 +450,14 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
             error={error}
           />
         ) : (
-          <>
-            <SegmentedControl
-              label="Type of home"
-              name="property.new.type"
-              value={newHome.type}
-              onChange={(type) =>
-                setNewHome((current) => ({
-                  ...current,
-                  type: type as PropertyType,
-                }))
-              }
-              errorMessage={error("property.new.type")}
-            >
-              <Segment value="house">House</Segment>
-              <Segment value="apartment">Apartment</Segment>
-              <Segment value="townhouse">Townhouse</Segment>
-            </SegmentedControl>
-            <AddressFields
-              place={newHome}
-              unitLabel="Apartment or unit (optional)"
-              update={(change) =>
-                setNewHome((current) => ({ ...current, ...change }))
-              }
-              error={error}
-            />
-          </>
+          <AddressFields
+            place={newHome}
+            unitLabel="Apartment or unit (optional)"
+            update={(change) =>
+              setNewHome((current) => ({ ...current, ...change }))
+            }
+            error={error}
+          />
         ))}
     </>
   );

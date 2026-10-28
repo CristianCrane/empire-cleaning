@@ -12,6 +12,7 @@ export { Calendar } from "./Calendar.tsx";
 export { Card } from "./Card.tsx";
 export { Checkbox } from "./Checkbox.tsx";
 export { Chip, ChipGroup } from "./ChipGroup.tsx";
+export { ChoiceTile, ChoiceTiles } from "./ChoiceTiles.tsx";
 export { DatePicker, TimeField } from "./DateField.tsx";
 export { Dialog, DialogTrigger } from "./Dialog.tsx";
 export { EmbeddedField } from "./EmbeddedField.tsx";

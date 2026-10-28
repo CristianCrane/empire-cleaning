@@ -1,9 +1,18 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import type { ReactNode } from "react";
-import { CalendarDays, CircleDollarSign, Inbox, UserX } from "lucide-react";
+import {
+  Building2,
+  CalendarDays,
+  CircleDollarSign,
+  House,
+  Inbox,
+  Store,
+  UserX,
+} from "lucide-react";
 import { Card } from "./Card.tsx";
 import { Checkbox } from "./Checkbox.tsx";
 import { Chip, ChipGroup } from "./ChipGroup.tsx";
+import { ChoiceTile, ChoiceTiles } from "./ChoiceTiles.tsx";
 import { Heading } from "./Heading.tsx";
 import { IconTile } from "./IconTile.tsx";
 import { ButtonLink } from "./Link.tsx";
@@ -276,8 +285,11 @@ function QuietForms() {
           a line along the bottom, not a full outline. A short choice of one is
           a <code>SegmentedControl</code> (with the picked option's meaning
           under it), and a choice of several short options is a{" "}
-          <code>ChipGroup</code>. Keep <code>RadioGroup</code> for options that
-          are long or vary, like a Client's homes.
+          <code>ChipGroup</code>. Things easiest told apart by a picture (a
+          house, an apartment, business premises) are <code>ChoiceTiles</code>;
+          ask one question rather than two back to back. Keep{" "}
+          <code>RadioGroup</code> for options that are long or vary, like a
+          Client's homes.
         </p>
         <p>
           Optional fields wait behind a "+ Add …" link until they're wanted. A
@@ -289,12 +301,27 @@ function QuietForms() {
       <div className="flex flex-col gap-4 lg:flex-row">
         <Example verdict="Do">
           <div className="flex flex-col gap-4">
-            <SegmentedControl label="Type of home" defaultValue="apartment">
-              <Segment value="house">House</Segment>
-              <Segment value="apartment">Apartment</Segment>
-              <Segment value="townhouse">Townhouse</Segment>
-            </SegmentedControl>
+            <ChoiceTiles label="What needs cleaning?" defaultValue="apartment">
+              <ChoiceTile value="house" icon={House}>
+                House
+              </ChoiceTile>
+              <ChoiceTile value="apartment" icon={Building2}>
+                Apartment
+              </ChoiceTile>
+              <ChoiceTile value="commercial" icon={Store}>
+                Business premises
+              </ChoiceTile>
+            </ChoiceTiles>
             <TextField label="Street address" />
+            <SegmentedControl
+              label="How much cleaning does it need?"
+              defaultValue="moderate"
+              description="Lived in, with some build-up in the kitchen and bathrooms"
+            >
+              <Segment value="light">Light</Segment>
+              <Segment value="moderate">Moderate</Segment>
+              <Segment value="heavy">Heavy</Segment>
+            </SegmentedControl>
             <ChipGroup label="Any extras?" defaultValue={["oven"]}>
               <Chip value="oven">Inside the oven</Chip>
               <Chip value="fridge">Inside the fridge</Chip>
@@ -304,6 +331,10 @@ function QuietForms() {
         </Example>
         <Example verdict="Don't">
           <div className="flex flex-col gap-4">
+            <RadioGroup label="What needs cleaning?" defaultValue="home">
+              <Radio value="home">A home</Radio>
+              <Radio value="commercial">Business premises</Radio>
+            </RadioGroup>
             <RadioGroup label="Type of home" defaultValue="apartment">
               <Radio value="house">House</Radio>
               <Radio value="apartment">Apartment</Radio>

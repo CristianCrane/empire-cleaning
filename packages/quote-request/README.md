@@ -11,7 +11,7 @@ The one Request a Quote form (#3), used by the landing site for Guests and by th
 />
 ```
 
-It asks in steps, so only a few questions show at once (#96): what and where (home or business premises, and the address), then about the place, then who is asking, when the form needs that (a Guest, a signed-up Account or a new caller; a Client's details are known). Next checks the step's required fields. A message from the API takes the form back to the step with that field. Optional extras (floor area, how we get in, a note) wait behind "+ Add …" links until they're wanted. Short choices are segmented controls and chips rather than a box per option.
+It asks in steps, so only a few questions show at once (#96): what and where (one question for a house, apartment, townhouse or business premises, then the address), then about the place, then who is asking, when the form needs that (a Guest, a signed-up Account or a new caller; a Client's details are known). Next checks the step's required fields. A message from the API takes the form back to the step with that field. Optional extras (floor area, how we get in, a note) wait behind "+ Add …" links until they're wanted. Short choices are segmented controls and chips rather than a box per option.
 
 It starts by asking whether it's about a home or business premises (#72). A home is described by its rooms and Condition, with any Add-ons for homes and a wish for regular visits; business premises by the business's name, a Premises Type (loaded from `GET /api/price-list/premises-types`), an optional floor area, and either the weekdays and preferred start time to clean or a one-off. Their Condition and extras are agreed after a Site Visit, so they aren't asked.
 
