@@ -1,13 +1,9 @@
-// the facts the page, its search data and its tests all share
+import { business as shared } from "@empire-cleaning/models";
+
+// the facts the page, its search data and its tests all share: the business
+// itself (shared with the emails), and how the page presents it
 export const business = {
-  name: "Empire Cleaning & Pro Services Inc",
-  url: "https://www.empirecleaningandpro.com/",
-  phone: {
-    display: "(646) 320-9076",
-    href: "tel:+16463209076",
-    e164: "+1-646-320-9076",
-  },
-  area: "Queens, NY",
+  ...shared,
   title:
     "Empire Cleaning & Pro Services | House and office cleaning in Queens, NY",
   description:

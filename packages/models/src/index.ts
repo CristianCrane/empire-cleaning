@@ -1808,3 +1808,19 @@ export type VoidBillInput = { reason: string };
 
 // POST /api/bills/:id/outside-payment: a cheque or bank transfer
 export type OutsidePaymentInput = { note: string };
+
+// ---- The business ----
+
+// the facts the landing site and every email's footer share
+export const business = {
+  name: "Empire Cleaning & Pro Services Inc",
+  url: "https://www.empirecleaningandpro.com/",
+  // the url as printed, e.g. in an email's footer
+  site: "empirecleaningandpro.com",
+  phone: {
+    display: "(646) 320-9076",
+    href: "tel:+16463209076",
+    e164: "+1-646-320-9076",
+  },
+  area: "Queens, NY",
+} as const;

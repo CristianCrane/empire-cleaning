@@ -17,6 +17,12 @@ Fakes are fresh and every table is emptied before each test, with one `DELETE` t
 
 A worker's test files share one loaded copy of the server (`isolate: false`), because loading it takes about 5 s. That is safe because a worker runs its files one at a time and every test starts clean (`tests/setup/perTest.ts`); running them in random order (`pnpm vitest run --sequence.shuffle.files --sequence.shuffle.tests`) is a way to check.
 
+## Emails
+
+Every email is built by a pure builder next to its feature (e.g. `signInEmail` in `features/auth/emails.ts`) that returns a subject and **blocks** (`#services/email`, `blocks.ts`): a greeting, paragraphs, details (`Label: value` rows), amounts (rows and a bold total, from cents) and one button. `email.send({ to, ...builder(…) })` renders them through the one React Email layout (`layout.tsx`) as HTML and as text, where the button is its raw URL, and sets the reply-to to `OFFICE_EMAIL`. The inbox preview line is the email's `preview`, or else its first paragraph. Emails not yet moved to a builder still pass `compose()`'s `html` and `text` (#126).
+
+`pnpm email:dev` (from the repo root) runs React Email's preview server on http://localhost:3002, showing every file in `emails/`: one per email, rendering its builder with sample data. The layout is `.tsx`, which plain Node can't run, so the server starts with `tsx`.
+
 ## Accounts and sign-in
 
 Better Auth (ADR-0002) is mounted at `/api/auth/*`; signing up and in are by emailed one-time link or Google, never a password. `GET /api/me` returns the signed-in Account.

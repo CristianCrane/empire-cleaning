@@ -19,7 +19,8 @@
     "db:push": "pnpm --filter @empire-cleaning/server db:push",
     "db:studio": "pnpm --filter @empire-cleaning/server db:studio",
     "db:seed": "pnpm --filter @empire-cleaning/server db:seed",
-    "test:full": "pnpm --color --recursive --workspace-concurrency=1 --no-bail run test"
+    "test:full": "pnpm --color --recursive --workspace-concurrency=1 --no-bail run test",
+    "email:dev": "pnpm --filter @empire-cleaning/server email:dev"
   },
   "devDependencies": {
     "@manypkg/cli": "^0.25.1",

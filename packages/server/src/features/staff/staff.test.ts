@@ -52,6 +52,8 @@ describe("inviting Staff", () => {
     expect(invitation.subject).toBe("You're invited to join Empire Cleaning");
     expect(invitation.text).toContain("/sign-in");
     expect(invitation.text).toContain("cory@example.com");
+    // replies reach the Office, not the no-reply sender
+    expect(invitation.replyTo).toBe("office@example.com");
   });
 
   test("signing up with the invited email connects them, with the roles given", async () => {
