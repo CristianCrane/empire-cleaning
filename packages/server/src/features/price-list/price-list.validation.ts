@@ -39,9 +39,9 @@ const addOn = z.object({
     .max(80, "Use a shorter name"),
   hours: hours,
   taxExempt: z.boolean(),
-  offeredFor: z.enum(["homes", "businesses", "both"], {
-    error: "Choose who the Add-on is offered to",
-  }),
+  serviceKeys: z
+    .array(z.uuid(), { error: "Choose the Services it goes with" })
+    .min(1, "Choose at least one Service it goes with"),
   active: z.boolean(),
 });
 

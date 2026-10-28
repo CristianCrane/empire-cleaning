@@ -159,7 +159,7 @@ test(
   },
 );
 
-test("Office Staff keep the Premises Types, and who each Add-on is for", async ({
+test("Office Staff keep the Premises Types, and the Services each Add-on goes with", async ({
   page,
 }) => {
   await signInAsOffice(page);
@@ -171,11 +171,8 @@ test("Office Staff keep the Premises Types, and who each Add-on is for", async (
     .getByRole("textbox", { name: "Type of premises" })
     .last()
     .fill("Gym");
-  await page
-    .getByRole("button", { name: /Offered for/ })
-    .nth(2)
-    .click();
-  await page.getByRole("option", { name: "Homes and businesses" }).click();
+  const cabinets = page.getByRole("group", { name: "Goes with" }).nth(2);
+  await cabinets.getByText("Commercial cleaning").click();
   await page.getByRole("button", { name: "Save Price List" }).click();
   await expect(page.getByText("Price List saved as version 2")).toBeVisible();
 
@@ -187,8 +184,8 @@ test("Office Staff keep the Premises Types, and who each Add-on is for", async (
     page.getByRole("textbox", { name: "Type of premises" }).last(),
   ).toHaveValue("Gym");
   await expect(
-    page.getByRole("button", { name: /Offered for/ }).nth(2),
-  ).toHaveText(/Homes and businesses/);
+    cabinets.getByRole("checkbox", { name: "Commercial cleaning" }),
+  ).toBeChecked();
 });
 
 test("Office Staff quote a business caller from New Quote", async ({

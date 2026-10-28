@@ -43,7 +43,7 @@ export const priceLists = pgTable("price_lists", {
   }),
 });
 
-// which kind of Property an Add-on is offered for
+// which kind of Property a Service is offered for
 export const offeredFor = pgEnum("offered_for", [
   "homes",
   "businesses",
@@ -64,7 +64,8 @@ export const priceListAddOns = pgTable(
     name: text("name").notNull(),
     hours: decimal("hours"),
     taxExempt: boolean("tax_exempt").notNull().default(false),
-    offeredFor: offeredFor("offered_for").notNull().default("homes"),
+    // the Services it goes with, by key (ADR-0018)
+    serviceKeys: uuid("service_keys").array().notNull().default([]),
     active: boolean("active").notNull().default(true),
     position: integer("position").notNull(),
   },

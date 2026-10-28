@@ -501,3 +501,34 @@ test(
     );
   },
 );
+
+test("Office Staff change what a Draft is for, and what was asked stays", async ({
+  page,
+}) => {
+  await requestQuoteAsGuest(casey);
+  await signInAsOffice(page);
+  await startDraft(page);
+  // a Standard Clean was asked for, with a Deep Clean recommended for a
+  // first visit
+  await expect(page.getByRole("region", { name: "Deep Clean" })).toContainText(
+    "Recommended",
+  );
+
+  await page.getByRole("button", { name: "Standard Clean Service" }).click();
+  await page.getByRole("option", { name: "Move-in/out Clean" }).click();
+  const status = page.getByRole("status").filter({ hasText: /prices|saved/ });
+  await expect(status).toHaveText("All changes saved");
+
+  await expect(
+    page.getByRole("region", { name: "Move-in/out Clean" }),
+  ).toBeVisible();
+  await expect(page.getByRole("region", { name: "Deep Clean" })).toHaveCount(0);
+  // as it was asked
+  await page.reload();
+  await expect(
+    page.getByRole("button", { name: "Move-in/out Clean Service" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("definition").filter({ hasText: /^Standard Clean$/ }),
+  ).toBeVisible();
+});

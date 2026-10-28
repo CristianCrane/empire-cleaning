@@ -6,6 +6,7 @@ import { createStaff } from "#features/staff";
 import { jobs } from "./jobs.schema.ts";
 import { api, signIn } from "../../../tests/harness.ts";
 import { bookedJob, signInAsOffice } from "../../../tests/fixtures.ts";
+import { SEEDED } from "#features/services";
 
 type Office = Awaited<ReturnType<typeof signInAsOffice>>;
 
@@ -74,7 +75,7 @@ describe("the Schedule", () => {
       startsAt: "2026-01-06T19:00:00Z", // 2pm in New York
       labourHours: 3,
       crewSize: 2,
-      cleanType: "standard",
+      serviceKey: SEEDED.standard,
     });
     const earlier = await bookedJob({
       startsAt: "2026-01-06T14:00:00Z", // 9am
@@ -92,7 +93,7 @@ describe("the Schedule", () => {
     expect(days[1]!.jobs.map((j) => j.id)).toEqual([earlier.id, later.id]);
     expect(days[1]!.jobs[1]).toMatchObject({
       startsAt: "2026-01-06T19:00:00.000Z",
-      cleanType: "standard",
+      serviceName: "Standard Clean",
       status: "booked",
       labourHours: 3,
       crewSize: 2,

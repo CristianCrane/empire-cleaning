@@ -30,6 +30,7 @@ import {
   signInAsOffice,
   submit,
 } from "../../../tests/fixtures.ts";
+import { SEEDED } from "#features/services";
 
 type Agent = Awaited<ReturnType<typeof signIn>>;
 
@@ -88,7 +89,7 @@ const bookedJob = async ({
       depositPercent,
       validityDays: 7,
       proposedStart: { date: "2026-01-12", time: "09:00" },
-      overrides: { deep: null, standard: null },
+      overrides: {},
     })
     .expect(200);
   const quote = (await office.post(`/api/quotes/${draft.id}/send`).expect(200))
@@ -99,7 +100,7 @@ const bookedJob = async ({
     await client
       .post(`/api/quotes/mine/${quote.id}/accept`)
       .send({
-        cleanType: "deep",
+        serviceKey: SEEDED.deep,
         paymentToken: testPayments().paymentToken(),
       })
       .expect(200)
@@ -129,7 +130,7 @@ const bookedJob = async ({
 };
 
 const deepOf = (quote: OfficeQuote) =>
-  quote.offer!.options.find((o) => o.cleanType === "deep")!;
+  quote.offer!.options.find((o) => o.serviceKey === SEEDED.deep)!;
 
 const complete = (
   agent: Agent,

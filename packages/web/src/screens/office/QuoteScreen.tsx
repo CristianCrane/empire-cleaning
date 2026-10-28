@@ -7,17 +7,17 @@ import {
   type Time,
 } from "@internationalized/date";
 import type {
-  CleanType,
   Condition,
   FirstCleanFindings,
   OfficeQuote,
   OfficeQuoteOption,
   OfficeRevision,
   PlanChange,
-  PlanChoice,
+  PlanDayTerms,
   QuoteDraftInput,
   Recurrence,
   ScheduleDay,
+  ServiceChoice,
   ServicePlanInput,
 } from "@empire-cleaning/models";
 import {
@@ -37,7 +37,6 @@ import {
   Notice,
   NumberField,
   Radio,
-  RadioCard,
   RadioGroup,
   Section,
   Select,
@@ -53,8 +52,6 @@ import { useAction } from "../action.ts";
 import {
   addressOf,
   adjustmentLabel,
-  cleanTypeLabel,
-  optionLabel,
   clientName,
   conditionLabel,
   dayOfInstant,
@@ -135,7 +132,7 @@ function OfferCards({
             ))
           : quote.options.map((option) => (
               <OptionCard
-                key={option.cleanType}
+                key={option.serviceKey}
                 option={option}
                 crewSize={quote.crewSize}
                 depositPercent={quote.depositPercent}
@@ -355,7 +352,7 @@ function SentQuote({ quote }: { quote: ShownQuote }) {
                       : "its Service Plan has started"}
                   </Link>
                 ) : (
-                  `${cleanTypeLabel[quote.acceptedCleanType!]}, booked`
+                  `${quote.options.find((o) => o.serviceKey === quote.acceptedServiceKey)?.serviceName}, booked`
                 )}
               </dd>
             </>
@@ -427,11 +424,13 @@ function NewRevision({ quote }: { quote: ShownQuote }) {
 // charging the Deposit to the card the Client saved. Office Staff never take
 // card details, so without one they email the Client a link to add it.
 function RecordAcceptance({ quote }: { quote: ShownQuote }) {
-  const [cleanType, setCleanType] = useState<CleanType>(
-    quote.bookable.includes("deep") ? "deep" : quote.bookable[0]!,
+  // the recommended Service, unless only the other still fits
+  const [serviceKey, setServiceKey] = useState(
+    quote.options.find((o) => quote.bookable.includes(o.serviceKey))!
+      .serviceKey,
   );
   const action = useAction("That didn't work. Please try again.");
-  const chosen = quote.options.find((o) => o.cleanType === cleanType)!;
+  const chosen = quote.options.find((o) => o.serviceKey === serviceKey)!;
   const depositCents = quote.plan?.depositCents ?? chosen.depositCents;
   const [firstName] = quote.client.name.split(" ");
 
@@ -441,7 +440,7 @@ function RecordAcceptance({ quote }: { quote: ShownQuote }) {
       () =>
         postJson<OfficeQuote>(
           `/api/quotes/${quote.id}/accept`,
-          quote.plan ? {} : { cleanType },
+          quote.plan ? {} : { serviceKey },
         ),
       quote.changesPlan
         ? "Accepted: the Service Plan has changed"
@@ -541,22 +540,22 @@ function RecordAcceptance({ quote }: { quote: ShownQuote }) {
     >
       {!quote.plan && (
         <RadioGroup
-          label="Clean Type they chose"
-          value={cleanType}
-          onChange={(value) => setCleanType(value as CleanType)}
+          label="Service they chose"
+          value={serviceKey}
+          onChange={setServiceKey}
         >
           {quote.options.map((option) => (
             <Radio
-              key={option.cleanType}
-              value={option.cleanType}
-              isDisabled={!quote.bookable.includes(option.cleanType)}
+              key={option.serviceKey}
+              value={option.serviceKey}
+              isDisabled={!quote.bookable.includes(option.serviceKey)}
               description={
-                quote.bookable.includes(option.cleanType)
+                quote.bookable.includes(option.serviceKey)
                   ? `${formatMoney(option.totalCents)}, Deposit ${formatMoney(option.depositCents)}`
                   : "No longer fits: its time has filled up"
               }
             >
-              {optionLabel(option)}
+              {option.serviceName}
             </Radio>
           ))}
         </RadioGroup>
@@ -586,7 +585,7 @@ function RecordAcceptance({ quote }: { quote: ShownQuote }) {
                   <p>
                     This charges the {formatMoney(chosen.depositCents)} Deposit
                     to {quote.client.name}'s {quote.paymentMethod!.label} and
-                    books their {cleanTypeLabel[cleanType]} for{" "}
+                    books their {chosen.serviceName} for{" "}
                     {formatDateTime(quote.proposedStartsAt!)}. Only do this if
                     they've told you they accept.
                   </p>
@@ -642,7 +641,6 @@ type DayFields = {
   key: number;
   date: CalendarDate | null;
   time: Time | null;
-  cleanType: CleanType;
   crewSize: number;
   override: Override;
 };
@@ -650,13 +648,16 @@ type DayFields = {
 type PlanFields = Omit<ServicePlanInput, "days"> & { days: DayFields[] };
 
 type Fields = {
+  // a one-off Quote's Service
+  serviceKey: string;
   addOns: string[];
   crewSize: number;
   depositPercent: number;
   validityDays: number;
   date: CalendarDate | null;
   time: Time | null;
-  overrides: Record<CleanType, Override>;
+  // by the option's Service
+  overrides: Record<string, Override>;
   // a Service Plan Quote's terms, and its weekdays, each with its own time,
   // crew and override
   plan: PlanFields | null;
@@ -672,18 +673,14 @@ const overrideOf = (option: OfficeQuoteOption | undefined): Override => ({
 });
 
 const toFields = (quote: ShownQuote): Fields => {
-  const override = (cleanType: CleanType) =>
-    overrideOf(
-      quote.plan
-        ? undefined
-        : quote.options.find((o) => o.cleanType === cleanType),
-    );
   return {
+    serviceKey: quote.serviceKey,
     addOns: quote.addOns.map((a) => a.key),
     crewSize: quote.crewSize,
     depositPercent: quote.depositPercent,
     validityDays: quote.validityDays,
     plan: quote.plan && {
+      serviceKey: quote.serviceKey,
       recurrence: quote.plan.recurrence,
       discountPercent: quote.plan.discountPercent,
       condition: quote.plan.condition,
@@ -691,14 +688,15 @@ const toFields = (quote: ShownQuote): Fields => {
         key: nextKey(),
         date: day.startsAt ? parseDate(dayOfInstant(day.startsAt)) : null,
         time: day.startsAt ? parseTime(timeOfDay(day.startsAt)) : null,
-        cleanType: day.cleanType,
         crewSize: day.crewSize,
         override: overrideOf(quote.options[i]),
       })),
     },
     date: quote.proposedStart && parseDate(quote.proposedStart.date),
     time: quote.proposedStart && parseTime(quote.proposedStart.time),
-    overrides: { deep: override("deep"), standard: override("standard") },
+    overrides: Object.fromEntries(
+      quote.plan ? [] : quote.options.map((o) => [o.serviceKey, overrideOf(o)]),
+    ),
   };
 };
 
@@ -725,7 +723,6 @@ const toInput = (fields: Fields): QuoteDraftInput => {
         ...plan,
         days: days.map((day) => ({
           start: startOf(day.date, day.time),
-          cleanType: day.cleanType,
           crewSize: day.crewSize,
           override: priced(day.override),
         })),
@@ -734,18 +731,18 @@ const toInput = (fields: Fields): QuoteDraftInput => {
   }
   return {
     ...terms,
+    serviceKey: fields.serviceKey,
     crewSize: fields.crewSize,
     proposedStart: startOf(fields.date, fields.time),
-    overrides: {
-      deep: priced(fields.overrides.deep),
-      standard: priced(fields.overrides.standard),
-    },
+    overrides: Object.fromEntries(
+      Object.entries(fields.overrides).map(([key, o]) => [key, priced(o)]),
+    ),
   };
 };
 
 const dollars = { style: "currency", currency: "USD" } as const;
 
-// Whether the proposed day has room for each Clean Type, from its free
+// Whether the proposed day has room for each Service, from its free
 // Cleaner hours now and the Labour Hours as last saved, and whether a crew
 // is free at the proposed time (#62). A warning, not a rule: the Office may
 // be about to add hours or a Cleaner. A Quote sent for a full day or time
@@ -819,7 +816,7 @@ function RoomOnDay({
 }
 
 const describeOption = (o: OfficeQuoteOption) =>
-  `the ${optionLabel(o)} (${formatHours(o.labourHours)})`;
+  `the ${o.serviceName} (${formatHours(o.labourHours)})`;
 
 // why a crew can't be had at a time
 const noCrewAt = (
@@ -833,18 +830,35 @@ const noCrewAt = (
 
 // A Service Plan Quote's own terms: how often, the Plan Discount, and the
 // Condition it's priced for, which is moderate unless changed here (the
-// home's own Condition is left as it is). Each weekday's Clean Type is chosen
+// home's own Condition is left as it is). Each weekday's Service is chosen
 // from its price cards. A plan on several weekdays comes round every week.
 function PlanTerms({
   plan,
+  services,
   onChange,
 }: {
   plan: PlanFields;
+  // those it can be for
+  services: ServiceChoice[];
   onChange: (change: Partial<Omit<ServicePlanInput, "days">>) => void;
 }) {
   const several = plan.days.length > 1;
   return (
     <Card title="Plan">
+      <Select
+        label="Service"
+        name="plan.serviceKey"
+        className="sm:max-w-xs"
+        description="Every clean on the plan is of it."
+        selectedKey={plan.serviceKey}
+        onSelectionChange={(key) => onChange({ serviceKey: String(key) })}
+      >
+        {services.map((s) => (
+          <SelectItem key={s.key} id={s.key}>
+            {s.name}
+          </SelectItem>
+        ))}
+      </Select>
       <RadioGroup
         label="How often"
         name="plan.recurrence"
@@ -968,7 +982,7 @@ const priceSummary = (quote: ShownQuote) => {
       : `${plan.days.length} cleans a week: ${formatMoney(plan.roundTotalCents)} a week`;
   }
   return quote.options
-    .map((o) => `${optionLabel(o)} ${formatMoney(o.totalCents)}`)
+    .map((o) => `${o.serviceName} ${formatMoney(o.totalCents)}`)
     .join(" · ");
 };
 
@@ -976,7 +990,7 @@ const priceSummary = (quote: ShownQuote) => {
  * A Draft, saved and priced again by the server a moment after each change,
  * so the prices always follow what's on screen; a bar at the bottom keeps
  * them in view wherever the change was made. On a Service Plan Quote, the
- * plan's Clean Type is chosen from its price cards.
+ * plan's Service is chosen from its price cards.
  */
 function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
   const router = useRouter();
@@ -1006,11 +1020,17 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
     setSaveState("changed");
   };
   const set = (change: Partial<Fields>) => update(() => change);
-  const setOverride = (cleanType: CleanType, change: Partial<Override>) =>
+  // an option new since the Service changed has none yet
+  const overrideFor = (option: OfficeQuoteOption) =>
+    fields.overrides[option.serviceKey] ?? overrideOf(option);
+  const setOverride = (option: OfficeQuoteOption, change: Partial<Override>) =>
     update(({ overrides }) => ({
       overrides: {
         ...overrides,
-        [cleanType]: { ...overrides[cleanType], ...change },
+        [option.serviceKey]: {
+          ...(overrides[option.serviceKey] ?? overrideOf(option)),
+          ...change,
+        },
       },
     }));
   const setPlan = (change: (plan: PlanFields) => Partial<PlanFields>) =>
@@ -1033,9 +1053,7 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
   const missingReason = (f: Fields) =>
     f.plan
       ? f.plan.days.some((d) => d.override.on && !d.override.reason.trim())
-      : (Object.keys(f.overrides) as CleanType[]).some(
-          (t) => f.overrides[t].on && !f.overrides[t].reason.trim(),
-        );
+      : Object.values(f.overrides).some((o) => o.on && !o.reason.trim());
 
   // saves what's on screen, one save at a time; says whether it's all saved
   const saveNow = (): Promise<boolean> => {
@@ -1142,7 +1160,7 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
                   plan={plan}
                   // as last saved, at the same place
                   option={quote.options[i]}
-                  choices={quote.planChoices?.[i]}
+                  terms={quote.plan?.days[i]}
                   onChange={(change) => setDay(day.key, change)}
                   onRemove={
                     plan.days.length > 1
@@ -1176,17 +1194,37 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
               )}
             </>
           ) : (
-            <OfferCards quote={quote}>
-              {(option) => (
-                <OverrideFields
-                  option={option}
-                  override={fields.overrides[option.cleanType]}
-                  label={optionLabel(option)}
-                  name={`overrides.${option.cleanType}`}
-                  onChange={(change) => setOverride(option.cleanType, change)}
-                />
-              )}
-            </OfferCards>
+            <>
+              <Select
+                label="Service"
+                name="serviceKey"
+                className="sm:max-w-xs"
+                description={
+                  quote.options.length > 1
+                    ? `With a ${quote.options[0]!.serviceName} recommended for a first visit`
+                    : undefined
+                }
+                selectedKey={fields.serviceKey}
+                onSelectionChange={(key) => set({ serviceKey: String(key) })}
+              >
+                {quote.serviceChoices.map((s) => (
+                  <SelectItem key={s.key} id={s.key}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </Select>
+              <OfferCards quote={quote}>
+                {(option) => (
+                  <OverrideFields
+                    option={option}
+                    override={overrideFor(option)}
+                    label={option.serviceName}
+                    name={`overrides.${option.serviceKey}`}
+                    onChange={(change) => setOverride(option, change)}
+                  />
+                )}
+              </OfferCards>
+            </>
           )}
         </div>
         <p className="text-sm text-fg-muted">
@@ -1197,7 +1235,11 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
       </section>
 
       {plan && (
-        <PlanTerms plan={plan} onChange={(change) => setPlan(() => change)} />
+        <PlanTerms
+          plan={plan}
+          services={quote.serviceChoices}
+          onChange={(change) => setPlan(() => change)}
+        />
       )}
       {quote.firstClean && <FirstCleanCard firstClean={quote.firstClean} />}
 
@@ -1382,7 +1424,6 @@ const anotherDay = (days: DayFields[]): DayFields => {
         ? next
         : null,
     time: last.time,
-    cleanType: last.cleanType,
     crewSize: last.crewSize,
     override: { on: false, price: 0, reason: "" },
   };
@@ -1391,7 +1432,7 @@ const anotherDay = (days: DayFields[]): DayFields => {
 /**
  * One weekday of a Service Plan Draft: its first clean's day and time,
  * picked from the Schedule too, which every later one there repeats, and
- * its crew; its Clean Type, chosen from its price cards; and its own
+ * its crew; its Service, chosen from its price cards; and its own
  * override. `option` and `choices` are its prices as last saved, while
  * there are any.
  */
@@ -1400,7 +1441,7 @@ function PlanDayFields({
   day,
   plan,
   option,
-  choices,
+  terms,
   onChange,
   onRemove,
 }: {
@@ -1408,7 +1449,7 @@ function PlanDayFields({
   day: DayFields;
   plan: PlanFields;
   option: OfficeQuoteOption | undefined;
-  choices: PlanChoice[] | undefined;
+  terms: PlanDayTerms | undefined;
   onChange: (change: Partial<DayFields>) => void;
   // none while it's the plan's only weekday
   onRemove: (() => void) | undefined;
@@ -1416,7 +1457,6 @@ function PlanDayFields({
   const headingId = useId();
   const name = `plan.days.${index}`;
   const time = day.time?.toString().slice(0, 5);
-  const chosen = choices?.find((c) => c.option.cleanType === day.cleanType);
   const one = plan.days.length === 1;
   const title = day.date
     ? `${weekdayOf(day.date.toString())}s`
@@ -1458,7 +1498,7 @@ function PlanDayFields({
         <PickFromSchedule
           date={day.date?.toString()}
           time={time}
-          hoursOnSite={chosen?.option.hoursOnSite ?? option?.hoursOnSite ?? 0}
+          hoursOnSite={option?.hoursOnSite ?? 0}
           crew={{ crewSize: day.crewSize }}
           repeats={{
             everyWeeks: recurrenceWeeks[plan.recurrence],
@@ -1490,51 +1530,24 @@ function PlanDayFields({
           />
         </div>
       </Card>
-      {choices && (
-        <RadioGroup
-          label="Clean Type"
-          description={
-            one
-              ? "Choose the one the plan is for. The Client is offered only that."
-              : "Choose the one for this weekday. The Client is offered only that."
-          }
-          layout="cards"
-          value={day.cleanType}
-          onChange={(value) => onChange({ cleanType: value as CleanType })}
-        >
-          {choices.map((choice) => (
-            <RadioCard
-              key={choice.option.cleanType}
-              value={choice.option.cleanType}
-              title={
-                // on one weekday, how often too
-                one
-                  ? `${optionLabel(choice.option)}, ${recurrenceLabel[plan.recurrence].toLowerCase()}`
-                  : optionLabel(choice.option)
-              }
-              badge={<PlanSaving day={choice.day} />}
-            >
-              <PlanFigures
-                option={choice.option}
-                day={choice.day}
-                discountPercent={plan.discountPercent}
-              />
-            </RadioCard>
-          ))}
-        </RadioGroup>
-      )}
-      {chosen && (
+      {option && terms && (
         <Card
           title={
             one
-              ? `${cleanTypeLabel[day.cleanType]} price`
-              : `${title}: ${cleanTypeLabel[day.cleanType]} price`
+              ? `${option.serviceName}, ${recurrenceLabel[plan.recurrence].toLowerCase()}`
+              : `${title}: ${option.serviceName}`
           }
           headingLevel={4}
+          actions={<PlanSaving day={terms} />}
           description="The Plan Discount comes off the one-off price, overridden or not."
         >
+          <PlanFigures
+            option={option}
+            day={terms}
+            discountPercent={plan.discountPercent}
+          />
           <OverrideFields
-            option={chosen.option}
+            option={option}
             override={day.override}
             label="one-off"
             name={`${name}.override`}
@@ -1555,7 +1568,7 @@ function FirstCleanCard({ firstClean }: { firstClean: FirstCleanFindings }) {
   return (
     <Card
       title="First Clean"
-      description={`${cleanTypeLabel[job.cleanType]} on ${formatDateTime(job.startsAt)}, Completed ${formatDate(firstClean.completedAt)}`}
+      description={`${job.serviceName} on ${formatDateTime(job.startsAt)}, Completed ${formatDate(firstClean.completedAt)}`}
       actions={
         <Link
           href={linkTo({

@@ -73,6 +73,7 @@ import {
 } from "../service-plans/service-plans.schema.ts";
 import { billedOf, isBilledWeekly, owesOnBill } from "./billed-weekly.ts";
 import { billLines, bills, type Bill, type BillLine } from "./bills.schema.ts";
+import { serviceNameOf } from "../services/services.ts";
 
 // a credit no Bill follows within this long is refunded (ADR-0016)
 export const CREDIT_REFUND_DAYS = 30;
@@ -82,7 +83,6 @@ export const BILL_REMINDER_DAYS = 3;
 export const LATE_REASON = "not paid by its due date";
 const DAY_MS = 86_400_000;
 
-const cleanTypeLabel = { deep: "Deep Clean", standard: "Standard Clean" };
 const feeLabel = {
   cancelled: "Late Cancellation fee",
   no_access: "No Access fee",
@@ -161,7 +161,7 @@ const partsOf = async (
       );
 
   const { option } = quoted;
-  const what = `${cleanTypeLabel[job.cleanType]} at ${addressOf(property)}, ${formatWhen(job.startsAt)}`;
+  const what = `${await serviceNameOf(job.serviceId)} at ${addressOf(property)}, ${formatWhen(job.startsAt)}`;
   const share = (key: string, label: string, cents: number): Part => ({
     key,
     label,
@@ -908,6 +908,8 @@ export const setBilling = async (
 type SettledJob = {
   job: Job;
   property: Property;
+  // as its lines on a Bill name it
+  label: string;
   settled: Settled;
   // what its failed Charge left owing
   unpaidCents: number | null;
@@ -931,6 +933,7 @@ const settleEach = async (jobIds: string[]) => {
     moved.push({
       job,
       property,
+      label: await labelOf(job, property),
       settled,
       unpaidCents: settled.failure ? (await paymentOf(job)).owedCents : null,
     });
@@ -939,8 +942,8 @@ const settleEach = async (jobIds: string[]) => {
 };
 
 // what a Job is, as its lines on a Bill name it
-const labelOf = (job: Job, property: Property) => {
-  const what = `${cleanTypeLabel[job.cleanType]} at ${addressOf(property)}, ${formatWhen(job.startsAt)}`;
+const labelOf = async (job: Job, property: Property) => {
+  const what = `${await serviceNameOf(job.serviceId)} at ${addressOf(property)}, ${formatWhen(job.startsAt)}`;
   return job.status === "cancelled" || job.status === "no_access"
     ? `${feeLabel[job.status]}: ${what}`
     : what;
@@ -948,7 +951,7 @@ const labelOf = (job: Job, property: Property) => {
 
 const toSettledView = (s: SettledJob): SettledJobView => ({
   jobId: s.job.id,
-  label: labelOf(s.job, s.property),
+  label: s.label,
   chargedCents: s.settled.chargedCents,
   refundedCents: s.settled.refundedCents,
   unpaidCents: s.unpaidCents,
@@ -973,7 +976,7 @@ const settledLines = (settled: SettledJob[]) => {
             ? [`couldn't charge ${formatMoney(s.unpaidCents)}`]
             : []),
         ];
-        return `${labelOf(s.job, s.property)}: ${moved.join(", ")}`;
+        return `${s.label}: ${moved.join(", ")}`;
       })
       .join("\n"),
   ];

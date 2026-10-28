@@ -83,7 +83,7 @@ router.get(
   },
 );
 
-// accepts with the Clean Type chosen, taking the Deposit (from a card
+// accepts with the Service chosen, taking the Deposit (from a card
 // entered just now, or the saved one) and booking the Job; or, if their bank
 // wants them to approve the payment first, says so
 router.post(
@@ -232,7 +232,7 @@ router.post(
     const id = String(req.params.id);
     await acceptQuote(
       id,
-      { cleanType: req.body.cleanType },
+      { serviceKey: req.body.serviceKey },
       { by: "office", accountId: signedInAccount(res).id },
     );
     res.json(await officeQuote(id));

@@ -3,7 +3,6 @@ import { eq } from "drizzle-orm";
 import type {
   AcceptOutcome,
   BillPayment,
-  CleanType,
   Condition,
   NewHome,
   OfficeServicePlan,
@@ -19,7 +18,7 @@ import { findClientByEmail, createClient } from "#features/clients";
 import { completeJob } from "#features/completion";
 import { bookJob } from "#features/jobs";
 import { savePaymentMethod, startCardForm } from "#features/payments";
-import { SEEDED } from "#features/services";
+import { findService, SEEDED } from "#features/services";
 import { currentPriceList } from "#features/price-list";
 import {
   acceptQuote,
@@ -89,12 +88,12 @@ export const bookedJob = async ({
   startsAt,
   labourHours,
   crewSize = 2,
-  cleanType = "deep",
+  serviceKey = SEEDED.deep,
 }: {
   startsAt: string;
   labourHours: number;
   crewSize?: number;
-  cleanType?: CleanType;
+  serviceKey?: string;
 }) => {
   homes += 1;
   const client = await createClient({
@@ -117,7 +116,7 @@ export const bookedJob = async ({
     startsAt: new Date(startsAt),
     labourHours,
     crewSize,
-    cleanType,
+    serviceId: (await findService(serviceKey)).id,
   });
 };
 
@@ -135,6 +134,7 @@ export const acceptedJob = async ({
   addOns = [],
   client = casey,
   wantsRegularService = true,
+  serviceKey,
 }: {
   startsAt: string;
   byAccountId: string;
@@ -143,6 +143,9 @@ export const acceptedJob = async ({
   addOns?: string[];
   client?: typeof casey;
   wantsRegularService?: boolean;
+  // the Service asked for and booked; without one, a home's first (a
+  // Standard Clean), whose recommended Deep Clean is booked
+  serviceKey?: string;
 }) => {
   const list = await currentPriceList();
   const keys = list.addOns
@@ -150,7 +153,12 @@ export const acceptedJob = async ({
     .map((a) => a.key);
   const receipt = await askForQuote(
     null,
-    guestAsk({ contact: client, addOns: keys, wantsRegularService }),
+    guestAsk({
+      contact: client,
+      addOns: keys,
+      wantsRegularService,
+      serviceKey,
+    }),
   );
   const { quote } = await startRevision(receipt.id, "one_off", byAccountId);
   const at = new Date(startsAt);
@@ -160,7 +168,7 @@ export const acceptedJob = async ({
     depositPercent,
     validityDays: quote.draft!.validityDays,
     proposedStart: { date: dayOf(at), time: timeOf(at) },
-    overrides: { deep: null, standard: null },
+    overrides: {},
   });
   await sendQuote(quote.id);
 
@@ -169,7 +177,7 @@ export const acceptedJob = async ({
   await savePaymentMethod(owner, form.secret);
   const accepted = await acceptQuote(
     quote.id,
-    { cleanType: "deep" },
+    { serviceKey: serviceKey ?? SEEDED.deep },
     { by: "office", accountId: byAccountId },
   );
   if (accepted.status !== "accepted") throw new Error("not accepted");
@@ -188,10 +196,12 @@ export const completedFirstClean = async ({
   byAccountId,
   condition = "moderate",
   wantsRegularService,
+  serviceKey,
 }: {
   byAccountId: string;
   condition?: Condition;
   wantsRegularService?: boolean;
+  serviceKey?: string;
 }) => {
   const cory = await createStaff({
     name: "Cory Cleaner",
@@ -210,6 +220,7 @@ export const completedFirstClean = async ({
     startsAt: "2026-01-12T14:00:00Z",
     byAccountId,
     wantsRegularService,
+    serviceKey,
   });
   const offered = await offerAssignment(job.id, cory.id, byAccountId);
   await confirmAssignment(cory.id, offered.assignments[0]!.id);
@@ -254,6 +265,7 @@ export const sentServicePlanQuote = async ({
     depositPercent: depositPercent ?? quote.draft!.depositPercent,
     validityDays: quote.draft!.validityDays,
     plan: {
+      serviceKey: SEEDED.standard,
       recurrence,
       discountPercent: quote.draft!.plan!.discountPercent,
       condition: "moderate",
@@ -261,7 +273,6 @@ export const sentServicePlanQuote = async ({
         const at = new Date(s);
         return {
           start: { date: dayOf(at), time: timeOf(at) },
-          cleanType: "standard" as const,
           crewSize,
           override: null,
         };
@@ -312,7 +323,7 @@ export const crewedServicePlan = async () => {
   const outcome = (
     await client
       .post(`/api/quotes/mine/${quote.id}/accept`)
-      .send({ cleanType: "standard" })
+      .send({ serviceKey: SEEDED.standard })
       .expect(200)
   ).body as AcceptOutcome;
   if (outcome.status !== "accepted") throw new Error("not accepted");

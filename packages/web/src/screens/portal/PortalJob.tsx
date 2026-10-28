@@ -26,7 +26,6 @@ import { ChooseNewTime, costForClient } from "../RescheduleParts.tsx";
 import {
   addressOf,
   adjustmentLabel,
-  cleanTypeLabel,
   formatDate,
   formatDateTime,
   formatHours,
@@ -51,7 +50,7 @@ export function PortalJob() {
           ]}
         />
         <div className="flex flex-wrap items-center gap-3">
-          <Heading level={1}>{cleanTypeLabel[job.cleanType]}</Heading>
+          <Heading level={1}>{job.serviceName}</Heading>
           {completion?.payment.unpaid ? (
             <StatusBadge tone="danger">Unpaid</StatusBadge>
           ) : completion ? (
@@ -202,7 +201,7 @@ function Cancel({
             {({ close }) => (
               <>
                 <p>
-                  {cleanTypeLabel[job.cleanType]} at {addressOf(job.property)},{" "}
+                  {job.serviceName} at {addressOf(job.property)},{" "}
                   {formatDateTime(job.startsAt)}.
                 </p>
                 <p>

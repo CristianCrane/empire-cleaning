@@ -72,7 +72,7 @@ test(
       "Paying with your Test card ending 4242",
     );
     await expect(accept).toContainText("hold it for as long as your plan runs");
-    // one Clean Type, so nothing to choose
+    // one Service, so nothing to choose
     await expect(accept.getByRole("radio")).toHaveCount(0);
     await accept.getByRole("button", { name: "Accept and pay $50.46" }).click();
     await expect(client.getByText("Your Service Plan has started")).toHaveCount(

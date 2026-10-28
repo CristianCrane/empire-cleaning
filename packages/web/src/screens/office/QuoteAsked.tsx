@@ -32,7 +32,6 @@ import {
 } from "./SiteVisitParts.tsx";
 import { useStartDraft } from "./StartDraft.tsx";
 import {
-  cleanTypeLabel,
   conditionLabel,
   conditionText,
   formatDate,
@@ -72,6 +71,8 @@ export function AskedCard({ quote }: { quote: OfficeQuote }) {
           {formatDate(quote.createdAt)}
           {quote.origin === "caller" && ", by phone"}
         </dd>
+        <dt className="font-semibold">Service</dt>
+        <dd>{asked.service.name}</dd>
         <dt className="font-semibold">Condition</dt>
         <dd>
           {conditionText(property.condition)}
@@ -318,9 +319,10 @@ export function TurnDownQuote({ quote }: { quote: OfficeQuote }) {
   );
 }
 
-// The Suggested Price for both Clean Types and how each was worked out,
-// afresh from the Price List as it is now: what a Requested Quote would be
-// drafted at
+// The Suggested Price for the Quote's Service (after the one recommended for
+// a first visit, where that's offered too) and how each was worked out,
+// afresh from the Services and Price List as they are now: what a Requested
+// Quote would be drafted at
 export function SuggestedPrices({ quote }: { quote: OfficeQuote }) {
   const { property, suggested } = quote;
   const premises = property.kind === "commercial";
@@ -330,9 +332,13 @@ export function SuggestedPrices({ quote }: { quote: OfficeQuote }) {
         Suggested Price
       </Heading>
       <div className="grid gap-4 lg:grid-cols-2">
-        {/* business premises have only their commercial cleaning */}
-        {suggested.deep && <PriceCard breakdown={suggested.deep} recommended />}
-        <PriceCard breakdown={suggested.standard} />
+        {suggested.prices.map((price) => (
+          <PriceCard
+            key={price.serviceKey}
+            breakdown={price}
+            recommended={price.recommended}
+          />
+        ))}
       </div>
       {premises && (property.floorArea === null || !property.condition) && (
         <Notice>
@@ -366,7 +372,7 @@ function PriceCard({
 
   return (
     <Card
-      title={b.serviceName ?? cleanTypeLabel[b.cleanType]}
+      title={b.serviceName}
       headingLevel={3}
       actions={
         recommended && <StatusBadge tone="success">Recommended</StatusBadge>
@@ -408,7 +414,7 @@ function PriceCard({
           {/* saved before each Service had its own hours (ADR-0018) */}
           {b.cleanTypeMultiplier !== undefined && !premises && (
             <Row
-              label={`× ${b.serviceName ?? cleanTypeLabel[b.cleanType]} (${b.cleanTypeMultiplier})`}
+              label={`× ${b.serviceName} (${b.cleanTypeMultiplier})`}
               value=""
             />
           )}

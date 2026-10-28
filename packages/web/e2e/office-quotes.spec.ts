@@ -160,6 +160,13 @@ test(
 
     const quotes = page.getByRole("grid", { name: "Open Quotes" });
     await expect(quotes.getByRole("row")).toHaveCount(3);
+    // what each is a Quote of
+    await expect(
+      quotes.getByRole("row", { name: /Acme Dental/ }),
+    ).toContainText("Commercial cleaning");
+    await expect(
+      quotes.getByRole("row", { name: /Casey Client/ }),
+    ).toContainText("Standard Clean");
     await expect(page.getByRole("tab", { name: /Requested/ })).toContainText(
       "2",
     );

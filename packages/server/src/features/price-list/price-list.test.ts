@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type {
+  SuggestedPrices,
   PriceList,
   PriceListInput,
   OfficeQuote,
@@ -14,6 +15,13 @@ import {
   signInAsOffice,
   submit,
 } from "../../../tests/fixtures.ts";
+import { SEEDED } from "#features/services";
+
+// one Service's Suggested Price on a Quote
+const HOMES = [SEEDED.standard, SEEDED.deep, SEEDED.moveInOut];
+
+const priceOf = (suggested: SuggestedPrices, service: "deep" | "standard") =>
+  suggested.prices.find((p) => p.serviceKey === SEEDED[service])!;
 
 // figures chosen so every expected answer below can be checked by hand
 const figures: PriceListInput = {
@@ -30,14 +38,14 @@ const figures: PriceListInput = {
       name: "Inside the oven",
       hours: 0.5,
       taxExempt: false,
-      offeredFor: "homes",
+      serviceKeys: HOMES,
       active: true,
     },
     {
       name: "Carpet shampooing",
       hours: 1,
       taxExempt: true,
-      offeredFor: "both",
+      serviceKeys: [...HOMES, SEEDED.commercial],
       active: true,
     },
   ],
@@ -178,7 +186,7 @@ describe("the Price List", () => {
           name: "",
           hours: -1,
           taxExempt: false,
-          offeredFor: "homes",
+          serviceKeys: HOMES,
           active: true,
         },
       ],
@@ -209,14 +217,14 @@ describe("the Price List", () => {
           name: "Oven",
           hours: 0.5,
           taxExempt: false,
-          offeredFor: "homes",
+          serviceKeys: HOMES,
           active: true,
         },
         {
           name: "oven",
           hours: 1,
           taxExempt: false,
-          offeredFor: "homes",
+          serviceKeys: HOMES,
           active: true,
         },
       ],
@@ -241,7 +249,7 @@ describe("the Price List", () => {
           name: "Inside the oven",
           hours: 0.5,
           taxExempt: false,
-          offeredFor: "homes",
+          serviceKeys: HOMES,
           active: true,
         },
       ],
@@ -272,7 +280,7 @@ describe("the Price List", () => {
           name: "Ghost",
           hours: 1,
           taxExempt: false,
-          offeredFor: "homes",
+          serviceKeys: HOMES,
           active: true,
         },
       ],
@@ -292,7 +300,7 @@ describe("the Price List", () => {
           name: "Inside the oven",
           hours: 0.5,
           taxExempt: false,
-          offeredFor: "homes",
+          serviceKeys: HOMES,
           active: false,
         },
         {
@@ -300,7 +308,7 @@ describe("the Price List", () => {
           name: "Carpet shampooing",
           hours: 1,
           taxExempt: true,
-          offeredFor: "homes",
+          serviceKeys: HOMES,
           active: true,
         },
       ],
@@ -439,8 +447,8 @@ describe("Premises Types", () => {
   });
 });
 
-describe("Add-ons for homes and businesses", () => {
-  test("only those offered for homes are on the 'Request a Quote' form", async () => {
+describe("Add-ons per Service", () => {
+  test("only those for the Service asked for can be chosen; the form lists a home's first", async () => {
     const office = await signInAsOffice();
     await save(office, {
       addOns: [
@@ -448,21 +456,21 @@ describe("Add-ons for homes and businesses", () => {
           name: "Inside the oven",
           hours: 0.5,
           taxExempt: false,
-          offeredFor: "homes",
+          serviceKeys: HOMES,
           active: true,
         },
         {
           name: "Interior windows",
           hours: 1,
           taxExempt: false,
-          offeredFor: "both",
+          serviceKeys: [...HOMES, SEEDED.commercial],
           active: true,
         },
         {
           name: "Breakroom fridge",
           hours: 0.5,
           taxExempt: false,
-          offeredFor: "businesses",
+          serviceKeys: [SEEDED.commercial],
           active: true,
         },
       ],
@@ -482,17 +490,25 @@ describe("Add-ons for homes and businesses", () => {
     expect(
       (await getList(office)).addOns
         .filter((a) => a.active)
-        .map((a) => [a.name, a.offeredFor]),
+        .map((a) => [a.name, a.serviceKeys.length]),
     ).toEqual([
-      ["Inside the oven", "homes"],
-      ["Interior windows", "both"],
-      ["Breakroom fridge", "businesses"],
+      ["Inside the oven", 3],
+      ["Interior windows", 4],
+      ["Breakroom fridge", 1],
+    ]);
+    // and any Service's, by its key
+    const commercial = await api()
+      .get(`/api/price-list/add-ons?service=${SEEDED.commercial}`)
+      .expect(200);
+    expect(commercial.body.map((a: { name: string }) => a.name)).toEqual([
+      "Interior windows",
+      "Breakroom fridge",
     ]);
   });
 });
 
 describe("the Suggested Price", () => {
-  test("is worked out for both Clean Types, before tax and with it", async () => {
+  test("is worked out for each Service offered, before tax and with it", async () => {
     const office = await signInAsOffice();
     await save(office).expect(200);
     await homeRates(office);
@@ -501,8 +517,8 @@ describe("the Suggested Price", () => {
     const { suggested } = await detailOf(office);
 
     // standard: 3.625 h rounds up to 3.75 h; x $50 = $187.50, to $188; 8% tax
-    expect(suggested.standard).toMatchObject({
-      cleanType: "standard",
+    expect(priceOf(suggested, "standard")).toMatchObject({
+      serviceKey: SEEDED.standard,
       labourHours: 3.75,
       workedOutCents: 18800,
       minimumApplied: false,
@@ -513,8 +529,8 @@ describe("the Suggested Price", () => {
     });
     // deep: each part takes twice as long, 7.25 h (already a quarter); x $50
     // = $362.50, to $363
-    expect(suggested.deep).toMatchObject({
-      cleanType: "deep",
+    expect(priceOf(suggested, "deep")).toMatchObject({
+      serviceKey: SEEDED.deep,
       labourHours: 7.25,
       priceCents: 36300,
       taxCents: 2904,
@@ -522,9 +538,9 @@ describe("the Suggested Price", () => {
     });
     expect(suggested.priceListVersion).toBe(2);
     // the working is shown: the home's hours by part
-    expect(suggested.standard.homeHours.map((p) => p.hours)).toEqual([
-      1, 1, 1.125, 0, 0.5,
-    ]);
+    expect(
+      priceOf(suggested, "standard").homeHours.map((p) => p.hours),
+    ).toEqual([1, 1, 1.125, 0, 0.5]);
   });
 
   test("adds Add-on hours after the multipliers, never multiplied by them", async () => {
@@ -536,12 +552,12 @@ describe("the Suggested Price", () => {
     const { suggested } = await detailOf(office, guestAsk({ addOns: [oven!] }));
 
     // standard: 3.625 + 0.5 = 4.125 h, up to 4.25 h = $212.50, to $213
-    expect(suggested.standard.labourHours).toBe(4.25);
-    expect(suggested.standard.priceCents).toBe(21300);
+    expect(priceOf(suggested, "standard").labourHours).toBe(4.25);
+    expect(priceOf(suggested, "standard").priceCents).toBe(21300);
     // deep: 3.625 x 2 + 0.5 = 7.75 h, not (3.625 + 0.5) x 2 = 8.25 h
-    expect(suggested.deep!.labourHours).toBe(7.75);
-    expect(suggested.deep!.priceCents).toBe(38800);
-    expect(suggested.standard.addOns).toEqual([
+    expect(priceOf(suggested, "deep").labourHours).toBe(7.75);
+    expect(priceOf(suggested, "deep").priceCents).toBe(38800);
+    expect(priceOf(suggested, "standard").addOns).toEqual([
       expect.objectContaining({ name: "Inside the oven", hours: 0.5 }),
     ]);
   });
@@ -559,9 +575,9 @@ describe("the Suggested Price", () => {
 
     // 3.625 + 1 = 4.625 h, up to 4.75 h = $237.50, to $238. Carpet's 1 h at
     // $50 is exempt, leaving $188 to tax at 8%: $15.04
-    expect(suggested.standard.priceCents).toBe(23800);
-    expect(suggested.standard.taxCents).toBe(1504);
-    expect(suggested.standard.totalCents).toBe(25304);
+    expect(priceOf(suggested, "standard").priceCents).toBe(23800);
+    expect(priceOf(suggested, "standard").taxCents).toBe(1504);
+    expect(priceOf(suggested, "standard").totalCents).toBe(25304);
   });
 
   test("is never below the Minimum Charge, and says when it was applied", async () => {
@@ -586,7 +602,7 @@ describe("the Suggested Price", () => {
       }),
     );
 
-    expect(suggested.standard).toMatchObject({
+    expect(priceOf(suggested, "standard")).toMatchObject({
       labourHours: 1.5,
       workedOutCents: 7500,
       minimumApplied: true,
@@ -620,8 +636,8 @@ describe("the Suggested Price", () => {
     );
 
     // 1.75 h x $50 = $87.50, to $88
-    expect(suggested.standard.labourHours).toBe(1.75);
-    expect(suggested.standard.priceCents).toBe(8800);
+    expect(priceOf(suggested, "standard").labourHours).toBe(1.75);
+    expect(priceOf(suggested, "standard").priceCents).toBe(8800);
   });
 
   test("uses the home's current Condition, as the Office corrected it", async () => {
@@ -629,7 +645,7 @@ describe("the Suggested Price", () => {
     await save(office).expect(200);
     await homeRates(office);
     const detail = await detailOf(office);
-    expect(detail.suggested.standard.conditionMultiplier).toBe(1);
+    expect(priceOf(detail.suggested, "standard").conditionMultiplier).toBe(1);
 
     await office
       .patch(`/api/properties/${detail.property.id}`)
@@ -641,7 +657,7 @@ describe("the Suggested Price", () => {
     // 3.625 x 1.5 = 5.4375 h, up to 5.5 h = $275
     // as asked
     expect(after.asked!.condition).toBe("moderate");
-    expect(after.suggested.standard).toMatchObject({
+    expect(priceOf(after.suggested, "standard")).toMatchObject({
       conditionMultiplier: 1.5,
       labourHours: 5.5,
       priceCents: 27500,
@@ -658,9 +674,9 @@ describe("the Suggested Price", () => {
     const after = (await office.get(`/api/quotes/${before.id}`).expect(200))
       .body as OfficeQuote;
 
-    expect(before.suggested.standard.priceCents).toBe(18800);
+    expect(priceOf(before.suggested, "standard").priceCents).toBe(18800);
     // 3.75 h x $60 = $225
-    expect(after.suggested.standard.priceCents).toBe(22500);
+    expect(priceOf(after.suggested, "standard").priceCents).toBe(22500);
   });
 
   test("still prices an Add-on that has since been retired", async () => {
@@ -677,7 +693,7 @@ describe("the Suggested Price", () => {
     expect(after.asked!.addOns).toEqual([
       { key: oven, name: "Inside the oven" },
     ]);
-    expect(after.suggested.standard.labourHours).toBe(4.25);
+    expect(priceOf(after.suggested, "standard").labourHours).toBe(4.25);
   });
 });
 

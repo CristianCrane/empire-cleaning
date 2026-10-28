@@ -1,5 +1,5 @@
-import { and, eq, gte, inArray, lt, max } from "drizzle-orm";
-import type { CleanType, QuoteSummary } from "@empire-cleaning/models";
+import { and, asc, eq, gte, inArray, lt, max } from "drizzle-orm";
+import type { QuoteSummary } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
 import env from "../../env.ts";
 import { addDays, dayOf, startOfDay } from "../../services/clock/index.ts";
@@ -18,28 +18,26 @@ import { quotes, revisionOptions } from "./quotes.schema.ts";
 // accepted (acceptQuote checks again), the Client is told so on the Quote,
 // and the Office is told it needs another time.
 
-// Deep Clean first, as Quotes list them
-const CLEAN_TYPES: CleanType[] = ["deep", "standard"];
-
 /**
- * The Clean Types each open Sent Quote can still be booked as: those its
+ * The Services each open Sent Quote can still be booked as, by key, in its
+ * options' order: those its
  * proposed time still has room for, as of now: the Labour Hours on its day,
  * and a crew of its Crew Size then. A Service Plan Quote is booked whole, so
  * it can be while the first clean on each of its weekdays has room, and
- * then offers its weekdays' Clean Types; one changing its home's plan
+ * then offers its weekdays' Services; one changing its home's plan
  * doesn't count the plan's Jobs it would replace.
  */
 export const bookableFor = async (
   open: { id: string; proposedStartsAt: Date }[],
-): Promise<Map<string, CleanType[]>> => {
-  const bookable = new Map<string, CleanType[]>(open.map((q) => [q.id, []]));
+): Promise<Map<string, string[]>> => {
+  const bookable = new Map<string, string[]>(open.map((q) => [q.id, []]));
   if (open.length === 0) return bookable;
 
   // each Quote's offer: its latest Sent Revision
   const options = await db
     .select({
       quoteId: quotes.id,
-      cleanType: revisionOptions.cleanType,
+      serviceKey: revisionOptions.serviceKey,
       labourHours: revisionOptions.labourHours,
       crewSize: revisionOptions.crewSize,
       startsAt: revisionOptions.startsAt,
@@ -53,7 +51,8 @@ export const bookableFor = async (
         quotes.id,
         open.map((q) => q.id),
       ),
-    );
+    )
+    .orderBy(asc(revisionOptions.position));
   const startOfQuote = new Map(open.map((q) => [q.id, q.proposedStartsAt]));
 
   for (const [quoteId, offered] of Map.groupBy(options, (o) => o.quoteId)) {
@@ -61,7 +60,7 @@ export const bookableFor = async (
     const [{ kind, propertyId }] = offered as [(typeof offered)[number]];
     const replacing =
       kind === "service_plan" ? await jobsReplacedAt(propertyId, proposed) : [];
-    const fitting: CleanType[] = [];
+    const fitting: string[] = [];
     for (const option of offered) {
       const { hasRoom } = await roomFor(
         {
@@ -71,17 +70,10 @@ export const bookableFor = async (
         },
         replacing,
       );
-      if (hasRoom) fitting.push(option.cleanType);
+      if (hasRoom) fitting.push(option.serviceKey);
     }
     const whole = kind === "one_off" || fitting.length === offered.length;
-    bookable.set(
-      quoteId,
-      whole
-        ? [...new Set(fitting)].sort(
-            (a, b) => CLEAN_TYPES.indexOf(a) - CLEAN_TYPES.indexOf(b),
-          )
-        : [],
-    );
+    bookable.set(quoteId, whole ? [...new Set(fitting)] : []);
   }
   return bookable;
 };

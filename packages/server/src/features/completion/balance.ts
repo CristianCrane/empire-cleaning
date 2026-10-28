@@ -18,8 +18,7 @@ import { addressOf } from "../properties/property-view.ts";
 import { holdOrResume } from "../service-plans/on-hold.ts";
 import { adjustments, type Adjustment } from "./completion.schema.ts";
 import { quotedJob } from "./pricing.ts";
-
-const cleanTypeLabel = { deep: "Deep Clean", standard: "Standard Clean" };
+import { serviceNameOf } from "../services/services.ts";
 
 // the Adjustments that change what the Client pays
 export const counts = (adjustment: Pick<Adjustment, "status">) =>
@@ -183,7 +182,7 @@ const describe = async (job: Job) => {
     job.status === "cancelled" || job.status === "no_access"
       ? feeLabel[job.status]
       : "Balance";
-  return `${what}: ${cleanTypeLabel[job.cleanType]} at ${addressOf(property!)}, ${formatWhen(job.startsAt)}`;
+  return `${what}: ${await serviceNameOf(job.serviceId)} at ${addressOf(property!)}, ${formatWhen(job.startsAt)}`;
 };
 
 /**

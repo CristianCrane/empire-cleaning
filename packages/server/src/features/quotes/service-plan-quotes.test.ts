@@ -24,6 +24,7 @@ import {
   signInAsOffice,
   submit,
 } from "../../../tests/fixtures.ts";
+import { SEEDED } from "#features/services";
 
 type Agent = Awaited<ReturnType<typeof signIn>>;
 
@@ -74,7 +75,6 @@ const dayInput = (quote: OfficeQuote, i: number): PlanDayInput => {
   const at = day.startsAt ? new Date(day.startsAt) : null;
   return {
     start: at && { date: dayOf(at), time: timeOf(at) },
-    cleanType: day.cleanType,
     crewSize: day.crewSize,
     override:
       option.overrideCents === null
@@ -93,6 +93,7 @@ const edit = (
     recurrence,
     discountPercent,
     condition,
+    serviceKey,
     days,
     ...first
   }: PlanEdit = {},
@@ -106,6 +107,7 @@ const edit = (
     depositPercent: depositPercent ?? revision.depositPercent,
     validityDays: validityDays ?? revision.validityDays,
     plan: {
+      serviceKey: serviceKey ?? revision.serviceKey,
       recurrence: recurrence ?? revision.plan!.recurrence,
       discountPercent: discountPercent ?? revision.plan!.discountPercent,
       condition: condition ?? revision.plan!.condition,
@@ -305,10 +307,12 @@ describe("starting a Service Plan Quote", () => {
     const draft = await startPlan(office, propertyId);
 
     expect(draft.draft!.addOns).toEqual([]);
-    expect(draft.draft!.options.map((o) => o.cleanType)).toEqual(["standard"]);
+    expect(draft.draft!.options.map((o) => o.serviceKey)).toEqual([
+      SEEDED.standard,
+    ]);
     const [option] = draft.draft!.options;
     expect(option!.suggested).toMatchObject({
-      cleanType: "standard",
+      serviceName: "Standard Clean",
       conditionMultiplier: 1,
       labourHours: 3.75,
       priceCents: STANDARD_MODERATE,
@@ -330,7 +334,8 @@ describe("starting a Service Plan Quote", () => {
       days: [
         {
           startsAt: null,
-          cleanType: "standard",
+          serviceKey: SEEDED.standard,
+          serviceName: "Standard Clean",
           crewSize: draft.draft!.crewSize,
           oneOffPriceCents: STANDARD_MODERATE,
           oneOffTaxCents: tax(STANDARD_MODERATE, 8.875),
@@ -346,7 +351,7 @@ describe("starting a Service Plan Quote", () => {
       job: {
         id: job.id,
         startsAt: job.startsAt.toISOString(),
-        cleanType: "deep",
+        serviceName: "Deep Clean",
       },
       completedAt: "2026-01-12T16:00:00.000Z",
       condition: "heavy",
@@ -376,17 +381,19 @@ describe("drafting a Service Plan Quote", () => {
   test("can be a plan of Deep Cleans, with only the Deep Clean's price to override", async () => {
     const { office, propertyId } = await firstCleanDone();
     const draft = await startPlan(office, propertyId);
-    const saved = await save(office, draft, { cleanType: "deep" });
+    const saved = await save(office, draft, { serviceKey: SEEDED.deep });
 
-    expect(saved.draft!.options.map((o) => o.cleanType)).toEqual(["deep"]);
+    expect(saved.draft!.options.map((o) => o.serviceKey)).toEqual([
+      SEEDED.deep,
+    ]);
     const [option] = saved.draft!.options;
     expect(option).toMatchObject({ recommended: false });
-    expect(option!.suggested.cleanType).toBe("deep");
+    expect(option!.suggested.serviceName).toBe("Deep Clean");
     const oneOff = option!.suggested.priceCents;
     expect(oneOff).toBeGreaterThan(STANDARD_MODERATE);
     expect(saved.draft!.plan!.days).toMatchObject([
       {
-        cleanType: "deep",
+        serviceKey: SEEDED.deep,
         oneOffPriceCents: oneOff,
         discountCents: Math.floor((oneOff * 10 + 50) / 100),
       },
@@ -398,13 +405,13 @@ describe("drafting a Service Plan Quote", () => {
       .send({
         ...edit(saved),
         overrides: {
-          deep: null,
-          standard: { priceCents: 30000, reason: "x" },
+          [SEEDED.deep]: null,
+          [SEEDED.standard]: { priceCents: 30000, reason: "x" },
         },
       })
       .expect(400);
     expect(standard.body.details).toContainEqual(
-      expect.objectContaining({ path: "overrides.standard" }),
+      expect.objectContaining({ path: `overrides.${SEEDED.standard}` }),
     );
     const overridden = await save(office, saved, {
       override: { priceCents: 40000, reason: "Big home" },
@@ -415,54 +422,43 @@ describe("drafting a Service Plan Quote", () => {
     });
   });
 
-  test("shows the plan priced as each Clean Type to choose between, until it's Sent", async () => {
+  test("is for one Service that can recur, every one of its days", async () => {
     const { office, propertyId } = await firstCleanDone();
     const draft = await startPlan(office, propertyId);
-    const oven = draft.addOnChoices.find((a) => a.name === "Inside the oven")!;
-
-    const saved = await save(office, draft, {
-      addOns: [oven.key],
-      override: { priceCents: 25000, reason: "Big garden room" },
-    });
-
-    const [standard, deep] = saved.draft!.planChoices![0]!;
-    // its own Clean Type as saved, override and all
-    expect(standard).toEqual({
-      option: saved.draft!.options[0],
-      day: saved.draft!.plan!.days[0],
-    });
-    expect(standard!.day).toMatchObject({
-      cleanType: "standard",
-      oneOffPriceCents: 25000,
-      discountCents: 2500,
-    });
-    // the other at its Suggested Price, with the same terms and Add-ons
-    expect(deep!.option).toMatchObject({
-      cleanType: "deep",
-      overrideCents: null,
-    });
-    expect(deep!.option.suggested.addOns).toMatchObject([
-      { name: "Inside the oven" },
+    // a Move-in/out can't recur, and commercial cleaning isn't for homes
+    expect(draft.serviceChoices.map((s) => s.name)).toEqual([
+      "Standard Clean",
+      "Deep Clean",
     ]);
-    const oneOff = deep!.option.suggested.priceCents;
-    expect(deep!.day).toMatchObject({
-      cleanType: "deep",
-      oneOffPriceCents: oneOff,
-      discountCents: Math.floor((oneOff * 10 + 50) / 100),
-    });
 
-    // choosing it makes it the plan's
-    const chosen = await save(office, saved, {
-      override: null,
-      cleanType: "deep",
-    });
-    expect(chosen.draft!.options).toEqual([deep!.option]);
-    expect(
-      chosen.draft!.planChoices![0]!.map((c) => c.option.cleanType),
-    ).toEqual(["standard", "deep"]);
+    const refused = await office
+      .patch(`/api/quotes/${draft.id}/draft`)
+      .send(edit(draft, { serviceKey: SEEDED.moveInOut }))
+      .expect(400);
+    expect(refused.body.details).toContainEqual(
+      expect.objectContaining({
+        path: "plan.serviceKey",
+        issue: "Choose a Service that can be on a Service Plan",
+      }),
+    );
 
-    const sent = await send(office, chosen);
-    expect(sent.offer!.planChoices).toBeNull();
+    const twoDays = edit(draft, { recurrence: "weekly" });
+    twoDays.plan!.days.push({ ...twoDays.plan!.days[0]!, start: null });
+    const saved = (
+      await office
+        .patch(`/api/quotes/${draft.id}/draft`)
+        .send({
+          ...twoDays,
+          plan: { ...twoDays.plan!, serviceKey: SEEDED.deep },
+        })
+        .expect(200)
+    ).body as OfficeQuote;
+    expect(saved.service.name).toBe("Deep Clean");
+    expect(saved.draft!.serviceKey).toBe(SEEDED.deep);
+    expect(saved.draft!.plan!.days.map((d) => d.serviceName)).toEqual([
+      "Deep Clean",
+      "Deep Clean",
+    ]);
   });
 
   test("the Plan Discount is overridable, and comes off an overridden price", async () => {
@@ -567,7 +563,7 @@ describe("drafting a Service Plan Quote", () => {
     expect(oneOff).toMatchObject({
       kind: "one_off",
       firstClean: null,
-      draft: { plan: null, planChoices: null },
+      draft: { plan: null },
     });
     const withPlan = await office
       .patch(`/api/quotes/${oneOff.id}/draft`)
@@ -580,7 +576,7 @@ describe("drafting a Service Plan Quote", () => {
 });
 
 describe("a Sent Service Plan Quote", () => {
-  test("emails the Client the Clean Type and the saving, with a plain link to it", async () => {
+  test("emails the Client the Service and the saving, with a plain link to it", async () => {
     const { office, propertyId } = await firstCleanDone();
 
     const quote = await sentPlan(office, propertyId);
@@ -602,7 +598,10 @@ describe("a Sent Service Plan Quote", () => {
         .send({})
         .expect(201)
     ).body as OfficeQuote;
-    await send(office, draft, { recurrence: "weekly", cleanType: "deep" });
+    await send(office, draft, {
+      recurrence: "weekly",
+      serviceKey: SEEDED.deep,
+    });
     const updated = testEmail().lastTo(casey.email);
     expect(updated.subject).toBe(
       "Your updated Service Plan Quote from Empire Cleaning",
@@ -622,11 +621,11 @@ describe("a Sent Service Plan Quote", () => {
       kind: "service_plan",
       status: "sent",
       proposedStartsAt: "2026-01-19T14:00:00.000Z",
-      bookable: ["standard"],
+      bookable: [SEEDED.standard],
     });
     expect(view.options).toEqual([
       expect.objectContaining({
-        cleanType: "standard",
+        serviceKey: SEEDED.standard,
         priceCents: 18540,
         totalCents: 20185,
         // 25% of each Job's total
@@ -640,7 +639,8 @@ describe("a Sent Service Plan Quote", () => {
       days: [
         {
           startsAt: "2026-01-19T14:00:00.000Z",
-          cleanType: "standard",
+          serviceKey: SEEDED.standard,
+          serviceName: "Standard Clean",
           crewSize: view.crewSize,
           oneOffPriceCents: 20600,
           oneOffTaxCents: 1828,
@@ -665,7 +665,10 @@ describe("a Sent Service Plan Quote", () => {
         {
           recurrence: "fortnightly",
           days: [
-            { startsAt: "2026-01-19T14:00:00.000Z", cleanType: "standard" },
+            {
+              startsAt: "2026-01-19T14:00:00.000Z",
+              serviceName: "Standard Clean",
+            },
           ],
         },
       ],
@@ -687,7 +690,7 @@ describe("a Sent Service Plan Quote", () => {
         depositPercent: oneOffDraft.draft!.depositPercent,
         validityDays: oneOffDraft.draft!.validityDays,
         proposedStart: plansStart,
-        overrides: { deep: null, standard: null },
+        overrides: {},
       } satisfies QuoteDraftInput)
       .expect(200);
     const oneOff = (

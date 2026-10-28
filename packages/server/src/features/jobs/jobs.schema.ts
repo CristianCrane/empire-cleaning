@@ -13,9 +13,8 @@ import {
 import { timestamps } from "../../db/index.ts";
 import { accounts } from "../auth/auth.schema.ts";
 import { condition, properties } from "../properties/properties.schema.ts";
+import { services } from "../services/services.schema.ts";
 import { staff } from "../staff/staff.schema.ts";
-
-export const cleanType = pgEnum("clean_type", ["standard", "deep"]);
 
 // booked, then Completed by its assigned Staff, Cancelled, or No Access when
 // they couldn't get in
@@ -42,7 +41,10 @@ export const jobs = pgTable(
     propertyId: uuid("property_id")
       .notNull()
       .references(() => properties.id, { onDelete: "restrict" }),
-    cleanType: cleanType("clean_type").notNull(),
+    // the Service version it was priced with (ADR-0018)
+    serviceId: uuid("service_id")
+      .notNull()
+      .references(() => services.id, { onDelete: "restrict" }),
     status: jobStatus("status").notNull().default("booked"),
     startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
     labourHours: numeric("labour_hours", {

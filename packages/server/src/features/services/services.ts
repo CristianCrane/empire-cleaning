@@ -1,9 +1,9 @@
 import { asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type {
-  CleanType,
   PriceList,
   PropertyKind,
   Service,
+  ServiceChoice,
   ServiceInput,
 } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
@@ -11,19 +11,10 @@ import { NotFoundError, RequestBodyError } from "../../middleware/errors.ts";
 import { z } from "zod";
 import { currentPriceList } from "../price-list/price-list.ts";
 import { staff } from "../staff/staff.schema.ts";
+import { SEEDED } from "./seeded.ts";
 import { services, type ServiceRow } from "./services.schema.ts";
 
-// The Services every install starts with, keyed the same everywhere, so the
-// migration and a fresh database agree on them. Until Quotes are for a
-// Service the Client asks for (#122), a Quote's Clean Type picks one of
-// these: Standard or Deep for a home, and commercial cleaning for business
-// premises. Move-in/out waits for that.
-export const SEEDED = {
-  standard: "5e7a1c00-0000-4000-8000-000000000001",
-  deep: "5e7a1c00-0000-4000-8000-000000000002",
-  moveInOut: "5e7a1c00-0000-4000-8000-000000000003",
-  commercial: "5e7a1c00-0000-4000-8000-000000000004",
-} as const;
+export { SEEDED } from "./seeded.ts";
 
 // the starting figures, as the Price List's placeholders were before
 // Services had their own (the real ones are the business's to supply)
@@ -206,34 +197,70 @@ export const findService = async (key: string): Promise<Service> => {
   return service;
 };
 
-// The Service a Quote's Clean Type prices, until Quotes are for a Service
-// of their own (#122): business premises have only commercial cleaning. A
-// retired one still prices.
-export const serviceFor = (
-  all: Service[],
-  kind: PropertyKind,
-  cleanType: CleanType,
-): Service => {
-  const key = kind === "commercial" ? SEEDED.commercial : SEEDED[cleanType];
+// a Service as it is now, by key: a retired one still prices what used it
+export const serviceOf = (all: Service[], key: string): Service => {
   const service = all.find((s) => s.key === key);
   if (!service) throw new Error(`no Service ${key}`);
   return service;
 };
 
-// the Clean Types a Quote can offer for a kind of Property: a home's two,
-// and business premises' one, their commercial cleaning
-export const cleanTypesFor = (kind: PropertyKind): CleanType[] =>
-  kind === "commercial" ? ["standard"] : ["deep", "standard"];
+export const choiceOf = ({ key, name }: Service): ServiceChoice => ({
+  key,
+  name,
+});
+
+// whether a Service is offered for a kind of Property
+export const offeredAt = (service: Service, kind: PropertyKind) =>
+  service.offeredFor === "both" ||
+  service.offeredFor === (kind === "commercial" ? "businesses" : "homes");
+
+// the Services a new Quote can be for at a kind of Property, in the list's
+// order
+export const onOfferAt = (all: Service[], kind: PropertyKind) =>
+  all.filter((s) => s.active && offeredAt(s, kind));
+
+// What a Quote is for when the ask names no Service (until the form asks,
+// #122): the first on offer for the kind of Property, so a home's Standard
+// Clean, which recommends a Deep Clean for a first visit
+export const defaultServiceFor = (all: Service[], kind: PropertyKind) =>
+  onOfferAt(all, kind)[0];
+
+// The Services a one-off Quote for `service` offers: the one it recommends
+// in its place for a first visit, while that's on offer here and the
+// Property has no Completed Job, then its own
+export const oneOffServices = (
+  all: Service[],
+  service: Service,
+  kind: PropertyKind,
+  firstVisit: boolean,
+): Service[] => {
+  const recommended = firstVisit
+    ? all.find((s) => s.key === service.firstVisitServiceKey)
+    : undefined;
+  return recommended?.active && offeredAt(recommended, kind)
+    ? [recommended, service]
+    : [service];
+};
+
+// Service versions never change, so once read they're kept
+const versions = new Map<string, Service>();
 
 // the Service versions some rows recorded, by id
 export const serviceVersions = async (ids: string[]) => {
-  if (ids.length === 0) return new Map<string, Service>();
-  const rows = await db
-    .select()
-    .from(services)
-    .where(inArray(services.id, ids));
-  return new Map(rows.map((row) => [row.id, toService(row, null)]));
+  const missing = [...new Set(ids)].filter((id) => !versions.has(id));
+  if (missing.length > 0) {
+    const rows = await db
+      .select()
+      .from(services)
+      .where(inArray(services.id, missing));
+    for (const row of rows) versions.set(row.id, toService(row, null));
+  }
+  return new Map(ids.map((id) => [id, versions.get(id)!]));
 };
+
+// the name a Job's Service had when it was booked
+export const serviceNameOf = async (serviceId: string) =>
+  (await serviceVersions([serviceId])).get(serviceId)!.name;
 
 const fieldError = (path: (string | number)[], message: string) =>
   new RequestBodyError(

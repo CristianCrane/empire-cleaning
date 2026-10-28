@@ -57,6 +57,7 @@ import {
   reportableAddOns,
   signed,
 } from "./pricing.ts";
+import { serviceNameOf } from "../services/services.ts";
 
 // a proposed increase the Client hasn't answered lapses after this long, with
 // one reminder this long before it does (ADR-0009)
@@ -64,11 +65,9 @@ export const ANSWER_DAYS = 7;
 export const REMINDER_DAYS_BEFORE = 2;
 const DAY_MS = 86_400_000;
 
-const cleanTypeLabel = { deep: "Deep Clean", standard: "Standard Clean" };
-
 // "the Deep Clean at 41-12 Austin St, 4B, 11375 on Monday, January 12 at 9:00 AM"
-const describe = (job: Job, property: Property) =>
-  `the ${cleanTypeLabel[job.cleanType]} at ${addressOf(property)} on ${formatWhen(job.startsAt)}`;
+const describe = async (job: Job, property: Property) =>
+  `the ${await serviceNameOf(job.serviceId)} at ${addressOf(property)} on ${formatWhen(job.startsAt)}`;
 
 // "Inside the oven, done on the day", "1.5 extra hours"
 export const adjustmentLabel = (
@@ -140,14 +139,14 @@ const moneyLines = (settled: Settled, owedCents: number) => {
 const sendUnpaid = async (jobId: string, settled: Settled) => {
   const { job, property, client } = await jobWithOwner(jobId);
   const payment = await paymentOf(job);
-  await notify(`Unpaid notice for Job ${jobId}`, () =>
+  await notify(`Unpaid notice for Job ${jobId}`, async () =>
     email.send({
       to: client.email,
       subject: "We couldn't take your payment",
       ...compose(
         [
           `Hi ${firstNameOf(client.name)},`,
-          `We couldn't charge ${formatMoney(payment.owedCents)} for ${describe(job, property)} to your ${payment.paymentMethod ?? "card"}.`,
+          `We couldn't charge ${formatMoney(payment.owedCents)} for ${await describe(job, property)} to your ${payment.paymentMethod ?? "card"}.`,
           "Please update your Payment Method and we'll try again straight away:",
           ...(settled.plan === "held" ? [ON_HOLD_LINE] : []),
         ],
@@ -270,7 +269,7 @@ const sendReceipt = async (jobId: string, settled: Settled) => {
     .reduce((sum, c) => sum + c.amountCents, 0);
   const lines = [
     `Hi ${firstNameOf(client.name)},`,
-    `Your ${cleanTypeLabel[job.cleanType]} at ${addressOf(property)} is done. Thank you for choosing Empire Cleaning.`,
+    `Your ${await serviceNameOf(job.serviceId)} at ${addressOf(property)} is done. Thank you for choosing Empire Cleaning.`,
     [
       `Quoted price: ${formatMoney(payment.quotedCents)}`,
       ...rows
@@ -496,7 +495,7 @@ export const proposeAdjustment = async (
   );
 };
 
-const sendProposal = (
+const sendProposal = async (
   client: Client,
   job: Job,
   property: Property,
@@ -513,7 +512,7 @@ const sendProposal = (
     ...compose(
       [
         `Hi ${firstNameOf(client.name)},`,
-        `At ${describe(job, property)}, our team did more than was quoted: ${adjustmentLabel(adjustment)} (${adjustment.reason}).`,
+        `At ${await describe(job, property)}, our team did more than was quoted: ${adjustmentLabel(adjustment)} (${adjustment.reason}).`,
         `It comes to ${formatMoney(adjustment.totalCents)}, tax included. We'll only charge it if you approve it. Please approve or decline it by ${formatWhen(by)}; if we don't hear from you, we won't charge it.`,
       ],
       portalLink(job.id, "Approve or decline"),
@@ -558,14 +557,14 @@ const sendCorrection = async (jobId: string, settled: Settled) => {
   const { job, property, client } = await jobWithOwner(jobId);
   const payment = await paymentOf(job);
   if (job.status !== "completed") {
-    await notify(`Fee notice for Job ${jobId}`, () =>
+    await notify(`Fee notice for Job ${jobId}`, async () =>
       email.send({
         to: client.email,
         subject: "We've taken the fee for your clean",
         ...compose(
           [
             `Hi ${firstNameOf(client.name)},`,
-            `This is the ${formatMoney(job.feeCents ?? 0)} fee for ${describe(job, property)}.`,
+            `This is the ${formatMoney(job.feeCents ?? 0)} fee for ${await describe(job, property)}.`,
             ...moneyLines(settled, payment.owedCents),
           ],
           portalLink(jobId, "See your clean"),
@@ -574,14 +573,14 @@ const sendCorrection = async (jobId: string, settled: Settled) => {
     );
     return;
   }
-  await notify(`Correction notice for Job ${jobId}`, () =>
+  await notify(`Correction notice for Job ${jobId}`, async () =>
     email.send({
       to: client.email,
       subject: "We've corrected the price of your clean",
       ...compose(
         [
           `Hi ${firstNameOf(client.name)},`,
-          `We've corrected the price of ${describe(job, property)}. It's now ${formatMoney(payment.totalCents)}, tax included.`,
+          `We've corrected the price of ${await describe(job, property)}. It's now ${formatMoney(payment.totalCents)}, tax included.`,
           ...moneyLines(settled, payment.owedCents),
         ],
         portalLink(jobId, "See your receipt"),
@@ -720,14 +719,14 @@ export const undoCompletion = async (jobId: string) => {
   const settled = await settleJob(jobId);
 
   const { property, client } = await jobWithOwner(jobId);
-  await notify(`Undone completion notice for Job ${jobId}`, () =>
+  await notify(`Undone completion notice for Job ${jobId}`, async () =>
     email.send({
       to: client.email,
       subject: "A correction to your clean",
       ...compose(
         [
           `Hi ${firstNameOf(client.name)},`,
-          `Your ${cleanTypeLabel[job.cleanType]} at ${addressOf(property)} on ${formatWhen(job.startsAt)} was marked done by mistake, so we've put it back as booked.`,
+          `Your ${await serviceNameOf(job.serviceId)} at ${addressOf(property)} on ${formatWhen(job.startsAt)} was marked done by mistake, so we've put it back as booked.`,
           ...moneyLines(settled, 0),
         ],
         { href: `${env.CORS_ORIGIN_URL}/portal`, label: "See your Jobs" },
@@ -762,10 +761,10 @@ export const ownJob = async (clientId: string, jobId: string) => {
   return found;
 };
 
-const clientJobOf = (job: Job, property: Property) => ({
+const clientJobOf = async (job: Job, property: Property) => ({
   id: job.id,
   startsAt: job.startsAt.toISOString(),
-  cleanType: job.cleanType,
+  serviceName: await serviceNameOf(job.serviceId),
   crewSize: job.crewSize,
   hoursOnSite: Math.round((job.labourHours / job.crewSize) * 100) / 100,
   property: {
@@ -805,7 +804,7 @@ export const clientJob = async (
     planOfJob(job.id),
   ]);
   return {
-    ...clientJobOf(job, property),
+    ...(await clientJobOf(job, property)),
     status: job.status,
     completion: completion && {
       completedAt: completion.completedAt,
@@ -855,7 +854,7 @@ export const pastJobsFor = async (
           );
   return Promise.all(
     rows.map(async ({ job, property }) => ({
-      ...clientJobOf(job, property),
+      ...(await clientJobOf(job, property)),
       completedAt: job.completedAt!.toISOString(),
       totalCents: (await paymentOf(job)).totalCents,
       unpaid: job.unpaidSince !== null,
@@ -901,14 +900,14 @@ export const answerAdjustment = async (
   const settled = await settleJob(jobId);
   const { job, property, client } = await jobWithOwner(jobId);
   const payment = await paymentOf(job);
-  await notify(`Receipt for Adjustment ${adjustmentId}`, () =>
+  await notify(`Receipt for Adjustment ${adjustmentId}`, async () =>
     email.send({
       to: client.email,
       subject: "Your receipt for extra work",
       ...compose(
         [
           `Hi ${firstNameOf(client.name)},`,
-          `Thanks for approving ${adjustmentLabel(answered)} at ${describe(job, property)}: ${formatMoney(answered.totalCents)}, tax included. The clean now comes to ${formatMoney(payment.totalCents)}.`,
+          `Thanks for approving ${adjustmentLabel(answered)} at ${await describe(job, property)}: ${formatMoney(answered.totalCents)}, tax included. The clean now comes to ${formatMoney(payment.totalCents)}.`,
           ...moneyLines(settled, payment.owedCents),
         ],
         portalLink(jobId, "See your receipt"),

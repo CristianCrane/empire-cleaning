@@ -251,7 +251,7 @@ export function usePaymentForm({
     setProblem,
   );
 
-  // the amount follows the Clean Type chosen
+  // the amount follows the Service chosen
   useEffect(() => {
     mounted.current?.elements.update(modeFor(amountCents));
   }, [amountCents, mounted]);

@@ -28,7 +28,6 @@ import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import {
   addressOf,
-  cleanTypeLabel,
   clientName,
   formatDate,
   formatDateTime,
@@ -120,7 +119,7 @@ export function JobScreen() {
             </Link>
           </dd>
           <dt className="font-semibold">Clean</dt>
-          <dd>{cleanTypeLabel[job.cleanType]}</dd>
+          <dd>{job.serviceName}</dd>
           <dt className="font-semibold">Add-ons</dt>
           <dd>{job.addOns.length > 0 ? job.addOns.join(", ") : "None"}</dd>
           <dt className="font-semibold">Labour Hours</dt>

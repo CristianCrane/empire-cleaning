@@ -82,6 +82,9 @@ export type QuoteAsk = {
   contact?: ContactDetails | Omit<ContactDetails, "email">;
   businessName?: string | null;
   property: { new: NewProperty } | { existing: string };
+  // the Service asked for, by key; without one, the first on offer for the
+  // kind of Property (until the form asks, #122)
+  serviceKey?: string;
   condition?: Condition;
   wantsRegularService: boolean;
   // the Add-ons chosen, by their key (see AddOnChoice)
@@ -103,6 +106,8 @@ export type CallerQuoteEntry = { quoteId: string };
 // What a Quote was asked for, never changed (ADR-0017): as the Client stated
 // it, or as Office Staff recorded a caller's ask
 export type QuoteAsked = {
+  // the Service asked for, by its name then
+  service: ServiceChoice;
   // a home's Condition; none on a business's
   condition: Condition | null;
   wantsRegularService: boolean;
@@ -225,23 +230,22 @@ export type OfficePropertyView = PropertyView & {
 
 // ---- Price List and Suggested Price (#4) ----
 
-export type CleanType = "standard" | "deep";
-
 // an Add-on as a Client picks it: a name only, never a price (prices appear
 // on the Quote). The key stays the same across Price List versions.
 export type AddOnChoice = { key: string; name: string };
 
-// which kind of Property an Add-on is offered for (#72)
+// which kind of Property a Service is offered for (#72)
 export type OfferedFor = "homes" | "businesses" | "both";
 
 export type PriceListAddOn = {
   // absent on a new Add-on; the server gives it one
   key?: string;
   name: string;
-  // price-relevant hours, not multiplied by Condition or Clean Type
+  // price-relevant hours, not multiplied by Condition or the Service
   hours: number;
   taxExempt: boolean;
-  offeredFor: OfferedFor;
+  // the Services it goes with, by key (ADR-0018)
+  serviceKeys: string[];
   // a retired Add-on is hidden from the form but still priced for requests
   // that already chose it
   active: boolean;
@@ -294,17 +298,15 @@ export type PriceList = Omit<PriceListInput, "addOns" | "premisesTypes"> & {
 };
 
 export type PriceBreakdown = {
-  cleanType: CleanType;
-  // the Service priced (ADR-0018). Absent on breakdowns saved before it,
-  // whose Clean Type names it.
-  serviceName?: string;
+  // the Service priced (ADR-0018), by its name then
+  serviceName: string;
   // what was priced: a home by its rooms, or business premises by floor
   // area. Absent on breakdowns saved before #72, which are all homes.
   propertyKind?: PropertyKind;
   // the Property's hours before Condition, by part
   homeHours: { label: string; hours: number }[];
   conditionMultiplier: number;
-  // the Clean Type's multiplier on a home's hours, on breakdowns saved before
+  // a Deep Clean's multiplier on a home's hours, on breakdowns saved before
   // each Service had its own hours (ADR-0018)
   cleanTypeMultiplier?: number;
   addOns: { key: string; name: string; hours: number; taxExempt: boolean }[];
@@ -324,9 +326,9 @@ export type PriceBreakdown = {
 
 export type SuggestedPrices = {
   priceListVersion: number;
-  standard: PriceBreakdown;
-  // none for business premises, which have only their commercial cleaning
-  deep: PriceBreakdown | null;
+  // the Quote's Service, after the Service recommended in its place for a
+  // first visit where that's offered too
+  prices: (PriceBreakdown & { serviceKey: string; recommended: boolean })[];
 };
 
 // ---- Services (ADR-0018) ----
@@ -375,6 +377,9 @@ export type ServiceInput = {
   // still prices
   active: boolean;
 };
+
+// a Service as a Quote names it, by key
+export type ServiceChoice = { key: string; name: string };
 
 // the current version of a Service; every save is a new version with the
 // same key
@@ -437,7 +442,8 @@ export type JobStatus = "booked" | "completed" | "cancelled" | "no_access";
 export type ScheduledJob = {
   id: string;
   startsAt: string;
-  cleanType: CleanType;
+  // the Service it's of, by the name it was booked with
+  serviceName: string;
   status: JobStatus;
   labourHours: number;
   crewSize: number;
@@ -746,7 +752,7 @@ export type QuoteKind = "one_off" | "service_plan";
 export type Recurrence = "weekly" | "fortnightly" | "four_weekly";
 
 // One weekday of a Service Plan Quote (ADR-0013), with its own visit: its
-// Clean Type priced as a one-off Job (its Suggested Price or the override),
+// Service priced as a one-off Job (its Suggested Price or the override),
 // with one-off tax, against the plan clean's price, which is that less the
 // Plan Discount, with Service Plan tax. The Quote's option at the same place
 // in its list holds that price.
@@ -754,8 +760,9 @@ export type PlanDayTerms = {
   // its first clean, which every later one on this weekday repeats; null on
   // a Draft until it's chosen
   startsAt: string | null;
-  // a Standard Clean unless Office Staff chose a Deep Clean
-  cleanType: CleanType;
+  // the plan's Service, the same on every day
+  serviceKey: string;
+  serviceName: string;
   crewSize: number;
   // before tax
   oneOffPriceCents: number;
@@ -787,7 +794,6 @@ export type ServicePlanTerms = {
 export type PlanDayInput = {
   // its first clean, New York; the weekday is that day's
   start: LocalDateTime | null;
-  cleanType: CleanType;
   crewSize: number;
   // its one-off price before tax replacing the Suggested Price, with a
   // reason; null keeps the Suggested Price. The Plan Discount comes off it.
@@ -796,6 +802,8 @@ export type PlanDayInput = {
 
 // what Office Staff set on a Service Plan Quote, beyond what every Quote has
 export type ServicePlanInput = {
+  // the one Service every day is of: one that can recur, by key (ADR-0018)
+  serviceKey: string;
   // every week when it has several weekdays
   recurrence: Recurrence;
   discountPercent: number;
@@ -805,12 +813,12 @@ export type ServicePlanInput = {
   days: PlanDayInput[];
 };
 
-// one Clean Type's offer on a Quote, as the Client sees it: tax included
+// one Service's offer on a Quote, as the Client sees it: tax included
 export type QuoteOption = {
-  cleanType: CleanType;
-  // the Service it's for (ADR-0018); null on an option priced before
-  // Services, whose Clean Type names it
-  serviceName: string | null;
+  serviceKey: string;
+  // by its name when it was priced
+  serviceName: string;
+  // the Service recommended for a first visit in place of the one asked for
   recommended: boolean;
   labourHours: number;
   // Labour Hours divided by Crew Size
@@ -834,9 +842,10 @@ export type QuoteView = {
   kind: QuoteKind;
   status: QuoteStatus;
   property: Pick<PropertyView, "id" | "street" | "unit" | "postcode">;
-  // a one-off Quote's: Deep Clean first, recommended, then Standard Clean. A
-  // Service Plan Quote's: one for each weekday, in the order its plan's days
-  // list them, at the plan clean's price.
+  // a one-off Quote's: its Service, after the one recommended in its place
+  // for a first visit where that's offered. A Service Plan Quote's: one for
+  // each weekday, in the order its plan's days list them, at the plan
+  // clean's price.
   options: QuoteOption[];
   // a Service Plan Quote's terms and saving; null on a one-off Quote
   plan: ServicePlanTerms | null;
@@ -853,9 +862,9 @@ export type QuoteView = {
   updatedAt: string | null;
   expiresAt: string;
   declinedAt: string | null;
-  // once Accepted: when, and the Clean Type chosen
+  // once Accepted: when, and the Service chosen, by key
   acceptedAt: string | null;
-  acceptedCleanType: CleanType | null;
+  acceptedServiceKey: string | null;
   // the Service Plan it started or changed, once Accepted; null on a one-off
   // Quote
   servicePlanId: string | null;
@@ -864,11 +873,11 @@ export type QuoteView = {
   // on a Service Plan Quote for a home that has a plan, while it's open:
   // what accepting it does to that plan. Null otherwise.
   changesPlan: PlanChange | null;
-  // the Clean Types that can still be booked: those the proposed day has room
-  // for now, while the Quote is Sent; none once it's closed. A Service Plan
-  // Quote's are its days' while the first clean on each of them has room,
-  // and none otherwise.
-  bookable: CleanType[];
+  // the Services that can still be booked, by key: those the proposed day
+  // has room for now, while the Quote is Sent; none once it's closed. A
+  // Service Plan Quote's are its days' while the first clean on each of them
+  // has room, and none otherwise.
+  bookable: string[];
 };
 
 // A Quote its Client asked for, with nothing Sent yet: what they asked, and
@@ -902,7 +911,7 @@ export type PlanChange = {
   replaces: string[];
 };
 
-// one Clean Type's offer for the Office: the Suggested Price worked out, and
+// one Service's offer for the Office: the Suggested Price worked out, and
 // the override that replaced it, if any
 export type OfficeQuoteOption = QuoteOption & {
   suggested: PriceBreakdown;
@@ -917,14 +926,12 @@ export type OfficeRevision = {
   // 1 for the first, counting up
   number: number;
   status: "draft" | "sent";
+  // its Service: a one-off Revision's options are for it (and the one
+  // recommended for a first visit); a Service Plan Revision's every day is
+  serviceKey: string;
   options: OfficeQuoteOption[];
   // a Service Plan Quote's, with the Condition it's priced for
   plan: (ServicePlanTerms & { condition: Condition }) | null;
-  // on an unsent Service Plan Revision, each weekday priced as each Clean
-  // Type, Standard first, for Office Staff to choose between: its own Clean
-  // Type as last saved, the other worked out now from the same terms and
-  // Add-ons. Null once Sent, and on a one-off Quote.
-  planChoices: PlanChoice[][] | null;
   addOns: QuoteAddOn[];
   crewSize: number;
   depositPercent: number;
@@ -962,12 +969,17 @@ export type OfficeQuote = {
   client: OfficeContactDetails & { id: string };
   // what the Property is now: its rooms, or its Premises Type and floor area
   property: PropertyView;
-  // the Suggested Price for both Clean Types, worked out now from the
-  // current Price List, the Property's current details and Condition, and
-  // the Add-ons asked for
+  // the Service it's for now: as asked, unless Office Staff changed it
+  service: ServiceChoice;
+  // the Services a Draft can be changed to: those on offer for its kind of
+  // Property (that can recur, for a Service Plan Quote), and its own
+  serviceChoices: ServiceChoice[];
+  // the Suggested Price for its Service, worked out now from the current
+  // Services and Price List, the Property's current details and Condition,
+  // and the Add-ons asked for
   suggested: SuggestedPrices;
-  // business premises with no Site Visit findings yet: no Revision can be
-  // Sent until they're recorded (ADR-0014)
+  // a Service that needs a Site Visit and no findings recorded yet: no
+  // Revision can be Sent until they are (ADR-0018)
   needsSiteVisit: boolean;
   siteVisit: SiteVisitStage;
   // its booked Site Visit, if any
@@ -993,12 +1005,12 @@ export type OfficeQuote = {
   revisions: RevisionSummary[];
   declinedAt: string | null;
   acceptedAt: string | null;
-  acceptedCleanType: CleanType | null;
+  acceptedServiceKey: string | null;
   // the Service Plan it started or changed, once Accepted
   servicePlanId: string | null;
   changedPlan: boolean;
   changesPlan: PlanChange | null;
-  bookable: CleanType[];
+  bookable: string[];
   turnedDownAt: string | null;
   turnDownReason: TurnDownReason | null;
   // the Client's saved Payment Method, which recording acceptance on their
@@ -1020,6 +1032,8 @@ export type StartRevisionInput = { kind?: QuoteKind };
 // each weekday's own, so it leaves out crewSize, proposedStart and
 // overrides.
 export type QuoteDraftInput = {
+  // a one-off Quote's Service, by key; it stays as it is without one
+  serviceKey?: string;
   addOns: string[];
   // required on a one-off Quote
   crewSize?: number;
@@ -1028,17 +1042,15 @@ export type QuoteDraftInput = {
   proposedStart?: LocalDateTime | null;
   // a price before tax replacing the Suggested Price, with a reason; null
   // keeps the Suggested Price
-  overrides?: Record<CleanType, { priceCents: number; reason: string } | null>;
+  // keyed by the option's Service
+  overrides?: Record<string, { priceCents: number; reason: string } | null>;
   // required on a Service Plan Quote, and only there
   plan?: ServicePlanInput | null;
 };
 
-// a Service Plan Draft's weekday priced as one Clean Type
-export type PlanChoice = { option: OfficeQuoteOption; day: PlanDayTerms };
-
 // what a Property's First Clean found, shown beside a Service Plan Quote
 export type FirstCleanFindings = {
-  job: { id: string; startsAt: string; cleanType: CleanType };
+  job: { id: string; startsAt: string; serviceName: string };
   completedAt: string;
   // the Condition its Cleaner reported
   condition: Condition;
@@ -1054,14 +1066,16 @@ export type QuoteSummary = {
   status: QuoteStatus;
   origin: QuoteOrigin;
   asked: QuoteAsked | null;
+  // the Service it's for now
+  service: ServiceChoice;
   client: ClientName;
   property: PropertyView;
   // its home's Service Plan, unless it has none or it has Ended: a Service
   // Plan Quote, or one asked for, may change it
   homePlanId: string | null;
-  // the total it leads with, tax included: a one-off Quote's recommended
-  // Deep Clean, or a Service Plan Quote's round, a clean on each weekday;
-  // null with no Revision
+  // the total it leads with, tax included: a one-off Quote's first option
+  // (the recommended one, if any), or a Service Plan Quote's round, a clean
+  // on each weekday; null with no Revision
   headlineTotalCents: number | null;
   // a Service Plan Quote's; null otherwise
   plan: { recurrence: Recurrence; days: PlanDaySummary[] } | null;
@@ -1100,8 +1114,9 @@ export type CardForm = PaymentForm & { secret: string };
 // POST /api/quotes/mine/:id/accept. A Client paying with a card entered just
 // now sends the payment form's token, which also saves the card; without one
 // their saved Payment Method pays. The Office's /api/quotes/:id/accept takes
-// only the Clean Type, and always charges the saved one.
-export type AcceptQuoteInput = { cleanType: CleanType; paymentToken?: string };
+// only the Service, by key, and always charges the saved one. A Service Plan
+// Quote is accepted whole, so needs neither.
+export type AcceptQuoteInput = { serviceKey?: string; paymentToken?: string };
 
 // the Client's acceptance: done, or waiting on their bank's approval (e.g. 3D
 // Secure) in the browser with `secret`, then POST .../accept/finalize
@@ -1113,7 +1128,7 @@ export type AcceptOutcome =
 export type ClientJob = {
   id: string;
   startsAt: string;
-  cleanType: CleanType;
+  serviceName: string;
   crewSize: number;
   // Labour Hours divided by Crew Size
   hoursOnSite: number;
@@ -1173,7 +1188,7 @@ export type AssignmentOffer = { staffId: string };
 export type CleanerJob = {
   id: string;
   startsAt: string;
-  cleanType: CleanType;
+  serviceName: string;
   hoursOnSite: number;
   addOns: string[];
   property: Pick<
@@ -1505,8 +1520,8 @@ export type ServicePlanStatus = "active" | "on_hold" | "ended";
 
 // one of a Service Plan's weekdays in a line: its first clean, whose weekday
 // and time every later one repeats (null on a Draft until chosen), and its
-// Clean Type
-export type PlanDaySummary = { startsAt: string | null; cleanType: CleanType };
+// Service
+export type PlanDaySummary = { startsAt: string | null; serviceName: string };
 
 // a Service Plan in a line: on the Property page, and the Client's home screen
 export type ServicePlanSummary = {
@@ -1525,7 +1540,7 @@ export type ServicePlanSummary = {
 export type PlanDayView = {
   // its first clean on the plan's current terms
   startsAt: string;
-  cleanType: CleanType;
+  serviceName: string;
   crewSize: number;
   labourHours: number;
   // Labour Hours divided by Crew Size

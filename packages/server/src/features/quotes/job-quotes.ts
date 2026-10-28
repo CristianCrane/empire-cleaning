@@ -28,7 +28,7 @@ export const jobQuotes = async (jobIds: string[], tx: Tx | typeof db = db) => {
         revisionOptions,
         and(
           eq(revisionOptions.revisionId, quoteRevisions.id),
-          eq(revisionOptions.cleanType, quotes.acceptedCleanType),
+          eq(revisionOptions.serviceKey, quotes.acceptedServiceKey),
         ),
       )
       .where(inArray(jobs.id, jobIds)),

@@ -11,6 +11,7 @@ import {
   signInAsOffice,
   submit,
 } from "../../../tests/fixtures.ts";
+import { SEEDED } from "#features/services";
 
 type Agent = Awaited<ReturnType<typeof signIn>>;
 
@@ -105,7 +106,7 @@ describe("Turning Down a Quote", () => {
         depositPercent: draft.draft!.depositPercent,
         validityDays: draft.draft!.validityDays,
         proposedStart: nextMonday,
-        overrides: { deep: null, standard: null },
+        overrides: {},
       })
       .expect(200);
     await office.post(`/api/quotes/${id}/send`).expect(200);

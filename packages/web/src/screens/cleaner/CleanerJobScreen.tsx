@@ -15,12 +15,7 @@ import {
 import { ApiError, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
-import {
-  addressOf,
-  cleanTypeLabel,
-  formatDateTime,
-  formatHours,
-} from "../format.ts";
+import { addressOf, formatDateTime, formatHours } from "../format.ts";
 import { PlaceBadge } from "./CleanerHome.tsx";
 import { CompleteJob, Completed, NotYet } from "./CompleteJob.tsx";
 import { NoAccessRecorded, RecordNoAccess } from "./NoAccess.tsx";
@@ -72,7 +67,7 @@ export function CleanerJobScreen() {
       <Card title="The clean">
         <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
           <dt className="font-semibold">Clean</dt>
-          <dd>{cleanTypeLabel[job.cleanType]}</dd>
+          <dd>{job.serviceName}</dd>
           <dt className="font-semibold">Add-ons</dt>
           <dd>{job.addOns.length > 0 ? job.addOns.join(", ") : "None"}</dd>
           <dt className="font-semibold">Time on site</dt>

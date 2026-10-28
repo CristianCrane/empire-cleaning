@@ -1,5 +1,4 @@
 import type {
-  CleanType,
   Condition,
   PriceBreakdown,
   PriceList,
@@ -186,7 +185,6 @@ export const suggestedPrice = (
   property: Priced,
   // none recorded yet (business premises before a Site Visit): moderate
   condition: Condition | null,
-  cleanType: CleanType,
   addOns: ChosenAddOn[],
 ): PriceBreakdown => {
   if (service.method === "rooms" && property.kind !== "residential") {
@@ -225,7 +223,6 @@ export const suggestedPrice = (
   const taxCents = taxOn(priceCents, { hourlyRateCents, taxPercent, addOns });
 
   return {
-    cleanType,
     serviceName: service.name,
     propertyKind: property.kind,
     homeHours: parts.map(({ label, units }) => ({

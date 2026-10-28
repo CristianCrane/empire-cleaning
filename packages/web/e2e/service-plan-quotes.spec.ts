@@ -37,9 +37,9 @@ const atPlanDraft = async (page: Page) => {
   );
 };
 
-// a price card on a plan Draft: the choice of Clean Type, with its prices
+// a weekday's price card on a plan Draft, by its Service and how often
 const planCard = (page: Page, name: string) =>
-  page.locator("label").filter({ has: page.getByRole("radio", { name }) });
+  page.getByRole("region", { name });
 
 const saved = (page: Page) =>
   expect(
@@ -139,14 +139,10 @@ test(
     await expect(standard).toContainText("$201.85");
     await expect(standard).toContainText("$224.28");
     await expect(standard).toContainText("Save $22.43 a clean");
-    await expect(
-      page.getByRole("radio", { name: "Standard Clean, every 2 weeks" }),
-    ).toBeChecked();
-    // the Deep Clean beside it, to compare
-    await expect(planCard(page, "Deep Clean, every 2 weeks")).toContainText(
-      "a clean",
-    );
     const terms = page.getByRole("region", { name: "Plan" });
+    await expect(
+      terms.getByRole("button", { name: "Standard Clean Service" }),
+    ).toBeVisible();
     await expect(
       terms.getByRole("button", { name: /Priced for Condition/ }),
     ).toContainText("Moderate");
@@ -154,7 +150,7 @@ test(
     // the prices follow each change, without saving by hand
     await terms.getByText("Every week").click();
     await terms.getByRole("textbox", { name: "Plan Discount (%)" }).fill("15");
-    const price = page.getByRole("region", { name: "Standard Clean price" });
+    const price = planCard(page, "Standard Clean, every week");
     await price.getByText("Override the one-off price").click();
     await price
       .getByRole("textbox", { name: "One-off price before tax" })
@@ -234,14 +230,10 @@ test(
 
 test("a Service Plan of Deep Cleans", async ({ page, browser }) => {
   await startPlan(page);
-  await planCard(page, "Deep Clean, every 2 weeks").click();
+  await page.getByRole("button", { name: "Standard Clean Service" }).click();
+  await page.getByRole("option", { name: "Deep Clean" }).click();
   await saved(page);
-  await expect(
-    page.getByRole("radio", { name: "Deep Clean, every 2 weeks" }),
-  ).toBeChecked();
-  await expect(
-    page.getByRole("region", { name: "Deep Clean price" }),
-  ).toBeVisible();
+  await expect(planCard(page, "Deep Clean, every 2 weeks")).toBeVisible();
 
   await startOn19th(page);
   await page.getByRole("button", { name: `Send to ${casey.name}` }).click();

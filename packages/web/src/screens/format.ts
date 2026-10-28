@@ -1,6 +1,5 @@
 import type {
   AdjustmentKind,
-  CleanType,
   ClientName,
   Condition,
   PlanDaySummary,
@@ -100,18 +99,6 @@ export const formatMoney = (cents: number) => money.format(cents / 100);
 
 // 3.75 -> "3.75 h", 4 -> "4 h"
 export const formatHours = (hours: number) => `${hours} h`;
-
-export const cleanTypeLabel = {
-  standard: "Standard Clean",
-  deep: "Deep Clean",
-};
-
-// what a Quote's option is for: its Service, or before Services, its Clean
-// Type (ADR-0018)
-export const optionLabel = (option: {
-  cleanType: CleanType;
-  serviceName?: string | null;
-}) => option.serviceName ?? cleanTypeLabel[option.cleanType];
 
 export const roleLabel = {
   cleaner: "Cleaner",
@@ -258,11 +245,9 @@ export const planDayWhen = (startsAt: string) =>
   `${weekdayOfStart(startsAt)}s at ${formatClock(timeOfDay(startsAt))}`;
 
 // what a Service Plan is, in a line: "Standard Clean, every 2 weeks", or
-// "Standard and Deep Cleans, every week on Mon, Wed and Fri"
+// "Standard Clean and Deep Clean, every week on Mon, Wed and Fri"
 export const planName = ({ recurrence, days }: PlanDays) => {
-  const types = [...new Set(days.map((d) => d.cleanType))];
-  const what =
-    types.length === 1 ? cleanTypeLabel[types[0]!] : "Standard and Deep Cleans";
+  const what = listed([...new Set(days.map((d) => d.serviceName))]);
   const on = days.flatMap((d) => weekdayOfStart(d.startsAt)?.slice(0, 3) ?? []);
   return days.length === 1
     ? `${what}, ${recurrenceLabel[recurrence].toLowerCase()}`

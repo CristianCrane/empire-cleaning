@@ -1,11 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
-import type {
-  CleanType,
-  QuoteOption,
-  QuoteStatus,
-} from "@empire-cleaning/models";
+import type { QuoteOption, QuoteStatus } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import env from "../../env.ts";
 import {
@@ -50,6 +46,7 @@ import {
 } from "../service-plans/service-plans.ts";
 import type { FirstJobs } from "../service-plans/first-visits.ts";
 import type { ServicePlan } from "../service-plans/service-plans.schema.ts";
+import { serviceNameOf } from "../services/services.ts";
 import { describePlan } from "./plan-days.ts";
 import { warnOfficeOfQuotesWithoutRoom } from "./quote-room.ts";
 import { offers, statusOf } from "./quote-state.ts";
@@ -78,8 +75,6 @@ export type Acceptor =
 export type AcceptResult =
   | { status: "accepted"; job: Job }
   | { status: "needs_approval"; secret: string };
-
-const cleanTypeLabel = { deep: "Deep Clean", standard: "Standard Clean" };
 
 const closedMessage = (status: QuoteStatus, acceptor: Acceptor["by"]) =>
   ({
@@ -163,37 +158,39 @@ type Clean = {
   position: number;
   startsAt: Date;
   crewSize: number;
+  // the Service version it was priced with
+  serviceId: string;
   option: QuoteOption;
 };
 
 // What accepting a Quote books and takes: a one-off Quote's Job, of the
-// Clean Type chosen, with its Deposit; or a Service Plan Quote's first clean
-// on each of its weekdays, earliest first, with the Deposit for one on each
-// (ADR-0013), accepted whole. `cleanType` is the one chosen, or a plan's
+// Service chosen, with its Deposit; or a Service Plan Quote's first clean on
+// each of its weekdays, earliest first, with the Deposit for one on each
+// (ADR-0013), accepted whole. `serviceKey` is the one chosen, or a plan's
 // first weekday's.
 type Offer = {
-  cleanType: CleanType;
+  serviceKey: string;
   cleans: Clean[];
   depositCents: number;
 };
 
-const describeTypes = (types: CleanType[]) =>
-  [...new Set(types)].map((t) => `a ${cleanTypeLabel[t]}`).join(" and ");
+const describeServices = (names: string[]) =>
+  [...new Set(names)].map((name) => `a ${name}`).join(" and ");
 
 const offerFor = async (
   revision: KindedRevision,
-  cleanType: CleanType | undefined,
+  serviceKey: string | undefined,
 ): Promise<Offer> => {
   const rows = inOrder(await optionsOf(revision.id));
   if (revision.kind === "one_off") {
-    const row = rows.find((r) => r.cleanType === cleanType);
+    const row = rows.find((r) => r.serviceKey === serviceKey);
     if (!row) {
       throw new RequestBodyError(
         new z.ZodError([
           {
             code: "custom",
-            path: ["cleanType"],
-            message: "Choose a Deep Clean or a Standard Clean",
+            path: ["serviceKey"],
+            message: `Choose ${rows.map((r) => `a ${r.suggested.serviceName}`).join(" or ")}`,
             input: undefined,
           },
         ]),
@@ -201,32 +198,34 @@ const offerFor = async (
     }
     const option = toOption(revision, row);
     return {
-      cleanType: row.cleanType,
+      serviceKey: row.serviceKey,
       cleans: [
         {
           position: 0,
           startsAt: revision.proposedStartsAt!,
           crewSize: row.crewSize,
+          serviceId: row.serviceId,
           option,
         },
       ],
       depositCents: option.depositCents,
     };
   }
-  // a Service Plan Quote offers its weekdays' Clean Types, and only those
-  if (cleanType && !rows.some((r) => r.cleanType === cleanType)) {
+  // a Service Plan Quote offers its weekdays' Services, and only those
+  if (serviceKey && !rows.some((r) => r.serviceKey === serviceKey)) {
     throw new ConflictError(
-      `This Service Plan is for ${describeTypes(rows.map((r) => r.cleanType))}.`,
+      `This Service Plan is for ${describeServices(rows.map((r) => r.suggested.serviceName))}.`,
     );
   }
   const cleans = rows.map((row) => ({
     position: row.position,
     startsAt: row.startsAt!,
     crewSize: row.crewSize,
+    serviceId: row.serviceId,
     option: toOption(revision, row),
   }));
   return {
-    cleanType: rows[0]!.cleanType,
+    serviceKey: rows[0]!.serviceKey,
     cleans,
     depositCents: cleans.reduce((sum, c) => sum + c.option.depositCents, 0),
   };
@@ -341,7 +340,7 @@ const recordAcceptance = async (
     const job = await bookJob(
       {
         propertyId: property.id,
-        cleanType: clean.option.cleanType,
+        serviceId: clean.serviceId,
         startsAt: clean.startsAt,
         labourHours: clean.option.labourHours,
         crewSize: clean.crewSize,
@@ -383,7 +382,7 @@ const recordAcceptance = async (
     .set({
       status: "accepted",
       acceptedAt: now,
-      acceptedCleanType: offer.cleanType,
+      acceptedServiceKey: offer.serviceKey,
       // a plan's first
       jobId: first!.job.id,
       acceptedBy: booking.acceptedBy,
@@ -417,10 +416,10 @@ const refundUnbooked = async (
 const describe = ({ revision, property, offer }: Booking) =>
   revision.kind === "service_plan"
     ? `Deposit: Service Plan at ${addressOf(property)}, from ${formatWhen(revision.proposedStartsAt!)}`
-    : `Deposit: ${cleanTypeLabel[offer.cleanType]} at ${addressOf(property)}, ${formatWhen(revision.proposedStartsAt!)}`;
+    : `Deposit: ${offer.cleans[0]!.option.serviceName} at ${addressOf(property)}, ${formatWhen(revision.proposedStartsAt!)}`;
 
 /**
- * Accepts a Sent Quote with the Clean Type chosen, as one step: the proposed
+ * Accepts a Sent Quote with the Service chosen, as one step: the proposed
  * day must still have room for its Labour Hours, and the Deposit must be
  * taken; only then is the Quote Accepted and the Job booked (ADR-0001). If
  * either fails, nothing changes and the Quote stays Sent. A Service Plan
@@ -444,9 +443,9 @@ const describe = ({ revision, property, offer }: Booking) =>
 export const acceptQuote = async (
   id: string,
   {
-    cleanType,
+    serviceKey,
     paymentToken,
-  }: { cleanType?: CleanType | undefined; paymentToken?: string | undefined },
+  }: { serviceKey?: string | undefined; paymentToken?: string | undefined },
   acceptor: Acceptor,
 ): Promise<AcceptResult> => {
   const found = await findForAcceptance(id);
@@ -466,7 +465,7 @@ export const acceptQuote = async (
   // the offer: its latest Sent Revision
   const revision: KindedRevision = { ...found.revision, kind: quote.kind! };
   refuseUnlessOpen(quote, revision, acceptor);
-  const offer = await offerFor(revision, cleanType);
+  const offer = await offerFor(revision, serviceKey);
   // a Service Plan Quote for a home with a plan changes that plan's terms
   const changing =
     quote.kind === "service_plan"
@@ -553,7 +552,7 @@ export const acceptQuote = async (
           gatewayRef: attempt.ref,
           quoteId: id,
           revisionId: revision.id,
-          cleanType: offer.cleanType,
+          serviceKey: offer.serviceKey,
           depositCents: offer.depositCents,
           acceptedBy: acceptor.accountId,
         });
@@ -640,7 +639,7 @@ export const finalizeDeposit = async (ref: string): Promise<Finalized> => {
     .from(quoteRevisions)
     .where(eq(quoteRevisions.id, pending.revisionId));
   const revision: KindedRevision = { ...pendingRevision!, kind: quote.kind! };
-  const offer = await offerFor(revision, pending.cleanType);
+  const offer = await offerFor(revision, pending.serviceKey);
   const booking: Booking = {
     quote,
     revision,
@@ -794,7 +793,7 @@ const planOf = (plan: ServicePlan, offer: Offer, where = "") =>
     plan.recurrence,
     offer.cleans.map((c) => ({
       startsAt: c.startsAt,
-      cleanType: c.option.cleanType,
+      serviceName: c.option.serviceName,
     })),
     where,
   );
@@ -815,9 +814,7 @@ const sendPlanConfirmation = async (
     ...compose(
       [
         `Hi ${firstNameOf(client.name)},`,
-        offer.cleans.length === 1
-          ? `Your Service Plan has started: ${planOf(plan, offer, ` at ${addressOf(property)}`)}. The first is on ${formatWhen(first)}.`
-          : `Your Service Plan at ${addressOf(property)} has started: ${planOf(plan, offer)}. The first is on ${formatWhen(first)}.`,
+        `Your Service Plan has started: ${planOf(plan, offer, ` at ${addressOf(property)}`)}. The first is on ${formatWhen(first)}.`,
         planPrices(offer, paid),
         ...(paid.depositCents > 0
           ? [
@@ -881,7 +878,7 @@ const sendBookingConfirmation = async (
     ...compose(
       [
         `Hi ${firstNameOf(client.name)},`,
-        `You're booked: a ${cleanTypeLabel[job.cleanType]} at ${addressOf(property)} on ${formatWhen(job.startsAt)}.`,
+        `You're booked: a ${await serviceNameOf(job.serviceId)} at ${addressOf(property)} on ${formatWhen(job.startsAt)}.`,
         paid.depositCents > 0
           ? `We've taken your Deposit of ${formatMoney(paid.depositCents)} from ${chargedTo(paid)}. The rest, ${formatMoney(balance)}, is charged to it when the clean is done.`
           : `The ${formatMoney(paid.totalCents)} is charged to ${chargedTo(paid)} when the clean is done.`,

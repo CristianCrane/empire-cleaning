@@ -15,6 +15,7 @@ import {
   signInAsOffice,
   submit,
 } from "../../../tests/fixtures.ts";
+import { SEEDED } from "#features/services";
 
 type Agent = Awaited<ReturnType<typeof signIn>>;
 
@@ -301,7 +302,7 @@ describe("the Suggested Price for business premises", () => {
     const { suggested } = await onlyQuote(office);
 
     // 4,500 sq ft / 1,000 x 0.5 h = 2.25 h, moderate (none recorded yet)
-    expect(suggested.standard).toMatchObject({
+    expect(suggested.prices[0]).toMatchObject({
       propertyKind: "commercial",
       homeHours: [
         { label: "Office: 4,500 sq ft ÷ 1,000 × 0.5 h", hours: 2.25 },
@@ -316,8 +317,9 @@ describe("the Suggested Price for business premises", () => {
       totalCents: 14850,
     });
     // commercial cleaning is all business premises are offered
-    expect(suggested.standard.serviceName).toBe("Commercial cleaning");
-    expect(suggested.deep).toBeNull();
+    expect(suggested.prices.map((p) => p.serviceName)).toEqual([
+      "Commercial cleaning",
+    ]);
   });
 
   test("is the Minimum Charge until the floor area is known", async () => {
@@ -332,7 +334,7 @@ describe("the Suggested Price for business premises", () => {
 
     const { suggested } = await onlyQuote(office);
 
-    expect(suggested.standard).toMatchObject({
+    expect(suggested.prices[0]).toMatchObject({
       homeHours: [{ label: "Floor area not recorded yet (Office)", hours: 0 }],
       minimumApplied: true,
       priceCents: 10000,
@@ -359,7 +361,7 @@ describe("the Suggested Price for business premises", () => {
     });
     // 2,500 / 1,000 x 0.8 h = 2 h, x1.5 heavy = 3 h = $180
     const { suggested } = await detailOf(office, id);
-    expect(suggested.standard).toMatchObject({
+    expect(suggested.prices[0]).toMatchObject({
       labourHours: 3,
       priceCents: 18000,
     });
@@ -427,7 +429,7 @@ describe("Office Staff and business Clients", () => {
       depositPercent: quote.draft!.depositPercent,
       validityDays: quote.draft!.validityDays,
       proposedStart: null,
-      overrides: { deep: null, standard: null },
+      overrides: {},
     });
     expect(refused.status).toBe(400);
   });

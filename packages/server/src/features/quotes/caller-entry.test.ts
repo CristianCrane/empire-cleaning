@@ -15,6 +15,7 @@ import {
   signInAsOffice,
   submit,
 } from "../../../tests/fixtures.ts";
+import { SEEDED } from "#features/services";
 
 type Agent = Awaited<ReturnType<typeof signIn>>;
 
@@ -63,7 +64,7 @@ const send = async (office: Agent, quote: OfficeQuote) => {
       depositPercent: quote.draft!.depositPercent,
       validityDays: quote.draft!.validityDays,
       proposedStart: nextMonday,
-      overrides: { deep: null, standard: null },
+      overrides: {},
     })
     .expect(200);
   return await office.post(`/api/quotes/${quote.id}/send`);
