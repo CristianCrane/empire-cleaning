@@ -5,6 +5,7 @@ export const SEEDED = {
   deep: "5e7a1c00-0000-4000-8000-000000000002",
   moveInOut: "5e7a1c00-0000-4000-8000-000000000003",
   commercial: "5e7a1c00-0000-4000-8000-000000000004",
+  painting: "5e7a1c00-0000-4000-8000-000000000005",
 } as const;
 
 // the seeded Services for homes

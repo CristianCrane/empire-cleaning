@@ -93,6 +93,8 @@ export type QuoteAsk = {
   // preferred start time ("08:00")
   weekdays?: Weekday[];
   preferredTime?: string | null;
+  // for a Service priced by area, a rough area in sq ft
+  area?: number | null;
   notes?: string | null;
 };
 
@@ -115,6 +117,8 @@ export type QuoteAsked = {
   // preferred start time; empty and null otherwise
   weekdays: Weekday[];
   preferredTime: string | null;
+  // for a Service priced by area, a rough area in sq ft, if one was given
+  area: number | null;
   notes: string | null;
   addOns: AddOnChoice[];
 };
@@ -303,6 +307,10 @@ export type PriceBreakdown = {
   // what was priced: a home by its rooms, or business premises by floor
   // area. Absent on breakdowns saved before #72, which are all homes.
   propertyKind?: PropertyKind;
+  // for a Service priced by area, the area priced on in sq ft; null when
+  // none was known, or the Service is priced from a home's rooms. Absent on
+  // breakdowns saved before the area was on the Revision.
+  area?: number | null;
   // the Property's hours before Condition, by part
   homeHours: { label: string; hours: number }[];
   conditionMultiplier: number;
@@ -378,8 +386,12 @@ export type ServiceInput = {
   active: boolean;
 };
 
-// a Service as a Quote names it, by key
-export type ServiceChoice = { key: string; name: string };
+// a Service as a Quote names it, by key, with how it's priced
+export type ServiceChoice = {
+  key: string;
+  name: string;
+  method: PricingMethod;
+};
 
 // the current version of a Service; every save is a new version with the
 // same key
@@ -929,6 +941,9 @@ export type OfficeRevision = {
   // its Service: a one-off Revision's options are for it (and the one
   // recommended for a first visit); a Service Plan Revision's every day is
   serviceKey: string;
+  // for a Service priced by area, the area Office Staff typed; unsent and
+  // null, it follows areaFrom. A Sent one's is the area it was priced on.
+  area: number | null;
   options: OfficeQuoteOption[];
   // a Service Plan Quote's, with the Condition it's priced for
   plan: (ServicePlanTerms & { condition: Condition }) | null;
@@ -974,6 +989,9 @@ export type OfficeQuote = {
   // the Services a Draft can be changed to: those on offer for its kind of
   // Property (that can recur, for a Service Plan Quote), and its own
   serviceChoices: ServiceChoice[];
+  // the area a Draft for a Service priced by area is priced on until Office
+  // Staff type one: the Property's floor area, else the Client's rough one
+  areaFrom: { sqFt: number; source: "property" | "asked" } | null;
   // the Suggested Price for its Service, worked out now from the current
   // Services and Price List, the Property's current details and Condition,
   // and the Add-ons asked for
@@ -1034,6 +1052,9 @@ export type StartRevisionInput = { kind?: QuoteKind };
 export type QuoteDraftInput = {
   // a one-off Quote's Service, by key; it stays as it is without one
   serviceKey?: string;
+  // for a Service priced by area, the area to price on in sq ft; null (or
+  // none) follows the Property's floor area, else the Client's rough one
+  area?: number | null;
   addOns: string[];
   // required on a one-off Quote
   crewSize?: number;

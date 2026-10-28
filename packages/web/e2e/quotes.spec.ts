@@ -532,3 +532,28 @@ test("Office Staff change what a Draft is for, and what was asked stays", async 
     page.getByRole("definition").filter({ hasText: /^Standard Clean$/ }),
   ).toBeVisible();
 });
+
+test("a Draft for a Service priced by area is priced on the area Office Staff type", async ({
+  page,
+}) => {
+  await requestQuoteAsGuest(casey);
+  await signInAsOffice(page);
+  await startDraft(page);
+
+  await page.getByRole("button", { name: "Standard Clean Service" }).click();
+  await page.getByRole("option", { name: "Painting" }).click();
+  const area = page.getByRole("textbox", { name: "Area in sq ft" });
+  await expect(area).toBeVisible();
+  await expect(
+    page.getByText("None recorded yet: enter one to price it."),
+  ).toBeVisible();
+
+  await area.fill("1200");
+  await area.blur();
+  const status = page.getByRole("status").filter({ hasText: /prices|saved/ });
+  await expect(status).toHaveText("All changes saved");
+  // 1.2 x 8 h, to the quarter-hour, at $60: $585 plus 8.875% tax
+  await expect(page.getByRole("region", { name: "Painting" })).toContainText(
+    "$636.92",
+  );
+});

@@ -35,7 +35,7 @@ test(
     await expect(page).toHaveURL("/office/services");
 
     const services = page.getByRole("grid", { name: "Services" });
-    await expect(services.getByRole("row")).toHaveCount(5);
+    await expect(services.getByRole("row")).toHaveCount(6);
     await services.getByRole("row", { name: /Standard Clean/ }).click();
     await expect(
       page.getByRole("heading", { level: 1, name: "Standard Clean" }),
@@ -76,10 +76,10 @@ test("Office Staff add a Service priced by area, and retire it", async ({
   await page.goto("/office/services");
   await page.getByRole("link", { name: "New Service" }).click();
 
-  await page.getByRole("textbox", { name: "Name" }).fill("Painting");
+  await page.getByRole("textbox", { name: "Name" }).fill("Window cleaning");
   await page
     .getByRole("textbox", { name: "Description" })
-    .fill("Walls and ceilings, inside.");
+    .fill("Every window, inside and out.");
   await page.getByText("Both", { exact: true }).click();
   // only area pricing suits business premises
   await expect(page.getByRole("radio", { name: "By area" })).toBeChecked();
@@ -93,13 +93,13 @@ test("Office Staff add a Service priced by area, and retire it", async ({
   ).toContainText("2,000 sq ft of office takes 12 h and comes to $718.58");
   await page.getByRole("button", { name: "Add Service" }).click();
 
-  await expect(page.getByText("Painting added")).toBeVisible();
+  await expect(page.getByText("Window cleaning added")).toBeVisible();
   await expect(
-    page.getByRole("heading", { level: 1, name: "Painting" }),
+    page.getByRole("heading", { level: 1, name: "Window cleaning" }),
   ).toBeVisible();
 
   await page.getByRole("button", { name: "Retire" }).click();
-  await expect(page.getByText("Painting retired")).toBeVisible();
+  await expect(page.getByText("Window cleaning retired")).toBeVisible();
   await expect(page.getByText("Retired", { exact: true })).toBeVisible();
 
   await page
@@ -107,11 +107,13 @@ test("Office Staff add a Service priced by area, and retire it", async ({
     .getByRole("link", { name: "Services" })
     .click();
   await expect(
-    page.getByRole("grid", { name: "Services" }).getByText("Painting"),
+    page.getByRole("grid", { name: "Services" }).getByText("Window cleaning"),
   ).toHaveCount(0);
   await page.getByRole("button", { name: "Show 1" }).click();
   await expect(
-    page.getByRole("grid", { name: "Retired Services" }).getByText("Painting"),
+    page
+      .getByRole("grid", { name: "Retired Services" })
+      .getByText("Window cleaning"),
   ).toBeVisible();
 });
 

@@ -11,8 +11,9 @@ import type {
 //
 //   priced from a home's rooms: base + bedrooms + bathrooms + extra floors
 //                  + pets, at the Service's hours for each
-//   priced by area: floor area / 1,000 x the Service's hours per 1,000 sq ft,
-//                  x the Premises Type for business premises
+//   priced by area: the area / 1,000 x the Service's hours per 1,000 sq ft,
+//                  x the Premises Type for business premises, where
+//                  Condition applies
 //   Labour Hours = those hours x Condition (where the Service says it
 //                  applies), plus each Add-on's own hours, rounded UP to the
 //                  quarter-hour
@@ -33,9 +34,10 @@ const hoursUnits = (hours: number) => Math.round(hours * HOURS);
 const multiplierUnits = (multiplier: number) =>
   Math.round(multiplier * MULTIPLIER);
 
-// what is priced: a home by its rooms, or business premises by floor area.
-// Premises with no floor area recorded yet have no hours for it.
-export type Priced =
+// what is priced: a home by its rooms, or business premises by their
+// Premises Type, and for a Service priced by area, the area it's priced on
+// (ADR-0018), which has no hours until it's known
+export type Priced = (
   | {
       kind: "residential";
       bedrooms: number;
@@ -46,31 +48,32 @@ export type Priced =
   | {
       kind: "commercial";
       premisesTypeKey: string;
-      floorArea: number | null;
-    };
+    }
+) & { area: number | null };
 
-// a Property row as priced; the database guarantees each kind's details
-export const pricedOf = (p: {
-  kind: "residential" | "commercial";
-  bedrooms: number | null;
-  bathrooms: number | null;
-  storeys: number | null;
-  pets: boolean | null;
-  premisesTypeKey: string | null;
-  floorArea: number | null;
-}): Priced =>
+// a Property row as priced, on an area (its floor area unless said);
+// the database guarantees each kind's details
+export const pricedOf = (
+  p: {
+    kind: "residential" | "commercial";
+    bedrooms: number | null;
+    bathrooms: number | null;
+    storeys: number | null;
+    pets: boolean | null;
+    premisesTypeKey: string | null;
+    floorArea: number | null;
+  },
+  area = p.floorArea,
+): Priced =>
   p.kind === "commercial"
-    ? {
-        kind: "commercial",
-        premisesTypeKey: p.premisesTypeKey!,
-        floorArea: p.floorArea,
-      }
+    ? { kind: "commercial", premisesTypeKey: p.premisesTypeKey!, area }
     : {
         kind: "residential",
         bedrooms: p.bedrooms!,
         bathrooms: p.bathrooms!,
         storeys: p.storeys!,
         pets: p.pets!,
+        area,
       };
 
 const sqFt = new Intl.NumberFormat("en-US");
@@ -106,33 +109,39 @@ const homeParts = (
 };
 
 // a Service priced by area. The Premises Type makes business premises
-// quicker or slower to clean, so it counts only where Condition does.
+// quicker or slower to clean, so it counts only where Condition does; a
+// home has none.
 const areaParts = (list: PriceList, service: Service, property: Priced) => {
   const perThousand = service.hoursPerThousandSqFt!;
-  if (property.kind !== "commercial") {
-    return [{ label: "Area not recorded yet", units: 0 }];
-  }
+  const typeKey =
+    property.kind === "commercial" && service.conditionApplies
+      ? property.premisesTypeKey
+      : null;
   // a retired Premises Type is still on the list, so it still prices
-  const type = list.premisesTypes.find(
-    (t) => t.key === property.premisesTypeKey,
-  );
-  if (!type) throw new Error(`no Premises Type ${property.premisesTypeKey}`);
-  if (property.floorArea === null) {
-    return [{ label: `Floor area not recorded yet (${type.name})`, units: 0 }];
+  const type = typeKey
+    ? list.premisesTypes.find((t) => t.key === typeKey)
+    : null;
+  if (type === undefined) throw new Error(`no Premises Type ${typeKey}`);
+  if (property.area === null) {
+    return [
+      {
+        label: `Area not recorded yet${type ? ` (${type.name})` : ""}`,
+        units: 0,
+      },
+    ];
   }
-  const byType = service.conditionApplies;
-  const area = `${sqFt.format(property.floorArea)} sq ft ÷ 1,000 × ${perThousand} h`;
+  const area = `${sqFt.format(property.area)} sq ft ÷ 1,000 × ${perThousand} h`;
   return [
     {
       // an office is the measure, so its multiplier of 1 goes unsaid
-      label: byType
+      label: type
         ? `${type.name}: ${area}${type.multiplier === 1 ? "" : ` × ${type.multiplier}`}`
         : area,
-      // floor area is whole sq ft; to the nearest unit (1e-4 h)
+      // the area is whole sq ft; to the nearest unit (1e-4 h)
       units: Math.round(
-        (property.floorArea *
+        (property.area *
           hoursUnits(perThousand) *
-          (byType ? multiplierUnits(type.multiplier) : MULTIPLIER)) /
+          (type ? multiplierUnits(type.multiplier) : MULTIPLIER)) /
           (1000 * MULTIPLIER),
       ),
     },
@@ -225,6 +234,7 @@ export const suggestedPrice = (
   return {
     serviceName: service.name,
     propertyKind: property.kind,
+    area: service.method === "area" ? property.area : null,
     homeHours: parts.map(({ label, units }) => ({
       label,
       hours: units / HOURS,

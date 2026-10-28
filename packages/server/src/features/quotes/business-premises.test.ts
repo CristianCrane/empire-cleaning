@@ -335,7 +335,7 @@ describe("the Suggested Price for business premises", () => {
     const { suggested } = await onlyQuote(office);
 
     expect(suggested.prices[0]).toMatchObject({
-      homeHours: [{ label: "Floor area not recorded yet (Office)", hours: 0 }],
+      homeHours: [{ label: "Area not recorded yet (Office)", hours: 0 }],
       minimumApplied: true,
       priceCents: 10000,
     });

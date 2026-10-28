@@ -112,6 +112,25 @@ const placeholders: (ServiceInput & { key: string })[] = [
     firstVisitServiceKey: null,
     active: true,
   },
+  {
+    key: SEEDED.painting,
+    name: "Painting",
+    description:
+      "Walls, ceilings and trim painted cleanly, with the room left as we found it.",
+    offeredFor: "both",
+    method: "area",
+    roomHours: null,
+    hoursPerThousandSqFt: 8,
+    hourlyRateCents: 6000,
+    minimumChargeCents: 30000,
+    taxOneOffPercent: TAX,
+    taxPlanPercent: null,
+    conditionApplies: false,
+    canRecur: false,
+    needsSiteVisit: true,
+    firstVisitServiceKey: null,
+    active: true,
+  },
 ];
 
 // a Service as its row stores it: the room hours flat
@@ -204,9 +223,10 @@ export const serviceOf = (all: Service[], key: string): Service => {
   return service;
 };
 
-export const choiceOf = ({ key, name }: Service): ServiceChoice => ({
+export const choiceOf = ({ key, name, method }: Service): ServiceChoice => ({
   key,
   name,
+  method,
 });
 
 // whether a Service is offered for a kind of Property

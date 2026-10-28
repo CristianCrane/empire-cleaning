@@ -73,6 +73,12 @@ export function AskedCard({ quote }: { quote: OfficeQuote }) {
         </dd>
         <dt className="font-semibold">Service</dt>
         <dd>{asked.service.name}</dd>
+        {asked.area !== null && (
+          <>
+            <dt className="font-semibold">Area</dt>
+            <dd>About {asked.area.toLocaleString("en-US")} sq ft</dd>
+          </>
+        )}
         <dt className="font-semibold">Condition</dt>
         <dd>
           {conditionText(property.condition)}

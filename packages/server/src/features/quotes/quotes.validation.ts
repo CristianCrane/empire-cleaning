@@ -94,6 +94,14 @@ const plan = z.object({
 export const draftSchema = z.object({
   // a one-off Quote's Service
   serviceKey: z.uuid("Choose a Service").optional(),
+  // for a Service priced by area; none follows the Property's
+  area: z
+    .number({ error: "Enter the area in sq ft" })
+    .int("Use whole sq ft")
+    .min(1, "Enter the area in sq ft")
+    .max(1_000_000, "That's larger than we can take on")
+    .nullable()
+    .optional(),
   addOns: z.array(z.uuid()).max(50),
   // a one-off Quote's; a Service Plan Quote's are its weekdays'
   crewSize: crewSize.optional(),
