@@ -178,7 +178,9 @@ export type PropertyStatus =
 // a Client in the Office's list of Clients
 export type ClientListItem = OfficeContactDetails & {
   id: string;
-  propertyCount: number;
+  // their Google profile picture, once they've signed up and signed in
+  // with Google
+  imageUrl: string | null;
 };
 
 // a Client for the Office: their contact details and their homes, each with

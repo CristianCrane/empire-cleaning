@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import type { ClientListItem } from "@empire-cleaning/models";
 import { createStaff } from "#features/staff";
 import { api, signIn } from "../../../tests/harness.ts";
+import { signInWithGoogle } from "../../../tests/google.ts";
 import {
   casey,
   guestAsk,
@@ -56,7 +57,7 @@ describe("the Office's list of Clients", () => {
     await (await signIn("cory@example.com")).get("/api/clients").expect(403);
   });
 
-  test("lists every Client in name order, with how many Properties they have", async () => {
+  test("lists every Client in name order, with their contact details", async () => {
     await twoClients();
     const office = await signInAsOffice();
 
@@ -69,7 +70,7 @@ describe("the Office's list of Clients", () => {
         businessName: null,
         email: "casey@example.com",
         phone: "(646) 555-0100",
-        propertyCount: 2,
+        imageUrl: null,
       },
       {
         id: expect.any(String),
@@ -77,7 +78,7 @@ describe("the Office's list of Clients", () => {
         businessName: null,
         email: "sam@example.com",
         phone: "718-555-0199",
-        propertyCount: 1,
+        imageUrl: null,
       },
     ]);
   });
@@ -112,5 +113,21 @@ describe("the Office's list of Clients", () => {
 
     expect(await search(office, "%")).toEqual([]);
     expect(await search(office, "_")).toEqual([]);
+  });
+
+  test("shows a Client's Google picture once they sign in with Google", async () => {
+    await twoClients();
+    const office = await signInAsOffice();
+    const picture = "https://lh3.googleusercontent.com/a/casey-photo";
+
+    await signInWithGoogle({ sub: "2001", email: casey.email, picture });
+
+    const { body } = await office.get("/api/clients").expect(200);
+    expect((body as ClientListItem[]).map((c) => [c.name, c.imageUrl])).toEqual(
+      [
+        ["Casey Client", picture],
+        ["sam Seed", null],
+      ],
+    );
   });
 });

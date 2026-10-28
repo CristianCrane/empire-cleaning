@@ -10,6 +10,7 @@ import {
   QuoteRequestForm,
 } from "@empire-cleaning/quote-request";
 import {
+  Avatar,
   Breadcrumbs,
   Button,
   Card,
@@ -190,6 +191,7 @@ function FindClient({
               key={client.id}
               id={client.id}
               title={clientName(client)}
+              start={<Avatar src={client.imageUrl} />}
               description={
                 <span className="[overflow-wrap:anywhere]">
                   {[client.email, client.phone].filter(Boolean).join(" · ")}

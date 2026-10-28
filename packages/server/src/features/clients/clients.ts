@@ -1,10 +1,11 @@
-import { and, asc, count, eq, exists, ilike, or, sql } from "drizzle-orm";
+import { and, asc, eq, exists, ilike, or, sql } from "drizzle-orm";
 import type {
   ClientListItem,
   ClientView,
   OfficeClientView,
 } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
+import { accounts } from "../auth/auth.schema.ts";
 import { currentPriceList } from "../price-list/price-list.ts";
 import { connectSignedUpAccount } from "../auth/connections.ts";
 import { properties } from "../properties/properties.schema.ts";
@@ -233,12 +234,12 @@ export const listClients = async (
         businessName: clients.businessName,
         email: clients.email,
         phone: clients.phone,
-        propertyCount: count(properties.id),
+        // the connected Account's picture, if any
+        imageUrl: accounts.image,
       })
       .from(clients)
-      .leftJoin(properties, eq(properties.clientId, clients.id))
+      .leftJoin(accounts, eq(accounts.id, clients.accountId))
       .where(matches)
-      .groupBy(clients.id)
       // a business by its own name
       .orderBy(
         asc(sql`lower(coalesce(${clients.businessName}, ${clients.name}))`),
