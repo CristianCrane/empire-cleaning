@@ -26,9 +26,6 @@ const describeNewHome = async (
   await page.getByText("Apartment", { exact: true }).click();
   await page.getByRole("textbox", { name: "Street address" }).fill(street);
   if (unit) {
-    await page
-      .getByRole("button", { name: "+ Add an apartment or unit" })
-      .click();
     await page.getByRole("textbox", { name: /^Apartment or unit/ }).fill(unit);
   }
   await page.getByRole("textbox", { name: "ZIP code" }).fill(zip);

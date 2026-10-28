@@ -422,7 +422,6 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
           <AddressFields
             place={newPremises}
             unitLabel="Suite, floor or unit (optional)"
-            addUnit="Add a suite, floor or unit"
             update={(change) =>
               setNewPremises((current) => ({ ...current, ...change }))
             }
@@ -449,7 +448,6 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
             <AddressFields
               place={newHome}
               unitLabel="Apartment or unit (optional)"
-              addUnit="Add an apartment or unit"
               update={(change) =>
                 setNewHome((current) => ({ ...current, ...change }))
               }
@@ -800,18 +798,16 @@ function NewPremisesFields({
   );
 }
 
-// a Property's address: street, unit and ZIP code
+// a Property's address: street, unit and ZIP code. The unit is optional but
+// stays in view: it's part of the address, not something extra.
 function AddressFields({
   place,
   unitLabel,
-  addUnit,
   update,
   error,
 }: {
   place: Pick<NewHome, "street" | "unit" | "postcode">;
   unitLabel: string;
-  // the link that shows the unit field
-  addUnit: string;
   update: (
     change: Partial<Pick<NewHome, "street" | "unit" | "postcode">>,
   ) => void;
@@ -830,7 +826,7 @@ function AddressFields({
         onChange={(street) => update({ street })}
         errorMessage={error(field("street"))}
       />
-      <Optional add={addUnit} shown={!!place.unit || !!error(field("unit"))}>
+      <div className="grid gap-4 sm:grid-cols-2">
         <TextField
           label={unitLabel}
           name={field("unit")}
@@ -839,19 +835,18 @@ function AddressFields({
           onChange={(unit) => update({ unit })}
           errorMessage={error(field("unit"))}
         />
-      </Optional>
-      <TextField
-        label="ZIP code"
-        name={field("postcode")}
-        autoComplete="postal-code"
-        inputMode="numeric"
-        maxLength={5}
-        isRequired
-        value={place.postcode}
-        onChange={(postcode) => update({ postcode })}
-        errorMessage={error(field("postcode"))}
-        className="sm:w-1/2"
-      />
+        <TextField
+          label="ZIP code"
+          name={field("postcode")}
+          autoComplete="postal-code"
+          inputMode="numeric"
+          maxLength={5}
+          isRequired
+          value={place.postcode}
+          onChange={(postcode) => update({ postcode })}
+          errorMessage={error(field("postcode"))}
+        />
+      </div>
     </>
   );
 }
