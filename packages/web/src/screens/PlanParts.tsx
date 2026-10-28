@@ -227,50 +227,55 @@ export function EndPlan({
   return (
     <Section title={forClient ? "Ending your plan" : "Ending the plan"}>
       <Card>
-        <p className="text-fg-muted">
-          {forClient ? "End your plan" : "End it for the Client"} at any time:
-          you'll see what it cancels first.
-        </p>
-        <Actions>
-          <DialogTrigger>
-            <Button variant="danger">
-              <CircleStop aria-hidden size={18} />
-              End plan
-            </Button>
-            <Dialog
-              title={
-                forClient ? "End your Service Plan?" : "End this Service Plan?"
-              }
-              role="alertdialog"
-            >
-              {({ close }) => (
-                <>
-                  {lines.map((line) => (
-                    <p key={line}>{line}</p>
-                  ))}
-                  <p>
-                    <strong>An Ended plan can't be started again.</strong>
-                  </p>
-                  {action.problem && (
-                    <Notice tone="danger">{action.problem}</Notice>
-                  )}
-                  <Actions>
-                    <Button variant="secondary" onPress={close}>
-                      {forClient ? "Keep my plan" : "Keep the plan"}
-                    </Button>
-                    <Button
-                      variant="danger"
-                      isPending={action.isPending}
-                      onPress={() => void end(close)}
-                    >
-                      End plan
-                    </Button>
-                  </Actions>
-                </>
-              )}
-            </Dialog>
-          </DialogTrigger>
-        </Actions>
+        {/* one row, the button kept right; it wraps under at phone width */}
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="min-w-0 grow basis-64 text-fg-muted">
+            {forClient ? "End your plan" : "End it for the Client"} at any time:
+            you'll see what it cancels first.
+          </p>
+          <div className="ml-auto">
+            <DialogTrigger>
+              <Button variant="danger">
+                <CircleStop aria-hidden size={18} />
+                End plan
+              </Button>
+              <Dialog
+                title={
+                  forClient
+                    ? "End your Service Plan?"
+                    : "End this Service Plan?"
+                }
+                role="alertdialog"
+              >
+                {({ close }) => (
+                  <>
+                    {lines.map((line) => (
+                      <p key={line}>{line}</p>
+                    ))}
+                    <p>
+                      <strong>An Ended plan can't be started again.</strong>
+                    </p>
+                    {action.problem && (
+                      <Notice tone="danger">{action.problem}</Notice>
+                    )}
+                    <Actions>
+                      <Button variant="secondary" onPress={close}>
+                        {forClient ? "Keep my plan" : "Keep the plan"}
+                      </Button>
+                      <Button
+                        variant="danger"
+                        isPending={action.isPending}
+                        onPress={() => void end(close)}
+                      >
+                        End plan
+                      </Button>
+                    </Actions>
+                  </>
+                )}
+              </Dialog>
+            </DialogTrigger>
+          </div>
+        </div>
       </Card>
     </Section>
   );

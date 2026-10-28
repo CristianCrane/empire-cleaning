@@ -91,7 +91,11 @@ export function PlanDetails({
 }) {
   return (
     <div className="flex flex-col gap-6">
-      {notice && <Notice>{notice}</Notice>}
+      {notice && (
+        <Notice>
+          <p>{notice}</p>
+        </Notice>
+      )}
       <OnHold
         plan={plan}
         forClient={false}

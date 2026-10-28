@@ -220,16 +220,18 @@ function PlanAction({
   if (open && !resumes) {
     return (
       <Notice>
-        {inTheWayLine[open.status as keyof typeof inTheWayLine]}: carry on with
-        that one.{" "}
-        <Link
-          href={linkTo({
-            to: "/office/quotes/$quoteId",
-            params: { quoteId: open.id },
-          })}
-        >
-          Open the Quote
-        </Link>
+        <p>
+          {inTheWayLine[open.status as keyof typeof inTheWayLine]}: carry on
+          with that one.{" "}
+          <Link
+            href={linkTo({
+              to: "/office/quotes/$quoteId",
+              params: { quoteId: open.id },
+            })}
+          >
+            Open the Quote
+          </Link>
+        </p>
       </Notice>
     );
   }
