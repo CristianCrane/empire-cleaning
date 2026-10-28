@@ -6,6 +6,7 @@ import env from "../../env.ts";
 import { db } from "../../db/index.ts";
 import { email } from "../../services/email/index.ts";
 import { connectByEmail } from "./connections.ts";
+import { signInEmail } from "./emails.ts";
 import {
   accounts,
   sessions,
@@ -17,12 +18,7 @@ import {
 const SIGN_IN_LINK_TTL_SECONDS = 15 * 60;
 
 const sendSignInLink = async ({ to, url }: { to: string; url: string }) => {
-  await email.send({
-    to,
-    subject: "Sign in to Empire Cleaning",
-    text: `Use this link to sign in to Empire Cleaning:\n\n${url}\n\nIt expires in 15 minutes. If you didn't ask to sign in, you can ignore this email.`,
-    html: `<p>Use this link to sign in to Empire Cleaning:</p><p><a href="${url}">Sign in</a></p><p>It expires in 15 minutes. If you didn't ask to sign in, you can ignore this email.</p>`,
-  });
+  await email.send({ to, ...signInEmail({ url }) });
 };
 
 // connects a newly signed-in Account to its Client and Staff records, but

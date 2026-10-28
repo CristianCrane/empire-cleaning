@@ -13,6 +13,7 @@ import { clock, dayOf } from "../../services/clock/index.ts";
 import { email } from "../../services/email/index.ts";
 import { accounts } from "../auth/auth.schema.ts";
 import { connectSignedUpAccount } from "../auth/connections.ts";
+import { staffInviteEmail } from "./emails.ts";
 import {
   staff,
   staffAvailabilityExceptions,
@@ -54,35 +55,14 @@ const selectStaff = () =>
     .from(staff)
     .leftJoin(accounts, eq(accounts.id, staff.accountId));
 
-const escapeHtml = (text: string) =>
-  text.replace(
-    /[&<>"']/g,
-    (c) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
-        c
-      ]!,
-  );
-
-// the link only leads to the sign-in page: signing up with this email is what
-// connects them, so the email itself grants nothing (ADR-0006)
 const sendInvitation = async (member: Staff) => {
-  const [firstName] = member.name.split(" ");
-  const link = `${env.CORS_ORIGIN_URL}/sign-in`;
-  const lines = [
-    `Hi ${firstName},`,
-    `You've been invited to join Empire Cleaning's Staff. To get started, sign up with this email address (${member.email}), with an emailed link or with Google:`,
-  ];
-  const after = `If you weren't expecting this, you can ignore this email.`;
-
   await email.send({
     to: member.email,
-    subject: "You're invited to join Empire Cleaning",
-    text: [...lines, link, after].join("\n\n"),
-    html: [
-      ...lines.map((line) => `<p>${escapeHtml(line)}</p>`),
-      `<p><a href="${link}">Sign up</a></p>`,
-      `<p>${escapeHtml(after)}</p>`,
-    ].join(""),
+    ...staffInviteEmail({
+      name: member.name,
+      email: member.email,
+      signInUrl: `${env.CORS_ORIGIN_URL}/sign-in`,
+    }),
   });
 };
 
