@@ -1,7 +1,9 @@
 ---
 import "@empire-cleaning/ui/tokens.css";
 import { themeBootScript } from "@empire-cleaning/ui/theme-boot";
+import { TestSiteBanner } from "@empire-cleaning/ui";
 import { business } from "../business.ts";
+import { isTestSite } from "../site-mode.ts";
 
 // structured data so search engines can show the business (name, phone, area)
 const localBusiness = {
@@ -25,6 +27,7 @@ const localBusiness = {
     <meta name="description" content={business.description} />
     <link rel="canonical" href={business.url} />
     <meta name="theme-color" content="#06682f" />
+    {isTestSite && <meta name="robots" content="noindex, nofollow" />}
 
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content={business.name} />
@@ -41,6 +44,7 @@ const localBusiness = {
     />
   </head>
   <body>
+    {isTestSite && <TestSiteBanner />}
     <slot />
   </body>
 </html>

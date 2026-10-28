@@ -13,6 +13,13 @@ test("health check responds over HTTP", async () => {
   expect(res.body).toEqual({ status: "ok" });
 });
 
+test("anyone can ask which site this is", async () => {
+  const res = await api().get("/api/site");
+
+  expect(res.status).toBe(200);
+  expect(res.body).toEqual({ mode: "dev" });
+});
+
 test("tests run against the dedicated test database", async () => {
   const { rows } = await db.execute<{ name: string }>(
     sql`select current_database() as name`,

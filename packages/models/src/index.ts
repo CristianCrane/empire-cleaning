@@ -16,6 +16,10 @@ export type SignedInAccount = {
   roles: AccountRole[];
 };
 
+// which site the API is, as GET /api/site returns it: "test" is the test
+// site (ADR-0020)
+export type Site = { mode: "dev" | "test" | "prod" };
+
 // ---- Asking for a Quote (#3) ----
 
 export type PropertyType = "house" | "apartment" | "townhouse";

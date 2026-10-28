@@ -1,0 +1,125 @@
+# The test environment on Render (ADR-0020): the server, its Postgres, and
+# the web app and landing static sites. Production will be described the same
+# way, and is only ever deployed by hand.
+#
+# Secret values are entered in Render's dashboard when the Blueprint is first
+# created (the `sync: false` ones; #130 lists where each comes from).
+#
+# Render has no pnpm of its own, so the builds run the version pinned in
+# package.json's `packageManager` through npx; the server's commands run its
+# package.json scripts through npm.
+
+databases:
+  - name: empire-test-db
+    plan: basic-256mb
+    region: virginia
+    # the same as docker-compose.yml
+    postgresMajorVersion: "16"
+    # reachable from outside Render (password required) so the reset Action
+    # can reseed it from GitHub, whose runners have no fixed address
+
+services:
+  - type: web
+    name: empire-test-server
+    runtime: node
+    # always on: the scheduled runs live in the server process (src/index.ts)
+    plan: starter
+    region: virginia
+    buildCommand: >-
+      npx --yes pnpm@11.18.0 install --frozen-lockfile &&
+      npx --yes pnpm@11.18.0 --filter @empire-cleaning/models build
+    # migrations run on every deploy, before the new server starts
+    preDeployCommand: npm --prefix packages/server run db:migrate
+    startCommand: npm --prefix packages/server start
+    healthCheckPath: /health
+    # deploys main once CI passes
+    autoDeployTrigger: checksPass
+    buildFilter:
+      paths:
+        - packages/server/**
+        - packages/models/**
+        - package.json
+        - pnpm-lock.yaml
+        - render.yaml
+    envVars:
+      - key: APP_MODE
+        value: test
+      - key: DB_URL
+        fromDatabase:
+          name: empire-test-db
+          property: connectionString
+      # the web app: sign-in links, Stripe's webhook and the landing form all
+      # reach the API at its /api
+      - key: CORS_ORIGIN_URL
+        value: https://app.test.empirecleaningandpro.com
+      - key: BETTER_AUTH_URL
+        value: https://app.test.empirecleaningandpro.com
+      - key: LANDING_ORIGIN_URL
+        value: https://test.empirecleaningandpro.com
+      - key: BETTER_AUTH_SECRET
+        generateValue: true
+      - key: EMAIL_FROM
+        value: Empire Cleaning <test@empirecleaningandpro.com>
+      - key: OFFICE_EMAIL
+        value: empirecleaningproservices@gmail.com
+      # the Office inbox's +aliases, which everyone in the seed data has; mail
+      # to anyone else goes to the Office inbox
+      - key: EMAIL_ALLOWED
+        value: empirecleaningproservices+*@gmail.com
+      - key: RESEND_API_KEY
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      # the test site's own Stripe sandbox (#45)
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+
+  - type: web
+    name: empire-test-web
+    runtime: static
+    buildCommand: >-
+      npx --yes pnpm@11.18.0 install --frozen-lockfile &&
+      npx --yes pnpm@11.18.0 --filter "@empire-cleaning/web..." build
+    staticPublishPath: packages/web/dist
+    autoDeployTrigger: checksPass
+    domains:
+      - app.test.empirecleaningandpro.com
+    envVars:
+      # asks search engines not to index it (vite.config.ts)
+      - key: APP_MODE
+        value: test
+    routes:
+      # the API on the app's own origin, so sign-in cookies just work: a
+      # rewrite, not a redirect. Render names the server's address after the
+      # service, so it must match the name above
+      - type: rewrite
+        source: /api/*
+        destination: https://empire-test-server.onrender.com/api/*
+      # every other path is one of the app's pages
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+  - type: web
+    name: empire-test-landing
+    runtime: static
+    buildCommand: >-
+      npx --yes pnpm@11.18.0 install --frozen-lockfile &&
+      npx --yes pnpm@11.18.0 --filter "@empire-cleaning/landing..." build
+    staticPublishPath: packages/landing/dist
+    autoDeployTrigger: checksPass
+    domains:
+      - test.empirecleaningandpro.com
+    envVars:
+      # the banner and no indexing (src/site-mode.ts)
+      - key: PUBLIC_APP_MODE
+        value: test
+      # where the Quote form posts
+      - key: PUBLIC_API_URL
+        value: https://app.test.empirecleaningandpro.com

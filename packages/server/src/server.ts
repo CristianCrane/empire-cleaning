@@ -42,6 +42,7 @@ import {
   corsMiddleware,
   errorHandler,
 } from "#middleware";
+import env from "./env.ts";
 
 const app = express();
 
@@ -64,6 +65,11 @@ app.get("/health", (req, res) => {
       status: "ok",
     })
     .status(200);
+});
+
+// which site this is, for anyone: the web app shows a banner on the test site
+app.get("/api/site", (req, res) => {
+  res.json({ mode: env.APP_MODE });
 });
 
 app.use("/api/me", meRouter);
