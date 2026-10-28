@@ -4,6 +4,7 @@ import {
   signedInAs,
   createStaff,
   expect,
+  nextStep,
   requestQuoteAsGuest,
   test,
 } from "./harness.ts";
@@ -17,7 +18,7 @@ const officeStaff = {
 
 const signInAs = (page: Page, email: string) => signedInAs(page, email);
 
-// fills in the parts of the shared form every new home needs
+// the shared form's first step for a new home: what and where
 const describeNewHome = async (
   page: Page,
   { zip = "11375", street = "35-06 Ditmars Blvd", unit = "" } = {},
@@ -25,6 +26,9 @@ const describeNewHome = async (
   await page.getByText("Apartment", { exact: true }).click();
   await page.getByRole("textbox", { name: "Street address" }).fill(street);
   if (unit) {
+    await page
+      .getByRole("button", { name: "+ Add an apartment or unit" })
+      .click();
     await page.getByRole("textbox", { name: /^Apartment or unit/ }).fill(unit);
   }
   await page.getByRole("textbox", { name: "ZIP code" }).fill(zip);
@@ -42,9 +46,11 @@ test(
     await signInAs(page, "new@example.com");
     await expect(page).toHaveURL("/welcome");
 
+    await describeNewHome(page);
+    await nextStep(page);
+    await nextStep(page);
     await page.getByRole("textbox", { name: "Full name" }).fill("Nina New");
     await page.getByRole("textbox", { name: "Phone" }).fill("(718) 555-0111");
-    await describeNewHome(page);
     await page.getByRole("button", { name: "Request a Quote" }).click();
 
     await expect(page).toHaveURL("/portal");
@@ -83,6 +89,7 @@ test("a home with a Quote open can't be asked about again, and points to it", as
     street: "41-12 Austin Street",
     unit: "apt 4b",
   });
+  await nextStep(page);
   await page.getByRole("button", { name: "Request a Quote" }).click();
 
   await expect(
@@ -133,6 +140,7 @@ test("a Client asks about a second home", async ({ page }) => {
 
   await page.getByText("A different home", { exact: true }).click();
   await describeNewHome(page);
+  await nextStep(page);
   await page.getByRole("button", { name: "Request a Quote" }).click();
 
   await expect(page).toHaveURL("/portal");
@@ -180,8 +188,10 @@ test("the API's explanation shows beside the field", async ({ page }) => {
 
   await page.getByText("A different home", { exact: true }).click();
   await describeNewHome(page, { zip: "1137" });
+  await nextStep(page);
   await page.getByRole("button", { name: "Request a Quote" }).click();
 
+  // back on the step with the field
   const zip = page.getByRole("textbox", { name: "ZIP code" });
   await expect(zip).toHaveAttribute("aria-invalid", "true");
   await expect(zip).toHaveAccessibleDescription(/Enter a 5-digit ZIP code/);
@@ -361,8 +371,16 @@ for (const theme of ["light", "dark"] as const) {
       async ({ page }) => {
         await signInAs(page, "new@example.com");
         await expect(
-          page.getByRole("textbox", { name: "Full name" }),
+          page.getByRole("textbox", { name: "Street address" }),
         ).toBeVisible();
+        await expectNoViolations(page);
+        await describeNewHome(page);
+        await nextStep(page);
+        await expect(
+          page.getByRole("group", { name: "Any extras?" }),
+        ).toBeVisible();
+        await expectNoViolations(page);
+        await nextStep(page);
         await expectNoViolations(page);
       },
     );

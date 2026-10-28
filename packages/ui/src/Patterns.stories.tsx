@@ -2,11 +2,15 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import type { ReactNode } from "react";
 import { CalendarDays, CircleDollarSign, Inbox, UserX } from "lucide-react";
 import { Card } from "./Card.tsx";
+import { Checkbox } from "./Checkbox.tsx";
+import { Chip, ChipGroup } from "./ChipGroup.tsx";
 import { Heading } from "./Heading.tsx";
 import { IconTile } from "./IconTile.tsx";
 import { ButtonLink } from "./Link.tsx";
 import { List, ListItem } from "./List.tsx";
+import { Radio, RadioGroup } from "./RadioGroup.tsx";
 import { Section } from "./Section.tsx";
+import { Segment, SegmentedControl } from "./SegmentedControl.tsx";
 import { StatusBadge } from "./StatusBadge.tsx";
 import { Cell, Column, Row, Table, TableBody, TableHeader } from "./Table.tsx";
 import { Tab, TabList, TabPanel, Tabs } from "./Tabs.tsx";
@@ -263,6 +267,61 @@ function WorkListsAreTables() {
     </div>
   );
 }
+function QuietForms() {
+  return (
+    <div className="flex flex-col gap-6">
+      <Rule title="Forms ask quietly, a few questions at a time">
+        <p>
+          A form shouldn't be a wall of boxes. Text fields are a tinted box with
+          a line along the bottom, not a full outline. A short choice of one is
+          a <code>SegmentedControl</code> (with the picked option's meaning
+          under it), and a choice of several short options is a{" "}
+          <code>ChipGroup</code>. Keep <code>RadioGroup</code> for options that
+          are long or vary, like a Client's homes.
+        </p>
+        <p>
+          Optional fields wait behind a "+ Add …" link until they're wanted. A
+          long form asks in steps, a few related questions each, with Next
+          checking that step's fields; ask who someone is last, once they've
+          told you what they need.
+        </p>
+      </Rule>
+      <div className="flex flex-col gap-4 lg:flex-row">
+        <Example verdict="Do">
+          <div className="flex flex-col gap-4">
+            <SegmentedControl label="Type of home" defaultValue="apartment">
+              <Segment value="house">House</Segment>
+              <Segment value="apartment">Apartment</Segment>
+              <Segment value="townhouse">Townhouse</Segment>
+            </SegmentedControl>
+            <TextField label="Street address" />
+            <ChipGroup label="Any extras?" defaultValue={["oven"]}>
+              <Chip value="oven">Inside the oven</Chip>
+              <Chip value="fridge">Inside the fridge</Chip>
+              <Chip value="windows">Interior windows</Chip>
+            </ChipGroup>
+          </div>
+        </Example>
+        <Example verdict="Don't">
+          <div className="flex flex-col gap-4">
+            <RadioGroup label="Type of home" defaultValue="apartment">
+              <Radio value="house">House</Radio>
+              <Radio value="apartment">Apartment</Radio>
+              <Radio value="townhouse">Townhouse</Radio>
+            </RadioGroup>
+            <fieldset className="flex flex-col">
+              <legend className="text-sm font-semibold">Any extras?</legend>
+              <Checkbox defaultSelected>Inside the oven</Checkbox>
+              <Checkbox>Inside the fridge</Checkbox>
+              <Checkbox>Interior windows</Checkbox>
+            </fieldset>
+          </div>
+        </Example>
+      </div>
+    </div>
+  );
+}
+
 const meta = {
   title: "Patterns",
   parameters: { layout: "padded" },
@@ -285,4 +344,8 @@ export const SchedulesAsCalendars: Story = {
 
 export const WorkListsAsTables: Story = {
   render: () => <WorkListsAreTables />,
+};
+
+export const QuietFormsInSteps: Story = {
+  render: () => <QuietForms />,
 };

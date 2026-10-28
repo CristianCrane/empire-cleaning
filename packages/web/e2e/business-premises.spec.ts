@@ -3,6 +3,7 @@ import type { Page } from "@playwright/test";
 import {
   createStaff,
   expect,
+  nextStep,
   requestQuoteForPremises,
   signedInAs,
   test,
@@ -26,20 +27,29 @@ const choose = async (page: Page, label: RegExp, option: string) => {
   await page.getByRole("option", { name: option, exact: true }).click();
 };
 
-// the parts of the shared form new business premises need
+// the shared form's first two steps for new business premises: where they
+// are, then what they are
 const describeNewPremises = async (page: Page) => {
   await page.getByText("Business premises", { exact: true }).click();
-  await page
-    .getByRole("textbox", { name: "Business name" })
-    .fill("Acme Dental");
   await page
     .getByRole("textbox", { name: "Street address" })
     .fill("200 Park Ave S");
   await page.getByRole("textbox", { name: "ZIP code" }).fill("10003");
+  await nextStep(page);
   await choose(page, /Type of premises/, "Office");
+  await page.getByRole("button", { name: "+ Add the floor area" }).click();
   await page
     .getByRole("textbox", { name: /^Floor area in sq ft/ })
     .fill("4500");
+};
+
+// the last step: who the business is
+const giveDetails = async (page: Page) => {
+  await page
+    .getByRole("textbox", { name: "Business name" })
+    .fill("Acme Dental");
+  await page.getByRole("textbox", { name: "Full name" }).fill("Nina New");
+  await page.getByRole("textbox", { name: "Phone" }).fill("(718) 555-0111");
 };
 
 const expectNoViolations = async (page: Page) => {
@@ -55,16 +65,17 @@ test(
     await expect(page).toHaveURL("/welcome");
 
     await describeNewPremises(page);
-    await page.getByRole("textbox", { name: "Full name" }).fill("Nina New");
-    await page.getByRole("textbox", { name: "Phone" }).fill("(718) 555-0111");
     // a home's questions aren't asked
     await expect(page.getByText("How much cleaning does it need?")).toHaveCount(
       0,
     );
     await expect(page.getByText("Any extras?")).toHaveCount(0);
-    await page.getByText("Monday", { exact: true }).click();
-    await page.getByText("Friday", { exact: true }).click();
+    await page.getByText("Mon", { exact: true }).click();
+    await page.getByText("Fri", { exact: true }).click();
     await choose(page, /Preferred start time/, "6:00 PM");
+    await expectNoViolations(page);
+    await nextStep(page);
+    await giveDetails(page);
     await expectNoViolations(page);
     await page.getByRole("button", { name: "Request a Quote" }).click();
 
@@ -82,15 +93,17 @@ test("a business wanting regular cleaning is asked which days, or may ask for a 
 }) => {
   await signedInAs(page, "nina@example.com");
   await describeNewPremises(page);
-  await page.getByRole("textbox", { name: "Full name" }).fill("Nina New");
-  await page.getByRole("textbox", { name: "Phone" }).fill("(718) 555-0111");
+  await nextStep(page);
+  await giveDetails(page);
 
   await page.getByRole("button", { name: "Request a Quote" }).click();
+  // back on the step that asks
   await expect(
     page.getByText("Choose the days you want cleaned"),
   ).toBeVisible();
 
-  await page.getByText("A one-off clean", { exact: true }).click();
+  await page.getByText("One-off", { exact: true }).click();
+  await nextStep(page);
   await page.getByRole("button", { name: "Request a Quote" }).click();
   await expect(page).toHaveURL("/portal");
   await expect(
@@ -198,15 +211,17 @@ test("Office Staff quote a business caller from New Quote", async ({
 
   await page.getByRole("button", { name: "New Client" }).click();
   await page.getByText("Business premises", { exact: true }).click();
+  await page.getByRole("textbox", { name: "Street address" }).fill("9 Main St");
+  await page.getByRole("textbox", { name: "ZIP code" }).fill("11375");
+  await nextStep(page);
+  await choose(page, /Type of premises/, "Retail");
+  await page.getByText("One-off", { exact: true }).click();
+  await nextStep(page);
   await page
     .getByRole("textbox", { name: "Business name" })
     .fill("Phoner & Co");
   await page.getByRole("textbox", { name: "Full name" }).fill("Pat Phoner");
   await page.getByRole("textbox", { name: "Phone" }).fill("(718) 555-0123");
-  await page.getByRole("textbox", { name: "Street address" }).fill("9 Main St");
-  await page.getByRole("textbox", { name: "ZIP code" }).fill("11375");
-  await choose(page, /Type of premises/, "Retail");
-  await page.getByText("A one-off clean", { exact: true }).click();
   await page.getByRole("button", { name: "Draft a Quote" }).click();
 
   await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);

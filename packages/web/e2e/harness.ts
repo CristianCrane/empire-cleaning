@@ -289,6 +289,15 @@ export const test = base.extend<{ cleanSlate: void }>({
   ],
 });
 
+// the quote form asks in steps: presses Next, which checks the step's
+// required fields, and waits for the next step to show
+export const nextStep = async (page: Page) => {
+  const step = page.getByText(/^Step \d of \d$/);
+  const before = await step.textContent();
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await expect(step).not.toHaveText(before!);
+};
+
 export { expect };
 
 // a Quote as a Guest asks for it from the landing page, straight to the

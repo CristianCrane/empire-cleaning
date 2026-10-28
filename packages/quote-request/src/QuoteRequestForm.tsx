@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type {
   AddOnChoice,
   Condition,
@@ -16,17 +16,22 @@ import {
   Actions,
   Button,
   Checkbox,
+  Chip,
+  ChipGroup,
   Form,
   Heading,
   Notice,
   NumberField,
   Radio,
   RadioGroup,
+  Segment,
+  SegmentedControl,
   Select,
   SelectItem,
   TextField,
 } from "@empire-cleaning/ui";
 import { loadAddOns } from "./add-ons.ts";
+import { Optional } from "./Optional.tsx";
 import { loadPremisesTypes } from "./premises-types.ts";
 import { submitQuoteRequest, type SubmitResult } from "./submit.ts";
 
@@ -61,8 +66,8 @@ export type QuoteRequestFormProps<R = QuoteAskReceipt> = {
   asker: Asker;
   // the API's origin; "" when the page is served alongside it (the web app)
   apiUrl?: string;
-  // the level of the form's section headings: one below the page's heading
-  // it sits under, so the outline never skips a level
+  // the level of the form's step headings: one below the page's heading it
+  // sits under, so the outline never skips a level
   headingLevel?: 2 | 3;
   // where the request goes, if not the API's own endpoint for asking
   submit?: (body: object) => Promise<SubmitResult<R>>;
@@ -181,9 +186,16 @@ const startTimes = Array.from({ length: 37 }, (_, i) => {
 const addressOf = (p: Pick<PropertyView, "street" | "unit" | "postcode">) =>
   [p.street, p.unit, p.postcode].filter(Boolean).join(", ");
 
+// the fields on the first step: what the place is and where. A message from
+// the API for any of them sends the form back there.
+const WHERE_FIELDS =
+  /^(property\.existing|property\.new\.(type|street|unit|postcode))$/;
+
 // the Request a Quote form, shared by the landing page (Guests), the Client
-// portal and the Office (callers). The API validates everything; its
-// messages show beside each field.
+// portal and the Office (callers). It asks in steps, so only a few fields
+// show at once (#96): what and where, then about the place, then who is
+// asking (when the form needs that). The API validates everything; its
+// messages show beside each field, on its step.
 export function QuoteRequestForm<R = QuoteAskReceipt>({
   asker,
   apiUrl = "",
@@ -224,18 +236,19 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
   );
   const [offered, setOffered] = useState<AddOnChoice[]>([]);
   const [premisesTypes, setPremisesTypes] = useState<PremisesTypeChoice[]>();
-  const [chosen, setChosen] = useState<Set<string>>(new Set());
+  const [chosen, setChosen] = useState<string[]>([]);
   const [wantsRegularService, setWantsRegularService] = useState(false);
   const [businessName, setBusinessName] = useState("");
   // business premises: regular cleaning on some weekdays, or a one-off
   const [regular, setRegular] = useState(true);
-  const [days, setDays] = useState<Set<Weekday>>(new Set());
+  const [days, setDays] = useState<string[]>([]);
   const [preferredTime, setPreferredTime] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [failed, setFailed] = useState(false);
   const [refusal, setRefusal] = useState<string>();
   const [isSending, setSending] = useState(false);
+  const [step, setStep] = useState(0);
 
   useEffect(() => {
     void loadAddOns(apiUrl).then(setOffered);
@@ -253,22 +266,6 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
     setFieldErrors({});
     setRefusal(undefined);
   };
-
-  const toggleAddOn = (key: string, on: boolean) =>
-    setChosen((current) => {
-      const next = new Set(current);
-      if (on) next.add(key);
-      else next.delete(key);
-      return next;
-    });
-
-  const toggleDay = (day: Weekday, on: boolean) =>
-    setDays((current) => {
-      const next = new Set(current);
-      if (on) next.add(day);
-      else next.delete(day);
-      return next;
-    });
 
   // the new Property as the API takes it: empty optional fields as null
   const newPlace = () => {
@@ -301,7 +298,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
           businessName: knownBusinessName ?? (businessName || null),
           wantsRegularService: regular,
           weekdays: regular
-            ? weekdays.map((w) => w.day).filter((d) => days.has(d))
+            ? weekdays.map((w) => w.day).filter((d) => days.includes(String(d)))
             : [],
           preferredTime: regular ? preferredTime : null,
         }
@@ -309,9 +306,335 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
           condition,
           wantsRegularService,
           // in the order offered, only those still offered
-          addOns: offered.filter((a) => chosen.has(a.key)).map((a) => a.key),
+          addOns: offered
+            .filter((a) => chosen.includes(a.key))
+            .map((a) => a.key),
         }),
   });
+
+  // a field's message from the API, by its path in the request
+  const error = (path: string) => fieldErrors[path];
+
+  const kindField = (
+    <SegmentedControl
+      label={words.what}
+      value={kind}
+      onChange={(value) => chooseKind(value as PropertyKind)}
+    >
+      <Segment value="residential">A home</Segment>
+      <Segment value="commercial">Business premises</Segment>
+    </SegmentedControl>
+  );
+
+  const businessNameField = (
+    <TextField
+      label={words.businessName}
+      name="businessName"
+      autoComplete="organization"
+      isRequired
+      value={businessName}
+      onChange={setBusinessName}
+      errorMessage={error("businessName")}
+    />
+  );
+
+  const contactFields = (
+    <>
+      {premises && businessNameField}
+      <TextField
+        label="Full name"
+        description={premises ? words.contactNote : undefined}
+        name="contact.name"
+        autoComplete={asker.kind === "office" ? "off" : "name"}
+        isRequired
+        value={contact.name}
+        onChange={(name) => setContact({ ...contact, name })}
+        errorMessage={error("contact.name")}
+      />
+      {asker.kind === "account" ? (
+        <p className="text-sm text-fg-muted">
+          We'll email your Quote to {asker.email}.
+        </p>
+      ) : (
+        <TextField
+          label={words.email}
+          name="contact.email"
+          type="email"
+          autoComplete={asker.kind === "office" ? "off" : "email"}
+          isRequired={asker.kind === "guest"}
+          description={words.emailNote}
+          value={contact.email}
+          onChange={(email) => setContact({ ...contact, email })}
+          errorMessage={error("contact.email")}
+        />
+      )}
+      <TextField
+        label="Phone"
+        name="contact.phone"
+        type="tel"
+        autoComplete={asker.kind === "office" ? "off" : "tel"}
+        isRequired
+        description={words.phoneNote}
+        value={contact.phone}
+        onChange={(phone) => setContact({ ...contact, phone })}
+        errorMessage={error("contact.phone")}
+      />
+    </>
+  );
+
+  // which of their places, or where a new one is
+  const whereFields = (
+    <>
+      {places.length > 0 && (
+        <RadioGroup
+          label={premises ? "Which premises?" : "Which home?"}
+          value={place}
+          onChange={(id) => {
+            setPlace(id);
+            const chosen = places.find((p) => p.id === id);
+            if (chosen?.condition) setCondition(chosen.condition);
+          }}
+        >
+          {places.map((p) => (
+            <Radio
+              key={p.id}
+              value={p.id}
+              isDisabled={waiting.has(p.id)}
+              description={
+                waiting.has(p.id)
+                  ? premises
+                    ? words.premisesWaiting
+                    : words.waiting
+                  : undefined
+              }
+            >
+              {addressOf(p)}
+            </Radio>
+          ))}
+          <Radio value={NEW_PLACE}>
+            {premises ? "Different premises" : "A different home"}
+          </Radio>
+        </RadioGroup>
+      )}
+
+      {place === NEW_PLACE &&
+        (premises ? (
+          <AddressFields
+            place={newPremises}
+            unitLabel="Suite, floor or unit (optional)"
+            addUnit="Add a suite, floor or unit"
+            update={(change) =>
+              setNewPremises((current) => ({ ...current, ...change }))
+            }
+            error={error}
+          />
+        ) : (
+          <>
+            <SegmentedControl
+              label="Type of home"
+              name="property.new.type"
+              value={newHome.type}
+              onChange={(type) =>
+                setNewHome((current) => ({
+                  ...current,
+                  type: type as PropertyType,
+                }))
+              }
+              errorMessage={error("property.new.type")}
+            >
+              <Segment value="house">House</Segment>
+              <Segment value="apartment">Apartment</Segment>
+              <Segment value="townhouse">Townhouse</Segment>
+            </SegmentedControl>
+            <AddressFields
+              place={newHome}
+              unitLabel="Apartment or unit (optional)"
+              addUnit="Add an apartment or unit"
+              update={(change) =>
+                setNewHome((current) => ({ ...current, ...change }))
+              }
+              error={error}
+            />
+          </>
+        ))}
+    </>
+  );
+
+  const notesField = (
+    <Optional add="Add a note" shown={!!notes || !!error("notes")}>
+      <TextField
+        label="Anything else we should know?"
+        name="notes"
+        multiline
+        value={notes}
+        onChange={setNotes}
+        errorMessage={error("notes")}
+      />
+    </Optional>
+  );
+
+  const homeFields = (
+    <>
+      {place === NEW_PLACE && (
+        <NewHomeFields
+          home={newHome}
+          update={(change) =>
+            setNewHome((current) => ({ ...current, ...change }))
+          }
+          error={error}
+        />
+      )}
+      <SegmentedControl
+        label="How much cleaning does it need?"
+        name="condition"
+        isRequired
+        value={condition}
+        onChange={(value) => setCondition(value as Condition)}
+        description={conditions.find((c) => c.value === condition)?.description}
+        errorMessage={error("condition")}
+      >
+        {conditions.map((c) => (
+          <Segment key={c.value} value={c.value}>
+            {c.label}
+          </Segment>
+        ))}
+      </SegmentedControl>
+      {offered.length > 0 && (
+        <ChipGroup
+          label="Any extras?"
+          description={words.extrasNote}
+          value={chosen}
+          onChange={setChosen}
+        >
+          {offered.map((addOn) => (
+            <Chip key={addOn.key} value={addOn.key}>
+              {addOn.name}
+            </Chip>
+          ))}
+        </ChipGroup>
+      )}
+      <Checkbox
+        isSelected={wantsRegularService}
+        onChange={setWantsRegularService}
+      >
+        {words.regular}
+      </Checkbox>
+    </>
+  );
+
+  const premisesFields = (
+    <>
+      {!asksContact && !knownBusinessName && businessNameField}
+      {place === NEW_PLACE && (
+        <NewPremisesFields
+          premises={newPremises}
+          premisesTypes={premisesTypes}
+          update={(change) =>
+            setNewPremises((current) => ({ ...current, ...change }))
+          }
+          error={error}
+        />
+      )}
+      <Heading level={headingLevel === 2 ? 3 : 4} size={4}>
+        {words.when}
+      </Heading>
+      <SegmentedControl
+        label="How often?"
+        value={regular ? "regular" : "one_off"}
+        onChange={(value) => setRegular(value === "regular")}
+        description={regular ? "On set days each week" : undefined}
+      >
+        <Segment value="regular">Regularly</Segment>
+        <Segment value="one_off">One-off</Segment>
+      </SegmentedControl>
+      {regular && (
+        <>
+          <ChipGroup
+            label="Which days?"
+            value={days}
+            onChange={setDays}
+            errorMessage={error("weekdays")}
+          >
+            {weekdays.map(({ day, label }) => (
+              <Chip key={day} value={String(day)} aria-label={label}>
+                {label.slice(0, 3)}
+              </Chip>
+            ))}
+          </ChipGroup>
+          <Select
+            label="Preferred start time"
+            name="preferredTime"
+            placeholder="Choose a time"
+            selectedKey={preferredTime}
+            onSelectionChange={(key) => setPreferredTime(String(key))}
+            errorMessage={error("preferredTime")}
+          >
+            {startTimes.map((time) => (
+              <SelectItem key={time} id={time}>
+                {clockLabel(time)}
+              </SelectItem>
+            ))}
+          </Select>
+        </>
+      )}
+    </>
+  );
+
+  const steps: { title: string; fields: ReactNode }[] = [
+    {
+      title: "What and where",
+      fields: (
+        <>
+          {kindField}
+          {whereFields}
+        </>
+      ),
+    },
+    {
+      title: premises ? words.premises : words.home,
+      fields: (
+        <>
+          {premises ? premisesFields : homeFields}
+          {!asksContact && notesField}
+        </>
+      ),
+    },
+    ...(asksContact
+      ? [
+          {
+            title: words.details,
+            fields: (
+              <>
+                {contactFields}
+                {notesField}
+              </>
+            ),
+          },
+        ]
+      : []),
+  ];
+  const at = Math.min(step, steps.length - 1);
+  const isLast = at === steps.length - 1;
+
+  // the step with a field the API refused: who's asking last, where first,
+  // and everything about the place in between
+  const stepOf = (path: string) =>
+    WHERE_FIELDS.test(path)
+      ? 0
+      : path.startsWith("contact.") ||
+          path === "notes" ||
+          (path === "businessName" && asksContact)
+        ? steps.length - 1
+        : 1;
+
+  // a new step takes the focus to its heading, for screen readers and so a
+  // long page scrolls back to its top
+  const heading = useRef<HTMLDivElement>(null);
+  const moved = useRef(false);
+  useEffect(() => {
+    if (moved.current) heading.current?.focus();
+    moved.current = true;
+  }, [at]);
 
   const send = async () => {
     setSending(true);
@@ -329,9 +652,10 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
       onSubmitted(result.receipt);
     } else if (result.fieldErrors) {
       setFieldErrors(result.fieldErrors);
+      setStep(Math.min(...Object.keys(result.fieldErrors).map(stepOf)));
       // an Add-on withdrawn since the form loaded: say so, and show what is
       // on offer now
-      const addOnError = Object.entries(result.fieldErrors).find(([path]) =>
+      const addOnError = Object.keys(result.fieldErrors).some((path) =>
         path.startsWith("addOns"),
       );
       if (addOnError) {
@@ -347,304 +671,59 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
     }
   };
 
-  // a field's message from the API, by its path in the request
-  const error = (path: string) => fieldErrors[path];
-
   return (
     <Form
       validationErrors={fieldErrors}
+      // Next submits too, so the browser checks the step's required fields
       onSubmit={(e) => {
         e.preventDefault();
-        void send();
+        if (isLast) void send();
+        else setStep(at + 1);
       }}
     >
-      <RadioGroup
-        label={words.what}
-        orientation="horizontal"
-        value={kind}
-        onChange={(value) => chooseKind(value as PropertyKind)}
+      <div
+        ref={heading}
+        tabIndex={-1}
+        className="flex flex-col gap-2 outline-none"
       >
-        <Radio value="residential">A home</Radio>
-        <Radio value="commercial">Business premises</Radio>
-      </RadioGroup>
-
-      {asksContact && (
-        <fieldset className="flex flex-col gap-4">
-          <legend className="contents">
-            <Heading level={headingLevel} size={3}>
-              {words.details}
-            </Heading>
-          </legend>
-          {premises && (
-            <BusinessName
-              label={words.businessName}
-              value={businessName}
-              onChange={setBusinessName}
-              error={error("businessName")}
-            />
-          )}
-          <TextField
-            label="Full name"
-            description={premises ? words.contactNote : undefined}
-            name="contact.name"
-            autoComplete={asker.kind === "office" ? "off" : "name"}
-            isRequired
-            value={contact.name}
-            onChange={(name) => setContact({ ...contact, name })}
-            errorMessage={error("contact.name")}
-          />
-          {asker.kind === "account" ? (
-            <p className="text-sm text-fg-muted">
-              We'll email your Quote to {asker.email}.
-            </p>
-          ) : (
-            <TextField
-              label={words.email}
-              name="contact.email"
-              type="email"
-              autoComplete={asker.kind === "office" ? "off" : "email"}
-              isRequired={asker.kind === "guest"}
-              description={words.emailNote}
-              value={contact.email}
-              onChange={(email) => setContact({ ...contact, email })}
-              errorMessage={error("contact.email")}
-            />
-          )}
-          <TextField
-            label="Phone"
-            name="contact.phone"
-            type="tel"
-            autoComplete={asker.kind === "office" ? "off" : "tel"}
-            isRequired
-            description={words.phoneNote}
-            value={contact.phone}
-            onChange={(phone) => setContact({ ...contact, phone })}
-            errorMessage={error("contact.phone")}
-          />
-        </fieldset>
-      )}
-
-      <fieldset className="flex flex-col gap-4">
-        <legend className="contents">
-          <Heading level={headingLevel} size={3}>
-            {premises ? words.premises : words.home}
-          </Heading>
-        </legend>
-
-        {premises && !asksContact && !knownBusinessName && (
-          <BusinessName
-            label={words.businessName}
-            value={businessName}
-            onChange={setBusinessName}
-            error={error("businessName")}
-          />
-        )}
-
-        {places.length > 0 && (
-          <RadioGroup
-            label={premises ? "Which premises?" : "Which home?"}
-            value={place}
-            onChange={(id) => {
-              setPlace(id);
-              const chosen = places.find((p) => p.id === id);
-              if (chosen?.condition) setCondition(chosen.condition);
-            }}
-          >
-            {places.map((p) => (
-              <Radio
-                key={p.id}
-                value={p.id}
-                isDisabled={waiting.has(p.id)}
-                description={
-                  waiting.has(p.id)
-                    ? premises
-                      ? words.premisesWaiting
-                      : words.waiting
-                    : undefined
-                }
-              >
-                {addressOf(p)}
-              </Radio>
-            ))}
-            <Radio value={NEW_PLACE}>
-              {premises ? "Different premises" : "A different home"}
-            </Radio>
-          </RadioGroup>
-        )}
-
-        {place === NEW_PLACE &&
-          (premises ? (
-            <NewPremisesFields
-              premises={newPremises}
-              premisesTypes={premisesTypes}
-              update={(change) =>
-                setNewPremises((current) => ({ ...current, ...change }))
-              }
-              error={error}
-            />
-          ) : (
-            <NewHomeFields
-              home={newHome}
-              update={(change) =>
-                setNewHome((current) => ({ ...current, ...change }))
-              }
-              error={error}
+        <div className="flex gap-1" aria-hidden>
+          {steps.map((s, i) => (
+            <span
+              key={s.title}
+              className={`h-1 flex-1 rounded-full ${i <= at ? "bg-primary" : "bg-surface-sunken"}`}
             />
           ))}
+        </div>
+        <p className="text-sm text-fg-muted">
+          Step {at + 1} of {steps.length}
+        </p>
+        <Heading level={headingLevel} size={3}>
+          {steps[at]!.title}
+        </Heading>
+      </div>
 
-        {!premises && (
-          <RadioGroup
-            label="How much cleaning does it need?"
-            name="condition"
-            isRequired
-            value={condition}
-            onChange={(value) => setCondition(value as Condition)}
-            errorMessage={error("condition")}
-          >
-            {conditions.map((c) => (
-              <Radio key={c.value} value={c.value} description={c.description}>
-                {c.label}
-              </Radio>
-            ))}
-          </RadioGroup>
-        )}
-      </fieldset>
-
-      {premises ? (
-        <fieldset className="flex flex-col gap-4">
-          <legend className="contents">
-            <Heading level={headingLevel} size={3}>
-              {words.when}
-            </Heading>
-          </legend>
-          <RadioGroup
-            label="How often?"
-            aria-label="How often?"
-            value={regular ? "regular" : "one_off"}
-            onChange={(value) => setRegular(value === "regular")}
-          >
-            <Radio value="regular">Regularly, on set days each week</Radio>
-            <Radio value="one_off">A one-off clean</Radio>
-          </RadioGroup>
-          {regular && (
-            <>
-              <fieldset className="flex flex-col gap-1">
-                <legend className="text-sm font-semibold text-fg">
-                  Which days?
-                </legend>
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(9rem,1fr))]">
-                  {weekdays.map(({ day, label }) => (
-                    <Checkbox
-                      key={day}
-                      isSelected={days.has(day)}
-                      onChange={(on) => toggleDay(day, on)}
-                    >
-                      {label}
-                    </Checkbox>
-                  ))}
-                </div>
-                {error("weekdays") && (
-                  <p className="text-sm font-medium text-danger-strong">
-                    {error("weekdays")}
-                  </p>
-                )}
-              </fieldset>
-              <Select
-                label="Preferred start time"
-                name="preferredTime"
-                placeholder="Choose a time"
-                selectedKey={preferredTime}
-                onSelectionChange={(key) => setPreferredTime(String(key))}
-                errorMessage={error("preferredTime")}
-              >
-                {startTimes.map((time) => (
-                  <SelectItem key={time} id={time}>
-                    {clockLabel(time)}
-                  </SelectItem>
-                ))}
-              </Select>
-            </>
-          )}
-        </fieldset>
-      ) : (
-        <>
-          {offered.length > 0 && (
-            <fieldset className="flex flex-col gap-1">
-              <legend className="contents">
-                <Heading level={headingLevel} size={3}>
-                  Any extras?
-                </Heading>
-              </legend>
-              <p className="text-sm text-fg-muted">{words.extrasNote}</p>
-              {offered.map((addOn) => (
-                <Checkbox
-                  key={addOn.key}
-                  isSelected={chosen.has(addOn.key)}
-                  onChange={(on) => toggleAddOn(addOn.key, on)}
-                >
-                  {addOn.name}
-                </Checkbox>
-              ))}
-            </fieldset>
-          )}
-
-          <Checkbox
-            isSelected={wantsRegularService}
-            onChange={setWantsRegularService}
-          >
-            {words.regular}
-          </Checkbox>
-        </>
-      )}
-
-      <TextField
-        label="Anything else we should know?"
-        name="notes"
-        multiline
-        value={notes}
-        onChange={setNotes}
-        errorMessage={error("notes")}
-      />
+      {steps[at]!.fields}
 
       {refusal && <Notice>{refusal}</Notice>}
 
       {failed && <Notice tone="danger">{words.failed}</Notice>}
 
       <Actions>
-        <Button type="submit" isPending={isSending} className="sm:w-full">
-          {words.submit}
+        {at > 0 && (
+          <Button variant="secondary" onPress={() => setStep(at - 1)}>
+            Back
+          </Button>
+        )}
+        <Button type="submit" isPending={isLast && isSending}>
+          {isLast ? words.submit : "Next"}
         </Button>
       </Actions>
     </Form>
   );
 }
 
-function BusinessName({
-  label,
-  value,
-  onChange,
-  error,
-}: {
-  label: string;
-  value: string;
-  onChange: (name: string) => void;
-  error?: string;
-}) {
-  return (
-    <TextField
-      label={label}
-      name="businessName"
-      autoComplete="organization"
-      isRequired
-      value={value}
-      onChange={onChange}
-      errorMessage={error}
-    />
-  );
-}
-
-// business premises: where, what kind and how big. The Condition and any
-// extras are agreed after a visit, so they aren't asked.
+// business premises: what kind and how big. Where they are is asked first.
+// The Condition and any extras are agreed after a visit, so they aren't asked.
 function NewPremisesFields({
   premises,
   premisesTypes,
@@ -661,12 +740,6 @@ function NewPremisesFields({
 
   return (
     <>
-      <AddressFields
-        place={premises}
-        unitLabel="Suite, floor or unit (optional)"
-        update={update}
-        error={error}
-      />
       {premisesTypes?.length === 0 ? (
         <Notice tone="danger">
           We couldn't load the types of premises. Please try again, or call us
@@ -689,28 +762,40 @@ function NewPremisesFields({
           ))}
         </Select>
       )}
-      <NumberField
-        label="Floor area in sq ft (optional)"
-        name={field("floorArea")}
-        description="Roughly is fine. If you're not sure, we'll measure on our visit."
-        minValue={100}
-        maxValue={1_000_000}
-        step={100}
-        value={premises.floorArea ?? Number.NaN}
-        onChange={(area) =>
-          update({ floorArea: Number.isNaN(area) ? null : area })
+      <Optional
+        add="Add the floor area"
+        shown={premises.floorArea !== null || !!error(field("floorArea"))}
+      >
+        <NumberField
+          label="Floor area in sq ft (optional)"
+          name={field("floorArea")}
+          description="Roughly is fine. If you're not sure, we'll measure on our visit."
+          minValue={100}
+          maxValue={1_000_000}
+          step={100}
+          value={premises.floorArea ?? Number.NaN}
+          onChange={(area) =>
+            update({ floorArea: Number.isNaN(area) ? null : area })
+          }
+          errorMessage={error(field("floorArea"))}
+        />
+      </Optional>
+      <Optional
+        add="Add how we get in"
+        shown={
+          !!premises.accessInstructions || !!error(field("accessInstructions"))
         }
-        errorMessage={error(field("floorArea"))}
-      />
-      <TextField
-        label="How do we get in? (optional)"
-        name={field("accessInstructions")}
-        multiline
-        description="Alarm codes, who has the keys, parking. Only your Cleaners see this."
-        value={premises.accessInstructions ?? ""}
-        onChange={(accessInstructions) => update({ accessInstructions })}
-        errorMessage={error(field("accessInstructions"))}
-      />
+      >
+        <TextField
+          label="How do we get in? (optional)"
+          name={field("accessInstructions")}
+          multiline
+          description="Alarm codes, who has the keys, parking. Only your Cleaners see this."
+          value={premises.accessInstructions ?? ""}
+          onChange={(accessInstructions) => update({ accessInstructions })}
+          errorMessage={error(field("accessInstructions"))}
+        />
+      </Optional>
     </>
   );
 }
@@ -719,11 +804,14 @@ function NewPremisesFields({
 function AddressFields({
   place,
   unitLabel,
+  addUnit,
   update,
   error,
 }: {
   place: Pick<NewHome, "street" | "unit" | "postcode">;
   unitLabel: string;
+  // the link that shows the unit field
+  addUnit: string;
   update: (
     change: Partial<Pick<NewHome, "street" | "unit" | "postcode">>,
   ) => void;
@@ -742,7 +830,7 @@ function AddressFields({
         onChange={(street) => update({ street })}
         errorMessage={error(field("street"))}
       />
-      <div className="grid gap-4 sm:grid-cols-2">
+      <Optional add={addUnit} shown={!!place.unit || !!error(field("unit"))}>
         <TextField
           label={unitLabel}
           name={field("unit")}
@@ -751,22 +839,25 @@ function AddressFields({
           onChange={(unit) => update({ unit })}
           errorMessage={error(field("unit"))}
         />
-        <TextField
-          label="ZIP code"
-          name={field("postcode")}
-          autoComplete="postal-code"
-          inputMode="numeric"
-          maxLength={5}
-          isRequired
-          value={place.postcode}
-          onChange={(postcode) => update({ postcode })}
-          errorMessage={error(field("postcode"))}
-        />
-      </div>
+      </Optional>
+      <TextField
+        label="ZIP code"
+        name={field("postcode")}
+        autoComplete="postal-code"
+        inputMode="numeric"
+        maxLength={5}
+        isRequired
+        value={place.postcode}
+        onChange={(postcode) => update({ postcode })}
+        errorMessage={error(field("postcode"))}
+        className="sm:w-1/2"
+      />
     </>
   );
 }
 
+// a new home's rooms and what the Cleaners should know. Its type and
+// address are asked first.
 function NewHomeFields({
   home,
   update,
@@ -780,24 +871,6 @@ function NewHomeFields({
 
   return (
     <>
-      <RadioGroup
-        label="Type of home"
-        orientation="horizontal"
-        name={field("type")}
-        value={home.type}
-        onChange={(type) => update({ type: type as PropertyType })}
-        errorMessage={error(field("type"))}
-      >
-        <Radio value="house">House</Radio>
-        <Radio value="apartment">Apartment</Radio>
-        <Radio value="townhouse">Townhouse</Radio>
-      </RadioGroup>
-      <AddressFields
-        place={home}
-        unitLabel="Apartment or unit (optional)"
-        update={update}
-        error={error}
-      />
       <div className="grid gap-4 sm:grid-cols-3">
         <NumberField
           label="Bedrooms"
@@ -830,30 +903,42 @@ function NewHomeFields({
           errorMessage={error(field("storeys"))}
         />
       </div>
-      <NumberField
-        label="Floor area in sq ft (optional)"
-        name={field("floorArea")}
-        minValue={100}
-        maxValue={100_000}
-        step={50}
-        value={home.floorArea ?? Number.NaN}
-        onChange={(area) =>
-          update({ floorArea: Number.isNaN(area) ? null : area })
-        }
-        errorMessage={error(field("floorArea"))}
-      />
+      <Optional
+        add="Add the floor area"
+        shown={home.floorArea !== null || !!error(field("floorArea"))}
+      >
+        <NumberField
+          label="Floor area in sq ft (optional)"
+          name={field("floorArea")}
+          minValue={100}
+          maxValue={100_000}
+          step={50}
+          value={home.floorArea ?? Number.NaN}
+          onChange={(area) =>
+            update({ floorArea: Number.isNaN(area) ? null : area })
+          }
+          errorMessage={error(field("floorArea"))}
+        />
+      </Optional>
       <Checkbox isSelected={home.pets} onChange={(pets) => update({ pets })}>
         There are pets at home
       </Checkbox>
-      <TextField
-        label="How do we get in? (optional)"
-        name={field("accessInstructions")}
-        multiline
-        description="Door codes, where the key is, parking. Only your Cleaners see this."
-        value={home.accessInstructions ?? ""}
-        onChange={(accessInstructions) => update({ accessInstructions })}
-        errorMessage={error(field("accessInstructions"))}
-      />
+      <Optional
+        add="Add how we get in"
+        shown={
+          !!home.accessInstructions || !!error(field("accessInstructions"))
+        }
+      >
+        <TextField
+          label="How do we get in? (optional)"
+          name={field("accessInstructions")}
+          multiline
+          description="Door codes, where the key is, parking. Only your Cleaners see this."
+          value={home.accessInstructions ?? ""}
+          onChange={(accessInstructions) => update({ accessInstructions })}
+          errorMessage={error(field("accessInstructions"))}
+        />
+      </Optional>
     </>
   );
 }

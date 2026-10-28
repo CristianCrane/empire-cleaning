@@ -4,6 +4,7 @@ import {
   signedInAs,
   createStaff,
   expect,
+  nextStep,
   requestQuoteAsGuest,
   test,
 } from "./harness.ts";
@@ -194,6 +195,12 @@ test("the request form offers the Add-ons by name, and the choice reaches the Of
 }) => {
   await signedInAs(page, "new@example.com");
   await expect(page).toHaveURL("/welcome");
+  await page.getByText("Apartment", { exact: true }).click();
+  await page
+    .getByRole("textbox", { name: "Street address" })
+    .fill("35-06 Ditmars Blvd");
+  await page.getByRole("textbox", { name: "ZIP code" }).fill("11375");
+  await nextStep(page);
 
   // names only: no prices on the form
   const extras = page.getByRole("group", { name: "Any extras?" });
@@ -204,13 +211,9 @@ test("the request form offers the Add-ons by name, and the choice reaches the Of
     extras.getByRole("checkbox", { name: "Inside the oven" }),
   ).toBeChecked();
 
+  await nextStep(page);
   await page.getByRole("textbox", { name: "Full name" }).fill("Nina New");
   await page.getByRole("textbox", { name: "Phone" }).fill("(718) 555-0111");
-  await page.getByText("Apartment", { exact: true }).click();
-  await page
-    .getByRole("textbox", { name: "Street address" })
-    .fill("35-06 Ditmars Blvd");
-  await page.getByRole("textbox", { name: "ZIP code" }).fill("11375");
   await page.getByRole("button", { name: "Request a Quote" }).click();
 
   await expect(page).toHaveURL("/portal");

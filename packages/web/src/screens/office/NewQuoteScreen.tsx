@@ -73,7 +73,7 @@ export function NewQuoteScreen() {
       ) : isNewClient ? (
         <Card
           title="New Client"
-          description="Enter their details with the home below."
+          description="Describe their home below; their details come last."
           actions={
             <Button variant="secondary" onPress={() => setNewClient(false)}>
               Find a Client instead

@@ -1,6 +1,8 @@
 @import "tailwindcss";
 /* the apps using this package don't scan node_modules, so name our own sources */
 @source "./";
+/* and the quote form's package, which both apps use */
+@source "../../quote-request/src";
 @import "tw-animate-css";
 @plugin "tailwindcss-react-aria-components";
 @import "@fontsource/barlow/400.css";

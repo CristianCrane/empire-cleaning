@@ -7,6 +7,7 @@ import {
   completedFirstClean,
   createStaff,
   expect,
+  nextStep,
   offerPlace,
   proposeNextMonday,
   recordNoAccess,
@@ -162,10 +163,13 @@ test("business premises' screens fit every width, the form included", async ({
     await expectFitsEveryWidth(page, path);
   }
 
-  // the form, asking about business premises
+  // the form's step about business premises, with its days to choose
   await page.goto("/office/quotes/new");
   await page.getByRole("button", { name: "New Client" }).click();
   await page.getByText("Business premises", { exact: true }).click();
+  await page.getByRole("textbox", { name: "Street address" }).fill("9 Main St");
+  await page.getByRole("textbox", { name: "ZIP code" }).fill("11375");
+  await nextStep(page);
   const problems: string[] = [];
   for (const width of widths) {
     await page.setViewportSize({ width, height: 900 });
