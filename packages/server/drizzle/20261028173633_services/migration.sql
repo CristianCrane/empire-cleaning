@@ -1,7 +1,8 @@
 -- Services replace Clean Types (ADR-0018). The four every install starts
 -- with are made from the Price List in force, with the keys the server
--- knows them by, so every existing price comes out the same. Move-in/out
--- starts as a Deep Clean's figures.
+-- knows them by, so every existing price comes out the same: a home's room
+-- hours move onto each Service priced by them, a Deep Clean's times its
+-- multiplier. Move-in/out starts as a Deep Clean's figures.
 CREATE TYPE "pricing_method" AS ENUM('rooms', 'area');--> statement-breakpoint
 CREATE TABLE "services" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -11,7 +12,11 @@ CREATE TABLE "services" (
 	"description" text DEFAULT '' NOT NULL,
 	"offered_for" "offered_for" NOT NULL,
 	"method" "pricing_method" NOT NULL,
-	"multiplier" numeric(6,2),
+	"base_hours" numeric(6,2),
+	"bedroom_hours" numeric(6,2),
+	"bathroom_hours" numeric(6,2),
+	"extra_storey_hours" numeric(6,2),
+	"pet_hours" numeric(6,2),
 	"hours_per_thousand_sq_ft" numeric(6,2),
 	"hourly_rate_cents" integer NOT NULL,
 	"minimum_charge_cents" integer NOT NULL,
@@ -43,7 +48,8 @@ SELECT
 FROM price_lists l ORDER BY l.version DESC LIMIT 1;--> statement-breakpoint
 
 INSERT INTO "services" (
-	"key", "name", "description", "offered_for", "method", "multiplier",
+	"key", "name", "description", "offered_for", "method", "base_hours",
+	"bedroom_hours", "bathroom_hours", "extra_storey_hours", "pet_hours",
 	"hours_per_thousand_sq_ft", "hourly_rate_cents", "minimum_charge_cents",
 	"tax_one_off_percent", "tax_plan_percent", "condition_applies", "can_recur",
 	"needs_site_visit", "first_visit_service_key", "position"
@@ -51,23 +57,31 @@ INSERT INTO "services" (
 SELECT v.* FROM "services_base" b CROSS JOIN LATERAL (VALUES
 	('5e7a1c00-0000-4000-8000-000000000001'::uuid, 'Standard Clean',
 		'The regular upkeep that keeps a clean home feeling that way.',
-		'homes'::offered_for, 'rooms'::pricing_method, 1::numeric, NULL::numeric,
+		'homes'::offered_for, 'rooms'::pricing_method,
+		b.base_hours, b.bedroom_hours, b.bathroom_hours, b.extra_storey_hours, b.pet_hours, NULL::numeric,
 		b.hourly_rate_cents, b.minimum_charge_cents, b.tax_one_off_percent,
 		b.tax_service_plan_percent, true, true, false,
 		'5e7a1c00-0000-4000-8000-000000000002'::uuid, 0),
 	('5e7a1c00-0000-4000-8000-000000000002'::uuid, 'Deep Clean',
 		'A top-to-bottom clean, inside cabinets, behind appliances and everywhere in between.',
-		'homes'::offered_for, 'rooms'::pricing_method, b.deep_clean_multiplier, NULL::numeric,
+		'homes'::offered_for, 'rooms'::pricing_method,
+		round(b.base_hours * b.deep_clean_multiplier, 2), round(b.bedroom_hours * b.deep_clean_multiplier, 2),
+		round(b.bathroom_hours * b.deep_clean_multiplier, 2), round(b.extra_storey_hours * b.deep_clean_multiplier, 2),
+		round(b.pet_hours * b.deep_clean_multiplier, 2), NULL::numeric,
 		b.hourly_rate_cents, b.minimum_charge_cents, b.tax_one_off_percent,
 		b.tax_service_plan_percent, true, true, false, NULL::uuid, 1),
 	('5e7a1c00-0000-4000-8000-000000000003'::uuid, 'Move-in/out Clean',
 		'An empty home made spotless, ready for keys to change hands.',
-		'homes'::offered_for, 'rooms'::pricing_method, b.deep_clean_multiplier, NULL::numeric,
+		'homes'::offered_for, 'rooms'::pricing_method,
+		round(b.base_hours * b.deep_clean_multiplier, 2), round(b.bedroom_hours * b.deep_clean_multiplier, 2),
+		round(b.bathroom_hours * b.deep_clean_multiplier, 2), round(b.extra_storey_hours * b.deep_clean_multiplier, 2),
+		round(b.pet_hours * b.deep_clean_multiplier, 2), NULL::numeric,
 		b.hourly_rate_cents, b.minimum_charge_cents, b.tax_one_off_percent,
 		NULL::numeric, true, false, false, NULL::uuid, 2),
 	('5e7a1c00-0000-4000-8000-000000000004'::uuid, 'Commercial cleaning',
 		'Workspaces, kitchens and restrooms kept clean for your team and visitors.',
-		'businesses'::offered_for, 'area'::pricing_method, NULL::numeric, b.area_base_hours,
+		'businesses'::offered_for, 'area'::pricing_method,
+		NULL::numeric, NULL::numeric, NULL::numeric, NULL::numeric, NULL::numeric, b.area_base_hours,
 		b.commercial_hourly_rate_cents, b.minimum_charge_cents, b.tax_commercial_percent,
 		b.tax_commercial_percent, true, true, true, NULL::uuid, 3)
 ) AS v;--> statement-breakpoint
@@ -96,6 +110,11 @@ DROP TABLE "services_base";--> statement-breakpoint
 ALTER TABLE "price_lists" DROP COLUMN "hourly_rate_cents";--> statement-breakpoint
 ALTER TABLE "price_lists" DROP COLUMN "commercial_hourly_rate_cents";--> statement-breakpoint
 ALTER TABLE "price_lists" DROP COLUMN "minimum_charge_cents";--> statement-breakpoint
+ALTER TABLE "price_lists" DROP COLUMN "base_hours";--> statement-breakpoint
+ALTER TABLE "price_lists" DROP COLUMN "bedroom_hours";--> statement-breakpoint
+ALTER TABLE "price_lists" DROP COLUMN "bathroom_hours";--> statement-breakpoint
+ALTER TABLE "price_lists" DROP COLUMN "extra_storey_hours";--> statement-breakpoint
+ALTER TABLE "price_lists" DROP COLUMN "pet_hours";--> statement-breakpoint
 ALTER TABLE "price_lists" DROP COLUMN "deep_clean_multiplier";--> statement-breakpoint
 ALTER TABLE "price_lists" DROP COLUMN "tax_one_off_percent";--> statement-breakpoint
 ALTER TABLE "price_lists" DROP COLUMN "tax_service_plan_percent";--> statement-breakpoint

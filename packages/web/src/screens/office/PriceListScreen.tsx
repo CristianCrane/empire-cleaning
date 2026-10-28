@@ -127,48 +127,6 @@ function Editor({ list }: { list: PriceList }) {
       }}
     >
       <Card
-        title="Hours for a home"
-        headingLevel={2}
-        description="How long a home takes, for Services priced from its rooms, before Condition and the Service's multiplier apply."
-      >
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Hours
-            label="Base hours"
-            name="baseHours"
-            description="Kitchen, living areas and entry, for every home"
-            draft={draft}
-            set={set}
-          />
-          <Hours
-            label="Per bedroom"
-            name="bedroomHours"
-            draft={draft}
-            set={set}
-          />
-          <Hours
-            label="Per bathroom"
-            name="bathroomHours"
-            draft={draft}
-            set={set}
-          />
-          <Hours
-            label="Per extra floor"
-            name="extraStoreyHours"
-            description="For each floor above the first"
-            draft={draft}
-            set={set}
-          />
-          <Hours
-            label="Pets"
-            name="petHours"
-            description="Added once if there are pets"
-            draft={draft}
-            set={set}
-          />
-        </div>
-      </Card>
-
-      <Card
         title="Types of business premises"
         headingLevel={2}
         description="How much longer or shorter each type of premises takes to clean than an office (1), for Services priced by area that Condition affects. Retire a type to stop offering it: premises of that type still price by it."
@@ -302,7 +260,7 @@ function Editor({ list }: { list: PriceList }) {
                   label="Hours"
                   name={`addOns.${i}.hours`}
                   minValue={0}
-                  step={0.25}
+                  step={0.05}
                   formatOptions={{ maximumFractionDigits: 2 }}
                   isDisabled={!addOn.active}
                   value={addOn.hours}
@@ -451,19 +409,6 @@ type FieldProps = {
   draft: Draft;
   set: (change: Partial<Draft>) => void;
 };
-
-const Hours = ({ label, name, description, draft, set }: FieldProps) => (
-  <NumberField
-    label={`${label} (hours)`}
-    name={name}
-    description={description}
-    minValue={0}
-    step={0.25}
-    formatOptions={{ maximumFractionDigits: 2 }}
-    value={draft[name] as number}
-    onChange={(value) => set({ [name]: value })}
-  />
-);
 
 const Multiplier = ({ label, name, description, draft, set }: FieldProps) => (
   <NumberField

@@ -6,6 +6,12 @@ import { z } from "zod";
 const decimals = (places: number) => (value: number) =>
   Math.abs(value * 10 ** places - Math.round(value * 10 ** places)) < 1e-9;
 
+const hours = z
+  .number({ error: "Enter a number of hours" })
+  .min(0, "Hours can't be negative")
+  .max(24, "That's more than a day")
+  .refine(decimals(2), "Use at most two decimal places");
+
 const taxPercent = z
   .number({ error: "Enter a tax rate" })
   .min(0, "A tax rate can't be negative")
@@ -26,11 +32,14 @@ export const serviceSchema = z
     method: z.enum(["rooms", "area"], {
       error: "Choose how the Service is priced",
     }),
-    multiplier: z
-      .number({ error: "Enter a multiplier, like 1.6" })
-      .min(0.1, "A multiplier must be at least 0.1")
-      .max(10, "A multiplier can't be more than 10")
-      .refine(decimals(2), "Use at most two decimal places")
+    roomHours: z
+      .object({
+        baseHours: hours,
+        bedroomHours: hours,
+        bathroomHours: hours,
+        extraStoreyHours: hours,
+        petHours: hours,
+      })
       .nullable(),
     hoursPerThousandSqFt: z
       .number({ error: "Enter a number of hours" })
@@ -60,8 +69,8 @@ export const serviceSchema = z
     const require = (path: string, message: string) =>
       ctx.addIssue({ code: "custom", path: [path], message });
     // each method has its own figure, and only that one
-    if (s.method === "rooms" && s.multiplier === null) {
-      require("multiplier", "Enter a multiplier, like 1.6");
+    if (s.method === "rooms" && s.roomHours === null) {
+      require("roomHours", "Enter how long each part of a home takes");
     }
     if (s.method === "area" && s.hoursPerThousandSqFt === null) {
       require("hoursPerThousandSqFt", "Enter a number of hours");
@@ -78,7 +87,7 @@ export const serviceSchema = z
   // recur, would only mislead
   .transform((s) => ({
     ...s,
-    multiplier: s.method === "rooms" ? s.multiplier : null,
+    roomHours: s.method === "rooms" ? s.roomHours : null,
     hoursPerThousandSqFt: s.method === "area" ? s.hoursPerThousandSqFt : null,
     taxPlanPercent: s.canRecur ? s.taxPlanPercent : null,
   }));

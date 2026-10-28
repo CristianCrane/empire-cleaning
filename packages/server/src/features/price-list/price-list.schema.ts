@@ -19,18 +19,12 @@ const decimal = (name: string, precision = 6, scale = 2) =>
 // The Price List the Office maintains. Every save is a new row, never an edit,
 // so a Quote can point at the exact version it used (and nothing it used can
 // change underneath it). The current one is the latest. Each Service's own
-// rate, Minimum Charge and tax are on the Service (ADR-0018).
+// hours, rate, Minimum Charge and tax are on the Service (ADR-0018).
 export const priceLists = pgTable("price_lists", {
   id: uuid("id").primaryKey().defaultRandom(),
   version: integer("version").generatedAlwaysAsIdentity().notNull().unique(),
   // the starting figures, until Office Staff save their own
   placeholder: boolean("placeholder").notNull().default(false),
-
-  baseHours: decimal("base_hours"),
-  bedroomHours: decimal("bedroom_hours"),
-  bathroomHours: decimal("bathroom_hours"),
-  extraStoreyHours: decimal("extra_storey_hours"),
-  petHours: decimal("pet_hours"),
 
   conditionLight: decimal("condition_light"),
   conditionModerate: decimal("condition_moderate"),

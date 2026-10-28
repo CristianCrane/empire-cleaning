@@ -76,11 +76,6 @@ const uniqueNames =
 
 export const priceListSchema = z
   .object({
-    baseHours: hours,
-    bedroomHours: hours,
-    bathroomHours: hours,
-    extraStoreyHours: hours,
-    petHours: hours,
     conditionLight: multiplier,
     conditionModerate: multiplier,
     conditionHeavy: multiplier,

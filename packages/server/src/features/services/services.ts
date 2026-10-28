@@ -35,7 +35,13 @@ const placeholders: (ServiceInput & { key: string })[] = [
     description: "The regular upkeep that keeps a clean home feeling that way.",
     offeredFor: "homes",
     method: "rooms",
-    multiplier: 1,
+    roomHours: {
+      baseHours: 1,
+      bedroomHours: 0.5,
+      bathroomHours: 0.75,
+      extraStoreyHours: 0.5,
+      petHours: 0.5,
+    },
     hoursPerThousandSqFt: null,
     hourlyRateCents: 5500,
     minimumChargeCents: 10000,
@@ -54,7 +60,13 @@ const placeholders: (ServiceInput & { key: string })[] = [
       "A top-to-bottom clean, inside cabinets, behind appliances and everywhere in between.",
     offeredFor: "homes",
     method: "rooms",
-    multiplier: 1.6,
+    roomHours: {
+      baseHours: 1.6,
+      bedroomHours: 0.8,
+      bathroomHours: 1.2,
+      extraStoreyHours: 0.8,
+      petHours: 0.8,
+    },
     hoursPerThousandSqFt: null,
     hourlyRateCents: 5500,
     minimumChargeCents: 10000,
@@ -72,7 +84,13 @@ const placeholders: (ServiceInput & { key: string })[] = [
     description: "An empty home made spotless, ready for keys to change hands.",
     offeredFor: "homes",
     method: "rooms",
-    multiplier: 1.6,
+    roomHours: {
+      baseHours: 1.6,
+      bedroomHours: 0.8,
+      bathroomHours: 1.2,
+      extraStoreyHours: 0.8,
+      petHours: 0.8,
+    },
     hoursPerThousandSqFt: null,
     hourlyRateCents: 5500,
     minimumChargeCents: 10000,
@@ -91,7 +109,7 @@ const placeholders: (ServiceInput & { key: string })[] = [
       "Workspaces, kitchens and restrooms kept clean for your team and visitors.",
     offeredFor: "businesses",
     method: "area",
-    multiplier: null,
+    roomHours: null,
     hoursPerThousandSqFt: 0.5,
     hourlyRateCents: 5500,
     minimumChargeCents: 10000,
@@ -105,6 +123,12 @@ const placeholders: (ServiceInput & { key: string })[] = [
   },
 ];
 
+// a Service as its row stores it: the room hours flat
+const columnsOf = <T extends ServiceInput>({ roomHours, ...rest }: T) => ({
+  ...rest,
+  ...(roomHours ?? {}),
+});
+
 const toService = (row: ServiceRow, authorName: string | null): Service => ({
   key: row.key,
   id: row.id,
@@ -115,7 +139,16 @@ const toService = (row: ServiceRow, authorName: string | null): Service => ({
   description: row.description,
   offeredFor: row.offeredFor,
   method: row.method,
-  multiplier: row.multiplier,
+  roomHours:
+    row.method === "rooms"
+      ? {
+          baseHours: row.baseHours!,
+          bedroomHours: row.bedroomHours!,
+          bathroomHours: row.bathroomHours!,
+          extraStoreyHours: row.extraStoreyHours!,
+          petHours: row.petHours!,
+        }
+      : null,
   hoursPerThousandSqFt: row.hoursPerThousandSqFt,
   hourlyRateCents: row.hourlyRateCents,
   minimumChargeCents: row.minimumChargeCents,
@@ -160,7 +193,9 @@ export const currentServices = async (): Promise<Service[]> => {
     if (already) return;
     await tx
       .insert(services)
-      .values(placeholders.map((s, position) => ({ ...s, position })));
+      .values(
+        placeholders.map((s, position) => ({ ...columnsOf(s), position })),
+      );
   });
   return latest();
 };
@@ -249,9 +284,12 @@ export const createService = async (
   const [{ last }] = (await db
     .select({ last: sql<number>`max(${services.position})` })
     .from(services)) as [{ last: number | null }];
-  await db
-    .insert(services)
-    .values({ ...input, key, position: (last ?? -1) + 1, createdBy });
+  await db.insert(services).values({
+    ...columnsOf(input),
+    key,
+    position: (last ?? -1) + 1,
+    createdBy,
+  });
   return findService(key);
 };
 
@@ -273,9 +311,12 @@ export const saveService = async (
     .where(eq(services.key, key))
     .orderBy(asc(services.version))
     .limit(1);
-  await db
-    .insert(services)
-    .values({ ...input, key, position: first!.position, createdBy });
+  await db.insert(services).values({
+    ...columnsOf(input),
+    key,
+    position: first!.position,
+    createdBy,
+  });
   return findService(key);
 };
 

@@ -88,7 +88,7 @@ test("the extras asked for are priced, and shown with their hours", async ({
 });
 
 test(
-  "Office Staff edit the Price List: hours, Add-ons and the rest",
+  "Office Staff edit the Price List: Condition, Add-ons and the rest",
   { tag: "@smoke" },
   async ({ page }) => {
     await signInAsOffice(page);
@@ -98,7 +98,9 @@ test(
     // placeholders, until the Office saves their own
     await expect(page.getByText("These are placeholder figures")).toBeVisible();
 
-    await page.getByRole("textbox", { name: "Base hours (hours)" }).fill("2");
+    await page
+      .getByRole("textbox", { name: "Heavy Condition (×)" })
+      .fill("1.5");
     await page
       .getByRole("button", { name: "Retire Inside the fridge" })
       .click();
@@ -122,8 +124,8 @@ test(
       page.getByText(/Version 2, saved by Olive Owner/),
     ).toBeVisible();
     await expect(
-      page.getByRole("textbox", { name: "Base hours (hours)" }),
-    ).toHaveValue("2");
+      page.getByRole("textbox", { name: "Heavy Condition (×)" }),
+    ).toHaveValue("1.5");
     await expect(
       page.getByRole("textbox", { name: "Name" }).last(),
     ).toHaveValue("Steam clean");
@@ -139,7 +141,7 @@ test("a saved Price List prices new Quotes, and a new Add-on appears on the form
 }) => {
   await signInAsOffice(page);
   await page.goto("/office/price-list");
-  await page.getByRole("textbox", { name: "Base hours (hours)" }).fill("2");
+  await page.getByRole("textbox", { name: "Moderate Condition (×)" }).fill("2");
   await page.getByRole("button", { name: "Save Price List" }).click();
   await expect(page.getByText("Price List saved as version 2")).toBeVisible();
 
@@ -147,10 +149,10 @@ test("a saved Price List prices new Quotes, and a new Add-on appears on the form
   await page.goto("/office/quotes");
   await page.getByText("Casey Client").click();
 
-  // 4.125 h, up to 4.25 h x $55 = $233.75, to $234, + 8.875% = $254.77
+  // 3.125 h x2 = 6.25 h x $55 = $343.75, to $344, + 8.875% = $374.53
   await expect(
     page.getByRole("region", { name: "Standard Clean" }),
-  ).toContainText("$254.77");
+  ).toContainText("$374.53");
   await expect(
     page.getByText("Worked out from Price List version 2"),
   ).toBeVisible();

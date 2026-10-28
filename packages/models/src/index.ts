@@ -265,14 +265,9 @@ export type PriceListPremisesType = {
 
 // what Office Staff edit. Money is in cents, before tax; percentages are
 // whole numbers except tax rates, which may have decimals (8.875).
-// Each Service's own rate, Minimum Charge and tax are on the Service.
+// Each Service's own hours, rate, Minimum Charge and tax are on the
+// Service.
 export type PriceListInput = {
-  // hours every home needs for kitchen, living areas and entry
-  baseHours: number;
-  bedroomHours: number;
-  bathroomHours: number;
-  extraStoreyHours: number;
-  petHours: number;
   conditionLight: number;
   conditionModerate: number;
   conditionHeavy: number;
@@ -306,12 +301,12 @@ export type PriceBreakdown = {
   // what was priced: a home by its rooms, or business premises by floor
   // area. Absent on breakdowns saved before #72, which are all homes.
   propertyKind?: PropertyKind;
-  // the Property's hours before Condition and the Service's multiplier, by
-  // part
+  // the Property's hours before Condition, by part
   homeHours: { label: string; hours: number }[];
   conditionMultiplier: number;
-  // the Service's multiplier on a home's hours; 1 for one priced by area
-  cleanTypeMultiplier: number;
+  // the Clean Type's multiplier on a home's hours, on breakdowns saved before
+  // each Service had its own hours (ADR-0018)
+  cleanTypeMultiplier?: number;
   addOns: { key: string; name: string; hours: number; taxExempt: boolean }[];
   labourHours: number;
   hourlyRateCents: number;
@@ -336,9 +331,21 @@ export type SuggestedPrices = {
 
 // ---- Services (ADR-0018) ----
 
-// how a Service is priced: from a home's rooms, times its multiplier, or by
+// how a Service is priced: from a home's rooms, at so many hours each, or by
 // area, at so many hours per 1,000 sq ft
 export type PricingMethod = "rooms" | "area";
+
+// how long a Service takes in a home, part by part
+export type RoomHours = {
+  // kitchen, living areas and entry, for every home
+  baseHours: number;
+  bedroomHours: number;
+  bathroomHours: number;
+  // each floor above the first
+  extraStoreyHours: number;
+  // once, if there are pets
+  petHours: number;
+};
 
 // what Office Staff edit on a Service. Money is in cents, before tax.
 export type ServiceInput = {
@@ -347,8 +354,8 @@ export type ServiceInput = {
   description: string;
   offeredFor: OfferedFor;
   method: PricingMethod;
-  // a home's hours times this; only for "rooms"
-  multiplier: number | null;
+  // only for "rooms"
+  roomHours: RoomHours | null;
   // only for "area"
   hoursPerThousandSqFt: number | null;
   hourlyRateCents: number;

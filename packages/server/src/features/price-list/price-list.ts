@@ -23,11 +23,6 @@ import {
 // screen says so. The fee tax is the NYC combined rate, pending the
 // accountant. Premises Types are against an office (#72).
 const placeholders: PriceListInput = {
-  baseHours: 1,
-  bedroomHours: 0.5,
-  bathroomHours: 0.75,
-  extraStoreyHours: 0.5,
-  petHours: 0.5,
   conditionLight: 0.85,
   conditionModerate: 1,
   conditionHeavy: 1.4,
@@ -87,11 +82,6 @@ const toPriceList = (
   placeholder: row.placeholder,
   createdAt: row.createdAt.toISOString(),
   createdByName: author.name,
-  baseHours: row.baseHours,
-  bedroomHours: row.bedroomHours,
-  bathroomHours: row.bathroomHours,
-  extraStoreyHours: row.extraStoreyHours,
-  petHours: row.petHours,
   conditionLight: row.conditionLight,
   conditionModerate: row.conditionModerate,
   conditionHeavy: row.conditionHeavy,

@@ -68,12 +68,12 @@ Validation messages are written to be shown beside the form's fields.
 
 A Suggested Price comes from the Price List and one Service (ADR-0018).
 
-**Services** (`#features/services`) are what Empire Cleaning sells, each with its own pricing method (`rooms`: a home's hours x its multiplier; `area`: hours per 1,000 sq ft), hourly rate, Minimum Charge, one-off and plan tax rates, and flags (Condition applies, can recur, needs a Site Visit, a first-visit recommendation). Every save is a new row with the same `key`; a Service's current version is its latest, and retiring one is saving it inactive. A Revision option records the Service version it priced with (`service_id`). The first read creates four with fixed keys (`SEEDED`): Standard, Deep and Move-in/out Clean for homes, and commercial cleaning by area. Until Quotes are for a Service the Client asks for (#122), a Quote's Clean Type picks one (`serviceFor`): Standard or Deep for a home, and commercial cleaning, the only option, for business premises. Move-in/out can't be quoted until then.
+**Services** (`#features/services`) are what Empire Cleaning sells, each with its own pricing method (`rooms`: its own hours for each part of a home, `roomHours`; `area`: hours per 1,000 sq ft), hourly rate, Minimum Charge, one-off and plan tax rates, and flags (Condition applies, can recur, needs a Site Visit, a first-visit recommendation). Every save is a new row with the same `key`; a Service's current version is its latest, and retiring one is saving it inactive. A Revision option records the Service version it priced with (`service_id`). The first read creates four with fixed keys (`SEEDED`): Standard, Deep and Move-in/out Clean for homes, and commercial cleaning by area. Until Quotes are for a Service the Client asks for (#122), a Quote's Clean Type picks one (`serviceFor`): Standard or Deep for a home, and commercial cleaning, the only option, for business premises. Move-in/out can't be quoted until then.
 
 - `GET /api/services` (Office Staff) lists them, active and retired; `GET /api/services/:key` reads one.
 - `POST /api/services` adds one at the end of the list; `PUT /api/services/:key` saves a new version. Two active Services can't share a name, and a first-visit recommendation must be another Service.
 
-The Price List (`#features/price-list`) holds the rest: a home's room hours, the Condition multipliers, Premises Types (a multiplier each, against an office), Add-ons, Quote defaults and the fee tax rate. Money is in cents, before tax. **Every save is a new version**, never an edit, so a Quote can point at the exact version it used; the current one is the latest. The first read creates version 1 from placeholder figures (`placeholder: true`) until Office Staff save their own.
+The Price List (`#features/price-list`) holds the rest: the Condition multipliers, Premises Types (a multiplier each, against an office), Add-ons, Quote defaults and the fee tax rate. Money is in cents, before tax. **Every save is a new version**, never an edit, so a Quote can point at the exact version it used; the current one is the latest. The first read creates version 1 from placeholder figures (`placeholder: true`) until Office Staff save their own.
 
 - `GET` and `PUT /api/price-list` (Office Staff) read and save it. A save sends the whole list.
 - `GET /api/price-list/add-ons` is open to everyone: the names of the Add-ons on offer for homes, never prices (the landing page's form lists them). Each Add-on is `offeredFor` homes, businesses or both; a Quote offers those for its Property's kind.
@@ -84,7 +84,7 @@ The Price List (`#features/price-list`) holds the rest: a home's room hours, the
 The calculation (`suggested-price.ts`):
 
 ```text
-rooms          = (base + bedrooms + bathrooms + (floors - 1) + pets) x the Service's multiplier
+rooms          = base + bedrooms + bathrooms + (floors - 1) + pets, at the Service's hours each
 area           = floor area / 1,000 x the Service's hours per 1,000 sq ft, x the Premises
                  Type where Condition applies (0 until the floor area is known)
 Labour Hours   = those hours x Condition (where it applies), plus each Add-on's own hours

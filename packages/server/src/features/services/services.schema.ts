@@ -34,7 +34,12 @@ export const services = pgTable(
     description: text("description").notNull().default(""),
     offeredFor: offeredFor("offered_for").notNull(),
     method: pricingMethod("method").notNull(),
-    multiplier: decimal("multiplier"),
+    // how long each part of a home takes; only for "rooms"
+    baseHours: decimal("base_hours"),
+    bedroomHours: decimal("bedroom_hours"),
+    bathroomHours: decimal("bathroom_hours"),
+    extraStoreyHours: decimal("extra_storey_hours"),
+    petHours: decimal("pet_hours"),
     hoursPerThousandSqFt: decimal("hours_per_thousand_sq_ft"),
     hourlyRateCents: integer("hourly_rate_cents").notNull(),
     minimumChargeCents: integer("minimum_charge_cents").notNull(),

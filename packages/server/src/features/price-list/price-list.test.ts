@@ -3,6 +3,7 @@ import type {
   PriceList,
   PriceListInput,
   OfficeQuote,
+  RoomHours,
 } from "@empire-cleaning/models";
 import { api, signIn } from "../../../tests/harness.ts";
 import {
@@ -16,11 +17,6 @@ import {
 
 // figures chosen so every expected answer below can be checked by hand
 const figures: PriceListInput = {
-  baseHours: 1,
-  bedroomHours: 0.5,
-  bathroomHours: 0.75,
-  extraStoreyHours: 0.5,
-  petHours: 0.5,
   conditionLight: 0.8,
   conditionModerate: 1,
   conditionHeavy: 1.5,
@@ -59,19 +55,41 @@ const getList = async (office: Office) =>
 const save = (office: Office, changes: Partial<PriceListInput> = {}) =>
   office.put("/api/price-list").send({ ...figures, ...changes });
 
-// a home's Services' own figures, chosen alongside the Price List's
+// a home's Services' own figures, chosen alongside the Price List's: a
+// Deep Clean takes twice as long as a Standard Clean, part by part
+const standardHours: RoomHours = {
+  baseHours: 1,
+  bedroomHours: 0.5,
+  bathroomHours: 0.75,
+  extraStoreyHours: 0.5,
+  petHours: 0.5,
+};
 const homeRates = async (
   office: Office,
-  changes: { hourlyRateCents?: number; minimumChargeCents?: number } = {},
+  changes: {
+    hourlyRateCents?: number;
+    minimumChargeCents?: number;
+    roomHours?: RoomHours;
+  } = {},
 ) => {
+  const { roomHours = standardHours, ...rest } = changes;
   const rates = {
     hourlyRateCents: 5000,
     minimumChargeCents: 10000,
     taxOneOffPercent: 8,
-    ...changes,
+    ...rest,
   };
-  await setService(office, "standard", rates);
-  await setService(office, "deep", { ...rates, multiplier: 2 });
+  await setService(office, "standard", { ...rates, roomHours });
+  await setService(office, "deep", {
+    ...rates,
+    roomHours: {
+      baseHours: roomHours.baseHours * 2,
+      bedroomHours: roomHours.bedroomHours * 2,
+      bathroomHours: roomHours.bathroomHours * 2,
+      extraStoreyHours: roomHours.extraStoreyHours * 2,
+      petHours: roomHours.petHours * 2,
+    },
+  });
 };
 
 // the Add-ons on offer now, keyed by name (a retired one may share a name)
@@ -105,11 +123,6 @@ describe("the Price List", () => {
     expect(list).toMatchObject({
       version: 1,
       placeholder: true,
-      baseHours: 1,
-      bedroomHours: 0.5,
-      bathroomHours: 0.75,
-      extraStoreyHours: 0.5,
-      petHours: 0.5,
       conditionLight: 0.85,
       conditionModerate: 1,
       conditionHeavy: 1.4,
@@ -142,12 +155,12 @@ describe("the Price List", () => {
     const office = await signInAsOffice();
     await getList(office);
 
-    const saved = await save(office, { baseHours: 2 }).expect(200);
+    const saved = await save(office, { depositPercent: 30 }).expect(200);
 
     expect(saved.body).toMatchObject({
       version: 2,
       placeholder: false,
-      baseHours: 2,
+      depositPercent: 30,
       createdByName: "Olive Owner",
     });
     expect(await getList(office)).toMatchObject({ version: 2 });
@@ -498,10 +511,10 @@ describe("the Suggested Price", () => {
       taxCents: 1504,
       totalCents: 20304,
     });
-    // deep: x2 = 7.25 h (already a quarter); x $50 = $362.50, to $363
+    // deep: each part takes twice as long, 7.25 h (already a quarter); x $50
+    // = $362.50, to $363
     expect(suggested.deep).toMatchObject({
       cleanType: "deep",
-      cleanTypeMultiplier: 2,
       labourHours: 7.25,
       priceCents: 36300,
       taxCents: 2904,
@@ -587,12 +600,15 @@ describe("the Suggested Price", () => {
     const office = await signInAsOffice();
     // 3 x 0.4 h + 0.55 h is exactly 1.75 h, but 1.7500000000000002 in floating
     // point, which would wrongly round up to 2 h
-    await homeRates(office, { minimumChargeCents: 0 });
-    await save(office, {
-      baseHours: 0,
-      bedroomHours: 0.4,
-      bathroomHours: 0.55,
-    }).expect(200);
+    await homeRates(office, {
+      minimumChargeCents: 0,
+      roomHours: {
+        ...standardHours,
+        baseHours: 0,
+        bedroomHours: 0.4,
+        bathroomHours: 0.55,
+      },
+    });
 
     const { suggested } = await detailOf(
       office,

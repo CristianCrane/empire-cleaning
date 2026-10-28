@@ -40,7 +40,15 @@ test(
     await expect(
       page.getByRole("heading", { level: 1, name: "Standard Clean" }),
     ).toBeVisible();
+    // what the figures come to, as they're typed: 1 + 2 x 0.5 + 1.5 x 0.75
+    // = 3.125 h, up to 3.25 h
+    const example = page.locator("p").filter({ hasText: /^For example:/ });
+    await expect(example).toHaveText(
+      "For example: A 2-bedroom, 1½-bathroom home, in moderate Condition, takes 3.25 h and comes to $194.89 ($179.00 + $15.89 tax).",
+    );
     await page.getByRole("textbox", { name: "Hourly rate" }).fill("$60");
+    await page.getByRole("textbox", { name: "Hourly rate" }).blur();
+    await expect(example).toContainText("comes to $212.31");
     await page.getByRole("button", { name: "Save Service" }).click();
     await expect(page.getByText("Service saved")).toBeVisible();
     await expect(
@@ -76,7 +84,13 @@ test("Office Staff add a Service priced by area, and retire it", async ({
   // only area pricing suits business premises
   await expect(page.getByRole("radio", { name: "By area" })).toBeChecked();
   await page.getByRole("textbox", { name: "Hours per 1,000 sq ft" }).fill("6");
-  await page.getByText("Condition changes its hours").click();
+  await page
+    .getByText("Takes longer the dirtier the place is (Condition)")
+    .click();
+  // 2 x 6 h = 12 h at $55 = $660, + 8.875% = $718.58
+  await expect(
+    page.locator("p").filter({ hasText: /^For example:/ }),
+  ).toContainText("2,000 sq ft of office takes 12 h and comes to $718.58");
   await page.getByRole("button", { name: "Add Service" }).click();
 
   await expect(page.getByText("Painting added")).toBeVisible();

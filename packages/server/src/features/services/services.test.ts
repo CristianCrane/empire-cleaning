@@ -20,7 +20,7 @@ const painting: ServiceInput = {
   description: "Walls and ceilings, inside.",
   offeredFor: "both",
   method: "area",
-  multiplier: null,
+  roomHours: null,
   hoursPerThousandSqFt: 6,
   hourlyRateCents: 7000,
   minimumChargeCents: 30000,
@@ -62,7 +62,13 @@ describe("Services", () => {
     ]);
     expect(services[0]).toMatchObject({
       key: SEEDED.standard,
-      multiplier: 1,
+      roomHours: {
+        baseHours: 1,
+        bedroomHours: 0.5,
+        bathroomHours: 0.75,
+        extraStoreyHours: 0.5,
+        petHours: 0.5,
+      },
       hourlyRateCents: 5500,
       minimumChargeCents: 10000,
       taxOneOffPercent: 8.875,
@@ -77,7 +83,7 @@ describe("Services", () => {
     });
     expect(services[3]).toMatchObject({
       hoursPerThousandSqFt: 0.5,
-      multiplier: null,
+      roomHours: null,
       needsSiteVisit: true,
     });
   });
@@ -111,9 +117,10 @@ describe("Services", () => {
     const office = await signInAsOffice();
     const before = (await list(office))[1]!;
 
-    const saved = await setService(office, "deep", { multiplier: 1.8 });
+    const roomHours = { ...before.roomHours!, bathroomHours: 1.5 };
+    const saved = await setService(office, "deep", { roomHours });
 
-    expect(saved).toMatchObject({ key: before.key, multiplier: 1.8 });
+    expect(saved).toMatchObject({ key: before.key, roomHours });
     expect(saved.id).not.toBe(before.id);
     expect(saved.version).toBeGreaterThan(before.version);
     expect((await list(office)).map((s) => s.name)[1]).toBe("Deep Clean");
@@ -136,7 +143,7 @@ describe("Services", () => {
       ...painting,
       name: "",
       method: "rooms",
-      multiplier: null,
+      roomHours: null,
       canRecur: true,
       taxPlanPercent: null,
       hourlyRateCents: 0,
@@ -146,7 +153,7 @@ describe("Services", () => {
     expect(issuesOf(res.body)).toMatchObject({
       name: "Name the Service",
       hourlyRateCents: "The hourly rate must be at least $1",
-      multiplier: "Enter a multiplier, like 1.6",
+      roomHours: "Enter how long each part of a home takes",
       offeredFor: "Price it by area to offer it for business premises",
       taxPlanPercent: "Enter a tax rate",
     });
@@ -158,11 +165,21 @@ describe("Services", () => {
     const added = (
       await office
         .post("/api/services")
-        .send({ ...painting, multiplier: 2, taxPlanPercent: 8 })
+        .send({
+          ...painting,
+          roomHours: {
+            baseHours: 1,
+            bedroomHours: 1,
+            bathroomHours: 1,
+            extraStoreyHours: 1,
+            petHours: 1,
+          },
+          taxPlanPercent: 8,
+        })
         .expect(201)
     ).body as Service;
 
-    expect(added).toMatchObject({ multiplier: null, taxPlanPercent: null });
+    expect(added).toMatchObject({ roomHours: null, taxPlanPercent: null });
   });
 
   test("won't have two live Services with the same name, or recommend themselves or a stranger", async () => {
@@ -204,13 +221,21 @@ describe("Services", () => {
 });
 
 describe("the Suggested Price, from Services", () => {
-  test("is each Clean Type's Service's rate, multiplier and Minimum Charge", async () => {
+  test("is each Clean Type's Service's own hours, rate and tax", async () => {
     const office = await signInAsOffice();
     await setService(office, "standard", {
       hourlyRateCents: 4000,
       taxOneOffPercent: 5,
     });
-    await setService(office, "deep", { multiplier: 2 });
+    await setService(office, "deep", {
+      roomHours: {
+        baseHours: 2,
+        bedroomHours: 1,
+        bathroomHours: 1.5,
+        extraStoreyHours: 1,
+        petHours: 1,
+      },
+    });
 
     const { suggested } = await askedQuote(office);
 
@@ -222,10 +247,9 @@ describe("the Suggested Price, from Services", () => {
       priceCents: 15000,
       taxPercent: 5,
     });
-    // x2 = 7.25 h at the Deep Clean's own $55 and 8.875%
+    // its own hours, each twice as long: 7.25 h, at its own $55 and 8.875%
     expect(suggested.deep).toMatchObject({
       serviceName: "Deep Clean",
-      cleanTypeMultiplier: 2,
       labourHours: 7.25,
       hourlyRateCents: 5500,
       taxPercent: 8.875,

@@ -300,7 +300,13 @@ const officeServicesRoute = createRoute({
 const officeNewServiceRoute = createRoute({
   getParentRoute: () => officeRoute,
   path: "/services/new",
-  loader: () => getJson<Service[]>("/api/services"),
+  loader: async () => {
+    const [services, list] = await Promise.all([
+      getJson<Service[]>("/api/services"),
+      getJson<PriceList>("/api/price-list"),
+    ]);
+    return { services, list };
+  },
   component: NewServiceScreen,
 });
 
@@ -308,11 +314,12 @@ const officeServiceRoute = createRoute({
   getParentRoute: () => officeRoute,
   path: "/services/$serviceKey",
   loader: async ({ params }) => {
-    const [service, services] = await Promise.all([
+    const [service, services, list] = await Promise.all([
       getJson<Service>(`/api/services/${params.serviceKey}`),
       getJson<Service[]>("/api/services"),
+      getJson<PriceList>("/api/price-list"),
     ]);
-    return { service, services };
+    return { service, services, list };
   },
   component: ServiceScreen,
 });

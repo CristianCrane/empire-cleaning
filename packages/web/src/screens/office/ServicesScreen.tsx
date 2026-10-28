@@ -3,7 +3,9 @@ import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import { Archive, ArchiveRestore, Plus } from "lucide-react";
 import type {
   OfferedFor,
+  PriceList,
   PricingMethod,
+  RoomHours,
   Service,
   ServiceInput,
 } from "@empire-cleaning/models";
@@ -35,7 +37,7 @@ import {
 import { postJson, putJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
-import { formatDate, formatMoney } from "../format.ts";
+import { formatDate, formatHours, formatMoney } from "../format.ts";
 
 export const methodLabel: Record<PricingMethod, string> = {
   rooms: "From a home's rooms",
@@ -136,7 +138,7 @@ function ServicesTable({
 
 // one Service: its figures, saved as a new version, and retiring it
 export function ServiceScreen() {
-  const { service, services } = useLoaderData({
+  const { service, services, list } = useLoaderData({
     from: "/office/services/$serviceKey",
   });
 
@@ -160,13 +162,18 @@ export function ServiceScreen() {
         </p>
       </div>
       {/* a new version starts the form afresh */}
-      <ServiceForm key={service.id} service={service} services={services} />
+      <ServiceForm
+        key={service.id}
+        service={service}
+        services={services}
+        list={list}
+      />
     </div>
   );
 }
 
 export function NewServiceScreen() {
-  const services = useLoaderData({ from: "/office/services/new" });
+  const { services, list } = useLoaderData({ from: "/office/services/new" });
 
   return (
     <div className="flex flex-col gap-6">
@@ -179,7 +186,7 @@ export function NewServiceScreen() {
         />
         <Heading level={1}>New Service</Heading>
       </div>
-      <ServiceForm services={services} />
+      <ServiceForm services={services} list={list} />
     </div>
   );
 }
@@ -190,12 +197,21 @@ type Draft = Omit<ServiceInput, "hourlyRateCents" | "minimumChargeCents"> & {
   minimumCharge: number;
 };
 
+// a Standard Clean's, to start from
+const startingRoomHours: RoomHours = {
+  baseHours: 1,
+  bedroomHours: 0.5,
+  bathroomHours: 0.75,
+  extraStoreyHours: 0.5,
+  petHours: 0.5,
+};
+
 const blank: ServiceInput = {
   name: "",
   description: "",
   offeredFor: "homes",
   method: "rooms",
-  multiplier: 1,
+  roomHours: startingRoomHours,
   hoursPerThousandSqFt: null,
   hourlyRateCents: 5500,
   minimumChargeCents: 10000,
@@ -244,9 +260,11 @@ const NONE = "none";
 function ServiceForm({
   service,
   services,
+  list,
 }: {
   service?: Service;
   services: Service[];
+  list: PriceList;
 }) {
   const [draft, setDraft] = useState(() =>
     toDraft(service ? inputOf(service) : blank),
@@ -281,10 +299,14 @@ function ServiceForm({
         hoursPerThousandSqFt: draft.hoursPerThousandSqFt ?? 0.5,
       }),
     });
+  const setRoomHours = (change: Partial<RoomHours>) =>
+    set({
+      roomHours: { ...(draft.roomHours ?? startingRoomHours), ...change },
+    });
   const setMethod = (method: PricingMethod) =>
     set(
       method === "rooms"
-        ? { method, multiplier: draft.multiplier ?? 1 }
+        ? { method, roomHours: draft.roomHours ?? startingRoomHours }
         : { method, hoursPerThousandSqFt: draft.hoursPerThousandSqFt ?? 0.5 },
     );
 
@@ -332,51 +354,70 @@ function ServiceForm({
       </Section>
 
       <Section
-        title="Price"
-        description="Before tax. Add-ons are added after the multipliers, at the same rate."
+        title="How long it takes"
+        description="Labour Hours, however many Cleaners share them. They set the price, and how long the Schedule books."
       >
         <Card>
           <SegmentedControl
-            label="Priced"
+            label="Worked out"
             name="method"
             value={draft.method}
             onChange={(v) => setMethod(v as PricingMethod)}
-            description={
-              draft.method === "rooms"
-                ? "A home's hours, from the Price List, times this Service's multiplier"
-                : "The floor area's hours, and for business premises their type's multiplier"
-            }
           >
             <Segment value="rooms" isDisabled={draft.offeredFor !== "homes"}>
               {methodLabel.rooms}
             </Segment>
             <Segment value="area">{methodLabel.area}</Segment>
           </SegmentedControl>
+          {draft.method === "rooms" ? (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {roomFields.map(({ name, label, description }) => (
+                <NumberField
+                  key={name}
+                  label={`${label} (hours)`}
+                  name={`roomHours.${name}`}
+                  description={description}
+                  // a step counts from the least value, and typed values snap to
+                  // it: 0.05 keeps 0.4 h as typed
+                  minValue={0}
+                  step={0.05}
+                  formatOptions={{ maximumFractionDigits: 2 }}
+                  value={draft.roomHours?.[name] ?? NaN}
+                  onChange={(value) => setRoomHours({ [name]: value })}
+                />
+              ))}
+            </div>
+          ) : (
+            <NumberField
+              label="Hours per 1,000 sq ft"
+              name="hoursPerThousandSqFt"
+              description={
+                draft.offeredFor === "homes"
+                  ? undefined
+                  : "For an office; other types of premises take longer or shorter, as set on the Price List"
+              }
+              minValue={0}
+              step={0.05}
+              formatOptions={{ maximumFractionDigits: 2 }}
+              value={draft.hoursPerThousandSqFt ?? NaN}
+              onChange={(hoursPerThousandSqFt) => set({ hoursPerThousandSqFt })}
+            />
+          )}
+          <Checkbox
+            isSelected={draft.conditionApplies}
+            onChange={(conditionApplies) => set({ conditionApplies })}
+          >
+            Takes longer the dirtier the place is (Condition)
+          </Checkbox>
+        </Card>
+      </Section>
+
+      <Section
+        title="Price"
+        description="Before tax. Add-ons are charged at the same rate, for their own hours."
+      >
+        <Card>
           <div className="grid gap-4 sm:grid-cols-2">
-            {draft.method === "rooms" ? (
-              <NumberField
-                label="Multiplier (×)"
-                name="multiplier"
-                description="A Standard Clean is 1"
-                minValue={0.1}
-                step={0.05}
-                formatOptions={{ maximumFractionDigits: 2 }}
-                value={draft.multiplier ?? NaN}
-                onChange={(multiplier) => set({ multiplier })}
-              />
-            ) : (
-              <NumberField
-                label="Hours per 1,000 sq ft"
-                name="hoursPerThousandSqFt"
-                minValue={0.01}
-                step={0.05}
-                formatOptions={{ maximumFractionDigits: 2 }}
-                value={draft.hoursPerThousandSqFt ?? NaN}
-                onChange={(hoursPerThousandSqFt) =>
-                  set({ hoursPerThousandSqFt })
-                }
-              />
-            )}
             <NumberField
               label="Hourly rate"
               name="hourlyRateCents"
@@ -395,12 +436,7 @@ function ServiceForm({
               onChange={(minimumCharge) => set({ minimumCharge })}
             />
           </div>
-          <Checkbox
-            isSelected={draft.conditionApplies}
-            onChange={(conditionApplies) => set({ conditionApplies })}
-          >
-            Condition changes its hours
-          </Checkbox>
+          <Example draft={draft} list={list} />
         </Card>
       </Section>
 
@@ -503,5 +539,89 @@ function ServiceForm({
         </Button>
       </Actions>
     </Form>
+  );
+}
+
+const roomFields: {
+  name: keyof RoomHours;
+  label: string;
+  description?: string;
+}[] = [
+  {
+    name: "baseHours",
+    label: "Base",
+    description: "Kitchen, living areas and entry, for every home",
+  },
+  { name: "bedroomHours", label: "Per bedroom" },
+  { name: "bathroomHours", label: "Per bathroom" },
+  {
+    name: "extraStoreyHours",
+    label: "Per extra floor",
+    description: "For each floor above the first",
+  },
+  {
+    name: "petHours",
+    label: "Pets",
+    description: "Added once if there are pets",
+  },
+];
+
+// What the figures on screen come to for a typical place, as they're typed:
+// a 2-bedroom, 1½-bathroom home on one floor without pets, or 2,000 sq ft of
+// office, in moderate Condition. Worked out as the Suggested Price is (to
+// the quarter-hour, to the whole dollar, at least the Minimum Charge), but
+// only a guide: the Quote's own is the one that counts.
+function Example({ draft, list }: { draft: Draft; list: PriceList }) {
+  const condition = draft.conditionApplies ? list.conditionModerate : 1;
+  const office = list.premisesTypes.find((t) => t.active);
+  const forBusiness = draft.offeredFor !== "homes";
+  const r = draft.roomHours;
+  const raw =
+    draft.method === "rooms"
+      ? r && r.baseHours + 2 * r.bedroomHours + 1.5 * r.bathroomHours
+      : draft.hoursPerThousandSqFt !== null &&
+        2 *
+          draft.hoursPerThousandSqFt *
+          (forBusiness && draft.conditionApplies
+            ? (office?.multiplier ?? 1)
+            : 1);
+  if (typeof raw !== "number" || !Number.isFinite(raw)) return null;
+  if (
+    !Number.isFinite(draft.hourlyRate) ||
+    !Number.isFinite(draft.minimumCharge)
+  )
+    return null;
+
+  // in 1e-4 h, so a quarter-hour boundary isn't missed by floating point
+  const units = Math.round(raw * condition * 10_000);
+  const hours = (Math.ceil(units / 2_500) * 2_500) / 10_000;
+  const rateCents = Math.round(draft.hourlyRate * 100);
+  const workedOut = Math.round((hours * rateCents) / 100) * 100;
+  const priceCents = Math.max(workedOut, Math.round(draft.minimumCharge * 100));
+  const taxCents = Math.floor(
+    (priceCents * Math.round(draft.taxOneOffPercent * 1000) + 50_000) / 100_000,
+  );
+  const place =
+    draft.method === "rooms"
+      ? "A 2-bedroom, 1½-bathroom home"
+      : forBusiness
+        ? `2,000 sq ft of ${office?.name.toLowerCase() ?? "premises"}`
+        : "2,000 sq ft";
+
+  return (
+    <p
+      aria-live="polite"
+      className="rounded-md bg-surface-sunken p-3 text-sm text-fg-muted"
+    >
+      <span className="font-semibold text-fg">For example: </span>
+      {place}
+      {draft.conditionApplies ? ", in moderate Condition," : ""} takes{" "}
+      {formatHours(hours)} and comes to{" "}
+      <span className="font-semibold text-fg">
+        {formatMoney(priceCents + taxCents)}
+      </span>{" "}
+      ({formatMoney(priceCents)} + {formatMoney(taxCents)} tax)
+      {workedOut < priceCents ? ", the Minimum Charge" : ""}.
+    </p>
   );
 }
