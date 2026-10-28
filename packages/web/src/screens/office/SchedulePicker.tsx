@@ -34,7 +34,9 @@ type Props = TimePickerProps & {
 export function PickFromSchedule(props: Props) {
   return (
     <DialogTrigger>
-      <Button variant="secondary" className="self-start">
+      {/* the way to the Schedule, under the date and time it sets: full width
+          on a phone, centred beneath them on a larger screen */}
+      <Button variant="secondary" className="w-full sm:w-auto sm:self-center">
         <CalendarDays aria-hidden size={20} />
         Pick from the Schedule
       </Button>
