@@ -38,7 +38,7 @@ import {
 } from "../format.ts";
 import { EndPlan, OnHold, PlanStatusBadge, PlanTerms } from "../PlanParts.tsx";
 import { useAction } from "../action.ts";
-import { homeCrumbs, jobStatusLabel } from "./PropertyScreen.tsx";
+import { homeCrumbs, JobStatusBadge } from "./PropertyScreen.tsx";
 import { PickFromSchedule } from "./SchedulePicker.tsx";
 import { OfferServicePlan } from "./StartDraft.tsx";
 
@@ -197,7 +197,7 @@ function PlanJobs({ plan }: { plan: OfficeServicePlan }) {
                   {job.assignment === "assigned" ? "Assigned" : "Unassigned"}
                 </StatusBadge>
               ) : (
-                <StatusBadge>{jobStatusLabel[job.status]}</StatusBadge>
+                <JobStatusBadge status={job.status} />
               )
             }
             onAction={() =>

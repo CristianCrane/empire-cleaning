@@ -180,7 +180,7 @@ export function PortalHome() {
                   addressOf(job.property),
                   `About ${formatHours(job.hoursOnSite)} on site`,
                 ].join(" · ")}
-                end={<StatusBadge tone="success">Booked</StatusBadge>}
+                end={<StatusBadge tone="info">Booked</StatusBadge>}
               />
             ))}
           </List>

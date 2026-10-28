@@ -25,7 +25,7 @@ import { List, ListItem } from "./List.tsx";
 import { Radio, RadioGroup } from "./RadioGroup.tsx";
 import { Section } from "./Section.tsx";
 import { Segment, SegmentedControl } from "./SegmentedControl.tsx";
-import { StatusBadge } from "./StatusBadge.tsx";
+import { StatusBadge, type StatusTone } from "./StatusBadge.tsx";
 import { Cell, Column, Row, Table, TableBody, TableHeader } from "./Table.tsx";
 import { Tab, TabList, TabPanel, Tabs } from "./Tabs.tsx";
 import { TextField } from "./TextField.tsx";
@@ -449,6 +449,46 @@ function EmptyStatesOfferTheAction() {
   );
 }
 
+function StatusColours() {
+  const tones: [StatusTone, string, string[]][] = [
+    ["info", "just so, nothing to do", ["Booked", "Sent", "Accepted"]],
+    ["success", "finished well", ["Completed", "Done"]],
+    ["warning", "someone needs to act", ["Requested", "Unassigned", "Expired"]],
+    ["danger", "went wrong", ["No Access", "Unpaid"]],
+    [
+      "neutral",
+      "not going ahead, or not live yet",
+      ["Draft", "Cancelled", "Declined"],
+    ],
+  ];
+  return (
+    <div className="flex flex-col gap-6">
+      <Rule title="A status means the same colour everywhere">
+        <p>
+          A <code>StatusBadge</code>'s tone says what the status means, not
+          which screen it's on: the same word is always the same colour, so a
+          table mixing Quotes, Jobs and Site Visits reads at a glance. Keep each
+          kind's tones in one map beside its labels.
+        </p>
+      </Rule>
+      <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-[auto_1fr]">
+        {tones.map(([tone, meaning, examples]) => (
+          <div key={tone} className="contents">
+            <dt className="font-semibold">{meaning}</dt>
+            <dd className="flex flex-wrap gap-2">
+              {examples.map((label) => (
+                <StatusBadge key={label} tone={tone}>
+                  {label}
+                </StatusBadge>
+              ))}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
 function ClickableCatchesTheEye() {
   return (
     <div className="flex flex-col gap-6">
@@ -511,4 +551,9 @@ export const EmptyStatesOfferTheActionStory: Story = {
 export const ClickableCatchesTheEyeStory: Story = {
   name: "Clickable catches the eye",
   render: () => <ClickableCatchesTheEye />,
+};
+
+export const StatusColoursStory: Story = {
+  name: "Status colours",
+  render: () => <StatusColours />,
 };

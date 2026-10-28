@@ -45,6 +45,7 @@ import {
   Tabs,
   TextField,
   type Crumb,
+  type StatusTone,
 } from "@empire-cleaning/ui";
 import { patchJson } from "../../api.ts";
 import { linkTo, type AppHref } from "../../links.ts";
@@ -392,7 +393,7 @@ const historyOf = (home: OfficePropertyView): HistoryEvent[] =>
       icon: Sparkles,
       kind: "Job",
       what: cleanTypeLabel[job.cleanType],
-      status: <StatusBadge>{jobStatusLabel[job.status]}</StatusBadge>,
+      status: <JobStatusBadge status={job.status} />,
       href: linkTo({ to: "/office/jobs/$jobId", params: { jobId: job.id } }),
     })),
     ...home.siteVisits.map((visit) => ({
@@ -473,6 +474,23 @@ export const jobStatusLabel: Record<JobStatus, string> = {
   cancelled: "Cancelled",
   no_access: "No Access",
 };
+
+// a Job's status in the tones every status takes: booked is just so, done
+// went well, cancelled is over, No Access went wrong
+const jobStatusTone: Record<JobStatus, StatusTone> = {
+  booked: "info",
+  completed: "success",
+  cancelled: "neutral",
+  no_access: "danger",
+};
+
+export function JobStatusBadge({ status }: { status: JobStatus }) {
+  return (
+    <StatusBadge tone={jobStatusTone[status]}>
+      {jobStatusLabel[status]}
+    </StatusBadge>
+  );
+}
 
 // Corrections to the details that affect the price: only what differs from
 // what's saved is sent

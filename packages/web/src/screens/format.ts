@@ -175,7 +175,7 @@ export const quoteStatusTone = {
   requested: "warning",
   draft: "neutral",
   sent: "info",
-  accepted: "success",
+  accepted: "info",
   declined: "neutral",
   expired: "warning",
   turned_down: "neutral",
