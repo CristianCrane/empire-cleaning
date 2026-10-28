@@ -65,6 +65,7 @@ import {
   tabFor,
 } from "./screens/office/ClientsScreen.tsx";
 import {
+  currentVisit,
   PropertyScreen,
   propertyTabs,
   type PropertySearch,
@@ -346,13 +347,19 @@ const officePropertyRoute = createRoute({
       getJson<OfficePropertyView>(`/api/properties/${params.propertyId}`),
       getJson<PremisesTypeChoice[]>("/api/price-list/premises-types"),
     ]);
-    // its current Service Plan in full, for the Service Plan Tab
-    const plan = home.servicePlan
-      ? await getJson<OfficeServicePlan>(
-          `/api/service-plans/${home.servicePlan.id}`,
-        )
-      : null;
-    return { home, premisesTypes, plan };
+    // its current Service Plan and Site Visit in full, for their Tabs
+    const current = currentVisit(home);
+    const [plan, visit] = await Promise.all([
+      home.servicePlan
+        ? getJson<OfficeServicePlan>(
+            `/api/service-plans/${home.servicePlan.id}`,
+          )
+        : null,
+      current
+        ? getJson<OfficeSiteVisit>(`/api/site-visits/${current.id}`)
+        : null,
+    ]);
+    return { home, premisesTypes, plan, visit };
   },
   component: PropertyScreen,
 });
@@ -382,11 +389,23 @@ const officeServicePlanRoute = createRoute({
 const officeSiteVisitRoute = createRoute({
   getParentRoute: () => officeRoute,
   path: "/site-visits/$visitId",
+  // a home's current Site Visit is shown on its Site Visit Tab; earlier
+  // and cancelled ones keep this page
   loader: async ({ params }) => {
     const [visit, premisesTypes] = await Promise.all([
       getJson<OfficeSiteVisit>(`/api/site-visits/${params.visitId}`),
       getJson<PremisesTypeChoice[]>("/api/price-list/premises-types"),
     ]);
+    const home = await getJson<OfficePropertyView>(
+      `/api/properties/${visit.property.id}`,
+    );
+    if (currentVisit(home)?.id === visit.id)
+      throw redirect({
+        to: "/office/properties/$propertyId",
+        params: { propertyId: home.id },
+        search: { tab: "visit" },
+        replace: true,
+      });
     return { visit, premisesTypes };
   },
   component: SiteVisitScreen,

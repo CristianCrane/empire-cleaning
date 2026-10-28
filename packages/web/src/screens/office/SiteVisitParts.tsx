@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
-import { CalendarPlus } from "lucide-react";
+import {
+  CalendarClock,
+  CalendarPlus,
+  CalendarX,
+  ClipboardCheck,
+} from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import {
   parseDate,
@@ -274,7 +279,10 @@ export function MoveSiteVisit({ visit }: { visit: OfficeSiteVisit }) {
   const action = useAction("The Site Visit wasn't changed. Please try again.");
   return (
     <DialogTrigger>
-      <Button variant="secondary">Move or change</Button>
+      <Button variant="text" size="sm">
+        <CalendarClock aria-hidden size={16} />
+        Move or change
+      </Button>
       <Dialog title="Move this Site Visit">
         {({ close }) => (
           <BookingForm
@@ -305,7 +313,10 @@ export function CancelSiteVisit({ visit }: { visit: OfficeSiteVisit }) {
   );
   return (
     <DialogTrigger>
-      <Button variant="secondary">Cancel visit</Button>
+      <Button variant="danger" size="sm">
+        <CalendarX aria-hidden size={16} />
+        Cancel visit
+      </Button>
       <Dialog title="Cancel this Site Visit?" role="alertdialog">
         {({ close }) => (
           <>
@@ -536,7 +547,10 @@ export function RecordFindings({
   const action = useAction("The findings weren't saved. Please try again.");
   return (
     <DialogTrigger>
-      <Button>Record findings</Button>
+      <Button>
+        <ClipboardCheck aria-hidden size={18} />
+        Record findings
+      </Button>
       <Dialog title="What the Site Visit found">
         {({ close }) => (
           <FindingsForm

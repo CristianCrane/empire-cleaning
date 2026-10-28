@@ -1,7 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { useLoaderData, useNavigate, useSearch } from "@tanstack/react-router";
 import {
-  ArrowRight,
   Building2,
   CalendarCheck,
   House,
@@ -19,6 +18,7 @@ import type {
   JobStatus,
   OfficePropertyView,
   OfficeServicePlan,
+  OfficeSiteVisit,
   PremisesTypeChoice,
   PremisesView,
   PropertyType,
@@ -28,7 +28,6 @@ import {
   Actions,
   Breadcrumbs,
   Button,
-  ButtonLink,
   Card,
   Cell,
   Checkbox,
@@ -72,9 +71,9 @@ import {
   BookSiteVisit,
   RecordFindingsWithoutVisit,
   SiteVisitBadge,
-  visitSummary,
 } from "./SiteVisitParts.tsx";
 import { PlanDetails } from "./ServicePlanScreen.tsx";
+import { VisitDetails } from "./SiteVisitScreen.tsx";
 import { OfferServicePlan } from "./StartDraft.tsx";
 
 // the Property page's Tabs, Details first: what the Office opens a home for
@@ -85,7 +84,7 @@ export type PropertySearch = { tab?: PropertyTab };
 // a home for the Office (ADR-0011): its details first, then its Service
 // Plan, its Site Visit and its whole history, a Tab each
 export function PropertyScreen() {
-  const { home, premisesTypes, plan } = useLoaderData({
+  const { home, premisesTypes, plan, visit } = useLoaderData({
     from: "/office/properties/$propertyId",
   });
   const { tab = "details" } = useSearch({
@@ -143,7 +142,7 @@ export function PropertyScreen() {
           <PlanTab home={home} plan={plan} />
         </TabPanel>
         <TabPanel id="visit">
-          <VisitTab home={home} premisesTypes={premisesTypes} />
+          <VisitTab home={home} visit={visit} premisesTypes={premisesTypes} />
         </TabPanel>
         <TabPanel id="history">
           <History home={home} events={history} />
@@ -301,23 +300,28 @@ function PlanTab({
   );
 }
 
+// the Site Visit its Tab shows: the one booked, else the last done. Earlier
+// and cancelled ones are in its History
+export const currentVisit = (home: OfficePropertyView) =>
+  home.siteVisits.find((v) => v.status === "booked") ??
+  home.siteVisits.find((v) => v.status === "done");
+
 /**
- * Its Site Visit: the one booked, else the last done, opening its own page
- * (#73); earlier ones are in its History. Business premises need findings
- * recorded before a Quote is Sent (ADR-0014); premises the Office knows can
- * have them recorded with no visit. A Site Visit is for a Quote with nothing
- * Sent yet, and a Property has one booked at a time.
+ * Its Site Visit in full (#73), or, with none, the way to book one. Business
+ * premises need findings recorded before a Quote is Sent (ADR-0014);
+ * premises the Office knows can have them recorded with no visit. A Site
+ * Visit is for a Quote with nothing Sent yet, and a Property has one booked
+ * at a time.
  */
 function VisitTab({
   home,
+  visit,
   premisesTypes,
 }: {
   home: OfficePropertyView;
+  visit: OfficeSiteVisit | null;
   premisesTypes: PremisesTypeChoice[];
 }) {
-  const visit =
-    home.siteVisits.find((v) => v.status === "booked") ??
-    home.siteVisits.find((v) => v.status === "done");
   const unsent = home.quotes.find(
     (q) => q.status === "requested" || q.status === "draft",
   );
@@ -353,40 +357,13 @@ function VisitTab({
     );
   }
 
-  const booked = visit.status === "booked";
+  // once it's done, another can be booked for a Quote not sent yet
   return (
-    <Card>
-      {booked && premises && !home.findingsRecorded && (
-        <Notice>
-          Record what the Site Visit finds, and a Quote can be sent.
-        </Notice>
-      )}
-      <div className="flex flex-wrap items-start gap-3">
-        <div className="flex flex-1 flex-col gap-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <Heading level={2} size={4}>
-              {booked ? "Booked" : "Seen"}
-            </Heading>
-            <SiteVisitBadge status={visit.status} />
-          </div>
-          <p className="text-fg-muted">{visitSummary(visit)}</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {!booked && actions(false)}
-          <ButtonLink
-            variant="text"
-            size="sm"
-            href={linkTo({
-              to: "/office/site-visits/$visitId",
-              params: { visitId: visit.id },
-            })}
-          >
-            <ArrowRight aria-hidden size={16} />
-            Open the Site Visit
-          </ButtonLink>
-        </div>
-      </div>
-    </Card>
+    <VisitDetails
+      visit={visit}
+      premisesTypes={premisesTypes}
+      actions={visit.status !== "booked" && actions(false)}
+    />
   );
 }
 
