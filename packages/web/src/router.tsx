@@ -29,6 +29,7 @@ import type {
   PaymentMethodView,
   PremisesTypeChoice,
   PriceList,
+  Service,
   QuoteSummary,
   ScheduleDay,
   ServicePlanSummary,
@@ -46,6 +47,11 @@ import { BillScreen } from "./screens/office/BillScreen.tsx";
 import { Dashboard } from "./screens/office/Dashboard.tsx";
 import { JobScreen } from "./screens/office/JobScreen.tsx";
 import { PriceListScreen } from "./screens/office/PriceListScreen.tsx";
+import {
+  NewServiceScreen,
+  ServiceScreen,
+  ServicesScreen,
+} from "./screens/office/ServicesScreen.tsx";
 import { QuoteScreen } from "./screens/office/QuoteScreen.tsx";
 import {
   QuotesScreen,
@@ -282,6 +288,40 @@ const officePriceListRoute = createRoute({
   path: "/price-list",
   loader: () => getJson<PriceList>("/api/price-list"),
   component: PriceListScreen,
+});
+
+const officeServicesRoute = createRoute({
+  getParentRoute: () => officeRoute,
+  path: "/services",
+  loader: () => getJson<Service[]>("/api/services"),
+  component: ServicesScreen,
+});
+
+const officeNewServiceRoute = createRoute({
+  getParentRoute: () => officeRoute,
+  path: "/services/new",
+  loader: async () => {
+    const [services, list] = await Promise.all([
+      getJson<Service[]>("/api/services"),
+      getJson<PriceList>("/api/price-list"),
+    ]);
+    return { services, list };
+  },
+  component: NewServiceScreen,
+});
+
+const officeServiceRoute = createRoute({
+  getParentRoute: () => officeRoute,
+  path: "/services/$serviceKey",
+  loader: async ({ params }) => {
+    const [service, services, list] = await Promise.all([
+      getJson<Service>(`/api/services/${params.serviceKey}`),
+      getJson<Service[]>("/api/services"),
+      getJson<PriceList>("/api/price-list"),
+    ]);
+    return { service, services, list };
+  },
+  component: ServiceScreen,
 });
 
 const officeClientsRoute = createRoute({
@@ -569,6 +609,9 @@ const routeTree = rootRoute.addChildren([
     officeServicePlanRoute,
     officeSiteVisitRoute,
     officePriceListRoute,
+    officeServicesRoute,
+    officeNewServiceRoute,
+    officeServiceRoute,
     officeStaffRoute,
     officeStaffMemberRoute,
     officeScheduleRoute,

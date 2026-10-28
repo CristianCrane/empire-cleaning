@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLoaderData } from "@tanstack/react-router";
+import { Link, useLoaderData } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 import type {
   OfferedFor,
@@ -25,7 +25,7 @@ import { putJson } from "../../api.ts";
 import { useAction } from "../action.ts";
 import { formatDate } from "../format.ts";
 
-// Money is shown in dollars and kept in cents; a draft is what's on screen.
+// a draft is what's on screen
 type Draft = Omit<
   PriceList,
   | "id"
@@ -33,15 +33,9 @@ type Draft = Omit<
   | "placeholder"
   | "createdAt"
   | "createdByName"
-  | "hourlyRateCents"
-  | "commercialHourlyRateCents"
-  | "minimumChargeCents"
   | "addOns"
   | "premisesTypes"
 > & {
-  hourlyRate: number;
-  commercialHourlyRate: number;
-  minimumCharge: number;
   addOns: PriceListAddOn[];
   premisesTypes: PriceListPremisesType[];
 };
@@ -53,34 +47,10 @@ const toDraft = (list: PriceList): Draft => {
     placeholder: _placeholder,
     createdAt: _createdAt,
     createdByName: _createdByName,
-    hourlyRateCents,
-    commercialHourlyRateCents,
-    minimumChargeCents,
-    addOns,
-    premisesTypes,
     ...figures
   } = list;
-  return {
-    ...figures,
-    hourlyRate: hourlyRateCents / 100,
-    commercialHourlyRate: commercialHourlyRateCents / 100,
-    minimumCharge: minimumChargeCents / 100,
-    addOns,
-    premisesTypes,
-  };
+  return figures;
 };
-
-const toInput = ({
-  hourlyRate,
-  commercialHourlyRate,
-  minimumCharge,
-  ...rest
-}: Draft) => ({
-  ...rest,
-  hourlyRateCents: Math.round(hourlyRate * 100),
-  commercialHourlyRateCents: Math.round(commercialHourlyRate * 100),
-  minimumChargeCents: Math.round(minimumCharge * 100),
-});
 
 const offeredForLabel: Record<OfferedFor, string> = {
   homes: "Homes",
@@ -88,7 +58,6 @@ const offeredForLabel: Record<OfferedFor, string> = {
   both: "Homes and businesses",
 };
 
-const dollars = { style: "currency", currency: "USD" } as const;
 const rate = { maximumFractionDigits: 3 } as const;
 
 export function PriceListScreen() {
@@ -102,7 +71,12 @@ export function PriceListScreen() {
           ? "Starting figures"
           : `Version ${list.version}, saved by ${list.createdByName ?? "someone"} on ${formatDate(list.createdAt)}`}
         . Changes apply to prices worked out from now on. Quotes already sent
-        keep the prices they were sent with.
+        keep the prices they were sent with. Each Service's hourly rate, Minimum
+        Charge and tax are on{" "}
+        <Link to="/office/services" className="font-semibold text-primary">
+          Services
+        </Link>
+        .
       </p>
       {list.placeholder && (
         <Notice>
@@ -140,7 +114,7 @@ function Editor({ list }: { list: PriceList }) {
 
   const save = () =>
     action.run(
-      () => putJson<PriceList>("/api/price-list", toInput(draft)),
+      () => putJson<PriceList>("/api/price-list", draft),
       (saved) => `Price List saved as version ${saved.version}`,
     );
 
@@ -153,85 +127,9 @@ function Editor({ list }: { list: PriceList }) {
       }}
     >
       <Card
-        title="Rates"
+        title="Types of business premises"
         headingLevel={2}
-        description="What an hour of Labour costs, before tax: at a home, and at business premises."
-      >
-        <div className="grid gap-4 sm:grid-cols-2">
-          <NumberField
-            label="Residential hourly rate"
-            name="hourlyRateCents"
-            minValue={1}
-            formatOptions={dollars}
-            value={draft.hourlyRate}
-            onChange={(hourlyRate) => set({ hourlyRate })}
-          />
-          <NumberField
-            label="Commercial hourly rate"
-            name="commercialHourlyRateCents"
-            minValue={1}
-            formatOptions={dollars}
-            value={draft.commercialHourlyRate}
-            onChange={(commercialHourlyRate) => set({ commercialHourlyRate })}
-          />
-          <NumberField
-            label="Minimum Charge"
-            name="minimumChargeCents"
-            description="No Suggested Price is lower. You can still override it on a Quote."
-            minValue={0}
-            formatOptions={dollars}
-            value={draft.minimumCharge}
-            onChange={(minimumCharge) => set({ minimumCharge })}
-          />
-        </div>
-      </Card>
-
-      <Card
-        title="Hours for a home"
-        headingLevel={2}
-        description="How long a home takes before Condition and Clean Type apply."
-      >
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Hours
-            label="Base hours"
-            name="baseHours"
-            description="Kitchen, living areas and entry, for every home"
-            draft={draft}
-            set={set}
-          />
-          <Hours
-            label="Per bedroom"
-            name="bedroomHours"
-            draft={draft}
-            set={set}
-          />
-          <Hours
-            label="Per bathroom"
-            name="bathroomHours"
-            draft={draft}
-            set={set}
-          />
-          <Hours
-            label="Per extra floor"
-            name="extraStoreyHours"
-            description="For each floor above the first"
-            draft={draft}
-            set={set}
-          />
-          <Hours
-            label="Pets"
-            name="petHours"
-            description="Added once if there are pets"
-            draft={draft}
-            set={set}
-          />
-        </div>
-      </Card>
-
-      <Card
-        title="Hours for business premises"
-        headingLevel={2}
-        description="How long each 1,000 sq ft of each type of premises takes, before Condition and Clean Type apply. Retire a type to stop offering it: premises of that type still price by it."
+        description="How much longer or shorter each type of premises takes to clean than an office (1), for Services priced by area that Condition affects. Retire a type to stop offering it: premises of that type still price by it."
       >
         <ul className="flex flex-col gap-4">
           {draft.premisesTypes.map((premisesType, i) => (
@@ -248,16 +146,14 @@ function Editor({ list }: { list: PriceList }) {
                   onChange={(name) => setPremisesType(i, { name })}
                 />
                 <NumberField
-                  label="Hours per 1,000 sq ft"
-                  name={`premisesTypes.${i}.hoursPerThousandSqFt`}
-                  minValue={0.01}
+                  label="Multiplier (×)"
+                  name={`premisesTypes.${i}.multiplier`}
+                  minValue={0.1}
                   step={0.05}
                   formatOptions={{ maximumFractionDigits: 2 }}
                   isDisabled={!premisesType.active}
-                  value={premisesType.hoursPerThousandSqFt}
-                  onChange={(hoursPerThousandSqFt) =>
-                    setPremisesType(i, { hoursPerThousandSqFt })
-                  }
+                  value={premisesType.multiplier}
+                  onChange={(multiplier) => setPremisesType(i, { multiplier })}
                 />
               </div>
               <div className="flex flex-wrap items-center justify-end gap-2">
@@ -304,7 +200,7 @@ function Editor({ list }: { list: PriceList }) {
             set({
               premisesTypes: [
                 ...draft.premisesTypes,
-                { name: "", hoursPerThousandSqFt: 0.5, active: true },
+                { name: "", multiplier: 1, active: true },
               ],
             })
           }
@@ -315,9 +211,9 @@ function Editor({ list }: { list: PriceList }) {
       </Card>
 
       <Card
-        title="Multipliers"
+        title="Condition"
         headingLevel={2}
-        description="They multiply a home's or premises' hours. Add-ons are not multiplied."
+        description="It multiplies a home's or premises' hours, for Services that Condition affects. Add-ons are not multiplied."
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <Multiplier
@@ -335,13 +231,6 @@ function Editor({ list }: { list: PriceList }) {
           <Multiplier
             label="Heavy Condition"
             name="conditionHeavy"
-            draft={draft}
-            set={set}
-          />
-          <Multiplier
-            label="Deep Clean"
-            name="deepCleanMultiplier"
-            description="A Standard Clean is 1"
             draft={draft}
             set={set}
           />
@@ -371,7 +260,7 @@ function Editor({ list }: { list: PriceList }) {
                   label="Hours"
                   name={`addOns.${i}.hours`}
                   minValue={0}
-                  step={0.25}
+                  step={0.05}
                   formatOptions={{ maximumFractionDigits: 2 }}
                   isDisabled={!addOn.active}
                   value={addOn.hours}
@@ -493,29 +382,11 @@ function Editor({ list }: { list: PriceList }) {
       </Card>
 
       <Card
-        title="Sales tax"
+        title="Sales tax on fees"
         headingLevel={2}
-        description="Added to the rates above, so Clients see prices with tax. Confirm these with your accountant."
+        description="Added to Late Cancellation and No Access fees. Each Service has its own rates for its Jobs. Confirm these with your accountant."
       >
         <div className="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-4">
-          <Tax
-            label="Residential one-off Jobs (%)"
-            name="taxOneOffPercent"
-            draft={draft}
-            set={set}
-          />
-          <Tax
-            label="Residential Service Plan Jobs (%)"
-            name="taxServicePlanPercent"
-            draft={draft}
-            set={set}
-          />
-          <Tax
-            label="Commercial Jobs (%)"
-            name="taxCommercialPercent"
-            draft={draft}
-            set={set}
-          />
           <Tax label="Fees (%)" name="taxFeePercent" draft={draft} set={set} />
         </div>
       </Card>
@@ -538,19 +409,6 @@ type FieldProps = {
   draft: Draft;
   set: (change: Partial<Draft>) => void;
 };
-
-const Hours = ({ label, name, description, draft, set }: FieldProps) => (
-  <NumberField
-    label={`${label} (hours)`}
-    name={name}
-    description={description}
-    minValue={0}
-    step={0.25}
-    formatOptions={{ maximumFractionDigits: 2 }}
-    value={draft[name] as number}
-    onChange={(value) => set({ [name]: value })}
-  />
-);
 
 const Multiplier = ({ label, name, description, draft, set }: FieldProps) => (
   <NumberField

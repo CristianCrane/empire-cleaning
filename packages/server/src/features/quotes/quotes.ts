@@ -11,7 +11,6 @@ import type {
   OfficeRevision,
   PlanChoice,
   PlanDayTerms,
-  PriceList,
   QuoteAddOn,
   QuoteDraftInput,
   QuoteKind,
@@ -50,7 +49,12 @@ import {
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { officeCompletionOf } from "../completion/completion.ts";
 import { paymentMethodOf, toPaymentMethodView } from "../payments/payments.ts";
-import { currentPriceList } from "../price-list/price-list.ts";
+import {
+  cleanTypesFor,
+  currentPricing,
+  serviceFor,
+  type Pricing,
+} from "../services/services.ts";
 import { priceLists } from "../price-list/price-list.schema.ts";
 import {
   addOnCents,
@@ -154,7 +158,7 @@ const homeOf = async (propertyId: string) => {
 // the Add-ons a Revision can carry: those on offer for its kind of Property,
 // and any asked for that have since been retired
 const addOnChoices = async (
-  list: PriceList,
+  list: Pricing,
   property: Property,
   quoteId: string,
 ): Promise<AddOnChoice[]> => {
@@ -199,7 +203,7 @@ const oneOffTerms = (
   overrides: Overrides,
 ): Terms => ({
   kind: "one_off",
-  visits: CLEAN_TYPES.map((cleanType) => ({
+  visits: cleanTypesFor(property.kind).map((cleanType) => ({
     position: 0,
     cleanType,
     startsAt: null,
@@ -220,13 +224,13 @@ const planTerms = (
   discountPercent: plan.planDiscountPercent,
 });
 
-// The Revision's visits priced from the Price List for the Property as it is
-// now, with any override in place of the Suggested Price, then any Plan
-// Discount off that, overridden or not. Tax is on what's left, at the rate
-// for the kind of Job (a commercial one's, plan or not, is the commercial
-// rate), with tax-exempt Add-ons discounted alike.
+// The Revision's visits priced from the Price List and the Service each
+// Clean Type stands for, for the Property as it is now, with any override in
+// place of the Suggested Price, then any Plan Discount off that, overridden
+// or not. Tax is on what's left, at the Service's one-off or plan rate, with
+// tax-exempt Add-ons discounted alike.
 const priceOptions = (
-  list: PriceList,
+  list: Pricing,
   property: Property,
   addOnKeys: string[],
   terms: Terms,
@@ -235,8 +239,10 @@ const priceOptions = (
   const kept = (100 - terms.discountPercent) / 100;
   return terms.visits.map(
     ({ position, cleanType, startsAt, crewSize, override }) => {
+      const service = serviceFor(list.services, property.kind, cleanType);
       const suggested = suggestedPrice(
         list,
+        service,
         pricedOf(property),
         terms.condition,
         cleanType,
@@ -248,8 +254,8 @@ const priceOptions = (
       const taxCents = taxOn(priceCents, {
         hourlyRateCents: suggested.hourlyRateCents,
         taxPercent:
-          terms.kind === "service_plan" && property.kind === "residential"
-            ? list.taxServicePlanPercent
+          terms.kind === "service_plan"
+            ? (service.taxPlanPercent ?? service.taxOneOffPercent)
             : suggested.taxPercent,
         addOns: suggested.addOns.map((a) => ({
           ...a,
@@ -259,6 +265,7 @@ const priceOptions = (
       return {
         position,
         cleanType,
+        serviceId: service.id,
         startsAt,
         crewSize,
         suggested,
@@ -326,6 +333,7 @@ export const toOption = (
   row: RevisionOptionRow,
 ): QuoteOption => ({
   cleanType: row.cleanType,
+  serviceName: row.suggested.serviceName ?? null,
   // a Service Plan's Clean Types are the ones chosen for it
   recommended: revision.kind === "one_off" && row.cleanType === "deep",
   labourHours: row.labourHours,
@@ -478,11 +486,13 @@ const PLAN_CLEAN_TYPES: CleanType[] = ["standard", "deep"];
 const planChoicesOf = (
   revision: KindedRevision,
   rows: RevisionOptionRow[],
-  list: PriceList,
+  list: Pricing,
   property: Property,
 ): PlanChoice[][] =>
   inOrder(rows).map((saved) =>
-    PLAN_CLEAN_TYPES.map((cleanType) => {
+    PLAN_CLEAN_TYPES.filter((t) =>
+      cleanTypesFor(property.kind).includes(t),
+    ).map((cleanType) => {
       const row =
         cleanType === saved.cleanType
           ? saved
@@ -509,7 +519,7 @@ const planChoicesOf = (
 // one Revision in full, for the Office
 const officeRevision = async (
   revision: KindedRevision,
-  list: PriceList,
+  list: Pricing,
   property: Property,
 ): Promise<OfficeRevision> => {
   const [rows, [priced]] = await Promise.all([
@@ -570,7 +580,7 @@ export const officeQuote = async (id: string): Promise<OfficeQuote> => {
   const quote = await findQuote(id);
   const [home, list, draft, offer] = await Promise.all([
     homeOf(quote.propertyId),
-    currentPriceList(),
+    currentPricing(),
     draftRevisionOf(id),
     findRevision(quote.sentRevisionId),
   ]);
@@ -608,6 +618,7 @@ export const officeQuote = async (id: string): Promise<OfficeQuote> => {
   const price = (cleanType: CleanType) =>
     suggestedPrice(
       list,
+      serviceFor(list.services, property.kind, cleanType),
       pricedOf(property),
       property.condition,
       cleanType,
@@ -632,7 +643,8 @@ export const officeQuote = async (id: string): Promise<OfficeQuote> => {
     suggested: {
       priceListVersion: list.version,
       standard: price("standard"),
-      deep: price("deep"),
+      // business premises have only their commercial cleaning
+      deep: property.kind === "commercial" ? null : price("deep"),
     },
     needsSiteVisit: await needsSiteVisit(property),
     siteVisit: siteVisitOf(status, stages.get(propertyId)),
@@ -837,14 +849,14 @@ const newRevisionOptions = async (
   quote: Quote,
   kind: QuoteKind,
   property: Property,
-  list: PriceList,
+  list: Pricing,
 ) => {
   const offer = await findRevision(quote.sentRevisionId);
   if (offer) {
     const rows = inOrder(await optionsOf(offer.id));
     const addOnKeys = rows[0]!.suggested.addOns.map((a) => a.key);
-    const overrideOf = (row: RevisionOptionRow) =>
-      row.overrideCents === null
+    const overrideOf = (row: RevisionOptionRow | undefined) =>
+      !row || row.overrideCents === null
         ? null
         : { priceCents: row.overrideCents, reason: row.overrideReason! };
     const terms =
@@ -857,8 +869,8 @@ const newRevisionOptions = async (
             rows.map((row) => ({ ...row, override: overrideOf(row) })),
           )
         : oneOffTerms(property, offer.crewSize, {
-            deep: overrideOf(rows.find((r) => r.cleanType === "deep")!),
-            standard: overrideOf(rows.find((r) => r.cleanType === "standard")!),
+            deep: overrideOf(rows.find((r) => r.cleanType === "deep")),
+            standard: overrideOf(rows.find((r) => r.cleanType === "standard")),
           });
     return {
       revision: {
@@ -917,7 +929,7 @@ const insertRevision = async (
   property: Property,
   accountId: string,
 ) => {
-  const list = await currentPriceList();
+  const list = await currentPricing();
   const { revision, options } = await newRevisionOptions(
     quote,
     kind,
@@ -1126,7 +1138,7 @@ export const saveDraft = async (
   const { quote, draft } = await findDraftRevision(id);
   const [home, list] = await Promise.all([
     homeOf(quote.propertyId),
-    currentPriceList(),
+    currentPricing(),
   ]);
 
   const allowed = new Set(

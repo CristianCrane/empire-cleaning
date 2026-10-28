@@ -20,6 +20,7 @@ import {
   completedFirstClean,
   guestAsk,
   home,
+  setService,
   signInAsOffice,
   submit,
 } from "../../../tests/fixtures.ts";
@@ -515,18 +516,7 @@ describe("drafting a Service Plan Quote", () => {
 
   test("each Job is taxed at the Service Plan rate, the one-off price at the one-off rate", async () => {
     const { office, propertyId } = await firstCleanDone();
-    const {
-      id: _,
-      version,
-      createdAt,
-      createdByName,
-      placeholder,
-      ...list
-    } = (await office.get("/api/price-list").expect(200)).body as PriceList;
-    await office
-      .put("/api/price-list")
-      .send({ ...list, taxServicePlanPercent: 4.5 })
-      .expect(200);
+    await setService(office, "standard", { taxPlanPercent: 4.5 });
 
     const draft = await startPlan(office, propertyId);
 

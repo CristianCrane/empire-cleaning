@@ -14,6 +14,7 @@ import {
   casey,
   guestAsk,
   home,
+  setService,
   signInAsOffice,
   submit,
 } from "../../../tests/fixtures.ts";
@@ -146,11 +147,11 @@ describe("drafting a First Clean Quote", () => {
     expect(option(draft, "deep")).toMatchObject({
       suggested: suggested.deep,
       overrideCents: null,
-      priceCents: suggested.deep.priceCents,
-      taxCents: suggested.deep.taxCents,
-      totalCents: suggested.deep.totalCents,
-      labourHours: suggested.deep.labourHours,
-      hoursOnSite: suggested.deep.labourHours / 2,
+      priceCents: suggested.deep!.priceCents,
+      taxCents: suggested.deep!.taxCents,
+      totalCents: suggested.deep!.totalCents,
+      labourHours: suggested.deep!.labourHours,
+      hoursOnSite: suggested.deep!.labourHours / 2,
     });
     expect(option(draft, "standard").totalCents).toBe(
       suggested.standard.totalCents,
@@ -338,8 +339,10 @@ describe("sending a Quote", () => {
       .body as PriceList;
     await office
       .put("/api/price-list")
-      .send({ ...list, hourlyRateCents: 9900, depositPercent: 40 })
+      .send({ ...list, depositPercent: 40 })
       .expect(200);
+    await setService(office, "standard", { hourlyRateCents: 9900 });
+    await setService(office, "deep", { hourlyRateCents: 9900 });
 
     const office2 = (await office.get(`/api/quotes/${quote.id}`).expect(200))
       .body as OfficeQuote;
@@ -500,6 +503,7 @@ describe("a Client's Quotes", () => {
     const deep = option(sent, "deep");
     expect(quote.options[0]).toEqual({
       cleanType: "deep",
+      serviceName: "Deep Clean",
       recommended: true,
       labourHours: deep.labourHours,
       hoursOnSite: deep.hoursOnSite,

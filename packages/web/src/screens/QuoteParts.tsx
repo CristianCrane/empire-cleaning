@@ -10,6 +10,7 @@ import type {
 import { Card, StatusBadge } from "@empire-cleaning/ui";
 import {
   cleanTypeLabel,
+  optionLabel,
   formatHours,
   formatMoney,
   planDayWhen,
@@ -42,7 +43,7 @@ export function OptionCard({
 }) {
   return (
     <Card
-      title={cleanTypeLabel[option.cleanType]}
+      title={optionLabel(option)}
       headingLevel={3}
       actions={
         option.recommended && (

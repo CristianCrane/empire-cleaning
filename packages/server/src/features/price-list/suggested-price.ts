@@ -3,19 +3,24 @@ import type {
   Condition,
   PriceBreakdown,
   PriceList,
+  RoomHours,
+  Service,
 } from "@empire-cleaning/models";
 
-// The Suggested Price (#4, #72), as the glossary and spec define it:
+// The Suggested Price (#4, #72, ADR-0018), as the glossary defines it, for
+// one Service:
 //
-//   a home's hours = base + bedrooms + bathrooms + extra floors + pets
-//   business premises' hours = floor area / 1,000 x the Premises Type's hours
-//   Labour Hours = those hours x Condition x Clean Type, plus each Add-on's
-//                  own hours, rounded UP to the quarter-hour
-//   Suggested Price = Labour Hours x the residential or commercial hourly
-//                  rate, to the whole dollar, never below the Minimum
-//                  Charge; all before tax
-//   tax = the residential one-off or the commercial rate on the price, less
-//         any tax-exempt Add-ons' share of it; the Client sees price + tax
+//   priced from a home's rooms: base + bedrooms + bathrooms + extra floors
+//                  + pets, at the Service's hours for each
+//   priced by area: floor area / 1,000 x the Service's hours per 1,000 sq ft,
+//                  x the Premises Type for business premises
+//   Labour Hours = those hours x Condition (where the Service says it
+//                  applies), plus each Add-on's own hours, rounded UP to the
+//                  quarter-hour
+//   Suggested Price = Labour Hours x the Service's hourly rate, to the whole
+//                  dollar, never below its Minimum Charge; all before tax
+//   tax = the Service's one-off rate on the price, less any tax-exempt
+//         Add-ons' share of it; the Client sees price + tax
 //
 // All the arithmetic is in whole numbers (hours in 1e-4, multipliers in
 // hundredths), so a quarter-hour boundary is never missed by floating point.
@@ -69,68 +74,67 @@ export const pricedOf = (p: {
         pets: p.pets!,
       };
 
-// the hourly rate and tax rate for a kind of Property's one-off Jobs
-export const ratesFor = (list: PriceList, kind: Priced["kind"]) =>
-  kind === "commercial"
-    ? {
-        hourlyRateCents: list.commercialHourlyRateCents,
-        taxPercent: list.taxCommercialPercent,
-      }
-    : {
-        hourlyRateCents: list.hourlyRateCents,
-        taxPercent: list.taxOneOffPercent,
-      };
-
 const sqFt = new Intl.NumberFormat("en-US");
 
 const homeParts = (
-  list: PriceList,
+  hours: RoomHours,
   home: Extract<Priced, { kind: "residential" }>,
 ) => {
   const extraStoreys = Math.max(0, home.storeys - 1);
   return [
     {
       label: "Kitchen, living areas and entry",
-      units: hoursUnits(list.baseHours),
+      units: hoursUnits(hours.baseHours),
     },
     {
-      label: `Bedrooms (${home.bedrooms} × ${list.bedroomHours} h)`,
-      units: home.bedrooms * hoursUnits(list.bedroomHours),
+      label: `Bedrooms (${home.bedrooms} × ${hours.bedroomHours} h)`,
+      units: home.bedrooms * hoursUnits(hours.bedroomHours),
     },
     {
-      label: `Bathrooms (${home.bathrooms} × ${list.bathroomHours} h)`,
+      label: `Bathrooms (${home.bathrooms} × ${hours.bathroomHours} h)`,
       // bathrooms come in halves, so scale before dividing
-      units: (home.bathrooms * 2 * hoursUnits(list.bathroomHours)) / 2,
+      units: (home.bathrooms * 2 * hoursUnits(hours.bathroomHours)) / 2,
     },
     {
-      label: `Extra floors (${extraStoreys} × ${list.extraStoreyHours} h)`,
-      units: extraStoreys * hoursUnits(list.extraStoreyHours),
+      label: `Extra floors (${extraStoreys} × ${hours.extraStoreyHours} h)`,
+      units: extraStoreys * hoursUnits(hours.extraStoreyHours),
     },
     {
       label: "Pets",
-      units: home.pets ? hoursUnits(list.petHours) : 0,
+      units: home.pets ? hoursUnits(hours.petHours) : 0,
     },
   ];
 };
 
-const premisesParts = (
-  list: PriceList,
-  premises: Extract<Priced, { kind: "commercial" }>,
-) => {
+// a Service priced by area. The Premises Type makes business premises
+// quicker or slower to clean, so it counts only where Condition does.
+const areaParts = (list: PriceList, service: Service, property: Priced) => {
+  const perThousand = service.hoursPerThousandSqFt!;
+  if (property.kind !== "commercial") {
+    return [{ label: "Area not recorded yet", units: 0 }];
+  }
   // a retired Premises Type is still on the list, so it still prices
   const type = list.premisesTypes.find(
-    (t) => t.key === premises.premisesTypeKey,
+    (t) => t.key === property.premisesTypeKey,
   );
-  if (!type) throw new Error(`no Premises Type ${premises.premisesTypeKey}`);
-  if (premises.floorArea === null) {
+  if (!type) throw new Error(`no Premises Type ${property.premisesTypeKey}`);
+  if (property.floorArea === null) {
     return [{ label: `Floor area not recorded yet (${type.name})`, units: 0 }];
   }
+  const byType = service.conditionApplies;
+  const area = `${sqFt.format(property.floorArea)} sq ft ÷ 1,000 × ${perThousand} h`;
   return [
     {
-      label: `${type.name}: ${sqFt.format(premises.floorArea)} sq ft ÷ 1,000 × ${type.hoursPerThousandSqFt} h`,
+      // an office is the measure, so its multiplier of 1 goes unsaid
+      label: byType
+        ? `${type.name}: ${area}${type.multiplier === 1 ? "" : ` × ${type.multiplier}`}`
+        : area,
       // floor area is whole sq ft; to the nearest unit (1e-4 h)
       units: Math.round(
-        (premises.floorArea * hoursUnits(type.hoursPerThousandSqFt)) / 1000,
+        (property.floorArea *
+          hoursUnits(perThousand) *
+          (byType ? multiplierUnits(type.multiplier) : MULTIPLIER)) /
+          (1000 * MULTIPLIER),
       ),
     },
   ];
@@ -178,32 +182,36 @@ export const taxOn = (
 
 export const suggestedPrice = (
   list: PriceList,
+  service: Service,
   property: Priced,
   // none recorded yet (business premises before a Site Visit): moderate
   condition: Condition | null,
   cleanType: CleanType,
   addOns: ChosenAddOn[],
 ): PriceBreakdown => {
+  if (service.method === "rooms" && property.kind !== "residential") {
+    throw new Error(`${service.name} is priced from a home's rooms`);
+  }
   const parts =
-    property.kind === "commercial"
-      ? premisesParts(list, property)
-      : homeParts(list, property);
-  const { hourlyRateCents, taxPercent } = ratesFor(list, property.kind);
+    service.method === "area"
+      ? areaParts(list, service, property)
+      : homeParts(
+          service.roomHours!,
+          property as Extract<Priced, { kind: "residential" }>,
+        );
+  const { hourlyRateCents, minimumChargeCents } = service;
+  const taxPercent = service.taxOneOffPercent;
   const homeUnits = parts.reduce((sum, part) => sum + part.units, 0);
 
-  const conditionUnits = multiplierUnits(
-    conditionMultiplier(list, condition ?? "moderate"),
-  );
-  const cleanTypeUnits =
-    cleanType === "deep"
-      ? multiplierUnits(list.deepCleanMultiplier)
-      : MULTIPLIER;
-  // Add-on hours are added after the multipliers, never multiplied by them
+  const conditionUnits = service.conditionApplies
+    ? multiplierUnits(conditionMultiplier(list, condition ?? "moderate"))
+    : MULTIPLIER;
+  // Add-on hours are added after Condition, never multiplied by it
   const addOnUnits = addOns.reduce(
     (sum, addOn) => sum + hoursUnits(addOn.hours) * MULTIPLIER * MULTIPLIER,
     0,
   );
-  const totalUnits = homeUnits * conditionUnits * cleanTypeUnits + addOnUnits;
+  const totalUnits = homeUnits * conditionUnits * MULTIPLIER + addOnUnits;
 
   const labourUnits = Math.ceil(totalUnits / QUARTER) * QUARTER;
 
@@ -212,19 +220,19 @@ export const suggestedPrice = (
     (labourUnits * hourlyRateCents + 50 * SCALE) / (100 * SCALE),
   );
   const workedOutCents = dollars * 100;
-  const priceCents = Math.max(workedOutCents, list.minimumChargeCents);
+  const priceCents = Math.max(workedOutCents, minimumChargeCents);
 
   const taxCents = taxOn(priceCents, { hourlyRateCents, taxPercent, addOns });
 
   return {
     cleanType,
+    serviceName: service.name,
     propertyKind: property.kind,
     homeHours: parts.map(({ label, units }) => ({
       label,
       hours: units / HOURS,
     })),
     conditionMultiplier: conditionUnits / MULTIPLIER,
-    cleanTypeMultiplier: cleanTypeUnits / MULTIPLIER,
     addOns: addOns.map(({ key, name, hours, taxExempt }) => ({
       key,
       name,
@@ -234,8 +242,8 @@ export const suggestedPrice = (
     labourHours: labourUnits / SCALE,
     hourlyRateCents,
     workedOutCents,
-    minimumChargeCents: list.minimumChargeCents,
-    minimumApplied: workedOutCents < list.minimumChargeCents,
+    minimumChargeCents,
+    minimumApplied: workedOutCents < minimumChargeCents,
     priceCents,
     taxPercent,
     taxCents,

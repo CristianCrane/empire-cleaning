@@ -92,7 +92,8 @@ const at = async (when: Date) => {
   testClock().set(when);
 };
 
-// everything but Accounts (and their sign-in records) and the Price List
+// everything but Accounts (and their sign-in records), the Price List and
+// the Services
 const keep = [
   "accounts",
   "account_identities",
@@ -101,6 +102,7 @@ const keep = [
   "price_lists",
   "price_list_add_ons",
   "price_list_premises_types",
+  "services",
 ];
 const reset = () =>
   db.transaction(async (tx) => {
