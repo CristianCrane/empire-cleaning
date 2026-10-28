@@ -40,6 +40,7 @@ import {
 import { staff } from "../staff/staff.schema.ts";
 import { officeStaffEmails } from "../staff/staff.ts";
 import { assignments, type Assignment } from "./assignments.schema.ts";
+import { emailOpenPlaces, openToOf, placeReopened } from "./open-places.ts";
 import { serviceNameOf, serviceVersions } from "../services/services.ts";
 
 // a Confirmed place can't be Released this close to the Job: the Office needs
@@ -89,7 +90,7 @@ const toView = (
 });
 
 // a Job, on the Schedule or Cancelled, with everyone Offered a place on it,
-// the Cleaners who could be, what cancelling or moving it would cost, any
+// the Cleaners who could be, who its Open Places are open to, what cancelling or moving it would cost, any
 // request to move it, and once it has
 // happened or been Cancelled, how it went and its payment, and whether its
 // Property can be offered a Service Plan from it
@@ -111,6 +112,7 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
     rescheduleRequest,
     canOfferServicePlan,
     servicePlanId,
+    openTo,
   ] = await Promise.all([
     db
       .select({ assignment: assignments, member: staff })
@@ -133,6 +135,7 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
     rescheduleRequestOf(row!),
     row!.status === "completed" && firstCleanCompleted(row!.propertyId),
     planOfJob(jobId),
+    openToOf(row!),
   ]);
 
   const holding = rows.filter((r) => r.assignment.status !== "released");
@@ -153,6 +156,7 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
       toView(r.assignment, r.member),
     ),
     openPlaces: Math.max(job.crewSize - holding.length, 0),
+    openTo,
     cleaners: cleaners
       .filter((c) => c.roles.includes("cleaner") && !onJob.has(c.id))
       .map((c) => ({ id: c.id, name: c.name, hours: hoursOf.get(c.id) ?? 0 })),
@@ -251,8 +255,9 @@ export const emailOffer = (
     }),
   );
 
-// Office Staff take someone off a Job, Offered or Confirmed, freeing their
-// place; they're emailed unless they took themselves off
+// Office Staff take someone off a Job, Offered or Confirmed, opening their
+// place; they're emailed unless they took themselves off, and so is anyone
+// free for it, if the Job is within 48 hours
 export const removeAssignment = async (
   jobId: string,
   assignmentId: string,
@@ -270,6 +275,7 @@ export const removeAssignment = async (
     )
     .returning();
   if (!removed) throw new NotFoundError("Assignment not found");
+  await placeReopened(jobId);
 
   const [member] = await db
     .select()
@@ -290,6 +296,9 @@ export const removeAssignment = async (
       }),
     );
   }
+  await notify(`Open Places email for Job ${jobId}`, async () => {
+    await emailOpenPlaces();
+  });
   return officeJob(jobId);
 };
 
@@ -453,9 +462,9 @@ export const confirmAssignment = async (
 };
 
 /**
- * The Cleaner gives up their place, freeing it, and the Office is emailed to
- * find someone else. An Offered place can be Released at any time; a
- * Confirmed one only until 48 hours before the Job.
+ * The Cleaner gives up their place, and it opens to every free Cleaner but
+ * them (ADR-0019); the Office is emailed. An Offered place can be Released
+ * at any time; a Confirmed one only until 48 hours before the Job.
  */
 export const releaseAssignment = async (
   staffId: string,
@@ -482,6 +491,7 @@ export const releaseAssignment = async (
     .returning();
   // taken off by the Office, or Released, meanwhile
   if (!released) throw new NotFoundError("Assignment not found");
+  await placeReopened(job.id);
 
   const [member] = await db.select().from(staff).where(eq(staff.id, staffId));
   await notify(`Release of Job ${job.id} by Staff ${staffId}`, async () => {
@@ -492,15 +502,18 @@ export const releaseAssignment = async (
         ...compose(
           [
             `${member!.name} has released their place on ${await describe(job, property)}.`,
-            "The place is free for someone else.",
+            "It's open to every free Cleaner now, or you can offer it to someone.",
           ],
           {
             href: `${env.CORS_ORIGIN_URL}/office/jobs/${job.id}`,
-            label: "Offer the place",
+            label: "See the Job",
           },
         ),
       });
     }
+  });
+  await notify(`Open Places email for Job ${job.id}`, async () => {
+    await emailOpenPlaces();
   });
 };
 

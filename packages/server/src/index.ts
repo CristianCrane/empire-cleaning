@@ -1,3 +1,4 @@
+import { emailOpenPlaces } from "#features/assignments";
 import { chaseBills, makeDueBills } from "#features/bills";
 import { chaseProposedAdjustments } from "#features/completion";
 import { sendDueReminders } from "#features/jobs";
@@ -14,7 +15,8 @@ app.listen(env.PORT, () => {
 const REMINDER_CHECK_MS = 10 * 60 * 1000;
 // and so do reminders and lapses of increases proposed to Clients, and
 // Service Plans' Jobs coming within reach of the Schedule, each Monday's
-// weekly Bills, and reminders for Bills paid on their page and those late
+// weekly Bills, reminders for Bills paid on their page and those late, and
+// Open Places for Cleaners: each morning from 7am, and soon ones at once
 const remind = () =>
   Promise.all([
     sendDueReminders().catch((error) =>
@@ -30,6 +32,9 @@ const remind = () =>
       console.error("weekly Bills not made:", error),
     ),
     chaseBills().catch((error) => console.error("Bills not chased:", error)),
+    emailOpenPlaces().catch((error) =>
+      console.error("Open Places not emailed:", error),
+    ),
   ]);
 void remind();
 setInterval(remind, REMINDER_CHECK_MS);

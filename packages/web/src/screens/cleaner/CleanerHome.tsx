@@ -1,5 +1,9 @@
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
-import type { CleanerJob, CleanerSiteVisit } from "@empire-cleaning/models";
+import type {
+  CleanerJob,
+  CleanerSiteVisit,
+  OpenPlace,
+} from "@empire-cleaning/models";
 import {
   Card,
   Heading,
@@ -15,6 +19,7 @@ import {
   formatMinutes,
   formatTime,
 } from "../format.ts";
+import { crewOf } from "./OpenPlaceScreen.tsx";
 
 // whether the Cleaner has taken their place yet, or once done, that it is
 export function PlaceBadge({ job }: { job: CleanerJob }) {
@@ -32,9 +37,12 @@ export function PlaceBadge({ job }: { job: CleanerJob }) {
 }
 
 // the Cleaner area's first screen: their Jobs today, then those to come,
-// each with any Site Visits they're making (#73)
+// each with any Site Visits they're making (#73), then Jobs with places
+// open to them (ADR-0019)
 export function CleanerHome() {
-  const { today, upcoming, siteVisits } = useLoaderData({ from: "/cleaner/" });
+  const { today, upcoming, siteVisits, open } = useLoaderData({
+    from: "/cleaner/",
+  });
 
   return (
     <div className="flex flex-col gap-4">
@@ -65,7 +73,45 @@ export function CleanerHome() {
           when={(visit) => formatDateTime(visit.startsAt)}
         />
       </Card>
+      <Card
+        title="Open to you"
+        description="Jobs in the next 7 days with a place open, when you're free. The first to confirm takes each place."
+      >
+        <OpenPlaces places={open} />
+      </Card>
     </div>
+  );
+}
+
+function OpenPlaces({ places }: { places: OpenPlace[] }) {
+  const navigate = useNavigate();
+
+  return (
+    <List
+      aria-label="Jobs open to you"
+      onAction={(id) =>
+        navigate({ to: "/cleaner/open/$jobId", params: { jobId: String(id) } })
+      }
+      renderEmptyState={() => (
+        <p className="p-6 text-center text-fg-muted">
+          Nothing open to you right now.
+        </p>
+      )}
+    >
+      {places.map((place) => (
+        <ListItem
+          key={place.jobId}
+          id={place.jobId}
+          title={formatDateTime(place.startsAt)}
+          description={[
+            place.postcode,
+            place.serviceName,
+            `${formatHours(place.hoursOnSite)} on site`,
+            crewOf(place),
+          ].join(" · ")}
+        />
+      ))}
+    </List>
   );
 }
 

@@ -24,6 +24,11 @@ import {
   formatWhen,
 } from "../../services/email/index.ts";
 import { assignments } from "../assignments/assignments.schema.ts";
+import {
+  emailOpenPlaces,
+  freeFor,
+  placeReopened,
+} from "../assignments/open-places.ts";
 import { lateFeeOf, planOfJob } from "../cancellation/cancellation.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { lockDay } from "../jobs/jobs.ts";
@@ -439,8 +444,8 @@ export const turnDownReschedule = async (
 
 /**
  * Office Staff confirm a pending request: the Job moves to its new time, and
- * every place on it is Offered afresh, so the crew each Confirm the new time
- * or Release it. A second Late Reschedule makes the Deposit amount due as a
+ * its crew are Offered it afresh, keeping their places unless they aren't
+ * free then (moveTo). A second Late Reschedule makes the Deposit amount due as a
  * fee (ADR-0010), charged with the Balance on completion: a one-off Job's
  * Deposit is kept as it, and a plan Job, which has none, pays it then. Refused
  * if the time asked for no longer has room, as when a Cleaner's hours that
@@ -476,7 +481,7 @@ export const confirmReschedule = async (jobId: string, byAccountId: string) => {
       );
     }
 
-    const crew = await moveTo(tx, jobId, pending.startsAt, {
+    const crew = await moveTo(tx, job, pending.startsAt, {
       rescheduleFeeCents: job.rescheduleFeeCents + pending.feeCents,
     });
     await tx
@@ -526,39 +531,74 @@ export const confirmReschedule = async (jobId: string, byAccountId: string) => {
 // ---- moving: confirming a request, or the Office moving a Job itself ----
 
 /**
- * Moves a locked Job to a new time and Offers every place on it afresh, so
- * the crew each Confirm the new time or Release it. Its day-before reminder
- * goes again, for the new day. Returns the crew, to tell them.
+ * Moves a locked Job to a new time. Its crew are Offered the new time
+ * afresh and keep their places, so each Confirms it or Releases it, except
+ * anyone not free then (ADR-0019), whose places open. Its day-before
+ * reminder goes again, for the new day. Returns who kept a place and who
+ * lost one, to tell them.
  */
 const moveTo = async (
   tx: Tx,
-  jobId: string,
+  job: Job,
   startsAt: Date,
   also: Partial<Pick<Job, "rescheduleFeeCents">> = {},
 ) => {
   await tx
     .update(jobs)
     .set({ startsAt, reminderSentAt: null, ...also })
-    .where(eq(jobs.id, jobId));
-  return tx
-    .update(assignments)
-    .set({ status: "offered", offeredAt: clock.now(), answeredAt: null })
+    .where(eq(jobs.id, job.id));
+  const holding = await tx
+    .select({ id: assignments.id, staffId: assignments.staffId })
+    .from(assignments)
     .where(
       and(
-        eq(assignments.jobId, jobId),
+        eq(assignments.jobId, job.id),
         inArray(assignments.status, ["offered", "confirmed"]),
       ),
-    )
-    .returning({ staffId: assignments.staffId });
+    );
+  const free = await freeFor(
+    holding.map((h) => h.staffId),
+    { ...job, startsAt },
+  );
+  const kept = holding.filter((h) => free.has(h.staffId));
+  const lost = holding.filter((h) => !free.has(h.staffId));
+  if (kept.length > 0) {
+    await tx
+      .update(assignments)
+      .set({ status: "offered", offeredAt: clock.now(), answeredAt: null })
+      .where(
+        inArray(
+          assignments.id,
+          kept.map((h) => h.id),
+        ),
+      );
+  }
+  if (lost.length > 0) {
+    await tx.delete(assignments).where(
+      inArray(
+        assignments.id,
+        lost.map((h) => h.id),
+      ),
+    );
+  }
+  return { kept, lost };
 };
 
-// emails each of a moved Job's crew to Confirm the new time or Release it
+// Emails each of a moved Job's crew: those who kept a place, to Confirm the
+// new time or Release it, and those not free then, that they're off it.
+// Then anyone the Job's Open Places are open to hears of it afresh.
 const tellCrewOfMove = async (
   job: Job,
   property: Property,
-  crew: { staffId: string }[],
+  { kept, lost }: Awaited<ReturnType<typeof moveTo>>,
   fromStartsAt: Date,
 ) => {
+  await placeReopened(job.id);
+  await notify(`Open Places email for Job ${job.id}`, async () => {
+    await emailOpenPlaces();
+  });
+  await tellLost(job, property, lost, fromStartsAt);
+  const crew = kept;
   if (crew.length === 0) return;
   const members = await db
     .select()
@@ -595,7 +635,8 @@ const tellCrewOfMove = async (
  * Office Staff move a booked Job straight to a new time, from the Schedule
  * (#52). It's the Office's own action, not a Reschedule Request: nothing is
  * held, and it costs the Client nothing. Otherwise it works like confirming
- * one: every place is Offered afresh, the reminder goes again, and the
+ * one: the crew are Offered the new time afresh (moveTo), the reminder goes
+ * again, and the
  * Client and the crew are emailed. The new time must have room: a new day
  * the Job's Labour Hours, counting held hours (its own day always has), and
  * a crew free then.
@@ -644,7 +685,7 @@ export const moveJob = async (jobId: string, to: LocalDateTime) => {
     });
     if (!room.hasRoom) throw new ConflictError(whyNoRoom(room));
 
-    const crew = await moveTo(tx, jobId, startsAt);
+    const crew = await moveTo(tx, job, startsAt);
     return { ...found, crew };
   });
 
@@ -666,6 +707,42 @@ export const moveJob = async (jobId: string, to: LocalDateTime) => {
     }),
   );
   await tellCrewOfMove(moved, property, crew, job.startsAt);
+};
+
+// emails each of a moved Job's crew who isn't free at its new time that
+// their place has gone
+const tellLost = async (
+  job: Job,
+  property: Property,
+  lost: { staffId: string }[],
+  fromStartsAt: Date,
+) => {
+  if (lost.length === 0) return;
+  const members = await db
+    .select()
+    .from(staff)
+    .where(
+      inArray(
+        staff.id,
+        lost.map((c) => c.staffId),
+      ),
+    )
+    .orderBy(asc(staff.name));
+  for (const member of members) {
+    await notify(`Move of Job ${job.id} off Staff ${member.id}`, async () =>
+      email.send({
+        to: member.email,
+        subject: "You're no longer on a Job",
+        ...compose(
+          [
+            `Hi ${firstNameOf(member.name)},`,
+            `The ${await serviceNameOf(job.serviceId)} at ${addressOf(property)} has moved from ${formatWhen(fromStartsAt)} to ${formatWhen(job.startsAt)}, when you aren't free, so you're no longer on it. You don't need to go.`,
+          ],
+          { href: `${env.CORS_ORIGIN_URL}/cleaner`, label: "See your Jobs" },
+        ),
+      }),
+    );
+  }
 };
 
 // ---- the Office's list ----

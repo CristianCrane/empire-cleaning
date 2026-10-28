@@ -171,8 +171,8 @@ function Release({ job }: { job: CleanerJob }) {
         {({ close }) => (
           <>
             <p>
-              The Office will be told, so they can offer it to someone else. The
-              Job will no longer be in your list.
+              It opens to every other Cleaner free then, and the Office will be
+              told. The Job will no longer be in your list.
             </p>
             {problem && <Notice tone="danger">{problem}</Notice>}
             <Actions>

@@ -580,10 +580,18 @@ test("signing in, the welcome page and the Cleaner area fit every width", async 
     labourHours: 5.25,
   })) as { id: string };
   await offerPlace(job.id, cory.id);
+  // and a Job open to Cory on Friday
+  await setUsualWeek(cory.id, [8, 8, 8, 8, 8, 0, 0]);
+  const open = (await bookJob({
+    startsAt: "2026-01-09T14:00:00Z",
+    labourHours: 3,
+    crewSize: 1,
+  })) as { id: string };
   await page.context().clearCookies();
   await signedInAs(page, "cory@example.com");
   await expectFitsEveryWidth(page, "/cleaner");
   await expectFitsEveryWidth(page, `/cleaner/jobs/${job.id}`);
+  await expectFitsEveryWidth(page, `/cleaner/open/${open.id}`);
 });
 
 test("weekly Bills fit every width, for the Office and the Client", async ({
