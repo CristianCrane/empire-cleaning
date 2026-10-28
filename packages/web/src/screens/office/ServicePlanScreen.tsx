@@ -72,23 +72,26 @@ export function ServicePlanScreen() {
 
 // a Service Plan for the Office: why it's On Hold, if it is; the dates it
 // came round with no room, for Office Staff to book at another time they
-// agree with the Client, or skip; its terms, with the way to change them;
+// agree with the Client, or skip; its status, Quote and terms, with the way
+// to change them;
 // and Ending it for the Client. Its Jobs are in its home's History
 export function PlanDetails({
   plan,
   changeTerms = plan.status !== "ended" && (
     <OfferServicePlan propertyId={plan.property.id} label="Change terms" />
   ),
-  termsNote,
+  notice,
 }: {
   plan: OfficeServicePlan;
   // how its terms change: a new Service Plan Quote
   changeTerms?: ReactNode;
-  // a line in its terms, e.g. new terms waiting on the Client
-  termsNote?: ReactNode;
+  // what to know first, e.g. new terms waiting on the Client, as an info
+  // Notice
+  notice?: ReactNode;
 }) {
   return (
     <div className="flex flex-col gap-6">
+      {notice && <Notice>{notice}</Notice>}
       <OnHold
         plan={plan}
         forClient={false}
@@ -124,38 +127,30 @@ export function PlanDetails({
         </Section>
       )}
 
-      <Section
-        title={planName(plan)}
-        description={
-          <>
-            On the terms of{" "}
-            <Link
-              href={linkTo({
-                to: "/office/quotes/$quoteId",
-                params: { quoteId: plan.quoteId },
-              })}
-            >
-              its Service Plan Quote
-            </Link>
-            , which prices its Jobs from{" "}
-            {formatDateTime(plan.days[0]!.startsAt)}. New terms take a new
-            Quote, accepted by the Client.
-          </>
-        }
-        actions={
-          <>
-            <PlanStatusBadge status={plan.status} />
-            {changeTerms}
-          </>
-        }
-      >
+      <Section title={planName(plan)} actions={changeTerms}>
         <Card>
-          <PlanTerms plan={plan} />
-          {termsNote && (
-            <p className="border-t border-border pt-3 text-sm text-fg-muted">
-              {termsNote}
-            </p>
-          )}
+          <PlanTerms
+            plan={plan}
+            lead={
+              <>
+                <dt className="font-semibold">Status</dt>
+                <dd>
+                  <PlanStatusBadge status={plan.status} />
+                </dd>
+                <dt className="font-semibold">Quote</dt>
+                <dd>
+                  <Link
+                    href={linkTo({
+                      to: "/office/quotes/$quoteId",
+                      params: { quoteId: plan.quoteId },
+                    })}
+                  >
+                    Its Service Plan Quote
+                  </Link>
+                </dd>
+              </>
+            }
+          />
         </Card>
       </Section>
 

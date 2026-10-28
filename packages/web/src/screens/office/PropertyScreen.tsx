@@ -271,7 +271,7 @@ function PlanTab({
     );
   }
 
-  // new terms wait on a Quote already open: its terms say which
+  // new terms wait on a Quote already open: say which, first
   const { open, resumes } = quoteInTheWay(home);
   const waiting = open && !resumes ? open : undefined;
   return (
@@ -280,7 +280,7 @@ function PlanTab({
       changeTerms={
         waiting ? null : <PlanAction home={home} label="Change terms" />
       }
-      termsNote={
+      notice={
         waiting && (
           <>
             {newTermsLine[waiting.status as keyof typeof newTermsLine]}.{" "}

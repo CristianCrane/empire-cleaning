@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { EndPlanTerms, ServicePlanView } from "@empire-cleaning/models";
 import {
   Actions,
@@ -42,12 +43,16 @@ export function PlanStatusBadge({
 // each one's clean
 export function PlanTerms({
   plan,
+  lead,
 }: {
   plan: Omit<ServicePlanView, "upcoming">;
+  // rows before its terms, e.g. its status for the Office
+  lead?: ReactNode;
 }) {
   const [only] = plan.days;
   return (
     <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
+      {lead}
       <dt className="font-semibold">When</dt>
       <dd>{planRhythm(plan)}</dd>
       {plan.days.length === 1 ? (
