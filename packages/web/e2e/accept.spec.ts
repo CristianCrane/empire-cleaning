@@ -202,6 +202,39 @@ test("Office Staff email a link to add a card, then record the Client's acceptan
   await expect(record).toBeHidden();
 });
 
+test("Office Staff record acceptance of the offer while drafting a new Revision, which discards the Draft", async ({
+  page,
+  browser,
+}) => {
+  await quoteSent(page);
+  const client = await (await browser.newContext()).newPage();
+  await signedInAs(client, casey.email);
+  await client.goto("/portal/payment-method");
+  await client.getByRole("button", { name: "Save card" }).click();
+  await expect(
+    client.getByText("Your Test card ending 4242 is saved"),
+  ).toBeVisible();
+
+  await page.reload();
+  await page.getByRole("button", { name: "Draft a new Revision" }).click();
+  await expect(page.getByText("You're drafting Revision 2.")).toBeVisible();
+  const record = page.getByRole("region", { name: "Record acceptance" });
+  await expect(record).toContainText(
+    "If the Client accepts Revision 1 by phone or in person. Recording it discards your Draft of Revision 2.",
+  );
+  await record.getByRole("button", { name: "Record acceptance" }).click();
+  await page
+    .getByRole("alertdialog")
+    .getByRole("button", { name: "Charge and book" })
+    .click();
+
+  await expect(page.getByText("Accepted and booked")).toBeVisible();
+  await expect(page.getByText("Draft changes")).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Offer" })).toContainText(
+    "Deep Clean, booked",
+  );
+});
+
 test("a Quote whose day has filled up can't be paid for, and the Office is asked for another time", async ({
   page,
   browser,
