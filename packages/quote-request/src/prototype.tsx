@@ -1,5 +1,5 @@
 // PROTOTYPE: throwaway (#96). Variants of the quote form, flipped with
-// ?variant=A|B|C|D and ?fields=soft, on the landing page and in the app.
+// ?variant=A|B|C|D and ?fields=soft|line, on the landing page and in the app.
 // Lives only on the prototype-quote-form branch.
 import { useEffect, useState, type ReactNode } from "react";
 
@@ -20,6 +20,8 @@ export type Variant = {
   steps: boolean;
   // borderless, tinted text fields
   soft: boolean;
+  // and a line along the bottom of each
+  line: boolean;
 };
 
 const read = (): Variant => {
@@ -32,7 +34,8 @@ const read = (): Variant => {
     quiet: key !== "A",
     tuck: key === "C" || key === "D",
     steps: key === "D",
-    soft: search.get("fields") === "soft",
+    soft: ["soft", "line"].includes(search.get("fields") ?? ""),
+    line: search.get("fields") === "line",
   };
 };
 
@@ -107,10 +110,14 @@ export function PrototypeSwitcher({ variant }: { variant: Variant }) {
       <button
         type="button"
         className="ml-1 whitespace-nowrap rounded-full border border-bg/40 px-2.5 py-1 hover:opacity-70"
-        aria-pressed={variant.soft}
-        onClick={() => write({ fields: variant.soft ? null : "soft" })}
+        onClick={() =>
+          write({
+            fields: variant.line ? null : variant.soft ? "line" : "soft",
+          })
+        }
       >
-        {variant.soft ? "Soft fields ✓" : "Soft fields"}
+        Fields:{" "}
+        {variant.line ? "soft + line" : variant.soft ? "soft" : "outlined"}
       </button>
     </div>
   );
@@ -124,8 +131,25 @@ export function SoftFields({
   on: boolean;
   children: ReactNode;
 }) {
+  const { line } = useVariant();
   return (
-    <div data-soft={on || undefined} className="contents">
+    <div
+      data-soft={on || undefined}
+      data-underline={(on && line) || undefined}
+      className="contents"
+    >
+      {on && line && (
+        // the field boxes are the elements styled for [data-soft]
+        <style>{`
+          [data-underline] [class*="in-data-soft"]:not([data-invalid]) {
+            border-bottom-color: var(--color-border-strong);
+          }
+          [data-underline] [class*="in-data-soft"] {
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+          }
+        `}</style>
+      )}
       {children}
     </div>
   );
