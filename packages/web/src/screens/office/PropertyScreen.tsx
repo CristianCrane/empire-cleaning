@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { Building2, House, Houses, Store } from "lucide-react";
 import { useLoaderData, useNavigate, useSearch } from "@tanstack/react-router";
 import type {
   ClientName,
@@ -24,8 +25,8 @@ import {
   ListItem,
   Notice,
   NumberField,
-  Radio,
-  RadioGroup,
+  ChoiceTile,
+  ChoiceTiles,
   Select,
   SelectItem,
   StatusBadge,
@@ -459,16 +460,7 @@ export function HomeDetails({
 
   return (
     <CorrectionForm correction={correction}>
-      <RadioGroup
-        label="Type of home"
-        orientation="horizontal"
-        value={details.type}
-        onChange={(type) => change({ type: type as PropertyType })}
-      >
-        <Radio value="house">House</Radio>
-        <Radio value="apartment">Apartment</Radio>
-        <Radio value="townhouse">Townhouse</Radio>
-      </RadioGroup>
+      <PlaceTiles value={details.type} onChange={(type) => change({ type })} />
       <div className="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-4">
         <NumberField
           label="Bedrooms"
@@ -546,6 +538,7 @@ export function PremisesDetails({
 
   return (
     <CorrectionForm correction={correction}>
+      <PlaceTiles value="commercial" />
       <Select
         label="Type of premises"
         name="premisesType"
@@ -579,5 +572,43 @@ export function PremisesDetails({
         onChange={(notes) => change({ officeNotes: notes })}
       />
     </CorrectionForm>
+  );
+}
+
+// what kind of place it is, as the quote form asks it. A home and business
+// premises are priced from different details, so one can't be corrected
+// into the other: only the home types can be swapped, for a home
+function PlaceTiles({
+  value,
+  onChange,
+}: {
+  value: PropertyType | "commercial";
+  onChange?: (type: PropertyType) => void;
+}) {
+  const premises = value === "commercial";
+  return (
+    <ChoiceTiles
+      label="Kind of place"
+      value={value}
+      onChange={(type) => onChange?.(type as PropertyType)}
+      description={
+        premises
+          ? "Business premises can't be corrected into a home."
+          : "A home can't be corrected into business premises."
+      }
+    >
+      <ChoiceTile value="house" icon={House} isDisabled={premises}>
+        House
+      </ChoiceTile>
+      <ChoiceTile value="apartment" icon={Building2} isDisabled={premises}>
+        Apartment
+      </ChoiceTile>
+      <ChoiceTile value="townhouse" icon={Houses} isDisabled={premises}>
+        Townhouse
+      </ChoiceTile>
+      <ChoiceTile value="commercial" icon={Store} isDisabled={!premises}>
+        Business premises
+      </ChoiceTile>
+    </ChoiceTiles>
   );
 }

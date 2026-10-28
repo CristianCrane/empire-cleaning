@@ -32,6 +32,7 @@ import {
   DialogTrigger,
   Heading,
   IconTile,
+  Link,
   List,
   ListItem,
   Notice,
@@ -651,6 +652,64 @@ function EmptyState({
   );
 }
 
+// a Quote that stops a new Service Plan Quote, as the server would: one
+// asked for, or a Service Plan Quote, still open. The Office's own draft
+// isn't in the way: starting again carries on with it
+const inTheWay = (home: OfficePropertyView) => {
+  const open = home.quotes.find(
+    (q) =>
+      (q.kind === "service_plan" || q.kind === null) &&
+      (q.status === "requested" || q.status === "draft" || q.status === "sent"),
+  );
+  const resumes =
+    open?.kind === "service_plan" &&
+    open.status === "draft" &&
+    open.origin === "office";
+  return { open, resumes };
+};
+
+const inTheWayLine = {
+  requested: "The Client asked for a Quote that's still open",
+  draft: "A Service Plan Quote is being drafted",
+  sent: "A Service Plan Quote is with the Client",
+} as const;
+
+// quoting a Service Plan, or, when a Quote is open already, where it is
+function PlanAction({
+  home,
+  label,
+  primary = false,
+}: {
+  home: OfficePropertyView;
+  label: string;
+  primary?: boolean;
+}) {
+  const { open, resumes } = inTheWay(home);
+  if (open && !resumes) {
+    return (
+      <Notice>
+        {inTheWayLine[open.status as keyof typeof inTheWayLine]}: carry on with
+        that one.{" "}
+        <Link
+          href={linkTo({
+            to: "/office/quotes/$quoteId",
+            params: { quoteId: open.id },
+          })}
+        >
+          Open the Quote
+        </Link>
+      </Notice>
+    );
+  }
+  return (
+    <OfferServicePlan
+      propertyId={home.id}
+      label={resumes ? "Carry on with the draft" : label}
+      primary={primary}
+    />
+  );
+}
+
 function PlanTab({ home }: { home: OfficePropertyView }) {
   const plan = home.servicePlan;
   const canOffer = home.firstCleanCompleted || home.kind === "commercial";
@@ -667,11 +726,7 @@ function PlanTab({ home }: { home: OfficePropertyView }) {
         }
       >
         {canOffer && (
-          <OfferServicePlan
-            propertyId={home.id}
-            label="Quote a Service Plan"
-            primary
-          />
+          <PlanAction home={home} label="Quote a Service Plan" primary />
         )}
       </EmptyState>
     );
@@ -694,7 +749,7 @@ function PlanTab({ home }: { home: OfficePropertyView }) {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <OfferServicePlan propertyId={home.id} label="Change terms" />
+          <PlanAction home={home} label="Change terms" />
           <ButtonLink
             variant="text"
             size="sm"
