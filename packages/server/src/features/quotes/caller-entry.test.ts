@@ -45,6 +45,13 @@ const clientNamed = async (office: Agent, name: string) =>
     (await office.get("/api/clients").expect(200)).body as ClientListItem[]
   ).filter((c) => c.name === name);
 
+// a Client's homes, from their page
+const propertiesOf = async (office: Agent, clientId: string) =>
+  (
+    (await office.get(`/api/clients/${clientId}`).expect(200))
+      .body as OfficeClientView
+  ).properties;
+
 // gives the Draft a proposed time, then tries to send it
 const send = async (office: Agent, quote: OfficeQuote) => {
   await office
@@ -140,7 +147,8 @@ describe("Office Staff entering a caller's ask", () => {
     ).expect(201);
 
     const [existing] = await clientNamed(office, "Casey Client");
-    expect(existing).toMatchObject({ phone: casey.phone, propertyCount: 2 });
+    expect(existing).toMatchObject({ phone: casey.phone });
+    expect(await propertiesOf(office, existing!.id)).toHaveLength(2);
     expect(await clientNamed(office, "Pat Phoner")).toEqual([]);
   });
 
@@ -174,8 +182,7 @@ describe("Office Staff entering a caller's ask", () => {
         { property: { new: { ...home, street: "1 Nudge Lane", unit: null } } },
       ),
     ).expect(201);
-    const [pat] = await clientNamed(office, "Pat Phoner");
-    expect(pat!.propertyCount).toBe(2);
+    expect(await propertiesOf(office, client.id)).toHaveLength(2);
   });
 
   test("needs a Client chosen or entered, and checks a new Client's details", async () => {

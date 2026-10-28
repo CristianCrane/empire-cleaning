@@ -1,15 +1,18 @@
 import { useEffect, useState } from "react";
 import { useLoaderData, useNavigate, useSearch } from "@tanstack/react-router";
-import { Card, Heading, List, ListItem, TextField } from "@empire-cleaning/ui";
+import {
+  Avatar,
+  Heading,
+  List,
+  ListItem,
+  TextField,
+} from "@empire-cleaning/ui";
 import { clientName } from "../format.ts";
 
 export type ClientsSearch = { q?: string };
 
 // how long typing pauses before the list follows it
 const SEARCH_DELAY_MS = 250;
-
-const propertyCount = (count: number) =>
-  count === 1 ? "1 Property" : `${count} Properties`;
 
 // every Client, searchable by name, email, phone or Property address; open
 // one to see their contact details and homes. The search lives in the URL,
@@ -52,41 +55,35 @@ export function ClientsScreen() {
         onChange={setText}
         autoFocus
       />
-      <Card>
-        <List
-          aria-label="Clients"
-          onAction={(id) =>
-            navigate({
-              to: "/office/clients/$clientId",
-              params: { clientId: String(id) },
-            })
-          }
-          renderEmptyState={() => (
-            <p className="p-6 text-center text-fg-muted">
-              {q ? `No Clients match “${q}”.` : "No Clients yet."}
-            </p>
-          )}
-        >
-          {clients.map((client) => (
-            <ListItem
-              key={client.id}
-              id={client.id}
-              title={clientName(client)}
-              description={
-                <span className="[overflow-wrap:anywhere]">
-                  {[
-                    client.email,
-                    client.phone,
-                    propertyCount(client.propertyCount),
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </span>
-              }
-            />
-          ))}
-        </List>
-      </Card>
+      <List
+        aria-label="Clients"
+        onAction={(id) =>
+          navigate({
+            to: "/office/clients/$clientId",
+            params: { clientId: String(id) },
+          })
+        }
+        renderEmptyState={() => (
+          <p className="p-6 text-center text-fg-muted">
+            {q ? `No Clients match “${q}”.` : "No Clients yet."}
+          </p>
+        )}
+      >
+        {clients.map((client) => (
+          <ListItem
+            key={client.id}
+            id={client.id}
+            title={clientName(client)}
+            start={<Avatar src={client.imageUrl} />}
+            // how to reach them, without opening them
+            description={
+              <span className="[overflow-wrap:anywhere]">
+                {[client.email, client.phone].filter(Boolean).join(" · ")}
+              </span>
+            }
+          />
+        ))}
+      </List>
     </div>
   );
 }

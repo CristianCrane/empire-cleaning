@@ -52,8 +52,8 @@ test(
     await expect(search).toBeFocused();
     await expect(rows(page)).toHaveCount(2);
     await expect(rows(page).first()).toContainText("Casey Client");
-    await expect(rows(page).first()).toContainText("1 Property");
-    await expect(rows(page).last()).toContainText("0 Properties");
+    // how to reach them, without opening them
+    await expect(rows(page).first()).toContainText("casey@example.com");
 
     await page.keyboard.type("austin");
     await expect(page).toHaveURL("/office/clients?q=austin");
