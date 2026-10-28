@@ -9,7 +9,6 @@ import {
   CalendarDays,
   ContactRound,
   House,
-  Inbox,
   Tag,
   LayoutDashboard,
   User,
@@ -27,6 +26,7 @@ import {
 } from "@empire-cleaning/ui";
 import { linkTo } from "../links.ts";
 import { InArea } from "./MessagePage.tsx";
+import { QuoteIcon, QuoteIconSwitcher } from "./quote-icon.prototype.tsx";
 import { areas, areasFor, signOut, type AreaId } from "../session.ts";
 
 // an item is current on its own page, and on the pages that belong to its
@@ -40,7 +40,7 @@ const navFor: Record<AreaId, AreaNavItem[]> = {
     {
       href: linkTo({ to: "/office/quotes" }),
       label: "Quotes",
-      icon: Inbox,
+      icon: QuoteIcon,
       alsoCurrentFor: ["/office/quotes/"],
     },
     {
@@ -116,6 +116,7 @@ export function AreaLayout({ area }: { area: AreaId }) {
     >
       <InArea value>
         <Outlet />
+        <QuoteIconSwitcher />
       </InArea>
     </AppLayout>
   );

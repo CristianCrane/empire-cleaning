@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLoaderData, useNavigate, useSearch } from "@tanstack/react-router";
-import { Phone } from "lucide-react";
 import type { QuoteSummary } from "@empire-cleaning/models";
+import { QuoteIcon } from "../quote-icon.prototype.tsx";
 import {
   Button,
   Cell,
@@ -200,7 +200,7 @@ export function QuotesScreen() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Heading level={1}>Quotes</Heading>
         <Button onPress={() => void navigate({ to: "/office/quotes/new" })}>
-          <Phone aria-hidden size={18} />
+          <QuoteIcon aria-hidden size={18} />
           New Quote
         </Button>
       </div>
