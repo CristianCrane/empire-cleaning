@@ -13,7 +13,7 @@ import type {
   CleanerJobs,
   CleanerSiteVisits,
   ClientSiteVisit,
-  ClientListItem,
+  ClientList,
   ClientJob,
   ClientJobDetail,
   ClientPastJob,
@@ -58,8 +58,11 @@ import {
 } from "./screens/office/NewQuoteScreen.tsx";
 import { ClientDetail } from "./screens/office/ClientDetail.tsx";
 import {
+  CLIENTS_PAGE,
+  clientTabs,
   ClientsScreen,
   type ClientsSearch,
+  tabFor,
 } from "./screens/office/ClientsScreen.tsx";
 import { PropertyScreen } from "./screens/office/PropertyScreen.tsx";
 import { ScheduleScreen } from "./screens/office/ScheduleScreen.tsx";
@@ -285,11 +288,24 @@ const officeClientsRoute = createRoute({
       typeof search.q === "string" || typeof search.q === "number"
         ? String(search.q) || undefined
         : undefined,
+    tab: clientTabs.find((t) => t === search.tab),
+    shown:
+      typeof search.shown === "number" && search.shown > CLIENTS_PAGE
+        ? Math.floor(search.shown)
+        : undefined,
   }),
-  loaderDeps: ({ search }) => ({ q: search.q }),
+  loaderDeps: ({ search }) => ({
+    q: search.q,
+    tab: tabFor(search),
+    shown: search.shown ?? CLIENTS_PAGE,
+  }),
   loader: ({ deps }) =>
-    getJson<ClientListItem[]>(
-      `/api/clients${deps.q ? `?q=${encodeURIComponent(deps.q)}` : ""}`,
+    getJson<ClientList>(
+      `/api/clients?${new URLSearchParams({
+        ...(deps.q && { q: deps.q }),
+        standing: deps.tab,
+        limit: String(deps.shown),
+      })}`,
     ),
   component: ClientsScreen,
 });

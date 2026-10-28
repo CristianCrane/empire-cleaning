@@ -133,7 +133,7 @@ test("a Client's screen starts a New Quote for them", async ({ page }) => {
   await requestQuoteAsGuest(casey);
   await createStaff(olive);
   await signedInAs(page, olive.email);
-  await page.goto("/office/clients");
+  await page.goto("/office/clients?tab=all");
   await page.getByRole("row", { name: /Casey Client/ }).click();
 
   await page.getByRole("button", { name: "New Quote" }).click();

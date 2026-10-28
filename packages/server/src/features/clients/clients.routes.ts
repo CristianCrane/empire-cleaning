@@ -13,6 +13,7 @@ import {
   officeUpdateContactDetails,
   updateContactDetails,
 } from "./clients.ts";
+import { clientStandings } from "./standing.ts";
 
 export const router = Router();
 
@@ -84,13 +85,21 @@ router.patch(
   },
 );
 
-// every Client for the Office, or those matching ?q= (see listClients)
+const listQuery = z.object({
+  q: z.string().max(200).optional(),
+  standing: z.enum([...clientStandings, "all"]).optional(),
+  limit: z.coerce.number().int().min(1).max(1000).optional(),
+});
+
+// a page of the Office's Clients: those matching ?q=, with ?standing= (or
+// any), the first ?limit= of them (see listClients)
 router.get(
   "/",
   authorize("office_staff"),
-  validate({ query: z.object({ q: z.string().max(200).optional() }) }),
+  validate({ query: listQuery }),
   async (req, res) => {
-    res.json(await listClients(req.query.q));
+    const { q, standing, limit } = listQuery.parse(req.query);
+    res.json(await listClients({ search: q, standing, limit }));
   },
 );
 

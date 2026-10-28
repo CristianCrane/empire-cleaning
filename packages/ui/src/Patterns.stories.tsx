@@ -226,6 +226,13 @@ function WorkListsAreTables() {
           Client's pages), so it can load whole and search in the browser,
           without pages.
         </p>
+        <p>
+          A list that keeps growing whatever happens (Clients) opens on the Tab
+          for what's current and holds 50 at a time, with Show more; the server
+          works out the Tabs, their counts and the page. A search looks through
+          All unless a Tab is picked. On a phone, columns that only describe the
+          row fold under its first cell.
+        </p>
       </Rule>
       <Example verdict="Do">
         <div className="flex flex-col gap-4">

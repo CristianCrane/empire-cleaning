@@ -1,6 +1,7 @@
-import { and, asc, eq, exists, ilike, or, sql } from "drizzle-orm";
+import { and, asc, count, eq, exists, ilike, or, sql } from "drizzle-orm";
 import type {
-  ClientListItem,
+  ClientList,
+  ClientStanding,
   ClientView,
   OfficeClientView,
 } from "@empire-cleaning/models";
@@ -13,6 +14,7 @@ import { propertyStatuses } from "../properties/property-history.ts";
 import { toPropertyView } from "../properties/property-view.ts";
 import { quotesForClient } from "../quotes/quote-state.ts";
 import { clients } from "./clients.schema.ts";
+import { clientStandings, standingOfClient } from "./standing.ts";
 
 // no email only when the Office enters a caller without one (#34); a
 // business name only for a business (#72)
@@ -192,13 +194,23 @@ const containing = (text: string) => `%${text.replace(/[\\%_]/g, "\\$&")}%`;
 // a search that could be (part of) a phone number, however it's written
 const phoneLike = /^[\d\s()+.-]+$/;
 
-// every Client in name order (a business by its own), or those whose name,
-// business name, email, phone or Property address matches the search. A
-// phone matches on its digits alone, so "(718) 555" and "718555" find the
+// how many Clients a page of the list holds unless more are asked for
+export const CLIENTS_PAGE = 50;
+
+// the first `limit` Clients in name order (a business by its own) with this
+// standing, or of any, and how many there are in each. With a search, only
+// those whose name, business name, email, phone or Property address matches.
+// A phone matches on its digits alone, so "(718) 555" and "718555" find the
 // same Client.
-export const listClients = async (
-  search?: string,
-): Promise<ClientListItem[]> => {
+export const listClients = async ({
+  search,
+  standing = "all",
+  limit = CLIENTS_PAGE,
+}: {
+  search?: string;
+  standing?: ClientStanding | "all";
+  limit?: number;
+} = {}): Promise<ClientList> => {
   const text = search?.trim();
   const pattern = text ? containing(text) : undefined;
   const digits = text && phoneLike.test(text) ? text.replace(/\D/g, "") : "";
@@ -226,7 +238,7 @@ export const listClients = async (
       )
     : undefined;
 
-  return (
+  const listed = db.$with("listed").as(
     db
       .select({
         id: clients.id,
@@ -236,14 +248,44 @@ export const listClients = async (
         phone: clients.phone,
         // the connected Account's picture, if any
         imageUrl: accounts.image,
+        standing: standingOfClient().as("standing"),
+        createdAt: clients.createdAt,
       })
       .from(clients)
       .leftJoin(accounts, eq(accounts.id, clients.accountId))
-      .where(matches)
+      .where(matches),
+  );
+
+  const [page, tallies] = await Promise.all([
+    db
+      .with(listed)
+      .select()
+      .from(listed)
+      .where(standing === "all" ? undefined : eq(listed.standing, standing))
       // a business by its own name
       .orderBy(
-        asc(sql`lower(coalesce(${clients.businessName}, ${clients.name}))`),
-        asc(clients.createdAt),
+        asc(sql`lower(coalesce(${listed.businessName}, ${listed.name}))`),
+        asc(listed.createdAt),
       )
-  );
+      .limit(limit),
+    db
+      .with(listed)
+      .select({ standing: listed.standing, n: count() })
+      .from(listed)
+      .groupBy(listed.standing),
+  ]);
+
+  const counts = Object.fromEntries(
+    clientStandings.map((s) => [
+      s,
+      tallies.find((t) => t.standing === s)?.n ?? 0,
+    ]),
+  ) as Record<ClientStanding, number>;
+  return {
+    clients: page.map(({ createdAt: _, ...client }) => client),
+    counts: {
+      ...counts,
+      all: clientStandings.reduce((sum, s) => sum + counts[s], 0),
+    },
+  };
 };

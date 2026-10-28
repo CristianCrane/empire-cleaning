@@ -51,7 +51,7 @@ test(
     await requestQuoteForPremises(casey, "Acme Dental");
     await createStaff(olive);
     await signedInAs(page, olive.email);
-    await page.goto("/office/clients");
+    await page.goto("/office/clients?tab=all");
     await page.getByText("Acme Dental").click();
 
     const billing = page.getByRole("region", { name: "Billing" });
@@ -105,7 +105,7 @@ test("a Client with only a home has no weekly billing to set", async ({
   await requestQuoteAsGuest(casey);
   await createStaff(olive);
   await signedInAs(page, olive.email);
-  await page.goto("/office/clients");
+  await page.goto("/office/clients?tab=all");
   await page.getByText("Casey Client").click();
   await expect(heading(page)).toHaveText("Casey Client");
   await expect(page.getByRole("region", { name: "Billing" })).toBeHidden();
