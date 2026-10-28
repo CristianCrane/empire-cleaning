@@ -164,7 +164,9 @@ function BookingForm({
           </SelectItem>
         ))}
       </Select>
-      <div className="grid gap-4 sm:grid-cols-3">
+      {/* as many to a row as fit the dialog, not the screen: three squeeze
+          the date and the stepper out of sight */}
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-4">
         <DatePicker label="Day" name="date" value={date} onChange={setDate} />
         <TimeField
           label="Start time"
@@ -174,7 +176,7 @@ function BookingForm({
           onChange={setTime}
         />
         <NumberField
-          label="Length in minutes"
+          label="Duration in minutes"
           name="minutes"
           minValue={15}
           maxValue={480}

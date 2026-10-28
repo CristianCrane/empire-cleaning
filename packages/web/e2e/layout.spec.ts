@@ -50,6 +50,33 @@ const problemsAt = (page: Page) =>
         );
       }
     }
+    // a field drawn as a box of parts (a date's segments and calendar
+    // button, a number's stepper): squeezed, its parts crowd into its
+    // padding and get cut off at the edge, though nothing scrolls
+    for (const group of document.querySelectorAll('[role="group"]')) {
+      if (group.getClientRects().length === 0) continue;
+      const box = group.getBoundingClientRect();
+      const style = getComputedStyle(group);
+      const left = box.left + parseFloat(style.paddingLeft) - 1;
+      const right = box.right - parseFloat(style.paddingRight) + 1;
+      for (const part of group.querySelectorAll(
+        'button, input:not([type="hidden"]), [role="spinbutton"]',
+      )) {
+        const rect = part.getBoundingClientRect();
+        if (rect.width === 0) continue;
+        if (rect.left < left || rect.right > right) {
+          const name =
+            group.getAttribute("aria-label") ??
+            document.getElementById(
+              group.getAttribute("aria-labelledby")?.split(" ")[0] ?? "",
+            )?.textContent;
+          problems.push(
+            `"${name}" is too narrow: its ${part.getAttribute("aria-label") ?? part.tagName.toLowerCase()} is cut off at the edge`,
+          );
+          break;
+        }
+      }
+    }
     return problems;
   });
 
@@ -64,6 +91,29 @@ const expectFitsEveryWidth = async (page: Page, path: string) => {
     }
   }
   expect.soft(problems).toEqual([]);
+};
+
+// the same for a dialog, opened from a page by its button: a dialog keeps its
+// own width, whatever the screen's, so its fields can be squeezed on the
+// widest screen
+const expectDialogFitsEveryWidth = async (
+  page: Page,
+  path: string,
+  button: string,
+) => {
+  await page.goto(path);
+  await page.getByRole("button", { name: button }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  const problems: string[] = [];
+  for (const width of widths) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const problem of await problemsAt(page)) {
+      problems.push(`${button} dialog at ${width}px: ${problem}`);
+    }
+  }
+  expect.soft(problems).toEqual([]);
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
 };
 
 const olive = {
@@ -162,6 +212,21 @@ test("business premises' screens fit every width, the form included", async ({
   ]) {
     await expectFitsEveryWidth(page, path);
   }
+
+  // its Site Visit's dialogs: moving it, and once it's cancelled, booking one
+  await expectDialogFitsEveryWidth(
+    page,
+    `${property}?tab=visit`,
+    "Move or change",
+  );
+  await page.getByRole("button", { name: "Cancel visit" }).click();
+  await page.getByRole("button", { name: "Cancel Site Visit" }).click();
+  await expect(page.getByText("Site Visit cancelled")).toBeVisible();
+  await expectDialogFitsEveryWidth(
+    page,
+    `${property}?tab=visit`,
+    "Book a Site Visit",
+  );
 
   // the form's step about business premises, with its days to choose
   await page.goto("/office/quotes/new");

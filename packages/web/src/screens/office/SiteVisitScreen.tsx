@@ -114,7 +114,7 @@ export function VisitDetails({
             )}
             {visit.startsAt && (
               <>
-                <dt className="font-semibold">Length</dt>
+                <dt className="font-semibold">Duration</dt>
                 <dd>{formatMinutes(visit.minutes)}</dd>
                 <dt className="font-semibold">Who visits</dt>
                 <dd>{visit.visitor?.name}</dd>
