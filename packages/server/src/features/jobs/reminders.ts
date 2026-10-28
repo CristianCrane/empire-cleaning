@@ -1,6 +1,5 @@
 import { and, eq, gte, isNull, lt } from "drizzle-orm";
 import { db } from "../../db/index.ts";
-import env from "../../env.ts";
 import {
   addDays,
   clock,
@@ -8,17 +7,12 @@ import {
   startOfDay,
   timeOf,
 } from "../../services/clock/index.ts";
-import {
-  compose,
-  email,
-  firstNameOf,
-  formatWhen,
-} from "../../services/email/index.ts";
+import { email } from "../../services/email/index.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { properties } from "../properties/properties.schema.ts";
-import { addressOf } from "../properties/property-view.ts";
 import { jobs } from "./jobs.schema.ts";
-import { serviceNameOf } from "../services/services.ts";
+import { cleanOf } from "../services/services.ts";
+import { reminderEmail } from "./emails.ts";
 
 // reminders go out from this time, New York, on the day before
 export const REMINDER_TIME = "08:00";
@@ -65,18 +59,10 @@ export const sendDueReminders = async () => {
     try {
       await email.send({
         to: client.email,
-        subject: "Your clean is tomorrow",
-        ...compose(
-          [
-            `Hi ${firstNameOf(client.name)},`,
-            `A reminder that your ${await serviceNameOf(job.serviceId)} at ${addressOf(property)} is tomorrow, ${formatWhen(job.startsAt)}.`,
-            "Please make sure our team can get in. If anything has changed, such as a gate code or where the key is, update your Access Instructions:",
-          ],
-          {
-            href: `${env.CORS_ORIGIN_URL}/portal/details`,
-            label: "Check your Access Instructions",
-          },
-        ),
+        ...reminderEmail({
+          name: client.name,
+          clean: await cleanOf(job, property),
+        }),
       });
       sent += 1;
     } catch (error) {

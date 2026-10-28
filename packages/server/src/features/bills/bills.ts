@@ -34,16 +34,16 @@ import {
   timeOf,
   weekdayOf,
 } from "../../services/clock/index.ts";
-import {
-  compose,
-  email,
-  firstNameOf,
-  formatDay,
-  formatMoney,
-  formatWhen,
-} from "../../services/email/index.ts";
+import { email, formatWhen } from "../../services/email/index.ts";
 import { paymentGateway } from "../../services/payment-gateway/index.ts";
-import { ON_HOLD_LINE } from "../cancellation/cancellation.ts";
+import { ON_HOLD_LINE } from "../cancellation/emails.ts";
+import {
+  billEmail,
+  chargedPerCleanEmail,
+  creditRefundedEmail,
+  settledLines,
+  type Occasion,
+} from "./emails.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { officeClientView } from "../clients/clients.ts";
 import {
@@ -957,57 +957,6 @@ const toSettledView = (s: SettledJob): SettledJobView => ({
   unpaidCents: s.unpaidCents,
 });
 
-// What settling per Job moved, as lines for the Client: each Job with what
-// was charged, refunded or couldn't be, then what to do about one that
-// couldn't, and what that did to their Service Plan
-const settledLines = (settled: SettledJob[]) => {
-  const card = settled[0]?.settled.paymentMethod ?? "card";
-  const lines = [
-    settled
-      .map((s) => {
-        const moved = [
-          ...(s.settled.chargedCents > 0
-            ? [`charged ${formatMoney(s.settled.chargedCents)}`]
-            : []),
-          ...(s.settled.refundedCents > 0
-            ? [`refunded ${formatMoney(s.settled.refundedCents)}`]
-            : []),
-          ...(s.unpaidCents !== null
-            ? [`couldn't charge ${formatMoney(s.unpaidCents)}`]
-            : []),
-        ];
-        return `${s.label}: ${moved.join(", ")}`;
-      })
-      .join("\n"),
-  ];
-  const charged = settled.some((s) => s.settled.chargedCents > 0);
-  const refunded = settled.some((s) => s.settled.refundedCents > 0);
-  if (charged || refunded) {
-    const what =
-      charged && refunded
-        ? "Charges and refunds are"
-        : charged
-          ? "Charges are"
-          : "Refunds are";
-    lines.push(
-      `${what} to your ${card}.${refunded ? " A refund can take a few days to reach you." : ""}`,
-    );
-  }
-  if (settled.some((s) => s.unpaidCents !== null)) {
-    lines.push(
-      `We couldn't charge your ${card}. Please update your Payment Method and we'll try again straight away.`,
-    );
-  }
-  if (settled.some((s) => s.settled.plan === "held")) {
-    lines.push(ON_HOLD_LINE);
-  } else if (settled.some((s) => s.settled.plan === "resumed")) {
-    lines.push(
-      "Your Service Plan is back on, and we'll book your cleans as usual.",
-    );
-  }
-  return lines;
-};
-
 // tells the Client they're charged per clean again, and what that charged
 // for what no Bill had taken yet
 const tellChargedPerClean = async (clientId: string, settled: SettledJob[]) => {
@@ -1015,27 +964,9 @@ const tellChargedPerClean = async (clientId: string, settled: SettledJob[]) => {
     .select()
     .from(clients)
     .where(eq(clients.id, clientId));
-  const unpaid = settled.some((s) => s.unpaidCents !== null);
   await email.send({
     to: client!.billingEmail ?? client!.email,
-    subject: unpaid
-      ? "We couldn't take payment for your cleans"
-      : "You're now charged per clean",
-    ...compose(
-      [
-        `Hi ${firstNameOf(client!.name)},`,
-        "We've stopped billing you weekly, so from now on each clean is charged to your card when it's done. Bills already sent stay due as they are.",
-        "Here's what we've settled for cleans no bill has covered yet:",
-        ...settledLines(settled),
-        "Prices include tax.",
-      ],
-      unpaid
-        ? {
-            href: `${env.CORS_ORIGIN_URL}/portal/payment-method`,
-            label: "Update your Payment Method",
-          }
-        : { href: `${env.CORS_ORIGIN_URL}/portal`, label: "See your cleans" },
-    ),
+    ...chargedPerCleanEmail({ name: client!.name, settled }),
   });
 };
 
@@ -1363,8 +1294,6 @@ const notify = async (what: string, send: () => Promise<void>) => {
   }
 };
 
-type Occasion = "made" | "reminder" | "paid" | "voided" | "debit_failed";
-
 // The whole Bill, as an email to the billing email, or else the Client's:
 // its number, week, due date, each line, tax and total, with why it's sent
 // and a link to it in the portal
@@ -1382,109 +1311,24 @@ const sendBill = async (
     .leftJoin(paymentMethods, eq(paymentMethods.clientId, clients.id))
     .where(eq(bills.id, billId));
   const { bill, client, method } = found!;
-  const number = billNumber(bill.number);
-  const card = method?.label ?? "card";
-  const total = formatMoney(bill.totalCents);
-
-  const [subject, ...about] = ((): string[] => {
-    switch (occasion) {
-      case "made":
-        if (bill.unpaidSince) {
-          return [
-            `We couldn't take payment for bill ${number}`,
-            `We couldn't charge ${total} for bill ${number} to your ${card}. Please update your Payment Method and we'll try again straight away, or pay it on its page.`,
-          ];
-        }
-        if (bill.totalCents < 0) {
-          return [
-            `Your bill ${number}: a credit`,
-            `This week's bill comes to a credit of ${formatMoney(-bill.totalCents)}, which comes off your next one. If none follows within ${CREDIT_REFUND_DAYS} days, we'll refund it.`,
-          ];
-        }
-        if (bill.totalCents === 0) {
-          return [`Your bill ${number}`, "There's nothing to pay this week."];
-        }
-        return bill.status === "paid"
-          ? [
-              `Your receipt for bill ${number}`,
-              `Here's your bill for the week. We've charged ${total} to your ${card}.`,
-            ]
-          : [
-              `Your bill ${number} from Empire Cleaning`,
-              `Here's your bill for the week: ${total}, due by ${formatDay(bill.dueOn)}. You can pay it by card or bank transfer on its page.`,
-            ];
-      case "reminder": {
-        const today = dayOf(clock.now());
-        if (today < bill.dueOn) {
-          return [
-            `Bill ${number} is due ${formatDay(bill.dueOn)}`,
-            `A reminder that bill ${number}, ${total}, is due by ${formatDay(bill.dueOn)}. You can pay it by card or bank transfer on its page.`,
-          ];
-        }
-        if (today === bill.dueOn) {
-          return [
-            `Bill ${number} is due today`,
-            `A reminder that bill ${number}, ${total}, is due today. You can pay it by card or bank transfer on its page.`,
-          ];
-        }
-        return [
-          `Bill ${number} is overdue`,
-          `Bill ${number}, ${total}, was due by ${formatDay(bill.dueOn)} and hasn't been paid yet. Please pay it on its page, by card or bank transfer.`,
-        ];
-      }
-      case "paid":
-        return [
-          `Your receipt for bill ${number}`,
-          bill.paidVia === "outside"
-            ? `We've received your payment of ${total} for bill ${number}. Thank you.`
-            : `Thank you: bill ${number} is paid, ${total}.`,
-        ];
-      case "voided":
-        return [
-          `Bill ${number} is cancelled`,
-          `We've voided bill ${number}, so there's nothing to pay on it.${bill.voidReason ? ` ${bill.voidReason}` : ""}`,
-          client.billedWeeklyFrom
-            ? "Anything on it that's still owed will be on your next bill."
-            : "Anything on it that's still owed is charged to your card per clean, as before.",
-        ];
-      case "debit_failed":
-        return [
-          `Your bank payment for bill ${number} didn't go through`,
-          `Your bank payment of ${total} for bill ${number} didn't go through. Please pay it again on its page, by card or from another account.`,
-        ];
-    }
-  })();
-
-  const lines = await linesOf(billId);
   await email.send({
     to: client.billingEmail ?? client.email,
     bcc,
-    subject: subject!,
-    ...compose(
-      [
-        `Hi ${firstNameOf(client.name)},`,
-        ...about,
-        ...extra,
-        [
-          `Bill ${number}`,
-          `Week: ${formatDay(bill.weekStart)} to ${formatDay(addDays(bill.weekStart, 6))}`,
-          ...(bill.payment === "on_page" && bill.totalCents > 0
-            ? [`Due by: ${formatDay(bill.dueOn)}`]
-            : []),
-        ].join("\n"),
-        lines
-          .map((l) => `${l.label}: ${formatMoney(l.amountCents)}`)
-          .join("\n"),
-        [`Tax included: ${formatMoney(bill.taxCents)}`, `Total: ${total}`].join(
-          "\n",
-        ),
-        "Prices include tax.",
-      ],
-      {
-        href: `${env.CORS_ORIGIN_URL}/portal/bills/${billId}`,
-        label: "See your bill",
+    ...billEmail({
+      name: client.name,
+      bill: {
+        ...bill,
+        number: billNumber(bill.number),
+        unpaid: bill.unpaidSince !== null,
+        lines: await linesOf(billId),
       },
-    ),
+      occasion,
+      extra,
+      card: method?.label ?? "card",
+      today: dayOf(clock.now()),
+      billedWeekly: client.billedWeeklyFrom !== null,
+      creditRefundDays: CREDIT_REFUND_DAYS,
+    }),
   });
 };
 
@@ -1513,16 +1357,12 @@ const tellCreditRefunded = async (billId: string, cents: number) => {
   const { bill, client } = found!;
   await email.send({
     to: client.billingEmail ?? client.email,
-    subject: `We've refunded your credit from bill ${billNumber(bill.number)}`,
-    ...compose(
-      [
-        `Hi ${firstNameOf(client.name)},`,
-        `No bill has followed bill ${billNumber(bill.number)} in ${CREDIT_REFUND_DAYS} days, so we've refunded its ${formatMoney(cents)} credit to you. It can take a few days to reach you.`,
-      ],
-      {
-        href: `${env.CORS_ORIGIN_URL}/portal/bills/${billId}`,
-        label: "See the bill",
-      },
-    ),
+    ...creditRefundedEmail({
+      name: client.name,
+      billId,
+      number: billNumber(bill.number),
+      cents,
+      creditRefundDays: CREDIT_REFUND_DAYS,
+    }),
   });
 };

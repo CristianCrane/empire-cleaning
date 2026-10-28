@@ -1,4 +1,4 @@
-import { formatMoney } from "./format.ts";
+import { formatMoney, formatWhen } from "./format.ts";
 
 // what every email is written from: a builder next to its feature returns
 // blocks, and the shared layout (layout.tsx) turns them into the HTML and the
@@ -17,7 +17,8 @@ export type Block =
   | { kind: "details"; rows: Row[] }
   // money, with the total last and in bold
   | { kind: "amounts"; rows: Row[]; total: Row }
-  // the one thing to do; the text part prints its raw URL
+  // the one thing to do; the text part prints its raw URL. A path, like
+  // "/portal", is in the web app
   | { kind: "button"; label: string; href: string };
 
 export type Email = {
@@ -47,6 +48,31 @@ export const button = (label: string, href: string): Block => ({
   kind: "button",
   label,
   href,
+});
+
+// a Job or Site Visit, as the details of an email about it
+export type Clean = { service: string; address: string; startsAt: Date };
+
+// When, Where and Service; `was` is the time a move took it from
+export const cleanDetails = (
+  { service, address, startsAt }: Clean,
+  was?: Date,
+): Block =>
+  details([
+    { label: "When", value: formatWhen(startsAt) },
+    ...(was ? [{ label: "Was", value: formatWhen(was) }] : []),
+    { label: "Where", value: address },
+    { label: "Service", value: service },
+  ]);
+
+// a button's path made a full URL in the web app at `appUrl`
+export const withAppUrl = (email: Email, appUrl: string): Email => ({
+  ...email,
+  blocks: email.blocks.map((block) =>
+    block.kind === "button" && block.href.startsWith("/")
+      ? { ...block, href: `${appUrl.replace(/\/$/, "")}${block.href}` }
+      : block,
+  ),
 });
 
 export const previewOf = (email: Email) =>

@@ -1,16 +1,9 @@
 import { and, desc, eq, inArray, sum } from "drizzle-orm";
 import type { EndPlanTerms } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
-import env from "../../env.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock } from "../../services/clock/index.ts";
-import {
-  compose,
-  email,
-  firstNameOf,
-  formatMoney,
-  formatWhen,
-} from "../../services/email/index.ts";
+import { email } from "../../services/email/index.ts";
 import {
   CANCELLATION_CUTOFF_HOURS,
   tellCrew,
@@ -22,6 +15,7 @@ import { charges } from "../payments/payments.schema.ts";
 import { properties } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
 import { officeStaffEmails } from "../staff/staff.ts";
+import { officePlanEndedEmail, planEndedEmail } from "./emails.ts";
 import {
   servicePlans,
   servicePlanVisits,
@@ -218,64 +212,22 @@ const ownerOf = async (plan: ServicePlan) => {
   return found!;
 };
 
-const whenList = (times: string[]) =>
-  times.map((t) => formatWhen(new Date(t))).join("; ");
-
 const tellClient = async (
   plan: ServicePlan,
   terms: EndPlanTerms,
   settled: Settled,
 ) => {
   const { property, client } = await ownerOf(plan);
-  const card = settled.paymentMethod ?? "card";
-  const final = formatWhen(new Date(terms.finalJob.startsAt));
-  const lines = [
-    `Hi ${firstNameOf(client.name)},`,
-    `We've Ended your Service Plan at ${addressOf(property)}, as you asked.`,
-    ...(terms.cancelled.length > 0
-      ? [
-          `We've cancelled the cleans it had booked, free: ${whenList(terms.cancelled)}.`,
-        ]
-      : []),
-    ...(terms.goingAhead.length > 0
-      ? [
-          `Your clean on ${whenList(terms.goingAhead)} is less than ${CANCELLATION_CUTOFF_HOURS} hours away, so it goes ahead.`,
-        ]
-      : []),
-    // refunded, it's said below
-    ...(terms.depositCents > 0 && terms.deposit !== "refunded"
-      ? terms.deposit === "comes_off"
-        ? [
-            `Your ${formatMoney(terms.depositCents)} Deposit comes off the price of your clean on ${final}.`,
-          ]
-        : [
-            `Your ${formatMoney(terms.depositCents)} Deposit goes towards your clean on ${final}.`,
-          ]
-      : []),
-    ...(settled.refundedCents > 0
-      ? [
-          `We've refunded ${formatMoney(settled.refundedCents)} to your ${card}. It can take a few days to reach you.`,
-        ]
-      : []),
-    ...(settled.chargedCents > 0
-      ? [
-          `We've charged the ${formatMoney(settled.chargedCents)} still to pay to your ${card}.`,
-        ]
-      : []),
-    ...(settled.billed
-      ? [
-          "Whatever your final clean still owes, or is owed, goes on your next weekly bill.",
-        ]
-      : []),
-    "To book another clean, request a Quote from your account.",
-  ];
   await notify(`End of Service Plan ${plan.id} notice`, () =>
     email.send({
       to: client.email,
-      subject: "Your Service Plan has Ended",
-      ...compose(lines, {
-        href: `${env.CORS_ORIGIN_URL}/portal/plans/${plan.id}`,
-        label: "See your plan",
+      ...planEndedEmail({
+        name: client.name,
+        address: addressOf(property),
+        planId: plan.id,
+        terms,
+        settled,
+        cutoffHours: CANCELLATION_CUTOFF_HOURS,
       }),
     }),
   );
@@ -288,22 +240,12 @@ const tellOffice = async (plan: ServicePlan, terms: EndPlanTerms) => {
     for (const to of await officeStaffEmails()) {
       await email.send({
         to,
-        subject: `${client.name} Ended their Service Plan`,
-        ...compose(
-          [
-            `${client.name} has Ended their Service Plan at ${addressOf(property)}.`,
-            terms.cancelled.length > 0
-              ? `Its ${terms.cancelled.length} booked ${terms.cancelled.length === 1 ? "Job is" : "Jobs are"} cancelled, free.`
-              : "It had no Jobs booked more than 24 hours out.",
-            ...(terms.goingAhead.length > 0
-              ? [`Going ahead: ${whenList(terms.goingAhead)}.`]
-              : []),
-          ],
-          {
-            href: `${env.CORS_ORIGIN_URL}/office/service-plans/${plan.id}`,
-            label: "See the plan",
-          },
-        ),
+        ...officePlanEndedEmail({
+          client: client.name,
+          address: addressOf(property),
+          planId: plan.id,
+          terms,
+        }),
       });
     }
   });

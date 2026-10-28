@@ -11,7 +11,9 @@ import type {
 import { db } from "../../db/index.ts";
 import { NotFoundError, RequestBodyError } from "../../middleware/errors.ts";
 import { z } from "zod";
+import type { Clean } from "../../services/email/blocks.ts";
 import { currentPriceList } from "../price-list/price-list.ts";
+import { addressOf } from "../properties/property-view.ts";
 import { staff } from "../staff/staff.schema.ts";
 import { SEEDED } from "./seeded.ts";
 import { services, type ServiceRow } from "./services.schema.ts";
@@ -303,6 +305,16 @@ export const serviceVersions = async (ids: string[]) => {
 // the name a Job's Service had when it was booked
 export const serviceNameOf = async (serviceId: string) =>
   (await serviceVersions([serviceId])).get(serviceId)!.name;
+
+// a Job, as an email's details give it
+export const cleanOf = async (
+  job: { serviceId: string; startsAt: Date },
+  property: Parameters<typeof addressOf>[0],
+): Promise<Clean> => ({
+  service: await serviceNameOf(job.serviceId),
+  address: addressOf(property),
+  startsAt: job.startsAt,
+});
 
 const fieldError = (path: (string | number)[], message: string) =>
   new RequestBodyError(

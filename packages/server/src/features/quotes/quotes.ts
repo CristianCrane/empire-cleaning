@@ -22,7 +22,6 @@ import type {
   TurnDownReason,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
-import env from "../../env.ts";
 import {
   ConflictError,
   NotFoundError,
@@ -37,14 +36,7 @@ import {
   timeOf,
   weekdayOf,
 } from "../../services/clock/index.ts";
-import {
-  compose,
-  email,
-  firstNameOf,
-  formatMoney,
-  formatWhen,
-  weekdayName,
-} from "../../services/email/index.ts";
+import { email } from "../../services/email/index.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { officeCompletionOf } from "../completion/completion.ts";
 import { paymentMethodOf, toPaymentMethodView } from "../payments/payments.ts";
@@ -81,7 +73,8 @@ import {
 } from "../site-visits/site-visits.ts";
 import { siteVisitViews } from "../site-visits/views.ts";
 import { askedAddOns } from "./asked-add-ons.ts";
-import { describePlan, percentOf } from "./plan-days.ts";
+import { quoteEmail, turnDownEmail } from "./emails.ts";
+import { percentOf } from "./plan-days.ts";
 import { bookableFor } from "./quote-room.ts";
 import {
   askedOf,
@@ -112,12 +105,6 @@ const PLAN_DEFAULTS = {
 } as const satisfies {
   recurrence: Recurrence;
   condition: Condition;
-};
-
-const recurrenceLabel: Record<Recurrence, string> = {
-  weekly: "every week",
-  fortnightly: "every 2 weeks",
-  four_weekly: "every 4 weeks",
 };
 
 const DAY_MS = 86_400_000;
@@ -1729,87 +1716,30 @@ const sendTurnDownEmail = async (
 ) => {
   await email.send({
     to: client.email,
-    subject: "About your Quote from Empire Cleaning",
-    ...compose(
-      [
-        `Hi ${firstNameOf(client.name)},`,
-        `Thanks for asking Empire Cleaning for a Quote for ${addressOf(property)}. We're sorry, but we can't quote for it: ${turnDownWording[reason]}.`,
-        "If anything changes, you're welcome to ask us again.",
-      ],
-      {
-        href: `${env.CORS_ORIGIN_URL}/portal/quotes/${quoteId}`,
-        label: "See your Quote",
-      },
-    ),
+    ...turnDownEmail({
+      name: client.name,
+      address: addressOf(property),
+      quoteId,
+      why: turnDownWording[reason],
+    }),
   });
 };
 
-// a Service Plan Quote's offer, in an email: on one weekday, what each clean
-// saves; on several, each weekday and what a week of them costs
-const planOffer = (
-  quote: OfficeQuote,
-  offer: OfficeRevision,
-  plan: ServicePlanTerms,
-) => {
-  const starting = formatWhen(new Date(offer.proposedStartsAt!));
-  const address = addressOf(quote.property);
-  if (plan.days.length === 1) {
-    const [day] = plan.days;
-    return [
-      `Your Service Plan Quote for ${address} is ready: a ${day!.serviceName} ${recurrenceLabel[plan.recurrence]}, starting ${starting}.`,
-      `${formatMoney(offer.options[0]!.totalCents)} a clean, saving ${formatMoney(day!.savingCents)} on the one-off price of ${formatMoney(day!.oneOffTotalCents)} (Plan Discount ${plan.discountPercent}%).`,
-    ];
-  }
-  return [
-    `Your Service Plan Quote for ${address} is ready: ${describePlan(
-      plan.recurrence,
-      plan.days.map((d) => ({ ...d, startsAt: new Date(d.startsAt!) })),
-    )}, starting ${starting}.`,
-    offer.options
-      .map(
-        (option, i) =>
-          `${weekdayName(new Date(plan.days[i]!.startsAt!))}: ${formatMoney(option.totalCents)}`,
-      )
-      .join("\n"),
-    `${formatMoney(plan.roundTotalCents)} a week, ${plan.discountPercent}% off the one-off prices (Plan Discount).`,
-  ];
-};
-
-// A plain link to the Quote's page, not the Revision's: it carries no
-// sign-in power (ADR-0006), so a signed-out Client signs in (or up) with
-// this email and comes back to it. A later Revision says the Quote has
-// changed.
 const sendQuoteEmail = async (client: Client, quote: OfficeQuote) => {
   const offer = quote.offer!;
-  const lines = offer.plan
-    ? planOffer(quote, offer, offer.plan)
-    : [
-        `Your Quote for ${addressOf(quote.property)} is ready, for ${formatWhen(new Date(offer.proposedStartsAt!))}:`,
-        offer.options
-          .map(
-            (o) =>
-              `${o.serviceName}${o.recommended ? " (recommended)" : ""}: ${formatMoney(o.totalCents)}`,
-          )
-          .join("\n"),
-      ];
-  const revised = offer.number > 1;
-  if (revised) {
-    lines[0] = lines[0]!.replace(" is ready", " has been updated");
-  }
-
+  if (!client.email) return;
   await email.send({
     to: client.email,
-    subject: `${revised ? "Your updated" : "Your"} ${offer.plan ? "Service Plan Quote" : "Quote"} from Empire Cleaning`,
-    ...compose(
-      [
-        `Hi ${firstNameOf(client.name)},`,
-        ...lines,
-        `Prices include tax. It's open until ${formatWhen(new Date(offer.expiresAt!))}. To see it in full, sign in with this email address (${client.email}):`,
-      ],
-      {
-        href: `${env.CORS_ORIGIN_URL}/portal/quotes/${quote.id}`,
-        label: "See your Quote",
+    ...quoteEmail({
+      name: client.name,
+      email: client.email,
+      quoteId: quote.id,
+      address: addressOf(quote.property),
+      offer: {
+        ...offer,
+        proposedStartsAt: offer.proposedStartsAt!,
+        expiresAt: offer.expiresAt!,
       },
-    ),
+    }),
   });
 };

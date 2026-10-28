@@ -317,7 +317,7 @@ describe("accepting a First Clean Quote", () => {
     const confirmation = testEmail().lastTo(casey.email);
     expect(confirmation.subject).toBe("You're booked with Empire Cleaning");
     expect(confirmation.text).toContain(
-      "a Deep Clean at 41-12 Austin St, 4B, 11375 on Monday, January 12",
+      "When: Monday, January 12 at 9:00 AM\nWhere: 41-12 Austin St, 4B, 11375\nService: Deep Clean",
     );
     expect(confirmation.text).toContain(
       `Deposit of $${(deep.depositCents / 100).toFixed(2)} from your Test card ending 4242`,
@@ -1030,7 +1030,7 @@ describe("the reminder the day before a Job", () => {
 
     const [reminder] = reminders();
     expect(reminder!.text).toContain(
-      "your Deep Clean at 41-12 Austin St, 4B, 11375 is tomorrow, Monday, January 12",
+      "your clean is tomorrow.\n\nWhen: Monday, January 12 at 9:00 AM\nWhere: 41-12 Austin St, 4B, 11375\nService: Deep Clean",
     );
     expect(reminder!.text).toContain("http://localhost:5173/portal/details");
   });
@@ -1170,7 +1170,7 @@ describe("when a Quote's day fills up before it's accepted", () => {
 
     const notice = testEmail().lastTo("olive@example.com");
     expect(notice.subject).toBe("A Quote needs another time");
-    expect(notice.text).toContain("Casey Client, 41-12 Austin St, 4B, 11375");
+    expect(notice.text).toContain("Casey Client: 41-12 Austin St, 4B, 11375");
     expect(notice.text).toContain("/office");
     // and Casey's Quote can't be taken
     expect(

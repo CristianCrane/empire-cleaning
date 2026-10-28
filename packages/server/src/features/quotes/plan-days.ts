@@ -1,12 +1,12 @@
 import type { Recurrence } from "@empire-cleaning/models";
-import { formatTime, weekdayName } from "../../services/email/index.ts";
+import { formatTime, weekdayName } from "../../services/email/format.ts";
 
 // a percentage of an amount, to the cent, halves up: a Plan Discount, or a
 // Deposit
 export const percentOf = (cents: number, percent: number) =>
   Math.floor((cents * percent + 50) / 100);
 
-const recurrenceLabel: Record<Recurrence, string> = {
+export const recurrenceLabel: Record<Recurrence, string> = {
   weekly: "every week",
   fortnightly: "every 2 weeks",
   four_weekly: "every 4 weeks",

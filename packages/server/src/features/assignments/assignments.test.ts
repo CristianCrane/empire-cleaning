@@ -112,7 +112,7 @@ describe("Offering Assignments", () => {
     expect(email.subject).toBe("You've been offered a Job");
     expect(email.text).toContain("Hi Cory,");
     expect(email.text).toMatch(
-      /Deep Clean at \d+ Austin St, 4B, 11375, Thursday, January 8 at 9:00 AM/,
+      /When: Thursday, January 8 at 9:00 AM\nWhere: \d+ Austin St, 4B, 11375\nService: Deep Clean/,
     );
     expect(email.text).toContain(
       `http://localhost:5173/cleaner/jobs/${job.id}`,
@@ -421,7 +421,7 @@ describe("Releasing", () => {
     const email = testEmail().lastTo("olive@example.com");
     expect(email.subject).toBe("Cory Cleaner released a place on a Job");
     expect(email.text).toMatch(
-      /Cory Cleaner has released their place on the Deep Clean at \d+ Austin St/,
+      /Cory Cleaner has released their place on this Job:\n\nWhen: .*\nWhere: \d+ Austin St/,
     );
     expect(email.text).toContain(`http://localhost:5173/office/jobs/${job.id}`);
   });

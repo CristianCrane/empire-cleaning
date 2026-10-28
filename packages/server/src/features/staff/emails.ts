@@ -11,11 +11,9 @@ import { firstNameOf } from "../../services/email/format.ts";
 export const staffInviteEmail = ({
   name,
   email,
-  signInUrl,
 }: {
   name: string;
   email: string;
-  signInUrl: string;
 }): Email => ({
   subject: "You're invited to join Empire Cleaning",
   blocks: [
@@ -23,7 +21,7 @@ export const staffInviteEmail = ({
     paragraph(
       `You've been invited to join Empire Cleaning's Staff. To get started, sign up with this email address (${email}), with an emailed link or with Google:`,
     ),
-    button("Sign up", signInUrl),
+    button("Sign up", "/sign-in"),
     paragraph("If you weren't expecting this, you can ignore this email."),
   ],
 });

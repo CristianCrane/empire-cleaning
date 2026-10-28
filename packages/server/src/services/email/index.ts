@@ -1,6 +1,6 @@
 import { Resend } from "resend";
 import env from "../../env.ts";
-import type { Email } from "./blocks.ts";
+import { withAppUrl, type Email } from "./blocks.ts";
 import { renderEmail } from "./render.tsx";
 
 export type EmailMessage = {
@@ -44,19 +44,15 @@ let current: EmailSender = new ResendEmailSender(
   env.EMAIL_FROM,
 );
 
-type Written = Pick<EmailMessage, "subject" | "html" | "text">;
-
-// A message to nobody is not sent: a Client the Office entered without an
-// email gets no emails until one is added (#34). An email from a builder is
-// rendered through the shared layout; the rest are still written with
-// compose() until they move to builders (#126).
+// Every email comes from a builder (e.g. signInEmail) and is rendered through
+// the shared layout. A message to nobody is not sent: a Client the Office
+// entered without an email gets no emails until one is added (#34).
 export const email = {
-  send: async (
-    message: { to: string | null; bcc?: string } & (Email | Written),
-  ) => {
+  send: async (message: { to: string | null; bcc?: string } & Email) => {
     if (message.to === null) return;
-    const { subject, html, text } =
-      "blocks" in message ? await renderEmail(message) : message;
+    const { subject, html, text } = await renderEmail(
+      withAppUrl(message, env.CORS_ORIGIN_URL),
+    );
     await current.send({
       to: message.to,
       ...(message.bcc ? { bcc: message.bcc } : {}),
@@ -73,5 +69,4 @@ export const setEmailSender = (next: EmailSender) => {
 };
 
 export * from "./blocks.ts";
-export * from "./compose.ts";
 export * from "./format.ts";

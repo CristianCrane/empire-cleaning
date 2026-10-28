@@ -188,7 +188,7 @@ describe("the Client cancelling", () => {
     expect(email.text).toContain("There's no charge for cancelling.");
     expect(email.text).toMatch(/We've refunded \$[\d.]+ to your Test card/);
     expect(testEmail().lastTo("cory@example.com").text).toMatch(
-      /We've cancelled the Deep Clean .* You don't need to go\./,
+      /We've cancelled this Job\. You don't need to go\.\n\nWhen: .*\nWhere: .*\nService: Deep Clean/,
     );
     expect(testEmail().lastTo("olive@example.com").subject).toBe(
       "Casey Client cancelled a Job",
@@ -303,9 +303,8 @@ describe("Office Staff cancelling", () => {
     });
     expect(refunded()).toEqual([deposit]);
     const email = testEmail().lastTo(casey.email);
-    expect(email.text).toContain(
-      "we've had to cancel the Deep Clean at 41-12 Austin St",
-    );
+    expect(email.text).toContain("we've had to cancel your clean.");
+    expect(email.text).toContain("Where: 41-12 Austin St");
     expect(email.text).toContain("Our crew's van broke down.");
     expect(email.text).toContain("You won't be charged anything for it.");
   });

@@ -11,19 +11,14 @@ import {
 } from "drizzle-orm";
 import type { OpenPlace } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
-import env from "../../env.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock, dayOf, timeOf } from "../../services/clock/index.ts";
-import {
-  compose,
-  email,
-  firstNameOf,
-  formatWhen,
-} from "../../services/email/index.ts";
+import { email } from "../../services/email/index.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { cleanerHours } from "../jobs/schedule.ts";
 import { properties } from "../properties/properties.schema.ts";
 import { serviceVersions } from "../services/services.ts";
+import { openPlacesEmail } from "./emails.ts";
 import { siteVisits } from "../site-visits/site-visits.schema.ts";
 import { staff } from "../staff/staff.schema.ts";
 import {
@@ -325,41 +320,14 @@ export const placeReopened = async (jobId: string) => {
 
 // ---- emails ----
 
-// "Deep Clean, Thursday, January 8 at 9:00 AM, 11375, about 3 hours on site,
-// crew of 2"
-const lineFor = (place: OpenPlace) =>
-  [
-    place.serviceName,
-    formatWhen(new Date(place.startsAt)),
-    place.postcode,
-    `about ${place.hoursOnSite} ${place.hoursOnSite === 1 ? "hour" : "hours"} on site`,
-    place.crewSize === 1 ? "on your own" : `crew of ${place.crewSize}`,
-  ].join(", ");
-
 const sendList = async (
   member: { id: string; name: string; email: string },
-  subject: string,
-  intro: string,
+  soon: boolean,
   places: OpenPlace[],
 ) =>
   email.send({
     to: member.email,
-    subject,
-    ...compose(
-      [
-        `Hi ${firstNameOf(member.name)},`,
-        intro,
-        ...places.map(lineFor),
-        "The first to confirm takes each place.",
-      ],
-      {
-        href:
-          places.length === 1
-            ? `${env.CORS_ORIGIN_URL}/cleaner/open/${places[0]!.jobId}`
-            : `${env.CORS_ORIGIN_URL}/cleaner`,
-        label: places.length === 1 ? "See the Job" : "See the Jobs",
-      },
-    ),
+    ...openPlacesEmail({ name: member.name, soon, places }),
   });
 
 // The Cleaners whose morning email is due: from 7am, the first time this
@@ -453,20 +421,14 @@ export const emailOpenPlaces = async () => {
       if (digest) {
         await sendList(
           member,
-          "Jobs open to you",
-          "These Jobs have places open, and you're free for them. New ones first:",
+          false,
           await toOpenPlaces([
             ...theirs.filter(isNew),
             ...theirs.filter((o) => !isNew(o)),
           ]),
         );
       } else {
-        await sendList(
-          member,
-          "A Job soon is open to you",
-          "These Jobs in the next two days have places open, and you're free for them:",
-          await toOpenPlaces(theirs.filter(isNew)),
-        );
+        await sendList(member, true, await toOpenPlaces(theirs.filter(isNew)));
       }
       sent += 1;
     } catch (error) {

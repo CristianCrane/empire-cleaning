@@ -232,7 +232,9 @@ describe("making Bills", () => {
       "Week: Monday, January 5 to Sunday, January 11",
     );
     expect(receipt.text).toContain("Deposit paid:");
-    expect(receipt.text).toContain("Tax included:");
+    expect(receipt.text).toMatch(
+      /Prices include tax: \$[\d,.]+ of the total\./,
+    );
     expect(receipt.text).toContain("/portal/bills/");
 
     // making them again makes and charges nothing twice

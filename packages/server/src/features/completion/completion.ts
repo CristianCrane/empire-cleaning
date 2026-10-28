@@ -20,29 +20,20 @@ import type {
   JobCompletion,
 } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
-import env from "../../env.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock } from "../../services/clock/index.ts";
-import {
-  compose,
-  email,
-  firstNameOf,
-  formatMoney,
-  formatWhen,
-} from "../../services/email/index.ts";
+import { email, formatMoney } from "../../services/email/index.ts";
 import { assignments } from "../assignments/assignments.schema.ts";
 import { assignmentStatusOf } from "../assignments/places.ts";
 import {
   cancellationOf,
   cancelTermsOf,
-  ON_HOLD_LINE,
   planOfJob,
   noAccessOf,
 } from "../cancellation/cancellation.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
-import { addressOf } from "../properties/property-view.ts";
 import {
   rescheduleRequestOf,
   rescheduleTermsOf,
@@ -57,17 +48,22 @@ import {
   reportableAddOns,
   signed,
 } from "./pricing.ts";
-import { serviceNameOf } from "../services/services.ts";
+import { cleanOf, serviceNameOf } from "../services/services.ts";
+import {
+  approvedEmail,
+  completionUndoneEmail,
+  correctedEmail,
+  feeTakenEmail,
+  proposalEmail,
+  receiptEmail,
+  unpaidEmail,
+} from "./emails.ts";
 
 // a proposed increase the Client hasn't answered lapses after this long, with
 // one reminder this long before it does (ADR-0009)
 export const ANSWER_DAYS = 7;
 export const REMINDER_DAYS_BEFORE = 2;
 const DAY_MS = 86_400_000;
-
-// "the Deep Clean at 41-12 Austin St, 4B, 11375 on Monday, January 12 at 9:00 AM"
-const describe = async (job: Job, property: Property) =>
-  `the ${await serviceNameOf(job.serviceId)} at ${addressOf(property)} on ${formatWhen(job.startsAt)}`;
 
 // "Inside the oven, done on the day", "1.5 extra hours"
 export const adjustmentLabel = (
@@ -98,42 +94,6 @@ const jobWithOwner = async (jobId: string) => {
   return found;
 };
 
-const portalLink = (jobId: string, label = "See your clean") => ({
-  href: `${env.CORS_ORIGIN_URL}/portal/jobs/${jobId}`,
-  label,
-});
-
-// what settling moved, as lines for the Client
-const moneyLines = (settled: Settled, owedCents: number) => {
-  const lines: string[] = [];
-  if (settled.billed) {
-    lines.push("It goes on your weekly bill.");
-  }
-  const card = settled.paymentMethod ?? "card";
-  if (settled.chargedCents > 0) {
-    lines.push(
-      `We've charged ${formatMoney(settled.chargedCents)} to your ${card}.`,
-    );
-  }
-  if (settled.refundedCents > 0) {
-    lines.push(
-      `We've refunded ${formatMoney(settled.refundedCents)} to your ${card}. It can take a few days to reach you.`,
-    );
-  }
-  if (settled.failure) {
-    lines.push(
-      `We couldn't charge the ${formatMoney(owedCents)} still to pay to your ${card}. Please update your Payment Method and we'll try again straight away.`,
-    );
-  }
-  // putting it On Hold is told in the Unpaid notice
-  if (settled.plan === "resumed") {
-    lines.push(
-      "Your Service Plan is back on, and we'll book your cleans as usual.",
-    );
-  }
-  return lines;
-};
-
 // tells the Client a Job they owe on couldn't be charged, the first time it
 // becomes Unpaid
 const sendUnpaid = async (jobId: string, settled: Settled) => {
@@ -142,16 +102,14 @@ const sendUnpaid = async (jobId: string, settled: Settled) => {
   await notify(`Unpaid notice for Job ${jobId}`, async () =>
     email.send({
       to: client.email,
-      subject: "We couldn't take your payment",
-      ...compose(
-        [
-          `Hi ${firstNameOf(client.name)},`,
-          `We couldn't charge ${formatMoney(payment.owedCents)} for ${await describe(job, property)} to your ${payment.paymentMethod ?? "card"}.`,
-          "Please update your Payment Method and we'll try again straight away:",
-          ...(settled.plan === "held" ? [ON_HOLD_LINE] : []),
-        ],
-        portalLink(jobId, "Update your Payment Method"),
-      ),
+      ...unpaidEmail({
+        name: client.name,
+        jobId,
+        clean: await cleanOf(job, property),
+        owedCents: payment.owedCents,
+        paymentMethod: payment.paymentMethod,
+        held: settled.plan === "held",
+      }),
     }),
   );
 };
@@ -267,30 +225,24 @@ const sendReceipt = async (jobId: string, settled: Settled) => {
   const deposit = payment.charges
     .filter((c) => c.kind === "deposit")
     .reduce((sum, c) => sum + c.amountCents, 0);
-  const lines = [
-    `Hi ${firstNameOf(client.name)},`,
-    `Your ${await serviceNameOf(job.serviceId)} at ${addressOf(property)} is done. Thank you for choosing Empire Cleaning.`,
-    [
-      `Quoted price: ${formatMoney(payment.quotedCents)}`,
-      ...rows
-        .filter(counts)
-        .map((a) => `${adjustmentLabel(a)}: ${formatMoney(a.totalCents)}`),
-      `Total: ${formatMoney(payment.totalCents)}`,
-      ...(payment.rescheduleFeeCents > 0
-        ? [
-            `Late Reschedule fee${deposit > 0 ? " (your Deposit, kept)" : ""}: ${formatMoney(payment.rescheduleFeeCents)}`,
-          ]
-        : []),
-      ...(deposit > 0 ? [`Deposit paid: ${formatMoney(deposit)}`] : []),
-    ].join("\n"),
-    ...moneyLines(settled, payment.owedCents),
-    "Prices include tax.",
-  ];
-  await notify(`Receipt for Job ${jobId}`, () =>
+  await notify(`Receipt for Job ${jobId}`, async () =>
     email.send({
       to: client.email,
-      subject: "Your clean is done: your receipt",
-      ...compose(lines, portalLink(jobId, "See your receipt")),
+      ...receiptEmail({
+        name: client.name,
+        jobId,
+        clean: await cleanOf(job, property),
+        quotedCents: payment.quotedCents,
+        adjustments: rows.filter(counts).map((a) => ({
+          label: adjustmentLabel(a),
+          totalCents: a.totalCents,
+        })),
+        totalCents: payment.totalCents,
+        rescheduleFeeCents: payment.rescheduleFeeCents,
+        depositCents: deposit,
+        owedCents: payment.owedCents,
+        settled,
+      }),
     }),
   );
 };
@@ -505,18 +457,16 @@ const sendProposal = async (
   const by = new Date(adjustment.proposedAt!.getTime() + ANSWER_DAYS * DAY_MS);
   return email.send({
     to: client.email,
-    subject:
-      why === "proposed"
-        ? "Please approve extra work on your clean"
-        : "Reminder: please approve extra work on your clean",
-    ...compose(
-      [
-        `Hi ${firstNameOf(client.name)},`,
-        `At ${await describe(job, property)}, our team did more than was quoted: ${adjustmentLabel(adjustment)} (${adjustment.reason}).`,
-        `It comes to ${formatMoney(adjustment.totalCents)}, tax included. We'll only charge it if you approve it. Please approve or decline it by ${formatWhen(by)}; if we don't hear from you, we won't charge it.`,
-      ],
-      portalLink(job.id, "Approve or decline"),
-    ),
+    ...proposalEmail({
+      name: client.name,
+      jobId: job.id,
+      clean: await cleanOf(job, property),
+      label: adjustmentLabel(adjustment),
+      reason: adjustment.reason,
+      totalCents: adjustment.totalCents,
+      answerBy: by,
+      reminder: why === "reminder",
+    }),
   });
 };
 
@@ -560,15 +510,14 @@ const sendCorrection = async (jobId: string, settled: Settled) => {
     await notify(`Fee notice for Job ${jobId}`, async () =>
       email.send({
         to: client.email,
-        subject: "We've taken the fee for your clean",
-        ...compose(
-          [
-            `Hi ${firstNameOf(client.name)},`,
-            `This is the ${formatMoney(job.feeCents ?? 0)} fee for ${await describe(job, property)}.`,
-            ...moneyLines(settled, payment.owedCents),
-          ],
-          portalLink(jobId, "See your clean"),
-        ),
+        ...feeTakenEmail({
+          name: client.name,
+          jobId,
+          clean: await cleanOf(job, property),
+          feeCents: job.feeCents ?? 0,
+          owedCents: payment.owedCents,
+          settled,
+        }),
       }),
     );
     return;
@@ -576,15 +525,14 @@ const sendCorrection = async (jobId: string, settled: Settled) => {
   await notify(`Correction notice for Job ${jobId}`, async () =>
     email.send({
       to: client.email,
-      subject: "We've corrected the price of your clean",
-      ...compose(
-        [
-          `Hi ${firstNameOf(client.name)},`,
-          `We've corrected the price of ${await describe(job, property)}. It's now ${formatMoney(payment.totalCents)}, tax included.`,
-          ...moneyLines(settled, payment.owedCents),
-        ],
-        portalLink(jobId, "See your receipt"),
-      ),
+      ...correctedEmail({
+        name: client.name,
+        jobId,
+        clean: await cleanOf(job, property),
+        totalCents: payment.totalCents,
+        owedCents: payment.owedCents,
+        settled,
+      }),
     }),
   );
 };
@@ -722,15 +670,11 @@ export const undoCompletion = async (jobId: string) => {
   await notify(`Undone completion notice for Job ${jobId}`, async () =>
     email.send({
       to: client.email,
-      subject: "A correction to your clean",
-      ...compose(
-        [
-          `Hi ${firstNameOf(client.name)},`,
-          `Your ${await serviceNameOf(job.serviceId)} at ${addressOf(property)} on ${formatWhen(job.startsAt)} was marked done by mistake, so we've put it back as booked.`,
-          ...moneyLines(settled, 0),
-        ],
-        { href: `${env.CORS_ORIGIN_URL}/portal`, label: "See your Jobs" },
-      ),
+      ...completionUndoneEmail({
+        name: client.name,
+        clean: await cleanOf(job, property),
+        settled,
+      }),
     }),
   );
 };
@@ -903,15 +847,16 @@ export const answerAdjustment = async (
   await notify(`Receipt for Adjustment ${adjustmentId}`, async () =>
     email.send({
       to: client.email,
-      subject: "Your receipt for extra work",
-      ...compose(
-        [
-          `Hi ${firstNameOf(client.name)},`,
-          `Thanks for approving ${adjustmentLabel(answered)} at ${await describe(job, property)}: ${formatMoney(answered.totalCents)}, tax included. The clean now comes to ${formatMoney(payment.totalCents)}.`,
-          ...moneyLines(settled, payment.owedCents),
-        ],
-        portalLink(jobId, "See your receipt"),
-      ),
+      ...approvedEmail({
+        name: client.name,
+        jobId,
+        clean: await cleanOf(job, property),
+        label: adjustmentLabel(answered),
+        amountCents: answered.totalCents,
+        totalCents: payment.totalCents,
+        owedCents: payment.owedCents,
+        settled,
+      }),
     }),
   );
   if (settled.becameUnpaid) await sendUnpaid(jobId, settled);
