@@ -243,10 +243,7 @@ test("Office Staff see the Quote, open the home and correct its details", async 
   await expect(save).toBeDisabled();
 
   await page.getByRole("textbox", { name: "Bedrooms" }).fill("4");
-  await page
-    .getByRole("button", { name: /^(Light|Moderate|Heavy) Condition$/ })
-    .click();
-  await page.getByRole("option", { name: "Heavy" }).click();
+  await page.getByText("Heavy", { exact: true }).click();
   await page
     .getByRole("textbox", { name: "Access Instructions" })
     .fill("Key under the mat");
@@ -260,9 +257,7 @@ test("Office Staff see the Quote, open the home and correct its details", async 
   await expect(page.getByRole("textbox", { name: "Bedrooms" })).toHaveValue(
     "4",
   );
-  await expect(
-    page.getByRole("button", { name: /^(Light|Moderate|Heavy) Condition$/ }),
-  ).toHaveText(/Heavy/);
+  await expect(page.getByRole("radio", { name: "Heavy" })).toBeChecked();
   await expect(page.getByText("4 bedrooms")).toBeVisible();
 });
 

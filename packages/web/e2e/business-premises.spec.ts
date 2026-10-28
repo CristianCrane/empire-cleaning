@@ -149,15 +149,13 @@ test(
     await page
       .getByRole("textbox", { name: "Floor area in sq ft" })
       .fill("2000");
-    await choose(page, /Condition$/, "Heavy");
+    await page.getByText("Heavy", { exact: true }).click();
     await page.getByRole("button", { name: "Save corrections" }).click();
     await expect(page.getByText("Details corrected")).toBeVisible();
 
     await page.reload();
     await expect(page.getByText("Medical · 2,000 sq ft")).toBeVisible();
-    await expect(page.getByRole("button", { name: /Condition$/ })).toHaveText(
-      /Heavy/,
-    );
+    await expect(page.getByRole("radio", { name: "Heavy" })).toBeChecked();
   },
 );
 

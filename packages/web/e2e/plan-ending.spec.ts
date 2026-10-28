@@ -56,22 +56,22 @@ test(
     await signedInAs(page, casey.email);
     await page.goto(`/portal/plans/${planId}`);
 
+    // what Ending does is shown in the dialog that confirms it
     const ending = page.getByRole("region", { name: "Ending your plan" });
-    await expect(ending).toContainText(
-      "It cancels your 3 cleans booked more than 24 hours away, free: Mon, Jan 26, 9:00 AM; Mon, Feb 2, 9:00 AM; Mon, Feb 9, 9:00 AM.",
-    );
-    await expect(ending).toContainText(
-      "Your clean on Mon, Jan 19, 9:00 AM is less than 24 hours away, so it goes ahead.",
-    );
-    await expect(ending).toContainText(
-      "Your $50.46 Deposit comes off the price of the clean on Mon, Jan 19, 9:00 AM.",
-    );
     await expectAccessible(page);
-
     await ending.getByRole("button", { name: "End plan" }).click();
     const dialog = page.getByRole("alertdialog", {
       name: "End your Service Plan?",
     });
+    await expect(dialog).toContainText(
+      "It cancels your 3 cleans booked more than 24 hours away, free: Mon, Jan 26, 9:00 AM; Mon, Feb 2, 9:00 AM; Mon, Feb 9, 9:00 AM.",
+    );
+    await expect(dialog).toContainText(
+      "Your clean on Mon, Jan 19, 9:00 AM is less than 24 hours away, so it goes ahead.",
+    );
+    await expect(dialog).toContainText(
+      "Your $50.46 Deposit comes off the price of the clean on Mon, Jan 19, 9:00 AM.",
+    );
     await expect(dialog).toContainText("An Ended plan can't be started again.");
     await expectAccessible(page);
     await dialog.getByRole("button", { name: "End plan" }).click();
@@ -161,13 +161,13 @@ test(
     );
 
     const ending = page.getByRole("region", { name: "Ending the plan" });
-    await expect(ending).toContainText(
-      "It cancels the Client's 3 cleans booked more than 24 hours away, free",
-    );
     await ending.getByRole("button", { name: "End plan" }).click();
     const dialog = page.getByRole("alertdialog", {
       name: "End this Service Plan?",
     });
+    await expect(dialog).toContainText(
+      "It cancels the Client's 3 cleans booked more than 24 hours away, free",
+    );
     await expectAccessible(page);
     await dialog.getByRole("button", { name: "End plan" }).click();
 
