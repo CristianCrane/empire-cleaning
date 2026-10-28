@@ -315,7 +315,9 @@ describe("the Price List", () => {
     }).expect(200);
 
     // open to Guests: the landing page's form lists them
-    const res = await api().get("/api/price-list/add-ons");
+    const res = await api().get(
+      `/api/price-list/add-ons?service=${SEEDED.standard}`,
+    );
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual([
@@ -448,7 +450,7 @@ describe("Premises Types", () => {
 });
 
 describe("Add-ons per Service", () => {
-  test("only those for the Service asked for can be chosen; the form lists a home's first", async () => {
+  test("only those for the Service asked for can be chosen; the form names the Service", async () => {
     const office = await signInAsOffice();
     await save(office, {
       addOns: [
@@ -477,7 +479,9 @@ describe("Add-ons per Service", () => {
     }).expect(200);
     const keys = await addOnKeys(office);
 
-    const res = await api().get("/api/price-list/add-ons").expect(200);
+    const res = await api()
+      .get(`/api/price-list/add-ons?service=${SEEDED.standard}`)
+      .expect(200);
     const forBusiness = await submit(
       guestAsk({ addOns: [keys["Breakroom fridge"]!] }),
     );
@@ -496,6 +500,8 @@ describe("Add-ons per Service", () => {
       ["Interior windows", 4],
       ["Breakroom fridge", 1],
     ]);
+    // the form always names the Service
+    await api().get("/api/price-list/add-ons").expect(400);
     // and any Service's, by its key
     const commercial = await api()
       .get(`/api/price-list/add-ons?service=${SEEDED.commercial}`)

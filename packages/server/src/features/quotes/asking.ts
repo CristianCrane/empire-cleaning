@@ -1,6 +1,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import type {
+  HomeRooms,
   PriceList,
   QuoteAskReceipt,
   Service,
@@ -27,7 +28,9 @@ import { currentPriceList } from "../price-list/price-list.ts";
 import { currentServices, onOfferAt } from "../services/services.ts";
 import {
   accountSubmission,
+  checkCondition,
   checkForKind,
+  checkRooms,
   clientSubmission,
   guestSubmission,
   officeSubmission,
@@ -191,15 +194,9 @@ type Submission = z.infer<typeof clientSubmission>;
 const thisPlace = (kind: Property["kind"]) =>
   kind === "commercial" ? "these premises" : "this home";
 
-// The Service asked for: one on offer for the kind of Property, or without
-// one, the first that is (until the form asks, #122)
-const askedService = (
-  all: Service[],
-  kind: Property["kind"],
-  key: string | undefined,
-) => {
-  const offered = onOfferAt(all, kind);
-  const service = key ? offered.find((s) => s.key === key) : offered[0];
+// The Service asked for, which must be on offer for the kind of Property
+const askedService = (all: Service[], kind: Property["kind"], key: string) => {
+  const service = onOfferAt(all, kind).find((s) => s.key === key);
   if (!service) {
     refuse([
       {
@@ -212,6 +209,43 @@ const askedService = (
   }
   return service!;
 };
+
+// the rooms an ask gives a home, and where they are in it: a new home's
+// with its details, or for one of the Client's, beside it
+const roomsGiven = (submission: Submission) =>
+  "new" in submission.property
+    ? {
+        given:
+          submission.property.new.kind === "residential"
+            ? submission.property.new
+            : undefined,
+        at: ["property", "new"],
+      }
+    : { given: submission.property.rooms, at: ["property", "rooms"] };
+
+// all four of a home's rooms, if they were given (checkRooms has seen to
+// all or none)
+const roomsOf = (given: Partial<HomeRooms> | undefined): HomeRooms | null =>
+  given?.bedrooms != null
+    ? {
+        bedrooms: given.bedrooms,
+        bathrooms: given.bathrooms!,
+        storeys: given.storeys!,
+        pets: given.pets!,
+      }
+    : null;
+
+// A home's Condition as stated in the ask, where the Service asked for uses
+// one. Business premises' is found on a Site Visit, and a home asked about
+// for a Service Condition doesn't apply to has none yet.
+const conditionOf = (
+  kind: Property["kind"],
+  service: Service,
+  submission: Submission,
+) =>
+  kind === "residential" && service.conditionApplies
+    ? (submission.condition ?? null)
+    : null;
 
 // Saves a Requested Quote for the Client, holding what was asked: one
 // address is one Property, and a Requested Quote counts as an open one-off
@@ -233,11 +267,19 @@ const recordAsk = async (
   const addOnKeys = [...new Set(submission.addOns ?? [])];
   if ("new" in submission.property) {
     const { new: place } = submission.property;
-    checkAddOns(
-      list,
-      askedService(all, place.kind, submission.serviceKey),
-      addOnKeys,
-    );
+    const service = askedService(all, place.kind, submission.serviceKey);
+    const problems = [
+      ...checkCondition(place.kind, service.conditionApplies, submission),
+      ...(place.kind === "residential"
+        ? checkRooms(place, {
+            needed: service.method === "rooms",
+            at: ["property", "new"],
+          })
+        : []),
+    ];
+    if (problems.length > 0)
+      throw new RequestBodyError(new z.ZodError(problems));
+    checkAddOns(list, service, addOnKeys);
     if (place.kind === "commercial")
       checkPremisesType(list, place.premisesType);
   }
@@ -269,8 +311,11 @@ const recordAsk = async (
           premisesTypeKey: premisesType,
           addressKey: addressKey(place),
           clientId: client.id,
-          // business premises' is found on a Site Visit
-          condition: place.kind === "residential" ? submission.condition : null,
+          condition: conditionOf(
+            place.kind,
+            askedService(all, place.kind, submission.serviceKey),
+            submission,
+          ),
         })
         .onConflictDoNothing({
           target: [properties.clientId, properties.addressKey],
@@ -299,10 +344,20 @@ const recordAsk = async (
     }
 
     const service = askedService(all, property!.kind, submission.serviceKey);
+    const condition = conditionOf(property!.kind, service, submission);
     if (!isNew) {
-      const problems = checkForKind(property!.kind, submission, {
-        isNew: false,
-      });
+      // a home without its rooms gives them now, if it's asked about for a
+      // Service priced from them
+      const { given, at } = roomsGiven(submission);
+      const lacksRooms =
+        property!.kind === "residential" && property!.bedrooms === null;
+      const problems = [
+        ...checkForKind(property!.kind, submission, { isNew: false }),
+        ...checkCondition(property!.kind, service.conditionApplies, submission),
+        ...(lacksRooms
+          ? checkRooms(given, { needed: service.method === "rooms", at })
+          : []),
+      ];
       if (problems.length > 0)
         throw new RequestBodyError(new z.ZodError(problems));
       checkAddOns(list, service, addOnKeys);
@@ -326,12 +381,14 @@ const recordAsk = async (
         );
       }
 
-      // a home's Condition stated now is the latest known; the other details
-      // stay as first given, because only the Office changes those
-      if (property!.kind === "residential") {
+      // a home's Condition stated now is the latest known; its other details
+      // stay as first given, because only the Office changes those, except
+      // rooms it never had
+      const rooms = lacksRooms ? roomsOf(given) : null;
+      if (condition || rooms) {
         [property] = await tx
           .update(properties)
-          .set({ condition: submission.condition })
+          .set({ ...(condition && { condition }), ...rooms })
           .where(eq(properties.id, property!.id))
           .returning();
       }
@@ -349,7 +406,8 @@ const recordAsk = async (
         .where(eq(clients.id, client.id));
     }
 
-    const regular = submission.wantsRegularService;
+    // only a Service that can recur can lead to regular visits
+    const regular = submission.wantsRegularService && service.canRecur;
     const [quote] = await tx
       .insert(quotes)
       .values({
@@ -359,8 +417,7 @@ const recordAsk = async (
         origin: enteredBy ? "caller" : "client",
         serviceKey: service.key,
         askedServiceKey: service.key,
-        condition:
-          property!.kind === "residential" ? submission.condition : null,
+        condition,
         wantsRegularService: regular,
         // a business's days and time, for regular cleaning
         weekdays:

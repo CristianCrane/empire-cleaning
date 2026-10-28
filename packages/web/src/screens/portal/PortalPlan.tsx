@@ -128,6 +128,7 @@ function AskToChange({ plan }: { plan: ServicePlanView }) {
       const home = me.properties.find((p) => p.id === plan.property.id)!;
       await postJson("/api/quotes/ask", {
         property: { existing: plan.property.id },
+        serviceKey: plan.serviceKey,
         condition: home.condition,
         wantsRegularService: true,
         notes,

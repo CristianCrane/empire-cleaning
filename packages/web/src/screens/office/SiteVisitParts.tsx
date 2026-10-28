@@ -386,10 +386,11 @@ export function FindingsForm({
     property.kind === "residential"
       ? {
           type: property.type,
-          bedrooms: property.bedrooms,
-          bathrooms: property.bathrooms,
-          storeys: property.storeys,
-          pets: property.pets,
+          // a home not yet described by its rooms: the visit counts them
+          bedrooms: property.bedrooms ?? Number.NaN,
+          bathrooms: property.bathrooms ?? Number.NaN,
+          storeys: property.storeys ?? Number.NaN,
+          pets: property.pets ?? false,
         }
       : undefined,
   );
@@ -450,6 +451,7 @@ export function FindingsForm({
               <NumberField
                 label="Bedrooms"
                 name="bedrooms"
+                isRequired
                 minValue={0}
                 maxValue={20}
                 value={home.bedrooms}
@@ -458,6 +460,7 @@ export function FindingsForm({
               <NumberField
                 label="Bathrooms"
                 name="bathrooms"
+                isRequired
                 minValue={0.5}
                 maxValue={20}
                 step={0.5}
@@ -467,6 +470,7 @@ export function FindingsForm({
               <NumberField
                 label="Floors"
                 name="storeys"
+                isRequired
                 minValue={1}
                 maxValue={5}
                 value={home.storeys}

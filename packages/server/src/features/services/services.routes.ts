@@ -7,12 +7,19 @@ import {
   currentServices,
   findService,
   saveService,
+  servicesOnOffer,
 } from "./services.ts";
 import { serviceSchema } from "./services.validation.ts";
 
 export const router = Router();
 
 const params = z.object({ key: z.uuid() });
+
+// the Services a Quote can be asked for now; open to Guests because the
+// landing page's "Request a Quote" form lists them
+router.get("/on-offer", async (req, res) => {
+  res.json(await servicesOnOffer());
+});
 
 // every Service, active and retired, for the Office
 router.get("/", authorize("office_staff"), async (req, res) => {

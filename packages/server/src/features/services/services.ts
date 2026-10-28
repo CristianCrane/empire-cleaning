@@ -5,6 +5,7 @@ import type {
   Service,
   ServiceChoice,
   ServiceInput,
+  ServiceOffer,
 } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
 import { NotFoundError, RequestBodyError } from "../../middleware/errors.ts";
@@ -239,11 +240,20 @@ export const offeredAt = (service: Service, kind: PropertyKind) =>
 export const onOfferAt = (all: Service[], kind: PropertyKind) =>
   all.filter((s) => s.active && offeredAt(s, kind));
 
-// What a Quote is for when the ask names no Service (until the form asks,
-// #122): the first on offer for the kind of Property, so a home's Standard
-// Clean, which recommends a Deep Clean for a first visit
-export const defaultServiceFor = (all: Service[], kind: PropertyKind) =>
-  onOfferAt(all, kind)[0];
+// The Services a new Quote can be asked for, in the list's order, as the
+// "Request a Quote" form offers them
+export const servicesOnOffer = async (): Promise<ServiceOffer[]> =>
+  (await currentServices())
+    .filter((s) => s.active)
+    .map((s) => ({
+      key: s.key,
+      name: s.name,
+      description: s.description,
+      offeredFor: s.offeredFor,
+      method: s.method,
+      conditionApplies: s.conditionApplies,
+      canRecur: s.canRecur,
+    }));
 
 // The Services a one-off Quote for `service` offers: the one it recommends
 // in its place for a first visit, while that's on offer here and the

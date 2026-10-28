@@ -438,6 +438,7 @@ describe("a commercial Service Plan", () => {
     const { body } = await submit({
       contact: casey,
       businessName: "Acme Dental",
+      serviceKey: SEEDED.commercial,
       property: {
         new: {
           kind: "commercial",

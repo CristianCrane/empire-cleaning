@@ -8,11 +8,7 @@ import type {
 import { db, type Tx } from "../../db/index.ts";
 import { RequestBodyError } from "../../middleware/errors.ts";
 import { z } from "zod";
-import {
-  currentServices,
-  defaultServiceFor,
-  findService,
-} from "../services/services.ts";
+import { currentServices, findService } from "../services/services.ts";
 import { SEEDED, SEEDED_FOR_HOMES } from "../services/seeded.ts";
 import { staff } from "../staff/staff.schema.ts";
 import {
@@ -298,16 +294,14 @@ export const savePriceList = async (
 // to everyone, as the landing page's form needs it. A business's request
 // picks none: its Site Visit comes first.
 export const choosableAddOns = async (
-  serviceKey?: string,
+  serviceKey: string,
 ): Promise<AddOnChoice[]> => {
   const [list, service] = await Promise.all([
     currentPriceList(),
-    serviceKey
-      ? findService(serviceKey)
-      : currentServices().then((all) => defaultServiceFor(all, "residential")),
+    findService(serviceKey),
   ]);
   return list.addOns
-    .filter((a) => a.active && service && a.serviceKeys.includes(service.key))
+    .filter((a) => a.active && a.serviceKeys.includes(service.key))
     .map(({ key, name }) => ({ key, name }));
 };
 

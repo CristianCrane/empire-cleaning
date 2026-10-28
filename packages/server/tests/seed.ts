@@ -147,6 +147,10 @@ const ask = (
   askForQuote(null, {
     contact: who,
     property,
+    serviceKey:
+      "new" in property && property.new.kind === "commercial"
+        ? SEEDED.commercial
+        : SEEDED.standard,
     condition: "moderate",
     wantsRegularService: false,
     notes: null,
@@ -274,6 +278,7 @@ async function seed() {
     property: {
       new: home("31 Cedar Ct", { type: "townhouse", storeys: 2, pets: true }),
     },
+    serviceKey: SEEDED.standard,
     condition: "moderate",
     wantsRegularService: false,
     notes: "Called in; wants a price before her parents visit.",

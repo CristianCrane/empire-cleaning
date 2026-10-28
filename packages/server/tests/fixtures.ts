@@ -58,14 +58,25 @@ export const casey = {
   phone: "(646) 555-0100",
 };
 
-export const guestAsk = (overrides: Partial<QuoteAsk> = {}): QuoteAsk => ({
-  contact: casey,
-  property: { new: home },
-  condition: "moderate",
-  wantsRegularService: true,
-  notes: null,
-  ...overrides,
-});
+// the cleaning a Property is usually asked about for: new business
+// premises', or otherwise a home's
+export const usualService = (property: QuoteAsk["property"]) =>
+  "new" in property && property.new.kind === "commercial"
+    ? SEEDED.commercial
+    : SEEDED.standard;
+
+export const guestAsk = (overrides: Partial<QuoteAsk> = {}): QuoteAsk => {
+  const property = overrides.property ?? { new: home };
+  return {
+    contact: casey,
+    property,
+    condition: "moderate",
+    wantsRegularService: true,
+    notes: null,
+    ...overrides,
+    serviceKey: overrides.serviceKey ?? usualService(property),
+  };
+};
 
 export const submit = (
   body: unknown,

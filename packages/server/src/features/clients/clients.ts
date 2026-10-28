@@ -11,6 +11,7 @@ import { currentPriceList } from "../price-list/price-list.ts";
 import { connectSignedUpAccount } from "../auth/connections.ts";
 import { properties } from "../properties/properties.schema.ts";
 import { propertyStatuses } from "../properties/property-history.ts";
+import { openQuotesAt } from "../quotes/quote-state.ts";
 import { toPropertyView } from "../properties/property-view.ts";
 import { quotesForClient } from "../quotes/quote-state.ts";
 import { clients } from "./clients.schema.ts";
@@ -167,7 +168,11 @@ export const officeClientView = async (
     propertiesOf(id),
     currentPriceList(),
   ]);
-  const statuses = await propertyStatuses(ownProperties.map((p) => p.id));
+  const ids = ownProperties.map((p) => p.id);
+  const [statuses, open] = await Promise.all([
+    propertyStatuses(ids),
+    openQuotesAt(ids),
+  ]);
   return {
     id: client.id,
     name: client.name,
@@ -177,6 +182,7 @@ export const officeClientView = async (
     properties: ownProperties.map((p) => ({
       ...toPropertyView(p, list),
       status: statuses.get(p.id)!,
+      openQuotes: open.filter((q) => q.propertyId === p.id),
     })),
     billing: {
       weeklyFrom: client.billedWeeklyFrom,

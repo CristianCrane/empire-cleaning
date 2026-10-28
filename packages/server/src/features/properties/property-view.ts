@@ -12,8 +12,9 @@ export const addressOf = (p: {
 export const premisesTypeName = (list: PriceList, key: string) =>
   list.premisesTypes.find((t) => t.key === key)?.name ?? "Premises";
 
-// the database guarantees each kind's details (properties_kind_details);
-// business premises name their Premises Type from the Price List
+// the database guarantees each kind's details (properties_kind_details), a
+// home's rooms all known or none; business premises name their Premises
+// Type from the Price List
 export const toPropertyView = (p: Property, list: PriceList): PropertyView => {
   const base = {
     id: p.id,
@@ -37,9 +38,9 @@ export const toPropertyView = (p: Property, list: PriceList): PropertyView => {
         ...base,
         kind: "residential",
         type: p.type!,
-        bedrooms: p.bedrooms!,
-        bathrooms: p.bathrooms!,
-        storeys: p.storeys!,
-        pets: p.pets!,
+        bedrooms: p.bedrooms,
+        bathrooms: p.bathrooms,
+        storeys: p.storeys,
+        pets: p.pets,
       };
 };

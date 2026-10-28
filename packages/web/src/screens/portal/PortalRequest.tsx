@@ -16,8 +16,8 @@ export function PortalRequest() {
   const client = useLoaderData({ from: "/portal/request" });
   const navigate = useNavigate();
   const router = useRouter();
-  // a home with a Quote open can't be asked about again: they're pointed
-  // to that Quote instead
+  // their open Quotes are pointed to, and a home can't be asked about for a
+  // Service one of them would overlap
   const open = client.quotes.filter(
     (q) => q.status === "requested" || q.status === "sent",
   );
@@ -57,7 +57,11 @@ export function PortalRequest() {
           asker={{
             kind: "client",
             properties: client.properties,
-            waiting: open.map((q) => q.property.id),
+            open: open.map((q) => ({
+              propertyId: q.property.id,
+              serviceKey: q.service.key,
+              kind: q.kind,
+            })),
             businessName: client.businessName,
           }}
           onSubmitted={async (receipt) => {

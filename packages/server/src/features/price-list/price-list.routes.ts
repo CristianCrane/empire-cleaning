@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { z } from "zod";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { validate } from "../../middleware/validation.ts";
 import {
@@ -14,12 +15,13 @@ export const router = Router();
 // the names a Client can pick as Add-ons for a Service (?service=<key>),
 // never their prices; open to Guests because the landing page's "Request a
 // Quote" form lists them
-router.get("/add-ons", async (req, res) => {
-  const service = req.query.service;
-  res.json(
-    await choosableAddOns(typeof service === "string" ? service : undefined),
-  );
-});
+router.get(
+  "/add-ons",
+  validate({ query: z.object({ service: z.uuid("Choose a Service") }) }),
+  async (req, res) => {
+    res.json(await choosableAddOns(String(req.query.service)));
+  },
+);
 
 // the Premises Types business premises can be described as, by name; open
 // to Guests for the same reason

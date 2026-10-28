@@ -9,7 +9,7 @@ A person or business Empire Cleaning has a relationship with, from first asking 
 _Avoid_: Customer, user, lead
 
 **Property**:
-A physical location where Empire Cleaning works, belonging to exactly one Client. One address is one Property per Client, however it is typed; separate units in a building (apartments, floors) are separate Properties. A Property is either _residential_, a home described by its rooms, or _commercial_, business premises described by their Premises Type and floor area. Its price-affecting details are as first given and only Office Staff correct them, from a Site Visit or otherwise.
+A physical location where Empire Cleaning works, belonging to exactly one Client. One address is one Property per Client, however it is typed; separate units in a building (apartments, floors) are separate Properties. A Property is either _residential_, a home described by its rooms, or _commercial_, business premises described by their Premises Type and floor area. A home asked about only for a Service not priced from rooms, such as painting, may have no rooms recorded until it is asked about for one that is, or Office Staff record them. Its price-affecting details are as first given and only Office Staff correct them, from a Site Visit or otherwise.
 _Avoid_: Address, site, location
 
 **Premises Type**:
