@@ -51,20 +51,22 @@ export function useStartDraft() {
 export function OfferServicePlan({
   propertyId,
   label = "Offer a Service Plan",
+  primary = false,
 }: {
   propertyId: string;
   label?: string;
+  primary?: boolean;
 }) {
   const { start, starting, failure } = useStartDraft();
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col items-center gap-2">
       <Button
-        variant="text"
-        size="sm"
+        variant={primary ? "primary" : "text"}
+        size={primary ? "md" : "sm"}
         isPending={starting !== undefined}
         onPress={() => void start({ propertyId, kind: "service_plan" })}
       >
-        <Repeat aria-hidden size={16} />
+        <Repeat aria-hidden size={primary ? 18 : 16} />
         {label}
       </Button>
       {failure && <Notice tone="danger">{failure}</Notice>}

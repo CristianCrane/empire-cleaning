@@ -2,8 +2,14 @@
 // Question: how does a Property page show its details first, without its
 // Service Plan, Site Visits and history piled on top?
 import { useState, type ReactNode } from "react";
-import { useLoaderData, useNavigate, useSearch } from "@tanstack/react-router";
 import {
+  useLoaderData,
+  useNavigate,
+  useRouter,
+  useSearch,
+} from "@tanstack/react-router";
+import {
+  ArrowRight,
   CalendarCheck,
   MapPin,
   Pencil,
@@ -18,6 +24,7 @@ import type {
 import {
   Breadcrumbs,
   Button,
+  ButtonLink,
   Card,
   Cell,
   Column,
@@ -38,7 +45,7 @@ import {
   TabPanel,
   Tabs,
 } from "@empire-cleaning/ui";
-import { linkTo } from "../../links.ts";
+import { linkTo, type AppHref } from "../../links.ts";
 import {
   addressOf,
   cleanTypeLabel,
@@ -78,6 +85,7 @@ const variants = [
   { key: "B", name: "Tabs per kind" },
   { key: "C", name: "Details | History" },
   { key: "D", name: "C, details read then Edit" },
+  { key: "E", name: "all in Tabs, empty states" },
 ];
 
 type Props = {
@@ -102,9 +110,16 @@ export function PropertyPrototype() {
         </>
       ) : (
         <>
-          <Header home={home} premisesTypes={premisesTypes} actions />
-          <GoingOn home={home} />
-          {variant === "B" ? (
+          <Header
+            home={home}
+            premisesTypes={premisesTypes}
+            actions={variant !== "E"}
+            subtitle
+          />
+          {variant !== "E" && <GoingOn home={home} />}
+          {variant === "E" ? (
+            <AllTabs home={home} premisesTypes={premisesTypes} />
+          ) : variant === "B" ? (
             <KindTabs home={home} premisesTypes={premisesTypes} />
           ) : (
             <HistoryTabs
@@ -137,7 +152,8 @@ function Header({
   home,
   premisesTypes,
   actions,
-}: Props & { actions: boolean }) {
+  subtitle = actions,
+}: Props & { actions: boolean; subtitle?: boolean }) {
   const premises = home.kind === "commercial";
   const booked = home.siteVisits.some((v) => v.status === "booked");
   const unsent = home.quotes.find(
@@ -162,7 +178,7 @@ function Header({
       />
       <div className="flex flex-col gap-1">
         <Heading level={1}>{addressOf(home)}</Heading>
-        {actions && (
+        {subtitle && (
           <p className="text-fg-muted">
             {clientName(home.client)} · {propertySummary(home)}
           </p>
@@ -356,7 +372,7 @@ type Event = {
   kind: string;
   what: string;
   status: ReactNode;
-  open: () => void;
+  href: AppHref;
 };
 
 // C and D: its details, and everything that's happened there in one
@@ -368,10 +384,27 @@ function HistoryTabs({
   home: OfficePropertyView;
   details: ReactNode;
 }) {
-  const navigate = useNavigate();
   const [tab, setTab] = useState<string>("details");
+  const events = historyOf(home);
 
-  const events: Event[] = [
+  return (
+    <Tabs selectedKey={tab} onSelectionChange={(key) => setTab(String(key))}>
+      <TabList aria-label="About this Property">
+        <Tab id="details">Details</Tab>
+        <Tab id="history" count={events.length}>
+          History
+        </Tab>
+      </TabList>
+      <TabPanel id="details">{details}</TabPanel>
+      <TabPanel id="history">
+        <HistoryTable home={home} />
+      </TabPanel>
+    </Tabs>
+  );
+}
+
+const historyOf = (home: OfficePropertyView): Event[] =>
+  [
     ...home.quotes.map((quote) => ({
       id: `quote ${quote.id}`,
       on: quote.sentAt ?? quote.createdAt,
@@ -379,11 +412,10 @@ function HistoryTabs({
       kind: "Quote",
       what: quoteHeadline(quote),
       status: <QuoteStatusBadge status={quote.status} />,
-      open: () =>
-        void navigate({
-          to: "/office/quotes/$quoteId",
-          params: { quoteId: quote.id },
-        }),
+      href: linkTo({
+        to: "/office/quotes/$quoteId",
+        params: { quoteId: quote.id },
+      }),
     })),
     ...home.jobs.map((job) => ({
       id: `job ${job.id}`,
@@ -392,11 +424,7 @@ function HistoryTabs({
       kind: "Job",
       what: cleanTypeLabel[job.cleanType],
       status: <StatusBadge>{jobStatusLabel[job.status]}</StatusBadge>,
-      open: () =>
-        void navigate({
-          to: "/office/jobs/$jobId",
-          params: { jobId: job.id },
-        }),
+      href: linkTo({ to: "/office/jobs/$jobId", params: { jobId: job.id } }),
     })),
     ...home.siteVisits.map((visit) => ({
       id: `visit ${visit.id}`,
@@ -409,65 +437,59 @@ function HistoryTabs({
             .join(" · ")
         : "Findings recorded, no visit",
       status: <SiteVisitBadge status={visit.status} />,
-      open: () =>
-        void navigate({
-          to: "/office/site-visits/$visitId",
-          params: { visitId: visit.id },
-        }),
+      href: linkTo({
+        to: "/office/site-visits/$visitId",
+        params: { visitId: visit.id },
+      }),
     })),
   ].sort((a, b) => (a.on < b.on ? 1 : -1));
 
+function HistoryTable({ home }: { home: OfficePropertyView }) {
+  const navigate = useNavigate();
+  const events = historyOf(home);
   return (
-    <Tabs selectedKey={tab} onSelectionChange={(key) => setTab(String(key))}>
-      <TabList aria-label="About this Property">
-        <Tab id="details">Details</Tab>
-        <Tab id="history" count={events.length}>
-          History
-        </Tab>
-      </TabList>
-      <TabPanel id="details">{details}</TabPanel>
-      <TabPanel id="history">
-        <Table
-          aria-label={`History of ${addressOf(home)}`}
-          onRowAction={(id) => events.find((e) => e.id === id)?.open()}
-        >
-          <TableHeader>
-            <Column id="on" isRowHeader>
-              Date
-            </Column>
-            <Column id="what">What</Column>
-            <Column id="status">Status</Column>
-          </TableHeader>
-          <TableBody
-            items={events}
-            renderEmptyState={() => (
-              <p className="p-6 text-center text-fg-muted">Nothing yet.</p>
-            )}
-          >
-            {(event) => (
-              <Row id={event.id}>
-                <Cell>{formatDate(event.on)}</Cell>
-                <Cell>
-                  <span className="flex items-center gap-2">
-                    <event.icon
-                      aria-hidden
-                      size={16}
-                      className="shrink-0 text-fg-muted"
-                    />
-                    <span>
-                      <span className="font-semibold">{event.kind}</span>
-                      {" · "}
-                      {event.what}
-                    </span>
-                  </span>
-                </Cell>
-                <Cell>{event.status}</Cell>
-              </Row>
-            )}
-          </TableBody>
-        </Table>
-      </TabPanel>
-    </Tabs>
+    <Table
+      aria-label={`History of ${addressOf(home)}`}
+      onRowAction={(id) => {
+        const href = events.find((e) => e.id === id)?.href;
+        if (href) void navigate(href);
+      }}
+    >
+      <TableHeader>
+        <Column id="on" isRowHeader>
+          Date
+        </Column>
+        <Column id="what">What</Column>
+        <Column id="status">Status</Column>
+      </TableHeader>
+      <TableBody
+        items={events}
+        renderEmptyState={() => (
+          <p className="p-6 text-center text-fg-muted">Nothing yet.</p>
+        )}
+      >
+        {(event) => (
+          <Row id={event.id}>
+            <Cell>{formatDate(event.on)}</Cell>
+            <Cell>
+              <span className="flex items-center gap-2">
+                <event.icon
+                  aria-hidden
+                  size={16}
+                  className="shrink-0 text-fg-muted"
+                />
+                <span>
+                  <span className="font-semibold">{event.kind}</span>
+                  {" · "}
+                  {event.what}
+                </span>
+              </span>
+            </Cell>
+            <Cell>{event.status}</Cell>
+          </Row>
+        )}
+      </TableBody>
+    </Table>
   );
 }
 
@@ -556,6 +578,207 @@ function DetailFacts({ home, premisesTypes }: Props) {
             <CorrectionFields home={home} premisesTypes={premisesTypes} />
           </Dialog>
         </DialogTrigger>
+      </div>
+    </Card>
+  );
+}
+
+// E: everything in Tabs, Details first. The Service Plan and Site Visit
+// Tabs show the one the home has, or say it has none and offer the action
+function AllTabs({ home, premisesTypes }: Props) {
+  const [tab, setTab] = useState<string>("details");
+  const needsVisit = home.kind === "commercial" && !home.findingsRecorded;
+
+  return (
+    <>
+      {needsVisit && (
+        <Notice>
+          Business premises are seen before they're quoted: see the Site Visit
+          Tab.
+        </Notice>
+      )}
+      <Tabs selectedKey={tab} onSelectionChange={(key) => setTab(String(key))}>
+        <TabList aria-label="About this Property">
+          <Tab id="details">Details</Tab>
+          <Tab id="plan">Service Plan</Tab>
+          <Tab id="visit">Site Visit</Tab>
+          <Tab id="history" count={historyOf(home).length}>
+            History
+          </Tab>
+        </TabList>
+        <TabPanel id="details">
+          <DetailForm home={home} premisesTypes={premisesTypes} />
+        </TabPanel>
+        <TabPanel id="plan">
+          <PlanTab home={home} />
+        </TabPanel>
+        <TabPanel id="visit">
+          <VisitTab home={home} premisesTypes={premisesTypes} />
+        </TabPanel>
+        <TabPanel id="history">
+          <HistoryTable home={home} />
+        </TabPanel>
+      </Tabs>
+    </>
+  );
+}
+
+// a Tab with nothing in it yet: what's missing, and the way to add it
+function EmptyState({
+  icon,
+  title,
+  description,
+  children,
+}: {
+  icon: LucideIcon;
+  title: string;
+  description: ReactNode;
+  children?: ReactNode;
+}) {
+  return (
+    <Card className="items-center py-10 text-center">
+      <IconTile icon={icon} tone="neutral" />
+      <div className="flex max-w-md flex-col gap-1">
+        <Heading level={2} size={4}>
+          {title}
+        </Heading>
+        <p className="text-fg-muted">{description}</p>
+      </div>
+      {children && (
+        <div className="flex flex-wrap justify-center gap-2">{children}</div>
+      )}
+    </Card>
+  );
+}
+
+function PlanTab({ home }: { home: OfficePropertyView }) {
+  const plan = home.servicePlan;
+  const canOffer = home.firstCleanCompleted || home.kind === "commercial";
+
+  if (!plan) {
+    return (
+      <EmptyState
+        icon={Repeat}
+        title="This Property doesn't have a Service Plan"
+        description={
+          canOffer
+            ? "Quote regular cleaning: the Client accepts the Quote and their Jobs are booked for them."
+            : "A home can be quoted a Service Plan once its First Clean is Completed."
+        }
+      >
+        {canOffer && (
+          <OfferServicePlan
+            propertyId={home.id}
+            label="Quote a Service Plan"
+            primary
+          />
+        )}
+      </EmptyState>
+    );
+  }
+
+  return (
+    <Card>
+      <div className="flex flex-wrap items-start gap-3">
+        <div className="flex flex-1 flex-col gap-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <Heading level={2} size={4}>
+              {planName(plan)}
+            </Heading>
+            <PlanStatusBadge status={plan.status} />
+          </div>
+          <p className="text-fg-muted">
+            {plan.nextStartsAt
+              ? `Next Job: ${formatDateTime(plan.nextStartsAt)}`
+              : "No Job booked just now"}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <OfferServicePlan propertyId={home.id} label="Change terms" />
+          <ButtonLink
+            variant="text"
+            size="sm"
+            href={linkTo({
+              to: "/office/service-plans/$planId",
+              params: { planId: plan.id },
+            })}
+          >
+            <ArrowRight aria-hidden size={16} />
+            Open the plan
+          </ButtonLink>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+// the home's Site Visit: the one booked, else the last done. Earlier ones
+// are in History
+function VisitTab({ home, premisesTypes }: Props) {
+  const visit =
+    home.siteVisits.find((v) => v.status === "booked") ??
+    home.siteVisits.find((v) => v.status === "done");
+  const unsent = home.quotes.find(
+    (q) => q.status === "requested" || q.status === "draft",
+  );
+  const premises = home.kind === "commercial";
+  const actions = (primary: boolean) => (
+    <>
+      {unsent && <BookSiteVisit quoteId={unsent.id} primary={primary} />}
+      {premises && !home.findingsRecorded && (
+        <RecordFindingsWithoutVisit
+          property={home}
+          officeNotes={home.officeNotes}
+          premisesTypes={premisesTypes}
+        />
+      )}
+    </>
+  );
+
+  if (!visit) {
+    return (
+      <EmptyState
+        icon={MapPin}
+        title="This Property doesn't have a Site Visit"
+        description={
+          premises
+            ? "Business premises are seen before they're quoted. Book a Site Visit, or record findings you know already."
+            : unsent
+              ? "Optional for a home: book one to see it before quoting."
+              : "A Site Visit is booked for a Quote not sent yet."
+        }
+      >
+        {actions(true)}
+      </EmptyState>
+    );
+  }
+
+  return (
+    <Card>
+      <div className="flex flex-wrap items-start gap-3">
+        <div className="flex flex-1 flex-col gap-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <Heading level={2} size={4}>
+              {visit.status === "booked" ? "Booked" : "Seen"}
+            </Heading>
+            <SiteVisitBadge status={visit.status} />
+          </div>
+          <p className="text-fg-muted">{visitSummary(visit)}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {visit.status !== "booked" && actions(false)}
+          <ButtonLink
+            variant="text"
+            size="sm"
+            href={linkTo({
+              to: "/office/site-visits/$visitId",
+              params: { visitId: visit.id },
+            })}
+          >
+            <ArrowRight aria-hidden size={16} />
+            Open the Site Visit
+          </ButtonLink>
+        </div>
       </div>
     </Card>
   );
