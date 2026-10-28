@@ -18,6 +18,7 @@ import type {
   HomeView,
   JobStatus,
   OfficePropertyView,
+  OfficeServicePlan,
   PremisesTypeChoice,
   PremisesView,
   PropertyType,
@@ -62,13 +63,10 @@ import {
   cleanTypeLabel,
   clientName,
   formatDate,
-  formatDateTime,
-  planName,
   propertySummary,
   quoteHeadline,
 } from "../format.ts";
 import { QuoteIcon } from "../icons.ts";
-import { PlanStatusBadge } from "../PlanParts.tsx";
 import { QuoteStatusBadge } from "../QuoteParts.tsx";
 import {
   BookSiteVisit,
@@ -76,6 +74,7 @@ import {
   SiteVisitBadge,
   visitSummary,
 } from "./SiteVisitParts.tsx";
+import { PlanDetails } from "./ServicePlanScreen.tsx";
 import { OfferServicePlan } from "./StartDraft.tsx";
 
 // the Property page's Tabs, Details first: what the Office opens a home for
@@ -86,7 +85,7 @@ export type PropertySearch = { tab?: PropertyTab };
 // a home for the Office (ADR-0011): its details first, then its Service
 // Plan, its Site Visit and its whole history, a Tab each
 export function PropertyScreen() {
-  const { home, premisesTypes } = useLoaderData({
+  const { home, premisesTypes, plan } = useLoaderData({
     from: "/office/properties/$propertyId",
   });
   const { tab = "details" } = useSearch({
@@ -141,7 +140,7 @@ export function PropertyScreen() {
           <Details home={home} premisesTypes={premisesTypes} />
         </TabPanel>
         <TabPanel id="plan">
-          <PlanTab home={home} />
+          <PlanTab home={home} plan={plan} />
         </TabPanel>
         <TabPanel id="visit">
           <VisitTab home={home} premisesTypes={premisesTypes} />
@@ -200,6 +199,13 @@ const inTheWayLine: Record<"requested" | "draft" | "sent", string> = {
   sent: "A Service Plan Quote is with the Client",
 };
 
+// the same, for a home with a plan: what the open Quote means for its terms
+const newTermsLine: Record<"requested" | "draft" | "sent", string> = {
+  requested: "The Client asked for a Quote: draft new terms from it",
+  draft: "New terms are being drafted",
+  sent: "New terms are with the Client, waiting on their answer",
+};
+
 // quoting it a Service Plan, or, with a Quote open already, where that is
 function PlanAction({
   home,
@@ -236,11 +242,15 @@ function PlanAction({
   );
 }
 
-// its Service Plan, opening its own page; or, with none, the way to quote
-// one: a home once its First Clean is Completed, business premises at any
-// time (ADR-0014)
-function PlanTab({ home }: { home: OfficePropertyView }) {
-  const plan = home.servicePlan;
+// its Service Plan in full; or, with none, the way to quote one: a home once
+// its First Clean is Completed, business premises at any time (ADR-0014)
+function PlanTab({
+  home,
+  plan,
+}: {
+  home: OfficePropertyView;
+  plan: OfficeServicePlan | null;
+}) {
   const canQuote = home.firstCleanCompleted || home.kind === "commercial";
 
   if (!plan) {
@@ -261,38 +271,31 @@ function PlanTab({ home }: { home: OfficePropertyView }) {
     );
   }
 
+  // new terms wait on a Quote already open: its terms say which
+  const { open, resumes } = quoteInTheWay(home);
+  const waiting = open && !resumes ? open : undefined;
   return (
-    <Card>
-      <div className="flex flex-wrap items-start gap-3">
-        <div className="flex flex-1 flex-col gap-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <Heading level={2} size={4}>
-              {planName(plan)}
-            </Heading>
-            <PlanStatusBadge status={plan.status} />
-          </div>
-          <p className="text-fg-muted">
-            {plan.nextStartsAt
-              ? `Next Job: ${formatDateTime(plan.nextStartsAt)}`
-              : "No Job booked just now"}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <PlanAction home={home} label="Change terms" />
-          <ButtonLink
-            variant="text"
-            size="sm"
-            href={linkTo({
-              to: "/office/service-plans/$planId",
-              params: { planId: plan.id },
-            })}
-          >
-            <ArrowRight aria-hidden size={16} />
-            Open the plan
-          </ButtonLink>
-        </div>
-      </div>
-    </Card>
+    <PlanDetails
+      plan={plan}
+      changeTerms={
+        waiting ? null : <PlanAction home={home} label="Change terms" />
+      }
+      termsNote={
+        waiting && (
+          <>
+            {newTermsLine[waiting.status as keyof typeof newTermsLine]}.{" "}
+            <Link
+              href={linkTo({
+                to: "/office/quotes/$quoteId",
+                params: { quoteId: waiting.id },
+              })}
+            >
+              Open the Quote
+            </Link>
+          </>
+        )
+      }
+    />
   );
 }
 

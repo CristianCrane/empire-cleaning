@@ -346,7 +346,13 @@ const officePropertyRoute = createRoute({
       getJson<OfficePropertyView>(`/api/properties/${params.propertyId}`),
       getJson<PremisesTypeChoice[]>("/api/price-list/premises-types"),
     ]);
-    return { home, premisesTypes };
+    // its current Service Plan in full, for the Service Plan Tab
+    const plan = home.servicePlan
+      ? await getJson<OfficeServicePlan>(
+          `/api/service-plans/${home.servicePlan.id}`,
+        )
+      : null;
+    return { home, premisesTypes, plan };
   },
   component: PropertyScreen,
 });
@@ -354,8 +360,21 @@ const officePropertyRoute = createRoute({
 const officeServicePlanRoute = createRoute({
   getParentRoute: () => officeRoute,
   path: "/service-plans/$planId",
-  loader: ({ params }) =>
-    getJson<OfficeServicePlan>(`/api/service-plans/${params.planId}`),
+  // a current plan is shown on its home's Service Plan Tab; an Ended one
+  // keeps this page
+  loader: async ({ params }) => {
+    const plan = await getJson<OfficeServicePlan>(
+      `/api/service-plans/${params.planId}`,
+    );
+    if (plan.status !== "ended")
+      throw redirect({
+        to: "/office/properties/$propertyId",
+        params: { propertyId: plan.property.id },
+        search: { tab: "plan" },
+        replace: true,
+      });
+    return plan;
+  },
   component: ServicePlanScreen,
 });
 

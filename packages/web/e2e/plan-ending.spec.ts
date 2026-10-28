@@ -152,7 +152,10 @@ test(
       "Service Plan: $50.46 Unpaid, no new Jobs booked",
     );
     await held.click();
-    await expect(page).toHaveURL(new RegExp(`/office/service-plans/${planId}`));
+    // the plan is on its home's Service Plan Tab
+    await expect(page).toHaveURL(
+      /\/office\/properties\/[0-9a-f-]{36}\?tab=plan$/,
+    );
     await expect(page.getByRole("region", { name: "On Hold" })).toContainText(
       "The Client's payment couldn't be taken for the clean on Mon, Jan 19, 9:00 AM ($50.46).",
     );
@@ -168,12 +171,15 @@ test(
     await expectAccessible(page);
     await dialog.getByRole("button", { name: "End plan" }).click();
 
-    // the toast: the page's own "This Service Plan Ended on…" shows at the
-    // same time
+    // the toast; the home has no plan now, so the Tab offers a new one
     await expect(
       page.getByText("Service Plan Ended", { exact: true }),
     ).toBeVisible();
-    await expect(page.getByRole("region", { name: "Ended" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", {
+        name: "This Property doesn't have a Service Plan",
+      }),
+    ).toBeVisible();
     expect((await emailsTo(casey.email)).at(-1)!.subject).toBe(
       "Your Service Plan has Ended",
     );

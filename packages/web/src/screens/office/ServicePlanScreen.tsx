@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import {
   parseDate,
@@ -20,6 +20,7 @@ import {
   List,
   ListItem,
   Notice,
+  Section,
   StatusBadge,
   TimeField,
 } from "@empire-cleaning/ui";
@@ -41,13 +42,10 @@ import { homeCrumbs, jobStatusLabel } from "./PropertyScreen.tsx";
 import { PickFromSchedule } from "./SchedulePicker.tsx";
 import { OfferServicePlan } from "./StartDraft.tsx";
 
-// a Service Plan for the Office: its terms, every Job it has booked, and the
-// dates it came round with no room, for Office Staff to book at another time
-// they agree with the Client, or skip; why it's On Hold, if it is; and
-// Ending it for the Client
+// an Ended Service Plan, on a page of its own: a current one is on its
+// home's Service Plan Tab
 export function ServicePlanScreen() {
   const plan = useLoaderData({ from: "/office/service-plans/$planId" });
-  const navigate = useNavigate();
 
   return (
     <div className="flex flex-col gap-6">
@@ -66,7 +64,32 @@ export function ServicePlanScreen() {
           {clientName(plan.client)} · {addressOf(plan.property)}
         </p>
       </div>
+      <PlanDetails plan={plan} />
+    </div>
+  );
+}
 
+// a Service Plan for the Office: why it's On Hold, if it is; the dates it
+// came round with no room, for Office Staff to book at another time they
+// agree with the Client, or skip; its terms, with the way to change them;
+// every Job it has booked; and Ending it for the Client
+export function PlanDetails({
+  plan,
+  changeTerms = plan.status !== "ended" && (
+    <OfferServicePlan propertyId={plan.property.id} label="Change terms" />
+  ),
+  termsNote,
+}: {
+  plan: OfficeServicePlan;
+  // how its terms change: a new Service Plan Quote
+  changeTerms?: ReactNode;
+  // a line in its terms, e.g. new terms waiting on the Client
+  termsNote?: ReactNode;
+}) {
+  const navigate = useNavigate();
+
+  return (
+    <div className="flex flex-col gap-6">
       <OnHold
         plan={plan}
         forClient={false}
@@ -79,7 +102,7 @@ export function ServicePlanScreen() {
       />
 
       {plan.unplaced.length > 0 && (
-        <Card
+        <Section
           title="Waiting to be booked"
           description="These dates came round with no room on the Schedule, so nothing was booked. Agree another time with the Client, or skip the visit."
         >
@@ -99,10 +122,10 @@ export function ServicePlanScreen() {
               />
             ))}
           </List>
-        </Card>
+        </Section>
       )}
 
-      <Card
+      <Section
         title={planName(plan)}
         description={
           <>
@@ -121,18 +144,23 @@ export function ServicePlanScreen() {
           </>
         }
         actions={
-          plan.status !== "ended" && (
-            <OfferServicePlan
-              propertyId={plan.property.id}
-              label="Change terms"
-            />
-          )
+          <>
+            <PlanStatusBadge status={plan.status} />
+            {changeTerms}
+          </>
         }
       >
-        <PlanTerms plan={plan} />
-      </Card>
+        <Card>
+          <PlanTerms plan={plan} />
+          {termsNote && (
+            <p className="border-t border-border pt-3 text-sm text-fg-muted">
+              {termsNote}
+            </p>
+          )}
+        </Card>
+      </Section>
 
-      <Card
+      <Section
         title="Jobs"
         description="Each goes on the Schedule about 4 weeks ahead, Offered to the crew of the one before."
       >
@@ -172,7 +200,7 @@ export function ServicePlanScreen() {
             />
           ))}
         </List>
-      </Card>
+      </Section>
 
       <EndPlan
         plan={plan}

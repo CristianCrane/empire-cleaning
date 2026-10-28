@@ -116,12 +116,8 @@ test(
       client.getByRole("grid", { name: "Your Service Plans" }).getByRole("row"),
     ).toContainText("Next: Mon, Jan 19, 9:00 AM");
 
-    // the Office finds it on the home's page
+    // the Office finds it in full on the home's Service Plan Tab
     await page.goto(`/office/properties/${propertyId}?tab=plan`);
-    await page.getByRole("link", { name: "Open the plan" }).click();
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-      "Service Plan",
-    );
     const jobs = page.getByRole("grid", { name: "The plan's Jobs" });
     await expect(jobs.getByRole("row")).toHaveCount(4);
     await noViolations(page);
@@ -161,8 +157,9 @@ test("the Office records a plan's acceptance, then books a visit its day had no 
     .getByRole("row")
     .filter({ hasText: "Service Plan visit on Mon, Feb 2" })
     .click();
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "Service Plan",
+  // the plan is on its home's Service Plan Tab
+  await expect(page).toHaveURL(
+    /\/office\/properties\/[0-9a-f-]{36}\?tab=plan$/,
   );
   const waiting = page.getByRole("grid", {
     name: "Visits waiting to be booked",

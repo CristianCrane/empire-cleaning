@@ -211,7 +211,8 @@ export function SiteVisitCard({ quote }: { quote: OfficeQuote }) {
               })}
             >
               Property
-            </Link>.
+            </Link>
+            .
           </p>
         </Notice>
       )}
