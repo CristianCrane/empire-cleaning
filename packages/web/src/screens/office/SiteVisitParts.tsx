@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
-import { CalendarPlus } from "lucide-react";
+import {
+  CalendarClock,
+  CalendarPlus,
+  CalendarX,
+  ClipboardCheck,
+} from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import {
   parseDate,
@@ -11,7 +16,6 @@ import type {
   Condition,
   OfficeSiteVisit,
   PremisesTypeChoice,
-  PropertyType,
   PropertyView,
   SiteVisitBooking,
   SiteVisitStatus,
@@ -28,8 +32,6 @@ import {
   Form,
   Notice,
   NumberField,
-  Radio,
-  RadioGroup,
   Select,
   SelectItem,
   StatusBadge,
@@ -46,6 +48,7 @@ import {
   timeOfDay,
 } from "../format.ts";
 import { useAction, type Action } from "../action.ts";
+import { ConditionField, PlaceTiles } from "./PropertyFields.tsx";
 import { PickFromSchedule } from "./SchedulePicker.tsx";
 
 // Site Visits (#73, ADR-0015): free visits by one Staff member to see a
@@ -159,7 +162,9 @@ function BookingForm({
           </SelectItem>
         ))}
       </Select>
-      <div className="grid gap-4 sm:grid-cols-3">
+      {/* as many to a row as fit the dialog, not the screen: three squeeze
+          the date and the stepper out of sight */}
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-4">
         <DatePicker label="Day" name="date" value={date} onChange={setDate} />
         <TimeField
           label="Start time"
@@ -169,7 +174,7 @@ function BookingForm({
           onChange={setTime}
         />
         <NumberField
-          label="Length in minutes"
+          label="Duration in minutes"
           name="minutes"
           minValue={15}
           maxValue={480}
@@ -274,7 +279,10 @@ export function MoveSiteVisit({ visit }: { visit: OfficeSiteVisit }) {
   const action = useAction("The Site Visit wasn't changed. Please try again.");
   return (
     <DialogTrigger>
-      <Button variant="secondary">Move or change</Button>
+      <Button variant="text" size="sm">
+        <CalendarClock aria-hidden size={16} />
+        Move or change
+      </Button>
       <Dialog title="Move this Site Visit">
         {({ close }) => (
           <BookingForm
@@ -305,7 +313,10 @@ export function CancelSiteVisit({ visit }: { visit: OfficeSiteVisit }) {
   );
   return (
     <DialogTrigger>
-      <Button variant="secondary">Cancel visit</Button>
+      <Button variant="danger-text" size="sm">
+        <CalendarX aria-hidden size={16} />
+        Cancel visit
+      </Button>
       <Dialog title="Cancel this Site Visit?" role="alertdialog">
         {({ close }) => (
           <>
@@ -340,14 +351,6 @@ export function CancelSiteVisit({ visit }: { visit: OfficeSiteVisit }) {
     </DialogTrigger>
   );
 }
-
-const conditionChoices = (
-  <>
-    <SelectItem id="light">Light</SelectItem>
-    <SelectItem id="moderate">Moderate</SelectItem>
-    <SelectItem id="heavy">Heavy</SelectItem>
-  </>
-);
 
 /**
  * What a visit found, pre-filled from the Property as it is: business
@@ -412,6 +415,7 @@ export function FindingsForm({
     >
       {property.kind === "commercial" ? (
         <>
+          <PlaceTiles value="commercial" />
           <Select
             label="Type of premises"
             name="premisesType"
@@ -438,18 +442,10 @@ export function FindingsForm({
       ) : (
         home && (
           <>
-            <RadioGroup
-              label="Type of home"
-              orientation="horizontal"
+            <PlaceTiles
               value={home.type}
-              onChange={(type) =>
-                setHome({ ...home, type: type as PropertyType })
-              }
-            >
-              <Radio value="house">House</Radio>
-              <Radio value="apartment">Apartment</Radio>
-              <Radio value="townhouse">Townhouse</Radio>
-            </RadioGroup>
+              onChange={(type) => setHome({ ...home, type })}
+            />
             <div className="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-4">
               <NumberField
                 label="Bedrooms"
@@ -495,15 +491,7 @@ export function FindingsForm({
           </>
         )
       )}
-      <Select
-        label="Condition"
-        name="condition"
-        placeholder="Choose one"
-        selectedKey={condition}
-        onSelectionChange={(key) => setCondition(key as Condition)}
-      >
-        {conditionChoices}
-      </Select>
+      <ConditionField value={condition} onChange={setCondition} />
       <TextField
         label="Office notes (optional)"
         name="officeNotes"
@@ -536,8 +524,11 @@ export function RecordFindings({
   const action = useAction("The findings weren't saved. Please try again.");
   return (
     <DialogTrigger>
-      <Button>Record findings</Button>
-      <Dialog title="What the Site Visit found">
+      <Button>
+        <ClipboardCheck aria-hidden size={18} />
+        Record findings
+      </Button>
+      <Dialog title="What the Site Visit found" size="lg">
         {({ close }) => (
           <FindingsForm
             property={visit.property}
@@ -578,7 +569,7 @@ export function RecordFindingsWithoutVisit({
   return (
     <DialogTrigger>
       <Button variant="secondary">Record findings without a visit</Button>
-      <Dialog title="Record findings without a visit">
+      <Dialog title="Record findings without a visit" size="lg">
         {({ close }) => (
           <>
             <p className="text-sm text-fg-muted">

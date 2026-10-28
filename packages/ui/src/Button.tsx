@@ -14,13 +14,17 @@ export const buttonStyles = tv({
     variant: {
       primary:
         "bg-primary text-primary-fg hover:bg-primary-hover pressed:bg-primary-hover",
+      // brand outlined, so it reads as clickable next to primary
       secondary:
-        "border border-border-strong bg-surface text-fg hover:bg-surface-sunken pressed:bg-surface-sunken",
+        "border border-primary bg-surface text-primary hover:bg-primary/10 pressed:bg-primary/15",
       quiet:
         "bg-transparent text-fg hover:bg-surface-sunken pressed:bg-surface-sunken",
       // a secondary action on a Section or page, like Edit: reads as text in
       // the brand colour, tinted on hover. Lead it with an icon
       text: "bg-transparent text-primary hover:bg-primary/10 pressed:bg-primary/15",
+      // the same, for one that undoes or removes something, like Cancel visit
+      "danger-text":
+        "bg-transparent text-danger hover:bg-danger/10 pressed:bg-danger/15",
       danger:
         "bg-danger text-danger-fg hover:bg-danger-hover pressed:bg-danger-hover",
     },

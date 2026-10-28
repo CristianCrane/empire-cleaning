@@ -31,7 +31,7 @@ export function Section({
       aria-labelledby={headingId}
       className={twMerge("flex flex-col gap-3", className)}
     >
-      <header className="flex items-end gap-3">
+      <header className="flex flex-wrap items-end gap-3">
         <div className="flex flex-1 flex-col gap-1">
           <Heading level={headingLevel} size={3} id={headingId}>
             {title}
@@ -40,7 +40,9 @@ export function Section({
             <p className="text-sm text-fg-muted">{description}</p>
           )}
         </div>
-        {actions && <div className="flex shrink-0 gap-2">{actions}</div>}
+        {actions && (
+          <div className="flex shrink-0 items-center gap-2">{actions}</div>
+        )}
       </header>
       {children}
     </section>

@@ -272,7 +272,7 @@ function Exceptions({ member }: { member: StaffDetail }) {
           void add();
         }}
       >
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-4">
           <DatePicker
             label="Day"
             name="date"

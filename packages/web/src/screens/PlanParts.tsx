@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+import { CircleStop } from "lucide-react";
 import type { EndPlanTerms, ServicePlanView } from "@empire-cleaning/models";
 import {
   Actions,
@@ -7,6 +9,7 @@ import {
   Dialog,
   DialogTrigger,
   Notice,
+  Section,
   StatusBadge,
 } from "@empire-cleaning/ui";
 import { postJson } from "../api.ts";
@@ -42,12 +45,16 @@ export function PlanStatusBadge({
 // each one's clean
 export function PlanTerms({
   plan,
+  lead,
 }: {
   plan: Omit<ServicePlanView, "upcoming">;
+  // rows before its terms, e.g. its status for the Office
+  lead?: ReactNode;
 }) {
   const [only] = plan.days;
   return (
     <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
+      {lead}
       <dt className="font-semibold">When</dt>
       <dd>{planRhythm(plan)}</dd>
       {plan.days.length === 1 ? (
@@ -183,7 +190,8 @@ function endingLines(terms: EndPlanTerms, forClient: boolean) {
   ].filter((line): line is string => typeof line === "string");
 }
 
-// Ending a plan, at any time: what it does now, and the button to do it
+// Ending a plan, at any time: the button, and what it does now in the
+// dialog that confirms it
 export function EndPlan({
   plan,
   forClient,
@@ -195,12 +203,14 @@ export function EndPlan({
   });
   if (plan.status === "ended") {
     return (
-      <Card title="Ended">
-        <p>
-          {forClient ? "Your" : "This"} Service Plan Ended on{" "}
-          {formatDate(plan.endedAt!)}. No more cleans are booked for it.
-        </p>
-      </Card>
+      <Section title="Ended">
+        <Card>
+          <p>
+            {forClient ? "Your" : "This"} Service Plan Ended on{" "}
+            {formatDate(plan.endedAt!)}. No more cleans are booked for it.
+          </p>
+        </Card>
+      </Section>
     );
   }
   const terms = plan.endTerms!;
@@ -215,52 +225,58 @@ export function EndPlan({
   };
 
   return (
-    <Card title={forClient ? "Ending your plan" : "Ending the plan"}>
-      <p>
-        {forClient
-          ? "You can End your Service Plan at any time."
-          : "You can End the plan for the Client at any time."}
-      </p>
-      {lines.map((line) => (
-        <p key={line}>{line}</p>
-      ))}
-      <Actions>
-        <DialogTrigger>
-          <Button variant="secondary">End plan</Button>
-          <Dialog
-            title={
-              forClient ? "End your Service Plan?" : "End this Service Plan?"
-            }
-            role="alertdialog"
-          >
-            {({ close }) => (
-              <>
-                {lines.map((line) => (
-                  <p key={line}>{line}</p>
-                ))}
-                <p>
-                  <strong>An Ended plan can't be started again.</strong>
-                </p>
-                {action.problem && (
-                  <Notice tone="danger">{action.problem}</Notice>
+    <Section title={forClient ? "Ending your plan" : "Ending the plan"}>
+      <Card>
+        {/* one row, the button kept right; it wraps under at phone width */}
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="min-w-0 grow basis-64 text-fg-muted">
+            {forClient ? "End your plan" : "End it for the Client"} at any time:
+            you'll see what it cancels first.
+          </p>
+          <div className="ml-auto">
+            <DialogTrigger>
+              <Button variant="danger">
+                <CircleStop aria-hidden size={18} />
+                End plan
+              </Button>
+              <Dialog
+                title={
+                  forClient
+                    ? "End your Service Plan?"
+                    : "End this Service Plan?"
+                }
+                role="alertdialog"
+              >
+                {({ close }) => (
+                  <>
+                    {lines.map((line) => (
+                      <p key={line}>{line}</p>
+                    ))}
+                    <p>
+                      <strong>An Ended plan can't be started again.</strong>
+                    </p>
+                    {action.problem && (
+                      <Notice tone="danger">{action.problem}</Notice>
+                    )}
+                    <Actions>
+                      <Button variant="secondary" onPress={close}>
+                        {forClient ? "Keep my plan" : "Keep the plan"}
+                      </Button>
+                      <Button
+                        variant="danger"
+                        isPending={action.isPending}
+                        onPress={() => void end(close)}
+                      >
+                        End plan
+                      </Button>
+                    </Actions>
+                  </>
                 )}
-                <Actions>
-                  <Button variant="secondary" onPress={close}>
-                    {forClient ? "Keep my plan" : "Keep the plan"}
-                  </Button>
-                  <Button
-                    variant="danger"
-                    isPending={action.isPending}
-                    onPress={() => void end(close)}
-                  >
-                    End plan
-                  </Button>
-                </Actions>
-              </>
-            )}
-          </Dialog>
-        </DialogTrigger>
-      </Actions>
-    </Card>
+              </Dialog>
+            </DialogTrigger>
+          </div>
+        </div>
+      </Card>
+    </Section>
   );
 }

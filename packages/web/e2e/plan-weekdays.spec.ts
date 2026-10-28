@@ -70,7 +70,7 @@ test(
     await signedInAs(page, olive.email);
     const { job } = await completedFirstClean(olive.email);
     await page.goto(`/office/jobs/${job.id}`);
-    await page.getByRole("button", { name: "Offer a Service Plan" }).click();
+    await page.getByRole("button", { name: "Quote a Service Plan" }).click();
     await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
 
     // Mondays at 9am

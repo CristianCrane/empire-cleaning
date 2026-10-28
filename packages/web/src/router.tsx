@@ -64,7 +64,12 @@ import {
   type ClientsSearch,
   tabFor,
 } from "./screens/office/ClientsScreen.tsx";
-import { PropertyScreen } from "./screens/office/PropertyScreen.tsx";
+import {
+  currentVisit,
+  PropertyScreen,
+  propertyTabs,
+  type PropertySearch,
+} from "./screens/office/PropertyScreen.tsx";
 import { ScheduleScreen } from "./screens/office/ScheduleScreen.tsx";
 import { ServicePlanScreen } from "./screens/office/ServicePlanScreen.tsx";
 import { SiteVisitScreen } from "./screens/office/SiteVisitScreen.tsx";
@@ -333,13 +338,28 @@ const officeBillRoute = createRoute({
 const officePropertyRoute = createRoute({
   getParentRoute: () => officeRoute,
   path: "/properties/$propertyId",
+  validateSearch: (search: Record<string, unknown>): PropertySearch => ({
+    tab: propertyTabs.find((t) => t === search.tab && t !== "details"),
+  }),
   // business premises are corrected to a Premises Type on offer
   loader: async ({ params }) => {
     const [home, premisesTypes] = await Promise.all([
       getJson<OfficePropertyView>(`/api/properties/${params.propertyId}`),
       getJson<PremisesTypeChoice[]>("/api/price-list/premises-types"),
     ]);
-    return { home, premisesTypes };
+    // its current Service Plan and Site Visit in full, for their Tabs
+    const current = currentVisit(home);
+    const [plan, visit] = await Promise.all([
+      home.servicePlan
+        ? getJson<OfficeServicePlan>(
+            `/api/service-plans/${home.servicePlan.id}`,
+          )
+        : null,
+      current
+        ? getJson<OfficeSiteVisit>(`/api/site-visits/${current.id}`)
+        : null,
+    ]);
+    return { home, premisesTypes, plan, visit };
   },
   component: PropertyScreen,
 });
@@ -347,8 +367,21 @@ const officePropertyRoute = createRoute({
 const officeServicePlanRoute = createRoute({
   getParentRoute: () => officeRoute,
   path: "/service-plans/$planId",
-  loader: ({ params }) =>
-    getJson<OfficeServicePlan>(`/api/service-plans/${params.planId}`),
+  // a current plan is shown on its home's Service Plan Tab; an Ended one
+  // keeps this page
+  loader: async ({ params }) => {
+    const plan = await getJson<OfficeServicePlan>(
+      `/api/service-plans/${params.planId}`,
+    );
+    if (plan.status !== "ended")
+      throw redirect({
+        to: "/office/properties/$propertyId",
+        params: { propertyId: plan.property.id },
+        search: { tab: "plan" },
+        replace: true,
+      });
+    return plan;
+  },
   component: ServicePlanScreen,
 });
 
@@ -356,11 +389,23 @@ const officeServicePlanRoute = createRoute({
 const officeSiteVisitRoute = createRoute({
   getParentRoute: () => officeRoute,
   path: "/site-visits/$visitId",
+  // a home's current Site Visit is shown on its Site Visit Tab; earlier
+  // and cancelled ones keep this page
   loader: async ({ params }) => {
     const [visit, premisesTypes] = await Promise.all([
       getJson<OfficeSiteVisit>(`/api/site-visits/${params.visitId}`),
       getJson<PremisesTypeChoice[]>("/api/price-list/premises-types"),
     ]);
+    const home = await getJson<OfficePropertyView>(
+      `/api/properties/${visit.property.id}`,
+    );
+    if (currentVisit(home)?.id === visit.id)
+      throw redirect({
+        to: "/office/properties/$propertyId",
+        params: { propertyId: home.id },
+        search: { tab: "visit" },
+        replace: true,
+      });
     return { visit, premisesTypes };
   },
   component: SiteVisitScreen,

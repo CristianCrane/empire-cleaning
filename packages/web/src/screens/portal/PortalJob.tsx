@@ -65,7 +65,7 @@ export function PortalJob() {
           ) : job.noAccess ? (
             <StatusBadge tone="danger">No Access</StatusBadge>
           ) : (
-            <StatusBadge tone="success">Booked</StatusBadge>
+            <StatusBadge tone="info">Booked</StatusBadge>
           )}
         </div>
         <p className="text-fg-muted">

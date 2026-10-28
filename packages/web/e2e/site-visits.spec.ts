@@ -67,7 +67,7 @@ test(
       .getByRole("spinbutton", { name: /hour/i })
       .click();
     await page.keyboard.type("1000AM");
-    await expect(dialog.getByRole("textbox", { name: /Length/ })).toHaveValue(
+    await expect(dialog.getByRole("textbox", { name: /Duration/ })).toHaveValue(
       "30",
     );
     await dialog.getByRole("button", { name: "Book Site Visit" }).click();
@@ -94,7 +94,7 @@ test(
     await expect(
       findings.getByRole("textbox", { name: "Floor area in sq ft" }),
     ).toHaveValue("4,500");
-    await choose(findings, /Condition/, "Heavy");
+    await findings.getByText("Heavy", { exact: true }).click();
     await findings
       .getByRole("textbox", { name: /Office notes/ })
       .fill("Two treatment rooms need extra care");
@@ -133,11 +133,11 @@ test("a Quote for business premises can't be sent until a Site Visit's findings 
   const dialog = page.getByRole("dialog", {
     name: "Record findings without a visit",
   });
-  await choose(dialog, /Condition/, "Moderate");
+  await dialog.getByText("Moderate", { exact: true }).click();
   await dialog.getByRole("button", { name: "Save findings" }).click();
   await expect(page.getByText("Findings recorded").first()).toBeVisible();
   await expect(
-    page.getByText(/Findings recorded .*, with no visit/),
+    page.getByRole("heading", { name: "Findings recorded, with no visit" }),
   ).toBeVisible();
 
   await page.goto(quote);

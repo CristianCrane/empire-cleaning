@@ -97,7 +97,7 @@ export function PortalPlan() {
               id={job.id}
               title={formatDateTime(job.startsAt)}
               description={`About ${formatHours(job.hoursOnSite)} on site`}
-              end={<StatusBadge tone="success">Booked</StatusBadge>}
+              end={<StatusBadge tone="info">Booked</StatusBadge>}
             />
           ))}
         </List>

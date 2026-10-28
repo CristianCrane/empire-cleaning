@@ -56,22 +56,22 @@ test(
     await signedInAs(page, casey.email);
     await page.goto(`/portal/plans/${planId}`);
 
+    // what Ending does is shown in the dialog that confirms it
     const ending = page.getByRole("region", { name: "Ending your plan" });
-    await expect(ending).toContainText(
-      "It cancels your 3 cleans booked more than 24 hours away, free: Mon, Jan 26, 9:00 AM; Mon, Feb 2, 9:00 AM; Mon, Feb 9, 9:00 AM.",
-    );
-    await expect(ending).toContainText(
-      "Your clean on Mon, Jan 19, 9:00 AM is less than 24 hours away, so it goes ahead.",
-    );
-    await expect(ending).toContainText(
-      "Your $50.46 Deposit comes off the price of the clean on Mon, Jan 19, 9:00 AM.",
-    );
     await expectAccessible(page);
-
     await ending.getByRole("button", { name: "End plan" }).click();
     const dialog = page.getByRole("alertdialog", {
       name: "End your Service Plan?",
     });
+    await expect(dialog).toContainText(
+      "It cancels your 3 cleans booked more than 24 hours away, free: Mon, Jan 26, 9:00 AM; Mon, Feb 2, 9:00 AM; Mon, Feb 9, 9:00 AM.",
+    );
+    await expect(dialog).toContainText(
+      "Your clean on Mon, Jan 19, 9:00 AM is less than 24 hours away, so it goes ahead.",
+    );
+    await expect(dialog).toContainText(
+      "Your $50.46 Deposit comes off the price of the clean on Mon, Jan 19, 9:00 AM.",
+    );
     await expect(dialog).toContainText("An Ended plan can't be started again.");
     await expectAccessible(page);
     await dialog.getByRole("button", { name: "End plan" }).click();
@@ -152,28 +152,34 @@ test(
       "Service Plan: $50.46 Unpaid, no new Jobs booked",
     );
     await held.click();
-    await expect(page).toHaveURL(new RegExp(`/office/service-plans/${planId}`));
+    // the plan is on its home's Service Plan Tab
+    await expect(page).toHaveURL(
+      /\/office\/properties\/[0-9a-f-]{36}\?tab=plan$/,
+    );
     await expect(page.getByRole("region", { name: "On Hold" })).toContainText(
       "The Client's payment couldn't be taken for the clean on Mon, Jan 19, 9:00 AM ($50.46).",
     );
 
     const ending = page.getByRole("region", { name: "Ending the plan" });
-    await expect(ending).toContainText(
-      "It cancels the Client's 3 cleans booked more than 24 hours away, free",
-    );
     await ending.getByRole("button", { name: "End plan" }).click();
     const dialog = page.getByRole("alertdialog", {
       name: "End this Service Plan?",
     });
+    await expect(dialog).toContainText(
+      "It cancels the Client's 3 cleans booked more than 24 hours away, free",
+    );
     await expectAccessible(page);
     await dialog.getByRole("button", { name: "End plan" }).click();
 
-    // the toast: the page's own "This Service Plan Ended on…" shows at the
-    // same time
+    // the toast; the home has no plan now, so the Tab offers a new one
     await expect(
       page.getByText("Service Plan Ended", { exact: true }),
     ).toBeVisible();
-    await expect(page.getByRole("region", { name: "Ended" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", {
+        name: "This Property doesn't have a Service Plan",
+      }),
+    ).toBeVisible();
     expect((await emailsTo(casey.email)).at(-1)!.subject).toBe(
       "Your Service Plan has Ended",
     );

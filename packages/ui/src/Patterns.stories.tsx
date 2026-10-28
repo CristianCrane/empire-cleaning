@@ -2,11 +2,13 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import type { ReactNode } from "react";
 import {
   Building2,
+  CalendarX,
   CalendarDays,
   CircleDollarSign,
   House,
   ClipboardPenLine,
   Pencil,
+  Repeat,
   Store,
   UserX,
 } from "lucide-react";
@@ -15,6 +17,7 @@ import { Card } from "./Card.tsx";
 import { Checkbox } from "./Checkbox.tsx";
 import { Chip, ChipGroup } from "./ChipGroup.tsx";
 import { ChoiceTile, ChoiceTiles } from "./ChoiceTiles.tsx";
+import { EmptyState } from "./EmptyState.tsx";
 import { Heading } from "./Heading.tsx";
 import { IconTile } from "./IconTile.tsx";
 import { ButtonLink } from "./Link.tsx";
@@ -22,7 +25,7 @@ import { List, ListItem } from "./List.tsx";
 import { Radio, RadioGroup } from "./RadioGroup.tsx";
 import { Section } from "./Section.tsx";
 import { Segment, SegmentedControl } from "./SegmentedControl.tsx";
-import { StatusBadge } from "./StatusBadge.tsx";
+import { StatusBadge, type StatusTone } from "./StatusBadge.tsx";
 import { Cell, Column, Row, Table, TableBody, TableHeader } from "./Table.tsx";
 import { Tab, TabList, TabPanel, Tabs } from "./Tabs.tsx";
 import { TextField } from "./TextField.tsx";
@@ -410,6 +413,122 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+function EmptyStatesOfferTheAction() {
+  return (
+    <div className="flex flex-col gap-6">
+      <Rule title="An empty place offers what fills it">
+        <p>
+          Where a page has room for one thing (a Property's Service Plan, its
+          Site Visit) and there isn't one, an <code>EmptyState</code> says
+          what's missing and offers the action that adds it, as a primary
+          Button. When the action would be refused, say why in an info{" "}
+          <code>Notice</code> in its place, with a link to what's in the way,
+          rather than a Button that fails.
+        </p>
+      </Rule>
+      <div className="flex flex-col gap-4 md:flex-row">
+        <Example verdict="Do">
+          <EmptyState
+            icon={Repeat}
+            title="No Service Plan"
+            description="Quote regular cleaning."
+          >
+            <Button>
+              <Repeat aria-hidden size={18} />
+              Quote a Service Plan
+            </Button>
+          </EmptyState>
+        </Example>
+        <Example verdict="Don't">
+          <Card title="Service Plan">
+            <p className="text-fg-muted">None.</p>
+          </Card>
+        </Example>
+      </div>
+    </div>
+  );
+}
+
+function StatusColours() {
+  const tones: [StatusTone, string, string[]][] = [
+    ["info", "just so, nothing to do", ["Booked", "Sent", "Accepted"]],
+    [
+      "success",
+      "finished well, or running as it should",
+      ["Completed", "Done", "Active", "Confirmed"],
+    ],
+    ["warning", "someone needs to act", ["Requested", "Unassigned", "Expired"]],
+    ["danger", "went wrong", ["No Access", "Unpaid"]],
+    [
+      "neutral",
+      "not going ahead, or not live yet",
+      ["Draft", "Cancelled", "Declined"],
+    ],
+  ];
+  return (
+    <div className="flex flex-col gap-6">
+      <Rule title="A status means the same colour everywhere">
+        <p>
+          A <code>StatusBadge</code>'s tone says what the status means, not
+          which screen it's on: the same word is always the same colour, so a
+          table mixing Quotes, Jobs and Site Visits reads at a glance. Keep each
+          kind's tones in one map beside its labels. Green is for the Office's
+          view of what's going right: done, or running as it should (an Active
+          plan, a Confirmed place); blue is for what's simply so.
+        </p>
+      </Rule>
+      <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-[auto_1fr]">
+        {tones.map(([tone, meaning, examples]) => (
+          <div key={tone} className="contents">
+            <dt className="font-semibold">{meaning}</dt>
+            <dd className="flex flex-wrap gap-2">
+              {examples.map((label) => (
+                <StatusBadge key={label} tone={tone}>
+                  {label}
+                </StatusBadge>
+              ))}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
+function ClickableCatchesTheEye() {
+  return (
+    <div className="flex flex-col gap-6">
+      <Rule title="What can be pressed catches the eye">
+        <p>
+          Every Button is drawn in the brand colour, so nothing pressable looks
+          like plain content. How much colour says how much it matters:{" "}
+          <code>primary</code> (filled) for the one thing to do,{" "}
+          <code>secondary</code> (outlined) beside it, <code>text</code> for a
+          Section's or page's own actions like Edit (<code>danger-text</code>{" "}
+          when one undoes something, like Cancel visit), <code>danger</code>{" "}
+          (filled red) for a destructive action standing alone, like End plan,
+          and <code>quiet</code> only to back out of a dialog. A form's Save is
+          primary, faded until there's something to save. Rows that open
+          something show the hand cursor.
+        </p>
+      </Rule>
+      <div className="flex flex-wrap items-center gap-3">
+        <Button>Save corrections</Button>
+        <Button variant="secondary">Record findings</Button>
+        <Button variant="text" size="sm">
+          <Pencil aria-hidden size={16} />
+          Edit
+        </Button>
+        <Button variant="danger-text" size="sm">
+          <CalendarX aria-hidden size={16} />
+          Cancel visit
+        </Button>
+        <Button variant="quiet">Cancel</Button>
+      </div>
+    </div>
+  );
+}
+
 export const SectionsNotCardsAroundLists: Story = {
   render: () => <SectionsNotCards />,
 };
@@ -428,4 +547,19 @@ export const WorkListsAsTables: Story = {
 
 export const QuietFormsInSteps: Story = {
   render: () => <QuietForms />,
+};
+
+export const EmptyStatesOfferTheActionStory: Story = {
+  name: "Empty states offer the action",
+  render: () => <EmptyStatesOfferTheAction />,
+};
+
+export const ClickableCatchesTheEyeStory: Story = {
+  name: "Clickable catches the eye",
+  render: () => <ClickableCatchesTheEye />,
+};
+
+export const StatusColoursStory: Story = {
+  name: "Status colours",
+  render: () => <StatusColours />,
 };

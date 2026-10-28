@@ -1,68 +1,91 @@
 import { useState, type ReactNode } from "react";
-import { useLoaderData, useNavigate } from "@tanstack/react-router";
+import { useLoaderData, useNavigate, useSearch } from "@tanstack/react-router";
+import {
+  CalendarCheck,
+  MapPin,
+  Repeat,
+  Sparkles,
+  type LucideIcon,
+} from "lucide-react";
 import type {
   ClientName,
-  Condition,
   HomeView,
   JobStatus,
   OfficePropertyView,
+  OfficeServicePlan,
+  OfficeSiteVisit,
   PremisesTypeChoice,
   PremisesView,
-  PropertyType,
   PropertyView,
-  ServicePlanSummary,
 } from "@empire-cleaning/models";
 import {
   Actions,
   Breadcrumbs,
   Button,
   Card,
+  Cell,
   Checkbox,
+  Column,
+  EmptyState,
   Form,
   Heading,
-  List,
-  ListItem,
+  Link,
   Notice,
   NumberField,
-  Radio,
-  RadioGroup,
+  Row,
   Select,
   SelectItem,
   StatusBadge,
+  Tab,
+  Table,
+  TableBody,
+  TableHeader,
+  TabList,
+  TabPanel,
+  Tabs,
   TextField,
   type Crumb,
+  type StatusTone,
 } from "@empire-cleaning/ui";
 import { patchJson } from "../../api.ts";
-import { linkTo } from "../../links.ts";
+import { linkTo, type AppHref } from "../../links.ts";
 import { useAction } from "../action.ts";
 import {
   addressOf,
   cleanTypeLabel,
   clientName,
-  conditionLabel,
   formatDate,
-  formatDateTime,
   propertySummary,
-  wantedCleaning,
   quoteHeadline,
-  planName,
 } from "../format.ts";
-import { PlanStatusBadge } from "../PlanParts.tsx";
+import { QuoteIcon } from "../icons.ts";
 import { QuoteStatusBadge } from "../QuoteParts.tsx";
 import {
   BookSiteVisit,
   RecordFindingsWithoutVisit,
   SiteVisitBadge,
-  visitSummary,
 } from "./SiteVisitParts.tsx";
+import { ConditionField, PlaceTiles } from "./PropertyFields.tsx";
+import { PlanDetails } from "./ServicePlanScreen.tsx";
+import { VisitDetails } from "./SiteVisitScreen.tsx";
 import { OfferServicePlan } from "./StartDraft.tsx";
 
-// a home for the Office: its whole history (ADR-0011): its
-// Quotes and Jobs, its Site Visits, and its details
+// the Property page's Tabs, Details first: what the Office opens a home for
+export const propertyTabs = ["details", "plan", "visit", "history"] as const;
+export type PropertyTab = (typeof propertyTabs)[number];
+export type PropertySearch = { tab?: PropertyTab };
+
+// a home for the Office (ADR-0011): its details first, then its Service
+// Plan, its Site Visit and its whole history, a Tab each
 export function PropertyScreen() {
-  const { home, premisesTypes } = useLoaderData({
+  const { home, premisesTypes, plan, visit } = useLoaderData({
     from: "/office/properties/$propertyId",
   });
+  const { tab = "details" } = useSearch({
+    from: "/office/properties/$propertyId",
+  });
+  const navigate = useNavigate({ from: "/office/properties/$propertyId" });
+  const history = historyOf(home);
 
   return (
     <div className="flex flex-col gap-6">
@@ -74,12 +97,51 @@ export function PropertyScreen() {
             { label: addressOf(home) },
           ]}
         />
-        <Heading level={1}>{addressOf(home)}</Heading>
+        <div className="flex flex-col gap-1">
+          <Heading level={1}>{addressOf(home)}</Heading>
+          <p className="text-fg-muted">
+            {clientName(home.client)} · {propertySummary(home)}
+          </p>
+        </div>
       </div>
-      {home.servicePlan && <PlanLink plan={home.servicePlan} />}
-      <SiteVisits home={home} premisesTypes={premisesTypes} />
-      <History home={home} />
-      <Details home={home} premisesTypes={premisesTypes} />
+      {home.kind === "commercial" && !home.findingsRecorded && (
+        <Notice>
+          Business premises are seen before they're quoted: see the Site Visit
+          Tab.
+        </Notice>
+      )}
+      <Tabs
+        selectedKey={tab}
+        onSelectionChange={(key) =>
+          void navigate({
+            search: {
+              tab: key === "details" ? undefined : (key as PropertyTab),
+            },
+            replace: true,
+          })
+        }
+      >
+        <TabList aria-label="About this Property">
+          <Tab id="details">Details</Tab>
+          <Tab id="plan">Service Plan</Tab>
+          <Tab id="visit">Site Visit</Tab>
+          <Tab id="history" count={history.length}>
+            History
+          </Tab>
+        </TabList>
+        <TabPanel id="details">
+          <Details home={home} premisesTypes={premisesTypes} />
+        </TabPanel>
+        <TabPanel id="plan">
+          <PlanTab home={home} plan={plan} />
+        </TabPanel>
+        <TabPanel id="visit">
+          <VisitTab home={home} visit={visit} premisesTypes={premisesTypes} />
+        </TabPanel>
+        <TabPanel id="history">
+          <History home={home} events={history} />
+        </TabPanel>
+      </Tabs>
     </div>
   );
 }
@@ -108,184 +170,301 @@ export const homeCrumbs = (
   },
 ];
 
-/**
- * Its Site Visits, newest first, each opening its own screen (#73). Business
- * premises need one with findings recorded before a Quote is Sent
- * (ADR-0014); premises the Office knows can have them recorded with no
- * visit. A Property has one booked at a time.
- */
-function SiteVisits({
+// a Quote that stops a new Service Plan Quote, as the server would refuse
+// one: a Quote asked for, or a Service Plan Quote, still open. The Office's
+// own draft isn't in the way: quoting again carries on with it
+const quoteInTheWay = (home: OfficePropertyView) => {
+  const open = home.quotes.find(
+    (q) =>
+      (q.kind === "service_plan" || q.kind === null) &&
+      (q.status === "requested" || q.status === "draft" || q.status === "sent"),
+  );
+  const resumes =
+    open?.kind === "service_plan" &&
+    open.status === "draft" &&
+    open.origin === "office";
+  return { open, resumes };
+};
+
+const inTheWayLine: Record<"requested" | "draft" | "sent", string> = {
+  requested: "The Client asked for a Quote that's still open",
+  draft: "A Service Plan Quote is being drafted",
+  sent: "A Service Plan Quote is with the Client",
+};
+
+// the same, for a home with a plan: what the open Quote means for its terms
+const newTermsLine: Record<"requested" | "draft" | "sent", string> = {
+  requested: "The Client asked for a Quote: draft new terms from it",
+  draft: "New terms are being drafted",
+  sent: "New terms are with the Client, waiting on their answer",
+};
+
+// quoting it a Service Plan, or, with a Quote open already, where that is
+function PlanAction({
   home,
-  premisesTypes,
+  label,
+  primary = false,
 }: {
   home: OfficePropertyView;
-  premisesTypes: PremisesTypeChoice[];
+  label: string;
+  primary?: boolean;
 }) {
-  const navigate = useNavigate();
-  const premises = home.kind === "commercial";
-  const booked = home.siteVisits.some((v) => v.status === "booked");
-  // a Site Visit is for a Quote with nothing Sent yet
-  const unsent = home.quotes.find(
-    (q) => q.status === "requested" || q.status === "draft",
-  );
-  if (!premises && home.siteVisits.length === 0) {
+  const { open, resumes } = quoteInTheWay(home);
+  if (open && !resumes) {
     return (
-      <Card
-        title="Site Visits"
-        description="Optional for a home: book one to see it before quoting."
-        actions={unsent && <BookSiteVisit quoteId={unsent.id} />}
-      />
+      <Notice>
+        <p>
+          {inTheWayLine[open.status as keyof typeof inTheWayLine]}: carry on
+          with that one.{" "}
+          <Link
+            href={linkTo({
+              to: "/office/quotes/$quoteId",
+              params: { quoteId: open.id },
+            })}
+          >
+            Open the Quote
+          </Link>
+        </p>
+      </Notice>
+    );
+  }
+  return (
+    <OfferServicePlan
+      propertyId={home.id}
+      label={resumes ? "Carry on with the draft" : label}
+      primary={primary}
+    />
+  );
+}
+
+// its Service Plan in full; or, with none, the way to quote one: a home once
+// its First Clean is Completed, business premises at any time (ADR-0014)
+function PlanTab({
+  home,
+  plan,
+}: {
+  home: OfficePropertyView;
+  plan: OfficeServicePlan | null;
+}) {
+  const canQuote = home.firstCleanCompleted || home.kind === "commercial";
+
+  if (!plan) {
+    return (
+      <EmptyState
+        icon={Repeat}
+        title="This Property doesn't have a Service Plan"
+        description={
+          canQuote
+            ? "Quote regular cleaning: once the Client accepts, their Jobs are booked for them."
+            : "A home can be quoted a Service Plan once its First Clean is Completed."
+        }
+      >
+        {canQuote && (
+          <PlanAction home={home} label="Quote a Service Plan" primary />
+        )}
+      </EmptyState>
     );
   }
 
+  // new terms wait on a Quote already open: say which, first
+  const { open, resumes } = quoteInTheWay(home);
+  const waiting = open && !resumes ? open : undefined;
   return (
-    <Card title="Site Visits">
-      {premises && !home.findingsRecorded && (
-        <Notice>
-          {booked
-            ? "Record what the Site Visit finds, and a Quote can be sent."
-            : "Business premises are seen before they're quoted. Book a Site Visit, or record findings you know already."}
-        </Notice>
-      )}
-      {/* in the body, not the header, so they wrap at phone width */}
-      {!booked && (
-        <div className="flex flex-wrap gap-2">
-          {unsent && (
-            <BookSiteVisit
-              quoteId={unsent.id}
-              primary={premises && !home.findingsRecorded}
-            />
-          )}
-          {premises && (
-            <RecordFindingsWithoutVisit
-              property={home}
-              officeNotes={home.officeNotes}
-              premisesTypes={premisesTypes}
-            />
-          )}
-        </div>
-      )}
-      <List
-        aria-label={`Site Visits to ${addressOf(home)}`}
-        renderEmptyState={() => (
-          <p className="p-4 text-center text-fg-muted">No Site Visits yet.</p>
-        )}
-        onAction={(id) =>
-          void navigate({
-            to: "/office/site-visits/$visitId",
-            params: { visitId: String(id) },
-          })
-        }
-      >
-        {home.siteVisits.map((visit) => (
-          <ListItem
-            key={visit.id}
-            id={visit.id}
-            title={visitSummary(visit)}
-            end={<SiteVisitBadge status={visit.status} />}
-          />
-        ))}
-      </List>
-    </Card>
-  );
-}
-
-// the home's Service Plan, opening its own screen
-function PlanLink({ plan }: { plan: ServicePlanSummary }) {
-  const navigate = useNavigate();
-  return (
-    <Card title="Service Plan">
-      <List aria-label="Service Plan">
-        <ListItem
-          id={plan.id}
-          title={planName(plan)}
-          description={
-            plan.nextStartsAt
-              ? `Next: ${formatDateTime(plan.nextStartsAt)}`
-              : "No Job booked just now"
-          }
-          end={<PlanStatusBadge status={plan.status} />}
-          onAction={() =>
-            void navigate({
-              to: "/office/service-plans/$planId",
-              params: { planId: plan.id },
-            })
-          }
-        />
-      </List>
-    </Card>
-  );
-}
-
-// a home's Quotes and Jobs, newest first, each opening its own
-// screen; and the way to offer it a plan: a home once its First Clean is
-// Completed, business premises at any time (ADR-0014)
-function History({ home }: { home: OfficePropertyView }) {
-  const navigate = useNavigate();
-  const { quotes, jobs } = home;
-  const empty = (what: string) => () => (
-    <p className="p-4 text-center text-fg-muted">No {what} yet.</p>
-  );
-
-  return (
-    <Card
-      title="History"
-      actions={
-        (home.firstCleanCompleted || home.kind === "commercial") && (
-          <OfferServicePlan
-            propertyId={home.id}
-            label={home.servicePlan ? "Change its Service Plan" : undefined}
-          />
+    <PlanDetails
+      plan={plan}
+      changeTerms={
+        waiting ? null : <PlanAction home={home} label="Change terms" />
+      }
+      notice={
+        waiting && (
+          <>
+            {newTermsLine[waiting.status as keyof typeof newTermsLine]}.{" "}
+            <Link
+              href={linkTo({
+                to: "/office/quotes/$quoteId",
+                params: { quoteId: waiting.id },
+              })}
+            >
+              Open the Quote
+            </Link>
+          </>
         )
       }
+    />
+  );
+}
+
+// the Site Visit its Tab shows: the one booked, else the last done. Earlier
+// and cancelled ones are in its History
+export const currentVisit = (home: OfficePropertyView) =>
+  home.siteVisits.find((v) => v.status === "booked") ??
+  home.siteVisits.find((v) => v.status === "done");
+
+/**
+ * Its Site Visit in full (#73), or, with none, the way to book one. Business
+ * premises need findings recorded before a Quote is Sent (ADR-0014);
+ * premises the Office knows can have them recorded with no visit. A Site
+ * Visit is for a Quote with nothing Sent yet, and a Property has one booked
+ * at a time.
+ */
+function VisitTab({
+  home,
+  visit,
+  premisesTypes,
+}: {
+  home: OfficePropertyView;
+  visit: OfficeSiteVisit | null;
+  premisesTypes: PremisesTypeChoice[];
+}) {
+  const unsent = home.quotes.find(
+    (q) => q.status === "requested" || q.status === "draft",
+  );
+  const premises = home.kind === "commercial";
+  const actions = (primary: boolean) => (
+    <>
+      {unsent && <BookSiteVisit quoteId={unsent.id} primary={primary} />}
+      {premises && !home.findingsRecorded && (
+        <RecordFindingsWithoutVisit
+          property={home}
+          officeNotes={home.officeNotes}
+          premisesTypes={premisesTypes}
+        />
+      )}
+    </>
+  );
+
+  if (!visit) {
+    return (
+      <EmptyState
+        icon={MapPin}
+        title="This Property doesn't have a Site Visit"
+        description={
+          premises
+            ? "Business premises are seen before they're quoted. Book a Site Visit, or record findings you know already."
+            : unsent
+              ? "Optional for a home: book one to see it before quoting."
+              : "A Site Visit is booked for a Quote not sent yet."
+        }
+      >
+        {actions(true)}
+      </EmptyState>
+    );
+  }
+
+  // once it's done, another can be booked for a Quote not sent yet
+  return (
+    <VisitDetails
+      visit={visit}
+      premisesTypes={premisesTypes}
+      actions={visit.status !== "booked" && actions(false)}
+    />
+  );
+}
+
+type HistoryEvent = {
+  id: string;
+  on: string;
+  icon: LucideIcon;
+  kind: string;
+  what: string;
+  status: ReactNode;
+  href: AppHref;
+};
+
+// everything that's happened at the home, newest first: its Quotes (when
+// Sent, or asked for), Jobs and Site Visits
+const historyOf = (home: OfficePropertyView): HistoryEvent[] =>
+  [
+    ...home.quotes.map((quote) => ({
+      id: `quote ${quote.id}`,
+      on: quote.sentAt ?? quote.createdAt,
+      icon: QuoteIcon,
+      kind: "Quote",
+      what: quoteHeadline(quote),
+      status: <QuoteStatusBadge status={quote.status} />,
+      href: linkTo({
+        to: "/office/quotes/$quoteId",
+        params: { quoteId: quote.id },
+      }),
+    })),
+    ...home.jobs.map((job) => ({
+      id: `job ${job.id}`,
+      on: job.startsAt,
+      icon: Sparkles,
+      kind: "Job",
+      what: cleanTypeLabel[job.cleanType],
+      status: <JobStatusBadge status={job.status} />,
+      href: linkTo({ to: "/office/jobs/$jobId", params: { jobId: job.id } }),
+    })),
+    ...home.siteVisits.map((visit) => ({
+      id: `visit ${visit.id}`,
+      on: visit.startsAt ?? visit.doneAt ?? visit.bookedAt,
+      icon: visit.startsAt ? MapPin : CalendarCheck,
+      kind: "Site Visit",
+      what: visit.startsAt
+        ? [visit.visitor?.name, `${visit.minutes} min`]
+            .filter(Boolean)
+            .join(" · ")
+        : "Findings recorded, no visit",
+      status: <SiteVisitBadge status={visit.status} />,
+      href: linkTo({
+        to: "/office/site-visits/$visitId",
+        params: { visitId: visit.id },
+      }),
+    })),
+  ].sort((a, b) => (a.on < b.on ? 1 : -1));
+
+function History({
+  home,
+  events,
+}: {
+  home: OfficePropertyView;
+  events: HistoryEvent[];
+}) {
+  const navigate = useNavigate();
+  return (
+    <Table
+      aria-label={`History of ${addressOf(home)}`}
+      onRowAction={(id) => {
+        const event = events.find((e) => e.id === id);
+        if (event) void navigate(event.href);
+      }}
     >
-      <Heading level={3}>Quotes</Heading>
-      <List
-        aria-label={`Quotes for ${addressOf(home)}`}
-        renderEmptyState={empty("Quotes")}
+      <TableHeader>
+        <Column id="on" isRowHeader>
+          Date
+        </Column>
+        <Column id="what">What</Column>
+        <Column id="status">Status</Column>
+      </TableHeader>
+      <TableBody
+        items={events}
+        renderEmptyState={() => (
+          <p className="p-6 text-center text-fg-muted">Nothing yet.</p>
+        )}
       >
-        {quotes.map((quote) => (
-          <ListItem
-            key={quote.id}
-            id={quote.id}
-            title={quoteHeadline(quote)}
-            description={
-              quote.sentAt
-                ? `Sent ${formatDate(quote.sentAt)}${quote.origin === "office" ? ", unprompted" : ""}`
-                : `Asked ${formatDate(quote.createdAt)}`
-            }
-            end={<QuoteStatusBadge status={quote.status} />}
-            onAction={() =>
-              void navigate({
-                to: "/office/quotes/$quoteId",
-                params: { quoteId: quote.id },
-              })
-            }
-          />
-        ))}
-      </List>
-      <Heading level={3}>Jobs</Heading>
-      <List
-        aria-label={`Jobs at ${addressOf(home)}`}
-        renderEmptyState={empty("Jobs")}
-      >
-        {jobs.map((job) => (
-          <ListItem
-            key={job.id}
-            id={job.id}
-            title={formatDateTime(job.startsAt)}
-            description={cleanTypeLabel[job.cleanType]}
-            end={<StatusBadge>{jobStatusLabel[job.status]}</StatusBadge>}
-            onAction={() =>
-              void navigate({
-                to: "/office/jobs/$jobId",
-                params: { jobId: job.id },
-              })
-            }
-          />
-        ))}
-      </List>
-    </Card>
+        {(event) => (
+          <Row id={event.id}>
+            <Cell>{formatDate(event.on)}</Cell>
+            <Cell>
+              <span className="flex items-center gap-2">
+                <event.icon
+                  aria-hidden
+                  size={16}
+                  className="shrink-0 text-fg-muted"
+                />
+                <span>
+                  <span className="font-semibold">{event.kind}</span>
+                  {" · "}
+                  {event.what}
+                </span>
+              </span>
+            </Cell>
+            <Cell>{event.status}</Cell>
+          </Row>
+        )}
+      </TableBody>
+    </Table>
   );
 }
 
@@ -295,6 +474,23 @@ export const jobStatusLabel: Record<JobStatus, string> = {
   cancelled: "Cancelled",
   no_access: "No Access",
 };
+
+// a Job's status in the tones every status takes: booked is just so, done
+// went well, cancelled is over, No Access went wrong
+const jobStatusTone: Record<JobStatus, StatusTone> = {
+  booked: "info",
+  completed: "success",
+  cancelled: "neutral",
+  no_access: "danger",
+};
+
+export function JobStatusBadge({ status }: { status: JobStatus }) {
+  return (
+    <StatusBadge tone={jobStatusTone[status]}>
+      {jobStatusLabel[status]}
+    </StatusBadge>
+  );
+}
 
 // Corrections to the details that affect the price: only what differs from
 // what's saved is sent
@@ -311,11 +507,17 @@ function useCorrection<T extends Record<string, unknown>>(
     Object.entries(details).filter(([key, value]) => value !== saved[key]),
   );
 
+  // Access Instructions are saved apart: the Client keeps them too
+  const { accessInstructions, ...priced } = changes;
   const save = () =>
-    action.run(
-      () => patchJson(`/api/properties/${home.id}`, changes),
-      "Details corrected",
-    );
+    action.run(async () => {
+      if (Object.keys(priced).length > 0)
+        await patchJson(`/api/properties/${home.id}`, priced);
+      if (accessInstructions !== undefined)
+        await patchJson(`/api/properties/${home.id}/access-instructions`, {
+          accessInstructions,
+        });
+    }, "Details corrected");
 
   return {
     details,
@@ -340,13 +542,7 @@ function Details({
   premisesTypes: PremisesTypeChoice[];
 }) {
   return (
-    <Card title="Details" description={propertySummary(home)}>
-      <p className="text-sm text-fg-muted">
-        Access Instructions:{" "}
-        <span className="whitespace-pre-line text-fg">
-          {home.accessInstructions || "None given"}
-        </span>
-      </p>
+    <Card>
       {home.kind === "commercial" ? (
         <PremisesDetails
           premises={home}
@@ -382,7 +578,6 @@ function CorrectionForm({
       <Actions>
         <Button
           type="submit"
-          variant="secondary"
           isDisabled={!correction.hasChanges}
           isPending={correction.isSaving}
         >
@@ -393,24 +588,24 @@ function CorrectionForm({
   );
 }
 
-function ConditionSelect({
+// how the crew gets in: the Client's to keep, which the Office may
+// correct too
+function AccessInstructionsField({
   value,
   onChange,
 }: {
-  value: Condition | null;
-  onChange: (condition: Condition) => void;
+  value: string;
+  onChange: (instructions: string) => void;
 }) {
   return (
-    <Select
-      label="Condition"
-      placeholder="Not recorded yet"
-      selectedKey={value}
-      onSelectionChange={(key) => onChange(key as Condition)}
-    >
-      <SelectItem id="light">Light</SelectItem>
-      <SelectItem id="moderate">Moderate</SelectItem>
-      <SelectItem id="heavy">Heavy</SelectItem>
-    </Select>
+    <TextField
+      label="Access Instructions"
+      name="accessInstructions"
+      description="The Client sees these, and can change them too."
+      multiline
+      value={value}
+      onChange={onChange}
+    />
   );
 }
 
@@ -450,21 +645,13 @@ function HomeDetails({
     floorArea: home.floorArea,
     condition: home.condition,
     officeNotes: officeNotes ?? "",
+    accessInstructions: home.accessInstructions ?? "",
   });
   const { details, change } = correction;
 
   return (
     <CorrectionForm correction={correction}>
-      <RadioGroup
-        label="Type of home"
-        orientation="horizontal"
-        value={details.type}
-        onChange={(type) => change({ type: type as PropertyType })}
-      >
-        <Radio value="house">House</Radio>
-        <Radio value="apartment">Apartment</Radio>
-        <Radio value="townhouse">Townhouse</Radio>
-      </RadioGroup>
+      <PlaceTiles value={details.type} onChange={(type) => change({ type })} />
       <div className="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-4">
         <NumberField
           label="Bedrooms"
@@ -506,9 +693,13 @@ function HomeDetails({
       <Checkbox isSelected={details.pets} onChange={(pets) => change({ pets })}>
         There are pets at home
       </Checkbox>
-      <ConditionSelect
+      <ConditionField
         value={details.condition}
         onChange={(condition) => change({ condition })}
+      />
+      <AccessInstructionsField
+        value={details.accessInstructions}
+        onChange={(accessInstructions) => change({ accessInstructions })}
       />
       <OfficeNotesField
         value={details.officeNotes}
@@ -534,6 +725,7 @@ function PremisesDetails({
     floorArea: premises.floorArea,
     condition: premises.condition,
     officeNotes: officeNotes ?? "",
+    accessInstructions: premises.accessInstructions ?? "",
   });
   const { details, change } = correction;
   const choices = premisesTypes.some((t) => t.key === premises.premisesType.key)
@@ -542,6 +734,7 @@ function PremisesDetails({
 
   return (
     <CorrectionForm correction={correction}>
+      <PlaceTiles value="commercial" />
       <Select
         label="Type of premises"
         name="premisesType"
@@ -566,9 +759,13 @@ function PremisesDetails({
           change({ floorArea: Number.isNaN(area) ? null : area })
         }
       />
-      <ConditionSelect
+      <ConditionField
         value={details.condition}
         onChange={(condition) => change({ condition })}
+      />
+      <AccessInstructionsField
+        value={details.accessInstructions}
+        onChange={(accessInstructions) => change({ accessInstructions })}
       />
       <OfficeNotesField
         value={details.officeNotes}

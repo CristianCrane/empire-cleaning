@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import {
   parseDate,
@@ -20,6 +20,7 @@ import {
   List,
   ListItem,
   Notice,
+  Section,
   StatusBadge,
   TimeField,
 } from "@empire-cleaning/ui";
@@ -37,17 +38,14 @@ import {
 } from "../format.ts";
 import { EndPlan, OnHold, PlanStatusBadge, PlanTerms } from "../PlanParts.tsx";
 import { useAction } from "../action.ts";
-import { homeCrumbs, jobStatusLabel } from "./PropertyScreen.tsx";
+import { homeCrumbs, JobStatusBadge } from "./PropertyScreen.tsx";
 import { PickFromSchedule } from "./SchedulePicker.tsx";
 import { OfferServicePlan } from "./StartDraft.tsx";
 
-// a Service Plan for the Office: its terms, every Job it has booked, and the
-// dates it came round with no room, for Office Staff to book at another time
-// they agree with the Client, or skip; why it's On Hold, if it is; and
-// Ending it for the Client
+// an Ended Service Plan, on a page of its own: a current one is on its
+// home's Service Plan Tab
 export function ServicePlanScreen() {
   const plan = useLoaderData({ from: "/office/service-plans/$planId" });
-  const navigate = useNavigate();
 
   return (
     <div className="flex flex-col gap-6">
@@ -66,7 +64,38 @@ export function ServicePlanScreen() {
           {clientName(plan.client)} · {addressOf(plan.property)}
         </p>
       </div>
+      <PlanDetails plan={plan} />
+      <PlanJobs plan={plan} />
+    </div>
+  );
+}
 
+// a Service Plan for the Office: why it's On Hold, if it is; the dates it
+// came round with no room, for Office Staff to book at another time they
+// agree with the Client, or skip; its status, Quote and terms, with the way
+// to change them;
+// and Ending it for the Client. Its Jobs are in its home's History
+export function PlanDetails({
+  plan,
+  changeTerms = plan.status !== "ended" && (
+    <OfferServicePlan propertyId={plan.property.id} label="Change terms" />
+  ),
+  notice,
+}: {
+  plan: OfficeServicePlan;
+  // how its terms change: a new Service Plan Quote
+  changeTerms?: ReactNode;
+  // what to know first, e.g. new terms waiting on the Client, as an info
+  // Notice
+  notice?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-6">
+      {notice && (
+        <Notice>
+          <p>{notice}</p>
+        </Notice>
+      )}
       <OnHold
         plan={plan}
         forClient={false}
@@ -79,7 +108,7 @@ export function ServicePlanScreen() {
       />
 
       {plan.unplaced.length > 0 && (
-        <Card
+        <Section
           title="Waiting to be booked"
           description="These dates came round with no room on the Schedule, so nothing was booked. Agree another time with the Client, or skip the visit."
         >
@@ -99,80 +128,35 @@ export function ServicePlanScreen() {
               />
             ))}
           </List>
-        </Card>
+        </Section>
       )}
 
-      <Card
-        title={planName(plan)}
-        description={
-          <>
-            On the terms of{" "}
-            <Link
-              href={linkTo({
-                to: "/office/quotes/$quoteId",
-                params: { quoteId: plan.quoteId },
-              })}
-            >
-              its Service Plan Quote
-            </Link>
-            , which prices its Jobs from{" "}
-            {formatDateTime(plan.days[0]!.startsAt)}. New terms take a new
-            Quote, accepted by the Client.
-          </>
-        }
-        actions={
-          plan.status !== "ended" && (
-            <OfferServicePlan
-              propertyId={plan.property.id}
-              label="Change terms"
-            />
-          )
-        }
-      >
-        <PlanTerms plan={plan} />
-      </Card>
-
-      <Card
-        title="Jobs"
-        description="Each goes on the Schedule about 4 weeks ahead, Offered to the crew of the one before."
-      >
-        <List
-          aria-label="The plan's Jobs"
-          renderEmptyState={() => (
-            <p className="p-4 text-center text-fg-muted">No Jobs yet.</p>
-          )}
-        >
-          {plan.jobs.map((job) => (
-            <ListItem
-              key={job.id}
-              id={job.id}
-              title={formatDateTime(job.startsAt)}
-              description={
-                job.crew.length > 0
-                  ? job.crew.map((c) => c.name).join(", ")
-                  : "Nobody Offered yet"
-              }
-              end={
-                job.status === "booked" ? (
-                  <StatusBadge
-                    tone={job.assignment === "assigned" ? "success" : "warning"}
+      <Section title={planName(plan)} actions={changeTerms}>
+        <Card>
+          <PlanTerms
+            plan={plan}
+            lead={
+              <>
+                <dt className="font-semibold">Status</dt>
+                <dd>
+                  <PlanStatusBadge status={plan.status} />
+                </dd>
+                <dt className="font-semibold">Quote</dt>
+                <dd>
+                  <Link
+                    href={linkTo({
+                      to: "/office/quotes/$quoteId",
+                      params: { quoteId: plan.quoteId },
+                    })}
                   >
-                    {job.assignment === "assigned" ? "Assigned" : "Unassigned"}
-                  </StatusBadge>
-                ) : (
-                  <StatusBadge>{jobStatusLabel[job.status]}</StatusBadge>
-                )
-              }
-              onAction={() =>
-                void navigate({
-                  to: "/office/jobs/$jobId",
-                  params: { jobId: job.id },
-                })
-              }
-            />
-          ))}
-        </List>
-      </Card>
+                    Its Service Plan Quote
+                  </Link>
+                </dd>
+              </>
+            }
+          />
+        </Card>
+      </Section>
 
       <EndPlan
         plan={plan}
@@ -180,6 +164,52 @@ export function ServicePlanScreen() {
         endPath={`/api/service-plans/${plan.id}/end`}
       />
     </div>
+  );
+}
+
+// every Job the plan booked, opening each: on an Ended plan's page. A
+// current plan's are in its home's History
+function PlanJobs({ plan }: { plan: OfficeServicePlan }) {
+  const navigate = useNavigate();
+  return (
+    <Section title="Jobs">
+      <List
+        aria-label="The plan's Jobs"
+        renderEmptyState={() => (
+          <p className="p-4 text-center text-fg-muted">No Jobs yet.</p>
+        )}
+      >
+        {plan.jobs.map((job) => (
+          <ListItem
+            key={job.id}
+            id={job.id}
+            title={formatDateTime(job.startsAt)}
+            description={
+              job.crew.length > 0
+                ? job.crew.map((c) => c.name).join(", ")
+                : "Nobody Offered yet"
+            }
+            end={
+              job.status === "booked" ? (
+                <StatusBadge
+                  tone={job.assignment === "assigned" ? "success" : "warning"}
+                >
+                  {job.assignment === "assigned" ? "Assigned" : "Unassigned"}
+                </StatusBadge>
+              ) : (
+                <JobStatusBadge status={job.status} />
+              )
+            }
+            onAction={() =>
+              void navigate({
+                to: "/office/jobs/$jobId",
+                params: { jobId: job.id },
+              })
+            }
+          />
+        ))}
+      </List>
+    </Section>
   );
 }
 
