@@ -121,7 +121,7 @@ The outcome of a Job where Staff could not get into the Property; it is not Comp
 _Avoid_: Lockout, missed job, no-show
 
 **Reschedule Request**:
-A Client's proposal to move a booked Job to a new available time, which is held for them while pending. The Job keeps its original time until Office Staff confirm the move, after which its Assignments are Offered afresh; Office Staff may instead turn it down, and the Client may withdraw it. One made less than 24 hours before the Job is a Late Reschedule (ADR-0010).
+A Client's proposal to move a booked Job to a new available time, which is held for them while pending. The Job keeps its original time until Office Staff confirm the move, after which its crew are Offered the new time afresh, keeping their places unless they aren't free then; Office Staff may instead turn it down, and the Client may withdraw it. One made less than 24 hours before the Job is a Late Reschedule (ADR-0010).
 _Avoid_: Reschedule, rebooking, change request
 
 **Late Cancellation**:
@@ -141,7 +141,7 @@ A Service Plan permanently stopped by its Client, or by Office Staff for them, a
 _Avoid_: Cancelled, terminated, closed
 
 **Schedule**:
-The calendar of all booked Jobs and Site Visits. Office Staff may move a booked Job that hasn't started straight to a new time with room for it; this is their own action, not a Reschedule Request, so it costs the Client nothing, but like a confirmed request it Offers the Job's Assignments afresh and tells the Client and the crew.
+The calendar of all booked Jobs and Site Visits. Office Staff may move a booked Job that hasn't started straight to a new time with room for it; this is their own action, not a Reschedule Request, so it costs the Client nothing, but like a confirmed request it Offers the new time to the Job's crew afresh and tells the Client and the crew.
 _Avoid_: Calendar, roster, bookings
 
 **Available Hours**:
@@ -149,8 +149,12 @@ The hours a Cleaner can work on a day: their usual hours for that day of the wee
 _Avoid_: Capacity, shifts, roster
 
 **Assignment**:
-The allocation of a specific Staff member to carry out a Job, made separately from, and possibly after, booking it. An Assignment is _Offered_ until the Staff member _Confirms_ it or _Releases_ it; Releasing frees that place on the Job. A Job is _Unassigned_ until all its places are Confirmed, and cannot be Completed while Unassigned.
+The allocation of a specific Staff member to carry out a Job, made separately from, and possibly after, booking it. A Cleaner takes an Open Place by _Confirming_ it, or Office Staff _Offer_ a place to a named Cleaner, which holds it until they Confirm or _Release_ it; a Confirmed place may be Released until 48 hours before the Job. Releasing makes that place an Open Place again. A Job is _Unassigned_ until all its places are Confirmed, and cannot be Completed while Unassigned (ADR-0019).
 _Avoid_: Dispatch, crew allocation, accept, decline
+
+**Open Place**:
+A place on a Job that no Assignment holds. Once the Job is within 7 days of starting, it is open to every Cleaner free for it, except any who said it's not for them, and the first to Confirm takes it. Free here is stricter than for Schedule room: Available Hours that day and no Job or Site Visit of theirs overlapping it (ADR-0019). Until they Confirm, a Cleaner sees only its Service, time, Crew Size and area.
+_Avoid_: Vacancy, shift, open job, broadcast
 
 ## Payment
 
