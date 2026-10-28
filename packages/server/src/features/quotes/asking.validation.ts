@@ -90,6 +90,13 @@ const request = {
     .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Choose a time")
     .nullish(),
   wantsRegularService: z.boolean(),
+  // for a Service priced by area, a rough idea of it; kept only for one
+  area: z
+    .number({ error: "Enter the area in sq ft" })
+    .int("Use whole sq ft")
+    .min(10, "Enter the area in sq ft")
+    .max(1_000_000, "That's larger than we can take on")
+    .nullish(),
   notes: z.string().trim().max(2000).nullish(),
 };
 

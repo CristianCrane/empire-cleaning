@@ -97,6 +97,9 @@ export const quotes = pgTable(
       .default(false),
     weekdays: integer("weekdays").array().notNull().default([]),
     preferredTime: text("preferred_time"),
+    // for a Service priced by area, a rough area in sq ft, as the Client
+    // gave it (ADR-0018)
+    area: integer("area"),
     notes: text("notes"),
 
     // the latest Sent Revision: the offer, and once Accepted the one accepted
@@ -185,6 +188,10 @@ export const quoteRevisions = pgTable(
     // its Service, by key: a one-off Revision's options are for it, and a
     // Service Plan Revision's every day is
     serviceKey: uuid("service_key").notNull(),
+    // for a Service priced by area, the area it's priced on, in sq ft
+    // (ADR-0018). Unsent and null, it follows the Property's floor area,
+    // else the Client's rough one; sending fixes it.
+    area: integer("area"),
     // a one-off Quote's crew; a Service Plan Quote's first weekday's, each
     // having its own
     crewSize: integer("crew_size").notNull(),

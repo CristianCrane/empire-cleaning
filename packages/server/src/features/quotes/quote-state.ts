@@ -81,6 +81,7 @@ export const askedOf = (
         wantsRegularService: quote.wantsRegularService,
         weekdays: quote.weekdays as Weekday[],
         preferredTime: quote.preferredTime,
+        area: quote.area,
         notes: quote.notes,
         addOns,
       };

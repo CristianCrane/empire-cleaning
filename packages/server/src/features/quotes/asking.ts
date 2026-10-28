@@ -371,6 +371,7 @@ const recordAsk = async (
           property!.kind === "commercial" && regular
             ? submission.preferredTime
             : null,
+        area: service.method === "area" ? (submission.area ?? null) : null,
         notes: submission.notes,
         createdBy: enteredBy,
       })

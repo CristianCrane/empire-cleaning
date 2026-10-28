@@ -30,9 +30,9 @@ const priceOf = (
 
 type Office = Awaited<ReturnType<typeof signInAsOffice>>;
 
-const painting: ServiceInput = {
-  name: "Painting",
-  description: "Walls and ceilings, inside.",
+const windows: ServiceInput = {
+  name: "Window cleaning",
+  description: "Every window, inside and out.",
   offeredFor: "both",
   method: "area",
   roomHours: null,
@@ -62,7 +62,7 @@ const askedQuote = async (office: Office) => {
 };
 
 describe("Services", () => {
-  test("start as Standard, Deep and Move-in/out for homes, and commercial cleaning by area", async () => {
+  test("start as Standard, Deep and Move-in/out for homes, commercial cleaning and Painting by area", async () => {
     const office = await signInAsOffice();
 
     const services = await list(office);
@@ -74,6 +74,7 @@ describe("Services", () => {
       ["Deep Clean", "homes", "rooms", true],
       ["Move-in/out Clean", "homes", "rooms", true],
       ["Commercial cleaning", "businesses", "area", true],
+      ["Painting", "both", "area", true],
     ]);
     expect(services[0]).toMatchObject({
       key: SEEDED.standard,
@@ -101,6 +102,13 @@ describe("Services", () => {
       roomHours: null,
       needsSiteVisit: true,
     });
+    // neither Condition nor a Premises Type changes how long painting takes
+    expect(services[4]).toMatchObject({
+      key: SEEDED.painting,
+      conditionApplies: false,
+      canRecur: false,
+      needsSiteVisit: true,
+    });
   });
 
   test("are only for Office Staff to read and change", async () => {
@@ -108,24 +116,23 @@ describe("Services", () => {
 
     expect((await api().get("/api/services")).status).toBe(401);
     expect((await client.get("/api/services")).status).toBe(403);
-    expect((await client.post("/api/services").send(painting)).status).toBe(
-      403,
-    );
+    expect((await client.post("/api/services").send(windows)).status).toBe(403);
   });
 
   test("can be added, at the end of the list", async () => {
     const office = await signInAsOffice();
 
-    const added = (
-      await office.post("/api/services").send(painting).expect(201)
-    ).body as Service;
+    const added = (await office.post("/api/services").send(windows).expect(201))
+      .body as Service;
 
     expect(added).toMatchObject({
-      ...painting,
+      ...windows,
       key: expect.any(String),
       createdByName: "Olive Owner",
     });
-    expect((await list(office)).map((s) => s.name).at(-1)).toBe("Painting");
+    expect((await list(office)).map((s) => s.name).at(-1)).toBe(
+      "Window cleaning",
+    );
   });
 
   test("every save is a new version with the same key, keeping its place", async () => {
@@ -155,7 +162,7 @@ describe("Services", () => {
     const office = await signInAsOffice();
 
     const res = await office.post("/api/services").send({
-      ...painting,
+      ...windows,
       name: "",
       method: "rooms",
       roomHours: null,
@@ -181,7 +188,7 @@ describe("Services", () => {
       await office
         .post("/api/services")
         .send({
-          ...painting,
+          ...windows,
           roomHours: {
             baseHours: 1,
             bedroomHours: 1,
@@ -202,15 +209,15 @@ describe("Services", () => {
 
     const twice = await office
       .post("/api/services")
-      .send({ ...painting, name: "deep clean" });
+      .send({ ...windows, name: "deep clean" });
     const unknown = await office.post("/api/services").send({
-      ...painting,
+      ...windows,
       firstVisitServiceKey: "00000000-0000-4000-8000-000000000000",
     });
     const deep = (await list(office))[1]!;
     const itself = await office
       .put(`/api/services/${deep.key}`)
-      .send({ ...painting, name: deep.name, firstVisitServiceKey: deep.key });
+      .send({ ...windows, name: deep.name, firstVisitServiceKey: deep.key });
 
     expect(issuesOf(twice.body)).toEqual({
       name: "Another Service already has this name",
@@ -230,7 +237,7 @@ describe("Services", () => {
 
     expect((await office.get(`/api/services/${missing}`)).status).toBe(404);
     expect(
-      (await office.put(`/api/services/${missing}`).send(painting)).status,
+      (await office.put(`/api/services/${missing}`).send(windows)).status,
     ).toBe(404);
   });
 });

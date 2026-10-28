@@ -56,6 +56,7 @@ import {
   onOfferAt,
   serviceNameOf,
   serviceOf,
+  serviceVersions,
   type Pricing,
 } from "../services/services.ts";
 import { priceLists } from "../price-list/price-list.schema.ts";
@@ -208,13 +209,34 @@ const addOnChoices = async (
 // where that's offered) at the Property's own Condition (moderate while
 // business premises have none recorded), undiscounted; a Service Plan Quote
 // each of its weekdays' visits at the Condition and Plan Discount on the
-// Revision
+// Revision; and for a Service priced by area, the area
 type Terms = {
   kind: QuoteKind;
   visits: Visit[];
   condition: Condition | null;
   discountPercent: number;
+  area: number | null;
 };
+
+// The area a Draft for a Service priced by area follows until Office Staff
+// type one (ADR-0018): the Property's floor area, which a Site Visit finds,
+// else the rough one the Client gave
+const areaFromOf = (
+  quote: Pick<Quote, "area">,
+  property: Pick<Property, "floorArea">,
+): OfficeQuote["areaFrom"] =>
+  property.floorArea !== null
+    ? { sqFt: property.floorArea, source: "property" }
+    : quote.area !== null
+      ? { sqFt: quote.area, source: "asked" }
+      : null;
+
+// the area a Revision is priced on: its own, else what it follows
+const areaOf = (
+  revision: Pick<Revision, "area"> | null,
+  quote: Pick<Quote, "area">,
+  property: Pick<Property, "floorArea">,
+) => revision?.area ?? areaFromOf(quote, property)?.sqFt ?? null;
 
 // one visit to price: one of a one-off Quote's Services, or a Service Plan
 // Quote's weekday, with its first clean's time
@@ -236,6 +258,7 @@ const oneOffTerms = (
   firstVisit: boolean,
   crewSize: number,
   overrides: Overrides,
+  area: number | null,
 ): Terms => ({
   kind: "one_off",
   visits: oneOffServices(list.services, service, property.kind, firstVisit).map(
@@ -249,16 +272,19 @@ const oneOffTerms = (
   ),
   condition: property.condition,
   discountPercent: 0,
+  area,
 });
 
 const planTerms = (
   plan: { condition: Condition; planDiscountPercent: number },
   days: Omit<Visit, "position">[],
+  area: number | null,
 ): Terms => ({
   kind: "service_plan",
   visits: days.map((day, position) => ({ ...day, position })),
   condition: plan.condition,
   discountPercent: plan.planDiscountPercent,
+  area,
 });
 
 // The Revision's visits priced from the Price List and each one's Service,
@@ -280,7 +306,7 @@ const priceOptions = (
       const suggested = suggestedPrice(
         list,
         service,
-        pricedOf(property),
+        pricedOf(property, terms.area),
         terms.condition,
         chosen,
       );
@@ -527,6 +553,7 @@ const officeRevision = async (
     number: revision.number,
     status: sent ? "sent" : "draft",
     serviceKey: revision.serviceKey!,
+    area: revision.area,
     options: inOrder(rows).map((r) => officeOption(revision, r)),
     // with the Condition it's priced for, which is the Office's working
     plan: plan && { ...plan, condition: revision.condition! },
@@ -636,6 +663,7 @@ export const officeQuote = async (id: string): Promise<OfficeQuote> => {
       ? choices
       : [...choices, service]
     ).map(choiceOf),
+    areaFrom: areaFromOf(quote, property),
     suggested: {
       priceListVersion: list.version,
       prices: oneOffServices(
@@ -647,7 +675,7 @@ export const officeQuote = async (id: string): Promise<OfficeQuote> => {
         ...suggestedPrice(
           list,
           s,
-          pricedOf(property),
+          pricedOf(property, areaOf(draft ?? offer ?? null, quote, property)),
           property.condition,
           chosen,
         ),
@@ -922,6 +950,7 @@ const newRevisionOptions = async (
   if (offer) {
     const rows = inOrder(await optionsOf(offer.id));
     const addOnKeys = rows[0]!.suggested.addOns.map((a) => a.key);
+    const area = areaOf(offer, quote, property);
     const overrideOf = (row: RevisionOptionRow) =>
       row.overrideCents === null
         ? null
@@ -934,6 +963,7 @@ const newRevisionOptions = async (
               planDiscountPercent: offer.planDiscountPercent!,
             },
             rows.map((row) => ({ ...row, override: overrideOf(row) })),
+            area,
           )
         : oneOffTerms(
             list,
@@ -942,10 +972,12 @@ const newRevisionOptions = async (
             !anyCompleted,
             offer.crewSize,
             Object.fromEntries(rows.map((r) => [r.serviceKey, overrideOf(r)])),
+            area,
           );
     return {
       revision: {
         serviceKey,
+        area: offer.area,
         crewSize: offer.crewSize,
         depositPercent: offer.depositPercent,
         validityDays: offer.validityDays,
@@ -965,9 +997,11 @@ const newRevisionOptions = async (
   const addOnKeys = plan
     ? []
     : ((await askedAddOns([quote.id])).get(quote.id) ?? []).map((a) => a.key);
+  const area = areaOf(null, quote, property);
   return {
     revision: {
       serviceKey,
+      area: null,
       crewSize: list.defaultCrewSize,
       depositPercent: list.depositPercent,
       validityDays: list.quoteValidityDays,
@@ -981,14 +1015,18 @@ const newRevisionOptions = async (
       property,
       addOnKeys,
       plan
-        ? planTerms(plan, [
-            {
-              serviceKey,
-              startsAt: null,
-              crewSize: list.defaultCrewSize,
-              override: null,
-            },
-          ])
+        ? planTerms(
+            plan,
+            [
+              {
+                serviceKey,
+                startsAt: null,
+                crewSize: list.defaultCrewSize,
+                override: null,
+              },
+            ],
+            area,
+          )
         : oneOffTerms(
             list,
             property,
@@ -996,6 +1034,7 @@ const newRevisionOptions = async (
             !anyCompleted,
             list.defaultCrewSize,
             {},
+            area,
           ),
     ),
   };
@@ -1315,6 +1354,9 @@ export const saveDraft = async (
     throw fieldError(["addOns", unknown], "Choose from the Add-ons listed");
   }
 
+  // typed, or following the Property (or the Client's rough one)
+  const typedArea = input.area ?? null;
+  const area = areaOf({ area: typedArea }, quote, property);
   let terms: Terms;
   let timing: { crewSize: number; proposedStartsAt: Date | null };
   if (draft.kind === "service_plan") {
@@ -1338,6 +1380,7 @@ export const saveDraft = async (
     terms = planTerms(
       { condition: plan.condition, planDiscountPercent: plan.discountPercent },
       days,
+      area,
     );
     // its first clean, once every weekday has one
     const starts = days.map((d) => d.startsAt);
@@ -1361,6 +1404,7 @@ export const saveDraft = async (
       !anyCompleted,
       input.crewSize,
       input.overrides ?? {},
+      area,
     );
     timing = {
       crewSize: input.crewSize,
@@ -1405,6 +1449,7 @@ export const saveDraft = async (
         depositPercent: input.depositPercent,
         validityDays: input.validityDays,
         serviceKey: service!.key,
+        area: typedArea,
         ...timing,
         ...(plan && {
           recurrence: plan.recurrence,
@@ -1507,6 +1552,14 @@ export const sendQuote = async (id: string): Promise<OfficeQuote> => {
     );
   }
 
+  // a Service priced by area is priced on one, which sending fixes
+  // (as each option's Service was when it was priced)
+  const priced = await serviceVersions(rows.map((r) => r.serviceId));
+  const byArea = rows.find((r) => priced.get(r.serviceId)!.method === "area");
+  if (byArea && (byArea.suggested.area ?? null) === null) {
+    throw fieldError(["area"], "Enter the area to price it on");
+  }
+
   const expiresAt = new Date(
     Math.min(
       now.getTime() + draft.validityDays * DAY_MS,
@@ -1543,6 +1596,7 @@ export const sendQuote = async (id: string): Promise<OfficeQuote> => {
       .set({
         sentAt: now,
         expiresAt,
+        area: byArea?.suggested.area ?? null,
         ...(days && { crewSize: days[0]!.crewSize }),
       })
       .where(

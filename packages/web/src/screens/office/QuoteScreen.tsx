@@ -650,6 +650,9 @@ type PlanFields = Omit<ServicePlanInput, "days"> & { days: DayFields[] };
 type Fields = {
   // a one-off Quote's Service
   serviceKey: string;
+  // for a Service priced by area; null follows the Property's (or the
+  // Client's rough one)
+  area: number | null;
   addOns: string[];
   crewSize: number;
   depositPercent: number;
@@ -675,6 +678,7 @@ const overrideOf = (option: OfficeQuoteOption | undefined): Override => ({
 const toFields = (quote: ShownQuote): Fields => {
   return {
     serviceKey: quote.serviceKey,
+    area: quote.area,
     addOns: quote.addOns.map((a) => a.key),
     crewSize: quote.crewSize,
     depositPercent: quote.depositPercent,
@@ -710,6 +714,7 @@ const priced = ({ on, price, reason }: Override) =>
 
 const toInput = (fields: Fields): QuoteDraftInput => {
   const terms = {
+    area: fields.area,
     addOns: fields.addOns,
     depositPercent: fields.depositPercent,
     validityDays: fields.validityDays,
@@ -986,6 +991,38 @@ const priceSummary = (quote: ShownQuote) => {
     .join(" · ");
 };
 
+const sqFt = new Intl.NumberFormat("en-US");
+
+// The area a Service priced by area is priced on: typed, or left empty to
+// follow the Property's floor area, else the Client's rough one (ADR-0018)
+function AreaField({
+  area,
+  from,
+  onChange,
+}: {
+  area: number | null;
+  from: OfficeQuote["areaFrom"];
+  onChange: (area: number | null) => void;
+}) {
+  const following = !from
+    ? "None recorded yet: enter one to price it."
+    : from.source === "property"
+      ? `Leave empty to use the floor area, ${sqFt.format(from.sqFt)} sq ft.`
+      : `Leave empty to use the Client's rough figure, ${sqFt.format(from.sqFt)} sq ft.`;
+  return (
+    <NumberField
+      label="Area in sq ft"
+      name="area"
+      className="sm:max-w-xs"
+      minValue={1}
+      maxValue={1_000_000}
+      value={area ?? Number.NaN}
+      onChange={(value) => onChange(Number.isNaN(value) ? null : value)}
+      description={area === null ? following : undefined}
+    />
+  );
+}
+
 /**
  * A Draft, saved and priced again by the server a moment after each change,
  * so the prices always follow what's on screen; a bar at the bottom keeps
@@ -1150,6 +1187,15 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
         <div
           className={`flex flex-col gap-4 transition-opacity ${stale ? "opacity-60" : ""}`}
         >
+          {quote.serviceChoices.find(
+            (s) => s.key === (plan?.serviceKey ?? fields.serviceKey),
+          )?.method === "area" && (
+            <AreaField
+              area={fields.area}
+              from={quote.areaFrom}
+              onChange={(area) => set({ area })}
+            />
+          )}
           {plan ? (
             <>
               {plan.days.map((day, i) => (
