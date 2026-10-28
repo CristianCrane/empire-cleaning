@@ -415,12 +415,7 @@ export type ServiceInput = {
 // landing page's "What we clean" shows the same kind of work; "custom" for
 // one the Office added
 export type ServiceIcon =
-  | "sparkles"
-  | "house"
-  | "truck"
-  | "building"
-  | "paint-roller"
-  | "custom";
+  "sparkles" | "house" | "truck" | "building" | "paint-roller" | "custom";
 
 // a Service as the "Request a Quote" form offers it: what the Client sees,
 // and what decides the questions asked about it. Open to Guests.
@@ -1236,6 +1231,16 @@ export type OfficeJob = ScheduledJob & {
   assignments: AssignmentView[];
   // places nobody holds: Crew Size less those Offered or Confirmed
   openPlaces: number;
+  // who its Open Places are open to (ADR-0019): from when, 7 days before it
+  // starts, and whether that has come, by the Clock; how many free Cleaners
+  // they are open to now (0 before then, or once every place is held); and
+  // who said "Not for me"
+  openTo: {
+    opensAt: string;
+    opened: boolean;
+    cleaners: number;
+    passedBy: { id: string; name: string }[];
+  };
   // the Service Plan it was generated for; null for a one-off Job
   servicePlanId: string | null;
   // active Cleaners who could be Offered a place, with their Available Hours
@@ -1301,6 +1306,21 @@ export type CleanerJob = {
 
 // a Cleaner's Jobs: today's (in New York, by the Clock) and those to come
 export type CleanerJobs = { today: CleanerJob[]; upcoming: CleanerJob[] };
+
+// ---- Open Places (#125, ADR-0019) ----
+
+// A Job with places nobody holds, as a Cleaner it is open to sees it before
+// Confirming: what, when, for how long and roughly where, never its street
+// address, Access Instructions, Client or prices
+export type OpenPlace = {
+  jobId: string;
+  startsAt: string;
+  serviceName: string;
+  hoursOnSite: number;
+  crewSize: number;
+  // the Property's postcode, for roughly where
+  postcode: string;
+};
 
 // ---- Completing a Job (#10) ----
 

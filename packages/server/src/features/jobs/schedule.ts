@@ -45,7 +45,7 @@ const fromHundredths = (units: number) => units / 100;
 // each active Cleaner's hours on each day of the range: an exception for the
 // day if there is one, otherwise their usual hours for that weekday. Only
 // Cleaners count: Labour Hours are cleaning time.
-const cleanerHours = async (days: string[]) => {
+export const cleanerHours = async (days: string[]) => {
   const cleaners = await db
     .select({ id: staff.id, name: staff.name })
     .from(staff)

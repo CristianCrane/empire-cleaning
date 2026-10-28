@@ -166,6 +166,7 @@ export function JobScreen() {
             ))}
           </List>
         )}
+        {job.status === "booked" && job.openPlaces > 0 && <OpenTo job={job} />}
         {job.status === "booked" && (
           <Offer key={job.assignments.length} job={job} />
         )}
@@ -177,6 +178,30 @@ export function JobScreen() {
   );
 }
 
+// who a Job's Open Places are open to: from 7 days before it, every free
+// Cleaner, first to Confirm taking each (ADR-0019)
+function OpenTo({ job }: { job: OfficeJob }) {
+  const { opensAt, opened, cleaners, passedBy } = job.openTo;
+  const places =
+    job.openPlaces === 1
+      ? "Its open place"
+      : `Its ${job.openPlaces} open places`;
+  return (
+    <div className="flex flex-col gap-1 text-sm text-fg-muted">
+      <p>
+        {!opened
+          ? `${places} ${job.openPlaces === 1 ? "opens" : "open"} to free Cleaners on ${formatDateTime(opensAt)}.`
+          : cleaners === 0
+            ? `No Cleaner is free for ${places.toLowerCase()}. Offer it to someone, or give a Cleaner hours that day.`
+            : `${places} ${job.openPlaces === 1 ? "is" : "are"} open to ${cleaners} free ${cleaners === 1 ? "Cleaner" : "Cleaners"}. The first to confirm takes each.`}
+      </p>
+      {passedBy.length > 0 && (
+        <p>Not for them: {passedBy.map((p) => p.name).join(", ")}.</p>
+      )}
+    </div>
+  );
+}
+
 function Offer({ job }: { job: OfficeJob }) {
   const [staffId, setStaffId] = useState<string | null>(null);
   const action = useAction("The place wasn't offered. Please try again.");
@@ -184,8 +209,8 @@ function Offer({ job }: { job: OfficeJob }) {
   if (job.openPlaces === 0) {
     return (
       <p className="text-sm text-fg-muted">
-        Every place is held. Remove someone to offer their place to another
-        Cleaner.
+        Every place is held. Remove someone to open their place to other
+        Cleaners.
       </p>
     );
   }

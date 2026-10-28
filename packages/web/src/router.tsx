@@ -26,6 +26,7 @@ import type {
   OfficeQuote,
   OfficeServicePlan,
   OfficeSiteVisit,
+  OpenPlace,
   PaymentMethodView,
   PremisesTypeChoice,
   PriceList,
@@ -43,6 +44,7 @@ import { getJson } from "./api.ts";
 import { AreaLayout } from "./screens/AreaLayout.tsx";
 import { CleanerHome } from "./screens/cleaner/CleanerHome.tsx";
 import { CleanerJobScreen } from "./screens/cleaner/CleanerJobScreen.tsx";
+import { OpenPlaceScreen } from "./screens/cleaner/OpenPlaceScreen.tsx";
 import { BillScreen } from "./screens/office/BillScreen.tsx";
 import { Dashboard } from "./screens/office/Dashboard.tsx";
 import { JobScreen } from "./screens/office/JobScreen.tsx";
@@ -495,11 +497,12 @@ const cleanerHomeRoute = createRoute({
   getParentRoute: () => cleanerRoute,
   path: "/",
   loader: async () => {
-    const [jobs, siteVisits] = await Promise.all([
+    const [jobs, siteVisits, open] = await Promise.all([
       getJson<CleanerJobs>("/api/assignments/mine"),
       getJson<CleanerSiteVisits>("/api/site-visits/visiting"),
+      getJson<OpenPlace[]>("/api/assignments/open"),
     ]);
-    return { ...jobs, siteVisits };
+    return { ...jobs, siteVisits, open };
   },
   component: CleanerHome,
 });
@@ -511,6 +514,15 @@ const cleanerJobRoute = createRoute({
   loader: ({ params }) =>
     getJson<CleanerJob>(`/api/assignments/mine/${params.jobId}`),
   component: CleanerJobScreen,
+});
+
+// where the Open Places emails lead, for a single Job
+const openPlaceRoute = createRoute({
+  getParentRoute: () => cleanerRoute,
+  path: "/open/$jobId",
+  loader: ({ params }) =>
+    getJson<OpenPlace>(`/api/assignments/open/${params.jobId}`),
+  component: OpenPlaceScreen,
 });
 
 const portalHomeRoute = createRoute({
@@ -624,7 +636,7 @@ const routeTree = rootRoute.addChildren([
     officeJobRoute,
     officeBillRoute,
   ]),
-  cleanerRoute.addChildren([cleanerHomeRoute, cleanerJobRoute]),
+  cleanerRoute.addChildren([cleanerHomeRoute, cleanerJobRoute, openPlaceRoute]),
   portalRoute.addChildren([
     portalHomeRoute,
     portalRequestRoute,

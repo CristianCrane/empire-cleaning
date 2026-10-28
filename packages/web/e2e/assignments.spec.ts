@@ -275,4 +275,115 @@ test("the Job screens pass automated accessibility checks", async ({
   ).toBeVisible();
   const view = await new AxeBuilder({ page: asCory }).analyze();
   expect(view.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+
+  // Friday, when Cory is free
+  const open = (await bookJob({
+    startsAt: "2026-01-09T14:00:00Z",
+    labourHours: 3,
+    crewSize: 1,
+  })) as { id: string };
+  await asCory.goto(`/cleaner/open/${open.id}`);
+  await expect(
+    asCory.getByRole("region", { name: "Can you take it?" }),
+  ).toBeVisible();
+  const openView = await new AxeBuilder({ page: asCory }).analyze();
+  expect(openView.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+});
+
+test(
+  "a Cleaner takes an Open Place, seeing only roughly where it is first",
+  { tag: "@smoke" },
+  async ({ page }) => {
+    const cory = await cleaner("Cory Cleaner");
+    const job = await thursdayJob(1);
+    await signInAsCleaner(page, cory.email);
+
+    const open = page.getByRole("grid", { name: "Jobs open to you" });
+    const row = open.getByRole("row");
+    await expect(row).toHaveCount(1);
+    await expect(row).toContainText("Thu, Jan 8, 9:00 AM");
+    await expect(row).toContainText(
+      "11375 · Deep Clean · 6 h on site · Just you",
+    );
+
+    await row.click();
+    await expect(page).toHaveURL(`/cleaner/open/${job.id}`);
+    const clean = page.getByRole("region", { name: "The clean" });
+    await expect(clean).toContainText("Deep Clean");
+    await expect(clean).toContainText("11375");
+    // no address, Access Instructions, Client or prices before Confirming
+    await expect(page.locator("main")).not.toContainText("Austin St");
+    await expect(page.locator("main")).not.toContainText("Ring 4B");
+    await expect(page.locator("main")).not.toContainText("$");
+
+    await page.getByRole("button", { name: "Confirm" }).click();
+    await expect(page).toHaveURL(`/cleaner/jobs/${job.id}`);
+    await expect(
+      page.getByText("You're confirmed for this Job."),
+    ).toBeVisible();
+    await expect(page.getByRole("region", { name: "Where" })).toContainText(
+      "Ring 4B; the doorman has a key.",
+    );
+  },
+);
+
+test("a Cleaner is told when someone else took the Open Place first", async ({
+  page,
+}) => {
+  const cory = await cleaner("Cory Cleaner");
+  const dee = await cleaner("Dee Cleaner");
+  const job = await thursdayJob(1);
+  await signInAsCleaner(page, cory.email);
+  await page.goto(`/cleaner/open/${job.id}`);
+  await expect(page.getByRole("button", { name: "Confirm" })).toBeVisible();
+
+  // Dee gets there first
+  await offerPlace(job.id, dee.id, { confirmed: true });
+  await page.getByRole("button", { name: "Confirm" }).click();
+
+  await expect(page.getByText("Someone else took this Job")).toBeVisible();
+});
+
+test("a Cleaner says an Open Place is not for them, and the Office sees it", async ({
+  page,
+  browser,
+}) => {
+  const cory = await cleaner("Cory Cleaner");
+  await cleaner("Dee Cleaner");
+  const job = await thursdayJob(1);
+  await signInAsCleaner(page, cory.email);
+  await page.goto(`/cleaner/open/${job.id}`);
+
+  await page.getByRole("button", { name: "Not for me" }).click();
+
+  await expect(page).toHaveURL("/cleaner");
+  await expect(page.getByText("Taken off your list")).toBeVisible();
+  await expect(page.getByText("Nothing open to you right now.")).toBeVisible();
+
+  const office = await (await browser.newContext()).newPage();
+  await signInAsOffice(office);
+  await office.goto(`/office/jobs/${job.id}`);
+  const assignments = office.getByRole("region", { name: "Assignments" });
+  await expect(assignments).toContainText(
+    "Its open place is open to 1 free Cleaner. The first to confirm takes each.",
+  );
+  await expect(assignments).toContainText("Not for them: Cory Cleaner.");
+});
+
+test("the Office sees when a Job's places open to Cleaners", async ({
+  page,
+}) => {
+  await cleaner("Cory Cleaner");
+  // 9am on Tuesday the 13th: open from 9am on the 6th
+  const job = (await bookJob({
+    startsAt: "2026-01-13T14:00:00Z",
+    labourHours: 4,
+    crewSize: 2,
+  })) as { id: string };
+  await signInAsOffice(page);
+  await page.goto(`/office/jobs/${job.id}`);
+
+  await expect(page.getByRole("region", { name: "Assignments" })).toContainText(
+    "Its 2 open places open to free Cleaners on Tue, Jan 6, 9:00 AM.",
+  );
 });

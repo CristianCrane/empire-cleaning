@@ -13,6 +13,12 @@ import {
   releaseAssignment,
   removeAssignment,
 } from "./assignments.ts";
+import {
+  confirmOpenPlace,
+  openPlaceFor,
+  openPlacesFor,
+  passOpenPlace,
+} from "./open-places.ts";
 
 const job = z.object({ id: z.uuid() });
 const jobAssignment = z.object({ id: z.uuid(), assignmentId: z.uuid() });
@@ -83,6 +89,31 @@ router.get("/mine", async (req, res) => {
 
 router.get("/mine/:id", validate({ params: job }), async (req, res) => {
   res.json(await jobAssignedTo((await cleaner(res)).id, String(req.params.id)));
+});
+
+// Open Places open to them (ADR-0019), soonest first; one, by its Job; and
+// taking one, or saying it's "Not for me"
+router.get("/open", async (req, res) => {
+  res.json(await openPlacesFor((await cleaner(res)).id));
+});
+
+router.get("/open/:id", validate({ params: job }), async (req, res) => {
+  res.json(await openPlaceFor((await cleaner(res)).id, String(req.params.id)));
+});
+
+router.post(
+  "/open/:id/confirm",
+  validate({ params: job }),
+  async (req, res) => {
+    const { id } = await cleaner(res);
+    await confirmOpenPlace(id, String(req.params.id));
+    res.json(await jobAssignedTo(id, String(req.params.id)));
+  },
+);
+
+router.post("/open/:id/pass", validate({ params: job }), async (req, res) => {
+  await passOpenPlace((await cleaner(res)).id, String(req.params.id));
+  res.status(204).end();
 });
 
 router.post(
