@@ -159,8 +159,8 @@ function OfferCards({
  * asked, its Site Visit, and its Revisions. While Requested it shows the
  * Suggested Price and the way to draft it; while a Revision is drafted, that
  * Revision, edited (on a Sent Quote, marked as Draft changes, the offer
- * standing until it's sent); otherwise the offer, read-only. Every Sent
- * Revision is listed below as its history.
+ * standing until it's sent, and still acceptable); otherwise the offer,
+ * read-only. Every Sent Revision is listed below as its history.
  */
 export function QuoteScreen() {
   const quote = useLoaderData({ from: "/office/quotes/$quoteId" });
@@ -219,6 +219,13 @@ export function QuoteScreen() {
               You're drafting Revision {shown.revision}. {quote.client.name}{" "}
               still sees Revision {quote.offer!.number} until you send it.
             </Notice>
+          )}
+          {/* the offer stands, so the Client may still accept it by phone */}
+          {revising && quote.status === "sent" && quote.bookable.length > 0 && (
+            <RecordAcceptance
+              quote={shownOf({ ...quote, draft: null })}
+              drafting={shown.revision}
+            />
           )}
           {/* a save gives fresh prices; the form keeps what's typed */}
           <DraftEditor key={quote.id} quote={shown} />
@@ -422,8 +429,19 @@ function NewRevision({ quote }: { quote: ShownQuote }) {
 
 // The Client said yes another way, e.g. by phone: the Office records it,
 // charging the Deposit to the card the Client saved. Office Staff never take
-// card details, so without one they email the Client a link to add it.
-function RecordAcceptance({ quote }: { quote: ShownQuote }) {
+// card details, so without one they email the Client a link to add it. While
+// a new Revision is `drafting`, it's the offer standing that is accepted,
+// and accepting it discards the Draft.
+function RecordAcceptance({
+  quote,
+  drafting,
+}: {
+  quote: ShownQuote;
+  drafting?: number;
+}) {
+  const description = drafting
+    ? `If the Client accepts Revision ${quote.revision} by phone or in person. Recording it discards your Draft of Revision ${drafting}.`
+    : "If the Client accepts by phone or in person.";
   // the recommended Service, unless only the other still fits
   const [serviceKey, setServiceKey] = useState(
     quote.options.find((o) => quote.bookable.includes(o.serviceKey))!
@@ -475,10 +493,7 @@ function RecordAcceptance({ quote }: { quote: ShownQuote }) {
   // changing a plan charges nothing: its Deposit carries over
   if (quote.changesPlan) {
     return (
-      <Card
-        title="Record acceptance"
-        description="If the Client accepts by phone or in person."
-      >
+      <Card title="Record acceptance" description={description}>
         {action.problem && <Notice tone="danger">{action.problem}</Notice>}
         <Actions>
           <DialogTrigger>
@@ -518,10 +533,7 @@ function RecordAcceptance({ quote }: { quote: ShownQuote }) {
 
   if (!quote.paymentMethod) {
     return (
-      <Card
-        title="Record acceptance"
-        description="If the Client accepts by phone or in person."
-      >
+      <Card title="Record acceptance" description={description}>
         <Notice>
           {quote.client.name} hasn't saved a Payment Method yet. We never take
           card details for them: email them a link to add one, then record their
@@ -534,10 +546,7 @@ function RecordAcceptance({ quote }: { quote: ShownQuote }) {
   }
 
   return (
-    <Card
-      title="Record acceptance"
-      description="If the Client accepts by phone or in person."
-    >
+    <Card title="Record acceptance" description={description}>
       {!quote.plan && (
         <RadioGroup
           label="Service they chose"
