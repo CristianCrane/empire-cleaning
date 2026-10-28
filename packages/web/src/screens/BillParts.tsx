@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Printer } from "lucide-react";
 import type { BillSummary, BillView } from "@empire-cleaning/models";
 import { Button, Card, Link, StatusBadge, Wordmark } from "@empire-cleaning/ui";
 import type { AppHref } from "../links.ts";
@@ -152,7 +153,8 @@ export function BillLetterhead() {
 // prints the page: the Bill alone, without the app around it
 export function PrintBill() {
   return (
-    <Button variant="secondary" onPress={() => window.print()}>
+    <Button variant="text" size="sm" onPress={() => window.print()}>
+      <Printer aria-hidden size={16} />
       Print
     </Button>
   );

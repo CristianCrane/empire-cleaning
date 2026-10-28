@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Pencil, Phone } from "lucide-react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import type {
   BillPayment,
@@ -69,6 +70,7 @@ export function ClientDetail() {
               })
             }
           >
+            <Phone aria-hidden size={18} />
             New Quote
           </Button>
         </div>
@@ -214,7 +216,10 @@ function EditBilling({ client }: { client: OfficeClientView }) {
 
   return (
     <DialogTrigger onOpenChange={(isOpen) => !isOpen && setSettled([])}>
-      <Button variant="secondary">Edit</Button>
+      <Button variant="text" size="sm">
+        <Pencil aria-hidden size={16} />
+        Edit
+      </Button>
       <Dialog title="Billing">
         {({ close }) =>
           settled.length > 0 ? (
@@ -379,7 +384,10 @@ function EditContact({ client }: { client: OfficeClientView }) {
 
   return (
     <DialogTrigger>
-      <Button variant="secondary">Edit</Button>
+      <Button variant="text" size="sm">
+        <Pencil aria-hidden size={16} />
+        Edit
+      </Button>
       <Dialog title="Edit contact details">
         {({ close }) => (
           <Form

@@ -49,7 +49,7 @@ export function Dashboard() {
         actions={
           <ButtonLink
             href={linkTo({ to: "/office/schedule" })}
-            variant="secondary"
+            variant="text"
             size="sm"
           >
             <CalendarDays aria-hidden size={16} />

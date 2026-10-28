@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { expect, fn } from "storybook/test";
 import { Button } from "./Button.tsx";
 
@@ -24,6 +24,19 @@ export const Secondary: Story = {
 };
 
 export const Quiet: Story = { args: { variant: "quiet", children: "Cancel" } };
+
+export const Text: Story = {
+  args: {
+    variant: "text",
+    size: "sm",
+    children: (
+      <>
+        <Pencil aria-hidden size={16} />
+        Edit
+      </>
+    ),
+  },
+};
 
 export const Danger: Story = {
   args: { variant: "danger", children: "Turn Down" },

@@ -1,4 +1,5 @@
 import type { Key } from "react";
+import { Plus } from "lucide-react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import type { PropertyView, QuoteSummary } from "@empire-cleaning/models";
 import {
@@ -74,6 +75,7 @@ export function PortalHome() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <Heading level={1}>Welcome, {firstName}</Heading>
         <ButtonLink href={linkTo({ to: "/portal/request" })}>
+          <Plus aria-hidden size={18} />
           Request a Quote
         </ButtonLink>
       </div>

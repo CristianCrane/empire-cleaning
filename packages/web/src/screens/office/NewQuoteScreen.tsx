@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Search, UserPlus, Users } from "lucide-react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import type {
   ClientList,
@@ -67,7 +68,8 @@ export function NewQuoteScreen() {
           title={clientName(client)}
           description={[client.email ?? "No email", client.phone].join(" · ")}
           actions={
-            <Button variant="secondary" onPress={() => choose(undefined)}>
+            <Button variant="text" size="sm" onPress={() => choose(undefined)}>
+              <Users aria-hidden size={16} />
               Choose someone else
             </Button>
           }
@@ -77,7 +79,12 @@ export function NewQuoteScreen() {
           title="New Client"
           description="Describe their home below; their details come last."
           actions={
-            <Button variant="secondary" onPress={() => setNewClient(false)}>
+            <Button
+              variant="text"
+              size="sm"
+              onPress={() => setNewClient(false)}
+            >
+              <Search aria-hidden size={16} />
               Find a Client instead
             </Button>
           }
@@ -164,7 +171,8 @@ function FindClient({
     <Card
       title="Who's calling?"
       actions={
-        <Button variant="secondary" onPress={onNew}>
+        <Button variant="text" size="sm" onPress={onNew}>
+          <UserPlus aria-hidden size={16} />
           New Client
         </Button>
       }

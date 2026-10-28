@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { Undo2 } from "lucide-react";
 import type {
   AdjustmentStatus,
   AdjustmentView,
@@ -396,7 +397,8 @@ function UndoCompletion({ job }: { job: OfficeJob }) {
   const action = useAction("The completion wasn't undone. Please try again.");
   return (
     <DialogTrigger>
-      <Button variant="secondary" size="sm">
+      <Button variant="text" size="sm">
+        <Undo2 aria-hidden size={16} />
         Undo completion
       </Button>
       <Dialog title="Undo this completion?" role="alertdialog">

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { CircleX } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import type {
   OfficeQuote,
@@ -265,7 +266,10 @@ export function TurnDownQuote({ quote }: { quote: OfficeQuote }) {
 
   return (
     <DialogTrigger>
-      <Button variant="secondary">Turn Down</Button>
+      <Button variant="text" size="sm">
+        <CircleX aria-hidden size={16} />
+        Turn Down
+      </Button>
       <Dialog title="Turn Down this Quote?" role="alertdialog">
         {({ close }) => (
           <>

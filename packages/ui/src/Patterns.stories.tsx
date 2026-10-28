@@ -6,6 +6,7 @@ import {
   CircleDollarSign,
   House,
   Inbox,
+  Pencil,
   Store,
   UserX,
 } from "lucide-react";
@@ -99,7 +100,11 @@ function SectionsNotCards() {
         </p>
         <p>
           A Card on a page with Sections goes inside one, untitled, so every
-          title on the page sits outside its box, Edit button and all.
+          title on the page sits outside its box, Edit button and all. A
+          Section's actions, and a page's besides its main one, are{" "}
+          <code>text</code>
+          Buttons led by an icon; the main action next to the page title is
+          primary, with an icon too.
         </p>
       </Rule>
       <div className="flex flex-col gap-4 md:flex-row">
@@ -114,7 +119,12 @@ function SectionsNotCards() {
         <Example verdict="Do">
           <Section
             title="Contact details"
-            actions={<Button variant="secondary">Edit</Button>}
+            actions={
+              <Button variant="text" size="sm">
+                <Pencil aria-hidden size={16} />
+                Edit
+              </Button>
+            }
           >
             <Card>{contact}</Card>
           </Section>

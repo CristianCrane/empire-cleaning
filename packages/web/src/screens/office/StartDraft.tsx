@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Repeat } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import type { OfficeQuote, QuoteKind } from "@empire-cleaning/models";
 import { Button, Notice } from "@empire-cleaning/ui";
@@ -58,10 +59,12 @@ export function OfferServicePlan({
   return (
     <div className="flex flex-col gap-2">
       <Button
-        variant="secondary"
+        variant="text"
+        size="sm"
         isPending={starting !== undefined}
         onPress={() => void start({ propertyId, kind: "service_plan" })}
       >
+        <Repeat aria-hidden size={16} />
         {label}
       </Button>
       {failure && <Notice tone="danger">{failure}</Notice>}
