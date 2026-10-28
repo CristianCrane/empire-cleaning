@@ -10,6 +10,7 @@ export { Breadcrumbs, type Crumb } from "./Breadcrumbs.tsx";
 export { Button, buttonStyles, type ButtonProps } from "./Button.tsx";
 export { Calendar } from "./Calendar.tsx";
 export { Card } from "./Card.tsx";
+export { EmptyState } from "./EmptyState.tsx";
 export { Checkbox } from "./Checkbox.tsx";
 export { Chip, ChipGroup } from "./ChipGroup.tsx";
 export { ChoiceTile, ChoiceTiles } from "./ChoiceTiles.tsx";

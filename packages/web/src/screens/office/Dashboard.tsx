@@ -202,16 +202,17 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
         const { job } = item;
         return {
           key: `service_plan_due ${job.id}`,
-          action: "Offer a Service Plan",
+          action: "Quote a Service Plan",
           icon: Repeat,
           tone: "info",
           client: clientName(job.client),
           description: `${addressOf(job.property)} · First Clean done ${formatDate(item.since)}, wants regular visits`,
-          // the home's page, where its history is beside the offer
+          // the home's Service Plan Tab, its history a Tab away
           open: () =>
             navigate({
               to: "/office/properties/$propertyId",
               params: { propertyId: job.property.id },
+              search: { tab: "plan" },
             }),
         };
       }

@@ -280,7 +280,7 @@ test("a Service Plan Quote fits every width, Draft and Sent, for the Office and 
   const { job } = await completedFirstClean(olive.email);
   const firstClean = `/office/jobs/${job.id}`;
   await page.goto(firstClean);
-  await page.getByRole("button", { name: "Offer a Service Plan" }).click();
+  await page.getByRole("button", { name: "Quote a Service Plan" }).click();
   await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
   const quote = new URL(page.url()).pathname;
 
@@ -369,7 +369,7 @@ test("a Service Plan on several weekdays fits every width, Draft, Sent and start
   const { job, propertyId } = await completedFirstClean(olive.email);
   // a Draft with two weekdays
   await page.goto(`/office/jobs/${job.id}`);
-  await page.getByRole("button", { name: "Offer a Service Plan" }).click();
+  await page.getByRole("button", { name: "Quote a Service Plan" }).click();
   await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
   const draft = new URL(page.url()).pathname;
   await page.getByRole("button", { name: "Add a weekday" }).click();

@@ -62,7 +62,7 @@ export function ClientsScreen() {
   const search = useSearch({ from: "/office/clients" });
   const { q = "", shown = CLIENTS_PAGE } = search;
   const tab = tabFor(search);
-  const navigate = useNavigate();
+  const navigate = useNavigate({ from: "/office/clients" });
   const [text, setText] = useState(q);
 
   // the list follows the box once typing pauses

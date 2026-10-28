@@ -64,7 +64,11 @@ import {
   type ClientsSearch,
   tabFor,
 } from "./screens/office/ClientsScreen.tsx";
-import { PropertyScreen } from "./screens/office/PropertyScreen.tsx";
+import {
+  PropertyScreen,
+  propertyTabs,
+  type PropertySearch,
+} from "./screens/office/PropertyScreen.tsx";
 import { ScheduleScreen } from "./screens/office/ScheduleScreen.tsx";
 import { ServicePlanScreen } from "./screens/office/ServicePlanScreen.tsx";
 import { SiteVisitScreen } from "./screens/office/SiteVisitScreen.tsx";
@@ -333,6 +337,9 @@ const officeBillRoute = createRoute({
 const officePropertyRoute = createRoute({
   getParentRoute: () => officeRoute,
   path: "/properties/$propertyId",
+  validateSearch: (search: Record<string, unknown>): PropertySearch => ({
+    tab: propertyTabs.find((t) => t === search.tab && t !== "details"),
+  }),
   // business premises are corrected to a Premises Type on offer
   loader: async ({ params }) => {
     const [home, premisesTypes] = await Promise.all([

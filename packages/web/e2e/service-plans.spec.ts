@@ -117,11 +117,8 @@ test(
     ).toContainText("Next: Mon, Jan 19, 9:00 AM");
 
     // the Office finds it on the home's page
-    await page.goto(`/office/properties/${propertyId}`);
-    await page
-      .getByRole("grid", { name: "Service Plan" })
-      .getByRole("row")
-      .click();
+    await page.goto(`/office/properties/${propertyId}?tab=plan`);
+    await page.getByRole("link", { name: "Open the plan" }).click();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
       "Service Plan",
     );

@@ -50,7 +50,7 @@ const saved = (page: Page) =>
 const startPlan = async (page: Page) => {
   const { job } = await firstCleanDone(page);
   await page.goto(`/office/jobs/${job.id}`);
-  await page.getByRole("button", { name: "Offer a Service Plan" }).click();
+  await page.getByRole("button", { name: "Quote a Service Plan" }).click();
   await atPlanDraft(page);
 };
 
@@ -116,11 +116,13 @@ test(
     await page
       .getByRole("grid", { name: "Needs attention" })
       .getByRole("row")
-      .filter({ hasText: "Offer a Service Plan" })
+      .filter({ hasText: "Quote a Service Plan" })
       .click();
-    // the home's page, with its history
-    await expect(page).toHaveURL(/\/office\/properties\/[0-9a-f-]{36}$/);
-    await page.getByRole("button", { name: "Offer a Service Plan" }).click();
+    // the home's Service Plan Tab
+    await expect(page).toHaveURL(
+      /\/office\/properties\/[0-9a-f-]{36}\?tab=plan$/,
+    );
+    await page.getByRole("button", { name: "Quote a Service Plan" }).click();
     await atPlanDraft(page);
 
     // beside it, what the First Clean found
@@ -281,21 +283,31 @@ test("the Client screen lists each home, whose own page holds its history and of
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     "41-12 Austin St, 4B, 11375",
   );
+  // its details first; its Quotes and Jobs in its History
+  await expect(page.getByRole("tab", { name: "Details" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await page.getByRole("tab", { name: /History/ }).click();
+  const history = page.getByRole("grid", { name: /^History/ });
   await expect(
-    page.getByRole("grid", { name: /^Quotes/ }).getByRole("row"),
+    history.getByRole("row").filter({ hasText: "Quote ·" }),
   ).toContainText(["Deep Clean"]);
   await expect(
-    page.getByRole("grid", { name: /^Jobs/ }).getByRole("row"),
+    history.getByRole("row").filter({ hasText: "Job ·" }),
   ).toContainText(["Completed"]);
 
-  await page.getByRole("button", { name: "Offer a Service Plan" }).click();
+  await page.getByRole("tab", { name: "Service Plan" }).click();
+  await page.getByRole("button", { name: "Quote a Service Plan" }).click();
   await atPlanDraft(page);
+  // Back returns to the Tab, where the draft is carried on with
   await page.goBack();
   await expect(
-    page
-      .getByRole("grid", { name: /^Quotes/ })
-      .getByRole("row")
-      .filter({ hasText: "Service Plan" }),
+    page.getByRole("button", { name: "Carry on with the draft" }),
+  ).toBeVisible();
+  await page.getByRole("tab", { name: /History/ }).click();
+  await expect(
+    history.getByRole("row").filter({ hasText: "Service Plan" }),
   ).toContainText("Draft");
 });
 

@@ -7,6 +7,7 @@ import {
   House,
   ClipboardPenLine,
   Pencil,
+  Repeat,
   Store,
   UserX,
 } from "lucide-react";
@@ -15,6 +16,7 @@ import { Card } from "./Card.tsx";
 import { Checkbox } from "./Checkbox.tsx";
 import { Chip, ChipGroup } from "./ChipGroup.tsx";
 import { ChoiceTile, ChoiceTiles } from "./ChoiceTiles.tsx";
+import { EmptyState } from "./EmptyState.tsx";
 import { Heading } from "./Heading.tsx";
 import { IconTile } from "./IconTile.tsx";
 import { ButtonLink } from "./Link.tsx";
@@ -410,6 +412,69 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+function EmptyStatesOfferTheAction() {
+  return (
+    <div className="flex flex-col gap-6">
+      <Rule title="An empty place offers what fills it">
+        <p>
+          Where a page has room for one thing (a Property's Service Plan, its
+          Site Visit) and there isn't one, an <code>EmptyState</code> says
+          what's missing and offers the action that adds it, as a primary
+          Button. When the action would be refused, say why in an info{" "}
+          <code>Notice</code> in its place, with a link to what's in the way,
+          rather than a Button that fails.
+        </p>
+      </Rule>
+      <div className="flex flex-col gap-4 md:flex-row">
+        <Example verdict="Do">
+          <EmptyState
+            icon={Repeat}
+            title="No Service Plan"
+            description="Quote regular cleaning."
+          >
+            <Button>
+              <Repeat aria-hidden size={18} />
+              Quote a Service Plan
+            </Button>
+          </EmptyState>
+        </Example>
+        <Example verdict="Don't">
+          <Card title="Service Plan">
+            <p className="text-fg-muted">None.</p>
+          </Card>
+        </Example>
+      </div>
+    </div>
+  );
+}
+
+function ClickableCatchesTheEye() {
+  return (
+    <div className="flex flex-col gap-6">
+      <Rule title="What can be pressed catches the eye">
+        <p>
+          Every Button is drawn in the brand colour, so nothing pressable looks
+          like plain content. How much colour says how much it matters:{" "}
+          <code>primary</code> (filled) for the one thing to do,{" "}
+          <code>secondary</code> (outlined) beside it, <code>text</code> for a
+          Section's or page's own actions like Edit, and <code>quiet</code> only
+          to back out (Cancel). A form's Save is primary, faded until there's
+          something to save. Rows that open something show the hand cursor.
+        </p>
+      </Rule>
+      <div className="flex flex-wrap items-center gap-3">
+        <Button>Save corrections</Button>
+        <Button variant="secondary">Record findings</Button>
+        <Button variant="text" size="sm">
+          <Pencil aria-hidden size={16} />
+          Edit
+        </Button>
+        <Button variant="quiet">Cancel</Button>
+      </div>
+    </div>
+  );
+}
+
 export const SectionsNotCardsAroundLists: Story = {
   render: () => <SectionsNotCards />,
 };
@@ -428,4 +493,14 @@ export const WorkListsAsTables: Story = {
 
 export const QuietFormsInSteps: Story = {
   render: () => <QuietForms />,
+};
+
+export const EmptyStatesOfferTheActionStory: Story = {
+  name: "Empty states offer the action",
+  render: () => <EmptyStatesOfferTheAction />,
+};
+
+export const ClickableCatchesTheEyeStory: Story = {
+  name: "Clickable catches the eye",
+  render: () => <ClickableCatchesTheEye />,
 };

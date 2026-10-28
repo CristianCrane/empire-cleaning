@@ -50,21 +50,24 @@ export function useStartDraft() {
 // changes the plan to
 export function OfferServicePlan({
   propertyId,
-  label = "Offer a Service Plan",
+  label = "Quote a Service Plan",
+  primary = false,
 }: {
   propertyId: string;
   label?: string;
+  // as the one thing to do, e.g. on an empty Service Plan Tab
+  primary?: boolean;
 }) {
   const { start, starting, failure } = useStartDraft();
   return (
     <div className="flex flex-col gap-2">
       <Button
-        variant="text"
-        size="sm"
+        variant={primary ? "primary" : "text"}
+        size={primary ? "md" : "sm"}
         isPending={starting !== undefined}
         onPress={() => void start({ propertyId, kind: "service_plan" })}
       >
-        <Repeat aria-hidden size={16} />
+        <Repeat aria-hidden size={primary ? 18 : 16} />
         {label}
       </Button>
       {failure && <Notice tone="danger">{failure}</Notice>}

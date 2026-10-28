@@ -247,10 +247,16 @@ test("Office Staff see the Quote, open the home and correct its details", async 
     .getByRole("button", { name: /^(Light|Moderate|Heavy) Condition$/ })
     .click();
   await page.getByRole("option", { name: "Heavy" }).click();
+  await page
+    .getByRole("textbox", { name: "Access Instructions" })
+    .fill("Key under the mat");
   await save.click();
   await expect(page.getByText("Details corrected")).toBeVisible();
 
   await page.reload();
+  await expect(
+    page.getByRole("textbox", { name: "Access Instructions" }),
+  ).toHaveValue("Key under the mat");
   await expect(page.getByRole("textbox", { name: "Bedrooms" })).toHaveValue(
     "4",
   );

@@ -203,7 +203,15 @@ export function SiteVisitCard({ quote }: { quote: OfficeQuote }) {
             Business premises are seen before they're quoted, so a Quote can't
             be sent yet. Book a Site Visit, or if you know the premises already,
             record what you know on the{" "}
-            <Link href={propertyLink(quote)}>Property</Link>.
+            <Link
+              href={linkTo({
+                to: "/office/properties/$propertyId",
+                params: { propertyId: quote.property.id },
+                search: { tab: "visit" },
+              })}
+            >
+              Property
+            </Link>.
           </p>
         </Notice>
       )}

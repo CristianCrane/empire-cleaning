@@ -14,8 +14,9 @@ export const buttonStyles = tv({
     variant: {
       primary:
         "bg-primary text-primary-fg hover:bg-primary-hover pressed:bg-primary-hover",
+      // brand outlined, so it reads as clickable next to primary
       secondary:
-        "border border-border-strong bg-surface text-fg hover:bg-surface-sunken pressed:bg-surface-sunken",
+        "border border-primary bg-surface text-primary hover:bg-primary/10 pressed:bg-primary/15",
       quiet:
         "bg-transparent text-fg hover:bg-surface-sunken pressed:bg-surface-sunken",
       // a secondary action on a Section or page, like Edit: reads as text in

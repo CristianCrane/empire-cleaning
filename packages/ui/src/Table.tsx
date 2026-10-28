@@ -83,7 +83,7 @@ export function Row<T extends object>(props: RowProps<T>) {
       className={composeRenderProps(
         props.className,
         (className, renderProps) =>
-          `${focusRing(renderProps)} -outline-offset-2 text-fg hover:bg-surface-sunken selected:bg-success-subtle ${className ?? ""}`,
+          `${focusRing(renderProps)} -outline-offset-2 text-fg hover:bg-surface-sunken selected:bg-success-subtle ${renderProps.isHovered ? "cursor-pointer" : ""} ${className ?? ""}`,
       )}
     />
   );
