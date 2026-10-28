@@ -330,7 +330,8 @@ export type PriceBreakdown = {
 export type SuggestedPrices = {
   priceListVersion: number;
   standard: PriceBreakdown;
-  deep: PriceBreakdown;
+  // none for business premises, which have only their commercial cleaning
+  deep: PriceBreakdown | null;
 };
 
 // ---- Services (ADR-0018) ----
@@ -800,6 +801,9 @@ export type ServicePlanInput = {
 // one Clean Type's offer on a Quote, as the Client sees it: tax included
 export type QuoteOption = {
   cleanType: CleanType;
+  // the Service it's for (ADR-0018); null on an option priced before
+  // Services, whose Clean Type names it
+  serviceName: string | null;
   recommended: boolean;
   labourHours: number;
   // Labour Hours divided by Crew Size

@@ -16,13 +16,13 @@ import { services, type ServiceRow } from "./services.schema.ts";
 // The Services every install starts with, keyed the same everywhere, so the
 // migration and a fresh database agree on them. Until Quotes are for a
 // Service the Client asks for (#122), a Quote's Clean Type picks one of
-// these: Standard and Deep for a home, and the commercial pair for business
-// premises.
+// these: Standard or Deep for a home, and commercial cleaning for business
+// premises. Move-in/out waits for that.
 export const SEEDED = {
   standard: "5e7a1c00-0000-4000-8000-000000000001",
   deep: "5e7a1c00-0000-4000-8000-000000000002",
-  commercial: "5e7a1c00-0000-4000-8000-000000000003",
-  commercialDeep: "5e7a1c00-0000-4000-8000-000000000004",
+  moveInOut: "5e7a1c00-0000-4000-8000-000000000003",
+  commercial: "5e7a1c00-0000-4000-8000-000000000004",
 } as const;
 
 // the starting figures, as the Price List's placeholders were before
@@ -67,6 +67,24 @@ const placeholders: (ServiceInput & { key: string })[] = [
     active: true,
   },
   {
+    key: SEEDED.moveInOut,
+    name: "Move-in/out Clean",
+    description: "An empty home made spotless, ready for keys to change hands.",
+    offeredFor: "homes",
+    method: "rooms",
+    multiplier: 1.6,
+    hoursPerThousandSqFt: null,
+    hourlyRateCents: 5500,
+    minimumChargeCents: 10000,
+    taxOneOffPercent: TAX,
+    taxPlanPercent: null,
+    conditionApplies: true,
+    canRecur: false,
+    needsSiteVisit: false,
+    firstVisitServiceKey: null,
+    active: true,
+  },
+  {
     key: SEEDED.commercial,
     name: "Commercial cleaning",
     description:
@@ -75,24 +93,6 @@ const placeholders: (ServiceInput & { key: string })[] = [
     method: "area",
     multiplier: null,
     hoursPerThousandSqFt: 0.5,
-    hourlyRateCents: 5500,
-    minimumChargeCents: 10000,
-    taxOneOffPercent: TAX,
-    taxPlanPercent: TAX,
-    conditionApplies: true,
-    canRecur: true,
-    needsSiteVisit: true,
-    firstVisitServiceKey: SEEDED.commercialDeep,
-    active: true,
-  },
-  {
-    key: SEEDED.commercialDeep,
-    name: "Commercial deep clean",
-    description: "A thorough clean of business premises, top to bottom.",
-    offeredFor: "businesses",
-    method: "area",
-    multiplier: null,
-    hoursPerThousandSqFt: 0.8,
     hourlyRateCents: 5500,
     minimumChargeCents: 10000,
     taxOneOffPercent: TAX,
@@ -172,22 +172,23 @@ export const findService = async (key: string): Promise<Service> => {
 };
 
 // The Service a Quote's Clean Type prices, until Quotes are for a Service
-// of their own (#122). A retired one still prices.
+// of their own (#122): business premises have only commercial cleaning. A
+// retired one still prices.
 export const serviceFor = (
   all: Service[],
   kind: PropertyKind,
   cleanType: CleanType,
 ): Service => {
-  const key =
-    kind === "commercial"
-      ? cleanType === "deep"
-        ? SEEDED.commercialDeep
-        : SEEDED.commercial
-      : SEEDED[cleanType];
+  const key = kind === "commercial" ? SEEDED.commercial : SEEDED[cleanType];
   const service = all.find((s) => s.key === key);
   if (!service) throw new Error(`no Service ${key}`);
   return service;
 };
+
+// the Clean Types a Quote can offer for a kind of Property: a home's two,
+// and business premises' one, their commercial cleaning
+export const cleanTypesFor = (kind: PropertyKind): CleanType[] =>
+  kind === "commercial" ? ["standard"] : ["deep", "standard"];
 
 // the Service versions some rows recorded, by id
 export const serviceVersions = async (ids: string[]) => {

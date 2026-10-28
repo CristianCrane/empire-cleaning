@@ -19,9 +19,9 @@ import {
 type Agent = Awaited<ReturnType<typeof signIn>>;
 
 // prices chosen so every answer below can be checked by hand: commercial
-// cleaning at $60 an hour, taxed at 10%, 0.5 h per 1,000 sq ft (1 h for its
-// deep clean); the placeholder Premises Types (Office x1, so 0.5 h, and
-// Medical x1.6, so 0.8 h); moderate x1
+// cleaning at $60 an hour, taxed at 10%, 0.5 h per 1,000 sq ft; the
+// placeholder Premises Types (Office x1, so 0.5 h, and Medical x1.6, so
+// 0.8 h); moderate x1
 const setPrices = async (office: Agent) => {
   const {
     id: _id,
@@ -39,19 +39,12 @@ const setPrices = async (office: Agent) => {
       conditionHeavy: 1.5,
     })
     .expect(200);
-  const rates = {
+  await setService(office, "commercial", {
     hourlyRateCents: 6000,
     taxOneOffPercent: 10,
     taxPlanPercent: 10,
     minimumChargeCents: 10000,
-  };
-  await setService(office, "commercial", {
-    ...rates,
     hoursPerThousandSqFt: 0.5,
-  });
-  await setService(office, "commercialDeep", {
-    ...rates,
-    hoursPerThousandSqFt: 1,
   });
 };
 
@@ -322,12 +315,9 @@ describe("the Suggested Price for business premises", () => {
       taxCents: 1350,
       totalCents: 14850,
     });
-    // x2 for a Deep Clean: 4.5 h = $270
-    expect(suggested.deep).toMatchObject({
-      labourHours: 4.5,
-      priceCents: 27000,
-      totalCents: 29700,
-    });
+    // commercial cleaning is all business premises are offered
+    expect(suggested.standard.serviceName).toBe("Commercial cleaning");
+    expect(suggested.deep).toBeNull();
   });
 
   test("is the Minimum Charge until the floor area is known", async () => {
@@ -419,12 +409,16 @@ describe("Office Staff and business Clients", () => {
     });
     // the placeholder Add-ons: only Interior windows is for businesses too
     expect(quote.addOnChoices.map((a) => a.name)).toEqual(["Interior windows"]);
-    const deep = quote.draft!.options.find((o) => o.cleanType === "deep")!;
-    expect(deep).toMatchObject({
-      priceCents: 27000,
-      taxCents: 2700,
-      totalCents: 29700,
-    });
+    // one option: commercial cleaning, 2.25 h x $60 = $135, + 10%
+    expect(quote.draft!.options).toEqual([
+      expect.objectContaining({
+        serviceName: "Commercial cleaning",
+        recommended: false,
+        priceCents: 13500,
+        taxCents: 1350,
+        totalCents: 14850,
+      }),
+    ]);
 
     const oven = list.addOns.find((a) => a.name === "Inside the oven")!;
     const refused = await office.patch(`/api/quotes/${quote.id}/draft`).send({

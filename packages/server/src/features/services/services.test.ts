@@ -47,7 +47,7 @@ const askedQuote = async (office: Office) => {
 };
 
 describe("Services", () => {
-  test("start as Standard and Deep for homes, and commercial cleaning and its deep clean by area", async () => {
+  test("start as Standard, Deep and Move-in/out for homes, and commercial cleaning by area", async () => {
     const office = await signInAsOffice();
 
     const services = await list(office);
@@ -57,8 +57,8 @@ describe("Services", () => {
     ).toEqual([
       ["Standard Clean", "homes", "rooms", true],
       ["Deep Clean", "homes", "rooms", true],
+      ["Move-in/out Clean", "homes", "rooms", true],
       ["Commercial cleaning", "businesses", "area", true],
-      ["Commercial deep clean", "businesses", "area", true],
     ]);
     expect(services[0]).toMatchObject({
       key: SEEDED.standard,
@@ -72,6 +72,10 @@ describe("Services", () => {
       firstVisitServiceKey: SEEDED.deep,
     });
     expect(services[2]).toMatchObject({
+      canRecur: false,
+      taxPlanPercent: null,
+    });
+    expect(services[3]).toMatchObject({
       hoursPerThousandSqFt: 0.5,
       multiplier: null,
       needsSiteVisit: true,
@@ -118,11 +122,11 @@ describe("Services", () => {
   test("are retired rather than deleted, and still listed", async () => {
     const office = await signInAsOffice();
 
-    await setService(office, "commercialDeep", { active: false });
+    await setService(office, "moveInOut", { active: false });
 
     expect(
-      (await list(office)).find((s) => s.key === SEEDED.commercialDeep),
-    ).toMatchObject({ active: false, name: "Commercial deep clean" });
+      (await list(office)).find((s) => s.key === SEEDED.moveInOut),
+    ).toMatchObject({ active: false, name: "Move-in/out Clean" });
   });
 
   test("explain what's wrong, field by field", async () => {

@@ -50,6 +50,7 @@ import { clients, type Client } from "../clients/clients.schema.ts";
 import { officeCompletionOf } from "../completion/completion.ts";
 import { paymentMethodOf, toPaymentMethodView } from "../payments/payments.ts";
 import {
+  cleanTypesFor,
   currentPricing,
   serviceFor,
   type Pricing,
@@ -202,7 +203,7 @@ const oneOffTerms = (
   overrides: Overrides,
 ): Terms => ({
   kind: "one_off",
-  visits: CLEAN_TYPES.map((cleanType) => ({
+  visits: cleanTypesFor(property.kind).map((cleanType) => ({
     position: 0,
     cleanType,
     startsAt: null,
@@ -332,6 +333,7 @@ export const toOption = (
   row: RevisionOptionRow,
 ): QuoteOption => ({
   cleanType: row.cleanType,
+  serviceName: row.suggested.serviceName ?? null,
   // a Service Plan's Clean Types are the ones chosen for it
   recommended: revision.kind === "one_off" && row.cleanType === "deep",
   labourHours: row.labourHours,
@@ -488,7 +490,9 @@ const planChoicesOf = (
   property: Property,
 ): PlanChoice[][] =>
   inOrder(rows).map((saved) =>
-    PLAN_CLEAN_TYPES.map((cleanType) => {
+    PLAN_CLEAN_TYPES.filter((t) =>
+      cleanTypesFor(property.kind).includes(t),
+    ).map((cleanType) => {
       const row =
         cleanType === saved.cleanType
           ? saved
@@ -639,7 +643,8 @@ export const officeQuote = async (id: string): Promise<OfficeQuote> => {
     suggested: {
       priceListVersion: list.version,
       standard: price("standard"),
-      deep: price("deep"),
+      // business premises have only their commercial cleaning
+      deep: property.kind === "commercial" ? null : price("deep"),
     },
     needsSiteVisit: await needsSiteVisit(property),
     siteVisit: siteVisitOf(status, stages.get(propertyId)),
@@ -850,8 +855,8 @@ const newRevisionOptions = async (
   if (offer) {
     const rows = inOrder(await optionsOf(offer.id));
     const addOnKeys = rows[0]!.suggested.addOns.map((a) => a.key);
-    const overrideOf = (row: RevisionOptionRow) =>
-      row.overrideCents === null
+    const overrideOf = (row: RevisionOptionRow | undefined) =>
+      !row || row.overrideCents === null
         ? null
         : { priceCents: row.overrideCents, reason: row.overrideReason! };
     const terms =
@@ -864,8 +869,8 @@ const newRevisionOptions = async (
             rows.map((row) => ({ ...row, override: overrideOf(row) })),
           )
         : oneOffTerms(property, offer.crewSize, {
-            deep: overrideOf(rows.find((r) => r.cleanType === "deep")!),
-            standard: overrideOf(rows.find((r) => r.cleanType === "standard")!),
+            deep: overrideOf(rows.find((r) => r.cleanType === "deep")),
+            standard: overrideOf(rows.find((r) => r.cleanType === "standard")),
           });
     return {
       revision: {

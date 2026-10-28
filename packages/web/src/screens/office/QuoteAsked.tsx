@@ -330,7 +330,8 @@ export function SuggestedPrices({ quote }: { quote: OfficeQuote }) {
         Suggested Price
       </Heading>
       <div className="grid gap-4 lg:grid-cols-2">
-        <PriceCard breakdown={suggested.deep} recommended />
+        {/* business premises have only their commercial cleaning */}
+        {suggested.deep && <PriceCard breakdown={suggested.deep} recommended />}
         <PriceCard breakdown={suggested.standard} />
       </div>
       {premises && (property.floorArea === null || !property.condition) && (
@@ -365,7 +366,7 @@ function PriceCard({
 
   return (
     <Card
-      title={cleanTypeLabel[b.cleanType]}
+      title={b.serviceName ?? cleanTypeLabel[b.cleanType]}
       headingLevel={3}
       actions={
         recommended && <StatusBadge tone="success">Recommended</StatusBadge>

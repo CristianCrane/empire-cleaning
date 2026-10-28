@@ -30,6 +30,7 @@ import { useAction } from "../action.ts";
 import {
   addressOf,
   cleanTypeLabel,
+  optionLabel,
   conditionLabel,
   formatDate,
   formatDateTime,
@@ -464,7 +465,7 @@ function Accept({
                   : "No longer fits on that day: it's been booked up since we sent this Quote"
               }
             >
-              {cleanTypeLabel[option.cleanType]}
+              {optionLabel(option)}
               {option.recommended && " (recommended)"}
             </Radio>
           ))}

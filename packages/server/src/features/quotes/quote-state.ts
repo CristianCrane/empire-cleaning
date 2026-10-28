@@ -90,14 +90,14 @@ export const optionsOfRevisions = async (revisionIds: string[]) => {
 };
 
 // what a Revision leads with, tax included: a one-off Quote's recommended
-// Deep Clean, or a Service Plan Quote's round, a clean on each weekday
+// Deep Clean (or business premises' one option), or a Service Plan Quote's round, a clean on each weekday
 export const headlineOf = (
   kind: Quote["kind"],
   options: RevisionOptionRow[],
 ) =>
   kind === "service_plan"
     ? options.reduce((total, o) => total + o.totalCents, 0)
-    : options.find((o) => o.cleanType === "deep")!.totalCents;
+    : (options.find((o) => o.cleanType === "deep") ?? options[0]!).totalCents;
 
 /**
  * Each Property's First Clean, where it's Completed: the first Job a one-off

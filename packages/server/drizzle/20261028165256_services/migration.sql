@@ -1,6 +1,7 @@
 -- Services replace Clean Types (ADR-0018). The four every install starts
 -- with are made from the Price List in force, with the keys the server
--- knows them by, so every existing price comes out the same.
+-- knows them by, so every existing price comes out the same. Move-in/out
+-- starts as a Deep Clean's figures.
 CREATE TYPE "pricing_method" AS ENUM('rooms', 'area');--> statement-breakpoint
 CREATE TABLE "services" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -59,16 +60,14 @@ SELECT v.* FROM "services_base" b CROSS JOIN LATERAL (VALUES
 		'homes'::offered_for, 'rooms'::pricing_method, b.deep_clean_multiplier, NULL::numeric,
 		b.hourly_rate_cents, b.minimum_charge_cents, b.tax_one_off_percent,
 		b.tax_service_plan_percent, true, true, false, NULL::uuid, 1),
-	('5e7a1c00-0000-4000-8000-000000000003'::uuid, 'Commercial cleaning',
+	('5e7a1c00-0000-4000-8000-000000000003'::uuid, 'Move-in/out Clean',
+		'An empty home made spotless, ready for keys to change hands.',
+		'homes'::offered_for, 'rooms'::pricing_method, b.deep_clean_multiplier, NULL::numeric,
+		b.hourly_rate_cents, b.minimum_charge_cents, b.tax_one_off_percent,
+		NULL::numeric, true, false, false, NULL::uuid, 2),
+	('5e7a1c00-0000-4000-8000-000000000004'::uuid, 'Commercial cleaning',
 		'Workspaces, kitchens and restrooms kept clean for your team and visitors.',
 		'businesses'::offered_for, 'area'::pricing_method, NULL::numeric, b.area_base_hours,
-		b.commercial_hourly_rate_cents, b.minimum_charge_cents, b.tax_commercial_percent,
-		b.tax_commercial_percent, true, true, true,
-		'5e7a1c00-0000-4000-8000-000000000004'::uuid, 2),
-	('5e7a1c00-0000-4000-8000-000000000004'::uuid, 'Commercial deep clean',
-		'A thorough clean of business premises, top to bottom.',
-		'businesses'::offered_for, 'area'::pricing_method, NULL::numeric,
-		round(b.area_base_hours * b.deep_clean_multiplier, 2),
 		b.commercial_hourly_rate_cents, b.minimum_charge_cents, b.tax_commercial_percent,
 		b.tax_commercial_percent, true, true, true, NULL::uuid, 3)
 ) AS v;--> statement-breakpoint
@@ -79,14 +78,14 @@ UPDATE "price_list_premises_types" SET "multiplier" =
 ALTER TABLE "price_list_premises_types" ALTER COLUMN "multiplier" SET NOT NULL;--> statement-breakpoint
 ALTER TABLE "price_list_premises_types" DROP COLUMN "hours_per_thousand_sq_ft";--> statement-breakpoint
 
--- each Revision option was priced with the Service its Clean Type stands for
+-- each Revision option was priced with the Service its Clean Type stands for;
+-- business premises' with commercial cleaning, Deep or not
 ALTER TABLE "revision_options" ADD COLUMN "service_id" uuid;--> statement-breakpoint
 UPDATE "revision_options" o SET "service_id" = s.id
 FROM "quote_revisions" r, "quotes" q, "properties" p, "services" s
 WHERE r.id = o.revision_id AND q.id = r.quote_id AND p.id = q.property_id
 	AND s.key = CASE
-		WHEN p.kind = 'commercial' AND o.clean_type = 'deep' THEN '5e7a1c00-0000-4000-8000-000000000004'::uuid
-		WHEN p.kind = 'commercial' THEN '5e7a1c00-0000-4000-8000-000000000003'::uuid
+		WHEN p.kind = 'commercial' THEN '5e7a1c00-0000-4000-8000-000000000004'::uuid
 		WHEN o.clean_type = 'deep' THEN '5e7a1c00-0000-4000-8000-000000000002'::uuid
 		ELSE '5e7a1c00-0000-4000-8000-000000000001'::uuid
 	END;--> statement-breakpoint

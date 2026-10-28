@@ -54,6 +54,7 @@ import {
   addressOf,
   adjustmentLabel,
   cleanTypeLabel,
+  optionLabel,
   clientName,
   conditionLabel,
   dayOfInstant,
@@ -555,7 +556,7 @@ function RecordAcceptance({ quote }: { quote: ShownQuote }) {
                   : "No longer fits: its time has filled up"
               }
             >
-              {cleanTypeLabel[option.cleanType]}
+              {optionLabel(option)}
             </Radio>
           ))}
         </RadioGroup>
@@ -818,7 +819,7 @@ function RoomOnDay({
 }
 
 const describeOption = (o: OfficeQuoteOption) =>
-  `the ${cleanTypeLabel[o.cleanType]} (${formatHours(o.labourHours)})`;
+  `the ${optionLabel(o)} (${formatHours(o.labourHours)})`;
 
 // why a crew can't be had at a time
 const noCrewAt = (
@@ -967,7 +968,7 @@ const priceSummary = (quote: ShownQuote) => {
       : `${plan.days.length} cleans a week: ${formatMoney(plan.roundTotalCents)} a week`;
   }
   return quote.options
-    .map((o) => `${cleanTypeLabel[o.cleanType]} ${formatMoney(o.totalCents)}`)
+    .map((o) => `${optionLabel(o)} ${formatMoney(o.totalCents)}`)
     .join(" · ");
 };
 
@@ -1180,7 +1181,7 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
                 <OverrideFields
                   option={option}
                   override={fields.overrides[option.cleanType]}
-                  label={cleanTypeLabel[option.cleanType]}
+                  label={optionLabel(option)}
                   name={`overrides.${option.cleanType}`}
                   onChange={(change) => setOverride(option.cleanType, change)}
                 />
@@ -1508,8 +1509,8 @@ function PlanDayFields({
               title={
                 // on one weekday, how often too
                 one
-                  ? `${cleanTypeLabel[choice.option.cleanType]}, ${recurrenceLabel[plan.recurrence].toLowerCase()}`
-                  : cleanTypeLabel[choice.option.cleanType]
+                  ? `${optionLabel(choice.option)}, ${recurrenceLabel[plan.recurrence].toLowerCase()}`
+                  : optionLabel(choice.option)
               }
               badge={<PlanSaving day={choice.day} />}
             >

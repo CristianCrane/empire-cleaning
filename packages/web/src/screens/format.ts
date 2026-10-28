@@ -1,5 +1,6 @@
 import type {
   AdjustmentKind,
+  CleanType,
   ClientName,
   Condition,
   PlanDaySummary,
@@ -104,6 +105,13 @@ export const cleanTypeLabel = {
   standard: "Standard Clean",
   deep: "Deep Clean",
 };
+
+// what a Quote's option is for: its Service, or before Services, its Clean
+// Type (ADR-0018)
+export const optionLabel = (option: {
+  cleanType: CleanType;
+  serviceName?: string | null;
+}) => option.serviceName ?? cleanTypeLabel[option.cleanType];
 
 export const roleLabel = {
   cleaner: "Cleaner",

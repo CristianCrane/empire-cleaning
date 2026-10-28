@@ -526,8 +526,8 @@ describe("the Suggested Price", () => {
     expect(suggested.standard.labourHours).toBe(4.25);
     expect(suggested.standard.priceCents).toBe(21300);
     // deep: 3.625 x 2 + 0.5 = 7.75 h, not (3.625 + 0.5) x 2 = 8.25 h
-    expect(suggested.deep.labourHours).toBe(7.75);
-    expect(suggested.deep.priceCents).toBe(38800);
+    expect(suggested.deep!.labourHours).toBe(7.75);
+    expect(suggested.deep!.priceCents).toBe(38800);
     expect(suggested.standard.addOns).toEqual([
       expect.objectContaining({ name: "Inside the oven", hours: 0.5 }),
     ]);

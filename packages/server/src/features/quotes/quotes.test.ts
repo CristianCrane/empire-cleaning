@@ -147,11 +147,11 @@ describe("drafting a First Clean Quote", () => {
     expect(option(draft, "deep")).toMatchObject({
       suggested: suggested.deep,
       overrideCents: null,
-      priceCents: suggested.deep.priceCents,
-      taxCents: suggested.deep.taxCents,
-      totalCents: suggested.deep.totalCents,
-      labourHours: suggested.deep.labourHours,
-      hoursOnSite: suggested.deep.labourHours / 2,
+      priceCents: suggested.deep!.priceCents,
+      taxCents: suggested.deep!.taxCents,
+      totalCents: suggested.deep!.totalCents,
+      labourHours: suggested.deep!.labourHours,
+      hoursOnSite: suggested.deep!.labourHours / 2,
     });
     expect(option(draft, "standard").totalCents).toBe(
       suggested.standard.totalCents,
@@ -503,6 +503,7 @@ describe("a Client's Quotes", () => {
     const deep = option(sent, "deep");
     expect(quote.options[0]).toEqual({
       cleanType: "deep",
+      serviceName: "Deep Clean",
       recommended: true,
       labourHours: deep.labourHours,
       hoursOnSite: deep.hoursOnSite,
