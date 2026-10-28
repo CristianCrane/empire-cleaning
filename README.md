@@ -52,3 +52,5 @@ CI starts `postgres_test` from `docker-compose.yml`, needs no secrets (email, pa
 The test site (ADR-0020) is described in `render.yaml`: the server, its Postgres and the two static sites on Render, at `test.empirecleaningandpro.com` (landing) and `app.test.empirecleaningandpro.com` (web app, with `/api` rewritten to the server). A push to `main` deploys it once CI passes, and migrations run before each new server starts. Production is never deployed automatically.
 
 `APP_MODE=test` makes it say so: a banner on every page, `[TEST]` on every email subject, and no search indexing. Its email goes only to `EMAIL_ALLOWED` addresses; the rest goes to the Office inbox with the intended recipient in the subject. To put fresh seed data on it, run the **Reset test data** Action (`.github/workflows/reset-test-data.yml`).
+
+To set it up from nothing (Stripe sandbox and webhook, Google sign-in client, Resend key, the Render Blueprint, DNS on Vercel, the reset Action's `TEST_DB_URL` secret), run `scripts/setup-test-site.sh` once `render.yaml` is on `main`. It walks each step in the browser and checks the site works at the end.
