@@ -6,10 +6,8 @@ import type {
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError } from "../../middleware/errors.ts";
-import {
-  priceListAddOns,
-  priceLists,
-} from "../price-list/price-list.schema.ts";
+import { priceListAddOns } from "../price-list/price-list.schema.ts";
+import { services } from "../services/services.schema.ts";
 import { addOnCents, taxOn } from "../price-list/suggested-price.ts";
 import { jobQuotes } from "../quotes/job-quotes.ts";
 
@@ -24,7 +22,7 @@ export type QuotedJob = {
 
 // A Service Plan's Job is quoted at its discounted price; its Adjustments are
 // at the full hourly rate, with no Plan Discount, but taxed as a Service Plan
-// Job, at the rate its Quote's Price List version set for those.
+// Job, at the plan rate of the Service version its Quote priced it with.
 export const quotedJob = async (
   jobId: string,
   tx: Tx | typeof db = db,
@@ -34,11 +32,17 @@ export const quotedJob = async (
   const { quote, revision, option } = row;
   let { suggested } = option;
   if (quote.kind === "service_plan") {
-    const [list] = await tx
-      .select({ taxPercent: priceLists.taxServicePlanPercent })
-      .from(priceLists)
-      .where(eq(priceLists.id, revision.priceListId));
-    suggested = { ...suggested, taxPercent: list!.taxPercent };
+    const [service] = await tx
+      .select({
+        plan: services.taxPlanPercent,
+        oneOff: services.taxOneOffPercent,
+      })
+      .from(services)
+      .where(eq(services.id, option.serviceId));
+    suggested = {
+      ...suggested,
+      taxPercent: service!.plan ?? service!.oneOff,
+    };
   }
   return {
     totalCents: option.totalCents,

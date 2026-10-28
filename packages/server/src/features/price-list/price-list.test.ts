@@ -9,15 +9,13 @@ import {
   casey,
   guestAsk,
   home,
+  setService,
   signInAsOffice,
   submit,
 } from "../../../tests/fixtures.ts";
 
 // figures chosen so every expected answer below can be checked by hand
 const figures: PriceListInput = {
-  hourlyRateCents: 5000,
-  commercialHourlyRateCents: 6000,
-  minimumChargeCents: 10000,
   baseHours: 1,
   bedroomHours: 0.5,
   bathroomHours: 0.75,
@@ -26,14 +24,10 @@ const figures: PriceListInput = {
   conditionLight: 0.8,
   conditionModerate: 1,
   conditionHeavy: 1.5,
-  deepCleanMultiplier: 2,
   depositPercent: 25,
   planDiscountPercent: 10,
   quoteValidityDays: 14,
   defaultCrewSize: 2,
-  taxOneOffPercent: 8,
-  taxServicePlanPercent: 8,
-  taxCommercialPercent: 10,
   taxFeePercent: 8,
   addOns: [
     {
@@ -52,8 +46,8 @@ const figures: PriceListInput = {
     },
   ],
   premisesTypes: [
-    { name: "Office", hoursPerThousandSqFt: 0.5, active: true },
-    { name: "Medical", hoursPerThousandSqFt: 0.8, active: true },
+    { name: "Office", multiplier: 1, active: true },
+    { name: "Medical", multiplier: 1.6, active: true },
   ],
 };
 
@@ -64,6 +58,21 @@ const getList = async (office: Office) =>
 
 const save = (office: Office, changes: Partial<PriceListInput> = {}) =>
   office.put("/api/price-list").send({ ...figures, ...changes });
+
+// a home's Services' own figures, chosen alongside the Price List's
+const homeRates = async (
+  office: Office,
+  changes: { hourlyRateCents?: number; minimumChargeCents?: number } = {},
+) => {
+  const rates = {
+    hourlyRateCents: 5000,
+    minimumChargeCents: 10000,
+    taxOneOffPercent: 8,
+    ...changes,
+  };
+  await setService(office, "standard", rates);
+  await setService(office, "deep", { ...rates, multiplier: 2 });
+};
 
 // the Add-ons on offer now, keyed by name (a retired one may share a name)
 const addOnKeys = async (office: Office) =>
@@ -96,8 +105,6 @@ describe("the Price List", () => {
     expect(list).toMatchObject({
       version: 1,
       placeholder: true,
-      hourlyRateCents: 5500,
-      minimumChargeCents: 10000,
       baseHours: 1,
       bedroomHours: 0.5,
       bathroomHours: 0.75,
@@ -106,13 +113,10 @@ describe("the Price List", () => {
       conditionLight: 0.85,
       conditionModerate: 1,
       conditionHeavy: 1.4,
-      deepCleanMultiplier: 1.6,
       depositPercent: 25,
       planDiscountPercent: 10,
       quoteValidityDays: 14,
       defaultCrewSize: 2,
-      taxOneOffPercent: 8.875,
-      taxServicePlanPercent: 8.875,
       taxFeePercent: 8.875,
     });
     expect(list.addOns.map((a) => a.name)).toEqual([
@@ -138,12 +142,12 @@ describe("the Price List", () => {
     const office = await signInAsOffice();
     await getList(office);
 
-    const saved = await save(office, { hourlyRateCents: 6000 }).expect(200);
+    const saved = await save(office, { baseHours: 2 }).expect(200);
 
     expect(saved.body).toMatchObject({
       version: 2,
       placeholder: false,
-      hourlyRateCents: 6000,
+      baseHours: 2,
       createdByName: "Olive Owner",
     });
     expect(await getList(office)).toMatchObject({ version: 2 });
@@ -153,9 +157,8 @@ describe("the Price List", () => {
     const office = await signInAsOffice();
 
     const res = await save(office, {
-      hourlyRateCents: 0,
       conditionHeavy: 99,
-      taxOneOffPercent: 40,
+      taxFeePercent: 40,
       depositPercent: 12.5,
       addOns: [
         {
@@ -176,9 +179,8 @@ describe("the Price List", () => {
       ]),
     );
     expect(issues).toMatchObject({
-      hourlyRateCents: "The hourly rate must be at least $1",
       conditionHeavy: "A multiplier can't be more than 10",
-      taxOneOffPercent: "That's higher than any sales tax",
+      taxFeePercent: "That's higher than any sales tax",
       depositPercent: "Use a whole percentage",
       "addOns.0.name": "Name the Add-on",
       "addOns.0.hours": "Hours can't be negative",
@@ -309,24 +311,20 @@ describe("Premises Types", () => {
         .map((t) => [t.name, t.key]),
     );
 
-  test("start as Office, Retail, Medical and Other, with a commercial rate and tax rate", async () => {
+  test("start as Office, Retail, Medical and Other, against an office", async () => {
     const office = await signInAsOffice();
 
     const list = await getList(office);
 
-    expect(list).toMatchObject({
-      commercialHourlyRateCents: 5500,
-      taxCommercialPercent: 8.875,
-    });
-    expect(list.premisesTypes.map((t) => t.name)).toEqual([
-      "Office",
-      "Retail",
-      "Medical",
-      "Other",
+    expect(list.premisesTypes.map((t) => [t.name, t.multiplier])).toEqual([
+      ["Office", 1],
+      ["Retail", 0.8],
+      ["Medical", 1.6],
+      ["Other", 1.2],
     ]);
   });
 
-  test("can be added, renamed, given new hours and retired, keeping their keys", async () => {
+  test("can be added, renamed, given new multipliers and retired, keeping their keys", async () => {
     const office = await signInAsOffice();
     await save(office).expect(200);
     const keys = await premisesKeys(office);
@@ -336,10 +334,10 @@ describe("Premises Types", () => {
         {
           key: keys["Office"],
           name: "Offices",
-          hoursPerThousandSqFt: 0.6,
+          multiplier: 1.2,
           active: true,
         },
-        { name: "Gym", hoursPerThousandSqFt: 0.7, active: true },
+        { name: "Gym", multiplier: 1.4, active: true },
       ],
     }).expect(200);
 
@@ -348,13 +346,13 @@ describe("Premises Types", () => {
       {
         key: keys["Office"],
         name: "Offices",
-        hoursPerThousandSqFt: 0.6,
+        multiplier: 1.2,
         active: true,
       },
       {
         key: expect.any(String),
         name: "Gym",
-        hoursPerThousandSqFt: 0.7,
+        multiplier: 1.4,
         active: true,
       },
     ]);
@@ -362,7 +360,7 @@ describe("Premises Types", () => {
     expect(premisesTypes.find((t) => t.key === keys["Medical"])).toEqual({
       key: keys["Medical"],
       name: "Medical",
-      hoursPerThousandSqFt: 0.8,
+      multiplier: 1.6,
       active: false,
     });
   });
@@ -371,14 +369,12 @@ describe("Premises Types", () => {
     const office = await signInAsOffice();
 
     const none = await save(office, {
-      premisesTypes: [
-        { name: "Office", hoursPerThousandSqFt: 0.5, active: false },
-      ],
+      premisesTypes: [{ name: "Office", multiplier: 1, active: false }],
     });
     const twice = await save(office, {
       premisesTypes: [
-        { name: "Office", hoursPerThousandSqFt: 0.5, active: true },
-        { name: "office", hoursPerThousandSqFt: 0.6, active: true },
+        { name: "Office", multiplier: 1, active: true },
+        { name: "office", multiplier: 1.2, active: true },
       ],
     });
     const unknown = await save(office, {
@@ -386,7 +382,7 @@ describe("Premises Types", () => {
         {
           key: "00000000-0000-4000-8000-000000000000",
           name: "Ghost",
-          hoursPerThousandSqFt: 1,
+          multiplier: 1,
           active: true,
         },
       ],
@@ -412,13 +408,13 @@ describe("Premises Types", () => {
         {
           key: keys["Office"],
           name: "Office",
-          hoursPerThousandSqFt: 0.5,
+          multiplier: 1,
           active: true,
         },
         {
           key: keys["Medical"],
           name: "Medical",
-          hoursPerThousandSqFt: 0.8,
+          multiplier: 1.6,
           active: false,
         },
       ],
@@ -486,6 +482,7 @@ describe("the Suggested Price", () => {
   test("is worked out for both Clean Types, before tax and with it", async () => {
     const office = await signInAsOffice();
     await save(office).expect(200);
+    await homeRates(office);
 
     // 2 bedrooms, 1.5 bathrooms, 1 floor, pets: 1 + 1 + 1.125 + 0 + 0.5 = 3.625 h
     const { suggested } = await detailOf(office);
@@ -520,6 +517,7 @@ describe("the Suggested Price", () => {
   test("adds Add-on hours after the multipliers, never multiplied by them", async () => {
     const office = await signInAsOffice();
     await save(office).expect(200);
+    await homeRates(office);
     const oven = (await addOnKeys(office))["Inside the oven"];
 
     const { suggested } = await detailOf(office, guestAsk({ addOns: [oven!] }));
@@ -538,6 +536,7 @@ describe("the Suggested Price", () => {
   test("doesn't tax a tax-exempt Add-on's share of the price", async () => {
     const office = await signInAsOffice();
     await save(office).expect(200);
+    await homeRates(office);
     const carpet = (await addOnKeys(office))["Carpet shampooing"];
 
     const { suggested } = await detailOf(
@@ -555,6 +554,7 @@ describe("the Suggested Price", () => {
   test("is never below the Minimum Charge, and says when it was applied", async () => {
     const office = await signInAsOffice();
     await save(office).expect(200);
+    await homeRates(office);
 
     // a studio with one bathroom, light: (1 + 0 + 0.75) x 0.8 = 1.4 h, up to 1.5 h = $75
     const { suggested } = await detailOf(
@@ -587,8 +587,8 @@ describe("the Suggested Price", () => {
     const office = await signInAsOffice();
     // 3 x 0.4 h + 0.55 h is exactly 1.75 h, but 1.7500000000000002 in floating
     // point, which would wrongly round up to 2 h
+    await homeRates(office, { minimumChargeCents: 0 });
     await save(office, {
-      minimumChargeCents: 0,
       baseHours: 0,
       bedroomHours: 0.4,
       bathroomHours: 0.55,
@@ -611,6 +611,7 @@ describe("the Suggested Price", () => {
   test("uses the home's current Condition, as the Office corrected it", async () => {
     const office = await signInAsOffice();
     await save(office).expect(200);
+    await homeRates(office);
     const detail = await detailOf(office);
     expect(detail.suggested.standard.conditionMultiplier).toBe(1);
 
@@ -631,24 +632,25 @@ describe("the Suggested Price", () => {
     });
   });
 
-  test("follows the Price List as it is now, so a change affects new calculations", async () => {
+  test("follows the Price List and Services as they are now, so a change affects new calculations", async () => {
     const office = await signInAsOffice();
     await save(office).expect(200);
+    await homeRates(office);
     const before = await detailOf(office);
 
-    await save(office, { hourlyRateCents: 6000 }).expect(200);
+    await homeRates(office, { hourlyRateCents: 6000 });
     const after = (await office.get(`/api/quotes/${before.id}`).expect(200))
       .body as OfficeQuote;
 
     expect(before.suggested.standard.priceCents).toBe(18800);
     // 3.75 h x $60 = $225
     expect(after.suggested.standard.priceCents).toBe(22500);
-    expect(after.suggested.priceListVersion).toBe(3);
   });
 
   test("still prices an Add-on that has since been retired", async () => {
     const office = await signInAsOffice();
     await save(office).expect(200);
+    await homeRates(office);
     const oven = (await addOnKeys(office))["Inside the oven"];
     const before = await detailOf(office, guestAsk({ addOns: [oven!] }));
 

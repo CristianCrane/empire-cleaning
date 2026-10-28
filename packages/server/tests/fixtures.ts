@@ -8,6 +8,8 @@ import type {
   NewHome,
   OfficeServicePlan,
   QuoteAsk,
+  Service,
+  ServiceInput,
   SignedInAccount,
 } from "@empire-cleaning/models";
 import { db } from "#db";
@@ -17,6 +19,7 @@ import { findClientByEmail, createClient } from "#features/clients";
 import { completeJob } from "#features/completion";
 import { bookJob } from "#features/jobs";
 import { savePaymentMethod, startCardForm } from "#features/payments";
+import { SEEDED } from "#features/services";
 import { currentPriceList } from "#features/price-list";
 import {
   acceptQuote,
@@ -428,4 +431,28 @@ export const billedWeek = async ({
     .from(bills)
     .where(eq(bills.clientId, client.id));
   return { clientId: client.id, billId: bill!.id, jobId: job.id, planId };
+};
+
+// changes one of the Services every install starts with, as Office Staff
+// would on its page
+export const setService = async (
+  office: Awaited<ReturnType<typeof signInAsOffice>>,
+  which: keyof typeof SEEDED,
+  changes: Partial<ServiceInput>,
+) => {
+  const {
+    key,
+    id: _id,
+    version: _version,
+    createdAt: _createdAt,
+    createdByName: _createdByName,
+    ...input
+  } = (await office.get(`/api/services/${SEEDED[which]}`).expect(200))
+    .body as Service;
+  return (
+    await office
+      .put(`/api/services/${key}`)
+      .send({ ...input, ...changes })
+      .expect(200)
+  ).body as Service;
 };

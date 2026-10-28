@@ -20,13 +20,9 @@ import {
 
 // The starting figures, until Office Staff save their own. They are
 // placeholders (the real ones are the business's to supply) and the Price List
-// screen says so. Tax is the NYC combined rate for all three, pending the
-// accountant (the spec: all rates start equal). Commercial figures are
-// placeholders too, until the business has its own (#72).
+// screen says so. The fee tax is the NYC combined rate, pending the
+// accountant. Premises Types are against an office (#72).
 const placeholders: PriceListInput = {
-  hourlyRateCents: 5500,
-  commercialHourlyRateCents: 5500,
-  minimumChargeCents: 10000,
   baseHours: 1,
   bedroomHours: 0.5,
   bathroomHours: 0.75,
@@ -35,14 +31,10 @@ const placeholders: PriceListInput = {
   conditionLight: 0.85,
   conditionModerate: 1,
   conditionHeavy: 1.4,
-  deepCleanMultiplier: 1.6,
   depositPercent: 25,
   planDiscountPercent: 10,
   quoteValidityDays: 14,
   defaultCrewSize: 2,
-  taxOneOffPercent: 8.875,
-  taxServicePlanPercent: 8.875,
-  taxCommercialPercent: 8.875,
   taxFeePercent: 8.875,
   addOns: [
     {
@@ -75,10 +67,10 @@ const placeholders: PriceListInput = {
     },
   ],
   premisesTypes: [
-    { name: "Office", hoursPerThousandSqFt: 0.5, active: true },
-    { name: "Retail", hoursPerThousandSqFt: 0.4, active: true },
-    { name: "Medical", hoursPerThousandSqFt: 0.8, active: true },
-    { name: "Other", hoursPerThousandSqFt: 0.6, active: true },
+    { name: "Office", multiplier: 1, active: true },
+    { name: "Retail", multiplier: 0.8, active: true },
+    { name: "Medical", multiplier: 1.6, active: true },
+    { name: "Other", multiplier: 1.2, active: true },
   ],
 };
 
@@ -95,9 +87,6 @@ const toPriceList = (
   placeholder: row.placeholder,
   createdAt: row.createdAt.toISOString(),
   createdByName: author.name,
-  hourlyRateCents: row.hourlyRateCents,
-  commercialHourlyRateCents: row.commercialHourlyRateCents,
-  minimumChargeCents: row.minimumChargeCents,
   baseHours: row.baseHours,
   bedroomHours: row.bedroomHours,
   bathroomHours: row.bathroomHours,
@@ -106,14 +95,10 @@ const toPriceList = (
   conditionLight: row.conditionLight,
   conditionModerate: row.conditionModerate,
   conditionHeavy: row.conditionHeavy,
-  deepCleanMultiplier: row.deepCleanMultiplier,
   depositPercent: row.depositPercent,
   planDiscountPercent: row.planDiscountPercent,
   quoteValidityDays: row.quoteValidityDays,
   defaultCrewSize: row.defaultCrewSize,
-  taxOneOffPercent: row.taxOneOffPercent,
-  taxServicePlanPercent: row.taxServicePlanPercent,
-  taxCommercialPercent: row.taxCommercialPercent,
   taxFeePercent: row.taxFeePercent,
   addOns: [...addOns]
     .sort((a, b) => a.position - b.position)
@@ -130,7 +115,7 @@ const toPriceList = (
     .map((p) => ({
       key: p.key,
       name: p.name,
-      hoursPerThousandSqFt: p.hoursPerThousandSqFt,
+      multiplier: p.multiplier,
       active: p.active,
     })),
 });

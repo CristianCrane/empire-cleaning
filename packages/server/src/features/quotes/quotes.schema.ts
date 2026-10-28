@@ -20,6 +20,7 @@ import type { PriceBreakdown } from "@empire-cleaning/models";
 import { timestamps } from "../../db/index.ts";
 import { accounts } from "../auth/auth.schema.ts";
 import { cleanType, jobs } from "../jobs/jobs.schema.ts";
+import { services } from "../services/services.schema.ts";
 import { priceLists } from "../price-list/price-list.schema.ts";
 import { condition, properties } from "../properties/properties.schema.ts";
 
@@ -215,6 +216,10 @@ export const revisionOptions = pgTable(
     // they're all timed; 0 on a one-off Quote
     position: smallint("position").notNull().default(0),
     cleanType: cleanType("clean_type").notNull(),
+    // the Service version it was priced with (ADR-0018)
+    serviceId: uuid("service_id")
+      .notNull()
+      .references(() => services.id, { onDelete: "restrict" }),
     // a Service Plan weekday's first clean, which every later one there
     // repeats; null on a one-off Quote (its Revision's proposed time is its
     // Job's), and on an unsent weekday until it's chosen

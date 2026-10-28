@@ -404,10 +404,13 @@ function PriceCard({
             strong
           />
           <Row label={`× Condition (${b.conditionMultiplier})`} value="" />
-          <Row
-            label={`× ${cleanTypeLabel[b.cleanType]} (${b.cleanTypeMultiplier})`}
-            value=""
-          />
+          {/* a Service priced by area has its own hours per 1,000 sq ft */}
+          {!premises && (
+            <Row
+              label={`× ${b.serviceName ?? cleanTypeLabel[b.cleanType]} (${b.cleanTypeMultiplier})`}
+              value=""
+            />
+          )}
           {b.addOns.map((addOn) => (
             <Row
               key={addOn.key}

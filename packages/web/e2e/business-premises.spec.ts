@@ -159,16 +159,12 @@ test(
   },
 );
 
-test("Office Staff keep the commercial rate and tax, the Premises Types, and who each Add-on is for", async ({
+test("Office Staff keep the Premises Types, and who each Add-on is for", async ({
   page,
 }) => {
   await signInAsOffice(page);
   await page.goto("/office/price-list");
 
-  await page
-    .getByRole("textbox", { name: "Commercial hourly rate" })
-    .fill("$65");
-  await page.getByRole("textbox", { name: "Commercial Jobs (%)" }).fill("9");
   await page.getByRole("button", { name: "Retire Retail" }).click();
   await page.getByRole("button", { name: "Add a type of premises" }).click();
   await page
@@ -184,12 +180,6 @@ test("Office Staff keep the commercial rate and tax, the Premises Types, and who
   await expect(page.getByText("Price List saved as version 2")).toBeVisible();
 
   await page.reload();
-  await expect(
-    page.getByRole("textbox", { name: "Commercial hourly rate" }),
-  ).toHaveValue("$65.00");
-  await expect(
-    page.getByRole("textbox", { name: "Commercial Jobs (%)" }),
-  ).toHaveValue("9");
   await expect(
     page.getByRole("button", { name: "Restore Retail" }),
   ).toBeVisible();

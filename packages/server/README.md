@@ -36,7 +36,7 @@ Create the first Office Staff member (after `pnpm db:migrate`), then sign up wit
 pnpm auth:create-owner owner@example.com "Owner Name"
 ```
 
-Or, for a dev database, seed it instead: `pnpm db:seed` makes the owner (`SEED_OWNER_EMAIL`), Cleaners, and Clients with Quotes in every state, dated around today (`tests/seed.ts`). `pnpm db:seed --reset` first deletes everything but Accounts and the Price List, so a reset keeps everyone signed up.
+Or, for a dev database, seed it instead: `pnpm db:seed` makes the owner (`SEED_OWNER_EMAIL`), Cleaners, and Clients with Quotes in every state, dated around today (`tests/seed.ts`). `pnpm db:seed --reset` first deletes everything but Accounts, the Price List and the Services, so a reset keeps everyone signed up.
 
 The server refuses to start, in dev and prod alike, without `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `RESEND_API_KEY`, `OFFICE_EMAIL` (the Office's shared inbox), `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` (a Stripe sandbox's in dev; see Accepting a Quote) and `CORS_ORIGIN_URL` (the web app's address): copy `.env.example` to `.env` and fill them in. `BETTER_AUTH_URL` is this API's public URL (sign-in links point at it). Tests supply fake values and fake the services behind them.
 
@@ -64,28 +64,35 @@ Validation messages are written to be shown beside the form's fields.
 - `PATCH /api/properties/:id` (Office Staff only) corrects a home's details (type, bedrooms, bathrooms, floors, pets, floor area and Condition) or business premises' (Premises Type, floor area and Condition). Its address is its identity and isn't correctable, and nor is its kind.
 - `PATCH /api/clients/:id` (Office Staff) may also set or clear a business name. Everywhere the Office sees a Client named, it has `businessName` beside `name`.
 
-## Price List and Suggested Price
+## Services, the Price List and the Suggested Price
 
-The Price List (`#features/price-list`) holds every figure Suggested Prices come from. Money is in cents, before tax. **Every save is a new version**, never an edit, so a Quote can point at the exact version it used; the current one is the latest. The first read creates version 1 from placeholder figures (`placeholder: true`) until Office Staff save their own.
+A Suggested Price comes from the Price List and one Service (ADR-0018).
+
+**Services** (`#features/services`) are what Empire Cleaning sells, each with its own pricing method (`rooms`: a home's hours x its multiplier; `area`: hours per 1,000 sq ft), hourly rate, Minimum Charge, one-off and plan tax rates, and flags (Condition applies, can recur, needs a Site Visit, a first-visit recommendation). Every save is a new row with the same `key`; a Service's current version is its latest, and retiring one is saving it inactive. A Revision option records the Service version it priced with (`service_id`). The first read creates four with fixed keys (`SEEDED`): Standard and Deep Clean for homes, and commercial cleaning and its deep clean by area. Until Quotes are for a Service the Client asks for (#122), a Quote's Clean Type picks one of those four (`serviceFor`).
+
+- `GET /api/services` (Office Staff) lists them, active and retired; `GET /api/services/:key` reads one.
+- `POST /api/services` adds one at the end of the list; `PUT /api/services/:key` saves a new version. Two active Services can't share a name, and a first-visit recommendation must be another Service.
+
+The Price List (`#features/price-list`) holds the rest: a home's room hours, the Condition multipliers, Premises Types (a multiplier each, against an office), Add-ons, Quote defaults and the fee tax rate. Money is in cents, before tax. **Every save is a new version**, never an edit, so a Quote can point at the exact version it used; the current one is the latest. The first read creates version 1 from placeholder figures (`placeholder: true`) until Office Staff save their own.
 
 - `GET` and `PUT /api/price-list` (Office Staff) read and save it. A save sends the whole list.
 - `GET /api/price-list/add-ons` is open to everyone: the names of the Add-ons on offer for homes, never prices (the landing page's form lists them). Each Add-on is `offeredFor` homes, businesses or both; a Quote offers those for its Property's kind.
 - `GET /api/price-list/premises-types` is open to everyone too: the Premises Types on offer, by name.
 - **Add-ons and Premises Types are never deleted.** Leaving one out of a save retires it, with the same key, so what chose or used it still prices. A save must leave at least one Premises Type on offer.
-- `GET /api/quotes/:id` (Office Staff) returns a Quote in full with its Suggested Price for both Clean Types, worked out now from the current Price List and the Property's current details and Condition.
+- `GET /api/quotes/:id` (Office Staff) returns a Quote in full with its Suggested Price for both Clean Types, worked out now from the current Price List and Services and the Property's current details and Condition.
 
 The calculation (`suggested-price.ts`):
 
 ```text
-home hours     = base + bedrooms + bathrooms + (floors - 1) + pets
-premises hours = floor area / 1,000 x the Premises Type's hours (0 until the floor area is known)
-Labour Hours   = those hours x Condition x Clean Type, plus each Add-on's own hours
+rooms          = (base + bedrooms + bathrooms + (floors - 1) + pets) x the Service's multiplier
+area           = floor area / 1,000 x the Service's hours per 1,000 sq ft, x the Premises
+                 Type where Condition applies (0 until the floor area is known)
+Labour Hours   = those hours x Condition (where it applies), plus each Add-on's own hours
                  (not multiplied), rounded UP to the quarter-hour; no Condition yet is moderate
-price          = Labour Hours x the residential or commercial hourly rate, to the whole
-                 dollar, at least the Minimum Charge
-tax            = the residential one-off rate, or the commercial rate, on the price,
-                 less tax-exempt Add-ons' share. A residential plan Job uses the Service
-                 Plan rate; a commercial one, plan or not, the commercial rate
+price          = Labour Hours x the Service's hourly rate, to the whole dollar, at least
+                 its Minimum Charge
+tax            = the Service's one-off rate on the price, less tax-exempt Add-ons' share;
+                 a plan Job, and its Adjustments, the Service's plan rate
 ```
 
 It uses whole numbers throughout (hours in 1e-4, multipliers in hundredths), so a quarter-hour boundary is never missed by floating point: 3 x 0.4 h + 0.55 h is exactly 1.75 h, though it is 1.7500000000000002 as decimals.

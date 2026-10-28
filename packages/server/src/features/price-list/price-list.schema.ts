@@ -18,18 +18,13 @@ const decimal = (name: string, precision = 6, scale = 2) =>
 
 // The Price List the Office maintains. Every save is a new row, never an edit,
 // so a Quote can point at the exact version it used (and nothing it used can
-// change underneath it). The current one is the latest. Money is in cents,
-// before tax.
+// change underneath it). The current one is the latest. Each Service's own
+// rate, Minimum Charge and tax are on the Service (ADR-0018).
 export const priceLists = pgTable("price_lists", {
   id: uuid("id").primaryKey().defaultRandom(),
   version: integer("version").generatedAlwaysAsIdentity().notNull().unique(),
   // the starting figures, until Office Staff save their own
   placeholder: boolean("placeholder").notNull().default(false),
-
-  // residential
-  hourlyRateCents: integer("hourly_rate_cents").notNull(),
-  commercialHourlyRateCents: integer("commercial_hourly_rate_cents").notNull(),
-  minimumChargeCents: integer("minimum_charge_cents").notNull(),
 
   baseHours: decimal("base_hours"),
   bedroomHours: decimal("bedroom_hours"),
@@ -40,16 +35,12 @@ export const priceLists = pgTable("price_lists", {
   conditionLight: decimal("condition_light"),
   conditionModerate: decimal("condition_moderate"),
   conditionHeavy: decimal("condition_heavy"),
-  deepCleanMultiplier: decimal("deep_clean_multiplier"),
 
   depositPercent: integer("deposit_percent").notNull(),
   planDiscountPercent: integer("plan_discount_percent").notNull(),
   quoteValidityDays: integer("quote_validity_days").notNull(),
   defaultCrewSize: integer("default_crew_size").notNull(),
 
-  taxOneOffPercent: decimal("tax_one_off_percent", 6, 3),
-  taxServicePlanPercent: decimal("tax_service_plan_percent", 6, 3),
-  taxCommercialPercent: decimal("tax_commercial_percent", 6, 3),
   taxFeePercent: decimal("tax_fee_percent", 6, 3),
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -101,7 +92,8 @@ export const priceListPremisesTypes = pgTable(
       .references(() => priceLists.id, { onDelete: "cascade" }),
     key: uuid("key").notNull(),
     name: text("name").notNull(),
-    hoursPerThousandSqFt: decimal("hours_per_thousand_sq_ft"),
+    // on the hours of a Service priced by area (ADR-0018)
+    multiplier: decimal("multiplier"),
     active: boolean("active").notNull().default(true),
     position: integer("position").notNull(),
   },

@@ -29,6 +29,7 @@ import {
 import {
   casey,
   completedFirstClean,
+  setService,
   signInAsOffice,
 } from "../../../tests/fixtures.ts";
 import { generateServicePlanJobs } from "./service-plans.ts";
@@ -487,14 +488,9 @@ describe("completing a plan Job", () => {
   });
 
   test("prices Adjustments at the full rate, taxed as a Service Plan Job", async () => {
-    const started = await startedPlan({ crewSize: 1 }, async (office) => {
-      const list = (await office.get("/api/price-list").expect(200))
-        .body as PriceList;
-      await office
-        .put("/api/price-list")
-        .send({ ...list, taxServicePlanPercent: 5 })
-        .expect(200);
-    });
+    const started = await startedPlan({ crewSize: 1 }, (office) =>
+      setService(office, "standard", { taxPlanPercent: 5 }),
+    );
     const jobId = await completeFirst(started, [
       { kind: "extra_time", hours: 1, reason: "Heavy grease in the kitchen" },
     ]);

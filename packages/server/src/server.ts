@@ -26,6 +26,7 @@ import {
 import { router as priceListRouter } from "#features/price-list";
 import { router as propertiesRouter } from "#features/properties";
 import { router as quotesRouter } from "#features/quotes";
+import { router as servicesRouter } from "#features/services";
 import {
   clientRescheduleRouter,
   officeRescheduleRouter,
@@ -72,6 +73,7 @@ app.use("/api/clients", clientBillingRouter);
 app.use("/api/properties", propertiesRouter);
 app.use("/api/properties", propertyFindingsRouter);
 app.use("/api/price-list", priceListRouter);
+app.use("/api/services", servicesRouter);
 app.use("/api/staff", staffRouter);
 app.use("/api/schedule", scheduleRouter);
 app.use("/api/jobs", jobsRouter);

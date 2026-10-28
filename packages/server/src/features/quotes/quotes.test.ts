@@ -14,6 +14,7 @@ import {
   casey,
   guestAsk,
   home,
+  setService,
   signInAsOffice,
   submit,
 } from "../../../tests/fixtures.ts";
@@ -338,8 +339,10 @@ describe("sending a Quote", () => {
       .body as PriceList;
     await office
       .put("/api/price-list")
-      .send({ ...list, hourlyRateCents: 9900, depositPercent: 40 })
+      .send({ ...list, depositPercent: 40 })
       .expect(200);
+    await setService(office, "standard", { hourlyRateCents: 9900 });
+    await setService(office, "deep", { hourlyRateCents: 9900 });
 
     const office2 = (await office.get(`/api/quotes/${quote.id}`).expect(200))
       .body as OfficeQuote;

@@ -9,6 +9,7 @@ import {
   CalendarDays,
   ContactRound,
   House,
+  Sparkles,
   Tag,
   LayoutDashboard,
   User,
@@ -64,6 +65,12 @@ const navFor: Record<AreaId, AreaNavItem[]> = {
       label: "Staff",
       icon: Users,
       alsoCurrentFor: ["/office/staff/"],
+    },
+    {
+      href: linkTo({ to: "/office/services" }),
+      label: "Services",
+      icon: Sparkles,
+      alsoCurrentFor: ["/office/services/"],
     },
     {
       href: linkTo({ to: "/office/price-list" }),

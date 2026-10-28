@@ -52,19 +52,9 @@ const premisesType = z.object({
     .trim()
     .min(1, "Name the Premises Type")
     .max(80, "Use a shorter name"),
-  hoursPerThousandSqFt: z
-    .number({ error: "Enter a number of hours" })
-    .min(0.01, "Cleaning takes some time")
-    .max(24, "That's more than a day")
-    .refine(decimals(2), "Use at most two decimal places"),
+  multiplier,
   active: z.boolean(),
 });
-
-const hourlyRate = z
-  .number({ error: "Enter an hourly rate" })
-  .int()
-  .min(100, "The hourly rate must be at least $1")
-  .max(100_000, "That's over $1,000 an hour");
 
 // two live items with the same name would be indistinguishable on the form
 const uniqueNames =
@@ -86,13 +76,6 @@ const uniqueNames =
 
 export const priceListSchema = z
   .object({
-    hourlyRateCents: hourlyRate,
-    commercialHourlyRateCents: hourlyRate,
-    minimumChargeCents: z
-      .number({ error: "Enter a Minimum Charge" })
-      .int()
-      .min(0, "The Minimum Charge can't be negative")
-      .max(1_000_000, "That's over $10,000"),
     baseHours: hours,
     bedroomHours: hours,
     bathroomHours: hours,
@@ -101,7 +84,6 @@ export const priceListSchema = z
     conditionLight: multiplier,
     conditionModerate: multiplier,
     conditionHeavy: multiplier,
-    deepCleanMultiplier: multiplier,
     depositPercent: percent,
     planDiscountPercent: percent,
     quoteValidityDays: z
@@ -114,9 +96,6 @@ export const priceListSchema = z
       .int("Use a whole number of Cleaners")
       .min(1, "A crew needs at least one Cleaner")
       .max(20, "That's a very large crew"),
-    taxOneOffPercent: taxPercent,
-    taxServicePlanPercent: taxPercent,
-    taxCommercialPercent: taxPercent,
     taxFeePercent: taxPercent,
     addOns: z
       .array(addOn)

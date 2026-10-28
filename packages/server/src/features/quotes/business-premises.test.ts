@@ -11,6 +11,7 @@ import {
   casey,
   guestAsk,
   home,
+  setService,
   signInAsOffice,
   submit,
 } from "../../../tests/fixtures.ts";
@@ -18,8 +19,9 @@ import {
 type Agent = Awaited<ReturnType<typeof signIn>>;
 
 // prices chosen so every answer below can be checked by hand: commercial
-// work at $60 an hour, taxed at 10%; the placeholder Premises Types (Office
-// 0.5 h per 1,000 sq ft, Medical 0.8 h); moderate x1, Deep Clean x2
+// cleaning at $60 an hour, taxed at 10%, 0.5 h per 1,000 sq ft (1 h for its
+// deep clean); the placeholder Premises Types (Office x1, so 0.5 h, and
+// Medical x1.6, so 0.8 h); moderate x1
 const setPrices = async (office: Agent) => {
   const {
     id: _id,
@@ -33,14 +35,24 @@ const setPrices = async (office: Agent) => {
     .put("/api/price-list")
     .send({
       ...input,
-      commercialHourlyRateCents: 6000,
-      taxCommercialPercent: 10,
-      minimumChargeCents: 10000,
       conditionModerate: 1,
       conditionHeavy: 1.5,
-      deepCleanMultiplier: 2,
     })
     .expect(200);
+  const rates = {
+    hourlyRateCents: 6000,
+    taxOneOffPercent: 10,
+    taxPlanPercent: 10,
+    minimumChargeCents: 10000,
+  };
+  await setService(office, "commercial", {
+    ...rates,
+    hoursPerThousandSqFt: 0.5,
+  });
+  await setService(office, "commercialDeep", {
+    ...rates,
+    hoursPerThousandSqFt: 1,
+  });
 };
 
 const premisesTypes = async () =>

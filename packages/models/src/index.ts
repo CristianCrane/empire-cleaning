@@ -251,24 +251,22 @@ export type PriceListAddOn = {
 // stays the same across Price List versions.
 export type PremisesTypeChoice = { key: string; name: string };
 
-// a kind of business premises, which sets how long cleaning its floor area
-// takes; retired rather than deleted, so Properties of that type still price
+// a kind of business premises, which makes cleaning its floor area take
+// longer or shorter: a multiplier on the hours of a Service priced by area
+// that Condition affects (ADR-0018). Retired rather than deleted, so
+// Properties of that type still price
 export type PriceListPremisesType = {
   // absent on a new Premises Type; the server gives it one
   key?: string;
   name: string;
-  // Labour Hours per 1,000 sq ft, before Condition and Clean Type
-  hoursPerThousandSqFt: number;
+  multiplier: number;
   active: boolean;
 };
 
 // what Office Staff edit. Money is in cents, before tax; percentages are
 // whole numbers except tax rates, which may have decimals (8.875).
+// Each Service's own rate, Minimum Charge and tax are on the Service.
 export type PriceListInput = {
-  // the residential hourly rate
-  hourlyRateCents: number;
-  commercialHourlyRateCents: number;
-  minimumChargeCents: number;
   // hours every home needs for kitchen, living areas and entry
   baseHours: number;
   bedroomHours: number;
@@ -278,16 +276,11 @@ export type PriceListInput = {
   conditionLight: number;
   conditionModerate: number;
   conditionHeavy: number;
-  deepCleanMultiplier: number;
   depositPercent: number;
   planDiscountPercent: number;
   quoteValidityDays: number;
   defaultCrewSize: number;
-  // residential one-off and Service Plan Jobs
-  taxOneOffPercent: number;
-  taxServicePlanPercent: number;
-  // commercial Jobs, one-off or on a plan
-  taxCommercialPercent: number;
+  // Late Cancellation and No Access fees
   taxFeePercent: number;
   addOns: PriceListAddOn[];
   premisesTypes: PriceListPremisesType[];
@@ -307,12 +300,17 @@ export type PriceList = Omit<PriceListInput, "addOns" | "premisesTypes"> & {
 
 export type PriceBreakdown = {
   cleanType: CleanType;
+  // the Service priced (ADR-0018). Absent on breakdowns saved before it,
+  // whose Clean Type names it.
+  serviceName?: string;
   // what was priced: a home by its rooms, or business premises by floor
   // area. Absent on breakdowns saved before #72, which are all homes.
   propertyKind?: PropertyKind;
-  // the Property's hours before Condition and Clean Type, by part
+  // the Property's hours before Condition and the Service's multiplier, by
+  // part
   homeHours: { label: string; hours: number }[];
   conditionMultiplier: number;
+  // the Service's multiplier on a home's hours; 1 for one priced by area
   cleanTypeMultiplier: number;
   addOns: { key: string; name: string; hours: number; taxExempt: boolean }[];
   labourHours: number;
@@ -333,6 +331,52 @@ export type SuggestedPrices = {
   priceListVersion: number;
   standard: PriceBreakdown;
   deep: PriceBreakdown;
+};
+
+// ---- Services (ADR-0018) ----
+
+// how a Service is priced: from a home's rooms, times its multiplier, or by
+// area, at so many hours per 1,000 sq ft
+export type PricingMethod = "rooms" | "area";
+
+// what Office Staff edit on a Service. Money is in cents, before tax.
+export type ServiceInput = {
+  // the name and description Clients see
+  name: string;
+  description: string;
+  offeredFor: OfferedFor;
+  method: PricingMethod;
+  // a home's hours times this; only for "rooms"
+  multiplier: number | null;
+  // only for "area"
+  hoursPerThousandSqFt: number | null;
+  hourlyRateCents: number;
+  minimumChargeCents: number;
+  taxOneOffPercent: number;
+  // only for a Service that can be on a Service Plan
+  taxPlanPercent: number | null;
+  // whether Condition (and, for business premises, the Premises Type)
+  // changes its hours
+  conditionApplies: boolean;
+  canRecur: boolean;
+  needsSiteVisit: boolean;
+  // the Service to recommend in its place at a Property with no Completed
+  // Job, by key
+  firstVisitServiceKey: string | null;
+  // a retired Service is offered for nothing new, but whatever used it
+  // still prices
+  active: boolean;
+};
+
+// the current version of a Service; every save is a new version with the
+// same key
+export type Service = ServiceInput & {
+  key: string;
+  // this version's id, which a Revision records
+  id: string;
+  version: number;
+  createdAt: string;
+  createdByName: string | null;
 };
 
 // ---- Staff, availability and the Schedule (#7) ----
