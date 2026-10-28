@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { CalendarX, Pencil, Plus, Trash2 } from "lucide-react";
 import { expect, fn } from "storybook/test";
 import { Button } from "./Button.tsx";
 
@@ -33,6 +33,19 @@ export const Text: Story = {
       <>
         <Pencil aria-hidden size={16} />
         Edit
+      </>
+    ),
+  },
+};
+
+export const DangerText: Story = {
+  args: {
+    variant: "danger-text",
+    size: "sm",
+    children: (
+      <>
+        <CalendarX aria-hidden size={16} />
+        Cancel visit
       </>
     ),
   },

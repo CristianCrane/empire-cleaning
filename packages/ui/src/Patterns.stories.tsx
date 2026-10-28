@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import type { ReactNode } from "react";
 import {
   Building2,
+  CalendarX,
   CalendarDays,
   CircleDollarSign,
   House,
@@ -457,9 +458,12 @@ function ClickableCatchesTheEye() {
           like plain content. How much colour says how much it matters:{" "}
           <code>primary</code> (filled) for the one thing to do,{" "}
           <code>secondary</code> (outlined) beside it, <code>text</code> for a
-          Section's or page's own actions like Edit, and <code>quiet</code> only
-          to back out (Cancel). A form's Save is primary, faded until there's
-          something to save. Rows that open something show the hand cursor.
+          Section's or page's own actions like Edit (<code>danger-text</code>{" "}
+          when one undoes something, like Cancel visit), <code>danger</code>{" "}
+          (filled red) for a destructive action standing alone, like End plan,
+          and <code>quiet</code> only to back out of a dialog. A form's Save is
+          primary, faded until there's something to save. Rows that open
+          something show the hand cursor.
         </p>
       </Rule>
       <div className="flex flex-wrap items-center gap-3">
@@ -468,6 +472,10 @@ function ClickableCatchesTheEye() {
         <Button variant="text" size="sm">
           <Pencil aria-hidden size={16} />
           Edit
+        </Button>
+        <Button variant="danger-text" size="sm">
+          <CalendarX aria-hidden size={16} />
+          Cancel visit
         </Button>
         <Button variant="quiet">Cancel</Button>
       </div>

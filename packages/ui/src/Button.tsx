@@ -22,6 +22,9 @@ export const buttonStyles = tv({
       // a secondary action on a Section or page, like Edit: reads as text in
       // the brand colour, tinted on hover. Lead it with an icon
       text: "bg-transparent text-primary hover:bg-primary/10 pressed:bg-primary/15",
+      // the same, for one that undoes or removes something, like Cancel visit
+      "danger-text":
+        "bg-transparent text-danger hover:bg-danger/10 pressed:bg-danger/15",
       danger:
         "bg-danger text-danger-fg hover:bg-danger-hover pressed:bg-danger-hover",
     },

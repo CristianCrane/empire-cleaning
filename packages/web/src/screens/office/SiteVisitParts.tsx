@@ -313,7 +313,7 @@ export function CancelSiteVisit({ visit }: { visit: OfficeSiteVisit }) {
   );
   return (
     <DialogTrigger>
-      <Button variant="danger" size="sm">
+      <Button variant="danger-text" size="sm">
         <CalendarX aria-hidden size={16} />
         Cancel visit
       </Button>
