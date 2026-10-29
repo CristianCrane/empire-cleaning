@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Undo2 } from "lucide-react";
+import { CreditCard, Undo2 } from "lucide-react";
 import type {
   AdjustmentStatus,
   AdjustmentView,
@@ -11,7 +11,6 @@ import type {
 import {
   Actions,
   Button,
-  Card,
   Dialog,
   DialogTrigger,
   Form,
@@ -19,6 +18,7 @@ import {
   ListItem,
   Notice,
   NumberField,
+  Section,
   Select,
   SelectItem,
   StatusBadge,
@@ -35,7 +35,7 @@ import {
   formatMoney,
 } from "../format.ts";
 
-const statusBadge: Record<AdjustmentStatus, ReactNode> = {
+export const statusBadge: Record<AdjustmentStatus, ReactNode> = {
   applied: <StatusBadge tone="success">Applied</StatusBadge>,
   reported: <StatusBadge tone="info">To review</StatusBadge>,
   dismissed: <StatusBadge>Dismissed</StatusBadge>,
@@ -45,58 +45,7 @@ const statusBadge: Record<AdjustmentStatus, ReactNode> = {
   lapsed: <StatusBadge>Lapsed</StatusBadge>,
 };
 
-// how a Completed Job went, and its money: Office Staff review increases the
-// Cleaner reported, and correct a completion made by mistake
-export function JobCompletionCards({ job }: { job: OfficeJob }) {
-  const completion = job.completion!;
-  return (
-    <>
-      <Card
-        title="Completed"
-        actions={<UndoCompletion job={job} />}
-        description={`${formatDateTime(completion.completedAt)}${completion.completedBy ? ` by ${completion.completedBy.name}` : ""}`}
-      >
-        <ConditionField job={job} completion={completion} />
-      </Card>
-      <Card
-        title="Adjustments"
-        description="Priced from the Price List the Quote used. Increases are only charged once the Client approves them."
-      >
-        {completion.adjustments.length === 0 ? (
-          <p className="text-sm text-fg-muted">
-            Nothing different from the Quote was reported.
-          </p>
-        ) : (
-          <List aria-label="Adjustments">
-            {completion.adjustments.map((a) => (
-              <ListItem
-                key={a.id}
-                id={a.id}
-                title={`${adjustmentLabel(a)}: ${formatMoney(a.totalCents)}`}
-                description={describeAdjustment(a)}
-                end={
-                  <>
-                    {statusBadge[a.status]}
-                    {a.status === "reported" && (
-                      <Review job={job} adjustment={a} />
-                    )}
-                    {(a.status === "applied" || a.status === "approved") && (
-                      <Correct job={job} adjustment={a} />
-                    )}
-                    <Remove job={job} adjustment={a} />
-                  </>
-                }
-              />
-            ))}
-          </List>
-        )}
-      </Card>
-      <PaymentCard job={job} payment={completion.payment} />
-    </>
-  );
-}
-
-const describeAdjustment = (a: AdjustmentView) =>
+export const describeAdjustment = (a: AdjustmentView) =>
   [
     `"${a.reason}"`,
     a.officeReason && `Office: ${a.officeReason}`,
@@ -105,7 +54,7 @@ const describeAdjustment = (a: AdjustmentView) =>
     .filter(Boolean)
     .join(" · ");
 
-function ConditionField({
+export function ConditionField({
   job,
   completion,
 }: {
@@ -207,7 +156,7 @@ function PriceForm({
 
 // an increase the Cleaner reported: propose it to the Client, at its
 // worked-out price or another, or dismiss it
-function Review({
+export function Review({
   job,
   adjustment,
 }: {
@@ -283,7 +232,7 @@ function Review({
 
 // an Adjustment that counts: change its price, charging or refunding the
 // difference
-function Correct({
+export function Correct({
   job,
   adjustment,
 }: {
@@ -341,7 +290,7 @@ function Correct({
   );
 }
 
-function Remove({
+export function RemoveAdjustment({
   job,
   adjustment,
 }: {
@@ -393,7 +342,7 @@ function Remove({
   );
 }
 
-function UndoCompletion({ job }: { job: OfficeJob }) {
+export function UndoCompletion({ job }: { job: OfficeJob }) {
   const action = useAction("The completion wasn't undone. Please try again.");
   return (
     <DialogTrigger>
@@ -437,76 +386,100 @@ function UndoCompletion({ job }: { job: OfficeJob }) {
   );
 }
 
-const chargeLabel = { deposit: "Deposit", balance: "Balance", fee: "Fee" };
+// the Adjustments the Cleaner reported or the Office made: Office Staff
+// review increases, and correct or remove any
+export function Adjustments({ job }: { job: OfficeJob }) {
+  const adjustments = job.completion!.adjustments;
+  return (
+    <Section
+      title="Adjustments"
+      description="Priced from the Price List the Quote used. Increases are only charged once the Client approves them."
+    >
+      {adjustments.length === 0 ? (
+        <p className="text-sm text-fg-muted">
+          Nothing different from the Quote was reported.
+        </p>
+      ) : (
+        <List aria-label="Adjustments">
+          {adjustments.map((a) => (
+            <ListItem
+              key={a.id}
+              id={a.id}
+              title={`${adjustmentLabel(a)}: ${formatMoney(a.totalCents)}`}
+              description={describeAdjustment(a)}
+              end={
+                <>
+                  {statusBadge[a.status]}
+                  {a.status === "reported" && (
+                    <Review job={job} adjustment={a} />
+                  )}
+                  {(a.status === "applied" || a.status === "approved") && (
+                    <Correct job={job} adjustment={a} />
+                  )}
+                  <RemoveAdjustment job={job} adjustment={a} />
+                </>
+              }
+            />
+          ))}
+        </List>
+      )}
+    </Section>
+  );
+}
 
-function PaymentCard({
-  job,
-  payment,
-}: {
-  job: OfficeJob;
-  payment: JobPayment;
-}) {
+// a Completed Job's money, tax included. Each charge is in its History, and
+// a failed one is a Notice above, with its retry.
+export function JobMoney({ payment }: { payment: JobPayment }) {
+  return (
+    <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
+      <dt className="font-semibold">Quoted</dt>
+      <dd>{formatMoney(payment.quotedCents)}</dd>
+      {payment.adjustmentsCents !== 0 && (
+        <>
+          <dt className="font-semibold">Adjustments</dt>
+          <dd>{formatMoney(payment.adjustmentsCents)}</dd>
+        </>
+      )}
+      <dt className="font-semibold">Total</dt>
+      <dd>{formatMoney(payment.totalCents)}, tax included</dd>
+      <dt className="font-semibold">Paid</dt>
+      <dd>
+        {formatMoney(payment.paidCents)}
+        {payment.paymentMethod && ` by ${payment.paymentMethod}`}
+      </dd>
+      {payment.owedCents !== 0 && (
+        <>
+          <dt className="font-semibold">
+            {payment.owedCents > 0 ? "Still owed" : "To refund"}
+          </dt>
+          <dd>{formatMoney(Math.abs(payment.owedCents))}</dd>
+        </>
+      )}
+    </dl>
+  );
+}
+
+// charges what a Job owes again, after a failed charge: a Balance, or the
+// fee of a plan Job that didn't happen
+export function RetryCharge({ job }: { job: OfficeJob }) {
   const action = useAction("It wasn't retried. Please try again.");
   return (
-    <Card title="Payment" description="Tax included.">
-      {payment.unpaid && (
-        <Notice tone="danger">
-          Unpaid since {formatDate(payment.unpaid.since)}:{" "}
-          {formatMoney(payment.owedCents)} couldn't be charged (
-          {payment.unpaid.reason}). The Client has been emailed to update their
-          Payment Method, which tries again.
-        </Notice>
-      )}
-      <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
-        <dt className="font-semibold">Quoted</dt>
-        <dd>{formatMoney(payment.quotedCents)}</dd>
-        <dt className="font-semibold">Adjustments</dt>
-        <dd>{formatMoney(payment.adjustmentsCents)}</dd>
-        <dt className="font-semibold">Total</dt>
-        <dd>{formatMoney(payment.totalCents)}</dd>
-        <dt className="font-semibold">Charges</dt>
-        <dd>
-          <ul>
-            {payment.charges.map((c, i) => (
-              <li key={i}>
-                {chargeLabel[c.kind]} {formatMoney(c.amountCents)},{" "}
-                {formatDate(c.chargedAt)}
-                {c.refundedCents > 0 &&
-                  ` (${formatMoney(c.refundedCents)} refunded)`}
-              </li>
-            ))}
-          </ul>
-        </dd>
-        <dt className="font-semibold">Paid</dt>
-        <dd>{formatMoney(payment.paidCents)}</dd>
-        {payment.owedCents !== 0 && (
-          <>
-            <dt className="font-semibold">
-              {payment.owedCents > 0 ? "Still owed" : "To refund"}
-            </dt>
-            <dd>{formatMoney(Math.abs(payment.owedCents))}</dd>
-          </>
-        )}
-        <dt className="font-semibold">Payment Method</dt>
-        <dd>{payment.paymentMethod ?? "None saved"}</dd>
-      </dl>
+    <div className="flex flex-col gap-2">
+      <Button
+        variant="text"
+        size="sm"
+        isPending={action.isPending}
+        onPress={() =>
+          void action.run(
+            () => postJson(`/api/jobs/${job.id}/balance/retry`),
+            "Charged",
+          )
+        }
+      >
+        <CreditCard aria-hidden size={16} />
+        Try the charge again
+      </Button>
       {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-      {payment.unpaid && (
-        <Actions>
-          <Button
-            variant="secondary"
-            isPending={action.isPending}
-            onPress={() =>
-              void action.run(
-                () => postJson(`/api/jobs/${job.id}/balance/retry`),
-                "Charged",
-              )
-            }
-          >
-            Try the charge again
-          </Button>
-        </Actions>
-      )}
-    </Card>
+    </div>
   );
 }

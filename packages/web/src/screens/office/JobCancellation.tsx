@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useRouter } from "@tanstack/react-router";
+import { Ban } from "lucide-react";
 import type {
   CancellationTerms,
   CancelledBy,
@@ -9,7 +10,6 @@ import type {
 import {
   Actions,
   Button,
-  Card,
   Dialog,
   DialogTrigger,
   Notice,
@@ -18,7 +18,7 @@ import {
   TextField,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
-import { formatDate, formatDateTime, formatMoney } from "../format.ts";
+import { formatDateTime, formatMoney } from "../format.ts";
 import { useAction } from "../action.ts";
 
 // What cancelling costs, in a sentence. A plan Job has no Deposit of its
@@ -65,182 +65,123 @@ export function CancelJob({ job }: { job: OfficeJob }) {
   };
 
   return (
-    <Card
-      title="Cancelling"
-      description={`The Client can cancel for free until ${formatDateTime(terms.client.freeUntil)}.`}
-    >
-      <Actions>
-        <DialogTrigger>
-          <Button variant="secondary">Cancel Job</Button>
-          <Dialog title="Cancel this Job?" role="alertdialog">
-            {({ close }) => (
-              <>
-                <RadioGroup
-                  label="Who's cancelling?"
-                  value={by}
-                  onChange={(value) => setBy(value as CancelledBy)}
-                >
-                  <Radio
-                    value="client"
-                    description={describeTerms(terms.client, onPlan)}
-                  >
-                    The Client asked
-                  </Radio>
-                  <Radio
-                    value="empire"
-                    description={describeTerms(terms.empire, onPlan)}
-                  >
-                    Empire Cleaning can't do it
-                  </Radio>
-                </RadioGroup>
-                {by === "empire" && (
-                  <TextField
-                    label="Why? (told to the Client)"
-                    value={reason}
-                    onChange={setReason}
-                    multiline
-                  />
-                )}
-                <p className="text-sm text-fg-muted">
-                  It comes off the Schedule.
-                  {onPlan && " The Service Plan carries on."} The Client and
-                  everyone with a place on it are emailed.
-                </p>
-                {action.problem && (
-                  <Notice tone="danger">{action.problem}</Notice>
-                )}
-                <Actions>
-                  <Button variant="secondary" onPress={close}>
-                    Keep it
-                  </Button>
-                  <Button
-                    variant="danger"
-                    isPending={action.isPending}
-                    onPress={() => void cancel(close)}
-                  >
-                    Cancel Job
-                  </Button>
-                </Actions>
-              </>
+    <DialogTrigger>
+      <Button variant="danger-text" size="sm">
+        <Ban aria-hidden size={16} />
+        Cancel Job
+      </Button>
+      <Dialog title="Cancel this Job?" role="alertdialog">
+        {({ close }) => (
+          <>
+            <RadioGroup
+              label="Who's cancelling?"
+              value={by}
+              onChange={(value) => setBy(value as CancelledBy)}
+            >
+              <Radio
+                value="client"
+                description={describeTerms(terms.client, onPlan)}
+              >
+                The Client asked
+              </Radio>
+              <Radio
+                value="empire"
+                description={describeTerms(terms.empire, onPlan)}
+              >
+                Empire Cleaning can't do it
+              </Radio>
+            </RadioGroup>
+            {by === "empire" && (
+              <TextField
+                label="Why? (told to the Client)"
+                value={reason}
+                onChange={setReason}
+                multiline
+              />
             )}
-          </Dialog>
-        </DialogTrigger>
-      </Actions>
-    </Card>
+            <p className="text-sm text-fg-muted">
+              It comes off the Schedule.
+              {onPlan && " The Service Plan carries on."} The Client and
+              everyone with a place on it are emailed.
+            </p>
+            {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+            <Actions>
+              <Button variant="secondary" onPress={close}>
+                Keep it
+              </Button>
+              <Button
+                variant="danger"
+                isPending={action.isPending}
+                onPress={() => void cancel(close)}
+              >
+                Cancel Job
+              </Button>
+            </Actions>
+          </>
+        )}
+      </Dialog>
+    </DialogTrigger>
   );
 }
 
-const chargeLabel = { deposit: "Deposit", balance: "Balance", fee: "Fee" };
-
-// the money on a Job that didn't happen; a plan Job's fee is charged, and
-// can be retried if that failed
-function FeePayment({
-  job,
+// the money on a Job that didn't happen: its fee, if any, and what's been
+// paid or refunded. A failed charge is a Notice above, with its retry.
+export function FeeMoney({
   feeCents,
   payment,
 }: {
-  job: OfficeJob;
   feeCents: number;
   payment: JobPayment;
 }) {
-  const action = useAction("It wasn't retried. Please try again.");
   return (
-    <>
-      {payment.unpaid && (
-        <Notice tone="danger">
-          Unpaid since {formatDate(payment.unpaid.since)}: the{" "}
-          {formatMoney(payment.owedCents)} fee couldn't be charged (
-          {payment.unpaid.reason}). The Client has been emailed to update their
-          Payment Method, which tries again.
-        </Notice>
+    <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
+      <dt className="font-semibold">Fee</dt>
+      <dd>{feeCents > 0 ? formatMoney(feeCents) : "None"}</dd>
+      <dt className="font-semibold">Paid</dt>
+      <dd>{formatMoney(payment.paidCents)}</dd>
+      {payment.owedCents !== 0 && (
+        <>
+          <dt className="font-semibold">
+            {payment.owedCents > 0 ? "Still owed" : "Still to refund"}
+          </dt>
+          <dd>{formatMoney(Math.abs(payment.owedCents))}</dd>
+        </>
       )}
-      <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
-        <dt className="font-semibold">Fee</dt>
-        <dd>{feeCents > 0 ? formatMoney(feeCents) : "None"}</dd>
-        <dt className="font-semibold">Charges</dt>
-        <dd>
-          <ul>
-            {payment.charges.map((c, i) => (
-              <li key={i}>
-                {chargeLabel[c.kind]} {formatMoney(c.amountCents)},{" "}
-                {formatDate(c.chargedAt)}
-                {c.refundedCents > 0 &&
-                  ` (${formatMoney(c.refundedCents)} refunded)`}
-              </li>
-            ))}
-          </ul>
-        </dd>
-        <dt className="font-semibold">Paid</dt>
-        <dd>{formatMoney(payment.paidCents)}</dd>
-        {payment.owedCents !== 0 && (
-          <>
-            <dt className="font-semibold">
-              {payment.owedCents > 0 ? "Still owed" : "Still to refund"}
-            </dt>
-            <dd>{formatMoney(Math.abs(payment.owedCents))}</dd>
-          </>
-        )}
-      </dl>
-      {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-      {payment.unpaid && (
-        <Actions>
-          <Button
-            variant="secondary"
-            isPending={action.isPending}
-            onPress={() =>
-              void action.run(
-                () => postJson(`/api/jobs/${job.id}/balance/retry`),
-                "Charged",
-              )
-            }
-          >
-            Try the charge again
-          </Button>
-        </Actions>
-      )}
-    </>
+    </dl>
   );
 }
 
-// how a Cancelled Job was cancelled, and its money
-export function CancelledCard({ job }: { job: OfficeJob }) {
-  const cancellation = job.cancellation!;
-  const skipped = job.servicePlanId !== null && cancellation.by === "client";
-  const why =
-    cancellation.by === "empire"
-      ? "By Empire Cleaning, refunded in full"
-      : cancellation.late
-        ? `By the Client, a Late Cancellation${skipped ? "; the plan carries on" : ""}`
-        : `By the Client, more than 24 hours ahead${skipped ? "; the plan carries on" : ""}`;
-  return (
-    <Card
-      title={skipped ? "Skipped" : "Cancelled"}
-      description={`${formatDateTime(cancellation.cancelledAt)}. ${why}.`}
-    >
-      {cancellation.reason && <p>{cancellation.reason}</p>}
-      <FeePayment
-        job={job}
-        feeCents={cancellation.feeCents}
-        payment={cancellation.payment}
-      />
-    </Card>
-  );
-}
-
-// what the Cleaner said when they couldn't get in, and the money
-export function NoAccessCard({ job }: { job: OfficeJob }) {
-  const noAccess = job.noAccess!;
-  return (
-    <Card
-      title="No Access"
-      description={`${formatDateTime(noAccess.recordedAt)}${noAccess.recordedBy ? ` by ${noAccess.recordedBy.name}` : ""}. Charged like a Late Cancellation.`}
-    >
-      <p>"{noAccess.reason}"</p>
-      <FeePayment
-        job={job}
-        feeCents={noAccess.feeCents}
-        payment={noAccess.payment}
-      />
-    </Card>
-  );
-}
+// how a Job that didn't happen ended, in a title and a sentence: Cancelled
+// (a plan Job the Client cancelled is Skipped) or No Access; null otherwise
+export const howItEnded = (
+  job: OfficeJob,
+): { title: string; at: string; description: string } | null => {
+  const { cancellation, noAccess } = job;
+  if (cancellation) {
+    const skipped = job.servicePlanId !== null && cancellation.by === "client";
+    const why =
+      cancellation.by === "empire"
+        ? "By Empire Cleaning, refunded in full"
+        : cancellation.late
+          ? "By the Client, a Late Cancellation"
+          : "By the Client, more than 24 hours ahead";
+    return {
+      title: `${skipped ? "Skipped" : "Cancelled"} ${formatDateTime(cancellation.cancelledAt)}`,
+      at: cancellation.cancelledAt,
+      description: [
+        `${why}${skipped ? "; the plan carries on" : ""}.`,
+        cancellation.reason,
+      ]
+        .filter(Boolean)
+        .join(" "),
+    };
+  }
+  if (noAccess) {
+    return {
+      title: `No Access ${formatDateTime(noAccess.recordedAt)}`,
+      at: noAccess.recordedAt,
+      description: `${noAccess.recordedBy ? `${noAccess.recordedBy.name} said` : "The Cleaner said"}: "${noAccess.reason}" Charged like a Late Cancellation.`,
+    };
+  }
+  return null;
+};

@@ -49,10 +49,16 @@ const thursdayJob = (crewSize = 2) =>
     id: string;
   }>;
 
+// from the Crew Section's action: the open-places Notice has one too
 const offerTo = async (page: Page, name: RegExp) => {
-  await page.getByRole("button", { name: /Offer to$/ }).click();
+  await page
+    .getByRole("region", { name: "Crew" })
+    .getByRole("button", { name: "Offer a place" })
+    .click();
+  const dialog = page.getByRole("dialog", { name: "Offer a place" });
+  await dialog.getByRole("button", { name: /Offer to$/ }).click();
   await page.getByRole("option", { name }).click();
-  await page.getByRole("button", { name: "Offer place" }).click();
+  await dialog.getByRole("button", { name: "Offer place" }).click();
 };
 
 test(
@@ -73,11 +79,11 @@ test(
       "Thu, Jan 8, 9:00 AM",
     );
 
-    const assignments = page.getByRole("region", { name: "Assignments" });
-    await expect(assignments).toContainText("0 of 2 places Confirmed");
+    const crew = page.getByRole("region", { name: "Crew" });
+    await expect(crew).toContainText("0 of 2 places Confirmed");
     await offerTo(page, /^Cory Cleaner \(8 h\)/);
     await expect(page.getByText("Place offered to Cory Cleaner")).toBeVisible();
-    const list = assignments.getByRole("grid", { name: "Assignments" });
+    const list = crew.getByRole("grid", { name: "Crew" });
     await expect(list.getByRole("row", { name: /Cory Cleaner/ })).toContainText(
       "Offered",
     );
@@ -87,9 +93,10 @@ test(
 
     await offerTo(page, /^Dee Cleaner/);
     await expect(list.getByRole("row")).toHaveCount(2);
-    await expect(assignments).toContainText(
-      "Every place is held. Remove someone",
-    );
+    // every place is held: nothing left to offer
+    await expect(
+      page.getByRole("button", { name: "Offer a place" }),
+    ).toHaveCount(0);
   },
 );
 
@@ -111,7 +118,9 @@ test("Office Staff take someone off a Job, freeing their place", async ({
 
   await expect(page.getByText("Cory Cleaner taken off the Job")).toBeVisible();
   await expect(page.getByText("0 of 1 place Confirmed")).toBeVisible();
-  await expect(page.getByRole("button", { name: /Offer to$/ })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Offer a place" }).first(),
+  ).toBeVisible();
   expect((await emailsTo(cory.email)).at(-1)!.subject).toBe(
     "You're no longer on a Job",
   );
@@ -258,7 +267,7 @@ test("the Job screens pass automated accessibility checks", async ({
   await offerPlace(job.id, cory.id);
   await signInAsOffice(page);
   await page.goto(`/office/jobs/${job.id}`);
-  await expect(page.getByRole("region", { name: "Assignments" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Crew" })).toBeVisible();
   const office = await new AxeBuilder({ page }).analyze();
   expect(office.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
 
@@ -363,11 +372,12 @@ test("a Cleaner says an Open Place is not for them, and the Office sees it", asy
   const office = await (await browser.newContext()).newPage();
   await signInAsOffice(office);
   await office.goto(`/office/jobs/${job.id}`);
-  const assignments = office.getByRole("region", { name: "Assignments" });
-  await expect(assignments).toContainText(
-    "Its open place is open to 1 free Cleaner. The first to confirm takes each.",
-  );
-  await expect(assignments).toContainText("Not for them: Cory Cleaner.");
+  await expect(
+    office.getByText(
+      "Its open place is open to 1 free Cleaner. The first to confirm takes each.",
+    ),
+  ).toBeVisible();
+  await expect(office.getByText("Not for them: Cory Cleaner.")).toBeVisible();
 });
 
 test("the Office sees when a Job's places open to Cleaners", async ({
@@ -383,7 +393,9 @@ test("the Office sees when a Job's places open to Cleaners", async ({
   await signInAsOffice(page);
   await page.goto(`/office/jobs/${job.id}`);
 
-  await expect(page.getByRole("region", { name: "Assignments" })).toContainText(
-    "Its 2 open places open to free Cleaners on Tue, Jan 6, 9:00 AM.",
-  );
+  await expect(
+    page.getByText(
+      "Its 2 open places open to free Cleaners on Tue, Jan 6, 9:00 AM.",
+    ),
+  ).toBeVisible();
 });

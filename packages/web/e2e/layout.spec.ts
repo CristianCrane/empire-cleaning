@@ -533,7 +533,9 @@ test("cancelling, Cancelled and No Access Jobs fit every width", async ({
     .getByRole("alertdialog")
     .getByRole("button", { name: "Cancel Job" })
     .click();
-  await expect(page.getByRole("region", { name: "Cancelled" })).toBeVisible();
+  await expect(
+    page.getByText("By Empire Cleaning, refunded in full."),
+  ).toBeVisible();
   await expectFitsEveryWidth(page, `/office/jobs/${cancelled.id}`);
   await expectFitsEveryWidth(client, `/portal/jobs/${cancelled.id}`);
 });

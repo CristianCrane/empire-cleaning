@@ -12,7 +12,7 @@
 // Refuses to run on a database that already has Staff. With --reset it
 // first deletes everything but Accounts and the Price List, so whoever has
 // signed up stays signed up.
-import { sql } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 import type {
   NewHome,
   NewPremises,
@@ -20,9 +20,19 @@ import type {
   SignedInAccount,
 } from "@empire-cleaning/models";
 import { db } from "#db";
-import { confirmAssignment, offerAssignment } from "#features/assignments";
+import {
+  confirmAssignment,
+  officeJob,
+  offerAssignment,
+  releaseAssignment,
+} from "#features/assignments";
+import {
+  cancelJob,
+  cancelTermsOf,
+  recordNoAccess,
+} from "#features/cancellation";
 import { findClientByEmail } from "#features/clients";
-import { completeJob } from "#features/completion";
+import { completeJob, proposeAdjustment } from "#features/completion";
 import { savePaymentMethod, startCardForm } from "#features/payments";
 import { currentPriceList } from "#features/price-list";
 import {
@@ -34,11 +44,18 @@ import {
   startRevision,
   turnDownQuote,
 } from "#features/quotes";
+import {
+  requestReschedule,
+  rescheduleTermsOf,
+  turnDownReschedule,
+} from "#features/reschedule";
 import { bookSiteVisit } from "#features/site-visits";
 import { SEEDED } from "#features/services";
+import { jobs } from "#features/jobs";
+import { servicePlanVisits } from "#features/service-plans";
 import { createStaff, setUsualWeek } from "#features/staff";
 import { addDays, dayOf, weekdayOf } from "#services/clock";
-import { installFakes, signIn, testClock } from "./harness.ts";
+import { installFakes, signIn, testClock, testPayments } from "./harness.ts";
 import { sentServicePlanQuote, startedServicePlan } from "./fixtures.ts";
 
 const OWNER = {
@@ -202,7 +219,7 @@ async function seed() {
     await setUsualWeek(member.id, [8, 8, 8, 8, 8, 0, 0]);
     cleaners.push(member);
   }
-  const [cleo] = cleaners;
+  const [cleo, ben, dev] = cleaners;
 
   const list = await currentPriceList();
   const officeType = list.premisesTypes[0]!.key;
@@ -222,13 +239,21 @@ async function seed() {
       sent,
       validityDays = 7,
       startIn,
-    }: { sent: Date; validityDays?: number; startIn: number },
+      crewSize = 1,
+      addOns = [],
+    }: {
+      sent: Date;
+      validityDays?: number;
+      startIn: number;
+      crewSize?: number;
+      addOns?: string[];
+    },
   ) => {
     await at(sent);
     await startRevision(id, "one_off", by);
     await saveDraft(id, {
-      addOns: [],
-      crewSize: 1,
+      addOns,
+      crewSize,
       depositPercent: 25,
       validityDays,
       proposedStart: weekdayFrom(startIn),
@@ -366,7 +391,7 @@ async function seed() {
   const nina = contact("nina", "Nina Brooks");
   const ninaHome = await firstCleanDone(nina, "50 Aspen Pl", -28, -21);
   await at(on(-14));
-  await startedServicePlan({
+  const ninaPlan = await startedServicePlan({
     propertyId: ninaHome.propertyId,
     byAccountId: by,
     startsAt: `${weekdayFrom(3).date}T14:00:00Z`,
@@ -377,6 +402,197 @@ async function seed() {
     { new: home("50 Aspen Pl", { type: "house", bedrooms: 3 }) },
     { wantsRegularService: true, notes: "Could we add a second day?" },
   );
+
+  // ---- Jobs in every state the Office's Job page shows ----
+  const [firstAddOn, secondAddOn] = list.addOns;
+
+  // booked, nobody Offered yet, and its place not yet open to Cleaners
+  await bookedJob(contact("olga", "Olga Petrova"), "8 Birch Ln", -3, 12);
+
+  // a crew of two: one Confirmed, one Released, so a place is open to free
+  // Cleaners; the Client asked to move it once, and was turned down
+  const pair = await bookedJob(
+    contact("pete", "Pete Ortiz"),
+    "77 Cedar St",
+    -10,
+    7,
+    { crewSize: 2 },
+  );
+  await at(on(-8));
+  await confirm(pair.id, ben!.id);
+  const devPlace = await confirm(pair.id, dev!.id);
+  await at(on(-5));
+  await requestReschedule(
+    pair.id,
+    { date: weekdayFrom(8).date, time: "13:00" },
+    {
+      cost: (await rescheduleTermsOf(pair))!.cost,
+      byAccountId: null,
+      byClient: true,
+    },
+  );
+  await at(on(-4));
+  await turnDownReschedule(pair.id, "We're fully booked that afternoon.", by);
+  await at(on(-2));
+  await releaseAssignment(dev!.id, devPlace);
+
+  // the Client has asked to move it, waiting on the Office
+  const moving = await bookedJob(
+    contact("rosa", "Rosa Diaz"),
+    "12 Elm Ct",
+    -9,
+    5,
+  );
+  await confirm(moving.id, cleo!.id);
+  await at(on(-1));
+  await requestReschedule(
+    moving.id,
+    { date: weekdayFrom(13).date, time: "11:00" },
+    {
+      cost: (await rescheduleTermsOf(moving))!.cost,
+      byAccountId: null,
+      byClient: true,
+    },
+  );
+
+  // Completed with an Adjustment of each kind: one taken off at once, an
+  // increase to review, and one proposed to the Client
+  const adjusted = await bookedJob(
+    contact("sam", "Sam Lee"),
+    "30 Pine Ave",
+    -12,
+    -4,
+    { addOns: [firstAddOn!.key] },
+  );
+  await confirm(adjusted.id, cleo!.id);
+  await at(after(adjusted, 4));
+  await completeJob(cleo!.id, adjusted.id, {
+    condition: "heavy",
+    reports: [
+      {
+        kind: "add_on_not_done",
+        addOnKey: firstAddOn!.key,
+        reason: "It was in use",
+      },
+      {
+        kind: "add_on_done",
+        addOnKey: secondAddOn!.key,
+        reason: "The Client asked for it on the day",
+      },
+      { kind: "extra_time", hours: 1, reason: "Heavier than quoted" },
+    ],
+  });
+  await at(after(adjusted, 24));
+  const extra = (await officeJob(adjusted.id)).completion!.adjustments.find(
+    (a) => a.kind === "extra_time",
+  )!;
+  await proposeAdjustment(adjusted.id, extra.id, {}, by);
+
+  // Completed, but the Balance couldn't be charged
+  const unpaid = await bookedJob(
+    contact("tia", "Tia Moore"),
+    "5 Oak Rd",
+    -15,
+    -6,
+  );
+  await confirm(unpaid.id, cleo!.id);
+  await at(after(unpaid, 4));
+  testPayments().failCharges();
+  await completeJob(cleo!.id, unpaid.id, {
+    condition: "moderate",
+    reports: [],
+  });
+  testPayments().failCharges(null);
+
+  // cancelled for the Client the evening before: a Late Cancellation
+  const late = await bookedJob(
+    contact("uma", "Uma Shah"),
+    "21 Willow Way",
+    -14,
+    -2,
+  );
+  await confirm(late.id, ben!.id);
+  await at(after(late, -14));
+  await cancelJob(late.id, {
+    by: "client",
+    feeCents: (await cancelTermsOf(late))!.client.feeCents,
+    reason: null,
+    byAccountId: by,
+    byClient: false,
+  });
+
+  // cancelled by Empire Cleaning, refunded in full
+  const ours = await bookedJob(
+    contact("vic", "Vic Hale"),
+    "64 Spruce Rd",
+    -10,
+    6,
+  );
+  await at(on(-1));
+  await cancelJob(ours.id, {
+    by: "empire",
+    feeCents: (await cancelTermsOf(ours))!.empire.feeCents,
+    reason: "A Cleaner is off sick and nobody can cover.",
+    byAccountId: by,
+    byClient: false,
+  });
+
+  // the Cleaner couldn't get in
+  const locked = await bookedJob(
+    contact("wes", "Wes Grant"),
+    "3 Hazel St",
+    -9,
+    -1,
+  );
+  await confirm(locked.id, cleo!.id);
+  await at(after(locked, 1));
+  await recordNoAccess(
+    cleo!.id,
+    locked.id,
+    "Nobody answered the door, and the phone went to voicemail.",
+  );
+
+  // a place Offered, not yet answered
+  const offered = await bookedJob(
+    contact("xena", "Xena Ford"),
+    "40 Poplar Ave",
+    -4,
+    14,
+  );
+  await at(on(-1));
+  await offerAssignment(offered.id, ben!.id, by);
+
+  // Nina's second plan clean, Skipped: the plan carries on
+  const [, ninaSecond] = await planJobs(ninaPlan.planId);
+  await at(on(-1));
+  await cancelJob(ninaSecond!.id, {
+    by: "client",
+    feeCents: (await cancelTermsOf(ninaSecond!))!.client.feeCents,
+    reason: null,
+    byAccountId: by,
+    byClient: false,
+  });
+
+  // a plan clean cancelled late, whose fee couldn't be charged
+  const yara = contact("yara", "Yara Kim");
+  const yaraHome = await firstCleanDone(yara, "9 Laurel Ct", -35, -30);
+  await at(on(-20));
+  const yaraPlan = await startedServicePlan({
+    propertyId: yaraHome.propertyId,
+    byAccountId: by,
+    startsAt: `${weekdayFrom(-13).date}T14:00:00Z`,
+    recurrence: "fortnightly",
+  });
+  await at(after(yaraPlan.firstJob, -10));
+  testPayments().failCharges();
+  await cancelJob(yaraPlan.firstJob.id, {
+    by: "client",
+    feeCents: (await cancelTermsOf(yaraPlan.firstJob))!.client.feeCents,
+    reason: null,
+    byAccountId: by,
+    byClient: false,
+  });
+  testPayments().failCharges(null);
 
   // the fake gateway's payers and cards would fail against the real Stripe
   // sandbox; Clients enter a test card on their first payment instead
@@ -391,13 +607,30 @@ async function seed() {
     askedIn: number,
     cleanedIn: number,
   ) {
+    const job = await bookedJob(who, street, askedIn, cleanedIn, {}, true);
+    await confirm(job.id, cleo!.id);
+    await at(after(job, 6));
+    await completeJob(cleo!.id, job.id, { condition: "moderate", reports: [] });
+    return { propertyId: job.propertyId };
+  }
+
+  // a house asked about `askedIn` days from today, its Quote accepted by
+  // phone for a Deep Clean on the first weekday from `startIn`
+  async function bookedJob(
+    who: ReturnType<typeof contact>,
+    street: string,
+    askedIn: number,
+    startIn: number,
+    terms: { crewSize?: number; addOns?: string[] } = {},
+    wantsRegularService = false,
+  ) {
     await at(on(askedIn));
     const asked = await ask(
       who,
       { new: home(street, { type: "house", bedrooms: 3 }) },
-      { wantsRegularService: true },
+      { wantsRegularService },
     );
-    await draftAndSend(asked.id, { sent: on(askedIn), startIn: cleanedIn });
+    await draftAndSend(asked.id, { sent: on(askedIn), startIn, ...terms });
     const owner = (await findClientByEmail(who.email))!;
     const form = await startCardForm(owner);
     await savePaymentMethod(owner, form.secret);
@@ -407,14 +640,34 @@ async function seed() {
       { by: "office", accountId: by },
     );
     if (accepted.status !== "accepted") throw new Error("not accepted");
-    const job = accepted.job;
-    const offered = await offerAssignment(job.id, cleo!.id, by);
-    await confirmAssignment(cleo!.id, offered.assignments[0]!.id);
-    await at(new Date(new Date(job.startsAt).getTime() + 6 * 3_600_000));
-    await completeJob(cleo!.id, job.id, { condition: "moderate", reports: [] });
-    return { propertyId: job.propertyId };
+    return accepted.job;
+  }
+
+  // Offers a Cleaner a place, which they Confirm: their Assignment's id
+  async function confirm(jobId: string, staffId: string) {
+    const offered = await offerAssignment(jobId, staffId, by);
+    const place = offered.assignments.find(
+      (a) => a.staff.id === staffId && a.status === "offered",
+    )!;
+    await confirmAssignment(staffId, place.id);
+    return place.id;
   }
 }
+
+// some hours after a Job starts (before it, if negative)
+const after = (job: { startsAt: Date }, hours: number) =>
+  new Date(job.startsAt.getTime() + hours * 3_600_000);
+
+// a Service Plan's Jobs, soonest first
+const planJobs = async (planId: string) =>
+  (
+    await db
+      .select({ job: jobs })
+      .from(jobs)
+      .innerJoin(servicePlanVisits, eq(servicePlanVisits.jobId, jobs.id))
+      .where(eq(servicePlanVisits.servicePlanId, planId))
+      .orderBy(asc(jobs.startsAt))
+  ).map((row) => row.job);
 
 await seed();
 console.log(`seeded; sign in as ${OWNER.email} (Office) or any ${alias("…")}`);

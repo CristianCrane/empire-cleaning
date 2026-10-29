@@ -133,10 +133,7 @@ test(
     await failCharges();
     await signedInAs(page, olive.email);
     await page.goto(`/office/jobs/${firstJob.id}`);
-    await page
-      .getByRole("region", { name: "Cancelling" })
-      .getByRole("button", { name: "Cancel Job" })
-      .click();
+    await page.getByRole("button", { name: "Cancel Job" }).click();
     await page
       .getByRole("alertdialog", { name: "Cancel this Job?" })
       .getByRole("button", { name: "Cancel Job" })

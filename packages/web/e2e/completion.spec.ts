@@ -227,7 +227,7 @@ test("Office Staff correct the Condition and undo a completion made by mistake",
   await signedInAs(page, olive.email);
   await page.goto(`/office/jobs/${job.id}`);
 
-  const completed = page.getByRole("region", { name: "Completed" });
+  const completed = page.getByRole("region", { name: "Job" });
   await completed.getByRole("button", { name: /Condition reported/ }).click();
   await page.getByRole("option", { name: "Light" }).click();
   await expect(page.getByText("Condition corrected")).toBeVisible();
@@ -239,7 +239,9 @@ test("Office Staff correct the Condition and undo a completion made by mistake",
     .click();
 
   await expect(page.getByText("Completion undone")).toBeVisible();
-  await expect(completed).toBeHidden();
+  await expect(
+    completed.getByRole("heading", { name: "How it went" }),
+  ).toBeHidden();
   await expect(page.getByText("Assigned", { exact: true })).toBeVisible();
   expect((await emailsTo(casey.email)).at(-1)!.subject).toBe(
     "A correction to your clean",

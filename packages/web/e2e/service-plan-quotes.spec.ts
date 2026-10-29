@@ -262,10 +262,8 @@ test("the Client screen lists each home, whose own page holds its history and of
 }) => {
   const { job } = await firstCleanDone(page);
   await page.goto(`/office/jobs/${job.id}`);
-  await page
-    .getByRole("region", { name: "Job" })
-    .getByRole("link", { name: casey.name })
-    .click();
+  // the line under the title; the breadcrumbs name them too
+  await page.getByRole("link", { name: casey.name }).last().click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(casey.name);
 
   const homes = page.getByRole("grid", { name: /Properties/ });
@@ -367,10 +365,8 @@ test("the Client and Property screens pass an accessibility check", async ({
 }) => {
   const { job } = await firstCleanDone(page);
   await page.goto(`/office/jobs/${job.id}`);
-  await page
-    .getByRole("region", { name: "Job" })
-    .getByRole("link", { name: casey.name })
-    .click();
+  // the line under the title; the breadcrumbs name them too
+  await page.getByRole("link", { name: casey.name }).last().click();
   await page.reload();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(casey.name);
   let { violations } = await new AxeBuilder({ page }).analyze();
