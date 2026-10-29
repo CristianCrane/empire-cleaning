@@ -173,7 +173,7 @@ function NewTimeForm({
         <p className="text-fg-muted">Finding times…</p>
       )}
       {times && times.days.length === 0 && (
-        <Notice>
+        <Notice tone="warning">
           There's no day with room in the next few weeks. Please call the
           Office.
         </Notice>

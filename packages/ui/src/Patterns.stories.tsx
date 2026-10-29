@@ -509,6 +509,7 @@ function NoticesHoldOneAction() {
         <Example verdict="Do">
           <div className="flex flex-col gap-3">
             <Notice
+              tone="warning"
               action={
                 <Button variant="text" size="sm">
                   <Pencil aria-hidden size={16} />

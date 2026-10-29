@@ -176,7 +176,7 @@ export function DraftQuote({ quote }: { quote: OfficeQuote }) {
 // books a Site Visit, or records findings it knows already on the Property
 export function SeeThePremises({ quote }: { quote: OfficeQuote }) {
   return (
-    <Notice action={<BookSiteVisit quoteId={quote.id} />}>
+    <Notice tone="warning" action={<BookSiteVisit quoteId={quote.id} />}>
       <p>
         <strong>Business premises are seen before they're quoted.</strong> Book
         a Site Visit, or if you know the premises already, record what you know

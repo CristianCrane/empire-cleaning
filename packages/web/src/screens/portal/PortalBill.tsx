@@ -107,7 +107,7 @@ function Standing({ bill }: { bill: BillView }) {
     );
   }
   return bill.payment === "on_page" && bill.totalCents > 0 ? (
-    <Notice>
+    <Notice tone="warning">
       Please pay {formatMoney(bill.totalCents)} by {formatDay(bill.dueOn)}.
     </Notice>
   ) : null;
