@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactElement } from "react";
 import {
   parseDate,
   parseTime,
@@ -168,16 +168,15 @@ function RoomAt({ room, job }: { room: DayCapacity; job: ScheduledJob }) {
 // action, at any width, where dragging on the Schedule isn't to hand
 export function MoveJob({
   job,
-  variant = "secondary",
+  trigger,
 }: {
   job: ScheduledJob;
-  variant?: "secondary" | "text";
+  // what opens it, e.g. an IconAction; a Move Job Button otherwise
+  trigger?: ReactElement;
 }) {
   return (
     <DialogTrigger>
-      <Button variant={variant} size={variant === "text" ? "sm" : "md"}>
-        Move Job
-      </Button>
+      {trigger ?? <Button variant="secondary">Move Job</Button>}
       <Dialog title="Move this Job">
         {({ close }) => <ChooseTime job={job} close={close} />}
       </Dialog>

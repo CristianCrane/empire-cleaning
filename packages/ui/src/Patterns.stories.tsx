@@ -629,10 +629,11 @@ function AllAtOnceInTwoColumns() {
           A record read as a whole, every part as important as the others (a
           Job: what it is, who's on it, its money and what happened), shows in
           one view without scrolling: what to do in Notices on top, then two
-          columns, the record and its people and its money on the left, its
-          history on the right as a Timeline, with room to grow. One column on a
-          phone. A record read as steps, where what's next matters most (a
-          Quote), is its story instead.
+          columns: the record, its people and its money on the left, its history
+          on the right as a Timeline, with room to grow. What can be done to the
+          whole record is an <code>ActionBar</code> of icons beside its title,
+          each named in a tooltip. One column on a phone. A record read as
+          steps, where what's next matters most (a Quote), is its story instead.
         </p>
       </Rule>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_14rem]">
@@ -745,7 +746,9 @@ function StatusColours() {
           A <code>StatusBadge</code>'s tone says what the status means, not
           which screen it's on: the same word is always the same colour, so a
           table mixing Quotes, Jobs and Site Visits reads at a glance. Keep each
-          kind's tones in one map beside its labels. Green is for the Office's
+          kind's tones in one map beside its labels. A <code>Notice</code>'s
+          tone means the same: warning when it's the Office's to act on (a Job
+          needing a Cleaner, a request to answer). Green is for the Office's
           view of what's going right: done, or running as it should (an Active
           plan, a Confirmed place); blue is for what's simply so.
         </p>

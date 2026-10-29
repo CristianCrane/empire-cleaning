@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useRouter } from "@tanstack/react-router";
-import { Ban } from "lucide-react";
+import { CalendarX } from "lucide-react";
 import type {
   CancellationTerms,
   CancelledBy,
@@ -12,6 +12,7 @@ import {
   Button,
   Dialog,
   DialogTrigger,
+  IconAction,
   Notice,
   Radio,
   RadioGroup,
@@ -66,10 +67,7 @@ export function CancelJob({ job }: { job: OfficeJob }) {
 
   return (
     <DialogTrigger>
-      <Button variant="danger-text" size="sm">
-        <Ban aria-hidden size={16} />
-        Cancel Job
-      </Button>
+      <IconAction icon={CalendarX} label="Cancel Job" danger />
       <Dialog title="Cancel this Job?" role="alertdialog">
         {({ close }) => (
           <>

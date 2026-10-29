@@ -1,4 +1,4 @@
-import { CircleAlert, CircleCheck, Info } from "lucide-react";
+import { CircleAlert, CircleCheck, Info, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import { tv } from "./utils.ts";
 
@@ -6,26 +6,33 @@ import { tv } from "./utils.ts";
 // Danger notices are announced straight away; the others politely. A notice
 // is passing news, never the page's main action: it holds at most one
 // action, a text Button on the right of its text. Two things to say or do
-// are two notices.
+// are two notices. Its tone means what a status's does: info just so,
+// warning someone needs to act, success done, danger went wrong.
 const notice = tv({
   base: "flex items-start gap-3 rounded-md p-4",
   variants: {
     tone: {
       info: "bg-info-subtle text-info-strong",
+      warning: "bg-warning-subtle text-warning-strong",
       success: "bg-success-subtle text-success-strong",
       danger: "bg-danger-subtle text-danger-strong",
     },
   },
 });
 
-const icons = { info: Info, success: CircleCheck, danger: CircleAlert };
+const icons = {
+  info: Info,
+  warning: TriangleAlert,
+  success: CircleCheck,
+  danger: CircleAlert,
+};
 
 export function Notice({
   tone = "info",
   action,
   children,
 }: {
-  tone?: "info" | "success" | "danger";
+  tone?: "info" | "warning" | "success" | "danger";
   // what to do about it: one Button, variant "text" (or "danger-text")
   action?: ReactNode;
   children: ReactNode;

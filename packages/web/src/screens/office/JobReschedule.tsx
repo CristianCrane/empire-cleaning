@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { CalendarClock } from "lucide-react";
+import { CalendarCheck, CalendarClock, CalendarSync } from "lucide-react";
 import type { OfficeJob } from "@empire-cleaning/models";
 import {
   Actions,
   Button,
   Dialog,
   DialogTrigger,
+  IconAction,
   Notice,
   TextField,
 } from "@empire-cleaning/ui";
@@ -25,7 +26,10 @@ export function MoveActions({ job }: { job: OfficeJob }) {
   const onPlan = job.servicePlanId !== null;
   return (
     <>
-      <MoveJob job={job} variant="text" />
+      <MoveJob
+        job={job}
+        trigger={<IconAction icon={CalendarSync} label="Move Job" />}
+      />
       <ChooseNewTime
         job={job}
         terms={terms}
@@ -34,7 +38,7 @@ export function MoveActions({ job }: { job: OfficeJob }) {
         describeCost={(cost, feeCents) => costForOffice(cost, feeCents, onPlan)}
         done="Reschedule Request made"
         Picker={PickFromSchedule}
-        variant="text"
+        trigger={<IconAction icon={CalendarClock} label="Ask for a new time" />}
       />
     </>
   );
@@ -48,7 +52,7 @@ export function AnswerRequest({ job }: { job: OfficeJob }) {
   return (
     <DialogTrigger onOpenChange={(open) => !open && setTurningDown(false)}>
       <Button variant="text" size="sm">
-        <CalendarClock aria-hidden size={16} />
+        <CalendarCheck aria-hidden size={16} />
         Answer
       </Button>
       <Dialog

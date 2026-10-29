@@ -176,7 +176,14 @@ test(
     await signedInAs(page, olive.email);
     await page.goto(`/office/jobs/${job.id}`);
 
-    await page.getByRole("button", { name: "Cancel Job" }).click();
+    // an icon in the Job's action bar, named in a tooltip
+    const actions = page.getByRole("toolbar", { name: "Job actions" });
+    const cancelJob = actions.getByRole("button", { name: "Cancel Job" });
+    // a mouse moves before it rests on anything
+    await actions.hover();
+    await cancelJob.hover();
+    await expect(page.getByRole("tooltip")).toHaveText("Cancel Job");
+    await cancelJob.click();
     const dialog = page.getByRole("alertdialog", { name: "Cancel this Job?" });
     await expect(dialog).toContainText(
       /The Client asked\s*It's a Late Cancellation: the \$[\d.]+ Deposit is kept as the fee\./,

@@ -84,7 +84,9 @@ test(
     const crew = page.getByRole("region", { name: "Crew" });
     await expect(crew).toContainText("0 of 2 Cleaners Confirmed");
     await offerTo(page, /^Cory Cleaner \(8 h\)/);
-    await expect(page.getByText("Offered to Cory Cleaner")).toBeVisible();
+    await expect(page.getByRole("region", { name: "History" })).toContainText(
+      "Offered to Cory Cleaner",
+    );
     const list = crew.getByRole("grid", { name: "Crew" });
     await expect(list.getByRole("row", { name: /Cory Cleaner/ })).toContainText(
       "Offered",

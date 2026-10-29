@@ -16,6 +16,9 @@ type Story = StoryObj<typeof meta>;
 
 export const Info: Story = {};
 
+// someone needs to act, e.g. a Job still needing a Cleaner
+export const Warning: Story = { args: { tone: "warning" } };
+
 export const Success: Story = { args: { tone: "success" } };
 
 export const Danger: Story = {

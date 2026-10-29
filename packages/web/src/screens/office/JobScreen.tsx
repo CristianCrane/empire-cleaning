@@ -8,6 +8,7 @@ import type {
   ScheduledJob,
 } from "@empire-cleaning/models";
 import {
+  ActionBar,
   Actions,
   Breadcrumbs,
   Button,
@@ -163,17 +164,22 @@ function JobHeader({ job }: { job: OfficeJob }) {
             {formatDateTime(job.startsAt)}
           </p>
         </div>
-        <div className="ml-auto flex flex-wrap gap-2">
-          <MoveActions job={job} />
-          {job.cancelTerms && <CancelJob job={job} />}
-        </div>
+        {(job.rescheduleTerms || job.cancelTerms) && (
+          <div className="ml-auto">
+            <ActionBar aria-label="Job actions">
+              <MoveActions job={job} />
+              {job.cancelTerms && <CancelJob job={job} />}
+            </ActionBar>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
 // What there is to do with the Job, above it: one Notice per thing, each
-// with at most one text action; or, once it isn't booked, how it ended
+// with at most one text action, warning when it's the Office's to do; or,
+// once it isn't booked, how it ended
 function WhatsNext({ job }: { job: OfficeJob }) {
   const notices = noticesFor(job);
   if (notices.length === 0) return null;
@@ -209,7 +215,11 @@ const noticesFor = (job: OfficeJob): ReactNode[] => {
   }
   if (request?.status === "pending") {
     notices.push(
-      <Notice key="reschedule" action={<AnswerRequest job={job} />}>
+      <Notice
+        key="reschedule"
+        tone="warning"
+        action={<AnswerRequest job={job} />}
+      >
         <p>
           <strong>
             {request.byClient ? "The Client asked" : "The Office asked"} to move
@@ -230,7 +240,7 @@ const noticesFor = (job: OfficeJob): ReactNode[] => {
       <Notice
         key="places"
         tone={
-          job.openTo.opened && job.openTo.cleaners === 0 ? "danger" : "info"
+          job.openTo.opened && job.openTo.cleaners === 0 ? "danger" : "warning"
         }
         action={job.cleaners.length > 0 && <OfferPlace job={job} />}
       >
@@ -245,7 +255,7 @@ const noticesFor = (job: OfficeJob): ReactNode[] => {
     completion?.adjustments.filter((a) => a.status === "reported").length ?? 0;
   if (toReview > 0) {
     notices.push(
-      <Notice key="review">
+      <Notice key="review" tone="warning">
         <p>
           <strong>
             The Cleaner reported {toReview}{" "}
