@@ -69,7 +69,7 @@ jobs:
         run: pnpm --filter @empire-cleaning/web exec vitest run
       - run: pnpm --filter @empire-cleaning/web exec playwright test --shard ${{ matrix.shard }}/3
       - if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: web-playwright-report-${{ matrix.shard }}
           path: |
@@ -87,7 +87,7 @@ jobs:
       - run: docker compose up --detach --wait postgres_test
       - run: pnpm --filter @empire-cleaning/landing test
       - if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: landing-playwright-report
           path: |

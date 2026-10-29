@@ -210,6 +210,12 @@ run_wizard() {
 TOTAL_STAGES=10
 
 cd "$(git rev-parse --show-toplevel)"
+
+# on WSL without wslview or Windows on the PATH, open_url opens the Windows
+# browser through explorer.exe (which exits 1 even when it worked)
+if ! command -v wslview >/dev/null 2>&1 && [[ -x /mnt/c/Windows/explorer.exe ]]; then
+  wslview() { /mnt/c/Windows/explorer.exe "$1" || true; }
+fi
 mkdir -p "$HOME/.config/empire-cleaning" && chmod 700 "$HOME/.config/empire-cleaning"
 ENV_FILE="$HOME/.config/empire-cleaning/test-site.env"
 
@@ -220,6 +226,38 @@ OFFICE=empirecleaningproservices@gmail.com
 
 # show "KEY" prints a saved value to copy into a form
 show() { printf '    %s%-24s%s %s\n' "$BOLD" "$1" "$RESET" "${!1}"; }
+
+# dev_value KEY prints KEY from dev's own packages/server/.env, if it's there
+dev_value() { local ENV_FILE=packages/server/.env; _existing "$1" || true; }
+
+# reuse_dev KEY... saves dev's values for KEYs as the test site's; fails if
+# any is missing
+reuse_dev() {
+  local key value
+  for key in "$@"; do
+    value=$(dev_value "$key")
+    [[ -n "$value" ]] || { warn "$key isn't in packages/server/.env"; return 1; }
+    write_env "$key" "$value"
+  done
+}
+
+# checked ask|ask_secret KEY "Prompt" REGEX "what it looks like" asks until
+# the value has the right shape, so a paste that missed (or picked up stray
+# keys) is caught here; a secret is echoed back masked
+checked() {
+  local how="$1" key="$2" prompt="$3" pattern="$4" shape="$5" value
+  while :; do
+    "$how" "$key" "$prompt"
+    value="${!key}"
+    if [[ "$value" =~ $pattern ]]; then
+      [[ "$how" == ask_secret ]] &&
+        note "got ${value:0:10}…${value: -4} (${#value} characters)"
+      return
+    fi
+    warn "that isn't $shape (${#value} characters); paste it again"
+    printf -v "$key" '%s' ""
+  done
+}
 
 # fetch URL prints its body, or nothing if it can't be reached
 fetch() { curl -fsS --max-time 20 "$1" 2>/dev/null || true; }
@@ -245,26 +283,40 @@ pause
 
 # ── 2 ─────────────────────────────────────────────────────────────────────
 stage "Stripe: a sandbox for the test site"
-say "The test site gets a Stripe sandbox of its own (#45), apart from dev's."
+say "The test site should have a Stripe sandbox of its own (#45). Until one can"
+say "be made, it can share dev's: the server ignores payments it doesn't know,"
+say "so neither sees the other's (dev's \`stripe listen\` just gets extra no-ops)."
+STRIPE_SHARED=""
+if confirm "Share dev's sandbox for now (its keys from packages/server/.env)?" &&
+  reuse_dev STRIPE_PUBLISHABLE_KEY STRIPE_SECRET_KEY; then
+  STRIPE_SHARED=1
+  SKIPPED+=("a Stripe sandbox of the test site's own (#45): the test site shares dev's")
+else
 open_url "https://dashboard.stripe.com/"
 step "Click the account picker (top left) → Switch to sandbox → Create sandbox."
 step "Name it: Empire test site. Leave 'Copy live account to sandbox' on."
 step "Click Create sandbox, and stay inside it (the banner says sandbox)."
 step "Go to Developers → API keys (or search 'API keys')."
 step "Copy the Publishable key (pk_test_…)."
-ask STRIPE_PUBLISHABLE_KEY "Paste the publishable key:"
+checked ask STRIPE_PUBLISHABLE_KEY "Paste the publishable key:" '^pk_test_[A-Za-z0-9]+$' "a pk_test_ key"
 step "Reveal the Secret key (sk_test_…) and copy it."
-ask_secret STRIPE_SECRET_KEY "Paste the secret key:"
+checked ask_secret STRIPE_SECRET_KEY "Paste the secret key:" '^sk_test_[A-Za-z0-9]+$' "an sk_test_ key"
 write_env STRIPE_PUBLISHABLE_KEY "$STRIPE_PUBLISHABLE_KEY"
 write_env STRIPE_SECRET_KEY "$STRIPE_SECRET_KEY"
-[[ "$STRIPE_SECRET_KEY" == sk_test_* ]] || warn "that secret key doesn't start sk_test_: is it the sandbox's?"
+fi
+[[ "$STRIPE_SECRET_KEY" == sk_test_* ]] || warn "that secret key doesn't start sk_test_: is it a sandbox's?"
 pause
 
 # ── 3 ─────────────────────────────────────────────────────────────────────
 stage "Stripe: the webhook"
 say "Stripe tells the server when payments succeed or fail."
 open_url "https://dashboard.stripe.com/webhooks"
-step "Still in the Empire test site sandbox: Create an event destination."
+if [[ -n "$STRIPE_SHARED" ]]; then
+  step "In dev's sandbox (the one dev's keys are from): Create an event destination."
+  note "It gets a signing secret of its own; dev's \`stripe listen\` one is unchanged."
+else
+  step "Still in the Empire test site sandbox: Create an event destination."
+fi
 step "Events from: Your account. Payload: Snapshot, API version 2026-09-30.endive."
 step "Select these 5 events (search each name):"
 note "      payment_intent.succeeded"
@@ -275,7 +327,7 @@ note "      charge.dispute.created"
 step "Continue → Webhook endpoint → Continue. Endpoint URL:"
 note "      $APP/api/payments/webhook"
 step "Create it, then on its page Reveal the signing secret (whsec_…)."
-ask_secret STRIPE_WEBHOOK_SECRET "Paste the signing secret:"
+checked ask_secret STRIPE_WEBHOOK_SECRET "Paste the signing secret:" '^whsec_[A-Za-z0-9+/=]+$' "a whsec_ signing secret"
 write_env STRIPE_WEBHOOK_SECRET "$STRIPE_WEBHOOK_SECRET"
 note "Stripe can't reach it until the site is up; stage 10 checks a delivery."
 pause
@@ -284,6 +336,14 @@ pause
 stage "Google: a sign-in client for the test site"
 say "Continue with Google needs a client that knows the test site's address."
 open_url "https://console.cloud.google.com/apis/credentials"
+if confirm "Reuse dev's sign-in client (from packages/server/.env), adding the test address?" &&
+  reuse_dev GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET; then
+  step "Open dev's OAuth client (its ID starts ${GOOGLE_CLIENT_ID:0:12}…)."
+  step "Authorized redirect URIs → Add URI, keeping the localhost one:"
+  note "      $APP/api/auth/callback/google"
+  step "Save. (Google can take a few minutes to apply it.)"
+  SKIPPED+=("a Google sign-in client of the test site's own: it shares dev's")
+else
 step "Pick the same Google Cloud project dev's sign-in client is in."
 step "Create credentials → OAuth client ID → Application type: Web application."
 step "Name: Empire test site."
@@ -291,10 +351,11 @@ step "Authorized redirect URIs → Add URI:"
 note "      $APP/api/auth/callback/google"
 step "Create. Copy the Client ID and Client secret from the dialog now:"
 note "      Google may not show the secret again once the dialog closes."
-ask GOOGLE_CLIENT_ID "Paste the client ID:"
-ask_secret GOOGLE_CLIENT_SECRET "Paste the client secret:"
+checked ask GOOGLE_CLIENT_ID "Paste the client ID:" '^[0-9]+-[a-z0-9]+\.apps\.googleusercontent\.com$' "a …apps.googleusercontent.com client ID"
+checked ask_secret GOOGLE_CLIENT_SECRET "Paste the client secret:" '^GOCSPX-[A-Za-z0-9_-]+$' "a GOCSPX- client secret"
 write_env GOOGLE_CLIENT_ID "$GOOGLE_CLIENT_ID"
 write_env GOOGLE_CLIENT_SECRET "$GOOGLE_CLIENT_SECRET"
+fi
 note "If the consent screen's audience is still 'Testing', only its listed test"
 note "users can sign in with Google; emailed sign-in links work for anyone."
 pause
@@ -306,11 +367,16 @@ say "account dev uses now (the one with the domain verified)."
 open_url "https://resend.com/domains"
 step "Check empirecleaningandpro.com shows Verified. (If not, stop here: #63.)"
 pause "Verified? Press Enter"
+if confirm "Reuse dev's API key (from packages/server/.env)?" &&
+  reuse_dev RESEND_API_KEY; then
+  SKIPPED+=("a Resend API key of the test site's own: it shares dev's")
+else
 open_url "https://resend.com/api-keys"
 step "Create API key → Name: Empire test site → Permission: Sending access,"
 step "Domain: empirecleaningandpro.com → Add. Copy the key (re_…): it's shown once."
-ask_secret RESEND_API_KEY "Paste the API key:"
+checked ask_secret RESEND_API_KEY "Paste the API key:" '^re_[A-Za-z0-9_]+$' "an re_ API key"
 write_env RESEND_API_KEY "$RESEND_API_KEY"
+fi
 pause
 
 # ── 6 ─────────────────────────────────────────────────────────────────────
@@ -381,7 +447,7 @@ say "The Reset test data Action connects to the database from GitHub."
 open_url "https://dashboard.render.com/"
 step "Open empire-test-db → Connect (top right) → External."
 step "Copy the External Database URL (postgresql://…)."
-ask_secret TEST_DB_URL "Paste the external database URL:"
+checked ask_secret TEST_DB_URL "Paste the external database URL:" '^postgres(ql)?://[^[:space:]]+$' "a postgresql:// URL"
 # Render requires TLS from outside, which the pg driver asks for this way
 TEST_DB_URL="${TEST_DB_URL%%\?*}?sslmode=require"
 write_env TEST_DB_URL "$TEST_DB_URL"
