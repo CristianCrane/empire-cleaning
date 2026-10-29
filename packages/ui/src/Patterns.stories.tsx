@@ -629,10 +629,10 @@ function AllAtOnceInTwoColumns() {
           A record read as a whole, every part as important as the others (a
           Job: what it is, who's on it, its money and what happened), shows in
           one view without scrolling: what to do in Notices on top, then two
-          columns, the record and its people on the left, its money and history
-          on the right, the history as a Timeline. One column on a phone. A
-          record read as steps, where what's next matters most (a Quote), is its
-          story instead.
+          columns, the record and its people and its money on the left, its
+          history on the right as a Timeline, with room to grow. One column on a
+          phone. A record read as steps, where what's next matters most (a
+          Quote), is its story instead.
         </p>
       </Rule>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_14rem]">
@@ -651,13 +651,13 @@ function AllAtOnceInTwoColumns() {
               />
             </List>
           </Section>
-        </div>
-        <div className="flex flex-col gap-4">
           <Section title="Money">
             <Card>
               <p>Total $194.89 · Paid $48.72</p>
             </Card>
           </Section>
+        </div>
+        <div className="flex flex-col gap-4">
           <Section title="History">
             <Timeline aria-label="History, newest first">
               <TimelineItem

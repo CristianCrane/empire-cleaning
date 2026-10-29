@@ -88,10 +88,10 @@ const cleaners = (n: number, more?: "more") =>
 
 /**
  * A Job for the Office, all of it in one view: what there is to do in
- * Notices on top, then two columns, the Job and who's on it on the left,
- * its money and story on the right. Office Staff Offer its places and take
- * people off, move or cancel it, and once it's Completed, review and correct
- * the completion.
+ * Notices on top, then two columns, the Job, who's on it and its money on
+ * the left, its story on the right, where it has room to grow. Office Staff
+ * Offer its places and take people off, move or cancel it, and once it's
+ * Completed, review and correct the completion.
  */
 export function JobScreen() {
   const job = useLoaderData({ from: "/office/jobs/$jobId" });
@@ -118,8 +118,6 @@ export function JobScreen() {
           </Section>
           <Crew job={job} />
           {job.completion && <Adjustments job={job} />}
-        </div>
-        <div className="flex flex-col gap-6">
           {(job.completion || lost) && (
             <Section title="Money">
               <Card>
@@ -131,6 +129,8 @@ export function JobScreen() {
               </Card>
             </Section>
           )}
+        </div>
+        <div className="flex flex-col gap-6">
           <JobHistory job={job} />
         </div>
       </div>
