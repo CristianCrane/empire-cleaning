@@ -21,6 +21,7 @@ import {
   clientQuote,
   clientQuoteView,
   declineQuote,
+  discardDraft,
   offerServicePlan,
   officeQuote,
   saveDraft,
@@ -194,6 +195,18 @@ router.patch(
   validate({ ...byId, body: draftSchema }),
   async (req, res) => {
     res.json(await saveDraft(String(req.params.id), req.body));
+  },
+);
+
+// deletes the Draft Revision: see discardDraft for what's left of the Quote
+router.delete(
+  "/:id/draft",
+  authorize("office_staff"),
+  validate(byId),
+  async (req, res) => {
+    const quote = await discardDraft(String(req.params.id));
+    if (quote) res.json(quote);
+    else res.status(204).end();
   },
 );
 

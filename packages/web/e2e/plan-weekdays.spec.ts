@@ -8,6 +8,8 @@ import {
   requestQuoteForPremises,
   signedInAs,
   test,
+  draftTheQuote,
+  recordFindingsWithoutVisit,
 } from "./harness.ts";
 
 const olive = {
@@ -71,7 +73,7 @@ test(
     const { job } = await completedFirstClean(olive.email);
     await page.goto(`/office/jobs/${job.id}`);
     await page.getByRole("button", { name: "Quote a Service Plan" }).click();
-    await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
+    await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}\/draft$/);
 
     // Mondays at 9am
     await startOn(
@@ -108,7 +110,9 @@ test(
 
     await page.getByRole("button", { name: `Send to ${casey.name}` }).click();
     await expect(page.getByText(`Quote sent to ${casey.email}`)).toBeVisible();
-    await expect(page.getByRole("region", { name: "Offer" })).toContainText(
+    await expect(
+      page.getByRole("region", { name: "Current Quote" }),
+    ).toContainText(
       "Every week, on Mondays at 9:00 AM and Wednesdays at 1:00 PM",
     );
     await expect(
@@ -119,8 +123,9 @@ test(
         name: "Wednesdays at 1:00 PM: Standard Clean",
       }),
     ).toContainText("Time on site, with a crew of 1");
+    // the Current Quote ends with the plan's Deposit
     const deposit = (await page
-      .getByRole("region", { name: "Each week" })
+      .getByRole("region", { name: "Current Quote" })
       .getByRole("definition")
       .last()
       .textContent())!;
@@ -184,7 +189,7 @@ test(
   },
 );
 
-test("business premises can be offered a Service Plan with no First Clean, Sent once a Site Visit has recorded its findings", async ({
+test("business premises can be offered a Service Plan with no First Clean, once their findings are recorded", async ({
   page,
 }) => {
   await requestQuoteForPremises(casey, "Acme Dental");
@@ -192,16 +197,17 @@ test("business premises can be offered a Service Plan with no First Clean, Sent 
   await signedInAs(page, olive.email);
   await page.goto("/office/quotes");
   await page.getByText("Acme Dental").click();
+  // seen first: there's nothing to draft until they are
+  await expect(
+    page.getByRole("button", { name: "Draft the Quote" }),
+  ).toHaveCount(0);
 
-  await page
-    .getByRole("button", { name: "Draft a Service Plan Quote" })
-    .click();
-  await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
+  await recordFindingsWithoutVisit(page);
+  await draftTheQuote(page, "Service Plan");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "Service Plan Quote for Acme Dental (Casey Client)",
+    "Revision 1 for Acme Dental (Casey Client)",
   );
   await expect(
     page.getByText("These premises haven't had a Site Visit"),
-  ).toBeVisible();
-  await expect(page.getByRole("button", { name: /^Send to/ })).toBeDisabled();
+  ).toHaveCount(0);
 });

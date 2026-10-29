@@ -8,6 +8,8 @@ import {
   requestQuoteForPremises,
   signedInAs,
   test,
+  draftTheQuote,
+  recordFindingsWithoutVisit,
 } from "./harness.ts";
 
 const olive = {
@@ -53,8 +55,12 @@ const giveDetails = async (page: Page) => {
   await page.getByRole("textbox", { name: "Phone" }).fill("(718) 555-0111");
 };
 
+// React Aria's hidden live announcer is left out: a button pending as it
+// navigates away leaves its announcement pointing at a label that's gone
 const expectNoViolations = async (page: Page) => {
-  const { violations } = await new AxeBuilder({ page }).analyze();
+  const { violations } = await new AxeBuilder({ page })
+    .exclude("[data-live-announcer]")
+    .analyze();
   expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
 };
 
@@ -132,16 +138,22 @@ test(
       page.getByText("Monday, Wednesday and Friday at 6:00 PM"),
     ).toBeVisible();
     await expect(page.getByText("Not recorded yet")).toBeVisible();
+    await expectNoViolations(page);
+
+    // priced once they're known, on the Draft: the placeholder Price List
+    // has 4,500 sq ft at 0.5 h per 1,000 as 2.25 h, at $55 an hour $124,
+    // plus 8.875% tax
+    await recordFindingsWithoutVisit(page);
+    await draftTheQuote(page, "one-off");
+    const price = page.getByRole("region", { name: "Commercial cleaning" });
+    await expect(price).toContainText("$135.01");
+    await price.getByText("How it's worked out").click();
     await expect(
-      page.getByText("No Condition is recorded yet", { exact: false }),
+      price.getByText("Office: 4,500 sq ft ÷ 1,000 × 0.5 h"),
     ).toBeVisible();
-    // the placeholder Price List: 4,500 sq ft at 0.5 h per 1,000 is 2.25 h,
-    // at $55 an hour is $124, plus 8.875% tax
-    await expect(
-      page.getByText("Office: 4,500 sq ft ÷ 1,000 × 0.5 h").first(),
-    ).toBeVisible();
-    await expect(page.getByText("The premises").first()).toBeVisible();
-    await expect(page.getByText("$135.01")).toBeVisible();
+    await expect(price.getByText("The premises")).toBeVisible();
+    // checked once settled: a pending button's spinner has no label yet
+    await expect(page.getByText("All changes saved")).toBeVisible();
     await expectNoViolations(page);
 
     await page.getByRole("link", { name: "View Property" }).click();
@@ -209,10 +221,9 @@ test("Office Staff quote a business caller from New Quote", async ({
   await page.getByRole("textbox", { name: "Full name" }).fill("Pat Phoner");
   await page.getByRole("textbox", { name: "Phone" }).fill("(718) 555-0123");
   await page.getByRole("button", { name: "Draft a Quote" }).click();
-
-  await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
+  await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}\/draft$/);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "Quote for Phoner & Co (Pat Phoner)",
+    "Revision 1 for Phoner & Co (Pat Phoner)",
   );
   await expect(
     page.getByText("Retail · floor area not known yet", { exact: false }),

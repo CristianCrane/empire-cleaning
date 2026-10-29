@@ -110,9 +110,10 @@ export function NewQuoteScreen() {
                 "same-origin",
               )
             }
+            // a caller's Quote starts as a Draft: on to writing it
             onSubmitted={({ quoteId }) =>
               void navigate({
-                to: "/office/quotes/$quoteId",
+                to: "/office/quotes/$quoteId/draft",
                 params: { quoteId },
               })
             }

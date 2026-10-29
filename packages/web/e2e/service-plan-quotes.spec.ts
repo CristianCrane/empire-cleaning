@@ -9,6 +9,7 @@ import {
   signedInAs,
   test,
   serviceKey,
+  draftTheQuote,
 } from "./harness.ts";
 
 const olive = {
@@ -32,9 +33,9 @@ const firstCleanDone = async (page: Page) => {
 
 // the Draft opened, from wherever it was started
 const atPlanDraft = async (page: Page) => {
-  await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
+  await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}\/draft$/);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    `Service Plan Quote for ${casey.name}`,
+    /^Revision \d+ for Casey Client$/,
   );
 };
 
@@ -127,12 +128,12 @@ test(
     await page.getByRole("button", { name: "Quote a Service Plan" }).click();
     await atPlanDraft(page);
 
-    // beside it, what the First Clean found
-    const firstClean = page.getByRole("region", { name: "First Clean" });
-    await expect(firstClean).toContainText(
-      "Its Cleaner found the home moderate",
-    );
-    await expect(firstClean).toContainText("No Adjustments");
+    // above it, what the First Clean found, folded away until it's wanted
+    await page.getByText("First Clean: the home was moderate").click();
+    await expect(
+      page.getByText("Its Cleaner found the home moderate"),
+    ).toBeVisible();
+    await expect(page.getByText("No Adjustments.")).toBeVisible();
 
     // a Standard Clean every 2 weeks at moderate Condition and 10% off, to
     // start with: $206 with tax is $224.28 as a one-off, and $185.40 with
@@ -181,12 +182,13 @@ test(
     await expect(offer).toContainText("$231.36");
     await expect(offer).toContainText("$272.19");
     await expect(offer).toContainText("Overridden to $250.00 before tax");
-    await expect(page.getByRole("region", { name: "Offer" })).toContainText(
-      "Mon, Jan 19, 9:00 AM",
-    );
-    // Casey hasn't been asked to accept by phone, but could be
     await expect(
-      page.getByRole("region", { name: "Record acceptance" }),
+      page.getByRole("region", { name: "Current Quote" }),
+    ).toContainText("Mon, Jan 19, 9:00 AM");
+    // Casey hasn't been asked to accept by phone, but could be: their card
+    // is saved from the First Clean
+    await expect(
+      page.getByRole("button", { name: "Record acceptance" }),
     ).toBeVisible();
     // offered unprompted: it belongs to the home, not a request
     await page
@@ -240,9 +242,9 @@ test("a Service Plan of Deep Cleans", async ({ page, browser }) => {
   await startOn19th(page);
   await page.getByRole("button", { name: `Send to ${casey.name}` }).click();
   await expect(page.getByText(`Quote sent to ${casey.email}`)).toBeVisible();
-  await expect(page.getByRole("region", { name: "Offer" })).toContainText(
-    "Every 2 weeks, on Mondays at 9:00 AM",
-  );
+  await expect(
+    page.getByRole("region", { name: "Current Quote" }),
+  ).toContainText("Every 2 weeks, on Mondays at 9:00 AM");
 
   const client = await (await browser.newContext()).newPage();
   await signedInAs(client, casey.email);
@@ -313,18 +315,19 @@ test("a request for a home whose First Clean is done can be answered with either
 
   await page.goto(`/office/quotes/${asked}`);
 
+  // asked which kind
+  await page.getByRole("button", { name: "Draft the Quote" }).click();
   await expect(
-    page.getByRole("button", { name: "Draft a one-off Quote" }),
+    page.getByRole("dialog").getByRole("button", { name: "A one-off Quote" }),
   ).toBeVisible();
   await page
-    .getByRole("button", { name: "Draft a Service Plan Quote" })
+    .getByRole("dialog")
+    .getByRole("button", { name: "A Service Plan Quote" })
     .click();
   await atPlanDraft(page);
-  // the same Quote, with what was asked beside its Draft
-  await expect(page).toHaveURL(new RegExp(`/office/quotes/${asked}$`));
-  await expect(
-    page.getByRole("region", { name: "What was asked" }),
-  ).toContainText("Wanted after the first clean");
+  // the same Quote's Draft, with what was asked above it
+  await expect(page).toHaveURL(new RegExp(`/office/quotes/${asked}/draft$`));
+  await expect(page.getByText("Wanted after the first clean")).toBeVisible();
 });
 
 test("a Service Plan Quote and the Client's view of it pass an accessibility check", async ({
@@ -343,7 +346,9 @@ test("a Service Plan Quote and the Client's view of it pass an accessibility che
   await page.getByRole("button", { name: `Send to ${casey.name}` }).click();
   await expect(page.getByText(`Quote sent to ${casey.email}`)).toBeVisible();
   await page.reload();
-  await expect(page.getByRole("region", { name: "Offer" })).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Current Quote" }),
+  ).toBeVisible();
   ({ violations } = await new AxeBuilder({ page }).analyze());
   expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
 
@@ -434,12 +439,11 @@ test("a home whose First Clean isn't Completed is answered with a one-off Quote"
 
   await page.goto(`/office/quotes/${id}`);
 
-  await expect(
-    page.getByRole("button", { name: "Draft a Quote" }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Draft a Service Plan Quote" }),
-  ).toHaveCount(0);
+  // a one-off, without asking which
+  await draftTheQuote(page);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    /^Revision 1 for /,
+  );
 });
 
 test("picking a plan's start from the Schedule marks the days it repeats on", async ({
@@ -450,7 +454,7 @@ test("picking a plan's start from the Schedule marks the days it repeats on", as
   await saved(page);
 
   await page
-    .getByRole("region", { name: "Time and crew" })
+    .getByRole("region", { name: "Mondays" })
     .getByRole("button", { name: "Pick from the Schedule" })
     .click();
   const schedule = page.getByRole("dialog", {

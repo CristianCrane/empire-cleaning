@@ -58,7 +58,7 @@ test(
     await page.goto(`/office/service-plans/${planId}`);
 
     await page.getByRole("button", { name: "Change terms" }).click();
-    await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
+    await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}\/draft$/);
     await expect(
       page.getByText("This changes Casey Client's", { exact: false }),
     ).toBeVisible();

@@ -2,13 +2,18 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import type { ReactNode } from "react";
 import {
   Building2,
+  CalendarCheck,
   CalendarX,
   CalendarDays,
   CircleDollarSign,
   House,
   ClipboardPenLine,
+  FileClock,
+  Mail,
+  MessageSquareText,
   Pencil,
   Repeat,
+  Send,
   Store,
   UserX,
 } from "lucide-react";
@@ -22,6 +27,7 @@ import { Heading } from "./Heading.tsx";
 import { IconTile } from "./IconTile.tsx";
 import { ButtonLink } from "./Link.tsx";
 import { List, ListItem } from "./List.tsx";
+import { Notice } from "./Notice.tsx";
 import { Radio, RadioGroup } from "./RadioGroup.tsx";
 import { Section } from "./Section.tsx";
 import { Segment, SegmentedControl } from "./SegmentedControl.tsx";
@@ -29,6 +35,7 @@ import { StatusBadge, type StatusTone } from "./StatusBadge.tsx";
 import { Cell, Column, Row, Table, TableBody, TableHeader } from "./Table.tsx";
 import { Tab, TabList, TabPanel, Tabs } from "./Tabs.tsx";
 import { TextField } from "./TextField.tsx";
+import { Timeline, TimelineItem } from "./Timeline.tsx";
 
 // how the components go together on a screen: the decisions the UX pass
 // made, each picked from a prototype. #96 has the variants, why each won,
@@ -406,6 +413,142 @@ function QuietForms() {
   );
 }
 
+function RecordsAsStories() {
+  return (
+    <div className="flex flex-col gap-6">
+      <Rule title="A record that moves through steps is its story, Now on top">
+        <p>
+          A page for something with a lifecycle, like a Quote, is a{" "}
+          <code>Timeline</code>, newest first. Above it, what there is to do, in
+          Notices. On top of it, <strong>Now</strong> holds the record as it
+          stands, in one Card (the Current Quote). Below, each thing that
+          happened to it, dated, with its details folded away until they're
+          wanted. Work in progress isn't part of the story: a Draft is written
+          on a page of its own, one Card ruled off into parts, and the Quote
+          page only says it's there.
+        </p>
+      </Rule>
+      <div className="flex flex-col gap-4 lg:flex-row">
+        <Example verdict="Do">
+          <div className="flex flex-col gap-4">
+            <Notice
+              action={
+                <Button variant="text" size="sm">
+                  <Mail aria-hidden size={16} />
+                  Email Max a link
+                </Button>
+              }
+            >
+              <strong>Waiting for Max to accept.</strong> He needs a card saved
+              first.
+            </Notice>
+            <Timeline aria-label="A Quote's story, newest first">
+              <TimelineItem icon={FileClock} title="Now" current>
+                <Card>
+                  <p>Current Quote: Standard Clean, $194.89</p>
+                </Card>
+              </TimelineItem>
+              <TimelineItem
+                icon={Send}
+                title="Revision 1 sent"
+                when="Oct 3"
+                description="$194.89 · for Tue, Oct 13, 9:00 AM"
+              />
+              <TimelineItem
+                icon={CalendarCheck}
+                title="Site Visit done"
+                when="Oct 2"
+              />
+              <TimelineItem
+                icon={MessageSquareText}
+                title="Max asked for a Quote"
+                when="Oct 1"
+              />
+            </Timeline>
+          </div>
+        </Example>
+        <Example verdict="Don't">
+          <div className="flex flex-col gap-4">
+            <Card title="What was asked">
+              <p>Oct 1 · Standard Clean · Moderate</p>
+            </Card>
+            <Card title="Offer">
+              <p>Sent Oct 3 · Expires Oct 8</p>
+            </Card>
+            <Card title="Deposit">
+              <p>$48.72</p>
+            </Card>
+            <Button variant="secondary" className="self-end">
+              Draft a new Revision
+            </Button>
+          </div>
+        </Example>
+      </div>
+    </div>
+  );
+}
+
+function NoticesHoldOneAction() {
+  return (
+    <div className="flex flex-col gap-6">
+      <Rule title="A Notice holds one action, as text, on its right">
+        <p>
+          A Notice is passing news, never the page's main action, so its action
+          is a <code>text</code> Button (<code>danger-text</code> to remove
+          something), on the right of its text. One action per Notice: two
+          things to say or do are two Notices, and an action that doesn't fit
+          one belongs where it acts (Draft a new Revision on the Current Quote,
+          Delete the Draft in the Draft's header).
+        </p>
+        <p>
+          A page has at most one primary Button: once there are two, neither is
+          primary.
+        </p>
+      </Rule>
+      <div className="flex flex-col gap-4 lg:flex-row">
+        <Example verdict="Do">
+          <div className="flex flex-col gap-3">
+            <Notice
+              action={
+                <Button variant="text" size="sm">
+                  <Pencil aria-hidden size={16} />
+                  Continue the Draft
+                </Button>
+              }
+            >
+              <strong>Revision 2 is a Draft, not sent yet.</strong>
+            </Notice>
+            <Notice
+              action={
+                <Button variant="text" size="sm">
+                  <Mail aria-hidden size={16} />
+                  Email Kim a link
+                </Button>
+              }
+            >
+              <strong>Waiting for Kim to accept Revision 1.</strong> She needs a
+              card saved first.
+            </Notice>
+          </div>
+        </Example>
+        <Example verdict="Don't">
+          <Notice>
+            <p>
+              <strong>Revision 2 is a Draft.</strong> Kim needs a card saved to
+              accept Revision 1.
+            </p>
+            <div className="flex gap-2 pt-2">
+              <Button>Continue the Draft</Button>
+              <Button>Email Kim a link</Button>
+              <Button variant="danger-text">Delete the Draft</Button>
+            </div>
+          </Notice>
+        </Example>
+      </div>
+    </div>
+  );
+}
+
 const meta = {
   title: "Patterns",
   parameters: { layout: "padded" },
@@ -563,4 +706,14 @@ export const ClickableCatchesTheEyeStory: Story = {
 export const StatusColoursStory: Story = {
   name: "Status colours",
   render: () => <StatusColours />,
+};
+
+export const RecordsAsStoriesStory: Story = {
+  name: "Records as stories",
+  render: () => <RecordsAsStories />,
+};
+
+export const NoticesHoldOneActionStory: Story = {
+  name: "Notices hold one action",
+  render: () => <NoticesHoldOneAction />,
 };

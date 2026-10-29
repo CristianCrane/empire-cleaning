@@ -10,6 +10,7 @@ import {
   requestQuoteForPremises,
   signedInAs,
   test,
+  draftTheQuote,
 } from "./harness.ts";
 
 const olive = {
@@ -59,8 +60,7 @@ test(
     await page.getByRole("textbox", { name: "Phone" }).fill("(718) 555-0123");
     await expectNoViolations(page);
     await page.getByRole("button", { name: "Draft a Quote" }).click();
-
-    await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
+    await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}\/draft$/);
     const quote = page.url();
     await expect(
       page.getByText(
@@ -119,10 +119,9 @@ test(
     await describeNewHome(page);
     await nextStep(page);
     await page.getByRole("button", { name: "Draft a Quote" }).click();
-
-    await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
+    await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}\/draft$/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-      "Quote for Casey Client",
+      "Revision 1 for Casey Client",
     );
     await expect(
       page

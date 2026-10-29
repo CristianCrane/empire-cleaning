@@ -49,6 +49,28 @@ export function OptionCard({
         )
       }
     >
+      <OptionFigures
+        option={option}
+        crewSize={crewSize}
+        depositPercent={depositPercent}
+      />
+      {children}
+    </Card>
+  );
+}
+
+// a one-off clean's price, its hours and its Deposit
+export function OptionFigures({
+  option,
+  crewSize,
+  depositPercent,
+}: {
+  option: QuoteOption;
+  crewSize: number;
+  depositPercent: number;
+}) {
+  return (
+    <>
       <div className="flex flex-col gap-1">
         <p className="font-display text-4xl font-bold tracking-wide">
           {formatMoney(option.totalCents)}
@@ -73,8 +95,7 @@ export function OptionCard({
           {formatMoney(option.depositCents)}
         </dd>
       </dl>
-      {children}
-    </Card>
+    </>
   );
 }
 

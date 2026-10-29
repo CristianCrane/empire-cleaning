@@ -738,3 +738,56 @@ describe("Needs attention", () => {
     ]);
   });
 });
+
+describe("deleting a Draft", () => {
+  test("of a Sent Quote drops only the Draft: the offer stands", async () => {
+    const quoteId = await asked();
+    const office = await signInAsOffice();
+    await sentQuote(office, quoteId);
+    await startDraft(office, quoteId);
+
+    const after = (
+      await office.delete(`/api/quotes/${quoteId}/draft`).expect(200)
+    ).body as OfficeQuote;
+
+    expect(after).toMatchObject({
+      status: "sent",
+      draft: null,
+      offer: { number: 1 },
+    });
+    // a new one starts from the offer again, numbered as the next
+    expect((await startDraft(office, quoteId)).draft!.number).toBe(2);
+  });
+
+  test("of a Quote asked for with nothing sent takes it back to Requested", async () => {
+    const quoteId = await asked();
+    const office = await signInAsOffice();
+    await startDraft(office, quoteId);
+
+    const after = (
+      await office.delete(`/api/quotes/${quoteId}/draft`).expect(200)
+    ).body as OfficeQuote;
+
+    expect(after).toMatchObject({
+      status: "requested",
+      kind: null,
+      draft: null,
+      offer: null,
+      service: { key: SEEDED.standard },
+    });
+    expect(after.asked).not.toBeNull();
+    // and it can be drafted afresh
+    expect((await startDraft(office, quoteId)).draft!.number).toBe(1);
+  });
+
+  test("is refused when there's no Draft, and for anyone but Office Staff", async () => {
+    const quoteId = await asked();
+    const office = await signInAsOffice();
+    await office.delete(`/api/quotes/${quoteId}/draft`).expect(409);
+
+    await startDraft(office, quoteId);
+    const client = await signIn(casey.email);
+    await client.delete(`/api/quotes/${quoteId}/draft`).expect(403);
+    await api().delete(`/api/quotes/${quoteId}/draft`).expect(401);
+  });
+});

@@ -60,7 +60,10 @@ import {
   ServiceScreen,
   ServicesScreen,
 } from "./screens/office/ServicesScreen.tsx";
-import { QuoteScreen } from "./screens/office/QuoteScreen.tsx";
+import {
+  QuoteDraftScreen,
+  QuoteScreen,
+} from "./screens/office/QuoteScreen.tsx";
 import {
   QuotesScreen,
   quoteListStatuses,
@@ -298,6 +301,27 @@ const officeQuoteRoute = createRoute({
   path: "/quotes/$quoteId",
   loader: ({ params }) => getJson<OfficeQuote>(`/api/quotes/${params.quoteId}`),
   component: QuoteScreen,
+});
+
+// building a Revision; with none being written, it's the Quote's page
+const officeQuoteDraftRoute = createRoute({
+  getParentRoute: () => officeRoute,
+  path: "/quotes/$quoteId/draft",
+  // never shown from the cache: the form starts from what it's first given,
+  // so a cached visit (an earlier Revision, or before its last save) would
+  // stick
+  gcTime: 0,
+  loader: async ({ params }) => {
+    const quote = await getJson<OfficeQuote>(`/api/quotes/${params.quoteId}`);
+    if (!quote.draft) {
+      throw redirect({
+        to: "/office/quotes/$quoteId",
+        params: { quoteId: quote.id },
+      });
+    }
+    return quote;
+  },
+  component: QuoteDraftScreen,
 });
 
 const officePriceListRoute = createRoute({
@@ -636,6 +660,7 @@ const routeTree = rootRoute.addChildren([
     officeRequestRoute,
     officeNewQuoteRoute,
     officeQuoteRoute,
+    officeQuoteDraftRoute,
     officeClientsRoute,
     officeClientRoute,
     officePropertyRoute,
