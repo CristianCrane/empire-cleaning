@@ -1,6 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
 import { slot, slotOf, WORKERS } from "./e2e/slots.ts";
 
+// Keep headless Chromium off the WSLg display so it doesn't steal Windows focus
+delete process.env.DISPLAY;
+delete process.env.WAYLAND_DISPLAY;
+
 // the slot of the worker this runs in (e2e/slots.ts)
 export const { appUrl, apiUrl, controlUrl } = slot;
 

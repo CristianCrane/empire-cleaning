@@ -8,6 +8,10 @@ import { playwright } from "@vitest/browser-playwright";
 import { storybookTest } from "@storybook/addon-vitest/vitest-plugin";
 import viteConfig from "./vite.config.ts";
 
+// Keep headless Chromium off the WSLg display so it doesn't steal Windows focus
+delete process.env.DISPLAY;
+delete process.env.WAYLAND_DISPLAY;
+
 // every test runs in a real Chromium, never a simulated DOM. Vitest's default
 // frame is 414px wide, so everything is also exercised at phone width.
 const browser = (name: string) => ({
