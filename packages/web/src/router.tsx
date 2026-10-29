@@ -296,6 +296,10 @@ const officeNewQuoteRoute = createRoute({
 const officeQuoteRoute = createRoute({
   getParentRoute: () => officeRoute,
   path: "/quotes/$quoteId",
+  // PROTOTYPE: ?variant= picks a page layout
+  validateSearch: (search: Record<string, unknown>): { variant?: string } => ({
+    variant: typeof search.variant === "string" ? search.variant : undefined,
+  }),
   loader: ({ params }) => getJson<OfficeQuote>(`/api/quotes/${params.quoteId}`),
   component: QuoteScreen,
 });

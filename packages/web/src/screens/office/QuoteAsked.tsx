@@ -44,7 +44,7 @@ import {
 // Revision: the ask itself, its Site Visit, the Suggested Price, drafting,
 // and Turning it Down (ADR-0017)
 
-const propertyLink = (quote: OfficeQuote) =>
+export const propertyLink = (quote: OfficeQuote) =>
   linkTo({
     to: "/office/properties/$propertyId",
     params: { propertyId: quote.property.id },
@@ -53,6 +53,19 @@ const propertyLink = (quote: OfficeQuote) =>
 // what the Client (or a caller) asked for, unchanged; none on a Quote the
 // Office offered unprompted
 export function AskedCard({ quote }: { quote: OfficeQuote }) {
+  if (!quote.asked) return null;
+  return (
+    <Card
+      title="What was asked"
+      actions={<Link href={propertyLink(quote)}>View Property</Link>}
+    >
+      <AskedFacts quote={quote} />
+    </Card>
+  );
+}
+
+// PROTOTYPE: the ask's facts on their own, for the layouts to place
+export function AskedFacts({ quote }: { quote: OfficeQuote }) {
   const { asked, property } = quote;
   if (!asked) return null;
   const stated = asked.condition;
@@ -61,10 +74,7 @@ export function AskedCard({ quote }: { quote: OfficeQuote }) {
   const premises = property.kind === "commercial";
 
   return (
-    <Card
-      title="What was asked"
-      actions={<Link href={propertyLink(quote)}>View Property</Link>}
-    >
+    <>
       <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
         <dt className="font-semibold">Asked</dt>
         <dd>
@@ -117,7 +127,7 @@ export function AskedCard({ quote }: { quote: OfficeQuote }) {
           </>
         )}
       </dl>
-    </Card>
+    </>
   );
 }
 

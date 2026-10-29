@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { useLoaderData, useRouter } from "@tanstack/react-router";
+import { useLoaderData, useRouter, useSearch } from "@tanstack/react-router";
 import {
   parseDate,
   parseTime,
@@ -89,17 +89,18 @@ import {
   turnDownLabel,
 } from "./QuoteAsked.tsx";
 import { PickFromSchedule } from "./SchedulePicker.tsx";
+import { QuotePrototype } from "./quote-page.prototype.tsx";
 
 // The Quote with one of its Revisions in hand: the one being drafted, or
 // else the offer, so it's edited while there's a Draft Revision and
 // read-only otherwise
-type ShownQuote = Omit<OfficeQuote, "draft" | "offer"> &
+export type ShownQuote = Omit<OfficeQuote, "draft" | "offer"> &
   Omit<OfficeRevision, "id" | "number" | "status"> & {
     // the Revision shown
     revision: number;
   };
 
-const shownOf = (quote: OfficeQuote): ShownQuote => {
+export const shownOf = (quote: OfficeQuote): ShownQuote => {
   const { draft, offer, ...rest } = quote;
   const { id: _id, number, status: _status, ...fields } = (draft ?? offer)!;
   return { ...rest, ...fields, revision: number };
@@ -107,7 +108,7 @@ const shownOf = (quote: OfficeQuote): ShownQuote => {
 
 // a one-off Quote's options as cards, or a Service Plan Quote's weekdays,
 // with their Deposit and, on several, a week's total
-function OfferCards({
+export function OfferCards({
   quote,
   children,
 }: {
@@ -164,6 +165,9 @@ function OfferCards({
  */
 export function QuoteScreen() {
   const quote = useLoaderData({ from: "/office/quotes/$quoteId" });
+  // PROTOTYPE: ?variant= swaps in a page layout
+  const { variant } = useSearch({ from: "/office/quotes/$quoteId" });
+  if (variant && variant !== "A") return <QuotePrototype />;
   const kind = quote.kind === "service_plan" ? "Service Plan Quote" : "Quote";
   const shown = quote.draft || quote.offer ? shownOf(quote) : null;
   const revising = quote.draft !== null && quote.offer !== null;
@@ -239,11 +243,11 @@ export function QuoteScreen() {
 }
 
 // nothing of it Sent yet, so it may still be Turned Down
-const unsent = (quote: OfficeQuote) =>
+export const unsent = (quote: OfficeQuote) =>
   quote.status === "requested" || quote.status === "draft";
 
 // every Sent Revision, newest first: the offer, then those it replaced
-function RevisionHistory({ quote }: { quote: OfficeQuote }) {
+export function RevisionHistory({ quote }: { quote: OfficeQuote }) {
   if (quote.revisions.length === 0) return null;
   return (
     <Section title="Revisions">
@@ -267,7 +271,7 @@ function RevisionHistory({ quote }: { quote: OfficeQuote }) {
 }
 
 // what accepting a Quote for a home with a plan does to that plan
-function PlanChangeNotice({
+export function PlanChangeNotice({
   quote,
   change,
 }: {
@@ -403,7 +407,7 @@ function SentQuote({ quote }: { quote: ShownQuote }) {
 }
 
 // starts a new Revision of a Sent or Expired Quote, from the offer's terms
-function NewRevision({ quote }: { quote: ShownQuote }) {
+export function NewRevision({ quote }: { quote: ShownQuote }) {
   const action = useAction(
     "The new Revision couldn't be started. Please try again.",
   );
@@ -432,7 +436,7 @@ function NewRevision({ quote }: { quote: ShownQuote }) {
 // card details, so without one they email the Client a link to add it. While
 // a new Revision is `drafting`, it's the offer standing that is accepted,
 // and accepting it discards the Draft.
-function RecordAcceptance({
+export function RecordAcceptance({
   quote,
   drafting,
 }: {
@@ -623,7 +627,7 @@ function RecordAcceptance({
 }
 
 // the Suggested Price, and the override that replaced it
-function PricedFrom({ option }: { option: OfficeQuoteOption }) {
+export function PricedFrom({ option }: { option: OfficeQuoteOption }) {
   if (option.overrideCents === null) {
     return (
       <p className="text-sm text-fg-muted">
@@ -1038,7 +1042,7 @@ function AreaField({
  * them in view wherever the change was made. On a Service Plan Quote, the
  * plan's Service is chosen from its price cards.
  */
-function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
+export function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
   const router = useRouter();
   const [quote, setQuote] = useState(loaded);
   const [fields, setFields] = useState(() => toFields(loaded));
@@ -1618,7 +1622,11 @@ function PlanDayFields({
 
 // What the home's First Clean found, to price the plan by: the Condition
 // its Cleaner reported, and any Adjustments
-function FirstCleanCard({ firstClean }: { firstClean: FirstCleanFindings }) {
+export function FirstCleanCard({
+  firstClean,
+}: {
+  firstClean: FirstCleanFindings;
+}) {
   const { job } = firstClean;
   return (
     <Card
