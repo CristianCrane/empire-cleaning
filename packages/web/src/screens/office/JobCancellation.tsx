@@ -42,6 +42,25 @@ export const describeTerms = (terms: CancellationTerms, onPlan = false) =>
 // policy) or because Empire Cleaning can't do it (always refunded in full).
 // A plan Job is skipped, and the plan carries on.
 export function CancelJob({ job }: { job: OfficeJob }) {
+  return (
+    <Card
+      title="Cancelling"
+      description={`The Client can cancel for free until ${formatDateTime(job.cancelTerms!.client.freeUntil)}.`}
+    >
+      <Actions>
+        <CancelJobDialog job={job} />
+      </Actions>
+    </Card>
+  );
+}
+
+export function CancelJobDialog({
+  job,
+  variant = "secondary",
+}: {
+  job: OfficeJob;
+  variant?: "secondary" | "danger-text";
+}) {
   const terms = job.cancelTerms!;
   const onPlan = job.servicePlanId !== null;
   const router = useRouter();
@@ -65,68 +84,61 @@ export function CancelJob({ job }: { job: OfficeJob }) {
   };
 
   return (
-    <Card
-      title="Cancelling"
-      description={`The Client can cancel for free until ${formatDateTime(terms.client.freeUntil)}.`}
-    >
-      <Actions>
-        <DialogTrigger>
-          <Button variant="secondary">Cancel Job</Button>
-          <Dialog title="Cancel this Job?" role="alertdialog">
-            {({ close }) => (
-              <>
-                <RadioGroup
-                  label="Who's cancelling?"
-                  value={by}
-                  onChange={(value) => setBy(value as CancelledBy)}
-                >
-                  <Radio
-                    value="client"
-                    description={describeTerms(terms.client, onPlan)}
-                  >
-                    The Client asked
-                  </Radio>
-                  <Radio
-                    value="empire"
-                    description={describeTerms(terms.empire, onPlan)}
-                  >
-                    Empire Cleaning can't do it
-                  </Radio>
-                </RadioGroup>
-                {by === "empire" && (
-                  <TextField
-                    label="Why? (told to the Client)"
-                    value={reason}
-                    onChange={setReason}
-                    multiline
-                  />
-                )}
-                <p className="text-sm text-fg-muted">
-                  It comes off the Schedule.
-                  {onPlan && " The Service Plan carries on."} The Client and
-                  everyone with a place on it are emailed.
-                </p>
-                {action.problem && (
-                  <Notice tone="danger">{action.problem}</Notice>
-                )}
-                <Actions>
-                  <Button variant="secondary" onPress={close}>
-                    Keep it
-                  </Button>
-                  <Button
-                    variant="danger"
-                    isPending={action.isPending}
-                    onPress={() => void cancel(close)}
-                  >
-                    Cancel Job
-                  </Button>
-                </Actions>
-              </>
+    <DialogTrigger>
+      <Button variant={variant} size={variant === "secondary" ? "md" : "sm"}>
+        Cancel Job
+      </Button>
+      <Dialog title="Cancel this Job?" role="alertdialog">
+        {({ close }) => (
+          <>
+            <RadioGroup
+              label="Who's cancelling?"
+              value={by}
+              onChange={(value) => setBy(value as CancelledBy)}
+            >
+              <Radio
+                value="client"
+                description={describeTerms(terms.client, onPlan)}
+              >
+                The Client asked
+              </Radio>
+              <Radio
+                value="empire"
+                description={describeTerms(terms.empire, onPlan)}
+              >
+                Empire Cleaning can't do it
+              </Radio>
+            </RadioGroup>
+            {by === "empire" && (
+              <TextField
+                label="Why? (told to the Client)"
+                value={reason}
+                onChange={setReason}
+                multiline
+              />
             )}
-          </Dialog>
-        </DialogTrigger>
-      </Actions>
-    </Card>
+            <p className="text-sm text-fg-muted">
+              It comes off the Schedule.
+              {onPlan && " The Service Plan carries on."} The Client and
+              everyone with a place on it are emailed.
+            </p>
+            {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+            <Actions>
+              <Button variant="secondary" onPress={close}>
+                Keep it
+              </Button>
+              <Button
+                variant="danger"
+                isPending={action.isPending}
+                onPress={() => void cancel(close)}
+              >
+                Cancel Job
+              </Button>
+            </Actions>
+          </>
+        )}
+      </Dialog>
+    </DialogTrigger>
   );
 }
 
@@ -134,7 +146,7 @@ const chargeLabel = { deposit: "Deposit", balance: "Balance", fee: "Fee" };
 
 // the money on a Job that didn't happen; a plan Job's fee is charged, and
 // can be retried if that failed
-function FeePayment({
+export function FeePayment({
   job,
   feeCents,
   payment,

@@ -166,10 +166,18 @@ function RoomAt({ room, job }: { room: DayCapacity; job: ScheduledJob }) {
 
 // Office Staff move a Job to a day and start time they choose: the Move
 // action, at any width, where dragging on the Schedule isn't to hand
-export function MoveJob({ job }: { job: ScheduledJob }) {
+export function MoveJob({
+  job,
+  variant = "secondary",
+}: {
+  job: ScheduledJob;
+  variant?: "secondary" | "text";
+}) {
   return (
     <DialogTrigger>
-      <Button variant="secondary">Move Job</Button>
+      <Button variant={variant} size={variant === "text" ? "sm" : "md"}>
+        Move Job
+      </Button>
       <Dialog title="Move this Job">
         {({ close }) => <ChooseTime job={job} close={close} />}
       </Dialog>

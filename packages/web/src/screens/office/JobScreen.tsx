@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { useLoaderData } from "@tanstack/react-router";
+import { useLoaderData, useSearch } from "@tanstack/react-router";
 import type {
   AssignmentState,
   AssignmentView,
@@ -36,6 +36,7 @@ import {
 import { CancelJob, CancelledCard, NoAccessCard } from "./JobCancellation.tsx";
 import { JobCompletionCards } from "./JobCompletion.tsx";
 import { JobReschedule } from "./JobReschedule.tsx";
+import { JobPrototype } from "./job-page.prototype.tsx";
 import { homeCrumbs } from "./PropertyScreen.tsx";
 import { OfferServicePlan } from "./StartDraft.tsx";
 
@@ -58,13 +59,13 @@ export function AssignmentBadge({ job }: { job: ScheduledJob }) {
   );
 }
 
-const stateBadge: Record<AssignmentState, ReactNode> = {
+export const stateBadge: Record<AssignmentState, ReactNode> = {
   offered: <StatusBadge tone="warning">Offered</StatusBadge>,
   confirmed: <StatusBadge tone="success">Confirmed</StatusBadge>,
   released: <StatusBadge>Released</StatusBadge>,
 };
 
-const sinceOf = (a: AssignmentView) =>
+export const sinceOf = (a: AssignmentView) =>
   a.status === "offered"
     ? `Offered ${formatDate(a.offeredAt)}`
     : `${a.status === "confirmed" ? "Confirmed" : "Released"} ${formatDate(a.answeredAt!)}`;
@@ -74,10 +75,13 @@ const sinceOf = (a: AssignmentView) =>
 // completion
 export function JobScreen() {
   const job = useLoaderData({ from: "/office/jobs/$jobId" });
+  // PROTOTYPE: ?variant= swaps in a page layout
+  const { variant } = useSearch({ from: "/office/jobs/$jobId" });
   const confirmed = job.assignments.filter(
     (a) => a.status === "confirmed",
   ).length;
 
+  if (variant && variant !== "A") return <JobPrototype />;
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4">
@@ -180,7 +184,7 @@ export function JobScreen() {
 
 // who a Job's Open Places are open to: from 7 days before it, every free
 // Cleaner, first to Confirm taking each (ADR-0019)
-function OpenTo({ job }: { job: OfficeJob }) {
+export function OpenTo({ job }: { job: OfficeJob }) {
   const { opensAt, opened, cleaners, passedBy } = job.openTo;
   const places =
     job.openPlaces === 1
@@ -202,7 +206,7 @@ function OpenTo({ job }: { job: OfficeJob }) {
   );
 }
 
-function Offer({ job }: { job: OfficeJob }) {
+export function Offer({ job }: { job: OfficeJob }) {
   const [staffId, setStaffId] = useState<string | null>(null);
   const action = useAction("The place wasn't offered. Please try again.");
 
@@ -266,7 +270,7 @@ function Offer({ job }: { job: OfficeJob }) {
   );
 }
 
-function Remove({
+export function Remove({
   job,
   assignment,
 }: {

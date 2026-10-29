@@ -85,6 +85,7 @@ type Props = {
   // the calendar to pick from: the Schedule for the Office, open times for
   // the Client
   Picker: ComponentType<TimePickerProps>;
+  variant?: "secondary" | "text";
 };
 
 // a dialog to choose a new time for a Job from those on offer, and send the
@@ -92,7 +93,12 @@ type Props = {
 export function ChooseNewTime(props: Props) {
   return (
     <DialogTrigger>
-      <Button variant="secondary">{props.label}</Button>
+      <Button
+        variant={props.variant ?? "secondary"}
+        size={props.variant === "text" ? "sm" : "md"}
+      >
+        {props.label}
+      </Button>
       <Dialog title="Choose a new time">
         {({ close }) => <NewTimeForm {...props} close={close} />}
       </Dialog>

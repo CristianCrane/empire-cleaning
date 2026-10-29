@@ -103,7 +103,7 @@ export function JobReschedule({ job }: { job: OfficeJob }) {
   );
 }
 
-function TurnDown({ path }: { path: string }) {
+export function TurnDown({ path }: { path: string }) {
   const [reason, setReason] = useState("");
   const action = useAction("The request wasn't turned down. Please try again.");
 

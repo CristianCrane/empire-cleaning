@@ -35,7 +35,7 @@ import {
   formatMoney,
 } from "../format.ts";
 
-const statusBadge: Record<AdjustmentStatus, ReactNode> = {
+export const statusBadge: Record<AdjustmentStatus, ReactNode> = {
   applied: <StatusBadge tone="success">Applied</StatusBadge>,
   reported: <StatusBadge tone="info">To review</StatusBadge>,
   dismissed: <StatusBadge>Dismissed</StatusBadge>,
@@ -83,7 +83,7 @@ export function JobCompletionCards({ job }: { job: OfficeJob }) {
                     {(a.status === "applied" || a.status === "approved") && (
                       <Correct job={job} adjustment={a} />
                     )}
-                    <Remove job={job} adjustment={a} />
+                    <RemoveAdjustment job={job} adjustment={a} />
                   </>
                 }
               />
@@ -96,7 +96,7 @@ export function JobCompletionCards({ job }: { job: OfficeJob }) {
   );
 }
 
-const describeAdjustment = (a: AdjustmentView) =>
+export const describeAdjustment = (a: AdjustmentView) =>
   [
     `"${a.reason}"`,
     a.officeReason && `Office: ${a.officeReason}`,
@@ -105,7 +105,7 @@ const describeAdjustment = (a: AdjustmentView) =>
     .filter(Boolean)
     .join(" · ");
 
-function ConditionField({
+export function ConditionField({
   job,
   completion,
 }: {
@@ -207,7 +207,7 @@ function PriceForm({
 
 // an increase the Cleaner reported: propose it to the Client, at its
 // worked-out price or another, or dismiss it
-function Review({
+export function Review({
   job,
   adjustment,
 }: {
@@ -283,7 +283,7 @@ function Review({
 
 // an Adjustment that counts: change its price, charging or refunding the
 // difference
-function Correct({
+export function Correct({
   job,
   adjustment,
 }: {
@@ -341,7 +341,7 @@ function Correct({
   );
 }
 
-function Remove({
+export function RemoveAdjustment({
   job,
   adjustment,
 }: {
@@ -393,7 +393,7 @@ function Remove({
   );
 }
 
-function UndoCompletion({ job }: { job: OfficeJob }) {
+export function UndoCompletion({ job }: { job: OfficeJob }) {
   const action = useAction("The completion wasn't undone. Please try again.");
   return (
     <DialogTrigger>
@@ -439,7 +439,7 @@ function UndoCompletion({ job }: { job: OfficeJob }) {
 
 const chargeLabel = { deposit: "Deposit", balance: "Balance", fee: "Fee" };
 
-function PaymentCard({
+export function PaymentCard({
   job,
   payment,
 }: {
