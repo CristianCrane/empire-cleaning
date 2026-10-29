@@ -122,19 +122,23 @@ test(
       .getByRole("grid", { name: "Needs attention" })
       .getByRole("row", { name: /Casey Client/ })
       .click();
-    const card = page.getByRole("region", { name: "Reschedule Request" });
-    await expect(card).toContainText("Mon, Jan 12, 9:00 AM");
-    await expect(card).toContainText("Wed, Jan 14, 10:00 AM");
+    await expect(
+      page.getByText("The Client asked to move it to Wed, Jan 14, 10:00 AM."),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Answer" }).click();
+    const dialog = page.getByRole("dialog", { name: "Move this Job?" });
+    await expect(dialog).toContainText("Mon, Jan 12, 9:00 AM");
+    await expect(dialog).toContainText("Wed, Jan 14, 10:00 AM");
     await expectAccessible(page);
-    await card.getByRole("button", { name: "Confirm move" }).click();
+    await dialog.getByRole("button", { name: "Confirm move" }).click();
 
     await expect(page.getByText("Job moved")).toBeVisible();
     await expect(
-      page.getByRole("heading", { level: 1, name: "Wed, Jan 14, 10:00 AM" }),
+      page.locator("#main").getByText("Wed, Jan 14, 10:00 AM", { exact: true }),
     ).toBeVisible();
-    await expect(
-      page.getByRole("region", { name: "Assignments" }),
-    ).toContainText("Offered");
+    await expect(page.getByRole("region", { name: "Crew" })).toContainText(
+      "Offered",
+    );
     expect((await emailsTo(casey.email)).at(-1)!.subject).toBe(
       "Your clean has moved",
     );
@@ -153,8 +157,9 @@ test("Office Staff turn down a Reschedule Request, and the Client sees why", asy
   await signedInAs(page, olive.email);
   await page.goto(`/office/jobs/${job.id}`);
 
+  await page.getByRole("button", { name: "Answer" }).click();
   await page
-    .getByRole("region", { name: "Reschedule Request" })
+    .getByRole("dialog", { name: "Move this Job?" })
     .getByRole("button", { name: "Turn down" })
     .click();
   const dialog = page.getByRole("alertdialog", {
@@ -165,8 +170,8 @@ test("Office Staff turn down a Reschedule Request, and the Client sees why", asy
     .fill("We're fully booked that morning.");
   await dialog.getByRole("button", { name: "Turn down" }).click();
   await expect(page.getByText("Request turned down")).toBeVisible();
-  await expect(page.getByRole("region", { name: "Moving" })).toContainText(
-    "Turned down",
+  await expect(page.getByRole("region", { name: "History" })).toContainText(
+    "Move turned down",
   );
 
   const client = await (await browser.newContext()).newPage();

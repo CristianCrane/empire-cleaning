@@ -3,6 +3,7 @@
 // of accessibility behaviour
 import "./tokens.css";
 
+export { ActionBar, IconAction } from "./ActionBar.tsx";
 export { Actions } from "./Actions.tsx";
 export { AppLayout, Wordmark, type NavItem } from "./AppLayout.tsx";
 export { Avatar } from "./Avatar.tsx";

@@ -63,7 +63,7 @@ export function RecordNoAccess({ job }: { job: CleanerJob }) {
                   <Notice tone="danger">{action.problem}</Notice>
                 )}
                 <Actions>
-                  <Button variant="secondary" onPress={close}>
+                  <Button variant="quiet" onPress={close}>
                     Go back
                   </Button>
                   <Button

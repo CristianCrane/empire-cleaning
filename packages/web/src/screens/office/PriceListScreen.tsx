@@ -73,7 +73,7 @@ export function PriceListScreen() {
         .
       </p>
       {list.placeholder && (
-        <Notice>
+        <Notice tone="warning">
           These are placeholder figures, not Empire Cleaning's. Review each one
           and save before sending any Quotes.
         </Notice>

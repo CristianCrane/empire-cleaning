@@ -23,11 +23,13 @@ import {
   Button,
   Dialog,
   DialogTrigger,
+  List,
+  ListItem,
   type NavItem,
 } from "@empire-cleaning/ui";
 import { linkTo } from "../links.ts";
 import { InArea } from "./MessagePage.tsx";
-import { QuoteIcon } from "./icons.ts";
+import { JobIcon, QuoteIcon } from "./icons.ts";
 import { areas, areasFor, signOut, type AreaId } from "../session.ts";
 
 // an item is current on its own page, and on the pages that belong to its
@@ -45,6 +47,12 @@ const navFor: Record<AreaId, AreaNavItem[]> = {
       alsoCurrentFor: ["/office/quotes/"],
     },
     {
+      href: linkTo({ to: "/office/jobs" }),
+      label: "Jobs",
+      icon: JobIcon,
+      alsoCurrentFor: ["/office/jobs/"],
+    },
+    {
       href: linkTo({ to: "/office/clients" }),
       label: "Clients",
       icon: ContactRound,
@@ -58,7 +66,6 @@ const navFor: Record<AreaId, AreaNavItem[]> = {
       href: linkTo({ to: "/office/schedule" }),
       label: "Schedule",
       icon: CalendarDays,
-      alsoCurrentFor: ["/office/jobs/"],
     },
     {
       href: linkTo({ to: "/office/staff" }),
@@ -153,21 +160,26 @@ function AccountMenu({
               <span className="font-semibold">{account.name}</span>
               <span className="text-fg-muted">{account.email}</span>
             </div>
+            {otherAreas.length > 0 && (
+              <List
+                aria-label="Switch to"
+                onAction={(id) => {
+                  close();
+                  void navigate({ to: areas[id as AreaId].path });
+                }}
+              >
+                {otherAreas.map((id) => (
+                  <ListItem
+                    key={id}
+                    id={id}
+                    title={`Switch to ${areas[id].label}`}
+                  />
+                ))}
+              </List>
+            )}
             <Actions>
-              {otherAreas.map((id) => (
-                <Button
-                  key={id}
-                  variant="secondary"
-                  onPress={() => {
-                    close();
-                    void navigate({ to: areas[id].path });
-                  }}
-                >
-                  Switch to {areas[id].label}
-                </Button>
-              ))}
               <Button
-                variant="secondary"
+                variant="quiet"
                 onPress={async () => {
                   await signOut();
                   close();

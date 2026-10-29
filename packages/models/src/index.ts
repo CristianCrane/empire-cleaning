@@ -1255,6 +1255,17 @@ export type OfficeJob = ScheduledJob & {
   canOfferServicePlan: boolean;
 };
 
+// which of the Office's Jobs a Tab of the Jobs page holds: Upcoming, still
+// booked (soonest first); Past, Completed or No Access; Cancelled, a plan
+// Job Skipped too (both newest first)
+export type JobsTab = "upcoming" | "past" | "cancelled";
+
+// a page of the Office's Jobs, and how many match the search in each Tab
+export type JobList = {
+  jobs: ScheduledJob[];
+  counts: Record<JobsTab | "all", number>;
+};
+
 // what Office Staff send to Offer a place on a Job
 export type AssignmentOffer = { staffId: string };
 

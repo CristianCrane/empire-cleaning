@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactElement } from "react";
 import {
   parseDate,
   parseTime,
@@ -112,13 +112,13 @@ export function ConfirmMove({ job, to, close }: MoveProps) {
       )}
       {room && !unchanged && <RoomAt room={room} job={job} />}
       <p className="text-sm text-fg-muted">
-        Every place on it is Offered afresh, so the crew each confirm the new
-        time. Its reminder is reset, and the Client and the crew are emailed. It
-        costs the Client nothing.
+        Its crew are each Offered it afresh, to confirm the new time. Its
+        reminder is reset, and the Client and the crew are emailed. It costs the
+        Client nothing.
       </p>
       {action.problem && <Notice tone="danger">{action.problem}</Notice>}
       <Actions>
-        <Button variant="secondary" onPress={close}>
+        <Button variant="quiet" onPress={close}>
           Keep it
         </Button>
         <Button
@@ -166,10 +166,17 @@ function RoomAt({ room, job }: { room: DayCapacity; job: ScheduledJob }) {
 
 // Office Staff move a Job to a day and start time they choose: the Move
 // action, at any width, where dragging on the Schedule isn't to hand
-export function MoveJob({ job }: { job: ScheduledJob }) {
+export function MoveJob({
+  job,
+  trigger,
+}: {
+  job: ScheduledJob;
+  // what opens it, e.g. an IconAction; a Move Job Button otherwise
+  trigger?: ReactElement;
+}) {
   return (
     <DialogTrigger>
-      <Button variant="secondary">Move Job</Button>
+      {trigger ?? <Button variant="secondary">Move Job</Button>}
       <Dialog title="Move this Job">
         {({ close }) => <ChooseTime job={job} close={close} />}
       </Dialog>

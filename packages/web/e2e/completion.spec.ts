@@ -138,16 +138,18 @@ test(
       .filter({ hasText: "1 extra to review" })
       .click();
     const adjustments = page.getByRole("region", { name: "Adjustments" });
-    await expect(adjustments).toContainText("1 extra hour: $59.88");
-    await expect(adjustments).toContainText("To review");
-    await adjustments
-      .getByRole("button", { name: "Review 1 extra hour" })
-      .click();
-    const review = page.getByRole("dialog");
+    const extra = adjustments.getByRole("row", { name: /Extra time/ });
+    await expect(extra).toContainText("+1 h");
+    await expect(extra).toContainText("+$59.88");
+    await expect(extra).toContainText("To review");
+    await extra.click();
+    const review = page.getByRole("dialog", { name: "Extra time" });
+    await expect(review).toContainText('"Heavy grease"');
     await expect(review).toContainText("$55.00 before tax");
     await review.getByRole("button", { name: "Propose to the Client" }).click();
     await expect(page.getByText("Proposed to the Client")).toBeVisible();
-    await expect(adjustments).toContainText("Waiting on the Client");
+    await expect(review).toBeHidden();
+    await expect(extra).toContainText("Waiting on the Client");
 
     const client = await asCasey(browser);
     await client.goto(
@@ -219,6 +221,40 @@ test("a Job that couldn't be charged is Unpaid until the Client saves a new card
   ).toBeHidden();
 });
 
+test("Office Staff remove an Adjustment from its own dialog, confirming in the same dialog", async ({
+  page,
+}) => {
+  const { job, cory } = await jobUnderway();
+  await completeJob(job.id, cory.id, {
+    condition: "moderate",
+    reports: [{ kind: "extra_time", hours: 1, reason: "Heavy grease" }],
+  });
+  await signedInAs(page, olive.email);
+  await page.goto(`/office/jobs/${job.id}`);
+
+  const adjustments = page.getByRole("region", { name: "Adjustments" });
+  await adjustments.getByRole("row", { name: /Extra time/ }).click();
+  const dialog = page.getByRole("dialog", { name: "Extra time" });
+  await dialog.getByRole("button", { name: "Dismiss" }).click();
+  await expect(page.getByText("Dismissed")).toBeVisible();
+
+  await adjustments.getByRole("row", { name: /Extra time/ }).click();
+  await page
+    .getByRole("dialog", { name: "Extra time" })
+    .getByRole("button", { name: "Remove" })
+    .click();
+  // the same dialog asks again: never a dialog on a dialog
+  const confirm = page.getByRole("alertdialog", {
+    name: "Remove Extra time?",
+  });
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await confirm.getByRole("button", { name: "Remove" }).click();
+  await expect(page.getByText("Adjustment removed")).toBeVisible();
+  await expect(adjustments).toContainText(
+    "Nothing different from the Quote was reported.",
+  );
+});
+
 test("Office Staff correct the Condition and undo a completion made by mistake", async ({
   page,
 }) => {
@@ -227,7 +263,7 @@ test("Office Staff correct the Condition and undo a completion made by mistake",
   await signedInAs(page, olive.email);
   await page.goto(`/office/jobs/${job.id}`);
 
-  const completed = page.getByRole("region", { name: "Completed" });
+  const completed = page.getByRole("region", { name: "Job" });
   await completed.getByRole("button", { name: /Condition reported/ }).click();
   await page.getByRole("option", { name: "Light" }).click();
   await expect(page.getByText("Condition corrected")).toBeVisible();
@@ -239,7 +275,9 @@ test("Office Staff correct the Condition and undo a completion made by mistake",
     .click();
 
   await expect(page.getByText("Completion undone")).toBeVisible();
-  await expect(completed).toBeHidden();
+  await expect(
+    completed.getByRole("heading", { name: "How it went" }),
+  ).toBeHidden();
   await expect(page.getByText("Assigned", { exact: true })).toBeVisible();
   expect((await emailsTo(casey.email)).at(-1)!.subject).toBe(
     "A correction to your clean",

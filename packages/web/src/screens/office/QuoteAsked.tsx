@@ -136,7 +136,7 @@ export function DraftQuote({ quote }: { quote: OfficeQuote }) {
             {failure && <Notice tone="danger">{failure}</Notice>}
             <Actions>
               <Button
-                variant="secondary"
+                variant="quiet"
                 isPending={starting?.kind === "one_off"}
                 isDisabled={starting !== undefined}
                 onPress={() => draft("one_off")}
@@ -176,7 +176,7 @@ export function DraftQuote({ quote }: { quote: OfficeQuote }) {
 // books a Site Visit, or records findings it knows already on the Property
 export function SeeThePremises({ quote }: { quote: OfficeQuote }) {
   return (
-    <Notice action={<BookSiteVisit quoteId={quote.id} />}>
+    <Notice tone="warning" action={<BookSiteVisit quoteId={quote.id} />}>
       <p>
         <strong>Business premises are seen before they're quoted.</strong> Book
         a Site Visit, or if you know the premises already, record what you know
@@ -253,7 +253,7 @@ export function TurnDownQuote({ quote }: { quote: OfficeQuote }) {
             </RadioGroup>
             {action.problem && <Notice tone="danger">{action.problem}</Notice>}
             <Actions>
-              <Button variant="secondary" onPress={close}>
+              <Button variant="quiet" onPress={close}>
                 Keep it
               </Button>
               <Button

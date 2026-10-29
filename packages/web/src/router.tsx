@@ -15,6 +15,7 @@ import type {
   CleanerSiteVisits,
   ClientSiteVisit,
   ClientList,
+  JobList,
   ClientJob,
   ClientJobDetail,
   ClientPastJob,
@@ -81,6 +82,13 @@ import {
   type ClientsSearch,
   tabFor,
 } from "./screens/office/ClientsScreen.tsx";
+import {
+  JOBS_PAGE,
+  jobTabs,
+  jobsTabFor,
+  JobsScreen,
+  type JobsSearch,
+} from "./screens/office/JobsScreen.tsx";
 import {
   currentVisit,
   PropertyScreen,
@@ -525,6 +533,37 @@ const officeScheduleRoute = createRoute({
   component: ScheduleScreen,
 });
 
+const officeJobsRoute = createRoute({
+  getParentRoute: () => officeRoute,
+  path: "/jobs",
+  validateSearch: (search: Record<string, unknown>): JobsSearch => ({
+    // a number-like search ("41") comes back from the URL as a number
+    q:
+      typeof search.q === "string" || typeof search.q === "number"
+        ? String(search.q) || undefined
+        : undefined,
+    tab: jobTabs.find((t) => t === search.tab),
+    shown:
+      typeof search.shown === "number" && search.shown > JOBS_PAGE
+        ? Math.floor(search.shown)
+        : undefined,
+  }),
+  loaderDeps: ({ search }) => ({
+    q: search.q,
+    tab: jobsTabFor(search),
+    shown: search.shown ?? JOBS_PAGE,
+  }),
+  loader: ({ deps }) =>
+    getJson<JobList>(
+      `/api/jobs?${new URLSearchParams({
+        ...(deps.q && { q: deps.q }),
+        tab: deps.tab,
+        limit: String(deps.shown),
+      })}`,
+    ),
+  component: JobsScreen,
+});
+
 const officeJobRoute = createRoute({
   getParentRoute: () => officeRoute,
   path: "/jobs/$jobId",
@@ -673,6 +712,7 @@ const routeTree = rootRoute.addChildren([
     officeStaffRoute,
     officeStaffMemberRoute,
     officeScheduleRoute,
+    officeJobsRoute,
     officeJobRoute,
     officeBillRoute,
   ]),

@@ -290,6 +290,7 @@ const noticesFor = (quote: OfficeQuote): ReactNode[] => {
   if (quote.draft) {
     return [
       <Notice
+        tone="warning"
         key="draft"
         action={
           <ButtonLink variant="text" size="sm" href={draftLink(quote)}>
@@ -411,7 +412,7 @@ const toQuote = (quote: OfficeQuote): ReactNode[] => {
     ];
   }
   return [
-    <Notice key="draft" action={<DraftQuote quote={quote} />}>
+    <Notice tone="warning" key="draft" action={<DraftQuote quote={quote} />}>
       <p>
         <strong>
           {quote.client.name} asked for a {quote.asked?.service.name ?? "Quote"}
@@ -483,7 +484,7 @@ function DeleteDraft({ quote }: { quote: OfficeQuote }) {
             </p>
             {action.problem && <Notice tone="danger">{action.problem}</Notice>}
             <Actions>
-              <Button variant="secondary" onPress={close}>
+              <Button variant="quiet" onPress={close}>
                 Keep it
               </Button>
               <Button
@@ -1036,7 +1037,7 @@ function RecordAcceptance({
             </p>
             {action.problem && <Notice tone="danger">{action.problem}</Notice>}
             <Actions>
-              <Button variant="secondary" onPress={close}>
+              <Button variant="quiet" onPress={close}>
                 Cancel
               </Button>
               <Button
@@ -1865,7 +1866,7 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
 
       {/* a Quote goes by email, and is accepted signed in with it (#34) */}
       {!quote.client.email && (
-        <Notice>
+        <Notice tone="warning">
           <p>
             {quote.client.name} has no email yet, so this Quote can't be sent.
             Add their email on{" "}
@@ -1884,7 +1885,7 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
 
       {/* business premises are seen before they're quoted (ADR-0014) */}
       {quote.needsSiteVisit && (
-        <Notice>
+        <Notice tone="warning">
           <p>
             These premises haven't had a Site Visit, so this Quote can't be
             sent. Book one or record its findings on{" "}

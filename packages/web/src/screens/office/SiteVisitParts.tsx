@@ -216,7 +216,7 @@ function BookingForm({
       </p>
       {action.problem && <Notice tone="danger">{action.problem}</Notice>}
       <Actions>
-        <Button variant="secondary" onPress={close}>
+        <Button variant="quiet" onPress={close}>
           Cancel
         </Button>
         <Button type="submit" isPending={action.isPending} isDisabled={!chosen}>
@@ -326,7 +326,7 @@ export function CancelSiteVisit({ visit }: { visit: OfficeSiteVisit }) {
             </p>
             {action.problem && <Notice tone="danger">{action.problem}</Notice>}
             <Actions>
-              <Button variant="secondary" onPress={close}>
+              <Button variant="quiet" onPress={close}>
                 Keep it
               </Button>
               <Button
@@ -506,7 +506,7 @@ export function FindingsForm({
       />
       {action.problem && <Notice tone="danger">{action.problem}</Notice>}
       <Actions>
-        <Button variant="secondary" onPress={close}>
+        <Button variant="quiet" onPress={close}>
           Cancel
         </Button>
         <Button type="submit" isPending={action.isPending}>

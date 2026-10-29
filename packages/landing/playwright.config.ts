@@ -1,5 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
 
+// Keep headless Chromium off the WSLg display so it doesn't steal Windows focus
+delete process.env.DISPLAY;
+delete process.env.WAYLAND_DISPLAY;
+
 const API_PORT = 3200;
 const CONTROL_PORT = 3201;
 const SITE_PORT = 4322;

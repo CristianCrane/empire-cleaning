@@ -130,10 +130,7 @@ test(
     await signedInAs(page, olive.email);
     await page.goto(`/office/jobs/${job.id}`);
 
-    await page
-      .getByRole("region", { name: "Cancelling" })
-      .getByRole("button", { name: "Cancel Job" })
-      .click();
+    await page.getByRole("button", { name: "Cancel Job" }).click();
     const dialog = page.getByRole("alertdialog", { name: "Cancel this Job?" });
     await expect(dialog).toContainText(
       "It's a Late Cancellation: a $50.46 fee, the plan's Deposit amount, is charged. The plan's Deposit stays held.",
@@ -143,10 +140,16 @@ test(
     await dialog.getByRole("button", { name: "Cancel Job" }).click();
 
     await expect(page.getByText("Job cancelled")).toBeVisible();
-    const skipped = page.getByRole("region", { name: "Skipped" });
-    await expect(skipped).toContainText(
-      "By the Client, a Late Cancellation; the plan carries on",
+    await expect(
+      page.getByText(
+        "By the Client, a Late Cancellation; the plan carries on.",
+      ),
+    ).toBeVisible();
+    await expect(page.getByRole("region", { name: "Money" })).toContainText(
+      "Fee$50.46",
     );
-    await expect(skipped).toContainText(/Fee \$50\.46, Jan 18/);
+    await expect(page.getByRole("region", { name: "History" })).toContainText(
+      "Fee of $50.46 charged",
+    );
   },
 );

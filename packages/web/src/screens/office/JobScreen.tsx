@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { useLoaderData } from "@tanstack/react-router";
+import { UserPlus } from "lucide-react";
 import type {
   AssignmentState,
   AssignmentView,
@@ -7,6 +8,7 @@ import type {
   ScheduledJob,
 } from "@empire-cleaning/models";
 import {
+  ActionBar,
   Actions,
   Breadcrumbs,
   Button,
@@ -19,6 +21,7 @@ import {
   List,
   ListItem,
   Notice,
+  Section,
   Select,
   SelectItem,
   StatusBadge,
@@ -32,11 +35,19 @@ import {
   formatDate,
   formatDateTime,
   formatHours,
+  formatMoney,
 } from "../format.ts";
-import { CancelJob, CancelledCard, NoAccessCard } from "./JobCancellation.tsx";
-import { JobCompletionCards } from "./JobCompletion.tsx";
-import { JobReschedule } from "./JobReschedule.tsx";
-import { homeCrumbs } from "./PropertyScreen.tsx";
+import { costForOffice } from "../RescheduleParts.tsx";
+import { CancelJob, FeeMoney, howItEnded } from "./JobCancellation.tsx";
+import {
+  Adjustments,
+  ConditionField,
+  JobMoney,
+  RetryCharge,
+  UndoCompletion,
+} from "./JobCompletion.tsx";
+import { JobHistory } from "./JobHistory.tsx";
+import { AnswerRequest, MoveActions } from "./JobReschedule.tsx";
 import { OfferServicePlan } from "./StartDraft.tsx";
 
 // whether every place on a Job's crew is Confirmed, or once it has happened
@@ -69,158 +80,382 @@ const sinceOf = (a: AssignmentView) =>
     ? `Offered ${formatDate(a.offeredAt)}`
     : `${a.status === "confirmed" ? "Confirmed" : "Released"} ${formatDate(a.answeredAt!)}`;
 
-// a Job, and who's on it: Office Staff Offer its places to Cleaners and take
-// people off, move or cancel it, and once it's Completed, review and correct the
-// completion
+const booked = (job: OfficeJob) => job.status === "booked";
+
+// so many Cleaners, e.g. "1 Cleaner", "2 more Cleaners"
+const cleaners = (n: number, more?: "more") =>
+  `${n}${more ? " more" : ""} ${n === 1 ? "Cleaner" : "Cleaners"}`;
+
+/**
+ * A Job for the Office, all of it in one view: what there is to do in
+ * Notices on top, then two columns, the Job, who's on it and its money on
+ * the left, its story on the right, where it has room to grow. Office Staff
+ * Offer its places and take people off, move or cancel it, and once it's
+ * Completed, review and correct the completion.
+ */
 export function JobScreen() {
   const job = useLoaderData({ from: "/office/jobs/$jobId" });
-  const confirmed = job.assignments.filter(
-    (a) => a.status === "confirmed",
-  ).length;
+  const lost = job.cancellation ?? job.noAccess;
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4">
-        <Breadcrumbs
-          trail={[
-            { label: "Schedule", href: linkTo({ to: "/office/schedule" }) },
-            ...homeCrumbs(job.client, job.property),
-            { label: "Job" },
-          ]}
-        />
-        <div className="flex flex-wrap items-center gap-3">
-          <Heading level={1}>{formatDateTime(job.startsAt)}</Heading>
-          <AssignmentBadge job={job} />
+      <JobHeader job={job} />
+      <WhatsNext job={job} />
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="flex flex-col gap-6">
+          <Section title="Job">
+            <Card>
+              <JobFacts job={job} />
+              {job.completion && (
+                <Part
+                  title="How it went"
+                  actions={<UndoCompletion job={job} />}
+                >
+                  <ConditionField job={job} completion={job.completion} />
+                </Part>
+              )}
+            </Card>
+          </Section>
+          <Crew job={job} />
+          {job.completion && <Adjustments job={job} />}
+          {(job.completion || lost) && (
+            <Section title="Money">
+              <Card>
+                {job.completion ? (
+                  <JobMoney payment={job.completion.payment} />
+                ) : (
+                  <FeeMoney feeCents={lost!.feeCents} payment={lost!.payment} />
+                )}
+              </Card>
+            </Section>
+          )}
+        </div>
+        <div className="flex flex-col gap-6">
+          <JobHistory job={job} />
         </div>
       </div>
-
-      <Card title="Job">
-        <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
-          <dt className="font-semibold">Client</dt>
-          <dd>
-            <Link
-              href={linkTo({
-                to: "/office/clients/$clientId",
-                params: { clientId: job.client.id },
-              })}
-            >
-              {clientName(job.client)}
-            </Link>
-          </dd>
-          <dt className="font-semibold">Home</dt>
-          <dd>
-            <Link
-              href={linkTo({
-                to: "/office/properties/$propertyId",
-                params: { propertyId: job.property.id },
-              })}
-            >
-              {addressOf(job.property)}
-            </Link>
-          </dd>
-          <dt className="font-semibold">Clean</dt>
-          <dd>{job.serviceName}</dd>
-          <dt className="font-semibold">Add-ons</dt>
-          <dd>{job.addOns.length > 0 ? job.addOns.join(", ") : "None"}</dd>
-          <dt className="font-semibold">Labour Hours</dt>
-          <dd>{formatHours(job.labourHours)}</dd>
-          <dt className="font-semibold">Crew</dt>
-          <dd>
-            {job.crewSize}, {formatHours(job.hoursOnSite)} on site
-          </dd>
-        </dl>
-      </Card>
-
-      {job.completion && <JobCompletionCards job={job} />}
-      {job.canOfferServicePlan && (
-        <Card
-          title="Service Plan"
-          description="This home's First Clean is Completed, so it can be offered regular cleaning."
-          actions={<OfferServicePlan propertyId={job.property.id} />}
-        />
-      )}
-      {job.cancellation && <CancelledCard job={job} />}
-      {job.noAccess && <NoAccessCard job={job} />}
-
-      <Card
-        title="Assignments"
-        description={`${confirmed} of ${job.crewSize} ${job.crewSize === 1 ? "place" : "places"} Confirmed`}
-      >
-        {job.assignments.length > 0 && (
-          <List aria-label="Assignments">
-            {job.assignments.map((a) => (
-              <ListItem
-                key={a.id}
-                id={a.id}
-                title={a.staff.name}
-                description={sinceOf(a)}
-                end={
-                  <>
-                    {stateBadge[a.status]}
-                    {job.status === "booked" && a.status !== "released" && (
-                      <Remove job={job} assignment={a} />
-                    )}
-                  </>
-                }
-              />
-            ))}
-          </List>
-        )}
-        {job.status === "booked" && job.openPlaces > 0 && <OpenTo job={job} />}
-        {job.status === "booked" && (
-          <Offer key={job.assignments.length} job={job} />
-        )}
-      </Card>
-
-      <JobReschedule job={job} />
-      {job.cancelTerms && <CancelJob job={job} />}
     </div>
+  );
+}
+
+// the title says what and where, the time under it; beside it, what can
+// be done to the whole Job as text actions: none of them is the page's
+// main action
+function JobHeader({ job }: { job: OfficeJob }) {
+  return (
+    <div className="flex flex-col gap-4">
+      <Breadcrumbs
+        trail={[
+          { label: "Jobs", href: linkTo({ to: "/office/jobs" }) },
+          { label: "Job" },
+        ]}
+      />
+      <div className="flex flex-wrap items-start gap-3">
+        <div className="flex flex-col gap-1">
+          <div className="flex flex-wrap items-center gap-3">
+            <Heading level={1}>
+              {job.serviceName} at {placeOf(job.property)}
+            </Heading>
+            <AssignmentBadge job={job} />
+          </div>
+          <p className="text-lg text-fg-muted">
+            {formatDateTime(job.startsAt)}
+          </p>
+        </div>
+        {(job.rescheduleTerms || job.cancelTerms) && (
+          <div className="ml-auto">
+            <ActionBar aria-label="Job actions">
+              <MoveActions job={job} />
+              {job.cancelTerms && <CancelJob job={job} />}
+            </ActionBar>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// What there is to do with the Job, above it: one Notice per thing, each
+// with at most one text action, warning when it's the Office's to do; or,
+// once it isn't booked, how it ended
+function WhatsNext({ job }: { job: OfficeJob }) {
+  const notices = noticesFor(job);
+  if (notices.length === 0) return null;
+  return <div className="flex flex-col gap-3">{notices}</div>;
+}
+
+const noticesFor = (job: OfficeJob): ReactNode[] => {
+  const notices: ReactNode[] = [];
+  const request = job.rescheduleRequest;
+  const completion = job.completion;
+  const payment =
+    completion?.payment ?? job.cancellation?.payment ?? job.noAccess?.payment;
+
+  if (completion) {
+    notices.push(
+      <Notice key="completed" tone="success">
+        <p>
+          <strong>Completed {formatDateTime(completion.completedAt)}</strong>
+          {completion.completedBy && ` by ${completion.completedBy.name}`}.
+        </p>
+      </Notice>,
+    );
+  }
+  const ended = howItEnded(job);
+  if (ended) {
+    notices.push(
+      <Notice key="ended">
+        <p>
+          <strong>{ended.title}.</strong> {ended.description}
+        </p>
+      </Notice>,
+    );
+  }
+  if (request?.status === "pending") {
+    notices.push(
+      <Notice
+        key="reschedule"
+        tone="warning"
+        action={<AnswerRequest job={job} />}
+      >
+        <p>
+          <strong>
+            {request.byClient ? "The Client asked" : "The Office asked"} to move
+            it to {formatDateTime(request.startsAt)}.
+          </strong>{" "}
+          {costForOffice(
+            request.cost,
+            request.feeCents,
+            job.servicePlanId !== null,
+          )}{" "}
+          The new time is held until you answer.
+        </p>
+      </Notice>,
+    );
+  }
+  if (booked(job) && job.openPlaces > 0) {
+    notices.push(
+      <Notice
+        key="places"
+        tone={
+          job.openTo.opened && job.openTo.cleaners === 0 ? "danger" : "warning"
+        }
+        action={job.cleaners.length > 0 && <OfferPlace job={job} />}
+      >
+        <p>
+          <strong>Needs {cleaners(job.openPlaces, "more")}.</strong>
+        </p>
+        <OpenTo job={job} />
+      </Notice>,
+    );
+  }
+  const toReview =
+    completion?.adjustments.filter((a) => a.status === "reported").length ?? 0;
+  if (toReview > 0) {
+    notices.push(
+      <Notice key="review" tone="warning">
+        <p>
+          <strong>
+            The Cleaner reported {toReview}{" "}
+            {toReview === 1 ? "increase" : "increases"} to review.
+          </strong>{" "}
+          Each is only charged once the Client approves it.
+        </p>
+      </Notice>,
+    );
+  }
+  if (payment?.unpaid) {
+    notices.push(
+      <Notice key="unpaid" tone="danger" action={<RetryCharge job={job} />}>
+        <p>
+          <strong>
+            Unpaid since {formatDate(payment.unpaid.since)}:{" "}
+            {formatMoney(payment.owedCents)} couldn't be charged
+          </strong>{" "}
+          ({payment.unpaid.reason}). The Client has been emailed to update their
+          Payment Method, which tries again.
+        </p>
+      </Notice>,
+    );
+  }
+  if (job.canOfferServicePlan) {
+    notices.push(
+      <Notice
+        key="plan"
+        action={<OfferServicePlan propertyId={job.property.id} />}
+      >
+        <p>
+          This home's First Clean is Completed, so it can be offered regular
+          cleaning.
+        </p>
+      </Notice>,
+    );
+  }
+  return notices;
+};
+
+// where a Job is, for its title: the street and unit
+const placeOf = (p: OfficeJob["property"]) =>
+  [p.street, p.unit].filter(Boolean).join(", ");
+
+// who it's for and what it is, and while it's booked, until when it's free to move or
+// cancel
+function JobFacts({ job }: { job: OfficeJob }) {
+  return (
+    <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
+      <dt className="font-semibold">Client</dt>
+      <dd>
+        <Link
+          href={linkTo({
+            to: "/office/clients/$clientId",
+            params: { clientId: job.client.id },
+          })}
+        >
+          {clientName(job.client)}
+        </Link>
+      </dd>
+      <dt className="font-semibold">Home</dt>
+      <dd>
+        <Link
+          href={linkTo({
+            to: "/office/properties/$propertyId",
+            params: { propertyId: job.property.id },
+          })}
+        >
+          {addressOf(job.property)}
+        </Link>
+      </dd>
+      <dt className="font-semibold">Add-ons</dt>
+      <dd>{job.addOns.length > 0 ? job.addOns.join(", ") : "None"}</dd>
+      <dt className="font-semibold">Labour Hours</dt>
+      <dd>{formatHours(job.labourHours)}</dd>
+      <dt className="font-semibold">Crew</dt>
+      <dd>
+        {job.crewSize}, {formatHours(job.hoursOnSite)} on site
+      </dd>
+      {job.rescheduleTerms && (
+        <>
+          <dt className="font-semibold">Moving</dt>
+          <dd>Free until {formatDateTime(job.rescheduleTerms.freeUntil)}</dd>
+        </>
+      )}
+      {job.cancelTerms && (
+        <>
+          <dt className="font-semibold">Cancelling</dt>
+          <dd>
+            Free for the Client until{" "}
+            {formatDateTime(job.cancelTerms.client.freeUntil)}
+          </dd>
+        </>
+      )}
+    </dl>
+  );
+}
+
+// a part of a card, ruled off from the one above
+function Part({
+  title,
+  actions,
+  children,
+}: {
+  title: string;
+  actions?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-3 border-t border-border pt-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <Heading level={3}>{title}</Heading>
+        {actions && <div className="ml-auto">{actions}</div>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// who's on the Job: each place Offered, Confirmed or Released
+function Crew({ job }: { job: OfficeJob }) {
+  const confirmed = job.assignments.filter(
+    (a) => a.status === "confirmed",
+  ).length;
+  return (
+    <Section
+      title="Crew"
+      description={`${confirmed} of ${cleaners(job.crewSize)} Confirmed`}
+      actions={
+        booked(job) &&
+        job.openPlaces > 0 &&
+        job.cleaners.length > 0 && <OfferPlace job={job} />
+      }
+    >
+      {job.assignments.length === 0 ? (
+        <p className="text-sm text-fg-muted">Nobody is on it yet.</p>
+      ) : (
+        <List aria-label="Crew">
+          {job.assignments.map((a) => (
+            <ListItem
+              key={a.id}
+              id={a.id}
+              title={a.staff.name}
+              description={sinceOf(a)}
+              end={
+                <>
+                  {stateBadge[a.status]}
+                  {booked(job) && a.status !== "released" && (
+                    <Remove job={job} assignment={a} />
+                  )}
+                </>
+              }
+            />
+          ))}
+        </List>
+      )}
+    </Section>
   );
 }
 
 // who a Job's Open Places are open to: from 7 days before it, every free
 // Cleaner, first to Confirm taking each (ADR-0019)
 function OpenTo({ job }: { job: OfficeJob }) {
-  const { opensAt, opened, cleaners, passedBy } = job.openTo;
-  const places =
+  const { opensAt, opened, cleaners: free, passedBy } = job.openTo;
+  const firstTo =
     job.openPlaces === 1
-      ? "Its open place"
-      : `Its ${job.openPlaces} open places`;
+      ? "the first to confirm joins"
+      : `the first ${job.openPlaces} to confirm join`;
   return (
-    <div className="flex flex-col gap-1 text-sm text-fg-muted">
+    <>
       <p>
         {!opened
-          ? `${places} ${job.openPlaces === 1 ? "opens" : "open"} to free Cleaners on ${formatDateTime(opensAt)}.`
-          : cleaners === 0
-            ? `No Cleaner is free for ${places.toLowerCase()}. Offer it to someone, or give a Cleaner hours that day.`
-            : `${places} ${job.openPlaces === 1 ? "is" : "are"} open to ${cleaners} free ${cleaners === 1 ? "Cleaner" : "Cleaners"}. The first to confirm takes each.`}
+          ? `It opens to free Cleaners on ${formatDateTime(opensAt)}.`
+          : free === 0
+            ? "No Cleaner is free then. Offer it to someone, or give a Cleaner hours that day."
+            : `It's open to ${free} free ${free === 1 ? "Cleaner" : "Cleaners"}: ${firstTo} the crew.`}
       </p>
       {passedBy.length > 0 && (
         <p>Not for them: {passedBy.map((p) => p.name).join(", ")}.</p>
       )}
-    </div>
+    </>
   );
 }
 
-function Offer({ job }: { job: OfficeJob }) {
-  const [staffId, setStaffId] = useState<string | null>(null);
-  const action = useAction("The place wasn't offered. Please try again.");
+// Offers an open place to a Cleaner of the Office's choosing, in a dialog
+function OfferPlace({ job }: { job: OfficeJob }) {
+  return (
+    <DialogTrigger>
+      <Button variant="text" size="sm">
+        <UserPlus aria-hidden size={16} />
+        Offer to a Cleaner
+      </Button>
+      <Dialog title="Offer to a Cleaner">
+        {({ close }) => <Offer job={job} close={close} />}
+      </Dialog>
+    </DialogTrigger>
+  );
+}
 
-  if (job.openPlaces === 0) {
-    return (
-      <p className="text-sm text-fg-muted">
-        Every place is held. Remove someone to open their place to other
-        Cleaners.
-      </p>
-    );
-  }
-  if (job.cleaners.length === 0) {
-    return (
-      <p className="text-sm text-fg-muted">
-        There's no other active Cleaner to offer a place to.
-      </p>
-    );
-  }
+function Offer({ job, close }: { job: OfficeJob; close: () => void }) {
+  const [staffId, setStaffId] = useState<string | null>(null);
+  const action = useAction("It wasn't offered. Please try again.");
 
   const offer = async () => {
     if (!staffId) {
@@ -228,10 +463,11 @@ function Offer({ job }: { job: OfficeJob }) {
       return;
     }
     const name = job.cleaners.find((c) => c.id === staffId)?.name;
-    await action.run(
+    const ok = await action.run(
       () => postJson(`/api/jobs/${job.id}/assignments`, { staffId }),
-      `Place offered to ${name}`,
+      `Offered to ${name}`,
     );
+    if (ok) close();
   };
 
   return (
@@ -243,7 +479,7 @@ function Offer({ job }: { job: OfficeJob }) {
     >
       <Select
         label="Offer to"
-        description={`${job.openPlaces} ${job.openPlaces === 1 ? "place" : "places"} to offer. Hours are what each is available that day.`}
+        description={`It needs ${cleaners(job.openPlaces, "more")}. Hours are what each is available that day.`}
         placeholder="Choose a Cleaner"
         selectedKey={staffId}
         onSelectionChange={(key) =>
@@ -258,8 +494,11 @@ function Offer({ job }: { job: OfficeJob }) {
       </Select>
       {action.problem && <Notice tone="danger">{action.problem}</Notice>}
       <Actions>
-        <Button type="submit" variant="secondary" isPending={action.isPending}>
-          Offer place
+        <Button variant="quiet" onPress={close}>
+          Cancel
+        </Button>
+        <Button type="submit" isPending={action.isPending}>
+          Offer
         </Button>
       </Actions>
     </Form>
@@ -293,12 +532,12 @@ function Remove({
         {({ close }) => (
           <>
             <p>
-              Their place becomes free to offer to someone else. We'll email{" "}
-              {name} to say they don't need to go.
+              The Job then needs another Cleaner, to offer it to someone else.
+              We'll email {name} to say they don't need to go.
             </p>
             {action.problem && <Notice tone="danger">{action.problem}</Notice>}
             <Actions>
-              <Button variant="secondary" onPress={close}>
+              <Button variant="quiet" onPress={close}>
                 Cancel
               </Button>
               <Button

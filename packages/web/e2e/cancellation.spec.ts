@@ -176,10 +176,14 @@ test(
     await signedInAs(page, olive.email);
     await page.goto(`/office/jobs/${job.id}`);
 
-    await page
-      .getByRole("region", { name: "Cancelling" })
-      .getByRole("button", { name: "Cancel Job" })
-      .click();
+    // an icon in the Job's action bar, named in a tooltip
+    const actions = page.getByRole("toolbar", { name: "Job actions" });
+    const cancelJob = actions.getByRole("button", { name: "Cancel Job" });
+    // a mouse moves before it rests on anything
+    await actions.hover();
+    await cancelJob.hover();
+    await expect(page.getByRole("tooltip")).toHaveText("Cancel Job");
+    await cancelJob.click();
     const dialog = page.getByRole("alertdialog", { name: "Cancel this Job?" });
     await expect(dialog).toContainText(
       /The Client asked\s*It's a Late Cancellation: the \$[\d.]+ Deposit is kept as the fee\./,
@@ -192,13 +196,15 @@ test(
     await dialog.getByRole("button", { name: "Cancel Job" }).click();
 
     await expect(page.getByText("Job cancelled")).toBeVisible();
-    const cancelled = page.getByRole("region", { name: "Cancelled" });
-    await expect(cancelled).toContainText(
-      "By Empire Cleaning, refunded in full",
+    await expect(
+      page.getByText(
+        "By Empire Cleaning, refunded in full. Our crew is unwell.",
+      ),
+    ).toBeVisible();
+    await expect(page.getByRole("region", { name: "History" })).toContainText(
+      /Deposit of \$[\d.]+ charged.*\$[\d.]+ refunded/,
     );
-    await expect(cancelled).toContainText("Our crew is unwell.");
-    await expect(cancelled).toContainText(/Deposit \$[\d.]+, .* refunded\)/);
-    await expect(page.getByRole("region", { name: "Cancelling" })).toHaveCount(
+    await expect(page.getByRole("button", { name: "Cancel Job" })).toHaveCount(
       0,
     );
 

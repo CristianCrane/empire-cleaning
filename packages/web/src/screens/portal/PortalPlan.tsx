@@ -166,7 +166,7 @@ function AskToChange({ plan }: { plan: ServicePlanView }) {
                 <Notice tone="danger">{action.problem}</Notice>
               )}
               <Actions>
-                <Button variant="secondary" onPress={close}>
+                <Button variant="quiet" onPress={close}>
                   Cancel
                 </Button>
                 <Button type="submit" isPending={action.isPending}>

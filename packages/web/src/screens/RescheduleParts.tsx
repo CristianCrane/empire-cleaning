@@ -1,4 +1,9 @@
-import { useEffect, useState, type ComponentType } from "react";
+import {
+  useEffect,
+  useState,
+  type ComponentType,
+  type ReactElement,
+} from "react";
 import type {
   RescheduleCost,
   RescheduleTerms,
@@ -85,6 +90,8 @@ type Props = {
   // the calendar to pick from: the Schedule for the Office, open times for
   // the Client
   Picker: ComponentType<TimePickerProps>;
+  // what opens it, e.g. an IconAction; a Button with the label otherwise
+  trigger?: ReactElement;
 };
 
 // a dialog to choose a new time for a Job from those on offer, and send the
@@ -92,7 +99,7 @@ type Props = {
 export function ChooseNewTime(props: Props) {
   return (
     <DialogTrigger>
-      <Button variant="secondary">{props.label}</Button>
+      {props.trigger ?? <Button variant="secondary">{props.label}</Button>}
       <Dialog title="Choose a new time">
         {({ close }) => <NewTimeForm {...props} close={close} />}
       </Dialog>
@@ -166,7 +173,7 @@ function NewTimeForm({
         <p className="text-fg-muted">Finding times…</p>
       )}
       {times && times.days.length === 0 && (
-        <Notice>
+        <Notice tone="warning">
           There's no day with room in the next few weeks. Please call the
           Office.
         </Notice>
@@ -231,7 +238,7 @@ function NewTimeForm({
       {unchanged && <Notice>That's when the clean is already booked.</Notice>}
       {action.problem && <Notice tone="danger">{action.problem}</Notice>}
       <Actions>
-        <Button variant="secondary" onPress={close}>
+        <Button variant="quiet" onPress={close}>
           Keep the current time
         </Button>
         <Button

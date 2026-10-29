@@ -670,7 +670,7 @@ function HomeDetails({
     <CorrectionForm correction={correction}>
       <PlaceTiles value={details.type} onChange={(type) => change({ type })} />
       {noRooms && (
-        <Notice>
+        <Notice tone="warning">
           Its rooms aren't recorded yet: it was asked about for a Service that
           isn't priced from them. Enter them to quote it for one that is.
         </Notice>

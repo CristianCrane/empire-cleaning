@@ -113,9 +113,9 @@ test("clicking a Job opens it", async ({ page }) => {
   await jobsOn(page, "Tue, Mar 2").getByRole("link").click();
 
   await expect(page).toHaveURL(/\/office\/jobs\/[0-9a-f-]{36}$/);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "Tue, Mar 2, 9:00 AM",
-  );
+  await expect(
+    page.locator("#main").getByText("Tue, Mar 2, 9:00 AM", { exact: true }),
+  ).toBeVisible();
 });
 
 test("an overbooked day says how far over it is", async ({ page }) => {
@@ -293,10 +293,10 @@ test("Office Staff move a Job from the Job screen, at any width", async ({
   await moveButton.click();
 
   await expect(page.getByText("Job moved")).toBeVisible();
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "Fri, Mar 5, 1:15 PM",
-  );
-  await expect(page.getByText("0 of 1 place Confirmed")).toBeVisible();
+  await expect(
+    page.locator("#main").getByText("Fri, Mar 5, 1:15 PM", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("0 of 1 Cleaner Confirmed")).toBeVisible();
 });
 
 test("a Job that has started, or isn't booked, can't be moved", async ({
@@ -480,8 +480,8 @@ test(
     await expect(schedule).toBeHidden();
     await expect(dialog).toContainText("ToFri, Mar 5, 1:00 PM");
     await dialog.getByRole("button", { name: "Move Job" }).click();
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-      "Fri, Mar 5, 1:00 PM",
-    );
+    await expect(
+      page.locator("#main").getByText("Fri, Mar 5, 1:00 PM", { exact: true }),
+    ).toBeVisible();
   },
 );
