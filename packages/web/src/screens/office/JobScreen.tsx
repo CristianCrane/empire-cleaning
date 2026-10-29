@@ -48,7 +48,6 @@ import {
 } from "./JobCompletion.tsx";
 import { JobHistory } from "./JobHistory.tsx";
 import { AnswerRequest, MoveActions } from "./JobReschedule.tsx";
-import { homeCrumbs } from "./PropertyScreen.tsx";
 import { OfferServicePlan } from "./StartDraft.tsx";
 
 // whether every place on a Job's crew is Confirmed, or once it has happened
@@ -147,8 +146,7 @@ function JobHeader({ job }: { job: OfficeJob }) {
     <div className="flex flex-col gap-4">
       <Breadcrumbs
         trail={[
-          { label: "Schedule", href: linkTo({ to: "/office/schedule" }) },
-          ...homeCrumbs(job.client, job.property),
+          { label: "Jobs", href: linkTo({ to: "/office/jobs" }) },
           { label: "Job" },
         ]}
       />

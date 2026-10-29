@@ -29,7 +29,7 @@ import {
 } from "@empire-cleaning/ui";
 import { linkTo } from "../links.ts";
 import { InArea } from "./MessagePage.tsx";
-import { QuoteIcon } from "./icons.ts";
+import { JobIcon, QuoteIcon } from "./icons.ts";
 import { areas, areasFor, signOut, type AreaId } from "../session.ts";
 
 // an item is current on its own page, and on the pages that belong to its
@@ -47,6 +47,12 @@ const navFor: Record<AreaId, AreaNavItem[]> = {
       alsoCurrentFor: ["/office/quotes/"],
     },
     {
+      href: linkTo({ to: "/office/jobs" }),
+      label: "Jobs",
+      icon: JobIcon,
+      alsoCurrentFor: ["/office/jobs/"],
+    },
+    {
       href: linkTo({ to: "/office/clients" }),
       label: "Clients",
       icon: ContactRound,
@@ -60,7 +66,6 @@ const navFor: Record<AreaId, AreaNavItem[]> = {
       href: linkTo({ to: "/office/schedule" }),
       label: "Schedule",
       icon: CalendarDays,
-      alsoCurrentFor: ["/office/jobs/"],
     },
     {
       href: linkTo({ to: "/office/staff" }),
