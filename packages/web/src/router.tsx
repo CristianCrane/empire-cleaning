@@ -528,6 +528,10 @@ const officeScheduleRoute = createRoute({
 const officeJobRoute = createRoute({
   getParentRoute: () => officeRoute,
   path: "/jobs/$jobId",
+  // PROTOTYPE: ?variant= picks an Adjustments layout
+  validateSearch: (search: Record<string, unknown>): { variant?: string } => ({
+    variant: typeof search.variant === "string" ? search.variant : undefined,
+  }),
   loader: ({ params }) => getJson<OfficeJob>(`/api/jobs/${params.jobId}`),
   component: JobScreen,
 });

@@ -39,12 +39,12 @@ import {
 import { costForOffice } from "../RescheduleParts.tsx";
 import { CancelJob, FeeMoney, howItEnded } from "./JobCancellation.tsx";
 import {
-  Adjustments,
   ConditionField,
   JobMoney,
   RetryCharge,
   UndoCompletion,
 } from "./JobCompletion.tsx";
+import { AdjustmentsPrototype } from "./adjustments.prototype.tsx";
 import { JobHistory } from "./JobHistory.tsx";
 import { AnswerRequest, MoveActions } from "./JobReschedule.tsx";
 import { homeCrumbs } from "./PropertyScreen.tsx";
@@ -113,7 +113,8 @@ export function JobScreen() {
             </Card>
           </Section>
           <Crew job={job} />
-          {job.completion && <Adjustments job={job} />}
+          {/* PROTOTYPE: ?variant= swaps the Adjustments layout */}
+          {job.completion && <AdjustmentsPrototype job={job} />}
         </div>
         <div className="flex flex-col gap-6">
           {(job.completion || lost) && (
