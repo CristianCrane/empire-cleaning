@@ -75,9 +75,11 @@ test(
     await expect(thursday).toContainText("Unassigned");
     await thursday.getByRole("link").click();
     await expect(page).toHaveURL(JOB_SCREEN);
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-      "Thu, Jan 8, 9:00 AM",
-    );
+    await expect(
+      page.locator("#main").getByText("Thu, Jan 8, 9:00 AM", { exact: true }),
+    ).toBeVisible();
+    // what and where is the title
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(/ at /);
 
     const crew = page.getByRole("region", { name: "Crew" });
     await expect(crew).toContainText("0 of 2 places Confirmed");

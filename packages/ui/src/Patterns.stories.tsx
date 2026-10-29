@@ -592,7 +592,7 @@ function RowsOpenOneDialog() {
                 <Cell>+1 h</Cell>
                 <Cell>+$59.88</Cell>
                 <Cell>
-                  <StatusBadge tone="info">To review</StatusBadge>
+                  <StatusBadge tone="warning">To review</StatusBadge>
                 </Cell>
               </Row>
             </TableBody>
@@ -606,7 +606,7 @@ function RowsOpenOneDialog() {
               description={'"Heavier than quoted, the kitchen…" · lapses Nov 2'}
               end={
                 <>
-                  <StatusBadge tone="info">To review</StatusBadge>
+                  <StatusBadge tone="warning">To review</StatusBadge>
                   <Button size="sm">Review</Button>
                   <Button variant="quiet" size="sm">
                     Remove

@@ -34,9 +34,9 @@ import { conditionLabel, dollars, formatDate, formatMoney } from "../format.ts";
 
 const statusBadge: Record<AdjustmentStatus, ReactNode> = {
   applied: <StatusBadge tone="success">Applied</StatusBadge>,
-  reported: <StatusBadge tone="info">To review</StatusBadge>,
+  reported: <StatusBadge tone="warning">To review</StatusBadge>,
   dismissed: <StatusBadge>Dismissed</StatusBadge>,
-  proposed: <StatusBadge tone="warning">Waiting on the Client</StatusBadge>,
+  proposed: <StatusBadge tone="info">Waiting on the Client</StatusBadge>,
   approved: <StatusBadge tone="success">Approved</StatusBadge>,
   declined: <StatusBadge>Declined</StatusBadge>,
   lapsed: <StatusBadge>Lapsed</StatusBadge>,

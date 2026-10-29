@@ -134,7 +134,7 @@ test(
 
     await expect(page.getByText("Job moved")).toBeVisible();
     await expect(
-      page.getByRole("heading", { level: 1, name: "Wed, Jan 14, 10:00 AM" }),
+      page.locator("#main").getByText("Wed, Jan 14, 10:00 AM", { exact: true }),
     ).toBeVisible();
     await expect(page.getByRole("region", { name: "Crew" })).toContainText(
       "Offered",

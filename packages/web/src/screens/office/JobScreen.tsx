@@ -134,8 +134,9 @@ export function JobScreen() {
   );
 }
 
-// the title, and what can be done to the whole Job as text actions: none
-// of them is the page's main action
+// the title says what and where, the time under it; beside it, what can
+// be done to the whole Job as text actions: none of them is the page's
+// main action
 function JobHeader({ job }: { job: OfficeJob }) {
   return (
     <div className="flex flex-col gap-4">
@@ -146,34 +147,23 @@ function JobHeader({ job }: { job: OfficeJob }) {
           { label: "Job" },
         ]}
       />
-      <div className="flex flex-wrap items-center gap-3">
-        <Heading level={1}>{formatDateTime(job.startsAt)}</Heading>
-        <AssignmentBadge job={job} />
+      <div className="flex flex-wrap items-start gap-3">
+        <div className="flex flex-col gap-1">
+          <div className="flex flex-wrap items-center gap-3">
+            <Heading level={1}>
+              {job.serviceName} at {placeOf(job.property)}
+            </Heading>
+            <AssignmentBadge job={job} />
+          </div>
+          <p className="text-lg text-fg-muted">
+            {formatDateTime(job.startsAt)}
+          </p>
+        </div>
         <div className="ml-auto flex flex-wrap gap-2">
           <MoveActions job={job} />
           {job.cancelTerms && <CancelJob job={job} />}
         </div>
       </div>
-      <p className="text-fg-muted">
-        <Link
-          href={linkTo({
-            to: "/office/clients/$clientId",
-            params: { clientId: job.client.id },
-          })}
-        >
-          {clientName(job.client)}
-        </Link>{" "}
-        ·{" "}
-        <Link
-          href={linkTo({
-            to: "/office/properties/$propertyId",
-            params: { propertyId: job.property.id },
-          })}
-        >
-          {addressOf(job.property)}
-        </Link>{" "}
-        · {job.serviceName}
-      </p>
     </div>
   );
 }
@@ -295,13 +285,37 @@ const noticesFor = (job: OfficeJob): ReactNode[] => {
   return notices;
 };
 
-// what the Job is, and while it's booked, until when it's free to move or
+// where a Job is, for its title: the street and unit
+const placeOf = (p: OfficeJob["property"]) =>
+  [p.street, p.unit].filter(Boolean).join(", ");
+
+// who it's for and what it is, and while it's booked, until when it's free to move or
 // cancel
 function JobFacts({ job }: { job: OfficeJob }) {
   return (
     <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
-      <dt className="font-semibold">Clean</dt>
-      <dd>{job.serviceName}</dd>
+      <dt className="font-semibold">Client</dt>
+      <dd>
+        <Link
+          href={linkTo({
+            to: "/office/clients/$clientId",
+            params: { clientId: job.client.id },
+          })}
+        >
+          {clientName(job.client)}
+        </Link>
+      </dd>
+      <dt className="font-semibold">Home</dt>
+      <dd>
+        <Link
+          href={linkTo({
+            to: "/office/properties/$propertyId",
+            params: { propertyId: job.property.id },
+          })}
+        >
+          {addressOf(job.property)}
+        </Link>
+      </dd>
       <dt className="font-semibold">Add-ons</dt>
       <dd>{job.addOns.length > 0 ? job.addOns.join(", ") : "None"}</dd>
       <dt className="font-semibold">Labour Hours</dt>
