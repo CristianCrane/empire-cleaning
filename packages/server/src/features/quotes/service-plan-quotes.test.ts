@@ -919,3 +919,16 @@ describe("Needs attention", () => {
     expect(await plansDue(office)).toEqual([]);
   });
 });
+
+describe("deleting the Draft of a Service Plan offered unprompted", () => {
+  test("deletes the Quote: nothing was asked and nothing sent", async () => {
+    const { office, propertyId } = await firstCleanDone();
+    const plan = await startPlan(office, propertyId);
+
+    await office.delete(`/api/quotes/${plan.id}/draft`).expect(204);
+
+    await office.get(`/api/quotes/${plan.id}`).expect(404);
+    // the home can be offered one again
+    await startPlan(office, propertyId);
+  });
+});

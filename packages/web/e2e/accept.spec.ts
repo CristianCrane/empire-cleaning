@@ -12,6 +12,7 @@ import {
   signedInAs,
   signInWithLink,
   test,
+  draftTheQuote,
 } from "./harness.ts";
 
 const olive = {
@@ -44,8 +45,7 @@ const quoteSent = async (page: Page) => {
   await signedInAs(page, olive.email);
   await page.goto("/office/quotes");
   await page.getByText(casey.name).click();
-  await page.getByRole("button", { name: "Draft a Quote" }).click();
-  await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
+  await draftTheQuote(page);
   await proposeNextMonday(page);
   await page.getByRole("button", { name: `Send to ${casey.name}` }).click();
   await expect(page.getByText(`Quote sent to ${casey.email}`)).toBeVisible();
@@ -97,9 +97,7 @@ test(
     await expect(jobs).toContainText("Standard Clean");
 
     await page.reload();
-    await expect(
-      page.getByRole("term").filter({ hasText: "Accepted" }),
-    ).toBeVisible();
+    await expect(page.getByText(/ accepted it$/)).toBeVisible();
     await page.goto("/office/schedule?from=2026-01-12&to=2026-01-12");
     await expect(page.getByText(casey.name)).toBeVisible();
   },
@@ -165,9 +163,12 @@ test("Office Staff email a link to add a card, then record the Client's acceptan
   browser,
 }) => {
   await quoteSent(page);
-  const record = page.getByRole("region", { name: "Record acceptance" });
-  await expect(record).toContainText("hasn't saved a Payment Method yet");
-  await record
+  // what's next, above the Quote's story
+  const waiting = page
+    .getByRole("status")
+    .filter({ hasText: "Waiting for Casey to accept" });
+  await expect(waiting).toContainText("they need a card saved first");
+  await waiting
     .getByRole("button", { name: "Email Casey a link to add a card" })
     .click();
   await expect(page.getByText(`Link sent to ${casey.email}`)).toBeVisible();
@@ -188,18 +189,20 @@ test("Office Staff email a link to add a card, then record the Client's acceptan
   ).toBeVisible();
 
   await page.reload();
-  await expect(record).toContainText("Charged to their Test card ending 4242");
-  await record.getByRole("button", { name: "Record acceptance" }).click();
+  await expect(waiting).toContainText(
+    "the Deposit is charged to their Test card ending 4242",
+  );
+  await waiting.getByRole("button", { name: "Record acceptance" }).click();
   await page
     .getByRole("alertdialog")
     .getByRole("button", { name: "Charge and book" })
     .click();
 
   await expect(page.getByText("Accepted and booked")).toBeVisible();
-  await expect(page.getByRole("region", { name: "Offer" })).toContainText(
-    "Deep Clean, booked",
-  );
-  await expect(record).toBeHidden();
+  await expect(
+    page.getByRole("status").filter({ hasText: "Deep Clean, booked" }),
+  ).toBeVisible();
+  await expect(waiting).toBeHidden();
 });
 
 test("Office Staff record acceptance of the offer while drafting a new Revision, which discards the Draft", async ({
@@ -216,23 +219,30 @@ test("Office Staff record acceptance of the offer while drafting a new Revision,
   ).toBeVisible();
 
   await page.reload();
+  const quote = page.url();
   await page.getByRole("button", { name: "Draft a new Revision" }).click();
-  await expect(page.getByText("You're drafting Revision 2.")).toBeVisible();
-  const record = page.getByRole("region", { name: "Record acceptance" });
-  await expect(record).toContainText(
-    "If the Client accepts Revision 1 by phone or in person. Recording it discards your Draft of Revision 2.",
-  );
-  await record.getByRole("button", { name: "Record acceptance" }).click();
+  await expect(page).toHaveURL(/\/draft$/);
+  // back on the Quote, the offer can still be accepted
+  await page.goto(quote);
+  await expect(
+    page.getByText("Revision 2 is a Draft, not sent yet."),
+  ).toBeVisible();
   await page
-    .getByRole("alertdialog")
-    .getByRole("button", { name: "Charge and book" })
+    .getByRole("status")
+    .filter({ hasText: "Waiting for Casey to accept Revision 1" })
+    .getByRole("button", { name: "Record acceptance" })
     .click();
+  const confirm = page.getByRole("alertdialog");
+  await expect(confirm).toContainText(
+    "It accepts Revision 1, as sent, and deletes your Draft of Revision 2.",
+  );
+  await confirm.getByRole("button", { name: "Charge and book" }).click();
 
   await expect(page.getByText("Accepted and booked")).toBeVisible();
   await expect(page.getByText("Draft changes")).toHaveCount(0);
-  await expect(page.getByRole("region", { name: "Offer" })).toContainText(
-    "Deep Clean, booked",
-  );
+  await expect(
+    page.getByRole("status").filter({ hasText: "Deep Clean, booked" }),
+  ).toBeVisible();
 });
 
 test("a Quote whose day has filled up can't be paid for, and the Office is asked for another time", async ({

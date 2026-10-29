@@ -29,7 +29,7 @@ export function useStartDraft() {
           })
         : postJson<OfficeQuote>("/api/quotes", target));
       await navigate({
-        to: "/office/quotes/$quoteId",
+        to: "/office/quotes/$quoteId/draft",
         params: { quoteId: quote.id },
       });
     } catch (e) {

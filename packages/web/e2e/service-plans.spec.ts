@@ -148,8 +148,7 @@ test("the Office records a plan's acceptance, then books a visit its day had no 
   await bookJob({ startsAt: "2026-02-02T14:00:00Z", labourHours: 8 });
 
   await page.goto(`/office/quotes/${quote.id}`);
-  const record = page.getByRole("region", { name: "Record acceptance" });
-  await record.getByRole("button", { name: "Record acceptance" }).click();
+  await page.getByRole("button", { name: "Record acceptance" }).click();
   await expect(page.getByRole("alertdialog")).toContainText(
     "held for the life of the plan",
   );

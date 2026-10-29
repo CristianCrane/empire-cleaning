@@ -32,12 +32,14 @@ export function Section({
       className={twMerge("flex flex-col gap-3", className)}
     >
       <header className="flex flex-wrap items-end gap-3">
-        <div className="flex flex-1 flex-col gap-1">
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
           <Heading level={headingLevel} size={3} id={headingId}>
             {title}
           </Heading>
           {description && (
-            <p className="text-sm text-fg-muted">{description}</p>
+            <p className="text-sm text-fg-muted [overflow-wrap:anywhere]">
+              {description}
+            </p>
           )}
         </div>
         {actions && (

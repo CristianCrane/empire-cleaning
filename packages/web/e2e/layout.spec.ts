@@ -21,6 +21,8 @@ import {
   signedInAs,
   signUp,
   test,
+  draftTheQuote,
+  recordFindingsWithoutVisit,
 } from "./harness.ts";
 
 // Every screen, at the widths people actually use, from a small phone to a
@@ -156,8 +158,7 @@ test("the Office's screens fit every width", async ({ page }) => {
   await expect(page).toHaveURL(/\/office\/clients\/[0-9a-f-]{36}$/);
   const client = new URL(page.url()).pathname;
   await page.goto(request);
-  await page.getByRole("button", { name: "Draft a Quote" }).click();
-  await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
+  await draftTheQuote(page);
   const draft = new URL(page.url()).pathname;
 
   for (const path of [
@@ -204,17 +205,7 @@ test("business premises' screens fit every width, the form included", async ({
   await page.getByRole("link", { name: "View Property" }).click();
   await expect(page).toHaveURL(/\/office\/properties\/[0-9a-f-]{36}$/);
   const property = new URL(page.url()).pathname;
-  await page.goto(request);
-  await page.getByRole("button", { name: "Draft a one-off Quote" }).click();
-  await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
-  const draft = new URL(page.url()).pathname;
-
-  for (const path of [
-    request,
-    property,
-    draft,
-    `/office/site-visits/${visit.id}`,
-  ]) {
+  for (const path of [request, property, `/office/site-visits/${visit.id}`]) {
     await expectFitsEveryWidth(page, path);
   }
 
@@ -237,6 +228,12 @@ test("business premises' screens fit every width, the form included", async ({
     `${property}?tab=visit`,
     "Book a Site Visit",
   );
+
+  // once the premises are known, its Draft
+  await page.goto(request);
+  await recordFindingsWithoutVisit(page);
+  await draftTheQuote(page, "one-off");
+  await expectFitsEveryWidth(page, new URL(page.url()).pathname);
 
   // the form's step about business premises, with its days to choose
   await page.goto("/office/quotes/new");
@@ -292,12 +289,14 @@ test("a Sent Quote fits every width, for the Office and the Client", async ({
   await signedInAs(page, olive.email);
   await page.goto("/office/quotes");
   await page.getByText("Casey Client").click();
-  await page.getByRole("button", { name: "Draft a Quote" }).click();
-  await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
-  const quote = new URL(page.url()).pathname;
+  await draftTheQuote(page);
+  // the Quote's own page, not its Draft's
+  const quote = new URL(page.url()).pathname.replace(/\/draft$/, "");
   await proposeNextMonday(page);
   await page.getByRole("button", { name: "Send to Casey Client" }).click();
-  await expect(page.getByRole("region", { name: "Offer" })).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Current Quote" }),
+  ).toBeVisible();
 
   await expectFitsEveryWidth(page, quote);
 
@@ -327,12 +326,14 @@ test("an Accepted Quote and the Client's upcoming Jobs fit every width", async (
   await signedInAs(page, olive.email);
   await page.goto("/office/quotes");
   await page.getByText("Casey Client").click();
-  await page.getByRole("button", { name: "Draft a Quote" }).click();
-  await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
-  const quote = new URL(page.url()).pathname;
+  await draftTheQuote(page);
+  // the Quote's own page, not its Draft's
+  const quote = new URL(page.url()).pathname.replace(/\/draft$/, "");
   await proposeNextMonday(page);
   await page.getByRole("button", { name: "Send to Casey Client" }).click();
-  await expect(page.getByRole("region", { name: "Offer" })).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Current Quote" }),
+  ).toBeVisible();
 
   const client = await (await browser.newContext()).newPage();
   await signedInAs(client, casey.email);
@@ -356,11 +357,11 @@ test("a Service Plan Quote fits every width, Draft and Sent, for the Office and 
   const firstClean = `/office/jobs/${job.id}`;
   await page.goto(firstClean);
   await page.getByRole("button", { name: "Quote a Service Plan" }).click();
-  await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
-  const quote = new URL(page.url()).pathname;
+  await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}\/draft$/);
+  const quote = new URL(page.url()).pathname.replace(/\/draft$/, "");
 
   await expectFitsEveryWidth(page, firstClean);
-  await expectFitsEveryWidth(page, quote);
+  await expectFitsEveryWidth(page, `${quote}/draft`);
 
   // its first Job on Monday 19 January 2026 at 9:00 AM
   await page
@@ -374,7 +375,9 @@ test("a Service Plan Quote fits every width, Draft and Sent, for the Office and 
     .click();
   await page.keyboard.type("0900AM");
   await page.getByRole("button", { name: "Send to Casey Client" }).click();
-  await expect(page.getByRole("region", { name: "Offer" })).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Current Quote" }),
+  ).toBeVisible();
   await expectFitsEveryWidth(page, quote);
   // the home's page, with its history
   await page
@@ -445,7 +448,7 @@ test("a Service Plan on several weekdays fits every width, Draft, Sent and start
   // a Draft with two weekdays
   await page.goto(`/office/jobs/${job.id}`);
   await page.getByRole("button", { name: "Quote a Service Plan" }).click();
-  await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
+  await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}\/draft$/);
   const draft = new URL(page.url()).pathname;
   await page.getByRole("button", { name: "Add a weekday" }).click();
   await expect(page.getByRole("region", { name: "Weekday 2" })).toBeVisible();

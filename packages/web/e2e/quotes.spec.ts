@@ -12,6 +12,7 @@ import {
   signedInAs,
   signInWithLink,
   test,
+  draftTheQuote,
 } from "./harness.ts";
 
 const olive = {
@@ -43,16 +44,18 @@ const signInAsOffice = async (page: Page) => {
 const startDraft = async (page: Page) => {
   await page.goto("/office/quotes");
   await page.getByText(casey.name).click();
-  await page.getByRole("button", { name: "Draft a Quote" }).click();
-  await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
+  await draftTheQuote(page);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    `Quote for ${casey.name}`,
+    `Revision 1 for ${casey.name}`,
   );
 };
 
+// sends the Draft open on the page, which returns to the Quote (an earlier
+// send's toast may still be showing, so it waits for the page too)
 const send = async (page: Page) => {
   await page.getByRole("button", { name: `Send to ${casey.name}` }).click();
   await expect(page.getByText(`Quote sent to ${casey.email}`)).toBeVisible();
+  await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
   await expect(page.getByText("Sent", { exact: true }).first()).toBeVisible();
 };
 
@@ -82,9 +85,9 @@ test(
       .fill("Regular Client's friend");
     await proposeNextMonday(page);
     await send(page);
-    await expect(page.getByRole("region", { name: "Offer" })).toContainText(
-      "Mon, Jan 12, 9:00 AM",
-    );
+    await expect(
+      page.getByRole("region", { name: "Current Quote" }),
+    ).toContainText("Mon, Jan 12, 9:00 AM");
     await expect(
       page.getByRole("region", { name: "Deep Clean" }),
     ).toContainText("Overridden to $250.00 before tax");
@@ -176,9 +179,7 @@ test("the Client Declines a Quote from the portal", async ({
     client.getByRole("button", { name: "Decline this Quote" }),
   ).toBeHidden();
   await page.reload();
-  await expect(
-    page.getByRole("term").filter({ hasText: "Declined" }),
-  ).toBeVisible();
+  await expect(page.getByText(/ declined it$/)).toBeVisible();
 });
 
 test("Office Staff draft a new Revision of a Sent Quote, which keeps the last as history", async ({
@@ -190,19 +191,29 @@ test("Office Staff draft a new Revision of a Sent Quote, which keeps the last as
   await proposeNextMonday(page);
   await send(page);
   const quote = page.url();
-  const revisions = page.getByRole("grid", { name: "Revisions" });
-  await expect(revisions.getByRole("row")).toHaveCount(1);
-  await expect(revisions.getByRole("row")).toContainText(
-    /Revision 1, sent .*The offer/,
-  );
+  // each Sent Revision is a moment in the Quote's story, the offer in full
+  // on top
+  const sent = page.getByText(/^Revision \d+ sent$/);
+  const offer = page.getByRole("region", { name: "Current Quote" });
+  await expect(sent).toHaveText(["Revision 1 sent"]);
+  await expect(offer).toContainText("Revision 1, sent");
 
   await page.getByRole("button", { name: "Draft a new Revision" }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    `Revision 2 for ${casey.name}`,
+  );
+  await expect(
+    page.getByText(
+      `${casey.name} still sees Revision 1 until you send this one.`,
+    ),
+  ).toBeVisible();
   // still Sent, the offer standing while the changes are drafted
+  await page.goto(quote);
   await expect(page.getByText("Draft changes")).toBeVisible();
   await expect(page.getByText("Sent", { exact: true })).toBeVisible();
   await expect(
     page.getByText(
-      `You're drafting Revision 2. ${casey.name} still sees Revision 1 until you send it.`,
+      `Revision 2 is a Draft, not sent yet. ${casey.name} still sees Revision 1 until you send it.`,
     ),
   ).toBeVisible();
   await page.goto("/office/quotes");
@@ -211,13 +222,11 @@ test("Office Staff draft a new Revision of a Sent Quote, which keeps the last as
   ).toContainText("Draft changes");
 
   await page.goto(quote);
+  await page.getByRole("link", { name: "Continue the Draft" }).click();
   await send(page);
   await expect(page.getByText("Draft changes")).toBeHidden();
-  const rows = revisions.getByRole("row");
-  await expect(rows).toHaveCount(2);
-  await expect(rows.first()).toContainText(/Revision 2, sent .*The offer/);
-  await expect(rows.last()).toContainText("Revision 1");
-  await expect(rows.last()).not.toContainText("The offer");
+  await expect(sent).toHaveText(["Revision 2 sent", "Revision 1 sent"]);
+  await expect(offer).toContainText("Revision 2, sent");
 });
 
 test("the Client sees only the latest Revision, from any of its emails", async ({
@@ -287,7 +296,7 @@ test("Office Staff Turn Down a Quote asked for, and the Client is told why", asy
   ).toBeVisible();
   await expect(page.getByRole("button", { name: "Turn Down" })).toBeHidden();
   await expect(
-    page.getByRole("button", { name: "Draft a Quote" }),
+    page.getByRole("button", { name: "Draft the Quote" }),
   ).toBeHidden();
   const told = (await emailsTo(casey.email)).find(
     (e) => e.subject === "About your Quote from Empire Cleaning",
@@ -311,8 +320,10 @@ test("Office Staff Turn Down a Quote asked for, and the Client is told why", asy
 test("a Sent Quote can't be Turned Down", async ({ page }) => {
   await requestQuoteAsGuest(casey);
   await signInAsOffice(page);
-  await startDraft(page);
+  await page.goto("/office/quotes");
+  await page.getByText(casey.name).click();
   await expect(page.getByRole("button", { name: "Turn Down" })).toBeVisible();
+  await draftTheQuote(page);
   await proposeNextMonday(page);
   await send(page);
 
@@ -378,7 +389,7 @@ test("Quote screens pass automated accessibility checks", async ({
   await send(page);
   await page.goto(url);
   await expect(
-    page.getByRole("term").filter({ hasText: "Sent" }),
+    page.getByRole("region", { name: "Current Quote" }),
   ).toBeVisible();
   ({ violations } = await new AxeBuilder({ page }).analyze());
   expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
@@ -496,9 +507,9 @@ test(
     ).toContainText("Tue, Jan 13 has 8 h of Cleaner time free");
 
     await send(page);
-    await expect(page.getByRole("region", { name: "Offer" })).toContainText(
-      "Tue, Jan 13, 10:30 AM",
-    );
+    await expect(
+      page.getByRole("region", { name: "Current Quote" }),
+    ).toContainText("Tue, Jan 13, 10:30 AM");
   },
 );
 

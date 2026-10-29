@@ -6,6 +6,7 @@ import {
   requestQuoteAsGuest,
   signedInAs,
   test,
+  draftTheQuote,
 } from "./harness.ts";
 
 const casey = { name: "Casey Client", email: "casey@example.com" };
@@ -58,6 +59,7 @@ test(
     await requestQuoteAsGuest(casey);
     await page.goto("/office/quotes");
     await page.getByText("Casey Client").click();
+    await draftTheQuote(page);
 
     // 3.25 h x $60 = $195, + 8.875% = $212.31; Deep Clean keeps its own $55
     await expect(

@@ -410,3 +410,36 @@ export const proposeNextMonday = async (page: Page) => {
 // what the browser does when the person comes back to this tab
 export const returnToTab = (page: import("@playwright/test").Page) =>
   page.evaluate(() => window.dispatchEvent(new Event("focus")));
+
+// drafts the Requested Quote open on the page and waits for the Draft's
+// page; `kind` answers the dialog that asks which, where either is possible
+export const draftTheQuote = async (
+  page: Page,
+  kind?: "one-off" | "Service Plan",
+) => {
+  await page.getByRole("button", { name: "Draft the Quote" }).click();
+  if (kind) {
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: `A ${kind} Quote` })
+      .click();
+  }
+  await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}\/draft$/);
+};
+
+// from a business's Quote whose premises haven't been seen: records the
+// premises as the Office knows them, with no visit, and comes back
+export const recordFindingsWithoutVisit = async (page: Page) => {
+  const quote = page.url();
+  await page.getByRole("link", { name: "Property", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Record findings without a visit" })
+    .click();
+  const dialog = page.getByRole("dialog", {
+    name: "Record findings without a visit",
+  });
+  await dialog.getByText("Moderate", { exact: true }).click();
+  await dialog.getByRole("button", { name: "Save findings" }).click();
+  await expect(page.getByText("Findings recorded").first()).toBeVisible();
+  await page.goto(quote);
+};

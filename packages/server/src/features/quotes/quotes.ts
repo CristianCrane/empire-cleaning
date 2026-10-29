@@ -1628,6 +1628,43 @@ export const sendQuote = async (id: string): Promise<OfficeQuote> => {
   return view;
 };
 
+/**
+ * Office Staff throw away the Revision being written. What's left depends
+ * on what came before it: a Sent Quote keeps its offer; one asked for with
+ * nothing sent is Requested again, of the Service asked for, its kind
+ * unset; and a Service Plan offered unprompted, never sent, had nothing but
+ * its Draft, so it goes too. Returns the Quote, or null once it's gone.
+ */
+export const discardDraft = async (id: string): Promise<OfficeQuote | null> => {
+  const quote = await findQuote(id);
+  const gone = await db.transaction(async (tx) => {
+    await lockProperty(tx, quote.propertyId);
+    const current = await findQuote(id, tx);
+    if (!(await draftRevisionOf(id, tx))) {
+      throw new ConflictError("This Quote has no Draft to delete.");
+    }
+    if (current.sentRevisionId) {
+      await dropDraftRevision(tx, id);
+      return false;
+    }
+    if (current.askedServiceKey === null) {
+      await tx.delete(quotes).where(eq(quotes.id, id));
+      return true;
+    }
+    await dropDraftRevision(tx, id);
+    await tx
+      .update(quotes)
+      .set({
+        status: "requested",
+        kind: null,
+        serviceKey: current.askedServiceKey,
+      })
+      .where(eq(quotes.id, id));
+    return false;
+  });
+  return gone ? null : officeQuote(id);
+};
+
 // a closed Quote's unsent Revision can never be sent, so it goes
 export const dropDraftRevision = (tx: Tx | typeof db, quoteId: string) =>
   tx

@@ -9,6 +9,8 @@ import {
   setUsualWeek,
   signedInAs,
   test,
+  draftTheQuote,
+  recordFindingsWithoutVisit,
 } from "./harness.ts";
 
 // The API's clock starts at 4am on Monday 5 January 2026 in New York.
@@ -108,43 +110,29 @@ test(
   },
 );
 
-test("a Quote for business premises can't be sent until a Site Visit's findings are recorded", async ({
+test("a Quote for business premises can't be drafted until their findings are recorded", async ({
   page,
 }) => {
   await requestQuoteForPremises(casey, "Acme Dental");
   await signInAsOffice(page);
   await page.goto("/office/quotes");
   await page.getByText("Acme Dental").click();
-  await page.getByRole("button", { name: "Draft a one-off Quote" }).click();
-  await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
-  const quote = page.url();
 
+  // not seen yet: seeing them is the only thing to do
   await expect(
-    page.getByText("These premises haven't had a Site Visit"),
+    page.getByText("Business premises are seen before they're quoted."),
   ).toBeVisible();
-  const send = page.getByRole("button", { name: /^Send to/ });
-  await expect(send).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "Draft the Quote" }),
+  ).toHaveCount(0);
 
   // premises the Office knows already
-  await page.getByRole("link", { name: "the Property" }).click();
-  await page
-    .getByRole("button", { name: "Record findings without a visit" })
-    .click();
-  const dialog = page.getByRole("dialog", {
-    name: "Record findings without a visit",
-  });
-  await dialog.getByText("Moderate", { exact: true }).click();
-  await dialog.getByRole("button", { name: "Save findings" }).click();
-  await expect(page.getByText("Findings recorded").first()).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "Findings recorded, with no visit" }),
-  ).toBeVisible();
-
-  await page.goto(quote);
+  await recordFindingsWithoutVisit(page);
+  await draftTheQuote(page, "one-off");
   await expect(
     page.getByText("These premises haven't had a Site Visit"),
   ).toHaveCount(0);
-  await expect(send).toBeEnabled();
+  await expect(page.getByRole("button", { name: /^Send to/ })).toBeEnabled();
 });
 
 test("a Site Visit shows on the Schedule, in the Client's portal and in the visiting Cleaner's day", async ({
