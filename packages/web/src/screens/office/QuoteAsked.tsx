@@ -136,7 +136,7 @@ export function DraftQuote({ quote }: { quote: OfficeQuote }) {
             {failure && <Notice tone="danger">{failure}</Notice>}
             <Actions>
               <Button
-                variant="secondary"
+                variant="quiet"
                 isPending={starting?.kind === "one_off"}
                 isDisabled={starting !== undefined}
                 onPress={() => draft("one_off")}
@@ -253,7 +253,7 @@ export function TurnDownQuote({ quote }: { quote: OfficeQuote }) {
             </RadioGroup>
             {action.problem && <Notice tone="danger">{action.problem}</Notice>}
             <Actions>
-              <Button variant="secondary" onPress={close}>
+              <Button variant="quiet" onPress={close}>
                 Keep it
               </Button>
               <Button

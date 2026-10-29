@@ -416,7 +416,7 @@ function MoreJobs({
               })}
             </List>
             <Actions>
-              <Button variant="secondary" onPress={close}>
+              <Button variant="quiet" onPress={close}>
                 Close
               </Button>
             </Actions>

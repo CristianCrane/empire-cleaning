@@ -549,6 +549,125 @@ function NoticesHoldOneAction() {
   );
 }
 
+function RowsOpenOneDialog() {
+  return (
+    <div className="flex flex-col gap-6">
+      <Rule title="A row opens one dialog, with two Buttons at most">
+        <p>
+          A row in a List or Table holds no Buttons: it has one action, opening
+          the item. Put each thing it's made of in its own place (a column, or
+          the title, description and end of a row), never run together in one
+          sentence. The dialog it opens shows the item, then does what can be
+          done to it.
+        </p>
+        <p>
+          A dialog ends with at most two Buttons: one filled (
+          <code>primary</code>, or <code>danger</code> for something
+          destructive) and one <code>quiet</code>: Cancel, or an alternative
+          such as Dismiss, when the ✕ in its corner does the cancelling. Never
+          open a dialog on a dialog: a second look before something destructive
+          (Remove, Turn down) is a step in the same dialog, as an alertdialog.
+        </p>
+      </Rule>
+      <div className="flex flex-col gap-4 lg:flex-row">
+        <Example verdict="Do">
+          <Table aria-label="Adjustments" onRowAction={() => {}}>
+            <TableHeader>
+              <Column isRowHeader>What</Column>
+              <Column>Change</Column>
+              <Column>Price</Column>
+              <Column>Status</Column>
+            </TableHeader>
+            <TableBody>
+              <Row id="oven">
+                <Cell>Inside the oven</Cell>
+                <Cell>Not done</Cell>
+                <Cell>−$29.94</Cell>
+                <Cell>
+                  <StatusBadge tone="success">Applied</StatusBadge>
+                </Cell>
+              </Row>
+              <Row id="time">
+                <Cell>Extra time</Cell>
+                <Cell>+1 h</Cell>
+                <Cell>+$59.88</Cell>
+                <Cell>
+                  <StatusBadge tone="info">To review</StatusBadge>
+                </Cell>
+              </Row>
+            </TableBody>
+          </Table>
+        </Example>
+        <Example verdict="Don't">
+          <List aria-label="Adjustments">
+            <ListItem
+              id="time"
+              title="1 extra hour: $59.88"
+              description={'"Heavier than quoted, the kitchen…" · lapses Nov 2'}
+              end={
+                <>
+                  <StatusBadge tone="info">To review</StatusBadge>
+                  <Button size="sm">Review</Button>
+                  <Button variant="quiet" size="sm">
+                    Remove
+                  </Button>
+                </>
+              }
+            />
+          </List>
+        </Example>
+      </div>
+    </div>
+  );
+}
+
+function AllAtOnceInTwoColumns() {
+  return (
+    <div className="flex flex-col gap-6">
+      <Rule title="When every part of a record matters at once, two columns">
+        <p>
+          A record read as a whole, every part as important as the others (a
+          Job: what it is, who's on it, its money and what happened), shows in
+          one view without scrolling: what to do in Notices on top, then two
+          columns, the record and its people on the left, its money and history
+          on the right. One column on a phone. A record read as steps, where
+          what's next matters most (a Quote), is its story instead.
+        </p>
+      </Rule>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_14rem]">
+        <div className="flex flex-col gap-4">
+          <Section title="Job">
+            <Card>
+              <p>Deep Clean · 6 Labour Hours · crew of 2</p>
+            </Card>
+          </Section>
+          <Section title="Crew" description="1 of 2 places Confirmed">
+            <List aria-label="Crew">
+              <ListItem
+                id="ben"
+                title="Ben Cleaner"
+                end={<StatusBadge tone="success">Confirmed</StatusBadge>}
+              />
+            </List>
+          </Section>
+        </div>
+        <div className="flex flex-col gap-4">
+          <Section title="Money">
+            <Card>
+              <p>Total $194.89 · Paid $48.72</p>
+            </Card>
+          </Section>
+          <Section title="History">
+            <Card>
+              <p className="text-sm">Ben Cleaner Confirmed · Oct 21</p>
+            </Card>
+          </Section>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const meta = {
   title: "Patterns",
   parameters: { layout: "padded" },
@@ -651,9 +770,10 @@ function ClickableCatchesTheEye() {
           Section's or page's own actions like Edit (<code>danger-text</code>{" "}
           when one undoes something, like Cancel visit), <code>danger</code>{" "}
           (filled red) for a destructive action standing alone, like End plan,
-          and <code>quiet</code> only to back out of a dialog. A form's Save is
-          primary, faded until there's something to save. Rows that open
-          something show the hand cursor.
+          and <code>quiet</code> only in a dialog, for its Cancel or the one
+          alternative beside its main action. A form's Save is primary, faded
+          until there's something to save. Rows that open something show the
+          hand cursor.
         </p>
       </Rule>
       <div className="flex flex-wrap items-center gap-3">
@@ -716,4 +836,14 @@ export const RecordsAsStoriesStory: Story = {
 export const NoticesHoldOneActionStory: Story = {
   name: "Notices hold one action",
   render: () => <NoticesHoldOneAction />,
+};
+
+export const RowsOpenOneDialogStory: Story = {
+  name: "Rows open one dialog, two Buttons",
+  render: () => <RowsOpenOneDialog />,
+};
+
+export const AllAtOnceInTwoColumnsStory: Story = {
+  name: "All at once in two columns",
+  render: () => <AllAtOnceInTwoColumns />,
 };

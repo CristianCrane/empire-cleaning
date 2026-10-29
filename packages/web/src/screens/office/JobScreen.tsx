@@ -471,7 +471,7 @@ function Offer({ job, close }: { job: OfficeJob; close: () => void }) {
       </Select>
       {action.problem && <Notice tone="danger">{action.problem}</Notice>}
       <Actions>
-        <Button variant="secondary" onPress={close}>
+        <Button variant="quiet" onPress={close}>
           Cancel
         </Button>
         <Button type="submit" isPending={action.isPending}>
@@ -514,7 +514,7 @@ function Remove({
             </p>
             {action.problem && <Notice tone="danger">{action.problem}</Notice>}
             <Actions>
-              <Button variant="secondary" onPress={close}>
+              <Button variant="quiet" onPress={close}>
                 Cancel
               </Button>
               <Button

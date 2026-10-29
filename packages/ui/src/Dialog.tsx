@@ -7,6 +7,8 @@ import {
   type ModalOverlayProps,
 } from "react-aria-components";
 import type { ReactNode } from "react";
+import { X } from "lucide-react";
+import { Button } from "./Button.tsx";
 
 export { DialogTrigger } from "react-aria-components";
 
@@ -26,9 +28,12 @@ export type DialogProps = Omit<AriaDialogProps, "children"> & {
 
 // a modal dialog: a sheet rising from the bottom on a phone, centred on larger
 // screens. Use inside a DialogTrigger after the Button that opens it (or pass
-// isOpen and onOpenChange), and end it with an <Actions> row. For a
-// destructive confirmation, pass role="alertdialog" (not dismissable by tapping
-// outside).
+// isOpen and onOpenChange), and end it with an <Actions> row of at most two
+// Buttons: one filled (primary, or danger for something destructive) and one
+// quiet (Cancel, or an alternative such as Dismiss). The ✕ in its corner
+// closes it without doing anything. Never open a dialog on a dialog: a second
+// look is a step in the same one. For a destructive confirmation, pass
+// role="alertdialog" (not dismissable by tapping outside).
 export function Dialog({
   title,
   children,
@@ -56,12 +61,23 @@ export function Dialog({
         >
           {({ close }) => (
             <>
-              <Heading
-                slot="title"
-                className="font-display text-2xl font-bold tracking-wide uppercase"
-              >
-                {title}
-              </Heading>
+              <div className="flex items-start gap-3">
+                <Heading
+                  slot="title"
+                  className="flex-1 font-display text-2xl font-bold tracking-wide uppercase"
+                >
+                  {title}
+                </Heading>
+                <Button
+                  variant="quiet"
+                  size="icon"
+                  aria-label="Close"
+                  onPress={close}
+                  className="-mt-2 -mr-2 shrink-0"
+                >
+                  <X aria-hidden size={20} />
+                </Button>
+              </div>
               {typeof children === "function" ? children({ close }) : children}
             </>
           )}

@@ -287,7 +287,7 @@ function ChooseVisitTime({
       </p>
       {action.problem && <Notice tone="danger">{action.problem}</Notice>}
       <Actions>
-        <Button variant="secondary" onPress={close}>
+        <Button variant="quiet" onPress={close}>
           Cancel
         </Button>
         <Button
@@ -320,7 +320,7 @@ function SkipVisit(props: VisitProps) {
             </p>
             {action.problem && <Notice tone="danger">{action.problem}</Notice>}
             <Actions>
-              <Button variant="secondary" onPress={close}>
+              <Button variant="quiet" onPress={close}>
                 Keep it
               </Button>
               <Button

@@ -29,7 +29,7 @@ test("coming back to the tab notices a Client record connected meanwhile", async
   await returnToTab(page);
 
   await page.getByRole("button", { name: olive.name }).click();
-  await page.getByRole("button", { name: "Switch to Client portal" }).click();
+  await page.getByRole("row", { name: "Switch to Client portal" }).click();
   await expect(page).toHaveURL("/portal");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     "Welcome, Olive",
@@ -47,12 +47,12 @@ test("switching areas notices a Client record connected meanwhile", async ({
 
   // the menu still offers only what it knew; entering another area looks again
   await page.getByRole("button", { name: olive.name }).click();
-  await page.getByRole("button", { name: "Switch to Cleaner area" }).click();
+  await page.getByRole("row", { name: "Switch to Cleaner area" }).click();
   await expect(page).toHaveURL("/cleaner");
 
   await page.getByRole("button", { name: olive.name }).click();
   await expect(
-    page.getByRole("button", { name: "Switch to Client portal" }),
+    page.getByRole("row", { name: "Switch to Client portal" }),
   ).toBeVisible();
 });
 

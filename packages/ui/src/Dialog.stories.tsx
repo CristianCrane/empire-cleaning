@@ -30,7 +30,7 @@ export const Default: Story = {
               Casey Client will get an email with the Quote for 41-12 Austin St.
             </p>
             <Actions>
-              <Button variant="secondary" onPress={close}>
+              <Button variant="quiet" onPress={close}>
                 Not yet
               </Button>
               <Button
@@ -79,7 +79,7 @@ export const Destructive: Story = {
               No more Jobs will be scheduled for 41-12 Austin St.
             </p>
             <Actions>
-              <Button variant="secondary" onPress={close}>
+              <Button variant="quiet" onPress={close}>
                 Keep it
               </Button>
               <Button
@@ -116,7 +116,7 @@ export const WithForm: Story = {
             <TextField label="Address" isRequired autoFocus />
             <TextField label="Postcode" isRequired />
             <Actions>
-              <Button variant="secondary" onPress={close}>
+              <Button variant="quiet" onPress={close}>
                 Cancel
               </Button>
               <Button type="submit">Add</Button>
@@ -146,7 +146,7 @@ export const Wide: Story = {
               ))}
             </div>
             <Actions>
-              <Button variant="secondary" onPress={close}>
+              <Button variant="quiet" onPress={close}>
                 Cancel
               </Button>
               <Button
@@ -181,7 +181,7 @@ function FromCode({ onConfirm, ...args }: Args) {
               From Mon, Mar 1, 9:00 AM to Wed, Mar 3, 10:30 AM.
             </p>
             <Actions>
-              <Button variant="secondary" onPress={close}>
+              <Button variant="quiet" onPress={close}>
                 Keep it
               </Button>
               <Button

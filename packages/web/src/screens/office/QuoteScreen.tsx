@@ -483,7 +483,7 @@ function DeleteDraft({ quote }: { quote: OfficeQuote }) {
             </p>
             {action.problem && <Notice tone="danger">{action.problem}</Notice>}
             <Actions>
-              <Button variant="secondary" onPress={close}>
+              <Button variant="quiet" onPress={close}>
                 Keep it
               </Button>
               <Button
@@ -1036,7 +1036,7 @@ function RecordAcceptance({
             </p>
             {action.problem && <Notice tone="danger">{action.problem}</Notice>}
             <Actions>
-              <Button variant="secondary" onPress={close}>
+              <Button variant="quiet" onPress={close}>
                 Cancel
               </Button>
               <Button

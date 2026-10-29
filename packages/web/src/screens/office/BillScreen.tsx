@@ -165,7 +165,7 @@ function RecordPayment({ bill }: { bill: BillView }) {
             />
             {action.problem && <Notice tone="danger">{action.problem}</Notice>}
             <Actions>
-              <Button variant="secondary" onPress={close}>
+              <Button variant="quiet" onPress={close}>
                 Cancel
               </Button>
               <Button type="submit" isPending={action.isPending}>
@@ -212,7 +212,7 @@ function VoidBill({ bill }: { bill: BillView }) {
             />
             {action.problem && <Notice tone="danger">{action.problem}</Notice>}
             <Actions>
-              <Button variant="secondary" onPress={close}>
+              <Button variant="quiet" onPress={close}>
                 Keep it
               </Button>
               <Button

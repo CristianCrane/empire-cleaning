@@ -176,13 +176,11 @@ test.describe("areas", () => {
       await expect(page).toHaveURL("/office");
 
       await page.getByRole("button", { name: officeStaff.name }).click();
-      await page
-        .getByRole("button", { name: "Switch to Cleaner area" })
-        .click();
+      await page.getByRole("row", { name: "Switch to Cleaner area" }).click();
       await expect(page).toHaveURL("/cleaner");
 
       await page.getByRole("button", { name: officeStaff.name }).click();
-      await page.getByRole("button", { name: "Switch to Office" }).click();
+      await page.getByRole("row", { name: "Switch to Office" }).click();
       await expect(page).toHaveURL("/office");
     },
   );
@@ -196,7 +194,7 @@ test.describe("areas", () => {
     await expect(page).toHaveURL("/cleaner");
 
     await page.getByRole("button", { name: cleaner.name }).click();
-    await page.getByRole("button", { name: "Switch to Client portal" }).click();
+    await page.getByRole("row", { name: "Switch to Client portal" }).click();
 
     await expect(page).toHaveURL("/portal");
   });

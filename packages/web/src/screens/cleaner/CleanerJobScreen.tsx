@@ -176,7 +176,7 @@ function Release({ job }: { job: CleanerJob }) {
             </p>
             {problem && <Notice tone="danger">{problem}</Notice>}
             <Actions>
-              <Button variant="secondary" onPress={close}>
+              <Button variant="quiet" onPress={close}>
                 Keep it
               </Button>
               <Button

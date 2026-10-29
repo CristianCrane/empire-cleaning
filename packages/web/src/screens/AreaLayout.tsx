@@ -23,6 +23,8 @@ import {
   Button,
   Dialog,
   DialogTrigger,
+  List,
+  ListItem,
   type NavItem,
 } from "@empire-cleaning/ui";
 import { linkTo } from "../links.ts";
@@ -153,21 +155,26 @@ function AccountMenu({
               <span className="font-semibold">{account.name}</span>
               <span className="text-fg-muted">{account.email}</span>
             </div>
+            {otherAreas.length > 0 && (
+              <List
+                aria-label="Switch to"
+                onAction={(id) => {
+                  close();
+                  void navigate({ to: areas[id as AreaId].path });
+                }}
+              >
+                {otherAreas.map((id) => (
+                  <ListItem
+                    key={id}
+                    id={id}
+                    title={`Switch to ${areas[id].label}`}
+                  />
+                ))}
+              </List>
+            )}
             <Actions>
-              {otherAreas.map((id) => (
-                <Button
-                  key={id}
-                  variant="secondary"
-                  onPress={() => {
-                    close();
-                    void navigate({ to: areas[id].path });
-                  }}
-                >
-                  Switch to {areas[id].label}
-                </Button>
-              ))}
               <Button
-                variant="secondary"
+                variant="quiet"
                 onPress={async () => {
                   await signOut();
                   close();

@@ -41,102 +41,140 @@ export function MoveActions({ job }: { job: OfficeJob }) {
 }
 
 // Office Staff confirm or turn down a pending Reschedule Request, in a
-// dialog: the one action of its Notice
+// dialog: the one action of its Notice. Turning it down asks why, as a
+// step in the same dialog.
 export function AnswerRequest({ job }: { job: OfficeJob }) {
-  const request = job.rescheduleRequest!;
-  const path = `/api/jobs/${job.id}/reschedule-request`;
-  const action = useAction("That didn't work. Please try again.");
+  const [turningDown, setTurningDown] = useState(false);
   return (
-    <DialogTrigger>
+    <DialogTrigger onOpenChange={(open) => !open && setTurningDown(false)}>
       <Button variant="text" size="sm">
         <CalendarClock aria-hidden size={16} />
         Answer
       </Button>
-      <Dialog title="Move this Job?">
-        {({ close }) => (
-          <>
-            <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
-              <dt className="font-semibold">From</dt>
-              <dd>{formatDateTime(request.fromStartsAt)}</dd>
-              <dt className="font-semibold">To</dt>
-              <dd>{formatDateTime(request.startsAt)}</dd>
-              <dt className="font-semibold">Cost</dt>
-              <dd>
-                {costForOffice(
-                  request.cost,
-                  request.feeCents,
-                  job.servicePlanId !== null,
-                )}
-              </dd>
-            </dl>
-            <p className="text-sm text-fg-muted">
-              Confirming moves the Job and Offers every place on it afresh. The
-              Client and the crew are emailed.
-            </p>
-            {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-            <Actions>
-              <TurnDown path={`${path}/turn-down`} />
-              <Button
-                isPending={action.isPending}
-                onPress={() =>
-                  void action
-                    .run(() => postJson(`${path}/confirm`), "Job moved")
-                    .then((ok) => ok && close())
-                }
-              >
-                Confirm move
-              </Button>
-            </Actions>
-          </>
-        )}
+      <Dialog
+        title={turningDown ? "Turn down this request?" : "Move this Job?"}
+        role={turningDown ? "alertdialog" : "dialog"}
+      >
+        {({ close }) =>
+          turningDown ? (
+            <TurnDown
+              job={job}
+              close={close}
+              back={() => setTurningDown(false)}
+            />
+          ) : (
+            <Confirm
+              job={job}
+              close={close}
+              turnDown={() => setTurningDown(true)}
+            />
+          )
+        }
       </Dialog>
     </DialogTrigger>
   );
 }
 
-function TurnDown({ path }: { path: string }) {
+const pathOf = (job: OfficeJob) => `/api/jobs/${job.id}/reschedule-request`;
+
+function Confirm({
+  job,
+  close,
+  turnDown,
+}: {
+  job: OfficeJob;
+  close: () => void;
+  turnDown: () => void;
+}) {
+  const request = job.rescheduleRequest!;
+  const action = useAction("That didn't work. Please try again.");
+  return (
+    <>
+      <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
+        <dt className="font-semibold">From</dt>
+        <dd>{formatDateTime(request.fromStartsAt)}</dd>
+        <dt className="font-semibold">To</dt>
+        <dd>{formatDateTime(request.startsAt)}</dd>
+        <dt className="font-semibold">Cost</dt>
+        <dd>
+          {costForOffice(
+            request.cost,
+            request.feeCents,
+            job.servicePlanId !== null,
+          )}
+        </dd>
+      </dl>
+      <p className="text-sm text-fg-muted">
+        Confirming moves the Job and Offers every place on it afresh. The Client
+        and the crew are emailed.
+      </p>
+      {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+      <Actions>
+        <Button variant="quiet" onPress={turnDown}>
+          Turn down
+        </Button>
+        <Button
+          isPending={action.isPending}
+          onPress={() =>
+            void action
+              .run(() => postJson(`${pathOf(job)}/confirm`), "Job moved")
+              .then((ok) => ok && close())
+          }
+        >
+          Confirm move
+        </Button>
+      </Actions>
+    </>
+  );
+}
+
+function TurnDown({
+  job,
+  close,
+  back,
+}: {
+  job: OfficeJob;
+  close: () => void;
+  back: () => void;
+}) {
   const [reason, setReason] = useState("");
   const action = useAction("The request wasn't turned down. Please try again.");
 
-  const turnDown = async (close: () => void) => {
+  const turnDown = async () => {
     if (
-      await action.run(() => postJson(path, { reason }), "Request turned down")
+      await action.run(
+        () => postJson(`${pathOf(job)}/turn-down`, { reason }),
+        "Request turned down",
+      )
     )
       close();
   };
 
   return (
-    <DialogTrigger>
-      <Button variant="secondary">Turn down</Button>
-      <Dialog title="Turn down this request?" role="alertdialog">
-        {({ close }) => (
-          <>
-            <p>
-              The Job keeps its current time, the held hours are freed, and
-              there's no charge.
-            </p>
-            <TextField
-              label="Why? (told to the Client, optional)"
-              value={reason}
-              onChange={setReason}
-              multiline
-            />
-            {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-            <Actions>
-              <Button variant="secondary" onPress={close}>
-                Keep it
-              </Button>
-              <Button
-                variant="danger"
-                isPending={action.isPending}
-                onPress={() => void turnDown(close)}
-              >
-                Turn down
-              </Button>
-            </Actions>
-          </>
-        )}
-      </Dialog>
-    </DialogTrigger>
+    <>
+      <p>
+        The Job keeps its current time, the held hours are freed, and there's no
+        charge.
+      </p>
+      <TextField
+        label="Why? (told to the Client, optional)"
+        value={reason}
+        onChange={setReason}
+        multiline
+      />
+      {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+      <Actions>
+        <Button variant="quiet" onPress={back}>
+          Back
+        </Button>
+        <Button
+          variant="danger"
+          isPending={action.isPending}
+          onPress={() => void turnDown()}
+        >
+          Turn down
+        </Button>
+      </Actions>
+    </>
   );
 }

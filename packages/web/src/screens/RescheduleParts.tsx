@@ -237,7 +237,7 @@ function NewTimeForm({
       {unchanged && <Notice>That's when the clean is already booked.</Notice>}
       {action.problem && <Notice tone="danger">{action.problem}</Notice>}
       <Actions>
-        <Button variant="secondary" onPress={close}>
+        <Button variant="quiet" onPress={close}>
           Keep the current time
         </Button>
         <Button
