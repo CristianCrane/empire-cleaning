@@ -630,8 +630,9 @@ function AllAtOnceInTwoColumns() {
           Job: what it is, who's on it, its money and what happened), shows in
           one view without scrolling: what to do in Notices on top, then two
           columns, the record and its people on the left, its money and history
-          on the right. One column on a phone. A record read as steps, where
-          what's next matters most (a Quote), is its story instead.
+          on the right, the history as a Timeline. One column on a phone. A
+          record read as steps, where what's next matters most (a Quote), is its
+          story instead.
         </p>
       </Rule>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_14rem]">
@@ -658,9 +659,18 @@ function AllAtOnceInTwoColumns() {
             </Card>
           </Section>
           <Section title="History">
-            <Card>
-              <p className="text-sm">Ben Cleaner Confirmed · Oct 21</p>
-            </Card>
+            <Timeline aria-label="History, newest first">
+              <TimelineItem
+                icon={CalendarCheck}
+                title="Ben Cleaner Confirmed"
+                when="Oct 21"
+              />
+              <TimelineItem
+                icon={Send}
+                title="Offered to Ben Cleaner"
+                when="Oct 20"
+              />
+            </Timeline>
           </Section>
         </div>
       </div>

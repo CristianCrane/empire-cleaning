@@ -1,8 +1,27 @@
+import {
+  Ban,
+  CalendarCheck,
+  CalendarClock,
+  CalendarX,
+  CircleCheck,
+  CreditCard,
+  DoorClosed,
+  Send,
+  UserCheck,
+  UserMinus,
+  type LucideIcon,
+} from "lucide-react";
 import type { OfficeJob } from "@empire-cleaning/models";
-import { Card, Section } from "@empire-cleaning/ui";
+import { Section, Timeline, TimelineItem } from "@empire-cleaning/ui";
 import { formatDate, formatDateTime, formatMoney } from "../format.ts";
 
-type Moment = { key: string; at: string; title: string; description?: string };
+type Moment = {
+  key: string;
+  at: string;
+  icon: LucideIcon;
+  title: string;
+  description?: string;
+};
 
 const chargeLabel = { deposit: "Deposit", balance: "Balance", fee: "Fee" };
 
@@ -15,12 +34,14 @@ const momentsOf = (job: OfficeJob): Moment[] => {
     moments.push({
       key: `offered-${a.id}`,
       at: a.offeredAt,
+      icon: Send,
       title: `Offered to ${a.staff.name}`,
     });
     if (a.answeredAt) {
       moments.push({
         key: `answered-${a.id}`,
         at: a.answeredAt,
+        icon: a.status === "confirmed" ? UserCheck : UserMinus,
         title: `${a.staff.name} ${a.status === "confirmed" ? "Confirmed" : "Released"}`,
       });
     }
@@ -30,6 +51,7 @@ const momentsOf = (job: OfficeJob): Moment[] => {
     moments.push({
       key: "asked",
       at: request.requestedAt,
+      icon: CalendarClock,
       title: `${request.byClient ? "The Client" : "The Office"} asked to move it`,
       description: `${formatDateTime(request.fromStartsAt)} to ${formatDateTime(request.startsAt)}`,
     });
@@ -37,6 +59,7 @@ const momentsOf = (job: OfficeJob): Moment[] => {
       moments.push({
         key: "answered",
         at: request.answeredAt,
+        icon: request.status === "confirmed" ? CalendarCheck : CalendarX,
         title:
           request.status === "confirmed"
             ? "Moved"
@@ -55,6 +78,7 @@ const momentsOf = (job: OfficeJob): Moment[] => {
     moments.push({
       key: `charge-${i}`,
       at: c.chargedAt,
+      icon: CreditCard,
       title: `${chargeLabel[c.kind]} of ${formatMoney(c.amountCents)} charged`,
       description:
         c.refundedCents > 0
@@ -66,6 +90,7 @@ const momentsOf = (job: OfficeJob): Moment[] => {
     moments.push({
       key: "completed",
       at: job.completion.completedAt,
+      icon: CircleCheck,
       title: "Completed",
       description: job.completion.completedBy
         ? `By ${job.completion.completedBy.name}`
@@ -76,6 +101,7 @@ const momentsOf = (job: OfficeJob): Moment[] => {
     moments.push({
       key: "cancelled",
       at: job.cancellation.cancelledAt,
+      icon: Ban,
       title:
         job.servicePlanId && job.cancellation.by === "client"
           ? "Skipped"
@@ -90,6 +116,7 @@ const momentsOf = (job: OfficeJob): Moment[] => {
     moments.push({
       key: "no-access",
       at: job.noAccess.recordedAt,
+      icon: DoorClosed,
       title: "No Access",
       description: job.noAccess.recordedBy
         ? `Recorded by ${job.noAccess.recordedBy.name}`
@@ -99,30 +126,26 @@ const momentsOf = (job: OfficeJob): Moment[] => {
   return moments.sort((a, b) => b.at.localeCompare(a.at));
 };
 
+// the Job's story, newest first, as a Timeline
 export function JobHistory({ job }: { job: OfficeJob }) {
   const moments = momentsOf(job);
   return (
     <Section title="History">
-      <Card>
-        {moments.length === 0 ? (
-          <p className="text-sm text-fg-muted">Nothing has happened yet.</p>
-        ) : (
-          <ol
-            aria-label="History, newest first"
-            className="flex flex-col gap-3"
-          >
-            {moments.map((m) => (
-              <li key={m.key} className="flex flex-col">
-                <span className="text-sm font-semibold">{m.title}</span>
-                <span className="text-sm text-fg-muted">
-                  {formatDate(m.at)}
-                  {m.description && ` · ${m.description}`}
-                </span>
-              </li>
-            ))}
-          </ol>
-        )}
-      </Card>
+      {moments.length === 0 ? (
+        <p className="text-sm text-fg-muted">Nothing has happened yet.</p>
+      ) : (
+        <Timeline aria-label="History, newest first">
+          {moments.map((m) => (
+            <TimelineItem
+              key={m.key}
+              icon={m.icon}
+              title={m.title}
+              when={formatDate(m.at)}
+              description={m.description}
+            />
+          ))}
+        </Timeline>
+      )}
     </Section>
   );
 }
