@@ -101,8 +101,8 @@ export function CancelJob({ job }: { job: OfficeJob }) {
             )}
             <p className="text-sm text-fg-muted">
               It comes off the Schedule.
-              {onPlan && " The Service Plan carries on."} The Client and
-              everyone with a place on it are emailed.
+              {onPlan && " The Service Plan carries on."} The Client and its
+              crew are emailed.
             </p>
             {action.problem && <Notice tone="danger">{action.problem}</Notice>}
             <Actions>

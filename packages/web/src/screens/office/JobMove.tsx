@@ -112,9 +112,9 @@ export function ConfirmMove({ job, to, close }: MoveProps) {
       )}
       {room && !unchanged && <RoomAt room={room} job={job} />}
       <p className="text-sm text-fg-muted">
-        Every place on it is Offered afresh, so the crew each confirm the new
-        time. Its reminder is reset, and the Client and the crew are emailed. It
-        costs the Client nothing.
+        Its crew are each Offered it afresh, to confirm the new time. Its
+        reminder is reset, and the Client and the crew are emailed. It costs the
+        Client nothing.
       </p>
       {action.problem && <Notice tone="danger">{action.problem}</Notice>}
       <Actions>

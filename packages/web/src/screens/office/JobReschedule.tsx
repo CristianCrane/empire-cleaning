@@ -105,7 +105,7 @@ function Confirm({
         </dd>
       </dl>
       <p className="text-sm text-fg-muted">
-        Confirming moves the Job and Offers every place on it afresh. The Client
+        Confirming moves the Job and Offers it afresh to its crew. The Client
         and the crew are emailed.
       </p>
       {action.problem && <Notice tone="danger">{action.problem}</Notice>}

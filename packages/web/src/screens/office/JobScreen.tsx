@@ -82,6 +82,10 @@ const sinceOf = (a: AssignmentView) =>
 
 const booked = (job: OfficeJob) => job.status === "booked";
 
+// so many Cleaners, e.g. "1 Cleaner", "2 more Cleaners"
+const cleaners = (n: number, more?: "more") =>
+  `${n}${more ? " more" : ""} ${n === 1 ? "Cleaner" : "Cleaners"}`;
+
 /**
  * A Job for the Office, all of it in one view: what there is to do in
  * Notices on top, then two columns, the Job and who's on it on the left,
@@ -231,10 +235,7 @@ const noticesFor = (job: OfficeJob): ReactNode[] => {
         action={job.cleaners.length > 0 && <OfferPlace job={job} />}
       >
         <p>
-          <strong>
-            {job.crewSize - job.openPlaces} of {job.crewSize}{" "}
-            {job.crewSize === 1 ? "place" : "places"} held.
-          </strong>
+          <strong>Needs {cleaners(job.openPlaces, "more")}.</strong>
         </p>
         <OpenTo job={job} />
       </Notice>,
@@ -372,7 +373,7 @@ function Crew({ job }: { job: OfficeJob }) {
   return (
     <Section
       title="Crew"
-      description={`${confirmed} of ${job.crewSize} ${job.crewSize === 1 ? "place" : "places"} Confirmed`}
+      description={`${confirmed} of ${cleaners(job.crewSize)} Confirmed`}
       actions={
         booked(job) &&
         job.openPlaces > 0 &&
@@ -408,19 +409,19 @@ function Crew({ job }: { job: OfficeJob }) {
 // who a Job's Open Places are open to: from 7 days before it, every free
 // Cleaner, first to Confirm taking each (ADR-0019)
 function OpenTo({ job }: { job: OfficeJob }) {
-  const { opensAt, opened, cleaners, passedBy } = job.openTo;
-  const places =
+  const { opensAt, opened, cleaners: free, passedBy } = job.openTo;
+  const firstTo =
     job.openPlaces === 1
-      ? "Its open place"
-      : `Its ${job.openPlaces} open places`;
+      ? "the first to confirm joins"
+      : `the first ${job.openPlaces} to confirm join`;
   return (
     <>
       <p>
         {!opened
-          ? `${places} ${job.openPlaces === 1 ? "opens" : "open"} to free Cleaners on ${formatDateTime(opensAt)}.`
-          : cleaners === 0
-            ? `No Cleaner is free for ${places.toLowerCase()}. Offer it to someone, or give a Cleaner hours that day.`
-            : `${places} ${job.openPlaces === 1 ? "is" : "are"} open to ${cleaners} free ${cleaners === 1 ? "Cleaner" : "Cleaners"}. The first to confirm takes each.`}
+          ? `It opens to free Cleaners on ${formatDateTime(opensAt)}.`
+          : free === 0
+            ? "No Cleaner is free then. Offer it to someone, or give a Cleaner hours that day."
+            : `It's open to ${free} free ${free === 1 ? "Cleaner" : "Cleaners"}: ${firstTo} the crew.`}
       </p>
       {passedBy.length > 0 && (
         <p>Not for them: {passedBy.map((p) => p.name).join(", ")}.</p>
@@ -435,9 +436,9 @@ function OfferPlace({ job }: { job: OfficeJob }) {
     <DialogTrigger>
       <Button variant="text" size="sm">
         <UserPlus aria-hidden size={16} />
-        Offer a place
+        Offer to a Cleaner
       </Button>
-      <Dialog title="Offer a place">
+      <Dialog title="Offer to a Cleaner">
         {({ close }) => <Offer job={job} close={close} />}
       </Dialog>
     </DialogTrigger>
@@ -446,7 +447,7 @@ function OfferPlace({ job }: { job: OfficeJob }) {
 
 function Offer({ job, close }: { job: OfficeJob; close: () => void }) {
   const [staffId, setStaffId] = useState<string | null>(null);
-  const action = useAction("The place wasn't offered. Please try again.");
+  const action = useAction("It wasn't offered. Please try again.");
 
   const offer = async () => {
     if (!staffId) {
@@ -456,7 +457,7 @@ function Offer({ job, close }: { job: OfficeJob; close: () => void }) {
     const name = job.cleaners.find((c) => c.id === staffId)?.name;
     const ok = await action.run(
       () => postJson(`/api/jobs/${job.id}/assignments`, { staffId }),
-      `Place offered to ${name}`,
+      `Offered to ${name}`,
     );
     if (ok) close();
   };
@@ -470,7 +471,7 @@ function Offer({ job, close }: { job: OfficeJob; close: () => void }) {
     >
       <Select
         label="Offer to"
-        description={`${job.openPlaces} ${job.openPlaces === 1 ? "place" : "places"} to offer. Hours are what each is available that day.`}
+        description={`It needs ${cleaners(job.openPlaces, "more")}. Hours are what each is available that day.`}
         placeholder="Choose a Cleaner"
         selectedKey={staffId}
         onSelectionChange={(key) =>
@@ -489,7 +490,7 @@ function Offer({ job, close }: { job: OfficeJob; close: () => void }) {
           Cancel
         </Button>
         <Button type="submit" isPending={action.isPending}>
-          Offer place
+          Offer
         </Button>
       </Actions>
     </Form>
@@ -523,8 +524,8 @@ function Remove({
         {({ close }) => (
           <>
             <p>
-              Their place becomes free to offer to someone else. We'll email{" "}
-              {name} to say they don't need to go.
+              The Job then needs another Cleaner, to offer it to someone else.
+              We'll email {name} to say they don't need to go.
             </p>
             {action.problem && <Notice tone="danger">{action.problem}</Notice>}
             <Actions>

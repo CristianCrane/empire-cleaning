@@ -21,7 +21,7 @@ const momentsOf = (job: OfficeJob): Moment[] => {
       moments.push({
         key: `answered-${a.id}`,
         at: a.answeredAt,
-        title: `${a.staff.name} ${a.status === "confirmed" ? "Confirmed" : "Released their place"}`,
+        title: `${a.staff.name} ${a.status === "confirmed" ? "Confirmed" : "Released"}`,
       });
     }
   }
