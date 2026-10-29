@@ -105,17 +105,24 @@ const keep = [
   "price_list_premises_types",
   "services",
 ];
-const reset = () =>
-  db.transaction(async (tx) => {
-    await tx.execute(sql`set local session_replication_role = replica`);
-    const { rows: tables } = await tx.execute<{ tablename: string }>(
-      sql`select tablename from pg_tables where schemaname = 'public'`,
-    );
-    for (const { tablename } of tables) {
-      if (keep.includes(tablename)) continue;
-      await tx.execute(sql`delete from ${sql.identifier(tablename)}`);
-    }
-  });
+// emptied together in one statement, so their foreign keys between each
+// other don't matter, and without the superuser rights a hosted database
+// doesn't give (the test site's on Render). The kept tables point only at
+// each other, never at these.
+const reset = async () => {
+  const { rows: tables } = await db.execute<{ tablename: string }>(
+    sql`select tablename from pg_tables where schemaname = 'public'`,
+  );
+  const emptied = tables
+    .map(({ tablename }) => tablename)
+    .filter((table) => !keep.includes(table));
+  await db.execute(
+    sql`truncate table ${sql.join(
+      emptied.map((table) => sql.identifier(table)),
+      sql`, `,
+    )}`,
+  );
+};
 
 let phones = 100;
 const contact = (tag: string, name: string) => ({

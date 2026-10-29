@@ -5,7 +5,7 @@ runs:
   using: composite
   steps:
     # the version comes from `packageManager` in the root package.json
-    - uses: pnpm/action-setup@v4
+    - uses: pnpm/action-setup@v6
     - uses: actions/setup-node@v5
       with:
         node-version: 24 # `engines` in the root package.json
