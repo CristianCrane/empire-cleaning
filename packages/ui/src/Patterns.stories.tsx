@@ -22,6 +22,7 @@ import {
   Store,
   UserX,
 } from "lucide-react";
+import { ActionRow } from "./ActionRow.tsx";
 import { Button } from "./Button.tsx";
 import { Card } from "./Card.tsx";
 import { Checkbox } from "./Checkbox.tsx";
@@ -988,6 +989,70 @@ function OwedFirst() {
     </div>
   );
 }
+
+// A record's page, like a clean or a plan: what needs an answer first, as
+// alerts; then its details card; then what can be done to it, a card each
+function DetailsPage() {
+  return (
+    <div className="flex flex-col gap-6">
+      <Rule title="A details page: alerts, then the details, then what you can do">
+        <p>
+          What needs an answer from them goes first, as a Notice each: warning
+          for waiting on them, danger for something that failed. Its one action
+          opens the answer (a dialog, or the page that fixes it).
+        </p>
+        <p>
+          Then one details card, titled outside: when, large, with an IconTile;
+          then its facts in even columns across, each an icon, a value and a
+          muted line saying what it is. Three text styles, no more.
+        </p>
+        <p>
+          Then each thing they can do to it is a card of its own, titled
+          outside, its text and Button on one row (`ActionRow`): the Button
+          right and centred on the text, wrapping under it on a phone.
+        </p>
+      </Rule>
+      <Example verdict="Do">
+        <Notice tone="warning" action={<Button variant="text">Review</Button>}>
+          <p>
+            <strong>Please approve extra work.</strong> 1 extra hour, $59.88.
+            Please answer by Jan 19, 2026.
+          </p>
+        </Notice>
+        <Section title="Clean details">
+          <Card>
+            <div className="flex items-start gap-4">
+              <IconTile icon={CalendarClock} size="lg" />
+              <div className="flex flex-col gap-1">
+                <p className="text-sm text-fg-muted">One-off clean</p>
+                <p className="text-xl font-semibold text-fg">
+                  Mon, Jan 12, 9:00 AM
+                </p>
+              </div>
+            </div>
+          </Card>
+        </Section>
+        <Section title="Need another time?">
+          <Card>
+            <ActionRow
+              actions={<Button variant="secondary">Choose a new time</Button>}
+            >
+              <p>
+                You can move it for free until{" "}
+                <strong>Sun, Jan 11, 9:00 AM</strong>.
+              </p>
+            </ActionRow>
+          </Card>
+        </Section>
+      </Example>
+    </div>
+  );
+}
+
+export const DetailsPageStory: Story = {
+  name: "A details page: alerts, details, actions",
+  render: () => <DetailsPage />,
+};
 
 export const SectionsNotCardsAroundLists: Story = {
   render: () => <SectionsNotCards />,
