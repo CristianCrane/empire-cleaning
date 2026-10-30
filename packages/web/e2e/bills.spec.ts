@@ -191,10 +191,22 @@ test(
     await billed({ payment: "on_page" });
     await signedInAs(page, casey.email);
 
-    // on their home screen too
-    const bills = page.getByRole("grid", { name: "Your Bills" });
-    await expect(bills).toContainText("Bill EC-000001");
-    await expect(bills).toContainText("Due");
+    // their Home says it's due
+    await expect(
+      page.getByText(/^Bill EC-000001, \$[\d.,]+, is due by Mon, Jan 26\.$/),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Pay the Bill" }),
+    ).toBeVisible();
+    // and so do their Payments, which lead to it
+    await page.getByRole("link", { name: "Payments" }).click();
+    await expect(page.getByText("To pay")).toBeVisible();
+    await expect(
+      page.getByText("Bill EC-000001 is due by Jan 26"),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Pay Bill EC-000001" }),
+    ).toBeVisible();
 
     await page.goto(
       await linkIn(casey.email, "Your bill EC-000001 from Empire Cleaning"),
@@ -213,6 +225,13 @@ test(
     await expect(
       page.getByRole("region", { name: "Pay this Bill" }),
     ).toBeHidden();
+
+    // their Payments show it paid, and owe nothing
+    await page.getByRole("link", { name: "Payments" }).first().click();
+    await expect(page.getByText("Nothing owed")).toBeVisible();
+    await expect(
+      page.getByRole("grid", { name: "Latest payments" }),
+    ).toContainText("Bill EC-000001");
   },
 );
 

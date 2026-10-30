@@ -60,7 +60,9 @@ describe("Turning Down a Quote", () => {
     const client = await signIn(casey.email);
     const mine = (await client.get("/api/quotes/mine").expect(200))
       .body as QuoteSummary[];
-    expect(mine.map((q) => [q.id, q.status])).toEqual([[id, "turned_down"]]);
+    expect(mine.map((q) => [q.id, q.status, q.turnDownReason])).toEqual([
+      [id, "turned_down", "out_of_area"],
+    ]);
     expect(
       (await client.get(`/api/quotes/mine/${id}`).expect(200)).body,
     ).toMatchObject({

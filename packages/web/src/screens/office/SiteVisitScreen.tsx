@@ -5,6 +5,7 @@ import type {
   PremisesTypeChoice,
 } from "@empire-cleaning/models";
 import {
+  ActionRow,
   Breadcrumbs,
   Card,
   Heading,
@@ -139,19 +140,19 @@ export function VisitDetails({
         <Section title="Findings">
           <Card>
             {booked ? (
-              // one row, the button kept right; it wraps under at phone width
-              <div className="flex flex-wrap items-center gap-3">
-                <p className="min-w-0 grow basis-64 text-fg-muted">
+              <ActionRow
+                actions={
+                  <RecordFindings visit={visit} premisesTypes={premisesTypes} />
+                }
+              >
+                <p>
                   When it's done, record what was found: it updates the{" "}
                   {visit.property.kind === "commercial"
                     ? "premises'"
                     : "home's"}{" "}
                   details, and a Quote can be sent.
                 </p>
-                <div className="ml-auto">
-                  <RecordFindings visit={visit} premisesTypes={premisesTypes} />
-                </div>
-              </div>
+              </ActionRow>
             ) : (
               <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
                 <dt className="font-semibold">Recorded</dt>

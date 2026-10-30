@@ -6,6 +6,7 @@ import {
   Button,
   ButtonLink,
   Card,
+  Section,
   Heading,
   Notice,
 } from "@empire-cleaning/ui";
@@ -35,7 +36,7 @@ export function PortalBill() {
         <div className="print:hidden">
           <Breadcrumbs
             trail={[
-              { label: "Home", href: linkTo({ to: "/portal" }) },
+              { label: "Payments", href: linkTo({ to: "/portal/payments" }) },
               { label: `Bill ${bill.number}` },
             ]}
           />
@@ -138,22 +139,24 @@ function PayBill({ bill }: { bill: BillView }) {
     );
 
   return (
-    <Card
+    <Section
+      className="print:hidden"
       title="Pay this Bill"
       description={`${formatMoney(bill.totalCents)}, by card or from your bank account.`}
-      className="print:hidden"
     >
-      {payment.field}
-      {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-      <Actions>
-        <Button
-          onPress={() => void pay()}
-          isPending={action.isPending}
-          isDisabled={!payment.isReady}
-        >
-          Pay {formatMoney(bill.totalCents)}
-        </Button>
-      </Actions>
-    </Card>
+      <Card>
+        {payment.field}
+        {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+        <Actions>
+          <Button
+            onPress={() => void pay()}
+            isPending={action.isPending}
+            isDisabled={!payment.isReady}
+          >
+            Pay {formatMoney(bill.totalCents)}
+          </Button>
+        </Actions>
+      </Card>
+    </Section>
   );
 }

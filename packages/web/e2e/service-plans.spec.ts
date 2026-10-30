@@ -83,15 +83,15 @@ test(
     await expect(client.getByRole("heading", { level: 1 })).toHaveText(
       "Your Service Plan",
     );
-    await expect(
-      client.getByText("Every week, on Mondays at 9:00 AM"),
-    ).toBeVisible();
-    await expect(
-      client.getByText("$201.85 including tax, 10% off a one-off clean"),
-    ).toBeVisible();
-    await expect(
-      client.getByText(/^\$50\.46, which comes off the last clean/),
-    ).toBeVisible();
+    const details = client.getByRole("region", { name: "Plan details" });
+    await expect(details).toContainText("Every week");
+    await expect(details).toContainText("Mondays at 9:00 AM");
+    await expect(details).toContainText(
+      "$201.85Each clean, tax included, 10% off",
+    );
+    await expect(details).toContainText(
+      "$50.46Deposit, comes off your last clean",
+    );
     await expect(
       client.getByText(
         /^Each clean is charged to your saved card when it's done\./,
@@ -108,13 +108,13 @@ test(
     ]);
     await noViolations(client);
 
+    // Home leads with its first clean
     await client.goto("/portal");
+    await expect(client.getByText("Your next clean")).toBeVisible();
+    await expect(client.getByText("Mon, Jan 19, 9:00 AM")).toBeVisible();
     await expect(
-      client.getByRole("grid", { name: "Your Service Plans" }).getByRole("row"),
-    ).toContainText("Standard Clean, every week");
-    await expect(
-      client.getByRole("grid", { name: "Your Service Plans" }).getByRole("row"),
-    ).toContainText("Next: Mon, Jan 19, 9:00 AM");
+      client.getByText("Part of your Service Plan, every week"),
+    ).toBeVisible();
 
     // the Office finds it in full on the home's Service Plan Tab
     await page.goto(`/office/properties/${propertyId}?tab=plan`);

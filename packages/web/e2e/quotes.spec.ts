@@ -164,9 +164,8 @@ test("the Client Declines a Quote from the portal", async ({
 
   const client = await (await browser.newContext()).newPage();
   await signedInAs(client, casey.email);
-  const quotes = client.getByRole("grid", { name: "Your Quotes" });
-  await expect(quotes).toContainText("Sent");
-  await quotes.getByRole("row").first().click();
+  await expect(client.getByText("Your Quote is ready")).toBeVisible();
+  await client.getByRole("link", { name: "See your Quote" }).click();
 
   await client.getByRole("button", { name: "Decline this Quote" }).click();
   await client
@@ -268,10 +267,10 @@ test("the Client sees only the latest Revision, from any of its emails", async (
     client.getByRole("region", { name: "Deep Clean" }),
   ).toContainText("$272.19");
   await expect(client.getByText(/Revision/)).toBeHidden();
+  // Home shows the one Quote, as it stands now
   await client.goto("/portal");
-  await expect(
-    client.getByRole("grid", { name: "Your Quotes" }).getByRole("row"),
-  ).toHaveCount(1);
+  await expect(client.getByText("Your Quote is ready")).toBeVisible();
+  await expect(client.getByText("Deep Clean $272.19")).toBeVisible();
 });
 
 test("Office Staff Turn Down a Quote asked for, and the Client is told why", async ({

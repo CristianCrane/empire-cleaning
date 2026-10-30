@@ -4,6 +4,7 @@
 import "./tokens.css";
 
 export { ActionBar, IconAction } from "./ActionBar.tsx";
+export { ActionRow } from "./ActionRow.tsx";
 export { Actions } from "./Actions.tsx";
 export { AppLayout, Wordmark, type NavItem } from "./AppLayout.tsx";
 export { Avatar } from "./Avatar.tsx";
@@ -13,6 +14,7 @@ export { Calendar } from "./Calendar.tsx";
 export { Card } from "./Card.tsx";
 export { EmptyState } from "./EmptyState.tsx";
 export { Checkbox } from "./Checkbox.tsx";
+export { DateTile } from "./DateTile.tsx";
 export { Chip, ChipGroup } from "./ChipGroup.tsx";
 export { ChoiceTile, ChoiceTiles } from "./ChoiceTiles.tsx";
 export { DatePicker, TimeField } from "./DateField.tsx";
@@ -29,6 +31,7 @@ export { Radio, RadioCard, RadioGroup } from "./RadioGroup.tsx";
 export { Section } from "./Section.tsx";
 export { Segment, SegmentedControl } from "./SegmentedControl.tsx";
 export { Select, SelectItem } from "./Select.tsx";
+export { ShortcutTile, ShortcutTiles } from "./ShortcutTile.tsx";
 export { StatusBadge, type StatusTone } from "./StatusBadge.tsx";
 export { Cell, Column, Row, Table, TableBody, TableHeader } from "./Table.tsx";
 export { Tab, TabList, TabPanel, Tabs } from "./Tabs.tsx";

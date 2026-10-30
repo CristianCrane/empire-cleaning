@@ -359,6 +359,7 @@ const summaries = async (
             ...offered.map((o) => o.serviceKey),
           ]),
         ),
+        turnDownReason: quote.turnDownReason,
         createdAt: quote.createdAt.toISOString(),
       };
     },

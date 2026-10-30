@@ -167,11 +167,12 @@ test(
       2,
     );
     await client.getByRole("link", { name: "See your Service Plan" }).click();
-    await expect(
-      client.getByRole("heading", {
-        name: "Standard Clean, every week on Mon and Wed",
-      }),
-    ).toBeVisible();
+    // one answer to when: both weekdays together
+    const details = client.getByRole("region", { name: "Plan details" });
+    await expect(details).toContainText("Mondays at 9:00 AM · Standard Clean");
+    await expect(details).toContainText(
+      "Wednesdays at 1:00 PM · Standard Clean",
+    );
     await expect(
       client
         .getByRole("grid", { name: "Your upcoming cleans" })

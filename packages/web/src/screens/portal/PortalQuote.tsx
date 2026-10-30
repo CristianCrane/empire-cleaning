@@ -15,6 +15,7 @@ import {
   Breadcrumbs,
   Button,
   Card,
+  Section,
   Dialog,
   DialogTrigger,
   Heading,
@@ -137,41 +138,43 @@ function AskedQuote({ quote }: { quote: AskedQuoteView }) {
         </Notice>
       )}
 
-      <Card title="What you asked for">
-        <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
-          <dt className="font-semibold">Asked</dt>
-          <dd>{formatDate(quote.createdAt)}</dd>
-          {premises ? (
-            <>
-              <dt className="font-semibold">Cleaning wanted</dt>
-              <dd>{wantedCleaning(asked)}</dd>
-            </>
-          ) : (
-            <>
-              <dt className="font-semibold">Condition</dt>
-              <dd>{conditionLabel[asked.condition!]}</dd>
-              <dt className="font-semibold">Extras</dt>
-              <dd>
-                {asked.addOns.length > 0
-                  ? asked.addOns.map((a) => a.name).join(", ")
-                  : "None"}
-              </dd>
-              <dt className="font-semibold">Regular visits</dt>
-              <dd>
-                {asked.wantsRegularService
-                  ? "Wanted after the first clean"
-                  : "Not asked for"}
-              </dd>
-            </>
-          )}
-          {asked.notes && (
-            <>
-              <dt className="font-semibold">Notes</dt>
-              <dd className="whitespace-pre-line">{asked.notes}</dd>
-            </>
-          )}
-        </dl>
-      </Card>
+      <Section title="What you asked for">
+        <Card>
+          <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
+            <dt className="font-semibold">Asked</dt>
+            <dd>{formatDate(quote.createdAt)}</dd>
+            {premises ? (
+              <>
+                <dt className="font-semibold">Cleaning wanted</dt>
+                <dd>{wantedCleaning(asked)}</dd>
+              </>
+            ) : (
+              <>
+                <dt className="font-semibold">Condition</dt>
+                <dd>{conditionLabel[asked.condition!]}</dd>
+                <dt className="font-semibold">Extras</dt>
+                <dd>
+                  {asked.addOns.length > 0
+                    ? asked.addOns.map((a) => a.name).join(", ")
+                    : "None"}
+                </dd>
+                <dt className="font-semibold">Regular visits</dt>
+                <dd>
+                  {asked.wantsRegularService
+                    ? "Wanted after the first clean"
+                    : "Not asked for"}
+                </dd>
+              </>
+            )}
+            {asked.notes && (
+              <>
+                <dt className="font-semibold">Notes</dt>
+                <dd className="whitespace-pre-line">{asked.notes}</dd>
+              </>
+            )}
+          </dl>
+        </Card>
+      </Section>
     </div>
   );
 }
@@ -259,21 +262,25 @@ function PlanOffer({
             />
           ))}
         </div>
-        <Card title={plan.days.length > 1 ? "Each week" : "Deposit"}>
-          <PlanTotals
-            plan={plan}
-            depositPercent={quote.depositPercent}
-            change={quote.changesPlan}
-          />
-        </Card>
+        <Section title={plan.days.length > 1 ? "Each week" : "Deposit"}>
+          <Card>
+            <PlanTotals
+              plan={plan}
+              depositPercent={quote.depositPercent}
+              change={quote.changesPlan}
+            />
+          </Card>
+        </Section>
       </section>
 
-      <Card
+      <Section
         title="Extras"
         description="Done on every clean, and included in the price above."
       >
-        <AddOnList addOns={quote.addOns} />
-      </Card>
+        <Card>
+          <AddOnList addOns={quote.addOns} />
+        </Card>
+      </Section>
     </>
   );
 }
@@ -310,9 +317,11 @@ function OneOffOffer({ quote }: { quote: QuoteView }) {
         </div>
       </section>
 
-      <Card title="Extras" description="Included in both prices above.">
-        <AddOnList addOns={quote.addOns} />
-      </Card>
+      <Section title="Extras" description="Included in both prices above.">
+        <Card>
+          <AddOnList addOns={quote.addOns} />
+        </Card>
+      </Section>
     </>
   );
 }
@@ -457,83 +466,87 @@ function Accept({
     );
 
   return (
-    <Card title={quote.plan ? "Accept and start your plan" : "Accept and book"}>
-      {!quote.plan && (
-        <RadioGroup
-          label="Your clean"
-          value={serviceKey}
-          onChange={setServiceKey}
-        >
-          {quote.options.map((option) => (
-            <Radio
-              key={option.serviceKey}
-              value={option.serviceKey}
-              isDisabled={!quote.bookable.includes(option.serviceKey)}
-              description={
-                quote.bookable.includes(option.serviceKey)
-                  ? `${formatMoney(option.totalCents)}, with a ${formatMoney(option.depositCents)} Deposit today`
-                  : "No longer fits on that day: it's been booked up since we sent this Quote"
-              }
-            >
-              {option.serviceName}
-              {option.recommended && " (recommended)"}
-            </Radio>
-          ))}
-        </RadioGroup>
-      )}
+    <Section
+      title={quote.plan ? "Accept and start your plan" : "Accept and book"}
+    >
+      <Card>
+        {!quote.plan && (
+          <RadioGroup
+            label="Your clean"
+            value={serviceKey}
+            onChange={setServiceKey}
+          >
+            {quote.options.map((option) => (
+              <Radio
+                key={option.serviceKey}
+                value={option.serviceKey}
+                isDisabled={!quote.bookable.includes(option.serviceKey)}
+                description={
+                  quote.bookable.includes(option.serviceKey)
+                    ? `${formatMoney(option.totalCents)}, with a ${formatMoney(option.depositCents)} Deposit today`
+                    : "No longer fits on that day: it's been booked up since we sent this Quote"
+                }
+              >
+                {option.serviceName}
+                {option.recommended && " (recommended)"}
+              </Radio>
+            ))}
+          </RadioGroup>
+        )}
 
-      {newCard ? (
-        <div className="flex flex-col gap-2">
-          {payment.field}
-          {paymentMethod && (
+        {newCard ? (
+          <div className="flex flex-col gap-2">
+            {payment.field}
+            {paymentMethod && (
+              <Button
+                variant="secondary"
+                className="self-start"
+                onPress={() => setNewCard(false)}
+              >
+                Use your {paymentMethod.label}
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <p>
+              Paying with your{" "}
+              <strong>{paymentMethod?.label ?? "saved card"}</strong>.
+            </p>
             <Button
               variant="secondary"
               className="self-start"
-              onPress={() => setNewCard(false)}
+              onPress={() => setNewCard(true)}
             >
-              Use your {paymentMethod.label}
+              Use a different card
             </Button>
-          )}
-        </div>
-      ) : (
-        <div className="flex flex-col gap-2">
-          <p>
-            Paying with your{" "}
-            <strong>{paymentMethod?.label ?? "saved card"}</strong>.
-          </p>
-          <Button
-            variant="secondary"
-            className="self-start"
-            onPress={() => setNewCard(true)}
-          >
-            Use a different card
-          </Button>
-        </div>
-      )}
+          </div>
+        )}
 
-      <p className="text-sm text-fg-muted">
-        {quote.plan
-          ? `${depositCents > 0 ? `We take the ${formatMoney(depositCents)} Deposit now and hold it for as long as your plan runs: it comes off your last clean when the plan ends. ` : ""}${quote.plan.days.length === 1 ? `Each clean, ${formatMoney(chosen.totalCents)},` : "Each clean"} is charged when it's done. The first is on ${formatDateTime(quote.proposedStartsAt)}.`
-          : `${
-              chosen.depositCents > 0
-                ? `We take the ${formatMoney(chosen.depositCents)} Deposit now and the rest, ${formatMoney(balance)}, when the clean is done.`
-                : `Nothing is taken now: the ${formatMoney(chosen.totalCents)} is charged when the clean is done.`
-            } Booked for ${formatDateTime(quote.proposedStartsAt)}.`}
-      </p>
-      {newCard && <ConsentNote action="paying" />}
-      {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-      <Actions>
-        <Button
-          isPending={action.isPending}
-          isDisabled={!payment.isReady}
-          onPress={() => void accept()}
-        >
-          {depositCents > 0
-            ? `Accept and pay ${formatMoney(depositCents)}`
-            : "Accept and book"}
-        </Button>
-      </Actions>
-    </Card>
+        <p className="text-sm text-fg-muted">
+          {quote.plan
+            ? `${depositCents > 0 ? `We take the ${formatMoney(depositCents)} Deposit now and hold it for as long as your plan runs: it comes off your last clean when the plan ends. ` : ""}${quote.plan.days.length === 1 ? `Each clean, ${formatMoney(chosen.totalCents)},` : "Each clean"} is charged when it's done. The first is on ${formatDateTime(quote.proposedStartsAt)}.`
+            : `${
+                chosen.depositCents > 0
+                  ? `We take the ${formatMoney(chosen.depositCents)} Deposit now and the rest, ${formatMoney(balance)}, when the clean is done.`
+                  : `Nothing is taken now: the ${formatMoney(chosen.totalCents)} is charged when the clean is done.`
+              } Booked for ${formatDateTime(quote.proposedStartsAt)}.`}
+        </p>
+        {newCard && <ConsentNote action="paying" />}
+        {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+        <Actions>
+          <Button
+            isPending={action.isPending}
+            isDisabled={!payment.isReady}
+            onPress={() => void accept()}
+          >
+            {depositCents > 0
+              ? `Accept and pay ${formatMoney(depositCents)}`
+              : "Accept and book"}
+          </Button>
+        </Actions>
+      </Card>
+    </Section>
   );
 }
 
@@ -552,19 +565,21 @@ function AcceptChange({ quote }: { quote: QuoteView }) {
     );
 
   return (
-    <Card title="Accept the new terms">
-      <p className="text-sm text-fg-muted">
-        Nothing is charged now. Each clean
-        {others.length === 0 ? `, ${formatMoney(only!.totalCents)},` : ""} is
-        charged when it's done, from {formatDateTime(quote.proposedStartsAt)}.
-      </p>
-      {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-      <Actions>
-        <Button isPending={action.isPending} onPress={() => void accept()}>
-          Accept the new terms
-        </Button>
-      </Actions>
-    </Card>
+    <Section title="Accept the new terms">
+      <Card>
+        <p className="text-sm text-fg-muted">
+          Nothing is charged now. Each clean
+          {others.length === 0 ? `, ${formatMoney(only!.totalCents)},` : ""} is
+          charged when it's done, from {formatDateTime(quote.proposedStartsAt)}.
+        </p>
+        {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+        <Actions>
+          <Button isPending={action.isPending} onPress={() => void accept()}>
+            Accept the new terms
+          </Button>
+        </Actions>
+      </Card>
+    </Section>
   );
 }
 

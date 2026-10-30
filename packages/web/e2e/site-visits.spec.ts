@@ -173,6 +173,7 @@ test("a Site Visit shows on the Schedule, in the Client's portal and in the visi
   await expect(
     page.getByText("Your Site Visit", { exact: true }),
   ).toBeVisible();
-  await expect(page.getByText("Cory visits for about 30 min")).toBeVisible();
-  await expect(page.getByText("Site Visit booked")).toBeVisible();
+  await expect(
+    page.getByText(/^Cory comes to see 200 Park Ave S.* for about 30 min$/),
+  ).toBeVisible();
 });

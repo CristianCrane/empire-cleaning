@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { CircleStop } from "lucide-react";
 import type { EndPlanTerms, ServicePlanView } from "@empire-cleaning/models";
 import {
+  ActionRow,
   Actions,
   Button,
   ButtonLink,
@@ -36,7 +37,8 @@ export function PlanStatusBadge({
     case "on_hold":
       return <StatusBadge tone="warning">On Hold</StatusBadge>;
     default:
-      return <StatusBadge>Ended</StatusBadge>;
+      // stopped for good: red
+      return <StatusBadge tone="danger">Ended</StatusBadge>;
   }
 }
 
@@ -136,34 +138,36 @@ export function OnHold({
     ),
   ];
   return (
-    <Card title="On Hold">
-      <p>
-        {forClient
-          ? "We couldn't take payment for "
-          : "The Client's payment couldn't be taken for "}
-        {unpaid.join(" and ")}.{" "}
-        {forClient
-          ? "Cleans already booked go ahead, but we won't book any more until it's paid."
-          : "Jobs already booked go ahead, but no more are booked until it's paid."}
-      </p>
-      <Actions>
-        {plan.unpaid.map((u) => (
-          <ButtonLink key={u.jobId} href={jobHref(u.jobId)}>
-            {forClient ? "Pay for " : "See "}
-            {plan.unpaid.length > 1
-              ? `the ${formatDate(u.startsAt)} clean`
-              : forClient
-                ? "that clean"
-                : "the Job"}
-          </ButtonLink>
-        ))}
-        {plan.unpaidBills.map((b) => (
-          <ButtonLink key={b.billId} href={billHref(b.billId)}>
-            {forClient ? "Pay" : "See"} bill {b.number}
-          </ButtonLink>
-        ))}
-      </Actions>
-    </Card>
+    <Section title="On Hold">
+      <Card>
+        <p>
+          {forClient
+            ? "We couldn't take payment for "
+            : "The Client's payment couldn't be taken for "}
+          {unpaid.join(" and ")}.{" "}
+          {forClient
+            ? "Cleans already booked go ahead, but we won't book any more until it's paid."
+            : "Jobs already booked go ahead, but no more are booked until it's paid."}
+        </p>
+        <Actions>
+          {plan.unpaid.map((u) => (
+            <ButtonLink key={u.jobId} href={jobHref(u.jobId)}>
+              {forClient ? "Pay for " : "See "}
+              {plan.unpaid.length > 1
+                ? `the ${formatDate(u.startsAt)} clean`
+                : forClient
+                  ? "that clean"
+                  : "the Job"}
+            </ButtonLink>
+          ))}
+          {plan.unpaidBills.map((b) => (
+            <ButtonLink key={b.billId} href={billHref(b.billId)}>
+              {forClient ? "Pay" : "See"} bill {b.number}
+            </ButtonLink>
+          ))}
+        </Actions>
+      </Card>
+    </Section>
   );
 }
 
@@ -226,13 +230,8 @@ export function EndPlan({
   return (
     <Section title={forClient ? "Ending your plan" : "Ending the plan"}>
       <Card>
-        {/* one row, the button kept right; it wraps under at phone width */}
-        <div className="flex flex-wrap items-center gap-3">
-          <p className="min-w-0 grow basis-64 text-fg-muted">
-            {forClient ? "End your plan" : "End it for the Client"} at any time:
-            you'll see what it cancels first.
-          </p>
-          <div className="ml-auto">
+        <ActionRow
+          actions={
             <DialogTrigger>
               <Button variant="danger">
                 <CircleStop aria-hidden size={18} />
@@ -273,8 +272,13 @@ export function EndPlan({
                 )}
               </Dialog>
             </DialogTrigger>
-          </div>
-        </div>
+          }
+        >
+          <p>
+            {forClient ? "End your plan" : "End it for the Client"} at any time:
+            you'll see what it cancels first.
+          </p>
+        </ActionRow>
       </Card>
     </Section>
   );

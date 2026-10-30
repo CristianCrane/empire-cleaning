@@ -4,6 +4,7 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
+  notFound,
   redirect,
   useRouter,
 } from "@tanstack/react-router";
@@ -16,9 +17,10 @@ import type {
   ClientSiteVisit,
   ClientList,
   JobList,
-  ClientJob,
   ClientJobDetail,
   ClientPastJob,
+  ClientPayment,
+  ClientUpcomingJob,
   ClientQuoteView,
   ClientView,
   OfficeClientView,
@@ -106,9 +108,20 @@ import {
   type ScheduleSearch,
 } from "./screens/schedule-range.ts";
 import { PortalBill } from "./screens/portal/PortalBill.tsx";
+import {
+  PortalCleans,
+  cleansTabs,
+  type CleansSearch,
+} from "./screens/portal/PortalCleans.tsx";
 import { PortalHome } from "./screens/portal/PortalHome.tsx";
+import type { HomeData } from "./screens/portal/whats-next.ts";
 import { PortalJob } from "./screens/portal/PortalJob.tsx";
 import { PortalPaymentMethod } from "./screens/portal/PortalPaymentMethod.tsx";
+import { PortalProperty } from "./screens/portal/PortalProperty.tsx";
+import {
+  PortalPayments,
+  type PaymentsSearch,
+} from "./screens/portal/PortalPayments.tsx";
 import { PortalPlan } from "./screens/portal/PortalPlan.tsx";
 import { PortalQuote } from "./screens/portal/PortalQuote.tsx";
 import { PortalRequest } from "./screens/portal/PortalRequest.tsx";
@@ -233,6 +246,9 @@ const areaRoute = <Id extends AreaId>(id: Id) =>
 
 // the signed-in Client with their homes and Quotes
 const ownClient = () => getJson<ClientView>("/api/clients/me");
+
+const ownPaymentMethod = () =>
+  getJson<PaymentMethodView | null>("/api/payment-methods/mine");
 
 const officeRoute = areaRoute("office");
 const cleanerRoute = areaRoute("cleaner");
@@ -607,25 +623,41 @@ const portalHomeRoute = createRoute({
   getParentRoute: () => portalRoute,
   path: "/",
   loader: async () => {
-    const [client, plans, quotes, jobs, pastJobs, siteVisits, bills] =
-      await Promise.all([
-        ownClient(),
-        getJson<ServicePlanSummary[]>("/api/service-plans/mine"),
-        getJson<QuoteSummary[]>("/api/quotes/mine"),
-        getJson<ClientJob[]>("/api/jobs/mine"),
-        getJson<ClientPastJob[]>("/api/jobs/mine/past"),
-        getJson<ClientSiteVisit[]>("/api/site-visits/mine"),
-        getJson<BillSummary[]>("/api/bills/mine"),
-      ]);
-    return { client, plans, quotes, jobs, pastJobs, siteVisits, bills };
+    const [
+      client,
+      plans,
+      quotes,
+      jobs,
+      pastJobs,
+      siteVisits,
+      bills,
+      paymentMethod,
+    ] = await Promise.all([
+      ownClient(),
+      getJson<ServicePlanSummary[]>("/api/service-plans/mine"),
+      getJson<QuoteSummary[]>("/api/quotes/mine"),
+      getJson<ClientUpcomingJob[]>("/api/jobs/mine"),
+      getJson<ClientPastJob[]>("/api/jobs/mine/past"),
+      getJson<ClientSiteVisit[]>("/api/site-visits/mine"),
+      getJson<BillSummary[]>("/api/bills/mine"),
+      ownPaymentMethod(),
+    ]);
+    return {
+      client,
+      plans,
+      quotes,
+      jobs,
+      pastJobs,
+      siteVisits,
+      bills,
+      paymentMethod,
+    } satisfies HomeData;
   },
   component: PortalHome,
 });
 
 // where the Quote email's link leads: signed out, the portal sends the
 // Client to sign in (or up) and back here
-const ownPaymentMethod = () =>
-  getJson<PaymentMethodView | null>("/api/payment-methods/mine");
 
 const portalQuoteRoute = createRoute({
   getParentRoute: () => portalRoute,
@@ -649,6 +681,25 @@ const portalPlanRoute = createRoute({
   component: PortalPlan,
 });
 
+// every clean of theirs: what's coming (with Site Visits) and what's done
+const portalCleansRoute = createRoute({
+  getParentRoute: () => portalRoute,
+  path: "/cleans",
+  validateSearch: (search: Record<string, unknown>): CleansSearch => ({
+    tab: cleansTabs.find((t) => t === search.tab),
+  }),
+  loader: async () => {
+    const [client, jobs, pastJobs, siteVisits] = await Promise.all([
+      ownClient(),
+      getJson<ClientUpcomingJob[]>("/api/jobs/mine"),
+      getJson<ClientPastJob[]>("/api/jobs/mine/past"),
+      getJson<ClientSiteVisit[]>("/api/site-visits/mine"),
+    ]);
+    return { client, jobs, pastJobs, siteVisits };
+  },
+  component: PortalCleans,
+});
+
 // where the receipt, approval and Unpaid emails lead
 const portalJobRoute = createRoute({
   getParentRoute: () => portalRoute,
@@ -656,6 +707,25 @@ const portalJobRoute = createRoute({
   loader: ({ params }) =>
     getJson<ClientJobDetail>(`/api/jobs/mine/${params.jobId}`),
   component: PortalJob,
+});
+
+// what they owe, if anything, and every payment between them and us
+const portalPaymentsRoute = createRoute({
+  getParentRoute: () => portalRoute,
+  path: "/payments",
+  validateSearch: (search: Record<string, unknown>): PaymentsSearch => ({
+    all: search.all === true || search.all === "true" ? true : undefined,
+  }),
+  loader: async () => {
+    const [pastJobs, bills, paymentMethod, history] = await Promise.all([
+      getJson<ClientPastJob[]>("/api/jobs/mine/past"),
+      getJson<BillSummary[]>("/api/bills/mine"),
+      ownPaymentMethod(),
+      getJson<ClientPayment[]>("/api/payments/mine"),
+    ]);
+    return { pastJobs, bills, paymentMethod, history };
+  },
+  component: PortalPayments,
 });
 
 // where a weekly Bill's emails lead
@@ -670,7 +740,13 @@ const portalBillRoute = createRoute({
 const portalPaymentMethodRoute = createRoute({
   getParentRoute: () => portalRoute,
   path: "/payment-method",
-  loader: ownPaymentMethod,
+  loader: async () => {
+    const [saved, pastJobs] = await Promise.all([
+      ownPaymentMethod(),
+      getJson<ClientPastJob[]>("/api/jobs/mine/past"),
+    ]);
+    return { saved, unpaid: pastJobs.filter((j) => j.unpaid) };
+  },
   component: PortalPaymentMethod,
 });
 
@@ -681,11 +757,36 @@ const portalRequestRoute = createRoute({
   component: PortalRequest,
 });
 
+// the Client's homes: what each is, and where it stands
+const ownProperties = async () => {
+  const [client, plans, quotes, jobs] = await Promise.all([
+    ownClient(),
+    getJson<ServicePlanSummary[]>("/api/service-plans/mine"),
+    getJson<QuoteSummary[]>("/api/quotes/mine"),
+    getJson<ClientUpcomingJob[]>("/api/jobs/mine"),
+  ]);
+  return { client, plans, quotes, jobs };
+};
+
 const portalDetailsRoute = createRoute({
   getParentRoute: () => portalRoute,
   path: "/details",
-  loader: ownClient,
+  loader: ownProperties,
   component: PortalDetails,
+});
+
+const portalPropertyRoute = createRoute({
+  getParentRoute: () => portalRoute,
+  path: "/properties/$propertyId",
+  loader: async ({ params }) => {
+    const data = await ownProperties();
+    const property = data.client.properties.find(
+      (p) => p.id === params.propertyId,
+    );
+    if (!property) throw notFound();
+    return { ...data, property };
+  },
+  component: PortalProperty,
 });
 
 const routeTree = rootRoute.addChildren([
@@ -722,10 +823,13 @@ const routeTree = rootRoute.addChildren([
     portalRequestRoute,
     portalQuoteRoute,
     portalPlanRoute,
+    portalCleansRoute,
     portalJobRoute,
+    portalPaymentsRoute,
     portalBillRoute,
     portalDetailsRoute,
     portalPaymentMethodRoute,
+    portalPropertyRoute,
   ]),
 ]);
 

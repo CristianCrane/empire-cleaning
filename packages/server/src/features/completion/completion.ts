@@ -33,6 +33,7 @@ import {
 } from "../cancellation/cancellation.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
+import { servicePlanVisits } from "../service-plans/service-plans.schema.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import {
   rescheduleRequestOf,
@@ -738,6 +739,8 @@ export const clientJob = async (
     rescheduleTerms,
     rescheduleRequest,
     servicePlanId,
+    payment,
+    quoted,
   ] = await Promise.all([
     officeCompletionOf(job),
     cancellationOf(job),
@@ -746,10 +749,15 @@ export const clientJob = async (
     rescheduleTermsOf(job),
     rescheduleRequestOf(job),
     planOfJob(job.id),
+    paymentOf(job),
+    // without a Quote to say, no extras are shown
+    quotedJob(job.id).catch(() => null),
   ]);
   return {
     ...(await clientJobOf(job, property)),
     status: job.status,
+    payment,
+    addOns: quoted?.suggested.addOns.map((a) => a.name) ?? [],
     completion: completion && {
       completedAt: completion.completedAt,
       condition: completion.condition,
@@ -771,15 +779,26 @@ export const clientJob = async (
   };
 };
 
-// the Client's Completed Jobs, latest first
+// the Client's Jobs no longer going ahead, latest first: Completed,
+// Cancelled (a plan clean they cancelled is Skipped) and No Access
 export const pastJobsFor = async (
   clientId: string,
 ): Promise<ClientPastJob[]> => {
   const rows = await db
-    .select({ job: jobs, property: properties })
+    .select({
+      job: jobs,
+      property: properties,
+      planId: servicePlanVisits.servicePlanId,
+    })
     .from(jobs)
     .innerJoin(properties, eq(properties.id, jobs.propertyId))
-    .where(and(eq(properties.clientId, clientId), eq(jobs.status, "completed")))
+    .leftJoin(servicePlanVisits, eq(servicePlanVisits.jobId, jobs.id))
+    .where(
+      and(
+        eq(properties.clientId, clientId),
+        inArray(jobs.status, ["completed", "cancelled", "no_access"]),
+      ),
+    )
     .orderBy(desc(jobs.startsAt));
   const waiting =
     rows.length === 0
@@ -797,11 +816,19 @@ export const pastJobsFor = async (
             ),
           );
   return Promise.all(
-    rows.map(async ({ job, property }) => ({
+    rows.map(async ({ job, property, planId }) => ({
       ...(await clientJobOf(job, property)),
-      completedAt: job.completedAt!.toISOString(),
-      totalCents: (await paymentOf(job)).totalCents,
+      status: job.status as ClientPastJob["status"],
+      skipped:
+        job.status === "cancelled" &&
+        job.cancelledBy === "client" &&
+        planId !== null,
+      completedAt: job.completedAt?.toISOString() ?? null,
+      totalCents:
+        job.status === "completed" ? (await paymentOf(job)).totalCents : 0,
+      feeCents: job.status === "completed" ? 0 : (job.feeCents ?? 0),
       unpaid: job.unpaidSince !== null,
+      owedCents: job.unpaidSince ? (await paymentOf(job)).owedCents : 0,
       awaitingAnswer: waiting.filter((w) => w.jobId === job.id).length,
     })),
   );

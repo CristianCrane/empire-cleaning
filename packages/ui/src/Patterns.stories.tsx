@@ -3,8 +3,13 @@ import type { ReactNode } from "react";
 import {
   Building2,
   CalendarCheck,
+  CalendarClock,
+  CreditCard,
+  KeyRound,
+  Phone,
   CalendarX,
   CalendarDays,
+  CircleCheck,
   CircleDollarSign,
   House,
   ClipboardPenLine,
@@ -17,9 +22,12 @@ import {
   Store,
   UserX,
 } from "lucide-react";
+import { ActionRow } from "./ActionRow.tsx";
 import { Button } from "./Button.tsx";
 import { Card } from "./Card.tsx";
 import { Checkbox } from "./Checkbox.tsx";
+import { DateTile } from "./DateTile.tsx";
+import { ShortcutTile, ShortcutTiles } from "./ShortcutTile.tsx";
 import { Chip, ChipGroup } from "./ChipGroup.tsx";
 import { ChoiceTile, ChoiceTiles } from "./ChoiceTiles.tsx";
 import { EmptyState } from "./EmptyState.tsx";
@@ -807,6 +815,245 @@ function ClickableCatchesTheEye() {
   );
 }
 
+function WhatsNextFirst() {
+  return (
+    <div className="flex flex-col gap-6">
+      <Rule title="A home screen answers one question: what's next">
+        <p>
+          Someone landing on a home screen, without a link to something in
+          particular, wants to know what happens next. Answer it in one card:
+          the soonest thing booked, led by its <code>DateTile</code> and read
+          left to right, or, with nothing booked, where they stand (an{" "}
+          <code>IconTile</code> at <code>lg</code> in its place). Its one Button
+          is the page's primary; anything else in the header drops to secondary.
+        </p>
+        <p>
+          What's waiting on them goes above it, a warning Notice each; what
+          they're waiting on us for, an info Notice after those. Under it,{" "}
+          <code>ShortcutTiles</code>: what they can do from where they stand,
+          each with a hint of what's there. Lists of past things live on their
+          own pages, not here.
+        </p>
+      </Rule>
+      <div className="flex flex-col gap-4 lg:flex-row">
+        <Example verdict="Do">
+          <Card>
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-6">
+              <DateTile date="2026-11-03T14:00:00Z" />
+              <div className="flex min-w-0 flex-1 flex-col gap-1">
+                <p className="font-semibold text-fg-muted">Your next clean</p>
+                <p className="text-2xl font-semibold text-fg">
+                  Tue, Nov 3, 9:00 AM
+                </p>
+                <p className="text-fg-muted">Standard Clean at 12 Elm St</p>
+              </div>
+              <Button>See the clean</Button>
+            </div>
+          </Card>
+          <ShortcutTiles label="Shortcuts">
+            <ShortcutTile
+              icon={CalendarClock}
+              label="Move or skip"
+              hint="Your Tue, Nov 3 clean"
+              externalHref="#"
+            />
+            <ShortcutTile
+              icon={KeyRound}
+              label="How we get in"
+              hint="Key under the mat"
+              externalHref="#"
+            />
+            <ShortcutTile
+              icon={CreditCard}
+              label="Your card"
+              hint="Visa ending 4242"
+              externalHref="#"
+            />
+            <ShortcutTile
+              icon={Phone}
+              label="Call us"
+              hint="(646) 320-9076"
+              externalHref="#"
+            />
+          </ShortcutTiles>
+        </Example>
+        <Example verdict="Don't">
+          {[
+            "Your Bills",
+            "Your Service Plan",
+            "Your upcoming Jobs",
+            "Your past Jobs",
+            "Your Quotes",
+            "Your homes",
+          ].map((title) => (
+            <Card key={title} title={title}>
+              <p className="text-sm text-fg-muted">A list of them</p>
+            </Card>
+          ))}
+        </Example>
+      </div>
+    </div>
+  );
+}
+
+function OwedFirst() {
+  const payment = (
+    day: string,
+    title: string,
+    amount: string,
+    line?: string,
+  ) => (
+    <ListItem
+      id={title + day}
+      start={
+        <span className="w-12 shrink-0 text-sm text-fg-muted tabular-nums">
+          {day}
+        </span>
+      }
+      title={title}
+      description={line}
+      end={<span className="font-semibold text-fg tabular-nums">{amount}</span>}
+    />
+  );
+  return (
+    <div className="flex flex-col gap-6">
+      <Rule title="A money page answers one question first: do I owe anything?">
+        <p>
+          Lead with one card in the shape of a home screen's: what's owed and
+          why, with the one Button that pays it, or that nothing is. Its tone is
+          its state: warning while something is waiting on them, danger once it
+          failed or is late, success with nothing owed. Ways in that are always
+          there, like changing a card, sit in the header as a secondary Button,
+          never inside a card whose Buttons change with its state.
+        </p>
+        <p>
+          Then the latest few payments, one line each: the day, what it was for
+          (the thing, not the kind of money), the amount on the right, refunds
+          as money back. A second line only says what the day doesn't. All of
+          them are a link away, by month with totals.
+        </p>
+      </Rule>
+      <div className="flex flex-col gap-4 lg:flex-row">
+        <Example verdict="Do">
+          <Card>
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-6">
+              <IconTile icon={CircleCheck} tone="success" size="lg" />
+              <div className="flex min-w-0 flex-1 flex-col gap-1">
+                <p className="font-semibold text-fg-muted">
+                  You're all paid up
+                </p>
+                <p className="text-2xl font-semibold text-fg">Nothing owed</p>
+                <p className="text-fg-muted">Paying with Visa ending 4242</p>
+              </div>
+            </div>
+          </Card>
+          <List aria-label="Latest payments">
+            {payment(
+              "Oct 21",
+              "Extra on Standard Clean",
+              "$22.50",
+              "Approved after your Oct 19 clean",
+            )}
+            {payment("Oct 19", "Standard Clean", "$184.50")}
+            {payment(
+              "Sep 28",
+              "Refund on Standard Clean",
+              "−$22.50",
+              "From your Sep 21 clean",
+            )}
+          </List>
+        </Example>
+        <Example verdict="Don't">
+          <List aria-label="Charges">
+            {payment(
+              "Oct 21",
+              "Balance",
+              "$22.50",
+              "Charge ch_3Pq… · succeeded",
+            )}
+            {payment(
+              "Oct 19",
+              "Balance",
+              "$184.50",
+              "Charge ch_3Pk… · succeeded",
+            )}
+            {payment(
+              "Sep 28",
+              "Refund",
+              "$22.50",
+              "Refund re_3Ox… · succeeded",
+            )}
+          </List>
+        </Example>
+      </div>
+    </div>
+  );
+}
+
+// A record's page, like a clean or a plan: what needs an answer first, as
+// alerts; then its details card; then what can be done to it, a card each
+function DetailsPage() {
+  return (
+    <div className="flex flex-col gap-6">
+      <Rule title="A details page: alerts, then the details, then what you can do">
+        <p>
+          What needs an answer from them goes first, as a Notice each: warning
+          for waiting on them, danger for something that failed. Its one action
+          opens the answer (a dialog, or the page that fixes it).
+        </p>
+        <p>
+          Then one details card, titled outside: when, large, with an IconTile;
+          then its facts in even columns across, each an icon, a value and a
+          muted line saying what it is. Three text styles, no more.
+        </p>
+        <p>
+          Then each thing they can do to it is a card of its own, titled
+          outside, its text and Button on one row (`ActionRow`): the Button
+          right and centred on the text, wrapping under it on a phone.
+        </p>
+      </Rule>
+      <Example verdict="Do">
+        <Notice tone="warning" action={<Button variant="text">Review</Button>}>
+          <p>
+            <strong>Please approve extra work.</strong> 1 extra hour, $59.88.
+            Please answer by Jan 19, 2026.
+          </p>
+        </Notice>
+        <Section title="Clean details">
+          <Card>
+            <div className="flex items-start gap-4">
+              <IconTile icon={CalendarClock} size="lg" />
+              <div className="flex flex-col gap-1">
+                <p className="text-sm text-fg-muted">One-off clean</p>
+                <p className="text-xl font-semibold text-fg">
+                  Mon, Jan 12, 9:00 AM
+                </p>
+              </div>
+            </div>
+          </Card>
+        </Section>
+        <Section title="Need another time?">
+          <Card>
+            <ActionRow
+              actions={<Button variant="secondary">Choose a new time</Button>}
+            >
+              <p>
+                You can move it for free until{" "}
+                <strong>Sun, Jan 11, 9:00 AM</strong>.
+              </p>
+            </ActionRow>
+          </Card>
+        </Section>
+      </Example>
+    </div>
+  );
+}
+
+export const DetailsPageStory: Story = {
+  name: "A details page: alerts, details, actions",
+  render: () => <DetailsPage />,
+};
+
 export const SectionsNotCardsAroundLists: Story = {
   render: () => <SectionsNotCards />,
 };
@@ -855,6 +1102,16 @@ export const NoticesHoldOneActionStory: Story = {
 export const RowsOpenOneDialogStory: Story = {
   name: "Rows open one dialog, two Buttons",
   render: () => <RowsOpenOneDialog />,
+};
+
+export const WhatsNextFirstStory: Story = {
+  name: "A home screen answers what's next",
+  render: () => <WhatsNextFirst />,
+};
+
+export const OwedFirstStory: Story = {
+  name: "A money page answers what's owed",
+  render: () => <OwedFirst />,
 };
 
 export const AllAtOnceInTwoColumnsStory: Story = {

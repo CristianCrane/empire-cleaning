@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import type {
   CleanerJob,
   ClientJobDetail,
+  ClientUpcomingJob,
   NeedsAttentionItem,
   OfficeJob,
   RescheduleCost,
@@ -83,6 +84,12 @@ const confirmPlace = async (asCleaner: Agent, jobId: string) => {
 const clientJob = async (client: Agent, jobId: string) =>
   (await client.get(`/api/jobs/mine/${jobId}`).expect(200))
     .body as ClientJobDetail;
+
+// where the Client's upcoming Jobs say it's moving to
+const movingTo = async (client: Agent) =>
+  (
+    (await client.get("/api/jobs/mine").expect(200)).body as ClientUpcomingJob[]
+  ).map((j) => j.movingTo);
 
 const officeJob = async (office: Agent, jobId: string) =>
   (await office.get(`/api/jobs/${jobId}`).expect(200)).body as OfficeJob;
@@ -187,6 +194,9 @@ describe("asking to move a Job", () => {
     const email = testEmail().lastTo("olive@example.com");
     expect(email.subject).toBe("Casey Client asked to move a Job");
     expect(email.text).toContain("Wednesday, January 14 at 10:00 AM");
+
+    // the Client's Home shows it's waiting on the Office
+    expect(await movingTo(client)).toEqual([WEDNESDAY_10AM]);
 
     const items = (await office.get("/api/dashboard/needs-attention"))
       .body as NeedsAttentionItem[];
@@ -358,6 +368,7 @@ describe("Office Staff answering", () => {
 
     expect(seen.startsAt).toBe(WEDNESDAY_10AM);
     expect(seen.rescheduleRequest).toMatchObject({ status: "confirmed" });
+    expect(await movingTo(client)).toEqual([null]);
     expect(seen.assignments).toEqual([
       expect.objectContaining({ status: "offered", answeredAt: null }),
     ]);

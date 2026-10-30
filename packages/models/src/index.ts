@@ -1151,6 +1151,8 @@ export type QuoteSummary = {
   // for the Office: whether a Revision is being drafted
   drafting: boolean;
   siteVisit: SiteVisitStage;
+  // why Office Staff closed it, once Turned Down
+  turnDownReason: TurnDownReason | null;
   createdAt: string;
 };
 
@@ -1165,6 +1167,38 @@ export type PaymentMethodView = {
   // when the Client agreed to later Charges to it without them there (the
   // Balance, and late-cancellation or No Access fees)
   consentedAt: string;
+};
+
+// what a payment in a Client's history was: a Deposit, a clean's Balance,
+// more of it for an increase they approved later (an extra), a plan Job's
+// fee, a weekly Bill, or money given back
+export type ClientPaymentKind =
+  "deposit" | "balance" | "extra" | "fee" | "bill" | "refund";
+
+// money that moved between a Client and us, for their Payments page
+// (GET /api/payments/mine). It was for a Job, a Service Plan's
+// Deposit, or a Bill; a refund was for what its Charge was for.
+export type ClientPayment = {
+  id: string;
+  at: string;
+  kind: ClientPaymentKind;
+  // below 0 for a refund
+  amountCents: number;
+  job: {
+    id: string;
+    serviceName: string;
+    startsAt: string;
+    status: JobStatus;
+  } | null;
+  servicePlanId: string | null;
+  bill: {
+    id: string;
+    number: string;
+    weekStart: IsoDate;
+    weekEnd: IsoDate;
+  } | null;
+  // a Bill's bank debit, on its way but not yet cleared
+  clearing: boolean;
 };
 
 // the payment provider's own payment form, shown in the browser so card
@@ -1199,6 +1233,14 @@ export type ClientJob = {
   // Labour Hours divided by Crew Size
   hoursOnSite: number;
   property: Pick<PropertyView, "id" | "street" | "unit" | "postcode">;
+};
+
+// one still to come: the Service Plan it was generated for (null for a
+// one-off Job), and the time the Client asked to move it to while Office
+// Staff haven't answered (null with no Reschedule Request pending)
+export type ClientUpcomingJob = ClientJob & {
+  servicePlanId: string | null;
+  movingTo: string | null;
 };
 
 // ---- Assignments (#9) ----
@@ -1464,11 +1506,19 @@ export type AdjustmentProposal = {
 // amount: a reduction stays a reduction), with a reason
 export type AdjustmentCorrection = { priceCents: number; reason: string };
 
-// a Completed Job in the Client's past Jobs
+// one of the Client's Jobs that isn't going ahead any more: Completed,
+// Cancelled (Skipped, for a Service Plan clean they cancelled) or No Access
 export type ClientPastJob = ClientJob & {
-  completedAt: string;
+  status: "completed" | "cancelled" | "no_access";
+  skipped: boolean;
+  completedAt: string | null;
+  // a Completed one's price; 0 otherwise
   totalCents: number;
+  // what a Cancelled or No Access one cost; 0 if nothing
+  feeCents: number;
   unpaid: boolean;
+  // what an Unpaid one still owes; 0 otherwise
+  owedCents: number;
   // increases proposed to them, waiting on their answer
   awaitingAnswer: number;
 };
@@ -1478,6 +1528,10 @@ export type ClientPastJob = ClientJob & {
 // the Office.
 export type ClientJobDetail = ClientJob & {
   status: JobStatus;
+  // its price, Deposit and what's been charged, whatever has become of it
+  payment: JobPayment;
+  // the extras it was Quoted with, by name
+  addOns: string[];
   completion: Omit<JobCompletion, "completedBy"> | null;
   cancellation: JobCancellation | null;
   noAccess: Omit<JobNoAccess, "recordedBy"> | null;

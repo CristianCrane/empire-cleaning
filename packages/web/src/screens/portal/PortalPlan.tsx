@@ -1,7 +1,16 @@
 import type { Key } from "react";
+import {
+  CalendarClock,
+  CirclePlus,
+  Clock,
+  PiggyBank,
+  Receipt,
+  Users,
+} from "lucide-react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import type { ClientView, ServicePlanView } from "@empire-cleaning/models";
 import {
+  ActionRow,
   Actions,
   Breadcrumbs,
   Button,
@@ -10,17 +19,28 @@ import {
   DialogTrigger,
   Form,
   Heading,
+  IconTile,
   List,
   ListItem,
   Notice,
+  Section,
   StatusBadge,
   TextField,
 } from "@empire-cleaning/ui";
 import { getJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
-import { addressOf, formatDateTime, formatHours, planName } from "../format.ts";
-import { EndPlan, OnHold, PlanStatusBadge, PlanTerms } from "../PlanParts.tsx";
+import {
+  addressOf,
+  formatDate,
+  formatDateTime,
+  formatHours,
+  formatMoney,
+  planDayWhen,
+  recurrenceLabel,
+} from "../format.ts";
+import { EndPlan, OnHold, PlanStatusBadge } from "../PlanParts.tsx";
+import { Fact } from "./Fact.tsx";
 
 // how the Client pays for their cleans: each when it's done, or on a weekly
 // Bill (ADR-0016), charged or paid on its page
@@ -46,7 +66,14 @@ export function PortalPlan() {
       <div className="flex flex-col gap-4">
         <Breadcrumbs
           trail={[
-            { label: "Home", href: linkTo({ to: "/portal" }) },
+            { label: "Your details", href: linkTo({ to: "/portal/details" }) },
+            {
+              label: plan.property.street,
+              href: linkTo({
+                to: "/portal/properties/$propertyId",
+                params: { propertyId: plan.property.id },
+              }),
+            },
             { label: "Your Service Plan" },
           ]}
         />
@@ -68,15 +95,17 @@ export function PortalPlan() {
         }
       />
 
-      <Card title={planName(plan)}>
-        <PlanTerms plan={plan} />
-        <p className="text-sm text-fg-muted">
-          {paymentLine[plan.weeklyBill ?? "per_clean"]} We email a reminder the
-          day before.
-        </p>
-      </Card>
+      <Section title="Plan details">
+        <Card>
+          <PlanDetails plan={plan} />
+          <p className="border-t border-border pt-4 text-sm text-fg-muted">
+            {paymentLine[plan.weeklyBill ?? "per_clean"]} We email a reminder
+            the day before.
+          </p>
+        </Card>
+      </Section>
 
-      <Card
+      <Section
         title="Your upcoming cleans"
         description="Each clean goes on the Schedule about 4 weeks ahead."
       >
@@ -101,7 +130,7 @@ export function PortalPlan() {
             />
           ))}
         </List>
-      </Card>
+      </Section>
 
       {plan.status !== "ended" && <AskToChange plan={plan} />}
 
@@ -110,6 +139,86 @@ export function PortalPlan() {
         forClient
         endPath={`/api/service-plans/mine/${plan.id}/end`}
       />
+    </div>
+  );
+}
+
+// The plan as its Client reads it: when, large, every weekday of it (one
+// answer to "when is my clean?"), then its facts in even columns across, each
+// an icon, a value and what the value is. Three text styles, no more.
+// (UX pass, #96)
+function PlanDetails({ plan }: { plan: ServicePlanView }) {
+  const [one] = plan.days;
+  const several = plan.days.length > 1;
+  const ended = plan.status === "ended";
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex items-start gap-4">
+        <IconTile icon={CalendarClock} size="lg" />
+        <div className="flex min-w-0 flex-col gap-1">
+          <p className="text-sm text-fg-muted">
+            {recurrenceLabel[plan.recurrence]}
+          </p>
+          {plan.days.map((day) => (
+            <p key={day.startsAt} className="text-xl font-semibold text-fg">
+              {planDayWhen(day.startsAt)}
+              {several && (
+                <span className="font-normal text-fg-muted">
+                  {" "}
+                  · {day.serviceName}
+                </span>
+              )}
+            </p>
+          ))}
+          {!several && <p className="text-fg-muted">{one!.serviceName}</p>}
+        </div>
+      </div>
+      <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Fact
+          icon={Receipt}
+          label={several ? "Each week" : "Each clean"}
+          value={formatMoney(several ? plan.roundTotalCents : one!.totalCents)}
+          line={`${several ? "Each week" : "Each clean"}, tax included, ${plan.discountPercent}% off`}
+        />
+        {several ? (
+          <Fact
+            icon={Users}
+            label="On site"
+            value={plan.days.map((d) => formatHours(d.hoursOnSite)).join(" + ")}
+            line="On site, each day"
+          />
+        ) : (
+          <Fact
+            icon={Clock}
+            label="On site"
+            value={`About ${formatHours(one!.hoursOnSite)}`}
+            line={`On site, ${one!.crewSize === 1 ? "1 cleaner" : `${one!.crewSize} cleaners`}`}
+          />
+        )}
+        <Fact
+          icon={CirclePlus}
+          label="Extras"
+          value={plan.addOns.length > 0 ? plan.addOns.join(", ") : "None"}
+        />
+        <Fact
+          icon={PiggyBank}
+          label="Deposit"
+          value={
+            plan.depositCents === 0 ? "None" : formatMoney(plan.depositCents)
+          }
+          line={
+            plan.depositCents === 0
+              ? "Deposit"
+              : ended
+                ? "Deposit, put towards the last clean"
+                : "Deposit, comes off your last clean"
+          }
+        />
+      </dl>
+      <p className="text-sm text-fg-muted">
+        Started {formatDate(plan.startedAt)}
+        {plan.endedAt && ` · Ended ${formatDate(plan.endedAt)}`}
+      </p>
     </div>
   );
 }
@@ -138,45 +247,52 @@ function AskToChange({ plan }: { plan: ServicePlanView }) {
   };
 
   return (
-    <Card
-      title="Change your plan"
-      description="A different day, how often, or what's included? Tell us, and we'll send you a new Service Plan Quote. Nothing changes until you accept it."
-    >
-      <DialogTrigger>
-        <Button variant="secondary" className="self-start">
-          Ask to change
-        </Button>
-        <Dialog title="Ask to change your plan">
-          {({ close }) => (
-            <Form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const form = new FormData(e.currentTarget);
-                void ask(String(form.get("notes")), close);
-              }}
-            >
-              <TextField
-                label="What would you like to change?"
-                name="notes"
-                multiline
-                isRequired
-                autoFocus
-              />
-              {action.problem && (
-                <Notice tone="danger">{action.problem}</Notice>
-              )}
-              <Actions>
-                <Button variant="quiet" onPress={close}>
-                  Cancel
-                </Button>
-                <Button type="submit" isPending={action.isPending}>
-                  Send
-                </Button>
-              </Actions>
-            </Form>
-          )}
-        </Dialog>
-      </DialogTrigger>
-    </Card>
+    <Section title="Change your plan">
+      <Card>
+        <ActionRow
+          actions={
+            <DialogTrigger>
+              <Button variant="secondary">Ask to change</Button>
+              <Dialog title="Ask to change your plan">
+                {({ close }) => (
+                  <Form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const form = new FormData(e.currentTarget);
+                      void ask(String(form.get("notes")), close);
+                    }}
+                  >
+                    <TextField
+                      label="What would you like to change?"
+                      name="notes"
+                      multiline
+                      isRequired
+                      autoFocus
+                    />
+                    {action.problem && (
+                      <Notice tone="danger">{action.problem}</Notice>
+                    )}
+                    <Actions>
+                      <Button variant="quiet" onPress={close}>
+                        Cancel
+                      </Button>
+                      <Button type="submit" isPending={action.isPending}>
+                        Send
+                      </Button>
+                    </Actions>
+                  </Form>
+                )}
+              </Dialog>
+            </DialogTrigger>
+          }
+        >
+          <p>
+            A different day, how often, or what's included? Tell us, and we'll
+            send you a new Service Plan Quote. Nothing changes until you accept
+            it.
+          </p>
+        </ActionRow>
+      </Card>
+    </Section>
   );
 }

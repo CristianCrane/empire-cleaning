@@ -113,11 +113,14 @@ test("a Client's plan is On Hold while a fee is Unpaid, and back on once they pa
 
   await failCharges(null);
   await onHold.getByRole("link", { name: "Pay for that clean" }).click();
+  // saving a card tries the charge again
   await page
-    .getByRole("region", { name: "Payment needed" })
-    .getByRole("button", { name: "Try the same card again" })
+    .getByRole("alert")
+    .filter({ hasText: "Payment needed" })
+    .getByRole("link", { name: "Update Payment Method" })
     .click();
-  await expect(page.getByText("Payment taken")).toBeVisible();
+  await page.getByRole("button", { name: "Save card" }).click();
+  await expect(page.getByText("Card saved")).toBeVisible();
 
   await page.goto(`/portal/plans/${planId}`);
   await expect(page.getByRole("region", { name: "On Hold" })).toHaveCount(0);

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { eq } from "drizzle-orm";
 import type {
+  ClientUpcomingJob,
   AcceptOutcome,
   LocalDateTime,
   NeedsAttentionItem,
@@ -544,6 +545,10 @@ describe("the Client's Service Plans", () => {
       depositCents: PLAN_DEPOSIT,
     });
     expect(plan.upcoming).toHaveLength(4);
+    // the Client's Home says which plan each clean is part of
+    const jobs = (await client.get("/api/jobs/mine").expect(200))
+      .body as ClientUpcomingJob[];
+    expect(jobs.map((j) => j.servicePlanId)).toEqual(Array(4).fill(planId));
   });
 
   test("are theirs alone", async () => {
