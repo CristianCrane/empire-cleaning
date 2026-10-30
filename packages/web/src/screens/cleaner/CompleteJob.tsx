@@ -10,12 +10,15 @@ import {
   Button,
   Card,
   Checkbox,
+  Dialog,
+  DialogTrigger,
   Form,
   Heading,
   Notice,
   NumberField,
   Radio,
   RadioGroup,
+  Section,
   TextField,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
@@ -62,12 +65,12 @@ export function CompleteJob({ job }: { job: CleanerJob }) {
       : []),
   ];
 
-  const complete = async () => {
+  const complete = async (close: () => void) => {
     if (!condition) {
       action.fail(undefined, { condition: "Say how the home was" });
       return;
     }
-    await action.run(
+    const ok = await action.run(
       () =>
         postJson(`/api/assignments/mine/${job.id}/complete`, {
           condition,
@@ -75,83 +78,95 @@ export function CompleteJob({ job }: { job: CleanerJob }) {
         }),
       "Job Completed",
     );
+    if (ok) close();
   };
 
   return (
-    <Card
-      title="Complete this Job"
-      description="When you've finished, tell us how it went. If anything was different from the Quote, the Office will sort out the price with the Client."
-    >
-      <Form
-        validationErrors={action.fieldErrors}
-        onSubmit={(e) => {
-          e.preventDefault();
-          void complete();
-        }}
-      >
-        <RadioGroup
-          label="How was the home?"
-          name="condition"
-          value={condition}
-          onChange={(value) => setCondition(value as Condition)}
-          isRequired
-        >
-          {(["light", "moderate", "heavy"] as const).map((c) => (
-            <Radio key={c} value={c}>
-              {conditionLabel[c]}
-            </Radio>
-          ))}
-        </RadioGroup>
-
-        {job.reportable.quoted.length > 0 && (
-          <AddOnReports
-            title="Add-ons on the Quote you couldn't do"
-            addOns={job.reportable.quoted}
-            ticked={notDone}
-            onChange={setNotDone}
-            reasonLabel="Why not?"
-          />
-        )}
-        {job.reportable.others.length > 0 && (
-          <AddOnReports
-            title="Add-ons you did that weren't on the Quote"
-            addOns={job.reportable.others}
-            ticked={done}
-            onChange={setDone}
-            reasonLabel="Why? For example, the Client asked"
-          />
-        )}
-
-        <fieldset className="flex flex-col gap-3">
-          <Heading level={3}>Extra time</Heading>
-          <NumberField
-            label="Extra hours, all of you together"
-            description="Leave at 0 if the clean took about as long as planned."
-            minValue={0}
-            maxValue={24}
-            step={0.25}
-            value={extraHours}
-            onChange={(hours) => setExtraHours(Number.isNaN(hours) ? 0 : hours)}
-            className="max-w-xs"
-          />
-          {extraHours > 0 && (
-            <TextField
-              label="What took longer?"
-              value={extraReason}
-              onChange={setExtraReason}
+    <DialogTrigger>
+      <Button>Complete Job</Button>
+      <Dialog title="Complete this Job">
+        {({ close }) => (
+          <Form
+            validationErrors={action.fieldErrors}
+            onSubmit={(e) => {
+              e.preventDefault();
+              void complete(close);
+            }}
+          >
+            <p className="text-fg-muted">
+              Tell us how it went. If anything was different from the Quote, the
+              Office sorts out the price with the Client.
+            </p>
+            <RadioGroup
+              label="How was the home?"
+              name="condition"
+              value={condition}
+              onChange={(value) => setCondition(value as Condition)}
               isRequired
-            />
-          )}
-        </fieldset>
+            >
+              {(["light", "moderate", "heavy"] as const).map((c) => (
+                <Radio key={c} value={c}>
+                  {conditionLabel[c]}
+                </Radio>
+              ))}
+            </RadioGroup>
 
-        {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-        <Actions>
-          <Button type="submit" isPending={action.isPending}>
-            Mark Completed
-          </Button>
-        </Actions>
-      </Form>
-    </Card>
+            {job.reportable.quoted.length > 0 && (
+              <AddOnReports
+                title="Add-ons on the Quote you couldn't do"
+                addOns={job.reportable.quoted}
+                ticked={notDone}
+                onChange={setNotDone}
+                reasonLabel="Why not?"
+              />
+            )}
+            {job.reportable.others.length > 0 && (
+              <AddOnReports
+                title="Add-ons you did that weren't on the Quote"
+                addOns={job.reportable.others}
+                ticked={done}
+                onChange={setDone}
+                reasonLabel="Why? For example, the Client asked"
+              />
+            )}
+
+            <fieldset className="flex flex-col gap-3">
+              <Heading level={3}>Extra time</Heading>
+              <NumberField
+                label="Extra hours, all of you together"
+                description="Leave at 0 if the clean took about as long as planned."
+                minValue={0}
+                maxValue={24}
+                step={0.25}
+                value={extraHours}
+                onChange={(hours) =>
+                  setExtraHours(Number.isNaN(hours) ? 0 : hours)
+                }
+                className="max-w-xs"
+              />
+              {extraHours > 0 && (
+                <TextField
+                  label="What took longer?"
+                  value={extraReason}
+                  onChange={setExtraReason}
+                  isRequired
+                />
+              )}
+            </fieldset>
+
+            {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+            <Actions>
+              <Button variant="quiet" onPress={close}>
+                Go back
+              </Button>
+              <Button type="submit" isPending={action.isPending}>
+                Mark Completed
+              </Button>
+            </Actions>
+          </Form>
+        )}
+      </Dialog>
+    </DialogTrigger>
   );
 }
 
@@ -208,30 +223,33 @@ function AddOnReports({
 export function Completed({ job }: { job: CleanerJob }) {
   const completion = job.completion!;
   return (
-    <Card title="Completed">
-      <p>
-        Marked Completed at {formatTime(completion.completedAt)}
-        {completion.completedBy && ` by ${completion.completedBy}`}. Thank you!
-      </p>
-      <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
-        <dt className="font-semibold">Condition</dt>
-        <dd>{conditionLabel[completion.condition]}</dd>
-        <dt className="font-semibold">Reported</dt>
-        <dd>
-          {completion.reports.length === 0 ? (
-            "Nothing different from the Quote"
-          ) : (
-            <ul>
-              {completion.reports.map((r, i) => (
-                <li key={i}>
-                  {adjustmentLabel(r)}: {r.reason}
-                </li>
-              ))}
-            </ul>
-          )}
-        </dd>
-      </dl>
-    </Card>
+    <Section title="Completed">
+      <Card>
+        <p>
+          Marked Completed at {formatTime(completion.completedAt)}
+          {completion.completedBy && ` by ${completion.completedBy}`}. Thank
+          you!
+        </p>
+        <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
+          <dt className="font-semibold">Condition</dt>
+          <dd>{conditionLabel[completion.condition]}</dd>
+          <dt className="font-semibold">Reported</dt>
+          <dd>
+            {completion.reports.length === 0 ? (
+              "Nothing different from the Quote"
+            ) : (
+              <ul>
+                {completion.reports.map((r, i) => (
+                  <li key={i}>
+                    {adjustmentLabel(r)}: {r.reason}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </dd>
+        </dl>
+      </Card>
+    </Section>
   );
 }
 

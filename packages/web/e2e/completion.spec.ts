@@ -73,9 +73,16 @@ test(
     await signedInAs(page, "cory@example.com");
     await expect(page).toHaveURL("/cleaner");
 
-    const today = page.getByRole("grid", { name: "Today's Jobs" });
-    await today.getByRole("row").click();
-    const form = page.getByRole("region", { name: "Complete this Job" });
+    // the Job under way leads Your Jobs; Complete is in the bar at the foot
+    await page
+      .getByRole("region", { name: "Now" })
+      .getByRole("button", { name: "Open Job" })
+      .click();
+    await page
+      .getByRole("group", { name: "What to do" })
+      .getByRole("button", { name: "Complete Job" })
+      .click();
+    const form = page.getByRole("dialog", { name: "Complete this Job" });
     await expect(form).toBeVisible();
     await expectAccessible(page);
 

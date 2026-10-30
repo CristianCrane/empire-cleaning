@@ -1,19 +1,30 @@
 import { useState } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import type { OpenPlace } from "@empire-cleaning/models";
+import { CalendarClock, Clock, MapPin, Users } from "lucide-react";
 import {
-  Actions,
+  ActionRow,
   Breadcrumbs,
   Button,
   Card,
   Heading,
+  IconTile,
   Notice,
+  Section,
   StatusBadge,
   showToast,
 } from "@empire-cleaning/ui";
 import { ApiError, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
-import { formatDateTime, formatHours } from "../format.ts";
+import { Fact } from "../Fact.tsx";
+import {
+  dayOfInstant,
+  formatDateTime,
+  formatDay,
+  formatHours,
+  formatTime,
+} from "../format.ts";
+import { untilAbout } from "./CleanerHome.tsx";
 
 // "Just you", "2 Cleaners"
 export const crewOf = (place: Pick<OpenPlace, "crewSize">) =>
@@ -31,30 +42,50 @@ export function OpenPlaceScreen() {
       <div className="flex flex-col gap-4">
         <Breadcrumbs
           trail={[
-            { label: "Your Jobs", href: linkTo({ to: "/cleaner" }) },
+            { label: "Offers", href: linkTo({ to: "/cleaner/offers" }) },
             { label: formatDateTime(place.startsAt) },
           ]}
         />
         <div className="flex flex-wrap items-center gap-3">
-          <Heading level={1}>{formatDateTime(place.startsAt)}</Heading>
+          <Heading level={1}>{place.serviceName}</Heading>
           <StatusBadge tone="info">Open</StatusBadge>
         </div>
       </div>
 
       <TakeIt place={place} />
 
-      <Card title="The clean">
-        <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
-          <dt className="font-semibold">Clean</dt>
-          <dd>{place.serviceName}</dd>
-          <dt className="font-semibold">Time on site</dt>
-          <dd>About {formatHours(place.hoursOnSite)}</dd>
-          <dt className="font-semibold">Crew</dt>
-          <dd>{crewOf(place)}</dd>
-          <dt className="font-semibold">Area</dt>
-          <dd>{place.postcode}</dd>
-        </dl>
-      </Card>
+      <Section title="Job details">
+        <Card>
+          <div className="flex flex-col gap-6">
+            <div className="flex items-start gap-4">
+              <IconTile icon={CalendarClock} size="lg" />
+              <div className="flex min-w-0 flex-col gap-1">
+                <p className="text-sm text-fg-muted">
+                  {formatDay(dayOfInstant(place.startsAt))},{" "}
+                  {untilAbout(place.startsAt, place.hoursOnSite)}
+                </p>
+                <p className="text-3xl font-semibold text-fg tabular-nums">
+                  {formatTime(place.startsAt)}
+                </p>
+              </div>
+            </div>
+            <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-3">
+              <Fact
+                icon={Clock}
+                label="On site"
+                value={`About ${formatHours(place.hoursOnSite)}`}
+              />
+              <Fact icon={Users} label="Crew" value={crewOf(place)} />
+              <Fact
+                icon={MapPin}
+                label="Area"
+                value={place.postcode}
+                line="Area: the address shows once it's yours"
+              />
+            </dl>
+          </div>
+        </Card>
+      </Section>
     </div>
   );
 }
@@ -78,7 +109,7 @@ function TakeIt({ place }: { place: OpenPlace }) {
         });
       } else {
         showToast({ tone: "success", title: "Taken off your list" });
-        await navigate({ to: "/cleaner" });
+        await navigate({ to: "/cleaner/offers" });
       }
     } catch (e) {
       setProblem(
@@ -92,30 +123,37 @@ function TakeIt({ place }: { place: OpenPlace }) {
   };
 
   return (
-    <Card title="Can you take it?">
-      <p>
-        This Job has a place open, and you're free then. The first Cleaner to
-        confirm takes it. You'll see the address, Access Instructions and the
-        Client once you have.
-      </p>
-      {problem && <Notice tone="danger">{problem}</Notice>}
-      <Actions>
-        <Button
-          variant="secondary"
-          isPending={pending === "pass"}
-          isDisabled={pending === "confirm"}
-          onPress={() => void answer("pass")}
+    <Section title="Can you take it?">
+      <Card>
+        {problem && <Notice tone="danger">{problem}</Notice>}
+        <ActionRow
+          actions={
+            <>
+              <Button
+                variant="secondary"
+                isPending={pending === "pass"}
+                isDisabled={pending === "confirm"}
+                onPress={() => void answer("pass")}
+              >
+                Not for me
+              </Button>
+              <Button
+                isPending={pending === "confirm"}
+                isDisabled={pending === "pass"}
+                onPress={() => void answer("confirm")}
+              >
+                Confirm
+              </Button>
+            </>
+          }
         >
-          Not for me
-        </Button>
-        <Button
-          isPending={pending === "confirm"}
-          isDisabled={pending === "pass"}
-          onPress={() => void answer("confirm")}
-        >
-          Confirm
-        </Button>
-      </Actions>
-    </Card>
+          <p>
+            It has a place open, and you're free then. The first Cleaner to
+            confirm takes it, and sees the address, how to get in and the
+            Client.
+          </p>
+        </ActionRow>
+      </Card>
+    </Section>
   );
 }

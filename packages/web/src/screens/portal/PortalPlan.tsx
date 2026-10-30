@@ -40,7 +40,7 @@ import {
   recurrenceLabel,
 } from "../format.ts";
 import { EndPlan, OnHold, PlanStatusBadge } from "../PlanParts.tsx";
-import { Fact } from "./Fact.tsx";
+import { Fact } from "../Fact.tsx";
 
 // how the Client pays for their cleans: each when it's done, or on a weekly
 // Bill (ADR-0016), charged or paid on its page
