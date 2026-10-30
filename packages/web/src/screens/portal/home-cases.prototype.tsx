@@ -8,6 +8,10 @@ import {
   CalendarCheck,
   CalendarClock,
   CalendarDays,
+  ChevronRight,
+  CreditCard,
+  KeyRound,
+  Phone,
   Hourglass,
   House,
   MapPin,
@@ -373,14 +377,26 @@ export const layouts = [
 ];
 type Layout = "A" | "B" | "C" | "D";
 
+export const shortcutStyles = [
+  { key: "A", name: "No shortcuts" },
+  { key: "B", name: "Shortcuts as tiles" },
+  { key: "C", name: "Shortcuts as rows" },
+];
+type ShortcutStyle = "A" | "B" | "C";
+
 export function HomeCasesPrototype() {
-  const { case: key = "1", layout = "A" } = useSearch({
+  // layout C won; the others stay reachable by ?layout=
+  const {
+    case: key = "1",
+    layout = "C",
+    shortcuts = "B",
+  } = useSearch({
     strict: false,
-  }) as { case?: string; layout?: Layout };
-  const go = (search: { case?: string; layout?: string }) =>
+  }) as { case?: string; layout?: Layout; shortcuts?: ShortcutStyle };
+  const go = (search: { case?: string; shortcuts?: string }) =>
     navigate({
       to: "/prototype/home",
-      search: { case: key, layout, ...search } as never,
+      search: { case: key, layout, shortcuts, ...search } as never,
     });
   const navigate = useNavigate();
   const homeCase = cases.find((c) => c.key === key) ?? cases[0]!;
@@ -398,11 +414,11 @@ export function HomeCasesPrototype() {
       nav={nav}
       account={<span className="text-sm text-fg-muted">Casey Client</span>}
     >
-      <HomePage homeCase={homeCase} layout={layout} />
+      <HomePage homeCase={homeCase} layout={layout} shortcuts={shortcuts} />
       <PrototypeSwitcher
-        variants={layouts}
-        current={layout}
-        onChange={(k) => go({ layout: k })}
+        variants={shortcutStyles}
+        current={shortcuts}
+        onChange={(k) => go({ shortcuts: k })}
         keys={["ArrowUp", "ArrowDown"]}
         className="bottom-40 md:bottom-20"
       />
@@ -418,10 +434,13 @@ export function HomeCasesPrototype() {
 function HomePage({
   homeCase,
   layout,
+  shortcuts,
 }: {
   homeCase: HomeCase;
   layout: Layout;
+  shortcuts: ShortcutStyle;
 }) {
+  const list = shortcutsFor(homeCase.key);
   const { hero, notices = [], after } = homeCase;
   // the hero asking for a Quote makes the header's Button redundant
   const heroAsks = hero.action?.label === "Request a Quote";
@@ -462,6 +481,9 @@ function HomePage({
           {after} · <Link href={here}>All your cleans</Link>
         </p>
       )}
+
+      {shortcuts === "B" && <ShortcutTiles shortcuts={list} />}
+      {shortcuts === "C" && <ShortcutRows shortcuts={list} />}
     </div>
   );
 }
@@ -607,3 +629,150 @@ const toneTile: Record<StatusTone, string> = {
   warning: "bg-warning-subtle text-warning-strong",
   danger: "bg-danger-subtle text-danger-strong",
 };
+
+// ---- shortcuts: what the Client can do from where they stand ----
+
+type Shortcut = { icon: LucideIcon; label: string; hint: string };
+
+const callUs: Shortcut = {
+  icon: Phone,
+  label: "Call us",
+  hint: "(718) 555-0199",
+};
+const getIn: Shortcut = {
+  icon: KeyRound,
+  label: "How we get in",
+  hint: "Key under the mat",
+};
+const getInUnset: Shortcut = {
+  icon: KeyRound,
+  label: "How we get in",
+  hint: "Not added yet",
+};
+const card: Shortcut = {
+  icon: CreditCard,
+  label: "Your card",
+  hint: "Visa •••• 4242",
+};
+const fixCard: Shortcut = {
+  icon: CreditCard,
+  label: "Update your card",
+  hint: "Visa •••• 4242 was declined",
+};
+const details: Shortcut = {
+  icon: UserRound,
+  label: "Your details",
+  hint: "Name, email, phone",
+};
+const pastCleans: Shortcut = {
+  icon: Receipt,
+  label: "Past cleans",
+  hint: "And their receipts",
+};
+const move = (when: string): Shortcut => ({
+  icon: CalendarClock,
+  label: "Move or skip",
+  hint: when,
+});
+
+function shortcutsFor(key: string): Shortcut[] {
+  switch (key) {
+    case "1":
+      return [details, callUs];
+    case "2":
+    case "5":
+      return [getInUnset, details, callUs];
+    case "3":
+    case "4":
+      return [getInUnset, details, callUs];
+    case "6":
+      return [getInUnset, details, callUs];
+    case "7":
+      return [
+        { ...move(`Your ${day(4)} clean`), label: "Move or cancel" },
+        getIn,
+        card,
+        callUs,
+      ];
+    case "9":
+      return [
+        {
+          icon: CalendarClock,
+          label: "Your move request",
+          hint: `To ${at(5, 14)}`,
+        },
+        getIn,
+        card,
+        callUs,
+      ];
+    case "10":
+      return [callUs, getIn, card];
+    case "11":
+    case "18":
+      return [fixCard, pastCleans, callUs];
+    case "12":
+    case "13":
+    case "14":
+      return [pastCleans, details, callUs];
+    case "15":
+      return [details, callUs];
+    case "19":
+      return [
+        move(`Your ${day(4)} clean`),
+        { icon: Receipt, label: "Bills", hint: "1 due" },
+        getIn,
+        callUs,
+      ];
+    default:
+      return [move(`Your ${day(4)} clean`), getIn, card, callUs];
+  }
+}
+
+// B: a row of quiet tiles, two a row on a phone
+function ShortcutTiles({ shortcuts }: { shortcuts: Shortcut[] }) {
+  return (
+    <section
+      aria-label="Shortcuts"
+      className="grid grid-cols-2 gap-3 sm:grid-cols-4"
+    >
+      {shortcuts.map((s) => (
+        <button
+          key={s.label}
+          type="button"
+          className="flex min-h-touch flex-col items-start gap-3 rounded-lg border border-border bg-surface p-4 text-left hover:bg-surface-sunken"
+        >
+          <s.icon aria-hidden size={22} className="text-primary" />
+          <span className="flex flex-col">
+            <span className="font-semibold text-fg">{s.label}</span>
+            <span className="text-sm text-fg-muted">{s.hint}</span>
+          </span>
+        </button>
+      ))}
+    </section>
+  );
+}
+
+// C: rows in one box, two columns on wider screens
+function ShortcutRows({ shortcuts }: { shortcuts: Shortcut[] }) {
+  return (
+    <section
+      aria-label="Shortcuts"
+      className="grid overflow-hidden rounded-lg border border-border bg-surface sm:grid-cols-2"
+    >
+      {shortcuts.map((s) => (
+        <button
+          key={s.label}
+          type="button"
+          className="flex min-h-touch items-center gap-3 border-b border-border px-4 py-3 text-left hover:bg-surface-sunken last:border-b-0 sm:odd:border-r sm:[&:nth-last-child(2):nth-child(odd)]:border-b-0"
+        >
+          <IconTile icon={s.icon} />
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className="font-semibold text-fg">{s.label}</span>
+            <span className="text-sm text-fg-muted">{s.hint}</span>
+          </span>
+          <ChevronRight aria-hidden size={20} className="text-fg-muted" />
+        </button>
+      ))}
+    </section>
+  );
+}

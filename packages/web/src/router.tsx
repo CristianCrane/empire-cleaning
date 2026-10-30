@@ -695,10 +695,12 @@ const homeCasesRoute = createRoute({
   path: "/prototype/home",
   validateSearch: (
     search: Record<string, unknown>,
-  ): { case?: string; layout?: string } => ({
+  ): { case?: string; layout?: string; shortcuts?: string } => ({
     // ?case=20 arrives as a number
     case: search.case === undefined ? undefined : String(search.case),
     layout: typeof search.layout === "string" ? search.layout : undefined,
+    shortcuts:
+      typeof search.shortcuts === "string" ? search.shortcuts : undefined,
   }),
   component: HomeCasesPrototype,
 });
