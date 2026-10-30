@@ -166,52 +166,53 @@ export function useHomeData() {
           nextStartsAt: inDays(4, 9),
         } as ServicePlanSummary,
       ];
-  const quotes: QuoteSummary[] = real.quotes.length
-    ? real.quotes
-    : [
-        {
-          id: "q1",
-          kind: "one_off",
-          status: "sent",
-          origin: "client",
-          asked: null,
-          service: { key: "deep", name: "Deep Clean" },
-          client: { id: real.client.id, name: real.client.name },
-          property: home,
-          homePlanId: null,
-          headlineTotalCents: 39104,
-          plan: null,
-          proposedStartsAt: inDays(9, 10),
-          sentAt: inDays(-1, 15),
-          expiresAt: inDays(6, 23),
-          drafting: false,
-          siteVisit: null,
-          createdAt: inDays(-3, 11),
-        } as unknown as QuoteSummary,
-        {
-          id: "q2",
-          kind: "plan",
-          status: "accepted",
-          origin: "client",
-          asked: null,
-          service: { key: "standard", name: "Standard Clean" },
-          client: { id: real.client.id, name: real.client.name },
-          property: home,
-          homePlanId: "plan1",
-          headlineTotalCents: 18450,
-          plan: {
-            recurrence: "fortnightly",
-            days: [{ startsAt: inDays(-38, 9), serviceName: "Standard Clean" }],
-          },
-          proposedStartsAt: inDays(-38, 9),
-          sentAt: inDays(-45, 15),
-          expiresAt: null,
-          drafting: false,
-          siteVisit: null,
-          createdAt: inDays(-47, 11),
-        } as unknown as QuoteSummary,
-      ];
+  const sampleQuotes: QuoteSummary[] = [
+    {
+      id: "q1",
+      kind: "one_off",
+      status: "sent",
+      origin: "client",
+      asked: null,
+      service: { key: "deep", name: "Deep Clean" },
+      client: { id: real.client.id, name: real.client.name },
+      property: home,
+      homePlanId: null,
+      headlineTotalCents: 39104,
+      plan: null,
+      proposedStartsAt: inDays(9, 10),
+      sentAt: inDays(-1, 15),
+      expiresAt: inDays(6, 23),
+      drafting: false,
+      siteVisit: null,
+      createdAt: inDays(-3, 11),
+    } as unknown as QuoteSummary,
+    {
+      id: "q2",
+      kind: "plan",
+      status: "accepted",
+      origin: "client",
+      asked: null,
+      service: { key: "standard", name: "Standard Clean" },
+      client: { id: real.client.id, name: real.client.name },
+      property: home,
+      homePlanId: "plan1",
+      headlineTotalCents: 18450,
+      plan: {
+        recurrence: "fortnightly",
+        days: [{ startsAt: inDays(-38, 9), serviceName: "Standard Clean" }],
+      },
+      proposedStartsAt: inDays(-38, 9),
+      sentAt: inDays(-45, 15),
+      expiresAt: null,
+      drafting: false,
+      siteVisit: null,
+      createdAt: inDays(-47, 11),
+    } as unknown as QuoteSummary,
+  ];
+  const quotes = real.quotes.length ? real.quotes : sampleQuotes;
   return {
+    // the stages F..J always have a Sent Quote to show
+    sampleSent: sampleQuotes[0]!,
     client: {
       ...real.client,
       properties: real.client.properties.length
@@ -950,7 +951,7 @@ function HomeCard({
 
 // the sample data as it stands at each stage, for F..J
 function inState(variant: string, data: HomeData): HomeData {
-  const sent = data.quotes.find((q) => q.status === "sent");
+  const sent = data.quotes.find((q) => q.status === "sent") ?? data.sampleSent;
   const asked = sent && {
     ...sent,
     id: "q-asked",
