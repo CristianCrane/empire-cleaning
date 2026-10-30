@@ -36,7 +36,8 @@ export function PlanStatusBadge({
     case "on_hold":
       return <StatusBadge tone="warning">On Hold</StatusBadge>;
     default:
-      return <StatusBadge>Ended</StatusBadge>;
+      // stopped for good: red
+      return <StatusBadge tone="danger">Ended</StatusBadge>;
   }
 }
 

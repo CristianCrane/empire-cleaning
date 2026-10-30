@@ -83,15 +83,15 @@ test(
     await expect(client.getByRole("heading", { level: 1 })).toHaveText(
       "Your Service Plan",
     );
-    await expect(
-      client.getByText("Every week, on Mondays at 9:00 AM"),
-    ).toBeVisible();
-    await expect(
-      client.getByText("$201.85 including tax, 10% off a one-off clean"),
-    ).toBeVisible();
-    await expect(
-      client.getByText(/^\$50\.46, which comes off the last clean/),
-    ).toBeVisible();
+    const details = client.getByRole("region", { name: "Plan details" });
+    await expect(details).toContainText("Every week");
+    await expect(details).toContainText("Mondays at 9:00 AM");
+    await expect(details).toContainText(
+      "$201.85Each clean, tax included, 10% off",
+    );
+    await expect(details).toContainText(
+      "$50.46Deposit, comes off your last clean",
+    );
     await expect(
       client.getByText(
         /^Each clean is charged to your saved card when it's done\./,
