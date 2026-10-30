@@ -412,7 +412,14 @@ export function PaymentsPrototype() {
       account={<span className="text-sm text-fg-muted">Casey Client</span>}
     >
       <div key={`${c.key}${history}`} className="flex flex-col gap-6">
-        <Heading level={1}>Payments</Heading>
+        {/* the card's way in, the same in every case */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <Heading level={1}>Payments</Heading>
+          <Button variant="secondary" onPress={() => {}}>
+            <CreditCard aria-hidden size={18} />
+            Payment Method
+          </Button>
+        </div>
         <Summary c={c} />
         {c.notices
           .filter((n) => n.tone === "info")
@@ -474,14 +481,13 @@ function Summary({ c }: { c: PaymentsCase }) {
             {nothing ? "Nothing owed" : formatMoney(c.owed!.cents)}
           </p>
           {c.owed && <p className="text-fg-muted">{c.owed.text}</p>}
-          {/* always here, so the card can be changed whatever is owed;
-              left out only when the Button already goes to it */}
-          {c.owed?.action !== "Update your card" && (
-            <p className="text-fg-muted">
-              {c.card ? `Paying with ${c.card}` : "No card saved"} ·{" "}
-              <Link href={here}>{c.card ? "Change card" : "Add a card"}</Link>
-            </p>
-          )}
+          <p className="text-fg-muted">
+            {c.card
+              ? `Paying with ${c.card}`
+              : c.weekly
+                ? "You pay each Bill on its page"
+                : "No card saved yet"}
+          </p>
         </div>
         {c.owed && (
           <Button
