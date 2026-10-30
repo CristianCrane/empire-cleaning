@@ -57,6 +57,7 @@ import { createStaff, setUsualWeek } from "#features/staff";
 import { addDays, dayOf, weekdayOf } from "#services/clock";
 import { installFakes, signIn, testClock, testPayments } from "./harness.ts";
 import { sentServicePlanQuote, startedServicePlan } from "./fixtures.ts";
+import { addTesters } from "./testers.ts";
 
 const OWNER = {
   email: process.env.SEED_OWNER_EMAIL ?? "empirecleaningproservices@gmail.com",
@@ -220,6 +221,7 @@ async function seed() {
     cleaners.push(member);
   }
   const [cleo, ben, dev] = cleaners;
+  if (process.env.APP_MODE === "test") await addTesters();
 
   const list = await currentPriceList();
   const officeType = list.premisesTypes[0]!.key;

@@ -1,0 +1,40 @@
+name: Add testers
+
+# Run by hand (Actions → Add testers → Run workflow): makes the people testing
+# the test site Staff there (packages/server/tests/testers.ts), without a
+# reset. A reset adds them too.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# never two at once against the same database
+concurrency:
+  group: reset-test-data
+
+jobs:
+  add:
+    name: Add testers to the test database
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup
+      - run: pnpm --filter @empire-cleaning/server staff:testers
+        env:
+          # the test database's external URL from Render, ending
+          # ?sslmode=require
+          DB_URL: ${{ secrets.TEST_DB_URL }}
+          APP_MODE: test
+          # no email is sent, but the server still checks every variable is
+          # set (src/env.ts)
+          CORS_ORIGIN_URL: https://app.test.empirecleaningandpro.com
+          LANDING_ORIGIN_URL: https://test.empirecleaningandpro.com
+          OFFICE_EMAIL: empirecleaningproservices@gmail.com
+          RESEND_API_KEY: unused
+          BETTER_AUTH_SECRET: unused-by-the-seed-but-32-characters-long
+          GOOGLE_CLIENT_ID: unused
+          GOOGLE_CLIENT_SECRET: unused
+          STRIPE_SECRET_KEY: unused
+          STRIPE_PUBLISHABLE_KEY: unused
+          STRIPE_WEBHOOK_SECRET: unused
