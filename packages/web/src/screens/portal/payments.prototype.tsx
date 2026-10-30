@@ -473,35 +473,23 @@ function Summary({ c }: { c: PaymentsCase }) {
           <p className="text-2xl font-semibold text-fg sm:text-3xl">
             {nothing ? "Nothing owed" : formatMoney(c.owed!.cents)}
           </p>
-          <p className="text-fg-muted">
-            {c.owed?.text ??
-              (c.card
-                ? `Paying with ${c.card}`
-                : c.weekly
-                  ? "You pay each Bill on its page"
-                  : "You'll add a card when you accept a Quote")}
-          </p>
-          {c.owed && c.card && (
-            <p className="text-fg-muted">Paying with {c.card}</p>
+          {c.owed && <p className="text-fg-muted">{c.owed.text}</p>}
+          {/* always here, so the card can be changed whatever is owed;
+              left out only when the Button already goes to it */}
+          {c.owed?.action !== "Update your card" && (
+            <p className="text-fg-muted">
+              {c.card ? `Paying with ${c.card}` : "No card saved"} ·{" "}
+              <Link href={here}>{c.card ? "Change card" : "Add a card"}</Link>
+            </p>
           )}
         </div>
-        {c.owed ? (
+        {c.owed && (
           <Button
             className="shrink-0 self-start sm:self-center"
             onPress={() => {}}
           >
             {c.owed.action}
           </Button>
-        ) : (
-          c.card && (
-            <Button
-              variant="secondary"
-              className="shrink-0 self-start sm:self-center"
-              onPress={() => {}}
-            >
-              Change card
-            </Button>
-          )
         )}
       </div>
     </Card>
