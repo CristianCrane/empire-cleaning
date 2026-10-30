@@ -29,6 +29,7 @@ import {
   ButtonLink,
   Card,
   Heading,
+  Link,
   IconTile,
   List,
   ListItem,
@@ -49,6 +50,7 @@ import {
   formatMinutes,
   formatMoney,
   planName,
+  quoteHeadline,
   propertySummary,
 } from "../format.ts";
 import { BillStatusBadge, billLine } from "../BillParts.tsx";
@@ -56,6 +58,7 @@ import { PlanStatusBadge } from "../PlanParts.tsx";
 import { QuoteStatusBadge } from "../QuoteParts.tsx";
 import { PrototypeSwitcher } from "../PrototypeSwitcher.tsx";
 import { PortalHome, quoteLine } from "./PortalHome.tsx";
+import type { HomeLoad } from "../../router.tsx";
 
 export const variants = [
   { key: "A", name: "Current" },
@@ -63,6 +66,11 @@ export const variants = [
   { key: "C", name: "Next clean + Tabs" },
   { key: "D", name: "Needs you + Coming up + history Tabs" },
   { key: "E", name: "Next clean, homes with their plans, history Tabs" },
+  { key: "F", name: "What's next: a clean booked" },
+  { key: "G", name: "What's next: a Site Visit" },
+  { key: "H", name: "What's next: Quote being prepared" },
+  { key: "I", name: "What's next: Quote ready" },
+  { key: "J", name: "What's next: nothing booked" },
 ];
 
 export type HomeData = ReturnType<typeof useHomeData>;
@@ -77,7 +85,7 @@ const isoDay = (days: number) => inDays(days, 12).slice(0, 10);
 
 // fills the lists a seeded Client lacks, so every part of Home shows
 export function useHomeData() {
-  const real = useLoaderData({ from: "/portal/" });
+  const real = useLoaderData({ strict: false }) as HomeLoad;
   const home: PropertyView =
     real.client.properties[0] ??
     ({
@@ -278,6 +286,8 @@ export function PortalHomePrototype() {
       <NeedsYouHome data={data} />
     ) : variant === "E" ? (
       <CombinedHome data={data} />
+    ) : "FGHIJ".includes(variant) ? (
+      <WhatsNextHome data={inState(variant, data)} />
     ) : (
       <PortalHome data={data} />
     );
@@ -933,5 +943,286 @@ function HomeCard({
         </div>
       )}
     </div>
+  );
+}
+
+// ---- F..J: Home answers one question, what's next ----
+
+// the sample data as it stands at each stage, for F..J
+function inState(variant: string, data: HomeData): HomeData {
+  const sent = data.quotes.find((q) => q.status === "sent");
+  const asked = sent && {
+    ...sent,
+    id: "q-asked",
+    status: "requested" as const,
+    sentAt: null,
+    headlineTotalCents: null,
+    proposedStartsAt: null,
+  };
+  const none = { jobs: [], siteVisits: [], bills: [], pastJobs: [] };
+  switch (variant) {
+    case "G":
+      return {
+        ...data,
+        ...none,
+        plans: [],
+        siteVisits: data.siteVisits,
+        quotes: asked ? [{ ...asked, siteVisit: "booked" }] : [],
+      };
+    case "H":
+      return { ...data, ...none, plans: [], quotes: asked ? [asked] : [] };
+    case "I":
+      return { ...data, ...none, plans: [], quotes: sent ? [sent] : [] };
+    case "J":
+      return {
+        ...data,
+        ...none,
+        plans: [],
+        pastJobs: data.pastJobs.map((j) => ({ ...j, awaitingAnswer: 0 })),
+        quotes: data.quotes.filter((q) => q.status !== "sent"),
+      };
+    // a Client with a clean booked: the usual one thing to answer
+    default:
+      return {
+        ...data,
+        siteVisits: [],
+        bills: [],
+        quotes: data.quotes.filter((q) => q.status !== "sent"),
+      };
+  }
+}
+
+// the soonest thing booked: a Job, or a Site Visit
+type Booked =
+  | { kind: "job"; startsAt: string; job: ClientJob }
+  | { kind: "visit"; startsAt: string; visit: ClientSiteVisit };
+const bookedOf = (data: HomeData): Booked[] =>
+  [
+    ...data.jobs.map((job) => ({
+      kind: "job" as const,
+      startsAt: job.startsAt,
+      job,
+    })),
+    ...data.siteVisits.map((visit) => ({
+      kind: "visit" as const,
+      startsAt: visit.startsAt,
+      visit,
+    })),
+  ].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+
+function WhatsNextHome({ data }: { data: HomeData }) {
+  const open = useOpen();
+  const [firstName] = data.client.name.split(" ");
+  const [next, after] = bookedOf(data);
+  // a Quote ready to answer leads only when nothing is booked; otherwise
+  // it's one of the Notices, with the Bills to pay and extras to agree to
+  const ready = data.quotes.find((q) => q.status === "sent");
+  const asked = data.quotes.find(
+    (q) => q.status === "requested" || q.status === "draft",
+  );
+  const todos = todosOf(data, open).filter(
+    (t) => next || !ready || t.id !== `q-${ready.id}`,
+  );
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <Heading level={1}>Hi, {firstName}</Heading>
+        <ButtonLink
+          variant="secondary"
+          href={linkTo({ to: "/portal/request" })}
+        >
+          <QuoteIcon aria-hidden size={18} />
+          Request a Quote
+        </ButtonLink>
+      </div>
+
+      {todos.map((t) => (
+        <Notice
+          key={t.id}
+          tone="warning"
+          action={
+            <Button variant="text" onPress={t.open}>
+              {t.title}
+            </Button>
+          }
+        >
+          {t.description}
+        </Notice>
+      ))}
+
+      {next ? (
+        <NextUp
+          label={next.kind === "job" ? "Your next clean" : "Your Site Visit"}
+          icon={next.kind === "job" ? CalendarCheck : MapPin}
+          when={formatDateTime(next.startsAt)}
+          lines={
+            next.kind === "job"
+              ? [
+                  `${next.job.serviceName} at ${addressOf(next.job.property)}`,
+                  `${next.job.crewSize} Cleaners, about ${formatHours(next.job.hoursOnSite)} on site`,
+                ]
+              : [
+                  `${next.visit.visitorName} comes to see ${addressOf(next.visit.property)} for about ${formatMinutes(next.visit.minutes)}`,
+                  "Free: we look before we quote. To change the time, please call us.",
+                ]
+          }
+          action={
+            next.kind === "job" && (
+              <Button onPress={() => open.job(next.job.id)}>
+                See the clean
+              </Button>
+            )
+          }
+        />
+      ) : ready ? (
+        <NextUp
+          label="Your Quote is ready"
+          icon={QuoteIcon as typeof Receipt}
+          when={quoteHeadline(ready)}
+          lines={[
+            [
+              ready.proposedStartsAt &&
+                `For ${formatDateTime(ready.proposedStartsAt)}`,
+              addressOf(ready.property),
+            ]
+              .filter(Boolean)
+              .join(" at "),
+            ready.expiresAt
+              ? `Open until ${formatDateTime(ready.expiresAt)}`
+              : "",
+          ]}
+          action={
+            <Button onPress={() => open.quote(ready.id)}>See your Quote</Button>
+          }
+        />
+      ) : asked ? (
+        <NextUp
+          label="We're preparing your Quote"
+          icon={QuoteIcon as typeof Receipt}
+          when="Usually within a working day"
+          lines={[
+            addressOf(asked.property),
+            "We email it to you, and it shows here.",
+          ]}
+        />
+      ) : (
+        <NextUp
+          label="Nothing booked"
+          icon={CalendarDays}
+          when="Want us back?"
+          lines={["Ask for a Quote and we'll book you in."]}
+          action={
+            <ButtonLink href={linkTo({ to: "/portal/request" })}>
+              Request a Quote
+            </ButtonLink>
+          }
+        />
+      )}
+
+      {after && (
+        <p className="text-fg-muted">
+          After that:{" "}
+          {after.kind === "job"
+            ? `${after.job.serviceName}, ${formatDateTime(after.startsAt)}`
+            : `Site Visit, ${formatDateTime(after.startsAt)}`}
+          {" · "}
+          <Link href={linkTo({ to: "/portal/cleans" })}>All your cleans</Link>
+        </p>
+      )}
+    </div>
+  );
+}
+
+// the one answer Home gives
+function NextUp({
+  label,
+  icon,
+  when,
+  lines,
+  action,
+}: {
+  label: string;
+  icon: typeof Receipt;
+  when: string;
+  lines: string[];
+  action?: ReactNode;
+}) {
+  return (
+    <Card>
+      <div className="flex flex-col gap-5">
+        <div className="flex items-center gap-3">
+          <IconTile icon={icon} tone="info" />
+          <p className="font-semibold text-fg-muted">{label}</p>
+        </div>
+        <div className="flex flex-col gap-1">
+          <p className="text-2xl font-semibold text-fg sm:text-3xl">{when}</p>
+          {lines.filter(Boolean).map((line) => (
+            <p key={line} className="text-fg-muted">
+              {line}
+            </p>
+          ))}
+        </div>
+        {action && <div className="flex">{action}</div>}
+      </div>
+    </Card>
+  );
+}
+
+// ---- the pages Home hands off to ----
+
+export function PortalCleansPrototype() {
+  const data = useHomeData();
+  return (
+    <div className="flex flex-col gap-6">
+      <Heading level={1}>Your cleans</Heading>
+      <Tabs defaultSelectedKey="upcoming">
+        <TabList aria-label="Your cleans">
+          <Tab id="upcoming" count={data.jobs.length + data.siteVisits.length}>
+            Upcoming
+          </Tab>
+          <Tab id="past" count={data.pastJobs.length}>
+            Past
+          </Tab>
+        </TabList>
+        <TabPanel id="upcoming">
+          <ComingList items={comingOf(data)} label="Upcoming" />
+        </TabPanel>
+        <TabPanel id="past">
+          <PastList jobs={data.pastJobs} />
+        </TabPanel>
+      </Tabs>
+    </div>
+  );
+}
+
+export function PortalBillsPrototype() {
+  const data = useHomeData();
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-2">
+        <Heading level={1}>Your Bills</Heading>
+        <p className="text-fg-muted">
+          Each week's cleans on one Bill, made the following Monday.
+        </p>
+      </div>
+      <BillsList bills={data.bills} />
+    </div>
+  );
+}
+
+// the Client's home on Your details, with its Service Plan
+export function HomeWithPlan() {
+  const data = useHomeData();
+  return (
+    <>
+      {data.client.properties.map((home) => (
+        <HomeCard
+          key={home.id}
+          home={home}
+          plans={data.plans.filter((p) => p.property.id === home.id)}
+        />
+      ))}
+    </>
   );
 }

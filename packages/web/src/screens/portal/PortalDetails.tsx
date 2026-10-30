@@ -9,25 +9,34 @@ import {
   Form,
   Heading,
   Notice,
+  Section,
   TextField,
 } from "@empire-cleaning/ui";
 import { patchJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
+import { HomeWithPlan } from "./portal-home.prototype.tsx";
 import { addressOf, propertySummary } from "../format.ts";
 
 // a Client's own contact details and Access Instructions. A home's size and
 // Condition are read-only here: changing them needs a new Quote.
 export function PortalDetails() {
-  const client = useLoaderData({ from: "/portal/details" });
+  // PROTOTYPE: loads Home's data, for the plans
+  const { client } = useLoaderData({ from: "/portal/details" });
 
   return (
     <div className="flex flex-col gap-6">
       <Heading level={1}>Your details</Heading>
       <ContactDetails client={client} />
-      {client.properties.map((home) => (
-        <AccessInstructions key={home.id} home={home} />
-      ))}
+      {/* PROTOTYPE: the home and its Service Plan live here now */}
+      <Section
+        title={client.properties.length === 1 ? "Your home" : "Your homes"}
+      >
+        <HomeWithPlan />
+        {client.properties.map((home) => (
+          <AccessInstructions key={home.id} home={home} />
+        ))}
+      </Section>
       <Card
         title="Payment Method"
         description="The card your Deposits and cleans are charged to."

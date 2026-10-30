@@ -106,7 +106,11 @@ import {
   type ScheduleSearch,
 } from "./screens/schedule-range.ts";
 import { PortalBill } from "./screens/portal/PortalBill.tsx";
-import { PortalHomePrototype } from "./screens/portal/portal-home.prototype.tsx";
+import {
+  PortalBillsPrototype,
+  PortalCleansPrototype,
+  PortalHomePrototype,
+} from "./screens/portal/portal-home.prototype.tsx";
 import { PortalJob } from "./screens/portal/PortalJob.tsx";
 import { PortalPaymentMethod } from "./screens/portal/PortalPaymentMethod.tsx";
 import { PortalPlan } from "./screens/portal/PortalPlan.tsx";
@@ -603,27 +607,49 @@ const openPlaceRoute = createRoute({
   component: OpenPlaceScreen,
 });
 
+// PROTOTYPE: Home, Cleans and Bills share one loader
+const loadHome = async () => {
+  const [client, plans, quotes, jobs, pastJobs, siteVisits, bills] =
+    await Promise.all([
+      ownClient(),
+      getJson<ServicePlanSummary[]>("/api/service-plans/mine"),
+      getJson<QuoteSummary[]>("/api/quotes/mine"),
+      getJson<ClientJob[]>("/api/jobs/mine"),
+      getJson<ClientPastJob[]>("/api/jobs/mine/past"),
+      getJson<ClientSiteVisit[]>("/api/site-visits/mine"),
+      getJson<BillSummary[]>("/api/bills/mine"),
+    ]);
+  return { client, plans, quotes, jobs, pastJobs, siteVisits, bills };
+};
+export type HomeLoad = Awaited<ReturnType<typeof loadHome>>;
+
+const variantSearch = (
+  search: Record<string, unknown>,
+): { variant?: string } => ({
+  variant: typeof search.variant === "string" ? search.variant : undefined,
+});
+
 const portalHomeRoute = createRoute({
   getParentRoute: () => portalRoute,
   path: "/",
-  loader: async () => {
-    const [client, plans, quotes, jobs, pastJobs, siteVisits, bills] =
-      await Promise.all([
-        ownClient(),
-        getJson<ServicePlanSummary[]>("/api/service-plans/mine"),
-        getJson<QuoteSummary[]>("/api/quotes/mine"),
-        getJson<ClientJob[]>("/api/jobs/mine"),
-        getJson<ClientPastJob[]>("/api/jobs/mine/past"),
-        getJson<ClientSiteVisit[]>("/api/site-visits/mine"),
-        getJson<BillSummary[]>("/api/bills/mine"),
-      ]);
-    return { client, plans, quotes, jobs, pastJobs, siteVisits, bills };
-  },
+  loader: loadHome,
   // PROTOTYPE: ?variant= picks a Home layout
-  validateSearch: (search: Record<string, unknown>): { variant?: string } => ({
-    variant: typeof search.variant === "string" ? search.variant : undefined,
-  }),
+  validateSearch: variantSearch,
   component: PortalHomePrototype,
+});
+
+const portalCleansRoute = createRoute({
+  getParentRoute: () => portalRoute,
+  path: "/cleans",
+  loader: loadHome,
+  component: PortalCleansPrototype,
+});
+
+const portalBillsRoute = createRoute({
+  getParentRoute: () => portalRoute,
+  path: "/bills",
+  loader: loadHome,
+  component: PortalBillsPrototype,
 });
 
 // where the Quote email's link leads: signed out, the portal sends the
@@ -688,7 +714,8 @@ const portalRequestRoute = createRoute({
 const portalDetailsRoute = createRoute({
   getParentRoute: () => portalRoute,
   path: "/details",
-  loader: ownClient,
+  // PROTOTYPE: the homes and their plans move here
+  loader: loadHome,
   component: PortalDetails,
 });
 
@@ -728,6 +755,8 @@ const routeTree = rootRoute.addChildren([
     portalPlanRoute,
     portalJobRoute,
     portalBillRoute,
+    portalCleansRoute,
+    portalBillsRoute,
     portalDetailsRoute,
     portalPaymentMethodRoute,
   ]),
