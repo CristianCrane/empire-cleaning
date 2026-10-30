@@ -12,3 +12,6 @@ type Story = StoryObj<typeof meta>;
 
 // Tue, Nov 3 in New York
 export const Default: Story = {};
+
+// leading a list row
+export const Small: Story = { args: { size: "sm" } };

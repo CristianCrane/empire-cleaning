@@ -94,6 +94,15 @@ test(
     // and Home no longer leads with it
     await page.goto("/portal");
     await expect(page.getByText("Want us back?")).toBeVisible();
+
+    // and Your cleans lists it as Cancelled, under Past
+    await page
+      .getByRole("link", { name: "Cleans", exact: true })
+      .first()
+      .click();
+    await expect(page).toHaveURL("/portal/cleans");
+    await page.getByRole("tab", { name: /Past/ }).click();
+    await expect(page.getByRole("row").first()).toContainText("Cancelled");
   },
 );
 

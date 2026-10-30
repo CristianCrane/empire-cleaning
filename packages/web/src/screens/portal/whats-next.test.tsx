@@ -44,8 +44,11 @@ const job = (over: Partial<ClientUpcomingJob> = {}): ClientUpcomingJob => ({
 });
 const pastJob = (over: Partial<ClientPastJob> = {}): ClientPastJob => ({
   ...job({ id: "past", startsAt: "2026-10-20T13:00:00.000Z" }),
+  status: "completed",
+  skipped: false,
   completedAt: "2026-10-20T16:00:00.000Z",
   totalCents: 18450,
+  feeCents: 0,
   unpaid: false,
   awaitingAnswer: 0,
   ...over,
@@ -168,6 +171,23 @@ describe("Home's hero, with nothing booked", () => {
     expect(notices).toEqual([]);
   });
 
+  test("names the last clean done, not one Skipped since", () => {
+    const { hero } = next({
+      pastJobs: [
+        pastJob({
+          id: "skipped",
+          startsAt: "2026-10-27T13:00:00.000Z",
+          status: "cancelled",
+          skipped: true,
+          completedAt: null,
+          totalCents: 0,
+        }),
+        pastJob(),
+      ],
+    });
+    expect(hero.lines).toEqual(["Your last clean was Tue, Oct 20."]);
+  });
+
   test("offers a past Client a new Quote", () => {
     const { hero } = next({
       quotes: [quote({ status: "accepted" })],
@@ -179,6 +199,7 @@ describe("Home's hero, with nothing booked", () => {
       action: { label: "Request a Quote" },
     });
     expect(shortcutLabels({ pastJobs: [pastJob()] })).toEqual([
+      "Past cleans",
       "Your details",
       "Call us",
     ]);
@@ -226,6 +247,7 @@ describe("Home's hero, with nothing booked", () => {
     expect(paused.notices).toEqual([]);
     expect(paused.shortcuts.map((s) => s.label)).toEqual([
       "Update your card",
+      "Past cleans",
       "Call us",
     ]);
   });
@@ -252,9 +274,7 @@ describe("Home's hero, with something booked", () => {
       ],
       action: { label: "See the clean" },
     });
-    expect(after?.text).toBe(
-      "After that: Standard Clean, Tue, Nov 17, 9:00 AM",
-    );
+    expect(after).toBe("After that: Standard Clean, Tue, Nov 17, 9:00 AM");
     expect(shortcuts.map((s) => [s.label, s.hint])).toEqual([
       ["Move or skip", "Your Tue, Nov 3 clean"],
       ["How we get in", "Key under the mat"],

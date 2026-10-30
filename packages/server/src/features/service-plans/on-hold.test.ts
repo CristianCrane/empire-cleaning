@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type {
+  ClientPastJob,
   NeedsAttentionItem,
   OfficeServicePlan,
   ServicePlanView,
@@ -73,6 +74,22 @@ describe("a plan Job left Unpaid", () => {
     expect(testEmail().lastTo(casey.email).text).toMatch(
       /Service Plan is On Hold/,
     );
+    // their past cleans show it Skipped, its fee Unpaid, latest first
+    const past = (await client.get("/api/jobs/mine/past").expect(200))
+      .body as ClientPastJob[];
+    expect(past).toEqual([
+      expect.objectContaining({
+        id: jobId,
+        status: "cancelled",
+        skipped: true,
+        completedAt: null,
+        totalCents: 0,
+        feeCents: PLAN_DEPOSIT,
+        unpaid: true,
+      }),
+      // its First Clean, before the plan
+      expect.objectContaining({ status: "completed", skipped: false }),
+    ]);
   });
 
   test("books no new Jobs while On Hold, though those booked go ahead", async () => {

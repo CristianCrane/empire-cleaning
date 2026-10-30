@@ -63,7 +63,8 @@ export function PortalHome() {
 
       {after && (
         <p className="text-fg-muted">
-          {after.text} · <Link href={after.href}>See it</Link>
+          {after} ·{" "}
+          <Link href={linkTo({ to: "/portal/cleans" })}>All your cleans</Link>
         </p>
       )}
 

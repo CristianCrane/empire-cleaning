@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type {
+  ClientPastJob,
   CleanerJob,
   CleanerJobs,
   ClientJob,
@@ -211,6 +212,18 @@ describe("the Client cancelling", () => {
     expect(testEmail().lastTo(casey.email).text).toContain(
       "it's a Late Cancellation: your",
     );
+    // a one-off clean: Cancelled, not Skipped, with its fee
+    const past = (await client.get("/api/jobs/mine/past").expect(200))
+      .body as ClientPastJob[];
+    expect(past).toEqual([
+      expect.objectContaining({
+        id: jobId,
+        status: "cancelled",
+        skipped: false,
+        feeCents: deposit,
+        unpaid: false,
+      }),
+    ]);
   });
 
   test("is refused, not charged, when it has become late since they looked", async () => {

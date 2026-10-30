@@ -1474,10 +1474,16 @@ export type AdjustmentProposal = {
 // amount: a reduction stays a reduction), with a reason
 export type AdjustmentCorrection = { priceCents: number; reason: string };
 
-// a Completed Job in the Client's past Jobs
+// one of the Client's Jobs that isn't going ahead any more: Completed,
+// Cancelled (Skipped, for a Service Plan clean they cancelled) or No Access
 export type ClientPastJob = ClientJob & {
-  completedAt: string;
+  status: "completed" | "cancelled" | "no_access";
+  skipped: boolean;
+  completedAt: string | null;
+  // a Completed one's price; 0 otherwise
   totalCents: number;
+  // what a Cancelled or No Access one cost; 0 if nothing
+  feeCents: number;
   unpaid: boolean;
   // increases proposed to them, waiting on their answer
   awaitingAnswer: number;

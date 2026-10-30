@@ -101,6 +101,12 @@ const navFor: Record<AreaId, AreaNavItem[]> = {
       alsoCurrentFor: ["/portal/request", "/portal/quotes"],
     },
     {
+      href: linkTo({ to: "/portal/cleans" }),
+      label: "Cleans",
+      icon: Sparkles,
+      alsoCurrentFor: ["/portal/jobs/"],
+    },
+    {
       href: linkTo({ to: "/portal/details" }),
       label: "Your details",
       icon: UserRound,

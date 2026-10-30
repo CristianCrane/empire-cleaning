@@ -8,6 +8,7 @@ import {
   KeyRound,
   MapPin,
   PauseCircle,
+  Receipt,
   Phone,
   Repeat,
   Sparkles,
@@ -89,8 +90,8 @@ export type WhatsNext = {
   // what they're waiting on us for
   news: string[];
   hero: Hero;
-  // the thing booked after the hero's
-  after: { text: string; href: AppHref } | null;
+  // the thing booked after the hero's, which leads on to all their cleans
+  after: string | null;
   shortcuts: Shortcut[];
 };
 
@@ -205,11 +206,8 @@ export function whatsNext(data: HomeData, now = new Date()): WhatsNext {
   const after =
     next && then
       ? then.kind === "job"
-        ? {
-            text: `After that: ${then.job.serviceName}, ${formatDateTime(then.startsAt)}`,
-            href: jobLink(then.job.id),
-          }
-        : null
+        ? `After that: ${then.job.serviceName}, ${formatDateTime(then.startsAt)}`
+        : `After that: your Site Visit, ${formatDateTime(then.startsAt)}`
       : null;
 
   return {
@@ -239,7 +237,10 @@ function heroOf(data: HomeData, ctx: Context): Hero {
     const { job } = next;
     const plan = data.plans.find((p) => p.id === job.servicePlanId);
     const first =
-      !plan && !data.pastJobs.some((p) => p.property.id === job.property.id);
+      !plan &&
+      !data.pastJobs.some(
+        (p) => p.status === "completed" && p.property.id === job.property.id,
+      );
     const today = isToday(job.startsAt, now);
     const cleaners =
       job.crewSize === 1 ? "1 Cleaner" : `${job.crewSize} Cleaners`;
@@ -401,8 +402,8 @@ function heroOf(data: HomeData, ctx: Context): Hero {
       action: requestQuote,
     };
   }
-  if (last || data.pastJobs.length > 0) {
-    const latest = data.pastJobs[0];
+  const latest = data.pastJobs.find((j) => j.status === "completed");
+  if (last || latest) {
     return {
       label: "Nothing booked",
       icon: CalendarDays,
@@ -434,6 +435,12 @@ function shortcutsOf(data: HomeData, ctx: Context): Shortcut[] {
     label: "Call us",
     hint: business.phone.display,
     href: business.phone.href,
+  };
+  const pastCleans: Shortcut = {
+    icon: Receipt,
+    label: "Past cleans",
+    hint: "And their receipts",
+    href: linkTo({ to: "/portal/cleans", search: { tab: "past" } }),
   };
   const details: Shortcut = {
     icon: UserRound,
@@ -493,9 +500,12 @@ function shortcutsOf(data: HomeData, ctx: Context): Shortcut[] {
         };
     return [move, ...getIn, card, callUs];
   }
-  if (paused) return [card, callUs];
+  if (paused) return [card, pastCleans, callUs];
   if (next || data.quotes.some(open) || data.quotes[0]?.status === "sent") {
     return [...getIn, details, callUs];
   }
-  return [details, callUs];
+  // nothing booked or asked for: a past Client can look back
+  return data.pastJobs.length > 0
+    ? [pastCleans, details, callUs]
+    : [details, callUs];
 }

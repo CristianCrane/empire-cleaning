@@ -106,6 +106,11 @@ import {
   type ScheduleSearch,
 } from "./screens/schedule-range.ts";
 import { PortalBill } from "./screens/portal/PortalBill.tsx";
+import {
+  PortalCleans,
+  cleansTabs,
+  type CleansSearch,
+} from "./screens/portal/PortalCleans.tsx";
 import { PortalHome } from "./screens/portal/PortalHome.tsx";
 import type { HomeData } from "./screens/portal/whats-next.ts";
 import { PortalJob } from "./screens/portal/PortalJob.tsx";
@@ -670,6 +675,25 @@ const portalPlanRoute = createRoute({
 });
 
 // where the receipt, approval and Unpaid emails lead
+// every clean of theirs: what's coming (with Site Visits) and what's done
+const portalCleansRoute = createRoute({
+  getParentRoute: () => portalRoute,
+  path: "/cleans",
+  validateSearch: (search: Record<string, unknown>): CleansSearch => ({
+    tab: cleansTabs.find((t) => t === search.tab),
+  }),
+  loader: async () => {
+    const [client, jobs, pastJobs, siteVisits] = await Promise.all([
+      ownClient(),
+      getJson<ClientUpcomingJob[]>("/api/jobs/mine"),
+      getJson<ClientPastJob[]>("/api/jobs/mine/past"),
+      getJson<ClientSiteVisit[]>("/api/site-visits/mine"),
+    ]);
+    return { client, jobs, pastJobs, siteVisits };
+  },
+  component: PortalCleans,
+});
+
 const portalJobRoute = createRoute({
   getParentRoute: () => portalRoute,
   path: "/jobs/$jobId",
@@ -742,6 +766,7 @@ const routeTree = rootRoute.addChildren([
     portalRequestRoute,
     portalQuoteRoute,
     portalPlanRoute,
+    portalCleansRoute,
     portalJobRoute,
     portalBillRoute,
     portalDetailsRoute,

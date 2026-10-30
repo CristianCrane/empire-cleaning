@@ -362,7 +362,12 @@ for (const theme of ["light", "dark"] as const) {
         await requestQuoteAsGuest(casey);
         await signInAs(page, casey.email);
 
-        for (const path of ["/portal", "/portal/request", "/portal/details"]) {
+        for (const path of [
+          "/portal",
+          "/portal/cleans",
+          "/portal/request",
+          "/portal/details",
+        ]) {
           await page.goto(path);
           await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
           await expectNoViolations(page);

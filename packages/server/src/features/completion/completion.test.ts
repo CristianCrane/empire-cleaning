@@ -470,7 +470,14 @@ describe("Adjustments", () => {
     const past = (await client.get("/api/jobs/mine/past").expect(200))
       .body as ClientPastJob[];
     expect(past).toEqual([
-      expect.objectContaining({ id: jobId, awaitingAnswer: 2, unpaid: false }),
+      expect.objectContaining({
+        id: jobId,
+        status: "completed",
+        skipped: false,
+        feeCents: 0,
+        awaitingAnswer: 2,
+        unpaid: false,
+      }),
     ]);
 
     // approving charges it, declining doesn't
