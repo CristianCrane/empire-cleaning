@@ -1,8 +1,8 @@
-// PROTOTYPE: throwaway. The Cleaner's Your Jobs and a Job's page, on
-// made-up data, at /prototype/cleaner?case=1..5&layout=A..C (&job=<id>&
-// actions=A..B for a Job; no sign-in). Home: A next up first, B by day, C
-// Tabs. A Job's actions: A cards, B a bar at the foot. For the UX pass
-// (#96). Lives only on prototype-cleaner.
+// PROTOTYPE: throwaway. The Cleaner's Your Jobs (only theirs), Offers (places
+// offered or open to them) and a Job's page, on made-up data, at
+// /prototype/cleaner?case=1..5&page=jobs|offers (&job=<id>&actions=A..B for
+// a Job; no sign-in). A Job's actions: A cards, B a bar at the foot. For the
+// UX pass (#96). Lives only on prototype-cleaner.
 import type { ReactNode } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import {
@@ -12,6 +12,7 @@ import {
   Clock,
   DoorClosed,
   Eye,
+  Inbox,
   KeyRound,
   MapPin,
   Navigation,
@@ -35,16 +36,10 @@ import {
   Notice,
   Section,
   StatusBadge,
-  Tab,
-  TabList,
-  TabPanel,
-  Tabs,
 } from "@empire-cleaning/ui";
 import { linkTo } from "../../links.ts";
 import { PrototypeSwitcher } from "../PrototypeSwitcher.tsx";
 import { Fact } from "../portal/Fact.tsx";
-
-const here = linkTo({ to: "/prototype/cleaner" });
 
 // ---- made-up data: Monday 2 November 2026 ----
 
@@ -236,12 +231,6 @@ const cases: CleanerCase[] = [
   },
 ];
 
-const layouts = [
-  { key: "A", name: "Next up first" },
-  { key: "B", name: "By day" },
-  { key: "C", name: "Tabs" },
-];
-
 const actionLayouts = [
   { key: "A", name: "Action cards" },
   { key: "B", name: "Bar at the foot" },
@@ -252,24 +241,45 @@ const actionLayouts = [
 export function CleanerPrototype() {
   const s = useSearch({ strict: false }) as {
     case?: string;
-    layout?: string;
+    page?: string;
     job?: string;
     actions?: string;
   };
   const key = s.case ?? "1";
-  const layout = s.layout ?? "A";
+  const page = s.page ?? "jobs";
   const actions = s.actions ?? "A";
   const navigate = useNavigate();
   const go = (search: Partial<typeof s>) =>
     navigate({
       to: "/prototype/cleaner",
-      search: { case: key, layout, job: s.job, actions, ...search } as never,
+      search: { case: key, page, job: s.job, actions, ...search } as never,
     });
   const c = cases.find((x) => x.key === key) ?? cases[0]!;
   const job = c.jobs.find((j) => j.id === s.job);
+  const offers = page === "offers";
+  const hrefTo = (p: string) =>
+    linkTo({
+      to: "/prototype/cleaner",
+      search: { case: key, page: p } as never,
+    });
+  const offered = c.jobs.filter((j) => j.offered).length;
 
   const nav: NavItem[] = [
-    { href: here, label: "Your Jobs", icon: CalendarDays, isCurrent: true },
+    {
+      href: hrefTo("jobs"),
+      label: "Your Jobs",
+      icon: CalendarDays,
+      isCurrent: !offers,
+    },
+    {
+      href: hrefTo("offers"),
+      label:
+        offered + c.open.length > 0
+          ? `Offers (${offered + c.open.length})`
+          : "Offers",
+      icon: Inbox,
+      isCurrent: offers,
+    },
   ];
 
   return (
@@ -282,29 +292,20 @@ export function CleanerPrototype() {
         <JobPage
           job={job}
           actions={actions}
-          backHref={linkTo({
-            to: "/prototype/cleaner",
-            search: { case: key, layout } as never,
-          })}
+          back={{ label: offers ? "Offers" : "Your Jobs", href: hrefTo(page) }}
         />
+      ) : offers ? (
+        <OffersPage c={c} openJob={(id) => go({ job: id })} />
       ) : (
-        <HomePage c={c} layout={layout} open={(id) => go({ job: id })} />
+        <HomePage c={c} openJob={(id) => go({ job: id })} />
       )}
-      {job ? (
+      {job && (
         <PrototypeSwitcher
           variants={actionLayouts}
           current={actions}
           onChange={(k) => go({ actions: k })}
           keys={["ArrowUp", "ArrowDown"]}
           className="bottom-56 md:bottom-36"
-        />
-      ) : (
-        <PrototypeSwitcher
-          variants={layouts}
-          current={layout}
-          onChange={(k) => go({ layout: k })}
-          keys={["ArrowUp", "ArrowDown"]}
-          className="bottom-40 md:bottom-20"
         />
       )}
       <PrototypeSwitcher
@@ -317,133 +318,43 @@ export function CleanerPrototype() {
   );
 }
 
-// ---- Your Jobs ----
+// ---- Your Jobs: only theirs ----
 
 const mapsLink = (address: string) =>
   `https://maps.google.com/?q=${encodeURIComponent(address)}`;
 
 function HomePage({
   c,
-  layout,
-  open: openJob,
+  openJob,
 }: {
   c: CleanerCase;
-  layout: string;
-  open: (id: string) => void;
+  openJob: (id: string) => void;
 }) {
-  const offers = c.jobs.filter((j) => j.offered);
-  const next = c.jobs.find((j) => !j.offered && !j.done);
-  const rest = c.jobs.filter((j) => j !== next && !j.offered);
-
-  const alerts = offers.map((j) => (
-    <Notice
-      key={j.id}
-      tone="warning"
-      action={
-        <Button variant="text" onPress={() => openJob(j.id)}>
-          Answer
-        </Button>
-      }
-    >
-      <p>
-        <strong>You're offered a place.</strong> {j.service}, {j.day} at{" "}
-        {j.time}, {j.area}. Can you make it?
-      </p>
-    </Notice>
-  ));
-
-  const yours = (
-    <>
+  const theirs = c.jobs.filter((j) => !j.offered && !j.done);
+  const [next, ...rest] = theirs;
+  return (
+    <div className="flex flex-col gap-6">
+      <Heading level={1}>Your Jobs</Heading>
       {next ? (
         <NextUp job={next} openJob={openJob} />
       ) : (
-        <Card>
-          <EmptyState
-            icon={CalendarDays}
-            title="Nothing booked for you yet"
-            description="Jobs the Office gives you show here. You can take a place that's open below."
-          />
-        </Card>
+        <EmptyState
+          icon={CalendarDays}
+          title="Nothing booked for you yet"
+          description="Jobs you're on show here, the next one first. See Offers for places you can take."
+        />
       )}
       {rest.length > 0 && (
         <Section title="Coming up">
           <JobRows jobs={rest} openJob={openJob} label="Coming up" />
         </Section>
       )}
-    </>
-  );
-
-  const openSection = (
-    <Section
-      title="Open to you"
-      description="Places on Jobs in the next 7 days, when you're free. The first to confirm takes each."
-    >
-      <OpenRows places={c.open} />
-    </Section>
-  );
-
-  if (layout === "B") {
-    const days = [...new Set(c.jobs.map((j) => j.day))];
-    return (
-      <div className="flex flex-col gap-6">
-        <Heading level={1}>Your Jobs</Heading>
-        {alerts}
-        {days.length === 0 && (
-          <Card>
-            <EmptyState
-              icon={CalendarDays}
-              title="Nothing booked for you yet"
-              description="Jobs the Office gives you show here."
-            />
-          </Card>
-        )}
-        {days.map((day) => (
-          <Section key={day} title={day}>
-            <JobRows
-              jobs={c.jobs.filter((j) => j.day === day)}
-              openJob={openJob}
-              label={day}
-              timeFirst
-            />
-          </Section>
-        ))}
-        {openSection}
-      </div>
-    );
-  }
-
-  if (layout === "C") {
-    return (
-      <div className="flex flex-col gap-6">
-        <Heading level={1}>Your Jobs</Heading>
-        {alerts}
-        <Tabs>
-          <TabList aria-label="Jobs">
-            <Tab id="yours">Yours</Tab>
-            <Tab id="open">Open to you ({c.open.length})</Tab>
-          </TabList>
-          <TabPanel id="yours" className="flex flex-col gap-6 pt-4">
-            {yours}
-          </TabPanel>
-          <TabPanel id="open" className="pt-4">
-            <OpenRows places={c.open} />
-          </TabPanel>
-        </Tabs>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-6">
-      <Heading level={1}>Your Jobs</Heading>
-      {alerts}
-      {yours}
-      {openSection}
     </div>
   );
 }
 
-// the next Job, large: when, where, and the two things wanted on the way
+// the next Job, large: when first, then where, and the two things wanted on
+// the way
 function NextUp({ job, openJob }: { job: Job; openJob: (id: string) => void }) {
   return (
     <Section title={job.started ? "Now" : "Next up"}>
@@ -451,10 +362,13 @@ function NextUp({ job, openJob }: { job: Job; openJob: (id: string) => void }) {
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-6">
           <DateTile date={job.at} />
           <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <p className="text-sm text-fg-muted">
-              {job.day}, {job.time} – {job.until}
+            <p className="text-3xl font-semibold text-fg tabular-nums">
+              {job.time}
             </p>
-            <p className="text-xl font-semibold text-fg">{job.address}</p>
+            <p className="text-sm text-fg-muted">
+              {job.day}, until about {job.until}
+            </p>
+            <p className="mt-2 text-lg font-semibold text-fg">{job.address}</p>
             <p className="text-fg-muted">
               {job.service} · {job.hours} on site
               {job.crew.length > 1 &&
@@ -488,16 +402,15 @@ function NextUp({ job, openJob }: { job: Job; openJob: (id: string) => void }) {
   );
 }
 
+// a row each, its day and time first
 function JobRows({
   jobs,
   openJob,
   label,
-  timeFirst = false,
 }: {
   jobs: Job[];
   openJob: (id: string) => void;
   label: string;
-  timeFirst?: boolean;
 }) {
   return (
     <List aria-label={label} onAction={(id) => openJob(String(id))}>
@@ -505,24 +418,14 @@ function JobRows({
         <ListItem
           key={j.id}
           id={j.id}
-          start={
-            timeFirst ? (
-              <span className="w-16 shrink-0 text-sm font-semibold text-fg tabular-nums">
-                {j.time}
-              </span>
-            ) : (
-              <DateTile date={j.at} size="sm" />
-            )
-          }
-          title={j.address}
-          description={`${timeFirst ? "" : `${j.day}, ${j.time} · `}${j.service} · ${j.hours} on site`}
+          start={<DateTile date={j.at} size="sm" />}
+          title={`${j.day}, ${j.time}`}
+          description={`${j.address} · ${j.service}, ${j.hours}`}
           end={
             j.visit ? (
               <StatusBadge tone="info">Site Visit</StatusBadge>
             ) : j.offered ? (
               <StatusBadge tone="warning">Offered</StatusBadge>
-            ) : j.started ? (
-              <StatusBadge tone="info">Now</StatusBadge>
             ) : undefined
           }
         />
@@ -531,24 +434,56 @@ function JobRows({
   );
 }
 
+// ---- Offers: places that aren't theirs yet ----
+
+function OffersPage({
+  c,
+  openJob,
+}: {
+  c: CleanerCase;
+  openJob: (id: string) => void;
+}) {
+  const offered = c.jobs.filter((j) => j.offered);
+  return (
+    <div className="flex flex-col gap-6">
+      <Heading level={1}>Offers</Heading>
+      {offered.length > 0 && (
+        <Section
+          title="Offered to you"
+          description="The Office picked you for these. Confirm, or let them go to someone else."
+        >
+          <JobRows jobs={offered} openJob={openJob} label="Offered to you" />
+        </Section>
+      )}
+      <Section
+        title="Open to you"
+        description="Places on Jobs in the next 7 days, when you're free. The first to confirm takes each."
+      >
+        {c.open.length > 0 ? (
+          <OpenRows places={c.open} />
+        ) : (
+          <EmptyState
+            headingLevel={3}
+            icon={Inbox}
+            title="Nothing open to you right now"
+            description="When a Job near you needs someone, it shows here."
+          />
+        )}
+      </Section>
+    </div>
+  );
+}
+
 function OpenRows({ places }: { places: Open[] }) {
   return (
-    <List
-      aria-label="Open to you"
-      onAction={() => {}}
-      renderEmptyState={() => (
-        <p className="p-6 text-center text-fg-muted">
-          Nothing open to you right now.
-        </p>
-      )}
-    >
+    <List aria-label="Open to you" onAction={() => {}}>
       {places.map((p) => (
         <ListItem
           key={p.id}
           id={p.id}
           start={<DateTile date={p.at} size="sm" />}
-          title={`${p.service}, ${p.time}`}
-          description={`${p.day} · ${p.hours} on site · ${p.crew} · ZIP ${p.area}`}
+          title={`${p.day}, ${p.time}`}
+          description={`${p.service}, ${p.hours} · ${p.crew} · ZIP ${p.area}`}
         />
       ))}
     </List>
@@ -560,11 +495,11 @@ function OpenRows({ places }: { places: Open[] }) {
 function JobPage({
   job,
   actions,
-  backHref,
+  back,
 }: {
   job: Job;
   actions: string;
-  backHref: ReturnType<typeof linkTo>;
+  back: { label: string; href: ReturnType<typeof linkTo> };
 }) {
   const others = job.crew.filter((m) => m.name !== "You");
   const unconfirmed = others.filter((m) => !m.confirmed);
@@ -612,12 +547,7 @@ function JobPage({
   return (
     <div className={`flex flex-col gap-6 ${actions === "B" ? "pb-28" : ""}`}>
       <div className="flex flex-col gap-4">
-        <Breadcrumbs
-          trail={[
-            { label: "Your Jobs", href: backHref },
-            { label: `${job.day}, ${job.time}` },
-          ]}
-        />
+        <Breadcrumbs trail={[back, { label: `${job.day}, ${job.time}` }]} />
         <div className="flex flex-wrap items-center gap-3">
           <Heading level={1}>{job.service}</Heading>
           {job.visit ? (

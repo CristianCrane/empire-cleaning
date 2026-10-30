@@ -796,10 +796,10 @@ const cleanerPrototypeRoute = createRoute({
   path: "/prototype/cleaner",
   validateSearch: (
     search: Record<string, unknown>,
-  ): { case?: string; layout?: string; job?: string; actions?: string } => ({
+  ): { case?: string; page?: string; job?: string; actions?: string } => ({
     // ?case=1 arrives as a number
     case: search.case === undefined ? undefined : String(search.case),
-    layout: search.layout === undefined ? undefined : String(search.layout),
+    page: search.page === undefined ? undefined : String(search.page),
     job: search.job === undefined ? undefined : String(search.job),
     actions: search.actions === undefined ? undefined : String(search.actions),
   }),
