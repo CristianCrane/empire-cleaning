@@ -62,11 +62,11 @@ services:
         value: Empire Cleaning <test@empirecleaningandpro.com>
       - key: OFFICE_EMAIL
         value: empirecleaningproservices@gmail.com
-      # the Office inbox's +aliases, which everyone in the seed data has, and
-      # Ingrid, who tests as Office Staff; mail to anyone else goes to the Office
-      # inbox
+      # the Office inbox's +aliases, which everyone in the seed data has; Ingrid,
+      # who tests as Office Staff; and Cris and their +aliases, one per role. Mail
+      # to anyone else goes to the Office inbox
       - key: EMAIL_ALLOWED
-        value: empirecleaningproservices+*@gmail.com,ivm4301@gmail.com
+        value: empirecleaningproservices+*@gmail.com,ivm4301@gmail.com,cristiandcrane@gmail.com,cristiandcrane+*@gmail.com
       - key: RESEND_API_KEY
         sync: false
       - key: GOOGLE_CLIENT_ID
