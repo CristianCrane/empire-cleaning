@@ -477,7 +477,10 @@ function shortcutsOf(data: HomeData, ctx: Context): Shortcut[] {
           icon: KeyRound,
           label: "How we get in",
           hint: home.accessInstructions || "Not added yet",
-          href: detailsLink,
+          href: linkTo({
+            to: "/portal/properties/$propertyId",
+            params: { propertyId: home.id },
+          }),
         },
       ]
     : [];

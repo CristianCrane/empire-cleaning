@@ -181,12 +181,13 @@ test("a Client asks about a second home", async ({ page }) => {
   await expect(page).toHaveURL("/portal");
   await expect(page.getByText("Quote requested")).toBeVisible();
   await page.goto("/portal/details");
+  const homes = page.getByRole("grid", { name: "Your homes" });
   await expect(
-    page.getByRole("heading", { name: "41-12 Austin St, 4B, 11375" }),
+    homes.getByRole("row", { name: /41-12 Austin St, 4B, 11375/ }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "35-06 Ditmars Blvd, 11375" }),
-  ).toBeVisible();
+    homes.getByRole("row", { name: /35-06 Ditmars Blvd, 11375/ }),
+  ).toContainText("Quote asked for");
 });
 
 test(
@@ -242,23 +243,47 @@ test("a Client edits their contact details and Access Instructions", async ({
   await page.getByRole("link", { name: "Your details", exact: true }).click();
   await expect(page).toHaveURL("/portal/details");
 
-  await page.getByRole("textbox", { name: "Phone" }).fill("(718) 555-0123");
-  await page.getByRole("button", { name: "Save details" }).click();
+  await expectNoViolations(page);
+  // read first, changed in a dialog
+  const contact = page.getByRole("region", { name: "Contact details" });
+  await contact.getByRole("button", { name: "Edit" }).click();
+  let dialog = page.getByRole("dialog", { name: "Your contact details" });
+  await dialog.getByRole("textbox", { name: "Phone" }).fill("(718) 555-0123");
+  await dialog.getByRole("button", { name: "Save details" }).click();
   await expect(page.getByText("Details saved")).toBeVisible();
+  await expect(contact).toContainText("(718) 555-0123");
 
+  // how we get in is on the home's own page
   await page
+    .getByRole("grid", { name: "Your home" })
+    .getByRole("row", { name: /41-12 Austin St/ })
+    .click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "41-12 Austin St",
+  );
+  // fresh: tapping a row leaves react-aria's announcement of it behind
+  await page.reload();
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expectNoViolations(page);
+  await page.getByRole("button", { name: "Edit how we get in" }).click();
+  dialog = page.getByRole("dialog", { name: "How we get in" });
+  await dialog
     .getByRole("textbox", { name: "How do we get in?" })
     .fill("Key in the lockbox, code 4821");
-  await page.getByRole("button", { name: "Save Access Instructions" }).click();
+  await dialog
+    .getByRole("button", { name: "Save Access Instructions" })
+    .click();
   await expect(page.getByText("Access Instructions saved")).toBeVisible();
 
   await page.reload();
-  await expect(page.getByRole("textbox", { name: "Phone" })).toHaveValue(
-    "(718) 555-0123",
-  );
   await expect(
-    page.getByRole("textbox", { name: "How do we get in?" }),
-  ).toHaveValue("Key in the lockbox, code 4821");
+    page.getByRole("region", { name: "Home details" }),
+  ).toContainText("Key in the lockbox, code 4821");
+  await page
+    .getByLabel("Breadcrumbs")
+    .getByRole("link", { name: "Your details" })
+    .click();
+  await expect(contact).toContainText("(718) 555-0123");
 });
 
 test("Office Staff see the Quote, open the home and correct its details", async ({

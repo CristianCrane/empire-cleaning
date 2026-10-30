@@ -66,7 +66,14 @@ export function PortalPlan() {
       <div className="flex flex-col gap-4">
         <Breadcrumbs
           trail={[
-            { label: "Home", href: linkTo({ to: "/portal" }) },
+            { label: "Your details", href: linkTo({ to: "/portal/details" }) },
+            {
+              label: plan.property.street,
+              href: linkTo({
+                to: "/portal/properties/$propertyId",
+                params: { propertyId: plan.property.id },
+              }),
+            },
             { label: "Your Service Plan" },
           ]}
         />

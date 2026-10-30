@@ -569,7 +569,12 @@ function NoAccess({ job }: { job: ClientJobDetail }) {
         {job.servicePlanId
           ? "Your Service Plan carries on. Before your next clean, please "
           : "Before booking again, please "}
-        <Link href={linkTo({ to: "/portal/details" })}>
+        <Link
+          href={linkTo({
+            to: "/portal/properties/$propertyId",
+            params: { propertyId: job.property.id },
+          })}
+        >
           check your Access Instructions
         </Link>
         .

@@ -4,6 +4,7 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
+  notFound,
   redirect,
   useRouter,
 } from "@tanstack/react-router";
@@ -116,6 +117,7 @@ import { PortalHome } from "./screens/portal/PortalHome.tsx";
 import type { HomeData } from "./screens/portal/whats-next.ts";
 import { PortalJob } from "./screens/portal/PortalJob.tsx";
 import { PortalPaymentMethod } from "./screens/portal/PortalPaymentMethod.tsx";
+import { PortalProperty } from "./screens/portal/PortalProperty.tsx";
 import {
   PortalPayments,
   type PaymentsSearch,
@@ -755,11 +757,36 @@ const portalRequestRoute = createRoute({
   component: PortalRequest,
 });
 
+// the Client's homes: what each is, and where it stands
+const ownProperties = async () => {
+  const [client, plans, quotes, jobs] = await Promise.all([
+    ownClient(),
+    getJson<ServicePlanSummary[]>("/api/service-plans/mine"),
+    getJson<QuoteSummary[]>("/api/quotes/mine"),
+    getJson<ClientUpcomingJob[]>("/api/jobs/mine"),
+  ]);
+  return { client, plans, quotes, jobs };
+};
+
 const portalDetailsRoute = createRoute({
   getParentRoute: () => portalRoute,
   path: "/details",
-  loader: ownClient,
+  loader: ownProperties,
   component: PortalDetails,
+});
+
+const portalPropertyRoute = createRoute({
+  getParentRoute: () => portalRoute,
+  path: "/properties/$propertyId",
+  loader: async ({ params }) => {
+    const data = await ownProperties();
+    const property = data.client.properties.find(
+      (p) => p.id === params.propertyId,
+    );
+    if (!property) throw notFound();
+    return { ...data, property };
+  },
+  component: PortalProperty,
 });
 
 const routeTree = rootRoute.addChildren([
@@ -802,6 +829,7 @@ const routeTree = rootRoute.addChildren([
     portalBillRoute,
     portalDetailsRoute,
     portalPaymentMethodRoute,
+    portalPropertyRoute,
   ]),
 ]);
 
