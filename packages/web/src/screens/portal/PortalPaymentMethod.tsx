@@ -4,6 +4,7 @@ import {
   Breadcrumbs,
   Button,
   Card,
+  Section,
   Heading,
   Notice,
 } from "@empire-cleaning/ui";
@@ -95,20 +96,22 @@ export function PortalPaymentMethod() {
         <Notice>You haven't saved a card yet.</Notice>
       )}
 
-      <Card title={saved ? "Use a different card" : "Add a card"}>
-        {card.field}
-        <ConsentNote action="saving" />
-        {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-        <Actions>
-          <Button
-            isPending={action.isPending}
-            isDisabled={!card.isReady}
-            onPress={() => void save()}
-          >
-            Save card
-          </Button>
-        </Actions>
-      </Card>
+      <Section title={saved ? "Use a different card" : "Add a card"}>
+        <Card>
+          {card.field}
+          <ConsentNote action="saving" />
+          {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+          <Actions>
+            <Button
+              isPending={action.isPending}
+              isDisabled={!card.isReady}
+              onPress={() => void save()}
+            >
+              Save card
+            </Button>
+          </Actions>
+        </Card>
+      </Section>
     </div>
   );
 }

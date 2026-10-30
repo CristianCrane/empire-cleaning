@@ -138,34 +138,36 @@ export function OnHold({
     ),
   ];
   return (
-    <Card title="On Hold">
-      <p>
-        {forClient
-          ? "We couldn't take payment for "
-          : "The Client's payment couldn't be taken for "}
-        {unpaid.join(" and ")}.{" "}
-        {forClient
-          ? "Cleans already booked go ahead, but we won't book any more until it's paid."
-          : "Jobs already booked go ahead, but no more are booked until it's paid."}
-      </p>
-      <Actions>
-        {plan.unpaid.map((u) => (
-          <ButtonLink key={u.jobId} href={jobHref(u.jobId)}>
-            {forClient ? "Pay for " : "See "}
-            {plan.unpaid.length > 1
-              ? `the ${formatDate(u.startsAt)} clean`
-              : forClient
-                ? "that clean"
-                : "the Job"}
-          </ButtonLink>
-        ))}
-        {plan.unpaidBills.map((b) => (
-          <ButtonLink key={b.billId} href={billHref(b.billId)}>
-            {forClient ? "Pay" : "See"} bill {b.number}
-          </ButtonLink>
-        ))}
-      </Actions>
-    </Card>
+    <Section title="On Hold">
+      <Card>
+        <p>
+          {forClient
+            ? "We couldn't take payment for "
+            : "The Client's payment couldn't be taken for "}
+          {unpaid.join(" and ")}.{" "}
+          {forClient
+            ? "Cleans already booked go ahead, but we won't book any more until it's paid."
+            : "Jobs already booked go ahead, but no more are booked until it's paid."}
+        </p>
+        <Actions>
+          {plan.unpaid.map((u) => (
+            <ButtonLink key={u.jobId} href={jobHref(u.jobId)}>
+              {forClient ? "Pay for " : "See "}
+              {plan.unpaid.length > 1
+                ? `the ${formatDate(u.startsAt)} clean`
+                : forClient
+                  ? "that clean"
+                  : "the Job"}
+            </ButtonLink>
+          ))}
+          {plan.unpaidBills.map((b) => (
+            <ButtonLink key={b.billId} href={billHref(b.billId)}>
+              {forClient ? "Pay" : "See"} bill {b.number}
+            </ButtonLink>
+          ))}
+        </Actions>
+      </Card>
+    </Section>
   );
 }
 
