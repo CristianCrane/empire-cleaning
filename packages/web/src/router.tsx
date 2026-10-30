@@ -739,10 +739,10 @@ const paymentsPrototypeRoute = createRoute({
   path: "/prototype/payments",
   validateSearch: (
     search: Record<string, unknown>,
-  ): { case?: string; layout?: string } => ({
+  ): { case?: string; history?: string } => ({
     // ?case=1 arrives as a number
     case: search.case === undefined ? undefined : String(search.case),
-    layout: typeof search.layout === "string" ? search.layout : undefined,
+    history: search.history === undefined ? undefined : String(search.history),
   }),
   component: PaymentsPrototype,
 });

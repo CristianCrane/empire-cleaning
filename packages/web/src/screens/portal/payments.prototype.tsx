@@ -1,9 +1,10 @@
 // PROTOTYPE: throwaway. The Client's Payments page on made-up data, at
-// /prototype/payments?case=1..7&layout=A..C (no sign-in). For the UX pass
+// /prototype/payments?case=1..7&history=1..5 (no sign-in). For the UX pass
 // (#96). Lives only on prototype-portal-payments.
 import { useState } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import {
+  ChevronDown,
   CircleCheck,
   CreditCard,
   House,
@@ -52,6 +53,8 @@ type Charge = {
   cents: number;
   // what's not plain about it
   state?: "unpaid" | "processing";
+  // the Charge (a clean) this one adds to or takes from
+  about?: string;
 };
 
 type Bill = {
@@ -128,6 +131,7 @@ const planStart: Charge[] = [
     title: "Deposit for your First Clean",
     line: "25% of it, when you accepted your Quote",
     cents: 9776,
+    about: "first",
   },
 ];
 
@@ -156,6 +160,7 @@ export const cases: PaymentsCase[] = [
         title: "Extra on your Standard Clean",
         line: "Inside the fridge, which you approved",
         cents: 2250,
+        about: "b11-0",
       },
       ...balances(11, 2),
       {
@@ -164,6 +169,7 @@ export const cases: PaymentsCase[] = [
         title: "Refund on your Standard Clean",
         line: "Inside the oven wasn't done",
         cents: -2250,
+        about: "b39-0",
       },
       ...balances(39, 6),
       ...planStart,
@@ -331,10 +337,13 @@ export const cases: PaymentsCase[] = [
   },
 ];
 
-export const layouts = [
-  { key: "A", name: "Card, then sections" },
-  { key: "B", name: "Tabs: Bills / History" },
-  { key: "C", name: "What you owe first" },
+// ways to show the history, under C's summary card
+export const histories = [
+  { key: "1", name: "Rows by month" },
+  { key: "2", name: "Statement, months with totals" },
+  { key: "3", name: "Latest few, then See all" },
+  { key: "4", name: "Months folded" },
+  { key: "5", name: "One row per clean" },
 ];
 
 // ---- how it reads ----
@@ -379,15 +388,14 @@ const PAGE = 10;
 // ---- the page ----
 
 export function PaymentsPrototype() {
-  const { case: key = "1", layout = "A" } = useSearch({ strict: false }) as {
-    case?: string;
-    layout?: string;
-  };
+  const { case: key = "1", history = "1" } = useSearch({
+    strict: false,
+  }) as { case?: string; history?: string };
   const navigate = useNavigate();
-  const go = (search: { case?: string; layout?: string }) =>
+  const go = (search: { case?: string; history?: string }) =>
     navigate({
       to: "/prototype/payments",
-      search: { case: key, layout, ...search } as never,
+      search: { case: key, history, ...search } as never,
     });
   const c = cases.find((x) => x.key === key) ?? cases[0]!;
 
@@ -404,35 +412,46 @@ export function PaymentsPrototype() {
       nav={nav}
       account={<span className="text-sm text-fg-muted">Casey Client</span>}
     >
-      <div key={`${c.key}${layout}`} className="flex flex-col gap-6">
+      <div key={`${c.key}${history}`} className="flex flex-col gap-6">
         <Heading level={1}>Payments</Heading>
-        {layout === "C" ? (
-          <OwedFirst c={c} />
-        ) : (
-          <>
-            {c.notices.map((n) => (
-              <Notice
-                key={n.text}
-                tone={n.tone}
-                action={
-                  n.action && (
-                    <Button variant="text" onPress={() => {}}>
-                      {n.action}
-                    </Button>
-                  )
-                }
-              >
-                {n.text}
-              </Notice>
-            ))}
-            {layout === "B" ? <Tabbed c={c} /> : <Sections c={c} />}
-          </>
+        <Summary c={c} />
+        {c.notices
+          .filter((n) => n.tone === "info")
+          .map((n) => (
+            <Notice key={n.text}>{n.text}</Notice>
+          ))}
+        {c.weekly && (
+          <Section
+            title="Bills"
+            description="One each Monday, for the week before."
+          >
+            <Bills bills={c.bills} label="Bills" />
+          </Section>
         )}
+        <Section title="History">
+          {c.history.length === 0 ? (
+            <EmptyState
+              icon={Receipt}
+              title="Nothing paid yet"
+              description="Each Deposit, clean and refund shows here, with its receipt."
+            />
+          ) : history === "2" ? (
+            <Statement c={c} />
+          ) : history === "3" ? (
+            <Latest c={c} />
+          ) : history === "4" ? (
+            <Folded c={c} />
+          ) : history === "5" ? (
+            <PerClean c={c} />
+          ) : (
+            <RowsByMonth c={c} />
+          )}
+        </Section>
       </div>
       <PrototypeSwitcher
-        variants={layouts}
-        current={layout}
-        onChange={(k) => go({ layout: k })}
+        variants={histories}
+        current={history}
+        onChange={(k) => go({ history: k })}
         keys={["ArrowUp", "ArrowDown"]}
         className="bottom-40 md:bottom-20"
       />
@@ -445,34 +464,53 @@ export function PaymentsPrototype() {
   );
 }
 
-// the card Charges go to, or that there isn't one
-function YourCard({ c }: { c: PaymentsCase }) {
+// what's owed now, or that nothing is, and the card it's paid with
+function Summary({ c }: { c: PaymentsCase }) {
+  const nothing = !c.owed;
   return (
     <Card>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-        <IconTile icon={CreditCard} />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <span className="font-semibold text-fg">
-            {c.card ?? "No card saved"}
-          </span>
-          <span className="text-sm text-fg-muted">
-            {c.card
-              ? c.weekly
-                ? "Your Bills are charged to it each Monday."
-                : "Deposits and cleans are charged to it."
-              : c.weekly
-                ? "You pay each Bill on its page, by card or bank debit."
-                : "You'll add one when you accept a Quote."}
-          </span>
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-6">
+        <IconTile
+          icon={nothing ? CircleCheck : TriangleAlert}
+          tone={nothing ? "success" : "danger"}
+          size="lg"
+        />
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <Heading level={2} size={4} className="text-fg-muted">
+            {nothing ? "You're all paid up" : "To pay"}
+          </Heading>
+          <p className="text-2xl font-semibold text-fg sm:text-3xl">
+            {nothing ? "Nothing owed" : formatMoney(c.owed!.cents)}
+          </p>
+          <p className="text-fg-muted">
+            {c.owed?.text ??
+              (c.card
+                ? `Paying with ${c.card}`
+                : c.weekly
+                  ? "You pay each Bill on its page"
+                  : "You'll add a card when you accept a Quote")}
+          </p>
+          {c.owed && c.card && (
+            <p className="text-fg-muted">Paying with {c.card}</p>
+          )}
         </div>
-        {(c.card || c.weekly) && (
+        {c.owed ? (
           <Button
-            variant="secondary"
-            className="self-start sm:self-center"
+            className="shrink-0 self-start sm:self-center"
             onPress={() => {}}
           >
-            {c.card ? "Change card" : "Save a card"}
+            {c.owed.action}
           </Button>
+        ) : (
+          c.card && (
+            <Button
+              variant="secondary"
+              className="shrink-0 self-start sm:self-center"
+              onPress={() => {}}
+            >
+              Change card
+            </Button>
+          )
         )}
       </div>
     </Card>
@@ -514,22 +552,52 @@ function Bills({ bills, label }: { bills: Bill[]; label: string }) {
   );
 }
 
-function History({
-  c,
-  label = "Payment history",
+const Amount = ({ h }: { h: Charge }) => (
+  <span className="flex items-center gap-3">
+    {h.state === "unpaid" && <StatusBadge tone="danger">Unpaid</StatusBadge>}
+    {h.state === "processing" && (
+      <StatusBadge tone="info">Clearing</StatusBadge>
+    )}
+    <span className="font-semibold text-fg tabular-nums">
+      {signed(h.cents)}
+    </span>
+  </span>
+);
+
+// one line a row: the day, what it was for, the amount
+const lineRow = (h: Charge) => (
+  <ListItem
+    key={h.id}
+    id={h.id}
+    start={
+      <span className="w-12 shrink-0 text-sm text-fg-muted tabular-nums">
+        {short(h.at)}
+      </span>
+    }
+    title={h.title}
+    end={<Amount h={h} />}
+  />
+);
+
+function More({
+  total,
+  shown,
+  onMore,
 }: {
-  c: PaymentsCase;
-  label?: string;
+  total: number;
+  shown: number;
+  onMore: () => void;
 }) {
+  return total > shown ? (
+    <Button variant="secondary" className="self-center" onPress={onMore}>
+      Show more
+    </Button>
+  ) : null;
+}
+
+// 1: as before, a date tile and a line under each
+function RowsByMonth({ c }: { c: PaymentsCase }) {
   const [shown, setShown] = useState(PAGE);
-  if (c.history.length === 0)
-    return (
-      <EmptyState
-        icon={Receipt}
-        title="Nothing paid yet"
-        description="Each Deposit, clean and refund shows here, with its receipt."
-      />
-    );
   return (
     <div className="flex flex-col gap-6">
       {byMonth(c.history.slice(0, shown), (h) => h.at).map((g) => (
@@ -537,7 +605,7 @@ function History({
           <Heading level={3} size={4} className="text-fg-muted">
             {g.month}
           </Heading>
-          <List aria-label={`${label}, ${g.month}`} onAction={() => {}}>
+          <List aria-label={`History, ${g.month}`} onAction={() => {}}>
             {g.items.map((h) => (
               <ListItem
                 key={h.id}
@@ -545,171 +613,183 @@ function History({
                 start={<DateTile date={h.at.toISOString()} size="sm" />}
                 title={h.title}
                 description={h.line}
-                end={
-                  <span className="flex items-center gap-3">
-                    {h.state === "unpaid" && (
-                      <StatusBadge tone="danger">Unpaid</StatusBadge>
-                    )}
-                    {h.state === "processing" && (
-                      <StatusBadge tone="info">Clearing</StatusBadge>
-                    )}
-                    <span className="font-semibold text-fg tabular-nums">
-                      {signed(h.cents)}
-                    </span>
-                  </span>
-                }
+                end={<Amount h={h} />}
               />
             ))}
           </List>
         </section>
       ))}
-      {c.history.length > shown && (
+      <More
+        total={c.history.length}
+        shown={shown}
+        onMore={() => setShown(shown + PAGE)}
+      />
+    </div>
+  );
+}
+
+// 2: like a bank statement: one line each, a month's total by its name
+function Statement({ c }: { c: PaymentsCase }) {
+  const [shown, setShown] = useState(PAGE * 2);
+  return (
+    <div className="flex flex-col gap-6">
+      {byMonth(c.history.slice(0, shown), (h) => h.at).map((g) => (
+        <section key={g.month} className="flex flex-col gap-2">
+          <div className="flex items-baseline justify-between px-4">
+            <Heading level={3} size={4} className="text-fg-muted">
+              {g.month}
+            </Heading>
+            <span className="text-sm text-fg-muted tabular-nums">
+              {signed(g.items.reduce((sum, h) => sum + h.cents, 0))}
+            </span>
+          </div>
+          <List aria-label={`History, ${g.month}`} onAction={() => {}}>
+            {g.items.map(lineRow)}
+          </List>
+        </section>
+      ))}
+      <More
+        total={c.history.length}
+        shown={shown}
+        onMore={() => setShown(shown + PAGE * 2)}
+      />
+    </div>
+  );
+}
+
+// 3: the last few, one line each, and the rest a tap away
+function Latest({ c }: { c: PaymentsCase }) {
+  const [all, setAll] = useState(false);
+  if (all) return <Statement c={c} />;
+  return (
+    <div className="flex flex-col gap-3">
+      <List aria-label="Latest payments" onAction={() => {}}>
+        {c.history.slice(0, 5).map(lineRow)}
+      </List>
+      {c.history.length > 5 && (
         <Button
-          variant="secondary"
-          className="self-center"
-          onPress={() => setShown(shown + PAGE)}
+          variant="text"
+          className="self-start"
+          onPress={() => setAll(true)}
         >
-          Show more
+          See all {c.history.length} payments
         </Button>
       )}
     </div>
   );
 }
 
-// A: the card, then Bills (if billed weekly), then the history
-function Sections({ c }: { c: PaymentsCase }) {
+// 4: a row a month with its total, opened to show what's in it
+function Folded({ c }: { c: PaymentsCase }) {
+  const months = byMonth(c.history, (h) => h.at);
+  const [open, setOpen] = useState<string[]>([months[0]!.month]);
   return (
-    <>
-      <YourCard c={c} />
-      {c.weekly && (
-        <Section
-          title="Bills"
-          description="One each Monday, for the week before."
-        >
-          <Bills bills={c.bills} label="Bills" />
-        </Section>
-      )}
-      <Section title="History">
-        <History c={c} />
-      </Section>
-    </>
-  );
-}
-
-// B: the card in a line, then a Tab each for Bills and the history
-function Tabbed({ c }: { c: PaymentsCase }) {
-  const cardLine = (
-    <p className="text-fg-muted">
-      {c.card ? (
-        <>
-          Paying with {c.card} · <Link href={here}>Change card</Link>
-        </>
-      ) : c.weekly ? (
-        <>
-          You pay each Bill on its page · <Link href={here}>Save a card</Link>
-        </>
-      ) : (
-        "You'll add a card when you accept a Quote."
-      )}
-    </p>
-  );
-  if (!c.weekly)
-    return (
-      <>
-        {cardLine}
-        <History c={c} />
-      </>
-    );
-  return (
-    <>
-      {cardLine}
-      <Tabs>
-        <TabList aria-label="Payments">
-          <Tab id="bills" count={c.bills.length}>
-            Bills
-          </Tab>
-          <Tab id="history" count={c.history.length}>
-            History
-          </Tab>
-        </TabList>
-        <TabPanel id="bills">
-          <Bills bills={c.bills} label="Bills" />
-        </TabPanel>
-        <TabPanel id="history">
-          <History c={c} />
-        </TabPanel>
-      </Tabs>
-    </>
-  );
-}
-
-// C: what's owed now (or that nothing is), with the card, then the rest
-function OwedFirst({ c }: { c: PaymentsCase }) {
-  const nothing = !c.owed;
-  return (
-    <>
-      <Card>
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-6">
-          <IconTile
-            icon={nothing ? CircleCheck : TriangleAlert}
-            tone={nothing ? "success" : "danger"}
-            size="lg"
-          />
-          <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <Heading level={2} size={4} className="text-fg-muted">
-              {nothing ? "You're all paid up" : "To pay"}
-            </Heading>
-            <p className="text-2xl font-semibold text-fg sm:text-3xl">
-              {nothing ? "Nothing owed" : formatMoney(c.owed!.cents)}
-            </p>
-            <p className="text-fg-muted">
-              {c.owed?.text ??
-                (c.card
-                  ? `Paying with ${c.card}`
-                  : c.weekly
-                    ? "You pay each Bill on its page"
-                    : "You'll add a card when you accept a Quote")}
-            </p>
-            {c.owed && c.card && (
-              <p className="text-fg-muted">Paying with {c.card}</p>
-            )}
-          </div>
-          {c.owed ? (
-            <Button
-              className="shrink-0 self-start sm:self-center"
-              onPress={() => {}}
+    <div className="flex flex-col overflow-hidden rounded-lg border border-border bg-surface">
+      {months.map((g) => {
+        const isOpen = open.includes(g.month);
+        return (
+          <section
+            key={g.month}
+            className="border-b border-border last:border-b-0"
+          >
+            <button
+              type="button"
+              aria-expanded={isOpen}
+              className="flex min-h-touch w-full items-center gap-3 px-4 py-3 text-left hover:bg-surface-sunken"
+              onClick={() =>
+                setOpen(
+                  isOpen
+                    ? open.filter((m) => m !== g.month)
+                    : [...open, g.month],
+                )
+              }
             >
-              {c.owed.action}
-            </Button>
-          ) : (
-            c.card && (
-              <Button
-                variant="secondary"
-                className="shrink-0 self-start sm:self-center"
-                onPress={() => {}}
-              >
-                Change card
-              </Button>
-            )
-          )}
-        </div>
-      </Card>
-      {c.notices
-        .filter((n) => n.tone === "info")
-        .map((n) => (
-          <Notice key={n.text}>{n.text}</Notice>
-        ))}
-      {c.weekly && (
-        <Section
-          title="Bills"
-          description="One each Monday, for the week before."
-        >
-          <Bills bills={c.bills} label="Bills" />
-        </Section>
-      )}
-      <Section title="History">
-        <History c={c} />
-      </Section>
-    </>
+              <ChevronDown
+                aria-hidden
+                size={18}
+                className={`text-fg-muted transition-transform ${isOpen ? "" : "-rotate-90"}`}
+              />
+              <span className="flex-1 font-semibold text-fg">{g.month}</span>
+              <span className="text-sm text-fg-muted">
+                {g.items.length} {g.items.length === 1 ? "payment" : "payments"}
+              </span>
+              <span className="w-24 text-right font-semibold text-fg tabular-nums">
+                {signed(g.items.reduce((sum, h) => sum + h.cents, 0))}
+              </span>
+            </button>
+            {isOpen && (
+              <div className="border-t border-border bg-surface-sunken/50 px-2 py-2">
+                <List aria-label={`History, ${g.month}`} onAction={() => {}}>
+                  {g.items.map(lineRow)}
+                </List>
+              </div>
+            )}
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+// 5: what each clean (or plan) cost in all, its Deposit, extras and
+// refunds folded into it
+function PerClean({ c }: { c: PaymentsCase }) {
+  const [shown, setShown] = useState(PAGE);
+  const parts = new Map<string, Charge[]>();
+  for (const h of c.history)
+    if (h.about) parts.set(h.about, [...(parts.get(h.about) ?? []), h]);
+  const rows = c.history
+    .filter((h) => !h.about)
+    .map((h) => {
+      const more = parts.get(h.id) ?? [];
+      return {
+        ...h,
+        cents: h.cents + more.reduce((sum, p) => sum + p.cents, 0),
+        line:
+          more.length === 0
+            ? h.line
+            : [
+                `${signed(h.cents)} ${h.title.startsWith("Deep") ? "when done" : "charged"}`,
+                ...more.map((p) =>
+                  p.title.startsWith("Deposit")
+                    ? `${signed(p.cents)} Deposit`
+                    : p.cents < 0
+                      ? `${signed(-p.cents)} refunded`
+                      : `${signed(p.cents)} extra`,
+                ),
+              ].join(" · "),
+      };
+    });
+  return (
+    <div className="flex flex-col gap-6">
+      {byMonth(rows.slice(0, shown), (h) => h.at).map((g) => (
+        <section key={g.month} className="flex flex-col gap-2">
+          <Heading level={3} size={4} className="text-fg-muted">
+            {g.month}
+          </Heading>
+          <List aria-label={`History, ${g.month}`} onAction={() => {}}>
+            {g.items.map((h) => (
+              <ListItem
+                key={h.id}
+                id={h.id}
+                start={
+                  <span className="w-12 shrink-0 text-sm text-fg-muted tabular-nums">
+                    {short(h.at)}
+                  </span>
+                }
+                title={h.title}
+                description={parts.has(h.id) ? h.line : undefined}
+                end={<Amount h={h} />}
+              />
+            ))}
+          </List>
+        </section>
+      ))}
+      <More
+        total={rows.length}
+        shown={shown}
+        onMore={() => setShown(shown + PAGE)}
+      />
+    </div>
   );
 }
