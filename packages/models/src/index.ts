@@ -1528,6 +1528,10 @@ export type ClientPastJob = ClientJob & {
 // the Office.
 export type ClientJobDetail = ClientJob & {
   status: JobStatus;
+  // its price, Deposit and what's been charged, whatever has become of it
+  payment: JobPayment;
+  // the extras it was Quoted with, by name
+  addOns: string[];
   completion: Omit<JobCompletion, "completedBy"> | null;
   cancellation: JobCancellation | null;
   noAccess: Omit<JobNoAccess, "recordedBy"> | null;

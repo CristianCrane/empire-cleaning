@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { CircleStop } from "lucide-react";
 import type { EndPlanTerms, ServicePlanView } from "@empire-cleaning/models";
 import {
+  ActionRow,
   Actions,
   Button,
   ButtonLink,
@@ -227,13 +228,8 @@ export function EndPlan({
   return (
     <Section title={forClient ? "Ending your plan" : "Ending the plan"}>
       <Card>
-        {/* one row, the button kept right; it wraps under at phone width */}
-        <div className="flex flex-wrap items-center gap-3">
-          <p className="min-w-0 grow basis-64 text-fg-muted">
-            {forClient ? "End your plan" : "End it for the Client"} at any time:
-            you'll see what it cancels first.
-          </p>
-          <div className="ml-auto">
+        <ActionRow
+          actions={
             <DialogTrigger>
               <Button variant="danger">
                 <CircleStop aria-hidden size={18} />
@@ -274,8 +270,13 @@ export function EndPlan({
                 )}
               </Dialog>
             </DialogTrigger>
-          </div>
-        </div>
+          }
+        >
+          <p>
+            {forClient ? "End your plan" : "End it for the Client"} at any time:
+            you'll see what it cancels first.
+          </p>
+        </ActionRow>
       </Card>
     </Section>
   );

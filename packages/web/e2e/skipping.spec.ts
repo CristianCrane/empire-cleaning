@@ -108,17 +108,22 @@ test("a Client skipping late is charged the fee, and pays it once their card wor
   await expect(page.getByRole("region", { name: "Skipped" })).toContainText(
     "it's a Late Cancellation, with a $50.46 fee: the same as your plan's Deposit, which stays held.",
   );
-  const payment = page.getByRole("region", { name: "Payment needed" });
+  const payment = page.getByRole("alert").filter({ hasText: "Payment needed" });
   await expect(payment).toContainText("We couldn't charge $50.46");
 
+  // the same card, tried again once the money is there
   await failCharges(null);
-  await payment
-    .getByRole("button", { name: "Try the same card again" })
-    .click();
+  await payment.getByRole("link", { name: "Update Payment Method" }).click();
+  const needed = page.getByRole("alert").filter({ hasText: "Payment needed" });
+  await expect(needed).toContainText(
+    "We couldn't charge $50.46 to your Test card ending 4242",
+  );
+  await needed.getByRole("button", { name: "Try this card again" }).click();
   await expect(page.getByText("Payment taken")).toBeVisible();
-  await expect(
-    page.getByRole("region", { name: "Payment needed" }),
-  ).toHaveCount(0);
+  await expect(needed).toHaveCount(0);
+  await page.goto(`/portal/jobs/${job.id}`);
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(payment).toHaveCount(0);
 });
 
 test(

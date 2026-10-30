@@ -158,13 +158,19 @@ test(
         "Please approve extra work on your clean",
       ),
     );
-    const proposal = client.getByRole("region", {
+    // an alert above the clean, answered in a dialog
+    const proposal = client
+      .getByRole("status")
+      .filter({ hasText: "Please approve extra work" });
+    await expect(proposal).toContainText("1 extra hour, $59.88");
+    await expectAccessible(client);
+    await proposal.getByRole("button", { name: "Review" }).click();
+    const dialog = client.getByRole("dialog", {
       name: "Please approve extra work",
     });
-    await expect(proposal).toContainText("1 extra hour");
-    await expect(proposal).toContainText("$59.88");
+    await expect(dialog).toContainText('"Heavy grease"');
     await expectAccessible(client);
-    await proposal.getByRole("button", { name: "Approve $59.88" }).click();
+    await dialog.getByRole("button", { name: "Approve $59.88" }).click();
 
     await expect(client.getByText("Approved")).toBeVisible();
     await expect(proposal).toBeHidden();
@@ -200,7 +206,7 @@ test("a Job that couldn't be charged is Unpaid until the Client saves a new card
     "Deep Clean",
   );
   await expect(
-    client.getByRole("region", { name: "Payment needed" }),
+    client.getByRole("alert").filter({ hasText: "Payment needed" }),
   ).toBeVisible();
   await client.getByRole("link", { name: "Update Payment Method" }).click();
   await client.getByRole("button", { name: "Save card" }).click();
@@ -208,7 +214,7 @@ test("a Job that couldn't be charged is Unpaid until the Client saves a new card
 
   await client.goto(`/portal/jobs/${job.id}`);
   await expect(
-    client.getByRole("region", { name: "Payment needed" }),
+    client.getByRole("alert").filter({ hasText: "Payment needed" }),
   ).toBeHidden();
   // nothing left to pay on their Home
   await client.goto("/portal");

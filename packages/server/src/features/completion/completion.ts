@@ -739,6 +739,8 @@ export const clientJob = async (
     rescheduleTerms,
     rescheduleRequest,
     servicePlanId,
+    payment,
+    quoted,
   ] = await Promise.all([
     officeCompletionOf(job),
     cancellationOf(job),
@@ -747,10 +749,15 @@ export const clientJob = async (
     rescheduleTermsOf(job),
     rescheduleRequestOf(job),
     planOfJob(job.id),
+    paymentOf(job),
+    // without a Quote to say, no extras are shown
+    quotedJob(job.id).catch(() => null),
   ]);
   return {
     ...(await clientJobOf(job, property)),
     status: job.status,
+    payment,
+    addOns: quoted?.suggested.addOns.map((a) => a.name) ?? [],
     completion: completion && {
       completedAt: completion.completedAt,
       condition: completion.condition,

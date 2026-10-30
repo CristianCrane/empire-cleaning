@@ -1,4 +1,13 @@
+import { useId, type ReactNode } from "react";
 import { useLoaderData } from "@tanstack/react-router";
+import {
+  CalendarClock,
+  CalendarSync,
+  CirclePlus,
+  Clock,
+  PiggyBank,
+  Receipt as ReceiptIcon,
+} from "lucide-react";
 import type {
   AdjustmentView,
   CancellationTerms,
@@ -6,6 +15,7 @@ import type {
   JobPayment,
 } from "@empire-cleaning/models";
 import {
+  ActionRow,
   Actions,
   Breadcrumbs,
   Button,
@@ -14,8 +24,10 @@ import {
   Dialog,
   DialogTrigger,
   Heading,
+  IconTile,
   Link,
   Notice,
+  Section,
   StatusBadge,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
@@ -31,6 +43,7 @@ import {
   formatHours,
   formatMoney,
 } from "../format.ts";
+import { Fact } from "./Fact.tsx";
 
 // one of the Client's Jobs, from the links in their emails: while it's to come,
 // moving or cancelling it; once Completed, its receipt; any extra work proposed to them
@@ -39,6 +52,7 @@ import {
 export function PortalJob() {
   const job = useLoaderData({ from: "/portal/jobs/$jobId" });
   const { completion } = job;
+  const booked = !completion && !job.cancellation && !job.noAccess;
 
   return (
     <div className="flex flex-col gap-6">
@@ -67,50 +81,179 @@ export function PortalJob() {
             <StatusBadge tone="info">Booked</StatusBadge>
           )}
         </div>
-        <p className="text-fg-muted">
-          {addressOf(job.property)} · {formatDateTime(job.startsAt)}
-        </p>
+        <p className="text-fg-muted">{addressOf(job.property)}</p>
       </div>
 
-      {job.cancellation ? (
+      {/* what's needed of them first, before what the clean is */}
+      {job.payment.unpaid && <Unpaid payment={job.payment} />}
+      {completion?.adjustments
+        .filter((a) => a.status === "proposed")
+        .map((a) => (
+          <Proposal key={a.id} job={job} adjustment={a} />
+        ))}
+
+      <Section title="Clean details">
+        <Card className="gap-0">
+          <Part>
+            <JobDetails job={job} />
+          </Part>
+          {job.cancellation ? (
+            <>
+              <Cancelled job={job} />
+            </>
+          ) : job.noAccess ? (
+            <>
+              <NoAccess job={job} />
+            </>
+          ) : completion ? (
+            <>
+              <Receipt job={job} />
+            </>
+          ) : null}
+        </Card>
+      </Section>
+
+      {booked && (
         <>
-          {job.cancellation.payment.unpaid && (
-            <Unpaid job={job} payment={job.cancellation.payment} />
-          )}
-          <Cancelled job={job} />
-        </>
-      ) : job.noAccess ? (
-        <>
-          {job.noAccess.payment.unpaid && (
-            <Unpaid job={job} payment={job.noAccess.payment} />
-          )}
-          <NoAccess job={job} />
-        </>
-      ) : !completion ? (
-        <>
-          <Card title="Your clean">
-            <p>
-              About {formatHours(job.hoursOnSite)} on site, with a crew of{" "}
-              {job.crewSize}. We'll email a reminder the day before.
-            </p>
-          </Card>
           <Reschedule job={job} />
           {job.cancelTerms && <Cancel job={job} terms={job.cancelTerms} />}
         </>
-      ) : (
-        <>
-          {completion.payment.unpaid && (
-            <Unpaid job={job} payment={completion.payment} />
-          )}
-          {completion.adjustments
-            .filter((a) => a.status === "proposed")
-            .map((a) => (
-              <Proposal key={a.id} job={job} adjustment={a} />
-            ))}
-          <Receipt job={job} />
-        </>
       )}
     </div>
+  );
+}
+
+// The clean as its Client reads it, as their plan's page does: when, large,
+// then its facts in even columns across, each an icon, a value and what the
+// value is. (UX pass, #96)
+function JobDetails({ job }: { job: ClientJobDetail }) {
+  const { payment } = job;
+  const deposit = payment.charges.find((c) => c.kind === "deposit");
+  const booked = !job.completion && !job.cancellation && !job.noAccess;
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex items-start gap-4">
+        <IconTile icon={CalendarClock} size="lg" />
+        <div className="flex min-w-0 flex-col gap-1">
+          <p className="text-sm text-fg-muted">
+            {job.servicePlanId ? "Part of your Service Plan" : "One-off clean"}
+          </p>
+          <p className="text-xl font-semibold text-fg">
+            {formatDateTime(job.startsAt)}
+          </p>
+        </div>
+      </div>
+      <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Fact
+          icon={ReceiptIcon}
+          label="Price"
+          value={formatMoney(payment.totalCents)}
+          line="Price, tax included"
+        />
+        <Fact
+          icon={Clock}
+          label="On site"
+          value={`About ${formatHours(job.hoursOnSite)}`}
+          line={`On site, ${job.crewSize === 1 ? "1 cleaner" : `${job.crewSize} cleaners`}`}
+        />
+        <Fact
+          icon={CirclePlus}
+          label="Extras"
+          value={job.addOns.length > 0 ? job.addOns.join(", ") : "None"}
+        />
+        {job.servicePlanId ? (
+          <Fact
+            icon={CalendarSync}
+            label="Service Plan"
+            value={
+              <Link
+                href={linkTo({
+                  to: "/portal/plans/$planId",
+                  params: { planId: job.servicePlanId },
+                })}
+              >
+                See your plan
+              </Link>
+            }
+            line="Its Deposit is held there"
+          />
+        ) : (
+          <Fact
+            icon={PiggyBank}
+            label="Deposit"
+            value={deposit ? formatMoney(deposit.amountCents) : "None"}
+            line={deposit ? "Deposit, comes off the price" : "Deposit"}
+          />
+        )}
+      </dl>
+      {booked && (
+        <p className="text-sm text-fg-muted">
+          We'll email a reminder the day before.
+        </p>
+      )}
+    </div>
+  );
+}
+
+// One part of the clean's card, under a rule from the one before: its
+// title, what it says, and the Button(s) it leads to, kept right
+function Part({
+  title,
+  description,
+  actions,
+  children,
+}: {
+  title?: string;
+  description?: string;
+  actions?: ReactNode;
+  children: ReactNode;
+}) {
+  const headingId = useId();
+  const head = title && (
+    <div className="flex flex-col gap-1">
+      <Heading level={3} size={4} id={headingId} className="text-fg">
+        {title}
+      </Heading>
+      {description && <p className="text-sm text-fg-muted">{description}</p>}
+    </div>
+  );
+  return (
+    <section
+      aria-labelledby={title ? headingId : undefined}
+      className="flex flex-col gap-3 border-border py-5 first:pt-0 last:pb-0 not-first:border-t"
+    >
+      {actions ? (
+        <ActionRow actions={actions}>
+          {head}
+          {children}
+        </ActionRow>
+      ) : (
+        <>
+          {head}
+          {children}
+        </>
+      )}
+    </section>
+  );
+}
+
+// An action of its own under the clean's details, as on the plan's page: its
+// title outside the card, the card's text and its Button on one row
+function ActionCard({
+  title,
+  actions,
+  children,
+}: {
+  title: string;
+  actions: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <Section title={title}>
+      <Card>
+        <ActionRow actions={actions}>{children}</ActionRow>
+      </Card>
+    </Section>
   );
 }
 
@@ -160,36 +303,9 @@ function Cancel({
   };
 
   return (
-    <Card title={onPlan ? "Need to skip this clean?" : "Need to cancel?"}>
-      {terms.late ? (
-        <p>
-          It's less than 24 hours until your clean, so {doing} it now is a Late
-          Cancellation. {cost}
-        </p>
-      ) : terms.feeCents > 0 ? (
-        <p>{cost}</p>
-      ) : onPlan ? (
-        <p>
-          You can skip it for free until{" "}
-          <strong>{formatDateTime(terms.freeUntil)}</strong>. After that, it's a
-          Late Cancellation, with a fee the same as your plan's Deposit.
-        </p>
-      ) : (
-        <p>
-          You can cancel for free until{" "}
-          <strong>{formatDateTime(terms.freeUntil)}</strong>
-          {terms.refundCents > 0 &&
-            `, and we'll refund your ${formatMoney(terms.refundCents)} Deposit`}
-          . After that, it's a Late Cancellation and the Deposit is kept as the
-          fee.
-        </p>
-      )}
-      {onPlan && (
-        <p className="text-fg-muted">
-          Only this clean is skipped: your Service Plan carries on.
-        </p>
-      )}
-      <Actions>
+    <ActionCard
+      title={onPlan ? "Need to skip this clean?" : "Need to cancel?"}
+      actions={
         <DialogTrigger>
           <Button variant="secondary">
             {onPlan ? "Skip this clean" : "Cancel clean"}
@@ -226,8 +342,35 @@ function Cancel({
             )}
           </Dialog>
         </DialogTrigger>
-      </Actions>
-    </Card>
+      }
+    >
+      {terms.late ? (
+        <p>
+          It's less than 24 hours until your clean, so {doing} it now is a Late
+          Cancellation. {cost}
+        </p>
+      ) : terms.feeCents > 0 ? (
+        <p>{cost}</p>
+      ) : onPlan ? (
+        <p>
+          You can skip it for free until{" "}
+          <strong>{formatDateTime(terms.freeUntil)}</strong>. After that, it's a
+          Late Cancellation, with a fee the same as your plan's Deposit.
+        </p>
+      ) : (
+        <p>
+          You can cancel for free until{" "}
+          <strong>{formatDateTime(terms.freeUntil)}</strong>
+          {terms.refundCents > 0 &&
+            `, and we'll refund your ${formatMoney(terms.refundCents)} Deposit`}
+          . After that, it's a Late Cancellation and the Deposit is kept as the
+          fee.
+        </p>
+      )}
+      {onPlan && (
+        <p>Only this clean is skipped: your Service Plan carries on.</p>
+      )}
+    </ActionCard>
   );
 }
 
@@ -240,16 +383,9 @@ function Reschedule({ job }: { job: ClientJobDetail }) {
 
   if (request?.status === "pending") {
     return (
-      <Card title="Moving your clean">
-        <p>
-          You've asked to move it to{" "}
-          <strong>{formatDateTime(request.startsAt)}</strong>. That time is held
-          for you while the Office confirms it. Until then, your clean stays
-          booked for {formatDateTime(job.startsAt)}.
-        </p>
-        <p>{costForClient(request.cost, request.feeCents, onPlan)}</p>
-        {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-        <Actions>
+      <ActionCard
+        title="Moving your clean"
+        actions={
           <Button
             variant="secondary"
             isPending={action.pending === "withdraw"}
@@ -266,15 +402,39 @@ function Reschedule({ job }: { job: ClientJobDetail }) {
           >
             Withdraw request
           </Button>
-        </Actions>
-      </Card>
+        }
+      >
+        {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+        <p>
+          You've asked to move it to{" "}
+          <strong>{formatDateTime(request.startsAt)}</strong>. That time is held
+          for you while the Office confirms it. Until then, your clean stays
+          booked for {formatDateTime(job.startsAt)}.
+        </p>
+        <p>{costForClient(request.cost, request.feeCents, onPlan)}</p>
+      </ActionCard>
     );
   }
 
   const terms = job.rescheduleTerms;
   if (!terms) return null;
   return (
-    <Card title="Need another time?">
+    <ActionCard
+      title="Need another time?"
+      actions={
+        <ChooseNewTime
+          job={job}
+          terms={terms}
+          base={`/api/jobs/mine/${job.id}`}
+          label="Choose a new time"
+          describeCost={(cost, feeCents) =>
+            costForClient(cost, feeCents, onPlan)
+          }
+          done="Request sent"
+          Picker={PickAvailableTime}
+        />
+      }
+    >
       {request?.status === "turned_down" && (
         <Notice>
           We couldn't move it to {formatDateTime(request.startsAt)}.
@@ -290,20 +450,7 @@ function Reschedule({ job }: { job: ClientJobDetail }) {
       ) : (
         <p>{costForClient(terms.cost, terms.feeCents, onPlan)}</p>
       )}
-      <Actions>
-        <ChooseNewTime
-          job={job}
-          terms={terms}
-          base={`/api/jobs/mine/${job.id}`}
-          label="Choose a new time"
-          describeCost={(cost, feeCents) =>
-            costForClient(cost, feeCents, onPlan)
-          }
-          done="Request sent"
-          Picker={PickAvailableTime}
-        />
-      </Actions>
-    </Card>
+    </ActionCard>
   );
 }
 
@@ -330,23 +477,19 @@ function Refund({ payment }: { payment: JobPayment }) {
 
 // after a clean that didn't happen: a plan carries on; otherwise, book again
 function WhatNext({ job }: { job: ClientJobDetail }) {
-  return (
-    <Actions>
-      {job.servicePlanId ? (
-        <ButtonLink
-          href={linkTo({
-            to: "/portal/plans/$planId",
-            params: { planId: job.servicePlanId },
-          })}
-        >
-          See your Service Plan
-        </ButtonLink>
-      ) : (
-        <ButtonLink href={linkTo({ to: "/portal/request" })}>
-          Request a Quote
-        </ButtonLink>
-      )}
-    </Actions>
+  return job.servicePlanId ? (
+    <ButtonLink
+      href={linkTo({
+        to: "/portal/plans/$planId",
+        params: { planId: job.servicePlanId },
+      })}
+    >
+      See your Service Plan
+    </ButtonLink>
+  ) : (
+    <ButtonLink href={linkTo({ to: "/portal/request" })}>
+      Request a Quote
+    </ButtonLink>
   );
 }
 
@@ -367,9 +510,10 @@ function Cancelled({ job }: { job: ClientJobDetail }) {
   const cancellation = job.cancellation!;
   const skipped = job.servicePlanId !== null && cancellation.by === "client";
   return (
-    <Card
+    <Part
       title={skipped ? "Skipped" : "Cancelled"}
       description={`${skipped ? "Skipped" : "Cancelled"} ${formatDateTime(cancellation.cancelledAt)}.`}
+      actions={<WhatNext job={job} />}
     >
       {cancellation.by === "empire" ? (
         <p>
@@ -395,15 +539,14 @@ function Cancelled({ job }: { job: ClientJobDetail }) {
       )}
       {job.servicePlanId && <p>Your Service Plan carries on as usual.</p>}
       <Refund payment={cancellation.payment} />
-      <WhatNext job={job} />
-    </Card>
+    </Part>
   );
 }
 
 function NoAccess({ job }: { job: ClientJobDetail }) {
   const noAccess = job.noAccess!;
   return (
-    <Card title="We couldn't get in">
+    <Part title="We couldn't get in" actions={<WhatNext job={job} />}>
       <p>
         Our team came at {formatDateTime(noAccess.recordedAt)}, but couldn't get
         in: "{noAccess.reason}".
@@ -431,50 +574,38 @@ function NoAccess({ job }: { job: ClientJobDetail }) {
         </Link>
         .
       </p>
-      <WhatNext job={job} />
-    </Card>
+    </Part>
   );
 }
 
-function Unpaid({
-  job,
-  payment,
-}: {
-  job: ClientJobDetail;
-  payment: JobPayment;
-}) {
-  const action = useAction("We couldn't try again. Please try later.");
+// A charge that failed: what it was, and the way to fix it. Saving a card
+// tries it again. Red, as it's already late. (UX pass, #96)
+function Unpaid({ payment }: { payment: JobPayment }) {
   return (
-    <Card title="Payment needed">
-      <Notice tone="danger">
-        We couldn't charge {formatMoney(payment.owedCents)} to your{" "}
-        {payment.paymentMethod ?? "card"}. Please update your Payment Method:
-        we'll try again as soon as you save it.
-      </Notice>
-      {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-      <Actions>
-        <Button
-          variant="secondary"
-          isPending={action.pending === "retry"}
-          onPress={() =>
-            void action.run(
-              () => postJson(`/api/jobs/mine/${job.id}/balance/retry`),
-              "Payment taken",
-              "retry",
-            )
-          }
+    <Notice
+      tone="danger"
+      action={
+        <ButtonLink
+          variant="danger-text"
+          href={linkTo({ to: "/portal/payment-method" })}
         >
-          Try the same card again
-        </Button>
-        <ButtonLink href={linkTo({ to: "/portal/payment-method" })}>
           Update Payment Method
         </ButtonLink>
-      </Actions>
-    </Card>
+      }
+    >
+      <p>
+        <strong>Payment needed.</strong> We couldn't charge{" "}
+        {formatMoney(payment.owedCents)} to your{" "}
+        {payment.paymentMethod ?? "card"}. We'll try again as soon as you save a
+        card.
+      </p>
+    </Notice>
   );
 }
 
-// extra work the Office has proposed, which is only charged if they approve
+// Extra work the Office has proposed, which is only charged if they
+// approve: a yellow alert to answer it, its one action opening the answer.
+// (UX pass, #96)
 function Proposal({
   job,
   adjustment,
@@ -484,48 +615,67 @@ function Proposal({
 }) {
   const action = useAction("Your answer wasn't saved. Please try again.");
   const path = `/api/jobs/mine/${job.id}/adjustments/${adjustment.id}`;
+  const answer = async (to: "approve" | "decline", close: () => void) => {
+    const ok = await action.run(
+      () => postJson(`${path}/${to}`),
+      to === "approve" ? "Approved" : "Declined",
+      to,
+    );
+    if (ok) close();
+  };
 
   return (
-    <Card title="Please approve extra work">
+    <Notice
+      tone="warning"
+      action={
+        <DialogTrigger>
+          <Button variant="text">Review</Button>
+          <Dialog title="Please approve extra work">
+            {({ close }) => (
+              <>
+                <p>
+                  Our team did more than was quoted:{" "}
+                  <strong>{adjustmentLabel(adjustment)}</strong> ("
+                  {adjustment.reason}").
+                  {adjustment.officeReason && ` ${adjustment.officeReason}.`}
+                </p>
+                <p>
+                  It comes to{" "}
+                  <strong>{formatMoney(adjustment.totalCents)}</strong>, tax
+                  included, charged to your card only if you approve it. If we
+                  don't hear from you by {formatDate(adjustment.lapsesAt!)}, we
+                  won't charge it.
+                </p>
+                {action.problem && (
+                  <Notice tone="danger">{action.problem}</Notice>
+                )}
+                <Actions>
+                  <Button
+                    variant="quiet"
+                    isPending={action.pending === "decline"}
+                    onPress={() => void answer("decline", close)}
+                  >
+                    Decline
+                  </Button>
+                  <Button
+                    isPending={action.pending === "approve"}
+                    onPress={() => void answer("approve", close)}
+                  >
+                    Approve {formatMoney(adjustment.totalCents)}
+                  </Button>
+                </Actions>
+              </>
+            )}
+          </Dialog>
+        </DialogTrigger>
+      }
+    >
       <p>
-        Our team did more than was quoted:{" "}
-        <strong>{adjustmentLabel(adjustment)}</strong> ("{adjustment.reason}").
-        {adjustment.officeReason && ` ${adjustment.officeReason}.`}
+        <strong>Please approve extra work.</strong>{" "}
+        {adjustmentLabel(adjustment)}, {formatMoney(adjustment.totalCents)}.
+        Please answer by {formatDate(adjustment.lapsesAt!)}.
       </p>
-      <p>
-        It comes to <strong>{formatMoney(adjustment.totalCents)}</strong>, tax
-        included, charged to your card only if you approve it. If we don't hear
-        from you by {formatDate(adjustment.lapsesAt!)}, we won't charge it.
-      </p>
-      {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-      <Actions>
-        <Button
-          variant="secondary"
-          isPending={action.pending === "decline"}
-          onPress={() =>
-            void action.run(
-              () => postJson(`${path}/decline`),
-              "Declined",
-              "decline",
-            )
-          }
-        >
-          Decline
-        </Button>
-        <Button
-          isPending={action.pending === "approve"}
-          onPress={() =>
-            void action.run(
-              () => postJson(`${path}/approve`),
-              "Approved",
-              "approve",
-            )
-          }
-        >
-          Approve {formatMoney(adjustment.totalCents)}
-        </Button>
-      </Actions>
-    </Card>
+    </Notice>
   );
 }
 
@@ -541,7 +691,7 @@ function Receipt({ job }: { job: ClientJobDetail }) {
   );
 
   return (
-    <Card
+    <Part
       title="Your receipt"
       description={`Done ${formatDateTime(completedAt)}. Prices include tax.`}
     >
@@ -603,6 +753,6 @@ function Receipt({ job }: { job: ClientJobDetail }) {
           Charged to your {payment.paymentMethod}.
         </p>
       )}
-    </Card>
+    </Part>
   );
 }

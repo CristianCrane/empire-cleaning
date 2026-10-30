@@ -6,11 +6,11 @@ import {
   PiggyBank,
   Receipt,
   Users,
-  type LucideIcon,
 } from "lucide-react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import type { ClientView, ServicePlanView } from "@empire-cleaning/models";
 import {
+  ActionRow,
   Actions,
   Breadcrumbs,
   Button,
@@ -40,6 +40,7 @@ import {
   recurrenceLabel,
 } from "../format.ts";
 import { EndPlan, OnHold, PlanStatusBadge } from "../PlanParts.tsx";
+import { Fact } from "./Fact.tsx";
 
 // how the Client pays for their cleans: each when it's done, or on a weekly
 // Bill (ADR-0016), charged or paid on its page
@@ -215,34 +216,6 @@ function PlanDetails({ plan }: { plan: ServicePlanView }) {
   );
 }
 
-// an icon, a value and a muted line saying what it is: every fact's shape
-function Fact({
-  icon: Icon,
-  label,
-  value,
-  line,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: string;
-  // what the value is; the label, without another
-  line?: string;
-}) {
-  // a dl's group holds its dt and dds directly: the icon sits in their grid
-  return (
-    <div className="grid grid-cols-[auto_1fr] content-start gap-x-3">
-      <Icon
-        aria-hidden
-        size={20}
-        className="row-span-2 mt-0.5 shrink-0 text-fg-muted"
-      />
-      <dt className="sr-only">{label}</dt>
-      <dd className="col-start-2 text-fg">{value}</dd>
-      <dd className="col-start-2 text-sm text-fg-muted">{line ?? label}</dd>
-    </div>
-  );
-}
-
 // A different day, how often, or what's included: the Client says what
 // they'd like, which reaches the Office as a Requested Quote for the home. The
 // Office answers with a new Service Plan Quote; nothing changes until the
@@ -269,14 +242,8 @@ function AskToChange({ plan }: { plan: ServicePlanView }) {
   return (
     <Section title="Change your plan">
       <Card>
-        {/* one row, the button kept right; it wraps under at phone width */}
-        <div className="flex flex-wrap items-center gap-3">
-          <p className="min-w-0 grow basis-64 text-fg-muted">
-            A different day, how often, or what's included? Tell us, and we'll
-            send you a new Service Plan Quote. Nothing changes until you accept
-            it.
-          </p>
-          <div className="ml-auto">
+        <ActionRow
+          actions={
             <DialogTrigger>
               <Button variant="secondary">Ask to change</Button>
               <Dialog title="Ask to change your plan">
@@ -310,8 +277,14 @@ function AskToChange({ plan }: { plan: ServicePlanView }) {
                 )}
               </Dialog>
             </DialogTrigger>
-          </div>
-        </div>
+          }
+        >
+          <p>
+            A different day, how often, or what's included? Tell us, and we'll
+            send you a new Service Plan Quote. Nothing changes until you accept
+            it.
+          </p>
+        </ActionRow>
       </Card>
     </Section>
   );
