@@ -43,3 +43,30 @@ export const UnderTheNextClean: Story = {
     </ShortcutTiles>
   ),
 };
+
+// fewer than four fill the row on a wider screen; on a phone, the odd one
+// out spans it
+export const ThreeFillTheRow: Story = {
+  render: () => (
+    <ShortcutTiles label="Shortcuts">
+      <ShortcutTile
+        icon={CalendarClock}
+        label="Move or cancel"
+        hint="Your Tue, Nov 3 clean"
+        externalHref="#"
+      />
+      <ShortcutTile
+        icon={KeyRound}
+        label="How we get in"
+        hint="Key under the mat"
+        externalHref="#"
+      />
+      <ShortcutTile
+        icon={Phone}
+        label="Call us"
+        hint="(646) 320-9076"
+        externalHref="tel:+16463209076"
+      />
+    </ShortcutTiles>
+  ),
+};

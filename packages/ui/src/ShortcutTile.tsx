@@ -1,10 +1,19 @@
 import type { LucideIcon } from "lucide-react";
-import type { ReactNode } from "react";
+import { Children, type ReactNode } from "react";
 import { Link as AriaLink, type LinkProps } from "react-aria-components";
 import { focusRing } from "./utils.ts";
 
+// on a wider screen, a column a tile, up to four, so fewer fill the row
+const wideColumns = [
+  "sm:grid-cols-1",
+  "sm:grid-cols-2",
+  "sm:grid-cols-3",
+  "sm:grid-cols-4",
+];
+
 // quick ways into what a person can do from where they stand, e.g. under
-// the Client's next clean: two a row on a phone, four on a wider screen
+// the Client's next clean: two a row on a phone, an odd one out spanning
+// the row; up to four on a wider screen, filling it, with no gap at the end
 export function ShortcutTiles({
   label,
   children,
@@ -12,9 +21,15 @@ export function ShortcutTiles({
   label: string;
   children: ReactNode;
 }) {
+  const count = Children.toArray(children).length;
+  const wide = wideColumns[Math.min(Math.max(count, 1), 4) - 1];
   return (
     <nav aria-label={label}>
-      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">{children}</ul>
+      <ul
+        className={`grid grid-cols-2 gap-3 ${wide} [&>li:last-child:nth-child(odd)]:col-span-2 sm:[&>li:last-child:nth-child(odd)]:col-span-1`}
+      >
+        {children}
+      </ul>
     </nav>
   );
 }
