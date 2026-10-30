@@ -64,10 +64,10 @@ type Hero = {
   // the answer, large
   when: string;
   lines: string[];
-  // something the Client is waiting on us for, inside the card
+  // something the Client is waiting on us for, an info Notice above it
   pending?: string;
   // the hero's one Button; primary unless said
-  action?: { label: string; quiet?: boolean };
+  action?: { label: string };
 };
 
 type HomeCase = {
@@ -129,7 +129,7 @@ export const cases: HomeCase[] = [
         `Deep Clean at ${elm}, asked ${day(-1)}`,
         "We email it to you, and it shows here.",
       ],
-      action: { label: "See what you asked for", quiet: true },
+      action: { label: "See what you asked for" },
     },
   },
   {
@@ -144,7 +144,7 @@ export const cases: HomeCase[] = [
         `We see business premises before we price them: free, about 30 minutes, at ${main}.`,
         "We'll call (646) 555-0100 within a working day.",
       ],
-      action: { label: "See what you asked for", quiet: true },
+      action: { label: "See what you asked for" },
     },
   },
   {
@@ -174,7 +174,7 @@ export const cases: HomeCase[] = [
         `We saw ${main} on ${day(-1)}.`,
         "We email your Quote, and it shows here.",
       ],
-      action: { label: "See what you asked for", quiet: true },
+      action: { label: "See what you asked for" },
     },
   },
   {
@@ -206,7 +206,7 @@ export const cases: HomeCase[] = [
     key: "9",
     name: "Clean booked, a move they asked for pending",
     hero: nextClean({
-      pending: `You asked to move it to ${at(5, 14)}. We'll confirm, usually within a working day.`,
+      pending: `You asked to move your ${day(4)} clean to ${at(5, 14)}. We'll confirm, usually within a working day.`,
     }),
   },
   {
@@ -288,7 +288,7 @@ export const cases: HomeCase[] = [
       lines: [
         `${main} is outside Queens and Brooklyn. If that changes, ask again.`,
       ],
-      action: { label: "Request a Quote", quiet: true },
+      action: { label: "Request a Quote" },
     },
   },
   {
@@ -363,7 +363,7 @@ export const cases: HomeCase[] = [
       },
     ],
     hero: nextClean({
-      pending: `You asked to move it to ${at(5, 14)}. We'll confirm, usually within a working day.`,
+      pending: `You asked to move your ${day(4)} clean to ${at(5, 14)}. We'll confirm, usually within a working day.`,
     }),
     after: afterPlan,
   },
@@ -468,6 +468,9 @@ function HomePage({
         </Notice>
       ))}
 
+      {/* news after what needs doing */}
+      {hero.pending && <Notice>{hero.pending}</Notice>}
+
       {layout === "C" ? (
         <HorizontalHero hero={hero} />
       ) : layout === "D" ? (
@@ -513,9 +516,7 @@ function HeroCard({ hero }: { hero: Hero }) {
         )}
         {hero.action && (
           <div className="flex">
-            <Button variant={hero.action.quiet ? "secondary" : "primary"}>
-              {hero.action.label}
-            </Button>
+            <Button>{hero.action.label}</Button>
           </div>
         )}
       </div>
@@ -524,11 +525,7 @@ function HeroCard({ hero }: { hero: Hero }) {
 }
 
 const heroButton = (hero: Hero) =>
-  hero.action && (
-    <Button variant={hero.action.quiet ? "secondary" : "primary"}>
-      {hero.action.label}
-    </Button>
-  );
+  hero.action && <Button>{hero.action.label}</Button>;
 
 const pendingNotice = (hero: Hero) =>
   hero.pending && <Notice>{hero.pending}</Notice>;
@@ -584,7 +581,6 @@ function HorizontalHero({ hero }: { hero: Hero }) {
               {line}
             </p>
           ))}
-          {hero.pending && <div className="pt-3">{pendingNotice(hero)}</div>}
         </div>
         {hero.action && <div className="shrink-0">{heroButton(hero)}</div>}
       </div>
