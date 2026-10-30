@@ -92,9 +92,10 @@ test(
     );
 
     await client.getByRole("link", { name: "Home" }).first().click();
-    const jobs = client.getByRole("grid", { name: "Your upcoming Jobs" });
-    await expect(jobs).toContainText("Mon, Jan 12, 9:00 AM");
-    await expect(jobs).toContainText("Standard Clean");
+    // Home leads with it
+    await expect(client.getByText("Your first clean")).toBeVisible();
+    await expect(client.getByText("Mon, Jan 12, 9:00 AM")).toBeVisible();
+    await expect(client.getByText(/^Standard Clean at /)).toBeVisible();
 
     await page.reload();
     await expect(page.getByText(/ accepted it$/)).toBeVisible();

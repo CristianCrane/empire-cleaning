@@ -3,6 +3,10 @@ import type { ReactNode } from "react";
 import {
   Building2,
   CalendarCheck,
+  CalendarClock,
+  CreditCard,
+  KeyRound,
+  Phone,
   CalendarX,
   CalendarDays,
   CircleDollarSign,
@@ -20,6 +24,8 @@ import {
 import { Button } from "./Button.tsx";
 import { Card } from "./Card.tsx";
 import { Checkbox } from "./Checkbox.tsx";
+import { DateTile } from "./DateTile.tsx";
+import { ShortcutTile, ShortcutTiles } from "./ShortcutTile.tsx";
 import { Chip, ChipGroup } from "./ChipGroup.tsx";
 import { ChoiceTile, ChoiceTiles } from "./ChoiceTiles.tsx";
 import { EmptyState } from "./EmptyState.tsx";
@@ -807,6 +813,87 @@ function ClickableCatchesTheEye() {
   );
 }
 
+function WhatsNextFirst() {
+  return (
+    <div className="flex flex-col gap-6">
+      <Rule title="A home screen answers one question: what's next">
+        <p>
+          Someone landing on a home screen, without a link to something in
+          particular, wants to know what happens next. Answer it in one card:
+          the soonest thing booked, led by its <code>DateTile</code> and read
+          left to right, or, with nothing booked, where they stand (an{" "}
+          <code>IconTile</code> at <code>lg</code> in its place). Its one Button
+          is the page's primary; anything else in the header drops to secondary.
+        </p>
+        <p>
+          What's waiting on them goes above it, a warning Notice each; what
+          they're waiting on us for, an info Notice after those. Under it,{" "}
+          <code>ShortcutTiles</code>: what they can do from where they stand,
+          each with a hint of what's there. Lists of past things live on their
+          own pages, not here.
+        </p>
+      </Rule>
+      <div className="flex flex-col gap-4 lg:flex-row">
+        <Example verdict="Do">
+          <Card>
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-6">
+              <DateTile date="2026-11-03T14:00:00Z" />
+              <div className="flex min-w-0 flex-1 flex-col gap-1">
+                <p className="font-semibold text-fg-muted">Your next clean</p>
+                <p className="text-2xl font-semibold text-fg">
+                  Tue, Nov 3, 9:00 AM
+                </p>
+                <p className="text-fg-muted">Standard Clean at 12 Elm St</p>
+              </div>
+              <Button>See the clean</Button>
+            </div>
+          </Card>
+          <ShortcutTiles label="Shortcuts">
+            <ShortcutTile
+              icon={CalendarClock}
+              label="Move or skip"
+              hint="Your Tue, Nov 3 clean"
+              externalHref="#"
+            />
+            <ShortcutTile
+              icon={KeyRound}
+              label="How we get in"
+              hint="Key under the mat"
+              externalHref="#"
+            />
+            <ShortcutTile
+              icon={CreditCard}
+              label="Your card"
+              hint="Visa ending 4242"
+              externalHref="#"
+            />
+            <ShortcutTile
+              icon={Phone}
+              label="Call us"
+              hint="(646) 320-9076"
+              externalHref="#"
+            />
+          </ShortcutTiles>
+        </Example>
+        <Example verdict="Don't">
+          {[
+            "Your Bills",
+            "Your Service Plan",
+            "Your upcoming Jobs",
+            "Your past Jobs",
+            "Your Quotes",
+            "Your homes",
+          ].map((title) => (
+            <Card key={title} title={title}>
+              <p className="text-sm text-fg-muted">A list of them</p>
+            </Card>
+          ))}
+        </Example>
+      </div>
+    </div>
+  );
+}
+
 export const SectionsNotCardsAroundLists: Story = {
   render: () => <SectionsNotCards />,
 };
@@ -855,6 +942,11 @@ export const NoticesHoldOneActionStory: Story = {
 export const RowsOpenOneDialogStory: Story = {
   name: "Rows open one dialog, two Buttons",
   render: () => <RowsOpenOneDialog />,
+};
+
+export const WhatsNextFirstStory: Story = {
+  name: "A home screen answers what's next",
+  render: () => <WhatsNextFirst />,
 };
 
 export const AllAtOnceInTwoColumnsStory: Story = {

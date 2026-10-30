@@ -108,13 +108,13 @@ test(
     ]);
     await noViolations(client);
 
+    // Home leads with its first clean
     await client.goto("/portal");
+    await expect(client.getByText("Your next clean")).toBeVisible();
+    await expect(client.getByText("Mon, Jan 19, 9:00 AM")).toBeVisible();
     await expect(
-      client.getByRole("grid", { name: "Your Service Plans" }).getByRole("row"),
-    ).toContainText("Standard Clean, every week");
-    await expect(
-      client.getByRole("grid", { name: "Your Service Plans" }).getByRole("row"),
-    ).toContainText("Next: Mon, Jan 19, 9:00 AM");
+      client.getByText("Part of your Service Plan, every week"),
+    ).toBeVisible();
 
     // the Office finds it in full on the home's Service Plan Tab
     await page.goto(`/office/properties/${propertyId}?tab=plan`);

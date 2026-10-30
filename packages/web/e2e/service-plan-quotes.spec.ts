@@ -222,13 +222,13 @@ test(
 
     await client.goto("/portal");
     await expect(
-      client
-        .getByRole("grid", { name: "Your Quotes" })
-        .getByRole("row")
-        .filter({ hasText: "Service Plan, Standard Clean, every week" }),
-    ).toContainText(
-      "Starting Mon, Jan 19, 9:00 AM · Service Plan, Standard Clean, every week: $231.36 a clean",
-    );
+      client.getByText(
+        "Service Plan, Standard Clean, every week: $231.36 a clean",
+      ),
+    ).toBeVisible();
+    await expect(
+      client.getByText(/^For Mon, Jan 19, 9:00 AM at /),
+    ).toBeVisible();
   },
 );
 

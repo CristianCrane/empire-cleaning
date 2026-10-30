@@ -16,9 +16,9 @@ import type {
   ClientSiteVisit,
   ClientList,
   JobList,
-  ClientJob,
   ClientJobDetail,
   ClientPastJob,
+  ClientUpcomingJob,
   ClientQuoteView,
   ClientView,
   OfficeClientView,
@@ -107,6 +107,7 @@ import {
 } from "./screens/schedule-range.ts";
 import { PortalBill } from "./screens/portal/PortalBill.tsx";
 import { PortalHome } from "./screens/portal/PortalHome.tsx";
+import type { HomeData } from "./screens/portal/whats-next.ts";
 import { PortalJob } from "./screens/portal/PortalJob.tsx";
 import { PortalPaymentMethod } from "./screens/portal/PortalPaymentMethod.tsx";
 import { PortalPlan } from "./screens/portal/PortalPlan.tsx";
@@ -233,6 +234,9 @@ const areaRoute = <Id extends AreaId>(id: Id) =>
 
 // the signed-in Client with their homes and Quotes
 const ownClient = () => getJson<ClientView>("/api/clients/me");
+
+const ownPaymentMethod = () =>
+  getJson<PaymentMethodView | null>("/api/payment-methods/mine");
 
 const officeRoute = areaRoute("office");
 const cleanerRoute = areaRoute("cleaner");
@@ -607,25 +611,41 @@ const portalHomeRoute = createRoute({
   getParentRoute: () => portalRoute,
   path: "/",
   loader: async () => {
-    const [client, plans, quotes, jobs, pastJobs, siteVisits, bills] =
-      await Promise.all([
-        ownClient(),
-        getJson<ServicePlanSummary[]>("/api/service-plans/mine"),
-        getJson<QuoteSummary[]>("/api/quotes/mine"),
-        getJson<ClientJob[]>("/api/jobs/mine"),
-        getJson<ClientPastJob[]>("/api/jobs/mine/past"),
-        getJson<ClientSiteVisit[]>("/api/site-visits/mine"),
-        getJson<BillSummary[]>("/api/bills/mine"),
-      ]);
-    return { client, plans, quotes, jobs, pastJobs, siteVisits, bills };
+    const [
+      client,
+      plans,
+      quotes,
+      jobs,
+      pastJobs,
+      siteVisits,
+      bills,
+      paymentMethod,
+    ] = await Promise.all([
+      ownClient(),
+      getJson<ServicePlanSummary[]>("/api/service-plans/mine"),
+      getJson<QuoteSummary[]>("/api/quotes/mine"),
+      getJson<ClientUpcomingJob[]>("/api/jobs/mine"),
+      getJson<ClientPastJob[]>("/api/jobs/mine/past"),
+      getJson<ClientSiteVisit[]>("/api/site-visits/mine"),
+      getJson<BillSummary[]>("/api/bills/mine"),
+      ownPaymentMethod(),
+    ]);
+    return {
+      client,
+      plans,
+      quotes,
+      jobs,
+      pastJobs,
+      siteVisits,
+      bills,
+      paymentMethod,
+    } satisfies HomeData;
   },
   component: PortalHome,
 });
 
 // where the Quote email's link leads: signed out, the portal sends the
 // Client to sign in (or up) and back here
-const ownPaymentMethod = () =>
-  getJson<PaymentMethodView | null>("/api/payment-methods/mine");
 
 const portalQuoteRoute = createRoute({
   getParentRoute: () => portalRoute,

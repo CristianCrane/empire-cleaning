@@ -233,7 +233,10 @@ test("the request form offers the Add-ons by name, and the choice reaches the Of
   await page.getByRole("button", { name: "Request a Quote" }).click();
 
   await expect(page).toHaveURL("/portal");
-  await expect(page.getByText("Extras: Inside the oven")).toBeVisible();
+  await page.getByRole("link", { name: "See what you asked for" }).click();
+  await expect(
+    page.getByRole("region", { name: "What you asked for" }),
+  ).toContainText("Inside the oven");
 
   // and the Office sees it
   const office = await browser.newPage();

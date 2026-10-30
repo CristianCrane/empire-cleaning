@@ -210,10 +210,10 @@ test("a Job that couldn't be charged is Unpaid until the Client saves a new card
   await expect(
     client.getByRole("region", { name: "Payment needed" }),
   ).toBeHidden();
+  // nothing left to pay on their Home
   await client.goto("/portal");
-  await expect(
-    client.getByRole("grid", { name: "Your past Jobs" }).getByRole("row"),
-  ).toContainText("Done");
+  await expect(client.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(client.getByText(/^We couldn't charge/)).toHaveCount(0);
 
   await page.reload();
   await expect(

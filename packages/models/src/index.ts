@@ -1151,6 +1151,8 @@ export type QuoteSummary = {
   // for the Office: whether a Revision is being drafted
   drafting: boolean;
   siteVisit: SiteVisitStage;
+  // why Office Staff closed it, once Turned Down
+  turnDownReason: TurnDownReason | null;
   createdAt: string;
 };
 
@@ -1199,6 +1201,14 @@ export type ClientJob = {
   // Labour Hours divided by Crew Size
   hoursOnSite: number;
   property: Pick<PropertyView, "id" | "street" | "unit" | "postcode">;
+};
+
+// one still to come: the Service Plan it was generated for (null for a
+// one-off Job), and the time the Client asked to move it to while Office
+// Staff haven't answered (null with no Reschedule Request pending)
+export type ClientUpcomingJob = ClientJob & {
+  servicePlanId: string | null;
+  movingTo: string | null;
 };
 
 // ---- Assignments (#9) ----

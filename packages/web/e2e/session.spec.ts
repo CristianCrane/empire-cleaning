@@ -31,9 +31,7 @@ test("coming back to the tab notices a Client record connected meanwhile", async
   await page.getByRole("button", { name: olive.name }).click();
   await page.getByRole("row", { name: "Switch to Client portal" }).click();
   await expect(page).toHaveURL("/portal");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "Welcome, Olive",
-  );
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Hi, Olive");
 });
 
 test("switching areas notices a Client record connected meanwhile", async ({

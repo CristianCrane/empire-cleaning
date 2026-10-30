@@ -4,6 +4,7 @@ import type {
   AcceptOutcome,
   NeedsAttentionItem,
   ClientJob,
+  ClientUpcomingJob,
   OfficeClientView,
   OfficeQuote,
   PaymentMethodView,
@@ -976,7 +977,7 @@ describe("a Client's upcoming Jobs", () => {
     await accept(client, sooner).expect(200);
 
     const jobs = (await client.get("/api/jobs/mine").expect(200))
-      .body as ClientJob[];
+      .body as ClientUpcomingJob[];
 
     expect(jobs).toEqual([
       {
@@ -986,6 +987,8 @@ describe("a Client's upcoming Jobs", () => {
         crewSize: 2,
         hoursOnSite: option(sooner, "deep").hoursOnSite,
         property: expect.objectContaining({ unit: "5C" }),
+        servicePlanId: null,
+        movingTo: null,
       },
       expect.objectContaining({
         startsAt: "2026-01-20T18:30:00.000Z",

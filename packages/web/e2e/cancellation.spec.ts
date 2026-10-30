@@ -91,11 +91,9 @@ test(
       "Your clean is cancelled",
     );
 
-    // and it's gone from their upcoming Jobs
+    // and Home no longer leads with it
     await page.goto("/portal");
-    await expect(
-      page.getByRole("grid", { name: "Your upcoming Jobs" }),
-    ).toHaveCount(0);
+    await expect(page.getByText("Want us back?")).toBeVisible();
   },
 );
 

@@ -1,8 +1,10 @@
 import { and, asc, eq, gt, inArray, sql, type SQL } from "drizzle-orm";
-import type { ClientJob } from "@empire-cleaning/models";
+import type { ClientUpcomingJob } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { clock } from "../../services/clock/index.ts";
 import { properties } from "../properties/properties.schema.ts";
+import { rescheduleRequests } from "../reschedule/reschedule.schema.ts";
+import { servicePlanVisits } from "../service-plans/service-plans.schema.ts";
 import { jobs } from "./jobs.schema.ts";
 import { serviceVersions } from "../services/services.ts";
 
@@ -44,11 +46,25 @@ export const bookJob = async (job: NewJob, tx: Tx | typeof db = db) => {
 export const upcomingJobsFor = async (
   clientId: string,
   where?: SQL,
-): Promise<ClientJob[]> => {
+): Promise<ClientUpcomingJob[]> => {
   const rows = await db
-    .select({ job: jobs, property: properties })
+    .select({
+      job: jobs,
+      property: properties,
+      servicePlanId: servicePlanVisits.servicePlanId,
+      movingTo: rescheduleRequests.startsAt,
+    })
     .from(jobs)
     .innerJoin(properties, eq(properties.id, jobs.propertyId))
+    .leftJoin(servicePlanVisits, eq(servicePlanVisits.jobId, jobs.id))
+    // at most one pending per Job
+    .leftJoin(
+      rescheduleRequests,
+      and(
+        eq(rescheduleRequests.jobId, jobs.id),
+        eq(rescheduleRequests.status, "pending"),
+      ),
+    )
     .where(
       and(
         eq(properties.clientId, clientId),
@@ -59,7 +75,7 @@ export const upcomingJobsFor = async (
     )
     .orderBy(asc(jobs.startsAt));
   const versions = await serviceVersions(rows.map((r) => r.job.serviceId));
-  return rows.map(({ job, property }) => ({
+  return rows.map(({ job, property, servicePlanId, movingTo }) => ({
     id: job.id,
     startsAt: job.startsAt.toISOString(),
     serviceName: versions.get(job.serviceId)!.name,
@@ -71,5 +87,7 @@ export const upcomingJobsFor = async (
       unit: property.unit,
       postcode: property.postcode,
     },
+    servicePlanId,
+    movingTo: movingTo?.toISOString() ?? null,
   }));
 };

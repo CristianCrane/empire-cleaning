@@ -191,10 +191,13 @@ test(
     await billed({ payment: "on_page" });
     await signedInAs(page, casey.email);
 
-    // on their home screen too
-    const bills = page.getByRole("grid", { name: "Your Bills" });
-    await expect(bills).toContainText("Bill EC-000001");
-    await expect(bills).toContainText("Due");
+    // their Home says it's due
+    await expect(
+      page.getByText(/^Bill EC-000001, \$[\d.,]+, is due by Mon, Jan 26\.$/),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Pay the Bill" }),
+    ).toBeVisible();
 
     await page.goto(
       await linkIn(casey.email, "Your bill EC-000001 from Empire Cleaning"),

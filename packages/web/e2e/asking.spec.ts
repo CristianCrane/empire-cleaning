@@ -54,10 +54,12 @@ test(
 
     await expect(page).toHaveURL("/portal");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-      "Welcome, Nina",
+      "Hi, Nina",
     );
+    // Home says what's next: their Quote being prepared
+    await expect(page.getByText("We're preparing your Quote")).toBeVisible();
     await expect(
-      page.getByText("35-06 Ditmars Blvd, 11375").first(),
+      page.getByText(/at 35-06 Ditmars Blvd, 11375, asked/),
     ).toBeVisible();
   },
 );
@@ -111,19 +113,14 @@ test("a home with a Quote open can't be asked about again, and points to it", as
   await expect(page.getByText("We're preparing your Quote")).toBeVisible();
 });
 
-test("a Client sees a Quote they asked for in Your Quotes, as they asked it", async ({
+test("a Client's Home leads to a Quote they asked for, as they asked it", async ({
   page,
 }) => {
   await requestQuoteAsGuest(casey, ["Inside the oven"]);
   await signInAs(page, casey.email);
 
-  const quotes = page.getByRole("grid", { name: "Your Quotes" });
-  const row = quotes.getByRole("row");
-  await expect(row).toHaveCount(1);
-  await expect(row).toContainText("41-12 Austin St, 4B, 11375");
-  await expect(row).toContainText("Extras: Inside the oven");
-  await expect(row).toContainText("Requested");
-  await row.click();
+  await expect(page.getByText("We're preparing your Quote")).toBeVisible();
+  await page.getByRole("link", { name: "See what you asked for" }).click();
 
   await expect(page).toHaveURL(/\/portal\/quotes\/[0-9a-f-]{36}$/);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
@@ -166,6 +163,7 @@ test("a home asked about only for Painting gives its rooms when it's asked about
   await page.getByRole("button", { name: "Request a Quote" }).click();
 
   await expect(page).toHaveURL("/portal");
+  await page.goto("/portal/details");
   await expect(page.getByText(/Apartment · 3 bedrooms/).first()).toBeVisible();
 });
 
@@ -182,12 +180,13 @@ test("a Client asks about a second home", async ({ page }) => {
 
   await expect(page).toHaveURL("/portal");
   await expect(page.getByText("Quote requested")).toBeVisible();
+  await page.goto("/portal/details");
   await expect(
-    page.getByRole("grid", { name: "Your Quotes" }).getByRole("row"),
-  ).toHaveCount(2);
+    page.getByRole("heading", { name: "41-12 Austin St, 4B, 11375" }),
+  ).toBeVisible();
   await expect(
-    page.getByRole("grid", { name: "Your homes" }).getByRole("row"),
-  ).toHaveCount(2);
+    page.getByRole("heading", { name: "35-06 Ditmars Blvd, 11375" }),
+  ).toBeVisible();
 });
 
 test(
@@ -240,7 +239,7 @@ test("a Client edits their contact details and Access Instructions", async ({
 }) => {
   await requestQuoteAsGuest(casey);
   await signInAs(page, casey.email);
-  await page.getByRole("link", { name: "Your details" }).click();
+  await page.getByRole("link", { name: "Your details", exact: true }).click();
   await expect(page).toHaveURL("/portal/details");
 
   await page.getByRole("textbox", { name: "Phone" }).fill("(718) 555-0123");
@@ -372,8 +371,7 @@ for (const theme of ["light", "dark"] as const) {
         // a Quote they asked for, not yet Sent
         await page.goto("/portal");
         await page
-          .getByRole("grid", { name: "Your Quotes" })
-          .getByRole("row")
+          .getByRole("link", { name: "See what you asked for" })
           .click();
         await expect(page.getByText("What you asked for")).toBeVisible();
         await expectNoViolations(page);

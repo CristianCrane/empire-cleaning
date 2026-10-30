@@ -67,7 +67,7 @@ test.describe("signing up and in with an emailed link", () => {
 
     await expect(page).toHaveURL("/portal");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-      "Welcome, Casey",
+      "Hi, Casey",
     );
   });
 

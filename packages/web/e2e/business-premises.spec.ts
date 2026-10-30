@@ -87,11 +87,12 @@ test(
     await page.getByRole("button", { name: "Request a Quote" }).click();
 
     await expect(page).toHaveURL("/portal");
-    await expect(page.getByText("Your premises")).toBeVisible();
+    // premises are seen before they're priced
+    await expect(page.getByText("Before we quote")).toBeVisible();
+    await page.getByRole("link", { name: "See what you asked for" }).click();
+    await expect(page.getByText("Monday and Friday at 6:00 PM")).toBeVisible();
+    await page.goto("/portal/details");
     await expect(page.getByText("Office · 4,500 sq ft")).toBeVisible();
-    await expect(
-      page.getByText("Monday and Friday at 6:00 PM", { exact: false }),
-    ).toBeVisible();
   },
 );
 
@@ -113,9 +114,8 @@ test("a business wanting regular cleaning is asked which days, or may ask for a 
   await nextStep(page);
   await page.getByRole("button", { name: "Request a Quote" }).click();
   await expect(page).toHaveURL("/portal");
-  await expect(
-    page.getByText("A one-off clean", { exact: false }),
-  ).toBeVisible();
+  await page.getByRole("link", { name: "See what you asked for" }).click();
+  await expect(page.getByText("A one-off clean")).toBeVisible();
 });
 
 test(
