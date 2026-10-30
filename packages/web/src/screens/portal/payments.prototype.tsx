@@ -43,6 +43,16 @@ const zone = "America/New_York";
 
 // ---- made-up data ----
 
+const fmt = (d: Date, o: Intl.DateTimeFormatOptions) =>
+  d.toLocaleString("en-US", { timeZone: zone, ...o });
+const month = (d: Date) => fmt(d, { month: "long", year: "numeric" });
+const short = (d: Date) => fmt(d, { month: "short", day: "numeric" });
+const weekOf = (b: Bill) => {
+  const end = new Date(b.week);
+  end.setDate(end.getDate() + 6);
+  return `${short(b.week)} – ${short(end)}`;
+};
+
 // money that moved: a Charge, or a refund (below zero)
 type Charge = {
   id: string;
@@ -106,7 +116,7 @@ const balances = (from: number, count: number) =>
     id: `b${from}-${i}`,
     at: day(-(from + i * 14)),
     title: "Standard Clean",
-    line: "Charged when it was done",
+    line: "",
     cents: 18450,
   }));
 
@@ -114,22 +124,22 @@ const planStart: Charge[] = [
   {
     id: "first",
     at: day(-128),
-    title: "Deep Clean, your First Clean",
-    line: "The rest, after its Deposit",
+    title: "Deep Clean",
+    line: "",
     cents: 29328,
   },
   {
     id: "deposit",
     at: day(-140),
     title: "Deposit for your Service Plan",
-    line: "Held until your plan ends, then put towards its last clean",
+    line: "Goes towards your plan's last clean",
     cents: 4613,
   },
   {
     id: "first-deposit",
     at: day(-140),
-    title: "Deposit for your First Clean",
-    line: "25% of it, when you accepted your Quote",
+    title: "Deposit for Deep Clean",
+    line: `Booked for ${short(day(-128))}`,
     cents: 9776,
     about: "first",
   },
@@ -157,8 +167,8 @@ export const cases: PaymentsCase[] = [
       {
         id: "extra",
         at: day(-9),
-        title: "Extra on your Standard Clean",
-        line: "Inside the fridge, which you approved",
+        title: "Extra on Standard Clean",
+        line: `Approved after your ${short(day(-11))} clean`,
         cents: 2250,
         about: "b11-0",
       },
@@ -166,8 +176,8 @@ export const cases: PaymentsCase[] = [
       {
         id: "refund",
         at: day(-39),
-        title: "Refund on your Standard Clean",
-        line: "Inside the oven wasn't done",
+        title: "Refund on Standard Clean",
+        line: `From your ${short(day(-39))} clean`,
         cents: -2250,
         about: "b39-0",
       },
@@ -186,8 +196,8 @@ export const cases: PaymentsCase[] = [
       {
         id: "deposit",
         at: day(-1),
-        title: "Deposit for your Deep Clean",
-        line: "25% of it. The rest is charged when it's done",
+        title: "Deposit for Deep Clean",
+        line: `Booked for ${short(day(5))}`,
         cents: 9776,
       },
     ],
@@ -214,10 +224,9 @@ export const cases: PaymentsCase[] = [
       {
         id: "failed",
         at: day(-8),
-        title: "Standard Clean",
-        line: "Declined by your bank",
-        cents: 18450,
-        state: "unpaid",
+        title: "No Access fee",
+        line: `Standard Clean, ${short(day(-8))}`,
+        cents: 4613,
       },
       ...balances(22, 4),
       ...planStart,
@@ -237,15 +246,15 @@ export const cases: PaymentsCase[] = [
           id: `paid${w}`,
           at: day(-w * 7 + 1),
           title: `Bill ${b.number}`,
-          line: `${b.cleans} cleans that week`,
+          line: weekOf(b),
           cents: b.cents,
         };
       }),
       {
         id: "deposit",
         at: day(-60),
-        title: "Deposit for your Deep Clean at 40 Oak Ave",
-        line: "Taken off that week's Bill",
+        title: "Deposit for Deep Clean",
+        line: `Booked for ${short(day(-53))}`,
         cents: 13000,
       },
     ],
@@ -285,7 +294,7 @@ export const cases: PaymentsCase[] = [
         id: `paid${w}`,
         at: day(-w * 7 + 6),
         title: `Bill ${b.number}`,
-        line: "Paid by bank debit",
+        line: weekOf(b),
         cents: b.cents,
       };
     }),
@@ -310,7 +319,7 @@ export const cases: PaymentsCase[] = [
         id: "clearing",
         at: day(-1),
         title: "Bill EC-000040",
-        line: "Bank debit, clearing",
+        line: weekOf(fortnightly(1)),
         cents: 125350,
         state: "processing",
       },
@@ -320,7 +329,7 @@ export const cases: PaymentsCase[] = [
           id: `paid${w}`,
           at: day(-w * 7 + 6),
           title: `Bill ${b.number}`,
-          line: "Paid by bank debit",
+          line: weekOf(b),
           cents: b.cents,
         };
       }),
@@ -347,16 +356,6 @@ export const histories = [
 ];
 
 // ---- how it reads ----
-
-const fmt = (d: Date, o: Intl.DateTimeFormatOptions) =>
-  d.toLocaleString("en-US", { timeZone: zone, ...o });
-const month = (d: Date) => fmt(d, { month: "long", year: "numeric" });
-const short = (d: Date) => fmt(d, { month: "short", day: "numeric" });
-const weekOf = (b: Bill) => {
-  const end = new Date(b.week);
-  end.setDate(end.getDate() + 6);
-  return `${short(b.week)} – ${short(end)}`;
-};
 
 // "−$22.50" for a refund
 const signed = (cents: number) =>
@@ -420,14 +419,6 @@ export function PaymentsPrototype() {
           .map((n) => (
             <Notice key={n.text}>{n.text}</Notice>
           ))}
-        {c.weekly && (
-          <Section
-            title="Bills"
-            description="One each Monday, for the week before."
-          >
-            <Bills bills={c.bills} label="Bills" />
-          </Section>
-        )}
         <Section title="History">
           {c.history.length === 0 ? (
             <EmptyState
@@ -575,6 +566,7 @@ const lineRow = (h: Charge) => (
       </span>
     }
     title={h.title}
+    description={h.line || undefined}
     end={<Amount h={h} />}
   />
 );
