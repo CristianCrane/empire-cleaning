@@ -107,6 +107,7 @@ import {
 } from "./screens/schedule-range.ts";
 import { PortalBill } from "./screens/portal/PortalBill.tsx";
 import { PortalHome } from "./screens/portal/PortalHome.tsx";
+import { CleansPrototype } from "./screens/portal/cleans.prototype.tsx";
 import type { HomeData } from "./screens/portal/whats-next.ts";
 import { PortalJob } from "./screens/portal/PortalJob.tsx";
 import { PortalPaymentMethod } from "./screens/portal/PortalPaymentMethod.tsx";
@@ -708,8 +709,23 @@ const portalDetailsRoute = createRoute({
   component: PortalDetails,
 });
 
+// PROTOTYPE: the Client's Cleans page, on made-up data, signed out
+const cleansPrototypeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/prototype/cleans",
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { case?: string; layout?: string } => ({
+    // ?case=1 arrives as a number
+    case: search.case === undefined ? undefined : String(search.case),
+    layout: typeof search.layout === "string" ? search.layout : undefined,
+  }),
+  component: CleansPrototype,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
+  cleansPrototypeRoute,
   signInRoute,
   welcomeRoute,
   officeRoute.addChildren([
