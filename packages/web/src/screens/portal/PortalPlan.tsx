@@ -13,6 +13,7 @@ import {
   List,
   ListItem,
   Notice,
+  Section,
   StatusBadge,
   TextField,
 } from "@empire-cleaning/ui";
@@ -68,15 +69,17 @@ export function PortalPlan() {
         }
       />
 
-      <Card title={planName(plan)}>
-        <PlanTerms plan={plan} />
-        <p className="text-sm text-fg-muted">
-          {paymentLine[plan.weeklyBill ?? "per_clean"]} We email a reminder the
-          day before.
-        </p>
-      </Card>
+      <Section title={planName(plan)}>
+        <Card>
+          <PlanTerms plan={plan} />
+          <p className="text-sm text-fg-muted">
+            {paymentLine[plan.weeklyBill ?? "per_clean"]} We email a reminder
+            the day before.
+          </p>
+        </Card>
+      </Section>
 
-      <Card
+      <Section
         title="Your upcoming cleans"
         description="Each clean goes on the Schedule about 4 weeks ahead."
       >
@@ -101,7 +104,7 @@ export function PortalPlan() {
             />
           ))}
         </List>
-      </Card>
+      </Section>
 
       {plan.status !== "ended" && <AskToChange plan={plan} />}
 
@@ -138,45 +141,52 @@ function AskToChange({ plan }: { plan: ServicePlanView }) {
   };
 
   return (
-    <Card
-      title="Change your plan"
-      description="A different day, how often, or what's included? Tell us, and we'll send you a new Service Plan Quote. Nothing changes until you accept it."
-    >
-      <DialogTrigger>
-        <Button variant="secondary" className="self-start">
-          Ask to change
-        </Button>
-        <Dialog title="Ask to change your plan">
-          {({ close }) => (
-            <Form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const form = new FormData(e.currentTarget);
-                void ask(String(form.get("notes")), close);
-              }}
-            >
-              <TextField
-                label="What would you like to change?"
-                name="notes"
-                multiline
-                isRequired
-                autoFocus
-              />
-              {action.problem && (
-                <Notice tone="danger">{action.problem}</Notice>
-              )}
-              <Actions>
-                <Button variant="quiet" onPress={close}>
-                  Cancel
-                </Button>
-                <Button type="submit" isPending={action.isPending}>
-                  Send
-                </Button>
-              </Actions>
-            </Form>
-          )}
-        </Dialog>
-      </DialogTrigger>
-    </Card>
+    <Section title="Change your plan">
+      <Card>
+        {/* one row, the button kept right; it wraps under at phone width */}
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="min-w-0 grow basis-64 text-fg-muted">
+            A different day, how often, or what's included? Tell us, and we'll
+            send you a new Service Plan Quote. Nothing changes until you accept
+            it.
+          </p>
+          <div className="ml-auto">
+            <DialogTrigger>
+              <Button variant="secondary">Ask to change</Button>
+              <Dialog title="Ask to change your plan">
+                {({ close }) => (
+                  <Form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const form = new FormData(e.currentTarget);
+                      void ask(String(form.get("notes")), close);
+                    }}
+                  >
+                    <TextField
+                      label="What would you like to change?"
+                      name="notes"
+                      multiline
+                      isRequired
+                      autoFocus
+                    />
+                    {action.problem && (
+                      <Notice tone="danger">{action.problem}</Notice>
+                    )}
+                    <Actions>
+                      <Button variant="quiet" onPress={close}>
+                        Cancel
+                      </Button>
+                      <Button type="submit" isPending={action.isPending}>
+                        Send
+                      </Button>
+                    </Actions>
+                  </Form>
+                )}
+              </Dialog>
+            </DialogTrigger>
+          </div>
+        </div>
+      </Card>
+    </Section>
   );
 }
