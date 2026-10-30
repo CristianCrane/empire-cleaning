@@ -43,9 +43,17 @@ const at = (days: number, hour: number, minute = 0) => {
   d.setHours(hour, minute, 0, 0);
   return formatDateTime(d.toISOString());
 };
+const dateAt = (days: number, hour: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  d.setHours(hour, 0, 0, 0);
+  return d;
+};
 const day = (days: number) => at(days, 12).replace(/, \d+:\d+ [AP]M$/, "");
 
 type Hero = {
+  // when it is, for a calendar tile; none when nothing is booked
+  date?: Date;
   label: string;
   icon: LucideIcon;
   tone?: StatusTone;
@@ -77,6 +85,7 @@ const seeClean = { label: "See the clean" };
 const nextClean = (over: Partial<Hero> = {}): Hero => ({
   label: "Your next clean",
   icon: CalendarCheck,
+  date: dateAt(4, 9),
   when: at(4, 9),
   lines: [`Standard Clean at ${elm}`, "2 Cleaners, about 2½ hours"],
   action: seeClean,
@@ -141,6 +150,7 @@ export const cases: HomeCase[] = [
     hero: {
       label: "Your Site Visit",
       icon: MapPin,
+      date: dateAt(2, 14),
       when: at(2, 14),
       lines: [
         `Cris Crane comes to see ${main} for about 30 minutes`,
@@ -200,6 +210,7 @@ export const cases: HomeCase[] = [
     name: "A clean today",
     hero: nextClean({
       label: "Today",
+      date: dateAt(0, 9),
       when: "9:00 AM",
       lines: [
         `Standard Clean at ${elm}`,
@@ -354,8 +365,23 @@ export const cases: HomeCase[] = [
   },
 ];
 
+export const layouts = [
+  { key: "A", name: "Current" },
+  { key: "B", name: "Focused column" },
+  { key: "C", name: "Horizontal, date tile" },
+  { key: "D", name: "Centred" },
+];
+type Layout = "A" | "B" | "C" | "D";
+
 export function HomeCasesPrototype() {
-  const { case: key = "1" } = useSearch({ strict: false }) as { case?: string };
+  const { case: key = "1", layout = "A" } = useSearch({
+    strict: false,
+  }) as { case?: string; layout?: Layout };
+  const go = (search: { case?: string; layout?: string }) =>
+    navigate({
+      to: "/prototype/home",
+      search: { case: key, layout, ...search } as never,
+    });
   const navigate = useNavigate();
   const homeCase = cases.find((c) => c.key === key) ?? cases[0]!;
 
@@ -372,24 +398,37 @@ export function HomeCasesPrototype() {
       nav={nav}
       account={<span className="text-sm text-fg-muted">Casey Client</span>}
     >
-      <HomePage homeCase={homeCase} />
+      <HomePage homeCase={homeCase} layout={layout} />
+      <PrototypeSwitcher
+        variants={layouts}
+        current={layout}
+        onChange={(k) => go({ layout: k })}
+        keys={["ArrowUp", "ArrowDown"]}
+        className="bottom-40 md:bottom-20"
+      />
       <PrototypeSwitcher
         variants={cases.map((c) => ({ key: c.key, name: c.name }))}
         current={homeCase.key}
-        onChange={(k) =>
-          navigate({ to: "/prototype/home", search: { case: k } as never })
-        }
+        onChange={(k) => go({ case: k })}
       />
     </AppLayout>
   );
 }
 
-function HomePage({ homeCase }: { homeCase: HomeCase }) {
+function HomePage({
+  homeCase,
+  layout,
+}: {
+  homeCase: HomeCase;
+  layout: Layout;
+}) {
   const { hero, notices = [], after } = homeCase;
   // the hero asking for a Quote makes the header's Button redundant
   const heroAsks = hero.action?.label === "Request a Quote";
   return (
-    <div className="flex flex-col gap-6">
+    <div
+      className={`flex flex-col gap-6 ${layout === "B" ? "mx-auto w-full max-w-xl" : ""}`}
+    >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <Heading level={1}>Hi, {homeCase.firstName ?? "Casey"}</Heading>
         {!heroAsks && (
@@ -410,10 +449,16 @@ function HomePage({ homeCase }: { homeCase: HomeCase }) {
         </Notice>
       ))}
 
-      <HeroCard hero={hero} />
+      {layout === "C" ? (
+        <HorizontalHero hero={hero} />
+      ) : layout === "D" ? (
+        <CentredHero hero={hero} />
+      ) : (
+        <HeroCard hero={hero} />
+      )}
 
       {after && (
-        <p className="text-fg-muted">
+        <p className={`text-fg-muted ${layout === "D" ? "text-center" : ""}`}>
           {after} · <Link href={here}>All your cleans</Link>
         </p>
       )}
@@ -455,3 +500,110 @@ function HeroCard({ hero }: { hero: Hero }) {
     </Card>
   );
 }
+
+const heroButton = (hero: Hero) =>
+  hero.action && (
+    <Button variant={hero.action.quiet ? "secondary" : "primary"}>
+      {hero.action.label}
+    </Button>
+  );
+
+const pendingNotice = (hero: Hero) =>
+  hero.pending && <Notice>{hero.pending}</Notice>;
+
+const zone = "America/New_York";
+
+// a page off a calendar: the month, the day, the weekday
+function DateTile({ date }: { date: Date }) {
+  const part = (o: Intl.DateTimeFormatOptions) =>
+    date.toLocaleDateString("en-US", { timeZone: zone, ...o });
+  return (
+    <div
+      aria-hidden
+      className="flex w-20 shrink-0 flex-col items-center overflow-hidden rounded-lg border border-border bg-surface text-center"
+    >
+      <span className="w-full bg-primary py-1 text-xs font-bold tracking-widest text-primary-fg uppercase">
+        {part({ month: "short" })}
+      </span>
+      <span className="pt-1 font-display text-4xl font-bold leading-none text-fg">
+        {part({ day: "numeric" })}
+      </span>
+      <span className="pb-2 text-sm text-fg-muted">
+        {part({ weekday: "short" })}
+      </span>
+    </div>
+  );
+}
+
+// C: the card read left to right, its date (or what it's about) first and
+// its Button at the far end
+function HorizontalHero({ hero }: { hero: Hero }) {
+  const tone = hero.tone ?? "info";
+  return (
+    <Card>
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-6">
+        {hero.date ? (
+          <DateTile date={hero.date} />
+        ) : (
+          <span
+            aria-hidden
+            className={`flex size-20 shrink-0 items-center justify-center rounded-lg ${toneTile[tone]}`}
+          >
+            <hero.icon size={36} />
+          </span>
+        )}
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <p className="font-semibold text-fg-muted">{hero.label}</p>
+          <p className="text-2xl font-semibold text-fg sm:text-3xl">
+            {hero.when}
+          </p>
+          {hero.lines.map((line) => (
+            <p key={line} className="text-fg-muted">
+              {line}
+            </p>
+          ))}
+          {hero.pending && <div className="pt-3">{pendingNotice(hero)}</div>}
+        </div>
+        {hero.action && <div className="shrink-0">{heroButton(hero)}</div>}
+      </div>
+    </Card>
+  );
+}
+
+// D: the card as a centred announcement
+function CentredHero({ hero }: { hero: Hero }) {
+  const tone = hero.tone ?? "info";
+  return (
+    <Card>
+      <div className="mx-auto flex max-w-xl flex-col items-center gap-4 py-4 text-center">
+        <span
+          aria-hidden
+          className={`flex size-16 items-center justify-center rounded-full ${toneTile[tone]}`}
+        >
+          <hero.icon size={30} />
+        </span>
+        <p className="font-semibold text-fg-muted">{hero.label}</p>
+        <div className="flex flex-col gap-1">
+          <p className="text-2xl font-semibold text-fg sm:text-3xl">
+            {hero.when}
+          </p>
+          {hero.lines.map((line) => (
+            <p key={line} className="text-fg-muted">
+              {line}
+            </p>
+          ))}
+        </div>
+        {pendingNotice(hero)}
+        {heroButton(hero)}
+      </div>
+    </Card>
+  );
+}
+
+const toneTile: Record<StatusTone, string> = {
+  neutral: "bg-neutral-subtle text-neutral-strong",
+  info: "bg-info-subtle text-info-strong",
+  success: "bg-success-subtle text-success-strong",
+  warning: "bg-warning-subtle text-warning-strong",
+  danger: "bg-danger-subtle text-danger-strong",
+};

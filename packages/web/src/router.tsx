@@ -693,9 +693,12 @@ const portalDetailsRoute = createRoute({
 const homeCasesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/prototype/home",
-  validateSearch: (search: Record<string, unknown>): { case?: string } => ({
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { case?: string; layout?: string } => ({
     // ?case=20 arrives as a number
     case: search.case === undefined ? undefined : String(search.case),
+    layout: typeof search.layout === "string" ? search.layout : undefined,
   }),
   component: HomeCasesPrototype,
 });

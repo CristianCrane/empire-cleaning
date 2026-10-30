@@ -7,10 +7,15 @@ export function PrototypeSwitcher({
   variants,
   current,
   onChange,
+  keys = ["ArrowLeft", "ArrowRight"],
+  className = "bottom-24 md:bottom-4",
 }: {
   variants: { key: string; name: string }[];
   current: string;
   onChange: (key: string) => void;
+  // the keys that step back and forward, and where the bar sits
+  keys?: [string, string];
+  className?: string;
 }) {
   const index = Math.max(
     variants.findIndex((v) => v.key === current),
@@ -23,8 +28,8 @@ export function PrototypeSwitcher({
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
       if (target.closest("input, textarea, [contenteditable]")) return;
-      if (e.key === "ArrowLeft") step(-1);
-      if (e.key === "ArrowRight") step(1);
+      if (e.key === keys[0]) step(-1);
+      if (e.key === keys[1]) step(1);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -33,7 +38,9 @@ export function PrototypeSwitcher({
   if (!import.meta.env.DEV) return null;
   const variant = variants[index]!;
   return (
-    <div className="fixed bottom-24 md:bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full bg-fg px-2 py-1 text-sm text-bg shadow-lg">
+    <div
+      className={`fixed ${className} left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full bg-fg px-2 py-1 text-sm text-bg shadow-lg`}
+    >
       <button
         type="button"
         className="rounded-full p-2 hover:opacity-70"
