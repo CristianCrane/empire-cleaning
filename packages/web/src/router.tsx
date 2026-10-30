@@ -738,7 +738,13 @@ const portalBillRoute = createRoute({
 const portalPaymentMethodRoute = createRoute({
   getParentRoute: () => portalRoute,
   path: "/payment-method",
-  loader: ownPaymentMethod,
+  loader: async () => {
+    const [saved, pastJobs] = await Promise.all([
+      ownPaymentMethod(),
+      getJson<ClientPastJob[]>("/api/jobs/mine/past"),
+    ]);
+    return { saved, unpaid: pastJobs.filter((j) => j.unpaid) };
+  },
   component: PortalPaymentMethod,
 });
 
