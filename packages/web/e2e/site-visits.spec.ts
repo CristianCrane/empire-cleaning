@@ -163,9 +163,10 @@ test("a Site Visit shows on the Schedule, in the Client's portal and in the visi
   await page.context().clearCookies();
   await signedInAs(page, "cory@example.com");
   await expect(page).toHaveURL("/cleaner");
-  const today = page.getByRole("grid", { name: "Today's Site Visits" });
+  const today = page.getByRole("region", { name: "Next up" });
   await expect(today).toContainText("3:00 PM");
   await expect(today).toContainText("200 Park Ave S");
+  await expect(today.getByRole("link", { name: /Call/ })).toBeVisible();
 
   await page.context().clearCookies();
   await signedInAs(page, casey.email);

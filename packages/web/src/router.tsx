@@ -52,6 +52,7 @@ import {
 import { getJson } from "./api.ts";
 import { AreaLayout } from "./screens/AreaLayout.tsx";
 import { CleanerHome } from "./screens/cleaner/CleanerHome.tsx";
+import { CleanerOffers } from "./screens/cleaner/CleanerOffers.tsx";
 import { CleanerJobScreen } from "./screens/cleaner/CleanerJobScreen.tsx";
 import { OpenPlaceScreen } from "./screens/cleaner/OpenPlaceScreen.tsx";
 import { BillScreen } from "./screens/office/BillScreen.tsx";
@@ -591,14 +592,32 @@ const cleanerHomeRoute = createRoute({
   getParentRoute: () => cleanerRoute,
   path: "/",
   loader: async () => {
-    const [jobs, siteVisits, open] = await Promise.all([
+    const [jobs, siteVisits] = await Promise.all([
       getJson<CleanerJobs>("/api/assignments/mine"),
       getJson<CleanerSiteVisits>("/api/site-visits/visiting"),
-      getJson<OpenPlace[]>("/api/assignments/open"),
     ]);
-    return { ...jobs, siteVisits, open };
+    return { ...jobs, siteVisits };
   },
   component: CleanerHome,
+});
+
+// places that aren't theirs yet: offered to them, or open to them
+const cleanerOffersRoute = createRoute({
+  getParentRoute: () => cleanerRoute,
+  path: "/offers",
+  loader: async () => {
+    const [{ today, upcoming }, open] = await Promise.all([
+      getJson<CleanerJobs>("/api/assignments/mine"),
+      getJson<OpenPlace[]>("/api/assignments/open"),
+    ]);
+    return {
+      offered: [...today, ...upcoming].filter(
+        (job) => job.assignment.status === "offered" && !job.outcome,
+      ),
+      open,
+    };
+  },
+  component: CleanerOffers,
 });
 
 // where the Offer email's link leads
@@ -817,7 +836,12 @@ const routeTree = rootRoute.addChildren([
     officeJobRoute,
     officeBillRoute,
   ]),
-  cleanerRoute.addChildren([cleanerHomeRoute, cleanerJobRoute, openPlaceRoute]),
+  cleanerRoute.addChildren([
+    cleanerHomeRoute,
+    cleanerOffersRoute,
+    cleanerJobRoute,
+    openPlaceRoute,
+  ]),
   portalRoute.addChildren([
     portalHomeRoute,
     portalRequestRoute,

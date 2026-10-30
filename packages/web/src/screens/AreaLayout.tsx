@@ -9,6 +9,7 @@ import {
   CalendarDays,
   ContactRound,
   House,
+  Inbox,
   Sparkles,
   Tag,
   LayoutDashboard,
@@ -17,7 +18,12 @@ import {
   Wallet,
   Users,
 } from "lucide-react";
-import type { SignedInAccount } from "@empire-cleaning/models";
+import { useEffect, useState } from "react";
+import type {
+  CleanerJobs,
+  OpenPlace,
+  SignedInAccount,
+} from "@empire-cleaning/models";
 import {
   Actions,
   AppLayout,
@@ -28,6 +34,7 @@ import {
   ListItem,
   type NavItem,
 } from "@empire-cleaning/ui";
+import { getJson } from "../api.ts";
 import { linkTo } from "../links.ts";
 import { InArea } from "./MessagePage.tsx";
 import { JobIcon, QuoteIcon } from "./icons.ts";
@@ -93,6 +100,12 @@ const navFor: Record<AreaId, AreaNavItem[]> = {
       icon: CalendarDays,
       alsoCurrentFor: ["/cleaner/jobs/"],
     },
+    {
+      href: linkTo({ to: "/cleaner/offers" }),
+      label: "Offers",
+      icon: Inbox,
+      alsoCurrentFor: ["/cleaner/open/"],
+    },
   ],
   portal: [
     {
@@ -125,9 +138,14 @@ export function AreaLayout({ area }: { area: AreaId }) {
   const { account } = useRouteContext({ from: areas[area].path });
   const matchRoute = useMatchRoute();
   const { pathname } = useLocation();
+  const offers = useOffersCount(area === "cleaner", pathname);
   const nav: NavItem[] = navFor[area].map(
     ({ alsoCurrentFor = [], ...item }) => ({
       ...item,
+      label:
+        item.label === "Offers" && offers > 0
+          ? `Offers (${offers})`
+          : item.label,
       isCurrent:
         Boolean(matchRoute(item.href)) ||
         alsoCurrentFor.some((prefix) => pathname.startsWith(prefix)),
@@ -145,6 +163,32 @@ export function AreaLayout({ area }: { area: AreaId }) {
       </InArea>
     </AppLayout>
   );
+}
+
+// How many places wait on a Cleaner's answer, offered or open to them, for
+// Offers' label: so they're noticed without crowding Your Jobs. Counted
+// again on each page, as answering one changes it; none if it can't be.
+function useOffersCount(on: boolean, pathname: string) {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (!on) return;
+    let live = true;
+    Promise.all([
+      getJson<CleanerJobs>("/api/assignments/mine"),
+      getJson<OpenPlace[]>("/api/assignments/open"),
+    ])
+      .then(([{ today, upcoming }, open]) => {
+        const offered = [...today, ...upcoming].filter(
+          (job) => job.assignment.status === "offered" && !job.outcome,
+        );
+        if (live) setCount(offered.length + open.length);
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [on, pathname]);
+  return count;
 }
 
 // who's signed in, a way into their other area (Staff holding both roles)

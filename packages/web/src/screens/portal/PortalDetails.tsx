@@ -27,7 +27,7 @@ import {
 import { patchJson } from "../../api.ts";
 import { useAction } from "../action.ts";
 import { addressOf, propertySummary } from "../format.ts";
-import { Fact } from "./Fact.tsx";
+import { Fact } from "../Fact.tsx";
 import { standingOf } from "./properties.ts";
 
 // A Client's contact details, read first and changed in a dialog; then

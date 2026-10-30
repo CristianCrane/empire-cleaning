@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { DoorClosed } from "lucide-react";
 import type { CleanerJob } from "@empire-cleaning/models";
 import {
   Actions,
@@ -8,6 +9,7 @@ import {
   DialogTrigger,
   Form,
   Notice,
+  Section,
   TextField,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
@@ -30,56 +32,51 @@ export function RecordNoAccess({ job }: { job: CleanerJob }) {
   };
 
   return (
-    <Card
-      title="Can't get in?"
-      description="Check the Access Instructions and try the Client's phone first."
-    >
-      <Actions>
-        <DialogTrigger>
-          <Button variant="secondary">Record No Access</Button>
-          <Dialog title="Record No Access?" role="alertdialog">
-            {({ close }) => (
-              <Form
-                validationErrors={action.fieldErrors}
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  void record(close);
-                }}
+    <DialogTrigger>
+      <Button variant="danger-text">
+        <DoorClosed aria-hidden size={18} />
+        Couldn't get in
+      </Button>
+      <Dialog title="Record No Access?" role="alertdialog">
+        {({ close }) => (
+          <Form
+            validationErrors={action.fieldErrors}
+            onSubmit={(e) => {
+              e.preventDefault();
+              void record(close);
+            }}
+          >
+            <p>
+              Check how to get in and try the Client's phone first. The Job
+              won't be Completed; the Client and the Office are told what
+              happened.
+            </p>
+            <TextField
+              label="What happened?"
+              name="reason"
+              description="For example: nobody answered, and the key wasn't where the instructions say."
+              value={reason}
+              onChange={setReason}
+              multiline
+              isRequired
+            />
+            {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+            <Actions>
+              <Button variant="quiet" onPress={close}>
+                Go back
+              </Button>
+              <Button
+                type="submit"
+                variant="danger"
+                isPending={action.isPending}
               >
-                <p>
-                  The Job won't be Completed. The Client and the Office are told
-                  what happened.
-                </p>
-                <TextField
-                  label="What happened?"
-                  name="reason"
-                  description="For example: nobody answered, and the key wasn't where the instructions say."
-                  value={reason}
-                  onChange={setReason}
-                  multiline
-                  isRequired
-                />
-                {action.problem && (
-                  <Notice tone="danger">{action.problem}</Notice>
-                )}
-                <Actions>
-                  <Button variant="quiet" onPress={close}>
-                    Go back
-                  </Button>
-                  <Button
-                    type="submit"
-                    variant="danger"
-                    isPending={action.isPending}
-                  >
-                    Record No Access
-                  </Button>
-                </Actions>
-              </Form>
-            )}
-          </Dialog>
-        </DialogTrigger>
-      </Actions>
-    </Card>
+                Record No Access
+              </Button>
+            </Actions>
+          </Form>
+        )}
+      </Dialog>
+    </DialogTrigger>
   );
 }
 
@@ -87,13 +84,15 @@ export function RecordNoAccess({ job }: { job: CleanerJob }) {
 export function NoAccessRecorded({ job }: { job: CleanerJob }) {
   const noAccess = job.noAccess!;
   return (
-    <Card title="No Access">
-      <p>
-        Recorded at {formatTime(noAccess.recordedAt)}
-        {noAccess.recordedBy && ` by ${noAccess.recordedBy}`}. The Client and
-        the Office have been told.
-      </p>
-      <p>"{noAccess.reason}"</p>
-    </Card>
+    <Section title="No Access">
+      <Card>
+        <p>
+          Recorded at {formatTime(noAccess.recordedAt)}
+          {noAccess.recordedBy && ` by ${noAccess.recordedBy}`}. The Client and
+          the Office have been told.
+        </p>
+        <p>"{noAccess.reason}"</p>
+      </Card>
+    </Section>
   );
 }

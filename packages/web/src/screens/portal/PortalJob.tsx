@@ -43,7 +43,7 @@ import {
   formatHours,
   formatMoney,
 } from "../format.ts";
-import { Fact } from "./Fact.tsx";
+import { Fact } from "../Fact.tsx";
 
 // one of the Client's Jobs, from the links in their emails: while it's to come,
 // moving or cancelling it; once Completed, its receipt; any extra work proposed to them

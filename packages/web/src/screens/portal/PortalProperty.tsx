@@ -43,7 +43,7 @@ import {
   propertySummary,
   recurrenceLabel,
 } from "../format.ts";
-import { Fact } from "./Fact.tsx";
+import { Fact } from "../Fact.tsx";
 import { planWhen, quoteTitle, standingOf } from "./properties.ts";
 
 const planStatus: Record<string, { tone: StatusTone; label: string }> = {

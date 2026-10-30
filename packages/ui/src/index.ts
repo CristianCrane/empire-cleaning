@@ -4,6 +4,7 @@
 import "./tokens.css";
 
 export { ActionBar, IconAction } from "./ActionBar.tsx";
+export { ActionFooter } from "./ActionFooter.tsx";
 export { ActionRow } from "./ActionRow.tsx";
 export { Actions } from "./Actions.tsx";
 export { AppLayout, Wordmark, type NavItem } from "./AppLayout.tsx";

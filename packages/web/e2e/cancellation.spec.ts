@@ -145,8 +145,10 @@ test(
     await signedInAs(page, "cory@example.com");
     await page.goto(`/cleaner/jobs/${job.id}`);
 
-    const cantGetIn = page.getByRole("region", { name: "Can't get in?" });
-    await cantGetIn.getByRole("button", { name: "Record No Access" }).click();
+    await page
+      .getByRole("group", { name: "What to do" })
+      .getByRole("button", { name: "Couldn't get in" })
+      .click();
     const dialog = page.getByRole("alertdialog", { name: "Record No Access?" });
     await expectAccessible(page);
     await dialog
@@ -160,7 +162,7 @@ test(
       '"Nobody answered and the doorman had no key"',
     );
     await expect(
-      page.getByRole("region", { name: "Complete this Job" }),
+      page.getByRole("button", { name: "Complete Job" }),
     ).toHaveCount(0);
     await expect(page.getByText(/\$/)).toHaveCount(0);
 
