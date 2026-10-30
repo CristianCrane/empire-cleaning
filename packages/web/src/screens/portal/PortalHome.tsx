@@ -27,9 +27,10 @@ import {
 import { BillStatusBadge, billLine } from "../BillParts.tsx";
 import { PlanStatusBadge } from "../PlanParts.tsx";
 import { QuoteStatusBadge } from "../QuoteParts.tsx";
+import type { HomeData } from "./portal-home.prototype.tsx";
 
 // a Quote in the list: its offer once Sent, otherwise what was asked
-const quoteLine = (quote: QuoteSummary) => {
+export const quoteLine = (quote: QuoteSummary) => {
   const { asked } = quote;
   if (quote.sentAt !== null) {
     return [
@@ -61,9 +62,11 @@ const placesTitle = (places: PropertyView[]) => {
     : "Your homes and premises";
 };
 
-export function PortalHome() {
+// PROTOTYPE: data swaps in sample rows
+export function PortalHome({ data }: { data?: HomeData } = {}) {
+  const loaded = useLoaderData({ from: "/portal/" });
   const { client, plans, quotes, jobs, pastJobs, siteVisits, bills } =
-    useLoaderData({ from: "/portal/" });
+    data ?? loaded;
   const navigate = useNavigate();
   const [firstName] = client.name.split(" ");
   const openJob = (id: Key) =>

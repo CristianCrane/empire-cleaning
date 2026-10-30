@@ -106,7 +106,7 @@ import {
   type ScheduleSearch,
 } from "./screens/schedule-range.ts";
 import { PortalBill } from "./screens/portal/PortalBill.tsx";
-import { PortalHome } from "./screens/portal/PortalHome.tsx";
+import { PortalHomePrototype } from "./screens/portal/portal-home.prototype.tsx";
 import { PortalJob } from "./screens/portal/PortalJob.tsx";
 import { PortalPaymentMethod } from "./screens/portal/PortalPaymentMethod.tsx";
 import { PortalPlan } from "./screens/portal/PortalPlan.tsx";
@@ -619,7 +619,11 @@ const portalHomeRoute = createRoute({
       ]);
     return { client, plans, quotes, jobs, pastJobs, siteVisits, bills };
   },
-  component: PortalHome,
+  // PROTOTYPE: ?variant= picks a Home layout
+  validateSearch: (search: Record<string, unknown>): { variant?: string } => ({
+    variant: typeof search.variant === "string" ? search.variant : undefined,
+  }),
+  component: PortalHomePrototype,
 });
 
 // where the Quote email's link leads: signed out, the portal sends the
