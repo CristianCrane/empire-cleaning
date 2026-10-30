@@ -1,4 +1,4 @@
-// PROTOTYPE: throwaway. Layouts for the Client's Home (?variant=B..D), for
+// PROTOTYPE: throwaway. Layouts for the Client's Home (?variant=B..E), for
 // the UX pass (#96). Lives only on prototype-portal-home.
 import type { Key, ReactNode } from "react";
 import { useLoaderData, useNavigate, useSearch } from "@tanstack/react-router";
@@ -11,6 +11,9 @@ import {
   Receipt,
   Repeat,
   Sparkles,
+  House,
+  Building2,
+  ChevronRight,
 } from "lucide-react";
 import type {
   BillSummary,
@@ -59,6 +62,7 @@ export const variants = [
   { key: "B", name: "Sections, what needs you first" },
   { key: "C", name: "Next clean + Tabs" },
   { key: "D", name: "Needs you + Coming up + history Tabs" },
+  { key: "E", name: "Next clean, homes with their plans, history Tabs" },
 ];
 
 export type HomeData = ReturnType<typeof useHomeData>;
@@ -204,7 +208,18 @@ export function useHomeData() {
       ...real.client,
       properties: real.client.properties.length
         ? real.client.properties
-        : [home],
+        : [
+            home,
+            {
+              ...home,
+              id: "p2",
+              type: "house",
+              street: "40 Oak Ave",
+              unit: null,
+              bedrooms: 3,
+              bathrooms: 2,
+            } as PropertyView,
+          ],
     },
     plans,
     quotes,
@@ -261,6 +276,8 @@ export function PortalHomePrototype() {
       <NextCleanHome data={data} />
     ) : variant === "D" ? (
       <NeedsYouHome data={data} />
+    ) : variant === "E" ? (
+      <CombinedHome data={data} />
     ) : (
       <PortalHome data={data} />
     );
@@ -761,6 +778,160 @@ function NeedsYouHome({ data }: { data: HomeData }) {
       <Section title="Your homes">
         <HomesList homes={data.client.properties} />
       </Section>
+    </div>
+  );
+}
+
+// ---- E: C's next clean, the homes with their plans, D's history ----
+
+function CombinedHome({ data }: { data: HomeData }) {
+  const open = useOpen();
+  const todos = todosOf(data, open);
+  const [next, ...later] = data.jobs;
+  const coming = comingOf({ ...data, jobs: later });
+  return (
+    <div className="flex flex-col gap-8">
+      <Header data={data} />
+      {todos.length > 0 && (
+        <Section title="Needs you">
+          <List aria-label="Needs you">
+            {todos.map((t) => (
+              <ListItem
+                key={t.id}
+                id={t.id}
+                start={<IconTile icon={t.icon} tone="warning" />}
+                title={t.title}
+                description={t.description}
+                onAction={t.open}
+              />
+            ))}
+          </List>
+        </Section>
+      )}
+      <Section
+        title="Your next clean"
+        description="We email a reminder the day before each clean."
+      >
+        {next ? (
+          <button
+            type="button"
+            onClick={() => open.job(next.id)}
+            className="flex items-center gap-4 rounded-lg border border-border bg-surface p-5 text-left hover:bg-surface-sunken"
+          >
+            <IconTile icon={CalendarCheck} tone="info" />
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <p className="text-2xl font-semibold text-fg">
+                {formatDateTime(next.startsAt)}
+              </p>
+              <p className="text-fg-muted">
+                {next.serviceName} · {addressOf(next.property)}
+              </p>
+              <p className="text-sm text-fg-muted">
+                {next.crewSize} Cleaners for about{" "}
+                {formatHours(next.hoursOnSite)}
+              </p>
+            </div>
+            <ChevronRight aria-hidden size={20} className="text-fg-muted" />
+          </button>
+        ) : (
+          <Card>
+            <p className="text-fg-muted">No clean booked just now.</p>
+          </Card>
+        )}
+        {coming.length > 0 && <ComingList items={coming} label="After that" />}
+      </Section>
+      <Section
+        title={data.client.properties.length === 1 ? "Your home" : "Your homes"}
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          {data.client.properties.map((home) => (
+            <HomeCard
+              key={home.id}
+              home={home}
+              plans={data.plans.filter((p) => p.property.id === home.id)}
+            />
+          ))}
+        </div>
+      </Section>
+      <Section title="Your history">
+        <Tabs defaultSelectedKey="past">
+          <TabList aria-label="Your history">
+            <Tab id="past" count={data.pastJobs.length}>
+              <CalendarDays aria-hidden size={16} /> Cleans
+            </Tab>
+            <Tab id="bills" count={data.bills.length}>
+              <Receipt aria-hidden size={16} /> Bills
+            </Tab>
+            <Tab id="quotes" count={data.quotes.length}>
+              <ClipboardCheck aria-hidden size={16} /> Quotes
+            </Tab>
+          </TabList>
+          <TabPanel id="past">
+            <PastList jobs={data.pastJobs} />
+          </TabPanel>
+          <TabPanel id="bills">
+            <BillsList bills={data.bills} />
+          </TabPanel>
+          <TabPanel id="quotes">
+            <QuotesList quotes={data.quotes} />
+          </TabPanel>
+        </Tabs>
+      </Section>
+    </div>
+  );
+}
+
+// a home with its Service Plan under it, or an offer of one
+function HomeCard({
+  home,
+  plans,
+}: {
+  home: PropertyView;
+  plans: ServicePlanSummary[];
+}) {
+  const open = useOpen();
+  return (
+    <div className="flex flex-col overflow-hidden rounded-lg border border-border bg-surface">
+      <div className="flex items-center gap-3 p-4">
+        <IconTile icon={home.kind === "commercial" ? Building2 : House} />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <span className="truncate font-semibold text-fg">
+            {addressOf(home)}
+          </span>
+          <span className="text-sm text-fg-muted">{propertySummary(home)}</span>
+        </div>
+      </div>
+      {plans.map((plan) => (
+        <button
+          key={plan.id}
+          type="button"
+          onClick={() => open.plan(plan.id)}
+          className="flex items-center gap-3 border-t border-border p-4 text-left hover:bg-surface-sunken"
+        >
+          <Repeat aria-hidden size={20} className="shrink-0 text-primary" />
+          <div className="flex min-w-0 flex-1 flex-col">
+            <span className="font-semibold text-fg">{planName(plan)}</span>
+            <span className="text-sm text-fg-muted">
+              {plan.nextStartsAt
+                ? `Next: ${formatDateTime(plan.nextStartsAt)}`
+                : "No clean booked just now"}
+            </span>
+          </div>
+          <PlanStatusBadge status={plan.status} />
+          <ChevronRight aria-hidden size={20} className="text-fg-muted" />
+        </button>
+      ))}
+      {plans.length === 0 && (
+        <div className="flex flex-col items-start gap-2 border-t border-border p-4 sm:flex-row sm:items-center sm:gap-3">
+          <span className="flex-1 text-sm text-fg-muted">
+            No Service Plan: we clean when you ask.
+          </span>
+          <ButtonLink variant="text" href={linkTo({ to: "/portal/request" })}>
+            <Repeat aria-hidden size={18} />
+            Ask about regular cleans
+          </ButtonLink>
+        </div>
+      )}
     </div>
   );
 }
