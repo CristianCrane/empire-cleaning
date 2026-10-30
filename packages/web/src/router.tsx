@@ -110,6 +110,7 @@ import {
   PortalBillsPrototype,
   PortalCleansPrototype,
   PortalHomePrototype,
+  PortalPastQuotesPrototype,
 } from "./screens/portal/portal-home.prototype.tsx";
 import { PortalJob } from "./screens/portal/PortalJob.tsx";
 import { PortalPaymentMethod } from "./screens/portal/PortalPaymentMethod.tsx";
@@ -645,6 +646,13 @@ const portalCleansRoute = createRoute({
   component: PortalCleansPrototype,
 });
 
+const portalPastQuotesRoute = createRoute({
+  getParentRoute: () => portalRoute,
+  path: "/homes/$homeId/quotes",
+  loader: loadHome,
+  component: PortalPastQuotesPrototype,
+});
+
 const portalBillsRoute = createRoute({
   getParentRoute: () => portalRoute,
   path: "/bills",
@@ -757,6 +765,7 @@ const routeTree = rootRoute.addChildren([
     portalBillRoute,
     portalCleansRoute,
     portalBillsRoute,
+    portalPastQuotesRoute,
     portalDetailsRoute,
     portalPaymentMethodRoute,
   ]),

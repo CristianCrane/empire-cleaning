@@ -1,3 +1,4 @@
+import { FromYourQuote } from "./portal-home.prototype.tsx";
 import type { Key } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import type { ClientView, ServicePlanView } from "@empire-cleaning/models";
@@ -55,6 +56,8 @@ export function PortalPlan() {
           <PlanStatusBadge status={plan.status} />
         </div>
         <p className="text-fg-muted">{addressOf(plan.property)}</p>
+        {/* PROTOTYPE */}
+        <FromYourQuote quoteId={plan.quoteId} />
       </div>
 
       <OnHold

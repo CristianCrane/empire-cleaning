@@ -1,7 +1,13 @@
 // PROTOTYPE: throwaway. Layouts for the Client's Home (?variant=B..E), for
 // the UX pass (#96). Lives only on prototype-portal-home.
-import type { Key, ReactNode } from "react";
-import { useLoaderData, useNavigate, useSearch } from "@tanstack/react-router";
+import { useEffect, useState, type Key, type ReactNode } from "react";
+import {
+  useLoaderData,
+  useNavigate,
+  useParams,
+  useSearch,
+} from "@tanstack/react-router";
+import { getJson } from "../../api.ts";
 import {
   CalendarCheck,
   CalendarDays,
@@ -25,6 +31,7 @@ import type {
   ServicePlanSummary,
 } from "@empire-cleaning/models";
 import {
+  Breadcrumbs,
   Button,
   ButtonLink,
   Card,
@@ -896,10 +903,14 @@ function CombinedHome({ data }: { data: HomeData }) {
 function HomeCard({
   home,
   plans,
+  pastQuotes,
 }: {
   home: PropertyView;
   plans: ServicePlanSummary[];
+  // the home's Quotes no longer open, on Your details
+  pastQuotes?: QuoteSummary[];
 }) {
+  const navigate = useNavigate();
   const open = useOpen();
   return (
     <div className="flex flex-col overflow-hidden rounded-lg border border-border bg-surface">
@@ -932,6 +943,23 @@ function HomeCard({
           <ChevronRight aria-hidden size={20} className="text-fg-muted" />
         </button>
       ))}
+      {pastQuotes && pastQuotes.length > 0 && (
+        <button
+          type="button"
+          onClick={() =>
+            navigate({
+              to: "/portal/homes/$homeId/quotes",
+              params: { homeId: home.id },
+            })
+          }
+          className="flex items-center gap-3 border-t border-border p-4 text-left hover:bg-surface-sunken"
+        >
+          <QuoteIcon aria-hidden size={20} className="shrink-0 text-primary" />
+          <span className="flex-1 font-semibold text-fg">Past Quotes</span>
+          <span className="text-sm text-fg-muted">{pastQuotes.length}</span>
+          <ChevronRight aria-hidden size={20} className="text-fg-muted" />
+        </button>
+      )}
       {plans.length === 0 && (
         <div className="flex flex-col items-start gap-2 border-t border-border p-4 sm:flex-row sm:items-center sm:gap-3">
           <span className="flex-1 text-sm text-fg-muted">
@@ -1106,6 +1134,11 @@ function WhatsNextHome({ data }: { data: HomeData }) {
             addressOf(asked.property),
             "We email it to you, and it shows here.",
           ]}
+          action={
+            <Button variant="secondary" onPress={() => open.quote(asked.id)}>
+              See what you asked for
+            </Button>
+          }
         />
       ) : (
         <NextUp
@@ -1222,8 +1255,72 @@ export function HomeWithPlan() {
           key={home.id}
           home={home}
           plans={data.plans.filter((p) => p.property.id === home.id)}
+          pastQuotes={pastQuotesOf(data, home.id)}
         />
       ))}
     </>
+  );
+}
+
+const openStatuses = ["requested", "draft", "sent"];
+const pastQuotesOf = (data: HomeData, homeId: string) =>
+  data.quotes.filter(
+    (q) => q.property.id === homeId && !openStatuses.includes(q.status),
+  );
+
+// a home's past Quotes, from Your details
+export function PortalPastQuotesPrototype() {
+  const data = useHomeData();
+  const { homeId } = useParams({ strict: false }) as { homeId: string };
+  const home =
+    data.client.properties.find((p) => p.id === homeId) ??
+    data.client.properties[0]!;
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-4">
+        <Breadcrumbs
+          trail={[
+            { label: "Your details", href: linkTo({ to: "/portal/details" }) },
+            { label: "Past Quotes" },
+          ]}
+        />
+        <Heading level={1}>Past Quotes</Heading>
+        <p className="text-fg-muted">{addressOf(home)}</p>
+      </div>
+      <QuotesList quotes={pastQuotesOf(data, home.id)} />
+    </div>
+  );
+}
+
+// the Quote a one-off clean was booked from: the accepted one for the same
+// home and start. PROTOTYPE: the real build would carry its quoteId.
+export function useQuoteOf(job: ClientJob & { servicePlanId: string | null }) {
+  const [quoteId, setQuoteId] = useState<string | null>(null);
+  useEffect(() => {
+    if (job.servicePlanId) return;
+    void getJson<QuoteSummary[]>("/api/quotes/mine").then((quotes) =>
+      setQuoteId(
+        quotes.find(
+          (q) =>
+            q.status === "accepted" &&
+            q.property.id === job.property.id &&
+            q.proposedStartsAt === job.startsAt,
+        )?.id ?? null,
+      ),
+    );
+  }, [job]);
+  return quoteId;
+}
+
+// "From your Quote", under a Job's or a Service Plan's address
+export function FromYourQuote({ quoteId }: { quoteId: string | null }) {
+  if (!quoteId) return null;
+  return (
+    <Link
+      className="self-start"
+      href={linkTo({ to: "/portal/quotes/$quoteId", params: { quoteId } })}
+    >
+      See the Quote you agreed to
+    </Link>
   );
 }

@@ -1,3 +1,4 @@
+import { FromYourQuote, useQuoteOf } from "./portal-home.prototype.tsx";
 import { useLoaderData } from "@tanstack/react-router";
 import type {
   AdjustmentView,
@@ -39,6 +40,8 @@ import {
 export function PortalJob() {
   const job = useLoaderData({ from: "/portal/jobs/$jobId" });
   const { completion } = job;
+  // PROTOTYPE
+  const quoteId = useQuoteOf(job);
 
   return (
     <div className="flex flex-col gap-6">
@@ -70,6 +73,7 @@ export function PortalJob() {
         <p className="text-fg-muted">
           {addressOf(job.property)} · {formatDateTime(job.startsAt)}
         </p>
+        <FromYourQuote quoteId={quoteId} />
       </div>
 
       {job.cancellation ? (
