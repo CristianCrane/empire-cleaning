@@ -236,7 +236,9 @@ test("Office Staff remove an Adjustment from its own dialog, confirming in the s
   await adjustments.getByRole("row", { name: /Extra time/ }).click();
   const dialog = page.getByRole("dialog", { name: "Extra time" });
   await dialog.getByRole("button", { name: "Dismiss" }).click();
-  await expect(page.getByText("Dismissed")).toBeVisible();
+  await expect(
+    adjustments.getByRole("row", { name: /Extra time/ }),
+  ).toContainText("Dismissed");
 
   await adjustments.getByRole("row", { name: /Extra time/ }).click();
   await page
