@@ -123,6 +123,15 @@ const dayFormat = new Intl.DateTimeFormat("en-US", {
 export const formatDay = (day: string) =>
   dayFormat.format(new Date(`${day}T00:00:00Z`));
 
+const shortDayFormat = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  timeZone: "UTC",
+});
+// "2026-01-05" -> "Jan 5", where the weekday would crowd it
+export const formatShortDay = (day: string) =>
+  shortDayFormat.format(new Date(`${day}T00:00:00Z`));
+
 const timeFormat = new Intl.DateTimeFormat("en-US", {
   hour: "numeric",
   minute: "2-digit",

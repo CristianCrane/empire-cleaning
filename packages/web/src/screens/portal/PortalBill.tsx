@@ -35,7 +35,7 @@ export function PortalBill() {
         <div className="print:hidden">
           <Breadcrumbs
             trail={[
-              { label: "Home", href: linkTo({ to: "/portal" }) },
+              { label: "Payments", href: linkTo({ to: "/portal/payments" }) },
               { label: `Bill ${bill.number}` },
             ]}
           />

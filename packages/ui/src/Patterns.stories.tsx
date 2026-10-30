@@ -9,6 +9,7 @@ import {
   Phone,
   CalendarX,
   CalendarDays,
+  CircleCheck,
   CircleDollarSign,
   House,
   ClipboardPenLine,
@@ -894,6 +895,100 @@ function WhatsNextFirst() {
   );
 }
 
+function OwedFirst() {
+  const payment = (
+    day: string,
+    title: string,
+    amount: string,
+    line?: string,
+  ) => (
+    <ListItem
+      id={title + day}
+      start={
+        <span className="w-12 shrink-0 text-sm text-fg-muted tabular-nums">
+          {day}
+        </span>
+      }
+      title={title}
+      description={line}
+      end={<span className="font-semibold text-fg tabular-nums">{amount}</span>}
+    />
+  );
+  return (
+    <div className="flex flex-col gap-6">
+      <Rule title="A money page answers one question first: do I owe anything?">
+        <p>
+          Lead with one card in the shape of a home screen's: what's owed and
+          why, with the one Button that pays it, or that nothing is. Its tone is
+          its state: warning while something is waiting on them, danger once it
+          failed or is late, success with nothing owed. Ways in that are always
+          there, like changing a card, sit in the header as a secondary Button,
+          never inside a card whose Buttons change with its state.
+        </p>
+        <p>
+          Then the latest few payments, one line each: the day, what it was for
+          (the thing, not the kind of money), the amount on the right, refunds
+          as money back. A second line only says what the day doesn't. All of
+          them are a link away, by month with totals.
+        </p>
+      </Rule>
+      <div className="flex flex-col gap-4 lg:flex-row">
+        <Example verdict="Do">
+          <Card>
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-6">
+              <IconTile icon={CircleCheck} tone="success" size="lg" />
+              <div className="flex min-w-0 flex-1 flex-col gap-1">
+                <p className="font-semibold text-fg-muted">
+                  You're all paid up
+                </p>
+                <p className="text-2xl font-semibold text-fg">Nothing owed</p>
+                <p className="text-fg-muted">Paying with Visa ending 4242</p>
+              </div>
+            </div>
+          </Card>
+          <List aria-label="Latest payments">
+            {payment(
+              "Oct 21",
+              "Extra on Standard Clean",
+              "$22.50",
+              "Approved after your Oct 19 clean",
+            )}
+            {payment("Oct 19", "Standard Clean", "$184.50")}
+            {payment(
+              "Sep 28",
+              "Refund on Standard Clean",
+              "−$22.50",
+              "From your Sep 21 clean",
+            )}
+          </List>
+        </Example>
+        <Example verdict="Don't">
+          <List aria-label="Charges">
+            {payment(
+              "Oct 21",
+              "Balance",
+              "$22.50",
+              "Charge ch_3Pq… · succeeded",
+            )}
+            {payment(
+              "Oct 19",
+              "Balance",
+              "$184.50",
+              "Charge ch_3Pk… · succeeded",
+            )}
+            {payment(
+              "Sep 28",
+              "Refund",
+              "$22.50",
+              "Refund re_3Ox… · succeeded",
+            )}
+          </List>
+        </Example>
+      </div>
+    </div>
+  );
+}
+
 export const SectionsNotCardsAroundLists: Story = {
   render: () => <SectionsNotCards />,
 };
@@ -947,6 +1042,11 @@ export const RowsOpenOneDialogStory: Story = {
 export const WhatsNextFirstStory: Story = {
   name: "A home screen answers what's next",
   render: () => <WhatsNextFirst />,
+};
+
+export const OwedFirstStory: Story = {
+  name: "A money page answers what's owed",
+  render: () => <OwedFirst />,
 };
 
 export const AllAtOnceInTwoColumnsStory: Story = {

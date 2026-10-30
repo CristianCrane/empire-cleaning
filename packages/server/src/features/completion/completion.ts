@@ -821,6 +821,7 @@ export const pastJobsFor = async (
         job.status === "completed" ? (await paymentOf(job)).totalCents : 0,
       feeCents: job.status === "completed" ? 0 : (job.feeCents ?? 0),
       unpaid: job.unpaidSince !== null,
+      owedCents: job.unpaidSince ? (await paymentOf(job)).owedCents : 0,
       awaitingAnswer: waiting.filter((w) => w.jobId === job.id).length,
     })),
   );

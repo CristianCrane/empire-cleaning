@@ -7,6 +7,7 @@ import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { clientForAccount } from "../clients/clients.ts";
 import { retryUnpaidBillsFor } from "../bills/bills.ts";
 import { retryUnpaidJobsFor } from "../completion/completion.ts";
+import { paymentHistoryFor } from "./history.ts";
 import {
   paymentMethodOf,
   savePaymentMethod,
@@ -62,6 +63,16 @@ router.put(
     res.json(saved);
   },
 );
+
+// ---- the signed-in Client's payments ----
+
+export const historyRouter = Router();
+
+// every payment between them and us, newest first
+historyRouter.get("/mine", authorize("client"), async (req, res) => {
+  const client = await ownClient(signedInAccount(res).id);
+  res.json(await paymentHistoryFor(client.id));
+});
 
 // ---- the Office ----
 

@@ -14,6 +14,7 @@ import {
   LayoutDashboard,
   User,
   UserRound,
+  Wallet,
   Users,
 } from "lucide-react";
 import type { SignedInAccount } from "@empire-cleaning/models";
@@ -107,10 +108,15 @@ const navFor: Record<AreaId, AreaNavItem[]> = {
       alsoCurrentFor: ["/portal/jobs/"],
     },
     {
+      href: linkTo({ to: "/portal/payments" }),
+      label: "Payments",
+      icon: Wallet,
+      alsoCurrentFor: ["/portal/payment-method", "/portal/bills/"],
+    },
+    {
       href: linkTo({ to: "/portal/details" }),
       label: "Your details",
       icon: UserRound,
-      alsoCurrentFor: ["/portal/payment-method"],
     },
   ],
 };

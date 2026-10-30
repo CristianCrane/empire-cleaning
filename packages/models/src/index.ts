@@ -1169,6 +1169,38 @@ export type PaymentMethodView = {
   consentedAt: string;
 };
 
+// what a payment in a Client's history was: a Deposit, a clean's Balance,
+// more of it for an increase they approved later (an extra), a plan Job's
+// fee, a weekly Bill, or money given back
+export type ClientPaymentKind =
+  "deposit" | "balance" | "extra" | "fee" | "bill" | "refund";
+
+// money that moved between a Client and us, for their Payments page
+// (GET /api/payments/mine). It was for a Job, a Service Plan's
+// Deposit, or a Bill; a refund was for what its Charge was for.
+export type ClientPayment = {
+  id: string;
+  at: string;
+  kind: ClientPaymentKind;
+  // below 0 for a refund
+  amountCents: number;
+  job: {
+    id: string;
+    serviceName: string;
+    startsAt: string;
+    status: JobStatus;
+  } | null;
+  servicePlanId: string | null;
+  bill: {
+    id: string;
+    number: string;
+    weekStart: IsoDate;
+    weekEnd: IsoDate;
+  } | null;
+  // a Bill's bank debit, on its way but not yet cleared
+  clearing: boolean;
+};
+
 // the payment provider's own payment form, shown in the browser so card
 // numbers never reach our server (ADR-0004). "test" is the fake provider's,
 // for tests: it needs no card.
@@ -1485,6 +1517,8 @@ export type ClientPastJob = ClientJob & {
   // what a Cancelled or No Access one cost; 0 if nothing
   feeCents: number;
   unpaid: boolean;
+  // what an Unpaid one still owes; 0 otherwise
+  owedCents: number;
   // increases proposed to them, waiting on their answer
   awaitingAnswer: number;
 };

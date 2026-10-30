@@ -50,6 +50,7 @@ const pastJob = (over: Partial<ClientPastJob> = {}): ClientPastJob => ({
   totalCents: 18450,
   feeCents: 0,
   unpaid: false,
+  owedCents: 0,
   awaitingAnswer: 0,
   ...over,
 });

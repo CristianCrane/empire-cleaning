@@ -18,6 +18,7 @@ import type {
   JobList,
   ClientJobDetail,
   ClientPastJob,
+  ClientPayment,
   ClientUpcomingJob,
   ClientQuoteView,
   ClientView,
@@ -115,6 +116,10 @@ import { PortalHome } from "./screens/portal/PortalHome.tsx";
 import type { HomeData } from "./screens/portal/whats-next.ts";
 import { PortalJob } from "./screens/portal/PortalJob.tsx";
 import { PortalPaymentMethod } from "./screens/portal/PortalPaymentMethod.tsx";
+import {
+  PortalPayments,
+  type PaymentsSearch,
+} from "./screens/portal/PortalPayments.tsx";
 import { PortalPlan } from "./screens/portal/PortalPlan.tsx";
 import { PortalQuote } from "./screens/portal/PortalQuote.tsx";
 import { PortalRequest } from "./screens/portal/PortalRequest.tsx";
@@ -674,7 +679,6 @@ const portalPlanRoute = createRoute({
   component: PortalPlan,
 });
 
-// where the receipt, approval and Unpaid emails lead
 // every clean of theirs: what's coming (with Site Visits) and what's done
 const portalCleansRoute = createRoute({
   getParentRoute: () => portalRoute,
@@ -694,12 +698,32 @@ const portalCleansRoute = createRoute({
   component: PortalCleans,
 });
 
+// where the receipt, approval and Unpaid emails lead
 const portalJobRoute = createRoute({
   getParentRoute: () => portalRoute,
   path: "/jobs/$jobId",
   loader: ({ params }) =>
     getJson<ClientJobDetail>(`/api/jobs/mine/${params.jobId}`),
   component: PortalJob,
+});
+
+// what they owe, if anything, and every payment between them and us
+const portalPaymentsRoute = createRoute({
+  getParentRoute: () => portalRoute,
+  path: "/payments",
+  validateSearch: (search: Record<string, unknown>): PaymentsSearch => ({
+    all: search.all === true || search.all === "true" ? true : undefined,
+  }),
+  loader: async () => {
+    const [pastJobs, bills, paymentMethod, history] = await Promise.all([
+      getJson<ClientPastJob[]>("/api/jobs/mine/past"),
+      getJson<BillSummary[]>("/api/bills/mine"),
+      ownPaymentMethod(),
+      getJson<ClientPayment[]>("/api/payments/mine"),
+    ]);
+    return { pastJobs, bills, paymentMethod, history };
+  },
+  component: PortalPayments,
 });
 
 // where a weekly Bill's emails lead
@@ -768,6 +792,7 @@ const routeTree = rootRoute.addChildren([
     portalPlanRoute,
     portalCleansRoute,
     portalJobRoute,
+    portalPaymentsRoute,
     portalBillRoute,
     portalDetailsRoute,
     portalPaymentMethodRoute,

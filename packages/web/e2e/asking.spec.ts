@@ -365,6 +365,7 @@ for (const theme of ["light", "dark"] as const) {
         for (const path of [
           "/portal",
           "/portal/cleans",
+          "/portal/payments",
           "/portal/request",
           "/portal/details",
         ]) {

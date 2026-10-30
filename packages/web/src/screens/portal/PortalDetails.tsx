@@ -4,7 +4,6 @@ import type { ClientView, PropertyView } from "@empire-cleaning/models";
 import {
   Actions,
   Button,
-  ButtonLink,
   Card,
   Form,
   Heading,
@@ -12,7 +11,6 @@ import {
   TextField,
 } from "@empire-cleaning/ui";
 import { patchJson } from "../../api.ts";
-import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import { addressOf, propertySummary } from "../format.ts";
 
@@ -28,18 +26,6 @@ export function PortalDetails() {
       {client.properties.map((home) => (
         <AccessInstructions key={home.id} home={home} />
       ))}
-      <Card
-        title="Payment Method"
-        description="The card your Deposits and cleans are charged to."
-      >
-        <ButtonLink
-          variant="secondary"
-          className="self-start"
-          href={linkTo({ to: "/portal/payment-method" })}
-        >
-          Manage your card
-        </ButtonLink>
-      </Card>
     </div>
   );
 }

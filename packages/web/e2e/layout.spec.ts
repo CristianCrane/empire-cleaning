@@ -259,6 +259,7 @@ test("the portal's screens fit every width", async ({ page }) => {
   for (const path of [
     "/portal",
     "/portal/request",
+    "/portal/payments",
     "/portal/details",
     "/portal/payment-method",
   ]) {

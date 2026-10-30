@@ -30,7 +30,7 @@ export function PortalPaymentMethod() {
       <div className="flex flex-col gap-4">
         <Breadcrumbs
           trail={[
-            { label: "Your details", href: linkTo({ to: "/portal/details" }) },
+            { label: "Payments", href: linkTo({ to: "/portal/payments" }) },
             { label: "Payment Method" },
           ]}
         />

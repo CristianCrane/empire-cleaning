@@ -20,6 +20,7 @@ import { router as clientsRouter } from "#features/clients";
 import { router as dashboardRouter } from "#features/dashboard";
 import { jobsRouter, router as scheduleRouter } from "#features/jobs";
 import {
+  historyRouter as paymentsRouter,
   router as paymentMethodsRouter,
   webhookRouter,
 } from "#features/payments";
@@ -94,6 +95,7 @@ app.use("/api/assignments", cleanerCompletionRouter);
 app.use("/api/assignments", noAccessRouter);
 app.use("/api/assignments", assignmentsRouter);
 app.use("/api/payment-methods", paymentMethodsRouter);
+app.use("/api/payments", paymentsRouter);
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/service-plans", servicePlansRouter);
 app.use("/api/site-visits", siteVisitsRouter);
