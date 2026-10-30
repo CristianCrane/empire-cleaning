@@ -8,16 +8,21 @@ export function Fact({
   label,
   value,
   line,
+  className = "",
 }: {
   icon: LucideIcon;
   label: string;
   value: ReactNode;
   // what the value is; the label, without another
   line?: ReactNode;
+  // e.g. a wider column for a long value
+  className?: string;
 }) {
   // a dl's group holds its dt and dds directly: the icon sits in their grid
   return (
-    <div className="grid grid-cols-[auto_1fr] content-start gap-x-3">
+    <div
+      className={`grid grid-cols-[auto_1fr] content-start gap-x-3 ${className}`}
+    >
       <Icon
         aria-hidden
         size={20}

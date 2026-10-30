@@ -113,6 +113,7 @@ import {
   type CleansSearch,
 } from "./screens/portal/PortalCleans.tsx";
 import { PortalHome } from "./screens/portal/PortalHome.tsx";
+import { DetailsPrototype } from "./screens/portal/details.prototype.tsx";
 import type { HomeData } from "./screens/portal/whats-next.ts";
 import { PortalJob } from "./screens/portal/PortalJob.tsx";
 import { PortalPaymentMethod } from "./screens/portal/PortalPaymentMethod.tsx";
@@ -762,8 +763,24 @@ const portalDetailsRoute = createRoute({
   component: PortalDetails,
 });
 
+// PROTOTYPE: Your details and a page per property, on made-up data, signed out
+const detailsPrototypeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/prototype/details",
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { case?: string; layout?: string; home?: string } => ({
+    // ?case=1 arrives as a number
+    case: search.case === undefined ? undefined : String(search.case),
+    layout: search.layout === undefined ? undefined : String(search.layout),
+    home: search.home === undefined ? undefined : String(search.home),
+  }),
+  component: DetailsPrototype,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
+  detailsPrototypeRoute,
   signInRoute,
   welcomeRoute,
   officeRoute.addChildren([
