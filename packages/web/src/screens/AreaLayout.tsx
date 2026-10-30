@@ -11,7 +11,6 @@ import {
   House,
   Sparkles,
   Tag,
-  Receipt,
   LayoutDashboard,
   User,
   UserRound,
@@ -100,19 +99,6 @@ const navFor: Record<AreaId, AreaNavItem[]> = {
       label: "Home",
       icon: House,
       alsoCurrentFor: ["/portal/request", "/portal/quotes"],
-    },
-    // PROTOTYPE: Bills only for a Client on weekly billing
-    {
-      href: linkTo({ to: "/portal/cleans" }),
-      label: "Cleans",
-      icon: Sparkles,
-      alsoCurrentFor: ["/portal/jobs/"],
-    },
-    {
-      href: linkTo({ to: "/portal/bills" }),
-      label: "Bills",
-      icon: Receipt,
-      alsoCurrentFor: ["/portal/bills/"],
     },
     {
       href: linkTo({ to: "/portal/details" }),

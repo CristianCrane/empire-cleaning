@@ -106,12 +106,8 @@ import {
   type ScheduleSearch,
 } from "./screens/schedule-range.ts";
 import { PortalBill } from "./screens/portal/PortalBill.tsx";
-import {
-  PortalBillsPrototype,
-  PortalCleansPrototype,
-  PortalHomePrototype,
-  PortalPastQuotesPrototype,
-} from "./screens/portal/portal-home.prototype.tsx";
+import { PortalHome } from "./screens/portal/PortalHome.tsx";
+import { HomeCasesPrototype } from "./screens/portal/home-cases.prototype.tsx";
 import { PortalJob } from "./screens/portal/PortalJob.tsx";
 import { PortalPaymentMethod } from "./screens/portal/PortalPaymentMethod.tsx";
 import { PortalPlan } from "./screens/portal/PortalPlan.tsx";
@@ -608,56 +604,23 @@ const openPlaceRoute = createRoute({
   component: OpenPlaceScreen,
 });
 
-// PROTOTYPE: Home, Cleans and Bills share one loader
-const loadHome = async () => {
-  const [client, plans, quotes, jobs, pastJobs, siteVisits, bills] =
-    await Promise.all([
-      ownClient(),
-      getJson<ServicePlanSummary[]>("/api/service-plans/mine"),
-      getJson<QuoteSummary[]>("/api/quotes/mine"),
-      getJson<ClientJob[]>("/api/jobs/mine"),
-      getJson<ClientPastJob[]>("/api/jobs/mine/past"),
-      getJson<ClientSiteVisit[]>("/api/site-visits/mine"),
-      getJson<BillSummary[]>("/api/bills/mine"),
-    ]);
-  return { client, plans, quotes, jobs, pastJobs, siteVisits, bills };
-};
-export type HomeLoad = Awaited<ReturnType<typeof loadHome>>;
-
-const variantSearch = (
-  search: Record<string, unknown>,
-): { variant?: string } => ({
-  variant: typeof search.variant === "string" ? search.variant : undefined,
-});
-
 const portalHomeRoute = createRoute({
   getParentRoute: () => portalRoute,
   path: "/",
-  loader: loadHome,
-  // PROTOTYPE: ?variant= picks a Home layout
-  validateSearch: variantSearch,
-  component: PortalHomePrototype,
-});
-
-const portalCleansRoute = createRoute({
-  getParentRoute: () => portalRoute,
-  path: "/cleans",
-  loader: loadHome,
-  component: PortalCleansPrototype,
-});
-
-const portalPastQuotesRoute = createRoute({
-  getParentRoute: () => portalRoute,
-  path: "/homes/$homeId/quotes",
-  loader: loadHome,
-  component: PortalPastQuotesPrototype,
-});
-
-const portalBillsRoute = createRoute({
-  getParentRoute: () => portalRoute,
-  path: "/bills",
-  loader: loadHome,
-  component: PortalBillsPrototype,
+  loader: async () => {
+    const [client, plans, quotes, jobs, pastJobs, siteVisits, bills] =
+      await Promise.all([
+        ownClient(),
+        getJson<ServicePlanSummary[]>("/api/service-plans/mine"),
+        getJson<QuoteSummary[]>("/api/quotes/mine"),
+        getJson<ClientJob[]>("/api/jobs/mine"),
+        getJson<ClientPastJob[]>("/api/jobs/mine/past"),
+        getJson<ClientSiteVisit[]>("/api/site-visits/mine"),
+        getJson<BillSummary[]>("/api/bills/mine"),
+      ]);
+    return { client, plans, quotes, jobs, pastJobs, siteVisits, bills };
+  },
+  component: PortalHome,
 });
 
 // where the Quote email's link leads: signed out, the portal sends the
@@ -722,13 +685,24 @@ const portalRequestRoute = createRoute({
 const portalDetailsRoute = createRoute({
   getParentRoute: () => portalRoute,
   path: "/details",
-  // PROTOTYPE: the homes and their plans move here
-  loader: loadHome,
+  loader: ownClient,
   component: PortalDetails,
+});
+
+// PROTOTYPE: the Client's Home in every case, on made-up data, signed out
+const homeCasesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/prototype/home",
+  validateSearch: (search: Record<string, unknown>): { case?: string } => ({
+    // ?case=20 arrives as a number
+    case: search.case === undefined ? undefined : String(search.case),
+  }),
+  component: HomeCasesPrototype,
 });
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
+  homeCasesRoute,
   signInRoute,
   welcomeRoute,
   officeRoute.addChildren([
@@ -763,9 +737,6 @@ const routeTree = rootRoute.addChildren([
     portalPlanRoute,
     portalJobRoute,
     portalBillRoute,
-    portalCleansRoute,
-    portalBillsRoute,
-    portalPastQuotesRoute,
     portalDetailsRoute,
     portalPaymentMethodRoute,
   ]),

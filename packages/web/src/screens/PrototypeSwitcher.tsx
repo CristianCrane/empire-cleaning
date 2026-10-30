@@ -33,7 +33,7 @@ export function PrototypeSwitcher({
   if (!import.meta.env.DEV) return null;
   const variant = variants[index]!;
   return (
-    <div className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full bg-fg px-2 py-1 text-sm text-bg shadow-lg">
+    <div className="fixed bottom-24 md:bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full bg-fg px-2 py-1 text-sm text-bg shadow-lg">
       <button
         type="button"
         className="rounded-full p-2 hover:opacity-70"
