@@ -114,6 +114,7 @@ import {
   type CleansSearch,
 } from "./screens/portal/PortalCleans.tsx";
 import { PortalHome } from "./screens/portal/PortalHome.tsx";
+import { CleanerPrototype } from "./screens/cleaner/cleaner.prototype.tsx";
 import type { HomeData } from "./screens/portal/whats-next.ts";
 import { PortalJob } from "./screens/portal/PortalJob.tsx";
 import { PortalPaymentMethod } from "./screens/portal/PortalPaymentMethod.tsx";
@@ -789,8 +790,25 @@ const portalPropertyRoute = createRoute({
   component: PortalProperty,
 });
 
+// PROTOTYPE: the Cleaner's Your Jobs and a Job, on made-up data, signed out
+const cleanerPrototypeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/prototype/cleaner",
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { case?: string; layout?: string; job?: string; actions?: string } => ({
+    // ?case=1 arrives as a number
+    case: search.case === undefined ? undefined : String(search.case),
+    layout: search.layout === undefined ? undefined : String(search.layout),
+    job: search.job === undefined ? undefined : String(search.job),
+    actions: search.actions === undefined ? undefined : String(search.actions),
+  }),
+  component: CleanerPrototype,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
+  cleanerPrototypeRoute,
   signInRoute,
   welcomeRoute,
   officeRoute.addChildren([
