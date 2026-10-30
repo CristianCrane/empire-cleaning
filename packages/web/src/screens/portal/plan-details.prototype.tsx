@@ -1,11 +1,14 @@
 // PROTOTYPE: throwaway. The Client's plan page's details card on made-up
-// data, at /prototype/plan-details?case=1..3&layout=A..C (no sign-in). For
+// data, at /prototype/plan-details?case=1..3&layout=D..F (no sign-in). For
 // the UX pass (#96). Lives only on prototype-portal-plan.
+//
+// Every variant keeps to three text styles (a group's title, a value, a
+// muted line), one grid across the whole width, icons, and one answer to
+// "when", however many days.
 import type { ReactNode } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import {
   CalendarClock,
-  CalendarDays,
   CirclePlus,
   Clock,
   House,
@@ -13,6 +16,7 @@ import {
   Receipt,
   Sparkles,
   UserRound,
+  Users,
   Wallet,
   type LucideIcon,
 } from "lucide-react";
@@ -32,150 +36,159 @@ const here = linkTo({ to: "/prototype/plan-details" });
 
 // ---- made-up data ----
 
-// one row of the plan's details: what it is, its value, and a quieter hint
-type Detail = {
-  icon: LucideIcon;
-  label: string;
-  value: string;
-  hint?: string;
+type Day = {
+  // "Mondays at 9:00 AM"
+  when: string;
+  service: string;
+  price: string;
+  hours: string;
+  crew: number;
 };
 
 type PlanCase = {
   key: string;
   name: string;
-  ended?: boolean;
-  details: Detail[];
-};
-
-const service: Detail = {
-  icon: Sparkles,
-  label: "Service",
-  value: "Standard Clean",
-};
-const started: Detail = {
-  icon: CalendarDays,
-  label: "Started",
-  value: "Jan 12, 2026",
+  ended: boolean;
+  // "Every week", "Every other week"
+  rhythm: string;
+  days: Day[];
+  // per clean with one day, per week with several
+  price: string;
+  per: "clean" | "week";
+  discount: number;
+  extras: string[];
+  deposit: string;
+  started: string;
+  endedOn?: string;
 };
 
 export const cases: PlanCase[] = [
   {
     key: "1",
     name: "Every week, with extras",
-    details: [
-      service,
+    ended: false,
+    rhythm: "Every week",
+    days: [
       {
-        icon: CalendarClock,
-        label: "When",
-        value: "Mondays at 9:00 AM",
-        hint: "Every week",
+        when: "Mondays at 9:00 AM",
+        service: "Standard Clean",
+        price: "$201.85",
+        hours: "3.75",
+        crew: 1,
       },
-      {
-        icon: Receipt,
-        label: "Each clean",
-        value: "$201.85",
-        hint: "Tax included · 10% off a one-off clean",
-      },
-      {
-        icon: Clock,
-        label: "On site",
-        value: "About 3.75 h",
-        hint: "A crew of 1",
-      },
-      {
-        icon: Sparkles,
-        label: "Extras",
-        value: "Inside the fridge, Inside the oven",
-      },
-      {
-        icon: PiggyBank,
-        label: "Deposit held",
-        value: "$50.46",
-        hint: "Comes off your last clean when the plan ends",
-      },
-      started,
     ],
+    price: "$201.85",
+    per: "clean",
+    discount: 10,
+    extras: ["Inside the fridge", "Inside the oven"],
+    deposit: "$50.46",
+    started: "Jan 12, 2026",
   },
   {
     key: "2",
     name: "Two days a week",
-    details: [
+    ended: false,
+    rhythm: "Every week",
+    days: [
       {
-        icon: CalendarClock,
-        label: "Mondays at 9:00 AM",
-        value: "Standard Clean, $201.85",
-        hint: "About 3.75 h, a crew of 1",
+        when: "Mondays at 9:00 AM",
+        service: "Standard Clean",
+        price: "$201.85",
+        hours: "3.75",
+        crew: 1,
       },
       {
-        icon: CalendarClock,
-        label: "Thursdays at 2:00 PM",
-        value: "Deep Clean, $312.40",
-        hint: "About 5 h, a crew of 2",
+        when: "Thursdays at 2:00 PM",
+        service: "Deep Clean",
+        price: "$312.40",
+        hours: "5",
+        crew: 2,
       },
-      {
-        icon: Receipt,
-        label: "Each week",
-        value: "$514.25",
-        hint: "Tax included · 10% off one-off cleans",
-      },
-      { icon: Sparkles, label: "Extras", value: "None" },
-      {
-        icon: PiggyBank,
-        label: "Deposit held",
-        value: "$128.56",
-        hint: "Comes off your last clean when the plan ends",
-      },
-      started,
     ],
+    price: "$514.25",
+    per: "week",
+    discount: 10,
+    extras: [],
+    deposit: "$128.56",
+    started: "Jan 12, 2026",
   },
   {
     key: "3",
     name: "Ended",
     ended: true,
-    details: [
-      service,
+    rhythm: "Every other week",
+    days: [
       {
-        icon: CalendarClock,
-        label: "When",
-        value: "Every other Tuesday at 10:00 AM",
+        when: "Tuesdays at 10:00 AM",
+        service: "Standard Clean",
+        price: "$184.50",
+        hours: "2.5",
+        crew: 1,
       },
-      {
-        icon: Receipt,
-        label: "Each clean",
-        value: "$184.50",
-        hint: "Tax included · 10% off a one-off clean",
-      },
-      {
-        icon: Clock,
-        label: "On site",
-        value: "About 2.5 h",
-        hint: "A crew of 1",
-      },
-      { icon: Sparkles, label: "Extras", value: "None" },
-      {
-        icon: PiggyBank,
-        label: "Deposit",
-        value: "$46.13",
-        hint: "Put towards the last clean",
-      },
-      started,
     ],
+    price: "$184.50",
+    per: "clean",
+    discount: 10,
+    extras: [],
+    deposit: "$46.13",
+    started: "Mar 3, 2026",
+    endedOn: "Oct 14, 2026",
   },
 ];
 
-// the extras get their own icon, so two sparkles don't sit together
-const extrasIcon = CirclePlus;
-
 export const layouts = [
-  { key: "A", name: "Labels, short values, no icons" },
-  { key: "B", name: "Icon rows" },
-  { key: "C", name: "Key figures, then the rest" },
+  { key: "D", name: "Headline, then facts across" },
+  { key: "E", name: "Three groups: when, what, cost" },
+  { key: "F", name: "Schedule list, then cost" },
 ];
+
+// ---- shared bits ----
+
+const crewOf = (n: number) => (n === 1 ? "1 cleaner" : `${n} cleaners`);
+const extrasText = (c: PlanCase) =>
+  c.extras.length > 0 ? c.extras.join(", ") : "None";
+const depositHint = (c: PlanCase) =>
+  c.ended
+    ? "Deposit, put towards the last clean"
+    : "Deposit, comes off your last clean";
+
+// an icon, a value and a muted line under it: the one shape every fact takes
+function Fact({
+  icon,
+  value,
+  line,
+  label,
+}: {
+  icon: LucideIcon;
+  value: ReactNode;
+  line?: ReactNode;
+  // for screen readers, and as the muted line when there's no other
+  label: string;
+}) {
+  const Icon = icon;
+  return (
+    <div className="flex items-start gap-3">
+      <Icon aria-hidden size={20} className="mt-0.5 shrink-0 text-fg-muted" />
+      <div className="flex min-w-0 flex-col">
+        <dt className="sr-only">{label}</dt>
+        <dd className="text-fg">{value}</dd>
+        <dd className="text-sm text-fg-muted">{line ?? label}</dd>
+      </div>
+    </div>
+  );
+}
+
+// a group's title: the one heading style inside the card
+const GroupTitle = ({ children }: { children: ReactNode }) => (
+  <h3 className="text-sm font-semibold tracking-wide text-fg-muted uppercase">
+    {children}
+  </h3>
+);
 
 // ---- the page ----
 
 export function PlanDetailsPrototype() {
-  const { case: key = "1", layout = "A" } = useSearch({ strict: false }) as {
+  const { case: key = "1", layout = "D" } = useSearch({ strict: false }) as {
     case?: string;
     layout?: string;
   };
@@ -186,9 +199,7 @@ export function PlanDetailsPrototype() {
       search: { case: key, layout, ...search } as never,
     });
   const c = cases.find((x) => x.key === key) ?? cases[0]!;
-  const details = c.details.map((d) =>
-    d.label === "Extras" ? { ...d, icon: extrasIcon } : d,
-  );
+  const shown = layouts.some((l) => l.key === layout) ? layout : "D";
 
   const nav: NavItem[] = [
     { href: here, label: "Home", icon: House },
@@ -207,7 +218,8 @@ export function PlanDetailsPrototype() {
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-3">
             <Heading level={1}>Your Service Plan</Heading>
-            <StatusBadge tone={c.ended ? "neutral" : "success"}>
+            {/* Ended reads as stopped: red */}
+            <StatusBadge tone={c.ended ? "danger" : "success"}>
               {c.ended ? "Ended" : "Active"}
             </StatusBadge>
           </div>
@@ -215,14 +227,14 @@ export function PlanDetailsPrototype() {
         </div>
         <Section title="Plan details">
           <Card>
-            {layout === "B" ? (
-              <IconRows details={details} />
-            ) : layout === "C" ? (
-              <KeyFigures details={details} />
+            {shown === "E" ? (
+              <Groups c={c} />
+            ) : shown === "F" ? (
+              <ScheduleFirst c={c} />
             ) : (
-              <Labels details={details} />
+              <HeadlineFirst c={c} />
             )}
-            <p className="text-sm text-fg-muted">
+            <p className="border-t border-border pt-4 text-sm text-fg-muted">
               Each clean is charged to your saved card when it's done. We email
               a reminder the day before.
             </p>
@@ -231,7 +243,7 @@ export function PlanDetailsPrototype() {
       </div>
       <PrototypeSwitcher
         variants={layouts}
-        current={layout}
+        current={shown}
         onChange={(k) => go({ layout: k })}
         keys={["ArrowUp", "ArrowDown"]}
         className="bottom-40 md:bottom-20"
@@ -245,81 +257,178 @@ export function PlanDetailsPrototype() {
   );
 }
 
-const Value = ({ d }: { d: Detail }): ReactNode => (
-  <div className="flex min-w-0 flex-col">
-    <span className="text-fg">{d.value}</span>
-    {d.hint && <span className="text-sm text-fg-muted">{d.hint}</span>}
-  </div>
-);
-
-// A: the label beside its value, the value short and its detail quieter
-function Labels({ details }: { details: Detail[] }) {
+// D: the answer to "what is my plan?" as one large line (every day of it),
+// then the facts in equal columns across the card
+function HeadlineFirst({ c }: { c: PlanCase }) {
+  const one = c.days.length === 1 ? c.days[0]! : null;
   return (
-    <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-[auto_1fr]">
-      {details.map((d) => (
-        <div key={d.label} className="contents">
-          <dt className="font-semibold">{d.label}</dt>
-          <dd>
-            <Value d={d} />
-          </dd>
-        </div>
-      ))}
-    </dl>
-  );
-}
-
-// B: a small icon leads each row; the label is quiet, the value reads first
-function IconRows({ details }: { details: Detail[] }) {
-  return (
-    <dl className="grid gap-x-8 gap-y-5 md:grid-cols-2">
-      {details.map((d) => (
-        <div key={d.label} className="flex items-start gap-3">
-          <IconTile icon={d.icon} />
-          <div className="flex min-w-0 flex-col">
-            <dt className="text-sm text-fg-muted">{d.label}</dt>
-            <dd className="font-semibold">
-              <span>{d.value}</span>
-              {d.hint && (
-                <span className="block text-sm font-normal text-fg-muted">
-                  {d.hint}
+    <div className="flex flex-col gap-6">
+      <div className="flex items-start gap-4">
+        <IconTile icon={CalendarClock} size="lg" />
+        <div className="flex min-w-0 flex-col gap-1">
+          <p className="text-sm text-fg-muted">{c.rhythm}</p>
+          {c.days.map((d) => (
+            <p key={d.when} className="text-xl font-semibold text-fg">
+              {d.when}
+              {!one && (
+                <span className="font-normal text-fg-muted">
+                  {" "}
+                  · {d.service}
                 </span>
               )}
-            </dd>
-          </div>
+            </p>
+          ))}
+          {one && <p className="text-fg-muted">{one.service}</p>}
         </div>
-      ))}
-    </dl>
+      </div>
+      <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Fact
+          icon={Receipt}
+          value={c.price}
+          label={`Each ${c.per}`}
+          line={`Each ${c.per}, ${c.discount}% off`}
+        />
+        {one ? (
+          <Fact
+            icon={Clock}
+            value={`About ${one.hours} h`}
+            label="On site"
+            line={`On site, ${crewOf(one.crew)}`}
+          />
+        ) : (
+          <Fact
+            icon={Users}
+            value={c.days.map((d) => `${d.hours} h`).join(" + ")}
+            label="On site"
+            line="On site, each day"
+          />
+        )}
+        <Fact icon={CirclePlus} value={extrasText(c)} label="Extras" />
+        <Fact
+          icon={PiggyBank}
+          value={c.deposit}
+          label="Deposit"
+          line={depositHint(c)}
+        />
+      </dl>
+      <p className="text-sm text-fg-muted">
+        Started {c.started}
+        {c.endedOn && ` · Ended ${c.endedOn}`}
+      </p>
+    </div>
   );
 }
 
-// C: what they'd look for first, large, then the rest as plain rows
-function KeyFigures({ details }: { details: Detail[] }) {
-  // when, what it costs and how long: on several weekdays, each day
-  const figures = details.filter(
-    (d) =>
-      d.icon === CalendarClock ||
-      ["Each clean", "Each week", "On site"].includes(d.label),
-  );
-  const others = details.filter((d) => !figures.includes(d));
-
+// E: three equal columns, each answering one question with a title
+function Groups({ c }: { c: PlanCase }) {
   return (
-    <div className="flex flex-col gap-5">
-      <dl className="grid gap-4 sm:grid-cols-3">
-        {figures.map((d) => (
-          <div
-            key={d.label}
-            className="flex flex-col gap-1 rounded-md bg-surface-sunken p-3"
-          >
-            <dt className="flex items-center gap-2 text-sm text-fg-muted">
-              <d.icon aria-hidden size={16} />
-              {d.label}
-            </dt>
-            <dd className="text-lg font-semibold text-fg">{d.value}</dd>
-            {d.hint && <dd className="text-sm text-fg-muted">{d.hint}</dd>}
-          </div>
-        ))}
+    <div className="grid gap-x-8 gap-y-6 md:grid-cols-3">
+      <section className="flex flex-col gap-3">
+        <GroupTitle>When</GroupTitle>
+        <dl className="flex flex-col gap-3">
+          {c.days.map((d) => (
+            <Fact
+              key={d.when}
+              icon={CalendarClock}
+              value={d.when}
+              label="When"
+              line={c.rhythm}
+            />
+          ))}
+          <Fact
+            icon={CalendarClock}
+            value={c.endedOn ? `${c.started} – ${c.endedOn}` : c.started}
+            label={c.endedOn ? "Ran" : "Started"}
+          />
+        </dl>
+      </section>
+      <section className="flex flex-col gap-3">
+        <GroupTitle>What</GroupTitle>
+        <dl className="flex flex-col gap-3">
+          {c.days.map((d) => (
+            <Fact
+              key={d.when}
+              icon={Sparkles}
+              value={d.service}
+              label="Service"
+              line={`About ${d.hours} h, ${crewOf(d.crew)}`}
+            />
+          ))}
+          <Fact icon={CirclePlus} value={extrasText(c)} label="Extras" />
+        </dl>
+      </section>
+      <section className="flex flex-col gap-3">
+        <GroupTitle>Cost</GroupTitle>
+        <dl className="flex flex-col gap-3">
+          <Fact
+            icon={Receipt}
+            value={c.price}
+            label={`Each ${c.per}`}
+            line={`Each ${c.per}, tax included, ${c.discount}% off`}
+          />
+          <Fact
+            icon={PiggyBank}
+            value={c.deposit}
+            label="Deposit"
+            line={depositHint(c)}
+          />
+        </dl>
+      </section>
+    </div>
+  );
+}
+
+// F: the schedule as rows, one a day, each saying all about that clean; the
+// money under it in a row of its own
+function ScheduleFirst({ c }: { c: PlanCase }) {
+  return (
+    <div className="flex flex-col gap-6">
+      <section className="flex flex-col gap-3">
+        <GroupTitle>{c.rhythm}</GroupTitle>
+        <ul className="flex flex-col divide-y divide-border">
+          {c.days.map((d) => (
+            <li
+              key={d.when}
+              className="grid items-center gap-x-6 gap-y-1 py-3 first:pt-0 sm:grid-cols-[1fr_1fr_auto]"
+            >
+              <span className="flex items-center gap-3 font-semibold text-fg">
+                <CalendarClock
+                  aria-hidden
+                  size={20}
+                  className="shrink-0 text-fg-muted"
+                />
+                {d.when}
+              </span>
+              <span className="text-fg">
+                {d.service}
+                <span className="block text-sm text-fg-muted">
+                  About {d.hours} h, {crewOf(d.crew)}
+                </span>
+              </span>
+              <span className="text-fg sm:text-right">{d.price}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+      <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-3">
+        <Fact
+          icon={Receipt}
+          value={c.price}
+          label={`Each ${c.per}`}
+          line={`Each ${c.per}, ${c.discount}% off`}
+        />
+        <Fact icon={CirclePlus} value={extrasText(c)} label="Extras" />
+        <Fact
+          icon={PiggyBank}
+          value={c.deposit}
+          label="Deposit"
+          line={depositHint(c)}
+        />
       </dl>
-      <Labels details={others} />
+      <p className="text-sm text-fg-muted">
+        Started {c.started}
+        {c.endedOn && ` · Ended ${c.endedOn}`}
+      </p>
     </div>
   );
 }
