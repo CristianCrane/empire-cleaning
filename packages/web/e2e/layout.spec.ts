@@ -225,13 +225,13 @@ test("business premises' screens fit every width, the form included", async ({
   await draftTheQuote(page, "one-off");
   await expectFitsEveryWidth(page, new URL(page.url()).pathname);
 
-  // the form's step about business premises, with its days to choose
+  // New Quote for business premises, with its days to choose
   await page.goto("/office/quotes/new");
   await page.getByRole("button", { name: "New Client" }).click();
-  await chooseService(page, "Commercial cleaning");
-  await page.getByRole("textbox", { name: "Street address" }).fill("9 Main St");
-  await page.getByRole("textbox", { name: "ZIP code" }).fill("11375");
-  await nextStep(page);
+  await page
+    .locator("form")
+    .getByText("Commercial cleaning", { exact: true })
+    .click();
   const problems: string[] = [];
   for (const width of widths) {
     await page.setViewportSize({ width, height: 900 });

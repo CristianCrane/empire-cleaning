@@ -312,10 +312,17 @@ const officeNewQuoteRoute = createRoute({
     clientId: typeof search.clientId === "string" ? search.clientId : undefined,
   }),
   loaderDeps: ({ search }) => ({ clientId: search.clientId }),
-  loader: ({ deps }) =>
-    deps.clientId
-      ? getJson<OfficeClientView>(`/api/clients/${deps.clientId}`)
-      : null,
+  // and the Price List and Services, to show what it comes to as it is said
+  loader: async ({ deps }) => {
+    const [client, list, services] = await Promise.all([
+      deps.clientId
+        ? getJson<OfficeClientView>(`/api/clients/${deps.clientId}`)
+        : null,
+      getJson<PriceList>("/api/price-list"),
+      getJson<Service[]>("/api/services"),
+    ]);
+    return { client, list, services };
+  },
   component: NewQuoteScreen,
 });
 

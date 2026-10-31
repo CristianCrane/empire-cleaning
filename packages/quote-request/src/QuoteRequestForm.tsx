@@ -30,6 +30,7 @@ import type {
 import {
   Actions,
   Button,
+  Card,
   Checkbox,
   Chip,
   ChipGroup,
@@ -38,6 +39,7 @@ import {
   Form,
   Heading,
   Notice,
+  Section,
   NumberField,
   Radio,
   RadioGroup,
@@ -90,6 +92,12 @@ export type QuoteRequestFormProps<R = QuoteAskReceipt> = {
   // where the request goes, if not the API's own endpoint for asking
   submit?: (body: object) => Promise<SubmitResult<R>>;
   onSubmitted: (receipt: R) => void;
+  // everything on one page, for the Office on the phone (#96): who's
+  // calling first, with `contactActions` in its header; `before` above
+  // the rest, and `aside` beside it on a wide screen, or after it
+  page?: { before?: ReactNode; aside?: ReactNode; contactActions?: ReactNode };
+  // what would be asked as it's filled in, once a Service is chosen
+  onAskChange?: (ask: QuoteAsk | null) => void;
 };
 
 // the form speaks to whoever fills it in: the person asking, or Office Staff
@@ -123,7 +131,7 @@ const officeWords: typeof ownWords = {
   service: "What can we help them with?",
   servicesFailed: "The Services didn't load. Please try again.",
   what: "What kind of place is it?",
-  details: "Their details",
+  details: "Who's calling",
   email: "Email (optional)",
   emailNote:
     "Their Quote is emailed here. Without an email it can't be sent until one is added.",
@@ -248,6 +256,8 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
   headingLevel = 3,
   submit,
   onSubmitted,
+  page,
+  onAskChange,
 }: QuoteRequestFormProps<R>) {
   const words = asker.kind === "office" ? officeWords : ownWords;
   // whose Properties are offered: a Client's own, or the one the Office found
@@ -434,6 +444,12 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
             .map((a) => a.key),
         }),
   });
+
+  // what's asked so far, for a page showing what it comes to
+  const asked = serviceKey ? JSON.stringify(submission()) : null;
+  useEffect(() => {
+    onAskChange?.(asked === null ? null : (JSON.parse(asked) as QuoteAsk));
+  }, [asked]);
 
   // a field's message from the API, by its path in the request
   const error = (path: string) => fieldErrors[path];
@@ -791,7 +807,8 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
       fields: (
         <>
           {premises ? premisesFields : homeFields}
-          {!asksContact && notesField}
+          {/* on one page, the note goes with the place, not who is calling */}
+          {(!asksContact || page) && notesField}
         </>
       ),
     },
@@ -802,7 +819,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
             fields: (
               <>
                 {contactFields}
-                {notesField}
+                {!page && notesField}
               </>
             ),
           },
@@ -868,6 +885,55 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
       setFailed(true);
     }
   };
+
+  if (page) {
+    const contact = steps.find((s) => s.title === words.details);
+    const sections = [
+      ...(contact ? [{ ...contact, actions: page.contactActions }] : []),
+      ...steps
+        .filter((s) => s !== contact)
+        .map((s) => ({ ...s, actions: undefined })),
+    ];
+    return (
+      <Form
+        validationErrors={fieldErrors}
+        onSubmit={(e) => {
+          e.preventDefault();
+          void send();
+        }}
+      >
+        {/* in one column; `aside` beside it from xl, in view as it
+            scrolls, or after the place below that */}
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
+          {page.before}
+          {sections.map((section) => (
+            <Section
+              key={section.title}
+              title={section.title}
+              headingLevel={headingLevel}
+              actions={section.actions}
+            >
+              <Card>{section.fields}</Card>
+            </Section>
+          ))}
+          {page.aside && (
+            <div className="xl:sticky xl:top-6 xl:col-start-2 xl:row-span-6 xl:row-start-1 xl:self-start">
+              {page.aside}
+            </div>
+          )}
+          <div className="flex flex-col gap-5">
+            {refusal && <Notice>{refusal}</Notice>}
+            {failed && <Notice tone="danger">{words.failed}</Notice>}
+            <Actions>
+              <Button type="submit" isPending={isSending}>
+                {words.submit}
+              </Button>
+            </Actions>
+          </div>
+        </div>
+      </Form>
+    );
+  }
 
   return (
     <Form
