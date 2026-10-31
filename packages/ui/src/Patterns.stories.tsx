@@ -46,8 +46,9 @@ import { Tab, TabList, TabPanel, Tabs } from "./Tabs.tsx";
 import { TextField } from "./TextField.tsx";
 import { Timeline, TimelineItem } from "./Timeline.tsx";
 
-// how the components go together on a screen: the decisions the UX pass
-// made, each picked from a prototype. #96 has the variants, why each won,
+// how the components go together on a screen: the rules the UX pass (#96)
+// settled, each picked from a prototype, shown as examples. docs/ux.md holds
+// every rule in words and the log of decisions: the variants, why each won,
 // and the prototype-* branch that holds them
 
 function Example({
