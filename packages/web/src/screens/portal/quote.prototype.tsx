@@ -271,10 +271,10 @@ function Page({ q, layout }: { q: QuoteCase; layout: string }) {
                 <Choice q={q} chosen={chosen} setChosen={setChosen} bare />
               </div>
               <Lines q={q} option={option} />
+              {open && <Pay q={q} option={option} inline />}
             </div>
           </Card>
         </Section>
-        {open && <Pay q={q} option={option} />}
       </div>
     );
   }
@@ -469,65 +469,97 @@ function Pay({
   q,
   option,
   summary,
+  inline,
 }: {
   q: QuoteCase;
   option: Option;
   summary?: boolean;
+  // at the Quote's foot, not a Section of its own
+  inline?: boolean;
 }) {
   const [newCard, setNewCard] = useState(!q.card);
   const today = q.plan ? 0 : option.deposit;
-  return (
-    <Section title={q.plan ? "Start your plan" : "Accept and book"}>
-      <Card>
-        <div className="flex flex-col gap-4">
-          {summary && <Lines q={q} option={option} />}
-          {newCard ? (
-            <div className="flex flex-col gap-2">
-              <TextField
-                label="Card"
-                placeholder="1234 1234 1234 1234   MM/YY   CVC"
-              />
-              {q.card && (
-                <Button
-                  variant="text"
-                  size="sm"
-                  className="self-start"
-                  onPress={() => setNewCard(false)}
-                >
-                  Use your {q.card}
-                </Button>
-              )}
-            </div>
-          ) : (
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="flex items-center gap-2">
-                <CreditCard aria-hidden size={18} className="text-fg-muted" />
-                Your {q.card}
-              </span>
-              <Button variant="text" size="sm" onPress={() => setNewCard(true)}>
-                Use another card
-              </Button>
-            </div>
-          )}
-          <p className="text-sm text-fg-muted">
-            {q.plan
-              ? `Nothing is taken now. Each clean is charged when it's done; the first is on ${q.when}.`
-              : `We take the ${money(today)} Deposit now and the rest when the clean is done, on ${q.when}.`}
-          </p>
-          <Actions>
-            <Button className="w-full sm:w-auto">
-              {today > 0
-                ? `Accept and pay ${money(today)}`
-                : q.plan
-                  ? "Start my plan"
-                  : "Accept and book"}
+  const accept =
+    today > 0
+      ? `Accept and pay ${money(today)}`
+      : q.plan
+        ? "Start my plan"
+        : "Accept and book";
+  const body = (
+    <div className="flex flex-col gap-4">
+      {inline && (
+        <Heading level={3} size={4}>
+          {q.plan ? "Start your plan" : "Accept and book"}
+        </Heading>
+      )}
+      {summary && <Lines q={q} option={option} />}
+      {newCard ? (
+        <div className="flex flex-col gap-2">
+          {/* Stripe's Payment Element draws these, in its own frame */}
+          <div className="grid grid-cols-2 gap-3 rounded-md border border-dashed border-border p-3">
+            <TextField
+              label="Card number"
+              placeholder="1234 1234 1234 1234"
+              className="col-span-2"
+            />
+            <TextField label="Expiration date" placeholder="MM / YY" />
+            <TextField label="Security code" placeholder="CVC" />
+            <TextField label="Country" defaultValue="United States" />
+            <TextField label="ZIP code" placeholder="12345" />
+            <p className="col-span-2 text-xs text-fg-muted">
+              Drawn by Stripe: the card number never reaches our server.
+            </p>
+          </div>
+          {q.card && (
+            <Button
+              variant="text"
+              size="sm"
+              className="self-start"
+              onPress={() => setNewCard(false)}
+            >
+              Use your {q.card}
             </Button>
+          )}
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="flex items-center gap-2">
+            <CreditCard aria-hidden size={18} className="text-fg-muted" />
+            Your {q.card}
+          </span>
+          <Button variant="text" size="sm" onPress={() => setNewCard(true)}>
+            Use another card
+          </Button>
+        </div>
+      )}
+      <p className="text-sm text-fg-muted">
+        {q.plan
+          ? `Nothing is taken now. Each clean is charged when it's done; the first is on ${q.when}.`
+          : `We take the ${money(today)} Deposit now and the rest when the clean is done, on ${q.when}.`}
+      </p>
+      {inline ? (
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <Button variant="text" size="sm" className="self-center">
+            Decline this Quote
+          </Button>
+          <Button className="w-full sm:w-auto">{accept}</Button>
+        </div>
+      ) : (
+        <>
+          <Actions>
+            <Button className="w-full sm:w-auto">{accept}</Button>
           </Actions>
           <Button variant="text" size="sm" className="self-center">
             Not for me: decline this Quote
           </Button>
-        </div>
-      </Card>
+        </>
+      )}
+    </div>
+  );
+  if (inline) return <div className="border-t border-border pt-4">{body}</div>;
+  return (
+    <Section title={q.plan ? "Start your plan" : "Accept and book"}>
+      <Card>{body}</Card>
     </Section>
   );
 }
