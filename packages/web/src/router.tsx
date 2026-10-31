@@ -126,6 +126,7 @@ import { PortalQuote } from "./screens/portal/PortalQuote.tsx";
 import { PortalRequest } from "./screens/portal/PortalRequest.tsx";
 import { PortalDetails } from "./screens/portal/PortalDetails.tsx";
 import { NotFound } from "./screens/NotFound.tsx";
+import { EntryPrototype } from "./screens/entry.prototype.tsx";
 import { PageError } from "./screens/PageError.tsx";
 import { SignIn } from "./screens/SignIn.tsx";
 import { Welcome } from "./screens/Welcome.tsx";
@@ -796,7 +797,22 @@ const portalPropertyRoute = createRoute({
   component: PortalProperty,
 });
 
+// PROTOTYPE: sign in, Welcome and the error pages, on made-up data, signed out
+const entryPrototypeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/prototype/entry",
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { case?: string; layout?: string } => ({
+    // ?case=1 arrives as a number
+    case: search.case === undefined ? undefined : String(search.case),
+    layout: search.layout === undefined ? undefined : String(search.layout),
+  }),
+  component: EntryPrototype,
+});
+
 const routeTree = rootRoute.addChildren([
+  entryPrototypeRoute,
   indexRoute,
   signInRoute,
   welcomeRoute,
