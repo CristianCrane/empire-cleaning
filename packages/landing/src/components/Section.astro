@@ -7,8 +7,8 @@ interface Props {
   title: string;
   intro?: string;
   tone?: "plain" | "raised";
-  // "center" puts the title, intro and everything under them in one column
-  // down the middle, e.g. a form
+  // the title is always centred; "center" puts the intro and everything under
+  // it in one column down the middle too, e.g. a form
   align?: "start" | "center";
 }
 
@@ -32,12 +32,13 @@ const headingId = `${id}-title`;
   >
     <div
       class:list={[
-        "flex max-w-2xl flex-col gap-3",
+        "flex flex-col gap-3",
         align === "center" && "items-center text-center",
       ]}
     >
-      <Heading level={2} id={headingId}>{title}</Heading>
-      {intro && <p class="text-lg text-fg-muted">{intro}</p>}
+      {/* every title is centred; only "center" centres the intro too */}
+      <Heading level={2} id={headingId} className="text-center">{title}</Heading>
+      {intro && <p class="max-w-2xl text-lg text-fg-muted">{intro}</p>}
     </div>
     <slot />
   </div>
