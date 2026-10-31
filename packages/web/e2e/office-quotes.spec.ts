@@ -4,8 +4,6 @@ import {
   createStaff,
   emailsTo,
   expect,
-  nextStep,
-  chooseService,
   requestQuoteAsGuest,
   requestQuoteForPremises,
   signedInAs,
@@ -28,7 +26,12 @@ const startNewQuote = async (page: Page) => {
   await expect(page).toHaveURL("/office/quotes/new");
 };
 
-// the shared form's first step for a new home: what and where
+// New Quote asks everything on one page, in the order a call goes: what
+// they need
+const chooseService = async (page: Page, name = "Standard Clean") =>
+  page.locator("form").getByText(name, { exact: true }).click();
+
+// a new home: what and where
 const describeNewHome = async (page: Page, street = "35-06 Ditmars Blvd") => {
   await page.getByText("Apartment", { exact: true }).click();
   await page.getByRole("textbox", { name: "Street address" }).fill(street);
@@ -50,18 +53,33 @@ test(
     ).toBeFocused();
 
     await page.getByRole("button", { name: "New Client" }).click();
+    // who's calling comes first
+    await page.getByRole("textbox", { name: "Full name" }).fill("Pat Phoner");
+    const price = page.getByRole("region", { name: "What it comes to" });
+    await expect(price).toContainText("Choose what they need");
     await chooseService(page);
     await describeNewHome(page);
+    // what it comes to as it's said: 1 + 2 x 0.5 + 1 x 0.75 = 2.75 h, x $55
+    // = $151 to the dollar, + 8.875%
+    await expect(price).toContainText("A 2-bedroom, 1-bathroom apartment");
+    await expect(price).toContainText("Total$164.40");
+    await page
+      .getByRole("group", { name: /extras/ })
+      .getByText("Inside the oven")
+      .click();
+    // its 0.5 h on top: 3.25 h x $55 = $179, + 8.875%
+    await expect(price).toContainText("+ Inside the oven");
+    await expect(price).toContainText("Total$194.89");
     await expectNoViolations(page);
-    await nextStep(page);
-    await expectNoViolations(page);
-    await nextStep(page);
-    await page.getByRole("textbox", { name: "Full name" }).fill("Pat Phoner");
     await page.getByRole("textbox", { name: "Phone" }).fill("(718) 555-0123");
     await expectNoViolations(page);
     await page.getByRole("button", { name: "Draft a Quote" }).click();
     await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}\/draft$/);
     const quote = page.url();
+    // the Draft starts at the price said on the phone
+    await expect(
+      page.getByRole("region", { name: "Standard Clean" }),
+    ).toContainText("$194.89");
     await expect(
       page.getByText(
         "Pat Phoner has no email yet, so this Quote can't be sent.",
@@ -105,8 +123,8 @@ test(
       .getByRole("row", { name: /Casey Client/ })
       .click();
     await expect(
-      page.getByRole("heading", { name: "Casey Client" }),
-    ).toBeVisible();
+      page.getByRole("region", { name: "Who's calling" }),
+    ).toContainText("Casey Client");
     await chooseService(page);
     // its request is still waiting, so that home can't be asked about again
     // for this
@@ -117,7 +135,6 @@ test(
       page.getByRole("radio", { name: "A different home" }),
     ).toBeChecked();
     await describeNewHome(page);
-    await nextStep(page);
     await page.getByRole("button", { name: "Draft a Quote" }).click();
     await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}\/draft$/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
@@ -143,8 +160,8 @@ test("a Client's screen starts a New Quote for them", async ({ page }) => {
 
   await expect(page).toHaveURL(/\/office\/quotes\/new\?clientId=/);
   await expect(
-    page.getByRole("heading", { name: "Casey Client" }),
-  ).toBeVisible();
+    page.getByRole("region", { name: "Who's calling" }),
+  ).toContainText("Casey Client");
   await expectNoViolations(page);
 });
 

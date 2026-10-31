@@ -657,6 +657,13 @@ function AllAtOnceInTwoColumns() {
           phone. A record read as steps, where what's next matters most (a
           Quote), is its story instead.
         </p>
+        <p>
+          Where figures make a price (a Service, New Quote on the phone), the
+          form stays one column and what they come to stands beside it as a
+          worked-out Quote, changing as they're typed and in view as the form
+          scrolls (from <code>xl</code>; after the figures below that). The
+          Office's forms are one page; a Client's ask in steps.
+        </p>
       </Rule>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_14rem]">
         <div className="flex flex-col gap-4">

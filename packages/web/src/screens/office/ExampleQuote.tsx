@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { FileText } from "lucide-react";
 import {
   suggestedPrice,
   type Condition,
@@ -10,14 +9,9 @@ import {
   type Service,
   type ServiceInput,
 } from "@empire-cleaning/models";
-import {
-  Card,
-  IconTile,
-  Section,
-  Segment,
-  SegmentedControl,
-} from "@empire-cleaning/ui";
-import { formatHours, formatMoney } from "../format.ts";
+import { Card, Section, Segment, SegmentedControl } from "@empire-cleaning/ui";
+import { formatMoney } from "../format.ts";
+import { WorkedOutQuote } from "./WorkedOutQuote.tsx";
 
 type Size = "small" | "typical" | "big";
 
@@ -40,6 +34,7 @@ const areas: Record<Size, number> = { small: 1000, typical: 2000, big: 5000 };
 // what the figures on the form price, as a Service
 const serviceOf = (input: ServiceInput): Service => ({
   ...input,
+  name: input.name || "This Service",
   key: "example",
   id: "example",
   version: 0,
@@ -90,15 +85,6 @@ const workOut = (
 const difference = (cents: number) =>
   `${cents > 0 ? "+" : "−"}${formatMoney(Math.abs(cents))}`;
 
-// About 1 h 38 min, shared by the Crew
-const onSite = (labourHours: number, crew: number) => {
-  const minutes = Math.round((labourHours / crew) * 60);
-  const hours = Math.floor(minutes / 60);
-  return [hours && `${hours} h`, minutes % 60 && `${minutes % 60} min`]
-    .filter(Boolean)
-    .join(" ");
-};
-
 // What the figures on a Service's form come to, as a Quote for an example
 // place, worked out as its Suggested Price is while they're typed. Try a
 // smaller or bigger place, or another Condition; with `saved`, what the
@@ -136,10 +122,6 @@ export function ExampleQuote({
   const place = byRooms
     ? homes[size].name
     : `${areas[size].toLocaleString("en-US")} sq ft${forBusiness && type ? ` of ${type.name.toLowerCase()}` : ""}`;
-  // the parts that add to the hours, here or before
-  const parts = (now?.homeHours ?? []).filter(
-    (part, i) => part.hours > 0 || (was?.homeHours[i]?.hours ?? 0) > 0,
-  );
 
   return (
     <Section
@@ -194,135 +176,26 @@ export function ExampleQuote({
             </p>
           ) : (
             <>
-              {/* said aloud as it changes: what it comes to, and what the
-                  changes did */}
-              <div
-                aria-live="polite"
-                className="flex flex-col gap-4 border-t border-border pt-4"
-              >
-                {changed && was && (
-                  <p className="rounded-md bg-info-subtle p-3 text-sm font-semibold text-info-strong">
-                    {was.totalCents === now.totalCents
-                      ? "Your changes leave this Quote's price as it was"
-                      : `Your changes: ${difference(now.totalCents - was.totalCents)} on this Quote`}
-                  </p>
-                )}
-                <div className="flex items-start gap-3">
-                  <IconTile icon={FileText} />
-                  <div className="flex min-w-0 flex-col">
-                    <span className="text-sm text-fg-muted">
-                      {input.name || "This Service"}
-                    </span>
-                    <span className="text-2xl font-semibold tabular-nums text-fg">
-                      {formatMoney(now.totalCents)}
-                    </span>
-                    <span className="text-sm text-fg-muted">
-                      {place}
-                      {input.conditionApplies
-                        ? `, in ${condition} Condition`
-                        : ""}
-                    </span>
-                    <span className="text-sm text-fg-muted">
-                      About {onSite(now.labourHours, list.defaultCrewSize)} on
-                      site for {list.defaultCrewSize}{" "}
-                      {list.defaultCrewSize === 1 ? "Cleaner" : "Cleaners"}
-                    </span>
-                  </div>
-                </div>
+              <div className="flex flex-col gap-4 border-t border-border pt-4">
+                <WorkedOutQuote
+                  now={now}
+                  was={was}
+                  place={place}
+                  condition={input.conditionApplies ? condition : null}
+                  crewSize={list.defaultCrewSize}
+                  banner={
+                    changed && was
+                      ? was.totalCents === now.totalCents
+                        ? "Your changes leave this Quote's price as it was"
+                        : `Your changes: ${difference(now.totalCents - was.totalCents)} on this Quote`
+                      : undefined
+                  }
+                />
               </div>
-
-              {/* how it's worked out */}
-              <dl className="flex flex-col gap-1 border-t border-border pt-4 text-sm">
-                {parts.map((part) => (
-                  <Line
-                    key={part.label}
-                    label={part.label}
-                    value={formatHours(part.hours)}
-                    was={was && hoursOf(was, part.label, now)}
-                  />
-                ))}
-                {input.conditionApplies && (
-                  <Line
-                    label={`× ${condition} Condition (${now.conditionMultiplier})`}
-                    value=""
-                  />
-                )}
-                <Line
-                  label="Labour Hours, up to the quarter-hour"
-                  value={formatHours(now.labourHours)}
-                  was={was && formatHours(was.labourHours)}
-                  strong
-                />
-                <Line
-                  label={`× ${formatMoney(now.hourlyRateCents)} an hour, to the dollar`}
-                  value={formatMoney(now.workedOutCents)}
-                  was={was && formatMoney(was.workedOutCents)}
-                />
-                {(now.minimumApplied || was?.minimumApplied) && (
-                  <Line
-                    label={`At least the Minimum Charge (${formatMoney(now.minimumChargeCents)})`}
-                    value={formatMoney(now.priceCents)}
-                    was={was && formatMoney(was.priceCents)}
-                  />
-                )}
-                <Line
-                  label={`Sales tax (${now.taxPercent}%)`}
-                  value={formatMoney(now.taxCents)}
-                  was={was && formatMoney(was.taxCents)}
-                />
-                <div className="mt-2 flex justify-between gap-4 border-t border-border pt-2 text-base font-semibold text-fg">
-                  <dt>Total</dt>
-                  <dd className="tabular-nums">
-                    {formatMoney(now.totalCents)}
-                  </dd>
-                </div>
-              </dl>
             </>
           )}
         </div>
       </Card>
     </Section>
-  );
-}
-
-// a part's hours as the saved figures had them, by its place in the list
-const hoursOf = (was: PriceBreakdown, label: string, now: PriceBreakdown) => {
-  const i = now.homeHours.findIndex((part) => part.label === label);
-  const part = was.homeHours[i];
-  return part ? formatHours(part.hours) : null;
-};
-
-function Line({
-  label,
-  value,
-  was,
-  strong = false,
-}: {
-  label: string;
-  value: string;
-  // the saved figures' value: struck through beside it where it differs
-  was?: string | null;
-  strong?: boolean;
-}) {
-  const differs = was != null && was !== value;
-  return (
-    <div className="flex justify-between gap-4">
-      <dt className={strong ? "font-semibold text-fg" : "text-fg-muted"}>
-        {label}
-      </dt>
-      <dd
-        className={`flex shrink-0 gap-2 tabular-nums text-fg ${strong ? "font-semibold" : ""}`}
-      >
-        {differs && (
-          <s className="text-fg-muted">
-            <span className="sr-only">was </span>
-            {was}
-          </s>
-        )}
-        <span className={differs ? "font-semibold text-primary" : ""}>
-          {value}
-        </span>
-      </dd>
-    </div>
   );
 }

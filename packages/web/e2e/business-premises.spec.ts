@@ -215,13 +215,19 @@ test("Office Staff quote a business caller from New Quote", async ({
   await page.goto("/office/quotes/new");
 
   await page.getByRole("button", { name: "New Client" }).click();
-  await chooseService(page, "Commercial cleaning");
+  // all on one page
+  await page
+    .locator("form")
+    .getByText("Commercial cleaning", { exact: true })
+    .click();
   await page.getByRole("textbox", { name: "Street address" }).fill("9 Main St");
   await page.getByRole("textbox", { name: "ZIP code" }).fill("11375");
-  await nextStep(page);
   await choose(page, /Type of premises/, "Retail");
   await page.getByText("One-off", { exact: true }).click();
-  await nextStep(page);
+  // a first idea only: the floor area isn't known
+  await expect(
+    page.getByRole("region", { name: "What it comes to" }),
+  ).toContainText("priced after the Site Visit");
   await page
     .getByRole("textbox", { name: "Business name" })
     .fill("Phoner & Co");
