@@ -184,7 +184,7 @@ function VoidBill({ bill }: { bill: BillView }) {
   const action = useBillAction(bill, "void", "Bill voided");
   return (
     <DialogTrigger>
-      <Button variant="text" size="sm">
+      <Button variant="danger-text" size="sm">
         <Ban aria-hidden size={16} />
         Void
       </Button>

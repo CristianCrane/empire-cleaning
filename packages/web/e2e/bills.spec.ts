@@ -129,7 +129,7 @@ test(
 
     await expect(heading(page)).toHaveText("Bill EC-000001");
     await expect(page.getByText("Waiting for the Client to pay")).toBeVisible();
-    const lines = page.getByRole("region", { name: "What it's for" });
+    const lines = page.getByRole("region", { name: "Bill details" });
     await expect(
       lines.getByRole("link", { name: /^Deep Clean at 41-12 Austin St/ }),
     ).toBeVisible();
@@ -145,9 +145,9 @@ test(
 
     await expect(dialog).toBeHidden();
     await expect(badge(page, "Paid")).toBeVisible();
-    await expect(page.getByRole("region", { name: "Details" })).toContainText(
-      "Cheque 1042",
-    );
+    await expect(
+      page.getByRole("region", { name: "Bill details" }),
+    ).toContainText("Cheque 1042");
     await expect(
       page.getByRole("button", { name: "Record a payment" }),
     ).toBeHidden();
@@ -176,9 +176,9 @@ test("Office Staff void a Bill that shouldn't have gone out", async ({
 
   await expect(dialog).toBeHidden();
   await expect(badge(page, "Voided")).toBeVisible();
-  await expect(page.getByRole("region", { name: "Details" })).toContainText(
-    "Sent before the Adjustment was agreed",
-  );
+  await expect(
+    page.getByRole("region", { name: "Bill details" }),
+  ).toContainText("Sent before the Adjustment was agreed");
   expect((await emailsTo(casey.email)).at(-1)!.subject).toBe(
     "Bill EC-000001 is cancelled",
   );
@@ -219,9 +219,9 @@ test(
 
     await expect(page.getByText("Thank you: your Bill is paid")).toBeVisible();
     await expect(badge(page, "Paid")).toBeVisible();
-    await expect(page.getByRole("region", { name: "Details" })).toContainText(
-      "Paid on this page",
-    );
+    await expect(
+      page.getByRole("region", { name: "Bill details" }),
+    ).toContainText("Paid on this page");
     await expect(
       page.getByRole("region", { name: "Pay this Bill" }),
     ).toBeHidden();
@@ -337,7 +337,7 @@ test(
     await page.emulateMedia({ media: "print" });
     await expect(heading(page)).toBeVisible();
     await expect(
-      page.getByRole("region", { name: "What it's for" }),
+      page.getByRole("region", { name: "Bill details" }),
     ).toBeVisible();
     // Empire Cleaning's name heads it, and nothing around it to press
     await expect(
