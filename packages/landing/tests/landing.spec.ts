@@ -420,20 +420,57 @@ test(
 );
 
 test.describe("the hero", () => {
-  // a phone, a large phone, a tablet, a laptop, a wide desktop
-  for (const width of [360, 430, 768, 1024, 1920]) {
-    test(`keeps its skyline clear of the content at ${width}px`, async ({
+  // phones, a tablet, laptops (the tall skyline starts at 1280), a wide desktop
+  for (const width of [360, 430, 768, 1024, 1280, 1440, 1920]) {
+    test(`keeps its skyline faded out behind the words at ${width}px`, async ({
       page,
     }) => {
       await page.setViewportSize({ width, height: 900 });
       await page.goto("/");
-
       const hero = page.locator("section").first();
-      const content = await hero.locator(":scope > div").boundingBox();
-      const skyline = await hero.locator("[data-skyline]").boundingBox();
-      expect(skyline!.y).toBeGreaterThanOrEqual(
-        content!.y + content!.height,
+      const words = hero.locator("[data-hero-words]");
+      const box = await words.boundingBox();
+      const heroBox = await hero.boundingBox();
+
+      // the skyline alone: the words hidden, their place kept
+      await words.evaluate((el) => (el.style.visibility = "hidden"));
+      const shot = (await hero.screenshot()).toString("base64");
+
+      // how far any pixel where the words sit strays from the background,
+      // per colour channel (0 to 255)
+      const stray = await page.evaluate(
+        async ({ shot, x, y, w, h }) => {
+          const img = new Image();
+          img.src = `data:image/png;base64,${shot}`;
+          await img.decode();
+          const canvas = new OffscreenCanvas(img.width, img.height);
+          const ctx = canvas.getContext("2d")!;
+          ctx.drawImage(img, 0, 0);
+          const scale = img.width / window.innerWidth;
+          const bg = ctx.getImageData(1, 1, 1, 1).data;
+          const area = ctx.getImageData(
+            Math.round(x * scale),
+            Math.round(y * scale),
+            Math.round(w * scale),
+            Math.round(h * scale),
+          ).data;
+          let most = 0;
+          for (let i = 0; i < area.length; i += 4) {
+            for (let c = 0; c < 3; c++) {
+              most = Math.max(most, Math.abs(area[i + c] - bg[c]));
+            }
+          }
+          return most;
+        },
+        {
+          shot,
+          x: box!.x - heroBox!.x,
+          y: box!.y - heroBox!.y,
+          w: box!.width,
+          h: box!.height,
+        },
       );
+      expect(stray).toBeLessThanOrEqual(8);
     });
   }
 
