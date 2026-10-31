@@ -185,7 +185,6 @@ export function SeeThePremises({ quote }: { quote: OfficeQuote }) {
           href={linkTo({
             to: "/office/properties/$propertyId",
             params: { propertyId: quote.property.id },
-            search: { tab: "visit" },
           })}
         >
           Property

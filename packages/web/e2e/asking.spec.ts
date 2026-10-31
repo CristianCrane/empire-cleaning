@@ -304,6 +304,8 @@ test("Office Staff see the Quote, open the home and correct its details", async 
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     "41-12 Austin St, 4B, 11375",
   );
+  // read first, corrected in a dialog
+  await page.getByRole("button", { name: "Correct" }).click();
   const save = page.getByRole("button", { name: "Save corrections" });
   await expect(save).toBeDisabled();
 
@@ -316,14 +318,10 @@ test("Office Staff see the Quote, open the home and correct its details", async 
   await expect(page.getByText("Details corrected")).toBeVisible();
 
   await page.reload();
-  await expect(
-    page.getByRole("textbox", { name: "Access Instructions" }),
-  ).toHaveValue("Key under the mat");
-  await expect(page.getByRole("textbox", { name: "Bedrooms" })).toHaveValue(
-    "4",
-  );
-  await expect(page.getByRole("radio", { name: "Heavy" })).toBeChecked();
-  await expect(page.getByText("4 bedrooms")).toBeVisible();
+  const details = page.getByRole("region", { name: "Home details" });
+  await expect(details).toContainText("Key under the mat");
+  await expect(details).toContainText("4 bedrooms");
+  await expect(details).toContainText("Heavy");
 });
 
 test(

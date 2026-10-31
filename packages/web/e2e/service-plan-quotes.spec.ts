@@ -121,10 +121,8 @@ test(
       .getByRole("row")
       .filter({ hasText: "Quote a Service Plan" })
       .click();
-    // the home's Service Plan Tab
-    await expect(page).toHaveURL(
-      /\/office\/properties\/[0-9a-f-]{36}\?tab=plan$/,
-    );
+    // the home's page
+    await expect(page).toHaveURL(/\/office\/properties\/[0-9a-f-]{36}$/);
     await page.getByRole("button", { name: "Quote a Service Plan" }).click();
     await atPlanDraft(page);
 
@@ -279,31 +277,27 @@ test("the Client screen lists each home, whose own page holds its history and of
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     "41-12 Austin St, 4B, 11375",
   );
-  // its details first; its Quotes and Jobs in its History
-  await expect(page.getByRole("tab", { name: "Details" })).toHaveAttribute(
-    "aria-selected",
-    "true",
-  );
-  await page.getByRole("tab", { name: /History/ }).click();
-  const history = page.getByRole("grid", { name: /^History/ });
+  // its details, and its Quotes and Jobs in its History beside them
   await expect(
-    history.getByRole("row").filter({ hasText: "Quote ·" }),
+    page.getByRole("region", { name: "Home details" }),
+  ).toBeVisible();
+  const history = page.getByRole("list", { name: /^History/ });
+  await expect(
+    history.getByRole("listitem").filter({ hasText: "Quote ·" }),
   ).toContainText(["Deep Clean"]);
   await expect(
-    history.getByRole("row").filter({ hasText: "Job ·" }),
+    history.getByRole("listitem").filter({ hasText: "Job ·" }),
   ).toContainText(["Completed"]);
 
-  await page.getByRole("tab", { name: "Service Plan" }).click();
   await page.getByRole("button", { name: "Quote a Service Plan" }).click();
   await atPlanDraft(page);
-  // Back returns to the Tab, where the draft is carried on with
+  // Back returns to the home, where the draft is carried on with
   await page.goBack();
   await expect(
     page.getByRole("button", { name: "Carry on with the draft" }),
   ).toBeVisible();
-  await page.getByRole("tab", { name: /History/ }).click();
   await expect(
-    history.getByRole("row").filter({ hasText: "Service Plan" }),
+    history.getByRole("listitem").filter({ hasText: "Service Plan" }),
   ).toContainText("Draft");
 });
 

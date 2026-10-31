@@ -29,8 +29,8 @@ import {
   SiteVisitBadge,
 } from "./SiteVisitParts.tsx";
 
-// an earlier or cancelled Site Visit, on a page of its own: a home's
-// current one is on its Site Visit Tab
+// a Site Visit, on a page of its own: a home's page shows its current one
+// as a row opening it
 export function SiteVisitScreen() {
   const { visit, premisesTypes } = useLoaderData({
     from: "/office/site-visits/$visitId",

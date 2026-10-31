@@ -1,12 +1,4 @@
 import type { Key } from "react";
-import {
-  CalendarClock,
-  CirclePlus,
-  Clock,
-  PiggyBank,
-  Receipt,
-  Users,
-} from "lucide-react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import type { ClientView, ServicePlanView } from "@empire-cleaning/models";
 import {
@@ -19,7 +11,6 @@ import {
   DialogTrigger,
   Form,
   Heading,
-  IconTile,
   List,
   ListItem,
   Notice,
@@ -30,17 +21,8 @@ import {
 import { getJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
-import {
-  addressOf,
-  formatDate,
-  formatDateTime,
-  formatHours,
-  formatMoney,
-  planDayWhen,
-  recurrenceLabel,
-} from "../format.ts";
-import { EndPlan, OnHold, PlanStatusBadge } from "../PlanParts.tsx";
-import { Fact } from "../Fact.tsx";
+import { addressOf, formatDateTime, formatHours } from "../format.ts";
+import { EndPlan, OnHold, PlanFacts, PlanStatusBadge } from "../PlanParts.tsx";
 
 // how the Client pays for their cleans: each when it's done, or on a weekly
 // Bill (ADR-0016), charged or paid on its page
@@ -97,7 +79,7 @@ export function PortalPlan() {
 
       <Section title="Plan details">
         <Card>
-          <PlanDetails plan={plan} />
+          <PlanFacts plan={plan} forClient />
           <p className="border-t border-border pt-4 text-sm text-fg-muted">
             {paymentLine[plan.weeklyBill ?? "per_clean"]} We email a reminder
             the day before.
@@ -139,86 +121,6 @@ export function PortalPlan() {
         forClient
         endPath={`/api/service-plans/mine/${plan.id}/end`}
       />
-    </div>
-  );
-}
-
-// The plan as its Client reads it: when, large, every weekday of it (one
-// answer to "when is my clean?"), then its facts in even columns across, each
-// an icon, a value and what the value is. Three text styles, no more.
-// (UX pass, #96)
-function PlanDetails({ plan }: { plan: ServicePlanView }) {
-  const [one] = plan.days;
-  const several = plan.days.length > 1;
-  const ended = plan.status === "ended";
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-start gap-4">
-        <IconTile icon={CalendarClock} size="lg" />
-        <div className="flex min-w-0 flex-col gap-1">
-          <p className="text-sm text-fg-muted">
-            {recurrenceLabel[plan.recurrence]}
-          </p>
-          {plan.days.map((day) => (
-            <p key={day.startsAt} className="text-xl font-semibold text-fg">
-              {planDayWhen(day.startsAt)}
-              {several && (
-                <span className="font-normal text-fg-muted">
-                  {" "}
-                  · {day.serviceName}
-                </span>
-              )}
-            </p>
-          ))}
-          {!several && <p className="text-fg-muted">{one!.serviceName}</p>}
-        </div>
-      </div>
-      <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Fact
-          icon={Receipt}
-          label={several ? "Each week" : "Each clean"}
-          value={formatMoney(several ? plan.roundTotalCents : one!.totalCents)}
-          line={`${several ? "Each week" : "Each clean"}, tax included, ${plan.discountPercent}% off`}
-        />
-        {several ? (
-          <Fact
-            icon={Users}
-            label="On site"
-            value={plan.days.map((d) => formatHours(d.hoursOnSite)).join(" + ")}
-            line="On site, each day"
-          />
-        ) : (
-          <Fact
-            icon={Clock}
-            label="On site"
-            value={`About ${formatHours(one!.hoursOnSite)}`}
-            line={`On site, ${one!.crewSize === 1 ? "1 cleaner" : `${one!.crewSize} cleaners`}`}
-          />
-        )}
-        <Fact
-          icon={CirclePlus}
-          label="Extras"
-          value={plan.addOns.length > 0 ? plan.addOns.join(", ") : "None"}
-        />
-        <Fact
-          icon={PiggyBank}
-          label="Deposit"
-          value={
-            plan.depositCents === 0 ? "None" : formatMoney(plan.depositCents)
-          }
-          line={
-            plan.depositCents === 0
-              ? "Deposit"
-              : ended
-                ? "Deposit, put towards the last clean"
-                : "Deposit, comes off your last clean"
-          }
-        />
-      </dl>
-      <p className="text-sm text-fg-muted">
-        Started {formatDate(plan.startedAt)}
-        {plan.endedAt && ` · Ended ${formatDate(plan.endedAt)}`}
-      </p>
     </div>
   );
 }

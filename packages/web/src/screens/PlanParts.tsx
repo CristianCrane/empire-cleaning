@@ -1,5 +1,13 @@
 import type { ReactNode } from "react";
-import { CircleStop } from "lucide-react";
+import {
+  CalendarClock,
+  CircleStop,
+  CirclePlus,
+  Clock,
+  PiggyBank,
+  Receipt,
+  Users,
+} from "lucide-react";
 import type { EndPlanTerms, ServicePlanView } from "@empire-cleaning/models";
 import {
   ActionRow,
@@ -9,6 +17,7 @@ import {
   Card,
   Dialog,
   DialogTrigger,
+  IconTile,
   Notice,
   Section,
   StatusBadge,
@@ -22,8 +31,9 @@ import {
   formatHours,
   formatMoney,
   planDayWhen,
-  planRhythm,
+  recurrenceLabel,
 } from "./format.ts";
+import { Fact } from "./Fact.tsx";
 
 // a Service Plan's status
 export function PlanStatusBadge({
@@ -40,72 +50,6 @@ export function PlanStatusBadge({
       // stopped for good: red
       return <StatusBadge tone="danger">Ended</StatusBadge>;
   }
-}
-
-// a Service Plan's terms, as its Client agreed them: on several weekdays,
-// each one's clean
-export function PlanTerms({
-  plan,
-  lead,
-}: {
-  plan: Omit<ServicePlanView, "upcoming">;
-  // rows before its terms, e.g. its status for the Office
-  lead?: ReactNode;
-}) {
-  const [only] = plan.days;
-  return (
-    <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
-      {lead}
-      <dt className="font-semibold">When</dt>
-      <dd>{planRhythm(plan)}</dd>
-      {plan.days.length === 1 ? (
-        <>
-          <dt className="font-semibold">Each clean</dt>
-          <dd>
-            {formatMoney(only!.totalCents)} including tax,{" "}
-            {plan.discountPercent}% off a one-off clean
-          </dd>
-          <dt className="font-semibold">On site</dt>
-          <dd>
-            About {formatHours(only!.hoursOnSite)}, with a crew of{" "}
-            {only!.crewSize}
-          </dd>
-        </>
-      ) : (
-        <>
-          {plan.days.map((day) => (
-            <div key={day.startsAt} className="contents">
-              <dt className="font-semibold">{planDayWhen(day.startsAt)}</dt>
-              <dd>
-                {day.serviceName}, {formatMoney(day.totalCents)} including tax.
-                About {formatHours(day.hoursOnSite)} on site, with a crew of{" "}
-                {day.crewSize}
-              </dd>
-            </div>
-          ))}
-          <dt className="font-semibold">Each week</dt>
-          <dd>
-            {formatMoney(plan.roundTotalCents)} including tax,{" "}
-            {plan.discountPercent}% off one-off cleans
-          </dd>
-        </>
-      )}
-      <dt className="font-semibold">Extras</dt>
-      <dd>{plan.addOns.length > 0 ? plan.addOns.join(", ") : "None"}</dd>
-      <dt className="font-semibold">
-        {plan.status === "ended" ? "Deposit" : "Deposit held"}
-      </dt>
-      <dd>
-        {plan.depositCents === 0
-          ? "None"
-          : plan.status === "ended"
-            ? `${formatMoney(plan.depositCents)}, put towards the last clean`
-            : `${formatMoney(plan.depositCents)}, which comes off the last clean when the plan ends`}
-      </dd>
-      <dt className="font-semibold">Started</dt>
-      <dd>{formatDate(plan.startedAt)}</dd>
-    </dl>
-  );
 }
 
 // Who's looking: the Client, in the portal, or Office Staff, acting for
@@ -281,5 +225,105 @@ export function EndPlan({
         </ActionRow>
       </Card>
     </Section>
+  );
+}
+
+// The plan as its Client and the Office read it: when, large, every weekday of it (one
+// answer to "when is my clean?"), then its facts in even columns across, each
+// an icon, a value and what the value is. Three text styles, no more.
+// (UX pass, #96)
+export function PlanFacts({
+  plan,
+  forClient,
+  badge,
+}: {
+  plan: Omit<ServicePlanView, "upcoming">;
+  forClient: boolean;
+  // its status, beside how often, where the page doesn't say it already
+  badge?: ReactNode;
+}) {
+  const [one] = plan.days;
+  const several = plan.days.length > 1;
+  const ended = plan.status === "ended";
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex items-start gap-4">
+        <IconTile icon={CalendarClock} size="lg" />
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <p className="text-sm text-fg-muted">
+              {recurrenceLabel[plan.recurrence]}
+            </p>
+            {badge}
+          </div>
+          {plan.days.map((day) => (
+            <p key={day.startsAt} className="text-xl font-semibold text-fg">
+              {planDayWhen(day.startsAt)}
+              {several && (
+                <span className="font-normal text-fg-muted">
+                  {" "}
+                  · {day.serviceName}
+                </span>
+              )}
+            </p>
+          ))}
+          {!several && <p className="text-fg-muted">{one!.serviceName}</p>}
+        </div>
+      </div>
+      {/* the columns follow the card's width, not the screen's: on the
+          Office's page for a home it shares the screen with the History */}
+      <div className="@container">
+        <dl className="grid gap-x-6 gap-y-4 @md:grid-cols-2 @3xl:grid-cols-4">
+          <Fact
+            icon={Receipt}
+            label={several ? "Each week" : "Each clean"}
+            value={formatMoney(
+              several ? plan.roundTotalCents : one!.totalCents,
+            )}
+            line={`${several ? "Each week" : "Each clean"}, tax included, ${plan.discountPercent}% off`}
+          />
+          {several ? (
+            <Fact
+              icon={Users}
+              label="On site"
+              value={plan.days
+                .map((d) => formatHours(d.hoursOnSite))
+                .join(" + ")}
+              line="On site, each day"
+            />
+          ) : (
+            <Fact
+              icon={Clock}
+              label="On site"
+              value={`About ${formatHours(one!.hoursOnSite)}`}
+              line={`On site, ${one!.crewSize === 1 ? "1 cleaner" : `${one!.crewSize} cleaners`}`}
+            />
+          )}
+          <Fact
+            icon={CirclePlus}
+            label="Extras"
+            value={plan.addOns.length > 0 ? plan.addOns.join(", ") : "None"}
+          />
+          <Fact
+            icon={PiggyBank}
+            label="Deposit"
+            value={
+              plan.depositCents === 0 ? "None" : formatMoney(plan.depositCents)
+            }
+            line={
+              plan.depositCents === 0
+                ? "Deposit"
+                : ended
+                  ? "Deposit, put towards the last clean"
+                  : `Deposit, comes off ${forClient ? "your" : "the"} last clean`
+            }
+          />
+        </dl>
+      </div>
+      <p className="text-sm text-fg-muted">
+        Started {formatDate(plan.startedAt)}
+        {plan.endedAt && ` · Ended ${formatDate(plan.endedAt)}`}
+      </p>
+    </div>
   );
 }

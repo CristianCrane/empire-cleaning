@@ -121,8 +121,9 @@ function SectionsNotCards() {
           title on the page sits outside its box, Edit button and all. A
           Section's actions, and a page's besides its main one, are{" "}
           <code>text</code>
-          Buttons led by an icon; the main action next to the page title is
-          primary, with an icon too.
+          Buttons led by an icon, on the title's line and no taller than it, so
+          a Section's box starts level with its neighbour's; the main action
+          next to the page title is primary, with an icon too.
         </p>
       </Rule>
       <div className="flex flex-col gap-4 md:flex-row">
@@ -641,8 +642,12 @@ function AllAtOnceInTwoColumns() {
           columns: the record, its people and its money on the left, its history
           on the right as a Timeline, with room to grow. What can be done to the
           whole record is an <code>ActionBar</code> of icons beside its title,
-          each named in a tooltip. One column on a phone. A record read as
-          steps, where what's next matters most (a Quote), is its story instead.
+          each named in a tooltip. A home for the Office reads the same way: its
+          details, Service Plan and Site Visit left, its History right. A
+          details card's facts follow the card's width, not the screen's (a
+          container query), so they fit the narrower column. One column on a
+          phone. A record read as steps, where what's next matters most (a
+          Quote), is its story instead.
         </p>
       </Rule>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_14rem]">

@@ -55,7 +55,7 @@ export function OfferServicePlan({
 }: {
   propertyId: string;
   label?: string;
-  // as the one thing to do, e.g. on an empty Service Plan Tab
+  // as the one thing to do, e.g. for a home with no Service Plan
   primary?: boolean;
 }) {
   const { start, starting, failure } = useStartDraft();

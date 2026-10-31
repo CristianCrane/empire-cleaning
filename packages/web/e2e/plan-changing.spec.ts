@@ -112,8 +112,8 @@ test(
     // the Office sees the plan on its new terms
     await page.goto(`/office/service-plans/${planId}`);
     await expect(
-      page.getByRole("heading", { name: "Standard Clean, every 2 weeks" }),
-    ).toBeVisible();
+      page.getByRole("region", { name: "Service Plan" }),
+    ).toContainText("Every 2 weeks");
   },
 );
 
