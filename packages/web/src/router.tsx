@@ -126,6 +126,7 @@ import { PortalQuote } from "./screens/portal/PortalQuote.tsx";
 import { PortalRequest } from "./screens/portal/PortalRequest.tsx";
 import { PortalDetails } from "./screens/portal/PortalDetails.tsx";
 import { NotFound } from "./screens/NotFound.tsx";
+import { LogoPrototype } from "./screens/logo.prototype.tsx";
 import { PageError } from "./screens/PageError.tsx";
 import { SignIn } from "./screens/SignIn.tsx";
 import { Welcome } from "./screens/Welcome.tsx";
@@ -796,7 +797,22 @@ const portalPropertyRoute = createRoute({
   component: PortalProperty,
 });
 
+// PROTOTYPE: where the logo goes in tight bars, on made-up data, signed out
+const logoPrototypeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/prototype/logo",
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { case?: string; layout?: string } => ({
+    // ?case=1 arrives as a number
+    case: search.case === undefined ? undefined : String(search.case),
+    layout: search.layout === undefined ? undefined : String(search.layout),
+  }),
+  component: LogoPrototype,
+});
+
 const routeTree = rootRoute.addChildren([
+  logoPrototypeRoute,
   indexRoute,
   signInRoute,
   welcomeRoute,
