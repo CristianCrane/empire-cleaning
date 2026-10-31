@@ -340,9 +340,11 @@ test(
     await expect(
       page.getByRole("region", { name: "Bill details" }),
     ).toBeVisible();
-    // Empire Cleaning's name heads it, and nothing around it to press
+    // Empire Cleaning's logo heads it, and nothing around it to press
     await expect(
-      page.getByText("Empire", { exact: true }).filter({ visible: true }),
+      page
+        .getByRole("img", { name: "Empire Cleaning & Pro Services" })
+        .filter({ visible: true }),
     ).toHaveCount(1);
     for (const nav of await page.getByRole("navigation").all()) {
       await expect(nav).toBeHidden();

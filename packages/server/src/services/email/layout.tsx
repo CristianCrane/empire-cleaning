@@ -5,6 +5,7 @@ import {
   Container,
   Head,
   Html,
+  Img,
   Preview,
   Section,
   Text,
@@ -26,8 +27,6 @@ const colour = {
 };
 
 const font = "Barlow, Arial, Helvetica, sans-serif";
-const displayFont =
-  "'Barlow Condensed', 'Arial Narrow', 'Helvetica Neue', Arial, sans-serif";
 
 const text: CSSProperties = {
   fontFamily: font,
@@ -153,37 +152,18 @@ const BlockView = ({ block }: { block: Block }) => {
   }
 };
 
-// the text Wordmark, as in the app, until there's a logo
-const Wordmark = () => (
+// the logo, as a PNG on the landing site: email clients drop SVG and inline
+// images. Drawn at 3x for sharp screens
+const logoWidth = 160;
+
+const Logo = ({ src }: { src: string }) => (
   <Section style={{ padding: "24px 24px 0" }}>
-    <Text
-      style={{
-        fontFamily: displayFont,
-        fontSize: "28px",
-        lineHeight: "28px",
-        fontWeight: 700,
-        letterSpacing: "2px",
-        textTransform: "uppercase",
-        color: colour.ink,
-        margin: 0,
-      }}
-    >
-      Empire
-    </Text>
-    <Text
-      style={{
-        fontFamily: font,
-        fontSize: "12px",
-        lineHeight: "16px",
-        fontWeight: 600,
-        letterSpacing: "2px",
-        textTransform: "uppercase",
-        color: colour.green,
-        margin: "2px 0 0",
-      }}
-    >
-      Cleaning &amp; Pro Services
-    </Text>
+    <Img
+      src={src}
+      width={logoWidth}
+      height={Math.round((logoWidth * 220) / 210)}
+      alt={business.name}
+    />
   </Section>
 );
 
@@ -196,14 +176,21 @@ const footer = [
 
 export const footerLine = footer.join(" · ");
 
-export const EmailLayout = ({ email }: { email: Email }) => (
+// logoUrl: the logo PNG on the landing site (see logoUrlOn)
+export const EmailLayout = ({
+  email,
+  logoUrl,
+}: {
+  email: Email;
+  logoUrl: string;
+}) => (
   <Html lang="en">
     <Head>
       <meta name="color-scheme" content="light" />
       <meta name="supported-color-schemes" content="light" />
       <link
         rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600&family=Barlow+Condensed:wght@700&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600&display=swap"
       />
     </Head>
     <Preview>{previewOf(email)}</Preview>
@@ -219,7 +206,7 @@ export const EmailLayout = ({ email }: { email: Email }) => (
           borderRadius: "6px",
         }}
       >
-        <Wordmark />
+        <Logo src={logoUrl} />
         <Section style={{ padding: "24px 24px 8px" }}>
           {email.blocks.map((block, i) => (
             <BlockView key={i} block={block} />
@@ -249,3 +236,7 @@ export const EmailLayout = ({ email }: { email: Email }) => (
     </Body>
   </Html>
 );
+
+// where a site serves the email logo (packages/landing/public)
+export const logoUrlOn = (landingOrigin: string) =>
+  new URL("email-logo.png", landingOrigin).href;

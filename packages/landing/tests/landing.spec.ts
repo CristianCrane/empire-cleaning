@@ -484,6 +484,11 @@ test.describe("search engines", () => {
     expect(await meta('meta[name="description"]')).toBe(business.description);
     expect(await meta('meta[property="og:title"]')).toBe(business.title);
     expect(await meta('meta[property="og:url"]')).toBe(business.url);
+    expect(await meta('meta[property="og:image"]')).toBe(
+      `${business.url}og-image.png`,
+    );
+    // the picture itself ships with the site
+    expect((await page.request.get("/og-image.png")).ok()).toBe(true);
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
       "href",
       business.url,

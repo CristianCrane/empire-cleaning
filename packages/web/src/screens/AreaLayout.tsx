@@ -157,6 +157,7 @@ export function AreaLayout({ area }: { area: AreaId }) {
       area={areas[area].label}
       nav={nav}
       account={<AccountMenu account={account} area={area} />}
+      atHome={pathname.replace(/\/$/, "") === areas[area].path}
     >
       <InArea value>
         <Outlet />

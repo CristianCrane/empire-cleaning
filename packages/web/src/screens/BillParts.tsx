@@ -16,7 +16,7 @@ import {
   Link,
   Section,
   StatusBadge,
-  Wordmark,
+  Logo,
 } from "@empire-cleaning/ui";
 import type { AppHref } from "../links.ts";
 import { formatDate, formatDay, formatMoney } from "./format.ts";
@@ -255,7 +255,7 @@ export function BillDetail({
 export function BillLetterhead() {
   return (
     <div className="hidden print:block">
-      <Wordmark />
+      <Logo className="w-32" />
     </div>
   );
 }
