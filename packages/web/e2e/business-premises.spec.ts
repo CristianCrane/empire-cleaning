@@ -180,27 +180,32 @@ test("Office Staff keep the Premises Types, and the Services each Add-on goes wi
   await signInAsOffice(page);
   await page.goto("/office/price-list");
 
-  await page.getByRole("button", { name: "Retire Retail" }).click();
-  await page.getByRole("button", { name: "Add a type of premises" }).click();
-  await page
-    .getByRole("textbox", { name: "Type of premises" })
-    .last()
-    .fill("Gym");
-  const cabinets = page.getByRole("group", { name: "Goes with" }).nth(2);
-  await cabinets.getByText("Commercial cleaning").click();
-  await page.getByRole("button", { name: "Save Price List" }).click();
+  await page.getByRole("row", { name: "Retail" }).click();
+  await page.getByText("Offered").click();
+  await page.getByRole("button", { name: "Save type" }).click();
   await expect(page.getByText("Price List saved as version 2")).toBeVisible();
 
+  await page.getByRole("button", { name: "Add a type of premises" }).click();
+  await page.getByRole("textbox", { name: "Type of premises" }).fill("Gym");
+  await page.getByRole("button", { name: "Add type" }).click();
+  await expect(page.getByText("Price List saved as version 3")).toBeVisible();
+
+  await page.getByRole("row", { name: "Inside the cabinets" }).click();
+  await page
+    .getByRole("group", { name: "Goes with" })
+    .getByText("Commercial cleaning")
+    .click();
+  await page.getByRole("button", { name: "Save Add-on" }).click();
+  await expect(page.getByText("Price List saved as version 4")).toBeVisible();
+
   await page.reload();
+  await expect(page.getByRole("row", { name: "Retail" })).toContainText(
+    "Retired",
+  );
+  await expect(page.getByRole("row", { name: "Gym" })).toContainText("1×");
   await expect(
-    page.getByRole("button", { name: "Restore Retail" }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("textbox", { name: "Type of premises" }).last(),
-  ).toHaveValue("Gym");
-  await expect(
-    cabinets.getByRole("checkbox", { name: "Commercial cleaning" }),
-  ).toBeChecked();
+    page.getByRole("row", { name: "Inside the cabinets" }),
+  ).toContainText("Commercial cleaning");
 });
 
 test("Office Staff quote a business caller from New Quote", async ({
