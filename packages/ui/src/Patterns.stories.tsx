@@ -122,8 +122,9 @@ function SectionsNotCards() {
           Section's actions, and a page's besides its main one, are{" "}
           <code>text</code>
           Buttons led by an icon, on the title's line and no taller than it, so
-          a Section's box starts level with its neighbour's; the main action
-          next to the page title is primary, with an icon too.
+          a Section's box starts level with its neighbour's (on a phone they
+          wrap under the title rather than squeeze it); the main action next to
+          the page title is primary, with an icon too.
         </p>
       </Rule>
       <div className="flex flex-col gap-4 md:flex-row">

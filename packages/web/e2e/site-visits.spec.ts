@@ -76,8 +76,10 @@ test(
 
     await expect(page).toHaveURL(/\/office\/site-visits\/[0-9a-f-]{36}$/);
     await expect(page.getByText("Booked", { exact: true })).toBeVisible();
-    await expect(page.getByText("Tue, Jan 6, 10:00 AM")).toBeVisible();
-    await expect(page.locator("#main").getByText("Olive Owner")).toBeVisible();
+    await expect(page.getByText("Tue, Jan 6 at 10:00 AM")).toBeVisible();
+    await expect(
+      page.locator("#main").getByText("Olive Owner", { exact: true }),
+    ).toBeVisible();
     const [email] = (await emailsTo(casey.email)).filter(
       (e) => e.subject === "Your Site Visit is booked",
     );
@@ -158,7 +160,7 @@ test("a Site Visit shows on the Schedule, in the Client's portal and in the visi
   await expect(page.getByText("0.5 h booked")).toBeVisible();
   await page.getByRole("link", { name: /3:00 PM Acme Dental/ }).click();
   await expect(page).toHaveURL(/\/office\/site-visits\/[0-9a-f-]{36}$/);
-  await expect(page.getByText("Cory Cleaner")).toBeVisible();
+  await expect(page.getByText("Cory Cleaner", { exact: true })).toBeVisible();
 
   await page.context().clearCookies();
   await signedInAs(page, "cory@example.com");
