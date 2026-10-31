@@ -148,7 +148,11 @@ function JobDetails({ job }: { job: ClientJobDetail }) {
           icon={ReceiptIcon}
           label="Price"
           value={formatMoney(payment.totalCents)}
-          line="Price, tax included"
+          line={
+            job.planDiscountPercent
+              ? `Price with your ${job.planDiscountPercent}% plan discount, tax included`
+              : "Price, tax included"
+          }
         />
         <Fact
           icon={Clock}

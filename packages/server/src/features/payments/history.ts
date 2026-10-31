@@ -119,6 +119,7 @@ export const paymentHistoryFor = async (
       amountCents: c.amountCents,
       ...forWhat(c),
       clearing: false,
+      item: c.item,
     })),
     ...given.map((r) => {
       const from = charged.find((c) => c.id === r.chargeId)!;
@@ -129,6 +130,7 @@ export const paymentHistoryFor = async (
         amountCents: -r.amountCents,
         ...forWhat(from),
         clearing: false,
+        item: r.item,
       };
     }),
     // what hasn't a Charge (yet): a bank debit clearing, or paid another way
@@ -147,6 +149,7 @@ export const paymentHistoryFor = async (
         servicePlanId: null,
         bill: billOf(b.id),
         clearing: b.status === "processing",
+        item: null,
       })),
   ];
   return history.sort((a, b) => b.at.localeCompare(a.at));

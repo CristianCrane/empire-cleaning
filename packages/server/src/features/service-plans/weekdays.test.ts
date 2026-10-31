@@ -367,6 +367,8 @@ describe("a plan Job's fee", () => {
       .body as ClientJobDetail;
     const fee = percent(plan.days[1]!.totalCents, 25);
     expect(job.cancelTerms).toMatchObject({ late: true, feeCents: fee });
+    // its price had the Plan Discount taken off, which its page says
+    expect(job.planDiscountPercent).toBe(plan.discountPercent);
     expect(fee).toBeLessThan(plan.depositCents);
 
     await client

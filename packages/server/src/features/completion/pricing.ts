@@ -18,6 +18,9 @@ export type QuotedJob = {
   totalCents: number;
   suggested: PriceBreakdown;
   priceListId: string;
+  // a Service Plan Job's Plan Discount, off its one-off price; null for a
+  // one-off Job
+  planDiscountPercent: number | null;
 };
 
 // A Service Plan's Job is quoted at its discounted price; its Adjustments are
@@ -48,6 +51,8 @@ export const quotedJob = async (
     totalCents: option.totalCents,
     suggested,
     priceListId: revision.priceListId,
+    planDiscountPercent:
+      quote.kind === "service_plan" ? revision.planDiscountPercent : null,
   };
 };
 

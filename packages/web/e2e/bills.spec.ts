@@ -293,7 +293,7 @@ test("a Bill whose Charge failed is under Needs attention, holds the plan, and p
   ).toBeVisible();
 
   await page.goto(`/office/service-plans/${planId}`);
-  const hold = page.getByRole("region", { name: "On Hold" });
+  const hold = page.getByRole("alert").filter({ hasText: "On Hold" });
   await expect(hold).toContainText("bill EC-000001");
   await expect(
     hold.getByRole("link", { name: "See bill EC-000001" }),
@@ -305,7 +305,8 @@ test("a Bill whose Charge failed is under Needs attention, holds the plan, and p
   await signedInAs(client, casey.email);
   await client.goto(`/portal/plans/${planId}`);
   await client
-    .getByRole("region", { name: "On Hold" })
+    .getByRole("alert")
+    .filter({ hasText: "Your plan is On Hold" })
     .getByRole("link", { name: "Pay bill EC-000001" })
     .click();
   await expect(
@@ -322,7 +323,7 @@ test("a Bill whose Charge failed is under Needs attention, holds the plan, and p
       /^Each week's cleans go on one Bill, made the following Monday and charged to your saved Payment Method\./,
     ),
   ).toBeVisible();
-  await expect(client.getByRole("region", { name: "On Hold" })).toBeHidden();
+  await expect(client.getByText("Your plan is On Hold")).toBeHidden();
 });
 
 test(

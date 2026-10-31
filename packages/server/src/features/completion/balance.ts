@@ -201,7 +201,12 @@ const describe = async (job: Job) => {
  * A Job whose Client is billed weekly moves no money here: its next Bill
  * bills whatever is owed then (ADR-0016).
  */
-export const settleJob = async (jobId: string): Promise<Settled> =>
+export const settleJob = async (
+  jobId: string,
+  // the one change to its price that moved this money, by name, for the
+  // Client's Payments page to say
+  item: string | null = null,
+): Promise<Settled> =>
   db.transaction(async (tx) => {
     const [job] = await tx
       .select()
@@ -236,6 +241,7 @@ export const settleJob = async (jobId: string): Promise<Settled> =>
         tx,
         ledger.charges,
         -ledger.owedCents,
+        item,
       );
     }
 
@@ -246,6 +252,7 @@ export const settleJob = async (jobId: string): Promise<Settled> =>
         amount: ledger.owedCents,
         description: await describe(job!),
         for: { jobId, kind: kindOf(job!) },
+        item,
       });
       if (charged.ok) settled.chargedCents = ledger.owedCents;
       else settled.failure = charged.reason;

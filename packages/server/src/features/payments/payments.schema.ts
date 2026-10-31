@@ -71,6 +71,10 @@ export const charges = pgTable(
     }),
     kind: chargeKind("kind").notNull(),
     amountCents: integer("amount_cents").notNull(),
+    // the one change to the price it was for, by name ("Inside the fridge",
+    // "1 extra hour"), when it was taken for one; kept as words, as the
+    // Adjustment may later be taken off
+    item: text("item"),
     // the Payment Gateway's id for it, for refunds
     gatewayRef: text("gateway_ref").notNull(),
     chargedAt: timestamp("charged_at", { withTimezone: true }).notNull(),
@@ -98,6 +102,8 @@ export const refunds = pgTable(
       .notNull()
       .references(() => charges.id, { onDelete: "restrict" }),
     amountCents: integer("amount_cents").notNull(),
+    // as a Charge's: the one change to the price it gave back for
+    item: text("item"),
     // the Payment Gateway's id for it
     gatewayRef: text("gateway_ref").notNull(),
     refundedAt: timestamp("refunded_at", { withTimezone: true }).notNull(),

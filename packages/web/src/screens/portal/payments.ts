@@ -152,11 +152,17 @@ export function paymentRow(p: ClientPayment): PaymentRow {
         href,
       };
     case "extra":
-      return {
-        title: `Extra on ${job.serviceName}`,
-        line: `Approved after your ${cleanDay} clean`,
-        href,
-      };
+      return p.item
+        ? {
+            title: `Extra: ${p.item}`,
+            line: `Approved after your ${cleanDay} ${job.serviceName}`,
+            href,
+          }
+        : {
+            title: `Extra on ${job.serviceName}`,
+            line: `Approved after your ${cleanDay} clean`,
+            href,
+          };
     case "fee":
       return {
         title: feeName(job.status),
@@ -164,11 +170,17 @@ export function paymentRow(p: ClientPayment): PaymentRow {
         href,
       };
     case "refund":
-      return {
-        title: `Refund on ${job.serviceName}`,
-        line: otherDay ? `From your ${otherDay} clean` : undefined,
-        href,
-      };
+      return p.item
+        ? {
+            title: `Refund: ${p.item}`,
+            line: `From your ${cleanDay} ${job.serviceName}`,
+            href,
+          }
+        : {
+            title: `Refund on ${job.serviceName}`,
+            line: otherDay ? `From your ${otherDay} clean` : undefined,
+            href,
+          };
     default:
       return {
         title: job.serviceName,

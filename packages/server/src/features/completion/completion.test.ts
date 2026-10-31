@@ -5,6 +5,7 @@ import type {
   CleanerJob,
   ClientJob,
   ClientJobDetail,
+  ClientPayment,
   ClientPastJob,
   CompletionInput,
   NeedsAttentionItem,
@@ -728,6 +729,18 @@ describe("Office Staff correcting a completion", () => {
       .send({ priceCents: 2750, reason: "Half was our fault" })
       .expect(200);
     expect(refunded()).toEqual([EXTRA_HOUR - 2994]);
+
+    // the Client's Payments page names what each was for
+    const history = (await client.get("/api/payments/mine").expect(200))
+      .body as ClientPayment[];
+    expect(history.find((p) => p.kind === "extra")).toMatchObject({
+      amountCents: EXTRA_HOUR,
+      item: "1 extra hour",
+    });
+    expect(history.find((p) => p.kind === "refund")).toMatchObject({
+      amountCents: -(EXTRA_HOUR - 2994),
+      item: "1 extra hour, price corrected",
+    });
   });
 
   test("remove an Adjustment", async () => {
