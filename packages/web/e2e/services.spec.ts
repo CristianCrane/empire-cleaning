@@ -41,15 +41,30 @@ test(
     await expect(
       page.getByRole("heading", { level: 1, name: "Standard Clean" }),
     ).toBeVisible();
-    // what the figures come to, as they're typed: 1 + 2 x 0.5 + 1.5 x 0.75
-    // = 3.125 h, up to 3.25 h
-    const example = page.locator("p").filter({ hasText: /^For example:/ });
-    await expect(example).toHaveText(
-      "For example: A 2-bedroom, 1½-bathroom home, in moderate Condition, takes 3.25 h and comes to $194.89 ($179.00 + $15.89 tax).",
+    // what the figures come to, as a Quote, as they're typed: 1 + 2 x 0.5
+    // + 1.5 x 0.75 = 3.125 h, up to 3.25 h, x $55 = $179, + 8.875%
+    const example = page.getByRole("region", { name: "Example Quote" });
+    await expect(example).toContainText(
+      "A 2-bedroom, 1½-bathroom home, in moderate Condition",
     );
+    await expect(example).toContainText(
+      "Labour Hours, up to the quarter-hour3.25 h",
+    );
+    await expect(example).toContainText("Total$194.89");
+    await expect(example).not.toContainText("Your changes");
     await page.getByRole("textbox", { name: "Hourly rate" }).fill("$60");
     await page.getByRole("textbox", { name: "Hourly rate" }).blur();
-    await expect(example).toContainText("comes to $212.31");
+    // the saved figures' price beside the new one
+    await expect(example).toContainText("Your changes: +$17.42 on this Quote");
+    await expect(example).toContainText("Total$212.31");
+    await expect(example).toContainText("was $179.00$195.00");
+
+    // another place, and another Condition: 1 + 4 x 0.5 + 3 x 0.75 + 0.5
+    // + 0.5 = 6.25 h, x 1.4 heavy (the starting figure) = 8.75 h, x $60
+    // = $525, + 8.875%
+    await example.getByText("4 bed").click();
+    await example.getByText("Heavy").click();
+    await expect(example).toContainText("Total$571.59");
     await page.getByRole("button", { name: "Save Service" }).click();
     await expect(page.getByText("Service saved")).toBeVisible();
     await expect(
@@ -89,10 +104,15 @@ test("Office Staff add a Service priced by area, and retire it", async ({
   await page
     .getByText("Takes longer the dirtier the place is (Condition)")
     .click();
-  // 2 x 6 h = 12 h at $55 = $660, + 8.875% = $718.58
-  await expect(
-    page.locator("p").filter({ hasText: /^For example:/ }),
-  ).toContainText("2,000 sq ft of office takes 12 h and comes to $718.58");
+  // 2 x 6 h = 12 h at $55 = $660, + 8.875% = $718.58; nothing saved to
+  // compare with
+  const example = page.getByRole("region", { name: "Example Quote" });
+  await expect(example).toContainText("2,000 sq ft of office");
+  await expect(example).toContainText(
+    "Labour Hours, up to the quarter-hour12 h",
+  );
+  await expect(example).toContainText("Total$718.58");
+  await expect(example).not.toContainText("Your changes");
   await page.getByRole("button", { name: "Add Service" }).click();
 
   await expect(page.getByText("Window cleaning added")).toBeVisible();
