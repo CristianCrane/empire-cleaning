@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { Heading } from "./Heading.tsx";
+import { Logo } from "./Logo.tsx";
 import { ThemeToggle } from "./theme.tsx";
 
 // the tokens in tokens.css, shown in the current theme
@@ -85,4 +86,32 @@ export const Theme: Story = {
       <ThemeToggle />
     </div>
   ),
+};
+
+// the logo exactly as drawn, at the sizes the screens use. It is never
+// redrawn, cropped or rearranged: where it doesn't fit, the screen changes
+// (a phone's top bar names the section; the logo heads the area's home)
+function LogoSizes() {
+  return (
+    <div className="flex flex-wrap items-end gap-8">
+      {[
+        ["w-32", "Welcome, a printed Bill"],
+        ["w-36", "phone home, landing footer"],
+        ["w-44", "sidebar, sign in, message pages, landing hero (phone)"],
+        ["w-64", "landing hero (laptop)"],
+      ].map(([width, use]) => (
+        <figure key={width} className="flex flex-col items-center gap-2">
+          <Logo className={width} />
+          <figcaption className="text-sm text-fg-muted">
+            <code>{width}</code> · {use}
+          </figcaption>
+        </figure>
+      ))}
+    </div>
+  );
+}
+
+export const TheLogo: Story = {
+  name: "Logo",
+  render: () => <LogoSizes />,
 };

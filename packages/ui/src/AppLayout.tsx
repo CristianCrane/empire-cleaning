@@ -1,6 +1,7 @@
 import { Link, type LinkProps } from "react-aria-components";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import { Logo } from "./Logo.tsx";
 import { ThemeToggle } from "./theme.tsx";
 import { focusRing } from "./utils.ts";
 
@@ -19,30 +20,26 @@ export type AppLayoutProps = {
   // who is signed in and what they can do (switch area, sign out); shown in
   // the top bar on a phone and at the foot of the sidebar on larger screens
   account?: ReactNode;
+  // on the area's home (Today, Your Jobs, Home): a phone shows the logo there
+  atHome?: boolean;
   children: ReactNode;
 };
-
-// the Empire Cleaning name until there's a logo; centred above a form, for
-// example on the sign-in page
-export function Wordmark({ centered = false }: { centered?: boolean }) {
-  return (
-    <span
-      className={`flex flex-col leading-none ${centered ? "items-center text-center" : ""}`}
-    >
-      <span className="font-display text-2xl font-bold tracking-wider text-fg uppercase">
-        Empire
-      </span>
-      <span className="text-xs font-semibold tracking-widest text-primary uppercase">
-        Cleaning &amp; Pro Services
-      </span>
-    </span>
-  );
-}
 
 // the frame around every screen. On a phone: a top bar and a bottom tab bar
 // within thumb reach (keep nav to five items or fewer). From tablet width up:
 // a sidebar.
-export function AppLayout({ area, nav, account, children }: AppLayoutProps) {
+//
+// The logo is never shrunk to fit: the phone's top bar is too short for it,
+// so the bar names the section you're in and the logo heads the area's home
+// instead; the sidebar has room for it (UX pass, #96)
+export function AppLayout({
+  area,
+  nav,
+  account,
+  atHome = false,
+  children,
+}: AppLayoutProps) {
+  const section = nav.find((item) => item.isCurrent)?.label ?? area;
   return (
     <div className="min-h-dvh md:flex">
       <a
@@ -53,8 +50,8 @@ export function AppLayout({ area, nav, account, children }: AppLayoutProps) {
       </a>
 
       <aside className="hidden w-64 print:hidden shrink-0 flex-col gap-6 border-r border-border bg-surface p-4 md:sticky md:top-0 md:flex md:h-dvh">
-        <div className="flex flex-col gap-1 px-2 pt-2">
-          <Wordmark />
+        <div className="flex flex-col items-center gap-3 px-2 pt-2">
+          <Logo className="w-44" />
           <span className="text-sm text-fg-muted">{area}</span>
         </div>
         <nav aria-label={area} className="flex flex-1 flex-col gap-1">
@@ -69,7 +66,9 @@ export function AppLayout({ area, nav, account, children }: AppLayoutProps) {
       </aside>
 
       <header className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-border bg-surface px-4 py-2 md:hidden print:hidden">
-        <Wordmark />
+        <span className="truncate font-display text-xl font-bold tracking-wide uppercase">
+          {section}
+        </span>
         <div className="flex items-center gap-2">
           <ThemeToggle />
           {account}
@@ -81,6 +80,7 @@ export function AppLayout({ area, nav, account, children }: AppLayoutProps) {
         tabIndex={-1}
         className="mx-auto w-full max-w-5xl min-w-0 flex-1 px-4 pt-4 pb-28 outline-none md:px-8 md:py-8 print:max-w-none print:p-0"
       >
+        {atHome && <Logo className="mx-auto mb-4 w-36 md:hidden" />}
         {children}
       </main>
 

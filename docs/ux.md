@@ -149,6 +149,17 @@ can change, through the same loop.
 - **One icon per concept, app-wide** (`screens/icons.ts`): a Quote is
   `ClipboardPenLine`.
 
+### The logo
+
+- **The logo is used exactly as drawn** (`Logo`): never redrawn, cropped,
+  recoloured beyond its own dark version, or rearranged into a lockup.
+  Where it doesn't fit, the screen changes around it. On a phone the top
+  bar names the section you're in and the logo heads the area's home; the
+  sidebar holds it centred; the landing site's header is a slim bar of
+  actions and the logo leads the hero. ("Foundations / Logo")
+- **The favicon is a separate mark**: the logo's roof and window with its
+  skyline behind, no background, in the logo's light or dark colours.
+
 ## Changing a screen
 
 1. **Ask the question.** What is the screen for, and what's wrong with it
@@ -223,3 +234,4 @@ Newest last. "Built in" is the PR (or branch) that shipped it.
 | Welcome | One card held the intro, a Notice, the whole form and a full-width Sign out. | One column in steps / one page, what's next beside / in steps, what's next beside | **In steps, what's next beside** | Signed in as / Sign out at the top; the form in its steps; "What happens next" (1-2-3) and the different-email Notice beside it from xl. | [`prototype-sign-in`](https://github.com/CristianCrane/empire-cleaning/tree/prototype-sign-in) | #168 |
 | Not found, Something went wrong | A card with a title, a line and two Buttons (or the way home a link inside the sentence). | Today's, a Button home / centred with an icon / centred, home a link | **Centred, home a link** | a large icon, the title, a line, at most one Button (Try again), "Go to your home page" a link under it. | [`prototype-sign-in`](https://github.com/CristianCrane/empire-cleaning/tree/prototype-sign-in) | #168 |
 | Later items | On Hold was a card of ButtonLinks; a plan clean's price didn't say it was discounted; extra and refund rows named only the clean. | (followed existing rules) | **Applied the rules** | On Hold is a danger Notice per Unpaid Job or Bill, each with its one action; a plan clean's price line says its plan discount; extra and refund rows name the item ("Extra: 1 extra hour", "Refund: Inside the fridge, taken off"), recorded on each Charge and Refund. | — | #169 |
+| App top bar, landing header | The text Wordmark stood in for the logo; the real logo is too tall for a phone's top bar and the landing header, and can't be changed to fit. | A taller bar that scrolls away / a centred masthead / a slim bar, the logo on Home and in the hero | **Slim bar, the logo on Home and in the hero** | The phone's top bar names the section (Home, Cleans, Today…); the logo heads each area's home on a phone and sits centred, larger, in the sidebar. The landing header is the phone number, Request a Quote and the theme; the logo leads the hero, beside the headline on a laptop. Seen on Home, Cleans, Payments, a clean, Today and Your Jobs | [`prototype-logo`](https://github.com/CristianCrane/empire-cleaning/tree/prototype-logo) | ux-logo |

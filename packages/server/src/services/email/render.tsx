@@ -25,8 +25,9 @@ const textOf = (block: Block) => {
 export const emailText = (email: Email) =>
   [...email.blocks.map(textOf), `-- \n${footerLine}`].join("\n\n");
 
-export const renderEmail = async (email: Email) => ({
+// logoUrl: where the logo PNG is served (logoUrlOn the landing site)
+export const renderEmail = async (email: Email, logoUrl: string) => ({
   subject: email.subject,
-  html: await render(<EmailLayout email={email} />),
+  html: await render(<EmailLayout email={email} logoUrl={logoUrl} />),
   text: emailText(email),
 });

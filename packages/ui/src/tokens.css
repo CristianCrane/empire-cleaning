@@ -38,6 +38,10 @@
   --ec-border: light-dark(#d9dbdd, #2e3843);
   --ec-border-strong: light-dark(#7c8085, #7c8590);
 
+  /* the logo's own colours, only for drawing it (Logo.tsx); dark is its dark version */
+  --ec-logo-charcoal: light-dark(#4a4a4a, #e8e8e6);
+  --ec-logo-green: light-dark(#007533, #3db368);
+
   /* brand green, from the Empire Cleaning logo */
   --ec-primary: light-dark(#06682f, #4cb572);
   --ec-primary-hover: light-dark(#055728, #6fc28a);

@@ -6,8 +6,8 @@ import {
   Card,
   Heading,
   Notice,
-  Wordmark,
   showToast,
+  Logo,
 } from "@empire-cleaning/ui";
 import { forgetAccount, signOut } from "../session.ts";
 
@@ -22,7 +22,7 @@ export function Welcome() {
   return (
     <main className="mx-auto flex min-h-dvh max-w-6xl flex-col gap-6 p-4 py-10">
       <header className="flex flex-wrap items-center justify-between gap-4">
-        <Wordmark />
+        <Logo className="w-32" />
         <span className="flex items-center gap-2 text-sm text-fg-muted">
           Signed in as {account.email}
           <Button
