@@ -105,9 +105,11 @@ test("a Client's plan is On Hold while a fee is Unpaid, and back on once they pa
   await expect(page.getByText("Your clean is skipped")).toBeVisible();
 
   await page.goto(`/portal/plans/${planId}`);
-  const onHold = page.getByRole("region", { name: "On Hold" });
+  const onHold = page
+    .getByRole("alert")
+    .filter({ hasText: "Your plan is On Hold" });
   await expect(onHold).toContainText(
-    "We couldn't take payment for the clean on Mon, Jan 19, 9:00 AM ($50.46). Cleans already booked go ahead, but we won't book any more until it's paid.",
+    "Your plan is On Hold. We couldn't take payment for the clean on Mon, Jan 19, 9:00 AM ($50.46). Cleans already booked go ahead, but we won't book any more until it's paid.",
   );
   await expectAccessible(page);
 
@@ -123,7 +125,7 @@ test("a Client's plan is On Hold while a fee is Unpaid, and back on once they pa
   await expect(page.getByText("Card saved")).toBeVisible();
 
   await page.goto(`/portal/plans/${planId}`);
-  await expect(page.getByRole("region", { name: "On Hold" })).toHaveCount(0);
+  await expect(page.getByText("Your plan is On Hold")).toHaveCount(0);
   await expect(page.getByText("Active", { exact: true })).toBeVisible();
 });
 
@@ -154,8 +156,10 @@ test(
     await held.click();
     // the plan is on its home's page
     await expect(page).toHaveURL(/\/office\/properties\/[0-9a-f-]{36}$/);
-    await expect(page.getByRole("region", { name: "On Hold" })).toContainText(
-      "The Client's payment couldn't be taken for the clean on Mon, Jan 19, 9:00 AM ($50.46).",
+    await expect(
+      page.getByRole("alert").filter({ hasText: "On Hold." }),
+    ).toContainText(
+      "On Hold. The Client's payment couldn't be taken for the clean on Mon, Jan 19, 9:00 AM ($50.46).",
     );
 
     const ending = page.getByRole("region", { name: "Ending the plan" });

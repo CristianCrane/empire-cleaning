@@ -38,12 +38,15 @@ export const chargeSaved = async (
     amount,
     description,
     for: chargeFor,
+    item = null,
   }: {
     client: Pick<Client, "id" | "name" | "email">;
     method: PaymentMethodRow | null;
     amount: number;
     description: string;
     for: ChargeFor;
+    // the one change to the price it's for, by name, if it is
+    item?: string | null;
   },
 ): Promise<ChargeResult> => {
   if (!method) return { ok: false, reason: "no Payment Method is saved" };
@@ -67,6 +70,7 @@ export const chargeSaved = async (
   if (result.ok) {
     await tx.insert(charges).values({
       ...chargeFor,
+      item,
       amountCents: amount,
       gatewayRef: result.chargeId,
       chargedAt: clock.now(),
@@ -85,6 +89,8 @@ export const refundFrom = async (
   tx: Tx | typeof db,
   from: Charge[],
   amount: number,
+  // the one change to the price it gives back for, by name, if it is
+  item: string | null = null,
 ): Promise<number> => {
   if (amount <= 0 || from.length === 0) return 0;
   const given = await tx
@@ -126,6 +132,7 @@ export const refundFrom = async (
     }
     await tx.insert(refunds).values({
       chargeId: charge.id,
+      item,
       amountCents: part,
       gatewayRef: refunded.refundId,
       refundedAt: clock.now(),

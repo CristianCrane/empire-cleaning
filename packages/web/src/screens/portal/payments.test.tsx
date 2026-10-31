@@ -137,6 +137,7 @@ const payment = (over: Partial<ClientPayment> = {}): ClientPayment => ({
   servicePlanId: null,
   bill: null,
   clearing: false,
+  item: null,
   ...over,
 });
 const jobHref = href("/portal/jobs/$jobId", { jobId: "job" });
@@ -168,6 +169,35 @@ describe("how a payment reads", () => {
     expect(paymentRow(payment({ kind: "extra", at: WEEK_LATER }))).toEqual({
       title: "Extra on Standard Clean",
       line: "Approved after your Oct 20 clean",
+      href: jobHref,
+    });
+  });
+
+  test("an extra for one change names it", () => {
+    expect(
+      paymentRow(
+        payment({ kind: "extra", at: WEEK_LATER, item: "Inside the fridge" }),
+      ),
+    ).toEqual({
+      title: "Extra: Inside the fridge",
+      line: "Approved after your Oct 20 Standard Clean",
+      href: jobHref,
+    });
+  });
+
+  test("a refund for one change names it", () => {
+    expect(
+      paymentRow(
+        payment({
+          kind: "refund",
+          amountCents: -2250,
+          at: WEEK_LATER,
+          item: "1 extra hour, taken off",
+        }),
+      ),
+    ).toEqual({
+      title: "Refund: 1 extra hour, taken off",
+      line: "From your Oct 20 Standard Clean",
       href: jobHref,
     });
   });

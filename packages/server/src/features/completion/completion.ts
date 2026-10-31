@@ -66,12 +66,20 @@ export const ANSWER_DAYS = 7;
 export const REMINDER_DAYS_BEFORE = 2;
 const DAY_MS = 86_400_000;
 
+// what an Adjustment changed, by name: "Inside the fridge", "1 extra hour"
+export const adjustmentItem = (
+  a: Pick<Adjustment, "kind" | "addOnName" | "hours">,
+) =>
+  a.kind === "extra_time"
+    ? `${a.hours} extra ${a.hours === 1 ? "hour" : "hours"}`
+    : a.addOnName!;
+
 // "Inside the oven, done on the day", "1.5 extra hours"
 export const adjustmentLabel = (
   a: Pick<Adjustment, "kind" | "addOnName" | "hours">,
 ) =>
   a.kind === "extra_time"
-    ? `${a.hours} extra ${a.hours === 1 ? "hour" : "hours"}`
+    ? adjustmentItem(a)
     : `${a.addOnName}, ${a.kind === "add_on_done" ? "done on the day" : "not done"}`;
 
 // emails go out after the change is saved; one that fails is logged, and the
@@ -538,8 +546,8 @@ const sendCorrection = async (jobId: string, settled: Settled) => {
   );
 };
 
-const settleAfterCorrection = async (jobId: string) => {
-  const settled = await settleJob(jobId);
+const settleAfterCorrection = async (jobId: string, item: string) => {
+  const settled = await settleJob(jobId, item);
   await sendCorrection(jobId, settled);
   if (settled.becameUnpaid) await sendUnpaid(jobId, settled);
 };
@@ -585,15 +593,21 @@ export const correctAdjustment = async (
       reviewedAt: clock.now(),
     })
     .where(eq(adjustments.id, adjustmentId));
-  await settleAfterCorrection(jobId);
+  await settleAfterCorrection(
+    jobId,
+    `${adjustmentItem(adjustment)}, price corrected`,
+  );
 };
 
 // Office Staff take an Adjustment off, whatever its state; the difference is
 // charged or refunded
 export const removeAdjustment = async (jobId: string, adjustmentId: string) => {
-  await findAdjustment(jobId, adjustmentId);
+  const { adjustment } = await findAdjustment(jobId, adjustmentId);
   await db.delete(adjustments).where(eq(adjustments.id, adjustmentId));
-  await settleAfterCorrection(jobId);
+  await settleAfterCorrection(
+    jobId,
+    `${adjustmentItem(adjustment)}, taken off`,
+  );
 };
 
 const completedJob = async (jobId: string) => {
@@ -776,6 +790,7 @@ export const clientJob = async (
     rescheduleTerms,
     rescheduleRequest,
     servicePlanId,
+    planDiscountPercent: quoted?.planDiscountPercent ?? null,
   };
 };
 
@@ -868,7 +883,7 @@ export const answerAdjustment = async (
   if (!answered) throw new ConflictError("You've already answered this.");
   if (!approve) return;
 
-  const settled = await settleJob(jobId);
+  const settled = await settleJob(jobId, adjustmentItem(answered));
   const { job, property, client } = await jobWithOwner(jobId);
   const payment = await paymentOf(job);
   await notify(`Receipt for Adjustment ${adjustmentId}`, async () =>

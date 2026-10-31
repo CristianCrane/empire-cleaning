@@ -61,7 +61,8 @@ type Viewer = {
   endPath: string;
 };
 
-// why a plan is On Hold, and the way to its Unpaid Jobs and Bills
+// why a plan is On Hold: a Notice for each Unpaid Job or Bill, its one
+// action the way to it (UX pass, #96). The first says what the hold means
 export function OnHold({
   plan,
   forClient,
@@ -73,45 +74,51 @@ export function OnHold({
 } & Omit<Viewer, "endPath">) {
   if (plan.status !== "on_hold") return null;
   const unpaid = [
-    ...plan.unpaid.map(
-      (u) =>
-        `the clean on ${formatDateTime(u.startsAt)} (${formatMoney(u.owedCents)})`,
-    ),
-    ...plan.unpaidBills.map(
-      (b) => `bill ${b.number} (${formatMoney(b.totalCents)})`,
-    ),
+    ...plan.unpaid.map((u) => ({
+      key: u.jobId,
+      what: `the clean on ${formatDateTime(u.startsAt)} (${formatMoney(u.owedCents)})`,
+      href: jobHref(u.jobId),
+      label: forClient ? "Pay for that clean" : "See the Job",
+    })),
+    ...plan.unpaidBills.map((b) => ({
+      key: b.billId,
+      what: `bill ${b.number} (${formatMoney(b.totalCents)})`,
+      href: billHref(b.billId),
+      label: `${forClient ? "Pay" : "See"} bill ${b.number}`,
+    })),
   ];
   return (
-    <Section title="On Hold">
-      <Card>
-        <p>
-          {forClient
-            ? "We couldn't take payment for "
-            : "The Client's payment couldn't be taken for "}
-          {unpaid.join(" and ")}.{" "}
-          {forClient
-            ? "Cleans already booked go ahead, but we won't book any more until it's paid."
-            : "Jobs already booked go ahead, but no more are booked until it's paid."}
-        </p>
-        <Actions>
-          {plan.unpaid.map((u) => (
-            <ButtonLink key={u.jobId} href={jobHref(u.jobId)}>
-              {forClient ? "Pay for " : "See "}
-              {plan.unpaid.length > 1
-                ? `the ${formatDate(u.startsAt)} clean`
-                : forClient
-                  ? "that clean"
-                  : "the Job"}
+    <div className="flex flex-col gap-3">
+      {unpaid.map((u, i) => (
+        <Notice
+          key={u.key}
+          tone="danger"
+          action={
+            <ButtonLink variant="danger-text" href={u.href}>
+              {u.label}
             </ButtonLink>
-          ))}
-          {plan.unpaidBills.map((b) => (
-            <ButtonLink key={b.billId} href={billHref(b.billId)}>
-              {forClient ? "Pay" : "See"} bill {b.number}
-            </ButtonLink>
-          ))}
-        </Actions>
-      </Card>
-    </Section>
+          }
+        >
+          <p>
+            {i === 0 && (
+              <>
+                <strong>
+                  {forClient ? "Your plan is On Hold." : "On Hold."}
+                </strong>{" "}
+              </>
+            )}
+            {forClient
+              ? "We couldn't take payment for "
+              : "The Client's payment couldn't be taken for "}
+            {u.what}.
+            {i === 0 &&
+              (forClient
+                ? " Cleans already booked go ahead, but we won't book any more until it's paid."
+                : " Jobs already booked go ahead, but no more are booked until it's paid.")}
+          </p>
+        </Notice>
+      ))}
+    </div>
   );
 }
 

@@ -1199,6 +1199,9 @@ export type ClientPayment = {
   } | null;
   // a Bill's bank debit, on its way but not yet cleared
   clearing: boolean;
+  // the one change to the price it was for, by name ("Inside the fridge",
+  // "1 extra hour, price corrected"), when it was for one
+  item: string | null;
 };
 
 // the payment provider's own payment form, shown in the browser so card
@@ -1546,6 +1549,9 @@ export type ClientJobDetail = ClientJob & {
   // the Service Plan it was generated for, which cancelling it skips; null
   // for a one-off Job
   servicePlanId: string | null;
+  // that plan's Plan Discount, which its price has had taken off; null for
+  // a one-off Job
+  planDiscountPercent: number | null;
 };
 
 // ---- Cancellation and No Access (#11) ----
