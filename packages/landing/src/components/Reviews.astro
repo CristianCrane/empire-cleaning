@@ -5,7 +5,7 @@ import { googleReviewsUrl, reviews } from "../reviews.ts";
 import Section from "./Section.astro";
 ---
 
-<Section id="reviews" title="What our Clients say" tone="raised">
+<Section id="reviews" title="What our Clients say" tone="raised" align="center">
   {/* one review at a time. Every review is in the page, so it reads without
       JavaScript and to search engines; the strip snaps to each one and swipes
       on a phone, and the script below adds Previous, Next and the count */}
@@ -24,9 +24,9 @@ import Section from "./Section.astro";
             aria-label={`${i + 1} of ${reviews.length}`}
             class="w-full shrink-0 snap-start"
           >
-            <figure class="flex flex-col gap-4">
+            <figure class="flex flex-col items-center gap-4 text-center">
               <Quote aria-hidden size={40} className="text-primary" />
-              <blockquote class="max-w-3xl text-xl leading-snug sm:text-3xl">{r.text}</blockquote>
+              <blockquote class="text-xl leading-snug sm:text-2xl">{r.text}</blockquote>
               <figcaption class="text-lg">
                 <span class="font-semibold">{r.name}</span>
                 <span class="text-fg-muted"> · {r.service}</span>
@@ -36,7 +36,7 @@ import Section from "./Section.astro";
         ))
       }
     </div>
-    <div data-controls hidden class="flex items-center gap-3">
+    <div data-controls hidden class="flex items-center justify-center gap-3">
       <button type="button" data-prev aria-label="Previous review" class={buttonStyles({ variant: "secondary", size: "icon" })}>
         <ChevronLeft aria-hidden size={20} />
       </button>
@@ -47,7 +47,7 @@ import Section from "./Section.astro";
         <ChevronRight aria-hidden size={20} />
       </button>
     </div>
-    <a href={googleReviewsUrl} target="_blank" rel="noopener" class="inline-flex items-center gap-2 self-start font-semibold text-primary">
+    <a href={googleReviewsUrl} target="_blank" rel="noopener" class="inline-flex items-center gap-2 self-center font-semibold text-primary">
       Read all our reviews on Google
       <ExternalLink aria-hidden size={16} />
     </a>

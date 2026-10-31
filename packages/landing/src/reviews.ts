@@ -28,9 +28,4 @@ export const reviews = [
     service: "Deep cleaning",
     text: "Jennifer and her team are amazing ! Not only did she do us a huge favor by being so accommodating with a last minute deep clean request, but her professionalism and friendliness was first class. Our apartment was spotless and had never been cleaner !",
   },
-  {
-    name: "John L.",
-    service: "Deep cleaning",
-    text: "We looked for a cleaning service after a lead paint removal was done in our home. We found Jennifer and her team, who were highly professional and attentive to detail and kind. They did a wonderful deep cleaning of the house, which we could trust to bring our 1 year child back to. We would recommend them many times over!",
-  },
 ] as const;
