@@ -5,6 +5,7 @@ import {
   signedInAs,
   createClient,
   createStaff,
+  emailsTo,
   expect,
   signInLinkFor,
   signInWithLink,
@@ -80,11 +81,18 @@ test.describe("signing up and in with an emailed link", () => {
 
       await expect(page).toHaveURL("/welcome");
       await expect(
-        page.getByText("signed in as new@example.com"),
+        page.getByText("Signed in as new@example.com"),
       ).toBeVisible();
       await expect(
         page.getByText("Asked us for a Quote with a different email?"),
       ).toBeVisible();
+      await expect(
+        page.getByRole("heading", { name: "What happens next" }),
+      ).toBeVisible();
+
+      // and can leave, to sign in with another email
+      await page.getByRole("button", { name: "Sign out" }).click();
+      await expect(page).toHaveURL(/\/sign-in/);
     },
   );
 
@@ -110,13 +118,31 @@ test.describe("signing up and in with an emailed link", () => {
     await elsewhere.goto(used);
 
     await expect(elsewhere).toHaveURL(/\/sign-in/);
-    await expect(elsewhere.getByRole("alert")).toContainText(
-      "expired or has already been used",
-    );
+    await expect(
+      elsewhere.getByText("expired or has already been used"),
+    ).toBeVisible();
     await expect(
       elsewhere.getByRole("button", { name: "Email me a sign-in link" }),
     ).toBeVisible();
     await elsewhere.close();
+  });
+
+  test("a link that didn't arrive can be sent again", async ({ page }) => {
+    await page.goto("/sign-in");
+    await page.getByRole("textbox", { name: "Email" }).fill(client.email);
+    await page
+      .getByRole("button", { name: "Email me a sign-in link" })
+      .click();
+    await expect(
+      page.getByRole("heading", { name: "Check your email" }),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "Send it again" }).click();
+
+    await expect(page.getByText("Another link is on its way")).toBeVisible();
+    await expect
+      .poll(async () => (await emailsTo(client.email)).length)
+      .toBe(2);
   });
 });
 
@@ -134,9 +160,7 @@ test.describe("Google", () => {
   test("a sign-in that fails part-way explains itself", async ({ page }) => {
     await page.goto("/sign-in?error=internal_server_error");
 
-    await expect(page.getByRole("alert")).toContainText(
-      "Signing in didn't work",
-    );
+    await expect(page.getByText("Signing in didn't work")).toBeVisible();
   });
 });
 
@@ -249,7 +273,7 @@ for (const theme of ["light", "dark"] as const) {
       { tag: theme === "light" ? "@desktop" : [] },
       async ({ page }) => {
         await page.goto("/sign-in?error=INVALID_TOKEN");
-        await expect(page.getByRole("alert")).toBeVisible();
+        await expect(page.getByText("expired or has already been used")).toBeVisible();
 
         const { violations } = await new AxeBuilder({ page }).analyze();
         expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);

@@ -1,7 +1,7 @@
 import { useRouter, type ErrorComponentProps } from "@tanstack/react-router";
-import { Actions, Button, ButtonLink } from "@empire-cleaning/ui";
+import { CircleAlert } from "lucide-react";
+import { Button } from "@empire-cleaning/ui";
 import { ApiError } from "../api.ts";
-import { linkTo } from "../links.ts";
 import { MessagePage } from "./MessagePage.tsx";
 import { NotFound } from "./NotFound.tsx";
 
@@ -20,17 +20,12 @@ export function PageError({ error }: ErrorComponentProps) {
   }
 
   return (
-    <MessagePage title="Something went wrong">
+    <MessagePage title="Something went wrong" icon={CircleAlert} tone="warning">
       <p className="text-fg-muted">
         We couldn't load this page. Try again in a moment.
       </p>
-      <Actions>
-        <ButtonLink variant="secondary" href={linkTo({ to: "/" })}>
-          Go to your home page
-        </ButtonLink>
-        {/* re-running the loaders resets this screen once they succeed */}
-        <Button onPress={() => void router.invalidate()}>Try again</Button>
-      </Actions>
+      {/* re-running the loaders resets this screen once they succeed */}
+      <Button onPress={() => void router.invalidate()}>Try again</Button>
     </MessagePage>
   );
 }
