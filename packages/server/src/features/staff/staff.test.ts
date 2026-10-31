@@ -1,9 +1,9 @@
 import { describe, expect, test } from "vitest";
 import type { StaffDetail, StaffMember } from "@empire-cleaning/models";
 import { createClient } from "#features/clients";
-import { createStaff } from "#features/staff";
+import { createStaff, setUsualWeek } from "#features/staff";
 import { api, signIn, testClock, testEmail } from "../../../tests/harness.ts";
-import { signInAsOffice } from "../../../tests/fixtures.ts";
+import { bookedJob, signInAsOffice } from "../../../tests/fixtures.ts";
 import { signInWithGoogle } from "../../../tests/google.ts";
 
 type Office = Awaited<ReturnType<typeof signInAsOffice>>;
@@ -173,6 +173,101 @@ describe("Staff pictures", () => {
 
     expect((await staffNamed(office, "Cory Cleaner")).imageUrl).toBe(
       `${picture}-new`,
+    );
+  });
+});
+
+describe("editing Staff", () => {
+  const edit = (office: Office, id: string, changes: object) =>
+    office.patch(`/api/staff/${id}`).send(changes);
+
+  test("changes their name and roles, and their access with them", async () => {
+    const office = await signInAsOffice();
+    await invite(office).expect(201);
+    const coryAgent = await signIn(cory.email);
+    const member = await staffNamed(office, "Cory Cleaner");
+
+    const { body } = await edit(office, member.id, {
+      name: "Cory Clean",
+      roles: ["cleaner", "office_staff"],
+    }).expect(200);
+
+    expect(body).toMatchObject({
+      name: "Cory Clean",
+      roles: ["cleaner", "office_staff"],
+    });
+    expect((await me(coryAgent)).roles.sort()).toEqual([
+      "cleaner",
+      "office_staff",
+    ]);
+  });
+
+  test("is only for Office Staff", async () => {
+    await createStaff({ ...cory, roles: ["cleaner"] });
+    const cleaner = await signIn(cory.email);
+    const office = await signInAsOffice();
+    const member = await staffNamed(office, "Cory Cleaner");
+
+    await edit(cleaner, member.id, { name: "Me", roles: ["cleaner"] }).expect(
+      403,
+    );
+  });
+
+  test("needs a name and at least one role", async () => {
+    const office = await signInAsOffice();
+    await invite(office).expect(201);
+    const member = await staffNamed(office, "Cory Cleaner");
+
+    const { body } = await edit(office, member.id, {
+      name: " ",
+      roles: [],
+    }).expect(400);
+
+    expect(
+      body.details.map((d: { path: string; issue: string }) => [
+        d.path,
+        d.issue,
+      ]),
+    ).toEqual([
+      ["name", "Enter their name"],
+      ["roles", "Choose at least one role"],
+    ]);
+  });
+
+  test("won't leave the business without an active Office Staff member", async () => {
+    const office = await signInAsOffice();
+    const olive = await staffNamed(office, "Olive Owner");
+
+    const { body } = await edit(office, olive.id, {
+      name: "Olive Owner",
+      roles: ["cleaner"],
+    }).expect(409);
+
+    expect(body.message).toBe(
+      "Empire Cleaning needs at least one active Office Staff member",
+    );
+  });
+
+  test("won't take the Cleaner role from someone holding a place on a Job to come", async () => {
+    const office = await signInAsOffice();
+    const member = await createStaff({ ...cory, roles: ["cleaner"] });
+    await setUsualWeek(member.id, [8, 8, 8, 8, 8, 0, 0]);
+    const job = await bookedJob({
+      startsAt: "2026-01-08T14:00:00Z",
+      labourHours: 4,
+    });
+    await office
+      .post(`/api/jobs/${job.id}/assignments`)
+      .send({ staffId: member.id })
+      .expect(201);
+
+    const { body } = await edit(office, member.id, {
+      name: "Cory Cleaner",
+      roles: ["office_staff"],
+    }).expect(409);
+
+    expect(body.message).toBe(
+      "Cory Cleaner holds a place on a Job to come: release it first",
     );
   });
 });

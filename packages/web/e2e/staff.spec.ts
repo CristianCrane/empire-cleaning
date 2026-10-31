@@ -211,43 +211,77 @@ test(
     await signInAsOffice(page);
     await openStaffMember(page, "Cory Cleaner");
 
+    const editWeek = async () => {
+      await page.getByRole("button", { name: "Edit usual week" }).click();
+      return page.getByRole("dialog", { name: "Usual week" });
+    };
+    let week = await editWeek();
     for (const day of ["Monday", "Tuesday", "Wednesday", "Thursday"]) {
-      await page.getByRole("textbox", { name: day }).fill("8");
+      await week.getByRole("textbox", { name: day }).fill("8");
     }
-    await page.getByRole("textbox", { name: "Friday" }).fill("6.5");
-    await page.getByRole("button", { name: "Save usual week" }).click();
+    await week.getByRole("textbox", { name: "Friday" }).fill("6.5");
+    await week.getByRole("button", { name: "Save usual week" }).click();
     await expect(page.getByText("Usual week saved")).toBeVisible();
 
-    const day = page.getByRole("group", { name: "Day" });
-    await day.getByRole("spinbutton", { name: /month/i }).click();
-    await page.keyboard.type("03052099");
-    await page.getByRole("textbox", { name: "Hours that day" }).fill("0");
-    await page
-      .getByRole("textbox", { name: "Note (optional)" })
-      .fill("Holiday");
-    await page.getByRole("button", { name: "Save day" }).click();
-    await expect(page.getByText("Thu, Mar 5 saved")).toBeVisible();
+    // the 15th of next month, on the calendar
+    const fifteenth = () =>
+      page.getByRole("button", { name: /^\w{3}, \w{3} 15 / });
+    await page.getByRole("button", { name: "Next month" }).click();
+    await fifteenth().click();
+    const day = page.getByRole("dialog");
+    await day.getByRole("textbox", { name: "Hours that day" }).fill("0");
+    await day.getByRole("textbox", { name: "Note (optional)" }).fill("Holiday");
+    await day.getByRole("button", { name: "Save day" }).click();
+    await expect(page.getByText(/ 15 saved$/)).toBeVisible();
 
     await page.reload();
-    await expect(page.getByRole("textbox", { name: "Friday" })).toHaveValue(
+    week = await editWeek();
+    await expect(week.getByRole("textbox", { name: "Friday" })).toHaveValue(
       "6.5",
     );
-    await expect(page.getByRole("textbox", { name: "Saturday" })).toHaveValue(
+    await expect(week.getByRole("textbox", { name: "Saturday" })).toHaveValue(
       "0",
     );
-    const days = page.getByRole("grid", {
-      name: "Days that differ from the usual week",
-    });
-    await expect(days).toContainText("Thu, Mar 5: 0 h");
-    await expect(days).toContainText("Holiday");
+    await week.getByRole("button", { name: "Cancel" }).click();
 
-    await page.getByRole("button", { name: "Remove Thu, Mar 5" }).click();
+    await page.getByRole("button", { name: "Next month" }).click();
+    await expect(fifteenth()).toHaveAccessibleName(
+      / 15 Off \(differs from the usual week\)$/,
+    );
+    await fifteenth().click();
+    await expect(page.getByRole("dialog")).toContainText("Usually");
     await expect(
-      page.getByText("Thu, Mar 5 is back to the usual week"),
+      page
+        .getByRole("dialog")
+        .getByRole("textbox", { name: "Note (optional)" }),
+    ).toHaveValue("Holiday");
+    await page.getByRole("button", { name: "Back to the usual week" }).click();
+    await expect(
+      page.getByText(/ 15 is back to the usual week$/),
     ).toBeVisible();
-    await expect(days).toHaveCount(0);
+    await expect(fifteenth()).not.toHaveAccessibleName(/differs/);
   },
 );
+
+test("Office Staff change someone's name and roles", async ({ page }) => {
+  await createStaff(cory);
+  await signInAsOffice(page);
+  await openStaffMember(page, "Cory Cleaner");
+
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Edit Cory Cleaner" });
+  await dialog.getByRole("textbox", { name: "Name" }).fill("Cory Clean");
+  await dialog.getByText("Office Staff: runs the Office workspace").click();
+  await dialog.getByRole("button", { name: "Save changes" }).click();
+
+  await expect(page.getByText("Changes saved")).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "Cory Clean",
+  );
+  await expect(page.getByRole("region", { name: "Details" })).toContainText(
+    "Cleaner and Office Staff",
+  );
+});
 
 test("Office Staff who don't clean have no availability to set", async ({
   page,

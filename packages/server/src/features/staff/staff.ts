@@ -1,4 +1,4 @@
-import { and, arrayContains, asc, eq, gte, ne } from "drizzle-orm";
+import { and, arrayContains, asc, eq, gt, gte, ne } from "drizzle-orm";
 import type {
   AvailabilityException,
   StaffDetail,
@@ -10,7 +10,9 @@ import { db } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock, dayOf } from "../../services/clock/index.ts";
 import { email } from "../../services/email/index.ts";
+import { assignments } from "../assignments/assignments.schema.ts";
 import { accounts } from "../auth/auth.schema.ts";
+import { jobs } from "../jobs/jobs.schema.ts";
 import { connectSignedUpAccount } from "../auth/connections.ts";
 import { staffInviteEmail } from "./emails.ts";
 import {
@@ -111,30 +113,78 @@ const findStaff = async (id: string) => {
   };
 };
 
+// refuses to take the last active Office Staff member away
+const keepAnotherOffice = async (id: string) => {
+  const [another] = await db
+    .select({ id: staff.id })
+    .from(staff)
+    .where(
+      and(
+        arrayContains(staff.roles, ["office_staff"]),
+        eq(staff.active, true),
+        ne(staff.id, id),
+      ),
+    )
+    .limit(1);
+  if (!another) {
+    throw new ConflictError(
+      "Empire Cleaning needs at least one active Office Staff member",
+    );
+  }
+};
+
+// Their name and roles, as the Office corrects them; their access follows
+// at once. The Office keeps an active member, and a Cleaner holding a place
+// on a Job to come keeps the role until they've let it go.
+export const editStaff = async (
+  id: string,
+  { name, roles }: { name: string; roles: StaffRole[] },
+) => {
+  const { member, view } = await findStaff(id);
+
+  if (
+    member.active &&
+    member.roles.includes("office_staff") &&
+    !roles.includes("office_staff")
+  )
+    await keepAnotherOffice(id);
+
+  if (member.roles.includes("cleaner") && !roles.includes("cleaner")) {
+    const [held] = await db
+      .select({ id: assignments.id })
+      .from(assignments)
+      .innerJoin(jobs, eq(jobs.id, assignments.jobId))
+      .where(
+        and(
+          eq(assignments.staffId, id),
+          ne(assignments.status, "released"),
+          eq(jobs.status, "booked"),
+          gt(jobs.startsAt, clock.now()),
+        ),
+      )
+      .limit(1);
+    if (held) {
+      throw new ConflictError(
+        `${member.name} holds a place on a Job to come: release it first`,
+      );
+    }
+  }
+
+  const [updated] = await db
+    .update(staff)
+    .set({ name, roles })
+    .where(eq(staff.id, id))
+    .returning();
+  return { ...view, name: updated!.name, roles: updated!.roles };
+};
+
 // Ends their Staff access at once; their Account, and any Client it's
 // connected to, are untouched. The Office can't remove its last member.
 export const deactivateStaff = async (id: string) => {
   const { member, view } = await findStaff(id);
   if (!member.active) return view;
 
-  if (member.roles.includes("office_staff")) {
-    const [another] = await db
-      .select({ id: staff.id })
-      .from(staff)
-      .where(
-        and(
-          arrayContains(staff.roles, ["office_staff"]),
-          eq(staff.active, true),
-          ne(staff.id, id),
-        ),
-      )
-      .limit(1);
-    if (!another) {
-      throw new ConflictError(
-        "Empire Cleaning needs at least one active Office Staff member",
-      );
-    }
-  }
+  if (member.roles.includes("office_staff")) await keepAnotherOffice(id);
 
   const [updated] = await db
     .update(staff)

@@ -6,7 +6,6 @@ import {
   Actions,
   Avatar,
   Button,
-  Card,
   Checkbox,
   Dialog,
   DialogTrigger,
@@ -42,31 +41,29 @@ export function StaffScreen() {
           </Dialog>
         </DialogTrigger>
       </div>
-      <Card>
-        <List
-          aria-label="Staff"
-          onAction={(id) =>
-            navigate({
-              to: "/office/staff/$staffId",
-              params: { staffId: String(id) },
-            })
-          }
-        >
-          {staff.map((member) => (
-            <ListItem
-              key={member.id}
-              id={member.id}
-              title={member.name}
-              start={<Avatar src={member.imageUrl} />}
-              description={[
-                member.roles.map((r) => roleLabel[r]).join(" and "),
-                member.email,
-              ].join(" · ")}
-              end={<MemberStatus member={member} />}
-            />
-          ))}
-        </List>
-      </Card>
+      <List
+        aria-label="Staff"
+        onAction={(id) =>
+          navigate({
+            to: "/office/staff/$staffId",
+            params: { staffId: String(id) },
+          })
+        }
+      >
+        {staff.map((member) => (
+          <ListItem
+            key={member.id}
+            id={member.id}
+            title={member.name}
+            start={<Avatar src={member.imageUrl} />}
+            description={[
+              member.roles.map((r) => roleLabel[r]).join(" and "),
+              member.email,
+            ].join(" · ")}
+            end={<MemberStatus member={member} />}
+          />
+        ))}
+      </List>
     </div>
   );
 }
