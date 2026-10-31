@@ -5,12 +5,15 @@ The public page for prospective Clients at empirecleaningandpro.com: a static si
 `pnpm dev` at the repo root starts it on http://localhost:4321. `pnpm --filter @empire-cleaning/landing build` writes the static site to `dist/`, ready for any static host.
 
 - **Look:** the design system's tokens and components (`@empire-cleaning/ui`). React components render to plain HTML at build time.
-- **JavaScript:** none, except two interactive islands:
+- **JavaScript:** none, except two interactive islands and one small script:
   - the theme toggle, loaded once the browser is idle
   - the Guest Request a Quote form (`@empire-cleaning/quote-request`), loaded when its section scrolls into view
 
+  - the reviews' Previous and Next buttons and their count (plain script in `Reviews.astro`); without it every review is still there, one at a time in a strip you swipe or scroll
+
   Until the form loads, and with JavaScript off, its section offers the phone number. The form posts to the API at `PUBLIC_API_URL` (set at build time; by default http://localhost:3000), which allows the landing site's origin (`LANDING_ORIGIN_URL` on the server).
 
+- **Reviews** live in `src/reviews.ts`: real Google reviews, word for word, which the owner swaps there.
 - **Business details** (name, phone, area, page title and description) live in `src/business.ts`, shared by the page, its search data and its tests.
 - **Search:** title and description, Open Graph tags for link previews, LocalBusiness structured data, `robots.txt` and a generated sitemap.
 
@@ -22,6 +25,7 @@ The public page for prospective Clients at empirecleaningandpro.com: a static si
 - an axe accessibility check in both themes
 - the page working with JavaScript switched off
 - a Guest asking for a Quote, and the API's field errors showing beside each field
+- the reviews stepping one at a time, wrapping round at either end
 - the theme toggle and the form being the only islands
 - no sideways scrolling
 - the search data
