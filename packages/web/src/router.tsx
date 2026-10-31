@@ -126,6 +126,7 @@ import { PortalQuote } from "./screens/portal/PortalQuote.tsx";
 import { PortalRequest } from "./screens/portal/PortalRequest.tsx";
 import { PortalDetails } from "./screens/portal/PortalDetails.tsx";
 import { NotFound } from "./screens/NotFound.tsx";
+import { ServicesPrototype } from "./screens/office/services.prototype.tsx";
 import { PageError } from "./screens/PageError.tsx";
 import { SignIn } from "./screens/SignIn.tsx";
 import { Welcome } from "./screens/Welcome.tsx";
@@ -789,7 +790,22 @@ const portalPropertyRoute = createRoute({
   component: PortalProperty,
 });
 
+// PROTOTYPE: the Office's page for a Service, on made-up data, signed out
+const servicesPrototypeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/prototype/services",
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { case?: string; layout?: string } => ({
+    // ?case=1 arrives as a number
+    case: search.case === undefined ? undefined : String(search.case),
+    layout: search.layout === undefined ? undefined : String(search.layout),
+  }),
+  component: ServicesPrototype,
+});
+
 const routeTree = rootRoute.addChildren([
+  servicesPrototypeRoute,
   indexRoute,
   signInRoute,
   welcomeRoute,
