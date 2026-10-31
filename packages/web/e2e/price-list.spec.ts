@@ -112,51 +112,62 @@ test(
     // placeholders, until the Office saves their own
     await expect(page.getByText("These are placeholder figures")).toBeVisible();
 
-    await page
-      .getByRole("textbox", { name: "Heavy Condition (×)" })
-      .fill("1.5");
-    await page
-      .getByRole("button", { name: "Retire Inside the fridge" })
-      .click();
-    await page.getByRole("button", { name: "Add an Add-on" }).click();
-    await page
-      .getByRole("textbox", { name: "Name" })
-      .last()
-      .fill("Steam clean");
-    await page.getByText("Tax-exempt").last().click();
-    await expect(
-      page.getByRole("checkbox", { name: "Tax-exempt" }).last(),
-    ).toBeChecked();
-    await page.getByRole("button", { name: "Save Price List" }).click();
-
+    // each part is changed in its own dialog, and saved as a new version
+    await page.getByRole("button", { name: "Edit Condition" }).click();
+    await page.getByRole("textbox", { name: "Heavy (×)" }).fill("1.5");
+    await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(page.getByText("Price List saved as version 2")).toBeVisible();
-    await page.reload();
     await expect(page.getByText("These are placeholder figures")).toHaveCount(
       0,
     );
+
+    await page.getByRole("row", { name: "Inside the fridge" }).click();
+    await page.getByText("Offered").click();
+    await page.getByRole("button", { name: "Save Add-on" }).click();
+    await expect(page.getByText("Price List saved as version 3")).toBeVisible();
+
+    await page.getByRole("button", { name: "Add an Add-on" }).click();
+    await page.getByRole("textbox", { name: "Name" }).fill("Steam clean");
+    await page.getByText("Tax-exempt").click();
     await expect(
-      page.getByText(/Version 2, saved by Olive Owner/),
+      page.getByRole("checkbox", { name: "Tax-exempt" }),
+    ).toBeChecked();
+    await page.getByRole("button", { name: "Add Add-on" }).click();
+    await expect(page.getByText("Price List saved as version 4")).toBeVisible();
+
+    await page.reload();
+    await expect(
+      page.getByText(/Version 4, saved by Olive Owner/),
     ).toBeVisible();
+    await expect(page.getByRole("region", { name: "Condition" })).toContainText(
+      "1.5×Heavy",
+    );
+    await expect(page.getByRole("row", { name: "Steam clean" })).toContainText(
+      "Tax-exempt",
+    );
     await expect(
-      page.getByRole("textbox", { name: "Heavy Condition (×)" }),
-    ).toHaveValue("1.5");
-    await expect(
-      page.getByRole("textbox", { name: "Name" }).last(),
-    ).toHaveValue("Steam clean");
-    await expect(
-      page.getByRole("button", { name: "Restore Inside the fridge" }),
-    ).toBeVisible();
+      page.getByRole("row", { name: "Inside the fridge" }),
+    ).toContainText("Retired");
     await expect(page.getByText("Retired")).toHaveCount(1);
   },
 );
+
+test("the starting figures can be kept as they are", async ({ page }) => {
+  await signInAsOffice(page);
+  await page.goto("/office/price-list");
+  await page.getByRole("button", { name: "Keep these figures" }).click();
+  await expect(page.getByText("Price List saved as version 2")).toBeVisible();
+  await expect(page.getByText("These are placeholder figures")).toHaveCount(0);
+});
 
 test("a saved Price List prices new Quotes, and a new Add-on appears on the form", async ({
   page,
 }) => {
   await signInAsOffice(page);
   await page.goto("/office/price-list");
-  await page.getByRole("textbox", { name: "Moderate Condition (×)" }).fill("2");
-  await page.getByRole("button", { name: "Save Price List" }).click();
+  await page.getByRole("button", { name: "Edit Condition" }).click();
+  await page.getByRole("textbox", { name: "Moderate (×)" }).fill("2");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByText("Price List saved as version 2")).toBeVisible();
 
   await requestQuoteAsGuest(casey);
@@ -178,23 +189,25 @@ test("a saved Price List prices new Quotes, and a new Add-on appears on the form
 test("saving keeps your place on the page", async ({ page }) => {
   await signInAsOffice(page);
   await page.goto("/office/price-list");
-  const save = page.getByRole("button", { name: "Save Price List" });
-  await save.scrollIntoViewIfNeeded();
+  const edit = page.getByRole("button", { name: "Edit Sales tax on fees" });
+  await edit.scrollIntoViewIfNeeded();
   expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
 
-  await save.click();
+  await edit.click();
+  await page.getByRole("button", { name: "Save", exact: true }).click();
   // the page's data is fetched again after a save; that mustn't jump to the
   // top (the placeholder notice going may still nudge it a little)
   await expect(page.getByText(/Version 2, saved by Olive Owner/)).toBeVisible();
-  await expect(save).toBeInViewport();
+  await expect(edit).toBeInViewport();
 });
 
 test("a mistake is explained beside the field", async ({ page }) => {
   await signInAsOffice(page);
   await page.goto("/office/price-list");
 
+  await page.getByRole("button", { name: "Edit Sales tax on fees" }).click();
   await page.getByRole("textbox", { name: "Fees (%)" }).fill("40");
-  await page.getByRole("button", { name: "Save Price List" }).click();
+  await page.getByRole("button", { name: "Save", exact: true }).click();
 
   const tax = page.getByRole("textbox", { name: "Fees (%)" });
   await expect(tax).toHaveAttribute("aria-invalid", "true");
