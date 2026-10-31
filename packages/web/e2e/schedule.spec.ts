@@ -459,13 +459,9 @@ test(
     await page.goto(`/office/jobs/${job.id}`);
 
     await page.getByRole("button", { name: "Move Job" }).click();
+    // the Schedule in the dialog itself, never a dialog on a dialog
     const dialog = page.getByRole("dialog", { name: "Move this Job" });
-    await dialog
-      .getByRole("button", { name: "Pick from the Schedule" })
-      .click();
-    const schedule = page.getByRole("dialog", {
-      name: "Pick from the Schedule",
-    });
+    const schedule = dialog;
     // the Job where it is now, on Tuesday
     await expect(
       schedule.getByRole("group", { name: "Jobs on Tue, Mar 2" }),
@@ -477,7 +473,7 @@ test(
     }
     await schedule.getByRole("button", { name: "Fri, Mar 5, 1:00 PM" }).click();
 
-    await expect(schedule).toBeHidden();
+    await expect(page.getByRole("dialog")).toHaveCount(1);
     await expect(dialog).toContainText("ToFri, Mar 5, 1:00 PM");
     await dialog.getByRole("button", { name: "Move Job" }).click();
     await expect(

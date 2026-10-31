@@ -94,6 +94,8 @@ type Props = {
   // time fields under it as the keyboard path; otherwise it opens its own
   // (the Office's Schedule)
   inline?: boolean;
+  // the dialog's width: wide for a Picker that shows the Schedule in place
+  size?: "md" | "wide";
   // what opens it, e.g. an IconAction; a Button with the label otherwise
   trigger?: ReactElement;
 };
@@ -104,7 +106,7 @@ export function ChooseNewTime(props: Props) {
   return (
     <DialogTrigger>
       {props.trigger ?? <Button variant="secondary">{props.label}</Button>}
-      <Dialog title="Choose a new time">
+      <Dialog title="Choose a new time" size={props.size}>
         {({ close }) => <NewTimeForm {...props} close={close} />}
       </Dialog>
     </DialogTrigger>

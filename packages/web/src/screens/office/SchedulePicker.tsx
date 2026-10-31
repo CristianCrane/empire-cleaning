@@ -22,6 +22,9 @@ type Props = TimePickerProps & {
   label?: string;
   // the clean's crew, to mark the times without one free (#62)
   crew?: Crew;
+  // the Schedule in place, in a dialog made wide for it, never a dialog on
+  // a dialog (#96); a Button opening it in its own otherwise
+  inline?: boolean;
 };
 
 /**
@@ -32,6 +35,7 @@ type Props = TimePickerProps & {
  * with no crew free for the clean are marked.
  */
 export function PickFromSchedule(props: Props) {
+  if (props.inline) return <PickStart {...props} />;
   return (
     <DialogTrigger>
       {/* the way to the Schedule, under the date and time it sets: full width
@@ -58,7 +62,7 @@ function PickStart({
   crew,
   onPick,
   close,
-}: Props & { close: () => void }) {
+}: Props & { close?: () => void }) {
   // a week where there's room for one, otherwise a day
   const [range, setRange] = useState(() =>
     rangeShowing(isWide() ? 7 : 1, date ?? current?.date ?? today()),
@@ -124,15 +128,17 @@ function PickStart({
           }
           onPick={(at) => {
             onPick(at);
-            close();
+            close?.();
           }}
         />
       )}
-      <Actions>
-        <Button variant="quiet" onPress={close}>
-          Close
-        </Button>
-      </Actions>
+      {close && (
+        <Actions>
+          <Button variant="quiet" onPress={close}>
+            Close
+          </Button>
+        </Actions>
+      )}
     </>
   );
 }
