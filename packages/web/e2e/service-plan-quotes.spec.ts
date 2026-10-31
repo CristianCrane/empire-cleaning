@@ -209,10 +209,10 @@ test(
     await expect(plan).toContainText("Plan Discount (15%)−$40.83");
     await expect(plan).toContainText("Save $40.83 a clean");
     await expect(
-      client.getByText(/^Starting Mon, Jan 19, 9:00 AM/),
-    ).toBeVisible();
+      client.getByRole("region", { name: "Quote details" }),
+    ).toContainText("From Mon, Jan 19, 9:00 AM");
     await expect(
-      client.getByRole("region", { name: "Accept and start your plan" }),
+      client.getByRole("region", { name: "Pay and start your plan" }),
     ).toBeVisible();
     await expect(
       client.getByRole("button", { name: "Decline this Quote" }),
@@ -251,8 +251,8 @@ test("a Service Plan of Deep Cleans", async ({ page, browser }) => {
     client.getByRole("region", { name: "Mondays at 9:00 AM: Deep Clean" }),
   ).toBeVisible();
   await expect(
-    client.getByText(/^Every 2 weeks, on Mondays at 9:00 AM\./),
-  ).toBeVisible();
+    client.getByRole("region", { name: "Quote details" }),
+  ).toContainText("Every 2 weeks, on Mondays at 9:00 AM");
 });
 
 test("the Client screen lists each home, whose own page holds its history and offers a plan", async ({

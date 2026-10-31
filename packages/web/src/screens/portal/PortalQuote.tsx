@@ -1,13 +1,20 @@
 import { useState } from "react";
 import { useLoaderData } from "@tanstack/react-router";
+import {
+  CalendarClock,
+  CreditCard,
+  FileText,
+  MapPin,
+  Users,
+} from "lucide-react";
 import type {
   AcceptOutcome,
   AskedQuoteView,
   ClientQuoteView,
   PaymentMethodView,
   PlanChange,
+  QuoteOption,
   QuoteView,
-  ServicePlanTerms,
   TurnDownReason,
 } from "@empire-cleaning/models";
 import {
@@ -19,10 +26,12 @@ import {
   Dialog,
   DialogTrigger,
   Heading,
+  IconTile,
   Link,
   Notice,
-  Radio,
+  RadioCard,
   RadioGroup,
+  StatusBadge,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
@@ -32,18 +41,14 @@ import {
   conditionLabel,
   formatDate,
   formatDateTime,
+  formatHours,
   formatMinutes,
   formatMoney,
   planRhythm,
   wantedCleaning,
 } from "../format.ts";
-import {
-  AddOnList,
-  OptionCard,
-  PlanDayCard,
-  PlanTotals,
-  QuoteStatusBadge,
-} from "../QuoteParts.tsx";
+import { Fact } from "../Fact.tsx";
+import { PlanDayCard, PlanTotals, QuoteStatusBadge } from "../QuoteParts.tsx";
 import { ConsentNote, usePaymentForm } from "./CardForm.tsx";
 
 // A Quote as its Client sees it, from the link in every Quote email (ADR-0017):
@@ -65,10 +70,13 @@ function QuoteHeader({
   quote,
   title,
   updatedAt = null,
+  openUntil = null,
 }: {
   quote: ClientQuoteView;
   title: string;
   updatedAt?: string | null;
+  // while an offer is open
+  openUntil?: string | null;
 }) {
   return (
     <div className="flex flex-col gap-4">
@@ -86,6 +94,7 @@ function QuoteHeader({
         {addressOf(quote.property)}
         {/* a resend replaced the offer they may have seen before */}
         {updatedAt && ` · Updated ${formatDate(updatedAt)}`}
+        {openUntil && ` · Open until ${formatDateTime(openUntil)}`}
       </p>
     </div>
   );
@@ -179,7 +188,8 @@ function AskedQuote({ quote }: { quote: AskedQuoteView }) {
   );
 }
 
-// the offer: open, they accept or decline it here
+// the offer, read like a Quote, then paying and booking under it while
+// it's open (#96)
 function OfferedQuote({
   quote,
   paymentMethod,
@@ -187,29 +197,38 @@ function OfferedQuote({
   quote: QuoteView;
   paymentMethod: PaymentMethodView | null;
 }) {
+  // the clean chosen: the one accepted, or the recommended one, unless
+  // only the other still fits
+  const [serviceKey, setServiceKey] = useState(
+    quote.acceptedServiceKey ??
+      (
+        quote.options.find((o) => quote.bookable.includes(o.serviceKey)) ??
+        quote.options[0]!
+      ).serviceKey,
+  );
+  const chosen =
+    quote.options.find((o) => o.serviceKey === serviceKey) ?? quote.options[0]!;
+
   return (
     <div className="flex flex-col gap-6">
       <QuoteHeader
         quote={quote}
         title={quote.plan ? "Your Service Plan Quote" : "Your Quote"}
         updatedAt={quote.updatedAt}
+        openUntil={quote.status === "sent" ? quote.expiresAt : null}
       />
 
-      <Standing quote={quote} />
+      <Standing quote={quote} chosen={chosen} />
       {quote.changesPlan && quote.status === "sent" && (
         <PlanChangeNotice quote={quote} change={quote.changesPlan} />
       )}
 
-      {quote.plan ? (
-        <PlanOffer quote={quote} plan={quote.plan} />
-      ) : (
-        <OneOffOffer quote={quote} />
-      )}
+      <QuoteDetails quote={quote} chosen={chosen} onChoose={setServiceKey} />
 
-      {quote.status === "sent" && (
-        <>
-          {quote.bookable.length === 0 ? (
-            // its day filled up after it was sent: nothing to pay for
+      {quote.status === "sent" &&
+        (quote.bookable.length === 0 ? (
+          // its day filled up after it was sent: nothing to pay for
+          <>
             <Notice tone="info">
               Sorry,{" "}
               {quote.plan && quote.plan.days.length > 1
@@ -219,129 +238,230 @@ function OfferedQuote({
               accepted. We've let our team know, and we'll send you a new Quote
               for another time.
             </Notice>
-          ) : quote.changesPlan ? (
-            <AcceptChange quote={quote} />
-          ) : (
-            <Accept quote={quote} paymentMethod={paymentMethod} />
-          )}
-          <Decline quote={quote} />
-        </>
-      )}
+            <Actions>
+              <Decline quote={quote} />
+            </Actions>
+          </>
+        ) : quote.changesPlan ? (
+          <AcceptChange quote={quote} />
+        ) : (
+          <Accept quote={quote} chosen={chosen} paymentMethod={paymentMethod} />
+        ))}
     </div>
   );
 }
 
-// a Service Plan Quote: each weekday's clean and its price, what each saves
-// on a one-off, and the Deposit
-function PlanOffer({
+// The Quote itself, as one card: what it comes to, when, where and for how
+// long, the clean to choose (or a plan's days), then the money line by line
+function QuoteDetails({
   quote,
-  plan,
+  chosen,
+  onChoose,
 }: {
   quote: QuoteView;
-  plan: ServicePlanTerms;
+  chosen: QuoteOption;
+  onChoose: (serviceKey: string) => void;
+}) {
+  const { plan } = quote;
+  const choosing = !plan && quote.options.length > 1 && quote.status === "sent";
+  const [recommended, own] = quote.options;
+  const extras = quote.addOns.map((a) => a.name).join(", ");
+
+  return (
+    <Section title="Quote details">
+      <Card>
+        <div className="flex flex-col gap-5">
+          {/* what it comes to */}
+          <div className="flex items-start gap-3">
+            <IconTile icon={FileText} />
+            <div className="flex min-w-0 flex-col">
+              <span className="font-display text-4xl font-bold tracking-wide tabular-nums">
+                {formatMoney(
+                  plan && plan.days.length > 1
+                    ? plan.roundTotalCents
+                    : chosen.totalCents,
+                )}
+              </span>
+              <span className="text-sm text-fg-muted">
+                {plan
+                  ? plan.days.length > 1
+                    ? "A week, with a clean on each day, tax included"
+                    : `${chosen.serviceName}, a clean, tax included`
+                  : `${chosen.serviceName}, tax included`}
+              </span>
+            </div>
+          </div>
+
+          <div className="@container">
+            <dl className="grid gap-x-6 gap-y-4 @md:grid-cols-2 @3xl:grid-cols-3">
+              <Fact
+                icon={CalendarClock}
+                label="When"
+                value={
+                  plan
+                    ? planRhythm(plan)
+                    : formatDateTime(quote.proposedStartsAt)
+                }
+                line={
+                  plan
+                    ? `From ${formatDateTime(quote.proposedStartsAt)}`
+                    : "Your clean"
+                }
+              />
+              <Fact
+                icon={MapPin}
+                label="Where"
+                value={addressOf(quote.property)}
+                line="Your home"
+              />
+              <Fact
+                icon={Users}
+                label="On site"
+                value={`${quote.crewSize} ${quote.crewSize === 1 ? "Cleaner" : "Cleaners"}, about ${formatHours(chosen.hoursOnSite)}`}
+                line="On site"
+              />
+            </dl>
+          </div>
+
+          {choosing && (
+            <div className="border-t border-border pt-4">
+              <RadioGroup
+                label="Your clean"
+                description={`We recommend a ${recommended!.serviceName} for a first visit: it brings your home up to standard. A ${own!.serviceName} costs less.`}
+                layout="cards"
+                value={chosen.serviceKey}
+                onChange={onChoose}
+              >
+                {quote.options.map((option) => (
+                  <RadioCard
+                    key={option.serviceKey}
+                    value={option.serviceKey}
+                    title={option.serviceName}
+                    isDisabled={!quote.bookable.includes(option.serviceKey)}
+                    badge={
+                      option.recommended && (
+                        <StatusBadge tone="success">Recommended</StatusBadge>
+                      )
+                    }
+                  >
+                    <span className="font-display text-3xl font-bold tabular-nums">
+                      {formatMoney(option.totalCents)}
+                    </span>
+                    <span className="text-sm text-fg-muted">
+                      {quote.bookable.includes(option.serviceKey)
+                        ? `${formatHours(option.labourHours)} of cleaning · ${formatMoney(option.depositCents)} Deposit`
+                        : "No longer fits on that day: it's been booked up since we sent this Quote"}
+                    </span>
+                  </RadioCard>
+                ))}
+              </RadioGroup>
+            </div>
+          )}
+
+          {plan && (
+            <div className="flex flex-col gap-3 border-t border-border pt-4">
+              <p className="text-sm text-fg-muted">
+                {plan.days.length > 1 ? "One clean a day. " : ""}Each clean is{" "}
+                {plan.discountPercent}% off what it would cost as a one-off.
+              </p>
+              <div className="grid gap-4 lg:grid-cols-2">
+                {plan.days.map((day, i) => (
+                  <PlanDayCard
+                    key={day.startsAt}
+                    option={quote.options[i]!}
+                    day={day}
+                    discountPercent={plan.discountPercent}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* the money, line by line */}
+          <div className="flex flex-col gap-1 border-t border-border pt-4">
+            {plan ? (
+              <>
+                {extras && (
+                  <p className="text-sm text-fg-muted">
+                    On every clean, included: {extras}
+                  </p>
+                )}
+                <PlanTotals
+                  plan={plan}
+                  depositPercent={quote.depositPercent}
+                  change={quote.changesPlan}
+                />
+              </>
+            ) : (
+              <dl className="flex flex-col gap-1 text-sm">
+                <Line
+                  label={chosen.serviceName}
+                  value={formatMoney(chosen.priceCents)}
+                />
+                {extras && <p className="text-fg-muted">Includes {extras}</p>}
+                <Line label="Tax" value={formatMoney(chosen.taxCents)} />
+                <div className="mt-1 flex justify-between gap-4 border-t border-border pt-2 text-base font-semibold text-fg">
+                  <dt>Total</dt>
+                  <dd className="tabular-nums">
+                    {formatMoney(chosen.totalCents)}
+                  </dd>
+                </div>
+                {chosen.depositCents > 0 && (
+                  <>
+                    <Line
+                      label={`Deposit (${quote.depositPercent}%)${quote.status === "accepted" ? ", paid" : ""}`}
+                      value={formatMoney(chosen.depositCents)}
+                      strong
+                    />
+                    <Line
+                      label="The rest, when the clean is done"
+                      value={formatMoney(
+                        chosen.totalCents - chosen.depositCents,
+                      )}
+                    />
+                  </>
+                )}
+              </dl>
+            )}
+          </div>
+        </div>
+      </Card>
+    </Section>
+  );
+}
+
+function Line({
+  label,
+  value,
+  strong = false,
+}: {
+  label: string;
+  value: string;
+  strong?: boolean;
 }) {
   return (
-    <>
-      <section aria-labelledby="plan-title" className="flex flex-col gap-4">
-        <Heading level={2} id="plan-title">
-          Your Service Plan
-        </Heading>
-        <p className="text-fg-muted">
-          {planRhythm(plan)}
-          {plan.days.length > 1 ? ", one clean a day" : ""}. Each clean is{" "}
-          {plan.discountPercent}% off what it would cost as a one-off. Prices
-          include tax.
-        </p>
-        <div className="grid gap-4 lg:grid-cols-2">
-          {plan.days.map((day, i) => (
-            <PlanDayCard
-              key={day.startsAt}
-              option={quote.options[i]!}
-              day={day}
-              discountPercent={plan.discountPercent}
-            />
-          ))}
-        </div>
-        <Section title={plan.days.length > 1 ? "Each week" : "Deposit"}>
-          <Card>
-            <PlanTotals
-              plan={plan}
-              depositPercent={quote.depositPercent}
-              change={quote.changesPlan}
-            />
-          </Card>
-        </Section>
-      </section>
-
-      <Section
-        title="Extras"
-        description="Done on every clean, and included in the price above."
-      >
-        <Card>
-          <AddOnList addOns={quote.addOns} />
-        </Card>
-      </Section>
-    </>
+    <div className="flex justify-between gap-4">
+      <dt className={strong ? "font-semibold text-fg" : "text-fg-muted"}>
+        {label}
+      </dt>
+      <dd className={`tabular-nums ${strong ? "font-semibold" : ""}`}>
+        {value}
+      </dd>
+    </div>
   );
 }
 
-// a one-off Quote: its Service, after the one recommended for a first
-// visit where that's offered too
-function OneOffOffer({ quote }: { quote: QuoteView }) {
-  const [recommended, own] = quote.options;
-  const choosing = quote.options.length > 1;
-  return (
-    <>
-      <section aria-labelledby="options-title" className="flex flex-col gap-4">
-        <Heading level={2} id="options-title">
-          {quote.status === "accepted"
-            ? "Your clean"
-            : choosing
-              ? "Choose your clean"
-              : "Your clean"}
-        </Heading>
-        <p className="text-fg-muted">
-          {choosing &&
-            `We recommend a ${recommended!.serviceName} for a first visit: it brings your home up to standard. A ${own!.serviceName} costs less. `}
-          Prices include tax.
-        </p>
-        <div className="grid gap-4 lg:grid-cols-2">
-          {quote.options.map((option) => (
-            <OptionCard
-              key={option.serviceKey}
-              option={option}
-              crewSize={quote.crewSize}
-              depositPercent={quote.depositPercent}
-            />
-          ))}
-        </div>
-      </section>
-
-      <Section title="Extras" description="Included in both prices above.">
-        <Card>
-          <AddOnList addOns={quote.addOns} />
-        </Card>
-      </Section>
-    </>
-  );
-}
-
-// when it's for, and whether it's still open
-function Standing({ quote }: { quote: QuoteView }) {
+// how it ended, once it's closed; while it's open, its header says until
+// when
+function Standing({
+  quote,
+  chosen,
+}: {
+  quote: QuoteView;
+  chosen: QuoteOption;
+}) {
   const proposed = formatDateTime(quote.proposedStartsAt);
-  const until = formatDateTime(quote.expiresAt);
   switch (quote.status) {
-    case "sent":
-      return (
-        <Notice tone="info">
-          {quote.changesPlan
-            ? "Your new terms start"
-            : quote.plan
-              ? "Starting"
-              : "Proposed for"}{" "}
-          {proposed}. This Quote is open until {until}.
-        </Notice>
-      );
     case "accepted":
       return quote.servicePlanId ? (
         <Notice tone="success">
@@ -360,13 +480,8 @@ function Standing({ quote }: { quote: QuoteView }) {
         </Notice>
       ) : (
         <Notice tone="success">
-          You're booked: a{" "}
-          {
-            quote.options.find((o) => o.serviceKey === quote.acceptedServiceKey)
-              ?.serviceName
-          }{" "}
-          on {proposed}. You accepted this Quote on{" "}
-          {formatDateTime(quote.acceptedAt!)}.
+          You're booked: a {chosen.serviceName} on {proposed}. You accepted this
+          Quote on {formatDateTime(quote.acceptedAt!)}.
         </Notice>
       );
     case "declined":
@@ -376,9 +491,12 @@ function Standing({ quote }: { quote: QuoteView }) {
         </Notice>
       );
     case "expired":
-      return <Notice>This Quote expired on {until}.</Notice>;
+      return (
+        <Notice>
+          This Quote expired on {formatDateTime(quote.expiresAt)}.
+        </Notice>
+      );
     default:
-      // nothing else has an offer
       return null;
   }
 }
@@ -414,31 +532,26 @@ function PlanChangeNotice({
   );
 }
 
-// One step: choose the Service, enter a card (or keep the saved one), and
-// accept. The Deposit is taken, saving a card entered now, and the Job
-// booked, or none of it. If their bank wants them to approve the payment,
-// that happens here too, then the booking is finished. A Service Plan Quote
-// is accepted whole, with a clean on each of its weekdays, and starts the
-// plan, whose Deposit is held for as long as it runs; or changes the home's
-// plan, taking nothing, as its Deposit carries over.
+// One step under the Quote: enter a card (or keep the saved one) and accept
+// the clean chosen above. The Deposit is taken, saving a card entered now,
+// and the Job booked, or none of it. If their bank wants them to approve the
+// payment, that happens here too, then the booking is finished. A Service
+// Plan Quote is accepted whole, with a clean on each of its weekdays, and
+// starts the plan, whose Deposit is held for as long as it runs.
 function Accept({
   quote,
+  chosen,
   paymentMethod,
 }: {
   quote: QuoteView;
+  chosen: QuoteOption;
   paymentMethod: PaymentMethodView | null;
 }) {
-  // the recommended Service, unless only the other still fits
-  const [serviceKey, setServiceKey] = useState(
-    quote.options.find((o) => quote.bookable.includes(o.serviceKey))!
-      .serviceKey,
-  );
   const [newCard, setNewCard] = useState(!paymentMethod);
   // what's bookable may have changed since the page loaded
   const action = useAction("That didn't work. Please try again.", {
     reloadOnFailure: true,
   });
-  const chosen = quote.options.find((o) => o.serviceKey === serviceKey)!;
   const balance = chosen.totalCents - chosen.depositCents;
   const depositCents = quote.plan?.depositCents ?? chosen.depositCents;
   const payment = usePaymentForm({
@@ -453,7 +566,9 @@ function Accept({
         const outcome = await postJson<AcceptOutcome>(
           `/api/quotes/mine/${quote.id}/accept`,
           // a plan is accepted whole
-          quote.plan ? { paymentToken } : { serviceKey, paymentToken },
+          quote.plan
+            ? { paymentToken }
+            : { serviceKey: chosen.serviceKey, paymentToken },
         );
         if (outcome.status === "needs_approval") {
           await payment.approve(outcome.secret);
@@ -467,39 +582,24 @@ function Accept({
 
   return (
     <Section
-      title={quote.plan ? "Accept and start your plan" : "Accept and book"}
+      title={
+        quote.plan
+          ? depositCents > 0
+            ? "Pay and start your plan"
+            : "Start your plan"
+          : depositCents > 0
+            ? "Pay and book"
+            : "Book"
+      }
     >
       <Card>
-        {!quote.plan && (
-          <RadioGroup
-            label="Your clean"
-            value={serviceKey}
-            onChange={setServiceKey}
-          >
-            {quote.options.map((option) => (
-              <Radio
-                key={option.serviceKey}
-                value={option.serviceKey}
-                isDisabled={!quote.bookable.includes(option.serviceKey)}
-                description={
-                  quote.bookable.includes(option.serviceKey)
-                    ? `${formatMoney(option.totalCents)}, with a ${formatMoney(option.depositCents)} Deposit today`
-                    : "No longer fits on that day: it's been booked up since we sent this Quote"
-                }
-              >
-                {option.serviceName}
-                {option.recommended && " (recommended)"}
-              </Radio>
-            ))}
-          </RadioGroup>
-        )}
-
         {newCard ? (
           <div className="flex flex-col gap-2">
             {payment.field}
             {paymentMethod && (
               <Button
-                variant="secondary"
+                variant="text"
+                size="sm"
                 className="self-start"
                 onPress={() => setNewCard(false)}
               >
@@ -508,16 +608,12 @@ function Accept({
             )}
           </div>
         ) : (
-          <div className="flex flex-col gap-2">
-            <p>
-              Paying with your{" "}
-              <strong>{paymentMethod?.label ?? "saved card"}</strong>.
-            </p>
-            <Button
-              variant="secondary"
-              className="self-start"
-              onPress={() => setNewCard(true)}
-            >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="flex items-center gap-2">
+              <CreditCard aria-hidden size={18} className="text-fg-muted" />
+              Paying with your {paymentMethod?.label ?? "saved card"}
+            </span>
+            <Button variant="text" size="sm" onPress={() => setNewCard(true)}>
               Use a different card
             </Button>
           </div>
@@ -535,6 +631,7 @@ function Accept({
         {newCard && <ConsentNote action="paying" />}
         {action.problem && <Notice tone="danger">{action.problem}</Notice>}
         <Actions>
+          <Decline quote={quote} />
           <Button
             isPending={action.isPending}
             isDisabled={!payment.isReady}
@@ -574,6 +671,7 @@ function AcceptChange({ quote }: { quote: QuoteView }) {
         </p>
         {action.problem && <Notice tone="danger">{action.problem}</Notice>}
         <Actions>
+          <Decline quote={quote} />
           <Button isPending={action.isPending} onPress={() => void accept()}>
             Accept the new terms
           </Button>
@@ -583,6 +681,7 @@ function AcceptChange({ quote }: { quote: QuoteView }) {
   );
 }
 
+// beside accepting, quietly: they're asked once more before it's done
 function Decline({ quote }: { quote: QuoteView }) {
   const action = useAction("That didn't work. Please try again.");
 
@@ -596,9 +695,7 @@ function Decline({ quote }: { quote: QuoteView }) {
 
   return (
     <DialogTrigger>
-      <Button variant="secondary" className="self-start">
-        Decline this Quote
-      </Button>
+      <Button variant="text">Decline this Quote</Button>
       <Dialog title="Decline this Quote?" role="alertdialog">
         {({ close }) => (
           <>

@@ -134,12 +134,11 @@ test(
     const client = await (await browser.newContext()).newPage();
     await signedInAs(client, casey.email);
     await client.goto(await quoteLink());
-    await expect(
-      client.getByText(
-        "Every week, on Mondays at 9:00 AM and Wednesdays at 1:00 PM, one clean a day.",
-        { exact: false },
-      ),
-    ).toBeVisible();
+    const quote = client.getByRole("region", { name: "Quote details" });
+    await expect(quote).toContainText(
+      "Every week, on Mondays at 9:00 AM and Wednesdays at 1:00 PM",
+    );
+    await expect(quote).toContainText("One clean a day.");
     await expect(
       client.getByRole("region", {
         name: "Mondays at 9:00 AM: Standard Clean",
@@ -151,13 +150,13 @@ test(
       }),
     ).toBeVisible();
     await expect(
-      client.getByRole("region", { name: "Each week" }),
+      client.getByRole("region", { name: "Quote details" }),
     ).toContainText(`Deposit (25% of a clean on each day)`);
     await noViolations(client);
 
     // and accepts it whole, with nothing to choose
     const accept = client.getByRole("region", {
-      name: "Accept and start your plan",
+      name: "Pay and start your plan",
     });
     await expect(accept.getByRole("radio")).toHaveCount(0);
     await accept

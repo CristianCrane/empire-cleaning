@@ -75,8 +75,8 @@ test(
     await signedInAs(client, casey.email);
     await client.goto(`/portal/quotes/${quote.id}`);
     await expect(
-      client.getByText("Your new terms start Wed, Jan 28, 9:00 AM"),
-    ).toBeVisible();
+      client.getByRole("region", { name: "Quote details" }),
+    ).toContainText("From Wed, Jan 28, 9:00 AM");
     const change = client.getByText("This changes your Service Plan");
     await expect(change).toBeVisible();
     await expect(
