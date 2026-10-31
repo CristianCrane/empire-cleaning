@@ -13,6 +13,7 @@ import {
   CirclePlus,
   Clock,
   ContactRound,
+  FilePen,
   FileText,
   House,
   KeyRound,
@@ -24,6 +25,7 @@ import {
   Receipt,
   Ruler,
   Sparkles,
+  SquarePen,
   Tag,
   UserRound,
   Users,
@@ -569,7 +571,10 @@ function DetailsSection({ c }: { c: HomeCase }) {
 function EditDetails({ c }: { c: HomeCase }) {
   return (
     <DialogTrigger>
-      <Button variant="secondary">Correct</Button>
+      <Button variant="text" size="sm">
+        <SquarePen aria-hidden size={16} />
+        Correct
+      </Button>
       <Dialog title={`Correct ${c.street}`}>
         {({ close }) => (
           <>
@@ -646,7 +651,12 @@ function PlanSection({ c }: { c: HomeCase }) {
       )}
       <Section
         title="Service Plan"
-        actions={<Button variant="secondary">Change terms</Button>}
+        actions={
+          <Button variant="text" size="sm">
+            <FilePen aria-hidden size={16} />
+            Change terms
+          </Button>
+        }
       >
         <Card>
           <div className="flex flex-col gap-6">
@@ -701,7 +711,7 @@ function PlanSection({ c }: { c: HomeCase }) {
       </Section>
       <Section title="End the plan">
         <Card>
-          <ActionRow actions={<Button variant="secondary">End plan</Button>}>
+          <ActionRow actions={<Button variant="danger">End plan</Button>}>
             <p>
               For a Client who's stopping. Its booked Jobs are cancelled and the
               Deposit comes off the last one.
@@ -752,7 +762,12 @@ function VisitSection({
   return (
     <Section
       title="Site Visit"
-      actions={<Button variant="secondary">Record findings</Button>}
+      actions={
+        <Button variant="text" size="sm">
+          <NotebookPen aria-hidden size={16} />
+          Record findings
+        </Button>
+      }
     >
       <Card>
         <div className="flex flex-col gap-6">
