@@ -4,6 +4,7 @@ import { validate } from "../../middleware/validation.ts";
 import { authorize } from "../auth/authorize.ts";
 import {
   deactivateStaff,
+  editStaff,
   inviteStaff,
   listStaff,
   removeException,
@@ -12,6 +13,7 @@ import {
   staffDetail,
 } from "./staff.ts";
 import {
+  editStaffSchema,
   exceptionSchema,
   invitationSchema,
   isoDate,
@@ -37,6 +39,14 @@ router.post("/", validate({ body: invitationSchema }), async (req, res) => {
 router.get("/:id", validate({ params: member }), async (req, res) => {
   res.json(await staffDetail(String(req.params.id)));
 });
+
+router.patch(
+  "/:id",
+  validate({ params: member, body: editStaffSchema }),
+  async (req, res) => {
+    res.json(await editStaff(String(req.params.id), req.body));
+  },
+);
 
 router.post(
   "/:id/deactivate",

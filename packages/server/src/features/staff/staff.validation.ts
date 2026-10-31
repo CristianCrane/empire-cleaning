@@ -16,6 +16,13 @@ export const invitationSchema = z.object({
     .transform((roles) => [...new Set(roles)]),
 });
 
+// what the Office can change about someone after inviting them: not their
+// email, which is how their Account connects (ADR-0006)
+export const editStaffSchema = invitationSchema.pick({
+  name: true,
+  roles: true,
+});
+
 const hours = z
   .number({ error: "Enter a number of hours" })
   .min(0, "Hours can't be negative")
