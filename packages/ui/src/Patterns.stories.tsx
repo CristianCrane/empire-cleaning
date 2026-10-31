@@ -583,8 +583,8 @@ function RowsOpenOneDialog() {
           Settings read before they're changed: a page of them (the Price List)
           shows each part's figures as facts, changed in a dialog from the
           part's Edit, and its items as rows. Something kept for what already
-          used it is retired in its dialog (untick Offered), never with a
-          Button on its row.
+          used it is retired in its dialog (untick Offered), never with a Button
+          on its row.
         </p>
       </Rule>
       <div className="flex flex-col gap-4 lg:flex-row">
