@@ -2,14 +2,35 @@
 import { Logo, buttonStyles } from "@empire-cleaning/ui";
 import { Phone } from "lucide-react";
 import { business } from "../business.ts";
+import { height, skyline, width } from "../skyline.ts";
+
+// the skyline fades out around the content, in both directions: clear behind
+// the words, strongest toward the bottom corners, so it can stand tall beside
+// them without a hard edge
+const fade =
+  "radial-gradient(ellipse 64% 70% at 50% 40%, transparent 62%, #000 100%)";
 ---
 
-<!-- the logo leads, at a size it reads at: above the headline on a phone,
-     beside it on a laptop (UX pass, #96) -->
-<section aria-labelledby="hero-title" class="py-12 sm:py-24">
-  <div class="mx-auto flex max-w-5xl flex-col gap-8 px-4 lg:flex-row lg:items-center lg:gap-12">
-    <Logo className="mx-auto w-44 sm:mx-0 sm:w-52 lg:w-64" />
-    <div class="flex flex-col items-start gap-6">
+<!-- the logo leads, at a size it reads at: above the headline, everything
+     centred, up to a laptop; beside it from there (UX pass, #96) -->
+<section aria-labelledby="hero-title" class="relative overflow-hidden pt-12 pb-28 sm:pt-24 sm:pb-36">
+  <div
+    data-skyline
+    aria-hidden="true"
+    class="pointer-events-none absolute inset-0"
+    style={`-webkit-mask-image: ${fade}; mask-image: ${fade}`}
+  >
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio="xMidYMax slice"
+      class="absolute inset-x-0 bottom-0 h-32 w-full text-primary opacity-[.16] sm:h-44 xl:h-2/3"
+    >
+      <path fill="currentColor" d={skyline} />
+    </svg>
+  </div>
+  <div class="relative mx-auto flex max-w-5xl flex-col items-center gap-8 px-4 lg:flex-row lg:gap-12">
+    <Logo className="w-44 sm:w-52 lg:w-64" />
+    <div data-hero-words class="flex flex-col items-center gap-6 text-center lg:items-start lg:text-left">
       <h1
         id="hero-title"
         class="font-display text-5xl leading-none font-bold tracking-wide uppercase sm:text-7xl"
