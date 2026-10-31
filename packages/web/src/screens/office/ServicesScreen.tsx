@@ -37,7 +37,8 @@ import {
 import { postJson, putJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
-import { formatDate, formatHours, formatMoney } from "../format.ts";
+import { formatDate, formatMoney } from "../format.ts";
+import { ExampleQuote } from "./ExampleQuote.tsx";
 
 export const methodLabel: Record<PricingMethod, string> = {
   rooms: "From a home's rooms",
@@ -321,223 +322,238 @@ function ServiceForm({
         );
       }}
     >
-      <Section title="What it is">
-        <Card>
-          <TextField
-            label="Name"
-            name="name"
-            isRequired
-            value={draft.name}
-            onChange={(name) => set({ name })}
-          />
-          <TextField
-            label="Description"
-            name="description"
-            description="A sentence or two Clients see when asking for it"
-            multiline
-            value={draft.description}
-            onChange={(description) => set({ description })}
-          />
-          <SegmentedControl
-            label="Offered for"
-            name="offeredFor"
-            value={draft.offeredFor}
-            onChange={(v) => setOfferedFor(v as OfferedFor)}
-          >
-            {(["homes", "businesses", "both"] as const).map((k) => (
-              <Segment key={k} value={k}>
-                {offeredForLabel[k]}
-              </Segment>
-            ))}
-          </SegmentedControl>
-        </Card>
-      </Section>
-
-      <Section
-        title="How long it takes"
-        description="Labour Hours, however many Cleaners share them. They set the price, and how long the Schedule books."
-      >
-        <Card>
-          <SegmentedControl
-            label="Worked out"
-            name="method"
-            value={draft.method}
-            onChange={(v) => setMethod(v as PricingMethod)}
-          >
-            <Segment value="rooms" isDisabled={draft.offeredFor !== "homes"}>
-              {methodLabel.rooms}
-            </Segment>
-            <Segment value="area">{methodLabel.area}</Segment>
-          </SegmentedControl>
-          {draft.method === "rooms" ? (
-            <div className="grid gap-4 sm:grid-cols-2">
-              {roomFields.map(({ name, label, description }) => (
-                <NumberField
-                  key={name}
-                  label={`${label} (hours)`}
-                  name={`roomHours.${name}`}
-                  description={description}
-                  // a step counts from the least value, and typed values snap to
-                  // it: 0.05 keeps 0.4 h as typed
-                  minValue={0}
-                  step={0.05}
-                  formatOptions={{ maximumFractionDigits: 2 }}
-                  value={draft.roomHours?.[name] ?? NaN}
-                  onChange={(value) => setRoomHours({ [name]: value })}
-                />
+      {/* the form in one column; the Example Quote beside it, in view as
+          it scrolls, or after the Price on a phone */}
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
+        <Section title="What it is">
+          <Card>
+            <TextField
+              label="Name"
+              name="name"
+              isRequired
+              value={draft.name}
+              onChange={(name) => set({ name })}
+            />
+            <TextField
+              label="Description"
+              name="description"
+              description="A sentence or two Clients see when asking for it"
+              multiline
+              value={draft.description}
+              onChange={(description) => set({ description })}
+            />
+            <SegmentedControl
+              label="Offered for"
+              name="offeredFor"
+              value={draft.offeredFor}
+              onChange={(v) => setOfferedFor(v as OfferedFor)}
+            >
+              {(["homes", "businesses", "both"] as const).map((k) => (
+                <Segment key={k} value={k}>
+                  {offeredForLabel[k]}
+                </Segment>
               ))}
-            </div>
-          ) : (
-            <NumberField
-              label="Hours per 1,000 sq ft"
-              name="hoursPerThousandSqFt"
-              description={
-                draft.offeredFor === "homes"
-                  ? undefined
-                  : "For an office; other types of premises take longer or shorter, as set on the Price List"
-              }
-              minValue={0}
-              step={0.05}
-              formatOptions={{ maximumFractionDigits: 2 }}
-              value={draft.hoursPerThousandSqFt ?? NaN}
-              onChange={(hoursPerThousandSqFt) => set({ hoursPerThousandSqFt })}
-            />
-          )}
-          <Checkbox
-            isSelected={draft.conditionApplies}
-            onChange={(conditionApplies) => set({ conditionApplies })}
-          >
-            Takes longer the dirtier the place is (Condition)
-          </Checkbox>
-        </Card>
-      </Section>
+            </SegmentedControl>
+          </Card>
+        </Section>
 
-      <Section
-        title="Price"
-        description="Before tax. Add-ons are charged at the same rate, for their own hours."
-      >
-        <Card>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <NumberField
-              label="Hourly rate"
-              name="hourlyRateCents"
-              minValue={1}
-              formatOptions={dollars}
-              value={draft.hourlyRate}
-              onChange={(hourlyRate) => set({ hourlyRate })}
-            />
-            <NumberField
-              label="Minimum Charge"
-              name="minimumChargeCents"
-              description="No Suggested Price is lower. You can still override it on a Quote."
-              minValue={0}
-              formatOptions={dollars}
-              value={draft.minimumCharge}
-              onChange={(minimumCharge) => set({ minimumCharge })}
-            />
-          </div>
-          <Example draft={draft} list={list} />
-        </Card>
-      </Section>
-
-      <Section title="Booking">
-        <Card>
-          <Checkbox
-            isSelected={draft.canRecur}
-            onChange={(canRecur) =>
-              set({
-                canRecur,
-                taxPlanPercent: canRecur
-                  ? (draft.taxPlanPercent ?? draft.taxOneOffPercent)
-                  : null,
-              })
-            }
-          >
-            Can be on a Service Plan
-          </Checkbox>
-          <Checkbox
-            isSelected={draft.needsSiteVisit}
-            onChange={(needsSiteVisit) => set({ needsSiteVisit })}
-          >
-            Needs a Site Visit before a Quote is sent
-          </Checkbox>
-          <Select
-            label="For a first visit, recommend"
-            name="firstVisitServiceKey"
-            description="Offered alongside it, recommended, where Empire Cleaning hasn't worked before"
-            selectedKey={draft.firstVisitServiceKey ?? NONE}
-            onSelectionChange={(key) =>
-              set({
-                firstVisitServiceKey: key === NONE ? null : String(key),
-              })
-            }
-          >
-            <SelectItem id={NONE}>Nothing else</SelectItem>
-            {others.map((s) => (
-              <SelectItem key={s.key} id={s.key}>
-                {s.name}
-              </SelectItem>
-            ))}
-          </Select>
-        </Card>
-      </Section>
-
-      <Section
-        title="Sales tax"
-        description="Added to its price, so Clients see prices with tax. Confirm these with your accountant."
-      >
-        <Card>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <NumberField
-              label="One-off Jobs (%)"
-              name="taxOneOffPercent"
-              minValue={0}
-              step={0.125}
-              formatOptions={rate}
-              value={draft.taxOneOffPercent}
-              onChange={(taxOneOffPercent) => set({ taxOneOffPercent })}
-            />
-            {draft.canRecur && (
+        <Section
+          title="How long it takes"
+          description="Labour Hours, however many Cleaners share them. They set the price, and how long the Schedule books."
+        >
+          <Card>
+            <SegmentedControl
+              label="Worked out"
+              name="method"
+              value={draft.method}
+              onChange={(v) => setMethod(v as PricingMethod)}
+            >
+              <Segment value="rooms" isDisabled={draft.offeredFor !== "homes"}>
+                {methodLabel.rooms}
+              </Segment>
+              <Segment value="area">{methodLabel.area}</Segment>
+            </SegmentedControl>
+            {draft.method === "rooms" ? (
+              <div className="grid gap-4 sm:grid-cols-2">
+                {roomFields.map(({ name, label, description }) => (
+                  <NumberField
+                    key={name}
+                    label={`${label} (hours)`}
+                    name={`roomHours.${name}`}
+                    description={description}
+                    // a step counts from the least value, and typed values snap to
+                    // it: 0.05 keeps 0.4 h as typed
+                    minValue={0}
+                    step={0.05}
+                    formatOptions={{ maximumFractionDigits: 2 }}
+                    value={draft.roomHours?.[name] ?? NaN}
+                    onChange={(value) => setRoomHours({ [name]: value })}
+                  />
+                ))}
+              </div>
+            ) : (
               <NumberField
-                label="Service Plan Jobs (%)"
-                name="taxPlanPercent"
+                label="Hours per 1,000 sq ft"
+                name="hoursPerThousandSqFt"
+                description={
+                  draft.offeredFor === "homes"
+                    ? undefined
+                    : "For an office; other types of premises take longer or shorter, as set on the Price List"
+                }
+                minValue={0}
+                step={0.05}
+                formatOptions={{ maximumFractionDigits: 2 }}
+                value={draft.hoursPerThousandSqFt ?? NaN}
+                onChange={(hoursPerThousandSqFt) =>
+                  set({ hoursPerThousandSqFt })
+                }
+              />
+            )}
+            <Checkbox
+              isSelected={draft.conditionApplies}
+              onChange={(conditionApplies) => set({ conditionApplies })}
+            >
+              Takes longer the dirtier the place is (Condition)
+            </Checkbox>
+          </Card>
+        </Section>
+
+        <Section
+          title="Price"
+          description="Before tax. Add-ons are charged at the same rate, for their own hours."
+        >
+          <Card>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <NumberField
+                label="Hourly rate"
+                name="hourlyRateCents"
+                minValue={1}
+                formatOptions={dollars}
+                value={draft.hourlyRate}
+                onChange={(hourlyRate) => set({ hourlyRate })}
+              />
+              <NumberField
+                label="Minimum Charge"
+                name="minimumChargeCents"
+                description="No Suggested Price is lower. You can still override it on a Quote."
+                minValue={0}
+                formatOptions={dollars}
+                value={draft.minimumCharge}
+                onChange={(minimumCharge) => set({ minimumCharge })}
+              />
+            </div>
+          </Card>
+        </Section>
+
+        <div className="xl:sticky xl:top-6 xl:col-start-2 xl:row-span-6 xl:row-start-1 xl:self-start">
+          <ExampleQuote
+            input={toInput(draft)}
+            saved={service && inputOf(service)}
+            list={list}
+          />
+        </div>
+
+        <Section title="Booking">
+          <Card>
+            <Checkbox
+              isSelected={draft.canRecur}
+              onChange={(canRecur) =>
+                set({
+                  canRecur,
+                  taxPlanPercent: canRecur
+                    ? (draft.taxPlanPercent ?? draft.taxOneOffPercent)
+                    : null,
+                })
+              }
+            >
+              Can be on a Service Plan
+            </Checkbox>
+            <Checkbox
+              isSelected={draft.needsSiteVisit}
+              onChange={(needsSiteVisit) => set({ needsSiteVisit })}
+            >
+              Needs a Site Visit before a Quote is sent
+            </Checkbox>
+            <Select
+              label="For a first visit, recommend"
+              name="firstVisitServiceKey"
+              description="Offered alongside it, recommended, where Empire Cleaning hasn't worked before"
+              selectedKey={draft.firstVisitServiceKey ?? NONE}
+              onSelectionChange={(key) =>
+                set({
+                  firstVisitServiceKey: key === NONE ? null : String(key),
+                })
+              }
+            >
+              <SelectItem id={NONE}>Nothing else</SelectItem>
+              {others.map((s) => (
+                <SelectItem key={s.key} id={s.key}>
+                  {s.name}
+                </SelectItem>
+              ))}
+            </Select>
+          </Card>
+        </Section>
+
+        <Section
+          title="Sales tax"
+          description="Added to its price, so Clients see prices with tax. Confirm these with your accountant."
+        >
+          <Card>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <NumberField
+                label="One-off Jobs (%)"
+                name="taxOneOffPercent"
                 minValue={0}
                 step={0.125}
                 formatOptions={rate}
-                value={draft.taxPlanPercent ?? NaN}
-                onChange={(taxPlanPercent) => set({ taxPlanPercent })}
+                value={draft.taxOneOffPercent}
+                onChange={(taxOneOffPercent) => set({ taxOneOffPercent })}
               />
-            )}
-          </div>
-        </Card>
-      </Section>
+              {draft.canRecur && (
+                <NumberField
+                  label="Service Plan Jobs (%)"
+                  name="taxPlanPercent"
+                  minValue={0}
+                  step={0.125}
+                  formatOptions={rate}
+                  value={draft.taxPlanPercent ?? NaN}
+                  onChange={(taxPlanPercent) => set({ taxPlanPercent })}
+                />
+              )}
+            </div>
+          </Card>
+        </Section>
 
-      {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-      <Actions>
-        {service && (
-          <Button
-            variant={service.active ? "danger-text" : "text"}
-            onPress={() =>
-              void save(
-                { ...inputOf(service), active: !service.active },
-                service.active
-                  ? `${service.name} retired`
-                  : `${service.name} offered again`,
-              )
-            }
-          >
-            {service.active ? (
-              <Archive aria-hidden size={18} />
-            ) : (
-              <ArchiveRestore aria-hidden size={18} />
+        <div className="flex flex-col gap-5">
+          {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+          <Actions>
+            {service && (
+              <Button
+                variant={service.active ? "danger-text" : "text"}
+                onPress={() =>
+                  void save(
+                    { ...inputOf(service), active: !service.active },
+                    service.active
+                      ? `${service.name} retired`
+                      : `${service.name} offered again`,
+                  )
+                }
+              >
+                {service.active ? (
+                  <Archive aria-hidden size={18} />
+                ) : (
+                  <ArchiveRestore aria-hidden size={18} />
+                )}
+                {service.active ? "Retire" : "Offer again"}
+              </Button>
             )}
-            {service.active ? "Retire" : "Offer again"}
-          </Button>
-        )}
-        <Button type="submit" isPending={action.isPending}>
-          {service ? "Save Service" : "Add Service"}
-        </Button>
-      </Actions>
+            <Button type="submit" isPending={action.isPending}>
+              {service ? "Save Service" : "Add Service"}
+            </Button>
+          </Actions>
+        </div>
+      </div>
     </Form>
   );
 }
@@ -565,63 +581,3 @@ const roomFields: {
     description: "Added once if there are pets",
   },
 ];
-
-// What the figures on screen come to for a typical place, as they're typed:
-// a 2-bedroom, 1½-bathroom home on one floor without pets, or 2,000 sq ft of
-// office, in moderate Condition. Worked out as the Suggested Price is (to
-// the quarter-hour, to the whole dollar, at least the Minimum Charge), but
-// only a guide: the Quote's own is the one that counts.
-function Example({ draft, list }: { draft: Draft; list: PriceList }) {
-  const condition = draft.conditionApplies ? list.conditionModerate : 1;
-  const office = list.premisesTypes.find((t) => t.active);
-  const forBusiness = draft.offeredFor !== "homes";
-  const r = draft.roomHours;
-  const raw =
-    draft.method === "rooms"
-      ? r && r.baseHours + 2 * r.bedroomHours + 1.5 * r.bathroomHours
-      : draft.hoursPerThousandSqFt !== null &&
-        2 *
-          draft.hoursPerThousandSqFt *
-          (forBusiness && draft.conditionApplies
-            ? (office?.multiplier ?? 1)
-            : 1);
-  if (typeof raw !== "number" || !Number.isFinite(raw)) return null;
-  if (
-    !Number.isFinite(draft.hourlyRate) ||
-    !Number.isFinite(draft.minimumCharge)
-  )
-    return null;
-
-  // in 1e-4 h, so a quarter-hour boundary isn't missed by floating point
-  const units = Math.round(raw * condition * 10_000);
-  const hours = (Math.ceil(units / 2_500) * 2_500) / 10_000;
-  const rateCents = Math.round(draft.hourlyRate * 100);
-  const workedOut = Math.round((hours * rateCents) / 100) * 100;
-  const priceCents = Math.max(workedOut, Math.round(draft.minimumCharge * 100));
-  const taxCents = Math.floor(
-    (priceCents * Math.round(draft.taxOneOffPercent * 1000) + 50_000) / 100_000,
-  );
-  const place =
-    draft.method === "rooms"
-      ? "A 2-bedroom, 1½-bathroom home"
-      : forBusiness
-        ? `2,000 sq ft of ${office?.name.toLowerCase() ?? "premises"}`
-        : "2,000 sq ft";
-
-  return (
-    <p
-      aria-live="polite"
-      className="rounded-md bg-surface-sunken p-3 text-sm text-fg-muted"
-    >
-      <span className="font-semibold text-fg">For example: </span>
-      {place}
-      {draft.conditionApplies ? ", in moderate Condition," : ""} takes{" "}
-      {formatHours(hours)} and comes to{" "}
-      <span className="font-semibold text-fg">
-        {formatMoney(priceCents + taxCents)}
-      </span>{" "}
-      ({formatMoney(priceCents)} + {formatMoney(taxCents)} tax)
-      {workedOut < priceCents ? ", the Minimum Charge" : ""}.
-    </p>
-  );
-}

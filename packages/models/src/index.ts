@@ -1893,3 +1893,6 @@ export const business = {
   },
   area: "Queens, NY",
 } as const;
+
+// the Suggested Price, worked out the same on the server and on screen
+export * from "./suggested-price.js";
