@@ -1,0 +1,64 @@
+---
+import { ExternalLink, Quote } from "lucide-react";
+import { googleReviewsUrl, reviews } from "../reviews.ts";
+import Section from "./Section.astro";
+
+interface Props {
+  // prototype only: a = grid of six, b = one featured and three, c = a strip
+  layout: "a" | "b" | "c";
+}
+const { layout } = Astro.props;
+const [featured, ...rest] = reviews;
+---
+
+<Section id="reviews" title="What our Clients say">
+  {
+    layout === "a" && (
+      <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {reviews.map((r) => (
+          <li class="flex flex-col gap-3 rounded-lg border border-border bg-surface p-5">
+            <Quote aria-hidden size={24} className="text-primary" />
+            <blockquote class="flex-1 text-fg">{r.text}</blockquote>
+            <p class="text-sm text-fg-muted"><span class="font-semibold text-fg">{r.name}</span> · {r.service}</p>
+          </li>
+        ))}
+      </ul>
+    )
+  }
+  {
+    layout === "b" && (
+      <div class="flex flex-col gap-6">
+        <figure class="flex flex-col gap-4 rounded-lg bg-primary p-6 text-primary-fg sm:p-8">
+          <Quote aria-hidden size={40} />
+          <blockquote class="text-xl sm:text-2xl">{featured.text}</blockquote>
+          <figcaption class="font-semibold">{featured.name} · {featured.service}</figcaption>
+        </figure>
+        <ul class="grid gap-6 sm:grid-cols-3">
+          {rest.slice(0, 3).map((r) => (
+            <li class="flex flex-col gap-2">
+              <blockquote class="flex-1 text-fg-muted">{r.text}</blockquote>
+              <p class="text-sm"><span class="font-semibold">{r.name}</span> · <span class="text-fg-muted">{r.service}</span></p>
+            </li>
+          ))}
+        </ul>
+      </div>
+    )
+  }
+  {
+    layout === "c" && (
+      <ul class="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2" aria-label="Reviews, scroll sideways for more">
+        {reviews.map((r) => (
+          <li class="flex w-[85%] shrink-0 snap-start flex-col gap-3 rounded-lg border border-border bg-surface p-5 sm:w-[45%] lg:w-[31%]">
+            <Quote aria-hidden size={24} className="text-primary" />
+            <blockquote class="flex-1 text-fg">{r.text}</blockquote>
+            <p class="text-sm text-fg-muted"><span class="font-semibold text-fg">{r.name}</span> · {r.service}</p>
+          </li>
+        ))}
+      </ul>
+    )
+  }
+  <a href={googleReviewsUrl} target="_blank" rel="noopener" class="inline-flex items-center gap-2 self-start font-semibold text-primary">
+    Read all our reviews on Google
+    <ExternalLink aria-hidden size={16} />
+  </a>
+</Section>

@@ -1,0 +1,32 @@
+---
+// prototype: the homepage with a reviews section, one page per layout
+import AreaAndTrust from "../../../components/AreaAndTrust.astro";
+import Footer from "../../../components/Footer.astro";
+import Header from "../../../components/Header.astro";
+import Hero from "../../../components/Hero.astro";
+import HowItWorks from "../../../components/HowItWorks.astro";
+import RequestQuote from "../../../components/RequestQuote.astro";
+import Reviews from "../../../components/Reviews.astro";
+import ServicePlans from "../../../components/ServicePlans.astro";
+import Services from "../../../components/Services.astro";
+import Page from "../../../layouts/Page.astro";
+
+export function getStaticPaths() {
+  return ["a", "b", "c"].map((layout) => ({ params: { layout } }));
+}
+const layout = Astro.params.layout as "a" | "b" | "c";
+---
+
+<Page>
+  <Header />
+  <main>
+    <Hero />
+    <Services />
+    <HowItWorks />
+    <ServicePlans />
+    <Reviews layout={layout} />
+    <AreaAndTrust />
+    <RequestQuote />
+  </main>
+  <Footer />
+</Page>
