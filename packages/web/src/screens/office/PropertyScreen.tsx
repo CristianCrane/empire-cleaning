@@ -1,10 +1,15 @@
 import { useState, type ReactNode } from "react";
-import { useLoaderData, useNavigate, useSearch } from "@tanstack/react-router";
+import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import {
+  Building2,
   CalendarCheck,
+  House,
+  KeyRound,
   MapPin,
-  Repeat,
+  NotebookPen,
+  Ruler,
   Sparkles,
+  SquarePen,
   type LucideIcon,
 } from "lucide-react";
 import type {
@@ -19,31 +24,29 @@ import type {
   PropertyView,
 } from "@empire-cleaning/models";
 import {
+  ActionRow,
   Actions,
   Breadcrumbs,
   Button,
+  ButtonLink,
   Card,
-  Cell,
   Checkbox,
-  Column,
-  EmptyState,
+  Dialog,
+  DialogTrigger,
   Form,
   Heading,
-  Link,
+  IconTile,
+  List,
+  ListItem,
   Notice,
   NumberField,
-  Row,
+  Section,
   Select,
   SelectItem,
   StatusBadge,
-  Tab,
-  Table,
-  TableBody,
-  TableHeader,
-  TabList,
-  TabPanel,
-  Tabs,
   TextField,
+  Timeline,
+  TimelineItem,
   type Crumb,
   type StatusTone,
 } from "@empire-cleaning/ui";
@@ -53,10 +56,15 @@ import { useAction } from "../action.ts";
 import {
   addressOf,
   clientName,
+  conditionText,
   formatDate,
+  formatDateTime,
+  formatFloorArea,
+  formatMinutes,
   propertySummary,
   quoteHeadline,
 } from "../format.ts";
+import { Fact } from "../Fact.tsx";
 import { QuoteIcon } from "../icons.ts";
 import { QuoteStatusBadge } from "../QuoteParts.tsx";
 import {
@@ -66,25 +74,20 @@ import {
 } from "./SiteVisitParts.tsx";
 import { ConditionField, PlaceTiles } from "./PropertyFields.tsx";
 import { PlanDetails } from "./ServicePlanScreen.tsx";
-import { VisitDetails } from "./SiteVisitScreen.tsx";
 import { OfferServicePlan } from "./StartDraft.tsx";
 
-// the Property page's Tabs, Details first: what the Office opens a home for
-export const propertyTabs = ["details", "plan", "visit", "history"] as const;
-export type PropertyTab = (typeof propertyTabs)[number];
-export type PropertySearch = { tab?: PropertyTab };
-
-// a home for the Office (ADR-0011): its details first, then its Service
-// Plan, its Site Visit and its whole history, a Tab each
+// A home for the Office (ADR-0011), read as a whole (UX pass, #96): what to
+// know first in Notices; then its details, its Service Plan and its Site
+// Visit on the left, and its whole history on the right, newest first. One
+// column on a phone.
 export function PropertyScreen() {
   const { home, premisesTypes, plan, visit } = useLoaderData({
     from: "/office/properties/$propertyId",
   });
-  const { tab = "details" } = useSearch({
-    from: "/office/properties/$propertyId",
-  });
-  const navigate = useNavigate({ from: "/office/properties/$propertyId" });
   const history = historyOf(home);
+  // new terms for its plan wait on a Quote already open: say which, first
+  const { open, resumes } = quoteInTheWay(home);
+  const newTerms = plan && open && !resumes ? open : undefined;
 
   return (
     <div className="flex flex-col gap-6">
@@ -98,49 +101,28 @@ export function PropertyScreen() {
         />
         <div className="flex flex-col gap-1">
           <Heading level={1}>{addressOf(home)}</Heading>
-          <p className="text-fg-muted">
-            {clientName(home.client)} · {propertySummary(home)}
-          </p>
+          <p className="text-fg-muted">{clientName(home.client)}</p>
         </div>
       </div>
       {home.kind === "commercial" && !home.findingsRecorded && (
         <Notice>
-          Business premises are seen before they're quoted: see the Site Visit
-          Tab.
+          Business premises are seen before they're quoted: book a Site Visit,
+          or record findings you know already.
         </Notice>
       )}
-      <Tabs
-        selectedKey={tab}
-        onSelectionChange={(key) =>
-          void navigate({
-            search: {
-              tab: key === "details" ? undefined : (key as PropertyTab),
-            },
-            replace: true,
-          })
-        }
-      >
-        <TabList aria-label="About this Property">
-          <Tab id="details">Details</Tab>
-          <Tab id="plan">Service Plan</Tab>
-          <Tab id="visit">Site Visit</Tab>
-          <Tab id="history" count={history.length}>
-            History
-          </Tab>
-        </TabList>
-        <TabPanel id="details">
+      {newTerms && (
+        <Notice action={<OpenQuote quoteId={newTerms.id} />}>
+          {newTermsLine[newTerms.status as keyof typeof newTermsLine]}.
+        </Notice>
+      )}
+      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="flex flex-col gap-6">
           <Details home={home} premisesTypes={premisesTypes} />
-        </TabPanel>
-        <TabPanel id="plan">
-          <PlanTab home={home} plan={plan} />
-        </TabPanel>
-        <TabPanel id="visit">
-          <VisitTab home={home} visit={visit} premisesTypes={premisesTypes} />
-        </TabPanel>
-        <TabPanel id="history">
-          <History home={home} events={history} />
-        </TabPanel>
-      </Tabs>
+          <PlanPart home={home} plan={plan} newTerms={!!newTerms} />
+          <VisitPart home={home} visit={visit} premisesTypes={premisesTypes} />
+        </div>
+        <History home={home} events={history} />
+      </div>
     </div>
   );
 }
@@ -168,6 +150,18 @@ export const homeCrumbs = (
     }),
   },
 ];
+
+function OpenQuote({ quoteId }: { quoteId: string }) {
+  return (
+    <ButtonLink
+      variant="text"
+      size="sm"
+      href={linkTo({ to: "/office/quotes/$quoteId", params: { quoteId } })}
+    >
+      Open the Quote
+    </ButtonLink>
+  );
+}
 
 // a Quote that stops a new Service Plan Quote, as the server would refuse
 // one: a Quote asked for, or a Service Plan Quote, still open. The Office's
@@ -198,115 +192,95 @@ const newTermsLine: Record<"requested" | "draft" | "sent", string> = {
   sent: "New terms are with the Client, waiting on their answer",
 };
 
-// quoting it a Service Plan, or, with a Quote open already, where that is
-function PlanAction({
-  home,
-  label,
-  primary = false,
-}: {
-  home: OfficePropertyView;
-  label: string;
-  primary?: boolean;
-}) {
-  const { open, resumes } = quoteInTheWay(home);
-  if (open && !resumes) {
-    return (
-      <Notice>
-        <p>
-          {inTheWayLine[open.status as keyof typeof inTheWayLine]}: carry on
-          with that one.{" "}
-          <Link
-            href={linkTo({
-              to: "/office/quotes/$quoteId",
-              params: { quoteId: open.id },
-            })}
-          >
-            Open the Quote
-          </Link>
-        </p>
-      </Notice>
-    );
-  }
-  return (
-    <OfferServicePlan
-      propertyId={home.id}
-      label={resumes ? "Carry on with the draft" : label}
-      primary={primary}
-    />
-  );
-}
-
 // its Service Plan in full; or, with none, the way to quote one: a home once
 // its First Clean is Completed, business premises at any time (ADR-0014)
-function PlanTab({
+function PlanPart({
   home,
   plan,
+  newTerms,
 }: {
   home: OfficePropertyView;
   plan: OfficeServicePlan | null;
+  // new terms are open already, so none are offered
+  newTerms: boolean;
 }) {
-  const canQuote = home.firstCleanCompleted || home.kind === "commercial";
+  const { open, resumes } = quoteInTheWay(home);
 
-  if (!plan) {
+  if (plan) {
     return (
-      <EmptyState
-        icon={Repeat}
-        title="This Property doesn't have a Service Plan"
-        description={
-          canQuote
-            ? "Quote regular cleaning: once the Client accepts, their Jobs are booked for them."
-            : "A home can be quoted a Service Plan once its First Clean is Completed."
+      <PlanDetails
+        plan={plan}
+        changeTerms={
+          !newTerms && (
+            <OfferServicePlan
+              propertyId={home.id}
+              label={resumes ? "Carry on with the draft" : "Change terms"}
+            />
+          )
         }
-      >
-        {canQuote && (
-          <PlanAction home={home} label="Quote a Service Plan" primary />
-        )}
-      </EmptyState>
+      />
     );
   }
 
-  // new terms wait on a Quote already open: say which, first
-  const { open, resumes } = quoteInTheWay(home);
-  const waiting = open && !resumes ? open : undefined;
+  const canQuote = home.firstCleanCompleted || home.kind === "commercial";
+  // premises seen first: booking that visit is the page's one primary
+  const seenFirst = home.kind === "commercial" && !home.findingsRecorded;
+  const inTheWay = canQuote && open && !resumes ? open : undefined;
   return (
-    <PlanDetails
-      plan={plan}
-      changeTerms={
-        waiting ? null : <PlanAction home={home} label="Change terms" />
-      }
-      notice={
-        waiting && (
-          <>
-            {newTermsLine[waiting.status as keyof typeof newTermsLine]}.{" "}
-            <Link
-              href={linkTo({
-                to: "/office/quotes/$quoteId",
-                params: { quoteId: waiting.id },
-              })}
-            >
-              Open the Quote
-            </Link>
-          </>
-        )
-      }
-    />
+    <Section title="Service Plan">
+      <Card>
+        <ActionRow
+          actions={
+            inTheWay ? (
+              <ButtonLink
+                variant="secondary"
+                href={linkTo({
+                  to: "/office/quotes/$quoteId",
+                  params: { quoteId: inTheWay.id },
+                })}
+              >
+                Open the Quote
+              </ButtonLink>
+            ) : (
+              canQuote && (
+                <OfferServicePlan
+                  propertyId={home.id}
+                  label={
+                    resumes ? "Carry on with the draft" : "Quote a Service Plan"
+                  }
+                  primary={!seenFirst}
+                />
+              )
+            )
+          }
+        >
+          <p>
+            {inTheWay
+              ? `${inTheWayLine[inTheWay.status as keyof typeof inTheWayLine]}: carry on with that one.`
+              : canQuote
+                ? "Quote regular cleaning: once the Client accepts, their Jobs are booked for them."
+                : "A home can be quoted a Service Plan once its First Clean is Completed."}
+          </p>
+        </ActionRow>
+      </Card>
+    </Section>
   );
 }
 
-// the Site Visit its Tab shows: the one booked, else the last done. Earlier
-// and cancelled ones are in its History
+// the Site Visit a home's page shows: the one booked, else the last done.
+// Earlier and cancelled ones are in its History
 export const currentVisit = (home: OfficePropertyView) =>
   home.siteVisits.find((v) => v.status === "booked") ??
   home.siteVisits.find((v) => v.status === "done");
 
 /**
- * Its Site Visit in full (#73), or, with none, the way to book one. Business
- * premises need findings recorded before a Quote is Sent (ADR-0014);
- * premises the Office knows can have them recorded with no visit. A Site
- * Visit is for a Quote with nothing Sent yet, and a Property has one booked
- * at a time.
+ * Its Site Visit (#73) as a row opening its page, or, with none, the way to
+ * book one. Business premises need findings recorded before a Quote is Sent
+ * (ADR-0014); premises the Office knows can have them recorded with no visit.
+ * A Site Visit is for a Quote with nothing Sent yet, and a Property has one
+ * booked at a time.
  */
-function VisitTab({
+function VisitPart({
   home,
   visit,
   premisesTypes,
@@ -315,48 +289,85 @@ function VisitTab({
   visit: OfficeSiteVisit | null;
   premisesTypes: PremisesTypeChoice[];
 }) {
+  const navigate = useNavigate();
   const unsent = home.quotes.find(
     (q) => q.status === "requested" || q.status === "draft",
   );
   const premises = home.kind === "commercial";
-  const actions = (primary: boolean) => (
-    <>
-      {unsent && <BookSiteVisit quoteId={unsent.id} primary={primary} />}
-      {premises && !home.findingsRecorded && (
-        <RecordFindingsWithoutVisit
-          property={home}
-          officeNotes={home.officeNotes}
-          premisesTypes={premisesTypes}
-        />
-      )}
-    </>
-  );
+  const recordWithout = premises && !home.findingsRecorded;
+  const actions = (primary: boolean) =>
+    (unsent || recordWithout) && (
+      <>
+        {recordWithout && (
+          <RecordFindingsWithoutVisit
+            property={home}
+            officeNotes={home.officeNotes}
+            premisesTypes={premisesTypes}
+          />
+        )}
+        {unsent && <BookSiteVisit quoteId={unsent.id} primary={primary} />}
+      </>
+    );
 
   if (!visit) {
+    const can = actions(premises);
+    // nothing to book it for: nothing to say
+    if (!can) return null;
     return (
-      <EmptyState
-        icon={MapPin}
-        title="This Property doesn't have a Site Visit"
-        description={
-          premises
-            ? "Business premises are seen before they're quoted. Book a Site Visit, or record findings you know already."
-            : unsent
-              ? "Optional for a home: book one to see it before quoting."
-              : "A Site Visit is booked for a Quote not sent yet."
-        }
-      >
-        {actions(true)}
-      </EmptyState>
+      <Section title="Site Visit">
+        <Card>
+          <ActionRow actions={can}>
+            <p>
+              {premises
+                ? "Business premises are seen before they're quoted. Book a Site Visit, or record findings you know already."
+                : "Optional for a home: book one to see it before quoting."}
+            </p>
+          </ActionRow>
+        </Card>
+      </Section>
     );
   }
 
   // once it's done, another can be booked for a Quote not sent yet
   return (
-    <VisitDetails
-      visit={visit}
-      premisesTypes={premisesTypes}
-      actions={visit.status !== "booked" && actions(false)}
-    />
+    <Section
+      title="Site Visit"
+      actions={
+        visit.status !== "booked" &&
+        unsent && <BookSiteVisit quoteId={unsent.id} />
+      }
+    >
+      <List
+        aria-label="Site Visit"
+        onAction={() =>
+          void navigate({
+            to: "/office/site-visits/$visitId",
+            params: { visitId: visit.id },
+          })
+        }
+      >
+        <ListItem
+          id={visit.id}
+          start={<IconTile icon={visit.startsAt ? MapPin : CalendarCheck} />}
+          title={
+            visit.startsAt
+              ? formatDateTime(visit.startsAt)
+              : "Findings recorded, with no visit"
+          }
+          description={
+            visit.startsAt &&
+            [
+              visit.visitor?.name,
+              formatMinutes(visit.minutes),
+              visit.status === "booked" && "findings to record",
+            ]
+              .filter(Boolean)
+              .join(" · ")
+          }
+          end={<SiteVisitBadge status={visit.status} />}
+        />
+      </List>
+    </Section>
   );
 }
 
@@ -413,6 +424,7 @@ const historyOf = (home: OfficePropertyView): HistoryEvent[] =>
     })),
   ].sort((a, b) => (a.on < b.on ? 1 : -1));
 
+// its story, newest first, beside the rest: each thing opens its page
 function History({
   home,
   events,
@@ -420,50 +432,27 @@ function History({
   home: OfficePropertyView;
   events: HistoryEvent[];
 }) {
-  const navigate = useNavigate();
   return (
-    <Table
-      aria-label={`History of ${addressOf(home)}`}
-      onRowAction={(id) => {
-        const event = events.find((e) => e.id === id);
-        if (event) void navigate(event.href);
-      }}
-    >
-      <TableHeader>
-        <Column id="on" isRowHeader>
-          Date
-        </Column>
-        <Column id="what">What</Column>
-        <Column id="status">Status</Column>
-      </TableHeader>
-      <TableBody
-        items={events}
-        renderEmptyState={() => (
-          <p className="p-6 text-center text-fg-muted">Nothing yet.</p>
+    <Section title="History">
+      <Card>
+        {events.length === 0 ? (
+          <p className="text-center text-fg-muted">Nothing yet.</p>
+        ) : (
+          <Timeline aria-label={`History of ${addressOf(home)}`}>
+            {events.map((event) => (
+              <TimelineItem
+                key={event.id}
+                icon={event.icon}
+                title={`${event.kind} · ${event.what}`}
+                href={event.href}
+                when={formatDate(event.on)}
+                description={event.status}
+              />
+            ))}
+          </Timeline>
         )}
-      >
-        {(event) => (
-          <Row id={event.id}>
-            <Cell>{formatDate(event.on)}</Cell>
-            <Cell>
-              <span className="flex items-center gap-2">
-                <event.icon
-                  aria-hidden
-                  size={16}
-                  className="shrink-0 text-fg-muted"
-                />
-                <span>
-                  <span className="font-semibold">{event.kind}</span>
-                  {" · "}
-                  {event.what}
-                </span>
-              </span>
-            </Cell>
-            <Cell>{event.status}</Cell>
-          </Row>
-        )}
-      </TableBody>
-    </Table>
+      </Card>
+    </Section>
   );
 }
 
@@ -531,10 +520,11 @@ function useCorrection<T extends Record<string, unknown>>(
   };
 }
 
-// the details that affect the price. Clients keep what they first gave and ask
-// for a new Quote to change it; the Office corrects it here, or a Site
-// Visit's findings do (#73). The address is the Property's identity, so it
-// isn't editable.
+// What the home is, large, then the details that affect the price and how
+// it's got into, across (UX pass, #96). Clients keep what they first gave and
+// ask for a new Quote to change it; the Office corrects it in a dialog, or a
+// Site Visit's findings do (#73). The address is the Property's identity, so
+// it isn't corrected.
 function Details({
   home,
   premisesTypes,
@@ -542,41 +532,135 @@ function Details({
   home: OfficePropertyView;
   premisesTypes: PremisesTypeChoice[];
 }) {
+  const premises = home.kind === "commercial";
   return (
-    <Card>
-      {home.kind === "commercial" ? (
-        <PremisesDetails
-          premises={home}
-          officeNotes={home.officeNotes}
-          premisesTypes={premisesTypes}
-        />
-      ) : (
-        <HomeDetails home={home} officeNotes={home.officeNotes} />
-      )}
-    </Card>
+    <Section
+      title={premises ? "Premises details" : "Home details"}
+      actions={
+        <DialogTrigger>
+          <Button variant="text" size="sm">
+            <SquarePen aria-hidden size={16} />
+            Correct
+          </Button>
+          <Dialog
+            title={premises ? "Correct the premises" : "Correct the home"}
+            size="lg"
+          >
+            {({ close }) =>
+              home.kind === "commercial" ? (
+                <PremisesDetails
+                  premises={home}
+                  officeNotes={home.officeNotes}
+                  premisesTypes={premisesTypes}
+                  close={close}
+                />
+              ) : (
+                <HomeDetails
+                  home={home}
+                  officeNotes={home.officeNotes}
+                  close={close}
+                />
+              )
+            }
+          </Dialog>
+        </DialogTrigger>
+      }
+    >
+      <Card>
+        <div className="flex flex-col gap-6">
+          <div className="flex items-start gap-4">
+            <IconTile icon={premises ? Building2 : House} size="lg" />
+            <div className="flex min-w-0 flex-col gap-1">
+              <p className="text-sm text-fg-muted">
+                {premises ? "Business premises" : "A home"}
+              </p>
+              <p className="text-xl font-semibold text-fg">
+                {propertySummary(home)}
+              </p>
+            </div>
+          </div>
+          {home.kind !== "commercial" && home.bedrooms === null && (
+            <Notice tone="warning">
+              Its rooms aren't recorded yet: it was asked about for a Service
+              that isn't priced from them. Correct them to quote it for one that
+              is.
+            </Notice>
+          )}
+          {/* the columns follow the card's width, not the screen's: it
+              shares the screen with the History */}
+          <div className="@container">
+            <dl className="grid gap-x-6 gap-y-4 @md:grid-cols-2 @3xl:grid-cols-4">
+              <Fact
+                icon={Ruler}
+                label="Floor area"
+                value={
+                  home.floorArea === null
+                    ? "Not known yet"
+                    : formatFloorArea(home.floorArea)
+                }
+              />
+              <Fact
+                icon={Sparkles}
+                label="Condition"
+                value={conditionText(home.condition)}
+                line="Condition, at the last visit"
+              />
+              <Fact
+                icon={KeyRound}
+                label="How we get in"
+                value={
+                  <span className="whitespace-pre-line">
+                    {home.accessInstructions || "Not added yet"}
+                  </span>
+                }
+                line="How we get in: the Client's, and the crew's"
+              />
+              <Fact
+                icon={NotebookPen}
+                label="Office notes"
+                value={
+                  <span className="whitespace-pre-line">
+                    {home.officeNotes || "None"}
+                  </span>
+                }
+                line="Office notes: only Office Staff see them"
+              />
+            </dl>
+          </div>
+        </div>
+      </Card>
+    </Section>
   );
 }
 
 function CorrectionForm({
   correction,
+  close,
   children,
 }: {
   correction: ReturnType<typeof useCorrection>;
+  close: () => void;
   children: ReactNode;
 }) {
   return (
     <Form
       validationErrors={correction.fieldErrors}
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
-        void correction.save();
+        if (await correction.save()) close();
       }}
     >
+      <p className="text-sm text-fg-muted">
+        Corrections to what it is change the price of Quotes made from now on.
+      </p>
       {children}
       {correction.problem && (
         <Notice tone="danger">{correction.problem}</Notice>
       )}
       <Actions>
+        <Button variant="quiet" onPress={close}>
+          Cancel
+        </Button>
         <Button
           type="submit"
           isDisabled={!correction.hasChanges}
@@ -635,9 +719,11 @@ const ROOMS = ["bedrooms", "bathrooms", "storeys", "pets"] as const;
 function HomeDetails({
   home,
   officeNotes,
+  close,
 }: {
   home: HomeView;
   officeNotes: string | null;
+  close: () => void;
 }) {
   const noRooms = home.bedrooms === null;
   const correction = useCorrection(
@@ -667,7 +753,7 @@ function HomeDetails({
   const count = (value: number) => (Number.isNaN(value) ? null : value);
 
   return (
-    <CorrectionForm correction={correction}>
+    <CorrectionForm correction={correction} close={close}>
       <PlaceTiles value={details.type} onChange={(type) => change({ type })} />
       {noRooms && (
         <Notice tone="warning">
@@ -738,10 +824,12 @@ function PremisesDetails({
   premises,
   officeNotes,
   premisesTypes,
+  close,
 }: {
   premises: PremisesView;
   officeNotes: string | null;
   premisesTypes: PremisesTypeChoice[];
+  close: () => void;
 }) {
   const correction = useCorrection(premises, {
     premisesType: premises.premisesType.key,
@@ -756,7 +844,7 @@ function PremisesDetails({
     : [premises.premisesType, ...premisesTypes];
 
   return (
-    <CorrectionForm correction={correction}>
+    <CorrectionForm correction={correction} close={close}>
       <PlaceTiles value="commercial" />
       <Select
         label="Type of premises"

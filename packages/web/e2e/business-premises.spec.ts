@@ -158,6 +158,7 @@ test(
 
     await page.getByRole("link", { name: "View Property" }).click();
     await expect(page).toHaveURL(/\/office\/properties\//);
+    await page.getByRole("button", { name: "Correct" }).click();
     await choose(page, /Type of premises/, "Medical");
     await page
       .getByRole("textbox", { name: "Floor area in sq ft" })
@@ -167,8 +168,9 @@ test(
     await expect(page.getByText("Details corrected")).toBeVisible();
 
     await page.reload();
-    await expect(page.getByText("Medical · 2,000 sq ft")).toBeVisible();
-    await expect(page.getByRole("radio", { name: "Heavy" })).toBeChecked();
+    const details = page.getByRole("region", { name: "Premises details" });
+    await expect(details).toContainText("Medical · 2,000 sq ft");
+    await expect(details).toContainText("Heavy");
   },
 );
 

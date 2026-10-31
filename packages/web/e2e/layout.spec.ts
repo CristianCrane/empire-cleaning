@@ -209,25 +209,15 @@ test("business premises' screens fit every width, the form included", async ({
     await expectFitsEveryWidth(page, path);
   }
 
-  // its Site Visit's dialogs: moving it, and once it's cancelled, booking one
-  await expectDialogFitsEveryWidth(
-    page,
-    `${property}?tab=visit`,
-    "Move or change",
-  );
-  await expectDialogFitsEveryWidth(
-    page,
-    `${property}?tab=visit`,
-    "Record findings",
-  );
+  // its Site Visit's dialogs, on its page: moving it, and once it's
+  // cancelled, booking one from its home
+  const sitePage = `/office/site-visits/${visit.id}`;
+  await expectDialogFitsEveryWidth(page, sitePage, "Move or change");
+  await expectDialogFitsEveryWidth(page, sitePage, "Record findings");
   await page.getByRole("button", { name: "Cancel visit" }).click();
   await page.getByRole("button", { name: "Cancel Site Visit" }).click();
   await expect(page.getByText("Site Visit cancelled")).toBeVisible();
-  await expectDialogFitsEveryWidth(
-    page,
-    `${property}?tab=visit`,
-    "Book a Site Visit",
-  );
+  await expectDialogFitsEveryWidth(page, property, "Book a Site Visit");
 
   // once the premises are known, its Draft
   await page.goto(request);

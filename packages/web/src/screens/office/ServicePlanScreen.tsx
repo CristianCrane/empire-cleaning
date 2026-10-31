@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
+import { CalendarX } from "lucide-react";
 import {
   parseDate,
   parseTime,
@@ -14,8 +15,8 @@ import {
   Card,
   DatePicker,
   Dialog,
-  DialogTrigger,
   Heading,
+  IconTile,
   Link,
   List,
   ListItem,
@@ -32,18 +33,17 @@ import {
   dayOfInstant,
   formatDateTime,
   formatDay,
-  planName,
   timeOfDay,
   weekdayOf,
 } from "../format.ts";
-import { EndPlan, OnHold, PlanStatusBadge, PlanTerms } from "../PlanParts.tsx";
+import { EndPlan, OnHold, PlanFacts, PlanStatusBadge } from "../PlanParts.tsx";
 import { useAction } from "../action.ts";
 import { homeCrumbs, JobStatusBadge } from "./PropertyScreen.tsx";
 import { PickFromSchedule } from "./SchedulePicker.tsx";
 import { OfferServicePlan } from "./StartDraft.tsx";
 
 // an Ended Service Plan, on a page of its own: a current one is on its
-// home's Service Plan Tab
+// home's page
 export function ServicePlanScreen() {
   const plan = useLoaderData({ from: "/office/service-plans/$planId" });
 
@@ -56,10 +56,7 @@ export function ServicePlanScreen() {
             { label: "Service Plan" },
           ]}
         />
-        <div className="flex flex-wrap items-center gap-3">
-          <Heading level={1}>Service Plan</Heading>
-          <PlanStatusBadge status={plan.status} />
-        </div>
+        <Heading level={1}>Service Plan</Heading>
         <p className="text-fg-muted">
           {clientName(plan.client)} · {addressOf(plan.property)}
         </p>
@@ -70,32 +67,33 @@ export function ServicePlanScreen() {
   );
 }
 
-// a Service Plan for the Office: why it's On Hold, if it is; the dates it
-// came round with no room, for Office Staff to book at another time they
-// agree with the Client, or skip; its status, Quote and terms, with the way
-// to change them;
-// and Ending it for the Client. Its Jobs are in its home's History
+// how the Client pays for the plan's cleans: each when it's done, or on a
+// weekly Bill (ADR-0016)
+const paymentLine = {
+  per_clean: "Each clean is charged to the Client's saved card when it's done.",
+  automatic:
+    "Each week's cleans go on one Bill, made the following Monday and charged to the Client's saved Payment Method.",
+  on_page:
+    "Each week's cleans go on one Bill, made the following Monday, which the Client pays on its page by its due date.",
+};
+
+// A Service Plan for the Office, as its Client reads it (UX pass, #96): why
+// it's On Hold, if it is; the dates it came round with no room, to book at
+// another time agreed with the Client or skip; then when, large, and its
+// facts across, with the way to change its terms; and Ending it for the
+// Client. Its Jobs are in its home's History
 export function PlanDetails({
   plan,
   changeTerms = plan.status !== "ended" && (
     <OfferServicePlan propertyId={plan.property.id} label="Change terms" />
   ),
-  notice,
 }: {
   plan: OfficeServicePlan;
   // how its terms change: a new Service Plan Quote
   changeTerms?: ReactNode;
-  // what to know first, e.g. new terms waiting on the Client, as an info
-  // Notice
-  notice?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-6">
-      {notice && (
-        <Notice>
-          <p>{notice}</p>
-        </Notice>
-      )}
+    <>
       <OnHold
         plan={plan}
         forClient={false}
@@ -107,54 +105,26 @@ export function PlanDetails({
         }
       />
 
-      {plan.unplaced.length > 0 && (
-        <Section
-          title="Waiting to be booked"
-          description="These dates came round with no room on the Schedule, so nothing was booked. Agree another time with the Client, or skip the visit."
-        >
-          <List aria-label="Visits waiting to be booked">
-            {plan.unplaced.map((visit) => (
-              <ListItem
-                key={visit.id}
-                id={visit.id}
-                title={formatDay(visit.dueOn)}
-                description="No room that day"
-                end={
-                  <div className="flex flex-wrap gap-2">
-                    <BookVisit plan={plan} visit={visit} />
-                    <SkipVisit plan={plan} visit={visit} />
-                  </div>
-                }
-              />
-            ))}
-          </List>
-        </Section>
-      )}
+      {plan.unplaced.length > 0 && <WaitingVisits plan={plan} />}
 
-      <Section title={planName(plan)} actions={changeTerms}>
+      <Section title="Service Plan" actions={changeTerms}>
         <Card>
-          <PlanTerms
+          <PlanFacts
             plan={plan}
-            lead={
-              <>
-                <dt className="font-semibold">Status</dt>
-                <dd>
-                  <PlanStatusBadge status={plan.status} />
-                </dd>
-                <dt className="font-semibold">Quote</dt>
-                <dd>
-                  <Link
-                    href={linkTo({
-                      to: "/office/quotes/$quoteId",
-                      params: { quoteId: plan.quoteId },
-                    })}
-                  >
-                    Its Service Plan Quote
-                  </Link>
-                </dd>
-              </>
-            }
+            forClient={false}
+            badge={<PlanStatusBadge status={plan.status} />}
           />
+          <p className="border-t border-border pt-4 text-sm text-fg-muted">
+            {paymentLine[plan.weeklyBill ?? "per_clean"]}{" "}
+            <Link
+              href={linkTo({
+                to: "/office/quotes/$quoteId",
+                params: { quoteId: plan.quoteId },
+              })}
+            >
+              Its Service Plan Quote
+            </Link>
+          </p>
         </Card>
       </Section>
 
@@ -163,7 +133,7 @@ export function PlanDetails({
         forClient={false}
         endPath={`/api/service-plans/${plan.id}/end`}
       />
-    </div>
+    </>
   );
 }
 
@@ -218,19 +188,45 @@ type VisitProps = { plan: OfficeServicePlan; visit: UnplacedVisit };
 const visitPath = ({ plan, visit }: VisitProps) =>
   `/api/service-plans/${plan.id}/visits/${visit.id}`;
 
-// books the visit at a time agreed with the Client, as a plan Job
-function BookVisit(props: VisitProps) {
+// the dates it came round with no room, as to-do rows: each opens the one
+// dialog that books it or skips it
+function WaitingVisits({ plan }: { plan: OfficeServicePlan }) {
+  const [open, setOpen] = useState<UnplacedVisit>();
   return (
-    <DialogTrigger>
-      <Button>Book</Button>
-      <Dialog title={`Book the ${formatDay(props.visit.dueOn)} visit`}>
-        {({ close }) => <ChooseVisitTime {...props} close={close} />}
-      </Dialog>
-    </DialogTrigger>
+    <Section
+      title="Waiting to be booked"
+      description="These dates came round with no room on the Schedule, so nothing was booked. Agree another time with the Client, or skip the visit."
+    >
+      <List
+        aria-label="Visits waiting to be booked"
+        onAction={(id) => setOpen(plan.unplaced.find((v) => v.id === id))}
+      >
+        {plan.unplaced.map((visit) => (
+          <ListItem
+            key={visit.id}
+            id={visit.id}
+            start={<IconTile icon={CalendarX} tone="warning" />}
+            title={`Book the ${formatDay(visit.dueOn)} visit`}
+            description="No room that day: book it, or skip it"
+          />
+        ))}
+      </List>
+      {open && (
+        <Dialog
+          title={`Book the ${formatDay(open.dueOn)} visit`}
+          isOpen
+          onOpenChange={(isOpen) => !isOpen && setOpen(undefined)}
+        >
+          {({ close }) => <BookOrSkip plan={plan} visit={open} close={close} />}
+        </Dialog>
+      )}
+    </Section>
   );
 }
 
-function ChooseVisitTime({
+// books the visit at a time agreed with the Client, as a plan Job; or skips
+// it, booking nothing
+function BookOrSkip({
   plan,
   visit,
   close,
@@ -243,7 +239,9 @@ function ChooseVisitTime({
   const usual = timeOfDay(day.startsAt);
   const [date, setDate] = useState<CalendarDate | null>(parseDate(visit.dueOn));
   const [time, setTime] = useState<Time | null>(parseTime(usual));
-  const action = useAction("The visit wasn't booked. Please try again.");
+  const booking = useAction("The visit wasn't booked. Please try again.");
+  const skipping = useAction("The visit wasn't skipped. Please try again.");
+  const problem = booking.problem ?? skipping.problem;
   const at = date &&
     time && {
       date: date.toString(),
@@ -252,9 +250,18 @@ function ChooseVisitTime({
 
   const book = async () => {
     if (
-      await action.run(
+      await booking.run(
         () => postJson(`${visitPath({ plan, visit })}/book`, at),
         "Visit booked",
+      )
+    )
+      close();
+  };
+  const skip = async () => {
+    if (
+      await skipping.run(
+        () => postJson(`${visitPath({ plan, visit })}/skip`),
+        "Visit skipped",
       )
     )
       close();
@@ -284,14 +291,20 @@ function ChooseVisitTime({
       <p className="text-sm text-fg-muted">
         It's booked as the plan's Job, at its price, and Offered to the crew of
         the plan's Job before it. The plan's later Jobs stay on their usual day.
+        Skipping it books nothing, and the plan carries on from its next date:
+        let the Client know.
       </p>
-      {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+      {problem && <Notice tone="danger">{problem}</Notice>}
       <Actions>
-        <Button variant="quiet" onPress={close}>
-          Cancel
+        <Button
+          variant="quiet"
+          isPending={skipping.isPending}
+          onPress={() => void skip()}
+        >
+          Skip visit
         </Button>
         <Button
-          isPending={action.isPending}
+          isPending={booking.isPending}
           isDisabled={!at}
           onPress={() => void book()}
         >
@@ -299,48 +312,5 @@ function ChooseVisitTime({
         </Button>
       </Actions>
     </>
-  );
-}
-
-// skips the visit: nothing is booked for it
-function SkipVisit(props: VisitProps) {
-  const action = useAction("The visit wasn't skipped. Please try again.");
-  return (
-    <DialogTrigger>
-      <Button variant="secondary">Skip</Button>
-      <Dialog
-        title={`Skip the ${formatDay(props.visit.dueOn)} visit?`}
-        role="alertdialog"
-      >
-        {({ close }) => (
-          <>
-            <p>
-              Nothing is booked for it, and the plan carries on from its next
-              date. Let the Client know.
-            </p>
-            {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-            <Actions>
-              <Button variant="quiet" onPress={close}>
-                Keep it
-              </Button>
-              <Button
-                isPending={action.isPending}
-                onPress={async () => {
-                  if (
-                    await action.run(
-                      () => postJson(`${visitPath(props)}/skip`),
-                      "Visit skipped",
-                    )
-                  )
-                    close();
-                }}
-              >
-                Skip visit
-              </Button>
-            </Actions>
-          </>
-        )}
-      </Dialog>
-    </DialogTrigger>
   );
 }

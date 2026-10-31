@@ -207,12 +207,11 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
           tone: "info",
           client: clientName(job.client),
           description: `${addressOf(job.property)} · First Clean done ${formatDate(item.since)}, wants regular visits`,
-          // the home's Service Plan Tab, its history a Tab away
+          // the home's page: its Service Plan, its history beside it
           open: () =>
             navigate({
               to: "/office/properties/$propertyId",
               params: { propertyId: job.property.id },
-              search: { tab: "plan" },
             }),
         };
       }

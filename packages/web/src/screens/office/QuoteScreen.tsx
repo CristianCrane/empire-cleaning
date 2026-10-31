@@ -1893,7 +1893,6 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
               href={linkTo({
                 to: "/office/properties/$propertyId",
                 params: { propertyId: quote.property.id },
-                search: { tab: "visit" },
               })}
             >
               the Property

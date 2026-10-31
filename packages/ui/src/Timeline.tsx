@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
+import type { LinkProps } from "react-aria-components";
+import { Link } from "./Link.tsx";
 import { twMerge } from "./utils.ts";
 
 // Something's story, newest first: what's happening now on top (in the
@@ -24,6 +26,7 @@ export function Timeline({
 export function TimelineItem({
   icon: Icon,
   title,
+  href,
   when,
   description,
   current = false,
@@ -32,6 +35,9 @@ export function TimelineItem({
   // decorative: the title carries the meaning
   icon: LucideIcon;
   title: string;
+  // its own page, if it has one: the title opens it, reading as a title
+  // until it's hovered
+  href?: LinkProps["href"];
   // when it happened, e.g. "Oct 8, 2026"; none on what's happening now
   when?: string;
   description?: ReactNode;
@@ -58,7 +64,18 @@ export function TimelineItem({
       <div className="flex min-w-0 flex-col gap-3 pt-1 pb-8 sm:pt-2">
         <div className="flex flex-col gap-0.5">
           <p className="flex flex-wrap items-baseline gap-x-2">
-            <span className="font-semibold">{title}</span>
+            <span className="font-semibold">
+              {href ? (
+                <Link
+                  href={href}
+                  className="font-semibold text-fg no-underline hover:underline"
+                >
+                  {title}
+                </Link>
+              ) : (
+                title
+              )}
+            </span>
             {when && <span className="text-sm text-fg-muted">{when}</span>}
           </p>
           {description && (
