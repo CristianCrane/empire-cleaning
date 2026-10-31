@@ -2,14 +2,17 @@
 import { Logo, buttonStyles } from "@empire-cleaning/ui";
 import { Phone } from "lucide-react";
 import { business } from "../business.ts";
+import { back, front, height, width } from "../skyline.ts";
 ---
 
-<!-- the logo leads, at a size it reads at: above the headline on a phone,
-     beside it on a laptop (UX pass, #96) -->
-<section aria-labelledby="hero-title" class="py-12 sm:py-24">
-  <div class="mx-auto flex max-w-5xl flex-col gap-8 px-4 lg:flex-row lg:items-center lg:gap-12">
-    <Logo className="mx-auto w-44 sm:mx-0 sm:w-52 lg:w-64" />
-    <div class="flex flex-col items-start gap-6">
+<!-- the logo leads, at a size it reads at: above the headline, everything
+     centred, up to a laptop; beside it from there (UX pass, #96). A skyline
+     in the logo's manner stands along the foot, in a strip of its own the
+     content never reaches -->
+<section aria-labelledby="hero-title" class="relative overflow-hidden pt-12 pb-32 sm:pt-24 sm:pb-44 lg:pb-52">
+  <div class="relative mx-auto flex max-w-5xl flex-col items-center gap-8 px-4 lg:flex-row lg:gap-12">
+    <Logo className="w-44 sm:w-52 lg:w-64" />
+    <div class="flex flex-col items-center gap-6 text-center lg:items-start lg:text-left">
       <h1
         id="hero-title"
         class="font-display text-5xl leading-none font-bold tracking-wide uppercase sm:text-7xl"
@@ -32,4 +35,22 @@ import { business } from "../business.ts";
       </div>
     </div>
   </div>
+  {/* each tower is filled with the page's background, so the front row hides
+      the back one; the outlines are a faint mix of ink into the background */}
+  <svg
+    data-skyline
+    aria-hidden="true"
+    viewBox={`0 0 ${width} ${height}`}
+    preserveAspectRatio="xMidYMax slice"
+    class="pointer-events-none absolute inset-x-0 bottom-0 h-20 w-full sm:h-28 lg:h-36"
+    fill="var(--color-bg)"
+    stroke="color-mix(in srgb, var(--color-fg) 16%, var(--color-bg))"
+    stroke-width="3"
+    stroke-linejoin="miter"
+  >
+    {back.map((d) => <path d={d} vector-effect="non-scaling-stroke" />)}
+    <g stroke="color-mix(in srgb, var(--color-fg) 30%, var(--color-bg))">
+      {front.map((d) => <path d={d} vector-effect="non-scaling-stroke" />)}
+    </g>
+  </svg>
 </section>

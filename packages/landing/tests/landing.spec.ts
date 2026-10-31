@@ -419,6 +419,41 @@ test(
   },
 );
 
+test.describe("the hero", () => {
+  // a phone, a large phone, a tablet, a laptop, a wide desktop
+  for (const width of [360, 430, 768, 1024, 1920]) {
+    test(`keeps its skyline clear of the content at ${width}px`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto("/");
+
+      const hero = page.locator("section").first();
+      const content = await hero.locator(":scope > div").boundingBox();
+      const skyline = await hero.locator("[data-skyline]").boundingBox();
+      expect(skyline!.y).toBeGreaterThanOrEqual(
+        content!.y + content!.height,
+      );
+    });
+  }
+
+  test("is centred up to a laptop, and beside the logo from there", async ({
+    page,
+  }) => {
+    const align = () =>
+      page
+        .getByRole("heading", { level: 1 })
+        .evaluate((h) => getComputedStyle(h).textAlign);
+
+    await page.setViewportSize({ width: 768, height: 900 });
+    await page.goto("/");
+    expect(await align()).toBe("center");
+
+    await page.setViewportSize({ width: 1280, height: 900 });
+    expect(await align()).toBe("left");
+  });
+});
+
 test.describe("search engines", () => {
   test("get a title, description and link preview", async ({ page }) => {
     await page.goto("/");
