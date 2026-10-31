@@ -103,13 +103,14 @@ test(
     await expect(client.getByRole("heading", { level: 1 })).toHaveText(
       "Your Quote",
     );
-    const offer = client.getByRole("region", { name: "Deep Clean" });
+    const offer = client.getByRole("region", { name: "Quote details" });
+    await expect(
+      offer.getByRole("radio", { name: "Deep Clean" }),
+    ).toBeChecked();
     await expect(offer).toContainText("Recommended");
     // $250 plus 8.875% tax
     await expect(offer).toContainText("$272.19");
-    await expect(
-      client.getByText("Proposed for Mon, Jan 12, 9:00 AM"),
-    ).toBeVisible();
+    await expect(offer).toContainText("Mon, Jan 12, 9:00 AMYour clean");
   },
 );
 
@@ -242,8 +243,8 @@ test("the Client sees only the latest Revision, from any of its emails", async (
   await signedInAs(client, casey.email);
   await client.goto(link);
   await expect(
-    client.getByRole("region", { name: "Deep Clean" }),
-  ).toBeVisible();
+    client.getByRole("region", { name: "Quote details" }),
+  ).toContainText("Deep Clean");
   await expect(client.getByText(/Updated/)).toBeHidden();
 
   await page.getByRole("button", { name: "Draft a new Revision" }).click();
@@ -264,7 +265,7 @@ test("the Client sees only the latest Revision, from any of its emails", async (
   ).toBeVisible();
   // $250 plus 8.875% tax
   await expect(
-    client.getByRole("region", { name: "Deep Clean" }),
+    client.getByRole("region", { name: "Quote details" }),
   ).toContainText("$272.19");
   await expect(client.getByText(/Revision/)).toBeHidden();
   // Home shows the one Quote, as it stands now

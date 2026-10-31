@@ -68,12 +68,14 @@ test(
     await signInWithLink(client, casey.email);
     await expect(client).toHaveURL(link);
 
-    const accept = client.getByRole("region", { name: "Accept and book" });
-    // Deep Clean is chosen to begin with; Casey goes for the Standard Clean
+    const accept = client.getByRole("region", { name: "Pay and book" });
+    // Deep Clean is chosen to begin with, on the Quote; Casey goes for the
+    // Standard Clean, and pays its Deposit under it
+    const details = client.getByRole("region", { name: "Quote details" });
     await expect(
-      accept.getByRole("radio", { name: /Deep Clean/ }),
+      details.getByRole("radio", { name: /Deep Clean/ }),
     ).toBeChecked();
-    await accept.getByText("Standard Clean", { exact: true }).click();
+    await details.getByText("Standard Clean", { exact: true }).click();
     await expect(accept.getByText("Test payments: no card")).toBeVisible();
     // paying saves the card for the Balance, which the form says
     await expect(
@@ -114,7 +116,7 @@ test("a declined Deposit books nothing, and another try goes through", async ({
   await client.goto(await linkIn("Your Quote from Empire Cleaning"));
   await failCharges("card_declined");
 
-  const accept = client.getByRole("region", { name: "Accept and book" });
+  const accept = client.getByRole("region", { name: "Pay and book" });
   await accept.getByRole("button", { name: /^Accept and pay/ }).click();
 
   await expect(
@@ -122,9 +124,7 @@ test("a declined Deposit books nothing, and another try goes through", async ({
       "Your card couldn't be charged, so nothing has been booked",
     ),
   ).toBeVisible();
-  await expect(
-    client.getByText("This Quote is open until", { exact: false }),
-  ).toBeVisible();
+  await expect(client.getByText("Open until", { exact: false })).toBeVisible();
   // a declined card isn't kept: the form is there for another
   await expect(accept.getByText("Test payments: no card")).toBeVisible();
 
@@ -144,7 +144,7 @@ test("a Deposit the bank asks the Client to approve is booked once approved", as
   const client = await (await browser.newContext()).newPage();
   await signedInAs(client, casey.email);
   await client.goto(await linkIn("Your Quote from Empire Cleaning"));
-  const accept = client.getByRole("region", { name: "Accept and book" });
+  const accept = client.getByRole("region", { name: "Pay and book" });
 
   await requireApproval("refused");
   await accept.getByRole("button", { name: /^Accept and pay/ }).click();
@@ -264,7 +264,7 @@ test("a Quote whose day has filled up can't be paid for, and the Office is asked
   ).toBeVisible();
   // nothing to pay for, but they can still say no
   await expect(
-    client.getByRole("region", { name: "Accept and book" }),
+    client.getByRole("region", { name: "Pay and book" }),
   ).toHaveCount(0);
   await expect(
     client.getByRole("button", { name: "Decline this Quote" }),

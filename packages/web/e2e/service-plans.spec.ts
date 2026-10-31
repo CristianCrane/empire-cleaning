@@ -66,7 +66,7 @@ test(
     await signedInAs(client, casey.email);
     await client.goto(await quoteLink());
     const accept = client.getByRole("region", {
-      name: "Accept and start your plan",
+      name: "Pay and start your plan",
     });
     await expect(accept).toContainText(
       "Paying with your Test card ending 4242",
