@@ -1,6 +1,7 @@
 // real Google reviews, word for word ("…" marks where a long one is cut);
 // the owner swaps them here. Names are shortened to a first name and initial
-export const googleReviewsUrl = "https://www.google.com/maps?cid=17623671204506783546";
+export const googleReviewsUrl =
+  "https://www.google.com/maps?cid=17623671204506783546";
 
 export const reviews = [
   {
