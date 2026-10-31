@@ -32,7 +32,9 @@ export function Section({
       className={twMerge("flex flex-col gap-3", className)}
     >
       <header className="flex flex-wrap items-start gap-3">
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
+        {/* wide enough for a title on one line: past that, the actions
+            wrap under it rather than squeezing it */}
+        <div className="flex min-w-48 flex-1 flex-col gap-1">
           <Heading level={headingLevel} size={3} id={headingId}>
             {title}
           </Heading>

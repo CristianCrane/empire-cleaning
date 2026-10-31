@@ -521,14 +521,17 @@ export function FindingsForm({
 export function RecordFindings({
   visit,
   premisesTypes,
+  primary = true,
 }: {
   visit: OfficeSiteVisit;
   premisesTypes: PremisesTypeChoice[];
+  // the page's one thing to do once the visit has been; before, secondary
+  primary?: boolean;
 }) {
   const action = useAction("The findings weren't saved. Please try again.");
   return (
     <DialogTrigger>
-      <Button>
+      <Button variant={primary ? "primary" : "secondary"}>
         <ClipboardCheck aria-hidden size={18} />
         Record findings
       </Button>
