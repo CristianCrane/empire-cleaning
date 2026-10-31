@@ -1,0 +1,20 @@
+---
+// prototype: the homepage's top, with each hero texture
+import Header from "../../../components/Header.astro";
+import HeroPrototype from "../../../components/HeroPrototype.astro";
+import Services from "../../../components/Services.astro";
+import Page from "../../../layouts/Page.astro";
+
+export function getStaticPaths() {
+  return ["skyline", "tile", "wipe"].map((texture) => ({ params: { texture } }));
+}
+const texture = Astro.params.texture as "skyline" | "tile" | "wipe";
+---
+
+<Page>
+  <Header />
+  <main>
+    <HeroPrototype texture={texture} />
+    <Services />
+  </main>
+</Page>

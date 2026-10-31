@@ -1,0 +1,148 @@
+---
+// prototype: the hero with a background texture behind it
+//   skyline: Long Island houses, Queens row houses with water towers, Manhattan towers
+//   tile:    subway-tile grout lines, fading out behind the words
+//   wipe:    a fine grain with one clean squeegee stripe through it
+import { Logo, buttonStyles } from "@empire-cleaning/ui";
+import { Phone } from "lucide-react";
+import { business } from "../business.ts";
+
+interface Props {
+  texture: "skyline" | "tile" | "wipe";
+}
+const { texture } = Astro.props;
+
+// a skyline drawn once, the same every build: a seeded random
+let seed = 7;
+const rand = (min: number, max: number) => {
+  seed = (seed * 16807) % 2147483647;
+  return min + ((seed - 1) / 2147483646) * (max - min);
+};
+const ground = 160;
+const shapes: string[] = [];
+const rect = (x: number, w: number, h: number) =>
+  shapes.push(`M${x} ${ground}V${ground - h}H${x + w}V${ground}Z`);
+// Long Island: houses with pitched roofs, and trees
+for (let x = 0; x < 520; ) {
+  const w = rand(60, 86);
+  const h = rand(34, 48);
+  const roof = rand(20, 30);
+  shapes.push(
+    `M${x} ${ground}V${ground - h}L${x + w / 2} ${ground - h - roof}L${x + w} ${ground - h}V${ground}Z`,
+  );
+  x += w + rand(10, 22);
+  if (rand(0, 1) > 0.45 && x < 500) {
+    const r = rand(12, 18);
+    shapes.push(
+      `M${x + r - 2} ${ground}V${ground - 18}h4V${ground}Z`,
+      `M${x} ${ground - 18 - r}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0Z`,
+    );
+    x += 2 * r + rand(8, 16);
+  }
+}
+// Queens: row houses shoulder to shoulder, some with a water tower
+for (let x = 540; x < 1080; ) {
+  const w = rand(34, 54);
+  const h = rand(46, 96);
+  rect(x, w, h);
+  // a cornice
+  rect(x - 2, w + 4, h - rand(4, 8));
+  rect(x, w, h);
+  if (rand(0, 1) > 0.6) {
+    const tx = x + w / 2 - 9;
+    const top = ground - h;
+    shapes.push(
+      `M${tx + 2} ${top}V${top - 10}h2V${top}Z`,
+      `M${tx + 14} ${top}V${top - 10}h2V${top}Z`,
+      `M${tx} ${top - 10}V${top - 32}H${tx + 18}V${top - 10}Z`,
+      `M${tx - 1} ${top - 32}L${tx + 9} ${top - 42}L${tx + 19} ${top - 32}Z`,
+    );
+  }
+  x += w + (rand(0, 1) > 0.75 ? rand(8, 16) : 0);
+}
+// Manhattan: towers, setbacks and a spire
+for (let x = 1110; x < 1600; ) {
+  const w = rand(30, 58);
+  const h = rand(90, 150);
+  rect(x, w, h);
+  if (rand(0, 1) > 0.5) rect(x + w * 0.2, w * 0.6, h + rand(14, 26));
+  if (rand(0, 1) > 0.8) {
+    const top = ground - h - 26;
+    shapes.push(`M${x + w / 2 - 1} ${top}V${top - 30}h2V${top}Z`);
+  }
+  x += w + rand(2, 10);
+}
+const skyline = shapes.join("");
+
+// subway tile: offset 3:1 tiles, their grout lines as a mask over the theme's ink
+const tile = `url("data:image/svg+xml,${encodeURIComponent(
+  "<svg xmlns='http://www.w3.org/2000/svg' width='96' height='32'><path d='M0 .5H96M0 16.5H96M.5 0V16M48.5 0V16M24.5 16V32M72.5 16V32' stroke='#000' fill='none'/></svg>",
+)}")`;
+const tileStyle = [
+  `-webkit-mask-image: ${tile}, radial-gradient(ellipse at 60% 50%, transparent 25%, #000 75%)`,
+  `mask-image: ${tile}, radial-gradient(ellipse at 60% 50%, transparent 25%, #000 75%)`,
+  "-webkit-mask-composite: source-in",
+  "mask-composite: intersect",
+].join(";");
+
+// the grain everywhere except one clean diagonal pass
+const wipeMask =
+  "linear-gradient(105deg, #000 0 18%, transparent 26% 70%, #000 78%)";
+const wipeStyle = [
+  "background-image: radial-gradient(circle, var(--color-fg) 0.9px, transparent 1.3px)",
+  "background-size: 9px 9px",
+  `-webkit-mask-image: ${wipeMask}`,
+  `mask-image: ${wipeMask}`,
+].join(";");
+---
+
+<section aria-labelledby="hero-title" class="relative overflow-hidden py-12 sm:py-24">
+  {
+    texture === "skyline" && (
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 1600 160"
+        preserveAspectRatio="xMidYMax slice"
+        class="pointer-events-none absolute inset-x-0 bottom-0 h-28 w-full text-primary opacity-[.14] sm:h-40"
+        style="-webkit-mask-image: linear-gradient(to top, #000 40%, transparent); mask-image: linear-gradient(to top, #000 40%, transparent)"
+      >
+        <path fill="currentColor" d={skyline} />
+      </svg>
+    )
+  }
+  {
+    texture === "tile" && (
+      <div aria-hidden="true" class="pointer-events-none absolute inset-0 bg-fg opacity-[.09]" style={tileStyle} />
+    )
+  }
+  {
+    texture === "wipe" && (
+      <div aria-hidden="true" class="pointer-events-none absolute inset-0 opacity-[.2]" style={wipeStyle} />
+    )
+  }
+  <div class="relative mx-auto flex max-w-5xl flex-col gap-8 px-4 lg:flex-row lg:items-center lg:gap-12">
+    <Logo className="mx-auto w-44 sm:mx-0 sm:w-52 lg:w-64" />
+    <div class="flex flex-col items-start gap-6">
+      <h1
+        id="hero-title"
+        class="font-display text-5xl leading-none font-bold tracking-wide uppercase sm:text-7xl"
+      >
+        Clean spaces.
+        <span class="block text-primary">Stronger impact.</span>
+      </h1>
+      <p class="max-w-xl text-xl text-fg-muted">
+        Professional cleaning for homes and businesses across {business.area}.
+        Exceptional results, every visit.
+      </p>
+      <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+        <a href="#quote" class={buttonStyles({ variant: "primary", className: "px-6 text-lg" })}>
+          Request a Quote
+        </a>
+        <a href={business.phone.href} class={buttonStyles({ variant: "secondary", className: "px-6 text-lg" })}>
+          <Phone aria-hidden size={20} />
+          Call {business.phone.display}
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
