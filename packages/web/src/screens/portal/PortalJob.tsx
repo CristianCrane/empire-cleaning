@@ -432,6 +432,7 @@ function Reschedule({ job }: { job: ClientJobDetail }) {
           }
           done="Request sent"
           Picker={PickAvailableTime}
+          inline
         />
       }
     >
