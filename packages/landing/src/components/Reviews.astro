@@ -1,0 +1,82 @@
+---
+import { buttonStyles } from "@empire-cleaning/ui";
+import { ChevronLeft, ChevronRight, ExternalLink, Quote } from "lucide-react";
+import { googleReviewsUrl, reviews } from "../reviews.ts";
+import Section from "./Section.astro";
+---
+
+<Section id="reviews" title="What our Clients say" tone="raised">
+  {/* one review at a time. Every review is in the page, so it reads without
+      JavaScript and to search engines; the strip snaps to each one and swipes
+      on a phone, and the script below adds Previous, Next and the count */}
+  <div data-reviews aria-roledescription="carousel" aria-label="Reviews" class="flex flex-col gap-6">
+    <div
+      data-track
+      tabindex="0"
+      aria-label="Reviews, one at a time"
+      class="flex snap-x snap-mandatory overflow-x-auto rounded-md outline-offset-4 outline-focus focus-visible:outline-2"
+    >
+      {
+        reviews.map((r, i) => (
+          <div
+            role="group"
+            aria-roledescription="slide"
+            aria-label={`${i + 1} of ${reviews.length}`}
+            class="w-full shrink-0 snap-start"
+          >
+            <figure class="flex flex-col gap-4">
+              <Quote aria-hidden size={40} className="text-primary" />
+              <blockquote class="max-w-3xl text-xl leading-snug sm:text-3xl">{r.text}</blockquote>
+              <figcaption class="text-lg">
+                <span class="font-semibold">{r.name}</span>
+                <span class="text-fg-muted"> · {r.service}</span>
+              </figcaption>
+            </figure>
+          </div>
+        ))
+      }
+    </div>
+    <div data-controls hidden class="flex items-center gap-3">
+      <button type="button" data-prev aria-label="Previous review" class={buttonStyles({ variant: "secondary", size: "icon" })}>
+        <ChevronLeft aria-hidden size={20} />
+      </button>
+      <span data-count aria-live="polite" class="min-w-16 text-center text-fg-muted tabular-nums">
+        1 of {reviews.length}
+      </span>
+      <button type="button" data-next aria-label="Next review" class={buttonStyles({ variant: "secondary", size: "icon" })}>
+        <ChevronRight aria-hidden size={20} />
+      </button>
+    </div>
+    <a href={googleReviewsUrl} target="_blank" rel="noopener" class="inline-flex items-center gap-2 self-start font-semibold text-primary">
+      Read all our reviews on Google
+      <ExternalLink aria-hidden size={16} />
+    </a>
+  </div>
+</Section>
+
+<script>
+  // Previous and Next step through the reviews, wrapping round at either end;
+  // it never moves on its own
+  for (const root of document.querySelectorAll<HTMLElement>("[data-reviews]")) {
+    const track = root.querySelector<HTMLElement>("[data-track]")!;
+    const count = root.querySelector<HTMLElement>("[data-count]")!;
+    const total = track.children.length;
+    const current = () => Math.round(track.scrollLeft / track.clientWidth);
+    const smooth = !matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    const go = (i: number) =>
+      track.scrollTo({
+        left: ((i + total) % total) * track.clientWidth,
+        behavior: smooth ? "smooth" : "auto",
+      });
+    root.querySelector("[data-prev]")!.addEventListener("click", () => go(current() - 1));
+    root.querySelector("[data-next]")!.addEventListener("click", () => go(current() + 1));
+    track.addEventListener("scroll", () => {
+      count.textContent = `${current() + 1} of ${total}`;
+    });
+
+    // the buttons take over from the scrollbar
+    track.style.scrollbarWidth = "none";
+    root.querySelector<HTMLElement>("[data-controls]")!.hidden = false;
+  }
+</script>

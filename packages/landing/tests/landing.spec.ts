@@ -1,6 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { business } from "../src/business.ts";
+import { googleReviewsUrl, reviews } from "../src/reviews.ts";
 import { emailsTo, expect, test } from "./harness.ts";
 
 // the form loads once its section scrolls into view, and lists the Services
@@ -27,11 +28,13 @@ const chooseService = async (page: Page, name = "Standard Clean") => {
   await next(page);
 };
 
+// in the order they appear
 const sections = [
   "What we clean",
-  "How it works",
-  "Save 10% with a Service Plan",
   "Why Empire",
+  "What our Clients say",
+  "Save 10% with a Service Plan",
+  "How it works",
   "Request a Quote",
 ];
 
@@ -60,6 +63,9 @@ for (const theme of ["light", "dark"] as const) {
             page.getByRole("heading", { level: 2, name }),
           ).toBeVisible();
         }
+        await expect(page.getByRole("heading", { level: 2 })).toHaveText(
+          sections,
+        );
       },
     );
 
@@ -113,6 +119,14 @@ test(
         .getByRole("link", { name: `Call ${business.phone.display}` })
         .first(),
     ).toHaveAttribute("href", business.phone.href);
+    // every review is there to swipe through, without buttons that do nothing
+    await expect(
+      page.getByRole("group", { name: `1 of ${reviews.length}` }),
+    ).toContainText(reviews[0].text);
+    await expect(page.locator("#reviews figure")).toHaveCount(reviews.length);
+    await expect(
+      page.getByRole("button", { name: "Next review" }),
+    ).toBeHidden();
     // no form that couldn't send anything: the Quote section offers the phone
     await expect(page.locator("#quote form")).toHaveCount(0);
     await expect(page.locator("#quote")).toContainText(
@@ -347,11 +361,52 @@ test.describe("requesting a Quote", () => {
   });
 });
 
-test("the only JavaScript is the theme toggle and the Quote form", async ({
+test.describe("reviews", () => {
+  const review = (page: Page, i: number) =>
+    page.getByRole("group", { name: `${i} of ${reviews.length}` });
+
+  test("show one at a time, stepping through with Previous and Next", async ({
+    page,
+  }) => {
+    await page.goto("/#reviews");
+    const count = page.locator("#reviews [data-count]");
+    await expect(count).toHaveText(`1 of ${reviews.length}`);
+    await expect(review(page, 1)).toBeInViewport({ ratio: 0.9 });
+    await expect(review(page, 2)).not.toBeInViewport();
+
+    await page.getByRole("button", { name: "Next review" }).click();
+    await expect(count).toHaveText(`2 of ${reviews.length}`);
+    await expect(review(page, 2)).toBeInViewport({ ratio: 0.9 });
+    await expect(review(page, 1)).not.toBeInViewport();
+  });
+
+  test("wrap round at either end", async ({ page }) => {
+    await page.goto("/#reviews");
+    const count = page.locator("#reviews [data-count]");
+
+    await page.getByRole("button", { name: "Previous review" }).click();
+    await expect(count).toHaveText(`${reviews.length} of ${reviews.length}`);
+    await expect(review(page, reviews.length)).toBeInViewport({ ratio: 0.9 });
+
+    await page.getByRole("button", { name: "Next review" }).click();
+    await expect(count).toHaveText(`1 of ${reviews.length}`);
+  });
+
+  test("link to all our reviews on Google", async ({ page }) => {
+    await page.goto("/");
+
+    await expect(
+      page.getByRole("link", { name: "Read all our reviews on Google" }),
+    ).toHaveAttribute("href", googleReviewsUrl);
+  });
+});
+
+test("the only JavaScript is the theme toggle, the Quote form and the reviews' buttons", async ({
   page,
 }) => {
   await page.goto("/");
 
+  // the reviews' buttons are a few lines of plain script, not an island
   const islands = page.locator("astro-island");
   await expect(islands).toHaveCount(2);
   expect(
