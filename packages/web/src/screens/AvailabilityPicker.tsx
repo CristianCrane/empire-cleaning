@@ -1,149 +1,89 @@
-import { useState } from "react";
-import { CalendarDays } from "lucide-react";
-import {
-  Actions,
-  Button,
-  Dialog,
-  DialogTrigger,
-  Heading,
-  StatusBadge,
-} from "@empire-cleaning/ui";
-import {
-  HOUR_PX,
-  PickSlot,
-  RangeBar,
-  TimeGrid,
-  type TimePickerProps,
-} from "./CalendarGrid.tsx";
-import { addDays, formatClock, formatDay, today } from "./format.ts";
-import { axisFor, hoursOf } from "./schedule-layout.ts";
-import { daysIn, isWide, rangeShowing } from "./schedule-range.ts";
+import { parseDate, type CalendarDate } from "@internationalized/date";
+import { Calendar } from "@empire-cleaning/ui";
+import type { TimePickerProps } from "./CalendarGrid.tsx";
+import { formatClock, formatDay } from "./format.ts";
 
 /**
- * A Client choosing a new time for their clean on a calendar, the way the
- * Office picks from the Schedule but showing only what's theirs to see: the
- * start times on offer on days with room, and where their clean is now.
+ * A Client choosing a new time for their clean, the way booking anywhere
+ * reads: a month, where only days with room can be picked, then that day's
+ * start times on offer. It shows only what's theirs to see, never the
+ * Schedule. Sits in the dialog itself, not a dialog of its own. (UX pass,
+ * #96)
  */
-export function PickAvailableTime(props: TimePickerProps) {
-  return (
-    <DialogTrigger>
-      <Button variant="secondary" className="self-start">
-        <CalendarDays aria-hidden size={20} />
-        Pick on the calendar
-      </Button>
-      <Dialog title="Open times" size="wide">
-        {({ close }) => <OpenTimes {...props} close={close} />}
-      </Dialog>
-    </DialogTrigger>
-  );
-}
-
-function OpenTimes({
+export function PickAvailableTime({
   date,
   time,
   current,
-  limits,
+  limits = [],
   onPick,
-  close,
-}: TimePickerProps & { close: () => void }) {
-  // a week where there's room for one, otherwise a day
-  const [range, setRange] = useState(() =>
-    rangeShowing(isWide() ? 7 : 1, date ?? current?.date ?? today()),
-  );
-  const dates = Array.from({ length: daysIn(range.from, range.to) }, (_, i) =>
-    addDays(range.from, i),
-  );
-  // every time on offer on some day, for the rows; each day shows its own
-  const times = [...new Set(limits?.flatMap((d) => d.times) ?? [])].sort();
-  const timesOn = (day: string) =>
-    limits?.find((d) => d.date === day)?.times ?? [];
-  const axis = axisFor(
-    [],
-    times.map((t) => ({ start: hoursOf(t), end: hoursOf(t) + 1 })),
-  );
-  // each time reaches down to the next, an hour at most
-  const heightOf = (i: number) =>
-    Math.min(
-      i + 1 < times.length ? hoursOf(times[i + 1]!) - hoursOf(times[i]!) : 1,
-      1,
-    );
-  const isOpen = (day: string) => timesOn(day).length > 0;
-  const isNow = (day: string, t: string) =>
-    day === current?.date && t === current.time;
+}: TimePickerProps) {
+  const open = limits.filter((d) => d.times.length > 0);
+  const first = open[0]?.date;
+  const last = open.at(-1)?.date;
+  if (!first || !last) return null;
+  const times = open.find((d) => d.date === date)?.times ?? [];
+  // the time a day keeps when it's picked: the one chosen, if it's on offer
+  const pickDay = (day: string) => {
+    const offered = open.find((d) => d.date === day)?.times ?? [];
+    onPick({
+      date: day,
+      time: time && offered.includes(time) ? time : "",
+    });
+  };
 
   return (
-    <>
-      <p className="text-sm text-fg-muted">
-        Choose a start time. A day or time that isn't shown has no room for your
-        clean. New York time.
-      </p>
-      <RangeBar
-        from={range.from}
-        to={range.to}
-        onShow={(span, day) => setRange(rangeShowing(span, day))}
-      />
-      <TimeGrid
-        axis={axis}
-        columns={dates.map((day) => ({
-          date: day,
-          header: (
-            <header
-              className={`flex flex-col gap-1 border-b border-border p-2 ${isOpen(day) ? "" : "bg-surface-sunken"}`}
-            >
-              <Heading level={2} size={4} className="text-sm">
-                {formatDay(day)}
-              </Heading>
-              {day === current?.date ? (
-                <StatusBadge tone="info">Your clean</StatusBadge>
-              ) : (
-                !isOpen(day) && (
-                  <p className="text-xs text-fg-muted">No times</p>
-                )
-              )}
-            </header>
-          ),
-          bodyLabel: `Times on ${formatDay(day)}`,
-          bodyProps: {
-            className: isOpen(day) ? "" : "bg-surface-sunken",
-          },
-          body: times.map((t, i) =>
-            isNow(day, t) ? (
-              <div
-                key={t}
-                className="absolute inset-x-0.5 rounded-md border-2 border-dashed border-info-strong bg-info-subtle px-1.5 py-0.5 text-xs leading-tight font-semibold"
-                style={{
-                  top: (hoursOf(t) - axis.start) * HOUR_PX + 1,
-                  height: heightOf(i) * HOUR_PX - 2,
-                }}
-              >
-                {formatClock(t)} Your clean now
-              </div>
-            ) : (
-              timesOn(day).includes(t) && (
-                <PickSlot
+    <div className="flex flex-col gap-4">
+      <div className="flex justify-center">
+        <Calendar<CalendarDate>
+          aria-label="Day"
+          value={date ? parseDate(date) : null}
+          defaultFocusedValue={parseDate(date ?? current?.date ?? first)}
+          minValue={parseDate(first)}
+          maxValue={parseDate(last)}
+          isDateUnavailable={(day) =>
+            !open.some((d) => d.date === day.toString())
+          }
+          onChange={(day) => pickDay(day.toString())}
+        />
+      </div>
+      {date && times.length > 0 ? (
+        <div
+          role="group"
+          aria-label={`Open times on ${formatDay(date)}`}
+          className="flex flex-col gap-2"
+        >
+          <span className="font-semibold">{formatDay(date)}: open times</span>
+          <div className="grid grid-cols-3 gap-2">
+            {times.map((t) => {
+              const isNow = date === current?.date && t === current?.time;
+              const chosen = t === time;
+              return (
+                <button
                   key={t}
-                  at={{ date: day, time: t }}
-                  axisStart={axis.start}
-                  hours={heightOf(i)}
-                  isSelected={day === date && t === time}
-                  className="border border-border-strong font-semibold"
-                  onPick={(at) => {
-                    onPick(at);
-                    close();
-                  }}
+                  type="button"
+                  disabled={isNow}
+                  aria-pressed={chosen}
+                  aria-label={`${formatDay(date)}, ${formatClock(t)}${isNow ? " (your clean now)" : ""}`}
+                  onClick={() => onPick({ date, time: t })}
+                  className={`min-h-touch rounded-md font-semibold tabular-nums ${
+                    isNow
+                      ? "border-2 border-dashed border-border-strong text-fg-muted"
+                      : chosen
+                        ? "bg-primary text-primary-fg"
+                        : "bg-primary/10 text-primary hover:bg-primary/20"
+                  }`}
                 >
                   {formatClock(t)}
-                </PickSlot>
-              )
-            ),
-          ),
-        }))}
-      />
-      <Actions>
-        <Button variant="quiet" onPress={close}>
-          Close
-        </Button>
-      </Actions>
-    </>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <p className="text-sm text-fg-muted">
+          Only days with room can be picked.
+        </p>
+      )}
+    </div>
   );
 }

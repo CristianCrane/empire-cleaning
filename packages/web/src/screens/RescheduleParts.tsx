@@ -90,6 +90,10 @@ type Props = {
   // the calendar to pick from: the Schedule for the Office, open times for
   // the Client
   Picker: ComponentType<TimePickerProps>;
+  // the Picker sits in the dialog itself (the Client's month), the day and
+  // time fields under it as the keyboard path; otherwise it opens its own
+  // (the Office's Schedule)
+  inline?: boolean;
   // what opens it, e.g. an IconAction; a Button with the label otherwise
   trigger?: ReactElement;
 };
@@ -114,6 +118,7 @@ function NewTimeForm({
   describeCost,
   done,
   Picker,
+  inline = false,
   close,
 }: Props & { close: () => void }) {
   const [times, setTimes] = useState<RescheduleTimes>();
@@ -167,6 +172,57 @@ function NewTimeForm({
     if (ok) close();
   };
 
+  // the day and start time as fields: the Office's way, and the Client's
+  // keyboard path
+  const fields = (
+    <>
+      <Select
+        label="Day"
+        description="Only days with room for this clean are shown."
+        placeholder="Choose a day"
+        selectedKey={date}
+        onSelectionChange={(key) => choose(key === null ? null : String(key))}
+      >
+        {(times?.days ?? []).map(({ date: day }) => (
+          <SelectItem key={day} id={day} textValue={formatDay(day)}>
+            {formatDay(day)}
+          </SelectItem>
+        ))}
+      </Select>
+      <Select
+        label="Start time"
+        description={
+          date
+            ? "New York time. Only times with a crew free are shown."
+            : "New York time. Choose a day first."
+        }
+        placeholder="Choose a time"
+        isDisabled={!date}
+        selectedKey={time}
+        onSelectionChange={(key) => setTime(key === null ? null : String(key))}
+      >
+        {timesOn(date).map((t) => (
+          <SelectItem key={t} id={t} textValue={formatClock(t)}>
+            {formatClock(t)}
+          </SelectItem>
+        ))}
+      </Select>
+    </>
+  );
+  const picker = (
+    <Picker
+      date={date ?? undefined}
+      time={time ?? undefined}
+      hoursOnSite={job.hoursOnSite}
+      current={{
+        date: dayOfInstant(job.startsAt),
+        time: timeOfDay(job.startsAt),
+      }}
+      limits={times?.days}
+      onPick={(at) => choose(at.date, at.time)}
+    />
+  );
+
   return (
     <>
       {!times && !action.problem && (
@@ -180,52 +236,30 @@ function NewTimeForm({
       )}
       {times && times.days.length > 0 && (
         <>
-          <Select
-            label="Day"
-            description="Only days with room for this clean are shown."
-            placeholder="Choose a day"
-            selectedKey={date}
-            onSelectionChange={(key) =>
-              choose(key === null ? null : String(key))
-            }
-          >
-            {times.days.map(({ date: day }) => (
-              <SelectItem key={day} id={day} textValue={formatDay(day)}>
-                {formatDay(day)}
-              </SelectItem>
-            ))}
-          </Select>
-          <Select
-            label="Start time"
-            description={
-              date
-                ? "New York time. Only times with a crew free are shown."
-                : "New York time. Choose a day first."
-            }
-            placeholder="Choose a time"
-            isDisabled={!date}
-            selectedKey={time}
-            onSelectionChange={(key) =>
-              setTime(key === null ? null : String(key))
-            }
-          >
-            {timesOn(date).map((t) => (
-              <SelectItem key={t} id={t} textValue={formatClock(t)}>
-                {formatClock(t)}
-              </SelectItem>
-            ))}
-          </Select>
-          <Picker
-            date={date ?? undefined}
-            time={time ?? undefined}
-            hoursOnSite={job.hoursOnSite}
-            current={{
-              date: dayOfInstant(job.startsAt),
-              time: timeOfDay(job.startsAt),
-            }}
-            limits={times.days}
-            onPick={(at) => choose(at.date, at.time)}
-          />
+          {inline ? (
+            <>
+              {picker}
+              {date && time && (
+                <p>
+                  Move it to{" "}
+                  <strong>
+                    {formatDay(date)} at {formatClock(time)}
+                  </strong>
+                </p>
+              )}
+              <details className="text-sm">
+                <summary className="cursor-pointer font-semibold text-primary">
+                  Or choose from a list
+                </summary>
+                <div className="mt-3 flex flex-col gap-4">{fields}</div>
+              </details>
+            </>
+          ) : (
+            <>
+              {fields}
+              {picker}
+            </>
+          )}
         </>
       )}
       <p>

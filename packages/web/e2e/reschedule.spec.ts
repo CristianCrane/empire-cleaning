@@ -74,8 +74,11 @@ test(
     await card.getByRole("button", { name: "Choose a new time" }).click();
     const dialog = page.getByRole("dialog", { name: "Choose a new time" });
     await expect(dialog).toContainText("There's no charge for moving it.");
+    // the keyboard path: the same choice from a list
+    await dialog.getByText("Or choose from a list").click();
     await choose(page, "Day", "Wed, Jan 14");
     await choose(page, "Start time", "10:00 AM");
+    await expect(dialog).toContainText("Move it to Wed, Jan 14 at 10:00 AM");
     await expectAccessible(page);
     await dialog.getByRole("button", { name: "Send request" }).click();
 
@@ -217,22 +220,24 @@ test(
       .getByRole("region", { name: "Need another time?" })
       .getByRole("button", { name: "Choose a new time" })
       .click();
+    // a month in the dialog itself: only days with room can be picked,
+    // then that day's open times
     const dialog = page.getByRole("dialog", { name: "Choose a new time" });
-    await dialog.getByRole("button", { name: "Pick on the calendar" }).click();
-    const calendar = page.getByRole("dialog", { name: "Open times" });
-    // the week of the clean on a desktop, its day on a phone
-    const monday = calendar.getByRole("region", {
-      name: "Mon, Jan 12",
-      exact: true,
+    const month = dialog.getByRole("application", { name: /^Day/ });
+    await month.getByRole("button", { name: /January 12, 2026/ }).click();
+    const monday = dialog.getByRole("group", {
+      name: "Open times on Mon, Jan 12",
     });
-    await expect(monday).toContainText("Your clean");
-    await expect(monday).toContainText("9:00 AM Your clean now");
+    await expect(
+      monday.getByRole("button", {
+        name: "Mon, Jan 12, 9:00 AM (your clean now)",
+      }),
+    ).toBeDisabled();
     await expectAccessible(page);
 
-    await stepDays(calendar, page, 2);
-    const wednesday = calendar.getByRole("region", {
-      name: "Wed, Jan 14",
-      exact: true,
+    await month.getByRole("button", { name: /January 14, 2026/ }).click();
+    const wednesday = dialog.getByRole("group", {
+      name: "Open times on Wed, Jan 14",
     });
     // no crew is free at 10, so it isn't offered; 11 is
     await expect(
@@ -241,18 +246,11 @@ test(
     await expect(
       wednesday.getByRole("button", { name: "Wed, Jan 14, 10:00 AM" }),
     ).toHaveCount(0);
-    await expect(calendar).not.toContainText(/Client \d/);
+    await expect(dialog).not.toContainText(/Client \d/);
     await wednesday
       .getByRole("button", { name: "Wed, Jan 14, 11:00 AM" })
       .click();
-
-    await expect(calendar).toBeHidden();
-    await expect(dialog.getByRole("button", { name: /Day$/ })).toContainText(
-      "Wed, Jan 14",
-    );
-    await expect(
-      dialog.getByRole("button", { name: /Start time$/ }),
-    ).toContainText("11:00 AM");
+    await expect(dialog).toContainText("Move it to Wed, Jan 14 at 11:00 AM");
     await dialog.getByRole("button", { name: "Send request" }).click();
     await expect(
       page.getByRole("region", { name: "Moving your clean" }),
