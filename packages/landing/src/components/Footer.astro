@@ -1,11 +1,11 @@
 ---
-import { Wordmark } from "@empire-cleaning/ui";
+import { Logo } from "@empire-cleaning/ui";
 import { business } from "../business.ts";
 ---
 
 <footer class="py-10">
   <div class="mx-auto flex max-w-5xl flex-col gap-4 px-4 sm:flex-row sm:items-end sm:justify-between">
-    <Wordmark />
+    <Logo className="w-36" />
     <div class="flex flex-col gap-1 text-fg-muted sm:items-end">
       <a href={business.phone.href} class="font-semibold text-fg">{business.phone.display}</a>
       <span>{business.area}</span>

@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import env from "../../env.ts";
 import { withAppUrl, type Email } from "./blocks.ts";
+import { logoUrlOn } from "./layout.tsx";
 import { renderEmail } from "./render.tsx";
 import { routeEmail } from "./routing.ts";
 
@@ -53,6 +54,7 @@ export const email = {
     if (message.to === null) return;
     const { subject, html, text } = await renderEmail(
       withAppUrl(message, env.CORS_ORIGIN_URL),
+      logoUrlOn(env.LANDING_ORIGIN_URL),
     );
     await current.send(
       routeEmail(

@@ -5,8 +5,8 @@ import {
   Heading,
   IconTile,
   Link,
-  Wordmark,
   type StatusTone,
+  Logo,
 } from "@empire-cleaning/ui";
 import { linkTo } from "../links.ts";
 
@@ -45,7 +45,7 @@ export function MessagePage({
   }
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-6 p-4">
-      <Wordmark centered />
+      <Logo className="mx-auto w-44" />
       {card}
     </main>
   );

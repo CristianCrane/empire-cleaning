@@ -1,30 +1,35 @@
 ---
-import { buttonStyles } from "@empire-cleaning/ui";
+import { Logo, buttonStyles } from "@empire-cleaning/ui";
 import { Phone } from "lucide-react";
 import { business } from "../business.ts";
 ---
 
-<section aria-labelledby="hero-title" class="py-16 sm:py-24">
-  <div class="mx-auto flex max-w-5xl flex-col items-start gap-6 px-4">
-    <h1
-      id="hero-title"
-      class="font-display text-5xl leading-none font-bold tracking-wide uppercase sm:text-7xl"
-    >
-      Clean spaces.
-      <span class="block text-primary">Stronger impact.</span>
-    </h1>
-    <p class="max-w-xl text-xl text-fg-muted">
-      Professional cleaning for homes and businesses across {business.area}.
-      Exceptional results, every visit.
-    </p>
-    <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-      <a href="#quote" class={buttonStyles({ variant: "primary", className: "px-6 text-lg" })}>
-        Request a Quote
-      </a>
-      <a href={business.phone.href} class={buttonStyles({ variant: "secondary", className: "px-6 text-lg" })}>
-        <Phone aria-hidden size={20} />
-        Call {business.phone.display}
-      </a>
+<!-- the logo leads, at a size it reads at: above the headline on a phone,
+     beside it on a laptop (UX pass, #96) -->
+<section aria-labelledby="hero-title" class="py-12 sm:py-24">
+  <div class="mx-auto flex max-w-5xl flex-col gap-8 px-4 lg:flex-row lg:items-center lg:gap-12">
+    <Logo className="mx-auto w-44 sm:mx-0 sm:w-52 lg:w-64" />
+    <div class="flex flex-col items-start gap-6">
+      <h1
+        id="hero-title"
+        class="font-display text-5xl leading-none font-bold tracking-wide uppercase sm:text-7xl"
+      >
+        Clean spaces.
+        <span class="block text-primary">Stronger impact.</span>
+      </h1>
+      <p class="max-w-xl text-xl text-fg-muted">
+        Professional cleaning for homes and businesses across {business.area}.
+        Exceptional results, every visit.
+      </p>
+      <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+        <a href="#quote" class={buttonStyles({ variant: "primary", className: "px-6 text-lg" })}>
+          Request a Quote
+        </a>
+        <a href={business.phone.href} class={buttonStyles({ variant: "secondary", className: "px-6 text-lg" })}>
+          <Phone aria-hidden size={20} />
+          Call {business.phone.display}
+        </a>
+      </div>
     </div>
   </div>
 </section>

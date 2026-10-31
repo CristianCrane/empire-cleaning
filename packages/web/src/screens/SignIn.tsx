@@ -10,8 +10,8 @@ import {
   IconTile,
   Notice,
   TextField,
-  Wordmark,
   showToast,
+  Logo,
 } from "@empire-cleaning/ui";
 import { authClient } from "../session.ts";
 import { GoogleButton } from "./GoogleButton.tsx";
@@ -58,7 +58,7 @@ export function SignIn() {
   // link under it, for everyone else (UX pass, #96)
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-6 p-4">
-      <Wordmark centered />
+      <Logo className="mx-auto w-44" />
 
       <Card>
         <Heading level={1} size={2}>

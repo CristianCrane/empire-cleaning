@@ -10,19 +10,22 @@ import {
 } from "./blocks.ts";
 
 const render = (email: Partial<Email>) =>
-  renderEmail({ subject: "A subject", blocks: [], ...email });
+  renderEmail(
+    { subject: "A subject", blocks: [], ...email },
+    "https://landing.example/email-logo.png",
+  );
 
 describe("the email layout", () => {
-  test("frames every email in the Wordmark and the business's footer", async () => {
+  test("frames every email in the logo and the business's footer", async () => {
     const { subject, html, text } = await render({
       blocks: [paragraph("Hello")],
     });
 
     expect(subject).toBe("A subject");
-    expect(html).toContain("Empire</p>");
-    expect(html).toContain("Cleaning &amp; Pro Services");
+    expect(html).toMatch(
+      /<img alt="Empire Cleaning &amp; Pro Services Inc"[^>]* src="https:\/\/landing.example\/email-logo.png"/,
+    );
     expect(html).toContain("(646) 320-9076");
-    expect(html).not.toContain("<img");
     expect(text).toBe(
       "Hello\n\n-- \nEmpire Cleaning & Pro Services Inc · Queens, NY · (646) 320-9076 · empirecleaningandpro.com",
     );
