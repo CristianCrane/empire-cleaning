@@ -214,6 +214,7 @@ function WaitingVisits({ plan }: { plan: OfficeServicePlan }) {
       {open && (
         <Dialog
           title={`Book the ${formatDay(open.dueOn)} visit`}
+          size="wide"
           isOpen
           onOpenChange={(isOpen) => !isOpen && setOpen(undefined)}
         >
@@ -283,6 +284,7 @@ function BookOrSkip({
         time={time?.toString().slice(0, 5)}
         hoursOnSite={day.hoursOnSite}
         crew={{ crewSize: day.crewSize }}
+        inline
         onPick={(picked) => {
           setDate(parseDate(picked.date));
           setTime(parseTime(picked.time));

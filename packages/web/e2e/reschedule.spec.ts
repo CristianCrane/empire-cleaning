@@ -267,13 +267,9 @@ test(
     await page.goto(`/office/jobs/${job.id}`);
 
     await page.getByRole("button", { name: "Ask for a new time" }).click();
+    // the Schedule in the dialog itself, never a dialog on a dialog
     const dialog = page.getByRole("dialog", { name: "Choose a new time" });
-    await dialog
-      .getByRole("button", { name: "Pick from the Schedule" })
-      .click();
-    const schedule = page.getByRole("dialog", {
-      name: "Pick from the Schedule",
-    });
+    const schedule = dialog;
     await expect(schedule).toContainText(
       "Choose one of the start times on offer",
     );
@@ -299,7 +295,7 @@ test(
       .getByRole("button", { name: "Wed, Jan 14, 10:00 AM" })
       .click();
 
-    await expect(schedule).toBeHidden();
+    await expect(page.getByRole("dialog")).toHaveCount(1);
     await expect(dialog.getByRole("button", { name: /Day$/ })).toContainText(
       "Wed, Jan 14",
     );

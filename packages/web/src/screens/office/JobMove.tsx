@@ -177,7 +177,7 @@ export function MoveJob({
   return (
     <DialogTrigger>
       {trigger ?? <Button variant="secondary">Move Job</Button>}
-      <Dialog title="Move this Job">
+      <Dialog title="Move this Job" size="wide">
         {({ close }) => <ChooseTime job={job} close={close} />}
       </Dialog>
     </DialogTrigger>
@@ -213,6 +213,7 @@ function ChooseTime({ job, close }: Omit<MoveProps, "to">) {
           time: timeOfDay(job.startsAt),
         }}
         label="New time"
+        inline
         onPick={(at) => {
           setDate(parseDate(at.date));
           setTime(parseTime(at.time));

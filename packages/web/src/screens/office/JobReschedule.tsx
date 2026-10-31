@@ -14,8 +14,14 @@ import { postJson } from "../../api.ts";
 import { formatDateTime } from "../format.ts";
 import { ChooseNewTime, costForOffice } from "../RescheduleParts.tsx";
 import { PickFromSchedule } from "./SchedulePicker.tsx";
+import type { TimePickerProps } from "../CalendarGrid.tsx";
 import { useAction } from "../action.ts";
 import { MoveJob } from "./JobMove.tsx";
+
+// the Schedule in the dialog itself, never a dialog on a dialog (#96)
+const PickInSchedule = (props: TimePickerProps) => (
+  <PickFromSchedule {...props} inline />
+);
 
 // Office Staff move the Job themselves, at no charge to the Client, or ask
 // for a new time on the Client's behalf, e.g. by phone, so moving costs
@@ -37,7 +43,8 @@ export function MoveActions({ job }: { job: OfficeJob }) {
         label="Ask for a new time"
         describeCost={(cost, feeCents) => costForOffice(cost, feeCents, onPlan)}
         done="Reschedule Request made"
-        Picker={PickFromSchedule}
+        Picker={PickInSchedule}
+        size="wide"
         trigger={<IconAction icon={CalendarClock} label="Ask for a new time" />}
       />
     </>

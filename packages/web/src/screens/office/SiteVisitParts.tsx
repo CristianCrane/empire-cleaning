@@ -201,6 +201,7 @@ function BookingForm({
             : undefined
         }
         label="Site Visit"
+        inline
         onPick={(at) => {
           setDate(parseDate(at.date));
           setTime(parseTime(at.time));
@@ -246,7 +247,7 @@ export function BookSiteVisit({
         <CalendarPlus aria-hidden size={primary ? 18 : 16} />
         Book a Site Visit
       </Button>
-      <Dialog title="Book a Site Visit">
+      <Dialog title="Book a Site Visit" size="wide">
         {({ close }) => (
           <BookingForm
             submitLabel="Book Site Visit"
@@ -283,7 +284,7 @@ export function MoveSiteVisit({ visit }: { visit: OfficeSiteVisit }) {
         <CalendarClock aria-hidden size={16} />
         Move or change
       </Button>
-      <Dialog title="Move this Site Visit">
+      <Dialog title="Move this Site Visit" size="wide">
         {({ close }) => (
           <BookingForm
             initial={visit}
