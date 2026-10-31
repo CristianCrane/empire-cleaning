@@ -16,7 +16,7 @@ const rect = (x: number, w: number, h: number) =>
   shapes.push(`M${x} ${height}V${height - h}H${x + w}V${height}Z`);
 
 // Long Island: houses with pitched roofs, and trees
-for (let x = 0; x < 520; ) {
+for (let x = 0; x < 520;) {
   const w = rand(60, 86);
   const h = rand(34, 52);
   const roof = rand(20, 32);
@@ -36,7 +36,7 @@ for (let x = 0; x < 520; ) {
 }
 
 // Queens: row houses shoulder to shoulder, some with a water tower
-for (let x = 540; x < 1080; ) {
+for (let x = 540; x < 1080;) {
   const w = rand(34, 54);
   const h = rand(56, 120);
   // a cornice
@@ -56,7 +56,7 @@ for (let x = 540; x < 1080; ) {
 }
 
 // Manhattan: towers, setbacks and the odd spire
-for (let x = 1110; x < width; ) {
+for (let x = 1110; x < width;) {
   const w = rand(30, 58);
   const h = rand(110, 200);
   rect(x, w, h);
