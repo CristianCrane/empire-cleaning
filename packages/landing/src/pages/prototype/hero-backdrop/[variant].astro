@@ -1,0 +1,46 @@
+---
+// prototype: the hero's background after the owner's banner. ↑/↓ switch
+import Header from "../../../components/Header.astro";
+import HeroPrototype from "../../../components/HeroPrototype.astro";
+import Services from "../../../components/Services.astro";
+import Page from "../../../layouts/Page.astro";
+
+const variants = ["banner", "quiet", "swoosh"] as const;
+export function getStaticPaths() {
+  return ["banner", "quiet", "swoosh"].map((variant) => ({ params: { variant } }));
+}
+const variant = Astro.params.variant as (typeof variants)[number];
+const names = {
+  banner: "A · The banner: skyline, arc, ripples, swoosh, glints",
+  quiet: "B · Quiet: skyline, arc and ripples, no green",
+  swoosh: "C · Swoosh: arc, green swoosh and glints, no skyline",
+};
+---
+
+<Page title="Hero prototype" canonical={false}>
+  <Header />
+  <main>
+    <HeroPrototype variant={variant} />
+    <Services />
+  </main>
+  <div
+    data-switcher
+    data-variants={JSON.stringify(variants)}
+    data-variant={variant}
+    class="fixed right-3 bottom-3 z-50 rounded-md bg-fg px-3 py-2 text-sm text-bg shadow-lg"
+  >
+    {names[variant]} <span class="opacity-70">(↑↓)</span>
+  </div>
+</Page>
+
+<script>
+  const s = document.querySelector<HTMLElement>("[data-switcher]")!;
+  const list: string[] = JSON.parse(s.dataset.variants!);
+  addEventListener("keydown", (e) => {
+    const by = e.key === "ArrowUp" ? -1 : e.key === "ArrowDown" ? 1 : 0;
+    if (!by) return;
+    e.preventDefault();
+    const next = list[(list.indexOf(s.dataset.variant!) + by + list.length) % list.length];
+    location.href = `/prototype/hero-backdrop/${next}/`;
+  });
+</script>

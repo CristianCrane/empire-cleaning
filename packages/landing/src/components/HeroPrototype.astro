@@ -1,0 +1,185 @@
+---
+// prototype: the hero with backgrounds after the owner's banner, three ways.
+// The hero's content is today's; only what's behind it changes
+import { Logo, buttonStyles } from "@empire-cleaning/ui";
+import { Phone } from "lucide-react";
+import { business } from "../business.ts";
+
+interface Props {
+  variant: "banner" | "quiet" | "swoosh";
+}
+const { variant } = Astro.props;
+const has = {
+  skyline: variant !== "swoosh",
+  arc: true,
+  ripples: variant !== "swoosh",
+  swoosh: variant !== "quiet",
+  sparkles: variant !== "quiet",
+  rule: variant === "banner",
+};
+
+// a cluster of towers, as in the banner: [x, width, height, spire]
+const towers: [number, number, number, number][] = [
+  [0, 46, 150, 0], [40, 38, 210, 0], [74, 54, 175, 0], [122, 40, 300, 34],
+  [158, 58, 250, 0], [210, 34, 340, 60], [240, 62, 230, 0], [296, 44, 280, 0],
+  [334, 70, 190, 0], [398, 40, 240, 22], [432, 56, 160, 0], [482, 44, 205, 0],
+  [520, 64, 130, 0], [578, 40, 170, 0], [612, 58, 110, 0],
+];
+const H = 420;
+const towerPath = towers
+  .map(([x, w, h, spire]) => {
+    const top = H - h;
+    const body = `M${x} ${H}V${top}H${x + w}V${H}Z`;
+    const mid = x + w / 2;
+    return spire
+      ? `${body}M${mid - 3} ${top}V${top - spire}h6V${top}Z`
+      : body;
+  })
+  .join("");
+
+// the silk ripples low across the hero
+const ripples = Array.from({ length: 9 }, (_, i) => {
+  const y = 520 + i * 14;
+  return `M-40 ${y + 40}C260 ${y - 70} 520 ${y + 90} 820 ${y + 10}S1260 ${y - 60} 1480 ${y + 20}`;
+});
+
+// a four-point glint
+const star = (cx: number, cy: number, r: number) =>
+  `M${cx} ${cy - r}Q${cx + r * 0.14} ${cy - r * 0.14} ${cx + r} ${cy}Q${cx + r * 0.14} ${cy + r * 0.14} ${cx} ${cy + r}Q${cx - r * 0.14} ${cy + r * 0.14} ${cx - r} ${cy}Q${cx - r * 0.14} ${cy - r * 0.14} ${cx} ${cy - r}Z`;
+---
+
+<section aria-labelledby="hero-title" class="relative overflow-hidden pt-12 pb-28 sm:pt-24 sm:pb-36">
+  <div aria-hidden="true" class="pointer-events-none absolute inset-0">
+    {/* a soft light in the middle, the edges a shade darker */}
+    <div
+      class="absolute inset-0"
+      style="background: radial-gradient(ellipse 70% 80% at 50% 35%, var(--color-surface) 0%, transparent 70%)"
+    />
+
+    <svg viewBox="0 0 1440 720" preserveAspectRatio="xMidYMid slice" class="absolute inset-0 h-full w-full">
+      <defs>
+        <linearGradient id="arc-shade" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="currentColor" stop-opacity=".07" />
+          <stop offset="1" stop-color="currentColor" stop-opacity="0" />
+        </linearGradient>
+        <linearGradient id="swoosh" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="var(--color-primary)" />
+          <stop offset=".7" stop-color="var(--color-primary)" stop-opacity=".7" />
+          <stop offset="1" stop-color="var(--color-primary)" stop-opacity="0" />
+        </linearGradient>
+        <filter id="glow" x="-1" y="-1" width="3" height="3">
+          <feGaussianBlur stdDeviation="4" />
+        </filter>
+      </defs>
+
+      {
+        has.arc && (
+          <g class="text-fg">
+            {/* the grey crescent outside a great white arc, top left */}
+            <path d="M0 0H560C300 120 120 330 60 720H0Z" fill="url(#arc-shade)" />
+            <path d="M560 0C300 120 120 330 60 720" fill="none" stroke="var(--color-surface)" stroke-width="3" opacity=".9" />
+          </g>
+        )
+      }
+
+      {
+        has.ripples && (
+          <g fill="none" class="text-fg" stroke="currentColor" stroke-width="1.2">
+            {ripples.map((d, i) => (
+              <path d={d} opacity={0.03 + (i % 3) * 0.02} />
+            ))}
+          </g>
+        )
+      }
+
+      {
+        has.swoosh && (
+          <g>
+            {/* thick at the left, tapering away to the right */}
+            <path d="M0 600C380 690 820 716 1440 712V720H0Z" fill="var(--color-bg)" />
+            <path d="M0 586C380 676 820 706 1440 710C820 712 380 700 0 640Z" fill="url(#swoosh)" />
+            <path d="M0 566C380 656 820 690 1440 700" fill="none" stroke="var(--color-surface)" stroke-width="2" opacity=".8" />
+            {/* the green arc framing the right */}
+            <path d="M1440 20C1360 170 1345 420 1440 640C1372 420 1382 170 1440 60Z" fill="var(--color-primary)" opacity=".6" />
+          </g>
+        )
+      }
+
+      {
+        has.sparkles && (
+          <g>
+            <path d={star(1010, 130, 22)} fill="#fff" filter="url(#glow)" opacity=".9" />
+            <path d={star(1010, 130, 14)} fill="#fff" />
+            <path d={star(170, 210, 12)} fill="#fff" opacity=".8" />
+            <path d={star(1300, 520, 10)} fill="#fff" opacity=".7" />
+          </g>
+        )
+      }
+    </svg>
+
+    {
+      has.skyline && (
+        // behind the logo: above the words, centred, up to a laptop; at the
+        // left from there, as in the banner
+        <svg
+          viewBox={`0 0 632 ${H}`}
+          class="absolute top-4 left-1/2 w-[400px] -translate-x-1/2 text-fg sm:top-10 sm:w-[600px] lg:top-auto lg:bottom-[14%] lg:left-[calc(50%-620px)] lg:w-[560px] lg:translate-x-0"
+          style="filter: blur(.6px)"
+        >
+          <defs>
+            <linearGradient id="haze" x1="0" y1="1" x2="0" y2="0">
+              <stop offset="0" stop-color="currentColor" stop-opacity="0" />
+              <stop offset=".3" stop-color="currentColor" stop-opacity=".1" />
+              <stop offset=".65" stop-color="currentColor" stop-opacity=".055" />
+              <stop offset="1" stop-color="currentColor" stop-opacity="0" />
+            </linearGradient>
+            <linearGradient id="haze-side" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stop-color="#fff" />
+              <stop offset=".75" stop-color="#fff" />
+              <stop offset="1" stop-color="#000" />
+            </linearGradient>
+            <mask id="fade-right">
+              <rect width="632" height={H} fill="url(#haze-side)" />
+            </mask>
+          </defs>
+          <path d={towerPath} fill="url(#haze)" mask="url(#fade-right)" />
+        </svg>
+      )
+    }
+  </div>
+
+  <div class="relative mx-auto flex max-w-5xl flex-col items-center gap-8 px-4 lg:flex-row lg:gap-12">
+    <Logo className="w-44 sm:w-52 lg:w-64" />
+    <div class="flex flex-col items-center gap-6 text-center lg:items-start lg:text-left">
+      <h1 id="hero-title" class="flex flex-col items-center gap-6 lg:items-start">
+        <span class="font-display text-5xl leading-none font-bold tracking-wide uppercase sm:text-7xl">
+          <span class="relative">
+            Clean spaces.
+            {
+              has.rule && (
+                // the banner's thin green line, ending in a glint
+                <span aria-hidden="true" class="absolute top-[60%] left-[calc(100%+.5rem)] hidden h-px w-40 bg-gradient-to-r from-transparent to-primary sm:block">
+                  <svg viewBox="-10 -10 20 20" class="absolute -top-2 -right-2 size-4 text-primary">
+                    <path d={star(0, 0, 9)} fill="currentColor" />
+                  </svg>
+                </span>
+              )
+            }
+          </span>
+          <span class="block text-primary">Stronger impact.</span>
+        </span>
+        <span class="max-w-xl text-xl font-semibold">{business.heading}</span>
+      </h1>
+      <p class="-mt-4 max-w-xl text-xl text-fg-muted">Exceptional results, every visit.</p>
+      <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+        <a href="#quote" class={buttonStyles({ variant: "primary", className: "px-6 text-lg" })}>
+          Request a Quote
+        </a>
+        <a href={business.phone.href} class={buttonStyles({ variant: "secondary", className: "px-6 text-lg" })}>
+          <Phone aria-hidden size={20} />
+          Call {business.phone.display}
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
