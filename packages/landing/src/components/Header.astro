@@ -9,9 +9,9 @@ import { business } from "../business.ts";
 
 <!-- a slim bar of actions: the logo is too large for it, so it leads the hero
      (UX pass, #96). Sign in is here on every screen, for Clients who don't
-     remember the app's address -->
+     remember the app's address; Request a Quote is the hero's, just below -->
 <header class="border-b border-border bg-surface">
-  <div class="mx-auto flex max-w-5xl items-center justify-between gap-2 px-4 py-3 sm:justify-end sm:gap-3">
+  <div class="mx-auto flex max-w-5xl items-center justify-between gap-2 px-4 py-3 sm:justify-center sm:gap-3">
     <a href={business.phone.href} class={buttonStyles({ variant: "quiet", className: "px-2 sm:px-4" })}>
       <Phone aria-hidden size={18} />
       {business.phone.display}
@@ -20,12 +20,6 @@ import { business } from "../business.ts";
       <a href={appUrl} class={buttonStyles({ variant: "quiet", className: "px-2 sm:px-4" })}>
         <LogIn aria-hidden size={18} />
         Sign in
-      </a>
-      <a
-        href="#quote"
-        class={buttonStyles({ variant: "primary", className: "hidden sm:inline-flex" })}
-      >
-        Request a Quote
       </a>
       {/* hydrates once the browser is idle */}
       <ThemeToggle client:idle />
