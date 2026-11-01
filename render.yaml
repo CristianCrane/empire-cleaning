@@ -80,6 +80,10 @@ services:
         sync: false
       - key: STRIPE_WEBHOOK_SECRET
         sync: false
+      # Google's write-a-review link, from the Business Profile (#174); left
+      # empty, no Client is asked for a review (#175)
+      - key: GOOGLE_REVIEW_URL
+        sync: false
 
   - type: web
     name: empire-test-web

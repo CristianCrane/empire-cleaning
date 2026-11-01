@@ -241,6 +241,9 @@ export type OfficeClientView = OfficeContactDetails & {
   })[];
   // how they're billed (ADR-0016)
   billing: ClientBilling;
+  // when they were asked for a Google review, the day after their first
+  // Completed Job (#175); null until then
+  reviewRequestedAt: string | null;
 };
 
 // a Property for the Office, with its whole history: every Quote and every

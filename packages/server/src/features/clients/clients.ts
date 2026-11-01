@@ -191,6 +191,7 @@ export const officeClientView = async (
       termsDays: client.billTermsDays,
       billingEmail: client.billingEmail,
     },
+    reviewRequestedAt: client.reviewRequestedAt?.toISOString() ?? null,
   };
 };
 
