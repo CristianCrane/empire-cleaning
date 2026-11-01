@@ -30,6 +30,13 @@ const envSchema = z.object({
         .map((address) => address.trim())
         .filter(Boolean),
     ),
+  // Google's write-a-review link for the business (#174, #175). Unset or empty,
+  // no Client is asked for a review
+  GOOGLE_REVIEW_URL: z
+    .url()
+    .or(z.literal(""))
+    .optional()
+    .transform((url) => url || undefined),
   // public URL of this API; sign-in links point here
   BETTER_AUTH_URL: z.url().default("http://localhost:3000"),
   // signs session cookies and tokens

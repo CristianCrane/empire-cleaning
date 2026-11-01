@@ -4,6 +4,7 @@ import {
   pgEnum,
   pgTable,
   text,
+  timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
 import { timestamps } from "../../db/index.ts";
@@ -43,6 +44,9 @@ export const clients = pgTable("clients", {
   // where Bills and their receipts go instead of the Client's own email;
   // stored lowercased
   billingEmail: text("billing_email"),
+  // when they were asked for a Google review, the day after their first
+  // Completed Job (#175); asked once, never again
+  reviewRequestedAt: timestamp("review_requested_at", { withTimezone: true }),
   ...timestamps,
 });
 
