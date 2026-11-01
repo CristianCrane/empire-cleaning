@@ -35,6 +35,7 @@ import { BillStatusBadge, billLine } from "../BillParts.tsx";
 import {
   addressOf,
   clientName,
+  formatDate,
   formatDateTime,
   formatDay,
   formatMoney,
@@ -98,6 +99,12 @@ export function ClientDetail() {
             </dd>
             <dt className="font-semibold">Phone</dt>
             <dd>{client.phone}</dd>
+            {client.reviewRequestedAt && (
+              <>
+                <dt className="font-semibold">Google review</dt>
+                <dd>Asked on {formatDate(client.reviewRequestedAt)}</dd>
+              </>
+            )}
           </dl>
         </Card>
       </Section>

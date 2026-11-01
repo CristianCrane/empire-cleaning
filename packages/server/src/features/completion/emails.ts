@@ -289,3 +289,24 @@ export const completionUndoneEmail = ({
     button("See your Jobs", "/portal"),
   ],
 });
+
+// the day after a Client's first Completed Job, once (#175): one link straight
+// to Google's write-a-review box. Every Client gets the same email, however
+// the clean went: asking only the happy ones, or offering anything for a
+// review, is against Google's policy
+export const reviewRequestEmail = ({
+  name,
+  reviewUrl,
+}: {
+  name: string;
+  reviewUrl: string;
+}): Email => ({
+  subject: "How was your clean?",
+  blocks: [
+    greeting(firstNameOf(name)),
+    paragraph(
+      "Thank you for choosing Empire Cleaning. If you have a minute, we'd love to hear how your clean went in a Google review. It helps your neighbors find us, and tells us what we can do better.",
+    ),
+    button("Leave a Google review", reviewUrl),
+  ],
+});
