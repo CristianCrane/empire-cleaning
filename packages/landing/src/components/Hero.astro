@@ -1,32 +1,92 @@
 ---
 import { Logo, buttonStyles } from "@empire-cleaning/ui";
 import { Phone } from "lucide-react";
+import { glint, ripples, skyline, towersPath } from "../backdrop.ts";
 import { business } from "../business.ts";
-import { height, skyline, width } from "../skyline.ts";
-
-// the skyline fades out around the content, in both directions: clear behind
-// the words, strongest toward the bottom corners, so it can stand tall beside
-// them without a hard edge
-const fade =
-  "radial-gradient(ellipse 64% 70% at 50% 40%, transparent 62%, #000 100%)";
 ---
 
 <!-- the logo leads, at a size it reads at: above the headline, everything
      centred, up to a laptop; beside it from there (UX pass, #96) -->
 <section aria-labelledby="hero-title" class="relative overflow-hidden pt-12 pb-28 sm:pt-24 sm:pb-36">
-  <div
-    data-skyline
-    aria-hidden="true"
-    class="pointer-events-none absolute inset-0"
-    style={`-webkit-mask-image: ${fade}; mask-image: ${fade}`}
-  >
-    <svg
-      viewBox={`0 0 ${width} ${height}`}
-      preserveAspectRatio="xMidYMax slice"
-      class="absolute inset-x-0 bottom-0 h-32 w-full text-primary opacity-[.16] sm:h-44 xl:h-2/3"
-    >
-      <path fill="currentColor" d={skyline} />
-    </svg>
+  {/* the owner's banner behind it: a soft light in the middle, then its
+      details, each kept clear of the words. The skyline stands behind the
+      logo, the ripples and the green swoosh in the band under the buttons;
+      the white arc, the green arc and two glints join from a laptop, where
+      the words sit to the right */}
+  <div aria-hidden="true" class="pointer-events-none absolute inset-0">
+    <div
+      class="absolute inset-0"
+      style="background: radial-gradient(ellipse 70% 80% at 50% 35%, var(--color-surface) 0%, transparent 70%)"
+    />
+    <div data-backdrop-detail>
+      {/* hazy towers, fading upward and at either side; from a laptop, before
+          the words */}
+      <svg
+        viewBox={`0 0 ${skyline.width} ${skyline.height}`}
+        class="absolute top-2 left-1/2 w-[340px] -translate-x-1/2 text-fg sm:top-8 sm:w-[420px] lg:top-auto lg:bottom-[14%] [mask-image:linear-gradient(to_right,transparent,#000_20%,#000_80%,transparent)] lg:left-[calc(50%-560px)] lg:w-[480px] lg:translate-x-0 lg:[mask-image:linear-gradient(to_right,transparent,#000_15%,#000_55%,transparent_78%)]"
+        style="filter: blur(.6px)"
+      >
+        <defs>
+          <linearGradient id="haze" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0" stop-color="currentColor" stop-opacity="0" />
+            <stop offset=".3" stop-color="currentColor" stop-opacity=".1" />
+            <stop offset=".65" stop-color="currentColor" stop-opacity=".055" />
+            <stop offset="1" stop-color="currentColor" stop-opacity="0" />
+          </linearGradient>
+        </defs>
+        <path d={towersPath} fill="url(#haze)" />
+      </svg>
+
+      {/* the great white arc, a grey crescent outside it */}
+      <svg viewBox="0 0 600 720" preserveAspectRatio="xMinYMin meet" class="absolute top-0 left-0 hidden h-full text-fg lg:block">
+        <defs>
+          <linearGradient id="arc-shade" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="currentColor" stop-opacity=".07" />
+            <stop offset="1" stop-color="currentColor" stop-opacity="0" />
+          </linearGradient>
+        </defs>
+        <path d="M0 0H560C300 120 120 330 60 720H0Z" fill="url(#arc-shade)" />
+        <path d="M560 0C300 120 120 330 60 720" fill="none" stroke="var(--color-surface)" stroke-width="3" opacity=".9" />
+      </svg>
+
+      {/* the green arc down the right edge, faint */}
+      <svg viewBox="1330 0 110 720" preserveAspectRatio="xMaxYMid meet" class="absolute top-0 right-0 hidden h-full lg:block">
+        <path d="M1440 20C1360 170 1345 420 1440 640C1372 420 1382 170 1440 60Z" fill="var(--color-primary)" opacity=".35" />
+      </svg>
+
+      {/* silk ripples, then the swoosh: thick at the left, tapering away */}
+      <svg viewBox="0 0 1440 160" preserveAspectRatio="none" class="absolute inset-x-0 bottom-0 h-28 w-full text-fg sm:h-36">
+        <g fill="none" stroke="currentColor" stroke-width="1.2">
+          {ripples.map((d, i) => (
+            <path d={d} opacity={0.03 + (i % 3) * 0.02} vector-effect="non-scaling-stroke" />
+          ))}
+        </g>
+      </svg>
+      <svg viewBox="0 0 1440 100" preserveAspectRatio="none" class="absolute inset-x-0 bottom-0 h-12 w-full sm:h-20">
+        <defs>
+          <linearGradient id="swoosh" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="var(--color-primary)" />
+            <stop offset=".7" stop-color="var(--color-primary)" stop-opacity=".7" />
+            <stop offset="1" stop-color="var(--color-primary)" stop-opacity="0" />
+          </linearGradient>
+        </defs>
+        <path d="M0 50C380 80 820 96 1440 96V100H0Z" fill="var(--color-bg)" />
+        <path d="M0 26C380 66 820 90 1440 94C820 96 380 86 0 60Z" fill="url(#swoosh)" />
+        <path d="M0 6C380 50 820 78 1440 86" fill="none" stroke="var(--color-surface)" stroke-width="2" opacity=".8" vector-effect="non-scaling-stroke" />
+      </svg>
+
+      {/* glints: one by the logo everywhere, two more from a laptop */}
+      <svg viewBox="-20 -20 40 40" class="absolute top-[28%] left-[10%] size-6 lg:top-[22%]">
+        <path d={glint(0, 0, 12)} fill="#fff" opacity=".85" />
+      </svg>
+      <svg viewBox="-30 -30 60 60" class="absolute top-[8%] left-[70%] hidden size-12 lg:block">
+        <path d={glint(0, 0, 22)} fill="#fff" style="filter: blur(4px)" opacity=".9" />
+        <path d={glint(0, 0, 14)} fill="#fff" />
+      </svg>
+      <svg viewBox="-20 -20 40 40" class="absolute right-[9%] bottom-[24%] hidden size-5 lg:block">
+        <path d={glint(0, 0, 10)} fill="#fff" opacity=".7" />
+      </svg>
+    </div>
   </div>
   <div class="relative mx-auto flex max-w-5xl flex-col items-center gap-8 px-4 lg:flex-row lg:gap-12">
     <Logo className="w-44 sm:w-52 lg:w-64" />
@@ -35,7 +95,15 @@ const fade =
           most says what we do and where, not only the slogan (#171) */}
       <h1 id="hero-title" class="flex flex-col items-center gap-6 lg:items-start">
         <span class="font-display text-5xl leading-none font-bold tracking-wide uppercase sm:text-7xl">
-          Clean spaces.
+          <span class="relative">
+            Clean spaces.
+            {/* the banner's thin green line, ending in a glint, from a laptop */}
+            <span aria-hidden="true" class="absolute top-[60%] left-[calc(100%+.5rem)] hidden h-px w-40 bg-linear-to-r from-transparent to-primary lg:block">
+              <svg viewBox="-10 -10 20 20" class="absolute -top-2 -right-2 size-4 text-primary">
+                <path d={glint(0, 0, 9)} fill="currentColor" />
+              </svg>
+            </span>
+          </span>
           <span class="block text-primary">Stronger impact.</span>
         </span>
         <span class="max-w-xl text-xl font-semibold">{business.heading}</span>
