@@ -1,0 +1,57 @@
+---
+// prototype (#176): an area's page in each layout. ↑/↓ switch layouts,
+// ←/→ switch areas
+import AreaPrototype from "../../../../components/AreaPrototype.astro";
+import Footer from "../../../../components/Footer.astro";
+import Header from "../../../../components/Header.astro";
+import { areas } from "../../../../areas/index.ts";
+import Page from "../../../../layouts/Page.astro";
+
+const layouts = ["bands", "article", "beside"] as const;
+export function getStaticPaths() {
+  return ["bands", "article", "beside"].flatMap((layout) =>
+    areas.map((area) => ({ params: { layout, slug: area.slug } })),
+  );
+}
+const layout = Astro.params.layout as (typeof layouts)[number];
+const area = areas.find((a) => a.slug === Astro.params.slug)!;
+const names = { bands: "A · Bands", article: "B · Article", beside: "C · Quote beside" };
+---
+
+<Page title={area.name} canonical={false}>
+  <Header />
+  <main>
+    <AreaPrototype area={area} layout={layout} />
+  </main>
+  <Footer />
+  <div
+    data-switcher
+    data-layouts={JSON.stringify(layouts)}
+    data-areas={JSON.stringify(areas.map((a) => a.slug))}
+    data-layout={layout}
+    data-area={area.slug}
+    class="fixed right-3 bottom-3 z-50 rounded-md bg-fg px-3 py-2 text-sm text-bg shadow-lg"
+  >
+    {names[layout]} · {area.name} <span class="opacity-70">(↑↓ layout, ←→ area)</span>
+  </div>
+</Page>
+
+<script>
+  const s = document.querySelector<HTMLElement>("[data-switcher]")!;
+  const layouts: string[] = JSON.parse(s.dataset.layouts!);
+  const slugs: string[] = JSON.parse(s.dataset.areas!);
+  const step = (list: string[], at: string, by: number) =>
+    list[(list.indexOf(at) + by + list.length) % list.length];
+  addEventListener("keydown", (e) => {
+    if ((e.target as HTMLElement).closest("input, textarea, select, form")) return;
+    let layout = s.dataset.layout!;
+    let area = s.dataset.area!;
+    if (e.key === "ArrowUp") layout = step(layouts, layout, -1);
+    else if (e.key === "ArrowDown") layout = step(layouts, layout, 1);
+    else if (e.key === "ArrowLeft") area = step(slugs, area, -1);
+    else if (e.key === "ArrowRight") area = step(slugs, area, 1);
+    else return;
+    e.preventDefault();
+    location.href = `/prototype/area/${layout}/${area}/`;
+  });
+</script>
