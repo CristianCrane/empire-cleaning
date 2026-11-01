@@ -1,19 +1,18 @@
 ---
 import { ChevronRight } from "lucide-react";
+import { card } from "../band.ts";
 import { servicePages } from "../service-pages/index.ts";
 import { services, type ServiceName } from "../services.ts";
 
 // one of the home page's service cards, wherever it shows. The whole card
 // leads to its service's page (#177), where it has one; its name says so, in
-// the brand colour with an arrow. `on` is the band it sits on, so the card
-// stands out from it
+// the brand colour with an arrow. Its colour stands out from its band
 interface Props {
   name: ServiceName;
   // the card's own words, if not the home page's
   text?: string;
-  on: "plain" | "raised";
 }
-const { name, text, on } = Astro.props;
+const { name, text } = Astro.props;
 const service = services.find((s) => s.name === name)!;
 const page = servicePages.find((p) => p.card === name);
 const Icon = service.icon;
@@ -22,7 +21,7 @@ const Icon = service.icon;
 <li
   class:list={[
     "relative flex flex-col gap-3 rounded-lg border border-border p-5",
-    on === "raised" ? "bg-bg" : "bg-surface",
+    card,
     page && "has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-focus hover:border-primary",
   ]}
 >

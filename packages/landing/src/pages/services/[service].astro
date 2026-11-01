@@ -11,6 +11,8 @@ import Section from "../../components/Section.astro";
 import ServiceCard from "../../components/ServiceCard.astro";
 import Page from "../../layouts/Page.astro";
 import { servicePages, type ServicePage } from "../../service-pages/index.ts";
+import { guidesFor } from "../../guides/index.ts";
+import { card } from "../../band.ts";
 import { serviceData } from "../../structured-data.ts";
 
 // a page per service (#177), in the area pages' bands; its words are the
@@ -41,7 +43,7 @@ const start = page.office && {
   <Header />
   <main>
     <PageHero crumb={page.card} heading={page.heading} intro={page.intro} />
-    <Section id="included" title={page.included.title} tone="raised">
+    <Section id="included" title={page.included.title}>
       {/* a card per room, its checklist under it; three rooms sit three
           across from a laptop, the last filling its row before that */}
       <ul
@@ -53,7 +55,7 @@ const start = page.office && {
       >
         {
           page.included.rooms.map(({ name, items }) => (
-            <li class="flex flex-col gap-3 rounded-lg border border-border bg-bg p-5">
+            <li class:list={["flex flex-col gap-3 rounded-lg border border-border p-5", card]}>
               <h3 class="text-lg font-semibold">{name}</h3>
               <ul class="flex flex-col gap-2">
                 {items.map((item) => (
@@ -76,11 +78,17 @@ const start = page.office && {
     <Section id="pricing" title={page.pricing.title}>
       <div class="mx-auto flex max-w-2xl flex-col gap-4 text-lg">
         {page.pricing.text.map((t) => <p>{t}</p>)}
+        {guidesFor(page.slug, "pricing").map(({ href, text }) => (
+          <a href={href} class="font-semibold text-primary">{text}</a>
+        ))}
       </div>
     </Section>
     <Section id="when" title={page.when.title}>
       <div class="mx-auto flex max-w-2xl flex-col gap-4 text-lg">
         {page.when.text.map((t) => <p>{t}</p>)}
+        {guidesFor(page.slug, "when").map(({ href, text }) => (
+          <a href={href} class="font-semibold text-primary">{text}</a>
+        ))}
       </div>
     </Section>
     <Reviews />
@@ -89,7 +97,7 @@ const start = page.office && {
     <RequestQuote start={start} />
     <Section id="related" title="Related services">
       <ul class="grid gap-4 sm:grid-cols-3">
-        {related.map((p) => <ServiceCard name={p.card} on="plain" />)}
+        {related.map((p) => <ServiceCard name={p.card} />)}
       </ul>
     </Section>
   </main>

@@ -1,6 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { business } from "../src/business.ts";
+import { guides } from "../src/guides/index.ts";
 import { googleReviewsUrl, reviews } from "../src/reviews.ts";
 import { appUrl } from "../playwright.config.ts";
 import { emailsTo, expect, test } from "./harness.ts";
@@ -32,11 +33,12 @@ const chooseService = async (page: Page, name = "Standard Clean") => {
 // in the order they appear
 const sections = [
   "What we clean",
-  "Why Empire",
   "What our Clients say",
-  "Save 10% with a Service Plan",
+  "Why Empire",
   "How it works",
   "Request a Quote",
+  "Save 10% with a Service Plan",
+  "Questions we're asked",
 ];
 
 for (const theme of ["light", "dark"] as const) {
@@ -629,24 +631,36 @@ test("every Why Empire point is a card alike", async ({ page }) => {
   expect(borders.every((b) => b === borders[0] && b !== "0px")).toBe(true);
 });
 
-test("two plain bands in a row are spaced like any other two", async ({
-  page,
-}) => {
-  await page.goto("/");
+// every kind of page: the home page, an area, a service, both guides
+for (const path of [
+  "/",
+  "/queens/",
+  "/services/deep-cleaning/",
+  ...guides.map((g) => `/guides/${g.slug}/`),
+]) {
+  test(`${path}'s bands alternate, plain and raised, the form on a raised one`, async ({
+    page,
+  }) => {
+    await page.goto(path);
 
-  // Save 10% and How it works are both plain: the space between them is one
-  // band's padding, the same as above Save 10%'s own title
-  const top = (selector: string) =>
-    page.locator(selector).evaluate((el) => el.getBoundingClientRect().top);
-  const bottom = (selector: string) =>
-    page.locator(selector).evaluate((el) => el.getBoundingClientRect().bottom);
-  const padding =
-    (await top("#service-plans h2")) - (await top("#service-plans"));
-  const between =
-    (await top("#how-it-works h2")) -
-    (await bottom("#service-plans > div > :last-child"));
-  expect(between).toBeCloseTo(padding, 0);
-});
+    const raised = await page
+      .locator("main > section")
+      .evaluateAll((all) =>
+        all.map(
+          (s) => getComputedStyle(s).backgroundColor !== "rgba(0, 0, 0, 0)",
+        ),
+      );
+    // the hero first, plain, then each the other of the one before
+    expect(raised).toEqual(raised.map((_, i) => i % 2 === 1));
+    // the form's tiles are drawn for a raised band; a guide with an odd
+    // number of parts puts it on a plain one
+    expect(
+      await page
+        .locator("#quote")
+        .evaluate((s) => getComputedStyle(s).backgroundColor),
+    ).not.toBe("rgba(0, 0, 0, 0)");
+  });
+}
 
 test.describe("the hero", () => {
   // phones, a tablet, laptops (the words move beside the logo at 1024), a
