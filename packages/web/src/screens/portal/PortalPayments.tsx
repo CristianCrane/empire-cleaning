@@ -47,7 +47,9 @@ export function PortalPayments() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <Heading level={1}>Payments</Heading>
+        <Heading level={1} inBar>
+          Payments
+        </Heading>
         <ButtonLink
           variant="secondary"
           href={linkTo({ to: "/portal/payment-method" })}

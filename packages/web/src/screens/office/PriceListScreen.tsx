@@ -79,7 +79,9 @@ export function PriceListScreen() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
-        <Heading level={1}>Price List</Heading>
+        <Heading level={1} inBar>
+          Price List
+        </Heading>
         <p className="text-fg-muted">
           {list.placeholder
             ? "Starting figures"

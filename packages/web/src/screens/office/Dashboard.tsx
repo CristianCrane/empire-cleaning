@@ -42,7 +42,9 @@ export function Dashboard() {
 
   return (
     <div className="flex flex-col gap-8">
-      <Heading level={1}>Today</Heading>
+      <Heading level={1} inBar>
+        Today
+      </Heading>
       <NeedsAttention items={needsAttention} />
       <Section
         title="Today's Schedule"

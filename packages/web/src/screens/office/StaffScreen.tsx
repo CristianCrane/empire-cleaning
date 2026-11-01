@@ -30,7 +30,9 @@ export function StaffScreen() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Heading level={1}>Staff</Heading>
+        <Heading level={1} inBar>
+          Staff
+        </Heading>
         <DialogTrigger>
           <Button>
             <UserPlus aria-hidden size={18} />

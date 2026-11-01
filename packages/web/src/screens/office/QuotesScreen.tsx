@@ -211,7 +211,9 @@ export function QuotesScreen() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Heading level={1}>Quotes</Heading>
+        <Heading level={1} inBar>
+          Quotes
+        </Heading>
         <Button onPress={() => void navigate({ to: "/office/quotes/new" })}>
           <QuoteIcon aria-hidden size={18} />
           New Quote

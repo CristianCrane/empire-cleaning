@@ -46,7 +46,9 @@ export function PortalDetails() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Heading level={1}>Your details</Heading>
+      <Heading level={1} inBar>
+        Your details
+      </Heading>
 
       <Section
         title="Contact details"
