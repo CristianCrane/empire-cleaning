@@ -474,6 +474,58 @@ test(
   },
 );
 
+test.describe("on a phone", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  const textAlign = (page: Page, selector: string) =>
+    page.locator(selector).evaluate((el) => getComputedStyle(el).textAlign);
+
+  test("What we clean's intro is centred under its title, and left from a tablet", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    expect(await textAlign(page, "#services-title + p")).toBe("center");
+
+    await page.setViewportSize({ width: 768, height: 900 });
+    expect(await textAlign(page, "#services-title + p")).toBe("left");
+  });
+
+  test("the footer is centred", async ({ page }) => {
+    await page.goto("/");
+    expect(await textAlign(page, "footer > div")).toBe("center");
+  });
+});
+
+test("every Why Empire point is a card alike", async ({ page }) => {
+  await page.goto("/");
+
+  const points = page.locator("#why-empire li");
+  await expect(points).toHaveCount(4);
+  const borders = await points.evaluateAll((all) =>
+    all.map((li) => getComputedStyle(li).borderTopWidth),
+  );
+  expect(borders.every((b) => b === borders[0] && b !== "0px")).toBe(true);
+});
+
+test("two plain bands in a row are spaced like any other two", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  // Save 10% and How it works are both plain: the space between them is one
+  // band's padding, the same as above Save 10%'s own title
+  const top = (selector: string) =>
+    page.locator(selector).evaluate((el) => el.getBoundingClientRect().top);
+  const bottom = (selector: string) =>
+    page.locator(selector).evaluate((el) => el.getBoundingClientRect().bottom);
+  const padding =
+    (await top("#service-plans h2")) - (await top("#service-plans"));
+  const between =
+    (await top("#how-it-works h2")) -
+    (await bottom("#service-plans > div > :last-child"));
+  expect(between).toBeCloseTo(padding, 0);
+});
+
 test.describe("the hero", () => {
   // phones, a tablet, laptops (the tall skyline starts at 1280), a wide desktop
   for (const width of [360, 430, 768, 1024, 1280, 1440, 1920]) {

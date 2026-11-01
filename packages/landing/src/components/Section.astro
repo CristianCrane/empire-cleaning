@@ -7,8 +7,9 @@ interface Props {
   title: string;
   intro?: string;
   tone?: "plain" | "raised";
-  // the title is always centred; "center" puts the intro and everything under
-  // it in one column down the middle too, e.g. a form
+  // the title is always centred, and the intro on a phone; "center" puts the
+  // intro and everything under it in one column down the middle at every
+  // width, e.g. a form
   align?: "start" | "center";
 }
 
@@ -16,12 +17,16 @@ const { id, title, intro, tone = "plain", align = "start" } = Astro.props;
 const headingId = `${id}-title`;
 ---
 
+<!-- two plain bands in a row read as one, so the second drops its top
+     padding: the space between them stays one band's padding, as everywhere -->
 <section
   id={id}
   aria-labelledby={headingId}
+  data-tone={tone}
   class:list={[
     "scroll-mt-4 py-14 sm:py-20",
     tone === "raised" && "border-y border-border bg-surface",
+    tone === "plain" && "[[data-tone=plain]+&]:pt-0",
   ]}
 >
   <div
@@ -36,9 +41,9 @@ const headingId = `${id}-title`;
         align === "center" && "items-center text-center",
       ]}
     >
-      {/* every title is centred; only "center" centres the intro too */}
+      {/* every title is centred; the intro too on a phone, or always with "center" */}
       <Heading level={2} id={headingId} className="text-center">{title}</Heading>
-      {intro && <p class="max-w-2xl text-lg text-fg-muted">{intro}</p>}
+      {intro && <p class="max-w-2xl text-center text-lg text-fg-muted sm:text-left">{intro}</p>}
     </div>
     <slot />
   </div>
