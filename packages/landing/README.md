@@ -7,11 +7,12 @@ The public page for prospective Clients at empirecleaningandpro.com: a static si
 - **Look:** the design system's tokens and components (`@empire-cleaning/ui`). React components render to plain HTML at build time.
 - **JavaScript:** none, except two interactive islands and one small script:
   - the theme toggle, loaded once the browser is idle
-  - the Guest Request a Quote form (`@empire-cleaning/quote-request`), loaded when its section scrolls into view
-
+  - the Guest Request a Quote form (`@empire-cleaning/quote-request`), loaded once the browser is idle, so it's ready before almost anyone scrolls or jumps down to it
   - the reviews' Previous and Next buttons and their count (plain script in `Reviews.astro`); without it every review is still there, one at a time in a strip you swipe or scroll
 
-  Until the form loads, and with JavaScript off, its section offers the phone number. The form posts to the API at `PUBLIC_API_URL` (set at build time; by default http://localhost:3000), which allows the landing site's origin (`LANDING_ORIGIN_URL` on the server).
+- **Nothing moves as it loads** (layout shift is one of Google's Core Web Vitals). The form's first step is drawn into the page at build time, inert, its Service tiles blank until they arrive; the reviews' buttons show from the first paint wherever scripting is on (`@media (scripting: enabled)`); the first screen's fonts are preloaded (`@empire-cleaning/ui/fonts`). With JavaScript off, the Quote section offers the phone number instead of the form.
+
+  The form posts to the API at `PUBLIC_API_URL` (set at build time; by default http://localhost:3000), which allows the landing site's origin (`LANDING_ORIGIN_URL` on the server).
 
 - **Reviews** live in `src/reviews.ts`: real Google reviews, word for word, which the owner swaps there.
 - **Business details** (name, phone, area, page title and description) live in `src/business.ts`, shared by the page, its search data and its tests.
@@ -24,6 +25,7 @@ The public page for prospective Clients at empirecleaningandpro.com: a static si
 - every section, in light and dark
 - an axe accessibility check in both themes
 - the page working with JavaScript switched off
+- the Quote form holding its room as it loads, with no layout shift, its Services slowed down
 - a Guest asking for a Quote, and the API's field errors showing beside each field
 - the reviews stepping one at a time, wrapping round at either end
 - the theme toggle and the form being the only islands

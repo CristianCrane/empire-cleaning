@@ -18,10 +18,11 @@ const steps = [
 ---
 
 <Section id="how-it-works" title="How it works">
+  {/* each step centred: one under another on a phone, three across from a tablet */}
   <ol class="grid gap-6 sm:grid-cols-3">
     {
       steps.map(({ name, text }, i) => (
-        <li class="flex flex-col gap-3">
+        <li class="flex flex-col items-center gap-3 text-center">
           <span
             aria-hidden="true"
             class="flex size-12 items-center justify-center rounded-full bg-primary font-display text-2xl font-bold text-primary-fg"

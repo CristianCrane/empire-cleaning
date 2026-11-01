@@ -17,7 +17,7 @@ export { EmptyState } from "./EmptyState.tsx";
 export { Checkbox } from "./Checkbox.tsx";
 export { DateTile } from "./DateTile.tsx";
 export { Chip, ChipGroup } from "./ChipGroup.tsx";
-export { ChoiceTile, ChoiceTiles } from "./ChoiceTiles.tsx";
+export { ChoiceTile, ChoiceTiles, ChoiceTilesLoading } from "./ChoiceTiles.tsx";
 export { DatePicker, TimeField } from "./DateField.tsx";
 export { Dialog, DialogTrigger } from "./Dialog.tsx";
 export { EmbeddedField } from "./EmbeddedField.tsx";

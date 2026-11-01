@@ -2,6 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { business } from "../src/business.ts";
 import { googleReviewsUrl, reviews } from "../src/reviews.ts";
+import { appUrl } from "../playwright.config.ts";
 import { emailsTo, expect, test } from "./harness.ts";
 
 // the form loads once its section scrolls into view, and lists the Services
@@ -128,10 +129,10 @@ test(
       page.getByRole("button", { name: "Next review" }),
     ).toBeHidden();
     // no form that couldn't send anything: the Quote section offers the phone
-    await expect(page.locator("#quote form")).toHaveCount(0);
-    await expect(page.locator("#quote")).toContainText(
-      "and we'll put your Quote together",
-    );
+    await expect(page.locator("#quote form")).toBeHidden();
+    await expect(
+      page.getByText("and we'll put your Quote together"),
+    ).toBeVisible();
     await context.close();
   },
 );
@@ -447,6 +448,86 @@ test.describe("on a device set to dark mode", () => {
   });
 });
 
+test.describe("the Quote form, as it loads", () => {
+  // the Services slow to arrive, as on a poor connection
+  test.beforeEach(async ({ page }) => {
+    await page.route("**/api/services/on-offer", async (route) => {
+      await new Promise((r) => setTimeout(r, 1500));
+      await route.continue();
+    });
+  });
+
+  test(
+    "holds its room, so nothing moves when it arrives",
+    { tag: "@desktop" },
+    async ({ page }) => {
+      await page.goto("/#quote");
+      const height = () =>
+        page
+          .locator("#quote")
+          .evaluate((el) => el.getBoundingClientRect().height);
+      // drawn in the page from the start, its tiles blank
+      await expect(page.locator("#quote [aria-busy]")).toBeVisible();
+      const before = await height();
+
+      await expect(
+        page.getByRole("radio", { name: /^Standard Clean/ }),
+      ).toBeVisible();
+      expect(await height()).toBeCloseTo(before, 0);
+
+      // and the browser saw no layout shift worth the name
+      const shift = await page.evaluate(
+        () =>
+          new Promise<{ total: number; moved: string[] }>((resolve) => {
+            let total = 0;
+            const moved: string[] = [];
+            new PerformanceObserver((list) => {
+              for (const entry of list.getEntries() as (PerformanceEntry & {
+                value: number;
+                sources: { node?: Node }[];
+              })[]) {
+                total += entry.value;
+                for (const { node } of entry.sources)
+                  moved.push(
+                    (node as Element | undefined)?.closest?.("[id]")?.id ??
+                      node?.nodeName ??
+                      "?",
+                  );
+              }
+            }).observe({ type: "layout-shift", buffered: true });
+            setTimeout(() => resolve({ total, moved }), 100);
+          }),
+      );
+      expect(shift.total, `moved: ${shift.moved.join(", ")}`).toBeLessThan(
+        0.01,
+      );
+    },
+  );
+
+  test("can't be used before it's ready", async ({ browser }) => {
+    // the page as drawn, before its script runs
+    const context = await browser.newContext({ javaScriptEnabled: false });
+    const page = await context.newPage();
+    await page.emulateMedia({});
+    await page.goto("/");
+    const form = page.locator("#quote form");
+    // inert, whatever shows
+    expect(await form.evaluate((f) => f.closest("[inert]") !== null)).toBe(
+      true,
+    );
+    await context.close();
+  });
+});
+
+test("Sign in in the header leads to the app, on a phone too", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(
+    page.getByRole("banner").getByRole("link", { name: "Sign in" }),
+  ).toHaveAttribute("href", appUrl);
+});
+
 test("Request a Quote leads to the quote section", async ({ page }) => {
   await page.goto("/");
 
@@ -473,6 +554,99 @@ test(
     expect(overflow).toBeLessThanOrEqual(0);
   },
 );
+
+test.describe("on a phone", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  const textAlign = (page: Page, selector: string) =>
+    page.locator(selector).evaluate((el) => getComputedStyle(el).textAlign);
+
+  test("How it works' steps are centred, on a phone and three across", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const step = page.locator("#how-it-works li").first();
+    const centred = () =>
+      step.evaluate((li) => {
+        const number = li.querySelector("span")!.getBoundingClientRect();
+        const box = li.getBoundingClientRect();
+        return {
+          align: getComputedStyle(li).textAlign,
+          // the number's middle is the step's middle
+          numberCentred:
+            Math.abs(
+              number.left + number.width / 2 - (box.left + box.width / 2),
+            ) < 1,
+        };
+      });
+    expect(await centred()).toEqual({ align: "center", numberCentred: true });
+
+    await page.setViewportSize({ width: 1280, height: 900 });
+    expect(await centred()).toEqual({ align: "center", numberCentred: true });
+  });
+
+  test("the footer is centred", async ({ page }) => {
+    await page.goto("/");
+    expect(await textAlign(page, "footer > div")).toBe("center");
+  });
+});
+
+test("an intro is centred under its title at every width", async ({ page }) => {
+  for (const width of [390, 768, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/");
+    const intro = page.locator("#services-title + p");
+    expect(await intro.evaluate((p) => getComputedStyle(p).textAlign)).toBe(
+      "center",
+    );
+  }
+});
+
+test("the footer's logo and details are level from a tablet", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 768, height: 900 });
+  await page.goto("/");
+  const middle = (selector: string) =>
+    page.locator(selector).evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return r.top + r.height / 2;
+    });
+  expect(await middle("footer > div > :first-child")).toBeCloseTo(
+    await middle("footer > div > :last-child"),
+    0,
+  );
+});
+
+test("every Why Empire point is a card alike", async ({ page }) => {
+  await page.goto("/");
+
+  const points = page.locator("#why-empire li");
+  await expect(points).toHaveCount(4);
+  const borders = await points.evaluateAll((all) =>
+    all.map((li) => getComputedStyle(li).borderTopWidth),
+  );
+  expect(borders.every((b) => b === borders[0] && b !== "0px")).toBe(true);
+});
+
+test("two plain bands in a row are spaced like any other two", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  // Save 10% and How it works are both plain: the space between them is one
+  // band's padding, the same as above Save 10%'s own title
+  const top = (selector: string) =>
+    page.locator(selector).evaluate((el) => el.getBoundingClientRect().top);
+  const bottom = (selector: string) =>
+    page.locator(selector).evaluate((el) => el.getBoundingClientRect().bottom);
+  const padding =
+    (await top("#service-plans h2")) - (await top("#service-plans"));
+  const between =
+    (await top("#how-it-works h2")) -
+    (await bottom("#service-plans > div > :last-child"));
+  expect(between).toBeCloseTo(padding, 0);
+});
 
 test.describe("the hero", () => {
   // phones, a tablet, laptops (the tall skyline starts at 1280), a wide desktop

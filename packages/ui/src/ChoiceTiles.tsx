@@ -23,7 +23,8 @@ export type ChoiceTilesProps = Omit<
 // one of a few things that are easiest told apart by a picture, as tiles
 // with an icon over a short name (#96), e.g. what needs cleaning. Three sit
 // in a row; four sit two by two on a phone; more sit two to a row on a phone
-// and three on a wider screen.
+// and three on a wider screen. A short last row's tiles grow to fill it, so
+// no row ends in a gap.
 export function ChoiceTiles({
   label,
   description,
@@ -41,20 +42,52 @@ export function ChoiceTiles({
       )}
     >
       <Label>{label}</Label>
-      <div
-        className={
-          Children.count(children) === 4
-            ? "grid grid-cols-2 gap-2 sm:grid-cols-4"
-            : Children.count(children) > 4
-              ? "grid grid-cols-2 gap-2 sm:grid-cols-3"
-              : "grid grid-cols-3 gap-2"
-        }
-      >
+      {/* only the tiles: a tile left out (`{cond && <ChoiceTile>}`) isn't one */}
+      <div className={tileRows(Children.toArray(children).length)}>
         {children}
       </div>
       {description && <Description>{description}</Description>}
       <FieldError>{errorMessage}</FieldError>
     </AriaRadioGroup>
+  );
+}
+
+// `count` tiles in rows, each tile's share of a full row less its share of
+// the gaps (gap-2); a short last row's tiles grow to fill it
+const tileRows = (count: number) =>
+  `flex flex-wrap gap-2 [&>*]:grow ${
+    count === 3
+      ? "[&>*]:basis-[calc((100%_-_1rem)/3)]"
+      : count === 4
+        ? "[&>*]:basis-[calc((100%_-_0.5rem)/2)] sm:[&>*]:basis-[calc((100%_-_1.5rem)/4)]"
+        : "[&>*]:basis-[calc((100%_-_0.5rem)/2)] sm:[&>*]:basis-[calc((100%_-_1rem)/3)]"
+  }`;
+
+// ChoiceTiles while their choices load: the label and `count` blank tiles,
+// each the size of a real one, so nothing moves when the choices arrive
+export function ChoiceTilesLoading({
+  label,
+  count,
+}: {
+  label: string;
+  count: number;
+}) {
+  return (
+    <div className="flex flex-col gap-2" aria-busy="true">
+      <span className="text-sm font-semibold text-fg">{label}</span>
+      <div className={tileRows(count)} aria-hidden>
+        {Array.from({ length: count }, (_, i) => (
+          <div
+            key={i}
+            className="flex animate-pulse flex-col items-center justify-center gap-2 rounded-lg bg-surface-sunken px-2 py-4 text-sm font-semibold"
+          >
+            {/* an icon's and a name's room */}
+            <span className="size-7" />
+            <span>&nbsp;</span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 

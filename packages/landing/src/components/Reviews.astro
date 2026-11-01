@@ -8,13 +8,13 @@ import Section from "./Section.astro";
 <Section id="reviews" title="What our Clients say" tone="raised" align="center">
   {/* one review at a time. Every review is in the page, so it reads without
       JavaScript and to search engines; the strip snaps to each one and swipes
-      on a phone, and the script below adds Previous, Next and the count */}
+      on a phone, and the script below works Previous, Next and the count */}
   <div data-reviews aria-roledescription="carousel" aria-label="Reviews" class="flex flex-col gap-6">
     <div
       data-track
       tabindex="0"
       aria-label="Reviews, one at a time"
-      class="flex snap-x snap-mandatory overflow-x-auto rounded-md outline-offset-4 outline-focus focus-visible:outline-2"
+      class="flex snap-x snap-mandatory overflow-x-auto rounded-md outline-offset-4 outline-focus focus-visible:outline-2 [@media(scripting:enabled)]:[scrollbar-width:none]"
     >
       {
         reviews.map((r, i) => (
@@ -36,7 +36,9 @@ import Section from "./Section.astro";
         ))
       }
     </div>
-    <div data-controls hidden class="flex items-center justify-center gap-3">
+    {/* shown from the first paint wherever the script will run, so the section
+        doesn't grow when it does; with JavaScript off, the strip scrolls instead */}
+    <div data-controls class="hidden items-center justify-center gap-3 [@media(scripting:enabled)]:flex">
       <button type="button" data-prev aria-label="Previous review" class={buttonStyles({ variant: "secondary", size: "icon" })}>
         <ChevronLeft aria-hidden size={20} />
       </button>
@@ -75,8 +77,5 @@ import Section from "./Section.astro";
       count.textContent = `${current() + 1} of ${total}`;
     });
 
-    // the buttons take over from the scrollbar
-    track.style.scrollbarWidth = "none";
-    root.querySelector<HTMLElement>("[data-controls]")!.hidden = false;
   }
 </script>

@@ -36,6 +36,7 @@ import {
   ChipGroup,
   ChoiceTile,
   ChoiceTiles,
+  ChoiceTilesLoading,
   Form,
   Heading,
   Notice,
@@ -151,6 +152,11 @@ const officeWords: typeof ownWords = {
 };
 
 const NEW_PLACE = "new";
+
+// how many Services are usually on offer, for the blank tiles while they
+// load: five or six fill the same rows on a phone (two a row) and wider
+// (three a row), so either arrives without a jump
+const USUAL_SERVICES = 6;
 
 // each Service's picture, as the landing page's "What we clean" draws it
 const serviceIcons: Record<ServiceIcon, LucideIcon> = {
@@ -455,28 +461,30 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
   const error = (path: string) => fieldErrors[path];
 
   // the Services on offer as tiles, the one chosen saying what it is.
-  // Nothing is chosen at first: the Client says what they want.
+  // Nothing is chosen at first: the Client says what they want. Until they
+  // arrive, blank tiles hold their room (as many as are usually offered), so
+  // the form doesn't jump when they do.
   const serviceField =
-    services?.length === 0 ? (
+    services === undefined ? (
+      <ChoiceTilesLoading label={words.service} count={USUAL_SERVICES} />
+    ) : services.length === 0 ? (
       <Notice tone="danger">{words.servicesFailed}</Notice>
     ) : (
-      services && (
-        <ChoiceTiles
-          label={words.service}
-          name="serviceKey"
-          isRequired
-          value={serviceKey}
-          onChange={chooseService}
-          description={service?.description}
-          errorMessage={error("serviceKey")}
-        >
-          {services.map((s) => (
-            <ChoiceTile key={s.key} value={s.key} icon={serviceIcons[s.icon]}>
-              {s.name}
-            </ChoiceTile>
-          ))}
-        </ChoiceTiles>
-      )
+      <ChoiceTiles
+        label={words.service}
+        name="serviceKey"
+        isRequired
+        value={serviceKey}
+        onChange={chooseService}
+        description={service?.description}
+        errorMessage={error("serviceKey")}
+      >
+        {services.map((s) => (
+          <ChoiceTile key={s.key} value={s.key} icon={serviceIcons[s.icon]}>
+            {s.name}
+          </ChoiceTile>
+        ))}
+      </ChoiceTiles>
     );
 
   // one question for what kind of place and, for a home, its type: business
@@ -655,32 +663,21 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
     </Optional>
   );
 
+  // a home's rooms, where the Service is priced from them: a new home's, or
+  // those of one of theirs that hasn't given them yet
+  const roomsAt =
+    place === NEW_PLACE && asksRooms
+      ? "property.new"
+      : givesRooms
+        ? "property.rooms"
+        : null;
+  const updateRooms = (change: Partial<HomeRooms>) =>
+    setRooms((current) => ({ ...current, ...change }));
+
+  // how much cleaning it needs first, then the home's rooms and the extras,
+  // its yes-or-no questions together, and what's optional last
   const homeFields = (
     <>
-      {areaField}
-      {place === NEW_PLACE && (
-        <NewHomeFields
-          home={newHome}
-          rooms={asksRooms ? rooms : null}
-          update={(change) =>
-            setNewHome((current) => ({ ...current, ...change }))
-          }
-          updateRooms={(change) =>
-            setRooms((current) => ({ ...current, ...change }))
-          }
-          error={error}
-        />
-      )}
-      {givesRooms && (
-        <RoomsFields
-          rooms={rooms}
-          at="property.rooms"
-          update={(change) =>
-            setRooms((current) => ({ ...current, ...change }))
-          }
-          error={error}
-        />
-      )}
       {asksCondition && (
         <SegmentedControl
           label="How much cleaning does it need?"
@@ -700,6 +697,15 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
           ))}
         </SegmentedControl>
       )}
+      {areaField}
+      {roomsAt && (
+        <RoomsFields
+          rooms={rooms}
+          at={roomsAt}
+          update={updateRooms}
+          error={error}
+        />
+      )}
       {offered.length > 0 && (
         <ChipGroup
           label="Any extras?"
@@ -714,13 +720,36 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
           ))}
         </ChipGroup>
       )}
-      {canRecur && (
-        <Checkbox
-          isSelected={wantsRegularService}
-          onChange={setWantsRegularService}
-        >
-          {words.regular}
-        </Checkbox>
+      {(roomsAt || canRecur) && (
+        // each already a full touch target tall, so close together
+        <div className="flex flex-col gap-1">
+          {roomsAt && (
+            <Checkbox
+              isSelected={rooms.pets}
+              onChange={(pets) => updateRooms({ pets })}
+            >
+              There are pets at home
+            </Checkbox>
+          )}
+          {canRecur && (
+            <Checkbox
+              isSelected={wantsRegularService}
+              onChange={setWantsRegularService}
+            >
+              {words.regular}
+            </Checkbox>
+          )}
+        </div>
+      )}
+      {place === NEW_PLACE && (
+        <NewHomeFields
+          home={newHome}
+          asksFloorArea={asksRooms}
+          update={(change) =>
+            setNewHome((current) => ({ ...current, ...change }))
+          }
+          error={error}
+        />
       )}
     </>
   );
@@ -773,21 +802,30 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
     </>
   );
 
+  const updatePremises = (change: Partial<NewPremises>) =>
+    setNewPremises((current) => ({ ...current, ...change }));
+
   const premisesFields = (
     <>
       {!asksContact && !knownBusinessName && businessNameField}
       {areaField}
       {place === NEW_PLACE && (
-        <NewPremisesFields
+        <PremisesTypeField
           premises={newPremises}
           premisesTypes={premisesTypes}
-          update={(change) =>
-            setNewPremises((current) => ({ ...current, ...change }))
-          }
+          update={updatePremises}
           error={error}
         />
       )}
       {canRecur && whenFields}
+      {/* what's optional, last */}
+      {place === NEW_PLACE && (
+        <NewPremisesFields
+          premises={newPremises}
+          update={updatePremises}
+          error={error}
+        />
+      )}
     </>
   );
 
@@ -986,9 +1024,10 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
   );
 }
 
-// business premises: what kind and how big. Where they are is asked first.
-// The Condition and any extras are agreed after a visit, so they aren't asked.
-function NewPremisesFields({
+// new business premises: what kind they are. Where they are is asked first,
+// what's optional last (NewPremisesFields). The Condition and any extras are
+// agreed after a visit, so they aren't asked.
+function PremisesTypeField({
   premises,
   premisesTypes,
   update,
@@ -1002,30 +1041,45 @@ function NewPremisesFields({
 }) {
   const field = (name: keyof NewPremises) => `property.new.${name}`;
 
+  return premisesTypes?.length === 0 ? (
+    <Notice tone="danger">
+      We couldn't load the types of premises. Please try again, or call us on
+      (646) 320-9076.
+    </Notice>
+  ) : (
+    <Select
+      label="Type of premises"
+      name={field("premisesType")}
+      placeholder="Choose one"
+      isRequired
+      selectedKey={premises.premisesType || null}
+      onSelectionChange={(key) => update({ premisesType: String(key) })}
+      errorMessage={error(field("premisesType"))}
+    >
+      {(premisesTypes ?? []).map((t) => (
+        <SelectItem key={t.key} id={t.key}>
+          {t.name}
+        </SelectItem>
+      ))}
+    </Select>
+  );
+}
+
+// what's optional about new business premises, asked last: how big they
+// are and what the Cleaners should know
+function NewPremisesFields({
+  premises,
+  update,
+  error,
+}: {
+  premises: NewPremises;
+  update: (change: Partial<NewPremises>) => void;
+  error: (path: string) => string | undefined;
+}) {
+  const field = (name: keyof NewPremises) => `property.new.${name}`;
+
   return (
     <>
-      {premisesTypes?.length === 0 ? (
-        <Notice tone="danger">
-          We couldn't load the types of premises. Please try again, or call us
-          on (646) 320-9076.
-        </Notice>
-      ) : (
-        <Select
-          label="Type of premises"
-          name={field("premisesType")}
-          placeholder="Choose one"
-          isRequired
-          selectedKey={premises.premisesType || null}
-          onSelectionChange={(key) => update({ premisesType: String(key) })}
-          errorMessage={error(field("premisesType"))}
-        >
-          {(premisesTypes ?? []).map((t) => (
-            <SelectItem key={t.key} id={t.key}>
-              {t.name}
-            </SelectItem>
-          ))}
-        </Select>
-      )}
       <Optional
         add="Add the floor area"
         shown={premises.floorArea !== null || !!error(field("floorArea"))}
@@ -1117,7 +1171,8 @@ function AddressFields({
   );
 }
 
-// a home's rooms, all four, at `at` in the request
+// a home's rooms, at `at` in the request; whether there are pets is asked
+// with the form's other yes-or-no questions
 function RoomsFields({
   rooms,
   at,
@@ -1132,92 +1187,77 @@ function RoomsFields({
   const field = (name: keyof HomeRooms) => `${at}.${name}`;
 
   return (
-    <>
-      <div className="grid gap-4 sm:grid-cols-3">
-        <NumberField
-          label="Bedrooms"
-          name={field("bedrooms")}
-          description="0 for a studio"
-          minValue={0}
-          maxValue={20}
-          value={rooms.bedrooms}
-          onChange={(bedrooms) => update({ bedrooms })}
-          errorMessage={error(field("bedrooms"))}
-        />
-        <NumberField
-          label="Bathrooms"
-          name={field("bathrooms")}
-          description="Half-baths count as 0.5"
-          minValue={0.5}
-          maxValue={20}
-          step={0.5}
-          value={rooms.bathrooms}
-          onChange={(bathrooms) => update({ bathrooms })}
-          errorMessage={error(field("bathrooms"))}
-        />
-        <NumberField
-          label="Floors"
-          name={field("storeys")}
-          minValue={1}
-          maxValue={5}
-          value={rooms.storeys}
-          onChange={(storeys) => update({ storeys })}
-          errorMessage={error(field("storeys"))}
-        />
-      </div>
-      <Checkbox isSelected={rooms.pets} onChange={(pets) => update({ pets })}>
-        There are pets at home
-      </Checkbox>
-    </>
+    <div className="grid gap-4 sm:grid-cols-3">
+      <NumberField
+        label="Bedrooms"
+        name={field("bedrooms")}
+        description="0 for a studio"
+        minValue={0}
+        maxValue={20}
+        value={rooms.bedrooms}
+        onChange={(bedrooms) => update({ bedrooms })}
+        errorMessage={error(field("bedrooms"))}
+      />
+      <NumberField
+        label="Bathrooms"
+        name={field("bathrooms")}
+        description="Half-baths count as 0.5"
+        minValue={0.5}
+        maxValue={20}
+        step={0.5}
+        value={rooms.bathrooms}
+        onChange={(bathrooms) => update({ bathrooms })}
+        errorMessage={error(field("bathrooms"))}
+      />
+      <NumberField
+        label="Floors"
+        name={field("storeys")}
+        minValue={1}
+        maxValue={5}
+        value={rooms.storeys}
+        onChange={(storeys) => update({ storeys })}
+        errorMessage={error(field("storeys"))}
+      />
+    </div>
   );
 }
 
-// a new home's rooms, where the Service is priced from them (`rooms` null
-// otherwise), and what the Cleaners should know. Its type and address are
-// asked first.
+// what's optional about a new home, asked last: its floor area, where the
+// Service is priced from its rooms, and what the Cleaners should know. Its
+// type and address are asked first, its rooms with the other questions.
 function NewHomeFields({
   home,
-  rooms,
+  asksFloorArea,
   update,
-  updateRooms,
   error,
 }: {
   home: NewHome;
-  rooms: HomeRooms | null;
+  asksFloorArea: boolean;
   update: (change: Partial<NewHome>) => void;
-  updateRooms: (change: Partial<HomeRooms>) => void;
   error: (path: string) => string | undefined;
 }) {
   const field = (name: keyof NewHome) => `property.new.${name}`;
 
   return (
     <>
-      {rooms && (
-        <>
-          <RoomsFields
-            rooms={rooms}
-            at="property.new"
-            update={updateRooms}
-            error={error}
+      {asksFloorArea && (
+        <Optional
+          add="Add the floor area"
+          shown={home.floorArea !== null || !!error(field("floorArea"))}
+        >
+          <NumberField
+            label="Floor area in sq ft (optional)"
+            name={field("floorArea")}
+            minValue={100}
+            maxValue={100_000}
+            step={50}
+            value={home.floorArea ?? Number.NaN}
+            onChange={(area) =>
+              update({ floorArea: Number.isNaN(area) ? null : area })
+            }
+            errorMessage={error(field("floorArea"))}
           />
-          <Optional
-            add="Add the floor area"
-            shown={home.floorArea !== null || !!error(field("floorArea"))}
-          >
-            <NumberField
-              label="Floor area in sq ft (optional)"
-              name={field("floorArea")}
-              minValue={100}
-              maxValue={100_000}
-              step={50}
-              value={home.floorArea ?? Number.NaN}
-              onChange={(area) =>
-                update({ floorArea: Number.isNaN(area) ? null : area })
-              }
-              errorMessage={error(field("floorArea"))}
-            />
-          </Optional>
-        </>
+        </Optional>
       )}
       <Optional
         add="Add how we get in"

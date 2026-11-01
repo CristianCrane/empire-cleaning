@@ -1,6 +1,7 @@
 ---
 import "@empire-cleaning/ui/tokens.css";
 import { themeBootScript } from "@empire-cleaning/ui/theme-boot";
+import { firstScreenFonts } from "@empire-cleaning/ui/fonts";
 import { TestSiteBanner } from "@empire-cleaning/ui";
 import { business } from "../business.ts";
 import { isTestSite } from "../site-mode.ts";
@@ -23,6 +24,13 @@ const localBusiness = {
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <script is:inline set:html={themeBootScript} />
+    {/* the first screen's fonts, fetched with the page so its text doesn't
+        reflow when they arrive */}
+    {
+      firstScreenFonts.map((href) => (
+        <link rel="preload" as="font" type="font/woff2" href={href} crossorigin />
+      ))
+    }
     <title>{business.title}</title>
     <meta name="description" content={business.description} />
     <link rel="canonical" href={business.url} />

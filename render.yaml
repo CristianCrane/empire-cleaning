@@ -124,3 +124,6 @@ services:
       # where the Quote form posts
       - key: PUBLIC_API_URL
         value: https://app.test.empirecleaningandpro.com
+      # where the header's Sign in goes (src/app-url.ts)
+      - key: PUBLIC_APP_URL
+        value: https://app.test.empirecleaningandpro.com

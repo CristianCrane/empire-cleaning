@@ -4,9 +4,11 @@ import { business } from "../business.ts";
 ---
 
 <footer class="py-10">
-  <div class="mx-auto flex max-w-5xl flex-col gap-4 px-4 sm:flex-row sm:items-end sm:justify-between">
+  <!-- centred on a phone; from a tablet the logo left and the details right,
+     their middles level -->
+  <div class="mx-auto flex max-w-5xl flex-col items-center gap-4 px-4 text-center sm:flex-row sm:items-center sm:justify-between sm:text-right">
     <Logo className="w-36" />
-    <div class="flex flex-col gap-1 text-fg-muted sm:items-end">
+    <div class="flex flex-col items-center gap-1 text-fg-muted sm:items-end">
       <a href={business.phone.href} class="font-semibold text-fg">{business.phone.display}</a>
       <span>{business.area}</span>
       <span>&copy; {new Date().getFullYear()} {business.name}</span>

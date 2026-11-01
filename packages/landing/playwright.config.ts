@@ -9,6 +9,8 @@ const CONTROL_PORT = 3201;
 const SITE_PORT = 4322;
 export const siteUrl = `http://localhost:${SITE_PORT}`;
 export const controlUrl = `http://127.0.0.1:${CONTROL_PORT}`;
+// where the header's Sign in goes, as built for these tests
+export const appUrl = "https://app.example.test";
 
 // tests the built site in a real Chromium, as a visitor gets it, on a phone
 // and a desktop. Its Request a Quote form talks to the real API and a database
@@ -50,11 +52,16 @@ export default defineConfig({
       },
     },
     {
-      // built here, so the site's form points at this run's API
+      // built here, so the site's form points at this run's API, and Sign in
+      // at a known address
       command: `ASTRO_TELEMETRY_DISABLED=1 astro build && ASTRO_TELEMETRY_DISABLED=1 astro preview --port ${SITE_PORT} --ignore-lock`,
       url: siteUrl,
       timeout: 120_000,
-      env: { ...process.env, PUBLIC_API_URL: `http://localhost:${API_PORT}` },
+      env: {
+        ...process.env,
+        PUBLIC_API_URL: `http://localhost:${API_PORT}`,
+        PUBLIC_APP_URL: appUrl,
+      },
     },
   ],
   projects: [

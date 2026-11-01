@@ -7,6 +7,7 @@
     ".": "./src/index.ts",
     "./theme": "./src/theme.tsx",
     "./theme-boot": "./src/theme-boot.ts",
+    "./fonts": "./src/fonts.ts",
     "./tokens.css": "./src/tokens.css"
   },
   "scripts": {
