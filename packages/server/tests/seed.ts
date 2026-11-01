@@ -1,5 +1,7 @@
 // Dev seed: Staff, Clients and Quotes in every state, dated around today, so
-// every screen has real data to look at.
+// every screen has real data to look at. The test site's demo for the owner
+// too: real-looking people and addresses across Queens, a week of regular
+// cleans with their Cleaners, and a business billed weekly.
 // Runs the real domain code with the clock, payments and email faked: no
 // email is sent while seeding. Everyone's email is a +alias of the owner's,
 // so magic links reach one inbox.
@@ -18,6 +20,7 @@ import type {
   NewPremises,
   QuoteAsk,
   SignedInAccount,
+  Weekday,
 } from "@empire-cleaning/models";
 import { db } from "#db";
 import {
@@ -26,6 +29,12 @@ import {
   offerAssignment,
   releaseAssignment,
 } from "#features/assignments";
+import {
+  bills,
+  makeDueBills,
+  recordOutsidePayment,
+  setBilling,
+} from "#features/bills";
 import {
   cancelJob,
   cancelTermsOf,
@@ -39,6 +48,7 @@ import {
   acceptQuote,
   askForQuote,
   enterCallerAsk,
+  quotes,
   saveDraft,
   sendQuote,
   startRevision,
@@ -49,19 +59,26 @@ import {
   rescheduleTermsOf,
   turnDownReschedule,
 } from "#features/reschedule";
-import { bookSiteVisit } from "#features/site-visits";
+import {
+  bookSiteVisit,
+  recordFindingsWithoutVisit,
+} from "#features/site-visits";
 import { SEEDED } from "#features/services";
 import { jobs } from "#features/jobs";
-import { servicePlanVisits } from "#features/service-plans";
+import {
+  generateServicePlanJobs,
+  servicePlans,
+  servicePlanVisits,
+} from "#features/service-plans";
 import { createStaff, setUsualWeek } from "#features/staff";
-import { addDays, dayOf, weekdayOf } from "#services/clock";
+import { addDays, atTime, dayOf, weekdayOf } from "#services/clock";
 import { installFakes, signIn, testClock, testPayments } from "./harness.ts";
 import { sentServicePlanQuote, startedServicePlan } from "./fixtures.ts";
 import { addTesters } from "./testers.ts";
 
 const OWNER = {
   email: process.env.SEED_OWNER_EMAIL ?? "empirecleaningproservices@gmail.com",
-  name: "Cris Crane",
+  name: "Jennifer",
 };
 const alias = (tag: string) => OWNER.email.replace("@", `+${tag}@`);
 
@@ -76,6 +93,7 @@ const weekdayFrom = (days: number) => {
   while (weekdayOf(day) > 4) day = addDays(day, 1);
   return { date: day, time: "09:00" };
 };
+const mondayOf = (day: string) => addDays(day, -weekdayOf(day));
 
 // created_at and updated_at come from the database's own clock, so each move
 // of the fake clock first stamps the rows made since the last move with the
@@ -146,15 +164,19 @@ let phones = 100;
 const contact = (tag: string, name: string) => ({
   name,
   email: alias(tag),
-  phone: `(646) 555-0${phones++}`,
+  phone: `(718) 555-0${phones++}`,
 });
 
-const home = (street: string, over: Partial<NewHome> = {}): NewHome => ({
+const home = (
+  street: string,
+  postcode: string,
+  over: Partial<NewHome> = {},
+): NewHome => ({
   kind: "residential",
   type: "apartment",
   street,
   unit: null,
-  postcode: "11375",
+  postcode,
   bedrooms: 2,
   bathrooms: 1,
   storeys: 1,
@@ -192,7 +214,7 @@ async function seed() {
   }
 
   installFakes();
-  await at(on(-30));
+  await at(on(-40));
 
   // ---- Staff ----
   // connects the owner's Account if they've signed up already; otherwise
@@ -208,9 +230,9 @@ async function seed() {
 
   const cleaners = [];
   for (const [tag, name] of [
-    ["cleo", "Cleo Cleaner"],
-    ["ben", "Ben Cleaner"],
-    ["dev", "Dev Cleaner"],
+    ["maria", "Maria Gonzalez"],
+    ["luz", "Luz Herrera"],
+    ["daniela", "Daniela Cruz"],
   ] as const) {
     const member = await createStaff({
       email: alias(tag),
@@ -220,16 +242,16 @@ async function seed() {
     await setUsualWeek(member.id, [8, 8, 8, 8, 8, 0, 0]);
     cleaners.push(member);
   }
-  const [cleo, ben, dev] = cleaners;
+  const [maria, luz, daniela] = cleaners;
   if (process.env.APP_MODE === "test") await addTesters();
 
   const list = await currentPriceList();
   const officeType = list.premisesTypes[0]!.key;
-  const premises = (street: string): NewPremises => ({
+  const premises = (street: string, postcode: string): NewPremises => ({
     kind: "commercial",
     street,
     unit: null,
-    postcode: "11101",
+    postcode,
     premisesType: officeType,
     floorArea: null,
   });
@@ -241,12 +263,14 @@ async function seed() {
       sent,
       validityDays = 7,
       startIn,
+      time = "09:00",
       crewSize = 1,
       addOns = [],
     }: {
       sent: Date;
       validityDays?: number;
       startIn: number;
+      time?: string;
       crewSize?: number;
       addOns?: string[];
     },
@@ -258,7 +282,7 @@ async function seed() {
       crewSize,
       depositPercent: 25,
       validityDays,
-      proposedStart: weekdayFrom(startIn),
+      proposedStart: { ...weekdayFrom(startIn), time },
       overrides: {},
     });
     return sendQuote(id);
@@ -269,17 +293,24 @@ async function seed() {
   await ask(
     contact("priya", "Priya Shah"),
     {
-      new: home("12 Elm St", { type: "house", bedrooms: 3, storeys: 2 }),
+      new: home("214-15 42nd Ave", "11361", {
+        type: "house",
+        bedrooms: 3,
+        storeys: 2,
+      }),
     },
-    { condition: "heavy", notes: "Moving out at the end of the month." },
+    {
+      condition: "heavy",
+      notes: "Moving out at the end of the month; the landlord inspects after.",
+    },
   );
 
   await at(on(-5));
   await ask(
     contact("ortiz", "Dana Ortiz"),
-    { new: premises("400 Market St") },
+    { new: premises("37-20 Ditmars Blvd", "11105") },
     {
-      businessName: "Ortiz Dental",
+      businessName: "Ortiz Family Dental",
       condition: undefined,
       wantsRegularService: true,
       weekdays: [0, 3],
@@ -290,18 +321,18 @@ async function seed() {
   await at(on(-2));
   const park = await ask(
     contact("park", "Lee Park"),
-    { new: premises("88 Broad St") },
+    { new: premises("1-50 50th Ave", "11101") },
     { businessName: "Park & Co Law", condition: undefined },
   );
   await bookSiteVisit(
-    { quoteId: park.id, staffId: cleo!.id, minutes: 60, ...weekdayFrom(2) },
+    { quoteId: park.id, staffId: maria!.id, minutes: 60, ...weekdayFrom(2) },
     by,
   );
 
   await at(new Date(realNow.getTime() - 2 * 3_600_000));
   await ask(
     contact("tom", "Tom Becker"),
-    { new: home("7 Birch Ave", { bedrooms: 1 }) },
+    { new: home("67-38 108th St", "11375", { unit: "4C", bedrooms: 1 }) },
     { condition: "light", wantsRegularService: true },
   );
 
@@ -310,7 +341,11 @@ async function seed() {
   const ana = await enterCallerAsk(by, {
     contact: contact("ana", "Ana Lima"),
     property: {
-      new: home("31 Cedar Ct", { type: "townhouse", storeys: 2, pets: true }),
+      new: home("62-14 Saunders St", "11374", {
+        type: "townhouse",
+        storeys: 2,
+        pets: true,
+      }),
     },
     serviceKey: SEEDED.standard,
     condition: "moderate",
@@ -330,24 +365,28 @@ async function seed() {
   // ---- Sent ----
   await at(on(-8));
   const sam = await ask(contact("sam", "Sam Ng"), {
-    new: home("5 Oak Ln", { type: "house", bedrooms: 4, bathrooms: 2 }),
+    new: home("45-21 Bell Blvd", "11361", {
+      type: "house",
+      bedrooms: 4,
+      bathrooms: 2,
+    }),
   });
   // expires tomorrow
-  await draftAndSend(sam.id, { sent: on(-6), startIn: 10 });
+  await draftAndSend(sam.id, { sent: on(-6), startIn: 10, time: "11:00" });
 
   await at(on(-4));
   const jo = await ask(
     contact("jo", "Jo Wright"),
-    { new: home("220 Pine St", { unit: "3F" }) },
+    { new: home("35-20 Leverich St", "11372", { unit: "3F" }) },
     { condition: "light" },
   );
-  await draftAndSend(jo.id, { sent: on(-2), startIn: 9 });
+  await draftAndSend(jo.id, { sent: on(-2), startIn: 11, time: "14:00" });
 
   await at(on(-5));
   const kim = await ask(contact("kim", "Kim Osei"), {
-    new: home("3 Willow Way", { type: "house" }),
+    new: home("83-40 Abingdon Rd", "11415", { type: "house" }),
   });
-  await draftAndSend(kim.id, { sent: on(-3), startIn: 8 });
+  await draftAndSend(kim.id, { sent: on(-3), startIn: 12, time: "10:00" });
   // a new Revision being drafted on the Sent Quote
   await at(on(-1));
   await startRevision(kim.id, "one_off", by);
@@ -356,14 +395,20 @@ async function seed() {
   await at(on(-18));
   const ruth = await ask(
     contact("ruth", "Ruth Adler"),
-    { new: home("64 Spruce Rd", { type: "house", bedrooms: 5, bathrooms: 3 }) },
+    {
+      new: home("11 Arleigh Rd", "11021", {
+        type: "house",
+        bedrooms: 5,
+        bathrooms: 3,
+      }),
+    },
     { condition: "heavy" },
   );
   await draftAndSend(ruth.id, { sent: on(-16), startIn: -5 });
 
   await at(on(-27));
   const chris = await ask(contact("chris", "Chris Vo"), {
-    new: home("9 Mill St", { unit: "2" }),
+    new: home("30-58 32nd St", "11102", { unit: "2" }),
   });
   await draftAndSend(chris.id, {
     sent: on(-25),
@@ -374,24 +419,33 @@ async function seed() {
   // ---- Turned Down: closed, so only on the Client's page ----
   await at(on(-4));
   const gail = await ask(contact("gail", "Gail Turner"), {
-    new: home("1 Far Away Rd", { postcode: "10701" }),
+    new: home("14 Palisade Ave", "10701"),
   });
   await turnDownQuote(gail.id, "out_of_area", by);
 
   // ---- a First Clean done, then a Service Plan offered unprompted ----
   const max = contact("max", "Max Rivera");
-  const firstClean = await firstCleanDone(max, "19 Maple Dr", -20, -12);
+  const firstClean = await firstCleanDone(
+    max,
+    home("69-10 Yellowstone Blvd", "11375", { unit: "5J" }),
+    -20,
+    -12,
+  );
   await at(on(-2));
   await sentServicePlanQuote({
     propertyId: firstClean.propertyId,
     byAccountId: by,
-    startsAt: `${weekdayFrom(9).date}T14:00:00Z`,
+    startsAt: `${weekdayFrom(9).date}T16:00:00Z`,
     recurrence: "fortnightly",
   });
 
   // ---- on a Service Plan, asking again: a plan change ----
   const nina = contact("nina", "Nina Brooks");
-  const ninaHome = await firstCleanDone(nina, "50 Aspen Pl", -28, -21);
+  const ninaHouse = home("71-15 Juno St", "11375", {
+    type: "house",
+    bedrooms: 3,
+  });
+  const ninaHome = await firstCleanDone(nina, ninaHouse, -28, -21);
   await at(on(-14));
   const ninaPlan = await startedServicePlan({
     propertyId: ninaHome.propertyId,
@@ -401,28 +455,184 @@ async function seed() {
   await at(on(-1));
   await ask(
     nina,
-    { new: home("50 Aspen Pl", { type: "house", bedrooms: 3 }) },
+    { new: ninaHouse },
     { wantsRegularService: true, notes: "Could we add a second day?" },
   );
+
+  // ---- regulars: plans a few weeks old, their Cleaner on every clean, the
+  // cleans so far done, so the weeks behind and ahead are full: today's
+  // Schedule, a Cleaner's Next up, a Client's history ----
+  const regulars: { planId: string; cleanerId: string }[] = [];
+  const regular = async (
+    who: ReturnType<typeof contact>,
+    house: NewHome,
+    cleanerId: string,
+    {
+      startIn,
+      time,
+      recurrence = "weekly",
+    }: {
+      startIn: number;
+      time: string;
+      recurrence?: "weekly" | "fortnightly";
+    },
+  ) => {
+    const { propertyId } = await firstCleanDone(
+      who,
+      house,
+      startIn - 16,
+      startIn - 9,
+      cleanerId,
+    );
+    await at(on(startIn - 5));
+    const { planId } = await startedServicePlan({
+      propertyId,
+      byAccountId: by,
+      startsAt: atTime(weekdayFrom(startIn).date, time).toISOString(),
+      recurrence,
+    });
+    await workPlan(planId, cleanerId);
+    regulars.push({ planId, cleanerId });
+  };
+  await regular(
+    contact("helen", "Helen Kowalski"),
+    home("69-50 Exeter St", "11375", { type: "house", bedrooms: 3 }),
+    maria!.id,
+    { startIn: -28, time: "09:00" },
+  );
+  await regular(
+    contact("thompson", "Marcus Thompson"),
+    home("32-11 81st St", "11370", {
+      type: "house",
+      bedrooms: 4,
+      bathrooms: 2,
+      pets: true,
+    }),
+    luz!.id,
+    { startIn: -26, time: "13:00", recurrence: "fortnightly" },
+  );
+  await regular(
+    contact("sofia", "Sofia Papadopoulos"),
+    home("23-15 31st Rd", "11106", { unit: "2R" }),
+    daniela!.id,
+    { startIn: -25, time: "10:00" },
+  );
+
+  // ---- a business billed weekly: a cleaning every week after hours, its
+  // Bills paid by check, and last week's due ----
+  await at(on(-30));
+  const bellWho = contact("bell", "Rachel Bell");
+  const bellAsk = await ask(
+    bellWho,
+    { new: premises("214-02 41st Ave", "11361") },
+    {
+      businessName: "Bell Blvd Pediatrics",
+      condition: undefined,
+      wantsRegularService: true,
+      weekdays: [weekdayOf(weekdayFrom(-21).date) as Weekday],
+      preferredTime: "18:00",
+    },
+  );
+  const [bellQuote] = await db
+    .select({ propertyId: quotes.propertyId })
+    .from(quotes)
+    .where(eq(quotes.id, bellAsk.id));
+  await recordFindingsWithoutVisit(
+    bellQuote!.propertyId,
+    {
+      premisesType: officeType,
+      floorArea: 2400,
+      condition: "moderate",
+      officeNotes:
+        "Waiting room, four exam rooms and the front desk. The night guard lets us in.",
+    },
+    by,
+  );
+  await at(on(-27));
+  const { quote: bellDraft } = await startRevision(
+    bellAsk.id,
+    "service_plan",
+    by,
+  );
+  await saveDraft(bellAsk.id, {
+    addOns: [],
+    depositPercent: bellDraft.draft!.depositPercent,
+    validityDays: 7,
+    plan: {
+      serviceKey: SEEDED.commercial,
+      recurrence: "weekly",
+      discountPercent: bellDraft.draft!.plan!.discountPercent,
+      condition: "moderate",
+      days: [
+        {
+          start: { date: weekdayFrom(-21).date, time: "18:00" },
+          crewSize: 1,
+          override: null,
+        },
+      ],
+    },
+  });
+  await sendQuote(bellAsk.id);
+  const bell = (await findClientByEmail(bellWho.email))!;
+  await at(on(-25));
+  await saveCard(bell);
+  const bellAccepted = await acceptQuote(
+    bellAsk.id,
+    {},
+    { by: "office", accountId: by },
+  );
+  if (bellAccepted.status !== "accepted") throw new Error("not accepted");
+  const [bellPlan] = await db
+    .select({ id: servicePlans.id })
+    .from(servicePlans)
+    .where(eq(servicePlans.quoteId, bellAsk.id));
+  await at(new Date(`${mondayOf(addDays(today, -21))}T14:00:00Z`));
+  await setBilling(bell.id, {
+    weekly: true,
+    payment: "on_page",
+    termsDays: 14,
+    billingEmail: alias("bell-billing"),
+  });
+  // its cleans so far, done by Luz, each Bill made the Monday after
+  await workPlan(bellPlan!.id, luz!.id, true);
+  const bellBills = await db
+    .select({ id: bills.id })
+    .from(bills)
+    .where(eq(bills.clientId, bell.id))
+    .orderBy(asc(bills.weekStart));
+  // all but the latest paid by check, a few days after each
+  for (const [i, bill] of bellBills.slice(0, -1).entries()) {
+    await at(on(-12 + i * 7));
+    await recordOutsidePayment(bill.id, {
+      byAccountId: by,
+      note: `Check #${1041 + i}`,
+    });
+  }
+  regulars.push({ planId: bellPlan!.id, cleanerId: luz!.id });
 
   // ---- Jobs in every state the Office's Job page shows ----
   const [firstAddOn, secondAddOn] = list.addOns;
 
   // booked, nobody Offered yet, and its place not yet open to Cleaners
-  await bookedJob(contact("olga", "Olga Petrova"), "8 Birch Ln", -3, 12);
+  await bookedJob(
+    contact("olga", "Olga Petrova"),
+    home("98-41 64th Rd", "11374", { type: "house", bedrooms: 3 }),
+    -3,
+    12,
+  );
 
   // a crew of two: one Confirmed, one Released, so a place is open to free
   // Cleaners; the Client asked to move it once, and was turned down
   const pair = await bookedJob(
-    contact("pete", "Pete Ortiz"),
-    "77 Cedar St",
+    contact("pete", "Pete Morales"),
+    home("25-11 Crescent St", "11102", { type: "house", bedrooms: 4 }),
     -10,
     7,
     { crewSize: 2 },
   );
   await at(on(-8));
-  await confirm(pair.id, ben!.id);
-  const devPlace = await confirm(pair.id, dev!.id);
+  await confirm(pair.id, luz!.id);
+  const danielaPlace = await confirm(pair.id, daniela!.id);
   await at(on(-5));
   await requestReschedule(
     pair.id,
@@ -436,16 +646,16 @@ async function seed() {
   await at(on(-4));
   await turnDownReschedule(pair.id, "We're fully booked that afternoon.", by);
   await at(on(-2));
-  await releaseAssignment(dev!.id, devPlace);
+  await releaseAssignment(daniela!.id, danielaPlace);
 
   // the Client has asked to move it, waiting on the Office
   const moving = await bookedJob(
     contact("rosa", "Rosa Diaz"),
-    "12 Elm Ct",
+    home("61-20 188th St", "11365", { type: "house", bedrooms: 3 }),
     -9,
     5,
   );
-  await confirm(moving.id, cleo!.id);
+  await confirm(moving.id, maria!.id);
   await at(on(-1));
   await requestReschedule(
     moving.id,
@@ -460,15 +670,15 @@ async function seed() {
   // Completed with an Adjustment of each kind: one taken off at once, an
   // increase to review, and one proposed to the Client
   const adjusted = await bookedJob(
-    contact("sam", "Sam Lee"),
-    "30 Pine Ave",
+    contact("grace", "Grace Lee"),
+    home("40-22 Little Neck Pkwy", "11363", { type: "house", bedrooms: 3 }),
     -12,
     -4,
     { addOns: [firstAddOn!.key] },
   );
-  await confirm(adjusted.id, cleo!.id);
+  await confirm(adjusted.id, maria!.id);
   await at(after(adjusted, 4));
-  await completeJob(cleo!.id, adjusted.id, {
+  await completeJob(maria!.id, adjusted.id, {
     condition: "heavy",
     reports: [
       {
@@ -493,14 +703,14 @@ async function seed() {
   // Completed, but the Balance couldn't be charged
   const unpaid = await bookedJob(
     contact("tia", "Tia Moore"),
-    "5 Oak Rd",
+    home("88-10 Elmhurst Ave", "11373", { type: "house", bedrooms: 3 }),
     -15,
     -6,
   );
-  await confirm(unpaid.id, cleo!.id);
+  await confirm(unpaid.id, maria!.id);
   await at(after(unpaid, 4));
   testPayments().failCharges();
-  await completeJob(cleo!.id, unpaid.id, {
+  await completeJob(maria!.id, unpaid.id, {
     condition: "moderate",
     reports: [],
   });
@@ -509,11 +719,11 @@ async function seed() {
   // cancelled for the Client the evening before: a Late Cancellation
   const late = await bookedJob(
     contact("uma", "Uma Shah"),
-    "21 Willow Way",
+    home("192-04 46th Ave", "11358", { type: "house", bedrooms: 3 }),
     -14,
     -2,
   );
-  await confirm(late.id, ben!.id);
+  await confirm(late.id, luz!.id);
   await at(after(late, -14));
   await cancelJob(late.id, {
     by: "client",
@@ -526,7 +736,7 @@ async function seed() {
   // cancelled by Empire Cleaning, refunded in full
   const ours = await bookedJob(
     contact("vic", "Vic Hale"),
-    "64 Spruce Rd",
+    home("248-10 Union Tpke", "11426", { type: "house", bedrooms: 3 }),
     -10,
     6,
   );
@@ -542,27 +752,27 @@ async function seed() {
   // the Cleaner couldn't get in
   const locked = await bookedJob(
     contact("wes", "Wes Grant"),
-    "3 Hazel St",
+    home("102-17 Queens Blvd", "11375", { unit: "6B" }),
     -9,
     -1,
   );
-  await confirm(locked.id, cleo!.id);
+  await confirm(locked.id, maria!.id);
   await at(after(locked, 1));
   await recordNoAccess(
-    cleo!.id,
+    maria!.id,
     locked.id,
     "Nobody answered the door, and the phone went to voicemail.",
   );
 
   // a place Offered, not yet answered
   const offered = await bookedJob(
-    contact("xena", "Xena Ford"),
-    "40 Poplar Ave",
+    contact("erin", "Erin Ford"),
+    home("21-40 Steinway St", "11105", { type: "house", bedrooms: 3 }),
     -4,
     14,
   );
   await at(on(-1));
-  await offerAssignment(offered.id, ben!.id, by);
+  await offerAssignment(offered.id, maria!.id, by);
 
   // Nina's second plan clean, Skipped: the plan carries on
   const [, ninaSecond] = await planJobs(ninaPlan.planId);
@@ -577,7 +787,12 @@ async function seed() {
 
   // a plan clean cancelled late, whose fee couldn't be charged
   const yara = contact("yara", "Yara Kim");
-  const yaraHome = await firstCleanDone(yara, "9 Laurel Ct", -35, -30);
+  const yaraHome = await firstCleanDone(
+    yara,
+    home("42-30 Douglaston Pkwy", "11363", { unit: "3A" }),
+    -35,
+    -30,
+  );
   await at(on(-20));
   const yaraPlan = await startedServicePlan({
     propertyId: yaraHome.propertyId,
@@ -596,6 +811,18 @@ async function seed() {
   });
   testPayments().failCharges(null);
 
+  // the regulars' cleans booked as far ahead as the server books them, each
+  // with its Cleaner
+  await at(realNow);
+  await generateServicePlanJobs();
+  for (const { planId, cleanerId } of regulars) {
+    for (const job of await planJobs(planId)) {
+      if (job.startsAt > realNow && job.status === "booked") {
+        await confirm(job.id, cleanerId);
+      }
+    }
+  }
+
   // the fake gateway's payers and cards would fail against the real Stripe
   // sandbox; Clients enter a test card on their first payment instead
   await db.execute(sql`delete from payment_methods`);
@@ -603,39 +830,64 @@ async function seed() {
 
   await stamp();
 
+  async function saveCard(
+    client: NonNullable<Awaited<ReturnType<typeof findClientByEmail>>>,
+  ) {
+    const form = await startCardForm(client);
+    await savePaymentMethod(client, form.secret);
+  }
+
+  // a plan's cleans so far, Confirmed by the Cleaner two days before and
+  // done that day; billed, each week's Bill made the Monday after
+  async function workPlan(planId: string, cleanerId: string, billed = false) {
+    for (const job of await planJobs(planId)) {
+      if (job.startsAt.getTime() > realNow.getTime() - 6 * 3_600_000) break;
+      await at(after(job, -48));
+      await confirm(job.id, cleanerId);
+      await at(after(job, 3));
+      await completeJob(cleanerId, job.id, {
+        condition: "moderate",
+        reports: [],
+      });
+      const monday = addDays(mondayOf(dayOf(job.startsAt)), 7);
+      if (billed && monday <= today) {
+        await at(new Date(`${monday}T15:00:00Z`));
+        await makeDueBills();
+      }
+    }
+  }
+
   async function firstCleanDone(
     who: ReturnType<typeof contact>,
-    street: string,
+    house: NewHome,
     askedIn: number,
     cleanedIn: number,
+    cleanerId = maria!.id,
   ) {
-    const job = await bookedJob(who, street, askedIn, cleanedIn, {}, true);
-    await confirm(job.id, cleo!.id);
+    const job = await bookedJob(who, house, askedIn, cleanedIn, {}, true);
+    await confirm(job.id, cleanerId);
     await at(after(job, 6));
-    await completeJob(cleo!.id, job.id, { condition: "moderate", reports: [] });
+    await completeJob(cleanerId, job.id, {
+      condition: "moderate",
+      reports: [],
+    });
     return { propertyId: job.propertyId };
   }
 
-  // a house asked about `askedIn` days from today, its Quote accepted by
+  // a home asked about `askedIn` days from today, its Quote accepted by
   // phone for a Deep Clean on the first weekday from `startIn`
   async function bookedJob(
     who: ReturnType<typeof contact>,
-    street: string,
+    house: NewHome,
     askedIn: number,
     startIn: number,
     terms: { crewSize?: number; addOns?: string[] } = {},
     wantsRegularService = false,
   ) {
     await at(on(askedIn));
-    const asked = await ask(
-      who,
-      { new: home(street, { type: "house", bedrooms: 3 }) },
-      { wantsRegularService },
-    );
+    const asked = await ask(who, { new: house }, { wantsRegularService });
     await draftAndSend(asked.id, { sent: on(askedIn), startIn, ...terms });
-    const owner = (await findClientByEmail(who.email))!;
-    const form = await startCardForm(owner);
-    await savePaymentMethod(owner, form.secret);
+    await saveCard((await findClientByEmail(who.email))!);
     const accepted = await acceptQuote(
       asked.id,
       { serviceKey: SEEDED.deep },
@@ -645,13 +897,19 @@ async function seed() {
     return accepted.job;
   }
 
-  // Offers a Cleaner a place, which they Confirm: their Assignment's id
+  // Offers a Cleaner a place, which they Confirm: their Assignment's id. A
+  // regular's Cleaner is Offered the plan's next cleans already
   async function confirm(jobId: string, staffId: string) {
-    const offered = await offerAssignment(jobId, staffId, by);
-    const place = offered.assignments.find(
-      (a) => a.staff.id === staffId && a.status === "offered",
-    )!;
-    await confirmAssignment(staffId, place.id);
+    const theirs = (job: Awaited<ReturnType<typeof officeJob>>) =>
+      job.assignments.find(
+        (a) =>
+          a.staff.id === staffId &&
+          (a.status === "offered" || a.status === "confirmed"),
+      );
+    const place =
+      theirs(await officeJob(jobId)) ??
+      theirs(await offerAssignment(jobId, staffId, by))!;
+    if (place.status === "offered") await confirmAssignment(staffId, place.id);
     return place.id;
   }
 }
