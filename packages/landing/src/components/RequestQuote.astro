@@ -14,8 +14,9 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? "http://localhost:3000";
   tone="raised"
   align="center"
 >
-  {/* loads when the section scrolls into view */}
-  <QuoteForm client:visible apiUrl={apiUrl} />
+  {/* drawn at build time, then loaded once the browser is idle after the page
+      has: ready before almost anyone scrolls or jumps down to it */}
+  <QuoteForm client:idle apiUrl={apiUrl} />
   <p class="text-center text-sm text-fg-muted">
     Prefer to talk? Call us on{" "}
     <a href={business.phone.href} class="font-semibold text-fg"

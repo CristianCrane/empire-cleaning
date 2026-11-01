@@ -4,9 +4,11 @@ import { QuoteRequestForm } from "@empire-cleaning/quote-request";
 import { Notice } from "@empire-cleaning/ui";
 import { business } from "../business.ts";
 
-// the Guest Request a Quote form (#3, ADR-0005). Until it has loaded, and if
-// JavaScript is off, the section offers the phone number instead of a form
-// that couldn't send anything.
+// the Guest Request a Quote form (#3, ADR-0005). Its first step is drawn into
+// the page at build time, its tiles blank until the Services arrive, so the
+// page doesn't jump as it loads; until it has, it can't be used (inert). With
+// JavaScript off it never could be, so the section offers the phone number
+// instead.
 export function QuoteForm({ apiUrl }: { apiUrl: string }) {
   const [ready, setReady] = useState(false);
   const [receipt, setReceipt] = useState<QuoteAskReceipt>();
@@ -24,25 +26,22 @@ export function QuoteForm({ apiUrl }: { apiUrl: string }) {
     );
   }
 
-  if (!ready) {
-    return (
-      <p className="text-center text-fg-muted">
+  return (
+    <>
+      <div inert={!ready} className="[@media(scripting:none)]:hidden">
+        <QuoteRequestForm
+          asker={{ kind: "guest" }}
+          apiUrl={apiUrl}
+          onSubmitted={setReceipt}
+        />
+      </div>
+      <p className="hidden text-center text-fg-muted [@media(scripting:none)]:block">
         Call us on{" "}
         <a href={business.phone.href} className="font-semibold text-fg">
           {business.phone.display}
         </a>{" "}
         and we'll put your Quote together.
       </p>
-    );
-  }
-
-  return (
-    <div>
-      <QuoteRequestForm
-        asker={{ kind: "guest" }}
-        apiUrl={apiUrl}
-        onSubmitted={setReceipt}
-      />
-    </div>
+    </>
   );
 }

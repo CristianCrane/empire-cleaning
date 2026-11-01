@@ -36,6 +36,7 @@ import {
   ChipGroup,
   ChoiceTile,
   ChoiceTiles,
+  ChoiceTilesLoading,
   Form,
   Heading,
   Notice,
@@ -151,6 +152,11 @@ const officeWords: typeof ownWords = {
 };
 
 const NEW_PLACE = "new";
+
+// how many Services are usually on offer, for the blank tiles while they
+// load: five or six fill the same rows on a phone (two a row) and wider
+// (three a row), so either arrives without a jump
+const USUAL_SERVICES = 6;
 
 // each Service's picture, as the landing page's "What we clean" draws it
 const serviceIcons: Record<ServiceIcon, LucideIcon> = {
@@ -455,28 +461,30 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
   const error = (path: string) => fieldErrors[path];
 
   // the Services on offer as tiles, the one chosen saying what it is.
-  // Nothing is chosen at first: the Client says what they want.
+  // Nothing is chosen at first: the Client says what they want. Until they
+  // arrive, blank tiles hold their room (as many as are usually offered), so
+  // the form doesn't jump when they do.
   const serviceField =
-    services?.length === 0 ? (
+    services === undefined ? (
+      <ChoiceTilesLoading label={words.service} count={USUAL_SERVICES} />
+    ) : services.length === 0 ? (
       <Notice tone="danger">{words.servicesFailed}</Notice>
     ) : (
-      services && (
-        <ChoiceTiles
-          label={words.service}
-          name="serviceKey"
-          isRequired
-          value={serviceKey}
-          onChange={chooseService}
-          description={service?.description}
-          errorMessage={error("serviceKey")}
-        >
-          {services.map((s) => (
-            <ChoiceTile key={s.key} value={s.key} icon={serviceIcons[s.icon]}>
-              {s.name}
-            </ChoiceTile>
-          ))}
-        </ChoiceTiles>
-      )
+      <ChoiceTiles
+        label={words.service}
+        name="serviceKey"
+        isRequired
+        value={serviceKey}
+        onChange={chooseService}
+        description={service?.description}
+        errorMessage={error("serviceKey")}
+      >
+        {services.map((s) => (
+          <ChoiceTile key={s.key} value={s.key} icon={serviceIcons[s.icon]}>
+            {s.name}
+          </ChoiceTile>
+        ))}
+      </ChoiceTiles>
     );
 
   // one question for what kind of place and, for a home, its type: business

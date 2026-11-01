@@ -2,6 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { business } from "../src/business.ts";
 import { googleReviewsUrl, reviews } from "../src/reviews.ts";
+import { appUrl } from "../playwright.config.ts";
 import { emailsTo, expect, test } from "./harness.ts";
 
 // the form loads once its section scrolls into view, and lists the Services
@@ -128,10 +129,10 @@ test(
       page.getByRole("button", { name: "Next review" }),
     ).toBeHidden();
     // no form that couldn't send anything: the Quote section offers the phone
-    await expect(page.locator("#quote form")).toHaveCount(0);
-    await expect(page.locator("#quote")).toContainText(
-      "and we'll put your Quote together",
-    );
+    await expect(page.locator("#quote form")).toBeHidden();
+    await expect(
+      page.getByText("and we'll put your Quote together"),
+    ).toBeVisible();
     await context.close();
   },
 );
@@ -445,6 +446,86 @@ test.describe("on a device set to dark mode", () => {
     );
     expect(scheme).toBe("light");
   });
+});
+
+test.describe("the Quote form, as it loads", () => {
+  // the Services slow to arrive, as on a poor connection
+  test.beforeEach(async ({ page }) => {
+    await page.route("**/api/services/on-offer", async (route) => {
+      await new Promise((r) => setTimeout(r, 1500));
+      await route.continue();
+    });
+  });
+
+  test(
+    "holds its room, so nothing moves when it arrives",
+    { tag: "@desktop" },
+    async ({ page }) => {
+      await page.goto("/#quote");
+      const height = () =>
+        page
+          .locator("#quote")
+          .evaluate((el) => el.getBoundingClientRect().height);
+      // drawn in the page from the start, its tiles blank
+      await expect(page.locator("#quote [aria-busy]")).toBeVisible();
+      const before = await height();
+
+      await expect(
+        page.getByRole("radio", { name: /^Standard Clean/ }),
+      ).toBeVisible();
+      expect(await height()).toBeCloseTo(before, 0);
+
+      // and the browser saw no layout shift worth the name
+      const shift = await page.evaluate(
+        () =>
+          new Promise<{ total: number; moved: string[] }>((resolve) => {
+            let total = 0;
+            const moved: string[] = [];
+            new PerformanceObserver((list) => {
+              for (const entry of list.getEntries() as (PerformanceEntry & {
+                value: number;
+                sources: { node?: Node }[];
+              })[]) {
+                total += entry.value;
+                for (const { node } of entry.sources)
+                  moved.push(
+                    (node as Element | undefined)?.closest?.("[id]")?.id ??
+                      node?.nodeName ??
+                      "?",
+                  );
+              }
+            }).observe({ type: "layout-shift", buffered: true });
+            setTimeout(() => resolve({ total, moved }), 100);
+          }),
+      );
+      expect(shift.total, `moved: ${shift.moved.join(", ")}`).toBeLessThan(
+        0.01,
+      );
+    },
+  );
+
+  test("can't be used before it's ready", async ({ browser }) => {
+    // the page as drawn, before its script runs
+    const context = await browser.newContext({ javaScriptEnabled: false });
+    const page = await context.newPage();
+    await page.emulateMedia({});
+    await page.goto("/");
+    const form = page.locator("#quote form");
+    // inert, whatever shows
+    expect(await form.evaluate((f) => f.closest("[inert]") !== null)).toBe(
+      true,
+    );
+    await context.close();
+  });
+});
+
+test("Sign in in the header leads to the app, on a phone too", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(
+    page.getByRole("banner").getByRole("link", { name: "Sign in" }),
+  ).toHaveAttribute("href", appUrl);
 });
 
 test("Request a Quote leads to the quote section", async ({ page }) => {
