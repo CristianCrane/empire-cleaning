@@ -2,27 +2,21 @@
 import { buttonStyles } from "@empire-cleaning/ui";
 // its own entry point, so the island ships just the toggle, not the whole design system
 import { ThemeToggle } from "@empire-cleaning/ui/theme";
-import { LogIn, Phone } from "lucide-react";
+import { LogIn } from "lucide-react";
 import { appUrl } from "../app-url.ts";
-import { business } from "../business.ts";
 ---
 
-<!-- a slim bar of actions: the logo is too large for it, so it leads the hero
-     (UX pass, #96). Sign in is here on every screen, for Clients who don't
-     remember the app's address; Request a Quote is the hero's, just below -->
-<header class="border-b border-border bg-surface">
-  <div class="mx-auto flex max-w-5xl items-center justify-between gap-2 px-4 py-3 sm:justify-center sm:gap-3">
-    <a href={business.phone.href} class={buttonStyles({ variant: "quiet", className: "px-2 sm:px-4" })}>
-      <Phone aria-hidden size={18} />
-      {business.phone.display}
+<!-- no bar: two quiet actions in the hero's top right corner. The logo leads
+     the hero (UX pass, #96); Request a Quote and the phone number are the
+     hero's, just below. Sign in is here on every screen, for Clients who don't
+     remember the app's address -->
+<header>
+  <div class="mx-auto flex max-w-5xl items-center justify-end gap-2 px-4 py-3">
+    <a href={appUrl} class={buttonStyles({ variant: "quiet", className: "px-2 sm:px-4" })}>
+      <LogIn aria-hidden size={18} />
+      Sign in
     </a>
-    <div class="flex items-center gap-2">
-      <a href={appUrl} class={buttonStyles({ variant: "quiet", className: "px-2 sm:px-4" })}>
-        <LogIn aria-hidden size={18} />
-        Sign in
-      </a>
-      {/* hydrates once the browser is idle */}
-      <ThemeToggle client:idle />
-    </div>
+    {/* hydrates once the browser is idle */}
+    <ThemeToggle client:idle />
   </div>
 </header>
