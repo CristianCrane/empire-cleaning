@@ -3,6 +3,12 @@ import { business } from "../business.ts";
 import { QuoteForm } from "./QuoteForm.tsx";
 import Section from "./Section.astro";
 
+// a service page's Service, chosen to start with (#177)
+interface Props {
+  start?: { serviceKey: string; regular?: boolean };
+}
+const { start } = Astro.props;
+
 // where the Guest form sends what is asked: the API's public address
 const apiUrl = import.meta.env.PUBLIC_API_URL ?? "http://localhost:3000";
 ---
@@ -16,7 +22,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? "http://localhost:3000";
 >
   {/* drawn at build time, then loaded once the browser is idle after the page
       has: ready before almost anyone scrolls or jumps down to it */}
-  <QuoteForm client:idle apiUrl={apiUrl} />
+  <QuoteForm client:idle apiUrl={apiUrl} start={start} />
   <p class="text-center text-sm text-fg-muted">
     Prefer to talk? Call us on{" "}
     <a href={business.phone.href} class="font-semibold text-fg"

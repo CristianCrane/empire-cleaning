@@ -184,7 +184,7 @@ test("each area's page is its own: no two share a title, description, heading or
     await page.goto(`/${area.slug}/`);
     // at least ~400 words of its own, beside what every page shares
     const own = await page
-      .locator("#places, #homes, #popular, #faqs, #area-title")
+      .locator("#places, #homes, #popular, #faqs, #page-title")
       .allTextContents();
     const words = own.join(" ").split(/\s+/).length;
     expect(words, area.name).toBeGreaterThanOrEqual(400);

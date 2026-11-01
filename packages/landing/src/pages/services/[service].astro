@@ -1,0 +1,97 @@
+---
+import { Check } from "lucide-react";
+import Faqs from "../../components/Faqs.astro";
+import Footer from "../../components/Footer.astro";
+import Header from "../../components/Header.astro";
+import HowItWorks from "../../components/HowItWorks.astro";
+import PageHero from "../../components/PageHero.astro";
+import RequestQuote from "../../components/RequestQuote.astro";
+import Reviews from "../../components/Reviews.astro";
+import Section from "../../components/Section.astro";
+import ServiceCard from "../../components/ServiceCard.astro";
+import Page from "../../layouts/Page.astro";
+import { servicePages, type ServicePage } from "../../service-pages/index.ts";
+import { serviceData } from "../../structured-data.ts";
+
+// a page per service (#177), in the area pages' bands; its words are the
+// service's own, in src/service-pages. Its Quote form starts with its
+// Service chosen, where the Office has one. The footer links every area
+export function getStaticPaths() {
+  return servicePages.map((page) => ({
+    params: { service: page.slug },
+    props: { page },
+  }));
+}
+const { page } = Astro.props as { page: ServicePage };
+const related = page.related.map(
+  (slug) => servicePages.find((p) => p.slug === slug)!,
+);
+const start = page.office && {
+  serviceKey: page.office.key,
+  regular: page.office.regular,
+};
+---
+
+<Page
+  title={page.title}
+  description={page.description}
+  path={`services/${page.slug}/`}
+  data={serviceData(page)}
+>
+  <Header />
+  <main>
+    <PageHero crumb={page.card} heading={page.heading} intro={page.intro} />
+    <Section id="included" title={page.included.title} tone="raised">
+      {/* a card per room, its checklist under it; three rooms sit three
+          across from a laptop, the last filling its row before that */}
+      <ul
+        class:list={[
+          "grid gap-4 sm:grid-cols-2",
+          page.included.rooms.length === 3 &&
+            "lg:grid-cols-3 sm:[&>li:last-child]:col-span-2 lg:[&>li:last-child]:col-span-1",
+        ]}
+      >
+        {
+          page.included.rooms.map(({ name, items }) => (
+            <li class="flex flex-col gap-3 rounded-lg border border-border bg-bg p-5">
+              <h3 class="text-lg font-semibold">{name}</h3>
+              <ul class="flex flex-col gap-2">
+                {items.map((item) => (
+                  <li class="flex items-start gap-2">
+                    <Check aria-hidden size={20} className="mt-0.5 shrink-0 text-primary" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </li>
+          ))
+        }
+      </ul>
+      {
+        page.included.note && (
+          <p class="mx-auto max-w-2xl text-center text-fg-muted">{page.included.note}</p>
+        )
+      }
+    </Section>
+    <Section id="pricing" title={page.pricing.title}>
+      <div class="mx-auto flex max-w-2xl flex-col gap-4 text-lg">
+        {page.pricing.text.map((t) => <p>{t}</p>)}
+      </div>
+    </Section>
+    <Section id="when" title={page.when.title}>
+      <div class="mx-auto flex max-w-2xl flex-col gap-4 text-lg">
+        {page.when.text.map((t) => <p>{t}</p>)}
+      </div>
+    </Section>
+    <Reviews />
+    <Faqs faqs={page.faqs} />
+    <HowItWorks />
+    <RequestQuote start={start} />
+    <Section id="related" title="Related services">
+      <ul class="grid gap-4 sm:grid-cols-3">
+        {related.map((p) => <ServiceCard name={p.card} on="plain" />)}
+      </ul>
+    </Section>
+  </main>
+  <Footer />
+</Page>

@@ -39,7 +39,7 @@ export const suffolk: Area = {
     title: "Family houses, from the harbor to the bay",
     text: [
       "Western Suffolk homes are mostly houses with space to them: a colonial in Dix Hills, a ranch in West Babylon, a high ranch in Commack, a waterfront home in Northport or Bay Shore. Many have a finished basement, a deck, a home office or a playroom, and more bathrooms than a city apartment has rooms. Tell us the bedrooms and bathrooms, and anything extra, when you request a Quote, and it's priced for your house.",
-      "Big houses reward a routine. A deep clean first resets everything, inside the oven and cabinets, along every baseboard and down every stair. After that, a Service Plan keeps it there: weekly, bi-weekly or monthly visits, each one 10% off.",
+      "Big houses reward a routine. A deep clean first resets everything, behind the appliances, along every baseboard and down every stair. After that, a Service Plan keeps it there: weekly, bi-weekly or monthly visits, each one 10% off.",
       "Pets can stay home while we work. Say so when you request a Quote, so the crew knows who'll meet them at the door, and tell us about any rooms you'd like left alone.",
     ],
   },
@@ -84,6 +84,11 @@ export const suffolk: Area = {
       question: "Do you speak Spanish?",
       answer:
         "Sí. Our crew speaks English and Spanish, so you can talk to us in whichever you prefer.",
+    },
+    {
+      question: "Do you clean new builds?",
+      answer:
+        "Yes. Once the builders are done, a post-construction clean clears the dust from every floor, and a deep clean or regular visits keep it that way after you move in.",
     },
   ],
 };

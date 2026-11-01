@@ -58,7 +58,7 @@ export const manhattan: Area = {
       },
       {
         service: "Residential deep cleaning",
-        text: "Inside the oven and cabinets, the window tracks and sills, behind the fridge: a first clean that resets the whole apartment.",
+        text: "The baseboards, the window tracks and sills, behind the fridge: a first clean that resets the whole apartment.",
       },
     ],
   },
@@ -82,6 +82,11 @@ export const manhattan: Area = {
       question: "Do you speak Spanish?",
       answer:
         "Sí. Our crew speaks English and Spanish, so you can talk to us in whichever you prefer.",
+    },
+    {
+      question: "Can you clean a studio?",
+      answer:
+        "Yes, any size of apartment. A studio is priced for its rooms like any home, so a smaller apartment simply means a shorter visit.",
     },
   ],
 };

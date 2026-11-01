@@ -1,6 +1,7 @@
 ---
 import { services } from "../services.ts";
 import Section from "./Section.astro";
+import ServiceCard from "./ServiceCard.astro";
 ---
 
 <Section
@@ -9,17 +10,8 @@ import Section from "./Section.astro";
   intro="Homes, offices and everything in between, done properly the first time."
   tone="raised"
 >
+  {/* each card leads to its service's page (#177) */}
   <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-    {
-      services.map(({ icon: Icon, name, text }) => (
-        <li class="flex flex-col gap-3 rounded-lg border border-border bg-bg p-5">
-          <span class="flex size-12 items-center justify-center rounded-full bg-success-subtle text-success-strong">
-            <Icon aria-hidden size={24} />
-          </span>
-          <h3 class="text-lg font-semibold">{name}</h3>
-          <p class="text-fg-muted">{text}</p>
-        </li>
-      ))
-    }
+    {services.map(({ name }) => <ServiceCard name={name} on="raised" />)}
   </ul>
 </Section>
