@@ -23,7 +23,8 @@ export type ChoiceTilesProps = Omit<
 // one of a few things that are easiest told apart by a picture, as tiles
 // with an icon over a short name (#96), e.g. what needs cleaning. Three sit
 // in a row; four sit two by two on a phone; more sit two to a row on a phone
-// and three on a wider screen.
+// and three on a wider screen. A short last row's tiles grow to fill it, so
+// no row ends in a gap.
 export function ChoiceTiles({
   label,
   description,
@@ -31,6 +32,15 @@ export function ChoiceTiles({
   children,
   ...props
 }: ChoiceTilesProps) {
+  // only the tiles: a tile left out (`{cond && <ChoiceTile>}`) isn't one
+  const count = Children.toArray(children).length;
+  // each tile's share of a full row, less its share of the gaps (gap-2)
+  const perRow =
+    count === 3
+      ? "[&>*]:basis-[calc((100%_-_1rem)/3)]"
+      : count === 4
+        ? "[&>*]:basis-[calc((100%_-_0.5rem)/2)] sm:[&>*]:basis-[calc((100%_-_1.5rem)/4)]"
+        : "[&>*]:basis-[calc((100%_-_0.5rem)/2)] sm:[&>*]:basis-[calc((100%_-_1rem)/3)]";
   return (
     <AriaRadioGroup
       {...props}
@@ -41,15 +51,7 @@ export function ChoiceTiles({
       )}
     >
       <Label>{label}</Label>
-      <div
-        className={
-          Children.count(children) === 4
-            ? "grid grid-cols-2 gap-2 sm:grid-cols-4"
-            : Children.count(children) > 4
-              ? "grid grid-cols-2 gap-2 sm:grid-cols-3"
-              : "grid grid-cols-3 gap-2"
-        }
-      >
+      <div className={`flex flex-wrap gap-2 [&>*]:grow ${perRow}`}>
         {children}
       </div>
       {description && <Description>{description}</Description>}

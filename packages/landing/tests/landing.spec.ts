@@ -480,17 +480,7 @@ test.describe("on a phone", () => {
   const textAlign = (page: Page, selector: string) =>
     page.locator(selector).evaluate((el) => getComputedStyle(el).textAlign);
 
-  test("What we clean's intro is centred under its title, and left from a tablet", async ({
-    page,
-  }) => {
-    await page.goto("/");
-    expect(await textAlign(page, "#services-title + p")).toBe("center");
-
-    await page.setViewportSize({ width: 768, height: 900 });
-    expect(await textAlign(page, "#services-title + p")).toBe("left");
-  });
-
-  test("How it works' steps are centred, and left from a tablet", async ({
+  test("How it works' steps are centred, on a phone and three across", async ({
     page,
   }) => {
     await page.goto("/");
@@ -510,14 +500,41 @@ test.describe("on a phone", () => {
       });
     expect(await centred()).toEqual({ align: "center", numberCentred: true });
 
-    await page.setViewportSize({ width: 768, height: 900 });
-    expect(await centred()).toEqual({ align: "left", numberCentred: false });
+    await page.setViewportSize({ width: 1280, height: 900 });
+    expect(await centred()).toEqual({ align: "center", numberCentred: true });
   });
 
   test("the footer is centred", async ({ page }) => {
     await page.goto("/");
     expect(await textAlign(page, "footer > div")).toBe("center");
   });
+});
+
+test("an intro is centred under its title at every width", async ({ page }) => {
+  for (const width of [390, 768, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/");
+    const intro = page.locator("#services-title + p");
+    expect(await intro.evaluate((p) => getComputedStyle(p).textAlign)).toBe(
+      "center",
+    );
+  }
+});
+
+test("the footer's logo and details are level from a tablet", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 768, height: 900 });
+  await page.goto("/");
+  const middle = (selector: string) =>
+    page.locator(selector).evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return r.top + r.height / 2;
+    });
+  expect(await middle("footer > div > :first-child")).toBeCloseTo(
+    await middle("footer > div > :last-child"),
+    0,
+  );
 });
 
 test("every Why Empire point is a card alike", async ({ page }) => {
