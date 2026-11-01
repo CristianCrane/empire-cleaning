@@ -1,4 +1,5 @@
 import { business as shared } from "@empire-cleaning/models";
+import { areas } from "./areas/index.ts";
 
 // the facts the page, its search data and its tests all share: the business
 // itself (shared with the emails), and how the page presents it
@@ -13,22 +14,8 @@ export const business = {
   // what and where, in the page's heading, under the slogan
   heading:
     "House and office cleaning in Queens, Brooklyn, Manhattan and Long Island",
-  // the area served in full, each with the Wikipedia page that says which
-  // place it is (#178)
-  areas: [
-    { name: "Queens", wiki: "https://en.wikipedia.org/wiki/Queens" },
-    { name: "Brooklyn", wiki: "https://en.wikipedia.org/wiki/Brooklyn" },
-    { name: "Manhattan", wiki: "https://en.wikipedia.org/wiki/Manhattan" },
-    {
-      name: "Nassau County",
-      wiki: "https://en.wikipedia.org/wiki/Nassau_County,_New_York",
-    },
-    {
-      // not the East End
-      name: "Western Suffolk County",
-      wiki: "https://en.wikipedia.org/wiki/Suffolk_County,_New_York",
-    },
-  ],
+  // the area served in full, a page each (#176)
+  areas: areas.map(({ slug, name, wiki }) => ({ slug, name, wiki })),
   hours: {
     days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
     opens: "08:00",

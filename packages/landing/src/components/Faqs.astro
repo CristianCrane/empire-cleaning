@@ -1,0 +1,27 @@
+---
+import { ChevronDown } from "lucide-react";
+import Section from "./Section.astro";
+
+interface Props {
+  faqs: { question: string; answer: string }[];
+}
+const { faqs } = Astro.props;
+---
+
+<Section id="faqs" title="Questions we're asked">
+  {/* each question opens its answer, without JavaScript; every answer is in
+      the page for search engines */}
+  <div class="mx-auto flex w-full max-w-2xl flex-col divide-y divide-border border-y border-border">
+    {
+      faqs.map(({ question, answer }) => (
+        <details class="group py-4">
+          <summary class="flex cursor-pointer list-none items-center justify-between gap-4 rounded-sm text-lg font-semibold outline-offset-4 outline-focus focus-visible:outline-2 [&::-webkit-details-marker]:hidden">
+            {question}
+            <ChevronDown aria-hidden size={20} className="shrink-0 transition group-open:rotate-180" />
+          </summary>
+          <p class="pt-3 text-fg-muted">{answer}</p>
+        </details>
+      ))
+    }
+  </div>
+</Section>

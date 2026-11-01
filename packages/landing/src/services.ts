@@ -51,4 +51,6 @@ export const services = [
     name: "Custom cleaning",
     text: "Something else in mind? Tell us what you need and we'll quote it.",
   },
-];
+] as const;
+
+export type ServiceName = (typeof services)[number]["name"];

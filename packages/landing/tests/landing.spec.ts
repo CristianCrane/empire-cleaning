@@ -846,7 +846,7 @@ test.describe("search engines", () => {
     const response = await page.goto("/no-such-page");
 
     expect(response?.status()).toBe(404);
-    await expect(page).toHaveTitle(`Page not found | ${business.brand}`);
+    await expect(page).toHaveTitle("Page not found | Empire Cleaning");
     await expect(page.locator('link[rel="canonical"]')).toHaveCount(0);
     await expect(
       page.getByRole("link", { name: "Request a Quote" }),

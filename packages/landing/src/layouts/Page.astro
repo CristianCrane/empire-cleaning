@@ -7,11 +7,18 @@ import { business } from "../business.ts";
 import { isTestSite } from "../site-mode.ts";
 import { structuredData } from "../structured-data.ts";
 
-// a page other than the home page names itself first; only the home page is
-// canonical, and the 404 isn't any page's address
-type Props = { title?: string; canonical?: boolean };
-const { title, canonical = true } = Astro.props;
-const pageTitle = title ? `${title} | ${business.brand}` : business.title;
+// a page other than the home page names itself first, and says where it is
+// (path, e.g. "queens/"); the 404 isn't any page's address (null). Its own
+// structured data joins the business's
+type Props = {
+  title?: string;
+  description?: string;
+  path?: string | null;
+  data?: object[];
+};
+const { title, description = business.description, path = "", data } = Astro.props;
+const pageTitle = title ? `${title} | Empire Cleaning` : business.title;
+const url = path === null ? null : new URL(path, business.url).href;
 ---
 
 <!doctype html>
@@ -28,8 +35,8 @@ const pageTitle = title ? `${title} | ${business.brand}` : business.title;
       ))
     }
     <title>{pageTitle}</title>
-    <meta name="description" content={business.description} />
-    {canonical && <link rel="canonical" href={business.url} />}
+    <meta name="description" content={description} />
+    {url && <link rel="canonical" href={url} />}
     <meta name="theme-color" content="#06682f" />
     <link rel="icon" href="/favicon.ico" sizes="48x48" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
@@ -40,8 +47,8 @@ const pageTitle = title ? `${title} | ${business.brand}` : business.title;
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content={business.brand} />
     <meta property="og:title" content={pageTitle} />
-    <meta property="og:description" content={business.description} />
-    <meta property="og:url" content={business.url} />
+    <meta property="og:description" content={description} />
+    {url && <meta property="og:url" content={url} />}
     <meta property="og:locale" content="en_US" />
     <meta property="og:image" content={new URL("og-image.png", business.url).href} />
     <meta property="og:image:width" content="1200" />
@@ -52,7 +59,7 @@ const pageTitle = title ? `${title} | ${business.brand}` : business.title;
     <script
       is:inline
       type="application/ld+json"
-      set:html={JSON.stringify(structuredData)}
+      set:html={JSON.stringify(structuredData(data))}
     />
   </head>
   <body>
