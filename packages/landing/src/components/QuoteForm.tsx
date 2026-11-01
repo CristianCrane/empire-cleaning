@@ -9,7 +9,14 @@ import { business } from "../business.ts";
 // page doesn't jump as it loads; until it has, it can't be used (inert). With
 // JavaScript off it never could be, so the section offers the phone number
 // instead.
-export function QuoteForm({ apiUrl }: { apiUrl: string }) {
+export function QuoteForm({
+  apiUrl,
+  start,
+}: {
+  apiUrl: string;
+  // a service page's Service, chosen to start with (#177)
+  start?: { serviceKey: string; regular?: boolean };
+}) {
   const [ready, setReady] = useState(false);
   const [receipt, setReceipt] = useState<QuoteAskReceipt>();
   useEffect(() => setReady(true), []);
@@ -32,6 +39,7 @@ export function QuoteForm({ apiUrl }: { apiUrl: string }) {
         <QuoteRequestForm
           asker={{ kind: "guest" }}
           apiUrl={apiUrl}
+          start={start}
           onSubmitted={setReceipt}
         />
       </div>

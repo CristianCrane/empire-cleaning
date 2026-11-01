@@ -39,7 +39,7 @@ export const nassau: Area = {
     title: "Houses with room to clean",
     text: [
       "Most of the homes we clean in Nassau are houses: a Cape in Levittown, a colonial in Garden City, a split-level in Massapequa, a beach house in Long Beach. More rooms and more bathrooms mean a longer visit, and many have a finished basement, a playroom or a home office besides. When you request a Quote, tell us the bedrooms and bathrooms and anything extra you'd like cleaned, and we'll price it for your house.",
-      "Houses gather different dirt than apartments: sand tracked in from the beach, mud from the yard, pet hair on every stair. A deep clean first gets to all of it, inside the oven and cabinets, along every baseboard. After that, a regular clean keeps on top of it.",
+      "Houses gather different dirt than apartments: sand tracked in from the beach, mud from the yard, pet hair on every stair. A deep clean first gets to all of it, behind the appliances and along every baseboard. After that, a regular clean keeps on top of it.",
       "With a Service Plan you choose weekly, bi-weekly or monthly visits after your first clean, and every one is 10% off. Skip a visit when you're away or end the plan whenever you need to.",
     ],
   },

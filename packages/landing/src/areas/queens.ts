@@ -54,7 +54,7 @@ export const queens: Area = {
       },
       {
         service: "Residential deep cleaning",
-        text: "Our first visit to most homes, top to bottom, inside cabinets and behind appliances. After that, a standard clean keeps it there.",
+        text: "Our first visit to most homes, top to bottom, behind the appliances and along every baseboard. After that, a standard clean keeps it there.",
       },
       {
         service: "Office cleaning",

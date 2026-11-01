@@ -99,6 +99,10 @@ export type QuoteRequestFormProps<R = QuoteAskReceipt> = {
   page?: { before?: ReactNode; aside?: ReactNode; contactActions?: ReactNode };
   // what would be asked as it's filled in, once a Service is chosen
   onAskChange?: (ask: QuoteAsk | null) => void;
+  // a Service to start with, by key, chosen once the Services arrive if
+  // it's on offer; and regular visits already asked for (a page about a
+  // Service, #177)
+  start?: { serviceKey: string; regular?: boolean };
 };
 
 // the form speaks to whoever fills it in: the person asking, or Office Staff
@@ -264,6 +268,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
   onSubmitted,
   page,
   onAskChange,
+  start,
 }: QuoteRequestFormProps<R>) {
   const words = asker.kind === "office" ? officeWords : ownWords;
   // whose Properties are offered: a Client's own, or the one the Office found
@@ -321,6 +326,13 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
   useEffect(() => {
     void loadServices(apiUrl).then(setServices);
   }, [apiUrl]);
+  // the Service to start with, once, as the Services arrive
+  useEffect(() => {
+    if (!services || !start || serviceKey) return;
+    if (!services.some((s) => s.key === start.serviceKey)) return;
+    chooseService(start.serviceKey);
+    if (start.regular) setWantsRegularService(true);
+  }, [services]);
   // a home's Add-ons are the Service's own
   useEffect(() => {
     if (!serviceKey) return;

@@ -1,6 +1,6 @@
 ---
 import { areas, type Area } from "../areas/index.ts";
-import AreaHero from "../components/AreaHero.astro";
+import PageHero from "../components/PageHero.astro";
 import Faqs from "../components/Faqs.astro";
 import Footer from "../components/Footer.astro";
 import Header from "../components/Header.astro";
@@ -8,7 +8,7 @@ import HowItWorks from "../components/HowItWorks.astro";
 import RequestQuote from "../components/RequestQuote.astro";
 import Reviews from "../components/Reviews.astro";
 import Section from "../components/Section.astro";
-import { services } from "../services.ts";
+import ServiceCard from "../components/ServiceCard.astro";
 import { areaData } from "../structured-data.ts";
 import Page from "../layouts/Page.astro";
 
@@ -19,7 +19,6 @@ export function getStaticPaths() {
   return areas.map((area) => ({ params: { area: area.slug }, props: { area } }));
 }
 const { area } = Astro.props as { area: Area };
-const iconOf = (name: string) => services.find((s) => s.name === name)!.icon;
 ---
 
 <Page
@@ -30,7 +29,7 @@ const iconOf = (name: string) => services.find((s) => s.name === name)!.icon;
 >
   <Header />
   <main>
-    <AreaHero area={area} />
+    <PageHero crumb={area.name} heading={area.heading} intro={area.intro} />
     <Section id="places" title={area.places.title} tone="raised">
       <ul class="flex flex-wrap justify-center gap-2">
         {area.places.list.map((p) => (
@@ -45,20 +44,11 @@ const iconOf = (name: string) => services.find((s) => s.name === name)!.icon;
       </div>
     </Section>
     <Section id="popular" title={area.popular.title}>
-      {/* the home page's service cards, two across */}
+      {/* the home page's service cards, two across, in the area's words */}
       <ul class="grid gap-4 sm:grid-cols-2">
-        {area.popular.list.map(({ service, text }) => {
-          const Icon = iconOf(service);
-          return (
-            <li class="flex flex-col gap-3 rounded-lg border border-border bg-surface p-5">
-              <span class="flex size-12 items-center justify-center rounded-full bg-success-subtle text-success-strong">
-                <Icon aria-hidden size={24} />
-              </span>
-              <h3 class="text-lg font-semibold">{service}</h3>
-              <p class="text-fg-muted">{text}</p>
-            </li>
-          );
-        })}
+        {area.popular.list.map(({ service, text }) => (
+          <ServiceCard name={service} text={text} on="plain" />
+        ))}
       </ul>
     </Section>
     <Reviews />

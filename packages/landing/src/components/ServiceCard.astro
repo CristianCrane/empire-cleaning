@@ -1,0 +1,48 @@
+---
+import { ChevronRight } from "lucide-react";
+import { servicePages } from "../service-pages/index.ts";
+import { services, type ServiceName } from "../services.ts";
+
+// one of the home page's service cards, wherever it shows. The whole card
+// leads to its service's page (#177), where it has one; its name says so, in
+// the brand colour with an arrow. `on` is the band it sits on, so the card
+// stands out from it
+interface Props {
+  name: ServiceName;
+  // the card's own words, if not the home page's
+  text?: string;
+  on: "plain" | "raised";
+}
+const { name, text, on } = Astro.props;
+const service = services.find((s) => s.name === name)!;
+const page = servicePages.find((p) => p.card === name);
+const Icon = service.icon;
+---
+
+<li
+  class:list={[
+    "relative flex flex-col gap-3 rounded-lg border border-border p-5",
+    on === "raised" ? "bg-bg" : "bg-surface",
+    page && "has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-focus hover:border-primary",
+  ]}
+>
+  <span class="flex size-12 items-center justify-center rounded-full bg-success-subtle text-success-strong">
+    <Icon aria-hidden size={24} />
+  </span>
+  <h3 class="text-lg font-semibold">
+    {
+      page ? (
+        <a
+          href={`/services/${page.slug}/`}
+          class="inline-flex items-center gap-1 text-primary outline-none after:absolute after:inset-0"
+        >
+          {name}
+          <ChevronRight aria-hidden size={18} />
+        </a>
+      ) : (
+        name
+      )
+    }
+  </h3>
+  <p class="text-fg-muted">{text ?? service.text}</p>
+</li>

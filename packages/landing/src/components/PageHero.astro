@@ -1,18 +1,20 @@
 ---
 import { Logo, buttonStyles } from "@empire-cleaning/ui";
 import { ChevronRight, Phone } from "lucide-react";
-import type { Area } from "../areas/index.ts";
 import { business } from "../business.ts";
 
+// the top of an area's or a service's page: `crumb` names it after Home
 interface Props {
-  area: Area;
+  crumb: string;
+  heading: string;
+  intro: string;
 }
-const { area } = Astro.props;
+const { crumb, heading, intro } = Astro.props;
 ---
 
 <!-- the home page's hero, smaller: the logo leads, back to the home page; the
      breadcrumbs, then what and where, then the two actions, all centred -->
-<section aria-labelledby="area-title" class="pt-4 pb-14 sm:pb-20">
+<section aria-labelledby="page-title" class="pt-4 pb-14 sm:pb-20">
   <div class="mx-auto flex max-w-5xl flex-col items-center gap-6 px-4 text-center">
     <a href="/" aria-label={`${business.brand}, home`}>
       <Logo className="w-32 sm:w-36" />
@@ -21,16 +23,16 @@ const { area } = Astro.props;
       <ol class="flex items-center gap-1 text-fg-muted">
         <li><a href="/" class="font-semibold text-primary">Home</a></li>
         <li aria-hidden="true"><ChevronRight size={16} /></li>
-        <li aria-current="page">{area.name}</li>
+        <li aria-current="page">{crumb}</li>
       </ol>
     </nav>
     <h1
-      id="area-title"
+      id="page-title"
       class="max-w-3xl font-display text-4xl leading-tight font-bold tracking-wide uppercase sm:text-5xl"
     >
-      {area.heading}
+      {heading}
     </h1>
-    <p class="max-w-2xl text-xl text-fg-muted">{area.intro}</p>
+    <p class="max-w-2xl text-xl text-fg-muted">{intro}</p>
     <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
       <a href="#quote" class={buttonStyles({ variant: "primary", className: "px-6 text-lg" })}>
         Request a Quote

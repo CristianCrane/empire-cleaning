@@ -1,5 +1,6 @@
 import { business } from "./business.ts";
 import type { Area } from "./areas/index.ts";
+import type { ServicePage } from "./service-pages/index.ts";
 import { services } from "./services.ts";
 
 // what search engines read about the business (#178), built from the same
@@ -67,18 +68,21 @@ export const structuredData = (page: object[] = []) => ({
   ],
 });
 
-// an area's page (#176): the way back to the home page, and cleaning there,
-// provided by the business, referred to by its @id
+// the way back from a page to the home page, as its breadcrumbs show
+const crumbs = (name: string, url: string) => ({
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Home", item: business.url },
+    { "@type": "ListItem", position: 2, name, item: url },
+  ],
+});
+
+// an area's page (#176): its breadcrumbs, and cleaning there, provided by
+// the business, referred to by its @id
 export const areaData = (area: Area) => {
   const url = new URL(`${area.slug}/`, business.url).href;
   return [
-    {
-      "@type": "BreadcrumbList",
-      itemListElement: [
-        { "@type": "ListItem", position: 1, name: "Home", item: business.url },
-        { "@type": "ListItem", position: 2, name: area.name, item: url },
-      ],
-    },
+    crumbs(area.name, url),
     {
       "@type": "Service",
       "@id": `${url}#service`,
@@ -88,6 +92,25 @@ export const areaData = (area: Area) => {
       url,
       provider: { "@id": businessId },
       areaServed: place(area),
+    },
+  ];
+};
+
+// a service's page (#177): its breadcrumbs, and the service, provided by
+// the business across the area it serves
+export const serviceData = (page: ServicePage) => {
+  const url = new URL(`services/${page.slug}/`, business.url).href;
+  return [
+    crumbs(page.card, url),
+    {
+      "@type": "Service",
+      "@id": `${url}#service`,
+      name: page.heading,
+      description: page.description,
+      serviceType: page.card,
+      url,
+      provider: { "@id": businessId },
+      areaServed: business.areas.map(place),
     },
   ];
 };
