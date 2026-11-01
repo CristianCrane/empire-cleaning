@@ -1,4 +1,5 @@
 import { business } from "./business.ts";
+import type { Area } from "./areas/index.ts";
 import { services } from "./services.ts";
 
 // what search engines read about the business (#178), built from the same
@@ -8,7 +9,15 @@ import { services } from "./services.ts";
 // spam.
 export const businessId = `${business.url}#business`;
 
-export const structuredData = {
+const place = ({ name, wiki }: { name: string; wiki: string }) => ({
+  "@type": "AdministrativeArea",
+  name,
+  sameAs: wiki,
+});
+
+// every page carries the business in full, so whichever page a search engine
+// reads first, it has it; then whatever is particular to that page
+export const structuredData = (page: object[] = []) => ({
   "@context": "https://schema.org",
   "@graph": [
     {
@@ -29,11 +38,7 @@ export const structuredData = {
         addressRegion: "NY",
         addressCountry: "US",
       },
-      areaServed: business.areas.map(({ name, wiki }) => ({
-        "@type": "AdministrativeArea",
-        name,
-        sameAs: wiki,
-      })),
+      areaServed: business.areas.map(place),
       openingHoursSpecification: {
         "@type": "OpeningHoursSpecification",
         dayOfWeek: business.hours.days,
@@ -58,5 +63,31 @@ export const structuredData = {
       url: business.url,
       publisher: { "@id": businessId },
     },
+    ...page,
   ],
+});
+
+// an area's page (#176): the way back to the home page, and cleaning there,
+// provided by the business, referred to by its @id
+export const areaData = (area: Area) => {
+  const url = new URL(`${area.slug}/`, business.url).href;
+  return [
+    {
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "Home", item: business.url },
+        { "@type": "ListItem", position: 2, name: area.name, item: url },
+      ],
+    },
+    {
+      "@type": "Service",
+      "@id": `${url}#service`,
+      name: area.heading,
+      description: area.description,
+      serviceType: "House cleaning",
+      url,
+      provider: { "@id": businessId },
+      areaServed: place(area),
+    },
+  ];
 };

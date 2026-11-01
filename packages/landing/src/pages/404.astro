@@ -10,7 +10,7 @@ import Page from "../layouts/Page.astro";
 <!-- an address that isn't a page (#172): served for any unknown path, with a
      404 status, and left out of the sitemap. Back to the home page, its
      Quote form or the phone; the footer carries the logo -->
-<Page title="Page not found" canonical={false}>
+<Page title="Page not found" path={null}>
   <Header />
   <main class="mx-auto flex max-w-xl flex-col items-center gap-6 px-4 pt-16 pb-24 text-center">
     <h1 class="font-display text-4xl font-bold tracking-wide uppercase sm:text-5xl">

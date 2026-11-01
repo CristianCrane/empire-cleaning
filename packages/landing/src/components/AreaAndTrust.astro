@@ -1,5 +1,6 @@
 ---
 import { Gem, MapPin, ShieldCheck, Users } from "lucide-react";
+import { areas } from "../areas/index.ts";
 import { business } from "../business.ts";
 import Section from "./Section.astro";
 
@@ -8,7 +9,8 @@ const points = [
   {
     icon: MapPin,
     name: `Serving ${business.area}`,
-    text: "Queens, Brooklyn, Manhattan, Nassau and western Suffolk.",
+    // each area links to its page (#176)
+    areas: true,
     // the crew speaks Spanish; said in Spanish, for those it's for
     spanish: "Se habla español.",
   },
@@ -22,12 +24,22 @@ const points = [
   {/* the icon beside the words, or above them in four narrow columns */}
   <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
     {
-      points.map(({ icon: Icon, name, text, spanish }) => (
+      points.map(({ icon: Icon, name, text, areas: linked, spanish }) => (
         <li class="flex items-start gap-4 rounded-lg border border-border bg-surface p-5 lg:flex-col lg:gap-3">
           <Icon aria-hidden size={28} className="shrink-0 text-primary" />
           <div class="flex flex-col gap-1">
             <h3 class="text-lg font-semibold">{name}</h3>
             <p class="text-fg-muted">
+              {linked &&
+                areas.map((a, i) => (
+                  <>
+                    {i > 0 && (i === areas.length - 1 ? " and " : ", ")}
+                    <a href={`/${a.slug}/`} class="font-semibold text-primary">
+                      {a.short}
+                    </a>
+                  </>
+                ))}
+              {linked && "."}
               {text}
               {spanish && <span lang="es"> {spanish}</span>}
             </p>
