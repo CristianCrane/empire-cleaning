@@ -9,6 +9,7 @@ import RequestQuote from "../components/RequestQuote.astro";
 import Reviews from "../components/Reviews.astro";
 import Section from "../components/Section.astro";
 import ServiceCard from "../components/ServiceCard.astro";
+import { card } from "../band.ts";
 import { areaData } from "../structured-data.ts";
 import Page from "../layouts/Page.astro";
 
@@ -30,10 +31,10 @@ const { area } = Astro.props as { area: Area };
   <Header />
   <main>
     <PageHero crumb={area.name} heading={area.heading} intro={area.intro} />
-    <Section id="places" title={area.places.title} tone="raised">
+    <Section id="places" title={area.places.title}>
       <ul class="flex flex-wrap justify-center gap-2">
         {area.places.list.map((p) => (
-          <li class="rounded-full border border-border bg-bg px-4 py-1.5">{p}</li>
+          <li class:list={["rounded-full border border-border px-4 py-1.5", card]}>{p}</li>
         ))}
       </ul>
       {area.places.note && <p class="text-center text-fg-muted">{area.places.note}</p>}
@@ -47,7 +48,7 @@ const { area } = Astro.props as { area: Area };
       {/* the home page's service cards, two across, in the area's words */}
       <ul class="grid gap-4 sm:grid-cols-2">
         {area.popular.list.map(({ service, text }) => (
-          <ServiceCard name={service} text={text} on="plain" />
+          <ServiceCard name={service} text={text} />
         ))}
       </ul>
     </Section>

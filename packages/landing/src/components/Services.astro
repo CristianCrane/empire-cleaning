@@ -8,10 +8,9 @@ import ServiceCard from "./ServiceCard.astro";
   id="services"
   title="What we clean"
   intro="Homes, offices and everything in between, done properly the first time."
-  tone="raised"
 >
   {/* each card leads to its service's page (#177) */}
   <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-    {services.map(({ name }) => <ServiceCard name={name} on="raised" />)}
+    {services.map(({ name }) => <ServiceCard name={name} />)}
   </ul>
 </Section>

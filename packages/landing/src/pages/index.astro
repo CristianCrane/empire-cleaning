@@ -1,5 +1,6 @@
 ---
 import AreaAndTrust from "../components/AreaAndTrust.astro";
+import Faqs from "../components/Faqs.astro";
 import Footer from "../components/Footer.astro";
 import Header from "../components/Header.astro";
 import Hero from "../components/Hero.astro";
@@ -8,6 +9,7 @@ import RequestQuote from "../components/RequestQuote.astro";
 import Reviews from "../components/Reviews.astro";
 import ServicePlans from "../components/ServicePlans.astro";
 import Services from "../components/Services.astro";
+import { faqs } from "../faqs.ts";
 import Page from "../layouts/Page.astro";
 ---
 
@@ -16,12 +18,15 @@ import Page from "../layouts/Page.astro";
   <main>
     <Hero />
     <Services />
-    <AreaAndTrust />
     <Reviews />
-    <ServicePlans />
+    <AreaAndTrust />
     {/* the steps sit just above the form where they start */}
     <HowItWorks />
     <RequestQuote />
+    <ServicePlans />
+    {/* after the form, for whoever still has a question; folded, so the
+        page stays quiet (#180) */}
+    <Faqs faqs={faqs} />
   </main>
   <Footer />
 </Page>

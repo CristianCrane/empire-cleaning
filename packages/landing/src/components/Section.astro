@@ -1,32 +1,26 @@
 ---
 import { Heading } from "@empire-cleaning/ui";
+import { raisedBand } from "../band.ts";
 
 // one band of the page: a titled, linkable region
 interface Props {
   id: string;
   title: string;
   intro?: string;
-  tone?: "plain" | "raised";
   // the title and intro are always centred; "center" puts everything under
   // them in one narrower column down the middle too, e.g. a form
   align?: "start" | "center";
 }
 
-const { id, title, intro, tone = "plain", align = "start" } = Astro.props;
+const { id, title, intro, align = "start" } = Astro.props;
 const headingId = `${id}-title`;
 ---
 
-<!-- two plain bands in a row read as one, so the second drops its top
-     padding: the space between them stays one band's padding, as everywhere -->
+<!-- plain or raised by its place on the page (band.ts) -->
 <section
   id={id}
   aria-labelledby={headingId}
-  data-tone={tone}
-  class:list={[
-    "scroll-mt-4 py-14 sm:py-20",
-    tone === "raised" && "border-y border-border bg-surface",
-    tone === "plain" && "[[data-tone=plain]+&]:pt-0",
-  ]}
+  class:list={["scroll-mt-4 py-14 sm:py-20", raisedBand]}
 >
   <div
     class:list={[

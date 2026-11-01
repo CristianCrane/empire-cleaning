@@ -1,5 +1,6 @@
 import { business } from "./business.ts";
 import type { Area } from "./areas/index.ts";
+import type { Guide } from "./guides/index.ts";
 import type { ServicePage } from "./service-pages/index.ts";
 import { services } from "./services.ts";
 
@@ -111,6 +112,27 @@ export const serviceData = (page: ServicePage) => {
       url,
       provider: { "@id": businessId },
       areaServed: business.areas.map(place),
+    },
+  ];
+};
+
+// a guide (#180): its breadcrumbs, and the article, written and published
+// by the business
+export const guideData = (guide: Guide) => {
+  const url = new URL(`guides/${guide.slug}/`, business.url).href;
+  return [
+    crumbs(guide.crumb, url),
+    {
+      "@type": "Article",
+      "@id": `${url}#article`,
+      headline: guide.heading,
+      description: guide.description,
+      url,
+      mainEntityOfPage: url,
+      datePublished: guide.published,
+      image: new URL("og-image.png", business.url).href,
+      author: { "@id": businessId },
+      publisher: { "@id": businessId },
     },
   ];
 };

@@ -1,0 +1,68 @@
+---
+import { Check } from "lucide-react";
+import Footer from "../../components/Footer.astro";
+import Header from "../../components/Header.astro";
+import PageHero from "../../components/PageHero.astro";
+import RequestQuote from "../../components/RequestQuote.astro";
+import Section from "../../components/Section.astro";
+import ServiceCard from "../../components/ServiceCard.astro";
+import { guides, type Guide } from "../../guides/index.ts";
+import Page from "../../layouts/Page.astro";
+import { servicePages } from "../../service-pages/index.ts";
+import { guideData } from "../../structured-data.ts";
+
+// a guide (#180): the page's hero, then a band per part, read like
+// an article down one narrow column; the form; and the services it's
+// linked from
+export function getStaticPaths() {
+  return guides.map((guide) => ({
+    params: { guide: guide.slug },
+    props: { guide },
+  }));
+}
+const { guide } = Astro.props as { guide: Guide };
+const related = [...new Set(guide.linkedFrom.map((l) => l.service))]
+  .slice(0, 3)
+  .map((slug) => servicePages.find((p) => p.slug === slug)!);
+const sectionId = (i: number) => `part-${i + 1}`;
+---
+
+<Page
+  title={guide.title}
+  description={guide.description}
+  path={`guides/${guide.slug}/`}
+  data={guideData(guide)}
+>
+  <Header />
+  <main>
+    <PageHero crumb={guide.crumb} heading={guide.heading} intro={guide.intro} />
+    {
+      guide.sections.map(({ title, text, list }, i) => (
+        <Section id={sectionId(i)} title={title}>
+          <div class="mx-auto flex max-w-2xl flex-col gap-4 text-lg">
+            {text.map((t) => (
+              <p>{t}</p>
+            ))}
+            {list && (
+              <ul class="flex flex-col gap-3">
+                {list.map((item) => (
+                  <li class="flex items-start gap-2">
+                    <Check aria-hidden size={20} className="mt-1 shrink-0 text-primary" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </Section>
+      ))
+    }
+    <RequestQuote />
+    <Section id="related" title="Our services">
+      <ul class="grid gap-4 sm:grid-cols-3">
+        {related.map((p) => <ServiceCard name={p.card} />)}
+      </ul>
+    </Section>
+  </main>
+  <Footer />
+</Page>
