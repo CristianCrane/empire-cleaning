@@ -5,17 +5,13 @@ import { firstScreenFonts } from "@empire-cleaning/ui/fonts";
 import { TestSiteBanner } from "@empire-cleaning/ui";
 import { business } from "../business.ts";
 import { isTestSite } from "../site-mode.ts";
+import { structuredData } from "../structured-data.ts";
 
-// structured data so search engines can show the business (name, phone, area)
-const localBusiness = {
-  "@context": "https://schema.org",
-  "@type": "LocalBusiness",
-  name: business.name,
-  url: business.url,
-  telephone: business.phone.e164,
-  description: business.description,
-  areaServed: { "@type": "AdministrativeArea", name: "Queens, New York" },
-};
+// a page other than the home page names itself first; only the home page is
+// canonical, and the 404 isn't any page's address
+type Props = { title?: string; canonical?: boolean };
+const { title, canonical = true } = Astro.props;
+const pageTitle = title ? `${title} | ${business.brand}` : business.title;
 ---
 
 <!doctype html>
@@ -31,31 +27,32 @@ const localBusiness = {
         <link rel="preload" as="font" type="font/woff2" href={href} crossorigin />
       ))
     }
-    <title>{business.title}</title>
+    <title>{pageTitle}</title>
     <meta name="description" content={business.description} />
-    <link rel="canonical" href={business.url} />
+    {canonical && <link rel="canonical" href={business.url} />}
     <meta name="theme-color" content="#06682f" />
     <link rel="icon" href="/favicon.ico" sizes="48x48" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
     {isTestSite && <meta name="robots" content="noindex, nofollow" />}
 
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content={business.name} />
-    <meta property="og:title" content={business.title} />
+    <meta property="og:site_name" content={business.brand} />
+    <meta property="og:title" content={pageTitle} />
     <meta property="og:description" content={business.description} />
     <meta property="og:url" content={business.url} />
     <meta property="og:locale" content="en_US" />
     <meta property="og:image" content={new URL("og-image.png", business.url).href} />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content={business.name} />
+    <meta property="og:image:alt" content={business.brand} />
     <meta name="twitter:card" content="summary_large_image" />
 
     <script
       is:inline
       type="application/ld+json"
-      set:html={JSON.stringify(localBusiness)}
+      set:html={JSON.stringify(structuredData)}
     />
   </head>
   <body>

@@ -27,7 +27,7 @@ describe("the email layout", () => {
     );
     expect(html).toContain("(646) 320-9076");
     expect(text).toBe(
-      "Hello\n\n-- \nEmpire Cleaning & Pro Services Inc · Queens, NY · (646) 320-9076 · empirecleaningandpro.com",
+      "Hello\n\n-- \nEmpire Cleaning & Pro Services Inc · Queens, NYC and Long Island · (646) 320-9076 · empirecleaningandpro.com",
     );
   });
 

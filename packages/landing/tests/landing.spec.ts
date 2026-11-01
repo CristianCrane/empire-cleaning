@@ -749,12 +749,111 @@ test.describe("search engines", () => {
         .locator('script[type="application/ld+json"]')
         .textContent()) ?? "",
     );
-    expect(data).toMatchObject({
-      "@type": "LocalBusiness",
-      name: business.name,
+    const [place, site] = data["@graph"];
+    expect(place).toMatchObject({
+      "@type": "HomeAndConstructionBusiness",
+      "@id": `${business.url}#business`,
+      name: business.brand,
+      legalName: business.name,
       telephone: business.phone.e164,
       url: business.url,
+      openingHoursSpecification: {
+        dayOfWeek: [
+          "Monday",
+          "Tuesday",
+          "Wednesday",
+          "Thursday",
+          "Friday",
+          "Saturday",
+        ],
+        opens: "08:00",
+        closes: "18:00",
+      },
+      knowsLanguage: ["en", "es"],
     });
+    expect(place.areaServed.map((a: { name: string }) => a.name)).toEqual([
+      "Queens",
+      "Brooklyn",
+      "Manhattan",
+      "Nassau County",
+      "Western Suffolk County",
+    ]);
+    // each area says which place it is
+    for (const area of place.areaServed) {
+      expect(area.sameAs).toMatch(/^https:\/\/en\.wikipedia\.org\/wiki\//);
+    }
+    expect(place.hasOfferCatalog.itemListElement).toHaveLength(8);
+    // Google ignores, and may penalise, a business's own reviews marked up
+    expect(place).not.toHaveProperty("aggregateRating");
+    expect(place).not.toHaveProperty("review");
+    // the logo and the picture it names ship with the site
+    for (const url of [place.logo, place.image]) {
+      expect((await page.request.get(new URL(url).pathname)).ok()).toBe(true);
+    }
+    expect(site).toMatchObject({
+      "@type": "WebSite",
+      url: business.url,
+      publisher: { "@id": place["@id"] },
+    });
+  });
+
+  test("read what we do and where in the heading, and the Spanish", async ({
+    page,
+  }) => {
+    await page.goto("/");
+
+    await expect(page.getByRole("heading", { level: 1 })).toContainText(
+      business.heading,
+    );
+    for (const place of [
+      "Brooklyn",
+      "Manhattan",
+      "Nassau",
+      "western Suffolk",
+    ]) {
+      await expect(page.locator("#why-empire")).toContainText(place);
+    }
+    await expect(page.locator('#why-empire [lang="es"]')).toHaveText(
+      "Se habla español.",
+    );
+    await expect(page.locator('footer [lang="es"]')).toHaveText(
+      "Se habla español",
+    );
+    await expect(page.locator("footer")).toContainText(business.hours.display);
+  });
+
+  test("get icons for the tab, the home screen and the results", async ({
+    page,
+  }) => {
+    await page.goto("/");
+
+    for (const selector of [
+      'link[rel="icon"][type="image/svg+xml"]',
+      'link[rel="icon"][sizes="48x48"]',
+      'link[rel="apple-touch-icon"]',
+      'link[rel="manifest"]',
+    ]) {
+      const href = await page.locator(selector).getAttribute("href");
+      expect((await page.request.get(href ?? "")).ok(), selector).toBe(true);
+    }
+    const manifest = await (await page.request.get("/site.webmanifest")).json();
+    for (const { src } of manifest.icons) {
+      expect((await page.request.get(src)).ok(), src).toBe(true);
+    }
+  });
+
+  test("get a 404 for an address that isn't a page", async ({ page }) => {
+    const response = await page.goto("/no-such-page");
+
+    expect(response?.status()).toBe(404);
+    await expect(page).toHaveTitle(`Page not found | ${business.brand}`);
+    await expect(page.locator('link[rel="canonical"]')).toHaveCount(0);
+    await expect(
+      page.getByRole("link", { name: "Request a Quote" }),
+    ).toHaveAttribute("href", "/#quote");
+    await expect(
+      page.getByRole("link", { name: `Call ${business.phone.display}` }),
+    ).toHaveAttribute("href", business.phone.href);
   });
 
   test("find the page through robots.txt and the sitemap", async ({
@@ -767,5 +866,6 @@ test.describe("search engines", () => {
     expect(index.ok()).toBe(true);
     const sitemap = await (await request.get("/sitemap-0.xml")).text();
     expect(sitemap).toContain(`<loc>${business.url}</loc>`);
+    expect(sitemap).not.toContain("404");
   });
 });

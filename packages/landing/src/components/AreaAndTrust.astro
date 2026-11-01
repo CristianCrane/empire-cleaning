@@ -8,7 +8,9 @@ const points = [
   {
     icon: MapPin,
     name: `Serving ${business.area}`,
-    text: "Homes and businesses across the borough. Further afield? Call us; we're growing.",
+    text: "Queens, Brooklyn, Manhattan, Nassau and western Suffolk.",
+    // the crew speaks Spanish; said in Spanish, for those it's for
+    spanish: "Se habla español.",
   },
   { icon: ShieldCheck, name: "Trusted and reliable", text: "We turn up when we say we will, every time." },
   { icon: Gem, name: "Attention to every detail", text: "The corners, edges and surfaces others miss." },
@@ -20,12 +22,15 @@ const points = [
   {/* the icon beside the words, or above them in four narrow columns */}
   <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
     {
-      points.map(({ icon: Icon, name, text }) => (
+      points.map(({ icon: Icon, name, text, spanish }) => (
         <li class="flex items-start gap-4 rounded-lg border border-border bg-surface p-5 lg:flex-col lg:gap-3">
           <Icon aria-hidden size={28} className="shrink-0 text-primary" />
           <div class="flex flex-col gap-1">
             <h3 class="text-lg font-semibold">{name}</h3>
-            <p class="text-fg-muted">{text}</p>
+            <p class="text-fg-muted">
+              {text}
+              {spanish && <span lang="es"> {spanish}</span>}
+            </p>
           </div>
         </li>
       ))
