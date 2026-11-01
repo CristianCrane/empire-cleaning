@@ -305,19 +305,6 @@ async function seed() {
     },
   );
 
-  await at(on(-5));
-  await ask(
-    contact("ortiz", "Dana Ortiz"),
-    { new: premises("37-20 Ditmars Blvd", "11105") },
-    {
-      businessName: "Ortiz Family Dental",
-      condition: undefined,
-      wantsRegularService: true,
-      weekdays: [0, 3],
-      preferredTime: "18:00",
-    },
-  );
-
   await at(on(-2));
   const park = await ask(
     contact("park", "Lee Park"),
@@ -327,13 +314,6 @@ async function seed() {
   await bookSiteVisit(
     { quoteId: park.id, staffId: maria!.id, minutes: 60, ...weekdayFrom(2) },
     by,
-  );
-
-  await at(new Date(realNow.getTime() - 2 * 3_600_000));
-  await ask(
-    contact("tom", "Tom Becker"),
-    { new: home("67-38 108th St", "11375", { unit: "4C", bedrooms: 1 }) },
-    { condition: "light", wantsRegularService: true },
   );
 
   // ---- Draft: a caller's, being written ----
@@ -435,11 +415,11 @@ async function seed() {
   await sentServicePlanQuote({
     propertyId: firstClean.propertyId,
     byAccountId: by,
-    startsAt: `${weekdayFrom(9).date}T16:00:00Z`,
+    startsAt: atTime(weekdayFrom(10).date, "13:00").toISOString(),
     recurrence: "fortnightly",
   });
 
-  // ---- on a Service Plan, asking again: a plan change ----
+  // ---- on a Service Plan, its next clean Skipped (below) ----
   const nina = contact("nina", "Nina Brooks");
   const ninaHouse = home("71-15 Juno St", "11375", {
     type: "house",
@@ -452,12 +432,6 @@ async function seed() {
     byAccountId: by,
     startsAt: `${weekdayFrom(3).date}T14:00:00Z`,
   });
-  await at(on(-1));
-  await ask(
-    nina,
-    { new: ninaHouse },
-    { wantsRegularService: true, notes: "Could we add a second day?" },
-  );
 
   // ---- regulars: plans a few weeks old, their Cleaner on every clean, the
   // cleans so far done, so the weeks behind and ahead are full: today's
@@ -785,31 +759,7 @@ async function seed() {
     byClient: false,
   });
 
-  // a plan clean cancelled late, whose fee couldn't be charged
-  const yara = contact("yara", "Yara Kim");
-  const yaraHome = await firstCleanDone(
-    yara,
-    home("42-30 Douglaston Pkwy", "11363", { unit: "3A" }),
-    -35,
-    -30,
-  );
-  await at(on(-20));
-  const yaraPlan = await startedServicePlan({
-    propertyId: yaraHome.propertyId,
-    byAccountId: by,
-    startsAt: `${weekdayFrom(-13).date}T14:00:00Z`,
-    recurrence: "fortnightly",
-  });
-  await at(after(yaraPlan.firstJob, -10));
-  testPayments().failCharges();
-  await cancelJob(yaraPlan.firstJob.id, {
-    by: "client",
-    feeCents: (await cancelTermsOf(yaraPlan.firstJob))!.client.feeCents,
-    reason: null,
-    byAccountId: by,
-    byClient: false,
-  });
-  testPayments().failCharges(null);
+  regulars.push({ planId: ninaPlan.planId, cleanerId: daniela!.id });
 
   // the regulars' cleans booked as far ahead as the server books them, each
   // with its Cleaner
