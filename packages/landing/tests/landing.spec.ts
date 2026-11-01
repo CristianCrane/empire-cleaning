@@ -490,6 +490,30 @@ test.describe("on a phone", () => {
     expect(await textAlign(page, "#services-title + p")).toBe("left");
   });
 
+  test("How it works' steps are centred, and left from a tablet", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const step = page.locator("#how-it-works li").first();
+    const centred = () =>
+      step.evaluate((li) => {
+        const number = li.querySelector("span")!.getBoundingClientRect();
+        const box = li.getBoundingClientRect();
+        return {
+          align: getComputedStyle(li).textAlign,
+          // the number's middle is the step's middle
+          numberCentred:
+            Math.abs(
+              number.left + number.width / 2 - (box.left + box.width / 2),
+            ) < 1,
+        };
+      });
+    expect(await centred()).toEqual({ align: "center", numberCentred: true });
+
+    await page.setViewportSize({ width: 768, height: 900 });
+    expect(await centred()).toEqual({ align: "left", numberCentred: false });
+  });
+
   test("the footer is centred", async ({ page }) => {
     await page.goto("/");
     expect(await textAlign(page, "footer > div")).toBe("center");
