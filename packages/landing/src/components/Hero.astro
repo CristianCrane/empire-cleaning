@@ -31,15 +31,16 @@ const fade =
   <div class="relative mx-auto flex max-w-5xl flex-col items-center gap-8 px-4 lg:flex-row lg:gap-12">
     <Logo className="w-44 sm:w-52 lg:w-64" />
     <div data-hero-words class="flex flex-col items-center gap-6 text-center lg:items-start lg:text-left">
-      <h1
-        id="hero-title"
-        class="font-display text-5xl leading-none font-bold tracking-wide uppercase sm:text-7xl"
-      >
-        Clean spaces.
-        <span class="block text-primary">Stronger impact.</span>
+      {/* the slogan, then what and where: the heading search engines weigh
+          most says what we do and where, not only the slogan (#171) */}
+      <h1 id="hero-title" class="flex flex-col items-center gap-6 lg:items-start">
+        <span class="font-display text-5xl leading-none font-bold tracking-wide uppercase sm:text-7xl">
+          Clean spaces.
+          <span class="block text-primary">Stronger impact.</span>
+        </span>
+        <span class="max-w-xl text-xl font-semibold">{business.heading}</span>
       </h1>
-      <p class="max-w-xl text-xl text-fg-muted">
-        Professional cleaning for homes and businesses across {business.area}.
+      <p class="-mt-4 max-w-xl text-xl text-fg-muted">
         Exceptional results, every visit.
       </p>
       <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">

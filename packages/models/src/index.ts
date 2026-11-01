@@ -1897,7 +1897,8 @@ export const business = {
     href: "tel:+16463209076",
     e164: "+1-646-320-9076",
   },
-  area: "Queens, NY",
+  // the area served, as printed (the landing site lists it in full)
+  area: "Queens, NYC and Long Island",
 } as const;
 
 // the Suggested Price, worked out the same on the server and on screen

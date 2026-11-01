@@ -21,3 +21,17 @@ test("no other site shows the banner", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible();
   await expect(page.getByText(banner)).toHaveCount(0);
 });
+
+test("search engines are asked to stay away on every site", async ({
+  page,
+}) => {
+  // the app has nothing to rank; the landing site is what's found (#172)
+  await page.goto("/sign-in");
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
+    "content",
+    "noindex, nofollow",
+  );
+
+  const robots = await (await page.request.get("/robots.txt")).text();
+  expect(robots).toBe("User-agent: *\nDisallow: /\n");
+});

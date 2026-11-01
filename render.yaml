@@ -91,10 +91,6 @@ services:
     autoDeployTrigger: checksPass
     domains:
       - app.test.empirecleaningandpro.com
-    envVars:
-      # asks search engines not to index it (vite.config.ts)
-      - key: APP_MODE
-        value: test
     routes:
       # the API on the app's own origin, so sign-in cookies just work: a
       # rewrite, not a redirect. Render names the server's address after the

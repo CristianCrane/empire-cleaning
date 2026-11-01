@@ -11,6 +11,8 @@ import { business } from "../business.ts";
     <div class="flex flex-col items-center gap-1 text-fg-muted sm:items-end">
       <a href={business.phone.href} class="font-semibold text-fg">{business.phone.display}</a>
       <span>{business.area}</span>
+      <span>{business.hours.display}</span>
+      <span lang="es">Se habla español</span>
       <span>&copy; {new Date().getFullYear()} {business.name}</span>
     </div>
   </div>
