@@ -62,7 +62,9 @@ export function ServicesScreen() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Heading level={1}>Services</Heading>
+        <Heading level={1} inBar>
+          Services
+        </Heading>
         <ButtonLink href={linkTo({ to: "/office/services/new" })}>
           <Plus aria-hidden size={18} />
           New Service

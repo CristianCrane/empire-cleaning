@@ -108,7 +108,9 @@ export function CleanerHome() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Heading level={1}>Your Jobs</Heading>
+      <Heading level={1} inBar>
+        Your Jobs
+      </Heading>
       {next ? (
         <NextUp item={next} openJob={openJob} />
       ) : (

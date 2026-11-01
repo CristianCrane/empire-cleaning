@@ -179,7 +179,9 @@ export function PortalCleans() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Heading level={1}>Your cleans</Heading>
+      <Heading level={1} inBar>
+        Your cleans
+      </Heading>
       <Tabs
         selectedKey={tab}
         onSelectionChange={(key) =>

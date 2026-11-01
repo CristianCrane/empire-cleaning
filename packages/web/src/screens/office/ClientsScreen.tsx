@@ -153,7 +153,9 @@ export function ClientsScreen() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Heading level={1}>Clients</Heading>
+      <Heading level={1} inBar>
+        Clients
+      </Heading>
       <TextField
         label="Search Clients"
         type="search"

@@ -12,6 +12,7 @@ const heading = tv({
       3: "text-lg font-semibold",
       4: "text-base font-semibold",
     },
+    inBar: { true: "max-md:sr-only" },
   },
 });
 
@@ -22,6 +23,11 @@ export type HeadingProps = {
   level: Level;
   // how it looks, when that differs from its level
   size?: Level;
+  // a section's own page (Jobs, Payments…), which the phone's top bar
+  // already names: hidden on a phone, so the name isn't said twice, and kept
+  // for screen readers and larger screens. Not for a heading that says more
+  // than the bar ("Hi, Casey", a Job's name)
+  inBar?: boolean;
   id?: string;
   className?: string;
   children: ReactNode;
@@ -30,13 +36,14 @@ export type HeadingProps = {
 export function Heading({
   level,
   size,
+  inBar = false,
   id,
   className,
   children,
 }: HeadingProps) {
   const Tag = `h${level}` as const;
   return (
-    <Tag id={id} className={heading({ size: size ?? level, className })}>
+    <Tag id={id} className={heading({ size: size ?? level, inBar, className })}>
       {children}
     </Tag>
   );

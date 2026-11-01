@@ -27,7 +27,9 @@ export function ScheduleScreen() {
 
   return (
     <div className="flex flex-col gap-4">
-      <Heading level={1}>Schedule</Heading>
+      <Heading level={1} inBar>
+        Schedule
+      </Heading>
       <RangeBar from={from} to={to} onShow={show} />
       <div className="flex flex-wrap items-center gap-2 text-sm text-fg-muted">
         <StatusBadge tone="warning">Unassigned</StatusBadge>

@@ -161,7 +161,9 @@ export function JobsScreen() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Heading level={1}>Jobs</Heading>
+      <Heading level={1} inBar>
+        Jobs
+      </Heading>
       <TextField
         label="Search Jobs"
         type="search"

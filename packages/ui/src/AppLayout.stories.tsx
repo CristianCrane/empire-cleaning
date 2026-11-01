@@ -37,7 +37,9 @@ const meta = {
     ),
     children: (
       <div className="flex flex-col gap-4">
-        <Heading level={1}>Today</Heading>
+        <Heading level={1} inBar>
+          Today
+        </Heading>
         <Card title="Needs attention">
           <List aria-label="Needs attention">
             <ListItem
@@ -72,6 +74,10 @@ export const Phone: Story = {
       "aria-current",
       "page",
     );
+    // the bar names the page, so its own heading is for screen readers only
+    await expect(
+      canvas.getByRole("heading", { level: 1, name: "Today" }),
+    ).toHaveClass(/sr-only/);
   },
 };
 

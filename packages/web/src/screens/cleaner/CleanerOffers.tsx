@@ -22,7 +22,9 @@ export function CleanerOffers() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Heading level={1}>Offers</Heading>
+      <Heading level={1} inBar>
+        Offers
+      </Heading>
 
       {offered.length > 0 && (
         <Section
