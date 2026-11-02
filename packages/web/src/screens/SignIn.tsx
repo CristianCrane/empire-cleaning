@@ -27,7 +27,8 @@ export function SignIn() {
   const { next, error } = useSearch({ from: "/sign-in" });
   const [sentTo, setSentTo] = useState<string>();
   const [isSending, setSending] = useState(false);
-  const [sendFailed, setSendFailed] = useState(false);
+  // why the link wasn't sent, when it wasn't
+  const [sendFailed, setSendFailed] = useState<string>();
 
   // where sign-in links and Google return to: the page they asked for, or
   // back here (with ?error=) when something goes wrong
@@ -37,7 +38,7 @@ export function SignIn() {
 
   const sendLink = async (email: string, again = false) => {
     setSending(true);
-    setSendFailed(false);
+    setSendFailed(undefined);
     const { error } = await authClient.signIn.magicLink({
       email,
       callbackURL,
@@ -45,7 +46,10 @@ export function SignIn() {
     });
     setSending(false);
     if (error) {
-      setSendFailed(true);
+      // asked too often for now (#32): the API says how long to wait
+      setSendFailed(
+        error.status === 429 && error.message ? error.message : fallbackError,
+      );
     } else {
       setSentTo(email);
       if (again) {
@@ -83,7 +87,7 @@ export function SignIn() {
             <p className="text-sm text-fg-muted">
               Not there? Check your spam folder, or send it again.
             </p>
-            {sendFailed && <Notice tone="danger">{fallbackError}</Notice>}
+            {sendFailed && <Notice tone="danger">{sendFailed}</Notice>}
             <Actions>
               <Button variant="text" onPress={() => setSentTo(undefined)}>
                 Use a different email
@@ -118,7 +122,7 @@ export function SignIn() {
             <p className="text-sm text-fg-muted">
               We'll email you a link that signs you in. No password needed.
             </p>
-            {sendFailed && <Notice tone="danger">{fallbackError}</Notice>}
+            {sendFailed && <Notice tone="danger">{sendFailed}</Notice>}
             <Form
               onSubmit={(e) => {
                 e.preventDefault();

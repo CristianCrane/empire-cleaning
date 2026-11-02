@@ -1,10 +1,12 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { magicLink } from "better-auth/plugins";
 import { eq } from "drizzle-orm";
 import env from "../../env.ts";
 import { db } from "../../db/index.ts";
 import { email } from "../../services/email/index.ts";
+import { rateLimit, tooManyTries } from "../../services/rate-limit/index.ts";
 import { connectByEmail } from "./connections.ts";
 import { signInEmail } from "./emails.ts";
 import {
@@ -20,6 +22,20 @@ const SIGN_IN_LINK_TTL_SECONDS = 15 * 60;
 const sendSignInLink = async ({ to, url }: { to: string; url: string }) => {
   await email.send({ to, ...signInEmail({ url }) });
 };
+
+// a sign-in link is emailed to one address only so often (#32)
+const limitSignInLinks = createAuthMiddleware(async (ctx) => {
+  if (ctx.path !== "/sign-in/magic-link") return;
+  const address: unknown = ctx.body?.email;
+  if (typeof address !== "string") return;
+  const verdict = rateLimit.attempt("signInLink", address);
+  if (verdict.allowed) return;
+  throw new APIError(
+    "TOO_MANY_REQUESTS",
+    { message: tooManyTries(verdict.retryAfterSeconds) },
+    { "Retry-After": String(verdict.retryAfterSeconds) },
+  );
+});
 
 // connects a newly signed-in Account to its Client and Staff records, but
 // only once its email is proven, which signing up or in always does
@@ -45,6 +61,11 @@ export const auth = betterAuth({
   // Better Auth's own bare error page
   onAPIError: { errorURL: `${env.CORS_ORIGIN_URL}/sign-in` },
   telemetry: { enabled: false },
+  // Better Auth's own limits count per network address, which behind Render
+  // it can't tell apart: every visitor would share one count. Off whatever
+  // NODE_ENV says; ours count per email address (#32)
+  rateLimit: { enabled: false },
+  hooks: { before: limitSignInLinks },
   database: drizzleAdapter(db, {
     provider: "pg",
     schema: {

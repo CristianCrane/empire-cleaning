@@ -3,7 +3,7 @@ import type { ZodError } from "zod";
 import { monitoring } from "#services/monitoring";
 import env from "../env.ts";
 
-type StatusCode = 400 | 401 | 403 | 404 | 409 | 500;
+type StatusCode = 400 | 401 | 403 | 404 | 409 | 429 | 500;
 
 export class APIError extends Error {
   public readonly statusCode: StatusCode;
@@ -99,6 +99,15 @@ export class ConflictError extends APIError {
   }
 }
 
+// tried too often for now (#32): says how long to wait, also in Retry-After
+export class TooManyRequestsError extends APIError {
+  public readonly retryAfterSeconds: number;
+  constructor(message: string, retryAfterSeconds: number) {
+    super(message, 429);
+    this.retryAfterSeconds = retryAfterSeconds;
+  }
+}
+
 type APIErrorResponse = {
   message: string;
   details?: APIErrorDetail[];
@@ -120,6 +129,9 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
       err instanceof QueryParameterError
     ) {
       errResponse.details = err.details;
+    }
+    if (err instanceof TooManyRequestsError) {
+      res.set("Retry-After", String(err.retryAfterSeconds));
     }
   } else if (env.APP_MODE !== "prod") {
     // only show unexpected error messages in lower environments

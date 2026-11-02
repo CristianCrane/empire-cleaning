@@ -328,6 +328,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
   const [days, setDays] = useState<string[]>([]);
   const [preferredTime, setPreferredTime] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
+  const [website, setWebsite] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [failed, setFailed] = useState(false);
   const [refusal, setRefusal] = useState<string>();
@@ -442,6 +443,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
   } => ({
     ...(asker.kind === "guest" && { contact }),
     ...(asker.kind === "guest" && source && { source: source() }),
+    ...(asker.kind === "guest" && website && { website }),
     ...(asker.kind === "account" && {
       contact: { name: contact.name, phone: contact.phone },
     }),
@@ -601,6 +603,20 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
         onChange={(phone) => setContact({ ...contact, phone })}
         errorMessage={error("contact.phone")}
       />
+      {asker.kind === "guest" && (
+        // a field people never see or reach, for bots that fill in every
+        // field; filled, the ask is quietly dropped (#32)
+        <input
+          aria-hidden
+          aria-label="Website"
+          tabIndex={-1}
+          autoComplete="off"
+          name="website"
+          value={website}
+          onChange={(e) => setWebsite(e.target.value)}
+          className="absolute -left-[9999px] size-px"
+        />
+      )}
     </>
   );
 

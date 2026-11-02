@@ -6,6 +6,8 @@ import { setClock } from "#services/clock";
 import { setPaymentGateway } from "#services/payment-gateway";
 import { setEmailSender } from "#services/email";
 import { setReporter } from "#services/monitoring";
+import { rateLimiterFor, setRateLimiter } from "#services/rate-limit";
+import type { Env } from "../src/env.ts";
 import { FakeClock } from "./fakes/clock.ts";
 import { FakePaymentGateway } from "./fakes/payment-gateway.ts";
 import { FakeEmailSender } from "./fakes/email.ts";
@@ -32,6 +34,13 @@ export const installFakes = () => {
   setPaymentGateway(fakes.payments);
   setEmailSender(fakes.email);
   setReporter(fakes.monitoring);
+  // off, as in dev; limitedAs() turns a mode's limits on
+  setRateLimiter(rateLimiterFor("dev"));
+};
+
+// the real limits of a mode, counted afresh on the fake clock (#32)
+export const limitedAs = (mode: Env["APP_MODE"]) => {
+  setRateLimiter(rateLimiterFor(mode));
 };
 
 const current = () => {

@@ -13,8 +13,10 @@ import {
   ConflictError,
   NotFoundError,
   RequestBodyError,
+  TooManyRequestsError,
 } from "../../middleware/errors.ts";
 import { email } from "../../services/email/index.ts";
+import { rateLimit, tooManyTries } from "../../services/rate-limit/index.ts";
 import {
   clientForAccount,
   createClient,
@@ -57,6 +59,18 @@ const parse = <T>(schema: z.ZodType<T>, body: unknown): T => {
 const clientFor = async (caller: SignedInAccount | null, body: unknown) => {
   if (!caller) {
     const submission = parse(guestSubmission, body);
+    // a Guest's receipt goes to whatever address was typed, so one address
+    // gets only so many (#32)
+    const verdict = rateLimit.attempt(
+      "guestQuoteRequest",
+      submission.contact.email,
+    );
+    if (!verdict.allowed) {
+      throw new TooManyRequestsError(
+        tooManyTries(verdict.retryAfterSeconds),
+        verdict.retryAfterSeconds,
+      );
+    }
     const existing = await findClientByEmail(submission.contact.email);
     const client =
       existing ??
@@ -140,6 +154,21 @@ const checkPremisesType = (list: PriceList, key: string) => {
   }
 };
 
+// The Guest form's field people never see (#32): filled, a bot filled it. It
+// is told it worked, so it doesn't try another way, and nothing is saved or
+// sent
+const filledHoneypot = (body: unknown) =>
+  z.looseObject({ website: z.string().trim().nonempty() }).safeParse(body)
+    .success;
+
+const pretendReceipt = (body: unknown): QuoteAskReceipt => ({
+  id: crypto.randomUUID(),
+  emailedTo:
+    z
+      .looseObject({ contact: z.looseObject({ email: z.string() }) })
+      .safeParse(body).data?.contact.email ?? "",
+});
+
 /**
  * A Client (or Guest) asks for a Quote: it starts Requested, holding what
  * they asked, and they're sent a receipt (ADR-0017). Office Staff are
@@ -149,6 +178,7 @@ export const askForQuote = async (
   caller: SignedInAccount | null,
   body: unknown,
 ): Promise<QuoteAskReceipt> => {
+  if (!caller && filledHoneypot(body)) return pretendReceipt(body);
   const { client, submission, mayNameBusiness, source } = await clientFor(
     caller,
     body,

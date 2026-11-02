@@ -123,6 +123,8 @@ export type QuoteAsk = {
   notes?: string | null;
   // a Guest's from the landing site: where they asked from (#185)
   source?: QuoteSource;
+  // a Guest's: the field people never see. Filled, a bot filled it (#32)
+  website?: string;
 };
 
 // Where a Guest asked from on the landing site (#185): the page's path

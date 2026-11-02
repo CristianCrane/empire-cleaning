@@ -247,6 +247,50 @@ test.describe("requesting a Quote", () => {
     expect(await emailsTo("casey@example.com")).toEqual([]);
   });
 
+  test("asking too often says how long to wait (#32)", async ({ page }) => {
+    // the server's limits are off in dev; it would answer like this
+    await page.route("**/api/quotes/ask", (route) =>
+      route.fulfill({
+        status: 429,
+        headers: { "retry-after": "720" },
+        json: {
+          message:
+            "Too many tries. Please try again in 12 minutes, or call us on (646) 320-9076.",
+        },
+      }),
+    );
+    await openQuoteForm(page);
+    await fillIn(page);
+    await page.getByRole("button", { name: "Request a Quote" }).click();
+
+    await expect(
+      page.getByText(
+        "Too many tries. Please try again in 12 minutes, or call us on (646) 320-9076.",
+      ),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("textbox", { name: "Full name" }),
+    ).toBeVisible();
+  });
+
+  test("the field for bots is out of sight and reach, and sent only if filled (#32)", async ({
+    page,
+  }) => {
+    await openQuoteForm(page);
+    await fillIn(page);
+
+    const field = page.locator('input[name="website"]');
+    await expect(field).not.toBeInViewport();
+    await expect(field).toHaveAttribute("tabindex", "-1");
+    await expect(page.getByRole("textbox", { name: /website/i })).toHaveCount(
+      0,
+    );
+    const sent = page.waitForRequest(/\/api\/quotes\/ask$/);
+    await page.getByRole("button", { name: "Request a Quote" }).click();
+
+    expect((await sent).postDataJSON()).not.toHaveProperty("website");
+  });
+
   test("asking again about the same home explains a Quote is on its way", async ({
     page,
   }) => {
