@@ -142,6 +142,32 @@ test.describe("signing up and in with an emailed link", () => {
       .poll(async () => (await emailsTo(client.email)).length)
       .toBe(2);
   });
+
+  test("asking too often says how long to wait (#32)", async ({ page }) => {
+    // the server's limits are off in dev; it would answer like this
+    await page.route("**/api/auth/sign-in/magic-link", (route) =>
+      route.fulfill({
+        status: 429,
+        headers: { "retry-after": "720" },
+        json: {
+          message:
+            "Too many tries. Please try again in 12 minutes, or call us on (646) 320-9076.",
+        },
+      }),
+    );
+    await page.goto("/sign-in");
+    await page.getByRole("textbox", { name: "Email" }).fill(client.email);
+    await page.getByRole("button", { name: "Email me a sign-in link" }).click();
+
+    await expect(
+      page.getByText(
+        "Too many tries. Please try again in 12 minutes, or call us on (646) 320-9076.",
+      ),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Email me a sign-in link" }),
+    ).toBeVisible();
+  });
 });
 
 test.describe("Google", () => {

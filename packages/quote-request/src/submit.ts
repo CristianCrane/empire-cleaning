@@ -7,7 +7,7 @@ export type SubmitResult<R = QuoteAskReceipt> =
       // the API's per-field messages, keyed by the field's path (e.g. "contact.email")
       fieldErrors?: Record<string, string>;
       // the API refused the request and said why in words fit to show, e.g.
-      // that this home already has a Quote open
+      // that this home already has a Quote open, or to wait and try again
       refusal?: string;
     };
 
@@ -46,8 +46,8 @@ export const postQuoteRequest = async <R>(
     }
   }
 
-  // 409: not wrong, just already asked
-  if (res.status === 409) {
+  // 409: not wrong, just already asked; 429: asked too often for now (#32)
+  if (res.status === 409 || res.status === 429) {
     const body = (await res.json()) as { message?: string };
     if (body.message) return { ok: false, refusal: body.message };
   }
