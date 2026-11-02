@@ -41,6 +41,7 @@ import {
   recordNoAccess,
 } from "#features/cancellation";
 import { findClientByEmail } from "#features/clients";
+import { DEMO_PEOPLE, demoPeople } from "#features/demo-people";
 import { completeJob, proposeAdjustment } from "#features/completion";
 import { savePaymentMethod, startCardForm } from "#features/payments";
 import { currentPriceList } from "#features/price-list";
@@ -82,7 +83,9 @@ const OWNER = {
 };
 const alias = (tag: string) => OWNER.email.replace("@", `+${tag}@`);
 
-const realNow = new Date();
+// SEED_NOW (an ISO instant) seeds as if it were then, to check the seed on
+// every day of the week
+const realNow = new Date(process.env.SEED_NOW ?? Date.now());
 const today = dayOf(realNow);
 // an instant on the day `days` from today, mid-morning in New York
 const on = (days: number, utcTime = "15:00") =>
@@ -707,12 +710,14 @@ async function seed() {
     byClient: false,
   });
 
-  // cancelled by Empire Cleaning, refunded in full
+  // cancelled by Empire Cleaning, refunded in full. Not 6 days out: run on a
+  // Monday, that and Rosa's and Pete's would all fall on the next Monday,
+  // more than the three Cleaners can do
   const ours = await bookedJob(
     contact("vic", "Vic Hale"),
     home("248-10 Union Tpke", "11426", { type: "house", bedrooms: 3 }),
     -10,
-    6,
+    9,
   );
   await at(on(-1));
   await cancelJob(ours.id, {
@@ -779,6 +784,15 @@ async function seed() {
   await db.execute(sql`delete from payers`);
 
   await stamp();
+
+  // the guided tours sign in as these people, by name
+  const here = (await demoPeople()).map((p) => p.name);
+  const missing = [...DEMO_PEOPLE.staff, ...DEMO_PEOPLE.clients]
+    .map((p) => p.name)
+    .filter((name) => !here.includes(name));
+  if (missing.length > 0) {
+    throw new Error(`demo people missing: ${missing.join(", ")}`);
+  }
 
   async function saveCard(
     client: NonNullable<Awaited<ReturnType<typeof findClientByEmail>>>,

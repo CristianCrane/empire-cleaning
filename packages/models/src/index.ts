@@ -20,6 +20,16 @@ export type SignedInAccount = {
 // site (ADR-0020)
 export type Site = { mode: "dev" | "test" | "prod" };
 
+// someone from the demo the test site is seeded with, to sign in as, as GET
+// /api/demo-people returns them: the email their sign-in link goes to, the
+// role they sign in with, and what being them shows
+export type DemoPerson = {
+  name: string;
+  email: string;
+  role: AccountRole;
+  shows: string;
+};
+
 // ---- Asking for a Quote (#3) ----
 
 export type PropertyType = "house" | "apartment" | "townhouse";

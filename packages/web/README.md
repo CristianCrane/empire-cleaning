@@ -31,6 +31,7 @@ Every screen is built from the design system in `packages/ui` (`@empire-cleaning
 | `/office/clients/$clientId`     | Office Staff: a Client, their homes and Quotes, and Condition correction; for a business, weekly billing and their Bills                                                        |
 | `/office/bills/$billId`         | Office Staff: a weekly Bill, voiding it while unpaid, and recording a payment made another way                                                                                  |
 | `/welcome`                      | an Account connected to nothing: request a Quote to become a Client                                                                                                             |
+| `/people`                       | anyone, on the test site only: sign in as a person from the demo (`?as=` first name, `?next=` the page after)                                                                   |
 | `/`                             | sends a signed-in Account to its area                                                                                                                                           |
 
 - Someone signed out who opens an area goes to `/sign-in?next=…` and comes back to that page afterwards.
