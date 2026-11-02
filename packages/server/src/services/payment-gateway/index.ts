@@ -61,6 +61,10 @@ export type ChargeResult =
 export type RefundResult =
   { ok: true; refundId: string } | { ok: false; reason: string };
 
+// a refund of a Charge that wasn't made by refund(), e.g. in the provider's
+// dashboard
+export type RefundElsewhere = { refundId: string; amount: number; at: Date };
+
 // a Bill the Client pays on its page (ADR-0016), in the browser, by card or
 // bank debit; `reference` is ours (the Bill), and comes back in its events
 export type BillPaymentInput = {
@@ -127,6 +131,9 @@ export interface PaymentGateway {
   ): Promise<{ ref: string; secret: string }>;
   billPaymentOutcome(ref: string): Promise<BillPaymentOutcome>;
   refund(input: RefundInput): Promise<RefundResult>;
+  // a Charge's refunds made outside the app, as far as they've gone through
+  // or are on their way
+  refundsElsewhere(chargeId: string): Promise<RefundElsewhere[]>;
   // checks a webhook really came from the provider (throws if not) and says
   // what it means; null for events we don't act on
   parseEvent(body: Buffer, headers: EventHeaders): PaymentEvent | null;
@@ -153,6 +160,7 @@ export const paymentGateway: PaymentGateway = {
   startBillPayment: (input) => current.startBillPayment(input),
   billPaymentOutcome: (ref) => current.billPaymentOutcome(ref),
   refund: (input) => current.refund(input),
+  refundsElsewhere: (chargeId) => current.refundsElsewhere(chargeId),
   parseEvent: (body, headers) => current.parseEvent(body, headers),
 };
 

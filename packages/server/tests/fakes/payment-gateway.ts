@@ -10,6 +10,7 @@ import {
   type EventHeaders,
   type PaymentEvent,
   type PaymentGateway,
+  type RefundElsewhere,
   type RefundInput,
   type RefundResult,
   type SavedPaymentMethod,
@@ -41,6 +42,8 @@ export class FakePaymentGateway implements PaymentGateway {
   readonly paymentMethods: (SavedPaymentMethod & { payerId: string })[] = [];
   readonly charges: RecordedCharge[] = [];
   readonly refunds: RecordedRefund[] = [];
+  // made in the dashboard, by refundAtProvider
+  readonly refundsAtProvider: (RefundElsewhere & { chargeId: string })[] = [];
 
   private chargeFailure: string | null = null;
   private refundFailure: string | null = null;
@@ -59,6 +62,14 @@ export class FakePaymentGateway implements PaymentGateway {
   // every Charge and Deposit is declined with `reason` until failCharges(null)
   failCharges(reason: string | null = "card_declined") {
     this.chargeFailure = reason;
+  }
+
+  // someone refunds `amount` of a Charge in the provider's dashboard, as
+  // the Office might; the webhook's charge_refunded tells the app
+  refundAtProvider(chargeId: string, amount: number, at = new Date()) {
+    const refundId = this.id("re");
+    this.refundsAtProvider.push({ chargeId, refundId, amount, at });
+    return refundId;
   }
 
   // every refund fails with `reason` until failRefunds(null)
@@ -323,7 +334,8 @@ export class FakePaymentGateway implements PaymentGateway {
         return { ok: false, reason: "unknown_charge" };
       }
 
-      const refunded = this.refunds
+      // as the provider does, counting those made in its dashboard
+      const refunded = [...this.refunds, ...this.refundsAtProvider]
         .filter((r) => r.chargeId === input.chargeId)
         .reduce((sum, r) => sum + r.amount, 0);
       if (refunded + input.amount > charge.amount) {
@@ -334,6 +346,13 @@ export class FakePaymentGateway implements PaymentGateway {
       this.refunds.push({ ...input, refundId });
       return { ok: true, refundId };
     });
+  }
+
+  async refundsElsewhere(chargeId: string): Promise<RefundElsewhere[]> {
+    this.check();
+    return this.refundsAtProvider
+      .filter((r) => r.chargeId === chargeId)
+      .map(({ refundId, amount, at }) => ({ refundId, amount, at }));
   }
 
   // a webhook body is the PaymentEvent itself, as JSON, or anything else for

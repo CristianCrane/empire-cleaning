@@ -148,6 +148,8 @@ const partsOf = async (
               taken.map((c) => c.id),
             ),
           );
+  // a refund made in the provider's dashboard is a discount: it still counts
+  // as taken, so it's never billed back
   const net = (kind: "deposit" | "other") =>
     taken
       .filter((c) => (c.kind === "deposit") === (kind === "deposit"))
@@ -156,7 +158,7 @@ const partsOf = async (
           sum +
           c.amountCents -
           given
-            .filter((r) => r.chargeId === c.id)
+            .filter((r) => r.chargeId === c.id && !r.atProvider)
             .reduce((s, r) => s + r.amountCents, 0),
         0,
       );

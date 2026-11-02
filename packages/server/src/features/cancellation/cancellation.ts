@@ -94,20 +94,30 @@ export const lateFeeOf = async (jobId: string, tx: Tx | typeof db = db) => {
   return percentOf(option.totalCents, revision.depositPercent);
 };
 
-// what has been taken for a Job, less refunds
+// what has been taken for a Job, less refunds; and what those made in the
+// provider's dashboard took off what it owes, as settling counts them
 const paidOf = async (jobId: string) => {
-  const [[taken], [given]] = await Promise.all([
+  const [[taken], given] = await Promise.all([
     db
       .select({ cents: sum(charges.amountCents).mapWith(Number) })
       .from(charges)
       .where(eq(charges.jobId, jobId)),
     db
-      .select({ cents: sum(refunds.amountCents).mapWith(Number) })
+      .select({
+        atProvider: refunds.atProvider,
+        cents: sum(refunds.amountCents).mapWith(Number),
+      })
       .from(refunds)
       .innerJoin(charges, eq(charges.id, refunds.chargeId))
-      .where(eq(charges.jobId, jobId)),
+      .where(eq(charges.jobId, jobId))
+      .groupBy(refunds.atProvider),
   ]);
-  return (taken?.cents ?? 0) - (given?.cents ?? 0);
+  const refunded = (atProvider: boolean) =>
+    given.find((g) => g.atProvider === atProvider)?.cents ?? 0;
+  return {
+    paidCents: (taken?.cents ?? 0) - refunded(false) - refunded(true),
+    refundedAtProviderCents: refunded(true),
+  };
 };
 
 // what cancelling a Job costs, by the Clock: the Late Cancellation fee, if
@@ -129,17 +139,18 @@ export const cancelTermsOf = async (
   job: Job,
 ): Promise<Record<CancelledBy, CancellationTerms> | null> => {
   if (job.status !== "booked") return null;
-  const [lateFeeCents, paidCents] = await Promise.all([
-    lateFeeOf(job.id),
-    paidOf(job.id),
-  ]);
+  const [lateFeeCents, { paidCents, refundedAtProviderCents }] =
+    await Promise.all([lateFeeOf(job.id), paidOf(job.id)]);
   const terms = (by: CancelledBy): CancellationTerms => {
     const { late, feeCents } = feeOf(job, by, lateFeeCents);
     return {
       by,
       late,
       feeCents,
-      refundCents: Math.max(paidCents - feeCents, 0),
+      refundCents: Math.max(
+        paidCents - Math.max(feeCents - refundedAtProviderCents, 0),
+        0,
+      ),
       freeUntil: freeUntilOf(job).toISOString(),
     };
   };

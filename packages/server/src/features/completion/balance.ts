@@ -6,7 +6,11 @@ import { formatWhen } from "../../services/email/index.ts";
 import { billedOf, isBilledWeekly } from "../bills/billed-weekly.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
-import { chargeSaved, refundFrom } from "../payments/money.ts";
+import {
+  chargeSaved,
+  refundedAtProvider,
+  refundFrom,
+} from "../payments/money.ts";
 import {
   charges,
   paymentMethods,
@@ -31,6 +35,8 @@ type Ledger = {
   rescheduleFeeCents: number;
   charges: (Charge & { refundedCents: number })[];
   paidCents: number;
+  // taken off what it owes by refunds made in the provider's dashboard
+  refundedAtProviderCents: number;
   // what Bills not voided have billed for it (ADR-0016)
   billedCents: number;
   // whether any has
@@ -46,6 +52,8 @@ type Ledger = {
 // Reschedule made one due. A one-off Job's fee is its Deposit, kept; a plan
 // Job has none, so its fee is charged.
 // What a weekly Bill has billed for it counts as taken: the Bill owes it now.
+// A refund made in the provider's dashboard is a discount: the Job owes that
+// much less, though never less than nothing.
 const ledgerOf = async (job: Job, tx: Tx | typeof db): Promise<Ledger> => {
   const [quoted, rows, taken, billed] = await Promise.all([
     quotedJob(job.id, tx),
@@ -80,6 +88,7 @@ const ledgerOf = async (job: Job, tx: Tx | typeof db): Promise<Ledger> => {
     (sum, c) => sum + c.amountCents - c.refundedCents,
     0,
   );
+  const refundedAtProviderCents = refundedAtProvider(given);
   const adjustmentsCents = rows
     .filter(counts)
     .reduce((sum, a) => sum + a.totalCents, 0);
@@ -101,9 +110,11 @@ const ledgerOf = async (job: Job, tx: Tx | typeof db): Promise<Ledger> => {
     rescheduleFeeCents: job.rescheduleFeeCents,
     charges: withRefunds,
     paidCents,
+    refundedAtProviderCents,
     billedCents: billed.cents,
     billedLines: billed.lines,
-    owedCents: owes - paidCents - billed.cents,
+    owedCents:
+      Math.max(owes - refundedAtProviderCents, 0) - paidCents - billed.cents,
   };
 };
 

@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   check,
   index,
   integer,
@@ -7,6 +8,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 import { timestamps } from "../../db/index.ts";
@@ -92,8 +94,8 @@ export const charges = pgTable(
   ],
 );
 
-// money given back from a Charge: a negative Balance, a correction, or an
-// undone completion
+// money given back from a Charge: a negative Balance, a correction, an
+// undone completion, or one made in the payment provider's dashboard
 export const refunds = pgTable(
   "refunds",
   {
@@ -104,12 +106,18 @@ export const refunds = pgTable(
     amountCents: integer("amount_cents").notNull(),
     // as a Charge's: the one change to the price it gave back for
     item: text("item"),
-    // the Payment Gateway's id for it
+    // the Payment Gateway's id for it; each is recorded once
     gatewayRef: text("gateway_ref").notNull(),
     refundedAt: timestamp("refunded_at", { withTimezone: true }).notNull(),
+    // made in the provider's dashboard, not by us: the Client owes that much
+    // less, so it's never charged back (refundedAtProvider)
+    atProvider: boolean("at_provider").notNull().default(false),
     ...timestamps,
   },
-  (t) => [index("refunds_charge_id_idx").on(t.chargeId)],
+  (t) => [
+    index("refunds_charge_id_idx").on(t.chargeId),
+    uniqueIndex("refunds_gateway_ref_idx").on(t.gatewayRef),
+  ],
 );
 
 export type Charge = typeof charges.$inferSelect;

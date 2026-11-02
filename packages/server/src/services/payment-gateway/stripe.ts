@@ -12,6 +12,7 @@ import {
   type EventHeaders,
   type PaymentEvent,
   type PaymentGateway,
+  type RefundElsewhere,
   type RefundInput,
   type RefundResult,
   type SavedPaymentMethod,
@@ -31,6 +32,8 @@ const ALLOWED: "card"[] = ["card"];
 const DEPOSIT = { purpose: "deposit" };
 // and our Bill payments
 const BILL = "bill";
+// on every refund we make, so one made in the dashboard can be told apart
+const MADE_HERE = { made_by: "app" };
 
 // A Bill is paid on its page by card or ACH Direct Debit (ADR-0016): nothing
 // waits on a Bill payment clearing, so a bank debit's days are no matter
@@ -277,7 +280,7 @@ export class StripePaymentGateway implements PaymentGateway {
   }: RefundInput): Promise<RefundResult> {
     try {
       const refund = await this.stripe.refunds.create(
-        { payment_intent: chargeId, amount },
+        { payment_intent: chargeId, amount, metadata: MADE_HERE },
         { idempotencyKey },
       );
       return refund.status === "failed" || refund.status === "canceled"
@@ -286,6 +289,23 @@ export class StripePaymentGateway implements PaymentGateway {
     } catch (error) {
       return { ok: false, reason: reasonOf(error, "a refund") };
     }
+  }
+
+  async refundsElsewhere(chargeId: string): Promise<RefundElsewhere[]> {
+    const refunds = await this.stripe.refunds
+      .list({ payment_intent: chargeId, limit: 100 })
+      .autoPagingToArray({ limit: 1000 });
+    return refunds
+      .filter(
+        (refund) =>
+          refund.metadata?.made_by !== MADE_HERE.made_by &&
+          (refund.status === "succeeded" || refund.status === "pending"),
+      )
+      .map((refund) => ({
+        refundId: refund.id,
+        amount: refund.amount,
+        at: new Date(refund.created * 1000),
+      }));
   }
 
   parseEvent(body: Buffer, headers: EventHeaders): PaymentEvent | null {
