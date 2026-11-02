@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db, type Tx } from "../../db/index.ts";
 import { clock } from "../../services/clock/index.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
@@ -17,6 +17,7 @@ import {
 } from "./payments.schema.ts";
 
 // Money moved off-session, and kept in our ledger of Charges and Refunds.
+// Refunds made in the payment provider's dashboard are recorded too.
 // The Deposit isn't taken here: it's taken while the Client accepts, and
 // recorded once the booking it pays for is made.
 
@@ -145,3 +146,48 @@ export const refundFrom = async (
   }
   return amount - left;
 };
+
+/**
+ * Records the refunds of a Charge that were made in the payment provider's
+ * dashboard, not by us, each once, as the counted refunded_at_provider
+ * signal says. The Client owes that much less: settling never charges it
+ * back (refundedAtProvider). A payment we have no Charge for is only
+ * signalled.
+ */
+export const recordRefundsAtProvider = async (gatewayChargeId: string) => {
+  const [charge] = await db
+    .select()
+    .from(charges)
+    .where(eq(charges.gatewayRef, gatewayChargeId));
+  if (!charge) {
+    monitoring.signal("refunded_at_provider", { ref: gatewayChargeId });
+    return;
+  }
+  for (const refund of await paymentGateway.refundsElsewhere(gatewayChargeId)) {
+    const recorded = await db
+      .insert(refunds)
+      .values({
+        chargeId: charge.id,
+        amountCents: refund.amount,
+        gatewayRef: refund.refundId,
+        refundedAt: refund.at,
+        atProvider: true,
+      })
+      // told of before, or one of ours made before they were marked
+      .onConflictDoNothing({ target: refunds.gatewayRef })
+      .returning({ id: refunds.id });
+    if (recorded.length > 0) {
+      monitoring.signal("refunded_at_provider", {
+        chargeId: charge.id,
+        cents: refund.amount,
+      });
+    }
+  }
+};
+
+// what the refunds made in the provider's dashboard took off what a
+// Client owes: a discount, never charged back
+export const refundedAtProvider = (
+  given: { amountCents: number; atProvider: boolean }[],
+) =>
+  given.filter((r) => r.atProvider).reduce((sum, r) => sum + r.amountCents, 0);

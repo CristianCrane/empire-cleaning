@@ -69,3 +69,55 @@ describe("Stripe's refusals", () => {
     ]);
   });
 });
+
+// telling a refund made in Stripe's dashboard from ours (ADR-0021)
+describe("refunds made elsewhere", () => {
+  test("ours are marked as made here", async () => {
+    const { stripe, client } = gateway();
+    const create = vi
+      .spyOn(client.refunds, "create")
+      .mockResolvedValue({ id: "re_1", status: "succeeded" } as never);
+
+    await stripe.refund({
+      chargeId: "pi_1",
+      amount: 1000,
+      idempotencyKey: "refund:1",
+    });
+
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ metadata: { made_by: "app" } }),
+      { idempotencyKey: "refund:1" },
+    );
+  });
+
+  test("are a Charge's refunds not made here, as far as they've gone through or are on their way", async () => {
+    const { stripe, client } = gateway();
+    const refund = (
+      id: string,
+      status: string,
+      metadata: Record<string, string> = {},
+    ) => ({ id, status, metadata, amount: 500, created: 1767225600 });
+    const list = vi.spyOn(client.refunds, "list").mockReturnValue({
+      autoPagingToArray: async () => [
+        refund("re_ours", "succeeded", { made_by: "app" }),
+        refund("re_done", "succeeded"),
+        refund("re_on_its_way", "pending"),
+        refund("re_failed", "failed"),
+      ],
+    } as never);
+
+    expect(await stripe.refundsElsewhere("pi_1")).toEqual([
+      {
+        refundId: "re_done",
+        amount: 500,
+        at: new Date("2026-01-01T00:00:00Z"),
+      },
+      {
+        refundId: "re_on_its_way",
+        amount: 500,
+        at: new Date("2026-01-01T00:00:00Z"),
+      },
+    ]);
+    expect(list).toHaveBeenCalledWith({ payment_intent: "pi_1", limit: 100 });
+  });
+});

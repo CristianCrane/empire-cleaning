@@ -86,12 +86,12 @@ const charge = await gateway.charge({
 });
 check("an off-session Charge to the saved card succeeds", charge.ok, charge);
 
-// 3. refunds, idempotently
+// 3. refunds, idempotently; and one made in the dashboard, told apart
 if (charge.ok) {
   const refund = () =>
     gateway.refund({
       chargeId: charge.chargeId,
-      amount: 7500,
+      amount: 5000,
       idempotencyKey: `refund:${charge.chargeId}`,
     });
   const [first, second] = [await refund(), await refund()];
@@ -99,6 +99,19 @@ if (charge.ok) {
     "a refund repeated with the same key refunds once",
     first.ok && second.ok && first.refundId === second.refundId,
     { first, second },
+  );
+  // as the Office would in the dashboard: no mark of ours
+  const atProvider = await stripe.refunds.create({
+    payment_intent: charge.chargeId,
+    amount: 2500,
+  });
+  const elsewhere = await gateway.refundsElsewhere(charge.chargeId);
+  check(
+    "a refund made in the dashboard is told apart from ours",
+    elsewhere.length === 1 &&
+      elsewhere[0]!.refundId === atProvider.id &&
+      elsewhere[0]!.amount === 2500,
+    elsewhere,
   );
 }
 
