@@ -16,6 +16,7 @@ import { alias } from "drizzle-orm/pg-core";
 import type {
   OpenQuote,
   QuoteAsked,
+  QuoteSource,
   QuoteStatus,
   QuoteSummary,
   RevisionSummary,
@@ -85,6 +86,17 @@ export const askedOf = (
         area: quote.area,
         notes: quote.notes,
         addOns,
+      };
+
+// where a Guest asked from on the landing site, or null (#185)
+export const sourceOf = (quote: Quote): QuoteSource | null =>
+  quote.sourcePage === null
+    ? null
+    : {
+        page: quote.sourcePage,
+        utmSource: quote.utmSource,
+        utmMedium: quote.utmMedium,
+        utmCampaign: quote.utmCampaign,
       };
 
 // the options of these Revisions, by Revision

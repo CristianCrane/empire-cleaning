@@ -1,5 +1,5 @@
 import { test as base, expect, type Page } from "@playwright/test";
-import type { StaffRole } from "@empire-cleaning/models";
+import type { QuoteSource, StaffRole } from "@empire-cleaning/models";
 import { apiUrl, controlUrl } from "../playwright.config.ts";
 
 // talks to the e2e API's control server (packages/server/tests/e2e/server.ts)
@@ -316,10 +316,11 @@ export const serviceKey = async (name: string) => {
 };
 
 // a Standard Clean as a Guest asks for it from the landing page, straight
-// to the e2e API of this worker (e2e/slots.ts)
+// to the e2e API of this worker (e2e/slots.ts), and the page they asked from
 export const requestQuoteAsGuest = async (
   contact: { name: string; email: string },
   addOnNames: string[] = [],
+  source?: QuoteSource,
 ) => {
   const standard = await serviceKey("Standard Clean");
   // Add-ons are chosen by key, from those on offer
@@ -352,6 +353,7 @@ export const requestQuoteAsGuest = async (
       condition: "moderate",
       wantsRegularService: true,
       addOns,
+      source,
     }),
   });
   if (!res.ok) throw new Error(`quote request: ${res.status}`);

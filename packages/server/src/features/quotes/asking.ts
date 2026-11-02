@@ -4,6 +4,7 @@ import type {
   HomeRooms,
   PriceList,
   QuoteAskReceipt,
+  QuoteSource,
   Service,
   SignedInAccount,
 } from "@empire-cleaning/models";
@@ -44,8 +45,8 @@ const parse = <T>(schema: z.ZodType<T>, body: unknown): T => {
   return result.data;
 };
 
-// who the Quote is for (ADR-0006), and whether it may give them a business
-// name they lack:
+// who the Quote is for (ADR-0006), whether it may give them a business
+// name they lack, and where a Guest asked from:
 // - a Guest: the Client with their email, whose details a Guest never
 //   changes, or a new Client (no Account)
 // - a signed-in Client: themselves
@@ -61,7 +62,12 @@ const clientFor = async (caller: SignedInAccount | null, body: unknown) => {
         ...submission.contact,
         businessName: businessNameOf(submission),
       }));
-    return { client, submission, mayNameBusiness: false };
+    return {
+      client,
+      submission,
+      mayNameBusiness: false,
+      source: submission.source ?? null,
+    };
   }
 
   const own = await clientForAccount(caller.id);
@@ -70,6 +76,7 @@ const clientFor = async (caller: SignedInAccount | null, body: unknown) => {
       client: own,
       submission: parse(clientSubmission, body),
       mayNameBusiness: true,
+      source: null,
     };
   }
 
@@ -81,7 +88,7 @@ const clientFor = async (caller: SignedInAccount | null, body: unknown) => {
       email: caller.email,
       businessName: businessNameOf(submission),
     }));
-  return { client, submission, mayNameBusiness: true };
+  return { client, submission, mayNameBusiness: true, source: null };
 };
 
 // the business name an ask for new business premises gives
@@ -139,12 +146,16 @@ export const askForQuote = async (
   caller: SignedInAccount | null,
   body: unknown,
 ): Promise<QuoteAskReceipt> => {
-  const { client, submission, mayNameBusiness } = await clientFor(caller, body);
+  const { client, submission, mayNameBusiness, source } = await clientFor(
+    caller,
+    body,
+  );
   const { property, quote } = await recordAsk(
     client,
     submission,
     null,
     mayNameBusiness,
+    source,
   );
 
   // the Quote is saved: a receipt that can't be sent mustn't make it look as
@@ -253,12 +264,14 @@ const conditionOf = (
 // Quote, so it can't be asked for while the Property has one of those open
 // (ADR-0018). Done under a lock on the Property so two asks at once can't
 // both get in. A business that has no business name yet is given the one
-// asked with, where `mayNameBusiness`.
+// asked with, where `mayNameBusiness`. A Guest's says where on the landing
+// site they asked from (`source`).
 const recordAsk = async (
   client: Client,
   submission: Submission,
   enteredBy: string | null,
   mayNameBusiness: boolean,
+  source: QuoteSource | null = null,
 ) => {
   const [list, all] = await Promise.all([
     currentPriceList(),
@@ -430,6 +443,10 @@ const recordAsk = async (
             : null,
         area: service.method === "area" ? (submission.area ?? null) : null,
         notes: submission.notes,
+        sourcePage: source?.page ?? null,
+        utmSource: source?.utmSource ?? null,
+        utmMedium: source?.utmMedium ?? null,
+        utmCampaign: source?.utmCampaign ?? null,
         createdBy: enteredBy,
       })
       .returning();

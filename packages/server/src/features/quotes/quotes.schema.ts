@@ -101,6 +101,12 @@ export const quotes = pgTable(
     // gave it (ADR-0018)
     area: integer("area"),
     notes: text("notes"),
+    // where a Guest asked from on the landing site (#185): the page's path,
+    // and the campaign tags of the link they came by; none on any other
+    sourcePage: text("source_page"),
+    utmSource: text("utm_source"),
+    utmMedium: text("utm_medium"),
+    utmCampaign: text("utm_campaign"),
 
     // the latest Sent Revision: the offer, and once Accepted the one accepted
     sentRevisionId: uuid("sent_revision_id").references(

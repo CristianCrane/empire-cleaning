@@ -228,12 +228,30 @@ const existingOrNew = z.union([
   z.object({ existing: z.uuid(), rooms: roomsSchema.optional() }),
 ]);
 
-// a Guest: full contact details and a new Property
+// a campaign tag, as a link gives it; an empty one is none
+const utm = z
+  .string()
+  .trim()
+  .max(100)
+  .nullish()
+  .transform((tag) => tag || null);
+
+// where a Guest asked from on the landing site (#185)
+const sourceSchema = z.object({
+  page: z.string().trim().startsWith("/").max(200),
+  utmSource: utm,
+  utmMedium: utm,
+  utmCampaign: utm,
+});
+
+// a Guest: full contact details and a new Property, and where on the
+// landing site they asked from
 export const guestSubmission = z
   .object({
     ...request,
     contact: contactSchema,
     property: z.object({ new: newPropertySchema }),
+    source: sourceSchema.optional(),
   })
   .superRefine(forKind);
 

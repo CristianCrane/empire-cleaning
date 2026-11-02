@@ -196,6 +196,50 @@ test.describe("requesting a Quote", () => {
     },
   );
 
+  test("says which page it was sent from, and the link the visit began with", async ({
+    page,
+  }) => {
+    // a visit from the Google Business Profile's link, asking from another
+    // page
+    await page.goto("/?utm_source=gbp&utm_medium=profile");
+    await expect(
+      page.getByRole("radio", { name: /^Standard Clean/ }),
+    ).toBeVisible();
+    await page.goto("/queens/#quote");
+    await expect(
+      page.getByRole("radio", { name: /^Standard Clean/ }),
+    ).toBeVisible();
+    await fillIn(page);
+
+    const sent = page.waitForRequest(/\/api\/quotes\/ask$/);
+    await page.getByRole("button", { name: "Request a Quote" }).click();
+
+    expect((await sent).postDataJSON().source).toEqual({
+      page: "/queens/",
+      utmSource: "gbp",
+      utmMedium: "profile",
+      utmCampaign: null,
+    });
+    await expect(
+      page.getByText("Thanks, we've got your request"),
+    ).toBeVisible();
+  });
+
+  test("a visit from no tagged link sends just the page", async ({ page }) => {
+    await openQuoteForm(page);
+    await fillIn(page);
+
+    const sent = page.waitForRequest(/\/api\/quotes\/ask$/);
+    await page.getByRole("button", { name: "Request a Quote" }).click();
+
+    expect((await sent).postDataJSON().source).toEqual({
+      page: "/",
+      utmSource: null,
+      utmMedium: null,
+      utmCampaign: null,
+    });
+  });
+
   test("the API's explanation shows beside the field", async ({ page }) => {
     await openQuoteForm(page);
     await fillIn(page, "1137");
