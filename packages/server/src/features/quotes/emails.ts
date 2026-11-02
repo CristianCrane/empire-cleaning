@@ -45,6 +45,43 @@ export const quoteReceivedEmail = ({
   ],
 });
 
+// to the Office: someone asked for a Quote on the landing page or in the
+// portal, and was told to expect it within a working day
+export const quoteRequestedEmail = ({
+  client,
+  businessName,
+  serviceName,
+  regular,
+  address,
+  quoteId,
+}: {
+  client: string;
+  businessName: string | null;
+  serviceName: string;
+  regular: boolean;
+  address: string;
+  quoteId: string;
+}): Email => ({
+  subject: `New Quote request from ${client}`,
+  blocks: [
+    paragraph(
+      `${client} asked for a Quote, and was told to expect it usually within a working day.`,
+    ),
+    details([
+      {
+        label: "Client",
+        value: businessName ? `${client}, ${businessName}` : client,
+      },
+      {
+        label: "Service",
+        value: regular ? `${serviceName}, with regular visits` : serviceName,
+      },
+      { label: "Where", value: address },
+    ]),
+    button("Open the Quote", `/office/quotes/${quoteId}`),
+  ],
+});
+
 // to the Office: open Quotes a booking has left no room for
 export const quotesWithoutRoomEmail = ({
   quotes,

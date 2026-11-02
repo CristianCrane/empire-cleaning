@@ -1,4 +1,5 @@
-import { useLoaderData, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { useLoaderData, useNavigate, useRouter } from "@tanstack/react-router";
 import type { NeedsAttentionItem } from "@empire-cleaning/models";
 import {
   CalendarClock,
@@ -35,10 +36,22 @@ import {
   formatMoney,
 } from "../format.ts";
 
+// how often a Dashboard left open asks again, while it can be seen: a new
+// Quote request shows within a minute (the Office is emailed of it too).
+// Coming back to the tab asks at once (main.tsx)
+const REFRESH_MS = 60_000;
+
 // the Office's first screen: what's waiting on them, then today's Jobs and
 // Site Visits on a one-day Schedule
 export function Dashboard() {
   const { needsAttention, today } = useLoaderData({ from: "/office/" });
+  const router = useRouter();
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (document.visibilityState === "visible") void router.invalidate();
+    }, REFRESH_MS);
+    return () => clearInterval(timer);
+  }, [router]);
 
   return (
     <div className="flex flex-col gap-8">

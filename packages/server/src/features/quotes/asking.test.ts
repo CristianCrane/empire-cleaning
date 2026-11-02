@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { db } from "#db";
 import { SEEDED } from "#features/services";
+import { createStaff } from "#features/staff";
 import { api, signIn, testEmail } from "../../../tests/harness.ts";
 import {
   casey,
@@ -490,6 +491,48 @@ describe("one open Quote per home", () => {
     );
 
     expect(res.status).toBe(409);
+  });
+});
+
+// so a request is seen within the working day the receipt promises, however
+// stale the Office's screen
+describe("the Office's email", () => {
+  test("goes to every active Office Staff member, linking to the Quote", async () => {
+    await signInAsOffice();
+    await createStaff({
+      name: "Dana Desk",
+      email: "dana@example.com",
+      roles: ["office_staff", "cleaner"],
+    });
+    await createStaff({
+      name: "Cory Cleaner",
+      email: "cory@example.com",
+      roles: ["cleaner"],
+    });
+
+    const { body } = await submit(guestAsk()).expect(201);
+
+    for (const to of ["olive@example.com", "dana@example.com"]) {
+      const notice = testEmail().lastTo(to);
+      expect(notice.subject).toBe("New Quote request from Casey Client");
+      expect(notice.text).toContain("41-12 Austin St, 4B, 11375");
+      expect(notice.text.match(/https?:\/\/\S+/g)).toEqual([
+        expect.stringMatching(new RegExp(`/office/quotes/${body.id}$`)),
+      ]);
+    }
+    expect(testEmail().to("cory@example.com")).toEqual([]);
+  });
+
+  test("says what was asked for", async () => {
+    await signInAsOffice();
+
+    await submit(
+      guestAsk({ serviceKey: SEEDED.deep, wantsRegularService: true }),
+    ).expect(201);
+
+    expect(testEmail().lastTo("olive@example.com").text).toContain(
+      "Deep Clean, with regular visits",
+    );
   });
 });
 
