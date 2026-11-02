@@ -7,6 +7,7 @@
 import type { StaffRole } from "@empire-cleaning/models";
 import { eq } from "drizzle-orm";
 import { db } from "#db";
+import { refuseOnProduction } from "#features/site";
 import { createStaff, staff } from "#features/staff";
 
 const TESTERS: { email: string; name: string; roles: StaffRole[] }[] = [
@@ -23,8 +24,10 @@ const TESTERS: { email: string; name: string; roles: StaffRole[] }[] = [
   },
 ];
 
-// adds each tester not already on Staff; returns those added
+// adds each tester not already on Staff, never in production; returns those
+// added
 export const addTesters = async () => {
+  await refuseOnProduction("Adding testers");
   const added = [];
   for (const tester of TESTERS) {
     const [existing] = await db
