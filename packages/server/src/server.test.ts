@@ -30,6 +30,24 @@ test("health check is 503 when the database doesn't answer (ADR-0007)", async ()
   expect(res.body).toEqual({ status: "database unreachable" });
 });
 
+test("every answer carries the security headers, and doesn't name Express (#225)", async () => {
+  for (const res of [
+    await api().get("/health"),
+    await api().get("/api/me"),
+    await api().post("/api/quotes/ask").send({}),
+    await api().get("/api/auth/get-session"),
+  ]) {
+    expect(res.headers).toMatchObject({
+      "content-security-policy": "default-src 'none'; frame-ancestors 'none'",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "no-referrer",
+    });
+    expect(res.headers).not.toHaveProperty("x-powered-by");
+  }
+});
+
 test("a 4xx is normal business, never reported (ADR-0007)", async () => {
   await api().post("/api/quotes/ask").send({}).expect(400);
   await api().get("/api/me").expect(401);

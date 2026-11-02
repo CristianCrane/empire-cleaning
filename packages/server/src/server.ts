@@ -43,13 +43,17 @@ import {
   networkLoggingMiddleware,
   corsMiddleware,
   errorHandler,
+  securityHeadersMiddleware,
 } from "#middleware";
 import env from "./env.ts";
 import { databaseAnswers } from "./health.ts";
 
 const app = express();
+// no telling anyone what the server runs on
+app.disable("x-powered-by");
 
 // middleware
+app.use(securityHeadersMiddleware);
 app.use(corsMiddleware);
 app.use(networkLoggingMiddleware);
 

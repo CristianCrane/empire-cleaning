@@ -98,6 +98,26 @@ services:
     autoDeployTrigger: checksPass
     domains:
       - app.test.empirecleaningandpro.com
+    # what a page can't say for itself in a <meta>: no other site may
+    # frame the app (clickjacking), HTTPS only, files are what they say they are,
+    # and other sites learn only which site a visitor came from. The README
+    # says what each is for
+    headers:
+      - path: /*
+        name: Content-Security-Policy
+        value: frame-ancestors 'none'
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: Strict-Transport-Security
+        value: max-age=31536000; includeSubDomains
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
     envVars:
       # Sentry's environment
       - key: VITE_APP_MODE
@@ -132,6 +152,26 @@ services:
     autoDeployTrigger: checksPass
     domains:
       - test.empirecleaningandpro.com
+    # what a page can't say for itself in a <meta>: no other site may
+    # frame the site (clickjacking), HTTPS only, files are what they say they are,
+    # and other sites learn only which site a visitor came from. The README
+    # says what each is for
+    headers:
+      - path: /*
+        name: Content-Security-Policy
+        value: frame-ancestors 'none'
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: Strict-Transport-Security
+        value: max-age=31536000; includeSubDomains
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
     envVars:
       # the banner and no indexing (src/site-mode.ts)
       - key: PUBLIC_APP_MODE
