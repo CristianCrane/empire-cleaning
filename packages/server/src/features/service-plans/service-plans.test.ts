@@ -8,7 +8,6 @@ import type {
   OfficePropertyView,
   OfficeQuote,
   OfficeServicePlan,
-  PriceList,
   QuoteDraftInput,
   Recurrence,
   ServicePlanSummary,
@@ -480,8 +479,9 @@ describe("completing a plan Job", () => {
   ) => {
     const { office, me, planId } = started;
     const [first] = (await officePlan(office, planId)).jobs;
-    const [{ id: cleanerId }] = (await office.get("/api/staff").expect(200))
-      .body as { id: string }[];
+    const cleanerId = (
+      (await office.get("/api/staff").expect(200)).body as { id: string }[]
+    )[0]!.id;
     const offered = await offerAssignment(first!.id, cleanerId!, me.id);
     await confirmAssignment(cleanerId!, offered.assignments[0]!.id);
     testClock().set(new Date("2026-01-19T16:00:00Z"));

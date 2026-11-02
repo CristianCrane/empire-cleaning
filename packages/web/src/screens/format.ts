@@ -77,7 +77,7 @@ export const wantedCleaning = (request: {
     ? `${weekdaysText(request.weekdays)}${request.preferredTime ? ` at ${formatClock(request.preferredTime)}` : ""}`
     : "A one-off clean";
 
-export const weekdayNames = [
+const weekdayNames = [
   "Monday",
   "Tuesday",
   "Wednesday",
@@ -88,7 +88,7 @@ export const weekdayNames = [
 ] as const;
 
 // [0, 2, 4] -> "Monday, Wednesday and Friday"
-export const weekdaysText = (days: Weekday[]) => {
+const weekdaysText = (days: Weekday[]) => {
   const names = days.map((d) => weekdayNames[d]);
   return names.length > 1
     ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`

@@ -140,7 +140,7 @@ const placeholders: (ServiceInput & { key: string })[] = [
 // a Service as its row stores it: the room hours flat
 const columnsOf = <T extends ServiceInput>({ roomHours, ...rest }: T) => ({
   ...rest,
-  ...(roomHours ?? {}),
+  ...roomHours,
 });
 
 const toService = (row: ServiceRow, authorName: string | null): Service => ({

@@ -61,7 +61,7 @@ export type HomeData = {
   paymentMethod: PaymentMethodView | null;
 };
 
-export type HomeLink = AppHref | `tel:${string}`;
+type HomeLink = AppHref | `tel:${string}`;
 
 export type Hero = {
   label: string;
@@ -76,9 +76,9 @@ export type Hero = {
 };
 
 // something waiting on the Client, with the one thing to do about it
-export type HomeNotice = { text: string; action: string; href: HomeLink };
+type HomeNotice = { text: string; action: string; href: HomeLink };
 
-export type Shortcut = {
+type Shortcut = {
   icon: LucideIcon;
   label: string;
   hint: string;

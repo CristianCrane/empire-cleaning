@@ -80,7 +80,7 @@ export const reportableAddOns = async (
 };
 
 // the tax on part of a Job's price, at the rate its Quote used
-export const taxFor = (
+const taxFor = (
   priceCents: number,
   taxExempt: boolean,
   suggested: PriceBreakdown,

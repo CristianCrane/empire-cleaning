@@ -16,7 +16,7 @@ export type ToastContent = {
   tone?: "info" | "success" | "danger";
 };
 
-export const toastQueue = new AriaToastQueue<ToastContent>({
+const toastQueue = new AriaToastQueue<ToastContent>({
   maxVisibleToasts: 3,
 });
 

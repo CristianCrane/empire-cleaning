@@ -63,14 +63,12 @@ import { monitoring } from "../../services/monitoring/index.ts";
 
 // a proposed increase the Client hasn't answered lapses after this long, with
 // one reminder this long before it does (ADR-0009)
-export const ANSWER_DAYS = 7;
-export const REMINDER_DAYS_BEFORE = 2;
+const ANSWER_DAYS = 7;
+const REMINDER_DAYS_BEFORE = 2;
 const DAY_MS = 86_400_000;
 
 // what an Adjustment changed, by name: "Inside the fridge", "1 extra hour"
-export const adjustmentItem = (
-  a: Pick<Adjustment, "kind" | "addOnName" | "hours">,
-) =>
+const adjustmentItem = (a: Pick<Adjustment, "kind" | "addOnName" | "hours">) =>
   a.kind === "extra_time"
     ? `${a.hours} extra ${a.hours === 1 ? "hour" : "hours"}`
     : a.addOnName!;

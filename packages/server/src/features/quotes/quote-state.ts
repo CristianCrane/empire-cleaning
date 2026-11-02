@@ -66,7 +66,7 @@ export const isOpen = (status: QuoteStatus) =>
   status === "requested" || status === "draft" || status === "sent";
 
 // still being worked on by the Office: nothing has been Sent
-export const unsent = (status: QuoteStatus) =>
+const unsent = (status: QuoteStatus) =>
   status === "requested" || status === "draft";
 
 // what a Quote was asked for, or null if the Office offered it unprompted
@@ -100,7 +100,7 @@ export const sourceOf = (quote: Quote): QuoteSource | null =>
       };
 
 // the options of these Revisions, by Revision
-export const optionsOfRevisions = async (revisionIds: string[]) => {
+const optionsOfRevisions = async (revisionIds: string[]) => {
   if (revisionIds.length === 0) return new Map<string, RevisionOptionRow[]>();
   const rows = await db
     .select()
@@ -113,10 +113,7 @@ export const optionsOfRevisions = async (revisionIds: string[]) => {
 // what a Revision leads with, tax included: a one-off Quote's first option,
 // the recommended one where there is one, or a Service Plan Quote's round, a
 // clean on each weekday. The options are in order.
-export const headlineOf = (
-  kind: Quote["kind"],
-  options: RevisionOptionRow[],
-) =>
+const headlineOf = (kind: Quote["kind"], options: RevisionOptionRow[]) =>
   kind === "service_plan"
     ? options.reduce((total, o) => total + o.totalCents, 0)
     : options[0]!.totalCents;
@@ -420,7 +417,7 @@ export const quotesForProperty = (propertyId: string) =>
   summaries(eq(quotes.propertyId, propertyId));
 
 // how long an Expired Quote stays on the Office's list, to be revived
-export const RECENTLY_EXPIRED_DAYS = 30;
+const RECENTLY_EXPIRED_DAYS = 30;
 
 // the Office's open Quotes, newest first: Requested, Draft and Sent, and
 // those Expired in the last RECENTLY_EXPIRED_DAYS, which may be revived

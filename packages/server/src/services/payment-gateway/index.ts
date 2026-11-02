@@ -16,7 +16,7 @@ export type SavedPaymentMethod = {
 // where a Deposit comes from: what the Client just entered in the browser's
 // payment form (which also saves it for later), or a Payment Method they
 // saved before
-export type DepositSource = { token: string } | { paymentMethodId: string };
+type DepositSource = { token: string } | { paymentMethodId: string };
 
 export type DepositInput = {
   payerId: string;

@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useEffectEvent,
   useState,
   type ComponentType,
   type ReactElement,
@@ -131,15 +132,15 @@ function NewTimeForm({
     reloadOnFailure: true,
   });
 
+  const loadFailed = useEffectEvent(() =>
+    action.fail("The times couldn't be loaded. Please try again."),
+  );
+
   useEffect(() => {
     let current = true;
     getJson<RescheduleTimes>(`${base}/reschedule-times`)
       .then((found) => current && setTimes(found))
-      .catch(
-        () =>
-          current &&
-          action.fail("The times couldn't be loaded. Please try again."),
-      );
+      .catch(() => current && loadFailed());
     return () => {
       current = false;
     };

@@ -39,7 +39,7 @@ const homeType = z.enum(["house", "apartment", "townhouse"], {
 });
 
 // a home's rooms, all four together
-export const roomsSchema = z.object({
+const roomsSchema = z.object({
   bedrooms: z.number().int().min(0).max(20),
   bathrooms: z
     .number()
@@ -54,7 +54,7 @@ const homeFloorArea = z.number().int().min(100).max(100_000).nullish();
 
 // its rooms are optional here: the Service asked for decides whether
 // they're needed (checkRooms)
-export const newHomeSchema = z.object({
+const newHomeSchema = z.object({
   kind: z.literal("residential"),
   type: homeType,
   ...address,
@@ -68,14 +68,14 @@ export const homeDetailsSchema = roomsSchema.extend({
   floorArea: homeFloorArea,
 });
 
-export const newPremisesSchema = z.object({
+const newPremisesSchema = z.object({
   kind: z.literal("commercial"),
   ...address,
   premisesType,
   floorArea: floorArea.nullish(),
 });
 
-export const newPropertySchema = z.discriminatedUnion(
+const newPropertySchema = z.discriminatedUnion(
   "kind",
   [newHomeSchema, newPremisesSchema],
   { error: "Choose a home or business premises" },

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { daysFrom } from "../../services/clock/index.ts";
 
 // longest range the Schedule shows at once: about two months
-export const MAX_SCHEDULE_DAYS = 62;
+const MAX_SCHEDULE_DAYS = 62;
 
 const day = z.iso.date("Use a date like 2026-11-03");
 

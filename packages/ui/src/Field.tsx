@@ -88,7 +88,7 @@ export function TextArea(props: TextAreaProps) {
 // a field made of several parts (date segments, stepper buttons) in one
 // box; parts stretch to its height rather than setting their own, so it
 // matches a plain text box
-export const fieldGroupStyles = tv({
+const fieldGroupStyles = tv({
   base: "flex min-h-touch w-full items-center overflow-hidden rounded-md rounded-b-none border bg-surface-sunken text-base text-fg",
   variants: {
     isFocusWithin: { true: "outline-2 -outline-offset-1 outline-focus" },

@@ -22,7 +22,7 @@ export const validate =
     z.ZodSchema<TBody>,
     z.ZodSchema<TQuery>
   >): RequestHandler<TParams, unknown, TBody, TQuery> =>
-  (req, res, next) => {
+  (req, _res, next) => {
     if (paramsSchema) {
       const result = paramsSchema.safeParse(req.params);
       if (!result.success) {

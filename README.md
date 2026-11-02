@@ -37,13 +37,24 @@ pnpm run db:down
 
 Every pull request to `main`, and every push to `main`, runs `.github/workflows/ci.yml`. Each part is its own check, and they run in parallel; a newer push to the same pull request cancels the run still going. To run the same locally (with `pnpm db:up` for the Postgres the tests use):
 
-| Check                | Locally                                                                       |
-| -------------------- | ----------------------------------------------------------------------------- |
-| Checks               | `pnpm check` (typecheck), `pnpm lint:check` (Prettier), `pnpm check:packages` |
-| Server tests         | `pnpm --filter @empire-cleaning/server test`                                  |
-| Design-system tests  | `pnpm --filter @empire-cleaning/ui test`                                      |
-| Web end-to-end tests | `pnpm --filter @empire-cleaning/web test`                                     |
-| Landing site tests   | `pnpm --filter @empire-cleaning/landing test`                                 |
+| Check                | Locally                                                                                           |
+| -------------------- | ------------------------------------------------------------------------------------------------- |
+| Checks               | `pnpm check`, `pnpm lint`, `pnpm lint:unused`, `pnpm format:check`, `pnpm check:packages` (below) |
+| Server tests         | `pnpm --filter @empire-cleaning/server test`                                                      |
+| Design-system tests  | `pnpm --filter @empire-cleaning/ui test`                                                          |
+| Web end-to-end tests | `pnpm --filter @empire-cleaning/web test`                                                         |
+| Landing site tests   | `pnpm --filter @empire-cleaning/landing test`                                                     |
+
+What the Checks job is for:
+
+| Step                                                        | Catches                                                                                                                                                                                                                                                                                                                                                                                |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Typecheck (`pnpm check`)                                    | Type errors, in every package. On top of `strict`: unused imports, variables and parameters (one kept for its place is named `_req`), a case falling through, and an index read that may find nothing (`noUncheckedIndexedAccess`: write `days[0]!` when it can't). `exactOptionalPropertyTypes` stays off: nearly all it found was `undefined` passed to React Aria's optional props. |
+| Lint (`pnpm lint`)                                          | Code that is wrong, with type information: oxlint's correctness rules, promises nobody awaits, a switch with no `default` missing a case, and the rules of React hooks (use `useEffectEvent` for what an effect reads but shouldn't re-run for). It's oxlint (`.oxlintrc.json`, which says why each rule is on or off) because typescript-eslint can't read TypeScript 7.              |
+| Unused files, exports and dependencies (`pnpm lint:unused`) | What nothing uses across the workspace: a file nothing imports, an export no other file reads, a dependency nothing loads (knip, `knip.jsonc`).                                                                                                                                                                                                                                        |
+| Formatting (`pnpm format:check`)                            | Code Prettier would lay out differently; `pnpm format` fixes it.                                                                                                                                                                                                                                                                                                                       |
+| Package consistency (`pnpm check:packages`)                 | Packages disagreeing on a dependency's version, or misdeclaring each other (manypkg).                                                                                                                                                                                                                                                                                                  |
+| Scrubbing tests                                             | What may reach Sentry and the logs, and the browsers' Sentry setup.                                                                                                                                                                                                                                                                                                                    |
 
 CI starts `postgres_test` from `docker-compose.yml`, needs no secrets (email, payments and the clock are faked in tests), and builds `@empire-cleaning/models` first, since the other packages read its types from `dist`. When an end-to-end check fails, its Playwright report and the failed tests' traces are kept as an artifact on the run; open a trace with `pnpm --filter @empire-cleaning/web exec playwright show-trace <trace.zip>`.
 

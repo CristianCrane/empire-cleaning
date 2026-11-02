@@ -28,7 +28,7 @@ router.use(authorize("office_staff"));
 const member = z.object({ id: z.uuid() });
 const memberDay = z.object({ id: z.uuid(), date: isoDate });
 
-router.get("/", async (req, res) => {
+router.get("/", async (_req, res) => {
   res.json(await listStaff());
 });
 

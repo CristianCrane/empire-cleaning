@@ -13,12 +13,12 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "check": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
     "test": "vitest run",
     "test:quick": "vitest run",
     "test:watch": "vitest --watch",
-    "test:coverage": "vitest run --coverage",
-    "lint": "eslint ."
+    "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
     "vitest": "^4.1.11"

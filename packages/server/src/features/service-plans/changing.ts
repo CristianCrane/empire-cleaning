@@ -37,7 +37,7 @@ const bookedFrom = async (tx: Tx | typeof db, planId: string, startsAt: Date) =>
 
 // the booked Jobs a plan's new terms starting at `startsAt` would replace,
 // soonest first, as a Quote changing them shows them
-export const replacedBy = async (planId: string, startsAt: Date) =>
+const replacedBy = async (planId: string, startsAt: Date) =>
   (await bookedFrom(db, planId, startsAt)).reverse();
 
 /**

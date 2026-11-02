@@ -2,7 +2,7 @@ export interface Clock {
   now(): Date;
 }
 
-export const systemClock: Clock = {
+const systemClock: Clock = {
   now: () => new Date(),
 };
 

@@ -202,7 +202,7 @@ const containing = (text: string) => `%${text.replace(/[\\%_]/g, "\\$&")}%`;
 const phoneLike = /^[\d\s()+.-]+$/;
 
 // how many Clients a page of the list holds unless more are asked for
-export const CLIENTS_PAGE = 50;
+const CLIENTS_PAGE = 50;
 
 // the first `limit` Clients in name order (a business by its own) with this
 // standing, or of any, and how many there are in each. With a search, only

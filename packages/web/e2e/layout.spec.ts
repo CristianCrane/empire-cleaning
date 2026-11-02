@@ -7,8 +7,6 @@ import {
   completedFirstClean,
   createStaff,
   expect,
-  nextStep,
-  chooseService,
   offerPlace,
   proposeNextMonday,
   recordNoAccess,

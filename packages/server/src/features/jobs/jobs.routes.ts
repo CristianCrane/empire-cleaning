@@ -10,7 +10,7 @@ import { jobsTabs, listJobs } from "./list.ts";
 export const jobsRouter = Router();
 
 // the signed-in Client's booked Jobs still to come, soonest first
-jobsRouter.get("/mine", authorize("client"), async (req, res) => {
+jobsRouter.get("/mine", authorize("client"), async (_req, res) => {
   const client = await clientForAccount(signedInAccount(res).id);
   if (!client) throw new NotFoundError("Client not found");
   res.json(await upcomingJobsFor(client.id));

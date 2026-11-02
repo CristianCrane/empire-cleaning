@@ -21,7 +21,7 @@ export interface EmailSender {
   send(message: EmailMessage): Promise<void>;
 }
 
-export class ResendEmailSender implements EmailSender {
+class ResendEmailSender implements EmailSender {
   private readonly resend: Resend;
   private readonly from: string;
 

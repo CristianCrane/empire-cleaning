@@ -17,12 +17,12 @@ const params = z.object({ key: z.uuid() });
 
 // the Services a Quote can be asked for now; open to Guests because the
 // landing page's "Request a Quote" form lists them
-router.get("/on-offer", async (req, res) => {
+router.get("/on-offer", async (_req, res) => {
   res.json(await servicesOnOffer());
 });
 
 // every Service, active and retired, for the Office
-router.get("/", authorize("office_staff"), async (req, res) => {
+router.get("/", authorize("office_staff"), async (_req, res) => {
   res.json(await currentServices());
 });
 

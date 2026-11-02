@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull, max, ne, or } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, max, ne } from "drizzle-orm";
 import { z } from "zod";
 import type {
   AddOnChoice,
@@ -178,7 +178,6 @@ const homeOf = async (propertyId: string) => {
 // its Service, and any asked for that have since been retired
 const addOnChoices = async (
   list: Pricing,
-  property: Property,
   quote: Quote,
 ): Promise<AddOnChoice[]> => {
   const asked = new Set(
@@ -525,8 +524,6 @@ const officeOption = (
 // one Revision in full, for the Office
 const officeRevision = async (
   revision: KindedRevision,
-  list: Pricing,
-  property: Property,
 ): Promise<OfficeRevision> => {
   const [rows, [priced]] = await Promise.all([
     optionsOf(revision.id),
@@ -684,13 +681,9 @@ export const officeQuote = async (id: string): Promise<OfficeQuote> => {
     firstCleanCompleted: firstCleanDone,
     homePlanId,
     firstClean,
-    addOnChoices: await addOnChoices(list, property, quote),
-    draft: draft
-      ? await officeRevision(kinded(quote, draft), list, property)
-      : null,
-    offer: offer
-      ? await officeRevision(kinded(quote, offer), list, property)
-      : null,
+    addOnChoices: await addOnChoices(list, quote),
+    draft: draft ? await officeRevision(kinded(quote, draft)) : null,
+    offer: offer ? await officeRevision(kinded(quote, offer)) : null,
     revisions,
     declinedAt: iso(quote.declinedAt),
     acceptedAt: iso(quote.acceptedAt),
@@ -1333,7 +1326,7 @@ export const saveDraft = async (
       : plan && planServiceOf(list, property, quote, plan.serviceKey);
   const allowed = new Set(
     (
-      await addOnChoices(list, property, {
+      await addOnChoices(list, {
         ...quote,
         serviceKey: service?.key ?? quote.serviceKey,
       })

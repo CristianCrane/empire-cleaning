@@ -267,13 +267,13 @@ describe("Google", () => {
 describe("authorize()", () => {
   // a stand-in endpoint: real ones arrive with the feature tickets
   const app = express();
-  app.get("/office-only", authorize("office_staff"), (req, res) => {
+  app.get("/office-only", authorize("office_staff"), (_req, res) => {
     res.json({ hello: signedInAccount(res).name });
   });
-  app.get("/staff", authorize("cleaner", "office_staff"), (req, res) => {
+  app.get("/staff", authorize("cleaner", "office_staff"), (_req, res) => {
     res.json({ ok: true });
   });
-  app.get("/anyone", authorize(), (req, res) => {
+  app.get("/anyone", authorize(), (_req, res) => {
     res.json({ ok: true });
   });
   app.use(errorHandler);

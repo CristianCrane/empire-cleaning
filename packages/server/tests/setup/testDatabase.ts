@@ -9,8 +9,7 @@ export const TEST_DB_URL =
   process.env.TEST_DB_URL ??
   "postgresql://postgres:password@localhost:5433/empire_test";
 
-export const MIGRATIONS_FOLDER = new URL("../../drizzle", import.meta.url)
-  .pathname;
+const MIGRATIONS_FOLDER = new URL("../../drizzle", import.meta.url).pathname;
 
 // how many test files run at once, each worker on a database of its own;
 // SERVER_TEST_WORKERS overrides it

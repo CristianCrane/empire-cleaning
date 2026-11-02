@@ -40,7 +40,7 @@ import { monitoring } from "../../services/monitoring/index.ts";
 
 // a Confirmed place can't be Released this close to the Job: the Office needs
 // time to find someone else
-export const RELEASE_CUTOFF_HOURS = 48;
+const RELEASE_CUTOFF_HOURS = 48;
 
 const releaseClosed = (job: Job) =>
   job.startsAt.getTime() - clock.now().getTime() <

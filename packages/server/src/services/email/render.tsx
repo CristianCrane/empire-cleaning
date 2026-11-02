@@ -22,7 +22,7 @@ const textOf = (block: Block) => {
 
 // the text part: one paragraph per block, the button as its raw URL, and the
 // footer after the usual "-- " signature line
-export const emailText = (email: Email) =>
+const emailText = (email: Email) =>
   [...email.blocks.map(textOf), `-- \n${footerLine}`].join("\n\n");
 
 // logoUrl: where the logo PNG is served (logoUrlOn the landing site)

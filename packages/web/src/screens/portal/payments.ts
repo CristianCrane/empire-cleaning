@@ -16,7 +16,7 @@ export type PaymentsData = {
   paymentMethod: PaymentMethodView | null;
 };
 
-export type Owed = {
+type Owed = {
   cents: number;
   // something failed or is past its due date, not just waiting on them
   late: boolean;

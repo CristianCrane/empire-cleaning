@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   Building2,
   House,
@@ -332,11 +338,14 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
     void loadServices(apiUrl).then(setServices);
   }, [apiUrl]);
   // the Service to start with, once, as the Services arrive
-  useEffect(() => {
-    if (!services || !start || serviceKey) return;
+  const startWith = useEffectEvent((services: ServiceOffer[]) => {
+    if (!start || serviceKey) return;
     if (!services.some((s) => s.key === start.serviceKey)) return;
     chooseService(start.serviceKey);
     if (start.regular) setWantsRegularService(true);
+  });
+  useEffect(() => {
+    if (services) startWith(services);
   }, [services]);
   // a home's Add-ons are the Service's own
   useEffect(() => {
@@ -471,9 +480,10 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
 
   // what's asked so far, for a page showing what it comes to
   const asked = serviceKey ? JSON.stringify(submission()) : null;
-  useEffect(() => {
-    onAskChange?.(asked === null ? null : (JSON.parse(asked) as QuoteAsk));
-  }, [asked]);
+  const tellAsked = useEffectEvent((asked: string | null) =>
+    onAskChange?.(asked === null ? null : (JSON.parse(asked) as QuoteAsk)),
+  );
+  useEffect(() => tellAsked(asked), [asked]);
 
   // a field's message from the API, by its path in the request
   const error = (path: string) => fieldErrors[path];

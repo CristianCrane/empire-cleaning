@@ -6,6 +6,10 @@
     "noEmit": true,
     "noImplicitAny": true,
     "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
     "allowSyntheticDefaultImports": true,
     "noUncheckedSideEffectImports": true
   },

@@ -32,7 +32,7 @@ import {
 // a clean booked or done needs none. (UX pass, #96)
 
 export const cleansTabs = ["upcoming", "past"] as const;
-export type CleansTab = (typeof cleansTabs)[number];
+type CleansTab = (typeof cleansTabs)[number];
 export type CleansSearch = { tab?: CleansTab };
 
 // past cleans shown at a time

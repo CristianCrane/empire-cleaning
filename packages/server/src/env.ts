@@ -73,7 +73,7 @@ if (result.error) {
   log.fatal(
     {
       issues: result.error.issues.map(
-        (issue) => `[${issue.path}]: ${issue.message}`,
+        (issue) => `[${issue.path.join(".")}]: ${issue.message}`,
       ),
     },
     "Server failed to start, invalid environment variables",

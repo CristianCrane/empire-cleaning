@@ -1,0 +1,43 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  // oxlint's own "correctness" set (code that is outright wrong or useless),
+  // with type information from TypeScript 7 (`--type-aware`, oxlint-tsgolint);
+  // typescript-eslint can't read TypeScript 7
+  "plugins": ["typescript", "react", "oxc", "unicorn", "import"],
+  "categories": { "correctness": "error" },
+  "rules": {
+    // a promise nobody awaits fails silently
+    "typescript/no-floating-promises": "error",
+    // a switch with no default fails once its union gains a member; one with
+    // a default has said what the rest do
+    "typescript/switch-exhaustiveness-check": [
+      "error",
+      { "considerDefaultExhaustiveForUnions": true }
+    ],
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "error",
+    // as TypeScript has it: `{ createdAt: _, ...rest }` leaves a field out,
+    // and `_req` is a parameter kept for its place
+    "eslint/no-unused-vars": [
+      "error",
+      { "ignoreRestSiblings": true, "argsIgnorePattern": "^_" }
+    ],
+    // these four assume the React Compiler, which isn't used here
+    "react/set-state-in-effect": "off",
+    "react/purity": "off",
+    "react/immutability": "off",
+    "react/preserve-manual-memoization": "off",
+    // flags String() on FormData and Express values that are always strings
+    // here; the only fix is a cast
+    "typescript/no-base-to-string": "off"
+  },
+  "overrides": [
+    {
+      // Playwright reads a fixture's dependencies from its first argument,
+      // which must be an object pattern: `async ({}, use) => …`
+      "files": ["packages/*/e2e/**", "packages/landing/tests/**"],
+      "rules": { "eslint/no-empty-pattern": "off" }
+    }
+  ],
+  "ignorePatterns": ["**/dist/**", "**/.astro/**", "**/storybook-static/**"]
+}

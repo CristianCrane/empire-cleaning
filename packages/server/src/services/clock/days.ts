@@ -1,7 +1,7 @@
 // Empire Cleaning's days are New York's: a Job at 11pm on the 3rd is on the
 // 3rd, wherever the server runs. A day is written "2026-11-03".
 
-export const BUSINESS_TIME_ZONE = "America/New_York";
+const BUSINESS_TIME_ZONE = "America/New_York";
 
 const parts = new Intl.DateTimeFormat("en-US", {
   timeZone: BUSINESS_TIME_ZONE,

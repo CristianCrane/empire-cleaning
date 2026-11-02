@@ -49,14 +49,14 @@ import { monitoring } from "../../services/monitoring/index.ts";
 
 // moving a Job is free until this long before it starts; after that it's a
 // Late Reschedule (ADR-0010)
-export const LATE_RESCHEDULE_HOURS = 24;
+const LATE_RESCHEDULE_HOURS = 24;
 const HOUR_MS = 3_600_000;
 
 // a Job can be moved to a day from tomorrow up to this many days ahead
-export const RESCHEDULE_DAYS_AHEAD = 56;
+const RESCHEDULE_DAYS_AHEAD = 56;
 
 // the start times a Job can be moved to, New York time
-export const START_TIMES = [
+const START_TIMES = [
   "08:00",
   "09:00",
   "10:00",

@@ -9,7 +9,7 @@ export const addressOf = (p: {
 }) => [p.street, p.unit, p.postcode].filter(Boolean).join(", ");
 
 // a Premises Type's name, from the Price List (retired ones keep theirs)
-export const premisesTypeName = (list: PriceList, key: string) =>
+const premisesTypeName = (list: PriceList, key: string) =>
   list.premisesTypes.find((t) => t.key === key)?.name ?? "Premises";
 
 // the database guarantees each kind's details (properties_kind_details), a
