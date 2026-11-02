@@ -290,6 +290,43 @@ export const test = base.extend<{ cleanSlate: void }>({
   ],
 });
 
+// a section in the navigation, wherever it shows: on a phone most of the
+// Office's sit in its ☰ menu, which is opened first (#200). Whether it opened
+// it, so a check can close it again
+const showNavLink = async (page: Page, name: string) => {
+  const link = page
+    .getByRole("navigation")
+    .getByRole("link", { name, exact: true })
+    .filter({ visible: true });
+  const menu = page.getByRole("button", { name: "Menu" });
+  await expect(link.or(menu).first()).toBeVisible();
+  if (await link.isVisible()) return { link, opened: false };
+  await menu.click();
+  await expect(link).toBeVisible();
+  return { link, opened: true };
+};
+
+// goes to a section through the navigation
+export const goTo = async (page: Page, name: string) => {
+  const { link } = await showNavLink(page, name);
+  await link.click();
+};
+
+// whether the navigation marks a section as the one you're in
+export const expectCurrentSection = async (
+  page: Page,
+  name: string,
+  current = true,
+) => {
+  const { link, opened } = await showNavLink(page, name);
+  if (current) await expect(link).toHaveAttribute("aria-current", "page");
+  else await expect(link).not.toHaveAttribute("aria-current", "page");
+  if (opened) {
+    await page.keyboard.press("Escape");
+    await expect(link).toBeHidden();
+  }
+};
+
 // the quote form asks in steps: presses Next, which checks the step's
 // required fields, and waits for the next step to show
 export const nextStep = async (page: Page) => {

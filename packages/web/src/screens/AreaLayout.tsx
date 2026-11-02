@@ -44,7 +44,9 @@ import { areas, areasFor, signOut, type AreaId } from "../session.ts";
 // section (alsoCurrentFor: URL prefixes), e.g. a Quote reached from Quotes
 type AreaNavItem = NavItem & { alsoCurrentFor?: string[] };
 
-// each area's navigation; feature tickets add their screens here
+// each area's navigation; feature tickets add their screens here. A phone's
+// tab bar holds five at most: the Office keeps the two it checks all day
+// there, the rest in its ☰ menu (#200)
 const navFor: Record<AreaId, AreaNavItem[]> = {
   office: [
     { href: linkTo({ to: "/office" }), label: "Today", icon: LayoutDashboard },
@@ -52,18 +54,21 @@ const navFor: Record<AreaId, AreaNavItem[]> = {
       href: linkTo({ to: "/office/quotes" }),
       label: "Quotes",
       icon: QuoteIcon,
+      inMenu: true,
       alsoCurrentFor: ["/office/quotes/"],
     },
     {
       href: linkTo({ to: "/office/jobs" }),
       label: "Jobs",
       icon: JobIcon,
+      inMenu: true,
       alsoCurrentFor: ["/office/jobs/"],
     },
     {
       href: linkTo({ to: "/office/clients" }),
       label: "Clients",
       icon: ContactRound,
+      inMenu: true,
       alsoCurrentFor: [
         "/office/clients/",
         "/office/properties",
@@ -79,18 +84,21 @@ const navFor: Record<AreaId, AreaNavItem[]> = {
       href: linkTo({ to: "/office/staff" }),
       label: "Staff",
       icon: Users,
+      inMenu: true,
       alsoCurrentFor: ["/office/staff/"],
     },
     {
       href: linkTo({ to: "/office/services" }),
       label: "Services",
       icon: Sparkles,
+      inMenu: true,
       alsoCurrentFor: ["/office/services/"],
     },
     {
       href: linkTo({ to: "/office/price-list" }),
       label: "Price List",
       icon: Tag,
+      inMenu: true,
     },
   ],
   cleaner: [
