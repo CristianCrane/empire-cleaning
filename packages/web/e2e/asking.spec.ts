@@ -8,6 +8,8 @@ import {
   chooseService,
   requestQuoteAsGuest,
   test,
+  expectCurrentSection,
+  goTo,
 } from "./harness.ts";
 
 const casey = { name: "Casey Client", email: "casey@example.com" };
@@ -293,7 +295,7 @@ test("Office Staff see the Quote, open the home and correct its details", async 
   await createStaff(officeStaff);
   await signInAs(page, officeStaff.email);
 
-  await page.getByRole("link", { name: "Quotes", exact: true }).click();
+  await goTo(page, "Quotes");
   await expect(page).toHaveURL("/office/quotes");
   await page.getByText("Casey Client").click();
   // the Quote first; its home is one step further
@@ -336,7 +338,7 @@ test("Office Staff see which page and link a Guest asked from", async ({
   await createStaff(officeStaff);
   await signInAs(page, officeStaff.email);
 
-  await page.getByRole("link", { name: "Quotes", exact: true }).click();
+  await goTo(page, "Quotes");
   await page.getByText("Casey Client").click();
 
   await expect(
@@ -351,9 +353,7 @@ test(
     await requestQuoteAsGuest(casey);
     await createStaff(officeStaff);
     await signInAs(page, officeStaff.email);
-    const officeNav = page.getByRole("navigation", { name: "Office" });
-
-    await page.getByRole("link", { name: "Quotes", exact: true }).click();
+    await goTo(page, "Quotes");
     await page.getByText("Casey Client").click();
     const crumbs = page.getByLabel("Breadcrumbs");
     const address = "41-12 Austin St, 4B, 11375";
@@ -376,12 +376,8 @@ test(
       "page",
     );
     // however a Client is reached, they belong to Clients
-    await expect(
-      officeNav.getByRole("link", { name: "Clients" }),
-    ).toHaveAttribute("aria-current", "page");
-    await expect(
-      officeNav.getByRole("link", { name: "Quotes", exact: true }),
-    ).not.toHaveAttribute("aria-current", "page");
+    await expectCurrentSection(page, "Clients");
+    await expectCurrentSection(page, "Quotes", false);
 
     await crumbs.getByRole("link", { name: "Clients" }).click();
     await expect(page).toHaveURL("/office/clients");

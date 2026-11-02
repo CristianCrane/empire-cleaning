@@ -1,5 +1,13 @@
 import type { Page } from "@playwright/test";
-import { bookJob, createStaff, expect, signedInAs, test } from "./harness.ts";
+import {
+  bookJob,
+  createStaff,
+  expect,
+  expectCurrentSection,
+  goTo,
+  signedInAs,
+  test,
+} from "./harness.ts";
 
 const olive = {
   email: "olive@example.com",
@@ -24,8 +32,7 @@ test(
     await createStaff(olive);
     await signedInAs(page, olive.email);
 
-    const nav = page.getByRole("navigation", { name: "Office" });
-    await nav.getByRole("link", { name: "Jobs" }).click();
+    await goTo(page, "Jobs");
     await expect(page).toHaveURL("/office/jobs");
 
     // Upcoming, soonest first
@@ -47,10 +54,7 @@ test(
       "aria-current",
       "page",
     );
-    await expect(nav.getByRole("link", { name: "Jobs" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
+    await expectCurrentSection(page, "Jobs");
 
     await crumbs.getByRole("link", { name: "Jobs" }).click();
     await expect(page).toHaveURL("/office/jobs");

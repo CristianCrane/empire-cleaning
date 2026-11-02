@@ -8,6 +8,7 @@ import {
   signInWithLink,
   signedInAs,
   test,
+  goTo,
 } from "./harness.ts";
 
 const olive = {
@@ -28,7 +29,7 @@ const signInAsOffice = async (page: Page) => {
 };
 
 const openStaffMember = async (page: Page, name: string) => {
-  await page.getByRole("link", { name: "Staff" }).click();
+  await goTo(page, "Staff");
   await page.getByRole("row", { name }).click();
   await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
 };
@@ -46,7 +47,7 @@ test(
   { tag: ["@smoke", "@desktop"] },
   async ({ page, browser }) => {
     await signInAsOffice(page);
-    await page.getByRole("link", { name: "Staff" }).click();
+    await goTo(page, "Staff");
     await expect(page).toHaveURL("/office/staff");
 
     await page.getByRole("button", { name: "Invite Staff" }).click();
@@ -104,7 +105,7 @@ test("each Staff member shows their Google picture, or a plain icon without one"
   await page.context().clearCookies();
   await signInAsOffice(page);
 
-  await page.getByRole("link", { name: "Staff" }).click();
+  await goTo(page, "Staff");
 
   const corysPicture = page
     .getByRole("row", { name: /Cory Cleaner/ })

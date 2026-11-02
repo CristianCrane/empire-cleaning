@@ -5,6 +5,7 @@ import {
   expect,
   returnToTab,
   test,
+  goTo,
 } from "./harness.ts";
 
 const olive = {
@@ -84,13 +85,11 @@ test("moving between pages in an area doesn't ask who you are each time", async 
     if (new URL(request.url()).pathname === "/api/me")
       asked.push(request.url());
   });
-  const nav = page.getByRole("navigation", { name: "Office" });
-
-  await nav.getByRole("link", { name: "Quotes", exact: true }).click();
+  await goTo(page, "Quotes");
   await expect(page).toHaveURL("/office/quotes");
-  await nav.getByRole("link", { name: "Today" }).click();
+  await goTo(page, "Today");
   await expect(page).toHaveURL("/office");
-  await nav.getByRole("link", { name: "Quotes", exact: true }).click();
+  await goTo(page, "Quotes");
   await expect(page).toHaveURL("/office/quotes");
 
   expect(asked).toEqual([]);

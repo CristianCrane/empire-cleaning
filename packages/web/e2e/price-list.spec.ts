@@ -9,6 +9,8 @@ import {
   requestQuoteAsGuest,
   test,
   draftTheQuote,
+  expectCurrentSection,
+  goTo,
 } from "./harness.ts";
 
 const casey = { name: "Casey Client", email: "casey@example.com" };
@@ -44,7 +46,7 @@ test(
     await requestQuoteAsGuest(casey);
     await signInAsOffice(page);
 
-    await page.getByRole("link", { name: "Quotes", exact: true }).click();
+    await goTo(page, "Quotes");
     await page.getByText("Casey Client").click();
 
     // priced on the Draft, from the Suggested Price
@@ -75,11 +77,7 @@ test(
       }),
     ).toBeVisible();
     // Quotes stays marked in the navigation
-    await expect(
-      page
-        .getByRole("navigation", { name: "Office" })
-        .getByRole("link", { name: "Quotes", exact: true }),
-    ).toHaveAttribute("aria-current", "page");
+    await expectCurrentSection(page, "Quotes");
   },
 );
 
@@ -88,7 +86,7 @@ test("the extras asked for are priced, and shown with their hours", async ({
 }) => {
   await requestQuoteAsGuest(casey, ["Inside the oven"]);
   await signInAsOffice(page);
-  await page.getByRole("link", { name: "Quotes", exact: true }).click();
+  await goTo(page, "Quotes");
   await page.getByText("Casey Client").click();
 
   await expect(page.getByText("Inside the oven").first()).toBeVisible();
@@ -106,7 +104,7 @@ test(
   { tag: "@smoke" },
   async ({ page }) => {
     await signInAsOffice(page);
-    await page.getByRole("link", { name: "Price List" }).click();
+    await goTo(page, "Price List");
     await expect(page).toHaveURL("/office/price-list");
 
     // placeholders, until the Office saves their own
@@ -255,7 +253,7 @@ test("the request form offers the Add-ons by name, and the choice reaches the Of
   const office = await browser.newPage();
   await createStaff(olive);
   await signedInAs(office, olive.email);
-  await office.getByRole("link", { name: "Quotes", exact: true }).click();
+  await goTo(office, "Quotes");
   await office.getByText("Nina New").click();
   await expect(office.getByText("Inside the oven").first()).toBeVisible();
   await office.close();

@@ -1,6 +1,9 @@
 import { Link, type LinkProps } from "react-aria-components";
-import type { LucideIcon } from "lucide-react";
+import { Menu, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import { Button } from "./Button.tsx";
+import { DialogTrigger } from "./Dialog.tsx";
+import { Drawer } from "./Drawer.tsx";
 import { Logo } from "./Logo.tsx";
 import { ThemeToggle } from "./theme.tsx";
 import { focusRing } from "./utils.ts";
@@ -11,6 +14,9 @@ export type NavItem = {
   label: string;
   icon: LucideIcon;
   isCurrent?: boolean;
+  // on a phone, in the ☰ menu rather than the tab bar: for an area with more
+  // sections than the bar holds
+  inMenu?: boolean;
 };
 
 export type AppLayoutProps = {
@@ -20,18 +26,19 @@ export type AppLayoutProps = {
   // who is signed in and what they can do (switch area, sign out); shown in
   // the top bar on a phone and at the foot of the sidebar on larger screens
   account?: ReactNode;
-  // on the area's home (Today, Your Jobs, Home): a phone shows the logo there
+  // on the area's home (Today, Your Jobs, Home): a phone shows the logo there,
+  // unless the area has a ☰ menu, which holds it instead
   atHome?: boolean;
   children: ReactNode;
 };
 
 // the frame around every screen. On a phone: a top bar and a bottom tab bar
-// within thumb reach (keep nav to five items or fewer). From tablet width up:
-// a sidebar.
+// within thumb reach, five items at most; the rest (inMenu) go in a drawer
+// opened by a ☰ in the top bar (#200). From tablet width up: a sidebar.
 //
 // The logo is never shrunk to fit: the phone's top bar is too short for it,
 // so the bar names the section you're in and the logo heads the area's home
-// instead; the sidebar has room for it (UX pass, #96)
+// (or its ☰ menu) instead; the sidebar has room for it (UX pass, #96)
 export function AppLayout({
   area,
   nav,
@@ -40,6 +47,8 @@ export function AppLayout({
   children,
 }: AppLayoutProps) {
   const section = nav.find((item) => item.isCurrent)?.label ?? area;
+  const menu = nav.filter((item) => item.inMenu);
+  const tabs = nav.filter((item) => !item.inMenu);
   return (
     <div className="min-h-dvh md:flex">
       <a
@@ -66,9 +75,42 @@ export function AppLayout({
       </aside>
 
       <header className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-border bg-surface px-4 py-2 md:hidden print:hidden">
-        <span className="truncate font-display text-xl font-bold tracking-wide uppercase">
-          {section}
-        </span>
+        <div className="flex min-w-0 items-center gap-1">
+          {menu.length > 0 && (
+            <DialogTrigger>
+              <Button
+                variant="quiet"
+                size="icon"
+                aria-label="Menu"
+                className="-ml-2 shrink-0"
+              >
+                <Menu aria-hidden size={22} />
+              </Button>
+              <Drawer aria-label="Menu">
+                {({ close }) => (
+                  <>
+                    <div className="flex flex-col items-center gap-3 px-2 pt-8">
+                      <Logo className="w-44" />
+                      <span className="text-sm text-fg-muted">{area}</span>
+                    </div>
+                    <nav aria-label={area} className="flex flex-col gap-1">
+                      {menu.map((item) => (
+                        <SidebarLink
+                          key={item.label}
+                          item={item}
+                          onPress={close}
+                        />
+                      ))}
+                    </nav>
+                  </>
+                )}
+              </Drawer>
+            </DialogTrigger>
+          )}
+          <span className="truncate font-display text-xl font-bold tracking-wide uppercase">
+            {section}
+          </span>
+        </div>
         <div className="flex items-center gap-2">
           <ThemeToggle />
           {account}
@@ -80,7 +122,9 @@ export function AppLayout({
         tabIndex={-1}
         className="mx-auto w-full max-w-5xl min-w-0 flex-1 px-4 pt-4 pb-28 outline-none md:px-8 md:py-8 print:max-w-none print:p-0"
       >
-        {atHome && <Logo className="mx-auto mb-4 w-36 md:hidden" />}
+        {atHome && menu.length === 0 && (
+          <Logo className="mx-auto mb-4 w-36 md:hidden" />
+        )}
         {children}
       </main>
 
@@ -88,7 +132,7 @@ export function AppLayout({
         aria-label={area}
         className="fixed inset-x-0 bottom-0 z-40 flex border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] md:hidden print:hidden"
       >
-        {nav.map((item) => (
+        {tabs.map((item) => (
           <TabLink key={item.label} item={item} />
         ))}
       </nav>
@@ -96,12 +140,20 @@ export function AppLayout({
   );
 }
 
-function SidebarLink({ item }: { item: NavItem }) {
+function SidebarLink({
+  item,
+  onPress,
+}: {
+  item: NavItem;
+  // e.g. closing the menu it sits in
+  onPress?: () => void;
+}) {
   const Icon = item.icon;
   return (
     <Link
       href={item.href}
       aria-current={item.isCurrent ? "page" : undefined}
+      onPress={onPress}
       className={(renderProps) =>
         `${focusRing(renderProps)} flex min-h-touch items-center gap-3 rounded-md px-3 font-semibold text-fg-muted no-underline hover:bg-surface-sunken hover:text-fg current:bg-success-subtle current:text-success-strong`
       }

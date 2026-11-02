@@ -7,6 +7,7 @@ import {
   signedInAs,
   test,
   draftTheQuote,
+  goTo,
 } from "./harness.ts";
 
 const casey = { name: "Casey Client", email: "casey@example.com" };
@@ -32,7 +33,7 @@ test(
   { tag: "@smoke" },
   async ({ page }) => {
     await signInAsOffice(page);
-    await page.getByRole("link", { name: "Services" }).click();
+    await goTo(page, "Services");
     await expect(page).toHaveURL("/office/services");
 
     const services = page.getByRole("grid", { name: "Services" });

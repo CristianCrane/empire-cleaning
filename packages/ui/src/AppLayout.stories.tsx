@@ -6,7 +6,7 @@ import {
   User,
   Users,
 } from "lucide-react";
-import { expect } from "storybook/test";
+import { expect, waitFor, within } from "storybook/test";
 import { AppLayout, type NavItem } from "./AppLayout.tsx";
 import { Button } from "./Button.tsx";
 import { Card } from "./Card.tsx";
@@ -98,5 +98,51 @@ export const Cleaner: Story = {
       },
       { href: "#schedule", label: "Schedule", icon: CalendarDays },
     ],
+  },
+};
+
+// more sections than the tab bar holds: the rest go in a drawer opened by the
+// ☰, which holds the logo too (#200)
+export const PhoneMenu: Story = {
+  globals: { viewport: { value: "phone" } },
+  args: {
+    nav: [
+      { href: "#today", label: "Today", icon: LayoutDashboard },
+      {
+        href: "#quotes",
+        label: "Quotes",
+        icon: ClipboardPenLine,
+        inMenu: true,
+      },
+      {
+        href: "#clients",
+        label: "Clients",
+        icon: Users,
+        inMenu: true,
+        isCurrent: true,
+      },
+      { href: "#schedule", label: "Schedule", icon: CalendarDays },
+    ],
+    atHome: true,
+  },
+  play: async ({ canvas, userEvent }) => {
+    const bar = canvas.getByRole("navigation", { name: "Office" });
+    await expect(bar).toHaveTextContent("TodaySchedule");
+    // the logo heads the menu, not the home page
+    await expect(
+      canvas.queryByRole("img", { name: /Empire Cleaning/ }),
+    ).toBeNull();
+
+    await userEvent.click(canvas.getByRole("button", { name: "Menu" }));
+    const menu = within(document.body).getByRole("dialog", { name: "Menu" });
+    await expect(
+      within(menu).getByRole("link", { name: "Clients" }),
+    ).toHaveAttribute("aria-current", "page");
+    // once it has slid in
+    await waitFor(() =>
+      expect(
+        within(menu).getByRole("img", { name: /Empire Cleaning/ }),
+      ).toBeVisible(),
+    );
   },
 };

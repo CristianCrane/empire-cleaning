@@ -6,6 +6,8 @@ import {
   requestQuoteAsGuest,
   signedInAs,
   test,
+  expectCurrentSection,
+  goTo,
 } from "./harness.ts";
 
 const olive = {
@@ -30,10 +32,7 @@ const twoClients = async () => {
 const openClients = async (page: Page) => {
   await createStaff(olive);
   await signedInAs(page, olive.email);
-  await page
-    .getByRole("navigation", { name: "Office" })
-    .getByRole("link", { name: "Clients" })
-    .click();
+  await goTo(page, "Clients");
   await expect(page).toHaveURL("/office/clients");
 };
 
@@ -106,16 +105,13 @@ test(
   async ({ page }) => {
     await twoClients();
     await openClients(page);
-    const officeNav = page.getByRole("navigation", { name: "Office" });
     const crumbs = page.getByLabel("Breadcrumbs");
 
     await page.getByRole("tab", { name: /All/ }).click();
     await rows(page).first().click();
     await page.getByRole("row", { name: /41-12 Austin St/ }).click();
     await expect(page).toHaveURL(/\/office\/properties\//);
-    await expect(
-      officeNav.getByRole("link", { name: "Clients" }),
-    ).toHaveAttribute("aria-current", "page");
+    await expectCurrentSection(page, "Clients");
 
     await crumbs.getByRole("link", { name: "Casey Client" }).click();
     await expect(page).toHaveURL(/\/office\/clients\/[0-9a-f-]{36}$/);

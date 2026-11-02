@@ -77,6 +77,14 @@ can change, through the same loop.
   (what fixes it), the way home a text link under it. No details a Client
   can't use. ("A message page: one Button, home a link")
 
+### Navigation
+
+- **A phone's tab bar holds five at most**, what's used all day. The rest
+  go in a drawer from the left, opened by a ☰ in the top bar, with the logo
+  at its head (`NavItem.inMenu`). The Office keeps Today and the Schedule
+  in the bar. Larger screens list every section in the sidebar.
+  ("Layout / AppLayout / Phone Menu")
+
 ### Buttons and actions
 
 - **At most one primary Button per page.** Two primaries means neither is.
@@ -161,8 +169,8 @@ can change, through the same loop.
 - **The logo is used exactly as drawn** (`Logo`): never redrawn, cropped,
   recoloured beyond its own dark version, or rearranged into a lockup.
   Where it doesn't fit, the screen changes around it. On a phone the top
-  bar names the section you're in and the logo heads the area's home; the
-  sidebar holds it centred; the landing site has no header bar, just Sign
+  bar names the section you're in and the logo heads the area's home (or,
+  where the area has one, its ☰ menu); the sidebar holds it centred; the landing site has no header bar, just Sign
   in and the theme in the top right corner, and the logo leads the hero.
   ("Foundations / Logo")
 - **A section is named once on a phone.** The top bar names the section,
@@ -262,3 +270,4 @@ Newest last. "Built in" is the PR (or branch) that shipped it.
 | Office > Client | Where does the Office see that a Client was asked for a Google review (#175)? | (none: a Client has no History of their own, only their homes do) | **A fact under Contact details** | "Google review: Asked on Jan 13, 2026", only once it has gone; nothing before, so a new Client's card stays as it was | (none) | #175 |
 | Landing > FAQ and guides | #180 asked for a home page FAQ and four guides; the home page shouldn't get noisy. | (talked through) | **One folded FAQ band after the form; two guides, off the home page** | Seven questions for everyone (price, being home, pets, the Deposit, moving or cancelling, areas, Spanish), folded as on the area and service pages, after the form so How it works still leads into it; the price answer links to its guide. Two guides, each one narrow column of plain bands then the form: what affects the price, and how often to deep clean. They're linked only from the service pages they belong to, under the part they expand on, not from the home page. The move-out checklist and post-construction guides were dropped: the service pages cover them. Sections now: Hero, What we clean, What our Clients say, Why Empire, How it works, Request a Quote, Save 10% (after the form, for those deciding on regular visits), Questions. The bands now alternate plain and raised by their place on every landing page (a rule above), replacing the fixed tone per section and the plain-after-plain spacing | (none) | #180 |
 | Office > Quote | Where does the Office see which landing page and link a Guest's Quote Request came from (#185)? | (none: one fact beside the others asked) | **A "From" fact under Asked** | "The website, /queens/, via gbp (profile)": the page, then the link's campaign tags. Only on a Guest's from the landing site; nothing on a Client's, a caller's or one sent before #185. The Guest is asked nothing (no "How did you hear about us?"), so it costs them no step | (none) | #185 |
+| Office > navigation | The Office's phone tab bar had grown to eight items (Today, Quotes, Jobs, Clients, Schedule, Staff, Services, Price List), past the five that fit (#200). | More tab with a sheet / five tabs and a top-bar menu / a sixth Business tab with a page / a side drawer | **Side drawer, Today and Schedule in the bar** | The owner checks Today and the Schedule all day, so they stay one tap away; everything else sits in a drawer from the left behind a ☰, the logo at its head (so Today no longer shows it on a phone). The drawer marks the section you're in, the top bar names it. Desktop and tablet keep the full sidebar; the Client portal (4) and Cleaner (2) keep their bars | [`prototype-office-nav`](https://github.com/CristianCrane/empire-cleaning/tree/prototype-office-nav) | ux-office-nav |

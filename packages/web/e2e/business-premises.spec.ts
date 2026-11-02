@@ -10,6 +10,7 @@ import {
   test,
   draftTheQuote,
   recordFindingsWithoutVisit,
+  goTo,
 } from "./harness.ts";
 
 const olive = {
@@ -125,7 +126,7 @@ test(
     await requestQuoteForPremises(casey, "Acme Dental");
     await signInAsOffice(page);
 
-    await page.getByRole("link", { name: "Quotes", exact: true }).click();
+    await goTo(page, "Quotes");
     const row = page.getByRole("row", { name: /Acme Dental \(Casey Client\)/ });
     await row.click();
 
