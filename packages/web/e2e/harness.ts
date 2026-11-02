@@ -279,12 +279,31 @@ export const signedInAs = async (page: Page, email: string) => {
   await page.goto("/");
 };
 
-// every test starts from an empty database and no emails
-export const test = base.extend<{ cleanSlate: void }>({
+// every test starts from an empty database and no emails, and fails if the
+// Content-Security-Policy (vite.config.ts) blocked anything a page loads
+export const test = base.extend<{ cleanSlate: void; allowedByCsp: void }>({
   cleanSlate: [
     async ({}, use) => {
       await control("/reset", { method: "POST" });
       await use();
+    },
+    { auto: true },
+  ],
+  allowedByCsp: [
+    async ({ context }, use) => {
+      const blocked: string[] = [];
+      await context.exposeBinding("cspBlocked", (_source, what: string) => {
+        blocked.push(what);
+      });
+      await context.addInitScript(() =>
+        document.addEventListener("securitypolicyviolation", (event) =>
+          (
+            window as unknown as { cspBlocked: (what: string) => void }
+          ).cspBlocked(`${event.effectiveDirective}: ${event.blockedURI}`),
+        ),
+      );
+      await use();
+      expect(blocked, "blocked by the Content-Security-Policy").toEqual([]);
     },
     { auto: true },
   ],

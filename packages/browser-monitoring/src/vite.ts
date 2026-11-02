@@ -26,3 +26,8 @@ export const monitoringBuild = (project: string): PluginOption[] => {
       }),
   ];
 };
+
+// where the browser sends events, for a page's Content-Security-Policy
+// (connect-src): the origin of the build's DSN, or none without one
+export const monitoringOrigins = (dsn: string | undefined): string[] =>
+  dsn ? [new URL(dsn).origin] : [];
