@@ -16,6 +16,9 @@ const apiUrl = process.env.API_URL ?? "http://localhost:3000";
 const stripeScripts = ["https://js.stripe.com", "https://*.js.stripe.com"];
 const stripeFrames = [...stripeScripts, "https://hooks.stripe.com"];
 const stripeApi = ["https://api.stripe.com"];
+// Stripe.js fetches the card form's font stylesheet from our page, to hand to
+// its frame (FONTS in src/screens/portal/CardForm.tsx)
+const cardFormFonts = ["https://fonts.googleapis.com"];
 
 const contentSecurityPolicy = (sentryDsn: string | undefined) => {
   const themeBoot = createHash("sha256")
@@ -27,7 +30,12 @@ const contentSecurityPolicy = (sentryDsn: string | undefined) => {
     // Stripe.js adds <style> elements to the page, and a style can't run code
     "style-src": ["'self'", "'unsafe-inline'"],
     "img-src": ["'self'", "data:", "https://*.googleusercontent.com"],
-    "connect-src": ["'self'", ...stripeApi, ...monitoringOrigins(sentryDsn)],
+    "connect-src": [
+      "'self'",
+      ...stripeApi,
+      ...cardFormFonts,
+      ...monitoringOrigins(sentryDsn),
+    ],
     "frame-src": stripeFrames,
     "object-src": ["'none'"],
     "base-uri": ["'self'"],
