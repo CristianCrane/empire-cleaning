@@ -62,8 +62,9 @@ app.use(networkLoggingMiddleware);
 app.all("/api/auth/{*any}", toNodeHandler(auth));
 app.use("/api/payments/webhook", webhookRouter);
 
+// JSON only: from another site, a request with a body then needs the
+// browser to ask first (CORS), and no other site's form can post here
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
 // routes
 // for the uptime monitor and Render: up while the database answers

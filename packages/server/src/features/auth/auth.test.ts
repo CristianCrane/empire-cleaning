@@ -178,30 +178,27 @@ describe("connecting an Account to its records (ADR-0006)", () => {
   });
 });
 
-describe("non-browser clients", () => {
-  test("can sign in with a bearer token instead of a cookie", async () => {
-    await api()
-      .post("/api/auth/sign-in/magic-link")
-      .send({ email: "cory@example.com", callbackURL: "/" })
-      .expect(200);
+// a session lives only in its cookie (#229): no token is handed out for
+// scripts to keep, and the cookie's own value is no use as a bearer token
+test("a session is the cookie, never a bearer token", async () => {
+  await api()
+    .post("/api/auth/sign-in/magic-link")
+    .send({ email: "cory@example.com", callbackURL: "/" })
+    .expect(200);
 
-    const verify = await api().get(signInLinkFor("cory@example.com"));
-    const token = verify.headers["set-auth-token"];
-    const res = await api()
-      .get("/api/me")
-      .set("Authorization", `Bearer ${token}`);
+  const verify = await api().get(signInLinkFor("cory@example.com"));
+  const cookies = verify.headers["set-cookie"] as unknown as string[];
+  const session = cookies
+    .find((cookie) => cookie.includes("session_token="))
+    ?.split(";")[0]
+    ?.split("=")[1];
+  const res = await api()
+    .get("/api/me")
+    .set("Authorization", `Bearer ${session}`);
 
-    expect(res.status).toBe(200);
-    expect(res.body.email).toBe("cory@example.com");
-  });
-
-  test("a made-up bearer token is rejected", async () => {
-    const res = await api()
-      .get("/api/me")
-      .set("Authorization", "Bearer not-a-real-token");
-
-    expect(res.status).toBe(401);
-  });
+  expect(session).toBeTruthy();
+  expect(verify.headers).not.toHaveProperty("set-auth-token");
+  expect(res.status).toBe(401);
 });
 
 describe("Google", () => {

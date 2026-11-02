@@ -1,6 +1,6 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { bearer, magicLink } from "better-auth/plugins";
+import { magicLink } from "better-auth/plugins";
 import { eq } from "drizzle-orm";
 import env from "../../env.ts";
 import { db } from "../../db/index.ts";
@@ -91,7 +91,5 @@ export const auth = betterAuth({
       storeToken: "hashed",
       sendMagicLink: async ({ email: to, url }) => sendSignInLink({ to, url }),
     }),
-    // non-browser clients (e.g. a future native app) use bearer tokens instead of cookies
-    bearer(),
   ],
 });

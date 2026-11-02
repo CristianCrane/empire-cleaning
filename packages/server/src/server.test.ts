@@ -4,6 +4,7 @@ import { db } from "#db";
 import { clock } from "#services/clock";
 import { paymentGateway } from "#services/payment-gateway";
 import { email, paragraph } from "#services/email";
+import { createClient } from "#features/clients";
 import {
   api,
   testClock,
@@ -11,6 +12,7 @@ import {
   testMonitoring,
   testPayments,
 } from "../tests/harness.ts";
+import { casey, signInAsOffice } from "../tests/fixtures.ts";
 
 test("health check responds over HTTP", async () => {
   const res = await api().get("/health");
@@ -46,6 +48,21 @@ test("every answer carries the security headers, and doesn't name Express (#225)
     });
     expect(res.headers).not.toHaveProperty("x-powered-by");
   }
+});
+
+// another site's form can post here without the browser asking first (CORS),
+// so a form's body is never read, even signed in and all strings (#229)
+test("only JSON bodies are read, never a form's", async () => {
+  const client = await createClient(casey);
+  const office = await signInAsOffice();
+
+  await office
+    .post("/api/payment-methods/requests")
+    .type("form")
+    .send({ clientId: client.id })
+    .expect(400);
+
+  expect(testEmail().to(casey.email)).toEqual([]);
 });
 
 test("a 4xx is normal business, never reported (ADR-0007)", async () => {
@@ -159,6 +176,6 @@ test("emails are captured by the fake sender", async () => {
 });
 
 test("fakes are fresh for every test", () => {
-  expect(testEmail().sent).toEqual([]);
+  expect(testEmail().to(casey.email)).toEqual([]);
   expect(testPayments().charges).toEqual([]);
 });

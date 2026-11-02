@@ -11,7 +11,8 @@
 // The owner, made Office Staff, is SEED_OWNER_EMAIL (the business inbox by
 // default); sign up with it, before or after seeding.
 //
-// Refuses to run on a database that already has Staff. With --reset it
+// Never runs on the production database (features/site). Refuses to run on a
+// database that already has Staff. With --reset it
 // first deletes everything but Accounts and the Price List, so whoever has
 // signed up stays signed up.
 import { asc, eq, sql } from "drizzle-orm";
@@ -65,6 +66,7 @@ import {
   recordFindingsWithoutVisit,
 } from "#features/site-visits";
 import { SEEDED } from "#features/services";
+import { refuseOnProduction } from "#features/site";
 import { jobs } from "#features/jobs";
 import {
   generateServicePlanJobs,
@@ -132,9 +134,10 @@ const at = async (when: Date) => {
   testClock().set(when);
 };
 
-// everything but Accounts (and their sign-in records), the Price List and
-// the Services
+// everything but Accounts (and their sign-in records), the Price List, the
+// Services and which site the database belongs to (features/site)
 const keep = [
+  "site",
   "accounts",
   "account_identities",
   "sessions",
@@ -208,6 +211,7 @@ const ask = (
   } satisfies QuoteAsk);
 
 async function seed() {
+  await refuseOnProduction("The seed");
   if (process.argv.includes("--reset")) await reset();
   const { rows } = await db.execute<{ n: number }>(
     sql`select count(*)::int as n from staff`,
