@@ -67,20 +67,12 @@ class MemoryRateLimiter implements RateLimiter {
 
 const unlimited: RateLimiter = { attempt: () => ({ allowed: true }) };
 
-// off in dev, where the suites sign in many times; ten times as many on the
-// test site, where the owner signs in as several people from one inbox. From
-// APP_MODE, never a setting, so production can't be loosened by mistake
-export const rateLimiterFor = (mode: Env["APP_MODE"]): RateLimiter => {
-  if (mode === "dev") return unlimited;
-  const times = mode === "test" ? 10 : 1;
-  const limits = Object.fromEntries(
-    Object.entries(LIMITS).map(([name, { tries, minutes }]) => [
-      name,
-      { tries: tries * times, minutes },
-    ]),
-  ) as Record<LimitName, Limit>;
-  return new MemoryRateLimiter(limits);
-};
+// production only: dev's suites sign in many times, and on the test site the
+// owner tries things over and over from one inbox, while its email allowlist
+// keeps strangers out (#127). From APP_MODE, never a setting, so production
+// can't be loosened by mistake
+export const rateLimiterFor = (mode: Env["APP_MODE"]): RateLimiter =>
+  mode === "prod" ? new MemoryRateLimiter(LIMITS) : unlimited;
 
 let current: RateLimiter = rateLimiterFor(env.APP_MODE);
 

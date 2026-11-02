@@ -85,16 +85,8 @@ describe("sign-in links (#32)", () => {
     await askForLink("robin@example.com").expect(200);
   });
 
-  test("the test site allows ten times as many", async () => {
-    limitedAs("test");
-    for (let i = 0; i < 60; i++) {
-      await askForLink("casey@example.com").expect(200);
-    }
-
-    await askForLink("casey@example.com").expect(429);
-  });
-
-  test("dev has no limit", async () => {
+  test.each(["dev", "test"] as const)("%s has no limit", async (mode) => {
+    limitedAs(mode);
     for (let i = 0; i < 10; i++) {
       await askForLink("casey@example.com").expect(200);
     }
@@ -132,6 +124,11 @@ describe("Guest Quote Requests (#32)", () => {
     await askAboutNewHome().expect(429);
 
     await askAboutNewHome("robin@example.com").expect(201);
+  });
+
+  test("the test site has no limit", async () => {
+    limitedAs("test");
+    for (let i = 0; i < 10; i++) await askAboutNewHome().expect(201);
   });
 
   test("a signed-in Client's aren't limited: they go to their own inbox", async () => {
