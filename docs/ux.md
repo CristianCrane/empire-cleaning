@@ -84,6 +84,10 @@ can change, through the same loop.
   at its head (`NavItem.inMenu`). The Office keeps Today and the Schedule
   in the bar. Larger screens list every section in the sidebar.
   ("Layout / AppLayout / Phone Menu")
+- **Related sections share a heading** in the sidebar and the ☰ menu
+  (`NavItem.group`), the busiest first with none: the Office's Today and
+  Schedule, then Work (Jobs, Quotes), People (Clients, Staff) and Pricing
+  (Services, Price List). ("Layout / AppLayout / Groups")
 
 ### Buttons and actions
 
@@ -146,8 +150,9 @@ can change, through the same loop.
 
 ### Time and schedules
 
-- **Schedules are calendars**: a week on the Schedule, one day on Today, a
-  month on a Cleaner's availability. Jobs are timed events (start and
+- **Schedules are calendars**: a day, three days or a week on the Schedule
+  (three at first, then the span last chosen in that browser), a month on a
+  Cleaner's availability. Jobs are timed events (start and
   duration), ready for a Google Calendar sync. ("Schedules As Calendars")
 - **Every place a time is chosen uses the calendar picker**, with the day
   and time fields kept as the keyboard path. The Office picks on the
@@ -274,3 +279,6 @@ Newest last. "Built in" is the PR (or branch) that shipped it.
 | Office > navigation | The Office's phone tab bar had grown to eight items (Today, Quotes, Jobs, Clients, Schedule, Staff, Services, Price List), past the five that fit (#200). | More tab with a sheet / five tabs and a top-bar menu / a sixth Business tab with a page / a side drawer | **Side drawer, Today and Schedule in the bar** | The owner checks Today and the Schedule all day, so they stay one tap away; everything else sits in a drawer from the left behind a ☰, the logo at its head (so Today no longer shows it on a phone). The drawer marks the section you're in, the top bar names it. Desktop and tablet keep the full sidebar; the Client portal (4) and Cleaner (2) keep their bars | [`prototype-office-nav`](https://github.com/CristianCrane/empire-cleaning/tree/prototype-office-nav) | ux-office-nav |
 | Office > Today | How does the Office hear of a new Quote request when they aren't looking, or the Dashboard has been open a while? It showed what was waiting as of the last load, and the Office wasn't emailed. | (talked through) live updates (websockets) / refresh every minute while visible, with an email | **Refresh every minute while the tab can be seen, and email every Office Staff member** | Only an email reaches someone who isn't looking. For a screen left open, a minute is soon enough when the Client is promised a Quote within a working day; websockets would add connections, reconnecting and a hosting question for no one's benefit. Coming back to the tab still refreshes at once | (none) | #222 |
 | Test site > switching person | The owner tries the test site from a guided tour, as the Office, a Client and a Cleaner in turn; a link to a Client's page bounced her back to the Office, since signing in as someone else meant signing out and typing their email. | sign-in with the email filled in / a page of the demo people / a switcher in the test banner | **A page of the demo people, test site only** | `/people?as=helen&next=/portal`: the person the tour asks for first ("Be Helen", with what being them shows), then everyone else from the demo, then any email. Picking one signs out whoever is in and emails their link (to the business inbox, as every demo person is a +alias of it), with a button that opens Gmail at it; someone already signed in as the person asked for goes straight on. The test banner says who's signed in, as a link here. The API only lists the people when not the real site, so the real site has no such page | [`prototype-switch-person`](https://github.com/CristianCrane/empire-cleaning/tree/prototype-switch-person) | ux-switch-person |
+| Office > Today | Needs attention had grown into one long list of every kind of item, and under it Today repeated the Schedule's day. | the list as it was / a Section each for Jobs, Quotes and Money / count tiles that filter / by when it matters / next up, the rest in piles | **Count tiles that filter** | Three numbers (Jobs, Quotes, Money) read before any row, each with a hint of what's in it (how many need Staff, how many are newly asked for, what's owed); pressing one shows only those, pressing it again or Show all brings back the lot (`CountTiles`). Today's one-day Schedule went: the Schedule already shows the day | [`prototype-today`](https://github.com/CristianCrane/empire-cleaning/tree/prototype-today) | ux-office-today |
+| Office > navigation | The sidebar and ☰ menu listed eight sections in one run, in no particular order. | no names, a rule between / Work · People · Pricing / Daily · Bookings · People · Setup | **Work · People · Pricing** | Today and the Schedule first, with no heading (they explain themselves); then Jobs and Quotes, Clients and Staff, Services and the Price List, each pair under a short heading. The tab bar is unchanged | [`prototype-today`](https://github.com/CristianCrane/empire-cleaning/tree/prototype-today) | ux-office-today |
+| Office > Schedule | The Schedule opened on a week on a larger screen and a day on a phone, and forgot the span picked once you left it. | (asked, no prototype) | **Three days at first, then the span last chosen** | Three days read at any width; the choice is kept in that browser, so leaving and coming back (or reloading) keeps it | none | ux-office-today |

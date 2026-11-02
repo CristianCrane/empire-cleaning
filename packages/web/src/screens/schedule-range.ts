@@ -1,7 +1,7 @@
 import { addDays, mondayOf, today } from "./format.ts";
 
-// the dates asked for; without valid ones, the Schedule shows this week, or
-// today on a phone
+// the dates asked for; without valid ones, the Schedule shows today on the
+// span last chosen
 export type ScheduleSearch = { from?: string; to?: string };
 
 export const isDay = (value: unknown): value is string =>
@@ -29,11 +29,34 @@ export const isWide = () =>
   typeof window === "undefined" ||
   window.matchMedia("(min-width: 48rem)").matches;
 
+// the span the Schedule opens on: the one last chosen in this browser, or
+// three days, which read at any width. Storage can be blocked (private
+// windows), so it's only a convenience
+const SPAN_KEY = "ec-schedule-span";
+const DEFAULT_SPAN: Span = 3;
+
+const chosenSpan = (): Span => {
+  try {
+    const stored = Number(localStorage.getItem(SPAN_KEY));
+    return SPANS.includes(stored as Span) ? (stored as Span) : DEFAULT_SPAN;
+  } catch {
+    return DEFAULT_SPAN;
+  }
+};
+
+export const chooseSpan = (span: Span) => {
+  try {
+    localStorage.setItem(SPAN_KEY, String(span));
+  } catch {
+    // not remembered; the Schedule opens on the default next time
+  }
+};
+
 // the range a search shows: the days asked for, if they're a day, three days
-// or a week; otherwise this week, or today on a phone
+// or a week; otherwise today, on the span last chosen
 export const scheduleRange = ({ from, to }: ScheduleSearch) => {
   if (isDay(from) && isDay(to) && SPANS.includes(daysIn(from, to) as Span)) {
     return { from, to };
   }
-  return rangeShowing(isWide() ? 7 : 1, today());
+  return rangeShowing(chosenSpan(), today());
 };

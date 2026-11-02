@@ -1,9 +1,11 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useLoaderData, useNavigate, useRouter } from "@tanstack/react-router";
-import type { NeedsAttentionItem } from "@empire-cleaning/models";
+import type {
+  NeedsAttentionItem,
+  NeedsAttentionKind,
+} from "@empire-cleaning/models";
 import {
   CalendarClock,
-  CalendarDays,
   CalendarX,
   CircleDollarSign,
   CirclePause,
@@ -15,7 +17,9 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import {
-  ButtonLink,
+  Button,
+  CountTile,
+  CountTiles,
   Heading,
   IconTile,
   List,
@@ -23,10 +27,8 @@ import {
   Section,
   type StatusTone,
 } from "@empire-cleaning/ui";
-import { linkTo } from "../../links.ts";
-import { QuoteIcon } from "../icons.ts";
+import { JobIcon, QuoteIcon } from "../icons.ts";
 import { billWeek } from "../BillParts.tsx";
-import { ScheduleCalendar } from "./ScheduleCalendar.tsx";
 import {
   addressOf,
   clientName,
@@ -41,10 +43,10 @@ import {
 // Coming back to the tab asks at once (main.tsx)
 const REFRESH_MS = 60_000;
 
-// the Office's first screen: what's waiting on them, then today's Jobs and
-// Site Visits on a one-day Schedule
+// the Office's first screen: what's waiting on them, counted by kind (Jobs,
+// Quotes, Money) above the list. The day's Jobs are on the Schedule
 export function Dashboard() {
-  const { needsAttention, today } = useLoaderData({ from: "/office/" });
+  const needsAttention = useLoaderData({ from: "/office/" });
   const router = useRouter();
   useEffect(() => {
     const timer = setInterval(() => {
@@ -59,25 +61,6 @@ export function Dashboard() {
         Today
       </Heading>
       <NeedsAttention items={needsAttention} />
-      <Section
-        title="Today's Schedule"
-        actions={
-          <ButtonLink
-            href={linkTo({ to: "/office/schedule" })}
-            variant="text"
-            size="sm"
-          >
-            <CalendarDays aria-hidden size={16} />
-            Week
-          </ButtonLink>
-        }
-      >
-        {today.jobs.length > 0 || today.siteVisits.length > 0 ? (
-          <ScheduleCalendar days={[today]} opensJobs />
-        ) : (
-          <p className="text-sm text-fg-muted">No Jobs today.</p>
-        )}
-      </Section>
     </div>
   );
 }
@@ -94,8 +77,65 @@ type Row = {
   open: () => void;
 };
 
+// the tiles over the list: which part of the work each kind of item is
+// in, so a long list reads as a few numbers first
+type Tile = "jobs" | "quotes" | "money";
+const tileOf: Record<NeedsAttentionKind, Tile> = {
+  job_unassigned: "jobs",
+  reschedule_requested: "jobs",
+  adjustments_reported: "jobs",
+  plan_visit_unplaced: "jobs",
+  quote_requested: "quotes",
+  quote_expiring: "quotes",
+  quote_no_room: "quotes",
+  service_plan_due: "quotes",
+  job_unpaid: "money",
+  bill_unpaid: "money",
+  plan_on_hold: "money",
+};
+
+// what the tiles say beside their counts: how many need Staff, how many
+// Quotes are newly asked for, and what's owed (a plan On Hold owes for Jobs
+// and Bills already counted)
+const hintsFor = (items: NeedsAttentionItem[]): Record<Tile, string> => {
+  const count = (kind: NeedsAttentionKind) =>
+    items.filter((item) => item.kind === kind).length;
+  const owedCents = items.reduce(
+    (sum, item) =>
+      sum +
+      (item.kind === "job_unpaid"
+        ? item.owedCents
+        : item.kind === "bill_unpaid"
+          ? item.bill.totalCents
+          : 0),
+    0,
+  );
+  const unassigned = count("job_unassigned");
+  const asked = count("quote_requested");
+  return {
+    jobs: unassigned > 0 ? `${unassigned} need Staff` : "",
+    quotes: asked > 0 ? `${asked} asked for` : "",
+    money: owedCents > 0 ? `${formatMoney(owedCents)} owed` : "",
+  };
+};
+
+const tiles: { id: Tile; label: string; icon: LucideIcon }[] = [
+  { id: "jobs", label: "Jobs", icon: JobIcon },
+  { id: "quotes", label: "Quotes", icon: QuoteIcon },
+  { id: "money", label: "Money", icon: CircleDollarSign },
+];
+
 function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
   const navigate = useNavigate();
+  const [picked, setPicked] = useState<Tile | null>(null);
+  const countOf = (tile: Tile) =>
+    items.filter((item) => tileOf[item.kind] === tile).length;
+  // a kind cleared while picked (the list refreshes) shows everything again
+  const only = picked && countOf(picked) > 0 ? picked : null;
+  const shown = only
+    ? items.filter((item) => tileOf[item.kind] === only)
+    : items;
+  const hints = hintsFor(items);
 
   // how each kind of item reads, and where it opens; tickets adding a kind
   // add its case here
@@ -288,7 +328,33 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
   };
 
   return (
-    <Section title="Needs attention">
+    <Section
+      title="Needs attention"
+      description={only && `Only ${tiles.find((t) => t.id === only)!.label}`}
+      actions={
+        only && (
+          <Button variant="text" size="sm" onPress={() => setPicked(null)}>
+            Show all {items.length}
+          </Button>
+        )
+      }
+    >
+      <CountTiles
+        label="Needs attention by kind"
+        selected={only}
+        onSelect={(tile) => setPicked(tile as Tile | null)}
+      >
+        {tiles.map((tile) => (
+          <CountTile
+            key={tile.id}
+            id={tile.id}
+            icon={tile.icon}
+            label={tile.label}
+            count={countOf(tile.id)}
+            hint={hints[tile.id] || undefined}
+          />
+        ))}
+      </CountTiles>
       <List
         aria-label="Needs attention"
         renderEmptyState={() => (
@@ -297,7 +363,7 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
           </p>
         )}
       >
-        {items.map(rowFor).map((row) => (
+        {shown.map(rowFor).map((row) => (
           <ListItem
             key={row.key}
             id={row.key}

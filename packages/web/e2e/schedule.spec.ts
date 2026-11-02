@@ -150,19 +150,30 @@ test(
   },
 );
 
-test("a phone shows today, then a day or three days at a time", async ({
+// three days read at any width; a span chosen is kept for the next visit
+test("the Schedule opens on three days from today, then on the span last chosen", async ({
   page,
 }) => {
-  test.skip(page.viewportSize()!.width >= 768, "a phone's view");
   await signInAsOffice(page);
+  const nav = page.getByRole("navigation", { name: "Office" });
 
-  await page
-    .getByRole("navigation", { name: "Office" })
-    .getByRole("link", { name: "Schedule" })
-    .click();
-  await expect(page.getByRole("region")).toHaveCount(1);
+  await nav.getByRole("link", { name: "Schedule" }).click();
+  await expect(page.getByRole("region")).toHaveCount(3);
   await expect(page.getByRole("button", { name: "Today" })).toBeVisible();
 
+  await page.getByRole("button", { name: /Show$/ }).click();
+  await page.getByRole("option", { name: "Day", exact: true }).click();
+  await expect(page.getByRole("region")).toHaveCount(1);
+
+  // away and back, or a reload: still a day
+  await nav.getByRole("link", { name: "Today" }).click();
+  await expect(page).toHaveURL("/office");
+  await nav.getByRole("link", { name: "Schedule" }).click();
+  await expect(page.getByRole("region")).toHaveCount(1);
+  await page.goto("/office/schedule");
+  await expect(page.getByRole("region")).toHaveCount(1);
+
+  // it pages by the span shown
   await page.goto("/office/schedule?from=2027-03-01&to=2027-03-01");
   await page.getByRole("button", { name: /Show$/ }).click();
   await page.getByRole("option", { name: "3 days" }).click();

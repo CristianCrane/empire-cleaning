@@ -8,7 +8,6 @@ import {
   KeyRound,
   Phone,
   CalendarX,
-  CalendarDays,
   CircleAlert,
   CircleCheck,
   CircleDollarSign,
@@ -34,7 +33,7 @@ import { ChoiceTile, ChoiceTiles } from "./ChoiceTiles.tsx";
 import { EmptyState } from "./EmptyState.tsx";
 import { Heading } from "./Heading.tsx";
 import { IconTile } from "./IconTile.tsx";
-import { ButtonLink, Link } from "./Link.tsx";
+import { Link } from "./Link.tsx";
 import { List, ListItem } from "./List.tsx";
 import { Notice } from "./Notice.tsx";
 import { Radio, RadioGroup } from "./RadioGroup.tsx";
@@ -237,33 +236,22 @@ function SchedulesAreCalendars() {
       <Rule title="Schedules are calendars">
         <p>
           Wherever Jobs are shown by time, draw them on the Schedule's calendar
-          (<code>ScheduleCalendar</code> in the web app): a week on the
-          Schedule, one day locked to today on the Today screen, and the same
-          calendar wherever a time is picked. Jobs are timed blocks sized by
-          their time on site, so it reads like the owner's own calendar, which
-          it may one day sync with.
+          (<code>ScheduleCalendar</code> in the web app): on the Schedule, and
+          the same calendar wherever a time is picked. Jobs are timed blocks
+          sized by their time on site, so it reads like the owner's own
+          calendar, which it may one day sync with.
         </p>
         <p>
-          Name what's shown in the heading ("Today's Schedule"), and let the
-          calendar's day header carry the date and how full it is. The way to
-          the full Schedule is a small secondary button with a calendar icon,
-          not a bare text link.
+          The Schedule shows a day, three days or a week. It opens on three
+          days, which read at any width, and after that on the span chosen last
+          in that browser, so it isn't picked again each visit. Today doesn't
+          repeat the day's Jobs; it says what's waiting.
         </p>
       </Rule>
       <Example verdict="Do">
-        <Section
-          title="Today's Schedule"
-          actions={
-            <ButtonLink href="#" variant="secondary" size="sm">
-              <CalendarDays aria-hidden size={16} />
-              Week
-            </ButtonLink>
-          }
-        >
-          <p className="rounded-lg border border-dashed border-border-strong p-6 text-center text-fg-muted">
-            ScheduleCalendar, one day
-          </p>
-        </Section>
+        <p className="rounded-lg border border-dashed border-border-strong p-6 text-center text-fg-muted">
+          ScheduleCalendar, three days from today
+        </p>
       </Example>
     </div>
   );

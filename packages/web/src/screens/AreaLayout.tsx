@@ -46,29 +46,38 @@ type AreaNavItem = NavItem & { alsoCurrentFor?: string[] };
 
 // each area's navigation; feature tickets add their screens here. A phone's
 // tab bar holds five at most: the Office keeps the two it checks all day
-// there, the rest in its ☰ menu (#200)
+// there, the rest in its ☰ menu (#200). The Office's sections come in
+// groups of related ones, the busiest first
 const navFor: Record<AreaId, AreaNavItem[]> = {
   office: [
     { href: linkTo({ to: "/office" }), label: "Today", icon: LayoutDashboard },
     {
-      href: linkTo({ to: "/office/quotes" }),
-      label: "Quotes",
-      icon: QuoteIcon,
-      inMenu: true,
-      alsoCurrentFor: ["/office/quotes/"],
+      href: linkTo({ to: "/office/schedule" }),
+      label: "Schedule",
+      icon: CalendarDays,
     },
     {
       href: linkTo({ to: "/office/jobs" }),
       label: "Jobs",
       icon: JobIcon,
       inMenu: true,
+      group: "Work",
       alsoCurrentFor: ["/office/jobs/"],
+    },
+    {
+      href: linkTo({ to: "/office/quotes" }),
+      label: "Quotes",
+      icon: QuoteIcon,
+      inMenu: true,
+      group: "Work",
+      alsoCurrentFor: ["/office/quotes/"],
     },
     {
       href: linkTo({ to: "/office/clients" }),
       label: "Clients",
       icon: ContactRound,
       inMenu: true,
+      group: "People",
       alsoCurrentFor: [
         "/office/clients/",
         "/office/properties",
@@ -76,15 +85,11 @@ const navFor: Record<AreaId, AreaNavItem[]> = {
       ],
     },
     {
-      href: linkTo({ to: "/office/schedule" }),
-      label: "Schedule",
-      icon: CalendarDays,
-    },
-    {
       href: linkTo({ to: "/office/staff" }),
       label: "Staff",
       icon: Users,
       inMenu: true,
+      group: "People",
       alsoCurrentFor: ["/office/staff/"],
     },
     {
@@ -92,6 +97,7 @@ const navFor: Record<AreaId, AreaNavItem[]> = {
       label: "Services",
       icon: Sparkles,
       inMenu: true,
+      group: "Pricing",
       alsoCurrentFor: ["/office/services/"],
     },
     {
@@ -99,6 +105,7 @@ const navFor: Record<AreaId, AreaNavItem[]> = {
       label: "Price List",
       icon: Tag,
       inMenu: true,
+      group: "Pricing",
     },
   ],
   cleaner: [

@@ -1,6 +1,6 @@
 import { Link, type LinkProps } from "react-aria-components";
 import { Menu, type LucideIcon } from "lucide-react";
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import { Button } from "./Button.tsx";
 import { DialogTrigger } from "./Dialog.tsx";
 import { Drawer } from "./Drawer.tsx";
@@ -17,6 +17,10 @@ export type NavItem = {
   // on a phone, in the ☰ menu rather than the tab bar: for an area with more
   // sections than the bar holds
   inMenu?: boolean;
+  // the heading over related sections, e.g. "People" over Clients and Staff:
+  // items next to each other with the same group sit under one heading. The
+  // sidebar and the ☰ menu show it; the tab bar doesn't
+  group?: string;
 };
 
 export type AppLayoutProps = {
@@ -58,15 +62,13 @@ export function AppLayout({
         Skip to content
       </a>
 
-      <aside className="hidden w-64 print:hidden shrink-0 flex-col gap-6 border-r border-border bg-surface p-4 md:sticky md:top-0 md:flex md:h-dvh">
+      <aside className="hidden w-64 print:hidden shrink-0 flex-col gap-6 overflow-y-auto border-r border-border bg-surface p-4 md:sticky md:top-0 md:flex md:h-dvh">
         <div className="flex flex-col items-center gap-3 px-2 pt-2">
           <Logo className="w-44" />
           <span className="text-sm text-fg-muted">{area}</span>
         </div>
-        <nav aria-label={area} className="flex flex-1 flex-col gap-1">
-          {nav.map((item) => (
-            <SidebarLink key={item.label} item={item} />
-          ))}
+        <nav aria-label={area} className="flex flex-1 flex-col gap-4">
+          <NavGroups items={nav} />
         </nav>
         <div className="flex flex-col gap-3">
           {account}
@@ -93,14 +95,8 @@ export function AppLayout({
                       <Logo className="w-44" />
                       <span className="text-sm text-fg-muted">{area}</span>
                     </div>
-                    <nav aria-label={area} className="flex flex-col gap-1">
-                      {menu.map((item) => (
-                        <SidebarLink
-                          key={item.label}
-                          item={item}
-                          onPress={close}
-                        />
-                      ))}
+                    <nav aria-label={area} className="flex flex-col gap-4">
+                      <NavGroups items={menu} onPress={close} />
                     </nav>
                   </>
                 )}
@@ -136,6 +132,50 @@ export function AppLayout({
           <TabLink key={item.label} item={item} />
         ))}
       </nav>
+    </div>
+  );
+}
+
+// the sidebar's or the menu's links, each run of items with the same group
+// under its heading; items with none sit under the logo without one
+function NavGroups({
+  items,
+  onPress,
+}: {
+  items: NavItem[];
+  onPress?: () => void;
+}) {
+  const groups: { name?: string; items: NavItem[] }[] = [];
+  for (const item of items) {
+    const last = groups.at(-1);
+    if (last && last.name === item.group) last.items.push(item);
+    else groups.push({ name: item.group, items: [item] });
+  }
+  return groups.map((group) => (
+    <NavGroup key={group.items[0]!.label} name={group.name}>
+      {group.items.map((item) => (
+        <SidebarLink key={item.label} item={item} onPress={onPress} />
+      ))}
+    </NavGroup>
+  ));
+}
+
+function NavGroup({ name, children }: { name?: string; children: ReactNode }) {
+  const headingId = useId();
+  if (!name) return <div className="flex flex-col gap-1">{children}</div>;
+  return (
+    <div
+      role="group"
+      aria-labelledby={headingId}
+      className="flex flex-col gap-1"
+    >
+      <span
+        id={headingId}
+        className="px-3 pt-1 text-xs font-semibold tracking-wide text-fg-muted uppercase"
+      >
+        {name}
+      </span>
+      {children}
     </div>
   );
 }
