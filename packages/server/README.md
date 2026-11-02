@@ -67,7 +67,7 @@ Create the first Office Staff member (after `pnpm db:migrate`), then sign up wit
 pnpm auth:create-owner owner@example.com "Owner Name"
 ```
 
-Or, for a dev database, seed it instead: `pnpm db:seed` makes the owner (`SEED_OWNER_EMAIL`), Cleaners, and Clients with Quotes in every state, dated around today (`tests/seed.ts`). `pnpm db:seed --reset` first deletes everything but Accounts, the Price List and the Services, so a reset keeps everyone signed up.
+Or, for a dev database, seed it instead: `pnpm db:seed` makes the owner (`SEED_OWNER_EMAIL`), Cleaners, and Clients with Quotes in every state, dated around today (`tests/seed.ts`). `pnpm db:seed --reset` first deletes everything but Accounts, the Price List and the Services, so a reset keeps everyone signed up. `SEED_NOW` (an ISO instant) seeds as if it were then, to check the seed on every day of the week. The demo people the test site's people page lists (`DEMO_PEOPLE`, `#features/demo-people`) are found by name, and the seed fails if one is missing.
 
 The people testing the test site are its Staff, listed in `tests/testers.ts`: a reset there adds them, and `pnpm staff:testers` (Actions → Add testers) adds any missing without one.
 

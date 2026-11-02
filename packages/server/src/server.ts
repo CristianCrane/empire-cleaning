@@ -18,6 +18,7 @@ import {
 } from "#features/completion";
 import { router as clientsRouter } from "#features/clients";
 import { router as dashboardRouter } from "#features/dashboard";
+import { router as demoPeopleRouter } from "#features/demo-people";
 import { jobsRouter, router as scheduleRouter } from "#features/jobs";
 import {
   historyRouter as paymentsRouter,
@@ -76,6 +77,7 @@ app.get("/api/site", (_req, res) => {
 });
 
 app.use("/api/me", meRouter);
+app.use("/api/demo-people", demoPeopleRouter);
 app.use("/api/quotes", quotesRouter);
 app.use("/api/clients", clientsRouter);
 app.use("/api/clients", clientBillingRouter);

@@ -7,6 +7,7 @@ import {
   notFound,
   redirect,
   useRouter,
+  useRouterState,
 } from "@tanstack/react-router";
 import type {
   BillSummary,
@@ -23,6 +24,7 @@ import type {
   ClientUpcomingJob,
   ClientQuoteView,
   ClientView,
+  DemoPerson,
   OfficeClientView,
   OfficePropertyView,
   NeedsAttentionItem,
@@ -45,11 +47,13 @@ import type {
   Today,
 } from "@empire-cleaning/models";
 import {
+  Link,
   RouterProvider,
   TestSiteBanner,
   ToastRegion,
 } from "@empire-cleaning/ui";
 import { getJson } from "./api.ts";
+import { linkTo } from "./links.ts";
 import { AreaLayout } from "./screens/AreaLayout.tsx";
 import { CleanerHome } from "./screens/cleaner/CleanerHome.tsx";
 import { CleanerOffers } from "./screens/cleaner/CleanerOffers.tsx";
@@ -126,6 +130,7 @@ import { PortalQuote } from "./screens/portal/PortalQuote.tsx";
 import { PortalRequest } from "./screens/portal/PortalRequest.tsx";
 import { PortalDetails } from "./screens/portal/PortalDetails.tsx";
 import { NotFound } from "./screens/NotFound.tsx";
+import { PeopleScreen, personAsked } from "./screens/PeopleScreen.tsx";
 import { PageError } from "./screens/PageError.tsx";
 import { SignIn } from "./screens/SignIn.tsx";
 import { Welcome } from "./screens/Welcome.tsx";
@@ -149,12 +154,30 @@ function Root() {
   useEffect(() => {
     void site.then((found) => setIsTestSite(found?.mode === "test"));
   }, []);
+  // on the test site, who's signed in, looked at again on every page (it's
+  // remembered, so that's no extra request) as signing in moves between pages
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const [you, setYou] = useState<string>();
+  useEffect(() => {
+    if (isTestSite) void getAccount().then((account) => setYou(account?.name));
+  }, [isTestSite, pathname]);
   return (
     <RouterProvider
       navigate={(to, options) => router.navigate({ ...to, ...options })}
       useHref={(to) => router.buildLocation(to).href}
     >
-      {isTestSite && <TestSiteBanner />}
+      {isTestSite && (
+        <TestSiteBanner>
+          {you && (
+            <Link
+              href={linkTo({ to: "/people" })}
+              className="font-normal text-warning-strong"
+            >
+              You're {you}
+            </Link>
+          )}
+        </TestSiteBanner>
+      )}
       <Outlet />
       <ToastRegion />
     </RouterProvider>
@@ -213,6 +236,33 @@ const welcomeRoute = createRoute({
     return { account };
   },
   component: Welcome,
+});
+
+export type PeopleSearch = { as?: string; next?: string };
+
+// the test site's demo people, to sign in as one (PeopleScreen). Someone the
+// link asks for who is signed in already goes straight on
+const peopleRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/people",
+  validateSearch: (search: Record<string, unknown>): PeopleSearch => ({
+    as: typeof search.as === "string" ? search.as : undefined,
+    next: safeNext(typeof search.next === "string" ? search.next : undefined),
+  }),
+  loaderDeps: ({ search }) => search,
+  loader: async ({ deps }) => {
+    forgetAccount();
+    const [people, account] = await Promise.all([
+      getJson<DemoPerson[]>("/api/demo-people"),
+      getAccount(),
+    ]);
+    const wanted = personAsked(people, deps.as);
+    if (account && wanted?.email === account.email) {
+      throw redirect({ href: deps.next ?? (await homeOf()) ?? "/" });
+    }
+    return { people, account };
+  },
+  component: PeopleScreen,
 });
 
 // the area the person was last in; moving to another is a moment to look
@@ -800,6 +850,7 @@ const routeTree = rootRoute.addChildren([
   indexRoute,
   signInRoute,
   welcomeRoute,
+  peopleRoute,
   officeRoute.addChildren([
     officeHomeRoute,
     officeQuotesRoute,

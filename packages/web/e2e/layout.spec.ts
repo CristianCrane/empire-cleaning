@@ -5,6 +5,7 @@ import {
   bookJob,
   bookSiteVisit,
   completedFirstClean,
+  createClient,
   createStaff,
   expect,
   offerPlace,
@@ -560,6 +561,11 @@ test("signing in, the welcome page and the Cleaner area fit every width", async 
   page,
 }) => {
   await expectFitsEveryWidth(page, "/sign-in");
+  await createClient({
+    name: "Helen Kowalski",
+    email: "owner+helen@example.com",
+  });
+  await expectFitsEveryWidth(page, "/people?as=helen");
 
   await signedInAs(page, "new@example.com");
   await expectFitsEveryWidth(page, "/welcome");
