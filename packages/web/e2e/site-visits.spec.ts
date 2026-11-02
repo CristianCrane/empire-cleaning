@@ -1,10 +1,10 @@
-import AxeBuilder from "@axe-core/playwright";
 import type { Locator, Page } from "@playwright/test";
 import {
   bookSiteVisit,
   createStaff,
   emailsTo,
   expect,
+  expectAccessible,
   requestQuoteForPremises,
   setUsualWeek,
   signedInAs,
@@ -35,11 +35,6 @@ const choose = async (dialog: Locator, label: RegExp, option: string) => {
     .page()
     .getByRole("option", { name: option, exact: true })
     .click();
-};
-
-const expectNoViolations = async (page: Page) => {
-  const { violations } = await new AxeBuilder({ page }).analyze();
-  expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
 };
 
 test(
@@ -90,7 +85,7 @@ test(
     await expect(page.getByText("Site Visit booked")).toBeVisible();
 
     await page.goto(visit);
-    await expectNoViolations(page);
+    await expectAccessible(page);
     await page.getByRole("button", { name: "Record findings" }).click();
     const findings = page.getByRole("dialog", {
       name: "What the Site Visit found",

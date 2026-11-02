@@ -1,10 +1,9 @@
-import AxeBuilder from "@axe-core/playwright";
-import type { Page } from "@playwright/test";
 import {
   completedFirstClean,
   createStaff,
   emailsTo,
   expect,
+  expectAccessible,
   sentServicePlanQuote,
   signedInAs,
   signUp,
@@ -38,15 +37,6 @@ const planStarted = async () => {
     startsAt: FIRST,
   });
   return { ...plan, propertyId };
-};
-
-// within: only part of the page, e.g. an open dialog (which hides the rest,
-// main landmark and heading included, from assistive technology)
-const expectAccessible = async (page: Page, within?: string) => {
-  await page.waitForFunction(() => document.getAnimations().length === 0);
-  const axe = new AxeBuilder({ page });
-  const { violations } = await (within ? axe.include(within) : axe).analyze();
-  expect(violations).toEqual([]);
 };
 
 test(

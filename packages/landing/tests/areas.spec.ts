@@ -1,7 +1,6 @@
-import AxeBuilder from "@axe-core/playwright";
 import { areas } from "../src/areas/index.ts";
 import { business } from "../src/business.ts";
-import { expect, test } from "./harness.ts";
+import { expect, expectAccessible, test } from "./harness.ts";
 
 // a page per area we serve (#176), each in its own words
 const sections = (area: (typeof areas)[number]) => [
@@ -97,10 +96,7 @@ for (const area of areas) {
         await expect(
           page.getByRole("radio", { name: /^Standard Clean/ }),
         ).toBeVisible();
-        const { violations } = await new AxeBuilder({ page }).analyze();
-        expect(violations.map((v) => `${theme} ${v.id}: ${v.help}`)).toEqual(
-          [],
-        );
+        await test.step(`${theme} theme`, () => expectAccessible(page));
       }
     });
   });

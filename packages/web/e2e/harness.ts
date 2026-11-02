@@ -1,3 +1,4 @@
+import AxeBuilder from "@axe-core/playwright";
 import { test as base, expect, type Page } from "@playwright/test";
 import type { QuoteSource, StaffRole } from "@empire-cleaning/models";
 import { apiUrl, controlUrl } from "../playwright.config.ts";
@@ -344,6 +345,25 @@ export const expectCurrentSection = async (
     await page.keyboard.press("Escape");
     await expect(link).toBeHidden();
   }
+};
+
+// the accessibility check (axe), the only way a test runs it. It waits until
+// nothing is animating: a dialog checked while it opens is still fading in,
+// and its text fails on contrast now and then. React Aria's hidden live
+// announcer is left out: a button pending as it navigates away leaves its
+// announcement pointing at a label that's gone.
+// within: only part of the page, e.g. an open dialog (which hides the rest,
+// main landmark and heading included, from assistive technology)
+export const expectAccessible = async (page: Page, within?: string) => {
+  await page.waitForFunction(() => document.getAnimations().length === 0);
+  const axe = new AxeBuilder({ page }).exclude("[data-live-announcer]");
+  const { violations } = await (within ? axe.include(within) : axe).analyze();
+  expect(
+    violations.map((v) => ({
+      rule: `${v.id}: ${v.help}`,
+      on: v.nodes.map((n) => `${n.html}\n${n.failureSummary}`),
+    })),
+  ).toEqual([]);
 };
 
 // the quote form asks in steps: presses Next, which checks the step's

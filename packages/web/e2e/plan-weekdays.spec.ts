@@ -1,10 +1,10 @@
-import AxeBuilder from "@axe-core/playwright";
 import type { Locator, Page } from "@playwright/test";
 import {
   completedFirstClean,
   createStaff,
   emailsTo,
   expect,
+  expectAccessible,
   requestQuoteForPremises,
   signedInAs,
   test,
@@ -60,8 +60,7 @@ const quoteLink = async () => {
 const noViolations = async (page: Page) => {
   await page.reload();
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  const { violations } = await new AxeBuilder({ page }).analyze();
-  expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+  await expectAccessible(page);
 };
 
 test(

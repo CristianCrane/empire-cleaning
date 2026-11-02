@@ -37,6 +37,25 @@
       // which must be an object pattern: `async ({}, use) => …`
       "files": ["packages/*/e2e/**", "packages/landing/tests/**"],
       "rules": { "eslint/no-empty-pattern": "off" }
+    },
+    {
+      // a spec checks accessibility through its harness's expectAccessible,
+      // which waits for animations first; axe run mid-animation fails on
+      // contrast now and then
+      "files": ["packages/*/e2e/*.spec.ts", "packages/landing/tests/*.spec.ts"],
+      "rules": {
+        "eslint/no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "@axe-core/playwright",
+                "message": "Use expectAccessible from the harness: it waits for animations before axe runs."
+              }
+            ]
+          }
+        ]
+      }
     }
   ],
   "ignorePatterns": ["**/dist/**", "**/.astro/**", "**/storybook-static/**"]
