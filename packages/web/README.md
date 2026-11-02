@@ -83,6 +83,8 @@ End to end with Playwright (`e2e/`): a production build of the app runs in a rea
 
 A test starts signed in with `signedInAs(page, email)`, which signs the person in for real through the control server and hands the browser the session; only the sign-in tests use the form, the email and the link (`signInWithLink`). Only email, payments and the clock are faked, with the same fakes the server tests use (`packages/server/tests/e2e/server.ts`). The payment forms are Stripe's Payment Element (`src/screens/portal/CardForm.tsx`, cards only, themed from the tokens), with the consent to later Charges beside them. The fake payment provider asks for its own "test" form instead, which needs no card typed; `failCharges()` makes Deposits fail and `requireApproval()` makes the Client's bank ask for approval, which the test form gives at once. Tests sign in by following the link from the captured email, exactly as a person would.
 
+**Check accessibility with `expectAccessible(page)` from `e2e/harness.ts`, never axe directly** (lint stops a spec importing `@axe-core/playwright`). It waits until nothing on the page is animating, then runs axe. A dialog checked while it opens is still fading in: its text fails on contrast now and then, so the test passes locally and fails in CI at random (main went red this way after #228). Pass a selector to check only part of the page, such as an open dialog: `expectAccessible(page, "[role=dialog]")`. A failure lists each element with what's wrong, e.g. the two colours and their contrast.
+
 ```sh
 pnpm --filter @empire-cleaning/web test       # needs Postgres (pnpm db:up) and Chromium
 pnpm --filter @empire-cleaning/web test:e2e   # just the end-to-end tests

@@ -1,9 +1,9 @@
-import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import {
   signedInAs,
   createStaff,
   expect,
+  expectAccessible,
   nextStep,
   chooseService,
   requestQuoteAsGuest,
@@ -24,15 +24,6 @@ const signInAsOffice = async (page: Page) => {
   await createStaff(olive);
   await signedInAs(page, olive.email);
   await expect(page).toHaveURL("/office");
-};
-
-const expectNoViolations = async (page: Page) => {
-  // React Aria's hidden live announcer is left out: a button pending as it
-  // navigates away leaves its announcement pointing at a label that's gone
-  const { violations } = await new AxeBuilder({ page })
-    .exclude("[data-live-announcer]")
-    .analyze();
-  expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
 };
 
 // the placeholder Price List prices the harness's request (2 bedrooms, 1.5
@@ -279,7 +270,7 @@ for (const theme of ["light", "dark"] as const) {
           "Price List",
         );
 
-        await expectNoViolations(page);
+        await expectAccessible(page);
       },
     );
 
@@ -294,13 +285,13 @@ for (const theme of ["light", "dark"] as const) {
         await expect(
           page.getByRole("button", { name: "Draft the Quote" }),
         ).toBeVisible();
-        await expectNoViolations(page);
+        await expectAccessible(page);
 
         await draftTheQuote(page);
         await expect(
           page.getByRole("region", { name: "Deep Clean" }),
         ).toBeVisible();
-        await expectNoViolations(page);
+        await expectAccessible(page);
       },
     );
   });

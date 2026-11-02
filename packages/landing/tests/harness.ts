@@ -1,4 +1,5 @@
-import { test as base, expect } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
+import { test as base, expect, type Page } from "@playwright/test";
 import { controlUrl } from "../playwright.config.ts";
 
 // talks to the e2e API's control server (packages/server/tests/e2e/server.ts)
@@ -45,5 +46,23 @@ export const test = base.extend<{ cleanSlate: void; allowedByCsp: void }>({
     { auto: true },
   ],
 });
+
+// the accessibility check (axe), the only way a test runs it. It waits until
+// nothing is animating: a part checked while it fades in fails on contrast
+// now and then. React Aria's hidden live announcer is left out: a button
+// pending as it navigates away leaves its announcement pointing at a label
+// that's gone. The web app's harness has the same (packages/web/e2e).
+export const expectAccessible = async (page: Page) => {
+  await page.waitForFunction(() => document.getAnimations().length === 0);
+  const { violations } = await new AxeBuilder({ page })
+    .exclude("[data-live-announcer]")
+    .analyze();
+  expect(
+    violations.map((v) => ({
+      rule: `${v.id}: ${v.help}`,
+      on: v.nodes.map((n) => `${n.html}\n${n.failureSummary}`),
+    })),
+  ).toEqual([]);
+};
 
 export { expect };

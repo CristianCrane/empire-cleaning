@@ -1,9 +1,9 @@
-import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import {
   bookJob,
   createStaff,
   expect,
+  expectAccessible,
   requestQuoteAsGuest,
   setUsualWeek,
   signedInAs,
@@ -126,6 +126,5 @@ test("the dashboard passes automated accessibility checks", async ({
     page.getByRole("group", { name: "Jobs on Mon, Jan 5" }),
   ).toBeVisible();
 
-  const { violations } = await new AxeBuilder({ page }).analyze();
-  expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+  await expectAccessible(page);
 });

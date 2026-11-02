@@ -191,7 +191,8 @@ can change, through the same loop.
    Usually three layouts. Push the branch; it's kept as the record.
 3. **Pick one** with the user, and note any tweaks.
 4. **Build it** on a `ux-<screen>` branch, with its tests (e2e on phone and
-   desktop, axe in light and dark, the layout test at every width).
+   desktop, axe in light and dark through the harness's `expectAccessible`,
+   the layout test at every width).
 5. **Record it**: a row in the decisions log below; a new rule above, and a
    pattern in Storybook, if it carries over to other screens.
 

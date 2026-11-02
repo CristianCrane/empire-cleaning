@@ -1,9 +1,8 @@
-import AxeBuilder from "@axe-core/playwright";
 import { business } from "../src/business.ts";
 import { faqs } from "../src/faqs.ts";
 import { guides } from "../src/guides/index.ts";
 import { servicePages } from "../src/service-pages/index.ts";
-import { expect, test } from "./harness.ts";
+import { expect, expectAccessible, test } from "./harness.ts";
 
 // a few evergreen guides (#180), each answering one question
 for (const guide of guides) {
@@ -86,10 +85,7 @@ for (const guide of guides) {
         await expect(
           page.getByRole("radio", { name: /^Standard Clean/ }),
         ).toBeVisible();
-        const { violations } = await new AxeBuilder({ page }).analyze();
-        expect(violations.map((v) => `${theme} ${v.id}: ${v.help}`)).toEqual(
-          [],
-        );
+        await test.step(`${theme} theme`, () => expectAccessible(page));
       }
     });
   });

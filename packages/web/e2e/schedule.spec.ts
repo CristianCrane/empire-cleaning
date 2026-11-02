@@ -1,4 +1,3 @@
-import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import {
   acceptedJob,
@@ -6,6 +5,7 @@ import {
   createStaff,
   emailsTo,
   expect,
+  expectAccessible,
   offerPlace,
   requestReschedule,
   setClock,
@@ -328,8 +328,7 @@ test("the Schedule passes automated accessibility checks", async ({ page }) => {
   await page.goto(week);
   await expect(jobsOn(page, "Tue, Mar 2").getByRole("link")).toBeVisible();
 
-  const { violations } = await new AxeBuilder({ page }).analyze();
-  expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+  await expectAccessible(page);
 });
 
 // two boxes on screen share no area

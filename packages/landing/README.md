@@ -33,4 +33,6 @@ The public page for prospective Clients at empirecleaningandpro.com: a static si
 - no sideways scrolling
 - the search data
 
+Check accessibility with `expectAccessible(page)` from `tests/harness.ts`, never axe directly (lint stops a spec importing `@axe-core/playwright`). It waits for animations to finish first; checked mid-fade, text fails on contrast at random. The web app's harness has the same, explained in `packages/web/README.md`.
+
 The browser setup is the same as the design system's (see `packages/ui/README.md`). Install the browser with `pnpm --filter @empire-cleaning/landing test:install-browser`.
