@@ -38,6 +38,7 @@ import {
 import { quoteReceivedEmail } from "./emails.ts";
 import { openAlongside } from "./quotes.ts";
 import { quoteAddOns, quotes } from "./quotes.schema.ts";
+import { monitoring } from "../../services/monitoring/index.ts";
 
 const parse = <T>(schema: z.ZodType<T>, body: unknown): T => {
   const result = schema.safeParse(body);
@@ -163,7 +164,7 @@ export const askForQuote = async (
   try {
     await sendReceipt(client, property, quote.id);
   } catch (error) {
-    console.error(`receipt for Quote ${quote.id} not sent:`, error);
+    monitoring.error(error, { what: `receipt for Quote ${quote.id} not sent` });
   }
   // a Guest gave one, and a signed-in Account proved one
   return { id: quote.id, emailedTo: client.email! };

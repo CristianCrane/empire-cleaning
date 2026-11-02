@@ -63,6 +63,7 @@ import {
   servicePlanVisits,
   type ServicePlan,
 } from "./service-plans.schema.ts";
+import { monitoring } from "../../services/monitoring/index.ts";
 
 const INTERVAL_DAYS: Record<Recurrence, number> = {
   weekly: 7,
@@ -351,7 +352,9 @@ export const generateServicePlanJobs = async (planId?: string) => {
         }
       }
     } catch (error) {
-      console.error(`Jobs for Service Plan ${plan.id} not generated:`, error);
+      monitoring.error(error, {
+        what: `Jobs for Service Plan ${plan.id} not generated`,
+      });
     }
   }
   return generated;

@@ -44,6 +44,7 @@ import {
   errorHandler,
 } from "#middleware";
 import env from "./env.ts";
+import { databaseAnswers } from "./health.ts";
 
 const app = express();
 
@@ -60,12 +61,13 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // routes
-app.get("/health", (req, res) => {
-  res
-    .json({
-      status: "ok",
-    })
-    .status(200);
+// for the uptime monitor and Render: up while the database answers
+app.get("/health", async (req, res) => {
+  if (await databaseAnswers()) {
+    res.json({ status: "ok" });
+  } else {
+    res.status(503).json({ status: "database unreachable" });
+  }
 });
 
 // which site this is, for anyone: the web app shows a banner on the test site

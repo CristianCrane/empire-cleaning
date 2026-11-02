@@ -22,6 +22,7 @@ import {
   signIn,
   testClock,
   testEmail,
+  testMonitoring,
   testPayments,
 } from "../../../tests/harness.ts";
 import {
@@ -812,6 +813,50 @@ describe("when something goes wrong mid-way", () => {
       "sent",
     );
     expect((await scheduleOn(office, MONDAY)).jobs).toEqual([]);
+    // a 500: reported (ADR-0007)
+    expect(testMonitoring().errors).toEqual([
+      expect.objectContaining({
+        error: expect.objectContaining({
+          cause: expect.objectContaining({ message: "the database is unwell" }),
+        }),
+        context: {
+          method: "POST",
+          path: `/api/quotes/mine/${quote.id}/accept`,
+        },
+      }),
+    ]);
+  });
+
+  test("a Deposit taken but not booked, and not refunded, is the refund_failed signal", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    await addCard(client);
+    testPayments().failRefunds();
+    await db.execute(sql`
+      create function refuse_charges() returns trigger language plpgsql as
+      $$ begin raise exception 'the database is unwell'; end $$`);
+    await db.execute(sql`
+      create trigger refuse_charges before insert on charges
+      for each row execute function refuse_charges()`);
+    try {
+      await accept(client, quote).expect(500);
+    } finally {
+      await db.execute(sql`drop trigger refuse_charges on charges`);
+      await db.execute(sql`drop function refuse_charges`);
+    }
+
+    const [charge] = testPayments().charges;
+    expect(testMonitoring().signalled("refund_failed")).toEqual([
+      expect.objectContaining({
+        urgency: "urgent",
+        context: expect.objectContaining({
+          chargeId: charge!.chargeId,
+          quoteId: quote.id,
+        }),
+      }),
+    ]);
   });
 
   test("books and takes nothing if the payment provider can't be reached", async () => {

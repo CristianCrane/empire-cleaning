@@ -1,5 +1,6 @@
 import type { ErrorRequestHandler } from "express";
 import type { ZodError } from "zod";
+import { monitoring } from "#services/monitoring";
 import env from "../env.ts";
 
 type StatusCode = 400 | 401 | 403 | 404 | 409 | 500;
@@ -123,6 +124,15 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
   } else if (env.APP_MODE !== "prod") {
     // only show unexpected error messages in lower environments
     errResponse.message = err.message;
+  }
+
+  // 4xx are normal business, in the request log only (ADR-0007)
+  if (statusCode >= 500) {
+    monitoring.error(err, {
+      method: req.method,
+      // holds IDs at most; never the query
+      path: req.path,
+    });
   }
 
   return res.status(statusCode).json(errResponse);

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { inArray } from "drizzle-orm";
 import { db, type Tx } from "../../db/index.ts";
 import { clock } from "../../services/clock/index.ts";
+import { monitoring } from "../../services/monitoring/index.ts";
 import {
   paymentGateway,
   type ChargeResult,
@@ -60,8 +61,10 @@ export const chargeSaved = async (
       idempotencyKey: `${chargeFor.kind}:${forId}:${randomUUID()}`,
     })
     .catch((error: unknown) => {
-      // TODO(#41): the payment_gateway_error signal
-      console.error(`${description} not charged:`, error);
+      monitoring.signal("payment_gateway_error", {
+        what: `a Charge for ${chargeFor.kind} ${forId}`,
+        message: error instanceof Error ? error.message : String(error),
+      });
       return {
         ok: false,
         reason: "the payment provider couldn't be reached",
@@ -124,10 +127,11 @@ export const refundFrom = async (
       })
       .catch((e: unknown) => ({ ok: false, reason: String(e) }) as const);
     if (!refunded.ok) {
-      // TODO(#41): the refund_failed signal
-      console.error(
-        `${part} cents couldn't be refunded from Charge ${charge.id} (${refunded.reason})`,
-      );
+      monitoring.signal("refund_failed", {
+        chargeId: charge.id,
+        cents: part,
+        reason: refunded.reason,
+      });
       break;
     }
     await tx.insert(refunds).values({

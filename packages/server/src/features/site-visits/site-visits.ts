@@ -42,6 +42,7 @@ import {
   premisesFindingsSchema,
 } from "./site-visits.validation.ts";
 import { toSiteVisitView } from "./views.ts";
+import { monitoring } from "../../services/monitoring/index.ts";
 
 const fieldError = (path: (string | number)[], message: string) =>
   new RequestBodyError(
@@ -154,7 +155,7 @@ const notify = async (what: string, send: () => Promise<void>) => {
   try {
     await send();
   } catch (error) {
-    console.error(`${what} not sent:`, error);
+    monitoring.error(error, { what: `${what} not sent` });
   }
 };
 

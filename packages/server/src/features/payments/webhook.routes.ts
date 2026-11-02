@@ -1,4 +1,5 @@
 import express, { Router } from "express";
+import { monitoring } from "../../services/monitoring/index.ts";
 import { paymentGateway } from "../../services/payment-gateway/index.ts";
 import { finishBillPayment } from "../bills/bills.ts";
 import { finalizeDeposit } from "../quotes/accept.ts";
@@ -32,13 +33,12 @@ webhookRouter.post(
         if (event.reference)
           await finishBillPayment(event.reference, event.ref);
         break;
-      // TODO(#41): raise these as monitoring signals, and record refunds
-      // made in the provider's dashboard against their Job
+      // TODO: record refunds made in the provider's dashboard against their Job
       case "charge_refunded":
-        console.warn(`Charge ${event.chargeId} was refunded at the provider`);
+        monitoring.signal("refunded_at_provider", { ref: event.chargeId });
         break;
       case "dispute_opened":
-        console.warn(`Charge ${event.chargeId} is disputed`);
+        monitoring.signal("dispute_opened", { ref: event.chargeId });
         break;
     }
     res.json({ received: true });

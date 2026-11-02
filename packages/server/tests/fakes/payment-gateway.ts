@@ -43,6 +43,7 @@ export class FakePaymentGateway implements PaymentGateway {
   readonly refunds: RecordedRefund[] = [];
 
   private chargeFailure: string | null = null;
+  private refundFailure: string | null = null;
   private approval: Approval | null = null;
   private down = false;
   private readonly forms = new Set<string>();
@@ -58,6 +59,11 @@ export class FakePaymentGateway implements PaymentGateway {
   // every Charge and Deposit is declined with `reason` until failCharges(null)
   failCharges(reason: string | null = "card_declined") {
     this.chargeFailure = reason;
+  }
+
+  // every refund fails with `reason` until failRefunds(null)
+  failRefunds(reason: string | null = "refund_failed") {
+    this.refundFailure = reason;
   }
 
   // a card entered just now needs its holder's approval from now on, which
@@ -310,6 +316,7 @@ export class FakePaymentGateway implements PaymentGateway {
 
   async refund(input: RefundInput): Promise<RefundResult> {
     this.check();
+    if (this.refundFailure) return { ok: false, reason: this.refundFailure };
     return this.once(input.idempotencyKey, (): RefundResult => {
       const charge = this.charges.find((c) => c.chargeId === input.chargeId);
       if (!charge) {

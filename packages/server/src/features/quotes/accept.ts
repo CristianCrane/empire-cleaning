@@ -62,6 +62,7 @@ import {
   quotes,
   type Quote,
 } from "./quotes.schema.ts";
+import { log, monitoring } from "../../services/monitoring/index.ts";
 
 // who is accepting: the Client, from the portal, or Office Staff recording
 // the Client's acceptance on their behalf (they never enter card details: the
@@ -404,10 +405,13 @@ const refundUnbooked = async (
     .refund({ chargeId, amount, idempotencyKey: `refund:${chargeId}` })
     .catch((e: unknown) => ({ ok: false, reason: String(e) }) as const);
   if (!refunded.ok) {
-    // TODO(#41): the refund_failed signal
-    console.error(
-      `Deposit ${chargeId} for Quote ${quoteId} was taken but not booked, and couldn't be refunded (${refunded.reason}): refund it by hand`,
-    );
+    // taken but not booked: refund it by hand
+    monitoring.signal("refund_failed", {
+      chargeId,
+      quoteId,
+      cents: amount,
+      reason: refunded.reason,
+    });
   }
 };
 
@@ -538,7 +542,7 @@ export const acceptQuote = async (
       const attempt = await takeDeposit();
       if (attempt.status === "failed") {
         // the Client is told only that their card wasn't charged
-        console.error(`Deposit for Quote ${id} not taken (${attempt.reason})`);
+        log.info(`Deposit for Quote ${id} not taken (${attempt.reason})`);
         throw new ConflictError(
           acceptor.by === "client"
             ? "Your card couldn't be charged, so nothing has been booked. Please try another card."
@@ -621,7 +625,7 @@ export const finalizeDeposit = async (ref: string): Promise<Finalized> => {
   const attempt = await paymentGateway.depositOutcome(ref);
   if (attempt.status === "needs_approval") return { status: "waiting" };
   if (attempt.status === "failed") {
-    console.error(
+    log.info(
       `Deposit ${ref} for Quote ${pending.quoteId} not approved (${attempt.reason})`,
     );
     await settle(ref);
@@ -754,10 +758,9 @@ const afterAcceptance = async (
         ? sendPlanConfirmation(client, property, offer, plan, paid)
         : sendBookingConfirmation(client, property, jobs[0]!, paid));
   } catch (error) {
-    console.error(
-      `booking confirmation for Job ${jobs[0]!.id} not sent:`,
-      error,
-    );
+    monitoring.error(error, {
+      what: `booking confirmation for Job ${jobs[0]!.id} not sent`,
+    });
   }
   for (const day of new Set(jobs.map((j) => dayOf(j.startsAt)))) {
     await warnOfficeOfQuotesWithoutRoom(day);

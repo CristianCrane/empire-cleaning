@@ -27,6 +27,7 @@ import {
   openPlaceEmails,
   openPlacePasses,
 } from "./assignments.schema.ts";
+import { monitoring } from "../../services/monitoring/index.ts";
 
 // A Job's Open Places are open to free Cleaners from this many days before
 // it starts (ADR-0019): who is free is only reliable nearer the day
@@ -432,7 +433,9 @@ export const emailOpenPlaces = async () => {
       }
       sent += 1;
     } catch (error) {
-      console.error(`Open Places email to Staff ${member.id} not sent:`, error);
+      monitoring.error(error, {
+        what: `Open Places email to Staff ${member.id} not sent`,
+      });
       await db
         .delete(openPlaceEmails)
         .where(

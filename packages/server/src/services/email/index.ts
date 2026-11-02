@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { monitoring, SignalledError } from "#services/monitoring";
 import env from "../../env.ts";
 import { withAppUrl, type Email } from "./blocks.ts";
 import { logoUrlOn } from "./layout.tsx";
@@ -56,23 +57,35 @@ export const email = {
       withAppUrl(message, env.CORS_ORIGIN_URL),
       logoUrlOn(env.LANDING_ORIGIN_URL),
     );
-    await current.send(
-      routeEmail(
-        {
-          to: message.to,
-          ...(message.bcc ? { bcc: message.bcc } : {}),
-          replyTo: env.OFFICE_EMAIL,
-          subject,
-          html,
-          text,
-        },
-        {
-          mode: env.APP_MODE,
-          allowed: env.EMAIL_ALLOWED,
-          office: env.OFFICE_EMAIL,
-        },
-      ),
+    const routed = routeEmail(
+      {
+        to: message.to,
+        ...(message.bcc ? { bcc: message.bcc } : {}),
+        replyTo: env.OFFICE_EMAIL,
+        subject,
+        html,
+        text,
+      },
+      {
+        mode: env.APP_MODE,
+        allowed: env.EMAIL_ALLOWED,
+        office: env.OFFICE_EMAIL,
+      },
     );
+    // the email service refused it or couldn't be reached: the
+    // email_send_failed signal, raised here once for every caller, who only
+    // logs what wasn't sent
+    try {
+      await current.send(routed);
+    } catch (error) {
+      // the service's reason, never the subject: it can hold an address
+      monitoring.signal("email_send_failed", {
+        reason: error instanceof Error ? error.message : String(error),
+      });
+      throw new SignalledError("email_send_failed", "email not sent", {
+        cause: error,
+      });
+    }
   },
 };
 

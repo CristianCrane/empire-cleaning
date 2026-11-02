@@ -12,6 +12,7 @@ import { officeStaffEmails } from "../staff/staff.ts";
 import { quotesWithoutRoomEmail } from "./emails.ts";
 import { openQuotes } from "./quote-state.ts";
 import { quotes, revisionOptions } from "./quotes.schema.ts";
+import { monitoring } from "../../services/monitoring/index.ts";
 
 // A Sent Quote doesn't hold its time: a booking for another Client, or fewer
 // Cleaners or hours, can fill its proposed day or time under it. Then it can't be
@@ -143,6 +144,8 @@ export const warnOfficeOfQuotesWithoutRoom = async (day: string) => {
       await email.send({ to, ...notice });
     }
   } catch (error) {
-    console.error(`Office not told of Quotes without room on ${day}:`, error);
+    monitoring.error(error, {
+      what: `Office not told of Quotes without room on ${day}`,
+    });
   }
 };
