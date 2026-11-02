@@ -31,6 +31,9 @@ jobs:
         run: pnpm lint:check
       - name: Package consistency
         run: pnpm check:packages
+      # what may reach Sentry and the logs, and the browsers' Sentry setup
+      - name: Scrubbing tests
+        run: pnpm --filter @empire-cleaning/models --filter @empire-cleaning/browser-monitoring test
 
   server:
     name: Server tests

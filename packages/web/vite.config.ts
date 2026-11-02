@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { themeBootScript } from "@empire-cleaning/ui/theme-boot";
+import { monitoringBuild } from "@empire-cleaning/browser-monitoring/vite";
 
 // where /api requests go; the end-to-end tests point this at their own server
 const apiUrl = process.env.API_URL ?? "http://localhost:3000";
@@ -10,6 +11,8 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    // the release, and source maps for Sentry's web project
+    monitoringBuild("web"),
     {
       // a pinned light or dark theme applies before first paint
       name: "theme-boot",

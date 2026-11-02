@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { pino, type DestinationStream, type Logger } from "pino";
-import { scrub, scrubText } from "./scrub.ts";
+import { scrub, scrubText } from "@empire-cleaning/models";
 
 // what's known about the request being served, wherever in it code runs
 type RequestContext = { requestId: string };

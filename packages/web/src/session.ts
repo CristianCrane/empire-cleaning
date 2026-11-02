@@ -1,6 +1,7 @@
 import { createAuthClient } from "better-auth/react";
 import { magicLinkClient } from "better-auth/client/plugins";
 import type { AccountRole, SignedInAccount } from "@empire-cleaning/models";
+import { identify } from "@empire-cleaning/browser-monitoring";
 
 // Better Auth's browser client: plain functions over the API's /api/auth
 // endpoints (same origin; Vite forwards /api to the server), no UI of its own
@@ -31,9 +32,13 @@ export const areasFor = (account: SignedInAccount): AreaId[] =>
 let current: Promise<SignedInAccount | null> | undefined;
 
 export const getAccount = () =>
-  (current ??= fetch("/api/me").then((res) =>
-    res.ok ? (res.json() as Promise<SignedInAccount>) : null,
-  ));
+  (current ??= fetch("/api/me")
+    .then((res) => (res.ok ? (res.json() as Promise<SignedInAccount>) : null))
+    .then((account) => {
+      // Sentry knows people by Account ID only (ADR-0007)
+      identify(account?.id);
+      return account;
+    }));
 
 // asks the API again next time it is needed, e.g. after becoming a Client
 export const forgetAccount = () => {
@@ -43,6 +48,7 @@ export const forgetAccount = () => {
 export const signOut = async () => {
   await authClient.signOut();
   forgetAccount();
+  identify(undefined);
 };
 
 // only paths inside this app, so a crafted ?next= can't send people elsewhere
