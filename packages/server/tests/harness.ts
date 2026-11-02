@@ -5,14 +5,17 @@ import { db } from "#db";
 import { setClock } from "#services/clock";
 import { setPaymentGateway } from "#services/payment-gateway";
 import { setEmailSender } from "#services/email";
+import { setReporter } from "#services/monitoring";
 import { FakeClock } from "./fakes/clock.ts";
 import { FakePaymentGateway } from "./fakes/payment-gateway.ts";
 import { FakeEmailSender } from "./fakes/email.ts";
+import { FakeReporter } from "./fakes/monitoring.ts";
 
 type Fakes = {
   clock: FakeClock;
   payments: FakePaymentGateway;
   email: FakeEmailSender;
+  monitoring: FakeReporter;
 };
 
 let fakes: Fakes | null = null;
@@ -23,10 +26,12 @@ export const installFakes = () => {
     clock: new FakeClock(),
     payments: new FakePaymentGateway(),
     email: new FakeEmailSender(),
+    monitoring: new FakeReporter(),
   };
   setClock(fakes.clock);
   setPaymentGateway(fakes.payments);
   setEmailSender(fakes.email);
+  setReporter(fakes.monitoring);
 };
 
 const current = () => {
@@ -37,6 +42,7 @@ const current = () => {
 export const testClock = () => current().clock;
 export const testPayments = () => current().payments;
 export const testEmail = () => current().email;
+export const testMonitoring = () => current().monitoring;
 
 // Empties every table except drizzle's migration bookkeeping, before every
 // test. With DELETE, not TRUNCATE: truncating creates and syncs fresh files for

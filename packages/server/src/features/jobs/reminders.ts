@@ -13,6 +13,7 @@ import { properties } from "../properties/properties.schema.ts";
 import { jobs } from "./jobs.schema.ts";
 import { cleanOf } from "../services/services.ts";
 import { reminderEmail } from "./emails.ts";
+import { monitoring } from "../../services/monitoring/index.ts";
 
 // reminders go out from this time, New York, on the day before
 export const REMINDER_TIME = "08:00";
@@ -66,7 +67,7 @@ export const sendDueReminders = async () => {
       });
       sent += 1;
     } catch (error) {
-      console.error(`reminder for Job ${job.id} not sent:`, error);
+      monitoring.error(error, { what: `reminder for Job ${job.id} not sent` });
       await db
         .update(jobs)
         .set({ reminderSentAt: null })

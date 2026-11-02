@@ -36,6 +36,7 @@ import { assignments, type Assignment } from "./assignments.schema.ts";
 import { emailOpenPlaces, openToOf, placeReopened } from "./open-places.ts";
 import { cleanOf, serviceVersions } from "../services/services.ts";
 import { offerEmail, releasedEmail, takenOffEmail } from "./emails.ts";
+import { monitoring } from "../../services/monitoring/index.ts";
 
 // a Confirmed place can't be Released this close to the Job: the Office needs
 // time to find someone else
@@ -62,7 +63,7 @@ const notify = async (what: string, send: () => Promise<void>) => {
   try {
     await send();
   } catch (error) {
-    console.error(`${what} not sent:`, error);
+    monitoring.error(error, { what: `${what} not sent` });
   }
 };
 

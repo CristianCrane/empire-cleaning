@@ -86,6 +86,7 @@ import {
   offers,
   revisionHistory,
   siteVisitOf,
+  sourceOf,
   statusOf,
 } from "./quote-state.ts";
 import {
@@ -96,6 +97,7 @@ import {
   type Revision,
   type RevisionOptionRow,
 } from "./quotes.schema.ts";
+import { monitoring } from "../../services/monitoring/index.ts";
 
 // a new Service Plan Quote's terms, until Office Staff change them: not a
 // copy of the First Clean, whatever it was
@@ -636,6 +638,7 @@ export const officeQuote = async (id: string): Promise<OfficeQuote> => {
     status,
     origin: quote.origin,
     asked: askedOf(quote, asked, list.services),
+    source: sourceOf(quote),
     createdAt: quote.createdAt.toISOString(),
     client: {
       id: client.id,
@@ -1623,7 +1626,7 @@ export const sendQuote = async (id: string): Promise<OfficeQuote> => {
   try {
     await sendQuoteEmail(client, view);
   } catch (error) {
-    console.error(`email for Quote ${id} not sent:`, error);
+    monitoring.error(error, { what: `email for Quote ${id} not sent` });
   }
   return view;
 };
@@ -1739,7 +1742,9 @@ export const turnDownQuote = async (
     try {
       await sendTurnDownEmail(client, property, id, reason);
     } catch (error) {
-      console.error(`Turn Down email for Quote ${id} not sent:`, error);
+      monitoring.error(error, {
+        what: `Turn Down email for Quote ${id} not sent`,
+      });
     }
   }
   return officeQuote(id);

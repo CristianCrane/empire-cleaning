@@ -143,6 +143,69 @@ describe("a Guest asking for a Quote", () => {
       "http://localhost:4321",
     );
   });
+
+  test("says where on the landing site it came from, for the Office", async () => {
+    const { body } = await submit(
+      guestAsk({
+        source: {
+          page: "/queens/",
+          utmSource: "gbp",
+          utmMedium: "",
+          utmCampaign: null,
+        },
+      }),
+    ).expect(201);
+
+    const office = await signInAsOffice();
+    const quote = (await office.get(`/api/quotes/${body.id}`)).body;
+    expect(quote.source).toEqual({
+      page: "/queens/",
+      utmSource: "gbp",
+      utmMedium: null,
+      utmCampaign: null,
+    });
+  });
+
+  test("from a page that isn't one, is refused", async () => {
+    const res = await submit(
+      guestAsk({
+        source: {
+          page: "https://elsewhere.example/",
+          utmSource: null,
+          utmMedium: null,
+          utmCampaign: null,
+        },
+      }),
+    );
+
+    expect(res.status).toBe(400);
+  });
+
+  test("without a source, has none", async () => {
+    const { body } = await submit(guestAsk()).expect(201);
+
+    const office = await signInAsOffice();
+    expect((await office.get(`/api/quotes/${body.id}`)).body.source).toBeNull();
+  });
+});
+
+describe("a signed-in Client asking", () => {
+  test("can't say where on the landing site they asked from", async () => {
+    await submit(guestAsk({ contact: { ...casey, email: "sam@example.com" } }));
+    const agent = await signIn("sam@example.com");
+    const { body } = await agent
+      .post("/api/quotes/ask")
+      .send({
+        ...guestAsk(),
+        contact: undefined,
+        property: { new: { ...home, street: "7 Elm St" } },
+        source: { page: "/queens/" },
+      })
+      .expect(201);
+
+    const office = await signInAsOffice();
+    expect((await office.get(`/api/quotes/${body.id}`)).body.source).toBeNull();
+  });
 });
 
 const ownHomes = async (email: string) =>

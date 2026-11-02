@@ -1,16 +1,40 @@
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import { sql } from "drizzle-orm";
 import { db } from "#db";
 import { clock } from "#services/clock";
 import { paymentGateway } from "#services/payment-gateway";
 import { email, paragraph } from "#services/email";
-import { api, testClock, testEmail, testPayments } from "../tests/harness.ts";
+import {
+  api,
+  testClock,
+  testEmail,
+  testMonitoring,
+  testPayments,
+} from "../tests/harness.ts";
 
 test("health check responds over HTTP", async () => {
   const res = await api().get("/health");
 
   expect(res.status).toBe(200);
   expect(res.body).toEqual({ status: "ok" });
+});
+
+test("health check is 503 when the database doesn't answer (ADR-0007)", async () => {
+  vi.spyOn(db, "execute").mockRejectedValueOnce(
+    new Error("connect ECONNREFUSED"),
+  );
+
+  const res = await api().get("/health");
+
+  expect(res.status).toBe(503);
+  expect(res.body).toEqual({ status: "database unreachable" });
+});
+
+test("a 4xx is normal business, never reported (ADR-0007)", async () => {
+  await api().post("/api/quotes/ask").send({}).expect(400);
+  await api().get("/api/me").expect(401);
+
+  expect(testMonitoring().errors).toEqual([]);
 });
 
 test("anyone can ask which site this is", async () => {

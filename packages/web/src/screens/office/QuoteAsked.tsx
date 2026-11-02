@@ -4,6 +4,7 @@ import type {
   OfficeQuote,
   PriceBreakdown,
   QuoteKind,
+  QuoteSource,
   TurnDownReason,
 } from "@empire-cleaning/models";
 import {
@@ -40,6 +41,25 @@ export const propertyLink = (quote: OfficeQuote) =>
     params: { propertyId: quote.property.id },
   });
 
+// where on the landing site a Guest asked from (#185), and the link that
+// brought them, by its campaign tags: "The website, /queens/, via gbp
+// (cpc, spring)"
+export const sourceText = ({
+  page,
+  utmSource,
+  utmMedium,
+  utmCampaign,
+}: QuoteSource) => {
+  const more = [utmMedium, utmCampaign].filter(Boolean).join(", ");
+  return [
+    `The website, ${page}`,
+    utmSource && `, via ${utmSource}`,
+    more && ` (${more})`,
+  ]
+    .filter(Boolean)
+    .join("");
+};
+
 // what the Client (or a caller) asked for, unchanged; none on a Quote the
 // Office offered unprompted
 export function AskedFacts({ quote }: { quote: OfficeQuote }) {
@@ -57,6 +77,12 @@ export function AskedFacts({ quote }: { quote: OfficeQuote }) {
         {formatDate(quote.createdAt)}
         {quote.origin === "caller" && ", by phone"}
       </dd>
+      {quote.source && (
+        <>
+          <dt className="font-semibold">From</dt>
+          <dd>{sourceText(quote.source)}</dd>
+        </>
+      )}
       <dt className="font-semibold">Service</dt>
       <dd>{asked.service.name}</dd>
       {asked.area !== null && (

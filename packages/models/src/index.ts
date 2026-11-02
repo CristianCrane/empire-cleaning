@@ -111,6 +111,19 @@ export type QuoteAsk = {
   // for a Service priced by area, a rough area in sq ft
   area?: number | null;
   notes?: string | null;
+  // a Guest's from the landing site: where they asked from (#185)
+  source?: QuoteSource;
+};
+
+// Where a Guest asked from on the landing site (#185): the page's path
+// ("/queens/"), and the campaign tags of the link they arrived by, if any
+// (utm_source and so on). For the Office, to see which pages and links bring
+// Quote Requests.
+export type QuoteSource = {
+  page: string;
+  utmSource: string | null;
+  utmMedium: string | null;
+  utmCampaign: string | null;
 };
 
 // a Quote open at a Property, as the "Request a Quote" form needs it to tell
@@ -1027,6 +1040,8 @@ export type OfficeQuote = {
   origin: QuoteOrigin;
   // null on a Quote the Office offered unprompted
   asked: QuoteAsked | null;
+  // where a Guest asked from on the landing site; null on any other
+  source: QuoteSource | null;
   createdAt: string;
   // no email until the Office adds one: then it can't be Sent (#34)
   client: OfficeContactDetails & { id: string };

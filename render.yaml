@@ -84,6 +84,9 @@ services:
       # empty, no Client is asked for a review (#175)
       - key: GOOGLE_REVIEW_URL
         sync: false
+      # the server's Sentry project (#43); left empty, errors are only logged
+      - key: SENTRY_DSN
+        sync: false
 
   - type: web
     name: empire-test-web

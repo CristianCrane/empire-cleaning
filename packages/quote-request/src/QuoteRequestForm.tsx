@@ -23,6 +23,7 @@ import type {
   PropertyView,
   QuoteAskReceipt,
   QuoteAsk,
+  QuoteSource,
   ServiceIcon,
   ServiceOffer,
   Weekday,
@@ -103,6 +104,9 @@ export type QuoteRequestFormProps<R = QuoteAskReceipt> = {
   // it's on offer; and regular visits already asked for (a page about a
   // Service, #177)
   start?: { serviceKey: string; regular?: boolean };
+  // where a Guest is asking from on the landing site (#185), worked out as
+  // they send it
+  source?: () => QuoteSource;
 };
 
 // the form speaks to whoever fills it in: the person asking, or Office Staff
@@ -269,6 +273,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
   page,
   onAskChange,
   start,
+  source,
 }: QuoteRequestFormProps<R>) {
   const words = asker.kind === "office" ? officeWords : ownWords;
   // whose Properties are offered: a Client's own, or the one the Office found
@@ -427,6 +432,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
     contact?: { email?: string | null };
   } => ({
     ...(asker.kind === "guest" && { contact }),
+    ...(asker.kind === "guest" && source && { source: source() }),
     ...(asker.kind === "account" && {
       contact: { name: contact.name, phone: contact.phone },
     }),
