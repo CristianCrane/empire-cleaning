@@ -113,6 +113,7 @@ import {
   type CleansSearch,
 } from "./screens/portal/PortalCleans.tsx";
 import { PortalHome } from "./screens/portal/PortalHome.tsx";
+import { OfficeNavPrototype } from "./screens/office/office-nav.prototype.tsx";
 import type { HomeData } from "./screens/portal/whats-next.ts";
 import { PortalJob } from "./screens/portal/PortalJob.tsx";
 import { PortalPaymentMethod } from "./screens/portal/PortalPaymentMethod.tsx";
@@ -775,6 +776,19 @@ const ownProperties = async () => {
   return { client, plans, quotes, jobs };
 };
 
+// PROTOTYPE: where the Office nav goes on a phone (#200), signed out
+const officeNavPrototypeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/prototype/office-nav",
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { case?: string; layout?: string } => ({
+    case: typeof search.case === "string" ? search.case : undefined,
+    layout: typeof search.layout === "string" ? search.layout : undefined,
+  }),
+  component: OfficeNavPrototype,
+});
+
 const portalDetailsRoute = createRoute({
   getParentRoute: () => portalRoute,
   path: "/details",
@@ -798,6 +812,7 @@ const portalPropertyRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
+  officeNavPrototypeRoute,
   signInRoute,
   welcomeRoute,
   officeRoute.addChildren([
