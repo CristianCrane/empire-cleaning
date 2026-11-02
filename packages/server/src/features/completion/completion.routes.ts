@@ -158,7 +158,7 @@ const ownClient = async (res: Response) => {
 };
 
 // their Completed Jobs, latest first
-clientJobsRouter.get("/mine/past", authorize("client"), async (req, res) => {
+clientJobsRouter.get("/mine/past", authorize("client"), async (_req, res) => {
   res.json(await pastJobsFor((await ownClient(res)).id));
 });
 

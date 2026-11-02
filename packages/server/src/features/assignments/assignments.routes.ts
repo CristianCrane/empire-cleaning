@@ -83,7 +83,7 @@ const cleaner = async (res: Response) => {
 const assignment = z.object({ id: z.uuid() });
 
 // their Jobs today and to come, soonest first
-router.get("/mine", async (req, res) => {
+router.get("/mine", async (_req, res) => {
   res.json(await jobsAssignedTo((await cleaner(res)).id));
 });
 
@@ -93,7 +93,7 @@ router.get("/mine/:id", validate({ params: job }), async (req, res) => {
 
 // Open Places open to them (ADR-0019), soonest first; one, by its Job; and
 // taking one, or saying it's "Not for me"
-router.get("/open", async (req, res) => {
+router.get("/open", async (_req, res) => {
   res.json(await openPlacesFor((await cleaner(res)).id));
 });
 

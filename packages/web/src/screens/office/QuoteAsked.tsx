@@ -44,7 +44,7 @@ export const propertyLink = (quote: OfficeQuote) =>
 // where on the landing site a Guest asked from (#185), and the link that
 // brought them, by its campaign tags: "The website, /queens/, via gbp
 // (cpc, spring)"
-export const sourceText = ({
+const sourceText = ({
   page,
   utmSource,
   utmMedium,

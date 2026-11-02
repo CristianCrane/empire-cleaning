@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useEffectEvent,
   useRef,
   useState,
   type ReactNode,
@@ -138,13 +139,16 @@ const useStripeElement = (
 ) => {
   const box = useRef<HTMLDivElement>(null);
   const mounted = useRef<{ stripe: Stripe; elements: StripeElements }>(null);
+  // the options are read once per form, as it mounts
+  const elementsFor = useEffectEvent(options);
+  const clearProblem = useEffectEvent(() => setProblem(undefined));
 
   useEffect(() => {
     if (form?.form !== "stripe" || !box.current) return;
     let destroy: (() => void) | undefined;
     void loadStripe(form.publishableKey).then((stripe) => {
       if (!stripe || !box.current) return;
-      const elements = options(stripe);
+      const elements = elementsFor(stripe);
       if (!elements) return;
       // Stripe adds Link (and its bank payments) beside cards unless told
       // not to, whatever the intent allows
@@ -152,7 +156,7 @@ const useStripeElement = (
         layout: "tabs",
         wallets: { link: "never" },
       });
-      element.on("change", () => setProblem(undefined));
+      element.on("change", () => clearProblem());
       element.mount(box.current);
       mounted.current = { stripe, elements };
 
@@ -173,7 +177,6 @@ const useStripeElement = (
       destroy?.();
       mounted.current = null;
     };
-    // the options are read once per form
   }, [form]);
 
   return { box, mounted };
@@ -253,7 +256,7 @@ export function usePaymentForm({
 
   // the amount follows the Service chosen
   useEffect(() => {
-    mounted.current?.elements.update(modeFor(amountCents));
+    void mounted.current?.elements.update(modeFor(amountCents));
   }, [amountCents, mounted]);
 
   const token = useCallback(async () => {

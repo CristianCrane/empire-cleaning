@@ -218,7 +218,9 @@ describe("Confirming an Open Place", () => {
       confirm(asCory, job.id),
       confirm(asDee, job.id),
     ]);
-    expect(answers.map((a) => a.status).sort()).toEqual([200, 409]);
+    expect(answers.map((a) => a.status).sort((a, b) => a - b)).toEqual([
+      200, 409,
+    ]);
   });
 
   test("is refused to a Cleaner no longer free for it", async () => {

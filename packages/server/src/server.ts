@@ -62,7 +62,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // routes
 // for the uptime monitor and Render: up while the database answers
-app.get("/health", async (req, res) => {
+app.get("/health", async (_req, res) => {
   if (await databaseAnswers()) {
     res.json({ status: "ok" });
   } else {
@@ -71,7 +71,7 @@ app.get("/health", async (req, res) => {
 });
 
 // which site this is, for anyone: the web app shows a banner on the test site
-app.get("/api/site", (req, res) => {
+app.get("/api/site", (_req, res) => {
   res.json({ mode: env.APP_MODE });
 });
 

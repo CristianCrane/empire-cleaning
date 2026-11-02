@@ -15,7 +15,7 @@ const requestLogger = pinoHttp({
   },
   // the uptime monitor and Render's health check call it all day
   autoLogging: { ignore: (req) => req.url === "/health" },
-  customLogLevel: (req, res, error) =>
+  customLogLevel: (_req, res, error) =>
     error || res.statusCode >= 500 ? "error" : "info",
   // what was asked and how it went; never headers, bodies or the query's
   // values

@@ -12,7 +12,7 @@ import { clients } from "./clients.schema.ts";
 export const clientStandings = ["active", "quoting", "past"] as const;
 
 // how far back a Job keeps its Client Active
-export const ACTIVE_FOR_DAYS = 90;
+const ACTIVE_FOR_DAYS = 90;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 

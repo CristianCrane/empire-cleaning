@@ -456,7 +456,7 @@ function History({
   );
 }
 
-export const jobStatusLabel: Record<JobStatus, string> = {
+const jobStatusLabel: Record<JobStatus, string> = {
   booked: "Booked",
   completed: "Completed",
   cancelled: "Cancelled",

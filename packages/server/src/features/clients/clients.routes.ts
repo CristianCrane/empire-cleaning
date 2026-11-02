@@ -24,7 +24,7 @@ const ownClient = async (accountId: string) => {
 };
 
 // the signed-in Client, with their Properties and Quotes
-router.get("/me", authorize("client"), async (req, res) => {
+router.get("/me", authorize("client"), async (_req, res) => {
   const client = await ownClient(signedInAccount(res).id);
   res.json(await clientView(client.id));
 });

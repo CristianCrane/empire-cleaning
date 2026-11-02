@@ -502,7 +502,9 @@ describe("accepting a First Clean Quote", () => {
       accept(drew, second),
     ]);
 
-    expect(results.map((r) => r.status).sort()).toEqual([200, 409]);
+    expect(results.map((r) => r.status).sort((a, b) => a - b)).toEqual([
+      200, 409,
+    ]);
     expect(testPayments().charges).toHaveLength(1);
     expect((await scheduleOn(office, MONDAY)).jobs).toHaveLength(1);
   });

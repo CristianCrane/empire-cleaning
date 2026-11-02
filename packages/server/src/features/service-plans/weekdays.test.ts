@@ -403,7 +403,7 @@ describe("changing a plan's terms", () => {
     ]);
     expect(
       plan.jobs.filter((j) => j.status === "cancelled").map((j) => j.startsAt),
-    ).toEqual([MONDAYS[2], WEDNESDAYS[2], MONDAYS[3]].sort());
+    ).toEqual([MONDAYS[2]!, WEDNESDAYS[2]!, MONDAYS[3]!].sort());
 
     // and back to two weekdays, from Monday 2 February
     const again = await sentPlan(office, propertyId, [

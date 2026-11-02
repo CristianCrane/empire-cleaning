@@ -19,7 +19,7 @@ export const TICK_MS = 10 * 60 * 1000;
 // weekly Bills, reminders for Bills paid on their page and those late, and
 // Open Places for Cleaners: each morning from 7am, and soon ones at once;
 // and Google review requests, the day after a Client's first clean
-export const scheduledJobs: ScheduledJob[] = [
+const scheduledJobs: ScheduledJob[] = [
   { name: "reminders", run: sendDueReminders },
   { name: "proposed Adjustments", run: chaseProposedAdjustments },
   { name: "Service Plan Jobs", run: () => generateServicePlanJobs() },

@@ -40,7 +40,7 @@ import { useAction } from "../action.ts";
 import { formatDate, formatMoney } from "../format.ts";
 import { ExampleQuote } from "./ExampleQuote.tsx";
 
-export const methodLabel: Record<PricingMethod, string> = {
+const methodLabel: Record<PricingMethod, string> = {
   rooms: "From a home's rooms",
   area: "By area",
 };

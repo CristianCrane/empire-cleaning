@@ -24,7 +24,7 @@ import { useAction } from "../action.ts";
 
 // What cancelling costs, in a sentence. A plan Job has no Deposit of its
 // own: its fee is the plan's Deposit amount, charged to the saved card.
-export const describeTerms = (terms: CancellationTerms, onPlan = false) =>
+const describeTerms = (terms: CancellationTerms, onPlan = false) =>
   onPlan
     ? terms.late
       ? `It's a Late Cancellation: a ${formatMoney(terms.feeCents)} fee, the plan's Deposit amount, is charged. The plan's Deposit stays held.`

@@ -8,7 +8,6 @@ import {
   requestQuoteForPremises,
   signedInAs,
   test,
-  draftTheQuote,
 } from "./harness.ts";
 
 const olive = {

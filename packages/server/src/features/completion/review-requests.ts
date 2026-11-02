@@ -17,11 +17,11 @@ import { monitoring } from "../../services/monitoring/index.ts";
 
 // review requests go out from this time, New York, on the day after a
 // Client's first Completed Job, a day apart from its receipt
-export const REVIEW_REQUEST_TIME = "10:00";
+const REVIEW_REQUEST_TIME = "10:00";
 
 // a Client whose first Completed Job is older than this isn't asked: they
 // were served before review requests began, or the server was down for days
-export const REVIEW_REQUEST_WITHIN_DAYS = 7;
+const REVIEW_REQUEST_WITHIN_DAYS = 7;
 
 /**
  * Asks each Client for a Google review, once ever, from 10am on the day after

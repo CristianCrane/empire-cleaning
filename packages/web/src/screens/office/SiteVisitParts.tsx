@@ -358,7 +358,7 @@ export function CancelSiteVisit({ visit }: { visit: OfficeSiteVisit }) {
  * premises' Premises Type, floor area and Condition, or a home's rooms and
  * Condition, with the Office's notes. Saving updates the Property.
  */
-export function FindingsForm({
+function FindingsForm({
   property,
   officeNotes,
   premisesTypes,

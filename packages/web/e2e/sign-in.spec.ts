@@ -130,9 +130,7 @@ test.describe("signing up and in with an emailed link", () => {
   test("a link that didn't arrive can be sent again", async ({ page }) => {
     await page.goto("/sign-in");
     await page.getByRole("textbox", { name: "Email" }).fill(client.email);
-    await page
-      .getByRole("button", { name: "Email me a sign-in link" })
-      .click();
+    await page.getByRole("button", { name: "Email me a sign-in link" }).click();
     await expect(
       page.getByRole("heading", { name: "Check your email" }),
     ).toBeVisible();
@@ -273,7 +271,9 @@ for (const theme of ["light", "dark"] as const) {
       { tag: theme === "light" ? "@desktop" : [] },
       async ({ page }) => {
         await page.goto("/sign-in?error=INVALID_TOKEN");
-        await expect(page.getByText("expired or has already been used")).toBeVisible();
+        await expect(
+          page.getByText("expired or has already been used"),
+        ).toBeVisible();
 
         const { violations } = await new AxeBuilder({ page }).analyze();
         expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);

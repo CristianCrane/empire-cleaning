@@ -6,7 +6,6 @@ import type {
   OfficePropertyView,
   OfficeQuote,
   PlanDayInput,
-  PriceList,
   QuoteDraftInput,
   QuoteSummary,
   QuoteView,

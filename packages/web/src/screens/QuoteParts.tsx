@@ -27,38 +27,6 @@ export function QuoteStatusBadge({ status }: { status: QuoteStatus }) {
   );
 }
 
-export function OptionCard({
-  option,
-  crewSize,
-  depositPercent,
-  children,
-}: {
-  option: QuoteOption;
-  crewSize: number;
-  depositPercent: number;
-  // anything more, e.g. the Office's override
-  children?: ReactNode;
-}) {
-  return (
-    <Card
-      title={option.serviceName}
-      headingLevel={3}
-      actions={
-        option.recommended && (
-          <StatusBadge tone="success">Recommended</StatusBadge>
-        )
-      }
-    >
-      <OptionFigures
-        option={option}
-        crewSize={crewSize}
-        depositPercent={depositPercent}
-      />
-      {children}
-    </Card>
-  );
-}
-
 // a one-off clean's price, its hours and its Deposit
 export function OptionFigures({
   option,

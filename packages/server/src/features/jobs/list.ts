@@ -19,7 +19,7 @@ import { jobViews } from "./schedule.ts";
 export const jobsTabs = ["upcoming", "past", "cancelled"] as const;
 
 // how many Jobs a page of the list holds unless more are asked for
-export const JOBS_PAGE = 50;
+const JOBS_PAGE = 50;
 
 // the Tab a Job is under: Upcoming while booked, Cancelled once cancelled
 // (or Skipped), Past once Completed or No Access

@@ -156,13 +156,13 @@ test("a service page reads without JavaScript, its answers a tap away", async ({
 }) => {
   const context = await browser.newContext({ javaScriptEnabled: false });
   const page = await context.newPage();
-  const [service] = servicePages;
+  const service = servicePages[0]!;
   await page.goto(`/services/${service.slug}/`);
 
   for (const name of sections(service)) {
     await expect(page.getByRole("heading", { level: 2, name })).toBeVisible();
   }
-  const { question, answer } = service.faqs[0];
+  const { question, answer } = service.faqs[0]!;
   await expect(page.getByText(answer)).toBeHidden();
   await page.getByText(question).click();
   await expect(page.getByText(answer)).toBeVisible();
@@ -172,13 +172,13 @@ test("a service page reads without JavaScript, its answers a tap away", async ({
 test("a service page's only JavaScript is the theme toggle, the Quote form and the reviews' buttons", async ({
   page,
 }) => {
-  await page.goto(`/services/${servicePages[0].slug}/`);
+  await page.goto(`/services/${servicePages[0]!.slug}/`);
 
   expect(
     await page
       .locator("astro-island")
       .evaluateAll((all) =>
-        all.map((i) => i.getAttribute("component-export")).sort(),
+        all.map((i) => i.getAttribute("component-export") ?? "").sort(),
       ),
   ).toEqual(["QuoteForm", "ThemeToggle"]);
 });

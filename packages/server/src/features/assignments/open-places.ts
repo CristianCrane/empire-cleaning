@@ -31,20 +31,20 @@ import { monitoring } from "../../services/monitoring/index.ts";
 
 // A Job's Open Places are open to free Cleaners from this many days before
 // it starts (ADR-0019): who is free is only reliable nearer the day
-export const OPEN_PLACE_DAYS = 7;
+const OPEN_PLACE_DAYS = 7;
 
 // an Open Place on a Job starting this close is emailed at once, not in the
 // next morning's email
-export const URGENT_OPEN_PLACE_HOURS = 48;
+const URGENT_OPEN_PLACE_HOURS = 48;
 
 // the morning email of Open Places goes out from this time, New York
-export const OPEN_PLACES_EMAIL_TIME = "07:00";
+const OPEN_PLACES_EMAIL_TIME = "07:00";
 
 const HOUR_MS = 3_600_000;
 const DAY_MS = 24 * HOUR_MS;
 
 // when a Job's Open Places open to free Cleaners
-export const opensAt = (job: Pick<Job, "startsAt">) =>
+const opensAt = (job: Pick<Job, "startsAt">) =>
   new Date(job.startsAt.getTime() - OPEN_PLACE_DAYS * DAY_MS);
 
 // from when to when a Job's crew are at work there, in milliseconds
@@ -140,7 +140,7 @@ export const freeFor = async (
  * "Not for me". Worked out when asked, never stored, so someone who becomes
  * free later sees them, and a filled place leaves everyone's list at once.
  */
-export const openings = async (jobId?: string) => {
+const openings = async (jobId?: string) => {
   const now = clock.now();
   const soon = await db
     .select({ job: jobs, property: properties })

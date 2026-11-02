@@ -27,8 +27,12 @@ jobs:
       - uses: ./.github/actions/setup
       - name: Typecheck
         run: pnpm check
+      - name: Lint
+        run: pnpm lint
+      - name: Unused files, exports and dependencies
+        run: pnpm lint:unused
       - name: Formatting
-        run: pnpm lint:check
+        run: pnpm format:check
       - name: Package consistency
         run: pnpm check:packages
       # what may reach Sentry and the logs, and the browsers' Sentry setup

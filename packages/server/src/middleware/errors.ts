@@ -104,7 +104,7 @@ type APIErrorResponse = {
   details?: APIErrorDetail[];
 };
 
-export const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
+export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   let statusCode = 500;
   const errResponse: APIErrorResponse = {
     message: "Internal Server Error",

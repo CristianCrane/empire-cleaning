@@ -68,7 +68,7 @@ test("a Table row that opens shows the hand cursor", async () => {
   const row = opens.getByRole("row", { name: "Oct 28, 2026" });
   await userEvent.hover(row);
   expect(cursor(row.element())).toBe("pointer");
-  opens.unmount();
+  await opens.unmount();
 
   const still = await render(table());
   const plain = still.getByRole("row", { name: "Oct 28, 2026" });

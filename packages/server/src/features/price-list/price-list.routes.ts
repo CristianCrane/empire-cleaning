@@ -25,11 +25,11 @@ router.get(
 
 // the Premises Types business premises can be described as, by name; open
 // to Guests for the same reason
-router.get("/premises-types", async (req, res) => {
+router.get("/premises-types", async (_req, res) => {
   res.json(await choosablePremisesTypes());
 });
 
-router.get("/", authorize("office_staff"), async (req, res) => {
+router.get("/", authorize("office_staff"), async (_req, res) => {
   res.json(await currentPriceList());
 });
 

@@ -73,7 +73,7 @@ const INTERVAL_DAYS: Record<Recurrence, number> = {
 
 // how far ahead a plan's Jobs are put on the Schedule: every recurrence has
 // at least one showing, and the Office has a month's notice of a full day
-export const HORIZON_DAYS = 28;
+const HORIZON_DAYS = 28;
 
 // ---- starting ----
 
@@ -112,7 +112,7 @@ export const startServicePlan = async (
 // A plan's weekdays on an Accepted Quote's terms, in order: the options of
 // the Revision accepted, each with its first clean's time, its visit and
 // price
-export const daysOfQuote = (quoteId: string, tx: Tx | typeof db = db) =>
+const daysOfQuote = (quoteId: string, tx: Tx | typeof db = db) =>
   tx
     .select({ day: revisionOptions })
     .from(revisionOptions)
@@ -777,19 +777,6 @@ export const propertyServicePlan = async (propertyId: string) => {
     );
   if (!plan) return null;
   return (await summariesOf([plan])).get(plan.id)!;
-};
-
-// the plan each Quote started or changed, for those that did
-export const servicePlansOfQuotes = async (quoteIds: string[]) => {
-  if (quoteIds.length === 0) return new Map<string, string>();
-  const rows = await db
-    .selectDistinct({
-      id: servicePlanVisits.servicePlanId,
-      quoteId: servicePlanVisits.quoteId,
-    })
-    .from(servicePlanVisits)
-    .where(inArray(servicePlanVisits.quoteId, quoteIds));
-  return new Map(rows.map((r) => [r.quoteId, r.id]));
 };
 
 // ---- On Hold and Ending ----

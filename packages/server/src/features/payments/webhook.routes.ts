@@ -41,6 +41,9 @@ webhookRouter.post(
       case "dispute_opened":
         monitoring.signal("dispute_opened", { ref: event.chargeId });
         break;
+      // an event we don't act on
+      case undefined:
+        break;
     }
     res.json({ received: true });
   },

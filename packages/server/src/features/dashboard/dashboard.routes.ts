@@ -8,11 +8,11 @@ export const router = Router();
 router.use(authorize("office_staff"));
 
 // GET /api/dashboard/needs-attention
-router.get("/needs-attention", async (req, res) => {
+router.get("/needs-attention", async (_req, res) => {
   res.json(await needsAttention());
 });
 
 // GET /api/dashboard/today
-router.get("/today", async (req, res) => {
+router.get("/today", async (_req, res) => {
   res.json(await today());
 });

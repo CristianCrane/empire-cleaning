@@ -234,8 +234,8 @@ control.post("/payments/fail", (req, res) => {
 // which it then gives ("approved"), refuses or is still waiting on; null to
 // stop
 control.post("/payments/approval", (req, res) => {
-  const { then } = req.body as { then: Approval | null };
-  testPayments().requireApproval(then);
+  const { answer } = req.body as { answer: Approval | null };
+  testPayments().requireApproval(answer);
   res.json({ status: "ok" });
 });
 

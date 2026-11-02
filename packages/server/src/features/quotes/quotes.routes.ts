@@ -69,7 +69,7 @@ router.post("/caller", authorize("office_staff"), async (req, res) => {
 
 // ---- the signed-in Client's own Quotes ----
 
-router.get("/mine", authorize("client"), async (req, res) => {
+router.get("/mine", authorize("client"), async (_req, res) => {
   const client = await ownClient(signedInAccount(res).id);
   res.json(await quotesForClient(client.id));
 });
@@ -145,7 +145,7 @@ router.post(
 // ---- the Office ----
 
 // the open Quotes: Requested, Draft and Sent, newest first
-router.get("/", authorize("office_staff"), async (req, res) => {
+router.get("/", authorize("office_staff"), async (_req, res) => {
   res.json(await openQuoteList());
 });
 

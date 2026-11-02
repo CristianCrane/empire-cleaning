@@ -27,7 +27,7 @@ const signedInClient = async (accountId: string) => {
 };
 
 // their Bills, newest first
-router.get("/mine", authorize("client"), async (req, res) => {
+router.get("/mine", authorize("client"), async (_req, res) => {
   const client = await signedInClient(signedInAccount(res).id);
   res.json(await listBills({ clientId: client.id }));
 });

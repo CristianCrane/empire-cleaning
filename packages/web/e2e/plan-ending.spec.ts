@@ -133,7 +133,7 @@ test(
   "Office Staff see an On Hold plan under Needs attention, and can End it for the Client",
   { tag: ["@desktop"] },
   async ({ page }) => {
-    const { planId, firstJob } = await planStarted();
+    const { firstJob } = await planStarted();
     await setClock(SUNDAY_10AM);
     await failCharges();
     await signedInAs(page, olive.email);

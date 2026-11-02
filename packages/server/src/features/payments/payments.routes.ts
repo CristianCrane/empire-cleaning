@@ -26,21 +26,21 @@ const ownClient = async (accountId: string) => {
 
 // which of the provider's payment forms the browser shows, e.g. for paying
 // a Deposit
-router.get("/form", authorize("client"), (req, res) => {
+router.get("/form", authorize("client"), (_req, res) => {
   res.json(paymentGateway.paymentForm());
 });
 
 // ---- the signed-in Client's own Payment Method ----
 
 // what they have saved, or null
-router.get("/mine", authorize("client"), async (req, res) => {
+router.get("/mine", authorize("client"), async (_req, res) => {
   const client = await ownClient(signedInAccount(res).id);
   res.json(toPaymentMethodView(await paymentMethodOf(client.id)));
 });
 
 // the provider's form for saving a card without paying, to show in the
 // browser
-router.post("/mine/card-form", authorize("client"), async (req, res) => {
+router.post("/mine/card-form", authorize("client"), async (_req, res) => {
   const client = await ownClient(signedInAccount(res).id);
   res.json(await startCardForm(client));
 });
@@ -69,7 +69,7 @@ router.put(
 export const historyRouter = Router();
 
 // every payment between them and us, newest first
-historyRouter.get("/mine", authorize("client"), async (req, res) => {
+historyRouter.get("/mine", authorize("client"), async (_req, res) => {
   const client = await ownClient(signedInAccount(res).id);
   res.json(await paymentHistoryFor(client.id));
 });

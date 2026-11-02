@@ -9,7 +9,7 @@ import { services } from "./services.ts";
 // a stable @id that other pages can refer to. No review stars: Google ignores
 // a business's own reviews marked up on its own site, and may count them as
 // spam.
-export const businessId = `${business.url}#business`;
+const businessId = `${business.url}#business`;
 
 const place = ({ name, wiki }: { name: string; wiki: string }) => ({
   "@type": "AdministrativeArea",

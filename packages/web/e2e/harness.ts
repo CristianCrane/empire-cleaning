@@ -42,11 +42,11 @@ export const failCharges = (reason: string | null = "card_declined") =>
 // a card entered in the payment form needs the bank's approval from now on,
 // which it gives ("approved"), refuses, or is still waiting on; null to stop
 export const requireApproval = (
-  then: "approved" | "refused" | "pending" | null = "approved",
+  answer: "approved" | "refused" | "pending" | null = "approved",
 ) =>
   control("/payments/approval", {
     method: "POST",
-    body: JSON.stringify({ then }),
+    body: JSON.stringify({ answer }),
   });
 
 // a booked Job at a home of its own, straight onto the Schedule

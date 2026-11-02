@@ -3,7 +3,7 @@
 // - urgent: every one is alerted
 // - in_bulk: alerted at more than 3 in 15 minutes, as sign-in links stop
 // - counted: kept for counting, never alerted
-export const SIGNALS = {
+const SIGNALS = {
   // the payment provider is unreachable or erroring (not a decline)
   payment_gateway_error: "urgent",
   // money was taken and is owed back, and the refund didn't go through

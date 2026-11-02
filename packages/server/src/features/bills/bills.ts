@@ -77,11 +77,11 @@ import { serviceNameOf } from "../services/services.ts";
 import { log, monitoring } from "../../services/monitoring/index.ts";
 
 // a credit no Bill follows within this long is refunded (ADR-0016)
-export const CREDIT_REFUND_DAYS = 30;
+const CREDIT_REFUND_DAYS = 30;
 // a Bill paid on its page is first reminded this many days before it's due
-export const BILL_REMINDER_DAYS = 3;
+const BILL_REMINDER_DAYS = 3;
 // why a Bill paid on its page is Unpaid
-export const LATE_REASON = "not paid by its due date";
+const LATE_REASON = "not paid by its due date";
 const DAY_MS = 86_400_000;
 
 const feeLabel = {
@@ -312,7 +312,7 @@ const openCreditOf = async (clientId: string, tx: Tx | typeof db) => {
  * Bill was made goes on this one. An open credit from an earlier Bill comes
  * off it. With nothing to bill, there's no Bill, and a credit waits.
  */
-export const makeBill = async (
+const makeBill = async (
   clientId: string,
   weekStart: string,
 ): Promise<string | null> =>
@@ -438,7 +438,7 @@ type Charged = {
  * is Unpaid, and so the Client's Service Plans with Jobs on it are On Hold,
  * until a later try takes it or it's paid another way.
  */
-export const chargeBill = async (billId: string): Promise<Charged | null> =>
+const chargeBill = async (billId: string): Promise<Charged | null> =>
   db.transaction(async (tx) => {
     const [bill] = await tx
       .select()
@@ -491,7 +491,7 @@ export const chargeBill = async (billId: string): Promise<Charged | null> =>
  * it couldn't be taken; otherwise to pay on its page by its due date.
  * Making Bills runs this again for any never sent, as after a crash.
  */
-export const issueBill = async (billId: string) => {
+const issueBill = async (billId: string) => {
   const [bill] = await db.select().from(bills).where(eq(bills.id, billId));
   if (!bill || bill.sentAt) return;
   const charged =
@@ -981,7 +981,7 @@ const tellChargedPerClean = async (clientId: string, settled: SettledJob[]) => {
  * Client's latest Charges first. A refund that fails is tried again on the
  * next run.
  */
-export const refundLapsedCredits = async () => {
+const refundLapsedCredits = async () => {
   const cutoff = new Date(clock.now().getTime() - CREDIT_REFUND_DAYS * DAY_MS);
   const lapsed = await db
     .selectDistinct({ clientId: bills.clientId })
@@ -1048,7 +1048,7 @@ const refundCredit = async (clientId: string, cutoff: Date) =>
 // The day of the latest reminder a Bill paid on its page is owed by `today`:
 // 3 days before it's due, on the day, the day after (when it's Unpaid), then
 // each week after the due date while it's unpaid; null before the first.
-export const reminderDayOf = (dueOn: string, today: string) => {
+const reminderDayOf = (dueOn: string, today: string) => {
   if (today < addDays(dueOn, -BILL_REMINDER_DAYS)) return null;
   if (today < dueOn) return addDays(dueOn, -BILL_REMINDER_DAYS);
   if (today === dueOn) return dueOn;

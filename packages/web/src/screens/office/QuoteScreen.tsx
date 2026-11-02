@@ -1,4 +1,11 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useEffectEvent,
+  useId,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import {
   CalendarCheck,
@@ -1576,15 +1583,16 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
     return queue.current;
   };
 
+  // saveNow reads the latest fields itself
+  const saveLatest = useEffectEvent(() => void saveNow());
   useEffect(() => {
     if (edits.current === saved.current.edit) return;
     if (missingReason(fields)) {
       setSaveState("incomplete");
       return;
     }
-    const timer = setTimeout(() => void saveNow(), SAVE_DELAY_MS);
+    const timer = setTimeout(() => saveLatest(), SAVE_DELAY_MS);
     return () => clearTimeout(timer);
-    // saveNow reads the latest fields itself
   }, [fields]);
 
   // what's on screen is what's sent: save it, then send it

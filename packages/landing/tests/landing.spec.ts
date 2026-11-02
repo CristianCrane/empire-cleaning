@@ -458,7 +458,7 @@ test("the only JavaScript is the theme toggle, the Quote form and the reviews' b
   await expect(islands).toHaveCount(2);
   expect(
     await islands.evaluateAll((all) =>
-      all.map((i) => i.getAttribute("component-export")).sort(),
+      all.map((i) => i.getAttribute("component-export") ?? "").sort(),
     ),
   ).toEqual(["QuoteForm", "ThemeToggle"]);
 });
@@ -753,7 +753,7 @@ test.describe("the hero", () => {
           let most = 0;
           for (let i = 0; i < a.length; i += 4) {
             for (let c = 0; c < 3; c++) {
-              most = Math.max(most, Math.abs(a[i + c] - b[c + i]));
+              most = Math.max(most, Math.abs(a[i + c]! - b[c + i]!));
             }
           }
           return most;

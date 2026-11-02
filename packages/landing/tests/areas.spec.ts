@@ -111,13 +111,13 @@ test("an area's page reads without JavaScript, its answers a tap away", async ({
 }) => {
   const context = await browser.newContext({ javaScriptEnabled: false });
   const page = await context.newPage();
-  const [area] = areas;
+  const area = areas[0]!;
   await page.goto(`/${area.slug}/`);
 
   for (const name of sections(area)) {
     await expect(page.getByRole("heading", { level: 2, name })).toBeVisible();
   }
-  const { question, answer } = area.faqs[0];
+  const { question, answer } = area.faqs[0]!;
   await expect(page.getByText(answer)).toBeHidden();
   await page.getByText(question).click();
   await expect(page.getByText(answer)).toBeVisible();
@@ -127,12 +127,12 @@ test("an area's page reads without JavaScript, its answers a tap away", async ({
 test("an area's only JavaScript is the theme toggle, the Quote form and the reviews' buttons", async ({
   page,
 }) => {
-  await page.goto(`/${areas[0].slug}/`);
+  await page.goto(`/${areas[0]!.slug}/`);
 
   const islands = page.locator("astro-island");
   expect(
     await islands.evaluateAll((all) =>
-      all.map((i) => i.getAttribute("component-export")).sort(),
+      all.map((i) => i.getAttribute("component-export") ?? "").sort(),
     ),
   ).toEqual(["QuoteForm", "ThemeToggle"]);
 });

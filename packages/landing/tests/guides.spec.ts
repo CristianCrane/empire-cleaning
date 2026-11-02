@@ -98,7 +98,7 @@ for (const guide of guides) {
 test("a guide reads without JavaScript", async ({ browser }) => {
   const context = await browser.newContext({ javaScriptEnabled: false });
   const page = await context.newPage();
-  const [guide] = guides;
+  const guide = guides[0]!;
   await page.goto(`/guides/${guide.slug}/`);
 
   for (const { title } of guide.sections) {

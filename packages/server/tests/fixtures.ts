@@ -34,7 +34,7 @@ import { properties } from "#features/properties";
 import { createStaff, setUsualWeek } from "#features/staff";
 import { servicePlans } from "#features/service-plans";
 import { addressKey } from "../src/features/properties/address.ts";
-import { api, apiAgent, signIn, testClock, testPayments } from "./harness.ts";
+import { api, signIn, testClock, testPayments } from "./harness.ts";
 
 // shared by the tests that need Quotes asked for to work with
 
@@ -60,7 +60,7 @@ export const casey = {
 
 // the cleaning a Property is usually asked about for: new business
 // premises', or otherwise a home's
-export const usualService = (property: QuoteAsk["property"]) =>
+const usualService = (property: QuoteAsk["property"]) =>
   "new" in property && property.new.kind === "commercial"
     ? SEEDED.commercial
     : SEEDED.standard;
@@ -78,10 +78,8 @@ export const guestAsk = (overrides: Partial<QuoteAsk> = {}): QuoteAsk => {
   };
 };
 
-export const submit = (
-  body: unknown,
-  agent: ReturnType<typeof apiAgent> | ReturnType<typeof api> = api(),
-) => agent.post("/api/quotes/ask").send(body as object);
+export const submit = (body: unknown, agent: ReturnType<typeof api> = api()) =>
+  agent.post("/api/quotes/ask").send(body as object);
 
 export const signInAsOffice = async () => {
   await createStaff({

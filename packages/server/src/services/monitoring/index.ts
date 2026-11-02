@@ -14,7 +14,7 @@ export interface Reporter {
   heartbeat(): void;
 }
 
-export const consoleOnly: Reporter = {
+const consoleOnly: Reporter = {
   error: () => {},
   signal: () => {},
   heartbeat: () => {},
@@ -67,6 +67,6 @@ export const setReporter = (next: Reporter) => {
   current = next;
 };
 
-export { log, withRequest, currentRequestId } from "./log.ts";
+export { log, withRequest } from "./log.ts";
 export { scrubText } from "@empire-cleaning/models";
-export { SIGNALS, type Signal, type Urgency } from "./signals.ts";
+export { type Signal, type Urgency } from "./signals.ts";

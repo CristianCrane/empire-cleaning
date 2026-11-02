@@ -47,7 +47,7 @@ describe("a change that works", () => {
 
     await run(
       async () => "client@example.com",
-      (to) => `Sent to ${to}`,
+      (to) => `Sent to ${String(to)}`,
     );
 
     expect(showToast).toHaveBeenCalledWith({

@@ -7,7 +7,6 @@ export {
   addOnCents,
   suggestedPrice,
   taxOn,
-  type ChosenAddOn,
   type Priced,
 } from "@empire-cleaning/models";
 
