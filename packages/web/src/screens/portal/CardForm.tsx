@@ -118,7 +118,8 @@ const appearance = (): Appearance => {
   };
 };
 
-// Barlow, for the frame: our own copy of the font can't reach inside it
+// Barlow, for the frame: our own copy of the font can't reach inside it.
+// Stripe.js fetches this from our page, so the CSP allows it (vite.config.ts)
 const FONTS = [
   {
     cssSrc:
