@@ -12,10 +12,35 @@ Tests exercise external behaviour through the seams in `tests/harness.ts`:
 - `testClock()` controls the time read through `#services/clock`
 - `testPayments()` is a fake Payment Gateway that records Charges and refunds, and repeats nothing for a repeated idempotency key. It can be told to decline (`failCharges()`), to want the bank's approval for a card entered now (`requireApproval("approved" | "refused" | "pending")`) or to be unreachable (`goDown()`). Its forms are the web app's "test" ones: a card entered now is any token starting `tok_test` (`paymentToken()`), and any save-only form secret it handed out saves as "Test card ending 4242". Its webhooks are the event as JSON with an `x-fake-signature` header (`FAKE_SIGNATURE`)
 - `testEmail()` captures every email sent through `#services/email`
+- `testMonitoring()` records the errors, signals and heartbeats that would go to Sentry (`errors`, `signals`, `signalled(name)`, `heartbeats`). Logs are silenced in tests (`LOG_LEVEL=silent`)
 
 Fakes are fresh and every table is emptied before each test, with one `DELETE` transaction (`resetDatabase`). Not `TRUNCATE`: that creates and syncs fresh files for every table and index, which took about 4 s per test here and more with every table added.
 
 A worker's test files share one loaded copy of the server (`isolate: false`), because loading it takes about 5 s. That is safe because a worker runs its files one at a time and every test starts clean (`tests/setup/perTest.ts`); running them in random order (`pnpm vitest run --sequence.shuffle.files --sequence.shuffle.tests`) is a way to check.
+
+## Monitoring
+
+Errors, signals and the scheduler's heartbeat go to Sentry (ADR-0007), always through `#services/monitoring`; nothing else imports Sentry but its adapter (`services/monitoring/sentry.ts`) and startup (`src/instrument.ts`, loaded with `--import` by `pnpm start` so Express, Postgres and outgoing calls are traced, about 20% of requests, each release tagged with the commit Render deploys). Without `SENTRY_DSN` nothing is sent and everything is only logged: it is required when `APP_MODE=prod` and optional otherwise, the one exception to "the same variables in every mode".
+
+- **`monitoring.error(error, context)`** for failures nobody expected: the error handler reports every 5xx (never a 4xx, which is normal business), the scheduler each job that throws, and `src/index.ts` anything unhandled. A `catch` that carries on after an unexpected failure (an email after a saved change, one Bill in a run) reports through it too.
+- **`monitoring.signal(name, context)`** for business signals, named in `signals.ts`, each with its urgency, which Sentry's alert rules route on: `urgent` is alerted every time, `in_bulk` at more than 3 in 15 minutes, `counted` never.
+
+  | Signal | Raised where | Urgency |
+  |---|---|---|
+  | `payment_gateway_error` | the Stripe adapter, for anything Stripe refuses but a decline; `chargeSaved` when the provider throws | urgent |
+  | `refund_failed` | `refundFrom`, and a Deposit taken but not booked | urgent |
+  | `heartbeat_missed` | by Sentry's cron monitor, when the heartbeat stops; never by our code | urgent |
+  | `dispute_opened` | the payment webhook | urgent |
+  | `email_send_failed` | `email.send`, when the email service refuses or can't be reached | in_bulk |
+  | `charge_declined` | the Stripe adapter | counted |
+  | `refunded_at_provider` | the payment webhook, for a refund made in Stripe's dashboard | counted |
+
+  A failure already raised as a signal is thrown on as a `SignalledError`; `monitoring.error` only logs one, so an email that wasn't sent isn't also an error. To add a signal, add it to `SIGNALS` with its urgency and a line saying what it means, raise it where it happens, test it with `testMonitoring().signalled(name)`, and add it to ADR-0007's table and, if it's alerted, to Sentry's alert rules (#43).
+- **`monitoring.heartbeat()`**: the scheduler (`src/scheduler.ts`) checks in after each 10-minute tick in which every job succeeded, to the `scheduler` cron monitor, which the first check-in creates.
+- **Context** is IDs and short facts: Client, Staff and Account IDs, never their details.
+- **Logs** are JSON lines from `pino` on stdout (`log` from `#services/monitoring`; pretty in a dev terminal), one per request and a request ID on every line and Sentry event (the caller's `x-request-id`, or a new one). `LOG_LEVEL` sets how much.
+- **Client data** never leaves: everything logged or sent is scrubbed (`scrub.ts`) of emails, phone numbers, query values, a failed query's values, and keys such as `email`, `phone`, `address` and `accessInstructions`; Sentry is also told to collect no request bodies, cookies, headers but the browser's, or user details.
+- **`GET /health`** runs `select 1` with a 2 s timeout: 200, or 503 when the database doesn't answer. Stripe and Resend aren't checked. Sentry's uptime monitor and Render's health check call it.
 
 ## Emails
 
@@ -46,7 +71,7 @@ Or, for a dev database, seed it instead: `pnpm db:seed` makes the owner (`SEED_O
 
 The people testing the test site are its Staff, listed in `tests/testers.ts`: a reset there adds them, and `pnpm staff:testers` (Actions → Add testers) adds any missing without one.
 
-The server refuses to start, in dev and prod alike, without `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `RESEND_API_KEY`, `OFFICE_EMAIL` (the Office's shared inbox), `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` (a Stripe sandbox's in dev; see Accepting a Quote) and `CORS_ORIGIN_URL` (the web app's address): copy `.env.example` to `.env` and fill them in. `BETTER_AUTH_URL` is this API's public URL (sign-in links point at it). Tests supply fake values and fake the services behind them.
+The server refuses to start, in dev and prod alike, without `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `RESEND_API_KEY`, `OFFICE_EMAIL` (the Office's shared inbox), `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` (a Stripe sandbox's in dev; see Accepting a Quote) and `CORS_ORIGIN_URL` (the web app's address), and in prod `SENTRY_DSN` (see Monitoring): copy `.env.example` to `.env` and fill them in. `BETTER_AUTH_URL` is this API's public URL (sign-in links point at it). Tests supply fake values and fake the services behind them.
 
 In tests, `signIn(email)` from `tests/harness.ts` signs up or in the way a person does and returns a signed-in agent; add the Staff or Client record first for it to connect to.
 

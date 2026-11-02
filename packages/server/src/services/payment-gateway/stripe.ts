@@ -1,5 +1,6 @@
 import Stripe from "stripe";
 import type { CardForm, PaymentForm } from "@empire-cleaning/models";
+import { monitoring } from "#services/monitoring";
 import {
   PaymentMethodError,
   type BillPaymentInput,
@@ -396,12 +397,24 @@ const outcomeOf = (
   }
 };
 
-// Stripe's short code for why it refused, which callers pass on; its full
-// message (e.g. "No such customer: 'cus_123'") goes to the log, for us
+// Stripe's short code for why it refused, which callers pass on. A declined
+// card is the charge_declined signal; anything else Stripe refuses or can't
+// do (unreachable, our keys, "No such customer") is payment_gateway_error,
+// with its full message for us
 const reasonOf = (error: unknown, what: string) => {
+  if (error instanceof Stripe.errors.StripeCardError) {
+    const reason = error.decline_code ?? error.code ?? error.type;
+    monitoring.signal("charge_declined", { what, reason });
+    return reason;
+  }
   if (error instanceof Stripe.errors.StripeError) {
-    console.error(`Stripe refused ${what}: ${error.message}`);
-    return error.decline_code ?? error.code ?? error.type;
+    monitoring.signal("payment_gateway_error", {
+      what,
+      type: error.type,
+      code: error.code ?? null,
+      message: error.message,
+    });
+    return error.code ?? error.type;
   }
   throw error;
 };

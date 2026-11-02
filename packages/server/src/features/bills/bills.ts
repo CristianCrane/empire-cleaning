@@ -74,6 +74,7 @@ import {
 import { billedOf, isBilledWeekly, owesOnBill } from "./billed-weekly.ts";
 import { billLines, bills, type Bill, type BillLine } from "./bills.schema.ts";
 import { serviceNameOf } from "../services/services.ts";
+import { log, monitoring } from "../../services/monitoring/index.ts";
 
 // a credit no Bill follows within this long is refunded (ADR-0016)
 export const CREDIT_REFUND_DAYS = 30;
@@ -509,7 +510,7 @@ export const issueBill = async (billId: string) => {
       charged?.plan === "held" ? [ON_HOLD_LINE] : [],
     );
   } catch (error) {
-    console.error(`Bill ${billId} not sent:`, error);
+    monitoring.error(error, { what: `Bill ${billId} not sent` });
     await db.update(bills).set({ sentAt: null }).where(eq(bills.id, billId));
   }
 };
@@ -530,7 +531,7 @@ export const makeDueBills = async () => {
     try {
       await makeBill(id, lastWeek);
     } catch (error) {
-      console.error(`Bill for Client ${id} not made:`, error);
+      monitoring.error(error, { what: `Bill for Client ${id} not made` });
     }
   }
   const unsent = await db
@@ -696,7 +697,8 @@ export const finishBillPayment = async (
       done.charge.amountCents,
     );
     if (refunded < done.charge.amountCents) {
-      console.error(
+      // refund_failed was raised; this says which Bill
+      log.error(
         `a second payment for Bill ${billId} couldn't be refunded: refund it by hand`,
       );
     }
@@ -1086,7 +1088,7 @@ export const chaseBills = async () => {
     try {
       await markLate(id);
     } catch (error) {
-      console.error(`Bill ${id} not made Unpaid:`, error);
+      monitoring.error(error, { what: `Bill ${id} not made Unpaid` });
     }
   }
   return sendBillReminders();
@@ -1168,7 +1170,9 @@ const sendBillReminders = async () => {
       );
       sent += 1;
     } catch (error) {
-      console.error(`reminder for Bill ${bill.id} not sent:`, error);
+      monitoring.error(error, {
+        what: `reminder for Bill ${bill.id} not sent`,
+      });
       await db
         .update(bills)
         .set({ remindedOn: bill.remindedOn })
@@ -1290,7 +1294,7 @@ const notify = async (what: string, send: () => Promise<void>) => {
   try {
     await send();
   } catch (error) {
-    console.error(`${what} not sent:`, error);
+    monitoring.error(error, { what: `${what} not sent` });
   }
 };
 

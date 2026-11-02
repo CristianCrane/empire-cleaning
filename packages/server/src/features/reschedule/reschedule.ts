@@ -45,6 +45,7 @@ import {
   rescheduleConfirmedEmail,
   rescheduleTurnedDownEmail,
 } from "./emails.ts";
+import { monitoring } from "../../services/monitoring/index.ts";
 
 // moving a Job is free until this long before it starts; after that it's a
 // Late Reschedule (ADR-0010)
@@ -73,7 +74,7 @@ const notify = async (what: string, send: () => Promise<void>) => {
   try {
     await send();
   } catch (error) {
-    console.error(`${what} not sent:`, error);
+    monitoring.error(error, { what: `${what} not sent` });
   }
 };
 

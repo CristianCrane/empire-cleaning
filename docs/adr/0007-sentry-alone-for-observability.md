@@ -17,6 +17,8 @@ Errors, performance traces, uptime checks and heartbeats all go to Sentry, on it
 | `heartbeat_missed` | a scheduled job has stopped running | urgent |
 | `email_send_failed` | the email service refused a message or was unreachable | urgent at more than 3 in 15 minutes (sign-in links stop), otherwise not |
 | `charge_declined` | a Client's card was declined | counted, never alerted |
+| `dispute_opened` | a Client disputed a Charge with their bank, which has a deadline to answer (added with #41) | urgent |
+| `refunded_at_provider` | a Charge was refunded in the payment provider's dashboard, not by us (added with #41) | counted, never alerted |
 
 Urgent alerts carry a subject prefix and go to an address the phone treats as VIP.
 

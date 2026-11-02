@@ -59,6 +59,7 @@ import {
   receiptEmail,
   unpaidEmail,
 } from "./emails.ts";
+import { monitoring } from "../../services/monitoring/index.ts";
 
 // a proposed increase the Client hasn't answered lapses after this long, with
 // one reminder this long before it does (ADR-0009)
@@ -88,7 +89,7 @@ const notify = async (what: string, send: () => Promise<void>) => {
   try {
     await send();
   } catch (error) {
-    console.error(`${what} not sent:`, error);
+    monitoring.error(error, { what: `${what} not sent` });
   }
 };
 
@@ -987,10 +988,9 @@ export const chaseProposedAdjustments = async () => {
     try {
       await sendProposal(client, job, property, adjustment, "reminder");
     } catch (error) {
-      console.error(
-        `reminder for Adjustment ${adjustment.id} not sent:`,
-        error,
-      );
+      monitoring.error(error, {
+        what: `reminder for Adjustment ${adjustment.id} not sent`,
+      });
       await db
         .update(adjustments)
         .set({ reminderSentAt: null })

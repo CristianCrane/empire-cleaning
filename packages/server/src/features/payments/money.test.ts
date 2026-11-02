@@ -4,7 +4,11 @@ import type { SignedInAccount } from "@empire-cleaning/models";
 import { db } from "#db";
 import { findClientByEmail } from "#features/clients";
 import { createStaff, setUsualWeek } from "#features/staff";
-import { testClock, testPayments } from "../../../tests/harness.ts";
+import {
+  testClock,
+  testMonitoring,
+  testPayments,
+} from "../../../tests/harness.ts";
 import { acceptedJob, casey, signInAsOffice } from "../../../tests/fixtures.ts";
 import { chargeSaved, refundFrom } from "./money.ts";
 import { paymentMethodOf } from "./payments.ts";
@@ -83,6 +87,30 @@ describe("charging a saved Payment Method", () => {
     expect(result).toEqual({ ok: false, reason });
     expect(await chargesOf(job.id)).toHaveLength(before);
   });
+
+  test("an unreachable provider is the urgent payment_gateway_error signal (ADR-0007)", async () => {
+    const { job, client, method } = await booked();
+    testPayments().goDown();
+
+    await db.transaction((tx) =>
+      chargeSaved(tx, {
+        client,
+        method,
+        amount: 4200,
+        description: "Balance",
+        for: { jobId: job.id, kind: "balance" },
+      }),
+    );
+
+    expect(testMonitoring().signalled("payment_gateway_error")).toEqual([
+      expect.objectContaining({
+        urgency: "urgent",
+        context: expect.objectContaining({
+          what: `a Charge for balance ${job.id}`,
+        }),
+      }),
+    ]);
+  });
 });
 
 describe("refunding from Charges", () => {
@@ -147,5 +175,24 @@ describe("refunding from Charges", () => {
     testPayments().goDown(false);
     expect(await refundFrom(db, taken, 3000)).toBe(3000);
     expect(await refundsOf(balance.id)).toMatchObject([{ amountCents: 3000 }]);
+  });
+
+  test("a refund that fails is the urgent refund_failed signal (ADR-0007)", async () => {
+    const { taken, balance } = await twoCharges();
+    testPayments().failRefunds("insufficient_funds");
+
+    await refundFrom(db, taken, 3000);
+
+    expect(testMonitoring().signalled("refund_failed")).toEqual([
+      {
+        name: "refund_failed",
+        urgency: "urgent",
+        context: {
+          chargeId: balance.id,
+          cents: 3000,
+          reason: "insufficient_funds",
+        },
+      },
+    ]);
   });
 });

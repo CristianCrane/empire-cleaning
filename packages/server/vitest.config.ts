@@ -23,6 +23,9 @@ export default defineConfig({
       STRIPE_SECRET_KEY: "test-stripe-secret-key",
       STRIPE_PUBLISHABLE_KEY: "test-stripe-publishable-key",
       STRIPE_WEBHOOK_SECRET: "test-stripe-webhook-secret",
+      // what would be logged is in testMonitoring(); the scrubbing tests
+      // write to a logger of their own
+      LOG_LEVEL: "silent",
     },
     clearMocks: true,
     restoreMocks: true,

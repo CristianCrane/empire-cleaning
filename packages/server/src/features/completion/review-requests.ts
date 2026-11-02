@@ -13,6 +13,7 @@ import { clients } from "../clients/clients.schema.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
 import { properties } from "../properties/properties.schema.ts";
 import { reviewRequestEmail } from "./emails.ts";
+import { monitoring } from "../../services/monitoring/index.ts";
 
 // review requests go out from this time, New York, on the day after a
 // Client's first Completed Job, a day apart from its receipt
@@ -80,7 +81,9 @@ export const sendDueReviewRequests = async (
       });
       sent += 1;
     } catch (error) {
-      console.error(`review request for Client ${client.id} not sent:`, error);
+      monitoring.error(error, {
+        what: `review request for Client ${client.id} not sent`,
+      });
       await db
         .update(clients)
         .set({ reviewRequestedAt: null })

@@ -21,6 +21,7 @@ import {
   staffUsualHours,
   type Staff,
 } from "./staff.schema.ts";
+import { monitoring } from "../../services/monitoring/index.ts";
 
 type NewStaff = { email: string; name: string; roles: StaffRole[] };
 
@@ -90,7 +91,9 @@ export const inviteStaff = async (
   try {
     await sendInvitation(member);
   } catch (error) {
-    console.error(`invitation to Staff ${member.id} not sent:`, error);
+    monitoring.error(error, {
+      what: `invitation to Staff ${member.id} not sent`,
+    });
   }
   return (await findStaff(member.id)).view;
 };

@@ -31,6 +31,7 @@ import {
   officeCancelledEmail,
   officeNoAccessEmail,
 } from "./emails.ts";
+import { monitoring } from "../../services/monitoring/index.ts";
 
 // cancelling is free until this long before a Job starts; after that it's a
 // Late Cancellation
@@ -43,7 +44,7 @@ const notify = async (what: string, send: () => Promise<void>) => {
   try {
     await send();
   } catch (error) {
-    console.error(`${what} not sent:`, error);
+    monitoring.error(error, { what: `${what} not sent` });
   }
 };
 
