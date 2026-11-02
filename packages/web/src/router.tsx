@@ -113,6 +113,7 @@ import {
   type CleansSearch,
 } from "./screens/portal/PortalCleans.tsx";
 import { PortalHome } from "./screens/portal/PortalHome.tsx";
+import { SwitchPersonPrototype } from "./screens/switch-person.prototype.tsx";
 import type { HomeData } from "./screens/portal/whats-next.ts";
 import { PortalJob } from "./screens/portal/PortalJob.tsx";
 import { PortalPaymentMethod } from "./screens/portal/PortalPaymentMethod.tsx";
@@ -796,8 +797,25 @@ const portalPropertyRoute = createRoute({
   component: PortalProperty,
 });
 
+// PROTOTYPE: becoming another demo person on the test site, signed out
+const switchPersonPrototypeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/prototype/switch-person",
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { case?: string; layout?: string } => ({
+    case:
+      typeof search.case === "string" || typeof search.case === "number"
+        ? String(search.case)
+        : undefined,
+    layout: typeof search.layout === "string" ? search.layout : undefined,
+  }),
+  component: SwitchPersonPrototype,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
+  switchPersonPrototypeRoute,
   signInRoute,
   welcomeRoute,
   officeRoute.addChildren([
