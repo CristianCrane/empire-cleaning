@@ -135,6 +135,10 @@ import { PageError } from "./screens/PageError.tsx";
 import { SignIn } from "./screens/SignIn.tsx";
 import { Welcome } from "./screens/Welcome.tsx";
 import {
+  NavGroupsPrototype,
+  TodayPrototype,
+} from "./screens/office/today.prototype.tsx";
+import {
   areas,
   areasFor,
   forgetAccount,
@@ -846,8 +850,35 @@ const portalPropertyRoute = createRoute({
   component: PortalProperty,
 });
 
+// PROTOTYPE: Today without its Schedule, and the Office nav in groups
+const todayPrototypeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/prototype/today",
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { case?: string; layout?: string } => ({
+    case: search.case === undefined ? undefined : String(search.case),
+    layout: typeof search.layout === "string" ? search.layout : undefined,
+  }),
+  component: TodayPrototype,
+});
+
+const navGroupsPrototypeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/prototype/nav-groups",
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { case?: string; layout?: string } => ({
+    case: search.case === undefined ? undefined : String(search.case),
+    layout: typeof search.layout === "string" ? search.layout : undefined,
+  }),
+  component: NavGroupsPrototype,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
+  todayPrototypeRoute,
+  navGroupsPrototypeRoute,
   signInRoute,
   welcomeRoute,
   peopleRoute,
