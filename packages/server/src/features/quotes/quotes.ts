@@ -86,6 +86,7 @@ import {
   offers,
   revisionHistory,
   siteVisitOf,
+  sourceOf,
   statusOf,
 } from "./quote-state.ts";
 import {
@@ -636,6 +637,7 @@ export const officeQuote = async (id: string): Promise<OfficeQuote> => {
     status,
     origin: quote.origin,
     asked: askedOf(quote, asked, list.services),
+    source: sourceOf(quote),
     createdAt: quote.createdAt.toISOString(),
     client: {
       id: client.id,

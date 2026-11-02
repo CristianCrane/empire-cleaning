@@ -3,12 +3,15 @@ import type { QuoteAskReceipt } from "@empire-cleaning/models";
 import { QuoteRequestForm } from "@empire-cleaning/quote-request";
 import { Notice } from "@empire-cleaning/ui";
 import { business } from "../business.ts";
+import { keepCampaign, quoteSource } from "../source.ts";
 
 // the Guest Request a Quote form (#3, ADR-0005). Its first step is drawn into
 // the page at build time, its tiles blank until the Services arrive, so the
 // page doesn't jump as it loads; until it has, it can't be used (inert). With
 // JavaScript off it never could be, so the section offers the phone number
-// instead.
+// instead. Every page with content has it, so it keeps the campaign tags
+// of the link a visit began with, and sends them and the page with the
+// request (#185).
 export function QuoteForm({
   apiUrl,
   start,
@@ -19,7 +22,10 @@ export function QuoteForm({
 }) {
   const [ready, setReady] = useState(false);
   const [receipt, setReceipt] = useState<QuoteAskReceipt>();
-  useEffect(() => setReady(true), []);
+  useEffect(() => {
+    keepCampaign();
+    setReady(true);
+  }, []);
 
   if (receipt) {
     return (
@@ -40,6 +46,7 @@ export function QuoteForm({
           asker={{ kind: "guest" }}
           apiUrl={apiUrl}
           start={start}
+          source={quoteSource}
           onSubmitted={setReceipt}
         />
       </div>

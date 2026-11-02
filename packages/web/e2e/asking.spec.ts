@@ -324,6 +324,26 @@ test("Office Staff see the Quote, open the home and correct its details", async 
   await expect(details).toContainText("Heavy");
 });
 
+test("Office Staff see which page and link a Guest asked from", async ({
+  page,
+}) => {
+  await requestQuoteAsGuest(casey, [], {
+    page: "/queens/",
+    utmSource: "gbp",
+    utmMedium: "profile",
+    utmCampaign: null,
+  });
+  await createStaff(officeStaff);
+  await signInAs(page, officeStaff.email);
+
+  await page.getByRole("link", { name: "Quotes", exact: true }).click();
+  await page.getByText("Casey Client").click();
+
+  await expect(
+    page.getByText("The website, /queens/, via gbp (profile)"),
+  ).toBeVisible();
+});
+
 test(
   "the Office shows where you are",
   { tag: "@desktop" },
