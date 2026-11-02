@@ -146,3 +146,45 @@ export const PhoneMenu: Story = {
     );
   },
 };
+
+// related sections under a heading, in the sidebar and the ☰ menu; the
+// busiest come first, without one
+export const Groups: Story = {
+  globals: { viewport: { value: "tablet" } },
+  args: {
+    nav: [
+      {
+        href: "#today",
+        label: "Today",
+        icon: LayoutDashboard,
+        isCurrent: true,
+      },
+      { href: "#schedule", label: "Schedule", icon: CalendarDays },
+      {
+        href: "#quotes",
+        label: "Quotes",
+        icon: ClipboardPenLine,
+        inMenu: true,
+        group: "Work",
+      },
+      {
+        href: "#clients",
+        label: "Clients",
+        icon: Users,
+        inMenu: true,
+        group: "People",
+      },
+      {
+        href: "#staff",
+        label: "Staff",
+        icon: User,
+        inMenu: true,
+        group: "People",
+      },
+    ],
+  },
+  play: async ({ canvas }) => {
+    const people = canvas.getByRole("group", { name: "People" });
+    await expect(people).toHaveTextContent("PeopleClientsStaff");
+  },
+};

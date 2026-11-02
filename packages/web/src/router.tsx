@@ -44,7 +44,6 @@ import type {
   ServicePlanView,
   StaffDetail,
   StaffMember,
-  Today,
 } from "@empire-cleaning/models";
 import {
   Link,
@@ -309,13 +308,7 @@ const portalRoute = areaRoute("portal");
 const officeHomeRoute = createRoute({
   getParentRoute: () => officeRoute,
   path: "/",
-  loader: async () => {
-    const [needsAttention, today] = await Promise.all([
-      getJson<NeedsAttentionItem[]>("/api/dashboard/needs-attention"),
-      getJson<Today>("/api/dashboard/today"),
-    ]);
-    return { needsAttention, today };
-  },
+  loader: () => getJson<NeedsAttentionItem[]>("/api/dashboard/needs-attention"),
   component: Dashboard,
 });
 

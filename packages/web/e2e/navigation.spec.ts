@@ -29,13 +29,23 @@ test("on a phone the Office keeps Today and the Schedule in the tab bar, the res
   const menu = page.getByRole("dialog", { name: "Menu" });
   await expect(menu.getByRole("img", logo)).toBeVisible();
   await expect(menu.getByRole("link")).toHaveText([
-    "Quotes",
     "Jobs",
+    "Quotes",
     "Clients",
     "Staff",
     "Services",
     "Price List",
   ]);
+  // related sections under one heading
+  await expect(
+    menu.getByRole("group", { name: "Work" }).getByRole("link"),
+  ).toHaveText(["Jobs", "Quotes"]);
+  await expect(
+    menu.getByRole("group", { name: "People" }).getByRole("link"),
+  ).toHaveText(["Clients", "Staff"]);
+  await expect(
+    menu.getByRole("group", { name: "Pricing" }).getByRole("link"),
+  ).toHaveText(["Services", "Price List"]);
 
   // a section goes there and closes the menu; the top bar names it
   await menu.getByRole("link", { name: "Clients" }).click();
@@ -57,7 +67,7 @@ test("on a phone the Office keeps Today and the Schedule in the tab bar, the res
 });
 
 test(
-  "on a larger screen the sidebar holds every section, with the logo",
+  "on a larger screen the sidebar holds every section in groups, with the logo",
   { tag: "@desktop" },
   async ({ page, isMobile }) => {
     test.skip(isMobile, "a phone has no sidebar");
@@ -68,13 +78,19 @@ test(
     const sidebar = page.getByRole("navigation", { name: "Office" });
     await expect(sidebar.getByRole("link")).toHaveText([
       "Today",
-      "Quotes",
-      "Jobs",
-      "Clients",
       "Schedule",
+      "Jobs",
+      "Quotes",
+      "Clients",
       "Staff",
       "Services",
       "Price List",
+    ]);
+    // the busiest two first, then related sections under one heading
+    await expect(sidebar.getByRole("group")).toHaveText([
+      /^Work.*Jobs.*Quotes$/,
+      /^People.*Clients.*Staff$/,
+      /^Pricing.*Services.*Price List$/,
     ]);
     await expect(page.getByRole("img", logo)).toBeVisible();
     await expect(page.getByRole("button", { name: "Menu" })).toBeHidden();

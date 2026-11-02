@@ -9,7 +9,6 @@ import type {
   OfficeJob,
   ScheduleDay,
   SignedInAccount,
-  Today,
 } from "@empire-cleaning/models";
 import { createStaff, setUsualWeek } from "#features/staff";
 import {
@@ -376,9 +375,13 @@ describe("No Access", () => {
       feeCents: deposit,
       reason: "Nobody home and the gate was locked",
     });
-    const today = (await office.get("/api/dashboard/today").expect(200))
-      .body as Today;
-    expect(today.jobs.find((j) => j.id === jobId)?.outcome).toBe("no_access");
+    // the Schedule shows it as No Access
+    const [monday] = (
+      await office
+        .get("/api/schedule?from=2026-01-12&to=2026-01-12")
+        .expect(200)
+    ).body as ScheduleDay[];
+    expect(monday!.jobs.find((j) => j.id === jobId)?.status).toBe("no_access");
 
     const email = testEmail().lastTo(casey.email);
     expect(email.subject).toBe("We couldn't get in for your clean");

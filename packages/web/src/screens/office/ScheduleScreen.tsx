@@ -5,12 +5,18 @@ import { Dialog, Heading, StatusBadge } from "@empire-cleaning/ui";
 import { ConfirmMove } from "./JobMove.tsx";
 import { RangeBar } from "../CalendarGrid.tsx";
 import { ScheduleCalendar } from "./ScheduleCalendar.tsx";
-import { rangeShowing, scheduleRange, type Span } from "../schedule-range.ts";
+import {
+  chooseSpan,
+  rangeShowing,
+  scheduleRange,
+  type Span,
+} from "../schedule-range.ts";
 
 /**
  * The Schedule as a calendar: days as columns over a time axis, each Job a
- * block placed at its start and sized by its time on site. A week at a time,
- * or a day or three on a phone. Clicking a Job opens it; on a desktop,
+ * block placed at its start and sized by its time on site. A day, three days
+ * or a week at a time: the span chosen last, kept for the next visit (three
+ * days at first). Clicking a Job opens it; on a desktop,
  * Office Staff drag one to move it, confirming first.
  */
 export function ScheduleScreen() {
@@ -22,8 +28,10 @@ export function ScheduleScreen() {
     to: LocalDateTime;
   }>();
 
-  const show = (span: Span, day: string) =>
-    navigate({ search: rangeShowing(span, day) });
+  const show = (span: Span, day: string) => {
+    chooseSpan(span);
+    return navigate({ search: rangeShowing(span, day) });
+  };
 
   return (
     <div className="flex flex-col gap-4">

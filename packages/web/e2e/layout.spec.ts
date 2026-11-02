@@ -126,6 +126,9 @@ const olive = {
 const casey = { name: "Casey Client", email: "casey@example.com" };
 
 test("the Office's screens fit every width", async ({ page }) => {
+  // every screen at every width: near the 30s budget alone, past it while
+  // other workers load the machine
+  test.slow();
   const cory = await createStaff({
     name: "Cory Cleaner",
     email: "cory@example.com",
@@ -187,6 +190,9 @@ test("the Office's screens fit every width", async ({ page }) => {
 test("business premises' screens fit every width, the form included", async ({
   page,
 }) => {
+  // every screen at every width: near the 30s budget alone, past it while
+  // other workers load the machine
+  test.slow();
   await requestQuoteForPremises(casey, "Acme Dental Group of Queens");
   await createStaff(olive);
   const visit = await bookSiteVisit({

@@ -788,11 +788,6 @@ export type AssignmentStatus = "unassigned" | "assigned";
 // how a Job turned out on the day
 export type JobOutcome = "completed" | "no_access";
 
-export type TodayJob = ScheduledJob & { outcome: JobOutcome | null };
-
-// today's Schedule (per the Clock), for the Office dashboard
-export type Today = Omit<ScheduleDay, "jobs"> & { jobs: TodayJob[] };
-
 // ---- First Clean Quotes (#5) ----
 
 // Where a Quote stands (ADR-0017). Requested: asked for by a Client, no

@@ -12,7 +12,7 @@ import type {
   OfficeJob,
   OfficeQuote,
   PriceList,
-  Today,
+  ScheduleDay,
 } from "@empire-cleaning/models";
 import { db } from "#db";
 import { chaseProposedAdjustments } from "#features/completion";
@@ -269,10 +269,13 @@ describe("completing a Job", () => {
     );
     expect(receipt.text).toMatch(/We've charged \$[\d,.]+ to your Test card/);
 
-    // Today shows it done
-    const today = (await office.get("/api/dashboard/today").expect(200))
-      .body as Today;
-    expect(today.jobs.find((j) => j.id === jobId)?.outcome).toBe("completed");
+    // the Schedule shows it done
+    const [monday] = (
+      await office
+        .get("/api/schedule?from=2026-01-12&to=2026-01-12")
+        .expect(200)
+    ).body as ScheduleDay[];
+    expect(monday!.jobs.find((j) => j.id === jobId)?.status).toBe("completed");
 
     // and once only
     expect((await complete(cory.agent, jobId).expect(409)).body.message).toBe(

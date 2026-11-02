@@ -5,7 +5,6 @@ import {
   expect,
   expectAccessible,
   requestQuoteAsGuest,
-  setUsualWeek,
   signedInAs,
   test,
 } from "./harness.ts";
@@ -66,42 +65,40 @@ test("a Quote asked for while the Dashboard is open shows within a minute", asyn
   await expect(request).toContainText("Send a Quote");
 });
 
-test("Office Staff see today's Jobs and whether they're assigned", async ({
+// a long list reads as a few numbers first: a tile per part of the work,
+// pressed to show only that part
+test("Office Staff see what's waiting counted by kind, and pick one to see only those", async ({
   page,
 }) => {
-  const cory = await createStaff({
-    name: "Cory Cleaner",
-    email: "cory@example.com",
-    roles: ["cleaner"],
+  await requestQuoteAsGuest({
+    name: "Casey Client",
+    email: "casey@example.com",
   });
-  await setUsualWeek(cory.id, [8, 8, 8, 8, 8, 0, 0]);
-  await bookJob({
-    startsAt: "2026-01-05T14:00:00Z", // 9am in New York
-    labourHours: 5,
-    crewSize: 2,
-    service: "standard",
-  });
-  // tomorrow's isn't today's
-  await bookJob({ startsAt: "2026-01-06T14:00:00Z", labourHours: 3 });
+  // today, with nobody on it yet
+  await bookJob({ startsAt: "2026-01-05T14:00:00Z", labourHours: 5 });
   await signInAsOffice(page);
 
-  const today = page.getByRole("region", { name: "Today's Schedule" });
-  // the day's header says how full it is
-  await expect(today.getByRole("region", { name: "Mon, Jan 5" })).toContainText(
-    "5 h booked · 3 h free",
+  const kinds = page.getByRole("radiogroup", {
+    name: "Needs attention by kind",
+  });
+  const jobs = kinds.getByRole("radio", { name: /Jobs/ });
+  await expect(jobs).toHaveText(/Jobs\s*1\s*1 need Staff/);
+  await expect(kinds.getByRole("radio", { name: /Quotes/ })).toHaveText(
+    /Quotes\s*1\s*1 asked for/,
   );
-  // one day of the Schedule's calendar, locked to today
-  const jobs = today.getByRole("group", { name: "Jobs on Mon, Jan 5" });
-  await expect(jobs.getByRole("link")).toHaveCount(1);
-  await expect(jobs).toContainText("9:00 AM Client");
-  await expect(jobs).toContainText("Unassigned");
-  await expect(today.getByRole("group", { name: /Jobs on/ })).toHaveCount(1);
+  // nothing owed: nothing to pick
+  await expect(kinds.getByRole("radio", { name: /Money/ })).toBeDisabled();
 
-  await jobs.getByRole("link").click();
-  await expect(page).toHaveURL(/\/office\/jobs\/[0-9a-f-]{36}$/);
-  await page.goBack();
-  await today.getByRole("link", { name: "Week" }).click();
-  await expect(page).toHaveURL(/\/office\/schedule/);
+  const needsAttention = page.getByRole("grid", { name: "Needs attention" });
+  await expect(needsAttention.getByRole("row")).toHaveCount(2);
+  await jobs.click();
+  await expect(jobs).toBeChecked();
+  await expect(needsAttention.getByRole("row")).toHaveCount(1);
+  await expect(needsAttention).toContainText("Assign Staff");
+
+  await page.getByRole("button", { name: "Show all 2" }).click();
+  await expect(jobs).not.toBeChecked();
+  await expect(needsAttention.getByRole("row")).toHaveCount(2);
 });
 
 test("a quiet day says so", async ({ page }) => {
@@ -110,7 +107,6 @@ test("a quiet day says so", async ({ page }) => {
   await expect(
     page.getByText("Nothing needs attention right now."),
   ).toBeVisible();
-  await expect(page.getByText("No Jobs today.")).toBeVisible();
 });
 
 test("the dashboard passes automated accessibility checks", async ({
@@ -123,8 +119,8 @@ test("the dashboard passes automated accessibility checks", async ({
   await bookJob({ startsAt: "2026-01-05T14:00:00Z", labourHours: 5 });
   await signInAsOffice(page);
   await expect(
-    page.getByRole("group", { name: "Jobs on Mon, Jan 5" }),
-  ).toBeVisible();
+    page.getByRole("grid", { name: "Needs attention" }).getByRole("row"),
+  ).toHaveCount(2);
 
   await expectAccessible(page);
 });
