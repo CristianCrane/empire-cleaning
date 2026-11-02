@@ -35,9 +35,10 @@ import {
   guestSubmission,
   officeSubmission,
 } from "./asking.validation.ts";
-import { quoteReceivedEmail } from "./emails.ts";
+import { officeStaffEmails } from "../staff/staff.ts";
+import { quoteReceivedEmail, quoteRequestedEmail } from "./emails.ts";
 import { openAlongside } from "./quotes.ts";
-import { quoteAddOns, quotes } from "./quotes.schema.ts";
+import { quoteAddOns, quotes, type Quote } from "./quotes.schema.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
 
 const parse = <T>(schema: z.ZodType<T>, body: unknown): T => {
@@ -141,7 +142,8 @@ const checkPremisesType = (list: PriceList, key: string) => {
 
 /**
  * A Client (or Guest) asks for a Quote: it starts Requested, holding what
- * they asked, and they're sent a receipt (ADR-0017).
+ * they asked, and they're sent a receipt (ADR-0017). Office Staff are
+ * emailed, so they hear of it wherever they are.
  */
 export const askForQuote = async (
   caller: SignedInAccount | null,
@@ -151,7 +153,7 @@ export const askForQuote = async (
     caller,
     body,
   );
-  const { property, quote } = await recordAsk(
+  const { property, quote, serviceName } = await recordAsk(
     client,
     submission,
     null,
@@ -165,6 +167,13 @@ export const askForQuote = async (
     await sendReceipt(client, property, quote.id);
   } catch (error) {
     monitoring.error(error, { what: `receipt for Quote ${quote.id} not sent` });
+  }
+  try {
+    await tellOffice(client, property, quote, serviceName);
+  } catch (error) {
+    monitoring.error(error, {
+      what: `Office not told of Quote ${quote.id}`,
+    });
   }
   // a Guest gave one, and a signed-in Account proved one
   return { id: quote.id, emailedTo: client.email! };
@@ -458,8 +467,27 @@ const recordAsk = async (
           addOnKeys.map((addOnKey) => ({ quoteId: quote!.id, addOnKey })),
         );
     }
-    return { property: property!, quote: quote! };
+    return { property: property!, quote: quote!, serviceName: service.name };
   });
+};
+
+const tellOffice = async (
+  client: Client,
+  property: Property,
+  quote: Quote,
+  serviceName: string,
+) => {
+  const notice = quoteRequestedEmail({
+    client: client.name,
+    businessName: client.businessName,
+    serviceName,
+    regular: quote.wantsRegularService,
+    address: addressOf(property),
+    quoteId: quote.id,
+  });
+  for (const to of await officeStaffEmails()) {
+    await email.send({ to, ...notice });
+  }
 };
 
 const sendReceipt = async (

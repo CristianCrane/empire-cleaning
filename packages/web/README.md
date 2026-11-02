@@ -42,6 +42,8 @@ Every screen is built from the design system in `packages/ui` (`@empire-cleaning
 
 The signed-in Account is remembered, not asked for on every click. The app asks `GET /api/me` again when the person switches to another area, comes back to the tab (`src/main.tsx`), or does something that can connect their Account to a record. That is when it can have changed behind the app's back: asking for a Quote on the landing page, the Office adding a record, signing out in another tab.
 
+The Office's Dashboard also asks again every minute while it can be seen (`src/screens/office/Dashboard.tsx`), so a new Quote request shows on a screen left open. The Office is emailed of each one too. Live updates (websockets) weren't worth it: a request is promised a Quote within a working day.
+
 In dev, Vite forwards `/api` to the server (`API_URL`, by default http://localhost:3000), so the app and the API share an origin and sign-in cookies just work. Production should do the same: serve the app and route `/api` to the server on one domain.
 
 ## Knowing where you are

@@ -44,6 +44,28 @@ test(
   },
 );
 
+test("a Quote asked for while the Dashboard is open shows within a minute", async ({
+  page,
+}) => {
+  await page.clock.install();
+  await signInAsOffice(page);
+  const needsAttention = page.getByRole("grid", { name: "Needs attention" });
+  const request = needsAttention.getByRole("row", { name: /Casey Client/ });
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Today" }),
+  ).toBeVisible();
+
+  await requestQuoteAsGuest({
+    name: "Casey Client",
+    email: "casey@example.com",
+  });
+  await page.clock.runFor(59_000);
+  await expect(request).toHaveCount(0);
+  await page.clock.runFor(1_000);
+
+  await expect(request).toContainText("Send a Quote");
+});
+
 test("Office Staff see today's Jobs and whether they're assigned", async ({
   page,
 }) => {

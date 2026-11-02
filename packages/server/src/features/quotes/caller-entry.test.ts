@@ -72,6 +72,15 @@ const send = async (office: Agent, quote: OfficeQuote) => {
 };
 
 describe("Office Staff entering a caller's ask", () => {
+  test("emails no one: the Office is quoting them already", async () => {
+    const office = await signInAsOffice();
+    const before = testEmail().sent.length;
+
+    await enter(office, entry({ contact: caller })).expect(201);
+
+    expect(testEmail().sent.slice(before)).toEqual([]);
+  });
+
   test("is only for Office Staff", async () => {
     await enter(api() as unknown as Agent, entry({ contact: caller })).expect(
       401,
