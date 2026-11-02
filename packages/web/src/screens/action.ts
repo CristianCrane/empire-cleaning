@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useRouter } from "@tanstack/react-router";
 import { showToast } from "@empire-cleaning/ui";
 import { ApiError } from "../api.ts";
+import { reportUnexpected } from "../monitoring.ts";
 import { CardProblem } from "./portal/CardForm.tsx";
 
 export type ActionOptions = {
@@ -53,6 +54,7 @@ export const useActionWith = (
       await reload();
       return true;
     } catch (e) {
+      reportUnexpected(e);
       if (e instanceof ApiError && Object.keys(e.fieldErrors).length) {
         setFieldErrors(e.fieldErrors);
         setProblem(fieldsProblem);

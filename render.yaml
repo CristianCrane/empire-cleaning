@@ -98,6 +98,18 @@ services:
     autoDeployTrigger: checksPass
     domains:
       - app.test.empirecleaningandpro.com
+    envVars:
+      # Sentry's environment
+      - key: VITE_APP_MODE
+        value: test
+      # the web project's Sentry DSN (#43); left empty, nothing is sent
+      - key: VITE_SENTRY_DSN
+        sync: false
+      # to upload source maps (#43); left empty, there are none
+      - key: SENTRY_AUTH_TOKEN
+        sync: false
+      - key: SENTRY_ORG
+        sync: false
     routes:
       # the API on the app's own origin, so sign-in cookies just work: a
       # rewrite, not a redirect. Render names the server's address after the
@@ -130,3 +142,11 @@ services:
       # where the header's Sign in goes (src/app-url.ts)
       - key: PUBLIC_APP_URL
         value: https://app.test.empirecleaningandpro.com
+      # the landing project's Sentry DSN (#43); left empty, nothing is sent
+      - key: PUBLIC_SENTRY_DSN
+        sync: false
+      # to upload source maps (#43); left empty, there are none
+      - key: SENTRY_AUTH_TOKEN
+        sync: false
+      - key: SENTRY_ORG
+        sync: false

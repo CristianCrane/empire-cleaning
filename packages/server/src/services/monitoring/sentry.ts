@@ -1,7 +1,7 @@
 import * as Sentry from "@sentry/node";
 import type { ErrorEvent } from "@sentry/node";
 import { currentRequestId } from "./log.ts";
-import { scrub } from "./scrub.ts";
+import { scrub } from "@empire-cleaning/models";
 import type { Reporter } from "./index.ts";
 
 // the scheduler's one cron monitor (ADR-0007), created on its first check-in.

@@ -14,6 +14,7 @@ The public page for prospective Clients at empirecleaningandpro.com: a static si
 
   The form posts to the API at `PUBLIC_API_URL` (set at build time; by default http://localhost:3000), which allows the landing site's origin (`LANDING_ORIGIN_URL` on the server).
 
+- **Errors** in the Quote form go to Sentry (ADR-0007, `packages/browser-monitoring`, started in `src/monitoring.ts`), with no form values or personal details. Only a build with `PUBLIC_SENTRY_DSN` has it, in a chunk of its own loaded after the form, so dev and test builds send nothing and pages carry none of it; `PUBLIC_APP_MODE` is its environment. With `SENTRY_AUTH_TOKEN` and `SENTRY_ORG`, source maps go to Sentry's `landing` project, never published.
 - **Reviews** live in `src/reviews.ts`: real Google reviews, word for word, which the owner swaps there.
 - **Business details** (name, phone, the area served, hours, languages, page title, description and heading) live in `src/business.ts`, and the Services in `src/services.ts`, shared by the page, its search data and its tests.
 - **Search:** title and description, Open Graph tags for link previews, structured data built from the business details (`src/structured-data.ts`: the business with its areas, hours, languages and Services, and the site), icons and a web manifest, a 404 page, `robots.txt` and a generated sitemap. No review stars in the structured data: Google ignores a business's own.

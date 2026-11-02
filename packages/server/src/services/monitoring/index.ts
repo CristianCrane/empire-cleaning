@@ -1,5 +1,5 @@
 import { log } from "./log.ts";
-import { scrub } from "./scrub.ts";
+import { scrub } from "@empire-cleaning/models";
 import { urgencyOf, type Signal, type Urgency } from "./signals.ts";
 
 // IDs and short facts about what was happening: Client, Staff and Account IDs,
@@ -68,5 +68,5 @@ export const setReporter = (next: Reporter) => {
 };
 
 export { log, withRequest, currentRequestId } from "./log.ts";
-export { scrubText } from "./scrub.ts";
+export { scrubText } from "@empire-cleaning/models";
 export { SIGNALS, type Signal, type Urgency } from "./signals.ts";

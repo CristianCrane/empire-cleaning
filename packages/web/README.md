@@ -58,6 +58,16 @@ Routing is TanStack Router, and design-system links (`Link`, AppLayout's nav) na
 
 A plain string or a hand-written `{ to }` object doesn't compile.
 
+## Monitoring
+
+Errors and about 20% of page loads go to Sentry (ADR-0007), set up in one place: `packages/browser-monitoring`, started in `src/main.tsx` and built in by `vite.config.ts`. Its README lists what may be sent and what mustn't.
+
+- **Set at build time:** `VITE_SENTRY_DSN` (without it nothing is sent, as in dev and the tests) and `VITE_APP_MODE` (the environment: `test` on the test site). With `SENTRY_AUTH_TOKEN` and `SENTRY_ORG`, source maps are uploaded to Sentry's `web` project and never published. The release is the git commit, the same as the server's.
+- **Reported:** errors nothing caught, and those a screen catches but didn't expect (`reportUnexpected` in `src/monitoring.ts`, from `PageError` and `useAction`). Never the API's answers: a 5xx is reported by the server, and a 4xx is normal business. Nor a dropped connection.
+- **Traced:** page loads and page changes, named after their routes and linked to the API's traces of the calls they made.
+- **Who:** the signed-in Account's ID (`identify` in `src/session.ts`), never their name or email.
+- **Never sent:** session replay, form values, request bodies, cookies, console lines, or emails, phone numbers and query values anywhere in an event.
+
 ## Testing
 
 End to end with Playwright (`e2e/`): a production build of the app runs in a real Chromium against the real API and a real database, on the test Postgres.

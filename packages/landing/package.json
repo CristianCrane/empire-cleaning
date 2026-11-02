@@ -15,6 +15,7 @@
   "dependencies": {
     "@astrojs/react": "^7.0.1",
     "@astrojs/sitemap": "^3.7.4",
+    "@empire-cleaning/browser-monitoring": "workspace:*",
     "@empire-cleaning/models": "workspace:*",
     "@empire-cleaning/quote-request": "workspace:*",
     "@empire-cleaning/ui": "workspace:*",

@@ -1,5 +1,6 @@
-// Only Client, Staff and Account IDs leave the server (ADR-0007): everything
-// sent to Sentry or written to the logs passes through here first.
+// Only Client, Staff and Account IDs reach Sentry or the logs (ADR-0007):
+// everything the server, the web app or the landing site sends them passes
+// through here first.
 
 const REDACTED = "[redacted]";
 

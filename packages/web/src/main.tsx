@@ -2,8 +2,20 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { RouterProvider } from "@tanstack/react-router";
 import { applyThemePreference, readThemePreference } from "@empire-cleaning/ui";
+import {
+  routerTracing,
+  startMonitoring,
+} from "@empire-cleaning/browser-monitoring";
 import { router } from "./router.tsx";
 import { forgetAccount } from "./session.ts";
+
+// Sentry (ADR-0007), set at build time: without VITE_SENTRY_DSN (dev, tests)
+// nothing is sent
+startMonitoring({
+  dsn: import.meta.env.VITE_SENTRY_DSN,
+  environment: import.meta.env.VITE_APP_MODE ?? "dev",
+  tracing: routerTracing(router),
+});
 
 applyThemePreference(readThemePreference());
 

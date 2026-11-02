@@ -39,7 +39,7 @@ Errors, signals and the scheduler's heartbeat go to Sentry (ADR-0007), always th
 - **`monitoring.heartbeat()`**: the scheduler (`src/scheduler.ts`) checks in after each 10-minute tick in which every job succeeded, to the `scheduler` cron monitor, which the first check-in creates.
 - **Context** is IDs and short facts: Client, Staff and Account IDs, never their details.
 - **Logs** are JSON lines from `pino` on stdout (`log` from `#services/monitoring`; pretty in a dev terminal), one per request and a request ID on every line and Sentry event (the caller's `x-request-id`, or a new one). `LOG_LEVEL` sets how much.
-- **Client data** never leaves: everything logged or sent is scrubbed (`scrub.ts`) of emails, phone numbers, query values, a failed query's values, and keys such as `email`, `phone`, `address` and `accessInstructions`; Sentry is also told to collect no request bodies, cookies, headers but the browser's, or user details.
+- **Client data** never leaves: everything logged or sent is scrubbed (`scrub.ts` in `@empire-cleaning/models`, which the browsers use too) of emails, phone numbers, query values, a failed query's values, and keys such as `email`, `phone`, `address` and `accessInstructions`; Sentry is also told to collect no request bodies, cookies, headers but the browser's, or user details.
 - **`GET /health`** runs `select 1` with a 2 s timeout: 200, or 503 when the database doesn't answer. Stripe and Resend aren't checked. Sentry's uptime monitor and Render's health check call it.
 
 ## Emails
