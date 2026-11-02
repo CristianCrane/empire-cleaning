@@ -1,11 +1,11 @@
-import AxeBuilder from "@axe-core/playwright";
-import type { Browser, Page } from "@playwright/test";
+import type { Browser } from "@playwright/test";
 import {
   acceptedJob,
   completeJob,
   createStaff,
   emailsTo,
   expect,
+  expectAccessible,
   failCharges,
   offerPlace,
   setClock,
@@ -58,11 +58,6 @@ const asCasey = async (browser: Browser) => {
   const client = await (await browser.newContext()).newPage();
   await signedInAs(client, casey.email);
   return client;
-};
-
-const expectAccessible = async (page: Page) => {
-  const { violations } = await new AxeBuilder({ page }).analyze();
-  expect(violations).toEqual([]);
 };
 
 test(

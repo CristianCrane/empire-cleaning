@@ -1,9 +1,9 @@
-import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import {
   signedInAs,
   createStaff,
   expect,
+  expectAccessible,
   nextStep,
   chooseService,
   requestQuoteAsGuest,
@@ -32,11 +32,6 @@ const describeNewHome = async (
     await page.getByRole("textbox", { name: /^Apartment or unit/ }).fill(unit);
   }
   await page.getByRole("textbox", { name: "ZIP code" }).fill(zip);
-};
-
-const expectNoViolations = async (page: Page) => {
-  const { violations } = await new AxeBuilder({ page }).analyze();
-  expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
 };
 
 test(
@@ -245,7 +240,7 @@ test("a Client edits their contact details and Access Instructions", async ({
   await page.getByRole("link", { name: "Your details", exact: true }).click();
   await expect(page).toHaveURL("/portal/details");
 
-  await expectNoViolations(page);
+  await expectAccessible(page);
   // read first, changed in a dialog
   const contact = page.getByRole("region", { name: "Contact details" });
   await contact.getByRole("button", { name: "Edit" }).click();
@@ -266,7 +261,7 @@ test("a Client edits their contact details and Access Instructions", async ({
   // fresh: tapping a row leaves react-aria's announcement of it behind
   await page.reload();
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  await expectNoViolations(page);
+  await expectAccessible(page);
   await page.getByRole("button", { name: "Edit how we get in" }).click();
   dialog = page.getByRole("dialog", { name: "How we get in" });
   await dialog
@@ -410,7 +405,7 @@ for (const theme of ["light", "dark"] as const) {
         ]) {
           await page.goto(path);
           await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-          await expectNoViolations(page);
+          await expectAccessible(page);
         }
 
         // a Quote they asked for, not yet Sent
@@ -419,7 +414,7 @@ for (const theme of ["light", "dark"] as const) {
           .getByRole("link", { name: "See what you asked for" })
           .click();
         await expect(page.getByText("What you asked for")).toBeVisible();
-        await expectNoViolations(page);
+        await expectAccessible(page);
       },
     );
 
@@ -433,17 +428,17 @@ for (const theme of ["light", "dark"] as const) {
 
         await page.goto("/office/quotes");
         await expect(page.getByText("Casey Client")).toBeVisible();
-        await expectNoViolations(page);
+        await expectAccessible(page);
 
         await page.getByText("Casey Client").click();
         await expect(page.getByRole("heading", { level: 1 })).toHaveText(
           "Quote for Casey Client",
         );
-        await expectNoViolations(page);
+        await expectAccessible(page);
 
         await page.goto("/office/clients?tab=all");
         await expect(page.getByText("Casey Client")).toBeVisible();
-        await expectNoViolations(page);
+        await expectAccessible(page);
       },
     );
 
@@ -455,17 +450,17 @@ for (const theme of ["light", "dark"] as const) {
         await expect(
           page.getByRole("radio", { name: /^Standard Clean/ }),
         ).toBeVisible();
-        await expectNoViolations(page);
+        await expectAccessible(page);
         await chooseService(page);
-        await expectNoViolations(page);
+        await expectAccessible(page);
         await describeNewHome(page);
         await nextStep(page);
         await expect(
           page.getByRole("group", { name: "Any extras?" }),
         ).toBeVisible();
-        await expectNoViolations(page);
+        await expectAccessible(page);
         await nextStep(page);
-        await expectNoViolations(page);
+        await expectAccessible(page);
       },
     );
   });

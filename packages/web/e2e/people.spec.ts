@@ -1,8 +1,8 @@
-import AxeBuilder from "@axe-core/playwright";
 import {
   createClient,
   createStaff,
   expect,
+  expectAccessible,
   signedInAs,
   signInLinkFor,
   test,
@@ -124,8 +124,7 @@ for (const theme of ["light", "dark"] as const) {
         page.getByRole("button", { name: "Be Helen" }),
       ).toBeVisible();
 
-      const { violations } = await new AxeBuilder({ page }).analyze();
-      expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+      await expectAccessible(page);
     },
   );
 }

@@ -1,9 +1,9 @@
-import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import {
   createStaff,
   emailsTo,
   expect,
+  expectAccessible,
   requestQuoteAsGuest,
   requestQuoteForPremises,
   signedInAs,
@@ -37,11 +37,6 @@ const describeNewHome = async (page: Page, street = "35-06 Ditmars Blvd") => {
   await page.getByRole("textbox", { name: "ZIP code" }).fill("11105");
 };
 
-const expectNoViolations = async (page: Page) => {
-  const { violations } = await new AxeBuilder({ page }).analyze();
-  expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
-};
-
 test(
   "Office Staff quote a new caller without an email, adding it before sending",
   { tag: ["@smoke", "@desktop"] },
@@ -69,9 +64,9 @@ test(
     // its 0.5 h on top: 3.25 h x $55 = $179, + 8.875%
     await expect(price).toContainText("+ Inside the oven");
     await expect(price).toContainText("Total$194.89");
-    await expectNoViolations(page);
+    await expectAccessible(page);
     await page.getByRole("textbox", { name: "Phone" }).fill("(718) 555-0123");
-    await expectNoViolations(page);
+    await expectAccessible(page);
     await page.getByRole("button", { name: "Draft a Quote" }).click();
     await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}\/draft$/);
     const quote = page.url();
@@ -161,7 +156,7 @@ test("a Client's screen starts a New Quote for them", async ({ page }) => {
   await expect(
     page.getByRole("region", { name: "Who's calling" }),
   ).toContainText("Casey Client");
-  await expectNoViolations(page);
+  await expectAccessible(page);
 });
 
 test(
@@ -197,7 +192,7 @@ test(
     await expect(page).toHaveURL("/office/quotes?q=acme");
     await expect(quotes.getByRole("row")).toHaveCount(2);
     await expect(quotes).toContainText("Acme Dental");
-    await expectNoViolations(page);
+    await expectAccessible(page);
 
     await quotes.getByRole("row", { name: /Acme Dental/ }).click();
     await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);

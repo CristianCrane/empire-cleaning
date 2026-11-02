@@ -1,8 +1,8 @@
-import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import {
   createStaff,
   expect,
+  expectAccessible,
   requestQuoteAsGuest,
   signedInAs,
   test,
@@ -21,11 +21,6 @@ const signInAsOffice = async (page: Page) => {
   await createStaff(olive);
   await signedInAs(page, olive.email);
   await expect(page).toHaveURL("/office");
-};
-
-const expectNoViolations = async (page: Page) => {
-  const { violations } = await new AxeBuilder({ page }).analyze();
-  expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
 };
 
 test(
@@ -175,13 +170,13 @@ for (const theme of ["light", "dark"] as const) {
         await expect(page.getByRole("heading", { level: 1 })).toHaveText(
           "Services",
         );
-        await expectNoViolations(page);
+        await expectAccessible(page);
 
         await page.getByText("Commercial cleaning").click();
         await expect(page.getByRole("heading", { level: 1 })).toHaveText(
           "Commercial cleaning",
         );
-        await expectNoViolations(page);
+        await expectAccessible(page);
       },
     );
   });

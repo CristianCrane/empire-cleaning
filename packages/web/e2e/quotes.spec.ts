@@ -1,10 +1,10 @@
-import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import {
   bookJob,
   createStaff,
   emailsTo,
   expect,
+  expectAccessible,
   proposeNextMonday,
   requestQuoteAsGuest,
   setClock,
@@ -382,8 +382,7 @@ test("Quote screens pass automated accessibility checks", async ({
   const url = page.url();
   await page.reload();
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  let { violations } = await new AxeBuilder({ page }).analyze();
-  expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+  await expectAccessible(page);
 
   await proposeNextMonday(page);
   await send(page);
@@ -391,8 +390,7 @@ test("Quote screens pass automated accessibility checks", async ({
   await expect(
     page.getByRole("region", { name: "Current Quote" }),
   ).toBeVisible();
-  ({ violations } = await new AxeBuilder({ page }).analyze());
-  expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+  await expectAccessible(page);
 
   const client = await (await browser.newContext()).newPage();
   await signedInAs(client, casey.email);
@@ -400,8 +398,7 @@ test("Quote screens pass automated accessibility checks", async ({
   await expect(client.getByRole("heading", { level: 1 })).toHaveText(
     "Your Quote",
   );
-  ({ violations } = await new AxeBuilder({ page: client }).analyze());
-  expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+  await expectAccessible(client);
 });
 
 test("the draft says whether the proposed day has room for each clean", async ({
@@ -490,10 +487,7 @@ test(
       monday.getByRole("button", { name: "Mon, Jan 12, 9:30 AM", exact: true }),
     ).toBeAttached();
 
-    const { violations } = await new AxeBuilder({ page })
-      .include("[role=dialog]")
-      .analyze();
-    expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+    await expectAccessible(page, "[role=dialog]");
 
     if (page.viewportSize()!.width < 768) {
       await schedule.getByRole("button", { name: "Next day" }).click();

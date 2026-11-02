@@ -1,4 +1,3 @@
-import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { apiUrl } from "../playwright.config.ts";
 import {
@@ -7,6 +6,7 @@ import {
   createStaff,
   emailsTo,
   expect,
+  expectAccessible,
   signInLinkFor,
   signInWithLink,
   test,
@@ -275,8 +275,7 @@ for (const theme of ["light", "dark"] as const) {
           page.getByText("expired or has already been used"),
         ).toBeVisible();
 
-        const { violations } = await new AxeBuilder({ page }).analyze();
-        expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+        await expectAccessible(page);
       },
     );
 
@@ -288,8 +287,7 @@ for (const theme of ["light", "dark"] as const) {
         await signedInAs(page, officeStaff.email);
         await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 
-        const { violations } = await new AxeBuilder({ page }).analyze();
-        expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+        await expectAccessible(page);
       },
     );
 
@@ -300,8 +298,7 @@ for (const theme of ["light", "dark"] as const) {
         await signedInAs(page, "new@example.com");
         await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 
-        const { violations } = await new AxeBuilder({ page }).analyze();
-        expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+        await expectAccessible(page);
       },
     );
   });

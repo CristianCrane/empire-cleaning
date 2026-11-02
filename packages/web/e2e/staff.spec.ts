@@ -1,9 +1,9 @@
-import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import {
   createClient,
   createStaff,
   expect,
+  expectAccessible,
   setGooglePicture,
   signInWithLink,
   signedInAs,
@@ -32,14 +32,6 @@ const openStaffMember = async (page: Page, name: string) => {
   await goTo(page, "Staff");
   await page.getByRole("row", { name }).click();
   await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
-};
-
-// within: only part of the page, e.g. an open dialog (which hides the rest,
-// main landmark and heading included, from assistive technology)
-const expectNoViolations = async (page: Page, within?: string) => {
-  const axe = new AxeBuilder({ page });
-  const { violations } = await (within ? axe.include(within) : axe).analyze();
-  expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
 };
 
 test(
@@ -303,13 +295,13 @@ test("the Staff screens pass automated accessibility checks", async ({
   await signInAsOffice(page);
   await page.goto("/office/staff");
   await expect(page.getByRole("row", { name: /Cory Cleaner/ })).toBeVisible();
-  await expectNoViolations(page);
+  await expectAccessible(page);
 
   await page.getByRole("button", { name: "Invite Staff" }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
-  await expectNoViolations(page, "[role=dialog]");
+  await expectAccessible(page, "[role=dialog]");
   await page.keyboard.press("Escape");
 
   await openStaffMember(page, "Cory Cleaner");
-  await expectNoViolations(page);
+  await expectAccessible(page);
 });

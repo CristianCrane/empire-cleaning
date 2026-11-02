@@ -1,8 +1,8 @@
-import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import {
   createStaff,
   expect,
+  expectAccessible,
   nextStep,
   chooseService,
   requestQuoteForPremises,
@@ -56,15 +56,6 @@ const giveDetails = async (page: Page) => {
   await page.getByRole("textbox", { name: "Phone" }).fill("(718) 555-0111");
 };
 
-// React Aria's hidden live announcer is left out: a button pending as it
-// navigates away leaves its announcement pointing at a label that's gone
-const expectNoViolations = async (page: Page) => {
-  const { violations } = await new AxeBuilder({ page })
-    .exclude("[data-live-announcer]")
-    .analyze();
-  expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
-};
-
 test(
   "a business asks for regular cleaning on chosen days, with no Condition or extras",
   { tag: "@smoke" },
@@ -81,10 +72,10 @@ test(
     await page.getByText("Mon", { exact: true }).click();
     await page.getByText("Fri", { exact: true }).click();
     await choose(page, /Preferred start time/, "6:00 PM");
-    await expectNoViolations(page);
+    await expectAccessible(page);
     await nextStep(page);
     await giveDetails(page);
-    await expectNoViolations(page);
+    await expectAccessible(page);
     await page.getByRole("button", { name: "Request a Quote" }).click();
 
     await expect(page).toHaveURL("/portal");
@@ -139,7 +130,7 @@ test(
       page.getByText("Monday, Wednesday and Friday at 6:00 PM"),
     ).toBeVisible();
     await expect(page.getByText("Not recorded yet")).toBeVisible();
-    await expectNoViolations(page);
+    await expectAccessible(page);
 
     // priced once they're known, on the Draft: the placeholder Price List
     // has 4,500 sq ft at 0.5 h per 1,000 as 2.25 h, at $55 an hour $124,
@@ -155,7 +146,7 @@ test(
     await expect(price.getByText("The premises")).toBeVisible();
     // checked once settled: a pending button's spinner has no label yet
     await expect(page.getByText("All changes saved")).toBeVisible();
-    await expectNoViolations(page);
+    await expectAccessible(page);
 
     await page.getByRole("link", { name: "View Property" }).click();
     await expect(page).toHaveURL(/\/office\/properties\//);

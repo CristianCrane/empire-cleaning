@@ -1,10 +1,10 @@
-import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import {
   bookJob,
   createStaff,
   emailsTo,
   expect,
+  expectAccessible,
   offerPlace,
   setClock,
   setUsualWeek,
@@ -275,22 +275,19 @@ test("the Job screens pass automated accessibility checks", async ({
   await signInAsOffice(page);
   await page.goto(`/office/jobs/${job.id}`);
   await expect(page.getByRole("region", { name: "Crew" })).toBeVisible();
-  const office = await new AxeBuilder({ page }).analyze();
-  expect(office.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+  await expectAccessible(page);
 
   const asCory = await (await browser.newContext()).newPage();
   await signInAsCleaner(asCory, cory.email);
   await expect(
     asCory.getByRole("heading", { name: "Your Jobs" }),
   ).toBeVisible();
-  const list = await new AxeBuilder({ page: asCory }).analyze();
-  expect(list.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+  await expectAccessible(asCory);
   await asCory.goto(`/cleaner/jobs/${job.id}`);
   await expect(
     asCory.getByRole("region", { name: "Your place" }),
   ).toBeVisible();
-  const view = await new AxeBuilder({ page: asCory }).analyze();
-  expect(view.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+  await expectAccessible(asCory);
 
   // Friday, when Cory is free
   const open = (await bookJob({
@@ -302,8 +299,7 @@ test("the Job screens pass automated accessibility checks", async ({
   await expect(
     asCory.getByRole("region", { name: "Can you take it?" }),
   ).toBeVisible();
-  const openView = await new AxeBuilder({ page: asCory }).analyze();
-  expect(openView.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+  await expectAccessible(asCory);
 });
 
 test(

@@ -1,9 +1,8 @@
-import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { business } from "../src/business.ts";
 import { servicePages } from "../src/service-pages/index.ts";
 import { services } from "../src/services.ts";
-import { expect, test } from "./harness.ts";
+import { expect, expectAccessible, test } from "./harness.ts";
 
 // a page per service (#177), each in its own words
 const sections = (page: (typeof servicePages)[number]) => [
@@ -124,10 +123,7 @@ for (const service of servicePages) {
         await page.evaluate((t) => localStorage.setItem("ec-theme", t), theme);
         await page.reload();
         await formReady(page);
-        const { violations } = await new AxeBuilder({ page }).analyze();
-        expect(violations.map((v) => `${theme} ${v.id}: ${v.help}`)).toEqual(
-          [],
-        );
+        await test.step(`${theme} theme`, () => expectAccessible(page));
       }
     });
   });

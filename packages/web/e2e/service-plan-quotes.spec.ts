@@ -1,4 +1,3 @@
-import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { apiUrl } from "../playwright.config.ts";
 import {
@@ -6,6 +5,7 @@ import {
   createStaff,
   emailsTo,
   expect,
+  expectAccessible,
   signedInAs,
   test,
   serviceKey,
@@ -333,8 +333,7 @@ test("a Service Plan Quote and the Client's view of it pass an accessibility che
   // something from the page before
   await page.reload();
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  let { violations } = await new AxeBuilder({ page }).analyze();
-  expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+  await expectAccessible(page);
 
   await startOn19th(page);
   await page.getByRole("button", { name: `Send to ${casey.name}` }).click();
@@ -343,8 +342,7 @@ test("a Service Plan Quote and the Client's view of it pass an accessibility che
   await expect(
     page.getByRole("region", { name: "Current Quote" }),
   ).toBeVisible();
-  ({ violations } = await new AxeBuilder({ page }).analyze());
-  expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+  await expectAccessible(page);
 
   const client = await (await browser.newContext()).newPage();
   await signedInAs(client, casey.email);
@@ -352,8 +350,7 @@ test("a Service Plan Quote and the Client's view of it pass an accessibility che
   await expect(client.getByRole("heading", { level: 1 })).toHaveText(
     "Your Service Plan Quote",
   );
-  ({ violations } = await new AxeBuilder({ page: client }).analyze());
-  expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+  await expectAccessible(client);
 });
 
 test("the Client and Property screens pass an accessibility check", async ({
@@ -367,8 +364,7 @@ test("the Client and Property screens pass an accessibility check", async ({
     .click();
   await page.reload();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(casey.name);
-  let { violations } = await new AxeBuilder({ page }).analyze();
-  expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+  await expectAccessible(page);
 
   await page
     .getByRole("grid", { name: /Properties/ })
@@ -378,8 +374,7 @@ test("the Client and Property screens pass an accessibility check", async ({
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     "41-12 Austin St, 4B, 11375",
   );
-  ({ violations } = await new AxeBuilder({ page }).analyze());
-  expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+  await expectAccessible(page);
 });
 
 test("the Client Declines a Service Plan Quote", async ({ page, browser }) => {

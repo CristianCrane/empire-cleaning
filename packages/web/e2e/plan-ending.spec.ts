@@ -1,10 +1,9 @@
-import AxeBuilder from "@axe-core/playwright";
-import type { Page } from "@playwright/test";
 import {
   completedFirstClean,
   createStaff,
   emailsTo,
   expect,
+  expectAccessible,
   failCharges,
   setClock,
   signedInAs,
@@ -37,14 +36,6 @@ const planStarted = async () => {
     propertyId,
     startsAt: FIRST,
   });
-};
-
-// once a dialog has finished opening: mid-animation, its colours are still
-// fading in
-const expectAccessible = async (page: Page) => {
-  await page.waitForFunction(() => document.getAnimations().length === 0);
-  const { violations } = await new AxeBuilder({ page }).analyze();
-  expect(violations).toEqual([]);
 };
 
 test(

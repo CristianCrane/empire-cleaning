@@ -1,10 +1,9 @@
-import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { business } from "../src/business.ts";
 import { guides } from "../src/guides/index.ts";
 import { googleReviewsUrl, reviews } from "../src/reviews.ts";
 import { appUrl } from "../playwright.config.ts";
-import { emailsTo, expect, test } from "./harness.ts";
+import { emailsTo, expect, expectAccessible, test } from "./harness.ts";
 
 // the form loads once its section scrolls into view, and lists the Services
 // once they arrive from the API
@@ -77,15 +76,10 @@ for (const theme of ["light", "dark"] as const) {
       { tag: theme === "light" ? "@desktop" : [] },
       async ({ page }) => {
         await openQuoteForm(page);
-        const check = async () => {
-          const { violations } = await new AxeBuilder({ page }).analyze();
-          expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
-        };
-
         // each step of the form
-        await check();
+        await expectAccessible(page);
         await chooseService(page);
-        await check();
+        await expectAccessible(page);
         await page
           .getByRole("textbox", { name: "Street address" })
           .fill("41-12 Austin St");
@@ -95,12 +89,12 @@ for (const theme of ["light", "dark"] as const) {
         await expect(
           page.getByRole("group", { name: "Any extras?" }),
         ).toBeVisible();
-        await check();
+        await expectAccessible(page);
         await next(page);
         await expect(
           page.getByRole("textbox", { name: "Full name" }),
         ).toBeVisible();
-        await check();
+        await expectAccessible(page);
       },
     );
   });
