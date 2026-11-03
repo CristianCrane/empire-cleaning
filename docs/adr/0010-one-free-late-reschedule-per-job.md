@@ -10,3 +10,5 @@ We chose this over treating every Late Reschedule as a Late Cancellation (the gl
 - The portal shows the cost before the Client sends a request: free, free as their one Late Reschedule, or the Deposit kept as a fee.
 - What a Job owes gains the kept Deposit: a Completed Job owes its price plus any Late Reschedule fee. If that Job is later cancelled, the kept Deposit is not refunded and nothing more is charged, whether or not the cancellation is late.
 - The Deposit remains the one fee mechanism (ADR-0001); this only decides when a reschedule triggers it.
+- The line is drawn at exactly 24 hours: a Reschedule Request or a cancellation made exactly 24 hours before the Job is free (#242).
+- A Service Plan Job booked less than 24 hours before it starts (the Office booking a waiting plan visit at short notice, say) gave the Client less than a day's notice, so skipping or cancelling it is free until it starts, and so is Ending the plan over it (#242). Such a Job gets the booking email, as the day-before reminder may already have gone.

@@ -71,22 +71,24 @@ const billChargesOf = async (jobId: string, tx: Tx | typeof db) =>
 // A refund made in the provider's dashboard is a discount: the Job owes that
 // much less, though never less than nothing.
 const ledgerOf = async (job: Job, tx: Tx | typeof db): Promise<Ledger> => {
-  const [quoted, rows, taken, billed, billCharges, [fromBills]] =
-    await Promise.all([
-      quotedJob(job.id, tx),
-      tx.select().from(adjustments).where(eq(adjustments.jobId, job.id)),
-      tx
-        .select()
-        .from(charges)
-        .where(eq(charges.jobId, job.id))
-        .orderBy(desc(charges.chargedAt), desc(charges.createdAt)),
-      billedOf(job.id, tx),
-      billChargesOf(job.id, tx),
-      tx
-        .select({ cents: sum(refunds.amountCents).mapWith(Number) })
-        .from(refunds)
-        .where(and(eq(refunds.jobId, job.id), isNull(refunds.failedAt))),
-    ]);
+  // one after the other, as a transaction's queries share one connection
+  // (ADR-0024)
+  const quoted = await quotedJob(job.id, tx);
+  const rows = await tx
+    .select()
+    .from(adjustments)
+    .where(eq(adjustments.jobId, job.id));
+  const taken = await tx
+    .select()
+    .from(charges)
+    .where(eq(charges.jobId, job.id))
+    .orderBy(desc(charges.chargedAt), desc(charges.createdAt));
+  const billed = await billedOf(job.id, tx);
+  const billCharges = await billChargesOf(job.id, tx);
+  const [fromBills] = await tx
+    .select({ cents: sum(refunds.amountCents).mapWith(Number) })
+    .from(refunds)
+    .where(and(eq(refunds.jobId, job.id), isNull(refunds.failedAt)));
   const billedCents = billed.cents - (fromBills?.cents ?? 0);
   const given =
     taken.length === 0
@@ -211,8 +213,8 @@ const feeLabel = {
   no_access: "No Access fee",
 };
 
-const describe = async (job: Job) => {
-  const [property] = await db
+const describe = async (tx: Tx, job: Job) => {
+  const [property] = await tx
     .select()
     .from(properties)
     .where(eq(properties.id, job.propertyId));
@@ -220,7 +222,7 @@ const describe = async (job: Job) => {
     job.status === "cancelled" || job.status === "no_access"
       ? feeLabel[job.status]
       : "Balance";
-  return `${what}: ${await serviceNameOf(job.serviceId)} at ${addressOf(property!)}, ${formatWhen(job.startsAt)}`;
+  return `${what}: ${await serviceNameOf(job.serviceId, tx)} at ${addressOf(property!)}, ${formatWhen(job.startsAt)}`;
 };
 
 /**
@@ -296,7 +298,7 @@ export const settleJob = async (
         client,
         method,
         amount: ledger.owedCents,
-        description: await describe(job!),
+        description: await describe(tx, job!),
         for: { jobId, kind: kindOf(job!) },
         item,
       });

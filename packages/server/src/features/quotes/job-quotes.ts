@@ -10,46 +10,46 @@ import { quoteRevisions, quotes, revisionOptions } from "./quotes.schema.ts";
 // on, with that visit's weekday.
 export const jobQuotes = async (jobIds: string[], tx: Tx | typeof db = db) => {
   if (jobIds.length === 0) return [];
-  const [oneOff, planned] = await Promise.all([
-    tx
-      .select({
-        jobId: jobs.id,
-        quote: quotes,
-        revision: quoteRevisions,
-        option: revisionOptions,
-      })
-      .from(jobs)
-      .innerJoin(
-        quotes,
-        and(eq(quotes.jobId, jobs.id), eq(quotes.kind, "one_off")),
-      )
-      .innerJoin(quoteRevisions, eq(quoteRevisions.id, quotes.sentRevisionId))
-      .innerJoin(
-        revisionOptions,
-        and(
-          eq(revisionOptions.revisionId, quoteRevisions.id),
-          eq(revisionOptions.serviceKey, quotes.acceptedServiceKey),
-        ),
-      )
-      .where(inArray(jobs.id, jobIds)),
-    tx
-      .select({
-        jobId: servicePlanVisits.jobId,
-        quote: quotes,
-        revision: quoteRevisions,
-        option: revisionOptions,
-      })
-      .from(servicePlanVisits)
-      .innerJoin(quotes, eq(quotes.id, servicePlanVisits.quoteId))
-      .innerJoin(quoteRevisions, eq(quoteRevisions.id, quotes.sentRevisionId))
-      .innerJoin(
-        revisionOptions,
-        and(
-          eq(revisionOptions.revisionId, quoteRevisions.id),
-          eq(revisionOptions.position, servicePlanVisits.position),
-        ),
-      )
-      .where(inArray(servicePlanVisits.jobId, jobIds)),
-  ]);
+  // one after the other, as a transaction's queries share one connection
+  // (ADR-0024)
+  const oneOff = await tx
+    .select({
+      jobId: jobs.id,
+      quote: quotes,
+      revision: quoteRevisions,
+      option: revisionOptions,
+    })
+    .from(jobs)
+    .innerJoin(
+      quotes,
+      and(eq(quotes.jobId, jobs.id), eq(quotes.kind, "one_off")),
+    )
+    .innerJoin(quoteRevisions, eq(quoteRevisions.id, quotes.sentRevisionId))
+    .innerJoin(
+      revisionOptions,
+      and(
+        eq(revisionOptions.revisionId, quoteRevisions.id),
+        eq(revisionOptions.serviceKey, quotes.acceptedServiceKey),
+      ),
+    )
+    .where(inArray(jobs.id, jobIds));
+  const planned = await tx
+    .select({
+      jobId: servicePlanVisits.jobId,
+      quote: quotes,
+      revision: quoteRevisions,
+      option: revisionOptions,
+    })
+    .from(servicePlanVisits)
+    .innerJoin(quotes, eq(quotes.id, servicePlanVisits.quoteId))
+    .innerJoin(quoteRevisions, eq(quoteRevisions.id, quotes.sentRevisionId))
+    .innerJoin(
+      revisionOptions,
+      and(
+        eq(revisionOptions.revisionId, quoteRevisions.id),
+        eq(revisionOptions.position, servicePlanVisits.position),
+      ),
+    )
+    .where(inArray(servicePlanVisits.jobId, jobIds));
   return [...oneOff, ...planned.map((row) => ({ ...row, jobId: row.jobId! }))];
 };

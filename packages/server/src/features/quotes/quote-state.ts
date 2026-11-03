@@ -24,8 +24,8 @@ import type {
   SiteVisitStage,
   Weekday,
 } from "@empire-cleaning/models";
-import { db } from "../../db/index.ts";
-import { clock } from "../../services/clock/index.ts";
+import { db, type Tx } from "../../db/index.ts";
+import { clock, DAY_MS, HOUR_MS } from "../../services/clock/index.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { currentPriceList } from "../price-list/price-list.ts";
@@ -185,8 +185,11 @@ export const firstCleanCompleted = async (propertyId: string) =>
 
 // whether any Job at the Property is Completed: until one is, a Quote offers
 // its Service's first-visit recommendation too (ADR-0018)
-export const hasCompletedJob = async (propertyId: string) => {
-  const [done] = await db
+export const hasCompletedJob = async (
+  propertyId: string,
+  tx: Tx | typeof db = db,
+) => {
+  const [done] = await tx
     .select({ id: jobs.id })
     .from(jobs)
     .where(and(eq(jobs.propertyId, propertyId), eq(jobs.status, "completed")))
@@ -429,7 +432,7 @@ export const openQuoteList = () =>
         eq(quotes.status, "sent"),
         gt(
           offers.expiresAt,
-          new Date(clock.now().getTime() - RECENTLY_EXPIRED_DAYS * 86_400_000),
+          new Date(clock.now().getTime() - RECENTLY_EXPIRED_DAYS * DAY_MS),
         ),
       ),
     ),
@@ -454,7 +457,7 @@ export const openQuotes = () =>
 // Sent Quotes that Expire within this many hours, soonest first
 export const quotesExpiringWithin = async (hours: number) => {
   const now = clock.now();
-  const until = new Date(now.getTime() + hours * 3_600_000);
+  const until = new Date(now.getTime() + hours * HOUR_MS);
   const expiring = await summaries(
     and(
       eq(quotes.status, "sent"),

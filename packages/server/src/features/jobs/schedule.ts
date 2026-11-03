@@ -2,11 +2,13 @@ import {
   and,
   arrayContains,
   eq,
+  gt,
   gte,
   inArray,
   lt,
   type SQL,
 } from "drizzle-orm";
+import type { PgColumn } from "drizzle-orm/pg-core";
 import type {
   DayCapacity,
   HeldTime,
@@ -14,12 +16,13 @@ import type {
   ScheduledJob,
   ScheduledSiteVisit,
 } from "@empire-cleaning/models";
-import { db } from "../../db/index.ts";
+import { db, type Tx } from "../../db/index.ts";
 import {
   addDays,
   clock,
   dayOf,
   daysFrom,
+  HOUR_MS,
   startOfDay,
   weekdayOf,
 } from "../../services/clock/index.ts";
@@ -34,9 +37,25 @@ import {
   staffAvailabilityExceptions,
   staffUsualHours,
 } from "../staff/staff.schema.ts";
-import { onSchedule } from "./jobs.ts";
+import { hoursOnSiteOf, onSchedule } from "./jobs.ts";
 import { jobs } from "./jobs.schema.ts";
 import { serviceVersions } from "../services/services.ts";
+
+// the first and last of some days, in whatever order they come
+const spanOf = (days: string[]) => {
+  const sorted = [...days].sort();
+  return { first: sorted[0]!, last: sorted.at(-1)! };
+};
+
+// an instant on one of the days from the first of these to the last, New
+// York's
+export const onDays = (column: PgColumn, days: string[]) => {
+  const { first, last } = spanOf(days);
+  return and(
+    gte(column, startOfDay(first)),
+    lt(column, startOfDay(addDays(last, 1))),
+  );
+};
 
 // Hours are added in hundredths, so sums of 7.25 and 0.1 never drift
 const hundredths = (hours: number) => Math.round(hours * 100);
@@ -45,8 +64,8 @@ const fromHundredths = (units: number) => units / 100;
 // each active Cleaner's hours on each day of the range: an exception for the
 // day if there is one, otherwise their usual hours for that weekday. Only
 // Cleaners count: Labour Hours are cleaning time.
-export const cleanerHours = async (days: string[]) => {
-  const cleaners = await db
+export const cleanerHours = async (days: string[], tx: Tx | typeof db = db) => {
+  const cleaners = await tx
     .select({ id: staff.id, name: staff.name })
     .from(staff)
     .where(and(eq(staff.active, true), arrayContains(staff.roles, ["cleaner"])))
@@ -60,22 +79,22 @@ export const cleanerHours = async (days: string[]) => {
   );
   if (ids.length === 0) return byDay;
 
-  const [usual, exceptions] = await Promise.all([
-    db
-      .select()
-      .from(staffUsualHours)
-      .where(inArray(staffUsualHours.staffId, ids)),
-    db
-      .select()
-      .from(staffAvailabilityExceptions)
-      .where(
-        and(
-          inArray(staffAvailabilityExceptions.staffId, ids),
-          gte(staffAvailabilityExceptions.date, days[0]!),
-          lt(staffAvailabilityExceptions.date, addDays(days.at(-1)!, 1)),
-        ),
+  // one after the other, as a transaction's queries share one connection
+  // (ADR-0024)
+  const usual = await tx
+    .select()
+    .from(staffUsualHours)
+    .where(inArray(staffUsualHours.staffId, ids));
+  const exceptions = await tx
+    .select()
+    .from(staffAvailabilityExceptions)
+    .where(
+      and(
+        inArray(staffAvailabilityExceptions.staffId, ids),
+        gte(staffAvailabilityExceptions.date, spanOf(days).first),
+        lt(staffAvailabilityExceptions.date, addDays(spanOf(days).last, 1)),
       ),
-  ]);
+    );
   const usualOf = new Map(
     usual.map((u) => [`${u.staffId} ${u.weekday}`, hundredths(u.hours)]),
   );
@@ -99,19 +118,27 @@ export const cleanerHours = async (days: string[]) => {
 // the Schedule
 export const jobViews = async (
   where: SQL | undefined,
+  tx: Tx | typeof db = db,
 ): Promise<ScheduledJob[]> => {
-  const rows = await db
+  const rows = await tx
     .select({ job: jobs, property: properties, client: clients })
     .from(jobs)
     .innerJoin(properties, eq(properties.id, jobs.propertyId))
     .innerJoin(clients, eq(clients.id, properties.clientId))
     .where(where)
     .orderBy(jobs.startsAt);
-  const [assignment, crews] = await Promise.all([
-    assignmentStatusOf(rows.map((r) => r.job)),
-    crewOf(rows.map((r) => r.job.id)),
-  ]);
-  const versions = await serviceVersions(rows.map((r) => r.job.serviceId));
+  const assignment = await assignmentStatusOf(
+    rows.map((r) => r.job),
+    tx,
+  );
+  const crews = await crewOf(
+    rows.map((r) => r.job.id),
+    tx,
+  );
+  const versions = await serviceVersions(
+    rows.map((r) => r.job.serviceId),
+    tx,
+  );
   const now = clock.now();
 
   return rows.map(({ job, property, client }) => ({
@@ -121,7 +148,7 @@ export const jobViews = async (
     status: job.status,
     labourHours: job.labourHours,
     crewSize: job.crewSize,
-    hoursOnSite: Math.round((job.labourHours / job.crewSize) * 100) / 100,
+    hoursOnSite: hoursOnSiteOf(job),
     client: {
       id: client.id,
       name: client.name,
@@ -140,18 +167,15 @@ export const jobViews = async (
 };
 
 // Jobs on the Schedule as the Office sees them, earliest first
-export const scheduledJobs = (where: SQL | undefined) =>
-  jobViews(and(onSchedule(), where));
+export const scheduledJobs = (
+  where: SQL | undefined,
+  tx: Tx | typeof db = db,
+) => jobViews(and(onSchedule(), where), tx);
 
 // the booked Jobs starting on the days of the range, by day, earliest first
-const bookedJobs = async (days: string[]) => {
+const bookedJobs = async (days: string[], tx: Tx | typeof db) => {
   const byDay = new Map(days.map((day) => [day, [] as ScheduledJob[]]));
-  const booked = await scheduledJobs(
-    and(
-      gte(jobs.startsAt, startOfDay(days[0]!)),
-      lt(jobs.startsAt, startOfDay(addDays(days.at(-1)!, 1))),
-    ),
-  );
+  const booked = await scheduledJobs(onDays(jobs.startsAt, days), tx);
   for (const job of booked) {
     byDay.get(dayOf(new Date(job.startsAt)))?.push(job);
   }
@@ -159,14 +183,15 @@ const bookedJobs = async (days: string[]) => {
 };
 
 // The new times pending Reschedule Requests hold on each day of the range
-// for booked Jobs, and the Labour Hours they hold there. A Job moving to
-// another time on its own day holds a crew at that time, but no hours: its
-// hours are booked there already.
-const heldTimes = async (days: string[]) => {
+// for booked Jobs still to start (one that has started can't move), and the
+// Labour Hours they hold there. A Job moving to another time on its own day
+// holds a crew at that time, but no hours: its hours are booked there
+// already.
+const heldTimes = async (days: string[], tx: Tx | typeof db) => {
   const byDay = new Map(
     days.map((day) => [day, { units: 0, held: [] as HeldTime[] }]),
   );
-  const pending = await db
+  const pending = await tx
     .select({
       jobId: jobs.id,
       startsAt: rescheduleRequests.startsAt,
@@ -180,8 +205,8 @@ const heldTimes = async (days: string[]) => {
       and(
         eq(rescheduleRequests.status, "pending"),
         eq(jobs.status, "booked"),
-        gte(rescheduleRequests.startsAt, startOfDay(days[0]!)),
-        lt(rescheduleRequests.startsAt, startOfDay(addDays(days.at(-1)!, 1))),
+        gt(jobs.startsAt, clock.now()),
+        onDays(rescheduleRequests.startsAt, days),
       ),
     );
   for (const request of pending) {
@@ -206,25 +231,30 @@ export const visitHours = (visit: { minutes: number }) => visit.minutes / 60;
 
 // The booked and Done Site Visits on each day of the range (#73), earliest
 // first. One by a Cleaner with Available Hours that day takes room like a
-// Job with a Crew Size of one; one by Office Staff alone takes none.
+// Job with a Crew Size of one; one by Office Staff alone takes none, and nor
+// does one whose findings were recorded before its time, as nobody will go
+// (#242).
 const siteVisitsOn = async (
   days: string[],
   hours: Awaited<ReturnType<typeof cleanerHours>>,
+  tx: Tx | typeof db,
 ) => {
   const byDay = new Map(days.map((day) => [day, [] as ScheduledSiteVisit[]]));
   const visits = await siteVisitViews(
     and(
       inArray(siteVisits.status, ["booked", "done"]),
-      gte(siteVisits.startsAt, startOfDay(days[0]!)),
-      lt(siteVisits.startsAt, startOfDay(addDays(days.at(-1)!, 1))),
+      onDays(siteVisits.startsAt, days),
     ),
+    tx,
   );
   for (const visit of visits) {
     const date = dayOf(new Date(visit.startsAt!));
     byDay.get(date)?.push({
       ...visit,
       startsAt: visit.startsAt!,
-      takesRoom: hours.get(date)!.some((c) => c.id === visit.visitor?.id),
+      takesRoom:
+        hours.get(date)!.some((c) => c.id === visit.visitor?.id) &&
+        !(visit.doneAt && visit.doneAt < visit.startsAt!),
     });
   }
   return byDay;
@@ -234,14 +264,13 @@ const siteVisitsOn = async (
 export const scheduleFor = async (
   from: string,
   to: string,
+  tx: Tx | typeof db = db,
 ): Promise<ScheduleDay[]> => {
   const days = daysFrom(from, to);
-  const hours = await cleanerHours(days);
-  const [booked, holds, visits] = await Promise.all([
-    bookedJobs(days),
-    heldTimes(days),
-    siteVisitsOn(days, hours),
-  ]);
+  const hours = await cleanerHours(days, tx);
+  const booked = await bookedJobs(days, tx);
+  const holds = await heldTimes(days, tx);
+  const visits = await siteVisitsOn(days, hours, tx);
 
   return days.map((date) => {
     const available = hours.get(date)!;
@@ -282,7 +311,10 @@ export type Clean = {
   siteVisitId?: string;
 };
 
-const HOUR_MS = 3_600_000;
+// Cleans end by midnight, New York, so each is on one day of the Schedule
+export const endsByMidnight = (startsAt: Date, hoursOnSite: number) =>
+  startsAt.getTime() + hoursOnSite * HOUR_MS <=
+  startOfDay(addDays(dayOf(startsAt), 1)).getTime();
 
 // a crew at work: from when to when, in milliseconds, and how many
 type CrewSpan = { start: number; end: number; crewSize: number };
@@ -314,7 +346,8 @@ const crewsBusyDuring = (spans: CrewSpan[], start: number, end: number) => {
 };
 
 /**
- * Whether a clean has room on a day of the Schedule, by two rules:
+ * Whether a clean has room on a day of the Schedule. It must end by
+ * midnight (endsByMidnight), and then two rules:
  *
  * - Hours: the day's free Cleaner hours, after the Jobs booked that day and
  *   the hours held for pending Reschedule Requests, cover its Labour Hours.
@@ -361,6 +394,7 @@ export const roomOn = (day: ScheduleDay, clean: Clean): DayCapacity => {
   const crewsBusy = crewsBusyDuring(spans, own.start, own.end);
   const cleaners = day.available.length;
   const hasCrew = crewsBusy + crewSize <= cleaners;
+  const inTime = endsByMidnight(startsAt, labourHours / crewSize);
 
   return {
     date: day.date,
@@ -375,12 +409,17 @@ export const roomOn = (day: ScheduleDay, clean: Clean): DayCapacity => {
     cleaners,
     crewsBusy,
     hasCrew,
-    hasRoom: hasHours && hasCrew,
+    endsByMidnight: inTime,
+    hasRoom: inTime && hasHours && hasCrew,
   };
 };
 
+export const ENDS_BY_MIDNIGHT =
+  "Cleans end by midnight: choose an earlier start time";
+
 // why a clean has no room, for Office Staff
 export const whyNoRoom = (room: DayCapacity) => {
+  if (!room.endsByMidnight) return ENDS_BY_MIDNIGHT;
   if (!room.hasHours) {
     return `That day doesn't have room: the Job needs ${room.labourHours} Labour Hours and ${Math.max(room.freeHours, 0)} are free.`;
   }
@@ -390,22 +429,27 @@ export const whyNoRoom = (room: DayCapacity) => {
 
 // Whether a clean has room at its time, as roomOn says. Accepting a Quote
 // (#8), Reschedule Requests (#20), moving a Job (#52) and Service Plan Jobs
-// (#14) ask this, holding the day (lockDay) while they book. Jobs it
-// replaces, as a plan's new terms replace its booked Jobs (#15), count as
-// gone.
+// (#14) ask this in their transaction, holding the day (lockDay) while they
+// book. Jobs it replaces, as a plan's new terms replace its booked Jobs
+// (#15), count as gone, and so do the times held for moving them (#242).
 export const roomFor = async (
   clean: Clean,
+  tx: Tx | typeof db = db,
   replacing: string[] = [],
 ): Promise<DayCapacity> => {
   const date = dayOf(clean.startsAt);
-  const [day] = await scheduleFor(date, date);
+  const [day] = await scheduleFor(date, date, tx);
   const gone = day!.jobs.filter((job) => replacing.includes(job.id));
+  // a time held for moving one from another day holds its hours here too
+  const goneHeld = day!.held.filter((h) => replacing.includes(h.jobId));
+  const heldHere = goneHeld.filter((h) => !gone.some((j) => j.id === h.jobId));
   return roomOn(
     {
       ...day!,
       jobs: day!.jobs.filter((job) => !gone.includes(job)),
+      held: day!.held.filter((h) => !goneHeld.includes(h)),
       freeHours: fromHundredths(
-        gone.reduce(
+        [...gone, ...heldHere].reduce(
           (free, job) => free + hundredths(job.labourHours),
           hundredths(day!.freeHours),
         ),

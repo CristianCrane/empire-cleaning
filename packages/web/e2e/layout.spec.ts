@@ -585,9 +585,10 @@ test("signing in, the welcome page and the Cleaner area fit every width", async 
     startsAt: "2026-01-08T14:00:00Z",
     labourHours: 5.25,
   })) as { id: string };
+  // free that week, so they can be Offered it
+  await setUsualWeek(cory.id, [8, 8, 8, 8, 8, 0, 0]);
   await offerPlace(job.id, cory.id);
   // and a Job open to Cory on Friday
-  await setUsualWeek(cory.id, [8, 8, 8, 8, 8, 0, 0]);
   const open = (await bookJob({
     startsAt: "2026-01-09T14:00:00Z",
     labourHours: 3,

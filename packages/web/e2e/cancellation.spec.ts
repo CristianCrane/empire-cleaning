@@ -14,10 +14,10 @@ import {
 
 // the API's clock is at 4am on Monday 5 January 2026 in New York. The Job
 // here is Casey's Deep Clean at 9am on Monday the 12th, free to cancel until
-// 9am on Sunday the 11th.
+// 9am on Sunday the 11th, exactly 24 hours before, included.
 const MONDAY_9AM = "2026-01-12T14:00:00Z";
 const SUNDAY_8_59AM = "2026-01-11T13:59:00Z";
-const SUNDAY_9AM = "2026-01-11T14:00:00Z";
+const SUNDAY_9_01AM = "2026-01-11T14:01:00Z";
 const MONDAY_9_30AM = "2026-01-12T14:30:00Z";
 
 const olive = {
@@ -111,7 +111,7 @@ test("a Client is told, not charged, when cancelling has become late since they 
   const dialog = page.getByRole("alertdialog", { name: "Cancel your clean?" });
   await expect(dialog).toContainText("There's no charge");
 
-  await setClock(SUNDAY_9AM);
+  await setClock(SUNDAY_9_01AM);
   await dialog.getByRole("button", { name: "Cancel clean" }).click();
   await expect(dialog).toContainText(
     /less than 24 hours .* the \$[\d.]+ Deposit is kept as the fee\. Please check and confirm again\./,
@@ -172,7 +172,7 @@ test(
   { tag: ["@desktop"] },
   async ({ page, browser }) => {
     const job = await bookedJob();
-    await setClock(SUNDAY_9AM);
+    await setClock(SUNDAY_9_01AM);
     await signedInAs(page, olive.email);
     await page.goto(`/office/jobs/${job.id}`);
 

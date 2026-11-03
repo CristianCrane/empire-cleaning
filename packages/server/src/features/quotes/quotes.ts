@@ -31,13 +31,14 @@ import {
   addDays,
   atTime,
   clock,
+  DAY_MS,
   dayOf,
-  startOfDay,
   timeOf,
   weekdayOf,
 } from "../../services/clock/index.ts";
 import { email } from "../../services/email/index.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
+import { ENDS_BY_MIDNIGHT, endsByMidnight } from "../jobs/schedule.ts";
 import { officeCompletionOf } from "../completion/completion.ts";
 import { paymentMethodOf, toPaymentMethodView } from "../payments/payments.ts";
 import {
@@ -98,6 +99,7 @@ import {
   type RevisionOptionRow,
 } from "./quotes.schema.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
+import { hoursOnSiteOf } from "../jobs/jobs.ts";
 
 // a new Service Plan Quote's terms, until Office Staff change them: not a
 // copy of the First Clean, whatever it was
@@ -108,8 +110,6 @@ const PLAN_DEFAULTS = {
   recurrence: Recurrence;
   condition: Condition;
 };
-
-const DAY_MS = 86_400_000;
 
 const fieldError = (path: (string | number)[], message: string) =>
   new RequestBodyError(
@@ -389,7 +389,7 @@ export const toOption = (
   recommended:
     revision.kind === "one_off" && row.serviceKey !== revision.serviceKey,
   labourHours: row.labourHours,
-  hoursOnSite: Math.round((row.labourHours / row.crewSize) * 100) / 100,
+  hoursOnSite: hoursOnSiteOf(row),
   priceCents: row.priceCents,
   taxCents: row.taxCents,
   totalCents: row.totalCents,
@@ -467,9 +467,9 @@ const findQuote = async (id: string, tx: Tx | typeof db = db) => {
   return quote;
 };
 
-const findRevision = async (id: string | null) => {
+const findRevision = async (id: string | null, tx: Tx | typeof db = db) => {
   if (!id) return undefined;
-  const [revision] = await db
+  const [revision] = await tx
     .select()
     .from(quoteRevisions)
     .where(eq(quoteRevisions.id, id));
@@ -922,16 +922,15 @@ const newRevisionOptions = async (
   kind: QuoteKind,
   property: Property,
   list: Pricing,
+  tx: Tx,
 ) => {
-  const [offer, anyCompleted] = await Promise.all([
-    findRevision(quote.sentRevisionId),
-    hasCompletedJob(property.id),
-  ]);
+  const offer = await findRevision(quote.sentRevisionId, tx);
+  const anyCompleted = await hasCompletedJob(property.id, tx);
   const service = serviceOf(list.services, quote.serviceKey);
   // a Service Plan Quote's was one that can recur when it was started
   const serviceKey = quote.serviceKey;
   if (offer) {
-    const rows = inOrder(await optionsOf(offer.id));
+    const rows = inOrder(await optionsOf(offer.id, tx));
     const addOnKeys = rows[0]!.suggested.addOns.map((a) => a.key);
     const area = areaOf(offer, quote, property);
     const overrideOf = (row: RevisionOptionRow) =>
@@ -979,7 +978,9 @@ const newRevisionOptions = async (
       : null;
   const addOnKeys = plan
     ? []
-    : ((await askedAddOns([quote.id])).get(quote.id) ?? []).map((a) => a.key);
+    : ((await askedAddOns([quote.id], tx)).get(quote.id) ?? []).map(
+        (a) => a.key,
+      );
   const area = areaOf(null, quote, property);
   return {
     revision: {
@@ -1037,6 +1038,7 @@ const insertRevision = async (
     kind,
     property,
     list,
+    tx,
   );
   const [{ last }] = (await tx
     .select({ last: max(quoteRevisions.number) })
@@ -1113,7 +1115,7 @@ export const startRevision = async (
     }
     // two at once: the other started it
     if (await draftRevisionOf(id, tx)) return;
-    const offer = await findRevision(current.sentRevisionId);
+    const offer = await findRevision(current.sentRevisionId, tx);
     const holding = { kind, serviceKey };
     if (currentStatusOf(current, offer) === "expired") {
       await refuseAnotherOpen(
@@ -1451,8 +1453,6 @@ export const saveDraft = async (
   return officeQuote(id);
 };
 
-const HOUR_MS = 3_600_000;
-
 // Each clean a Draft Revision would book first, with the field that sets its
 // time: a one-off Quote's Job, the longest of its Services; a Service Plan
 // Quote's first on each weekday. Each must have a time still to come, and
@@ -1490,15 +1490,8 @@ const refuseUntimely = (
     if (startsAt <= now) {
       throw fieldError(path, "Choose a time that's still to come");
     }
-    const midnight = startOfDay(addDays(dayOf(startsAt), 1));
-    if (
-      startsAt.getTime() + option.hoursOnSite * HOUR_MS >
-      midnight.getTime()
-    ) {
-      throw fieldError(
-        path,
-        "Cleans end by midnight: choose an earlier start time",
-      );
+    if (!endsByMidnight(startsAt, option.hoursOnSite)) {
+      throw fieldError(path, ENDS_BY_MIDNIGHT);
     }
   }
 };
@@ -1574,7 +1567,7 @@ export const sendQuote = async (id: string): Promise<OfficeQuote> => {
     if (closedMessage[current.status]) {
       throw new ConflictError(closedMessage[current.status]!);
     }
-    const offer = await findRevision(current.sentRevisionId);
+    const offer = await findRevision(current.sentRevisionId, tx);
     if (currentStatusOf(current, offer) === "expired") {
       await refuseAnotherOpen(
         tx,

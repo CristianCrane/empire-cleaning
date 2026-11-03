@@ -1,6 +1,6 @@
 import { and, eq, inArray, isNull, lte, notExists, or, sql } from "drizzle-orm";
-import { db, type Tx } from "../../db/index.ts";
-import { clock } from "../../services/clock/index.ts";
+import { apart, db, type Tx } from "../../db/index.ts";
+import { clock, DAY_MS } from "../../services/clock/index.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
 import {
   paymentGateway,
@@ -44,7 +44,6 @@ export const UNREACHABLE = "the payment provider couldn't be reached";
 // why nothing was taken when what the provider made of it isn't known yet:
 // a later try asks again
 export const WAITING_ON_PROVIDER = [UNREACHABLE, "processing"];
-const DAY_MS = 24 * 3_600_000;
 
 // ---- asking the provider once (#241) ----
 //
@@ -78,7 +77,7 @@ const update = async (
   attempt: ChargeAttempt,
   set: Partial<Pick<ChargeAttempt, "status" | "gatewayRef" | "reason">>,
 ) => {
-  const [updated] = await db
+  const [updated] = await apart
     .update(chargeAttempts)
     .set(set)
     .where(eq(chargeAttempts.id, attempt.id))
@@ -173,13 +172,13 @@ const outcomeOf = async (attempt: ChargeAttempt): Promise<Outcome> => {
 
 // an attempt we never heard the end of, or that took money no Charge
 // records yet
-const isOpen = () =>
+const isOpen = (tx: Tx | typeof db) =>
   or(
     inArray(chargeAttempts.status, ["pending", "processing"]),
     and(
       eq(chargeAttempts.status, "taken"),
       notExists(
-        db
+        tx
           .select({ one: sql`1` })
           .from(charges)
           .where(eq(charges.gatewayRef, chargeAttempts.gatewayRef)),
@@ -193,7 +192,7 @@ const openAttempts = (tx: Tx, forId: string) =>
   tx
     .select()
     .from(chargeAttempts)
-    .where(and(eq(chargeAttempts.forId, forId), isOpen()))
+    .where(and(eq(chargeAttempts.forId, forId), isOpen(tx)))
     .orderBy(chargeAttempts.askedAt);
 
 // a new attempt, committed, then asked
@@ -202,7 +201,7 @@ const attempt = async (
   forId: string,
   asked: Asked,
 ): Promise<Outcome> => {
-  const [made] = await db
+  const [made] = await apart
     .insert(chargeAttempts)
     .values({
       kind,
@@ -404,7 +403,7 @@ export const giveBackDeposit = async (
     });
     return;
   }
-  await db
+  await apart
     .update(chargeAttempts)
     .set({ status: "given_back" })
     .where(eq(chargeAttempts.gatewayRef, chargeId));
@@ -441,7 +440,7 @@ const keepRefund = async (
   attempt: RefundAttempt,
   reply: RefundResult,
 ): Promise<RefundResult> => {
-  await db
+  await apart
     .update(refundAttempts)
     .set(
       reply.ok
@@ -500,13 +499,13 @@ const refundOutcomeOf = async (
 
 // a refund attempt we never heard the end of, or that gave back money no
 // Refund records yet
-const isOpenRefund = () =>
+const isOpenRefund = (tx: Tx | typeof db) =>
   or(
     eq(refundAttempts.status, "pending"),
     and(
       eq(refundAttempts.status, "made"),
       notExists(
-        db
+        tx
           .select({ one: sql`1` })
           .from(refunds)
           .where(eq(refunds.gatewayRef, refundAttempts.gatewayRef)),
@@ -520,7 +519,7 @@ const openRefundAttempts = (tx: Tx | typeof db, forId: string) =>
     .select({ attempt: refundAttempts, charge: charges })
     .from(refundAttempts)
     .innerJoin(charges, eq(charges.id, refundAttempts.chargeId))
-    .where(and(eq(refundAttempts.forId, forId), isOpenRefund()))
+    .where(and(eq(refundAttempts.forId, forId), isOpenRefund(tx)))
     .orderBy(refundAttempts.askedAt);
 
 // what a refund gives back for, and how its Refund is recorded
@@ -602,7 +601,7 @@ export const refundFrom = async (
       .reduce((sum, r) => sum + r.amountCents, 0);
     const part = Math.min(left, charge.amountCents - already);
     if (part <= 0) continue;
-    const [attempt] = await db
+    const [attempt] = await apart
       .insert(refundAttempts)
       .values({
         forId,
@@ -727,7 +726,7 @@ export const openBefore = async (before: Date) => {
   const charging = await db
     .selectDistinct({ kind: chargeAttempts.kind, forId: chargeAttempts.forId })
     .from(chargeAttempts)
-    .where(and(lte(chargeAttempts.askedAt, before), isOpen()));
+    .where(and(lte(chargeAttempts.askedAt, before), isOpen(db)));
   const refunding = await db
     .selectDistinct({
       forId: refundAttempts.forId,
@@ -738,7 +737,7 @@ export const openBefore = async (before: Date) => {
       and(
         lte(refundAttempts.askedAt, before),
         isNull(refundAttempts.creditBillId),
-        isOpenRefund(),
+        isOpenRefund(db),
       ),
     );
   const of = (kinds: ChargeAttempt["kind"][]) =>

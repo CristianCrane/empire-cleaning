@@ -34,14 +34,25 @@ import {
   weekdayOf,
 } from "../../services/clock/index.ts";
 import { emailOffer } from "../assignments/assignments.ts";
+import { freeFor } from "../assignments/open-places.ts";
 import { assignments } from "../assignments/assignments.schema.ts";
 import { billLines, bills } from "../bills/bills.schema.ts";
 import { billNumber } from "../bills/bills.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { paymentOf } from "../completion/balance.ts";
-import { bookJob, lockDay, upcomingJobsFor } from "../jobs/jobs.ts";
+import {
+  bookJob,
+  hoursOnSiteOf,
+  lockDay,
+  upcomingJobsFor,
+} from "../jobs/jobs.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
-import { jobViews, roomFor } from "../jobs/schedule.ts";
+import {
+  ENDS_BY_MIDNIGHT,
+  endsByMidnight,
+  jobViews,
+  roomFor,
+} from "../jobs/schedule.ts";
 import { charges } from "../payments/payments.schema.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { warnOfficeOfQuotesWithoutRoom } from "../quotes/quote-room.ts";
@@ -52,6 +63,10 @@ import {
   type RevisionOptionRow,
 } from "../quotes/quotes.schema.ts";
 import { staff } from "../staff/staff.schema.ts";
+import { freeUntilOf } from "../cancellation/cancellation.ts";
+import { email } from "../../services/email/index.ts";
+import { cleanOf } from "../services/services.ts";
+import { planCleanBookedEmail } from "./emails.ts";
 import { endServicePlan, endTermsOf } from "./ending.ts";
 import {
   recordFirstVisits,
@@ -150,8 +165,9 @@ const RECENT_JOBS = 16;
 
 // The Cleaners holding places on the plan's latest booked Job on the same
 // weekday (or failing that its latest), Offered or Confirmed, who are still
-// active Cleaners: each is Offered a place on the new one, so the Client
-// tends to see the same faces.
+// active Cleaners and are free for the new one (ADR-0019): each is Offered a
+// place on it, so the Client tends to see the same faces. A place nobody
+// free can take stays open to everyone free (#242).
 const offerPreviousCrew = async (
   tx: Tx,
   plan: ServicePlan,
@@ -187,30 +203,64 @@ const offerPreviousCrew = async (
         arrayContains(staff.roles, ["cleaner"]),
       ),
     )
-    .orderBy(asc(assignments.offeredAt), asc(assignments.createdAt))
-    .limit(job.crewSize);
-  if (crew.length === 0) return [];
+    .orderBy(asc(assignments.offeredAt), asc(assignments.createdAt));
+  const free = await freeFor(
+    crew.map((member) => member.id),
+    job,
+    tx,
+  );
+  const offered = crew
+    .filter((member) => free.has(member.id))
+    .slice(0, job.crewSize);
+  if (offered.length === 0) return [];
 
   const now = clock.now();
   await tx.insert(assignments).values(
-    crew.map((member) => ({
+    offered.map((member) => ({
       jobId: job.id,
       staffId: member.id,
       status: "offered" as const,
       offeredAt: now,
     })),
   );
-  return crew;
+  return offered;
 };
 
-// once saved: the crew Offered places are emailed, and the Office is told of
-// Sent Quotes the booking left without room
+// Tells the Client of a clean booked from the day before it on, too late
+// for its day-before reminder (#242), and whether it's free to skip
+const tellClientBooked = async (job: Job, property: Property) => {
+  if (dayOf(job.bookedAt) < addDays(dayOf(job.startsAt), -1)) return;
+  try {
+    const [client] = await db
+      .select()
+      .from(clients)
+      .where(eq(clients.id, property.clientId));
+    await email.send({
+      to: client!.email,
+      ...planCleanBookedEmail({
+        name: client!.name,
+        jobId: job.id,
+        clean: await cleanOf(job, property),
+        freeToSkip: freeUntilOf(job, true) >= job.startsAt,
+      }),
+    });
+  } catch (error) {
+    monitoring.error(error, {
+      what: `booking notice for Job ${job.id} not sent`,
+    });
+  }
+};
+
+// once saved: the crew Offered places are emailed, and the Client if it's
+// too soon for a reminder, and the Office is told of Sent Quotes the booking
+// left without room
 const afterBooking = async (
   job: Job,
   offered: Offered[],
   property: Property,
 ) => {
   for (const member of offered) await emailOffer(member, job, property);
+  await tellClientBooked(job, property);
   await warnOfficeOfQuotesWithoutRoom(dayOf(job.startsAt));
 };
 
@@ -226,11 +276,14 @@ const bookOnto = async (
 ): Promise<{ job: Job; offered: Offered[] } | null> => {
   if (startsAt <= clock.now()) return null;
   await lockDay(tx, dayOf(startsAt));
-  const { hasRoom } = await roomFor({
-    startsAt,
-    labourHours: day.labourHours,
-    crewSize: day.crewSize,
-  });
+  const { hasRoom } = await roomFor(
+    {
+      startsAt,
+      labourHours: day.labourHours,
+      crewSize: day.crewSize,
+    },
+    tx,
+  );
   if (!hasRoom) return null;
   const job = await bookJob(
     {
@@ -245,10 +298,53 @@ const bookOnto = async (
   return { job, offered: await offerPreviousCrew(tx, plan, job) };
 };
 
-// The plan's next visit, the soonest due of its weekdays', if it falls
-// within the horizon: booked if its day has room, otherwise kept unplaced for
-// the Office. One visit per transaction, holding the plan, so two runs take
-// turns and the second finds it done.
+// The terms a plan has run on, each from the Quote accepted to set them, in
+// the order they were accepted: each runs from its proposed time until the
+// next one accepted starts, if one has. So a change accepted to start
+// beyond the horizon, or while the plan is On Hold, leaves the old terms
+// booking up to it (#242).
+const termsOf = async (tx: Tx, plan: ServicePlan) => {
+  const accepted = await tx
+    .select({
+      quoteId: quotes.id,
+      startsAt: quoteRevisions.proposedStartsAt,
+      recurrence: quoteRevisions.recurrence,
+    })
+    .from(quotes)
+    .innerJoin(quoteRevisions, eq(quoteRevisions.id, quotes.sentRevisionId))
+    .where(
+      or(
+        eq(quotes.id, plan.quoteId),
+        inArray(
+          quotes.id,
+          tx
+            .select({ id: servicePlanVisits.quoteId })
+            .from(servicePlanVisits)
+            .where(eq(servicePlanVisits.servicePlanId, plan.id)),
+        ),
+      ),
+    )
+    .orderBy(asc(quotes.acceptedAt), asc(quotes.createdAt));
+  // the terms it runs on now were accepted last
+  accepted.sort(
+    (a, b) =>
+      Number(a.quoteId === plan.quoteId) - Number(b.quoteId === plan.quoteId),
+  );
+  return accepted.map((terms, i) => {
+    const later = accepted.slice(i + 1).map((t) => t.startsAt!.getTime());
+    return {
+      quoteId: terms.quoteId,
+      every: INTERVAL_DAYS[terms.recurrence!],
+      until: later.length > 0 ? new Date(Math.min(...later)) : null,
+    };
+  });
+};
+
+// The plan's next visit, the soonest due of its weekdays' on the terms it
+// runs on then (termsOf), if it falls within the horizon: booked if its day
+// has room, otherwise kept unplaced for the Office. One visit per
+// transaction, holding the plan, so two runs take turns and the second
+// finds it done.
 const generateNext = async (planId: string) =>
   db.transaction(async (tx) => {
     const [plan] = await tx
@@ -260,46 +356,47 @@ const generateNext = async (planId: string) =>
       .for("update");
     if (!plan) return null;
 
-    const [days, lasts] = await Promise.all([
-      daysOfQuote(plan.quoteId, tx),
-      tx
-        .select({
-          position: servicePlanVisits.position,
-          last: max(servicePlanVisits.dueOn),
-        })
-        .from(servicePlanVisits)
-        .where(
-          and(
-            eq(servicePlanVisits.servicePlanId, planId),
-            // counting on from the first date on its current terms
-            eq(servicePlanVisits.quoteId, plan.quoteId),
-          ),
-        )
-        .groupBy(servicePlanVisits.position),
-    ]);
-    const lastOf = new Map(lasts.map((l) => [l.position, l.last!]));
     const now = clock.now();
-    const every = INTERVAL_DAYS[plan.recurrence];
+    const terms = (await termsOf(tx, plan)).filter(
+      (t) => !t.until || t.until > now,
+    );
+    const lasts = await tx
+      .select({
+        quoteId: servicePlanVisits.quoteId,
+        position: servicePlanVisits.position,
+        last: max(servicePlanVisits.dueOn),
+      })
+      .from(servicePlanVisits)
+      .where(eq(servicePlanVisits.servicePlanId, planId))
+      .groupBy(servicePlanVisits.quoteId, servicePlanVisits.position);
+    // counting on from the first date on each terms
+    const lastOf = new Map(
+      lasts.map((l) => [`${l.quoteId} ${l.position}`, l.last!]),
+    );
 
-    // each weekday's next date, the soonest first
-    const [next] = days
-      .map((day) => {
+    // each weekday's next date on each terms, before the next terms start,
+    // the soonest first
+    const dates = [];
+    for (const { quoteId, every, until } of terms) {
+      for (const day of await daysOfQuote(quoteId, tx)) {
         const at = (on: string) => atTime(on, timeOf(day.startsAt!));
         let on = addDays(
-          lastOf.get(day.position) ?? dayOf(day.startsAt!),
+          lastOf.get(`${quoteId} ${day.position}`) ?? dayOf(day.startsAt!),
           every,
         );
         // dates that came and went while it was On Hold are never generated
         while (at(on) <= now) on = addDays(on, every);
-        return { day, on, startsAt: at(on) };
-      })
-      .sort((a, b) => a.on.localeCompare(b.on));
+        if (until && at(on) >= until) continue;
+        dates.push({ quoteId, day, on, startsAt: at(on) });
+      }
+    }
+    const [next] = dates.sort((a, b) => a.on.localeCompare(b.on));
     if (!next || next.on > addDays(dayOf(now), HORIZON_DAYS)) return null;
 
     const booked = await bookOnto(tx, plan, next.day, next.startsAt);
     await tx.insert(servicePlanVisits).values({
       servicePlanId: planId,
-      quoteId: plan.quoteId,
+      quoteId: next.quoteId,
       position: next.day.position,
       dueOn: next.on,
       jobId: booked?.job.id ?? null,
@@ -325,7 +422,7 @@ const propertyOf = async (propertyId: string) => {
  * like, and on more than one server: each date is generated once. Only the
  * plan given, if one is.
  *
- * Nothing calls this but the timer in src/index.ts, accepting a plan (and
+ * Nothing calls this but the timer in src/scheduler.ts, accepting a plan (and
  * tests). Returns how many dates were generated.
  */
 export const generateServicePlanJobs = async (planId?: string) => {
@@ -391,6 +488,15 @@ const findVisit = async (tx: Tx, planId: string, visitId: string) => {
   return found;
 };
 
+// An On Hold plan books nothing until nothing of it is Unpaid (#242)
+const refuseOnHold = (plan: ServicePlan) => {
+  if (plan.status === "on_hold") {
+    throw new ConflictError(
+      "This Service Plan is On Hold until what's Unpaid is paid, so it can't book a visit yet.",
+    );
+  }
+};
+
 /**
  * Office Staff book a visit its day had no room for at another time they've
  * agreed with the Client, as its plan's Job: the new time must have room, and
@@ -403,6 +509,7 @@ export const bookVisit = async (
 ) => {
   const booked = await db.transaction(async (tx) => {
     const { plan, visit } = await findVisit(tx, planId, visitId);
+    refuseOnHold(plan);
     const startsAt = atTime(date, time);
     if (startsAt <= clock.now()) {
       throw new ConflictError("Choose a time that's still to come.");
@@ -411,6 +518,9 @@ export const bookVisit = async (
     const day = (await daysOfQuote(visit.quoteId, tx)).find(
       (d) => d.position === visit.position,
     )!;
+    if (!endsByMidnight(startsAt, day.labourHours / day.crewSize)) {
+      throw new ConflictError(ENDS_BY_MIDNIGHT);
+    }
     const booked = await bookOnto(tx, plan, day, startsAt);
     if (!booked) {
       throw new ConflictError(
@@ -691,7 +801,7 @@ const detailOf = async (
       serviceName: day.suggested.serviceName,
       crewSize: day.crewSize,
       labourHours: day.labourHours,
-      hoursOnSite: Math.round((day.labourHours / day.crewSize) * 100) / 100,
+      hoursOnSite: hoursOnSiteOf(day),
       priceCents: day.priceCents,
       taxCents: day.taxCents,
       totalCents: day.totalCents,
@@ -766,15 +876,7 @@ export const officeServicePlan = async (
 
 // the Property's Service Plan, unless it has none or it has Ended
 export const propertyServicePlan = async (propertyId: string) => {
-  const [plan] = await db
-    .select()
-    .from(servicePlans)
-    .where(
-      and(
-        eq(servicePlans.propertyId, propertyId),
-        ne(servicePlans.status, "ended"),
-      ),
-    );
+  const plan = await currentPlanOf(propertyId);
   if (!plan) return null;
   return (await summariesOf([plan])).get(plan.id)!;
 };

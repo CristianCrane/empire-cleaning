@@ -1,6 +1,14 @@
 import { describe, expect, test } from "vitest";
-import type { StaffDetail, StaffMember } from "@empire-cleaning/models";
+import type {
+  OfficeJob,
+  OpenPlace,
+  StaffDetail,
+  StaffMember,
+} from "@empire-cleaning/models";
+import { db } from "#db";
+import { confirmAssignment, offerAssignment } from "#features/assignments";
 import { createClient } from "#features/clients";
+import { siteVisits } from "#features/site-visits";
 import { createStaff, setUsualWeek } from "#features/staff";
 import { api, signIn, testClock, testEmail } from "../../../tests/harness.ts";
 import { bookedJob, signInAsOffice } from "../../../tests/fixtures.ts";
@@ -24,6 +32,53 @@ const staffNamed = async (office: Office, name: string) =>
   ((await office.get("/api/staff").expect(200)).body as StaffMember[]).find(
     (m) => m.name === name,
   )!;
+
+// What deactivating a Cleaner, or a day of theirs going to 0 hours, does to
+// what they hold (#242, #158). Cory holds a Confirmed place on a Job at 9am on
+// Thursday the 8th, a crew of one; Dee, free that day, could take it.
+const corysThursday = async () => {
+  const office = await signInAsOffice();
+  const { id: officeId } = await me(office);
+  const member = await createStaff({ ...cory, roles: ["cleaner"] });
+  await setUsualWeek(member.id, [8, 8, 8, 8, 8, 0, 0]);
+  const dee = await createStaff({
+    name: "Dee Cleaner",
+    email: "dee@example.com",
+    roles: ["cleaner"],
+  });
+  await setUsualWeek(dee.id, [8, 8, 8, 8, 8, 0, 0]);
+  const job = await bookedJob({
+    startsAt: "2026-01-08T14:00:00Z",
+    labourHours: 3,
+    crewSize: 1,
+  });
+  const offered = await offerAssignment(job.id, member.id, officeId);
+  await confirmAssignment(member.id, offered.assignments[0]!.id);
+  const path = `/api/staff/${member.id}`;
+  const jobOf = async () =>
+    (await office.get(`/api/jobs/${job.id}`).expect(200)).body as OfficeJob;
+  const openToDee = async () =>
+    (
+      (await (await signIn("dee@example.com")).get("/api/assignments/open"))
+        .body as OpenPlace[]
+    ).map((p) => p.jobId);
+  return { office, member, job, path, jobOf, openToDee };
+};
+
+// a booked Site Visit by a Staff member at a Property
+const siteVisitBy = async (
+  staffId: string,
+  propertyId: string,
+  startsAt: string,
+) => {
+  await db.insert(siteVisits).values({
+    propertyId,
+    staffId,
+    startsAt: new Date(startsAt),
+    minutes: 60,
+    bookedAt: testClock().now(),
+  });
+};
 
 describe("inviting Staff", () => {
   test("is only for Office Staff", async () => {
@@ -347,6 +402,36 @@ describe("deactivating Staff", () => {
       .post("/api/staff/00000000-0000-4000-8000-000000000000/deactivate")
       .expect(404);
   });
+
+  test("Releases their places on Jobs to come, opening them to everyone free (#242)", async () => {
+    const { office, member, jobOf, openToDee } = await corysThursday();
+
+    await office.post(`/api/staff/${member.id}/deactivate`).expect(200);
+
+    expect(await jobOf()).toMatchObject({
+      assignment: "unassigned",
+      openPlaces: 1,
+      assignments: [{ status: "released" }],
+    });
+    expect(await openToDee()).toHaveLength(1);
+  });
+
+  test("waits for a Site Visit of theirs to go to someone else (#242)", async () => {
+    const { office, member, job, jobOf } = await corysThursday();
+    await siteVisitBy(member.id, job.propertyId, "2026-01-09T15:00:00Z");
+
+    const { body } = await office
+      .post(`/api/staff/${member.id}/deactivate`)
+      .expect(409);
+
+    expect(body.message).toMatch(
+      /^Cory has a Site Visit at \d+ Austin St, 4B, 11375 on Friday, January 9 at 10:00 AM\. Give it to someone else first\.$/,
+    );
+    expect((await office.get(`/api/staff/${member.id}`)).body.active).toBe(
+      true,
+    );
+    expect((await jobOf()).assignment).toBe("assigned");
+  });
 });
 
 describe("Staff availability", () => {
@@ -453,6 +538,105 @@ describe("Staff availability", () => {
       .put(`${path}/exceptions/2026-02-30`)
       .send({ hours: 2 })
       .expect(400);
+  });
+
+  test("shows what they hold from now on, soonest first", async () => {
+    const { office, member, job, path } = await corysThursday();
+    await siteVisitBy(member.id, job.propertyId, "2026-01-07T15:00:00Z");
+
+    const { body } = await office.get(path).expect(200);
+
+    expect((body as StaffDetail).holding).toEqual([
+      {
+        kind: "site_visit",
+        id: expect.any(String),
+        startsAt: "2026-01-07T15:00:00.000Z",
+        what: "Site Visit",
+        where: expect.stringMatching(/Austin St/),
+      },
+      {
+        kind: "job",
+        id: job.id,
+        startsAt: "2026-01-08T14:00:00.000Z",
+        what: "Deep Clean",
+        where: expect.stringMatching(/Austin St/),
+      },
+    ]);
+  });
+
+  test("a day going to 0 hours frees their places that day, and tells them (#158, #242)", async () => {
+    const { office, path, jobOf, openToDee } = await corysThursday();
+
+    await office
+      .put(`${path}/exceptions/2026-01-08`)
+      .send({ hours: 0, note: "Sick" })
+      .expect(200);
+
+    expect(await jobOf()).toMatchObject({
+      assignment: "unassigned",
+      openPlaces: 1,
+    });
+    expect(await openToDee()).toHaveLength(1);
+    expect(testEmail().lastTo(cory.email).subject).toBe(
+      "You're no longer on a Job",
+    );
+  });
+
+  test("fewer hours that aren't 0 keep their places", async () => {
+    const { office, path, jobOf } = await corysThursday();
+
+    await office
+      .put(`${path}/exceptions/2026-01-08`)
+      .send({ hours: 2 })
+      .expect(200);
+
+    expect((await jobOf()).assignment).toBe("assigned");
+  });
+
+  test("a weekday going to 0 in the usual week frees their places on it (#158, #242)", async () => {
+    const { office, path, jobOf } = await corysThursday();
+
+    await office
+      .put(`${path}/usual-week`)
+      .send({ usualWeek: [8, 8, 8, 0, 8, 0, 0] })
+      .expect(200);
+
+    expect((await jobOf()).assignment).toBe("unassigned");
+  });
+
+  test("a day going back to a usual week of 0 frees their places that day", async () => {
+    const { office, path, jobOf } = await corysThursday();
+    await office
+      .put(`${path}/exceptions/2026-01-08`)
+      .send({ hours: 8 })
+      .expect(200);
+    await office
+      .put(`${path}/usual-week`)
+      .send({ usualWeek: [8, 8, 8, 0, 8, 0, 0] })
+      .expect(200);
+    expect((await jobOf()).assignment).toBe("assigned");
+
+    await office.delete(`${path}/exceptions/2026-01-08`).expect(200);
+
+    expect((await jobOf()).assignment).toBe("unassigned");
+  });
+
+  test("a day off over a Site Visit waits for it to go to someone else (#242)", async () => {
+    const { office, member, job, path, jobOf } = await corysThursday();
+    await siteVisitBy(member.id, job.propertyId, "2026-01-08T19:00:00Z");
+
+    const { body } = await office
+      .put(`${path}/exceptions/2026-01-08`)
+      .send({ hours: 0 })
+      .expect(409);
+
+    expect(body.message).toMatch(
+      /^Cory has a Site Visit at \d+ Austin St, 4B, 11375 on Thursday, January 8 at 2:00 PM\. Give it to someone else first\.$/,
+    );
+    expect(
+      ((await office.get(path)).body as StaffDetail).availability.exceptions,
+    ).toEqual([]);
+    expect((await jobOf()).assignment).toBe("assigned");
   });
 
   test("is only for Office Staff", async () => {

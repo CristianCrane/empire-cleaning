@@ -113,10 +113,10 @@ const toPriceList = (
     })),
 });
 
-const latest = async () => {
+const latest = async (tx: Tx | typeof db) => {
   // the author is named by their Staff record: an Account has no name of its
   // own until it is connected to one (ADR-0006)
-  const [row] = await db
+  const [row] = await tx
     .select({ list: priceLists, authorName: staff.name })
     .from(priceLists)
     .leftJoin(staff, eq(staff.accountId, priceLists.createdBy))
@@ -124,16 +124,16 @@ const latest = async () => {
     .limit(1);
   if (!row) return undefined;
 
-  const [addOns, premisesTypes] = await Promise.all([
-    db
-      .select()
-      .from(priceListAddOns)
-      .where(eq(priceListAddOns.priceListId, row.list.id)),
-    db
-      .select()
-      .from(priceListPremisesTypes)
-      .where(eq(priceListPremisesTypes.priceListId, row.list.id)),
-  ]);
+  // one after the other, as a transaction's queries share one connection
+  // (ADR-0024)
+  const addOns = await tx
+    .select()
+    .from(priceListAddOns)
+    .where(eq(priceListAddOns.priceListId, row.list.id));
+  const premisesTypes = await tx
+    .select()
+    .from(priceListPremisesTypes)
+    .where(eq(priceListPremisesTypes.priceListId, row.list.id));
   return toPriceList(row.list, addOns, premisesTypes, {
     name: row.authorName,
   });
@@ -181,12 +181,14 @@ const withKeys = <T extends { key?: string }>(items: T[]) =>
 
 // the Price List in force: the latest version. The very first read creates
 // version 1 from the placeholders, so a fresh install always has one.
-export const currentPriceList = async (): Promise<PriceList> => {
-  const existing = await latest();
+export const currentPriceList = async (
+  tx: Tx | typeof db = db,
+): Promise<PriceList> => {
+  const existing = await latest(tx);
   if (existing) return existing;
 
   // two first reads at once mustn't both create version 1
-  await db.transaction(async (tx) => {
+  const create = async (tx: Tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(4004)`);
     const [already] = await tx
       .select({ id: priceLists.id })
@@ -203,8 +205,9 @@ export const currentPriceList = async (): Promise<PriceList> => {
       },
       { placeholder: true, createdBy: null },
     );
-  });
-  return (await latest())!;
+  };
+  await (tx === db ? db.transaction(create) : create(tx as Tx));
+  return (await latest(tx))!;
 };
 
 // The submitted items of one kind, with the current ones left out kept as

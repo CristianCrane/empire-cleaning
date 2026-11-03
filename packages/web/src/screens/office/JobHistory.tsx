@@ -26,7 +26,8 @@ type Moment = {
 const chargeLabel = { deposit: "Deposit", balance: "Balance", fee: "Fee" };
 
 // everything that happened to a Job, newest first: its places Offered,
-// Confirmed and Released, Reschedule Requests and their answers, each
+// Confirmed, Released or taken off, Reschedule Requests and their answers
+// (closed unanswered if the Job stopped being booked first), each
 // charge, and how it went or ended
 const momentsOf = (job: OfficeJob): Moment[] => {
   const moments: Moment[] = [];
@@ -42,7 +43,10 @@ const momentsOf = (job: OfficeJob): Moment[] => {
         key: `answered-${a.id}`,
         at: a.answeredAt,
         icon: a.status === "confirmed" ? UserCheck : UserMinus,
-        title: `${a.staff.name} ${a.status === "confirmed" ? "Confirmed" : "Released"}`,
+        title:
+          a.status === "taken_off"
+            ? `${a.staff.name} taken off`
+            : `${a.staff.name} ${a.status === "confirmed" ? "Confirmed" : "Released"}`,
       });
     }
   }
@@ -65,7 +69,9 @@ const momentsOf = (job: OfficeJob): Moment[] => {
             ? "Moved"
             : request.status === "turned_down"
               ? "Move turned down"
-              : "Move withdrawn by the Client",
+              : request.status === "closed"
+                ? "Move request closed"
+                : "Move withdrawn by the Client",
         description: request.reason ?? undefined,
       });
     }

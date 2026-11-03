@@ -132,6 +132,28 @@ describe("a plan Job left Unpaid", () => {
     ]);
   });
 
+  test("resuming less than a day before its next date books it, tells the Client, and lets them skip it free (#242)", async () => {
+    const { client, planId, jobId } = await heldPlan();
+
+    // paid at 3pm on Sunday 15 February: Monday's 9am clean comes next
+    testClock().set(new Date("2026-02-15T20:00:00Z"));
+    testPayments().failCharges(null);
+    await client.post(`/api/jobs/mine/${jobId}/balance/retry`).expect(200);
+    await generateServicePlanJobs();
+
+    const monday = (await clientPlan(client, planId)).upcoming.find(
+      (j) => j.startsAt === "2026-02-16T14:00:00.000Z",
+    )!;
+    const booked = testEmail().lastTo(casey.email);
+    expect(booked.subject).toBe("Your next clean is booked");
+    expect(booked.text).toContain("Monday, February 16 at 9:00 AM");
+    expect(booked.text).toContain("you can skip it for free");
+    const { cancelTerms } = (
+      await client.get(`/api/jobs/mine/${monday.id}`).expect(200)
+    ).body as { cancelTerms: { late: boolean; feeCents: number } };
+    expect(cancelTerms).toMatchObject({ late: false, feeCents: 0 });
+  });
+
   test("when it's a completed Job's Balance puts the plan On Hold too, and the Office's retry resumes it", async () => {
     const { office, client, planId, jobId, cleanerId } =
       await crewedServicePlan();

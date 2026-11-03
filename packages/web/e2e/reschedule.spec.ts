@@ -17,9 +17,9 @@ import {
 
 // the API's clock is at 4am on Monday 5 January 2026 in New York. The Job
 // here is Casey's Deep Clean at 9am on Monday the 12th, free to move until
-// 9am on Sunday the 11th.
+// 9am on Sunday the 11th, exactly 24 hours before, included.
 const MONDAY_9AM = "2026-01-12T14:00:00Z";
-const SUNDAY_9AM = "2026-01-11T14:00:00Z";
+const SUNDAY_9_01AM = "2026-01-11T14:01:00Z";
 
 const olive = {
   email: "olive@example.com",
@@ -95,7 +95,7 @@ test("the portal shows a Late Reschedule's cost before it's sent", async ({
   page,
 }) => {
   const job = await bookedJob();
-  await setClock(SUNDAY_9AM);
+  await setClock(SUNDAY_9_01AM);
   await signedInAs(page, casey.email);
   await page.goto(`/portal/jobs/${job.id}`);
 

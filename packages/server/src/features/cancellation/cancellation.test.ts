@@ -31,11 +31,12 @@ type Agent = Awaited<ReturnType<typeof signIn>>;
 
 // the test clock starts at 4am on Monday 5 January 2026 in New York. Jobs
 // here are at 9am on Monday the 12th (14:00 UTC), so cancelling is free
-// until 9am on Sunday the 11th.
+// until 9am on Sunday the 11th, that minute included (ADR-0010).
 const STARTS_AT = "2026-01-12T14:00:00Z";
 const FREE_UNTIL = "2026-01-11T14:00:00.000Z";
 const SUNDAY_8_59AM = new Date("2026-01-11T13:59:00Z");
 const SUNDAY_9AM = new Date("2026-01-11T14:00:00Z");
+const SUNDAY_9_01AM = new Date("2026-01-11T14:01:00Z");
 const MONDAY_9_30AM = new Date("2026-01-12T14:30:00Z");
 
 const cleaner = async (name: string) => {
@@ -67,7 +68,9 @@ const bookedJob = async ({ crewSize = 1 } = {}) => {
   const asCory = await signIn(cory.email);
   const mine = (await asCory.get(`/api/assignments/mine/${job.id}`))
     .body as CleanerJob;
-  await asCory.post(`/api/assignments/${mine.assignment.id}/confirm`);
+  await asCory
+    .post(`/api/assignments/${mine.assignment.id}/confirm`)
+    .send({ startsAt: mine.startsAt });
 
   const client = await signIn(casey.email);
   const deposit = testPayments().charges[0]!.amount;
@@ -93,9 +96,9 @@ const noAccess = (
 const refunded = () => testPayments().refunds.map((r) => r.amount);
 
 describe("what cancelling costs", () => {
-  test("is free, with the Deposit refunded, more than 24 hours ahead", async () => {
+  test("is free, with the Deposit refunded, 24 hours or more ahead", async () => {
     const { client, jobId, deposit } = await bookedJob();
-    testClock().set(SUNDAY_8_59AM);
+    testClock().set(SUNDAY_9AM);
 
     expect((await clientJob(client, jobId)).cancelTerms).toEqual({
       by: "client",
@@ -106,9 +109,9 @@ describe("what cancelling costs", () => {
     });
   });
 
-  test("is the Deposit from 24 hours ahead, a Late Cancellation", async () => {
+  test("is the Deposit less than 24 hours ahead, a Late Cancellation", async () => {
     const { client, office, jobId, deposit } = await bookedJob();
-    testClock().set(SUNDAY_9AM);
+    testClock().set(SUNDAY_9_01AM);
 
     expect((await clientJob(client, jobId)).cancelTerms).toEqual({
       by: "client",
@@ -236,9 +239,9 @@ describe("the Client cancelling", () => {
     ).toMatchObject({ owedCents: 0, unpaid: null });
   });
 
-  test("within 24 hours keeps the Deposit as the fee", async () => {
+  test("less than 24 hours ahead keeps the Deposit as the fee", async () => {
     const { client, jobId, deposit } = await bookedJob();
-    testClock().set(SUNDAY_9AM);
+    testClock().set(SUNDAY_9_01AM);
 
     const seen = (await cancel(client, jobId, deposit).expect(200))
       .body as ClientJobDetail;
@@ -272,7 +275,7 @@ describe("the Client cancelling", () => {
     const { cancelTerms } = await clientJob(client, jobId);
     expect(cancelTerms!.feeCents).toBe(0);
 
-    testClock().set(SUNDAY_9AM);
+    testClock().set(SUNDAY_9_01AM);
     const refused = await cancel(client, jobId, 0).expect(409);
     expect(refused.body.message).toMatch(
       /less than 24 hours .* Late Cancellation/,
@@ -312,7 +315,7 @@ describe("the Client cancelling", () => {
 describe("Office Staff cancelling", () => {
   test("on the Client's behalf follows the same policy, without emailing the Office", async () => {
     const { office, jobId, deposit } = await bookedJob();
-    testClock().set(SUNDAY_9AM);
+    testClock().set(SUNDAY_9_01AM);
     const sentToOffice = testEmail().to("olive@example.com").length;
 
     const job = (

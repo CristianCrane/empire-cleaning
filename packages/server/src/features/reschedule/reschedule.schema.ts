@@ -14,11 +14,13 @@ import { timestamps } from "../../db/index.ts";
 import { accounts } from "../auth/auth.schema.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
 
+// pending until answered; closed unanswered if its Job stopped being booked
 export const rescheduleStatus = pgEnum("reschedule_status", [
   "pending",
   "confirmed",
   "turned_down",
   "withdrawn",
+  "closed",
 ]);
 
 // what moving costs, judged when it's asked (ADR-0010)
@@ -52,7 +54,7 @@ export const rescheduleRequests = pgTable(
     }),
     // the Client themselves, in the portal, rather than Office Staff
     byClient: boolean("by_client").notNull(),
-    // when it was confirmed, turned down or withdrawn, and by whom
+    // when it was confirmed, turned down, withdrawn or closed, and by whom
     answeredAt: timestamp("answered_at", { withTimezone: true }),
     answeredBy: uuid("answered_by").references(() => accounts.id, {
       onDelete: "set null",

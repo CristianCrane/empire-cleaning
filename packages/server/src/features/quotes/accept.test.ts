@@ -16,7 +16,7 @@ import { db } from "#db";
 import { sendDueReminders } from "#features/jobs";
 import { charges, settleOpenPayments } from "#features/payments";
 import { FAKE_SIGNATURE } from "../../../tests/fakes/payment-gateway.ts";
-import { createStaff, setUsualWeek } from "#features/staff";
+import { createStaff, deactivateStaff, setUsualWeek } from "#features/staff";
 import {
   api,
   signIn,
@@ -1356,6 +1356,34 @@ describe("when a Quote's day fills up before it's accepted", () => {
           .body as OfficeQuote
       ).bookable,
     ).toEqual([]);
+  });
+
+  test("the Office is emailed when a Cleaner's usual week, or their leaving, crowds out a Quote (#242)", async () => {
+    // room on Monday for one Deep Clean, with both Cleaners' hours
+    await cleaners(1, 4);
+    const cory = await createStaff({
+      name: "Cory Cleaner",
+      email: "cory@example.com",
+      roles: ["cleaner"],
+    });
+    await setUsualWeek(cory.id, [4, 4, 4, 4, 4, 0, 0]);
+    const office = await signInAsOffice();
+    await sentQuote(office);
+    const toldOffice = () =>
+      testEmail()
+        .to("olive@example.com")
+        .filter((m) => m.subject === "A Quote needs another time");
+
+    // Tuesdays off: Monday still fits
+    await setUsualWeek(cory.id, [4, 0, 4, 4, 4, 0, 0]);
+    expect(toldOffice()).toEqual([]);
+    // Mondays off: it doesn't
+    await setUsualWeek(cory.id, [0, 0, 4, 4, 4, 0, 0]);
+    expect(toldOffice()).toHaveLength(1);
+
+    await setUsualWeek(cory.id, [4, 4, 4, 4, 4, 0, 0]);
+    await deactivateStaff(cory.id);
+    expect(toldOffice()).toHaveLength(2);
   });
 
   test("the Office isn't emailed when the other Quotes for that day still fit", async () => {

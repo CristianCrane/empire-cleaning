@@ -172,6 +172,13 @@ export const requestReschedule = (
   });
 
 // a place on a Job Offered to a Cleaner (and Confirmed by them, if asked)
+// Office Staff move a booked Job straight to a new time, New York's
+export const moveJob = (jobId: string, to: { date: string; time: string }) =>
+  control(`/jobs/${jobId}/move`, {
+    method: "POST",
+    body: JSON.stringify(to),
+  });
+
 export const offerPlace = (
   jobId: string,
   staffId: string,

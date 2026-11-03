@@ -6,9 +6,11 @@ We chose this over Cleaners volunteering and Office Staff picking from them, whi
 
 ## Consequences
 
-- Confirming checks again that the place is still open and the Cleaner still free, and is refused otherwise.
+- Confirming checks again that the place is still open and the Cleaner still free, and is refused otherwise. It also names the time the Cleaner was shown, and is refused if the Job has moved since (#242).
+- Office Staff can Offer a place only to a Cleaner free for it, so every Offer can be Confirmed (#242).
 - A Cleaner can say "Not for me" to an Open Place; it leaves their list and they're never emailed about it again.
-- A Confirmed place that is Released opens to every free Cleaner but the one who Released it; the 48-hour Release cutoff is unchanged.
+- A Confirmed place that is Released opens to every free Cleaner but the one who Released it; the 48-hour Release cutoff is unchanged. Office Staff taking someone off a Job Releases it for them, so it isn't open to them either, though the Office can still Offer it to them (#242).
+- A Cleaner deactivated, or whose day goes to 0 hours, has their places there Released and opened to the others (#158, #242).
 - When a Job moves, its crew are Offered the new time and keep their places, except anyone not free then, whose places open.
 - Before Confirming, a Cleaner sees an Open Place's Service, time, time on site, Crew Size and area (town and postcode), never its street address, Access Instructions, Client or prices.
 - Cleaners get one email at 7am in New York, only on days when a Job is newly open to them, listing all their Open Places, new ones first; an Open Place on a Job starting within 48 hours is emailed at once.

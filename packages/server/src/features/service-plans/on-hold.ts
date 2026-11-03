@@ -42,31 +42,31 @@ export const holdOrResumePlan = async (
     .for("update");
   if (plan!.status === "ended") return null;
 
-  const [[{ unpaidJobs }], [{ unpaidBills }]] = (await Promise.all([
-    tx
-      .select({ unpaidJobs: count() })
-      .from(servicePlanVisits)
-      .innerJoin(jobs, eq(jobs.id, servicePlanVisits.jobId))
-      .where(
-        and(
-          eq(servicePlanVisits.servicePlanId, planId),
-          isNotNull(jobs.unpaidSince),
-        ),
+  // one after the other, as a transaction's queries share one connection
+  // (ADR-0024)
+  const [{ unpaidJobs }] = (await tx
+    .select({ unpaidJobs: count() })
+    .from(servicePlanVisits)
+    .innerJoin(jobs, eq(jobs.id, servicePlanVisits.jobId))
+    .where(
+      and(
+        eq(servicePlanVisits.servicePlanId, planId),
+        isNotNull(jobs.unpaidSince),
       ),
-    tx
-      .select({ unpaidBills: count() })
-      .from(servicePlanVisits)
-      .innerJoin(billLines, eq(billLines.jobId, servicePlanVisits.jobId))
-      .innerJoin(bills, eq(bills.id, billLines.billId))
-      .where(
-        and(
-          eq(servicePlanVisits.servicePlanId, planId),
-          isNotNull(bills.unpaidSince),
-          // not while a bank debit paying it clears
-          eq(bills.status, "due"),
-        ),
+    )) as [{ unpaidJobs: number }];
+  const [{ unpaidBills }] = (await tx
+    .select({ unpaidBills: count() })
+    .from(servicePlanVisits)
+    .innerJoin(billLines, eq(billLines.jobId, servicePlanVisits.jobId))
+    .innerJoin(bills, eq(bills.id, billLines.billId))
+    .where(
+      and(
+        eq(servicePlanVisits.servicePlanId, planId),
+        isNotNull(bills.unpaidSince),
+        // not while a bank debit paying it clears
+        eq(bills.status, "due"),
       ),
-  ])) as [[{ unpaidJobs: number }], [{ unpaidBills: number }]];
+    )) as [{ unpaidBills: number }];
   const status = unpaidJobs + unpaidBills > 0 ? "on_hold" : "active";
   if (status === plan!.status) return null;
 

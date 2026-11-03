@@ -1,10 +1,16 @@
 import type { Page } from "@playwright/test";
 import {
+  bookJob,
+  bookSiteVisit,
   createClient,
   createStaff,
+  emailsTo,
   expect,
   expectAccessible,
+  offerPlace,
+  requestQuoteForPremises,
   setGooglePicture,
+  setUsualWeek,
   signInWithLink,
   signedInAs,
   test,
@@ -255,6 +261,106 @@ test(
     await expect(fifteenth()).not.toHaveAccessibleName(/differs/);
   },
 );
+
+// the API's fake clock is at 4am on Monday 5 January 2026 in New York;
+// the calendar starts on the browser's today, so it's set to that day too
+const API_NOW = new Date("2026-01-05T09:00:00Z");
+
+const cleanerWithWeek = async () => {
+  const member = (await createStaff(cory)) as { id: string };
+  await setUsualWeek(member.id, [8, 8, 8, 8, 8, 0, 0]);
+  return member;
+};
+
+const dayOnCalendar = (page: Page, day: string) =>
+  page.getByRole("button", { name: new RegExp(`^${day} `) });
+
+test("a day off frees a Cleaner's places, and so does deactivating them, each said first", async ({
+  page,
+}) => {
+  const member = await cleanerWithWeek();
+  for (const startsAt of ["2026-01-08T14:00:00Z", "2026-01-09T14:00:00Z"]) {
+    const job = (await bookJob({ startsAt, labourHours: 3, crewSize: 1 })) as {
+      id: string;
+    };
+    await offerPlace(job.id, member.id, { confirmed: true });
+  }
+  await page.clock.setFixedTime(API_NOW);
+  await signInAsOffice(page);
+  await openStaffMember(page, "Cory Cleaner");
+
+  await dayOnCalendar(page, "Thu, Jan 8").click();
+  const day = page.getByRole("dialog");
+  await expect(day).not.toContainText("holds a place");
+  await day.getByRole("textbox", { name: "Hours that day" }).fill("0");
+  // saving straight from the field first shows what it frees
+  await day.getByRole("button", { name: "Save day" }).click();
+  await expect(day).toContainText(
+    /Cory holds a place on Deep Clean at .+, Thu, Jan 8, 9:00 AM\. Saving frees it for other free Cleaners\./,
+  );
+  await day.getByRole("button", { name: "Free the place and save" }).click();
+  await expect(page.getByText("Thu, Jan 8 saved")).toBeVisible();
+  expect((await emailsTo(cory.email)).at(-1)!.subject).toBe(
+    "You're no longer on a Job",
+  );
+
+  // Friday's is what's left to free
+  await page.getByRole("button", { name: "Deactivate" }).click();
+  const deactivate = page.getByRole("alertdialog", {
+    name: "Deactivate Cory Cleaner?",
+  });
+  await expect(deactivate).toContainText(
+    /Cory holds a place on Deep Clean at .+, Fri, Jan 9, 9:00 AM\. Deactivating them frees it/,
+  );
+  await expect(deactivate).not.toContainText("Thu, Jan 8");
+  await deactivate.getByRole("button", { name: "Deactivate" }).click();
+  await expect(page.getByText("Cory Cleaner deactivated")).toBeVisible();
+});
+
+test("a Cleaner's Site Visit has to go to someone else before their day off, or deactivating them", async ({
+  page,
+}) => {
+  await requestQuoteForPremises(
+    { name: "Casey Client", email: "casey@example.com" },
+    "Acme Dental",
+  );
+  await cleanerWithWeek();
+  await bookSiteVisit({
+    street: "200 Park Ave S",
+    staffEmail: cory.email,
+    date: "2026-01-07",
+    time: "15:00",
+  });
+  await page.clock.setFixedTime(API_NOW);
+  await signInAsOffice(page);
+  await openStaffMember(page, "Cory Cleaner");
+  const why =
+    /Cory has a Site Visit at 200 Park Ave S.*, Wed, Jan 7, 3:00 PM\. Give it to someone else first\./;
+
+  await dayOnCalendar(page, "Wed, Jan 7").click();
+  const day = page.getByRole("dialog");
+  const hours = day.getByRole("textbox", { name: "Hours that day" });
+  await hours.fill("0");
+  await hours.press("Tab");
+  await expect(day).toContainText(why);
+  await expect(day.getByRole("button", { name: "Save day" })).toBeDisabled();
+  // fewer hours, not none, keep it
+  await hours.fill("4");
+  await hours.press("Tab");
+  await expect(day).not.toContainText(why);
+  await day.getByRole("button", { name: "Cancel" }).click();
+
+  await page.getByRole("button", { name: "Deactivate" }).click();
+  const deactivate = page.getByRole("alertdialog", {
+    name: "Deactivate Cory Cleaner?",
+  });
+  await expect(deactivate).toContainText(why);
+  await expect(
+    deactivate.getByRole("button", { name: "Deactivate" }),
+  ).toBeDisabled();
+  await deactivate.getByRole("link", { name: "Open Site Visit" }).click();
+  await expect(page).toHaveURL(/\/office\/site-visits\/[0-9a-f-]{36}$/);
+});
 
 test("Office Staff change someone's name and roles", async ({ page }) => {
   await createStaff(cory);

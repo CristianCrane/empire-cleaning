@@ -9,12 +9,17 @@ import {
   UserCheck,
   UserRound,
 } from "lucide-react";
-import type { StaffDetail, StaffRole } from "@empire-cleaning/models";
+import type {
+  StaffDetail,
+  StaffHolding,
+  StaffRole,
+} from "@empire-cleaning/models";
 import {
   Actions,
   Avatar,
   Breadcrumbs,
   Button,
+  ButtonLink,
   Card,
   Checkbox,
   Dialog,
@@ -29,7 +34,13 @@ import {
 import { deleteJson, patchJson, postJson, putJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
-import { formatDay, roleLabel, today } from "../format.ts";
+import {
+  dayOfInstant,
+  formatDateTime,
+  formatDay,
+  roleLabel,
+  today,
+} from "../format.ts";
 import { Fact } from "../Fact.tsx";
 import { MemberStatus } from "./StaffScreen.tsx";
 
@@ -198,8 +209,119 @@ function EditStaff({ member }: { member: StaffDetail }) {
   );
 }
 
+const placesOf = (held: StaffHolding[]) => held.filter((h) => h.kind === "job");
+const visitsOf = (held: StaffHolding[]) =>
+  held.filter((h) => h.kind === "site_visit");
+
+// what they hold on the days a change leaves them no hours. Office Staff
+// need none to make a Site Visit, so only a Cleaner's visits are caught.
+const heldOnDaysOff = (
+  member: StaffDetail,
+  isOff: (day: string) => boolean,
+) => {
+  const held = member.holding.filter((h) => isOff(dayOfInstant(h.startsAt)));
+  return {
+    places: placesOf(held),
+    visits: member.roles.includes("office_staff") ? [] : visitsOf(held),
+  };
+};
+
+// Hours typed into a field count only once it's left, so saving straight
+// from it would free places before the Office saw which. A save that frees
+// places they haven't been shown stops there instead, and its Button asks
+// again.
+const useSecondLook = (places: StaffHolding[]) => {
+  const freeing = places.map((p) => p.id).join();
+  const [shown, setShown] = useState("");
+  return {
+    // whether this press only shows what it frees
+    stops: () => {
+      if (freeing === "" || freeing === shown) return false;
+      setShown(freeing);
+      return true;
+    },
+    label: (save: string) =>
+      freeing !== "" && freeing === shown
+        ? `Free ${places.length === 1 ? "the place" : "the places"} and save`
+        : save,
+  };
+};
+
+// "Deep Clean at 120 Bedford Ave, Tue, Nov 4, 9:00 AM"
+const heldLabel = (h: StaffHolding) =>
+  `${h.what} at ${h.where}, ${formatDateTime(h.startsAt)}`;
+
+/**
+ * What a change frees, said before it's saved (#158, #242): their places
+ * there are Released, opening to every other free Cleaner. A Site Visit
+ * can't be: it has to go to someone else first, so it blocks the change,
+ * and the Notice opens it.
+ */
+function WhatItFrees({
+  member,
+  places,
+  visits,
+  saving,
+}: {
+  member: StaffDetail;
+  places: StaffHolding[];
+  visits: StaffHolding[];
+  // what does it: "Saving", "Deactivating"
+  saving: string;
+}) {
+  const [firstName] = member.name.split(" ");
+  const [visit] = visits;
+  if (visit) {
+    return (
+      <Notice
+        tone="danger"
+        action={
+          <ButtonLink
+            variant="danger-text"
+            href={linkTo({
+              to: "/office/site-visits/$visitId",
+              params: { visitId: visit.id },
+            })}
+          >
+            Open Site Visit
+          </ButtonLink>
+        }
+      >
+        <p>
+          {firstName} has a Site Visit at {visit.where},{" "}
+          {formatDateTime(visit.startsAt)}. Give it to someone else first.
+        </p>
+      </Notice>
+    );
+  }
+  if (places.length === 0) return null;
+  return (
+    <Notice tone="warning">
+      {places.length === 1 ? (
+        <p>
+          {firstName} holds a place on {heldLabel(places[0]!)}. {saving} frees
+          it for other free Cleaners.
+        </p>
+      ) : (
+        <>
+          <p>{firstName} holds places on:</p>
+          <ul className="list-disc ps-5">
+            {places.map((p) => (
+              <li key={p.id}>{heldLabel(p)}</li>
+            ))}
+          </ul>
+          <p>{saving} frees them for other free Cleaners.</p>
+        </>
+      )}
+    </Notice>
+  );
+}
+
 function Deactivate({ member }: { member: StaffDetail }) {
   const action = useAction("They weren't deactivated. Please try again.");
+  // Office Staff or not, a Site Visit of theirs needs someone else
+  const places = placesOf(member.holding);
+  const visits = visitsOf(member.holding);
 
   const deactivate = async (close: () => void) => {
     const ok = await action.run(
@@ -222,6 +344,12 @@ function Deactivate({ member }: { member: StaffDetail }) {
               They'll lose Staff access straight away. Anything they do as a
               Client is unaffected. You can invite them again later.
             </p>
+            <WhatItFrees
+              member={member}
+              places={places}
+              visits={visits}
+              saving="Deactivating them"
+            />
             {action.problem && <Notice tone="danger">{action.problem}</Notice>}
             <Actions>
               <Button variant="quiet" onPress={close}>
@@ -230,6 +358,7 @@ function Deactivate({ member }: { member: StaffDetail }) {
               <Button
                 variant="danger"
                 isPending={action.isPending}
+                isDisabled={visits.length > 0}
                 onPress={() => void deactivate(close)}
               >
                 Deactivate
@@ -401,6 +530,15 @@ function UsualWeek({
 }) {
   const [week, setWeek] = useState(usual);
   const action = useAction("The usual week wasn't saved. Please try again.");
+  // a day that differs keeps its own hours
+  const { exceptions } = member.availability;
+  const { places, visits } = heldOnDaysOff(
+    member,
+    (day) =>
+      !exceptions.some((e) => e.date === day) &&
+      !(week[weekdayIndex(day)]! > 0),
+  );
+  const secondLook = useSecondLook(places);
 
   return (
     <DialogTrigger onOpenChange={(open) => open && setWeek(usual)}>
@@ -414,6 +552,7 @@ function UsualWeek({
             validationErrors={action.fieldErrors}
             onSubmit={async (e) => {
               e.preventDefault();
+              if (secondLook.stops()) return;
               if (
                 await action.run(
                   () =>
@@ -450,13 +589,23 @@ function UsualWeek({
                 />
               ))}
             </div>
+            <WhatItFrees
+              member={member}
+              places={places}
+              visits={visits}
+              saving="Saving"
+            />
             {action.problem && <Notice tone="danger">{action.problem}</Notice>}
             <Actions>
               <Button variant="quiet" onPress={close}>
                 Cancel
               </Button>
-              <Button type="submit" isPending={action.isPending}>
-                Save usual week
+              <Button
+                type="submit"
+                isPending={action.isPending}
+                isDisabled={visits.length > 0}
+              >
+                {secondLook.label("Save usual week")}
               </Button>
             </Actions>
           </Form>
@@ -485,8 +634,15 @@ function DayDialog({
   const [note, setNote] = useState(exception?.note ?? "");
   const action = useAction("That day wasn't saved. Please try again.");
   const path = `/api/staff/${member.id}/exceptions/${day}`;
+  const held = heldOnDaysOff(member, (d) => d === day);
+  const none = { places: [], visits: [] };
+  // what saving frees, or else, on a usual day off, going back to it
+  const bySaving = hours > 0 ? none : held;
+  const byUsual = exception && usual === 0 ? held : none;
+  const secondLook = useSecondLook(bySaving.places);
 
   const save = async () => {
+    if (secondLook.stops()) return;
     if (
       await action.run(
         () =>
@@ -545,12 +701,22 @@ function DayDialog({
           value={note}
           onChange={setNote}
         />
+        {hours > 0 ? (
+          <WhatItFrees
+            member={member}
+            {...byUsual}
+            saving="Going back to the usual week"
+          />
+        ) : (
+          <WhatItFrees member={member} {...bySaving} saving="Saving" />
+        )}
         {action.problem && <Notice tone="danger">{action.problem}</Notice>}
         <Actions>
           {exception ? (
             <Button
               variant="quiet"
               isPending={action.pending === "usual"}
+              isDisabled={byUsual.visits.length > 0}
               onPress={() => void backToUsual()}
             >
               Back to the usual week
@@ -560,8 +726,12 @@ function DayDialog({
               Cancel
             </Button>
           )}
-          <Button type="submit" isPending={action.pending === "run"}>
-            Save day
+          <Button
+            type="submit"
+            isPending={action.pending === "run"}
+            isDisabled={bySaving.visits.length > 0}
+          >
+            {secondLook.label("Save day")}
           </Button>
         </Actions>
       </Form>

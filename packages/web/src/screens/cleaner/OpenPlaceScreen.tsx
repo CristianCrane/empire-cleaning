@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLoaderData, useNavigate } from "@tanstack/react-router";
+import { useLoaderData, useNavigate, useRouter } from "@tanstack/react-router";
 import type { OpenPlace } from "@empire-cleaning/models";
 import { CalendarClock, Clock, MapPin, Users } from "lucide-react";
 import {
@@ -14,7 +14,7 @@ import {
   StatusBadge,
   showToast,
 } from "@empire-cleaning/ui";
-import { ApiError, postJson } from "../../api.ts";
+import { ApiError, getJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { Fact } from "../Fact.tsx";
 import {
@@ -92,6 +92,7 @@ export function OpenPlaceScreen() {
 
 function TakeIt({ place }: { place: OpenPlace }) {
   const navigate = useNavigate();
+  const router = useRouter();
   const [problem, setProblem] = useState<string>();
   const [pending, setPending] = useState<"confirm" | "pass">();
 
@@ -100,7 +101,12 @@ function TakeIt({ place }: { place: OpenPlace }) {
     setPending(which);
     setProblem(undefined);
     try {
-      await postJson(`/api/assignments/open/${place.jobId}/${which}`);
+      // Confirm sends the time they were shown, so a Job moved meanwhile
+      // isn't taken at a time they never saw
+      await postJson(
+        `/api/assignments/open/${place.jobId}/${which}`,
+        which === "confirm" ? { startsAt: place.startsAt } : undefined,
+      );
       if (which === "confirm") {
         showToast({ tone: "success", title: "Place confirmed" });
         await navigate({
@@ -117,6 +123,15 @@ function TakeIt({ place }: { place: OpenPlace }) {
           ? e.message
           : "That didn't work. Please try again.",
       );
+      // shows the new time if the Job moved; if it's no longer open to
+      // them, the page stays, with why
+      const stillOpen = await getJson<OpenPlace>(
+        `/api/assignments/open/${place.jobId}`,
+      ).then(
+        () => true,
+        () => false,
+      );
+      if (stillOpen) await router.invalidate();
     } finally {
       setPending(undefined);
     }

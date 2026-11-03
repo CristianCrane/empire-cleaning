@@ -5,10 +5,20 @@ import type {
   CleanerJobs,
   OfficeJob,
 } from "@empire-cleaning/models";
-import { db } from "../../db/index.ts";
+import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
-import { clock, dayOf, startOfDay } from "../../services/clock/index.ts";
-import { email, firstNameOf } from "../../services/email/index.ts";
+import {
+  clock,
+  dayOf,
+  HOUR_MS,
+  startOfDay,
+} from "../../services/clock/index.ts";
+import {
+  email,
+  firstNameOf,
+  formatWhen,
+  notify,
+} from "../../services/email/index.ts";
 import {
   cancellationOf,
   cancelTermsOf,
@@ -21,7 +31,7 @@ import {
   officeCompletionOf,
 } from "../completion/completion.ts";
 import { addOnsOf } from "../jobs/add-ons.ts";
-import { onSchedule } from "../jobs/jobs.ts";
+import { hoursOnSiteOf, onSchedule } from "../jobs/jobs.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { jobViews, scheduleFor, scheduledJobs } from "../jobs/schedule.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
@@ -33,10 +43,14 @@ import {
 import { staff } from "../staff/staff.schema.ts";
 import { officeStaffEmails } from "../staff/staff.ts";
 import { assignments, type Assignment } from "./assignments.schema.ts";
-import { emailOpenPlaces, openToOf, placeReopened } from "./open-places.ts";
+import {
+  emailOpenPlaces,
+  freeFor,
+  openToOf,
+  placeReopened,
+} from "./open-places.ts";
 import { cleanOf, serviceVersions } from "../services/services.ts";
 import { offerEmail, releasedEmail, takenOffEmail } from "./emails.ts";
-import { monitoring } from "../../services/monitoring/index.ts";
 
 // a Confirmed place can't be Released this close to the Job: the Office needs
 // time to find someone else
@@ -44,7 +58,7 @@ const RELEASE_CUTOFF_HOURS = 48;
 
 const releaseClosed = (job: Job) =>
   job.startsAt.getTime() - clock.now().getTime() <
-  RELEASE_CUTOFF_HOURS * 3_600_000;
+  RELEASE_CUTOFF_HOURS * HOUR_MS;
 
 // a booked Job with its Property
 const findJob = async (jobId: string) => {
@@ -57,16 +71,6 @@ const findJob = async (jobId: string) => {
   return found;
 };
 
-// emails go out after the change is saved; one that fails is logged, and the
-// change stands
-const notify = async (what: string, send: () => Promise<void>) => {
-  try {
-    await send();
-  } catch (error) {
-    monitoring.error(error, { what: `${what} not sent` });
-  }
-};
-
 // ---- the Office ----
 
 const toView = (
@@ -75,7 +79,7 @@ const toView = (
 ): AssignmentView => ({
   id: assignment.id,
   staff: { id: member.id, name: member.name },
-  status: assignment.status,
+  status: assignment.takenOffAt ? "taken_off" : assignment.status,
   offeredAt: assignment.offeredAt.toISOString(),
   answeredAt: assignment.answeredAt?.toISOString() ?? null,
 });
@@ -86,11 +90,11 @@ const toView = (
 // happened or been Cancelled, how it went and its payment, and whether its
 // Property can be offered a Service Plan from it
 export const officeJob = async (jobId: string): Promise<OfficeJob> => {
-  const [job] = await jobViews(eq(jobs.id, jobId));
-  if (!job) throw new NotFoundError("Job not found");
-
   const [row] = await db.select().from(jobs).where(eq(jobs.id, jobId));
+  if (!row) throw new NotFoundError("Job not found");
+
   const [
+    [job],
     rows,
     addOns,
     [day],
@@ -105,6 +109,7 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
     servicePlanId,
     openTo,
   ] = await Promise.all([
+    jobViews(eq(jobs.id, jobId)),
     db
       .select({ assignment: assignments, member: staff })
       .from(assignments)
@@ -112,21 +117,21 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
       .where(eq(assignments.jobId, jobId))
       .orderBy(asc(assignments.offeredAt), asc(assignments.createdAt)),
     addOnsOf([jobId]),
-    scheduleFor(dayOf(new Date(job.startsAt)), dayOf(new Date(job.startsAt))),
+    scheduleFor(dayOf(row.startsAt), dayOf(row.startsAt)),
     db
       .select({ id: staff.id, name: staff.name, roles: staff.roles })
       .from(staff)
       .where(eq(staff.active, true))
       .orderBy(asc(staff.name)),
-    officeCompletionOf(row!),
-    cancellationOf(row!),
-    noAccessOf(row!),
-    cancelTermsOf(row!),
-    rescheduleTermsOf(row!),
-    rescheduleRequestOf(row!),
-    row!.status === "completed" && firstCleanCompleted(row!.propertyId),
+    officeCompletionOf(row),
+    cancellationOf(row),
+    noAccessOf(row),
+    cancelTermsOf(row),
+    rescheduleTermsOf(row),
+    rescheduleRequestOf(row),
+    row.status === "completed" && firstCleanCompleted(row.propertyId),
     planOfJob(jobId),
-    openToOf(row!),
+    openToOf(row),
   ]);
 
   const holding = rows.filter((r) => r.assignment.status !== "released");
@@ -135,7 +140,7 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
   const hoursOf = new Map(day!.available.map((c) => [c.id, c.hours]));
 
   return {
-    ...job,
+    ...job!,
     completion,
     cancellation,
     noAccess,
@@ -146,7 +151,7 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
     assignments: [...holding, ...released].map((r) =>
       toView(r.assignment, r.member),
     ),
-    openPlaces: Math.max(job.crewSize - holding.length, 0),
+    openPlaces: Math.max(row.crewSize - holding.length, 0),
     openTo,
     cleaners: cleaners
       .filter((c) => c.roles.includes("cleaner") && !onJob.has(c.id))
@@ -160,7 +165,8 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
  * Office Staff Offer a place on a booked Job to an active Cleaner, who is
  * emailed. Office Staff who are Cleaners too may take a place themselves,
  * which is Confirmed at once: there's nobody to ask. Refused once the Job has
- * started, when every place is held, or when the Cleaner already holds one.
+ * started, when every place is held, when the Cleaner already holds one, or
+ * when they aren't free for it (ADR-0019), so they could never Confirm it.
  */
 export const offerAssignment = async (
   jobId: string,
@@ -180,7 +186,12 @@ export const offerAssignment = async (
       throw new ConflictError("This Job has already started");
     }
 
-    const [member] = await tx.select().from(staff).where(eq(staff.id, staffId));
+    // theirs too, so two Offers at once can't overlap
+    const [member] = await tx
+      .select()
+      .from(staff)
+      .where(eq(staff.id, staffId))
+      .for("update");
     if (!member) throw new NotFoundError("Staff member not found");
     if (!member.active || !member.roles.includes("cleaner")) {
       throw new ConflictError(`${member.name} isn't an active Cleaner`);
@@ -200,6 +211,11 @@ export const offerAssignment = async (
         job.crewSize === 1
           ? "This Job's place is taken"
           : `All ${job.crewSize} places on this Job are taken`,
+      );
+    }
+    if (!(await freeFor([staffId], job, tx)).has(staffId)) {
+      throw new ConflictError(
+        `${member.name} isn't free then: they're on another Job or a Site Visit at that time, or have no hours that day`,
       );
     }
 
@@ -240,24 +256,32 @@ export const emailOffer = (
   );
 
 // Office Staff take someone off a Job, Offered or Confirmed, opening their
-// place; they're emailed unless they took themselves off, and so is anyone
-// free for it, if the Job is within 48 hours
+// place to everyone free for it but them, as a Release does (#242): Office
+// Staff can still Offer it to them. They're emailed unless they took
+// themselves off, and so is anyone free for it, if the Job is within 48 hours
 export const removeAssignment = async (
   jobId: string,
   assignmentId: string,
   byAccountId: string,
 ): Promise<OfficeJob> => {
   const { job, property } = await findJob(jobId);
-  const [removed] = await db
-    .delete(assignments)
-    .where(
-      and(
-        eq(assignments.id, assignmentId),
-        eq(assignments.jobId, jobId),
-        ne(assignments.status, "released"),
-      ),
-    )
-    .returning();
+  const removed = await db.transaction(async (tx) => {
+    // one change to a Job's places at a time, as Offering takes
+    await tx.select().from(jobs).where(eq(jobs.id, jobId)).for("update");
+    const now = clock.now();
+    const [removed] = await tx
+      .update(assignments)
+      .set({ status: "released", answeredAt: now, takenOffAt: now })
+      .where(
+        and(
+          eq(assignments.id, assignmentId),
+          eq(assignments.jobId, jobId),
+          ne(assignments.status, "released"),
+        ),
+      )
+      .returning();
+    return removed;
+  });
   if (!removed) throw new NotFoundError("Assignment not found");
   await placeReopened(jobId);
 
@@ -350,7 +374,7 @@ const cleanerJobs = async (
       id: job.id,
       startsAt: job.startsAt.toISOString(),
       serviceName: versions.get(job.serviceId)!.name,
-      hoursOnSite: Math.round((job.labourHours / job.crewSize) * 100) / 100,
+      hoursOnSite: hoursOnSiteOf(job),
       addOns: addOns.get(job.id)!,
       property: {
         street: property.street,
@@ -407,9 +431,25 @@ export const jobAssignedTo = async (staffId: string, jobId: string) => {
   return job;
 };
 
-// the Cleaner's own Assignment, Offered or Confirmed, with its Job
-const ownAssignment = async (staffId: string, assignmentId: string) => {
-  const [found] = await db
+// The Cleaner's own place, Offered or Confirmed, on a booked Job, held with
+// its Job until the transaction ends: one change to a Job's places at a
+// time, as Offering and moving it take (#242). A place on a Cancelled Job,
+// or one taken off them, is gone.
+const lockOwn = async (tx: Tx, staffId: string, assignmentId: string) => {
+  const [mine] = await tx
+    .select({ jobId: assignments.jobId })
+    .from(assignments)
+    .where(
+      and(eq(assignments.id, assignmentId), eq(assignments.staffId, staffId)),
+    );
+  if (!mine) throw new NotFoundError("Assignment not found");
+  // held first, then read afresh, so a move or removal meanwhile is seen
+  await tx
+    .select({ id: jobs.id })
+    .from(jobs)
+    .where(eq(jobs.id, mine.jobId))
+    .for("update");
+  const [found] = await tx
     .select({ assignment: assignments, job: jobs, property: properties })
     .from(assignments)
     .innerJoin(jobs, eq(jobs.id, assignments.jobId))
@@ -419,26 +459,59 @@ const ownAssignment = async (staffId: string, assignmentId: string) => {
         eq(assignments.id, assignmentId),
         eq(assignments.staffId, staffId),
         ne(assignments.status, "released"),
+        eq(jobs.status, "booked"),
       ),
     );
   if (!found) throw new NotFoundError("Assignment not found");
   return found;
 };
 
-// the Cleaner takes the place they were Offered; Confirming again changes
-// nothing
+// taken off by the Office, or freed by a day off, meanwhile
+const gone = () => new NotFoundError("Assignment not found");
+
+/**
+ * The Cleaner takes the place they were Offered, at the time they were
+ * shown (`seen`): if the Job has moved since, they're asked to look again
+ * (#242). Refused once the Job has started, or if they're no longer free
+ * for it (ADR-0019). Confirming again changes nothing.
+ */
 export const confirmAssignment = async (
   staffId: string,
   assignmentId: string,
+  seen?: Date,
 ): Promise<CleanerJob> => {
-  const { assignment } = await ownAssignment(staffId, assignmentId);
-  await db
-    .update(assignments)
-    .set({ status: "confirmed", answeredAt: clock.now() })
-    .where(
-      and(eq(assignments.id, assignmentId), eq(assignments.status, "offered")),
-    );
-  return jobAssignedTo(staffId, assignment.jobId);
+  const jobId = await db.transaction(async (tx) => {
+    const { assignment, job } = await lockOwn(tx, staffId, assignmentId);
+    if (assignment.status === "confirmed") return job.id;
+    if (job.startsAt <= clock.now()) {
+      throw new ConflictError("This Job has already started");
+    }
+    if (seen && seen.getTime() !== job.startsAt.getTime()) {
+      throw new ConflictError(
+        `This Job has moved to ${formatWhen(job.startsAt)}. Please check the new time, then confirm again.`,
+      );
+    }
+    // theirs too, so they can't take two Jobs at once that overlap
+    await tx.select().from(staff).where(eq(staff.id, staffId)).for("update");
+    if (!(await freeFor([staffId], job, tx)).has(staffId)) {
+      throw new ConflictError(
+        "You're no longer free for this Job. Please release it, or call the Office.",
+      );
+    }
+    const [confirmed] = await tx
+      .update(assignments)
+      .set({ status: "confirmed", answeredAt: clock.now() })
+      .where(
+        and(
+          eq(assignments.id, assignmentId),
+          eq(assignments.status, "offered"),
+        ),
+      )
+      .returning();
+    if (!confirmed) throw gone();
+    return job.id;
+  });
+  return jobAssignedTo(staffId, jobId);
 };
 
 /**
@@ -450,27 +523,26 @@ export const releaseAssignment = async (
   staffId: string,
   assignmentId: string,
 ) => {
-  const { assignment, job, property } = await ownAssignment(
-    staffId,
-    assignmentId,
-  );
-  if (assignment.status === "confirmed" && releaseClosed(job)) {
-    throw new ConflictError(
-      `A Confirmed place can't be released within ${RELEASE_CUTOFF_HOURS} hours of the Job. Please call the Office.`,
-    );
-  }
-  const [released] = await db
-    .update(assignments)
-    .set({ status: "released", answeredAt: clock.now() })
-    .where(
-      and(
-        eq(assignments.id, assignmentId),
-        eq(assignments.status, assignment.status),
-      ),
-    )
-    .returning();
-  // taken off by the Office, or Released, meanwhile
-  if (!released) throw new NotFoundError("Assignment not found");
+  const { job, property } = await db.transaction(async (tx) => {
+    const found = await lockOwn(tx, staffId, assignmentId);
+    if (found.assignment.status === "confirmed" && releaseClosed(found.job)) {
+      throw new ConflictError(
+        `A Confirmed place can't be released within ${RELEASE_CUTOFF_HOURS} hours of the Job. Please call the Office.`,
+      );
+    }
+    const [released] = await tx
+      .update(assignments)
+      .set({ status: "released", answeredAt: clock.now() })
+      .where(
+        and(
+          eq(assignments.id, assignmentId),
+          eq(assignments.status, found.assignment.status),
+        ),
+      )
+      .returning();
+    if (!released) throw gone();
+    return found;
+  });
   await placeReopened(job.id);
 
   const [member] = await db.select().from(staff).where(eq(staff.id, staffId));
@@ -499,7 +571,7 @@ export const unassignedJobsWithin = async (hours: number) => {
   const soon = await scheduledJobs(
     and(
       gte(jobs.startsAt, startOfDay(dayOf(now))),
-      lte(jobs.startsAt, new Date(now.getTime() + hours * 3_600_000)),
+      lte(jobs.startsAt, new Date(now.getTime() + hours * HOUR_MS)),
     ),
   );
   const unassigned = soon.filter(
@@ -522,7 +594,7 @@ export const unassignedJobsWithin = async (hours: number) => {
     since: new Date(
       Math.max(
         bookedAt.get(job.id)!,
-        Date.parse(job.startsAt) - hours * 3_600_000,
+        Date.parse(job.startsAt) - hours * HOUR_MS,
       ),
     ).toISOString(),
   }));

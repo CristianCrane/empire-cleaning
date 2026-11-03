@@ -7,6 +7,7 @@ import type {
   NeedsAttentionItem,
   OfficePropertyView,
   OfficeQuote,
+  OfficeJob,
   OfficeServicePlan,
   QuoteDraftInput,
   Recurrence,
@@ -29,9 +30,11 @@ import {
 import {
   casey,
   completedFirstClean,
+  crewedServicePlan,
   setService,
   signInAsOffice,
 } from "../../../tests/fixtures.ts";
+import { servicePlans } from "./service-plans.schema.ts";
 import { generateServicePlanJobs } from "./service-plans.ts";
 import { findService, SEEDED } from "#features/services";
 
@@ -287,6 +290,34 @@ describe("accepting a Service Plan Quote", () => {
 });
 
 describe("a Service Plan's Jobs", () => {
+  test("are Offered to last time's crew only where they're free, and otherwise open to everyone free (#242)", async () => {
+    const { office, planId, cleanerId } = await crewedServicePlan();
+    const me = (await office.get("/api/me").expect(200)).body as {
+      id: string;
+    };
+    // Cory is on the 9 February clean, and on holiday on the 16th
+    const ninth = (await officePlan(office, planId)).jobs[3]!;
+    const offered = await offerAssignment(ninth.id, cleanerId, me.id);
+    await confirmAssignment(cleanerId, offered.assignments[0]!.id);
+    await office
+      .put(`/api/staff/${cleanerId}/exceptions/2026-02-16`)
+      .send({ hours: 0, note: "Holiday" })
+      .expect(200);
+
+    testClock().set(new Date("2026-01-19T16:00:00Z"));
+    await generateServicePlanJobs();
+    const sixteenth = (await officePlan(office, planId)).jobs.find(
+      (j) => j.startsAt === "2026-02-16T14:00:00.000Z",
+    )!;
+
+    testClock().set(new Date("2026-02-10T16:00:00Z"));
+    const job = (await office.get(`/api/jobs/${sixteenth.id}`).expect(200))
+      .body as OfficeJob;
+    expect(job.assignments).toEqual([]);
+    // Bea, the other Cleaner
+    expect(job.openTo).toMatchObject({ opened: true, cleaners: 1 });
+  });
+
   test("come within reach as the Clock advances, each date once", async () => {
     const { office, planId } = await startedPlan({ recurrence: "fortnightly" });
     expect(startsOf(await officePlan(office, planId))).toEqual([
@@ -390,6 +421,28 @@ describe("a Service Plan's Jobs", () => {
       .send({ date: "2026-02-02", time: "13:00" })
       .expect(409);
     expect(full.body.message).toMatch(/doesn't have room/);
+    // nor one ending after midnight (#242)
+    const late = await office
+      .post(`/api/service-plans/${planId}/visits/${visit!.id}/book`)
+      .send({ date: "2026-02-03", time: "23:00" })
+      .expect(409);
+    expect(late.body.message).toBe(
+      "Cleans end by midnight: choose an earlier start time",
+    );
+    // nor while the plan is On Hold (#242)
+    await db
+      .update(servicePlans)
+      .set({ status: "on_hold" })
+      .where(eq(servicePlans.id, planId));
+    const held = await office
+      .post(`/api/service-plans/${planId}/visits/${visit!.id}/book`)
+      .send({ date: "2026-02-03", time: "10:00" })
+      .expect(409);
+    expect(held.body.message).toMatch(/On Hold/);
+    await db
+      .update(servicePlans)
+      .set({ status: "active" })
+      .where(eq(servicePlans.id, planId));
     const booked = (
       await office
         .post(`/api/service-plans/${planId}/visits/${visit!.id}/book`)
