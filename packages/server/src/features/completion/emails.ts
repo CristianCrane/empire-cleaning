@@ -268,6 +268,34 @@ export const correctedEmail = ({
   ],
 });
 
+// a payment tried again went through: after a new card, or once the payment
+// provider could be reached (ADR-0022). Its price didn't change
+export const paymentWentThroughEmail = ({
+  name,
+  jobId,
+  clean,
+  owedCents,
+  settled,
+}: {
+  name: string;
+  jobId: string;
+  clean: Clean;
+  owedCents: number;
+  settled: Settled;
+}): Email => {
+  const what = settled.chargedCents > 0 ? "payment" : "refund";
+  return {
+    subject: `Your ${what} went through`,
+    blocks: [
+      greeting(firstNameOf(name)),
+      paragraph(`Your ${what} for your clean went through.`),
+      cleanDetails(clean),
+      ...moneyLines(settled, owedCents),
+      portalButton(jobId, "See your receipt"),
+    ],
+  };
+};
+
 // it was marked done by mistake, and is booked again
 export const completionUndoneEmail = ({
   name,

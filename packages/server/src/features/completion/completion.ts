@@ -61,6 +61,7 @@ import {
   completionUndoneEmail,
   correctedEmail,
   feeTakenEmail,
+  paymentWentThroughEmail,
   proposalEmail,
   receiptEmail,
   unpaidEmail,
@@ -922,12 +923,31 @@ export const clientRetryBalance = async (clientId: string, jobId: string) => {
   }
 };
 
-// Settles a Job again, and tells its Client what that moved: as after a new
-// Payment Method, or a payment nobody heard the end of (ADR-0022). One that
-// still fails stays Unpaid.
+// Settles a Job again, and tells its Client the payment went through: as
+// after a new Payment Method, or a payment nobody heard the end of
+// (ADR-0022). One that still fails stays Unpaid, and isn't told again.
 export const retryJob = async (jobId: string) => {
   const settled = await settleJob(jobId);
-  if (!settled.failure) await sendCorrection(jobId, settled);
+  if (
+    settled.failure ||
+    (settled.chargedCents === 0 && settled.refundedCents === 0)
+  ) {
+    return;
+  }
+  const { job, property, client } = await jobWithOwner(jobId);
+  const payment = await paymentOf(job);
+  await notify(`Payment notice for Job ${jobId}`, async () =>
+    email.send({
+      to: client.email,
+      ...paymentWentThroughEmail({
+        name: client.name,
+        jobId,
+        clean: await cleanOf(job, property),
+        owedCents: payment.owedCents,
+        settled,
+      }),
+    }),
+  );
 };
 
 // After a Client saves a new Payment Method, tries each of their Unpaid Jobs

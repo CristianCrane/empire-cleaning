@@ -17,6 +17,7 @@ import type {
 import { db } from "#db";
 import { chaseProposedAdjustments } from "#features/completion";
 import { settleOpenPayments } from "#features/payments";
+import { formatMoney } from "#services/email";
 import { properties } from "#features/properties";
 import { createStaff, setUsualWeek } from "#features/staff";
 import {
@@ -631,6 +632,13 @@ describe("an Unpaid Job", () => {
     expect(await needsAttention(office)).not.toContainEqual(
       expect.objectContaining({ kind: "job_unpaid" }),
     );
+    // its price didn't change, so nothing says it did
+    const told = testEmail().lastTo(casey.email);
+    expect(told.subject).toBe("Your payment went through");
+    expect(told.text).toContain(
+      `We've charged ${formatMoney(deep.totalCents - deep.depositCents)} to your`,
+    );
+    expect(told.text).not.toContain("corrected");
   });
 
   test("can be retried by the Client or the Office", async () => {
@@ -693,9 +701,8 @@ describe("an Unpaid Job", () => {
       owedCents: 0,
       unpaid: null,
     });
-    // as when a new card pays it
     expect(testEmail().lastTo(casey.email).subject).toBe(
-      "We've corrected the price of your clean",
+      "Your payment went through",
     );
   });
 
