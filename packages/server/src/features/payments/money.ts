@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, notExists, or, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, lte, notExists, or, sql } from "drizzle-orm";
 import { db, type Tx } from "../../db/index.ts";
 import { clock } from "../../services/clock/index.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
@@ -13,6 +13,7 @@ import {
 } from "../../services/payment-gateway/index.ts";
 import { bills } from "../bills/bills.schema.ts";
 import type { Client } from "../clients/clients.schema.ts";
+import { idempotencyKey } from "./keys.ts";
 import { payerFor } from "./payments.ts";
 import {
   chargeAttempts,
@@ -40,6 +41,9 @@ export type Taken = { ok: true; cents: number } | { ok: false; reason: string };
 
 // why nothing was taken when the provider didn't answer
 export const UNREACHABLE = "the payment provider couldn't be reached";
+// why nothing was taken when what the provider made of it isn't known yet:
+// a later try asks again
+export const WAITING_ON_PROVIDER = [UNREACHABLE, "processing"];
 const DAY_MS = 24 * 3_600_000;
 
 // ---- asking the provider once (#241) ----
@@ -68,9 +72,6 @@ type Outcome =
   | { status: "unknown"; reason: string }
   | { status: "needs_approval"; ref: string; secret: string }
   | { status: "failed"; reason: string };
-
-const keyOf = (attempt: ChargeAttempt) =>
-  `${attempt.kind}:${attempt.forId}:${attempt.id}`;
 
 // written outside the caller's transaction, so it stands whatever that does
 const update = async (
@@ -128,13 +129,16 @@ const keep = async (
 // asks the provider with the attempt's key; no reply leaves it pending
 const ask = async (attempt: ChargeAttempt): Promise<Outcome> => {
   const asked = attempt.request as Asked;
-  const idempotencyKey = keyOf(attempt);
+  const key = idempotencyKey.charge(attempt);
   try {
     return await keep(
       attempt,
       asked.call === "charge"
-        ? await paymentGateway.charge({ ...asked.input, idempotencyKey })
-        : await paymentGateway.takeDeposit({ ...asked.input, idempotencyKey }),
+        ? await paymentGateway.charge({ ...asked.input, idempotencyKey: key })
+        : await paymentGateway.takeDeposit({
+            ...asked.input,
+            idempotencyKey: key,
+          }),
     );
   } catch (error) {
     monitoring.signal("payment_gateway_error", {
@@ -155,7 +159,7 @@ const outcomeOf = async (attempt: ChargeAttempt): Promise<Outcome> => {
   const found = await paymentGateway
     .chargeOutcome({
       payerId: (attempt.request as Asked).input.payerId,
-      idempotencyKey: keyOf(attempt),
+      idempotencyKey: idempotencyKey.charge(attempt),
       chargeId: attempt.gatewayRef,
       since: attempt.askedAt,
     })
@@ -167,30 +171,29 @@ const outcomeOf = async (attempt: ChargeAttempt): Promise<Outcome> => {
     : keep(attempt, found);
 };
 
-// the attempts for a Job, Bill or Quote we never heard the end of, or that
-// took money no Charge records yet, of any kind: a Job asked for as a fee
-// may be charged a Balance now
+// an attempt we never heard the end of, or that took money no Charge
+// records yet
+const isOpen = () =>
+  or(
+    inArray(chargeAttempts.status, ["pending", "processing"]),
+    and(
+      eq(chargeAttempts.status, "taken"),
+      notExists(
+        db
+          .select({ one: sql`1` })
+          .from(charges)
+          .where(eq(charges.gatewayRef, chargeAttempts.gatewayRef)),
+      ),
+    ),
+  );
+
+// the open attempts for a Job, Bill or Quote, of any kind: a Job asked for
+// as a fee may be charged a Balance now
 const openAttempts = (tx: Tx, forId: string) =>
   tx
     .select()
     .from(chargeAttempts)
-    .where(
-      and(
-        eq(chargeAttempts.forId, forId),
-        or(
-          inArray(chargeAttempts.status, ["pending", "processing"]),
-          and(
-            eq(chargeAttempts.status, "taken"),
-            notExists(
-              tx
-                .select({ one: sql`1` })
-                .from(charges)
-                .where(eq(charges.gatewayRef, chargeAttempts.gatewayRef)),
-            ),
-          ),
-        ),
-      ),
-    )
+    .where(and(eq(chargeAttempts.forId, forId), isOpen()))
     .orderBy(chargeAttempts.askedAt);
 
 // a new attempt, committed, then asked
@@ -210,6 +213,51 @@ const attempt = async (
     })
     .returning();
   return ask(made!);
+};
+
+const forIdOf = (chargeFor: ChargeFor) =>
+  "jobId" in chargeFor ? chargeFor.jobId : chargeFor.billId;
+
+// the Charge an attempt took, recorded
+const record = async (
+  tx: Tx,
+  chargeFor: ChargeFor,
+  taken: ChargeAttempt,
+  item: string | null,
+) => {
+  const [charge] = await tx
+    .insert(charges)
+    .values({
+      ...("jobId" in chargeFor
+        ? { jobId: chargeFor.jobId, kind: taken.kind as "balance" | "fee" }
+        : { billId: chargeFor.billId, kind: "bill" as const }),
+      item,
+      amountCents: taken.amountCents,
+      gatewayRef: taken.gatewayRef!,
+      chargedAt: taken.askedAt,
+    })
+    .returning();
+  return charge!;
+};
+
+/**
+ * Records what earlier attempts for a Job or Bill took that no Charge
+ * records yet, asking the provider how each ended: the Charges, or why
+ * that isn't known yet.
+ */
+export const recordTakenEarlier = async (
+  tx: Tx,
+  chargeFor: ChargeFor,
+): Promise<Charge[] | { unknown: string }> => {
+  const recorded: Charge[] = [];
+  for (const earlier of await openAttempts(tx, forIdOf(chargeFor))) {
+    const outcome = await outcomeOf(earlier);
+    if (outcome.status === "unknown") return { unknown: outcome.reason };
+    if (outcome.status === "taken") {
+      recorded.push(await record(tx, chargeFor, outcome.attempt, null));
+    }
+  }
+  return recorded;
 };
 
 /**
@@ -241,29 +289,10 @@ export const chargeSaved = async (
   },
 ): Promise<Taken> => {
   if (!method) return { ok: false, reason: "no Payment Method is saved" };
-  const forId = "jobId" in chargeFor ? chargeFor.jobId : chargeFor.billId;
-  const record = (taken: ChargeAttempt, thisItem: string | null) =>
-    tx.insert(charges).values({
-      ...("jobId" in chargeFor
-        ? { jobId: chargeFor.jobId, kind: taken.kind as "balance" | "fee" }
-        : { billId: chargeFor.billId, kind: "bill" as const }),
-      item: thisItem,
-      amountCents: taken.amountCents,
-      gatewayRef: taken.gatewayRef!,
-      chargedAt: taken.askedAt,
-    });
-
-  let cents = 0;
-  for (const earlier of await openAttempts(tx, forId)) {
-    const outcome = await outcomeOf(earlier);
-    // it may yet take the money, so nothing more is asked for meanwhile
-    if (outcome.status === "unknown")
-      return { ok: false, reason: outcome.reason };
-    if (outcome.status === "taken") {
-      await record(outcome.attempt, null);
-      cents += outcome.attempt.amountCents;
-    }
-  }
+  const earlier = await recordTakenEarlier(tx, chargeFor);
+  // it may yet take the money, so nothing more is asked for meanwhile
+  if ("unknown" in earlier) return { ok: false, reason: earlier.unknown };
+  let cents = earlier.reduce((sum, c) => sum + c.amountCents, 0);
   if (cents >= amount) return { ok: true, cents };
 
   const payerId = await payerFor(client).catch((error: unknown) => {
@@ -274,7 +303,7 @@ export const chargeSaved = async (
     return null;
   });
   if (!payerId) return { ok: false, reason: UNREACHABLE };
-  const outcome = await attempt(chargeFor.kind, forId, {
+  const outcome = await attempt(chargeFor.kind, forIdOf(chargeFor), {
     call: "charge",
     input: {
       payerId,
@@ -294,7 +323,7 @@ export const chargeSaved = async (
               : outcome.reason,
         };
   }
-  await record(outcome.attempt, item);
+  await record(tx, chargeFor, outcome.attempt, item);
   return { ok: true, cents: cents + outcome.attempt.amountCents };
 };
 
@@ -359,7 +388,11 @@ export const giveBackDeposit = async (
   quoteId: string,
 ) => {
   const refunded = await paymentGateway
-    .refund({ chargeId, amount, idempotencyKey: `refund:${chargeId}` })
+    .refund({
+      chargeId,
+      amount,
+      idempotencyKey: idempotencyKey.givingBack(chargeId),
+    })
     .catch((e: unknown) => ({ ok: false, reason: String(e) }) as const);
   if (!refunded.ok) {
     // taken but not booked: refund it by hand
@@ -377,6 +410,23 @@ export const giveBackDeposit = async (
     .where(eq(chargeAttempts.gatewayRef, chargeId));
 };
 
+/**
+ * Gives back what earlier tries to accept a Quote took as its Deposit, when
+ * no booking recorded it: their reply was lost, and the Client didn't try
+ * again. Hold the Quote, so no try to accept it is taking one meanwhile.
+ */
+export const giveBackUnbookedDeposits = async (tx: Tx, quoteId: string) => {
+  for (const earlier of await openAttempts(tx, quoteId)) {
+    const outcome = await outcomeOf(earlier);
+    if (outcome.status !== "taken") continue;
+    await giveBackDeposit(
+      outcome.attempt.gatewayRef!,
+      outcome.attempt.amountCents,
+      quoteId,
+    );
+  }
+};
+
 // ---- giving back once (#241) ----
 //
 // As with Charges: each refund is an attempt, committed before the provider
@@ -384,9 +434,6 @@ export const giveBackDeposit = async (
 // reply was lost or whose transaction rolled back, is recorded by the next
 // try for the same thing rather than given again: asked again with its key
 // within a day, or else looked up by it.
-
-const refundKeyOf = (attempt: RefundAttempt) =>
-  `refund:${attempt.forId}:${attempt.id}`;
 
 // what the provider said of a refund attempt, kept outside the caller's
 // transaction
@@ -417,7 +464,7 @@ const askRefund = async (
       await paymentGateway.refund({
         chargeId: gatewayChargeId,
         amount: attempt.amountCents,
-        idempotencyKey: refundKeyOf(attempt),
+        idempotencyKey: idempotencyKey.refund(attempt),
       }),
     );
   } catch (error) {
@@ -444,37 +491,36 @@ const refundOutcomeOf = async (
   const found = await paymentGateway
     .refundOutcome({
       chargeId: gatewayChargeId,
-      idempotencyKey: refundKeyOf(attempt),
+      idempotencyKey: idempotencyKey.refund(attempt),
     })
     .catch(() => undefined);
   if (found === undefined) return null;
   return keepRefund(attempt, found ?? { ok: false, reason: "never_made" });
 };
 
-// the refund attempts for something we never heard the end of, or that
-// gave back money no Refund records yet, with the Charge each is from
+// a refund attempt we never heard the end of, or that gave back money no
+// Refund records yet
+const isOpenRefund = () =>
+  or(
+    eq(refundAttempts.status, "pending"),
+    and(
+      eq(refundAttempts.status, "made"),
+      notExists(
+        db
+          .select({ one: sql`1` })
+          .from(refunds)
+          .where(eq(refunds.gatewayRef, refundAttempts.gatewayRef)),
+      ),
+    ),
+  );
+
+// the open refund attempts for something, with the Charge each is from
 const openRefundAttempts = (tx: Tx | typeof db, forId: string) =>
   tx
     .select({ attempt: refundAttempts, charge: charges })
     .from(refundAttempts)
     .innerJoin(charges, eq(charges.id, refundAttempts.chargeId))
-    .where(
-      and(
-        eq(refundAttempts.forId, forId),
-        or(
-          eq(refundAttempts.status, "pending"),
-          and(
-            eq(refundAttempts.status, "made"),
-            notExists(
-              tx
-                .select({ one: sql`1` })
-                .from(refunds)
-                .where(eq(refunds.gatewayRef, refundAttempts.gatewayRef)),
-            ),
-          ),
-        ),
-      ),
-    )
+    .where(and(eq(refundAttempts.forId, forId), isOpenRefund()))
     .orderBy(refundAttempts.askedAt);
 
 // what a refund gives back for, and how its Refund is recorded
@@ -669,4 +715,44 @@ export const recordRefundFailed = async (gatewayRefundId: string) => {
     atProvider: failed.atProvider,
     reason: "failed at the provider after it was made",
   });
+};
+
+/**
+ * What waits on payments asked for before `before` that are still open:
+ * the Jobs, Bills and Quotes Charge attempts were for, and the Jobs and
+ * Charges refund attempts were for. A credit's refunds are left to the run
+ * that refunds lapsed credits, which tries them again anyway.
+ */
+export const openBefore = async (before: Date) => {
+  const charging = await db
+    .selectDistinct({ kind: chargeAttempts.kind, forId: chargeAttempts.forId })
+    .from(chargeAttempts)
+    .where(and(lte(chargeAttempts.askedAt, before), isOpen()));
+  const refunding = await db
+    .selectDistinct({
+      forId: refundAttempts.forId,
+      chargeId: refundAttempts.chargeId,
+    })
+    .from(refundAttempts)
+    .where(
+      and(
+        lte(refundAttempts.askedAt, before),
+        isNull(refundAttempts.creditBillId),
+        isOpenRefund(),
+      ),
+    );
+  const of = (kinds: ChargeAttempt["kind"][]) =>
+    charging.filter((a) => kinds.includes(a.kind)).map((a) => a.forId);
+  return {
+    jobs: [
+      ...of(["balance", "fee"]),
+      // a Job's refunds are for it; all of a Charge's are for the Charge
+      ...refunding.filter((r) => r.forId !== r.chargeId).map((r) => r.forId),
+    ],
+    bills: of(["bill"]),
+    quotes: of(["deposit"]),
+    charges: refunding
+      .filter((r) => r.forId === r.chargeId)
+      .map((r) => r.chargeId),
+  };
 };

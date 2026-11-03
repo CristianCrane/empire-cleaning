@@ -14,7 +14,7 @@ import type {
 } from "@empire-cleaning/models";
 import { db } from "#db";
 import { sendDueReminders } from "#features/jobs";
-import { charges } from "#features/payments";
+import { charges, settleOpenPayments } from "#features/payments";
 import { FAKE_SIGNATURE } from "../../../tests/fakes/payment-gateway.ts";
 import { createStaff, setUsualWeek } from "#features/staff";
 import {
@@ -951,6 +951,38 @@ describe("trying again after the Deposit's reply was lost", () => {
     expect(
       (await client.get("/api/payment-methods/mine").expect(200)).body,
     ).toMatchObject({ label: "Test card ending 4242" });
+  });
+
+  test("with nobody trying again, a quarter of an hour on, open payments give it back", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    await addCard(client);
+    testPayments().loseNextReply();
+    await accept(client, quote).expect(409);
+
+    await settleOpenPayments();
+    expect(testPayments().refunds).toEqual([]);
+    testClock().advance({ minutes: 15 });
+    await settleOpenPayments();
+    await settleOpenPayments();
+
+    const [lost] = depositsAtProvider();
+    expect(testPayments().refunds).toEqual([
+      expect.objectContaining({
+        chargeId: lost!.chargeId,
+        amount: lost!.amount,
+      }),
+    ]);
+    // accepting later takes a Deposit afresh
+    await accept(client, quote).expect(200);
+    expect(depositsAtProvider()).toHaveLength(2);
+    expect(await depositCharges()).toEqual([
+      expect.objectContaining({
+        gatewayRef: depositsAtProvider()[1]!.chargeId,
+      }),
+    ]);
   });
 
   test("a day later, once the provider has forgotten the key, a Deposit taken from a card entered then is given back", async () => {

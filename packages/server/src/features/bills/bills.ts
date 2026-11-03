@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import {
   and,
   asc,
@@ -56,7 +55,12 @@ import { adjustments } from "../completion/completion.schema.ts";
 import { adjustmentLabel } from "../completion/completion.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { REMINDER_TIME } from "../jobs/reminders.ts";
-import { chargeSaved, refundFrom } from "../payments/money.ts";
+import { idempotencyKey } from "../payments/keys.ts";
+import {
+  chargeSaved,
+  recordTakenEarlier,
+  refundFrom,
+} from "../payments/money.ts";
 import { payerFor } from "../payments/payments.ts";
 import {
   charges,
@@ -579,8 +583,35 @@ export const makeDueBills = async () => {
   await refundLapsedCredits();
 };
 
+/**
+ * Charges a due Bill again, as after a new Payment Method, or a payment
+ * nobody heard the end of (ADR-0022); one that still fails stays Unpaid. A
+ * Bill paid another way meanwhile, or voided, owes nothing: what an earlier
+ * try took for it is recorded, and given back.
+ */
+export const retryBill = async (billId: string) => {
+  const charged = await chargeBill(billId);
+  if (charged) {
+    if (!charged.failure) await tellPaid(billId, charged.plan);
+    return;
+  }
+  const extra = await db.transaction(async (tx) => {
+    const [bill] = await tx
+      .select()
+      .from(bills)
+      .where(eq(bills.id, billId))
+      .for("update");
+    if (!bill || (bill.status === "due" && bill.totalCents > 0)) return [];
+    const taken = await recordTakenEarlier(tx, { billId, kind: "bill" });
+    return "unknown" in taken ? [] : taken;
+  });
+  for (const charge of extra) {
+    await refundFrom(db, [charge], charge.amountCents, { for: charge.id });
+  }
+};
+
 // After a Client saves a new Payment Method, tries their Unpaid Bills again
-// with it, as their Jobs are; one that still fails stays Unpaid
+// with it, as their Jobs are
 export const retryUnpaidBillsFor = async (clientId: string) => {
   const unpaid = await db
     .select({ id: bills.id })
@@ -593,10 +624,7 @@ export const retryUnpaidBillsFor = async (clientId: string) => {
         isNotNull(bills.unpaidSince),
       ),
     );
-  for (const { id } of unpaid) {
-    const charged = await chargeBill(id);
-    if (charged && !charged.failure) await tellPaid(id, charged.plan);
-  }
+  for (const { id } of unpaid) await retryBill(id);
 };
 
 // ---- on its page ----
@@ -631,7 +659,7 @@ export const startBillPayment = async (
     amount: bill.totalCents,
     description: `Empire Cleaning bill ${billNumber(bill.number)}`,
     reference: bill.id,
-    idempotencyKey: `bill-payment:${bill.id}:${randomUUID()}`,
+    idempotencyKey: idempotencyKey.billPayment(bill.id),
   });
   return { ...paymentGateway.paymentForm(), secret, ref };
 };

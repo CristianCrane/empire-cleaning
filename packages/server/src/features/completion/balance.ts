@@ -325,7 +325,7 @@ export const settleJob = async (
 
 // why a Job is Unpaid when settling it failed for want of anything the
 // Client could fix
-const NOT_SETTLED = "its payment couldn't be worked out";
+export const NOT_SETTLED = "its payment couldn't be worked out";
 
 /**
  * Settles a Job's money once a change to it is saved, as settleJob does,

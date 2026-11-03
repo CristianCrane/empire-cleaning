@@ -16,6 +16,7 @@ import type {
 } from "@empire-cleaning/models";
 import { db } from "#db";
 import { chaseProposedAdjustments } from "#features/completion";
+import { settleOpenPayments } from "#features/payments";
 import { properties } from "#features/properties";
 import { createStaff, setUsualWeek } from "#features/staff";
 import {
@@ -667,6 +668,64 @@ describe("an Unpaid Job", () => {
       owedCents: 0,
       unpaid: null,
     });
+  });
+
+  // #241: nobody has to try again
+  test("is one whose Balance reply was lost: a quarter of an hour on, open payments settle it once, and the Client is told", async () => {
+    const { office, cory, jobId, quote } = await bookedJob();
+    const deep = deepOf(quote);
+    testPayments().loseNextReply();
+    await complete(cory.agent, jobId).expect(200);
+
+    await settleOpenPayments();
+    expect(
+      (await officeJob(office, jobId)).completion!.payment.unpaid,
+    ).not.toBeNull();
+
+    testClock().advance({ minutes: 15 });
+    await settleOpenPayments();
+    await settleOpenPayments();
+    expect(amounts()).toEqual([
+      deep.depositCents,
+      deep.totalCents - deep.depositCents,
+    ]);
+    expect((await officeJob(office, jobId)).completion!.payment).toMatchObject({
+      owedCents: 0,
+      unpaid: null,
+    });
+    // as when a new card pays it
+    expect(testEmail().lastTo(casey.email).subject).toBe(
+      "We've corrected the price of your clean",
+    );
+  });
+
+  test("is one Unpaid while the provider was down: open payments charge it once it's back", async () => {
+    const { office, cory, jobId } = await bookedJob();
+    testPayments().goDown();
+    await complete(cory.agent, jobId).expect(200);
+    testPayments().goDown(false);
+
+    testClock().advance({ minutes: 15 });
+    await settleOpenPayments();
+    expect((await officeJob(office, jobId)).completion!.payment).toMatchObject({
+      owedCents: 0,
+      unpaid: null,
+    });
+    expect(amounts()).toHaveLength(2);
+  });
+
+  test("is one declined: open payments leave it for a new card", async () => {
+    const { office, cory, jobId } = await bookedJob();
+    testPayments().failCharges();
+    await complete(cory.agent, jobId).expect(200);
+    testPayments().failCharges(null);
+
+    testClock().advance({ minutes: 15 });
+    await settleOpenPayments();
+    expect(
+      (await officeJob(office, jobId)).completion!.payment.unpaid,
+    ).toMatchObject({ reason: "card_declined" });
+    expect(amounts()).toHaveLength(1);
   });
 
   // #241, finding 5

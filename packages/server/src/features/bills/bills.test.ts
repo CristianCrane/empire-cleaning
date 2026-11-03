@@ -30,6 +30,7 @@ import {
 import { jobs } from "#features/jobs";
 import { currentPriceList } from "#features/price-list";
 import { servicePlans } from "#features/service-plans";
+import { settleOpenPayments } from "#features/payments";
 import { formatMoney } from "#services/email";
 import { createStaff, setUsualWeek } from "#features/staff";
 import {
@@ -682,6 +683,61 @@ describe("Unpaid Bills", () => {
     expect(testEmail().lastTo(BILLING_EMAIL).text).toContain(
       "Your Service Plan is back on",
     );
+  });
+
+  // #241: nobody has to try again
+  test("one Unpaid while the provider was down is charged once it's back", async () => {
+    const { office, clientId } = await billedJob();
+    testPayments().goDown();
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    testPayments().goDown(false);
+    const [summary] = await billsOf(office, clientId);
+    expect(summary).toMatchObject({
+      unpaid: { reason: "the payment provider couldn't be reached" },
+    });
+
+    testClock().advance({ minutes: 15 });
+    await settleOpenPayments();
+    expect(await billOf(office, summary!.id)).toMatchObject({
+      status: "paid",
+      paidVia: "charge",
+      unpaid: null,
+    });
+    expect(testEmail().lastTo(BILLING_EMAIL).subject).toBe(
+      "Your receipt for bill EC-000001",
+    );
+  });
+
+  test("one whose Charge reply was lost, then paid on its page, gives back what the lost Charge took", async () => {
+    const { office, clientId } = await billedJob();
+    testPayments().loseNextReply();
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    const lost = testPayments().charges.at(-1)!;
+    const [summary] = await billsOf(office, clientId);
+    const client = await signIn(casey.email);
+    const form = (
+      await client
+        .post(`/api/bills/mine/${summary!.id}/payment-form`)
+        .expect(200)
+    ).body as BillPaymentForm;
+    testPayments().payBill(form.ref, "card");
+    await client
+      .post(`/api/bills/mine/${summary!.id}/payment`)
+      .send({ ref: form.ref })
+      .expect(200);
+
+    testClock().advance({ minutes: 15 });
+    await settleOpenPayments();
+    await settleOpenPayments();
+    expect(testPayments().refunds).toEqual([
+      expect.objectContaining({ chargeId: lost.chargeId, amount: lost.amount }),
+    ]);
+    expect(await billOf(office, summary!.id)).toMatchObject({
+      status: "paid",
+      paidVia: "page",
+    });
   });
 
   test("Office Staff can record a payment made another way, which settles it", async () => {

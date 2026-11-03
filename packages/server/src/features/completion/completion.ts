@@ -922,8 +922,16 @@ export const clientRetryBalance = async (clientId: string, jobId: string) => {
   }
 };
 
+// Settles a Job again, and tells its Client what that moved: as after a new
+// Payment Method, or a payment nobody heard the end of (ADR-0022). One that
+// still fails stays Unpaid.
+export const retryJob = async (jobId: string) => {
+  const settled = await settleJob(jobId);
+  if (!settled.failure) await sendCorrection(jobId, settled);
+};
+
 // After a Client saves a new Payment Method, tries each of their Unpaid Jobs
-// again with it. One that still fails stays Unpaid.
+// again with it
 export const retryUnpaidJobsFor = async (clientId: string) => {
   const unpaid = await db
     .select({ id: jobs.id })
@@ -932,8 +940,7 @@ export const retryUnpaidJobsFor = async (clientId: string) => {
     .where(and(eq(properties.clientId, clientId), isNotNull(jobs.unpaidSince)));
   for (const { id } of unpaid) {
     try {
-      const settled = await settleJob(id);
-      if (!settled.failure) await sendCorrection(id, settled);
+      await retryJob(id);
     } catch (error) {
       // the rest are still tried; this one stays Unpaid
       monitoring.error(error, { what: `Unpaid Job ${id} not retried` });

@@ -27,6 +27,7 @@ import {
   takeDepositOnce,
   UNREACHABLE,
 } from "../payments/money.ts";
+import { idempotencyKey } from "../payments/keys.ts";
 import { charges } from "../payments/payments.schema.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
@@ -502,7 +503,7 @@ export const acceptQuote = async (
             .takeDeposit({
               ...input,
               source,
-              idempotencyKey: `deposit:${id}:${token}`,
+              idempotencyKey: idempotencyKey.savingCard(id, token!),
             })
             // nothing is taken, so trying again is safe
             .catch((): DepositAttempt => ({
