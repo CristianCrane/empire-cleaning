@@ -11,11 +11,27 @@ export const TEST_DB_URL =
 
 const MIGRATIONS_FOLDER = new URL("../../drizzle", import.meta.url).pathname;
 
-// how many test files run at once, each worker on a database of its own;
+// a count of workers from the environment, or `fallback` when it isn't set
+const workerCount = (name: string, fallback: number) => {
+  const value = process.env[name];
+  if (value === undefined) return fallback;
+  const count = Number(value);
+  if (!Number.isInteger(count) || count < 1) {
+    throw new Error(
+      `${name} must be a whole number of 1 or more, not "${value}"`,
+    );
+  }
+  return count;
+};
+
+// how many test files run at once, each worker on a database of its own: half
+// the CPU cores, up to 6, as for the e2e tests (packages/web/e2e/slots.ts).
+// Each worker loads the whole server and keeps up to 10 connections, so many
+// more would crowd the CPU and the test Postgres's 100 connections.
 // SERVER_TEST_WORKERS overrides it
-export const TEST_WORKERS = Number(
-  process.env.SERVER_TEST_WORKERS ??
-    Math.max(1, Math.floor(availableParallelism() / 2)),
+export const TEST_WORKERS = workerCount(
+  "SERVER_TEST_WORKERS",
+  Math.max(1, Math.min(6, Math.floor(availableParallelism() / 2))),
 );
 
 const nameOf = (url: string) => new URL(url).pathname.slice(1);
@@ -64,16 +80,41 @@ export const recreateTestDatabase = async (url: string) => {
   }
 };
 
-// drops the database at `url` and creates it again as a copy of the one at
-// `template`, which is much quicker than migrating it again. Nothing may be
-// connected to `template` meanwhile.
-export const copyTestDatabase = async (template: string, url: string) => {
-  const name = nameOf(url);
-  assertTestDatabase(name);
-  await asAdmin(url, async (admin) => {
-    await admin.query(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`);
+// drops the databases at `urls` and creates them again as copies of the one at
+// `template`, which is much quicker than migrating them again
+export const copyTestDatabase = async (template: string, urls: string[]) => {
+  const names = urls.map(nameOf);
+  names.forEach(assertTestDatabase);
+  await asAdmin(template, async (admin) => {
+    // a copy fails while anything is connected to its template, and Postgres
+    // may still be closing the connection that just migrated it
     await admin.query(
-      `CREATE DATABASE "${name}" TEMPLATE "${nameOf(template)}"`,
+      "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()",
+      [nameOf(template)],
     );
+    for (const name of names) {
+      await admin.query(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`);
+      await admin.query(
+        `CREATE DATABASE "${name}" TEMPLATE "${nameOf(template)}"`,
+      );
+    }
+  });
+};
+
+// drops the copies of the database at `url` (see withSuffix) numbered `from`
+// and up: ones an earlier run with more workers left behind. The test Postgres
+// keeps its databases in memory.
+export const dropTestDatabaseCopies = async (url: string, from: number) => {
+  const name = nameOf(url);
+  await asAdmin(url, async (admin) => {
+    const { rows } = await admin.query<{ datname: string }>(
+      "SELECT datname FROM pg_database WHERE datname ~ $1",
+      [`^${name}_[0-9]+$`],
+    );
+    for (const { datname } of rows) {
+      if (Number(datname.slice(name.length + 1)) < from) continue;
+      assertTestDatabase(datname);
+      await admin.query(`DROP DATABASE IF EXISTS "${datname}" WITH (FORCE)`);
+    }
   });
 };

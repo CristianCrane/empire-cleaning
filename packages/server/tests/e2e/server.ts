@@ -8,13 +8,25 @@ import express from "express";
 import { desc, eq } from "drizzle-orm";
 import type { StaffRole } from "@empire-cleaning/models";
 import type { Approval } from "../fakes/payment-gateway.ts";
-import { recreateTestDatabase, TEST_DB_URL } from "../setup/testDatabase.ts";
+import {
+  dropTestDatabaseCopies,
+  recreateTestDatabase,
+  TEST_DB_URL,
+} from "../setup/testDatabase.ts";
 // keys only: it reads nothing on import
 import { SEEDED } from "../../src/features/services/seeded.ts";
 
 const CONTROL_PORT = Number(process.env.E2E_CONTROL_PORT ?? 3101);
 
 await recreateTestDatabase(TEST_DB_URL);
+// the first slot also drops the databases of slots an earlier run with more
+// workers left behind
+if (process.env.E2E_SLOT === "0" && process.env.E2E_DB_URL) {
+  await dropTestDatabaseCopies(
+    process.env.E2E_DB_URL,
+    Number(process.env.E2E_WORKERS),
+  );
+}
 
 // imported only now: the app reads its environment and database on import
 const { app } = await import("../../src/server.ts");

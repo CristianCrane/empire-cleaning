@@ -9,6 +9,9 @@ export default defineConfig({
     globals: true,
     globalSetup: ["./tests/setup/globalSetup.ts"],
     setupFiles: ["./tests/setup/workerDatabase.ts", "./tests/setup/perTest.ts"],
+    // in that order, not all at once (Vitest's default): workerDatabase.ts
+    // points the app at the worker's database before perTest.ts imports it
+    sequence: { setupFiles: "list" },
     env: {
       APP_MODE: "dev",
       CORS_ORIGIN_URL: "http://localhost:5173",
