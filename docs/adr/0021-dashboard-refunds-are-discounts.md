@@ -7,7 +7,7 @@ We chose this over treating it as a payment undone, which every ledger would the
 ## Consequences
 
 - Our own refunds carry a mark at the provider (`made_by: app`), so one is never mistaken for a dashboard refund, even when the webhook arrives before we've recorded it. Each refund is recorded once (unique by its provider id).
-- A refund that's still on its way (pending) is recorded as given; if it later fails at the provider, the app doesn't hear of it.
+- A refund that's still on its way (pending) is recorded as given. If it later fails at the provider, the discount is undone (ADR-0023).
 - A dashboard refund of a payment we have no Charge for is only the counted `refunded_at_provider` signal (ADR-0007).
 - The Client's Payments page and the Job's history show it as a refund, as any other.
 - If the Office one day needs to undo a payment rather than give a discount, that's a new case to add, not this one.

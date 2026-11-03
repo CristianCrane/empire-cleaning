@@ -296,6 +296,10 @@ export const pendingDeposits = pgTable(
     // the Service chosen, by key; a Service Plan Quote's first weekday's
     serviceKey: uuid("service_key").notNull(),
     depositCents: integer("deposit_cents").notNull(),
+    // the plan a Service Plan Quote changes, which takes no Deposit: only a
+    // card entered to accept it waits, to be saved. No reference, as plans
+    // refer to Quotes
+    changingPlanId: uuid("changing_plan_id"),
     acceptedBy: uuid("accepted_by").references(() => accounts.id, {
       onDelete: "set null",
     }),

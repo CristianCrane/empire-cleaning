@@ -4,7 +4,7 @@ import { db, type Tx } from "../../db/index.ts";
 import { ConflictError } from "../../middleware/errors.ts";
 import { clock, dayOf } from "../../services/clock/index.ts";
 import { tellCrew } from "../cancellation/cancellation.ts";
-import { settleJob } from "../completion/balance.ts";
+import { settleAfterChange } from "../completion/balance.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { charges } from "../payments/payments.schema.ts";
 import {
@@ -141,7 +141,7 @@ export const changeServicePlanTerms = async (
 // crew hear it's off
 export const afterTermsChanged = async (replaced: Job[]) => {
   for (const job of replaced) {
-    if (job.rescheduleFeeCents > 0) await settleJob(job.id);
+    if (job.rescheduleFeeCents > 0) await settleAfterChange(job.id);
   }
   for (const job of replaced) await tellCrew(job);
 };

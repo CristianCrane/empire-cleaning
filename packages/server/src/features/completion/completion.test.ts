@@ -16,6 +16,8 @@ import type {
 } from "@empire-cleaning/models";
 import { db } from "#db";
 import { chaseProposedAdjustments } from "#features/completion";
+import { settleOpenPayments } from "#features/payments";
+import { formatMoney } from "#services/email";
 import { properties } from "#features/properties";
 import { createStaff, setUsualWeek } from "#features/staff";
 import {
@@ -23,6 +25,7 @@ import {
   signIn,
   testClock,
   testEmail,
+  refusingInserts,
   testPayments,
 } from "../../../tests/harness.ts";
 import {
@@ -629,6 +632,13 @@ describe("an Unpaid Job", () => {
     expect(await needsAttention(office)).not.toContainEqual(
       expect.objectContaining({ kind: "job_unpaid" }),
     );
+    // its price didn't change, so nothing says it did
+    const told = testEmail().lastTo(casey.email);
+    expect(told.subject).toBe("Your payment went through");
+    expect(told.text).toContain(
+      `We've charged ${formatMoney(deep.totalCents - deep.depositCents)} to your`,
+    );
+    expect(told.text).not.toContain("corrected");
   });
 
   test("can be retried by the Client or the Office", async () => {
@@ -644,6 +654,109 @@ describe("an Unpaid Job", () => {
     // nothing left to retry
     await office.post(`/api/jobs/${jobId}/balance/retry`).expect(200);
     expect(amounts()).toHaveLength(2);
+  });
+
+  // #241, finding 1
+  test("is one whose Balance the provider took but whose reply was lost, and retrying it takes nothing more", async () => {
+    const { office, cory, client, jobId, quote } = await bookedJob();
+    const deep = deepOf(quote);
+    testPayments().loseNextReply();
+
+    await complete(cory.agent, jobId).expect(200);
+    expect(
+      (await officeJob(office, jobId)).completion!.payment.unpaid,
+    ).toMatchObject({ reason: "the payment provider couldn't be reached" });
+
+    await client.post(`/api/jobs/mine/${jobId}/balance/retry`).expect(200);
+    expect(amounts()).toEqual([
+      deep.depositCents,
+      deep.totalCents - deep.depositCents,
+    ]);
+    expect((await officeJob(office, jobId)).completion!.payment).toMatchObject({
+      owedCents: 0,
+      unpaid: null,
+    });
+  });
+
+  // #241: nobody has to try again
+  test("is one whose Balance reply was lost: a quarter of an hour on, open payments settle it once, and the Client is told", async () => {
+    const { office, cory, jobId, quote } = await bookedJob();
+    const deep = deepOf(quote);
+    testPayments().loseNextReply();
+    await complete(cory.agent, jobId).expect(200);
+
+    await settleOpenPayments();
+    expect(
+      (await officeJob(office, jobId)).completion!.payment.unpaid,
+    ).not.toBeNull();
+
+    testClock().advance({ minutes: 15 });
+    await settleOpenPayments();
+    await settleOpenPayments();
+    expect(amounts()).toEqual([
+      deep.depositCents,
+      deep.totalCents - deep.depositCents,
+    ]);
+    expect((await officeJob(office, jobId)).completion!.payment).toMatchObject({
+      owedCents: 0,
+      unpaid: null,
+    });
+    expect(testEmail().lastTo(casey.email).subject).toBe(
+      "Your payment went through",
+    );
+  });
+
+  test("is one Unpaid while the provider was down: open payments charge it once it's back", async () => {
+    const { office, cory, jobId } = await bookedJob();
+    testPayments().goDown();
+    await complete(cory.agent, jobId).expect(200);
+    testPayments().goDown(false);
+
+    testClock().advance({ minutes: 15 });
+    await settleOpenPayments();
+    expect((await officeJob(office, jobId)).completion!.payment).toMatchObject({
+      owedCents: 0,
+      unpaid: null,
+    });
+    expect(amounts()).toHaveLength(2);
+  });
+
+  test("is one declined: open payments leave it for a new card", async () => {
+    const { office, cory, jobId } = await bookedJob();
+    testPayments().failCharges();
+    await complete(cory.agent, jobId).expect(200);
+    testPayments().failCharges(null);
+
+    testClock().advance({ minutes: 15 });
+    await settleOpenPayments();
+    expect(
+      (await officeJob(office, jobId)).completion!.payment.unpaid,
+    ).toMatchObject({ reason: "card_declined" });
+    expect(amounts()).toHaveLength(1);
+  });
+
+  // #241, finding 5
+  test("is one whose settling failed: it's Completed all the same, and retrying takes the Balance once", async () => {
+    const { office, cory, jobId, quote } = await bookedJob();
+    const deep = deepOf(quote);
+
+    await refusingInserts("charges", () =>
+      complete(cory.agent, jobId).expect(200),
+    );
+    const job = await officeJob(office, jobId);
+    expect(job.status).toBe("completed");
+    expect(job.completion!.payment.unpaid).not.toBeNull();
+    expect(testEmail().lastTo(casey.email).subject).toMatch(/receipt/i);
+
+    await office.post(`/api/jobs/${jobId}/balance/retry`).expect(200);
+    expect(amounts()).toEqual([
+      deep.depositCents,
+      deep.totalCents - deep.depositCents,
+    ]);
+    expect((await officeJob(office, jobId)).completion!.payment).toMatchObject({
+      owedCents: 0,
+      unpaid: null,
+    });
   });
 
   test("includes one whose approved increase couldn't be charged", async () => {

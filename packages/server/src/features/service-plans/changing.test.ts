@@ -9,6 +9,8 @@ import type {
   SignedInAccount,
 } from "@empire-cleaning/models";
 import { db } from "#db";
+import { findClientByEmail } from "#features/clients";
+import { paymentMethods } from "#features/payments";
 import { offerAssignment } from "#features/assignments";
 import { offerServicePlan, saveDraft, sendQuote } from "#features/quotes";
 import { dayOf, timeOf } from "#services/clock";
@@ -16,6 +18,7 @@ import {
   signIn,
   testClock,
   testEmail,
+  refusingInserts,
   testPayments,
 } from "../../../tests/harness.ts";
 import { crewedServicePlan } from "../../../tests/fixtures.ts";
@@ -281,6 +284,142 @@ describe("accepting a Service Plan Quote for a home with a plan", () => {
 
     expect(testPayments().charges).toHaveLength(charged);
     expect((await officePlan(office, planId)).quoteId).toBe(quote.id);
+  });
+});
+
+// #241, finding 5
+describe("a change to a plan whose replaced Job owes a fee", () => {
+  test("stands when the fee can't be recorded, leaving that Job Unpaid until a retry takes it once", async () => {
+    const { office, client, planId, jobId } = await crewedServicePlan();
+    const move = async (date: string, cost: string) => {
+      await client
+        .post(`/api/jobs/mine/${jobId}/reschedule-request`)
+        .send({ date, time: "09:00", cost })
+        .expect(201);
+      await office
+        .post(`/api/jobs/${jobId}/reschedule-request/confirm`)
+        .expect(200);
+    };
+    // two Late Reschedules: the second makes the Deposit amount due as a fee
+    testClock().set(new Date("2026-01-18T15:00:00Z"));
+    await move("2026-01-20", "free_late");
+    testClock().set(new Date("2026-01-19T15:00:00Z"));
+    await move("2026-01-22", "late_cancellation");
+    const quote = await sentChange(office, planId, {
+      startsAt: "2026-01-21T14:00:00.000Z",
+    });
+    const charged = testPayments().charges.length;
+
+    await refusingInserts("charges", () => accept(client, quote.id));
+
+    expect((await officePlan(office, planId)).quoteId).toBe(quote.id);
+    const replaced = (await office.get(`/api/jobs/${jobId}`).expect(200))
+      .body as {
+      status: string;
+      cancellation: { payment: { unpaid: unknown } };
+    };
+    expect(replaced.status).toBe("cancelled");
+    expect(replaced.cancellation.payment.unpaid).not.toBeNull();
+
+    await office.post(`/api/jobs/${jobId}/balance/retry`).expect(200);
+    expect(
+      testPayments()
+        .charges.slice(charged)
+        .map((c) => c.amount),
+    ).toEqual([PLAN_DEPOSIT]);
+  });
+});
+
+// #241, finding 11: a plan change takes no Deposit, but its Balances still
+// need a card
+describe("accepting a change to a plan without a saved card", () => {
+  const withoutCard = async () => {
+    const plan = await crewedServicePlan();
+    const casey = (await findClientByEmail("casey@example.com"))!;
+    await db
+      .delete(paymentMethods)
+      .where(eq(paymentMethods.clientId, casey.id));
+    const quote = await sentChange(plan.office, plan.planId, {
+      startsAt: WEDNESDAY_28TH,
+    });
+    return { ...plan, quote };
+  };
+  const savedCard = async (client: Agent) =>
+    (await client.get("/api/payment-methods/mine").expect(200)).body as {
+      label: string;
+    } | null;
+
+  test("saves the card the Client enters, taking nothing", async () => {
+    const { client, planId, office, quote } = await withoutCard();
+    const charged = testPayments().charges.length;
+
+    await client
+      .post(`/api/quotes/mine/${quote.id}/accept`)
+      .send({
+        serviceKey: SEEDED.standard,
+        paymentToken: testPayments().paymentToken("mastercard"),
+      })
+      .expect(200);
+
+    expect(await savedCard(client)).toMatchObject({
+      label: "Test card ending 4444",
+    });
+    expect(testPayments().charges).toHaveLength(charged);
+    expect((await officePlan(office, planId)).quoteId).toBe(quote.id);
+  });
+
+  test("saves it once the Client's bank approves it, and changes the plan", async () => {
+    const { client, planId, office, quote } = await withoutCard();
+    testPayments().requireApproval("approved");
+
+    const outcome = (
+      await client
+        .post(`/api/quotes/mine/${quote.id}/accept`)
+        .send({
+          serviceKey: SEEDED.standard,
+          paymentToken: testPayments().paymentToken(),
+        })
+        .expect(200)
+    ).body as AcceptOutcome;
+    expect(outcome.status).toBe("needs_approval");
+    await client
+      .post(`/api/quotes/mine/${quote.id}/accept/finalize`)
+      .expect(200);
+
+    expect(await savedCard(client)).toMatchObject({
+      label: "Test card ending 4242",
+    });
+    const plan = await officePlan(office, planId);
+    expect(plan.quoteId).toBe(quote.id);
+    expect(startsOf(plan)).toContain(WEDNESDAY_28TH);
+  });
+
+  test("needs a card from the Client", async () => {
+    const { client, quote } = await withoutCard();
+
+    expect(
+      (
+        await client
+          .post(`/api/quotes/mine/${quote.id}/accept`)
+          .send({ serviceKey: SEEDED.standard })
+          .expect(409)
+      ).body.message,
+    ).toBe("Enter a card to accept this Quote.");
+  });
+
+  test("can't be recorded by the Office", async () => {
+    const { office, quote } = await withoutCard();
+
+    expect(
+      (
+        await office
+          .post(`/api/quotes/${quote.id}/accept`)
+          .send({ serviceKey: SEEDED.standard })
+          .expect(409)
+      ).body.message,
+    ).toBe(
+      "Casey Client hasn't added a Payment Method yet. Email them a link to add one.",
+    );
   });
 });
 

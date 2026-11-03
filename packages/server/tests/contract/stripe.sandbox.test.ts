@@ -1,0 +1,140 @@
+// The contract suite on the real Stripe adapter, in a Stripe sandbox, with
+// Stripe's test cards and its real webhooks: nightly in CI, and by hand when
+// the adapter changes, with a sandbox (sk_test_) key in .env:
+//
+//   pnpm --filter @empire-cleaning/server stripe:sandbox
+//
+// It makes test Customers and payments in the sandbox. The browser's part
+// (the Payment Element, 3D Secure) can't run here: ConfirmationTokens come
+// from Stripe's test helper, and forms are confirmed as the browser would.
+// Webhooks are the real events, fetched from the Events API and signed here.
+import Stripe from "stripe";
+import env from "../../src/env.ts";
+// before stripe.ts: the gateway's index makes the app's adapter on loading,
+// so it has to load first
+import { paymentGatewayContract, type TestCard } from "./payment-gateway.ts";
+import { StripePaymentGateway } from "../../src/services/payment-gateway/stripe.ts";
+
+if (!env.STRIPE_SECRET_KEY.startsWith("sk_test_")) {
+  throw new Error("refusing to run: STRIPE_SECRET_KEY isn't a test-mode key");
+}
+
+// Stripe's test PaymentMethods for each (docs.stripe.com/testing)
+const PAYMENT_METHOD: Record<TestCard, string> = {
+  visa: "pm_card_visa",
+  mastercard: "pm_card_mastercard",
+  amex: "pm_card_amex",
+  insufficientFunds: "pm_card_visa_chargeDeclinedInsufficientFunds",
+  declinesLater: "pm_card_chargeCustomerFail",
+  approvalOnSetup: "pm_card_authenticationRequiredOnSetup",
+  alwaysApproval: "pm_card_authenticationRequired",
+  refundFails: "pm_card_refundFail",
+  refundPending: "pm_card_pendingRefund",
+};
+
+const stripe = new Stripe(env.STRIPE_SECRET_KEY);
+const gateway = new StripePaymentGateway({
+  secretKey: env.STRIPE_SECRET_KEY,
+  publishableKey: env.STRIPE_PUBLISHABLE_KEY,
+  webhookSecret: env.STRIPE_WEBHOOK_SECRET,
+});
+
+// a webhook request as Stripe would sign it to our endpoint
+const signed = (payload: string) => ({
+  body: Buffer.from(payload),
+  headers: {
+    "stripe-signature": stripe.webhooks.generateTestHeaderString({
+      payload,
+      secret: env.STRIPE_WEBHOOK_SECRET,
+    }),
+  },
+});
+
+// Stripe's event of `type` for `objectId`, once it's been sent. A test
+// card's refund fails about two minutes after it's made
+const eventFor = async (
+  type: string,
+  objectId: string,
+  matches: (object: { status?: string | null }) => boolean = () => true,
+) => {
+  for (let tries = 0; tries < 60; tries += 1) {
+    const { data } = await stripe.events.list({ type, limit: 20 });
+    const event = data.find((e) => {
+      const object = e.data.object as { id?: string; status?: string };
+      return object.id === objectId && matches(object);
+    });
+    if (event) return event;
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+  }
+  throw new Error(`no ${type} event for ${objectId} within five minutes`);
+};
+
+paymentGatewayContract("StripePaymentGateway in a sandbox", () => ({
+  gateway,
+  enterCard: async (card) =>
+    (
+      await stripe.testHelpers.confirmationTokens.create({
+        payment_method: PAYMENT_METHOD[card],
+        setup_future_usage: "off_session",
+      })
+    ).id,
+  // what confirmSetup does in the browser; the token is the SetupIntent
+  fillCardForm: async (secret, card) => {
+    const setupId = secret.split("_secret_")[0]!;
+    await stripe.setupIntents.confirm(setupId, {
+      payment_method: PAYMENT_METHOD[card],
+    });
+    return setupId;
+  },
+  abandonCardForm: async (secret) => secret.split("_secret_")[0]!,
+  // what confirmPayment does in the browser, by a test bank account
+  payByBankDebit: async (ref) => {
+    await stripe.paymentIntents.confirm(ref, {
+      payment_method: "pm_usBankAccount_processing",
+      mandate_data: {
+        customer_acceptance: {
+          type: "online",
+          online: { ip_address: "127.0.0.1", user_agent: "contract tests" },
+        },
+      },
+    });
+  },
+  paymentAttempts: async (payerId) =>
+    (await stripe.paymentIntents.list({ customer: payerId, limit: 100 })).data
+      .length,
+  // no mark of ours, as in the dashboard
+  refundInDashboard: async (chargeId, amount) =>
+    (await stripe.refunds.create({ payment_intent: chargeId, amount })).id,
+  refundWebhook: async (refundId, became) => {
+    const event =
+      became === "failed"
+        ? await eventFor("refund.failed", refundId)
+        : await eventFor(
+            "refund.updated",
+            refundId,
+            (refund) => refund.status === "succeeded",
+          );
+    return signed(JSON.stringify(event));
+  },
+  depositWebhook: (ref) =>
+    signed(
+      JSON.stringify({
+        id: `evt_contract_${Date.now()}`,
+        object: "event",
+        type: "payment_intent.succeeded",
+        data: {
+          object: {
+            id: ref,
+            object: "payment_intent",
+            metadata: { purpose: "deposit" },
+          },
+        },
+      }),
+    ),
+  forgedWebhook: () => ({
+    body: Buffer.from(
+      JSON.stringify({ id: "evt_forged", type: "payment_intent.succeeded" }),
+    ),
+    headers: { "stripe-signature": "t=1,v1=forged" },
+  }),
+}));

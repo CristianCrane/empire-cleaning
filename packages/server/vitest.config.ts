@@ -1,5 +1,6 @@
 import { defineConfig } from "vitest/config";
 import { TEST_WORKERS } from "./tests/setup/testDatabase.ts";
+import { testEnv } from "./tests/setup/testEnv.ts";
 
 export default defineConfig({
   test: {
@@ -12,24 +13,7 @@ export default defineConfig({
     // in that order, not all at once (Vitest's default): workerDatabase.ts
     // points the app at the worker's database before perTest.ts imports it
     sequence: { setupFiles: "list" },
-    env: {
-      APP_MODE: "dev",
-      CORS_ORIGIN_URL: "http://localhost:5173",
-      LANDING_ORIGIN_URL: "http://localhost:4321",
-      // fake credentials: the services behind them are faked in tests, and
-      // Google only needs them to build sign-in URLs
-      RESEND_API_KEY: "test-resend-api-key",
-      OFFICE_EMAIL: "office@example.com",
-      BETTER_AUTH_SECRET: "test-secret-at-least-32-characters-long",
-      GOOGLE_CLIENT_ID: "test-google-client-id",
-      GOOGLE_CLIENT_SECRET: "test-google-client-secret",
-      STRIPE_SECRET_KEY: "test-stripe-secret-key",
-      STRIPE_PUBLISHABLE_KEY: "test-stripe-publishable-key",
-      STRIPE_WEBHOOK_SECRET: "test-stripe-webhook-secret",
-      // what would be logged is in testMonitoring(); the scrubbing tests
-      // write to a logger of their own
-      LOG_LEVEL: "silent",
-    },
+    env: testEnv,
     clearMocks: true,
     restoreMocks: true,
     pool: "threads",

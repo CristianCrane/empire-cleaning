@@ -1,0 +1,80 @@
+{
+  "id": "evt_3UXlxlLqGDuiGNnB1SZ69qLz",
+  "object": "event",
+  "api_version": "2026-09-30.endive",
+  "created": 1793728657,
+  "data": {
+    "object": {
+      "id": "pi_3UXlxlLqGDuiGNnB19cORkMl",
+      "object": "payment_intent",
+      "allowed_payment_method_types": [
+        "card"
+      ],
+      "amount": 2500,
+      "amount_capturable": 0,
+      "amount_details": {
+        "tip": {}
+      },
+      "amount_received": 2500,
+      "application": null,
+      "application_fee_amount": null,
+      "automatic_payment_methods": null,
+      "canceled_at": null,
+      "cancellation_reason": null,
+      "capture_method": "automatic_async",
+      "client_secret": "redacted_secret",
+      "confirmation_method": "automatic",
+      "created": 1793728657,
+      "currency": "usd",
+      "customer": "cus_VYtlcxiV66LF5X",
+      "customer_account": null,
+      "description": "Recording: Deposit",
+      "excluded_payment_method_types": null,
+      "last_payment_error": null,
+      "latest_charge": "ch_3UXlxlLqGDuiGNnB1XaCEcv8",
+      "livemode": false,
+      "managed_payments": {
+        "enabled": false
+      },
+      "metadata": {
+        "idempotency_key": "record-1793728641356:deposit:cus_VYtlcxiV66LF5X",
+        "purpose": "deposit"
+      },
+      "next_action": null,
+      "on_behalf_of": null,
+      "payment_method": "pm_1UXlxkLqGDuiGNnBr6jBFMJM",
+      "payment_method_configuration_details": null,
+      "payment_method_options": {
+        "card": {
+          "installments": null,
+          "mandate_options": null,
+          "network": null,
+          "request_three_d_secure": "automatic"
+        }
+      },
+      "payment_method_types": [
+        "card"
+      ],
+      "payment_record": null,
+      "processing": null,
+      "receipt_email": null,
+      "review": null,
+      "setup_future_usage": "off_session",
+      "shared_payment_granted_token": null,
+      "shipping": null,
+      "source": null,
+      "statement_descriptor": null,
+      "statement_descriptor_suffix": null,
+      "status": "succeeded",
+      "transfer_data": null,
+      "transfer_group": null
+    }
+  },
+  "livemode": false,
+  "pending_webhooks": 0,
+  "request": {
+    "id": "req_fyNBeAxEvFE9Z4",
+    "idempotency_key": "record-1793728641356:deposit:cus_VYtlcxiV66LF5X"
+  },
+  "type": "payment_intent.succeeded"
+}

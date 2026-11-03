@@ -13,5 +13,6 @@ The Deposit stays as ADR-0001 has it: taken by card when a Quote is accepted, so
 - A Bill below zero becomes a credit on the next one; whatever remains is refunded if no Bill follows within 30 days.
 - A Bill paid automatically is Unpaid if its Charge fails; one paid on its page is Unpaid from the day after it's due. Either way the Client's Service Plans with Jobs on it are On Hold, and it's under Needs attention, until it's paid. Reminders go out when it's sent, 3 days before it's due, on the day, and weekly while it's late. Office Staff can record a payment made another way, such as a cheque, which settles it.
 - Bills and receipts go to an optional billing email on the Client, falling back to their own, and carry the whole Bill. Its page opens only for the Client, signed in (ADR-0006).
-- Switching weekly billing on applies from the current week; switching it off leaves Bills already made due, and everything else goes back to being charged per Job.
+- Switching weekly billing on applies from the current week; switching it off leaves Bills already made due, and everything else goes back to being charged per Job. Money a paid Bill took for a Job, and that the Job no longer owes, is refunded from the Bill's Charge, never from the Job's Deposit (#241).
+- A credit no Bill follows is refunded from what the Client's Bills took, never from a Job's own Charges. A Job's price on a Bill comes down to nothing at most, as it does when charged per Job.
 - Pushed bank transfers, PDFs and residential Clients are left out until asked for.

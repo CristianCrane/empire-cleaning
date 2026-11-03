@@ -89,6 +89,27 @@ export const resetDatabase = async () => {
   });
 };
 
+// runs `fn` while the database refuses every new row in `table`, as if it
+// were unwell, so whatever writes there fails part-way
+export const refusingInserts = async <T>(
+  table: "charges" | "refunds",
+  fn: () => Promise<T>,
+) => {
+  await db.execute(sql`
+    create function refuse_rows() returns trigger language plpgsql as
+    $$ begin raise exception 'the database is unwell'; end $$`);
+  await db.execute(
+    sql.raw(`create trigger refuse_rows before insert on "${table}"
+      for each row execute function refuse_rows()`),
+  );
+  try {
+    return await fn();
+  } finally {
+    await db.execute(sql.raw(`drop trigger refuse_rows on "${table}"`));
+    await db.execute(sql`drop function refuse_rows`);
+  }
+};
+
 // drives the real Express app over HTTP: api().get("/health").
 // Use apiAgent() when a test needs cookies (e.g. a signed-in session) to persist.
 export const api = () => request(app);

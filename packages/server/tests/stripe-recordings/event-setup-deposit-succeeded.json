@@ -1,0 +1,59 @@
+{
+  "id": "evt_1UXlxsLqGDuiGNnB0mykuoRc",
+  "object": "event",
+  "api_version": "2026-09-30.endive",
+  "created": 1793728664,
+  "data": {
+    "object": {
+      "id": "seti_1UXlxrLqGDuiGNnBglR9zq8v",
+      "object": "setup_intent",
+      "allowed_payment_method_types": [
+        "card"
+      ],
+      "application": null,
+      "automatic_payment_methods": null,
+      "cancellation_reason": null,
+      "client_secret": "redacted_secret",
+      "created": 1793728663,
+      "customer": "cus_VYtlYTQ7vWyqAA",
+      "customer_account": null,
+      "description": "Recording: 0% Deposit",
+      "excluded_payment_method_types": null,
+      "flow_directions": null,
+      "last_setup_error": null,
+      "latest_attempt": "setatt_1UXlxrLqGDuiGNnBLZIRLKaO",
+      "livemode": false,
+      "managed_payments": {
+        "enabled": false
+      },
+      "mandate": null,
+      "metadata": {
+        "purpose": "deposit"
+      },
+      "next_action": null,
+      "on_behalf_of": null,
+      "payment_method": "pm_1UXlxrLqGDuiGNnBjBuP3NOc",
+      "payment_method_configuration_details": null,
+      "payment_method_options": {
+        "card": {
+          "mandate_options": null,
+          "network": null,
+          "request_three_d_secure": "automatic"
+        }
+      },
+      "payment_method_types": [
+        "card"
+      ],
+      "single_use_mandate": null,
+      "status": "succeeded",
+      "usage": "off_session"
+    }
+  },
+  "livemode": false,
+  "pending_webhooks": 1,
+  "request": {
+    "id": "req_T32ZBCHdRxbov5",
+    "idempotency_key": "record-1793728641356:setup:cus_VYtlYTQ7vWyqAA"
+  },
+  "type": "setup_intent.succeeded"
+}

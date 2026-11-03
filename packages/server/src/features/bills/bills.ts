@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import {
   and,
   asc,
@@ -49,14 +48,19 @@ import { officeClientView } from "../clients/clients.ts";
 import {
   counts,
   paymentOf,
-  settleJob,
+  settleAfterChange,
   type Settled,
 } from "../completion/balance.ts";
 import { adjustments } from "../completion/completion.schema.ts";
 import { adjustmentLabel } from "../completion/completion.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { REMINDER_TIME } from "../jobs/reminders.ts";
-import { chargeSaved, refundFrom } from "../payments/money.ts";
+import { idempotencyKey } from "../payments/keys.ts";
+import {
+  chargeSaved,
+  recordTakenEarlier,
+  refundFrom,
+} from "../payments/money.ts";
 import { payerFor } from "../payments/payments.ts";
 import {
   charges,
@@ -143,9 +147,12 @@ const partsOf = async (
           .select()
           .from(refunds)
           .where(
-            inArray(
-              refunds.chargeId,
-              taken.map((c) => c.id),
+            and(
+              inArray(
+                refunds.chargeId,
+                taken.map((c) => c.id),
+              ),
+              isNull(refunds.failedAt),
             ),
           );
   // a refund made in the provider's dashboard is a discount: it still counts
@@ -172,21 +179,39 @@ const partsOf = async (
     taxCents: taxShare(cents, option),
   });
 
+  const priced: Part[] = [
+    {
+      key: "price",
+      label: what,
+      amountCents: option.totalCents,
+      taxCents: option.taxCents,
+    },
+    ...rows.filter(counts).map((a) => ({
+      key: `adjustment:${a.id}`,
+      label: `${adjustmentLabel(a)}: ${what}`,
+      amountCents: a.totalCents,
+      taxCents: a.taxCents,
+    })),
+  ];
+  // Reductions take a price down to nothing, never below, as settling a Job
+  // on its own has it (#241)
+  const below = {
+    amountCents: priced.reduce((sum, p) => sum + p.amountCents, 0),
+    taxCents: priced.reduce((sum, p) => sum + p.taxCents, 0),
+  };
+  if (below.amountCents < 0) {
+    priced.push({
+      key: "floor",
+      label: `Reductions beyond the price: ${what}`,
+      amountCents: -below.amountCents,
+      taxCents: -below.taxCents,
+    });
+  }
+
   const parts: Part[] =
     job.status === "completed"
       ? [
-          {
-            key: "price",
-            label: what,
-            amountCents: option.totalCents,
-            taxCents: option.taxCents,
-          },
-          ...rows.filter(counts).map((a) => ({
-            key: `adjustment:${a.id}`,
-            label: `${adjustmentLabel(a)}: ${what}`,
-            amountCents: a.totalCents,
-            taxCents: a.taxCents,
-          })),
+          ...priced,
           ...(job.rescheduleFeeCents > 0
             ? [
                 share(
@@ -438,7 +463,12 @@ type Charged = {
  * is Unpaid, and so the Client's Service Plans with Jobs on it are On Hold,
  * until a later try takes it or it's paid another way.
  */
-const chargeBill = async (billId: string): Promise<Charged | null> =>
+const chargeBill = async (
+  billId: string,
+  // the first try, as issuing it makes: none if another server made it
+  // meanwhile, as seen once the Bill is held (#241)
+  { first = false } = {},
+): Promise<Charged | null> =>
   db.transaction(async (tx) => {
     const [bill] = await tx
       .select()
@@ -446,6 +476,7 @@ const chargeBill = async (billId: string): Promise<Charged | null> =>
       .where(eq(bills.id, billId))
       .for("update");
     if (bill?.status !== "due" || bill.totalCents <= 0) return null;
+    if (first && bill.chargeAttemptedAt) return null;
     const [owner] = await tx
       .select({ client: clients, method: paymentMethods })
       .from(clients)
@@ -496,7 +527,7 @@ const issueBill = async (billId: string) => {
   if (!bill || bill.sentAt) return;
   const charged =
     bill.payment === "automatic" && !bill.chargeAttemptedAt
-      ? await chargeBill(billId)
+      ? await chargeBill(billId, { first: true })
       : null;
   // claimed first, so two runs at once send it once
   const [claimed] = await db
@@ -541,12 +572,46 @@ export const makeDueBills = async () => {
     .from(bills)
     .where(isNull(bills.sentAt))
     .orderBy(asc(bills.madeAt));
-  for (const { id } of unsent) await issueBill(id);
+  // one that fails stops no other, and the next run tries it again
+  for (const { id } of unsent) {
+    try {
+      await issueBill(id);
+    } catch (error) {
+      monitoring.error(error, { what: `Bill ${id} not issued` });
+    }
+  }
   await refundLapsedCredits();
 };
 
+/**
+ * Charges a due Bill again, as after a new Payment Method, or a payment
+ * nobody heard the end of (ADR-0022); one that still fails stays Unpaid. A
+ * Bill paid another way meanwhile, or voided, owes nothing: what an earlier
+ * try took for it is recorded, and given back.
+ */
+export const retryBill = async (billId: string) => {
+  const charged = await chargeBill(billId);
+  if (charged) {
+    if (!charged.failure) await tellPaid(billId, charged.plan);
+    return;
+  }
+  const extra = await db.transaction(async (tx) => {
+    const [bill] = await tx
+      .select()
+      .from(bills)
+      .where(eq(bills.id, billId))
+      .for("update");
+    if (!bill || (bill.status === "due" && bill.totalCents > 0)) return [];
+    const taken = await recordTakenEarlier(tx, { billId, kind: "bill" });
+    return "unknown" in taken ? [] : taken;
+  });
+  for (const charge of extra) {
+    await refundFrom(db, [charge], charge.amountCents, { for: charge.id });
+  }
+};
+
 // After a Client saves a new Payment Method, tries their Unpaid Bills again
-// with it, as their Jobs are; one that still fails stays Unpaid
+// with it, as their Jobs are
 export const retryUnpaidBillsFor = async (clientId: string) => {
   const unpaid = await db
     .select({ id: bills.id })
@@ -559,10 +624,7 @@ export const retryUnpaidBillsFor = async (clientId: string) => {
         isNotNull(bills.unpaidSince),
       ),
     );
-  for (const { id } of unpaid) {
-    const charged = await chargeBill(id);
-    if (charged && !charged.failure) await tellPaid(id, charged.plan);
-  }
+  for (const { id } of unpaid) await retryBill(id);
 };
 
 // ---- on its page ----
@@ -597,7 +659,7 @@ export const startBillPayment = async (
     amount: bill.totalCents,
     description: `Empire Cleaning bill ${billNumber(bill.number)}`,
     reference: bill.id,
-    idempotencyKey: `bill-payment:${bill.id}:${randomUUID()}`,
+    idempotencyKey: idempotencyKey.billPayment(bill.id),
   });
   return { ...paymentGateway.paymentForm(), secret, ref };
 };
@@ -614,8 +676,12 @@ export const finishBillPayment = async (
   ref: string,
 ): Promise<string | null> => {
   const outcome = await paymentGateway.billPaymentOutcome(ref);
-  // a payment for another Bill pays nothing here
-  if (outcome.status === "succeeded" && outcome.reference !== billId) {
+  // a payment for another Bill pays nothing here, nor lifts On Hold while
+  // it clears
+  if (
+    (outcome.status === "succeeded" || outcome.status === "processing") &&
+    outcome.reference !== billId
+  ) {
     return "that payment isn't for this Bill";
   }
   const done = await db.transaction(async (tx) => {
@@ -697,6 +763,7 @@ export const finishBillPayment = async (
       db,
       [done.charge],
       done.charge.amountCents,
+      { for: done.charge.id },
     );
     if (refunded < done.charge.amountCents) {
       // refund_failed was raised; this says which Bill
@@ -890,7 +957,7 @@ export const setBilling = async (
       )
       .orderBy(asc(jobs.startsAt));
     if (from) {
-      for (const { id } of affected) await settleJob(id);
+      for (const { id } of affected) await settleAfterChange(id);
     } else {
       settled = await settleEach(affected.map((j) => j.id));
       if (settled.length > 0) {
@@ -924,7 +991,7 @@ type SettledJob = {
 const settleEach = async (jobIds: string[]) => {
   const moved: SettledJob[] = [];
   for (const jobId of jobIds) {
-    const settled = await settleJob(jobId);
+    const settled = await settleAfterChange(jobId);
     if (!settled.chargedCents && !settled.refundedCents && !settled.failure) {
       continue;
     }
@@ -995,7 +1062,14 @@ const refundLapsedCredits = async () => {
       ),
     );
   for (const { clientId } of lapsed) {
-    const refunded = await refundCredit(clientId, cutoff);
+    const refunded = await refundCredit(clientId, cutoff).catch(
+      (error: unknown) => {
+        monitoring.error(error, {
+          what: `credit for Client ${clientId} not refunded`,
+        });
+        return null;
+      },
+    );
     if (refunded) {
       await notify(`Credit refund notice for Bill ${refunded.billId}`, () =>
         tellCreditRefunded(refunded.billId, refunded.cents),
@@ -1015,22 +1089,19 @@ const refundCredit = async (clientId: string, cutoff: Date) =>
     const credit = await openCreditOf(clientId, tx);
     if (!credit || credit.bill.madeAt > cutoff) return null;
 
-    // the Client's Charges, for Bills and Jobs; a plan's held Deposit isn't
-    // theirs to take back while the plan runs. What isn't refunded now, the
-    // next run tries again.
+    // from what the Client's Bills took, as the credit is Bills' money: a
+    // Job's own Charges, such as a Deposit, still pay for that Job (#241).
+    // What isn't refunded now, the next run tries again.
     const theirs = await tx
       .select({ charge: charges })
       .from(charges)
-      .leftJoin(bills, eq(bills.id, charges.billId))
-      .leftJoin(jobs, eq(jobs.id, charges.jobId))
-      .leftJoin(properties, eq(properties.id, jobs.propertyId))
-      .where(
-        or(eq(bills.clientId, clientId), eq(properties.clientId, clientId)),
-      );
+      .innerJoin(bills, eq(bills.id, charges.billId))
+      .where(eq(bills.clientId, clientId));
     const cents = await refundFrom(
       tx,
       theirs.map((t) => t.charge),
       credit.cents,
+      { for: credit.bill.id, creditBillId: credit.bill.id },
     );
     if (cents === 0) return null;
     await tx

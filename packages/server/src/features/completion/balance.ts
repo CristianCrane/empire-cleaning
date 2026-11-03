@@ -1,9 +1,11 @@
-import { desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, ne, sql, sum } from "drizzle-orm";
 import type { ChargeView, JobPayment } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { clock } from "../../services/clock/index.ts";
 import { formatWhen } from "../../services/email/index.ts";
+import { monitoring } from "../../services/monitoring/index.ts";
 import { billedOf, isBilledWeekly } from "../bills/billed-weekly.ts";
+import { billLines, bills } from "../bills/bills.schema.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import {
@@ -37,12 +39,26 @@ type Ledger = {
   paidCents: number;
   // taken off what it owes by refunds made in the provider's dashboard
   refundedAtProviderCents: number;
-  // what Bills not voided have billed for it (ADR-0016)
+  // what Bills not voided have billed for it (ADR-0016), less what was
+  // refunded from their Charges for it
   billedCents: number;
+  // the Charges of those Bills, which a Refund for it comes from first
+  billCharges: Charge[];
   // whether any has
   billedLines: number;
   owedCents: number;
 };
+
+// the Charges that paid Bills not voided with lines for a Job
+const billChargesOf = async (jobId: string, tx: Tx | typeof db) =>
+  (
+    await tx
+      .selectDistinct({ charge: charges })
+      .from(charges)
+      .innerJoin(bills, eq(bills.id, charges.billId))
+      .innerJoin(billLines, eq(billLines.billId, bills.id))
+      .where(and(eq(billLines.jobId, jobId), ne(bills.status, "void")))
+  ).map((r) => r.charge);
 
 // What the Job should have taken against what it has. A Completed Job owes
 // its price with the Adjustments that count, plus the fee if a second Late
@@ -55,16 +71,23 @@ type Ledger = {
 // A refund made in the provider's dashboard is a discount: the Job owes that
 // much less, though never less than nothing.
 const ledgerOf = async (job: Job, tx: Tx | typeof db): Promise<Ledger> => {
-  const [quoted, rows, taken, billed] = await Promise.all([
-    quotedJob(job.id, tx),
-    tx.select().from(adjustments).where(eq(adjustments.jobId, job.id)),
-    tx
-      .select()
-      .from(charges)
-      .where(eq(charges.jobId, job.id))
-      .orderBy(desc(charges.chargedAt), desc(charges.createdAt)),
-    billedOf(job.id, tx),
-  ]);
+  const [quoted, rows, taken, billed, billCharges, [fromBills]] =
+    await Promise.all([
+      quotedJob(job.id, tx),
+      tx.select().from(adjustments).where(eq(adjustments.jobId, job.id)),
+      tx
+        .select()
+        .from(charges)
+        .where(eq(charges.jobId, job.id))
+        .orderBy(desc(charges.chargedAt), desc(charges.createdAt)),
+      billedOf(job.id, tx),
+      billChargesOf(job.id, tx),
+      tx
+        .select({ cents: sum(refunds.amountCents).mapWith(Number) })
+        .from(refunds)
+        .where(and(eq(refunds.jobId, job.id), isNull(refunds.failedAt))),
+    ]);
+  const billedCents = billed.cents - (fromBills?.cents ?? 0);
   const given =
     taken.length === 0
       ? []
@@ -72,9 +95,12 @@ const ledgerOf = async (job: Job, tx: Tx | typeof db): Promise<Ledger> => {
           .select()
           .from(refunds)
           .where(
-            inArray(
-              refunds.chargeId,
-              taken.map((c) => c.id),
+            and(
+              inArray(
+                refunds.chargeId,
+                taken.map((c) => c.id),
+              ),
+              isNull(refunds.failedAt),
             ),
           );
 
@@ -111,10 +137,11 @@ const ledgerOf = async (job: Job, tx: Tx | typeof db): Promise<Ledger> => {
     charges: withRefunds,
     paidCents,
     refundedAtProviderCents,
-    billedCents: billed.cents,
+    billedCents,
+    billCharges,
     billedLines: billed.lines,
     owedCents:
-      Math.max(owes - refundedAtProviderCents, 0) - paidCents - billed.cents,
+      Math.max(owes - refundedAtProviderCents, 0) - paidCents - billedCents,
   };
 };
 
@@ -246,14 +273,22 @@ export const settleJob = async (
 
     // billed weekly, nothing moves: the next Bill takes it, and a Job
     // Unpaid before weekly billing was switched on this week no longer is.
-    // A refund that fails is tried again by the next settling.
+    // What Bills took for it is given back from their Charges first, never
+    // from its Deposit (#241). A refund that fails is tried again by the
+    // next settling.
     if (!settled.billed && ledger.owedCents < 0) {
-      settled.refundedCents = await refundFrom(
+      const fromBills = await refundFrom(
         tx,
-        ledger.charges,
-        -ledger.owedCents,
-        item,
+        ledger.billCharges,
+        Math.min(-ledger.owedCents, ledger.billedCents),
+        { for: jobId, item, jobId },
       );
+      settled.refundedCents =
+        fromBills +
+        (await refundFrom(tx, ledger.charges, -ledger.owedCents - fromBills, {
+          for: jobId,
+          item,
+        }));
     }
 
     if (!settled.billed && ledger.owedCents > 0) {
@@ -265,7 +300,7 @@ export const settleJob = async (
         for: { jobId, kind: kindOf(job!) },
         item,
       });
-      if (charged.ok) settled.chargedCents = ledger.owedCents;
+      if (charged.ok) settled.chargedCents = charged.cents;
       else settled.failure = charged.reason;
     }
 
@@ -287,3 +322,45 @@ export const settleJob = async (
     settled.plan = await holdOrResume(tx, jobId);
     return settled;
   });
+
+// why a Job is Unpaid when settling it failed for want of anything the
+// Client could fix
+export const NOT_SETTLED = "its payment couldn't be worked out";
+
+/**
+ * Settles a Job's money once a change to it is saved, as settleJob does,
+ * but never throws: the change stands, whatever happens to the money. If
+ * settling fails, the error is reported and the Job is Unpaid (its plan On
+ * Hold) until a retry settles it, whether it owes money or is owed a
+ * Refund. Nothing moved, so nothing is said of money; the Office sees it
+ * Unpaid.
+ */
+export const settleAfterChange = async (
+  jobId: string,
+  item: string | null = null,
+): Promise<Settled> => {
+  try {
+    return await settleJob(jobId, item);
+  } catch (error) {
+    monitoring.error(error, { what: `Job ${jobId} not settled` });
+    const plan = await db.transaction(async (tx) => {
+      await tx
+        .update(jobs)
+        .set({
+          unpaidSince: sql`coalesce(${jobs.unpaidSince}, ${clock.now()})`,
+          unpaidReason: NOT_SETTLED,
+        })
+        .where(eq(jobs.id, jobId));
+      return holdOrResume(tx, jobId);
+    });
+    return {
+      chargedCents: 0,
+      refundedCents: 0,
+      failure: null,
+      becameUnpaid: false,
+      paymentMethod: null,
+      plan,
+      billed: false,
+    };
+  }
+};

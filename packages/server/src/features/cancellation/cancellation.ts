@@ -1,4 +1,4 @@
-import { and, eq, inArray, ne, sum } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne, sum } from "drizzle-orm";
 import type {
   CancellationTerms,
   CancelledBy,
@@ -11,7 +11,11 @@ import { clock } from "../../services/clock/index.ts";
 import { email, formatMoney } from "../../services/email/index.ts";
 import { assignments } from "../assignments/assignments.schema.ts";
 import { clients } from "../clients/clients.schema.ts";
-import { paymentOf, settleJob, type Settled } from "../completion/balance.ts";
+import {
+  paymentOf,
+  settleAfterChange,
+  type Settled,
+} from "../completion/balance.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { charges, refunds } from "../payments/payments.schema.ts";
 import { properties } from "../properties/properties.schema.ts";
@@ -83,11 +87,16 @@ export const planOfJob = async (jobId: string, tx: Tx | typeof db = db) => {
  * Reschedule of it: the Deposit amount. A one-off Job's own Deposit is kept
  * as the fee. A plan Job has none of its own, so the fee is the Deposit
  * percentage of its own price, as its Quote set them, charged afresh; the
- * plan's held Deposit is untouched (ADR-0013).
+ * plan's held Deposit is untouched (ADR-0013). So it stays once the plan
+ * has Ended, for its Jobs going ahead: the final Job's fee comes out of the
+ * plan's Deposit it now holds, and the rest is refunded (#241).
  */
 export const lateFeeOf = async (jobId: string, tx: Tx | typeof db = db) => {
-  const planId = await planOfJob(jobId, tx);
-  if (!planId) return depositOf(jobId, tx);
+  const [visit] = await tx
+    .select({ planId: servicePlanVisits.servicePlanId })
+    .from(servicePlanVisits)
+    .where(eq(servicePlanVisits.jobId, jobId));
+  if (!visit) return depositOf(jobId, tx);
   const [{ revision, option }] = (await jobQuotes([jobId], tx)) as [
     Awaited<ReturnType<typeof jobQuotes>>[number],
   ];
@@ -109,7 +118,7 @@ const paidOf = async (jobId: string) => {
       })
       .from(refunds)
       .innerJoin(charges, eq(charges.id, refunds.chargeId))
-      .where(eq(charges.jobId, jobId))
+      .where(and(eq(charges.jobId, jobId), isNull(refunds.failedAt)))
       .groupBy(refunds.atProvider),
   ]);
   const refunded = (atProvider: boolean) =>
@@ -231,7 +240,7 @@ export const cancelJob = async (jobId: string, cancellation: Cancellation) => {
     return { job, late, feeCents };
   });
 
-  const settled = await settleJob(jobId);
+  const settled = await settleAfterChange(jobId);
   const onPlan = (await planOfJob(jobId)) !== null;
   await sendCancelled(jobId, settled, onPlan);
   await tellCrew(job);
@@ -392,7 +401,7 @@ export const recordNoAccess = async (
     return job!;
   });
 
-  const settled = await settleJob(jobId);
+  const settled = await settleAfterChange(jobId);
   const onPlan = (await planOfJob(jobId)) !== null;
   const [after] = await db.select().from(jobs).where(eq(jobs.id, jobId));
   const { property, client } = await ownerOf(job);

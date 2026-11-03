@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, test } from "vitest";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type {
   BillPaymentForm,
   BillSummary,
@@ -14,7 +14,7 @@ import type {
 } from "@empire-cleaning/models";
 import { db } from "#db";
 import { confirmAssignment, offerAssignment } from "#features/assignments";
-import { chaseBills, makeDueBills } from "#features/bills";
+import { bills, chaseBills, makeDueBills } from "#features/bills";
 import { cancelJob } from "#features/cancellation";
 import { findClientByEmail } from "#features/clients";
 import {
@@ -23,11 +23,14 @@ import {
   completeJob,
   paymentOf,
   proposeAdjustment,
+  removeAdjustment,
+  settleJob,
   undoCompletion,
 } from "#features/completion";
 import { jobs } from "#features/jobs";
 import { currentPriceList } from "#features/price-list";
 import { servicePlans } from "#features/service-plans";
+import { settleOpenPayments } from "#features/payments";
 import { formatMoney } from "#services/email";
 import { createStaff, setUsualWeek } from "#features/staff";
 import {
@@ -41,6 +44,7 @@ import { FAKE_SIGNATURE } from "../../../tests/fakes/payment-gateway.ts";
 import {
   acceptedJob,
   addPremises,
+  billedWeek,
   casey,
   signInAsOffice,
   startedServicePlan,
@@ -409,6 +413,59 @@ describe("making Bills", () => {
     expect((await billOf(office, id)).status).toBe("due");
   });
 
+  // #241, finding 2: a processing payment says what it's for too
+  test("a bank debit on its way for something else doesn't take a Bill off hold", async () => {
+    const office = await signInAsOffice();
+    const me = (await office.get("/api/me").expect(200))
+      .body as SignedInAccount;
+    const { billId, planId } = await billedWeek({
+      byAccountId: me.id,
+      plan: true,
+      failing: true,
+    });
+    const planStatus = async () =>
+      (
+        await db
+          .select({ status: servicePlans.status })
+          .from(servicePlans)
+          .where(eq(servicePlans.id, planId!))
+      )[0]!.status;
+    expect(await planStatus()).toBe("on_hold");
+
+    const client = await signIn(casey.email);
+    // another Bill's, and another Client's
+    for (const payerId of ["cus_casey", "cus_other"]) {
+      const other = await testPayments().startBillPayment({
+        payerId,
+        amount: 100,
+        description: "Another bill",
+        reference: randomUUID(),
+        idempotencyKey: `other:${payerId}`,
+      });
+      testPayments().payBill(other.ref, "bank");
+      await client
+        .post(`/api/bills/mine/${billId}/payment`)
+        .send({ ref: other.ref })
+        .expect(409);
+      expect((await billOf(office, billId!)).status).toBe("due");
+      expect(await planStatus()).toBe("on_hold");
+    }
+  });
+
+  test("a payment the provider doesn't know is refused, not an error", async () => {
+    const { office, clientId } = await billedJob({ payment: "on_page" });
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    const [{ id }] = (await billsOf(office, clientId)) as [BillSummary];
+
+    const client = await signIn(casey.email);
+    await client
+      .post(`/api/bills/mine/${id}/payment`)
+      .send({ ref: "pi_made_up" })
+      .expect(409);
+    expect((await billOf(office, id)).status).toBe("due");
+  });
+
   test("a Client sees only their own Bills", async () => {
     const { office, clientId } = await billedJob();
     testClock().set(NEXT_MONDAY);
@@ -422,6 +479,102 @@ describe("making Bills", () => {
     await client.get(`/api/bills/mine/${id}`).expect(200);
     await client.get(`/api/bills/mine/${randomUUID()}`).expect(404);
     await client.get(`/api/bills/${id}`).expect(403);
+  });
+});
+
+// #241, finding 8
+describe("two servers making the week's Bills at once", () => {
+  test("try a declined card once", async () => {
+    await billedJob();
+    testPayments().failCharges();
+    testClock().set(NEXT_MONDAY);
+    const before = testPayments().paymentAttempts.length;
+    const held = testPayments().holdNextCharge();
+
+    // the first is asking the provider, holding the Bill; the second waits
+    // for it
+    const first = makeDueBills();
+    await held.reached;
+    const second = makeDueBills();
+    for (let tries = 0; ; tries += 1) {
+      const { rows } = await db.execute<{ waiting: number }>(sql`
+        select count(*)::int as waiting from pg_stat_activity
+        where datname = current_database() and wait_event_type = 'Lock'`);
+      if (rows[0]!.waiting > 0) break;
+      if (tries > 200) throw new Error("the second never waited for the Bill");
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    held.release();
+    await Promise.all([first, second]);
+
+    expect(testPayments().paymentAttempts).toHaveLength(before + 1);
+  });
+});
+
+// #241, finding 5: one Bill that fails part-way stops no other
+describe("a Bill that can't be charged for want of the database", () => {
+  test("doesn't stop the week's other Bills, and is charged once on the next run", async () => {
+    const office = await signInAsOffice();
+    const me = (await office.get("/api/me").expect(200))
+      .body as SignedInAccount;
+    const { id: coryId } = await cory();
+    const dana = {
+      name: "Dana Client",
+      email: "dana@example.com",
+      phone: casey.phone,
+    };
+    for (const [who, startsAt] of [
+      [casey, WEDNESDAY_9AM],
+      [dana, "2026-01-08T14:00:00Z"],
+    ] as const) {
+      const job = await acceptedJob({
+        startsAt,
+        byAccountId: me.id,
+        client: who,
+      });
+      const client = (await findClientByEmail(who.email))!;
+      await addPremises(client.id);
+      await setBilling(office, client.id, { billingEmail: null }).expect(200);
+      const offered = await offerAssignment(job.id, coryId, me.id);
+      await confirmAssignment(coryId, offered.assignments[0]!.id);
+      testClock().set(new Date(new Date(startsAt).getTime() + 3 * 3_600_000));
+      await completeJob(coryId, job.id, { condition: "moderate", reports: [] });
+    }
+    // Casey's Bill's Charge can't be recorded
+    await db.execute(sql`
+      create function refuse_caseys() returns trigger language plpgsql as
+      $$ begin
+        if exists (select 1 from bills b join clients c on c.id = b.client_id
+                   where b.id = new.bill_id and c.email = 'casey@example.com')
+        then raise exception 'the database is unwell'; end if;
+        return new;
+      end $$`);
+    await db.execute(sql`
+      create trigger refuse_caseys before insert on charges
+      for each row execute function refuse_caseys()`);
+
+    testClock().set(NEXT_MONDAY);
+    try {
+      await makeDueBills();
+    } finally {
+      await db.execute(sql`drop trigger refuse_caseys on charges`);
+      await db.execute(sql`drop function refuse_caseys`);
+    }
+    const danaId = (await findClientByEmail(dana.email))!.id;
+    expect(await billsOf(office, danaId)).toEqual([
+      expect.objectContaining({ status: "paid" }),
+    ]);
+    expect(testEmail().lastTo(dana.email).subject).toMatch(/bill EC-/);
+
+    await makeDueBills();
+    const caseyId = (await findClientByEmail(casey.email))!.id;
+    const [caseys] = await billsOf(office, caseyId);
+    expect(caseys).toMatchObject({ status: "paid" });
+    expect(
+      testPayments().charges.filter((c) =>
+        c.description.endsWith(caseys!.number),
+      ),
+    ).toHaveLength(1);
   });
 });
 
@@ -530,6 +683,61 @@ describe("Unpaid Bills", () => {
     expect(testEmail().lastTo(BILLING_EMAIL).text).toContain(
       "Your Service Plan is back on",
     );
+  });
+
+  // #241: nobody has to try again
+  test("one Unpaid while the provider was down is charged once it's back", async () => {
+    const { office, clientId } = await billedJob();
+    testPayments().goDown();
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    testPayments().goDown(false);
+    const [summary] = await billsOf(office, clientId);
+    expect(summary).toMatchObject({
+      unpaid: { reason: "the payment provider couldn't be reached" },
+    });
+
+    testClock().advance({ minutes: 15 });
+    await settleOpenPayments();
+    expect(await billOf(office, summary!.id)).toMatchObject({
+      status: "paid",
+      paidVia: "charge",
+      unpaid: null,
+    });
+    expect(testEmail().lastTo(BILLING_EMAIL).subject).toBe(
+      "Your receipt for bill EC-000001",
+    );
+  });
+
+  test("one whose Charge reply was lost, then paid on its page, gives back what the lost Charge took", async () => {
+    const { office, clientId } = await billedJob();
+    testPayments().loseNextReply();
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    const lost = testPayments().charges.at(-1)!;
+    const [summary] = await billsOf(office, clientId);
+    const client = await signIn(casey.email);
+    const form = (
+      await client
+        .post(`/api/bills/mine/${summary!.id}/payment-form`)
+        .expect(200)
+    ).body as BillPaymentForm;
+    testPayments().payBill(form.ref, "card");
+    await client
+      .post(`/api/bills/mine/${summary!.id}/payment`)
+      .send({ ref: form.ref })
+      .expect(200);
+
+    testClock().advance({ minutes: 15 });
+    await settleOpenPayments();
+    await settleOpenPayments();
+    expect(testPayments().refunds).toEqual([
+      expect.objectContaining({ chargeId: lost.chargeId, amount: lost.amount }),
+    ]);
+    expect(await billOf(office, summary!.id)).toMatchObject({
+      status: "paid",
+      paidVia: "page",
+    });
   });
 
   test("Office Staff can record a payment made another way, which settles it", async () => {
@@ -890,6 +1098,118 @@ describe("putting Bills right", () => {
     await makeDueBills();
     expect(testPayments().refunds).toHaveLength(1);
   });
+
+  // #241, finding 6
+  test("a lapsed credit's refund that fails after it's made counts as not refunded, and isn't tried again from that Charge", async () => {
+    const { office, clientId, jobId } = await billedJob();
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    await undoCompletion(jobId);
+    testClock().advance({ days: 7 });
+    await makeDueBills();
+    testClock().advance({ days: 30 });
+    await makeDueBills();
+    const [refund] = testPayments().refunds;
+
+    await api()
+      .post("/api/payments/webhook")
+      .set("content-type", "application/json")
+      .set("x-fake-signature", FAKE_SIGNATURE)
+      .send(JSON.stringify(testPayments().failRefund(refund!.refundId)))
+      .expect(200);
+
+    const [credit] = await billsOf(office, clientId);
+    const [row] = await db.select().from(bills).where(eq(bills.id, credit!.id));
+    expect(row).toMatchObject({
+      creditRefundedCents: 0,
+      creditRefundedAt: null,
+    });
+    testClock().advance({ days: 7 });
+    await makeDueBills();
+    expect(testPayments().refunds).toHaveLength(1);
+  });
+
+  // #241, finding 7: one rule for what a Job owes, billed or not
+  test("Reductions bigger than the price bill what the Job's own ledger says it owes, never less than nothing", async () => {
+    const list = await currentPriceList();
+    const [oven, fridge] = ["Inside the oven", "Inside the fridge"].map(
+      (name) => list.addOns.find((a) => a.name === name)!,
+    );
+    const { office, clientId, jobId, priceCents } = await billedJob(
+      {},
+      [
+        { kind: "add_on_not_done", addOnKey: oven!.key, reason: "In use" },
+        { kind: "add_on_not_done", addOnKey: fridge!.key, reason: "Full" },
+      ],
+      { addOns: [oven!.name, fridge!.name] },
+    );
+    const job = (await office.get(`/api/jobs/${jobId}`).expect(200)).body as {
+      completion: { adjustments: { id: string }[] };
+    };
+    await office
+      .patch(
+        `/api/jobs/${jobId}/adjustments/${job.completion.adjustments[0]!.id}`,
+      )
+      .send({ priceCents: priceCents * 2, reason: "Goodwill" })
+      .expect(200);
+    const ledger = async () => {
+      const [row] = await db.select().from(jobs).where(eq(jobs.id, jobId));
+      return paymentOf(row!);
+    };
+    const owed = (await ledger()).owedCents;
+    expect((await ledger()).totalCents).toBe(0);
+
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+
+    const [summary] = await billsOf(office, clientId);
+    const { lines } = await billOf(office, summary!.id);
+    expect(lines.reduce((sum, l) => sum + l.amountCents, 0)).toBe(owed);
+    expect((await ledger()).owedCents).toBe(0);
+  });
+
+  // #241, finding 4
+  test("a lapsed credit is refunded from what Bills took, never from a Job's Deposit taken since", async () => {
+    const { office, jobId, priceCents, depositCents } = await billedJob();
+    const me = (await office.get("/api/me").expect(200))
+      .body as SignedInAccount;
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    const billed = priceCents - depositCents;
+    await undoCompletion(jobId);
+    testClock().advance({ days: 7 });
+    await makeDueBills();
+
+    // another clean booked meanwhile: its Deposit is the latest Charge
+    const later = await acceptedJob({
+      startsAt: "2026-03-04T15:00:00Z",
+      byAccountId: me.id,
+    });
+    const laterDeposit = testPayments().charges.at(-1)!;
+    testClock().advance({ days: 30 });
+    await makeDueBills();
+
+    const billCharge = testPayments().charges.find((c) =>
+      c.description.endsWith("EC-000001"),
+    )!;
+    expect(testPayments().refunds).toEqual([
+      expect.objectContaining({
+        chargeId: billCharge.chargeId,
+        amount: billed,
+      }),
+    ]);
+    const charged = testPayments().charges.length;
+    await settleJob(later.id);
+    expect(testPayments().charges).toHaveLength(charged);
+    const [row] = await db.select().from(jobs).where(eq(jobs.id, later.id));
+    expect((await paymentOf(row!)).charges).toEqual([
+      expect.objectContaining({
+        kind: "deposit",
+        amountCents: laterDeposit.amount,
+        refundedCents: 0,
+      }),
+    ]);
+  });
 });
 
 describe("switching weekly billing off", () => {
@@ -924,6 +1244,90 @@ describe("switching weekly billing off", () => {
     testClock().set(NEXT_MONDAY);
     await makeDueBills();
     expect(await billsOf(office, clientId)).toEqual([]);
+  });
+
+  // #241, finding 10: what a Bill took for a Job is given back from the
+  // Bill's Charge, never from the Job's Deposit
+  describe("then correcting a Job a paid Bill charged", () => {
+    const deposit = () => testPayments().charges[0]!;
+    const billCharge = () =>
+      testPayments().charges.find((c) => c.description.endsWith("EC-000001"))!;
+
+    test("taking an Adjustment off refunds it from the Bill's Charge", async () => {
+      const { office, me, clientId, jobId } = await billedJob({}, [
+        { kind: "extra_time", hours: 1, reason: "Very dusty" },
+      ]);
+      const [extra] = await db
+        .select()
+        .from(adjustments)
+        .where(eq(adjustments.jobId, jobId));
+      await proposeAdjustment(jobId, extra!.id, {}, me.id);
+      await answerAdjustment(clientId, jobId, extra!.id, true);
+      testClock().set(NEXT_MONDAY);
+      await makeDueBills();
+      await switchOff(office, clientId);
+
+      await removeAdjustment(jobId, extra!.id);
+
+      expect(testPayments().refunds).toEqual([
+        expect.objectContaining({
+          chargeId: billCharge().chargeId,
+          amount: extra!.totalCents,
+        }),
+      ]);
+      const [row] = await db.select().from(jobs).where(eq(jobs.id, jobId));
+      expect((await paymentOf(row!)).owedCents).toBe(0);
+      // settling again gives nothing more back
+      await settleJob(jobId);
+      expect(testPayments().refunds).toHaveLength(1);
+    });
+
+    test("undoing its completion refunds the Bill, and keeps the Deposit", async () => {
+      const { office, clientId, jobId, priceCents, depositCents } =
+        await billedJob();
+      testClock().set(NEXT_MONDAY);
+      await makeDueBills();
+      await switchOff(office, clientId);
+
+      await undoCompletion(jobId);
+
+      expect(testPayments().refunds).toEqual([
+        expect.objectContaining({
+          chargeId: billCharge().chargeId,
+          amount: priceCents - depositCents,
+        }),
+      ]);
+      expect(
+        testPayments().refunds.some((r) => r.chargeId === deposit().chargeId),
+      ).toBe(false);
+    });
+
+    test("undoing a plan Job's completion refunds the Bill", async () => {
+      const office = await signInAsOffice();
+      const me = (await office.get("/api/me").expect(200))
+        .body as SignedInAccount;
+      const { clientId, billId } = await billedWeek({
+        byAccountId: me.id,
+        plan: true,
+      });
+      const view = await billOf(office, billId!);
+      const planLines = view.lines.filter((l) =>
+        l.label.startsWith("Standard Clean"),
+      );
+      const planJobId = planLines[0]!.jobId!;
+      await switchOff(office, clientId);
+
+      await undoCompletion(planJobId);
+
+      expect(testPayments().refunds).toEqual([
+        expect.objectContaining({
+          chargeId: billCharge().chargeId,
+          amount: planLines.reduce((sum, l) => sum + l.amountCents, 0),
+        }),
+      ]);
+      const [row] = await db.select().from(jobs).where(eq(jobs.id, planJobId));
+      expect((await paymentOf(row!)).owedCents).toBe(0);
+    });
   });
 
   test("refunds what a Job no longer owes", async () => {

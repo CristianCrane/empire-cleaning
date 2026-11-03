@@ -24,7 +24,8 @@
     "staff:testers": "tsx --env-file-if-exists=.env ./tests/testers.ts",
     "auth:create-owner": "tsx --env-file=.env ./src/features/auth/create-owner.ts",
     "e2e:server": "tsx tests/e2e/server.ts",
-    "stripe:sandbox": "tsx --env-file=.env tests/stripe-sandbox.ts",
+    "stripe:sandbox": "vitest run --config vitest.sandbox.config.ts",
+    "stripe:record": "tsx --env-file=.env tests/contract/record-stripe.ts",
     "test:quick": "vitest run",
     "email:dev": "email dev --dir emails --port 3002"
   },

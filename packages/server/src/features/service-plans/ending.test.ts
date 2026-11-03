@@ -10,6 +10,7 @@ import {
   signIn,
   testClock,
   testEmail,
+  refusingInserts,
   testPayments,
 } from "../../../tests/harness.ts";
 import { casey, crewedServicePlan } from "../../../tests/fixtures.ts";
@@ -146,6 +147,30 @@ describe("Ending a Service Plan", () => {
       expect.objectContaining({ id: jobId, status: "completed" }),
     );
     await end(client, planId, []).expect(200);
+    expect(testPayments().refunds.map((r) => r.amount)).toEqual([PLAN_DEPOSIT]);
+  });
+
+  // #241, finding 5
+  test("stands when the Deposit's Refund can't be recorded, leaving the last Job Unpaid until a retry refunds it once", async () => {
+    const { office, client, planId, jobId, cleanerId } =
+      await crewedServicePlan();
+    testClock().set(new Date("2026-01-19T16:00:00Z"));
+    await completeJob(cleanerId, jobId, { condition: "moderate", reports: [] });
+
+    await refusingInserts("refunds", () => end(client, planId, []).expect(200));
+    expect((await officePlan(office, planId)).status).toBe("ended");
+    expect(
+      (
+        (await office.get(`/api/jobs/${jobId}`).expect(200)).body as {
+          completion: { payment: { unpaid: unknown } };
+        }
+      ).completion.payment.unpaid,
+    ).not.toBeNull();
+    expect(testEmail().lastTo(casey.email).subject).toBe(
+      "Your Service Plan has Ended",
+    );
+
+    await office.post(`/api/jobs/${jobId}/balance/retry`).expect(200);
     expect(testPayments().refunds.map((r) => r.amount)).toEqual([PLAN_DEPOSIT]);
   });
 
