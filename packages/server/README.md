@@ -2,7 +2,7 @@
 
 ## Testing
 
-`pnpm test` runs the suite on the **test Postgres** (`docker-compose.yml`, port 5433). Start it with `pnpm db:up`. Test files run in parallel, and each Vitest worker has a database of its own (`empire_test_1`, `empire_test_2`, …; `tests/setup/workerDatabase.ts`). On every run `empire_test` (override with `TEST_DB_URL`) is dropped, recreated and migrated from `drizzle/`, and the workers' databases are copied from it (`CREATE DATABASE … TEMPLATE`), so the migrations run once.
+`pnpm test` runs the suite on the **test Postgres** (`docker-compose.yml`, port 5433). Start it with `pnpm db:up`. Test files run in parallel, and each Vitest worker has a database of its own (`empire_test_1`, `empire_test_2`, …; `tests/setup/workerDatabase.ts`). On every run `empire_test` (override with `TEST_DB_URL`) is dropped, recreated and migrated from `drizzle/`, and the workers' databases are copied from it (`CREATE DATABASE … TEMPLATE`), so the migrations run once. There are half as many workers as CPU cores, up to 6; `SERVER_TEST_WORKERS=2` or `--maxWorkers=2` sets it, and copies left by an earlier run with more workers are dropped.
 
 The test Postgres lives in memory with disk syncing off. Committing to disk took tens of milliseconds a time on a Docker volume (47 ms measured), and a test run makes thousands of commits. Test data is disposable, so nothing is lost. Never put real data there.
 
