@@ -8,5 +8,5 @@ The plan's single Deposit and its fees were defined against one Job's price. Wit
 
 - A Service Plan Quote lists each weekday's visit and price, then the total for one round and the Deposit. The Client accepts the pattern whole; for fewer days, the Office sends a new Quote.
 - Accepting needs room for the first Job on each weekday. Later Jobs whose day has no room wait for the Office to book or skip them, as before.
-- Skipping, On Hold, changing terms and Ending work per Job and per plan as before. The Deposit still goes to the plan's final Job when it Ends.
+- Skipping, On Hold, changing terms and Ending work per Job and per plan as before. The Deposit still goes to the plan's final Job when it Ends. A Job that goes ahead after the plan Ends still owes its own share as a fee, the final Job's coming out of the Deposit it then holds, with the rest refunded (#241).
 - Each Job is still charged on completion. Batching a commercial Client's charges into a weekly or monthly bill, or invoicing them, is a separate decision.

@@ -10,8 +10,12 @@ import type {
   QuoteView,
   SignedInAccount,
 } from "@empire-cleaning/models";
+import { eq } from "drizzle-orm";
+import { db } from "#db";
+import { confirmAssignment, offerAssignment } from "#features/assignments";
+import { recordNoAccess } from "#features/cancellation";
 import { bookJob } from "#features/jobs";
-import { createStaff, setUsualWeek } from "#features/staff";
+import { createStaff, setUsualWeek, staff } from "#features/staff";
 import {
   api,
   signIn,
@@ -376,6 +380,96 @@ describe("a plan Job's fee", () => {
       .send({ feeCents: fee })
       .expect(200);
     expect(testPayments().charges.at(-1)!.amount).toBe(fee);
+  });
+});
+
+// #241, finding 9: Ending a plan doesn't change what its Jobs still going
+// ahead owe as a fee
+describe("a plan Job going ahead after its plan Ended", () => {
+  // Ended on Tuesday the 20th at 2pm: Monday's clean has started, and
+  // Wednesday's is within 24 hours, so both go ahead; Wednesday's is the
+  // final Job, and holds the plan's Deposit. Cory is Confirmed on Monday's
+  const ended = async () => {
+    const started = await startedPlan();
+    const plan = await officePlan(started.office, started.planId);
+    const monday = booked(plan).find((j) => j.startsAt === MONDAYS[0])!;
+    const wednesday = booked(plan).find((j) => j.startsAt === WEDNESDAYS[0])!;
+    const [cory] = await db
+      .select({ id: staff.id })
+      .from(staff)
+      .where(eq(staff.email, "cory@example.com"));
+    const offered = await offerAssignment(monday.id, cory!.id, started.me.id);
+    await confirmAssignment(cory!.id, offered.assignments[0]!.id);
+    testClock().set(new Date("2026-01-20T19:00:00Z"));
+    await started.client
+      .post(`/api/service-plans/mine/${started.planId}/end`)
+      .send({ goingAhead: [MONDAYS[0], WEDNESDAYS[0]] })
+      .expect(200);
+    return {
+      ...started,
+      coryId: cory!.id,
+      monday,
+      wednesday,
+      shares: plan.days.map((d) => percent(d.totalCents, 25)),
+      depositCents: plan.depositCents,
+    };
+  };
+
+  test("No Access on one that isn't final charges its own share of the Deposit", async () => {
+    const { office, coryId, monday, shares } = await ended();
+    const charged = testPayments().charges.length;
+
+    await recordNoAccess(coryId, monday.id, "Nobody home");
+
+    expect(
+      testPayments()
+        .charges.slice(charged)
+        .map((c) => c.amount),
+    ).toEqual([shares[0]]);
+    expect(
+      (await office.get(`/api/jobs/${monday.id}`).expect(200)).body.noAccess
+        .feeCents,
+    ).toBe(shares[0]);
+  });
+
+  test("a Late Cancellation of the final one keeps only its own share, and refunds the rest", async () => {
+    const { client, wednesday, shares, depositCents } = await ended();
+
+    const job = (await client.get(`/api/jobs/mine/${wednesday.id}`).expect(200))
+      .body as ClientJobDetail;
+    expect(job.cancelTerms).toMatchObject({
+      late: true,
+      feeCents: shares[1],
+      refundCents: depositCents - shares[1]!,
+    });
+    await client
+      .post(`/api/jobs/mine/${wednesday.id}/cancel`)
+      .send({ feeCents: shares[1] })
+      .expect(200);
+
+    expect(testPayments().refunds.map((r) => r.amount)).toEqual([
+      depositCents - shares[1]!,
+    ]);
+  });
+
+  test("a second Late Reschedule of the final one costs its own share", async () => {
+    const { office, client, wednesday, shares } = await ended();
+    // late, but the first: free, to Thursday
+    await client
+      .post(`/api/jobs/mine/${wednesday.id}/reschedule-request`)
+      .send({ date: "2026-01-22", time: "13:00", cost: "free_late" })
+      .expect(201);
+    await office
+      .post(`/api/jobs/${wednesday.id}/reschedule-request/confirm`)
+      .expect(200);
+
+    testClock().set(new Date("2026-01-21T20:00:00Z"));
+    const job = (await client.get(`/api/jobs/mine/${wednesday.id}`).expect(200))
+      .body as ClientJobDetail;
+    expect(job.rescheduleTerms).toMatchObject({
+      cost: "late_cancellation",
+      feeCents: shares[1],
+    });
   });
 });
 

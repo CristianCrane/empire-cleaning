@@ -1,0 +1,44 @@
+{
+  "id": "evt_3UXlxeLqGDuiGNnB1F5oxvLp",
+  "object": "event",
+  "api_version": "2026-09-30.endive",
+  "created": 1793728773,
+  "data": {
+    "object": {
+      "id": "re_3UXlxeLqGDuiGNnB1v0HBz6Q",
+      "object": "refund",
+      "amount": 500,
+      "balance_transaction": "txn_3UXlxeLqGDuiGNnB1fYz62GB",
+      "charge": "ch_3UXlxeLqGDuiGNnB1jn2996u",
+      "created": 1793728652,
+      "currency": "usd",
+      "customer": "cus_VYtl5D0mqo14Ta",
+      "customer_account": null,
+      "destination_details": {
+        "card": {
+          "type": "refund"
+        },
+        "type": "card"
+      },
+      "metadata": {},
+      "payment_intent": "pi_3UXlxeLqGDuiGNnB1TKCKCPN",
+      "payment_method": "pm_1UXlxdLqGDuiGNnBhHtrZS1L",
+      "reason": null,
+      "receipt_number": null,
+      "source_transfer_reversal": null,
+      "status": "succeeded",
+      "transfer_reversal": null
+    },
+    "previous_attributes": {
+      "pending_reason": "insufficient_funds",
+      "status": "pending"
+    }
+  },
+  "livemode": false,
+  "pending_webhooks": 0,
+  "request": {
+    "id": null,
+    "idempotency_key": null
+  },
+  "type": "refund.updated"
+}

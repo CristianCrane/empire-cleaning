@@ -1,7 +1,10 @@
 import { describe, expect, test } from "vitest";
 import type { ClientPayment, SignedInAccount } from "@empire-cleaning/models";
 import { cancelJob, cancelTermsOf } from "#features/cancellation";
-import { settleJob } from "#features/completion";
+import { eq } from "drizzle-orm";
+import { db } from "#db";
+import { paymentOf, settleJob } from "#features/completion";
+import { jobs } from "#features/jobs";
 import { createStaff, setUsualWeek } from "#features/staff";
 import { FAKE_SIGNATURE } from "../../../tests/fakes/payment-gateway.ts";
 import {
@@ -154,5 +157,81 @@ describe("a refund made in the provider's dashboard", () => {
     const history = await historyOf(casey.email);
     expect(history.filter((p) => p.kind === "refund")).toHaveLength(1);
     expect(testMonitoring().signalled("refunded_at_provider")).toEqual([]);
+  });
+});
+
+// #241, finding 6: Stripe can report a refund made, then fail it
+describe("a refund that fails after it's made", () => {
+  const failed = async (refundId: string) =>
+    webhook(testPayments().failRefund(refundId)).expect(200);
+  const ledgerOf = async (jobId: string) => {
+    const [row] = await db.select().from(jobs).where(eq(jobs.id, jobId));
+    return paymentOf(row!);
+  };
+
+  test("in the dashboard undoes the discount, and the Office is told", async () => {
+    const me = await officeAccount();
+    const { job } = await completedFirstClean({ byAccountId: me.id });
+    const balance = testPayments().charges[1]!;
+    const refundId = testPayments().refundAtProvider(balance.chargeId, 2000);
+    await webhook({ kind: "charge_refunded", chargeId: balance.chargeId });
+
+    await failed(refundId);
+    // told again, as Stripe does once it's failed
+    await webhook({ kind: "charge_refunded", chargeId: balance.chargeId });
+
+    expect(
+      (await historyOf(casey.email)).filter((p) => p.kind === "refund"),
+    ).toEqual([]);
+    expect(await ledgerOf(job.id)).toMatchObject({
+      owedCents: 0,
+      charges: expect.arrayContaining([
+        expect.objectContaining({ kind: "balance", refundedCents: 0 }),
+      ]),
+    });
+    expect(testMonitoring().signalled("refund_failed")).toEqual([
+      expect.objectContaining({
+        urgency: "urgent",
+        context: expect.objectContaining({ cents: 2000, atProvider: true }),
+      }),
+    ]);
+    expect(await settleJob(job.id)).toMatchObject({
+      chargedCents: 0,
+      refundedCents: 0,
+    });
+  });
+
+  test("of ours, counts as not given back, isn't tried again from that Charge, and the Office is told", async () => {
+    const me = await officeAccount();
+    const job = await bookedJob(me.id);
+    const deposit = testPayments().charges[0]!;
+    await cancelJob(job.id, {
+      by: "client",
+      feeCents: 0,
+      reason: null,
+      byAccountId: me.id,
+      byClient: false,
+    });
+    const [refund] = testPayments().refunds;
+
+    await failed(refund!.refundId);
+
+    expect(await ledgerOf(job.id)).toMatchObject({
+      owedCents: -deposit.amount,
+    });
+    expect(testMonitoring().signalled("refund_failed")).toEqual([
+      expect.objectContaining({
+        urgency: "urgent",
+        context: expect.objectContaining({
+          cents: deposit.amount,
+          atProvider: false,
+        }),
+      }),
+    ]);
+    await settleJob(job.id);
+    expect(testPayments().refunds).toHaveLength(1);
+    // told twice, it's one failure
+    await failed(refund!.refundId);
+    expect(testMonitoring().signalled("refund_failed")).toHaveLength(1);
   });
 });

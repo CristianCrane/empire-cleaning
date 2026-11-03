@@ -869,11 +869,19 @@ describe("when something goes wrong mid-way", () => {
     await addCard(client);
     testPayments().goDown();
 
-    await accept(client, quote).expect(500);
-    await office
-      .post(`/api/quotes/${quote.id}/accept`)
-      .send({ serviceKey: SEEDED.deep })
-      .expect(500);
+    expect((await accept(client, quote).expect(409)).body.message).toBe(
+      "We couldn't reach our payment provider, so nothing has been booked. Please try again in a few minutes.",
+    );
+    expect(
+      (
+        await office
+          .post(`/api/quotes/${quote.id}/accept`)
+          .send({ serviceKey: SEEDED.deep })
+          .expect(409)
+      ).body.message,
+    ).toBe(
+      "The Deposit couldn't be charged to Casey Client's Test card ending 4242 (the payment provider couldn't be reached), so nothing has been booked.",
+    );
 
     expect((await client.get(`/api/quotes/mine/${quote.id}`)).body.status).toBe(
       "sent",
@@ -882,6 +890,93 @@ describe("when something goes wrong mid-way", () => {
     expect(await depositCharges()).toEqual([]);
     testPayments().goDown(false);
     await accept(client, quote).expect(200);
+  });
+});
+
+// #241, finding 1: a Deposit the provider took, but whose reply was lost,
+// is found on the next try instead of taken again
+describe("trying again after the Deposit's reply was lost", () => {
+  const depositsAtProvider = () =>
+    testPayments().charges.filter((c) => c.description.startsWith("Deposit"));
+
+  test("the Office's second try takes no second Deposit", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    await addCard(await signIn(casey.email));
+    const acceptForCasey = () =>
+      office
+        .post(`/api/quotes/${quote.id}/accept`)
+        .send({ serviceKey: SEEDED.deep });
+    testPayments().loseNextReply();
+
+    await acceptForCasey().expect(409);
+    await acceptForCasey().expect(200);
+
+    expect(depositsAtProvider()).toHaveLength(1);
+    expect(await depositCharges()).toEqual([
+      expect.objectContaining({
+        gatewayRef: depositsAtProvider()[0]!.chargeId,
+      }),
+    ]);
+    expect((await scheduleOn(office, MONDAY)).jobs).toHaveLength(1);
+  });
+
+  test("the Client's second try with their saved card takes no second Deposit", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    await addCard(client);
+    testPayments().loseNextReply();
+
+    await accept(client, quote).expect(409);
+    await accept(client, quote).expect(200);
+
+    expect(depositsAtProvider()).toHaveLength(1);
+    expect(await depositCharges()).toHaveLength(1);
+  });
+
+  test("the Client's second try with a card entered again takes no second Deposit, and saves the first card", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    testPayments().loseNextReply();
+
+    await payNow(client, quote).expect(409);
+    await payNow(client, quote).expect(200);
+
+    expect(depositsAtProvider()).toHaveLength(1);
+    expect(
+      (await client.get("/api/payment-methods/mine").expect(200)).body,
+    ).toMatchObject({ label: "Test card ending 4242" });
+  });
+
+  test("a day later, once the provider has forgotten the key, a Deposit taken from a card entered then is given back", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office, guestAsk(), { validityDays: 7 });
+    const client = await signIn(casey.email);
+    testPayments().loseNextReply();
+    await payNow(client, quote).expect(409);
+
+    testClock().advance({ hours: 25 });
+    testPayments().forgetKeys();
+    await payNow(client, quote).expect(200);
+
+    // the first card's payment can't be told from a new one's, so the
+    // second card pays, and the first is given back
+    const [lost, paid] = depositsAtProvider();
+    expect(testPayments().refunds).toEqual([
+      expect.objectContaining({
+        chargeId: lost!.chargeId,
+        amount: lost!.amount,
+      }),
+    ]);
+    expect(await depositCharges()).toEqual([
+      expect.objectContaining({ gatewayRef: paid!.chargeId }),
+    ]);
   });
 });
 

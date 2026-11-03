@@ -1,0 +1,47 @@
+{
+  "id": "evt_1UXly1LqGDuiGNnBLYNlV9BT",
+  "object": "event",
+  "api_version": "2026-09-30.endive",
+  "created": 1793728673,
+  "data": {
+    "object": {
+      "id": "cus_VYtld038TKymAU",
+      "object": "customer",
+      "address": null,
+      "balance": 0,
+      "created": 1793728673,
+      "currency": null,
+      "customer_account": null,
+      "default_source": null,
+      "delinquent": false,
+      "description": null,
+      "discount": null,
+      "email": null,
+      "invoice_prefix": "DDOIIYWQ",
+      "invoice_settings": {
+        "custom_fields": null,
+        "default_payment_method": null,
+        "footer": null,
+        "rendering_options": null
+      },
+      "livemode": false,
+      "metadata": {
+        "run": "record-1793728641356"
+      },
+      "name": "Recording",
+      "next_invoice_sequence": 1,
+      "phone": null,
+      "preferred_locales": [],
+      "shipping": null,
+      "tax_exempt": "none",
+      "test_clock": null
+    }
+  },
+  "livemode": false,
+  "pending_webhooks": 0,
+  "request": {
+    "id": "req_X5yZZdrmihO2sq",
+    "idempotency_key": "stripe-node-retry-0606606f-2b97-4c5b-ad1a-fab58f1bfba4"
+  },
+  "type": "customer.created"
+}

@@ -11,6 +11,7 @@ import {
   signIn,
   testClock,
   testEmail,
+  refusingInserts,
   testPayments,
 } from "../../../tests/harness.ts";
 import { casey, crewedServicePlan } from "../../../tests/fixtures.ts";
@@ -221,6 +222,29 @@ describe("No Access on a plan Job", () => {
     expect(testEmail().lastTo(casey.email).text).toMatch(
       /Service Plan carries on/,
     );
+  });
+
+  // #241, finding 5
+  test("stands when its fee can't be recorded, leaving the Job Unpaid until a retry takes it once", async () => {
+    const { office, jobId } = await startedPlan();
+    testClock().set(MONDAY_9_30AM);
+
+    await refusingInserts("charges", async () =>
+      (await signIn(CORY))
+        .post(`/api/assignments/mine/${jobId}/no-access`)
+        .send({ reason: "Nobody home and the gate was locked" })
+        .expect(200),
+    );
+    const job = await officeJob(office, jobId);
+    expect(job.status).toBe("no_access");
+    expect(job.noAccess!.payment.unpaid).not.toBeNull();
+
+    await office.post(`/api/jobs/${jobId}/balance/retry`).expect(200);
+    expect(chargesAfterDeposit().map((c) => c.amount)).toEqual([PLAN_DEPOSIT]);
+    expect((await officeJob(office, jobId)).noAccess!.payment).toMatchObject({
+      owedCents: 0,
+      unpaid: null,
+    });
   });
 });
 

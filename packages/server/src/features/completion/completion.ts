@@ -40,7 +40,13 @@ import {
   rescheduleTermsOf,
 } from "../reschedule/reschedule.ts";
 import { staff } from "../staff/staff.schema.ts";
-import { counts, paymentOf, settleJob, type Settled } from "./balance.ts";
+import {
+  counts,
+  paymentOf,
+  settleAfterChange,
+  settleJob,
+  type Settled,
+} from "./balance.ts";
 import { adjustments, type Adjustment } from "./completion.schema.ts";
 import {
   isReduction,
@@ -218,7 +224,7 @@ export const completeJob = async (
     }
   });
 
-  const settled = await settleJob(jobId);
+  const settled = await settleAfterChange(jobId);
   await sendReceipt(jobId, settled);
   if (settled.becameUnpaid) await sendUnpaid(jobId, settled);
 };
@@ -546,7 +552,7 @@ const sendCorrection = async (jobId: string, settled: Settled) => {
 };
 
 const settleAfterCorrection = async (jobId: string, item: string) => {
-  const settled = await settleJob(jobId, item);
+  const settled = await settleAfterChange(jobId, item);
   await sendCorrection(jobId, settled);
   if (settled.becameUnpaid) await sendUnpaid(jobId, settled);
 };
@@ -678,7 +684,7 @@ export const undoCompletion = async (jobId: string) => {
         .where(eq(properties.id, job.propertyId));
     }
   });
-  const settled = await settleJob(jobId);
+  const settled = await settleAfterChange(jobId);
 
   const { property, client } = await jobWithOwner(jobId);
   await notify(`Undone completion notice for Job ${jobId}`, async () =>
@@ -882,7 +888,7 @@ export const answerAdjustment = async (
   if (!answered) throw new ConflictError("You've already answered this.");
   if (!approve) return;
 
-  const settled = await settleJob(jobId, adjustmentItem(answered));
+  const settled = await settleAfterChange(jobId, adjustmentItem(answered));
   const { job, property, client } = await jobWithOwner(jobId);
   const payment = await paymentOf(job);
   await notify(`Receipt for Adjustment ${adjustmentId}`, async () =>
@@ -925,8 +931,13 @@ export const retryUnpaidJobsFor = async (clientId: string) => {
     .innerJoin(properties, eq(properties.id, jobs.propertyId))
     .where(and(eq(properties.clientId, clientId), isNotNull(jobs.unpaidSince)));
   for (const { id } of unpaid) {
-    const settled = await settleJob(id);
-    if (!settled.failure) await sendCorrection(id, settled);
+    try {
+      const settled = await settleJob(id);
+      if (!settled.failure) await sendCorrection(id, settled);
+    } catch (error) {
+      // the rest are still tried; this one stays Unpaid
+      monitoring.error(error, { what: `Unpaid Job ${id} not retried` });
+    }
   }
 };
 

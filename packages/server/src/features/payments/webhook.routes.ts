@@ -2,7 +2,7 @@ import express, { Router } from "express";
 import { monitoring } from "../../services/monitoring/index.ts";
 import { paymentGateway } from "../../services/payment-gateway/index.ts";
 import { finishBillPayment } from "../bills/bills.ts";
-import { recordRefundsAtProvider } from "./money.ts";
+import { recordRefundFailed, recordRefundsAtProvider } from "./money.ts";
 import { finalizeDeposit } from "../quotes/accept.ts";
 
 // What the payment provider tells us happened, e.g. a Deposit that succeeded
@@ -37,6 +37,10 @@ webhookRouter.post(
       // ours, or one made in the provider's dashboard, which is recorded
       case "charge_refunded":
         await recordRefundsAtProvider(event.chargeId);
+        break;
+      // ours, or one made in the dashboard, made and then failed
+      case "refund_failed":
+        await recordRefundFailed(event.refundId);
         break;
       case "dispute_opened":
         monitoring.signal("dispute_opened", { ref: event.chargeId });

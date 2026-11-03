@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import type { QuoteOption, QuoteStatus } from "@empire-cleaning/models";
@@ -23,6 +22,11 @@ import {
   paymentMethodOf,
   storePaymentMethod,
 } from "../payments/payments.ts";
+import {
+  giveBackDeposit,
+  takeDepositOnce,
+  UNREACHABLE,
+} from "../payments/money.ts";
 import { charges } from "../payments/payments.schema.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
@@ -395,26 +399,6 @@ const recordAcceptance = async (
   };
 };
 
-// a Deposit was taken but nothing was booked: give it back
-const refundUnbooked = async (
-  chargeId: string,
-  amount: number,
-  quoteId: string,
-) => {
-  const refunded = await paymentGateway
-    .refund({ chargeId, amount, idempotencyKey: `refund:${chargeId}` })
-    .catch((e: unknown) => ({ ok: false, reason: String(e) }) as const);
-  if (!refunded.ok) {
-    // taken but not booked: refund it by hand
-    monitoring.signal("refund_failed", {
-      chargeId,
-      quoteId,
-      cents: amount,
-      reason: refunded.reason,
-    });
-  }
-};
-
 const describe = ({ revision, property, offer }: Booking) =>
   revision.kind === "service_plan"
     ? `Deposit: Service Plan at ${addressOf(property)}, from ${formatWhen(revision.proposedStartsAt!)}`
@@ -476,8 +460,9 @@ export const acceptQuote = async (
 
   const saved = await paymentMethodOf(client.id);
   const token = acceptor.by === "client" ? paymentToken : undefined;
-  // changing a plan takes no Deposit: the plan's carries over
-  if (!changing && !token && !saved) {
+  // a card is needed even to change a plan, which takes no Deposit: the
+  // plan's Balances are charged to it
+  if (!token && !saved) {
     throw new ConflictError(
       acceptor.by === "client"
         ? "Enter a card to accept this Quote."
@@ -494,39 +479,46 @@ export const acceptQuote = async (
     acceptedBy: acceptor.accountId,
   };
 
-  // a card entered just now is used once, so its token keys the Deposit; a
-  // saved one is keyed per attempt, so a retry after a refund can't replay a
-  // payment that was given back
-  const takeDeposit = async (): Promise<DepositAttempt> => {
-    // a 0% Deposit from a saved card has nothing to take or save, and nor
-    // does changing a plan
-    if (changing || (offer.depositCents === 0 && !token)) {
+  // changing a plan takes no Deposit: the plan's carries over
+  const depositCents = changing ? 0 : offer.depositCents;
+  // Once per attempt, however often accepting is tried (takeDepositOnce).
+  // Nothing to take only saves a card entered just now, keyed by its token,
+  // which is used once
+  const takeDeposit = async (tx: Tx): Promise<DepositAttempt> => {
+    // nothing to take or save from a saved card
+    if (depositCents === 0 && !token) {
       return { status: "succeeded", chargeId: null, saved: null };
     }
     const payerId = await payerFor(client);
+    const input = {
+      payerId,
+      amount: depositCents,
+      description: describe(booking),
+    };
     if (acceptor.by === "client") {
-      return paymentGateway.takeDeposit({
-        payerId,
-        source: token ? { token } : { paymentMethodId: saved!.gatewayRef },
-        amount: offer.depositCents,
-        description: describe(booking),
-        idempotencyKey: `deposit:${id}:${token ?? randomUUID()}`,
-      });
+      const source = token ? { token } : { paymentMethodId: saved!.gatewayRef };
+      return depositCents === 0
+        ? paymentGateway
+            .takeDeposit({
+              ...input,
+              source,
+              idempotencyKey: `deposit:${id}:${token}`,
+            })
+            // nothing is taken, so trying again is safe
+            .catch((): DepositAttempt => ({
+              status: "failed",
+              reason: UNREACHABLE,
+            }))
+        : takeDepositOnce(tx, id, {
+            call: "deposit",
+            input: { ...input, source },
+          });
     }
     // the Office: off-session, so no approval can be asked for
-    return paymentGateway
-      .charge({
-        payerId,
-        paymentMethodId: saved!.gatewayRef,
-        amount: offer.depositCents,
-        description: describe(booking),
-        idempotencyKey: `deposit:${id}:${randomUUID()}`,
-      })
-      .then((result) =>
-        result.ok
-          ? { status: "succeeded", chargeId: result.chargeId, saved: null }
-          : { status: "failed", reason: result.reason },
-      );
+    return takeDepositOnce(tx, id, {
+      call: "charge",
+      input: { ...input, paymentMethodId: saved!.gatewayRef },
+    });
   };
 
   // set inside the transaction; `as` stops TypeScript deciding it's always null
@@ -539,13 +531,15 @@ export const acceptQuote = async (
         throw new ConflictError(unbookableMessage(hold.unbookable, acceptor));
       }
 
-      const attempt = await takeDeposit();
+      const attempt = await takeDeposit(tx);
       if (attempt.status === "failed") {
         // the Client is told only that their card wasn't charged
         log.info(`Deposit for Quote ${id} not taken (${attempt.reason})`);
         throw new ConflictError(
           acceptor.by === "client"
-            ? "Your card couldn't be charged, so nothing has been booked. Please try another card."
+            ? attempt.reason === UNREACHABLE
+              ? "We couldn't reach our payment provider, so nothing has been booked. Please try again in a few minutes."
+              : "Your card couldn't be charged, so nothing has been booked. Please try another card."
             : `The Deposit couldn't be charged to ${client.name}'s ${saved!.label} (${attempt.reason}), so nothing has been booked.`,
         );
       }
@@ -555,7 +549,8 @@ export const acceptQuote = async (
           quoteId: id,
           revisionId: revision.id,
           serviceKey: offer.serviceKey,
-          depositCents: offer.depositCents,
+          depositCents,
+          changingPlanId: changing,
           acceptedBy: acceptor.accountId,
         });
         return { status: "needs_approval", secret: attempt.secret } as const;
@@ -570,7 +565,7 @@ export const acceptQuote = async (
       } as const;
     });
   } catch (error) {
-    if (chargeId) await refundUnbooked(chargeId, offer.depositCents, id);
+    if (chargeId) await giveBackDeposit(chargeId, offer.depositCents, id);
     throw error;
   }
 
@@ -661,18 +656,25 @@ export const finalizeDeposit = async (ref: string): Promise<Finalized> => {
         .for("update");
       if (current!.settledAt) return { status: "settled" } as const;
 
-      // a Deposit was being taken, so the Quote starts its home's plan
-      const hold = await holdForBooking(tx, quote, revision, offer, null);
+      // the plan it changes must still be the home's, or, if it changes
+      // none, the home must have none
+      const hold = await holdForBooking(
+        tx,
+        quote,
+        revision,
+        offer,
+        pending.changingPlanId,
+      );
       await settle(ref, tx);
       if (hold.unbookable) {
         return { status: "refunded", unbookable: hold.unbookable } as const;
       }
-      const booked = await recordAcceptance(tx, booking, attempt, null);
+      const booked = await recordAcceptance(tx, booking, attempt, hold.change);
       return { status: "accepted", booked } as const;
     });
   } catch (error) {
     if (attempt.chargeId) {
-      await refundUnbooked(attempt.chargeId, pending.depositCents, quote.id);
+      await giveBackDeposit(attempt.chargeId, pending.depositCents, quote.id);
     }
     // given back: a later webhook mustn't book it after all
     await settle(ref);
@@ -680,7 +682,7 @@ export const finalizeDeposit = async (ref: string): Promise<Finalized> => {
   }
 
   if (result.status === "refunded" && attempt.chargeId) {
-    await refundUnbooked(attempt.chargeId, pending.depositCents, quote.id);
+    await giveBackDeposit(attempt.chargeId, pending.depositCents, quote.id);
   }
   if (result.status !== "accepted") return result;
 

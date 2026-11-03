@@ -9,7 +9,7 @@ import {
   tellCrew,
 } from "../cancellation/cancellation.ts";
 import { clients } from "../clients/clients.schema.ts";
-import { settleJob, type Settled } from "../completion/balance.ts";
+import { settleAfterChange, type Settled } from "../completion/balance.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { charges } from "../payments/payments.schema.ts";
 import { properties } from "../properties/properties.schema.ts";
@@ -186,9 +186,9 @@ export const endServicePlan = async (planId: string, ending: Ending) => {
   });
 
   for (const job of ended.cancelled) {
-    if (job.rescheduleFeeCents > 0) await settleJob(job.id);
+    if (job.rescheduleFeeCents > 0) await settleAfterChange(job.id);
   }
-  const settled = await settleJob(ended.finalJob.id);
+  const settled = await settleAfterChange(ended.finalJob.id);
   for (const job of ended.cancelled) await tellCrew(job);
   await tellClient(ended.plan, ended.terms, settled);
   if (ending.byClient) await tellOffice(ended.plan, ended.terms);

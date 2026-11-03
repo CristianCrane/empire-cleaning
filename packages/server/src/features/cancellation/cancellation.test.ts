@@ -16,6 +16,7 @@ import {
   signIn,
   testClock,
   testEmail,
+  refusingInserts,
   testPayments,
 } from "../../../tests/harness.ts";
 import {
@@ -193,6 +194,46 @@ describe("the Client cancelling", () => {
     expect(testEmail().lastTo("olive@example.com").subject).toBe(
       "Casey Client cancelled a Job",
     );
+  });
+
+  // #241, finding 5
+  test("stands when its Refund can't be recorded, leaving the Job Unpaid until a retry gives the Deposit back once", async () => {
+    const { client, office, jobId, deposit } = await bookedJob();
+    testClock().set(SUNDAY_8_59AM);
+
+    await refusingInserts("refunds", () =>
+      cancel(client, jobId, 0).expect(200),
+    );
+    const job = await officeJob(office, jobId);
+    expect(job.status).toBe("cancelled");
+    expect(job.cancellation!.payment.unpaid).not.toBeNull();
+    expect(testEmail().lastTo(casey.email).subject).toBe(
+      "Your clean is cancelled",
+    );
+
+    await office.post(`/api/jobs/${jobId}/balance/retry`).expect(200);
+    expect(refunded()).toEqual([deposit]);
+    expect(
+      (await officeJob(office, jobId)).cancellation!.payment,
+    ).toMatchObject({ owedCents: 0, unpaid: null });
+  });
+
+  test("whose Refund wasn't recorded gives the Deposit back once, retried a day later", async () => {
+    const { client, office, jobId, deposit } = await bookedJob();
+    testClock().set(SUNDAY_8_59AM);
+    await refusingInserts("refunds", () =>
+      cancel(client, jobId, 0).expect(200),
+    );
+
+    // the provider has long forgotten the refund's key
+    testClock().advance({ hours: 25 });
+    testPayments().forgetKeys();
+    await office.post(`/api/jobs/${jobId}/balance/retry`).expect(200);
+
+    expect(refunded()).toEqual([deposit]);
+    expect(
+      (await officeJob(office, jobId)).cancellation!.payment,
+    ).toMatchObject({ owedCents: 0, unpaid: null });
   });
 
   test("within 24 hours keeps the Deposit as the fee", async () => {

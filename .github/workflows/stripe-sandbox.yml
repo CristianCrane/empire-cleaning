@@ -1,0 +1,30 @@
+name: Stripe sandbox
+
+# The Payment Gateway contract on Stripe itself, in a sandbox
+# (packages/server/tests/contract/stripe.sandbox.test.ts): it shows the fake
+# the other tests run on still does what Stripe does. Nightly, not on every
+# pull request, as Stripe asks of tests against its API; and by hand
+# (Actions → Stripe sandbox → Run workflow) when the adapter changes.
+on:
+  schedule:
+    - cron: "17 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# one at a time in the sandbox, whose test-mode rate limits are strict
+concurrency:
+  group: stripe-sandbox
+
+jobs:
+  contract:
+    name: Payment Gateway contract on Stripe
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup
+      - run: pnpm --filter @empire-cleaning/server stripe:sandbox
+        env:
+          # a sandbox's secret key (sk_test_); the tests refuse any other
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SANDBOX_SECRET_KEY }}

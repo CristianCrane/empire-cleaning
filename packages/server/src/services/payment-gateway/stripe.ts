@@ -6,6 +6,7 @@ import {
   type BillPaymentInput,
   type BillPaymentOutcome,
   type ChargeInput,
+  type ChargeLookup,
   type ChargeResult,
   type DepositAttempt,
   type DepositInput,
@@ -14,12 +15,13 @@ import {
   type PaymentGateway,
   type RefundElsewhere,
   type RefundInput,
+  type RefundLookup,
   type RefundResult,
   type SavedPaymentMethod,
 } from "./index.ts";
 
 // pinned, so a Stripe upgrade never changes behaviour without a code change
-const API_VERSION = "2026-09-30.endive";
+export const API_VERSION = "2026-09-30.endive";
 
 // Cards only, deliberately not Stripe's dynamic payment methods: slower
 // methods such as bank debits settle days later, which would break "the
@@ -32,6 +34,9 @@ const ALLOWED: "card"[] = ["card"];
 const DEPOSIT = { purpose: "deposit" };
 // and our Bill payments
 const BILL = "bill";
+// the idempotency key a payment was asked for with, so it can be found when
+// the reply never came (chargeOutcome)
+const KEY = "idempotency_key";
 // on every refund we make, so one made in the dashboard can be told apart
 const MADE_HERE = { made_by: "app" };
 
@@ -167,7 +172,7 @@ export class StripePaymentGateway implements PaymentGateway {
           // a card entered now is saved by this payment, for later Charges
           ...("token" in source && { setup_future_usage: "off_session" }),
           description,
-          metadata: DEPOSIT,
+          metadata: { ...DEPOSIT, [KEY]: idempotencyKey },
           expand: ["payment_method"],
         },
         { idempotencyKey },
@@ -210,19 +215,40 @@ export class StripePaymentGateway implements PaymentGateway {
           payment_method: paymentMethodId,
           allowed_payment_method_types: ALLOWED,
           description,
+          metadata: { [KEY]: idempotencyKey },
           off_session: true,
           confirm: true,
         },
         { idempotencyKey },
       );
-      return intent.status === "succeeded"
-        ? { ok: true, chargeId: intent.id }
-        : { ok: false, reason: intent.status };
+      return resultOf(intent);
     } catch (error) {
       // declined, or the bank wants the cardholder there to approve it
       // (authentication_required): either way, not charged
       return { ok: false, reason: reasonOf(error, "a Charge") };
     }
+  }
+
+  async chargeOutcome({
+    payerId,
+    idempotencyKey,
+    chargeId,
+    since,
+  }: ChargeLookup): Promise<ChargeResult | null> {
+    if (chargeId) {
+      return resultOf(await this.stripe.paymentIntents.retrieve(chargeId));
+    }
+    // listing is up to date at once, unlike searching by metadata; a minute
+    // early, for clocks that disagree
+    const made = await this.stripe.paymentIntents
+      .list({
+        customer: payerId,
+        created: { gte: Math.floor(since.getTime() / 1000) - 60 },
+        limit: 100,
+      })
+      .autoPagingToArray({ limit: 1000 });
+    const intent = made.find((i) => i.metadata?.[KEY] === idempotencyKey);
+    return intent ? resultOf(intent) : null;
   }
 
   async startBillPayment({
@@ -247,17 +273,29 @@ export class StripePaymentGateway implements PaymentGateway {
   }
 
   async billPaymentOutcome(ref: string): Promise<BillPaymentOutcome> {
-    const intent = await this.stripe.paymentIntents.retrieve(ref);
+    const intent = await this.stripe.paymentIntents
+      .retrieve(ref)
+      .catch((error: unknown) => {
+        if (
+          error instanceof Stripe.errors.StripeInvalidRequestError &&
+          error.code === "resource_missing"
+        ) {
+          return null;
+        }
+        throw error;
+      });
+    if (!intent) return { status: "failed", reason: "unknown_payment" };
+    const reference = intent.metadata?.reference ?? "";
     switch (intent.status) {
       case "succeeded":
         return {
           status: "succeeded",
           chargeId: intent.id,
           amount: intent.amount_received,
-          reference: intent.metadata?.reference ?? "",
+          reference,
         };
       case "processing":
-        return { status: "processing" };
+        return { status: "processing", reference };
       case "canceled":
         return { status: "failed", reason: "canceled" };
       default: {
@@ -280,7 +318,11 @@ export class StripePaymentGateway implements PaymentGateway {
   }: RefundInput): Promise<RefundResult> {
     try {
       const refund = await this.stripe.refunds.create(
-        { payment_intent: chargeId, amount, metadata: MADE_HERE },
+        {
+          payment_intent: chargeId,
+          amount,
+          metadata: { ...MADE_HERE, [KEY]: idempotencyKey },
+        },
         { idempotencyKey },
       );
       return refund.status === "failed" || refund.status === "canceled"
@@ -289,6 +331,20 @@ export class StripePaymentGateway implements PaymentGateway {
     } catch (error) {
       return { ok: false, reason: reasonOf(error, "a refund") };
     }
+  }
+
+  async refundOutcome({
+    chargeId,
+    idempotencyKey,
+  }: RefundLookup): Promise<RefundResult | null> {
+    const refunds = await this.stripe.refunds
+      .list({ payment_intent: chargeId, limit: 100 })
+      .autoPagingToArray({ limit: 1000 });
+    const refund = refunds.find((r) => r.metadata?.[KEY] === idempotencyKey);
+    if (!refund) return null;
+    return refund.status === "failed" || refund.status === "canceled"
+      ? { ok: false, reason: refund.failure_reason ?? refund.status }
+      : { ok: true, refundId: refund.id };
   }
 
   async refundsElsewhere(chargeId: string): Promise<RefundElsewhere[]> {
@@ -353,6 +409,23 @@ export class StripePaymentGateway implements PaymentGateway {
         const chargeId = idOf(event.data.object.payment_intent);
         return chargeId ? { kind: "charge_refunded", chargeId } : null;
       }
+      // a pending refund that went through. One that failed is told by
+      // refund.failed instead, so it isn't reported twice
+      case "refund.updated": {
+        const refund = event.data.object;
+        const chargeId = idOf(refund.payment_intent);
+        return chargeId && refund.status === "succeeded"
+          ? { kind: "charge_refunded", chargeId }
+          : null;
+      }
+      // Stripe reports some refunds succeeded, then fails them
+      case "refund.failed": {
+        const refund = event.data.object;
+        const chargeId = idOf(refund.payment_intent);
+        return chargeId
+          ? { kind: "refund_failed", chargeId, refundId: refund.id }
+          : null;
+      }
       case "charge.dispute.created": {
         const chargeId = idOf(event.data.object.payment_intent);
         return chargeId ? { kind: "dispute_opened", chargeId } : null;
@@ -362,6 +435,24 @@ export class StripePaymentGateway implements PaymentGateway {
     }
   }
 }
+
+// how a PaymentIntent asked for off-session stands. Processing is rare for
+// cards, but it isn't a decline: the money may yet be taken
+const resultOf = (intent: Stripe.PaymentIntent): ChargeResult => {
+  switch (intent.status) {
+    case "succeeded":
+      return { ok: true, chargeId: intent.id };
+    case "processing":
+      return { ok: false, reason: "processing", chargeId: intent.id };
+    default: {
+      const error = intent.last_payment_error;
+      return {
+        ok: false,
+        reason: error?.decline_code ?? error?.code ?? intent.status,
+      };
+    }
+  }
+};
 
 const idOf = (ref: string | { id: string } | null | undefined) =>
   typeof ref === "string" ? ref : (ref?.id ?? null);
@@ -418,10 +509,20 @@ const outcomeOf = (
 };
 
 // Stripe's short code for why it refused, which callers pass on. A declined
-// card is the charge_declined signal; anything else Stripe refuses or can't
-// do (unreachable, our keys, "No such customer") is payment_gateway_error,
-// with its full message for us
+// card is the charge_declined signal; anything else Stripe refuses (our
+// keys, "No such customer") is payment_gateway_error, with its full message
+// for us. When it may have done it after all, it throws instead, for the
+// caller to ask again how it went (ADR-0022): the connection failed, Stripe
+// erred, or the same key's request is still in progress
 const reasonOf = (error: unknown, what: string) => {
+  if (
+    error instanceof Stripe.errors.StripeConnectionError ||
+    error instanceof Stripe.errors.StripeAPIError ||
+    (error instanceof Stripe.errors.StripeIdempotencyError &&
+      error.statusCode === 409)
+  ) {
+    throw error;
+  }
   if (error instanceof Stripe.errors.StripeCardError) {
     const reason = error.decline_code ?? error.code ?? error.type;
     monitoring.signal("charge_declined", { what, reason });

@@ -56,10 +56,26 @@ export type RefundInput = {
 };
 
 export type ChargeResult =
-  { ok: true; chargeId: string } | { ok: false; reason: string };
+  | { ok: true; chargeId: string }
+  | { ok: false; reason: string }
+  // not taken yet, nor declined: chargeOutcome() says how it ends
+  | { ok: false; reason: "processing"; chargeId: string };
+
+// how to find a Charge asked for before: by its id, once known, or else by
+// the idempotency key it was asked with, at or after `since`
+export type ChargeLookup = {
+  payerId: string;
+  idempotencyKey: string;
+  chargeId: string | null;
+  since: Date;
+};
 
 export type RefundResult =
   { ok: true; refundId: string } | { ok: false; reason: string };
+
+// how to find a refund asked for before: by the idempotency key it was
+// asked with, among its Charge's
+export type RefundLookup = { chargeId: string; idempotencyKey: string };
 
 // a refund of a Charge that wasn't made by refund(), e.g. in the provider's
 // dashboard
@@ -77,7 +93,7 @@ export type BillPaymentInput = {
 
 // how a Bill payment started in the browser stands. A bank debit is
 // processing for days until it clears or fails; waiting means the Client
-// hasn't finished the form.
+// hasn't finished the form. A ref the provider doesn't know has failed.
 export type BillPaymentOutcome =
   | {
       status: "succeeded";
@@ -86,7 +102,8 @@ export type BillPaymentOutcome =
       amount: number;
       reference: string;
     }
-  | { status: "processing" }
+  // for what, as when it succeeds
+  | { status: "processing"; reference: string }
   | { status: "waiting" }
   | { status: "failed"; reason: string };
 
@@ -98,7 +115,11 @@ export type PaymentEvent =
   | { kind: "deposit_succeeded"; ref: string }
   | { kind: "bill_payment_succeeded"; ref: string; reference: string }
   | { kind: "bill_payment_failed"; ref: string; reference: string }
+  // a Charge's refunds changed: one was made, or one on its way went through
   | { kind: "charge_refunded"; chargeId: string }
+  // a refund, ours or one made in the dashboard, failed after it was made:
+  // the money wasn't given back
+  | { kind: "refund_failed"; chargeId: string; refundId: string }
   | { kind: "dispute_opened"; chargeId: string };
 
 export interface PaymentGateway {
@@ -124,6 +145,10 @@ export interface PaymentGateway {
   depositOutcome(ref: string): Promise<DepositAttempt>;
   // a later Charge to a saved Payment Method, without the Client there
   charge(input: ChargeInput): Promise<ChargeResult>;
+  // how a Charge (or a Deposit) ended whose reply never came, or that was
+  // processing; null if the provider never made it. Asks afresh, unlike
+  // repeating its idempotency key, which only replays the first reply
+  chargeOutcome(lookup: ChargeLookup): Promise<ChargeResult | null>;
   // a payment the Client makes in the browser, with `secret`; `ref` asks how
   // it went
   startBillPayment(
@@ -131,6 +156,9 @@ export interface PaymentGateway {
   ): Promise<{ ref: string; secret: string }>;
   billPaymentOutcome(ref: string): Promise<BillPaymentOutcome>;
   refund(input: RefundInput): Promise<RefundResult>;
+  // a refund whose reply never came, as the provider has it now; null if it
+  // was never made
+  refundOutcome(lookup: RefundLookup): Promise<RefundResult | null>;
   // a Charge's refunds made outside the app, as far as they've gone through
   // or are on their way
   refundsElsewhere(chargeId: string): Promise<RefundElsewhere[]>;
@@ -157,9 +185,11 @@ export const paymentGateway: PaymentGateway = {
   takeDeposit: (input) => current.takeDeposit(input),
   depositOutcome: (ref) => current.depositOutcome(ref),
   charge: (input) => current.charge(input),
+  chargeOutcome: (lookup) => current.chargeOutcome(lookup),
   startBillPayment: (input) => current.startBillPayment(input),
   billPaymentOutcome: (ref) => current.billPaymentOutcome(ref),
   refund: (input) => current.refund(input),
+  refundOutcome: (lookup) => current.refundOutcome(lookup),
   refundsElsewhere: (chargeId) => current.refundsElsewhere(chargeId),
   parseEvent: (body, headers) => current.parseEvent(body, headers),
 };

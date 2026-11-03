@@ -4,6 +4,7 @@ import {
   check,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   text,
@@ -95,7 +96,9 @@ export const charges = pgTable(
 );
 
 // money given back from a Charge: a negative Balance, a correction, an
-// undone completion, or one made in the payment provider's dashboard
+// undone completion, or one made in the payment provider's dashboard. One
+// from a Bill's Charge may be for one of its Jobs, settled on its own once
+// weekly billing no longer takes it (#241)
 export const refunds = pgTable(
   "refunds",
   {
@@ -106,19 +109,106 @@ export const refunds = pgTable(
     amountCents: integer("amount_cents").notNull(),
     // as a Charge's: the one change to the price it gave back for
     item: text("item"),
+    // the Job a Bill's Charge was refunded for, which it billed: it counts
+    // against what Bills took for that Job. Never set on a Job's own
+    jobId: uuid("job_id").references(() => jobs.id, { onDelete: "restrict" }),
+    // the Bill whose credit it gave back, when no Bill followed (ADR-0016)
+    creditBillId: uuid("credit_bill_id").references(() => bills.id, {
+      onDelete: "restrict",
+    }),
     // the Payment Gateway's id for it; each is recorded once
     gatewayRef: text("gateway_ref").notNull(),
     refundedAt: timestamp("refunded_at", { withTimezone: true }).notNull(),
     // made in the provider's dashboard, not by us: the Client owes that much
     // less, so it's never charged back (refundedAtProvider)
     atProvider: boolean("at_provider").notNull().default(false),
+    // when the provider told us it failed after all, as some do once made
+    // (#241): the money wasn't given back, so it counts for nothing
+    failedAt: timestamp("failed_at", { withTimezone: true }),
     ...timestamps,
   },
   (t) => [
     index("refunds_charge_id_idx").on(t.chargeId),
+    index("refunds_job_id_idx").on(t.jobId),
     uniqueIndex("refunds_gateway_ref_idx").on(t.gatewayRef),
   ],
 );
 
+// how asking the provider for a payment went: pending until its reply
+// comes, which it may never; processing while the provider has it on its
+// way; taken; failed, as when declined or never made; or given back, as a
+// Deposit nothing was booked for
+export const chargeAttemptStatus = pgEnum("charge_attempt_status", [
+  "pending",
+  "processing",
+  "taken",
+  "failed",
+  "given_back",
+]);
+
+// Every payment asked of the provider for a Job, a Bill or a Quote's
+// Deposit, committed before it's asked, so a retry after a lost reply or a
+// rolled-back transaction finds what was taken instead of taking it again
+// (#241). One that took money is done once a Charge records it.
+export const chargeAttempts = pgTable(
+  "charge_attempts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kind: chargeKind("kind").notNull(),
+    // the Job, Bill or Quote it's for, as `kind` says
+    forId: uuid("for_id").notNull(),
+    // the provider call and what it was asked with, to ask again just so
+    request: jsonb("request").notNull(),
+    status: chargeAttemptStatus("status").notNull().default("pending"),
+    amountCents: integer("amount_cents").notNull(),
+    // the Payment Gateway's id for the payment, once known
+    gatewayRef: text("gateway_ref"),
+    reason: text("reason"),
+    // by the Clock: the provider forgets its key a day later
+    askedAt: timestamp("asked_at", { withTimezone: true }).notNull(),
+    ...timestamps,
+  },
+  (t) => [index("charge_attempts_for_idx").on(t.kind, t.forId)],
+);
+
+// how asking the provider for a refund went: pending until its reply comes,
+// which it may never; made; or refused, as when it fails or was never made
+export const refundAttemptStatus = pgEnum("refund_attempt_status", [
+  "pending",
+  "made",
+  "refused",
+]);
+
+// Every refund we ask of the provider, committed before it's asked, as a
+// Charge attempt is (ADR-0022): a retry after a lost reply or a rolled-back
+// transaction records what was given back instead of giving it again. One
+// that was made is done once a Refund records it. No references: it's written
+// outside the transaction that holds the Job or Bill it's for, which a
+// reference's check would wait on.
+export const refundAttempts = pgTable(
+  "refund_attempts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    // what it gives back for: a Job, a Bill paid twice, or a Bill's credit
+    forId: uuid("for_id").notNull(),
+    chargeId: uuid("charge_id").notNull(),
+    amountCents: integer("amount_cents").notNull(),
+    // as its Refund will have them
+    item: text("item"),
+    jobId: uuid("job_id"),
+    creditBillId: uuid("credit_bill_id"),
+    status: refundAttemptStatus("status").notNull().default("pending"),
+    // the Payment Gateway's id for the refund, once made
+    gatewayRef: text("gateway_ref"),
+    reason: text("reason"),
+    // by the Clock: the provider forgets its key a day later
+    askedAt: timestamp("asked_at", { withTimezone: true }).notNull(),
+    ...timestamps,
+  },
+  (t) => [index("refund_attempts_for_idx").on(t.forId)],
+);
+
 export type Charge = typeof charges.$inferSelect;
+export type RefundAttempt = typeof refundAttempts.$inferSelect;
+export type ChargeAttempt = typeof chargeAttempts.$inferSelect;
 export type PaymentMethodRow = typeof paymentMethods.$inferSelect;

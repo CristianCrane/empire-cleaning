@@ -23,6 +23,7 @@ import {
   signIn,
   testClock,
   testEmail,
+  refusingInserts,
   testPayments,
 } from "../../../tests/harness.ts";
 import {
@@ -644,6 +645,52 @@ describe("an Unpaid Job", () => {
     // nothing left to retry
     await office.post(`/api/jobs/${jobId}/balance/retry`).expect(200);
     expect(amounts()).toHaveLength(2);
+  });
+
+  // #241, finding 1
+  test("is one whose Balance the provider took but whose reply was lost, and retrying it takes nothing more", async () => {
+    const { office, cory, client, jobId, quote } = await bookedJob();
+    const deep = deepOf(quote);
+    testPayments().loseNextReply();
+
+    await complete(cory.agent, jobId).expect(200);
+    expect(
+      (await officeJob(office, jobId)).completion!.payment.unpaid,
+    ).toMatchObject({ reason: "the payment provider couldn't be reached" });
+
+    await client.post(`/api/jobs/mine/${jobId}/balance/retry`).expect(200);
+    expect(amounts()).toEqual([
+      deep.depositCents,
+      deep.totalCents - deep.depositCents,
+    ]);
+    expect((await officeJob(office, jobId)).completion!.payment).toMatchObject({
+      owedCents: 0,
+      unpaid: null,
+    });
+  });
+
+  // #241, finding 5
+  test("is one whose settling failed: it's Completed all the same, and retrying takes the Balance once", async () => {
+    const { office, cory, jobId, quote } = await bookedJob();
+    const deep = deepOf(quote);
+
+    await refusingInserts("charges", () =>
+      complete(cory.agent, jobId).expect(200),
+    );
+    const job = await officeJob(office, jobId);
+    expect(job.status).toBe("completed");
+    expect(job.completion!.payment.unpaid).not.toBeNull();
+    expect(testEmail().lastTo(casey.email).subject).toMatch(/receipt/i);
+
+    await office.post(`/api/jobs/${jobId}/balance/retry`).expect(200);
+    expect(amounts()).toEqual([
+      deep.depositCents,
+      deep.totalCents - deep.depositCents,
+    ]);
+    expect((await officeJob(office, jobId)).completion!.payment).toMatchObject({
+      owedCents: 0,
+      unpaid: null,
+    });
   });
 
   test("includes one whose approved increase couldn't be charged", async () => {

@@ -1,4 +1,4 @@
-import { eq, inArray, or } from "drizzle-orm";
+import { and, eq, inArray, isNull, or } from "drizzle-orm";
 import type { ClientPayment, ClientPaymentKind } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
 import { addDays } from "../../services/clock/index.ts";
@@ -57,9 +57,13 @@ export const paymentHistoryFor = async (
           .select()
           .from(refunds)
           .where(
-            inArray(
-              refunds.chargeId,
-              charged.map((c) => c.id),
+            and(
+              inArray(
+                refunds.chargeId,
+                charged.map((c) => c.id),
+              ),
+              // one that failed gave nothing back
+              isNull(refunds.failedAt),
             ),
           );
 
