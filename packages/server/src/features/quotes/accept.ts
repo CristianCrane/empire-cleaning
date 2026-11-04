@@ -255,7 +255,7 @@ const holdForBooking = async (
     .where(eq(quotes.id, quote.id))
     .for("update");
 
-  let planId: string | null | undefined;
+  let planId: string | null = null;
   let change: Change | null = null;
   if (quote.kind === "service_plan") {
     const plan = await currentPlanOf(quote.propertyId, tx);
@@ -268,9 +268,11 @@ const holdForBooking = async (
   }
 
   // earliest first, so two acceptances hold their days in the same order
-  for (const clean of offer.cleans) await lockDay(tx, dayOf(clean.startsAt));
-  const dates = offer.cleans.map((clean) => dayOf(clean.startsAt)).sort();
-  const days = await scheduleFor(dates[0]!, dates.at(-1)!, tx);
+  const dates = offer.cleans.map((clean) => dayOf(clean.startsAt));
+  for (const date of dates) await lockDay(tx, date);
+  // a plan's weekdays are in the order the Office gave them, not by date
+  const span = [...dates].sort();
+  const days = await scheduleFor(span[0]!, span.at(-1)!, tx);
 
   const unbookable = whyUnbookable(
     {

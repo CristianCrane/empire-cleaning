@@ -18,6 +18,7 @@ const at1pm = (labourHours: number, crewSize = 2) => ({
 const held = (over: Partial<Held> = {}): Held => ({
   sentRevisionId: "rev",
   status: "sent",
+  planId: null,
   days: [thursday()],
   replacing: [],
   ...over,
@@ -89,7 +90,7 @@ describe("accepting a Quote (whyUnbookable)", () => {
 
     // Friday, with nobody available
     const friday = {
-      ...thursday({ jobs: [] }),
+      ...thursday(),
       date: "2026-01-09",
       staffHours: 0,
       bookedHours: 0,

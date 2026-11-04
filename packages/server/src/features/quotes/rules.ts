@@ -23,8 +23,9 @@ export type Held = {
   // the Revision the Quote has Sent now, and its status
   sentRevisionId: string | null;
   status: QuoteStatus;
-  // the home's plan now, for a Service Plan Quote; a one-off has none to check
-  planId?: string | null;
+  // the home's plan now, for a Service Plan Quote; null for a one-off,
+  // which never changes one
+  planId: string | null;
   // the days the cleans are on, and the booked Jobs the Quote's new terms
   // replace there
   days: ScheduleDay[];
@@ -46,7 +47,7 @@ export const whyUnbookable = (
     return { reason: "revised" };
   }
   if (held.status !== "sent") return { reason: "closed", status: held.status };
-  if (held.planId !== undefined && held.planId !== accepting.changing) {
+  if (held.planId !== accepting.changing) {
     return { reason: accepting.changing ? "plan_changed" : "has_plan" };
   }
   for (const clean of accepting.cleans) {
