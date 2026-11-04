@@ -151,6 +151,9 @@ describe("Turning Down a Quote", () => {
 
     expect(sent!.status).toBe(200);
     expect(turned!.status).toBe(409);
+    expect(turned!.body.message).toBe(
+      "A Revision of this Quote has been sent, so it can't be Turned Down: the Client declines it, or it Expires.",
+    );
     expect(
       (await office.get(`/api/quotes/${id}`).expect(200)).body,
     ).toMatchObject({ status: "sent", turnedDownAt: null });

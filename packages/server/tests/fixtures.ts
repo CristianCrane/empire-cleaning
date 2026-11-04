@@ -23,6 +23,7 @@ import { currentPriceList } from "#features/price-list";
 import {
   acceptQuote,
   askForQuote,
+  lockProperty,
   offerServicePlan,
   quotes,
   saveDraft,
@@ -477,8 +478,8 @@ export const setService = async (
   ).body as Service;
 };
 
-// Holds a Property as a send, save or close of its Quotes does
-// (lockProperty), on a connection of its own, while each request starts in
+// Holds a Property as a send, save or close of its Quotes does, on a
+// connection of its own, while each request starts in
 // turn, a moment apart so each is waiting before the next; then lets it go.
 // The requests' responses, in order.
 export const holdingProperty = async <T>(
@@ -487,11 +488,7 @@ export const holdingProperty = async <T>(
 ) => {
   const started: Promise<T>[] = [];
   await apart.transaction(async (tx) => {
-    await tx
-      .select({ id: properties.id })
-      .from(properties)
-      .where(eq(properties.id, propertyId))
-      .for("update");
+    await lockProperty(tx, propertyId);
     for (const request of requests) {
       // a request starts once it's awaited
       started.push(Promise.resolve(request()));

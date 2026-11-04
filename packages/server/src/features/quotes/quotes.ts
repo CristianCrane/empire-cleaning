@@ -460,8 +460,8 @@ const addOnsOf = (rows: PricedOption[]): QuoteAddOn[] => {
   });
 };
 
-// the figures the Office is shown of a Revision priced so: each option's,
-// a Service Plan Quote's terms, and each Add-on's
+// the figures a Client is shown of a Revision priced so: each option's, a
+// Service Plan Quote's terms, and each Add-on's
 const pricesShown = (revision: KindedRevision, rows: PricedOption[]) => ({
   options: inOrder(rows).map((row) => toOption(revision, row)),
   plan: planOf(revision, rows),
@@ -779,9 +779,7 @@ export const clientQuote = async (
       unit: property.unit,
       postcode: property.postcode,
     },
-    options: inOrder(rows).map((r) => toOption(revision, r)),
-    plan: planOf(revision, rows),
-    addOns: addOnsOf(rows),
+    ...pricesShown(revision, rows),
     crewSize: offer.crewSize,
     depositPercent: offer.depositPercent,
     proposedStartsAt: offer.proposedStartsAt!.toISOString(),
@@ -1104,6 +1102,14 @@ const closedMessage: Partial<Record<QuoteStatus, string>> = {
     "This Quote was Turned Down. The Client can ask for a new Quote.",
 };
 
+// the Quote, refused once it has closed
+const openQuote = async (id: string, tx: Tx | typeof db = db) => {
+  const quote = await findQuote(id, tx);
+  const closed = closedMessage[quote.status];
+  if (closed) throw new ConflictError(closed);
+  return quote;
+};
+
 // holds the Quote's Property (lockProperty) and reads the Quote as it is now,
 // refusing it once it has closed
 const lockOpenQuote = async (
@@ -1111,10 +1117,7 @@ const lockOpenQuote = async (
   quote: Pick<Quote, "id" | "propertyId">,
 ) => {
   await lockProperty(tx, quote.propertyId);
-  const current = await findQuote(quote.id, tx);
-  const closed = closedMessage[current.status];
-  if (closed) throw new ConflictError(closed);
-  return current;
+  return openQuote(quote.id, tx);
 };
 
 /**
@@ -1133,9 +1136,7 @@ export const startRevision = async (
   wanted: QuoteKind | undefined,
   accountId: string,
 ): Promise<{ quote: OfficeQuote; started: boolean }> => {
-  const quote = await findQuote(id);
-  const closed = closedMessage[quote.status];
-  if (closed) throw new ConflictError(closed);
+  const quote = await openQuote(id);
   const kind = quote.kind ?? wanted ?? "one_off";
   if (wanted && wanted !== kind) {
     throw new ConflictError(
@@ -1259,11 +1260,9 @@ const SENT_ALREADY =
 
 // the Revision being drafted, which is all Office Staff can change, while
 // the Quote is open
-const findDraftRevision = async (id: string) => {
-  const quote = await findQuote(id);
-  const closed = closedMessage[quote.status];
-  if (closed) throw new ConflictError(closed);
-  const draft = await draftRevisionOf(id);
+const findDraftRevision = async (id: string, tx: Tx | typeof db = db) => {
+  const quote = await openQuote(id, tx);
+  const draft = await draftRevisionOf(id, tx);
   if (!draft) {
     throw new ConflictError(SENT_ALREADY);
   }
@@ -1456,10 +1455,10 @@ export const saveDraft = async (
     terms,
   );
   await db.transaction(async (tx) => {
-    const current = await lockOpenQuote(tx, quote);
-    if ((await draftRevisionOf(id, tx))?.id !== draft.id) {
-      throw new ConflictError(SENT_ALREADY);
-    }
+    await lockProperty(tx, quote.propertyId);
+    const { quote: current, draft: unsent } = await findDraftRevision(id, tx);
+    // sent, and a newer one started, while this waited
+    if (unsent.id !== draft.id) throw new ConflictError(SENT_ALREADY);
     // one open Service Plan Quote, whatever its Service
     if (draft.kind === "service_plan" && service!.key !== current.serviceKey) {
       await tx
@@ -1549,8 +1548,8 @@ const refuseUntimely = (revision: KindedRevision, rows: PricedOption[]) => {
 // Sends a Quote's Draft Revision, making it the offer, and emails the Client
 // a link to the Quote. It's priced afresh first, from the current Services
 // and Price List and the Property as it is now, and refused if that changes
-// any figure the Office is shown, so nothing goes at a price they haven't
-// seen. A Service Plan Quote's weekdays are put in order, earliest first.
+// any figure the Client would be shown, so nothing goes at a price the
+// Office hasn't seen (an override's Suggested Price may move under it). A Service Plan Quote's weekdays are put in order, earliest first.
 // Sending one on an Expired Quote revives it, unless a newer Quote of its
 // kind is open for the Property.
 export const sendQuote = async (id: string): Promise<OfficeQuote> => {
@@ -1561,12 +1560,8 @@ export const sendQuote = async (id: string): Promise<OfficeQuote> => {
   const client = await db.transaction(async (tx) => {
     // one send (or acceptance, save or close) at a time per Property; it may
     // have been Accepted while this waited
-    const current = await lockOpenQuote(tx, quote);
-    const unsent = await draftRevisionOf(id, tx);
-    if (!unsent) {
-      throw new ConflictError(SENT_ALREADY);
-    }
-    const draft = kinded(current, unsent);
+    await lockProperty(tx, quote.propertyId);
+    const { quote: current, draft } = await findDraftRevision(id, tx);
     const { client, property } = (await homeOf(current.propertyId, tx))!;
     const saved = await optionsOf(draft.id, tx);
     const options = repriced(
@@ -1766,10 +1761,15 @@ export const turnDownQuote = async (
   accountId: string,
 ): Promise<OfficeQuote> => {
   const quote = await findQuote(id);
-  const turned = await db.transaction(async (tx) => {
+  await db.transaction(async (tx) => {
     // takes turns with a send, which it may have waited on
-    await lockProperty(tx, quote.propertyId);
-    const [closed] = await tx
+    const current = await lockOpenQuote(tx, quote);
+    if (current.sentRevisionId) {
+      throw new ConflictError(
+        "A Revision of this Quote has been sent, so it can't be Turned Down: the Client declines it, or it Expires.",
+      );
+    }
+    await tx
       .update(quotes)
       .set({
         status: "turned_down",
@@ -1777,20 +1777,9 @@ export const turnDownQuote = async (
         turnDownReason: reason,
         turnedDownBy: accountId,
       })
-      .where(
-        and(eq(quotes.id, id), inArray(quotes.status, ["requested", "draft"])),
-      )
-      .returning({ id: quotes.id });
-    if (closed) await dropDraftRevision(tx, id);
-    return closed;
+      .where(eq(quotes.id, id));
+    await dropDraftRevision(tx, id);
   });
-  if (!turned) {
-    throw new ConflictError(
-      quote.sentRevisionId
-        ? "A Revision of this Quote has been sent, so it can't be Turned Down: the Client declines it, or it Expires."
-        : "This Quote has closed already.",
-    );
-  }
   const { client, property } = (await homeOf(quote.propertyId))!;
   if (client.email) {
     try {
