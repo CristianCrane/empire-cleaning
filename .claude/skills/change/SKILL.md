@@ -1,11 +1,11 @@
 ---
-name: shape
+name: change
 description: Survey the patterns a code change touches before its first edit, get a fresh shape review before its PR, and write the PR's Shape section. Use when starting any change in a git repo, or when a hook asks for a survey or a review.
 ---
 
 <!-- The shape rules: edited in github.com/CristianCrane/.dotfiles (home/.claude); repos carry copies made by hooks/sync.mjs. -->
 
-# Shape
+# Change
 
 Each change leaves the codebase with less entropy, never more. Left alone, an agent judges this after its approach is already chosen, grades its own work, and extends whatever pattern is there because extending is the easy path. So the survey comes before the plan and holds facts, a fresh reviewer argues against the change, and extending is the choice that needs a reason.
 

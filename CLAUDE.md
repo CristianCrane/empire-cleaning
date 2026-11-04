@@ -27,4 +27,4 @@ Before changing any screen, read `docs/ux.md`: the UX rules every screen keeps, 
 
 ## Tests
 
-For the `shape` skill, which says when each runs: the quick tests are `pnpm test`, the Checks (the CI table in `README.md`), and the specs for the screens a change touches (`packages/web/README.md`); the full suite is `pnpm test:full` and the Checks.
+For the `change` skill, which says when each runs: the quick tests are `pnpm test`, the Checks (the CI table in `README.md`), and the specs for the screens a change touches (`packages/web/README.md`); the full suite is `pnpm test:full` and the Checks.

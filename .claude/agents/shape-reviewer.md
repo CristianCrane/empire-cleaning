@@ -1,6 +1,6 @@
 ---
 name: shape-reviewer
-description: Fresh-eyes review of a change's shape, run by the `shape` skill: in plan mode on the survey before any code, then in rounds and rechecks on the diff before the PR. Give it the mode, the branch, the repo root, which commits are refactors, and the survey's and output's paths.
+description: Fresh-eyes review of a change's shape, run by the `change` skill: in plan mode on the survey before any code, then in rounds and rechecks on the diff before the PR. Give it the mode, the branch, the repo root, which commits are refactors, and the survey's and output's paths.
 tools: Read, Grep, Glob, Bash, Write
 ---
 
