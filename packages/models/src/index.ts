@@ -217,6 +217,8 @@ export type ClientName = {
 export type ClientView = ContactDetails & {
   id: string;
   businessName: string | null;
+  // a new email they gave, theirs once they open the link sent to it (#243)
+  pendingEmail: string | null;
   properties: PropertyView[];
   // their Quotes as they see them, newest first (see GET /api/quotes/mine)
   quotes: QuoteSummary[];

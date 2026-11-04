@@ -649,22 +649,22 @@ describe("a signed-in Client", () => {
     expect(res.status).toBe(404);
   });
 
+  // a new email waits for its link (clients.test.ts)
   test("can edit their contact details", async () => {
     const { agent } = await asClient();
 
     const res = await agent.patch("/api/clients/me").send({
+      ...casey,
       name: "Casey C. Client",
-      email: "casey@work.example.com",
       phone: "(718) 555-0123",
     });
 
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({
       name: "Casey C. Client",
-      email: "casey@work.example.com",
+      email: casey.email,
+      phone: "(718) 555-0123",
     });
-    // still connected after the email change (ADR-0006)
-    expect((await agent.get("/api/me")).body.roles).toEqual(["client"]);
   });
 
   test("can't take another Client's email", async () => {

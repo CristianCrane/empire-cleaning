@@ -54,6 +54,14 @@ export function PortalDetails() {
         title="Contact details"
         actions={<EditContact client={client} />}
       >
+        {client.pendingEmail && (
+          <Notice tone="warning">
+            <span className="[overflow-wrap:anywhere]">
+              We've emailed a link to {client.pendingEmail}. Your email changes
+              once you open it.
+            </span>
+          </Notice>
+        )}
         <Card>
           <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-3">
             <Fact
@@ -127,12 +135,16 @@ function EditContact({ client }: { client: ClientView }) {
   const save = async (form: FormData, close: () => void) => {
     const ok = await action.run(
       () =>
-        patchJson("/api/clients/me", {
+        patchJson<ClientView>("/api/clients/me", {
           name: form.get("name"),
           email: form.get("email"),
           phone: form.get("phone"),
         }),
-      "Details saved",
+      // a new email is theirs once they open the link sent to it (#243)
+      (saved) =>
+        saved.pendingEmail && saved.pendingEmail !== client.pendingEmail
+          ? `Check ${saved.pendingEmail} for a link`
+          : "Details saved",
     );
     if (ok) close();
   };
@@ -166,7 +178,7 @@ function EditContact({ client }: { client: ClientView }) {
               type="email"
               autoComplete="email"
               isRequired
-              description="Where we send your Quotes. You still sign in the way you do now."
+              description="Where we send your Quotes. A new one changes once you open the link we email to it. You still sign in the way you do now."
               defaultValue={client.email}
             />
             <TextField

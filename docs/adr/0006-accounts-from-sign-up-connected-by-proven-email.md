@@ -16,4 +16,5 @@ We first created Accounts on people's behalf (with the Quote Request, by invitat
 - One Account may be connected to both a Client and Staff.
 - Roles live on the Staff record, not the Account. Being a Client comes from the connection to a Client.
 - A Guest's Quote Request with an existing Client's email is added to that Client without changing their details.
+- A Client's own change of email is held back until they open a link sent to the new address, and their Client keeps the old one until then (#243). Otherwise anyone could claim an address they don't own, and with it every Quote Request later made from it. Office Staff's corrections still take effect at once.
 - Without self-service merging, someone who signs up with a different email from their Quote Request needs Office Staff to correct the Client's email.

@@ -55,6 +55,7 @@ import { getJson } from "./api.ts";
 import { linkTo } from "./links.ts";
 import { AreaLayout } from "./screens/AreaLayout.tsx";
 import { CleanerHome } from "./screens/cleaner/CleanerHome.tsx";
+import { ConfirmEmail, confirmEmail } from "./screens/ConfirmEmail.tsx";
 import { CleanerOffers } from "./screens/cleaner/CleanerOffers.tsx";
 import { CleanerJobScreen } from "./screens/cleaner/CleanerJobScreen.tsx";
 import { OpenPlaceScreen } from "./screens/cleaner/OpenPlaceScreen.tsx";
@@ -219,6 +220,20 @@ const signInRoute = createRoute({
     if (home) throw redirect({ href: search.next ?? home });
   },
   component: SignIn,
+});
+
+// the link emailed to a Client's new email (#243): opening it confirms it,
+// signed in or not, once; never again on a reload of the page's data
+const confirmEmailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/confirm-email",
+  validateSearch: (search: Record<string, unknown>) => ({
+    token: typeof search.token === "string" ? search.token : "",
+  }),
+  loaderDeps: ({ search }) => ({ token: search.token }),
+  loader: ({ deps }) => confirmEmail(deps.token),
+  shouldReload: false,
+  component: ConfirmEmail,
 });
 
 const welcomeRoute = createRoute({
@@ -842,6 +857,7 @@ const portalPropertyRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   indexRoute,
   signInRoute,
+  confirmEmailRoute,
   welcomeRoute,
   peopleRoute,
   officeRoute.addChildren([
