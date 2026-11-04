@@ -7,6 +7,7 @@ import {
   emailsTo,
   expect,
   expectAccessible,
+  followSignInLink,
   signInLinkFor,
   signInWithLink,
   test,
@@ -116,6 +117,7 @@ test.describe("signing up and in with an emailed link", () => {
 
     const elsewhere = await browser.newPage();
     await elsewhere.goto(used);
+    await elsewhere.getByRole("button", { name: "Sign in" }).click();
 
     await expect(elsewhere).toHaveURL(/\/sign-in/);
     await expect(
@@ -125,6 +127,34 @@ test.describe("signing up and in with an emailed link", () => {
       elsewhere.getByRole("button", { name: "Email me a sign-in link" }),
     ).toBeVisible();
     await elsewhere.close();
+  });
+
+  // mail scanners open links before the person does (#243): some only fetch
+  // the page, some load it in a browser, but none presses its button
+  test("a link a mail scanner opened first still signs in", async ({
+    page,
+    browser,
+    request,
+  }) => {
+    await createClient(client);
+    await page.goto("/sign-in");
+    await page.getByRole("textbox", { name: "Email" }).fill(client.email);
+    await page.getByRole("button", { name: "Email me a sign-in link" }).click();
+    await expect(page.getByText("Check your email")).toBeVisible();
+    const link = await signInLinkFor(client.email);
+
+    await request.get(link);
+    const scanning = await browser.newContext();
+    const scanner = await scanning.newPage();
+    await scanner.goto(link);
+    await expect(
+      scanner.getByRole("heading", { name: "Sign in to Empire Cleaning" }),
+    ).toBeVisible();
+    await expectAccessible(scanner);
+    await scanning.close();
+
+    await followSignInLink(page, client.email);
+    await expect(page).toHaveURL("/portal");
   });
 
   test("a link that didn't arrive can be sent again", async ({ page }) => {

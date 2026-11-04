@@ -5,12 +5,14 @@ import { errorHandler } from "#middleware";
 import { authorize, signedInAccount } from "#features/auth";
 import { changeClientEmail, createClient } from "#features/clients";
 import { createStaff, deactivateStaff } from "#features/staff";
+import env from "../../env.ts";
 import { createOwner } from "./create-owner.ts";
 import {
   api,
   apiAgent,
   signIn,
-  signInLinkFor,
+  emailedLinkFor,
+  signInButtonFor,
   testEmail,
 } from "../../../tests/harness.ts";
 import { signInWithGoogle } from "../../../tests/google.ts";
@@ -40,12 +42,26 @@ describe("signing up and in with an emailed link", () => {
 
   test("a link signs in only once", async () => {
     await signIn("casey@example.com");
-    const link = signInLinkFor("casey@example.com");
-
     const second = apiAgent();
-    await second.get(link);
+    await second.get(signInButtonFor("casey@example.com"));
 
     expect((await second.get("/api/me")).status).toBe(401);
+  });
+
+  // mail scanners open links before the person does (#243): the link opens
+  // the app's page, and only its Sign in button uses the token
+  test("the emailed link opens the app's page, not the API", async () => {
+    await api()
+      .post("/api/auth/sign-in/magic-link")
+      .send({ email: "casey@example.com", callbackURL: "/" })
+      .expect(200);
+
+    const link = emailedLinkFor("casey@example.com");
+
+    expect(`${link.origin}${link.pathname}`).toBe(
+      `${env.CORS_ORIGIN_URL}/sign-in/link`,
+    );
+    expect(link.searchParams.get("token")).toBeTruthy();
   });
 
   test("signing out ends the session", async () => {
@@ -199,7 +215,7 @@ test("a session is the cookie, never a bearer token", async () => {
     .send({ email: "cory@example.com", callbackURL: "/" })
     .expect(200);
 
-  const verify = await api().get(signInLinkFor("cory@example.com"));
+  const verify = await api().get(signInButtonFor("cory@example.com"));
   const cookies = verify.headers["set-cookie"] as unknown as string[];
   const session = cookies
     .find((cookie) => cookie.includes("session_token="))
@@ -308,7 +324,7 @@ describe("authorize()", () => {
       .post("/api/auth/sign-in/magic-link")
       .send({ email, callbackURL: "/" })
       .expect(200);
-    const verify = await api().get(signInLinkFor(email)).expect(302);
+    const verify = await api().get(signInButtonFor(email)).expect(302);
     return verify.headers["set-cookie"] as unknown as string[];
   };
 
