@@ -180,7 +180,8 @@ export const quoteAddOns = pgTable(
 // (revision_options); a Service Plan Quote's a visit on each of its weekdays
 // (revision_options too), on a recurrence, at the Plan Discount. While
 // unsent it's priced afresh from the current Services and Price List on
-// every save; once Sent it never changes. A Quote has one unsent at a time.
+// every save and again on sending, which is refused if a figure would
+// change; once Sent it never changes. A Quote has one unsent at a time.
 export const quoteRevisions = pgTable(
   "quote_revisions",
   {
@@ -190,7 +191,8 @@ export const quoteRevisions = pgTable(
       .references(() => quotes.id, { onDelete: "cascade" }),
     // 1 for the first, counting up
     number: integer("number").notNull(),
-    // the version the prices were worked out from at the last save
+    // the version the prices were worked out from: at the last save, and once
+    // Sent, at sending
     priceListId: uuid("price_list_id")
       .notNull()
       .references(() => priceLists.id, { onDelete: "restrict" }),

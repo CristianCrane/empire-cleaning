@@ -67,7 +67,11 @@ const paintingAsk = async (changes: object = {}) =>
   ).body.id as string;
 
 // the home's findings, as a Site Visit records them, with no visit
-const recordFindings = (office: Agent, quote: OfficeQuote) =>
+const recordFindings = (
+  office: Agent,
+  quote: OfficeQuote,
+  floorArea: number | null = null,
+) =>
   office
     .post(`/api/properties/${quote.property.id}/findings`)
     .send({
@@ -76,10 +80,13 @@ const recordFindings = (office: Agent, quote: OfficeQuote) =>
       bathrooms: home.bathrooms,
       storeys: home.storeys,
       pets: home.pets,
-      floorArea: null,
+      floorArea,
       condition: "heavy",
     })
     .expect(201);
+
+const PRICES_CHANGED =
+  "This Draft's prices have changed since it was saved: the Property's details or the Price List changed. Check the new prices, then send it.";
 
 describe("a Quote for a Service priced by area", () => {
   test("is priced on the Client's rough area, ignoring Condition", async () => {
@@ -176,6 +183,69 @@ describe("a Quote for a Service priced by area", () => {
       .expect(200);
     await save(office, cleaning, { serviceKey: SEEDED.moveInOut });
     await office.post(`/api/quotes/${draft.id}/send`).expect(200);
+  });
+
+  test("is priced afresh on sending, and not sent at a price the Office hasn't seen", async () => {
+    const office = await signInAsOffice();
+    const {
+      bedrooms: _b,
+      bathrooms: _ba,
+      storeys: _s,
+      pets: _p,
+      ...roomless
+    } = home;
+    const draft = await startDraft(
+      office,
+      await paintingAsk({ property: { new: roomless } }),
+    );
+    const cleaning = await save(office, draft, {
+      serviceKey: SEEDED.moveInOut,
+    });
+    await office
+      .patch(`/api/properties/${draft.property.id}`)
+      .send({ bedrooms: 2, bathrooms: 1, storeys: 1, pets: false })
+      .expect(200);
+
+    // priced at 0 h and the Minimum Charge before the rooms were known
+    const refused = await office
+      .post(`/api/quotes/${draft.id}/send`)
+      .expect(409);
+    expect(refused.body.message).toBe(PRICES_CHANGED);
+    const unsent = (await office.get(`/api/quotes/${draft.id}`).expect(200))
+      .body as OfficeQuote;
+    expect(unsent.draft!.options[0]).toMatchObject({ priceCents: 10000 });
+
+    const saved = await save(office, cleaning, {
+      serviceKey: SEEDED.moveInOut,
+    });
+    expect(saved.draft!.options[0]).toMatchObject({
+      labourHours: 4.5,
+      priceCents: 24800,
+    });
+    const sent = (await office.post(`/api/quotes/${draft.id}/send`).expect(200))
+      .body as OfficeQuote;
+    expect(sent.offer!.options[0]).toMatchObject({
+      labourHours: 4.5,
+      priceCents: 24800,
+    });
+  });
+
+  test("is sent on the floor area a Site Visit found since it was saved, once seen", async () => {
+    const office = await signInAsOffice();
+    const draft = await startDraft(office, await paintingAsk({ area: 1200 }));
+    await save(office, draft);
+    await recordFindings(office, draft, 2000);
+
+    const refused = await office
+      .post(`/api/quotes/${draft.id}/send`)
+      .expect(409);
+    expect(refused.body.message).toBe(PRICES_CHANGED);
+
+    const saved = await save(office, draft);
+    expect(pricedOf(saved)).toMatchObject({ area: 2000, priceCents: 96000 });
+    const sent = (await office.post(`/api/quotes/${draft.id}/send`).expect(200))
+      .body as OfficeQuote;
+    expect(sent.offer!.area).toBe(2000);
   });
 
   test("keeps a Sent Revision's area for the next one", async () => {
