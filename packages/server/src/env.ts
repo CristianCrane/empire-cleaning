@@ -2,12 +2,14 @@ import { z } from "zod";
 import { log } from "#services/monitoring";
 
 // the same variables are required in every mode, but for Sentry's keys,
-// required in prod only (ADR-0007); see .env.example
+// required in prod only (ADR-0007), and BETTER_AUTH_URL, which dev may leave
+// as this machine's; see .env.example
 export const envSchema = z
   .object({
     // test is the test site (ADR-0020): set up as prod, but it says so
-    // everywhere and emails only allowed addresses
-    APP_MODE: z.enum(["dev", "test", "prod"]).default("dev"),
+    // everywhere and emails only allowed addresses. Never assumed: a server
+    // set up without it would run as dev, unlimited and showing its people
+    APP_MODE: z.enum(["dev", "test", "prod"]),
     // the web app's origin: the only browser origin trusted to call the API,
     // and where sign-in flows return to
     CORS_ORIGIN_URL: z.url(),
@@ -41,7 +43,7 @@ export const envSchema = z
       .optional()
       .transform((url) => url || undefined),
     // public URL of this API; sign-in links point here
-    BETTER_AUTH_URL: z.url().default("http://localhost:3000"),
+    BETTER_AUTH_URL: z.url().optional(),
     // signs session cookies and tokens
     BETTER_AUTH_SECRET: z.string().min(32),
     GOOGLE_CLIENT_ID: z.string().nonempty(),
@@ -65,7 +67,15 @@ export const envSchema = z
   .refine((env) => env.APP_MODE !== "prod" || env.SENTRY_DSN, {
     path: ["SENTRY_DSN"],
     message: "required in prod",
-  });
+  })
+  .refine((env) => env.APP_MODE === "dev" || env.BETTER_AUTH_URL, {
+    path: ["BETTER_AUTH_URL"],
+    message: "required outside dev",
+  })
+  .transform((env) => ({
+    ...env,
+    BETTER_AUTH_URL: env.BETTER_AUTH_URL ?? "http://localhost:3000",
+  }));
 
 const result = envSchema.safeParse(process.env);
 
