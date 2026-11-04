@@ -30,7 +30,7 @@ import {
 import { addOnsOf } from "../jobs/add-ons.ts";
 import { hoursOnSiteOf, onSchedule } from "../jobs/jobs.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
-import { jobViews, scheduleOn, scheduledJobs } from "../jobs/schedule.ts";
+import { jobView, scheduleOn, scheduledJobs } from "../jobs/schedule.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { firstCleanCompleted } from "../quotes/quote-state.ts";
 import {
@@ -84,7 +84,7 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
   if (!row) throw new NotFoundError("Job not found");
 
   const [
-    [job],
+    job,
     rows,
     addOns,
     day,
@@ -99,7 +99,7 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
     servicePlanId,
     openTo,
   ] = await Promise.all([
-    jobViews(eq(jobs.id, jobId)),
+    jobView(jobId),
     db
       .select({ assignment: assignments, member: staff })
       .from(assignments)
@@ -130,7 +130,7 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
   const hoursOf = new Map(day.available.map((c) => [c.id, c.hours]));
 
   return {
-    ...job!,
+    ...job,
     completion,
     cancellation,
     noAccess,
