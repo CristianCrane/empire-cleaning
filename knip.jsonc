@@ -1,6 +1,10 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
   "workspaces": {
+    ".": {
+      // run by Claude Code, from .claude/settings.json
+      "entry": [".claude/hooks/*.mjs"],
+    },
     "packages/server": {
       "entry": [
         // react-email's previews (`pnpm email:dev`)
