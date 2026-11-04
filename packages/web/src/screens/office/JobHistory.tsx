@@ -11,7 +11,11 @@ import {
   UserMinus,
   type LucideIcon,
 } from "lucide-react";
-import type { OfficeJob } from "@empire-cleaning/models";
+import type {
+  AssignmentState,
+  OfficeJob,
+  RescheduleRequestStatus,
+} from "@empire-cleaning/models";
 import { Section, Timeline, TimelineItem } from "@empire-cleaning/ui";
 import { formatDate, formatDateTime, formatMoney } from "../format.ts";
 
@@ -24,6 +28,27 @@ type Moment = {
 };
 
 const chargeLabel = { deposit: "Deposit", balance: "Balance", fee: "Fee" };
+
+// a place answered, by whom
+const placeAnswered: Record<
+  Exclude<AssignmentState, "offered">,
+  { icon: LucideIcon; title: (name: string) => string }
+> = {
+  confirmed: { icon: UserCheck, title: (name) => `${name} Confirmed` },
+  released: { icon: UserMinus, title: (name) => `${name} Released` },
+  taken_off: { icon: UserMinus, title: (name) => `${name} taken off` },
+};
+
+// a Reschedule Request answered, or closed unanswered
+const requestAnswered: Record<
+  Exclude<RescheduleRequestStatus, "pending">,
+  { icon: LucideIcon; title: string }
+> = {
+  confirmed: { icon: CalendarCheck, title: "Moved" },
+  turned_down: { icon: CalendarX, title: "Move turned down" },
+  closed: { icon: CalendarX, title: "Move request closed" },
+  withdrawn: { icon: CalendarX, title: "Move withdrawn by the Client" },
+};
 
 // everything that happened to a Job, newest first: its places Offered,
 // Confirmed, Released or taken off, Reschedule Requests and their answers
@@ -38,15 +63,13 @@ const momentsOf = (job: OfficeJob): Moment[] => {
       icon: Send,
       title: `Offered to ${a.staff.name}`,
     });
-    if (a.answeredAt) {
+    if (a.answeredAt && a.status !== "offered") {
+      const { icon, title } = placeAnswered[a.status];
       moments.push({
         key: `answered-${a.id}`,
         at: a.answeredAt,
-        icon: a.status === "confirmed" ? UserCheck : UserMinus,
-        title:
-          a.status === "taken_off"
-            ? `${a.staff.name} taken off`
-            : `${a.staff.name} ${a.status === "confirmed" ? "Confirmed" : "Released"}`,
+        icon,
+        title: title(a.staff.name),
       });
     }
   }
@@ -59,19 +82,11 @@ const momentsOf = (job: OfficeJob): Moment[] => {
       title: `${request.byClient ? "The Client" : "The Office"} asked to move it`,
       description: `${formatDateTime(request.fromStartsAt)} to ${formatDateTime(request.startsAt)}`,
     });
-    if (request.answeredAt) {
+    if (request.answeredAt && request.status !== "pending") {
       moments.push({
         key: "answered",
         at: request.answeredAt,
-        icon: request.status === "confirmed" ? CalendarCheck : CalendarX,
-        title:
-          request.status === "confirmed"
-            ? "Moved"
-            : request.status === "turned_down"
-              ? "Move turned down"
-              : request.status === "closed"
-                ? "Move request closed"
-                : "Move withdrawn by the Client",
+        ...requestAnswered[request.status],
         description: request.reason ?? undefined,
       });
     }
