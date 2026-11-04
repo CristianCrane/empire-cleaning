@@ -34,7 +34,6 @@ import {
   weekdayOf,
 } from "../../services/clock/index.ts";
 import { emailOffer } from "../assignments/assignments.ts";
-import { freeFor } from "../assignments/open-places.ts";
 import { assignments, onCrew } from "../assignments/assignments.schema.ts";
 import { billLines, bills } from "../bills/bills.schema.ts";
 import { billNumber } from "../bills/bills.ts";
@@ -50,6 +49,7 @@ import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import {
   ENDS_BY_MIDNIGHT,
   endsByMidnight,
+  freeFor,
   jobViews,
   roomFor,
 } from "../jobs/schedule.ts";

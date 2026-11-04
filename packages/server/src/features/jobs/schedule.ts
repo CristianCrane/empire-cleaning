@@ -64,7 +64,7 @@ const fromHundredths = (units: number) => units / 100;
 // each active Cleaner's hours on each day of the range: an exception for the
 // day if there is one, otherwise their usual hours for that weekday. Only
 // Cleaners count: Labour Hours are cleaning time.
-export const cleanerHours = async (days: string[], tx: Tx | typeof db = db) => {
+const cleanerHours = async (days: string[], tx: Tx | typeof db = db) => {
   const cleaners = await tx
     .select({ id: staff.id, name: staff.name })
     .from(staff)
@@ -328,10 +328,16 @@ const crewSpan = (
   return { start, end: start + (labourHours / crewSize) * HOUR_MS, crewSize };
 };
 
+// whether two spans of time share any of it
+const overlaps = (
+  a: { start: number; end: number },
+  b: { start: number; end: number },
+) => a.start < b.end && a.end > b.start;
+
 // The most crews at work at once between start and end. The count only goes
 // up when a crew starts, so it's highest at `start` or at one of their starts.
 const crewsBusyDuring = (spans: CrewSpan[], start: number, end: number) => {
-  const during = spans.filter((s) => s.start < end && s.end > start);
+  const during = spans.filter((s) => overlaps(s, { start, end }));
   const starts = [
     start,
     ...during.map((s) => s.start).filter((t) => t > start),
@@ -414,6 +420,36 @@ export const roomOn = (day: ScheduleDay, clean: Clean): DayCapacity => {
   };
 };
 
+/**
+ * Whether a Staff member is free for a clean on a day of the Schedule, as
+ * ADR-0019 has it: Available Hours that day, and no booked Job they hold a
+ * place on, or booked Site Visit of theirs, overlapping its time on site. A
+ * Job being moved isn't counted against itself, so its crew can be checked
+ * at its new time. Stricter than room (roomOn), which takes anyone with
+ * hours to be free all day. Only the clean's own day counts: every clean
+ * ends by midnight (endsByMidnight).
+ */
+export const isFree = (day: ScheduleDay, staffId: string, clean: Clean) => {
+  if (!day.available.some((c) => c.id === staffId)) return false;
+  const own = crewSpan(clean.startsAt, clean.labourHours, clean.crewSize);
+  const busy = [
+    ...day.jobs
+      .filter(
+        (job) =>
+          job.status === "booked" &&
+          job.id !== clean.jobId &&
+          job.crew.some((c) => c.id === staffId),
+      )
+      .map((job) =>
+        crewSpan(new Date(job.startsAt), job.labourHours, job.crewSize),
+      ),
+    ...day.siteVisits
+      .filter((v) => v.status === "booked" && v.visitor?.id === staffId)
+      .map((v) => crewSpan(new Date(v.startsAt), visitHours(v), 1)),
+  ];
+  return !busy.some((span) => overlaps(span, own));
+};
+
 export const ENDS_BY_MIDNIGHT =
   "Cleans end by midnight: choose an earlier start time";
 
@@ -457,4 +493,19 @@ export const roomFor = async (
     },
     clean,
   );
+};
+
+// Which of these Staff are free for a Job at its time, as isFree says. Moving
+// a Job, and a Service Plan Offering its next clean to the last crew, ask
+// this in their transaction.
+export const freeFor = async (
+  staffIds: string[],
+  job: { id: string; startsAt: Date; labourHours: number; crewSize: number },
+  tx: Tx | typeof db = db,
+) => {
+  const date = dayOf(job.startsAt);
+  const [day] = await scheduleFor(date, date, tx);
+  const { startsAt, labourHours, crewSize } = job;
+  const clean = { startsAt, labourHours, crewSize, jobId: job.id };
+  return new Set(staffIds.filter((id) => isFree(day!, id, clean)));
 };

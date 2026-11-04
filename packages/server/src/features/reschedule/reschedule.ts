@@ -18,11 +18,7 @@ import {
 } from "../../services/clock/index.ts";
 import { email, notify } from "../../services/email/index.ts";
 import { assignments, onCrew } from "../assignments/assignments.schema.ts";
-import {
-  emailOpenPlaces,
-  freeFor,
-  placeReopened,
-} from "../assignments/open-places.ts";
+import { emailOpenPlaces, placeReopened } from "../assignments/open-places.ts";
 import { lateFeeOf, planOfJob } from "../cancellation/cancellation.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { lockDay } from "../jobs/jobs.ts";
@@ -30,6 +26,7 @@ import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import {
   ENDS_BY_MIDNIGHT,
   endsByMidnight,
+  freeFor,
   roomFor,
   roomOn,
   scheduleFor,

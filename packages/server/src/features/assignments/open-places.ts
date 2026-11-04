@@ -1,45 +1,33 @@
-import {
-  and,
-  arrayContains,
-  asc,
-  eq,
-  gt,
-  inArray,
-  lt,
-  lte,
-  ne,
-} from "drizzle-orm";
-import { holdsPlace, type OpenPlace } from "@empire-cleaning/models";
+import { and, arrayContains, asc, eq, inArray, lt } from "drizzle-orm";
+import type { OpenPlace } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import {
+  addDays,
   clock,
-  DAY_MS,
   dayOf,
   HOUR_MS,
   timeOf,
 } from "../../services/clock/index.ts";
-import { email, formatWhen } from "../../services/email/index.ts";
+import { email } from "../../services/email/index.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
-import { cleanerHours } from "../jobs/schedule.ts";
-import { properties } from "../properties/properties.schema.ts";
-import { serviceVersions } from "../services/services.ts";
+import { scheduleFor } from "../jobs/schedule.ts";
 import { openPlacesEmail } from "./emails.ts";
-import { siteVisits } from "../site-visits/site-visits.schema.ts";
 import { staff } from "../staff/staff.schema.ts";
 import {
   assignments,
-  onCrew,
   openPlaceDigests,
   openPlaceEmails,
   openPlacePasses,
 } from "./assignments.schema.ts";
+import {
+  OPEN_PLACE_DAYS,
+  openingOf,
+  opensAt,
+  placesOpen,
+  whyNotTakeOpenPlace,
+} from "./rules.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
-import { hoursOnSiteOf } from "../jobs/jobs.ts";
-
-// A Job's Open Places are open to free Cleaners from this many days before
-// it starts (ADR-0019): who is free is only reliable nearer the day
-const OPEN_PLACE_DAYS = 7;
 
 // an Open Place on a Job starting this close is emailed at once, not in the
 // next morning's email
@@ -48,127 +36,10 @@ const URGENT_OPEN_PLACE_HOURS = 48;
 // the morning email of Open Places goes out from this time, New York
 const OPEN_PLACES_EMAIL_TIME = "07:00";
 
-// when a Job's Open Places open to free Cleaners
-const opensAt = (job: Pick<Job, "startsAt">) =>
-  new Date(job.startsAt.getTime() - OPEN_PLACE_DAYS * DAY_MS);
-
-// from when to when a Job's crew are at work there, in milliseconds
-const onSite = (job: Pick<Job, "startsAt" | "labourHours" | "crewSize">) => {
-  const start = job.startsAt.getTime();
-  return { start, end: start + (job.labourHours / job.crewSize) * HOUR_MS };
-};
-
-type Span = { start: number; end: number };
-
-// The times each Staff member is busy from `from` to `to`: a place they
-// hold on a booked Job (Offered or Confirmed), or a booked Site Visit they're
-// making. A Job being moved can leave itself out.
-const busyTimes = async (
-  staffIds: string[],
-  from: Date,
-  to: Date,
-  tx: Tx | typeof db,
-  exceptJobId?: string,
-) => {
-  const busy = new Map(staffIds.map((id) => [id, [] as Span[]]));
-  if (staffIds.length === 0) return busy;
+// Each Job's Assignments, Released ones too, and who said "Not for me" to it
+const placesOn = async (jobIds: string[], tx: Tx | typeof db) => {
   // one after the other, as a transaction's queries share one connection
   // (ADR-0024)
-  const held = await tx
-    .select({ staffId: assignments.staffId, job: jobs })
-    .from(assignments)
-    .innerJoin(jobs, eq(jobs.id, assignments.jobId))
-    .where(
-      and(
-        inArray(assignments.staffId, staffIds),
-        onCrew(),
-        eq(jobs.status, "booked"),
-        gt(jobs.startsAt, new Date(from.getTime() - DAY_MS)),
-        lt(jobs.startsAt, to),
-        exceptJobId ? ne(jobs.id, exceptJobId) : undefined,
-      ),
-    );
-  const visits = await tx
-    .select({
-      staffId: siteVisits.staffId,
-      startsAt: siteVisits.startsAt,
-      minutes: siteVisits.minutes,
-    })
-    .from(siteVisits)
-    .where(
-      and(
-        inArray(siteVisits.staffId, staffIds),
-        eq(siteVisits.status, "booked"),
-        gt(siteVisits.startsAt, new Date(from.getTime() - DAY_MS)),
-        lt(siteVisits.startsAt, to),
-      ),
-    );
-  for (const { staffId, job } of held) busy.get(staffId)!.push(onSite(job));
-  for (const { staffId, startsAt, minutes } of visits) {
-    const start = startsAt!.getTime();
-    busy.get(staffId!)!.push({ start, end: start + minutes * 60_000 });
-  }
-  return busy;
-};
-
-const overlaps = (spans: Span[], { start, end }: Span) =>
-  spans.some((s) => s.start < end && s.end > start);
-
-/**
- * Which of these Staff are free for a Job at a time, as ADR-0019 has it:
- * Available Hours that day, and no Job or Site Visit of theirs overlapping
- * its time on site. The Job itself doesn't count against them, so a moved
- * Job's crew can be checked at its new time. Stricter than room on the
- * Schedule, which takes anyone with hours to be free all day.
- */
-export const freeFor = async (
-  staffIds: string[],
-  job: Pick<Job, "id" | "startsAt" | "labourHours" | "crewSize">,
-  tx: Tx | typeof db = db,
-) => {
-  const day = dayOf(job.startsAt);
-  const span = onSite(job);
-  const hours = await cleanerHours([day], tx);
-  const busy = await busyTimes(
-    staffIds,
-    job.startsAt,
-    new Date(span.end),
-    tx,
-    job.id,
-  );
-  const withHours = new Set(hours.get(day)!.map((c) => c.id));
-  return new Set(
-    staffIds.filter(
-      (id) => withHours.has(id) && !overlaps(busy.get(id)!, span),
-    ),
-  );
-};
-
-/**
- * Every booked Job within 7 days, not yet started, with places nobody holds,
- * soonest first, and the active Cleaners each is open to: those free for it
- * (freeFor) who hold no place on it, haven't Released one, and haven't said
- * "Not for me". Worked out when asked, never stored, so someone who becomes
- * free later sees them, and a filled place leaves everyone's list at once.
- */
-const openings = async (jobId?: string, tx: Tx | typeof db = db) => {
-  const now = clock.now();
-  const soon = await tx
-    .select({ job: jobs, property: properties })
-    .from(jobs)
-    .innerJoin(properties, eq(properties.id, jobs.propertyId))
-    .where(
-      and(
-        eq(jobs.status, "booked"),
-        gt(jobs.startsAt, now),
-        lte(jobs.startsAt, new Date(now.getTime() + OPEN_PLACE_DAYS * DAY_MS)),
-        jobId ? eq(jobs.id, jobId) : undefined,
-      ),
-    )
-    .orderBy(asc(jobs.startsAt), asc(jobs.id));
-  if (soon.length === 0) return [];
-
-  const jobIds = soon.map((s) => s.job.id);
   const places = await tx
     .select({
       jobId: assignments.jobId,
@@ -181,45 +52,62 @@ const openings = async (jobId?: string, tx: Tx | typeof db = db) => {
     .select()
     .from(openPlacePasses)
     .where(inArray(openPlacePasses.jobId, jobIds));
-  const hours = await cleanerHours(
-    [...new Set(soon.map((s) => dayOf(s.job.startsAt)))],
+  return { places, passes };
+};
+
+/**
+ * Every Job whose places are open now (placesOpen: booked, within 7 days,
+ * not yet started) with places nobody holds, soonest first, and the active
+ * Cleaners each is open to (openingOf). Worked out when asked, never stored,
+ * so someone who becomes free later sees them, and a filled place leaves
+ * everyone's list at once.
+ */
+const openings = async (jobId?: string, tx: Tx | typeof db = db) => {
+  const now = clock.now();
+  const today = dayOf(now);
+  const days = await scheduleFor(today, addDays(today, OPEN_PLACE_DAYS), tx);
+  const soon = days
+    .flatMap((day) =>
+      day.jobs
+        .filter(
+          (job) =>
+            (!jobId || job.id === jobId) &&
+            placesOpen({ ...job, startsAt: new Date(job.startsAt) }, now),
+        )
+        .map((job) => ({ day, job })),
+    )
+    .sort(
+      (a, b) =>
+        Date.parse(a.job.startsAt) - Date.parse(b.job.startsAt) ||
+        (a.job.id < b.job.id ? -1 : 1),
+    );
+  if (soon.length === 0) return [];
+
+  const { places, passes } = await placesOn(
+    soon.map((s) => s.job.id),
     tx,
   );
-  const cleaners = [...new Set([...hours.values()].flat().map((c) => c.id))];
-  const latest = Math.max(...soon.map((s) => onSite(s.job).end));
-  const busy = await busyTimes(cleaners, now, new Date(latest), tx);
-
-  return soon.flatMap(({ job, property }) => {
+  return soon.flatMap(({ day, job }) => {
     const onJob = places.filter((p) => p.jobId === job.id);
-    const holding = onJob.filter((p) => holdsPlace(p.status));
-    const open = job.crewSize - holding.length;
-    if (open <= 0) return [];
-    const ruledOut = new Set([
-      ...onJob.map((p) => p.staffId),
-      ...passes.filter((p) => p.jobId === job.id).map((p) => p.staffId),
-    ]);
-    const span = onSite(job);
-    const openTo = hours
-      .get(dayOf(job.startsAt))!
-      .map((c) => c.id)
-      .filter((id) => !ruledOut.has(id) && !overlaps(busy.get(id)!, span));
-    return [{ job, property, open, openTo }];
+    const passedBy = passes
+      .filter((p) => p.jobId === job.id)
+      .map((p) => p.staffId);
+    const opening = openingOf(day, job, onJob, passedBy);
+    return opening ? [{ job, places: onJob, ...opening }] : [];
   });
 };
 
 type Opening = Awaited<ReturnType<typeof openings>>[number];
 
-const toOpenPlaces = async (open: Opening[]): Promise<OpenPlace[]> => {
-  const versions = await serviceVersions(open.map((o) => o.job.serviceId));
-  return open.map(({ job, property }) => ({
+const toOpenPlaces = (open: Opening[]): OpenPlace[] =>
+  open.map(({ job }) => ({
     jobId: job.id,
-    startsAt: job.startsAt.toISOString(),
-    serviceName: versions.get(job.serviceId)!.name,
-    hoursOnSite: hoursOnSiteOf(job),
+    startsAt: job.startsAt,
+    serviceName: job.serviceName,
+    hoursOnSite: job.hoursOnSite,
     crewSize: job.crewSize,
-    postcode: property.postcode,
+    postcode: job.property.postcode,
   }));
-};
 
 // the Open Places open to a Cleaner now, soonest first
 export const openPlacesFor = async (staffId: string) =>
@@ -227,7 +115,7 @@ export const openPlacesFor = async (staffId: string) =>
 
 // one Open Place open to a Cleaner; to anyone else it doesn't exist
 export const openPlaceFor = async (staffId: string, jobId: string) => {
-  const [place] = await toOpenPlaces(
+  const [place] = toOpenPlaces(
     (await openings(jobId)).filter((o) => o.openTo.includes(staffId)),
   );
   if (!place) throw new NotFoundError("Job not found");
@@ -277,39 +165,15 @@ export const confirmOpenPlace = async (
     // and theirs, so they can't take two Jobs at once that overlap
     await tx.select().from(staff).where(eq(staff.id, staffId)).for("update");
     if (!job) throw new NotFoundError("Job not found");
-    if (job.status !== "booked" || job.startsAt <= clock.now()) {
-      throw new ConflictError("This Job isn't open any more");
-    }
-    if (seen && seen.getTime() !== job.startsAt.getTime()) {
-      throw new ConflictError(
-        `This Job has moved to ${formatWhen(job.startsAt)}. Please check the new time, then confirm again.`,
-      );
-    }
-
     const [opening] = await openings(jobId, tx);
-    if (!opening) {
-      const now = clock.now();
-      throw new ConflictError(
-        opensAt(job) > now
-          ? "This Job isn't open to Cleaners yet"
-          : "Someone else took this Job",
-      );
-    }
-    if (!opening.openTo.includes(staffId)) {
-      const [own] = await tx
-        .select()
-        .from(assignments)
-        .where(
-          and(eq(assignments.jobId, jobId), eq(assignments.staffId, staffId)),
-        );
-      throw new ConflictError(
-        own?.status === "released"
-          ? "You released your place on this Job"
-          : own
-            ? "You already have a place on this Job"
-            : "You're no longer free for this Job",
-      );
-    }
+    const refusal = whyNotTakeOpenPlace(
+      job,
+      staffId,
+      opening,
+      seen,
+      clock.now(),
+    );
+    if (refusal) throw new ConflictError(refusal);
 
     const now = clock.now();
     await tx.insert(assignments).values({
@@ -431,7 +295,7 @@ export const emailOpenPlaces = async () => {
     if (fresh.length === 0) continue;
 
     const digest = digestDue.has(member.id);
-    const urgent = fresh.filter((o) => o.job.startsAt.getTime() <= urgentBy);
+    const urgent = fresh.filter((o) => Date.parse(o.job.startsAt) <= urgentBy);
     const telling = digest ? fresh : urgent;
     if (telling.length === 0) continue;
 
@@ -455,13 +319,13 @@ export const emailOpenPlaces = async () => {
         await sendList(
           member,
           false,
-          await toOpenPlaces([
+          toOpenPlaces([
             ...theirs.filter(isNew),
             ...theirs.filter((o) => !isNew(o)),
           ]),
         );
       } else {
-        await sendList(member, true, await toOpenPlaces(theirs.filter(isNew)));
+        await sendList(member, true, toOpenPlaces(theirs.filter(isNew)));
       }
       sent += 1;
     } catch (error) {

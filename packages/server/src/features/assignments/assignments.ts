@@ -15,12 +15,7 @@ import {
   HOUR_MS,
   startOfDay,
 } from "../../services/clock/index.ts";
-import {
-  email,
-  firstNameOf,
-  formatWhen,
-  notify,
-} from "../../services/email/index.ts";
+import { email, firstNameOf, notify } from "../../services/email/index.ts";
 import {
   cancellationOf,
   cancelTermsOf,
@@ -45,22 +40,15 @@ import {
 import { staff } from "../staff/staff.schema.ts";
 import { officeStaffEmails } from "../staff/staff.ts";
 import { assignments, onCrew, type Assignment } from "./assignments.schema.ts";
+import { emailOpenPlaces, openToOf, placeReopened } from "./open-places.ts";
 import {
-  emailOpenPlaces,
-  freeFor,
-  openToOf,
-  placeReopened,
-} from "./open-places.ts";
+  releaseClosed,
+  whyNotConfirm,
+  whyNotOffer,
+  whyNotRelease,
+} from "./rules.ts";
 import { cleanOf, serviceVersions } from "../services/services.ts";
 import { offerEmail, releasedEmail, takenOffEmail } from "./emails.ts";
-
-// a Confirmed place can't be Released this close to the Job: the Office needs
-// time to find someone else
-const RELEASE_CUTOFF_HOURS = 48;
-
-const releaseClosed = (job: Job) =>
-  job.startsAt.getTime() - clock.now().getTime() <
-  RELEASE_CUTOFF_HOURS * HOUR_MS;
 
 // a booked Job with its Property
 const findJob = async (jobId: string) => {
@@ -184,9 +172,6 @@ export const offerAssignment = async (
       .where(and(eq(jobs.id, jobId), eq(jobs.status, "booked")))
       .for("update");
     if (!job) throw new NotFoundError("Job not found");
-    if (job.startsAt <= clock.now()) {
-      throw new ConflictError("This Job has already started");
-    }
 
     // theirs too, so two Offers at once can't overlap
     const [member] = await tx
@@ -195,29 +180,11 @@ export const offerAssignment = async (
       .where(eq(staff.id, staffId))
       .for("update");
     if (!member) throw new NotFoundError("Staff member not found");
-    if (!member.active || !member.roles.includes("cleaner")) {
-      throw new ConflictError(`${member.name} isn't an active Cleaner`);
-    }
 
-    const holding = await tx
-      .select({ staffId: assignments.staffId })
-      .from(assignments)
-      .where(and(eq(assignments.jobId, jobId), onCrew()));
-    if (holding.some((h) => h.staffId === staffId)) {
-      throw new ConflictError(`${member.name} already has a place on this Job`);
-    }
-    if (holding.length >= job.crewSize) {
-      throw new ConflictError(
-        job.crewSize === 1
-          ? "This Job's place is taken"
-          : `All ${job.crewSize} places on this Job are taken`,
-      );
-    }
-    if (!(await freeFor([staffId], job, tx)).has(staffId)) {
-      throw new ConflictError(
-        `${member.name} isn't free then: they're on another Job or a Site Visit at that time, or have no hours that day`,
-      );
-    }
+    const date = dayOf(job.startsAt);
+    const [day] = await scheduleFor(date, date, tx);
+    const refusal = whyNotOffer(day!, job, member, clock.now());
+    if (refusal) throw new ConflictError(refusal);
 
     const self = member.accountId === byAccountId;
     const now = clock.now();
@@ -392,7 +359,7 @@ const cleanerJobs = async (
         status,
         canRelease:
           job.status === "booked" &&
-          (status === "offered" || !releaseClosed(job)),
+          (status === "offered" || !releaseClosed(job, now)),
       },
       ...completion,
       started: job.startsAt <= now,
@@ -478,21 +445,12 @@ export const confirmAssignment = async (
   const jobId = await db.transaction(async (tx) => {
     const { assignment, job } = await lockOwn(tx, staffId, assignmentId);
     if (assignment.status === "confirmed") return job.id;
-    if (job.startsAt <= clock.now()) {
-      throw new ConflictError("This Job has already started");
-    }
-    if (seen && seen.getTime() !== job.startsAt.getTime()) {
-      throw new ConflictError(
-        `This Job has moved to ${formatWhen(job.startsAt)}. Please check the new time, then confirm again.`,
-      );
-    }
     // theirs too, so they can't take two Jobs at once that overlap
     await tx.select().from(staff).where(eq(staff.id, staffId)).for("update");
-    if (!(await freeFor([staffId], job, tx)).has(staffId)) {
-      throw new ConflictError(
-        "You're no longer free for this Job. Please release it, or call the Office.",
-      );
-    }
+    const date = dayOf(job.startsAt);
+    const [day] = await scheduleFor(date, date, tx);
+    const refusal = whyNotConfirm(day!, job, staffId, seen, clock.now());
+    if (refusal) throw new ConflictError(refusal);
     const [confirmed] = await tx
       .update(assignments)
       .set({ status: "confirmed", answeredAt: clock.now() })
@@ -520,11 +478,12 @@ export const releaseAssignment = async (
 ) => {
   const { job, property } = await db.transaction(async (tx) => {
     const found = await lockOwn(tx, staffId, assignmentId);
-    if (found.assignment.status === "confirmed" && releaseClosed(found.job)) {
-      throw new ConflictError(
-        `A Confirmed place can't be released within ${RELEASE_CUTOFF_HOURS} hours of the Job. Please call the Office.`,
-      );
-    }
+    const refusal = whyNotRelease(
+      found.assignment.status,
+      found.job,
+      clock.now(),
+    );
+    if (refusal) throw new ConflictError(refusal);
     const [released] = await tx
       .update(assignments)
       .set({ status: "released", answeredAt: clock.now() })
