@@ -1,8 +1,8 @@
 // The shape rules: edited in github.com/CristianCrane/.dotfiles (home/.claude); repos carry copies made by hooks/sync.mjs.
 //
-// What the shape hooks share: git, and the per-branch survey and review
+// What the shape hooks share: git, and the survey, plan review and review
 // files the `shape` skill writes into the git dir (never committed, kept
-// per worktree).
+// per worktree): one set per branch, and on main one per session.
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
@@ -55,19 +55,23 @@ export const cwdFor = (input) => {
   return cwd;
 };
 
-// null on a detached HEAD (a rebase, a bisect): nothing is gated there
-export const branchOf = (cwd) => {
+// the branch being worked on, and the name its files go by: the branch,
+// or on main the session too (work straight on main is one change per
+// session); null on a detached HEAD (a rebase, a bisect), which is not gated
+export const workOf = (cwd, input) => {
   const branch = git(cwd, "rev-parse", "--abbrev-ref", "HEAD");
-  return branch === "HEAD" ? null : branch;
+  if (branch === "HEAD") return null;
+  const onMain = ["main", "master"].includes(branch) && input.session_id;
+  return { branch, key: onMain ? `${branch}-${input.session_id}` : branch };
 };
 
-export const stateFile = (cwd, kind, branch) => {
+export const stateFile = (cwd, kind, key) => {
   const path = git(
     cwd,
     "rev-parse",
     "--path-format=absolute",
     "--git-path",
-    `claude/${kind}-${branch.replaceAll("/", "-")}.md`,
+    `claude/${kind}-${key.replaceAll("/", "-")}.md`,
   );
   mkdirSync(dirname(path), { recursive: true });
   return path;
@@ -82,20 +86,11 @@ const headTime = (cwd) => {
   }
 };
 
-const mainBranches = ["main", "master"];
-
-// the branch's survey and whether it counts: it must name a path that
-// exists, and on main it must be newer than the last commit (each change
-// on main gets its own)
-export const survey = (cwd, branch) => {
-  const path = stateFile(cwd, "survey", branch);
+// the survey and whether it counts: it must name a path that exists
+export const survey = (cwd, key) => {
+  const path = stateFile(cwd, "survey", key);
   if (!existsSync(path)) return { path, ok: false, reason: "missing" };
   const text = readFileSync(path, "utf8");
-  if (
-    mainBranches.includes(branch) &&
-    statSync(path).mtimeMs / 1000 < headTime(cwd)
-  )
-    return { path, ok: false, reason: "older than the last commit" };
   const top = git(cwd, "rev-parse", "--show-toplevel");
   const named = text
     .split(/[\s,;()`'"<>]+/)
@@ -107,11 +102,27 @@ export const survey = (cwd, branch) => {
   return { path, ok: true, expected: expected || null };
 };
 
-export const review = (cwd, branch) => {
-  const path = stateFile(cwd, "review", branch);
+// the reviewer's read of the survey, before any code: once is enough
+export const planReview = (cwd, key) => {
+  const path = stateFile(cwd, "plan-review", key);
+  return existsSync(path) ? { path, ok: true } : { path, ok: false, reason: "missing" };
+};
+
+// the reviewer's read of the diff: it must be newer than the last commit,
+// and before round 3 leave no block open (after round 3 the user decides)
+export const review = (cwd, key) => {
+  const path = stateFile(cwd, "review", key);
   if (!existsSync(path)) return { path, ok: false, reason: "missing" };
   if (statSync(path).mtimeMs / 1000 < headTime(cwd))
     return { path, ok: false, reason: "older than the last commit" };
+  const text = readFileSync(path, "utf8");
+  const round = Number(text.match(/^# Shape review:.*round (\d+)/m)?.[1]) || 1;
+  const section = (name) => text.split(/^## /m).find((part) => part.startsWith(name)) ?? "";
+  const open =
+    (section("Findings").match(/^\d+\.\s*\[block\]/gm)?.length ?? 0) +
+    (section("Previous blocks").match(/→\s*open/g)?.length ?? 0);
+  if (open && round < 3)
+    return { path, ok: false, reason: `round ${round} left ${open} block(s) open: fix them and run round ${round + 1}` };
   return { path, ok: true };
 };
 

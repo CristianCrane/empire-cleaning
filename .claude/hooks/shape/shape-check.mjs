@@ -6,15 +6,7 @@
 // with no survey (a Bash edit slips past the survey gate) are pointed out
 // once per commit. A nudge, never a block.
 import { readFileSync, writeFileSync } from "node:fs";
-import {
-  branchOf,
-  changedFiles,
-  cwdFor,
-  git,
-  hook,
-  stateFile,
-  survey,
-} from "./lib.mjs";
+import { changedFiles, cwdFor, git, hook, stateFile, survey, workOf } from "./lib.mjs";
 
 const STEP = 25;
 
@@ -25,15 +17,16 @@ const say = (text) => ({
 
 hook((input) => {
   const cwd = cwdFor(input);
-  const branch = branchOf(cwd);
-  if (!branch) return;
+  const work = workOf(cwd, input);
+  if (!work) return;
+  const { branch } = work;
 
   const files = changedFiles(cwd);
   if (files.size === 0) return;
-  const found = survey(cwd, branch);
+  const found = survey(cwd, work.key);
 
-  // per worktree: what this branch was already told
-  const marker = stateFile(cwd, "shape-check", branch);
+  // per worktree: what this work was already told
+  const marker = stateFile(cwd, "shape-check", work.key);
   let told = { step: 0, unsurveyedAt: null };
   try {
     told = { ...told, ...JSON.parse(readFileSync(marker, "utf8")) };
