@@ -55,7 +55,8 @@ import { getJson } from "./api.ts";
 import { linkTo } from "./links.ts";
 import { AreaLayout } from "./screens/AreaLayout.tsx";
 import { CleanerHome } from "./screens/cleaner/CleanerHome.tsx";
-import { ConfirmEmail, confirmEmail } from "./screens/ConfirmEmail.tsx";
+import { ConfirmEmail } from "./screens/ConfirmEmail.tsx";
+import { SignInLink, type SignInLinkSearch } from "./screens/SignInLink.tsx";
 import { CleanerOffers } from "./screens/cleaner/CleanerOffers.tsx";
 import { CleanerJobScreen } from "./screens/cleaner/CleanerJobScreen.tsx";
 import { OpenPlaceScreen } from "./screens/cleaner/OpenPlaceScreen.tsx";
@@ -222,17 +223,36 @@ const signInRoute = createRoute({
   component: SignIn,
 });
 
-// the link emailed to a Client's new email (#243): opening it confirms it,
-// signed in or not, once; never again on a reload of the page's data
+// the emailed sign-in link opens here, and signs in once its button is
+// pressed (#243); one without a token is as good as used
+const signInLinkRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/sign-in/link",
+  validateSearch: (search: Record<string, unknown>): SignInLinkSearch => ({
+    token: typeof search.token === "string" ? search.token : "",
+    callbackURL:
+      typeof search.callbackURL === "string" ? search.callbackURL : undefined,
+    errorCallbackURL:
+      typeof search.errorCallbackURL === "string"
+        ? search.errorCallbackURL
+        : undefined,
+  }),
+  beforeLoad: ({ search }) => {
+    if (!search.token) {
+      throw redirect({ to: "/sign-in", search: { error: "INVALID_TOKEN" } });
+    }
+  },
+  component: SignInLink,
+});
+
+// the link emailed to a Client's new email (#243): pressing its page's button
+// confirms it, signed in or not, once
 const confirmEmailRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/confirm-email",
   validateSearch: (search: Record<string, unknown>) => ({
     token: typeof search.token === "string" ? search.token : "",
   }),
-  loaderDeps: ({ search }) => ({ token: search.token }),
-  loader: ({ deps }) => confirmEmail(deps.token),
-  shouldReload: false,
   component: ConfirmEmail,
 });
 
@@ -857,6 +877,7 @@ const portalPropertyRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   indexRoute,
   signInRoute,
+  signInLinkRoute,
   confirmEmailRoute,
   welcomeRoute,
   peopleRoute,

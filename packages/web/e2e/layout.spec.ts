@@ -567,8 +567,9 @@ test("signing in, the welcome page and the Cleaner area fit every width", async 
   page,
 }) => {
   await expectFitsEveryWidth(page, "/sign-in");
-  // a used link: the longer of what confirming a new email says (#243)
-  await expectFitsEveryWidth(page, "/confirm-email?token=used");
+  // the pages an emailed link opens, before their button is pressed (#243)
+  await expectFitsEveryWidth(page, "/sign-in/link?token=unused");
+  await expectFitsEveryWidth(page, "/confirm-email?token=unused");
   await createClient({
     name: "Helen Kowalski",
     email: "owner+helen@example.com",

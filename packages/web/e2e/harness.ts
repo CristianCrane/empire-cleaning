@@ -258,12 +258,18 @@ export const signInLinkFor = async (address: string) => {
   return link;
 };
 
+// opens the latest sign-in link to `email` and presses Sign in on its page
+export const followSignInLink = async (page: Page, email: string) => {
+  await page.goto(await signInLinkFor(email));
+  await page.getByRole("button", { name: "Sign in" }).click();
+};
+
 // asks for a sign-in link on the page, then follows it from the email
 export const signInWithLink = async (page: Page, email: string) => {
   await page.getByRole("textbox", { name: "Email" }).fill(email);
   await page.getByRole("button", { name: "Email me a sign-in link" }).click();
   await expect(page.getByText("Check your email")).toBeVisible();
-  await page.goto(await signInLinkFor(email));
+  await followSignInLink(page, email);
 };
 
 // Starts a test signed in, without the sign-in form, the email or the extra

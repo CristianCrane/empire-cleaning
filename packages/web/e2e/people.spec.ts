@@ -4,7 +4,7 @@ import {
   expect,
   expectAccessible,
   signedInAs,
-  signInLinkFor,
+  followSignInLink,
   test,
 } from "./harness.ts";
 
@@ -54,7 +54,7 @@ test(
       page.getByRole("link", { name: "Open it in Gmail" }),
     ).toHaveCount(0);
 
-    await page.goto(await signInLinkFor(helen.email));
+    await followSignInLink(page, helen.email);
     await expect(page).toHaveURL("/portal");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
       "Hi, Helen",
@@ -82,7 +82,7 @@ test("signed out, any demo person can be picked from the list", async ({
   await page.getByRole("row", { name: /Maria Gonzalez/ }).click();
   await expect(page.getByText("Check your email")).toBeVisible();
 
-  await page.goto(await signInLinkFor(maria.email));
+  await followSignInLink(page, maria.email);
   await expect(page).toHaveURL("/cleaner");
 });
 
@@ -104,7 +104,7 @@ test("anyone else signs in by their email, back to the page asked for", async ({
   await page.getByRole("button", { name: "Email me a sign-in link" }).click();
   await expect(page.getByText("Check your email")).toBeVisible();
 
-  await page.goto(await signInLinkFor(helen.email));
+  await followSignInLink(page, helen.email);
   await expect(page).toHaveURL("/portal");
 });
 

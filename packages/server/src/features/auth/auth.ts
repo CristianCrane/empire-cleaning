@@ -19,8 +19,13 @@ import {
 // sign-in links are short-lived; no other email can sign anyone in (ADR-0006)
 const SIGN_IN_LINK_TTL_SECONDS = 15 * 60;
 
+// the link opens the app's page, whose Sign in button sends its query on to
+// Better Auth's `url`: mail scanners open links before the person does, and
+// opening Better Auth's own would use the link up (#243)
 const sendSignInLink = async ({ to, url }: { to: string; url: string }) => {
-  await email.send({ to, ...signInEmail({ url }) });
+  const page = new URL("/sign-in/link", env.CORS_ORIGIN_URL);
+  page.search = new URL(url).search;
+  await email.send({ to, ...signInEmail({ url: page.toString() }) });
 };
 
 // a sign-in link is emailed to one address only so often (#32)

@@ -306,8 +306,15 @@ test("a Client's new email waits for them to open the link sent to it", async ({
   await expect(contact).toContainText(casey.email);
   await expectAccessible(page);
 
+  // opening the link changes nothing until its button is pressed, so a mail
+  // scanner opening it first confirms nothing
   const link = await signInLinkFor(work);
   await page.goto(link);
+  await expect(
+    page.getByRole("heading", { name: "Confirm your new email" }),
+  ).toBeVisible();
+  await expectAccessible(page);
+  await page.getByRole("button", { name: "Confirm my email" }).click();
   await expect(
     page.getByRole("heading", { name: "Email confirmed" }),
   ).toBeVisible();
@@ -322,6 +329,7 @@ test("a Client's new email waits for them to open the link sent to it", async ({
 
   // a link works once
   await page.goto(link);
+  await page.getByRole("button", { name: "Confirm my email" }).click();
   await expect(
     page.getByRole("heading", { name: "Email not changed" }),
   ).toBeVisible();
