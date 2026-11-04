@@ -49,11 +49,15 @@ Keep the survey true: when the plan or the file count changes, update it. A hook
 
 ## 4. Review
 
-After the last commit, before opening the PR (`gh pr create` is turned down until the review is newer than the last commit and, before round 3, has no open blocks), run the `shape-reviewer` agent: **round 1**, with the branch, the repo root, whether it's a refactor, the survey's path and the review's path (`review-…` beside the survey).
+Once the change is committed, before opening the PR (`gh pr create` is turned down until the review is of the last commit and, before round 3, has no open blocks), run the `shape-reviewer` agent: **round 1**, with the branch, the repo root, whether it's a refactor, the survey's path and the review's path (`review-…` beside the survey).
 
-- **Blocks** start the next round: fix them, commit, and run the reviewer again, **round 2** then **round 3**. A follow-up round checks only the fixes, against the previous review in the same file.
+A round is the reviewer and you arguing about shape. The reviewer reads shape, not behaviour, so tests never hold it up: start each round as its commit lands, and run the repo's quick tests beside it (its CLAUDE.md or AGENTS.md names them, and its full suite).
+
+- **Blocks** start the next round: fix them, with any failure the round's quick tests found, commit, and run the reviewer again, **round 2** then **round 3**. A follow-up round checks only the fixes, against the previous review in the same file.
+- **A recheck** reviews a commit that answers no block: a fix to a failing test, typecheck, lint or CI. It checks only that commit, keeps the round's number and costs no round; a block it finds starts the next round. Rechecks have no cap.
 - **Notes** never start a round. Answer each in Shape, from every round (later rounds carry them forward): rebutted, or filed as a follow-up issue. Fixing one here costs another round.
-- **Done** when a round finds no blocks and is newer than the last commit.
+- **The full suite** runs once, after a round or recheck finds no blocks, before the PR. A fix it needs gets a recheck, and only what failed runs again, with the quick tests.
+- **Done** when a round or recheck of the last commit finds no blocks, and the full suite has passed.
 - **After round 3**, any block still open goes to the user: stop and put each one to them with its paths. A round 4 runs only when they say so.
 
 ## 5. Shape section
