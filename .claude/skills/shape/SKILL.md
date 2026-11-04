@@ -17,16 +17,13 @@ A **pattern** is any shape the change follows or adds: a helper, a table, a laye
 - **The simplest shape is the plan.** When the survey finds a simpler shape than extending, build that. Extending instead takes a written reason, which goes in Shape.
 - **One kind of work per PR**: a refactor, a behaviour change, or cleanups.
 - **Refactor first.** A refactor that changes no behaviour, under ~10 files and inside one package: make it on its own branch and PR, then build the change on top of it. A bigger refactor, or one that crosses packages: stop and ask the user whether it goes first in its own PR or on its own issue.
-- **Every change** gets a survey and a review. A small change writes a one-line survey.
+- **A stacked PR lands on the default branch.** A PR built on another branch targets that branch; once the lower PR merges, check the stacked one now targets the default branch (`gh pr view <n> --json baseRefName`) and retarget it if not (`gh pr edit <n> --base main`) before it merges. Merging the lower PR first and the stacked one into its old base strands the stacked one's commits off the default branch, so retarget it rather than handing the user a merge order.
+- **Every change** gets a survey, a plan review and a review. A small change writes a one-line survey.
 - The repo's own rules (CLAUDE.md, ADRs) add to these.
 
 ## 1. Survey
 
-Before the first edit (the survey gate turns edits down until it exists). Write it to:
-
-```sh
-git rev-parse --path-format=absolute --git-path "claude/survey-$(git branch --show-current | tr / -).md"
-```
+Before the first edit: the survey gate turns edits down until it exists, and its turn-down names the path. (The survey lives in the git dir, one per branch, or on `main` one per session.)
 
 ```
 Change: <one line>
@@ -39,19 +36,26 @@ Expected files: <n>
 
 Count copies by searching the repo for each pattern, not from memory. Done when every pattern the change touches is listed with every copy's path, and the simplest shape has a file count.
 
-Post the survey in chat, then go on, unless the plan is a refactor big enough to ask about. On `main`, each commit needs a fresh survey.
+## 2. Plan review
 
-## 2. Build
+Run the `shape-reviewer` agent in **plan** mode, with the survey's path and the plan review's path (`plan-review-…` beside the survey; the gate names it). It reads the survey before any code exists, when a wrong shape costs a paragraph rather than rework. Revise the survey for each block; answer each note in Shape. One plan review per change; edits go through once it's written.
+
+Post the survey in chat, then go on, unless the plan is a refactor big enough to ask about.
+
+## 3. Build
 
 Keep the survey true: when the plan or the file count changes, update it. A hook compares the branch's size with `Expected files` every 25 files.
 
-## 3. Review
+## 4. Review
 
-After the last commit, before opening the PR (`gh pr create` is turned down until the review is newer than the last commit), run the `shape-reviewer` agent. Give it the branch, the repo root, and whether the branch is a refactor. It writes `claude/review-<branch>.md` beside the survey.
+After the last commit, before opening the PR (`gh pr create` is turned down until the review is newer than the last commit and, before round 3, has no open blocks), run the `shape-reviewer` agent: **round 1**, with the branch, the repo root, whether it's a refactor, the survey's path and the review's path (`review-…` beside the survey).
 
-Fix or rebut each finding. A fix is a new commit, which makes the review stale: run the reviewer again. Done when the review is newer than the last commit and every finding has an answer.
+- **Blocks** start the next round: fix them, commit, and run the reviewer again, **round 2** then **round 3**. A follow-up round checks only the fixes, against the previous review in the same file.
+- **Notes** never start a round. Answer each in Shape, from every round (later rounds carry them forward): rebutted, or filed as a follow-up issue. Fixing one here costs another round.
+- **Done** when a round finds no blocks and is newer than the last commit.
+- **After round 3**, any block still open goes to the user: stop and put each one to them with its paths. A round 4 runs only when they say so.
 
-## 4. Shape section
+## 5. Shape section
 
 Every PR body ends with:
 
