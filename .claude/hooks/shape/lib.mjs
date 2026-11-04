@@ -24,7 +24,10 @@ export const git = (cwd, ...args) =>
     stdio: ["ignore", "pipe", "ignore"],
   }).trim();
 
-const lines = (text) => text.split("\n").filter(Boolean);
+export const lines = (text) => text.split("\n").filter(Boolean);
+
+// the top folder of the checkout `cwd` is in
+export const topOf = (cwd) => git(cwd, "rev-parse", "--show-toplevel");
 
 // Runs a hook's body on its input and prints what the body returns. A
 // repo's copy stands aside here, and any failure (not a git checkout, bad
@@ -86,21 +89,21 @@ const headSha = (cwd) => {
   }
 };
 
-// the survey and whether it counts: it must name a path that exists
+// the survey and whether it counts: it must name a path that exists,
+// with or without its lines (`path:12`, `path:3-5`)
 const survey = (cwd, key) => {
   const path = stateFile(cwd, "survey", key);
   if (!existsSync(path)) return { path, ok: false, reason: "missing" };
   const text = readFileSync(path, "utf8");
-  const top = git(cwd, "rev-parse", "--show-toplevel");
+  const top = topOf(cwd);
   const named = text
     .split(/[\s,;()`'"<>]+/)
-    .map((word) => word.replace(/[:.]+$/, ""))
+    .map((word) => word.replace(/[:.]+$/, "").replace(/:\d[\d-]*$/, ""))
     .filter((word) => /\w/.test(word) && /[/.]/.test(word))
     .some((word) => existsSync(isAbsolute(word) ? word : join(top, word)));
   if (!named) return { path, ok: false, reason: "names no path that exists" };
   const expected = Number(text.match(/^Expected files:\s*~?(\d+)/m)?.[1]);
-  const stackedOn = text.match(/^Base:\s*(\S+)/m)?.[1] ?? null;
-  return { path, ok: true, expected: expected || null, stackedOn };
+  return { path, ok: true, expected: expected || null };
 };
 
 // the reviewer's read of the survey, before any code: once is enough
@@ -127,30 +130,122 @@ export const beforeEdit = (cwd, work) => {
   return { survey: found, missing: null };
 };
 
+// how a comment line starts: `#` in HASH files, `//` in SLASHES files;
+// C_STYLE files also have block comments, from a line starting `/*` to
+// one ending in its first `*/`. A shebang, a `///` directive or a pragma
+// on the PRAGMA list (it changes what a tool checks; any `@` tag counts as
+// one) is never a comment line here; a directive missing from the list
+// is. The reader knows nothing of strings, so a comment-like line inside a
+// multi-line string counts as a comment.
+const HASH = /\.(sh|bash|zsh|nix|py|ya?ml|toml)$/;
+const SLASHES = /\.(m?js|cjs|jsx|tsx?)$/;
+const C_STYLE = /\.(m?js|cjs|jsx|tsx?|css)$/;
+const PRAGMA =
+  /^#!|^\/\/\/\s*<|@|-\*-|^\/\*\s*(?:globals?|exported)\s|eslint-|tslint:|prettier-ignore|biome-ignore|c8 ignore|v8 ignore|istanbul ignore|noqa|type:|mypy:|pyright:|pragma:|pylint:|shellcheck|fmt:/;
+
+// reads one side of a file line by line, following its block comments,
+// and says whether each line is a comment line
+const commentReader = (file) => {
+  let inBlock = false;
+  return (line) => {
+    if (inBlock || (C_STYLE.test(file) && line.startsWith("/*"))) {
+      const close = line.indexOf("*/");
+      inBlock = close < 0;
+      return close < 0 || close === line.length - 2;
+    }
+    return HASH.test(file) ? line.startsWith("#") : SLASHES.test(file) && line.startsWith("//");
+  };
+};
+
+// whether every line changed from `sha` to HEAD is blank or a comment
+// line, each in a file whose comments these know; a new, deleted or
+// renamed file, a submodule, a mode change, or any other kind of file
+// isn't. Both diffs are plumbing (diff-tree, run from the top of the
+// checkout), which skips most diff config: relative paths, colour,
+// external drivers and textconv never apply, though suppressBlankEmpty
+// still does (see below).
+const commentOnly = (cwd, sha) => {
+  try {
+    const top = topOf(cwd);
+    const diffOf = (...args) => git(top, "diff-tree", "-r", "--ignore-submodules=none", ...args);
+    return lines(diffOf("--name-status", "--no-renames", sha, "HEAD")).every((entry) => {
+      const [status, file] = entry.split("\t");
+      if (status !== "M" || !(HASH.test(file) || C_STYLE.test(file))) return false;
+      // the whole file as context, so each side's block comments are
+      // followed; a file .gitattributes marks binary has no hunk
+      const diff = diffOf("-p", "--unified=100000000", sha, "HEAD", "--", file);
+      const hunk = diff.search(/^@@/m);
+      if (hunk < 0 || /^(?:old|new) mode /m.test(diff)) return false;
+      const read = { "-": commentReader(file), "+": commentReader(file) };
+      return diff
+        .slice(hunk)
+        .split("\n")
+        .slice(1)
+        .every((raw) => {
+          const mark = raw[0] ?? " "; // diff.suppressBlankEmpty drops a blank context line's space
+          if (mark === "\\") return true; // "\ No newline at end of file"
+          const line = raw.slice(1).trim();
+          if (mark === " ") {
+            read["-"](line);
+            read["+"](line);
+            return true;
+          }
+          return read[mark](line) ? !PRAGMA.test(line) : !line;
+        });
+    });
+  } catch {
+    return false;
+  }
+};
+
+// the round after which open shape findings go to the user (the `shape`
+// skill's "After round 5")
+const LAST_ROUND = 5;
+
 // the reviewer's read of the diff: it must be of the last commit (written
-// after it isn't enough: a round runs while fixes may land), and before
-// round 3 leave no block open (after round 3 the user decides). The
+// after it isn't enough: a round runs while fixes may land), or of one
+// before it with only comment lines changed since; and before the last
+// round it must leave no shape finding open (after it the user decides). The
 // reviewer's header line says all three: "… @ <sha>, round <n>, <k> open
-// blocks", where a recheck says "recheck of round <n>", keeping the number.
+// shape findings", where a recheck says "recheck of round <n>", keeping
+// the number. "open blocks" is the count's old name, which copies of the
+// reviewer synced before the rename still write; it goes once every
+// repo's copy is synced.
 export const review = (cwd, key) => {
   const path = stateFile(cwd, "review", key);
   if (!existsSync(path)) return { path, ok: false, reason: "missing" };
-  const header = readFileSync(path, "utf8").match(/^# Shape review:.* @ ([0-9a-f]{7,40}),.*round (\d+), (\d+) open block/m);
-  if (!header) return { path, ok: false, reason: "its header has no commit, round and open-block count" };
+  const text = readFileSync(path, "utf8");
+  const header = text.match(/^# Shape review:.* @ ([0-9a-f]{7,40}),.*round (\d+), (\d+) open (?:shape finding|block)/m);
+  if (!header) return { path, ok: false, reason: "its header has no commit, round and open count" };
   const [sha, ...counts] = header.slice(1);
-  if (!headSha(cwd).startsWith(sha)) return { path, ok: false, reason: `it reviewed ${sha}, not the last commit` };
+  if (!headSha(cwd).startsWith(sha) && !commentOnly(cwd, sha))
+    return { path, ok: false, reason: `it reviewed ${sha}, and the commits since change more than comment lines` };
   const [round, open] = counts.map(Number);
-  if (open && round < 3)
-    return { path, ok: false, reason: `round ${round} left ${open} block(s) open: fix them and run round ${round + 1}` };
-  return { path, ok: true };
+  if (open && round < LAST_ROUND)
+    return {
+      path,
+      ok: false,
+      reason: `round ${round} left ${open} shape finding(s) open: fix them and run round ${round + 1}, but take a reopened finding, or one the reviewer holds against your pushback, to the user`,
+    };
+  // the last review (the file's first) lists every finding of the change
+  const last = text.slice(header.index).split(/^(?=# Shape review:)/m)[0];
+  const ids = [...new Set([...last.matchAll(/^(?:- )?(F\d+)\b/gm)].map((id) => id[1]))];
+  return { path, ok: true, ids };
 };
 
-// what the branch is measured against: where it left the branch it's
-// stacked on (the survey's Base:, while that still resolves), else the
-// default branch
-const base = (cwd, stackedOn) => {
-  const stack = stackedOn ? [`origin/${stackedOn}`, stackedOn] : [];
-  for (const ref of [...stack, "origin/HEAD", "origin/main", "origin/master", "main", "master"]) {
+// whether `sha` names a commit the branch adds to its base
+export const onBranch = (cwd, sha) => {
+  try {
+    const full = git(cwd, "rev-parse", "--verify", "--quiet", `${sha}^{commit}`);
+    return lines(git(cwd, "rev-list", `${base(cwd)}..HEAD`)).includes(full);
+  } catch {
+    return false;
+  }
+};
+
+// what the branch is measured against: where it left the default branch
+const base = (cwd) => {
+  for (const ref of ["origin/HEAD", "origin/main", "origin/master", "main", "master"]) {
     try {
       return git(cwd, "merge-base", "HEAD", ref);
     } catch {}
@@ -158,12 +253,15 @@ const base = (cwd, stackedOn) => {
   return "HEAD";
 };
 
-// files the branch changes against its base, untracked ones included
-export const changedFiles = (cwd, stackedOn) =>
-  new Set([
-    ...lines(git(cwd, "diff", "--name-only", base(cwd, stackedOn))),
-    ...lines(git(cwd, "ls-files", "--others", "--exclude-standard")),
+// files the branch changes against its base, untracked ones included,
+// across the whole checkout wherever `cwd` sits in it
+export const changedFiles = (cwd) => {
+  const top = topOf(cwd);
+  return new Set([
+    ...lines(git(top, "diff", "--no-relative", "--name-only", base(top))),
+    ...lines(git(top, "ls-files", "--others", "--exclude-standard")),
   ]);
+};
 
 // whether `path` sits in the git dir (where the survey and review live)
 export const inGitDir = (cwd, path) =>

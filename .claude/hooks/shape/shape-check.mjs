@@ -1,10 +1,11 @@
 // The shape rules: edited in github.com/CristianCrane/.dotfiles (home/.claude); repos carry copies made by hooks/sync.mjs.
 //
 // After each edit, counts the files the current branch changes against
-// its base (the branch it's stacked on, or the default branch). Each time the count crosses another 25, the agent is told once
-// to step back and compare with the survey's Expected files. Changes made
-// before the survey and its plan review (a Bash edit slips past the survey
-// gate) are pointed out once per commit. A nudge, never a block.
+// the default branch. Each time the count crosses another 25, the agent is
+// told once to step back and compare with the survey's Expected files.
+// Changes made before the survey and its plan review (a Bash edit slips
+// past the survey gate) are pointed out once per commit. A nudge, never a
+// block.
 import { readFileSync, writeFileSync } from "node:fs";
 import { beforeEdit, changedFiles, cwdFor, git, hook, stateFile, workOf } from "./lib.mjs";
 
@@ -22,7 +23,7 @@ hook((input) => {
   const { branch } = work;
 
   const { survey: found, missing } = beforeEdit(cwd, work);
-  const files = changedFiles(cwd, found.stackedOn);
+  const files = changedFiles(cwd);
   if (files.size === 0) return;
 
   // per worktree: what this work was already told
