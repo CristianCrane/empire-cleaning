@@ -1,6 +1,5 @@
 import { Router, type Response } from "express";
 import { z } from "zod";
-import { NotFoundError } from "../../middleware/errors.ts";
 import { validate } from "../../middleware/validation.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { staffForAccount } from "../staff/staff.ts";
@@ -74,11 +73,7 @@ export const router = Router();
 router.use(authorize("cleaner"));
 
 // the signed-in Cleaner's Staff record
-const cleaner = async (res: Response) => {
-  const member = await staffForAccount(signedInAccount(res).id);
-  if (!member) throw new NotFoundError("Staff member not found");
-  return member;
-};
+const cleaner = (res: Response) => staffForAccount(signedInAccount(res).id);
 
 const assignment = z.object({ id: z.uuid() });
 // the Job's time the Cleaner was shown, so a Job moved meanwhile isn't

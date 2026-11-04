@@ -1,14 +1,14 @@
 import { Router } from "express";
 import { z } from "zod";
 import type { AcceptOutcome, CallerQuoteEntry } from "@empire-cleaning/models";
-import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
+import { ConflictError } from "../../middleware/errors.ts";
 import { validate } from "../../middleware/validation.ts";
 import {
   authorize,
   currentAccount,
   signedInAccount,
 } from "../auth/authorize.ts";
-import { clientForAccount } from "../clients/clients.ts";
+import { ownClient } from "../clients/clients.ts";
 import {
   acceptQuote,
   finalizeDeposit,
@@ -41,12 +41,6 @@ import {
 export const router = Router();
 
 const byId = { params: z.object({ id: z.uuid() }) };
-
-const ownClient = async (accountId: string) => {
-  const client = await clientForAccount(accountId);
-  if (!client) throw new NotFoundError("Client not found");
-  return client;
-};
 
 // ---- asking ----
 

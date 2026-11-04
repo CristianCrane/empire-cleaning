@@ -6,7 +6,7 @@ import { NotFoundError } from "../../middleware/errors.ts";
 import { validate } from "../../middleware/validation.ts";
 import { officeJob } from "../assignments/assignments.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
-import { clientForAccount } from "../clients/clients.ts";
+import { ownClient } from "../clients/clients.ts";
 import { clientJob, ownJob } from "../completion/completion.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
 import {
@@ -31,8 +31,7 @@ export const clientRescheduleRouter = Router();
 
 // the signed-in Client's own Job; to anyone else it doesn't exist
 const mine = async (accountId: string, jobId: string) => {
-  const client = await clientForAccount(accountId);
-  if (!client) throw new NotFoundError("Client not found");
+  const client = await ownClient(accountId);
   const { job } = await ownJob(client.id, jobId);
   return { client, job };
 };

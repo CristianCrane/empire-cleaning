@@ -1,9 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
-import { NotFoundError } from "../../middleware/errors.ts";
 import { validate } from "../../middleware/validation.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
-import { clientForAccount } from "../clients/clients.ts";
+import { ownClient } from "../clients/clients.ts";
 import { staffForAccount } from "../staff/staff.ts";
 import {
   bookSiteVisit,
@@ -26,15 +25,13 @@ const params = z.object({ id: z.uuid() });
 // the signed-in Client's booked Site Visits from today on; they ask for
 // changes by phone
 router.get("/mine", authorize("client"), async (_req, res) => {
-  const client = await clientForAccount(signedInAccount(res).id);
-  if (!client) throw new NotFoundError("Client not found");
+  const client = await ownClient(signedInAccount(res).id);
   res.json(await clientSiteVisits(client.id));
 });
 
 // the signed-in Cleaner's own Site Visits, today's and those to come
 router.get("/visiting", authorize("cleaner"), async (_req, res) => {
   const member = await staffForAccount(signedInAccount(res).id);
-  if (!member) throw new NotFoundError("Staff member not found");
   res.json(await visitsFor(member.id));
 });
 

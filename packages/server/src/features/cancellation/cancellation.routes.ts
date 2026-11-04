@@ -1,10 +1,9 @@
 import { Router } from "express";
 import { z } from "zod";
-import { NotFoundError } from "../../middleware/errors.ts";
 import { validate } from "../../middleware/validation.ts";
 import { jobAssignedTo, officeJob } from "../assignments/assignments.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
-import { clientForAccount } from "../clients/clients.ts";
+import { ownClient } from "../clients/clients.ts";
 import { clientJob, ownJob } from "../completion/completion.ts";
 import { staffForAccount } from "../staff/staff.ts";
 import { cancelJob, recordNoAccess } from "./cancellation.ts";
@@ -26,8 +25,7 @@ clientCancellationRouter.post(
   validate({ params: job, body: cancelSchema }),
   async (req, res) => {
     const account = signedInAccount(res);
-    const client = await clientForAccount(account.id);
-    if (!client) throw new NotFoundError("Client not found");
+    const client = await ownClient(account.id);
     const id = String(req.params.id);
     await ownJob(client.id, id);
     await cancelJob(id, {
@@ -72,7 +70,6 @@ noAccessRouter.post(
   validate({ params: job, body: noAccessSchema }),
   async (req, res) => {
     const member = await staffForAccount(signedInAccount(res).id);
-    if (!member) throw new NotFoundError("Staff member not found");
     const id = String(req.params.id);
     await recordNoAccess(member.id, id, req.body.reason);
     res.json(await jobAssignedTo(member.id, id));

@@ -1,8 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
-import { NotFoundError } from "../../middleware/errors.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
-import { clientForAccount } from "../clients/clients.ts";
+import { ownClient } from "../clients/clients.ts";
 import { validate } from "../../middleware/validation.ts";
 import { upcomingJobsFor } from "./jobs.ts";
 import { jobsTabs, listJobs } from "./list.ts";
@@ -11,8 +10,7 @@ export const jobsRouter = Router();
 
 // the signed-in Client's booked Jobs still to come, soonest first
 jobsRouter.get("/mine", authorize("client"), async (_req, res) => {
-  const client = await clientForAccount(signedInAccount(res).id);
-  if (!client) throw new NotFoundError("Client not found");
+  const client = await ownClient(signedInAccount(res).id);
   res.json(await upcomingJobsFor(client.id));
 });
 

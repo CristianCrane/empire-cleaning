@@ -1,9 +1,9 @@
 import { Router } from "express";
 import { z } from "zod";
-import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
+import { ConflictError } from "../../middleware/errors.ts";
 import { validate } from "../../middleware/validation.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
-import { clientForAccount } from "../clients/clients.ts";
+import { ownClient } from "../clients/clients.ts";
 import {
   billView,
   finishBillPayment,
@@ -20,15 +20,9 @@ const bill = z.object({ id: z.uuid() });
 
 // ---- the signed-in Client: /api/bills/mine ----
 
-const signedInClient = async (accountId: string) => {
-  const client = await clientForAccount(accountId);
-  if (!client) throw new NotFoundError("Client not found");
-  return client;
-};
-
 // their Bills, newest first
 router.get("/mine", authorize("client"), async (_req, res) => {
-  const client = await signedInClient(signedInAccount(res).id);
+  const client = await ownClient(signedInAccount(res).id);
   res.json(await listBills({ clientId: client.id }));
 });
 
@@ -38,7 +32,7 @@ router.get(
   authorize("client"),
   validate({ params: bill }),
   async (req, res) => {
-    const client = await signedInClient(signedInAccount(res).id);
+    const client = await ownClient(signedInAccount(res).id);
     res.json(await billView(String(req.params.id), client.id));
   },
 );
@@ -49,7 +43,7 @@ router.post(
   authorize("client"),
   validate({ params: bill }),
   async (req, res) => {
-    const client = await signedInClient(signedInAccount(res).id);
+    const client = await ownClient(signedInAccount(res).id);
     res.json(await startBillPayment(client, String(req.params.id)));
   },
 );
@@ -63,7 +57,7 @@ router.post(
     body: z.object({ ref: z.string().min(1) }),
   }),
   async (req, res) => {
-    const client = await signedInClient(signedInAccount(res).id);
+    const client = await ownClient(signedInAccount(res).id);
     const id = String(req.params.id);
     await billView(id, client.id);
     const failure = await finishBillPayment(id, req.body.ref);

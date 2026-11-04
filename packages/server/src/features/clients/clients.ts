@@ -74,6 +74,13 @@ export const clientForAccount = async (accountId: string) => {
   return client;
 };
 
+// the Client a signed-in Client's Account is connected to
+export const ownClient = async (accountId: string) => {
+  const client = await clientForAccount(accountId);
+  if (!client) throw new NotFoundError("Client not found");
+  return client;
+};
+
 // e.g. Office Staff correcting a Client who signed up with a different email
 // from asking for a Quote; if that Account exists it connects straight away
 export const changeClientEmail = async (id: string, email: string) => {
