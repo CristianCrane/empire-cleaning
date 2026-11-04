@@ -131,9 +131,10 @@ const needsSiteVisit = async (
   all: Service[],
   property: Pick<Property, "id">,
   serviceKeys: string[],
+  tx: Tx | typeof db = db,
 ) =>
   needSiteVisit(all, serviceKeys) &&
-  !(await findingsRecorded([property.id])).has(property.id);
+  !(await findingsRecorded([property.id], tx)).has(property.id);
 
 // The Services a Service Plan's days can be at a kind of Property: those on
 // offer that can recur, and any `kept` (a day's own, though since retired)
@@ -165,8 +166,8 @@ const planServiceFor = (
 };
 
 // a Property with its Client
-const homeOf = async (propertyId: string) => {
-  const [row] = await db
+const homeOf = async (propertyId: string, tx: Tx | typeof db = db) => {
+  const [row] = await tx
     .select({ client: clients, property: properties })
     .from(properties)
     .innerJoin(clients, eq(clients.id, properties.clientId))
@@ -846,11 +847,12 @@ const refuseUnquotable = async (
   property: Pick<Property, "id" | "kind">,
   all: Service[],
   serviceKeys: string[],
+  tx: Tx | typeof db = db,
 ) => {
   if (
     kind === "service_plan" &&
     !serviceKeys.every((key) => serviceOf(all, key).needsSiteVisit) &&
-    !(await firstCleanCompleted(property.id))
+    !(await firstCleanCompleted(property.id, tx))
   ) {
     throw new ConflictError(
       `A Service Plan can only start once ${property.kind === "commercial" ? "these premises'" : "this home's"} First Clean is Completed.`,

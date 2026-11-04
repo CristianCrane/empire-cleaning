@@ -156,10 +156,13 @@ export const openQuotesAt = async (
  * Service that needs no Site Visit needs one. Every Property with one, if no
  * ids are given.
  */
-export const firstCleansOf = async (propertyIds?: string[]) => {
+export const firstCleansOf = async (
+  propertyIds?: string[],
+  tx: Tx | typeof db = db,
+) => {
   const firstCleans = new Map<string, { job: Job; quoteId: string }>();
   if (propertyIds?.length === 0) return firstCleans;
-  const done = await db
+  const done = await tx
     .select({ job: jobs, quoteId: quotes.id })
     .from(jobs)
     .innerJoin(quotes, eq(quotes.jobId, jobs.id))
@@ -181,8 +184,10 @@ export const firstCleansOf = async (propertyIds?: string[]) => {
   return firstCleans;
 };
 
-export const firstCleanCompleted = async (propertyId: string) =>
-  (await firstCleansOf([propertyId])).has(propertyId);
+export const firstCleanCompleted = async (
+  propertyId: string,
+  tx: Tx | typeof db = db,
+) => (await firstCleansOf([propertyId], tx)).has(propertyId);
 
 // whether any Job at the Property is Completed: until one is, a Quote offers
 // its Service's first-visit recommendation too (ADR-0018)

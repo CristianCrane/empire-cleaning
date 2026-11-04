@@ -453,9 +453,12 @@ export const recordFindingsWithoutVisit = async (
 
 // The Properties among these with Site Visit findings recorded: a Done
 // visit. Business premises can't be Sent a Quote until then (ADR-0014).
-export const findingsRecorded = async (propertyIds: string[]) => {
+export const findingsRecorded = async (
+  propertyIds: string[],
+  tx: Tx | typeof db = db,
+) => {
   if (propertyIds.length === 0) return new Set<string>();
-  const done = await db
+  const done = await tx
     .selectDistinct({ propertyId: siteVisits.propertyId })
     .from(siteVisits)
     .where(
