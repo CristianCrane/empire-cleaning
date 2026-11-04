@@ -8,6 +8,8 @@ import env, { type Env } from "../../env.ts";
 const LIMITS = {
   signInLink: { tries: 6, minutes: 15 },
   guestQuoteRequest: { tries: 6, minutes: 24 * 60 },
+  // a Client's link to confirm a new email (#243)
+  emailChange: { tries: 6, minutes: 24 * 60 },
 } as const satisfies Record<string, Limit>;
 
 type Limit = { tries: number; minutes: number };

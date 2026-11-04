@@ -12,7 +12,14 @@ import { properties } from "#features/properties";
 import { quotes } from "#features/quotes";
 import { servicePlans } from "#features/service-plans";
 import { createStaff } from "#features/staff";
-import { api, signIn, testClock } from "../../../tests/harness.ts";
+import {
+  api,
+  apiAgent,
+  limitedAs,
+  signIn,
+  testClock,
+  testEmail,
+} from "../../../tests/harness.ts";
 import { signInWithGoogle } from "../../../tests/google.ts";
 import {
   bookedJob,
@@ -277,5 +284,169 @@ describe("pages of the list", () => {
     const office = await signInAsOffice();
     await office.get("/api/clients?standing=gone").expect(400);
     await office.get("/api/clients?limit=0").expect(400);
+  });
+});
+
+// a Client's new email is theirs once they open the link sent to it, so no
+// one can claim an address they don't own, nor the asks made from it (#243)
+describe("a Client changing their email", () => {
+  const dana = "dana@example.com";
+
+  const asCasey = async () => {
+    await submit(guestAsk()).expect(201);
+    return signIn(casey.email);
+  };
+
+  const changeEmail = (agent: ReturnType<typeof apiAgent>, email: string) =>
+    agent.patch("/api/clients/me").send({ ...casey, email });
+
+  // the token in the latest confirmation link sent to `address`
+  const tokenSentTo = (address: string) => {
+    const { text } = testEmail().lastTo(address);
+    const link = text.match(/https?:\/\/\S+\/confirm-email\?token=\S+/);
+    if (!link)
+      throw new Error(`no confirmation link in the email to ${address}`);
+    return new URL(link[0]).searchParams.get("token")!;
+  };
+
+  const confirm = (token: string) =>
+    api().post("/api/clients/email-changes/confirm").send({ token });
+
+  test("keeps the old email until the link sent to the new one is opened", async () => {
+    const agent = await asCasey();
+
+    const res = await changeEmail(agent, "Casey@Work.example.com").expect(200);
+
+    expect(res.body).toMatchObject({
+      email: casey.email,
+      pendingEmail: "casey@work.example.com",
+    });
+    expect(testEmail().lastTo("casey@work.example.com").subject).toBe(
+      "Confirm your new email",
+    );
+  });
+
+  test("opening the link makes it theirs, signed in or not", async () => {
+    const agent = await asCasey();
+    await changeEmail(agent, "casey@work.example.com").expect(200);
+
+    const res = await confirm(tokenSentTo("casey@work.example.com"));
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ email: "casey@work.example.com" });
+    const me = (await agent.get("/api/clients/me").expect(200)).body;
+    expect(me).toMatchObject({
+      email: "casey@work.example.com",
+      pendingEmail: null,
+    });
+    // still connected after the email change (ADR-0006)
+    expect((await agent.get("/api/me")).body.roles).toEqual(["client"]);
+  });
+
+  test("a waiting email doesn't take a Guest's ask from that address", async () => {
+    const agent = await asCasey();
+    await changeEmail(agent, dana).expect(200);
+
+    await submit(
+      guestAsk({
+        contact: { ...casey, name: "Dana", email: dana },
+        property: { new: { ...home, street: "1 Dana Lane", unit: null } },
+      }),
+    ).expect(201);
+
+    const mine = (await agent.get("/api/clients/me").expect(200)).body;
+    expect(mine.properties).toHaveLength(1);
+    expect(mine.quotes).toHaveLength(1);
+    const danas = (await (await signIn(dana)).get("/api/clients/me")).body;
+    expect(danas.properties.map((p: { street: string }) => p.street)).toEqual([
+      "1 Dana Lane",
+    ]);
+  });
+
+  test("a waiting email doesn't take the ask of an Account signed in with it", async () => {
+    const agent = await asCasey();
+    await changeEmail(agent, dana).expect(200);
+    const danasAccount = await signIn(dana);
+
+    await submit(
+      guestAsk({
+        contact: { ...casey, name: "Dana", email: dana },
+        property: { new: { ...home, street: "1 Dana Lane", unit: null } },
+      }),
+      danasAccount,
+    ).expect(201);
+
+    const danas = (await danasAccount.get("/api/clients/me").expect(200)).body;
+    expect(danas).toMatchObject({ email: dana, pendingEmail: null });
+    expect(danas.quotes).toHaveLength(1);
+    const mine = (await agent.get("/api/clients/me").expect(200)).body;
+    expect(mine.quotes).toHaveLength(1);
+  });
+
+  test("a link works once, and only for a day", async () => {
+    const agent = await asCasey();
+    await changeEmail(agent, "casey@work.example.com").expect(200);
+    const used = tokenSentTo("casey@work.example.com");
+    await confirm(used).expect(200);
+    await changeEmail(agent, "casey@home.example.com").expect(200);
+    const stale = tokenSentTo("casey@home.example.com");
+
+    testClock().advance({ hours: 24, minutes: 1 });
+
+    for (const token of [used, stale, "not-a-token"]) {
+      const res = await confirm(token);
+      expect(res.status).toBe(404);
+      expect(res.body.message).toBe(
+        "This link has expired or was used already.",
+      );
+    }
+    expect((await agent.get("/api/clients/me")).body.email).toBe(
+      "casey@work.example.com",
+    );
+  });
+
+  test("can't be confirmed once another Client has the email", async () => {
+    const agent = await asCasey();
+    await changeEmail(agent, dana).expect(200);
+    const token = tokenSentTo(dana);
+    await submit(
+      guestAsk({
+        contact: { ...casey, name: "Dana", email: dana },
+        property: { new: { ...home, street: "1 Dana Lane", unit: null } },
+      }),
+    ).expect(201);
+
+    const res = await confirm(token);
+
+    expect(res.status).toBe(409);
+    expect(res.body.message).toBe(
+      "That email is already used by another Client",
+    );
+    expect((await agent.get("/api/clients/me")).body.email).toBe(casey.email);
+  });
+
+  test("giving their own email back drops the waiting change", async () => {
+    const agent = await asCasey();
+    await changeEmail(agent, "casey@work.example.com").expect(200);
+    const token = tokenSentTo("casey@work.example.com");
+
+    const res = await changeEmail(agent, casey.email).expect(200);
+
+    expect(res.body).toMatchObject({ email: casey.email, pendingEmail: null });
+    await confirm(token).expect(404);
+  });
+
+  test("a new address gets six links a day, so no inbox is flooded", async () => {
+    limitedAs("prod");
+    const agent = await asCasey();
+    for (let i = 0; i < 6; i++) {
+      await changeEmail(agent, dana).expect(200);
+      await changeEmail(agent, casey.email).expect(200);
+    }
+
+    const refused = await changeEmail(agent, dana);
+
+    expect(refused.status).toBe(429);
+    expect(testEmail().to(dana)).toHaveLength(6);
   });
 });

@@ -1,18 +1,22 @@
 import { Router } from "express";
 import { z } from "zod";
+import { email } from "#services/email";
 import { NotFoundError, RequestBodyError } from "../../middleware/errors.ts";
 import { validate } from "../../middleware/validation.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { contactSchema } from "../quotes/asking.validation.ts";
 import {
+  changeOwnEmail,
   clientForAccount,
   clientView,
+  confirmEmailChange,
   findClientByEmail,
   listClients,
   officeClientView,
   officeUpdateContactDetails,
   updateContactDetails,
 } from "./clients.ts";
+import { emailChangeEmail } from "./emails.ts";
 import { clientStandings } from "./standing.ts";
 
 export const router = Router();
@@ -38,8 +42,23 @@ router.patch(
     const details = req.body;
 
     await refuseOthersEmail(client.id, details.email);
+    // a new email is theirs once they open the link sent to it (#243)
+    const change = await changeOwnEmail(client, details.email);
     await updateContactDetails(client.id, details);
+    if (change) {
+      await email.send({ to: change.email, ...emailChangeEmail(change) });
+    }
     res.json(await clientView(client.id));
+  },
+);
+
+// the link to confirm a new email, opened by whoever has that inbox: signed
+// in or not, it's the token that proves it
+router.post(
+  "/email-changes/confirm",
+  validate({ body: z.object({ token: z.string().max(200) }) }),
+  async (req, res) => {
+    res.json(await confirmEmailChange(req.body.token));
   },
 );
 

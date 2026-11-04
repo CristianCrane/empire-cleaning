@@ -10,6 +10,7 @@ import {
   test,
   expectCurrentSection,
   goTo,
+  signInLinkFor,
 } from "./harness.ts";
 
 const casey = { name: "Casey Client", email: "casey@example.com" };
@@ -281,6 +282,55 @@ test("a Client edits their contact details and Access Instructions", async ({
     .getByRole("link", { name: "Your details" })
     .click();
   await expect(contact).toContainText("(718) 555-0123");
+});
+
+// a new email is theirs once they open the link sent to it (#243)
+test("a Client's new email waits for them to open the link sent to it", async ({
+  page,
+}) => {
+  const work = "casey@work.example.com";
+  await requestQuoteAsGuest(casey);
+  await signInAs(page, casey.email);
+  await page.getByRole("link", { name: "Your details", exact: true }).click();
+
+  const contact = page.getByRole("region", { name: "Contact details" });
+  await contact.getByRole("button", { name: "Edit" }).click();
+  const dialog = page.getByRole("dialog", { name: "Your contact details" });
+  await dialog.getByRole("textbox", { name: "Email" }).fill(work);
+  await dialog.getByRole("button", { name: "Save details" }).click();
+
+  await expect(page.getByText(`Check ${work} for a link`)).toBeVisible();
+  await expect(contact).toContainText(
+    `We've emailed a link to ${work}. Your email changes once you open it.`,
+  );
+  await expect(contact).toContainText(casey.email);
+  await expectAccessible(page);
+
+  const link = await signInLinkFor(work);
+  await page.goto(link);
+  await expect(
+    page.getByRole("heading", { name: "Email confirmed" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(`We'll send your Quotes and notices to ${work}.`),
+  ).toBeVisible();
+  await expectAccessible(page);
+
+  await page.goto("/portal/details");
+  await expect(contact).toContainText(work);
+  await expect(contact).not.toContainText("We've emailed a link");
+
+  // a link works once
+  await page.goto(link);
+  await expect(
+    page.getByRole("heading", { name: "Email not changed" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("This link has expired or was used already."),
+  ).toBeVisible();
+  await expectAccessible(page);
+  await page.getByRole("link", { name: "Change it again" }).click();
+  await expect(page).toHaveURL("/portal/details");
 });
 
 test("Office Staff see the Quote, open the home and correct its details", async ({

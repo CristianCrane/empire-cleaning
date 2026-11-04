@@ -51,3 +51,19 @@ export const clients = pgTable("clients", {
 });
 
 export type Client = typeof clients.$inferSelect;
+
+// a Client's change of their own email, waiting for them to open the link
+// sent to the new address (#243): until then the Client keeps the old one,
+// so nobody can claim an address they don't own. At most one per Client,
+// gone once used
+export const emailChanges = pgTable("email_changes", {
+  clientId: uuid("client_id")
+    .primaryKey()
+    .references(() => clients.id, { onDelete: "cascade" }),
+  // stored lowercased
+  email: text("email").notNull(),
+  // the link's token is never stored, only its SHA-256
+  tokenHash: text("token_hash").notNull().unique(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  ...timestamps,
+});

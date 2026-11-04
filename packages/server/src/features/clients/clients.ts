@@ -1,11 +1,19 @@
-import { and, asc, count, eq, exists, ilike, or, sql } from "drizzle-orm";
+import { createHash, randomBytes } from "node:crypto";
+import { and, asc, count, eq, exists, gt, ilike, or, sql } from "drizzle-orm";
 import type {
   ClientList,
   ClientStanding,
   ClientView,
   OfficeClientView,
 } from "@empire-cleaning/models";
+import { clock } from "#services/clock";
+import { rateLimit, tooManyTries } from "#services/rate-limit";
 import { db } from "../../db/index.ts";
+import {
+  ConflictError,
+  NotFoundError,
+  TooManyRequestsError,
+} from "../../middleware/errors.ts";
 import { accounts } from "../auth/auth.schema.ts";
 import { currentPriceList } from "../price-list/price-list.ts";
 import { connectSignedUpAccount } from "../auth/connections.ts";
@@ -14,7 +22,7 @@ import { propertyStatuses } from "../properties/property-history.ts";
 import { openQuotesAt } from "../quotes/quote-state.ts";
 import { toPropertyView } from "../properties/property-view.ts";
 import { quotesForClient } from "../quotes/quote-state.ts";
-import { clients } from "./clients.schema.ts";
+import { clients, emailChanges } from "./clients.schema.ts";
 import { clientStandings, standingOfClient } from "./standing.ts";
 
 // no email only when the Office enters a caller without one (#34); a
@@ -74,16 +82,98 @@ export const changeClientEmail = async (id: string, email: string) => {
   await connectSignedUpAccount(address);
 };
 
-// the Client's own edit of their contact details. Changing the email doesn't
-// touch their connection to their Account (ADR-0006).
+// the Client's own edit of their name and phone; a new email waits for its
+// link (changeOwnEmail)
 export const updateContactDetails = async (
   id: string,
-  { name, email, phone }: { name: string; email: string; phone: string },
+  { name, phone }: { name: string; phone: string },
 ) => {
+  await db.update(clients).set({ name, phone }).where(eq(clients.id, id));
+};
+
+// how long the link to confirm a new email works
+export const EMAIL_CHANGE_TTL_HOURS = 24;
+
+const hashOf = (token: string) =>
+  createHash("sha256").update(token).digest("hex");
+
+// the Client's own change of email (#243): held back until they open the
+// link to the new address, whose token this gives. Giving their current email
+// back drops a waiting change, and gives nothing to send. An address gets
+// only so many links, so no one's inbox is flooded through us (#32)
+export const changeOwnEmail = async (
+  client: { id: string; email: string | null },
+  email: string,
+): Promise<{ email: string; token: string } | null> => {
+  const address = normalise(email);
+  if (address === client.email) {
+    await db.delete(emailChanges).where(eq(emailChanges.clientId, client.id));
+    return null;
+  }
+  const verdict = rateLimit.attempt("emailChange", address);
+  if (!verdict.allowed) {
+    throw new TooManyRequestsError(
+      tooManyTries(verdict.retryAfterSeconds),
+      verdict.retryAfterSeconds,
+    );
+  }
+  const token = randomBytes(32).toString("base64url");
+  const change = {
+    email: address,
+    tokenHash: hashOf(token),
+    expiresAt: new Date(
+      clock.now().getTime() + EMAIL_CHANGE_TTL_HOURS * 3_600_000,
+    ),
+  };
   await db
-    .update(clients)
-    .set({ name, email: normalise(email), phone })
-    .where(eq(clients.id, id));
+    .insert(emailChanges)
+    .values({ clientId: client.id, ...change })
+    .onConflictDoUpdate({ target: emailChanges.clientId, set: change });
+  return { email: address, token };
+};
+
+// the link to a new email opened: it's the Client's now, unless another
+// Client has taken it meanwhile. Their Account stays connected (ADR-0006)
+export const confirmEmailChange = async (token: string) =>
+  db.transaction(async (tx) => {
+    const [change] = await tx
+      .delete(emailChanges)
+      .where(
+        and(
+          eq(emailChanges.tokenHash, hashOf(token)),
+          gt(emailChanges.expiresAt, clock.now()),
+        ),
+      )
+      .returning();
+    if (!change) {
+      throw new NotFoundError("This link has expired or was used already.");
+    }
+    const [other] = await tx
+      .select({ id: clients.id })
+      .from(clients)
+      .where(eq(clients.email, change.email));
+    if (other && other.id !== change.clientId) {
+      throw new ConflictError("That email is already used by another Client");
+    }
+    await tx
+      .update(clients)
+      .set({ email: change.email })
+      .where(eq(clients.id, change.clientId));
+    return { email: change.email };
+  });
+
+// the new email a Client is yet to confirm, while its link works
+const pendingEmailOf = async (clientId: string) => {
+  const [change] = await db
+    .select({ email: emailChanges.email })
+    .from(emailChanges)
+    .where(
+      and(
+        eq(emailChanges.clientId, clientId),
+        gt(emailChanges.expiresAt, clock.now()),
+      ),
+    );
+  return change?.email ?? null;
 };
 
 // Office Staff correcting a Client's contact details, or adding the email of
@@ -132,10 +222,11 @@ export const clientView = async (
   const [client] = await db.select().from(clients).where(eq(clients.id, id));
   if (!client) return undefined;
 
-  const [ownProperties, ownQuotes, list] = await Promise.all([
+  const [ownProperties, ownQuotes, list, pendingEmail] = await Promise.all([
     propertiesOf(id),
     quotesForClient(id),
     currentPriceList(),
+    pendingEmailOf(id),
   ]);
   return {
     id: client.id,
@@ -143,6 +234,7 @@ export const clientView = async (
     businessName: client.businessName,
     // the Client's own view: they signed in with a proven email that's theirs
     email: client.email!,
+    pendingEmail,
     phone: client.phone,
     properties: ownProperties.map((p) => toPropertyView(p, list)),
     quotes: ownQuotes,
