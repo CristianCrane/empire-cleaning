@@ -14,8 +14,8 @@ import {
 // The Schedule's rules, over a day of it as scheduleFor loads it: whether a
 // clean has room (roomOn), whether a Staff member is free for one (isFree),
 // what they're busy with then (busyWith), and the spans of time they're
-// worked out in. They never query: the
-// actions lock and load, ask, then write.
+// worked out in. They never query: the actions lock and load, ask, then
+// write.
 
 // Hours are added in hundredths, so sums of 7.25 and 0.1 never drift
 export const hundredths = (hours: number) => Math.round(hours * 100);
@@ -165,7 +165,8 @@ export const roomOn = (day: ScheduleDay, clean: Clean): DayCapacity => {
 
 /**
  * What a Staff member is busy with during a clean's time on site, on its
- * day of the Schedule: the earliest booked Site Visit of theirs overlapping
+ * day of the Schedule (which has its Jobs and Site Visits earliest first):
+ * the earliest booked Site Visit of theirs overlapping
  * it, else the earliest booked Job they hold a place on. Null when nothing
  * is. A Done Site Visit doesn't count, even one recorded Done before its
  * time (roomOn, unlike this, still counts one Done at or after its time:
@@ -178,25 +179,21 @@ export const busyWith = (
   clean: Clean,
 ): { what: "site_visit" | "job"; startsAt: string } | null => {
   const own = cleanSpan(clean);
-  const visit = day.siteVisits
-    .filter(
-      (v) =>
-        v.status === "booked" &&
-        v.id !== clean.siteVisitId &&
-        v.visitor?.id === staffId &&
-        overlaps(visitSpan(v), own),
-    )
-    .sort((a, b) => a.startsAt.localeCompare(b.startsAt))[0];
+  const visit = day.siteVisits.find(
+    (v) =>
+      v.status === "booked" &&
+      v.id !== clean.siteVisitId &&
+      v.visitor?.id === staffId &&
+      overlaps(visitSpan(v), own),
+  );
   if (visit) return { what: "site_visit", startsAt: visit.startsAt };
-  const job = day.jobs
-    .filter(
-      (job) =>
-        job.status === "booked" &&
-        job.id !== clean.jobId &&
-        job.crew.some((c) => c.id === staffId) &&
-        overlaps(jobSpan(job), own),
-    )
-    .sort((a, b) => a.startsAt.localeCompare(b.startsAt))[0];
+  const job = day.jobs.find(
+    (job) =>
+      job.status === "booked" &&
+      job.id !== clean.jobId &&
+      job.crew.some((c) => c.id === staffId) &&
+      overlaps(jobSpan(job), own),
+  );
   return job ? { what: "job", startsAt: job.startsAt } : null;
 };
 
