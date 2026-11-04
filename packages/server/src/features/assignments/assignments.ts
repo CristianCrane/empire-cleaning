@@ -2,6 +2,7 @@ import { and, asc, eq, gte, inArray, lte } from "drizzle-orm";
 import {
   holdsPlace,
   type AssignmentView,
+  type HoldingState,
   type CleanerJob,
   type CleanerJobs,
   type OfficeJob,
@@ -362,7 +363,7 @@ const cleanerJobs = async (
 
   return mine.map(({ assignment, job, property }) => {
     const client = clientOf.get(property.id)!;
-    const status = assignment.status as "offered" | "confirmed";
+    const status = assignment.status as HoldingState;
     const { assigned, ...completion } = completions.get(job.id)!;
     return {
       id: job.id,
@@ -384,7 +385,7 @@ const cleanerJobs = async (
         .filter((c) => c.jobId === job.id)
         .map((c) => ({
           name: c.name,
-          status: c.status as "offered" | "confirmed",
+          status: c.status as HoldingState,
         })),
       assignment: {
         id: assignment.id,
