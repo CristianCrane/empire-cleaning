@@ -546,11 +546,12 @@ export const removeException = async (id: string, date: string) => {
   return staffDetail(id);
 };
 
-// the active Staff member an Account is connected to, if any
+// the active Staff member a signed-in Account is connected to
 export const staffForAccount = async (accountId: string) => {
   const [member] = await db
     .select()
     .from(staff)
     .where(and(eq(staff.accountId, accountId), eq(staff.active, true)));
+  if (!member) throw new NotFoundError("Staff member not found");
   return member;
 };

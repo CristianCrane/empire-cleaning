@@ -1,9 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
-import { NotFoundError } from "../../middleware/errors.ts";
 import { validate } from "../../middleware/validation.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
-import { clientForAccount } from "../clients/clients.ts";
+import { ownClient } from "../clients/clients.ts";
 import { endServicePlan } from "./ending.ts";
 import {
   bookVisit,
@@ -33,14 +32,8 @@ const endSchema = z.object({ goingAhead: z.array(z.iso.datetime()) });
 
 // ---- the signed-in Client: /api/service-plans/mine ----
 
-const signedInClient = async (accountId: string) => {
-  const client = await clientForAccount(accountId);
-  if (!client) throw new NotFoundError("Client not found");
-  return client;
-};
-
 router.get("/mine", authorize("client"), async (_req, res) => {
-  const client = await signedInClient(signedInAccount(res).id);
+  const client = await ownClient(signedInAccount(res).id);
   res.json(await clientServicePlans(client.id));
 });
 
@@ -49,7 +42,7 @@ router.get(
   authorize("client"),
   validate({ params: plan }),
   async (req, res) => {
-    const client = await signedInClient(signedInAccount(res).id);
+    const client = await ownClient(signedInAccount(res).id);
     res.json(await clientServicePlan(client.id, String(req.params.id)));
   },
 );
@@ -60,7 +53,7 @@ router.post(
   validate({ params: plan, body: endSchema }),
   async (req, res) => {
     const account = signedInAccount(res);
-    const client = await signedInClient(account.id);
+    const client = await ownClient(account.id);
     res.json(
       await clientEndServicePlan(client.id, String(req.params.id), {
         goingAhead: req.body.goingAhead,

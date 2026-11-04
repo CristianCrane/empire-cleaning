@@ -7,7 +7,7 @@ import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { contactSchema } from "../quotes/asking.validation.ts";
 import {
   changeOwnEmail,
-  clientForAccount,
+  ownClient,
   clientView,
   confirmEmailChange,
   findClientByEmail,
@@ -20,12 +20,6 @@ import { emailChangeEmail } from "./emails.ts";
 import { clientStandings } from "./standing.ts";
 
 export const router = Router();
-
-const ownClient = async (accountId: string) => {
-  const client = await clientForAccount(accountId);
-  if (!client) throw new NotFoundError("Client not found");
-  return client;
-};
 
 // the signed-in Client, with their Properties and Quotes
 router.get("/me", authorize("client"), async (_req, res) => {

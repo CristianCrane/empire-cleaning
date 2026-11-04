@@ -1,10 +1,9 @@
 import { Router } from "express";
 import { z } from "zod";
-import { NotFoundError } from "../../middleware/errors.ts";
 import { validate } from "../../middleware/validation.ts";
 import { paymentGateway } from "../../services/payment-gateway/index.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
-import { clientForAccount } from "../clients/clients.ts";
+import { ownClient } from "../clients/clients.ts";
 import { retryUnpaidBillsFor } from "../bills/bills.ts";
 import { retryUnpaidJobsFor } from "../completion/completion.ts";
 import { paymentHistoryFor } from "./history.ts";
@@ -17,12 +16,6 @@ import {
 } from "./payments.ts";
 
 export const router = Router();
-
-const ownClient = async (accountId: string) => {
-  const client = await clientForAccount(accountId);
-  if (!client) throw new NotFoundError("Client not found");
-  return client;
-};
 
 // which of the provider's payment forms the browser shows, e.g. for paying
 // a Deposit

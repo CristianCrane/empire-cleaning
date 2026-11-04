@@ -1,10 +1,9 @@
-import { Router, type Response } from "express";
+import { Router } from "express";
 import { z } from "zod";
-import { NotFoundError } from "../../middleware/errors.ts";
 import { validate } from "../../middleware/validation.ts";
 import { jobAssignedTo, officeJob } from "../assignments/assignments.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
-import { clientForAccount } from "../clients/clients.ts";
+import { ownClient } from "../clients/clients.ts";
 import { staffForAccount } from "../staff/staff.ts";
 import {
   answerAdjustment,
@@ -43,7 +42,6 @@ cleanerCompletionRouter.post(
   validate({ params: job, body: completionSchema }),
   async (req, res) => {
     const member = await staffForAccount(signedInAccount(res).id);
-    if (!member) throw new NotFoundError("Staff member not found");
     const jobId = String(req.params.id);
     await completeJob(member.id, jobId, req.body);
     res.json(await jobAssignedTo(member.id, jobId));
@@ -151,15 +149,9 @@ officeCompletionRouter.post(
 
 export const clientJobsRouter = Router();
 
-const ownClient = async (res: Response) => {
-  const client = await clientForAccount(signedInAccount(res).id);
-  if (!client) throw new NotFoundError("Client not found");
-  return client;
-};
-
 // their Completed Jobs, latest first
 clientJobsRouter.get("/mine/past", authorize("client"), async (_req, res) => {
-  res.json(await pastJobsFor((await ownClient(res)).id));
+  res.json(await pastJobsFor((await ownClient(signedInAccount(res).id)).id));
 });
 
 clientJobsRouter.get(
@@ -167,7 +159,8 @@ clientJobsRouter.get(
   authorize("client"),
   validate({ params: job }),
   async (req, res) => {
-    res.json(await clientJob((await ownClient(res)).id, String(req.params.id)));
+    const client = await ownClient(signedInAccount(res).id);
+    res.json(await clientJob(client.id, String(req.params.id)));
   },
 );
 
@@ -180,7 +173,7 @@ for (const [answer, approve] of [
     authorize("client"),
     validate({ params: jobAdjustment }),
     async (req, res) => {
-      const client = await ownClient(res);
+      const client = await ownClient(signedInAccount(res).id);
       const { id, adjustmentId } = req.params as JobAdjustment;
       await answerAdjustment(client.id, id, adjustmentId, approve);
       res.json(await clientJob(client.id, id));
@@ -193,7 +186,7 @@ clientJobsRouter.post(
   authorize("client"),
   validate({ params: job }),
   async (req, res) => {
-    const client = await ownClient(res);
+    const client = await ownClient(signedInAccount(res).id);
     const id = String(req.params.id);
     await clientRetryBalance(client.id, id);
     res.json(await clientJob(client.id, id));
