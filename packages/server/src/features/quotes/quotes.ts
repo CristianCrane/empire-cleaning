@@ -1068,6 +1068,19 @@ const closedMessage: Partial<Record<QuoteStatus, string>> = {
     "This Quote was Turned Down. The Client can ask for a new Quote.",
 };
 
+// holds the Quote's Property (lockProperty) and reads the Quote as it is now,
+// refusing it once it has closed
+const lockOpenQuote = async (
+  tx: Tx,
+  quote: Pick<Quote, "id" | "propertyId">,
+) => {
+  await lockProperty(tx, quote.propertyId);
+  const current = await findQuote(quote.id, tx);
+  const closed = closedMessage[current.status];
+  if (closed) throw new ConflictError(closed);
+  return current;
+};
+
 /**
  * Starts a Quote's Draft Revision, pre-filled: the first from the Suggested
  * Price and the Price List's defaults (a one-off Quote with the Add-ons
@@ -1108,11 +1121,7 @@ export const startRevision = async (
   await refuseUnquotable(kind, property, list.services, [serviceKey]);
 
   await db.transaction(async (tx) => {
-    await lockProperty(tx, quote.propertyId);
-    const current = await findQuote(id, tx);
-    if (closedMessage[current.status]) {
-      throw new ConflictError(closedMessage[current.status]!);
-    }
+    const current = await lockOpenQuote(tx, quote);
     // two at once: the other started it
     if (await draftRevisionOf(id, tx)) return;
     const offer = await findRevision(current.sentRevisionId, tx);
@@ -1560,13 +1569,9 @@ export const sendQuote = async (id: string): Promise<OfficeQuote> => {
       : null;
 
   await db.transaction(async (tx) => {
-    // one send (or acceptance) at a time per Property
-    await lockProperty(tx, quote.propertyId);
-    // it may have been Accepted while this waited
-    const current = await findQuote(id, tx);
-    if (closedMessage[current.status]) {
-      throw new ConflictError(closedMessage[current.status]!);
-    }
+    // one send (or acceptance) at a time per Property; it may have been
+    // Accepted while this waited
+    const current = await lockOpenQuote(tx, quote);
     const offer = await findRevision(current.sentRevisionId, tx);
     if (currentStatusOf(current, offer) === "expired") {
       await refuseAnotherOpen(
