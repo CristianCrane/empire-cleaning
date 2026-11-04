@@ -8,6 +8,7 @@ import { api, signIn, testEmail } from "../../../tests/harness.ts";
 import {
   casey,
   guestAsk,
+  holdingProperty,
   signInAsOffice,
   submit,
 } from "../../../tests/fixtures.ts";
@@ -28,6 +29,17 @@ const asked = async () => {
 const draftOf = async (office: Agent, id: string) =>
   (await office.post(`/api/quotes/${id}/revisions`).send({}).expect(201))
     .body as OfficeQuote;
+
+// saves the Draft as it is, for next Monday
+const saveFor = (office: Agent, draft: OfficeQuote) =>
+  office.patch(`/api/quotes/${draft.id}/draft`).send({
+    addOns: [],
+    crewSize: draft.draft!.crewSize,
+    depositPercent: draft.draft!.depositPercent,
+    validityDays: draft.draft!.validityDays,
+    proposedStart: nextMonday,
+    overrides: {},
+  });
 
 describe("Turning Down a Quote", () => {
   test("closes a Requested Quote with a reason, and emails the Client", async () => {
@@ -99,17 +111,7 @@ describe("Turning Down a Quote", () => {
     const id = await asked();
     const office = await signInAsOffice();
     const draft = await draftOf(office, id);
-    await office
-      .patch(`/api/quotes/${id}/draft`)
-      .send({
-        addOns: [],
-        crewSize: draft.draft!.crewSize,
-        depositPercent: draft.draft!.depositPercent,
-        validityDays: draft.draft!.validityDays,
-        proposedStart: nextMonday,
-        overrides: {},
-      })
-      .expect(200);
+    await saveFor(office, draft).expect(200);
     await office.post(`/api/quotes/${id}/send`).expect(200);
     // even while a newer Revision is being drafted
     await draftOf(office, id);
@@ -119,6 +121,39 @@ describe("Turning Down a Quote", () => {
     expect(refused.body.message).toBe(
       "A Revision of this Quote has been sent, so it can't be Turned Down: the Client declines it, or it Expires.",
     );
+  });
+
+  test("drops the Draft, which can then be neither saved nor sent", async () => {
+    const id = await asked();
+    const office = await signInAsOffice();
+    const draft = await draftOf(office, id);
+
+    const turned = (await turnDown(office, id).expect(200)).body as OfficeQuote;
+
+    expect(turned.draft).toBeNull();
+    const saved = await saveFor(office, draft).expect(409);
+    expect(saved.body.message).toBe(
+      "This Quote was Turned Down. The Client can ask for a new Quote.",
+    );
+    await office.post(`/api/quotes/${id}/send`).expect(409);
+  });
+
+  test("waits its turn behind a send, and is then refused", async () => {
+    const id = await asked();
+    const office = await signInAsOffice();
+    const draft = await draftOf(office, id);
+    await saveFor(office, draft).expect(200);
+
+    const [sent, turned] = await holdingProperty(draft.property.id, [
+      () => office.post(`/api/quotes/${id}/send`),
+      () => turnDown(office, id),
+    ]);
+
+    expect(sent!.status).toBe(200);
+    expect(turned!.status).toBe(409);
+    expect(
+      (await office.get(`/api/quotes/${id}`).expect(200)).body,
+    ).toMatchObject({ status: "sent", turnedDownAt: null });
   });
 
   test("needs one of the reasons", async () => {

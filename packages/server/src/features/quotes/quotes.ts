@@ -1257,9 +1257,12 @@ export const offerServicePlan = async (
 const SENT_ALREADY =
   "A Revision can't be changed once it's been sent: start a new one.";
 
-// the Revision being drafted, which is all Office Staff can change
+// the Revision being drafted, which is all Office Staff can change, while
+// the Quote is open
 const findDraftRevision = async (id: string) => {
   const quote = await findQuote(id);
+  const closed = closedMessage[quote.status];
+  if (closed) throw new ConflictError(closed);
   const draft = await draftRevisionOf(id);
   if (!draft) {
     throw new ConflictError(SENT_ALREADY);
@@ -1733,6 +1736,8 @@ export const declineQuote = async (
     );
   }
   await db.transaction(async (tx) => {
+    // takes turns with a send of a newer Revision
+    await lockProperty(tx, quote.property.id);
     const [declined] = await tx
       .update(quotes)
       .set({ status: "declined", declinedAt: clock.now() })
@@ -1761,18 +1766,24 @@ export const turnDownQuote = async (
   accountId: string,
 ): Promise<OfficeQuote> => {
   const quote = await findQuote(id);
-  const [turned] = await db
-    .update(quotes)
-    .set({
-      status: "turned_down",
-      turnedDownAt: clock.now(),
-      turnDownReason: reason,
-      turnedDownBy: accountId,
-    })
-    .where(
-      and(eq(quotes.id, id), inArray(quotes.status, ["requested", "draft"])),
-    )
-    .returning();
+  const turned = await db.transaction(async (tx) => {
+    // takes turns with a send, which it may have waited on
+    await lockProperty(tx, quote.propertyId);
+    const [closed] = await tx
+      .update(quotes)
+      .set({
+        status: "turned_down",
+        turnedDownAt: clock.now(),
+        turnDownReason: reason,
+        turnedDownBy: accountId,
+      })
+      .where(
+        and(eq(quotes.id, id), inArray(quotes.status, ["requested", "draft"])),
+      )
+      .returning({ id: quotes.id });
+    if (closed) await dropDraftRevision(tx, id);
+    return closed;
+  });
   if (!turned) {
     throw new ConflictError(
       quote.sentRevisionId

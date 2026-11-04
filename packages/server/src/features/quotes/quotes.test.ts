@@ -616,6 +616,26 @@ describe("a Client's Quotes", () => {
     const again = await submit(guestAsk()).expect(201);
     expect(again.body.id).not.toBe(quoteId);
   });
+
+  test("Declining waits its turn behind a send of a new Revision", async () => {
+    const quoteId = await asked();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office, quoteId);
+    await save(office, await startDraft(office, quoteId), { crewSize: 3 });
+    const client = await signIn(casey.email);
+
+    const [sent, declined] = await holdingProperty(quote.property.id, [
+      () => office.post(`/api/quotes/${quoteId}/send`),
+      () => client.post(`/api/quotes/mine/${quoteId}/decline`),
+    ]);
+
+    expect(sent!.status).toBe(200);
+    expect(declined!.status).toBe(200);
+    expect(await quoteOf(office, quoteId)).toMatchObject({
+      status: "declined",
+      offer: { number: 2, crewSize: 3 },
+    });
+  });
 });
 
 describe("Expiry", () => {
