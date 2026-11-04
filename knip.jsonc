@@ -2,8 +2,8 @@
   "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
   "workspaces": {
     ".": {
-      // run by Claude Code, from .claude/settings.json
-      "entry": [".claude/hooks/*.mjs"],
+      // run by Claude Code, from .claude/settings.json (copies made by ~/.claude/hooks/sync.mjs)
+      "entry": [".claude/hooks/shape/*.mjs"],
     },
     "packages/server": {
       "entry": [
