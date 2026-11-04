@@ -51,11 +51,11 @@ const crewSpan = (
   return { start, end: start + (labourHours / crewSize) * HOUR_MS, crewSize };
 };
 
-// a Job or a held time at work, and a Site Visit, as spans
 // a clean's own time on site
 const cleanSpan = (clean: Clean) =>
   crewSpan(clean.startsAt, clean.labourHours, clean.crewSize);
 
+// a Job or a held time at work, and a Site Visit, as spans
 const jobSpan = (
   job: Pick<HeldTime, "startsAt" | "labourHours" | "crewSize">,
 ) => crewSpan(new Date(job.startsAt), job.labourHours, job.crewSize);

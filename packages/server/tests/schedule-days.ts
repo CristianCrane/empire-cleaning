@@ -3,6 +3,7 @@ import type {
   ScheduledJob,
   ScheduledSiteVisit,
 } from "@empire-cleaning/models";
+import { asClean } from "../src/features/jobs/rules.ts";
 
 // Days of the Schedule as plain data, for testing the rules over them with
 // nothing saved. Monday 5 January 2026, 4am New York; the Job is on Thursday
@@ -91,9 +92,4 @@ export const thursday = (over: Partial<ScheduleDay> = {}): ScheduleDay => {
 };
 
 // the Job as a clean to check: at its own time, not counted against itself
-export const clean = {
-  startsAt: new Date(THURSDAY_9AM),
-  labourHours: 6,
-  crewSize: 2,
-  jobId: "job",
-};
+export const clean = asClean(scheduled());

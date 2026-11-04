@@ -9,7 +9,6 @@ import {
   thursday,
 } from "../../../tests/schedule-days.ts";
 import {
-  asClean,
   ENDS_BY_MIDNIGHT,
   endsByMidnight,
   isFree,
@@ -109,7 +108,7 @@ describe("room for a clean (roomOn)", () => {
   });
 
   test("doesn't count a Job being moved against itself", () => {
-    const room = roomOn(thursday(), asClean(scheduled()));
+    const room = roomOn(thursday(), clean);
     expect(room).toMatchObject({ hasHours: true, crewsBusy: 0, hasRoom: true });
   });
 
