@@ -1,6 +1,6 @@
 // The shape rules: edited in github.com/CristianCrane/.dotfiles (home/.claude); repos carry copies made by hooks/sync.mjs.
 //
-// `gh pr create` waits for the branch's shape review (the `shape` skill):
+// `gh pr create` waits for the branch's shape review (the `change` skill):
 // it is turned down until the review exists, is of the last commit (or
 // of one before it with only comment lines changed since) and, before the
 // last round, leaves no shape finding open, and until the PR body, read
@@ -71,7 +71,7 @@ hook((input) => {
   const found = review(cwd, work.key);
   if (!found.ok)
     return deny(
-      `The shape review for ${work.branch} isn't ready (${found.reason}). Run the shape-reviewer agent as the \`shape\` skill's Review step says, with output ${found.path}. Answer each finding in the PR's Shape section, then open the PR. (Hooks run before the whole command, so this checked ${work.branch}, checked out in ${cwd} now.)`,
+      `The shape review for ${work.branch} isn't ready (${found.reason}). Run the shape-reviewer agent as the \`change\` skill's Review step says, with output ${found.path}. Answer each finding in the PR's Shape section, then open the PR. (Hooks run before the whole command, so this checked ${work.branch}, checked out in ${cwd} now.)`,
     );
 
   // the body comes from its file beside the review, and its Shape section
@@ -79,11 +79,11 @@ hook((input) => {
   const body = stateFile(cwd, "pr-body", work.key);
   if (!command.includes(body) || !existsSync(body))
     return deny(
-      `Write the PR body for ${work.branch} to ${body} and open the PR with \`--body-file ${body}\`, as the \`shape\` skill's Shape section step says.`,
+      `Write the PR body for ${work.branch} to ${body} and open the PR with \`--body-file ${body}\`, as the \`change\` skill's Shape section step says.`,
     );
   const text = readFileSync(body, "utf8");
   const at = text.search(/^## Shape\b/m);
-  if (at < 0) return deny(`The PR body (${body}) has no \`## Shape\` section: end it with one, as the \`shape\` skill says.`);
+  if (at < 0) return deny(`The PR body (${body}) has no \`## Shape\` section: end it with one, as the \`change\` skill says.`);
   const shape = lines(text.slice(at));
   const answers = (id) =>
     shape.some((line) => {

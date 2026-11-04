@@ -1,7 +1,7 @@
 // The shape rules: edited in github.com/CristianCrane/.dotfiles (home/.claude); repos carry copies made by hooks/sync.mjs.
 //
 // What the shape hooks share: git, and the survey, plan review and review
-// files the `shape` skill writes into the git dir (never committed, kept
+// files the `change` skill writes into the git dir (never committed, kept
 // per worktree): one set per branch, and on main one per session.
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
@@ -119,13 +119,13 @@ export const beforeEdit = (cwd, work) => {
   if (!found.ok)
     return {
       survey: found,
-      missing: `there is no survey for ${work.branch} (${found.reason}): load the \`shape\` skill and write its survey to ${found.path}`,
+      missing: `there is no survey for ${work.branch} (${found.reason}): load the \`change\` skill and write its survey to ${found.path}`,
     };
   const plan = planReview(cwd, work.key);
   if (!plan.ok)
     return {
       survey: found,
-      missing: `the survey for ${work.branch} has no plan review: run the shape-reviewer agent on it in plan mode, as the \`shape\` skill's Plan review step says, with survey ${found.path} and output ${plan.path}`,
+      missing: `the survey for ${work.branch} has no plan review: run the shape-reviewer agent on it in plan mode, as the \`change\` skill's Plan review step says, with survey ${found.path} and output ${plan.path}`,
     };
   return { survey: found, missing: null };
 };
@@ -198,7 +198,7 @@ const commentOnly = (cwd, sha) => {
   }
 };
 
-// the round after which open shape findings go to the user (the `shape`
+// the round after which open shape findings go to the user (the `change`
 // skill's "After round 5")
 const LAST_ROUND = 5;
 
@@ -208,14 +208,12 @@ const LAST_ROUND = 5;
 // round it must leave no shape finding open (after it the user decides). The
 // reviewer's header line says all three: "… @ <sha>, round <n>, <k> open
 // shape findings", where a recheck says "recheck of round <n>", keeping
-// the number. "open blocks" is the count's old name, which copies of the
-// reviewer synced before the rename still write; it goes once every
-// repo's copy is synced.
+// the number.
 export const review = (cwd, key) => {
   const path = stateFile(cwd, "review", key);
   if (!existsSync(path)) return { path, ok: false, reason: "missing" };
   const text = readFileSync(path, "utf8");
-  const header = text.match(/^# Shape review:.* @ ([0-9a-f]{7,40}),.*round (\d+), (\d+) open (?:shape finding|block)/m);
+  const header = text.match(/^# Shape review:.* @ ([0-9a-f]{7,40}),.*round (\d+), (\d+) open shape finding/m);
   if (!header) return { path, ok: false, reason: "its header has no commit, round and open count" };
   const [sha, ...counts] = header.slice(1);
   if (!headSha(cwd).startsWith(sha) && !commentOnly(cwd, sha))

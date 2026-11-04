@@ -47,6 +47,6 @@ hook((input) => {
 
   const planned = found.expected ? ` Its survey expected ${found.expected}.` : "";
   return say(
-    `Branch ${branch} now changes ${files.size} files.${planned} Step back, as the \`shape\` skill asks: is this shotgun surgery, a third copy of a pattern, or a pattern fighting the change? If it is, tell the user now: what the pattern costs, the simpler shape, and how to split the work. Otherwise update the survey's plan and Expected files, and say in the PR's Shape section why it grew.`,
+    `Branch ${branch} now changes ${files.size} files.${planned} Step back, as the \`change\` skill asks: is this shotgun surgery, a third copy of a pattern, or a pattern fighting the change? If it is, tell the user now: what the pattern costs, the simpler shape, and how to split the work. Otherwise update the survey's plan and Expected files, and say in the PR's Shape section why it grew.`,
   );
 });
