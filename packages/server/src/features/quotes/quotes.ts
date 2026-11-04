@@ -1254,14 +1254,15 @@ export const offerServicePlan = async (
   return { quote: await officeQuote(id), started };
 };
 
+const SENT_ALREADY =
+  "A Revision can't be changed once it's been sent: start a new one.";
+
 // the Revision being drafted, which is all Office Staff can change
 const findDraftRevision = async (id: string) => {
   const quote = await findQuote(id);
   const draft = await draftRevisionOf(id);
   if (!draft) {
-    throw new ConflictError(
-      "A Revision can't be changed once it's been sent: start a new one.",
-    );
+    throw new ConflictError(SENT_ALREADY);
   }
   return { quote, draft: kinded(quote, draft) };
 };
@@ -1347,7 +1348,8 @@ const planServiceOf = (
 // saves what Office Staff set on a Quote's Draft Revision, pricing it afresh
 // from the current Services and Price List and the home's current details.
 // A one-off Draft may change the Quote's Service, unless another Quote for
-// that one is open here.
+// that one is open here. It's written under the Property's lock, so a save
+// that waited on a send or a close is refused.
 export const saveDraft = async (
   id: string,
   input: QuoteDraftInput,
@@ -1451,18 +1453,21 @@ export const saveDraft = async (
     terms,
   );
   await db.transaction(async (tx) => {
+    const current = await lockOpenQuote(tx, quote);
+    if ((await draftRevisionOf(id, tx))?.id !== draft.id) {
+      throw new ConflictError(SENT_ALREADY);
+    }
     // one open Service Plan Quote, whatever its Service
-    if (draft.kind === "service_plan" && service!.key !== quote.serviceKey) {
+    if (draft.kind === "service_plan" && service!.key !== current.serviceKey) {
       await tx
         .update(quotes)
         .set({ serviceKey: service!.key })
         .where(eq(quotes.id, id));
     }
-    if (draft.kind === "one_off" && service!.key !== quote.serviceKey) {
-      await lockProperty(tx, quote.propertyId);
+    if (draft.kind === "one_off" && service!.key !== current.serviceKey) {
       await refuseAnotherOpen(
         tx,
-        quote,
+        current,
         { kind: "one_off", serviceKey: service!.key },
         list.services,
         `${thisPlace(property).replace(/^t/, "T")} ${property.kind === "commercial" ? "have" : "has"} ${quoteName(list.services, "one_off", service!.key)} open already: carry on with that one.`,
@@ -1556,9 +1561,7 @@ export const sendQuote = async (id: string): Promise<OfficeQuote> => {
     const current = await lockOpenQuote(tx, quote);
     const unsent = await draftRevisionOf(id, tx);
     if (!unsent) {
-      throw new ConflictError(
-        "A Revision can't be changed once it's been sent: start a new one.",
-      );
+      throw new ConflictError(SENT_ALREADY);
     }
     const draft = kinded(current, unsent);
     const { client, property } = (await homeOf(current.propertyId, tx))!;

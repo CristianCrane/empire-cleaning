@@ -15,6 +15,7 @@ import { api, signIn, testClock, testEmail } from "../../../tests/harness.ts";
 import {
   casey,
   guestAsk,
+  holdingProperty,
   home,
   setService,
   signInAsOffice,
@@ -347,6 +348,41 @@ describe("sending a Quote", () => {
       .send(edit(quote, { crewSize: 4 }))
       .expect(409);
     await office.post(`/api/quotes/${quote.id}/send`).expect(409);
+  });
+
+  test("a save that waits on a send can't change what was sent", async () => {
+    const quoteId = await asked();
+    const office = await signInAsOffice();
+    const draft = await save(office, await startDraft(office, quoteId), {
+      proposedStart: nextMonday,
+    });
+
+    const [sent, saved] = await holdingProperty(draft.property.id, [
+      () => office.post(`/api/quotes/${draft.id}/send`),
+      () =>
+        office.patch(`/api/quotes/${draft.id}/draft`).send(
+          edit(draft, {
+            proposedStart: { date: "2026-01-06", time: "09:00" },
+            crewSize: 4,
+          }),
+        ),
+    ]);
+
+    expect(sent!.status).toBe(200);
+    expect(saved!.status).toBe(409);
+    expect(saved!.body.message).toBe(
+      "A Revision can't be changed once it's been sent: start a new one.",
+    );
+    const quote = await quoteOf(office, quoteId);
+    expect(quote.draft).toBeNull();
+    expect(quote.offer).toMatchObject({
+      proposedStart: nextMonday,
+      crewSize: draft.draft!.crewSize,
+      expiresAt: "2026-01-12T14:00:00.000Z",
+    });
+    expect(quote.offer!.options).toEqual(
+      (sent!.body as OfficeQuote).offer!.options,
+    );
   });
 
   test("changing the Price List doesn't change a Sent Quote", async () => {
