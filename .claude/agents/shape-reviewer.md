@@ -26,14 +26,14 @@ Repo rules: CLAUDE.md or AGENTS.md, and the ADRs that bear on the code touched.
 6. **A skipped simpler shape**: a shape with fewer concepts, or fewer places to edit next time, that the survey didn't weigh.
 7. On a refactor: **any behaviour change**, and whether the new shape is really simpler than the old one.
 
-Mark each finding `[block]` when it should change before merge, `[note]` otherwise. A block is something wrong with the shape, worth a round of rework; anything that can wait for a follow-up is a note.
+Mark each finding `[block]` when it should change before merge, `[note]` otherwise. The header's open-block count is every new block plus every previous block still open: the PR gate reads that count and nothing else. A block is something wrong with the shape, worth a round of rework; anything that can wait for a follow-up is a note.
 
 ## Output
 
 Write to the output path you're given, last, once you're done. It's the only file you write; use Bash for reading only (git, rg, ls).
 
 ```
-# Shape review: <branch> @ <short sha>, <plan | round n>
+# Shape review: <branch> @ <short sha>, <plan | round n>, <k> open blocks
 ## Previous blocks            (rounds 2–3)
 1. <block> → fixed | open: <why>
 ## Earlier notes              (rounds 2–3)

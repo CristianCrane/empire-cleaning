@@ -3,10 +3,10 @@
 // After each edit, counts the files the current branch changes against
 // its base. Each time the count crosses another 25, the agent is told once
 // to step back and compare with the survey's Expected files. Changes made
-// with no survey (a Bash edit slips past the survey gate) are pointed out
-// once per commit. A nudge, never a block.
+// before the survey and its plan review (a Bash edit slips past the survey
+// gate) are pointed out once per commit. A nudge, never a block.
 import { readFileSync, writeFileSync } from "node:fs";
-import { changedFiles, cwdFor, git, hook, stateFile, survey, workOf } from "./lib.mjs";
+import { beforeEdit, changedFiles, cwdFor, git, hook, stateFile, workOf } from "./lib.mjs";
 
 const STEP = 25;
 
@@ -23,7 +23,7 @@ hook((input) => {
 
   const files = changedFiles(cwd);
   if (files.size === 0) return;
-  const found = survey(cwd, work.key);
+  const { survey: found, missing } = beforeEdit(cwd, work);
 
   // per worktree: what this work was already told
   const marker = stateFile(cwd, "shape-check", work.key);
@@ -33,10 +33,10 @@ hook((input) => {
   } catch {}
 
   const head = git(cwd, "rev-parse", "HEAD");
-  if (!found.ok && told.unsurveyedAt !== head) {
+  if (missing && told.unsurveyedAt !== head) {
     writeFileSync(marker, JSON.stringify({ ...told, unsurveyedAt: head }));
     return say(
-      `Branch ${branch} changes ${files.size} files and has no survey (${found.reason}). Load the \`shape\` skill and write its survey to ${found.path} now, before going on.`,
+      `Branch ${branch} changes ${files.size} files, but ${missing}. Do that now, before going on.`,
     );
   }
 

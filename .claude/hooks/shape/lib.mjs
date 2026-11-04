@@ -87,7 +87,7 @@ const headTime = (cwd) => {
 };
 
 // the survey and whether it counts: it must name a path that exists
-export const survey = (cwd, key) => {
+const survey = (cwd, key) => {
   const path = stateFile(cwd, "survey", key);
   if (!existsSync(path)) return { path, ok: false, reason: "missing" };
   const text = readFileSync(path, "utf8");
@@ -103,24 +103,40 @@ export const survey = (cwd, key) => {
 };
 
 // the reviewer's read of the survey, before any code: once is enough
-export const planReview = (cwd, key) => {
+const planReview = (cwd, key) => {
   const path = stateFile(cwd, "plan-review", key);
   return existsSync(path) ? { path, ok: true } : { path, ok: false, reason: "missing" };
 };
 
+// what an edit waits for: the survey, then the plan review; `missing`
+// says the first one not done yet
+export const beforeEdit = (cwd, work) => {
+  const found = survey(cwd, work.key);
+  if (!found.ok)
+    return {
+      survey: found,
+      missing: `there is no survey for ${work.branch} (${found.reason}): load the \`shape\` skill and write its survey to ${found.path}`,
+    };
+  const plan = planReview(cwd, work.key);
+  if (!plan.ok)
+    return {
+      survey: found,
+      missing: `the survey for ${work.branch} has no plan review: run the shape-reviewer agent on it in plan mode, as the \`shape\` skill's Plan review step says, with survey ${found.path} and output ${plan.path}`,
+    };
+  return { survey: found, missing: null };
+};
+
 // the reviewer's read of the diff: it must be newer than the last commit,
-// and before round 3 leave no block open (after round 3 the user decides)
+// and before round 3 leave no block open (after round 3 the user decides).
+// The reviewer's header line says both: "…, round <n>, <k> open blocks".
 export const review = (cwd, key) => {
   const path = stateFile(cwd, "review", key);
   if (!existsSync(path)) return { path, ok: false, reason: "missing" };
   if (statSync(path).mtimeMs / 1000 < headTime(cwd))
     return { path, ok: false, reason: "older than the last commit" };
-  const text = readFileSync(path, "utf8");
-  const round = Number(text.match(/^# Shape review:.*round (\d+)/m)?.[1]) || 1;
-  const section = (name) => text.split(/^## /m).find((part) => part.startsWith(name)) ?? "";
-  const open =
-    (section("Findings").match(/^\d+\.\s*\[block\]/gm)?.length ?? 0) +
-    (section("Previous blocks").match(/→\s*open/g)?.length ?? 0);
+  const header = readFileSync(path, "utf8").match(/^# Shape review:.*round (\d+), (\d+) open block/m);
+  if (!header) return { path, ok: false, reason: "its header has no round and open-block count" };
+  const [round, open] = header.slice(1).map(Number);
   if (open && round < 3)
     return { path, ok: false, reason: `round ${round} left ${open} block(s) open: fix them and run round ${round + 1}` };
   return { path, ok: true };
