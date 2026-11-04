@@ -38,7 +38,7 @@ import { clients, type Client } from "../clients/clients.schema.ts";
 import { assignments, onCrew } from "../assignments/assignments.schema.ts";
 import { lockDay } from "../jobs/jobs.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
-import { roomOn, scheduleFor, visitHours } from "../jobs/schedule.ts";
+import { roomOn, scheduleOn, visitHours } from "../jobs/schedule.ts";
 import { currentPriceList } from "../price-list/price-list.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { addressOf, toPropertyView } from "../properties/property-view.ts";
@@ -111,10 +111,10 @@ const refuseNoRoom = async (
   }
   const date = dayOf(startsAt);
   await lockDay(tx, date);
-  const [day] = await scheduleFor(date, date, tx);
+  const day = await scheduleOn(startsAt, tx);
 
-  if (day!.available.some((c) => c.id === visitor.id)) {
-    const room = roomOn(day!, {
+  if (day.available.some((c) => c.id === visitor.id)) {
+    const room = roomOn(day, {
       startsAt,
       labourHours: visitHours({ minutes }),
       crewSize: 1,
