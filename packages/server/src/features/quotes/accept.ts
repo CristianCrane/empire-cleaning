@@ -16,7 +16,7 @@ import {
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { bookJob, lockDay } from "../jobs/jobs.ts";
 import type { Job } from "../jobs/jobs.schema.ts";
-import { roomFor } from "../jobs/schedule.ts";
+import { scheduleFor } from "../jobs/schedule.ts";
 import {
   payerFor,
   paymentMethodOf,
@@ -53,6 +53,7 @@ import {
 } from "./emails.ts";
 import { warnOfficeOfQuotesWithoutRoom } from "./quote-room.ts";
 import { offers, statusOf } from "./quote-state.ts";
+import { whyUnbookable, type Unbookable } from "./rules.ts";
 import {
   dropDraftRevision,
   inOrder,
@@ -105,18 +106,6 @@ const refuseUnlessOpen = (
     throw new ConflictError(closedMessage(status, acceptor.by));
   }
 };
-
-// why a Deposit that has been taken can't be booked after all
-type Unbookable =
-  | { reason: "closed"; status: QuoteStatus }
-  // a newer Revision was Sent: the offer accepted isn't the offer any more
-  | { reason: "revised" }
-  | { reason: "no_room" }
-  // a Service Plan Quote starting a plan, for a home whose plan started
-  // while the Client's bank was approving its Deposit
-  | { reason: "has_plan" }
-  // a Service Plan Quote whose home's plan started or Ended just then
-  | { reason: "plan_changed" };
 
 const unbookableMessage = (unbookable: Unbookable, acceptor: Acceptor) => {
   if (unbookable.reason === "closed") {
@@ -248,10 +237,9 @@ type Hold =
  * newer Revision can't be sent meanwhile), the Quote, a plan whose terms it
  * changes with the Jobs it replaces, and the day of each clean it books (so
  * two acceptances can't both take a day's last free hours or crew). Then
- * says whether the Quote can still be booked: open, `revision` still its
- * offer, its home's plan still
- * the one expected (`changing`: none for a Quote starting one), and every
- * clean's time with room, the Jobs it replaces counting as gone.
+ * says whether the Quote can still be booked, as whyUnbookable says, with
+ * `changing` the plan its home is expected to have: none for a Quote
+ * starting one.
  */
 const holdForBooking = async (
   tx: Tx,
@@ -266,40 +254,45 @@ const holdForBooking = async (
     .from(quotes)
     .where(eq(quotes.id, quote.id))
     .for("update");
-  if (current!.sentRevisionId !== revision.id) {
-    return { unbookable: { reason: "revised" } };
-  }
-  const status = statusOf({ ...current!, expiresAt: revision.expiresAt });
-  if (status !== "sent") return { unbookable: { reason: "closed", status } };
 
+  let planId: string | null = null;
   let change: Change | null = null;
   if (quote.kind === "service_plan") {
     const plan = await currentPlanOf(quote.propertyId, tx);
-    if ((plan?.id ?? null) !== changing) {
-      return {
-        unbookable: { reason: changing ? "plan_changed" : "has_plan" },
-      };
-    }
-    if (plan) {
+    planId = plan?.id ?? null;
+    // the plan it changes, while it's still the home's: one that changed
+    // meanwhile is refused, so nothing of it needs holding
+    if (plan && plan.id === changing) {
       change = await holdForChange(tx, plan.id, revision.proposedStartsAt!);
     }
   }
 
   // earliest first, so two acceptances hold their days in the same order
-  for (const clean of offer.cleans) await lockDay(tx, dayOf(clean.startsAt));
-  for (const clean of offer.cleans) {
-    const { hasRoom } = await roomFor(
-      {
+  const dates = offer.cleans.map((clean) => dayOf(clean.startsAt));
+  for (const date of dates) await lockDay(tx, date);
+  // a plan's weekdays are in the order the Office gave them, not by date
+  const span = [...dates].sort();
+  const days = await scheduleFor(span[0]!, span.at(-1)!, tx);
+
+  const unbookable = whyUnbookable(
+    {
+      sentRevisionId: current!.sentRevisionId,
+      status: statusOf({ ...current!, expiresAt: revision.expiresAt }),
+      planId,
+      days,
+      replacing: change?.replaced.map((j) => j.id) ?? [],
+    },
+    {
+      revisionId: revision.id,
+      changing,
+      cleans: offer.cleans.map((clean) => ({
         startsAt: clean.startsAt,
         labourHours: clean.option.labourHours,
         crewSize: clean.crewSize,
-      },
-      tx,
-      change?.replaced.map((j) => j.id),
-    );
-    if (!hasRoom) return { unbookable: { reason: "no_room" } };
-  }
-  return { unbookable: null, change };
+      })),
+    },
+  );
+  return unbookable ? { unbookable } : { unbookable: null, change };
 };
 
 type Booking = {

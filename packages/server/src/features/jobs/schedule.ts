@@ -309,10 +309,10 @@ export const scheduleOn = async (instant: Date, tx: Tx | typeof db = db) => {
   return day!;
 };
 
-// Whether a clean has room at its time, as roomOn says. Accepting a Quote
-// (#8), Reschedule Requests (#20), moving a Job (#52) and Service Plan Jobs
-// (#14) ask this in their transaction, holding the day (lockDay) while they
-// book. Jobs it replaces count as gone (withoutReplaced).
+// Whether a clean has room at its time, as roomOn says. Reschedule Requests
+// (#20), moving a Job (#52) and Service Plan Jobs (#14) ask this in their
+// transaction, holding the day (lockDay) while they book. Jobs it replaces
+// count as gone (withoutReplaced).
 export const roomFor = async (
   clean: Clean,
   tx: Tx | typeof db = db,
