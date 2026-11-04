@@ -208,6 +208,23 @@ describe("the Price List", () => {
     });
   });
 
+  test("won't default to a validity or Crew Size a Draft can't have", async () => {
+    const office = await signInAsOffice();
+
+    const res = await save(office, {
+      quoteValidityDays: 120,
+      defaultCrewSize: 12,
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.details).toEqual(
+      expect.arrayContaining([
+        { path: "quoteValidityDays", issue: "Valid for at most 90 days" },
+        { path: "defaultCrewSize", issue: "Send at most 10 people" },
+      ]),
+    );
+  });
+
   test("won't have two live Add-ons with the same name", async () => {
     const office = await signInAsOffice();
 

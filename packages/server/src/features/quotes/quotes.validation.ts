@@ -47,7 +47,8 @@ const override = z
   })
   .nullable();
 
-const crewSize = z
+// also the Price List's default, which a new Draft starts from
+export const crewSize = z
   .number({ error: "Enter a Crew Size" })
   .int("Crew Size is a whole number")
   .min(1, "Send at least 1 person")
@@ -91,6 +92,13 @@ const plan = z.object({
     .max(7, "A week has only 7 days"),
 });
 
+// also the Price List's default, which a new Draft starts from
+export const validityDays = z
+  .number({ error: "Enter how many days it's valid for" })
+  .int("Use a whole number of days")
+  .min(1, "Valid for at least 1 day")
+  .max(90, "Valid for at most 90 days");
+
 export const draftSchema = z.object({
   // a one-off Quote's Service
   serviceKey: z.uuid("Choose a Service").optional(),
@@ -110,11 +118,7 @@ export const draftSchema = z.object({
     .int("Use a whole percentage")
     .min(0, "The Deposit can't be below 0%")
     .max(100, "The Deposit can't be more than 100%"),
-  validityDays: z
-    .number({ error: "Enter how many days it's valid for" })
-    .int("Use a whole number of days")
-    .min(1, "Valid for at least 1 day")
-    .max(90, "Valid for at most 90 days"),
+  validityDays,
   proposedStart: start.optional(),
   // by the option's Service
   overrides: z.record(z.uuid(), override).optional(),
