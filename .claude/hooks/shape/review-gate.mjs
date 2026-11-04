@@ -24,7 +24,11 @@ const masked = (command) =>
 // masked command with `$( … )` blanked too (so a `cd` in a heredoc, a
 // quote or a command substitution doesn't count) and read from the original
 const dirOf = (command, hidden, at, cwd) => {
-  const outside = hidden.slice(0, at).replace(/\$\([^()]*\)/g, (sub) => "$(" + " ".repeat(sub.length - 3) + ")");
+  let outside = hidden.slice(0, at);
+  for (let inner = ""; inner !== outside; ) {
+    inner = outside;
+    outside = outside.replace(/\$\([^()]*\)/g, (sub) => " ".repeat(sub.length));
+  }
   const cds = [...outside.matchAll(/(?:^|[;&|(\n])\s*cd\s+("[^"]+"|'[^']+'|[^\s;&|)]+)/dg)];
   if (cds.length === 0) return cwd;
   const [start, end] = cds.at(-1).indices[1];
@@ -32,12 +36,16 @@ const dirOf = (command, hidden, at, cwd) => {
   return resolve(cwd, dir);
 };
 
-// the branch `--head` names, if any, in this gh command's own arguments
+// the branch `--head` names, if any, in this gh command's own arguments:
+// found in the masked text (so a title or body that mentions --head doesn't
+// count) and read from the original
 const headOf = (command, hidden, end) => {
   const stop = hidden.slice(end).search(/[;&|\n]/);
-  const args = command.slice(end, stop < 0 ? undefined : end + stop);
-  const head = args.match(/(?:^|\s)(?:--head|-H)(?:=|\s+)("[^"]+"|'[^']+'|\S+)/)?.[1];
-  return head?.replace(/^["']|["']$/g, "").replace(/^[^:]*:/, "");
+  const args = hidden.slice(end, stop < 0 ? undefined : end + stop);
+  const flag = /(?:^|\s)(?:--head|-H)(?:=|\s+)("[^"]+"|'[^']+'|\S+)/d.exec(args);
+  if (!flag) return undefined;
+  const [start, finish] = flag.indices[1];
+  return command.slice(end + start, end + finish).replace(/^["']|["']$/g, "").replace(/^[^:]*:/, "");
 };
 
 hook((input) => {
