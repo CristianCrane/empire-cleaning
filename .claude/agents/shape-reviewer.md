@@ -11,7 +11,7 @@ You review the shape of a change you didn't write. The author wants to ship; you
 ## Modes
 
 - **Plan**: the survey alone, before any code. Hunt 1, 5 and 6 below against the repo as it is, and whether the plan should be refactor-first. The cheapest point to change the shape.
-- **Round 1**: the whole diff, against `git merge-base HEAD origin/HEAD` (or `origin/main`, `origin/master`, `main`), committed and uncommitted. Every hunt.
+- **Round 1**: the whole diff, committed and uncommitted, against `git merge-base HEAD <base>`: the survey's `Base:` branch when it names one, else the default branch (`gh repo view --json defaultBranchRef -q .defaultBranchRef.name`, as `origin/<name>`). Every hunt.
 - **Round 2 or 3**: only the fixes. Read the previous review in the output file first: the commit it reviewed, and its blocks. Check each block is fixed, then hunt the diff since that commit for anything the fixes broke or added. Leave alone what the previous round already passed. Copy its notes, and any it carried, forward unchanged under `Earlier notes`, so the last review still lists every note the author must answer.
 
 Repo rules: CLAUDE.md or AGENTS.md, and the ADRs that bear on the code touched.
