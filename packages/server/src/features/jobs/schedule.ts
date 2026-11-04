@@ -17,6 +17,7 @@ import type {
   ScheduledSiteVisit,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
+import { NotFoundError } from "../../middleware/errors.ts";
 import {
   addDays,
   clock,
@@ -169,6 +170,14 @@ export const jobViews = async (
     crew: crews.get(job.id)!,
     movable: job.status === "booked" && job.startsAt > now,
   }));
+};
+
+// One Job as the Office sees it, whether or not it's on the Schedule. Unlike
+// scheduleOn, whose day always exists, an id may name no Job, so it throws.
+export const jobView = async (jobId: string, tx: Tx | typeof db = db) => {
+  const [job] = await jobViews(eq(jobs.id, jobId), tx);
+  if (!job) throw new NotFoundError("Job not found");
+  return job;
 };
 
 // Jobs on the Schedule as the Office sees them, earliest first
