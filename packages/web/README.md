@@ -90,7 +90,7 @@ pnpm --filter @empire-cleaning/web test       # needs Postgres (pnpm db:up) and 
 pnpm --filter @empire-cleaning/web test:e2e   # just the end-to-end tests
 ```
 
-While working on a change, run only what it touches; the full suites run once before the PR (`pnpm test:full`) and again in CI:
+While working on a change, run only what it touches (the root `README.md` says what runs before the PR):
 
 ```sh
 pnpm --filter @empire-cleaning/web exec playwright test --only-changed=main   # specs changed since main, and specs importing changed files

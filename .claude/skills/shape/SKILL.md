@@ -56,7 +56,7 @@ A round is the reviewer and you arguing about shape. The reviewer reads shape, n
 - **Blocks** start the next round: fix them, with any failure the round's quick tests found, commit, and run the reviewer again, **round 2** then **round 3**. A follow-up round checks only the fixes, against the previous review in the same file.
 - **A recheck** reviews a commit that answers no block: a fix to a failing test, typecheck, lint or CI. It checks only that commit, keeps the round's number and costs no round; a block it finds starts the next round. Rechecks have no cap.
 - **Notes** never start a round. Answer each in Shape, from every round (later rounds carry them forward): rebutted, or filed as a follow-up issue. Fixing one here costs another round.
-- **The full suite** runs once, after a round or recheck finds no blocks, before the PR. A fix it needs gets a recheck.
+- **The full suite** runs once, after a round or recheck finds no blocks, before the PR. A fix it needs gets a recheck, and only what failed runs again, with the quick tests.
 - **Done** when a round or recheck of the last commit finds no blocks, and the full suite has passed.
 - **After round 3**, any block still open goes to the user: stop and put each one to them with its paths. A round 4 runs only when they say so.
 
