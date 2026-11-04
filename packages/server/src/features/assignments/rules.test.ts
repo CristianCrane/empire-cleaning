@@ -151,22 +151,22 @@ describe("free for a Job (ADR-0019)", () => {
 
 describe("Offering a place", () => {
   test("to a free active Cleaner while a place is open", () => {
-    expect(whyNotOffer(thursday(), job(), ana, NOW)).toBeNull();
+    expect(whyNotOffer(thursday(), "job", ana, NOW)).toBeNull();
   });
 
   test("refused once the Job has started", () => {
     const started = new Date(Date.parse(THURSDAY_9AM));
-    expect(whyNotOffer(thursday(), job(), ana, started)).toBe(
+    expect(whyNotOffer(thursday(), "job", ana, started)).toBe(
       "This Job has already started",
     );
   });
 
   test("refused to anyone but an active Cleaner", () => {
-    expect(whyNotOffer(thursday(), job(), { ...ana, active: false }, NOW)).toBe(
+    expect(whyNotOffer(thursday(), "job", { ...ana, active: false }, NOW)).toBe(
       "Ana Ruiz isn't an active Cleaner",
     );
     const office = { ...ana, roles: ["office_staff" as const] };
-    expect(whyNotOffer(thursday(), job(), office, NOW)).toBe(
+    expect(whyNotOffer(thursday(), "job", office, NOW)).toBe(
       "Ana Ruiz isn't an active Cleaner",
     );
   });
@@ -175,21 +175,21 @@ describe("Offering a place", () => {
     const holding = (crew: ScheduledJob["crew"], crewSize = 2) =>
       thursday({ jobs: [scheduled({ crew, crewSize })] });
     const anaOn = [{ id: "ana", name: "Ana Ruiz" }];
-    expect(whyNotOffer(holding(anaOn), job(), ana, NOW)).toBe(
+    expect(whyNotOffer(holding(anaOn), "job", ana, NOW)).toBe(
       "Ana Ruiz already has a place on this Job",
     );
-    expect(whyNotOffer(holding(anaOn, 1), job({ crewSize: 1 }), bea, NOW)).toBe(
+    expect(whyNotOffer(holding(anaOn, 1), "job", bea, NOW)).toBe(
       "This Job's place is taken",
     );
     const both = [...anaOn, { id: "cleo", name: "Cleo Diaz" }];
-    expect(whyNotOffer(holding(both), job(), bea, NOW)).toBe(
+    expect(whyNotOffer(holding(both), "job", bea, NOW)).toBe(
       "All 2 places on this Job are taken",
     );
   });
 
   test("refused when they aren't free for it", () => {
     expect(
-      whyNotOffer(thursday({ jobs: [otherJob(1)] }), job(), ana, NOW),
+      whyNotOffer(thursday({ jobs: [otherJob(1)] }), "job", ana, NOW),
     ).toBe(
       "Ana Ruiz isn't free then: they're on another Job or a Site Visit at that time, or have no hours that day",
     );
@@ -199,16 +199,16 @@ describe("Offering a place", () => {
 describe("Confirming an Offered place", () => {
   test("at the time they were shown, while free", () => {
     expect(
-      whyNotConfirm(thursday(), job(), "ana", new Date(THURSDAY_9AM), NOW),
+      whyNotConfirm(thursday(), "job", "ana", new Date(THURSDAY_9AM), NOW),
     ).toBeNull();
-    expect(whyNotConfirm(thursday(), job(), "ana", undefined, NOW)).toBeNull();
+    expect(whyNotConfirm(thursday(), "job", "ana", undefined, NOW)).toBeNull();
   });
 
   test("refused once started, after a move, or when no longer free", () => {
     expect(
       whyNotConfirm(
         thursday(),
-        job(),
+        "job",
         "ana",
         undefined,
         new Date(THURSDAY_9AM),
@@ -217,7 +217,7 @@ describe("Confirming an Offered place", () => {
     expect(
       whyNotConfirm(
         thursday(),
-        job(),
+        "job",
         "ana",
         new Date(Date.parse(THURSDAY_9AM) - HOUR),
         NOW,
@@ -228,7 +228,7 @@ describe("Confirming an Offered place", () => {
     expect(
       whyNotConfirm(
         thursday({ jobs: [otherJob(1)] }),
-        job(),
+        "job",
         "ana",
         undefined,
         NOW,

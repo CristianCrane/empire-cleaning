@@ -7,7 +7,7 @@ import {
 } from "@empire-cleaning/models";
 import { DAY_MS, HOUR_MS } from "../../services/clock/index.ts";
 import { formatWhen } from "../../services/email/index.ts";
-import { isFree } from "../jobs/schedule.ts";
+import { asClean, isFree } from "../jobs/schedule.ts";
 
 // The rules for places on a Job (ADR-0019), over what the actions load: the
 // Job's day of the Schedule, and its Assignments. Each says why something is
@@ -34,69 +34,65 @@ export const opensAt = (job: Pick<Job, "startsAt">) =>
 export const releaseClosed = (job: Pick<Job, "startsAt">, now: Date) =>
   job.startsAt.getTime() - now.getTime() < RELEASE_CUTOFF_HOURS * HOUR_MS;
 
+const STARTED = "This Job has already started";
+
 // a Job seen at one time and since moved: they're asked to look again (#242)
-const moved = (job: Pick<Job, "startsAt">, seen: Date | undefined) =>
-  seen && seen.getTime() !== job.startsAt.getTime()
-    ? `This Job has moved to ${formatWhen(job.startsAt)}. Please check the new time, then confirm again.`
+const moved = (startsAt: Date, seen: Date | undefined) =>
+  seen && seen.getTime() !== startsAt.getTime()
+    ? `This Job has moved to ${formatWhen(startsAt)}. Please check the new time, then confirm again.`
     : null;
 
-// a Job as isFree checks it: at its own time, not counted against itself
-const cleanOf = (job: ScheduledJob) => ({
-  startsAt: new Date(job.startsAt),
-  labourHours: job.labourHours,
-  crewSize: job.crewSize,
-  jobId: job.id,
-});
-
 // a booked Job on its day of the Schedule
-const onDay = (day: ScheduleDay, job: Pick<Job, "id">) =>
-  day.jobs.find((j) => j.id === job.id)!;
+const onDay = (day: ScheduleDay, jobId: string) =>
+  day.jobs.find((job) => job.id === jobId)!;
 
 /**
- * Office Staff Offering a place on a booked Job to someone: refused once it
- * has started, to anyone but an active Cleaner, to someone who holds a place
+ * Office Staff Offering a place on a booked Job, on its day of the
+ * Schedule, to someone: refused once it has started, to anyone but an active Cleaner, to someone who holds a place
  * on it already, when every place is held, and when they aren't free for it,
  * so they could never Confirm it.
  */
 export const whyNotOffer = (
   day: ScheduleDay,
-  job: Job,
+  jobId: string,
   member: { id: string; name: string; active: boolean; roles: StaffRole[] },
   now: Date,
 ) => {
-  if (job.startsAt <= now) return "This Job has already started";
+  const job = onDay(day, jobId);
+  if (Date.parse(job.startsAt) <= now.getTime()) return STARTED;
   if (!member.active || !member.roles.includes("cleaner")) {
     return `${member.name} isn't an active Cleaner`;
   }
-  const scheduled = onDay(day, job);
-  if (scheduled.crew.some((c) => c.id === member.id)) {
+  if (job.crew.some((c) => c.id === member.id)) {
     return `${member.name} already has a place on this Job`;
   }
-  if (scheduled.crew.length >= job.crewSize) {
+  if (job.crew.length >= job.crewSize) {
     return job.crewSize === 1
       ? "This Job's place is taken"
       : `All ${job.crewSize} places on this Job are taken`;
   }
-  if (!isFree(day, member.id, cleanOf(scheduled))) {
+  if (!isFree(day, member.id, asClean(job))) {
     return `${member.name} isn't free then: they're on another Job or a Site Visit at that time, or have no hours that day`;
   }
   return null;
 };
 
-// A Cleaner Confirming the place they were Offered, at the time they were
-// shown: refused once the Job has started, if it has moved, or if they're no
+// A Cleaner Confirming the place they were Offered on a Job, on its day of
+// the Schedule, at the time they were shown: refused once the Job has started, if it has moved, or if they're no
 // longer free for it
 export const whyNotConfirm = (
   day: ScheduleDay,
-  job: Job,
+  jobId: string,
   staffId: string,
   seen: Date | undefined,
   now: Date,
 ) => {
-  if (job.startsAt <= now) return "This Job has already started";
-  const since = moved(job, seen);
+  const job = onDay(day, jobId);
+  const startsAt = new Date(job.startsAt);
+  if (startsAt <= now) return STARTED;
+  const since = moved(startsAt, seen);
   if (since) return since;
-  if (!isFree(day, staffId, cleanOf(onDay(day, job)))) {
+  if (!isFree(day, staffId, asClean(job))) {
     return "You're no longer free for this Job. Please release it, or call the Office.";
   }
   return null;
@@ -133,7 +129,7 @@ export const openingOf = (
   const open = job.crewSize - places.filter((p) => holdsPlace(p.status)).length;
   if (open <= 0) return null;
   const ruledOut = new Set([...places.map((p) => p.staffId), ...passedBy]);
-  const clean = cleanOf(job);
+  const clean = asClean(job);
   const openTo = day.available
     .map((c) => c.id)
     .filter((id) => !ruledOut.has(id) && isFree(day, id, clean));
@@ -156,7 +152,7 @@ export const whyNotTakeOpenPlace = (
   if (job.status !== "booked" || job.startsAt <= now) {
     return "This Job isn't open any more";
   }
-  const since = moved(job, seen);
+  const since = moved(job.startsAt, seen);
   if (since) return since;
   if (!opening) {
     return opensAt(job) > now

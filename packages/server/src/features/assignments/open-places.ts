@@ -65,7 +65,12 @@ const placesOn = async (jobIds: string[], tx: Tx | typeof db) => {
 const openings = async (jobId?: string, tx: Tx | typeof db = db) => {
   const now = clock.now();
   const today = dayOf(now);
-  const days = await scheduleFor(today, addDays(today, OPEN_PLACE_DAYS), tx);
+  // a day over the window, as a week is an hour longer when the clocks change
+  const days = await scheduleFor(
+    today,
+    addDays(today, OPEN_PLACE_DAYS + 1),
+    tx,
+  );
   const soon = days
     .flatMap((day) =>
       day.jobs

@@ -30,7 +30,7 @@ import {
 import { addOnsOf } from "../jobs/add-ons.ts";
 import { hoursOnSiteOf, onSchedule } from "../jobs/jobs.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
-import { jobViews, scheduleFor, scheduledJobs } from "../jobs/schedule.ts";
+import { jobViews, scheduleOn, scheduledJobs } from "../jobs/schedule.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { firstCleanCompleted } from "../quotes/quote-state.ts";
 import {
@@ -87,7 +87,7 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
     [job],
     rows,
     addOns,
-    [day],
+    day,
     cleaners,
     completion,
     cancellation,
@@ -107,7 +107,7 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
       .where(eq(assignments.jobId, jobId))
       .orderBy(asc(assignments.offeredAt), asc(assignments.createdAt)),
     addOnsOf([jobId]),
-    scheduleFor(dayOf(row.startsAt), dayOf(row.startsAt)),
+    scheduleOn(row.startsAt),
     db
       .select({ id: staff.id, name: staff.name, roles: staff.roles })
       .from(staff)
@@ -127,7 +127,7 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
   const holding = rows.filter((r) => holdsPlace(r.assignment.status));
   const released = rows.filter((r) => !holdsPlace(r.assignment.status));
   const onJob = new Set(holding.map((r) => r.member.id));
-  const hoursOf = new Map(day!.available.map((c) => [c.id, c.hours]));
+  const hoursOf = new Map(day.available.map((c) => [c.id, c.hours]));
 
   return {
     ...job!,
@@ -181,9 +181,8 @@ export const offerAssignment = async (
       .for("update");
     if (!member) throw new NotFoundError("Staff member not found");
 
-    const date = dayOf(job.startsAt);
-    const [day] = await scheduleFor(date, date, tx);
-    const refusal = whyNotOffer(day!, job, member, clock.now());
+    const day = await scheduleOn(job.startsAt, tx);
+    const refusal = whyNotOffer(day, jobId, member, clock.now());
     if (refusal) throw new ConflictError(refusal);
 
     const self = member.accountId === byAccountId;
@@ -447,9 +446,8 @@ export const confirmAssignment = async (
     if (assignment.status === "confirmed") return job.id;
     // theirs too, so they can't take two Jobs at once that overlap
     await tx.select().from(staff).where(eq(staff.id, staffId)).for("update");
-    const date = dayOf(job.startsAt);
-    const [day] = await scheduleFor(date, date, tx);
-    const refusal = whyNotConfirm(day!, job, staffId, seen, clock.now());
+    const day = await scheduleOn(job.startsAt, tx);
+    const refusal = whyNotConfirm(day, job.id, staffId, seen, clock.now());
     if (refusal) throw new ConflictError(refusal);
     const [confirmed] = await tx
       .update(assignments)

@@ -301,6 +301,13 @@ export const scheduleFor = async (
   });
 };
 
+// the day of the Schedule an instant is on
+export const scheduleOn = async (instant: Date, tx: Tx | typeof db = db) => {
+  const date = dayOf(instant);
+  const [day] = await scheduleFor(date, date, tx);
+  return day!;
+};
+
 // a clean to find room for; a booked Job being moved gives its id, so it
 // doesn't stand in its own way, and so does a Site Visit being moved
 export type Clean = {
@@ -327,6 +334,27 @@ const crewSpan = (
   const start = startsAt.getTime();
   return { start, end: start + (labourHours / crewSize) * HOUR_MS, crewSize };
 };
+
+// a Job or a held time at work, and a Site Visit, as spans
+const jobSpan = (
+  job: Pick<HeldTime, "startsAt" | "labourHours" | "crewSize">,
+) => crewSpan(new Date(job.startsAt), job.labourHours, job.crewSize);
+
+const visitSpan = (visit: ScheduledSiteVisit) =>
+  crewSpan(new Date(visit.startsAt), visitHours(visit), 1);
+
+// a Job as a clean to check at its own time, not counted against itself
+export const asClean = (job: {
+  id: string;
+  startsAt: Date | string;
+  labourHours: number;
+  crewSize: number;
+}): Clean => ({
+  startsAt: new Date(job.startsAt),
+  labourHours: job.labourHours,
+  crewSize: job.crewSize,
+  jobId: job.id,
+});
 
 // whether two spans of time share any of it
 const overlaps = (
@@ -384,17 +412,11 @@ export const roomOn = (day: ScheduleDay, clean: Clean): DayCapacity => {
     hundredths(day.freeHours) + ownHeld + ownVisit >= hundredths(labourHours);
 
   const spans = [
-    ...day.jobs
-      .filter((job) => job.id !== jobId)
-      .map((job) =>
-        crewSpan(new Date(job.startsAt), job.labourHours, job.crewSize),
-      ),
-    ...day.held
-      .filter((h) => h.jobId !== jobId)
-      .map((h) => crewSpan(new Date(h.startsAt), h.labourHours, h.crewSize)),
+    ...day.jobs.filter((job) => job.id !== jobId).map(jobSpan),
+    ...day.held.filter((h) => h.jobId !== jobId).map(jobSpan),
     ...day.siteVisits
       .filter((v) => v.takesRoom && v.id !== siteVisitId)
-      .map((v) => crewSpan(new Date(v.startsAt), visitHours(v), 1)),
+      .map(visitSpan),
   ];
   const own = crewSpan(startsAt, labourHours, crewSize);
   const crewsBusy = crewsBusyDuring(spans, own.start, own.end);
@@ -427,7 +449,8 @@ export const roomOn = (day: ScheduleDay, clean: Clean): DayCapacity => {
  * Job being moved isn't counted against itself, so its crew can be checked
  * at its new time. Stricter than room (roomOn), which takes anyone with
  * hours to be free all day. Only the clean's own day counts: every clean
- * ends by midnight (endsByMidnight).
+ * ends by midnight (endsByMidnight). A Site Visit needn't, but one running
+ * past midnight into a Job early the next day isn't counted against it.
  */
 export const isFree = (day: ScheduleDay, staffId: string, clean: Clean) => {
   if (!day.available.some((c) => c.id === staffId)) return false;
@@ -440,12 +463,10 @@ export const isFree = (day: ScheduleDay, staffId: string, clean: Clean) => {
           job.id !== clean.jobId &&
           job.crew.some((c) => c.id === staffId),
       )
-      .map((job) =>
-        crewSpan(new Date(job.startsAt), job.labourHours, job.crewSize),
-      ),
+      .map(jobSpan),
     ...day.siteVisits
       .filter((v) => v.status === "booked" && v.visitor?.id === staffId)
-      .map((v) => crewSpan(new Date(v.startsAt), visitHours(v), 1)),
+      .map(visitSpan),
   ];
   return !busy.some((span) => overlaps(span, own));
 };
@@ -473,21 +494,20 @@ export const roomFor = async (
   tx: Tx | typeof db = db,
   replacing: string[] = [],
 ): Promise<DayCapacity> => {
-  const date = dayOf(clean.startsAt);
-  const [day] = await scheduleFor(date, date, tx);
-  const gone = day!.jobs.filter((job) => replacing.includes(job.id));
+  const day = await scheduleOn(clean.startsAt, tx);
+  const gone = day.jobs.filter((job) => replacing.includes(job.id));
   // a time held for moving one from another day holds its hours here too
-  const goneHeld = day!.held.filter((h) => replacing.includes(h.jobId));
+  const goneHeld = day.held.filter((h) => replacing.includes(h.jobId));
   const heldHere = goneHeld.filter((h) => !gone.some((j) => j.id === h.jobId));
   return roomOn(
     {
-      ...day!,
-      jobs: day!.jobs.filter((job) => !gone.includes(job)),
-      held: day!.held.filter((h) => !goneHeld.includes(h)),
+      ...day,
+      jobs: day.jobs.filter((job) => !gone.includes(job)),
+      held: day.held.filter((h) => !goneHeld.includes(h)),
       freeHours: fromHundredths(
         [...gone, ...heldHere].reduce(
           (free, job) => free + hundredths(job.labourHours),
-          hundredths(day!.freeHours),
+          hundredths(day.freeHours),
         ),
       ),
     },
@@ -503,9 +523,7 @@ export const freeFor = async (
   job: { id: string; startsAt: Date; labourHours: number; crewSize: number },
   tx: Tx | typeof db = db,
 ) => {
-  const date = dayOf(job.startsAt);
-  const [day] = await scheduleFor(date, date, tx);
-  const { startsAt, labourHours, crewSize } = job;
-  const clean = { startsAt, labourHours, crewSize, jobId: job.id };
-  return new Set(staffIds.filter((id) => isFree(day!, id, clean)));
+  const day = await scheduleOn(job.startsAt, tx);
+  const clean = asClean(job);
+  return new Set(staffIds.filter((id) => isFree(day, id, clean)));
 };
