@@ -280,11 +280,41 @@ describe("a Quote asked for business premises", () => {
     );
   });
 
+  test("by a Guest for an address the Client already has as their home gets the usual reply, and the Client's inbox why", async () => {
+    await submit(guestAsk()).expect(201);
+    const { Office } = await premisesTypes();
+
+    // the reply can't tell anyone what the Client has at an address (#243)
+    const res = await submit(
+      businessAsk(Office!, {
+        property: {
+          new: premises(Office!, {
+            street: home.street,
+            unit: home.unit,
+            postcode: home.postcode,
+          }),
+        },
+      }),
+    );
+
+    expect(res.status).toBe(201);
+    expect(res.body).toEqual({
+      id: expect.any(String),
+      emailedTo: casey.email,
+    });
+    const mail = testEmail().lastTo(casey.email);
+    expect(mail.subject).toBe("About your request for a Quote");
+    expect(mail.text).toContain(
+      "41-12 Austin St, 4B, 11375 is already your home with us, so we haven't taken this request. Sign in and choose it from the list to ask about it.",
+    );
+  });
+
   test("again, while one is waiting, is refused in the words for premises", async () => {
     const { Office } = await premisesTypes();
     await submit(businessAsk(Office!)).expect(201);
+    const { contact: _contact, ...asClient } = businessAsk(Office!);
 
-    const res = await submit(businessAsk(Office!));
+    const res = await submit(asClient, await signIn(casey.email));
 
     expect(res.status).toBe(409);
     expect(res.body.message).toBe(

@@ -45,6 +45,46 @@ export const quoteReceivedEmail = ({
   ],
 });
 
+// to the Client's own address, when an ask with their email can't go ahead
+// at a Property they already have: the Guest who asked is told only what
+// anyone would be, so the reply can't show what the Client has where (#243)
+export const askClashEmail = ({
+  name,
+  email,
+  address,
+  kind,
+  why,
+}: {
+  name: string;
+  email: string;
+  address: string;
+  kind: "residential" | "commercial";
+  why: "otherKind" | "asked" | "sent";
+}): Email => ({
+  subject: "About your request for a Quote",
+  blocks: [
+    greeting(firstNameOf(name)),
+    ...(why === "otherKind"
+      ? [
+          paragraph(
+            `${address} is already your ${kind === "commercial" ? "business premises" : "home"} with us, so we haven't taken this request. Sign in and choose it from the list to ask about it.`,
+          ),
+          button("Ask for a Quote", "/portal/request"),
+        ]
+      : [
+          paragraph(
+            why === "sent"
+              ? `We've sent you a Quote for ${address} already: you'll find it in your account.`
+              : `You've already asked us for a Quote for ${address}. We'll email it to ${email} soon.`,
+          ),
+          button("See your Quotes", "/portal"),
+        ]),
+    paragraph(
+      "If you didn't ask for a Quote, you can ignore this email, or reply and let us know.",
+    ),
+  ],
+});
+
 // to the Office: someone asked for a Quote on the landing page or in the
 // portal, and was told to expect it within a working day
 export const quoteRequestedEmail = ({

@@ -274,8 +274,9 @@ describe("the Service asked for", () => {
       guestAsk({ serviceKey: SEEDED.painting, wantsRegularService: false }),
     );
     // a Deep Clean could become a Service Plan, as the Standard Clean asked
-    // for could
-    const deep = await submit(guestAsk({ serviceKey: SEEDED.deep }));
+    // for could (a Guest isn't told, #243)
+    const { contact: _, ...deepAsk } = guestAsk({ serviceKey: SEEDED.deep });
+    const deep = await submit(deepAsk, await signIn(casey.email));
 
     expect(painting.status).toBe(201);
     expect(deep.status).toBe(409);
@@ -333,6 +334,28 @@ describe("a home's rooms", () => {
     expect(res.body.details).toContainEqual({
       path: "property.new.bathrooms",
       issue: "Give all of the home's rooms, or none",
+    });
+  });
+
+  test("given by a Guest for a home without them stay on the Quote", async () => {
+    await submit(guestAsk({ ...painting, property: { new: roomless } })).expect(
+      201,
+    );
+
+    // anyone can type the Client's email and address (#243)
+    const { body } = await submit(
+      guestAsk({ condition: "heavy", property: { new: home } }),
+    ).expect(201);
+
+    expect((await ownHomes(casey.email)).properties[0]).toMatchObject({
+      bedrooms: null,
+      condition: null,
+    });
+    const office = await signInAsOffice();
+    const quote = (await office.get(`/api/quotes/${body.id}`).expect(200)).body;
+    expect(quote.asked).toMatchObject({
+      condition: "heavy",
+      rooms: { bedrooms: 2, bathrooms: 1.5, storeys: 1, pets: true },
     });
   });
 
@@ -412,11 +435,12 @@ describe("one address is one home", () => {
 
     const { properties } = await ownHomes("casey@example.com");
     expect(properties).toHaveLength(1);
-    // the details stay as first given; only the Condition is restated
+    // the details stay as first given, and a Guest restates no Condition
+    // (#243): what they said is on the Quote
     expect(properties[0]).toMatchObject({
       bedrooms: 2,
       pets: true,
-      condition: "heavy",
+      condition: "moderate",
     });
   });
 
@@ -441,20 +465,28 @@ describe("one open Quote per home", () => {
   const refusal =
     "You've already asked us for a Quote for this home. We'll email it to casey@example.com soon.";
 
-  test("a Guest asking again about the same home is told one is on its way", async () => {
-    await submit(guestAsk());
+  test("a Guest asking again about the same home gets the usual reply, and the Client's inbox why", async () => {
+    const first = await submit(guestAsk()).expect(201);
 
+    // the reply can't tell anyone which homes have a Quote open (#243)
     const res = await submit(guestAsk());
 
-    expect(res.status).toBe(409);
-    expect(res.body.message).toBe(refusal);
-    const me = await ownHomes("casey@example.com");
-    expect(me.quotes).toHaveLength(1);
-    // no second receipt either
-    const receipts = testEmail()
-      .to("casey@example.com")
-      .filter((m) => m.subject === "We've received your request for a Quote");
-    expect(receipts).toHaveLength(1);
+    expect(res.status).toBe(201);
+    expect(res.body).toEqual({
+      id: expect.any(String),
+      emailedTo: "casey@example.com",
+    });
+    expect(res.body.id).not.toBe(first.body.id);
+    // no second receipt, but word of the one already asked for
+    const mail = testEmail().to("casey@example.com");
+    expect(mail.map((m) => m.subject)).toEqual([
+      "We've received your request for a Quote",
+      "About your request for a Quote",
+    ]);
+    expect(mail[1]!.text).toContain(
+      "You've already asked us for a Quote for 41-12 Austin St, 4B, 11375. We'll email it to casey@example.com soon.",
+    );
+    expect((await ownHomes("casey@example.com")).quotes).toHaveLength(1);
   });
 
   test("a Client choosing one of their homes is told the same", async () => {

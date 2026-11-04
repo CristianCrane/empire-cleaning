@@ -162,6 +162,9 @@ export type QuoteAsked = {
   service: ServiceChoice;
   // a home's Condition; none on a business's
   condition: Condition | null;
+  // a home's rooms, where the ask gave them; a Guest's never change a
+  // Property, so the Office sees them here (#243)
+  rooms: HomeRooms | null;
   wantsRegularService: boolean;
   // business premises asking for regular cleaning: the weekdays and
   // preferred start time; empty and null otherwise

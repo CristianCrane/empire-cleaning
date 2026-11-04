@@ -28,6 +28,7 @@ import {
   formatDate,
   formatHours,
   formatMoney,
+  roomsText,
   wantedCleaning,
 } from "../format.ts";
 
@@ -101,6 +102,22 @@ export function AskedFacts({ quote }: { quote: OfficeQuote }) {
           </span>
         )}
       </dd>
+      {/* a Guest's ask gives a home without them none (#243): the Office
+          records them */}
+      {property.kind !== "commercial" &&
+        property.bedrooms === null &&
+        asked.rooms && (
+          <>
+            <dt className="font-semibold">Rooms</dt>
+            <dd>
+              Not recorded yet
+              <span className="text-fg-muted">
+                {" "}
+                (the Client said {roomsText(asked.rooms)})
+              </span>
+            </dd>
+          </>
+        )}
       {premises ? (
         <>
           <dt className="font-semibold">Cleaning wanted</dt>

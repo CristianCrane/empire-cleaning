@@ -291,7 +291,7 @@ test.describe("requesting a Quote", () => {
     expect((await sent).postDataJSON()).not.toHaveProperty("website");
   });
 
-  test("asking again about the same home explains a Quote is on its way", async ({
+  test("asking again about the same home is thanked, and the inbox told a Quote is on its way", async ({
     page,
   }) => {
     await openQuoteForm(page);
@@ -306,16 +306,19 @@ test.describe("requesting a Quote", () => {
     await fillIn(page);
     await page.getByRole("button", { name: "Request a Quote" }).click();
 
+    // anyone could have typed it, so the page says what it says to anyone,
+    // and only the Client's inbox why (#243)
     await expect(
-      page.getByText(
-        "You've already asked us for a Quote for this home. We'll email it to casey@example.com soon.",
-      ),
+      page.getByText("Thanks, we've got your request"),
     ).toBeVisible();
-    // the form stays, nothing was sent twice
-    await expect(
-      page.getByRole("textbox", { name: "Full name" }),
-    ).toBeVisible();
-    expect(await emailsTo("casey@example.com")).toHaveLength(1);
+    const mail = await emailsTo("casey@example.com");
+    expect(mail.map((m) => m.subject)).toEqual([
+      "We've received your request for a Quote",
+      "About your request for a Quote",
+    ]);
+    expect(mail[1]!.text).toContain(
+      "You've already asked us for a Quote for 41-12 Austin St, 11375.",
+    );
   });
 
   test("extras are offered by name, with no prices, and can be chosen", async ({

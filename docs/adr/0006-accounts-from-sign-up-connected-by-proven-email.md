@@ -15,6 +15,7 @@ We first created Accounts on people's behalf (with the Quote Request, by invitat
 - Quote emails link to the Quote's page and carry no sign-in power. A signed-in browser shows the Quote; otherwise the person signs in and returns to it. This replaces ADR-0002's "every Quote email carries a link that signs them in straight to that Quote".
 - One Account may be connected to both a Client and Staff.
 - Roles live on the Staff record, not the Account. Being a Client comes from the connection to a Client.
-- A Guest's Quote Request with an existing Client's email is added to that Client without changing their details.
+- A Guest's Quote Request with an existing Client's email is added to that Client without changing their details, or those of a Property it names (#243): a Condition or rooms it states stay on the Quote, for Office Staff to record. Only the signed-in Client restates a home's Condition, or gives rooms it lacks. The Office reviews every Quote, so junk costs little, and asking again needs no step.
+- A Guest whose Quote Request can't go ahead, because that Client has a Quote open there or the address is the other kind of Property, gets the same reply as anyone, and the Client's own address is told why (#243). The reply mustn't show what an email has at an address.
 - A Client's own change of email is held back until they open a link sent to the new address, and their Client keeps the old one until then (#243). Otherwise anyone could claim an address they don't own, and with it every Quote Request later made from it. Office Staff's corrections still take effect at once.
 - Without self-service merging, someone who signs up with a different email from their Quote Request needs Office Staff to correct the Client's email.

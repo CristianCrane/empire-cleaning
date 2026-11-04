@@ -7,6 +7,7 @@ import type {
 } from "@empire-cleaning/models";
 import { signIn } from "../../../tests/harness.ts";
 import {
+  casey,
   completedFirstClean,
   guestAsk,
   setService,
@@ -24,6 +25,13 @@ const nextMonday = { date: "2026-01-12", time: "09:00" };
 
 const ask = async (serviceKey?: string) =>
   (await submit(guestAsk({ serviceKey })).expect(201)).body.id as string;
+
+// asking again as the signed-in Client, who is told why it's refused (a
+// Guest isn't, #243)
+const askAgain = async () => {
+  const { contact: _, ...ask } = guestAsk();
+  return submit(ask, await signIn(casey.email));
+};
 
 const startDraft = async (office: Agent, quoteId: string) =>
   (await office.post(`/api/quotes/${quoteId}/revisions`).send({}).expect(201))
@@ -115,7 +123,8 @@ describe("open Quotes at one Property", () => {
     await ask();
     await ask(SEEDED.moveInOut);
 
-    const again = await submit(guestAsk()).expect(409);
+    const again = await askAgain();
+    expect(again.status).toBe(409);
     expect(again.body.message).toMatch(/already asked us for a Quote/);
   });
 
@@ -130,7 +139,8 @@ describe("open Quotes at one Property", () => {
     expect((plan.body as OfficeQuote).kind).toBe("service_plan");
 
     // a Standard Clean can, and the plan's Quote is open
-    const refused = await submit(guestAsk()).expect(409);
+    const refused = await askAgain();
+    expect(refused.status).toBe(409);
     expect(refused.body.message).toMatch(/already asked us for a Quote/);
   });
 

@@ -38,7 +38,11 @@ import {
   officeSubmission,
 } from "./asking.validation.ts";
 import { officeStaffEmails } from "../staff/staff.ts";
-import { quoteReceivedEmail, quoteRequestedEmail } from "./emails.ts";
+import {
+  askClashEmail,
+  quoteReceivedEmail,
+  quoteRequestedEmail,
+} from "./emails.ts";
 import { openAlongside } from "./quotes.ts";
 import { quoteAddOns, quotes, type Quote } from "./quotes.schema.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
@@ -49,10 +53,10 @@ const parse = <T>(schema: z.ZodType<T>, body: unknown): T => {
   return result.data;
 };
 
-// who the Quote is for (ADR-0006), whether it may give them a business
-// name they lack, and where a Guest asked from:
-// - a Guest: the Client with their email, whose details a Guest never
-//   changes, or a new Client (no Account)
+// who the Quote is for (ADR-0006), whether it's `trusted` to fill in or
+// restate their details, and where a Guest asked from:
+// - a Guest: the Client with their email, whose details, and Properties',
+//   a Guest never changes (#243), or a new Client (no Account)
 // - a signed-in Client: themselves
 // - a signed-in Account connected to no Client: a new Client with the
 //   Account's proven email, connected straight away
@@ -81,7 +85,7 @@ const clientFor = async (caller: SignedInAccount | null, body: unknown) => {
     return {
       client,
       submission,
-      mayNameBusiness: false,
+      trusted: false,
       source: submission.source ?? null,
     };
   }
@@ -91,7 +95,7 @@ const clientFor = async (caller: SignedInAccount | null, body: unknown) => {
     return {
       client: own,
       submission: parse(clientSubmission, body),
-      mayNameBusiness: true,
+      trusted: true,
       source: null,
     };
   }
@@ -104,7 +108,7 @@ const clientFor = async (caller: SignedInAccount | null, body: unknown) => {
       email: caller.email,
       businessName: businessNameOf(submission),
     }));
-  return { client, submission, mayNameBusiness: true, source: null };
+  return { client, submission, trusted: true, source: null };
 };
 
 // the business name an ask for new business premises gives
@@ -179,17 +183,24 @@ export const askForQuote = async (
   body: unknown,
 ): Promise<QuoteAskReceipt> => {
   if (!caller && filledHoneypot(body)) return pretendReceipt(body);
-  const { client, submission, mayNameBusiness, source } = await clientFor(
-    caller,
-    body,
-  );
-  const { property, quote, serviceName } = await recordAsk(
-    client,
-    submission,
-    null,
-    mayNameBusiness,
-    source,
-  );
+  const { client, submission, trusted, source } = await clientFor(caller, body);
+  const recorded = await recordAsk(client, submission, null, trusted, source);
+  if ("clash" in recorded) {
+    if (caller) {
+      throw new ConflictError(clashMessage(recorded.clash, client, null));
+    }
+    // a Guest is told what anyone would be, so the reply can't show what a
+    // Client has at an address; the Client hears why, at their own (#243)
+    try {
+      await tellOfClash(client, recorded.clash);
+    } catch (error) {
+      monitoring.error(error, {
+        what: `clash not told to Client ${client.id}`,
+      });
+    }
+    return { id: crypto.randomUUID(), emailedTo: client.email! };
+  }
+  const { property, quote, serviceName } = recorded;
 
   // the Quote is saved: a receipt that can't be sent mustn't make it look as
   // though it wasn't
@@ -235,8 +246,11 @@ export const enterCallerAsk = async (enteredBy: string, body: unknown) => {
         businessName: businessNameOf(submission),
       }));
   }
-  const { quote } = await recordAsk(client, submission, enteredBy, true);
-  return quote;
+  const recorded = await recordAsk(client, submission, enteredBy, true);
+  if ("clash" in recorded) {
+    throw new ConflictError(clashMessage(recorded.clash, client, enteredBy));
+  }
+  return recorded.quote;
 };
 
 type Submission = z.infer<typeof clientSubmission>;
@@ -244,6 +258,30 @@ type Submission = z.infer<typeof clientSubmission>;
 // "this home" or "these premises", as the Client or the Office would say it
 const thisPlace = (kind: Property["kind"]) =>
   kind === "commercial" ? "these premises" : "this home";
+
+// Why an ask can't go ahead at a Property the Client already has: it's the
+// other kind of Property, or a Quote that holds the Service is open there,
+// `asked` for or already `sent`
+type Clash = { property: Property; why: "otherKind" | "asked" | "sent" };
+
+// a clash, as the reply tells it to the signed-in Client, or to Office Staff
+// entering a caller's ask (`enteredBy`)
+const clashMessage = (
+  { property, why }: Clash,
+  client: Client,
+  enteredBy: string | null,
+) => {
+  const place = thisPlace(property.kind);
+  if (why === "otherKind") {
+    return `${addressOf(property)} is already ${enteredBy ? "their" : "your"} ${property.kind === "commercial" ? "business premises" : "home"}: choose it from the list to ask about it.`;
+  }
+  if (enteredBy) {
+    return `${place[0]!.toUpperCase()}${place.slice(1)} ${property.kind === "commercial" ? "have" : "has"} a Quote open already: carry on with that one.`;
+  }
+  return why === "sent"
+    ? `We've sent you a Quote for ${place} already: you'll find it in your account.`
+    : `You've already asked us for a Quote for ${place}. We'll email it to ${client.email} soon.`;
+};
 
 // The Service asked for, which must be on offer for the kind of Property
 const askedService = (all: Service[], kind: Property["kind"], key: string) => {
@@ -302,17 +340,22 @@ const conditionOf = (
 // address is one Property, and a Requested Quote counts as an open one-off
 // Quote for its Service and, if that can recur, as an open Service Plan
 // Quote, so it can't be asked for while the Property has one of those open
-// (ADR-0018). Done under a lock on the Property so two asks at once can't
-// both get in. A business that has no business name yet is given the one
-// asked with, where `mayNameBusiness`. A Guest's says where on the landing
-// site they asked from (`source`).
+// (ADR-0018); that, or an address that's the other kind of Property, is the
+// clash returned instead. Done under a lock on the Property so two asks at
+// once can't both get in. Only a `trusted` ask, from the signed-in Client or
+// the Office, changes what the Client has: it names a business that has no
+// name yet, restates a home's Condition and gives a home without them its
+// rooms; a Guest's leaves them on the Quote (#243). A Guest's says where on
+// the landing site they asked from (`source`).
 const recordAsk = async (
   client: Client,
   submission: Submission,
   enteredBy: string | null,
-  mayNameBusiness: boolean,
+  trusted: boolean,
   source: QuoteSource | null = null,
-) => {
+): Promise<
+  { property: Property; quote: Quote; serviceName: string } | { clash: Clash }
+> => {
   const [list, all] = await Promise.all([
     currentPriceList(),
     currentServices(),
@@ -390,18 +433,16 @@ const recordAsk = async (
           .for("update")
       )[0];
       if (property!.kind !== place.kind) {
-        throw new ConflictError(
-          `${addressOf(property!)} is already ${enteredBy ? "their" : "your"} ${property!.kind === "commercial" ? "business premises" : "home"}: choose it from the list to ask about it.`,
-        );
+        return { clash: { property: property!, why: "otherKind" } };
       }
     }
 
     const service = askedService(all, property!.kind, submission.serviceKey);
     const condition = conditionOf(property!.kind, service, submission);
+    const { given, at } = roomsGiven(submission);
     if (!isNew) {
       // a home without its rooms gives them now, if it's asked about for a
       // Service priced from them
-      const { given, at } = roomsGiven(submission);
       const lacksRooms =
         property!.kind === "residential" && property!.bedrooms === null;
       const problems = [
@@ -424,21 +465,20 @@ const recordAsk = async (
         all,
       );
       if (open.length > 0) {
-        const place = thisPlace(property!.kind);
-        throw new ConflictError(
-          enteredBy
-            ? `${place[0]!.toUpperCase()}${place.slice(1)} ${property!.kind === "commercial" ? "have" : "has"} a Quote open already: carry on with that one.`
-            : open.includes("sent")
-              ? `We've sent you a Quote for ${place} already: you'll find it in your account.`
-              : `You've already asked us for a Quote for ${place}. We'll email it to ${client.email} soon.`,
-        );
+        return {
+          clash: {
+            property: property!,
+            why: open.includes("sent") ? "sent" : "asked",
+          },
+        };
       }
 
       // a home's Condition stated now is the latest known; its other details
       // stay as first given, because only the Office changes those, except
-      // rooms it never had
+      // rooms it never had. A Guest could be anyone, so theirs stay on the
+      // Quote
       const rooms = lacksRooms ? roomsOf(given) : null;
-      if (condition || rooms) {
+      if (trusted && (condition || rooms)) {
         [property] = await tx
           .update(properties)
           .set({ ...(condition && { condition }), ...rooms })
@@ -451,7 +491,7 @@ const recordAsk = async (
       property!.kind === "commercial" &&
       submission.businessName &&
       !client.businessName &&
-      mayNameBusiness
+      trusted
     ) {
       await tx
         .update(clients)
@@ -471,6 +511,7 @@ const recordAsk = async (
         serviceKey: service.key,
         askedServiceKey: service.key,
         condition,
+        rooms: property!.kind === "residential" ? roomsOf(given) : null,
         wantsRegularService: regular,
         // a business's days and time, for regular cleaning
         weekdays:
@@ -518,6 +559,20 @@ const tellOffice = async (
   for (const to of await officeStaffEmails()) {
     await email.send({ to, ...notice });
   }
+};
+
+const tellOfClash = async (client: Client, { property, why }: Clash) => {
+  if (!client.email) return;
+  await email.send({
+    to: client.email,
+    ...askClashEmail({
+      name: client.name,
+      email: client.email,
+      address: addressOf(property),
+      kind: property.kind,
+      why,
+    }),
+  });
 };
 
 const sendReceipt = async (

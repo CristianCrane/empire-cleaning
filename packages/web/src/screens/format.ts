@@ -2,6 +2,7 @@ import type {
   AdjustmentKind,
   ClientName,
   Condition,
+  HomeRooms,
   PlanDaySummary,
   PropertyView,
   QuoteSummary,
@@ -56,6 +57,16 @@ export const propertySummary = (p: PropertyView) =>
               plural(p.bathrooms!, "bathroom"),
             ]),
       ].join(" · ");
+
+// a home's rooms in full, as a Client gives them: "2 bedrooms, 1.5
+// bathrooms, 1 storey, pets"
+export const roomsText = (r: HomeRooms) =>
+  [
+    r.bedrooms === 0 ? "a studio" : plural(r.bedrooms, "bedroom"),
+    plural(r.bathrooms, "bathroom"),
+    plural(r.storeys, "storey"),
+    r.pets ? "pets" : "no pets",
+  ].join(", ");
 
 // a Client as the Office names them: "Acme Dental (Casey Client)" for a
 // business, else just the person

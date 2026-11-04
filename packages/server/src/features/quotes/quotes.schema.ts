@@ -16,7 +16,7 @@ import {
   uuid,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
-import type { PriceBreakdown } from "@empire-cleaning/models";
+import type { HomeRooms, PriceBreakdown } from "@empire-cleaning/models";
 import { timestamps } from "../../db/index.ts";
 import { accounts } from "../auth/auth.schema.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
@@ -86,12 +86,15 @@ export const quotes = pgTable(
 
     // what was asked, as the Client (or the caller) said it; nothing on a
     // Quote the Office offered unprompted. A home's Condition; a business
-    // states none (a Site Visit finds it). A home may ask the Office to
+    // states none (a Site Visit finds it). A home's rooms, where given (only
+    // a signed-in Client's or the Office's ask records them on a home
+    // without them, ADR-0006). A home may ask the Office to
     // follow up with a Service Plan after the First Clean; business premises
     // wanting regular cleaning ask for `weekdays` (0 is Monday), starting
     // around `preferredTime` ("08:00"). The Add-ons are quote_add_ons.
     askedServiceKey: uuid("asked_service_key"),
     condition: condition("condition"),
+    rooms: jsonb("rooms").$type<HomeRooms>(),
     wantsRegularService: boolean("wants_regular_service")
       .notNull()
       .default(false),

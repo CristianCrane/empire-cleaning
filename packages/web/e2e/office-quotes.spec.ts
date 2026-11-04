@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test";
+import { apiUrl } from "../playwright.config.ts";
 import {
   createStaff,
   emailsTo,
@@ -6,6 +7,7 @@ import {
   expectAccessible,
   requestQuoteAsGuest,
   requestQuoteForPremises,
+  serviceKey,
   signedInAs,
   test,
 } from "./harness.ts";
@@ -140,6 +142,53 @@ test(
         .getByRole("link", { name: "35-06 Ditmars Blvd, 11105" }),
     ).toBeVisible();
     expect(await emailsTo(casey.email)).toHaveLength(sent);
+  },
+);
+
+test(
+  "a Guest's ask leaves a home as it is, and the Office sees what they said",
+  { tag: "@desktop" },
+  async ({ page }) => {
+    // asked about first for Painting, which isn't priced from rooms, the
+    // home has none recorded
+    const painting = await fetch(`${apiUrl}/api/quotes/ask`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        contact: { ...casey, phone: "(646) 555-0100" },
+        property: {
+          new: {
+            kind: "residential",
+            type: "apartment",
+            street: "41-12 Austin St",
+            unit: "4B",
+            postcode: "11375",
+          },
+        },
+        serviceKey: await serviceKey("Painting"),
+        wantsRegularService: false,
+      }),
+    });
+    expect(painting.status).toBe(201);
+    // anyone can type Casey's email and address (#243)
+    await requestQuoteAsGuest(casey);
+    await createStaff(olive);
+    await signedInAs(page, olive.email);
+    await page.goto("/office/quotes");
+
+    await page
+      .getByRole("grid", { name: "Open Quotes" })
+      .getByRole("row")
+      .filter({ hasText: "Standard Clean" })
+      .click();
+
+    await expect(page.getByText("(the Client said moderate)")).toBeVisible();
+    await expect(
+      page.getByText(
+        "(the Client said 2 bedrooms, 1.5 bathrooms, 1 storey, no pets)",
+      ),
+    ).toBeVisible();
+    await expectAccessible(page);
   },
 );
 
