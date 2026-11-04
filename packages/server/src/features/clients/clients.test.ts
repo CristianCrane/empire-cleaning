@@ -449,4 +449,18 @@ describe("a Client changing their email", () => {
     expect(refused.status).toBe(429);
     expect(testEmail().to(dana)).toHaveLength(6);
   });
+
+  test("the whole site sends 20 links an hour, whoever they're to", async () => {
+    // anyone can become a Client by asking for a Quote (#243)
+    limitedAs("prod");
+    const agent = await asCasey();
+    for (let i = 0; i < 20; i++) {
+      await changeEmail(agent, `person${i}@example.com`).expect(200);
+    }
+
+    const refused = await changeEmail(agent, dana);
+
+    expect(refused.status).toBe(429);
+    expect(testEmail().to(dana)).toHaveLength(0);
+  });
 });

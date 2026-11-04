@@ -1,18 +1,32 @@
 import { business } from "@empire-cleaning/models";
 import { clock } from "#services/clock";
+import { monitoring } from "#services/monitoring";
 import env, { type Env } from "../../env.ts";
 
 // How often an open form may email one address (#32), so no one's inbox is
-// flooded through us. Per email address, never per network address: behind
-// Render that comes from a header whose handling isn't documented
+// flooded through us, and how often the whole site may, so a script typing
+// thousands of addresses can't use up the email quota and stop real links,
+// receipts and reminders (#243). Per email address, never per network
+// address: behind Render that comes from a header whose handling isn't
+// documented. The site-wide caps are well above a busy hour's real use
 const LIMITS = {
-  signInLink: { tries: 6, minutes: 15 },
-  guestQuoteRequest: { tries: 6, minutes: 24 * 60 },
+  signInLink: {
+    perInbox: { tries: 6, minutes: 15 },
+    siteWide: { tries: 100, minutes: 60 },
+  },
+  guestQuoteRequest: {
+    perInbox: { tries: 6, minutes: 24 * 60 },
+    siteWide: { tries: 30, minutes: 60 },
+  },
   // a Client's link to confirm a new email (#243)
-  emailChange: { tries: 6, minutes: 24 * 60 },
-} as const satisfies Record<string, Limit>;
+  emailChange: {
+    perInbox: { tries: 6, minutes: 24 * 60 },
+    siteWide: { tries: 20, minutes: 60 },
+  },
+} as const satisfies Record<string, Limits>;
 
 type Limit = { tries: number; minutes: number };
+type Limits = { perInbox: Limit; siteWide: Limit };
 export type LimitName = keyof typeof LIMITS;
 
 type Verdict =
@@ -23,36 +37,59 @@ export interface RateLimiter {
   attempt(name: LimitName, key: string): Verdict;
 }
 
-// counts in memory: there is one server process (ADR-0020)
+// counts in memory: there is one server process (ADR-0020), and a deploy
+// starting the counts afresh is rare enough
 class MemoryRateLimiter implements RateLimiter {
   private readonly tries = new Map<string, number[]>();
   private sweptAt = 0;
+  // when each site-wide cap was last said to be reached
+  private readonly toldAt = new Map<LimitName, number>();
 
-  private readonly limits: Record<LimitName, Limit>;
+  private readonly limits: Record<LimitName, Limits>;
 
-  constructor(limits: Record<LimitName, Limit>) {
+  constructor(limits: Record<LimitName, Limits>) {
     this.limits = limits;
   }
 
   attempt(name: LimitName, key: string): Verdict {
-    const { tries, minutes } = this.limits[name];
-    const window = minutes * 60_000;
+    const { perInbox, siteWide } = this.limits[name];
     const now = clock.now().getTime();
     this.sweep(now);
 
-    const id = `${name}:${key}`;
-    const recent = (this.tries.get(id) ?? []).filter((at) => at > now - window);
-    // a refused try isn't counted, so the wait ends when the oldest try
-    // leaves the window, however often they press
-    if (recent.length >= tries) {
-      this.tries.set(id, recent);
-      return {
-        allowed: false,
-        retryAfterSeconds: Math.ceil((recent[0]! + window - now) / 1000),
-      };
+    // an inbox's key always has an @, so none is the whole site's
+    const mine = this.recent(`${name}:${key}`, perInbox, now);
+    const all = this.recent(`${name}:*`, siteWide, now);
+    // a refused try counts toward neither, so the wait ends when the oldest
+    // try leaves the window, however often they press
+    const wait = Math.max(mine.wait, all.wait);
+    if (wait > 0) {
+      if (all.wait > 0) this.tellCapReached(name, siteWide, now);
+      return { allowed: false, retryAfterSeconds: Math.ceil(wait / 1000) };
     }
-    this.tries.set(id, [...recent, now]);
+    mine.count(now);
+    all.count(now);
     return { allowed: true };
+  }
+
+  // the tries at `id` still within the limit's window, how long until
+  // another is allowed (0 if it is now), and a way to count one
+  private recent(id: string, { tries, minutes }: Limit, now: number) {
+    const window = minutes * 60_000;
+    const recent = (this.tries.get(id) ?? []).filter((at) => at > now - window);
+    this.tries.set(id, recent);
+    return {
+      wait: recent.length >= tries ? recent[0]! + window - now : 0,
+      count: (at: number) => recent.push(at),
+    };
+  }
+
+  // real people are being turned away, so it's urgent, but once a window is
+  // enough: a flood mustn't use up the monitoring quota too
+  private tellCapReached(name: LimitName, { minutes }: Limit, now: number) {
+    const told = this.toldAt.get(name);
+    if (told !== undefined && now - told < minutes * 60_000) return;
+    this.toldAt.set(name, now);
+    monitoring.signal("rate_cap_reached", { limit: name });
   }
 
   // forgets, once a minute, whoever hasn't tried within the longest window
@@ -60,9 +97,14 @@ class MemoryRateLimiter implements RateLimiter {
     if (now - this.sweptAt < 60_000) return;
     this.sweptAt = now;
     const longest =
-      Math.max(...Object.values(this.limits).map((l) => l.minutes)) * 60_000;
+      Math.max(
+        ...Object.values(this.limits).flatMap((l) => [
+          l.perInbox.minutes,
+          l.siteWide.minutes,
+        ]),
+      ) * 60_000;
     for (const [id, tries] of this.tries) {
-      if (tries.at(-1)! <= now - longest) this.tries.delete(id);
+      if ((tries.at(-1) ?? 0) <= now - longest) this.tries.delete(id);
     }
   }
 }

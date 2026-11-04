@@ -6,6 +6,7 @@ import {
   signIn,
   testClock,
   testEmail,
+  testMonitoring,
 } from "../../../tests/harness.ts";
 import {
   casey,
@@ -92,6 +93,47 @@ describe("sign-in links (#32)", () => {
     }
   });
 
+  test("the whole site gets 100 an hour, whoever they're for, and someone is told once", async () => {
+    // a script asking for links to thousands of addresses would use up the
+    // email quota, and real links, receipts and reminders would stop (#243)
+    limitedAs("prod");
+    for (let i = 0; i < 100; i++) {
+      await askForLink(`person${i}@example.com`).expect(200);
+    }
+    testClock().advance({ minutes: 10 });
+
+    const refused = await askForLink("casey@example.com");
+    await askForLink("robin@example.com").expect(429);
+
+    expect(refused.status).toBe(429);
+    expect(refused.headers["retry-after"]).toBe(String(50 * 60));
+    expect(refused.body.message).toBe(
+      "Too many tries. Please try again in 50 minutes, or call us on (646) 320-9076.",
+    );
+    expect(testEmail().to("casey@example.com")).toHaveLength(0);
+    // real people are being turned away: that's urgent, but once is enough
+    expect(testMonitoring().signalled("rate_cap_reached")).toEqual([
+      {
+        name: "rate_cap_reached",
+        urgency: "urgent",
+        context: { limit: "signInLink" },
+      },
+    ]);
+
+    testClock().advance({ minutes: 50 });
+    await askForLink("casey@example.com").expect(200);
+  });
+
+  test("a refused try counts toward neither its inbox nor the site", async () => {
+    limitedAs("prod");
+    for (let i = 0; i < 6; i++) await askForLink("casey@example.com");
+    for (let i = 0; i < 100; i++) {
+      await askForLink("casey@example.com").expect(429);
+    }
+
+    await askForLink("robin@example.com").expect(200);
+  });
+
   test("Better Auth's own limits stay off, whatever NODE_ENV says", () => {
     // they count per network address, which behind Render it can't tell apart
     expect(auth.options.rateLimit?.enabled).toBe(false);
@@ -124,6 +166,22 @@ describe("Guest Quote Requests (#32)", () => {
     await askAboutNewHome().expect(429);
 
     await askAboutNewHome("robin@example.com").expect(201);
+  });
+
+  test("the whole site gets 30 an hour, whoever they're from", async () => {
+    limitedAs("prod");
+    for (let i = 0; i < 30; i++) {
+      await askAboutNewHome(`person${i}@example.com`).expect(201);
+    }
+
+    const refused = await askAboutNewHome();
+
+    expect(refused.status).toBe(429);
+    expect(refused.headers["retry-after"]).toBe(String(60 * 60));
+    expect(testEmail().to(casey.email)).toHaveLength(0);
+    expect(testMonitoring().signalled("rate_cap_reached")).toHaveLength(1);
+    testClock().advance({ hours: 1 });
+    await askAboutNewHome().expect(201);
   });
 
   test("the test site has no limit", async () => {

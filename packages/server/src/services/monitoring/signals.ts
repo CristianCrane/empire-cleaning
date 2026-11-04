@@ -13,6 +13,9 @@ const SIGNALS = {
   heartbeat_missed: "urgent",
   // a Client disputed a Charge with their bank, which has a deadline to answer
   dispute_opened: "urgent",
+  // a site-wide cap on emails to typed addresses was reached, so real
+  // people are being refused sign-in links or Quote Requests (#243)
+  rate_cap_reached: "urgent",
   // the email service refused a message or was unreachable
   email_send_failed: "in_bulk",
   // a Client's card was declined
