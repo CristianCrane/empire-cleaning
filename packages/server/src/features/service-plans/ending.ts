@@ -3,14 +3,16 @@ import type { EndPlanTerms } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock } from "../../services/clock/index.ts";
-import { email } from "../../services/email/index.ts";
+import { email, notify } from "../../services/email/index.ts";
 import {
   CANCELLATION_CUTOFF_HOURS,
+  freeUntilOf,
   tellCrew,
 } from "../cancellation/cancellation.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { settleAfterChange, type Settled } from "../completion/balance.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
+import { closePendingRequests } from "../reschedule/closing.ts";
 import { charges } from "../payments/payments.schema.ts";
 import { properties } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
@@ -21,9 +23,6 @@ import {
   servicePlanVisits,
   type ServicePlan,
 } from "./service-plans.schema.ts";
-import { monitoring } from "../../services/monitoring/index.ts";
-
-const HOUR_MS = 3_600_000;
 
 // a plan's Jobs, latest first
 const jobsOf = async (tx: Tx | typeof db, planId: string) =>
@@ -45,17 +44,16 @@ const heldDepositOf = async (tx: Tx | typeof db, planId: string) => {
   return row?.cents ?? 0;
 };
 
-// What Ending does to the plan's Jobs, by the Clock: the booked ones more
-// than 24 hours out are cancelled, as skipping them would be free; the rest
+// What Ending does to the plan's Jobs, by the Clock: the booked ones 24
+// hours or more out are cancelled, as skipping them would be free (and so
+// are those booked later than that, freeUntilOf); the rest
 // go ahead. The final Job is the latest that goes ahead or has happened, a
 // fee counting as having happened, so the Deposit pays what's owed first;
 // or failing that the latest of all: a plan always has its first.
 const planOf = (planJobs: Job[]) => {
   const now = clock.now().getTime();
   const cancelled = planJobs.filter(
-    (j) =>
-      j.status === "booked" &&
-      j.startsAt.getTime() - CANCELLATION_CUTOFF_HOURS * HOUR_MS > now,
+    (j) => j.status === "booked" && freeUntilOf(j, true).getTime() >= now,
   );
   const goingAhead = planJobs.filter(
     (j) => j.status === "booked" && !cancelled.includes(j),
@@ -172,6 +170,10 @@ export const endServicePlan = async (planId: string, ending: Ending) => {
         })
         .where(eq(jobs.id, job.id));
     }
+    await closePendingRequests(
+      tx,
+      what.cancelled.map((j) => j.id),
+    );
     await tx
       .update(charges)
       .set({ jobId: what.finalJob.id, servicePlanId: null })
@@ -192,16 +194,6 @@ export const endServicePlan = async (planId: string, ending: Ending) => {
   for (const job of ended.cancelled) await tellCrew(job);
   await tellClient(ended.plan, ended.terms, settled);
   if (ending.byClient) await tellOffice(ended.plan, ended.terms);
-};
-
-// emails go out after the change is saved; one that fails is logged, and the
-// change stands
-const notify = async (what: string, send: () => Promise<void>) => {
-  try {
-    await send();
-  } catch (error) {
-    monitoring.error(error, { what: `${what} not sent` });
-  }
 };
 
 const ownerOf = async (plan: ServicePlan) => {

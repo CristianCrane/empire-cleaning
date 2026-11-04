@@ -1,8 +1,10 @@
 import type { EndPlanTerms } from "@empire-cleaning/models";
 import {
   button,
+  cleanDetails,
   greeting,
   paragraph,
+  type Clean,
   type Email,
 } from "../../services/email/blocks.ts";
 import {
@@ -14,6 +16,39 @@ import type { Settled } from "../completion/balance.ts";
 
 const whenList = (times: string[]) =>
   times.map((t) => formatWhen(new Date(t))).join("; ");
+
+// to the Client, when one of their plan's cleans is booked too late for the
+// day-before reminder (#242)
+export const planCleanBookedEmail = ({
+  name,
+  jobId,
+  clean,
+  freeToSkip,
+}: {
+  name: string;
+  jobId: string;
+  clean: Clean;
+  // booked less than 24 hours before it
+  freeToSkip: boolean;
+}): Email => ({
+  subject: "Your next clean is booked",
+  blocks: [
+    greeting(firstNameOf(name)),
+    paragraph("Your Service Plan's next clean is booked."),
+    cleanDetails(clean),
+    ...(freeToSkip
+      ? [
+          paragraph(
+            "It was booked less than a day ahead, so you can skip it for free.",
+          ),
+        ]
+      : []),
+    paragraph(
+      "Please make sure our team can get in. If anything has changed, such as a gate code or where the key is, update your Access Instructions.",
+    ),
+    button("See your clean", `/portal/jobs/${jobId}`),
+  ],
+});
 
 export const planEndedEmail = ({
   name,

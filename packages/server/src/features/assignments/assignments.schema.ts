@@ -23,7 +23,8 @@ export const assignmentStatus = pgEnum("assignment_status", [
 // Office Staff to a named Cleaner, or Confirmed at once by a Cleaner taking
 // an Open Place (ADR-0019). Offered until they Confirm or Release it; a
 // Released one is kept so the Office can see who let a place go, and frees
-// that place. Office Staff removing someone deletes their row instead.
+// that place. Office Staff taking someone off Releases it for them, so its
+// Open Place isn't open to them either (#242).
 export const assignments = pgTable(
   "assignments",
   {
@@ -39,6 +40,8 @@ export const assignments = pgTable(
     offeredAt: timestamp("offered_at", { withTimezone: true }).notNull(),
     // when it was Confirmed or Released
     answeredAt: timestamp("answered_at", { withTimezone: true }),
+    // when Office Staff took them off, Releasing it
+    takenOffAt: timestamp("taken_off_at", { withTimezone: true }),
     ...timestamps,
   },
   (t) => [

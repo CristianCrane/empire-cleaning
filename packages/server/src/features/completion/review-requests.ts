@@ -31,7 +31,7 @@ const REVIEW_REQUEST_WITHIN_DAYS = 7;
  * server: each Client is claimed before their email goes, and let go again
  * if the email fails, so the next run tries again.
  *
- * Nothing calls this but the timer in src/index.ts (and tests).
+ * Nothing calls this but the timer in src/scheduler.ts (and tests).
  */
 export const sendDueReviewRequests = async (
   reviewUrl = env.GOOGLE_REVIEW_URL,

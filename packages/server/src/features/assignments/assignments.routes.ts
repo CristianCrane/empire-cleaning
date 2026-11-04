@@ -81,6 +81,9 @@ const cleaner = async (res: Response) => {
 };
 
 const assignment = z.object({ id: z.uuid() });
+// the Job's time the Cleaner was shown, so a Job moved meanwhile isn't
+// taken at a time they never saw (#242)
+const seenSchema = z.object({ startsAt: z.iso.datetime() });
 
 // their Jobs today and to come, soonest first
 router.get("/mine", async (_req, res) => {
@@ -103,10 +106,14 @@ router.get("/open/:id", validate({ params: job }), async (req, res) => {
 
 router.post(
   "/open/:id/confirm",
-  validate({ params: job }),
+  validate({ params: job, body: seenSchema }),
   async (req, res) => {
     const { id } = await cleaner(res);
-    await confirmOpenPlace(id, String(req.params.id));
+    await confirmOpenPlace(
+      id,
+      String(req.params.id),
+      new Date(req.body.startsAt),
+    );
     res.json(await jobAssignedTo(id, String(req.params.id)));
   },
 );
@@ -118,10 +125,14 @@ router.post("/open/:id/pass", validate({ params: job }), async (req, res) => {
 
 router.post(
   "/:id/confirm",
-  validate({ params: assignment }),
+  validate({ params: assignment, body: seenSchema }),
   async (req, res) => {
     res.json(
-      await confirmAssignment((await cleaner(res)).id, String(req.params.id)),
+      await confirmAssignment(
+        (await cleaner(res)).id,
+        String(req.params.id),
+        new Date(req.body.startsAt),
+      ),
     );
   },
 );

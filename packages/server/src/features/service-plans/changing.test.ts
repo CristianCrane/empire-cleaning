@@ -270,6 +270,92 @@ describe("accepting a Service Plan Quote for a home with a plan", () => {
     ]);
   });
 
+  test("starting beyond the 28 days booked, keeps booking the old terms up to its start (#242)", async () => {
+    const { office, client, planId } = await crewedServicePlan();
+    const quote = await sentChange(office, planId, {
+      startsAt: "2026-03-04T14:00:00.000Z",
+      recurrence: "weekly",
+    });
+    await accept(client, quote.id);
+
+    testClock().set(new Date("2026-02-14T17:00:00Z"));
+    await generateServicePlanJobs();
+
+    // Mondays up to the change, then Wednesdays up to 28 days ahead (New
+    // York is on daylight saving time from 8 March)
+    expect(startsOf(await officePlan(office, planId))).toEqual([
+      ...MONDAYS,
+      "2026-02-16T14:00:00.000Z",
+      "2026-02-23T14:00:00.000Z",
+      "2026-03-02T14:00:00.000Z",
+      "2026-03-04T14:00:00.000Z",
+      "2026-03-11T13:00:00.000Z",
+    ]);
+  });
+
+  test("accepted while On Hold, books the old terms up to its start once it resumes (#242)", async () => {
+    const { office, client, planId } = await crewedServicePlan();
+    await db
+      .update(servicePlans)
+      .set({ status: "on_hold" })
+      .where(eq(servicePlans.id, planId));
+    const quote = await sentChange(office, planId, {
+      startsAt: "2026-03-04T14:00:00.000Z",
+      recurrence: "weekly",
+    });
+    await accept(client, quote.id);
+
+    testClock().set(new Date("2026-02-15T17:00:00Z"));
+    await db
+      .update(servicePlans)
+      .set({ status: "active" })
+      .where(eq(servicePlans.id, planId));
+    await generateServicePlanJobs();
+
+    expect(startsOf(await officePlan(office, planId))).toEqual([
+      ...MONDAYS,
+      "2026-02-16T14:00:00.000Z",
+      "2026-02-23T14:00:00.000Z",
+      "2026-03-02T14:00:00.000Z",
+      "2026-03-04T14:00:00.000Z",
+      "2026-03-11T13:00:00.000Z",
+    ]);
+  });
+
+  test("can take a time held for moving a Job it replaces, and closes that request (#242)", async () => {
+    const { office, client, planId } = await crewedServicePlan();
+    // only Cory works on Wednesday the 4th: room for one crew at a time
+    const staff = (await office.get("/api/staff").expect(200)).body as {
+      id: string;
+      email: string;
+    }[];
+    const bea = staff.find((s) => s.email === "bea@example.com")!;
+    await office
+      .put(`/api/staff/${bea.id}/exceptions/2026-02-04`)
+      .send({ hours: 0 })
+      .expect(200);
+    // Casey asks to move the 9 February clean to 9am on the 4th
+    const ninth = (await officePlan(office, planId)).jobs[3]!;
+    await client
+      .post(`/api/jobs/mine/${ninth.id}/reschedule-request`)
+      .send({ date: "2026-02-04", time: "09:00", cost: "free" })
+      .expect(201);
+
+    // new terms from 9am on the 4th replace the 9 February clean
+    const quote = await sentChange(office, planId, {
+      startsAt: "2026-02-04T14:00:00.000Z",
+      recurrence: "weekly",
+    });
+    expect((await accept(client, quote.id)).status).toBe("accepted");
+
+    expect(startsOf(await officePlan(office, planId))).toContain(
+      "2026-02-04T14:00:00.000Z",
+    );
+    const replaced = (await office.get(`/api/jobs/${ninth.id}`).expect(200))
+      .body;
+    expect(replaced.rescheduleRequest.status).toBe("closed");
+  });
+
   test("can be recorded by the Office, charging nothing", async () => {
     const { office, planId } = await crewedServicePlan();
     const quote = await sentChange(office, planId, {

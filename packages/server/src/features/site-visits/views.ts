@@ -1,6 +1,6 @@
 import { asc, eq, type SQL } from "drizzle-orm";
 import type { SiteVisitView } from "@empire-cleaning/models";
-import { db } from "../../db/index.ts";
+import { db, type Tx } from "../../db/index.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { properties } from "../properties/properties.schema.ts";
 import { staff } from "../staff/staff.schema.ts";
@@ -42,8 +42,9 @@ export const toSiteVisitView = (
 // without a visit last)
 export const siteVisitViews = async (
   where: SQL | undefined,
+  tx: Tx | typeof db = db,
 ): Promise<SiteVisitView[]> => {
-  const rows = await db
+  const rows = await tx
     .select({
       visit: siteVisits,
       property: properties,

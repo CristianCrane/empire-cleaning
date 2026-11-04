@@ -45,6 +45,30 @@ const end = (client: Agent, planId: string, goingAhead: string[]) =>
 const chargesAfterDeposit = () => testPayments().charges.slice(3);
 
 describe("Ending a Service Plan", () => {
+  test("exactly 24 hours before its next Job still cancels it free (ADR-0010)", async () => {
+    const { client, planId } = await crewedServicePlan();
+    testClock().set(new Date("2026-01-18T14:00:00Z"));
+
+    const { endTerms } = await clientPlan(client, planId);
+
+    expect(endTerms!.cancelled).toEqual(MONDAYS);
+    expect(endTerms!.goingAhead).toEqual([]);
+  });
+
+  test("closes a pending request to move one of its Jobs (#242)", async () => {
+    const { office, client, planId } = await crewedServicePlan();
+    const second = (await officePlan(office, planId)).jobs[1]!;
+    await client
+      .post(`/api/jobs/mine/${second.id}/reschedule-request`)
+      .send({ date: "2026-01-28", time: "10:00", cost: "free" })
+      .expect(201);
+
+    await end(client, planId, []).expect(200);
+
+    const job = (await office.get(`/api/jobs/${second.id}`).expect(200)).body;
+    expect(job.rescheduleRequest.status).toBe("closed");
+  });
+
   test("more than 24 hours before its next Job cancels them all free, and refunds the Deposit", async () => {
     const { office, client, planId } = await crewedServicePlan();
 

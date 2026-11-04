@@ -294,6 +294,7 @@ const holdForBooking = async (
         labourHours: clean.option.labourHours,
         crewSize: clean.crewSize,
       },
+      tx,
       change?.replaced.map((j) => j.id),
     );
     if (!hasRoom) return { unbookable: { reason: "no_room" } };

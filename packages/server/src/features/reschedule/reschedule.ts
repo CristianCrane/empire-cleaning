@@ -13,9 +13,10 @@ import {
   atTime,
   clock,
   dayOf,
+  HOUR_MS,
   timeOf,
 } from "../../services/clock/index.ts";
-import { email } from "../../services/email/index.ts";
+import { email, notify } from "../../services/email/index.ts";
 import { assignments } from "../assignments/assignments.schema.ts";
 import {
   emailOpenPlaces,
@@ -26,7 +27,14 @@ import { lateFeeOf, planOfJob } from "../cancellation/cancellation.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { lockDay } from "../jobs/jobs.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
-import { roomFor, roomOn, scheduleFor, whyNoRoom } from "../jobs/schedule.ts";
+import {
+  ENDS_BY_MIDNIGHT,
+  endsByMidnight,
+  roomFor,
+  roomOn,
+  scheduleFor,
+  whyNoRoom,
+} from "../jobs/schedule.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { warnOfficeOfQuotesWithoutRoom } from "../quotes/quote-room.ts";
 import { staff } from "../staff/staff.schema.ts";
@@ -45,12 +53,10 @@ import {
   rescheduleConfirmedEmail,
   rescheduleTurnedDownEmail,
 } from "./emails.ts";
-import { monitoring } from "../../services/monitoring/index.ts";
 
 // moving a Job is free until this long before it starts; after that it's a
 // Late Reschedule (ADR-0010)
 const LATE_RESCHEDULE_HOURS = 24;
-const HOUR_MS = 3_600_000;
 
 // a Job can be moved to a day from tomorrow up to this many days ahead
 const RESCHEDULE_DAYS_AHEAD = 56;
@@ -67,16 +73,6 @@ const START_TIMES = [
   "15:00",
   "16:00",
 ];
-
-// emails go out after the change is saved; one that fails is logged, and the
-// change stands
-const notify = async (what: string, send: () => Promise<void>) => {
-  try {
-    await send();
-  } catch (error) {
-    monitoring.error(error, { what: `${what} not sent` });
-  }
-};
 
 const freeUntilOf = (job: Pick<Job, "startsAt">) =>
   new Date(job.startsAt.getTime() - LATE_RESCHEDULE_HOURS * HOUR_MS);
@@ -98,7 +94,7 @@ const termsOf = async (
     feeCents,
     freeUntil: freeUntil.toISOString(),
   });
-  if (clock.now() < freeUntil) return terms("free");
+  if (clock.now() <= freeUntil) return terms("free");
 
   const [usedFree] = await tx
     .select({ id: rescheduleRequests.id })
@@ -187,11 +183,15 @@ const timesFor = (job: Job) =>
  * The times a booked Job can be moved to: days from tomorrow with room for
  * its Labour Hours, counting what other pending requests hold, each with the
  * start times on offer that have a crew free (#62). Its own day always has
- * the hours for it.
+ * the hours for it. None once it can't be moved, as rescheduleTermsOf has it.
  */
 export const rescheduleTimesFor = async (
   job: Job,
 ): Promise<RescheduleTimes> => {
+  if (job.status !== "booked" || job.startsAt <= clock.now()) {
+    return { days: [] };
+  }
+  if (await pendingOf(job.id)) return { days: [] };
   const { from, to } = bookableRange();
   const days = (await scheduleFor(from, to))
     .map((day) => ({
@@ -272,6 +272,9 @@ export const requestReschedule = async (
     if (startsAt.getTime() === job.startsAt.getTime()) {
       throw new ConflictError("That's when the clean is already booked");
     }
+    if (!endsByMidnight(startsAt, job.labourHours / job.crewSize)) {
+      throw new ConflictError(ENDS_BY_MIDNIGHT);
+    }
 
     const terms = await termsOf(job, tx);
     if (terms.cost !== asking.cost) {
@@ -285,12 +288,15 @@ export const requestReschedule = async (
     // the new time holds a crew, and on another day the hours, so two
     // requests (or a request and an acceptance) can't both take the last
     await lockDay(tx, to.date);
-    const { hasRoom } = await roomFor({
-      startsAt,
-      labourHours: job.labourHours,
-      crewSize: job.crewSize,
-      jobId,
-    });
+    const { hasRoom } = await roomFor(
+      {
+        startsAt,
+        labourHours: job.labourHours,
+        crewSize: job.crewSize,
+        jobId,
+      },
+      tx,
+    );
     if (!hasRoom) {
       throw new ConflictError(
         "That time has just filled up. Please choose another.",
@@ -448,12 +454,15 @@ export const confirmReschedule = async (jobId: string, byAccountId: string) => {
     }
     // what it held may no longer be enough: fewer Cleaners or hours that day
     await lockDay(tx, dayOf(pending.startsAt));
-    const room = await roomFor({
-      startsAt: pending.startsAt,
-      labourHours: job.labourHours,
-      crewSize: job.crewSize,
-      jobId,
-    });
+    const room = await roomFor(
+      {
+        startsAt: pending.startsAt,
+        labourHours: job.labourHours,
+        crewSize: job.crewSize,
+        jobId,
+      },
+      tx,
+    );
     if (!room.hasRoom) {
       throw new ConflictError(
         `${whyNoRoom(room)} Turn the request down, or give a Cleaner hours that day.`,
@@ -527,6 +536,7 @@ const moveTo = async (
   const free = await freeFor(
     holding.map((h) => h.staffId),
     { ...job, startsAt },
+    tx,
   );
   const kept = holding.filter((h) => free.has(h.staffId));
   const lost = holding.filter((h) => !free.has(h.staffId));
@@ -535,9 +545,12 @@ const moveTo = async (
       .update(assignments)
       .set({ status: "offered", offeredAt: clock.now(), answeredAt: null })
       .where(
-        inArray(
-          assignments.id,
-          kept.map((h) => h.id),
+        and(
+          inArray(
+            assignments.id,
+            kept.map((h) => h.id),
+          ),
+          inArray(assignments.status, ["offered", "confirmed"]),
         ),
       );
   }
@@ -639,12 +652,15 @@ export const moveJob = async (jobId: string, to: LocalDateTime) => {
     // as asking does, so a move and another booking can't both take a day's
     // last free hours or crew
     await lockDay(tx, to.date);
-    const room = await roomFor({
-      startsAt,
-      labourHours: job.labourHours,
-      crewSize: job.crewSize,
-      jobId,
-    });
+    const room = await roomFor(
+      {
+        startsAt,
+        labourHours: job.labourHours,
+        crewSize: job.crewSize,
+        jobId,
+      },
+      tx,
+    );
     if (!room.hasRoom) throw new ConflictError(whyNoRoom(room));
 
     const crew = await moveTo(tx, job, startsAt);

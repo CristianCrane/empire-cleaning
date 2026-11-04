@@ -73,12 +73,19 @@ const stateBadge: Record<AssignmentState, ReactNode> = {
   offered: <StatusBadge tone="warning">Offered</StatusBadge>,
   confirmed: <StatusBadge tone="success">Confirmed</StatusBadge>,
   released: <StatusBadge>Released</StatusBadge>,
+  taken_off: <StatusBadge>Taken off</StatusBadge>,
+};
+
+const answered: Record<Exclude<AssignmentState, "offered">, string> = {
+  confirmed: "Confirmed",
+  released: "Released",
+  taken_off: "Taken off",
 };
 
 const sinceOf = (a: AssignmentView) =>
   a.status === "offered"
     ? `Offered ${formatDate(a.offeredAt)}`
-    : `${a.status === "confirmed" ? "Confirmed" : "Released"} ${formatDate(a.answeredAt!)}`;
+    : `${answered[a.status]} ${formatDate(a.answeredAt!)}`;
 
 const booked = (job: OfficeJob) => job.status === "booked";
 
@@ -401,9 +408,10 @@ function Crew({ job }: { job: OfficeJob }) {
               end={
                 <>
                   {stateBadge[a.status]}
-                  {booked(job) && a.status !== "released" && (
-                    <Remove job={job} assignment={a} />
-                  )}
+                  {booked(job) &&
+                    (a.status === "offered" || a.status === "confirmed") && (
+                      <Remove job={job} assignment={a} />
+                    )}
                 </>
               }
             />

@@ -25,7 +25,7 @@ export const REMINDER_TIME = "08:00";
  * more than one server: each Job is claimed before its email goes, and let go
  * again if the email fails, so the next run tries again.
  *
- * Nothing calls this but the timer in src/index.ts (and tests).
+ * Nothing calls this but the timer in src/scheduler.ts (and tests).
  */
 export const sendDueReminders = async () => {
   const now = clock.now();

@@ -21,8 +21,8 @@ import type {
 } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
-import { clock } from "../../services/clock/index.ts";
-import { email, formatMoney } from "../../services/email/index.ts";
+import { clock, DAY_MS } from "../../services/clock/index.ts";
+import { email, formatMoney, notify } from "../../services/email/index.ts";
 import { assignments } from "../assignments/assignments.schema.ts";
 import { assignmentStatusOf } from "../assignments/places.ts";
 import {
@@ -33,6 +33,7 @@ import {
 } from "../cancellation/cancellation.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
+import { closePendingRequests } from "../reschedule/closing.ts";
 import { servicePlanVisits } from "../service-plans/service-plans.schema.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import {
@@ -67,12 +68,12 @@ import {
   unpaidEmail,
 } from "./emails.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
+import { hoursOnSiteOf } from "../jobs/jobs.ts";
 
 // a proposed increase the Client hasn't answered lapses after this long, with
 // one reminder this long before it does (ADR-0009)
 const ANSWER_DAYS = 7;
 const REMINDER_DAYS_BEFORE = 2;
-const DAY_MS = 86_400_000;
 
 // what an Adjustment changed, by name: "Inside the fridge", "1 extra hour"
 const adjustmentItem = (a: Pick<Adjustment, "kind" | "addOnName" | "hours">) =>
@@ -87,16 +88,6 @@ export const adjustmentLabel = (
   a.kind === "extra_time"
     ? adjustmentItem(a)
     : `${a.addOnName}, ${a.kind === "add_on_done" ? "done on the day" : "not done"}`;
-
-// emails go out after the change is saved; one that fails is logged, and the
-// change stands
-const notify = async (what: string, send: () => Promise<void>) => {
-  try {
-    await send();
-  } catch (error) {
-    monitoring.error(error, { what: `${what} not sent` });
-  }
-};
 
 const jobWithOwner = async (jobId: string) => {
   const [found] = await db
@@ -176,7 +167,7 @@ export const completeJob = async (
     if (job!.startsAt > now) {
       throw new ConflictError("This Job hasn't started yet");
     }
-    const status = (await assignmentStatusOf([job!])).get(jobId);
+    const status = (await assignmentStatusOf([job!], tx)).get(jobId);
     if (status !== "assigned") {
       throw new ConflictError(
         "Every place on this Job must be Confirmed before it can be Completed. Please call the Office.",
@@ -197,6 +188,7 @@ export const completeJob = async (
         conditionBefore: property!.condition,
       })
       .where(eq(jobs.id, jobId));
+    await closePendingRequests(tx, [jobId]);
     await tx
       .update(properties)
       .set({ condition: input.condition })
@@ -731,7 +723,7 @@ const clientJobOf = async (job: Job, property: Property) => ({
   startsAt: job.startsAt.toISOString(),
   serviceName: await serviceNameOf(job.serviceId),
   crewSize: job.crewSize,
-  hoursOnSite: Math.round((job.labourHours / job.crewSize) * 100) / 100,
+  hoursOnSite: hoursOnSiteOf(job),
   property: {
     id: property.id,
     street: property.street,
@@ -976,7 +968,7 @@ export const retryUnpaidJobsFor = async (clientId: string) => {
  * 7 days, which leaves the Job at its price without them. Safe to run as
  * often as you like: each is claimed before its email goes.
  *
- * Nothing calls this but the timer in src/index.ts (and tests).
+ * Nothing calls this but the timer in src/scheduler.ts (and tests).
  */
 export const chaseProposedAdjustments = async () => {
   const now = clock.now();

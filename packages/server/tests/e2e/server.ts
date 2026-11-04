@@ -51,7 +51,7 @@ const { chaseProposedAdjustments, completeJob } =
   await import("../../src/features/completion/index.ts");
 const { recordNoAccess } =
   await import("../../src/features/cancellation/index.ts");
-const { requestReschedule } =
+const { moveJob, requestReschedule } =
   await import("../../src/features/reschedule/index.ts");
 const { generateServicePlanJobs } =
   await import("../../src/features/service-plans/index.ts");
@@ -290,6 +290,13 @@ control.post("/jobs/:id/reschedule", async (req, res) => {
     { date, time },
     { cost, byAccountId: null, byClient: true },
   );
+  res.json({ status: "ok" });
+});
+
+// Office Staff move a booked Job straight to a new time, as from the Schedule
+control.post("/jobs/:id/move", async (req, res) => {
+  const { date, time } = req.body as { date: string; time: string };
+  await moveJob(req.params.id, { date, time });
   res.json({ status: "ok" });
 });
 

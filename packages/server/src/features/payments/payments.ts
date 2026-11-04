@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import type { PaymentMethodView } from "@empire-cleaning/models";
-import { db, type Tx } from "../../db/index.ts";
+import { apart, db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock } from "../../services/clock/index.ts";
 import { email } from "../../services/email/index.ts";
@@ -40,11 +40,12 @@ export const toPaymentMethodView = (
 
 // The Client's id with the payment provider, made the first time it's
 // needed. Making it is idempotent at the provider, so two first payments at
-// once still make one.
+// once still make one. Kept apart from any transaction around it, as it
+// stands at the provider whatever that does.
 export const payerFor = async (
   client: Pick<Client, "id" | "name" | "email">,
 ) => {
-  const [known] = await db
+  const [known] = await apart
     .select()
     .from(payers)
     .where(eq(payers.clientId, client.id));
@@ -55,7 +56,7 @@ export const payerFor = async (
     name: client.name,
     email: client.email,
   });
-  await db
+  await apart
     .insert(payers)
     .values({ clientId: client.id, gatewayRef: payerId })
     .onConflictDoNothing();

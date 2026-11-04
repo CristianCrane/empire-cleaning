@@ -16,6 +16,7 @@ import {
 } from "../quotes/quote-state.ts";
 import { pendingRescheduleRequests } from "../reschedule/reschedule.ts";
 import { plansOnHold, unplacedVisits } from "../service-plans/service-plans.ts";
+import { HOUR_MS } from "../../services/clock/index.ts";
 
 type Source = () => Promise<NeedsAttentionItem[]>;
 
@@ -105,7 +106,7 @@ const expiringQuotes: Source = async () =>
     since: new Date(
       Math.max(
         Date.parse(quote.sentAt!),
-        Date.parse(quote.expiresAt!) - EXPIRING_HOURS * 3_600_000,
+        Date.parse(quote.expiresAt!) - EXPIRING_HOURS * HOUR_MS,
       ),
     ).toISOString(),
     quote,

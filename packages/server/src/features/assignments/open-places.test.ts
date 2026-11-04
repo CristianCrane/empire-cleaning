@@ -34,8 +34,11 @@ const openJobIds = async (agent: Agent) =>
 const jobFor = async (office: Agent, jobId: string) =>
   (await office.get(`/api/jobs/${jobId}`).expect(200)).body as OfficeJob;
 
-const confirm = (agent: Agent, jobId: string) =>
-  agent.post(`/api/assignments/open/${jobId}/confirm`);
+// takes a Job's Open Place, at the time it was shown
+const confirm = (agent: Agent, job: { id: string; startsAt: Date }) =>
+  agent
+    .post(`/api/assignments/open/${job.id}/confirm`)
+    .send({ startsAt: job.startsAt });
 
 const offer = (office: Agent, jobId: string, staffId: string) =>
   office.post(`/api/jobs/${jobId}/assignments`).send({ staffId }).expect(201);
@@ -118,7 +121,7 @@ describe("Open Places", () => {
 
     expect(await openJobIds(asCory)).toEqual([]);
     await asCory.get(`/api/assignments/open/${job.id}`).expect(404);
-    const refused = await confirm(asCory, job.id).expect(409);
+    const refused = await confirm(asCory, job).expect(409);
     expect(refused.body.message).toBe("This Job isn't open to Cleaners yet");
     expect((await jobFor(office, job.id)).openTo).toMatchObject({
       opensAt: "2026-01-06T14:00:00.000Z",
@@ -178,8 +181,7 @@ describe("Confirming an Open Place", () => {
     const asCory = await cory.signIn();
     const office = await signInAsOffice();
 
-    const taken = (await confirm(asCory, job.id).expect(200))
-      .body as CleanerJob;
+    const taken = (await confirm(asCory, job).expect(200)).body as CleanerJob;
 
     expect(taken).toMatchObject({
       id: job.id,
@@ -204,8 +206,8 @@ describe("Confirming an Open Place", () => {
     const asCory = await (await cleaner("Cory Cleaner")).signIn();
     const asDee = await (await cleaner("Dee Cleaner")).signIn();
 
-    await confirm(asDee, job.id).expect(200);
-    const refused = await confirm(asCory, job.id).expect(409);
+    await confirm(asDee, job).expect(200);
+    const refused = await confirm(asCory, job).expect(409);
     expect(refused.body.message).toBe("Someone else took this Job");
   });
 
@@ -215,13 +217,29 @@ describe("Confirming an Open Place", () => {
     const asDee = await (await cleaner("Dee Cleaner")).signIn();
 
     const answers = await Promise.all([
-      confirm(asCory, job.id),
-      confirm(asDee, job.id),
+      confirm(asCory, job),
+      confirm(asDee, job),
     ]);
     expect(answers.map((a) => a.status).sort((a, b) => a - b)).toEqual([
       200, 409,
     ]);
   });
+
+  // more than the database pool's connections, each waiting on the Job's
+  // lock while holding one: the one holding the lock mustn't need another
+  test("lets only the first of a dozen at once take the last place, answering everyone", async () => {
+    const job = await thursdayJob(1);
+    const agents = [];
+    for (const name of "Ada Bo Cy Di Ed Flo Gus Hal Ivy Jo Kit Lu".split(" ")) {
+      agents.push(await (await cleaner(`${name} Cleaner`)).signIn());
+    }
+
+    const answers = await Promise.all(
+      agents.map((agent) => confirm(agent, job)),
+    );
+    const statuses = answers.map((a) => a.status).sort((a, b) => a - b);
+    expect(statuses).toEqual([200, ...Array<number>(11).fill(409)]);
+  }, 5_000);
 
   test("is refused to a Cleaner no longer free for it", async () => {
     const job = await thursdayJob();
@@ -232,8 +250,8 @@ describe("Confirming an Open Place", () => {
     });
     const asCory = await (await cleaner("Cory Cleaner")).signIn();
 
-    await confirm(asCory, overlapping.id).expect(200);
-    const refused = await confirm(asCory, job.id).expect(409);
+    await confirm(asCory, overlapping).expect(200);
+    const refused = await confirm(asCory, job).expect(409);
     expect(refused.body.message).toBe("You're no longer free for this Job");
   });
 });
@@ -270,8 +288,7 @@ describe("Releasing a Confirmed place", () => {
     const dee = await cleaner("Dee Cleaner");
     const asCory = await cory.signIn();
     const office = await signInAsOffice();
-    const taken = (await confirm(asCory, job.id).expect(200))
-      .body as CleanerJob;
+    const taken = (await confirm(asCory, job).expect(200)).body as CleanerJob;
 
     await asCory
       .post(`/api/assignments/${taken.assignment.id}/release`)
@@ -279,7 +296,7 @@ describe("Releasing a Confirmed place", () => {
 
     expect(await openJobIds(asCory)).toEqual([]);
     expect(await openJobIds(await dee.signIn())).toEqual([job.id]);
-    const refused = await confirm(asCory, job.id).expect(409);
+    const refused = await confirm(asCory, job).expect(409);
     expect(refused.body.message).toBe("You released your place on this Job");
     expect((await jobFor(office, job.id)).openTo.cleaners).toBe(1);
   });

@@ -136,6 +136,14 @@ export function ConfirmMove({ job, to, close }: MoveProps) {
 // what the time chosen has room for, or why it hasn't
 function RoomAt({ room, job }: { room: DayCapacity; job: ScheduledJob }) {
   const day = formatDay(room.date);
+  if (!room.endsByMidnight) {
+    return (
+      <Notice tone="danger">
+        Cleans end by midnight: this Job would run past it from{" "}
+        {formatTime(room.startsAt)}. Choose an earlier start time.
+      </Notice>
+    );
+  }
   if (!room.hasHours) {
     return (
       <Notice tone="danger">

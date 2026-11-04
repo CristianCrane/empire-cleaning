@@ -28,12 +28,13 @@ import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import {
   addDays,
   clock,
+  DAY_MS,
   dayOf,
   startOfDay,
   timeOf,
   weekdayOf,
 } from "../../services/clock/index.ts";
-import { email, formatWhen } from "../../services/email/index.ts";
+import { email, formatWhen, notify } from "../../services/email/index.ts";
 import { paymentGateway } from "../../services/payment-gateway/index.ts";
 import { ON_HOLD_LINE } from "../cancellation/emails.ts";
 import {
@@ -86,7 +87,6 @@ const CREDIT_REFUND_DAYS = 30;
 const BILL_REMINDER_DAYS = 3;
 // why a Bill paid on its page is Unpaid
 const LATE_REASON = "not paid by its due date";
-const DAY_MS = 86_400_000;
 
 const feeLabel = {
   cancelled: "Late Cancellation fee",
@@ -133,11 +133,17 @@ const partsOf = async (
   tx: Tx | typeof db,
 ): Promise<Part[]> => {
   if (!owesOnBill(job)) return [];
-  const [[quoted], rows, taken] = await Promise.all([
-    jobQuotes([job.id], tx),
-    tx.select().from(adjustments).where(eq(adjustments.jobId, job.id)),
-    tx.select().from(charges).where(eq(charges.jobId, job.id)),
-  ]);
+  // one after the other, as a transaction's queries share one connection
+  // (ADR-0024)
+  const [quoted] = await jobQuotes([job.id], tx);
+  const rows = await tx
+    .select()
+    .from(adjustments)
+    .where(eq(adjustments.jobId, job.id));
+  const taken = await tx
+    .select()
+    .from(charges)
+    .where(eq(charges.jobId, job.id));
   if (!quoted)
     throw new ConflictError("This Job has no Quote to price it from");
   const given =
@@ -251,19 +257,17 @@ const linesFor = async (
   property: Property,
   tx: Tx | typeof db,
 ): Promise<NewLine[]> => {
-  const [parts, before] = await Promise.all([
-    partsOf(job, property, tx),
-    tx
-      .select({
-        key: billLines.key,
-        label: billLines.label,
-        amountCents: billLines.amountCents,
-        taxCents: billLines.taxCents,
-      })
-      .from(billLines)
-      .innerJoin(bills, eq(bills.id, billLines.billId))
-      .where(and(eq(billLines.jobId, job.id), ne(bills.status, "void"))),
-  ]);
+  const parts = await partsOf(job, property, tx);
+  const before = await tx
+    .select({
+      key: billLines.key,
+      label: billLines.label,
+      amountCents: billLines.amountCents,
+      taxCents: billLines.taxCents,
+    })
+    .from(billLines)
+    .innerJoin(bills, eq(bills.id, billLines.billId))
+    .where(and(eq(billLines.jobId, job.id), ne(bills.status, "void")));
   const billed = new Map<
     string,
     { label: string; amountCents: number; taxCents: number }
@@ -1144,7 +1148,7 @@ const onPageToPay = () =>
  * Hold until it's paid; then sends the reminders such Bills are owed. Safe
  * to run as often as you like, and on more than one server.
  *
- * Nothing calls this but the timer in src/index.ts (and tests).
+ * Nothing calls this but the timer in src/scheduler.ts (and tests).
  */
 export const chaseBills = async () => {
   const late = await db
@@ -1360,16 +1364,6 @@ export const listBills = async ({
 };
 
 // ---- emails ----
-
-// emails go out after the change is saved; one that fails is logged, and the
-// change stands
-const notify = async (what: string, send: () => Promise<void>) => {
-  try {
-    await send();
-  } catch (error) {
-    monitoring.error(error, { what: `${what} not sent` });
-  }
-};
 
 // The whole Bill, as an email to the billing email, or else the Client's:
 // its number, week, due date, each line, tax and total, with why it's sent

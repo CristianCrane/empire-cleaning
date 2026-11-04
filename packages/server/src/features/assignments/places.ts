@@ -1,13 +1,13 @@
 import { and, asc, count, eq, inArray, ne } from "drizzle-orm";
 import type { AssignmentStatus } from "@empire-cleaning/models";
-import { db } from "../../db/index.ts";
+import { db, type Tx } from "../../db/index.ts";
 import { staff } from "../staff/staff.schema.ts";
 import { assignments } from "./assignments.schema.ts";
 
 // how many of each Job's places are Confirmed
-const confirmedPlaces = async (jobIds: string[]) => {
+const confirmedPlaces = async (jobIds: string[], tx: Tx | typeof db) => {
   if (jobIds.length === 0) return new Map<string, number>();
-  const rows = await db
+  const rows = await tx
     .select({ jobId: assignments.jobId, confirmed: count() })
     .from(assignments)
     .where(
@@ -24,8 +24,12 @@ const confirmedPlaces = async (jobIds: string[]) => {
 // Confirmed
 export const assignmentStatusOf = async (
   jobs: { id: string; crewSize: number }[],
+  tx: Tx | typeof db = db,
 ) => {
-  const confirmed = await confirmedPlaces(jobs.map((j) => j.id));
+  const confirmed = await confirmedPlaces(
+    jobs.map((j) => j.id),
+    tx,
+  );
   return new Map(
     jobs.map((job): [string, AssignmentStatus] => [
       job.id,
@@ -35,12 +39,12 @@ export const assignmentStatusOf = async (
 };
 
 // who holds each Job's places, Offered or Confirmed, earliest Offered first
-export const crewOf = async (jobIds: string[]) => {
+export const crewOf = async (jobIds: string[], tx: Tx | typeof db = db) => {
   const crews = new Map(
     jobIds.map((id) => [id, [] as { id: string; name: string }[]]),
   );
   if (jobIds.length === 0) return crews;
-  const rows = await db
+  const rows = await tx
     .select({ jobId: assignments.jobId, id: staff.id, name: staff.name })
     .from(assignments)
     .innerJoin(staff, eq(staff.id, assignments.staffId))

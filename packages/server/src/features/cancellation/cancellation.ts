@@ -7,8 +7,8 @@ import type {
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
-import { clock } from "../../services/clock/index.ts";
-import { email, formatMoney } from "../../services/email/index.ts";
+import { clock, HOUR_MS } from "../../services/clock/index.ts";
+import { email, formatMoney, notify } from "../../services/email/index.ts";
 import { assignments } from "../assignments/assignments.schema.ts";
 import { clients } from "../clients/clients.schema.ts";
 import {
@@ -17,6 +17,7 @@ import {
   type Settled,
 } from "../completion/balance.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
+import { closePendingRequests } from "../reschedule/closing.ts";
 import { charges, refunds } from "../payments/payments.schema.ts";
 import { properties } from "../properties/properties.schema.ts";
 import { jobQuotes } from "../quotes/job-quotes.ts";
@@ -35,25 +36,23 @@ import {
   officeCancelledEmail,
   officeNoAccessEmail,
 } from "./emails.ts";
-import { monitoring } from "../../services/monitoring/index.ts";
 
 // cancelling is free until this long before a Job starts; after that it's a
 // Late Cancellation
 export const CANCELLATION_CUTOFF_HOURS = 24;
-const HOUR_MS = 3_600_000;
 
-// emails go out after the change is saved; one that fails is logged, and the
-// change stands
-const notify = async (what: string, send: () => Promise<void>) => {
-  try {
-    await send();
-  } catch (error) {
-    monitoring.error(error, { what: `${what} not sent` });
-  }
+// Until when cancelling a Job is free: 24 hours before it (ADR-0010). A plan
+// Job booked later than that is free to skip until it starts, as the Client
+// had less than a day's notice of it (#242).
+export const freeUntilOf = (
+  job: Pick<Job, "startsAt" | "bookedAt">,
+  onPlan: boolean,
+) => {
+  const cutoff = new Date(
+    job.startsAt.getTime() - CANCELLATION_CUTOFF_HOURS * HOUR_MS,
+  );
+  return onPlan && job.bookedAt > cutoff ? job.startsAt : cutoff;
 };
-
-const freeUntilOf = (job: Pick<Job, "startsAt">) =>
-  new Date(job.startsAt.getTime() - CANCELLATION_CUTOFF_HOURS * HOUR_MS);
 
 // the Deposit taken for a Job, which a Late Cancellation or No Access keeps
 // as its fee
@@ -130,11 +129,16 @@ const paidOf = async (jobId: string) => {
 };
 
 // what cancelling a Job costs, by the Clock: the Late Cancellation fee, if
-// the Client cancels within 24 hours of it starting; nothing otherwise. A
-// fee already due for a Late Reschedule (ADR-0010) stays due, however early
-// the Client cancels, but nothing more is charged.
-const feeOf = (job: Job, by: CancelledBy, lateFeeCents: number) => {
-  const late = by === "client" && clock.now() >= freeUntilOf(job);
+// the Client cancels less than 24 hours before it starts (freeUntilOf);
+// nothing otherwise. A fee already due for a Late Reschedule (ADR-0010) stays
+// due, however early the Client cancels, but nothing more is charged.
+const feeOf = (
+  job: Job,
+  onPlan: boolean,
+  by: CancelledBy,
+  lateFeeCents: number,
+) => {
+  const late = by === "client" && clock.now() > freeUntilOf(job, onPlan);
   const kept = by === "client" ? job.rescheduleFeeCents : 0;
   return { late, feeCents: Math.max(late ? lateFeeCents : 0, kept) };
 };
@@ -148,10 +152,11 @@ export const cancelTermsOf = async (
   job: Job,
 ): Promise<Record<CancelledBy, CancellationTerms> | null> => {
   if (job.status !== "booked") return null;
-  const [lateFeeCents, { paidCents, refundedAtProviderCents }] =
-    await Promise.all([lateFeeOf(job.id), paidOf(job.id)]);
+  const [lateFeeCents, { paidCents, refundedAtProviderCents }, plan] =
+    await Promise.all([lateFeeOf(job.id), paidOf(job.id), planOfJob(job.id)]);
+  const onPlan = plan !== null;
   const terms = (by: CancelledBy): CancellationTerms => {
-    const { late, feeCents } = feeOf(job, by, lateFeeCents);
+    const { late, feeCents } = feeOf(job, onPlan, by, lateFeeCents);
     return {
       by,
       late,
@@ -160,7 +165,7 @@ export const cancelTermsOf = async (
         paidCents - Math.max(feeCents - refundedAtProviderCents, 0),
         0,
       ),
-      freeUntil: freeUntilOf(job).toISOString(),
+      freeUntil: freeUntilOf(job, onPlan).toISOString(),
     };
   };
   return { client: terms("client"), empire: terms("empire") };
@@ -211,13 +216,14 @@ export const cancelJob = async (jobId: string, cancellation: Cancellation) => {
       );
     }
 
+    const onPlan = (await planOfJob(jobId, tx)) !== null;
     const { late, feeCents } = feeOf(
       job,
+      onPlan,
       cancellation.by,
       await lateFeeOf(jobId, tx),
     );
     if (feeCents !== cancellation.feeCents) {
-      const onPlan = (await planOfJob(jobId, tx)) !== null;
       throw new ConflictError(
         late
           ? `It's now less than ${CANCELLATION_CUTOFF_HOURS} hours before the clean, so ${onPlan ? `skipping it is a Late Cancellation, with a ${formatMoney(feeCents)} fee` : `cancelling is a Late Cancellation: the ${formatMoney(feeCents)} Deposit is kept as the fee`}. Please check and confirm again.`
@@ -237,6 +243,7 @@ export const cancelJob = async (jobId: string, cancellation: Cancellation) => {
         feeCents,
       })
       .where(eq(jobs.id, jobId));
+    await closePendingRequests(tx, [jobId]);
     return { job, late, feeCents };
   });
 
@@ -398,6 +405,7 @@ export const recordNoAccess = async (
         feeCents: await lateFeeOf(jobId, tx),
       })
       .where(eq(jobs.id, jobId));
+    await closePendingRequests(tx, [jobId]);
     return job!;
   });
 

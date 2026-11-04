@@ -31,12 +31,13 @@ type Agent = Awaited<ReturnType<typeof signIn>>;
 
 // the test clock starts at 4am on Monday 5 January 2026 in New York. The Job
 // here is at 9am on Monday the 12th (14:00 UTC), so moving it is free until
-// 9am on Sunday the 11th. Cory and Dee each work 8 hours on weekdays, so a
+// 9am on Sunday the 11th, that minute included (ADR-0010). Cory and Dee each work 8 hours on weekdays, so a
 // weekday has 16 hours of Cleaner time.
 const STARTS_AT = "2026-01-12T14:00:00Z";
 const FREE_UNTIL = "2026-01-11T14:00:00.000Z";
 const SUNDAY_8_59AM = new Date("2026-01-11T13:59:00Z");
 const SUNDAY_9AM = new Date("2026-01-11T14:00:00Z");
+const SUNDAY_9_01AM = new Date("2026-01-11T14:01:00Z");
 // Wednesday the 14th at 10am, and Thursday the 15th at 10am
 const WEDNESDAY = { date: "2026-01-14", time: "10:00" };
 const WEDNESDAY_10AM = "2026-01-14T15:00:00.000Z";
@@ -78,6 +79,7 @@ const confirmPlace = async (asCleaner: Agent, jobId: string) => {
     .body as CleanerJob;
   await asCleaner
     .post(`/api/assignments/${mine.assignment.id}/confirm`)
+    .send({ startsAt: mine.startsAt })
     .expect(200);
 };
 
@@ -270,6 +272,24 @@ describe("asking to move a Job", () => {
     expect(wednesday.times).not.toContain("10:00");
     expect(wednesday.times).toContain("11:00");
     await ask(client, jobId, { date: "2026-01-14", time: "11:00" }).expect(201);
+  });
+
+  test("offers only times that end by midnight (#242)", async () => {
+    const office = await signInAsOffice();
+    await cleaner("Cory Cleaner");
+    await cleaner("Dee Cleaner");
+    // 9 hours on site
+    const job = await otherJob({
+      startsAt: "2026-01-12T14:00:00Z",
+      labourHours: 9,
+      crewSize: 1,
+    });
+
+    const times = (
+      await office.get(`/api/jobs/${job.id}/reschedule-times`).expect(200)
+    ).body as RescheduleTimes;
+
+    expect(times.days[0]!.times.at(-1)).toBe("15:00");
   });
 
   test("leaves out a day with no crew free at any time on offer", async () => {
@@ -473,6 +493,57 @@ describe("Office Staff answering", () => {
   });
 });
 
+describe("a pending request when its Job stops being booked (#242)", () => {
+  test("closes when the Job is cancelled, and holds no more room", async () => {
+    const { client, office, jobId } = await bookedJob();
+    await ask(client, jobId, WEDNESDAY).expect(201);
+    expect((await scheduleDay(office, "2026-01-14")).heldHours).toBeGreaterThan(
+      0,
+    );
+
+    await client
+      .post(`/api/jobs/mine/${jobId}/cancel`)
+      .send({ feeCents: 0 })
+      .expect(200);
+
+    expect((await officeJob(office, jobId)).rescheduleRequest).toMatchObject({
+      status: "closed",
+      answeredAt: expect.any(String),
+    });
+    expect((await scheduleDay(office, "2026-01-14")).heldHours).toBe(0);
+    await confirm(office, jobId).expect(409);
+  });
+
+  test("holds no room once the Job has started, and closes when it's Completed", async () => {
+    const { client, office, asCory, jobId } = await bookedJob();
+    await ask(client, jobId, WEDNESDAY).expect(201);
+
+    testClock().set(new Date(STARTS_AT));
+    expect((await scheduleDay(office, "2026-01-14")).heldHours).toBe(0);
+    testClock().set(new Date("2026-01-12T16:00:00Z"));
+    await complete(asCory, jobId).expect(200);
+
+    expect((await officeJob(office, jobId)).rescheduleRequest!.status).toBe(
+      "closed",
+    );
+  });
+
+  test("closes on No Access", async () => {
+    const { client, office, asCory, jobId } = await bookedJob();
+    await ask(client, jobId, WEDNESDAY).expect(201);
+    testClock().set(new Date("2026-01-12T14:30:00Z"));
+
+    await asCory
+      .post(`/api/assignments/mine/${jobId}/no-access`)
+      .send({ reason: "Nobody home" })
+      .expect(200);
+
+    expect((await officeJob(office, jobId)).rescheduleRequest!.status).toBe(
+      "closed",
+    );
+  });
+});
+
 describe("the Client withdrawing", () => {
   test("keeps the Job's time and frees the held hours", async () => {
     const { client, office, jobId } = await bookedJob();
@@ -500,7 +571,7 @@ describe("a Late Reschedule (ADR-0010)", () => {
     testClock().set(SUNDAY_8_59AM);
     await ask(client, jobId, WEDNESDAY, "free").expect(201);
 
-    testClock().set(SUNDAY_9AM);
+    testClock().set(SUNDAY_9_01AM);
     await confirm(office, jobId).expect(200);
     expect(testEmail().lastTo(casey.email).text).toContain(
       "There's no charge for moving it.",
@@ -509,10 +580,11 @@ describe("a Late Reschedule (ADR-0010)", () => {
 
   test("is refused, not sent, when it has become late since they looked", async () => {
     const { client, jobId } = await bookedJob();
-    testClock().set(SUNDAY_8_59AM);
+    // exactly 24 hours before: still free
+    testClock().set(SUNDAY_9AM);
     expect((await clientJob(client, jobId)).rescheduleTerms!.cost).toBe("free");
 
-    testClock().set(SUNDAY_9AM);
+    testClock().set(SUNDAY_9_01AM);
     const refused = await ask(client, jobId, WEDNESDAY, "free").expect(409);
     expect(refused.body.message).toMatch(
       /less than 24 hours .* a Late Reschedule, free as the Job's first/,
@@ -522,7 +594,7 @@ describe("a Late Reschedule (ADR-0010)", () => {
 
   test("the first one confirmed is free, and the Deposit still counts towards the price", async () => {
     const { client, office, asCory, jobId, deposit } = await bookedJob();
-    testClock().set(SUNDAY_9AM);
+    testClock().set(SUNDAY_9_01AM);
     expect((await clientJob(client, jobId)).rescheduleTerms).toEqual({
       cost: "free_late",
       feeCents: 0,
@@ -551,7 +623,7 @@ describe("a Late Reschedule (ADR-0010)", () => {
 
   test("a later one keeps the Deposit as the fee, and the full price is charged on completion", async () => {
     const { client, office, asCory, jobId, deposit } = await bookedJob();
-    testClock().set(SUNDAY_9AM);
+    testClock().set(SUNDAY_9_01AM);
     await ask(client, jobId, WEDNESDAY, "free_late").expect(201);
     await confirm(office, jobId).expect(200);
 
@@ -596,7 +668,7 @@ describe("a Late Reschedule (ADR-0010)", () => {
 
   test("turned down or withdrawn costs nothing and leaves the free one unused", async () => {
     const { client, office, jobId } = await bookedJob();
-    testClock().set(SUNDAY_9AM);
+    testClock().set(SUNDAY_9_01AM);
 
     await ask(client, jobId, WEDNESDAY, "free_late").expect(201);
     await office
@@ -616,7 +688,7 @@ describe("a Late Reschedule (ADR-0010)", () => {
 
   test("keeps the Deposit when the moved Job is cancelled later, early or not", async () => {
     const { client, office, jobId, deposit } = await bookedJob();
-    testClock().set(SUNDAY_9AM);
+    testClock().set(SUNDAY_9_01AM);
     await ask(client, jobId, WEDNESDAY, "free_late").expect(201);
     await confirm(office, jobId).expect(200);
     testClock().set(new Date("2026-01-13T16:00:00Z"));

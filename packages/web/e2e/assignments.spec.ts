@@ -5,6 +5,7 @@ import {
   emailsTo,
   expect,
   expectAccessible,
+  moveJob,
   offerPlace,
   setClock,
   setUsualWeek,
@@ -122,6 +123,17 @@ test("Office Staff take someone off a Job, freeing their place", async ({
 
   await expect(page.getByText("Cory Cleaner taken off the Job")).toBeVisible();
   await expect(page.getByText("0 of 1 Cleaner Confirmed")).toBeVisible();
+  // kept, so the Office sees who was on it
+  const row = page
+    .getByRole("grid", { name: "Crew" })
+    .getByRole("row", { name: /Cory Cleaner/ });
+  await expect(row).toContainText("Taken off");
+  await expect(
+    row.getByRole("button", { name: "Remove Cory Cleaner" }),
+  ).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "History" })).toContainText(
+    "Cory Cleaner taken off",
+  );
   await expect(
     page.getByRole("button", { name: "Offer to a Cleaner" }).first(),
   ).toBeVisible();
@@ -198,6 +210,48 @@ test(
     );
   },
 );
+
+test("a Cleaner can't confirm a Job at a time they weren't shown", async ({
+  page,
+}) => {
+  const cory = await cleaner("Cory Cleaner");
+  const job = await thursdayJob(1);
+  await offerPlace(job.id, cory.id);
+  await signInAsCleaner(page, cory.email);
+  await page.goto(`/cleaner/jobs/${job.id}`);
+  await expect(page.getByText("Thu, Jan 8, 9:00 AM").first()).toBeVisible();
+
+  // the Office moves it while the page is open
+  await moveJob(job.id, { date: "2026-01-08", time: "11:00" });
+  await page.getByRole("button", { name: "Confirm my place" }).click();
+  await expect(
+    page.getByText(
+      "This Job has moved to Thursday, January 8 at 11:00 AM. Please check the new time, then confirm again.",
+    ),
+  ).toBeVisible();
+  // the page shows the new time, and it can be confirmed
+  await expect(page.getByText("Thu, Jan 8, 11:00 AM").first()).toBeVisible();
+  await page.getByRole("button", { name: "Confirm my place" }).click();
+  await expect(page.getByText("Place confirmed")).toBeVisible();
+});
+
+test("a Cleaner can't take an Open Place at a time they weren't shown", async ({
+  page,
+}) => {
+  const cory = await cleaner("Cory Cleaner");
+  const job = await thursdayJob(1);
+  await signInAsCleaner(page, cory.email);
+  await page.goto(`/cleaner/open/${job.id}`);
+  await expect(page.getByText("Thu, Jan 8, 9:00 AM").first()).toBeVisible();
+
+  await moveJob(job.id, { date: "2026-01-08", time: "11:00" });
+  await page.getByRole("button", { name: "Confirm" }).click();
+  await expect(page.getByText(/^This Job has moved to/)).toBeVisible();
+  await expect(page.getByText("Thu, Jan 8, 11:00 AM").first()).toBeVisible();
+  await page.getByRole("button", { name: "Confirm" }).click();
+  await expect(page.getByText("Place confirmed")).toBeVisible();
+  await expect(page).toHaveURL(`/cleaner/jobs/${job.id}`);
+});
 
 test("a Cleaner releases a place they can't make", async ({ page }) => {
   const cory = await cleaner("Cory Cleaner");

@@ -8,6 +8,11 @@ import { servicePlanVisits } from "../service-plans/service-plans.schema.ts";
 import { jobs } from "./jobs.schema.ts";
 import { serviceVersions } from "../services/services.ts";
 
+// how long a crew is on site: its Labour Hours shared between them, to the
+// hundredth
+export const hoursOnSiteOf = (job: { labourHours: number; crewSize: number }) =>
+  Math.round((job.labourHours / job.crewSize) * 100) / 100;
+
 // Jobs on the Schedule, taking up their day's hours: booked, Completed or No
 // Access. A Cancelled Job has left it.
 export const onSchedule = () =>
@@ -80,7 +85,7 @@ export const upcomingJobsFor = async (
     startsAt: job.startsAt.toISOString(),
     serviceName: versions.get(job.serviceId)!.name,
     crewSize: job.crewSize,
-    hoursOnSite: Math.round((job.labourHours / job.crewSize) * 100) / 100,
+    hoursOnSite: hoursOnSiteOf(job),
     property: {
       id: property.id,
       street: property.street,

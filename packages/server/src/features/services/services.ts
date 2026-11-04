@@ -8,7 +8,7 @@ import type {
   ServiceIcon,
   ServiceOffer,
 } from "@empire-cleaning/models";
-import { db } from "../../db/index.ts";
+import { db, type Tx } from "../../db/index.ts";
 import { NotFoundError, RequestBodyError } from "../../middleware/errors.ts";
 import { z } from "zod";
 import type { Clean } from "../../services/email/blocks.ts";
@@ -290,10 +290,13 @@ export const oneOffServices = (
 const versions = new Map<string, Service>();
 
 // the Service versions some rows recorded, by id
-export const serviceVersions = async (ids: string[]) => {
+export const serviceVersions = async (
+  ids: string[],
+  tx: Tx | typeof db = db,
+) => {
   const missing = [...new Set(ids)].filter((id) => !versions.has(id));
   if (missing.length > 0) {
-    const rows = await db
+    const rows = await tx
       .select()
       .from(services)
       .where(inArray(services.id, missing));
@@ -303,8 +306,10 @@ export const serviceVersions = async (ids: string[]) => {
 };
 
 // the name a Job's Service had when it was booked
-export const serviceNameOf = async (serviceId: string) =>
-  (await serviceVersions([serviceId])).get(serviceId)!.name;
+export const serviceNameOf = async (
+  serviceId: string,
+  tx: Tx | typeof db = db,
+) => (await serviceVersions([serviceId], tx)).get(serviceId)!.name;
 
 // a Job, as an email's details give it
 export const cleanOf = async (

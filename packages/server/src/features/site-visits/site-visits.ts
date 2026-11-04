@@ -18,9 +18,16 @@ import {
   atTime,
   clock,
   dayOf,
+  HOUR_MS,
+  MINUTE_MS,
   startOfDay,
 } from "../../services/clock/index.ts";
-import { email, firstNameOf, formatTime } from "../../services/email/index.ts";
+import {
+  email,
+  firstNameOf,
+  formatTime,
+  notify,
+} from "../../services/email/index.ts";
 import type { Email } from "../../services/email/blocks.ts";
 import {
   siteVisitBookedEmail,
@@ -28,7 +35,9 @@ import {
   siteVisitChangedEmail,
 } from "./emails.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
+import { assignments } from "../assignments/assignments.schema.ts";
 import { lockDay } from "../jobs/jobs.ts";
+import { jobs } from "../jobs/jobs.schema.ts";
 import { roomOn, scheduleFor, visitHours } from "../jobs/schedule.ts";
 import { currentPriceList } from "../price-list/price-list.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
@@ -42,14 +51,11 @@ import {
   premisesFindingsSchema,
 } from "./site-visits.validation.ts";
 import { toSiteVisitView } from "./views.ts";
-import { monitoring } from "../../services/monitoring/index.ts";
 
 const fieldError = (path: (string | number)[], message: string) =>
   new RequestBodyError(
     new z.ZodError([{ code: "custom", path, message, input: undefined }]),
   );
-
-const MINUTE_MS = 60_000;
 
 // a Property with its Client
 const propertyOf = async (propertyId: string) => {
@@ -81,7 +87,8 @@ const visitorOf = async (staffId: string) => {
  *   needs those hours free and a Cleaner free then;
  * - by Office Staff, it takes none; a Cleaner who isn't Office Staff can't
  *   make one on a day they have no hours;
- * - either way, it can't overlap the visitor's other Site Visits.
+ * - either way, it can't overlap the visitor's other Site Visits, or a Job
+ *   they hold a place on, Offered or Confirmed (#242).
  *
  * A visit being moved gives its id, so it isn't counted against itself.
  */
@@ -104,7 +111,7 @@ const refuseNoRoom = async (
   }
   const date = dayOf(startsAt);
   await lockDay(tx, date);
-  const [day] = await scheduleFor(date, date);
+  const [day] = await scheduleFor(date, date, tx);
 
   if (day!.available.some((c) => c.id === visitor.id)) {
     const room = roomOn(day!, {
@@ -147,17 +154,33 @@ const refuseNoRoom = async (
       `${visitor.name} has another Site Visit then, at ${formatTime(overlap.startsAt!)}.`,
     );
   }
+
+  const places = await tx
+    .select({ job: jobs })
+    .from(assignments)
+    .innerJoin(jobs, eq(jobs.id, assignments.jobId))
+    .where(
+      and(
+        eq(assignments.staffId, visitor.id),
+        ne(assignments.status, "released"),
+        eq(jobs.status, "booked"),
+        gte(jobs.startsAt, startOfDay(date)),
+        lt(jobs.startsAt, endsAt),
+      ),
+    );
+  const onJob = places.find(
+    ({ job }) =>
+      job.startsAt.getTime() + (job.labourHours / job.crewSize) * HOUR_MS >
+      startsAt.getTime(),
+  );
+  if (onJob) {
+    throw new ConflictError(
+      `${visitor.name} is on a Job then, at ${formatTime(onJob.job.startsAt)}.`,
+    );
+  }
 };
 
 // ---- telling the Client ----
-
-const notify = async (what: string, send: () => Promise<void>) => {
-  try {
-    await send();
-  } catch (error) {
-    monitoring.error(error, { what: `${what} not sent` });
-  }
-};
 
 const place = (property: Property) =>
   property.kind === "commercial" ? ("premises" as const) : ("home" as const);

@@ -519,7 +519,26 @@ export type StaffAvailability = {
   exceptions: AvailabilityException[];
 };
 
-export type StaffDetail = StaffMember & { availability: StaffAvailability };
+// Something a Staff member holds from now on: a place on a booked Job to
+// come, Offered or Confirmed, or a booked Site Visit they're making.
+// Deactivating them, or a day of theirs going to 0 hours, frees their places
+// there; a Site Visit has to go to someone else first (#242).
+export type StaffHolding = {
+  kind: "job" | "site_visit";
+  // the Job's, or the Site Visit's
+  id: string;
+  startsAt: string;
+  // the Job's Service, or "Site Visit"
+  what: string;
+  // the Property's street address
+  where: string;
+};
+
+export type StaffDetail = StaffMember & {
+  availability: StaffAvailability;
+  // soonest first
+  holding: StaffHolding[];
+};
 
 // booked, then Completed by its assigned Staff (#10), Cancelled, or No
 // Access when they couldn't get in (#11)
@@ -685,7 +704,9 @@ export type DayCapacity = {
   // the most crews at work at once during the clean's time on site
   crewsBusy: number;
   hasCrew: boolean;
-  // both: the hours and a crew
+  // cleans end by midnight, so each is on one day (#242)
+  endsByMidnight: boolean;
+  // all three: in time, the hours and a crew
   hasRoom: boolean;
 };
 
@@ -1274,15 +1295,17 @@ export type ClientUpcomingJob = ClientJob & {
 // ---- Assignments (#9) ----
 
 // Offered until the Staff member Confirms or Releases it. A Released one is
-// kept, so the Office can see who let a place go.
-export type AssignmentState = "offered" | "confirmed" | "released";
+// kept, so the Office can see who let a place go, and so is one Office Staff
+// took them off (#242).
+export type AssignmentState =
+  "offered" | "confirmed" | "released" | "taken_off";
 
 export type AssignmentView = {
   id: string;
   staff: { id: string; name: string };
   status: AssignmentState;
   offeredAt: string;
-  // when it was Confirmed or Released
+  // when it was Confirmed, Released or taken off
   answeredAt: string | null;
 };
 
@@ -1657,9 +1680,10 @@ export type RescheduleTerms = {
 };
 
 // pending until Office Staff confirm it or turn it down, or the Client
-// withdraws it
+// withdraws it; closed unanswered if its Job stopped being booked first,
+// Cancelled, Completed or No Access (#242)
 export type RescheduleRequestStatus =
-  "pending" | "confirmed" | "turned_down" | "withdrawn";
+  "pending" | "confirmed" | "turned_down" | "withdrawn" | "closed";
 
 export type RescheduleRequestView = {
   id: string;

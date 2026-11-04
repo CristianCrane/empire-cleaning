@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, isNull, ne, sum } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, sum } from "drizzle-orm";
 import type { PlanChange } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError } from "../../middleware/errors.ts";
@@ -6,6 +6,7 @@ import { clock, dayOf } from "../../services/clock/index.ts";
 import { tellCrew } from "../cancellation/cancellation.ts";
 import { settleAfterChange } from "../completion/balance.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
+import { closePendingRequests } from "../reschedule/closing.ts";
 import { charges } from "../payments/payments.schema.ts";
 import {
   servicePlans,
@@ -17,6 +18,7 @@ import {
   type AcceptedQuote,
   type FirstJobs,
 } from "./first-visits.ts";
+import { currentPlanOf } from "./service-plans.ts";
 
 // the plan's booked Jobs from `startsAt` on, latest first
 const bookedFrom = async (tx: Tx | typeof db, planId: string, startsAt: Date) =>
@@ -117,6 +119,10 @@ export const changeServicePlanTerms = async (
       })
       .where(eq(jobs.id, job.id));
   }
+  await closePendingRequests(
+    tx,
+    replaced.map((j) => j.id),
+  );
   await tx
     .update(servicePlanVisits)
     .set({ skippedAt: now })
@@ -157,7 +163,7 @@ export const planChangeOf = async (
   propertyId: string,
   startsAt: Date | null,
 ): Promise<PlanChange | null> => {
-  const plan = await currentPlanIdOf(propertyId);
+  const plan = await currentPlanOf(propertyId);
   if (!plan) return null;
   const [replaced, [deposit]] = await Promise.all([
     startsAt ? replacedBy(plan.id, startsAt) : [],
@@ -175,25 +181,11 @@ export const planChangeOf = async (
   };
 };
 
-// the home's plan that hasn't Ended, if it has one
-const currentPlanIdOf = async (propertyId: string) => {
-  const [plan] = await db
-    .select({ id: servicePlans.id })
-    .from(servicePlans)
-    .where(
-      and(
-        eq(servicePlans.propertyId, propertyId),
-        ne(servicePlans.status, "ended"),
-      ),
-    );
-  return plan;
-};
-
 // the Jobs a Service Plan Quote for the home, starting at `startsAt`, would
 // replace, which don't count against its room: its plan's booked Jobs from
 // then on, or none if it has no plan
 export const jobsReplacedAt = async (propertyId: string, startsAt: Date) => {
-  const plan = await currentPlanIdOf(propertyId);
+  const plan = await currentPlanOf(propertyId);
   if (!plan) return [];
   return (await replacedBy(plan.id, startsAt)).map((j) => j.id);
 };

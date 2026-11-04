@@ -260,6 +260,7 @@ describe("whether a clean has room", () => {
       cleaners: 1,
       crewsBusy: 0,
       hasCrew: true,
+      endsByMidnight: true,
       hasRoom: true,
     });
     expect(

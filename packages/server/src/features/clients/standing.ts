@@ -1,7 +1,7 @@
 import { and, eq, exists, gt, gte, inArray, ne, or, sql } from "drizzle-orm";
 import type { ClientStanding } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
-import { clock } from "../../services/clock/index.ts";
+import { clock, DAY_MS } from "../../services/clock/index.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
 import { properties } from "../properties/properties.schema.ts";
 import { offers } from "../quotes/quote-state.ts";
@@ -13,8 +13,6 @@ export const clientStandings = ["active", "quoting", "past"] as const;
 
 // how far back a Job keeps its Client Active
 const ACTIVE_FOR_DAYS = 90;
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 // a Client's standing, worked out in the query that lists them (#96): Active
 // with a Service Plan (active or On Hold) or a Job, not cancelled, coming up

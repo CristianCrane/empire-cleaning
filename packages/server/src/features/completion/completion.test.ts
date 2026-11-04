@@ -120,7 +120,9 @@ const bookedJob = async ({
   const agent = await cory.signIn();
   const mine = (await agent.get(`/api/assignments/mine/${job!.id}`))
     .body as CleanerJob;
-  await agent.post(`/api/assignments/${mine.assignment.id}/confirm`);
+  await agent
+    .post(`/api/assignments/${mine.assignment.id}/confirm`)
+    .send({ startsAt: mine.startsAt });
 
   testClock().set(MONDAY_11AM);
   return {
@@ -192,6 +194,7 @@ describe("completing a Job", () => {
       email: "dee2@example.com",
       roles: ["cleaner"],
     });
+    await setUsualWeek(dee.id, [8, 8, 8, 8, 8, 0, 0]);
     await office
       .post(`/api/jobs/${jobId}/assignments`)
       .send({ staffId: dee.id })
@@ -202,7 +205,9 @@ describe("completing a Job", () => {
     );
     const deeJob = (await asDee.get(`/api/assignments/mine/${jobId}`))
       .body as CleanerJob;
-    await asDee.post(`/api/assignments/${deeJob.assignment.id}/confirm`);
+    await asDee
+      .post(`/api/assignments/${deeJob.assignment.id}/confirm`)
+      .send({ startsAt: deeJob.startsAt });
 
     // not before it starts
     testClock().set(new Date("2026-01-12T13:59:00Z"));

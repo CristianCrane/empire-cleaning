@@ -10,10 +10,16 @@ import {
   ne,
 } from "drizzle-orm";
 import type { OpenPlace } from "@empire-cleaning/models";
-import { db } from "../../db/index.ts";
+import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
-import { clock, dayOf, timeOf } from "../../services/clock/index.ts";
-import { email } from "../../services/email/index.ts";
+import {
+  clock,
+  DAY_MS,
+  dayOf,
+  HOUR_MS,
+  timeOf,
+} from "../../services/clock/index.ts";
+import { email, formatWhen } from "../../services/email/index.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { cleanerHours } from "../jobs/schedule.ts";
 import { properties } from "../properties/properties.schema.ts";
@@ -28,6 +34,7 @@ import {
   openPlacePasses,
 } from "./assignments.schema.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
+import { hoursOnSiteOf } from "../jobs/jobs.ts";
 
 // A Job's Open Places are open to free Cleaners from this many days before
 // it starts (ADR-0019): who is free is only reliable nearer the day
@@ -39,9 +46,6 @@ const URGENT_OPEN_PLACE_HOURS = 48;
 
 // the morning email of Open Places goes out from this time, New York
 const OPEN_PLACES_EMAIL_TIME = "07:00";
-
-const HOUR_MS = 3_600_000;
-const DAY_MS = 24 * HOUR_MS;
 
 // when a Job's Open Places open to free Cleaners
 const opensAt = (job: Pick<Job, "startsAt">) =>
@@ -62,41 +66,42 @@ const busyTimes = async (
   staffIds: string[],
   from: Date,
   to: Date,
+  tx: Tx | typeof db,
   exceptJobId?: string,
 ) => {
   const busy = new Map(staffIds.map((id) => [id, [] as Span[]]));
   if (staffIds.length === 0) return busy;
-  const [held, visits] = await Promise.all([
-    db
-      .select({ staffId: assignments.staffId, job: jobs })
-      .from(assignments)
-      .innerJoin(jobs, eq(jobs.id, assignments.jobId))
-      .where(
-        and(
-          inArray(assignments.staffId, staffIds),
-          ne(assignments.status, "released"),
-          eq(jobs.status, "booked"),
-          gt(jobs.startsAt, new Date(from.getTime() - DAY_MS)),
-          lt(jobs.startsAt, to),
-          exceptJobId ? ne(jobs.id, exceptJobId) : undefined,
-        ),
+  // one after the other, as a transaction's queries share one connection
+  // (ADR-0024)
+  const held = await tx
+    .select({ staffId: assignments.staffId, job: jobs })
+    .from(assignments)
+    .innerJoin(jobs, eq(jobs.id, assignments.jobId))
+    .where(
+      and(
+        inArray(assignments.staffId, staffIds),
+        ne(assignments.status, "released"),
+        eq(jobs.status, "booked"),
+        gt(jobs.startsAt, new Date(from.getTime() - DAY_MS)),
+        lt(jobs.startsAt, to),
+        exceptJobId ? ne(jobs.id, exceptJobId) : undefined,
       ),
-    db
-      .select({
-        staffId: siteVisits.staffId,
-        startsAt: siteVisits.startsAt,
-        minutes: siteVisits.minutes,
-      })
-      .from(siteVisits)
-      .where(
-        and(
-          inArray(siteVisits.staffId, staffIds),
-          eq(siteVisits.status, "booked"),
-          gt(siteVisits.startsAt, new Date(from.getTime() - DAY_MS)),
-          lt(siteVisits.startsAt, to),
-        ),
+    );
+  const visits = await tx
+    .select({
+      staffId: siteVisits.staffId,
+      startsAt: siteVisits.startsAt,
+      minutes: siteVisits.minutes,
+    })
+    .from(siteVisits)
+    .where(
+      and(
+        inArray(siteVisits.staffId, staffIds),
+        eq(siteVisits.status, "booked"),
+        gt(siteVisits.startsAt, new Date(from.getTime() - DAY_MS)),
+        lt(siteVisits.startsAt, to),
       ),
-  ]);
+    );
   for (const { staffId, job } of held) busy.get(staffId)!.push(onSite(job));
   for (const { staffId, startsAt, minutes } of visits) {
     const start = startsAt!.getTime();
@@ -118,13 +123,18 @@ const overlaps = (spans: Span[], { start, end }: Span) =>
 export const freeFor = async (
   staffIds: string[],
   job: Pick<Job, "id" | "startsAt" | "labourHours" | "crewSize">,
+  tx: Tx | typeof db = db,
 ) => {
   const day = dayOf(job.startsAt);
   const span = onSite(job);
-  const [hours, busy] = await Promise.all([
-    cleanerHours([day]),
-    busyTimes(staffIds, job.startsAt, new Date(span.end), job.id),
-  ]);
+  const hours = await cleanerHours([day], tx);
+  const busy = await busyTimes(
+    staffIds,
+    job.startsAt,
+    new Date(span.end),
+    tx,
+    job.id,
+  );
   const withHours = new Set(hours.get(day)!.map((c) => c.id));
   return new Set(
     staffIds.filter(
@@ -140,9 +150,9 @@ export const freeFor = async (
  * "Not for me". Worked out when asked, never stored, so someone who becomes
  * free later sees them, and a filled place leaves everyone's list at once.
  */
-const openings = async (jobId?: string) => {
+const openings = async (jobId?: string, tx: Tx | typeof db = db) => {
   const now = clock.now();
-  const soon = await db
+  const soon = await tx
     .select({ job: jobs, property: properties })
     .from(jobs)
     .innerJoin(properties, eq(properties.id, jobs.propertyId))
@@ -158,24 +168,25 @@ const openings = async (jobId?: string) => {
   if (soon.length === 0) return [];
 
   const jobIds = soon.map((s) => s.job.id);
-  const [places, passes, hours] = await Promise.all([
-    db
-      .select({
-        jobId: assignments.jobId,
-        staffId: assignments.staffId,
-        status: assignments.status,
-      })
-      .from(assignments)
-      .where(inArray(assignments.jobId, jobIds)),
-    db
-      .select()
-      .from(openPlacePasses)
-      .where(inArray(openPlacePasses.jobId, jobIds)),
-    cleanerHours([...new Set(soon.map((s) => dayOf(s.job.startsAt)))]),
-  ]);
+  const places = await tx
+    .select({
+      jobId: assignments.jobId,
+      staffId: assignments.staffId,
+      status: assignments.status,
+    })
+    .from(assignments)
+    .where(inArray(assignments.jobId, jobIds));
+  const passes = await tx
+    .select()
+    .from(openPlacePasses)
+    .where(inArray(openPlacePasses.jobId, jobIds));
+  const hours = await cleanerHours(
+    [...new Set(soon.map((s) => dayOf(s.job.startsAt)))],
+    tx,
+  );
   const cleaners = [...new Set([...hours.values()].flat().map((c) => c.id))];
   const latest = Math.max(...soon.map((s) => onSite(s.job).end));
-  const busy = await busyTimes(cleaners, now, new Date(latest));
+  const busy = await busyTimes(cleaners, now, new Date(latest), tx);
 
   return soon.flatMap(({ job, property }) => {
     const onJob = places.filter((p) => p.jobId === job.id);
@@ -203,7 +214,7 @@ const toOpenPlaces = async (open: Opening[]): Promise<OpenPlace[]> => {
     jobId: job.id,
     startsAt: job.startsAt.toISOString(),
     serviceName: versions.get(job.serviceId)!.name,
-    hoursOnSite: Math.round((job.labourHours / job.crewSize) * 100) / 100,
+    hoursOnSite: hoursOnSiteOf(job),
     crewSize: job.crewSize,
     postcode: property.postcode,
   }));
@@ -245,12 +256,17 @@ export const openToOf = async (
 };
 
 /**
- * A Cleaner takes an Open Place: first to Confirm wins. Under the Job's
- * lock, so two can't both take its last place, it checks again that the
- * place is still open and still open to them, and refuses otherwise. Their
- * place is Confirmed at once.
+ * A Cleaner takes an Open Place, at the time they were shown (`seen`):
+ * first to Confirm wins. Under the Job's lock, so two can't both take its
+ * last place, it checks again that the place is still open and still open to
+ * them, and that the Job hasn't moved, and refuses otherwise. Their place is
+ * Confirmed at once.
  */
-export const confirmOpenPlace = async (staffId: string, jobId: string) => {
+export const confirmOpenPlace = async (
+  staffId: string,
+  jobId: string,
+  seen?: Date,
+) => {
   await db.transaction(async (tx) => {
     const [job] = await tx
       .select()
@@ -263,8 +279,13 @@ export const confirmOpenPlace = async (staffId: string, jobId: string) => {
     if (job.status !== "booked" || job.startsAt <= clock.now()) {
       throw new ConflictError("This Job isn't open any more");
     }
+    if (seen && seen.getTime() !== job.startsAt.getTime()) {
+      throw new ConflictError(
+        `This Job has moved to ${formatWhen(job.startsAt)}. Please check the new time, then confirm again.`,
+      );
+    }
 
-    const [opening] = await openings(jobId);
+    const [opening] = await openings(jobId, tx);
     if (!opening) {
       const now = clock.now();
       throw new ConflictError(
@@ -300,14 +321,24 @@ export const confirmOpenPlace = async (staffId: string, jobId: string) => {
   });
 };
 
-// A Cleaner says an Open Place is "Not for me": it leaves their list, and
-// they're never emailed about it again. Saying it twice changes nothing.
+// A Cleaner says an Open Place open to them is "Not for me": it leaves their
+// list, and they're never emailed about it again. Saying it twice changes
+// nothing. To anyone it isn't open to, it doesn't exist.
 export const passOpenPlace = async (staffId: string, jobId: string) => {
-  const [job] = await db
-    .select({ id: jobs.id })
-    .from(jobs)
-    .where(and(eq(jobs.id, jobId), eq(jobs.status, "booked")));
-  if (!job) throw new NotFoundError("Job not found");
+  const [passed] = await db
+    .select()
+    .from(openPlacePasses)
+    .where(
+      and(
+        eq(openPlacePasses.jobId, jobId),
+        eq(openPlacePasses.staffId, staffId),
+      ),
+    );
+  if (passed) return;
+  const [opening] = await openings(jobId);
+  if (!opening?.openTo.includes(staffId)) {
+    throw new NotFoundError("Job not found");
+  }
   await db
     .insert(openPlacePasses)
     .values({ jobId, staffId, passedAt: clock.now() })
@@ -365,7 +396,7 @@ const morningEmailsDue = async (today: string, time: string) => {
  * on more than one server: each place is claimed for each Cleaner before its
  * email goes, and let go again if the email fails.
  *
- * The timer in src/index.ts calls this, and so do changes that open a place.
+ * The timer in src/scheduler.ts calls this, and so do changes that open a place.
  */
 export const emailOpenPlaces = async () => {
   const now = clock.now();

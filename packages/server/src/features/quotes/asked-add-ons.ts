@@ -1,21 +1,27 @@
 import { inArray } from "drizzle-orm";
 import type { AddOnChoice } from "@empire-cleaning/models";
-import { db } from "../../db/index.ts";
+import { db, type Tx } from "../../db/index.ts";
 import { currentPriceList } from "../price-list/price-list.ts";
 import { quoteAddOns } from "./quotes.schema.ts";
 
 // the Add-ons asked for on each Quote, in the Price List's order, named from
 // the current Price List (retired Add-ons keep their names there)
-export const askedAddOns = async (quoteIds: string[]) => {
+export const askedAddOns = async (
+  quoteIds: string[],
+  tx: Tx | typeof db = db,
+) => {
   const byQuote = new Map<string, AddOnChoice[]>(
     quoteIds.map((id) => [id, []]),
   );
   if (quoteIds.length === 0) return byQuote;
 
-  const [chosen, list] = await Promise.all([
-    db.select().from(quoteAddOns).where(inArray(quoteAddOns.quoteId, quoteIds)),
-    currentPriceList(),
-  ]);
+  // one after the other, as a transaction's queries share one connection
+  // (ADR-0024)
+  const chosen = await tx
+    .select()
+    .from(quoteAddOns)
+    .where(inArray(quoteAddOns.quoteId, quoteIds));
+  const list = await currentPriceList(tx);
   const order = new Map(list.addOns.map((a, i) => [a.key, i]));
   const names = new Map(list.addOns.map((a) => [a.key, a.name]));
 

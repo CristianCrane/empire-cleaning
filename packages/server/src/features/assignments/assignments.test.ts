@@ -1,12 +1,18 @@
 import { describe, expect, test } from "vitest";
+import { eq } from "drizzle-orm";
 import type {
   CleanerJob,
   CleanerJobs,
   NeedsAttentionItem,
   OfficeJob,
   OfficeQuote,
+  OpenPlace,
   ScheduleDay,
 } from "@empire-cleaning/models";
+import { apart } from "#db";
+import { assignments } from "#features/assignments";
+import { jobs } from "#features/jobs";
+import { siteVisits } from "#features/site-visits";
 import { createStaff, setUsualWeek } from "#features/staff";
 import { api, signIn, testClock, testEmail } from "../../../tests/harness.ts";
 import {
@@ -126,6 +132,7 @@ describe("Offering Assignments", () => {
       email: "ana@example.com",
       roles: ["cleaner", "office_staff"],
     });
+    await setUsualWeek(ana.id, [8, 8, 8, 8, 8, 0, 0]);
     const asAna = await signIn("ana@example.com");
     const sent = testEmail().sent.length;
 
@@ -246,7 +253,10 @@ describe("removing an Assignment", () => {
     const office = await signInAsOffice();
     const assignmentId = await offered(office, job.id, cory.id);
     const asCory = await cory.signIn();
-    await asCory.post(`/api/assignments/${assignmentId}/confirm`).expect(200);
+    await asCory
+      .post(`/api/assignments/${assignmentId}/confirm`)
+      .send({ startsAt: THURSDAY_9AM })
+      .expect(200);
 
     const after = (
       await office
@@ -254,7 +264,10 @@ describe("removing an Assignment", () => {
         .expect(200)
     ).body as OfficeJob;
 
-    expect(after.assignments).toEqual([]);
+    // kept, so the Office sees it, and no longer open to them (#242)
+    expect(after.assignments).toMatchObject([
+      { staff: { id: cory.id }, status: "taken_off" },
+    ]);
     expect(after.openPlaces).toBe(2);
     const email = testEmail().lastTo(cory.email);
     expect(email.subject).toBe("You're no longer on a Job");
@@ -278,7 +291,12 @@ describe("a Cleaner's Jobs", () => {
       crewSize: 1,
     });
     const deesOnly = await thursdayJob();
-    const released = await thursdayJob();
+    // on Friday, as Cory is on another Job on Thursday morning
+    const released = await bookedJob({
+      startsAt: "2026-01-09T14:00:00Z",
+      labourHours: 6,
+      crewSize: 2,
+    });
     await offered(office, thursday.id, cory.id);
     await offered(office, today.id, cory.id);
     await offered(office, deesOnly.id, dee.id);
@@ -352,7 +370,10 @@ describe("a Cleaner's Jobs", () => {
     const asDee = await dee.signIn();
 
     await asDee.get(`/api/assignments/mine/${job.id}`).expect(404);
-    await asDee.post(`/api/assignments/${assignmentId}/confirm`).expect(404);
+    await asDee
+      .post(`/api/assignments/${assignmentId}/confirm`)
+      .send({ startsAt: THURSDAY_9AM })
+      .expect(404);
     await asDee.post(`/api/assignments/${assignmentId}/release`).expect(404);
     expect(await ids(asDee)).toEqual({ today: [], upcoming: [] });
     // and from anyone who isn't a Cleaner
@@ -374,7 +395,10 @@ describe("Confirming", () => {
     testClock().advance({ hours: 1 });
 
     const seen = (
-      await asCory.post(`/api/assignments/${coryPlace}/confirm`).expect(200)
+      await asCory
+        .post(`/api/assignments/${coryPlace}/confirm`)
+        .send({ startsAt: THURSDAY_9AM })
+        .expect(200)
     ).body as CleanerJob;
 
     expect(seen.assignment.status).toBe("confirmed");
@@ -384,9 +408,15 @@ describe("Confirming", () => {
     });
     expect((await jobFor(office, job.id)).assignment).toBe("unassigned");
 
-    await asDee.post(`/api/assignments/${deePlace}/confirm`).expect(200);
+    await asDee
+      .post(`/api/assignments/${deePlace}/confirm`)
+      .send({ startsAt: THURSDAY_9AM })
+      .expect(200);
     // again changes nothing
-    await asDee.post(`/api/assignments/${deePlace}/confirm`).expect(200);
+    await asDee
+      .post(`/api/assignments/${deePlace}/confirm`)
+      .send({ startsAt: THURSDAY_9AM })
+      .expect(200);
 
     expect((await jobFor(office, job.id)).assignment).toBe("assigned");
     const [thursday] = (
@@ -444,7 +474,10 @@ describe("Releasing", () => {
     const job = await thursdayJob();
     const assignmentId = await offered(office, job.id, cory.id);
     const asCory = await cory.signIn();
-    await asCory.post(`/api/assignments/${assignmentId}/confirm`).expect(200);
+    await asCory
+      .post(`/api/assignments/${assignmentId}/confirm`)
+      .send({ startsAt: THURSDAY_9AM })
+      .expect(200);
 
     // 48 hours to go: still allowed
     testClock().set(new Date("2026-01-06T14:00:00Z"));
@@ -486,7 +519,10 @@ describe("Unassigned Jobs in Needs attention", () => {
     await thursdayJob();
     const place = await offered(office, covered.id, cory.id);
     const asCory = await cory.signIn();
-    await asCory.post(`/api/assignments/${place}/confirm`).expect(200);
+    await asCory
+      .post(`/api/assignments/${place}/confirm`)
+      .send({ startsAt: covered.startsAt })
+      .expect(200);
     // Wednesday 9am comes within 48 hours at Monday 9am
     testClock().set(new Date("2026-01-05T15:00:00Z"));
 
@@ -500,5 +536,220 @@ describe("Unassigned Jobs in Needs attention", () => {
       job: { assignment: "unassigned", client: { name: expect.any(String) } },
     });
     expect(items[1]!.since).toBe("2026-01-05T14:00:00.000Z");
+  });
+});
+
+const openJobIds = async (agent: Agent) =>
+  (
+    (await agent.get("/api/assignments/open").expect(200)).body as OpenPlace[]
+  ).map((p) => p.jobId);
+
+const confirmAt = (agent: Agent, assignmentId: string, startsAt: string) =>
+  agent.post(`/api/assignments/${assignmentId}/confirm`).send({ startsAt });
+
+const statusOf = async (assignmentId: string) => {
+  const [row] = await apart
+    .select({ status: assignments.status })
+    .from(assignments)
+    .where(eq(assignments.id, assignmentId));
+  return row!.status;
+};
+
+describe("Offering a place to a Cleaner who isn't free (#242)", () => {
+  test("is refused, as they could never Confirm it", async () => {
+    const job = await thursdayJob(1);
+    const other = await thursdayJob(1);
+    const cory = await cleaner("Cory Cleaner");
+    // no hours on Thursdays
+    const fay = await createStaff({
+      name: "Fay Cleaner",
+      email: "fay@example.com",
+      roles: ["cleaner"],
+    });
+    const office = await signInAsOffice();
+    await offered(office, other.id, cory.id);
+
+    const busy = await offer(office, job.id, cory.id).expect(409);
+    const off = await offer(office, job.id, fay.id).expect(409);
+
+    expect(busy.body.message).toBe(
+      "Cory Cleaner isn't free then: they're on another Job or a Site Visit at that time, or have no hours that day",
+    );
+    expect(off.body.message).toMatch(/^Fay Cleaner isn't free then/);
+  });
+});
+
+describe('Saying "Not for me" (#242)', () => {
+  test("is only for a Cleaner the place is open to", async () => {
+    // one place still open, to anyone free but those on it
+    const job = await thursdayJob(2);
+    const cory = await cleaner("Cory Cleaner");
+    // no hours that day
+    await createStaff({
+      name: "Fay Cleaner",
+      email: "fay@example.com",
+      roles: ["cleaner"],
+    });
+    const office = await signInAsOffice();
+    const place = await offered(office, job.id, cory.id);
+    const asCory = await cory.signIn();
+    await confirmAt(asCory, place, THURSDAY_9AM).expect(200);
+
+    // Cory holds it, and Fay has no hours that day
+    await asCory.post(`/api/assignments/open/${job.id}/pass`).expect(404);
+    await (
+      await signIn("fay@example.com")
+    )
+      .post(`/api/assignments/open/${job.id}/pass`)
+      .expect(404);
+
+    expect((await jobFor(office, job.id)).openTo.passedBy).toEqual([]);
+  });
+});
+
+describe("Confirming an Offered place (#242)", () => {
+  test("is refused once the Cleaner is no longer free for it", async () => {
+    const job = await thursdayJob(1);
+    const cora = await cleaner("Cora Cleaner");
+    const office = await signInAsOffice();
+    const place = await offered(office, job.id, cora.id);
+    const asCora = await cora.signIn();
+    // a Site Visit of hers at 10am that day, booked however it was
+    await apart.insert(siteVisits).values({
+      propertyId: job.propertyId,
+      staffId: cora.id,
+      startsAt: new Date("2026-01-08T15:00:00Z"),
+      minutes: 60,
+      bookedAt: testClock().now(),
+    });
+
+    const refused = await confirmAt(asCora, place, THURSDAY_9AM).expect(409);
+
+    expect(refused.body.message).toBe(
+      "You're no longer free for this Job. Please release it, or call the Office.",
+    );
+    expect(await statusOf(place)).toBe("offered");
+  });
+
+  test("is refused once the Job has started", async () => {
+    const job = await thursdayJob(1);
+    const cora = await cleaner("Cora Cleaner");
+    const office = await signInAsOffice();
+    const place = await offered(office, job.id, cora.id);
+    testClock().set(new Date(THURSDAY_9AM));
+
+    const refused = await confirmAt(
+      await cora.signIn(),
+      place,
+      THURSDAY_9AM,
+    ).expect(409);
+
+    expect(refused.body.message).toBe("This Job has already started");
+  });
+
+  test("at a time the Job has moved from asks the Cleaner to look again", async () => {
+    const job = await thursdayJob(1);
+    const dee = await cleaner("Dee Cleaner");
+    const office = await signInAsOffice();
+    const place = await offered(office, job.id, dee.id);
+    const asDee = await dee.signIn();
+    await office
+      .post(`/api/jobs/${job.id}/move`)
+      .send({ date: "2026-01-07", time: "10:00" })
+      .expect(200);
+
+    const refused = await confirmAt(asDee, place, THURSDAY_9AM).expect(409);
+
+    expect(refused.body.message).toBe(
+      "This Job has moved to Wednesday, January 7 at 10:00 AM. Please check the new time, then confirm again.",
+    );
+    expect(await statusOf(place)).toBe("offered");
+    await confirmAt(asDee, place, "2026-01-07T15:00:00.000Z").expect(200);
+  });
+});
+
+describe("a place on a Cancelled Job (#242)", () => {
+  test("can't be Confirmed or Released from an old link", async () => {
+    const job = await thursdayJob(1);
+    const cory = await cleaner("Cory Cleaner");
+    const office = await signInAsOffice();
+    const place = await offered(office, job.id, cory.id);
+    const asCory = await cory.signIn();
+    // cancelled meanwhile
+    await apart
+      .update(jobs)
+      .set({
+        status: "cancelled",
+        cancelledAt: testClock().now(),
+        cancelledBy: "empire",
+      })
+      .where(eq(jobs.id, job.id));
+    const sent = testEmail().sent.length;
+
+    await asCory.post(`/api/assignments/${place}/release`).expect(404);
+    await confirmAt(asCory, place, THURSDAY_9AM).expect(404);
+
+    expect(await statusOf(place)).toBe("offered");
+    expect(testEmail().sent.slice(sent)).toEqual([]);
+  });
+});
+
+describe("taking a Cleaner off a Job (#242)", () => {
+  test("doesn't open the place to them again", async () => {
+    // 9am on Tuesday the 6th, within 48 hours: Open Places are emailed at once
+    const job = await bookedJob({
+      startsAt: "2026-01-06T14:00:00Z",
+      labourHours: 3,
+      crewSize: 1,
+    });
+    const cory = await cleaner("Cory Cleaner");
+    const dee = await cleaner("Dee Cleaner");
+    const office = await signInAsOffice();
+    const place = await offered(office, job.id, cory.id);
+    const asCory = await cory.signIn();
+
+    await office.delete(`/api/jobs/${job.id}/assignments/${place}`).expect(200);
+
+    expect(await openJobIds(asCory)).toEqual([]);
+    expect(testEmail().lastTo(cory.email).subject).toBe(
+      "You're no longer on a Job",
+    );
+    expect(testEmail().lastTo(dee.email).subject).toBe(
+      "A Job soon is open to you",
+    );
+    await asCory
+      .post(`/api/assignments/open/${job.id}/confirm`)
+      .send({ startsAt: job.startsAt })
+      .expect(409);
+    // the Office can still Offer it to them
+    await offer(office, job.id, cory.id).expect(201);
+  });
+});
+
+describe("Releasing a place while its Job is being moved (#242)", () => {
+  test("waits for the move, so the place it gave up isn't Offered back", async () => {
+    const job = await thursdayJob(1);
+    const cory = await cleaner("Cory Cleaner");
+    const office = await signInAsOffice();
+    const place = await offered(office, job.id, cory.id);
+    const asCory = await cory.signIn();
+
+    // a move holding the Job, as confirming a Reschedule Request does, that
+    // Offers its crew the new time once Cory's Release has started
+    let released: Promise<unknown> | undefined;
+    await apart.transaction(async (tx) => {
+      await tx.select().from(jobs).where(eq(jobs.id, job.id)).for("update");
+      released = asCory
+        .post(`/api/assignments/${place}/release`)
+        .then((r) => r.status);
+      await new Promise((settle) => setTimeout(settle, 300));
+      await tx
+        .update(assignments)
+        .set({ status: "offered" })
+        .where(eq(assignments.id, place));
+    });
+
+    expect(await released).toBe(204);
+    expect(await statusOf(place)).toBe("released");
   });
 });

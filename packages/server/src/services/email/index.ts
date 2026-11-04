@@ -89,6 +89,16 @@ export const email = {
   },
 };
 
+// Emails go out after the change is saved; one that fails is logged, and the
+// change stands
+export const notify = async (what: string, send: () => Promise<void>) => {
+  try {
+    await send();
+  } catch (error) {
+    monitoring.error(error, { what: `${what} not sent` });
+  }
+};
+
 export const setEmailSender = (next: EmailSender) => {
   current = next;
 };

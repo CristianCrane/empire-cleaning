@@ -38,6 +38,7 @@ const confirmPlace = async (asCleaner: Agent, jobId: string) => {
     .body as CleanerJob;
   await asCleaner
     .post(`/api/assignments/${mine.assignment.id}/confirm`)
+    .send({ startsAt: mine.startsAt })
     .expect(200);
 };
 
@@ -209,6 +210,31 @@ describe("Office Staff moving a Job", () => {
     expect(
       (await move(office, jobId, WEDNESDAY).expect(409)).body.message,
     ).toMatch(/Confirm or turn down their request first/);
+  });
+
+  test("can't make it end after midnight (#242)", async () => {
+    const office = await signInAsOffice();
+    await cleaner("Cory Cleaner");
+    await cleaner("Dee Cleaner");
+    // 3 hours on site
+    const job = await otherJob({
+      startsAt: "2026-01-12T14:00:00Z",
+      labourHours: 6,
+      crewSize: 2,
+    });
+
+    const refused = await move(office, job.id, {
+      date: "2026-01-14",
+      time: "22:00",
+    }).expect(409);
+
+    expect(refused.body.message).toBe(
+      "Cleans end by midnight: choose an earlier start time",
+    );
+    // ending at midnight is fine
+    await move(office, job.id, { date: "2026-01-14", time: "21:00" }).expect(
+      200,
+    );
   });
 
   test("is for Office Staff only", async () => {

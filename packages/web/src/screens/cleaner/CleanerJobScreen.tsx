@@ -201,11 +201,19 @@ function JobDetails({ job }: { job: CleanerJob }) {
 
 // a place the Office offered them: Confirm it, or let it go
 function TakeOffer({ job }: { job: CleanerJob }) {
-  const action = useAction("Your place wasn't confirmed. Please try again.");
+  // reloads on failure too, to show the new time if the Job moved
+  const action = useAction("Your place wasn't confirmed. Please try again.", {
+    reloadOnFailure: true,
+  });
 
+  // sends the time they were shown, so a Job moved meanwhile isn't taken at
+  // a time they never saw
   const confirm = () =>
     action.run(
-      () => postJson(`/api/assignments/${job.assignment.id}/confirm`),
+      () =>
+        postJson(`/api/assignments/${job.assignment.id}/confirm`, {
+          startsAt: job.startsAt,
+        }),
       "Place confirmed",
     );
 
