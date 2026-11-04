@@ -331,6 +331,48 @@ const priceOptions = (
   );
 };
 
+// A Revision's terms as it set them, priced afresh by priceOptions: a one-off
+// Quote its own Service (and the one recommended for a first visit, where
+// that's offered), crew and overrides; a Service Plan Quote its weekdays,
+// Condition and Plan Discount; either its Add-ons and its area, or what that
+// follows
+const repriced = (
+  list: Pricing,
+  property: Property,
+  quote: Pick<Quote, "area">,
+  revision: KindedRevision,
+  options: RevisionOptionRow[],
+  firstVisit: boolean,
+) => {
+  const rows = inOrder(options);
+  const addOnKeys = rows[0]!.suggested.addOns.map((a) => a.key);
+  const area = areaOf(revision, quote, property);
+  const overrideOf = (row: RevisionOptionRow) =>
+    row.overrideCents === null
+      ? null
+      : { priceCents: row.overrideCents, reason: row.overrideReason! };
+  const terms =
+    revision.kind === "service_plan"
+      ? planTerms(
+          {
+            condition: revision.condition!,
+            planDiscountPercent: revision.planDiscountPercent!,
+          },
+          rows.map((row) => ({ ...row, override: overrideOf(row) })),
+          area,
+        )
+      : oneOffTerms(
+          list,
+          property,
+          serviceOf(list.services, revision.serviceKey),
+          firstVisit,
+          revision.crewSize,
+          Object.fromEntries(rows.map((r) => [r.serviceKey, overrideOf(r)])),
+          area,
+        );
+  return priceOptions(list, property, addOnKeys, terms);
+};
+
 // A Service Plan Quote's weekday and its saving, from its option: the
 // one-off price, taxed as a one-off Job the way its Suggested Price was,
 // against the plan clean's price
@@ -930,32 +972,6 @@ const newRevisionOptions = async (
   // a Service Plan Quote's was one that can recur when it was started
   const serviceKey = quote.serviceKey;
   if (offer) {
-    const rows = inOrder(await optionsOf(offer.id, tx));
-    const addOnKeys = rows[0]!.suggested.addOns.map((a) => a.key);
-    const area = areaOf(offer, quote, property);
-    const overrideOf = (row: RevisionOptionRow) =>
-      row.overrideCents === null
-        ? null
-        : { priceCents: row.overrideCents, reason: row.overrideReason! };
-    const terms =
-      kind === "service_plan"
-        ? planTerms(
-            {
-              condition: offer.condition!,
-              planDiscountPercent: offer.planDiscountPercent!,
-            },
-            rows.map((row) => ({ ...row, override: overrideOf(row) })),
-            area,
-          )
-        : oneOffTerms(
-            list,
-            property,
-            service,
-            !anyCompleted,
-            offer.crewSize,
-            Object.fromEntries(rows.map((r) => [r.serviceKey, overrideOf(r)])),
-            area,
-          );
     return {
       revision: {
         serviceKey,
@@ -968,7 +984,14 @@ const newRevisionOptions = async (
         planDiscountPercent: offer.planDiscountPercent,
         condition: offer.condition,
       },
-      options: priceOptions(list, property, addOnKeys, terms),
+      options: repriced(
+        list,
+        property,
+        quote,
+        { ...offer, kind },
+        await optionsOf(offer.id, tx),
+        !anyCompleted,
+      ),
     };
   }
 
