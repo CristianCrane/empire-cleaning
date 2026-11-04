@@ -83,10 +83,12 @@ const momentsOf = (job: OfficeJob): Moment[] => {
       description: `${formatDateTime(request.fromStartsAt)} to ${formatDateTime(request.startsAt)}`,
     });
     if (request.answeredAt && request.status !== "pending") {
+      const { icon, title } = requestAnswered[request.status];
       moments.push({
         key: "answered",
         at: request.answeredAt,
-        ...requestAnswered[request.status],
+        icon,
+        title,
         description: request.reason ?? undefined,
       });
     }
