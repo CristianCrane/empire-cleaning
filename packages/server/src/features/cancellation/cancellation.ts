@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, ne, sum } from "drizzle-orm";
+import { and, eq, isNull, ne, sum } from "drizzle-orm";
 import type {
   CancellationTerms,
   CancelledBy,
@@ -9,7 +9,7 @@ import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock, HOUR_MS } from "../../services/clock/index.ts";
 import { email, formatMoney, notify } from "../../services/email/index.ts";
-import { assignments } from "../assignments/assignments.schema.ts";
+import { assignments, onCrew } from "../assignments/assignments.schema.ts";
 import { clients } from "../clients/clients.schema.ts";
 import {
   paymentOf,
@@ -298,12 +298,7 @@ export const tellCrew = async (job: Job) => {
     .select({ id: staff.id, name: staff.name, email: staff.email })
     .from(assignments)
     .innerJoin(staff, eq(staff.id, assignments.staffId))
-    .where(
-      and(
-        eq(assignments.jobId, job.id),
-        inArray(assignments.status, ["offered", "confirmed"]),
-      ),
-    );
+    .where(and(eq(assignments.jobId, job.id), onCrew()));
   for (const member of crew) {
     await notify(
       `Cancellation of Job ${job.id} to Staff ${member.id}`,
@@ -371,7 +366,7 @@ export const recordNoAccess = async (
       and(
         eq(assignments.jobId, jobId),
         eq(assignments.staffId, staffId),
-        inArray(assignments.status, ["offered", "confirmed"]),
+        onCrew(),
       ),
     );
   if (!mine) throw new NotFoundError("Job not found");

@@ -16,7 +16,7 @@ import {
   formatWhen,
   notify,
 } from "../../services/email/index.ts";
-import { assignments } from "../assignments/assignments.schema.ts";
+import { assignments, onCrew } from "../assignments/assignments.schema.ts";
 import { takenOffEmail } from "../assignments/emails.ts";
 import { emailOpenPlaces, placeReopened } from "../assignments/open-places.ts";
 import { accounts } from "../auth/auth.schema.ts";
@@ -176,7 +176,7 @@ export const editStaff = async (
       .where(
         and(
           eq(assignments.staffId, id),
-          ne(assignments.status, "released"),
+          onCrew(),
           eq(jobs.status, "booked"),
           gt(jobs.startsAt, clock.now()),
         ),
@@ -339,7 +339,7 @@ const heldBy = async (tx: Tx | typeof db, id: string): Promise<Held[]> => {
     .where(
       and(
         eq(assignments.staffId, id),
-        ne(assignments.status, "released"),
+        onCrew(),
         eq(jobs.status, "booked"),
         gt(jobs.startsAt, now),
       ),
@@ -391,9 +391,7 @@ const releasePlaces = async (tx: Tx, places: Held[]) => {
   await tx
     .update(assignments)
     .set({ status: "released", answeredAt: now })
-    .where(
-      and(inArray(assignments.id, ids), ne(assignments.status, "released")),
-    );
+    .where(and(inArray(assignments.id, ids), onCrew()));
   return places;
 };
 

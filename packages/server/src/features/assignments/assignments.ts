@@ -1,9 +1,11 @@
-import { and, asc, eq, gte, inArray, lte, ne } from "drizzle-orm";
-import type {
-  AssignmentView,
-  CleanerJob,
-  CleanerJobs,
-  OfficeJob,
+import { and, asc, eq, gte, inArray, lte } from "drizzle-orm";
+import {
+  holdsPlace,
+  type AssignmentView,
+  type HoldingState,
+  type CleanerJob,
+  type CleanerJobs,
+  type OfficeJob,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
@@ -42,7 +44,7 @@ import {
 } from "../reschedule/reschedule.ts";
 import { staff } from "../staff/staff.schema.ts";
 import { officeStaffEmails } from "../staff/staff.ts";
-import { assignments, type Assignment } from "./assignments.schema.ts";
+import { assignments, onCrew, type Assignment } from "./assignments.schema.ts";
 import {
   emailOpenPlaces,
   freeFor,
@@ -134,8 +136,8 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
     openToOf(row),
   ]);
 
-  const holding = rows.filter((r) => r.assignment.status !== "released");
-  const released = rows.filter((r) => r.assignment.status === "released");
+  const holding = rows.filter((r) => holdsPlace(r.assignment.status));
+  const released = rows.filter((r) => !holdsPlace(r.assignment.status));
   const onJob = new Set(holding.map((r) => r.member.id));
   const hoursOf = new Map(day!.available.map((c) => [c.id, c.hours]));
 
@@ -200,9 +202,7 @@ export const offerAssignment = async (
     const holding = await tx
       .select({ staffId: assignments.staffId })
       .from(assignments)
-      .where(
-        and(eq(assignments.jobId, jobId), ne(assignments.status, "released")),
-      );
+      .where(and(eq(assignments.jobId, jobId), onCrew()));
     if (holding.some((h) => h.staffId === staffId)) {
       throw new ConflictError(`${member.name} already has a place on this Job`);
     }
@@ -276,7 +276,7 @@ export const removeAssignment = async (
         and(
           eq(assignments.id, assignmentId),
           eq(assignments.jobId, jobId),
-          ne(assignments.status, "released"),
+          onCrew(),
         ),
       )
       .returning();
@@ -322,7 +322,7 @@ const cleanerJobs = async (
     .where(
       and(
         eq(assignments.staffId, staffId),
-        ne(assignments.status, "released"),
+        onCrew(),
         onSchedule(),
         gte(jobs.startsAt, startOfDay(dayOf(clock.now()))),
         jobId ? eq(jobs.id, jobId) : undefined,
@@ -341,12 +341,7 @@ const cleanerJobs = async (
       })
       .from(assignments)
       .innerJoin(staff, eq(staff.id, assignments.staffId))
-      .where(
-        and(
-          inArray(assignments.jobId, jobIds),
-          ne(assignments.status, "released"),
-        ),
-      )
+      .where(and(inArray(assignments.jobId, jobIds), onCrew()))
       .orderBy(asc(assignments.offeredAt), asc(assignments.createdAt)),
     db
       .select({ propertyId: properties.id, client: clients })
@@ -368,7 +363,7 @@ const cleanerJobs = async (
 
   return mine.map(({ assignment, job, property }) => {
     const client = clientOf.get(property.id)!;
-    const status = assignment.status as "offered" | "confirmed";
+    const status = assignment.status as HoldingState;
     const { assigned, ...completion } = completions.get(job.id)!;
     return {
       id: job.id,
@@ -390,7 +385,7 @@ const cleanerJobs = async (
         .filter((c) => c.jobId === job.id)
         .map((c) => ({
           name: c.name,
-          status: c.status as "offered" | "confirmed",
+          status: c.status as HoldingState,
         })),
       assignment: {
         id: assignment.id,
@@ -458,7 +453,7 @@ const lockOwn = async (tx: Tx, staffId: string, assignmentId: string) => {
       and(
         eq(assignments.id, assignmentId),
         eq(assignments.staffId, staffId),
-        ne(assignments.status, "released"),
+        onCrew(),
         eq(jobs.status, "booked"),
       ),
     );

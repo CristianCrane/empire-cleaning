@@ -35,7 +35,7 @@ import {
   siteVisitChangedEmail,
 } from "./emails.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
-import { assignments } from "../assignments/assignments.schema.ts";
+import { assignments, onCrew } from "../assignments/assignments.schema.ts";
 import { lockDay } from "../jobs/jobs.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
 import { roomOn, scheduleFor, visitHours } from "../jobs/schedule.ts";
@@ -162,7 +162,7 @@ const refuseNoRoom = async (
     .where(
       and(
         eq(assignments.staffId, visitor.id),
-        ne(assignments.status, "released"),
+        onCrew(),
         eq(jobs.status, "booked"),
         gte(jobs.startsAt, startOfDay(date)),
         lt(jobs.startsAt, endsAt),

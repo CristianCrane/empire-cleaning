@@ -1,8 +1,8 @@
-import { and, asc, count, eq, inArray, ne } from "drizzle-orm";
+import { and, asc, count, eq, inArray } from "drizzle-orm";
 import type { AssignmentStatus } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { staff } from "../staff/staff.schema.ts";
-import { assignments } from "./assignments.schema.ts";
+import { assignments, onCrew } from "./assignments.schema.ts";
 
 // how many of each Job's places are Confirmed
 const confirmedPlaces = async (jobIds: string[], tx: Tx | typeof db) => {
@@ -48,12 +48,7 @@ export const crewOf = async (jobIds: string[], tx: Tx | typeof db = db) => {
     .select({ jobId: assignments.jobId, id: staff.id, name: staff.name })
     .from(assignments)
     .innerJoin(staff, eq(staff.id, assignments.staffId))
-    .where(
-      and(
-        inArray(assignments.jobId, jobIds),
-        ne(assignments.status, "released"),
-      ),
-    )
+    .where(and(inArray(assignments.jobId, jobIds), onCrew()))
     .orderBy(asc(assignments.offeredAt), asc(assignments.createdAt));
   for (const { jobId, id, name } of rows) crews.get(jobId)!.push({ id, name });
   return crews;

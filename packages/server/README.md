@@ -184,7 +184,7 @@ Payment follows ADR-0001 and ADR-0008, and goes through the Payment Gateway (`#s
 
 ## Assignments and Open Places
 
-`#features/assignments` (ADR-0019). A place on a Job is held by an Assignment: `offered` (a named Offer from Office Staff), `confirmed`, or `released` (kept for the record; it holds nothing). A Job is `unassigned` until every place is Confirmed.
+`#features/assignments` (ADR-0019). A place on a Job is held by an Assignment: `offered` (a named Offer from Office Staff), `confirmed`, or `released` (kept for the record; it holds nothing). Which ones hold a place is defined once, as `holdsPlace` in `@empire-cleaning/models`; queries use `onCrew()` from `assignments.schema.ts`, built from it, and never spell the statuses out. A Job is `unassigned` until every place is Confirmed.
 
 - **Open Places** are a Job's places nobody holds. Once a booked Job is within 7 days (`OPEN_PLACE_DAYS`), each is open to every active Cleaner free for it (`freeFor`: Available Hours that day, and no held Job or booked Site Visit overlapping its time on site), except anyone already on it, who Released a place on it, or said "Not for me". Worked out when asked (`openings`), never stored per Cleaner.
 - **Cleaners** see `GET /api/assignments/open` (and `/open/:jobId`, 404 unless it's open to them): an `OpenPlace`, with the Service, time, time on site, Crew Size and postcode only. `POST /api/assignments/open/:jobId/confirm` takes it, Confirmed at once, under the Job's lock; it's a 409 when someone else took it, or they're no longer free. `POST .../pass` is "Not for me" (`open_place_passes`).

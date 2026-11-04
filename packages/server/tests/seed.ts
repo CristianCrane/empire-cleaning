@@ -16,12 +16,13 @@
 // first deletes everything but Accounts and the Price List, so whoever has
 // signed up stays signed up.
 import { asc, eq, sql } from "drizzle-orm";
-import type {
-  NewHome,
-  NewPremises,
-  QuoteAsk,
-  SignedInAccount,
-  Weekday,
+import {
+  holdsPlace,
+  type NewHome,
+  type NewPremises,
+  type QuoteAsk,
+  type SignedInAccount,
+  type Weekday,
 } from "@empire-cleaning/models";
 import { db } from "#db";
 import {
@@ -870,9 +871,7 @@ async function seed() {
   async function confirm(jobId: string, staffId: string) {
     const theirs = (job: Awaited<ReturnType<typeof officeJob>>) =>
       job.assignments.find(
-        (a) =>
-          a.staff.id === staffId &&
-          (a.status === "offered" || a.status === "confirmed"),
+        (a) => a.staff.id === staffId && holdsPlace(a.status),
       );
     const place =
       theirs(await officeJob(jobId)) ??

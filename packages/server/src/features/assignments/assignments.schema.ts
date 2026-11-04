@@ -1,5 +1,7 @@
 import { sql } from "drizzle-orm";
+import { holdingStates } from "@empire-cleaning/models";
 import {
+  type AnyPgColumn,
   date,
   index,
   pgEnum,
@@ -18,6 +20,11 @@ export const assignmentStatus = pgEnum("assignment_status", [
   "confirmed",
   "released",
 ]);
+
+// Assignments that hold a place on their Job's crew (holdingStates), as SQL.
+// Written with no parameters, so the index below is built from it too.
+export const onCrew = (status: AnyPgColumn = assignments.status) =>
+  sql<boolean>`${status} in (${sql.raw(holdingStates.map((s) => `'${s}'`).join(", "))})`;
 
 // A Staff member's place on a Job, made separately from booking: Offered by
 // Office Staff to a named Cleaner, or Confirmed at once by a Cleaner taking
@@ -51,7 +58,7 @@ export const assignments = pgTable(
     // after Releasing it
     uniqueIndex("assignments_one_place_per_staff")
       .on(t.jobId, t.staffId)
-      .where(sql`${t.status} <> 'released'`),
+      .where(onCrew(t.status)),
   ],
 );
 

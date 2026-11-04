@@ -1305,6 +1305,18 @@ export type ClientUpcomingJob = ClientJob & {
 export type AssignmentState =
   "offered" | "confirmed" | "released" | "taken_off";
 
+// who holds a place on a Job's crew: the one definition, which the server's
+// queries and its one-place-per-person index are built from too
+export const holdingStates = [
+  "offered",
+  "confirmed",
+] as const satisfies readonly AssignmentState[];
+
+export type HoldingState = (typeof holdingStates)[number];
+
+export const holdsPlace = (status: AssignmentState): status is HoldingState =>
+  (holdingStates as readonly AssignmentState[]).includes(status);
+
 export type AssignmentView = {
   id: string;
   staff: { id: string; name: string };
@@ -1382,11 +1394,11 @@ export type CleanerJob = {
   >;
   client: { firstName: string; phone: string | null };
   // everyone holding a place, this Cleaner included
-  crew: { name: string; status: "offered" | "confirmed" }[];
+  crew: { name: string; status: HoldingState }[];
   // this Cleaner's own place
   assignment: {
     id: string;
-    status: "offered" | "confirmed";
+    status: HoldingState;
     // false once a Confirmed Assignment is within 48 hours of the Job
     canRelease: boolean;
   };
