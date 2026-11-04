@@ -23,7 +23,7 @@ import { db } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock, DAY_MS } from "../../services/clock/index.ts";
 import { email, formatMoney, notify } from "../../services/email/index.ts";
-import { assignments } from "../assignments/assignments.schema.ts";
+import { assignments, onCrew } from "../assignments/assignments.schema.ts";
 import { assignmentStatusOf } from "../assignments/places.ts";
 import {
   cancellationOf,
@@ -143,7 +143,7 @@ export const completeJob = async (
       and(
         eq(assignments.jobId, jobId),
         eq(assignments.staffId, staffId),
-        inArray(assignments.status, ["offered", "confirmed"]),
+        onCrew(),
       ),
     );
   if (!mine) throw new NotFoundError("Job not found");

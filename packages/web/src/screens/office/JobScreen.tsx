@@ -1,11 +1,12 @@
 import { useState, type ReactNode } from "react";
 import { useLoaderData } from "@tanstack/react-router";
 import { UserPlus } from "lucide-react";
-import type {
-  AssignmentState,
-  AssignmentView,
-  OfficeJob,
-  ScheduledJob,
+import {
+  holdsPlace,
+  type AssignmentState,
+  type AssignmentView,
+  type OfficeJob,
+  type ScheduledJob,
 } from "@empire-cleaning/models";
 import {
   ActionBar,
@@ -408,10 +409,9 @@ function Crew({ job }: { job: OfficeJob }) {
               end={
                 <>
                   {stateBadge[a.status]}
-                  {booked(job) &&
-                    (a.status === "offered" || a.status === "confirmed") && (
-                      <Remove job={job} assignment={a} />
-                    )}
+                  {booked(job) && holdsPlace(a.status) && (
+                    <Remove job={job} assignment={a} />
+                  )}
                 </>
               }
             />

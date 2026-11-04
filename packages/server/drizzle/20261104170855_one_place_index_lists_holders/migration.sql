@@ -1,0 +1,2 @@
+DROP INDEX "assignments_one_place_per_staff";--> statement-breakpoint
+CREATE UNIQUE INDEX "assignments_one_place_per_staff" ON "assignments" ("job_id","staff_id") WHERE "status" in ('offered', 'confirmed');

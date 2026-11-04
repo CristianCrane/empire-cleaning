@@ -17,7 +17,7 @@ import {
   timeOf,
 } from "../../services/clock/index.ts";
 import { email, notify } from "../../services/email/index.ts";
-import { assignments } from "../assignments/assignments.schema.ts";
+import { assignments, onCrew } from "../assignments/assignments.schema.ts";
 import {
   emailOpenPlaces,
   freeFor,
@@ -527,12 +527,7 @@ const moveTo = async (
   const holding = await tx
     .select({ id: assignments.id, staffId: assignments.staffId })
     .from(assignments)
-    .where(
-      and(
-        eq(assignments.jobId, job.id),
-        inArray(assignments.status, ["offered", "confirmed"]),
-      ),
-    );
+    .where(and(eq(assignments.jobId, job.id), onCrew()));
   const free = await freeFor(
     holding.map((h) => h.staffId),
     { ...job, startsAt },
@@ -550,7 +545,7 @@ const moveTo = async (
             assignments.id,
             kept.map((h) => h.id),
           ),
-          inArray(assignments.status, ["offered", "confirmed"]),
+          onCrew(),
         ),
       );
   }

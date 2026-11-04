@@ -9,7 +9,7 @@ import {
   lte,
   ne,
 } from "drizzle-orm";
-import type { OpenPlace } from "@empire-cleaning/models";
+import { holdsPlace, type OpenPlace } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import {
@@ -29,6 +29,7 @@ import { siteVisits } from "../site-visits/site-visits.schema.ts";
 import { staff } from "../staff/staff.schema.ts";
 import {
   assignments,
+  onCrew,
   openPlaceDigests,
   openPlaceEmails,
   openPlacePasses,
@@ -80,7 +81,7 @@ const busyTimes = async (
     .where(
       and(
         inArray(assignments.staffId, staffIds),
-        ne(assignments.status, "released"),
+        onCrew(),
         eq(jobs.status, "booked"),
         gt(jobs.startsAt, new Date(from.getTime() - DAY_MS)),
         lt(jobs.startsAt, to),
@@ -190,7 +191,7 @@ const openings = async (jobId?: string, tx: Tx | typeof db = db) => {
 
   return soon.flatMap(({ job, property }) => {
     const onJob = places.filter((p) => p.jobId === job.id);
-    const holding = onJob.filter((p) => p.status !== "released");
+    const holding = onJob.filter((p) => holdsPlace(p.status));
     const open = job.crewSize - holding.length;
     if (open <= 0) return [];
     const ruledOut = new Set([

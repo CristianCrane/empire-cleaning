@@ -1305,6 +1305,13 @@ export type ClientUpcomingJob = ClientJob & {
 export type AssignmentState =
   "offered" | "confirmed" | "released" | "taken_off";
 
+// who holds a place on a Job's crew: the one definition, which the server's
+// queries and its one-place-per-person index are built from too
+export const holdingStates = ["offered", "confirmed"] as const;
+
+export const holdsPlace = (status: AssignmentState) =>
+  (holdingStates as readonly AssignmentState[]).includes(status);
+
 export type AssignmentView = {
   id: string;
   staff: { id: string; name: string };

@@ -35,7 +35,7 @@ import {
 } from "../../services/clock/index.ts";
 import { emailOffer } from "../assignments/assignments.ts";
 import { freeFor } from "../assignments/open-places.ts";
-import { assignments } from "../assignments/assignments.schema.ts";
+import { assignments, onCrew } from "../assignments/assignments.schema.ts";
 import { billLines, bills } from "../bills/bills.schema.ts";
 import { billNumber } from "../bills/bills.ts";
 import { clients } from "../clients/clients.schema.ts";
@@ -198,7 +198,7 @@ const offerPreviousCrew = async (
     .where(
       and(
         eq(assignments.jobId, previous.id),
-        ne(assignments.status, "released"),
+        onCrew(),
         eq(staff.active, true),
         arrayContains(staff.roles, ["cleaner"]),
       ),
