@@ -13,7 +13,8 @@ import {
 
 // The Schedule's rules, over a day of it as scheduleFor loads it: whether a
 // clean has room (roomOn), whether a Staff member is free for one (isFree),
-// and the spans of time they're worked out in. They never query: the
+// what they're busy with then (busyWith), and the spans of time they're
+// worked out in. They never query: the
 // actions lock and load, ask, then write.
 
 // Hours are added in hundredths, so sums of 7.25 and 0.1 never drift
@@ -163,33 +164,51 @@ export const roomOn = (day: ScheduleDay, clean: Clean): DayCapacity => {
 };
 
 /**
- * Whether a Staff member is free for a clean on a day of the Schedule, as
- * ADR-0019 has it: Available Hours that day, and no booked Job they hold a
- * place on, or booked Site Visit of theirs, overlapping its time on site. A
- * Job being moved isn't counted against itself, so its crew can be checked
- * at its new time. Stricter than room (roomOn), which takes anyone with
- * hours to be free all day. Only the clean's own day counts: every clean
- * ends by midnight (endsByMidnight). A Site Visit needn't, but one running
- * past midnight into a Job early the next day isn't counted against it.
+ * What a Staff member is busy with during a clean's time on site, on its
+ * day of the Schedule: the earliest booked Site Visit of theirs overlapping
+ * it, else the earliest booked Job they hold a place on. Null when nothing
+ * is. A Done Site Visit doesn't count, even one recorded Done before its
+ * time (roomOn, unlike this, still counts one Done at or after its time:
+ * its hours were spent). A Job or Site Visit being moved isn't counted
+ * against itself.
  */
-export const isFree = (day: ScheduleDay, staffId: string, clean: Clean) => {
-  if (!day.available.some((c) => c.id === staffId)) return false;
+export const busyWith = (
+  day: ScheduleDay,
+  staffId: string,
+  clean: Clean,
+): { what: "site_visit" | "job"; startsAt: string } | null => {
   const own = cleanSpan(clean);
-  const busy = [
-    ...day.jobs
-      .filter(
-        (job) =>
-          job.status === "booked" &&
-          job.id !== clean.jobId &&
-          job.crew.some((c) => c.id === staffId),
-      )
-      .map(jobSpan),
-    ...day.siteVisits
-      .filter((v) => v.status === "booked" && v.visitor?.id === staffId)
-      .map(visitSpan),
-  ];
-  return !busy.some((span) => overlaps(span, own));
+  const visit = day.siteVisits
+    .filter(
+      (v) =>
+        v.status === "booked" &&
+        v.id !== clean.siteVisitId &&
+        v.visitor?.id === staffId &&
+        overlaps(visitSpan(v), own),
+    )
+    .sort((a, b) => a.startsAt.localeCompare(b.startsAt))[0];
+  if (visit) return { what: "site_visit", startsAt: visit.startsAt };
+  const job = day.jobs
+    .filter(
+      (job) =>
+        job.status === "booked" &&
+        job.id !== clean.jobId &&
+        job.crew.some((c) => c.id === staffId) &&
+        overlaps(jobSpan(job), own),
+    )
+    .sort((a, b) => a.startsAt.localeCompare(b.startsAt))[0];
+  return job ? { what: "job", startsAt: job.startsAt } : null;
 };
+
+/**
+ * Whether a Staff member is free for a clean on a day of the Schedule, as
+ * ADR-0019 has it: Available Hours that day, and busy with nothing then
+ * (busyWith). Stricter than room (roomOn), which takes anyone with hours to
+ * be free all day. Only the clean's own day counts: every clean ends by
+ * midnight (endsByMidnight).
+ */
+export const isFree = (day: ScheduleDay, staffId: string, clean: Clean) =>
+  day.available.some((c) => c.id === staffId) && !busyWith(day, staffId, clean);
 
 export const ENDS_BY_MIDNIGHT =
   "Cleans end by midnight: choose an earlier start time";

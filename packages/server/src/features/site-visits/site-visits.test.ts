@@ -225,6 +225,47 @@ describe("booking a Site Visit", () => {
     expect((await quoteOf(office, home.id)).siteVisit).toBe("booked");
   });
 
+  test("isn't refused over a Site Visit recorded Done before its time", async () => {
+    const { office, olive, quote, premisesType } = await setUp();
+    const visit = (await book(office, quote.id, olive.id, "10:00").expect(201))
+      .body as OfficeSiteVisit;
+    // recorded on Monday: nobody will go on Tuesday
+    await office
+      .post(`/api/site-visits/${visit.id}/findings`)
+      .send({ premisesType, floorArea: 3000, condition: "moderate" })
+      .expect(200);
+
+    await submit(
+      guestAsk({ contact: { ...casey, email: "zed@example.com" } }),
+    ).expect(201);
+    const requests = (await office.get("/api/quotes").expect(200))
+      .body as QuoteSummary[];
+    const home = requests.find((r) => r.property.kind === "residential")!;
+    await book(office, home.id, olive.id, "10:15").expect(201);
+  });
+
+  test("by a Cleaner is refused while they hold a place on a Job then", async () => {
+    const { office, cory, quote } = await setUp();
+    // a second Cleaner, so the day has a crew free for the visit
+    await cleaner("Dana Cleaner");
+    const job = await bookedJob({
+      startsAt: "2026-01-06T16:00:00Z",
+      labourHours: 2,
+      crewSize: 1,
+    });
+    await office
+      .post(`/api/jobs/${job.id}/assignments`)
+      .send({ staffId: cory.id })
+      .expect(201);
+
+    const clash = await book(office, quote.id, cory.id, "11:30");
+    expect(clash.status).toBe(409);
+    expect(clash.body.message).toBe(
+      "Cory Cleaner is on a Job then, at 11:00 AM.",
+    );
+    await book(office, quote.id, cory.id, "13:00").expect(201);
+  });
+
   test("allows one booked at a time per Property, in the future, for 15 minutes to 8 hours", async () => {
     const { office, olive, quote } = await setUp();
     await book(office, quote.id, olive.id).expect(201);

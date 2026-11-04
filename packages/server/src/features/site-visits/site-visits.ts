@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, inArray, lt, ne, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray } from "drizzle-orm";
 import { z } from "zod";
 import type {
   BookSiteVisitInput,
@@ -18,8 +18,6 @@ import {
   atTime,
   clock,
   dayOf,
-  HOUR_MS,
-  MINUTE_MS,
   startOfDay,
 } from "../../services/clock/index.ts";
 import {
@@ -35,11 +33,9 @@ import {
   siteVisitChangedEmail,
 } from "./emails.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
-import { assignments, onCrew } from "../assignments/assignments.schema.ts";
 import { lockDay } from "../jobs/jobs.ts";
-import { jobs } from "../jobs/jobs.schema.ts";
 import { scheduleOn } from "../jobs/schedule.ts";
-import { roomOn, visitHours } from "../jobs/rules.ts";
+import { busyWith, roomOn, visitHours } from "../jobs/rules.ts";
 import { currentPriceList } from "../price-list/price-list.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { addressOf, toPropertyView } from "../properties/property-view.ts";
@@ -88,8 +84,9 @@ const visitorOf = async (staffId: string) => {
  *   needs those hours free and a Cleaner free then;
  * - by Office Staff, it takes none; a Cleaner who isn't Office Staff can't
  *   make one on a day they have no hours;
- * - either way, it can't overlap the visitor's other Site Visits, or a Job
- *   they hold a place on, Offered or Confirmed (#242).
+ * - either way, its visitor must be busy with nothing then (busyWith): no
+ *   other booked Site Visit of theirs, and no booked Job they hold a place
+ *   on, Offered or Confirmed (#242). A Done Site Visit doesn't count.
  *
  * A visit being moved gives its id, so it isn't counted against itself.
  */
@@ -113,17 +110,18 @@ const refuseNoRoom = async (
   const date = dayOf(startsAt);
   await lockDay(tx, date);
   const day = await scheduleOn(startsAt, tx);
+  const visit = {
+    startsAt,
+    labourHours: visitHours({ minutes }),
+    crewSize: 1,
+    siteVisitId,
+  };
 
   if (day.available.some((c) => c.id === visitor.id)) {
-    const room = roomOn(day, {
-      startsAt,
-      labourHours: visitHours({ minutes }),
-      crewSize: 1,
-      siteVisitId,
-    });
+    const room = roomOn(day, visit);
     if (!room.hasHours) {
       throw new ConflictError(
-        `That day doesn't have room: the Site Visit takes ${visitHours({ minutes })} of ${firstNameOf(visitor.name)}'s Cleaner hours, and ${Math.max(room.freeHours, 0)} are free.`,
+        `That day doesn't have room: the Site Visit takes ${visit.labourHours} of ${firstNameOf(visitor.name)}'s Cleaner hours, and ${Math.max(room.freeHours, 0)} are free.`,
       );
     }
     if (!room.hasCrew) {
@@ -137,46 +135,13 @@ const refuseNoRoom = async (
     );
   }
 
-  const endsAt = new Date(startsAt.getTime() + minutes * MINUTE_MS);
-  const [overlap] = await tx
-    .select({ startsAt: siteVisits.startsAt })
-    .from(siteVisits)
-    .where(
-      and(
-        eq(siteVisits.staffId, visitor.id),
-        inArray(siteVisits.status, ["booked", "done"]),
-        siteVisitId ? ne(siteVisits.id, siteVisitId) : undefined,
-        lt(siteVisits.startsAt, endsAt),
-        sql`${siteVisits.startsAt} + make_interval(mins => ${siteVisits.minutes}) > ${startsAt.toISOString()}`,
-      ),
-    );
-  if (overlap) {
+  const busy = busyWith(day, visitor.id, visit);
+  if (busy) {
+    const at = formatTime(new Date(busy.startsAt));
     throw new ConflictError(
-      `${visitor.name} has another Site Visit then, at ${formatTime(overlap.startsAt!)}.`,
-    );
-  }
-
-  const places = await tx
-    .select({ job: jobs })
-    .from(assignments)
-    .innerJoin(jobs, eq(jobs.id, assignments.jobId))
-    .where(
-      and(
-        eq(assignments.staffId, visitor.id),
-        onCrew(),
-        eq(jobs.status, "booked"),
-        gte(jobs.startsAt, startOfDay(date)),
-        lt(jobs.startsAt, endsAt),
-      ),
-    );
-  const onJob = places.find(
-    ({ job }) =>
-      job.startsAt.getTime() + (job.labourHours / job.crewSize) * HOUR_MS >
-      startsAt.getTime(),
-  );
-  if (onJob) {
-    throw new ConflictError(
-      `${visitor.name} is on a Job then, at ${formatTime(onJob.job.startsAt)}.`,
+      busy.what === "site_visit"
+        ? `${visitor.name} has another Site Visit then, at ${at}.`
+        : `${visitor.name} is on a Job then, at ${at}.`,
     );
   }
 };
