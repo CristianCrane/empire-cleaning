@@ -6,7 +6,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useLoaderData, useNavigate } from "@tanstack/react-router";
+import { useLoaderData, useNavigate, useRouter } from "@tanstack/react-router";
 import {
   CalendarCheck,
   CircleCheck,
@@ -1489,6 +1489,7 @@ function AreaField({
  */
 function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
   const navigate = useNavigate();
+  const router = useRouter();
   const [quote, setQuote] = useState(loaded);
   const [fields, setFields] = useState(() => toFields(loaded));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -1550,11 +1551,12 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
       ? f.plan.days.some((d) => d.override.on && !d.override.reason.trim())
       : Object.values(f.overrides).some((o) => o.on && !o.reason.trim());
 
-  // saves what's on screen, one save at a time; says whether it's all saved
-  const saveNow = (): Promise<boolean> => {
+  // saves what's on screen, one save at a time, unless it's saved already
+  // (`again` saves it anyway, priced afresh); says whether it's all saved
+  const saveNow = (again = false): Promise<boolean> => {
     queue.current = queue.current.then(async () => {
       const edit = edits.current;
-      if (edit === saved.current.edit) return saved.current.ok;
+      if (!again && edit === saved.current.edit) return saved.current.ok;
       setSaveState("saving");
       try {
         setQuote(
@@ -1613,12 +1615,13 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
     } catch (e) {
       if (e instanceof ApiError && Object.keys(e.fieldErrors).length) {
         setFieldErrors(e.fieldErrors);
+      } else if (e instanceof ApiError && e.status === 409) {
+        // refused for new prices, saving again shows them; refused as the
+        // Quote has closed, the page shows how
+        if (!(await saveNow(true))) await router.invalidate();
+        setFailure(e.message);
       } else {
-        setFailure(
-          e instanceof ApiError && e.status === 409
-            ? e.message
-            : "That didn't work. Please try again.",
-        );
+        setFailure("That didn't work. Please try again.");
       }
     } finally {
       setSending(false);
