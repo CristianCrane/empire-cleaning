@@ -22,14 +22,17 @@ export const OPEN_PLACE_DAYS = 7;
 // time to find someone else
 const RELEASE_CUTOFF_HOURS = 48;
 
+// a Job as its row has it, or as its day of the Schedule does (startsAt as
+// an ISO string)
 type Job = { id: string; status: string; startsAt: Date; crewSize: number };
+type When = { startsAt: Date | string };
 
 // an Assignment on a Job, Released ones too
 type Place = { staffId: string; status: AssignmentState };
 
 // when a Job's Open Places open to free Cleaners
-export const opensAt = (job: Pick<Job, "startsAt">) =>
-  new Date(job.startsAt.getTime() - OPEN_PLACE_DAYS * DAY_MS);
+export const opensAt = (job: When) =>
+  new Date(new Date(job.startsAt).getTime() - OPEN_PLACE_DAYS * DAY_MS);
 
 export const releaseClosed = (job: Pick<Job, "startsAt">, now: Date) =>
   job.startsAt.getTime() - now.getTime() < RELEASE_CUTOFF_HOURS * HOUR_MS;
@@ -48,8 +51,9 @@ const onDay = (day: ScheduleDay, jobId: string) =>
 
 /**
  * Office Staff Offering a place on a booked Job, on its day of the
- * Schedule, to someone: refused once it has started, to anyone but an active Cleaner, to someone who holds a place
- * on it already, when every place is held, and when they aren't free for it,
+ * Schedule, to someone: refused once it has started, to anyone but an
+ * active Cleaner, to someone who holds a place on it already, when every
+ * place is held, and when they aren't free for it,
  * so they could never Confirm it.
  */
 export const whyNotOffer = (
@@ -59,7 +63,7 @@ export const whyNotOffer = (
   now: Date,
 ) => {
   const job = onDay(day, jobId);
-  if (Date.parse(job.startsAt) <= now.getTime()) return STARTED;
+  if (new Date(job.startsAt) <= now) return STARTED;
   if (!member.active || !member.roles.includes("cleaner")) {
     return `${member.name} isn't an active Cleaner`;
   }
@@ -78,8 +82,8 @@ export const whyNotOffer = (
 };
 
 // A Cleaner Confirming the place they were Offered on a Job, on its day of
-// the Schedule, at the time they were shown: refused once the Job has started, if it has moved, or if they're no
-// longer free for it
+// the Schedule, at the time they were shown: refused once the Job has
+// started, if it has moved, or if they're no longer free for it
 export const whyNotConfirm = (
   day: ScheduleDay,
   jobId: string,
@@ -111,8 +115,10 @@ export const whyNotRelease = (
 
 // whether a Job's Open Places are open now: booked, not yet started, and
 // within 7 days of starting
-export const placesOpen = (job: Pick<Job, "status" | "startsAt">, now: Date) =>
-  job.status === "booked" && job.startsAt > now && opensAt(job) <= now;
+export const placesOpen = (job: Pick<Job, "status"> & When, now: Date) =>
+  job.status === "booked" &&
+  new Date(job.startsAt) > now &&
+  opensAt(job) <= now;
 
 /**
  * A Job's Open Places, on a Job whose places are open (placesOpen), and the

@@ -65,7 +65,8 @@ const placesOn = async (jobIds: string[], tx: Tx | typeof db) => {
 const openings = async (jobId?: string, tx: Tx | typeof db = db) => {
   const now = clock.now();
   const today = dayOf(now);
-  // a day over the window, as a week is an hour longer when the clocks change
+  // a day over the window: the week the clocks spring forward is an hour
+  // short of seven days, so now + 7 days can fall on the day after
   const days = await scheduleFor(
     today,
     addDays(today, OPEN_PLACE_DAYS + 1),
@@ -74,11 +75,7 @@ const openings = async (jobId?: string, tx: Tx | typeof db = db) => {
   const soon = days
     .flatMap((day) =>
       day.jobs
-        .filter(
-          (job) =>
-            (!jobId || job.id === jobId) &&
-            placesOpen({ ...job, startsAt: new Date(job.startsAt) }, now),
-        )
+        .filter((job) => (!jobId || job.id === jobId) && placesOpen(job, now))
         .map((job) => ({ day, job })),
     )
     .sort(
