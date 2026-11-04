@@ -447,10 +447,10 @@ export const toOption = (
 export const inOrder = <T extends { position: number }>(options: T[]) =>
   [...options].sort((a, b) => a.position - b.position);
 
-// what each Add-on on the Revision costs, tax included, from the figures it
-// was priced with
+// what each Add-on on the Revision costs, tax included, from the figures its
+// first option was priced with
 const addOnsOf = (rows: PricedOption[]): QuoteAddOn[] => {
-  const { suggested } = rows[0]!;
+  const { suggested } = inOrder(rows)[0]!;
   return suggested.addOns.map((addOn) => {
     const cents = addOnCents(addOn.hours, suggested.hourlyRateCents);
     const tax = addOn.taxExempt
@@ -465,7 +465,7 @@ const addOnsOf = (rows: PricedOption[]): QuoteAddOn[] => {
 const pricesShown = (revision: KindedRevision, rows: PricedOption[]) => ({
   options: inOrder(rows).map((row) => toOption(revision, row)),
   plan: planOf(revision, rows),
-  addOns: addOnsOf(inOrder(rows)),
+  addOns: addOnsOf(rows),
 });
 
 const iso = (date: Date | null) => date?.toISOString() ?? null;
