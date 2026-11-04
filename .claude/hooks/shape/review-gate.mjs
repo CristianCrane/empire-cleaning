@@ -1,7 +1,7 @@
 // The shape rules: edited in github.com/CristianCrane/.dotfiles (home/.claude); repos carry copies made by hooks/sync.mjs.
 //
 // `gh pr create` waits for the branch's shape review (the `shape` skill):
-// it is turned down until the review exists and is newer than the last
+// it is turned down until the review exists and is of the last
 // commit.
 import { homedir } from "node:os";
 import { resolve } from "node:path";

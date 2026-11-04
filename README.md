@@ -22,7 +22,7 @@ pnpm --filter @empire-cleaning/ui storybook
 
 ```shell
 pnpm test        # quick: design system, server and a handful of end-to-end journeys
-pnpm test:full   # everything; run it before merging
+pnpm test:full   # everything; run it before opening the PR
 ```
 
 Both run one package at a time and report every failure. See each package's README for what it covers.

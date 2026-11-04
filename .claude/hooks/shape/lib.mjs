@@ -4,7 +4,7 @@
 // files the `shape` skill writes into the git dir (never committed, kept
 // per worktree): one set per branch, and on main one per session.
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -77,12 +77,12 @@ export const stateFile = (cwd, kind, key) => {
   return path;
 };
 
-// seconds since the epoch; 0 before the first commit
-const headTime = (cwd) => {
+// the checked-out commit's full sha; "" before the first commit
+const headSha = (cwd) => {
   try {
-    return Number(git(cwd, "log", "-1", "--format=%ct"));
+    return git(cwd, "rev-parse", "HEAD");
   } catch {
-    return 0;
+    return "";
   }
 };
 
@@ -127,17 +127,19 @@ export const beforeEdit = (cwd, work) => {
   return { survey: found, missing: null };
 };
 
-// the reviewer's read of the diff: it must be newer than the last commit,
-// and before round 3 leave no block open (after round 3 the user decides).
-// The reviewer's header line says both: "…, round <n>, <k> open blocks".
+// the reviewer's read of the diff: it must be of the last commit (written
+// after it isn't enough: a round runs while fixes may land), and before
+// round 3 leave no block open (after round 3 the user decides). The
+// reviewer's header line says all three: "… @ <sha>, round <n>, <k> open
+// blocks", where a recheck says "recheck of round <n>", keeping the number.
 export const review = (cwd, key) => {
   const path = stateFile(cwd, "review", key);
   if (!existsSync(path)) return { path, ok: false, reason: "missing" };
-  if (statSync(path).mtimeMs / 1000 < headTime(cwd))
-    return { path, ok: false, reason: "older than the last commit" };
-  const header = readFileSync(path, "utf8").match(/^# Shape review:.*round (\d+), (\d+) open block/m);
-  if (!header) return { path, ok: false, reason: "its header has no round and open-block count" };
-  const [round, open] = header.slice(1).map(Number);
+  const header = readFileSync(path, "utf8").match(/^# Shape review:.* @ ([0-9a-f]{7,40}),.*round (\d+), (\d+) open block/m);
+  if (!header) return { path, ok: false, reason: "its header has no commit, round and open-block count" };
+  const [sha, ...counts] = header.slice(1);
+  if (!headSha(cwd).startsWith(sha)) return { path, ok: false, reason: `it reviewed ${sha}, not the last commit` };
+  const [round, open] = counts.map(Number);
   if (open && round < 3)
     return { path, ok: false, reason: `round ${round} left ${open} block(s) open: fix them and run round ${round + 1}` };
   return { path, ok: true };

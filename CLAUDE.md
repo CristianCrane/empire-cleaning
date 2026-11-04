@@ -24,3 +24,7 @@ Single-context: one `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agen
 ## UX
 
 Before changing any screen, read `docs/ux.md`: the UX rules every screen keeps, how a new UX question is settled (prototype, pick, build, record), and the log of past decisions. Record each new decision there, and add a Storybook pattern (`packages/ui/src/Patterns.stories.tsx`) when a rule carries over to other screens.
+
+## Tests
+
+The `shape` skill's quick tests, run beside each review round: `pnpm test`, the Checks (the CI table in `README.md`), and the specs for the screens a change touches (`packages/web/README.md`). Its full suite, once after the last clean round, before the PR: `pnpm test:full` and the Checks.
