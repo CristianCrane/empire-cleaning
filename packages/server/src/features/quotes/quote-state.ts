@@ -80,6 +80,7 @@ export const askedOf = (
     : {
         service: choiceOf(serviceOf(all, quote.askedServiceKey!)),
         condition: quote.condition,
+        rooms: quote.rooms,
         wantsRegularService: quote.wantsRegularService,
         weekdays: quote.weekdays as Weekday[],
         preferredTime: quote.preferredTime,

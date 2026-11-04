@@ -654,9 +654,10 @@ describe("Expiry", () => {
     const quoteId = await asked();
     const office = await signInAsOffice();
     const first = await sentQuote(office, quoteId);
-    const refused = await submit(guestAsk()).expect(409);
-    expect(refused.body.message).toBe(
-      "We've sent you a Quote for this home already: you'll find it in your account.",
+    // a Guest gets the usual reply, and the Client's inbox why (#243)
+    await submit(guestAsk()).expect(201);
+    expect(testEmail().lastTo(casey.email).text).toContain(
+      "We've sent you a Quote for 41-12 Austin St, 4B, 11375 already: you'll find it in your account.",
     );
 
     testClock().set(new Date(first.offer!.expiresAt!));
