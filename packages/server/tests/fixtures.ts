@@ -11,7 +11,7 @@ import type {
   ServiceInput,
   SignedInAccount,
 } from "@empire-cleaning/models";
-import { db } from "#db";
+import { apart, db } from "#db";
 import { confirmAssignment, offerAssignment } from "#features/assignments";
 import { bills, makeDueBills, setBilling } from "#features/bills";
 import { findClientByEmail, createClient } from "#features/clients";
@@ -23,6 +23,7 @@ import { currentPriceList } from "#features/price-list";
 import {
   acceptQuote,
   askForQuote,
+  lockProperty,
   offerServicePlan,
   quotes,
   saveDraft,
@@ -475,4 +476,24 @@ export const setService = async (
       .send({ ...input, ...changes })
       .expect(200)
   ).body as Service;
+};
+
+// Holds a Property as a send, save or close of its Quotes does, on a
+// connection of its own, while each request starts in
+// turn, a moment apart so each is waiting before the next; then lets it go.
+// The requests' responses, in order.
+export const holdingProperty = async <T>(
+  propertyId: string,
+  requests: (() => PromiseLike<T>)[],
+) => {
+  const started: Promise<T>[] = [];
+  await apart.transaction(async (tx) => {
+    await lockProperty(tx, propertyId);
+    for (const request of requests) {
+      // a request starts once it's awaited
+      started.push(Promise.resolve(request()));
+      await new Promise((settle) => setTimeout(settle, 300));
+    }
+  });
+  return Promise.all(started);
 };

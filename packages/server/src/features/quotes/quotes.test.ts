@@ -15,6 +15,7 @@ import { api, signIn, testClock, testEmail } from "../../../tests/harness.ts";
 import {
   casey,
   guestAsk,
+  holdingProperty,
   home,
   setService,
   signInAsOffice,
@@ -349,6 +350,41 @@ describe("sending a Quote", () => {
     await office.post(`/api/quotes/${quote.id}/send`).expect(409);
   });
 
+  test("a save that waits on a send can't change what was sent", async () => {
+    const quoteId = await asked();
+    const office = await signInAsOffice();
+    const draft = await save(office, await startDraft(office, quoteId), {
+      proposedStart: nextMonday,
+    });
+
+    const [sent, saved] = await holdingProperty(draft.property.id, [
+      () => office.post(`/api/quotes/${draft.id}/send`),
+      () =>
+        office.patch(`/api/quotes/${draft.id}/draft`).send(
+          edit(draft, {
+            proposedStart: { date: "2026-01-06", time: "09:00" },
+            crewSize: 4,
+          }),
+        ),
+    ]);
+
+    expect(sent!.status).toBe(200);
+    expect(saved!.status).toBe(409);
+    expect(saved!.body.message).toBe(
+      "A Revision can't be changed once it's been sent: start a new one.",
+    );
+    const quote = await quoteOf(office, quoteId);
+    expect(quote.draft).toBeNull();
+    expect(quote.offer).toMatchObject({
+      proposedStart: nextMonday,
+      crewSize: draft.draft!.crewSize,
+      expiresAt: "2026-01-12T14:00:00.000Z",
+    });
+    expect(quote.offer!.options).toEqual(
+      (sent!.body as OfficeQuote).offer!.options,
+    );
+  });
+
   test("changing the Price List doesn't change a Sent Quote", async () => {
     const quoteId = await asked(["Inside the oven"]);
     const office = await signInAsOffice();
@@ -579,6 +615,26 @@ describe("a Client's Quotes", () => {
     // the Client can ask again about the same home: a new Quote
     const again = await submit(guestAsk()).expect(201);
     expect(again.body.id).not.toBe(quoteId);
+  });
+
+  test("Declining waits its turn behind a send of a new Revision", async () => {
+    const quoteId = await asked();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office, quoteId);
+    await save(office, await startDraft(office, quoteId), { crewSize: 3 });
+    const client = await signIn(casey.email);
+
+    const [sent, declined] = await holdingProperty(quote.property.id, [
+      () => office.post(`/api/quotes/${quoteId}/send`),
+      () => client.post(`/api/quotes/mine/${quoteId}/decline`),
+    ]);
+
+    expect(sent!.status).toBe(200);
+    expect(declined!.status).toBe(200);
+    expect(await quoteOf(office, quoteId)).toMatchObject({
+      status: "declined",
+      offer: { number: 2, crewSize: 3 },
+    });
   });
 });
 

@@ -662,9 +662,9 @@ function QuoteDefaults({ list }: { list: PriceList }) {
             })}
             {field("Quote valid for (days)", "quoteValidityDays", {
               min: 1,
-              max: 365,
+              max: 90,
             })}
-            {field("Crew Size", "defaultCrewSize", { min: 1, max: 20 })}
+            {field("Crew Size", "defaultCrewSize", { min: 1, max: 10 })}
           </div>
         );
       }}

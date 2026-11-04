@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { crewSize, validityDays } from "../quotes/quotes.validation.ts";
 
 // messages are shown beside the Price List's fields, so they're written for
 // people
@@ -81,16 +82,9 @@ export const priceListSchema = z
     conditionHeavy: multiplier,
     depositPercent: percent,
     planDiscountPercent: percent,
-    quoteValidityDays: z
-      .number({ error: "Enter a number of days" })
-      .int("Use whole days")
-      .min(1, "A Quote must stay valid for at least a day")
-      .max(365, "That's longer than a year"),
-    defaultCrewSize: z
-      .number({ error: "Enter a number of Cleaners" })
-      .int("Use a whole number of Cleaners")
-      .min(1, "A crew needs at least one Cleaner")
-      .max(20, "That's a very large crew"),
+    // a new Draft's, so within what a Draft can have
+    quoteValidityDays: validityDays,
+    defaultCrewSize: crewSize,
     taxFeePercent: taxPercent,
     addOns: z
       .array(addOn)

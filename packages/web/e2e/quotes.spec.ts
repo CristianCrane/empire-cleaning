@@ -153,6 +153,41 @@ test("a Quote can't be sent without a proposed time", async ({ page }) => {
   await expect(page.getByText("Choose a proposed time")).toBeVisible();
 });
 
+test("a Draft whose prices changed since it was saved shows them before it's sent", async ({
+  page,
+}) => {
+  await requestQuoteAsGuest(casey);
+  await signInAsOffice(page);
+  await startDraft(page);
+  await proposeNextMonday(page);
+  const status = page.getByRole("status").filter({ hasText: /prices|saved/ });
+  await expect(status).toHaveText("All changes saved");
+  const standard = page.getByRole("region", { name: "Standard Clean" });
+  const before = (await standard.textContent())!;
+
+  // the Price List changes behind the open Draft
+  const list = await (await page.request.get("/api/price-list")).json();
+  const raised = await page.request.put("/api/price-list", {
+    data: {
+      ...list,
+      conditionLight: list.conditionLight + 0.5,
+      conditionModerate: list.conditionModerate + 0.5,
+      conditionHeavy: list.conditionHeavy + 0.5,
+    },
+  });
+  expect(raised.ok()).toBe(true);
+  await page.getByRole("button", { name: `Send to ${casey.name}` }).click();
+
+  await expect(
+    page.getByText(
+      "This Draft's prices have changed since it was saved: the Property's details or the Price List changed. Check the new prices, then send it.",
+    ),
+  ).toBeVisible();
+  await expect(standard).not.toHaveText(before);
+  await expect(status).toHaveText("All changes saved");
+  await send(page);
+});
+
 test("the Client Declines a Quote from the portal", async ({
   page,
   browser,
