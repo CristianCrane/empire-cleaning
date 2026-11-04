@@ -99,7 +99,8 @@ const survey = (cwd, key) => {
     .some((word) => existsSync(isAbsolute(word) ? word : join(top, word)));
   if (!named) return { path, ok: false, reason: "names no path that exists" };
   const expected = Number(text.match(/^Expected files:\s*~?(\d+)/m)?.[1]);
-  return { path, ok: true, expected: expected || null };
+  const stackedOn = text.match(/^Base:\s*(\S+)/m)?.[1] ?? null;
+  return { path, ok: true, expected: expected || null, stackedOn };
 };
 
 // the reviewer's read of the survey, before any code: once is enough
@@ -142,9 +143,12 @@ export const review = (cwd, key) => {
   return { path, ok: true };
 };
 
-// what the branch is measured against: where it left the default branch
-const base = (cwd) => {
-  for (const ref of ["origin/HEAD", "origin/main", "origin/master", "main", "master"]) {
+// what the branch is measured against: where it left the branch it's
+// stacked on (the survey's Base:, while that still resolves), else the
+// default branch
+const base = (cwd, stackedOn) => {
+  const stack = stackedOn ? [`origin/${stackedOn}`, stackedOn] : [];
+  for (const ref of [...stack, "origin/HEAD", "origin/main", "origin/master", "main", "master"]) {
     try {
       return git(cwd, "merge-base", "HEAD", ref);
     } catch {}
@@ -153,9 +157,9 @@ const base = (cwd) => {
 };
 
 // files the branch changes against its base, untracked ones included
-export const changedFiles = (cwd) =>
+export const changedFiles = (cwd, stackedOn) =>
   new Set([
-    ...lines(git(cwd, "diff", "--name-only", base(cwd))),
+    ...lines(git(cwd, "diff", "--name-only", base(cwd, stackedOn))),
     ...lines(git(cwd, "ls-files", "--others", "--exclude-standard")),
   ]);
 

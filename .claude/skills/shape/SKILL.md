@@ -17,7 +17,7 @@ A **pattern** is any shape the change follows or adds: a helper, a table, a laye
 - **The simplest shape is the plan.** When the survey finds a simpler shape than extending, build that. Extending instead takes a written reason, which goes in Shape.
 - **One kind of work per PR**: a refactor, a behaviour change, or cleanups.
 - **Refactor first.** A refactor that changes no behaviour, under ~10 files and inside one package: make it on its own branch and PR, then build the change on top of it. A bigger refactor, or one that crosses packages: stop and ask the user whether it goes first in its own PR or on its own issue.
-- **A stacked PR lands on the default branch.** A PR built on another branch targets that branch; once the lower PR merges, check the stacked one now targets the default branch (`gh pr view <n> --json baseRefName`) and retarget it if not (`gh pr edit <n> --base main`) before it merges. Merging the lower PR first and the stacked one into its old base strands the stacked one's commits off the default branch, so retarget it rather than handing the user a merge order.
+- **A stacked PR lands on the default branch.** Before stacking, check GitHub deletes merged branches (`gh repo view --json deleteBranchOnMerge`); with that on, GitHub retargets a stacked PR when its base merges, and if it's off, ask the user to turn it on. Either way, once the lower PR merges, check the stacked one targets the default branch (`gh pr view <n> --json baseRefName`, against `gh repo view --json defaultBranchRef -q .defaultBranchRef.name`), retarget it if not (`gh pr edit <n> --base <default branch>`), and drop the survey's `Base:` line. Merging the stacked one into its old base strands its commits off the default branch, so retarget it rather than handing the user a merge order.
 - **Every change** gets a survey, a plan review and a review. A small change writes a one-line survey.
 - The repo's own rules (CLAUDE.md, ADRs) add to these.
 
@@ -32,6 +32,7 @@ Patterns touched:
 Simplest shape: <what> (~<n> files)
 Plan: refactor first | extend — <the reason, when extend>
 Expected files: <n>
+Base: <the branch this one is stacked on; leave the line out when it's the default branch>
 ```
 
 Count copies by searching the repo for each pattern, not from memory. Done when every pattern the change touches is listed with every copy's path, and the simplest shape has a file count.
