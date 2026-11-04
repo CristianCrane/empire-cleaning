@@ -24,9 +24,8 @@ const sendSignInLink = async ({ to, url }: { to: string; url: string }) => {
 };
 
 // a sign-in link is emailed to one address only so often (#32)
-const limitSignInLinks = createAuthMiddleware(async (ctx) => {
-  if (ctx.path !== "/sign-in/magic-link") return;
-  const address: unknown = ctx.body?.email;
+const limitSignInLinks = (body: Record<string, unknown> | undefined) => {
+  const address: unknown = body?.email;
   if (typeof address !== "string") return;
   const verdict = rateLimit.attempt("signInLink", address);
   if (verdict.allowed) return;
@@ -35,6 +34,21 @@ const limitSignInLinks = createAuthMiddleware(async (ctx) => {
     { message: tooManyTries(verdict.retryAfterSeconds) },
     { "Retry-After": String(verdict.retryAfterSeconds) },
   );
+};
+
+// the Office sees an Account's picture, so only Google sets it: one a person
+// chose could be any address, telling them whenever the Office looks (#243)
+const refuseOwnPicture = (body: Record<string, unknown> | undefined) => {
+  if (body && "image" in body) {
+    throw new APIError("BAD_REQUEST", {
+      message: "Your picture comes from Google.",
+    });
+  }
+};
+
+const beforeRequest = createAuthMiddleware(async (ctx) => {
+  if (ctx.path === "/sign-in/magic-link") limitSignInLinks(ctx.body);
+  if (ctx.path === "/update-user") refuseOwnPicture(ctx.body);
 });
 
 // connects a newly signed-in Account to its Client and Staff records, but
@@ -65,7 +79,7 @@ export const auth = betterAuth({
   // it can't tell apart: every visitor would share one count. Off whatever
   // NODE_ENV says; ours count per email address (#32)
   rateLimit: { enabled: false },
-  hooks: { before: limitSignInLinks },
+  hooks: { before: beforeRequest },
   database: drizzleAdapter(db, {
     provider: "pg",
     schema: {
@@ -93,8 +107,9 @@ export const auth = betterAuth({
   },
   account: {
     fields: { userId: "ownerId", accountId: "providerAccountId" },
-    // Google signs in to the existing Account with the same email
-    accountLinking: { enabled: true, trustedProviders: ["google"] },
+    // Google signs in to the existing Account with the same email, once
+    // Google has proven it: never a trusted provider, which skips that (#243)
+    accountLinking: { enabled: true },
   },
   socialProviders: {
     google: {

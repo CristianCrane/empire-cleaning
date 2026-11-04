@@ -169,6 +169,19 @@ describe("connecting an Account to its records (ADR-0006)", () => {
     expect((await me(agent)).roles).toEqual([]);
   });
 
+  // the Office sees an Account's picture, so only Google may set it (#243)
+  test("callers can't set their own picture", async () => {
+    const agent = await signIn("casey@example.com");
+
+    const res = await agent
+      .post("/api/auth/update-user")
+      .send({ image: "https://evil.example/x.png" });
+
+    expect(res.status).toBe(400);
+    const session = await agent.get("/api/auth/get-session").expect(200);
+    expect(session.body.user.image).toBeNull();
+  });
+
   test("callers can't give themselves Staff access", async () => {
     const agent = await signIn("casey@example.com");
 
@@ -230,6 +243,20 @@ describe("Google", () => {
     const { agent } = await signInWithGoogle(google);
 
     expect((await me(agent)).id).toBe(byLink.id);
+  });
+
+  // Google is asked to prove the address like any other way in (#243)
+  test("an address Google hasn't proven doesn't sign in to the Account", async () => {
+    await signIn("casey@example.com");
+
+    const { agent, callback } = await signInWithGoogle({
+      ...google,
+      emailVerified: false,
+    });
+
+    expect(callback.status).toBe(302);
+    expect(callback.headers.location).toContain("error=account_not_linked");
+    await agent.get("/api/me").expect(401);
   });
 
   test("a new Google address signs up, connected to nothing", async () => {

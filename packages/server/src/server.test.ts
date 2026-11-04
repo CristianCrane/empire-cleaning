@@ -50,6 +50,44 @@ test("every answer carries the security headers, and doesn't name Express (#225)
   }
 });
 
+// the landing site's Guest form posts without a cookie; signed-in calls come
+// only from the web app, so a script on the landing site can't read anyone's
+// data with theirs (#243)
+test("only the web app may call with its sign-in cookie", async () => {
+  const preflight = (origin: string, path: string, method: string) =>
+    api()
+      .options(path)
+      .set("Origin", origin)
+      .set("Access-Control-Request-Method", method)
+      .set("Access-Control-Request-Headers", "content-type");
+
+  const fromApp = await preflight("http://localhost:5173", "/api/me", "GET");
+  const fromLanding = await preflight(
+    "http://localhost:4321",
+    "/api/quotes/ask",
+    "POST",
+  );
+  const fromElsewhere = await preflight(
+    "https://evil.example",
+    "/api/me",
+    "GET",
+  );
+
+  expect(fromApp.headers).toMatchObject({
+    "access-control-allow-origin": "http://localhost:5173",
+    "access-control-allow-credentials": "true",
+  });
+  expect(fromLanding.headers).toMatchObject({
+    "access-control-allow-origin": "http://localhost:4321",
+  });
+  expect(fromLanding.headers).not.toHaveProperty(
+    "access-control-allow-credentials",
+  );
+  expect(fromElsewhere.headers).not.toHaveProperty(
+    "access-control-allow-origin",
+  );
+});
+
 // another site's form can post here without the browser asking first (CORS),
 // so a form's body is never read, even signed in and all strings (#229)
 test("only JSON bodies are read, never a form's", async () => {

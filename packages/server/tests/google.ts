@@ -7,6 +7,8 @@ export const signInWithGoogle = async (profile: {
   sub: string;
   email: string;
   picture?: string;
+  // whether Google has proven the address; it nearly always has
+  emailVerified?: boolean;
 }) => {
   const agent = apiAgent();
   const start = await agent
@@ -27,7 +29,7 @@ export const signInWithGoogle = async (profile: {
       aud: "test-google-client-id",
       sub: profile.sub,
       email: profile.email,
-      email_verified: true,
+      email_verified: profile.emailVerified ?? true,
       name: "Casey from Google",
       picture: profile.picture,
       iat: now,

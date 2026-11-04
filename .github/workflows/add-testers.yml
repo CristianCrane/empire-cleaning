@@ -29,6 +29,7 @@ jobs:
           # no email is sent, but the server still checks every variable is
           # set (src/env.ts)
           CORS_ORIGIN_URL: https://app.test.empirecleaningandpro.com
+          BETTER_AUTH_URL: https://app.test.empirecleaningandpro.com
           LANDING_ORIGIN_URL: https://test.empirecleaningandpro.com
           OFFICE_EMAIL: empirecleaningproservices@gmail.com
           RESEND_API_KEY: unused

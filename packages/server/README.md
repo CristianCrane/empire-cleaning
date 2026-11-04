@@ -71,7 +71,7 @@ Or, for a dev database, seed it instead: `pnpm db:seed` makes the owner (`SEED_O
 
 The people testing the test site are its Staff, listed in `tests/testers.ts`: a reset there adds them, and `pnpm staff:testers` (Actions → Add testers) adds any missing without one.
 
-The server refuses to start, in dev and prod alike, without `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `RESEND_API_KEY`, `OFFICE_EMAIL` (the Office's shared inbox), `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` (a Stripe sandbox's in dev; see Accepting a Quote) and `CORS_ORIGIN_URL` (the web app's address), and in prod `SENTRY_DSN` (see Monitoring): copy `.env.example` to `.env` and fill them in. `BETTER_AUTH_URL` is this API's public URL (sign-in links point at it). Tests supply fake values and fake the services behind them.
+The server refuses to start, in dev and prod alike, without `APP_MODE` (`dev`, `test` or `prod`), `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `RESEND_API_KEY`, `OFFICE_EMAIL` (the Office's shared inbox), `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` (a Stripe sandbox's in dev; see Accepting a Quote) and `CORS_ORIGIN_URL` (the web app's address), in prod `SENTRY_DSN` (see Monitoring), and outside dev `BETTER_AUTH_URL`: copy `.env.example` to `.env` and fill them in. `BETTER_AUTH_URL` is this API's public URL (sign-in links point at it); dev leaves it as `http://localhost:3000`. Tests supply fake values and fake the services behind them.
 
 In tests, `signIn(email)` from `tests/harness.ts` signs up or in the way a person does and returns a signed-in agent; add the Staff or Client record first for it to connect to.
 
