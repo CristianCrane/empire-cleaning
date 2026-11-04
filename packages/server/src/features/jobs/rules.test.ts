@@ -3,12 +3,14 @@ import type { ScheduledSiteVisit } from "@empire-cleaning/models";
 import {
   afterNine,
   clean,
+  NOW,
   otherJob,
   scheduled,
   siteVisit,
   thursday,
 } from "../../../tests/schedule-days.ts";
 import {
+  busyWith,
   ENDS_BY_MIDNIGHT,
   endsByMidnight,
   isFree,
@@ -57,6 +59,41 @@ describe("free for a Job (ADR-0019)", () => {
       thursday({ siteVisits: [siteVisit(1, status)] });
     expect(isFree(visiting("booked"), "ana", clean)).toBe(false);
     expect(isFree(visiting("done"), "ana", clean)).toBe(true);
+  });
+});
+
+describe("what a Staff member is busy with (busyWith)", () => {
+  // Ana at a Site Visit at 10am, and on another Job at 11am
+  const visit = siteVisit(1, "booked");
+  const job = otherJob(2);
+
+  test("a Site Visit of theirs before a Job they're on, else the Job", () => {
+    const both = thursday({ jobs: [job], siteVisits: [visit] });
+    expect(busyWith(both, "ana", clean)).toEqual({
+      what: "site_visit",
+      startsAt: visit.startsAt,
+    });
+    expect(busyWith(thursday({ jobs: [job] }), "ana", clean)).toEqual({
+      what: "job",
+      startsAt: job.startsAt,
+    });
+    expect(busyWith(both, "bea", clean)).toBeNull();
+  });
+
+  test("not a Done Site Visit, even one recorded Done before its time", () => {
+    const done = {
+      ...visit,
+      status: "done" as const,
+      doneAt: NOW.toISOString(),
+    };
+    expect(busyWith(thursday({ siteVisits: [done] }), "ana", clean)).toBeNull();
+  });
+
+  test("a Site Visit being moved isn't counted against itself", () => {
+    const moving = { ...newClean(1, 0.5, 1), siteVisitId: visit.id };
+    expect(
+      busyWith(thursday({ siteVisits: [visit] }), "ana", moving),
+    ).toBeNull();
   });
 });
 

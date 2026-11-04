@@ -65,7 +65,7 @@ export const timeOf = (instant: Date) => {
   return `${p.hour}:${p.minute}`;
 };
 
-export const MINUTE_MS = 60_000;
+const MINUTE_MS = 60_000;
 export const HOUR_MS = 60 * MINUTE_MS;
 // a day of 24 hours: a calendar day in New York is 23 or 25 across the
 // clocks changing, so count those with addDays and startOfDay
