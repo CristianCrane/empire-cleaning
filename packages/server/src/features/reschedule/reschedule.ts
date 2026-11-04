@@ -23,15 +23,14 @@ import { lateFeeOf, planOfJob } from "../cancellation/cancellation.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { lockDay } from "../jobs/jobs.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
+import { freeFor, roomFor, scheduleFor } from "../jobs/schedule.ts";
 import {
+  asClean,
   ENDS_BY_MIDNIGHT,
   endsByMidnight,
-  freeFor,
-  roomFor,
   roomOn,
-  scheduleFor,
   whyNoRoom,
-} from "../jobs/schedule.ts";
+} from "../jobs/rules.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { warnOfficeOfQuotesWithoutRoom } from "../quotes/quote-room.ts";
 import { staff } from "../staff/staff.schema.ts";
@@ -195,12 +194,8 @@ export const rescheduleTimesFor = async (
       date: day.date,
       times: timesFor(job).filter(
         (time) =>
-          roomOn(day, {
-            startsAt: atTime(day.date, time),
-            labourHours: job.labourHours,
-            crewSize: job.crewSize,
-            jobId: job.id,
-          }).hasRoom,
+          roomOn(day, asClean({ ...job, startsAt: atTime(day.date, time) }))
+            .hasRoom,
       ),
     }))
     .filter((day) => day.times.length > 0);
@@ -285,15 +280,7 @@ export const requestReschedule = async (
     // the new time holds a crew, and on another day the hours, so two
     // requests (or a request and an acceptance) can't both take the last
     await lockDay(tx, to.date);
-    const { hasRoom } = await roomFor(
-      {
-        startsAt,
-        labourHours: job.labourHours,
-        crewSize: job.crewSize,
-        jobId,
-      },
-      tx,
-    );
+    const { hasRoom } = await roomFor(asClean({ ...job, startsAt }), tx);
     if (!hasRoom) {
       throw new ConflictError(
         "That time has just filled up. Please choose another.",
@@ -452,12 +439,7 @@ export const confirmReschedule = async (jobId: string, byAccountId: string) => {
     // what it held may no longer be enough: fewer Cleaners or hours that day
     await lockDay(tx, dayOf(pending.startsAt));
     const room = await roomFor(
-      {
-        startsAt: pending.startsAt,
-        labourHours: job.labourHours,
-        crewSize: job.crewSize,
-        jobId,
-      },
+      asClean({ ...job, startsAt: pending.startsAt }),
       tx,
     );
     if (!room.hasRoom) {
@@ -644,15 +626,7 @@ export const moveJob = async (jobId: string, to: LocalDateTime) => {
     // as asking does, so a move and another booking can't both take a day's
     // last free hours or crew
     await lockDay(tx, to.date);
-    const room = await roomFor(
-      {
-        startsAt,
-        labourHours: job.labourHours,
-        crewSize: job.crewSize,
-        jobId,
-      },
-      tx,
-    );
+    const room = await roomFor(asClean({ ...job, startsAt }), tx);
     if (!room.hasRoom) throw new ConflictError(whyNoRoom(room));
 
     const crew = await moveTo(tx, job, startsAt);

@@ -7,7 +7,7 @@ import {
 } from "@empire-cleaning/models";
 import { DAY_MS, HOUR_MS } from "../../services/clock/index.ts";
 import { formatWhen } from "../../services/email/index.ts";
-import { asClean, isFree } from "../jobs/schedule.ts";
+import { asClean, isFree } from "../jobs/rules.ts";
 
 // The rules for places on a Job (ADR-0019), over what the actions load: the
 // Job's day of the Schedule, and its Assignments. Each says why something is
@@ -22,9 +22,10 @@ export const OPEN_PLACE_DAYS = 7;
 // time to find someone else
 const RELEASE_CUTOFF_HOURS = 48;
 
-// a Job as its row has it, or as its day of the Schedule does (startsAt as
-// an ISO string)
+// a Job as its row has it
 type Job = { id: string; status: string; startsAt: Date; crewSize: number };
+
+// when a Job starts, from its row or its day of the Schedule (an ISO string)
 type When = { startsAt: Date | string };
 
 // an Assignment on a Job, Released ones too
@@ -53,8 +54,8 @@ const onDay = (day: ScheduleDay, jobId: string) =>
  * Office Staff Offering a place on a booked Job, on its day of the
  * Schedule, to someone: refused once it has started, to anyone but an
  * active Cleaner, to someone who holds a place on it already, when every
- * place is held, and when they aren't free for it,
- * so they could never Confirm it.
+ * place is held, and when they aren't free for it, so they could never
+ * Confirm it.
  */
 export const whyNotOffer = (
   day: ScheduleDay,

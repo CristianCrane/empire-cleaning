@@ -38,7 +38,7 @@ import {
 } from "../../services/clock/index.ts";
 import { email } from "../../services/email/index.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
-import { ENDS_BY_MIDNIGHT, endsByMidnight } from "../jobs/schedule.ts";
+import { ENDS_BY_MIDNIGHT, endsByMidnight } from "../jobs/rules.ts";
 import { officeCompletionOf } from "../completion/completion.ts";
 import { paymentMethodOf, toPaymentMethodView } from "../payments/payments.ts";
 import {

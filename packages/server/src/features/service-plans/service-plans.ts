@@ -46,13 +46,8 @@ import {
   upcomingJobsFor,
 } from "../jobs/jobs.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
-import {
-  ENDS_BY_MIDNIGHT,
-  endsByMidnight,
-  freeFor,
-  jobViews,
-  roomFor,
-} from "../jobs/schedule.ts";
+import { freeFor, jobViews, roomFor } from "../jobs/schedule.ts";
+import { ENDS_BY_MIDNIGHT, endsByMidnight } from "../jobs/rules.ts";
 import { charges } from "../payments/payments.schema.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { warnOfficeOfQuotesWithoutRoom } from "../quotes/quote-room.ts";
