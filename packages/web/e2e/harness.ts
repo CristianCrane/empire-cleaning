@@ -368,7 +368,16 @@ export const expectCurrentSection = async (
 // within: only part of the page, e.g. an open dialog (which hides the rest,
 // main landmark and heading included, from assistive technology)
 export const expectAccessible = async (page: Page, within?: string) => {
-  await page.waitForFunction(() => document.getAnimations().length === 0);
+  await page.waitForFunction((selector) => {
+    if (document.getAnimations().length) return false;
+    // an animation can be yet to start: also wait until what's checked,
+    // and all around it, is no longer see-through
+    const checked = selector ? document.querySelector(selector) : document.body;
+    for (let at = checked; at; at = at.parentElement) {
+      if (getComputedStyle(at).opacity !== "1") return false;
+    }
+    return true;
+  }, within);
   const axe = new AxeBuilder({ page }).exclude("[data-live-announcer]");
   const { violations } = await (within ? axe.include(within) : axe).analyze();
   expect(
