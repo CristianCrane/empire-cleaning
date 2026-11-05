@@ -2,6 +2,13 @@
 import { Logo } from "@empire-cleaning/ui";
 import { areas } from "../areas/index.ts";
 import { business } from "../business.ts";
+import { marks } from "../social-marks.ts";
+
+// the business's pages elsewhere, each with its mark
+const social = Object.entries(business.social).map(([network, page]) => ({
+  ...page,
+  mark: marks[network as keyof typeof marks],
+}));
 ---
 
 <footer class="flex flex-col gap-8 py-10">
@@ -28,6 +35,25 @@ import { business } from "../business.ts";
       <span>{business.area}</span>
       <span>{business.hours.display}</span>
       <span lang="es">Se habla español</span>
+      <ul aria-label="Find us online" class="my-2 flex gap-4">
+        {
+          social.map(({ name, href, mark }) => (
+            <li>
+              <a
+                href={href}
+                target="_blank"
+                rel="noopener"
+                aria-label={`Empire Cleaning on ${name}`}
+                class="flex size-8 items-center justify-center text-fg-muted hover:text-primary"
+              >
+                <svg aria-hidden viewBox="0 0 24 24" class="size-5" fill="currentColor">
+                  <path d={mark.path} />
+                </svg>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
       <span>&copy; {new Date().getFullYear()} {business.name}</span>
     </div>
   </div>

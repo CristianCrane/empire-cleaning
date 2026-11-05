@@ -87,6 +87,9 @@ importers:
       react-dom:
         specifier: ^19.3.0
         version: 19.3.1(react@19.3.1)
+      simple-icons:
+        specifier: 16.35.0
+        version: 16.35.0
     devDependencies:
       '@axe-core/playwright':
         specifier: ^4.13.0
@@ -4855,6 +4858,10 @@ packages:
   siginfo@2.0.0:
     resolution: {integrity: sha512-ybx0WO1/8bSBLEWXZvEd7gMW3Sn3JFlW3TvX1nREbDLRNQNaeNN8WK0meBwPdAaOI7TtRRRJn/Es1zhrrCHu7g==}
 
+  simple-icons@16.35.0:
+    resolution: {integrity: sha512-TCfl/2+GTrx0nCo4pEWGvxhOb8c6NsqOU1OpwjtF4lwJAthB8IYVD0fuIMjLMg6JFuG1YBO0t1iETQqJLqkoJA==}
+    engines: {node: '>=0.12.18'}
+
   simple-update-notifier@2.0.0:
     resolution: {integrity: sha512-a2B9Y0KlNXl9u/vsW6sTIu9vGEpfKu2wRV6l1H3XEas/0gUIzGzBoP/IouTcUQbm9JWZLH3COxyn03TYlFax6w==}
     engines: {node: '>=10'}
@@ -9594,6 +9601,8 @@ snapshots:
       side-channel-weakmap: 1.0.2
 
   siginfo@2.0.0: {}
+
+  simple-icons@16.35.0: {}
 
   simple-update-notifier@2.0.0:
     dependencies:
