@@ -1696,11 +1696,15 @@ export const sendQuote = async (id: string): Promise<OfficeQuote> => {
  * Office Staff throw away the Revision being written. What's left depends
  * on what came before it: a Sent Quote keeps its offer; one asked for with
  * nothing sent is Requested again, of the Service asked for, its kind
- * unset; and a Service Plan offered unprompted, never sent, had nothing but
- * its Draft, so it goes too. Returns the Quote, or null once it's gone.
+ * unset, unless another one-off Quote for that Service is open here now (it
+ * was asked for again once this was drafted as another), which carries the
+ * ask on, so this one goes; and a Service Plan offered unprompted, never
+ * sent, had nothing but its Draft, so it goes too. A Quote that goes leaves
+ * its Site Visits on the Property. Returns the Quote, or null once it's gone.
  */
 export const discardDraft = async (id: string): Promise<OfficeQuote | null> => {
   const quote = await findQuote(id);
+  const { services } = await currentPricing();
   const gone = await db.transaction(async (tx) => {
     await lockProperty(tx, quote.propertyId);
     const current = await findQuote(id, tx);
@@ -1711,7 +1715,17 @@ export const discardDraft = async (id: string): Promise<OfficeQuote | null> => {
       await dropDraftRevision(tx, id);
       return false;
     }
-    if (current.askedServiceKey === null) {
+    if (
+      current.askedServiceKey === null ||
+      (
+        await openAlongside(
+          tx,
+          current,
+          { kind: "one_off", serviceKey: current.askedServiceKey },
+          services,
+        )
+      ).length > 0
+    ) {
       await tx.delete(quotes).where(eq(quotes.id, id));
       return true;
     }

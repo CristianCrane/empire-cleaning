@@ -174,6 +174,23 @@ describe("open Quotes at one Property", () => {
     expect(refused.body.message).toMatch(/already asked us for a Quote/);
   });
 
+  test("a first Draft deleted goes back to being asked for beside a Service Plan Quote offered meanwhile", async () => {
+    const { office, propertyId } = await firstCleanDone();
+    const quoteId = await ask();
+    // a one-off Draft holds only its Service, so a plan can be offered
+    await startDraft(office, quoteId);
+    await office
+      .post("/api/quotes")
+      .send({ propertyId, kind: "service_plan" })
+      .expect(201);
+
+    const after = (
+      await office.delete(`/api/quotes/${quoteId}/draft`).expect(200)
+    ).body as OfficeQuote;
+
+    expect(after).toMatchObject({ status: "requested", kind: null });
+  });
+
   test("Office Staff can change a Draft's Service, unless that one has a Quote open", async () => {
     const office = await signInAsOffice();
     const standard = await startDraft(office, await ask());
