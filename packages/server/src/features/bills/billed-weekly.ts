@@ -1,3 +1,4 @@
+import type { BillPayment } from "@empire-cleaning/models";
 import { and, count, eq, ne, sum } from "drizzle-orm";
 import type { db, Tx } from "../../db/index.ts";
 import { startOfDay } from "../../services/clock/index.ts";
@@ -43,6 +44,18 @@ export const weeklyBillFor = (
   client.billedWeeklyFrom && job.startsAt >= startOfDay(client.billedWeeklyFrom)
     ? client.billPayment
     : null;
+
+// where a clean, or a fee, owed before its week's Bill is made goes, as the
+// Client is told; anything settled after the clean goes on their next Bill
+export const ON_WEEKS_BILL = "goes on your Bill for that week";
+
+// when a weekly Bill is made, and how the Client pays it
+export const billPaid: Record<BillPayment, string> = {
+  automatic:
+    "made the following Monday and charged to your saved Payment Method",
+  on_page:
+    "made the following Monday, which you pay on its page by its due date",
+};
 
 /**
  * Whether a Job's money goes on its Client's weekly Bills rather than being
