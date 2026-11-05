@@ -516,6 +516,36 @@ describe("Site Visit findings", () => {
   });
 });
 
+describe("a Site Visit whose Quote is deleted", () => {
+  test("stays on the Property, findings and all", async () => {
+    const { office, olive, premisesType, quote } = await setUp();
+    // the Office offers a Service Plan of its own instead
+    await office
+      .post(`/api/quotes/${quote.id}/turn-down`)
+      .send({ reason: "out_of_scope" })
+      .expect(200);
+    const offer = () =>
+      office
+        .post("/api/quotes")
+        .send({ propertyId: quote.property.id, kind: "service_plan" })
+        .expect(201);
+    const plan = (await offer()).body as OfficeQuote;
+    const visit = (await book(office, plan.id, olive.id).expect(201))
+      .body as OfficeSiteVisit;
+    await office
+      .post(`/api/site-visits/${visit.id}/findings`)
+      .send({ premisesType, floorArea: 4500, condition: "heavy" })
+      .expect(200);
+
+    // its Draft was all it had, so deleting that deletes it
+    await office.delete(`/api/quotes/${plan.id}/draft`).expect(204);
+
+    const again = (await offer()).body as OfficeQuote;
+    expect(again.findingsRecorded).toBe(true);
+    expect(again.needsSiteVisit).toBe(false);
+  });
+});
+
 describe("a Cleaner's own Site Visits", () => {
   test("show in their day", async () => {
     const { office, cory, quote } = await setUp();
