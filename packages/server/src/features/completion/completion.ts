@@ -19,7 +19,7 @@ import type {
   Condition,
   JobCompletion,
 } from "@empire-cleaning/models";
-import { db } from "../../db/index.ts";
+import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock, DAY_MS } from "../../services/clock/index.ts";
 import { email, formatMoney, notify } from "../../services/email/index.ts";
@@ -88,6 +88,17 @@ export const adjustmentLabel = (
   a.kind === "extra_time"
     ? adjustmentItem(a)
     : `${a.addOnName}, ${a.kind === "add_on_done" ? "done on the day" : "not done"}`;
+
+// what a Job reported, or was before it, as its Property's Condition
+const conditionFromJob = (
+  tx: Tx,
+  job: Pick<Job, "propertyId">,
+  condition: Condition,
+) =>
+  tx
+    .update(properties)
+    .set({ condition })
+    .where(eq(properties.id, job.propertyId));
 
 const jobWithOwner = async (jobId: string) => {
   const [found] = await db
@@ -189,10 +200,7 @@ export const completeJob = async (
       })
       .where(eq(jobs.id, jobId));
     await closePendingRequests(tx, [jobId]);
-    await tx
-      .update(properties)
-      .set({ condition: input.condition })
-      .where(eq(properties.id, job!.propertyId));
+    await conditionFromJob(tx, job!, input.condition);
 
     if (priced.length > 0) {
       await tx.insert(adjustments).values(
@@ -641,10 +649,7 @@ export const correctCondition = async (jobId: string, condition: Condition) => {
       .update(jobs)
       .set({ reportedCondition: condition })
       .where(eq(jobs.id, jobId));
-    await tx
-      .update(properties)
-      .set({ condition })
-      .where(eq(properties.id, job.propertyId));
+    await conditionFromJob(tx, job, condition);
   });
 };
 
@@ -671,10 +676,7 @@ export const undoCompletion = async (jobId: string) => {
       })
       .where(eq(jobs.id, jobId));
     if (job.conditionBefore) {
-      await tx
-        .update(properties)
-        .set({ condition: job.conditionBefore })
-        .where(eq(properties.id, job.propertyId));
+      await conditionFromJob(tx, job, job.conditionBefore);
     }
   });
   const settled = await settleAfterChange(jobId);
