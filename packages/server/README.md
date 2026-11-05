@@ -6,6 +6,14 @@
 
 The test Postgres lives in memory with disk syncing off. Committing to disk took tens of milliseconds a time on a Docker volume (47 ms measured), and a test run makes thousands of commits. Test data is disposable, so nothing is lost. Never put real data there.
 
+Every checkout shares that one test Postgres (300 connections, `docker-compose.yml`). A moved or deleted checkout's databases are never dropped, nor are the names from before checkout ids (`empire_test`, `empire_e2e_test_0` and on, `empire_e2e_landing_test`). `docker restart empire_postgres_test` clears every test database, since they live in memory. Signs it's time for a test Postgres per checkout instead:
+
+- **It runs out of connections:** `docker logs empire_postgres_test 2>&1 | grep -c "too many clients"` is above 0, or the peak during runs passes about 200 (`docker exec empire_postgres_test psql -U postgres -tAc "select count(*) from pg_stat_activity"`; one full suite alone peaked at 67).
+- **Postgres itself slows runs that overlap:** `docker stats empire_postgres_test` shows its CPU pinned while the machine has room. Web e2e took 3.6 min alone and 4.7 min beside another checkout's server tests; if the whole machine is busy, a container per checkout won't help.
+- **A branch needs a different Postgres** (version, setting or extension) while other checkouts still need this one.
+
+Two other signs are bugs to fix here, not reasons to switch: an error from another run reaching yours (`terminating connection due to administrator command`, `is being accessed by other users`: some name is still shared), and leftover databases piling up (`docker exec empire_postgres_test psql -U postgres -tAc "select count(*) from pg_database"` in the hundreds, or the container's memory in GBs: restart it, or drop the databases of checkouts that are gone).
+
 Tests exercise external behaviour through the seams in `tests/harness.ts`:
 
 - `api()` drives the real Express app over HTTP via supertest (`apiAgent()` keeps cookies between requests)
