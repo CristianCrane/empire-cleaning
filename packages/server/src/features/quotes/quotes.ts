@@ -353,7 +353,9 @@ const repriced = (
   firstVisit: boolean,
 ) => {
   const rows = inOrder(options);
-  const addOnKeys = rows[0]!.suggested.addOns.map((a) => a.key);
+  // its own Service's option has every Add-on it chose
+  const own = rows.find((row) => row.serviceKey === revision.serviceKey)!;
+  const addOnKeys = own.suggested.addOns.map((a) => a.key);
   const area = areaOf(revision, quote, property);
   const overrideOf = (row: RevisionOptionRow) =>
     row.overrideCents === null
