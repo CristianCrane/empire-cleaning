@@ -23,7 +23,6 @@ import { currentPriceList } from "#features/price-list";
 import {
   acceptQuote,
   askForQuote,
-  lockProperty,
   offerServicePlan,
   quotes,
   saveDraft,
@@ -31,7 +30,7 @@ import {
   startRevision,
 } from "#features/quotes";
 import { dayOf, timeOf } from "#services/clock";
-import { properties } from "#features/properties";
+import { lockProperty, properties } from "#features/properties";
 import { createStaff, setUsualWeek } from "#features/staff";
 import { servicePlans } from "#features/service-plans";
 import { addressKey } from "../src/features/properties/address.ts";

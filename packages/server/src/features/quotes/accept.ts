@@ -53,13 +53,13 @@ import {
   type PaidWith,
   type PlanCleans,
 } from "./emails.ts";
+import { lockProperty } from "../properties/locking.ts";
 import { warnOfficeOfQuotesWithoutRoom } from "./quote-room.ts";
 import { offers, statusOf } from "./quote-state.ts";
 import { whyClosed, whyUnbookable, type Unbookable } from "./rules.ts";
 import {
   dropDraftRevision,
   inOrder,
-  lockProperty,
   optionsOf,
   toOption,
   type KindedRevision,

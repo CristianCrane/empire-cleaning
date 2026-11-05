@@ -61,6 +61,7 @@ import {
   taxOnPart,
 } from "../price-list/suggested-price.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
+import { lockProperty } from "../properties/locking.ts";
 import { addressOf, toPropertyView } from "../properties/property-view.ts";
 import { planChangeOf } from "../service-plans/changing.ts";
 import {
@@ -913,16 +914,6 @@ const refuseUnquotable = async (
       `A Service Plan can only start once ${property.kind === "commercial" ? "these premises'" : "this home's"} First Clean is Completed.`,
     );
   }
-};
-
-// holds a Property until the transaction ends, so starting, sending and
-// accepting its Quotes take turns
-export const lockProperty = async (tx: Tx, propertyId: string) => {
-  await tx
-    .select({ id: properties.id })
-    .from(properties)
-    .where(eq(properties.id, propertyId))
-    .for("update");
 };
 
 // What an open Quote holds at its Property (ADR-0018): a one-off Quote, its

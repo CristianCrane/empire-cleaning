@@ -35,7 +35,7 @@ import {
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { whyNotBooked } from "../jobs/rules.ts";
-import { lockProperty } from "../quotes/quotes.ts";
+import { lockProperty } from "../properties/locking.ts";
 import { closePendingRequests } from "../reschedule/closing.ts";
 import { servicePlanVisits } from "../service-plans/service-plans.schema.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
