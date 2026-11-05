@@ -1101,7 +1101,7 @@ type DayFields = {
 type PlanFields = Omit<ServicePlanInput, "days"> & { days: DayFields[] };
 
 type Fields = {
-  // a one-off Quote's Service
+  // a one-off Draft's Service, the Quote's once it's sent
   serviceKey: string;
   // for a Service priced by area; null follows the Property's (or the
   // Client's rough one)
