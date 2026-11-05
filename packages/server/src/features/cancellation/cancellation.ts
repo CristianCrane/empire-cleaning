@@ -41,6 +41,10 @@ import {
 // Late Cancellation
 export const CANCELLATION_CUTOFF_HOURS = 24;
 
+// when a clean starting then enters the Late Cancellation window
+export const lateFrom = (startsAt: Date) =>
+  new Date(startsAt.getTime() - CANCELLATION_CUTOFF_HOURS * HOUR_MS);
+
 // Until when cancelling a Job is free: 24 hours before it (ADR-0010). A plan
 // Job booked later than that is free to skip until it starts, as the Client
 // had less than a day's notice of it (#242).
@@ -48,9 +52,7 @@ export const freeUntilOf = (
   job: Pick<Job, "startsAt" | "bookedAt">,
   onPlan: boolean,
 ) => {
-  const cutoff = new Date(
-    job.startsAt.getTime() - CANCELLATION_CUTOFF_HOURS * HOUR_MS,
-  );
+  const cutoff = lateFrom(job.startsAt);
   return onPlan && job.bookedAt > cutoff ? job.startsAt : cutoff;
 };
 
