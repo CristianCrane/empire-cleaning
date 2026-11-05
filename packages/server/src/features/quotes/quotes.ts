@@ -1000,6 +1000,28 @@ const refuseAnotherOpen = async (
   }
 };
 
+// Reviving an Expired Quote, by starting or sending a Revision, is refused
+// while a newer one holds its place (openAlongside). Says whether it was
+// Expired.
+const refuseRevivingPastNewer = async (
+  tx: Tx,
+  current: Quote,
+  holding: { kind: QuoteKind; serviceKey: string },
+  all: Service[],
+  property: Pick<Property, "kind">,
+) => {
+  const offer = await findRevision(current.sentRevisionId, tx);
+  if (currentStatusOf(current, offer) !== "expired") return false;
+  await refuseAnotherOpen(
+    tx,
+    current,
+    holding,
+    all,
+    `A newer ${kindLabel[holding.kind]} is open for ${thisPlace(property)}: carry on with that one.`,
+  );
+  return true;
+};
+
 // "this home" or "these premises", as the Client or the Office would say it
 export const thisPlace = (property: Pick<Property, "kind">) =>
   property.kind === "commercial" ? "these premises" : "this home";
@@ -1149,7 +1171,9 @@ const insertRevision = async (
     .values(options.map((o) => ({ ...o, revisionId: inserted!.id })));
 };
 
-const closedMessage: Partial<Record<QuoteStatus, string>> = {
+// why a closed Quote can't be drafted or sent (accept.ts says why one
+// can't be accepted)
+const closedToRevising: Partial<Record<QuoteStatus, string>> = {
   accepted:
     "The Client accepted this Quote, so it's booked. They can ask for a new Quote.",
   declined:
@@ -1161,7 +1185,7 @@ const closedMessage: Partial<Record<QuoteStatus, string>> = {
 // the Quote, refused once it has closed
 const openQuote = async (id: string, tx: Tx | typeof db = db) => {
   const quote = await findQuote(id, tx);
-  const closed = closedMessage[quote.status];
+  const closed = closedToRevising[quote.status];
   if (closed) throw new ConflictError(closed);
   return quote;
 };
@@ -1217,17 +1241,14 @@ export const startRevision = async (
     const current = await lockOpenQuote(tx, quote);
     // two at once: the other started it
     if (await draftRevisionOf(id, tx)) return;
-    const offer = await findRevision(current.sentRevisionId, tx);
     const holding = { kind, serviceKey };
-    if (currentStatusOf(current, offer) === "expired") {
-      await refuseAnotherOpen(
-        tx,
-        current,
-        holding,
-        list.services,
-        `A newer ${kindLabel[kind]} is open for ${thisPlace(property)}: carry on with that one.`,
-      );
-    }
+    await refuseRevivingPastNewer(
+      tx,
+      current,
+      holding,
+      list.services,
+      property,
+    );
     if (current.status === "requested") {
       await refuseAnotherOpen(
         tx,
@@ -1683,20 +1704,24 @@ export const sendQuote = async (id: string): Promise<OfficeQuote> => {
     }
 
     // reviving it, or switching it to the Draft's Service (saveDraft)
-    const offer = await findRevision(current.sentRevisionId, tx);
-    const expired = currentStatusOf(current, offer) === "expired";
-    if (expired || draft.serviceKey !== current.serviceKey) {
+    const holding = { kind: draft.kind, serviceKey: draft.serviceKey };
+    const revived = await refuseRevivingPastNewer(
+      tx,
+      current,
+      holding,
+      list.services,
+      property,
+    );
+    if (!revived && draft.serviceKey !== current.serviceKey) {
       await refuseAnotherOpen(
         tx,
         current,
-        { kind: draft.kind, serviceKey: draft.serviceKey },
+        holding,
         list.services,
-        expired
-          ? `A newer ${kindLabel[draft.kind]} is open for ${thisPlace(property)}, so this one can't be sent again.`
-          : openAlready(
-              property,
-              quoteName(list.services, draft.kind, draft.serviceKey),
-            ),
+        openAlready(
+          property,
+          quoteName(list.services, draft.kind, draft.serviceKey),
+        ),
       );
     }
     const written =
