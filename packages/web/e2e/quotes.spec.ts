@@ -573,6 +573,30 @@ test("Office Staff change what a Draft is for, and what was asked stays", async 
   ).toBeVisible();
 });
 
+test("deleting a first Draft whose Service was asked for again since leaves the newer ask", async ({
+  page,
+}) => {
+  await requestQuoteAsGuest(casey);
+  await signInAsOffice(page);
+  await startDraft(page);
+  await page.getByRole("button", { name: "Standard Clean Service" }).click();
+  await page.getByRole("option", { name: "Move-in/out Clean" }).click();
+  const status = page.getByRole("status").filter({ hasText: /prices|saved/ });
+  await expect(status).toHaveText("All changes saved");
+  // the Standard Clean is free again, and Casey asks for it
+  await requestQuoteAsGuest(casey);
+
+  await page.getByRole("button", { name: "Delete the Draft" }).click();
+  const dialog = page.getByRole("alertdialog");
+  await expect(dialog).toContainText(
+    `unless ${casey.name} has asked for a Standard Clean again since`,
+  );
+  await dialog.getByRole("button", { name: "Delete the Draft" }).click();
+
+  await expect(page.getByText("Draft deleted")).toBeVisible();
+  await expect(page).toHaveURL(/\/office\/properties\/[0-9a-f-]{36}$/);
+});
+
 test("a Draft for a Service priced by area is priced on the area Office Staff type", async ({
   page,
 }) => {
