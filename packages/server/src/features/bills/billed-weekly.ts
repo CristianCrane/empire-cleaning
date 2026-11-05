@@ -2,8 +2,9 @@ import type { BillPayment } from "@empire-cleaning/models";
 import { and, count, eq, ne, sum } from "drizzle-orm";
 import type { db, Tx } from "../../db/index.ts";
 import { startOfDay } from "../../services/clock/index.ts";
-import type { Client } from "../clients/clients.schema.ts";
+import { clients, type Client } from "../clients/clients.schema.ts";
 import type { Job } from "../jobs/jobs.schema.ts";
+import { properties } from "../properties/properties.schema.ts";
 import { billLines, bills } from "./bills.schema.ts";
 
 // Only schemas are imported here, as settling a Job's money calls it and
@@ -55,6 +56,22 @@ export const billPaid: Record<BillPayment, string> = {
     "made the following Monday and charged to your saved Payment Method",
   on_page:
     "made the following Monday, which you pay on its page by its due date",
+};
+
+// weeklyBillFor a Job, read from its home's Client, for the Job's views
+export const weeklyBillOfJob = async (
+  job: Pick<Job, "propertyId" | "startsAt">,
+  tx: Tx | typeof db,
+) => {
+  const [owner] = await tx
+    .select({
+      billedWeeklyFrom: clients.billedWeeklyFrom,
+      billPayment: clients.billPayment,
+    })
+    .from(properties)
+    .innerJoin(clients, eq(clients.id, properties.clientId))
+    .where(eq(properties.id, job.propertyId));
+  return weeklyBillFor(job, owner!);
 };
 
 /**

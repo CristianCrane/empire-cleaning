@@ -40,8 +40,8 @@ export const TwoButtons: Story = {
           Our team did more than was quoted: <strong>Inside oven</strong>.
         </p>
         <p>
-          It comes to <strong>$45.00</strong>, tax included, charged only if you
-          approve it.
+          It comes to <strong>$45.00</strong>, tax included, and you only pay it
+          if you approve it.
         </p>
       </>
     ),

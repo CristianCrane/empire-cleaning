@@ -44,6 +44,7 @@ import {
   formatMoney,
 } from "../format.ts";
 import { Fact } from "../Fact.tsx";
+import { ON_WEEKS_BILL } from "./payments.ts";
 
 // one of the Client's Jobs, from the links in their emails: while it's to come,
 // moving or cancelling it; once Completed, its receipt; any extra work proposed to them
@@ -264,7 +265,8 @@ function ActionCard({
 // The Client cancels a clean still to come, seeing first what it costs: free
 // until 24 hours before, then a Late Cancellation that keeps the Deposit. A
 // plan Job is skipped instead, and the plan carries on; its late fee is the
-// plan's Deposit amount, charged, as the plan's own Deposit stays held.
+// plan's Deposit amount, charged or on its week's Bill (ADR-0016), as the
+// plan's own Deposit stays held.
 function Cancel({
   job,
   terms,
@@ -283,9 +285,9 @@ function Cancel({
 
   const cost = onPlan
     ? terms.feeCents > 0 && !terms.late
-      ? `The ${fee} fee for an earlier Late Reschedule is charged now, and skipping costs nothing more.`
+      ? `The ${fee} fee for an earlier Late Reschedule ${job.weeklyBill ? ON_WEEKS_BILL : "is charged now"}, and skipping costs nothing more.`
       : terms.feeCents > 0
-        ? `A ${fee} Late Cancellation fee, the same as your plan's Deposit, is charged to your card. Your Deposit stays held.`
+        ? `A ${fee} Late Cancellation fee, the same as your plan's Deposit, ${job.weeklyBill ? ON_WEEKS_BILL : "is charged to your card"}. Your Deposit stays held.`
         : "There's no charge."
     : terms.feeCents > 0 && !terms.late
       ? `Your ${fee} Deposit was already kept as the fee for a Late Reschedule, so cancelling costs nothing more.`
@@ -649,9 +651,9 @@ function Proposal({
                 <p>
                   It comes to{" "}
                   <strong>{formatMoney(adjustment.totalCents)}</strong>, tax
-                  included, charged to your card only if you approve it. If we
-                  don't hear from you by {formatDate(adjustment.lapsesAt!)}, we
-                  won't charge it.
+                  included, and you only pay it if you approve it. If we don't
+                  hear from you by {formatDate(adjustment.lapsesAt!)}, it lapses
+                  and you don't pay it.
                 </p>
                 {action.problem && (
                   <Notice tone="danger">{action.problem}</Notice>
@@ -742,6 +744,14 @@ function Receipt({ job }: { job: ClientJobDetail }) {
         <dd className="text-end font-semibold">
           {formatMoney(payment.paidCents)}
         </dd>
+        {payment.billedCents !== 0 && (
+          <>
+            <dt className="font-semibold">On your weekly Bills</dt>
+            <dd className="text-end font-semibold">
+              {formatMoney(payment.billedCents)}
+            </dd>
+          </>
+        )}
       </dl>
       {notCharged.length > 0 && (
         <p className="text-sm text-fg-muted">
@@ -755,7 +765,7 @@ function Receipt({ job }: { job: ClientJobDetail }) {
           .
         </p>
       )}
-      {payment.paymentMethod && (
+      {payment.paymentMethod && payment.charges.length > 0 && (
         <p className="text-sm text-fg-muted">
           Charged to your {payment.paymentMethod}.
         </p>

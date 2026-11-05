@@ -22,6 +22,7 @@ import {
   planOfJob,
   noAccessOf,
 } from "../cancellation/cancellation.ts";
+import { weeklyBillOfJob } from "../bills/billed-weekly.ts";
 import { clients } from "../clients/clients.schema.ts";
 import {
   cleanerCompletionsOf,
@@ -98,6 +99,7 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
     canOfferServicePlan,
     servicePlanId,
     openTo,
+    weeklyBill,
   ] = await Promise.all([
     jobView(jobId),
     db
@@ -122,6 +124,7 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
     row.status === "completed" && firstCleanCompleted(row.propertyId),
     planOfJob(jobId),
     openToOf(row),
+    weeklyBillOfJob(row, db),
   ]);
 
   const holding = rows.filter((r) => holdsPlace(r.assignment.status));
@@ -137,6 +140,7 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
     cancelTerms,
     rescheduleTerms,
     rescheduleRequest,
+    weeklyBill,
     addOns: addOns.get(jobId)!,
     assignments: [...holding, ...released].map((r) =>
       toView(r.assignment, r.member),

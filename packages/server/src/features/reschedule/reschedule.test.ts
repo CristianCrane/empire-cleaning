@@ -669,7 +669,11 @@ describe("a Late Reschedule (ADR-0010)", () => {
 
   test("a later one tells a Client billed weekly the full price goes on that week's Bill (#244 #5)", async () => {
     const { client, office, jobId } = await bookedJob();
+    expect((await clientJob(client, jobId)).weeklyBill).toBeNull();
     await billWeekly();
+    // the Job views say so, for the portal and the Office to word its costs
+    expect((await clientJob(client, jobId)).weeklyBill).toBe("automatic");
+    expect((await officeJob(office, jobId)).weeklyBill).toBe("automatic");
     testClock().set(SUNDAY_9_01AM);
     await ask(client, jobId, WEDNESDAY, "free_late").expect(201);
     await confirm(office, jobId).expect(200);

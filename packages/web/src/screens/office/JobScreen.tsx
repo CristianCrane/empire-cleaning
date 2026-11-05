@@ -263,7 +263,7 @@ const noticesFor = (job: OfficeJob): ReactNode[] => {
             The Cleaner reported {toReview}{" "}
             {toReview === 1 ? "increase" : "increases"} to review.
           </strong>{" "}
-          Each is only charged once the Client approves it.
+          Each is only added once the Client approves it.
         </p>
       </Notice>,
     );

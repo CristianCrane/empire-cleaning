@@ -24,13 +24,17 @@ import { useAction } from "../action.ts";
 import type { CostedJob } from "../RescheduleParts.tsx";
 
 // What cancelling costs, in a sentence. A plan Job has no Deposit of its
-// own: its fee is the plan's Deposit amount, charged to the saved card.
-const describeTerms = (terms: CancellationTerms, job: CostedJob) =>
-  job.servicePlanId !== null
+// own: its fee is the plan's Deposit amount, charged to the saved card, or
+// on the Client's next weekly Bill (ADR-0016).
+const describeTerms = (terms: CancellationTerms, job: CostedJob) => {
+  const charged = job.weeklyBill
+    ? "goes on the Client's next Bill"
+    : "is charged";
+  return job.servicePlanId !== null
     ? terms.late
-      ? `It's a Late Cancellation: a ${formatMoney(terms.feeCents)} fee, the plan's Deposit amount, is charged. The plan's Deposit stays held.`
+      ? `It's a Late Cancellation: a ${formatMoney(terms.feeCents)} fee, the plan's Deposit amount, ${charged}. The plan's Deposit stays held.`
       : terms.feeCents > 0
-        ? `The ${formatMoney(terms.feeCents)} fee for a Late Reschedule is charged.`
+        ? `The ${formatMoney(terms.feeCents)} fee for a Late Reschedule ${charged}.`
         : "It's free."
     : terms.late
       ? `It's a Late Cancellation: the ${formatMoney(terms.feeCents)} Deposit is kept as the fee.`
@@ -39,6 +43,7 @@ const describeTerms = (terms: CancellationTerms, job: CostedJob) =>
         : terms.refundCents > 0
           ? `It's free: the ${formatMoney(terms.refundCents)} Deposit is refunded.`
           : "It's free.";
+};
 
 // Office Staff cancel a booked Job, for the Client (by the cancellation
 // policy) or because Empire Cleaning can't do it (always refunded in full).

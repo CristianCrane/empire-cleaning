@@ -26,6 +26,7 @@ import { clock, DAY_MS } from "../../services/clock/index.ts";
 import { email, formatMoney, notify } from "../../services/email/index.ts";
 import { assignments, onCrew } from "../assignments/assignments.schema.ts";
 import { assignmentStatusOf } from "../assignments/places.ts";
+import { weeklyBillOfJob } from "../bills/billed-weekly.ts";
 import {
   cancellationOf,
   cancelTermsOf,
@@ -796,6 +797,7 @@ export const clientJob = async (
     servicePlanId,
     payment,
     quoted,
+    weeklyBill,
   ] = await Promise.all([
     officeCompletionOf(job),
     cancellationOf(job),
@@ -807,6 +809,7 @@ export const clientJob = async (
     paymentOf(job),
     // without a Quote to say, no extras are shown
     quotedJob(job.id).catch(() => null),
+    weeklyBillOfJob(job, db),
   ]);
   return {
     ...(await clientJobOf(job, property)),
@@ -830,6 +833,7 @@ export const clientJob = async (
     cancelTerms: job.startsAt > clock.now() ? (terms?.client ?? null) : null,
     rescheduleTerms,
     rescheduleRequest,
+    weeklyBill,
     servicePlanId,
     planDiscountPercent: quoted?.planDiscountPercent ?? null,
   };
