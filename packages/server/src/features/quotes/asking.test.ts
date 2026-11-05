@@ -555,6 +555,22 @@ describe("the Office's email", () => {
     expect(testEmail().to("cory@example.com")).toEqual([]);
   });
 
+  test("still reaches the rest when one can't be sent", async () => {
+    await signInAsOffice();
+    await createStaff({
+      name: "Dana Desk",
+      email: "dana@example.com",
+      roles: ["office_staff"],
+    });
+    testEmail().failSendingTo("olive@example.com");
+
+    await submit(guestAsk()).expect(201);
+
+    expect(testEmail().lastTo("dana@example.com").subject).toBe(
+      "New Quote request from Casey Client",
+    );
+  });
+
   test("says what was asked for", async () => {
     await signInAsOffice();
 

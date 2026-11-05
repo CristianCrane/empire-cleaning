@@ -1,4 +1,4 @@
-import type { Recurrence } from "@empire-cleaning/models";
+import type { BillPayment, Recurrence } from "@empire-cleaning/models";
 import {
   button,
   cleanDetails,
@@ -277,12 +277,16 @@ export const quoteEmail = ({
 
 // ---- accepting ----
 
-export type Paid = {
-  depositCents: number;
-  // a one-off Job's, or a plan's first clean's
-  totalCents: number;
+// how the Client pays: the Payment Method that paid, by its label, and the
+// weekly Bill their cleans go on (ADR-0016), or null when each is charged
+// when it's done
+export type PaidWith = {
   paymentMethod: string | null;
+  weeklyBill: BillPayment | null;
 };
+
+// what a one-off Job costs and what accepting took for it
+export type Paid = PaidWith & { depositCents: number; totalCents: number };
 
 // a plan's cleans, one on each weekday, from the first
 export type PlanCleans = {
@@ -290,18 +294,35 @@ export type PlanCleans = {
   cleans: { startsAt: Date; serviceName: string; totalCents: number }[];
 };
 
-const chargedTo = (paid: Paid) =>
+const chargedTo = (paid: PaidWith) =>
   paid.paymentMethod ? `your ${paid.paymentMethod}` : "your card";
 
-// a plan's weekdays, and what each clean on them costs
-const planPrices = ({ cleans }: PlanCleans, paid: Paid, now = "") =>
-  cleans.length === 1
-    ? `Each clean is ${now}${formatMoney(paid.totalCents)}, charged to ${chargedTo(paid)} when it's done.`
-    : `Each clean is charged to ${chargedTo(paid)} when it's done: ${cleans
-        .map(
-          (c) => `${formatMoney(c.totalCents)} on ${weekdayName(c.startsAt)}s`,
-        )
-        .join(", ")}.`;
+// when a weekly Bill is made, and how the Client pays it
+const billPaid: Record<BillPayment, string> = {
+  automatic:
+    "made the following Monday and charged to your saved Payment Method",
+  on_page:
+    "made the following Monday, which you pay on its page by its due date",
+};
+
+// a plan's weekdays, what each clean on them costs, and how it's paid
+const planPrices = ({ cleans }: PlanCleans, paid: PaidWith, now = "") => {
+  const each =
+    cleans.length === 1
+      ? formatMoney(cleans[0]!.totalCents)
+      : cleans
+          .map(
+            (c) =>
+              `${formatMoney(c.totalCents)} on ${weekdayName(c.startsAt)}s`,
+          )
+          .join(", ");
+  if (paid.weeklyBill) {
+    return `Each clean is ${now}${each}. Each week's cleans go on one Bill, ${billPaid[paid.weeklyBill]}.`;
+  }
+  return cleans.length === 1
+    ? `Each clean is ${now}${each}, charged to ${chargedTo(paid)} when it's done.`
+    : `Each clean is charged to ${chargedTo(paid)} when it's done: ${each}.`;
+};
 
 const accessButton = button(
   "Check your Access Instructions",
@@ -319,7 +340,7 @@ export const planConfirmationEmail = ({
   name: string;
   address: string;
   plan: PlanCleans;
-  paid: Paid;
+  paid: PaidWith & { depositCents: number };
 }): Email => ({
   subject: "Your Service Plan with Empire Cleaning has started",
   blocks: [
@@ -357,7 +378,7 @@ export const planChangeEmail = ({
   planId: string;
   plan: PlanCleans;
   replaced: Date[];
-  paid: Paid;
+  paid: PaidWith;
 }): Email => ({
   subject: "Your Service Plan with Empire Cleaning has changed",
   blocks: [
@@ -382,6 +403,16 @@ export const planChangeEmail = ({
   ],
 });
 
+// what was taken for a one-off Job, and how the rest is paid
+const bookingPrice = (paid: Paid) => {
+  const billed =
+    paid.weeklyBill &&
+    `goes on your Bill for that week, ${billPaid[paid.weeklyBill]}`;
+  return paid.depositCents > 0
+    ? `We've taken your Deposit of ${formatMoney(paid.depositCents)} from ${chargedTo(paid)}. The rest, ${formatMoney(paid.totalCents - paid.depositCents)}, ${billed || "is charged to it when the clean is done"}.`
+    : `The ${formatMoney(paid.totalCents)} ${billed || `is charged to ${chargedTo(paid)} when the clean is done`}.`;
+};
+
 export const bookingConfirmationEmail = ({
   name,
   clean,
@@ -396,11 +427,7 @@ export const bookingConfirmationEmail = ({
     greeting(firstNameOf(name)),
     paragraph("You're booked."),
     cleanDetails(clean),
-    paragraph(
-      paid.depositCents > 0
-        ? `We've taken your Deposit of ${formatMoney(paid.depositCents)} from ${chargedTo(paid)}. The rest, ${formatMoney(paid.totalCents - paid.depositCents)}, is charged to it when the clean is done.`
-        : `The ${formatMoney(paid.totalCents)} is charged to ${chargedTo(paid)} when the clean is done.`,
-    ),
+    paragraph(bookingPrice(paid)),
     paragraph(
       "We'll remind you the day before. Please check your Access Instructions, so our team can get in:",
     ),

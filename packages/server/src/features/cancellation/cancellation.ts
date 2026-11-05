@@ -17,6 +17,7 @@ import {
   type Settled,
 } from "../completion/balance.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
+import { whyNotBooked } from "../jobs/rules.ts";
 import { closePendingRequests } from "../reschedule/closing.ts";
 import { charges, refunds } from "../payments/payments.schema.ts";
 import { properties } from "../properties/properties.schema.ts";
@@ -27,7 +28,7 @@ import {
   servicePlanVisits,
 } from "../service-plans/service-plans.schema.ts";
 import { staff } from "../staff/staff.schema.ts";
-import { officeStaffEmails } from "../staff/staff.ts";
+import { tellOfficeStaff } from "../staff/staff.ts";
 import { cleanOf } from "../services/services.ts";
 import {
   cancelledEmail,
@@ -206,11 +207,7 @@ export const cancelJob = async (jobId: string, cancellation: Cancellation) => {
       .for("update");
     if (!job) throw new NotFoundError("Job not found");
     if (job.status !== "booked") {
-      throw new ConflictError(
-        job.status === "cancelled"
-          ? "This Job has already been cancelled"
-          : "This Job has already happened, so it can't be cancelled",
-      );
+      throw new ConflictError(whyNotBooked(job.status, "cancelled"));
     }
     if (cancellation.byClient && job.startsAt <= clock.now()) {
       throw new ConflictError(
@@ -327,22 +324,19 @@ const tellOffice = async (
   }: { late: boolean; feeCents: number; onPlan: boolean; settled: Settled },
 ) => {
   const { property, client } = await ownerOf(job);
-  await notify(`Cancellation of Job ${job.id} to the Office`, async () => {
-    for (const to of await officeStaffEmails()) {
-      await email.send({
-        to,
-        ...officeCancelledEmail({
-          client: client.name,
-          jobId: job.id,
-          clean: await cleanOf(job, property),
-          onPlan,
-          late,
-          feeCents,
-          failure: settled.failure,
-        }),
-      });
-    }
-  });
+  await tellOfficeStaff(
+    `Cancellation of Job ${job.id} to the Office`,
+    async () =>
+      officeCancelledEmail({
+        client: client.name,
+        jobId: job.id,
+        clean: await cleanOf(job, property),
+        onPlan,
+        late,
+        feeCents,
+        failure: settled.failure,
+      }),
+  );
 };
 
 // ---- No Access ----
@@ -383,11 +377,7 @@ export const recordNoAccess = async (
       .where(eq(jobs.id, jobId))
       .for("update");
     if (job!.status !== "booked") {
-      throw new ConflictError(
-        job!.status === "no_access"
-          ? "No Access has already been recorded for this Job"
-          : "This Job is no longer booked",
-      );
+      throw new ConflictError(whyNotBooked(job!.status, "no_access"));
     }
     if (job!.startsAt > clock.now()) {
       throw new ConflictError("This Job hasn't started yet");
@@ -426,22 +416,17 @@ export const recordNoAccess = async (
       }),
     }),
   );
-  await notify(`No Access of Job ${jobId} to the Office`, async () => {
-    for (const to of await officeStaffEmails()) {
-      await email.send({
-        to,
-        ...officeNoAccessEmail({
-          cleaner: member!.name,
-          client: client.name,
-          jobId,
-          clean: await cleanOf(job, property),
-          reason,
-          onPlan,
-          failure: settled.failure,
-        }),
-      });
-    }
-  });
+  await tellOfficeStaff(`No Access of Job ${jobId} to the Office`, async () =>
+    officeNoAccessEmail({
+      cleaner: member!.name,
+      client: client.name,
+      jobId,
+      clean: await cleanOf(job, property),
+      reason,
+      onPlan,
+      failure: settled.failure,
+    }),
+  );
 };
 
 // ---- views ----

@@ -8,14 +8,17 @@ import type {
   ClientPayment,
   ClientPastJob,
   CompletionInput,
+  Condition,
   NeedsAttentionItem,
   OfficeJob,
   OfficeQuote,
   PriceList,
   ScheduleDay,
+  SignedInAccount,
 } from "@empire-cleaning/models";
 import { db } from "#db";
-import { chaseProposedAdjustments } from "#features/completion";
+import { confirmAssignment, offerAssignment } from "#features/assignments";
+import { chaseProposedAdjustments, completeJob } from "#features/completion";
 import { settleOpenPayments } from "#features/payments";
 import { formatMoney } from "#services/email";
 import { properties } from "#features/properties";
@@ -29,6 +32,7 @@ import {
   testPayments,
 } from "../../../tests/harness.ts";
 import {
+  acceptedJob,
   casey,
   guestAsk,
   setService,
@@ -1007,6 +1011,107 @@ describe("Office Staff correcting a completion", () => {
       .patch(`/api/jobs/${jobId}/completion`)
       .send({ condition: "light" })
       .expect(403);
+  });
+});
+
+describe("a Property's Condition", () => {
+  // Casey's home with two Jobs, at 9am on Mondays 12 and 19 January, Cory
+  // Confirmed on both; the clock is left at 11am on the 19th, and goes on a
+  // minute with each completion
+  const twoJobs = async () => {
+    const office = await signInAsOffice();
+    const me = (await office.get("/api/me").expect(200))
+      .body as SignedInAccount;
+    const cory = await cleaner("Cory Cleaner");
+    const earlier = await acceptedJob({
+      startsAt: "2026-01-12T14:00:00Z",
+      byAccountId: me.id,
+    });
+    const later = await acceptedJob({
+      startsAt: "2026-01-19T14:00:00Z",
+      byAccountId: me.id,
+    });
+    expect(later.propertyId).toBe(earlier.propertyId);
+    for (const job of [earlier, later]) {
+      const offered = await offerAssignment(job.id, cory.id, me.id);
+      await confirmAssignment(cory.id, offered.assignments[0]!.id);
+    }
+    testClock().set(new Date("2026-01-19T16:00:00Z"));
+    // each a minute after the last, so their order is plain
+    const done = (job: { id: string }, condition: Condition) => {
+      testClock().advance({ minutes: 1 });
+      return completeJob(cory.id, job.id, { condition, reports: [] });
+    };
+    const conditionNow = async () =>
+      (
+        await db
+          .select()
+          .from(properties)
+          .where(eq(properties.id, earlier.propertyId))
+      )[0]!.condition;
+    return { office, earlier, later, done, conditionNow };
+  };
+
+  test("stays the latest Job's when an earlier one is completed late", async () => {
+    const { earlier, later, done, conditionNow } = await twoJobs();
+    await done(later, "light");
+
+    await done(earlier, "heavy");
+
+    expect(await conditionNow()).toBe("light");
+  });
+
+  test("stays the latest Job's when an earlier one is corrected, and follows the latest's correction", async () => {
+    const { office, earlier, later, done, conditionNow } = await twoJobs();
+    await done(earlier, "heavy");
+    await done(later, "light");
+
+    await office
+      .patch(`/api/jobs/${earlier.id}/completion`)
+      .send({ condition: "moderate" })
+      .expect(200);
+    expect(await conditionNow()).toBe("light");
+
+    await office
+      .patch(`/api/jobs/${later.id}/completion`)
+      .send({ condition: "heavy" })
+      .expect(200);
+    expect(await conditionNow()).toBe("heavy");
+  });
+
+  test("stays the latest Job's when an earlier one is undone, and is the one before it once the latest is", async () => {
+    const { office, earlier, later, done, conditionNow } = await twoJobs();
+    await done(later, "light");
+    // completed late, so it reported after the later one
+    await done(earlier, "heavy");
+
+    await office.delete(`/api/jobs/${later.id}/completion`).expect(200);
+    expect(await conditionNow()).toBe("heavy");
+
+    await done(later, "light");
+    await office.delete(`/api/jobs/${earlier.id}/completion`).expect(200);
+    expect(await conditionNow()).toBe("light");
+  });
+
+  test("is the one the Client stated since the Job before, once the latest is undone", async () => {
+    const { office, earlier, later, done, conditionNow } = await twoJobs();
+    await done(earlier, "light");
+    const client = await signIn(casey.email);
+    await submit(
+      {
+        serviceKey: SEEDED.standard,
+        property: { existing: earlier.propertyId },
+        condition: "heavy",
+        wantsRegularService: false,
+      },
+      client,
+    ).expect(201);
+    expect(await conditionNow()).toBe("heavy");
+    await done(later, "moderate");
+
+    await office.delete(`/api/jobs/${later.id}/completion`).expect(200);
+
+    expect(await conditionNow()).toBe("heavy");
   });
 });
 

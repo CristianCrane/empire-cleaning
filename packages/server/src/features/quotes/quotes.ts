@@ -37,6 +37,7 @@ import {
   weekdayOf,
 } from "../../services/clock/index.ts";
 import { email } from "../../services/email/index.ts";
+import { weeklyBillOf } from "../bills/billed-weekly.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { ENDS_BY_MIDNIGHT, endsByMidnight } from "../jobs/rules.ts";
 import { officeCompletionOf } from "../completion/completion.ts";
@@ -60,6 +61,7 @@ import {
   taxOnPart,
 } from "../price-list/suggested-price.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
+import { lockProperty } from "../properties/locking.ts";
 import { addressOf, toPropertyView } from "../properties/property-view.ts";
 import { planChangeOf } from "../service-plans/changing.ts";
 import {
@@ -795,13 +797,19 @@ export const clientQuote = async (
   clientId: string,
 ): Promise<QuoteView> => {
   const [found] = await db
-    .select({ quote: quotes, offer: offers, property: properties })
+    .select({
+      quote: quotes,
+      offer: offers,
+      property: properties,
+      client: clients,
+    })
     .from(quotes)
     .innerJoin(offers, eq(offers.id, quotes.sentRevisionId))
     .innerJoin(properties, eq(properties.id, quotes.propertyId))
+    .innerJoin(clients, eq(clients.id, properties.clientId))
     .where(and(eq(quotes.id, id), eq(properties.clientId, clientId)));
   if (!found) throw new NotFoundError("Quote not found");
-  const { quote, offer, property } = found;
+  const { quote, offer, property, client } = found;
   const revision = kinded(quote, offer);
   const rows = await optionsOf(offer.id);
   const status = currentStatusOf(quote, offer);
@@ -831,6 +839,7 @@ export const clientQuote = async (
     ...(await acceptedPlanOf(quote)),
     changesPlan: await planChangeFor(quote, status, offer),
     bookable: await bookableOf(quote, status, offer),
+    weeklyBill: weeklyBillOf(client),
   };
 };
 
@@ -907,16 +916,6 @@ const refuseUnquotable = async (
   }
 };
 
-// holds a Property until the transaction ends, so starting, sending and
-// accepting its Quotes take turns
-export const lockProperty = async (tx: Tx, propertyId: string) => {
-  await tx
-    .select({ id: properties.id })
-    .from(properties)
-    .where(eq(properties.id, propertyId))
-    .for("update");
-};
-
 // What an open Quote holds at its Property (ADR-0018): a one-off Quote, its
 // Service's one-off; a Service Plan Quote, the Service Plan Quote; a
 // Requested one, both, the second only if its Service can recur
@@ -990,6 +989,28 @@ const refuseAnotherOpen = async (
   if ((await openAlongside(tx, quote, holding, all)).length > 0) {
     throw new ConflictError(message);
   }
+};
+
+// Reviving an Expired Quote, by starting or sending a Revision, is refused
+// while a newer one holds its place (openAlongside). Says whether it was
+// Expired.
+const refuseRevivingPastNewer = async (
+  tx: Tx,
+  current: Quote,
+  holding: { kind: QuoteKind; serviceKey: string },
+  all: Service[],
+  property: Pick<Property, "kind">,
+) => {
+  const offer = await findRevision(current.sentRevisionId, tx);
+  if (currentStatusOf(current, offer) !== "expired") return false;
+  await refuseAnotherOpen(
+    tx,
+    current,
+    holding,
+    all,
+    `A newer ${kindLabel[holding.kind]} is open for ${thisPlace(property)}: carry on with that one.`,
+  );
+  return true;
 };
 
 // "this home" or "these premises", as the Client or the Office would say it
@@ -1141,7 +1162,9 @@ const insertRevision = async (
     .values(options.map((o) => ({ ...o, revisionId: inserted!.id })));
 };
 
-const closedMessage: Partial<Record<QuoteStatus, string>> = {
+// why a closed Quote can't be drafted or sent (accept.ts says why one
+// can't be accepted)
+const closedToRevising: Partial<Record<QuoteStatus, string>> = {
   accepted:
     "The Client accepted this Quote, so it's booked. They can ask for a new Quote.",
   declined:
@@ -1153,7 +1176,7 @@ const closedMessage: Partial<Record<QuoteStatus, string>> = {
 // the Quote, refused once it has closed
 const openQuote = async (id: string, tx: Tx | typeof db = db) => {
   const quote = await findQuote(id, tx);
-  const closed = closedMessage[quote.status];
+  const closed = closedToRevising[quote.status];
   if (closed) throw new ConflictError(closed);
   return quote;
 };
@@ -1209,17 +1232,14 @@ export const startRevision = async (
     const current = await lockOpenQuote(tx, quote);
     // two at once: the other started it
     if (await draftRevisionOf(id, tx)) return;
-    const offer = await findRevision(current.sentRevisionId, tx);
     const holding = { kind, serviceKey };
-    if (currentStatusOf(current, offer) === "expired") {
-      await refuseAnotherOpen(
-        tx,
-        current,
-        holding,
-        list.services,
-        `A newer ${kindLabel[kind]} is open for ${thisPlace(property)}: carry on with that one.`,
-      );
-    }
+    await refuseRevivingPastNewer(
+      tx,
+      current,
+      holding,
+      list.services,
+      property,
+    );
     if (current.status === "requested") {
       await refuseAnotherOpen(
         tx,
@@ -1675,20 +1695,24 @@ export const sendQuote = async (id: string): Promise<OfficeQuote> => {
     }
 
     // reviving it, or switching it to the Draft's Service (saveDraft)
-    const offer = await findRevision(current.sentRevisionId, tx);
-    const expired = currentStatusOf(current, offer) === "expired";
-    if (expired || draft.serviceKey !== current.serviceKey) {
+    const holding = { kind: draft.kind, serviceKey: draft.serviceKey };
+    const revived = await refuseRevivingPastNewer(
+      tx,
+      current,
+      holding,
+      list.services,
+      property,
+    );
+    if (!revived && draft.serviceKey !== current.serviceKey) {
       await refuseAnotherOpen(
         tx,
         current,
-        { kind: draft.kind, serviceKey: draft.serviceKey },
+        holding,
         list.services,
-        expired
-          ? `A newer ${kindLabel[draft.kind]} is open for ${thisPlace(property)}, so this one can't be sent again.`
-          : openAlready(
-              property,
-              quoteName(list.services, draft.kind, draft.serviceKey),
-            ),
+        openAlready(
+          property,
+          quoteName(list.services, draft.kind, draft.serviceKey),
+        ),
       );
     }
     const written =

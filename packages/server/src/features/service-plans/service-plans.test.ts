@@ -16,6 +16,8 @@ import type {
   SignedInAccount,
 } from "@empire-cleaning/models";
 import { db } from "#db";
+import { setBilling } from "#features/bills";
+import { findClientByEmail } from "#features/clients";
 import { confirmAssignment, offerAssignment } from "#features/assignments";
 import { completeJob } from "#features/completion";
 import { bookJob } from "#features/jobs";
@@ -28,6 +30,7 @@ import {
   testPayments,
 } from "../../../tests/harness.ts";
 import {
+  addPremises,
   casey,
   completedFirstClean,
   crewedServicePlan,
@@ -39,6 +42,18 @@ import { generateServicePlanJobs } from "./service-plans.ts";
 import { findService, SEEDED } from "#features/services";
 
 type Agent = Awaited<ReturnType<typeof signIn>>;
+
+// Casey, with business premises, billed weekly (ADR-0016)
+const billWeekly = async (payment: "automatic" | "on_page") => {
+  const owner = (await findClientByEmail(casey.email))!;
+  await addPremises(owner.id);
+  await setBilling(owner.id, {
+    weekly: true,
+    payment,
+    termsDays: 14,
+    billingEmail: null,
+  });
+};
 
 // The First Clean is done at 11am on Monday 12 January 2026, New York time,
 // and the clock is left there, so plan Jobs are generated up to Monday 9
@@ -211,6 +226,19 @@ describe("accepting a Service Plan Quote", () => {
     );
     expect(confirmations[0]!.text).toContain("$50.46");
     expect(sent.filter((m) => /booked/i.test(m.subject))).toHaveLength(1);
+  });
+
+  test("tells a Client billed weekly that each week's cleans go on one Bill (#244 #5)", async () => {
+    await startedPlan({}, () => billWeekly("on_page"));
+
+    const confirmation = testEmail().lastTo(casey.email);
+    expect(confirmation.subject).toBe(
+      "Your Service Plan with Empire Cleaning has started",
+    );
+    expect(confirmation.text).not.toContain("when it's done");
+    expect(confirmation.text).toContain(
+      "Each clean is $201.85. Each week's cleans go on one Bill, made the following Monday, which you pay on its page by its due date.",
+    );
   });
 
   test("leaves the Quote Sent and starts nothing if the Deposit fails", async () => {

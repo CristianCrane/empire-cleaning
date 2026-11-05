@@ -985,6 +985,9 @@ export type QuoteView = {
   // on a Service Plan Quote for a home that has a plan, while it's open:
   // what accepting it does to that plan. Null otherwise.
   changesPlan: PlanChange | null;
+  // how the Client pays for the clean: on a weekly Bill, charged or paid on
+  // its page (ADR-0016), or null when it's charged when it's done
+  weeklyBill: BillPayment | null;
   // the Services that can still be booked, by key: those the proposed day
   // has room for now, while the Quote is Sent; none once it's closed. A
   // Service Plan Quote's are its days' while the first clean on each of them

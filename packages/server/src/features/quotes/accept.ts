@@ -13,6 +13,7 @@ import {
   paymentGateway,
   type DepositAttempt,
 } from "../../services/payment-gateway/index.ts";
+import { weeklyBillOf } from "../bills/billed-weekly.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { bookJob, lockDay } from "../jobs/jobs.ts";
 import type { Job } from "../jobs/jobs.schema.ts";
@@ -49,15 +50,16 @@ import {
   planChangeEmail,
   planConfirmationEmail,
   type Paid,
+  type PaidWith,
   type PlanCleans,
 } from "./emails.ts";
+import { lockProperty } from "../properties/locking.ts";
 import { warnOfficeOfQuotesWithoutRoom } from "./quote-room.ts";
 import { offers, statusOf } from "./quote-state.ts";
 import { whyClosed, whyUnbookable, type Unbookable } from "./rules.ts";
 import {
   dropDraftRevision,
   inOrder,
-  lockProperty,
   optionsOf,
   toOption,
   type KindedRevision,
@@ -748,9 +750,9 @@ const afterAcceptance = async (
   paidWith: string | null,
 ) => {
   const paid = {
-    depositCents: offer.depositCents,
-    totalCents: offer.cleans[0]!.option.totalCents,
     paymentMethod: paidWith,
+    weeklyBill: weeklyBillOf(client),
+    depositCents: offer.depositCents,
   };
   if (replaced) await afterTermsChanged(replaced);
   try {
@@ -765,7 +767,10 @@ const afterAcceptance = async (
         )
       : plan
         ? sendPlanConfirmation(client, property, offer, plan, paid)
-        : sendBookingConfirmation(client, property, jobs[0]!, paid));
+        : sendBookingConfirmation(client, property, jobs[0]!, {
+            ...paid,
+            totalCents: offer.cleans[0]!.option.totalCents,
+          }));
   } catch (error) {
     monitoring.error(error, {
       what: `booking confirmation for Job ${jobs[0]!.id} not sent`,
@@ -794,7 +799,7 @@ const sendPlanConfirmation = async (
   property: Property,
   offer: Offer,
   plan: ServicePlan,
-  paid: Paid,
+  paid: PaidWith & { depositCents: number },
 ) => {
   await email.send({
     to: client.email,
@@ -815,7 +820,7 @@ const sendPlanChangeConfirmation = async (
   offer: Offer,
   plan: ServicePlan,
   replaced: Job[],
-  paid: Paid,
+  paid: PaidWith,
 ) => {
   await email.send({
     to: client.email,

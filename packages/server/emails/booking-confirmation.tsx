@@ -10,6 +10,7 @@ export default preview(
       depositCents: 5988,
       totalCents: 29940,
       paymentMethod: "Visa ending 4242",
+      weeklyBill: null,
     },
   }),
 );

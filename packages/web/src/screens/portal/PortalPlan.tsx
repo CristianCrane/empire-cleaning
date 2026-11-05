@@ -22,17 +22,8 @@ import { getJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import { addressOf, formatDateTime, formatHours } from "../format.ts";
+import { planPaymentLine } from "./payments.ts";
 import { EndPlan, OnHold, PlanFacts, PlanStatusBadge } from "../PlanParts.tsx";
-
-// how the Client pays for their cleans: each when it's done, or on a weekly
-// Bill (ADR-0016), charged or paid on its page
-const paymentLine = {
-  per_clean: "Each clean is charged to your saved card when it's done.",
-  automatic:
-    "Each week's cleans go on one Bill, made the following Monday and charged to your saved Payment Method.",
-  on_page:
-    "Each week's cleans go on one Bill, made the following Monday, which you pay on its page by its due date.",
-};
 
 // one of the Client's Service Plans: its terms, what each clean costs, the
 // Deposit held for it, and its cleans on the Schedule; why it's On Hold, if
@@ -81,8 +72,8 @@ export function PortalPlan() {
         <Card>
           <PlanFacts plan={plan} forClient />
           <p className="border-t border-border pt-4 text-sm text-fg-muted">
-            {paymentLine[plan.weeklyBill ?? "per_clean"]} We email a reminder
-            the day before.
+            {planPaymentLine[plan.weeklyBill ?? "per_clean"]} We email a
+            reminder the day before.
           </p>
         </Card>
       </Section>

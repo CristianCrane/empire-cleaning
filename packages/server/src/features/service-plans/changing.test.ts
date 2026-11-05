@@ -9,6 +9,7 @@ import type {
   SignedInAccount,
 } from "@empire-cleaning/models";
 import { db } from "#db";
+import { setBilling } from "#features/bills";
 import { findClientByEmail } from "#features/clients";
 import { paymentMethods } from "#features/payments";
 import { offerAssignment } from "#features/assignments";
@@ -21,13 +22,29 @@ import {
   refusingInserts,
   testPayments,
 } from "../../../tests/harness.ts";
-import { crewedServicePlan } from "../../../tests/fixtures.ts";
+import {
+  addPremises,
+  casey,
+  crewedServicePlan,
+} from "../../../tests/fixtures.ts";
 import { jobQuotes } from "../quotes/job-quotes.ts";
 import { servicePlans } from "./service-plans.schema.ts";
 import { generateServicePlanJobs } from "./service-plans.ts";
 import { SEEDED } from "#features/services";
 
 type Agent = Awaited<ReturnType<typeof signIn>>;
+
+// Casey, with business premises, billed weekly (ADR-0016)
+const billWeekly = async (payment: "automatic" | "on_page") => {
+  const owner = (await findClientByEmail(casey.email))!;
+  await addPremises(owner.id);
+  await setBilling(owner.id, {
+    weekly: true,
+    payment,
+    termsDays: 14,
+    billingEmail: null,
+  });
+};
 
 // Casey's weekly Standard Clean plan from 9am on Monday 19 January 2026, for
 // a crew of 1, its Jobs booked up to 9 February, with a $50.46 Deposit. The
@@ -178,6 +195,27 @@ describe("accepting a Service Plan Quote for a home with a plan", () => {
       "2026-02-11T14:00:00.000Z",
       "2026-02-25T14:00:00.000Z",
     ]);
+  });
+
+  test("tells a Client billed weekly that each week's cleans go on one Bill (#244 #5)", async () => {
+    const { office, client, planId } = await crewedServicePlan();
+    await billWeekly("automatic");
+    const quote = await sentChange(office, planId, {
+      startsAt: WEDNESDAY_28TH,
+    });
+    const offered = (await client.get(`/api/quotes/mine/${quote.id}`)).body;
+    expect(offered.weeklyBill).toBe("automatic");
+
+    await accept(client, quote);
+
+    const confirmation = testEmail().lastTo(casey.email);
+    expect(confirmation.subject).toBe(
+      "Your Service Plan with Empire Cleaning has changed",
+    );
+    expect(confirmation.text).not.toContain("when it's done");
+    expect(confirmation.text).toContain(
+      "Each clean is now $201.85. Each week's cleans go on one Bill, made the following Monday and charged to your saved Payment Method.",
+    );
   });
 
   test("prices Jobs before the change as they were, and those from it on the new terms", async () => {

@@ -67,7 +67,7 @@ const placeholders: PriceListInput = {
   premisesTypes: [
     { name: "Office", multiplier: 1, active: true },
     { name: "Retail", multiplier: 0.8, active: true },
-    { name: "Medical", multiplier: 1.6, active: true },
+    { name: "Medical", multiplier: 1.4, active: true },
     { name: "Other", multiplier: 1.2, active: true },
   ],
 };

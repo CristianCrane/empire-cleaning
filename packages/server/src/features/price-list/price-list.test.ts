@@ -359,7 +359,7 @@ describe("Premises Types", () => {
     expect(list.premisesTypes.map((t) => [t.name, t.multiplier])).toEqual([
       ["Office", 1],
       ["Retail", 0.8],
-      ["Medical", 1.6],
+      ["Medical", 1.4],
       ["Other", 1.2],
     ]);
   });

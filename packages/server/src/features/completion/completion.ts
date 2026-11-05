@@ -7,6 +7,7 @@ import {
   isNotNull,
   isNull,
   lte,
+  ne,
 } from "drizzle-orm";
 import type {
   AdjustmentCorrection,
@@ -19,7 +20,7 @@ import type {
   Condition,
   JobCompletion,
 } from "@empire-cleaning/models";
-import { db } from "../../db/index.ts";
+import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock, DAY_MS } from "../../services/clock/index.ts";
 import { email, formatMoney, notify } from "../../services/email/index.ts";
@@ -33,6 +34,8 @@ import {
 } from "../cancellation/cancellation.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
+import { whyNotBooked } from "../jobs/rules.ts";
+import { lockProperty } from "../properties/locking.ts";
 import { closePendingRequests } from "../reschedule/closing.ts";
 import { servicePlanVisits } from "../service-plans/service-plans.schema.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
@@ -46,13 +49,16 @@ import {
   paymentOf,
   settleAfterChange,
   settleJob,
+  totalOf,
   type Settled,
 } from "./balance.ts";
 import { adjustments, type Adjustment } from "./completion.schema.ts";
 import {
+  addOnsOfVersions,
   isReduction,
   priceReports,
   quotedJob,
+  quotedJobs,
   reportableAddOns,
   signed,
 } from "./pricing.ts";
@@ -88,6 +94,52 @@ export const adjustmentLabel = (
   a.kind === "extra_time"
     ? adjustmentItem(a)
     : `${a.addOnName}, ${a.kind === "add_on_done" ? "done on the day" : "not done"}`;
+
+/**
+ * A Property's Condition is what its latest Completed Job reported (#244
+ * #7). Once `job` is completed or corrected, with `reported` its report,
+ * the Property takes it. Once it's undone, the Property takes the report of
+ * the latest Completed Job left if that came after this one's, or else
+ * `fallback`, the Condition before this one's report: a Condition given
+ * in between, as a Client asking does, is newer than the older report. A Job
+ * that started after `job` and has reported keeps the Property as it is.
+ */
+const conditionFromJobs = async (
+  tx: Tx,
+  job: Pick<Job, "id" | "propertyId" | "startsAt" | "completedAt">,
+  reported: Condition | null,
+  fallback: Condition | null = null,
+) => {
+  // one at a time at a Property, so an older report never lands last
+  await lockProperty(tx, job.propertyId);
+  const [latest] = await tx
+    .select({
+      startsAt: jobs.startsAt,
+      completedAt: jobs.completedAt,
+      condition: jobs.reportedCondition,
+    })
+    .from(jobs)
+    .where(
+      and(
+        eq(jobs.propertyId, job.propertyId),
+        eq(jobs.status, "completed"),
+        ne(jobs.id, job.id),
+      ),
+    )
+    .orderBy(desc(jobs.startsAt))
+    .limit(1);
+  if (latest && latest.startsAt > job.startsAt) return;
+  const reportedSince =
+    latest && (!job.completedAt || latest.completedAt! > job.completedAt)
+      ? latest.condition
+      : null;
+  const condition = reported ?? reportedSince ?? fallback;
+  if (!condition) return;
+  await tx
+    .update(properties)
+    .set({ condition })
+    .where(eq(properties.id, job.propertyId));
+};
 
 const jobWithOwner = async (jobId: string) => {
   const [found] = await db
@@ -162,7 +214,7 @@ export const completeJob = async (
       .where(eq(jobs.id, jobId))
       .for("update");
     if (job!.status !== "booked") {
-      throw new ConflictError("This Job has already been Completed");
+      throw new ConflictError(whyNotBooked(job!.status, "completed"));
     }
     if (job!.startsAt > now) {
       throw new ConflictError("This Job hasn't started yet");
@@ -189,10 +241,7 @@ export const completeJob = async (
       })
       .where(eq(jobs.id, jobId));
     await closePendingRequests(tx, [jobId]);
-    await tx
-      .update(properties)
-      .set({ condition: input.condition })
-      .where(eq(properties.id, job!.propertyId));
+    await conditionFromJobs(tx, job!, input.condition);
 
     if (priced.length > 0) {
       await tx.insert(adjustments).values(
@@ -321,7 +370,8 @@ export const cleanerCompletionsOf = async (
 ): Promise<Map<string, CleanerExtras>> => {
   const ids = list.map((j) => j.id);
   if (ids.length === 0) return new Map();
-  const [assigned, rows, names] = await Promise.all([
+  const booked = list.filter((j) => j.status === "booked").map((j) => j.id);
+  const [assigned, rows, names, quoted] = await Promise.all([
     assignmentStatusOf(list),
     db.select().from(adjustments).where(inArray(adjustments.jobId, ids)),
     db
@@ -335,54 +385,53 @@ export const cleanerCompletionsOf = async (
             .filter((id) => id !== null),
         ),
       ),
+    quotedJobs(booked),
   ]);
   const nameOf = new Map(names.map((n) => [n.id, n.name]));
+  const addOns = await addOnsOfVersions([
+    ...new Set([...quoted.values()].map((q) => q.priceListId)),
+  ]);
 
-  const extras = await Promise.all(
-    list.map(async (job): Promise<[string, CleanerExtras]> => {
-      const completed = job.status === "completed";
-      const noAccess = job.status === "no_access";
-      return [
-        job.id,
-        {
-          assigned: assigned.get(job.id) === "assigned",
-          outcome: completed ? "completed" : noAccess ? "no_access" : null,
-          reportable:
-            job.status !== "booked"
-              ? { quoted: [], others: [] }
-              : await quotedJob(job.id)
-                  .then(reportableAddOns)
-                  .catch(() => ({ quoted: [], others: [] })),
-          completion: completed
-            ? {
-                completedAt: job.completedAt!.toISOString(),
-                completedBy: job.completedBy
-                  ? (nameOf.get(job.completedBy) ?? null)
-                  : null,
-                condition: job.reportedCondition!,
-                reports: rows
-                  .filter((r) => r.jobId === job.id)
-                  .map((r) => ({
-                    kind: r.kind,
-                    addOnName: r.addOnName,
-                    hours: r.hours,
-                    reason: r.reason,
-                  })),
-              }
-            : null,
-          noAccess: noAccess
-            ? {
-                recordedAt: job.noAccessAt!.toISOString(),
-                recordedBy: job.noAccessBy
-                  ? (nameOf.get(job.noAccessBy) ?? null)
-                  : null,
-                reason: job.noAccessReason ?? "",
-              }
-            : null,
-        },
-      ];
-    }),
-  );
+  const extras = list.map((job): [string, CleanerExtras] => {
+    const completed = job.status === "completed";
+    const noAccess = job.status === "no_access";
+    return [
+      job.id,
+      {
+        assigned: assigned.get(job.id) === "assigned",
+        outcome: completed ? "completed" : noAccess ? "no_access" : null,
+        reportable: quoted.has(job.id)
+          ? reportableAddOns(quoted.get(job.id)!, addOns)
+          : { quoted: [], others: [] },
+        completion: completed
+          ? {
+              completedAt: job.completedAt!.toISOString(),
+              completedBy: job.completedBy
+                ? (nameOf.get(job.completedBy) ?? null)
+                : null,
+              condition: job.reportedCondition!,
+              reports: rows
+                .filter((r) => r.jobId === job.id)
+                .map((r) => ({
+                  kind: r.kind,
+                  addOnName: r.addOnName,
+                  hours: r.hours,
+                  reason: r.reason,
+                })),
+            }
+          : null,
+        noAccess: noAccess
+          ? {
+              recordedAt: job.noAccessAt!.toISOString(),
+              recordedBy: job.noAccessBy
+                ? (nameOf.get(job.noAccessBy) ?? null)
+                : null,
+              reason: job.noAccessReason ?? "",
+            }
+          : null,
+      },
+    ];
+  });
   return new Map(extras);
 };
 
@@ -633,7 +682,8 @@ const owingJob = async (jobId: string) => {
   return job;
 };
 
-// Office Staff correct the Condition reported, which is the Property's too
+// Office Staff correct the Condition reported, and the Property's with it
+// while it's the latest report there (conditionFromJobs)
 export const correctCondition = async (jobId: string, condition: Condition) => {
   const job = await completedJob(jobId);
   await db.transaction(async (tx) => {
@@ -641,16 +691,14 @@ export const correctCondition = async (jobId: string, condition: Condition) => {
       .update(jobs)
       .set({ reportedCondition: condition })
       .where(eq(jobs.id, jobId));
-    await tx
-      .update(properties)
-      .set({ condition })
-      .where(eq(properties.id, job.propertyId));
+    await conditionFromJobs(tx, job, condition);
   });
 };
 
 /**
  * Office Staff undo a completion made by mistake: the Job is booked again,
- * its Adjustments are gone, the Property's Condition is as it was, and
+ * its Adjustments are gone, the Property's Condition is the latest report
+ * left there, or as it was before this one (conditionFromJobs), and
  * everything charged but the Deposit is refunded. Its Assignments stand, so
  * the Cleaner can complete it again.
  */
@@ -670,12 +718,7 @@ export const undoCompletion = async (jobId: string) => {
         unpaidReason: null,
       })
       .where(eq(jobs.id, jobId));
-    if (job.conditionBefore) {
-      await tx
-        .update(properties)
-        .set({ condition: job.conditionBefore })
-        .where(eq(properties.id, job.propertyId));
-    }
+    await conditionFromJobs(tx, job, null, job.conditionBefore);
   });
   const settled = await settleAfterChange(jobId);
 
@@ -813,37 +856,49 @@ export const pastJobsFor = async (
       ),
     )
     .orderBy(desc(jobs.startsAt));
-  const waiting =
+  // what each Completed one cost, read for them all at once; an Unpaid
+  // one's whole ledger only for what it owes
+  const [quoted, adjusted] = await Promise.all([
+    quotedJobs(
+      rows.filter((r) => r.job.status === "completed").map((r) => r.job.id),
+    ),
     rows.length === 0
       ? []
-      : await db
-          .select({ jobId: adjustments.jobId })
+      : db
+          .select({
+            jobId: adjustments.jobId,
+            status: adjustments.status,
+            totalCents: adjustments.totalCents,
+          })
           .from(adjustments)
           .where(
-            and(
-              inArray(
-                adjustments.jobId,
-                rows.map((r) => r.job.id),
-              ),
-              eq(adjustments.status, "proposed"),
+            inArray(
+              adjustments.jobId,
+              rows.map((r) => r.job.id),
             ),
-          );
+          ),
+  ]);
   return Promise.all(
-    rows.map(async ({ job, property, planId }) => ({
-      ...(await clientJobOf(job, property)),
-      status: job.status as ClientPastJob["status"],
-      skipped:
-        job.status === "cancelled" &&
-        job.cancelledBy === "client" &&
-        planId !== null,
-      completedAt: job.completedAt?.toISOString() ?? null,
-      totalCents:
-        job.status === "completed" ? (await paymentOf(job)).totalCents : 0,
-      feeCents: job.status === "completed" ? 0 : (job.feeCents ?? 0),
-      unpaid: job.unpaidSince !== null,
-      owedCents: job.unpaidSince ? (await paymentOf(job)).owedCents : 0,
-      awaitingAnswer: waiting.filter((w) => w.jobId === job.id).length,
-    })),
+    rows.map(async ({ job, property, planId }) => {
+      const own = adjusted.filter((a) => a.jobId === job.id);
+      return {
+        ...(await clientJobOf(job, property)),
+        status: job.status as ClientPastJob["status"],
+        skipped:
+          job.status === "cancelled" &&
+          job.cancelledBy === "client" &&
+          planId !== null,
+        completedAt: job.completedAt?.toISOString() ?? null,
+        totalCents:
+          job.status === "completed"
+            ? totalOf(quoted.get(job.id)!.totalCents, own)
+            : 0,
+        feeCents: job.status === "completed" ? 0 : (job.feeCents ?? 0),
+        unpaid: job.unpaidSince !== null,
+        owedCents: job.unpaidSince ? (await paymentOf(job)).owedCents : 0,
+        awaitingAnswer: own.filter((a) => a.status === "proposed").length,
+      };
+    }),
   );
 };
 

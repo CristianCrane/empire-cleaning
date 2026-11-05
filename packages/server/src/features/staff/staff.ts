@@ -15,6 +15,7 @@ import {
   firstNameOf,
   formatWhen,
   notify,
+  type Email,
 } from "../../services/email/index.ts";
 import { assignments, onCrew } from "../assignments/assignments.schema.ts";
 import { takenOffEmail } from "../assignments/emails.ts";
@@ -234,8 +235,18 @@ export const deactivateStaff = async (id: string) => {
   return view;
 };
 
+// Emails a notice to every Office Staff member, built once. A send that
+// fails is logged and the rest still go; the change stands (notify).
+export const tellOfficeStaff = (what: string, notice: () => Promise<Email>) =>
+  notify(what, async () => {
+    const built = await notice();
+    for (const to of await officeStaffEmails()) {
+      await notify(`${what} for ${to}`, () => email.send({ to, ...built }));
+    }
+  });
+
 // where notices for the Office go: every active Office Staff member
-export const officeStaffEmails = async () =>
+const officeStaffEmails = async () =>
   (
     await db
       .select({ email: staff.email })

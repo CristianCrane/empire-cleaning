@@ -1,6 +1,7 @@
 import type {
   DayCapacity,
   HeldTime,
+  JobStatus,
   ScheduleDay,
   ScheduledSiteVisit,
 } from "@empire-cleaning/models";
@@ -243,3 +244,29 @@ export const withoutReplaced = (
     ),
   };
 };
+
+// what happened to a Job that isn't booked any more
+type Ended = Exclude<JobStatus, "booked">;
+const ended: Record<Ended, string> = {
+  completed: "This Job has been Completed",
+  cancelled: "This Job has been cancelled",
+  no_access: "No Access was recorded for this Job",
+};
+const already: Record<Ended, string> = {
+  completed: "This Job has already been Completed",
+  cancelled: "This Job has already been cancelled",
+  no_access: "No Access has already been recorded for this Job",
+};
+const canDo: Record<Ended | "moved", string> = {
+  completed: "be Completed",
+  cancelled: "be cancelled",
+  no_access: "have No Access recorded",
+  moved: "move",
+};
+
+// Why a Job that isn't booked can't be `doing`: what happened to it, or
+// that it already was
+export const whyNotBooked = (status: Ended, doing: Ended | "moved") =>
+  status === doing
+    ? already[status]
+    : `${ended[status]}, so it can't ${canDo[doing]}`;

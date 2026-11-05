@@ -13,6 +13,8 @@ import type {
   ScheduleDay,
 } from "@empire-cleaning/models";
 import { db } from "#db";
+import { setBilling } from "#features/bills";
+import { findClientByEmail } from "#features/clients";
 import { sendDueReminders } from "#features/jobs";
 import { charges, settleOpenPayments } from "#features/payments";
 import { FAKE_SIGNATURE } from "../../../tests/fakes/payment-gateway.ts";
@@ -26,6 +28,7 @@ import {
   testPayments,
 } from "../../../tests/harness.ts";
 import {
+  addPremises,
   bookedJob,
   casey,
   guestAsk,
@@ -33,9 +36,22 @@ import {
   signInAsOffice,
   submit,
 } from "../../../tests/fixtures.ts";
+import { formatMoney } from "#services/email";
 import { SEEDED } from "#features/services";
 
 type Agent = Awaited<ReturnType<typeof signIn>>;
+
+// Casey, with business premises, billed weekly (ADR-0016)
+const billWeekly = async (payment: "automatic" | "on_page") => {
+  const owner = (await findClientByEmail(casey.email))!;
+  await addPremises(owner.id);
+  await setBilling(owner.id, {
+    weekly: true,
+    payment,
+    termsDays: 14,
+    billingEmail: null,
+  });
+};
 
 // the test clock starts at 4am on Monday 5 January 2026 in New York; Quotes
 // here propose 9am on Monday 12 January (14:00 UTC)
@@ -355,6 +371,30 @@ describe("accepting a First Clean Quote", () => {
       `Deposit of $${(deep.depositCents / 100).toFixed(2)} from your Test card ending 4242`,
     );
     expect(confirmation.text).toContain("http://localhost:5173/portal/details");
+  });
+
+  test("tells a Client billed weekly that the rest goes on the week's Bill (#244 #5)", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    const client = await signIn(casey.email);
+    await addCard(client);
+    const view = async () =>
+      (await client.get(`/api/quotes/mine/${quote.id}`).expect(200))
+        .body as QuoteView;
+    expect((await view()).weeklyBill).toBeNull();
+    await billWeekly("on_page");
+    expect((await view()).weeklyBill).toBe("on_page");
+    const deep = option(quote, "deep");
+
+    await accept(client, quote).expect(200);
+
+    const confirmation = testEmail().lastTo(casey.email);
+    expect(confirmation.subject).toBe("You're booked with Empire Cleaning");
+    expect(confirmation.text).not.toContain("when the clean is done");
+    expect(confirmation.text).toContain(
+      `The rest, ${formatMoney(deep.totalCents - deep.depositCents)}, goes on your Bill for that week, made the following Monday, which you pay on its page by its due date.`,
+    );
   });
 
   test("still books if the confirmation can't be emailed", async () => {
