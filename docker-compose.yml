@@ -20,7 +20,10 @@ services:
   # Only the tests use this one. It lives in memory with disk syncing off:
   # committing to disk can take tens of milliseconds a time (47 ms on one
   # machine), which adds up across thousands of commits in a test run, and test
-  # data is disposable. Never put real data here.
+  # data is disposable. Never put real data here. It takes 300 connections, not
+  # Postgres's 100: one web e2e or server test run can hold 78 (6 workers, each
+  # with an API's 13), and every checkout and session shares this container, so
+  # different suites run at once.
   postgres_test:
     image: postgres:16-alpine
     container_name: empire_postgres_test
@@ -33,6 +36,8 @@ services:
       - synchronous_commit=off
       - -c
       - full_page_writes=off
+      - -c
+      - max_connections=300
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
