@@ -27,7 +27,7 @@ import {
   servicePlanVisits,
 } from "../service-plans/service-plans.schema.ts";
 import { staff } from "../staff/staff.schema.ts";
-import { officeStaffEmails } from "../staff/staff.ts";
+import { tellOfficeStaff } from "../staff/staff.ts";
 import { cleanOf } from "../services/services.ts";
 import {
   cancelledEmail,
@@ -327,22 +327,19 @@ const tellOffice = async (
   }: { late: boolean; feeCents: number; onPlan: boolean; settled: Settled },
 ) => {
   const { property, client } = await ownerOf(job);
-  await notify(`Cancellation of Job ${job.id} to the Office`, async () => {
-    for (const to of await officeStaffEmails()) {
-      await email.send({
-        to,
-        ...officeCancelledEmail({
-          client: client.name,
-          jobId: job.id,
-          clean: await cleanOf(job, property),
-          onPlan,
-          late,
-          feeCents,
-          failure: settled.failure,
-        }),
-      });
-    }
-  });
+  await tellOfficeStaff(
+    `Cancellation of Job ${job.id} to the Office`,
+    async () =>
+      officeCancelledEmail({
+        client: client.name,
+        jobId: job.id,
+        clean: await cleanOf(job, property),
+        onPlan,
+        late,
+        feeCents,
+        failure: settled.failure,
+      }),
+  );
 };
 
 // ---- No Access ----
@@ -426,22 +423,17 @@ export const recordNoAccess = async (
       }),
     }),
   );
-  await notify(`No Access of Job ${jobId} to the Office`, async () => {
-    for (const to of await officeStaffEmails()) {
-      await email.send({
-        to,
-        ...officeNoAccessEmail({
-          cleaner: member!.name,
-          client: client.name,
-          jobId,
-          clean: await cleanOf(job, property),
-          reason,
-          onPlan,
-          failure: settled.failure,
-        }),
-      });
-    }
-  });
+  await tellOfficeStaff(`No Access of Job ${jobId} to the Office`, async () =>
+    officeNoAccessEmail({
+      cleaner: member!.name,
+      client: client.name,
+      jobId,
+      clean: await cleanOf(job, property),
+      reason,
+      onPlan,
+      failure: settled.failure,
+    }),
+  );
 };
 
 // ---- views ----

@@ -34,7 +34,7 @@ import {
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { warnOfficeOfQuotesWithoutRoom } from "../quotes/quote-room.ts";
 import { staff } from "../staff/staff.schema.ts";
-import { officeStaffEmails } from "../staff/staff.ts";
+import { tellOfficeStaff } from "../staff/staff.ts";
 import {
   rescheduleRequests,
   type RescheduleRequest,
@@ -303,22 +303,16 @@ export const requestReschedule = async (
   await warnOfficeOfQuotesWithoutRoom(to.date);
   if (asking.byClient) {
     const client = await ownerOf(job);
-    await notify(
+    await tellOfficeStaff(
       `Reschedule Request for Job ${jobId} to the Office`,
-      async () => {
-        for (const address of await officeStaffEmails()) {
-          await email.send({
-            to: address,
-            ...rescheduleAskedEmail({
-              client: client.name,
-              jobId,
-              clean: await cleanOf({ ...job, startsAt }, property),
-              from: job.startsAt,
-              cost: asking.cost,
-            }),
-          });
-        }
-      },
+      async () =>
+        rescheduleAskedEmail({
+          client: client.name,
+          jobId,
+          clean: await cleanOf({ ...job, startsAt }, property),
+          from: job.startsAt,
+          cost: asking.cost,
+        }),
     );
   }
 };

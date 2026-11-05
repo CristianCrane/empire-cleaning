@@ -38,7 +38,7 @@ import {
   rescheduleTermsOf,
 } from "../reschedule/reschedule.ts";
 import { staff } from "../staff/staff.schema.ts";
-import { officeStaffEmails } from "../staff/staff.ts";
+import { tellOfficeStaff } from "../staff/staff.ts";
 import { assignments, onCrew, type Assignment } from "./assignments.schema.ts";
 import { emailOpenPlaces, openToOf, placeReopened } from "./open-places.ts";
 import {
@@ -498,18 +498,15 @@ export const releaseAssignment = async (
   await placeReopened(job.id);
 
   const [member] = await db.select().from(staff).where(eq(staff.id, staffId));
-  await notify(`Release of Job ${job.id} by Staff ${staffId}`, async () => {
-    for (const to of await officeStaffEmails()) {
-      await email.send({
-        to,
-        ...releasedEmail({
-          cleaner: member!.name,
-          jobId: job.id,
-          clean: await cleanOf(job, property),
-        }),
-      });
-    }
-  });
+  await tellOfficeStaff(
+    `Release of Job ${job.id} by Staff ${staffId}`,
+    async () =>
+      releasedEmail({
+        cleaner: member!.name,
+        jobId: job.id,
+        clean: await cleanOf(job, property),
+      }),
+  );
   await notify(`Open Places email for Job ${job.id}`, async () => {
     await emailOpenPlaces();
   });

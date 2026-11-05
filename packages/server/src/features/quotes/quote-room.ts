@@ -2,7 +2,6 @@ import { and, asc, eq, inArray, max } from "drizzle-orm";
 import type { QuoteSummary } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
 import { dayOf } from "../../services/clock/index.ts";
-import { email } from "../../services/email/index.ts";
 import { onSchedule } from "../jobs/jobs.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
 import { rescheduleRequests } from "../reschedule/reschedule.schema.ts";
@@ -10,7 +9,7 @@ import { siteVisits } from "../site-visits/site-visits.schema.ts";
 import { onDays, roomFor } from "../jobs/schedule.ts";
 import { addressOf } from "../properties/property-view.ts";
 import { jobsReplacedAt } from "../service-plans/changing.ts";
-import { officeStaffEmails } from "../staff/staff.ts";
+import { tellOfficeStaff } from "../staff/staff.ts";
 import { quotesWithoutRoomEmail } from "./emails.ts";
 import { openQuotes } from "./quote-state.ts";
 import { quotes, revisionOptions } from "./quotes.schema.ts";
@@ -148,17 +147,17 @@ export const warnOfficeOfQuotesWithoutRoom = async (day?: string) => {
   try {
     const crowdedOut = await quotesWithoutRoom(day);
     if (crowdedOut.length === 0) return;
-    const recipients = await officeStaffEmails();
-    const notice = quotesWithoutRoomEmail({
-      quotes: crowdedOut.map((q) => ({
-        client: q.client.name,
-        address: addressOf(q.property),
-        startsAt: startOf(q),
-      })),
-    });
-    for (const to of recipients) {
-      await email.send({ to, ...notice });
-    }
+    await tellOfficeStaff(
+      `Quotes without room on ${day ?? "any day"} to the Office`,
+      async () =>
+        quotesWithoutRoomEmail({
+          quotes: crowdedOut.map((q) => ({
+            client: q.client.name,
+            address: addressOf(q.property),
+            startsAt: startOf(q),
+          })),
+        }),
+    );
   } catch (error) {
     monitoring.error(error, {
       what: `Office not told of Quotes without room on ${day ?? "any day"}`,

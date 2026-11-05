@@ -37,7 +37,7 @@ import {
   guestSubmission,
   officeSubmission,
 } from "./asking.validation.ts";
-import { officeStaffEmails } from "../staff/staff.ts";
+import { tellOfficeStaff } from "../staff/staff.ts";
 import {
   askClashEmail,
   quoteReceivedEmail,
@@ -207,13 +207,7 @@ export const askForQuote = async (
   } catch (error) {
     monitoring.error(error, { what: `receipt for Quote ${quote.id} not sent` });
   }
-  try {
-    await tellOffice(client, property, quote, serviceName);
-  } catch (error) {
-    monitoring.error(error, {
-      what: `Office not told of Quote ${quote.id}`,
-    });
-  }
+  await tellOffice(client, property, quote, serviceName);
   // a Guest gave one, and a signed-in Account proved one
   return { id: quote.id, emailedTo: client.email! };
 };
@@ -541,19 +535,17 @@ const tellOffice = async (
   property: Property,
   quote: Quote,
   serviceName: string,
-) => {
-  const notice = quoteRequestedEmail({
-    client: client.name,
-    businessName: client.businessName,
-    serviceName,
-    regular: quote.wantsRegularService,
-    address: addressOf(property),
-    quoteId: quote.id,
-  });
-  for (const to of await officeStaffEmails()) {
-    await email.send({ to, ...notice });
-  }
-};
+) =>
+  tellOfficeStaff(`Quote ${quote.id} to the Office`, async () =>
+    quoteRequestedEmail({
+      client: client.name,
+      businessName: client.businessName,
+      serviceName,
+      regular: quote.wantsRegularService,
+      address: addressOf(property),
+      quoteId: quote.id,
+    }),
+  );
 
 const tellOfClash = async (client: Client, { property, why }: Clash) => {
   if (!client.email) return;

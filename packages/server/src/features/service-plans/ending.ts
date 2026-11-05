@@ -16,7 +16,7 @@ import { closePendingRequests } from "../reschedule/closing.ts";
 import { charges } from "../payments/payments.schema.ts";
 import { properties } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
-import { officeStaffEmails } from "../staff/staff.ts";
+import { tellOfficeStaff } from "../staff/staff.ts";
 import { officePlanEndedEmail, planEndedEmail } from "./emails.ts";
 import {
   servicePlans,
@@ -229,17 +229,14 @@ const tellClient = async (
 // the Office hears when a Client Ends their plan themselves
 const tellOffice = async (plan: ServicePlan, terms: EndPlanTerms) => {
   const { property, client } = await ownerOf(plan);
-  await notify(`End of Service Plan ${plan.id} to the Office`, async () => {
-    for (const to of await officeStaffEmails()) {
-      await email.send({
-        to,
-        ...officePlanEndedEmail({
-          client: client.name,
-          address: addressOf(property),
-          planId: plan.id,
-          terms,
-        }),
-      });
-    }
-  });
+  await tellOfficeStaff(
+    `End of Service Plan ${plan.id} to the Office`,
+    async () =>
+      officePlanEndedEmail({
+        client: client.name,
+        address: addressOf(property),
+        planId: plan.id,
+        terms,
+      }),
+  );
 };
