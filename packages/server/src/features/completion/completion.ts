@@ -133,7 +133,7 @@ const conditionFromJobs = async (
     latest && (!job.completedAt || latest.completedAt! > job.completedAt)
       ? latest.condition
       : null;
-  const condition = reported ?? reportedSince ?? fallback ?? latest?.condition;
+  const condition = reported ?? reportedSince ?? fallback;
   if (!condition) return;
   await tx
     .update(properties)
