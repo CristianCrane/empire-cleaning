@@ -33,14 +33,16 @@ export const turnDownSchema = z.object({
   }),
 });
 
-// no lower bound but nothing: Office Staff have the final say (the reason
-// shows where the Price List is wrong)
+// any price from nothing up: Office Staff have the final say (the reason
+// shows where the Price List is wrong), up to $100,000, well under what a
+// money column holds
 const override = z
   .object({
     priceCents: z
       .number({ error: "Enter a price" })
       .int("Enter a price in whole cents")
-      .min(0, "A price can't be below $0"),
+      .min(0, "A price can't be below $0")
+      .max(10_000_000, "That's over $100,000"),
     reason: z
       .string({ error: "Say why you're changing the Suggested Price" })
       .trim()

@@ -1394,6 +1394,7 @@ function OverrideFields({
             label={`${label === "one-off" ? "One-off" : label} price before tax`}
             name={`${name}.priceCents`}
             minValue={0}
+            maxValue={100_000}
             formatOptions={dollars}
             value={override.price}
             onChange={(price) => onChange({ price })}
