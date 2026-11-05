@@ -1,4 +1,5 @@
 import type {
+  BillPayment,
   BillSummary,
   ClientPastJob,
   ClientPayment,
@@ -193,3 +194,13 @@ export function paymentRow(p: ClientPayment): PaymentRow {
 // "−$22.50" for money back
 export const signedMoney = (cents: number) =>
   cents < 0 ? `−${formatMoney(-cents)}` : formatMoney(cents);
+
+// how the Client pays for their plan's cleans: each when it's done, or on a
+// weekly Bill (ADR-0016), charged or paid on its page
+export const planPaymentLine: Record<BillPayment | "per_clean", string> = {
+  per_clean: "Each clean is charged to your saved card when it's done.",
+  automatic:
+    "Each week's cleans go on one Bill, made the following Monday and charged to your saved Payment Method.",
+  on_page:
+    "Each week's cleans go on one Bill, made the following Monday, which you pay on its page by its due date.",
+};
