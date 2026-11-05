@@ -1,11 +1,12 @@
 import { execFile } from "node:child_process";
-import { availableParallelism } from "node:os";
 import { promisify } from "node:util";
-import { beforeAll, expect, test } from "vitest";
+import { afterAll, beforeAll, expect, test } from "vitest";
 import { addDays } from "#services/clock";
 import {
   copyTestDatabase,
+  dropTestDatabaseCopies,
   TEST_DB_URL,
+  TEST_WORKERS,
   withSuffix,
 } from "./setup/testDatabase.ts";
 
@@ -25,16 +26,19 @@ const instants = Array.from({ length: 7 }, (_, i) =>
   `${addDays(day, 1)}T03:00:00Z`,
 ]);
 
-// a database each, copied from the migrated template. Numbered past the
-// workers' own, so the next run's setup drops any left behind
+// a database each, copied from the migrated template, and dropped after:
+// the test Postgres keeps them in memory. Numbered past the workers' own, so
+// a run that stops short leaves none past the next run's setup
 // (dropTestDatabaseCopies)
-const databaseFor = (i: number) => withSuffix(TEST_DB_URL, 100 + i);
+const FIRST = 100;
+const databaseFor = (i: number) => withSuffix(TEST_DB_URL, FIRST + i);
 beforeAll(() =>
   copyTestDatabase(
     TEST_DB_URL,
     instants.map((_, i) => databaseFor(i)),
   ),
 );
+afterAll(() => dropTestDatabaseCopies(TEST_DB_URL, FIRST));
 
 const run = promisify(execFile);
 
@@ -64,10 +68,10 @@ const seedAt = async (now: string, i: number) => {
   }
 };
 
-// a few seeds at a time: each loads the whole server and keeps up to 13
-// connections (src/db/index.ts), and all of them at once ran the test
-// Postgres out of connections
-const AT_ONCE = Math.max(2, Math.floor(availableParallelism() / 2));
+// as many seeds at a time as test workers: each loads the whole server and
+// keeps up to 13 connections (src/db/index.ts), as a worker does, and all
+// of them at once ran the test Postgres out of connections
+const AT_ONCE = TEST_WORKERS;
 
 // one test, the seeds side by side: Vitest's own concurrent tests would each
 // empty the worker's database at once (setup/perTest.ts)

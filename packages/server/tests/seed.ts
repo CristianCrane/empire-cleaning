@@ -119,8 +119,9 @@ const stamp = async () => {
   ).rows;
   const fake = testClock().now();
   const since = stampedTo;
-  // every table at once, and the database's clock after, in one statement:
-  // a query a table took ~5 minutes against the test site's database (#238)
+  // every table, and the database's clock, in one statement: a query a
+  // table took ~5 minutes against the test site's database (#238). The
+  // clock may be read before the updates, which make no rows
   const updates = since
     ? stamped.map(
         ({ table_name, updated }, i) =>
