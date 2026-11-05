@@ -6,6 +6,7 @@ import type {
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError } from "../../middleware/errors.ts";
+import { offeredWith } from "../price-list/price-list.ts";
 import { priceListAddOns } from "../price-list/price-list.schema.ts";
 import { services } from "../services/services.schema.ts";
 import { addOnCents, taxOnPart } from "../price-list/suggested-price.ts";
@@ -16,6 +17,8 @@ import type { PricedAddOn } from "../quotes/quotes.schema.ts";
 // the Service its Client accepted on the Quote that booked it, and the
 // Price List version that Quote used (ADR-0009). Tax included.
 export type QuotedJob = {
+  // the Service its Client accepted, by key
+  serviceKey: string;
   totalCents: number;
   suggested: PriceBreakdown;
   // what each of its Add-ons added to its price, which one not done takes off
@@ -52,6 +55,7 @@ export const quotedJob = async (
     };
   }
   return {
+    serviceKey: option.serviceKey,
     totalCents: option.totalCents,
     suggested,
     addOns: option.addOns,
@@ -70,7 +74,8 @@ const addOnsOfVersion = (priceListId: string) =>
     .orderBy(priceListAddOns.position);
 
 // what can be reported at completion: the Quote's own Add-ons, as not done,
-// and the active others from its Price List version, as done
+// and the others from its Price List version on offer with its Service, as
+// done
 export const reportableAddOns = async (
   quoted: QuotedJob,
 ): Promise<{ quoted: AddOnChoice[]; others: AddOnChoice[] }> => {
@@ -79,7 +84,7 @@ export const reportableAddOns = async (
   return {
     quoted: quoted.suggested.addOns.map(({ key, name }) => ({ key, name })),
     others: all
-      .filter((a) => a.active && !onQuote.has(a.key))
+      .filter((a) => offeredWith(a, quoted.serviceKey) && !onQuote.has(a.key))
       .map(({ key, name }) => ({ key, name })),
   };
 };
@@ -149,7 +154,10 @@ export const priceReports = async (
         ? onQuote
         : onQuote
           ? undefined
-          : all.find((a) => a.key === report.addOnKey && a.active);
+          : all.find(
+              (a) =>
+                a.key === report.addOnKey && offeredWith(a, quoted.serviceKey),
+            );
     if (!addOn) {
       throw new ConflictError(
         report.kind === "add_on_not_done"

@@ -453,6 +453,42 @@ describe("Adjustments", () => {
     }).expect(400);
   });
 
+  test("can only add an Add-on that goes with the Job's Service", async () => {
+    const { cory, jobId, list } = await bookedJob({
+      beforeQuote: async (office) => {
+        const current = (await office.get("/api/price-list").expect(200))
+          .body as PriceList;
+        await office
+          .put("/api/price-list")
+          .send({
+            ...current,
+            addOns: current.addOns.map((a) =>
+              a.name === "Inside the fridge"
+                ? { ...a, serviceKeys: [SEEDED.standard] }
+                : a,
+            ),
+          })
+          .expect(200);
+      },
+    });
+
+    const mine = (await cory.agent.get(`/api/assignments/mine/${jobId}`))
+      .body as CleanerJob;
+    expect(mine.reportable!.others.map((a) => a.name)).not.toContain(
+      "Inside the fridge",
+    );
+    const refused = await complete(cory.agent, jobId, {
+      reports: [
+        {
+          kind: "add_on_done",
+          addOnKey: keyOf(list, "Inside the fridge"),
+          reason: "Asked on the day",
+        },
+      ],
+    }).expect(409);
+    expect(refused.body.message).toBe("That Add-on can't be added to this Job");
+  });
+
   test("proposed by the Office are charged once the Client approves, with a receipt", async () => {
     const { office, cory, client, jobId, quote, list } = await bookedJob();
     const deep = deepOf(quote);
