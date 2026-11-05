@@ -53,7 +53,7 @@ import {
 } from "./emails.ts";
 import { warnOfficeOfQuotesWithoutRoom } from "./quote-room.ts";
 import { offers, statusOf } from "./quote-state.ts";
-import { whyUnbookable, type Unbookable } from "./rules.ts";
+import { whyClosed, whyUnbookable, type Unbookable } from "./rules.ts";
 import {
   dropDraftRevision,
   inOrder,
@@ -95,16 +95,22 @@ const closedMessage = (status: QuoteStatus, acceptor: Acceptor["by"]) =>
     turned_down: "This Quote was Turned Down, so it can't be accepted.",
   })[status];
 
-// only a Sent Quote can be Accepted, and only before its offer Expires
+// only a Sent Quote's offer, `revisionId`, can be Accepted, and only before
+// it Expires (whyClosed, as booking checks again under the lock)
 const refuseUnlessOpen = (
   quote: Quote,
   revision: KindedRevision,
+  revisionId: string,
   acceptor: Acceptor,
 ) => {
-  const status = statusOf({ ...quote, expiresAt: revision.expiresAt });
-  if (status !== "sent") {
-    throw new ConflictError(closedMessage(status, acceptor.by));
-  }
+  const closed = whyClosed(
+    {
+      sentRevisionId: quote.sentRevisionId,
+      status: statusOf({ ...quote, expiresAt: revision.expiresAt }),
+    },
+    revisionId,
+  );
+  if (closed) throw new ConflictError(unbookableMessage(closed, acceptor));
 };
 
 const unbookableMessage = (unbookable: Unbookable, acceptor: Acceptor) => {
@@ -445,7 +451,7 @@ export const acceptQuote = async (
   }
   // the offer: its latest Sent Revision
   const revision: KindedRevision = { ...found.revision, kind: quote.kind! };
-  refuseUnlessOpen(quote, revision, acceptor);
+  refuseUnlessOpen(quote, revision, revision.id, acceptor);
   const offer = await offerFor(revision, serviceKey);
   // a Service Plan Quote for a home with a plan changes that plan's terms
   const changing =
