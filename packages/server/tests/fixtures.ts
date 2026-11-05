@@ -180,14 +180,14 @@ export const acceptedJob = async ({
     proposedStart: { date: dayOf(at), time: timeOf(at) },
     overrides: {},
   });
-  await sendQuote(quote.id);
+  const sent = await sendQuote(quote.id);
 
   const owner = (await findClientByEmail(client.email))!;
   const form = await startCardForm(owner);
   await savePaymentMethod(owner, form.secret);
   const accepted = await acceptQuote(
     quote.id,
-    { serviceKey: serviceKey ?? SEEDED.deep },
+    { revisionId: sent.offer!.id, serviceKey: serviceKey ?? SEEDED.deep },
     { by: "office", accountId: byAccountId },
   );
   if (accepted.status !== "accepted") throw new Error("not accepted");
@@ -303,7 +303,7 @@ export const startedServicePlan = async (
   const quote = await sentServicePlanQuote(plan);
   const accepted = await acceptQuote(
     quote.id,
-    {},
+    { revisionId: quote.offer!.id },
     { by: "office", accountId: plan.byAccountId },
   );
   if (accepted.status !== "accepted") throw new Error("not accepted");
@@ -333,7 +333,7 @@ export const crewedServicePlan = async () => {
   const outcome = (
     await client
       .post(`/api/quotes/mine/${quote.id}/accept`)
-      .send({ serviceKey: SEEDED.standard })
+      .send({ revisionId: quote.offer!.id, serviceKey: SEEDED.standard })
       .expect(200)
   ).body as AcceptOutcome;
   if (outcome.status !== "accepted") throw new Error("not accepted");

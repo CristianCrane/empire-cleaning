@@ -119,24 +119,25 @@ const addCard = async (client: Agent) => {
   ).body as PaymentMethodView;
 };
 
-// accepts, paying with the saved Payment Method
+// accepts the offer as last seen, paying with the saved Payment Method
 const accept = (
   client: Agent,
-  quote: { id: string },
+  quote: Pick<OfficeQuote, "id" | "offer">,
   service: "deep" | "standard" = "deep",
 ) =>
   client
     .post(`/api/quotes/mine/${quote.id}/accept`)
-    .send({ serviceKey: SEEDED[service] });
+    .send({ serviceKey: SEEDED[service], revisionId: quote.offer!.id });
 
 // accepts, paying with a card entered just now in the payment form
 const payNow = (
   client: Agent,
-  quote: { id: string },
+  quote: Pick<OfficeQuote, "id" | "offer">,
   service: "deep" | "standard" = "deep",
 ) =>
   client.post(`/api/quotes/mine/${quote.id}/accept`).send({
     serviceKey: SEEDED[service],
+    revisionId: quote.offer!.id,
     paymentToken: testPayments().paymentToken(),
   });
 
@@ -280,6 +281,35 @@ describe("accepting a First Clean Quote", () => {
     });
   });
 
+  test("of a Revision that's no longer the offer is refused, and nothing is charged", async () => {
+    await cleaners();
+    const office = await signInAsOffice();
+    // Casey's page shows Revision 1, then the Office sends Revision 2
+    const seen = await sentQuote(office);
+    await revise(office, seen, { crewSize: 1 });
+    const client = await signIn(casey.email);
+    await addCard(client);
+
+    const refused = await accept(client, seen).expect(409);
+
+    expect(refused.body.message).toBe(
+      "This Quote has just been updated, so nothing has been booked. Please reload the page to see it.",
+    );
+    expect(testPayments().charges).toEqual([]);
+    expect((await quoteOf(office, seen.id)).status).toBe("sent");
+    // the Office recording it from a stale screen is refused too
+    expect(
+      (
+        await office
+          .post(`/api/quotes/${seen.id}/accept`)
+          .send({ serviceKey: SEEDED.deep, revisionId: seen.offer!.id })
+          .expect(409)
+      ).body.message,
+    ).toBe(
+      "A newer Revision of this Quote was just sent, so nothing was booked. Reload the page to see it.",
+    );
+  });
+
   test("takes the latest Sent Revision, not one still being drafted", async () => {
     await cleaners();
     const office = await signInAsOffice();
@@ -387,7 +417,7 @@ describe("accepting a First Clean Quote", () => {
 
     await api()
       .post(`/api/quotes/mine/${quote.id}/accept`)
-      .send({ serviceKey: SEEDED.deep })
+      .send({ revisionId: quote.offer!.id, serviceKey: SEEDED.deep })
       .expect(401);
     await accept(drew, quote).expect(404);
     await accept(office, quote).expect(403);
@@ -402,7 +432,7 @@ describe("accepting a First Clean Quote", () => {
 
     await client
       .post(`/api/quotes/mine/${quote.id}/accept`)
-      .send({ serviceKey: "sparkling" })
+      .send({ revisionId: quote.offer!.id, serviceKey: "sparkling" })
       .expect(400);
     const refused = await accept(client, quote).expect(409);
     expect(refused.body.message).toBe("Enter a card to accept this Quote.");
@@ -713,7 +743,7 @@ describe("paying the Deposit with a card entered just now", () => {
     // the Office records it by phone with the saved card
     await office
       .post(`/api/quotes/${quote.id}/accept`)
-      .send({ serviceKey: SEEDED.deep })
+      .send({ revisionId: quote.offer!.id, serviceKey: SEEDED.deep })
       .expect(200);
 
     await finalize(client, quote).expect(200);
@@ -876,7 +906,7 @@ describe("when something goes wrong mid-way", () => {
       (
         await office
           .post(`/api/quotes/${quote.id}/accept`)
-          .send({ serviceKey: SEEDED.deep })
+          .send({ revisionId: quote.offer!.id, serviceKey: SEEDED.deep })
           .expect(409)
       ).body.message,
     ).toBe(
@@ -907,7 +937,7 @@ describe("trying again after the Deposit's reply was lost", () => {
     const acceptForCasey = () =>
       office
         .post(`/api/quotes/${quote.id}/accept`)
-        .send({ serviceKey: SEEDED.deep });
+        .send({ revisionId: quote.offer!.id, serviceKey: SEEDED.deep });
     testPayments().loseNextReply();
 
     await acceptForCasey().expect(409);
@@ -1026,7 +1056,7 @@ describe("Office Staff recording acceptance on a Client's behalf", () => {
 
     const accepted = await office
       .post(`/api/quotes/${quote.id}/accept`)
-      .send({ serviceKey: SEEDED.deep })
+      .send({ revisionId: quote.offer!.id, serviceKey: SEEDED.deep })
       .expect(200);
 
     expect(accepted.body).toMatchObject({
@@ -1050,7 +1080,7 @@ describe("Office Staff recording acceptance on a Client's behalf", () => {
 
     const refused = await office
       .post(`/api/quotes/${quote.id}/accept`)
-      .send({ serviceKey: SEEDED.deep })
+      .send({ revisionId: quote.offer!.id, serviceKey: SEEDED.deep })
       .expect(409);
 
     expect(refused.body.message).toBe(
@@ -1067,7 +1097,7 @@ describe("Office Staff recording acceptance on a Client's behalf", () => {
 
     const refused = await office
       .post(`/api/quotes/${quote.id}/accept`)
-      .send({ serviceKey: SEEDED.deep })
+      .send({ revisionId: quote.offer!.id, serviceKey: SEEDED.deep })
       .expect(409);
 
     expect(refused.body.message).toBe(
@@ -1085,7 +1115,7 @@ describe("Office Staff recording acceptance on a Client's behalf", () => {
 
     const refused = await office
       .post(`/api/quotes/${draft.id}/accept`)
-      .send({ serviceKey: SEEDED.deep })
+      .send({ revisionId: draft.draft!.id, serviceKey: SEEDED.deep })
       .expect(409);
     expect(refused.body.message).toBe(
       "Send the Quote before recording its acceptance.",
@@ -1101,7 +1131,7 @@ describe("Office Staff recording acceptance on a Client's behalf", () => {
 
     await client
       .post(`/api/quotes/${quote.id}/accept`)
-      .send({ serviceKey: SEEDED.deep })
+      .send({ revisionId: quote.offer!.id, serviceKey: SEEDED.deep })
       .expect(403);
     await client
       .post("/api/payment-methods/requests")

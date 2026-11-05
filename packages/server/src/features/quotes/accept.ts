@@ -406,12 +406,13 @@ const describe = ({ revision, property, offer }: Booking) =>
     : `Deposit: ${offer.cleans[0]!.option.serviceName} at ${addressOf(property)}, ${formatWhen(revision.proposedStartsAt!)}`;
 
 /**
- * Accepts a Sent Quote with the Service chosen, as one step: the proposed
- * day must still have room for its Labour Hours, and the Deposit must be
- * taken; only then is the Quote Accepted and the Job booked (ADR-0001). If
- * either fails, nothing changes and the Quote stays Sent. A Service Plan
- * Quote is accepted whole: the first clean on each of its weekdays must have
- * room, and all are booked (ADR-0013).
+ * Accepts a Sent Quote's offer, `revisionId` (refused before anything is
+ * charged once a newer one is Sent), with the Service chosen, as one step:
+ * the proposed day must still have room for its Labour Hours, and the
+ * Deposit must be taken; only then is the Quote Accepted and the Job booked
+ * (ADR-0001). If either fails, nothing changes and the Quote stays Sent. A
+ * Service Plan Quote is accepted whole: the first clean on each of its
+ * weekdays must have room, and all are booked (ADR-0013).
  *
  * A Client pays with a card entered just now (`paymentToken`, from the
  * provider's form in their browser), which the same payment saves for later
@@ -430,9 +431,14 @@ const describe = ({ revision, property, offer }: Booking) =>
 export const acceptQuote = async (
   id: string,
   {
+    revisionId,
     serviceKey,
     paymentToken,
-  }: { serviceKey?: string | undefined; paymentToken?: string | undefined },
+  }: {
+    revisionId: string;
+    serviceKey?: string | undefined;
+    paymentToken?: string | undefined;
+  },
   acceptor: Acceptor,
 ): Promise<AcceptResult> => {
   const found = await findForAcceptance(id);
@@ -451,7 +457,7 @@ export const acceptQuote = async (
   }
   // the offer: its latest Sent Revision
   const revision: KindedRevision = { ...found.revision, kind: quote.kind! };
-  refuseUnlessOpen(quote, revision, revision.id, acceptor);
+  refuseUnlessOpen(quote, revision, revisionId, acceptor);
   const offer = await offerFor(revision, serviceKey);
   // a Service Plan Quote for a home with a plan changes that plan's terms
   const changing =

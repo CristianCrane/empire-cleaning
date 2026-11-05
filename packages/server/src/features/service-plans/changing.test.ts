@@ -93,13 +93,13 @@ const sentChange = async (
 
 const accept = async (
   client: Agent,
-  quoteId: string,
+  quote: Pick<OfficeQuote, "id" | "offer">,
   service: "deep" | "standard" = "standard",
 ) =>
   (
     await client
-      .post(`/api/quotes/mine/${quoteId}/accept`)
-      .send({ serviceKey: SEEDED[service] })
+      .post(`/api/quotes/mine/${quote.id}/accept`)
+      .send({ revisionId: quote.offer!.id, serviceKey: SEEDED[service] })
       .expect(200)
   ).body as AcceptOutcome;
 
@@ -126,7 +126,7 @@ describe("accepting a Service Plan Quote for a home with a plan", () => {
       replaces: [MONDAYS[2], MONDAYS[3]],
     });
 
-    const outcome = await accept(client, quote.id);
+    const outcome = await accept(client, quote);
 
     expect(outcome).toMatchObject({
       status: "accepted",
@@ -187,7 +187,7 @@ describe("accepting a Service Plan Quote for a home with a plan", () => {
       recurrence: "weekly",
       service: "deep",
     });
-    await accept(client, quote.id, "deep");
+    await accept(client, quote, "deep");
 
     const plan = await officePlan(office, planId);
     expect(plan.days.map((d) => d.serviceName)).toEqual(["Deep Clean"]);
@@ -231,7 +231,7 @@ describe("accepting a Service Plan Quote for a home with a plan", () => {
         .bookable,
     ).toEqual([SEEDED.standard]);
 
-    await accept(client, quote.id);
+    await accept(client, quote);
 
     const plan = await officePlan(office, planId);
     expect(startsOf(plan)).toEqual([
@@ -256,7 +256,7 @@ describe("accepting a Service Plan Quote for a home with a plan", () => {
       startsAt: WEDNESDAY_28TH,
     });
 
-    await accept(client, quote.id);
+    await accept(client, quote);
 
     const plan = await officePlan(office, planId);
     expect(plan.status).toBe("on_hold");
@@ -276,7 +276,7 @@ describe("accepting a Service Plan Quote for a home with a plan", () => {
       startsAt: "2026-03-04T14:00:00.000Z",
       recurrence: "weekly",
     });
-    await accept(client, quote.id);
+    await accept(client, quote);
 
     testClock().set(new Date("2026-02-14T17:00:00Z"));
     await generateServicePlanJobs();
@@ -303,7 +303,7 @@ describe("accepting a Service Plan Quote for a home with a plan", () => {
       startsAt: "2026-03-04T14:00:00.000Z",
       recurrence: "weekly",
     });
-    await accept(client, quote.id);
+    await accept(client, quote);
 
     testClock().set(new Date("2026-02-15T17:00:00Z"));
     await db
@@ -346,7 +346,7 @@ describe("accepting a Service Plan Quote for a home with a plan", () => {
       startsAt: "2026-02-04T14:00:00.000Z",
       recurrence: "weekly",
     });
-    expect((await accept(client, quote.id)).status).toBe("accepted");
+    expect((await accept(client, quote)).status).toBe("accepted");
 
     expect(startsOf(await officePlan(office, planId))).toContain(
       "2026-02-04T14:00:00.000Z",
@@ -365,7 +365,7 @@ describe("accepting a Service Plan Quote for a home with a plan", () => {
 
     await office
       .post(`/api/quotes/${quote.id}/accept`)
-      .send({ serviceKey: SEEDED.standard })
+      .send({ revisionId: quote.offer!.id, serviceKey: SEEDED.standard })
       .expect(200);
 
     expect(testPayments().charges).toHaveLength(charged);
@@ -396,7 +396,7 @@ describe("a change to a plan whose replaced Job owes a fee", () => {
     });
     const charged = testPayments().charges.length;
 
-    await refusingInserts("charges", () => accept(client, quote.id));
+    await refusingInserts("charges", () => accept(client, quote));
 
     expect((await officePlan(office, planId)).quoteId).toBe(quote.id);
     const replaced = (await office.get(`/api/jobs/${jobId}`).expect(200))
@@ -442,6 +442,7 @@ describe("accepting a change to a plan without a saved card", () => {
     await client
       .post(`/api/quotes/mine/${quote.id}/accept`)
       .send({
+        revisionId: quote.offer!.id,
         serviceKey: SEEDED.standard,
         paymentToken: testPayments().paymentToken("mastercard"),
       })
@@ -462,6 +463,7 @@ describe("accepting a change to a plan without a saved card", () => {
       await client
         .post(`/api/quotes/mine/${quote.id}/accept`)
         .send({
+          revisionId: quote.offer!.id,
           serviceKey: SEEDED.standard,
           paymentToken: testPayments().paymentToken(),
         })
@@ -487,7 +489,7 @@ describe("accepting a change to a plan without a saved card", () => {
       (
         await client
           .post(`/api/quotes/mine/${quote.id}/accept`)
-          .send({ serviceKey: SEEDED.standard })
+          .send({ revisionId: quote.offer!.id, serviceKey: SEEDED.standard })
           .expect(409)
       ).body.message,
     ).toBe("Enter a card to accept this Quote.");
@@ -500,7 +502,7 @@ describe("accepting a change to a plan without a saved card", () => {
       (
         await office
           .post(`/api/quotes/${quote.id}/accept`)
-          .send({ serviceKey: SEEDED.standard })
+          .send({ revisionId: quote.offer!.id, serviceKey: SEEDED.standard })
           .expect(409)
       ).body.message,
     ).toBe(
@@ -563,9 +565,10 @@ describe("a Client asking to change their plan", () => {
         },
       })
       .expect(200);
-    await office.post(`/api/quotes/${draft.id}/send`).expect(200);
+    const sent = (await office.post(`/api/quotes/${draft.id}/send`).expect(200))
+      .body as OfficeQuote;
 
-    await accept(client, draft.id);
+    await accept(client, sent);
 
     expect((await officePlan(office, planId)).quoteId).toBe(draft.id);
     // answered: it no longer waits for the Office

@@ -104,6 +104,7 @@ const bookedJob = async ({
     await client
       .post(`/api/quotes/mine/${quote.id}/accept`)
       .send({
+        revisionId: quote.offer!.id,
         serviceKey: SEEDED.deep,
         paymentToken: testPayments().paymentToken(),
       })

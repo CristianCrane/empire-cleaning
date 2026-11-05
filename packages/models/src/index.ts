@@ -945,6 +945,9 @@ export type QuoteAddOn = { key: string; name: string; totalCents: number };
 // AskedQuoteView.
 export type QuoteView = {
   id: string;
+  // the offer's Revision, which accepting names, so an acceptance from a
+  // page showing an older one is refused
+  revisionId: string;
   kind: QuoteKind;
   status: QuoteStatus;
   property: Pick<PropertyView, "id" | "street" | "unit" | "postcode">;

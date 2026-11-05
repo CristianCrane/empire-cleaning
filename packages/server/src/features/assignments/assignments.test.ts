@@ -221,7 +221,8 @@ describe("Offering Assignments", () => {
         overrides: {},
       })
       .expect(200);
-    await office.post(`/api/quotes/${draft.id}/send`).expect(200);
+    const sent = (await office.post(`/api/quotes/${draft.id}/send`).expect(200))
+      .body as OfficeQuote;
     const client = await signIn(casey.email);
     const form = (
       await client.post("/api/payment-methods/mine/card-form").expect(200)
@@ -232,7 +233,7 @@ describe("Offering Assignments", () => {
       .expect(200);
     await client
       .post(`/api/quotes/mine/${draft.id}/accept`)
-      .send({ serviceKey: SEEDED.standard })
+      .send({ revisionId: sent.offer!.id, serviceKey: SEEDED.standard })
       .expect(200);
     const [day] = (
       await office

@@ -775,6 +775,7 @@ export const clientQuote = async (
 
   return {
     id: quote.id,
+    revisionId: offer.id,
     kind: quote.kind!,
     status,
     property: {

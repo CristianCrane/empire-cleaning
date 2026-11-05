@@ -128,14 +128,15 @@ import { BookSiteVisit, visitSummary } from "./SiteVisitParts.tsx";
 // read-only otherwise
 type ShownQuote = Omit<OfficeQuote, "draft" | "offer"> &
   Omit<OfficeRevision, "id" | "number" | "status"> & {
-    // the Revision shown
+    // the Revision shown, and its id, which accepting it names
     revision: number;
+    revisionId: string;
   };
 
 const shownOf = (quote: OfficeQuote): ShownQuote => {
   const { draft, offer, ...rest } = quote;
-  const { id: _id, number, status: _status, ...fields } = (draft ?? offer)!;
-  return { ...rest, ...fields, revision: number };
+  const { id, number, status: _status, ...fields } = (draft ?? offer)!;
+  return { ...rest, ...fields, revision: number, revisionId: id };
 };
 
 /**
@@ -992,7 +993,9 @@ function RecordAcceptance({
       () =>
         postJson<OfficeQuote>(
           `/api/quotes/${quote.id}/accept`,
-          quote.plan ? {} : { serviceKey },
+          quote.plan
+            ? { revisionId: quote.revisionId }
+            : { revisionId: quote.revisionId, serviceKey },
         ),
       quote.changesPlan
         ? "Accepted: the Service Plan has changed"
