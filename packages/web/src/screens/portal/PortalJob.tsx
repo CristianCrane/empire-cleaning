@@ -383,7 +383,6 @@ function Cancel({
 function Reschedule({ job }: { job: ClientJobDetail }) {
   const action = useAction("Your request wasn't withdrawn. Please try again.");
   const request = job.rescheduleRequest;
-  const onPlan = job.servicePlanId !== null;
 
   if (request?.status === "pending") {
     return (
@@ -415,7 +414,7 @@ function Reschedule({ job }: { job: ClientJobDetail }) {
           for you while the Office confirms it. Until then, your clean stays
           booked for {formatDateTime(job.startsAt)}.
         </p>
-        <p>{costForClient(request.cost, request.feeCents, onPlan)}</p>
+        <p>{costForClient(request.cost, request.feeCents, job)}</p>
       </ActionCard>
     );
   }
@@ -431,9 +430,7 @@ function Reschedule({ job }: { job: ClientJobDetail }) {
           terms={terms}
           base={`/api/jobs/mine/${job.id}`}
           label="Choose a new time"
-          describeCost={(cost, feeCents) =>
-            costForClient(cost, feeCents, onPlan)
-          }
+          describeCost={(cost, feeCents) => costForClient(cost, feeCents, job)}
           done="Request sent"
           Picker={PickAvailableTime}
           inline
@@ -453,7 +450,7 @@ function Reschedule({ job }: { job: ClientJobDetail }) {
           Late Reschedule, and only one per clean is free.
         </p>
       ) : (
-        <p>{costForClient(terms.cost, terms.feeCents, onPlan)}</p>
+        <p>{costForClient(terms.cost, terms.feeCents, job)}</p>
       )}
     </ActionCard>
   );

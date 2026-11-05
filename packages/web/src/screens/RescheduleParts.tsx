@@ -6,6 +6,7 @@ import {
   type ReactElement,
 } from "react";
 import type {
+  OfficeJob,
   RescheduleCost,
   RescheduleTerms,
   RescheduleTimes,
@@ -30,14 +31,18 @@ import {
   timeOfDay,
 } from "./format.ts";
 
+// what a Job's costs are told from, the Client's or the Office's view of it
+export type CostedJob = Pick<OfficeJob, "servicePlanId">;
+
 // What moving a Job costs, the same rules for the Office and its Client
 // (ADR-0010), told to the Client. A plan Job has no Deposit of its own: its
 // fee is the plan's Deposit amount, charged with the price.
 export const costForClient = (
   cost: RescheduleCost,
   feeCents: number,
-  onPlan = false,
+  job: CostedJob,
 ) => {
+  const onPlan = job.servicePlanId !== null;
   switch (cost) {
     case "free":
       return "There's no charge for moving it.";
@@ -60,8 +65,9 @@ export const costForClient = (
 export const costForOffice = (
   cost: RescheduleCost,
   feeCents: number,
-  onPlan = false,
+  job: CostedJob,
 ) => {
+  const onPlan = job.servicePlanId !== null;
   switch (cost) {
     case "free":
       return "Free.";

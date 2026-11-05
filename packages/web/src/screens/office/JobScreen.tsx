@@ -231,12 +231,8 @@ const noticesFor = (job: OfficeJob): ReactNode[] => {
             {request.byClient ? "The Client asked" : "The Office asked"} to move
             it to {formatDateTime(request.startsAt)}.
           </strong>{" "}
-          {costForOffice(
-            request.cost,
-            request.feeCents,
-            job.servicePlanId !== null,
-          )}{" "}
-          The new time is held until you answer.
+          {costForOffice(request.cost, request.feeCents, job)} The new time is
+          held until you answer.
         </p>
       </Notice>,
     );

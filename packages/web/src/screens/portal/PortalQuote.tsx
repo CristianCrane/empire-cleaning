@@ -50,7 +50,7 @@ import {
 import { Fact } from "../Fact.tsx";
 import { PlanDayCard, PlanTotals, QuoteStatusBadge } from "../QuoteParts.tsx";
 import { ConsentNote, usePaymentForm } from "./CardForm.tsx";
-import { billPaid, planPaymentLine } from "./payments.ts";
+import { billPaid, ON_WEEKS_BILL, planPaymentLine } from "./payments.ts";
 
 // A Quote as its Client sees it, from the link in every Quote email (ADR-0017):
 // only its offer, the latest Sent Revision, which they accept right here; or,
@@ -660,8 +660,7 @@ const oneOffPayment = (
   balance: number,
 ) => {
   const billed =
-    quote.weeklyBill &&
-    `goes on your Bill for that week, ${billPaid[quote.weeklyBill]}`;
+    quote.weeklyBill && `${ON_WEEKS_BILL}, ${billPaid[quote.weeklyBill]}`;
   return chosen.depositCents > 0
     ? billed
       ? `We take the ${formatMoney(chosen.depositCents)} Deposit now, and the rest, ${formatMoney(balance)}, ${billed}.`

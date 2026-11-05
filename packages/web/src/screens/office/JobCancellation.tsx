@@ -21,11 +21,12 @@ import {
 import { postJson } from "../../api.ts";
 import { formatDateTime, formatMoney } from "../format.ts";
 import { useAction } from "../action.ts";
+import type { CostedJob } from "../RescheduleParts.tsx";
 
 // What cancelling costs, in a sentence. A plan Job has no Deposit of its
 // own: its fee is the plan's Deposit amount, charged to the saved card.
-const describeTerms = (terms: CancellationTerms, onPlan = false) =>
-  onPlan
+const describeTerms = (terms: CancellationTerms, job: CostedJob) =>
+  job.servicePlanId !== null
     ? terms.late
       ? `It's a Late Cancellation: a ${formatMoney(terms.feeCents)} fee, the plan's Deposit amount, is charged. The plan's Deposit stays held.`
       : terms.feeCents > 0
@@ -78,13 +79,13 @@ export function CancelJob({ job }: { job: OfficeJob }) {
             >
               <Radio
                 value="client"
-                description={describeTerms(terms.client, onPlan)}
+                description={describeTerms(terms.client, job)}
               >
                 The Client asked
               </Radio>
               <Radio
                 value="empire"
-                description={describeTerms(terms.empire, onPlan)}
+                description={describeTerms(terms.empire, job)}
               >
                 Empire Cleaning can't do it
               </Radio>
