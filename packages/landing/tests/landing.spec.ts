@@ -706,7 +706,10 @@ test("from a tablet, the footer has the areas left, the logo in the middle and t
     (await page.locator(selector).boundingBox())!;
   const [areas, logo, details, copyright, row] = await Promise.all([
     box("footer nav"),
-    box("footer > div > :first-child"),
+    (await page
+      .locator("footer")
+      .getByRole("img", { name: business.brand })
+      .boundingBox())!,
     box("footer > div > :last-child"),
     box("footer > p"),
     box("footer > div"),
