@@ -8,6 +8,7 @@ import type {
   ClientPayment,
   ClientPastJob,
   CompletionInput,
+  Condition,
   NeedsAttentionItem,
   OfficeJob,
   OfficeQuote,
@@ -1015,7 +1016,8 @@ describe("Office Staff correcting a completion", () => {
 
 describe("a Property's Condition", () => {
   // Casey's home with two Jobs, at 9am on Mondays 12 and 19 January, Cory
-  // Confirmed on both; the clock is left at 11am on the 19th
+  // Confirmed on both; the clock is left at 11am on the 19th, and goes on a
+  // minute with each completion
   const twoJobs = async () => {
     const office = await signInAsOffice();
     const me = (await office.get("/api/me").expect(200))
@@ -1035,8 +1037,11 @@ describe("a Property's Condition", () => {
       await confirmAssignment(cory.id, offered.assignments[0]!.id);
     }
     testClock().set(new Date("2026-01-19T16:00:00Z"));
-    const done = (job: { id: string }, condition: "light" | "heavy") =>
-      completeJob(cory.id, job.id, { condition, reports: [] });
+    // each a minute after the last, so their order is plain
+    const done = (job: { id: string }, condition: Condition) => {
+      testClock().advance({ minutes: 1 });
+      return completeJob(cory.id, job.id, { condition, reports: [] });
+    };
     const conditionNow = async () =>
       (
         await db
@@ -1086,6 +1091,27 @@ describe("a Property's Condition", () => {
     await done(later, "light");
     await office.delete(`/api/jobs/${earlier.id}/completion`).expect(200);
     expect(await conditionNow()).toBe("light");
+  });
+
+  test("is the one the Client stated since the Job before, once the latest is undone", async () => {
+    const { office, earlier, later, done, conditionNow } = await twoJobs();
+    await done(earlier, "light");
+    const client = await signIn(casey.email);
+    await submit(
+      {
+        serviceKey: SEEDED.standard,
+        property: { existing: earlier.propertyId },
+        condition: "heavy",
+        wantsRegularService: false,
+      },
+      client,
+    ).expect(201);
+    expect(await conditionNow()).toBe("heavy");
+    await done(later, "moderate");
+
+    await office.delete(`/api/jobs/${later.id}/completion`).expect(200);
+
+    expect(await conditionNow()).toBe("heavy");
   });
 });
 

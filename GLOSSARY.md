@@ -79,7 +79,7 @@ The number of Staff a Quote plans to send; the Job's time on site is its Labour 
 _Avoid_: Team size, headcount
 
 **Condition**:
-How dirty a Property currently is: _light_, _moderate_ or _heavy_; it affects only the Services that say so. Stated by the Client when asking for a Quote, correctable by Staff, and reported by Cleaners when they complete a Job. The Property takes a Job's report while that Job is its latest Completed Job: completing an earlier Job late, or correcting or undoing one, leaves a later report standing, and undoing the latest gives the one before it. Service Plan Quotes assume moderate unless Staff set otherwise.
+How dirty a Property currently is: _light_, _moderate_ or _heavy_; it affects only the Services that say so. Stated by the Client when asking for a Quote, correctable by Staff, and reported by Cleaners when they complete a Job. The Property takes a Job's report while that Job is its latest Completed Job: completing an earlier Job late, or correcting or undoing one, leaves a later report standing. Undoing the latest gives back the Condition before its report, or an earlier Job's report made since. Service Plan Quotes assume moderate unless Staff set otherwise.
 _Avoid_: State, dirtiness, level
 
 **Add-on**:

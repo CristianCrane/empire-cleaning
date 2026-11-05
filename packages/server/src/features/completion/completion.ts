@@ -97,22 +97,27 @@ export const adjustmentLabel = (
 
 /**
  * A Property's Condition is what its latest Completed Job reported (#244
- * #7). Once `job` is completed, corrected or undone, with `reported` its
- * report now (null once undone), the Property takes the latest report, or
- * `fallback` when no Completed Job is left. A Job that started after it
- * and has reported keeps the Property as it is: a Condition given since,
- * as a Client asking does, is newer than any report but the latest.
+ * #7). Once `job` is completed or corrected, with `reported` its report,
+ * the Property takes it. Once it's undone, the Property takes the report of
+ * the latest Completed Job left if that came after this one's, or else
+ * `fallback`, the Condition before this one's report: a Condition given
+ * in between, as a Client asking does, is newer than the older report. A Job
+ * that started after `job` and has reported keeps the Property as it is.
  */
 const conditionFromJobs = async (
   tx: Tx,
-  job: Pick<Job, "id" | "propertyId" | "startsAt">,
+  job: Pick<Job, "id" | "propertyId" | "startsAt" | "completedAt">,
   reported: Condition | null,
   fallback: Condition | null = null,
 ) => {
   // one at a time at a Property, so an older report never lands last
   await lockProperty(tx, job.propertyId);
   const [latest] = await tx
-    .select({ startsAt: jobs.startsAt, condition: jobs.reportedCondition })
+    .select({
+      startsAt: jobs.startsAt,
+      completedAt: jobs.completedAt,
+      condition: jobs.reportedCondition,
+    })
     .from(jobs)
     .where(
       and(
@@ -124,7 +129,11 @@ const conditionFromJobs = async (
     .orderBy(desc(jobs.startsAt))
     .limit(1);
   if (latest && latest.startsAt > job.startsAt) return;
-  const condition = reported ?? latest?.condition ?? fallback;
+  const reportedSince =
+    latest && (!job.completedAt || latest.completedAt! > job.completedAt)
+      ? latest.condition
+      : null;
+  const condition = reported ?? reportedSince ?? fallback ?? latest?.condition;
   if (!condition) return;
   await tx
     .update(properties)
