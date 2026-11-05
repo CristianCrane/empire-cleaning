@@ -1,4 +1,4 @@
-// The shape rules: edited in github.com/CristianCrane/.dotfiles (home/.claude); repos carry copies made by hooks/sync.mjs.
+// The change rules: edited in github.com/CristianCrane/.dotfiles (home/.claude); repos carry copies made by hooks/sync.mjs.
 //
 // Edits in a git checkout wait for the survey (the `change` skill) and
 // the reviewer's read of it: the edit is turned down until the survey

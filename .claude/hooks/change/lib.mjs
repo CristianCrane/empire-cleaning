@@ -1,6 +1,6 @@
-// The shape rules: edited in github.com/CristianCrane/.dotfiles (home/.claude); repos carry copies made by hooks/sync.mjs.
+// The change rules: edited in github.com/CristianCrane/.dotfiles (home/.claude); repos carry copies made by hooks/sync.mjs.
 //
-// What the shape hooks share: git, and the survey, plan review and review
+// What the change hooks share: git, and the survey, plan review and review
 // files the `change` skill writes into the git dir (never committed, kept
 // per worktree): one set per branch, and on main one per session.
 import { execFileSync } from "node:child_process";
@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 // only the newest rules run, and only once. A copy knows itself by where
 // sync puts it.
 const standAside =
-  dirname(fileURLToPath(import.meta.url)).endsWith("/.claude/hooks/shape") &&
+  dirname(fileURLToPath(import.meta.url)).endsWith("/.claude/hooks/change") &&
   existsSync(join(homedir(), ".claude/hooks/lib.mjs"));
 
 export const git = (cwd, ...args) =>
@@ -125,7 +125,7 @@ export const beforeEdit = (cwd, work) => {
   if (!plan.ok)
     return {
       survey: found,
-      missing: `the survey for ${work.branch} has no plan review: run the shape-reviewer agent on it in plan mode, as the \`change\` skill's Plan review step says, with survey ${found.path} and output ${plan.path}`,
+      missing: `the survey for ${work.branch} has no plan review: run the change-reviewer agent on it in plan mode, as the \`change\` skill's Plan review step says, with survey ${found.path} and output ${plan.path}`,
     };
   return { survey: found, missing: null };
 };
@@ -198,22 +198,22 @@ const commentOnly = (cwd, sha) => {
   }
 };
 
-// the round after which open shape findings go to the user (the `change`
+// the round after which open change findings go to the user (the `change`
 // skill's "After round 5")
 const LAST_ROUND = 5;
 
 // the reviewer's read of the diff: it must be of the last commit (written
 // after it isn't enough: a round runs while fixes may land), or of one
 // before it with only comment lines changed since; and before the last
-// round it must leave no shape finding open (after it the user decides). The
+// round it must leave no change finding open (after it the user decides). The
 // reviewer's header line says all three: "… @ <sha>, round <n>, <k> open
-// shape findings", where a recheck says "recheck of round <n>", keeping
+// change findings", where a recheck says "recheck of round <n>", keeping
 // the number.
 export const review = (cwd, key) => {
   const path = stateFile(cwd, "review", key);
   if (!existsSync(path)) return { path, ok: false, reason: "missing" };
   const text = readFileSync(path, "utf8");
-  const header = text.match(/^# Shape review:.* @ ([0-9a-f]{7,40}),.*round (\d+), (\d+) open shape finding/m);
+  const header = text.match(/^# Change review:.* @ ([0-9a-f]{7,40}),.*round (\d+), (\d+) open change finding/m);
   if (!header) return { path, ok: false, reason: "its header has no commit, round and open count" };
   const [sha, ...counts] = header.slice(1);
   if (!headSha(cwd).startsWith(sha) && !commentOnly(cwd, sha))
@@ -223,11 +223,10 @@ export const review = (cwd, key) => {
     return {
       path,
       ok: false,
-      reason: `round ${round} left ${open} shape finding(s) open: fix them and run round ${round + 1}, but take a reopened finding, or one the reviewer holds against your pushback, to the user`,
+      reason: `round ${round} left ${open} change finding(s) open: fix them and run round ${round + 1}, but take a reopened finding, or one the reviewer holds against your pushback, to the user`,
     };
-  // the last review (the file's first) lists every finding of the change
-  const last = text.slice(header.index).split(/^(?=# Shape review:)/m)[0];
-  const ids = [...new Set([...last.matchAll(/^(?:- )?(F\d+)\b/gm)].map((id) => id[1]))];
+  // the review (each replaces the last) lists every finding of the change
+  const ids = [...new Set([...text.matchAll(/^(?:- )?(F\d+)\b/gm)].map((id) => id[1]))];
   return { path, ok: true, ids };
 };
 

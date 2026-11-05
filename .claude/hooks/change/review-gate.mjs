@@ -1,10 +1,10 @@
-// The shape rules: edited in github.com/CristianCrane/.dotfiles (home/.claude); repos carry copies made by hooks/sync.mjs.
+// The change rules: edited in github.com/CristianCrane/.dotfiles (home/.claude); repos carry copies made by hooks/sync.mjs.
 //
-// `gh pr create` waits for the branch's shape review (the `change` skill):
+// `gh pr create` waits for the branch's change review (the `change` skill):
 // it is turned down until the review exists, is of the last commit (or
 // of one before it with only comment lines changed since) and, before the
-// last round, leaves no shape finding open, and until the PR body, read
-// from its file, answers every finding of that review in its Shape
+// last round, leaves no change finding open, and until the PR body, read
+// from its file, answers every finding of that review in its Change
 // section.
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -65,28 +65,28 @@ hook((input) => {
   const head = headOf(command, hidden, match.index + match[0].length);
   if (head && head !== work.branch)
     return deny(
-      `gh pr create --head ${head} runs from ${work.branch}'s checkout (${cwd}), but a branch's shape review lives with its own checkout. Run it from ${head}'s checkout: git switch ${head} first, as its own command, or in its worktree.`,
+      `gh pr create --head ${head} runs from ${work.branch}'s checkout (${cwd}), but a branch's change review lives with its own checkout. Run it from ${head}'s checkout: git switch ${head} first, as its own command, or in its worktree.`,
     );
 
   const found = review(cwd, work.key);
   if (!found.ok)
     return deny(
-      `The shape review for ${work.branch} isn't ready (${found.reason}). Run the shape-reviewer agent as the \`change\` skill's Review step says, with output ${found.path}. Answer each finding in the PR's Shape section, then open the PR. (Hooks run before the whole command, so this checked ${work.branch}, checked out in ${cwd} now.)`,
+      `The change review for ${work.branch} isn't ready (${found.reason}). Run the change-reviewer agent as the \`change\` skill's Review step says, with output ${found.path}. Answer each finding in the PR's Change section, then open the PR. (Hooks run before the whole command, so this checked ${work.branch}, checked out in ${cwd} now.)`,
     );
 
-  // the body comes from its file beside the review, and its Shape section
+  // the body comes from its file beside the review, and its Change section
   // answers every finding: fixed in a commit on the branch, or answered
   const body = stateFile(cwd, "pr-body", work.key);
   if (!command.includes(body) || !existsSync(body))
     return deny(
-      `Write the PR body for ${work.branch} to ${body} and open the PR with \`--body-file ${body}\`, as the \`change\` skill's Shape section step says.`,
+      `Write the PR body for ${work.branch} to ${body} and open the PR with \`--body-file ${body}\`, as the \`change\` skill's Change section step says.`,
     );
   const text = readFileSync(body, "utf8");
-  const at = text.search(/^## Shape\b/m);
-  if (at < 0) return deny(`The PR body (${body}) has no \`## Shape\` section: end it with one, as the \`change\` skill says.`);
-  const shape = lines(text.slice(at));
+  const at = text.search(/^## Change\b/m);
+  if (at < 0) return deny(`The PR body (${body}) has no \`## Change\` section: end it with one, as the \`change\` skill says.`);
+  const section = lines(text.slice(at));
   const answers = (id) =>
-    shape.some((line) => {
+    section.some((line) => {
       if (!new RegExp(`\\b${id}\\b`).test(line)) return false;
       const fixed = line.match(/fixed in ([0-9a-f]{7,40})\b/)?.[1];
       return (fixed && onBranch(cwd, fixed)) || /answered:\s*\S/.test(line);
@@ -94,6 +94,6 @@ hook((input) => {
   const open = found.ids.filter((id) => !answers(id));
   if (open.length)
     return deny(
-      `The PR body's Shape section (${body}) doesn't answer ${open.join(", ")} from the last shape review (${found.path}). Give each its own Review line: \`fixed in <sha>\`, a commit on this branch, or \`answered: <why>\`.`,
+      `The PR body's Change section (${body}) doesn't answer ${open.join(", ")} from the last change review (${found.path}). Give each its own Review line: \`fixed in <sha>\`, a commit on this branch, or \`answered: <why>\`.`,
     );
 });
