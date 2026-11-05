@@ -1,4 +1,5 @@
 import { availableParallelism } from "node:os";
+import { E2E_PORTS } from "@empire-cleaning/server/checkout";
 
 // Tests run in parallel, and each Playwright worker has a slot of its own: an
 // API with its control server and database, and the built app in front of it
@@ -17,15 +18,18 @@ const workersFlag = () => {
   return String(Math.max(1, Math.floor(availableParallelism() * share)));
 };
 
+// the slots this checkout's block of ports has room for (slotOf)
+const MAX_SLOTS = 60;
+
 const workerCount = (value: string | undefined) => {
   // half the CPU cores, up to 6: more weren't faster
   if (value === undefined) {
     return Math.max(1, Math.min(6, Math.floor(availableParallelism() / 2)));
   }
   const count = Number(value);
-  if (!Number.isInteger(count) || count < 1) {
+  if (!Number.isInteger(count) || count < 1 || count > MAX_SLOTS) {
     throw new Error(
-      `E2E_WORKERS or --workers must be a whole number of 1 or more, not "${value}"`,
+      `E2E_WORKERS or --workers must be a whole number from 1 to ${MAX_SLOTS}, not "${value}"`,
     );
   }
   return count;
@@ -40,10 +44,13 @@ export const WORKERS = workerCount(process.env.E2E_WORKERS ?? workersFlag());
 export const E2E_DB_URL =
   "postgresql://postgres:password@localhost:5433/empire_e2e_test";
 
+// each slot's three servers on ports from this checkout's block (the server's
+// tests/checkout.ts), three to a slot; the landing site's e2e tests take the
+// block's last ones
 export const slotOf = (slot: number) => ({
-  apiUrl: `http://localhost:${3100 + slot * 10}`,
-  controlUrl: `http://127.0.0.1:${3101 + slot * 10}`,
-  appUrl: `http://localhost:${4173 + slot}`,
+  apiUrl: `http://localhost:${E2E_PORTS + slot * 3}`,
+  controlUrl: `http://127.0.0.1:${E2E_PORTS + slot * 3 + 1}`,
+  appUrl: `http://localhost:${E2E_PORTS + slot * 3 + 2}`,
 });
 
 // the slot of the worker this runs in (Playwright numbers them from 0); slot 0
