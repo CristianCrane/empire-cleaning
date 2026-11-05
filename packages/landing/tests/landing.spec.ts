@@ -1,9 +1,17 @@
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { business } from "../src/business.ts";
 import { guides } from "../src/guides/index.ts";
-import { googleReviewsUrl, reviews } from "../src/reviews.ts";
+import { reviews } from "../src/reviews.ts";
 import { appUrl } from "../playwright.config.ts";
 import { emailsTo, expect, expectAccessible, test } from "./harness.ts";
+
+// every kind of page: the home page, an area, a service, both guides
+const everyKindOfPage = [
+  "/",
+  "/queens/",
+  "/services/deep-cleaning/",
+  ...guides.map((g) => `/guides/${g.slug}/`),
+];
 
 // the form loads once its section scrolls into view, and lists the Services
 // once they arrive from the API
@@ -485,7 +493,7 @@ test.describe("reviews", () => {
 
     await expect(
       page.getByRole("link", { name: "Read all our reviews on Google" }),
-    ).toHaveAttribute("href", googleReviewsUrl);
+    ).toHaveAttribute("href", business.social.google.href);
   });
 });
 
@@ -689,20 +697,30 @@ test("an intro is centred under its title at every width", async ({ page }) => {
   }
 });
 
-test("the footer's logo and details are level from a tablet", async ({
+test("from a tablet, the footer has the areas left, the logo in the middle and the details right, level, then the © centred under them", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 768, height: 900 });
   await page.goto("/");
-  const middle = (selector: string) =>
-    page.locator(selector).evaluate((el) => {
-      const r = el.getBoundingClientRect();
-      return r.top + r.height / 2;
-    });
-  expect(await middle("footer > div > :first-child")).toBeCloseTo(
-    await middle("footer > div > :last-child"),
-    0,
-  );
+  const footer = page.locator("footer");
+  const box = async (part: Locator) => (await part.boundingBox())!;
+  const [areas, logo, details, copyright, row] = await Promise.all([
+    box(footer.getByRole("navigation", { name: "Areas we serve" })),
+    box(footer.getByRole("img", { name: business.brand })),
+    box(footer.locator("> div > :last-child")),
+    box(footer.locator("> p")),
+    box(footer.locator("> div")),
+  ]);
+  const middle = (b: { y: number; height: number }) => b.y + b.height / 2;
+  const centre = (b: { x: number; width: number }) => b.x + b.width / 2;
+
+  expect(areas.x + areas.width).toBeLessThan(logo.x);
+  expect(logo.x + logo.width).toBeLessThan(details.x);
+  expect(centre(logo)).toBeCloseTo(centre(row), 0);
+  expect(middle(areas)).toBeCloseTo(middle(details), 0);
+  expect(middle(logo)).toBeCloseTo(middle(details), 0);
+  expect(copyright.y).toBeGreaterThan(row.y + row.height);
+  expect(centre(copyright)).toBeCloseTo(centre(row), 0);
 });
 
 test("every Why Empire point is a card alike", async ({ page }) => {
@@ -716,13 +734,7 @@ test("every Why Empire point is a card alike", async ({ page }) => {
   expect(borders.every((b) => b === borders[0] && b !== "0px")).toBe(true);
 });
 
-// every kind of page: the home page, an area, a service, both guides
-for (const path of [
-  "/",
-  "/queens/",
-  "/services/deep-cleaning/",
-  ...guides.map((g) => `/guides/${g.slug}/`),
-]) {
+for (const path of everyKindOfPage) {
   test(`${path}'s bands alternate, plain and raised, the form on a raised one`, async ({
     page,
   }) => {
@@ -744,6 +756,24 @@ for (const path of [
         .locator("#quote")
         .evaluate((s) => getComputedStyle(s).backgroundColor),
     ).not.toBe("rgba(0, 0, 0, 0)");
+  });
+}
+
+// every page imports the footer on its own, the 404 too
+for (const path of [...everyKindOfPage, "/no-such-page"]) {
+  test(`${path}'s foot links the business on Facebook, Instagram, Yelp and Google, each in a new tab`, async ({
+    page,
+  }) => {
+    await page.goto(path);
+
+    for (const { name, href } of Object.values(business.social)) {
+      const link = page
+        .locator("footer")
+        .getByRole("link", { name: `Empire Cleaning on ${name}` });
+      await expect(link).toHaveAttribute("href", href);
+      await expect(link).toHaveAttribute("target", "_blank");
+      await expect(link).toHaveAttribute("rel", "noopener");
+    }
   });
 }
 
@@ -891,6 +921,10 @@ test.describe("search engines", () => {
     for (const area of place.areaServed) {
       expect(area.sameAs).toMatch(/^https:\/\/en\.wikipedia\.org\/wiki\//);
     }
+    // and the business, by its pages elsewhere (#178)
+    expect(place.sameAs).toEqual(
+      Object.values(business.social).map(({ href }) => href),
+    );
     expect(place.hasOfferCatalog.itemListElement).toHaveLength(8);
     // Google ignores, and may penalise, a business's own reviews marked up
     expect(place).not.toHaveProperty("aggregateRating");

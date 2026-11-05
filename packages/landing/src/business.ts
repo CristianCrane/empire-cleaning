@@ -24,4 +24,24 @@ export const business = {
   },
   // the crew's languages, as BCP 47 tags
   languages: ["en", "es"],
+  // the business's own pages elsewhere, by network: the footer links them,
+  // and the search data names them (#223)
+  social: {
+    facebook: {
+      name: "Facebook",
+      href: "https://www.facebook.com/empirecleaningsvcs3",
+    },
+    instagram: {
+      name: "Instagram",
+      href: "https://www.instagram.com/empirecleaningsvcs3",
+    },
+    yelp: {
+      name: "Yelp",
+      href: "https://www.yelp.com/biz/empire-cleaning-and-pro-services-queens",
+    },
+    google: {
+      name: "Google",
+      href: "https://www.google.com/maps?cid=17623671204506783546",
+    },
+  },
 } as const;

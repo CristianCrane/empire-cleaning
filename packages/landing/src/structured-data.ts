@@ -41,6 +41,8 @@ export const structuredData = (page: object[] = []) => ({
         addressCountry: "US",
       },
       areaServed: business.areas.map(place),
+      // its own pages elsewhere, so they're known to be the same business
+      sameAs: Object.values(business.social).map(({ href }) => href),
       openingHoursSpecification: {
         "@type": "OpeningHoursSpecification",
         dayOfWeek: business.hours.days,
