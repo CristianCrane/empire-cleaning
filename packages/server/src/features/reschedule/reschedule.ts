@@ -19,6 +19,7 @@ import {
 import { email, notify } from "../../services/email/index.ts";
 import { assignments, onCrew } from "../assignments/assignments.schema.ts";
 import { emailOpenPlaces, placeReopened } from "../assignments/open-places.ts";
+import { weeklyBillFor } from "../bills/billed-weekly.ts";
 import { lateFeeOf, planOfJob } from "../cancellation/cancellation.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { lockDay } from "../jobs/jobs.ts";
@@ -466,6 +467,7 @@ export const confirmReschedule = async (jobId: string, byAccountId: string) => {
         cost: pending.cost,
         feeCents: pending.feeCents,
         onPlan,
+        weeklyBill: weeklyBillFor(job, client),
         lateHours: LATE_RESCHEDULE_HOURS,
       }),
     }),

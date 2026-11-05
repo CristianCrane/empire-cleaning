@@ -20,6 +20,7 @@ import {
 } from "../../../tests/harness.ts";
 import {
   acceptedJob,
+  billWeekly,
   bookedJob as otherJob,
   casey,
   guestAsk,
@@ -663,6 +664,21 @@ describe("a Late Reschedule (ADR-0010)", () => {
     );
     expect(testEmail().lastTo(casey.email).text).toContain(
       "Late Reschedule fee (your Deposit, kept)",
+    );
+  });
+
+  test("a later one tells a Client billed weekly the full price goes on that week's Bill (#244 #5)", async () => {
+    const { client, office, jobId } = await bookedJob();
+    await billWeekly();
+    testClock().set(SUNDAY_9_01AM);
+    await ask(client, jobId, WEDNESDAY, "free_late").expect(201);
+    await confirm(office, jobId).expect(200);
+
+    testClock().set(new Date("2026-01-13T16:00:00Z"));
+    await ask(client, jobId, THURSDAY, "late_cancellation").expect(201);
+    await confirm(office, jobId).expect(200);
+    expect(testEmail().lastTo(casey.email).text).toMatch(
+      /your \$[\d.]+ Deposit is kept as the fee, and the full price goes on your Bill for that week\./,
     );
   });
 

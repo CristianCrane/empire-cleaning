@@ -36,6 +36,11 @@ const feeChargeLine = (settled: Settled) => {
   return [];
 };
 
+// where a plan Job's fee went, for the Office: charged now, or on the
+// Client's next weekly Bill (ADR-0016)
+const feeTaken = (settled: Settled) =>
+  settled.billed ? "goes on their next Bill" : "is charged";
+
 const portalButton = (jobId: string) =>
   button("See your clean", `/portal/jobs/${jobId}`);
 const officeButton = (jobId: string) =>
@@ -163,9 +168,9 @@ export const officeCancelledEmail = ({
     paragraph(
       onPlan
         ? late
-          ? `It was a Late Cancellation, so the ${formatMoney(feeCents)} fee is charged.`
+          ? `It was a Late Cancellation, so the ${formatMoney(feeCents)} fee ${feeTaken(settled)}.`
           : feeCents > 0
-            ? `It was more than 24 hours ahead, but the ${formatMoney(feeCents)} fee for a Late Reschedule is charged.`
+            ? `It was more than 24 hours ahead, but the ${formatMoney(feeCents)} fee for a Late Reschedule ${feeTaken(settled)}.`
             : "It was more than 24 hours ahead, so there's no fee."
         : late
           ? "It was a Late Cancellation, so the Deposit is kept as the fee."
@@ -250,7 +255,7 @@ export const officeNoAccessEmail = ({
       onPlan
         ? settled.failure
           ? `${client} has been told. The fee couldn't be charged (${settled.failure}), so the Job is Unpaid.`
-          : `${client} has been told, and the fee is charged.`
+          : `${client} has been told, and the fee ${feeTaken(settled)}.`
         : `${client} has been told, and the Deposit is kept as the fee.`,
     ),
     officeButton(jobId),

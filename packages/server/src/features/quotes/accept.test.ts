@@ -1185,6 +1185,20 @@ describe("Office Staff recording acceptance on a Client's behalf", () => {
       .send({ clientId: "7f6b6f5e-35a4-4f43-8f1e-1d2c3b4a5f60" })
       .expect(404);
   });
+
+  test("tells a Client billed weekly, in the link's email, that the rest goes on their Bill (#244 #5)", async () => {
+    const office = await signInAsOffice();
+    const quote = await sentQuote(office);
+    await billWeekly("on_page");
+
+    await office
+      .post("/api/payment-methods/requests")
+      .send({ clientId: quote.client.id })
+      .expect(200);
+    expect(testEmail().lastTo(casey.email).text).toContain(
+      "we take the Deposit when you book, and the rest goes on your Bill for that week, made the following Monday, which you pay on its page by its due date.",
+    );
+  });
 });
 
 describe("a Client's upcoming Jobs", () => {

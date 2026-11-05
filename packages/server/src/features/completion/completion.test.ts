@@ -524,6 +524,10 @@ describe("Adjustments", () => {
     expect(proposal.subject).toBe("Please approve extra work on your clean");
     expect(proposal.text).toContain("1 extra hour (Heavy grease)");
     expect(proposal.text).toContain("$59.88");
+    // true however the Client pays: by card, or on a weekly Bill (#244 #5)
+    expect(proposal.text).toContain(
+      "You only pay it if you approve it. Please approve or decline it by",
+    );
     expect(proposal.text).toContain(`/portal/jobs/${jobId}`);
 
     // at a price the Office sets, which needs a reason
