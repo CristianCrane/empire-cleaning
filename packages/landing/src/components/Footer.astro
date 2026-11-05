@@ -12,25 +12,26 @@ const social = Object.entries(business.social).map(([network, page]) => ({
 ---
 
 <footer class="flex flex-col gap-8 py-10">
-  <!-- every area's page, from every page (#176) -->
-  <nav aria-label="Areas we serve" class="mx-auto max-w-5xl px-4">
-    <ul class="flex flex-wrap justify-center gap-x-6 gap-y-2">
-      {
-        areas.map((a) => (
-          <li>
-            <a href={`/${a.slug}/`} class="font-semibold text-primary">
-              {a.name}
-            </a>
-          </li>
-        ))
-      }
-    </ul>
-  </nav>
-  <!-- centred on a phone; from a tablet the logo left and the details right,
-     their middles level -->
-  <div class="mx-auto flex w-full max-w-5xl flex-col items-center gap-4 px-4 text-center sm:flex-row sm:items-center sm:justify-between sm:text-right">
-    <Logo className="w-36" />
-    <div class="flex flex-col items-center gap-1 text-fg-muted sm:items-end">
+  <!-- centred on a phone, the areas on top; from a tablet three columns, the
+     areas left, the logo in the middle and the details right, their middles
+     level -->
+  <div class="mx-auto flex w-full max-w-5xl flex-col items-center gap-8 px-4 text-center sm:grid sm:grid-cols-3 sm:gap-4">
+    <Logo className="w-36 sm:justify-self-center" />
+    <!-- every area's page, from every page (#176) -->
+    <nav aria-label="Areas we serve" class="order-first sm:justify-self-start">
+      <ul class="flex flex-wrap justify-center gap-x-6 gap-y-2 sm:flex-col sm:items-start">
+        {
+          areas.map((a) => (
+            <li>
+              <a href={`/${a.slug}/`} class="font-semibold text-primary">
+                {a.name}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+    <div class="flex flex-col items-center gap-1 text-fg-muted sm:items-end sm:text-right">
       <a href={business.phone.href} class="font-semibold text-fg">{business.phone.display}</a>
       <span>{business.area}</span>
       <span>{business.hours.display}</span>
@@ -54,7 +55,9 @@ const social = Object.entries(business.social).map(([network, page]) => ({
           ))
         }
       </ul>
-      <span>&copy; {new Date().getFullYear()} {business.name}</span>
     </div>
   </div>
+  <p class="px-4 text-center text-fg-muted">
+    &copy; {new Date().getFullYear()} {business.name}
+  </p>
 </footer>

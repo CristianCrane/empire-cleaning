@@ -697,20 +697,30 @@ test("an intro is centred under its title at every width", async ({ page }) => {
   }
 });
 
-test("the footer's logo and details are level from a tablet", async ({
+test("from a tablet, the footer has the areas left, the logo in the middle and the details right, level, then the © centred under them", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 768, height: 900 });
   await page.goto("/");
-  const middle = (selector: string) =>
-    page.locator(selector).evaluate((el) => {
-      const r = el.getBoundingClientRect();
-      return r.top + r.height / 2;
-    });
-  expect(await middle("footer > div > :first-child")).toBeCloseTo(
-    await middle("footer > div > :last-child"),
-    0,
-  );
+  const box = async (selector: string) =>
+    (await page.locator(selector).boundingBox())!;
+  const [areas, logo, details, copyright, row] = await Promise.all([
+    box("footer nav"),
+    box("footer > div > :first-child"),
+    box("footer > div > :last-child"),
+    box("footer > p"),
+    box("footer > div"),
+  ]);
+  const middle = (b: { y: number; height: number }) => b.y + b.height / 2;
+  const centre = (b: { x: number; width: number }) => b.x + b.width / 2;
+
+  expect(areas.x + areas.width).toBeLessThan(logo.x);
+  expect(logo.x + logo.width).toBeLessThan(details.x);
+  expect(centre(logo)).toBeCloseTo(centre(row), 0);
+  expect(middle(areas)).toBeCloseTo(middle(details), 0);
+  expect(middle(logo)).toBeCloseTo(middle(details), 0);
+  expect(copyright.y).toBeGreaterThan(row.y + row.height);
+  expect(centre(copyright)).toBeCloseTo(centre(row), 0);
 });
 
 test("every Why Empire point is a card alike", async ({ page }) => {
