@@ -1,9 +1,17 @@
 import type { Page } from "@playwright/test";
 import { business } from "../src/business.ts";
 import { guides } from "../src/guides/index.ts";
-import { googleReviewsUrl, reviews } from "../src/reviews.ts";
+import { reviews } from "../src/reviews.ts";
 import { appUrl } from "../playwright.config.ts";
 import { emailsTo, expect, expectAccessible, test } from "./harness.ts";
+
+// every kind of page: the home page, an area, a service, both guides
+const everyKindOfPage = [
+  "/",
+  "/queens/",
+  "/services/deep-cleaning/",
+  ...guides.map((g) => `/guides/${g.slug}/`),
+];
 
 // the form loads once its section scrolls into view, and lists the Services
 // once they arrive from the API
@@ -485,7 +493,7 @@ test.describe("reviews", () => {
 
     await expect(
       page.getByRole("link", { name: "Read all our reviews on Google" }),
-    ).toHaveAttribute("href", googleReviewsUrl);
+    ).toHaveAttribute("href", business.social.google.href);
   });
 });
 
@@ -716,13 +724,7 @@ test("every Why Empire point is a card alike", async ({ page }) => {
   expect(borders.every((b) => b === borders[0] && b !== "0px")).toBe(true);
 });
 
-// every kind of page: the home page, an area, a service, both guides
-for (const path of [
-  "/",
-  "/queens/",
-  "/services/deep-cleaning/",
-  ...guides.map((g) => `/guides/${g.slug}/`),
-]) {
+for (const path of everyKindOfPage) {
   test(`${path}'s bands alternate, plain and raised, the form on a raised one`, async ({
     page,
   }) => {

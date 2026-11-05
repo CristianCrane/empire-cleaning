@@ -24,4 +24,11 @@ export const business = {
   },
   // the crew's languages, as BCP 47 tags
   languages: ["en", "es"],
+  // the business's own pages elsewhere, by network
+  social: {
+    google: {
+      name: "Google",
+      href: "https://www.google.com/maps?cid=17623671204506783546",
+    },
+  },
 } as const;

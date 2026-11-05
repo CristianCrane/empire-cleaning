@@ -1,7 +1,8 @@
 ---
 import { buttonStyles } from "@empire-cleaning/ui";
 import { ChevronLeft, ChevronRight, ExternalLink, Quote } from "lucide-react";
-import { googleReviewsUrl, reviews } from "../reviews.ts";
+import { business } from "../business.ts";
+import { reviews } from "../reviews.ts";
 import Section from "./Section.astro";
 ---
 
@@ -49,7 +50,7 @@ import Section from "./Section.astro";
         <ChevronRight aria-hidden size={20} />
       </button>
     </div>
-    <a href={googleReviewsUrl} target="_blank" rel="noopener" class="inline-flex items-center gap-2 self-center font-semibold text-primary">
+    <a href={business.social.google.href} target="_blank" rel="noopener" class="inline-flex items-center gap-2 self-center font-semibold text-primary">
       Read all our reviews on Google
       <ExternalLink aria-hidden size={16} />
     </a>
