@@ -246,7 +246,7 @@ export const tellOfficeStaff = (what: string, notice: () => Promise<Email>) =>
   });
 
 // where notices for the Office go: every active Office Staff member
-export const officeStaffEmails = async () =>
+const officeStaffEmails = async () =>
   (
     await db
       .select({ email: staff.email })
