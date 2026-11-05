@@ -71,6 +71,7 @@ import { refuseOnProduction } from "#features/site";
 import { jobs } from "#features/jobs";
 import {
   generateServicePlanJobs,
+  INTERVAL_DAYS,
   servicePlans,
   servicePlanVisits,
 } from "#features/service-plans";
@@ -492,8 +493,6 @@ async function seed() {
   // otherwise they need different times of day. The same goes for a one-off
   // with a regular's Cleaner. The seed test runs it on every day of the week
   // (seed.test.ts)
-  // the plan cleans workPlan has Confirmed, and done if it was time
-  const worked = new Set<string>();
   const regulars: {
     name: string;
     planId: string;
@@ -867,14 +866,14 @@ async function seed() {
     }
   }
 
-  // every regular has a clean every week (or fortnight) from their first:
+  // every regular has a clean each interval of their plan from their first:
   // the server books none on a day already full, without a word
   for (const { name, planId } of regulars) {
     const [plan] = await db
       .select({ recurrence: servicePlans.recurrence })
       .from(servicePlans)
       .where(eq(servicePlans.id, planId));
-    const step = plan!.recurrence === "weekly" ? 7 : 14;
+    const step = INTERVAL_DAYS[plan!.recurrence];
     const days = (await planJobs(planId)).map((job) => dayOf(job.startsAt));
     const gap = days.findIndex(
       (day, i) => i > 0 && day !== addDays(days[i - 1]!, step),
@@ -911,13 +910,13 @@ async function seed() {
 
   // a plan's cleans so far, Confirmed by the Cleaner two days before and
   // done 3 hours in, or under way if that's still to come; billed, each
-  // week's Bill made the Monday after. What it's worked already it leaves,
-  // so it can work a plan again once more of its cleans are booked
+  // week's Bill made the Monday after. It leaves cleans done or Skipped,
+  // and Confirming one under way again changes nothing (confirm), so it can
+  // work a plan again once more of its cleans are booked
   async function workPlan(planId: string, cleanerId: string, billed = false) {
     for (const job of await planJobs(planId)) {
       if (job.startsAt > realNow) break;
-      if (worked.has(job.id) || job.status !== "booked") continue;
-      worked.add(job.id);
+      if (job.status !== "booked") continue;
       await at(after(job, -48));
       await confirm(job.id, cleanerId);
       if (after(job, 3) > realNow) continue;
@@ -952,7 +951,8 @@ async function seed() {
   }
 
   // a home asked about `askedIn` days from today, its Quote accepted by
-  // phone for a Deep Clean on the first weekday from `startIn`
+  // phone for a Deep Clean on the first weekday from `startIn`, or for a
+  // clean that's over, the last weekday up to it (weekdayUpTo)
   async function bookedJob(
     who: ReturnType<typeof contact>,
     house: NewHome,
