@@ -497,8 +497,8 @@ function WhatNext({ job }: { job: ClientJobDetail }) {
   );
 }
 
-// a plan Job the Client skipped: its fee, if late, was charged as its own,
-// and the plan's Deposit stays held
+// a plan Job the Client skipped: its fee, if late, was charged as its own or
+// went on its week's Bill (ADR-0016), and the plan's Deposit stays held
 function skippedFee(
   cancellation: NonNullable<ClientJobDetail["cancellation"]>,
 ) {
@@ -612,7 +612,7 @@ function Unpaid({ payment }: { payment: JobPayment }) {
   );
 }
 
-// Extra work the Office has proposed, which is only charged if they
+// Extra work the Office has proposed, which they only pay if they
 // approve: a yellow alert to answer it, its one action opening the answer.
 // (UX pass, #96)
 function Proposal({
@@ -768,6 +768,11 @@ function Receipt({ job }: { job: ClientJobDetail }) {
       {payment.paymentMethod && payment.charges.length > 0 && (
         <p className="text-sm text-fg-muted">
           Charged to your {payment.paymentMethod}.
+        </p>
+      )}
+      {job.weeklyBill && payment.owedCents > 0 && (
+        <p className="text-sm text-fg-muted">
+          The rest, {formatMoney(payment.owedCents)}, {ON_WEEKS_BILL}.
         </p>
       )}
     </Part>

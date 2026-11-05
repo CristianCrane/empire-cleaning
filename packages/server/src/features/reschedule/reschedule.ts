@@ -411,7 +411,8 @@ export const turnDownReschedule = async (
  * Office Staff confirm a pending request: the Job moves to its new time, and
  * its crew are Offered it afresh, keeping their places unless they aren't
  * free then (moveTo). A second Late Reschedule makes the Deposit amount due as a
- * fee (ADR-0010), charged with the Balance on completion: a one-off Job's
+ * fee (ADR-0010), owed with the Balance on completion, charged or on its
+ * week's Bill (ADR-0016): a one-off Job's
  * Deposit is kept as it, and a plan Job, which has none, pays it then. Refused
  * if the time asked for no longer has room, as when a Cleaner's hours that
  * day were cut since. The

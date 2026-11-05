@@ -25,11 +25,9 @@ import type { CostedJob } from "../RescheduleParts.tsx";
 
 // What cancelling costs, in a sentence. A plan Job has no Deposit of its
 // own: its fee is the plan's Deposit amount, charged to the saved card, or
-// on the Client's next weekly Bill (ADR-0016).
+// on the Bill for the Job's week (ADR-0016).
 const describeTerms = (terms: CancellationTerms, job: CostedJob) => {
-  const charged = job.weeklyBill
-    ? "goes on the Client's next Bill"
-    : "is charged";
+  const charged = job.weeklyBill ? "goes on that week's Bill" : "is charged";
   return job.servicePlanId !== null
     ? terms.late
       ? `It's a Late Cancellation: a ${formatMoney(terms.feeCents)} fee, the plan's Deposit amount, ${charged}. The plan's Deposit stays held.`
@@ -129,7 +127,7 @@ export function CancelJob({ job }: { job: OfficeJob }) {
 }
 
 // the money on a Job that didn't happen: its fee, if any, and what's been
-// paid or refunded. A failed charge is a Notice above, with its retry.
+// paid, billed weekly or refunded. A failed charge is a Notice above, with its retry.
 export function FeeMoney({
   feeCents,
   payment,
@@ -143,6 +141,12 @@ export function FeeMoney({
       <dd>{feeCents > 0 ? formatMoney(feeCents) : "None"}</dd>
       <dt className="font-semibold">Paid</dt>
       <dd>{formatMoney(payment.paidCents)}</dd>
+      {payment.billedCents !== 0 && (
+        <>
+          <dt className="font-semibold">On weekly Bills</dt>
+          <dd>{formatMoney(payment.billedCents)}</dd>
+        </>
+      )}
       {payment.owedCents !== 0 && (
         <>
           <dt className="font-semibold">

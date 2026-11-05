@@ -128,7 +128,7 @@ describe("skipping a plan Job", () => {
     );
   });
 
-  test("within 24 hours puts the fee on a weekly-billed Client's next Bill, and the Office is told so (#244 #5)", async () => {
+  test("within 24 hours puts the fee on a weekly-billed Client's Bill for that week, and the Office is told so (#244 #5)", async () => {
     const { client, jobId } = await startedPlan();
     await billWeekly();
     testClock().set(SUNDAY_10AM);
@@ -136,7 +136,7 @@ describe("skipping a plan Job", () => {
 
     expect(chargesAfterDeposit()).toEqual([]);
     expect(testEmail().lastTo("olive@example.com").text).toContain(
-      "It was a Late Cancellation, so the $50.46 fee goes on their next Bill.",
+      "It was a Late Cancellation, so the $50.46 fee goes on that week's Bill.",
     );
   });
 
@@ -240,7 +240,7 @@ describe("No Access on a plan Job", () => {
     );
   });
 
-  test("tells the Office a weekly-billed Client's fee goes on their next Bill (#244 #5)", async () => {
+  test("tells the Office a weekly-billed Client's fee goes on that week's Bill (#244 #5)", async () => {
     const { jobId } = await startedPlan();
     await billWeekly();
     testClock().set(MONDAY_9_30AM);
@@ -253,7 +253,7 @@ describe("No Access on a plan Job", () => {
 
     expect(chargesAfterDeposit()).toEqual([]);
     expect(testEmail().lastTo("olive@example.com").text).toContain(
-      "Casey Client has been told, and the fee goes on their next Bill.",
+      "Casey Client has been told, and the fee goes on that week's Bill.",
     );
   });
 

@@ -36,10 +36,10 @@ const feeChargeLine = (settled: Settled) => {
   return [];
 };
 
-// where a plan Job's fee went, for the Office: charged now, or on the
-// Client's next weekly Bill (ADR-0016)
+// where a plan Job's fee went, for the Office: charged now, or on the Bill
+// for the week the Job was in (ADR-0016), which needn't be the next one made
 const feeTaken = (settled: Settled) =>
-  settled.billed ? "goes on their next Bill" : "is charged";
+  settled.billed ? "goes on that week's Bill" : "is charged";
 
 const portalButton = (jobId: string) =>
   button("See your clean", `/portal/jobs/${jobId}`);
