@@ -134,6 +134,14 @@ describe("inviting Staff", () => {
     expect((await me(coryAgent)).roles).toEqual(["cleaner"]);
   });
 
+  test("a Staff member made for someone signed up already comes back connected", async () => {
+    const account = await me(await signIn(cory.email));
+
+    const member = await createStaff({ ...cory, roles: ["cleaner"] });
+
+    expect(member.accountId).toBe(account.id);
+  });
+
   test("the invitation email itself signs nobody in", async () => {
     const office = await signInAsOffice();
     await invite(office).expect(201);
