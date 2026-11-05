@@ -1,8 +1,18 @@
 ---
 import { Logo } from "@empire-cleaning/ui";
+import { siFacebook, siGoogle, siInstagram, siYelp, type SimpleIcon } from "simple-icons";
 import { areas } from "../areas/index.ts";
 import { business } from "../business.ts";
-import { marks } from "../social-marks.ts";
+
+// each of the business's pages elsewhere (business.social) has its
+// network's mark, shown in one colour (#223): a page added without its mark
+// fails the typecheck
+const marks: Record<keyof typeof business.social, SimpleIcon> = {
+  facebook: siFacebook,
+  instagram: siInstagram,
+  yelp: siYelp,
+  google: siGoogle,
+};
 
 // the business's pages elsewhere, each with its mark
 const social = Object.entries(business.social).map(([network, page]) => ({
