@@ -935,9 +935,13 @@ export type QuoteOption = {
   totalCents: number;
   // the Deposit percentage of the total
   depositCents: number;
+  // the Add-ons priced into it: those its Service goes with
+  addOns: QuoteAddOn[];
 };
 
-// an Add-on on a Quote, with what it costs, tax included
+// an Add-on on a Quote option, with what it adds to that option's price,
+// tax included: nothing at the Minimum Charge, less any Plan Discount, and
+// its share of an override
 export type QuoteAddOn = { key: string; name: string; totalCents: number };
 
 // A Quote as its Client sees it: its latest Sent Revision, the offer, never
@@ -958,7 +962,6 @@ export type QuoteView = {
   options: QuoteOption[];
   // a Service Plan Quote's terms and saving; null on a one-off Quote
   plan: ServicePlanTerms | null;
-  addOns: QuoteAddOn[];
   // a one-off Quote's; on a Service Plan Quote, its first weekday's (each
   // has its own)
   crewSize: number;
@@ -1044,7 +1047,8 @@ export type OfficeRevision = {
   options: OfficeQuoteOption[];
   // a Service Plan Quote's, with the Condition it's priced for
   plan: (ServicePlanTerms & { condition: Condition }) | null;
-  addOns: QuoteAddOn[];
+  // the Add-ons chosen, which its own Service's option is priced with
+  addOns: AddOnChoice[];
   crewSize: number;
   depositPercent: number;
   validityDays: number;

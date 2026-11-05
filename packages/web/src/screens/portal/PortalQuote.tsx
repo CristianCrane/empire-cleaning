@@ -265,7 +265,7 @@ function QuoteDetails({
   const { plan } = quote;
   const choosing = !plan && quote.options.length > 1 && quote.status === "sent";
   const [recommended, own] = quote.options;
-  const extras = quote.addOns.map((a) => a.name).join(", ");
+  const extras = chosen.addOns.map((a) => a.name).join(", ");
 
   return (
     <Section title="Quote details">

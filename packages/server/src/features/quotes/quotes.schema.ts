@@ -234,6 +234,19 @@ export const quoteRevisions = pgTable(
   ],
 );
 
+// An Add-on on an option, with what it adds to the option's price: the
+// option priced without it (its share of an override, scaled from the
+// Suggested Price), less the Plan Discount, taken from the option's price.
+// Nothing when the Minimum Charge applies either way. Its tax is at the
+// option's rate, as an Adjustment's is.
+export type PricedAddOn = {
+  key: string;
+  name: string;
+  priceCents: number;
+  taxCents: number;
+  totalCents: number;
+};
+
 // One Service's offer on a Revision. The Suggested Price is kept with every
 // figure it used, so it reads the same however the Services and Price List
 // change later. A Service Plan Quote's Revision has one for each of its
@@ -271,6 +284,9 @@ export const revisionOptions = pgTable(
     priceCents: integer("price_cents").notNull(),
     taxCents: integer("tax_cents").notNull(),
     totalCents: integer("total_cents").notNull(),
+    // what each of its Add-ons adds to its price, as a quoted Add-on not
+    // done takes off (ADR-0009)
+    addOns: jsonb("add_ons").$type<PricedAddOn[]>().notNull().default([]),
     labourHours: numeric("labour_hours", {
       precision: 6,
       scale: 2,

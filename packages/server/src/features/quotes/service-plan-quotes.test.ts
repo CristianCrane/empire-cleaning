@@ -507,6 +507,15 @@ describe("drafting a Service Plan Quote", () => {
       { oneOffPriceCents: 23400, discountCents: 2340 },
     ]);
     expect(saved.draft!.options[0]!.priceCents).toBe(23400 - 2340);
+    // what it adds to each clean: $21,060 against $18,540 without it, plus
+    // the plan rate's tax
+    expect(saved.draft!.options[0]!.addOns).toEqual([
+      {
+        key: oven.key,
+        name: "Inside the oven",
+        totalCents: 21060 - 18540 + tax(21060 - 18540, 8.875),
+      },
+    ]);
   });
 
   test("each Job is taxed at the Service Plan rate, the one-off price at the one-off rate", async () => {

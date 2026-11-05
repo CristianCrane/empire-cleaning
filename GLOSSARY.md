@@ -83,7 +83,7 @@ How dirty a Property currently is: _light_, _moderate_ or _heavy_; it affects on
 _Avoid_: State, dirtiness, level
 
 **Add-on**:
-A priced extra task, such as cleaning inside the oven, agreed on a Quote before a Job; distinct from an Adjustment made on the day. Each is offered with particular Services. Clients choose Add-ons by name when asking for a Quote and see what each costs on it. Office Staff retire an Add-on rather than delete it, so Quotes that asked for it still price it.
+A priced extra task, such as cleaning inside the oven, agreed on a Quote before a Job; distinct from an Adjustment made on the day. Each is offered with particular Services, and only those Services' prices on a Quote include it. Clients choose Add-ons by name when asking for a Quote. On the Quote, each costs what it adds to the price: nothing at the Minimum Charge, less any Plan Discount, and its share of an override. Office Staff retire an Add-on rather than delete it, so Quotes that asked for it still price it.
 _Avoid_: Extra, upgrade, option
 
 **Preferred Service Area**:

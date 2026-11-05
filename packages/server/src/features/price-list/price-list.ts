@@ -293,10 +293,17 @@ export const savePriceList = async (
 };
 
 // whether an Add-on goes with a Service (ADR-0018), on offer or retired
-const goesWith = (
+export const goesWith = (
   addOn: { serviceKeys: string[] },
   serviceKey: string,
 ) => addOn.serviceKeys.includes(serviceKey);
+
+// the Add-ons among some that a Service's price can include: those that go
+// with it
+export const ownAddOns = <T extends { serviceKeys: string[] }>(
+  addOns: T[],
+  serviceKey: string,
+) => addOns.filter((addOn) => goesWith(addOn, serviceKey));
 
 // whether an Add-on can be chosen for a Service now
 export const offeredWith = (

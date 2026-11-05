@@ -10,7 +10,6 @@ import type {
   OfficeQuoteOption,
   OfficeRevision,
   PlanDayTerms,
-  QuoteAddOn,
   QuoteDraftInput,
   QuoteKind,
   QuoteOption,
@@ -52,10 +51,9 @@ import {
   serviceOf,
   type Pricing,
 } from "../services/services.ts";
-import { offeredWith } from "../price-list/price-list.ts";
+import { goesWith, ownAddOns } from "../price-list/price-list.ts";
 import { priceLists } from "../price-list/price-list.schema.ts";
 import {
-  addOnCents,
   pricedOf,
   suggestedPrice,
   taxOn,
@@ -96,6 +94,7 @@ import {
   quoteRevisions,
   quotes,
   revisionOptions,
+  type PricedAddOn,
   type Quote,
   type Revision,
   type RevisionOptionRow,
@@ -182,8 +181,7 @@ const homeOf = async (propertyId: string, tx: Tx | typeof db = db) => {
 };
 
 // The Add-ons a Quote's Revision for a Service can carry (ADR-0018): those
-// on offer that go with the Service, and any asked for that have since been
-// retired
+// that go with the Service, on offer or, if asked for, since retired
 const addOnChoices = async (
   list: Pricing,
   quoteId: string,
@@ -193,7 +191,7 @@ const addOnChoices = async (
     ((await askedAddOns([quoteId])).get(quoteId) ?? []).map((a) => a.key),
   );
   return list.addOns
-    .filter((a) => offeredWith(a, serviceKey) || asked.has(a.key))
+    .filter((a) => goesWith(a, serviceKey) && (a.active || asked.has(a.key)))
     .map(({ key, name }) => ({ key, name }));
 };
 
@@ -281,10 +279,11 @@ const planTerms = (
 });
 
 // The Revision's visits priced from the Price List and each one's Service,
-// for the Property as it is now, with any override in
-// place of the Suggested Price, then any Plan Discount off that, overridden
-// or not. Tax is on what's left, at the Service's one-off or plan rate, with
-// tax-exempt Add-ons discounted alike.
+// for the Property as it is now, with the chosen Add-ons that go with that
+// Service, and any override in place of the Suggested Price, then any Plan
+// Discount off that, overridden or not. Tax is on what's left, at the
+// Service's one-off or plan rate, with tax-exempt Add-ons discounted alike.
+// Each Add-on is priced at what it adds (PricedAddOn).
 const priceOptions = (
   list: Pricing,
   property: Property,
@@ -293,29 +292,56 @@ const priceOptions = (
 ) => {
   const chosen = list.addOns.filter((a) => addOnKeys.includes(a.key));
   const kept = (100 - terms.discountPercent) / 100;
+  const priced = pricedOf(property, terms.area);
+  // the price before tax, from the one-off price
+  const discounted = (oneOffCents: number) =>
+    oneOffCents - percentOf(oneOffCents, terms.discountPercent);
   return terms.visits.map(
     ({ position, serviceKey, startsAt, crewSize, override }) => {
       const service = serviceOf(list.services, serviceKey);
-      const suggested = suggestedPrice(
-        list,
-        service,
-        pricedOf(property, terms.area),
-        terms.condition,
-        chosen,
-      );
+      const own = ownAddOns(chosen, serviceKey);
+      const suggestedWith = (addOns: typeof own) =>
+        suggestedPrice(list, service, priced, terms.condition, addOns);
+      const suggested = suggestedWith(own);
       const oneOffCents = override?.priceCents ?? suggested.priceCents;
       const discountCents = percentOf(oneOffCents, terms.discountPercent);
       const priceCents = oneOffCents - discountCents;
+      const taxPercent =
+        terms.kind === "service_plan"
+          ? (service.taxPlanPercent ?? service.taxOneOffPercent)
+          : suggested.taxPercent;
       const taxCents = taxOn(priceCents, {
         hourlyRateCents: suggested.hourlyRateCents,
-        taxPercent:
-          terms.kind === "service_plan"
-            ? (service.taxPlanPercent ?? service.taxOneOffPercent)
-            : suggested.taxPercent,
+        taxPercent,
         addOns: suggested.addOns.map((a) => ({
           ...a,
           hours: a.hours * kept,
         })),
+      });
+      const addOns = own.map((addOn): PricedAddOn => {
+        const without = suggestedWith(own.filter((a) => a !== addOn));
+        // an override's share, as the Suggested Price would have fallen
+        const withoutCents = !override
+          ? without.priceCents
+          : suggested.priceCents === 0
+            ? override.priceCents
+            : Math.round(
+                (override.priceCents * without.priceCents) /
+                  suggested.priceCents,
+              );
+        const addedCents = priceCents - discounted(withoutCents);
+        const addedTaxCents = taxOnPart(
+          addedCents,
+          addOn.taxExempt,
+          taxPercent,
+        );
+        return {
+          key: addOn.key,
+          name: addOn.name,
+          priceCents: addedCents,
+          taxCents: addedTaxCents,
+          totalCents: addedCents + addedTaxCents,
+        };
       });
       return {
         position,
@@ -330,6 +356,7 @@ const priceOptions = (
         priceCents,
         taxCents,
         totalCents: priceCents + taxCents,
+        addOns,
         labourHours: suggested.labourHours,
       };
     },
@@ -338,6 +365,13 @@ const priceOptions = (
 
 // an option as priced, before it's written to its Revision
 type PricedOption = Omit<RevisionOptionRow, "id" | "revisionId">;
+
+// a Revision's option for its own Service, which has every Add-on it chose:
+// a one-off Quote's recommended Service prices only those that go with it
+const ownOption = <T extends { serviceKey: string }>(
+  revision: Pick<Revision, "serviceKey">,
+  rows: T[],
+) => rows.find((row) => row.serviceKey === revision.serviceKey)!;
 
 // A Revision's terms as it set them, priced afresh by priceOptions: a one-off
 // Quote its own Service (and the one recommended for a first visit, where
@@ -353,9 +387,9 @@ const repriced = (
   firstVisit: boolean,
 ) => {
   const rows = inOrder(options);
-  // its own Service's option has every Add-on it chose
-  const own = rows.find((row) => row.serviceKey === revision.serviceKey)!;
-  const addOnKeys = own.suggested.addOns.map((a) => a.key);
+  const addOnKeys = ownOption(revision, rows).suggested.addOns.map(
+    (a) => a.key,
+  );
   const area = areaOf(revision, quote, property);
   const overrideOf = (row: RevisionOptionRow) =>
     row.overrideCents === null
@@ -446,6 +480,11 @@ export const toOption = (
   taxCents: row.taxCents,
   totalCents: row.totalCents,
   depositCents: percentOf(row.totalCents, revision.depositPercent),
+  addOns: row.addOns.map(({ key, name, totalCents }) => ({
+    key,
+    name,
+    totalCents,
+  })),
 });
 
 // a Service Plan Quote's weekdays in order; a one-off Quote's recommended
@@ -453,23 +492,11 @@ export const toOption = (
 export const inOrder = <T extends { position: number }>(options: T[]) =>
   [...options].sort((a, b) => a.position - b.position);
 
-// what each Add-on on the Revision costs, tax included, from the figures its
-// first option was priced with
-const addOnsOf = (rows: PricedOption[]): QuoteAddOn[] => {
-  const { suggested } = inOrder(rows)[0]!;
-  return suggested.addOns.map((addOn) => {
-    const cents = addOnCents(addOn.hours, suggested.hourlyRateCents);
-    const tax = taxOnPart(cents, addOn.taxExempt, suggested.taxPercent);
-    return { key: addOn.key, name: addOn.name, totalCents: cents + tax };
-  });
-};
-
-// the figures a Client is shown of a Revision priced so: each option's, a
-// Service Plan Quote's terms, and each Add-on's
+// the figures a Client is shown of a Revision priced so: each option's,
+// with its Add-ons', and a Service Plan Quote's terms
 const pricesShown = (revision: KindedRevision, rows: PricedOption[]) => ({
   options: inOrder(rows).map((row) => toOption(revision, row)),
   plan: planOf(revision, rows),
-  addOns: addOnsOf(rows),
 });
 
 const iso = (date: Date | null) => date?.toISOString() ?? null;
@@ -601,7 +628,10 @@ const officeRevision = async (
     options: inOrder(rows).map((r) => officeOption(revision, r)),
     // with the Condition it's priced for, which is the Office's working
     plan: plan && { ...plan, condition: revision.condition! },
-    addOns: addOnsOf(rows),
+    addOns: ownOption(revision, rows).suggested.addOns.map(({ key, name }) => ({
+      key,
+      name,
+    })),
     crewSize: revision.crewSize,
     depositPercent: revision.depositPercent,
     validityDays: revision.validityDays,
@@ -725,7 +755,7 @@ export const officeQuote = async (id: string): Promise<OfficeQuote> => {
           s,
           pricedOf(property, areaOf(draft ?? offer ?? null, quote, property)),
           property.condition,
-          chosen,
+          ownAddOns(chosen, s.key),
         ),
         serviceKey: s.key,
         recommended: s.key !== service.key,
@@ -1388,12 +1418,17 @@ export const saveDraft = async (
       ? draftServiceOf(list, property, draft.serviceKey, input.serviceKey)
       : plan &&
         planServiceOf(list, property, draft.serviceKey, plan.serviceKey);
+  const serviceKey = service?.key ?? draft.serviceKey;
   const allowed = new Set(
-    (await addOnChoices(list, quote.id, service?.key ?? draft.serviceKey)).map(
-      (a) => a.key,
-    ),
+    (await addOnChoices(list, quote.id, serviceKey)).map((a) => a.key),
   );
-  const unknown = input.addOns.findIndex((key) => !allowed.has(key));
+  // one that doesn't go with the Service the Office has just switched to is
+  // left off its price (priceOptions) rather than refused: the Draft page
+  // keeps it ticked, so switching back prices it again
+  const unknown = input.addOns.findIndex((key) => {
+    const addOn = list.addOns.find((a) => a.key === key);
+    return !addOn || (goesWith(addOn, serviceKey) && !allowed.has(key));
+  });
   if (unknown !== -1) {
     throw fieldError(["addOns", unknown], "Choose from the Add-ons listed");
   }
