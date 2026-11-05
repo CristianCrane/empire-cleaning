@@ -19,10 +19,6 @@ export default preview(
       ],
     },
     replaced: [monday],
-    paid: {
-      depositCents: 5046,
-      totalCents: 16200,
-      paymentMethod: "Visa ending 4242",
-    },
+    paid: { paymentMethod: "Visa ending 4242" },
   }),
 );

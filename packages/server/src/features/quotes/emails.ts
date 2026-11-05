@@ -277,12 +277,11 @@ export const quoteEmail = ({
 
 // ---- accepting ----
 
-export type Paid = {
-  depositCents: number;
-  // a one-off Job's, or a plan's first clean's
-  totalCents: number;
-  paymentMethod: string | null;
-};
+// how the Client pays: the Payment Method that paid, by its label
+export type PaidWith = { paymentMethod: string | null };
+
+// what a one-off Job costs and what accepting took for it
+export type Paid = PaidWith & { depositCents: number; totalCents: number };
 
 // a plan's cleans, one on each weekday, from the first
 export type PlanCleans = {
@@ -290,13 +289,13 @@ export type PlanCleans = {
   cleans: { startsAt: Date; serviceName: string; totalCents: number }[];
 };
 
-const chargedTo = (paid: Paid) =>
+const chargedTo = (paid: PaidWith) =>
   paid.paymentMethod ? `your ${paid.paymentMethod}` : "your card";
 
 // a plan's weekdays, and what each clean on them costs
-const planPrices = ({ cleans }: PlanCleans, paid: Paid, now = "") =>
+const planPrices = ({ cleans }: PlanCleans, paid: PaidWith, now = "") =>
   cleans.length === 1
-    ? `Each clean is ${now}${formatMoney(paid.totalCents)}, charged to ${chargedTo(paid)} when it's done.`
+    ? `Each clean is ${now}${formatMoney(cleans[0]!.totalCents)}, charged to ${chargedTo(paid)} when it's done.`
     : `Each clean is charged to ${chargedTo(paid)} when it's done: ${cleans
         .map(
           (c) => `${formatMoney(c.totalCents)} on ${weekdayName(c.startsAt)}s`,
@@ -319,7 +318,7 @@ export const planConfirmationEmail = ({
   name: string;
   address: string;
   plan: PlanCleans;
-  paid: Paid;
+  paid: PaidWith & { depositCents: number };
 }): Email => ({
   subject: "Your Service Plan with Empire Cleaning has started",
   blocks: [
@@ -357,7 +356,7 @@ export const planChangeEmail = ({
   planId: string;
   plan: PlanCleans;
   replaced: Date[];
-  paid: Paid;
+  paid: PaidWith;
 }): Email => ({
   subject: "Your Service Plan with Empire Cleaning has changed",
   blocks: [

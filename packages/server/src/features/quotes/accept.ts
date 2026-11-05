@@ -49,6 +49,7 @@ import {
   planChangeEmail,
   planConfirmationEmail,
   type Paid,
+  type PaidWith,
   type PlanCleans,
 } from "./emails.ts";
 import { warnOfficeOfQuotesWithoutRoom } from "./quote-room.ts";
@@ -747,11 +748,7 @@ const afterAcceptance = async (
   offer: Offer,
   paidWith: string | null,
 ) => {
-  const paid = {
-    depositCents: offer.depositCents,
-    totalCents: offer.cleans[0]!.option.totalCents,
-    paymentMethod: paidWith,
-  };
+  const paid = { paymentMethod: paidWith, depositCents: offer.depositCents };
   if (replaced) await afterTermsChanged(replaced);
   try {
     await (replaced
@@ -765,7 +762,10 @@ const afterAcceptance = async (
         )
       : plan
         ? sendPlanConfirmation(client, property, offer, plan, paid)
-        : sendBookingConfirmation(client, property, jobs[0]!, paid));
+        : sendBookingConfirmation(client, property, jobs[0]!, {
+            ...paid,
+            totalCents: offer.cleans[0]!.option.totalCents,
+          }));
   } catch (error) {
     monitoring.error(error, {
       what: `booking confirmation for Job ${jobs[0]!.id} not sent`,
@@ -794,7 +794,7 @@ const sendPlanConfirmation = async (
   property: Property,
   offer: Offer,
   plan: ServicePlan,
-  paid: Paid,
+  paid: PaidWith & { depositCents: number },
 ) => {
   await email.send({
     to: client.email,
@@ -815,7 +815,7 @@ const sendPlanChangeConfirmation = async (
   offer: Offer,
   plan: ServicePlan,
   replaced: Job[],
-  paid: Paid,
+  paid: PaidWith,
 ) => {
   await email.send({
     to: client.email,
