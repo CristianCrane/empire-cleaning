@@ -567,8 +567,12 @@ function Accept({
           `/api/quotes/mine/${quote.id}/accept`,
           // a plan is accepted whole
           quote.plan
-            ? { paymentToken }
-            : { serviceKey: chosen.serviceKey, paymentToken },
+            ? { revisionId: quote.revisionId, paymentToken }
+            : {
+                revisionId: quote.revisionId,
+                serviceKey: chosen.serviceKey,
+                paymentToken,
+              },
         );
         if (outcome.status === "needs_approval") {
           await payment.approve(outcome.secret);
@@ -657,7 +661,10 @@ function AcceptChange({ quote }: { quote: QuoteView }) {
 
   const accept = () =>
     action.run(
-      () => postJson<AcceptOutcome>(`/api/quotes/mine/${quote.id}/accept`, {}),
+      () =>
+        postJson<AcceptOutcome>(`/api/quotes/mine/${quote.id}/accept`, {
+          revisionId: quote.revisionId,
+        }),
       "Your Service Plan has changed",
     );
 

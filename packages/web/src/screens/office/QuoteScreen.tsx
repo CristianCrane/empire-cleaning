@@ -128,14 +128,15 @@ import { BookSiteVisit, visitSummary } from "./SiteVisitParts.tsx";
 // read-only otherwise
 type ShownQuote = Omit<OfficeQuote, "draft" | "offer"> &
   Omit<OfficeRevision, "id" | "number" | "status"> & {
-    // the Revision shown
+    // the Revision shown, and its id, which accepting it names
     revision: number;
+    revisionId: string;
   };
 
 const shownOf = (quote: OfficeQuote): ShownQuote => {
   const { draft, offer, ...rest } = quote;
-  const { id: _id, number, status: _status, ...fields } = (draft ?? offer)!;
-  return { ...rest, ...fields, revision: number };
+  const { id, number, status: _status, ...fields } = (draft ?? offer)!;
+  return { ...rest, ...fields, revision: number, revisionId: id };
 };
 
 /**
@@ -992,7 +993,9 @@ function RecordAcceptance({
       () =>
         postJson<OfficeQuote>(
           `/api/quotes/${quote.id}/accept`,
-          quote.plan ? {} : { serviceKey },
+          quote.plan
+            ? { revisionId: quote.revisionId }
+            : { revisionId: quote.revisionId, serviceKey },
         ),
       quote.changesPlan
         ? "Accepted: the Service Plan has changed"
@@ -1839,7 +1842,7 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
         {!plan && (
           <DraftPart
             title="Proposed time"
-            description="New York time. The Quote Expires at this time if it isn't accepted first."
+            description="New York time, more than 24 hours away. The Quote Expires 24 hours before it if it isn't accepted first."
           >
             <div className="grid gap-4 sm:grid-cols-2">
               <DatePicker
@@ -1993,7 +1996,7 @@ function PlanDayFields({
       title={title}
       description={
         one
-          ? `Its first clean, New York time. Then ${recurrenceLabel[plan.recurrence].toLowerCase()} on the same weekday. The Quote Expires at the plan's first clean if it isn't accepted first.`
+          ? `Its first clean, New York time. Then ${recurrenceLabel[plan.recurrence].toLowerCase()} on the same weekday. The Quote Expires 24 hours before the plan's first clean if it isn't accepted first.`
           : "Its first clean, New York time. Then every week on the same weekday."
       }
       actions={

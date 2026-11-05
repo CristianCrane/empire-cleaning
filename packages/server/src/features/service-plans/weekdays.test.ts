@@ -117,8 +117,10 @@ const sentPlan = async (
     .body as OfficeQuote;
 };
 
-const accept = (client: Agent, quoteId: string) =>
-  client.post(`/api/quotes/mine/${quoteId}/accept`).send({});
+const accept = (client: Agent, quote: Pick<OfficeQuote, "id" | "offer">) =>
+  client
+    .post(`/api/quotes/mine/${quote.id}/accept`)
+    .send({ revisionId: quote.offer!.id });
 
 const officePlan = async (office: Agent, id: string) =>
   (await office.get(`/api/service-plans/${id}`).expect(200))
@@ -128,7 +130,7 @@ const startedPlan = async (days = MONDAY_AND_WEDNESDAY) => {
   const first = await firstCleanDone();
   const quote = await sentPlan(first.office, first.propertyId, days);
   const client = await signIn(casey.email);
-  const outcome = (await accept(client, quote.id).expect(200))
+  const outcome = (await accept(client, quote).expect(200))
     .body as AcceptOutcome;
   if (outcome.status !== "accepted") throw new Error("not accepted");
   return { ...first, client, quote, planId: outcome.quote.servicePlanId! };
@@ -348,7 +350,7 @@ describe("accepting a Service Plan Quote on several weekdays", () => {
     const view = (await client.get(`/api/quotes/mine/${quote.id}`).expect(200))
       .body as QuoteView;
     expect(view.bookable).toEqual([]);
-    const refused = await accept(client, quote.id).expect(409);
+    const refused = await accept(client, quote).expect(409);
     expect(refused.body.message).toMatch(/booked up/);
     expect(
       (
@@ -481,7 +483,7 @@ describe("changing a plan's terms", () => {
     const change = await sentPlan(office, propertyId, [
       day({ date: "2026-01-30", time: "10:00" }),
     ]);
-    await accept(client, change.id).expect(200);
+    await accept(client, change).expect(200);
 
     const plan = await officePlan(office, planId);
     expect(plan.days.map((d) => d.startsAt)).toEqual([
@@ -504,7 +506,7 @@ describe("changing a plan's terms", () => {
       day({ date: "2026-02-02", time: "09:00" }),
       day({ date: "2026-02-06", time: "10:00" }),
     ]);
-    await accept(client, again.id).expect(200);
+    await accept(client, again).expect(200);
     expect(
       booked(await officePlan(office, planId))
         .slice(-3)
@@ -592,7 +594,10 @@ describe("a commercial Service Plan", () => {
     const outcome = (
       await client
         .post(`/api/quotes/mine/${sent.id}/accept`)
-        .send({ paymentToken: testPayments().paymentToken() })
+        .send({
+          revisionId: sent.offer!.id,
+          paymentToken: testPayments().paymentToken(),
+        })
         .expect(200)
     ).body as AcceptOutcome;
     expect(outcome).toMatchObject({ status: "accepted" });

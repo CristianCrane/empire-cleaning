@@ -392,15 +392,15 @@ test("a Quote about to Expire needs attention", async ({ page }) => {
     page.getByRole("grid", { name: "Needs attention" }),
   ).not.toContainText(casey.name);
 
-  // a day before the proposed time, when it Expires
-  await setClock("2026-01-11T14:00:00Z");
+  // a day before it Expires, 24 hours before the proposed time
+  await setClock("2026-01-10T14:00:00Z");
   await page.reload();
 
   const item = page
     .getByRole("grid", { name: "Needs attention" })
     .getByRole("row", { name: new RegExp(casey.name) });
   await expect(item).toContainText("Follow up before it expires");
-  await expect(item).toContainText("expires Mon, Jan 12, 9:00 AM");
+  await expect(item).toContainText("expires Sun, Jan 11, 9:00 AM");
   await item.click();
   await expect(page).toHaveURL(/\/office\/quotes\//);
 });

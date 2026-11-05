@@ -554,13 +554,13 @@ async function seed() {
       ],
     },
   });
-  await sendQuote(bellAsk.id);
+  const bellSent = await sendQuote(bellAsk.id);
   const bell = (await findClientByEmail(bellWho.email))!;
   await at(on(-25));
   await saveCard(bell);
   const bellAccepted = await acceptQuote(
     bellAsk.id,
-    {},
+    { revisionId: bellSent.offer!.id },
     { by: "office", accountId: by },
   );
   if (bellAccepted.status !== "accepted") throw new Error("not accepted");
@@ -855,11 +855,15 @@ async function seed() {
   ) {
     await at(on(askedIn));
     const asked = await ask(who, { new: house }, { wantsRegularService });
-    await draftAndSend(asked.id, { sent: on(askedIn), startIn, ...terms });
+    const sent = await draftAndSend(asked.id, {
+      sent: on(askedIn),
+      startIn,
+      ...terms,
+    });
     await saveCard((await findClientByEmail(who.email))!);
     const accepted = await acceptQuote(
       asked.id,
-      { serviceKey: SEEDED.deep },
+      { revisionId: sent.offer!.id, serviceKey: SEEDED.deep },
       { by: "office", accountId: by },
     );
     if (accepted.status !== "accepted") throw new Error("not accepted");

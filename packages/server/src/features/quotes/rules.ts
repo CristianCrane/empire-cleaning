@@ -32,21 +32,29 @@ export type Held = {
   replacing: string[];
 };
 
+// Accepting a Quote's offer, `revisionId`: refused once a newer Revision is
+// Sent, then unless the Quote is still Sent
+export const whyClosed = (
+  held: Pick<Held, "sentRevisionId" | "status">,
+  revisionId: string,
+): Unbookable | null => {
+  if (held.sentRevisionId !== revisionId) return { reason: "revised" };
+  if (held.status !== "sent") return { reason: "closed", status: held.status };
+  return null;
+};
+
 /**
  * Accepting a Quote's offer, `revisionId`, booking these cleans: refused
- * once a newer Revision is Sent, unless the Quote is still Sent, unless its
- * home's plan is still the one expected (`changing`: none for a Quote
- * starting one), and unless every clean has room, the Jobs it replaces
- * counting as gone.
+ * as whyClosed says, then unless its home's plan is still the one expected
+ * (`changing`: none for a Quote starting one), and unless every clean has
+ * room, the Jobs it replaces counting as gone.
  */
 export const whyUnbookable = (
   held: Held,
   accepting: { revisionId: string; changing: string | null; cleans: Clean[] },
 ): Unbookable | null => {
-  if (held.sentRevisionId !== accepting.revisionId) {
-    return { reason: "revised" };
-  }
-  if (held.status !== "sent") return { reason: "closed", status: held.status };
+  const closed = whyClosed(held, accepting.revisionId);
+  if (closed) return closed;
   if (held.planId !== accepting.changing) {
     return { reason: accepting.changing ? "plan_changed" : "has_plan" };
   }

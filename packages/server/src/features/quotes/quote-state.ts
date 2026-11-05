@@ -48,9 +48,9 @@ import {
 // a Quote's latest Sent Revision, joined as "offers"
 export const offers = alias(quoteRevisions, "offers");
 
-// A Sent Quote Expires at the end of its offer's validity or at its proposed
-// time, whichever is first, by the Clock; nothing needs to run for that to
-// happen. `expiresAt` is the offer's.
+// A Sent Quote Expires at the end of its offer's validity or 24 hours before
+// its proposed time, whichever is first, by the Clock; nothing needs to run
+// for that to happen. `expiresAt` is the offer's, set as it's sent.
 export const statusOf = (quote: {
   status: Quote["status"];
   expiresAt: Date | null;

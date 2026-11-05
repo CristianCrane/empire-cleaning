@@ -114,7 +114,7 @@ const accept = (
 ) =>
   client
     .post(`/api/quotes/mine/${quote.id}/accept`)
-    .send({ serviceKey: SEEDED[service] });
+    .send({ revisionId: quote.offer!.id, serviceKey: SEEDED[service] });
 
 // Casey accepts a weekly Standard Clean plan with the card saved at their
 // First Clean; `beforeQuote` runs once the First Clean is done
@@ -260,7 +260,7 @@ describe("accepting a Service Plan Quote", () => {
 
     await office
       .post(`/api/quotes/${quote.id}/accept`)
-      .send({ serviceKey: SEEDED.standard })
+      .send({ revisionId: quote.offer!.id, serviceKey: SEEDED.standard })
       .expect(200);
 
     const home = (await office.get(`/api/properties/${propertyId}`).expect(200))
@@ -508,7 +508,7 @@ describe("a Service Plan's Jobs", () => {
     });
     await office
       .post(`/api/quotes/${quote.id}/accept`)
-      .send({ serviceKey: SEEDED.standard })
+      .send({ revisionId: quote.offer!.id, serviceKey: SEEDED.standard })
       .expect(200);
     const home = (await office.get(`/api/properties/${propertyId}`).expect(200))
       .body as OfficePropertyView;

@@ -945,6 +945,9 @@ export type QuoteAddOn = { key: string; name: string; totalCents: number };
 // AskedQuoteView.
 export type QuoteView = {
   id: string;
+  // the offer's Revision, which accepting names, so an acceptance from a
+  // page showing an older one is refused
+  revisionId: string;
   kind: QuoteKind;
   status: QuoteStatus;
   property: Pick<PropertyView, "id" | "street" | "unit" | "postcode">;
@@ -1268,12 +1271,18 @@ export type PaymentForm =
 // secret it needs
 export type CardForm = PaymentForm & { secret: string };
 
-// POST /api/quotes/mine/:id/accept. A Client paying with a card entered just
-// now sends the payment form's token, which also saves the card; without one
-// their saved Payment Method pays. The Office's /api/quotes/:id/accept takes
-// only the Service, by key, and always charges the saved one. A Service Plan
-// Quote is accepted whole, so needs neither.
-export type AcceptQuoteInput = { serviceKey?: string; paymentToken?: string };
+// POST /api/quotes/mine/:id/accept. It names the offer the page showed,
+// `revisionId` (QuoteView.revisionId), and is refused once a newer one is
+// Sent. A Client paying with a card entered just now sends the payment
+// form's token, which also saves the card; without one their saved Payment
+// Method pays. The Office's /api/quotes/:id/accept takes the offer and the
+// Service, by key, and always charges the saved one. A Service Plan Quote is
+// accepted whole, so needs no Service.
+export type AcceptQuoteInput = {
+  revisionId: string;
+  serviceKey?: string;
+  paymentToken?: string;
+};
 
 // the Client's acceptance: done, or waiting on their bank's approval (e.g. 3D
 // Secure) in the browser with `secret`, then POST .../accept/finalize

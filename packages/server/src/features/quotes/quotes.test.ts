@@ -292,7 +292,28 @@ describe("drafting a First Clean Quote", () => {
 });
 
 describe("sending a Quote", () => {
-  test("needs a proposed time that's still to come", async () => {
+  test("needs a proposed time more than 24 hours away, or it would have Expired", async () => {
+    const quoteId = await asked();
+    const office = await signInAsOffice();
+    const draft = await startDraft(office, quoteId);
+
+    // 24 hours from the clock's 4am on Monday 5 January
+    await save(office, draft, {
+      proposedStart: { date: "2026-01-06", time: "04:00" },
+    });
+    const soon = await office.post(`/api/quotes/${draft.id}/send`).expect(400);
+    expect(soon.body.details[0]).toMatchObject({
+      path: "proposedStart",
+      issue: "Choose a time more than 24 hours away",
+    });
+
+    await save(office, draft, {
+      proposedStart: { date: "2026-01-06", time: "04:15" },
+    });
+    await office.post(`/api/quotes/${draft.id}/send`).expect(200);
+  });
+
+  test("needs a proposed time", async () => {
     const quoteId = await asked();
     const office = await signInAsOffice();
     const draft = await startDraft(office, quoteId);
@@ -308,7 +329,7 @@ describe("sending a Quote", () => {
     });
     const past = await office.post(`/api/quotes/${draft.id}/send`).expect(400);
     expect(past.body.details[0].issue).toBe(
-      "Choose a time that's still to come",
+      "Choose a time more than 24 hours away",
     );
   });
 
@@ -378,7 +399,7 @@ describe("sending a Quote", () => {
     expect(quote.offer).toMatchObject({
       proposedStart: nextMonday,
       crewSize: draft.draft!.crewSize,
-      expiresAt: "2026-01-12T14:00:00.000Z",
+      expiresAt: "2026-01-11T14:00:00.000Z",
     });
     expect(quote.offer!.options).toEqual(
       (sent!.body as OfficeQuote).offer!.options,
@@ -556,7 +577,7 @@ describe("a Client's Quotes", () => {
       crewSize: 2,
       depositPercent: 25,
       proposedStartsAt: "2026-01-12T14:00:00.000Z",
-      expiresAt: "2026-01-12T14:00:00.000Z",
+      expiresAt: "2026-01-11T14:00:00.000Z",
       addOns: [{ name: "Inside the oven", totalCents: 2994 }],
     });
     const deep = option(sent, "deep");
@@ -660,16 +681,17 @@ describe("Expiry", () => {
     await client.post(`/api/quotes/mine/${quote.id}/decline`).expect(409);
   });
 
-  test("comes at the proposed time if that's sooner", async () => {
+  test("comes 24 hours before the proposed time if that's sooner, as a Late Cancellation would", async () => {
     const quoteId = await asked();
     const office = await signInAsOffice();
+    // 9am on Monday 12 January
     const quote = await sentQuote(office, quoteId);
 
-    expect(quote.offer!.expiresAt).toBe(quote.offer!.proposedStartsAt);
-    testClock().set(new Date(quote.offer!.proposedStartsAt!));
-    expect(
-      (await office.get(`/api/quotes/${quote.id}`).expect(200)).body.status,
-    ).toBe("expired");
+    expect(quote.offer!.expiresAt).toBe("2026-01-11T14:00:00.000Z");
+    testClock().set(new Date("2026-01-11T13:59:00Z"));
+    expect((await quoteOf(office, quote.id)).status).toBe("sent");
+    testClock().set(new Date("2026-01-11T14:00:00Z"));
+    expect((await quoteOf(office, quote.id)).status).toBe("expired");
   });
 
   test("can be revived by Office Staff sending a new Revision", async () => {

@@ -525,7 +525,7 @@ describe("a Bill that can't be charged for want of the database", () => {
     };
     for (const [who, startsAt] of [
       [casey, WEDNESDAY_9AM],
-      [dana, "2026-01-08T14:00:00Z"],
+      [dana, "2026-01-09T14:00:00Z"],
     ] as const) {
       const job = await acceptedJob({
         startsAt,
@@ -595,18 +595,18 @@ describe("Unpaid Bills", () => {
       condition: "moderate",
       reports: [],
     });
-    // a weekly plan from Thursday the 8th
+    // a weekly plan from Friday the 9th
     const { planId, firstJob } = await startedServicePlan({
       propertyId: first.propertyId,
       byAccountId: me.id,
-      startsAt: "2026-01-08T14:00:00Z",
+      startsAt: "2026-01-09T14:00:00Z",
     });
     const client = (await findClientByEmail(casey.email))!;
     await addPremises(client.id);
     await setBilling(office, client.id).expect(200);
     const placed = await offerAssignment(firstJob.id, coryId, me.id);
     await confirmAssignment(coryId, placed.assignments[0]!.id);
-    testClock().set(new Date("2026-01-08T17:00:00Z"));
+    testClock().set(new Date("2026-01-09T17:00:00Z"));
     await completeJob(coryId, firstJob.id, {
       condition: "moderate",
       reports: [],
@@ -915,14 +915,14 @@ describe("reminders and late Bills", () => {
     const { planId, firstJob } = await startedServicePlan({
       propertyId: first.propertyId,
       byAccountId: me.id,
-      startsAt: "2026-01-08T14:00:00Z",
+      startsAt: "2026-01-09T14:00:00Z",
     });
     const client = (await findClientByEmail(casey.email))!;
     await addPremises(client.id);
     await setBilling(office, client.id, { payment: "on_page" }).expect(200);
     const placed = await offerAssignment(firstJob.id, coryId, me.id);
     await confirmAssignment(coryId, placed.assignments[0]!.id);
-    testClock().set(new Date("2026-01-08T17:00:00Z"));
+    testClock().set(new Date("2026-01-09T17:00:00Z"));
     await completeJob(coryId, firstJob.id, {
       condition: "moderate",
       reports: [],
@@ -1369,18 +1369,18 @@ describe("switching weekly billing off", () => {
       condition: "moderate",
       reports: [],
     });
-    // a weekly plan from Thursday the 8th, its first clean billed weekly
+    // a weekly plan from Friday the 9th, its first clean billed weekly
     const { planId, firstJob } = await startedServicePlan({
       propertyId: first.propertyId,
       byAccountId: me.id,
-      startsAt: "2026-01-08T14:00:00Z",
+      startsAt: "2026-01-09T14:00:00Z",
     });
     const client = (await findClientByEmail(casey.email))!;
     await addPremises(client.id);
     await setBilling(office, client.id).expect(200);
     const placed = await offerAssignment(firstJob.id, coryId, me.id);
     await confirmAssignment(coryId, placed.assignments[0]!.id);
-    testClock().set(new Date("2026-01-08T17:00:00Z"));
+    testClock().set(new Date("2026-01-09T17:00:00Z"));
     await completeJob(coryId, firstJob.id, {
       condition: "moderate",
       reports: [],

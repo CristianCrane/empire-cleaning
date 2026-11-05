@@ -95,7 +95,7 @@ A free, scheduled visit by one Staff member to see a Property for a Quote, befor
 _Avoid_: Walkthrough, inspection, assessment
 
 **Quote status**:
-A Quote is _Requested_ (asked for by a Client, no Revision yet), _Draft_ (its first Revision being written by Staff), _Sent_, or closed as _Accepted_, _Declined_ (by the Client), _Expired_ (its latest Revision's validity period, 14 days unless set otherwise, or its proposed time has passed) or _Turned Down_. Drafting changes to a Sent Quote leaves it Sent. Office Staff may revive an Expired Quote by sending a new Revision; the others are final.
+A Quote is _Requested_ (asked for by a Client, no Revision yet), _Draft_ (its first Revision being written by Staff), _Sent_, or closed as _Accepted_, _Declined_ (by the Client), _Expired_ (its latest Revision's validity period, 14 days unless set otherwise, has passed, or it's 24 hours or less before its proposed time, when cancelling would be a Late Cancellation; so it's sent only for a time more than 24 hours away) or _Turned Down_. Drafting changes to a Sent Quote leaves it Sent. Office Staff may revive an Expired Quote by sending a new Revision; the others are final.
 _Avoid_: Pending, approved, rejected, Superseded
 
 ## Work

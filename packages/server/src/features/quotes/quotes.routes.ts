@@ -239,7 +239,7 @@ router.post(
     const id = String(req.params.id);
     await acceptQuote(
       id,
-      { serviceKey: req.body.serviceKey },
+      { revisionId: req.body.revisionId, serviceKey: req.body.serviceKey },
       { by: "office", accountId: signedInAccount(res).id },
     );
     res.json(await officeQuote(id));

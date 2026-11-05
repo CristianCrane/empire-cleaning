@@ -1,8 +1,10 @@
 import { z } from "zod";
 
-// the Service chosen, by key, on a one-off Quote; a Service Plan Quote is
-// accepted whole, so it needs none
+// the offer accepted, as the page showed it (a newer one Sent since is
+// refused), and the Service chosen, by key, on a one-off Quote; a Service
+// Plan Quote is accepted whole, so it needs none
 export const acceptSchema = z.object({
+  revisionId: z.uuid("Reload the page and accept the Quote shown"),
   serviceKey: z.uuid("Choose one of the Quote's Services").optional(),
 });
 
