@@ -15,8 +15,8 @@ import {
 // of day it runs (#238). It's run as the test site's reset runs it, as if it
 // were each day of one week, in New York: before the day's first clean,
 // midday, after its last, and late in the evening, which is already
-// tomorrow in UTC. Its own config runs it apart from the other tests
-// (vitest.seed.config.ts).
+// tomorrow in UTC. A Vitest project of its own runs it after the other
+// tests (vitest.config.ts).
 const MONDAY = "2026-11-09";
 const instants = Array.from({ length: 7 }, (_, i) =>
   addDays(MONDAY, i),

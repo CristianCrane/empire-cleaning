@@ -21,8 +21,8 @@
     "db:migrate": "drizzle-kit migrate --config=./src/db/drizzle.config.ts",
     "db:studio": "drizzle-kit studio --config=./src/db/drizzle.config.ts",
     "db:seed": "tsx --env-file-if-exists=.env ./tests/seed.ts",
-    "test": "vitest run && pnpm test:seed",
-    "test:seed": "vitest run --config vitest.seed.config.ts",
+    "test": "vitest run",
+    "test:seed": "vitest run --project seed",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest run --coverage",
     "staff:testers": "tsx --env-file-if-exists=.env ./tests/testers.ts",
@@ -30,7 +30,7 @@
     "e2e:server": "tsx tests/e2e/server.ts",
     "stripe:sandbox": "vitest run --config vitest.sandbox.config.ts",
     "stripe:record": "tsx --env-file=.env tests/contract/record-stripe.ts",
-    "test:quick": "vitest run",
+    "test:quick": "vitest run --project server",
     "email:dev": "email dev --dir emails --port 3002"
   },
   "dependencies": {
