@@ -235,13 +235,13 @@ export const deactivateStaff = async (id: string) => {
   return view;
 };
 
-// Emails a notice to every Office Staff member, built once; one that fails is
-// logged, and the change stands (notify)
+// Emails a notice to every Office Staff member, built once. A send that
+// fails is logged and the rest still go; the change stands (notify).
 export const tellOfficeStaff = (what: string, notice: () => Promise<Email>) =>
   notify(what, async () => {
     const built = await notice();
     for (const to of await officeStaffEmails()) {
-      await email.send({ to, ...built });
+      await notify(`${what} for ${to}`, () => email.send({ to, ...built }));
     }
   });
 

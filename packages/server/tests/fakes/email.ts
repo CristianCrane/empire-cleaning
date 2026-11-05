@@ -3,9 +3,11 @@ import type { EmailMessage, EmailSender } from "#services/email";
 export class FakeEmailSender implements EmailSender {
   readonly sent: EmailMessage[] = [];
   private failing = false;
+  private refused = new Set<string>();
 
   async send(message: EmailMessage) {
     if (this.failing) throw new Error("the email service is down");
+    if (this.refused.has(message.to)) throw new Error("mailbox unavailable");
     this.sent.push(message);
   }
 
@@ -17,6 +19,11 @@ export class FakeEmailSender implements EmailSender {
 
   sendNormally() {
     this.failing = false;
+  }
+
+  // sends to `address` fail, as when its mailbox refuses them
+  failSendingTo(address: string) {
+    this.refused.add(address);
   }
 
   to(address: string) {
