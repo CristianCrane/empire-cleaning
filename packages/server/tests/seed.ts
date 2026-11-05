@@ -46,7 +46,7 @@ import { findClientByEmail } from "#features/clients";
 import { DEMO_PEOPLE, demoPeople } from "#features/demo-people";
 import { completeJob, proposeAdjustment } from "#features/completion";
 import { savePaymentMethod, startCardForm } from "#features/payments";
-import { currentPriceList } from "#features/price-list";
+import { currentPriceList, offeredWith } from "#features/price-list";
 import {
   acceptQuote,
   askForQuote,
@@ -74,7 +74,7 @@ import {
   servicePlans,
   servicePlanVisits,
 } from "#features/service-plans";
-import { createStaff, setUsualWeek } from "#features/staff";
+import { createStaff, setException, setUsualWeek } from "#features/staff";
 import { addDays, atTime, dayOf, weekdayOf } from "#services/clock";
 import { installFakes, signIn, testClock, testPayments } from "./harness.ts";
 import { sentServicePlanQuote, startedServicePlan } from "./fixtures.ts";
@@ -303,6 +303,8 @@ async function seed() {
   };
 
   // ---- Requested ----
+  // from the landing site's Queens page, by the Business Profile's link, with
+  // two Add-ons chosen
   await at(on(-3));
   await ask(
     contact("priya", "Priya Shah"),
@@ -314,8 +316,19 @@ async function seed() {
       }),
     },
     {
+      serviceKey: SEEDED.moveInOut,
       condition: "heavy",
+      addOns: list.addOns
+        .filter((addOn) => offeredWith(addOn, SEEDED.moveInOut))
+        .slice(0, 2)
+        .map((addOn) => addOn.key),
       notes: "Moving out at the end of the month; the landlord inspects after.",
+      source: {
+        page: "/queens/",
+        utmSource: "gbp",
+        utmMedium: "organic",
+        utmCampaign: null,
+      },
     },
   );
 
@@ -797,6 +810,14 @@ async function seed() {
   });
 
   regulars.push({ planId: ninaPlan.planId, cleanerId: daniela!.id });
+
+  // a day off ahead, on a weekday 3 from her regulars', so it frees nothing
+  await at(on(-1));
+  await setException(daniela!.id, {
+    date: weekdayFrom(13).date,
+    hours: 0,
+    note: "Family wedding",
+  });
 
   // the regulars' cleans booked as far ahead as the server books them, each
   // with its Cleaner
