@@ -105,28 +105,34 @@ const mondayOf = (day: string) => addDays(day, -weekdayOf(day));
 // of the fake clock first stamps the rows made since the last move with the
 // fake time they were made at
 let stampedTo: Date | null = null;
+// the tables with a created_at, and whether each has an updated_at too: read
+// once, as seeding never changes them
+let stamped: { table_name: string; updated: boolean }[] | null = null;
 const stamp = async () => {
-  const { rows: tables } = await db.execute<{ table_name: string }>(
-    sql`select table_name from information_schema.columns
-        where table_schema = 'public' and column_name = 'created_at'`,
-  );
+  stamped ??= (
+    await db.execute<{ table_name: string; updated: boolean }>(
+      sql`select table_name, bool_or(column_name = 'updated_at') as updated
+          from information_schema.columns
+          where table_schema = 'public' and column_name in ('created_at', 'updated_at')
+          group by table_name having bool_or(column_name = 'created_at')`,
+    )
+  ).rows;
   const fake = testClock().now();
-  if (stampedTo) {
-    for (const { table_name } of tables) {
-      const { rows: hasUpdated } = await db.execute(
-        sql`select 1 from information_schema.columns where table_schema = 'public'
-            and table_name = ${table_name} and column_name = 'updated_at'`,
-      );
-      const t = sql.identifier(table_name);
-      await db.execute(
-        hasUpdated.length > 0
-          ? sql`update ${t} set created_at = ${fake}, updated_at = ${fake} where created_at > ${stampedTo}`
-          : sql`update ${t} set created_at = ${fake} where created_at > ${stampedTo}`,
-      );
-    }
-  }
+  const since = stampedTo;
+  // every table at once, and the database's clock after, in one statement:
+  // a query a table took ~5 minutes against the test site's database (#238)
+  const updates = since
+    ? stamped.map(
+        ({ table_name, updated }, i) =>
+          sql`${sql.identifier(`stamp_${i}`)} as (update ${sql.identifier(table_name)}
+              set created_at = ${fake}${updated ? sql`, updated_at = ${fake}` : sql``}
+              where created_at > ${since} returning 1)`,
+      )
+    : [];
   const { rows } = await db.execute<{ now: Date }>(
-    sql`select clock_timestamp() as now`,
+    updates.length > 0
+      ? sql`with ${sql.join(updates, sql`, `)} select clock_timestamp() as now`
+      : sql`select clock_timestamp() as now`,
   );
   stampedTo = new Date(rows[0]!.now);
 };
