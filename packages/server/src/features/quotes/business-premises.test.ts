@@ -21,8 +21,8 @@ type Agent = Awaited<ReturnType<typeof signIn>>;
 
 // prices chosen so every answer below can be checked by hand: commercial
 // cleaning at $60 an hour, taxed at 10%, 0.5 h per 1,000 sq ft; the
-// placeholder Premises Types (Office x1, so 0.5 h, and Medical x1.6, so
-// 0.8 h); moderate x1
+// placeholder Premises Types (Office x1, so 0.5 h, and Medical x1.4, so
+// 0.7 h); moderate x1
 const setPrices = async (office: Agent) => {
   const {
     id: _id,
@@ -390,11 +390,11 @@ describe("the Suggested Price for business premises", () => {
       floorArea: 2500,
       condition: "heavy",
     });
-    // 2,500 / 1,000 x 0.8 h = 2 h, x1.5 heavy = 3 h = $180
+    // 2,500 / 1,000 x 0.7 h = 1.75 h, x1.5 heavy = 2.625 h, so 2.75 h = $165
     const { suggested } = await detailOf(office, id);
     expect(suggested.prices[0]).toMatchObject({
-      labourHours: 3,
-      priceCents: 18000,
+      labourHours: 2.75,
+      priceCents: 16500,
     });
   });
 
