@@ -326,7 +326,15 @@ async function seed() {
     { businessName: "Park & Co Law", condition: undefined },
   );
   await bookSiteVisit(
-    { quoteId: park.id, staffId: maria!.id, minutes: 60, ...weekdayFrom(2) },
+    // in the afternoon: seeded on a Saturday, it's on Monday, after Helen's
+    // morning clean with Maria
+    {
+      quoteId: park.id,
+      staffId: maria!.id,
+      minutes: 60,
+      ...weekdayFrom(2),
+      time: "15:00",
+    },
     by,
   );
 
@@ -444,12 +452,22 @@ async function seed() {
   const ninaPlan = await startedServicePlan({
     propertyId: ninaHome.propertyId,
     byAccountId: by,
-    startsAt: `${weekdayFrom(3).date}T14:00:00Z`,
+    // after Sofia's morning clean on the same weekday, both Daniela's
+    startsAt: atTime(weekdayFrom(3).date, "13:30").toISOString(),
   });
 
   // ---- regulars: plans a few weeks old, their Cleaner on every clean, the
   // cleans so far done, so the weeks behind and ahead are full: today's
   // Schedule, a Cleaner's Next up, a Client's history ----
+  //
+  // Each holds a weekday counted from today's, and a weekend day falls on
+  // the Monday after: Helen today's (Maria), Bell today's evening (Luz),
+  // Marcus 2 days on (Luz, fortnightly), Sofia's morning and Nina's
+  // afternoon 3 days on (both Daniela). Two days with the same Cleaner need
+  // to be 3 or more apart, or two weekend days would put them on one Monday;
+  // otherwise they need different times of day. The same goes for a one-off
+  // with a regular's Cleaner. The seed test runs it on every day of the week
+  // (seed.test.ts)
   const regulars: { planId: string; cleanerId: string }[] = [];
   const regular = async (
     who: ReturnType<typeof contact>,
@@ -636,12 +654,14 @@ async function seed() {
   await at(on(-2));
   await releaseAssignment(daniela!.id, danielaPlace);
 
-  // the Client has asked to move it, waiting on the Office
+  // the Client has asked to move it, waiting on the Office. Not 5 days out:
+  // seeded on a Monday, that's the next Monday, Helen's with Maria, and
+  // Pete's crew of two leaves nobody else
   const moving = await bookedJob(
     contact("rosa", "Rosa Diaz"),
     home("61-20 188th St", "11365", { type: "house", bedrooms: 3 }),
     -9,
-    5,
+    4,
   );
   await confirm(moving.id, maria!.id);
   await at(on(-1));
@@ -754,12 +774,13 @@ async function seed() {
     "Nobody answered the door, and the phone went to voicemail.",
   );
 
-  // a place Offered, not yet answered
+  // a place Offered, not yet answered. Not 14 days out: that's Helen's
+  // weekday, with Maria
   const offered = await bookedJob(
     contact("erin", "Erin Ford"),
     home("21-40 Steinway St", "11105", { type: "house", bedrooms: 3 }),
     -4,
-    14,
+    17,
   );
   await at(on(-1));
   await offerAssignment(offered.id, maria!.id, by);
