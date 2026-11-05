@@ -1,0 +1,16 @@
+#!/bin/sh
+#
+# Before each commit, the staged code under packages/ gets the lint and the
+# format check that CI's Checks job runs on every file (README.md), in a
+# second or two. It reads the files as they are on disk. `pnpm install` sets
+# it up; `git commit --no-verify` skips it.
+
+set -e
+
+staged() { git diff --cached --name-only --diff-filter=ACMR -- "$@"; }
+
+lint=$(staged 'packages/*.ts' 'packages/*.tsx' 'packages/*.astro')
+format=$(staged 'packages/*.ts' 'packages/*.tsx')
+
+[ -z "$lint" ] || pnpm exec oxlint --type-aware $lint
+[ -z "$format" ] || pnpm exec prettier --check $format
