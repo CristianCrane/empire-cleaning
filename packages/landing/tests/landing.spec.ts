@@ -749,14 +749,6 @@ for (const path of everyKindOfPage) {
   });
 }
 
-// the business's pages elsewhere, as the old site linked them (#223)
-const social = [
-  ["Facebook", "https://www.facebook.com/empirecleaningsvcs3"],
-  ["Instagram", "https://www.instagram.com/empirecleaningsvcs3"],
-  ["Yelp", "https://www.yelp.com/biz/empire-cleaning-and-pro-services-queens"],
-  ["Google", "https://www.google.com/maps?cid=17623671204506783546"],
-] as const;
-
 // every page imports the footer on its own, the 404 too
 for (const path of [...everyKindOfPage, "/no-such-page"]) {
   test(`${path}'s foot links the business on Facebook, Instagram, Yelp and Google, each in a new tab`, async ({
@@ -764,7 +756,7 @@ for (const path of [...everyKindOfPage, "/no-such-page"]) {
   }) => {
     await page.goto(path);
 
-    for (const [name, href] of social) {
+    for (const { name, href } of Object.values(business.social)) {
       const link = page
         .locator("footer")
         .getByRole("link", { name: `Empire Cleaning on ${name}` });
@@ -920,7 +912,9 @@ test.describe("search engines", () => {
       expect(area.sameAs).toMatch(/^https:\/\/en\.wikipedia\.org\/wiki\//);
     }
     // and the business, by its pages elsewhere (#178)
-    expect(place.sameAs).toEqual(social.map(([, href]) => href));
+    expect(place.sameAs).toEqual(
+      Object.values(business.social).map(({ href }) => href),
+    );
     expect(place.hasOfferCatalog.itemListElement).toHaveLength(8);
     // Google ignores, and may penalise, a business's own reviews marked up
     expect(place).not.toHaveProperty("aggregateRating");
