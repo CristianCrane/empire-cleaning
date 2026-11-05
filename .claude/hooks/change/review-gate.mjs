@@ -52,6 +52,11 @@ const headOf = (command, hidden, end) => {
   return command.slice(end + start, end + finish).replace(/^["']|["']$/g, "").replace(/^[^:]*:/, "");
 };
 
+// a turn-down stops the whole command, so it says so: a push or an edit of
+// the body chained before `gh pr create` didn't run either
+const turnDown = (reason) =>
+  deny(`${reason} Nothing in this command ran, steps before gh pr create included: run each one as its own command.`);
+
 hook((input) => {
   const command = input.tool_input?.command ?? "";
   const hidden = masked(command);
@@ -64,26 +69,26 @@ hook((input) => {
   // a branch's review lives with its own checkout
   const head = headOf(command, hidden, match.index + match[0].length);
   if (head && head !== work.branch)
-    return deny(
+    return turnDown(
       `gh pr create --head ${head} runs from ${work.branch}'s checkout (${cwd}), but a branch's change review lives with its own checkout. Run it from ${head}'s checkout: git switch ${head} first, as its own command, or in its worktree.`,
     );
 
   const found = review(cwd, work.key);
   if (!found.ok)
-    return deny(
-      `The change review for ${work.branch} isn't ready (${found.reason}). Run the change-reviewer agent as the \`change\` skill's Review step says, with output ${found.path}. Answer each finding in the PR's Change section, then open the PR. (Hooks run before the whole command, so this checked ${work.branch}, checked out in ${cwd} now.)`,
+    return turnDown(
+      `The change review for ${work.branch} isn't ready (${found.reason}). Run the change-reviewer agent as the \`change\` skill's Review step says, with output ${found.path}. Answer each finding in the PR's Change section, then open the PR. (This checked ${work.branch}, checked out in ${cwd} when the command started.)`,
     );
 
   // the body comes from its file beside the review, and its Change section
   // answers every finding: fixed in a commit on the branch, or answered
   const body = stateFile(cwd, "pr-body", work.key);
   if (!command.includes(body) || !existsSync(body))
-    return deny(
+    return turnDown(
       `Write the PR body for ${work.branch} to ${body} and open the PR with \`--body-file ${body}\`, as the \`change\` skill's Change section step says.`,
     );
   const text = readFileSync(body, "utf8");
   const at = text.search(/^## Change\b/m);
-  if (at < 0) return deny(`The PR body (${body}) has no \`## Change\` section: end it with one, as the \`change\` skill says.`);
+  if (at < 0) return turnDown(`The PR body (${body}) has no \`## Change\` section: end it with one, as the \`change\` skill says.`);
   const section = lines(text.slice(at));
   const answers = (id) =>
     section.some((line) => {
@@ -93,7 +98,7 @@ hook((input) => {
     });
   const open = found.ids.filter((id) => !answers(id));
   if (open.length)
-    return deny(
+    return turnDown(
       `The PR body's Change section (${body}) doesn't answer ${open.join(", ")} from the last change review (${found.path}). Give each its own Review line: \`fixed in <sha>\`, a commit on this branch, or \`answered: <why>\`.`,
     );
 });

@@ -57,6 +57,8 @@ What the Checks job is for:
 | Package consistency (`pnpm check:packages`)                 | Packages disagreeing on a dependency's version, or misdeclaring each other (manypkg).                                                                                                                                                                                                                                                                                                  |
 | Scrubbing tests                                             | What may reach Sentry and the logs, and the browsers' Sentry setup.                                                                                                                                                                                                                                                                                                                    |
 
+Before each commit, a git hook (`.githooks/pre-commit`, which `pnpm install` turns on) runs the lint and the format check on the staged files under `packages/`, so most of what fails those two steps never reaches a commit. `git commit --no-verify` skips it.
+
 CI starts `postgres_test` from `docker-compose.yml`, needs no secrets (email, payments and the clock are faked in tests), and builds `@empire-cleaning/models` first, since the other packages read its types from `dist`. When an end-to-end check fails, its Playwright report and the failed tests' traces are kept as an artifact on the run; open a trace with `pnpm --filter @empire-cleaning/web exec playwright show-trace <trace.zip>`.
 
 # Test site
