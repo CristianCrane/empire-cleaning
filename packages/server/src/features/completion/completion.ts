@@ -7,6 +7,7 @@ import {
   isNotNull,
   isNull,
   lte,
+  ne,
 } from "drizzle-orm";
 import type {
   AdjustmentCorrection,
@@ -33,6 +34,7 @@ import {
 } from "../cancellation/cancellation.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
+import { lockProperty } from "../quotes/quotes.ts";
 import { closePendingRequests } from "../reschedule/closing.ts";
 import { servicePlanVisits } from "../service-plans/service-plans.schema.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
@@ -91,16 +93,42 @@ export const adjustmentLabel = (
     ? adjustmentItem(a)
     : `${a.addOnName}, ${a.kind === "add_on_done" ? "done on the day" : "not done"}`;
 
-// what a Job reported, or was before it, as its Property's Condition
-const conditionFromJob = (
+/**
+ * A Property's Condition is what its latest Completed Job reported (#244
+ * #7). Once `job` is completed, corrected or undone, with `reported` its
+ * report now (null once undone), the Property takes the latest report, or
+ * `fallback` when no Completed Job is left. A Job that started after it
+ * and has reported keeps the Property as it is: a Condition given since,
+ * as a Client asking does, is newer than any report but the latest.
+ */
+const conditionFromJobs = async (
   tx: Tx,
-  job: Pick<Job, "propertyId">,
-  condition: Condition,
-) =>
-  tx
+  job: Pick<Job, "id" | "propertyId" | "startsAt">,
+  reported: Condition | null,
+  fallback: Condition | null = null,
+) => {
+  // one at a time at a Property, so an older report never lands last
+  await lockProperty(tx, job.propertyId);
+  const [latest] = await tx
+    .select({ startsAt: jobs.startsAt, condition: jobs.reportedCondition })
+    .from(jobs)
+    .where(
+      and(
+        eq(jobs.propertyId, job.propertyId),
+        eq(jobs.status, "completed"),
+        ne(jobs.id, job.id),
+      ),
+    )
+    .orderBy(desc(jobs.startsAt))
+    .limit(1);
+  if (latest && latest.startsAt > job.startsAt) return;
+  const condition = reported ?? latest?.condition ?? fallback;
+  if (!condition) return;
+  await tx
     .update(properties)
     .set({ condition })
     .where(eq(properties.id, job.propertyId));
+};
 
 const jobWithOwner = async (jobId: string) => {
   const [found] = await db
@@ -202,7 +230,7 @@ export const completeJob = async (
       })
       .where(eq(jobs.id, jobId));
     await closePendingRequests(tx, [jobId]);
-    await conditionFromJob(tx, job!, input.condition);
+    await conditionFromJobs(tx, job!, input.condition);
 
     if (priced.length > 0) {
       await tx.insert(adjustments).values(
@@ -643,7 +671,8 @@ const owingJob = async (jobId: string) => {
   return job;
 };
 
-// Office Staff correct the Condition reported, which is the Property's too
+// Office Staff correct the Condition reported, and the Property's with it
+// while it's the latest report there (conditionFromJobs)
 export const correctCondition = async (jobId: string, condition: Condition) => {
   const job = await completedJob(jobId);
   await db.transaction(async (tx) => {
@@ -651,13 +680,14 @@ export const correctCondition = async (jobId: string, condition: Condition) => {
       .update(jobs)
       .set({ reportedCondition: condition })
       .where(eq(jobs.id, jobId));
-    await conditionFromJob(tx, job, condition);
+    await conditionFromJobs(tx, job, condition);
   });
 };
 
 /**
  * Office Staff undo a completion made by mistake: the Job is booked again,
- * its Adjustments are gone, the Property's Condition is as it was, and
+ * its Adjustments are gone, the Property's Condition is the latest report
+ * left there, or as it was before this one (conditionFromJobs), and
  * everything charged but the Deposit is refunded. Its Assignments stand, so
  * the Cleaner can complete it again.
  */
@@ -677,9 +707,7 @@ export const undoCompletion = async (jobId: string) => {
         unpaidReason: null,
       })
       .where(eq(jobs.id, jobId));
-    if (job.conditionBefore) {
-      await conditionFromJob(tx, job, job.conditionBefore);
-    }
+    await conditionFromJobs(tx, job, null, job.conditionBefore);
   });
   const settled = await settleAfterChange(jobId);
 
