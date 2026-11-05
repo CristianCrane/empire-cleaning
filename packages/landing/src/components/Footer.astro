@@ -1,7 +1,17 @@
 ---
 import { Logo } from "@empire-cleaning/ui";
+import { siFacebook, siGoogle, siInstagram, siYelp } from "simple-icons";
 import { areas } from "../areas/index.ts";
 import { business } from "../business.ts";
+
+// prototype: where the social and review links sit (#223)
+const { layout } = Astro.props as { layout?: "a" | "b" | "c" };
+const social = [
+  { name: "Facebook", href: "https://www.facebook.com/empirecleaningsvcs3", icon: siFacebook },
+  { name: "Instagram", href: "https://www.instagram.com/empirecleaningsvcs3", icon: siInstagram },
+  { name: "Yelp", href: "https://www.yelp.com/biz/empire-cleaning-and-pro-services-queens", icon: siYelp },
+  { name: "Google", href: "https://www.google.com/maps?cid=17623671204506783546", icon: siGoogle },
+];
 ---
 
 <footer class="flex flex-col gap-8 py-10">
@@ -19,15 +29,81 @@ import { business } from "../business.ts";
       }
     </ul>
   </nav>
+  {
+    layout === "b" && (
+      <ul aria-label="Find us online" class="mx-auto flex gap-3 px-4">
+        {social.map((s) => (
+          <li>
+            <a
+              href={s.href}
+              target="_blank"
+              rel="noopener"
+              aria-label={`Empire Cleaning on ${s.name}`}
+              class="flex size-11 items-center justify-center rounded-full bg-primary/10 text-primary hover:bg-primary/20"
+            >
+              <svg aria-hidden viewBox="0 0 24 24" class="size-5" fill="currentColor">
+                <path d={s.icon.path} />
+              </svg>
+            </a>
+          </li>
+        ))}
+      </ul>
+    )
+  }
   <!-- centred on a phone; from a tablet the logo left and the details right,
      their middles level -->
   <div class="mx-auto flex w-full max-w-5xl flex-col items-center gap-4 px-4 text-center sm:flex-row sm:items-center sm:justify-between sm:text-right">
-    <Logo className="w-36" />
+    <div class="flex flex-col items-center gap-4 sm:items-start">
+      <Logo className="w-36" />
+      {
+        layout === "c" && (
+          <ul aria-label="Find us online" class="flex flex-wrap justify-center gap-x-5 gap-y-2 sm:justify-start">
+            {social.map((s) => (
+              <li>
+                <a
+                  href={s.href}
+                  target="_blank"
+                  rel="noopener"
+                  aria-label={`Empire Cleaning on ${s.name}`}
+                  class="inline-flex items-center gap-2 font-semibold text-primary"
+                >
+                  <svg aria-hidden viewBox="0 0 24 24" class="size-4" fill="currentColor">
+                    <path d={s.icon.path} />
+                  </svg>
+                  {s.name}
+                </a>
+              </li>
+            ))}
+          </ul>
+        )
+      }
+    </div>
     <div class="flex flex-col items-center gap-1 text-fg-muted sm:items-end">
       <a href={business.phone.href} class="font-semibold text-fg">{business.phone.display}</a>
       <span>{business.area}</span>
       <span>{business.hours.display}</span>
       <span lang="es">Se habla español</span>
+      {
+        layout === "a" && (
+          <ul aria-label="Find us online" class="my-2 flex gap-4">
+            {social.map((s) => (
+              <li>
+                <a
+                  href={s.href}
+                  target="_blank"
+                  rel="noopener"
+                  aria-label={`Empire Cleaning on ${s.name}`}
+                  class="flex size-8 items-center justify-center text-fg-muted hover:text-primary"
+                >
+                  <svg aria-hidden viewBox="0 0 24 24" class="size-5" fill="currentColor">
+                    <path d={s.icon.path} />
+                  </svg>
+                </a>
+              </li>
+            ))}
+          </ul>
+        )
+      }
       <span>&copy; {new Date().getFullYear()} {business.name}</span>
     </div>
   </div>

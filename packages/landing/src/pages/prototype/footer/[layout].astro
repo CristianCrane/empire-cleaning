@@ -1,0 +1,24 @@
+---
+// prototype: the homepage's foot with the social and review links, one page
+// per layout (#223)
+import Faqs from "../../../components/Faqs.astro";
+import Footer from "../../../components/Footer.astro";
+import Header from "../../../components/Header.astro";
+import ServicePlans from "../../../components/ServicePlans.astro";
+import { faqs } from "../../../faqs.ts";
+import Page from "../../../layouts/Page.astro";
+
+export function getStaticPaths() {
+  return ["a", "b", "c"].map((layout) => ({ params: { layout } }));
+}
+const layout = Astro.params.layout as "a" | "b" | "c";
+---
+
+<Page>
+  <Header />
+  <main>
+    <ServicePlans />
+    <Faqs faqs={faqs} />
+  </main>
+  <Footer layout={layout} />
+</Page>
