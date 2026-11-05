@@ -34,6 +34,7 @@ import {
 } from "../cancellation/cancellation.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
+import { whyNotBooked } from "../jobs/rules.ts";
 import { lockProperty } from "../quotes/quotes.ts";
 import { closePendingRequests } from "../reschedule/closing.ts";
 import { servicePlanVisits } from "../service-plans/service-plans.schema.ts";
@@ -203,7 +204,7 @@ export const completeJob = async (
       .where(eq(jobs.id, jobId))
       .for("update");
     if (job!.status !== "booked") {
-      throw new ConflictError("This Job has already been Completed");
+      throw new ConflictError(whyNotBooked(job!.status, "completed"));
     }
     if (job!.startsAt > now) {
       throw new ConflictError("This Job hasn't started yet");

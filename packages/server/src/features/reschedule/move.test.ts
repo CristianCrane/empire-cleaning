@@ -179,7 +179,7 @@ describe("Office Staff moving a Job", () => {
       .expect(200);
     expect(
       (await move(office, jobId, WEDNESDAY).expect(409)).body.message,
-    ).toBe("This Job is no longer booked, so it can't move");
+    ).toBe("This Job has been cancelled, so it can't move");
   });
 
   test("is refused to a time that has passed, or the time it's at", async () => {

@@ -17,6 +17,7 @@ import {
   type Settled,
 } from "../completion/balance.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
+import { whyNotBooked } from "../jobs/rules.ts";
 import { closePendingRequests } from "../reschedule/closing.ts";
 import { charges, refunds } from "../payments/payments.schema.ts";
 import { properties } from "../properties/properties.schema.ts";
@@ -206,11 +207,7 @@ export const cancelJob = async (jobId: string, cancellation: Cancellation) => {
       .for("update");
     if (!job) throw new NotFoundError("Job not found");
     if (job.status !== "booked") {
-      throw new ConflictError(
-        job.status === "cancelled"
-          ? "This Job has already been cancelled"
-          : "This Job has already happened, so it can't be cancelled",
-      );
+      throw new ConflictError(whyNotBooked(job.status, "cancelled"));
     }
     if (cancellation.byClient && job.startsAt <= clock.now()) {
       throw new ConflictError(
@@ -380,11 +377,7 @@ export const recordNoAccess = async (
       .where(eq(jobs.id, jobId))
       .for("update");
     if (job!.status !== "booked") {
-      throw new ConflictError(
-        job!.status === "no_access"
-          ? "No Access has already been recorded for this Job"
-          : "This Job is no longer booked",
-      );
+      throw new ConflictError(whyNotBooked(job!.status, "no_access"));
     }
     if (job!.startsAt > clock.now()) {
       throw new ConflictError("This Job hasn't started yet");

@@ -30,6 +30,7 @@ import {
   endsByMidnight,
   roomOn,
   whyNoRoom,
+  whyNotBooked,
 } from "../jobs/rules.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { warnOfficeOfQuotesWithoutRoom } from "../quotes/quote-room.ts";
@@ -237,7 +238,7 @@ export const requestReschedule = async (
     if (!found) throw new NotFoundError("Job not found");
     const { job } = found;
     if (job.status !== "booked") {
-      throw new ConflictError("This Job is no longer booked, so it can't move");
+      throw new ConflictError(whyNotBooked(job.status, "moved"));
     }
     if (job.startsAt <= clock.now()) {
       throw new ConflictError(
@@ -600,7 +601,7 @@ export const moveJob = async (jobId: string, to: LocalDateTime) => {
     const { job } = found;
     const now = clock.now();
     if (job.status !== "booked") {
-      throw new ConflictError("This Job is no longer booked, so it can't move");
+      throw new ConflictError(whyNotBooked(job.status, "moved"));
     }
     if (job.startsAt <= now) {
       throw new ConflictError("This Job has already started, so it can't move");
