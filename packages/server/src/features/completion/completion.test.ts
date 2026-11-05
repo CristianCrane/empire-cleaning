@@ -31,6 +31,7 @@ import {
 import {
   casey,
   guestAsk,
+  setService,
   signInAsOffice,
   submit,
 } from "../../../tests/fixtures.ts";
@@ -47,6 +48,9 @@ const MONDAY_11AM = new Date("2026-01-12T16:00:00Z");
 // is $27.50 + $2.44 tax; an extra hour is $55 + $4.88.
 const HALF_HOUR_ADD_ON = 2994;
 const EXTRA_HOUR = 5988;
+// what "Inside the oven" added to the Deep Clean quoted, tax included: half
+// an hour more takes the price to the whole dollar $28 higher
+const QUOTED_OVEN = 2800 + 249;
 
 const cleaner = async (name: string) => {
   const email = `${name.split(" ")[0]!.toLowerCase()}@example.com`;
@@ -74,8 +78,10 @@ type Booked = {
 const bookedJob = async ({
   crewSize = 1,
   depositPercent = 25,
+  beforeQuote = async (_office: Agent): Promise<unknown> => undefined,
 } = {}): Promise<Booked> => {
   const office = await signInAsOffice();
+  await beforeQuote(office);
   const cory = await cleaner("Cory Cleaner");
   await cleaner("Dee Cleaner");
   const list = (await office.get("/api/price-list").expect(200))
@@ -294,7 +300,7 @@ describe("completing a Job", () => {
 });
 
 describe("Adjustments", () => {
-  test("take a quoted Add-on that wasn't done off at once, at its quoted price", async () => {
+  test("take a quoted Add-on that wasn't done off at once, at what it added to the quoted price", async () => {
     const { cory, client, jobId, quote, list } = await bookedJob();
     const deep = deepOf(quote);
 
@@ -309,7 +315,7 @@ describe("Adjustments", () => {
     }).expect(200);
 
     expect(amounts()[1]).toBe(
-      deep.totalCents - HALF_HOUR_ADD_ON - deep.depositCents,
+      deep.totalCents - QUOTED_OVEN - deep.depositCents,
     );
     const { completion } = await clientJob(client, jobId);
     expect(completion!.adjustments).toEqual([
@@ -318,12 +324,36 @@ describe("Adjustments", () => {
         addOnName: "Inside the oven",
         reason: "The oven was in use",
         status: "applied",
-        totalCents: -HALF_HOUR_ADD_ON,
+        totalCents: -QUOTED_OVEN,
       }),
     ]);
+    expect(deep.addOns).toEqual([
+      expect.objectContaining({ totalCents: QUOTED_OVEN }),
+    ]);
     expect(testEmail().lastTo(casey.email).text).toContain(
-      "Inside the oven, not done: -$29.94",
+      "Inside the oven, not done: -$30.49",
     );
+  });
+
+  test("take nothing off for a quoted Add-on not done when the price was the Minimum Charge", async () => {
+    const { cory, jobId, quote, list } = await bookedJob({
+      beforeQuote: (office) =>
+        setService(office, "deep", { minimumChargeCents: 50_000 }),
+    });
+    const deep = deepOf(quote);
+
+    await complete(cory.agent, jobId, {
+      reports: [
+        {
+          kind: "add_on_not_done",
+          addOnKey: keyOf(list, "Inside the oven"),
+          reason: "The oven was in use",
+        },
+      ],
+    }).expect(200);
+
+    expect(deep.priceCents).toBe(50_000);
+    expect(amounts()[1]).toBe(deep.totalCents - deep.depositCents);
   });
 
   test("refund a negative Balance", async () => {
@@ -342,9 +372,9 @@ describe("Adjustments", () => {
     }).expect(200);
 
     expect(amounts()).toEqual([deepOf(quote).totalCents]);
-    expect(refunded()).toEqual([HALF_HOUR_ADD_ON]);
+    expect(refunded()).toEqual([QUOTED_OVEN]);
     expect(testEmail().lastTo(casey.email).text).toContain(
-      "We've refunded $29.94",
+      "We've refunded $30.49",
     );
   });
 
@@ -822,7 +852,7 @@ describe("Office Staff correcting a completion", () => {
       totalCents: -1089,
       officeReason: "Part of it was done",
     });
-    expect(amounts().at(-1)).toBe(HALF_HOUR_ADD_ON - 1089);
+    expect(amounts().at(-1)).toBe(QUOTED_OVEN - 1089);
     expect(testEmail().lastTo(casey.email).subject).toBe(
       "We've corrected the price of your clean",
     );
@@ -882,7 +912,7 @@ describe("Office Staff correcting a completion", () => {
       .delete(`/api/jobs/${jobId}/adjustments/${oven!.id}`)
       .expect(200);
 
-    expect(amounts().at(-1)).toBe(HALF_HOUR_ADD_ON);
+    expect(amounts().at(-1)).toBe(QUOTED_OVEN);
     expect((await officeJob(office, jobId)).completion!.adjustments).toEqual(
       [],
     );

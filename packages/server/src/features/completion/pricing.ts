@@ -10,6 +10,7 @@ import { priceListAddOns } from "../price-list/price-list.schema.ts";
 import { services } from "../services/services.schema.ts";
 import { addOnCents, taxOnPart } from "../price-list/suggested-price.ts";
 import { jobQuotes } from "../quotes/job-quotes.ts";
+import type { PricedAddOn } from "../quotes/quotes.schema.ts";
 
 // What a Job was quoted at, with the figures its Adjustments are priced from:
 // the Service its Client accepted on the Quote that booked it, and the
@@ -17,15 +18,18 @@ import { jobQuotes } from "../quotes/job-quotes.ts";
 export type QuotedJob = {
   totalCents: number;
   suggested: PriceBreakdown;
+  // what each of its Add-ons added to its price, which one not done takes off
+  addOns: PricedAddOn[];
   priceListId: string;
   // a Service Plan Job's Plan Discount, off its one-off price; null for a
   // one-off Job
   planDiscountPercent: number | null;
 };
 
-// A Service Plan's Job is quoted at its discounted price; its Adjustments are
-// at the full hourly rate, with no Plan Discount, but taxed as a Service Plan
-// Job, at the plan rate of the Service version its Quote priced it with.
+// A Service Plan's Job is quoted at its discounted price. An increase is at
+// the full hourly rate, with no Plan Discount; a quoted Add-on not done comes
+// off at what it added, after the Plan Discount. Both are taxed as a Service
+// Plan Job, at the plan rate of the Service version its Quote priced it with.
 export const quotedJob = async (
   jobId: string,
   tx: Tx | typeof db = db,
@@ -50,6 +54,7 @@ export const quotedJob = async (
   return {
     totalCents: option.totalCents,
     suggested,
+    addOns: option.addOns,
     priceListId: revision.priceListId,
     planDiscountPercent:
       quote.kind === "service_plan" ? revision.planDiscountPercent : null,
@@ -110,9 +115,10 @@ export const signed = (
 
 /**
  * Prices what the assigned Staff reported, from the figures the Job's Quote
- * was priced with: an Add-on's hours, or the extra Labour Hours, at its
- * hourly rate. Staff never set amounts (ADR-0009). Refuses an Add-on that
- * isn't reportable that way, or one reported twice.
+ * was priced with: a quoted Add-on not done at what it added to the price,
+ * and an Add-on done or the extra Labour Hours at its hourly rate. Staff
+ * never set amounts (ADR-0009). Refuses an Add-on that isn't reportable that
+ * way, or one reported twice.
  */
 export const priceReports = async (
   quoted: QuotedJob,
@@ -156,7 +162,10 @@ export const priceReports = async (
       addOnName: addOn.name,
       hours: null,
       taxExempt: addOn.taxExempt,
-      workedOutCents: addOnCents(addOn.hours, suggested.hourlyRateCents),
+      workedOutCents:
+        report.kind === "add_on_not_done"
+          ? quoted.addOns.find((a) => a.key === addOn.key)!.priceCents
+          : addOnCents(addOn.hours, suggested.hourlyRateCents),
     };
   });
 };
