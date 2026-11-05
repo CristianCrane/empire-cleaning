@@ -99,6 +99,13 @@ const weekdayFrom = (days: number) => {
   while (weekdayOf(day) > 4) day = addDays(day, 1);
   return { date: day, time: "09:00" };
 };
+// the last weekday on or before `days` from today, at 9am: for a clean
+// that's over, which a weekend mustn't move on to Monday, today or later
+const weekdayUpTo = (days: number) => {
+  let day = addDays(today, days);
+  while (weekdayOf(day) > 4) day = addDays(day, -1);
+  return { date: day, time: "09:00" };
+};
 const mondayOf = (day: string) => addDays(day, -weekdayOf(day));
 
 // created_at and updated_at come from the database's own clock, so each move
@@ -297,7 +304,10 @@ async function seed() {
       crewSize,
       depositPercent: 25,
       validityDays,
-      proposedStart: { ...weekdayFrom(startIn), time },
+      proposedStart: {
+        ...(startIn < 0 ? weekdayUpTo(startIn) : weekdayFrom(startIn)),
+        time,
+      },
       overrides: {},
     });
     return sendQuote(id);
@@ -482,7 +492,14 @@ async function seed() {
   // otherwise they need different times of day. The same goes for a one-off
   // with a regular's Cleaner. The seed test runs it on every day of the week
   // (seed.test.ts)
-  const regulars: { planId: string; cleanerId: string }[] = [];
+  // the plan cleans workPlan has Confirmed, and done if it was time
+  const worked = new Set<string>();
+  const regulars: {
+    name: string;
+    planId: string;
+    cleanerId: string;
+    billed?: boolean;
+  }[] = [];
   const regular = async (
     who: ReturnType<typeof contact>,
     house: NewHome,
@@ -512,7 +529,7 @@ async function seed() {
       recurrence,
     });
     await workPlan(planId, cleanerId);
-    regulars.push({ planId, cleanerId });
+    regulars.push({ name: who.name, planId, cleanerId });
   };
   await regular(
     contact("helen", "Helen Kowalski"),
@@ -628,7 +645,12 @@ async function seed() {
       note: `Check #${1041 + i}`,
     });
   }
-  regulars.push({ planId: bellPlan!.id, cleanerId: luz!.id });
+  regulars.push({
+    name: bellWho.name,
+    planId: bellPlan!.id,
+    cleanerId: luz!.id,
+    billed: true,
+  });
 
   // ---- Jobs in every state the Office's Job page shows ----
   const [firstAddOn, secondAddOn] = list.addOns;
@@ -810,18 +832,31 @@ async function seed() {
     byClient: false,
   });
 
-  regulars.push({ planId: ninaPlan.planId, cleanerId: daniela!.id });
+  regulars.push({
+    name: nina.name,
+    planId: ninaPlan.planId,
+    cleanerId: daniela!.id,
+  });
 
-  // a day off ahead, on a weekday 3 from her regulars', so it frees nothing
+  // a day off ahead, past the 28 days the server books plan cleans
+  // (service-plans.ts), so it frees nothing and leaves no regular's clean
+  // without room
   await at(on(-1));
   await setException(daniela!.id, {
-    date: weekdayFrom(13).date,
+    date: weekdayFrom(35).date,
     hours: 0,
     note: "Family wedding",
   });
 
-  // the regulars' cleans booked as far ahead as the server books them, each
-  // with its Cleaner
+  // The server books each plan's cleans some weeks ahead, every day. The
+  // seed books them 3 days ago, so a plan begun weeks back has today's too,
+  // worked as far as now; then now, as far ahead as the server books them,
+  // each with its Cleaner
+  await at(on(-3));
+  await generateServicePlanJobs();
+  for (const { planId, cleanerId, billed } of regulars) {
+    await workPlan(planId, cleanerId, billed);
+  }
   await at(realNow);
   await generateServicePlanJobs();
   for (const { planId, cleanerId } of regulars) {
@@ -829,6 +864,25 @@ async function seed() {
       if (job.startsAt > realNow && job.status === "booked") {
         await confirm(job.id, cleanerId);
       }
+    }
+  }
+
+  // every regular has a clean every week (or fortnight) from their first:
+  // the server books none on a day already full, without a word
+  for (const { name, planId } of regulars) {
+    const [plan] = await db
+      .select({ recurrence: servicePlans.recurrence })
+      .from(servicePlans)
+      .where(eq(servicePlans.id, planId));
+    const step = plan!.recurrence === "weekly" ? 7 : 14;
+    const days = (await planJobs(planId)).map((job) => dayOf(job.startsAt));
+    const gap = days.findIndex(
+      (day, i) => i > 0 && day !== addDays(days[i - 1]!, step),
+    );
+    if (gap > 0) {
+      throw new Error(
+        `${name} has no clean between ${days[gap - 1]} and ${days[gap]}`,
+      );
     }
   }
 
@@ -856,12 +910,17 @@ async function seed() {
   }
 
   // a plan's cleans so far, Confirmed by the Cleaner two days before and
-  // done that day; billed, each week's Bill made the Monday after
+  // done 3 hours in, or under way if that's still to come; billed, each
+  // week's Bill made the Monday after. What it's worked already it leaves,
+  // so it can work a plan again once more of its cleans are booked
   async function workPlan(planId: string, cleanerId: string, billed = false) {
     for (const job of await planJobs(planId)) {
-      if (job.startsAt.getTime() > realNow.getTime() - 6 * 3_600_000) break;
+      if (job.startsAt > realNow) break;
+      if (worked.has(job.id) || job.status !== "booked") continue;
+      worked.add(job.id);
       await at(after(job, -48));
       await confirm(job.id, cleanerId);
+      if (after(job, 3) > realNow) continue;
       await at(after(job, 3));
       await completeJob(cleanerId, job.id, {
         condition: "moderate",
