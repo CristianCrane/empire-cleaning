@@ -59,6 +59,7 @@ import {
   pricedOf,
   suggestedPrice,
   taxOn,
+  taxOnPart,
 } from "../price-list/suggested-price.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { addressOf, toPropertyView } from "../properties/property-view.ts";
@@ -456,9 +457,7 @@ const addOnsOf = (rows: PricedOption[]): QuoteAddOn[] => {
   const { suggested } = inOrder(rows)[0]!;
   return suggested.addOns.map((addOn) => {
     const cents = addOnCents(addOn.hours, suggested.hourlyRateCents);
-    const tax = addOn.taxExempt
-      ? 0
-      : taxOn(cents, { ...suggested, addOns: [] });
+    const tax = taxOnPart(cents, addOn.taxExempt, suggested.taxPercent);
     return { key: addOn.key, name: addOn.name, totalCents: cents + tax };
   });
 };

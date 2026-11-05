@@ -8,7 +8,7 @@ import { db, type Tx } from "../../db/index.ts";
 import { ConflictError } from "../../middleware/errors.ts";
 import { priceListAddOns } from "../price-list/price-list.schema.ts";
 import { services } from "../services/services.schema.ts";
-import { addOnCents, taxOn } from "../price-list/suggested-price.ts";
+import { addOnCents, taxOnPart } from "../price-list/suggested-price.ts";
 import { jobQuotes } from "../quotes/job-quotes.ts";
 
 // What a Job was quoted at, with the figures its Adjustments are priced from:
@@ -79,13 +79,6 @@ export const reportableAddOns = async (
   };
 };
 
-// the tax on part of a Job's price, at the rate its Quote used
-const taxFor = (
-  priceCents: number,
-  taxExempt: boolean,
-  suggested: PriceBreakdown,
-) => (taxExempt ? 0 : taxOn(priceCents, { ...suggested, addOns: [] }));
-
 export type PricedReport = {
   addOnKey: string | null;
   addOnName: string | null;
@@ -105,7 +98,8 @@ export const signed = (
   taxExempt: boolean,
   suggested: PriceBreakdown,
 ) => {
-  const taxCents = taxFor(priceCents, taxExempt, suggested);
+  // at the rate the Job's Quote used
+  const taxCents = taxOnPart(priceCents, taxExempt, suggested.taxPercent);
   const sign = isReduction(kind) ? -1 : 1;
   return {
     priceCents: sign * priceCents,
