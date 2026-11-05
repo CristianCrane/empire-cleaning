@@ -33,6 +33,17 @@ export const weeklyBillOf = (
   client: Pick<Client, "billedWeeklyFrom" | "billPayment">,
 ) => (client.billedWeeklyFrom ? client.billPayment : null);
 
+// how a Job's Client pays for it: weeklyBillOf, once the Job starts in or
+// after the week weekly billing was switched on, or null when it's charged
+// when it's done
+export const weeklyBillFor = (
+  job: Pick<Job, "startsAt">,
+  client: Pick<Client, "billedWeeklyFrom" | "billPayment">,
+) =>
+  client.billedWeeklyFrom && job.startsAt >= startOfDay(client.billedWeeklyFrom)
+    ? client.billPayment
+    : null;
+
 /**
  * Whether a Job's money goes on its Client's weekly Bills rather than being
  * charged on its own (ADR-0016): its Client is billed weekly, it starts in
@@ -43,9 +54,7 @@ export const weeklyBillOf = (
  */
 export const isBilledWeekly = (
   job: Pick<Job, "status" | "feeCents" | "startsAt">,
-  client: Pick<Client, "billedWeeklyFrom">,
+  client: Pick<Client, "billedWeeklyFrom" | "billPayment">,
   billed: { lines: number },
 ) =>
-  client.billedWeeklyFrom !== null &&
-  job.startsAt >= startOfDay(client.billedWeeklyFrom) &&
-  (owesOnBill(job) || billed.lines > 0);
+  weeklyBillFor(job, client) !== null && (owesOnBill(job) || billed.lines > 0);
