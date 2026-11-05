@@ -175,7 +175,7 @@ export const proposalEmail = ({
     ),
     cleanDetails(clean),
     paragraph(
-      `It comes to ${formatMoney(totalCents)}, tax included. We'll only charge it if you approve it. Please approve or decline it by ${formatWhen(answerBy)}; if we don't hear from you, we won't charge it.`,
+      `It comes to ${formatMoney(totalCents)}, tax included. You only pay it if you approve it. Please approve or decline it by ${formatWhen(answerBy)}; if we don't hear from you, it lapses and you don't pay it.`,
     ),
     portalButton(jobId, "Approve or decline"),
   ],

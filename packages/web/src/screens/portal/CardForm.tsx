@@ -37,7 +37,8 @@ export function ConsentNote({ action }: { action: "paying" | "saving" }) {
     <p className="text-sm text-fg-muted">
       By {action === "paying" ? "paying" : "saving your card"}, you authorise
       Empire Cleaning to charge this card for the Balance when each clean is
-      Completed, and the Deposit amount for a late cancellation or No Access.
+      Completed, the Deposit amount for a late cancellation or No Access, and
+      any weekly Bill set to be charged to it.
     </p>
   );
 }

@@ -1,4 +1,4 @@
-import type { RescheduleCost } from "@empire-cleaning/models";
+import type { BillPayment, RescheduleCost } from "@empire-cleaning/models";
 import {
   button,
   cleanDetails,
@@ -13,6 +13,7 @@ import {
   formatWhen,
 } from "../../services/email/format.ts";
 import { jobsButton } from "../assignments/emails.ts";
+import { ON_WEEKS_BILL } from "../bills/billed-weekly.ts";
 
 const portalButton = (jobId: string) =>
   button("See your clean", `/portal/jobs/${jobId}`);
@@ -79,16 +80,19 @@ export const rescheduleTurnedDownEmail = ({
   ],
 });
 
-// what moving it costs, from what the request was
+// what moving it costs, from what the request was, and where a fee goes:
+// with the price when the clean is done, or on its week's Bill (ADR-0016)
 const costLine = ({
   cost,
   feeCents,
   onPlan,
+  weeklyBill,
   lateHours,
 }: {
   cost: RescheduleCost;
   feeCents: number;
   onPlan: boolean;
+  weeklyBill: BillPayment | null;
   lateHours: number;
 }) =>
   cost === "free"
@@ -97,8 +101,8 @@ const costLine = ({
       ? `As it was less than ${lateHours} hours before the clean, it's a Late Reschedule. Your first one is free${onPlan ? "" : ", and your Deposit still counts towards the price"}.`
       : feeCents > 0
         ? onPlan
-          ? `As it's a second Late Reschedule, it's a Late Cancellation, with a ${formatMoney(feeCents)} fee (the same as your plan's Deposit), charged with the price when the clean is done.`
-          : `As it's a second Late Reschedule, it's a Late Cancellation: your ${formatMoney(feeCents)} Deposit is kept as the fee, and the full price is charged when the clean is done.`
+          ? `As it's a second Late Reschedule, it's a Late Cancellation, with a ${formatMoney(feeCents)} fee (the same as your plan's Deposit), ${weeklyBill ? `which ${ON_WEEKS_BILL} with the price` : "charged with the price when the clean is done"}.`
+          : `As it's a second Late Reschedule, it's a Late Cancellation: your ${formatMoney(feeCents)} Deposit is kept as the fee, and the full price ${weeklyBill ? ON_WEEKS_BILL : "is charged when the clean is done"}.`
         : onPlan
           ? "An earlier Late Reschedule already made the fee due, so there's nothing more to pay for moving it."
           : "Your Deposit was already kept as the fee for an earlier Late Reschedule, so there's nothing more to pay for moving it.";
@@ -118,6 +122,7 @@ export const rescheduleConfirmedEmail = ({
   cost: RescheduleCost;
   feeCents: number;
   onPlan: boolean;
+  weeklyBill: BillPayment | null;
   lateHours: number;
 }): Email => ({
   subject: "Your clean has moved",

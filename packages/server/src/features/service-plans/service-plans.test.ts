@@ -16,8 +16,6 @@ import type {
   SignedInAccount,
 } from "@empire-cleaning/models";
 import { db } from "#db";
-import { setBilling } from "#features/bills";
-import { findClientByEmail } from "#features/clients";
 import { confirmAssignment, offerAssignment } from "#features/assignments";
 import { completeJob } from "#features/completion";
 import { bookJob } from "#features/jobs";
@@ -30,7 +28,7 @@ import {
   testPayments,
 } from "../../../tests/harness.ts";
 import {
-  addPremises,
+  billWeekly,
   casey,
   completedFirstClean,
   crewedServicePlan,
@@ -42,18 +40,6 @@ import { generateServicePlanJobs } from "./service-plans.ts";
 import { findService, SEEDED } from "#features/services";
 
 type Agent = Awaited<ReturnType<typeof signIn>>;
-
-// Casey, with business premises, billed weekly (ADR-0016)
-const billWeekly = async (payment: "automatic" | "on_page") => {
-  const owner = (await findClientByEmail(casey.email))!;
-  await addPremises(owner.id);
-  await setBilling(owner.id, {
-    weekly: true,
-    payment,
-    termsDays: 14,
-    billingEmail: null,
-  });
-};
 
 // The First Clean is done at 11am on Monday 12 January 2026, New York time,
 // and the clock is left there, so plan Jobs are generated up to Monday 9

@@ -188,7 +188,7 @@ export function Adjustments({ job }: { job: OfficeJob }) {
   return (
     <Section
       title="Adjustments"
-      description="What the Cleaner reported that differs from the Quote, priced from the Price List the Quote used. Increases are only charged once the Client approves them."
+      description="What the Cleaner reported that differs from the Quote, priced from the Price List the Quote used. Increases are only added once the Client approves them."
     >
       {adjustments.length === 0 ? (
         <p className="text-sm text-fg-muted">
@@ -325,7 +325,7 @@ function ReviewForm({
       <p className="text-sm text-fg-muted">
         Worked out from the Price List, it's{" "}
         {formatMoney(adjustment.workedOutCents)} before tax. The Client is
-        emailed to approve it, and it's only charged if they do.
+        emailed to approve it, and it's only added if they do.
       </p>
       <PriceForm
         label="Price before tax"
@@ -367,6 +367,13 @@ function ReviewForm({
   );
 }
 
+// where a change to a Completed Job's price goes: charged or refunded now,
+// or on the Client's next weekly Bill (ADR-0016)
+const settledHow = (job: OfficeJob) =>
+  job.weeklyBill
+    ? "goes on the Client's next Bill"
+    : "is charged or refunded straight away";
+
 // an Adjustment that counts: change its price, charging or refunding the
 // difference, or remove it
 function CorrectForm({
@@ -387,7 +394,7 @@ function CorrectForm({
         {adjustment.status === "approved"
           ? "The Client approved this price, so it can only be lowered."
           : "This takes the price off the Job."}{" "}
-        A correction is charged or refunded straight away.
+        A correction {settledHow(job)}.
       </p>
       <PriceForm
         label={
@@ -438,8 +445,8 @@ function ConfirmRemove({
   return (
     <>
       <p>
-        If it changed the price, the difference is charged or refunded straight
-        away, and the Client is emailed.
+        If it changed the price, the difference {settledHow(job)}, and the
+        Client is emailed.
       </p>
       {action.problem && <Notice tone="danger">{action.problem}</Notice>}
       <Actions>
@@ -481,9 +488,11 @@ export function UndoCompletion({ job }: { job: OfficeJob }) {
           <>
             <p>
               For a Job marked Completed by mistake. It goes back to booked, its
-              Adjustments are removed, and everything charged except the Deposit
-              is refunded. The Client is emailed, and the Cleaner can complete
-              it again.
+              Adjustments are removed, and{" "}
+              {job.weeklyBill
+                ? "what its Bills billed is credited on the Client's next Bill"
+                : "everything charged except the Deposit is refunded"}
+              . The Client is emailed, and the Cleaner can complete it again.
             </p>
             {action.problem && <Notice tone="danger">{action.problem}</Notice>}
             <Actions>
@@ -532,6 +541,12 @@ export function JobMoney({ payment }: { payment: JobPayment }) {
         {formatMoney(payment.paidCents)}
         {payment.paymentMethod && ` by ${payment.paymentMethod}`}
       </dd>
+      {payment.billedCents !== 0 && (
+        <>
+          <dt className="font-semibold">On weekly Bills</dt>
+          <dd>{formatMoney(payment.billedCents)}</dd>
+        </>
+      )}
       {payment.owedCents !== 0 && (
         <>
           <dt className="font-semibold">

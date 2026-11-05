@@ -36,6 +36,11 @@ const feeChargeLine = (settled: Settled) => {
   return [];
 };
 
+// where a plan Job's fee went, for the Office: charged now, or on the Bill
+// for the week the Job was in (ADR-0016), which needn't be the next one made
+const feeTaken = (settled: Settled) =>
+  settled.billed ? "goes on that week's Bill" : "is charged";
+
 const portalButton = (jobId: string) =>
   button("See your clean", `/portal/jobs/${jobId}`);
 const officeButton = (jobId: string) =>
@@ -140,7 +145,7 @@ export const officeCancelledEmail = ({
   onPlan,
   late,
   feeCents,
-  failure,
+  settled,
 }: {
   client: string;
   jobId: string;
@@ -148,8 +153,7 @@ export const officeCancelledEmail = ({
   onPlan: boolean;
   late: boolean;
   feeCents: number;
-  // why the fee couldn't be charged
-  failure: string | null;
+  settled: Settled;
 }): Email => ({
   subject: onPlan
     ? `${client} skipped a plan Job`
@@ -164,9 +168,9 @@ export const officeCancelledEmail = ({
     paragraph(
       onPlan
         ? late
-          ? `It was a Late Cancellation, so the ${formatMoney(feeCents)} fee is charged.`
+          ? `It was a Late Cancellation, so the ${formatMoney(feeCents)} fee ${feeTaken(settled)}.`
           : feeCents > 0
-            ? `It was more than 24 hours ahead, but the ${formatMoney(feeCents)} fee for a Late Reschedule is charged.`
+            ? `It was more than 24 hours ahead, but the ${formatMoney(feeCents)} fee for a Late Reschedule ${feeTaken(settled)}.`
             : "It was more than 24 hours ahead, so there's no fee."
         : late
           ? "It was a Late Cancellation, so the Deposit is kept as the fee."
@@ -174,10 +178,10 @@ export const officeCancelledEmail = ({
             ? "It was more than 24 hours ahead, but a Late Reschedule had already kept the Deposit as the fee."
             : "It was more than 24 hours ahead, so the Deposit has been refunded.",
     ),
-    ...(failure
+    ...(settled.failure
       ? [
           paragraph(
-            `The fee couldn't be charged (${failure}), so the Job is Unpaid.`,
+            `The fee couldn't be charged (${settled.failure}), so the Job is Unpaid.`,
           ),
         ]
       : []),
@@ -233,7 +237,7 @@ export const officeNoAccessEmail = ({
   clean,
   reason,
   onPlan,
-  failure,
+  settled,
 }: {
   cleaner: string;
   client: string;
@@ -241,7 +245,7 @@ export const officeNoAccessEmail = ({
   clean: Clean;
   reason: string;
   onPlan: boolean;
-  failure: string | null;
+  settled: Settled;
 }): Email => ({
   subject: `No Access at ${clean.address}`,
   blocks: [
@@ -249,9 +253,9 @@ export const officeNoAccessEmail = ({
     cleanDetails(clean),
     paragraph(
       onPlan
-        ? failure
-          ? `${client} has been told. The fee couldn't be charged (${failure}), so the Job is Unpaid.`
-          : `${client} has been told, and the fee is charged.`
+        ? settled.failure
+          ? `${client} has been told. The fee couldn't be charged (${settled.failure}), so the Job is Unpaid.`
+          : `${client} has been told, and the fee ${feeTaken(settled)}.`
         : `${client} has been told, and the Deposit is kept as the fee.`,
     ),
     officeButton(jobId),

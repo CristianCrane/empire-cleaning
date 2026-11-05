@@ -14,7 +14,11 @@ import {
   refusingInserts,
   testPayments,
 } from "../../../tests/harness.ts";
-import { casey, crewedServicePlan } from "../../../tests/fixtures.ts";
+import {
+  billWeekly,
+  casey,
+  crewedServicePlan,
+} from "../../../tests/fixtures.ts";
 
 type Agent = Awaited<ReturnType<typeof signIn>>;
 
@@ -124,6 +128,18 @@ describe("skipping a plan Job", () => {
     );
   });
 
+  test("within 24 hours puts the fee on a weekly-billed Client's Bill for that week, and the Office is told so (#244 #5)", async () => {
+    const { client, jobId } = await startedPlan();
+    await billWeekly();
+    testClock().set(SUNDAY_10AM);
+    await skip(client, jobId, PLAN_DEPOSIT).expect(200);
+
+    expect(chargesAfterDeposit()).toEqual([]);
+    expect(testEmail().lastTo("olive@example.com").text).toContain(
+      "It was a Late Cancellation, so the $50.46 fee goes on that week's Bill.",
+    );
+  });
+
   test("is refused, not charged, when it has become late since the Client looked", async () => {
     const { client, jobId } = await startedPlan();
     testClock().set(SUNDAY_10AM);
@@ -221,6 +237,23 @@ describe("No Access on a plan Job", () => {
     expect((await officePlan(office, planId)).depositCents).toBe(PLAN_DEPOSIT);
     expect(testEmail().lastTo(casey.email).text).toMatch(
       /Service Plan carries on/,
+    );
+  });
+
+  test("tells the Office a weekly-billed Client's fee goes on that week's Bill (#244 #5)", async () => {
+    const { jobId } = await startedPlan();
+    await billWeekly();
+    testClock().set(MONDAY_9_30AM);
+    await (
+      await signIn(CORY)
+    )
+      .post(`/api/assignments/mine/${jobId}/no-access`)
+      .send({ reason: "Nobody home and the gate was locked" })
+      .expect(200);
+
+    expect(chargesAfterDeposit()).toEqual([]);
+    expect(testEmail().lastTo("olive@example.com").text).toContain(
+      "Casey Client has been told, and the fee goes on that week's Bill.",
     );
   });
 

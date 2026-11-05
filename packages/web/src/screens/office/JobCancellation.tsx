@@ -21,15 +21,18 @@ import {
 import { postJson } from "../../api.ts";
 import { formatDateTime, formatMoney } from "../format.ts";
 import { useAction } from "../action.ts";
+import type { CostedJob } from "../RescheduleParts.tsx";
 
 // What cancelling costs, in a sentence. A plan Job has no Deposit of its
-// own: its fee is the plan's Deposit amount, charged to the saved card.
-const describeTerms = (terms: CancellationTerms, onPlan = false) =>
-  onPlan
+// own: its fee is the plan's Deposit amount, charged to the saved card, or
+// on the Bill for the Job's week (ADR-0016).
+const describeTerms = (terms: CancellationTerms, job: CostedJob) => {
+  const charged = job.weeklyBill ? "goes on that week's Bill" : "is charged";
+  return job.servicePlanId !== null
     ? terms.late
-      ? `It's a Late Cancellation: a ${formatMoney(terms.feeCents)} fee, the plan's Deposit amount, is charged. The plan's Deposit stays held.`
+      ? `It's a Late Cancellation: a ${formatMoney(terms.feeCents)} fee, the plan's Deposit amount, ${charged}. The plan's Deposit stays held.`
       : terms.feeCents > 0
-        ? `The ${formatMoney(terms.feeCents)} fee for a Late Reschedule is charged.`
+        ? `The ${formatMoney(terms.feeCents)} fee for a Late Reschedule ${charged}.`
         : "It's free."
     : terms.late
       ? `It's a Late Cancellation: the ${formatMoney(terms.feeCents)} Deposit is kept as the fee.`
@@ -38,6 +41,7 @@ const describeTerms = (terms: CancellationTerms, onPlan = false) =>
         : terms.refundCents > 0
           ? `It's free: the ${formatMoney(terms.refundCents)} Deposit is refunded.`
           : "It's free.";
+};
 
 // Office Staff cancel a booked Job, for the Client (by the cancellation
 // policy) or because Empire Cleaning can't do it (always refunded in full).
@@ -78,13 +82,13 @@ export function CancelJob({ job }: { job: OfficeJob }) {
             >
               <Radio
                 value="client"
-                description={describeTerms(terms.client, onPlan)}
+                description={describeTerms(terms.client, job)}
               >
                 The Client asked
               </Radio>
               <Radio
                 value="empire"
-                description={describeTerms(terms.empire, onPlan)}
+                description={describeTerms(terms.empire, job)}
               >
                 Empire Cleaning can't do it
               </Radio>
@@ -123,7 +127,7 @@ export function CancelJob({ job }: { job: OfficeJob }) {
 }
 
 // the money on a Job that didn't happen: its fee, if any, and what's been
-// paid or refunded. A failed charge is a Notice above, with its retry.
+// paid, billed weekly or refunded. A failed charge is a Notice above, with its retry.
 export function FeeMoney({
   feeCents,
   payment,
@@ -137,6 +141,12 @@ export function FeeMoney({
       <dd>{feeCents > 0 ? formatMoney(feeCents) : "None"}</dd>
       <dt className="font-semibold">Paid</dt>
       <dd>{formatMoney(payment.paidCents)}</dd>
+      {payment.billedCents !== 0 && (
+        <>
+          <dt className="font-semibold">On weekly Bills</dt>
+          <dd>{formatMoney(payment.billedCents)}</dd>
+        </>
+      )}
       {payment.owedCents !== 0 && (
         <>
           <dt className="font-semibold">

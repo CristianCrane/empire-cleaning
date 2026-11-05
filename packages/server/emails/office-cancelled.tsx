@@ -1,6 +1,6 @@
 import { officeCancelledEmail } from "../src/features/cancellation/emails.ts";
 import { preview } from "../src/services/email/preview.tsx";
-import { clean, client, jobId } from "./samples.ts";
+import { clean, client, jobId, settled } from "./samples.ts";
 
 export default preview(
   officeCancelledEmail({
@@ -10,6 +10,6 @@ export default preview(
     onPlan: true,
     late: true,
     feeCents: 5046,
-    failure: null,
+    settled,
   }),
 );

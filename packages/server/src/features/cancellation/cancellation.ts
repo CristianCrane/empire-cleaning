@@ -334,7 +334,7 @@ const tellOffice = async (
         onPlan,
         late,
         feeCents,
-        failure: settled.failure,
+        settled,
       }),
   );
 };
@@ -424,7 +424,7 @@ export const recordNoAccess = async (
       clean: await cleanOf(job, property),
       reason,
       onPlan,
-      failure: settled.failure,
+      settled,
     }),
   );
 };

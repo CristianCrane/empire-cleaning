@@ -1,8 +1,10 @@
+import type { BillPayment } from "@empire-cleaning/models";
 import { and, count, eq, ne, sum } from "drizzle-orm";
 import type { db, Tx } from "../../db/index.ts";
 import { startOfDay } from "../../services/clock/index.ts";
-import type { Client } from "../clients/clients.schema.ts";
+import { clients, type Client } from "../clients/clients.schema.ts";
 import type { Job } from "../jobs/jobs.schema.ts";
+import { properties } from "../properties/properties.schema.ts";
 import { billLines, bills } from "./bills.schema.ts";
 
 // Only schemas are imported here, as settling a Job's money calls it and
@@ -33,6 +35,45 @@ export const weeklyBillOf = (
   client: Pick<Client, "billedWeeklyFrom" | "billPayment">,
 ) => (client.billedWeeklyFrom ? client.billPayment : null);
 
+// how a Job's Client pays for it: weeklyBillOf, once the Job starts in or
+// after the week weekly billing was switched on, or null when it's charged
+// when it's done
+export const weeklyBillFor = (
+  job: Pick<Job, "startsAt">,
+  client: Pick<Client, "billedWeeklyFrom" | "billPayment">,
+) =>
+  client.billedWeeklyFrom && job.startsAt >= startOfDay(client.billedWeeklyFrom)
+    ? client.billPayment
+    : null;
+
+// where a clean, or a fee, owed before its week's Bill is made goes, as the
+// Client is told; anything settled after the clean goes on their next Bill
+export const ON_WEEKS_BILL = "goes on your Bill for that week";
+
+// when a weekly Bill is made, and how the Client pays it
+export const billPaid: Record<BillPayment, string> = {
+  automatic:
+    "made the following Monday and charged to your saved Payment Method",
+  on_page:
+    "made the following Monday, which you pay on its page by its due date",
+};
+
+// weeklyBillFor a Job, read from its home's Client, for the Job's views
+export const weeklyBillOfJob = async (
+  job: Pick<Job, "propertyId" | "startsAt">,
+  tx: Tx | typeof db,
+) => {
+  const [owner] = await tx
+    .select({
+      billedWeeklyFrom: clients.billedWeeklyFrom,
+      billPayment: clients.billPayment,
+    })
+    .from(properties)
+    .innerJoin(clients, eq(clients.id, properties.clientId))
+    .where(eq(properties.id, job.propertyId));
+  return weeklyBillFor(job, owner!);
+};
+
 /**
  * Whether a Job's money goes on its Client's weekly Bills rather than being
  * charged on its own (ADR-0016): its Client is billed weekly, it starts in
@@ -43,9 +84,7 @@ export const weeklyBillOf = (
  */
 export const isBilledWeekly = (
   job: Pick<Job, "status" | "feeCents" | "startsAt">,
-  client: Pick<Client, "billedWeeklyFrom">,
+  client: Pick<Client, "billedWeeklyFrom" | "billPayment">,
   billed: { lines: number },
 ) =>
-  client.billedWeeklyFrom !== null &&
-  job.startsAt >= startOfDay(client.billedWeeklyFrom) &&
-  (owesOnBill(job) || billed.lines > 0);
+  weeklyBillFor(job, client) !== null && (owesOnBill(job) || billed.lines > 0);

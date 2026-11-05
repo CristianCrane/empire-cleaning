@@ -29,7 +29,6 @@ const PickInSchedule = (props: TimePickerProps) => (
 export function MoveActions({ job }: { job: OfficeJob }) {
   const terms = job.rescheduleTerms;
   if (!terms) return null;
-  const onPlan = job.servicePlanId !== null;
   return (
     <>
       <MoveJob
@@ -41,7 +40,7 @@ export function MoveActions({ job }: { job: OfficeJob }) {
         terms={terms}
         base={`/api/jobs/${job.id}`}
         label="Ask for a new time"
-        describeCost={(cost, feeCents) => costForOffice(cost, feeCents, onPlan)}
+        describeCost={(cost, feeCents) => costForOffice(cost, feeCents, job)}
         done="Reschedule Request made"
         Picker={PickInSchedule}
         size="wide"
@@ -107,13 +106,7 @@ function Confirm({
         <dt className="font-semibold">To</dt>
         <dd>{formatDateTime(request.startsAt)}</dd>
         <dt className="font-semibold">Cost</dt>
-        <dd>
-          {costForOffice(
-            request.cost,
-            request.feeCents,
-            job.servicePlanId !== null,
-          )}
-        </dd>
+        <dd>{costForOffice(request.cost, request.feeCents, job)}</dd>
       </dl>
       <p className="text-sm text-fg-muted">
         Confirming moves the Job and Offers it afresh to its crew. The Client

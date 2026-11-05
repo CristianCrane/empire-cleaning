@@ -56,9 +56,9 @@ export function PortalPaymentMethod() {
         />
         <Heading level={1}>Payment Method</Heading>
         <p className="text-fg-muted">
-          We take a Deposit from this card when you book, and the rest when each
-          clean is done. If a clean couldn't be charged, saving a card here
-          tries it again.
+          We take a Deposit from this card when you book. Each clean is charged
+          to it when it's done, or goes on your weekly Bill if you have one. If
+          a clean couldn't be charged, saving a card here tries it again.
         </p>
       </div>
 

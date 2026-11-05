@@ -231,12 +231,8 @@ const noticesFor = (job: OfficeJob): ReactNode[] => {
             {request.byClient ? "The Client asked" : "The Office asked"} to move
             it to {formatDateTime(request.startsAt)}.
           </strong>{" "}
-          {costForOffice(
-            request.cost,
-            request.feeCents,
-            job.servicePlanId !== null,
-          )}{" "}
-          The new time is held until you answer.
+          {costForOffice(request.cost, request.feeCents, job)} The new time is
+          held until you answer.
         </p>
       </Notice>,
     );
@@ -267,7 +263,7 @@ const noticesFor = (job: OfficeJob): ReactNode[] => {
             The Cleaner reported {toReview}{" "}
             {toReview === 1 ? "increase" : "increases"} to review.
           </strong>{" "}
-          Each is only charged once the Client approves it.
+          Each is only added once the Client approves it.
         </p>
       </Notice>,
     );

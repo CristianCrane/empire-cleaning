@@ -1357,6 +1357,9 @@ export type OfficeJob = ScheduledJob & {
   // what moving it would cost if asked now; null once it can't be moved or
   // while a request is pending
   rescheduleTerms: RescheduleTerms | null;
+  // how its Client pays for it: on a weekly Bill, charged or paid on its
+  // page (ADR-0016), or null when it's charged when it's done
+  weeklyBill: BillPayment | null;
   // its latest Reschedule Request, pending or answered; null if none
   rescheduleRequest: RescheduleRequestView | null;
   addOns: string[];
@@ -1628,6 +1631,9 @@ export type ClientJobDetail = ClientJob & {
   // what moving it would cost if asked now; null once it can't be moved in
   // the portal (it isn't booked, it has started, or a request is pending)
   rescheduleTerms: RescheduleTerms | null;
+  // how they pay for it: on a weekly Bill, charged or paid on its page
+  // (ADR-0016), or null when it's charged when it's done
+  weeklyBill: BillPayment | null;
   // its latest Reschedule Request, pending or answered; null if none
   rescheduleRequest: RescheduleRequestView | null;
   // the Service Plan it was generated for, which cancelling it skips; null

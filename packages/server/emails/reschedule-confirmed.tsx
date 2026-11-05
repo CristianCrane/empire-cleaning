@@ -11,6 +11,7 @@ export default preview(
     cost: "free_late",
     feeCents: 0,
     onPlan: false,
+    weeklyBill: null,
     lateHours: 24,
   }),
 );

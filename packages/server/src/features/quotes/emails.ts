@@ -14,6 +14,7 @@ import {
   formatWhen,
   weekdayName,
 } from "../../services/email/format.ts";
+import { billPaid, ON_WEEKS_BILL } from "../bills/billed-weekly.ts";
 import { describePlan, recurrenceLabel } from "./plan-days.ts";
 
 // Every Quote email links to the Quote's page, with no sign-in power
@@ -297,14 +298,6 @@ export type PlanCleans = {
 const chargedTo = (paid: PaidWith) =>
   paid.paymentMethod ? `your ${paid.paymentMethod}` : "your card";
 
-// when a weekly Bill is made, and how the Client pays it
-const billPaid: Record<BillPayment, string> = {
-  automatic:
-    "made the following Monday and charged to your saved Payment Method",
-  on_page:
-    "made the following Monday, which you pay on its page by its due date",
-};
-
 // a plan's weekdays, what each clean on them costs, and how it's paid
 const planPrices = ({ cleans }: PlanCleans, paid: PaidWith, now = "") => {
   const each =
@@ -406,8 +399,7 @@ export const planChangeEmail = ({
 // what was taken for a one-off Job, and how the rest is paid
 const bookingPrice = (paid: Paid) => {
   const billed =
-    paid.weeklyBill &&
-    `goes on your Bill for that week, ${billPaid[paid.weeklyBill]}`;
+    paid.weeklyBill && `${ON_WEEKS_BILL}, ${billPaid[paid.weeklyBill]}`;
   return paid.depositCents > 0
     ? `We've taken your Deposit of ${formatMoney(paid.depositCents)} from ${chargedTo(paid)}. The rest, ${formatMoney(paid.totalCents - paid.depositCents)}, ${billed || "is charged to it when the clean is done"}.`
     : `The ${formatMoney(paid.totalCents)} ${billed || `is charged to ${chargedTo(paid)} when the clean is done`}.`;

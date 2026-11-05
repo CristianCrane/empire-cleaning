@@ -9,6 +9,7 @@ import {
   PaymentMethodError,
   type SavedPaymentMethod,
 } from "../../services/payment-gateway/index.ts";
+import { weeklyBillOf } from "../bills/billed-weekly.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { paymentMethodLinkEmail } from "./emails.ts";
 import {
@@ -122,7 +123,11 @@ export const sendPaymentMethodLink = async (clientId: string) => {
   if (client.email) {
     await email.send({
       to: client.email,
-      ...paymentMethodLinkEmail({ name: client.name, email: client.email }),
+      ...paymentMethodLinkEmail({
+        name: client.name,
+        email: client.email,
+        weeklyBill: weeklyBillOf(client),
+      }),
     });
   }
   return { sentTo: client.email };
