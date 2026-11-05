@@ -49,6 +49,7 @@ import {
   paymentOf,
   settleAfterChange,
   settleJob,
+  totalOf,
   type Settled,
 } from "./balance.ts";
 import { adjustments, type Adjustment } from "./completion.schema.ts";
@@ -846,37 +847,49 @@ export const pastJobsFor = async (
       ),
     )
     .orderBy(desc(jobs.startsAt));
-  const waiting =
+  // what each Completed one cost, read for them all at once; an Unpaid
+  // one's whole ledger only for what it owes
+  const [quoted, adjusted] = await Promise.all([
+    quotedJobs(
+      rows.filter((r) => r.job.status === "completed").map((r) => r.job.id),
+    ),
     rows.length === 0
       ? []
-      : await db
-          .select({ jobId: adjustments.jobId })
+      : db
+          .select({
+            jobId: adjustments.jobId,
+            status: adjustments.status,
+            totalCents: adjustments.totalCents,
+          })
           .from(adjustments)
           .where(
-            and(
-              inArray(
-                adjustments.jobId,
-                rows.map((r) => r.job.id),
-              ),
-              eq(adjustments.status, "proposed"),
+            inArray(
+              adjustments.jobId,
+              rows.map((r) => r.job.id),
             ),
-          );
+          ),
+  ]);
   return Promise.all(
-    rows.map(async ({ job, property, planId }) => ({
-      ...(await clientJobOf(job, property)),
-      status: job.status as ClientPastJob["status"],
-      skipped:
-        job.status === "cancelled" &&
-        job.cancelledBy === "client" &&
-        planId !== null,
-      completedAt: job.completedAt?.toISOString() ?? null,
-      totalCents:
-        job.status === "completed" ? (await paymentOf(job)).totalCents : 0,
-      feeCents: job.status === "completed" ? 0 : (job.feeCents ?? 0),
-      unpaid: job.unpaidSince !== null,
-      owedCents: job.unpaidSince ? (await paymentOf(job)).owedCents : 0,
-      awaitingAnswer: waiting.filter((w) => w.jobId === job.id).length,
-    })),
+    rows.map(async ({ job, property, planId }) => {
+      const own = adjusted.filter((a) => a.jobId === job.id);
+      return {
+        ...(await clientJobOf(job, property)),
+        status: job.status as ClientPastJob["status"],
+        skipped:
+          job.status === "cancelled" &&
+          job.cancelledBy === "client" &&
+          planId !== null,
+        completedAt: job.completedAt?.toISOString() ?? null,
+        totalCents:
+          job.status === "completed"
+            ? totalOf(quoted.get(job.id)!.totalCents, own)
+            : 0,
+        feeCents: job.status === "completed" ? 0 : (job.feeCents ?? 0),
+        unpaid: job.unpaidSince !== null,
+        owedCents: job.unpaidSince ? (await paymentOf(job)).owedCents : 0,
+        awaitingAnswer: own.filter((a) => a.status === "proposed").length,
+      };
+    }),
   );
 };
 
