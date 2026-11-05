@@ -1,6 +1,6 @@
 import { officeNoAccessEmail } from "../src/features/cancellation/emails.ts";
 import { preview } from "../src/services/email/preview.tsx";
-import { clean, cleaner, client, jobId } from "./samples.ts";
+import { clean, cleaner, client, jobId, settled } from "./samples.ts";
 
 export default preview(
   officeNoAccessEmail({
@@ -10,6 +10,6 @@ export default preview(
     clean,
     reason: "Nobody home and the gate was locked",
     onPlan: false,
-    failure: null,
+    settled,
   }),
 );

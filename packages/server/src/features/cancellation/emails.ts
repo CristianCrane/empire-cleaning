@@ -140,7 +140,7 @@ export const officeCancelledEmail = ({
   onPlan,
   late,
   feeCents,
-  failure,
+  settled,
 }: {
   client: string;
   jobId: string;
@@ -148,8 +148,7 @@ export const officeCancelledEmail = ({
   onPlan: boolean;
   late: boolean;
   feeCents: number;
-  // why the fee couldn't be charged
-  failure: string | null;
+  settled: Settled;
 }): Email => ({
   subject: onPlan
     ? `${client} skipped a plan Job`
@@ -174,10 +173,10 @@ export const officeCancelledEmail = ({
             ? "It was more than 24 hours ahead, but a Late Reschedule had already kept the Deposit as the fee."
             : "It was more than 24 hours ahead, so the Deposit has been refunded.",
     ),
-    ...(failure
+    ...(settled.failure
       ? [
           paragraph(
-            `The fee couldn't be charged (${failure}), so the Job is Unpaid.`,
+            `The fee couldn't be charged (${settled.failure}), so the Job is Unpaid.`,
           ),
         ]
       : []),
@@ -233,7 +232,7 @@ export const officeNoAccessEmail = ({
   clean,
   reason,
   onPlan,
-  failure,
+  settled,
 }: {
   cleaner: string;
   client: string;
@@ -241,7 +240,7 @@ export const officeNoAccessEmail = ({
   clean: Clean;
   reason: string;
   onPlan: boolean;
-  failure: string | null;
+  settled: Settled;
 }): Email => ({
   subject: `No Access at ${clean.address}`,
   blocks: [
@@ -249,8 +248,8 @@ export const officeNoAccessEmail = ({
     cleanDetails(clean),
     paragraph(
       onPlan
-        ? failure
-          ? `${client} has been told. The fee couldn't be charged (${failure}), so the Job is Unpaid.`
+        ? settled.failure
+          ? `${client} has been told. The fee couldn't be charged (${settled.failure}), so the Job is Unpaid.`
           : `${client} has been told, and the fee is charged.`
         : `${client} has been told, and the Deposit is kept as the fee.`,
     ),
