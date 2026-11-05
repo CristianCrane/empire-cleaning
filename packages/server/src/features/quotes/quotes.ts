@@ -1422,13 +1422,16 @@ export const saveDraft = async (
   const allowed = new Set(
     (await addOnChoices(list, quote.id, serviceKey)).map((a) => a.key),
   );
-  // one that doesn't go with the Service the Office has just switched to is
-  // left off its price (priceOptions) rather than refused: the Draft page
-  // keeps it ticked, so switching back prices it again
-  const unknown = input.addOns.findIndex((key) => {
-    const addOn = list.addOns.find((a) => a.key === key);
-    return !addOn || (goesWith(addOn, serviceKey) && !allowed.has(key));
-  });
+  const chosen = list.addOns.filter((a) => input.addOns.includes(a.key));
+  // only those that go with the Service are priced, by any option: one the
+  // Office ticked before switching to a Service it doesn't go with stays
+  // ticked on the Draft page, and switching back prices it again
+  const addOnKeys = ownAddOns(chosen, serviceKey).map((a) => a.key);
+  const unknown = input.addOns.findIndex(
+    (key) =>
+      !chosen.some((a) => a.key === key) ||
+      (addOnKeys.includes(key) && !allowed.has(key)),
+  );
   if (unknown !== -1) {
     throw fieldError(["addOns", unknown], "Choose from the Add-ons listed");
   }
@@ -1493,12 +1496,7 @@ export const saveDraft = async (
     };
   }
 
-  const options = priceOptions(
-    list,
-    property,
-    [...new Set(input.addOns)],
-    terms,
-  );
+  const options = priceOptions(list, property, addOnKeys, terms);
   await db.transaction(async (tx) => {
     await lockProperty(tx, quote.propertyId);
     const { quote: current, draft: unsent } = await findDraftRevision(id, tx);

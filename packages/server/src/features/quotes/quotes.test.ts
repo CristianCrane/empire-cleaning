@@ -398,6 +398,37 @@ describe("drafting a First Clean Quote", () => {
     ]);
   });
 
+  test("switching a Draft away from an Add-on's only Service leaves it off the recommended Service's price too, so it can be sent", async () => {
+    const office = await signInAsOffice();
+    const list = (await office.get("/api/price-list").expect(200))
+      .body as PriceList;
+    await office
+      .put("/api/price-list")
+      .send({
+        ...list,
+        addOns: list.addOns.map((a) =>
+          a.name === "Inside the oven"
+            ? { ...a, serviceKeys: [SEEDED.deep] }
+            : a,
+        ),
+      })
+      .expect(200);
+    const oven = list.addOns.find((a) => a.name === "Inside the oven")!;
+    const { body } = await submit(
+      guestAsk({ serviceKey: SEEDED.deep, addOns: [oven.key] }),
+    ).expect(201);
+    const draft = await startDraft(office, body.id as string);
+
+    // a Standard Clean, with a Deep Clean recommended for the first visit
+    const standard = await save(office, draft, {
+      serviceKey: SEEDED.standard,
+      addOns: [oven.key],
+      proposedStart: nextMonday,
+    });
+    expect(standard.draft!.options.map((o) => o.addOns)).toEqual([[], []]);
+    await office.post(`/api/quotes/${draft.id}/send`).expect(200);
+  });
+
   test("at the Minimum Charge an Add-on adds nothing", async () => {
     const office = await signInAsOffice();
     await setService(office, "standard", { minimumChargeCents: 50_000 });
