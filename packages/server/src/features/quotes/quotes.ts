@@ -1558,9 +1558,11 @@ const refuseUntimely = (revision: KindedRevision, rows: PricedOption[]) => {
 // a link to the Quote. It's priced afresh first, from the current Services
 // and Price List and the Property as it is now, and refused if that changes
 // any figure the Client would be shown, so nothing goes at a price the
-// Office hasn't seen (an override's Suggested Price may move under it). A Service Plan Quote's weekdays are put in order, earliest first.
-// Sending one on an Expired Quote revives it, unless a newer Quote of its
-// kind is open for the Property.
+// Office hasn't seen (an override's Suggested Price may move under it). A
+// Service Plan Quote's weekdays are put in order, earliest first. The Quote
+// takes the Draft's Service, refused while another Quote for that one is
+// open here. Sending one on an Expired Quote revives it, unless a newer
+// Quote of its kind is open for the Property.
 export const sendQuote = async (id: string): Promise<OfficeQuote> => {
   const quote = await findQuote(id);
   const list = await currentPricing();

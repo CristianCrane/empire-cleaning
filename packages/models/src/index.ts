@@ -1148,7 +1148,8 @@ export type StartRevisionInput = { kind?: QuoteKind };
 // each weekday's own, so it leaves out crewSize, proposedStart and
 // overrides.
 export type QuoteDraftInput = {
-  // a one-off Quote's Service, by key; it stays as it is without one
+  // a one-off Draft's Service, by key, which becomes the Quote's once it's
+  // sent (at once while nothing is); it stays as it is without one
   serviceKey?: string;
   // for a Service priced by area, the area to price on in sq ft; null (or
   // none) follows the Property's floor area, else the Client's rough one
