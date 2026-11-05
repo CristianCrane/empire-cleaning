@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "prepare": "git rev-parse --git-dir >/dev/null 2>&1 && git config core.hooksPath .githooks || true",
-    "dev":"pnpm --color --recursive --parallel run dev",
+    "dev": "pnpm --color --recursive --parallel run dev",
     "build": "pnpm --color --recursive run build",
     "test": "pnpm --color --recursive --workspace-concurrency=1 --no-bail run test:quick",
     "check": "pnpm --color --recursive run check",
