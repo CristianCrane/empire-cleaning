@@ -9,7 +9,6 @@ import type {
   SignedInAccount,
 } from "@empire-cleaning/models";
 import { db } from "#db";
-import { setBilling } from "#features/bills";
 import { findClientByEmail } from "#features/clients";
 import { paymentMethods } from "#features/payments";
 import { offerAssignment } from "#features/assignments";
@@ -23,7 +22,7 @@ import {
   testPayments,
 } from "../../../tests/harness.ts";
 import {
-  addPremises,
+  billWeekly,
   casey,
   crewedServicePlan,
 } from "../../../tests/fixtures.ts";
@@ -33,18 +32,6 @@ import { generateServicePlanJobs } from "./service-plans.ts";
 import { SEEDED } from "#features/services";
 
 type Agent = Awaited<ReturnType<typeof signIn>>;
-
-// Casey, with business premises, billed weekly (ADR-0016)
-const billWeekly = async (payment: "automatic" | "on_page") => {
-  const owner = (await findClientByEmail(casey.email))!;
-  await addPremises(owner.id);
-  await setBilling(owner.id, {
-    weekly: true,
-    payment,
-    termsDays: 14,
-    billingEmail: null,
-  });
-};
 
 // Casey's weekly Standard Clean plan from 9am on Monday 19 January 2026, for
 // a crew of 1, its Jobs booked up to 9 February, with a $50.46 Deposit. The

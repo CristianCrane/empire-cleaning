@@ -13,8 +13,6 @@ import type {
   ScheduleDay,
 } from "@empire-cleaning/models";
 import { db } from "#db";
-import { setBilling } from "#features/bills";
-import { findClientByEmail } from "#features/clients";
 import { sendDueReminders } from "#features/jobs";
 import { charges, settleOpenPayments } from "#features/payments";
 import { FAKE_SIGNATURE } from "../../../tests/fakes/payment-gateway.ts";
@@ -28,7 +26,7 @@ import {
   testPayments,
 } from "../../../tests/harness.ts";
 import {
-  addPremises,
+  billWeekly,
   bookedJob,
   casey,
   guestAsk,
@@ -40,18 +38,6 @@ import { formatMoney } from "#services/email";
 import { SEEDED } from "#features/services";
 
 type Agent = Awaited<ReturnType<typeof signIn>>;
-
-// Casey, with business premises, billed weekly (ADR-0016)
-const billWeekly = async (payment: "automatic" | "on_page") => {
-  const owner = (await findClientByEmail(casey.email))!;
-  await addPremises(owner.id);
-  await setBilling(owner.id, {
-    weekly: true,
-    payment,
-    termsDays: 14,
-    billingEmail: null,
-  });
-};
 
 // the test clock starts at 4am on Monday 5 January 2026 in New York; Quotes
 // here propose 9am on Monday 12 January (14:00 UTC)

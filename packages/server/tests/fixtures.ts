@@ -370,6 +370,22 @@ export const addPremises = async (clientId: string) => {
   });
 };
 
+// Casey, with business premises, billed weekly (ADR-0016)
+export const billWeekly = async (
+  payment: BillPayment = "automatic",
+  billingEmail: string | null = null,
+) => {
+  const client = (await findClientByEmail(casey.email))!;
+  await addPremises(client.id);
+  await setBilling(client.id, {
+    weekly: true,
+    payment,
+    termsDays: 14,
+    billingEmail,
+  });
+  return client;
+};
+
 /**
  * A week billed for Casey, a business now, with premises: their Deep Clean
  * at 9am on Wednesday 7 January, booked as acceptedJob() books it and done
@@ -412,14 +428,7 @@ export const billedWeek = async ({
     startsAt: "2026-01-07T14:00:00Z",
     byAccountId,
   });
-  const client = (await findClientByEmail(casey.email))!;
-  await addPremises(client.id);
-  await setBilling(client.id, {
-    weekly: true,
-    payment,
-    termsDays: 14,
-    billingEmail,
-  });
+  const client = await billWeekly(payment, billingEmail);
   await crewed(job.id);
   testClock().set(new Date("2026-01-07T17:00:00Z"));
   await completeJob(cory.id, job.id, { condition: "moderate", reports: [] });
