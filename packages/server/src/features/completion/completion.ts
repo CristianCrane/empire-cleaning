@@ -50,9 +50,11 @@ import {
 } from "./balance.ts";
 import { adjustments, type Adjustment } from "./completion.schema.ts";
 import {
+  addOnsOfVersions,
   isReduction,
   priceReports,
   quotedJob,
+  quotedJobs,
   reportableAddOns,
   signed,
 } from "./pricing.ts";
@@ -329,7 +331,8 @@ export const cleanerCompletionsOf = async (
 ): Promise<Map<string, CleanerExtras>> => {
   const ids = list.map((j) => j.id);
   if (ids.length === 0) return new Map();
-  const [assigned, rows, names] = await Promise.all([
+  const booked = list.filter((j) => j.status === "booked").map((j) => j.id);
+  const [assigned, rows, names, quoted] = await Promise.all([
     assignmentStatusOf(list),
     db.select().from(adjustments).where(inArray(adjustments.jobId, ids)),
     db
@@ -343,54 +346,53 @@ export const cleanerCompletionsOf = async (
             .filter((id) => id !== null),
         ),
       ),
+    quotedJobs(booked),
   ]);
   const nameOf = new Map(names.map((n) => [n.id, n.name]));
+  const addOns = await addOnsOfVersions([
+    ...new Set([...quoted.values()].map((q) => q.priceListId)),
+  ]);
 
-  const extras = await Promise.all(
-    list.map(async (job): Promise<[string, CleanerExtras]> => {
-      const completed = job.status === "completed";
-      const noAccess = job.status === "no_access";
-      return [
-        job.id,
-        {
-          assigned: assigned.get(job.id) === "assigned",
-          outcome: completed ? "completed" : noAccess ? "no_access" : null,
-          reportable:
-            job.status !== "booked"
-              ? { quoted: [], others: [] }
-              : await quotedJob(job.id)
-                  .then(reportableAddOns)
-                  .catch(() => ({ quoted: [], others: [] })),
-          completion: completed
-            ? {
-                completedAt: job.completedAt!.toISOString(),
-                completedBy: job.completedBy
-                  ? (nameOf.get(job.completedBy) ?? null)
-                  : null,
-                condition: job.reportedCondition!,
-                reports: rows
-                  .filter((r) => r.jobId === job.id)
-                  .map((r) => ({
-                    kind: r.kind,
-                    addOnName: r.addOnName,
-                    hours: r.hours,
-                    reason: r.reason,
-                  })),
-              }
-            : null,
-          noAccess: noAccess
-            ? {
-                recordedAt: job.noAccessAt!.toISOString(),
-                recordedBy: job.noAccessBy
-                  ? (nameOf.get(job.noAccessBy) ?? null)
-                  : null,
-                reason: job.noAccessReason ?? "",
-              }
-            : null,
-        },
-      ];
-    }),
-  );
+  const extras = list.map((job): [string, CleanerExtras] => {
+    const completed = job.status === "completed";
+    const noAccess = job.status === "no_access";
+    return [
+      job.id,
+      {
+        assigned: assigned.get(job.id) === "assigned",
+        outcome: completed ? "completed" : noAccess ? "no_access" : null,
+        reportable: quoted.has(job.id)
+          ? reportableAddOns(quoted.get(job.id)!, addOns)
+          : { quoted: [], others: [] },
+        completion: completed
+          ? {
+              completedAt: job.completedAt!.toISOString(),
+              completedBy: job.completedBy
+                ? (nameOf.get(job.completedBy) ?? null)
+                : null,
+              condition: job.reportedCondition!,
+              reports: rows
+                .filter((r) => r.jobId === job.id)
+                .map((r) => ({
+                  kind: r.kind,
+                  addOnName: r.addOnName,
+                  hours: r.hours,
+                  reason: r.reason,
+                })),
+            }
+          : null,
+        noAccess: noAccess
+          ? {
+              recordedAt: job.noAccessAt!.toISOString(),
+              recordedBy: job.noAccessBy
+                ? (nameOf.get(job.noAccessBy) ?? null)
+                : null,
+              reason: job.noAccessReason ?? "",
+            }
+          : null,
+      },
+    ];
+  });
   return new Map(extras);
 };
 

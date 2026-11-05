@@ -30,6 +30,17 @@ import { serviceNameOf } from "../services/services.ts";
 export const counts = (adjustment: Pick<Adjustment, "status">) =>
   adjustment.status === "applied" || adjustment.status === "approved";
 
+// what a Completed Job costs: its quoted price with the Adjustments that
+// count, never below nothing
+export const totalOf = (
+  quotedCents: number,
+  rows: Pick<Adjustment, "status" | "totalCents">[],
+) =>
+  Math.max(
+    quotedCents + rows.filter(counts).reduce((sum, a) => sum + a.totalCents, 0),
+    0,
+  );
+
 type Ledger = {
   quotedCents: number;
   adjustmentsCents: number;
@@ -120,7 +131,7 @@ const ledgerOf = async (job: Job, tx: Tx | typeof db): Promise<Ledger> => {
   const adjustmentsCents = rows
     .filter(counts)
     .reduce((sum, a) => sum + a.totalCents, 0);
-  const totalCents = Math.max(quoted.totalCents + adjustmentsCents, 0);
+  const totalCents = totalOf(quoted.totalCents, rows);
   const depositCents = taken
     .filter((c) => c.kind === "deposit")
     .reduce((sum, c) => sum + c.amountCents, 0);

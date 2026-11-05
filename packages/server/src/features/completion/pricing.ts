@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
 import type {
   AddOnChoice,
   CompletionReport,
@@ -7,7 +7,10 @@ import type {
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError } from "../../middleware/errors.ts";
 import { offeredWith } from "../price-list/price-list.ts";
-import { priceListAddOns } from "../price-list/price-list.schema.ts";
+import {
+  priceListAddOns,
+  type PriceListAddOnRow,
+} from "../price-list/price-list.schema.ts";
 import { services } from "../services/services.schema.ts";
 import { addOnCents, taxOnPart } from "../price-list/suggested-price.ts";
 import { jobQuotes } from "../quotes/job-quotes.ts";
@@ -33,58 +36,93 @@ export type QuotedJob = {
 // the full hourly rate, with no Plan Discount; a quoted Add-on not done comes
 // off at what it added, after the Plan Discount. Both are taxed as a Service
 // Plan Job, at the plan rate of the Service version its Quote priced it with.
+// By Job; one with no Quote to price it from isn't there.
+export const quotedJobs = async (
+  jobIds: string[],
+  tx: Tx | typeof db = db,
+): Promise<Map<string, QuotedJob>> => {
+  const rows = await jobQuotes(jobIds, tx);
+  const planServices = [
+    ...new Set(
+      rows
+        .filter((r) => r.quote.kind === "service_plan")
+        .map((r) => r.option.serviceId),
+    ),
+  ];
+  const rates =
+    planServices.length === 0
+      ? []
+      : await tx
+          .select({
+            id: services.id,
+            plan: services.taxPlanPercent,
+            oneOff: services.taxOneOffPercent,
+          })
+          .from(services)
+          .where(inArray(services.id, planServices));
+  return new Map(
+    rows.map(({ jobId, quote, revision, option }) => {
+      let { suggested } = option;
+      if (quote.kind === "service_plan") {
+        const service = rates.find((r) => r.id === option.serviceId)!;
+        suggested = {
+          ...suggested,
+          taxPercent: service.plan ?? service.oneOff,
+        };
+      }
+      return [
+        jobId,
+        {
+          serviceKey: option.serviceKey,
+          totalCents: option.totalCents,
+          suggested,
+          addOns: option.addOns,
+          priceListId: revision.priceListId,
+          planDiscountPercent:
+            quote.kind === "service_plan" ? revision.planDiscountPercent : null,
+        },
+      ];
+    }),
+  );
+};
+
 export const quotedJob = async (
   jobId: string,
   tx: Tx | typeof db = db,
 ): Promise<QuotedJob> => {
-  const [row] = await jobQuotes([jobId], tx);
-  if (!row) throw new ConflictError("This Job has no Quote to price it from");
-  const { quote, revision, option } = row;
-  let { suggested } = option;
-  if (quote.kind === "service_plan") {
-    const [service] = await tx
-      .select({
-        plan: services.taxPlanPercent,
-        oneOff: services.taxOneOffPercent,
-      })
-      .from(services)
-      .where(eq(services.id, option.serviceId));
-    suggested = {
-      ...suggested,
-      taxPercent: service!.plan ?? service!.oneOff,
-    };
-  }
-  return {
-    serviceKey: option.serviceKey,
-    totalCents: option.totalCents,
-    suggested,
-    addOns: option.addOns,
-    priceListId: revision.priceListId,
-    planDiscountPercent:
-      quote.kind === "service_plan" ? revision.planDiscountPercent : null,
-  };
+  const quoted = (await quotedJobs([jobId], tx)).get(jobId);
+  if (!quoted)
+    throw new ConflictError("This Job has no Quote to price it from");
+  return quoted;
 };
 
-// the Price List version's Add-ons, in its order
-const addOnsOfVersion = (priceListId: string) =>
-  db
-    .select()
-    .from(priceListAddOns)
-    .where(eq(priceListAddOns.priceListId, priceListId))
-    .orderBy(priceListAddOns.position);
+// the Price List versions' Add-ons, each in its order
+export const addOnsOfVersions = (priceListIds: string[]) =>
+  priceListIds.length === 0
+    ? Promise.resolve([])
+    : db
+        .select()
+        .from(priceListAddOns)
+        .where(inArray(priceListAddOns.priceListId, priceListIds))
+        .orderBy(priceListAddOns.position);
 
 // what can be reported at completion: the Quote's own Add-ons, as not done,
 // and the others from its Price List version on offer with its Service, as
-// done
-export const reportableAddOns = async (
+// done (`addOns`: its version's, or more versions' with it)
+export const reportableAddOns = (
   quoted: QuotedJob,
-): Promise<{ quoted: AddOnChoice[]; others: AddOnChoice[] }> => {
+  addOns: PriceListAddOnRow[],
+): { quoted: AddOnChoice[]; others: AddOnChoice[] } => {
   const onQuote = new Set(quoted.suggested.addOns.map((a) => a.key));
-  const all = await addOnsOfVersion(quoted.priceListId);
   return {
     quoted: quoted.suggested.addOns.map(({ key, name }) => ({ key, name })),
-    others: all
-      .filter((a) => offeredWith(a, quoted.serviceKey) && !onQuote.has(a.key))
+    others: addOns
+      .filter(
+        (a) =>
+          a.priceListId === quoted.priceListId &&
+          offeredWith(a, quoted.serviceKey) &&
+          !onQuote.has(a.key),
+      )
       .map(({ key, name }) => ({ key, name })),
   };
 };
@@ -130,7 +168,7 @@ export const priceReports = async (
   reports: CompletionReport[],
 ): Promise<PricedReport[]> => {
   const { suggested } = quoted;
-  const all = await addOnsOfVersion(quoted.priceListId);
+  const all = await addOnsOfVersions([quoted.priceListId]);
   const seen = new Set<string>();
 
   return reports.map((report): PricedReport => {
