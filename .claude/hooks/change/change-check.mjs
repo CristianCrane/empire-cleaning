@@ -1,4 +1,4 @@
-// The shape rules: edited in github.com/CristianCrane/.dotfiles (home/.claude); repos carry copies made by hooks/sync.mjs.
+// The change rules: edited in github.com/CristianCrane/.dotfiles (home/.claude); repos carry copies made by hooks/sync.mjs.
 //
 // After each edit, counts the files the current branch changes against
 // the default branch. Each time the count crosses another 25, the agent is
@@ -27,7 +27,7 @@ hook((input) => {
   if (files.size === 0) return;
 
   // per worktree: what this work was already told
-  const marker = stateFile(cwd, "shape-check", work.key);
+  const marker = stateFile(cwd, "change-check", work.key);
   let told = { step: 0, unsurveyedAt: null };
   try {
     told = { ...told, ...JSON.parse(readFileSync(marker, "utf8")) };
@@ -47,6 +47,6 @@ hook((input) => {
 
   const planned = found.expected ? ` Its survey expected ${found.expected}.` : "";
   return say(
-    `Branch ${branch} now changes ${files.size} files.${planned} Step back, as the \`change\` skill asks: is this shotgun surgery, a third copy of a pattern, or a pattern fighting the change? If it is, tell the user now: what the pattern costs, the simpler shape, and how to split the work. Otherwise update the survey's plan and Expected files, and say in the PR's Shape section why it grew.`,
+    `Branch ${branch} now changes ${files.size} files.${planned} Step back, as the \`change\` skill asks: is this shotgun surgery, a third copy of a pattern, or a pattern fighting the change? If it is, tell the user now: what the pattern costs, the simpler shape, and how to split the work. Otherwise update the survey's plan and Expected files, and say in the PR's Change section why it grew.`,
   );
 });

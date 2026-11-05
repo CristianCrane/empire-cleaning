@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/shape/survey-gate.mjs\"",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/change/survey-gate.mjs\"",
             "timeout": 10
           }
         ]
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/shape/review-gate.mjs\"",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/change/review-gate.mjs\"",
             "timeout": 10
           }
         ]
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/shape/shape-check.mjs\"",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/change/change-check.mjs\"",
             "timeout": 10
           }
         ]

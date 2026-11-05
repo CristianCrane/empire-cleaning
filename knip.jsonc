@@ -3,7 +3,7 @@
   "workspaces": {
     ".": {
       // run by Claude Code, from .claude/settings.json (copies made by ~/.claude/hooks/sync.mjs)
-      "entry": [".claude/hooks/shape/*.mjs"],
+      "entry": [".claude/hooks/**/*.mjs"],
     },
     "packages/server": {
       "entry": [
