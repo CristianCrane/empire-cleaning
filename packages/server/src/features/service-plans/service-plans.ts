@@ -35,6 +35,7 @@ import {
 } from "../../services/clock/index.ts";
 import { emailOffer } from "../assignments/assignments.ts";
 import { assignments, onCrew } from "../assignments/assignments.schema.ts";
+import { weeklyBillOf } from "../bills/billed-weekly.ts";
 import { billLines, bills } from "../bills/bills.schema.ts";
 import { billNumber } from "../bills/bills.ts";
 import { clients } from "../clients/clients.schema.ts";
@@ -811,7 +812,7 @@ const detailOf = async (
     quoteId: plan.quoteId,
     unpaid,
     unpaidBills: unpaidBills.map(({ since: _, ...bill }) => bill),
-    weeklyBill: owner!.billedWeeklyFrom ? owner!.billPayment : null,
+    weeklyBill: weeklyBillOf(owner!),
     endTerms,
     endedAt: plan.endedAt?.toISOString() ?? null,
   };

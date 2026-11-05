@@ -27,6 +27,12 @@ export const billedOf = async (jobId: string, tx: Tx | typeof db) => {
   return { cents: row?.cents ?? 0, lines: row?.lines ?? 0 };
 };
 
+// how a Client pays for their cleans: on a weekly Bill, charged or paid on
+// its page (ADR-0016), or null when each is charged when it's done
+export const weeklyBillOf = (
+  client: Pick<Client, "billedWeeklyFrom" | "billPayment">,
+) => (client.billedWeeklyFrom ? client.billPayment : null);
+
 /**
  * Whether a Job's money goes on its Client's weekly Bills rather than being
  * charged on its own (ADR-0016): its Client is billed weekly, it starts in
