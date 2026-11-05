@@ -122,8 +122,9 @@ test("tests run against the dedicated test database", async () => {
     sql`select current_database() as name`,
   );
 
-  // one of the workers' copies of empire_test (tests/setup/workerDatabase.ts)
-  expect(rows[0]?.name).toMatch(/^empire_test_\d+$/);
+  // one of the workers' copies of this checkout's empire_test
+  // (tests/setup/workerDatabase.ts, tests/checkout.ts)
+  expect(rows[0]?.name).toMatch(/^empire_test_c[0-9a-f]{6}_\d+$/);
 });
 
 test("time can be set and advanced through the injected clock", () => {
