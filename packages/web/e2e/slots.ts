@@ -35,7 +35,8 @@ const workerCount = (value: string | undefined) => {
 // Playwright starts, whose command lines don't have the flag
 export const WORKERS = workerCount(process.env.E2E_WORKERS ?? workersFlag());
 
-// the slots' databases are this one's name with the slot's number
+// the slots' databases: each API makes its own from this one's name and its
+// slot's number (packages/server/tests/e2e/server.ts)
 export const E2E_DB_URL =
   "postgresql://postgres:password@localhost:5433/empire_e2e_test";
 
@@ -43,7 +44,6 @@ export const slotOf = (slot: number) => ({
   apiUrl: `http://localhost:${3100 + slot * 10}`,
   controlUrl: `http://127.0.0.1:${3101 + slot * 10}`,
   appUrl: `http://localhost:${4173 + slot}`,
-  dbUrl: `${E2E_DB_URL}_${slot}`,
 });
 
 // the slot of the worker this runs in (Playwright numbers them from 0); slot 0

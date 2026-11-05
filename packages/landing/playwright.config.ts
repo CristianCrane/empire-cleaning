@@ -34,8 +34,8 @@ export default defineConfig({
         APP_MODE: "dev",
         PORT: String(API_PORT),
         E2E_CONTROL_PORT: String(CONTROL_PORT),
-        DB_URL:
-          "postgresql://postgres:password@localhost:5433/empire_e2e_landing_test",
+        // the API's database is this name with `_0`: slot 0 of 1
+        // (packages/server/tests/e2e/server.ts)
         TEST_DB_URL:
           "postgresql://postgres:password@localhost:5433/empire_e2e_landing_test",
         BETTER_AUTH_URL: `http://localhost:${API_PORT}`,

@@ -12,21 +12,23 @@ import {
   dropTestDatabaseCopies,
   recreateTestDatabase,
   TEST_DB_URL,
+  withSuffix,
 } from "../setup/testDatabase.ts";
 // keys only: it reads nothing on import
 import { SEEDED } from "../../src/features/services/seeded.ts";
 
 const CONTROL_PORT = Number(process.env.E2E_CONTROL_PORT ?? 3101);
 
-await recreateTestDatabase(TEST_DB_URL);
+// every API here is one of E2E_WORKERS slots (packages/web/e2e/slots.ts; the
+// landing site's is slot 0 of 1), on a copy of TEST_DB_URL by its number
+const SLOT = Number(process.env.E2E_SLOT ?? 0);
+const WORKERS = Number(process.env.E2E_WORKERS ?? 1);
+process.env.DB_URL = withSuffix(TEST_DB_URL, SLOT);
+
+await recreateTestDatabase(process.env.DB_URL);
 // the first slot also drops the databases of slots an earlier run with more
 // workers left behind
-if (process.env.E2E_SLOT === "0" && process.env.E2E_DB_URL) {
-  await dropTestDatabaseCopies(
-    process.env.E2E_DB_URL,
-    Number(process.env.E2E_WORKERS),
-  );
-}
+if (SLOT === 0) await dropTestDatabaseCopies(TEST_DB_URL, WORKERS);
 
 // imported only now: the app reads its environment and database on import
 const { app } = await import("../../src/server.ts");
