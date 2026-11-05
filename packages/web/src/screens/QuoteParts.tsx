@@ -195,15 +195,17 @@ export function PlanTotals({
   );
 }
 
+// what each Add-on adds to an option's price, tax included; nothing for an
+// option with none
 export function AddOnList({ addOns }: { addOns: QuoteAddOn[] }) {
-  if (addOns.length === 0) return <p className="text-fg-muted">None</p>;
+  if (addOns.length === 0) return null;
   return (
-    <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1">
+    <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-sm">
       {addOns.map((addOn) => (
         <div key={addOn.key} className="contents">
-          <dt>{addOn.name}</dt>
+          <dt className="text-fg-muted">{addOn.name}</dt>
           <dd className="text-right tabular-nums">
-            {formatMoney(addOn.totalCents)}
+            +{formatMoney(addOn.totalCents)}
           </dd>
         </div>
       ))}

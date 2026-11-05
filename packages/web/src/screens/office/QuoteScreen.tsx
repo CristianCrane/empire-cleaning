@@ -757,18 +757,9 @@ function Offer({ quote, actions }: { quote: ShownQuote; actions?: ReactNode }) {
           <dd>{formatDateTime(quote.expiresAt!)}</dd>
           <dt className="font-semibold">Add-ons</dt>
           <dd>
-            {quote.addOns.length === 0 ? (
-              "None"
-            ) : (
-              <>
-                <AddOnList addOns={quote.addOns} />
-                {plan && (
-                  <span className="text-sm text-fg-muted">
-                    On every clean, before the Plan Discount.
-                  </span>
-                )}
-              </>
-            )}
+            {quote.addOns.length === 0
+              ? "None"
+              : quote.addOns.map((a) => a.name).join(", ")}
           </dd>
         </dl>
         <div className="grid gap-6 border-t border-border pt-4 lg:grid-cols-2">
@@ -801,6 +792,7 @@ function Offer({ quote, actions }: { quote: ShownQuote; actions?: ReactNode }) {
                     depositPercent={quote.depositPercent}
                   />
                 )}
+                <AddOnList addOns={option.addOns} />
                 <PricedFrom option={option} />
               </OfferPrice>
             );
@@ -1784,7 +1776,7 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
           description={
             quote.plan
               ? "Done on every clean. Each adds its hours to the price, and the Plan Discount comes off it too."
-              : "Each adds its hours to both prices."
+              : "Each adds its hours to the price of each Service it goes with."
           }
         >
           <div className="flex flex-col">

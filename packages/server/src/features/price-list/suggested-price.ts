@@ -1,7 +1,7 @@
 // The Suggested Price is worked out in @empire-cleaning/models, so the
 // Office's Service page can show it as it's typed; here is how a Property
 // row is priced
-import type { Priced } from "@empire-cleaning/models";
+import { taxOn, type Priced } from "@empire-cleaning/models";
 
 export {
   addOnCents,
@@ -39,3 +39,14 @@ export const pricedOf = (
               },
         area,
       };
+
+// the tax on part of a price, such as an Add-on or an Adjustment, before
+// tax: none if it is tax-exempt, else the rate on all of it
+export const taxOnPart = (
+  priceCents: number,
+  taxExempt: boolean,
+  taxPercent: number,
+) =>
+  taxExempt
+    ? 0
+    : taxOn(priceCents, { hourlyRateCents: 0, taxPercent, addOns: [] });

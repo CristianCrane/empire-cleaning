@@ -71,12 +71,19 @@ type PlanChanges = {
   recurrence?: Recurrence;
   crewSize?: number;
   starts?: LocalDateTime[];
+  // by name
+  addOns?: string[];
 };
 
 const sentPlan = async (
   office: Agent,
   propertyId: string,
-  { recurrence = "weekly", crewSize, starts = [plansStart] }: PlanChanges = {},
+  {
+    recurrence = "weekly",
+    crewSize,
+    starts = [plansStart],
+    addOns = [],
+  }: PlanChanges = {},
 ) => {
   const draft = (
     await office
@@ -87,7 +94,9 @@ const sentPlan = async (
   await office
     .patch(`/api/quotes/${draft.id}/draft`)
     .send({
-      addOns: [],
+      addOns: draft.addOnChoices
+        .filter((a) => addOns.includes(a.name))
+        .map((a) => a.key),
       depositPercent: draft.draft!.depositPercent,
       validityDays: draft.draft!.validityDays,
       plan: {
@@ -565,6 +574,28 @@ describe("completing a plan Job", () => {
     // $55 an hour, no Plan Discount, plus 5% tax
     expect(job.completion.adjustments).toEqual([
       expect.objectContaining({ workedOutCents: 5500, totalCents: 5775 }),
+    ]);
+  });
+
+  test("takes a quoted Add-on not done off at what it added, after the Plan Discount", async () => {
+    const started = await startedPlan({
+      crewSize: 1,
+      addOns: ["Inside the oven"],
+    });
+    const [oven] = started.quote.offer!.options[0]!.addOns;
+    const jobId = await completeFirst(started, [
+      { kind: "add_on_not_done", addOnKey: oven!.key, reason: "In use" },
+    ]);
+
+    const job = (await started.office.get(`/api/jobs/${jobId}`).expect(200))
+      .body as { completion: { adjustments: unknown[] } };
+    // $210.60 a clean with it against $185.40 without, plus 8.875% tax
+    expect(oven!.totalCents).toBe(2520 + 224);
+    expect(job.completion.adjustments).toEqual([
+      expect.objectContaining({
+        workedOutCents: 2520,
+        totalCents: -oven!.totalCents,
+      }),
     ]);
   });
 });

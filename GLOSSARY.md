@@ -83,7 +83,7 @@ How dirty a Property currently is: _light_, _moderate_ or _heavy_; it affects on
 _Avoid_: State, dirtiness, level
 
 **Add-on**:
-A priced extra task, such as cleaning inside the oven, agreed on a Quote before a Job; distinct from an Adjustment made on the day. Each is offered with particular Services. Clients choose Add-ons by name when asking for a Quote and see what each costs on it. Office Staff retire an Add-on rather than delete it, so Quotes that asked for it still price it.
+A priced extra task, such as cleaning inside the oven, agreed on a Quote before a Job; distinct from an Adjustment made on the day. Each is offered with particular Services, and only those Services' prices on a Quote include it. Clients choose Add-ons by name when asking for a Quote. On the Quote, each costs what it adds to the price: nothing at the Minimum Charge, less any Plan Discount, and its share of an override. Office Staff retire an Add-on rather than delete it, so Quotes that asked for it still price it.
 _Avoid_: Extra, upgrade, option
 
 **Preferred Service Area**:
@@ -175,11 +175,11 @@ Money taken from a Client's Payment Method: a Deposit, a Balance, a plan Job's L
 _Avoid_: Payment, invoice
 
 **Plan Discount**:
-A reduction, 10% unless set otherwise on the Quote, on the base price of each Job a Service Plan generates, compared with the same visit as a one-off Job, including any recurring Add-ons on the plan. It does not apply to Adjustments or to the First Clean.
+A reduction, 10% unless set otherwise on the Quote, on the base price of each Job a Service Plan generates, compared with the same visit as a one-off Job, including any recurring Add-ons on the plan. It comes off after the Minimum Charge, so a plan visit can cost less than the Service's Minimum Charge. It does not apply to the First Clean, or to an Adjustment that adds to the price; a quoted Add-on not done comes off at what it added, after the Plan Discount.
 _Avoid_: Loyalty discount, subscription discount, recurring rate
 
 **Adjustment**:
-A recorded change to a Job's quoted price, with a reason, from what the assigned Staff report at completion: an Add-on done on the day, a quoted Add-on not done, or extra time. Staff never set amounts: each is priced from the Price List and Service versions the Job's Quote used. Reductions count at once; an increase counts only once Office Staff have proposed it and the Client has approved it in the portal, within 7 days (ADR-0009).
+A recorded change to a Job's quoted price, with a reason, from what the assigned Staff report at completion: an Add-on done on the day, a quoted Add-on not done, or extra time. Staff never set amounts: each is priced from the Price List and Service versions the Job's Quote used, a quoted Add-on not done at what it added to the quoted price. Reductions count at once; an increase counts only once Office Staff have proposed it and the Client has approved it in the portal, within 7 days (ADR-0009).
 _Avoid_: Surcharge, discount, extra
 
 **Bill**:

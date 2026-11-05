@@ -454,16 +454,23 @@ describe("Office Staff and business Clients", () => {
       }),
     ]);
 
+    // one that doesn't go with the Service isn't priced
     const oven = list.addOns.find((a) => a.name === "Inside the oven")!;
-    const refused = await office.patch(`/api/quotes/${quote.id}/draft`).send({
-      addOns: [oven.key],
-      crewSize: quote.draft!.crewSize,
-      depositPercent: quote.draft!.depositPercent,
-      validityDays: quote.draft!.validityDays,
-      proposedStart: null,
-      overrides: {},
-    });
-    expect(refused.status).toBe(400);
+    const saved = (
+      await office
+        .patch(`/api/quotes/${quote.id}/draft`)
+        .send({
+          addOns: [oven.key],
+          crewSize: quote.draft!.crewSize,
+          depositPercent: quote.draft!.depositPercent,
+          validityDays: quote.draft!.validityDays,
+          proposedStart: null,
+          overrides: {},
+        })
+        .expect(200)
+    ).body as OfficeQuote;
+    expect(saved.draft!.addOns).toEqual([]);
+    expect(saved.draft!.options).toEqual(quote.draft!.options);
   });
 
   test("find a Client by their business's name, listed by it, and can correct it", async () => {

@@ -116,10 +116,11 @@ test(
     );
     await expect(page.getByText(/\$/)).toHaveCount(0);
 
-    // the Client's receipt goes at once, with the oven taken off
+    // the Client's receipt goes at once, with the oven taken off at what it
+    // added to the quoted price
     const receipt = (await emailsTo(casey.email)).at(-1)!;
     expect(receipt.subject).toBe("Your clean is done: your receipt");
-    expect(receipt.text).toContain("Inside the oven, not done: -$29.94");
+    expect(receipt.text).toContain("Inside the oven, not done: -$30.49");
   },
 );
 

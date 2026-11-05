@@ -113,6 +113,16 @@ const sentQuote = async (
     .body as OfficeQuote;
 };
 
+// what an Add-on adds to an option, tax included, from the option's price
+// before tax with it and without it: 8.875% on the difference
+const added = (
+  withIt: Pick<OfficeQuoteOption, "priceCents">,
+  without: Pick<OfficeQuoteOption, "priceCents">,
+) => {
+  const cents = withIt.priceCents - without.priceCents;
+  return cents + Math.floor((cents * 8875 + 50_000) / 100_000);
+};
+
 // a Service's option on the Quote's Draft Revision, or else its offer
 const option = (
   quote: OfficeQuote,
@@ -274,10 +284,14 @@ describe("drafting a First Clean Quote", () => {
       validityDays: 7,
     });
     expect(saved.draft!.addOns).toEqual([
-      // 0.5 h at $55, plus 8.875% tax
-      { key: oven.key, name: "Inside the oven", totalCents: 2994 },
+      { key: oven.key, name: "Inside the oven" },
     ]);
     const deep = option(saved, "deep");
+    expect(deep.addOns).toEqual([
+      // 0.5 h at $55 takes the price to the whole dollar $28 higher, plus
+      // 8.875% tax
+      { key: oven.key, name: "Inside the oven", totalCents: 3049 },
+    ]);
     expect(deep.labourHours).toBe(option(draft, "deep").labourHours + 0.5);
     expect(deep.hoursOnSite).toBe(
       Math.round((deep.labourHours / 3) * 100) / 100,
@@ -288,6 +302,194 @@ describe("drafting a First Clean Quote", () => {
       .patch(`/api/quotes/${draft.id}/draft`)
       .send(edit(draft, { addOns: [crypto.randomUUID()] }))
       .expect(400);
+  });
+
+  test("an Add-on is priced at what it adds to each option, at that Service's rate", async () => {
+    const office = await signInAsOffice();
+    await setService(office, "deep", { hourlyRateCents: 6500 });
+    const quoteId = await asked(["Inside the oven"]);
+    const draft = await startDraft(office, quoteId);
+    const without = await save(office, draft, { addOns: [] });
+    const withOven = await save(office, draft, {});
+
+    for (const service of ["deep", "standard"] as const) {
+      expect(option(withOven, service).addOns).toEqual([
+        expect.objectContaining({
+          totalCents: added(
+            option(withOven, service),
+            option(without, service),
+          ),
+        }),
+      ]);
+    }
+    // 0.5 h at $65 on the Deep Clean, at $55 on the Standard Clean
+    expect(option(withOven, "deep").addOns[0]!.totalCents).toBeGreaterThan(
+      option(withOven, "standard").addOns[0]!.totalCents,
+    );
+  });
+
+  test("a Service recommended for a first visit prices only the Add-ons that go with it", async () => {
+    const office = await signInAsOffice();
+    const list = (await office.get("/api/price-list").expect(200))
+      .body as PriceList;
+    await office
+      .put("/api/price-list")
+      .send({
+        ...list,
+        addOns: list.addOns.map((a) =>
+          a.name === "Inside the oven"
+            ? { ...a, serviceKeys: [SEEDED.standard] }
+            : a,
+        ),
+      })
+      .expect(200);
+    const quoteId = await asked(["Inside the oven"]);
+    const draft = await startDraft(office, quoteId);
+    const without = await save(office, draft, { addOns: [] });
+
+    expect(option(draft, "deep")).toMatchObject({
+      addOns: [],
+      labourHours: option(without, "deep").labourHours,
+      priceCents: option(without, "deep").priceCents,
+    });
+    expect(option(draft, "standard").addOns).toEqual([
+      expect.objectContaining({ name: "Inside the oven" }),
+    ]);
+    expect(draft.draft!.addOns.map((a) => a.name)).toEqual(["Inside the oven"]);
+    // the Office's Suggested Prices agree
+    expect(priceOf(draft.suggested, "deep").addOns).toEqual([]);
+  });
+
+  test("switching a Draft to a Service an Add-on doesn't go with leaves it off the price until it's switched back", async () => {
+    const office = await signInAsOffice();
+    const list = (await office.get("/api/price-list").expect(200))
+      .body as PriceList;
+    await office
+      .put("/api/price-list")
+      .send({
+        ...list,
+        addOns: list.addOns.map((a) =>
+          a.name === "Inside the oven"
+            ? { ...a, serviceKeys: [SEEDED.standard] }
+            : a,
+        ),
+      })
+      .expect(200);
+    const quoteId = await asked(["Inside the oven"]);
+    const draft = await startDraft(office, quoteId);
+    const ovenKey = draft.draft!.addOns[0]!.key;
+
+    const deep = await save(office, draft, {
+      serviceKey: SEEDED.deep,
+      addOns: [ovenKey],
+    });
+    expect(deep.draft!.addOns).toEqual([]);
+    expect(deep.addOnChoices.map((a) => a.name)).not.toContain(
+      "Inside the oven",
+    );
+    expect(option(deep, "deep").addOns).toEqual([]);
+
+    const back = await save(office, deep, {
+      serviceKey: SEEDED.standard,
+      addOns: [ovenKey],
+    });
+    expect(option(back, "standard").addOns).toEqual([
+      expect.objectContaining({ key: ovenKey }),
+    ]);
+  });
+
+  test("switching a Draft away from an Add-on's only Service leaves it off the recommended Service's price too, so it can be sent", async () => {
+    const office = await signInAsOffice();
+    const list = (await office.get("/api/price-list").expect(200))
+      .body as PriceList;
+    await office
+      .put("/api/price-list")
+      .send({
+        ...list,
+        addOns: list.addOns.map((a) =>
+          a.name === "Inside the oven"
+            ? { ...a, serviceKeys: [SEEDED.deep] }
+            : a,
+        ),
+      })
+      .expect(200);
+    const oven = list.addOns.find((a) => a.name === "Inside the oven")!;
+    const { body } = await submit(
+      guestAsk({ serviceKey: SEEDED.deep, addOns: [oven.key] }),
+    ).expect(201);
+    const draft = await startDraft(office, body.id as string);
+
+    // a Standard Clean, with a Deep Clean recommended for the first visit
+    const standard = await save(office, draft, {
+      serviceKey: SEEDED.standard,
+      addOns: [oven.key],
+      proposedStart: nextMonday,
+    });
+    expect(standard.draft!.options.map((o) => o.addOns)).toEqual([[], []]);
+    await office.post(`/api/quotes/${draft.id}/send`).expect(200);
+  });
+
+  test("a Draft started after an asked Add-on stopped going with the Service leaves it off every price, so it can be sent", async () => {
+    const office = await signInAsOffice();
+    const quoteId = await asked(["Inside the oven"]);
+    const list = (await office.get("/api/price-list").expect(200))
+      .body as PriceList;
+    await office
+      .put("/api/price-list")
+      .send({
+        ...list,
+        addOns: list.addOns.map((a) =>
+          a.name === "Inside the oven"
+            ? { ...a, serviceKeys: [SEEDED.deep] }
+            : a,
+        ),
+      })
+      .expect(200);
+
+    const draft = await startDraft(office, quoteId);
+    expect(draft.draft!.options.map((o) => o.addOns)).toEqual([[], []]);
+    await save(office, draft, { proposedStart: nextMonday });
+    await office.post(`/api/quotes/${draft.id}/send`).expect(200);
+  });
+
+  test("at the Minimum Charge an Add-on adds nothing", async () => {
+    const office = await signInAsOffice();
+    await setService(office, "standard", { minimumChargeCents: 50_000 });
+    const quoteId = await asked(["Inside the oven"]);
+    const draft = await startDraft(office, quoteId);
+
+    expect(option(draft, "standard")).toMatchObject({
+      priceCents: 50_000,
+      addOns: [expect.objectContaining({ totalCents: 0 })],
+    });
+  });
+
+  test("an Add-on on an overridden price is its share of the override", async () => {
+    const office = await signInAsOffice();
+    const quoteId = await asked(["Inside the oven"]);
+    const draft = await startDraft(office, quoteId);
+    const without = await save(office, draft, { addOns: [] });
+    const suggestedCents = option(draft, "standard").suggested.priceCents;
+    const overridden = await save(office, draft, {
+      overrides: {
+        [SEEDED.standard]: { priceCents: suggestedCents * 2, reason: "Stairs" },
+      },
+    });
+
+    // the override, less the same override scaled to the price without it
+    const share =
+      suggestedCents * 2 -
+      Math.round(
+        (suggestedCents *
+          2 *
+          option(without, "standard").suggested.priceCents) /
+          suggestedCents,
+      );
+    expect(option(overridden, "standard").addOns).toEqual([
+      expect.objectContaining({
+        totalCents: share + Math.floor((share * 8875 + 50_000) / 100_000),
+      }),
+    ]);
   });
 });
 
@@ -578,8 +780,8 @@ describe("a Client's Quotes", () => {
       depositPercent: 25,
       proposedStartsAt: "2026-01-12T14:00:00.000Z",
       expiresAt: "2026-01-11T14:00:00.000Z",
-      addOns: [{ name: "Inside the oven", totalCents: 2994 }],
     });
+    expect(quote).not.toHaveProperty("addOns");
     const deep = option(sent, "deep");
     expect(quote.options[0]).toEqual({
       serviceKey: SEEDED.deep,
@@ -591,6 +793,9 @@ describe("a Client's Quotes", () => {
       taxCents: deep.taxCents,
       totalCents: deep.totalCents,
       depositCents: deep.depositCents,
+      addOns: [
+        { key: deep.addOns[0]!.key, name: "Inside the oven", totalCents: 3049 },
+      ],
     });
     // nothing about how the Office priced it
     expect(quote.options[0]).not.toHaveProperty("suggested");
