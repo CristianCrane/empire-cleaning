@@ -46,7 +46,23 @@ jobs:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/setup
       - run: docker compose up --detach --wait postgres_test
-      - run: pnpm --filter @empire-cleaning/server test
+      # the seed test is a job of its own (below)
+      - run: pnpm --filter @empire-cleaning/server test:quick
+
+  # The seed as the test site's reset runs it, at 28 days and times
+  # (packages/server/tests/seed.test.ts). A job of its own, as after the
+  # server's tests it doubled that job, and with the runner to itself, 4
+  # seeds at a time, not the 2 a 4-core runner's tests get.
+  seed:
+    name: Seed test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup
+      - run: docker compose up --detach --wait postgres_test
+      - run: pnpm --filter @empire-cleaning/server test:seed
+        env:
+          SERVER_TEST_WORKERS: 4
 
   ui:
     name: Design-system tests

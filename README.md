@@ -40,7 +40,8 @@ Every pull request to `main`, and every push to `main`, runs `.github/workflows/
 | Check                | Locally                                                                                           |
 | -------------------- | ------------------------------------------------------------------------------------------------- |
 | Checks               | `pnpm check`, `pnpm lint`, `pnpm lint:unused`, `pnpm format:check`, `pnpm check:packages` (below) |
-| Server tests         | `pnpm --filter @empire-cleaning/server test`                                                      |
+| Server tests         | `pnpm --filter @empire-cleaning/server test:quick`                                                |
+| Seed test            | `pnpm --filter @empire-cleaning/server test:seed` (`test` runs both)                              |
 | Design-system tests  | `pnpm --filter @empire-cleaning/ui test`                                                          |
 | Web end-to-end tests | `pnpm --filter @empire-cleaning/web test`                                                         |
 | Landing site tests   | `pnpm --filter @empire-cleaning/landing test`                                                     |
