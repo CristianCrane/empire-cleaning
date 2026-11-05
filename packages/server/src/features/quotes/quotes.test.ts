@@ -837,6 +837,23 @@ describe("deleting a Draft", () => {
     expect((await startDraft(office, quoteId)).draft!.number).toBe(1);
   });
 
+  test("of a first Draft whose Service was asked for again meanwhile deletes it: the newer ask carries on", async () => {
+    const quoteId = await asked();
+    const office = await signInAsOffice();
+    // drafted as a Deep Clean, so a Standard Clean can be asked for again
+    await save(office, await startDraft(office, quoteId), {
+      serviceKey: SEEDED.deep,
+    });
+    const again = await asked();
+
+    await office.delete(`/api/quotes/${quoteId}/draft`).expect(204);
+
+    await office.get(`/api/quotes/${quoteId}`).expect(404);
+    const open = (await office.get("/api/quotes").expect(200))
+      .body as QuoteSummary[];
+    expect(open.map((q) => [q.id, q.status])).toEqual([[again, "requested"]]);
+  });
+
   test("is refused when there's no Draft, and for anyone but Office Staff", async () => {
     const quoteId = await asked();
     const office = await signInAsOffice();

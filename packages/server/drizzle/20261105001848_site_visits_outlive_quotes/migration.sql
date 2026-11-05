@@ -1,0 +1,1 @@
+ALTER TABLE "site_visits" DROP CONSTRAINT "site_visits_quote_id_quotes_id_fkey", ADD CONSTRAINT "site_visits_quote_id_quotes_id_fkey" FOREIGN KEY ("quote_id") REFERENCES "quotes"("id") ON DELETE SET NULL;

@@ -36,9 +36,11 @@ export const siteVisits = pgTable(
     propertyId: uuid("property_id")
       .notNull()
       .references(() => properties.id, { onDelete: "cascade" }),
-    // the Quote it's for; none on findings recorded without a visit
+    // the Quote it's for; none on findings recorded without a visit, or once
+    // its Quote is deleted (discarding a Draft can), as the visit and its
+    // findings stay the Property's
     quoteId: uuid("quote_id").references(() => quotes.id, {
-      onDelete: "cascade",
+      onDelete: "set null",
     }),
     status: siteVisitStatus("status").notNull().default("booked"),
     // who visits, when, and for how long

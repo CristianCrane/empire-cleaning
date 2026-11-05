@@ -100,7 +100,7 @@ export const validityDays = z
   .max(90, "Valid for at most 90 days");
 
 export const draftSchema = z.object({
-  // a one-off Quote's Service
+  // a one-off Draft's Service, the Quote's once it's sent
   serviceKey: z.uuid("Choose a Service").optional(),
   // for a Service priced by area; none follows the Property's
   area: z

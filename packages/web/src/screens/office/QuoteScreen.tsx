@@ -455,15 +455,18 @@ function DeleteDraft({ quote }: { quote: OfficeQuote }) {
     () => Promise.resolve(),
     "The Draft wasn't deleted. Please try again.",
   );
-  const gone = !quote.offer && !quote.asked;
+  // what discarding leaves is the server's to say: nothing (204) once the
+  // Quote has gone with its Draft
   const remove = async (close: () => void) => {
-    const ok = await action.run(
-      () => deleteJson(`/api/quotes/${quote.id}/draft`),
-      "Draft deleted",
-    );
+    let left: OfficeQuote | undefined;
+    const ok = await action.run(async () => {
+      left = await deleteJson<OfficeQuote | undefined>(
+        `/api/quotes/${quote.id}/draft`,
+      );
+    }, "Draft deleted");
     if (!ok) return;
     close();
-    await (gone
+    await (!left
       ? navigate({
           to: "/office/properties/$propertyId",
           params: { propertyId: quote.property.id },
@@ -485,9 +488,9 @@ function DeleteDraft({ quote }: { quote: OfficeQuote }) {
             <p>
               {quote.offer
                 ? `Revision ${quote.draft!.number}'s changes are lost. ${quote.client.name} keeps Revision ${quote.offer.number}, as sent.`
-                : gone
+                : !quote.asked
                   ? "Nothing was asked or sent, so the Quote goes with it."
-                  : `The Quote goes back to Requested, to be drafted afresh.`}
+                  : `The Quote goes back to Requested, to be drafted afresh, unless ${quote.client.name} has asked for a ${quote.asked.service.name} again since: then that one carries on, and this Quote goes.`}
             </p>
             {action.problem && <Notice tone="danger">{action.problem}</Notice>}
             <Actions>
@@ -1098,7 +1101,7 @@ type DayFields = {
 type PlanFields = Omit<ServicePlanInput, "days"> & { days: DayFields[] };
 
 type Fields = {
-  // a one-off Quote's Service
+  // a one-off Draft's Service, the Quote's once it's sent
   serviceKey: string;
   // for a Service priced by area; null follows the Property's (or the
   // Client's rough one)

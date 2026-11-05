@@ -43,7 +43,7 @@ import {
   quoteReceivedEmail,
   quoteRequestedEmail,
 } from "./emails.ts";
-import { openAlongside } from "./quotes.ts";
+import { openAlongside, openAlready, thisPlace } from "./quotes.ts";
 import { quoteAddOns, quotes, type Quote } from "./quotes.schema.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
 
@@ -255,10 +255,6 @@ export const enterCallerAsk = async (enteredBy: string, body: unknown) => {
 
 type Submission = z.infer<typeof clientSubmission>;
 
-// "this home" or "these premises", as the Client or the Office would say it
-const thisPlace = (kind: Property["kind"]) =>
-  kind === "commercial" ? "these premises" : "this home";
-
 // Why an ask can't go ahead at a Property the Client already has: it's the
 // other kind of Property, or a Quote that holds the Service is open there,
 // `asked` for or already `sent`
@@ -271,12 +267,12 @@ const clashMessage = (
   client: Client,
   enteredBy: string | null,
 ) => {
-  const place = thisPlace(property.kind);
+  const place = thisPlace(property);
   if (why === "otherKind") {
     return `${addressOf(property)} is already ${enteredBy ? "their" : "your"} ${property.kind === "commercial" ? "business premises" : "home"}: choose it from the list to ask about it.`;
   }
   if (enteredBy) {
-    return `${place[0]!.toUpperCase()}${place.slice(1)} ${property.kind === "commercial" ? "have" : "has"} a Quote open already: carry on with that one.`;
+    return openAlready(property, "a Quote");
   }
   return why === "sent"
     ? `We've sent you a Quote for ${place} already: you'll find it in your account.`

@@ -3,6 +3,7 @@ import type {
   OfficeJob,
   OfficeQuote,
   QuoteDraftInput,
+  QuoteSummary,
   SignedInAccount,
 } from "@empire-cleaning/models";
 import { signIn } from "../../../tests/harness.ts";
@@ -50,6 +51,35 @@ const edit = (
   overrides: {},
   ...changes,
 });
+
+// the Draft saved with changes, for next Monday
+const saved = async (
+  office: Agent,
+  quote: OfficeQuote,
+  changes: Partial<QuoteDraftInput> = {},
+) =>
+  (
+    await office
+      .patch(`/api/quotes/${quote.id}/draft`)
+      .send(edit(quote, { proposedStart: nextMonday, ...changes }))
+      .expect(200)
+  ).body as OfficeQuote;
+
+// the Draft saved as it is, then sent
+const sent = async (office: Agent, quote: OfficeQuote) => {
+  const draft = await saved(office, quote, {
+    serviceKey: quote.draft!.serviceKey,
+  });
+  return (await office.post(`/api/quotes/${draft.id}/send`).expect(200))
+    .body as OfficeQuote;
+};
+
+// the Service the Client's list names a Quote for
+const mineNamed = async (quoteId: string) => {
+  const mine = (await (await signIn(casey.email)).get("/api/quotes/mine"))
+    .body as QuoteSummary[];
+  return mine.find((q) => q.id === quoteId)!.service.name;
+};
 
 const optionsOf = (quote: OfficeQuote) =>
   (quote.draft ?? quote.offer)!.options.map((o) => [
@@ -144,6 +174,23 @@ describe("open Quotes at one Property", () => {
     expect(refused.body.message).toMatch(/already asked us for a Quote/);
   });
 
+  test("a first Draft deleted goes back to being asked for beside a Service Plan Quote offered meanwhile", async () => {
+    const { office, propertyId } = await firstCleanDone();
+    const quoteId = await ask();
+    // a one-off Draft holds only its Service, so a plan can be offered
+    await startDraft(office, quoteId);
+    await office
+      .post("/api/quotes")
+      .send({ propertyId, kind: "service_plan" })
+      .expect(201);
+
+    const after = (
+      await office.delete(`/api/quotes/${quoteId}/draft`).expect(200)
+    ).body as OfficeQuote;
+
+    expect(after).toMatchObject({ status: "requested", kind: null });
+  });
+
   test("Office Staff can change a Draft's Service, unless that one has a Quote open", async () => {
     const office = await signInAsOffice();
     const standard = await startDraft(office, await ask());
@@ -176,6 +223,56 @@ describe("open Quotes at one Property", () => {
     expect(notHere.body.details).toContainEqual(
       expect.objectContaining({ path: "serviceKey" }),
     );
+  });
+
+  test("a new Revision's Service waits until it's sent: the offer's holds till then", async () => {
+    const office = await signInAsOffice();
+    const quoteId = await ask();
+    await sent(office, await startDraft(office, quoteId));
+
+    const changed = await saved(office, await startDraft(office, quoteId), {
+      serviceKey: SEEDED.deep,
+    });
+
+    // the Office works on a Deep Clean
+    expect(changed.service.name).toBe("Deep Clean");
+    expect(changed.draft!.serviceKey).toBe(SEEDED.deep);
+    expect(changed.addOnChoices.map((a) => a.name)).toContain(
+      "Inside the oven",
+    );
+    // while the Client's Standard offer still holds its place
+    expect(await mineNamed(quoteId)).toBe("Standard Clean");
+    expect((await askAgain()).status).toBe(409);
+
+    await office.delete(`/api/quotes/${quoteId}/draft`).expect(200);
+    expect(await mineNamed(quoteId)).toBe("Standard Clean");
+    expect((await askAgain()).status).toBe(409);
+  });
+
+  test("sending a Revision of another Service switches the Quote to it, unless that one has a Quote open", async () => {
+    const office = await signInAsOffice();
+    const quoteId = await ask();
+    await sent(office, await startDraft(office, quoteId));
+    const deep = await saved(office, await startDraft(office, quoteId), {
+      serviceKey: SEEDED.deep,
+    });
+    // asked for meanwhile: the Deep Clean was free
+    const other = await ask(SEEDED.deep);
+
+    const refused = await office
+      .post(`/api/quotes/${quoteId}/send`)
+      .expect(409);
+    expect(refused.body.message).toBe(
+      "This home has a Deep Clean Quote open already: carry on with that one.",
+    );
+
+    await office
+      .post(`/api/quotes/${other}/turn-down`)
+      .send({ reason: "no_capacity" })
+      .expect(200);
+    const switched = await sent(office, deep);
+    expect(switched.service.name).toBe("Deep Clean");
+    expect(await mineNamed(quoteId)).toBe("Deep Clean");
   });
 });
 
