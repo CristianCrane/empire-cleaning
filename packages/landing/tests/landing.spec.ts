@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { business } from "../src/business.ts";
 import { guides } from "../src/guides/index.ts";
 import { reviews } from "../src/reviews.ts";
@@ -702,17 +702,14 @@ test("from a tablet, the footer has the areas left, the logo in the middle and t
 }) => {
   await page.setViewportSize({ width: 768, height: 900 });
   await page.goto("/");
-  const box = async (selector: string) =>
-    (await page.locator(selector).boundingBox())!;
+  const footer = page.locator("footer");
+  const box = async (part: Locator) => (await part.boundingBox())!;
   const [areas, logo, details, copyright, row] = await Promise.all([
-    box("footer nav"),
-    (await page
-      .locator("footer")
-      .getByRole("img", { name: business.brand })
-      .boundingBox())!,
-    box("footer > div > :last-child"),
-    box("footer > p"),
-    box("footer > div"),
+    box(footer.getByRole("navigation", { name: "Areas we serve" })),
+    box(footer.getByRole("img", { name: business.brand })),
+    box(footer.locator("> div > :last-child")),
+    box(footer.locator("> p")),
+    box(footer.locator("> div")),
   ]);
   const middle = (b: { y: number; height: number }) => b.y + b.height / 2;
   const centre = (b: { x: number; width: number }) => b.x + b.width / 2;
