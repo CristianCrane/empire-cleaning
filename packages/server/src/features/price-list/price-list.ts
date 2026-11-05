@@ -292,6 +292,18 @@ export const savePriceList = async (
   return currentPriceList();
 };
 
+// whether an Add-on goes with a Service (ADR-0018), on offer or retired
+const goesWith = (
+  addOn: { serviceKeys: string[] },
+  serviceKey: string,
+) => addOn.serviceKeys.includes(serviceKey);
+
+// whether an Add-on can be chosen for a Service now
+export const offeredWith = (
+  addOn: { active: boolean; serviceKeys: string[] },
+  serviceKey: string,
+) => addOn.active && goesWith(addOn, serviceKey);
+
 // The Add-ons a Client can pick now for a Service, by default the first on
 // offer for homes: names only, never prices (those are on the Quote). Open
 // to everyone, as the landing page's form needs it. A business's request
@@ -304,7 +316,7 @@ export const choosableAddOns = async (
     findService(serviceKey),
   ]);
   return list.addOns
-    .filter((a) => a.active && a.serviceKeys.includes(service.key))
+    .filter((a) => offeredWith(a, service.key))
     .map(({ key, name }) => ({ key, name }));
 };
 

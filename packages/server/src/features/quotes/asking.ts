@@ -26,7 +26,7 @@ import { clients, type Client } from "../clients/clients.schema.ts";
 import { addressKey } from "../properties/address.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
-import { currentPriceList } from "../price-list/price-list.ts";
+import { currentPriceList, offeredWith } from "../price-list/price-list.ts";
 import { currentServices, onOfferAt } from "../services/services.ts";
 import {
   accountSubmission,
@@ -125,9 +125,7 @@ const refuse = (issues: z.core.$ZodIssue[]) => {
 const checkAddOns = (list: PriceList, service: Service, keys: string[]) => {
   if (keys.length === 0) return;
   const offered = new Set(
-    list.addOns
-      .filter((a) => a.active && a.serviceKeys.includes(service.key))
-      .map((a) => a.key),
+    list.addOns.filter((a) => offeredWith(a, service.key)).map((a) => a.key),
   );
   const unknown = keys.findIndex((key) => !offered.has(key));
   if (unknown !== -1) {

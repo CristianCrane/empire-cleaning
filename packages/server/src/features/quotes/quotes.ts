@@ -52,6 +52,7 @@ import {
   serviceOf,
   type Pricing,
 } from "../services/services.ts";
+import { offeredWith } from "../price-list/price-list.ts";
 import { priceLists } from "../price-list/price-list.schema.ts";
 import {
   addOnCents,
@@ -191,10 +192,7 @@ const addOnChoices = async (
     ((await askedAddOns([quoteId])).get(quoteId) ?? []).map((a) => a.key),
   );
   return list.addOns
-    .filter(
-      (a) =>
-        (a.active && a.serviceKeys.includes(serviceKey)) || asked.has(a.key),
-    )
+    .filter((a) => offeredWith(a, serviceKey) || asked.has(a.key))
     .map(({ key, name }) => ({ key, name }));
 };
 
