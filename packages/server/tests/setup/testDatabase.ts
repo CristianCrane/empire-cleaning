@@ -108,8 +108,9 @@ export const copyTestDatabase = async (template: string, urls: string[]) => {
 };
 
 // drops the copies of the database at `url` (see withSuffix) numbered `from`
-// and up: ones an earlier run with more workers left behind. The test Postgres
-// keeps its databases in memory.
+// and up: ones an earlier run with more workers left behind, or the seed
+// test's own once it's done (tests/seed.test.ts). The test Postgres keeps its
+// databases in memory.
 export const dropTestDatabaseCopies = async (url: string, from: number) => {
   const name = nameOf(url);
   await asAdmin(url, async (admin) => {

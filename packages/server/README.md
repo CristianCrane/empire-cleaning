@@ -75,7 +75,7 @@ Create the first Office Staff member (after `pnpm db:migrate`), then sign up wit
 pnpm auth:create-owner owner@example.com "Owner Name"
 ```
 
-Or, for a dev database, seed it instead: `pnpm db:seed` makes the owner (`SEED_OWNER_EMAIL`), Cleaners, and Clients with Quotes in every state, dated around today (`tests/seed.ts`). `pnpm db:seed --reset` first deletes everything but Accounts, the Price List and the Services, so a reset keeps everyone signed up. `SEED_NOW` (an ISO instant) seeds as if it were then, to check the seed on every day of the week. The demo people the test site's people page lists (`DEMO_PEOPLE`, `#features/demo-people`) are found by name, and the seed fails if one is missing.
+Or, for a dev database, seed it instead: `pnpm db:seed` makes the owner (`SEED_OWNER_EMAIL`), Cleaners, and Clients with Quotes in every state, dated around today (`tests/seed.ts`). `pnpm db:seed --reset` first deletes everything but Accounts, the Price List and the Services, so a reset keeps everyone signed up. `SEED_NOW` (an ISO instant) seeds as if it were then. Where the seed's cleans fall turns on the day and time it runs, so `tests/seed.test.ts` (`pnpm test:seed`, which the server's `pnpm test` runs after its other tests, and the quick tests leave out) runs it as if at four times on each day of a week, and the Reset test data Action tries it on a copy of the test database before the test site. The demo people the test site's people page lists (`DEMO_PEOPLE`, `#features/demo-people`) are found by name, and the seed fails if one is missing.
 
 The people testing the test site are its Staff, listed in `tests/testers.ts`: a reset there adds them, and `pnpm staff:testers` (Actions → Add testers) adds any missing without one.
 

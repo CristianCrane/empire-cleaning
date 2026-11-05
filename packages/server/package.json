@@ -22,14 +22,15 @@
     "db:studio": "drizzle-kit studio --config=./src/db/drizzle.config.ts",
     "db:seed": "tsx --env-file-if-exists=.env ./tests/seed.ts",
     "test": "vitest run",
-    "test:watch": "vitest --watch",
-    "test:coverage": "vitest run --coverage",
+    "test:seed": "vitest run --project seed",
+    "test:watch": "vitest --watch --project server",
+    "test:coverage": "vitest run --coverage --project server",
     "staff:testers": "tsx --env-file-if-exists=.env ./tests/testers.ts",
     "auth:create-owner": "tsx --env-file=.env ./src/features/auth/create-owner.ts",
     "e2e:server": "tsx tests/e2e/server.ts",
     "stripe:sandbox": "vitest run --config vitest.sandbox.config.ts",
     "stripe:record": "tsx --env-file=.env tests/contract/record-stripe.ts",
-    "test:quick": "vitest run",
+    "test:quick": "vitest run --project server",
     "email:dev": "email dev --dir emails --port 3002"
   },
   "dependencies": {

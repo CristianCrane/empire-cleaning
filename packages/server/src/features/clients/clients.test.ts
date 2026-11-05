@@ -464,3 +464,15 @@ describe("a Client changing their email", () => {
     expect(testEmail().to(dana)).toHaveLength(0);
   });
 });
+
+describe("making a Client", () => {
+  test("for someone signed up already, it comes back connected", async () => {
+    const account = (await (await signIn(sam.email)).get("/api/me")).body as {
+      id: string;
+    };
+
+    const client = await createClient(sam);
+
+    expect(client.accountId).toBe(account.id);
+  });
+});

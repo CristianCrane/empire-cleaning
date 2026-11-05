@@ -46,7 +46,7 @@ import { findClientByEmail } from "#features/clients";
 import { DEMO_PEOPLE, demoPeople } from "#features/demo-people";
 import { completeJob, proposeAdjustment } from "#features/completion";
 import { savePaymentMethod, startCardForm } from "#features/payments";
-import { currentPriceList } from "#features/price-list";
+import { currentPriceList, offeredWith } from "#features/price-list";
 import {
   acceptQuote,
   askForQuote,
@@ -71,10 +71,11 @@ import { refuseOnProduction } from "#features/site";
 import { jobs } from "#features/jobs";
 import {
   generateServicePlanJobs,
+  INTERVAL_DAYS,
   servicePlans,
   servicePlanVisits,
 } from "#features/service-plans";
-import { createStaff, setUsualWeek } from "#features/staff";
+import { createStaff, setException, setUsualWeek } from "#features/staff";
 import { addDays, atTime, dayOf, weekdayOf } from "#services/clock";
 import { installFakes, signIn, testClock, testPayments } from "./harness.ts";
 import { sentServicePlanQuote, startedServicePlan } from "./fixtures.ts";
@@ -99,34 +100,48 @@ const weekdayFrom = (days: number) => {
   while (weekdayOf(day) > 4) day = addDays(day, 1);
   return { date: day, time: "09:00" };
 };
+// the last weekday on or before `days` from today, at 9am: for a clean
+// that's over, which a weekend mustn't move on to Monday, today or later
+const weekdayUpTo = (days: number) => {
+  let day = addDays(today, days);
+  while (weekdayOf(day) > 4) day = addDays(day, -1);
+  return { date: day, time: "09:00" };
+};
 const mondayOf = (day: string) => addDays(day, -weekdayOf(day));
 
 // created_at and updated_at come from the database's own clock, so each move
 // of the fake clock first stamps the rows made since the last move with the
 // fake time they were made at
 let stampedTo: Date | null = null;
+// the tables with a created_at, and whether each has an updated_at too: read
+// once, as seeding never changes them
+let stamped: { table_name: string; updated: boolean }[] | null = null;
 const stamp = async () => {
-  const { rows: tables } = await db.execute<{ table_name: string }>(
-    sql`select table_name from information_schema.columns
-        where table_schema = 'public' and column_name = 'created_at'`,
-  );
+  stamped ??= (
+    await db.execute<{ table_name: string; updated: boolean }>(
+      sql`select table_name, bool_or(column_name = 'updated_at') as updated
+          from information_schema.columns
+          where table_schema = 'public' and column_name in ('created_at', 'updated_at')
+          group by table_name having bool_or(column_name = 'created_at')`,
+    )
+  ).rows;
   const fake = testClock().now();
-  if (stampedTo) {
-    for (const { table_name } of tables) {
-      const { rows: hasUpdated } = await db.execute(
-        sql`select 1 from information_schema.columns where table_schema = 'public'
-            and table_name = ${table_name} and column_name = 'updated_at'`,
-      );
-      const t = sql.identifier(table_name);
-      await db.execute(
-        hasUpdated.length > 0
-          ? sql`update ${t} set created_at = ${fake}, updated_at = ${fake} where created_at > ${stampedTo}`
-          : sql`update ${t} set created_at = ${fake} where created_at > ${stampedTo}`,
-      );
-    }
-  }
+  const since = stampedTo;
+  // every table, and the database's clock, in one statement: a query a
+  // table took ~5 minutes against the test site's database (#238). The
+  // clock may be read before the updates, which make no rows
+  const updates = since
+    ? stamped.map(
+        ({ table_name, updated }, i) =>
+          sql`${sql.identifier(`stamp_${i}`)} as (update ${sql.identifier(table_name)}
+              set created_at = ${fake}${updated ? sql`, updated_at = ${fake}` : sql``}
+              where created_at > ${since} returning 1)`,
+      )
+    : [];
   const { rows } = await db.execute<{ now: Date }>(
-    sql`select clock_timestamp() as now`,
+    updates.length > 0
+      ? sql`with ${sql.join(updates, sql`, `)} select clock_timestamp() as now`
+      : sql`select clock_timestamp() as now`,
   );
   stampedTo = new Date(rows[0]!.now);
 };
@@ -290,13 +305,18 @@ async function seed() {
       crewSize,
       depositPercent: 25,
       validityDays,
-      proposedStart: { ...weekdayFrom(startIn), time },
+      proposedStart: {
+        ...(startIn < 0 ? weekdayUpTo(startIn) : weekdayFrom(startIn)),
+        time,
+      },
       overrides: {},
     });
     return sendQuote(id);
   };
 
   // ---- Requested ----
+  // from the landing site's Queens page, by the Business Profile's link, with
+  // two Add-ons chosen
   await at(on(-3));
   await ask(
     contact("priya", "Priya Shah"),
@@ -308,8 +328,19 @@ async function seed() {
       }),
     },
     {
+      serviceKey: SEEDED.moveInOut,
       condition: "heavy",
+      addOns: list.addOns
+        .filter((addOn) => offeredWith(addOn, SEEDED.moveInOut))
+        .slice(0, 2)
+        .map((addOn) => addOn.key),
       notes: "Moving out at the end of the month; the landlord inspects after.",
+      source: {
+        page: "/queens/",
+        utmSource: "gbp",
+        utmMedium: "organic",
+        utmCampaign: null,
+      },
     },
   );
 
@@ -320,7 +351,15 @@ async function seed() {
     { businessName: "Park & Co Law", condition: undefined },
   );
   await bookSiteVisit(
-    { quoteId: park.id, staffId: maria!.id, minutes: 60, ...weekdayFrom(2) },
+    // in the afternoon: seeded on a Saturday, it's on Monday, after Helen's
+    // morning clean with Maria
+    {
+      quoteId: park.id,
+      staffId: maria!.id,
+      minutes: 60,
+      ...weekdayFrom(2),
+      time: "15:00",
+    },
     by,
   );
 
@@ -438,13 +477,28 @@ async function seed() {
   const ninaPlan = await startedServicePlan({
     propertyId: ninaHome.propertyId,
     byAccountId: by,
-    startsAt: `${weekdayFrom(3).date}T14:00:00Z`,
+    // after Sofia's morning clean on the same weekday, both Daniela's
+    startsAt: atTime(weekdayFrom(3).date, "13:30").toISOString(),
   });
 
   // ---- regulars: plans a few weeks old, their Cleaner on every clean, the
   // cleans so far done, so the weeks behind and ahead are full: today's
   // Schedule, a Cleaner's Next up, a Client's history ----
-  const regulars: { planId: string; cleanerId: string }[] = [];
+  //
+  // Each holds a weekday counted from today's, and a weekend day falls on
+  // the Monday after: Helen today's (Maria), Bell today's evening (Luz),
+  // Marcus 2 days on (Luz, fortnightly), Sofia's morning and Nina's
+  // afternoon 3 days on (both Daniela). Two days with the same Cleaner need
+  // to be 3 or more apart, or two weekend days would put them on one Monday;
+  // otherwise they need different times of day. The same goes for a one-off
+  // with a regular's Cleaner. The seed test runs it on every day of the week
+  // (seed.test.ts)
+  const regulars: {
+    name: string;
+    planId: string;
+    cleanerId: string;
+    billed?: boolean;
+  }[] = [];
   const regular = async (
     who: ReturnType<typeof contact>,
     house: NewHome,
@@ -474,7 +528,7 @@ async function seed() {
       recurrence,
     });
     await workPlan(planId, cleanerId);
-    regulars.push({ planId, cleanerId });
+    regulars.push({ name: who.name, planId, cleanerId });
   };
   await regular(
     contact("helen", "Helen Kowalski"),
@@ -590,7 +644,12 @@ async function seed() {
       note: `Check #${1041 + i}`,
     });
   }
-  regulars.push({ planId: bellPlan!.id, cleanerId: luz!.id });
+  regulars.push({
+    name: bellWho.name,
+    planId: bellPlan!.id,
+    cleanerId: luz!.id,
+    billed: true,
+  });
 
   // ---- Jobs in every state the Office's Job page shows ----
   const [firstAddOn, secondAddOn] = list.addOns;
@@ -630,12 +689,14 @@ async function seed() {
   await at(on(-2));
   await releaseAssignment(daniela!.id, danielaPlace);
 
-  // the Client has asked to move it, waiting on the Office
+  // the Client has asked to move it, waiting on the Office. Not 5 days out:
+  // seeded on a Monday, that's the next Monday, Helen's with Maria, and
+  // Pete's crew of two leaves nobody else
   const moving = await bookedJob(
     contact("rosa", "Rosa Diaz"),
     home("61-20 188th St", "11365", { type: "house", bedrooms: 3 }),
     -9,
-    5,
+    4,
   );
   await confirm(moving.id, maria!.id);
   await at(on(-1));
@@ -748,12 +809,13 @@ async function seed() {
     "Nobody answered the door, and the phone went to voicemail.",
   );
 
-  // a place Offered, not yet answered
+  // a place Offered, not yet answered. Not 14 days out: that's Helen's
+  // weekday, with Maria
   const offered = await bookedJob(
     contact("erin", "Erin Ford"),
     home("21-40 Steinway St", "11105", { type: "house", bedrooms: 3 }),
     -4,
-    14,
+    17,
   );
   await at(on(-1));
   await offerAssignment(offered.id, maria!.id, by);
@@ -769,10 +831,31 @@ async function seed() {
     byClient: false,
   });
 
-  regulars.push({ planId: ninaPlan.planId, cleanerId: daniela!.id });
+  regulars.push({
+    name: nina.name,
+    planId: ninaPlan.planId,
+    cleanerId: daniela!.id,
+  });
 
-  // the regulars' cleans booked as far ahead as the server books them, each
-  // with its Cleaner
+  // a day off ahead, past the 28 days the server books plan cleans
+  // (service-plans.ts), so it frees nothing and leaves no regular's clean
+  // without room
+  await at(on(-1));
+  await setException(daniela!.id, {
+    date: weekdayFrom(35).date,
+    hours: 0,
+    note: "Family wedding",
+  });
+
+  // The server books each plan's cleans some weeks ahead, every day. The
+  // seed books them 3 days ago, so a plan begun weeks back has today's too,
+  // worked as far as now; then now, as far ahead as the server books them,
+  // each with its Cleaner
+  await at(on(-3));
+  await generateServicePlanJobs();
+  for (const { planId, cleanerId, billed } of regulars) {
+    await workPlan(planId, cleanerId, billed);
+  }
   await at(realNow);
   await generateServicePlanJobs();
   for (const { planId, cleanerId } of regulars) {
@@ -780,6 +863,25 @@ async function seed() {
       if (job.startsAt > realNow && job.status === "booked") {
         await confirm(job.id, cleanerId);
       }
+    }
+  }
+
+  // every regular has a clean each interval of their plan from their first:
+  // the server books none on a day already full, without a word
+  for (const { name, planId } of regulars) {
+    const [plan] = await db
+      .select({ recurrence: servicePlans.recurrence })
+      .from(servicePlans)
+      .where(eq(servicePlans.id, planId));
+    const step = INTERVAL_DAYS[plan!.recurrence];
+    const days = (await planJobs(planId)).map((job) => dayOf(job.startsAt));
+    const gap = days.findIndex(
+      (day, i) => i > 0 && day !== addDays(days[i - 1]!, step),
+    );
+    if (gap > 0) {
+      throw new Error(
+        `${name} has no clean between ${days[gap - 1]} and ${days[gap]}`,
+      );
     }
   }
 
@@ -807,12 +909,17 @@ async function seed() {
   }
 
   // a plan's cleans so far, Confirmed by the Cleaner two days before and
-  // done that day; billed, each week's Bill made the Monday after
+  // done 3 hours in, or under way if that's still to come; billed, each
+  // week's Bill made the Monday after. It leaves cleans done or Skipped,
+  // and Confirming one under way again changes nothing (confirm), so it can
+  // work a plan again once more of its cleans are booked
   async function workPlan(planId: string, cleanerId: string, billed = false) {
     for (const job of await planJobs(planId)) {
-      if (job.startsAt.getTime() > realNow.getTime() - 6 * 3_600_000) break;
+      if (job.startsAt > realNow) break;
+      if (job.status !== "booked") continue;
       await at(after(job, -48));
       await confirm(job.id, cleanerId);
+      if (after(job, 3) > realNow) continue;
       await at(after(job, 3));
       await completeJob(cleanerId, job.id, {
         condition: "moderate",
@@ -844,7 +951,8 @@ async function seed() {
   }
 
   // a home asked about `askedIn` days from today, its Quote accepted by
-  // phone for a Deep Clean on the first weekday from `startIn`
+  // phone for a Deep Clean on the first weekday from `startIn`, or for a
+  // clean that's over, the last weekday up to it (weekdayUpTo)
   async function bookedJob(
     who: ReturnType<typeof contact>,
     house: NewHome,

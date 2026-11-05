@@ -17,9 +17,10 @@ declare module "vitest" {
 // Test files run in parallel, each worker on a database of its own
 // (setup/workerDatabase.ts): copies of one migrated here, so the migrations
 // run once. One per worker the run really has: `--maxWorkers` overrides
-// TEST_WORKERS (vitest.config.ts).
+// TEST_WORKERS (vitest.config.ts). The run's, not the project's: its projects
+// share the one setting
 export async function setup(project: TestProject) {
-  const workers = project.config.maxWorkers;
+  const workers = project.globalConfig.maxWorkers;
   await recreateTestDatabase(TEST_DB_URL);
   await dropTestDatabaseCopies(TEST_DB_URL, workers + 1);
   await copyTestDatabase(

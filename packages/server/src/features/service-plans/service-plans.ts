@@ -76,7 +76,7 @@ import {
 } from "./service-plans.schema.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
 
-const INTERVAL_DAYS: Record<Recurrence, number> = {
+export const INTERVAL_DAYS: Record<Recurrence, number> = {
   weekly: 7,
   fortnightly: 14,
   four_weekly: 28,

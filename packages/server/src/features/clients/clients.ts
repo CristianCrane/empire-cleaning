@@ -53,9 +53,15 @@ export const createClient = async ({
       businessName: businessName || null,
     })
     .returning();
-  if (client!.email) await connectSignedUpAccount(client!.email);
+  if (!client!.email) return client!;
+  await connectSignedUpAccount(client!.email);
 
-  return client!;
+  // as connecting left it
+  const [connected] = await db
+    .select()
+    .from(clients)
+    .where(eq(clients.id, client!.id));
+  return connected!;
 };
 
 export const findClientByEmail = async (email: string) => {

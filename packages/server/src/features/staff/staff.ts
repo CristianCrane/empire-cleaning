@@ -50,7 +50,8 @@ export const createStaff = async ({ email, name, roles }: NewStaff) => {
     .returning();
   await connectSignedUpAccount(member!.email);
 
-  return member!;
+  // as connecting left it
+  return (await findStaff(member!.id)).member;
 };
 
 // imageUrl: the connected Account's picture, from Google
