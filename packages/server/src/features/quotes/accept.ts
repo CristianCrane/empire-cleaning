@@ -13,6 +13,7 @@ import {
   paymentGateway,
   type DepositAttempt,
 } from "../../services/payment-gateway/index.ts";
+import { weeklyBillOf } from "../bills/billed-weekly.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { bookJob, lockDay } from "../jobs/jobs.ts";
 import type { Job } from "../jobs/jobs.schema.ts";
@@ -748,7 +749,11 @@ const afterAcceptance = async (
   offer: Offer,
   paidWith: string | null,
 ) => {
-  const paid = { paymentMethod: paidWith, depositCents: offer.depositCents };
+  const paid = {
+    paymentMethod: paidWith,
+    weeklyBill: weeklyBillOf(client),
+    depositCents: offer.depositCents,
+  };
   if (replaced) await afterTermsChanged(replaced);
   try {
     await (replaced

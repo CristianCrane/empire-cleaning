@@ -19,6 +19,7 @@ export default preview(
       ],
     },
     replaced: [monday],
-    paid: { paymentMethod: "Visa ending 4242" },
+    // a business billed weekly, as most plans of several days a week are
+    paid: { paymentMethod: "Visa ending 4242", weeklyBill: "automatic" },
   }),
 );

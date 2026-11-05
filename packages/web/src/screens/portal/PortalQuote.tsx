@@ -50,6 +50,7 @@ import {
 import { Fact } from "../Fact.tsx";
 import { PlanDayCard, PlanTotals, QuoteStatusBadge } from "../QuoteParts.tsx";
 import { ConsentNote, usePaymentForm } from "./CardForm.tsx";
+import { billPaid, planPaymentLine } from "./payments.ts";
 
 // A Quote as its Client sees it, from the link in every Quote email (ADR-0017):
 // only its offer, the latest Sent Revision, which they accept right here; or,
@@ -414,7 +415,11 @@ function QuoteDetails({
                       strong
                     />
                     <Line
-                      label="The rest, when the clean is done"
+                      label={
+                        quote.weeklyBill
+                          ? "The rest, on that week's Bill"
+                          : "The rest, when the clean is done"
+                      }
                       value={formatMoney(
                         chosen.totalCents - chosen.depositCents,
                       )}
@@ -625,12 +630,8 @@ function Accept({
 
         <p className="text-sm text-fg-muted">
           {quote.plan
-            ? `${depositCents > 0 ? `We take the ${formatMoney(depositCents)} Deposit now and hold it for as long as your plan runs: it comes off your last clean when the plan ends. ` : ""}${quote.plan.days.length === 1 ? `Each clean, ${formatMoney(chosen.totalCents)},` : "Each clean"} is charged when it's done. The first is on ${formatDateTime(quote.proposedStartsAt)}.`
-            : `${
-                chosen.depositCents > 0
-                  ? `We take the ${formatMoney(chosen.depositCents)} Deposit now and the rest, ${formatMoney(balance)}, when the clean is done.`
-                  : `Nothing is taken now: the ${formatMoney(chosen.totalCents)} is charged when the clean is done.`
-              } Booked for ${formatDateTime(quote.proposedStartsAt)}.`}
+            ? `${depositCents > 0 ? `We take the ${formatMoney(depositCents)} Deposit now and hold it for as long as your plan runs: it comes off your last clean when the plan ends. ` : ""}${eachClean(quote, chosen)} The first is on ${formatDateTime(quote.proposedStartsAt)}.`
+            : `${oneOffPayment(quote, chosen, balance)} Booked for ${formatDateTime(quote.proposedStartsAt)}.`}
         </p>
         {newCard && <ConsentNote action="paying" />}
         {action.problem && <Notice tone="danger">{action.problem}</Notice>}
@@ -651,13 +652,40 @@ function Accept({
   );
 }
 
+// how a one-off clean is paid: the Deposit now, if any, and the rest when
+// it's done, or on its week's Bill for a Client billed weekly (ADR-0016)
+const oneOffPayment = (
+  quote: QuoteView,
+  chosen: QuoteOption,
+  balance: number,
+) => {
+  const billed =
+    quote.weeklyBill &&
+    `goes on your Bill for that week, ${billPaid[quote.weeklyBill]}`;
+  return chosen.depositCents > 0
+    ? billed
+      ? `We take the ${formatMoney(chosen.depositCents)} Deposit now, and the rest, ${formatMoney(balance)}, ${billed}.`
+      : `We take the ${formatMoney(chosen.depositCents)} Deposit now and the rest, ${formatMoney(balance)}, when the clean is done.`
+    : `Nothing is taken now: the ${formatMoney(chosen.totalCents)} ${billed || "is charged when the clean is done"}.`;
+};
+
+// what each of a plan's cleans costs, when its days cost the same, and how
+// it's paid: when it's done, or on a weekly Bill
+const eachClean = (quote: QuoteView, chosen: QuoteOption) => {
+  const price =
+    quote.options.length === 1 ? formatMoney(chosen.totalCents) : null;
+  return quote.weeklyBill
+    ? `${price ? `Each clean is ${price}. ` : ""}${planPaymentLine[quote.weeklyBill]}`
+    : `${price ? `Each clean, ${price},` : "Each clean"} is charged when it's done.`;
+};
+
 // accepting a Quote that changes the home's plan: nothing to pay, as the
 // plan's Deposit carries over
 function AcceptChange({ quote }: { quote: QuoteView }) {
   const action = useAction("That didn't work. Please try again.", {
     reloadOnFailure: true,
   });
-  const [only, ...others] = quote.options;
+  const [first] = quote.options;
 
   const accept = () =>
     action.run(
@@ -672,9 +700,8 @@ function AcceptChange({ quote }: { quote: QuoteView }) {
     <Section title="Accept the new terms">
       <Card>
         <p className="text-sm text-fg-muted">
-          Nothing is charged now. Each clean
-          {others.length === 0 ? `, ${formatMoney(only!.totalCents)},` : ""} is
-          charged when it's done, from {formatDateTime(quote.proposedStartsAt)}.
+          Nothing is charged now. {eachClean(quote, first!)} The new terms start
+          on {formatDateTime(quote.proposedStartsAt)}.
         </p>
         {action.problem && <Notice tone="danger">{action.problem}</Notice>}
         <Actions>

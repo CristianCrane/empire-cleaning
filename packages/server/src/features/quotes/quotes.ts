@@ -37,6 +37,7 @@ import {
   weekdayOf,
 } from "../../services/clock/index.ts";
 import { email } from "../../services/email/index.ts";
+import { weeklyBillOf } from "../bills/billed-weekly.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { ENDS_BY_MIDNIGHT, endsByMidnight } from "../jobs/rules.ts";
 import { officeCompletionOf } from "../completion/completion.ts";
@@ -795,13 +796,19 @@ export const clientQuote = async (
   clientId: string,
 ): Promise<QuoteView> => {
   const [found] = await db
-    .select({ quote: quotes, offer: offers, property: properties })
+    .select({
+      quote: quotes,
+      offer: offers,
+      property: properties,
+      client: clients,
+    })
     .from(quotes)
     .innerJoin(offers, eq(offers.id, quotes.sentRevisionId))
     .innerJoin(properties, eq(properties.id, quotes.propertyId))
+    .innerJoin(clients, eq(clients.id, properties.clientId))
     .where(and(eq(quotes.id, id), eq(properties.clientId, clientId)));
   if (!found) throw new NotFoundError("Quote not found");
-  const { quote, offer, property } = found;
+  const { quote, offer, property, client } = found;
   const revision = kinded(quote, offer);
   const rows = await optionsOf(offer.id);
   const status = currentStatusOf(quote, offer);
@@ -831,6 +838,7 @@ export const clientQuote = async (
     ...(await acceptedPlanOf(quote)),
     changesPlan: await planChangeFor(quote, status, offer),
     bookable: await bookableOf(quote, status, offer),
+    weeklyBill: weeklyBillOf(client),
   };
 };
 
