@@ -772,7 +772,7 @@ function Receipt({ job }: { job: ClientJobDetail }) {
       )}
       {job.weeklyBill && payment.owedCents > 0 && (
         <p className="text-sm text-fg-muted">
-          The rest, {formatMoney(payment.owedCents)}, {ON_WEEKS_BILL}.
+          The rest, {formatMoney(payment.owedCents)}, goes on your weekly Bill.
         </p>
       )}
     </Part>
