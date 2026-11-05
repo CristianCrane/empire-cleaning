@@ -954,9 +954,13 @@ const refuseAnotherOpen = async (
   }
 };
 
-// "this home" or "these premises", for the Office
-const thisPlace = (property: Pick<Property, "kind">) =>
+// "this home" or "these premises", as the Client or the Office would say it
+export const thisPlace = (property: Pick<Property, "kind">) =>
   property.kind === "commercial" ? "these premises" : "this home";
+
+// refusing a Quote while `what` (another Quote) is open at the Property
+export const openAlready = (property: Pick<Property, "kind">, what: string) =>
+  `${thisPlace(property).replace(/^t/, "T")} ${property.kind === "commercial" ? "have" : "has"} ${what} open already: carry on with that one.`;
 
 // a one-off Quote's name for another open at the Property: "a Deep Clean
 // Quote", or a Service Plan Quote
@@ -1178,7 +1182,7 @@ export const startRevision = async (
         current,
         holding,
         list.services,
-        `${thisPlace(property).replace(/^t/, "T")} ${property.kind === "commercial" ? "have" : "has"} ${quoteName(list.services, kind, serviceKey)} open already: carry on with that one.`,
+        openAlready(property, quoteName(list.services, kind, serviceKey)),
       );
       await tx
         .update(quotes)
@@ -1236,7 +1240,7 @@ export const offerServicePlan = async (
       { id: null, propertyId },
       { kind: "service_plan", serviceKey: service.key },
       list.services,
-      `${thisPlace(property).replace(/^t/, "T")} ${property.kind === "commercial" ? "have" : "has"} a Service Plan Quote, or a Quote asked for, open already: carry on with that one.`,
+      openAlready(property, "a Service Plan Quote, or a Quote asked for,"),
     );
     const [quote] = await tx
       .insert(quotes)
@@ -1472,7 +1476,10 @@ export const saveDraft = async (
         current,
         { kind: "one_off", serviceKey: service!.key },
         list.services,
-        `${thisPlace(property).replace(/^t/, "T")} ${property.kind === "commercial" ? "have" : "has"} ${quoteName(list.services, "one_off", service!.key)} open already: carry on with that one.`,
+        openAlready(
+          property,
+          quoteName(list.services, "one_off", service!.key),
+        ),
       );
       await tx
         .update(quotes)
