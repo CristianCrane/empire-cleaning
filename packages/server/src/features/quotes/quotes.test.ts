@@ -429,6 +429,29 @@ describe("drafting a First Clean Quote", () => {
     await office.post(`/api/quotes/${draft.id}/send`).expect(200);
   });
 
+  test("a Draft started after an asked Add-on stopped going with the Service leaves it off every price, so it can be sent", async () => {
+    const office = await signInAsOffice();
+    const quoteId = await asked(["Inside the oven"]);
+    const list = (await office.get("/api/price-list").expect(200))
+      .body as PriceList;
+    await office
+      .put("/api/price-list")
+      .send({
+        ...list,
+        addOns: list.addOns.map((a) =>
+          a.name === "Inside the oven"
+            ? { ...a, serviceKeys: [SEEDED.deep] }
+            : a,
+        ),
+      })
+      .expect(200);
+
+    const draft = await startDraft(office, quoteId);
+    expect(draft.draft!.options.map((o) => o.addOns)).toEqual([[], []]);
+    await save(office, draft, { proposedStart: nextMonday });
+    await office.post(`/api/quotes/${draft.id}/send`).expect(200);
+  });
+
   test("at the Minimum Charge an Add-on adds nothing", async () => {
     const office = await signInAsOffice();
     await setService(office, "standard", { minimumChargeCents: 50_000 });

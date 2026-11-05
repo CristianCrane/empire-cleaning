@@ -1052,11 +1052,17 @@ const newRevisionOptions = async (
     kind === "service_plan"
       ? { ...PLAN_DEFAULTS, planDiscountPercent: list.planDiscountPercent }
       : null;
+  // those asked for that go with its Service, though the Office may have
+  // changed which Services an Add-on goes with since
+  const asked = new Set(
+    ((await askedAddOns([quote.id], tx)).get(quote.id) ?? []).map((a) => a.key),
+  );
   const addOnKeys = plan
     ? []
-    : ((await askedAddOns([quote.id], tx)).get(quote.id) ?? []).map(
-        (a) => a.key,
-      );
+    : ownAddOns(
+        list.addOns.filter((a) => asked.has(a.key)),
+        serviceKey,
+      ).map((a) => a.key);
   const area = areaOf(null, quote, property);
   return {
     revision: {
