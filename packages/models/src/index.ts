@@ -1080,7 +1080,9 @@ export type OfficeQuote = {
   client: OfficeContactDetails & { id: string };
   // what the Property is now: its rooms, or its Premises Type and floor area
   property: PropertyView;
-  // the Service it's for now: as asked, unless Office Staff changed it
+  // the Service being worked on: the Draft's, else the offer's, else the
+  // Quote's, as asked unless Office Staff changed it. A Draft's new Service
+  // becomes the Quote's once it's sent.
   service: ServiceChoice;
   // the Services a Draft can be changed to: those on offer for its kind of
   // Property (that can recur, for a Service Plan Quote), and its own
@@ -1088,7 +1090,7 @@ export type OfficeQuote = {
   // the area a Draft for a Service priced by area is priced on until Office
   // Staff type one: the Property's floor area, else the Client's rough one
   areaFrom: { sqFt: number; source: "property" | "asked" } | null;
-  // the Suggested Price for its Service, worked out now from the current
+  // the Suggested Price for that Service, worked out now from the current
   // Services and Price List, the Property's current details and Condition,
   // and the Add-ons asked for
   suggested: SuggestedPrices;

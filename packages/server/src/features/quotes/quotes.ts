@@ -175,20 +175,21 @@ const homeOf = async (propertyId: string, tx: Tx | typeof db = db) => {
   return row;
 };
 
-// The Add-ons a Revision can carry (ADR-0018): those on offer that go with
-// its Service, and any asked for that have since been retired
+// The Add-ons a Quote's Revision for a Service can carry (ADR-0018): those
+// on offer that go with the Service, and any asked for that have since been
+// retired
 const addOnChoices = async (
   list: Pricing,
-  quote: Quote,
+  quoteId: string,
+  serviceKey: string,
 ): Promise<AddOnChoice[]> => {
   const asked = new Set(
-    ((await askedAddOns([quote.id])).get(quote.id) ?? []).map((a) => a.key),
+    ((await askedAddOns([quoteId])).get(quoteId) ?? []).map((a) => a.key),
   );
   return list.addOns
     .filter(
       (a) =>
-        (a.active && a.serviceKeys.includes(quote.serviceKey)) ||
-        asked.has(a.key),
+        (a.active && a.serviceKeys.includes(serviceKey)) || asked.has(a.key),
     )
     .map(({ key, name }) => ({ key, name }));
 };
@@ -627,7 +628,8 @@ const homePlanIdOf = async (propertyId: string) => {
 };
 
 // A Quote in full, for the Office (ADR-0017): what was asked, with the
-// Suggested Price for its Service (and any first-visit recommendation)
+// Suggested Price for the Service being worked on (the Draft's, else the
+// offer's or the Quote's) and any first-visit recommendation,
 // worked out now from the current Services and Price List and the
 // Property's current details and Condition (which Staff may have
 // corrected); the Revision being drafted and the offer; and every Sent
@@ -675,9 +677,11 @@ export const officeQuote = async (id: string): Promise<OfficeQuote> => {
   ]);
   const asked = addOns.get(id) ?? [];
   const chosen = list.addOns.filter((a) => asked.some((c) => c.key === a.key));
-  const service = serviceOf(list.services, quote.serviceKey);
+  // a Draft's Service is the Quote's only once it's sent (saveDraft)
+  const serviceKey = (draft ?? offer)?.serviceKey ?? quote.serviceKey;
+  const service = serviceOf(list.services, serviceKey);
   // the Services it's for: its own, and its Revision's days' or options'
-  const quoted = [quote.serviceKey, ...shownRows.map((r) => r.serviceKey)];
+  const quoted = [serviceKey, ...shownRows.map((r) => r.serviceKey)];
   const choices =
     quote.kind === "service_plan"
       ? planServices(list.services, property.kind)
@@ -735,7 +739,7 @@ export const officeQuote = async (id: string): Promise<OfficeQuote> => {
     firstCleanCompleted: firstCleanDone,
     homePlanId,
     firstClean,
-    addOnChoices: await addOnChoices(list, quote),
+    addOnChoices: await addOnChoices(list, id, serviceKey),
     draft: draft ? await officeRevision(kinded(quote, draft)) : null,
     offer: offer ? await officeRevision(kinded(quote, offer)) : null,
     revisions,
@@ -1316,12 +1320,10 @@ const planVisits = (plan: ServicePlanInput, service: Service) => {
 const draftServiceOf = (
   list: Pricing,
   property: Property,
-  quote: Quote,
+  now: string,
   wanted: string | undefined,
 ) => {
-  if (!wanted || wanted === quote.serviceKey) {
-    return serviceOf(list.services, quote.serviceKey);
-  }
+  if (!wanted || wanted === now) return serviceOf(list.services, now);
   const service = onOfferAt(list.services, property.kind).find(
     (s) => s.key === wanted,
   );
@@ -1336,12 +1338,12 @@ const draftServiceOf = (
 const planServiceOf = (
   list: Pricing,
   property: Property,
-  quote: Quote,
+  now: string,
   wanted: string,
 ) => {
-  const service = planServices(list.services, property.kind, [
-    quote.serviceKey,
-  ]).find((s) => s.key === wanted);
+  const service = planServices(list.services, property.kind, [now]).find(
+    (s) => s.key === wanted,
+  );
   if (!service) {
     throw fieldError(
       ["plan", "serviceKey"],
@@ -1353,9 +1355,11 @@ const planServiceOf = (
 
 // saves what Office Staff set on a Quote's Draft Revision, pricing it afresh
 // from the current Services and Price List and the home's current details.
-// A one-off Draft may change the Quote's Service, unless another Quote for
-// that one is open here. It's written under the Property's lock, so a save
-// that waited on a send or a close is refused.
+// A one-off Draft may change its Service, unless another Quote for that one
+// is open here. The Quote takes the new Service now while nothing's Sent;
+// while an offer stands it keeps the offer's until this is sent. It's
+// written under the Property's lock, so a save that waited on a send or a
+// close is refused.
 export const saveDraft = async (
   id: string,
   input: QuoteDraftInput,
@@ -1377,15 +1381,13 @@ export const saveDraft = async (
   }
   const service =
     draft.kind === "one_off"
-      ? draftServiceOf(list, property, quote, input.serviceKey)
-      : plan && planServiceOf(list, property, quote, plan.serviceKey);
+      ? draftServiceOf(list, property, draft.serviceKey, input.serviceKey)
+      : plan &&
+        planServiceOf(list, property, draft.serviceKey, plan.serviceKey);
   const allowed = new Set(
-    (
-      await addOnChoices(list, {
-        ...quote,
-        serviceKey: service?.key ?? quote.serviceKey,
-      })
-    ).map((a) => a.key),
+    (await addOnChoices(list, quote.id, service?.key ?? draft.serviceKey)).map(
+      (a) => a.key,
+    ),
   );
   const unknown = input.addOns.findIndex((key) => !allowed.has(key));
   if (unknown !== -1) {
@@ -1463,28 +1465,28 @@ export const saveDraft = async (
     const { quote: current, draft: unsent } = await findDraftRevision(id, tx);
     // sent, and a newer one started, while this waited
     if (unsent.id !== draft.id) throw new ConflictError(SENT_ALREADY);
-    // one open Service Plan Quote, whatever its Service
-    if (draft.kind === "service_plan" && service!.key !== current.serviceKey) {
-      await tx
-        .update(quotes)
-        .set({ serviceKey: service!.key })
-        .where(eq(quotes.id, id));
-    }
-    if (draft.kind === "one_off" && service!.key !== current.serviceKey) {
-      await refuseAnotherOpen(
-        tx,
-        current,
-        { kind: "one_off", serviceKey: service!.key },
-        list.services,
-        openAlready(
-          property,
-          quoteName(list.services, "one_off", service!.key),
-        ),
-      );
-      await tx
-        .update(quotes)
-        .set({ serviceKey: service!.key })
-        .where(eq(quotes.id, id));
+    if (service!.key !== current.serviceKey) {
+      // a one-off Quote holds its Service; there's one open Service Plan
+      // Quote, whatever its Service
+      if (draft.kind === "one_off") {
+        await refuseAnotherOpen(
+          tx,
+          current,
+          { kind: "one_off", serviceKey: service!.key },
+          list.services,
+          openAlready(
+            property,
+            quoteName(list.services, "one_off", service!.key),
+          ),
+        );
+      }
+      // while an offer stands, sending this switches it (sendQuote)
+      if (!current.sentRevisionId) {
+        await tx
+          .update(quotes)
+          .set({ serviceKey: service!.key })
+          .where(eq(quotes.id, id));
+      }
     }
     await tx
       .update(quoteRevisions)
@@ -1622,14 +1624,21 @@ export const sendQuote = async (id: string): Promise<OfficeQuote> => {
       );
     }
 
+    // reviving it, or switching it to the Draft's Service (saveDraft)
     const offer = await findRevision(current.sentRevisionId, tx);
-    if (currentStatusOf(current, offer) === "expired") {
+    const expired = currentStatusOf(current, offer) === "expired";
+    if (expired || draft.serviceKey !== current.serviceKey) {
       await refuseAnotherOpen(
         tx,
         current,
-        { kind: draft.kind, serviceKey: current.serviceKey },
+        { kind: draft.kind, serviceKey: draft.serviceKey },
         list.services,
-        `A newer ${kindLabel[draft.kind]} is open for ${thisPlace(property)}, so this one can't be sent again.`,
+        expired
+          ? `A newer ${kindLabel[draft.kind]} is open for ${thisPlace(property)}, so this one can't be sent again.`
+          : openAlready(
+              property,
+              quoteName(list.services, draft.kind, draft.serviceKey),
+            ),
       );
     }
     const written =
@@ -1663,7 +1672,11 @@ export const sendQuote = async (id: string): Promise<OfficeQuote> => {
       .values(written.map((o) => ({ ...o, revisionId: draft.id })));
     await tx
       .update(quotes)
-      .set({ status: "sent", sentRevisionId: draft.id })
+      .set({
+        status: "sent",
+        sentRevisionId: draft.id,
+        serviceKey: draft.serviceKey,
+      })
       .where(eq(quotes.id, id));
     return client;
   });
