@@ -100,6 +100,10 @@ import {
 } from "./quotes.schema.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
 import { hoursOnSiteOf } from "../jobs/jobs.ts";
+import {
+  CANCELLATION_CUTOFF_HOURS,
+  lateFrom,
+} from "../cancellation/cancellation.ts";
 
 // a new Service Plan Quote's terms, until Office Staff change them: not a
 // copy of the First Clean, whatever it was
@@ -1517,8 +1521,9 @@ export const saveDraft = async (
 
 // Each clean a Draft Revision would book first, with the field that sets its
 // time: a one-off Quote's Job, the longest of its Services; a Service Plan
-// Quote's first on each weekday. Each must have a time still to come, and
-// end by midnight.
+// Quote's first on each weekday. Each must be more than a Late
+// Cancellation's 24 hours away, when the Quote would Expire, and end by
+// midnight.
 const refuseUntimely = (revision: KindedRevision, rows: PricedOption[]) => {
   const now = clock.now();
   const cleans =
@@ -1546,8 +1551,12 @@ const refuseUntimely = (revision: KindedRevision, rows: PricedOption[]) => {
           : "Choose a proposed time",
       );
     }
-    if (startsAt <= now) {
-      throw fieldError(path, "Choose a time that's still to come");
+    // it Expires from then (sendQuote)
+    if (lateFrom(startsAt) <= now) {
+      throw fieldError(
+        path,
+        `Choose a time more than ${CANCELLATION_CUTOFF_HOURS} hours away`,
+      );
     }
     if (!endsByMidnight(startsAt, option.hoursOnSite)) {
       throw fieldError(path, ENDS_BY_MIDNIGHT);
@@ -1654,10 +1663,11 @@ export const sendQuote = async (id: string): Promise<OfficeQuote> => {
       .update(quoteRevisions)
       .set({
         sentAt: now,
+        // or once cancelling it would be a Late Cancellation
         expiresAt: new Date(
           Math.min(
             now.getTime() + draft.validityDays * DAY_MS,
-            draft.proposedStartsAt!.getTime(),
+            lateFrom(draft.proposedStartsAt!).getTime(),
           ),
         ),
         priceListId: list.id,

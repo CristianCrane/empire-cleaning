@@ -377,7 +377,7 @@ export const addPremises = async (clientId: string) => {
  * by Cory at noon, goes on the Bill made on Monday the 12th. It's charged
  * automatically, or paid on its page, as `payment` says, and emailed to
  * `billingEmail` if given. With `plan`, Casey also has a weekly plan at the
- * home from Thursday the 8th, whose first Job, done that day, is on the Bill
+ * home from Friday the 9th, whose first Job, done that day, is on the Bill
  * too. With `failing`, its automatic Charge is declined, so it's Unpaid (and
  * the plan On Hold), and Charges keep failing until failCharges(null). The
  * clock is left at 10am on Monday the 12th; with `unbilled`, it stops before
@@ -430,11 +430,11 @@ export const billedWeek = async ({
     const started = await startedServicePlan({
       propertyId: job.propertyId,
       byAccountId,
-      startsAt: "2026-01-08T14:00:00Z",
+      startsAt: "2026-01-09T14:00:00Z",
     });
     planId = started.planId;
     await crewed(started.firstJob.id);
-    testClock().set(new Date("2026-01-08T17:00:00Z"));
+    testClock().set(new Date("2026-01-09T17:00:00Z"));
     await completeJob(cory.id, started.firstJob.id, {
       condition: "moderate",
       reports: [],

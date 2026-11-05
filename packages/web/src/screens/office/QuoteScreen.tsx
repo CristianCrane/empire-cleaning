@@ -1842,7 +1842,7 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
         {!plan && (
           <DraftPart
             title="Proposed time"
-            description="New York time. The Quote Expires at this time if it isn't accepted first."
+            description="New York time, more than 24 hours away. The Quote Expires 24 hours before it if it isn't accepted first."
           >
             <div className="grid gap-4 sm:grid-cols-2">
               <DatePicker
@@ -1996,7 +1996,7 @@ function PlanDayFields({
       title={title}
       description={
         one
-          ? `Its first clean, New York time. Then ${recurrenceLabel[plan.recurrence].toLowerCase()} on the same weekday. The Quote Expires at the plan's first clean if it isn't accepted first.`
+          ? `Its first clean, New York time. Then ${recurrenceLabel[plan.recurrence].toLowerCase()} on the same weekday. The Quote Expires 24 hours before the plan's first clean if it isn't accepted first.`
           : "Its first clean, New York time. Then every week on the same weekday."
       }
       actions={

@@ -1253,10 +1253,13 @@ describe("the reminder the day before a Job", () => {
   });
 
   test("isn't sent for a Job booked the day before: its confirmation has just gone", async () => {
-    // Sunday 11 January at noon in New York
-    testClock().set(new Date("2026-01-11T17:00:00Z"));
+    // Sunday 11 January at 8:30am in New York, half an hour before the
+    // Quote Expires
+    testClock().set(new Date("2026-01-11T13:30:00Z"));
     await bookedForMonday();
 
+    // at noon
+    testClock().set(new Date("2026-01-11T17:00:00Z"));
     expect(await sendDueReminders()).toBe(0);
   });
 
