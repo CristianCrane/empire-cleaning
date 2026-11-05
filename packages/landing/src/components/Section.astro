@@ -35,8 +35,14 @@ const headingId = `${id}-title`;
       ]}
     >
       {/* every title and intro is centred */}
-      <Heading level={2} id={headingId} className="text-center">{title}</Heading>
-      {intro && <p class="mx-auto max-w-2xl text-center text-lg text-fg-muted">{intro}</p>}
+      <Heading level={2} id={headingId} className="text-center">
+        {title}
+      </Heading>
+      {intro && (
+        <p class="mx-auto max-w-2xl text-center text-lg text-fg-muted">
+          {intro}
+        </p>
+      )}
     </div>
     <slot />
   </div>

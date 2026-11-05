@@ -10,47 +10,74 @@ import Section from "./Section.astro";
   {/* one review at a time. Every review is in the page, so it reads without
       JavaScript and to search engines; the strip snaps to each one and swipes
       on a phone, and the script below works Previous, Next and the count */}
-  <div data-reviews aria-roledescription="carousel" aria-label="Reviews" class="flex flex-col gap-6">
+  <div
+    data-reviews
+    aria-roledescription="carousel"
+    aria-label="Reviews"
+    class="flex flex-col gap-6"
+  >
     <div
       data-track
       tabindex="0"
       aria-label="Reviews, one at a time"
       class="flex snap-x snap-mandatory overflow-x-auto rounded-md outline-offset-4 outline-focus focus-visible:outline-2 [@media(scripting:enabled)]:[scrollbar-width:none]"
     >
-      {
-        reviews.map((r, i) => (
-          <div
-            role="group"
-            aria-roledescription="slide"
-            aria-label={`${i + 1} of ${reviews.length}`}
-            class="w-full shrink-0 snap-start"
-          >
-            <figure class="flex flex-col items-center gap-4 text-center">
-              <Quote aria-hidden size={40} className="text-primary" />
-              <blockquote class="text-xl leading-snug sm:text-2xl">{r.text}</blockquote>
-              <figcaption class="text-lg">
-                <span class="font-semibold">{r.name}</span>
-                <span class="text-fg-muted"> · {r.service}</span>
-              </figcaption>
-            </figure>
-          </div>
-        ))
-      }
+      {reviews.map((r, i) => (
+        <div
+          role="group"
+          aria-roledescription="slide"
+          aria-label={`${i + 1} of ${reviews.length}`}
+          class="w-full shrink-0 snap-start"
+        >
+          <figure class="flex flex-col items-center gap-4 text-center">
+            <Quote aria-hidden size={40} className="text-primary" />
+            <blockquote class="text-xl leading-snug sm:text-2xl">
+              {r.text}
+            </blockquote>
+            <figcaption class="text-lg">
+              <span class="font-semibold">{r.name}</span>
+              <span class="text-fg-muted"> · {r.service}</span>
+            </figcaption>
+          </figure>
+        </div>
+      ))}
     </div>
     {/* shown from the first paint wherever the script will run, so the section
         doesn't grow when it does; with JavaScript off, the strip scrolls instead */}
-    <div data-controls class="hidden items-center justify-center gap-3 [@media(scripting:enabled)]:flex">
-      <button type="button" data-prev aria-label="Previous review" class={buttonStyles({ variant: "secondary", size: "icon" })}>
+    <div
+      data-controls
+      class="hidden items-center justify-center gap-3 [@media(scripting:enabled)]:flex"
+    >
+      <button
+        type="button"
+        data-prev
+        aria-label="Previous review"
+        class={buttonStyles({ variant: "secondary", size: "icon" })}
+      >
         <ChevronLeft aria-hidden size={20} />
       </button>
-      <span data-count aria-live="polite" class="min-w-16 text-center text-fg-muted tabular-nums">
+      <span
+        data-count
+        aria-live="polite"
+        class="min-w-16 text-center text-fg-muted tabular-nums"
+      >
         1 of {reviews.length}
       </span>
-      <button type="button" data-next aria-label="Next review" class={buttonStyles({ variant: "secondary", size: "icon" })}>
+      <button
+        type="button"
+        data-next
+        aria-label="Next review"
+        class={buttonStyles({ variant: "secondary", size: "icon" })}
+      >
         <ChevronRight aria-hidden size={20} />
       </button>
     </div>
-    <a href={business.social.google.href} target="_blank" rel="noopener" class="inline-flex items-center gap-2 self-center font-semibold text-primary">
+    <a
+      href={business.social.google.href}
+      target="_blank"
+      rel="noopener"
+      class="inline-flex items-center gap-2 self-center font-semibold text-primary"
+    >
       Read all our reviews on Google
       <ExternalLink aria-hidden size={16} />
     </a>
@@ -72,11 +99,14 @@ import Section from "./Section.astro";
         left: ((i + total) % total) * track.clientWidth,
         behavior: smooth ? "smooth" : "auto",
       });
-    root.querySelector("[data-prev]")!.addEventListener("click", () => go(current() - 1));
-    root.querySelector("[data-next]")!.addEventListener("click", () => go(current() + 1));
+    root
+      .querySelector("[data-prev]")!
+      .addEventListener("click", () => go(current() - 1));
+    root
+      .querySelector("[data-next]")!
+      .addEventListener("click", () => go(current() + 1));
     track.addEventListener("scroll", () => {
       count.textContent = `${current() + 1} of ${total}`;
     });
-
   }
 </script>

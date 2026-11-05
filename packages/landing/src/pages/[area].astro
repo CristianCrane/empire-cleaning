@@ -17,7 +17,10 @@ import Page from "../layouts/Page.astro";
 // "Bands"); its words are the area's own, in src/areas. The footer links
 // to the other areas
 export function getStaticPaths() {
-  return areas.map((area) => ({ params: { area: area.slug }, props: { area } }));
+  return areas.map((area) => ({
+    params: { area: area.slug },
+    props: { area },
+  }));
 }
 const { area } = Astro.props as { area: Area };
 ---
@@ -34,14 +37,22 @@ const { area } = Astro.props as { area: Area };
     <Section id="places" title={area.places.title}>
       <ul class="flex flex-wrap justify-center gap-2">
         {area.places.list.map((p) => (
-          <li class:list={["rounded-full border border-border px-4 py-1.5", card]}>{p}</li>
+          <li
+            class:list={["rounded-full border border-border px-4 py-1.5", card]}
+          >
+            {p}
+          </li>
         ))}
       </ul>
-      {area.places.note && <p class="text-center text-fg-muted">{area.places.note}</p>}
+      {area.places.note && (
+        <p class="text-center text-fg-muted">{area.places.note}</p>
+      )}
     </Section>
     <Section id="homes" title={area.homes.title}>
       <div class="mx-auto flex max-w-2xl flex-col gap-4 text-lg">
-        {area.homes.text.map((t) => <p>{t}</p>)}
+        {area.homes.text.map((t) => (
+          <p>{t}</p>
+        ))}
       </div>
     </Section>
     <Section id="popular" title={area.popular.title}>

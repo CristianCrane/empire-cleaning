@@ -36,31 +36,35 @@ const sectionId = (i: number) => `part-${i + 1}`;
   <Header />
   <main>
     <PageHero crumb={guide.crumb} heading={guide.heading} intro={guide.intro} />
-    {
-      guide.sections.map(({ title, text, list }, i) => (
-        <Section id={sectionId(i)} title={title}>
-          <div class="mx-auto flex max-w-2xl flex-col gap-4 text-lg">
-            {text.map((t) => (
-              <p>{t}</p>
-            ))}
-            {list && (
-              <ul class="flex flex-col gap-3">
-                {list.map((item) => (
-                  <li class="flex items-start gap-2">
-                    <Check aria-hidden size={20} className="mt-1 shrink-0 text-primary" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </Section>
-      ))
-    }
+    {guide.sections.map(({ title, text, list }, i) => (
+      <Section id={sectionId(i)} title={title}>
+        <div class="mx-auto flex max-w-2xl flex-col gap-4 text-lg">
+          {text.map((t) => (
+            <p>{t}</p>
+          ))}
+          {list && (
+            <ul class="flex flex-col gap-3">
+              {list.map((item) => (
+                <li class="flex items-start gap-2">
+                  <Check
+                    aria-hidden
+                    size={20}
+                    className="mt-1 shrink-0 text-primary"
+                  />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </Section>
+    ))}
     <RequestQuote />
     <Section id="related" title="Our services">
       <ul class="grid gap-4 sm:grid-cols-3">
-        {related.map((p) => <ServiceCard name={p.card} />)}
+        {related.map((p) => (
+          <ServiceCard name={p.card} />
+        ))}
       </ul>
     </Section>
   </main>

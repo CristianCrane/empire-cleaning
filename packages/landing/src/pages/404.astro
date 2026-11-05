@@ -21,10 +21,19 @@ import Page from "../layouts/Page.astro";
       we'll take it from there.
     </p>
     <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-      <a href="/#quote" class={buttonStyles({ variant: "primary", className: "px-6 text-lg" })}>
+      <a
+        href="/#quote"
+        class={buttonStyles({ variant: "primary", className: "px-6 text-lg" })}
+      >
         Request a Quote
       </a>
-      <a href={business.phone.href} class={buttonStyles({ variant: "secondary", className: "px-6 text-lg" })}>
+      <a
+        href={business.phone.href}
+        class={buttonStyles({
+          variant: "secondary",
+          className: "px-6 text-lg",
+        })}
+      >
         <Phone aria-hidden size={20} />
         Call {business.phone.display}
       </a>

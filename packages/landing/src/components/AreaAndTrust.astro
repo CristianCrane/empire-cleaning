@@ -15,38 +15,53 @@ const points = [
     // the crew speaks Spanish; said in Spanish, for those it's for
     spanish: "Se habla español.",
   },
-  { icon: ShieldCheck, name: "Trusted and reliable", text: "We turn up when we say we will, every time." },
-  { icon: Gem, name: "Attention to every detail", text: "The corners, edges and surfaces others miss." },
-  { icon: Users, name: "Professional and insured", text: "Trained, insured cleaners you can let into your home." },
+  {
+    icon: ShieldCheck,
+    name: "Trusted and reliable",
+    text: "We turn up when we say we will, every time.",
+  },
+  {
+    icon: Gem,
+    name: "Attention to every detail",
+    text: "The corners, edges and surfaces others miss.",
+  },
+  {
+    icon: Users,
+    name: "Professional and insured",
+    text: "Trained, insured cleaners you can let into your home.",
+  },
 ];
 ---
 
 <Section id="why-empire" title="Why Empire">
   {/* the icon beside the words, or above them in four narrow columns */}
   <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-    {
-      points.map(({ icon: Icon, name, text, areas: linked, spanish }) => (
-        <li class:list={["flex items-start gap-4 rounded-lg border border-border p-5 lg:flex-col lg:gap-3", card]}>
-          <Icon aria-hidden size={28} className="shrink-0 text-primary" />
-          <div class="flex flex-col gap-1">
-            <h3 class="text-lg font-semibold">{name}</h3>
-            <p class="text-fg-muted">
-              {linked &&
-                areas.map((a, i) => (
-                  <>
-                    {i > 0 && (i === areas.length - 1 ? " and " : ", ")}
-                    <a href={`/${a.slug}/`} class="font-semibold text-primary">
-                      {a.short}
-                    </a>
-                  </>
-                ))}
-              {linked && "."}
-              {text}
-              {spanish && <span lang="es"> {spanish}</span>}
-            </p>
-          </div>
-        </li>
-      ))
-    }
+    {points.map(({ icon: Icon, name, text, areas: linked, spanish }) => (
+      <li
+        class:list={[
+          "flex items-start gap-4 rounded-lg border border-border p-5 lg:flex-col lg:gap-3",
+          card,
+        ]}
+      >
+        <Icon aria-hidden size={28} className="shrink-0 text-primary" />
+        <div class="flex flex-col gap-1">
+          <h3 class="text-lg font-semibold">{name}</h3>
+          <p class="text-fg-muted">
+            {linked &&
+              areas.map((a, i) => (
+                <>
+                  {i > 0 && (i === areas.length - 1 ? " and " : ", ")}
+                  <a href={`/${a.slug}/`} class="font-semibold text-primary">
+                    {a.short}
+                  </a>
+                </>
+              ))}
+            {linked && "."}
+            {text}
+            {spanish && <span lang="es"> {spanish}</span>}
+          </p>
+        </div>
+      </li>
+    ))}
   </ul>
 </Section>
