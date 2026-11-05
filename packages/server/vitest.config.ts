@@ -6,7 +6,7 @@ export default defineConfig({
   test: {
     name: "server",
     environment: "node",
-    include: ["src/**/*.test.ts", "tests/seed.test.ts"],
+    include: ["src/**/*.test.ts"],
     globals: true,
     globalSetup: ["./tests/setup/globalSetup.ts"],
     setupFiles: ["./tests/setup/workerDatabase.ts", "./tests/setup/perTest.ts"],

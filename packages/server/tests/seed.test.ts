@@ -1,12 +1,12 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { afterAll, beforeAll, expect, test } from "vitest";
+import { afterAll, beforeAll, describe, test } from "vitest";
 import { addDays } from "#services/clock";
 import {
   copyTestDatabase,
   dropTestDatabaseCopies,
+  recreateTestDatabase,
   TEST_DB_URL,
-  TEST_WORKERS,
   withSuffix,
 } from "./setup/testDatabase.ts";
 
@@ -15,7 +15,8 @@ import {
 // of day it runs (#238). It's run as the test site's reset runs it, as if it
 // were each day of one week, in New York: before the day's first clean,
 // midday, after its last, and late in the evening, which is already
-// tomorrow in UTC.
+// tomorrow in UTC. Its own config runs it apart from the other tests
+// (vitest.seed.config.ts).
 const MONDAY = "2026-11-09";
 const instants = Array.from({ length: 7 }, (_, i) =>
   addDays(MONDAY, i),
@@ -26,19 +27,18 @@ const instants = Array.from({ length: 7 }, (_, i) =>
   `${addDays(day, 1)}T03:00:00Z`,
 ]);
 
-// a database each, copied from the migrated template, and dropped after:
-// the test Postgres keeps them in memory. Numbered past the workers' own, so
-// a run that stops short leaves none past the next run's setup
-// (dropTestDatabaseCopies)
-const FIRST = 100;
-const databaseFor = (i: number) => withSuffix(TEST_DB_URL, FIRST + i);
-beforeAll(() =>
-  copyTestDatabase(
-    TEST_DB_URL,
+// a database each, copied from one migrated for the seed test alone, and
+// dropped after: the test Postgres keeps them in memory
+const TEMPLATE = withSuffix(TEST_DB_URL, "seed");
+const databaseFor = (i: number) => withSuffix(TEMPLATE, i);
+beforeAll(async () => {
+  await recreateTestDatabase(TEMPLATE);
+  await copyTestDatabase(
+    TEMPLATE,
     instants.map((_, i) => databaseFor(i)),
-  ),
-);
-afterAll(() => dropTestDatabaseCopies(TEST_DB_URL, FIRST));
+  );
+});
+afterAll(() => dropTestDatabaseCopies(TEMPLATE, 0));
 
 const run = promisify(execFile);
 
@@ -48,42 +48,27 @@ const whyFailed = (error: unknown) => {
   return stderr.match(/^\w*Error: .*$/m)?.[0] ?? stderr.slice(-500);
 };
 
-// the seed at `now` on database `i`: why it failed, or nothing
-const seedAt = async (now: string, i: number) => {
-  try {
-    await run(process.execPath, ["--import", "tsx", "tests/seed.ts"], {
-      cwd: new URL("..", import.meta.url).pathname,
-      env: {
-        ...process.env,
-        DB_URL: databaseFor(i),
-        SEED_NOW: now,
-        APP_MODE: "test",
-        // which test mode needs, and the tests leave out (setup/testEnv.ts)
-        BETTER_AUTH_URL: "http://localhost:3000",
-      },
-    });
-    return [];
-  } catch (error) {
-    return [`${now}: ${whyFailed(error)}`];
-  }
-};
-
-// as many seeds at a time as test workers: each loads the whole server and
-// keeps up to 13 connections (src/db/index.ts), as a worker does, and all
-// of them at once ran the test Postgres out of connections
-const AT_ONCE = TEST_WORKERS;
-
-// one test, the seeds side by side: Vitest's own concurrent tests would each
-// empty the worker's database at once (setup/perTest.ts)
-test("the seed runs on every day of the week, at any time of day", async () => {
-  const queue = instants.map((now, i) => ({ now, i }));
-  const failed: string[] = [];
-  await Promise.all(
-    Array.from({ length: AT_ONCE }, async () => {
-      for (let next = queue.shift(); next; next = queue.shift()) {
-        failed.push(...(await seedAt(next.now, next.i)));
+// as many at once as the config allows (maxConcurrency)
+describe.concurrent("the seed runs", () => {
+  test.each(instants.map((now, i) => ({ now, i })))(
+    "as if at $now",
+    async ({ now, i }) => {
+      try {
+        await run(process.execPath, ["--import", "tsx", "tests/seed.ts"], {
+          cwd: new URL("..", import.meta.url).pathname,
+          env: {
+            ...process.env,
+            DB_URL: databaseFor(i),
+            SEED_NOW: now,
+            APP_MODE: "test",
+            // which test mode needs, and the tests leave out
+            // (setup/testEnv.ts)
+            BETTER_AUTH_URL: "http://localhost:3000",
+          },
+        });
+      } catch (error) {
+        throw new Error(whyFailed(error));
       }
-    }),
+    },
   );
-  expect(failed.sort()).toEqual([]);
-}, 600_000);
+});
