@@ -24,8 +24,9 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? "http://localhost:3000";
   <QuoteForm client:idle apiUrl={apiUrl} start={start} />
   <p class="text-center text-sm text-fg-muted">
     Prefer to talk? Call us on{" "}
-    <a href={business.phone.href} class="font-semibold text-fg"
-      >{business.phone.display}</a
-    >.
+    <a href={business.phone.href} class="font-semibold text-fg">
+      {business.phone.display}
+    </a>
+    .
   </p>
 </Section>

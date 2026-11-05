@@ -25,8 +25,8 @@ export function getStaticPaths() {
   }));
 }
 const { page } = Astro.props as { page: ServicePage };
-const related = page.related.map(
-  (slug) => servicePages.find((p) => p.slug === slug)!,
+const related = page.related.map((slug) =>
+  servicePages.find((p) => p.slug === slug)!,
 );
 const start = page.office && {
   serviceKey: page.office.key,
@@ -53,41 +53,56 @@ const start = page.office && {
             "lg:grid-cols-3 sm:[&>li:last-child]:col-span-2 lg:[&>li:last-child]:col-span-1",
         ]}
       >
-        {
-          page.included.rooms.map(({ name, items }) => (
-            <li class:list={["flex flex-col gap-3 rounded-lg border border-border p-5", card]}>
-              <h3 class="text-lg font-semibold">{name}</h3>
-              <ul class="flex flex-col gap-2">
-                {items.map((item) => (
-                  <li class="flex items-start gap-2">
-                    <Check aria-hidden size={20} className="mt-0.5 shrink-0 text-primary" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </li>
-          ))
-        }
+        {page.included.rooms.map(({ name, items }) => (
+          <li
+            class:list={[
+              "flex flex-col gap-3 rounded-lg border border-border p-5",
+              card,
+            ]}
+          >
+            <h3 class="text-lg font-semibold">{name}</h3>
+            <ul class="flex flex-col gap-2">
+              {items.map((item) => (
+                <li class="flex items-start gap-2">
+                  <Check
+                    aria-hidden
+                    size={20}
+                    className="mt-0.5 shrink-0 text-primary"
+                  />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </li>
+        ))}
       </ul>
-      {
-        page.included.note && (
-          <p class="mx-auto max-w-2xl text-center text-fg-muted">{page.included.note}</p>
-        )
-      }
+      {page.included.note && (
+        <p class="mx-auto max-w-2xl text-center text-fg-muted">
+          {page.included.note}
+        </p>
+      )}
     </Section>
     <Section id="pricing" title={page.pricing.title}>
       <div class="mx-auto flex max-w-2xl flex-col gap-4 text-lg">
-        {page.pricing.text.map((t) => <p>{t}</p>)}
+        {page.pricing.text.map((t) => (
+          <p>{t}</p>
+        ))}
         {guidesFor(page.slug, "pricing").map(({ href, text }) => (
-          <a href={href} class="font-semibold text-primary">{text}</a>
+          <a href={href} class="font-semibold text-primary">
+            {text}
+          </a>
         ))}
       </div>
     </Section>
     <Section id="when" title={page.when.title}>
       <div class="mx-auto flex max-w-2xl flex-col gap-4 text-lg">
-        {page.when.text.map((t) => <p>{t}</p>)}
+        {page.when.text.map((t) => (
+          <p>{t}</p>
+        ))}
         {guidesFor(page.slug, "when").map(({ href, text }) => (
-          <a href={href} class="font-semibold text-primary">{text}</a>
+          <a href={href} class="font-semibold text-primary">
+            {text}
+          </a>
         ))}
       </div>
     </Section>
@@ -97,7 +112,9 @@ const start = page.office && {
     <RequestQuote start={start} />
     <Section id="related" title="Related services">
       <ul class="grid gap-4 sm:grid-cols-3">
-        {related.map((p) => <ServiceCard name={p.card} />)}
+        {related.map((p) => (
+          <ServiceCard name={p.card} />
+        ))}
       </ul>
     </Section>
   </main>

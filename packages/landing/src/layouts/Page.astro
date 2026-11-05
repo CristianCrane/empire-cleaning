@@ -16,7 +16,12 @@ type Props = {
   path?: string | null;
   data?: object[];
 };
-const { title, description = business.description, path = "", data } = Astro.props;
+const {
+  title,
+  description = business.description,
+  path = "",
+  data,
+} = Astro.props;
 const pageTitle = title ? `${title} | Empire Cleaning` : business.title;
 const url = path === null ? null : new URL(path, business.url).href;
 ---
@@ -29,11 +34,9 @@ const url = path === null ? null : new URL(path, business.url).href;
     <script is:inline set:html={themeBootScript} />
     {/* the first screen's fonts, fetched with the page so its text doesn't
         reflow when they arrive */}
-    {
-      firstScreenFonts.map((href) => (
-        <link rel="preload" as="font" type="font/woff2" href={href} crossorigin />
-      ))
-    }
+    {firstScreenFonts.map((href) => (
+      <link rel="preload" as="font" type="font/woff2" href={href} crossorigin />
+    ))}
     <title>{pageTitle}</title>
     <meta name="description" content={description} />
     {url && <link rel="canonical" href={url} />}
@@ -50,7 +53,10 @@ const url = path === null ? null : new URL(path, business.url).href;
     <meta property="og:description" content={description} />
     {url && <meta property="og:url" content={url} />}
     <meta property="og:locale" content="en_US" />
-    <meta property="og:image" content={new URL("og-image.png", business.url).href} />
+    <meta
+      property="og:image"
+      content={new URL("og-image.png", business.url).href}
+    />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content={business.brand} />

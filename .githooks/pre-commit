@@ -7,10 +7,7 @@
 
 set -e
 
-staged() { git diff --cached --name-only --diff-filter=ACMR -- "$@"; }
+files=$(git diff --cached --name-only --diff-filter=ACMR -- 'packages/*.ts' 'packages/*.tsx' 'packages/*.astro')
 
-lint=$(staged 'packages/*.ts' 'packages/*.tsx' 'packages/*.astro')
-format=$(staged 'packages/*.ts' 'packages/*.tsx')
-
-[ -z "$lint" ] || pnpm exec oxlint --type-aware $lint
-[ -z "$format" ] || pnpm exec prettier --check $format
+[ -z "$files" ] || pnpm exec oxlint --type-aware $files
+[ -z "$files" ] || pnpm exec prettier --check $files

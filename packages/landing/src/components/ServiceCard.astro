@@ -22,26 +22,25 @@ const Icon = service.icon;
   class:list={[
     "relative flex flex-col gap-3 rounded-lg border border-border p-5",
     card,
-    page && "has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-focus hover:border-primary",
+    page &&
+      "has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-focus hover:border-primary",
   ]}
 >
   <span class="flex size-12 items-center justify-center rounded-full bg-success-subtle text-success-strong">
     <Icon aria-hidden size={24} />
   </span>
   <h3 class="text-lg font-semibold">
-    {
-      page ? (
-        <a
-          href={`/services/${page.slug}/`}
-          class="inline-flex items-center gap-1 text-primary outline-none after:absolute after:inset-0"
-        >
-          {name}
-          <ChevronRight aria-hidden size={18} />
-        </a>
-      ) : (
-        name
-      )
-    }
+    {page ? (
+      <a
+        href={`/services/${page.slug}/`}
+        class="inline-flex items-center gap-1 text-primary outline-none after:absolute after:inset-0"
+      >
+        {name}
+        <ChevronRight aria-hidden size={18} />
+      </a>
+    ) : (
+      name
+    )}
   </h3>
   <p class="text-fg-muted">{text ?? service.text}</p>
 </li>

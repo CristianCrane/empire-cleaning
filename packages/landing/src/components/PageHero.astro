@@ -21,8 +21,14 @@ const { crumb, heading, intro } = Astro.props;
     </a>
     <nav aria-label="Breadcrumbs">
       <ol class="flex items-center gap-1 text-fg-muted">
-        <li><a href="/" class="font-semibold text-primary">Home</a></li>
-        <li aria-hidden="true"><ChevronRight size={16} /></li>
+        <li>
+          <a href="/" class="font-semibold text-primary">
+            Home
+          </a>
+        </li>
+        <li aria-hidden="true">
+          <ChevronRight size={16} />
+        </li>
         <li aria-current="page">{crumb}</li>
       </ol>
     </nav>
@@ -34,10 +40,19 @@ const { crumb, heading, intro } = Astro.props;
     </h1>
     <p class="max-w-2xl text-xl text-fg-muted">{intro}</p>
     <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-      <a href="#quote" class={buttonStyles({ variant: "primary", className: "px-6 text-lg" })}>
+      <a
+        href="#quote"
+        class={buttonStyles({ variant: "primary", className: "px-6 text-lg" })}
+      >
         Request a Quote
       </a>
-      <a href={business.phone.href} class={buttonStyles({ variant: "secondary", className: "px-6 text-lg" })}>
+      <a
+        href={business.phone.href}
+        class={buttonStyles({
+          variant: "secondary",
+          className: "px-6 text-lg",
+        })}
+      >
         <Phone aria-hidden size={20} />
         Call {business.phone.display}
       </a>

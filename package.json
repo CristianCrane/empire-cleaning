@@ -11,8 +11,8 @@
     "check:packages": "manypkg check",
     "lint": "oxlint --type-aware packages",
     "lint:unused": "knip",
-    "format": "prettier --write \"packages/*/{src,tests,e2e,emails,.storybook}/**/*.{ts,tsx}\" \"packages/*/*.config.ts\"",
-    "format:check": "prettier --check \"packages/*/{src,tests,e2e,emails,.storybook}/**/*.{ts,tsx}\" \"packages/*/*.config.ts\"",
+    "format": "prettier --write \"packages/*/{src,tests,e2e,emails,.storybook}/**/*.{ts,tsx,astro}\" \"packages/*/*.config.ts\"",
+    "format:check": "prettier --check \"packages/*/{src,tests,e2e,emails,.storybook}/**/*.{ts,tsx,astro}\" \"packages/*/*.config.ts\"",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
     "db:reset": "docker compose down -v && docker compose up -d",
@@ -31,11 +31,17 @@
     "oxlint": "^1.90.0",
     "oxlint-tsgolint": "^7.0.2005",
     "prettier": "^3.9.6",
+    "prettier-plugin-astro": "^1.1.2",
     "typescript": "^7.0.2",
     "vitest": "^4.1.12"
   },
   "packageManager": "pnpm@11.18.0",
   "engines": {
     "node": ">=24.0.0 <25.0.0"
+  },
+  "prettier": {
+    "plugins": [
+      "prettier-plugin-astro"
+    ]
   }
 }

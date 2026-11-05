@@ -1,6 +1,12 @@
 ---
 import { Logo } from "@empire-cleaning/ui";
-import { siFacebook, siGoogle, siInstagram, siYelp, type SimpleIcon } from "simple-icons";
+import {
+  siFacebook,
+  siGoogle,
+  siInstagram,
+  siYelp,
+  type SimpleIcon,
+} from "simple-icons";
 import { areas } from "../areas/index.ts";
 import { business } from "../business.ts";
 
@@ -29,41 +35,44 @@ const social = Object.entries(business.social).map(([network, page]) => ({
     <!-- every area's page, from every page (#176) -->
     <nav aria-label="Areas we serve" class="sm:justify-self-start">
       <ul class="flex flex-wrap justify-center gap-x-6 gap-y-2 sm:flex-col sm:items-start">
-        {
-          areas.map((a) => (
-            <li>
-              <a href={`/${a.slug}/`} class="font-semibold text-primary">
-                {a.name}
-              </a>
-            </li>
-          ))
-        }
+        {areas.map((a) => (
+          <li>
+            <a href={`/${a.slug}/`} class="font-semibold text-primary">
+              {a.name}
+            </a>
+          </li>
+        ))}
       </ul>
     </nav>
     <Logo className="w-36 sm:justify-self-center" />
     <div class="flex flex-col items-center gap-1 text-fg-muted sm:items-end sm:text-right">
-      <a href={business.phone.href} class="font-semibold text-fg">{business.phone.display}</a>
+      <a href={business.phone.href} class="font-semibold text-fg">
+        {business.phone.display}
+      </a>
       <span>{business.area}</span>
       <span>{business.hours.display}</span>
       <span lang="es">Se habla español</span>
       <ul aria-label="Find us online" class="my-2 flex gap-4">
-        {
-          social.map(({ name, href, mark }) => (
-            <li>
-              <a
-                href={href}
-                target="_blank"
-                rel="noopener"
-                aria-label={`Empire Cleaning on ${name}`}
-                class="flex size-8 items-center justify-center text-fg-muted hover:text-primary"
+        {social.map(({ name, href, mark }) => (
+          <li>
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener"
+              aria-label={`Empire Cleaning on ${name}`}
+              class="flex size-8 items-center justify-center text-fg-muted hover:text-primary"
+            >
+              <svg
+                aria-hidden
+                viewBox="0 0 24 24"
+                class="size-5"
+                fill="currentColor"
               >
-                <svg aria-hidden viewBox="0 0 24 24" class="size-5" fill="currentColor">
-                  <path d={mark.path} />
-                </svg>
-              </a>
-            </li>
-          ))
-        }
+                <path d={mark.path} />
+              </svg>
+            </a>
+          </li>
+        ))}
       </ul>
     </div>
   </div>
