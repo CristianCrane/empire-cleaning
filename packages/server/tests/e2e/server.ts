@@ -1,9 +1,11 @@
-// runs the real API for the web app's end-to-end tests (packages/web/e2e),
+// runs the real API for the web app's and the landing site's end-to-end tests
+// (packages/web/e2e, packages/landing/tests),
 // exactly as in production except that email, payments and the clock are the
 // same fakes the server tests use. A second, local-only control server lets
 // the tests reset state, add Staff, Clients and Jobs, move the clock and read
 // the emails that were "sent". Accounts aren't created here: tests sign up, as people do (ADR-0006).
-// Started by Playwright with its environment set (packages/web/playwright.config.ts).
+// Started by Playwright with its environment set (packages/web/playwright.config.ts,
+// packages/landing/playwright.config.ts).
 import express from "express";
 import { desc, eq } from "drizzle-orm";
 import type { StaffRole } from "@empire-cleaning/models";
@@ -12,21 +14,23 @@ import {
   dropTestDatabaseCopies,
   recreateTestDatabase,
   TEST_DB_URL,
+  withSuffix,
 } from "../setup/testDatabase.ts";
 // keys only: it reads nothing on import
 import { SEEDED } from "../../src/features/services/seeded.ts";
 
 const CONTROL_PORT = Number(process.env.E2E_CONTROL_PORT ?? 3101);
 
-await recreateTestDatabase(TEST_DB_URL);
+// every API here is one of E2E_WORKERS slots (packages/web/e2e/slots.ts; the
+// landing site's is slot 0 of 1), on a copy of TEST_DB_URL by its number
+const SLOT = Number(process.env.E2E_SLOT ?? 0);
+const WORKERS = Number(process.env.E2E_WORKERS ?? 1);
+process.env.DB_URL = withSuffix(TEST_DB_URL, SLOT);
+
+await recreateTestDatabase(process.env.DB_URL);
 // the first slot also drops the databases of slots an earlier run with more
 // workers left behind
-if (process.env.E2E_SLOT === "0" && process.env.E2E_DB_URL) {
-  await dropTestDatabaseCopies(
-    process.env.E2E_DB_URL,
-    Number(process.env.E2E_WORKERS),
-  );
-}
+if (SLOT === 0) await dropTestDatabaseCopies(TEST_DB_URL, WORKERS);
 
 // imported only now: the app reads its environment and database on import
 const { app } = await import("../../src/server.ts");

@@ -2,12 +2,7 @@ import { availableParallelism } from "node:os";
 import pg from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
-
-// the test suite owns this database: it is dropped and recreated on every run.
-// It is on the test Postgres (docker-compose.yml, port 5433), not the dev one.
-export const TEST_DB_URL =
-  process.env.TEST_DB_URL ??
-  "postgresql://postgres:password@localhost:5433/empire_test";
+import { CHECKOUT } from "../checkout.ts";
 
 const MIGRATIONS_FOLDER = new URL("../../drizzle", import.meta.url).pathname;
 
@@ -43,6 +38,16 @@ export const withSuffix = (url: string, suffix: string | number) => {
   copy.pathname = `/${nameOf(url)}_${suffix}`;
   return copy.toString();
 };
+
+// the test suite owns this database: it is dropped and recreated on every run.
+// It is on the test Postgres (docker-compose.yml, port 5433), not the dev one,
+// and its name ends in this checkout's id (tests/checkout.ts), so another
+// checkout's run never drops it: `empire_test_<id>`, or TEST_DB_URL's name
+export const TEST_DB_URL = withSuffix(
+  process.env.TEST_DB_URL ??
+    "postgresql://postgres:password@localhost:5433/empire_test",
+  CHECKOUT,
+);
 
 // runs `work` on the server's maintenance database, from where databases are
 // dropped and created

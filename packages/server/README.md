@@ -2,9 +2,17 @@
 
 ## Testing
 
-`pnpm test` runs the suite on the **test Postgres** (`docker-compose.yml`, port 5433). Start it with `pnpm db:up`. Test files run in parallel, and each Vitest worker has a database of its own (`empire_test_1`, `empire_test_2`, …; `tests/setup/workerDatabase.ts`). On every run `empire_test` (override with `TEST_DB_URL`) is dropped, recreated and migrated from `drizzle/`, and the workers' databases are copied from it (`CREATE DATABASE … TEMPLATE`), so the migrations run once. There are half as many workers as CPU cores, up to 6; `SERVER_TEST_WORKERS=2` or `--maxWorkers=2` sets it, and copies left by an earlier run with more workers are dropped.
+`pnpm test` runs the suite on the **test Postgres** (`docker-compose.yml`, port 5433). Start it with `pnpm db:up`. Test files run in parallel, and each Vitest worker has a database of its own (`empire_test_<checkout>_1`, `_2`, …; `tests/setup/workerDatabase.ts`). `<checkout>` is `c` and six hex digits from where this checkout is (`tests/checkout.ts`), so checkouts on one machine (worktrees, other clones) sharing the test Postgres never touch each other's databases. The same module gives each checkout a block of 200 ports for the web and landing e2e servers (`E2E_PORTS`, imported as `@empire-cleaning/server/checkout`), so their e2e suites can run at once too; if two checkouts draw the same block, the second fails to start on ports in use, and `E2E_PORT_BASE=<port>` moves it. On every run `empire_test_<checkout>` (override the base with `TEST_DB_URL`) is dropped, recreated and migrated from `drizzle/`, and the workers' databases are copied from it (`CREATE DATABASE … TEMPLATE`), so the migrations run once. There are half as many workers as CPU cores, up to 6; `SERVER_TEST_WORKERS=2` or `--maxWorkers=2` sets it, and copies left by an earlier run with more workers are dropped.
 
 The test Postgres lives in memory with disk syncing off. Committing to disk took tens of milliseconds a time on a Docker volume (47 ms measured), and a test run makes thousands of commits. Test data is disposable, so nothing is lost. Never put real data there.
+
+Every checkout shares that one test Postgres (300 connections, `docker-compose.yml`). A moved or deleted checkout's databases are never dropped, nor are the names from before checkout ids (`empire_test`, `empire_e2e_test_0` and on, `empire_e2e_landing_test`). `docker restart empire_postgres_test` clears every test database, since they live in memory. Signs it's time for a test Postgres per checkout instead:
+
+- **It runs out of connections:** `docker logs empire_postgres_test 2>&1 | grep -c "too many clients"` is above 0, or the peak during runs passes about 200 (`docker exec empire_postgres_test psql -U postgres -tAc "select count(*) from pg_stat_activity"`; one full suite alone peaked at 67).
+- **Postgres itself slows runs that overlap:** `docker stats empire_postgres_test` shows its CPU pinned while the machine has room. Web e2e took 3.6 min alone and 4.7 min beside another checkout's server tests; if the whole machine is busy, a container per checkout won't help.
+- **A branch needs a different Postgres** (version, setting or extension) while other checkouts still need this one.
+
+Two other signs are bugs to fix here, not reasons to switch: an error from another run reaching yours (`terminating connection due to administrator command`, `is being accessed by other users`: some name is still shared), and leftover databases piling up (`docker exec empire_postgres_test psql -U postgres -tAc "select count(*) from pg_database"` in the hundreds, or the container's memory in GBs: restart it, or drop the databases of checkouts that are gone).
 
 Tests exercise external behaviour through the seams in `tests/harness.ts`:
 

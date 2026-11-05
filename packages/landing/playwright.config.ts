@@ -1,12 +1,15 @@
 import { defineConfig, devices } from "@playwright/test";
+import { E2E_PORTS } from "@empire-cleaning/server/checkout";
 
 // Keep headless Chromium off the WSLg display so it doesn't steal Windows focus
 delete process.env.DISPLAY;
 delete process.env.WAYLAND_DISPLAY;
 
-const API_PORT = 3200;
-const CONTROL_PORT = 3201;
-const SITE_PORT = 4322;
+// the last ports of this checkout's block (the server's tests/checkout.ts),
+// after the web e2e slots' (packages/web/e2e/slots.ts)
+const API_PORT = E2E_PORTS + 190;
+const CONTROL_PORT = E2E_PORTS + 191;
+const SITE_PORT = E2E_PORTS + 192;
 export const siteUrl = `http://localhost:${SITE_PORT}`;
 export const controlUrl = `http://127.0.0.1:${CONTROL_PORT}`;
 // where the header's Sign in goes, as built for these tests
@@ -34,8 +37,8 @@ export default defineConfig({
         APP_MODE: "dev",
         PORT: String(API_PORT),
         E2E_CONTROL_PORT: String(CONTROL_PORT),
-        DB_URL:
-          "postgresql://postgres:password@localhost:5433/empire_e2e_landing_test",
+        // the API's database is this name with `_0`: slot 0 of 1
+        // (packages/server/tests/e2e/server.ts)
         TEST_DB_URL:
           "postgresql://postgres:password@localhost:5433/empire_e2e_landing_test",
         BETTER_AUTH_URL: `http://localhost:${API_PORT}`,

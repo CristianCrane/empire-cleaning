@@ -93,7 +93,7 @@ services:
     runtime: static
     buildCommand: >-
       npx --yes pnpm@11.18.0 install --frozen-lockfile &&
-      npx --yes pnpm@11.18.0 --filter "@empire-cleaning/web..." build
+      npx --yes pnpm@11.18.0 --filter-prod "@empire-cleaning/web..." build
     staticPublishPath: packages/web/dist
     autoDeployTrigger: checksPass
     domains:
@@ -147,7 +147,7 @@ services:
     runtime: static
     buildCommand: >-
       npx --yes pnpm@11.18.0 install --frozen-lockfile &&
-      npx --yes pnpm@11.18.0 --filter "@empire-cleaning/landing..." build
+      npx --yes pnpm@11.18.0 --filter-prod "@empire-cleaning/landing..." build
     staticPublishPath: packages/landing/dist
     autoDeployTrigger: checksPass
     domains:
