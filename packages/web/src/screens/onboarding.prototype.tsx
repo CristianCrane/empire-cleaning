@@ -342,6 +342,8 @@ const casesFor = (flow: Flow): Case[] => [
 const layouts = [
   { key: "A", name: "First-time Notices" },
   { key: "B", name: "Spotlight tour" },
+  // Q12: the same tour, its popover a sheet on a phone
+  { key: "B2", name: "Spotlight tour, sheet on phone" },
   { key: "C", name: "Getting-started checklist" },
 ];
 
@@ -504,8 +506,9 @@ function Prototype({
 
   // B: the screen's unseen hints as a tour, once it's drawn
   const tourIds = hints.map((h) => h.id).join(" ");
+  const isTour = layout.startsWith("B");
   useEffect(() => {
-    if (layout !== "B" || !tourIds) return;
+    if (!isTour || !tourIds) return;
     const shown = hintsFor(flow, screen, booked).filter((h) =>
       tourIds.split(" ").includes(h.id),
     );
@@ -521,7 +524,16 @@ function Prototype({
       tour = driver({
         steps,
         showProgress: steps.length > 1,
-        popoverClass: "ec-tour",
+        popoverClass: layout === "B2" ? "ec-tour ec-sheet" : "ec-tour",
+        // B2: the sheet sits at the top when what it points at is mostly
+        // low down, such as the tab bar or a long section
+        onPopoverRender: (popover, { state }) => {
+          const rect = state.activeElement?.getBoundingClientRect();
+          popover.wrapper.classList.toggle(
+            "ec-sheet-top",
+            !!rect && (rect.top + rect.bottom) / 2 > window.innerHeight / 2,
+          );
+        },
         stagePadding: 6,
         stageRadius: 12,
         onDestroyed: () => see(...shown.map((h) => h.id)),
@@ -533,26 +545,25 @@ function Prototype({
       tour?.destroy();
     };
     // once per screen and state; seeing them changes tourIds to ""
-  }, [layout, tourIds, flow, screen, booked]);
+  }, [isTour, layout, tourIds, flow, screen, booked]);
 
   // A and C: each unseen hint as an info Notice, dismissed for good
-  const notices =
-    layout === "B" ? null : (
-      <>
-        {hints.map((h) => (
-          <Notice
-            key={h.id}
-            action={
-              <Button variant="text" size="sm" onPress={() => see(h.id)}>
-                Got it
-              </Button>
-            }
-          >
-            {h.id === "welcome" ? <strong>{h.text}</strong> : h.text}
-          </Notice>
-        ))}
-      </>
-    );
+  const notices = isTour ? null : (
+    <>
+      {hints.map((h) => (
+        <Notice
+          key={h.id}
+          action={
+            <Button variant="text" size="sm" onPress={() => see(h.id)}>
+              Got it
+            </Button>
+          }
+        >
+          {h.id === "welcome" ? <strong>{h.text}</strong> : h.text}
+        </Notice>
+      ))}
+    </>
+  );
   // C: the checklist is a home screen's help, its steps standing for that
   // screen's hints; A's Notices on the screens it leads to
   const onHome = flow === "office" || screen === "home";
@@ -606,11 +617,8 @@ function Prototype({
             {help}
             <NeedsAttention
               items={which.empty ? [] : officeItems}
-              empty={
-                layout !== "B"
-                  ? "Nothing needs you right now. When a Client asks for a Quote or a new time, or a Job needs a Cleaner, it shows up here."
-                  : undefined
-              }
+              // Q13: in every layout, as it shifts nothing
+              empty="Nothing needs you right now. When a Client asks for a Quote or a new time, or a Job needs a Cleaner, it shows up here."
             />
           </div>
         ) : screen === "quote" ? (
@@ -704,6 +712,16 @@ function TourStyles() {
       .ec-tour .driver-popover-arrow-side-bottom { border-bottom-color: var(--color-surface); }
       .ec-tour .driver-popover-arrow-side-left { border-left-color: var(--color-surface); }
       .ec-tour .driver-popover-arrow-side-right { border-right-color: var(--color-surface); }
+      /* B2: on a phone, a sheet across the foot of the screen (or its top) */
+      @media (max-width: 767.98px) {
+        .driver-popover.ec-sheet {
+          left: 8px !important; right: 8px !important;
+          top: auto !important; bottom: calc(8px + env(safe-area-inset-bottom)) !important;
+          width: auto !important; max-width: none !important; min-width: 0 !important;
+        }
+        .driver-popover.ec-sheet.ec-sheet-top { top: 8px !important; bottom: auto !important; }
+        .ec-sheet .driver-popover-arrow { display: none !important; }
+      }
     `}</style>
   );
 }
