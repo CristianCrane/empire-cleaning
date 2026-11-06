@@ -275,12 +275,11 @@ const holdForBooking = async (
     }
   }
 
-  // earliest first, so two acceptances hold their days in the same order
+  // earliest first, as sending put a plan's weekdays, so two acceptances
+  // hold their days in the same order
   const dates = offer.cleans.map((clean) => dayOf(clean.startsAt));
   for (const date of dates) await lockDay(tx, date);
-  // a plan's weekdays are in the order the Office gave them, not by date
-  const span = [...dates].sort();
-  const days = await scheduleFor(span[0]!, span.at(-1)!, tx);
+  const days = await scheduleFor(dates[0]!, dates.at(-1)!, tx);
 
   const unbookable = whyUnbookable(
     {
