@@ -13,6 +13,7 @@ import { quotes } from "#features/quotes";
 import { servicePlans } from "#features/service-plans";
 import { createStaff } from "#features/staff";
 import {
+  type Agent,
   api,
   apiAgent,
   limitedAs,
@@ -30,8 +31,6 @@ import {
   signInAsOffice,
   submit,
 } from "../../../tests/fixtures.ts";
-
-type Office = Awaited<ReturnType<typeof signInAsOffice>>;
 
 const sam = {
   name: "sam Seed",
@@ -55,7 +54,7 @@ const twoClients = async () => {
   ).expect(201);
 };
 
-const search = async (office: Office, q?: string) =>
+const search = async (office: Agent, q?: string) =>
   (
     (await office.get("/api/clients").query(q === undefined ? {} : { q })).body
       .clients as ClientListItem[]
@@ -158,7 +157,7 @@ describe("the Office's list of Clients", () => {
 });
 
 // each Client's standing, by name
-const standings = async (office: Office) =>
+const standings = async (office: Agent) =>
   Object.fromEntries(
     (
       (await office.get("/api/clients").expect(200)).body as ClientList

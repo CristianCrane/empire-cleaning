@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import type { JobList } from "@empire-cleaning/models";
 import { db } from "#db";
 import { jobs } from "#features/jobs";
-import { api, testClock } from "../../../tests/harness.ts";
+import { type Agent, api, testClock } from "../../../tests/harness.ts";
 import { bookedJob, signInAsOffice } from "../../../tests/fixtures.ts";
 
 // four Jobs for four Clients: two booked, one Completed, one Cancelled
@@ -26,9 +26,7 @@ const fourJobs = async () => {
   return { later, soon, done, cancelled };
 };
 
-type Office = Awaited<ReturnType<typeof signInAsOffice>>;
-
-const listed = async (office: Office, query = "") =>
+const listed = async (office: Agent, query = "") =>
   (await office.get(`/api/jobs${query}`).expect(200)).body as JobList;
 
 describe("the Office's Jobs", () => {

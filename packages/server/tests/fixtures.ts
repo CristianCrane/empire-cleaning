@@ -476,7 +476,7 @@ export const billedWeek = async ({
 // changes one of the Services every install starts with, as Office Staff
 // would on its page
 export const setService = async (
-  office: Awaited<ReturnType<typeof signInAsOffice>>,
+  office: Agent,
   which: keyof typeof SEEDED,
   changes: Partial<ServiceInput>,
 ) => {

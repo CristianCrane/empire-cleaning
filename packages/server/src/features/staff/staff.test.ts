@@ -10,11 +10,15 @@ import { confirmAssignment, offerAssignment } from "#features/assignments";
 import { createClient } from "#features/clients";
 import { siteVisits } from "#features/site-visits";
 import { createStaff, setUsualWeek } from "#features/staff";
-import { api, signIn, testClock, testEmail } from "../../../tests/harness.ts";
+import {
+  type Agent,
+  api,
+  signIn,
+  testClock,
+  testEmail,
+} from "../../../tests/harness.ts";
 import { bookedJob, signInAsOffice } from "../../../tests/fixtures.ts";
 import { signInWithGoogle } from "../../../tests/google.ts";
-
-type Office = Awaited<ReturnType<typeof signInAsOffice>>;
 
 const cory = {
   name: "Cory Cleaner",
@@ -22,13 +26,13 @@ const cory = {
   roles: ["cleaner"],
 };
 
-const invite = (office: Office, invitation: object = cory) =>
+const invite = (office: Agent, invitation: object = cory) =>
   office.post("/api/staff").send(invitation);
 
-const me = async (agent: Office) =>
+const me = async (agent: Agent) =>
   (await agent.get("/api/me").expect(200)).body;
 
-const staffNamed = async (office: Office, name: string) =>
+const staffNamed = async (office: Agent, name: string) =>
   ((await office.get("/api/staff").expect(200)).body as StaffMember[]).find(
     (m) => m.name === name,
   )!;
@@ -241,7 +245,7 @@ describe("Staff pictures", () => {
 });
 
 describe("editing Staff", () => {
-  const edit = (office: Office, id: string, changes: object) =>
+  const edit = (office: Agent, id: string, changes: object) =>
     office.patch(`/api/staff/${id}`).send(changes);
 
   test("changes their name and roles, and their access with them", async () => {
@@ -443,7 +447,7 @@ describe("deactivating Staff", () => {
 });
 
 describe("Staff availability", () => {
-  const corysDetail = async (office: Office) => {
+  const corysDetail = async (office: Agent) => {
     await invite(office).expect(201);
     const member = await staffNamed(office, "Cory Cleaner");
     return { id: member.id, path: `/api/staff/${member.id}` };
