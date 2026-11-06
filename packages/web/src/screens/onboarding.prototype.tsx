@@ -2,9 +2,10 @@
 // data, signed out, at /prototype/onboarding?flow=client|office&case=&layout=
 // (#291). ↑/↓ switch layouts, ←/→ cases. Lives only on prototype-onboarding.
 //
-// Layouts: A first-time Notices (and a teaching empty state), B a spotlight
-// tour (driver.js), C a getting-started checklist with A's Notices on the
-// screens it leads to. "Seen" is kept in the page here; the build keeps it
+// Layouts: A first-time Notices, B a spotlight tour (driver.js), B2 the
+// same tour as a sheet on a phone (Q12), C a getting-started checklist with
+// A's Notices on the screens it leads to. Today's empty state teaches in
+// every layout (Q13). "Seen" is kept in the page here; the build keeps it
 // on the Account (Q5).
 
 import { useEffect, useEffectEvent, useLayoutEffect, useState } from "react";
@@ -504,7 +505,7 @@ function Prototype({
   const showList =
     layout === "C" && !listHidden && steps.some((s) => !done.has(s.id));
 
-  // B: the screen's unseen hints as a tour, once it's drawn
+  // B and B2: the screen's unseen hints as a tour, once it's drawn
   const tourIds = hints.map((h) => h.id).join(" ");
   const isTour = layout.startsWith("B");
   useEffect(() => {
