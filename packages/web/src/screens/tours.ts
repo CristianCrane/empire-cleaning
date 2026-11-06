@@ -11,7 +11,8 @@ import { clientTours } from "./portal/tours.ts";
 // what a step points at, found by the screen's own words, so no screen
 // carries anything for its tour: something pressed (a link, Button,
 // ButtonLink or shortcut) whose text starts with these words, or a part
-// (a Section, a labelled group) whose name does
+// (a Section, a labelled group) whose name does. The first such in the page
+// is the one, so a part is found before anything named like it inside it
 export type Target = { press: string } | { named: string };
 
 type TourStep = { target: Target; title: string; text: string };

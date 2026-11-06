@@ -10,6 +10,8 @@ export const officeTours = {
       route: "/office/",
       steps: [
         {
+          // the Section: first in the page, before its tiles ("Needs
+          // attention by kind") and its list, also "Needs attention"
           target: { named: "Needs attention" },
           title: "Needs attention",
           text: "Each row is something waiting on you. Open it to deal with it, and it leaves the list once it's done.",
