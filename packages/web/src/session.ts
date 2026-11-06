@@ -1,6 +1,6 @@
 import { createAuthClient } from "better-auth/react";
 import { magicLinkClient } from "better-auth/client/plugins";
-import type { AccountRole, SignedInAccount } from "@empire-cleaning/models";
+import type { AccountRole, Me, SignedInAccount } from "@empire-cleaning/models";
 import { identify } from "@empire-cleaning/browser-monitoring";
 
 // Better Auth's browser client: plain functions over the API's /api/auth
@@ -25,15 +25,16 @@ export const areasFor = (account: SignedInAccount): AreaId[] =>
     account.roles.includes(areas[id].role),
   );
 
-// the signed-in Account, asked of the API and remembered, not asked on every
-// click. It is asked again when the person switches area or returns to the
-// tab (see router.tsx and main.tsx), and after something that can connect
-// their Account to a record (forgetAccount).
-let current: Promise<SignedInAccount | null> | undefined;
+// the signed-in Account, with the first-time help tours it has seen, asked
+// of the API and remembered, not asked on every click. It is asked again
+// when the person switches area or returns to the tab (see router.tsx and
+// main.tsx), and after something that can connect their Account to a record
+// or changes the tours seen (forgetAccount).
+let current: Promise<Me | null> | undefined;
 
 export const getAccount = () =>
   (current ??= fetch("/api/me")
-    .then((res) => (res.ok ? (res.json() as Promise<SignedInAccount>) : null))
+    .then((res) => (res.ok ? (res.json() as Promise<Me>) : null))
     .then((account) => {
       // Sentry knows people by Account ID only (ADR-0007)
       identify(account?.id);

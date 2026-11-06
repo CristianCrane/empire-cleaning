@@ -8,13 +8,17 @@ export type StaffRole = "cleaner" | "office_staff";
 // member. An Account connected to nothing has none.
 export type AccountRole = "client" | StaffRole;
 
-// the signed-in caller, as GET /api/me returns it
+// the signed-in caller: who they are, and what their connections let them do
 export type SignedInAccount = {
   id: string;
   email: string;
   name: string;
   roles: AccountRole[];
 };
+
+// the signed-in caller as GET /api/me returns it, with the first-time help
+// tours they've seen (by the web app's name for each), which don't show again
+export type Me = SignedInAccount & { seenTours: string[] };
 
 // which site the API is, as GET /api/site returns it: "test" is the test
 // site (ADR-0020)

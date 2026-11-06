@@ -32,13 +32,21 @@ import {
   DialogTrigger,
   List,
   ListItem,
+  Notice,
   type NavItem,
 } from "@empire-cleaning/ui";
-import { getJson } from "../api.ts";
+import { deleteJson, getJson } from "../api.ts";
 import { linkTo } from "../links.ts";
 import { InArea } from "./MessagePage.tsx";
 import { JobIcon, QuoteIcon } from "./icons.ts";
-import { areas, areasFor, signOut, type AreaId } from "../session.ts";
+import {
+  areas,
+  areasFor,
+  forgetAccount,
+  signOut,
+  type AreaId,
+} from "../session.ts";
+import { useAction } from "./action.ts";
 
 // an item is current on its own page, and on the pages that belong to its
 // section (alsoCurrentFor: URL prefixes), e.g. a Quote reached from Quotes
@@ -207,8 +215,8 @@ function useOffersCount(on: boolean, pathname: string) {
   return count;
 }
 
-// who's signed in, a way into their other area (Staff holding both roles)
-// and signing out
+// who's signed in, a way into their other area (Staff holding both roles),
+// bringing back first-time help's tours, and signing out
 function AccountMenu({
   account,
   area,
@@ -218,6 +226,16 @@ function AccountMenu({
 }) {
   const navigate = useNavigate();
   const otherAreas = areasFor(account).filter((id) => id !== area);
+  const action = useAction("Couldn't bring the tips back. Try again.");
+
+  // every screen's tour shows once more, as on a first visit
+  const showTipsAgain = async (close: () => void) => {
+    const ok = await action.run(async () => {
+      await deleteJson("/api/me/tours");
+      forgetAccount();
+    }, "Tips will show again");
+    if (ok) close();
+  };
 
   return (
     <DialogTrigger>
@@ -249,7 +267,15 @@ function AccountMenu({
                 ))}
               </List>
             )}
+            {action.problem && <Notice tone="danger">{action.problem}</Notice>}
             <Actions>
+              <Button
+                variant="quiet"
+                isPending={action.isPending}
+                onPress={() => void showTipsAgain(close)}
+              >
+                Show tips again
+              </Button>
               <Button
                 variant="quiet"
                 onPress={async () => {
