@@ -113,6 +113,14 @@ can change, through the same loop.
   someone, danger for something that failed or is late, info for what
   they're waiting on us for, success for done.
 
+### Language
+
+- **Copy fits in either language.** Every Guest, Client and Cleaner
+  screen comes in English and Spanish (ADR-0025), and Spanish runs 20–30%
+  longer. Where a Spanish label doesn't fit a tab, Button, `DateTile` or
+  Notice, the label is shortened, never the layout squeezed. The layout
+  test opens each of their screens in both.
+
 ### First-time help
 
 - **First-time help is a spotlight tour, never a Notice or a checklist
@@ -309,3 +317,4 @@ Newest last. "Built in" is the PR (or branch) that shipped it.
 | Cleaner and Office > a Job's crew | The Office screens said "Needs 1 more Cleaner", but the Cleaner area and emails still said "place" (Release my place, "has places open"), which read oddly to the owner (#148). What's the one word? | A Cleaner needed / a spot on the crew / a crew opening (talked through) | **Cleaner Needed; a Cleaner is on the Job** | A Cleaner is offered, confirms and releases the Job itself, never a place: Release this Job, Job confirmed, Offered to you; emails say a Job needs a Cleaner. The Office keeps "Needs 1 more Cleaner" and "1 of 2 Cleaners Confirmed", and a Staff member's Notice reads "Cory is on Deep Clean at …". The glossary and the code say the same | (none) | #148 |
 | Office, Cleaner and Client > the account menu | Once first-time help's tours have been seen, how does someone see them again (#291 Q6)? | (tried in the #291 prototype, with its tours) | **Show tips again, beside Sign out** | A closed tour has no other way back, and the help shows once per Account, not per device. A quiet Button before Sign out in the Account dialog every area shares. It forgets every tour the Account has seen, on every device, says "Tips will show again" and closes the menu; each screen's tour then shows on its next visit | [`prototype-onboarding`](https://github.com/CristianCrane/empire-cleaning/tree/prototype-onboarding) | #293 |
 | Client > Home, a Quote, Home once booked | How does a first-time Client learn the portal without calling (#291)? | First-time Notices / spotlight tour / spotlight tour as a sheet on a phone / getting-started checklist | **Spotlight tour, the popover beside what it points at** | Nothing on the page may move: a Notice or a checklist pushes it down, and again once dismissed. The sheet hid what it pointed at on a phone. Three tours, once each: See your Quote on Home with a Quote waiting; Pay and book on a one-off Quote with a Deposit; How we get in, then Move or cancel, on Home once booked. The first one met leads with "Book, move and pay for your cleans here, no phone calls needed." (with Jennifer, #206) | [`prototype-onboarding`](https://github.com/CristianCrane/empire-cleaning/tree/prototype-onboarding) | #294 |
+| Landing, Quote form, Client and Cleaner areas | The site says "Se habla español", but every screen and email was English. Which screens come in Spanish, and how does a person get theirs? | (talked through) | **Everything a Guest, Client or Cleaner sees, in their Preferred Language; the Office stays English** | Spanish twins of every landing page under `/es/`, switched in the header, never redirected. The portal and the Cleaner area follow the Client's or Staff member's Preferred Language, which a Spanish Quote Request sets and anyone may change. Neutral Latin American Spanish, *usted* to Clients, *tú* to Cleaners, one Spanish word per glossary term. Labels are shortened to fit, never the layout squeezed (a rule above). ADR-0025 | — | (not yet) |
