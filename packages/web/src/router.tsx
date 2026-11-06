@@ -118,6 +118,10 @@ import {
   type CleansSearch,
 } from "./screens/portal/PortalCleans.tsx";
 import { PortalHome } from "./screens/portal/PortalHome.tsx";
+import {
+  OnboardingPrototype,
+  type OnboardingSearch,
+} from "./screens/onboarding.prototype.tsx";
 import type { HomeData } from "./screens/portal/whats-next.ts";
 import { PortalJob } from "./screens/portal/PortalJob.tsx";
 import { PortalPaymentMethod } from "./screens/portal/PortalPaymentMethod.tsx";
@@ -874,8 +878,27 @@ const portalPropertyRoute = createRoute({
   component: PortalProperty,
 });
 
+// PROTOTYPE: first-time help on the real screens, on made-up data, signed
+// out (#291)
+const onboardingRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/prototype/onboarding",
+  validateSearch: (search: Record<string, unknown>): OnboardingSearch => {
+    // ?case=2 arrives as a number
+    const text = (v: unknown) => (v === undefined ? undefined : String(v));
+    return {
+      flow: text(search.flow),
+      case: text(search.case),
+      layout: text(search.layout),
+      screen: text(search.screen),
+    };
+  },
+  component: OnboardingPrototype,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
+  onboardingRoute,
   signInRoute,
   signInLinkRoute,
   confirmEmailRoute,
