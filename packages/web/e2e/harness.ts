@@ -34,7 +34,7 @@ export const createClient = (client: {
 }) => control("/clients", { method: "POST", body: JSON.stringify(client) });
 
 // the hours a Staff member is usually available, Monday first
-export const setUsualWeek = (staffId: string, usualWeek: number[]) =>
+const setUsualWeek = (staffId: string, usualWeek: number[]) =>
   control(`/staff/${staffId}/usual-week`, {
     method: "PUT",
     body: JSON.stringify({ usualWeek }),

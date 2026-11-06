@@ -16,7 +16,6 @@ import {
   requestReschedule,
   sentServicePlanQuote,
   setClock,
-  setUsualWeek,
   signedInAs,
   signUp,
   test,
@@ -558,17 +557,12 @@ test("signing in, the welcome page and the Cleaner area fit every width", async 
   await signedInAs(page, "new@example.com");
   await expectFitsEveryWidth(page, "/welcome");
 
-  const cory = (await createStaff({
-    name: "Cory Cleaner",
-    email: "cory@example.com",
-    roles: ["cleaner"],
-  })) as { id: string };
+  // free that week, so they can be Offered it
+  const cory = await addCleaner("Cory Cleaner");
   const job = (await bookJob({
     startsAt: "2026-01-08T14:00:00Z",
     labourHours: 5.25,
   })) as { id: string };
-  // free that week, so they can be Offered it
-  await setUsualWeek(cory.id, [8, 8, 8, 8, 8, 0, 0]);
   await offerJob(job.id, cory.id);
   // and a Job open to Cory on Friday
   const open = (await bookJob({
