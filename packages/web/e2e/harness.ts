@@ -1,6 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { test as base, expect, type Page } from "@playwright/test";
 import type { QuoteSource, StaffRole } from "@empire-cleaning/models";
+import { THEME_STORAGE_KEY } from "@empire-cleaning/ui/theme-boot";
 import { apiUrl, controlUrl } from "../playwright.config.ts";
 
 // talks to the e2e API's control server (packages/server/tests/e2e/server.ts)
@@ -386,6 +387,28 @@ export const expectAccessible = async (page: Page, within?: string) => {
       on: v.nodes.map((n) => `${n.html}\n${n.failureSummary}`),
     })),
   ).toEqual([]);
+};
+
+// the tests in body, once in each theme: light, which runs on desktop too,
+// and dark, which is something a person chooses, remembered on their device
+export const eachTheme = (body: () => void) => {
+  for (const theme of ["light", "dark"] as const) {
+    test.describe(
+      `${theme} theme`,
+      { tag: theme === "light" ? "@desktop" : [] },
+      () => {
+        if (theme === "dark") {
+          test.beforeEach(({ page }) =>
+            page.addInitScript(
+              (key) => localStorage.setItem(key, "dark"),
+              THEME_STORAGE_KEY,
+            ),
+          );
+        }
+        body();
+      },
+    );
+  }
 };
 
 // the quote form asks in steps: presses Next, which checks the step's

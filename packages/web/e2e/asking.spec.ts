@@ -11,6 +11,7 @@ import {
   expectCurrentSection,
   goTo,
   signInLinkFor,
+  eachTheme,
 } from "./harness.ts";
 
 const casey = { name: "Casey Client", email: "casey@example.com" };
@@ -437,89 +438,71 @@ test(
   },
 );
 
-for (const theme of ["light", "dark"] as const) {
-  test.describe(`${theme} theme`, () => {
-    test.beforeEach(async ({ page }) => {
-      if (theme === "dark") {
-        await page.addInitScript(() =>
-          localStorage.setItem("ec-theme", "dark"),
-        );
-      }
-    });
+eachTheme(() => {
+  test("the portal's screens have no accessibility violations", async ({
+    page,
+  }) => {
+    await requestQuoteAsGuest(casey);
+    await signInAs(page, casey.email);
 
-    test(
-      "the portal's screens have no accessibility violations",
-      { tag: theme === "light" ? "@desktop" : [] },
-      async ({ page }) => {
-        await requestQuoteAsGuest(casey);
-        await signInAs(page, casey.email);
+    for (const path of [
+      "/portal",
+      "/portal/cleans",
+      "/portal/payments",
+      "/portal/request",
+      "/portal/details",
+    ]) {
+      await page.goto(path);
+      await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+      await expectAccessible(page);
+    }
 
-        for (const path of [
-          "/portal",
-          "/portal/cleans",
-          "/portal/payments",
-          "/portal/request",
-          "/portal/details",
-        ]) {
-          await page.goto(path);
-          await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-          await expectAccessible(page);
-        }
-
-        // a Quote they asked for, not yet Sent
-        await page.goto("/portal");
-        await page
-          .getByRole("link", { name: "See what you asked for" })
-          .click();
-        await expect(page.getByText("What you asked for")).toBeVisible();
-        await expectAccessible(page);
-      },
-    );
-
-    test(
-      "the Office's screens have no accessibility violations",
-      { tag: theme === "light" ? "@desktop" : [] },
-      async ({ page }) => {
-        await requestQuoteAsGuest(casey);
-        await createStaff(officeStaff);
-        await signInAs(page, officeStaff.email);
-
-        await page.goto("/office/quotes");
-        await expect(page.getByText("Casey Client")).toBeVisible();
-        await expectAccessible(page);
-
-        await page.getByText("Casey Client").click();
-        await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-          "Quote for Casey Client",
-        );
-        await expectAccessible(page);
-
-        await page.goto("/office/clients?tab=all");
-        await expect(page.getByText("Casey Client")).toBeVisible();
-        await expectAccessible(page);
-      },
-    );
-
-    test(
-      "the welcome page's form has no accessibility violations",
-      { tag: theme === "light" ? "@desktop" : [] },
-      async ({ page }) => {
-        await signInAs(page, "new@example.com");
-        await expect(
-          page.getByRole("radio", { name: /^Standard Clean/ }),
-        ).toBeVisible();
-        await expectAccessible(page);
-        await chooseService(page);
-        await expectAccessible(page);
-        await describeNewHome(page);
-        await nextStep(page);
-        await expect(
-          page.getByRole("group", { name: "Any extras?" }),
-        ).toBeVisible();
-        await expectAccessible(page);
-        await nextStep(page);
-        await expectAccessible(page);
-      },
-    );
+    // a Quote they asked for, not yet Sent
+    await page.goto("/portal");
+    await page.getByRole("link", { name: "See what you asked for" }).click();
+    await expect(page.getByText("What you asked for")).toBeVisible();
+    await expectAccessible(page);
   });
-}
+
+  test("the Office's screens have no accessibility violations", async ({
+    page,
+  }) => {
+    await requestQuoteAsGuest(casey);
+    await createStaff(officeStaff);
+    await signInAs(page, officeStaff.email);
+
+    await page.goto("/office/quotes");
+    await expect(page.getByText("Casey Client")).toBeVisible();
+    await expectAccessible(page);
+
+    await page.getByText("Casey Client").click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "Quote for Casey Client",
+    );
+    await expectAccessible(page);
+
+    await page.goto("/office/clients?tab=all");
+    await expect(page.getByText("Casey Client")).toBeVisible();
+    await expectAccessible(page);
+  });
+
+  test("the welcome page's form has no accessibility violations", async ({
+    page,
+  }) => {
+    await signInAs(page, "new@example.com");
+    await expect(
+      page.getByRole("radio", { name: /^Standard Clean/ }),
+    ).toBeVisible();
+    await expectAccessible(page);
+    await chooseService(page);
+    await expectAccessible(page);
+    await describeNewHome(page);
+    await nextStep(page);
+    await expect(
+      page.getByRole("group", { name: "Any extras?" }),
+    ).toBeVisible();
+    await expectAccessible(page);
+    await nextStep(page);
+    await expectAccessible(page);
+  });
+});
