@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useLoaderData } from "@tanstack/react-router";
 import {
   ButtonLink,
@@ -12,13 +13,18 @@ import {
 } from "@empire-cleaning/ui";
 import { linkTo } from "../../links.ts";
 import { QuoteIcon } from "../icons.ts";
-import { whatsNext, type Hero } from "./whats-next.ts";
+import { whatsNext, type Hero, type HomeData } from "./whats-next.ts";
 
 // The Client's Home answers what's next: what's waiting on them in Notices,
 // then the one thing next in a card, then shortcuts to what they can do
 // from there (see whats-next.ts)
 export function PortalHome() {
-  const data = useLoaderData({ from: "/portal/" });
+  return <HomeView data={useLoaderData({ from: "/portal/" })} />;
+}
+
+// the Home itself, from what the portal loads; help, if any, under its
+// heading
+export function HomeView({ data, help }: { data: HomeData; help?: ReactNode }) {
   const { notices, news, hero, after, shortcuts } = whatsNext(data);
   const [firstName] = data.client.name.split(" ");
   // the hero asking for a Quote makes the header's Button a repeat
@@ -38,6 +44,8 @@ export function PortalHome() {
           </ButtonLink>
         )}
       </div>
+
+      {help}
 
       {notices.map((n) => (
         <Notice

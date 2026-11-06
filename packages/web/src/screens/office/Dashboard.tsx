@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useLoaderData, useNavigate, useRouter } from "@tanstack/react-router";
 import type {
   NeedsAttentionItem,
@@ -125,7 +125,15 @@ const tiles: { id: Tile; label: string; icon: LucideIcon }[] = [
   { id: "money", label: "Money", icon: CircleDollarSign },
 ];
 
-function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
+// the list, from the items the Office loads; empty, what it says when
+// there are none
+export function NeedsAttention({
+  items,
+  empty = "Nothing needs attention right now.",
+}: {
+  items: NeedsAttentionItem[];
+  empty?: ReactNode;
+}) {
   const navigate = useNavigate();
   const [picked, setPicked] = useState<Tile | null>(null);
   const countOf = (tile: Tile) =>
@@ -358,9 +366,7 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
       <List
         aria-label="Needs attention"
         renderEmptyState={() => (
-          <p className="p-6 text-center text-fg-muted">
-            Nothing needs attention right now.
-          </p>
+          <div className="p-6 text-center text-fg-muted">{empty}</div>
         )}
       >
         {shown.map(rowFor).map((row) => (

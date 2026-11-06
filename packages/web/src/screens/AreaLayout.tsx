@@ -48,7 +48,7 @@ type AreaNavItem = NavItem & { alsoCurrentFor?: string[] };
 // tab bar holds five at most: the Office keeps the two it checks all day
 // there, the rest in its ☰ menu (#200). The Office's sections come in
 // groups of related ones, the busiest first
-const navFor: Record<AreaId, AreaNavItem[]> = {
+export const navFor: Record<AreaId, AreaNavItem[]> = {
   office: [
     { href: linkTo({ to: "/office" }), label: "Today", icon: LayoutDashboard },
     {

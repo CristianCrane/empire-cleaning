@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useLoaderData } from "@tanstack/react-router";
 import {
   CalendarClock,
@@ -190,13 +190,15 @@ function AskedQuote({ quote }: { quote: AskedQuoteView }) {
 }
 
 // the offer, read like a Quote, then paying and booking under it while
-// it's open (#96)
-function OfferedQuote({
+// it's open (#96); help, if any, under its header
+export function OfferedQuote({
   quote,
   paymentMethod,
+  help,
 }: {
   quote: QuoteView;
   paymentMethod: PaymentMethodView | null;
+  help?: ReactNode;
 }) {
   // the clean chosen: the one accepted, or the recommended one, unless
   // only the other still fits
@@ -218,6 +220,8 @@ function OfferedQuote({
         updatedAt={quote.updatedAt}
         openUntil={quote.status === "sent" ? quote.expiresAt : null}
       />
+
+      {help}
 
       <Standing quote={quote} chosen={chosen} />
       {quote.changesPlan && quote.status === "sent" && (
