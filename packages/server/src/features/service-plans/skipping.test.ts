@@ -8,6 +8,7 @@ import type {
 import { confirmAssignment } from "#features/assignments";
 import { completeJob } from "#features/completion";
 import {
+  type Agent,
   signIn,
   testClock,
   testEmail,
@@ -19,8 +20,6 @@ import {
   casey,
   crewedServicePlan,
 } from "../../../tests/fixtures.ts";
-
-type Agent = Awaited<ReturnType<typeof signIn>>;
 
 // The First Clean is done at 11am on Monday 12 January 2026, New York time,
 // and the clock is left there. The plan is weekly from 9am on Monday the

@@ -22,6 +22,7 @@ import { bookJob } from "#features/jobs";
 import { charges } from "#features/payments";
 import { createStaff, setUsualWeek } from "#features/staff";
 import {
+  type Agent,
   signIn,
   testClock,
   testEmail,
@@ -38,8 +39,6 @@ import {
 import { servicePlans } from "./service-plans.schema.ts";
 import { generateServicePlanJobs } from "./service-plans.ts";
 import { findService, SEEDED } from "#features/services";
-
-type Agent = Awaited<ReturnType<typeof signIn>>;
 
 // The First Clean is done at 11am on Monday 12 January 2026, New York time,
 // and the clock is left there, so plan Jobs are generated up to Monday 9

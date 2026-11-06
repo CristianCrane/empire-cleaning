@@ -14,7 +14,13 @@ import { assignments } from "#features/assignments";
 import { jobs } from "#features/jobs";
 import { siteVisits } from "#features/site-visits";
 import { createStaff, setUsualWeek } from "#features/staff";
-import { api, signIn, testClock, testEmail } from "../../../tests/harness.ts";
+import {
+  type Agent,
+  api,
+  signIn,
+  testClock,
+  testEmail,
+} from "../../../tests/harness.ts";
 import {
   bookedJob,
   casey,
@@ -23,8 +29,6 @@ import {
   submit,
 } from "../../../tests/fixtures.ts";
 import { SEEDED } from "#features/services";
-
-type Agent = Awaited<ReturnType<typeof signIn>>;
 
 // the test clock starts at 4am on Monday 5 January 2026 in New York (09:00
 // UTC). Jobs here are at 9am New York on Thursday the 8th unless a test says

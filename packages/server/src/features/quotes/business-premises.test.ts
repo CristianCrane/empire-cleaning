@@ -6,7 +6,7 @@ import type {
   PriceList,
   QuoteSummary,
 } from "@empire-cleaning/models";
-import { api, signIn, testEmail } from "../../../tests/harness.ts";
+import { type Agent, api, signIn, testEmail } from "../../../tests/harness.ts";
 import {
   casey,
   guestAsk,
@@ -16,8 +16,6 @@ import {
   submit,
 } from "../../../tests/fixtures.ts";
 import { SEEDED } from "#features/services";
-
-type Agent = Awaited<ReturnType<typeof signIn>>;
 
 // prices chosen so every answer below can be checked by hand: commercial
 // cleaning at $60 an hour, taxed at 10%, 0.5 h per 1,000 sq ft; the

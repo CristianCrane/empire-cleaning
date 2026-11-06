@@ -139,3 +139,6 @@ export const signIn = async (address: string) => {
   await agent.get(signInButtonFor(address)).expect(302);
   return agent;
 };
+
+// a signed-in agent, as signIn returns one
+export type Agent = Awaited<ReturnType<typeof signIn>>;

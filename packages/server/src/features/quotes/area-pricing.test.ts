@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { OfficeQuote, QuoteDraftInput } from "@empire-cleaning/models";
-import { api, signIn } from "../../../tests/harness.ts";
+import { type Agent, api } from "../../../tests/harness.ts";
 import {
   casey,
   guestAsk,
@@ -13,8 +13,6 @@ import { SEEDED } from "#features/services";
 // A Service priced by area is priced on an area on the Revision (ADR-0018).
 // Painting as seeded: 8 h per 1,000 sq ft at $60 an hour, a $300 Minimum
 // Charge, and neither Condition nor a Premises Type changes it.
-
-type Agent = Awaited<ReturnType<typeof signIn>>;
 
 // the test clock starts at 4am on Monday 5 January 2026 in New York
 const nextMonday = { date: "2026-01-12", time: "09:00" };

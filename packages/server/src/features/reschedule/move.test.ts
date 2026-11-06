@@ -8,7 +8,13 @@ import type {
 import { db } from "#db";
 import { jobs } from "#features/jobs";
 import { createStaff, setUsualWeek } from "#features/staff";
-import { api, signIn, testClock, testEmail } from "../../../tests/harness.ts";
+import {
+  type Agent,
+  api,
+  signIn,
+  testClock,
+  testEmail,
+} from "../../../tests/harness.ts";
 import {
   acceptedJob,
   bookedJob as otherJob,
@@ -16,8 +22,6 @@ import {
   confirmOffer,
   signInAsOffice,
 } from "../../../tests/fixtures.ts";
-
-type Agent = Awaited<ReturnType<typeof signIn>>;
 
 // the test clock starts at 4am on Monday 5 January 2026 in New York. The Job
 // here is at 9am on Monday the 12th (14:00 UTC). Cory and Dee each work 8

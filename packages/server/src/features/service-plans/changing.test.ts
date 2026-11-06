@@ -15,7 +15,7 @@ import { offerAssignment } from "#features/assignments";
 import { offerServicePlan, saveDraft, sendQuote } from "#features/quotes";
 import { dayOf, timeOf } from "#services/clock";
 import {
-  signIn,
+  type Agent,
   testClock,
   testEmail,
   refusingInserts,
@@ -30,8 +30,6 @@ import { jobQuotes } from "../quotes/job-quotes.ts";
 import { servicePlans } from "./service-plans.schema.ts";
 import { generateServicePlanJobs } from "./service-plans.ts";
 import { SEEDED } from "#features/services";
-
-type Agent = Awaited<ReturnType<typeof signIn>>;
 
 // Casey's weekly Standard Clean plan from 9am on Monday 19 January 2026, for
 // a crew of 1, its Jobs booked up to 9 February, with a $50.46 Deposit. The

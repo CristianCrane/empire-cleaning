@@ -11,6 +11,7 @@ import type {
 } from "@empire-cleaning/models";
 import { createStaff, setUsualWeek } from "#features/staff";
 import {
+  type Agent,
   api,
   signIn,
   testClock,
@@ -27,8 +28,6 @@ import {
   signInAsOffice,
   submit,
 } from "../../../tests/fixtures.ts";
-
-type Agent = Awaited<ReturnType<typeof signIn>>;
 
 // the test clock starts at 4am on Monday 5 January 2026 in New York. The Job
 // here is at 9am on Monday the 12th (14:00 UTC), so moving it is free until

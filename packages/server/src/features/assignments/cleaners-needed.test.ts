@@ -8,10 +8,13 @@ import { db } from "#db";
 import { emailCleanersNeeded } from "#features/assignments";
 import { siteVisits } from "#features/site-visits";
 import { createStaff, deactivateStaff, setUsualWeek } from "#features/staff";
-import { signIn, testClock, testEmail } from "../../../tests/harness.ts";
+import {
+  type Agent,
+  signIn,
+  testClock,
+  testEmail,
+} from "../../../tests/harness.ts";
 import { bookedJob, signInAsOffice } from "../../../tests/fixtures.ts";
-
-type Agent = Awaited<ReturnType<typeof signIn>>;
 
 // the test clock starts at 4am on Monday 5 January 2026 in New York (09:00
 // UTC). The Job here is at 9am New York on Thursday the 8th, three days

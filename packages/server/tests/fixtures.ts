@@ -35,9 +35,7 @@ import { lockProperty, properties } from "#features/properties";
 import { createStaff, setUsualWeek } from "#features/staff";
 import { servicePlans } from "#features/service-plans";
 import { addressKey } from "../src/features/properties/address.ts";
-import { api, signIn, testClock, testPayments } from "./harness.ts";
-
-type Agent = Awaited<ReturnType<typeof signIn>>;
+import { type Agent, api, signIn, testClock, testPayments } from "./harness.ts";
 
 // shared by the tests that need Quotes asked for to work with
 

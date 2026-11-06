@@ -24,6 +24,7 @@ import { formatMoney } from "#services/email";
 import { properties } from "#features/properties";
 import { createStaff, setUsualWeek } from "#features/staff";
 import {
+  type Agent,
   api,
   signIn,
   testClock,
@@ -41,8 +42,6 @@ import {
   submit,
 } from "../../../tests/fixtures.ts";
 import { SEEDED } from "#features/services";
-
-type Agent = Awaited<ReturnType<typeof signIn>>;
 
 // the test clock starts at 4am on Monday 5 January 2026 in New York. Jobs
 // here are at 9am on Monday the 12th (14:00 UTC), with "Inside the oven" on
