@@ -10,11 +10,11 @@ import {
   offerJob,
   requestQuoteForPremises,
   setGooglePicture,
-  setUsualWeek,
   signInWithLink,
   signedInAs,
   test,
   goTo,
+  addCleaner,
 } from "./harness.ts";
 
 const olive = {
@@ -266,19 +266,13 @@ test(
 // the calendar starts on the browser's today, so it's set to that day too
 const API_NOW = new Date("2026-01-05T09:00:00Z");
 
-const cleanerWithWeek = async () => {
-  const member = (await createStaff(cory)) as { id: string };
-  await setUsualWeek(member.id, [8, 8, 8, 8, 8, 0, 0]);
-  return member;
-};
-
 const dayOnCalendar = (page: Page, day: string) =>
   page.getByRole("button", { name: new RegExp(`^${day} `) });
 
 test("a day off frees a Cleaner's Jobs, and so does deactivating them, each said first", async ({
   page,
 }) => {
-  const member = await cleanerWithWeek();
+  const member = await addCleaner(cory.name);
   for (const startsAt of ["2026-01-08T14:00:00Z", "2026-01-09T14:00:00Z"]) {
     const job = (await bookJob({ startsAt, labourHours: 3, crewSize: 1 })) as {
       id: string;
@@ -324,7 +318,7 @@ test("a Cleaner's Site Visit has to go to someone else before their day off, or 
     { name: "Casey Client", email: "casey@example.com" },
     "Acme Dental",
   );
-  await cleanerWithWeek();
+  await addCleaner(cory.name);
   await bookSiteVisit({
     street: "200 Park Ave S",
     staffEmail: cory.email,

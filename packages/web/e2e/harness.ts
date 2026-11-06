@@ -40,6 +40,20 @@ export const setUsualWeek = (staffId: string, usualWeek: number[]) =>
     body: JSON.stringify({ usualWeek }),
   });
 
+// a Cleaner on Staff, their email their first name at example.com, usually
+// free these hours each day, Monday first: 8 each weekday unless said
+export const addCleaner = async (
+  name: string,
+  usualWeek = [8, 8, 8, 8, 8, 0, 0],
+) => {
+  const email = `${name.split(" ")[0]!.toLowerCase()}@example.com`;
+  const member = (await createStaff({ name, email, roles: ["cleaner"] })) as {
+    id: string;
+  };
+  await setUsualWeek(member.id, usualWeek);
+  return { id: member.id, email };
+};
+
 // every Charge is declined with this reason from now on; null to stop
 export const failCharges = (reason: string | null = "card_declined") =>
   control("/payments/fail", {
@@ -607,14 +621,7 @@ export const quoteSent = async (
   office: { email: string; name: string },
   client: { email: string; name: string },
 ) => {
-  for (const name of ["Cory Cleaner", "Dee Cleaner"]) {
-    const member = await createStaff({
-      name,
-      email: `${name.split(" ")[0]!.toLowerCase()}@example.com`,
-      roles: ["cleaner"],
-    });
-    await setUsualWeek(member.id, [8, 8, 8, 8, 8, 0, 0]);
-  }
+  for (const name of ["Cory Cleaner", "Dee Cleaner"]) await addCleaner(name);
   await requestQuoteAsGuest(client);
   await createStaff({ ...office, roles: ["office_staff"] });
   await signedInAs(page, office.email);

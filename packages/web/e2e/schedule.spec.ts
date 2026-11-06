@@ -9,10 +9,10 @@ import {
   offerJob,
   requestReschedule,
   setClock,
-  setUsualWeek,
   signedInAs,
   signUp,
   test,
+  addCleaner,
 } from "./harness.ts";
 
 const olive = {
@@ -37,16 +37,6 @@ const TUESDAY_9AM = "2027-03-02T14:00:00Z";
 // the time axis starts at 7am, an hour to 48px
 const HOUR_PX = 48;
 
-const cleaner = async (name: string, usualWeek: number[]) => {
-  const member = (await createStaff({
-    name,
-    email: `${name.split(" ")[0]!.toLowerCase()}@example.com`,
-    roles: ["cleaner"],
-  })) as { id: string };
-  await setUsualWeek(member.id, usualWeek);
-  return member;
-};
-
 const day = (page: Page, name: string) =>
   page.getByRole("region", { name, exact: true });
 const jobsOn = (page: Page, name: string) =>
@@ -56,8 +46,8 @@ test(
   "Office Staff see the week as days over a time axis, each Job sized by its time on site",
   { tag: ["@smoke", "@desktop"] },
   async ({ page }) => {
-    const cory = await cleaner("Cory Cleaner", [8, 8, 8, 8, 8, 0, 0]);
-    await cleaner("Dee Cleaner", [0, 4, 0, 0, 0, 0, 0]);
+    const cory = await addCleaner("Cory Cleaner");
+    await addCleaner("Dee Cleaner", [0, 4, 0, 0, 0, 0, 0]);
     const job = (await bookJob({
       startsAt: TUESDAY_9AM,
       labourHours: 5,
@@ -119,7 +109,7 @@ test("clicking a Job opens it", async ({ page }) => {
 });
 
 test("an overbooked day says how far over it is", async ({ page }) => {
-  await cleaner("Cory Cleaner", [8, 8, 0, 0, 0, 0, 0]);
+  await addCleaner("Cory Cleaner", [8, 8, 0, 0, 0, 0, 0]);
   await bookJob({ startsAt: "2027-03-01T14:00:00Z", labourHours: 9 });
   await signInAsOffice(page);
 
@@ -195,7 +185,7 @@ test("the Schedule opens on three days from today, then on the span last chosen"
 const caseysJob = async () => {
   await createStaff(olive);
   await signUp(olive.email);
-  const cory = await cleaner("Cory Cleaner", [8, 8, 8, 8, 8, 0, 0]);
+  const cory = await addCleaner("Cory Cleaner");
   const job = await acceptedJob({
     startsAt: TUESDAY_9AM,
     officeEmail: olive.email,
@@ -333,7 +323,7 @@ test("a Job that has started, or isn't booked, can't be moved", async ({
 });
 
 test("the Schedule passes automated accessibility checks", async ({ page }) => {
-  await cleaner("Cory Cleaner", [8, 8, 8, 8, 8, 0, 0]);
+  await addCleaner("Cory Cleaner");
   await bookJob({ startsAt: TUESDAY_9AM, labourHours: 5 });
   await signInAsOffice(page);
   await page.goto(week);
@@ -356,8 +346,8 @@ test(
   "Jobs at the same time sit side by side, short ones too",
   { tag: ["@desktop"] },
   async ({ page }) => {
-    await cleaner("Cory Cleaner", [8, 8, 8, 8, 8, 0, 0]);
-    await cleaner("Dee Cleaner", [8, 8, 8, 8, 8, 0, 0]);
+    await addCleaner("Cory Cleaner");
+    await addCleaner("Dee Cleaner");
     // two crews on Tuesday morning
     await bookJob({ startsAt: TUESDAY_9AM, labourHours: 4, crewSize: 1 });
     await bookJob({
@@ -404,9 +394,9 @@ test(
   "a busy day in the week view lists the Jobs that don't fit side by side",
   { tag: ["@desktop"] },
   async ({ page }) => {
-    const cory = await cleaner("Cory Cleaner", [8, 8, 8, 8, 8, 0, 0]);
+    const cory = await addCleaner("Cory Cleaner");
     for (const name of ["Dee", "Eve", "Fay"]) {
-      await cleaner(`${name} Cleaner`, [8, 8, 8, 8, 8, 0, 0]);
+      await addCleaner(`${name} Cleaner`);
     }
     // four crews at once on Tuesday morning: the earliest has its crew, the
     // other three don't yet

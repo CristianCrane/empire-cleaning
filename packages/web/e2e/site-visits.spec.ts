@@ -6,11 +6,11 @@ import {
   expect,
   expectAccessible,
   requestQuoteForPremises,
-  setUsualWeek,
   signedInAs,
   test,
   draftTheQuote,
   recordFindingsWithoutVisit,
+  addCleaner,
 } from "./harness.ts";
 
 // The API's clock starts at 4am on Monday 5 January 2026 in New York.
@@ -136,12 +136,7 @@ test("a Site Visit shows on the Schedule, in the Client's portal and in the visi
   page,
 }) => {
   await requestQuoteForPremises(casey, "Acme Dental");
-  const cory = (await createStaff({
-    email: "cory@example.com",
-    name: "Cory Cleaner",
-    roles: ["cleaner"],
-  })) as { id: string };
-  await setUsualWeek(cory.id, [8, 8, 8, 8, 8, 0, 0]);
+  await addCleaner("Cory Cleaner");
   await bookSiteVisit({
     street: "200 Park Ave S",
     staffEmail: "cory@example.com",
