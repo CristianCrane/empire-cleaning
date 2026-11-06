@@ -18,7 +18,7 @@ import {
   Wallet,
   Users,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type {
   CleanerJobs,
   CleanerNeeded,
@@ -208,13 +208,15 @@ function useOffersCount(on: boolean, pathname: string) {
 }
 
 // who's signed in, a way into their other area (Staff holding both roles)
-// and signing out
-function AccountMenu({
+// and signing out; more, if any, beside Sign out, given how to close
+export function AccountMenu({
   account,
   area,
+  more,
 }: {
   account: SignedInAccount;
   area: AreaId;
+  more?: (close: () => void) => ReactNode;
 }) {
   const navigate = useNavigate();
   const otherAreas = areasFor(account).filter((id) => id !== area);
@@ -250,6 +252,7 @@ function AccountMenu({
               </List>
             )}
             <Actions>
+              {more?.(close)}
               <Button
                 variant="quiet"
                 onPress={async () => {

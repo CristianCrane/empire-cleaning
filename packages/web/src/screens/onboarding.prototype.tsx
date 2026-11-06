@@ -11,7 +11,7 @@ import { useEffect, useEffectEvent, useLayoutEffect, useState } from "react";
 import { useBlocker, useNavigate, useSearch } from "@tanstack/react-router";
 import { driver, type DriveStep } from "driver.js";
 import "driver.js/dist/driver.css";
-import { Circle, CircleCheck, User } from "lucide-react";
+import { Circle, CircleCheck } from "lucide-react";
 import type {
   ClientUpcomingJob,
   ClientView,
@@ -19,13 +19,11 @@ import type {
   PropertyView,
   QuoteSummary,
   QuoteView,
+  SignedInAccount,
 } from "@empire-cleaning/models";
 import {
-  Actions,
   AppLayout,
   Button,
-  Dialog,
-  DialogTrigger,
   Heading,
   IconTile,
   List,
@@ -35,7 +33,7 @@ import {
   showToast,
   type NavItem,
 } from "@empire-cleaning/ui";
-import { navFor } from "./AreaLayout.tsx";
+import { AccountMenu, navFor } from "./AreaLayout.tsx";
 import { NeedsAttention } from "./office/Dashboard.tsx";
 import { HomeView } from "./portal/PortalHome.tsx";
 import { OfferedQuote } from "./portal/PortalQuote.tsx";
@@ -73,6 +71,19 @@ const at = {
   postcode: home.postcode,
 };
 const maria = { id: "maria", name: "Maria Lopez", businessName: null };
+// who's signed in, for the real account menu
+const mariaAccount: SignedInAccount = {
+  id: "a-maria",
+  email: "maria@example.com",
+  name: maria.name,
+  roles: ["client"],
+};
+const jennifer: SignedInAccount = {
+  id: "a-jen",
+  email: "jen@example.com",
+  name: "Jennifer",
+  roles: ["office_staff"],
+};
 
 const quoteSummary = {
   id: "q1",
@@ -458,6 +469,7 @@ function Prototype({
         return json({ status: "accepted", quote });
       }
       if (url.includes("/api/quotes/mine/q1")) return json({});
+      if (url.includes("/api/auth/sign-out")) return json({ success: true });
       return real(input, init);
     };
     return () => {
@@ -569,8 +581,19 @@ function Prototype({
         nav={navOf(flow, screen)}
         account={
           <AccountMenu
-            name={flow === "office" ? "Jennifer" : maria.name}
-            onResetTips={resetTips}
+            account={flow === "office" ? jennifer : mariaAccount}
+            area={flow === "office" ? "office" : "portal"}
+            more={(close) => (
+              <Button
+                variant="quiet"
+                onPress={() => {
+                  resetTips();
+                  close();
+                }}
+              >
+                Show tips again
+              </Button>
+            )}
           />
         }
         atHome={screen === "home"}
@@ -650,50 +673,6 @@ function Checklist({
         ))}
       </List>
     </Section>
-  );
-}
-
-// who's signed in, Show tips again beside Sign out (Q6)
-function AccountMenu({
-  name,
-  onResetTips,
-}: {
-  name: string;
-  onResetTips: () => void;
-}) {
-  return (
-    <DialogTrigger>
-      <Button variant="quiet" className="justify-start">
-        <User aria-hidden size={20} />
-        <span className="max-md:sr-only">{name}</span>
-      </Button>
-      <Dialog title="Account">
-        {({ close }) => (
-          <>
-            <span className="font-semibold">{name}</span>
-            <Actions>
-              <Button
-                variant="quiet"
-                onPress={() => {
-                  onResetTips();
-                  close();
-                }}
-              >
-                Show tips again
-              </Button>
-              <Button
-                variant="quiet"
-                onPress={() =>
-                  showToast({ tone: "info", title: "Not in this prototype" })
-                }
-              >
-                Sign out
-              </Button>
-            </Actions>
-          </>
-        )}
-      </Dialog>
-    </DialogTrigger>
   );
 }
 
