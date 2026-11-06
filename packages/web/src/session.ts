@@ -44,10 +44,15 @@ export const getAccount = () =>
     }));
 
 // a first-time help tour seen (screens/run-tours.ts): the remembered Account
-// learns it at once, so the tour doesn't come back before the next look, and
-// the API keeps it. Should that fail, the tour shows once more another time.
-export const seeTour = (account: Me, tour: string) => {
-  if (!account.seenTours.includes(tour)) account.seenTours.push(tour);
+// learns it at once, in place, so the tour doesn't come back before the next
+// look, and the API keeps it. Should that fail, the tour shows once more
+// another time.
+export const seeTour = (tour: string) => {
+  void current?.then((account) => {
+    if (account && !account.seenTours.includes(tour)) {
+      account.seenTours.push(tour);
+    }
+  });
   putJson(`/api/me/tours/${tour}`, undefined).catch(() => {});
 };
 

@@ -1,10 +1,12 @@
 import type { Page } from "@playwright/test";
 import { clientTours } from "../src/screens/portal/tours.ts";
+import { toursFor } from "../src/screens/tours.ts";
 import {
   eachTheme,
   expect,
   expectAccessible,
   quoteSent,
+  returnToTab,
   signedInAs,
   test,
 } from "./harness.ts";
@@ -25,6 +27,12 @@ const expectPointedAt = (page: Page, name: string) =>
     new RegExp(`^${name}`),
   );
 
+// each area with tours is walked through here; a new area's fails this
+// until it is
+test("every area's tours are walked through", () => {
+  expect(Object.keys(toursFor)).toEqual(["portal"]);
+});
+
 eachTheme(() => {
   test("a new Client meets each of the portal's tours once, as each screen first matters", async ({
     page,
@@ -36,6 +44,10 @@ eachTheme(() => {
     // Home, a Quote waiting: the first tour they meet leads with the value line
     await signedInAs(page, casey.email);
     await expect(step(page, "Welcome")).toContainText(clientTours.welcome);
+    // coming back to the tab asks for the Account again, and leaves the tour
+    const lookedAgain = page.waitForResponse("**/api/me");
+    await returnToTab(page);
+    await lookedAgain;
     await expectAccessible(page);
     await step(page, "Welcome").getByRole("button", { name: "Next" }).click();
     await expect(step(page, "Your Quote")).toBeVisible();

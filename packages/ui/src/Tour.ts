@@ -18,8 +18,9 @@ const popupAttributes = ["aria-haspopup", "aria-expanded", "aria-controls"];
 // A short spotlight tour of a screen: it dims the page and points at its
 // parts in turn, each step's popover beside what it points at, so nothing on
 // the page moves. onClose is called however it ends: done, or closed partway
-// (Escape, ×, or a press outside). Only one runs at a time; the function
-// returned ends it early, e.g. when the person leaves the screen.
+// (Escape, ×, or a press outside), and once only. Only one runs at a time;
+// the function returned ends it early, e.g. when the person leaves the
+// screen, which counts as closing it too.
 export const startTour = (steps: TourStep[], onClose: () => void) => {
   const tour = driver({
     steps: steps.map((step, i) => ({
@@ -51,7 +52,10 @@ export const startTour = (steps: TourStep[], onClose: () => void) => {
       tour.movePrevious();
       unmark();
     },
-    onDestroyed: onClose,
+    // every way it's closed comes here first: done, Escape, ×, a press
+    // outside. driver.js's own onDestroyed misses a close in the first
+    // step's opening moment
+    onDestroyStarted: () => close(),
   });
   // driver.js marks what a step points at as opening the popover, which it
   // doesn't, and which a section or a plain box mayn't say (axe). It does so
@@ -60,7 +64,14 @@ export const startTour = (steps: TourStep[], onClose: () => void) => {
     popupAttributes.forEach((name) =>
       tour.getActiveElement()?.removeAttribute(name),
     );
+  let closed = false;
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    tour.destroy();
+    onClose();
+  };
   tour.drive();
   unmark();
-  return () => tour.destroy();
+  return close;
 };

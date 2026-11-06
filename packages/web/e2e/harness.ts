@@ -339,8 +339,10 @@ export const test = base.extend<{
   toursSeen: [
     async ({ browser, context, showTours }, use) => {
       if (showTours) return use();
-      const allSeen = (on: BrowserContext) =>
-        on.route("**/api/me", async (route) => {
+      const routed: BrowserContext[] = [];
+      const allSeen = (on: BrowserContext) => {
+        routed.push(on);
+        return on.route("**/api/me", async (route) => {
           const response = await route.fetch();
           if (!response.ok()) return route.fulfill({ response });
           const me: Me = await response.json();
@@ -349,6 +351,7 @@ export const test = base.extend<{
             json: { ...me, seenTours: tourIds },
           });
         });
+      };
       await allSeen(context);
       // and in every browser a test opens beside its own, e.g. the Client's
       // while the Office's is open
@@ -360,6 +363,10 @@ export const test = base.extend<{
       };
       await use();
       browser.newContext = newContext;
+      // an answer still on its way as the test ends goes nowhere
+      for (const on of routed) {
+        await on.unrouteAll({ behavior: "ignoreErrors" }).catch(() => {});
+      }
     },
     { auto: true },
   ],
