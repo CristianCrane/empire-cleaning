@@ -1,4 +1,4 @@
-import { emailOpenPlaces } from "#features/assignments";
+import { emailCleanersNeeded } from "#features/assignments";
 import { chaseBills, makeDueBills } from "#features/bills";
 import {
   chaseProposedAdjustments,
@@ -18,7 +18,7 @@ export const TICK_MS = 10 * 60 * 1000;
 // and so do reminders and lapses of increases proposed to Clients, and
 // Service Plans' Jobs coming within reach of the Schedule, each Monday's
 // weekly Bills, reminders for Bills paid on their page and those late, and
-// Open Places for Cleaners: each morning from 7am, and soon ones at once;
+// Cleaners Needed, for Cleaners: each morning from 7am, and soon ones at once;
 // and Google review requests, the day after a Client's first clean; and
 // payments the provider never answered, a quarter of an hour on
 const scheduledJobs: ScheduledJob[] = [
@@ -27,7 +27,7 @@ const scheduledJobs: ScheduledJob[] = [
   { name: "Service Plan Jobs", run: () => generateServicePlanJobs() },
   { name: "weekly Bills", run: makeDueBills },
   { name: "Bill chasing", run: chaseBills },
-  { name: "Open Places", run: emailOpenPlaces },
+  { name: "Cleaners Needed", run: emailCleanersNeeded },
   { name: "review requests", run: sendDueReviewRequests },
   { name: "open payments", run: settleOpenPayments },
 ];

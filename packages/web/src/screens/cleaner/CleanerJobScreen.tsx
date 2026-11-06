@@ -35,15 +35,15 @@ import {
   formatHours,
   formatTime,
 } from "../format.ts";
-import { directionsTo, PlaceBadge, untilAbout } from "./CleanerHome.tsx";
+import { directionsTo, JobBadge, untilAbout } from "./CleanerHome.tsx";
 import { CompleteJob, Completed, NotYet } from "./CompleteJob.tsx";
 import { NoAccessRecorded, RecordNoAccess } from "./NoAccess.tsx";
 
-// One Job as its Cleaner sees it, never with prices (UX pass, #96): a place
-// offered to them to Confirm or Release first; then its details, its time
+// One Job as its Cleaner sees it, never with prices (UX pass, #96): an Offer
+// to them to Confirm or Release first; then its details, its time
 // large, how to get in where it's seen at the door; and what to do now in a
 // bar at the foot, in reach on site: Complete it, record No Access, or
-// Release a place they can't make.
+// Release a Job they can't make.
 export function CleanerJobScreen() {
   const job = useLoaderData({ from: "/cleaner/jobs/$jobId" });
   const offered = job.assignment.status === "offered";
@@ -64,7 +64,7 @@ export function CleanerJobScreen() {
         />
         <div className="flex flex-wrap items-center gap-3">
           <Heading level={1}>{job.serviceName}</Heading>
-          <PlaceBadge job={job} />
+          <JobBadge job={job} />
         </div>
       </div>
 
@@ -199,7 +199,7 @@ function JobDetails({ job }: { job: CleanerJob }) {
   );
 }
 
-// a place the Office offered them: Confirm it, or let it go
+// a Job the Office offered them: Confirm it, or let it go
 function TakeOffer({ job }: { job: CleanerJob }) {
   // reloads on failure too, to show the new time if the Job moved
   const action = useAction("Your place wasn't confirmed. Please try again.", {

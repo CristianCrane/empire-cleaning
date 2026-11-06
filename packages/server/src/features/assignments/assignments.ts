@@ -1,8 +1,8 @@
 import { and, asc, eq, gte, inArray, lte } from "drizzle-orm";
 import {
-  holdsPlace,
+  isOnCrew,
   type AssignmentView,
-  type HoldingState,
+  type CrewState,
   type CleanerJob,
   type CleanerJobs,
   type OfficeJob,
@@ -41,7 +41,11 @@ import {
 import { staff } from "../staff/staff.schema.ts";
 import { tellOfficeStaff } from "../staff/staff.ts";
 import { assignments, onCrew, type Assignment } from "./assignments.schema.ts";
-import { emailOpenPlaces, openToOf, placeReopened } from "./open-places.ts";
+import {
+  emailCleanersNeeded,
+  openToOf,
+  cleanerNeededAgain,
+} from "./cleaners-needed.ts";
 import {
   releaseClosed,
   whyNotConfirm,
@@ -75,8 +79,8 @@ const toView = (
   answeredAt: assignment.answeredAt?.toISOString() ?? null,
 });
 
-// a Job, on the Schedule or Cancelled, with everyone Offered a place on it,
-// the Cleaners who could be, who its Open Places are open to, what cancelling or moving it would cost, any
+// a Job, on the Schedule or Cancelled, with everyone Offered it, the
+// Cleaners who could be, who its Cleaners Needed are open to, what cancelling or moving it would cost, any
 // request to move it, and once it has
 // happened or been Cancelled, how it went and its payment, and whether its
 // Property can be offered a Service Plan from it
@@ -127,8 +131,8 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
     weeklyBillOfJob(row, db),
   ]);
 
-  const holding = rows.filter((r) => holdsPlace(r.assignment.status));
-  const released = rows.filter((r) => !holdsPlace(r.assignment.status));
+  const holding = rows.filter((r) => isOnCrew(r.assignment.status));
+  const released = rows.filter((r) => !isOnCrew(r.assignment.status));
   const onJob = new Set(holding.map((r) => r.member.id));
   const hoursOf = new Map(day.available.map((c) => [c.id, c.hours]));
 
@@ -145,7 +149,7 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
     assignments: [...holding, ...released].map((r) =>
       toView(r.assignment, r.member),
     ),
-    openPlaces: Math.max(row.crewSize - holding.length, 0),
+    cleanersNeeded: Math.max(row.crewSize - holding.length, 0),
     openTo,
     cleaners: cleaners
       .filter((c) => c.roles.includes("cleaner") && !onJob.has(c.id))
@@ -156,10 +160,10 @@ export const officeJob = async (jobId: string): Promise<OfficeJob> => {
 };
 
 /**
- * Office Staff Offer a place on a booked Job to an active Cleaner, who is
- * emailed. Office Staff who are Cleaners too may take a place themselves,
- * which is Confirmed at once: there's nobody to ask. Refused once the Job has
- * started, when every place is held, when the Cleaner already holds one, or
+ * Office Staff Offer a booked Job to an active Cleaner, who is emailed.
+ * Office Staff who are Cleaners too may put themselves on its crew, which is
+ * Confirmed at once: there's nobody to ask. Refused once the Job has
+ * started, when its crew is whole, when the Cleaner is on it already, or
  * when they aren't free for it (ADR-0019), so they could never Confirm it.
  */
 export const offerAssignment = async (
@@ -168,8 +172,8 @@ export const offerAssignment = async (
   byAccountId: string,
 ): Promise<OfficeJob> => {
   const offered = await db.transaction(async (tx) => {
-    // one change to a Job's places at a time, so two Offers can't both take
-    // its last place
+    // one change to a Job's crew at a time, so two Offers can't both take
+    // the last Cleaner Needed
     const [job] = await tx
       .select()
       .from(jobs)
@@ -208,7 +212,7 @@ export const offerAssignment = async (
   return officeJob(jobId);
 };
 
-// tells a Cleaner they've been offered a place, once it's saved
+// tells a Cleaner they've been offered a Job, once it's saved
 export const emailOffer = (
   member: { id: string; name: string; email: string },
   job: Job,
@@ -225,8 +229,8 @@ export const emailOffer = (
     }),
   );
 
-// Office Staff take someone off a Job, Offered or Confirmed, opening their
-// place to everyone free for it but them, as a Release does (#242): Office
+// Office Staff take someone off a Job, Offered or Confirmed, leaving a
+// Cleaner Needed open to everyone free for it but them, as a Release does (#242): Office
 // Staff can still Offer it to them. They're emailed unless they took
 // themselves off, and so is anyone free for it, if the Job is within 48 hours
 export const removeAssignment = async (
@@ -236,7 +240,7 @@ export const removeAssignment = async (
 ): Promise<OfficeJob> => {
   const { job, property } = await findJob(jobId);
   const removed = await db.transaction(async (tx) => {
-    // one change to a Job's places at a time, as Offering takes
+    // one change to a Job's crew at a time, as Offering takes
     await tx.select().from(jobs).where(eq(jobs.id, jobId)).for("update");
     const now = clock.now();
     const [removed] = await tx
@@ -253,7 +257,7 @@ export const removeAssignment = async (
     return removed;
   });
   if (!removed) throw new NotFoundError("Assignment not found");
-  await placeReopened(jobId);
+  await cleanerNeededAgain(jobId);
 
   const [member] = await db
     .select()
@@ -270,15 +274,15 @@ export const removeAssignment = async (
       }),
     );
   }
-  await notify(`Open Places email for Job ${jobId}`, async () => {
-    await emailOpenPlaces();
+  await notify(`Cleaners Needed email for Job ${jobId}`, async () => {
+    await emailCleanersNeeded();
   });
   return officeJob(jobId);
 };
 
 // ---- the Cleaner ----
 
-// the Jobs a Cleaner holds a place on, booked or Completed, from the start of
+// the Jobs a Cleaner is on the crew of, booked or Completed, from the start of
 // today, soonest first
 const cleanerJobs = async (
   staffId: string,
@@ -333,7 +337,7 @@ const cleanerJobs = async (
 
   return mine.map(({ assignment, job, property }) => {
     const client = clientOf.get(property.id)!;
-    const status = assignment.status as HoldingState;
+    const status = assignment.status as CrewState;
     const { assigned, ...completion } = completions.get(job.id)!;
     return {
       id: job.id,
@@ -355,7 +359,7 @@ const cleanerJobs = async (
         .filter((c) => c.jobId === job.id)
         .map((c) => ({
           name: c.name,
-          status: c.status as HoldingState,
+          status: c.status as CrewState,
         })),
       assignment: {
         id: assignment.id,
@@ -389,17 +393,17 @@ export const jobsAssignedTo = async (staffId: string): Promise<CleanerJobs> => {
   };
 };
 
-// one Job a Cleaner holds a place on; to anyone else it doesn't exist
+// one Job a Cleaner is on the crew of; to anyone else it doesn't exist
 export const jobAssignedTo = async (staffId: string, jobId: string) => {
   const [job] = await cleanerJobs(staffId, jobId);
   if (!job) throw new NotFoundError("Job not found");
   return job;
 };
 
-// The Cleaner's own place, Offered or Confirmed, on a booked Job, held with
-// its Job until the transaction ends: one change to a Job's places at a
-// time, as Offering and moving it take (#242). A place on a Cancelled Job,
-// or one taken off them, is gone.
+// The Cleaner's own Assignment, Offered or Confirmed, to a booked Job, held
+// with its Job until the transaction ends: one change to a Job's crew at a
+// time, as Offering and moving it take (#242). One to a Cancelled Job, or
+// one taken off them, is gone.
 const lockOwn = async (tx: Tx, staffId: string, assignmentId: string) => {
   const [mine] = await tx
     .select({ jobId: assignments.jobId })
@@ -435,7 +439,7 @@ const lockOwn = async (tx: Tx, staffId: string, assignmentId: string) => {
 const gone = () => new NotFoundError("Assignment not found");
 
 /**
- * The Cleaner takes the place they were Offered, at the time they were
+ * The Cleaner takes the Job they were Offered, at the time they were
  * shown (`seen`): if the Job has moved since, they're asked to look again
  * (#242). Refused once the Job has started, or if they're no longer free
  * for it (ADR-0019). Confirming again changes nothing.
@@ -470,8 +474,8 @@ export const confirmAssignment = async (
 };
 
 /**
- * The Cleaner gives up their place, and it opens to every free Cleaner but
- * them (ADR-0019); the Office is emailed. An Offered place can be Released
+ * The Cleaner gives up the Job, leaving a Cleaner Needed open to every free
+ * Cleaner but them (ADR-0019); the Office is emailed. An Offered one can be Released
  * at any time; a Confirmed one only until 48 hours before the Job.
  */
 export const releaseAssignment = async (
@@ -499,7 +503,7 @@ export const releaseAssignment = async (
     if (!released) throw gone();
     return found;
   });
-  await placeReopened(job.id);
+  await cleanerNeededAgain(job.id);
 
   const [member] = await db.select().from(staff).where(eq(staff.id, staffId));
   await tellOfficeStaff(
@@ -511,13 +515,13 @@ export const releaseAssignment = async (
         clean: await cleanOf(job, property),
       }),
   );
-  await notify(`Open Places email for Job ${job.id}`, async () => {
-    await emailOpenPlaces();
+  await notify(`Cleaners Needed email for Job ${job.id}`, async () => {
+    await emailCleanersNeeded();
   });
 };
 
-// Booked Jobs from the start of today to `hours` from now whose places
-// aren't all Confirmed, soonest first. Each needs attention from when it came
+// Booked Jobs from the start of today to `hours` from now whose crew isn't
+// all Confirmed, soonest first. Each needs attention from when it came
 // within `hours` of starting, or was booked, whichever is later.
 export const unassignedJobsWithin = async (hours: number) => {
   const now = clock.now();

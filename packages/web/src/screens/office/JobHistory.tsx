@@ -29,8 +29,8 @@ type Moment = {
 
 const chargeLabel = { deposit: "Deposit", balance: "Balance", fee: "Fee" };
 
-// a place answered, by whom
-const placeAnswered: Record<
+// an Assignment answered, by whom
+const assignmentAnswered: Record<
   Exclude<AssignmentState, "offered">,
   { icon: LucideIcon; title: (name: string) => string }
 > = {
@@ -50,7 +50,7 @@ const requestAnswered: Record<
   withdrawn: { icon: CalendarX, title: "Move withdrawn by the Client" },
 };
 
-// everything that happened to a Job, newest first: its places Offered,
+// everything that happened to a Job, newest first: its Assignments Offered,
 // Confirmed, Released or taken off, Reschedule Requests and their answers
 // (closed unanswered if the Job stopped being booked first), each
 // charge, and how it went or ended
@@ -64,7 +64,7 @@ const momentsOf = (job: OfficeJob): Moment[] => {
       title: `Offered to ${a.staff.name}`,
     });
     if (a.answeredAt && a.status !== "offered") {
-      const { icon, title } = placeAnswered[a.status];
+      const { icon, title } = assignmentAnswered[a.status];
       moments.push({
         key: `answered-${a.id}`,
         at: a.answeredAt,

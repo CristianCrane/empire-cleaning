@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import type {
   AcceptOutcome,
   BillPayment,
+  CleanerJob,
   Condition,
   NewHome,
   OfficeServicePlan,
@@ -35,6 +36,8 @@ import { createStaff, setUsualWeek } from "#features/staff";
 import { servicePlans } from "#features/service-plans";
 import { addressKey } from "../src/features/properties/address.ts";
 import { api, signIn, testClock, testPayments } from "./harness.ts";
+
+type Agent = Awaited<ReturnType<typeof signIn>>;
 
 // shared by the tests that need Quotes asked for to work with
 
@@ -88,6 +91,16 @@ export const signInAsOffice = async () => {
     roles: ["office_staff"],
   });
   return signIn("olive@example.com");
+};
+
+// a Cleaner Confirming the Job they were Offered, at the time it shows them
+export const confirmOffer = async (asCleaner: Agent, jobId: string) => {
+  const mine = (await asCleaner.get(`/api/assignments/mine/${jobId}`))
+    .body as CleanerJob;
+  await asCleaner
+    .post(`/api/assignments/${mine.assignment.id}/confirm`)
+    .send({ startsAt: mine.startsAt })
+    .expect(200);
 };
 
 // a booked Job at a home of its own, put on the Schedule directly, for tests
@@ -316,7 +329,7 @@ export const startedServicePlan = async (
 /**
  * Casey's weekly Standard Clean plan from 9am on Monday 19 January 2026,
  * accepted in the portal with the card saved at their First Clean, done by
- * Cory, who holds a Confirmed place on its first Job. The clock is left at
+ * Cory, who is Confirmed on its first Job. The clock is left at
  * 11am on Monday the 12th, so its Jobs are booked up to 9 February.
  */
 export const crewedServicePlan = async () => {

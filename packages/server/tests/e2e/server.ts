@@ -204,7 +204,7 @@ control.post("/service-plans/started", async (req, res) => {
   res.json(await startedServicePlan({ ...plan, byAccountId: account!.id }));
 });
 
-// a place on a Job Offered to a Cleaner, as Office Staff do, and Confirmed
+// a Job Offered to a Cleaner, as Office Staff do, and Confirmed
 // by them too if `confirmed`
 control.post("/jobs/:id/assignments", async (req, res) => {
   const { staffId, confirmed } = req.body as {
@@ -212,9 +212,9 @@ control.post("/jobs/:id/assignments", async (req, res) => {
     confirmed?: boolean;
   };
   const job = await offerAssignment(req.params.id, staffId, "control");
-  const place = job.assignments.find((a) => a.staff.id === staffId)!;
-  if (confirmed) await confirmAssignment(staffId, place.id);
-  res.json(place);
+  const assignment = job.assignments.find((a) => a.staff.id === staffId)!;
+  if (confirmed) await confirmAssignment(staffId, assignment.id);
+  res.json(assignment);
 });
 
 // a week billed for Casey, a business now (see billedWeek in fixtures.ts),
@@ -265,7 +265,7 @@ control.post("/service-plans/generate", async (_req, res) => {
   res.json({ generated: await generateServicePlanJobs() });
 });
 
-// a Job marked Completed by a Cleaner with a Confirmed place on it, as on
+// a Job marked Completed by a Cleaner Confirmed on it, as on
 // their phone
 control.post("/jobs/:id/complete", async (req, res) => {
   const { staffId, ...input } = req.body as { staffId: string } & Parameters<
@@ -275,7 +275,7 @@ control.post("/jobs/:id/complete", async (req, res) => {
   res.json({ status: "ok" });
 });
 
-// No Access recorded by a Cleaner with a Confirmed place on the Job, as on
+// No Access recorded by a Cleaner Confirmed on the Job, as on
 // their phone
 control.post("/jobs/:id/no-access", async (req, res) => {
   const { staffId, reason } = req.body as { staffId: string; reason: string };

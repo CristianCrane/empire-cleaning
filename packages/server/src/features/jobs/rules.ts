@@ -168,7 +168,7 @@ export const roomOn = (day: ScheduleDay, clean: Clean): DayCapacity => {
  * What a Staff member is busy with during a clean's time on site, on its
  * day of the Schedule (which has its Jobs and Site Visits earliest first):
  * the earliest booked Site Visit of theirs overlapping it, else the
- * earliest booked Job they hold a place on. Null when nothing is. A Done
+ * earliest booked Job they're on the crew of. Null when nothing is. A Done
  * Site Visit doesn't count, even one recorded Done before its time (roomOn,
  * unlike this, still counts one Done at or after its time: its hours were
  * spent). A Job or Site Visit being moved isn't counted against itself.

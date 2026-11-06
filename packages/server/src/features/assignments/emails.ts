@@ -1,4 +1,4 @@
-import type { OpenPlace } from "@empire-cleaning/models";
+import type { CleanerNeeded } from "@empire-cleaning/models";
 import {
   button,
   cleanDetails,
@@ -72,25 +72,25 @@ export const releasedEmail = ({
 
 // "Deep Clean, Thursday, January 8 at 9:00 AM, 11375, about 3 hours on site,
 // crew of 2"
-const lineFor = (place: OpenPlace) =>
+const lineFor = (job: CleanerNeeded) =>
   [
-    place.serviceName,
-    formatWhen(new Date(place.startsAt)),
-    place.postcode,
-    `about ${place.hoursOnSite} ${place.hoursOnSite === 1 ? "hour" : "hours"} on site`,
-    place.crewSize === 1 ? "on your own" : `crew of ${place.crewSize}`,
+    job.serviceName,
+    formatWhen(new Date(job.startsAt)),
+    job.postcode,
+    `about ${job.hoursOnSite} ${job.hoursOnSite === 1 ? "hour" : "hours"} on site`,
+    job.crewSize === 1 ? "on your own" : `crew of ${job.crewSize}`,
   ].join(", ");
 
-// the morning's list of every place open to a Cleaner, new ones first, or
-// (`soon`) the places within 48 hours that have just opened
-export const openPlacesEmail = ({
+// the morning's list of every Job open to a Cleaner, new ones first, or
+// (`soon`) the Jobs within 48 hours that have just opened
+export const cleanersNeededEmail = ({
   name,
   soon,
-  places,
+  jobs,
 }: {
   name: string;
   soon: boolean;
-  places: OpenPlace[];
+  jobs: CleanerNeeded[];
 }): Email => ({
   subject: soon ? "A Job soon is open to you" : "Jobs open to you",
   blocks: [
@@ -100,10 +100,10 @@ export const openPlacesEmail = ({
         ? "These Jobs in the next two days have places open, and you're free for them:"
         : "These Jobs have places open, and you're free for them. New ones first:",
     ),
-    ...places.map((place) => paragraph(lineFor(place))),
+    ...jobs.map((job) => paragraph(lineFor(job))),
     paragraph("The first to confirm takes each place."),
-    places.length === 1
-      ? button("See the Job", `/cleaner/open/${places[0]!.jobId}`)
+    jobs.length === 1
+      ? button("See the Job", `/cleaner/open/${jobs[0]!.jobId}`)
       : button("See the Jobs", "/cleaner"),
   ],
 });

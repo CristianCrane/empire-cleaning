@@ -18,7 +18,10 @@ import {
 } from "../../services/clock/index.ts";
 import { email, notify } from "../../services/email/index.ts";
 import { assignments, onCrew } from "../assignments/assignments.schema.ts";
-import { emailOpenPlaces, placeReopened } from "../assignments/open-places.ts";
+import {
+  emailCleanersNeeded,
+  cleanerNeededAgain,
+} from "../assignments/cleaners-needed.ts";
 import { weeklyBillFor } from "../bills/billed-weekly.ts";
 import { lateFeeOf, planOfJob } from "../cancellation/cancellation.ts";
 import { clients } from "../clients/clients.schema.ts";
@@ -409,8 +412,8 @@ export const turnDownReschedule = async (
 
 /**
  * Office Staff confirm a pending request: the Job moves to its new time, and
- * its crew are Offered it afresh, keeping their places unless they aren't
- * free then (moveTo). A second Late Reschedule makes the Deposit amount due as a
+ * its crew are Offered it afresh, staying on it unless they aren't free
+ * then (moveTo). A second Late Reschedule makes the Deposit amount due as a
  * fee (ADR-0010), owed with the Balance on completion, charged or on its
  * week's Bill (ADR-0016): a one-off Job's
  * Deposit is kept as it, and a plan Job, which has none, pays it then. Refused
@@ -486,10 +489,10 @@ export const confirmReschedule = async (jobId: string, byAccountId: string) => {
 
 /**
  * Moves a locked Job to a new time. Its crew are Offered the new time
- * afresh and keep their places, so each Confirms it or Releases it, except
- * anyone not free then (ADR-0019), whose places open. Its day-before
- * reminder goes again, for the new day. Returns who kept a place and who
- * lost one, to tell them.
+ * afresh and stay on its crew, so each Confirms it or Releases it, except
+ * anyone not free then (ADR-0019), who leave a Cleaner Needed. Its
+ * day-before reminder goes again, for the new day. Returns who stayed on and
+ * who came off, to tell them.
  */
 const moveTo = async (
   tx: Tx,
@@ -537,18 +540,18 @@ const moveTo = async (
   return { kept, lost };
 };
 
-// Emails each of a moved Job's crew: those who kept a place, to Confirm the
+// Emails each of a moved Job's crew: those who stayed on it, to Confirm the
 // new time or Release it, and those not free then, that they're off it.
-// Then anyone the Job's Open Places are open to hears of it afresh.
+// Then anyone the Job's Cleaners Needed are open to hears of it afresh.
 const tellCrewOfMove = async (
   job: Job,
   property: Property,
   { kept, lost }: Awaited<ReturnType<typeof moveTo>>,
   fromStartsAt: Date,
 ) => {
-  await placeReopened(job.id);
-  await notify(`Open Places email for Job ${job.id}`, async () => {
-    await emailOpenPlaces();
+  await cleanerNeededAgain(job.id);
+  await notify(`Cleaners Needed email for Job ${job.id}`, async () => {
+    await emailCleanersNeeded();
   });
   await tellLost(job, property, lost, fromStartsAt);
   const crew = kept;
@@ -649,7 +652,7 @@ export const moveJob = async (jobId: string, to: LocalDateTime) => {
 };
 
 // emails each of a moved Job's crew who isn't free at its new time that
-// their place has gone
+// they're off it
 const tellLost = async (
   job: Job,
   property: Property,

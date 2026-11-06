@@ -159,11 +159,11 @@ type Offered = { id: string; name: string; email: string };
 // fortnight of cleans 6 days a week, and then some
 const RECENT_JOBS = 16;
 
-// The Cleaners holding places on the plan's latest booked Job on the same
+// The Cleaners on the crew of the plan's latest booked Job on the same
 // weekday (or failing that its latest), Offered or Confirmed, who are still
-// active Cleaners and are free for the new one (ADR-0019): each is Offered a
-// place on it, so the Client tends to see the same faces. A place nobody
-// free can take stays open to everyone free (#242).
+// active Cleaners and are free for the new one (ADR-0019): each is Offered
+// it, so the Client tends to see the same faces. A Cleaner Needed nobody of
+// them can take stays open to everyone free (#242).
 const offerPreviousCrew = async (
   tx: Tx,
   plan: ServicePlan,
@@ -247,7 +247,7 @@ const tellClientBooked = async (job: Job, property: Property) => {
   }
 };
 
-// once saved: the crew Offered places are emailed, and the Client if it's
+// once saved: the crew Offered it are emailed, and the Client if it's
 // too soon for a reminder, and the Office is told of Sent Quotes the booking
 // left without room
 const afterBooking = async (
@@ -496,7 +496,7 @@ const refuseOnHold = (plan: ServicePlan) => {
 /**
  * Office Staff book a visit its day had no room for at another time they've
  * agreed with the Client, as its plan's Job: the new time must have room, and
- * the previous Job's crew is Offered places, as for any plan Job.
+ * the previous Job's crew is Offered it, as for any plan Job.
  */
 export const bookVisit = async (
   planId: string,

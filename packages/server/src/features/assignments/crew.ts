@@ -4,8 +4,8 @@ import { db, type Tx } from "../../db/index.ts";
 import { staff } from "../staff/staff.schema.ts";
 import { assignments, onCrew } from "./assignments.schema.ts";
 
-// how many of each Job's places are Confirmed
-const confirmedPlaces = async (jobIds: string[], tx: Tx | typeof db) => {
+// how many of each Job's crew are Confirmed
+const confirmedOn = async (jobIds: string[], tx: Tx | typeof db) => {
   if (jobIds.length === 0) return new Map<string, number>();
   const rows = await tx
     .select({ jobId: assignments.jobId, confirmed: count() })
@@ -20,13 +20,13 @@ const confirmedPlaces = async (jobIds: string[], tx: Tx | typeof db) => {
   return new Map(rows.map((r) => [r.jobId, r.confirmed]));
 };
 
-// each Job's Assignment status: Unassigned until every place on its crew is
+// each Job's Assignment status: Unassigned until its whole crew is
 // Confirmed
 export const assignmentStatusOf = async (
   jobs: { id: string; crewSize: number }[],
   tx: Tx | typeof db = db,
 ) => {
-  const confirmed = await confirmedPlaces(
+  const confirmed = await confirmedOn(
     jobs.map((j) => j.id),
     tx,
   );
@@ -38,7 +38,7 @@ export const assignmentStatusOf = async (
   );
 };
 
-// who holds each Job's places, Offered or Confirmed, earliest Offered first
+// who is on each Job's crew, Offered or Confirmed, earliest Offered first
 export const crewOf = async (jobIds: string[], tx: Tx | typeof db = db) => {
   const crews = new Map(
     jobIds.map((id) => [id, [] as { id: string; name: string }[]]),

@@ -25,7 +25,7 @@ import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock, DAY_MS } from "../../services/clock/index.ts";
 import { email, formatMoney, notify } from "../../services/email/index.ts";
 import { assignments, onCrew } from "../assignments/assignments.schema.ts";
-import { assignmentStatusOf } from "../assignments/places.ts";
+import { assignmentStatusOf } from "../assignments/crew.ts";
 import { weeklyBillOfJob } from "../bills/billed-weekly.ts";
 import {
   cancellationOf,
@@ -181,7 +181,7 @@ const sendUnpaid = async (jobId: string, settled: Settled) => {
  * once, increases wait on the Office. Then the Balance is charged and the
  * Client emailed a receipt; if it can't be charged, the Job is Unpaid.
  *
- * Only someone with a Confirmed place may, once every place is Confirmed and
+ * Only someone Confirmed on it may, once the whole crew is Confirmed and
  * the Job has started.
  */
 export const completeJob = async (
@@ -363,8 +363,8 @@ type CleanerExtras = Pick<
   "outcome" | "reportable" | "completion" | "noAccess"
 > & { assigned: boolean };
 
-// what the Cleaner area shows about completing each Job: whether every
-// place is Confirmed, what can be reported, and once Completed, what was; or
+// what the Cleaner area shows about completing each Job: whether its
+// whole crew is Confirmed, what can be reported, and once Completed, what was; or
 // once No Access, what happened
 export const cleanerCompletionsOf = async (
   list: Job[],

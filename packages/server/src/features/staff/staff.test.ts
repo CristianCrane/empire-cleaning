@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import type {
   OfficeJob,
-  OpenPlace,
+  CleanerNeeded,
   StaffDetail,
   StaffMember,
 } from "@empire-cleaning/models";
@@ -34,7 +34,7 @@ const staffNamed = async (office: Office, name: string) =>
   )!;
 
 // What deactivating a Cleaner, or a day of theirs going to 0 hours, does to
-// what they hold (#242, #158). Cory holds a Confirmed place on a Job at 9am on
+// what they hold (#242, #158). Cory is Confirmed on a Job at 9am on
 // Thursday the 8th, a crew of one; Dee, free that day, could take it.
 const corysThursday = async () => {
   const office = await signInAsOffice();
@@ -60,7 +60,7 @@ const corysThursday = async () => {
   const openToDee = async () =>
     (
       (await (await signIn("dee@example.com")).get("/api/assignments/open"))
-        .body as OpenPlace[]
+        .body as CleanerNeeded[]
     ).map((p) => p.jobId);
   return { office, member, job, path, jobOf, openToDee };
 };
@@ -311,7 +311,7 @@ describe("editing Staff", () => {
     );
   });
 
-  test("won't take the Cleaner role from someone holding a place on a Job to come", async () => {
+  test("won't take the Cleaner role from someone on the crew of a Job to come", async () => {
     const office = await signInAsOffice();
     const member = await createStaff({ ...cory, roles: ["cleaner"] });
     await setUsualWeek(member.id, [8, 8, 8, 8, 8, 0, 0]);
@@ -411,14 +411,14 @@ describe("deactivating Staff", () => {
       .expect(404);
   });
 
-  test("Releases their places on Jobs to come, opening them to everyone free (#242)", async () => {
+  test("Releases their Assignments to Jobs to come, opening them to everyone free (#242)", async () => {
     const { office, member, jobOf, openToDee } = await corysThursday();
 
     await office.post(`/api/staff/${member.id}/deactivate`).expect(200);
 
     expect(await jobOf()).toMatchObject({
       assignment: "unassigned",
-      openPlaces: 1,
+      cleanersNeeded: 1,
       assignments: [{ status: "released" }],
     });
     expect(await openToDee()).toHaveLength(1);
@@ -572,7 +572,7 @@ describe("Staff availability", () => {
     ]);
   });
 
-  test("a day going to 0 hours frees their places that day, and tells them (#158, #242)", async () => {
+  test("a day going to 0 hours frees their Assignments that day, and tells them (#158, #242)", async () => {
     const { office, path, jobOf, openToDee } = await corysThursday();
 
     await office
@@ -582,7 +582,7 @@ describe("Staff availability", () => {
 
     expect(await jobOf()).toMatchObject({
       assignment: "unassigned",
-      openPlaces: 1,
+      cleanersNeeded: 1,
     });
     expect(await openToDee()).toHaveLength(1);
     expect(testEmail().lastTo(cory.email).subject).toBe(
@@ -590,7 +590,7 @@ describe("Staff availability", () => {
     );
   });
 
-  test("fewer hours that aren't 0 keep their places", async () => {
+  test("fewer hours that aren't 0 keep their Assignments", async () => {
     const { office, path, jobOf } = await corysThursday();
 
     await office
@@ -601,7 +601,7 @@ describe("Staff availability", () => {
     expect((await jobOf()).assignment).toBe("assigned");
   });
 
-  test("a weekday going to 0 in the usual week frees their places on it (#158, #242)", async () => {
+  test("a weekday going to 0 in the usual week frees their Assignments on it (#158, #242)", async () => {
     const { office, path, jobOf } = await corysThursday();
 
     await office
@@ -612,7 +612,7 @@ describe("Staff availability", () => {
     expect((await jobOf()).assignment).toBe("unassigned");
   });
 
-  test("a day going back to a usual week of 0 frees their places that day", async () => {
+  test("a day going back to a usual week of 0 frees their Assignments that day", async () => {
     const { office, path, jobOf } = await corysThursday();
     await office
       .put(`${path}/exceptions/2026-01-08`)

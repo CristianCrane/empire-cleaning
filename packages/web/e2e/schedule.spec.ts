@@ -6,7 +6,7 @@ import {
   emailsTo,
   expect,
   expectAccessible,
-  offerPlace,
+  offerJob,
   requestReschedule,
   setClock,
   setUsualWeek,
@@ -64,7 +64,7 @@ test(
       crewSize: 2,
       service: "standard",
     })) as { id: string };
-    await offerPlace(job.id, cory.id, { confirmed: true });
+    await offerJob(job.id, cory.id, { confirmed: true });
     // another Client's Job asks to move onto Wednesday, holding its hours
     // (asked the week before: a request is for the next few weeks)
     const moving = (await bookJob({
@@ -200,7 +200,7 @@ const caseysJob = async () => {
     startsAt: TUESDAY_9AM,
     officeEmail: olive.email,
   });
-  await offerPlace(job.id, cory.id, { confirmed: true });
+  await offerJob(job.id, cory.id, { confirmed: true });
   return job;
 };
 
@@ -251,7 +251,7 @@ test(
     await expect(page.getByText("Job moved")).toBeVisible();
     const moved = jobsOn(page, "Wed, Mar 3").getByRole("link");
     await expect(moved).toContainText("10:30 AM Casey Client");
-    // every place is Offered afresh
+    // the whole crew is Offered it afresh
     await expect(moved).toContainText("Unassigned");
     await expect(jobsOn(page, "Tue, Mar 2").getByRole("link")).toHaveCount(0);
     expect((await emailsTo(casey.email)).at(-1)!.subject).toBe(
@@ -415,7 +415,7 @@ test(
       labourHours: 4,
       crewSize: 1,
     })) as { id: string };
-    await offerPlace(assigned.id, cory.id, { confirmed: true });
+    await offerJob(assigned.id, cory.id, { confirmed: true });
     for (const startsAt of [
       TUESDAY_9AM,
       "2027-03-02T14:30:00Z",

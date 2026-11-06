@@ -22,6 +22,7 @@ import {
 import {
   acceptedJob,
   casey,
+  confirmOffer,
   guestAsk,
   signInAsOffice,
   submit,
@@ -48,7 +49,7 @@ const cleaner = async (name: string) => {
 
 /**
  * Casey's Deep Clean at 9am on Monday the 12th, accepted with a 25% Deposit,
- * with Cory Offered a place and Confirmed on it.
+ * with Cory Offered it and Confirmed on it.
  */
 const bookedJob = async ({ crewSize = 1 } = {}) => {
   const office = await signInAsOffice();
@@ -66,11 +67,7 @@ const bookedJob = async ({ crewSize = 1 } = {}) => {
     .send({ staffId: cory.id })
     .expect(201);
   const asCory = await signIn(cory.email);
-  const mine = (await asCory.get(`/api/assignments/mine/${job.id}`))
-    .body as CleanerJob;
-  await asCory
-    .post(`/api/assignments/${mine.assignment.id}/confirm`)
-    .send({ startsAt: mine.startsAt });
+  await confirmOffer(asCory, job.id);
 
   const client = await signIn(casey.email);
   const deposit = testPayments().charges[0]!.amount;
@@ -449,7 +446,7 @@ describe("No Access", () => {
     );
   });
 
-  test("is for a Cleaner with a Confirmed place, once the Job has started", async () => {
+  test("is for a Cleaner Confirmed on it, once the Job has started", async () => {
     const { office, client, jobId } = await bookedJob();
     const asDee = await signIn("dee@example.com");
 
@@ -491,7 +488,7 @@ describe("No Access", () => {
     expect(await unassigned()).toEqual([]);
   });
 
-  test("is refused for an Offered place not yet Confirmed", async () => {
+  test("is refused for an Offered Assignment not yet Confirmed", async () => {
     const { office, jobId } = await bookedJob({ crewSize: 2 });
     const dee = (await office.get(`/api/jobs/${jobId}`)).body as OfficeJob;
     await office

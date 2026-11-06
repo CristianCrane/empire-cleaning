@@ -1,7 +1,11 @@
 import { describe, expect, test } from "vitest";
-import type { CleanerJob, OfficeJob, OpenPlace } from "@empire-cleaning/models";
+import type {
+  CleanerJob,
+  OfficeJob,
+  CleanerNeeded,
+} from "@empire-cleaning/models";
 import { db } from "#db";
-import { emailOpenPlaces } from "#features/assignments";
+import { emailCleanersNeeded } from "#features/assignments";
 import { siteVisits } from "#features/site-visits";
 import { createStaff, deactivateStaff, setUsualWeek } from "#features/staff";
 import { signIn, testClock, testEmail } from "../../../tests/harness.ts";
@@ -11,7 +15,7 @@ type Agent = Awaited<ReturnType<typeof signIn>>;
 
 // the test clock starts at 4am on Monday 5 January 2026 in New York (09:00
 // UTC). The Job here is at 9am New York on Thursday the 8th, three days
-// away: its places are open at once. With 6 Labour Hours and a crew of two,
+// away: its Cleaners Needed are open at once. With 6 Labour Hours and a crew of two,
 // it's 9am to noon on site.
 const THURSDAY_9AM = "2026-01-08T14:00:00Z";
 
@@ -26,7 +30,8 @@ const thursdayJob = (crewSize = 2) =>
   bookedJob({ startsAt: THURSDAY_9AM, labourHours: 6, crewSize });
 
 const openTo = async (agent: Agent) =>
-  (await agent.get("/api/assignments/open").expect(200)).body as OpenPlace[];
+  (await agent.get("/api/assignments/open").expect(200))
+    .body as CleanerNeeded[];
 
 const openJobIds = async (agent: Agent) =>
   (await openTo(agent)).map((p) => p.jobId);
@@ -34,7 +39,7 @@ const openJobIds = async (agent: Agent) =>
 const jobFor = async (office: Agent, jobId: string) =>
   (await office.get(`/api/jobs/${jobId}`).expect(200)).body as OfficeJob;
 
-// takes a Job's Open Place, at the time it was shown
+// takes a Job's Cleaner Needed, at the time it was shown
 const confirm = (agent: Agent, job: { id: string; startsAt: Date }) =>
   agent
     .post(`/api/assignments/open/${job.id}/confirm`)
@@ -65,7 +70,7 @@ const siteVisit = async (
   });
 };
 
-describe("Open Places", () => {
+describe("Cleaners Needed", () => {
   test("are open to every free active Cleaner, Office Staff who clean included", async () => {
     const job = await thursdayJob();
     const cory = await cleaner("Cory Cleaner");
@@ -100,7 +105,7 @@ describe("Open Places", () => {
       cleaners: 2,
       passedBy: [],
     });
-    // and nothing more of the Job until they hold a place on it
+    // and nothing more of the Job until they're on its crew
     await (
       await cory.signIn()
     )
@@ -151,7 +156,7 @@ describe("Open Places", () => {
     const dee = await cleaner("Dee Cleaner");
     const office = await signInAsOffice();
 
-    // a named Offer holds a place, as a Confirmation does
+    // a named Offer puts them on the crew, as a Confirmation does
     await offer(office, morning.id, cory.id);
     expect(await openJobIds(await cory.signIn())).toEqual([afternoon.id]);
     // Dee is visiting a Property from 1pm
@@ -161,7 +166,7 @@ describe("Open Places", () => {
     expect((await jobFor(office, afternoon.id)).openTo.cleaners).toBe(1);
   });
 
-  test("leave everyone's list once every place is held", async () => {
+  test("leave everyone's list once the crew is whole", async () => {
     const job = await thursdayJob(1);
     const cory = await cleaner("Cory Cleaner");
     const dee = await cleaner("Dee Cleaner");
@@ -173,7 +178,7 @@ describe("Open Places", () => {
   });
 });
 
-describe("Confirming an Open Place", () => {
+describe("Confirming a Cleaner Needed", () => {
   test("takes it, Confirmed at once, and shows the whole Job", async () => {
     const job = await thursdayJob();
     const cory = await cleaner("Cory Cleaner");
@@ -198,10 +203,10 @@ describe("Confirming an Open Place", () => {
         answeredAt: "2026-01-05T09:00:00.000Z",
       },
     ]);
-    expect(seen).toMatchObject({ openPlaces: 1, openTo: { cleaners: 1 } });
+    expect(seen).toMatchObject({ cleanersNeeded: 1, openTo: { cleaners: 1 } });
   });
 
-  test("is refused once someone else took the place", async () => {
+  test("is refused once someone else took it", async () => {
     const job = await thursdayJob(1);
     const asCory = await (await cleaner("Cory Cleaner")).signIn();
     const asDee = await (await cleaner("Dee Cleaner")).signIn();
@@ -211,7 +216,7 @@ describe("Confirming an Open Place", () => {
     expect(refused.body.message).toBe("Someone else took this Job");
   });
 
-  test("lets only the first of two at once take the last place", async () => {
+  test("lets only the first of two at once take the last one", async () => {
     const job = await thursdayJob(1);
     const asCory = await (await cleaner("Cory Cleaner")).signIn();
     const asDee = await (await cleaner("Dee Cleaner")).signIn();
@@ -227,7 +232,7 @@ describe("Confirming an Open Place", () => {
 
   // more than the database pool's connections, each waiting on the Job's
   // lock while holding one: the one holding the lock mustn't need another
-  test("lets only the first of a dozen at once take the last place, answering everyone", async () => {
+  test("lets only the first of a dozen at once take the last one, answering everyone", async () => {
     const job = await thursdayJob(1);
     const agents = [];
     for (const name of "Ada Bo Cy Di Ed Flo Gus Hal Ivy Jo Kit Lu".split(" ")) {
@@ -256,7 +261,7 @@ describe("Confirming an Open Place", () => {
   });
 });
 
-describe("Saying an Open Place is not for me", () => {
+describe("Saying a Cleaner Needed is not for me", () => {
   test("takes it off their list, shows the Office, and stops emails about it", async () => {
     const job = await thursdayJob();
     const cory = await cleaner("Cory Cleaner");
@@ -275,13 +280,13 @@ describe("Saying an Open Place is not for me", () => {
     });
 
     testClock().set(new Date("2026-01-05T12:00:00Z"));
-    expect(await emailOpenPlaces()).toBe(1);
+    expect(await emailCleanersNeeded()).toBe(1);
     expect(subjectsTo(dee.email)).toEqual([]);
     expect(testEmail().lastTo(cory.email).subject).toBe("Jobs open to you");
   });
 });
 
-describe("Releasing a Confirmed place", () => {
+describe("Releasing a Confirmed Assignment", () => {
   test("opens it to every free Cleaner but the one who Released it", async () => {
     const job = await thursdayJob(1);
     const cory = await cleaner("Cory Cleaner");
@@ -330,20 +335,20 @@ describe("Releasing a Confirmed place", () => {
     );
     expect(subjectsTo(cory.email)).toEqual(["You've been offered a Job"]);
     // and only once
-    expect(await emailOpenPlaces()).toBe(0);
+    expect(await emailCleanersNeeded()).toBe(0);
   });
 });
 
-describe("The morning email of Open Places", () => {
+describe("The morning email of Cleaners Needed", () => {
   test("goes at 7am New York only when something is newly open, new ones first", async () => {
     const thursday = await thursdayJob();
     const cory = await cleaner("Cory Cleaner");
 
     // 4am: not yet, and Thursday's more than 48 hours away
-    expect(await emailOpenPlaces()).toBe(0);
+    expect(await emailCleanersNeeded()).toBe(0);
 
     testClock().set(new Date("2026-01-05T12:00:00Z"));
-    expect(await emailOpenPlaces()).toBe(1);
+    expect(await emailCleanersNeeded()).toBe(1);
     const first = testEmail().lastTo(cory.email);
     expect(first.subject).toBe("Jobs open to you");
     expect(first.text).toContain("Hi Cory,");
@@ -354,7 +359,7 @@ describe("The morning email of Open Places", () => {
       `http://localhost:5173/cleaner/open/${thursday.id}`,
     );
     // once a day
-    expect(await emailOpenPlaces()).toBe(0);
+    expect(await emailCleanersNeeded()).toBe(0);
 
     // one opening later in the day waits for the next morning
     await bookedJob({
@@ -363,10 +368,10 @@ describe("The morning email of Open Places", () => {
       crewSize: 1,
     });
     testClock().set(new Date("2026-01-05T20:00:00Z"));
-    expect(await emailOpenPlaces()).toBe(0);
+    expect(await emailCleanersNeeded()).toBe(0);
 
     testClock().set(new Date("2026-01-06T12:05:00Z"));
-    expect(await emailOpenPlaces()).toBe(1);
+    expect(await emailCleanersNeeded()).toBe(1);
     const second = testEmail().lastTo(cory.email).text;
     expect(second.indexOf("Friday, January 9")).toBeLessThan(
       second.indexOf("Thursday, January 8"),
@@ -375,7 +380,7 @@ describe("The morning email of Open Places", () => {
 
     // nothing new the day after
     testClock().set(new Date("2026-01-07T12:05:00Z"));
-    expect(await emailOpenPlaces()).toBe(0);
+    expect(await emailCleanersNeeded()).toBe(0);
     expect(subjectsTo(cory.email)).toEqual([
       "Jobs open to you",
       "Jobs open to you",
@@ -387,20 +392,20 @@ describe("The morning email of Open Places", () => {
     const cory = await cleaner("Cory Cleaner");
     testClock().set(new Date("2026-01-05T12:00:00Z"));
     testEmail().failSending();
-    expect(await emailOpenPlaces()).toBe(0);
+    expect(await emailCleanersNeeded()).toBe(0);
     testEmail().sendNormally();
 
-    // the morning's gone, but the place is still new to them tomorrow
-    expect(await emailOpenPlaces()).toBe(0);
+    // the morning's gone, but the Job is still new to them tomorrow
+    expect(await emailCleanersNeeded()).toBe(0);
     testClock().set(new Date("2026-01-06T12:00:00Z"));
-    expect(await emailOpenPlaces()).toBe(1);
+    expect(await emailCleanersNeeded()).toBe(1);
     expect(testEmail().lastTo(cory.email).subject).toBe("Jobs open to you");
   });
 });
 
 describe("Moving a Job", () => {
-  test("keeps its crew where they're free at the new time, and opens the others' places", async () => {
-    // 9am on Monday the 12th, so its places aren't open yet
+  test("keeps its crew where they're free at the new time, and opens the others' to everyone", async () => {
+    // 9am on Monday the 12th, so its Cleaners Needed aren't open yet
     const job = await bookedJob({
       startsAt: "2026-01-12T14:00:00Z",
       labourHours: 6,
@@ -425,7 +430,7 @@ describe("Moving a Job", () => {
     expect(moved.assignments.map((a) => [a.staff.name, a.status])).toEqual([
       ["Cory Cleaner", "offered"],
     ]);
-    expect(moved.openPlaces).toBe(1);
+    expect(moved.cleanersNeeded).toBe(1);
     expect(testEmail().lastTo(cory.email).subject).toBe(
       "A Job you're on has moved",
     );

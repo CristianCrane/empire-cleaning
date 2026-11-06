@@ -167,7 +167,7 @@ describe("accepting a Service Plan Quote for a home with a plan", () => {
     );
     expect(confirmation.text).toContain("are cancelled, at no charge");
     expect(confirmation.text).toContain("Your Deposit stays as it is");
-    // Cory holds a place on the 2 February Job, and hears it's off
+    // Cory is on the 2 February Job, and hears it's off
     const off = testEmail().lastTo("cory@example.com");
     expect(off.subject).toBe("A Job you're on is cancelled");
     expect(off.text).toContain("February 2");

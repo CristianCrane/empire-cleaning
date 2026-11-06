@@ -7,7 +7,7 @@ import {
   emailsTo,
   expect,
   expectAccessible,
-  offerPlace,
+  offerJob,
   requestQuoteForPremises,
   setGooglePicture,
   setUsualWeek,
@@ -275,7 +275,7 @@ const cleanerWithWeek = async () => {
 const dayOnCalendar = (page: Page, day: string) =>
   page.getByRole("button", { name: new RegExp(`^${day} `) });
 
-test("a day off frees a Cleaner's places, and so does deactivating them, each said first", async ({
+test("a day off frees a Cleaner's Jobs, and so does deactivating them, each said first", async ({
   page,
 }) => {
   const member = await cleanerWithWeek();
@@ -283,7 +283,7 @@ test("a day off frees a Cleaner's places, and so does deactivating them, each sa
     const job = (await bookJob({ startsAt, labourHours: 3, crewSize: 1 })) as {
       id: string;
     };
-    await offerPlace(job.id, member.id, { confirmed: true });
+    await offerJob(job.id, member.id, { confirmed: true });
   }
   await page.clock.setFixedTime(API_NOW);
   await signInAsOffice(page);

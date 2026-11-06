@@ -120,7 +120,7 @@ export const cancelledEmail = ({
   };
 };
 
-// everyone holding a place on it hears it's off
+// everyone on its crew hears it's off
 export const crewCancelledEmail = ({
   name,
   clean,

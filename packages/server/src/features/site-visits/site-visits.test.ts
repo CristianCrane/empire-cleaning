@@ -244,7 +244,7 @@ describe("booking a Site Visit", () => {
     await book(office, home.id, olive.id, "10:15").expect(201);
   });
 
-  test("by a Cleaner is refused while they hold a place on a Job then", async () => {
+  test("by a Cleaner is refused while they're on a Job then", async () => {
     const { office, cory, quote } = await setUp();
     // a second Cleaner, so the day has a crew free for the visit
     await cleaner("Dana Cleaner");

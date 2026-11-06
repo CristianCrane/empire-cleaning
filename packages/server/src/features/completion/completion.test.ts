@@ -34,6 +34,7 @@ import {
 import {
   acceptedJob,
   casey,
+  confirmOffer,
   guestAsk,
   setService,
   signInAsOffice,
@@ -129,11 +130,7 @@ const bookedJob = async ({
     .send({ staffId: cory.id })
     .expect(201);
   const agent = await cory.signIn();
-  const mine = (await agent.get(`/api/assignments/mine/${job!.id}`))
-    .body as CleanerJob;
-  await agent
-    .post(`/api/assignments/${mine.assignment.id}/confirm`)
-    .send({ startsAt: mine.startsAt });
+  await confirmOffer(agent, job!.id);
 
   testClock().set(MONDAY_11AM);
   return {
@@ -173,7 +170,7 @@ const amounts = () => testPayments().charges.map((c) => c.amount);
 const refunded = () => testPayments().refunds.map((r) => r.amount);
 
 describe("completing a Job", () => {
-  test("is only for a Cleaner with a Confirmed place", async () => {
+  test("is only for a Cleaner Confirmed on it", async () => {
     const { office, jobId } = await bookedJob();
     const dee = await signIn("dee@example.com");
 
@@ -185,10 +182,10 @@ describe("completing a Job", () => {
       .expect(401);
   });
 
-  test("waits for the Cleaner to Confirm, every place to be Confirmed, and the Job to start", async () => {
+  test("waits for the Cleaner to Confirm, the whole crew to be Confirmed, and the Job to start", async () => {
     const { office, cory, jobId } = await bookedJob({ crewSize: 2 });
 
-    // the second place is open: Unassigned
+    // it needs a second Cleaner: Unassigned
     const unassigned = await complete(cory.agent, jobId).expect(409);
     expect(unassigned.body.message).toMatch(/every place .* Confirmed/i);
     expect(
@@ -214,11 +211,7 @@ describe("completing a Job", () => {
     expect((await complete(asDee, jobId).expect(409)).body.message).toMatch(
       /Confirm your place/,
     );
-    const deeJob = (await asDee.get(`/api/assignments/mine/${jobId}`))
-      .body as CleanerJob;
-    await asDee
-      .post(`/api/assignments/${deeJob.assignment.id}/confirm`)
-      .send({ startsAt: deeJob.startsAt });
+    await confirmOffer(asDee, jobId);
 
     // not before it starts
     testClock().set(new Date("2026-01-12T13:59:00Z"));

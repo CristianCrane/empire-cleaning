@@ -131,7 +131,7 @@ export const startedServicePlan = (plan: {
     body: JSON.stringify(plan),
   }) as Promise<{ planId: string; firstJob: { id: string } }>;
 
-// a Job marked Completed by a Cleaner with a Confirmed place on it
+// a Job marked Completed by a Cleaner Confirmed on it
 export const completeJob = (
   jobId: string,
   staffId: string,
@@ -145,7 +145,7 @@ export const completeJob = (
     body: JSON.stringify({ staffId, ...input }),
   });
 
-// No Access recorded by a Cleaner with a Confirmed place on the Job
+// No Access recorded by a Cleaner Confirmed on the Job
 export const recordNoAccess = (
   jobId: string,
   staffId: string,
@@ -171,7 +171,7 @@ export const requestReschedule = (
     body: JSON.stringify({ cost: "free", ...to }),
   });
 
-// a place on a Job Offered to a Cleaner (and Confirmed by them, if asked)
+// a Job Offered to a Cleaner (and Confirmed by them, if asked)
 // Office Staff move a booked Job straight to a new time, New York's
 export const moveJob = (jobId: string, to: { date: string; time: string }) =>
   control(`/jobs/${jobId}/move`, {
@@ -179,7 +179,7 @@ export const moveJob = (jobId: string, to: { date: string; time: string }) =>
     body: JSON.stringify(to),
   });
 
-export const offerPlace = (
+export const offerJob = (
   jobId: string,
   staffId: string,
   { confirmed = false } = {},

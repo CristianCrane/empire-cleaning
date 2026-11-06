@@ -24,8 +24,8 @@ import {
   formatTime,
 } from "../format.ts";
 
-// whether the Cleaner has taken their place yet, or once done, that it is
-export function PlaceBadge({ job }: { job: CleanerJob }) {
+// whether the Cleaner has Confirmed it yet, or once done, that it is
+export function JobBadge({ job }: { job: CleanerJob }) {
   if (job.outcome === "completed") {
     return <StatusBadge tone="success">Completed</StatusBadge>;
   }
@@ -66,7 +66,7 @@ const whenOf = (item: Item) =>
 
 // The Cleaner area's first screen, only what's theirs (UX pass, #96): the
 // next Job large, its time first, with Directions and the way in right
-// there; then the rest coming up, and what they've done today. Places
+// there; then the rest coming up, and what they've done today. Jobs
 // offered or open to them are under Offers.
 export function CleanerHome() {
   const { today, upcoming, siteVisits } = useLoaderData({ from: "/cleaner/" });
@@ -231,7 +231,7 @@ function Rows({
             start={<DateTile date={item.startsAt} size="sm" />}
             title={whenOf(item)}
             description={`${addressOf(item.job.property)} · ${item.job.serviceName}, ${formatHours(item.job.hoursOnSite)}`}
-            end={item.job.outcome ? <PlaceBadge job={item.job} /> : undefined}
+            end={item.job.outcome ? <JobBadge job={item.job} /> : undefined}
           />
         ) : (
           <ListItem

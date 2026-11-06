@@ -1,7 +1,6 @@
 import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 import type {
-  CleanerJob,
   OfficeJob,
   ScheduleDay,
   SignedInAccount,
@@ -14,6 +13,7 @@ import {
   acceptedJob,
   bookedJob as otherJob,
   casey,
+  confirmOffer,
   signInAsOffice,
 } from "../../../tests/fixtures.ts";
 
@@ -33,15 +33,6 @@ const cleaner = async (name: string) => {
   return { ...member, email };
 };
 
-const confirmPlace = async (asCleaner: Agent, jobId: string) => {
-  const mine = (await asCleaner.get(`/api/assignments/mine/${jobId}`))
-    .body as CleanerJob;
-  await asCleaner
-    .post(`/api/assignments/${mine.assignment.id}/confirm`)
-    .send({ startsAt: mine.startsAt })
-    .expect(200);
-};
-
 // Casey's Deep Clean at 9am on Monday the 12th, with Cory Confirmed on it
 const bookedJob = async () => {
   const office = await signInAsOffice();
@@ -54,7 +45,7 @@ const bookedJob = async () => {
     .send({ staffId: cory.id })
     .expect(201);
   const asCory = await signIn(cory.email);
-  await confirmPlace(asCory, job.id);
+  await confirmOffer(asCory, job.id);
   return { office, asCory, jobId: job.id, job };
 };
 
@@ -68,7 +59,7 @@ const scheduleDay = async (office: Agent, date: string) =>
   )[0]!;
 
 describe("Office Staff moving a Job", () => {
-  test("moves it, Offers its places afresh, resets its reminder and tells the Client and the crew", async () => {
+  test("moves it, Offers it to its crew afresh, resets its reminder and tells the Client and the crew", async () => {
     const { office, asCory, jobId, job } = await bookedJob();
     await db
       .update(jobs)
@@ -105,7 +96,7 @@ describe("Office Staff moving a Job", () => {
       "When: Wednesday, January 14 at 10:30 AM\nWas: Monday, January 12 at 9:00 AM",
     );
 
-    await confirmPlace(asCory, jobId);
+    await confirmOffer(asCory, jobId);
     expect(
       ((await office.get(`/api/jobs/${jobId}`).expect(200)).body as OfficeJob)
         .assignment,

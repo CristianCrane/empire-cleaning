@@ -4,7 +4,7 @@ import {
   emailsTo,
   expect,
   expectAccessible,
-  offerPlace,
+  offerJob,
   setClock,
   setUsualWeek,
   signedInAs,
@@ -41,7 +41,7 @@ const bookedJob = async () => {
     startsAt: MONDAY_9AM,
     officeEmail: olive.email,
   });
-  await offerPlace(job.id, cory.id, { confirmed: true });
+  await offerJob(job.id, cory.id, { confirmed: true });
   return job;
 };
 

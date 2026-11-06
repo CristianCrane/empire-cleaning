@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { holdingStates } from "@empire-cleaning/models";
+import { crewStates } from "@empire-cleaning/models";
 import {
   type AnyPgColumn,
   date,
@@ -21,17 +21,17 @@ export const assignmentStatus = pgEnum("assignment_status", [
   "released",
 ]);
 
-// Assignments that hold a place on their Job's crew (holdingStates), as SQL.
+// Assignments that put someone on their Job's crew (crewStates), as SQL.
 // Written with no parameters, so the index below is built from it too.
 export const onCrew = (status: AnyPgColumn = assignments.status) =>
-  sql<boolean>`${status} in (${sql.raw(holdingStates.map((s) => `'${s}'`).join(", "))})`;
+  sql<boolean>`${status} in (${sql.raw(crewStates.map((s) => `'${s}'`).join(", "))})`;
 
-// A Staff member's place on a Job, made separately from booking: Offered by
+// A Staff member on a Job's crew, made separately from booking: Offered by
 // Office Staff to a named Cleaner, or Confirmed at once by a Cleaner taking
-// an Open Place (ADR-0019). Offered until they Confirm or Release it; a
-// Released one is kept so the Office can see who let a place go, and frees
-// that place. Office Staff taking someone off Releases it for them, so its
-// Open Place isn't open to them either (#242).
+// a Cleaner Needed (ADR-0019). Offered until they Confirm or Release it; a
+// Released one is kept so the Office can see who let the Job go, and leaves
+// a Cleaner Needed. Office Staff taking someone off Releases it for them, so
+// that Cleaner Needed isn't open to them either (#242).
 export const assignments = pgTable(
   "assignments",
   {
@@ -54,9 +54,9 @@ export const assignments = pgTable(
   (t) => [
     index("assignments_job_id_idx").on(t.jobId),
     index("assignments_staff_id_idx").on(t.staffId),
-    // one place per person on a Job, though they may be Offered it again
+    // on a Job's crew once per person, though they may be Offered it again
     // after Releasing it
-    uniqueIndex("assignments_one_place_per_staff")
+    uniqueIndex("assignments_once_per_crew")
       .on(t.jobId, t.staffId)
       .where(onCrew(t.status)),
   ],
@@ -64,10 +64,10 @@ export const assignments = pgTable(
 
 export type Assignment = typeof assignments.$inferSelect;
 
-// A Cleaner saying an Open Place on a Job is "Not for me" (ADR-0019): it
+// A Cleaner saying a Cleaner Needed on a Job is "Not for me" (ADR-0019): it
 // leaves their list, and they're never emailed about it again
-export const openPlacePasses = pgTable(
-  "open_place_passes",
+export const cleanerNeededPasses = pgTable(
+  "cleaner_needed_passes",
   {
     jobId: uuid("job_id")
       .notNull()
@@ -81,11 +81,11 @@ export const openPlacePasses = pgTable(
   (t) => [primaryKey({ columns: [t.jobId, t.staffId] })],
 );
 
-// Which Cleaners have been emailed about a Job's Open Places, so each is
-// told once. Cleared when a place on the Job opens again, so it's new to
+// Which Cleaners have been emailed about a Job's Cleaners Needed, so each
+// is told once. Cleared when the Job needs a Cleaner again, so it's new to
 // them once more.
-export const openPlaceEmails = pgTable(
-  "open_place_emails",
+export const cleanerNeededEmails = pgTable(
+  "cleaner_needed_emails",
   {
     jobId: uuid("job_id")
       .notNull()
@@ -99,9 +99,9 @@ export const openPlaceEmails = pgTable(
   (t) => [primaryKey({ columns: [t.jobId, t.staffId] })],
 );
 
-// The day (New York) each Cleaner's morning email of Open Places was last
+// The day (New York) each Cleaner's morning email of Cleaners Needed was last
 // considered, sent or not, so it goes at most once a day
-export const openPlaceDigests = pgTable("open_place_digests", {
+export const cleanerNeededDigests = pgTable("cleaner_needed_digests", {
   staffId: uuid("staff_id")
     .primaryKey()
     .references(() => staff.id, { onDelete: "cascade" }),
