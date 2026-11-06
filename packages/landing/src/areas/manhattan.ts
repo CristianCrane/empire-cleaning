@@ -1,3 +1,4 @@
+import { speakSpanish } from "../faqs.ts";
 import type { Area } from "./index.ts";
 
 export const manhattan: Area = {
@@ -78,11 +79,7 @@ export const manhattan: Area = {
       answer:
         "Request a Quote for business premises and choose the days and time you'd like us. We visit the space first, for free, to see what it needs, then send you a Quote.",
     },
-    {
-      question: "Do you speak Spanish?",
-      answer:
-        "Sí. Our crew speaks English and Spanish, so you can talk to us in whichever you prefer.",
-    },
+    speakSpanish,
     {
       question: "Can you clean a studio?",
       answer:
