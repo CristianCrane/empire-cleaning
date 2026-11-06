@@ -1,11 +1,18 @@
 import type { Page } from "@playwright/test";
+import { officeTours } from "../src/screens/office/tours.ts";
 import { clientTours } from "../src/screens/portal/tours.ts";
-import { toursFor } from "../src/screens/tours.ts";
+import { toursFor, type AreaTours } from "../src/screens/tours.ts";
 import {
+  addCleaner,
+  bookJob,
+  createStaff,
+  draftTheQuote,
   eachTheme,
   expect,
   expectAccessible,
   quoteSent,
+  requestQuoteAsGuest,
+  requestReschedule,
   returnToTab,
   signedInAs,
   test,
@@ -14,7 +21,8 @@ import {
 const olive = { email: "olive@example.com", name: "Olive Owner" };
 const casey = { name: "Casey Client", email: "casey@example.com" };
 
-// first-time help's tours, which every other spec is spared (harness.ts)
+// first-time help's tours in the test's own page, which every other spec
+// (and every other browser here) is spared (harness.ts)
 test.use({ showTours: true });
 
 // the tour's step on the screen, by its title
@@ -27,10 +35,24 @@ const expectPointedAt = (page: Page, name: string) =>
     new RegExp(`^${name}`),
   );
 
+// each seen, on the Account: a tour whose step can't be found on its
+// screen never runs, and fails here
+const expectEachSeen = (page: Page, area: AreaTours) =>
+  expect
+    .poll(async () => {
+      const me = await (await page.request.get("/api/me")).json();
+      return (me.seenTours as string[])
+        .filter((id) => area.tours.some((tour) => tour.id === id))
+        .sort((a, b) => a.localeCompare(b));
+    })
+    .toEqual(
+      area.tours.map((tour) => tour.id).sort((a, b) => a.localeCompare(b)),
+    );
+
 // each area with tours is walked through here; a new area's fails this
 // until it is
 test("every area's tours are walked through", () => {
-  expect(Object.keys(toursFor)).toEqual(["portal"]);
+  expect(Object.keys(toursFor)).toEqual(["portal", "office"]);
 });
 
 eachTheme(() => {
@@ -87,17 +109,90 @@ eachTheme(() => {
       .click();
     await expect(step(page, "Need another time?")).toBeHidden();
 
-    // each seen, on the Account: a tour whose step can't be found on its
-    // screen never runs, and fails here
-    await expect
-      .poll(async () => {
-        const me = await (await page.request.get("/api/me")).json();
-        return [...me.seenTours].sort((a, b) => a.localeCompare(b));
-      })
-      .toEqual(
-        clientTours.tours
-          .map((tour) => tour.id)
-          .sort((a, b) => a.localeCompare(b)),
-      );
+    await expectEachSeen(page, clientTours);
+  });
+
+  test("new Office Staff meet each of the Office's tours once, as each screen first matters", async ({
+    page,
+  }) => {
+    for (const name of ["Cory Cleaner", "Dee Cleaner"]) await addCleaner(name);
+    await requestQuoteAsGuest(casey);
+    // Thursday's, within the week, so it's open to the free Cleaners
+    const job = (await bookJob({
+      startsAt: "2026-01-08T14:00:00.000Z",
+      labourHours: 4,
+    })) as { id: string };
+    await requestReschedule(job.id, { date: "2026-01-09", time: "10:00" });
+    await createStaff({ ...olive, roles: ["office_staff"] });
+
+    // Today. Having seen a Client tour, they're still met by the Office's
+    // value line: each area leads its own first tour with its own
+    await signedInAs(page, olive.email);
+    await page.request.put("/api/me/tours/portal-home-quote");
+    await page.reload();
+    await expect(step(page, "Welcome")).toContainText(officeTours.welcome);
+    await expectAccessible(page);
+    await step(page, "Welcome").getByRole("button", { name: "Next" }).click();
+    await expect(step(page, "Needs attention")).toBeVisible();
+    await expectPointedAt(page, "Needs attention");
+    await step(page, "Needs attention")
+      .getByRole("button", { name: "Next" })
+      .click();
+    await expect(step(page, "Jobs, Quotes and Money")).toBeVisible();
+    await expectPointedAt(page, "Needs attention by kind");
+    await step(page, "Jobs, Quotes and Money")
+      .getByRole("button", { name: "Next" })
+      .click();
+    await expect(step(page, "The Schedule")).toBeVisible();
+    await expectPointedAt(page, "Schedule");
+    await expectAccessible(page);
+    await step(page, "The Schedule")
+      .getByRole("button", { name: "Got it" })
+      .click();
+    await expect(step(page, "The Schedule")).toBeHidden();
+
+    // the Quote asked for, drafted
+    await page
+      .getByRole("grid", { name: "Needs attention" })
+      .getByRole("row", { name: /^Send a Quote/ })
+      .click();
+    await draftTheQuote(page);
+    await expect(step(page, "Price it")).toBeVisible();
+    await expectPointedAt(page, "Service and prices");
+    await expectAccessible(page);
+    await step(page, "Price it").getByRole("button", { name: "Next" }).click();
+    await expect(step(page, "Send it")).toBeVisible();
+    await expectPointedAt(page, `Send to ${casey.name}`);
+    await page.keyboard.press("Escape");
+    await expect(step(page, "Send it")).toBeHidden();
+
+    // a Job with a new time asked for, and Cleaners Needed: one tour at a
+    // time, the next on the next visit
+    await page.goto(`/office/jobs/${job.id}`);
+    await expect(step(page, "A new time")).toBeVisible();
+    await expectPointedAt(page, "Answer");
+    await expectAccessible(page);
+    await step(page, "A new time")
+      .getByRole("button", { name: "Got it" })
+      .click();
+    await expect(step(page, "A new time")).toBeHidden();
+    await page.reload();
+    await expect(step(page, "Needs a Cleaner")).toBeVisible();
+    await expectPointedAt(page, "Offer to a Cleaner");
+    await step(page, "Needs a Cleaner")
+      .getByRole("button", { name: "Got it" })
+      .click();
+    await expect(step(page, "Needs a Cleaner")).toBeHidden();
+
+    await page.getByRole("link", { name: "Schedule", exact: true }).click();
+    await expect(step(page, "Your Schedule")).toBeVisible();
+    await expectPointedAt(page, "Jobs on");
+    await expectAccessible(page);
+    await step(page, "Your Schedule")
+      .getByRole("button", { name: "Got it" })
+      .click();
+    await expect(step(page, "Your Schedule")).toBeHidden();
+
+    await expectEachSeen(page, officeTours);
   });
 });

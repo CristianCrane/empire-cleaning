@@ -7,20 +7,36 @@ import { toursFor, type Target } from "./tours.ts";
 
 const shown = (el: Element) => el.getClientRects().length > 0;
 
-// a step's target on the screen now, if it's there to be seen
+// the first of these that's there to be seen and whose words start so
+const first = (
+  within: Element | null,
+  selector: string,
+  wordsOf: (el: Element) => string | null | undefined,
+  words: string,
+) =>
+  [...(within?.querySelectorAll(selector) ?? [])].find(
+    (el) => shown(el) && wordsOf(el)?.trim().startsWith(words),
+  );
+
+// what a part is called: its label, or the text its label points at
+const nameOf = (el: Element) =>
+  el.getAttribute("aria-label") ??
+  document.getElementById(el.getAttribute("aria-labelledby") ?? "")
+    ?.textContent;
+
+// a step's target on the screen now, if it's there to be seen. What's
+// pressed is looked for on the screen before the area's navigation, which
+// comes before it in the page on a wider screen
 const find = (target: Target): Element | undefined => {
   const main = document.querySelector("main");
-  if (!main) return undefined;
-  if ("link" in target) {
-    return [...main.querySelectorAll("a")].find(
-      (a) => shown(a) && a.textContent?.trim().startsWith(target.link),
+  if ("press" in target) {
+    const text = (el: Element) => el.textContent;
+    return (
+      first(main, "a, button", text, target.press) ??
+      first(document.body, "nav a", text, target.press)
     );
   }
-  return [...main.querySelectorAll("section")].find(
-    (s) =>
-      shown(s) &&
-      s.querySelector("h2, h3")?.textContent?.trim() === target.section,
-  );
+  return first(main, "[aria-label], [aria-labelledby]", nameOf, target.named);
 };
 
 // Runs an area's first-time help (tours.ts) on each screen once it's drawn:
@@ -51,8 +67,9 @@ export function useTours(area: AreaId, account: Me) {
         title: step.title,
         text: step.text,
       }));
-      // the first tour they meet
-      if (account.seenTours.length === 0) {
+      // the first of this area's tours they meet: an Account in two areas
+      // meets each one's line
+      if (!forArea.tours.some((t) => account.seenTours.includes(t.id))) {
         steps.unshift({
           element: undefined,
           title: "Welcome",
