@@ -24,8 +24,7 @@ import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock, DAY_MS } from "../../services/clock/index.ts";
 import { email, formatMoney, notify } from "../../services/email/index.ts";
-import { assignments, onCrew } from "../assignments/assignments.schema.ts";
-import { assignmentStatusOf } from "../assignments/crew.ts";
+import { assignmentStatusOf, mustBeConfirmed } from "../assignments/crew.ts";
 import { weeklyBillOfJob } from "../bills/billed-weekly.ts";
 import {
   cancellationOf,
@@ -189,20 +188,7 @@ export const completeJob = async (
   jobId: string,
   input: CompletionInput,
 ) => {
-  const [mine] = await db
-    .select({ status: assignments.status })
-    .from(assignments)
-    .where(
-      and(
-        eq(assignments.jobId, jobId),
-        eq(assignments.staffId, staffId),
-        onCrew(),
-      ),
-    );
-  if (!mine) throw new NotFoundError("Job not found");
-  if (mine.status !== "confirmed") {
-    throw new ConflictError("Confirm this Job first");
-  }
+  await mustBeConfirmed(staffId, jobId);
 
   const quoted = await quotedJob(jobId);
   const priced = await priceReports(quoted, input.reports);

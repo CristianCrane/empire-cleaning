@@ -1,6 +1,7 @@
 import { and, asc, count, eq, inArray } from "drizzle-orm";
 import type { AssignmentStatus } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
+import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { staff } from "../staff/staff.schema.ts";
 import { assignments, onCrew } from "./assignments.schema.ts";
 
@@ -52,4 +53,24 @@ export const crewOf = async (jobIds: string[], tx: Tx | typeof db = db) => {
     .orderBy(asc(assignments.offeredAt), asc(assignments.createdAt));
   for (const { jobId, id, name } of rows) crews.get(jobId)!.push({ id, name });
   return crews;
+};
+
+// Refuses a Cleaner acting on a Job as its crew (completing it, recording
+// No Access) until their Assignment is Confirmed; to anyone not on its crew,
+// the Job doesn't exist
+export const mustBeConfirmed = async (staffId: string, jobId: string) => {
+  const [mine] = await db
+    .select({ status: assignments.status })
+    .from(assignments)
+    .where(
+      and(
+        eq(assignments.jobId, jobId),
+        eq(assignments.staffId, staffId),
+        onCrew(),
+      ),
+    );
+  if (!mine) throw new NotFoundError("Job not found");
+  if (mine.status !== "confirmed") {
+    throw new ConflictError("Confirm this Job first");
+  }
 };

@@ -10,6 +10,7 @@ import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock, HOUR_MS } from "../../services/clock/index.ts";
 import { email, formatMoney, notify } from "../../services/email/index.ts";
 import { assignments, onCrew } from "../assignments/assignments.schema.ts";
+import { mustBeConfirmed } from "../assignments/crew.ts";
 import { clients } from "../clients/clients.schema.ts";
 import {
   paymentOf,
@@ -355,20 +356,7 @@ export const recordNoAccess = async (
   jobId: string,
   reason: string,
 ) => {
-  const [mine] = await db
-    .select({ status: assignments.status })
-    .from(assignments)
-    .where(
-      and(
-        eq(assignments.jobId, jobId),
-        eq(assignments.staffId, staffId),
-        onCrew(),
-      ),
-    );
-  if (!mine) throw new NotFoundError("Job not found");
-  if (mine.status !== "confirmed") {
-    throw new ConflictError("Confirm this Job first");
-  }
+  await mustBeConfirmed(staffId, jobId);
 
   const job = await db.transaction(async (tx) => {
     const [job] = await tx
