@@ -37,11 +37,12 @@ Every screen is built from the design system in `packages/ui` (`@empire-cleaning
 - Someone signed out who opens an area goes to `/sign-in?next=…` and comes back to that page afterwards.
 - An Account opening another role's area is sent to its own area.
 - Staff with both roles start in the Office and switch areas from the account menu.
+- Show tips again, in the account menu, brings back first-time help's tours: every screen's shows once more.
 - When a sign-in link has expired or been used, or a Google account has no Empire Cleaning Account, the person lands back on `/sign-in` with `?error=` and a plain explanation.
 
-`src/session.ts` holds the Better Auth browser client (functions only, no UI), the areas and the signed-in Account, asked of `GET /api/me` once and remembered until sign-out. The route guards live in `src/router.tsx`.
+`src/session.ts` holds the Better Auth browser client (functions only, no UI), the areas and the signed-in Account with the first-time help tours it has seen (`seenTours`), asked of `GET /api/me` once and remembered until sign-out. The route guards live in `src/router.tsx`.
 
-The signed-in Account is remembered, not asked for on every click. The app asks `GET /api/me` again when the person switches to another area, comes back to the tab (`src/main.tsx`), or does something that can connect their Account to a record. That is when it can have changed behind the app's back: asking for a Quote on the landing page, the Office adding a record, signing out in another tab.
+The signed-in Account is remembered, not asked for on every click. The app asks `GET /api/me` again when the person switches to another area, comes back to the tab (`src/main.tsx`), does something that can connect their Account to a record, or presses Show tips again. That is when it can have changed behind the app's back: asking for a Quote on the landing page, the Office adding a record, signing out in another tab.
 
 The Office's Dashboard also asks again every minute while it can be seen (`src/screens/office/Dashboard.tsx`), so a new Quote request shows on a screen left open. The Office is emailed of each one too. Live updates (websockets) weren't worth it: a request is promised a Quote within a working day.
 
