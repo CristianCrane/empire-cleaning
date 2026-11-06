@@ -5,7 +5,7 @@
 - `@empire-cleaning/ui`: the components (and the styles, imported once by the app).
 - `@empire-cleaning/ui/tokens.css`: just the styles, for pages without React (the landing site).
 - `@empire-cleaning/ui/theme`: just the ThemeToggle, so an island ships only that.
-- `@empire-cleaning/ui/theme-boot`: the inline `<head>` script that applies a pinned theme before first paint.
+- `@empire-cleaning/ui/theme-boot`: the inline `<head>` script that applies a chosen dark theme before first paint.
 
 Apps compile the styles with their own Tailwind (`@tailwindcss/vite`); `tokens.css` points Tailwind at this package's sources.
 
@@ -15,7 +15,7 @@ Apps compile the styles with their own Tailwind (`@tailwindcss/vite`); `tokens.c
 - **Links and routing**: `Link` and AppLayout's nav navigate through the app's router. The app wraps itself in `RouterProvider` and declares its link type by augmenting `RouterConfig` on `@empire-cleaning/ui`; the web app does this in `packages/web/src/links.ts`.
 - **Actions**: put the main action last. On a phone it stacks at the bottom, nearest the thumb; on larger screens it sits on the right.
 - **Phone first**: tap targets are at least 44px, fields use 16px text (so phones don't zoom in), dialogs rise as bottom sheets, and AppLayout puts navigation in a bottom tab bar on phones and a sidebar from tablet width up. Use List for collections on a phone and Table for wide Office data.
-- **Theme** follows the device unless someone pins light or dark with the ThemeToggle, and each device remembers that choice.
+- **Theme** is light unless someone chooses dark with the ThemeToggle, and each device remembers that choice. The device's own light or dark setting isn't followed (`theme.tsx`).
 
 ## Catalogue
 
