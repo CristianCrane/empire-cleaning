@@ -8,9 +8,10 @@ import { clientTours } from "./portal/tours.ts";
 // what only a browser can run.
 
 // what a step points at, found by the screen's own words, so no screen
-// carries anything for its tour: a link (or ButtonLink, or shortcut) whose
-// text starts with these words, or a Section with this title
-export type Target = { link: string } | { section: string };
+// carries anything for its tour: something pressed (a link, Button,
+// ButtonLink or shortcut) whose text starts with these words, or a part
+// (a Section, a labelled group) whose name does
+export type Target = { press: string } | { named: string };
 
 type TourStep = { target: Target; title: string; text: string };
 

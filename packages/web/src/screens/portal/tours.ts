@@ -10,7 +10,7 @@ export const clientTours = {
       route: "/portal/",
       steps: [
         {
-          target: { link: "See your Quote" },
+          target: { press: "See your Quote" },
           title: "Your Quote",
           text: "Open it to choose your clean and book. You pay only the Deposit today.",
         },
@@ -23,7 +23,7 @@ export const clientTours = {
       // Quote is "Pay and start your plan", and one with no Deposit "Book"
       steps: [
         {
-          target: { section: "Pay and book" },
+          target: { named: "Pay and book" },
           title: "Pay and book",
           text: "Pick the clean you want, then pay the Deposit to book it. The rest is charged once the clean is done.",
         },
@@ -34,13 +34,13 @@ export const clientTours = {
       route: "/portal/",
       steps: [
         {
-          target: { link: "How we get in" },
+          target: { press: "How we get in" },
           title: "How we get in",
           text: "Tell the crew how to get in: gate codes, keys, pets.",
         },
         {
           // Move or cancel, or Move or skip for a clean on a Service Plan
-          target: { link: "Move or" },
+          target: { press: "Move or" },
           title: "Need another time?",
           text: "Move your clean from here.",
         },
