@@ -49,7 +49,7 @@ If the concept you need isn't in the glossary yet, that's a signal: either you'r
 Guests, Clients and Cleaners see the product in English or Spanish (ADR-0025). Each `GLOSSARY.md` entry for a term they see carries a `_Spanish_:` line after `_Avoid_`: the one Spanish word every screen and email uses for it. Entries only the Office sees, such as Labour Hours or the Price List, have none.
 
 - Write Spanish copy with these words, as English copy uses the terms themselves.
-- A new term they see gets its `_Spanish_:` line when it's added, and the owner checks the word on #206.
+- The lines come in with #300, once the owner has checked the word list. From then on, a new term they see gets its `_Spanish_:` line when it's added, and the owner checks the word on #206.
 
 ## Flag ADR conflicts
 
