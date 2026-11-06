@@ -7,15 +7,13 @@ import type {
 } from "@empire-cleaning/models";
 import { completeJob } from "#features/completion";
 import {
-  signIn,
+  type Agent,
   testClock,
   testEmail,
   testPayments,
 } from "../../../tests/harness.ts";
 import { casey, crewedServicePlan } from "../../../tests/fixtures.ts";
 import { generateServicePlanJobs } from "./service-plans.ts";
-
-type Agent = Awaited<ReturnType<typeof signIn>>;
 
 // Casey's weekly plan from 9am on Monday 19 January 2026, its Jobs booked up
 // to 9 February, with a $50.46 Deposit, the fee for skipping late

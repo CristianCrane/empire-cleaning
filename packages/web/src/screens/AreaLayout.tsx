@@ -21,7 +21,7 @@ import {
 import { useEffect, useState } from "react";
 import type {
   CleanerJobs,
-  OpenPlace,
+  CleanerNeeded,
   SignedInAccount,
 } from "@empire-cleaning/models";
 import {
@@ -181,7 +181,7 @@ export function AreaLayout({ area }: { area: AreaId }) {
   );
 }
 
-// How many places wait on a Cleaner's answer, offered or open to them, for
+// How many Jobs wait on a Cleaner's answer, offered or open to them, for
 // Offers' label: so they're noticed without crowding Your Jobs. Counted
 // again on each page, as answering one changes it; none if it can't be.
 function useOffersCount(on: boolean, pathname: string) {
@@ -191,7 +191,7 @@ function useOffersCount(on: boolean, pathname: string) {
     let live = true;
     Promise.all([
       getJson<CleanerJobs>("/api/assignments/mine"),
-      getJson<OpenPlace[]>("/api/assignments/open"),
+      getJson<CleanerNeeded[]>("/api/assignments/open"),
     ])
       .then(([{ today, upcoming }, open]) => {
         const offered = [...today, ...upcoming].filter(

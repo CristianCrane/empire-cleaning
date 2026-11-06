@@ -4,16 +4,14 @@ import { eq } from "drizzle-orm";
 import { db } from "../../db/index.ts";
 import { createStaff } from "#features/staff";
 import { jobs } from "./jobs.schema.ts";
-import { api, signIn } from "../../../tests/harness.ts";
+import { type Agent, api, signIn } from "../../../tests/harness.ts";
 import { bookedJob, signInAsOffice } from "../../../tests/fixtures.ts";
 import { SEEDED } from "#features/services";
-
-type Office = Awaited<ReturnType<typeof signInAsOffice>>;
 
 // the week of Monday 5 January 2026, the test clock's week
 
 const staffMember = async (
-  office: Office,
+  office: Agent,
   name: string,
   roles: ("cleaner" | "office_staff")[],
   usualWeek: number[],
@@ -30,14 +28,14 @@ const staffMember = async (
   return member;
 };
 
-const schedule = async (office: Office, from: string, to: string) =>
+const schedule = async (office: Agent, from: string, to: string) =>
   (await office.get(`/api/schedule?from=${from}&to=${to}`).expect(200))
     .body as ScheduleDay[];
 
 // whether a clean of these Labour Hours and Crew Size has room on a day,
 // at 9am unless said
 const capacity = async (
-  office: Office,
+  office: Agent,
   date: string,
   labourHours: number,
   { time = "09:00", crewSize = 1 }: { time?: string; crewSize?: number } = {},
@@ -297,7 +295,7 @@ describe("whether a clean has room", () => {
 
 // Tuesday the 6th has 2 Cleaners at 8 hours each: 16 hours, and 2 people
 describe("whether a clean has a crew free", () => {
-  const twoCleaners = async (office: Office) => {
+  const twoCleaners = async (office: Agent) => {
     await staffMember(
       office,
       "Cory Cleaner",

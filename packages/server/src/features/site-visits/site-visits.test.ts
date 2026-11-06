@@ -10,7 +10,7 @@ import type {
   ScheduleDay,
 } from "@empire-cleaning/models";
 import { createStaff, setUsualWeek } from "#features/staff";
-import { api, signIn, testEmail } from "../../../tests/harness.ts";
+import { type Agent, api, signIn, testEmail } from "../../../tests/harness.ts";
 import {
   bookedJob,
   casey,
@@ -19,8 +19,6 @@ import {
   submit,
 } from "../../../tests/fixtures.ts";
 import { SEEDED } from "#features/services";
-
-type Agent = Awaited<ReturnType<typeof signIn>>;
 
 // The test clock starts at 4am on Monday 5 January 2026 in New York.
 // Visits here are on Tuesday the 6th, when Cory (a Cleaner) works 8 hours.
@@ -244,7 +242,7 @@ describe("booking a Site Visit", () => {
     await book(office, home.id, olive.id, "10:15").expect(201);
   });
 
-  test("by a Cleaner is refused while they hold a place on a Job then", async () => {
+  test("by a Cleaner is refused while they're on a Job then", async () => {
     const { office, cory, quote } = await setUp();
     // a second Cleaner, so the day has a crew free for the visit
     await cleaner("Dana Cleaner");

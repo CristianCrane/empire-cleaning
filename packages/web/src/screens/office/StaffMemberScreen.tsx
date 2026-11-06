@@ -209,7 +209,7 @@ function EditStaff({ member }: { member: StaffDetail }) {
   );
 }
 
-const placesOf = (held: StaffHolding[]) => held.filter((h) => h.kind === "job");
+const jobsOf = (held: StaffHolding[]) => held.filter((h) => h.kind === "job");
 const visitsOf = (held: StaffHolding[]) =>
   held.filter((h) => h.kind === "site_visit");
 
@@ -221,17 +221,17 @@ const heldOnDaysOff = (
 ) => {
   const held = member.holding.filter((h) => isOff(dayOfInstant(h.startsAt)));
   return {
-    places: placesOf(held),
+    jobs: jobsOf(held),
     visits: member.roles.includes("office_staff") ? [] : visitsOf(held),
   };
 };
 
 // Hours typed into a field count only once it's left, so saving straight
-// from it would free places before the Office saw which. A save that frees
-// places they haven't been shown stops there instead, and its Button asks
+// from it would free Jobs before the Office saw which. A save that frees
+// Jobs they haven't been shown stops there instead, and its Button asks
 // again.
-const useSecondLook = (places: StaffHolding[]) => {
-  const freeing = places.map((p) => p.id).join();
+const useSecondLook = (jobs: StaffHolding[]) => {
+  const freeing = jobs.map((p) => p.id).join();
   const [shown, setShown] = useState("");
   return {
     // whether this press only shows what it frees
@@ -242,7 +242,7 @@ const useSecondLook = (places: StaffHolding[]) => {
     },
     label: (save: string) =>
       freeing !== "" && freeing === shown
-        ? `Free ${places.length === 1 ? "the place" : "the places"} and save`
+        ? `Free ${jobs.length === 1 ? "the Job" : "the Jobs"} and save`
         : save,
   };
 };
@@ -252,19 +252,19 @@ const heldLabel = (h: StaffHolding) =>
   `${h.what} at ${h.where}, ${formatDateTime(h.startsAt)}`;
 
 /**
- * What a change frees, said before it's saved (#158, #242): their places
- * there are Released, opening to every other free Cleaner. A Site Visit
+ * What a change frees, said before it's saved (#158, #242): their
+ * Assignments there are Released, opening to every other free Cleaner. A Site Visit
  * can't be: it has to go to someone else first, so it blocks the change,
  * and the Notice opens it.
  */
 function WhatItFrees({
   member,
-  places,
+  jobs,
   visits,
   saving,
 }: {
   member: StaffDetail;
-  places: StaffHolding[];
+  jobs: StaffHolding[];
   visits: StaffHolding[];
   // what does it: "Saving", "Deactivating"
   saving: string;
@@ -294,19 +294,19 @@ function WhatItFrees({
       </Notice>
     );
   }
-  if (places.length === 0) return null;
+  if (jobs.length === 0) return null;
   return (
     <Notice tone="warning">
-      {places.length === 1 ? (
+      {jobs.length === 1 ? (
         <p>
-          {firstName} holds a place on {heldLabel(places[0]!)}. {saving} frees
-          it for other free Cleaners.
+          {firstName} is on {heldLabel(jobs[0]!)}. {saving} frees it for other
+          free Cleaners.
         </p>
       ) : (
         <>
-          <p>{firstName} holds places on:</p>
+          <p>{firstName} is on:</p>
           <ul className="list-disc ps-5">
-            {places.map((p) => (
+            {jobs.map((p) => (
               <li key={p.id}>{heldLabel(p)}</li>
             ))}
           </ul>
@@ -320,7 +320,7 @@ function WhatItFrees({
 function Deactivate({ member }: { member: StaffDetail }) {
   const action = useAction("They weren't deactivated. Please try again.");
   // Office Staff or not, a Site Visit of theirs needs someone else
-  const places = placesOf(member.holding);
+  const jobs = jobsOf(member.holding);
   const visits = visitsOf(member.holding);
 
   const deactivate = async (close: () => void) => {
@@ -346,7 +346,7 @@ function Deactivate({ member }: { member: StaffDetail }) {
             </p>
             <WhatItFrees
               member={member}
-              places={places}
+              jobs={jobs}
               visits={visits}
               saving="Deactivating them"
             />
@@ -532,13 +532,13 @@ function UsualWeek({
   const action = useAction("The usual week wasn't saved. Please try again.");
   // a day that differs keeps its own hours
   const { exceptions } = member.availability;
-  const { places, visits } = heldOnDaysOff(
+  const { jobs, visits } = heldOnDaysOff(
     member,
     (day) =>
       !exceptions.some((e) => e.date === day) &&
       !(week[weekdayIndex(day)]! > 0),
   );
-  const secondLook = useSecondLook(places);
+  const secondLook = useSecondLook(jobs);
 
   return (
     <DialogTrigger onOpenChange={(open) => open && setWeek(usual)}>
@@ -591,7 +591,7 @@ function UsualWeek({
             </div>
             <WhatItFrees
               member={member}
-              places={places}
+              jobs={jobs}
               visits={visits}
               saving="Saving"
             />
@@ -635,11 +635,11 @@ function DayDialog({
   const action = useAction("That day wasn't saved. Please try again.");
   const path = `/api/staff/${member.id}/exceptions/${day}`;
   const held = heldOnDaysOff(member, (d) => d === day);
-  const none = { places: [], visits: [] };
+  const none = { jobs: [], visits: [] };
   // what saving frees, or else, on a usual day off, going back to it
   const bySaving = hours > 0 ? none : held;
   const byUsual = exception && usual === 0 ? held : none;
-  const secondLook = useSecondLook(bySaving.places);
+  const secondLook = useSecondLook(bySaving.jobs);
 
   const save = async () => {
     if (secondLook.stops()) return;

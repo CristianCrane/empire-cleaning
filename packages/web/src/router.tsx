@@ -32,7 +32,7 @@ import type {
   OfficeQuote,
   OfficeServicePlan,
   OfficeSiteVisit,
-  OpenPlace,
+  CleanerNeeded,
   PaymentMethodView,
   PremisesTypeChoice,
   PriceList,
@@ -59,7 +59,7 @@ import { ConfirmEmail } from "./screens/ConfirmEmail.tsx";
 import { SignInLink, type SignInLinkSearch } from "./screens/SignInLink.tsx";
 import { CleanerOffers } from "./screens/cleaner/CleanerOffers.tsx";
 import { CleanerJobScreen } from "./screens/cleaner/CleanerJobScreen.tsx";
-import { OpenPlaceScreen } from "./screens/cleaner/OpenPlaceScreen.tsx";
+import { CleanerNeededScreen } from "./screens/cleaner/CleanerNeededScreen.tsx";
 import { BillScreen } from "./screens/office/BillScreen.tsx";
 import { Dashboard } from "./screens/office/Dashboard.tsx";
 import { JobScreen } from "./screens/office/JobScreen.tsx";
@@ -667,14 +667,14 @@ const cleanerHomeRoute = createRoute({
   component: CleanerHome,
 });
 
-// places that aren't theirs yet: offered to them, or open to them
+// Jobs that aren't theirs yet: offered to them, or open to them
 const cleanerOffersRoute = createRoute({
   getParentRoute: () => cleanerRoute,
   path: "/offers",
   loader: async () => {
     const [{ today, upcoming }, open] = await Promise.all([
       getJson<CleanerJobs>("/api/assignments/mine"),
-      getJson<OpenPlace[]>("/api/assignments/open"),
+      getJson<CleanerNeeded[]>("/api/assignments/open"),
     ]);
     return {
       offered: [...today, ...upcoming].filter(
@@ -695,13 +695,13 @@ const cleanerJobRoute = createRoute({
   component: CleanerJobScreen,
 });
 
-// where the Open Places emails lead, for a single Job
-const openPlaceRoute = createRoute({
+// where the Cleaners Needed emails lead, for a single Job
+const cleanerNeededRoute = createRoute({
   getParentRoute: () => cleanerRoute,
   path: "/open/$jobId",
   loader: ({ params }) =>
-    getJson<OpenPlace>(`/api/assignments/open/${params.jobId}`),
-  component: OpenPlaceScreen,
+    getJson<CleanerNeeded>(`/api/assignments/open/${params.jobId}`),
+  component: CleanerNeededScreen,
 });
 
 const portalHomeRoute = createRoute({
@@ -909,7 +909,7 @@ const routeTree = rootRoute.addChildren([
     cleanerHomeRoute,
     cleanerOffersRoute,
     cleanerJobRoute,
-    openPlaceRoute,
+    cleanerNeededRoute,
   ]),
   portalRoute.addChildren([
     portalHomeRoute,

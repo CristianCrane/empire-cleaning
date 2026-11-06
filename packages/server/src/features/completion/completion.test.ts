@@ -24,6 +24,7 @@ import { formatMoney } from "#services/email";
 import { properties } from "#features/properties";
 import { createStaff, setUsualWeek } from "#features/staff";
 import {
+  type Agent,
   api,
   signIn,
   testClock,
@@ -34,14 +35,13 @@ import {
 import {
   acceptedJob,
   casey,
+  confirmOffer,
   guestAsk,
   setService,
   signInAsOffice,
   submit,
 } from "../../../tests/fixtures.ts";
 import { SEEDED } from "#features/services";
-
-type Agent = Awaited<ReturnType<typeof signIn>>;
 
 // the test clock starts at 4am on Monday 5 January 2026 in New York. Jobs
 // here are at 9am on Monday the 12th (14:00 UTC), with "Inside the oven" on
@@ -129,11 +129,7 @@ const bookedJob = async ({
     .send({ staffId: cory.id })
     .expect(201);
   const agent = await cory.signIn();
-  const mine = (await agent.get(`/api/assignments/mine/${job!.id}`))
-    .body as CleanerJob;
-  await agent
-    .post(`/api/assignments/${mine.assignment.id}/confirm`)
-    .send({ startsAt: mine.startsAt });
+  await confirmOffer(agent, job!.id);
 
   testClock().set(MONDAY_11AM);
   return {
@@ -173,7 +169,7 @@ const amounts = () => testPayments().charges.map((c) => c.amount);
 const refunded = () => testPayments().refunds.map((r) => r.amount);
 
 describe("completing a Job", () => {
-  test("is only for a Cleaner with a Confirmed place", async () => {
+  test("is only for a Cleaner Confirmed on it", async () => {
     const { office, jobId } = await bookedJob();
     const dee = await signIn("dee@example.com");
 
@@ -185,12 +181,14 @@ describe("completing a Job", () => {
       .expect(401);
   });
 
-  test("waits for the Cleaner to Confirm, every place to be Confirmed, and the Job to start", async () => {
+  test("waits for the Cleaner to Confirm, the whole crew to be Confirmed, and the Job to start", async () => {
     const { office, cory, jobId } = await bookedJob({ crewSize: 2 });
 
-    // the second place is open: Unassigned
+    // it needs a second Cleaner: Unassigned
     const unassigned = await complete(cory.agent, jobId).expect(409);
-    expect(unassigned.body.message).toMatch(/every place .* Confirmed/i);
+    expect(unassigned.body.message).toMatch(
+      /everyone on this Job must Confirm/i,
+    );
     expect(
       (
         (await cory.agent.get(`/api/assignments/mine/${jobId}`))
@@ -212,13 +210,9 @@ describe("completing a Job", () => {
       .expect(201);
     const asDee = await signIn("dee2@example.com");
     expect((await complete(asDee, jobId).expect(409)).body.message).toMatch(
-      /Confirm your place/,
+      /Confirm this Job first/,
     );
-    const deeJob = (await asDee.get(`/api/assignments/mine/${jobId}`))
-      .body as CleanerJob;
-    await asDee
-      .post(`/api/assignments/${deeJob.assignment.id}/confirm`)
-      .send({ startsAt: deeJob.startsAt });
+    await confirmOffer(asDee, jobId);
 
     // not before it starts
     testClock().set(new Date("2026-01-12T13:59:00Z"));

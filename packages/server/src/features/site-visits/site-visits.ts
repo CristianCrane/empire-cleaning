@@ -85,7 +85,7 @@ const visitorOf = async (staffId: string) => {
  * - by Office Staff, it takes none; a Cleaner who isn't Office Staff can't
  *   make one on a day they have no hours;
  * - either way, its visitor must be busy with nothing then (busyWith): no
- *   other booked Site Visit of theirs, and no booked Job they hold a place
+ *   other booked Site Visit of theirs, and no booked Job they're on the crew
  *   on, Offered or Confirmed (#242). A Done Site Visit doesn't count.
  *
  * A visit being moved gives its id, so it isn't counted against itself.

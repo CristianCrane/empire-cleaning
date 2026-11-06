@@ -8,7 +8,7 @@ import {
   createClient,
   createStaff,
   expect,
-  offerPlace,
+  offerJob,
   proposeNextMonday,
   recordNoAccess,
   requestQuoteAsGuest,
@@ -139,7 +139,7 @@ test("the Office's screens fit every width", async ({ page }) => {
     startsAt: "2027-03-02T14:00:00Z",
     labourHours: 5.25,
   })) as { id: string };
-  await offerPlace(job.id, cory.id);
+  await offerJob(job.id, cory.id);
   // today's, for the dashboard (the API's clock is at 5 January 2026)
   await bookJob({ startsAt: "2026-01-05T14:00:00Z", labourHours: 5.25 });
   await requestQuoteAsGuest(casey, ["Inside the oven"]);
@@ -495,7 +495,7 @@ test("cancelling, Cancelled and No Access Jobs fit every width", async ({
     startsAt: "2026-01-12T14:00:00Z",
     officeEmail: olive.email,
   });
-  await offerPlace(booked.id, cory.id, { confirmed: true });
+  await offerJob(booked.id, cory.id, { confirmed: true });
   const client = await (await browser.newContext()).newPage();
   await signedInAs(client, casey.email);
   await signedInAs(page, olive.email);
@@ -590,7 +590,7 @@ test("signing in, the welcome page and the Cleaner area fit every width", async 
   })) as { id: string };
   // free that week, so they can be Offered it
   await setUsualWeek(cory.id, [8, 8, 8, 8, 8, 0, 0]);
-  await offerPlace(job.id, cory.id);
+  await offerJob(job.id, cory.id);
   // and a Job open to Cory on Friday
   const open = (await bookJob({
     startsAt: "2026-01-09T14:00:00Z",

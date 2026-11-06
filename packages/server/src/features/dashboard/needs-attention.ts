@@ -28,7 +28,7 @@ const requestedQuotes: Source = async () =>
     quote,
   }));
 
-// booked Jobs within 48 hours whose places aren't all Confirmed, soonest
+// booked Jobs within 48 hours whose crew isn't all Confirmed, soonest
 // first: someone has to be found for them
 const unassignedJobs: Source = async () =>
   (await unassignedJobsWithin(48)).map(({ job, since }) => ({

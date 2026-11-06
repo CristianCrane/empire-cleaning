@@ -6,7 +6,7 @@ import type {
   OfficeQuote,
   RoomHours,
 } from "@empire-cleaning/models";
-import { api, signIn } from "../../../tests/harness.ts";
+import { type Agent, api, signIn } from "../../../tests/harness.ts";
 import {
   casey,
   guestAsk,
@@ -55,12 +55,10 @@ const figures: PriceListInput = {
   ],
 };
 
-type Office = Awaited<ReturnType<typeof signInAsOffice>>;
-
-const getList = async (office: Office) =>
+const getList = async (office: Agent) =>
   (await office.get("/api/price-list").expect(200)).body as PriceList;
 
-const save = (office: Office, changes: Partial<PriceListInput> = {}) =>
+const save = (office: Agent, changes: Partial<PriceListInput> = {}) =>
   office.put("/api/price-list").send({ ...figures, ...changes });
 
 // a home's Services' own figures, chosen alongside the Price List's: a
@@ -73,7 +71,7 @@ const standardHours: RoomHours = {
   petHours: 0.5,
 };
 const homeRates = async (
-  office: Office,
+  office: Agent,
   changes: {
     hourlyRateCents?: number;
     minimumChargeCents?: number;
@@ -101,7 +99,7 @@ const homeRates = async (
 };
 
 // the Add-ons on offer now, keyed by name (a retired one may share a name)
-const addOnKeys = async (office: Office) =>
+const addOnKeys = async (office: Agent) =>
   Object.fromEntries(
     (await getList(office)).addOns
       .filter((a) => a.active)
@@ -110,7 +108,7 @@ const addOnKeys = async (office: Office) =>
 
 // what the Office sees for a Quote asked for, by asking and opening it
 const detailOf = async (
-  office: Office,
+  office: Agent,
   request: ReturnType<typeof guestAsk> = guestAsk(),
 ) => {
   await submit(request).expect(201);
@@ -344,7 +342,7 @@ describe("the Price List", () => {
 });
 
 describe("Premises Types", () => {
-  const premisesKeys = async (office: Office) =>
+  const premisesKeys = async (office: Agent) =>
     Object.fromEntries(
       (await getList(office)).premisesTypes
         .filter((t) => t.active)

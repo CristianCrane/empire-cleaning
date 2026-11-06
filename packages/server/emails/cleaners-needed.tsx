@@ -1,12 +1,12 @@
-import { openPlacesEmail } from "../src/features/assignments/emails.ts";
+import { cleanersNeededEmail } from "../src/features/assignments/emails.ts";
 import { preview } from "../src/services/email/preview.tsx";
 import { cleaner, jobId, monday, wednesday } from "./samples.ts";
 
 export default preview(
-  openPlacesEmail({
+  cleanersNeededEmail({
     name: cleaner,
     soon: false,
-    places: [
+    jobs: [
       {
         jobId,
         startsAt: monday.toISOString(),

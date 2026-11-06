@@ -24,8 +24,7 @@ import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock, DAY_MS } from "../../services/clock/index.ts";
 import { email, formatMoney, notify } from "../../services/email/index.ts";
-import { assignments, onCrew } from "../assignments/assignments.schema.ts";
-import { assignmentStatusOf } from "../assignments/places.ts";
+import { assignmentStatusOf, mustBeConfirmed } from "../assignments/crew.ts";
 import { weeklyBillOfJob } from "../bills/billed-weekly.ts";
 import {
   cancellationOf,
@@ -181,7 +180,7 @@ const sendUnpaid = async (jobId: string, settled: Settled) => {
  * once, increases wait on the Office. Then the Balance is charged and the
  * Client emailed a receipt; if it can't be charged, the Job is Unpaid.
  *
- * Only someone with a Confirmed place may, once every place is Confirmed and
+ * Only someone Confirmed on it may, once the whole crew is Confirmed and
  * the Job has started.
  */
 export const completeJob = async (
@@ -189,20 +188,7 @@ export const completeJob = async (
   jobId: string,
   input: CompletionInput,
 ) => {
-  const [mine] = await db
-    .select({ status: assignments.status })
-    .from(assignments)
-    .where(
-      and(
-        eq(assignments.jobId, jobId),
-        eq(assignments.staffId, staffId),
-        onCrew(),
-      ),
-    );
-  if (!mine) throw new NotFoundError("Job not found");
-  if (mine.status !== "confirmed") {
-    throw new ConflictError("Confirm your place on this Job first");
-  }
+  await mustBeConfirmed(staffId, jobId);
 
   const quoted = await quotedJob(jobId);
   const priced = await priceReports(quoted, input.reports);
@@ -223,7 +209,7 @@ export const completeJob = async (
     const status = (await assignmentStatusOf([job!], tx)).get(jobId);
     if (status !== "assigned") {
       throw new ConflictError(
-        "Every place on this Job must be Confirmed before it can be Completed. Please call the Office.",
+        "Everyone on this Job must Confirm it before it can be Completed. Please call the Office.",
       );
     }
 
@@ -363,8 +349,8 @@ type CleanerExtras = Pick<
   "outcome" | "reportable" | "completion" | "noAccess"
 > & { assigned: boolean };
 
-// what the Cleaner area shows about completing each Job: whether every
-// place is Confirmed, what can be reported, and once Completed, what was; or
+// what the Cleaner area shows about completing each Job: whether its
+// whole crew is Confirmed, what can be reported, and once Completed, what was; or
 // once No Access, what happened
 export const cleanerCompletionsOf = async (
   list: Job[],

@@ -524,10 +524,10 @@ export type StaffAvailability = {
   exceptions: AvailabilityException[];
 };
 
-// Something a Staff member holds from now on: a place on a booked Job to
-// come, Offered or Confirmed, or a booked Site Visit they're making.
-// Deactivating them, or a day of theirs going to 0 hours, frees their places
-// there; a Site Visit has to go to someone else first (#242).
+// Something a Staff member holds from now on: an Assignment to a booked Job
+// to come, Offered or Confirmed, or a booked Site Visit they're making.
+// Deactivating them, or a day of theirs going to 0 hours, frees their
+// Assignments there; a Site Visit has to go to someone else first (#242).
 export type StaffHolding = {
   kind: "job" | "site_visit";
   // the Job's, or the Site Visit's
@@ -562,9 +562,9 @@ export type ScheduledJob = {
   hoursOnSite: number;
   client: ClientName;
   property: Pick<PropertyView, "id" | "street" | "unit" | "postcode">;
-  // whether every place on its crew is Confirmed (#9)
+  // whether its whole crew is Confirmed (#9)
   assignment: AssignmentStatus;
-  // who holds its places, Offered or Confirmed, by name
+  // who is on its crew, Offered or Confirmed, by name
   crew: { id: string; name: string }[];
   // whether Office Staff can move it: booked and not yet started (#52)
   movable: boolean;
@@ -742,7 +742,7 @@ export type NeedsAttentionItem =
       quote: QuoteSummary;
     }
   | {
-      // a booked Job starting within 48 hours whose places aren't all
+      // a booked Job starting within 48 hours whose crew isn't all
       // Confirmed
       kind: "job_unassigned";
       since: string;
@@ -808,7 +808,7 @@ export type NeedsAttentionItem =
 
 export type NeedsAttentionKind = NeedsAttentionItem["kind"];
 
-// A Job is Unassigned until all its places are Confirmed
+// A Job is Unassigned until its whole crew is Confirmed
 export type AssignmentStatus = "unassigned" | "assigned";
 
 // how a Job turned out on the day
@@ -1319,22 +1319,22 @@ export type ClientUpcomingJob = ClientJob & {
 // ---- Assignments (#9) ----
 
 // Offered until the Staff member Confirms or Releases it. A Released one is
-// kept, so the Office can see who let a place go, and so is one Office Staff
+// kept, so the Office can see who let a Job go, and so is one Office Staff
 // took them off (#242).
 export type AssignmentState =
   "offered" | "confirmed" | "released" | "taken_off";
 
-// who holds a place on a Job's crew: the one definition, which the server's
-// queries and its one-place-per-person index are built from too
-export const holdingStates = [
+// who is on a Job's crew: the one definition, which the server's queries
+// and its once-per-crew index are built from too
+export const crewStates = [
   "offered",
   "confirmed",
 ] as const satisfies readonly AssignmentState[];
 
-export type HoldingState = (typeof holdingStates)[number];
+export type CrewState = (typeof crewStates)[number];
 
-export const holdsPlace = (status: AssignmentState): status is HoldingState =>
-  (holdingStates as readonly AssignmentState[]).includes(status);
+export const isOnCrew = (status: AssignmentState): status is CrewState =>
+  (crewStates as readonly AssignmentState[]).includes(status);
 
 export type AssignmentView = {
   id: string;
@@ -1365,11 +1365,11 @@ export type OfficeJob = ScheduledJob & {
   addOns: string[];
   // Offered and Confirmed first, then Released; each earliest Offered first
   assignments: AssignmentView[];
-  // places nobody holds: Crew Size less those Offered or Confirmed
-  openPlaces: number;
-  // who its Open Places are open to (ADR-0019): from when, 7 days before it
+  // its Cleaners Needed: Crew Size less those Offered or Confirmed
+  cleanersNeeded: number;
+  // who its Cleaners Needed are open to (ADR-0019): from when, 7 days before it
   // starts, and whether that has come, by the Clock; how many free Cleaners
-  // they are open to now (0 before then, or once every place is held); and
+  // they are open to now (0 before then, or once its crew is whole); and
   // who said "Not for me"
   openTo: {
     opensAt: string;
@@ -1379,8 +1379,8 @@ export type OfficeJob = ScheduledJob & {
   };
   // the Service Plan it was generated for; null for a one-off Job
   servicePlanId: string | null;
-  // active Cleaners who could be Offered a place, with their Available Hours
-  // on the Job's day
+  // active Cleaners who could be Offered it, with their Available Hours on
+  // the Job's day
   cleaners: { id: string; name: string; hours: number }[];
   // whether Office Staff can offer its Property a Service Plan from here:
   // it's Completed, and so is the Property's First Clean
@@ -1398,7 +1398,7 @@ export type JobList = {
   counts: Record<JobsTab | "all", number>;
 };
 
-// what Office Staff send to Offer a place on a Job
+// what Office Staff send to Offer a Job to a Cleaner
 export type AssignmentOffer = { staffId: string };
 
 // A Job as a Cleaner assigned to it sees it: where, what, who with, and the
@@ -1415,23 +1415,23 @@ export type CleanerJob = {
     "street" | "unit" | "postcode" | "accessInstructions"
   >;
   client: { firstName: string; phone: string | null };
-  // everyone holding a place, this Cleaner included
-  crew: { name: string; status: HoldingState }[];
-  // this Cleaner's own place
+  // everyone on the crew, this Cleaner included
+  crew: { name: string; status: CrewState }[];
+  // this Cleaner's own Assignment
   assignment: {
     id: string;
-    status: HoldingState;
+    status: CrewState;
     // false once a Confirmed Assignment is within 48 hours of the Job
     canRelease: boolean;
   };
   outcome: JobOutcome | null;
   // whether its start time has come, by the Clock
   started: boolean;
-  // whether this Cleaner can mark it Completed now: their place Confirmed,
-  // every place Confirmed, and the Job started
+  // whether this Cleaner can mark it Completed now: their Assignment
+  // Confirmed, the whole crew Confirmed, and the Job started
   canComplete: boolean;
-  // whether this Cleaner can record No Access now: their place Confirmed and
-  // the Job started, though others' places needn't be
+  // whether this Cleaner can record No Access now: their Assignment
+  // Confirmed and the Job started, though the rest of the crew needn't be
   canRecordNoAccess: boolean;
   // what can be reported at completion, by name: the Quote's Add-ons (as
   // not done) and the Price List's others (as done)
@@ -1454,12 +1454,12 @@ export type CleanerJob = {
 // a Cleaner's Jobs: today's (in New York, by the Clock) and those to come
 export type CleanerJobs = { today: CleanerJob[]; upcoming: CleanerJob[] };
 
-// ---- Open Places (#125, ADR-0019) ----
+// ---- Cleaners Needed (#125, ADR-0019) ----
 
-// A Job with places nobody holds, as a Cleaner it is open to sees it before
+// A Job that needs Cleaners, as a Cleaner it is open to sees it before
 // Confirming: what, when, for how long and roughly where, never its street
 // address, Access Instructions, Client or prices
-export type OpenPlace = {
+export type CleanerNeeded = {
   jobId: string;
   startsAt: string;
   serviceName: string;

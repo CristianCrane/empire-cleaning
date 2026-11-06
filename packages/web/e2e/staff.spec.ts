@@ -7,7 +7,7 @@ import {
   emailsTo,
   expect,
   expectAccessible,
-  offerPlace,
+  offerJob,
   requestQuoteForPremises,
   setGooglePicture,
   setUsualWeek,
@@ -275,7 +275,7 @@ const cleanerWithWeek = async () => {
 const dayOnCalendar = (page: Page, day: string) =>
   page.getByRole("button", { name: new RegExp(`^${day} `) });
 
-test("a day off frees a Cleaner's places, and so does deactivating them, each said first", async ({
+test("a day off frees a Cleaner's Jobs, and so does deactivating them, each said first", async ({
   page,
 }) => {
   const member = await cleanerWithWeek();
@@ -283,7 +283,7 @@ test("a day off frees a Cleaner's places, and so does deactivating them, each sa
     const job = (await bookJob({ startsAt, labourHours: 3, crewSize: 1 })) as {
       id: string;
     };
-    await offerPlace(job.id, member.id, { confirmed: true });
+    await offerJob(job.id, member.id, { confirmed: true });
   }
   await page.clock.setFixedTime(API_NOW);
   await signInAsOffice(page);
@@ -291,14 +291,14 @@ test("a day off frees a Cleaner's places, and so does deactivating them, each sa
 
   await dayOnCalendar(page, "Thu, Jan 8").click();
   const day = page.getByRole("dialog");
-  await expect(day).not.toContainText("holds a place");
+  await expect(day).not.toContainText("for other free Cleaners");
   await day.getByRole("textbox", { name: "Hours that day" }).fill("0");
   // saving straight from the field first shows what it frees
   await day.getByRole("button", { name: "Save day" }).click();
   await expect(day).toContainText(
-    /Cory holds a place on Deep Clean at .+, Thu, Jan 8, 9:00 AM\. Saving frees it for other free Cleaners\./,
+    /Cory is on Deep Clean at .+, Thu, Jan 8, 9:00 AM\. Saving frees it for other free Cleaners\./,
   );
-  await day.getByRole("button", { name: "Free the place and save" }).click();
+  await day.getByRole("button", { name: "Free the Job and save" }).click();
   await expect(page.getByText("Thu, Jan 8 saved")).toBeVisible();
   expect((await emailsTo(cory.email)).at(-1)!.subject).toBe(
     "You're no longer on a Job",
@@ -310,7 +310,7 @@ test("a day off frees a Cleaner's places, and so does deactivating them, each sa
     name: "Deactivate Cory Cleaner?",
   });
   await expect(deactivate).toContainText(
-    /Cory holds a place on Deep Clean at .+, Fri, Jan 9, 9:00 AM\. Deactivating them frees it/,
+    /Cory is on Deep Clean at .+, Fri, Jan 9, 9:00 AM\. Deactivating them frees it/,
   );
   await expect(deactivate).not.toContainText("Thu, Jan 8");
   await deactivate.getByRole("button", { name: "Deactivate" }).click();

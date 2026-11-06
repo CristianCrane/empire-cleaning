@@ -17,7 +17,7 @@
 // signed up stays signed up.
 import { asc, eq, sql } from "drizzle-orm";
 import {
-  holdsPlace,
+  isOnCrew,
   type NewHome,
   type NewPremises,
   type QuoteAsk,
@@ -654,7 +654,8 @@ async function seed() {
   // ---- Jobs in every state the Office's Job page shows ----
   const [firstAddOn, secondAddOn] = list.addOns;
 
-  // booked, nobody Offered yet, and its place not yet open to Cleaners
+  // booked, nobody Offered yet, and its Cleaner Needed not yet open to
+  // Cleaners
   await bookedJob(
     contact("olga", "Olga Petrova"),
     home("98-41 64th Rd", "11374", { type: "house", bedrooms: 3 }),
@@ -662,8 +663,8 @@ async function seed() {
     12,
   );
 
-  // a crew of two: one Confirmed, one Released, so a place is open to free
-  // Cleaners; the Client asked to move it once, and was turned down
+  // a crew of two: one Confirmed, one Released, so a Cleaner Needed is open
+  // to free Cleaners; the Client asked to move it once, and was turned down
   const pair = await bookedJob(
     contact("pete", "Pete Morales"),
     home("25-11 Crescent St", "11102", { type: "house", bedrooms: 4 }),
@@ -673,7 +674,7 @@ async function seed() {
   );
   await at(on(-8));
   await confirm(pair.id, luz!.id);
-  const danielaPlace = await confirm(pair.id, daniela!.id);
+  const danielaAssignment = await confirm(pair.id, daniela!.id);
   await at(on(-5));
   await requestReschedule(
     pair.id,
@@ -687,7 +688,7 @@ async function seed() {
   await at(on(-4));
   await turnDownReschedule(pair.id, "We're fully booked that afternoon.", by);
   await at(on(-2));
-  await releaseAssignment(daniela!.id, danielaPlace);
+  await releaseAssignment(daniela!.id, danielaAssignment);
 
   // the Client has asked to move it, waiting on the Office. Not 5 days out:
   // seeded on a Monday, that's the next Monday, Helen's with Maria, and
@@ -809,7 +810,7 @@ async function seed() {
     "Nobody answered the door, and the phone went to voicemail.",
   );
 
-  // a place Offered, not yet answered. Not 14 days out: that's Helen's
+  // a Job Offered, not yet answered. Not 14 days out: that's Helen's
   // weekday, with Maria
   const offered = await bookedJob(
     contact("erin", "Erin Ford"),
@@ -978,18 +979,18 @@ async function seed() {
     return accepted.job;
   }
 
-  // Offers a Cleaner a place, which they Confirm: their Assignment's id. A
+  // Offers a Cleaner a Job, which they Confirm: their Assignment's id. A
   // regular's Cleaner is Offered the plan's next cleans already
   async function confirm(jobId: string, staffId: string) {
     const theirs = (job: Awaited<ReturnType<typeof officeJob>>) =>
-      job.assignments.find(
-        (a) => a.staff.id === staffId && holdsPlace(a.status),
-      );
-    const place =
+      job.assignments.find((a) => a.staff.id === staffId && isOnCrew(a.status));
+    const assignment =
       theirs(await officeJob(jobId)) ??
       theirs(await offerAssignment(jobId, staffId, by))!;
-    if (place.status === "offered") await confirmAssignment(staffId, place.id);
-    return place.id;
+    if (assignment.status === "offered") {
+      await confirmAssignment(staffId, assignment.id);
+    }
+    return assignment.id;
   }
 }
 

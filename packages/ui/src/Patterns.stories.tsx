@@ -662,7 +662,7 @@ function AllAtOnceInTwoColumns() {
               <p>Deep Clean · 6 Labour Hours · crew of 2</p>
             </Card>
           </Section>
-          <Section title="Crew" description="1 of 2 places Confirmed">
+          <Section title="Crew" description="1 of 2 Cleaners Confirmed">
             <List aria-label="Crew">
               <ListItem
                 id="ben"
@@ -769,7 +769,7 @@ function StatusColours() {
           tone means the same: warning when it's the Office's to act on (a Job
           needing a Cleaner, a request to answer). Green is for the Office's
           view of what's going right: done, or running as it should (an Active
-          plan, a Confirmed place); blue is for what's simply so.
+          plan, a Confirmed Cleaner); blue is for what's simply so.
         </p>
       </Rule>
       <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-[auto_1fr]">

@@ -13,11 +13,11 @@ import {
   removeAssignment,
 } from "./assignments.ts";
 import {
-  confirmOpenPlace,
-  openPlaceFor,
-  openPlacesFor,
-  passOpenPlace,
-} from "./open-places.ts";
+  confirmCleanerNeeded,
+  cleanerNeededFor,
+  cleanersNeededFor,
+  passCleanerNeeded,
+} from "./cleaners-needed.ts";
 
 const job = z.object({ id: z.uuid() });
 const jobAssignment = z.object({ id: z.uuid(), assignmentId: z.uuid() });
@@ -89,14 +89,16 @@ router.get("/mine/:id", validate({ params: job }), async (req, res) => {
   res.json(await jobAssignedTo((await cleaner(res)).id, String(req.params.id)));
 });
 
-// Open Places open to them (ADR-0019), soonest first; one, by its Job; and
+// Cleaners Needed open to them (ADR-0019), soonest first; one, by its Job; and
 // taking one, or saying it's "Not for me"
 router.get("/open", async (_req, res) => {
-  res.json(await openPlacesFor((await cleaner(res)).id));
+  res.json(await cleanersNeededFor((await cleaner(res)).id));
 });
 
 router.get("/open/:id", validate({ params: job }), async (req, res) => {
-  res.json(await openPlaceFor((await cleaner(res)).id, String(req.params.id)));
+  res.json(
+    await cleanerNeededFor((await cleaner(res)).id, String(req.params.id)),
+  );
 });
 
 router.post(
@@ -104,7 +106,7 @@ router.post(
   validate({ params: job, body: seenSchema }),
   async (req, res) => {
     const { id } = await cleaner(res);
-    await confirmOpenPlace(
+    await confirmCleanerNeeded(
       id,
       String(req.params.id),
       new Date(req.body.startsAt),
@@ -114,7 +116,7 @@ router.post(
 );
 
 router.post("/open/:id/pass", validate({ params: job }), async (req, res) => {
-  await passOpenPlace((await cleaner(res)).id, String(req.params.id));
+  await passCleanerNeeded((await cleaner(res)).id, String(req.params.id));
   res.status(204).end();
 });
 

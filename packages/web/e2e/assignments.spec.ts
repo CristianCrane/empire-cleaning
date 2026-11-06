@@ -6,7 +6,7 @@ import {
   expect,
   expectAccessible,
   moveJob,
-  offerPlace,
+  offerJob,
   setClock,
   setUsualWeek,
   signedInAs,
@@ -50,7 +50,7 @@ const thursdayJob = (crewSize = 2) =>
     id: string;
   }>;
 
-// from the Crew Section's action: the open-places Notice has one too
+// from the Crew Section's action: the Cleaners Needed Notice has one too
 const offerTo = async (page: Page, name: RegExp) => {
   await page
     .getByRole("region", { name: "Crew" })
@@ -63,7 +63,7 @@ const offerTo = async (page: Page, name: RegExp) => {
 };
 
 test(
-  "Office Staff offer a Job's places from the Schedule",
+  "Office Staff offer a Job to Cleaners from the Schedule",
   { tag: ["@smoke", "@desktop"] },
   async ({ page }) => {
     const cory = await cleaner("Cory Cleaner");
@@ -98,19 +98,19 @@ test(
 
     await offerTo(page, /^Dee Cleaner/);
     await expect(list.getByRole("row")).toHaveCount(2);
-    // every place is held: nothing left to offer
+    // the crew is whole: nothing left to offer
     await expect(
       page.getByRole("button", { name: "Offer to a Cleaner" }),
     ).toHaveCount(0);
   },
 );
 
-test("Office Staff take someone off a Job, freeing their place", async ({
+test("Office Staff take someone off a Job, leaving a Cleaner Needed", async ({
   page,
 }) => {
   const cory = await cleaner("Cory Cleaner");
   const job = await thursdayJob(1);
-  await offerPlace(job.id, cory.id, { confirmed: true });
+  await offerJob(job.id, cory.id, { confirmed: true });
   await signInAsOffice(page);
   await page.goto(`/office/jobs/${job.id}`);
   await expect(page.getByText("1 of 1 Cleaner Confirmed")).toBeVisible();
@@ -162,7 +162,7 @@ test("an Unassigned Job within 48 hours needs attention", async ({ page }) => {
 });
 
 test(
-  "a Cleaner sees their Jobs and confirms a place",
+  "a Cleaner sees their Jobs and confirms one",
   { tag: "@smoke" },
   async ({ page }) => {
     const cory = await cleaner("Cory Cleaner");
@@ -174,12 +174,12 @@ test(
       labourHours: 2,
       crewSize: 1,
     })) as { id: string };
-    await offerPlace(job.id, cory.id);
-    await offerPlace(job.id, dee.id);
-    await offerPlace(today.id, cory.id, { confirmed: true });
+    await offerJob(job.id, cory.id);
+    await offerJob(job.id, dee.id);
+    await offerJob(today.id, cory.id, { confirmed: true });
     await signInAsCleaner(page, cory.email);
 
-    // only what's theirs: today's, large; the offered place is under Offers
+    // only what's theirs: today's, large; the offered Job is under Offers
     const next = page.getByRole("region", { name: "Next up" });
     await expect(next).toContainText("3:00 PM");
     await expect(page.getByRole("grid", { name: "Coming up" })).toHaveCount(0);
@@ -199,11 +199,11 @@ test(
     // never any prices
     await expect(page.locator("main")).not.toContainText("$");
 
-    await page.getByRole("button", { name: "Confirm my place" }).click();
-    await expect(page.getByText("Place confirmed")).toBeVisible();
-    await expect(page.getByRole("region", { name: "Your place" })).toHaveCount(
-      0,
-    );
+    await page.getByRole("button", { name: "Confirm", exact: true }).click();
+    await expect(page.getByText("Job confirmed")).toBeVisible();
+    await expect(
+      page.getByRole("region", { name: "Offered to you" }),
+    ).toHaveCount(0);
     await page.getByRole("link", { name: "Your Jobs" }).first().click();
     await expect(page.getByRole("grid", { name: "Coming up" })).toContainText(
       "Thu, Jan 8, 9:00 AM",
@@ -216,14 +216,14 @@ test("a Cleaner can't confirm a Job at a time they weren't shown", async ({
 }) => {
   const cory = await cleaner("Cory Cleaner");
   const job = await thursdayJob(1);
-  await offerPlace(job.id, cory.id);
+  await offerJob(job.id, cory.id);
   await signInAsCleaner(page, cory.email);
   await page.goto(`/cleaner/jobs/${job.id}`);
   await expect(page.getByText("Thu, Jan 8, 9:00 AM").first()).toBeVisible();
 
   // the Office moves it while the page is open
   await moveJob(job.id, { date: "2026-01-08", time: "11:00" });
-  await page.getByRole("button", { name: "Confirm my place" }).click();
+  await page.getByRole("button", { name: "Confirm", exact: true }).click();
   await expect(
     page.getByText(
       "This Job has moved to Thursday, January 8 at 11:00 AM. Please check the new time, then confirm again.",
@@ -231,11 +231,11 @@ test("a Cleaner can't confirm a Job at a time they weren't shown", async ({
   ).toBeVisible();
   // the page shows the new time, and it can be confirmed
   await expect(page.getByText("Thu, Jan 8, 11:00 AM").first()).toBeVisible();
-  await page.getByRole("button", { name: "Confirm my place" }).click();
-  await expect(page.getByText("Place confirmed")).toBeVisible();
+  await page.getByRole("button", { name: "Confirm", exact: true }).click();
+  await expect(page.getByText("Job confirmed")).toBeVisible();
 });
 
-test("a Cleaner can't take an Open Place at a time they weren't shown", async ({
+test("a Cleaner can't take a Cleaner Needed at a time they weren't shown", async ({
   page,
 }) => {
   const cory = await cleaner("Cory Cleaner");
@@ -249,15 +249,15 @@ test("a Cleaner can't take an Open Place at a time they weren't shown", async ({
   await expect(page.getByText(/^This Job has moved to/)).toBeVisible();
   await expect(page.getByText("Thu, Jan 8, 11:00 AM").first()).toBeVisible();
   await page.getByRole("button", { name: "Confirm" }).click();
-  await expect(page.getByText("Place confirmed")).toBeVisible();
+  await expect(page.getByText("Job confirmed")).toBeVisible();
   await expect(page).toHaveURL(`/cleaner/jobs/${job.id}`);
 });
 
-test("a Cleaner releases a place they can't make", async ({ page }) => {
+test("a Cleaner releases a Job they can't make", async ({ page }) => {
   const cory = await cleaner("Cory Cleaner");
   await createStaff(olive);
   const job = await thursdayJob();
-  await offerPlace(job.id, cory.id);
+  await offerJob(job.id, cory.id);
   await signInAsCleaner(page, cory.email);
   await page.goto(`/cleaner/jobs/${job.id}`);
 
@@ -268,27 +268,25 @@ test("a Cleaner releases a place they can't make", async ({ page }) => {
     .click();
 
   await expect(page).toHaveURL("/cleaner");
-  await expect(page.getByText("Place released")).toBeVisible();
+  await expect(page.getByText("Job released")).toBeVisible();
   await expect(page.getByText("Nothing booked for you yet")).toBeVisible();
   expect((await emailsTo(olive.email)).at(-1)!.subject).toBe(
-    "Cory Cleaner released a place on a Job",
+    "Cory Cleaner released a Job",
   );
 });
 
-test("a Confirmed place can't be released within 48 hours of the Job", async ({
+test("a Confirmed Job can't be released within 48 hours of it", async ({
   page,
 }) => {
   const cory = await cleaner("Cory Cleaner");
   const job = await thursdayJob();
-  await offerPlace(job.id, cory.id, { confirmed: true });
+  await offerJob(job.id, cory.id, { confirmed: true });
   // Tuesday afternoon: under 48 hours to go
   await setClock("2026-01-06T20:00:00Z");
   await signInAsCleaner(page, cory.email);
   await page.goto(`/cleaner/jobs/${job.id}`);
 
-  await expect(
-    page.getByText("your place can't be released here"),
-  ).toBeVisible();
+  await expect(page.getByText("it can't be released here")).toBeVisible();
   await expect(page.getByRole("button", { name: "Release" })).toHaveCount(0);
 });
 
@@ -297,7 +295,7 @@ test("a Cleaner sees the Client's phone on the day of the Job", async ({
 }) => {
   const cory = await cleaner("Cory Cleaner");
   const job = await thursdayJob();
-  await offerPlace(job.id, cory.id, { confirmed: true });
+  await offerJob(job.id, cory.id, { confirmed: true });
   await setClock("2026-01-08T11:00:00Z");
   await signInAsCleaner(page, cory.email);
   await page.goto(`/cleaner/jobs/${job.id}`);
@@ -325,7 +323,7 @@ test("the Job screens pass automated accessibility checks", async ({
 }) => {
   const cory = await cleaner("Cory Cleaner");
   const job = await thursdayJob();
-  await offerPlace(job.id, cory.id);
+  await offerJob(job.id, cory.id);
   await signInAsOffice(page);
   await page.goto(`/office/jobs/${job.id}`);
   await expect(page.getByRole("region", { name: "Crew" })).toBeVisible();
@@ -339,7 +337,7 @@ test("the Job screens pass automated accessibility checks", async ({
   await expectAccessible(asCory);
   await asCory.goto(`/cleaner/jobs/${job.id}`);
   await expect(
-    asCory.getByRole("region", { name: "Your place" }),
+    asCory.getByRole("region", { name: "Offered to you" }),
   ).toBeVisible();
   await expectAccessible(asCory);
 
@@ -357,7 +355,7 @@ test("the Job screens pass automated accessibility checks", async ({
 });
 
 test(
-  "a Cleaner takes an Open Place, seeing only roughly where it is first",
+  "a Cleaner takes a Cleaner Needed, seeing only roughly where it is first",
   { tag: "@smoke" },
   async ({ page }) => {
     const cory = await cleaner("Cory Cleaner");
@@ -398,7 +396,7 @@ test(
   },
 );
 
-test("a Cleaner is told when someone else took the Open Place first", async ({
+test("a Cleaner is told when someone else took the Cleaner Needed first", async ({
   page,
 }) => {
   const cory = await cleaner("Cory Cleaner");
@@ -409,13 +407,13 @@ test("a Cleaner is told when someone else took the Open Place first", async ({
   await expect(page.getByRole("button", { name: "Confirm" })).toBeVisible();
 
   // Dee gets there first
-  await offerPlace(job.id, dee.id, { confirmed: true });
+  await offerJob(job.id, dee.id, { confirmed: true });
   await page.getByRole("button", { name: "Confirm" }).click();
 
   await expect(page.getByText("Someone else took this Job")).toBeVisible();
 });
 
-test("a Cleaner says an Open Place is not for them, and the Office sees it", async ({
+test("a Cleaner says a Cleaner Needed is not for them, and the Office sees it", async ({
   page,
   browser,
 }) => {
@@ -442,7 +440,7 @@ test("a Cleaner says an Open Place is not for them, and the Office sees it", asy
   await expect(office.getByText("Not for them: Cory Cleaner.")).toBeVisible();
 });
 
-test("the Office sees when a Job's places open to Cleaners", async ({
+test("the Office sees when a Job's Cleaners Needed open to Cleaners", async ({
   page,
 }) => {
   await cleaner("Cory Cleaner");

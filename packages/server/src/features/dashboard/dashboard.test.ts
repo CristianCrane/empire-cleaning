@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import type { NeedsAttentionItem } from "@empire-cleaning/models";
 import { createStaff } from "#features/staff";
-import { api, signIn } from "../../../tests/harness.ts";
+import { type Agent, api, signIn } from "../../../tests/harness.ts";
 import {
   casey,
   guestAsk,
@@ -10,11 +10,9 @@ import {
   submit,
 } from "../../../tests/fixtures.ts";
 
-type Office = Awaited<ReturnType<typeof signInAsOffice>>;
-
 // the test clock starts at 4am on Monday 5 January 2026 in New York
 
-const needsAttention = async (office: Office) =>
+const needsAttention = async (office: Agent) =>
   (await office.get("/api/dashboard/needs-attention").expect(200))
     .body as NeedsAttentionItem[];
 

@@ -177,7 +177,7 @@ export const crewMovedEmail = ({
     paragraph("A Job you're on has moved:"),
     cleanDetails(clean, from),
     paragraph(
-      "Please confirm your place at the new time, or release it if you can't make it.",
+      "Please confirm you can make the new time, or release the Job if you can't.",
     ),
     button("See the Job", `/cleaner/jobs/${jobId}`),
   ],

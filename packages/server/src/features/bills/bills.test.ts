@@ -34,6 +34,7 @@ import { settleOpenPayments } from "#features/payments";
 import { formatMoney } from "#services/email";
 import { createStaff, setUsualWeek } from "#features/staff";
 import {
+  type Agent,
   api,
   signIn,
   testClock,
@@ -49,8 +50,6 @@ import {
   signInAsOffice,
   startedServicePlan,
 } from "../../../tests/fixtures.ts";
-
-type Agent = Awaited<ReturnType<typeof signIn>>;
 
 // The test clock starts at 4am on Monday 5 January 2026 in New York. Casey's
 // Deep Clean is at 9am on Wednesday the 7th, done at noon; that week's Bill

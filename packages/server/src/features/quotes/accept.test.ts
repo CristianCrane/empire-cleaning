@@ -18,6 +18,7 @@ import { charges, settleOpenPayments } from "#features/payments";
 import { FAKE_SIGNATURE } from "../../../tests/fakes/payment-gateway.ts";
 import { createStaff, deactivateStaff, setUsualWeek } from "#features/staff";
 import {
+  type Agent,
   api,
   signIn,
   testClock,
@@ -36,8 +37,6 @@ import {
 } from "../../../tests/fixtures.ts";
 import { formatMoney } from "#services/email";
 import { SEEDED } from "#features/services";
-
-type Agent = Awaited<ReturnType<typeof signIn>>;
 
 // the test clock starts at 4am on Monday 5 January 2026 in New York; Quotes
 // here propose 9am on Monday 12 January (14:00 UTC)

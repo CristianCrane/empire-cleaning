@@ -6,5 +6,5 @@ A Site Visit is a free visit by one Staff member to see a Property before it's q
 
 - The Schedule shows Site Visits alongside Jobs.
 - A Site Visit by a Cleaner with Available Hours that day takes room like a Job with a Crew Size of one, its length as its Labour Hours, and is refused where there's none. One by Office Staff alone takes no Cleaner time. Either way, it's refused over a Job or another Site Visit of the visitor's own (#242).
-- A Site Visit can't be Released or opened to others, as a place on a Job can. Deactivating its visitor, or a Cleaner's day going to 0 hours, is refused until it goes to someone else (#242).
+- A Site Visit can't be Released or opened to others, as an Assignment to a Job can. Deactivating its visitor, or a Cleaner's day going to 0 hours, is refused until it goes to someone else (#242).
 - Its findings update the Property's price-affecting details, which only Office Staff correct.

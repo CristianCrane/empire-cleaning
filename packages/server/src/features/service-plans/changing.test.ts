@@ -15,7 +15,7 @@ import { offerAssignment } from "#features/assignments";
 import { offerServicePlan, saveDraft, sendQuote } from "#features/quotes";
 import { dayOf, timeOf } from "#services/clock";
 import {
-  signIn,
+  type Agent,
   testClock,
   testEmail,
   refusingInserts,
@@ -30,8 +30,6 @@ import { jobQuotes } from "../quotes/job-quotes.ts";
 import { servicePlans } from "./service-plans.schema.ts";
 import { generateServicePlanJobs } from "./service-plans.ts";
 import { SEEDED } from "#features/services";
-
-type Agent = Awaited<ReturnType<typeof signIn>>;
 
 // Casey's weekly Standard Clean plan from 9am on Monday 19 January 2026, for
 // a crew of 1, its Jobs booked up to 9 February, with a $50.46 Deposit. The
@@ -167,7 +165,7 @@ describe("accepting a Service Plan Quote for a home with a plan", () => {
     );
     expect(confirmation.text).toContain("are cancelled, at no charge");
     expect(confirmation.text).toContain("Your Deposit stays as it is");
-    // Cory holds a place on the 2 February Job, and hears it's off
+    // Cory is on the 2 February Job, and hears it's off
     const off = testEmail().lastTo("cory@example.com");
     expect(off.subject).toBe("A Job you're on is cancelled");
     expect(off.text).toContain("February 2");

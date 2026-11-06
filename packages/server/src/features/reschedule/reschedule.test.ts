@@ -1,6 +1,5 @@
 import { describe, expect, test } from "vitest";
 import type {
-  CleanerJob,
   ClientJobDetail,
   ClientUpcomingJob,
   NeedsAttentionItem,
@@ -12,6 +11,7 @@ import type {
 } from "@empire-cleaning/models";
 import { createStaff, setUsualWeek } from "#features/staff";
 import {
+  type Agent,
   api,
   signIn,
   testClock,
@@ -23,12 +23,11 @@ import {
   billWeekly,
   bookedJob as otherJob,
   casey,
+  confirmOffer,
   guestAsk,
   signInAsOffice,
   submit,
 } from "../../../tests/fixtures.ts";
-
-type Agent = Awaited<ReturnType<typeof signIn>>;
 
 // the test clock starts at 4am on Monday 5 January 2026 in New York. The Job
 // here is at 9am on Monday the 12th (14:00 UTC), so moving it is free until
@@ -54,7 +53,7 @@ const cleaner = async (name: string) => {
 
 /**
  * Casey's Deep Clean at 9am on Monday the 12th, accepted with a 25% Deposit,
- * with Cory Offered a place and Confirmed on it.
+ * with Cory Offered it and Confirmed on it.
  */
 const bookedJob = async () => {
   const office = await signInAsOffice();
@@ -68,20 +67,11 @@ const bookedJob = async () => {
     .send({ staffId: cory.id })
     .expect(201);
   const asCory = await signIn(cory.email);
-  await confirmPlace(asCory, job.id);
+  await confirmOffer(asCory, job.id);
 
   const client = await signIn(casey.email);
   const deposit = testPayments().charges[0]!.amount;
   return { office, client, asCory, jobId: job.id, job, deposit };
-};
-
-const confirmPlace = async (asCleaner: Agent, jobId: string) => {
-  const mine = (await asCleaner.get(`/api/assignments/mine/${jobId}`))
-    .body as CleanerJob;
-  await asCleaner
-    .post(`/api/assignments/${mine.assignment.id}/confirm`)
-    .send({ startsAt: mine.startsAt })
-    .expect(200);
 };
 
 const clientJob = async (client: Agent, jobId: string) =>
@@ -381,7 +371,7 @@ describe("asking to move a Job", () => {
 });
 
 describe("Office Staff answering", () => {
-  test("confirming moves the Job and Offers its places afresh", async () => {
+  test("confirming moves the Job and Offers it to its crew afresh", async () => {
     const { client, office, asCory, jobId, job } = await bookedJob();
     await ask(client, jobId, WEDNESDAY).expect(201);
 
@@ -410,10 +400,10 @@ describe("Office Staff answering", () => {
     expect(toCasey.text).toContain("There's no charge for moving it.");
     const toCory = testEmail().lastTo("cory@example.com");
     expect(toCory.subject).toBe("A Job you're on has moved");
-    expect(toCory.text).toContain("Please confirm your place at the new time");
+    expect(toCory.text).toContain("Please confirm you can make the new time");
 
     // Cory Confirms again at the new time
-    await confirmPlace(asCory, jobId);
+    await confirmOffer(asCory, jobId);
     expect((await officeJob(office, jobId)).assignment).toBe("assigned");
     expect((await clientJob(client, jobId)).rescheduleTerms).not.toBeNull();
   });
@@ -608,7 +598,7 @@ describe("a Late Reschedule (ADR-0010)", () => {
       "Your first one is free, and your Deposit still counts towards the price.",
     );
 
-    await confirmPlace(asCory, jobId);
+    await confirmOffer(asCory, jobId);
     testClock().set(new Date(WEDNESDAY_10AM));
     await complete(asCory, jobId).expect(200);
     const { completion } = await clientJob(client, jobId);
@@ -650,7 +640,7 @@ describe("a Late Reschedule (ADR-0010)", () => {
       feeCents: 0,
     });
 
-    await confirmPlace(asCory, jobId);
+    await confirmOffer(asCory, jobId);
     testClock().set(new Date(THURSDAY_10AM));
     await complete(asCory, jobId).expect(200);
     const { completion } = await clientJob(client, jobId);

@@ -19,7 +19,10 @@ import {
 } from "../../services/email/index.ts";
 import { assignments, onCrew } from "../assignments/assignments.schema.ts";
 import { takenOffEmail } from "../assignments/emails.ts";
-import { emailOpenPlaces, placeReopened } from "../assignments/open-places.ts";
+import {
+  emailCleanersNeeded,
+  cleanerNeededAgain,
+} from "../assignments/cleaners-needed.ts";
 import { accounts } from "../auth/auth.schema.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { lockDay } from "../jobs/jobs.ts";
@@ -123,7 +126,7 @@ export const listStaff = async (): Promise<StaffMember[]> => {
 };
 
 // the record, and how the Office sees it; held until the transaction ends,
-// if one is given, so their hours and places change one way at a time
+// if one is given, so their hours and crews change one way at a time
 const findStaff = async (id: string, tx?: Tx) => {
   const query = selectStaff(tx).where(eq(staff.id, id));
   const [found] = await (tx ? query.for("update", { of: staff }) : query);
@@ -155,8 +158,8 @@ const keepAnotherOffice = async (id: string, tx: Tx | typeof db = db) => {
 };
 
 // Their name and roles, as the Office corrects them; their access follows
-// at once. The Office keeps an active member, and a Cleaner holding a place
-// on a Job to come keeps the role until they've let it go.
+// at once. The Office keeps an active member, and a Cleaner on the crew of a
+// Job to come keeps the role until they've let it go.
 export const editStaff = async (
   id: string,
   { name, roles }: { name: string; roles: StaffRole[] },
@@ -186,7 +189,7 @@ export const editStaff = async (
       .limit(1);
     if (held) {
       throw new ConflictError(
-        `${member.name} holds a place on a Job to come: release it first`,
+        `${member.name} is on a Job to come: release it first`,
       );
     }
   }
@@ -202,7 +205,7 @@ export const editStaff = async (
 /**
  * Ends their Staff access at once; their Account, and any Client it's
  * connected to, are untouched. The Office can't remove its last member.
- * Their places on Jobs to come are Released, opening to every free Cleaner
+ * Their Assignments to Jobs to come are Released, opening to every free Cleaner
  * (#242). A Site Visit they're making has to go to someone else first.
  */
 export const deactivateStaff = async (id: string) => {
@@ -218,7 +221,7 @@ export const deactivateStaff = async (id: string) => {
       member,
       holding.filter((h) => h.kind === "site_visit"),
     );
-    const freed = await releasePlaces(
+    const freed = await releaseHeld(
       tx,
       holding.filter((h) => h.kind === "job"),
     );
@@ -337,13 +340,13 @@ type Held =
     }
   | { kind: "site_visit"; startsAt: Date; where: string; siteVisitId: string };
 
-// what a Staff member holds from now on, soonest first: their places on
-// booked Jobs to come, Offered or Confirmed, and the booked Site Visits
+// what a Staff member holds from now on, soonest first: their Assignments
+// to booked Jobs to come, Offered or Confirmed, and the booked Site Visits
 // they're making
 const heldBy = async (tx: Tx | typeof db, id: string): Promise<Held[]> => {
   const now = clock.now();
   // one after the other: a transaction's queries can't overlap
-  const places = await tx
+  const onJobs = await tx
     .select({ assignment: assignments, job: jobs, property: properties })
     .from(assignments)
     .innerJoin(jobs, eq(jobs.id, assignments.jobId))
@@ -368,7 +371,7 @@ const heldBy = async (tx: Tx | typeof db, id: string): Promise<Held[]> => {
       ),
     );
   return [
-    ...places.map(({ assignment, job, property }): Held => ({
+    ...onJobs.map(({ assignment, job, property }): Held => ({
       kind: "job",
       startsAt: job.startsAt,
       where: addressOf(property),
@@ -385,7 +388,7 @@ const heldBy = async (tx: Tx | typeof db, id: string): Promise<Held[]> => {
   ].sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
 };
 
-// A Site Visit has a named visitor and no Open Place, so it can't be freed:
+// A Site Visit has a named visitor and no Cleaner Needed, so it can't be freed:
 // it has to go to someone else first
 const refuseSiteVisits = (member: Staff, visits: Held[]) => {
   const [visit] = visits;
@@ -395,27 +398,27 @@ const refuseSiteVisits = (member: Staff, visits: Held[]) => {
   );
 };
 
-// Releases places, inside the transaction freeing them; returns them
-const releasePlaces = async (tx: Tx, places: Held[]) => {
-  const ids = places.flatMap((p) => (p.kind === "job" ? [p.assignmentId] : []));
+// Releases Assignments, inside the transaction freeing them; returns them
+const releaseHeld = async (tx: Tx, held: Held[]) => {
+  const ids = held.flatMap((p) => (p.kind === "job" ? [p.assignmentId] : []));
   if (ids.length === 0) return [];
   const now = clock.now();
   await tx
     .update(assignments)
     .set({ status: "released", answeredAt: now })
     .where(and(inArray(assignments.id, ids), onCrew()));
-  return places;
+  return held;
 };
 
-// once saved: the places freed are open again, and anyone free for one
+// once saved: the Jobs freed need a Cleaner again, and anyone free for one
 // within 48 hours hears of it at once
 const afterFreeing = async (freed: Held[]) => {
   if (freed.length === 0) return;
-  for (const place of freed) {
-    if (place.kind === "job") await placeReopened(place.job.id);
+  for (const held of freed) {
+    if (held.kind === "job") await cleanerNeededAgain(held.job.id);
   }
-  await notify("Open Places email", async () => {
-    await emailOpenPlaces();
+  await notify("Cleaners Needed email", async () => {
+    await emailCleanersNeeded();
   });
 };
 
@@ -447,10 +450,10 @@ const hoursOn = async (tx: Tx, id: string, days: string[]) => {
 
 /**
  * Inside the transaction changing a Cleaner's hours: frees what they hold
- * on days they now have none (#158, #242). Their places there are Released,
- * opening to every other free Cleaner, and they're told. A Site Visit there
- * is refused instead, unless they're Office Staff, who need no hours to
- * make one. Returns the places freed.
+ * on days they now have none (#158, #242). Their Assignments there are
+ * Released, opening to every other free Cleaner, and they're told. A Site
+ * Visit there is refused instead, unless they're Office Staff, who need no
+ * hours to make one. Returns the Assignments freed.
  */
 const freeDaysOff = async (tx: Tx, member: Staff) => {
   const holding = await heldBy(tx, member.id);
@@ -464,7 +467,7 @@ const freeDaysOff = async (tx: Tx, member: Staff) => {
       off.filter((h) => h.kind === "site_visit"),
     );
   }
-  return releasePlaces(
+  return releaseHeld(
     tx,
     off.filter((h) => h.kind === "job"),
   );
@@ -474,16 +477,16 @@ const freeDaysOff = async (tx: Tx, member: Staff) => {
 // which Jobs they're off
 const afterHoursChanged = async (member: Staff, freed: Held[]) => {
   await afterFreeing(freed);
-  for (const place of freed) {
-    if (place.kind !== "job") continue;
+  for (const held of freed) {
+    if (held.kind !== "job") continue;
     await notify(
-      `Removal from Job ${place.job.id} to Staff ${member.id}`,
+      `Removal from Job ${held.job.id} to Staff ${member.id}`,
       async () =>
         email.send({
           to: member.email,
           ...takenOffEmail({
             name: member.name,
-            clean: await cleanOf(place.job, place.property),
+            clean: await cleanOf(held.job, held.property),
           }),
         }),
     );

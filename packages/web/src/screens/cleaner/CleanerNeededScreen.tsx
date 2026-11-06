@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLoaderData, useNavigate, useRouter } from "@tanstack/react-router";
-import type { OpenPlace } from "@empire-cleaning/models";
+import type { CleanerNeeded } from "@empire-cleaning/models";
 import { CalendarClock, Clock, MapPin, Users } from "lucide-react";
 import {
   ActionRow,
@@ -27,15 +27,15 @@ import {
 import { untilAbout } from "./CleanerHome.tsx";
 
 // "Just you", "2 Cleaners"
-export const crewOf = (place: Pick<OpenPlace, "crewSize">) =>
-  place.crewSize === 1 ? "Just you" : `${place.crewSize} Cleaners`;
+export const crewOf = (job: Pick<CleanerNeeded, "crewSize">) =>
+  job.crewSize === 1 ? "Just you" : `${job.crewSize} Cleaners`;
 
-// An Open Place as a Cleaner it's open to sees it (ADR-0019): what, when,
+// A Cleaner Needed as a Cleaner it's open to sees it (ADR-0019): what, when,
 // for how long and roughly where. They Confirm it, first come first served,
 // or say it's not for them. The address, Access Instructions and Client
 // come once they've taken it.
-export function OpenPlaceScreen() {
-  const place = useLoaderData({ from: "/cleaner/open/$jobId" });
+export function CleanerNeededScreen() {
+  const job = useLoaderData({ from: "/cleaner/open/$jobId" });
 
   return (
     <div className="flex flex-col gap-6">
@@ -43,16 +43,16 @@ export function OpenPlaceScreen() {
         <Breadcrumbs
           trail={[
             { label: "Offers", href: linkTo({ to: "/cleaner/offers" }) },
-            { label: formatDateTime(place.startsAt) },
+            { label: formatDateTime(job.startsAt) },
           ]}
         />
         <div className="flex flex-wrap items-center gap-3">
-          <Heading level={1}>{place.serviceName}</Heading>
+          <Heading level={1}>{job.serviceName}</Heading>
           <StatusBadge tone="info">Open</StatusBadge>
         </div>
       </div>
 
-      <TakeIt place={place} />
+      <TakeIt job={job} />
 
       <Section title="Job details">
         <Card>
@@ -61,11 +61,11 @@ export function OpenPlaceScreen() {
               <IconTile icon={CalendarClock} size="lg" />
               <div className="flex min-w-0 flex-col gap-1">
                 <p className="text-sm text-fg-muted">
-                  {formatDay(dayOfInstant(place.startsAt))},{" "}
-                  {untilAbout(place.startsAt, place.hoursOnSite)}
+                  {formatDay(dayOfInstant(job.startsAt))},{" "}
+                  {untilAbout(job.startsAt, job.hoursOnSite)}
                 </p>
                 <p className="text-3xl font-semibold text-fg tabular-nums">
-                  {formatTime(place.startsAt)}
+                  {formatTime(job.startsAt)}
                 </p>
               </div>
             </div>
@@ -73,13 +73,13 @@ export function OpenPlaceScreen() {
               <Fact
                 icon={Clock}
                 label="On site"
-                value={`About ${formatHours(place.hoursOnSite)}`}
+                value={`About ${formatHours(job.hoursOnSite)}`}
               />
-              <Fact icon={Users} label="Crew" value={crewOf(place)} />
+              <Fact icon={Users} label="Crew" value={crewOf(job)} />
               <Fact
                 icon={MapPin}
                 label="Area"
-                value={place.postcode}
+                value={job.postcode}
                 line="Area: the address shows once it's yours"
               />
             </dl>
@@ -90,7 +90,7 @@ export function OpenPlaceScreen() {
   );
 }
 
-function TakeIt({ place }: { place: OpenPlace }) {
+function TakeIt({ job }: { job: CleanerNeeded }) {
   const navigate = useNavigate();
   const router = useRouter();
   const [problem, setProblem] = useState<string>();
@@ -104,14 +104,14 @@ function TakeIt({ place }: { place: OpenPlace }) {
       // Confirm sends the time they were shown, so a Job moved meanwhile
       // isn't taken at a time they never saw
       await postJson(
-        `/api/assignments/open/${place.jobId}/${which}`,
-        which === "confirm" ? { startsAt: place.startsAt } : undefined,
+        `/api/assignments/open/${job.jobId}/${which}`,
+        which === "confirm" ? { startsAt: job.startsAt } : undefined,
       );
       if (which === "confirm") {
-        showToast({ tone: "success", title: "Place confirmed" });
+        showToast({ tone: "success", title: "Job confirmed" });
         await navigate({
           to: "/cleaner/jobs/$jobId",
-          params: { jobId: place.jobId },
+          params: { jobId: job.jobId },
         });
       } else {
         showToast({ tone: "success", title: "Taken off your list" });
@@ -125,8 +125,8 @@ function TakeIt({ place }: { place: OpenPlace }) {
       );
       // shows the new time if the Job moved; if it's no longer open to
       // them, the page stays, with why
-      const stillOpen = await getJson<OpenPlace>(
-        `/api/assignments/open/${place.jobId}`,
+      const stillOpen = await getJson<CleanerNeeded>(
+        `/api/assignments/open/${job.jobId}`,
       ).then(
         () => true,
         () => false,
@@ -163,7 +163,7 @@ function TakeIt({ place }: { place: OpenPlace }) {
           }
         >
           <p>
-            It has a place open, and you're free then. The first Cleaner to
+            It needs a Cleaner, and you're free then. The first Cleaner to
             confirm takes it, and sees the address, how to get in and the
             Client.
           </p>

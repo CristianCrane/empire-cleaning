@@ -26,7 +26,7 @@ import {
   startOfDay,
   weekdayOf,
 } from "../../services/clock/index.ts";
-import { assignmentStatusOf, crewOf } from "../assignments/places.ts";
+import { assignmentStatusOf, crewOf } from "../assignments/crew.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { properties } from "../properties/properties.schema.ts";
 import { rescheduleRequests } from "../reschedule/reschedule.schema.ts";

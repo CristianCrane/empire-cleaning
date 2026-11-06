@@ -10,6 +10,7 @@ import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock, HOUR_MS } from "../../services/clock/index.ts";
 import { email, formatMoney, notify } from "../../services/email/index.ts";
 import { assignments, onCrew } from "../assignments/assignments.schema.ts";
+import { mustBeConfirmed } from "../assignments/crew.ts";
 import { clients } from "../clients/clients.schema.ts";
 import {
   paymentOf,
@@ -195,7 +196,7 @@ type Cancellation = {
  * when the 24-hour cut-off has passed since. A Client can't cancel once it
  * has started; Office Staff can.
  *
- * The Client is emailed, and so is everyone holding a place on it; the
+ * The Client is emailed, and so is everyone on its crew; the
  * Office is too when the Client cancelled it themselves.
  */
 export const cancelJob = async (jobId: string, cancellation: Cancellation) => {
@@ -290,7 +291,7 @@ const sendCancelled = async (
   );
 };
 
-// everyone holding a place on a Job hears it's off
+// everyone on a Job's crew hears it's off
 export const tellCrew = async (job: Job) => {
   const { property } = await ownerOf(job);
   const crew = await db
@@ -347,7 +348,7 @@ const tellOffice = async (
  * Cancellation: the Deposit is kept as the fee, or for a plan Job, the fee
  * is charged now. The Client and the Office are emailed.
  *
- * Only someone with a Confirmed place may, once the Job has started; the
+ * Only someone Confirmed on it may, once the Job has started; the
  * rest of the crew needn't have Confirmed.
  */
 export const recordNoAccess = async (
@@ -355,20 +356,7 @@ export const recordNoAccess = async (
   jobId: string,
   reason: string,
 ) => {
-  const [mine] = await db
-    .select({ status: assignments.status })
-    .from(assignments)
-    .where(
-      and(
-        eq(assignments.jobId, jobId),
-        eq(assignments.staffId, staffId),
-        onCrew(),
-      ),
-    );
-  if (!mine) throw new NotFoundError("Job not found");
-  if (mine.status !== "confirmed") {
-    throw new ConflictError("Confirm your place on this Job first");
-  }
+  await mustBeConfirmed(staffId, jobId);
 
   const job = await db.transaction(async (tx) => {
     const [job] = await tx

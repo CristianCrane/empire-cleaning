@@ -13,7 +13,12 @@ import type {
   SignedInAccount,
 } from "@empire-cleaning/models";
 import { dayOf, timeOf } from "#services/clock";
-import { signIn, testClock, testEmail } from "../../../tests/harness.ts";
+import {
+  type Agent,
+  signIn,
+  testClock,
+  testEmail,
+} from "../../../tests/harness.ts";
 import {
   casey,
   completedFirstClean,
@@ -24,8 +29,6 @@ import {
   submit,
 } from "../../../tests/fixtures.ts";
 import { SEEDED } from "#features/services";
-
-type Agent = Awaited<ReturnType<typeof signIn>>;
 
 // The First Clean is done at 11am on Monday 12 January 2026, New York time,
 // and the clock is left there. Plans here start at 9am on Monday the 19th.

@@ -6,7 +6,7 @@ import type {
   QuoteSummary,
   SignedInAccount,
 } from "@empire-cleaning/models";
-import { signIn } from "../../../tests/harness.ts";
+import { type Agent, signIn } from "../../../tests/harness.ts";
 import {
   casey,
   completedFirstClean,
@@ -18,8 +18,6 @@ import {
 import { SEEDED } from "#features/services";
 
 // Quotes are for the Service asked for (ADR-0018)
-
-type Agent = Awaited<ReturnType<typeof signIn>>;
 
 // the test clock starts at 4am on Monday 5 January 2026 in New York
 const nextMonday = { date: "2026-01-12", time: "09:00" };

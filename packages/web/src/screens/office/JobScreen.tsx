@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import { useLoaderData } from "@tanstack/react-router";
 import { UserPlus } from "lucide-react";
 import {
-  holdsPlace,
+  isOnCrew,
   type AssignmentState,
   type AssignmentView,
   type OfficeJob,
@@ -51,7 +51,7 @@ import { JobHistory } from "./JobHistory.tsx";
 import { AnswerRequest, MoveActions } from "./JobReschedule.tsx";
 import { OfferServicePlan } from "./StartDraft.tsx";
 
-// whether every place on a Job's crew is Confirmed, or once it has happened
+// whether a Job's whole crew is Confirmed, or once it has happened
 // or been Cancelled, how it went
 export function AssignmentBadge({ job }: { job: ScheduledJob }) {
   if (job.status === "completed") {
@@ -98,7 +98,7 @@ const cleaners = (n: number, more?: "more") =>
  * A Job for the Office, all of it in one view: what there is to do in
  * Notices on top, then two columns, the Job, who's on it and its money on
  * the left, its story on the right, where it has room to grow. Office Staff
- * Offer its places and take people off, move or cancel it, and once it's
+ * Offer it to Cleaners and take people off, move or cancel it, and once it's
  * Completed, review and correct the completion.
  */
 export function JobScreen() {
@@ -237,17 +237,17 @@ const noticesFor = (job: OfficeJob): ReactNode[] => {
       </Notice>,
     );
   }
-  if (booked(job) && job.openPlaces > 0) {
+  if (booked(job) && job.cleanersNeeded > 0) {
     notices.push(
       <Notice
-        key="places"
+        key="cleaners-needed"
         tone={
           job.openTo.opened && job.openTo.cleaners === 0 ? "danger" : "warning"
         }
-        action={job.cleaners.length > 0 && <OfferPlace job={job} />}
+        action={job.cleaners.length > 0 && <OfferToCleaner job={job} />}
       >
         <p>
-          <strong>Needs {cleaners(job.openPlaces, "more")}.</strong>
+          <strong>Needs {cleaners(job.cleanersNeeded, "more")}.</strong>
         </p>
         <OpenTo job={job} />
       </Notice>,
@@ -377,7 +377,7 @@ function Part({
   );
 }
 
-// who's on the Job: each place Offered, Confirmed or Released
+// who's on the Job: each Assignment Offered, Confirmed or Released
 function Crew({ job }: { job: OfficeJob }) {
   const confirmed = job.assignments.filter(
     (a) => a.status === "confirmed",
@@ -388,8 +388,8 @@ function Crew({ job }: { job: OfficeJob }) {
       description={`${confirmed} of ${cleaners(job.crewSize)} Confirmed`}
       actions={
         booked(job) &&
-        job.openPlaces > 0 &&
-        job.cleaners.length > 0 && <OfferPlace job={job} />
+        job.cleanersNeeded > 0 &&
+        job.cleaners.length > 0 && <OfferToCleaner job={job} />
       }
     >
       {job.assignments.length === 0 ? (
@@ -405,7 +405,7 @@ function Crew({ job }: { job: OfficeJob }) {
               end={
                 <>
                   {stateBadge[a.status]}
-                  {booked(job) && holdsPlace(a.status) && (
+                  {booked(job) && isOnCrew(a.status) && (
                     <Remove job={job} assignment={a} />
                   )}
                 </>
@@ -418,14 +418,14 @@ function Crew({ job }: { job: OfficeJob }) {
   );
 }
 
-// who a Job's Open Places are open to: from 7 days before it, every free
+// who a Job's Cleaners Needed are open to: from 7 days before it, every free
 // Cleaner, first to Confirm taking each (ADR-0019)
 function OpenTo({ job }: { job: OfficeJob }) {
   const { opensAt, opened, cleaners: free, passedBy } = job.openTo;
   const firstTo =
-    job.openPlaces === 1
+    job.cleanersNeeded === 1
       ? "the first to confirm joins"
-      : `the first ${job.openPlaces} to confirm join`;
+      : `the first ${job.cleanersNeeded} to confirm join`;
   return (
     <>
       <p>
@@ -442,8 +442,8 @@ function OpenTo({ job }: { job: OfficeJob }) {
   );
 }
 
-// Offers an open place to a Cleaner of the Office's choosing, in a dialog
-function OfferPlace({ job }: { job: OfficeJob }) {
+// Offers a Cleaner Needed to a Cleaner of the Office's choosing, in a dialog
+function OfferToCleaner({ job }: { job: OfficeJob }) {
   return (
     <DialogTrigger>
       <Button variant="text" size="sm">
@@ -483,7 +483,7 @@ function Offer({ job, close }: { job: OfficeJob; close: () => void }) {
     >
       <Select
         label="Offer to"
-        description={`It needs ${cleaners(job.openPlaces, "more")}. Hours are what each is available that day.`}
+        description={`It needs ${cleaners(job.cleanersNeeded, "more")}. Hours are what each is available that day.`}
         placeholder="Choose a Cleaner"
         selectedKey={staffId}
         onSelectionChange={(key) =>

@@ -6,7 +6,7 @@ import type {
   Service,
   ServiceInput,
 } from "@empire-cleaning/models";
-import { api, signIn } from "../../../tests/harness.ts";
+import { type Agent, api, signIn } from "../../../tests/harness.ts";
 import {
   guestAsk,
   setService,
@@ -28,8 +28,6 @@ const priceOf = (
   return price;
 };
 
-type Office = Awaited<ReturnType<typeof signInAsOffice>>;
-
 const windows: ServiceInput = {
   name: "Window cleaning",
   description: "Every window, inside and out.",
@@ -48,14 +46,14 @@ const windows: ServiceInput = {
   active: true,
 };
 
-const list = async (office: Office) =>
+const list = async (office: Agent) =>
   (await office.get("/api/services").expect(200)).body as Service[];
 
 const issuesOf = (body: { details: { path: string; issue: string }[] }) =>
   Object.fromEntries(body.details.map((d) => [d.path, d.issue]));
 
 // what the Office sees for a Quote asked for
-const askedQuote = async (office: Office) => {
+const askedQuote = async (office: Agent) => {
   const { body } = await submit(guestAsk()).expect(201);
   return (await office.get(`/api/quotes/${body.id}`).expect(200))
     .body as OfficeQuote;

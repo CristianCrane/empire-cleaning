@@ -7,7 +7,7 @@ import {
   expect,
   expectAccessible,
   failCharges,
-  offerPlace,
+  offerJob,
   setClock,
   setUsualWeek,
   signedInAs,
@@ -44,7 +44,7 @@ const jobUnderway = async () => {
     officeEmail: olive.email,
     addOns: ["Inside the oven"],
   });
-  await offerPlace(job.id, cory.id, { confirmed: true });
+  await offerJob(job.id, cory.id, { confirmed: true });
   await setClock(MONDAY_11AM);
   return { job, cory };
 };

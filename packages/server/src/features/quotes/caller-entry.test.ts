@@ -7,7 +7,7 @@ import type {
 } from "@empire-cleaning/models";
 import { db } from "#db";
 import { accounts } from "#features/auth";
-import { api, signIn, testEmail } from "../../../tests/harness.ts";
+import { type Agent, api, signIn, testEmail } from "../../../tests/harness.ts";
 import {
   casey,
   guestAsk,
@@ -16,8 +16,6 @@ import {
   submit,
 } from "../../../tests/fixtures.ts";
 import { SEEDED } from "#features/services";
-
-type Agent = Awaited<ReturnType<typeof signIn>>;
 
 // the test clock starts at 4am on Monday 5 January 2026 in New York
 const nextMonday = { date: "2026-01-12", time: "09:00" };

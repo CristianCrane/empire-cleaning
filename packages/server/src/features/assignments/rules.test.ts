@@ -10,11 +10,11 @@ import {
 } from "../../../tests/schedule-days.ts";
 import {
   openingOf,
-  placesOpen,
+  neededOpen,
   whyNotConfirm,
   whyNotOffer,
   whyNotRelease,
-  whyNotTakeOpenPlace,
+  whyNotTakeCleanerNeeded,
 } from "./rules.ts";
 
 // The rules over plain data (tests/schedule-days.ts): no Staff, Clients or
@@ -35,8 +35,8 @@ const job = (
   ...over,
 });
 
-describe("Offering a place", () => {
-  test("to a free active Cleaner while a place is open", () => {
+describe("Offering a Job", () => {
+  test("to a free active Cleaner while it needs a Cleaner", () => {
     expect(whyNotOffer(thursday(), "job", ana, NOW)).toBeNull();
   });
 
@@ -57,19 +57,19 @@ describe("Offering a place", () => {
     );
   });
 
-  test("refused to someone on it already, and when every place is held", () => {
+  test("refused to someone on it already, and when its crew is whole", () => {
     const holding = (crew: ScheduledJob["crew"], crewSize = 2) =>
       thursday({ jobs: [scheduled({ crew, crewSize })] });
     const anaOn = [{ id: "ana", name: "Ana Ruiz" }];
     expect(whyNotOffer(holding(anaOn), "job", ana, NOW)).toBe(
-      "Ana Ruiz already has a place on this Job",
+      "Ana Ruiz is already on this Job",
     );
     expect(whyNotOffer(holding(anaOn, 1), "job", bea, NOW)).toBe(
-      "This Job's place is taken",
+      "This Job already has its Cleaner",
     );
     const both = [...anaOn, { id: "cleo", name: "Cleo Diaz" }];
     expect(whyNotOffer(holding(both), "job", bea, NOW)).toBe(
-      "All 2 places on this Job are taken",
+      "This Job already has all 2 Cleaners it needs",
     );
   });
 
@@ -82,7 +82,7 @@ describe("Offering a place", () => {
   });
 });
 
-describe("Confirming an Offered place", () => {
+describe("Confirming an Offered Job", () => {
   test("at the time they were shown, while free", () => {
     expect(
       whyNotConfirm(thursday(), "job", "ana", new Date(THURSDAY_9AM), NOW),
@@ -125,7 +125,7 @@ describe("Confirming an Offered place", () => {
   });
 });
 
-describe("Releasing a place", () => {
+describe("Releasing an Assignment", () => {
   const before = (hours: number) =>
     new Date(Date.parse(THURSDAY_9AM) - hours * HOUR);
 
@@ -133,22 +133,22 @@ describe("Releasing a place", () => {
     expect(whyNotRelease("offered", job(), before(1))).toBeNull();
     expect(whyNotRelease("confirmed", job(), before(49))).toBeNull();
     expect(whyNotRelease("confirmed", job(), before(47))).toBe(
-      "A Confirmed place can't be released within 48 hours of the Job. Please call the Office.",
+      "A Confirmed Job can't be released within 48 hours of it. Please call the Office.",
     );
   });
 });
 
-describe("Open Places", () => {
+describe("Cleaners Needed", () => {
   const DAY = 24 * HOUR;
   const startsAt = new Date(THURSDAY_9AM);
 
   test("are open from 7 days before a booked Job until it starts", () => {
     const at = (ms: number) => new Date(startsAt.getTime() - ms);
-    expect(placesOpen(job(), at(7 * DAY))).toBe(true);
-    expect(placesOpen(job(), at(7 * DAY + 1))).toBe(false);
-    expect(placesOpen(job(), at(1))).toBe(true);
-    expect(placesOpen(job(), startsAt)).toBe(false);
-    expect(placesOpen(job({ status: "cancelled" }), NOW)).toBe(false);
+    expect(neededOpen(job(), at(7 * DAY))).toBe(true);
+    expect(neededOpen(job(), at(7 * DAY + 1))).toBe(false);
+    expect(neededOpen(job(), at(1))).toBe(true);
+    expect(neededOpen(job(), startsAt)).toBe(false);
+    expect(neededOpen(job({ status: "cancelled" }), NOW)).toBe(false);
   });
 
   test("are open to free Cleaners not on it, who didn't Release one or pass", () => {
@@ -174,33 +174,33 @@ describe("Open Places", () => {
     expect(opening).toEqual({ open: 1, openTo: ["dana"] });
   });
 
-  test("are gone once every place is held", () => {
-    const places = [
+  test("are gone once its crew is whole", () => {
+    const assigned = [
       { staffId: "ana", status: "confirmed" as const },
       { staffId: "bea", status: "offered" as const },
     ];
-    expect(openingOf(thursday(), scheduled(), places, [])).toBeNull();
+    expect(openingOf(thursday(), scheduled(), assigned, [])).toBeNull();
   });
 
   describe("taking one", () => {
     const opening = (
       openTo: string[],
-      places: {
+      assigned: {
         staffId: string;
         status: "offered" | "confirmed" | "released";
       }[] = [],
-    ) => ({ openTo, places });
+    ) => ({ openTo, assigned });
 
     test("while it's open to them", () => {
       expect(
-        whyNotTakeOpenPlace(job(), "ana", opening(["ana"]), undefined, NOW),
+        whyNotTakeCleanerNeeded(job(), "ana", opening(["ana"]), undefined, NOW),
       ).toBeNull();
     });
 
     test("refused when the Job isn't booked, has started or has moved", () => {
       const open = opening(["ana"]);
       expect(
-        whyNotTakeOpenPlace(
+        whyNotTakeCleanerNeeded(
           job({ status: "cancelled" }),
           "ana",
           open,
@@ -208,11 +208,11 @@ describe("Open Places", () => {
           NOW,
         ),
       ).toBe("This Job isn't open any more");
-      expect(whyNotTakeOpenPlace(job(), "ana", open, undefined, startsAt)).toBe(
-        "This Job isn't open any more",
-      );
       expect(
-        whyNotTakeOpenPlace(
+        whyNotTakeCleanerNeeded(job(), "ana", open, undefined, startsAt),
+      ).toBe("This Job isn't open any more");
+      expect(
+        whyNotTakeCleanerNeeded(
           job(),
           "ana",
           open,
@@ -222,27 +222,27 @@ describe("Open Places", () => {
       ).toMatch(/^This Job has moved to /);
     });
 
-    test("refused when it has no Open Place: not open yet, or taken", () => {
+    test("refused when it needs no Cleaner: not open yet, or taken", () => {
       const early = new Date(startsAt.getTime() - 8 * DAY);
       expect(
-        whyNotTakeOpenPlace(job(), "ana", undefined, undefined, early),
+        whyNotTakeCleanerNeeded(job(), "ana", undefined, undefined, early),
       ).toBe("This Job isn't open to Cleaners yet");
-      expect(whyNotTakeOpenPlace(job(), "ana", undefined, undefined, NOW)).toBe(
-        "Someone else took this Job",
-      );
+      expect(
+        whyNotTakeCleanerNeeded(job(), "ana", undefined, undefined, NOW),
+      ).toBe("Someone else took this Job");
     });
 
     test("refused, saying why, when it isn't open to them", () => {
       const refused = (status?: "offered" | "released") =>
-        whyNotTakeOpenPlace(
+        whyNotTakeCleanerNeeded(
           job(),
           "ana",
           opening(["bea"], status ? [{ staffId: "ana", status }] : []),
           undefined,
           NOW,
         );
-      expect(refused("released")).toBe("You released your place on this Job");
-      expect(refused("offered")).toBe("You already have a place on this Job");
+      expect(refused("released")).toBe("You released this Job");
+      expect(refused("offered")).toBe("You're already on this Job");
       expect(refused()).toBe("You're no longer free for this Job");
     });
   });

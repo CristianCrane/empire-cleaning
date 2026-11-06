@@ -1,6 +1,6 @@
 # Inside a transaction every query goes through it; writes that must stand alone use a pool of their own
 
-A transaction holds one database connection, and its locks, until it ends. A query inside it that went through `db` instead of its `tx` took a second connection from the same pool. Under a burst of requests, each holding a connection and its locks while waiting for another, the pool runs dry and every request waits on the others: the API hangs. The scheduling review (#242) found far more of these than the four it named, in the Schedule, room, Open Places, prices, Quotes, balances and completion.
+A transaction holds one database connection, and its locks, until it ends. A query inside it that went through `db` instead of its `tx` took a second connection from the same pool. Under a burst of requests, each holding a connection and its locks while waiting for another, the pool runs dry and every request waits on the others: the API hangs. The scheduling review (#242) found far more of these than the four it named, in the Schedule, room, Cleaners Needed, prices, Quotes, balances and completion.
 
 Now everything a transaction reads or writes goes through its `tx`, passed down to whatever it calls. Tests refuse a `db` query inside `db.transaction()` where it's written (`tests/setup/oneConnection.ts`), rather than leaving it to hang under load. Both pools give up waiting for a connection after 10 seconds, so a request that can't get one fails instead of hanging.
 

@@ -11,7 +11,13 @@ import type {
   QuoteSummary,
   QuoteView,
 } from "@empire-cleaning/models";
-import { api, signIn, testClock, testEmail } from "../../../tests/harness.ts";
+import {
+  type Agent,
+  api,
+  signIn,
+  testClock,
+  testEmail,
+} from "../../../tests/harness.ts";
 import {
   casey,
   guestAsk,
@@ -35,8 +41,6 @@ const priceOf = (
   } = suggested.prices.find((p) => p.serviceKey === SEEDED[service])!;
   return price;
 };
-
-type Agent = Awaited<ReturnType<typeof signIn>>;
 
 // the test clock starts at 4am on Monday 5 January 2026 in New York; 9am on
 // Monday 12 January is 14:00 UTC

@@ -10,9 +10,9 @@ import {
   StatusBadge,
 } from "@empire-cleaning/ui";
 import { formatDateTime, formatHours } from "../format.ts";
-import { crewOf } from "./OpenPlaceScreen.tsx";
+import { crewOf } from "./CleanerNeededScreen.tsx";
 
-// Places that aren't the Cleaner's yet, apart from Your Jobs so their own
+// Jobs that aren't the Cleaner's yet, apart from Your Jobs so their own
 // list says only where they're working (UX pass, #96): those the Office
 // offered them, to Confirm or Release, and those open to them (ADR-0019),
 // first come first served.
@@ -56,7 +56,7 @@ export function CleanerOffers() {
 
       <Section
         title="Open to you"
-        description="Places on Jobs in the next 7 days, when you're free. The first to confirm takes each."
+        description="Jobs in the next 7 days that need a Cleaner, when you're free. The first to confirm takes each."
       >
         {open.length > 0 ? (
           <List
@@ -68,17 +68,17 @@ export function CleanerOffers() {
               })
             }
           >
-            {open.map((place) => (
+            {open.map((job) => (
               <ListItem
-                key={place.jobId}
-                id={place.jobId}
-                start={<DateTile date={place.startsAt} size="sm" />}
-                title={formatDateTime(place.startsAt)}
+                key={job.jobId}
+                id={job.jobId}
+                start={<DateTile date={job.startsAt} size="sm" />}
+                title={formatDateTime(job.startsAt)}
                 description={[
-                  place.postcode,
-                  place.serviceName,
-                  `${formatHours(place.hoursOnSite)} on site`,
-                  crewOf(place),
+                  job.postcode,
+                  job.serviceName,
+                  `${formatHours(job.hoursOnSite)} on site`,
+                  crewOf(job),
                 ].join(" · ")}
               />
             ))}

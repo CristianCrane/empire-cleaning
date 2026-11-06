@@ -1,11 +1,11 @@
 import { expect, test } from "vitest";
-import { holdsPlace } from "./index.js";
+import { isOnCrew } from "./index.js";
 
-// only Offered and Confirmed hold a place: a Released one, or one Office
+// only Offered and Confirmed are on the crew: a Released one, or one Office
 // Staff took off, has let it go
-test("who holds a place on a Job's crew", () => {
-  expect(holdsPlace("offered")).toBe(true);
-  expect(holdsPlace("confirmed")).toBe(true);
-  expect(holdsPlace("released")).toBe(false);
-  expect(holdsPlace("taken_off")).toBe(false);
+test("who is on a Job's crew", () => {
+  expect(isOnCrew("offered")).toBe(true);
+  expect(isOnCrew("confirmed")).toBe(true);
+  expect(isOnCrew("released")).toBe(false);
+  expect(isOnCrew("taken_off")).toBe(false);
 });

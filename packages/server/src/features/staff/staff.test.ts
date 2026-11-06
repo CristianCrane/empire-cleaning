@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import type {
   OfficeJob,
-  OpenPlace,
+  CleanerNeeded,
   StaffDetail,
   StaffMember,
 } from "@empire-cleaning/models";
@@ -10,11 +10,15 @@ import { confirmAssignment, offerAssignment } from "#features/assignments";
 import { createClient } from "#features/clients";
 import { siteVisits } from "#features/site-visits";
 import { createStaff, setUsualWeek } from "#features/staff";
-import { api, signIn, testClock, testEmail } from "../../../tests/harness.ts";
+import {
+  type Agent,
+  api,
+  signIn,
+  testClock,
+  testEmail,
+} from "../../../tests/harness.ts";
 import { bookedJob, signInAsOffice } from "../../../tests/fixtures.ts";
 import { signInWithGoogle } from "../../../tests/google.ts";
-
-type Office = Awaited<ReturnType<typeof signInAsOffice>>;
 
 const cory = {
   name: "Cory Cleaner",
@@ -22,19 +26,19 @@ const cory = {
   roles: ["cleaner"],
 };
 
-const invite = (office: Office, invitation: object = cory) =>
+const invite = (office: Agent, invitation: object = cory) =>
   office.post("/api/staff").send(invitation);
 
-const me = async (agent: Office) =>
+const me = async (agent: Agent) =>
   (await agent.get("/api/me").expect(200)).body;
 
-const staffNamed = async (office: Office, name: string) =>
+const staffNamed = async (office: Agent, name: string) =>
   ((await office.get("/api/staff").expect(200)).body as StaffMember[]).find(
     (m) => m.name === name,
   )!;
 
 // What deactivating a Cleaner, or a day of theirs going to 0 hours, does to
-// what they hold (#242, #158). Cory holds a Confirmed place on a Job at 9am on
+// what they hold (#242, #158). Cory is Confirmed on a Job at 9am on
 // Thursday the 8th, a crew of one; Dee, free that day, could take it.
 const corysThursday = async () => {
   const office = await signInAsOffice();
@@ -60,7 +64,7 @@ const corysThursday = async () => {
   const openToDee = async () =>
     (
       (await (await signIn("dee@example.com")).get("/api/assignments/open"))
-        .body as OpenPlace[]
+        .body as CleanerNeeded[]
     ).map((p) => p.jobId);
   return { office, member, job, path, jobOf, openToDee };
 };
@@ -241,7 +245,7 @@ describe("Staff pictures", () => {
 });
 
 describe("editing Staff", () => {
-  const edit = (office: Office, id: string, changes: object) =>
+  const edit = (office: Agent, id: string, changes: object) =>
     office.patch(`/api/staff/${id}`).send(changes);
 
   test("changes their name and roles, and their access with them", async () => {
@@ -311,7 +315,7 @@ describe("editing Staff", () => {
     );
   });
 
-  test("won't take the Cleaner role from someone holding a place on a Job to come", async () => {
+  test("won't take the Cleaner role from someone on the crew of a Job to come", async () => {
     const office = await signInAsOffice();
     const member = await createStaff({ ...cory, roles: ["cleaner"] });
     await setUsualWeek(member.id, [8, 8, 8, 8, 8, 0, 0]);
@@ -330,7 +334,7 @@ describe("editing Staff", () => {
     }).expect(409);
 
     expect(body.message).toBe(
-      "Cory Cleaner holds a place on a Job to come: release it first",
+      "Cory Cleaner is on a Job to come: release it first",
     );
   });
 });
@@ -411,14 +415,14 @@ describe("deactivating Staff", () => {
       .expect(404);
   });
 
-  test("Releases their places on Jobs to come, opening them to everyone free (#242)", async () => {
+  test("Releases their Assignments to Jobs to come, opening them to everyone free (#242)", async () => {
     const { office, member, jobOf, openToDee } = await corysThursday();
 
     await office.post(`/api/staff/${member.id}/deactivate`).expect(200);
 
     expect(await jobOf()).toMatchObject({
       assignment: "unassigned",
-      openPlaces: 1,
+      cleanersNeeded: 1,
       assignments: [{ status: "released" }],
     });
     expect(await openToDee()).toHaveLength(1);
@@ -443,7 +447,7 @@ describe("deactivating Staff", () => {
 });
 
 describe("Staff availability", () => {
-  const corysDetail = async (office: Office) => {
+  const corysDetail = async (office: Agent) => {
     await invite(office).expect(201);
     const member = await staffNamed(office, "Cory Cleaner");
     return { id: member.id, path: `/api/staff/${member.id}` };
@@ -572,7 +576,7 @@ describe("Staff availability", () => {
     ]);
   });
 
-  test("a day going to 0 hours frees their places that day, and tells them (#158, #242)", async () => {
+  test("a day going to 0 hours frees their Assignments that day, and tells them (#158, #242)", async () => {
     const { office, path, jobOf, openToDee } = await corysThursday();
 
     await office
@@ -582,7 +586,7 @@ describe("Staff availability", () => {
 
     expect(await jobOf()).toMatchObject({
       assignment: "unassigned",
-      openPlaces: 1,
+      cleanersNeeded: 1,
     });
     expect(await openToDee()).toHaveLength(1);
     expect(testEmail().lastTo(cory.email).subject).toBe(
@@ -590,7 +594,7 @@ describe("Staff availability", () => {
     );
   });
 
-  test("fewer hours that aren't 0 keep their places", async () => {
+  test("fewer hours that aren't 0 keep their Assignments", async () => {
     const { office, path, jobOf } = await corysThursday();
 
     await office
@@ -601,7 +605,7 @@ describe("Staff availability", () => {
     expect((await jobOf()).assignment).toBe("assigned");
   });
 
-  test("a weekday going to 0 in the usual week frees their places on it (#158, #242)", async () => {
+  test("a weekday going to 0 in the usual week frees their Assignments on it (#158, #242)", async () => {
     const { office, path, jobOf } = await corysThursday();
 
     await office
@@ -612,7 +616,7 @@ describe("Staff availability", () => {
     expect((await jobOf()).assignment).toBe("unassigned");
   });
 
-  test("a day going back to a usual week of 0 frees their places that day", async () => {
+  test("a day going back to a usual week of 0 frees their Assignments that day", async () => {
     const { office, path, jobOf } = await corysThursday();
     await office
       .put(`${path}/exceptions/2026-01-08`)
