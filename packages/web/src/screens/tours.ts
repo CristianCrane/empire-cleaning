@@ -1,4 +1,5 @@
 import type { AreaId } from "../session.ts";
+import { officeTours } from "./office/tours.ts";
 import { clientTours } from "./portal/tours.ts";
 
 // First-time help (#291): a short spotlight tour of a screen, shown once, the
@@ -8,9 +9,11 @@ import { clientTours } from "./portal/tours.ts";
 // what only a browser can run.
 
 // what a step points at, found by the screen's own words, so no screen
-// carries anything for its tour: a link (or ButtonLink, or shortcut) whose
-// text starts with these words, or a Section with this title
-export type Target = { link: string } | { section: string };
+// carries anything for its tour: something pressed (a link, Button,
+// ButtonLink or shortcut) whose text starts with these words, or a part
+// (a Section, a labelled group) whose name does. The first such in the page
+// is the one, so a part is found before anything named like it inside it
+export type Target = { press: string } | { named: string };
 
 type TourStep = { target: Target; title: string; text: string };
 
@@ -25,14 +28,16 @@ type Tour = {
 };
 
 export type AreaTours = {
-  // the area's one line of value, leading whichever tour a person meets first
+  // the area's one line of value, leading the first of its tours a person
+  // meets
   welcome: string;
   tours: Tour[];
 };
 
-// the Office's come in #295, the Cleaner area's in #296
+// the Cleaner area's come in #296
 export const toursFor: Partial<Record<AreaId, AreaTours>> = {
   portal: clientTours,
+  office: officeTours,
 };
 
 export const tourIds = Object.values(toursFor).flatMap((area) =>

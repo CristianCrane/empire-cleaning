@@ -317,7 +317,8 @@ export const signedInAs = async (page: Page, email: string) => {
 // every test starts from an empty database and no emails, and fails if the
 // Content-Security-Policy (vite.config.ts) blocked anything a page loads.
 // First-time help's tours dim the page and take every press, so a test meets
-// none, as if each had been seen, unless it asks to (showTours, tours.spec.ts)
+// none, as if each had been seen, unless it asks to in its own page
+// (showTours, tours.spec.ts)
 export const test = base.extend<{
   cleanSlate: void;
   allowedByCsp: void;
@@ -352,7 +353,6 @@ export const test = base.extend<{
   showTours: [false, { option: true }],
   toursSeen: [
     async ({ browser, context, showTours }, use) => {
-      if (showTours) return use();
       const routed: BrowserContext[] = [];
       const allSeen = (on: BrowserContext) => {
         routed.push(on);
@@ -366,9 +366,9 @@ export const test = base.extend<{
           });
         });
       };
-      await allSeen(context);
+      if (!showTours) await allSeen(context);
       // and in every browser a test opens beside its own, e.g. the Client's
-      // while the Office's is open
+      // while the Office's is open, tours shown in its own or not
       const newContext = browser.newContext.bind(browser);
       browser.newContext = async (...options) => {
         const opened = await newContext(...options);

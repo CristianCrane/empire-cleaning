@@ -105,7 +105,9 @@ test("a quiet day says so", async ({ page }) => {
   await signInAsOffice(page);
 
   await expect(
-    page.getByText("Nothing needs attention right now."),
+    page.getByText(
+      "Nothing needs you right now. When a Client asks for a Quote or a new time, or a Job needs a Cleaner, it shows up here.",
+    ),
   ).toBeVisible();
 });
 
