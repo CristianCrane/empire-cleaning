@@ -1,18 +1,13 @@
-import type { Page } from "@playwright/test";
 import {
   bookJob,
-  createStaff,
   emailsTo,
   expect,
   failCharges,
-  proposeNextMonday,
   requireApproval,
-  requestQuoteAsGuest,
-  setUsualWeek,
   signedInAs,
   signInWithLink,
   test,
-  draftTheQuote,
+  quoteSent,
 } from "./harness.ts";
 
 const olive = {
@@ -25,32 +20,6 @@ const casey = { name: "Casey Client", email: "casey@example.com" };
 // the API's clock is at 4am on Monday 5 January 2026 in New York; Quotes here
 // are for 9am on Monday 12 January
 
-// two Cleaners free on weekdays, so the proposed time has room for a crew of 2
-const cleanerAvailable = async () => {
-  for (const name of ["Cory Cleaner", "Dee Cleaner"]) {
-    const member = await createStaff({
-      name,
-      email: `${name.split(" ")[0]!.toLowerCase()}@example.com`,
-      roles: ["cleaner"],
-    });
-    await setUsualWeek(member.id, [8, 8, 8, 8, 8, 0, 0]);
-  }
-};
-
-// the Office sends Casey a Quote, and stays on its page
-const quoteSent = async (page: Page) => {
-  await cleanerAvailable();
-  await requestQuoteAsGuest(casey);
-  await createStaff(olive);
-  await signedInAs(page, olive.email);
-  await page.goto("/office/quotes");
-  await page.getByText(casey.name).click();
-  await draftTheQuote(page);
-  await proposeNextMonday(page);
-  await page.getByRole("button", { name: `Send to ${casey.name}` }).click();
-  await expect(page.getByText(`Quote sent to ${casey.email}`)).toBeVisible();
-};
-
 const linkIn = async (subject: string) => {
   const sent = (await emailsTo(casey.email)).find((e) => e.subject === subject);
   return new URL(sent!.text.match(/https?:\/\/\S+/)![0]).pathname;
@@ -60,7 +29,7 @@ test(
   "the Client accepts from the Quote email in one step, and sees the Job booked",
   { tag: ["@smoke", "@desktop"] },
   async ({ page, browser }) => {
-    await quoteSent(page);
+    await quoteSent(page, olive, casey);
 
     const client = await (await browser.newContext()).newPage();
     const link = await linkIn("Your Quote from Empire Cleaning");
@@ -110,7 +79,7 @@ test("a declined Deposit books nothing, and another try goes through", async ({
   page,
   browser,
 }) => {
-  await quoteSent(page);
+  await quoteSent(page, olive, casey);
   const client = await (await browser.newContext()).newPage();
   await signedInAs(client, casey.email);
   await client.goto(await linkIn("Your Quote from Empire Cleaning"));
@@ -140,7 +109,7 @@ test("a Deposit the bank asks the Client to approve is booked once approved", as
   page,
   browser,
 }) => {
-  await quoteSent(page);
+  await quoteSent(page, olive, casey);
   const client = await (await browser.newContext()).newPage();
   await signedInAs(client, casey.email);
   await client.goto(await linkIn("Your Quote from Empire Cleaning"));
@@ -163,7 +132,7 @@ test("Office Staff email a link to add a card, then record the Client's acceptan
   page,
   browser,
 }) => {
-  await quoteSent(page);
+  await quoteSent(page, olive, casey);
   // what's next, above the Quote's story
   const waiting = page
     .getByRole("status")
@@ -210,7 +179,7 @@ test("Office Staff record acceptance of the offer while drafting a new Revision,
   page,
   browser,
 }) => {
-  await quoteSent(page);
+  await quoteSent(page, olive, casey);
   const client = await (await browser.newContext()).newPage();
   await signedInAs(client, casey.email);
   await client.goto("/portal/payment-method");
@@ -250,7 +219,7 @@ test("a Quote whose day has filled up can't be paid for, and the Office is asked
   page,
   browser,
 }) => {
-  await quoteSent(page);
+  await quoteSent(page, olive, casey);
   // another booking takes all of Monday's 16 hours, from 2pm
   await bookJob({ startsAt: "2026-01-12T19:00:00Z", labourHours: 16 });
 

@@ -550,6 +550,34 @@ export const draftTheQuote = async (
   await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}\/draft$/);
 };
 
+// a one-off Quote the Client asked for as a Guest, Sent by `office` (added
+// as Office Staff here) for 9am on Monday 12 January (proposeNextMonday),
+// with two Cleaners free on weekdays so a crew of 2 fits. The page is left
+// on the Quote.
+export const quoteSent = async (
+  page: Page,
+  office: { email: string; name: string },
+  client: { email: string; name: string },
+) => {
+  for (const name of ["Cory Cleaner", "Dee Cleaner"]) {
+    const member = await createStaff({
+      name,
+      email: `${name.split(" ")[0]!.toLowerCase()}@example.com`,
+      roles: ["cleaner"],
+    });
+    await setUsualWeek(member.id, [8, 8, 8, 8, 8, 0, 0]);
+  }
+  await requestQuoteAsGuest(client);
+  await createStaff({ ...office, roles: ["office_staff"] });
+  await signedInAs(page, office.email);
+  await page.goto("/office/quotes");
+  await page.getByText(client.name).click();
+  await draftTheQuote(page);
+  await proposeNextMonday(page);
+  await page.getByRole("button", { name: `Send to ${client.name}` }).click();
+  await expect(page.getByText(`Quote sent to ${client.email}`)).toBeVisible();
+};
+
 // from a business's Quote whose premises haven't been seen: records the
 // premises as the Office knows them, with no visit, and comes back
 export const recordFindingsWithoutVisit = async (page: Page) => {
