@@ -113,6 +113,20 @@ can change, through the same loop.
   someone, danger for something that failed or is late, info for what
   they're waiting on us for, success for done.
 
+### First-time help
+
+- **First-time help is a spotlight tour, never a Notice or a checklist
+  card**: nothing may shift the page's layout. One to three steps, each
+  popover beside what it points at (`startTour`), shown once per screen,
+  the first time it matters: its tour runs only when every step's target is
+  on the screen. ("First-time help points, never pushes")
+- **Steps find their targets by the screen's own words** (a link's text, a
+  Section's title), never `data-tour` attributes; the tours spec fails when
+  one can't be found.
+- **The portal's one line of value leads the first tour a person meets.**
+  Closing a tour partway counts as seen; Show tips again in the account menu
+  brings every tour back.
+
 ### Dialogs and rows
 
 - **A row holds no Buttons.** Pressing it opens one dialog that does the
@@ -294,3 +308,4 @@ Newest last. "Built in" is the PR (or branch) that shipped it.
 | Landing > footer | The new landing site linked none of the business's social and review pages, which the old site did (#223): where do Facebook, Instagram, Yelp and the Google Business Profile go? | Under the details / a row of their own (round tinted buttons) / named links under the logo | **Under the details**; then the footer in three columns | Four small marks in one colour (muted, the brand green on hover) at the foot of the phone, area and hours column: as quiet as the rest of the footer. Seen in place, the areas in a row across the top left a gap under them on a laptop, and centred in the middle their differing widths looked ragged, so from a tablet the footer is three columns: the areas left (a column, left-aligned), the logo in the middle, the details right, their middles level; the © is a centred row of its own at the foot. On a phone it stays centred, the areas on top. Each mark is named "Empire Cleaning on …" and opens in a new tab. The marks are Simple Icons; Google's full-colour "G" stays for its sign-in button, which its rules require | [`prototype-social-links`](https://github.com/CristianCrane/empire-cleaning/tree/prototype-social-links) | #223 |
 | Cleaner and Office > a Job's crew | The Office screens said "Needs 1 more Cleaner", but the Cleaner area and emails still said "place" (Release my place, "has places open"), which read oddly to the owner (#148). What's the one word? | A Cleaner needed / a spot on the crew / a crew opening (talked through) | **Cleaner Needed; a Cleaner is on the Job** | A Cleaner is offered, confirms and releases the Job itself, never a place: Release this Job, Job confirmed, Offered to you; emails say a Job needs a Cleaner. The Office keeps "Needs 1 more Cleaner" and "1 of 2 Cleaners Confirmed", and a Staff member's Notice reads "Cory is on Deep Clean at …". The glossary and the code say the same | (none) | #148 |
 | Office, Cleaner and Client > the account menu | Once first-time help's tours have been seen, how does someone see them again (#291 Q6)? | (tried in the #291 prototype, with its tours) | **Show tips again, beside Sign out** | A closed tour has no other way back, and the help shows once per Account, not per device. A quiet Button before Sign out in the Account dialog every area shares. It forgets every tour the Account has seen, on every device, says "Tips will show again" and closes the menu; each screen's tour then shows on its next visit | [`prototype-onboarding`](https://github.com/CristianCrane/empire-cleaning/tree/prototype-onboarding) | #293 |
+| Client > Home, a Quote, Home once booked | How does a first-time Client learn the portal without calling (#291)? | First-time Notices / spotlight tour / spotlight tour as a sheet on a phone / getting-started checklist | **Spotlight tour, the popover beside what it points at** | Nothing on the page may move: a Notice or a checklist pushes it down, and again once dismissed. The sheet hid what it pointed at on a phone. Three tours, once each: See your Quote on Home with a Quote waiting; Pay and book on a one-off Quote with a Deposit; How we get in, then Move or cancel, on Home once booked. The first one met leads with "Book, move and pay for your cleans here, no phone calls needed." (with Jennifer, #206) | [`prototype-onboarding`](https://github.com/CristianCrane/empire-cleaning/tree/prototype-onboarding) | #294 |

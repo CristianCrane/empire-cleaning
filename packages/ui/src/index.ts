@@ -50,6 +50,7 @@ export {
 } from "./theme.tsx";
 export { themeBootScript } from "./theme-boot.ts";
 export { ToastRegion, showToast, type ToastContent } from "./Toast.tsx";
+export { startTour, type TourStep } from "./Tour.ts";
 
 // wiring for the app's router: design-system links navigate through it, and
 // apps declare their link type by augmenting RouterConfig on this module

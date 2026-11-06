@@ -42,11 +42,17 @@ Every screen is built from the design system in `packages/ui` (`@empire-cleaning
 
 `src/session.ts` holds the Better Auth browser client (functions only, no UI), the areas and the signed-in Account with the first-time help tours it has seen (`seenTours`), asked of `GET /api/me` once and remembered until sign-out. The route guards live in `src/router.tsx`.
 
-The signed-in Account is remembered, not asked for on every click. The app asks `GET /api/me` again when the person switches to another area, comes back to the tab (`src/main.tsx`), does something that can connect their Account to a record, or presses Show tips again. That is when it can have changed behind the app's back: asking for a Quote on the landing page, the Office adding a record, signing out in another tab.
+The signed-in Account is remembered, not asked for on every click. The app asks `GET /api/me` again when the person switches to another area, comes back to the tab (`src/main.tsx`), does something that can connect their Account to a record, or presses Show tips again. That is when it can have changed behind the app's back: asking for a Quote on the landing page, the Office adding a record, signing out in another tab. A tour seen is added to the remembered Account in place as well as sent to the API (`seeTour`), so it doesn't come back before the next look.
 
 The Office's Dashboard also asks again every minute while it can be seen (`src/screens/office/Dashboard.tsx`), so a new Quote request shows on a screen left open. The Office is emailed of each one too. Live updates (websockets) weren't worth it: a request is promised a Quote within a working day.
 
 In dev, Vite forwards `/api` to the server (`API_URL`, by default http://localhost:3000), so the app and the API share an origin and sign-in cookies just work. Production should do the same: serve the app and route `/api` to the server on one domain.
+
+## First-time help
+
+First-time help's tours (not the test site's tours of its demo people, `/people`) show a screen's parts once, the first time it matters (`docs/ux.md`, First-time help). Each area's tours are plain data in one file, `src/screens/portal/tours.ts` for the Client portal, listed in `src/screens/tours.ts`: an id the Account remembers it by, the route it's for, and one to three steps, each pointing at a link or a Section by its own words. `useTours` (`src/screens/run-tours.ts`, run by AreaLayout) starts one once the router has drawn a screen: the first for that route the Account hasn't seen whose every step is on the screen, through the design system's `startTour`. The first a person meets leads with the area's value line. Closing it, done or partway, marks it seen.
+
+To add a tour, add it to its area's file and walk to it in `e2e/tours.spec.ts`, which fails unless every tour ends up seen. The spec runs with `test.use({ showTours: true })`; every other spec is spared the tours by the harness, which answers `/api/me` with every tour seen, in each browser a test opens.
 
 ## Knowing where you are
 

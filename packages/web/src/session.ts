@@ -2,6 +2,7 @@ import { createAuthClient } from "better-auth/react";
 import { magicLinkClient } from "better-auth/client/plugins";
 import type { AccountRole, Me, SignedInAccount } from "@empire-cleaning/models";
 import { identify } from "@empire-cleaning/browser-monitoring";
+import { putJson } from "./api.ts";
 
 // Better Auth's browser client: plain functions over the API's /api/auth
 // endpoints (same origin; Vite forwards /api to the server), no UI of its own
@@ -29,7 +30,8 @@ export const areasFor = (account: SignedInAccount): AreaId[] =>
 // of the API and remembered, not asked on every click. It is asked again
 // when the person switches area or returns to the tab (see router.tsx and
 // main.tsx), and after something that can connect their Account to a record
-// or changes the tours seen (forgetAccount).
+// or forgets the tours seen (forgetAccount). A tour seen is added to it in
+// place (seeTour).
 let current: Promise<Me | null> | undefined;
 
 export const getAccount = () =>
@@ -40,6 +42,14 @@ export const getAccount = () =>
       identify(account?.id);
       return account;
     }));
+
+// a first-time help tour seen (screens/run-tours.ts): the remembered Account
+// learns it at once, so the tour doesn't come back before the next look, and
+// the API keeps it. Should that fail, the tour shows once more another time.
+export const seeTour = (account: Me, tour: string) => {
+  if (!account.seenTours.includes(tour)) account.seenTours.push(tour);
+  putJson(`/api/me/tours/${tour}`, undefined).catch(() => {});
+};
 
 // asks the API again next time it is needed, e.g. after becoming a Client
 export const forgetAccount = () => {

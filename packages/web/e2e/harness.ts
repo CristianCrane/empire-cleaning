@@ -1,8 +1,14 @@
 import AxeBuilder from "@axe-core/playwright";
-import { test as base, expect, type Page } from "@playwright/test";
-import type { QuoteSource, StaffRole } from "@empire-cleaning/models";
+import {
+  test as base,
+  expect,
+  type BrowserContext,
+  type Page,
+} from "@playwright/test";
+import type { Me, QuoteSource, StaffRole } from "@empire-cleaning/models";
 import { THEME_STORAGE_KEY } from "@empire-cleaning/ui/theme-boot";
 import { apiUrl, controlUrl } from "../playwright.config.ts";
+import { tourIds } from "../src/screens/tours.ts";
 
 // talks to the e2e API's control server (packages/server/tests/e2e/server.ts)
 const control = async (path: string, init?: RequestInit) => {
@@ -295,8 +301,15 @@ export const signedInAs = async (page: Page, email: string) => {
 };
 
 // every test starts from an empty database and no emails, and fails if the
-// Content-Security-Policy (vite.config.ts) blocked anything a page loads
-export const test = base.extend<{ cleanSlate: void; allowedByCsp: void }>({
+// Content-Security-Policy (vite.config.ts) blocked anything a page loads.
+// First-time help's tours dim the page and take every press, so a test meets
+// none, as if each had been seen, unless it asks to (showTours, tours.spec.ts)
+export const test = base.extend<{
+  cleanSlate: void;
+  allowedByCsp: void;
+  showTours: boolean;
+  toursSeen: void;
+}>({
   cleanSlate: [
     async ({}, use) => {
       await control("/reset", { method: "POST" });
@@ -319,6 +332,34 @@ export const test = base.extend<{ cleanSlate: void; allowedByCsp: void }>({
       );
       await use();
       expect(blocked, "blocked by the Content-Security-Policy").toEqual([]);
+    },
+    { auto: true },
+  ],
+  showTours: [false, { option: true }],
+  toursSeen: [
+    async ({ browser, context, showTours }, use) => {
+      if (showTours) return use();
+      const allSeen = (on: BrowserContext) =>
+        on.route("**/api/me", async (route) => {
+          const response = await route.fetch();
+          if (!response.ok()) return route.fulfill({ response });
+          const me: Me = await response.json();
+          await route.fulfill({
+            response,
+            json: { ...me, seenTours: tourIds },
+          });
+        });
+      await allSeen(context);
+      // and in every browser a test opens beside its own, e.g. the Client's
+      // while the Office's is open
+      const newContext = browser.newContext.bind(browser);
+      browser.newContext = async (...options) => {
+        const opened = await newContext(...options);
+        await allSeen(opened);
+        return opened;
+      };
+      await use();
+      browser.newContext = newContext;
     },
     { auto: true },
   ],

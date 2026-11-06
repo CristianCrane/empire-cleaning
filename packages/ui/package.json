@@ -23,6 +23,7 @@
     "@fontsource/barlow": "^5.3.0",
     "@fontsource/barlow-condensed": "^5.3.0",
     "@internationalized/date": "^3.12.4",
+    "driver.js": "^1.10.2",
     "lucide-react": "^1.53.0",
     "react-aria-components": "^1.22.0",
     "tailwind-merge": "^3.7.0",
