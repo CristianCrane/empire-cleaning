@@ -242,7 +242,7 @@ const useSecondLook = (jobs: StaffHolding[]) => {
     },
     label: (save: string) =>
       freeing !== "" && freeing === shown
-        ? `Free ${jobs.length === 1 ? "the place" : "the places"} and save`
+        ? `Free ${jobs.length === 1 ? "the Job" : "the Jobs"} and save`
         : save,
   };
 };
@@ -299,12 +299,12 @@ function WhatItFrees({
     <Notice tone="warning">
       {jobs.length === 1 ? (
         <p>
-          {firstName} holds a place on {heldLabel(jobs[0]!)}. {saving} frees it
-          for other free Cleaners.
+          {firstName} is on {heldLabel(jobs[0]!)}. {saving} frees it for other
+          free Cleaners.
         </p>
       ) : (
         <>
-          <p>{firstName} holds places on:</p>
+          <p>{firstName} is on:</p>
           <ul className="list-disc ps-5">
             {jobs.map((p) => (
               <li key={p.id}>{heldLabel(p)}</li>

@@ -189,7 +189,7 @@ export const editStaff = async (
       .limit(1);
     if (held) {
       throw new ConflictError(
-        `${member.name} holds a place on a Job to come: release it first`,
+        `${member.name} is on a Job to come: release it first`,
       );
     }
   }

@@ -108,7 +108,7 @@ function TakeIt({ job }: { job: CleanerNeeded }) {
         which === "confirm" ? { startsAt: job.startsAt } : undefined,
       );
       if (which === "confirm") {
-        showToast({ tone: "success", title: "Place confirmed" });
+        showToast({ tone: "success", title: "Job confirmed" });
         await navigate({
           to: "/cleaner/jobs/$jobId",
           params: { jobId: job.jobId },
@@ -163,7 +163,7 @@ function TakeIt({ job }: { job: CleanerNeeded }) {
           }
         >
           <p>
-            It has a place open, and you're free then. The first Cleaner to
+            It needs a Cleaner, and you're free then. The first Cleaner to
             confirm takes it, and sees the address, how to get in and the
             Client.
           </p>

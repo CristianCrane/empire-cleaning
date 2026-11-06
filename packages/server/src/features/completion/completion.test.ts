@@ -187,7 +187,9 @@ describe("completing a Job", () => {
 
     // it needs a second Cleaner: Unassigned
     const unassigned = await complete(cory.agent, jobId).expect(409);
-    expect(unassigned.body.message).toMatch(/every place .* Confirmed/i);
+    expect(unassigned.body.message).toMatch(
+      /everyone on this Job must Confirm/i,
+    );
     expect(
       (
         (await cory.agent.get(`/api/assignments/mine/${jobId}`))
@@ -209,7 +211,7 @@ describe("completing a Job", () => {
       .expect(201);
     const asDee = await signIn("dee2@example.com");
     expect((await complete(asDee, jobId).expect(409)).body.message).toMatch(
-      /Confirm your place/,
+      /Confirm this Job first/,
     );
     await confirmOffer(asDee, jobId);
 

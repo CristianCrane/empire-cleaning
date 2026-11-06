@@ -117,7 +117,7 @@ export function CleanerHome() {
         <EmptyState
           icon={CalendarDays}
           title="Nothing booked for you yet"
-          description="Jobs you're on show here, the next one first. Places you can take are under Offers."
+          description="Jobs you're on show here, the next one first. Jobs you can take are under Offers."
         />
       )}
       {rest.length > 0 && (

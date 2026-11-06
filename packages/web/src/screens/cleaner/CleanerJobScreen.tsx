@@ -71,8 +71,8 @@ export function CleanerJobScreen() {
       <NotYet job={job} />
       {open && !offered && !job.started && !job.assignment.canRelease && (
         <Notice>
-          It's less than 48 hours until this Job, so your place can't be
-          released here. If you can't make it, please call the Office.
+          It's less than 48 hours until this Job, so it can't be released here.
+          If you can't make it, please call the Office.
         </Notice>
       )}
       {offered && <TakeOffer job={job} />}
@@ -88,7 +88,7 @@ export function CleanerJobScreen() {
           (!job.started && job.assignment.canRelease)) && (
           <ActionFooter aria-label="What to do">
             {!job.started && job.assignment.canRelease && (
-              <Release job={job} label="Release my place" />
+              <Release job={job} label="Release this Job" />
             )}
             {job.canRecordNoAccess && <RecordNoAccess job={job} />}
             {job.canComplete && <CompleteJob job={job} />}
@@ -202,7 +202,7 @@ function JobDetails({ job }: { job: CleanerJob }) {
 // a Job the Office offered them: Confirm it, or let it go
 function TakeOffer({ job }: { job: CleanerJob }) {
   // reloads on failure too, to show the new time if the Job moved
-  const action = useAction("Your place wasn't confirmed. Please try again.", {
+  const action = useAction("The Job wasn't confirmed. Please try again.", {
     reloadOnFailure: true,
   });
 
@@ -214,11 +214,11 @@ function TakeOffer({ job }: { job: CleanerJob }) {
         postJson(`/api/assignments/${job.assignment.id}/confirm`, {
           startsAt: job.startsAt,
         }),
-      "Place confirmed",
+      "Job confirmed",
     );
 
   return (
-    <Section title="Your place">
+    <Section title="Offered to you">
       <Card>
         {action.problem && <Notice tone="danger">{action.problem}</Notice>}
         <ActionRow
@@ -229,12 +229,12 @@ function TakeOffer({ job }: { job: CleanerJob }) {
                 isPending={action.isPending}
                 onPress={() => void confirm()}
               >
-                Confirm my place
+                Confirm
               </Button>
             </>
           }
         >
-          <p>The Office offered you a place on this Job. Can you make it?</p>
+          <p>The Office offered you this Job. Can you make it?</p>
         </ActionRow>
       </Card>
     </Section>
@@ -251,14 +251,14 @@ function Release({ job, label }: { job: CleanerJob; label: string }) {
     setProblem(undefined);
     try {
       await postJson(`/api/assignments/${job.assignment.id}/release`);
-      showToast({ tone: "success", title: "Place released" });
+      showToast({ tone: "success", title: "Job released" });
       close();
       await navigate({ to: "/cleaner" });
     } catch (e) {
       setProblem(
         e instanceof ApiError && e.status === 409
           ? e.message
-          : "Your place wasn't released. Please try again.",
+          : "The Job wasn't released. Please try again.",
       );
     } finally {
       setPending(false);
@@ -268,7 +268,7 @@ function Release({ job, label }: { job: CleanerJob; label: string }) {
   return (
     <DialogTrigger>
       <Button variant="secondary">{label}</Button>
-      <Dialog title="Release your place?" role="alertdialog">
+      <Dialog title="Release this Job?" role="alertdialog">
         {({ close }) => (
           <>
             <p>

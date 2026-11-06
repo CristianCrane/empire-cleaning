@@ -62,14 +62,14 @@ describe("Offering a Job", () => {
       thursday({ jobs: [scheduled({ crew, crewSize })] });
     const anaOn = [{ id: "ana", name: "Ana Ruiz" }];
     expect(whyNotOffer(holding(anaOn), "job", ana, NOW)).toBe(
-      "Ana Ruiz already has a place on this Job",
+      "Ana Ruiz is already on this Job",
     );
     expect(whyNotOffer(holding(anaOn, 1), "job", bea, NOW)).toBe(
-      "This Job's place is taken",
+      "This Job already has its Cleaner",
     );
     const both = [...anaOn, { id: "cleo", name: "Cleo Diaz" }];
     expect(whyNotOffer(holding(both), "job", bea, NOW)).toBe(
-      "All 2 places on this Job are taken",
+      "This Job already has all 2 Cleaners it needs",
     );
   });
 
@@ -133,7 +133,7 @@ describe("Releasing an Assignment", () => {
     expect(whyNotRelease("offered", job(), before(1))).toBeNull();
     expect(whyNotRelease("confirmed", job(), before(49))).toBeNull();
     expect(whyNotRelease("confirmed", job(), before(47))).toBe(
-      "A Confirmed place can't be released within 48 hours of the Job. Please call the Office.",
+      "A Confirmed Job can't be released within 48 hours of it. Please call the Office.",
     );
   });
 });
@@ -241,8 +241,8 @@ describe("Cleaners Needed", () => {
           undefined,
           NOW,
         );
-      expect(refused("released")).toBe("You released your place on this Job");
-      expect(refused("offered")).toBe("You already have a place on this Job");
+      expect(refused("released")).toBe("You released this Job");
+      expect(refused("offered")).toBe("You're already on this Job");
       expect(refused()).toBe("You're no longer free for this Job");
     });
   });

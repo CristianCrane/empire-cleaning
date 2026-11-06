@@ -367,7 +367,7 @@ export const recordNoAccess = async (
     );
   if (!mine) throw new NotFoundError("Job not found");
   if (mine.status !== "confirmed") {
-    throw new ConflictError("Confirm your place on this Job first");
+    throw new ConflictError("Confirm this Job first");
   }
 
   const job = await db.transaction(async (tx) => {

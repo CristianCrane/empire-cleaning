@@ -56,7 +56,7 @@ export function CleanerOffers() {
 
       <Section
         title="Open to you"
-        description="Places on Jobs in the next 7 days, when you're free. The first to confirm takes each."
+        description="Jobs in the next 7 days that need a Cleaner, when you're free. The first to confirm takes each."
       >
         {open.length > 0 ? (
           <List

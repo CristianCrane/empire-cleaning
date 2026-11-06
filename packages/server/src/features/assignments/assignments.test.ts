@@ -155,7 +155,7 @@ describe("Offering Assignments", () => {
 
     const refused = await offer(office, job.id, dee.id).expect(409);
 
-    expect(refused.body.message).toBe("This Job's place is taken");
+    expect(refused.body.message).toBe("This Job already has its Cleaner");
     expect((await jobFor(office, job.id)).cleaners).toEqual([
       { id: dee.id, name: "Dee Cleaner", hours: 8 },
     ]);
@@ -176,7 +176,7 @@ describe("Offering Assignments", () => {
 
     expect(
       (await offer(office, job.id, cory.id).expect(409)).body.message,
-    ).toBe("Cory Cleaner already has a place on this Job");
+    ).toBe("Cory Cleaner is already on this Job");
     expect(
       (await offer(office, job.id, otto.id).expect(409)).body.message,
     ).toBe("Otto Office isn't an active Cleaner");
@@ -450,9 +450,9 @@ describe("Releasing", () => {
     await offer(office, job.id, cory.id).expect(201);
 
     const email = testEmail().lastTo("olive@example.com");
-    expect(email.subject).toBe("Cory Cleaner released a place on a Job");
+    expect(email.subject).toBe("Cory Cleaner released a Job");
     expect(email.text).toMatch(
-      /Cory Cleaner has released their place on this Job:\n\nWhen: .*\nWhere: \d+ Austin St/,
+      /Cory Cleaner has released this Job, so it needs a Cleaner:\n\nWhen: .*\nWhere: \d+ Austin St/,
     );
     expect(email.text).toContain(`http://localhost:5173/office/jobs/${job.id}`);
   });
@@ -490,7 +490,7 @@ describe("Releasing", () => {
       .post(`/api/assignments/${assignmentId}/release`)
       .expect(409);
     expect(refused.body.message).toBe(
-      "A Confirmed place can't be released within 48 hours of the Job. Please call the Office.",
+      "A Confirmed Job can't be released within 48 hours of it. Please call the Office.",
     );
     expect((await myJob(asCory, job.id)).assignment.status).toBe("confirmed");
   });

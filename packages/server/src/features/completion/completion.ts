@@ -201,7 +201,7 @@ export const completeJob = async (
     );
   if (!mine) throw new NotFoundError("Job not found");
   if (mine.status !== "confirmed") {
-    throw new ConflictError("Confirm your place on this Job first");
+    throw new ConflictError("Confirm this Job first");
   }
 
   const quoted = await quotedJob(jobId);
@@ -223,7 +223,7 @@ export const completeJob = async (
     const status = (await assignmentStatusOf([job!], tx)).get(jobId);
     if (status !== "assigned") {
       throw new ConflictError(
-        "Every place on this Job must be Confirmed before it can be Completed. Please call the Office.",
+        "Everyone on this Job must Confirm it before it can be Completed. Please call the Office.",
       );
     }
 

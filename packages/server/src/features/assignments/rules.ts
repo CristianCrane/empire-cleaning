@@ -69,12 +69,12 @@ export const whyNotOffer = (
     return `${member.name} isn't an active Cleaner`;
   }
   if (job.crew.some((c) => c.id === member.id)) {
-    return `${member.name} already has a place on this Job`;
+    return `${member.name} is already on this Job`;
   }
   if (job.crew.length >= job.crewSize) {
     return job.crewSize === 1
-      ? "This Job's place is taken"
-      : `All ${job.crewSize} places on this Job are taken`;
+      ? "This Job already has its Cleaner"
+      : `This Job already has all ${job.crewSize} Cleaners it needs`;
   }
   if (!isFree(day, member.id, asClean(job))) {
     return `${member.name} isn't free then: they're on another Job or a Site Visit at that time, or have no hours that day`;
@@ -111,7 +111,7 @@ export const whyNotRelease = (
   now: Date,
 ) =>
   status === "confirmed" && releaseClosed(job, now)
-    ? `A Confirmed place can't be released within ${RELEASE_CUTOFF_HOURS} hours of the Job. Please call the Office.`
+    ? `A Confirmed Job can't be released within ${RELEASE_CUTOFF_HOURS} hours of it. Please call the Office.`
     : null;
 
 // whether a Job's Cleaners Needed are open now: booked, not yet started, and
@@ -169,8 +169,8 @@ export const whyNotTakeCleanerNeeded = (
   if (opening.openTo.includes(staffId)) return null;
   const own = opening.assigned.find((p) => p.staffId === staffId);
   return own?.status === "released"
-    ? "You released your place on this Job"
+    ? "You released this Job"
     : own
-      ? "You already have a place on this Job"
+      ? "You're already on this Job"
       : "You're no longer free for this Job";
 };

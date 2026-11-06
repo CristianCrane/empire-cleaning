@@ -330,7 +330,7 @@ describe("editing Staff", () => {
     }).expect(409);
 
     expect(body.message).toBe(
-      "Cory Cleaner holds a place on a Job to come: release it first",
+      "Cory Cleaner is on a Job to come: release it first",
     );
   });
 });

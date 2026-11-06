@@ -265,8 +265,8 @@ export function NotYet({ job }: { job: CleanerJob }) {
   }
   return (
     <Notice tone="warning">
-      Not everyone on this Job has Confirmed their place, so it can't be marked
-      Completed yet. Please call the Office.
+      Not everyone on this Job has Confirmed it, so it can't be marked Completed
+      yet. Please call the Office.
     </Notice>
   );
 }

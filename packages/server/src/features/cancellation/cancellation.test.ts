@@ -499,7 +499,7 @@ describe("No Access", () => {
 
     const asDee = await signIn("dee@example.com");
     expect((await noAccess(asDee, jobId).expect(409)).body.message).toBe(
-      "Confirm your place on this Job first",
+      "Confirm this Job first",
     );
   });
 });

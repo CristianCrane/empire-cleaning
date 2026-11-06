@@ -401,7 +401,7 @@ describe("Office Staff answering", () => {
     expect(toCasey.text).toContain("There's no charge for moving it.");
     const toCory = testEmail().lastTo("cory@example.com");
     expect(toCory.subject).toBe("A Job you're on has moved");
-    expect(toCory.text).toContain("Please confirm your place at the new time");
+    expect(toCory.text).toContain("Please confirm you can make the new time");
 
     // Cory Confirms again at the new time
     await confirmOffer(asCory, jobId);
