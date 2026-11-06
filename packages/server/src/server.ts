@@ -39,6 +39,7 @@ import {
   router as siteVisitsRouter,
 } from "#features/site-visits";
 import { router as staffRouter } from "#features/staff";
+import { router as toursRouter } from "#features/tours";
 import {
   networkLoggingMiddleware,
   corsMiddleware,
@@ -82,6 +83,7 @@ app.get("/api/site", (_req, res) => {
 });
 
 app.use("/api/me", meRouter);
+app.use("/api/me/tours", toursRouter);
 app.use("/api/demo-people", demoPeopleRouter);
 app.use("/api/quotes", quotesRouter);
 app.use("/api/clients", clientsRouter);

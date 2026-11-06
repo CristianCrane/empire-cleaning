@@ -94,3 +94,33 @@ test("moving between pages in an area doesn't ask who you are each time", async 
 
   expect(asked).toEqual([]);
 });
+
+test("Show tips again is in every area's menu, and brings back every tour", async ({
+  page,
+}) => {
+  await createStaff({ ...olive, roles: ["office_staff", "cleaner"] });
+  await createClient({ email: olive.email, name: olive.name });
+  await signedInAs(page, olive.email);
+  await expect(page).toHaveURL("/office");
+  // first-time help's tours, seen on another device
+  for (const tour of ["office-today", "portal-home"])
+    expect((await page.request.put(`/api/me/tours/${tour}`)).status()).toBe(
+      204,
+    );
+
+  for (const area of ["Cleaner area", "Client portal"]) {
+    await page.getByRole("button", { name: olive.name }).click();
+    await expect(
+      page.getByRole("button", { name: "Show tips again" }),
+    ).toBeVisible();
+    await page.getByRole("row", { name: `Switch to ${area}` }).click();
+  }
+  await expect(page).toHaveURL("/portal");
+  await page.getByRole("button", { name: olive.name }).click();
+  await page.getByRole("button", { name: "Show tips again" }).click();
+
+  await expect(page.getByText("Tips will show again")).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Account" })).toBeHidden();
+  const me = await (await page.request.get("/api/me")).json();
+  expect(me.seenTours).toEqual([]);
+});
