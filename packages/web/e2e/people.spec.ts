@@ -6,6 +6,7 @@ import {
   signedInAs,
   followSignInLink,
   test,
+  eachTheme,
 } from "./harness.ts";
 
 // people from the demo the test site is seeded with (tests/seed.ts), named as
@@ -108,26 +109,15 @@ test("anyone else signs in by their email, back to the page asked for", async ({
   await expect(page).toHaveURL("/portal");
 });
 
-for (const theme of ["light", "dark"] as const) {
-  test(
-    `the people page has no accessibility violations, ${theme}`,
-    { tag: theme === "light" ? "@desktop" : [] },
-    async ({ page }) => {
-      if (theme === "dark") {
-        await page.addInitScript(() =>
-          localStorage.setItem("ec-theme", "dark"),
-        );
-      }
-      await signedInAs(page, jennifer.email);
-      await page.goto("/people?as=helen");
-      await expect(
-        page.getByRole("button", { name: "Be Helen" }),
-      ).toBeVisible();
+eachTheme(() => {
+  test("the people page has no accessibility violations", async ({ page }) => {
+    await signedInAs(page, jennifer.email);
+    await page.goto("/people?as=helen");
+    await expect(page.getByRole("button", { name: "Be Helen" })).toBeVisible();
 
-      await expectAccessible(page);
-    },
-  );
-}
+    await expectAccessible(page);
+  });
+});
 
 test("the real site has no people page", async ({ page }) => {
   // the e2e server is dev; stand in for the real site's answer

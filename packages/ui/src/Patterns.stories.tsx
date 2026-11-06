@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
+import { expect, waitFor, within } from "storybook/test";
 import {
   Building2,
   CalendarCheck,
@@ -44,6 +45,7 @@ import { Cell, Column, Row, Table, TableBody, TableHeader } from "./Table.tsx";
 import { Tab, TabList, TabPanel, Tabs } from "./Tabs.tsx";
 import { TextField } from "./TextField.tsx";
 import { Timeline, TimelineItem } from "./Timeline.tsx";
+import { startTour } from "./Tour.ts";
 
 // how the components go together on a screen: the rules the UX pass (#96)
 // settled, each picked from a prototype, shown as examples. docs/ux.md holds
@@ -698,6 +700,95 @@ function AllAtOnceInTwoColumns() {
   );
 }
 
+function ToursPointNeverPush() {
+  const quote = useRef<HTMLDivElement>(null);
+  const stop = useRef<() => void>(undefined);
+  // a tour still open when the story goes ends with it
+  useEffect(() => () => stop.current?.(), []);
+  const show = () => {
+    stop.current = startTour(
+      [
+        {
+          title: "Welcome",
+          text: "Book, move and pay for your cleans here, no phone calls needed.",
+        },
+        {
+          element: quote.current ?? undefined,
+          title: "Your Quote",
+          text: "Open it to choose your clean and book. You pay only the Deposit today.",
+        },
+      ],
+      () => (stop.current = undefined),
+    );
+  };
+
+  return (
+    <div className="flex flex-col gap-6">
+      <Rule title="First-time help points, never pushes">
+        <p>
+          A screen's first-time help is a short spotlight tour (
+          <code>startTour</code>), shown once, the first time the screen
+          matters: one to three steps, each popover beside what it points at. It
+          dims the page and moves nothing, so the screen a person comes back to
+          is the one they learnt. The first tour a person meets starts with the
+          portal's one line of value. Closing it partway counts as seen; Show
+          tips again in the account menu brings every tour back.
+        </p>
+        <p>
+          Never a Notice or a checklist card for it: either pushes the page
+          down, and the screen moves again once it's dismissed.
+        </p>
+      </Rule>
+      <div className="flex flex-col gap-4 md:flex-row">
+        <Example verdict="Do">
+          <div className="flex flex-col gap-4">
+            <Card>
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex flex-col gap-1">
+                  <Heading level={2} size={4} className="text-fg-muted">
+                    Your Quote is ready
+                  </Heading>
+                  <p className="text-xl font-semibold">Standard Clean, $180</p>
+                </div>
+                <div ref={quote}>
+                  <Button>See your Quote</Button>
+                </div>
+              </div>
+            </Card>
+            <Button variant="secondary" className="self-start" onPress={show}>
+              Show the tour
+            </Button>
+          </div>
+        </Example>
+        <Example verdict="Don't">
+          <div className="flex flex-col gap-4">
+            <Notice
+              action={
+                <Button variant="text" size="sm">
+                  Got it
+                </Button>
+              }
+            >
+              Your Quote is waiting. Open it to choose your clean and book.
+            </Notice>
+            <Card>
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex flex-col gap-1">
+                  <Heading level={2} size={4} className="text-fg-muted">
+                    Your Quote is ready
+                  </Heading>
+                  <p className="text-xl font-semibold">Standard Clean, $180</p>
+                </div>
+                <Button>See your Quote</Button>
+              </div>
+            </Card>
+          </div>
+        </Example>
+      </div>
+    </div>
+  );
+}
+
 const meta = {
   title: "Patterns",
   parameters: { layout: "padded" },
@@ -1169,4 +1260,24 @@ function MessagePages() {
 export const MessagePagesStory: Story = {
   name: "A message page: one Button, home a link",
   render: () => <MessagePages />,
+};
+
+export const ToursPointNeverPushStory: Story = {
+  name: "First-time help points, never pushes",
+  render: () => <ToursPointNeverPush />,
+  // the tour open, so its popover is checked too, in both themes
+  parameters: { a11y: { context: "body" } },
+  play: async ({ canvas, canvasElement, userEvent }) => {
+    const page = within(canvasElement.ownerDocument.body);
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Show the tour" }),
+    );
+    const welcome = await page.findByRole("dialog", { name: "Welcome" });
+    await userEvent.click(
+      within(welcome).getByRole("button", { name: "Next" }),
+    );
+    // each step fades in
+    const quote = await page.findByRole("dialog", { name: "Your Quote" });
+    await waitFor(() => expect(quote).toBeVisible());
+  },
 };

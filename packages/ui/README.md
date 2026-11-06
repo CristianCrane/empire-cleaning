@@ -5,17 +5,17 @@
 - `@empire-cleaning/ui`: the components (and the styles, imported once by the app).
 - `@empire-cleaning/ui/tokens.css`: just the styles, for pages without React (the landing site).
 - `@empire-cleaning/ui/theme`: just the ThemeToggle, so an island ships only that.
-- `@empire-cleaning/ui/theme-boot`: the inline `<head>` script that applies a pinned theme before first paint.
+- `@empire-cleaning/ui/theme-boot`: the inline `<head>` script that applies a chosen dark theme before first paint.
 
 Apps compile the styles with their own Tailwind (`@tailwindcss/vite`); `tokens.css` points Tailwind at this package's sources.
 
 - **Tokens** live in one file, `tokens.css`: colours (each written once as `light-dark(<light>, <dark>)`), type, radii and the 44px touch size. Components use semantic Tailwind utilities (`bg-surface`, `text-fg-muted`, `bg-primary`), so they work in both themes automatically. Tailwind's own palette is switched off, so an off-brand colour can't slip in.
 - **Brand**: the green, charcoal and ink from the Empire Cleaning logo. Barlow for reading, and Barlow Condensed in capitals for headings.
-- **Components** are built on [React Aria Components](https://react-spectrum.adobe.com/react-aria/), which handles keyboard, screen reader and touch behaviour: Button, Link, Breadcrumbs, TextField, NumberField, Checkbox, RadioGroup, Select, DatePicker, TimeField, Calendar, Form and Actions, Table, List, Card, Heading, StatusBadge, Notice, Dialog, Toast, AppLayout and ThemeToggle. EmbeddedField labels an input that belongs to someone else, such as the payment provider's payment form, so it reads like the other fields: framed in our field's box for a single input, or unframed for a form that draws its own boxes.
+- **Components** are built on [React Aria Components](https://react-spectrum.adobe.com/react-aria/), which handles keyboard, screen reader and touch behaviour: Button, Link, Breadcrumbs, TextField, NumberField, Checkbox, RadioGroup, Select, DatePicker, TimeField, Calendar, Form and Actions, Table, List, Card, Heading, StatusBadge, Notice, Dialog, Toast, AppLayout and ThemeToggle. `startTour` runs a spotlight tour of a screen on [driver.js](https://driverjs.com), its popover styled in our tokens (`tour.css`). EmbeddedField labels an input that belongs to someone else, such as the payment provider's payment form, so it reads like the other fields: framed in our field's box for a single input, or unframed for a form that draws its own boxes.
 - **Links and routing**: `Link` and AppLayout's nav navigate through the app's router. The app wraps itself in `RouterProvider` and declares its link type by augmenting `RouterConfig` on `@empire-cleaning/ui`; the web app does this in `packages/web/src/links.ts`.
 - **Actions**: put the main action last. On a phone it stacks at the bottom, nearest the thumb; on larger screens it sits on the right.
 - **Phone first**: tap targets are at least 44px, fields use 16px text (so phones don't zoom in), dialogs rise as bottom sheets, and AppLayout puts navigation in a bottom tab bar on phones and a sidebar from tablet width up. Use List for collections on a phone and Table for wide Office data.
-- **Theme** follows the device unless someone pins light or dark with the ThemeToggle, and each device remembers that choice.
+- **Theme** is light unless someone chooses dark with the ThemeToggle, and each device remembers that choice. The device's own light or dark setting isn't followed (`theme.tsx`).
 
 ## Catalogue
 

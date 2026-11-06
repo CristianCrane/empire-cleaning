@@ -6,10 +6,10 @@ import {
   expectAccessible,
   offerJob,
   setClock,
-  setUsualWeek,
   signedInAs,
   signUp,
   test,
+  addCleaner,
 } from "./harness.ts";
 
 // the API's clock is at 4am on Monday 5 January 2026 in New York. The Job
@@ -31,12 +31,7 @@ const casey = { name: "Casey Client", email: "casey@example.com" };
 const bookedJob = async () => {
   await createStaff(olive);
   await signUp(olive.email);
-  const cory = (await createStaff({
-    name: "Cory Cleaner",
-    email: "cory@example.com",
-    roles: ["cleaner"],
-  })) as { id: string };
-  await setUsualWeek(cory.id, [8, 8, 8, 8, 8, 0, 0]);
+  const cory = await addCleaner("Cory Cleaner");
   const job = await acceptedJob({
     startsAt: MONDAY_9AM,
     officeEmail: olive.email,

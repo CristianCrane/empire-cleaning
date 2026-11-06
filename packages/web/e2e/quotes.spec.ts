@@ -8,11 +8,11 @@ import {
   proposeNextMonday,
   requestQuoteAsGuest,
   setClock,
-  setUsualWeek,
   signedInAs,
   signInWithLink,
   test,
   draftTheQuote,
+  addCleaner,
 } from "./harness.ts";
 
 const olive = {
@@ -28,12 +28,7 @@ const casey = { name: "Casey Client", email: "casey@example.com" };
 // have 8 hours, and a crew of 2
 const signInAsOffice = async (page: Page) => {
   for (const name of ["Cory Cleaner", "Dee Cleaner"]) {
-    const member = await createStaff({
-      name,
-      email: `${name.split(" ")[0]!.toLowerCase()}@example.com`,
-      roles: ["cleaner"],
-    });
-    await setUsualWeek(member.id, [4, 4, 4, 4, 4, 0, 0]);
+    await addCleaner(name, [4, 4, 4, 4, 4, 0, 0]);
   }
   await createStaff(olive);
   await signedInAs(page, olive.email);

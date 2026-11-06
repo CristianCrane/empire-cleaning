@@ -8,9 +8,9 @@ import {
   moveJob,
   offerJob,
   setClock,
-  setUsualWeek,
   signedInAs,
   test,
+  addCleaner,
 } from "./harness.ts";
 
 // the API's fake clock is at 4am on Monday 5 January 2026 in New York. The
@@ -29,15 +29,6 @@ const signInAsOffice = async (page: Page) => {
   await createStaff(olive);
   await signedInAs(page, olive.email);
   await expect(page).toHaveURL("/office");
-};
-
-const cleaner = async (name: string) => {
-  const email = `${name.split(" ")[0]!.toLowerCase()}@example.com`;
-  const member = (await createStaff({ name, email, roles: ["cleaner"] })) as {
-    id: string;
-  };
-  await setUsualWeek(member.id, [8, 8, 8, 8, 8, 0, 0]);
-  return { id: member.id, email };
 };
 
 const signInAsCleaner = async (page: Page, email: string) => {
@@ -66,8 +57,8 @@ test(
   "Office Staff offer a Job to Cleaners from the Schedule",
   { tag: ["@smoke", "@desktop"] },
   async ({ page }) => {
-    const cory = await cleaner("Cory Cleaner");
-    await cleaner("Dee Cleaner");
+    const cory = await addCleaner("Cory Cleaner");
+    await addCleaner("Dee Cleaner");
     await thursdayJob();
     await signInAsOffice(page);
 
@@ -108,7 +99,7 @@ test(
 test("Office Staff take someone off a Job, leaving a Cleaner Needed", async ({
   page,
 }) => {
-  const cory = await cleaner("Cory Cleaner");
+  const cory = await addCleaner("Cory Cleaner");
   const job = await thursdayJob(1);
   await offerJob(job.id, cory.id, { confirmed: true });
   await signInAsOffice(page);
@@ -143,7 +134,7 @@ test("Office Staff take someone off a Job, leaving a Cleaner Needed", async ({
 });
 
 test("an Unassigned Job within 48 hours needs attention", async ({ page }) => {
-  await cleaner("Cory Cleaner");
+  await addCleaner("Cory Cleaner");
   // tomorrow at 9am
   await bookJob({
     startsAt: "2026-01-06T14:00:00Z",
@@ -165,8 +156,8 @@ test(
   "a Cleaner sees their Jobs and confirms one",
   { tag: "@smoke" },
   async ({ page }) => {
-    const cory = await cleaner("Cory Cleaner");
-    const dee = await cleaner("Dee Cleaner");
+    const cory = await addCleaner("Cory Cleaner");
+    const dee = await addCleaner("Dee Cleaner");
     const job = await thursdayJob();
     // today's, at 3pm
     const today = (await bookJob({
@@ -214,7 +205,7 @@ test(
 test("a Cleaner can't confirm a Job at a time they weren't shown", async ({
   page,
 }) => {
-  const cory = await cleaner("Cory Cleaner");
+  const cory = await addCleaner("Cory Cleaner");
   const job = await thursdayJob(1);
   await offerJob(job.id, cory.id);
   await signInAsCleaner(page, cory.email);
@@ -238,7 +229,7 @@ test("a Cleaner can't confirm a Job at a time they weren't shown", async ({
 test("a Cleaner can't take a Cleaner Needed at a time they weren't shown", async ({
   page,
 }) => {
-  const cory = await cleaner("Cory Cleaner");
+  const cory = await addCleaner("Cory Cleaner");
   const job = await thursdayJob(1);
   await signInAsCleaner(page, cory.email);
   await page.goto(`/cleaner/open/${job.id}`);
@@ -254,7 +245,7 @@ test("a Cleaner can't take a Cleaner Needed at a time they weren't shown", async
 });
 
 test("a Cleaner releases a Job they can't make", async ({ page }) => {
-  const cory = await cleaner("Cory Cleaner");
+  const cory = await addCleaner("Cory Cleaner");
   await createStaff(olive);
   const job = await thursdayJob();
   await offerJob(job.id, cory.id);
@@ -278,7 +269,7 @@ test("a Cleaner releases a Job they can't make", async ({ page }) => {
 test("a Confirmed Job can't be released within 48 hours of it", async ({
   page,
 }) => {
-  const cory = await cleaner("Cory Cleaner");
+  const cory = await addCleaner("Cory Cleaner");
   const job = await thursdayJob();
   await offerJob(job.id, cory.id, { confirmed: true });
   // Tuesday afternoon: under 48 hours to go
@@ -293,7 +284,7 @@ test("a Confirmed Job can't be released within 48 hours of it", async ({
 test("a Cleaner sees the Client's phone on the day of the Job", async ({
   page,
 }) => {
-  const cory = await cleaner("Cory Cleaner");
+  const cory = await addCleaner("Cory Cleaner");
   const job = await thursdayJob();
   await offerJob(job.id, cory.id, { confirmed: true });
   await setClock("2026-01-08T11:00:00Z");
@@ -308,7 +299,7 @@ test("a Cleaner sees the Client's phone on the day of the Job", async ({
 });
 
 test("a Cleaner can't open a Job they aren't on", async ({ page }) => {
-  await cleaner("Cory Cleaner");
+  await addCleaner("Cory Cleaner");
   const job = await thursdayJob();
   await signInAsCleaner(page, "cory@example.com");
 
@@ -321,7 +312,7 @@ test("the Job screens pass automated accessibility checks", async ({
   page,
   browser,
 }) => {
-  const cory = await cleaner("Cory Cleaner");
+  const cory = await addCleaner("Cory Cleaner");
   const job = await thursdayJob();
   await offerJob(job.id, cory.id);
   await signInAsOffice(page);
@@ -358,7 +349,7 @@ test(
   "a Cleaner takes a Cleaner Needed, seeing only roughly where it is first",
   { tag: "@smoke" },
   async ({ page }) => {
-    const cory = await cleaner("Cory Cleaner");
+    const cory = await addCleaner("Cory Cleaner");
     const job = await thursdayJob(1);
     await signInAsCleaner(page, cory.email);
 
@@ -399,8 +390,8 @@ test(
 test("a Cleaner is told when someone else took the Cleaner Needed first", async ({
   page,
 }) => {
-  const cory = await cleaner("Cory Cleaner");
-  const dee = await cleaner("Dee Cleaner");
+  const cory = await addCleaner("Cory Cleaner");
+  const dee = await addCleaner("Dee Cleaner");
   const job = await thursdayJob(1);
   await signInAsCleaner(page, cory.email);
   await page.goto(`/cleaner/open/${job.id}`);
@@ -417,8 +408,8 @@ test("a Cleaner says a Cleaner Needed is not for them, and the Office sees it", 
   page,
   browser,
 }) => {
-  const cory = await cleaner("Cory Cleaner");
-  await cleaner("Dee Cleaner");
+  const cory = await addCleaner("Cory Cleaner");
+  await addCleaner("Dee Cleaner");
   const job = await thursdayJob(1);
   await signInAsCleaner(page, cory.email);
   await page.goto(`/cleaner/open/${job.id}`);
@@ -443,7 +434,7 @@ test("a Cleaner says a Cleaner Needed is not for them, and the Office sees it", 
 test("the Office sees when a Job's Cleaners Needed open to Cleaners", async ({
   page,
 }) => {
-  await cleaner("Cory Cleaner");
+  await addCleaner("Cory Cleaner");
   // 9am on Tuesday the 13th: open from 9am on the 6th
   const job = (await bookJob({
     startsAt: "2026-01-13T14:00:00Z",

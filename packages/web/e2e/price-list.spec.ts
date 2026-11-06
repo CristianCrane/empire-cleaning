@@ -11,6 +11,7 @@ import {
   draftTheQuote,
   expectCurrentSection,
   goTo,
+  eachTheme,
 } from "./harness.ts";
 
 const casey = { name: "Casey Client", email: "casey@example.com" };
@@ -250,49 +251,33 @@ test("the request form offers the Add-ons by name, and the choice reaches the Of
   await office.close();
 });
 
-for (const theme of ["light", "dark"] as const) {
-  test.describe(`${theme} theme`, () => {
-    test.beforeEach(async ({ page }) => {
-      if (theme === "dark") {
-        await page.addInitScript(() =>
-          localStorage.setItem("ec-theme", "dark"),
-        );
-      }
-    });
-
-    test(
-      "the Price List has no accessibility violations",
-      { tag: theme === "light" ? "@desktop" : [] },
-      async ({ page }) => {
-        await signInAsOffice(page);
-        await page.goto("/office/price-list");
-        await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-          "Price List",
-        );
-
-        await expectAccessible(page);
-      },
+eachTheme(() => {
+  test("the Price List has no accessibility violations", async ({ page }) => {
+    await signInAsOffice(page);
+    await page.goto("/office/price-list");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "Price List",
     );
 
-    test(
-      "a Requested Quote's page, and its Draft's, have no accessibility violations",
-      { tag: theme === "light" ? "@desktop" : [] },
-      async ({ page }) => {
-        await requestQuoteAsGuest(casey, ["Inside the oven"]);
-        await signInAsOffice(page);
-        await page.goto("/office/quotes");
-        await page.getByText("Casey Client").click();
-        await expect(
-          page.getByRole("button", { name: "Draft the Quote" }),
-        ).toBeVisible();
-        await expectAccessible(page);
-
-        await draftTheQuote(page);
-        await expect(
-          page.getByRole("region", { name: "Deep Clean" }),
-        ).toBeVisible();
-        await expectAccessible(page);
-      },
-    );
+    await expectAccessible(page);
   });
-}
+
+  test("a Requested Quote's page, and its Draft's, have no accessibility violations", async ({
+    page,
+  }) => {
+    await requestQuoteAsGuest(casey, ["Inside the oven"]);
+    await signInAsOffice(page);
+    await page.goto("/office/quotes");
+    await page.getByText("Casey Client").click();
+    await expect(
+      page.getByRole("button", { name: "Draft the Quote" }),
+    ).toBeVisible();
+    await expectAccessible(page);
+
+    await draftTheQuote(page);
+    await expect(
+      page.getByRole("region", { name: "Deep Clean" }),
+    ).toBeVisible();
+    await expectAccessible(page);
+  });
+});

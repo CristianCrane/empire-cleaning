@@ -8,6 +8,7 @@ import {
   test,
   draftTheQuote,
   goTo,
+  eachTheme,
 } from "./harness.ts";
 
 const casey = { name: "Casey Client", email: "casey@example.com" };
@@ -151,33 +152,21 @@ test("a mistake on a Service is explained beside the field", async ({
   );
 });
 
-for (const theme of ["light", "dark"] as const) {
-  test.describe(`${theme} theme`, () => {
-    test.beforeEach(async ({ page }) => {
-      if (theme === "dark") {
-        await page.addInitScript(() =>
-          localStorage.setItem("ec-theme", "dark"),
-        );
-      }
-    });
-
-    test(
-      "the Services and a Service's page have no accessibility violations",
-      { tag: theme === "light" ? "@desktop" : [] },
-      async ({ page }) => {
-        await signInAsOffice(page);
-        await page.goto("/office/services");
-        await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-          "Services",
-        );
-        await expectAccessible(page);
-
-        await page.getByText("Commercial cleaning").click();
-        await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-          "Commercial cleaning",
-        );
-        await expectAccessible(page);
-      },
+eachTheme(() => {
+  test("the Services and a Service's page have no accessibility violations", async ({
+    page,
+  }) => {
+    await signInAsOffice(page);
+    await page.goto("/office/services");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "Services",
     );
+    await expectAccessible(page);
+
+    await page.getByText("Commercial cleaning").click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "Commercial cleaning",
+    );
+    await expectAccessible(page);
   });
-}
+});

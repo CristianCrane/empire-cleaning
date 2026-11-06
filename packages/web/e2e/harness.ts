@@ -1,7 +1,14 @@
 import AxeBuilder from "@axe-core/playwright";
-import { test as base, expect, type Page } from "@playwright/test";
-import type { QuoteSource, StaffRole } from "@empire-cleaning/models";
+import {
+  test as base,
+  expect,
+  type BrowserContext,
+  type Page,
+} from "@playwright/test";
+import type { Me, QuoteSource, StaffRole } from "@empire-cleaning/models";
+import { THEME_STORAGE_KEY } from "@empire-cleaning/ui/theme-boot";
 import { apiUrl, controlUrl } from "../playwright.config.ts";
+import { tourIds } from "../src/screens/tours.ts";
 
 // talks to the e2e API's control server (packages/server/tests/e2e/server.ts)
 const control = async (path: string, init?: RequestInit) => {
@@ -27,11 +34,25 @@ export const createClient = (client: {
 }) => control("/clients", { method: "POST", body: JSON.stringify(client) });
 
 // the hours a Staff member is usually available, Monday first
-export const setUsualWeek = (staffId: string, usualWeek: number[]) =>
+const setUsualWeek = (staffId: string, usualWeek: number[]) =>
   control(`/staff/${staffId}/usual-week`, {
     method: "PUT",
     body: JSON.stringify({ usualWeek }),
   });
+
+// a Cleaner on Staff, their email their first name at example.com, usually
+// free these hours each day, Monday first: 8 each weekday unless said
+export const addCleaner = async (
+  name: string,
+  usualWeek = [8, 8, 8, 8, 8, 0, 0],
+) => {
+  const email = `${name.split(" ")[0]!.toLowerCase()}@example.com`;
+  const member = (await createStaff({ name, email, roles: ["cleaner"] })) as {
+    id: string;
+  };
+  await setUsualWeek(member.id, usualWeek);
+  return { id: member.id, email };
+};
 
 // every Charge is declined with this reason from now on; null to stop
 export const failCharges = (reason: string | null = "card_declined") =>
@@ -294,8 +315,15 @@ export const signedInAs = async (page: Page, email: string) => {
 };
 
 // every test starts from an empty database and no emails, and fails if the
-// Content-Security-Policy (vite.config.ts) blocked anything a page loads
-export const test = base.extend<{ cleanSlate: void; allowedByCsp: void }>({
+// Content-Security-Policy (vite.config.ts) blocked anything a page loads.
+// First-time help's tours dim the page and take every press, so a test meets
+// none, as if each had been seen, unless it asks to (showTours, tours.spec.ts)
+export const test = base.extend<{
+  cleanSlate: void;
+  allowedByCsp: void;
+  showTours: boolean;
+  toursSeen: void;
+}>({
   cleanSlate: [
     async ({}, use) => {
       await control("/reset", { method: "POST" });
@@ -318,6 +346,41 @@ export const test = base.extend<{ cleanSlate: void; allowedByCsp: void }>({
       );
       await use();
       expect(blocked, "blocked by the Content-Security-Policy").toEqual([]);
+    },
+    { auto: true },
+  ],
+  showTours: [false, { option: true }],
+  toursSeen: [
+    async ({ browser, context, showTours }, use) => {
+      if (showTours) return use();
+      const routed: BrowserContext[] = [];
+      const allSeen = (on: BrowserContext) => {
+        routed.push(on);
+        return on.route("**/api/me", async (route) => {
+          const response = await route.fetch();
+          if (!response.ok()) return route.fulfill({ response });
+          const me: Me = await response.json();
+          await route.fulfill({
+            response,
+            json: { ...me, seenTours: tourIds },
+          });
+        });
+      };
+      await allSeen(context);
+      // and in every browser a test opens beside its own, e.g. the Client's
+      // while the Office's is open
+      const newContext = browser.newContext.bind(browser);
+      browser.newContext = async (...options) => {
+        const opened = await newContext(...options);
+        await allSeen(opened);
+        return opened;
+      };
+      await use();
+      browser.newContext = newContext;
+      // an answer still on its way as the test ends goes nowhere
+      for (const on of routed) {
+        await on.unrouteAll({ behavior: "ignoreErrors" }).catch(() => {});
+      }
     },
     { auto: true },
   ],
@@ -386,6 +449,28 @@ export const expectAccessible = async (page: Page, within?: string) => {
       on: v.nodes.map((n) => `${n.html}\n${n.failureSummary}`),
     })),
   ).toEqual([]);
+};
+
+// the tests in body, once in each theme: light, which runs on desktop too,
+// and dark, which is something a person chooses, remembered on their device
+export const eachTheme = (body: () => void) => {
+  for (const theme of ["light", "dark"] as const) {
+    test.describe(
+      `${theme} theme`,
+      { tag: theme === "light" ? "@desktop" : [] },
+      () => {
+        if (theme === "dark") {
+          test.beforeEach(({ page }) =>
+            page.addInitScript(
+              (key) => localStorage.setItem(key, "dark"),
+              THEME_STORAGE_KEY,
+            ),
+          );
+        }
+        body();
+      },
+    );
+  }
 };
 
 // the quote form asks in steps: presses Next, which checks the step's
@@ -525,6 +610,27 @@ export const draftTheQuote = async (
       .click();
   }
   await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}\/draft$/);
+};
+
+// a one-off Quote the Client asked for as a Guest, Sent by `office` (added
+// as Office Staff here) for 9am on Monday 12 January (proposeNextMonday),
+// with two Cleaners free on weekdays so a crew of 2 fits. The page is left
+// on the Quote.
+export const quoteSent = async (
+  page: Page,
+  office: { email: string; name: string },
+  client: { email: string; name: string },
+) => {
+  for (const name of ["Cory Cleaner", "Dee Cleaner"]) await addCleaner(name);
+  await requestQuoteAsGuest(client);
+  await createStaff({ ...office, roles: ["office_staff"] });
+  await signedInAs(page, office.email);
+  await page.goto("/office/quotes");
+  await page.getByText(client.name).click();
+  await draftTheQuote(page);
+  await proposeNextMonday(page);
+  await page.getByRole("button", { name: `Send to ${client.name}` }).click();
+  await expect(page.getByText(`Quote sent to ${client.email}`)).toBeVisible();
 };
 
 // from a business's Quote whose premises haven't been seen: records the

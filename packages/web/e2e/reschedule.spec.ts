@@ -9,10 +9,10 @@ import {
   offerJob,
   requestReschedule,
   setClock,
-  setUsualWeek,
   signedInAs,
   signUp,
   test,
+  addCleaner,
 } from "./harness.ts";
 
 // the API's clock is at 4am on Monday 5 January 2026 in New York. The Job
@@ -32,12 +32,7 @@ const casey = { name: "Casey Client", email: "casey@example.com" };
 const bookedJob = async () => {
   await createStaff(olive);
   await signUp(olive.email);
-  const cory = (await createStaff({
-    name: "Cory Cleaner",
-    email: "cory@example.com",
-    roles: ["cleaner"],
-  })) as { id: string };
-  await setUsualWeek(cory.id, [8, 8, 8, 8, 8, 0, 0]);
+  const cory = await addCleaner("Cory Cleaner");
   const job = await acceptedJob({
     startsAt: MONDAY_9AM,
     officeEmail: olive.email,
@@ -194,12 +189,7 @@ test(
     const job = await bookedJob();
     // another Client's clean on the Wednesday, from 10 to 11 with a crew of
     // 2: Dee and whoever else is free, so nobody is left for Casey's then
-    const dee = await createStaff({
-      name: "Dee Cleaner",
-      email: "dee@example.com",
-      roles: ["cleaner"],
-    });
-    await setUsualWeek(dee.id, [8, 8, 8, 8, 8, 0, 0]);
+    await addCleaner("Dee Cleaner");
     await bookJob({
       startsAt: "2026-01-14T15:00:00Z",
       labourHours: 2,

@@ -11,6 +11,7 @@ import {
   signInLinkFor,
   signInWithLink,
   test,
+  eachTheme,
 } from "./harness.ts";
 
 const officeStaff = {
@@ -311,51 +312,28 @@ test.describe("areas", () => {
   });
 });
 
-for (const theme of ["light", "dark"] as const) {
-  test.describe(`${theme} theme`, () => {
-    // dark is something a person chooses, remembered on their device
-    test.beforeEach(async ({ page }) => {
-      if (theme === "dark") {
-        await page.addInitScript(() =>
-          localStorage.setItem("ec-theme", "dark"),
-        );
-      }
-    });
+eachTheme(() => {
+  test("sign-in has no accessibility violations", async ({ page }) => {
+    await page.goto("/sign-in?error=INVALID_TOKEN");
+    await expect(
+      page.getByText("expired or has already been used"),
+    ).toBeVisible();
 
-    test(
-      "sign-in has no accessibility violations",
-      { tag: theme === "light" ? "@desktop" : [] },
-      async ({ page }) => {
-        await page.goto("/sign-in?error=INVALID_TOKEN");
-        await expect(
-          page.getByText("expired or has already been used"),
-        ).toBeVisible();
-
-        await expectAccessible(page);
-      },
-    );
-
-    test(
-      "an area has no accessibility violations",
-      { tag: theme === "light" ? "@desktop" : [] },
-      async ({ page }) => {
-        await createStaff(officeStaff);
-        await signedInAs(page, officeStaff.email);
-        await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-
-        await expectAccessible(page);
-      },
-    );
-
-    test(
-      "the welcome page has no accessibility violations",
-      { tag: theme === "light" ? "@desktop" : [] },
-      async ({ page }) => {
-        await signedInAs(page, "new@example.com");
-        await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-
-        await expectAccessible(page);
-      },
-    );
+    await expectAccessible(page);
   });
-}
+
+  test("an area has no accessibility violations", async ({ page }) => {
+    await createStaff(officeStaff);
+    await signedInAs(page, officeStaff.email);
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+
+    await expectAccessible(page);
+  });
+
+  test("the welcome page has no accessibility violations", async ({ page }) => {
+    await signedInAs(page, "new@example.com");
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+
+    await expectAccessible(page);
+  });
+});

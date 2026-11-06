@@ -47,6 +47,7 @@ import {
   type AreaId,
 } from "../session.ts";
 import { useAction } from "./action.ts";
+import { useTours } from "./run-tours.ts";
 
 // an item is current on its own page, and on the pages that belong to its
 // section (alsoCurrentFor: URL prefixes), e.g. a Quote reached from Quotes
@@ -162,6 +163,7 @@ export function AreaLayout({ area }: { area: AreaId }) {
   const matchRoute = useMatchRoute();
   const { pathname } = useLocation();
   const offers = useOffersCount(area === "cleaner", pathname);
+  useTours(area, account);
   const nav: NavItem[] = navFor[area].map(
     ({ alsoCurrentFor = [], ...item }) => ({
       ...item,

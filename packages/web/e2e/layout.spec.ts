@@ -16,12 +16,12 @@ import {
   requestReschedule,
   sentServicePlanQuote,
   setClock,
-  setUsualWeek,
   signedInAs,
   signUp,
   test,
   draftTheQuote,
   recordFindingsWithoutVisit,
+  addCleaner,
 } from "./harness.ts";
 
 // Every screen, at the widths people actually use, from a small phone to a
@@ -129,12 +129,7 @@ test("the Office's screens fit every width", async ({ page }) => {
   // every screen at every width: near the 30s budget alone, past it while
   // other workers load the machine
   test.slow();
-  const cory = await createStaff({
-    name: "Cory Cleaner",
-    email: "cory@example.com",
-    roles: ["cleaner"],
-  });
-  await setUsualWeek(cory.id, [7.25, 8, 8, 8, 6.5, 0, 0]);
+  const cory = await addCleaner("Cory Cleaner", [7.25, 8, 8, 8, 6.5, 0, 0]);
   const job = (await bookJob({
     startsAt: "2027-03-02T14:00:00Z",
     labourHours: 5.25,
@@ -309,14 +304,7 @@ test("an Accepted Quote and the Client's upcoming Jobs fit every width", async (
   browser,
 }) => {
   // two Cleaners, so the Quote's crew of 2 has room
-  for (const name of ["Cory Cleaner", "Dee Cleaner"]) {
-    const member = await createStaff({
-      name,
-      email: `${name.split(" ")[0]!.toLowerCase()}@example.com`,
-      roles: ["cleaner"],
-    });
-    await setUsualWeek(member.id, [8, 8, 8, 8, 8, 0, 0]);
-  }
+  for (const name of ["Cory Cleaner", "Dee Cleaner"]) await addCleaner(name);
   await requestQuoteAsGuest(casey, ["Inside the oven"]);
   await createStaff(olive);
   await signedInAs(page, olive.email);
@@ -485,12 +473,7 @@ test("cancelling, Cancelled and No Access Jobs fit every width", async ({
 }) => {
   await createStaff(olive);
   await signUp(olive.email);
-  const cory = (await createStaff({
-    name: "Cory Cleaner",
-    email: "cory@example.com",
-    roles: ["cleaner"],
-  })) as { id: string };
-  await setUsualWeek(cory.id, [8, 8, 8, 8, 8, 0, 0]);
+  const cory = await addCleaner("Cory Cleaner");
   const booked = await acceptedJob({
     startsAt: "2026-01-12T14:00:00Z",
     officeEmail: olive.email,
@@ -539,12 +522,7 @@ test("cancelling, Cancelled and No Access Jobs fit every width", async ({
 test("Reschedule Requests fit every width", async ({ page, browser }) => {
   await createStaff(olive);
   await signUp(olive.email);
-  const cory = (await createStaff({
-    name: "Cory Cleaner",
-    email: "cory@example.com",
-    roles: ["cleaner"],
-  })) as { id: string };
-  await setUsualWeek(cory.id, [8, 8, 8, 8, 8, 0, 0]);
+  await addCleaner("Cory Cleaner");
   const booked = await acceptedJob({
     startsAt: "2026-01-12T14:00:00Z",
     officeEmail: olive.email,
@@ -579,17 +557,12 @@ test("signing in, the welcome page and the Cleaner area fit every width", async 
   await signedInAs(page, "new@example.com");
   await expectFitsEveryWidth(page, "/welcome");
 
-  const cory = (await createStaff({
-    name: "Cory Cleaner",
-    email: "cory@example.com",
-    roles: ["cleaner"],
-  })) as { id: string };
+  // free that week, so they can be Offered it
+  const cory = await addCleaner("Cory Cleaner");
   const job = (await bookJob({
     startsAt: "2026-01-08T14:00:00Z",
     labourHours: 5.25,
   })) as { id: string };
-  // free that week, so they can be Offered it
-  await setUsualWeek(cory.id, [8, 8, 8, 8, 8, 0, 0]);
   await offerJob(job.id, cory.id);
   // and a Job open to Cory on Friday
   const open = (await bookJob({
