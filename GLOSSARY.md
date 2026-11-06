@@ -40,6 +40,10 @@ _Avoid_: User, login, profile
 An unidentified visitor who has not signed in, typically asking for a Quote.
 _Avoid_: Anonymous user, visitor
 
+**Preferred Language**:
+The language, English or Spanish, a Client or Staff member is shown screens and sent messages in; the Office workspace is always English (ADR-0025). A Guest's first Quote sets it for the new Client from the language of the page they asked on, and a Quote added to an existing Client leaves it as it is (ADR-0012). Office Staff set it for a Client they enter or Staff they invite; anyone may change their own, which changes it on every Client and Staff member their Account is connected to. Text a person writes, such as Access Instructions or a reason, is shown as written.
+_Avoid_: Locale, language setting
+
 ## Quoting
 
 **Quote**:

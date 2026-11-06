@@ -1,6 +1,13 @@
 // the home page's questions (#180): only those everyone asks, whatever
 // they need cleaned; a service's or an area's own are on its page. The
 // owner edits them here
+// asked on the home page and every area's; the area pages take it from here
+export const speakSpanish = {
+  question: "Do you speak Spanish?",
+  answer:
+    "Sí. Our crew speaks English and Spanish, so you can talk to us in whichever you prefer.",
+};
+
 export const faqs = [
   {
     question: "How much does a clean cost?",
@@ -36,9 +43,5 @@ export const faqs = [
     answer:
       "Queens, Brooklyn, Manhattan, all of Nassau County and western Suffolk County, in homes and business premises alike.",
   },
-  {
-    question: "Do you speak Spanish?",
-    answer:
-      "Sí. Our crew speaks English and Spanish, so you can talk to us in whichever you prefer.",
-  },
+  speakSpanish,
 ];

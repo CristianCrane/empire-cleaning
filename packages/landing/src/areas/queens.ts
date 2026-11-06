@@ -1,3 +1,4 @@
+import { speakSpanish } from "../faqs.ts";
 import type { Area } from "./index.ts";
 
 export const queens: Area = {
@@ -78,10 +79,6 @@ export const queens: Area = {
       answer:
         "No. Many of our Clients are at work. Tell us how we get in, whether that's a key with a neighbor, a lockbox or the doorman, and we'll lock up when we're done.",
     },
-    {
-      question: "Do you speak Spanish?",
-      answer:
-        "Sí. Our crew speaks English and Spanish, so you can talk to us in whichever you prefer.",
-    },
+    speakSpanish,
   ],
 };

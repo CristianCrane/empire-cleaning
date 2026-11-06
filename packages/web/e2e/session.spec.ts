@@ -114,6 +114,8 @@ test("Show tips again is in every area's menu, and brings back every tour", asyn
       page.getByRole("button", { name: "Show tips again" }),
     ).toBeVisible();
     await page.getByRole("row", { name: `Switch to ${area}` }).click();
+    // a click while the Account dialog is still closing is lost
+    await expect(page.getByRole("dialog", { name: "Account" })).toBeHidden();
   }
   await expect(page).toHaveURL("/portal");
   await page.getByRole("button", { name: olive.name }).click();
