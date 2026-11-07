@@ -3,7 +3,13 @@ import { business } from "../src/business.ts";
 import { guides } from "../src/guides/index.ts";
 import { reviews } from "../src/reviews.ts";
 import { appUrl } from "../playwright.config.ts";
-import { emailsTo, expect, expectAccessible, test } from "./harness.ts";
+import {
+  emailsTo,
+  expect,
+  expectAccessible,
+  newEmail,
+  test,
+} from "./harness.ts";
 
 // every kind of page: the home page, an area, a service, both guides
 const everyKindOfPage = [
@@ -153,26 +159,25 @@ test.describe("requesting a Quote", () => {
   };
 
   // the last step: who's asking
-  const fillDetails = async (page: Page) => {
+  const fillDetails = async (page: Page, email: string) => {
     await page.getByRole("textbox", { name: "Full name" }).fill("Casey Client");
-    await page
-      .getByRole("textbox", { name: "Email" })
-      .fill("casey@example.com");
+    await page.getByRole("textbox", { name: "Email" }).fill(email);
     await page.getByRole("textbox", { name: "Phone" }).fill("(646) 555-0100");
   };
 
   // every step, taking the home as it comes
-  const fillIn = async (page: Page, zip = "11375") => {
+  const fillIn = async (page: Page, email: string, zip = "11375") => {
     await fillWhere(page, zip);
     await next(page);
     await next(page);
-    await fillDetails(page);
+    await fillDetails(page, email);
   };
 
   test(
     "a Guest sends it and is told where the Quote will go",
     { tag: "@smoke" },
     async ({ page }) => {
+      const email = newEmail();
       await openQuoteForm(page);
       await fillWhere(page);
       await next(page);
@@ -183,7 +188,7 @@ test.describe("requesting a Quote", () => {
         })
         .click();
       await next(page);
-      await fillDetails(page);
+      await fillDetails(page, email);
 
       await page.getByRole("button", { name: "Request a Quote" }).click();
 
@@ -191,9 +196,9 @@ test.describe("requesting a Quote", () => {
         page.getByText("Thanks, we've got your request"),
       ).toBeVisible();
       await expect(
-        page.getByText("We'll email your Quote to casey@example.com"),
+        page.getByText(`We'll email your Quote to ${email}`),
       ).toBeVisible();
-      const [receipt] = await emailsTo("casey@example.com");
+      const [receipt] = await emailsTo(email);
       expect(receipt?.subject).toBe("We've received your request for a Quote");
     },
   );
@@ -201,6 +206,7 @@ test.describe("requesting a Quote", () => {
   test("says which page it was sent from, and the link the visit began with", async ({
     page,
   }) => {
+    const email = newEmail();
     // a visit from the Google Business Profile's link, asking from another
     // page
     await page.goto("/?utm_source=gbp&utm_medium=profile");
@@ -211,7 +217,7 @@ test.describe("requesting a Quote", () => {
     await expect(
       page.getByRole("radio", { name: /^Standard Clean/ }),
     ).toBeVisible();
-    await fillIn(page);
+    await fillIn(page, email);
 
     const sent = page.waitForRequest(/\/api\/quotes\/ask$/);
     await page.getByRole("button", { name: "Request a Quote" }).click();
@@ -228,8 +234,9 @@ test.describe("requesting a Quote", () => {
   });
 
   test("a visit from no tagged link sends just the page", async ({ page }) => {
+    const email = newEmail();
     await openQuoteForm(page);
-    await fillIn(page);
+    await fillIn(page, email);
 
     const sent = page.waitForRequest(/\/api\/quotes\/ask$/);
     await page.getByRole("button", { name: "Request a Quote" }).click();
@@ -243,8 +250,9 @@ test.describe("requesting a Quote", () => {
   });
 
   test("the API's explanation shows beside the field", async ({ page }) => {
+    const email = newEmail();
     await openQuoteForm(page);
-    await fillIn(page, "1137");
+    await fillIn(page, email, "1137");
 
     await page.getByRole("button", { name: "Request a Quote" }).click();
 
@@ -252,10 +260,11 @@ test.describe("requesting a Quote", () => {
     const zip = page.getByRole("textbox", { name: "ZIP code" });
     await expect(zip).toHaveAttribute("aria-invalid", "true");
     await expect(zip).toHaveAccessibleDescription(/Enter a 5-digit ZIP code/);
-    expect(await emailsTo("casey@example.com")).toEqual([]);
+    expect(await emailsTo(email)).toEqual([]);
   });
 
   test("asking too often says how long to wait (#32)", async ({ page }) => {
+    const email = newEmail();
     // the server's limits are off in dev; it would answer like this
     await page.route("**/api/quotes/ask", (route) =>
       route.fulfill({
@@ -268,7 +277,7 @@ test.describe("requesting a Quote", () => {
       }),
     );
     await openQuoteForm(page);
-    await fillIn(page);
+    await fillIn(page, email);
     await page.getByRole("button", { name: "Request a Quote" }).click();
 
     await expect(
@@ -284,8 +293,9 @@ test.describe("requesting a Quote", () => {
   test("the field for bots is out of sight and reach, and sent only if filled (#32)", async ({
     page,
   }) => {
+    const email = newEmail();
     await openQuoteForm(page);
-    await fillIn(page);
+    await fillIn(page, email);
 
     const field = page.locator('input[name="website"]');
     await expect(field).not.toBeInViewport();
@@ -302,8 +312,9 @@ test.describe("requesting a Quote", () => {
   test("asking again about the same home is thanked, and the inbox told a Quote is on its way", async ({
     page,
   }) => {
+    const email = newEmail();
     await openQuoteForm(page);
-    await fillIn(page);
+    await fillIn(page, email);
     await page.getByRole("button", { name: "Request a Quote" }).click();
     await expect(
       page.getByText("Thanks, we've got your request"),
@@ -311,7 +322,7 @@ test.describe("requesting a Quote", () => {
 
     await page.reload();
     await openQuoteForm(page);
-    await fillIn(page);
+    await fillIn(page, email);
     await page.getByRole("button", { name: "Request a Quote" }).click();
 
     // anyone could have typed it, so the page says what it says to anyone,
@@ -319,7 +330,7 @@ test.describe("requesting a Quote", () => {
     await expect(
       page.getByText("Thanks, we've got your request"),
     ).toBeVisible();
-    const mail = await emailsTo("casey@example.com");
+    const mail = await emailsTo(email);
     expect(mail.map((m) => m.subject)).toEqual([
       "We've received your request for a Quote",
       "About your request for a Quote",
@@ -332,6 +343,7 @@ test.describe("requesting a Quote", () => {
   test("extras are offered by name, with no prices, and can be chosen", async ({
     page,
   }) => {
+    const email = newEmail();
     await openQuoteForm(page);
     await fillWhere(page);
     await next(page);
@@ -344,7 +356,7 @@ test.describe("requesting a Quote", () => {
       extras.getByRole("checkbox", { name: "Inside the fridge" }),
     ).toBeChecked();
     await next(page);
-    await fillDetails(page);
+    await fillDetails(page, email);
     await page.getByRole("button", { name: "Request a Quote" }).click();
 
     await expect(
@@ -355,6 +367,7 @@ test.describe("requesting a Quote", () => {
   test("a Service like Painting asks only what it needs: a rough area, no Condition or visits", async ({
     page,
   }) => {
+    const email = newEmail();
     await openQuoteForm(page);
     // the Service chosen says what it is
     await page.locator("form").getByText("Painting", { exact: true }).click();
@@ -381,17 +394,18 @@ test.describe("requesting a Quote", () => {
       .getByRole("textbox", { name: "Area in sq ft (optional)" })
       .fill("350");
     await next(page);
-    await fillDetails(page);
+    await fillDetails(page, email);
     await page.getByRole("button", { name: "Request a Quote" }).click();
 
     await expect(
-      page.getByText("We'll email your Quote to casey@example.com"),
+      page.getByText(`We'll email your Quote to ${email}`),
     ).toBeVisible();
   });
 
   test("a business asks for its premises to be cleaned on chosen days", async ({
     page,
   }) => {
+    const email = newEmail();
     await openQuoteForm(page);
     // for business premises alone, so where is all the next step asks
     await chooseService(page, "Commercial cleaning");
@@ -418,14 +432,14 @@ test.describe("requesting a Quote", () => {
     await page
       .getByRole("textbox", { name: "Business name" })
       .fill("Acme Dental");
-    await fillDetails(page);
+    await fillDetails(page, email);
 
     await page.getByRole("button", { name: "Request a Quote" }).click();
 
     await expect(
-      page.getByText("We'll email your Quote to casey@example.com"),
+      page.getByText(`We'll email your Quote to ${email}`),
     ).toBeVisible();
-    const [receipt] = await emailsTo("casey@example.com");
+    const [receipt] = await emailsTo(email);
     expect(receipt?.text).toContain("200 Park Ave S, 10003");
   });
 
