@@ -22,10 +22,10 @@ const workersFlag = () => {
 const MAX_SLOTS = 60;
 
 const workerCount = (value: string | undefined) => {
-  // half the CPU cores, up to 6: more weren't faster
-  if (value === undefined) {
-    return Math.max(1, Math.min(6, Math.floor(availableParallelism() / 2)));
-  }
+  // two: alone it's as fast as 6 for the specs a change touches, and two
+  // runs at once (two checkouts) stay green, where at 6 each both slowed and
+  // one failed (#309). CI's 4-core runners came to 2 already
+  if (value === undefined) return 2;
   const count = Number(value);
   if (!Number.isInteger(count) || count < 1 || count > MAX_SLOTS) {
     throw new Error(

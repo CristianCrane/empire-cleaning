@@ -11,6 +11,10 @@ delete process.env.WAYLAND_DISPLAY;
 export default mergeConfig(
   viteConfig,
   defineConfig({
+    // the dev server's strictPort (vite.config.ts) held the tests' browser
+    // server to Vitest's one port, 63315, so another checkout's run at the
+    // same time failed; like the design system's, it moves to the next free one
+    server: { strictPort: false },
     test: {
       include: ["src/**/*.test.tsx"],
       passWithNoTests: true,
