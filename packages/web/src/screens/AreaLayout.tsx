@@ -4,6 +4,7 @@ import {
   useMatchRoute,
   useNavigate,
   useRouteContext,
+  useRouter,
 } from "@tanstack/react-router";
 import {
   CalendarDays,
@@ -43,6 +44,7 @@ import {
   areas,
   areasFor,
   forgetAccount,
+  getAccount,
   signOut,
   type AreaId,
 } from "../session.ts";
@@ -227,8 +229,36 @@ function AccountMenu({
   area: AreaId;
 }) {
   const navigate = useNavigate();
+  const router = useRouter();
   const otherAreas = areasFor(account).filter((id) => id !== area);
   const action = useAction("Couldn't bring the tips back. Try again.");
+  // the area being switched to, until it's on screen
+  const [switching, setSwitching] = useState<AreaId>();
+
+  // opening the menu is when an area is chosen: look again at what the
+  // Account is connected to, and load each area it offers, its Home included,
+  // so pressing one shows it at once (the router keeps them 30 s)
+  const preloadAreas = () => {
+    forgetAccount();
+    getAccount().catch(() => {});
+    for (const id of otherAreas) {
+      router.preloadRoute({ to: areas[id].path }).catch(() => {});
+    }
+  };
+
+  // pressed before the area is ready, the menu stays open with the row
+  // pending, and goes with this area as the new one shows. Still here once
+  // the switch is over, it went nowhere new (a redirect back to this area,
+  // or Back pressed meanwhile), so the menu closes itself
+  const switchTo = async (id: AreaId, close: () => void) => {
+    setSwitching(id);
+    try {
+      await navigate({ to: areas[id].path });
+    } finally {
+      setSwitching(undefined);
+      close();
+    }
+  };
 
   // every screen's tour shows once more, as on a first visit
   const showTipsAgain = async (close: () => void) => {
@@ -240,12 +270,12 @@ function AccountMenu({
   };
 
   return (
-    <DialogTrigger>
+    <DialogTrigger onOpenChange={(isOpen) => isOpen && preloadAreas()}>
       <Button variant="quiet" className="justify-start">
         <User aria-hidden size={20} />
         <span className="max-md:sr-only">{account.name}</span>
       </Button>
-      <Dialog title="Account">
+      <Dialog title="Account" isBusy={switching !== undefined}>
         {({ close }) => (
           <>
             <div className="flex flex-col">
@@ -255,16 +285,15 @@ function AccountMenu({
             {otherAreas.length > 0 && (
               <List
                 aria-label="Switch to"
-                onAction={(id) => {
-                  close();
-                  void navigate({ to: areas[id as AreaId].path });
-                }}
+                onAction={(id) => void switchTo(id as AreaId, close)}
               >
                 {otherAreas.map((id) => (
                   <ListItem
                     key={id}
                     id={id}
                     title={`Switch to ${areas[id].label}`}
+                    isPending={switching === id}
+                    isDisabled={switching !== undefined}
                   />
                 ))}
               </List>
@@ -274,12 +303,14 @@ function AccountMenu({
               <Button
                 variant="quiet"
                 isPending={action.isPending}
+                isDisabled={switching !== undefined}
                 onPress={() => void showTipsAgain(close)}
               >
                 Show tips again
               </Button>
               <Button
                 variant="quiet"
+                isDisabled={switching !== undefined}
                 onPress={async () => {
                   await signOut();
                   close();

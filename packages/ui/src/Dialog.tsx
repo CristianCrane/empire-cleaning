@@ -17,6 +17,9 @@ export type DialogProps = Omit<AriaDialogProps, "children"> & {
   children: ReactNode | ((opts: { close: () => void }) => ReactNode);
   // what the overlay passes through to the modal
   isDismissable?: ModalOverlayProps["isDismissable"];
+  // held open while something it started finishes, e.g. switching area from
+  // the Account menu: no tapping outside, Escape or ✕ closes it
+  isBusy?: boolean;
   // to open it from code rather than a DialogTrigger, e.g. when something is
   // dropped: whether it's open, and told when it closes
   isOpen?: ModalOverlayProps["isOpen"];
@@ -38,6 +41,7 @@ export function Dialog({
   title,
   children,
   isDismissable,
+  isBusy = false,
   isOpen,
   onOpenChange,
   size = "md",
@@ -47,7 +51,8 @@ export function Dialog({
 
   return (
     <ModalOverlay
-      isDismissable={isDismissable ?? !isAlert}
+      isDismissable={!isBusy && (isDismissable ?? !isAlert)}
+      isKeyboardDismissDisabled={isBusy}
       isOpen={isOpen}
       onOpenChange={onOpenChange}
       className="fixed inset-0 z-50 flex items-end justify-center bg-backdrop entering:animate-in entering:fade-in exiting:animate-out exiting:fade-out sm:items-center sm:p-4"
@@ -72,6 +77,7 @@ export function Dialog({
                   variant="quiet"
                   size="icon"
                   aria-label="Close"
+                  isDisabled={isBusy}
                   onPress={close}
                   className="-mt-2 -mr-2 shrink-0"
                 >

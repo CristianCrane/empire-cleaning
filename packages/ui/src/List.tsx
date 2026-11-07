@@ -4,7 +4,7 @@ import {
   type GridListItemProps,
   type GridListProps,
 } from "react-aria-components";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, LoaderCircle } from "lucide-react";
 import { createContext, useContext, type ReactNode } from "react";
 import { composeTailwindRenderProps, focusRing } from "./utils.ts";
 
@@ -34,6 +34,10 @@ export type ListItemProps = Omit<GridListItemProps, "children"> & {
   start?: ReactNode;
   // trailing content, e.g. a StatusBadge
   end?: ReactNode;
+  // what it opens is on its way: a spinner where its chevron is, as a
+  // pending Button shows one, and "Opening" said to a screen reader. Disable
+  // it too while pending, so a second press does nothing
+  isPending?: boolean;
 };
 
 export function ListItem({
@@ -41,6 +45,7 @@ export function ListItem({
   description,
   start,
   end,
+  isPending,
   ...props
 }: ListItemProps) {
   const opens = useContext(OpensItems) || props.onAction !== undefined;
@@ -64,8 +69,21 @@ export function ListItem({
             )}
           </div>
           {end}
-          {opens && !isDisabled && (
-            <ChevronRight aria-hidden size={20} className="text-fg-muted" />
+          {/* there before it's pending, so a screen reader hears it change */}
+          <span role="status" className="sr-only">
+            {isPending ? "Opening" : ""}
+          </span>
+          {isPending ? (
+            <LoaderCircle
+              aria-hidden
+              size={20}
+              className="animate-spin text-fg-muted"
+            />
+          ) : (
+            opens &&
+            !isDisabled && (
+              <ChevronRight aria-hidden size={20} className="text-fg-muted" />
+            )
           )}
         </>
       )}

@@ -299,22 +299,17 @@ const peopleRoute = createRoute({
   component: PeopleScreen,
 });
 
-// the area the person was last in; moving to another is a moment to look
-// again at what their Account is connected to
-let lastArea: AreaId | undefined;
-
 // an area is only for Accounts holding its role: anyone signed out goes to
-// sign-in (and comes back afterwards), anyone else to their own area
+// sign-in (and comes back afterwards), anyone else to their own area. The
+// Account is the one remembered: opening the Account menu, where an area is
+// chosen, looks again (AreaLayout's AccountMenu), so switching to one asks
+// nothing new
 const areaRoute = <Id extends AreaId>(id: Id) =>
   createRoute({
     getParentRoute: () => rootRoute,
     // the area's own path as a literal type, so its child routes are typed
     path: areas[id].path as (typeof areas)[Id]["path"],
     beforeLoad: async ({ location }) => {
-      if (lastArea !== id) {
-        forgetAccount();
-        lastArea = id;
-      }
       const account = await getAccount();
       if (!account) {
         throw redirect({ to: "/sign-in", search: { next: location.href } });

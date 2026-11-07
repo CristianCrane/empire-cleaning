@@ -335,6 +335,9 @@ test("a Service Plan Quote fits every width, Draft and Sent, for the Office and 
   page,
   browser,
 }) => {
+  // 16-18 s alone, as the Office's screens are: past the 30 s budget while
+  // other workers load the machine
+  test.slow();
   await createStaff(olive);
   await signedInAs(page, olive.email);
   const { job } = await completedFirstClean(olive.email);
@@ -384,6 +387,9 @@ test("a Service Plan fits every width, for the Office and the Client", async ({
   page,
   browser,
 }) => {
+  // 16-18 s alone, as the Office's screens are: past the 30 s budget while
+  // other workers load the machine
+  test.slow();
   await createStaff(olive);
   await signedInAs(page, olive.email);
   const { propertyId } = await completedFirstClean(olive.email);
@@ -426,6 +432,9 @@ test("a Service Plan on several weekdays fits every width, Draft, Sent and start
   page,
   browser,
 }) => {
+  // 16-18 s alone, as the Office's screens are: past the 30 s budget while
+  // other workers load the machine
+  test.slow();
   await createStaff(olive);
   await signedInAs(page, olive.email);
   const { job, propertyId } = await completedFirstClean(olive.email);
@@ -471,6 +480,9 @@ test("cancelling, Cancelled and No Access Jobs fit every width", async ({
   page,
   browser,
 }) => {
+  // 16-18 s alone, as the Office's screens are: past the 30 s budget while
+  // other workers load the machine
+  test.slow();
   await createStaff(olive);
   await signUp(olive.email);
   const cory = await addCleaner("Cory Cleaner");

@@ -410,9 +410,9 @@ export const goTo = async (page: Page, name: string) => {
 
 // moves to another area ("Office", "Cleaner area", "Client portal") from the
 // person's Account menu, which the test has opened, and waits until the area
-// is on screen. The URL changes at once, but the old area stays on screen
-// while the new one asks who's signed in (router.tsx), so a test that went on
-// at the URL could press something in the old one, which then goes (#310)
+// is on screen. The URL changes at once, but until the new area is ready the
+// old one stays, its menu open (AreaLayout's AccountMenu), so a test that went
+// on at the URL could press something in the old one, which then goes (#310)
 export const switchArea = async (page: Page, area: string) => {
   await page.getByRole("row", { name: `Switch to ${area}` }).click();
   await expect(
