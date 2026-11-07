@@ -17,6 +17,10 @@ type Email = { to: string; subject: string; text: string };
 export const emailsTo = (address: string): Promise<Email[]> =>
   control(`/emails?to=${encodeURIComponent(address)}`);
 
+// an address of a test's own, to send the Quote form with: new each time, as
+// --repeat-each runs a test more than once
+export const newEmail = () => `casey-${crypto.randomUUID()}@example.com`;
+
 // every test starts from an empty database and no emails, and fails if the
 // Content-Security-Policy (astro.config.ts) blocked anything a page loads
 export const test = base.extend<{ cleanSlate: void; allowedByCsp: void }>({
