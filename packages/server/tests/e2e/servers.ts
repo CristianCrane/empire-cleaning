@@ -4,8 +4,8 @@
 // (packages/web/playwright.config.ts, packages/landing/playwright.config.ts).
 // Each slot's database is a copy of one migrated for the run, much quicker
 // than migrating each, made while the APIs load. Prints "e2e APIs ready" once
-// the copies are made and every slot's control server answers, which
-// Playwright waits for. A slot that exits, a port in use say, or a database
+// the copies are made and every slot has said it's ready, which Playwright
+// waits for. A slot that exits, a port in use say, or a database
 // that can't be made stops the rest at once, rather than leaving Playwright
 // to time out.
 //
@@ -41,9 +41,11 @@ process.on("SIGINT", () => stop(0));
 
 // each a process of its own, in this Node with tsx's loader (execArgv)
 const server = new URL("server.ts", import.meta.url).pathname;
-slots.forEach((slot, i) => {
+// each says "ready" once both its servers listen (server.ts), so a port held
+// by something else, which might answer for it, never passes for a slot
+const ready = slots.map((slot, i) => {
   const api = spawn(process.execPath, [...process.execArgv, server], {
-    stdio: "inherit",
+    stdio: ["inherit", "inherit", "inherit", "ipc"],
     env: {
       ...process.env,
       ...testEnv,
@@ -66,24 +68,14 @@ slots.forEach((slot, i) => {
     stop(1);
   });
   apis.push(api);
+  return new Promise<void>((resolve) =>
+    api.on("message", (message) => message === "ready" && resolve()),
+  );
 });
 
-const answers = async (url: string) => {
-  try {
-    return (await fetch(url)).ok;
-  } catch {
-    return false;
-  }
-};
 await made.catch((error: unknown) => {
   console.error("the e2e APIs' databases couldn't be made:", error);
   stop(1);
 });
-await Promise.all(
-  slots.map(async (slot) => {
-    while (!(await answers(`${slot.controlUrl}/health`))) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
-  }),
-);
+await Promise.all(ready);
 console.log(`e2e APIs ready: ${slots.length}`);

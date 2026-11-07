@@ -5,7 +5,8 @@
 // the tests reset state, add Staff, Clients and Jobs, move the clock and read
 // the emails that were "sent". Accounts aren't created here: tests sign up, as people do (ADR-0006).
 // One slot's API, started with the rest by servers.ts, which sets its
-// environment and its database (DB_URL), already migrated.
+// environment and its database (DB_URL). That database is made while this
+// loads, so nothing here may touch it before a test asks something.
 import express from "express";
 import { desc, eq } from "drizzle-orm";
 import type { StaffRole } from "@empire-cleaning/models";
@@ -376,3 +377,5 @@ control.get("/emails", (req, res) => {
 
 await listen(control, CONTROL_PORT, "127.0.0.1");
 console.log(`e2e control on port ${CONTROL_PORT}`);
+// both listening: tells servers.ts this slot is ready
+process.send?.("ready");

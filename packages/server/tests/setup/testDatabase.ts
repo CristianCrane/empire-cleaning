@@ -132,15 +132,13 @@ export const copiesOf = (template: string, first: number, count: number) =>
 
 // migrates the database at `template` once and copies it to `count` databases
 // numbered from `first` (copiesOf), dropping copies numbered past them that an
-// earlier run left; returns the copies' URLs
+// earlier run left
 export const migratedCopies = async (
   template: string,
   first: number,
   count: number,
 ) => {
-  const urls = copiesOf(template, first, count);
   await recreateTestDatabase(template);
   await dropTestDatabaseCopies(template, first + count);
-  await copyTestDatabase(template, urls);
-  return urls;
+  await copyTestDatabase(template, copiesOf(template, first, count));
 };
