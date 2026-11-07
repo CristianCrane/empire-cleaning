@@ -234,7 +234,9 @@ describe("Confirming a Cleaner Needed", () => {
   });
 
   // more than the database pool's connections, each waiting on the Job's
-  // lock while holding one: the one holding the lock mustn't need another
+  // lock while holding one: the one holding the lock mustn't need another.
+  // 5 s, under the pools' 10 s wait (src/db/index.ts), so a pool that runs
+  // dry fails the test rather than its requests answering late
   test("lets only the first of a dozen at once take the last one, answering everyone", async () => {
     const job = await thursdayJob(1);
     const agents = [];
