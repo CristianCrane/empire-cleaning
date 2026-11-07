@@ -92,6 +92,8 @@ A test starts signed in with `signedInAs(page, email)`, which signs the person i
 
 **Check accessibility with `expectAccessible(page)` from `e2e/harness.ts`, never axe directly** (lint stops a spec importing `@axe-core/playwright`). It waits until nothing on the page is animating, then runs axe. A dialog checked while it opens is still fading in: its text fails on contrast now and then, so the test passes locally and fails in CI at random (main went red this way after #228). Pass a selector to check only part of the page, such as an open dialog: `expectAccessible(page, "[role=dialog]")`. A failure lists each element with what's wrong, e.g. the two colours and their contrast.
 
+**Switch area with `switchArea(page, area)` from `e2e/harness.ts`, never by pressing "Switch to …" and waiting on the URL.** Open the person's Account menu first; `switchArea` presses the row and waits until the new area is on screen. The URL changes at once, but the old area stays on screen while the new one asks who's signed in, so a test that goes on at the URL can open the old area's menu, which the new area then throws away. It passed alone and timed out in every full local run (#310).
+
 ```sh
 pnpm --filter @empire-cleaning/web test       # needs Postgres (pnpm db:up) and Chromium
 pnpm --filter @empire-cleaning/web test:e2e   # just the end-to-end tests
