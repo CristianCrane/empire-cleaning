@@ -39,23 +39,37 @@ jobs:
       - name: Scrubbing tests
         run: pnpm --filter @empire-cleaning/models --filter @empire-cleaning/browser-monitoring test
 
+  # Each suite that's split across jobs (a matrix of shards) says how many in
+  # its matrix alone; its name and its share read the count from
+  # strategy.job-total. CI's wall time is its slowest job (#315).
+
+  # the server's test files shared out between jobs (Vitest's --shard)
   server:
-    name: Server tests
+    name: Server tests (${{ matrix.shard }}/${{ strategy.job-total }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/setup
       - run: docker compose up --detach --wait postgres_test
       # the seed test is a job of its own (below)
-      - run: pnpm --filter @empire-cleaning/server test:quick
+      - run: pnpm --filter @empire-cleaning/server test:quick --shard=${{ matrix.shard }}/${{ strategy.job-total }}
 
   # The seed as the test site's reset runs it, at 28 days and times
-  # (packages/server/tests/seed.test.ts). A job of its own, as after the
-  # server's tests it doubled that job, and with the runner to itself, 4
-  # seeds at a time, not the 2 a 4-core runner's tests get.
+  # (packages/server/tests/seed.test.ts), shared out between jobs
+  # (SEED_SHARD). Jobs of their own, as after the server's tests it doubled
+  # that job, and with the runner to itself, 4 seeds at a time, not the 2 a
+  # 4-core runner's tests get.
   seed:
-    name: Seed test
+    name: Seed test (${{ matrix.shard }}/${{ strategy.job-total }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/setup
@@ -63,6 +77,7 @@ jobs:
       - run: pnpm --filter @empire-cleaning/server test:seed
         env:
           SERVER_TEST_WORKERS: 4
+          SEED_SHARD: ${{ matrix.shard }}/${{ strategy.job-total }}
 
   ui:
     name: Design-system tests
@@ -76,12 +91,12 @@ jobs:
   # the slowest suite, so it's split across jobs, each running a share of the
   # tests in parallel (packages/web/e2e/slots.ts)
   web:
-    name: Web end-to-end tests (${{ matrix.shard }}/3)
+    name: Web end-to-end tests (${{ matrix.shard }}/${{ strategy.job-total }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        shard: [1, 2, 3, 4, 5, 6]
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/setup
@@ -90,7 +105,7 @@ jobs:
       # the few browser tests in src/, once
       - if: matrix.shard == 1
         run: pnpm --filter @empire-cleaning/web exec vitest run
-      - run: pnpm --filter @empire-cleaning/web exec playwright test --shard ${{ matrix.shard }}/3
+      - run: pnpm --filter @empire-cleaning/web exec playwright test --shard ${{ matrix.shard }}/${{ strategy.job-total }}
       - if: failure()
         uses: actions/upload-artifact@v6
         with:
@@ -117,3 +132,19 @@ jobs:
             packages/landing/playwright-report
             packages/landing/test-results
           retention-days: 14
+
+  # The one check main requires: every job above passed. Shards can come and
+  # go without touching the branch's settings. It runs even when a job it
+  # needs failed (else it would be skipped, which counts as passing) and
+  # fails unless each one succeeded.
+  all:
+    name: All checks
+    if: ${{ !cancelled() }}
+    needs: [checks, server, seed, ui, web, landing]
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          RESULTS: ${{ toJSON(needs.*.result) }}
+        run: |
+          echo "$RESULTS"
+          jq -e 'all(. == "success")' <<< "$RESULTS"
