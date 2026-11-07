@@ -35,7 +35,8 @@ export type ListItemProps = Omit<GridListItemProps, "children"> & {
   // trailing content, e.g. a StatusBadge
   end?: ReactNode;
   // what it opens is on its way: a spinner where its chevron is, as a
-  // pending Button shows one
+  // pending Button shows one, and "Opening" said to a screen reader. Disable
+  // it too while pending, so a second press does nothing
   isPending?: boolean;
 };
 
@@ -53,7 +54,6 @@ export function ListItem({
     <GridListItem
       textValue={title}
       {...props}
-      data-pending={isPending || undefined}
       data-actionable={(opens && !props.isDisabled) || undefined}
       className={(renderProps) =>
         `${focusRing(renderProps)} flex min-h-touch items-center gap-3 border-b border-border px-4 py-3 -outline-offset-2 last:border-b-0 ${opens ? "hover:bg-surface-sunken pressed:bg-surface-sunken" : ""}`
@@ -69,6 +69,10 @@ export function ListItem({
             )}
           </div>
           {end}
+          {/* there before it's pending, so a screen reader hears it change */}
+          <span role="status" className="sr-only">
+            {isPending ? "Opening" : ""}
+          </span>
           {isPending ? (
             <LoaderCircle
               aria-hidden

@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { expect, fn } from "storybook/test";
+import { expect, fn, within } from "storybook/test";
 import { Avatar } from "./Avatar.tsx";
 import { List, ListItem } from "./List.tsx";
 import { StatusBadge } from "./StatusBadge.tsx";
@@ -92,16 +92,25 @@ export const Empty: Story = {
 export const Pending: Story = {
   render: (args) => (
     <List {...args} aria-label="Switch to">
-      <ListItem id="portal" title="Switch to Client portal" isPending />
-      <ListItem id="cleaner" title="Switch to Cleaner area" />
+      <ListItem
+        id="portal"
+        title="Switch to Client portal"
+        isPending
+        isDisabled
+      />
+      <ListItem id="cleaner" title="Switch to Cleaner area" isDisabled />
     </List>
   ),
   play: async ({ canvas }) => {
     await expect(
-      canvas.getByRole("row", { name: "Switch to Client portal" }),
-    ).toHaveAttribute("data-pending", "true");
+      within(
+        canvas.getByRole("row", { name: /Switch to Client portal/ }),
+      ).getByRole("status"),
+    ).toHaveTextContent("Opening");
     await expect(
-      canvas.getByRole("row", { name: "Switch to Cleaner area" }),
-    ).not.toHaveAttribute("data-pending");
+      within(
+        canvas.getByRole("row", { name: /Switch to Cleaner area/ }),
+      ).getByRole("status"),
+    ).toBeEmptyDOMElement();
   },
 };

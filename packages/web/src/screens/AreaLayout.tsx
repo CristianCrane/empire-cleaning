@@ -44,6 +44,7 @@ import {
   areas,
   areasFor,
   forgetAccount,
+  getAccount,
   signOut,
   type AreaId,
 } from "../session.ts";
@@ -239,6 +240,7 @@ function AccountMenu({
   // so pressing one shows it at once (the router keeps them 30 s)
   const preloadAreas = () => {
     forgetAccount();
+    getAccount().catch(() => {});
     for (const id of otherAreas) {
       router.preloadRoute({ to: areas[id].path }).catch(() => {});
     }
@@ -291,7 +293,7 @@ function AccountMenu({
                     id={id}
                     title={`Switch to ${areas[id].label}`}
                     isPending={switching === id}
-                    isDisabled={switching !== undefined && switching !== id}
+                    isDisabled={switching !== undefined}
                   />
                 ))}
               </List>

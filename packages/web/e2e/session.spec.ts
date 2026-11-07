@@ -98,7 +98,8 @@ test("a press before the area is ready waits in the menu, then the area shows", 
   const portal = page.getByRole("row", { name: "Switch to Client portal" });
   await portal.click();
   const menu = page.getByRole("dialog", { name: "Account" });
-  await expect(portal).toHaveAttribute("data-pending", "true");
+  await expect(portal.getByRole("status")).toHaveText("Opening");
+  await expect(portal).toBeDisabled();
   await page.keyboard.press("Escape");
   await expect(menu).toBeVisible();
   await expect(menu.getByRole("button", { name: "Close" })).toBeDisabled();
