@@ -15,9 +15,10 @@ const olive = {
   roles: ["office_staff" as const],
 };
 
-// the app asks who you are when you sign in, switch areas or come back to the
-// tab, not on every click; these are the times it can have changed behind its
-// back (another tab, the landing page, the Office adding a record)
+// the app asks who you are when you sign in, open the Account menu (where an
+// area is chosen) or come back to the tab, not on every click; these are the
+// times it can have changed behind its back (another tab, the landing page,
+// the Office adding a record)
 
 test("coming back to the tab notices a Client record connected meanwhile", async ({
   page,
@@ -45,7 +46,8 @@ test("switching areas notices a Client record connected meanwhile", async ({
   await expect(page).toHaveURL("/office");
   await createClient({ email: olive.email, name: "Olive Owner" });
 
-  // the menu still offers only what it knew; entering another area looks again
+  // the menu still offers only what it knew; opening it looks again, so the
+  // area it switches to knows
   await page.getByRole("button", { name: olive.name }).click();
   await switchArea(page, "Cleaner area");
   await expect(page).toHaveURL("/cleaner");
@@ -54,6 +56,62 @@ test("switching areas notices a Client record connected meanwhile", async ({
   await expect(
     page.getByRole("row", { name: "Switch to Client portal" }),
   ).toBeVisible();
+});
+
+test("switching area once the menu has been open a moment shows it at once", async ({
+  page,
+}) => {
+  await createStaff(olive);
+  await createClient({ email: olive.email, name: olive.name });
+  await signedInAs(page, olive.email);
+  await expect(page).toHaveURL("/office");
+
+  // opening the menu loads the portal, its Home included
+  const homeLoaded = page.waitForResponse("**/api/clients/me");
+  await page.getByRole("button", { name: olive.name }).click();
+  await homeLoaded;
+
+  // from here the API answers nothing, so whatever shows came before the press
+  await page.route("**/api/**", () => {});
+  await switchArea(page, "Client portal");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Hi, Olive");
+});
+
+test("a press before the area is ready waits in the menu, then the area shows", async ({
+  page,
+}) => {
+  await createStaff(olive);
+  await createClient({ email: olive.email, name: olive.name });
+  await signedInAs(page, olive.email);
+  await expect(page).toHaveURL("/office");
+
+  // who's signed in answers only when let go
+  let letGo = () => {};
+  const held = new Promise<void>((resolve) => (letGo = resolve));
+  await page.route("**/api/me", async (route) => {
+    await held;
+    await route.fallback();
+  });
+
+  // pressed by hand, not with switchArea, to look at the menu while it waits
+  await page.getByRole("button", { name: olive.name }).click();
+  const portal = page.getByRole("row", { name: "Switch to Client portal" });
+  await portal.click();
+  const menu = page.getByRole("dialog", { name: "Account" });
+  await expect(portal).toHaveAttribute("data-pending", "true");
+  await page.keyboard.press("Escape");
+  await expect(menu).toBeVisible();
+  await expect(menu.getByRole("button", { name: "Close" })).toBeDisabled();
+  await expect(menu.getByRole("button", { name: "Sign out" })).toBeDisabled();
+  await expect(
+    page.getByRole("navigation", { name: "Office" }).first(),
+  ).toBeVisible();
+
+  letGo();
+  await expect(
+    page.getByRole("navigation", { name: "Client portal" }).first(),
+  ).toBeVisible();
+  await expect(menu).toBeHidden();
 });
 
 test("signing out in another tab signs this one out when you return", async ({
