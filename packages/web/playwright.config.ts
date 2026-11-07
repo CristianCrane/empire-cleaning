@@ -25,12 +25,17 @@ export default defineConfig({
   // CI also keeps an HTML report, and the trace of every failed test
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   use: { baseURL: appUrl, trace: "retain-on-failure" },
+  // Playwright starts its `webServer` entries one after another, so one entry
+  // builds the app while every slot's API starts, each on a copy of one
+  // database migrated for the run (packages/server/tests/e2e/servers.ts).
+  // Ready once both say so. Either one exiting ends it at once (`wait -n`),
+  // and takes the other with it (`kill 0`), else what's left would hold the
+  // output open and Playwright would wait out its timeout
   webServer: [
     {
-      // every slot's API at once, each on a copy of one database migrated for
-      // the run (packages/server/tests/e2e/servers.ts)
-      command: "pnpm --filter @empire-cleaning/server e2e:servers",
-      wait: { stdout: /e2e APIs ready/ },
+      command:
+        "bash -c 'trap \"kill 0\" EXIT; pnpm --filter @empire-cleaning/server e2e:servers & (vite build && node e2e/preview.ts) & wait -n'",
+      wait: { stdout: /(?=[\s\S]*e2e APIs ready)(?=[\s\S]*e2e apps ready)/ },
       timeout: 120_000,
       env: {
         ...process.env,
@@ -38,12 +43,6 @@ export default defineConfig({
         E2E_SLOTS: JSON.stringify(slots),
         LANDING_ORIGIN_URL: "http://localhost:4399",
       },
-    },
-    {
-      command: "vite build && node e2e/preview.ts",
-      // the last slot's app is served last
-      url: slots.at(-1)!.appUrl,
-      timeout: 120_000,
     },
   ],
   projects: [
