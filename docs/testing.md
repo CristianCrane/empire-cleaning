@@ -46,8 +46,8 @@ Newest first. The evidence lives where the link points; the row only says what w
 | 2026-11-07 | e2e tests switching area on the URL alone lost a race to `/api/me`: green alone and at 1, 2 or 6 workers, red in 6 of 6 copies at once. A trace showed the click landing on the old area 50 ms before `/api/me` answered | #310, PR #319 |
 | 2026-11-06 | Baseline for round 3: the full suite 12.8 min, one package after another. Two checkouts' touched specs at once at 6 workers took 133 s each, with a failure each; at 2 workers, 105 s each and green | #309 |
 | 2026-11-05 | The shared test Postgres: a full suite peaks at 67 connections, and web e2e took 3.6 min alone and 4.7 beside another checkout's server tests | `packages/server/README.md`, Testing |
-| 2026-11-03 | A Windows `wsl.exe`, the bridge for one WezTerm tab, spun at 10.6 cores while Linux used 0.17. Closing the tab fixed it; the tests left nothing running | PR #240 |
 | 2026-11-04 | `expectAccessible` still caught a dialog mid-fade now and then, as an animation can be yet to start: 6 of 24 repeats of one Staff test failed on contrast. Web's check now also waits until what it checks is opaque | PR #253 |
+| 2026-11-03 | A Windows `wsl.exe`, the bridge for one WezTerm tab, spun at 10.6 cores while Linux used 0.17. Closing the tab fixed it; the tests left nothing running | PR #240 |
 | 2026-11-03 | Round 2: a run starts only the slots its workers use, and drops leftover test databases. One spec at 1 worker went from 52.1 s to 30.4 s | PR #240 |
 | 2026-11-02 | An axe check taken while a dialog slid in failed on contrast, and main went red after #228. One `expectAccessible` for every spec waits until nothing animates | PR #233 |
 | 2026-10-28 | Round 1: the time was spread across every test, so parallelism was the lever. Server tests went from 83 s to 32 s, a database per worker; web e2e from 8.1 to 3.0 min, a slot per worker; 6 workers, as 8 was no faster | #115, PR #118 |
