@@ -86,3 +86,22 @@ export const Empty: Story = {
     </List>
   ),
 };
+
+// pressed, and what it opens is on its way, e.g. switching area from the
+// Account menu before the area is ready
+export const Pending: Story = {
+  render: (args) => (
+    <List {...args} aria-label="Switch to">
+      <ListItem id="portal" title="Switch to Client portal" isPending />
+      <ListItem id="cleaner" title="Switch to Cleaner area" />
+    </List>
+  ),
+  play: async ({ canvas }) => {
+    await expect(
+      canvas.getByRole("row", { name: "Switch to Client portal" }),
+    ).toHaveAttribute("data-pending", "true");
+    await expect(
+      canvas.getByRole("row", { name: "Switch to Cleaner area" }),
+    ).not.toHaveAttribute("data-pending");
+  },
+};
