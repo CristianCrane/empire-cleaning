@@ -20,8 +20,7 @@ const workerCount = (name: string, fallback: number) => {
 };
 
 // how many test files run at once, each worker on a database of its own: half
-// the CPU cores, up to 6, as for the e2e tests (packages/web/e2e/slots.ts).
-// Each worker loads the whole server and keeps up to 13 connections
+// the CPU cores, up to 6. Each worker loads the whole server and keeps up to 13 connections
 // (src/db/index.ts), so many more would crowd the CPU and the test Postgres's
 // connections (docker-compose.yml).
 // SERVER_TEST_WORKERS overrides it

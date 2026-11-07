@@ -82,7 +82,7 @@ Errors and about 20% of page loads go to Sentry (ADR-0007), set up in one place:
 
 End to end with Playwright (`e2e/`): a production build of the app runs in a real Chromium against the real API and a real database, on the test Postgres.
 
-**Tests run in parallel, and each worker has a slot of its own** (`e2e/slots.ts`): an API with its control server and database (`empire_e2e_test_<checkout>_0`, `_1`, …, the checkout id as in the server README), and the built app served in front of it. A test only ever sees its own slot's data, emails and clock, so any test can run beside any other. There are half as many workers as CPU cores, up to 6 (more weren't faster); `E2E_WORKERS=2` or `--workers=2` sets it, and only that many slots start, so run one spec with `--workers=1`. Slots left by an earlier run with more workers are dropped. Every slot's ports come from this checkout's block (`E2E_PORTS`, see the server README), so another checkout's run can go on at the same time. A test reaches its API through `apiUrl` from `playwright.config.ts`, never a fixed port. CI splits the suite across three jobs (`--shard`).
+**Tests run in parallel, and each worker has a slot of its own** (`e2e/slots.ts`): an API with its control server and database (`empire_e2e_test_<checkout>_0`, `_1`, …, the checkout id as in the server README), and the built app served in front of it. A test only ever sees its own slot's data, emails and clock, so any test can run beside any other. There are 2 workers: alone that's as fast as 6 for the specs a change touches, and two runs at once (two checkouts) stay green, where at 6 each both slowed and one failed (#309). `E2E_WORKERS=6` or `--workers=6` sets it, and only that many slots start, so run one spec with `--workers=1`. Slots left by an earlier run with more workers are dropped. Every slot's ports come from this checkout's block (`E2E_PORTS`, see the server README), so another checkout's run can go on at the same time. A test reaches its API through `apiUrl` from `playwright.config.ts`, never a fixed port. CI splits the suite across three jobs (`--shard`).
 
 **The phone is the main screen and runs everything; the desktop runs only the tests tagged `@desktop`**, those where a larger layout changes something (the sidebar, two-column prices, light-theme accessibility). Tests tagged `@smoke` are the quick set (`pnpm test:quick`). Tag a test with `test("…", { tag: "@desktop" }, …)`.
 
@@ -102,12 +102,12 @@ pnpm --filter @empire-cleaning/web test:e2e   # just the end-to-end tests
 While working on a change, run only what it touches (the root `README.md` says what runs before the PR):
 
 ```sh
-pnpm --filter @empire-cleaning/web exec playwright test --only-changed=main   # specs changed since main, and specs importing changed files
-pnpm --filter @empire-cleaning/web exec playwright test e2e/bills.spec.ts     # one spec
-pnpm --filter @empire-cleaning/server exec vitest run --changed main         # server tests affected by changes since main
-pnpm test                                                                     # the @smoke set and quick suites of every package
+pnpm test:change e2e/bills.spec.ts                                         # the specs the branch adds or edits (three times), the specs named, and the other packages' tests
+pnpm --filter @empire-cleaning/web exec playwright test e2e/bills.spec.ts  # one spec
+pnpm --filter @empire-cleaning/server exec vitest run --changed main      # server tests affected by changes since main
+pnpm test                                                                  # the @smoke set and quick suites of every package
 ```
 
-`--only-changed` follows imports from the specs only, so a change in `src/` picks no spec up: name the specs for the screens you changed.
+`pnpm test:change` finds the specs the branch adds or edits from git, but a change in `src/` is in no spec: name the specs for the screens you changed. It doesn't use Playwright's `--only-changed`, which takes every spec importing a changed file too, so an edit to `e2e/harness.ts` would run nearly all of them three times.
 
 Small screen-only behaviour can still use Vitest browser tests (`src/**/*.test.tsx`), as the design system does.
