@@ -439,7 +439,13 @@ export const expectCurrentSection = async (
 // nothing is animating: a dialog checked while it opens is still fading in,
 // and its text fails on contrast now and then. React Aria's hidden live
 // announcer is left out: a button pending as it navigates away leaves its
-// announcement pointing at a label that's gone.
+// announcement pointing at a label that's gone. axe runs in the page itself
+// (legacy mode), asked for violations only, as landing's does
+// (packages/landing/tests/harness.ts): its default runs it in each frame and
+// then again in a blank page, ~0.9 s a check against ~0.5 s. Legacy mode
+// skips frames of another origin, so each must be hidden: Stripe.js adds its
+// metrics frame, hidden, to every screen, and any other, such as the real
+// card form, fails here rather than go unchecked.
 // within: only part of the page, e.g. an open dialog (which hides the rest,
 // main landmark and heading included, from assistive technology)
 export const expectAccessible = async (page: Page, within?: string) => {
@@ -453,7 +459,29 @@ export const expectAccessible = async (page: Page, within?: string) => {
     }
     return true;
   }, within);
-  const axe = new AxeBuilder({ page }).exclude("[data-live-announcer]");
+  const { origin } = new URL(page.url());
+  const shownElsewhere: string[] = [];
+  for (const frame of page.mainFrame().childFrames()) {
+    if (URL.canParse(frame.url()) && new URL(frame.url()).origin === origin) {
+      continue;
+    }
+    const shown = await (
+      await frame.frameElement()
+    ).evaluate((node) => {
+      const iframe = node as HTMLIFrameElement;
+      return iframe.checkVisibility({ visibilityProperty: true })
+        ? iframe.src
+        : null;
+    });
+    if (shown !== null) shownElsewhere.push(shown || frame.url());
+  }
+  expect(shownElsewhere, "frames of another origin, which axe skips").toEqual(
+    [],
+  );
+  const axe = new AxeBuilder({ page })
+    .exclude("[data-live-announcer]")
+    .setLegacyMode()
+    .options({ resultTypes: ["violations"] });
   const { violations } = await (within ? axe.include(within) : axe).analyze();
   expect(
     violations.map((v) => ({

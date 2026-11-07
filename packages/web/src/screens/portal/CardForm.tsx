@@ -7,6 +7,9 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
+// this import loads Stripe.js at once, and the main bundle has it
+// (monitoring.ts), so it's on every screen: Stripe asks for that, for its
+// fraud signals as Clients browse, not just where they pay
 import {
   loadStripe,
   type Appearance,
