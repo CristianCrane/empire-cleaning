@@ -190,7 +190,7 @@ const addOnChoices = async (
   serviceKey: string,
 ): Promise<AddOnChoice[]> => {
   const asked = new Set(
-    ((await askedAddOns([quoteId])).get(quoteId) ?? []).map((a) => a.key),
+    ((await askedAddOns([quoteId], list)).get(quoteId) ?? []).map((a) => a.key),
   );
   return list.addOns
     .filter((a) => goesWith(a, serviceKey) && (a.active || asked.has(a.key)))
@@ -695,7 +695,7 @@ export const officeQuote = async (id: string): Promise<OfficeQuote> => {
   ] = await Promise.all([
     paymentMethodOf(client.id),
     quote.kind === "service_plan" ? findingsOf(propertyId) : null,
-    askedAddOns([id]),
+    askedAddOns([id], list),
     siteVisitStages([propertyId]),
     siteVisitViews(
       and(
@@ -860,10 +860,10 @@ export const clientQuoteView = async (
   const { quote, property } = found;
   if (quote.sentRevisionId) return clientQuote(id, clientId);
   if (quote.origin === "office") throw new NotFoundError("Quote not found");
-  const [addOns, visits, list] = await Promise.all([
-    askedAddOns([id]),
+  const list = await currentPricing();
+  const [addOns, visits] = await Promise.all([
+    askedAddOns([id], list),
     clientSiteVisits(clientId),
-    currentPricing(),
   ]);
 
   return {
@@ -1076,7 +1076,9 @@ const newRevisionOptions = async (
   // those asked for that go with its Service, though the Office may have
   // changed which Services an Add-on goes with since
   const asked = new Set(
-    ((await askedAddOns([quote.id], tx)).get(quote.id) ?? []).map((a) => a.key),
+    ((await askedAddOns([quote.id], list, tx)).get(quote.id) ?? []).map(
+      (a) => a.key,
+    ),
   );
   const addOnKeys = plan
     ? []

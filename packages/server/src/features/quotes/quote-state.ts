@@ -318,17 +318,17 @@ const summaries = async (
             ),
           );
   const draftOf = new Map(drafts.map((d) => [d.quoteId, d]));
+  const [list, all] = await Promise.all([
+    currentPriceList(),
+    currentServices(),
+  ]);
   const [options, addOns, stages] = await Promise.all([
     optionsOfRevisions([
       ...rows.flatMap((r) => (r.offer ? [r.offer.id] : [])),
       ...(forClient ? [] : drafts.map((d) => d.id)),
     ]),
-    askedAddOns(ids),
+    askedAddOns(ids, list),
     siteVisitStages(rows.map((r) => r.property.id)),
-  ]);
-  const [list, all] = await Promise.all([
-    currentPriceList(),
-    currentServices(),
   ]);
 
   return rows.map(
