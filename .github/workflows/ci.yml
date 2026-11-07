@@ -55,7 +55,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/setup
       - run: docker compose up --detach --wait postgres_test
-      # the seed test is a job of its own (below)
+      # the seed test has jobs of its own (below)
       - run: pnpm --filter @empire-cleaning/server test:quick --shard=${{ matrix.shard }}/${{ strategy.job-total }}
 
   # The seed as the test site's reset runs it, at 28 days and times
@@ -136,7 +136,8 @@ jobs:
   # The one check main requires: every job above passed. Shards can come and
   # go without touching the branch's settings. It runs even when a job it
   # needs failed (else it would be skipped, which counts as passing) and
-  # fails unless each one succeeded.
+  # fails unless each one succeeded. Actions can't say "every job", so a new
+  # job must join `needs`, or nothing requires it.
   all:
     name: All checks
     if: ${{ !cancelled() }}
