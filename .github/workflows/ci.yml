@@ -86,6 +86,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/setup
       - uses: ./.github/actions/playwright
+      - run: exit 1 # scratch: All checks must go red (#315 plan review F2); reverted next
       - run: pnpm --filter @empire-cleaning/ui test
 
   # the slowest suite, so it's split across jobs, each running a share of the
