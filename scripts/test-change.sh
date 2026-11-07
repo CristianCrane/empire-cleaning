@@ -5,12 +5,13 @@
 #
 #   pnpm test:change [spec…]   e.g. pnpm test:change e2e/bills.spec.ts
 #
-# naming each spec as packages/web takes it, for the screens the change
-# touches. It runs:
+# naming each of the web app's specs as packages/web takes it, for the
+# screens the change touches. It runs:
 #
 # - the server (not the seed test), ui, models and browser-monitoring tests,
 #   and web's few browser tests in src/
-# - every e2e spec the branch adds or edits, committed or not, three times
+# - every end-to-end spec the branch adds or edits, the web app's (e2e/) and
+#   the landing site's (tests/), committed or not, three times
 #   (--repeat-each=3 --fail-on-flaky-tests), so a test that passes alone and
 #   fails beside others shows here rather than on CI (#310)
 # - the specs named, once
@@ -24,13 +25,21 @@
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
-base=$(git merge-base HEAD origin/main)
-mapfile -t edited < <(
+base=$(git merge-base HEAD origin/main) || {
+  echo "No merge base with origin/main: git fetch origin, then run it again." >&2
+  exit 1
+}
+
+# the specs in a package's folder that the branch adds or edits, committed or
+# not, as the package names them: edited_specs packages/web e2e
+edited_specs() {
   {
-    git diff --name-only --diff-filter=d "$base" -- 'packages/web/e2e/*.spec.ts'
-    git ls-files --others --exclude-standard -- 'packages/web/e2e/*.spec.ts'
-  } | sed 's|^packages/web/||' | sort -u
-)
+    git diff --name-only --diff-filter=d "$base" -- "$1/$2/*.spec.ts"
+    git ls-files --others --exclude-standard -- "$1/$2/*.spec.ts"
+  } | sed "s|^$1/||" | sort -u
+}
+mapfile -t edited < <(edited_specs packages/web e2e)
+mapfile -t landing < <(edited_specs packages/landing tests)
 named=()
 for spec in "$@"; do
   [[ " ${edited[*]} " == *" $spec "* ]] || named+=("$spec")
@@ -54,7 +63,11 @@ fi
 if ((${#named[@]})); then
   run pnpm --filter @empire-cleaning/web exec playwright test "${named[@]}"
 fi
-if ((${#edited[@]} + ${#named[@]} == 0)); then
+if ((${#landing[@]})); then
+  run pnpm --filter @empire-cleaning/landing exec playwright test \
+    --repeat-each=3 --fail-on-flaky-tests "${landing[@]}"
+fi
+if ((${#edited[@]} + ${#named[@]} + ${#landing[@]} == 0)); then
   echo "No e2e spec ran: name the specs for the screens the change touches."
 fi
 exit $failed

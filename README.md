@@ -31,7 +31,7 @@ All three run one package at a time and report every failure. See each package's
 The full suite runs on CI, not here (`docs/adr/0026-the-full-suite-runs-on-ci.md`). Before a PR, `pnpm test:change` runs:
 
 - the server (not the seed test), ui, models and browser-monitoring tests, and the web app's browser tests in `src/`;
-- every end-to-end spec the branch adds or edits, three times, failing on a flaky test;
+- every end-to-end spec the branch adds or edits, the web app's and the landing site's, three times, failing on a flaky test;
 - the specs named on its command line, once: those for the screens the change touches (`packages/web/README.md`).
 
 Each spec runs in every project its tags name. The PR opens as a draft, and is marked ready once CI is green.

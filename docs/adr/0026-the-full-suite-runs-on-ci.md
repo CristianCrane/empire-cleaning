@@ -4,9 +4,9 @@ Every PR ran the full suite (`pnpm test:full`) on the machine that made it, befo
 
 CI runs the full suite instead, on every push to a PR: its packages side by side, the end-to-end tests split across jobs, as many jobs as it's given. Locally, a change runs `pnpm test:change`, which is what CI can't catch as cheaply:
 
-- the server, ui and models tests, which take about a minute and a half;
-- the end-to-end specs the change adds or edits, three times each (`--repeat-each=3 --fail-on-flaky-tests`), in every project their tags name. A test that passes alone and fails beside others shows here, not on CI (#310);
-- the specs for the screens the change touches, named on the command line, once.
+- the server, ui, models and browser-monitoring tests, and the web app's browser tests in `src/`, which take about a minute and a half;
+- the end-to-end specs the change adds or edits, the web app's and the landing site's, three times each (`--repeat-each=3 --fail-on-flaky-tests`), in every project their tags name. A test that passes alone and fails beside others shows here, not on CI (#310);
+- the web app's specs for the screens the change touches, named on the command line, once.
 
 The web and landing smoke tests are left to CI. Local end-to-end runs default to 2 workers (`packages/web/e2e/slots.ts`): alone that's as fast as 6 for the specs a change touches, 70 s against 73 s, and two runs at once (two checkouts) take 105 s each and pass, where at 6 they took 133 s each and one failed (#309).
 
