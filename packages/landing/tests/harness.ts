@@ -51,8 +51,8 @@ export const test = base.extend<{ cleanSlate: void; allowedByCsp: void }>({
 // nothing is animating: a part checked while it fades in fails on contrast
 // now and then. React Aria's hidden live announcer is left out: a button
 // pending as it navigates away leaves its announcement pointing at a label
-// that's gone. The web app's (packages/web/e2e) also waits for a dialog to
-// fade all the way in
+// that's gone. The web app's (packages/web/e2e) also waits until what it
+// checks is fully opaque
 export const expectAccessible = async (page: Page) => {
   await page.waitForFunction(() => document.getAnimations().length === 0);
   const { violations } = await new AxeBuilder({ page })
