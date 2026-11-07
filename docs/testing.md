@@ -1,8 +1,8 @@
 # Tests: rules, measuring, and findings
 
-How Empire Cleaning's tests are meant to be written, how a question about them gets settled, and what each round of work on them found. Read this before writing a test, or before chasing one that fails or runs slow.
+How Empire Cleaning's tests are meant to be written, how a question about them gets settled, and what each round of work on them found. Read this before writing a test, changing how tests start, stop or wait, or chasing one that fails or runs slow.
 
-- **The rules** are what every test keeps, each with the bug that taught it.
+- **The rules** are what every test, and every change to how they run, keeps, each with the bug that taught it.
 - **Settling a test question** says how a cause gets shown and how to time things on this machine.
 - **The findings log** at the foot gives each finding's date, one line, and where its evidence lives. Check it before chasing a failure: the same one has turned up twice already.
 
@@ -20,6 +20,10 @@ How each package's tests work, and how to run them, is in its README (`packages/
 
 **A project sets the budget for its kind of test, and says why in its config; a single test past it says so beside it, with why, and the issue that will bring it back when there is one.** The server tests keep Vitest's 5 s (`changing.test.ts:113` has its own 10 s until #316), the seed test 120 s and the design system's story tests 30 s (each in its `vitest.config.ts`). The end-to-end tests keep Playwright's 30 s, and `test.slow()` triples it for one test (`layout.spec.ts`, each with its reason). Raising a project's budget to fit one slow test would hide a hang or a slowdown in all the others.
 
+### Starting and stopping
+
+**A change to how tests start, stop or wait checks how they fail beside how they pass, before its review**: a port already held, a process that dies, a setup step that fails, each failing at once and saying what. A start that's only seen passing can run the tests against the wrong server, or wait out its timeout. On #312 both happened: an API on a held port said it was listening and served nothing, and a failed start left a preview holding the run for 120 s (PR #325, review F3 and F10).
+
 ## Settling a test question
 
 **Show the cause before fixing it,** with the evidence the `change` skill names (`.claude/skills/change/SKILL.md`, Survey). For tests, that comes down to:
@@ -27,6 +31,7 @@ How each package's tests work, and how to run them, is in its README (`packages/
 - **Time on a quiet machine, and give the load beside the timing.** Check for another checkout's run (`pgrep -af "playwright|vitest"`). Check Windows' CPU too, from PowerShell: `Get-Counter '\Processor(_Total)\% Processor Time'`, and `'\Process(*)\% Processor Time'` for who. WSL can look idle while Windows starves it (the log, 2026-11-03 and 2026-11-07).
 - **A run alone against one beside another.** A test red only beside another checkout's run is load or something shared, such as a port or a database name. Many copies of one test at once (`--repeat-each`, several workers) tell a race apart from state left behind (#310).
 - **How close a test runs to its budget**, from its duration in a run: `vitest run --reporter=json --outputFile=…`, or Playwright's report. The tests near it are the ones that fail under load.
+- **Reproduce a failure as the tool runs it**: with its `PATH` (pnpm puts `node_modules/.bin` on it, and Playwright's webServer passes it on), its working directory and its shell. Run by hand without them, a missing `vite` read as `wait -n` failing (#312, comment).
 - **The shared test Postgres** has its own signs of strain: `packages/server/README.md`, Testing.
 - **The machine's own faults** (WSL, NixOS, the shell): CristianCrane/.dotfiles#5.
 
@@ -38,6 +43,8 @@ Newest first. The evidence lives where the link points; the row only says what w
 
 | Date | Finding | Where |
 | --- | --- | --- |
+| 2026-11-07 | Express 5's `app.listen` hands a listen error to its callback, and ours only logged, so an API on a port in use said it was listening, served nothing and stayed up. One `listen` in `src/server.ts` now fails on it, so a failed start exits, reported by the `uncaughtException` handler | #312, `packages/server/src/server.ts` |
+| 2026-11-07 | e2e slots start at once: Playwright started its `webServer` entries one after another, 4.9 s a slot, each migrating its own database, and the app build after them. One entry now builds the app while one launcher starts every slot's API, as one template is migrated and copied. The first test starts at 7.0 s with 6 slots, against 32.2 s, and at 5.6 s with 1, against 7.9 s; landing's at 6.0 s, against 10.3 s | #312, `packages/server/tests/e2e/servers.ts` |
 | 2026-11-07 | `changing.test.ts:113` is the slowest server test, 2.9 s alone where the next takes 2.2 s and the median 239 ms. With two checkouts' checks at once it passed 5 s, so it gets 10 s until fewer queries per request bring it down | PR #323, the test's comment, #316 |
 | 2026-11-07 | Web's browser tests held to Vitest's one port, 63315, through the dev server's `strictPort`, so a second checkout's run failed. They now move to a free one, as ui's do | PR #323, `packages/web/vitest.config.ts` |
 | 2026-11-07 | Before a PR, `pnpm test:change` for a typical change takes 157 s alone and 225 s with another checkout's at once, against a 12.8 min full suite | ADR-0026, PR #323 |

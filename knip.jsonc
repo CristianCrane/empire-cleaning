@@ -5,6 +5,11 @@
       // run by Claude Code, from .claude/settings.json (copies made by ~/.claude/hooks/sync.mjs)
       "entry": [".claude/hooks/**/*.mjs"],
     },
+    "packages/web": {
+      // started inside playwright.config.ts's webServer command (bash -c),
+      // where knip doesn't look
+      "entry": ["e2e/preview.ts"],
+    },
     "packages/server": {
       "entry": [
         // react-email's previews (`pnpm email:dev`)

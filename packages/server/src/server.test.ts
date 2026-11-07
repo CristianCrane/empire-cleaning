@@ -1,3 +1,6 @@
+import { createServer } from "node:net";
+import type { AddressInfo } from "node:net";
+import express from "express";
 import { expect, test, vi } from "vitest";
 import { sql } from "drizzle-orm";
 import { db } from "#db";
@@ -13,6 +16,7 @@ import {
   testPayments,
 } from "../tests/harness.ts";
 import { casey, signInAsOffice } from "../tests/fixtures.ts";
+import { listen } from "./server.ts";
 
 test("health check responds over HTTP", async () => {
   const res = await api().get("/health");
@@ -217,4 +221,21 @@ test("emails are captured by the fake sender", async () => {
 test("fakes are fresh for every test", () => {
   expect(testEmail().to(casey.email)).toEqual([]);
   expect(testPayments().charges).toEqual([]);
+});
+
+test("listen fails when its port is in use, rather than going on serving nothing", async () => {
+  const held = createServer();
+  await new Promise<void>((resolve) => held.listen(0, resolve));
+  const { port } = held.address() as AddressInfo;
+
+  await expect(listen(express(), port)).rejects.toThrow(/EADDRINUSE/);
+
+  held.close();
+});
+
+test("listen answers once it's listening", async () => {
+  const server = await listen(express(), 0);
+
+  expect(server.listening).toBe(true);
+  server.close();
 });
