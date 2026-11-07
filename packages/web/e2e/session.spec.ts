@@ -6,6 +6,7 @@ import {
   returnToTab,
   test,
   goTo,
+  switchArea,
 } from "./harness.ts";
 
 const olive = {
@@ -30,7 +31,7 @@ test("coming back to the tab notices a Client record connected meanwhile", async
   await returnToTab(page);
 
   await page.getByRole("button", { name: olive.name }).click();
-  await page.getByRole("row", { name: "Switch to Client portal" }).click();
+  await switchArea(page, "Client portal");
   await expect(page).toHaveURL("/portal");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Hi, Olive");
 });
@@ -46,7 +47,7 @@ test("switching areas notices a Client record connected meanwhile", async ({
 
   // the menu still offers only what it knew; entering another area looks again
   await page.getByRole("button", { name: olive.name }).click();
-  await page.getByRole("row", { name: "Switch to Cleaner area" }).click();
+  await switchArea(page, "Cleaner area");
   await expect(page).toHaveURL("/cleaner");
 
   await page.getByRole("button", { name: olive.name }).click();
@@ -113,7 +114,7 @@ test("Show tips again is in every area's menu, and brings back every tour", asyn
     await expect(
       page.getByRole("button", { name: "Show tips again" }),
     ).toBeVisible();
-    await page.getByRole("row", { name: `Switch to ${area}` }).click();
+    await switchArea(page, area);
   }
   await expect(page).toHaveURL("/portal");
   await page.getByRole("button", { name: olive.name }).click();

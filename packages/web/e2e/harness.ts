@@ -408,6 +408,12 @@ export const goTo = async (page: Page, name: string) => {
   await link.click();
 };
 
+// moves to another area ("Office", "Cleaner area", "Client portal") from the
+// person's Account menu, which the test has opened
+export const switchArea = async (page: Page, area: string) => {
+  await page.getByRole("row", { name: `Switch to ${area}` }).click();
+};
+
 // whether the navigation marks a section as the one you're in
 export const expectCurrentSection = async (
   page: Page,
