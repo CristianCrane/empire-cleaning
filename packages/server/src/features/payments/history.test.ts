@@ -1,4 +1,6 @@
 import { describe, expect, test } from "vitest";
+import { and, eq } from "drizzle-orm";
+import { db } from "#db";
 import type { ClientPayment, SignedInAccount } from "@empire-cleaning/models";
 import { undoCompletion } from "#features/completion";
 import { signIn } from "../../../tests/harness.ts";
@@ -11,6 +13,7 @@ import {
   startedServicePlan,
   submit,
 } from "../../../tests/fixtures.ts";
+import { charges } from "./payments.schema.ts";
 
 const officeAccount = async () => {
   const office = await signInAsOffice();
@@ -40,6 +43,43 @@ describe("a Client's payment history", () => {
       });
       expect(payment).toMatchObject({ bill: null, clearing: false });
     }
+  });
+
+  test("tells a clean's own Balance from a later one for an increase, both taken at one moment", async () => {
+    const me = await officeAccount();
+    const { job } = await completedFirstClean({ byAccountId: me.id });
+    const [own] = await db
+      .select()
+      .from(charges)
+      .where(and(eq(charges.jobId, job.id), eq(charges.kind, "balance")));
+    // a Balance for an increase approved later, at the same moment by the
+    // clock (a test's stands still). The clean's own was made first, but is
+    // written again after it, so Postgres hands it back second
+    const {
+      id: _id,
+      createdAt: _createdAt,
+      updatedAt: _updatedAt,
+      ...rest
+    } = own!;
+    await db.insert(charges).values({
+      ...rest,
+      amountCents: 5988,
+      item: "1 extra hour",
+      gatewayRef: "fake_extra",
+    });
+    await db.delete(charges).where(eq(charges.id, own!.id));
+    await db.insert(charges).values(own!);
+
+    const history = await historyOf(casey.email);
+
+    expect(history.find((p) => p.kind === "balance")).toMatchObject({
+      amountCents: own!.amountCents,
+      item: null,
+    });
+    expect(history.find((p) => p.kind === "extra")).toMatchObject({
+      amountCents: 5988,
+      item: "1 extra hour",
+    });
   });
 
   test("holds a Service Plan's Deposit, for the plan", async () => {
