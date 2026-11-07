@@ -18,10 +18,16 @@ process.on("uncaughtException", (error) => {
   void flushSentry().finally(() => process.exit(1));
 });
 
-// so the seed can tell this database apart (features/site)
-await markDatabase();
-
-await listen(app, env.PORT);
+// starting: a step that fails leaves nothing to serve, so it's reported and
+// the process exits. Thrown at the top level, it would exit unreported
+try {
+  // so the seed can tell this database apart (features/site)
+  await markDatabase();
+  await listen(app, env.PORT);
+} catch (error) {
+  monitoring.error(error, { starting: "failed" });
+  await flushSentry().finally(() => process.exit(1));
+}
 log.info(`Server running on port ${env.PORT}`);
 
 void tick();
