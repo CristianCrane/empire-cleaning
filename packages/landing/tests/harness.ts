@@ -3,11 +3,8 @@ import { test as base, expect, type Page } from "@playwright/test";
 import { controlUrl } from "../playwright.config.ts";
 
 // talks to the e2e API's control server (packages/server/tests/e2e/server.ts)
-const control = async (path: string, init?: RequestInit) => {
-  const res = await fetch(`${controlUrl}${path}`, {
-    ...init,
-    headers: { "content-type": "application/json" },
-  });
+const control = async (path: string) => {
+  const res = await fetch(`${controlUrl}${path}`);
   if (!res.ok) throw new Error(`${path}: ${res.status} ${await res.text()}`);
   return res.json();
 };
@@ -21,16 +18,9 @@ export const emailsTo = (address: string): Promise<Email[]> =>
 // --repeat-each runs a test more than once
 export const newEmail = () => `casey-${crypto.randomUUID()}@example.com`;
 
-// every test starts from an empty database and no emails, and fails if the
-// Content-Security-Policy (astro.config.ts) blocked anything a page loads
-export const test = base.extend<{ cleanSlate: void; allowedByCsp: void }>({
-  cleanSlate: [
-    async ({}, use) => {
-      await control("/reset", { method: "POST" });
-      await use();
-    },
-    { auto: true },
-  ],
+// every test fails if the Content-Security-Policy (astro.config.ts) blocked
+// anything a page loads
+export const test = base.extend<{ allowedByCsp: void }>({
   allowedByCsp: [
     async ({ context }, use) => {
       const blocked: string[] = [];
@@ -56,11 +46,16 @@ export const test = base.extend<{ cleanSlate: void; allowedByCsp: void }>({
 // now and then. React Aria's hidden live announcer is left out: a button
 // pending as it navigates away leaves its announcement pointing at a label
 // that's gone. The web app's (packages/web/e2e) also waits until what it
-// checks is fully opaque
+// checks is fully opaque. axe runs in the page itself (legacy mode), asked
+// for violations only: a third of the time of its default, which runs it in
+// each frame and then again in a blank page, ~1 s a check. Legacy mode skips
+// cross-origin iframes, which the site has none of
 export const expectAccessible = async (page: Page) => {
   await page.waitForFunction(() => document.getAnimations().length === 0);
   const { violations } = await new AxeBuilder({ page })
     .exclude("[data-live-announcer]")
+    .setLegacyMode()
+    .options({ resultTypes: ["violations"] })
     .analyze();
   expect(
     violations.map((v) => ({

@@ -18,12 +18,15 @@ export const appUrl = "https://app.example.test";
 // tests the built site in a real Chromium, as a visitor gets it, on a phone
 // and a desktop. Its Request a Quote form talks to the real API and a database
 // of its own (packages/server/tests/e2e/servers.ts), separate from the web
-// app's, so both suites can run at once. Tests share that database, so they
-// run one at a time.
+// app's, so both suites can run at once. The tests share that API and
+// database, and run at once all the same: nothing resets them, and a test
+// that sends the form asks as a Client of its own, by its email (newEmail in
+// tests/harness.ts), so it sees only its own Quotes and emails. 2 workers
+// (why: ADR-0026); --workers sets it
 export default defineConfig({
   testDir: "./tests",
-  workers: 1,
-  fullyParallel: false,
+  workers: 2,
+  fullyParallel: true,
   // CI also keeps an HTML report, and the trace of every failed test
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   use: { baseURL: siteUrl, trace: "retain-on-failure" },

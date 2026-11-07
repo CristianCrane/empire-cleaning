@@ -33,6 +33,8 @@ The public page for prospective Clients at empirecleaningandpro.com: a static si
 - no sideways scrolling
 - the search data
 
+**Tests run in parallel against the one API and database, and nothing resets them.** A test that sends the Quote form asks with `newEmail()` from `tests/harness.ts`, as a Client of its own, so it sees only its own Quotes and emails (`emailsTo`), however many times it runs. There are 2 workers (why: ADR-0026); `--workers` sets it.
+
 Check accessibility with `expectAccessible(page)` from `tests/harness.ts`: `docs/testing.md` has the rule and the bug behind it.
 
 The browser setup is the same as the design system's (see `packages/ui/README.md`). Install the browser with `pnpm --filter @empire-cleaning/landing test:install-browser`.
