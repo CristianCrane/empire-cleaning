@@ -51,7 +51,8 @@ const builders = ["select", "selectDistinct", "insert", "update", "delete"];
 // where the latest one built in a transaction was written (the one that
 // overlaps, as each starts as soon as it's awaited). That's an Error whose
 // stack is formatted only on an overlap: formatting maps it through the
-// source maps, 7% of the server tests' CPU when done for every query (#316)
+// source maps: done for every query, 7% of the CPU in a profile of the
+// three biggest test files (#316)
 const watched = new WeakMap<
   Client,
   { running: number; writtenAt: Error | undefined }
