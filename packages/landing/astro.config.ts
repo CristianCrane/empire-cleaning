@@ -46,5 +46,10 @@ export default defineConfig({
   },
   integrations: [react(), sitemap()],
   // the release, and source maps for Sentry's landing project
-  vite: { plugins: [tailwindcss(), monitoringBuild("landing")] },
+  vite: {
+    plugins: [tailwindcss(), monitoringBuild("landing")],
+    // `astro preview` on a port in use fails rather than moving on, as the
+    // e2e tests wait for it on theirs (playwright.config.ts)
+    preview: { strictPort: true },
+  },
 });

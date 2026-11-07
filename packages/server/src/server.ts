@@ -115,3 +115,12 @@ app.use("/api/bills", billsRouter);
 app.use(errorHandler);
 
 export { app };
+
+// listens on `port`, on `host` when given, or fails: Express 5 hands an error
+// in listening, a port in use say, to app.listen's callback, so a callback
+// that only logs hides it, and the process goes on serving nothing
+export const listen = (on: express.Express, port: number, host?: string) =>
+  new Promise<ReturnType<express.Express["listen"]>>((resolve, reject) => {
+    const done = (error?: Error) => (error ? reject(error) : resolve(server));
+    const server = host ? on.listen(port, host, done) : on.listen(port, done);
+  });

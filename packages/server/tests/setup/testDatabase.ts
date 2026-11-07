@@ -69,7 +69,7 @@ const assertTestDatabase = (name: string) => {
 };
 
 // drops the database at `url` and creates it again, empty and migrated
-export const recreateTestDatabase = async (url: string) => {
+const recreateTestDatabase = async (url: string) => {
   const name = nameOf(url);
   assertTestDatabase(name);
   await asAdmin(url, async (admin) => {
@@ -87,7 +87,7 @@ export const recreateTestDatabase = async (url: string) => {
 
 // drops the databases at `urls` and creates them again as copies of the one at
 // `template`, which is much quicker than migrating them again
-export const copyTestDatabase = async (template: string, urls: string[]) => {
+const copyTestDatabase = async (template: string, urls: string[]) => {
   const names = urls.map(nameOf);
   names.forEach(assertTestDatabase);
   await asAdmin(template, async (admin) => {
@@ -123,4 +123,22 @@ export const dropTestDatabaseCopies = async (url: string, from: number) => {
       await admin.query(`DROP DATABASE IF EXISTS "${datname}" WITH (FORCE)`);
     }
   });
+};
+
+// the URLs of `count` copies of the database at `template`, numbered from
+// `first` (see withSuffix)
+export const copiesOf = (template: string, first: number, count: number) =>
+  Array.from({ length: count }, (_, i) => withSuffix(template, first + i));
+
+// migrates the database at `template` once and copies it to `count` databases
+// numbered from `first` (copiesOf), dropping copies numbered past them that an
+// earlier run left
+export const migratedCopies = async (
+  template: string,
+  first: number,
+  count: number,
+) => {
+  await recreateTestDatabase(template);
+  await dropTestDatabaseCopies(template, first + count);
+  await copyTestDatabase(template, copiesOf(template, first, count));
 };

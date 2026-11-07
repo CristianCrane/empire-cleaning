@@ -43,6 +43,8 @@ Newest first. The evidence lives where the link points; the row only says what w
 
 | Date | Finding | Where |
 | --- | --- | --- |
+| 2026-11-07 | Express 5's `app.listen` hands a listen error to its callback, and ours only logged, so an API on a port in use said it was listening, served nothing and stayed up. One `listen` in `src/server.ts` now fails on it, so a failed start exits, reported by the `uncaughtException` handler | #312, `packages/server/src/server.ts` |
+| 2026-11-07 | e2e slots start at once: Playwright started its `webServer` entries one after another, 4.9 s a slot, each migrating its own database, and the app build after them. One entry now builds the app while one launcher starts every slot's API, as one template is migrated and copied. The first test starts at 7.0 s with 6 slots, against 32.2 s, and at 5.6 s with 1, against 7.9 s; landing's at 6.0 s, against 10.3 s | #312, `packages/server/tests/e2e/servers.ts` |
 | 2026-11-07 | `changing.test.ts:113` is the slowest server test, 2.9 s alone where the next takes 2.2 s and the median 239 ms. With two checkouts' checks at once it passed 5 s, so it gets 10 s until fewer queries per request bring it down | PR #323, the test's comment, #316 |
 | 2026-11-07 | Web's browser tests held to Vitest's one port, 63315, through the dev server's `strictPort`, so a second checkout's run failed. They now move to a free one, as ui's do | PR #323, `packages/web/vitest.config.ts` |
 | 2026-11-07 | Before a PR, `pnpm test:change` for a typical change takes 157 s alone and 225 s with another checkout's at once, against a 12.8 min full suite | ADR-0026, PR #323 |
