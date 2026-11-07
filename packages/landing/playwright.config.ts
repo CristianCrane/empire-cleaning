@@ -27,10 +27,19 @@ export default defineConfig({
   // CI also keeps an HTML report, and the trace of every failed test
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   use: { baseURL: siteUrl, trace: "retain-on-failure" },
+  // as the web app's (packages/web/playwright.config.ts): one entry builds
+  // the site while the API starts, ready once both say so, and either one
+  // exiting ends it at once and takes the other with it
   webServer: [
     {
-      command: "pnpm --filter @empire-cleaning/server e2e:servers",
-      wait: { stdout: /e2e APIs ready/ },
+      // the site built here, so its form points at this run's API, and Sign
+      // in at a known address
+      command: `bash -c 'trap "kill 0" EXIT; pnpm --filter @empire-cleaning/server e2e:servers & (ASTRO_TELEMETRY_DISABLED=1 astro build && ASTRO_TELEMETRY_DISABLED=1 astro preview --port ${SITE_PORT} --ignore-lock) & wait -n'`,
+      wait: {
+        stdout: new RegExp(
+          `(?=[\\s\\S]*e2e APIs ready)(?=[\\s\\S]*Local\\s+${siteUrl})`,
+        ),
+      },
       timeout: 120_000,
       env: {
         ...process.env,
@@ -46,16 +55,6 @@ export default defineConfig({
           },
         ]),
         LANDING_ORIGIN_URL: siteUrl,
-      },
-    },
-    {
-      // built here, so the site's form points at this run's API, and Sign in
-      // at a known address
-      command: `ASTRO_TELEMETRY_DISABLED=1 astro build && ASTRO_TELEMETRY_DISABLED=1 astro preview --port ${SITE_PORT} --ignore-lock`,
-      url: siteUrl,
-      timeout: 120_000,
-      env: {
-        ...process.env,
         PUBLIC_API_URL: `http://localhost:${API_PORT}`,
         PUBLIC_APP_URL: appUrl,
       },
