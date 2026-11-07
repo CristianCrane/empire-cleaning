@@ -38,6 +38,7 @@ Newest first. The evidence lives where the link points; the row only says what w
 
 | Date | Finding | Where |
 | --- | --- | --- |
+| 2026-11-07 | e2e slots start at once: Playwright started its `webServer` entries one after another, 4.9 s a slot, each migrating its own database. One launcher now starts every slot's API while one template is migrated and copied. The first test starts at 8.7 s with 6 slots, against 32.2 s, and at 7.3 s with 1, against 7.9 s | #312, `packages/server/tests/e2e/servers.ts` |
 | 2026-11-07 | `changing.test.ts:113` is the slowest server test, 2.9 s alone where the next takes 2.2 s and the median 239 ms. With two checkouts' checks at once it passed 5 s, so it gets 10 s until fewer queries per request bring it down | PR #323, the test's comment, #316 |
 | 2026-11-07 | Web's browser tests held to Vitest's one port, 63315, through the dev server's `strictPort`, so a second checkout's run failed. They now move to a free one, as ui's do | PR #323, `packages/web/vitest.config.ts` |
 | 2026-11-07 | Before a PR, `pnpm test:change` for a typical change takes 157 s alone and 225 s with another checkout's at once, against a 12.8 min full suite | ADR-0026, PR #323 |

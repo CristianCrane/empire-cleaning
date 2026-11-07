@@ -4,68 +4,60 @@
 // same fakes the server tests use. A second, local-only control server lets
 // the tests reset state, add Staff, Clients and Jobs, move the clock and read
 // the emails that were "sent". Accounts aren't created here: tests sign up, as people do (ADR-0006).
-// Started by Playwright with its environment set (packages/web/playwright.config.ts,
-// packages/landing/playwright.config.ts).
+// One slot's API, started with the rest by servers.ts, which sets its
+// environment and its database (DB_URL), already migrated.
 import express from "express";
 import { desc, eq } from "drizzle-orm";
 import type { StaffRole } from "@empire-cleaning/models";
 import type { Approval } from "../fakes/payment-gateway.ts";
-import {
-  dropTestDatabaseCopies,
-  recreateTestDatabase,
-  TEST_DB_URL,
-  withSuffix,
-} from "../setup/testDatabase.ts";
 // keys only: it reads nothing on import
 import { SEEDED } from "../../src/features/services/seeded.ts";
 
-const CONTROL_PORT = Number(process.env.E2E_CONTROL_PORT ?? 3101);
-
-// every API here is one of E2E_WORKERS slots (packages/web/e2e/slots.ts; the
-// landing site's is slot 0 of 1), on a copy of TEST_DB_URL by its number
-const SLOT = Number(process.env.E2E_SLOT ?? 0);
-const WORKERS = Number(process.env.E2E_WORKERS ?? 1);
-process.env.DB_URL = withSuffix(TEST_DB_URL, SLOT);
-
-await recreateTestDatabase(process.env.DB_URL);
-// the first slot also drops the databases of slots an earlier run with more
-// workers left behind
-if (SLOT === 0) await dropTestDatabaseCopies(TEST_DB_URL, WORKERS);
-
-// imported only now: the app reads its environment and database on import
-const { app } = await import("../../src/server.ts");
-const { default: env } = await import("../../src/env.ts");
-const { createStaff, setUsualWeek } =
-  await import("../../src/features/staff/index.ts");
-const { createClient } = await import("../../src/features/clients/index.ts");
-const { sendDueReminders } = await import("../../src/features/jobs/index.ts");
-const { confirmAssignment, offerAssignment } =
-  await import("../../src/features/assignments/index.ts");
-const { installFakes, resetDatabase, testClock, testEmail, testPayments } =
-  await import("../harness.ts");
-const {
+import { app } from "../../src/server.ts";
+import env from "../../src/env.ts";
+import {
+  createStaff,
+  setUsualWeek,
+  staff,
+} from "../../src/features/staff/index.ts";
+import { createClient } from "../../src/features/clients/index.ts";
+import { sendDueReminders } from "../../src/features/jobs/index.ts";
+import {
+  confirmAssignment,
+  offerAssignment,
+} from "../../src/features/assignments/index.ts";
+import {
+  installFakes,
+  resetDatabase,
+  testClock,
+  testEmail,
+  testPayments,
+} from "../harness.ts";
+import {
   acceptedJob,
   billedWeek,
   bookedJob,
   completedFirstClean,
   sentServicePlanQuote,
   startedServicePlan,
-} = await import("../fixtures.ts");
-const { chaseProposedAdjustments, completeJob } =
-  await import("../../src/features/completion/index.ts");
-const { recordNoAccess } =
-  await import("../../src/features/cancellation/index.ts");
-const { moveJob, requestReschedule } =
-  await import("../../src/features/reschedule/index.ts");
-const { generateServicePlanJobs } =
-  await import("../../src/features/service-plans/index.ts");
-const { bookSiteVisit } =
-  await import("../../src/features/site-visits/index.ts");
-const { properties } = await import("../../src/features/properties/index.ts");
-const { staff } = await import("../../src/features/staff/index.ts");
-const { quotes } = await import("../../src/features/quotes/quotes.schema.ts");
-const { db } = await import("../../src/db/index.ts");
-const { accounts } = await import("../../src/features/auth/auth.schema.ts");
+} from "../fixtures.ts";
+import {
+  chaseProposedAdjustments,
+  completeJob,
+} from "../../src/features/completion/index.ts";
+import { recordNoAccess } from "../../src/features/cancellation/index.ts";
+import {
+  moveJob,
+  requestReschedule,
+} from "../../src/features/reschedule/index.ts";
+import { generateServicePlanJobs } from "../../src/features/service-plans/index.ts";
+import { bookSiteVisit } from "../../src/features/site-visits/index.ts";
+import { properties } from "../../src/features/properties/index.ts";
+import { quotes } from "../../src/features/quotes/quotes.schema.ts";
+import { db } from "../../src/db/index.ts";
+import { accounts } from "../../src/features/auth/auth.schema.ts";
+
+const CONTROL_PORT = Number(process.env.E2E_CONTROL_PORT ?? 3101);
 
 // fresh fakes, whose payments the browser's test form makes: a Bill paid on
 // its page is paid by card unless a test says otherwise

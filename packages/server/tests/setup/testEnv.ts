@@ -1,5 +1,5 @@
 // the environment every test run starts from (vitest.config.ts,
-// vitest.sandbox.config.ts)
+// vitest.sandbox.config.ts), and every e2e API's (tests/e2e/servers.ts)
 export const testEnv = {
   APP_MODE: "dev",
   CORS_ORIGIN_URL: "http://localhost:5173",
