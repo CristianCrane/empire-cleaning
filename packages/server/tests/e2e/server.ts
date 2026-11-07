@@ -13,7 +13,7 @@ import type { Approval } from "../fakes/payment-gateway.ts";
 // keys only: it reads nothing on import
 import { SEEDED } from "../../src/features/services/seeded.ts";
 
-import { app } from "../../src/server.ts";
+import { app, listen } from "../../src/server.ts";
 import env from "../../src/env.ts";
 import {
   createStaff,
@@ -67,7 +67,8 @@ const freshFakes = () => {
 };
 
 freshFakes();
-app.listen(env.PORT, () => console.log(`e2e API on port ${env.PORT}`));
+await listen(app, env.PORT);
+console.log(`e2e API on port ${env.PORT}`);
 
 const control = express();
 control.use(express.json());
@@ -373,6 +374,5 @@ control.get("/emails", (req, res) => {
   res.json(testEmail().to(String(req.query.to)));
 });
 
-control.listen(CONTROL_PORT, "127.0.0.1", () =>
-  console.log(`e2e control on port ${CONTROL_PORT}`),
-);
+await listen(control, CONTROL_PORT, "127.0.0.1");
+console.log(`e2e control on port ${CONTROL_PORT}`);
