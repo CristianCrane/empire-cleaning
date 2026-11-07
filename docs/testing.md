@@ -1,0 +1,54 @@
+# Tests: rules, measuring, and findings
+
+How Empire Cleaning's tests are meant to be written, how a question about them gets settled, and what each round of work on them found. Read this before writing a test, or before chasing one that fails or runs slow.
+
+- **The rules** are what every test keeps, each with the bug that taught it.
+- **Settling a test question** says how a cause gets shown and how to time things on this machine.
+- **The findings log** at the foot gives each finding's date, one line, and where its evidence lives. Check it before chasing a failure: the same one has turned up twice already.
+
+How each package's tests work, and how to run them, is in its README (`packages/server`, `packages/web`, `packages/landing`, `packages/ui`). What runs before a PR is in the root `README.md` and ADR-0026.
+
+## Rules
+
+### End-to-end tests (Playwright)
+
+**Check accessibility with `expectAccessible(page)` from the package's harness, never axe directly**. That's `packages/web/e2e/harness.ts` or `packages/landing/tests/harness.ts`; lint stops a spec importing `@axe-core/playwright`. Both wait until nothing on the page is animating before they run axe, and web's also until what it checks, and everything around it, is fully opaque: an animation can be yet to start. Text checked mid-fade fails on contrast now and then, so the test passes locally and fails in CI at random: main went red this way after #228. In web, pass a selector to check only part of the page, such as an open dialog: `expectAccessible(page, "[role=dialog]")`. A failure lists each element with what's wrong, e.g. the two colours and their contrast. The design system's story tests run axe their own way (`packages/ui/README.md`).
+
+**Switch area with `switchArea(page, area)` from `packages/web/e2e/harness.ts`, never by pressing "Switch to …" and waiting on the URL.** Open the person's Account menu first; `switchArea` presses the row and waits until the new area is on screen. The URL changes at once, but until the new area is ready the old one stays on screen, its menu open, so a test that goes on at the URL can press something in the old area, which the new one then throws away. It passed alone and timed out in every full local run (#310).
+
+### Time budgets
+
+**A project sets the budget for its kind of test, and says why in its config; a single test past it says so beside it, with why, and the issue that will bring it back when there is one.** The server tests keep Vitest's 5 s (`changing.test.ts:113` has its own 10 s until #316), the seed test 120 s and the design system's story tests 30 s (each in its `vitest.config.ts`). The end-to-end tests keep Playwright's 30 s, and `test.slow()` triples it for one test (`layout.spec.ts`, each with its reason). Raising a project's budget to fit one slow test would hide a hang or a slowdown in all the others.
+
+## Settling a test question
+
+**Show the cause before fixing it,** with the evidence the `change` skill names (`.claude/skills/change/SKILL.md`, Survey). For tests, that comes down to:
+
+- **Time on a quiet machine, and give the load beside the timing.** Check for another checkout's run (`pgrep -af "playwright|vitest"`). Check Windows' CPU too, from PowerShell: `Get-Counter '\Processor(_Total)\% Processor Time'`, and `'\Process(*)\% Processor Time'` for who. WSL can look idle while Windows starves it (the log, 2026-11-03 and 2026-11-07).
+- **A run alone against one beside another.** A test red only beside another checkout's run is load or something shared, such as a port or a database name. Many copies of one test at once (`--repeat-each`, several workers) tell a race apart from state left behind (#310).
+- **How close a test runs to its budget**, from its duration in a run: `vitest run --reporter=json --outputFile=…`, or Playwright's report. The tests near it are the ones that fail under load.
+- **The shared test Postgres** has its own signs of strain: `packages/server/README.md`, Testing.
+- **The machine's own faults** (WSL, NixOS, the shell): CristianCrane/.dotfiles#5.
+
+Record what you find in the log below.
+
+## Findings log
+
+Newest first. The evidence lives where the link points; the row only says what was found.
+
+| Date | Finding | Where |
+| --- | --- | --- |
+| 2026-11-07 | `changing.test.ts:113` is the slowest server test, 2.9 s alone where the next takes 2.2 s and the median 239 ms. With two checkouts' checks at once it passed 5 s, so it gets 10 s until fewer queries per request bring it down | PR #323, the test's comment, #316 |
+| 2026-11-07 | Web's browser tests held to Vitest's one port, 63315, through the dev server's `strictPort`, so a second checkout's run failed. They now move to a free one, as ui's do | PR #323, `packages/web/vitest.config.ts` |
+| 2026-11-07 | Before a PR, `pnpm test:change` for a typical change takes 157 s alone and 225 s with another checkout's at once, against a 12.8 min full suite | ADR-0026, PR #323 |
+| 2026-11-07 | Docker's localhost port forward doubles every query's round trip, 0.38 ms against 0.18 ms to the container's address. Pointing the server tests at the container cut a starved run from 195 s to 120 s | [#309 (comment)](https://github.com/CristianCrane/empire-cleaning/issues/309#issuecomment-6702793503) |
+| 2026-11-07 | A spinning `wsl.exe` behind WezTerm tabs again: 10.8 of 12 threads, with the Linux VM getting 0.23 cores. 7 to 12 server tests timed out on code CI passed; closing the tabs took the server tests from 195 s to 62 s, all green | [#309 (comment)](https://github.com/CristianCrane/empire-cleaning/issues/309#issuecomment-6702793503) |
+| 2026-11-07 | e2e tests switching area on the URL alone lost a race to `/api/me`: green alone and at 1, 2 or 6 workers, red in 6 of 6 copies at once. A trace showed the click landing on the old area 50 ms before `/api/me` answered | #310, PR #319 |
+| 2026-11-06 | Baseline for round 3: the full suite 12.8 min, one package after another. Two checkouts' touched specs at once at 6 workers took 133 s each, with a failure each; at 2 workers, 105 s each and green | #309 |
+| 2026-11-05 | The shared test Postgres: a full suite peaks at 67 connections, and web e2e took 3.6 min alone and 4.7 beside another checkout's server tests | `packages/server/README.md`, Testing |
+| 2026-11-04 | `expectAccessible` still caught a dialog mid-fade now and then, as an animation can be yet to start: 6 of 24 repeats of one Staff test failed on contrast. Web's check now also waits until what it checks is opaque | PR #253 |
+| 2026-11-03 | A Windows `wsl.exe`, the bridge for one WezTerm tab, spun at 10.6 cores while Linux used 0.17. Closing the tab fixed it; the tests left nothing running | PR #240 |
+| 2026-11-03 | Round 2: a run starts only the slots its workers use, and drops leftover test databases. One spec at 1 worker went from 52.1 s to 30.4 s | PR #240 |
+| 2026-11-02 | An axe check taken while a dialog slid in failed on contrast, and main went red after #228. One `expectAccessible` for every spec waits until nothing animates | PR #233 |
+| 2026-10-28 | Round 1: the time was spread across every test, so parallelism was the lever. Server tests went from 83 s to 32 s, a database per worker; web e2e from 8.1 to 3.0 min, a slot per worker; 6 workers, as 8 was no faster | #115, PR #118 |
+| 2026-10-25 | The test Postgres in memory: a commit took 47 ms on a Docker volume. `TRUNCATE` took ~4 s a test, so one `DELETE` transaction empties the tables. Loading the server takes ~5 s, so a worker's files share one (`isolate: false`). The design system's tests at 3 workers took 45 s against 66 s | `packages/server/README.md`, Testing; `packages/ui/vitest.config.ts` |
