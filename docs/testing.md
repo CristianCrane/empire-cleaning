@@ -31,7 +31,7 @@ How each package's tests work, and how to run them, is in its README (`packages/
 - **Time on a quiet machine, and give the load beside the timing.** Check for another checkout's run (`pgrep -af "playwright|vitest"`). Check Windows' CPU too, from PowerShell: `Get-Counter '\Processor(_Total)\% Processor Time'`, and `'\Process(*)\% Processor Time'` for who. WSL can look idle while Windows starves it (the log, 2026-11-03 and 2026-11-07).
 - **A run alone against one beside another.** A test red only beside another checkout's run is load or something shared, such as a port or a database name. Many copies of one test at once (`--repeat-each`, several workers) tell a race apart from state left behind (#310).
 - **How close a test runs to its budget**, from its duration in a run: `vitest run --reporter=json --outputFile=…`, or Playwright's report. The tests near it are the ones that fail under load.
-- **Reproduce a failure as the tool runs it**: with its `PATH` (pnpm and Playwright put `node_modules/.bin` on it), its working directory and its shell. Run by hand without them, a missing `vite` read as `wait -n` failing (#312, comment).
+- **Reproduce a failure as the tool runs it**: with its `PATH` (pnpm puts `node_modules/.bin` on it, and Playwright's webServer passes it on), its working directory and its shell. Run by hand without them, a missing `vite` read as `wait -n` failing (#312, comment).
 - **The shared test Postgres** has its own signs of strain: `packages/server/README.md`, Testing.
 - **The machine's own faults** (WSL, NixOS, the shell): CristianCrane/.dotfiles#5.
 
