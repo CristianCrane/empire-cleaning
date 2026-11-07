@@ -50,9 +50,9 @@ const builders = ["select", "selectDistinct", "insert", "update", "delete"];
 // each pooled connection, watched once: how many queries it's running, and
 // where the latest one built in a transaction was written (the one that
 // overlaps, as each starts as soon as it's awaited). That's an Error whose
-// stack is formatted only on an overlap: formatting maps it through the
-// source maps: done for every query, 7% of the CPU in a profile of the
-// three biggest test files (#316)
+// stack is formatted only on an overlap. Formatting maps it through the
+// source maps, and done for every query it took 7% of the CPU in a profile
+// of the three biggest test files (#316)
 const watched = new WeakMap<
   Client,
   { running: number; writtenAt: Error | undefined }
