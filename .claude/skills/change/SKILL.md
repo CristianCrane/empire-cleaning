@@ -19,7 +19,7 @@ A **pattern** is any shape the change follows or adds: a helper, a table, a laye
 - **Refactor first.** A refactor that changes no behaviour goes in the PR's first commits, and the change is built on top of it.
 - **Fix what you see.** A problem outside the change, seen while building or by the reviewer, goes on the survey's `Seen nearby:` list and is fixed in a cleanup commit after the change's. Nothing is filed for later.
 - **Big work.** A refactor or cleanup over ~10 files, or one that crosses packages: stop and ask the user one thing, whether it rides in this PR or gets its own. It's done either way. A refactor's own PR merges first, and the change's branch then starts from the default branch; a cleanup's own PR follows the change's.
-- **Every change** gets a survey, a plan review and a review. A small change writes a one-line survey.
+- **Every change** gets a survey, a plan review and a review. A small change writes a one-line survey; one for a bug carries its Cause.
 - The repo's own rules (CLAUDE.md, ADRs) add to these.
 
 ## 1. Survey
@@ -28,6 +28,7 @@ Before the first edit: the survey gate turns edits down until it exists, and its
 
 ```
 Change: <one line>
+Cause: <what's wrong>, shown by <evidence> | <what's wrong>, to show: <how> | none: no bug
 Patterns touched:
   - <name>: <n> copies — <path>, <path>, … — fits | fights the change
 Simplest shape: <what> (~<n> files)
@@ -39,26 +40,26 @@ Seen nearby:
   - <problem> — <path>
 ```
 
-Count copies by searching the repo for each pattern, not from memory. Done when every pattern the change touches is listed with every copy's path, and the simplest shape has a file count. `Seen nearby:` grows while you build; each item becomes a cleanup commit.
+A bug (wrong behaviour, a failing or flaky test, a run that's too slow) has a cause, and the cause is a claim until evidence shows it: a reproduction, a trace, numbers before and after, a test red on the old code. Evidence that takes an edit (a red test, a trace needing instrumentation) is `to show:`, and the branch shows it before round 1. Count copies by searching the repo for each pattern, not from memory. Done when a bug's Cause is shown or says how it will be, every pattern the change touches is listed with every copy's path, and the simplest shape has a file count. `Seen nearby:` grows while you build; each item becomes a cleanup commit.
 
 ## 2. Plan review
 
-Run the `change-reviewer` agent in **plan** mode, with the survey's path and the plan review's path (`plan-review-…` beside the survey; the gate names it). It reads the survey before any code exists, when a wrong shape costs a paragraph rather than rework. Revise the survey for each finding, or give round 1 your reason against it (round 1 carries the plan review's findings forward). One plan review per change; edits go through once it's written.
+Run the `change-reviewer` agent in **plan** mode, with the survey's path and the plan review's path (`plan-review-…` beside the survey; the gate names it). It reads the survey before any code exists, when a wrong shape or an unshown cause costs a paragraph rather than rework. Revise the survey for each finding, or give round 1 your reason against it (round 1 carries the plan review's findings forward). One plan review per change; edits go through once it's written.
 
 Post the survey in chat, then go on, unless it has Big work to ask about.
 
 ## 3. Build
 
-Keep the survey true: when the plan or the file count changes, update it. A hook compares the branch's size with `Expected files` every 25 files.
+Keep the survey true: when the plan or the file count changes, update it, and when a `to show:` cause is shown, say `shown by` what. A hook compares the branch's size with `Expected files` every 25 files.
 
 ## 4. Review
 
 Once the change is committed, before opening the PR (`gh pr create` is turned down until the review is of the last commit, or of one before it with only comment lines changed since, and, before the last round, has no open change findings), run the `change-reviewer` agent: **round 1**, with the branch, the repo root, which commits are refactors (the survey's `Commits:`), the survey's and plan review's paths, and the review's path (`review-…` beside the survey).
 
-A round is the reviewer and you arguing about shape. The reviewer reads shape, not behaviour, so tests never hold it up: start each round as its commit lands, and run the repo's quick tests beside it (its CLAUDE.md or AGENTS.md names them, and its full suite).
+A round is the reviewer and you arguing about shape, and about a bug's evidence. The reviewer reads the diff and the survey and runs no tests, so tests never hold it up: start each round as its commit lands, and run the repo's quick tests beside it (its CLAUDE.md or AGENTS.md names them, and its full suite).
 
 - **Every finding is a fix**, made now and never filed for later. Each has an id (`F<n>`) and a severity:
-  - **`[change]`**: a shape decision (the reviewer's impact list). Fix it, with any failure the round's quick tests found, commit, and run the reviewer again: **round 2**, **round 3**, and on. A follow-up round checks only the fixes, against the previous review in the same file. Only these fixes count rounds.
+  - **`[change]`**: a shape decision, or a bug's unshown cause (the reviewer's impact list). Fix it, with any failure the round's quick tests found, commit, and run the reviewer again: **round 2**, **round 3**, and on. A follow-up round checks only the fixes, against the previous review in the same file. Only these fixes count rounds.
   - **`[text]`**: a comment or doc that's false, stale or missing. A fix that changes only comment lines in code needs no review: the PR gate lets it through. A fix to Markdown gets a recheck.
 - **A recheck** reviews a commit that fixes no change finding: a text fix in Markdown, a cleanup from `Seen nearby:`, a fix to a failing test, typecheck, lint or CI. It checks only that commit, keeps the round's number and costs no round; a change finding it raises starts the next round. Rechecks have no cap.
 - **Push back** when a finding is wrong: give your reason in the prompt of the reviewer's next pass (a recheck of the same commit, when nothing else changed). It concedes or holds, with evidence. A change finding it still holds goes to the user with both sides; their ruling goes in the next pass's prompt, and closes the finding.
