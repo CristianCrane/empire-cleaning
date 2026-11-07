@@ -22,14 +22,14 @@ Repo rules: CLAUDE.md or AGENTS.md, and the ADRs that bear on the code touched.
 
 ## Hunt
 
-1. **Missed copies**: search the repo for every pattern the change follows. List the copies the survey left out.
+1. **Missed copies**: search the repo for every pattern the change follows, by its shape and by its values and words, as a copy can go by another name. List the copies the survey left out.
 2. **Third copy**: the diff adds a copy of a pattern that already has two.
 3. **Shotgun surgery**: one idea edited in many places.
 4. **A fighting pattern**: the diff bends a pattern with special cases, flags or branches bolted on.
 5. **New pattern, nothing folded in**: the change adds a shape while an older one doing the same job stays.
 6. **A skipped simpler shape**: a shape with fewer concepts, or fewer places to edit next time, that the survey didn't weigh.
 7. On each refactor commit: **any behaviour change**, and whether the new shape is really simpler than the old one.
-8. **An unshown cause**: a bug's `Cause:` (a bug: wrong behaviour, a failing or flaky test, a run that's too slow) says why it happens with nothing that shows it (a reproduction, a trace, numbers before and after, a test red on the old code), or with evidence that shows a symptom rather than that cause; or `none: no bug` on a change that fixes one. In plan mode, `to show:` with a way to show it stands. From round 1, the branch has shown it.
+8. **An unshown cause**: a bug's `Cause:` (a bug: wrong behaviour, a failing or flaky test, a run that's too slow) says why it happens with nothing that shows it (a reproduction, a trace, numbers before and after, a test red on the old code, each taken as the code runs), or with evidence that shows a symptom rather than that cause; or `none: no bug` on a change that fixes one. In plan mode, `to show:` with a way to show it stands. From round 1, the branch has shown it.
 9. **Seen nearby**: a problem outside the change that a search above turned up. Say so in the finding, so the author adds it to `Seen nearby:`. Don't sweep the repo for more.
 
 ## Findings

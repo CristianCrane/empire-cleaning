@@ -40,7 +40,7 @@ Seen nearby:
   - <problem> — <path>
 ```
 
-A bug (wrong behaviour, a failing or flaky test, a run that's too slow) has a cause, and the cause is a claim until evidence shows it: a reproduction, a trace, numbers before and after, a test red on the old code. Evidence that takes an edit (a red test, a trace needing instrumentation) is `to show:`, and the branch shows it before round 1. Count copies by searching the repo for each pattern, not from memory. Done when a bug's Cause is shown or says how it will be, every pattern the change touches is listed with every copy's path, and the simplest shape has a file count. `Seen nearby:` grows while you build; each item becomes a cleanup commit.
+A bug (wrong behaviour, a failing or flaky test, a run that's too slow) has a cause, and the cause is a claim until evidence shows it: a reproduction, a trace, numbers before and after, a test red on the old code, each taken as the code runs (the same handler, PATH, shell, data). Evidence that takes an edit (a red test, a trace needing instrumentation) is `to show:`, and the branch shows it before round 1. Count copies by searching the repo for each pattern, by its shape and by its values and words (a key's value, a sentence's phrase), not from memory: a copy can go by another name. Done when a bug's Cause is shown or says how it will be, every pattern the change touches is listed with every copy's path, and the simplest shape has a file count. `Seen nearby:` grows while you build; each item becomes a cleanup commit.
 
 ## 2. Plan review
 
