@@ -18,14 +18,25 @@ import {
 // tomorrow in UTC. A Vitest project of its own runs it after the other
 // tests (vitest.config.ts).
 const MONDAY = "2026-11-09";
-const instants = Array.from({ length: 7 }, (_, i) =>
-  addDays(MONDAY, i),
-).flatMap((day) => [
-  `${day}T12:00:00Z`,
-  `${day}T17:00:00Z`,
-  `${day}T23:30:00Z`,
-  `${addDays(day, 1)}T03:00:00Z`,
-]);
+const every = Array.from({ length: 7 }, (_, i) => addDays(MONDAY, i)).flatMap(
+  (day) => [
+    `${day}T12:00:00Z`,
+    `${day}T17:00:00Z`,
+    `${day}T23:30:00Z`,
+    `${addDays(day, 1)}T03:00:00Z`,
+  ],
+);
+
+// SEED_SHARD=<n>/<of> runs every <of>th instant from the <n>th, so CI's seed
+// jobs share them out (.github/workflows/ci.yml); without it, every one
+const shardOf = (value = "1/1") => {
+  const [, part, of] = (value.match(/^(\d+)\/(\d+)$/) ?? []).map(Number);
+  if (!part || !of || part > of) {
+    throw new Error(`SEED_SHARD must be like 1/2, not "${value}"`);
+  }
+  return every.filter((_, i) => i % of === part - 1);
+};
+const instants = shardOf(process.env.SEED_SHARD);
 
 // a database each, copied from one migrated for the seed test alone, and
 // dropped after: the test Postgres keeps them in memory
