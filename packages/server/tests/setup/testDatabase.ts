@@ -124,3 +124,20 @@ export const dropTestDatabaseCopies = async (url: string, from: number) => {
     }
   });
 };
+
+// migrates the database at `template` once and copies it to `count` databases
+// numbered from `first` (see withSuffix), dropping copies numbered past them
+// that an earlier run left; returns the copies' URLs
+export const migratedCopies = async (
+  template: string,
+  first: number,
+  count: number,
+) => {
+  const urls = Array.from({ length: count }, (_, i) =>
+    withSuffix(template, first + i),
+  );
+  await recreateTestDatabase(template);
+  await dropTestDatabaseCopies(template, first + count);
+  await copyTestDatabase(template, urls);
+  return urls;
+};

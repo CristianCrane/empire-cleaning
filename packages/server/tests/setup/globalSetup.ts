@@ -1,11 +1,5 @@
 import type { TestProject } from "vitest/node";
-import {
-  copyTestDatabase,
-  dropTestDatabaseCopies,
-  recreateTestDatabase,
-  TEST_DB_URL,
-  withSuffix,
-} from "./testDatabase.ts";
+import { migratedCopies, TEST_DB_URL } from "./testDatabase.ts";
 
 declare module "vitest" {
   export interface ProvidedContext {
@@ -21,11 +15,6 @@ declare module "vitest" {
 // share the one setting
 export async function setup(project: TestProject) {
   const workers = project.globalConfig.maxWorkers;
-  await recreateTestDatabase(TEST_DB_URL);
-  await dropTestDatabaseCopies(TEST_DB_URL, workers + 1);
-  await copyTestDatabase(
-    TEST_DB_URL,
-    Array.from({ length: workers }, (_, i) => withSuffix(TEST_DB_URL, i + 1)),
-  );
+  await migratedCopies(TEST_DB_URL, 1, workers);
   project.provide("testWorkers", workers);
 }

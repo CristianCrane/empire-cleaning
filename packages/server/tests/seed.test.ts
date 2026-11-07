@@ -3,9 +3,8 @@ import { promisify } from "node:util";
 import { afterAll, beforeAll, describe, test } from "vitest";
 import { addDays } from "#services/clock";
 import {
-  copyTestDatabase,
   dropTestDatabaseCopies,
-  recreateTestDatabase,
+  migratedCopies,
   TEST_DB_URL,
   withSuffix,
 } from "./setup/testDatabase.ts";
@@ -31,13 +30,7 @@ const instants = Array.from({ length: 7 }, (_, i) =>
 // dropped after: the test Postgres keeps them in memory
 const TEMPLATE = withSuffix(TEST_DB_URL, "seed");
 const databaseFor = (i: number) => withSuffix(TEMPLATE, i);
-beforeAll(async () => {
-  await recreateTestDatabase(TEMPLATE);
-  await copyTestDatabase(
-    TEMPLATE,
-    instants.map((_, i) => databaseFor(i)),
-  );
-});
+beforeAll(() => migratedCopies(TEMPLATE, 0, instants.length));
 afterAll(() => dropTestDatabaseCopies(TEMPLATE, 0));
 
 const run = promisify(execFile);
