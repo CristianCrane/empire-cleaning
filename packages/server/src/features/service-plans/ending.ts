@@ -1,14 +1,13 @@
 import { and, desc, eq, inArray, sum } from "drizzle-orm";
-import type { EndPlanTerms } from "@empire-cleaning/models";
+import {
+  CANCELLATION_CUTOFF_HOURS,
+  type EndPlanTerms,
+} from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock } from "../../services/clock/index.ts";
 import { email, notify } from "../../services/email/index.ts";
-import {
-  CANCELLATION_CUTOFF_HOURS,
-  freeUntilOf,
-  tellCrew,
-} from "../cancellation/cancellation.ts";
+import { freeUntilOf, tellCrew } from "../cancellation/cancellation.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { settleAfterChange, type Settled } from "../completion/balance.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";

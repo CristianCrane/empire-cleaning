@@ -38,10 +38,12 @@ import { PickAvailableTime } from "../AvailabilityPicker.tsx";
 import { ChooseNewTime, costForClient } from "../RescheduleParts.tsx";
 import {
   addressOf,
+  cancelledLabel,
   formatDate,
   formatDateTime,
   formatHours,
   formatMoney,
+  wasSkipped,
 } from "../format.ts";
 import { Fact } from "../Fact.tsx";
 import {
@@ -50,6 +52,7 @@ import {
   LATE_MOVE_FEE,
   notTaken,
   ON_WEEKS_BILL,
+  PLAN_CARRIES_ON,
   PRICES_INCLUDE_TAX,
   refundedTo,
   UPDATE_CARD,
@@ -81,11 +84,7 @@ export function PortalJob() {
           ) : completion ? (
             <StatusBadge tone="success">Done</StatusBadge>
           ) : job.cancellation ? (
-            <StatusBadge>
-              {job.servicePlanId && job.cancellation.by === "client"
-                ? "Skipped"
-                : "Cancelled"}
-            </StatusBadge>
+            <StatusBadge>{cancelledLabel(wasSkipped(job))}</StatusBadge>
           ) : job.noAccess ? (
             <JobStatusBadge status="no_access" />
           ) : (
@@ -515,11 +514,11 @@ function skippedFee(
 
 function Cancelled({ job }: { job: ClientJobDetail }) {
   const cancellation = job.cancellation!;
-  const skipped = job.servicePlanId !== null && cancellation.by === "client";
+  const skipped = wasSkipped(job);
   return (
     <Part
-      title={skipped ? "Skipped" : "Cancelled"}
-      description={`${skipped ? "Skipped" : "Cancelled"} ${formatDateTime(cancellation.cancelledAt)}.`}
+      title={cancelledLabel(skipped)}
+      description={`${cancelledLabel(skipped)} ${formatDateTime(cancellation.cancelledAt)}.`}
       actions={<WhatNext job={job} />}
     >
       {cancellation.by === "empire" ? (
@@ -544,7 +543,7 @@ function Cancelled({ job }: { job: ClientJobDetail }) {
       ) : (
         <p>There was no charge for cancelling.</p>
       )}
-      {job.servicePlanId && <p>Your Service Plan carries on as usual.</p>}
+      {job.servicePlanId && <p>{PLAN_CARRIES_ON}</p>}
       <Refund payment={cancellation.payment} />
     </Part>
   );

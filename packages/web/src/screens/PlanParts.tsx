@@ -35,6 +35,7 @@ import {
   formatHours,
   formatMoney,
   planDayWhen,
+  planStatus,
   recurrenceLabel,
 } from "./format.ts";
 import { Fact } from "./Fact.tsx";
@@ -45,15 +46,11 @@ export function PlanStatusBadge({
 }: {
   status: ServicePlanView["status"];
 }) {
-  switch (status) {
-    case "active":
-      return <StatusBadge tone="success">Active</StatusBadge>;
-    case "on_hold":
-      return <StatusBadge tone="warning">On Hold</StatusBadge>;
-    default:
-      // stopped for good: red
-      return <StatusBadge tone="danger">Ended</StatusBadge>;
-  }
+  return (
+    <StatusBadge tone={planStatus[status].tone}>
+      {planStatus[status].label}
+    </StatusBadge>
+  );
 }
 
 // Who's looking: the Client, in the portal, or Office Staff, acting for

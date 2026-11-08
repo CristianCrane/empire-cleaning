@@ -19,7 +19,13 @@ import {
   TextField,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
-import { formatDateTime, formatMoney, jobStatusLabel } from "../format.ts";
+import {
+  cancelledLabel,
+  formatDateTime,
+  formatMoney,
+  jobStatusLabel,
+  wasSkipped,
+} from "../format.ts";
 import { useAction } from "../action.ts";
 import type { CostedJob } from "../RescheduleParts.tsx";
 
@@ -166,7 +172,7 @@ export const howItEnded = (
 ): { title: string; at: string; description: string } | null => {
   const { cancellation, noAccess } = job;
   if (cancellation) {
-    const skipped = job.servicePlanId !== null && cancellation.by === "client";
+    const skipped = wasSkipped(job);
     const why =
       cancellation.by === "empire"
         ? "By Empire Cleaning, refunded in full"
@@ -174,7 +180,7 @@ export const howItEnded = (
           ? "By the Client, a Late Cancellation"
           : "By the Client, more than 24 hours ahead";
     return {
-      title: `${skipped ? "Skipped" : "Cancelled"} ${formatDateTime(cancellation.cancelledAt)}`,
+      title: `${cancelledLabel(skipped)} ${formatDateTime(cancellation.cancelledAt)}`,
       at: cancellation.cancelledAt,
       description: [
         `${why}${skipped ? "; the plan carries on" : ""}.`,

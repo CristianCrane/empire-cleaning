@@ -13,6 +13,7 @@ import { BOOK_ANOTHER } from "../quotes/emails.ts";
 import {
   clientFix,
   notTaken,
+  PLAN_CARRIES_ON,
   PLAN_PAUSED,
   refundedTo,
 } from "@empire-cleaning/models";
@@ -124,7 +125,7 @@ export const cancelledEmail = ({
       ...[
         ...rest,
         ...refundLine(settled),
-        onPlan ? "Your Service Plan carries on as usual." : BOOK_ANOTHER,
+        onPlan ? PLAN_CARRIES_ON : BOOK_ANOTHER,
       ].map(paragraph),
       portalButton(jobId),
     ],
@@ -228,7 +229,7 @@ export const noAccessEmail = ({
       ...(onPlan ? feeChargeLine(settled) : []),
       ...refundLine(settled),
       onPlan
-        ? "Your Service Plan carries on as usual. Please check your Access Instructions before your next clean."
+        ? `${PLAN_CARRIES_ON} Please check your Access Instructions before your next clean.`
         : `${BOOK_ANOTHER} Please check your Access Instructions first.`,
     ].map(paragraph),
     portalButton(jobId),

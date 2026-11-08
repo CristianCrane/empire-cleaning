@@ -13,6 +13,7 @@ import {
   formatWhen,
 } from "../../services/email/format.ts";
 import type { Settled } from "../completion/balance.ts";
+import { CAN_GET_IN } from "../jobs/emails.ts";
 import { BOOK_ANOTHER } from "../quotes/emails.ts";
 
 const whenList = (times: string[]) =>
@@ -44,9 +45,7 @@ export const planCleanBookedEmail = ({
           ),
         ]
       : []),
-    paragraph(
-      "Please make sure our team can get in. If anything has changed, such as a gate code or where the key is, update your Access Instructions.",
-    ),
+    paragraph(`${CAN_GET_IN}.`),
     button("See your clean", `/portal/jobs/${jobId}`),
   ],
 });

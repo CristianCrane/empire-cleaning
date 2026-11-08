@@ -1,9 +1,10 @@
 import { and, eq, isNull, ne, sum } from "drizzle-orm";
-import type {
-  CancellationTerms,
-  CancelledBy,
-  JobCancellation,
-  JobNoAccess,
+import {
+  CANCELLATION_CUTOFF_HOURS,
+  type CancellationTerms,
+  type CancelledBy,
+  type JobCancellation,
+  type JobNoAccess,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
@@ -38,10 +39,6 @@ import {
   officeCancelledEmail,
   officeNoAccessEmail,
 } from "./emails.ts";
-
-// cancelling is free until this long before a Job starts; after that it's a
-// Late Cancellation
-export const CANCELLATION_CUTOFF_HOURS = 24;
 
 // when a clean starting then enters the Late Cancellation window
 export const lateFrom = (startsAt: Date) =>

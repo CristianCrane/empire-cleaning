@@ -19,10 +19,12 @@ import type {
 import { Section, Timeline, TimelineItem } from "@empire-cleaning/ui";
 import {
   assignmentStateLabel,
+  cancelledLabel,
   formatDate,
   formatDateTime,
   formatMoney,
   jobStatusLabel,
+  wasSkipped,
 } from "../format.ts";
 
 type Moment = {
@@ -132,10 +134,7 @@ const momentsOf = (job: OfficeJob): Moment[] => {
       key: "cancelled",
       at: job.cancellation.cancelledAt,
       icon: Ban,
-      title:
-        job.servicePlanId && job.cancellation.by === "client"
-          ? "Skipped"
-          : "Cancelled",
+      title: cancelledLabel(wasSkipped(job)),
       description:
         job.cancellation.by === "empire"
           ? "By Empire Cleaning"

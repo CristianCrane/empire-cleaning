@@ -21,6 +21,7 @@ import type {
   TurnDownReason,
 } from "@empire-cleaning/models";
 import {
+  CANCELLATION_CUTOFF_HOURS,
   ENDS_BY_MIDNIGHT,
   noEmailYet,
   notSeenYet,
@@ -116,10 +117,7 @@ import {
 } from "./quotes.schema.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
 import { hoursOnSiteOf } from "../jobs/jobs.ts";
-import {
-  CANCELLATION_CUTOFF_HOURS,
-  lateFrom,
-} from "../cancellation/cancellation.ts";
+import { lateFrom } from "../cancellation/cancellation.ts";
 
 // a new Service Plan Quote's terms, until Office Staff change them: not a
 // copy of the First Clean, whatever it was

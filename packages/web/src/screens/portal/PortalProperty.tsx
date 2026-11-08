@@ -25,7 +25,6 @@ import {
   Notice,
   Section,
   StatusBadge,
-  type StatusTone,
   TextField,
 } from "@empire-cleaning/ui";
 import { accessHelp } from "@empire-cleaning/quote-request";
@@ -37,6 +36,7 @@ import {
   dayOfInstant,
   formatDateTime,
   formatShortDay,
+  planStatus,
   propertySummary,
   recurrenceLabel,
 } from "../format.ts";
@@ -44,12 +44,6 @@ import { AccessFact, ConditionFact, FloorAreaFact } from "../Fact.tsx";
 import { planWhen, quoteTitle, standingOf } from "./properties.ts";
 import { ClientQuoteStatusBadge } from "../QuoteParts.tsx";
 import { requestQuote } from "./whats-next.ts";
-
-const planStatus: Record<string, { tone: StatusTone; label: string }> = {
-  active: { tone: "success", label: "Active" },
-  on_hold: { tone: "warning", label: "On Hold" },
-  ended: { tone: "danger", label: "Ended" },
-};
 
 const shortDayOf = (iso: string) => formatShortDay(dayOfInstant(iso));
 
@@ -146,8 +140,8 @@ export function PortalProperty() {
                   .filter(Boolean)
                   .join(" · ")}
                 end={
-                  <StatusBadge tone={planStatus[plan.status]!.tone}>
-                    {planStatus[plan.status]!.label}
+                  <StatusBadge tone={planStatus[plan.status].tone}>
+                    {planStatus[plan.status].label}
                   </StatusBadge>
                 }
               />

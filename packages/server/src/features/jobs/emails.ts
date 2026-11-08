@@ -8,6 +8,11 @@ import {
 } from "../../services/email/blocks.ts";
 import { firstNameOf } from "../../services/email/format.ts";
 
+// a clean coming up, as its Client is reminded, and how they put right how we
+// get in; the caller ends the sentence
+export const CAN_GET_IN =
+  "Please make sure our team can get in. If anything has changed, such as a gate code or where the key is, update your Access Instructions";
+
 export const reminderEmail = ({
   name,
   clean,
@@ -20,9 +25,7 @@ export const reminderEmail = ({
     greeting(firstNameOf(name)),
     paragraph("A reminder that your clean is tomorrow."),
     cleanDetails(clean),
-    paragraph(
-      "Please make sure our team can get in. If anything has changed, such as a gate code or where the key is, update your Access Instructions:",
-    ),
+    paragraph(`${CAN_GET_IN}:`),
     button("Check your Access Instructions", "/portal/details"),
   ],
 });
