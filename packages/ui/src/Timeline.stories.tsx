@@ -21,36 +21,36 @@ type Story = StoryObj<typeof meta>;
 // a Quote's story: what to do now on top, then what happened, newest first
 export const QuoteStory: Story = {
   args: {
-    "aria-label": "This Quote's story",
+    "aria-label": "This quote's story",
     children: (
       <>
         <TimelineItem icon={FileClock} title="Now" current>
           <Card>
             <p>
               <strong>Expired Thu, Oct 8, 11:00 AM</strong> without a reply. To
-              offer it again, draft a new Revision.
+              offer it again, send an updated quote.
             </p>
             <Button variant="secondary" className="self-end">
-              Draft a new Revision
+              Send an updated quote
             </Button>
           </Card>
         </TimelineItem>
         <TimelineItem icon={Hourglass} title="Expired" when="Oct 8, 2026" />
         <TimelineItem
           icon={Send}
-          title="Revision 1 sent"
+          title="Quote sent"
           when="Oct 3, 2026"
           description="$270.01 · for Tue, Oct 13, 9:00 AM"
         />
         <TimelineItem
           icon={CalendarCheck}
-          title="Site Visit"
+          title="Site visit"
           when="Oct 2, 2026"
           description="Seen by Cleo"
         />
         <TimelineItem
           icon={MessageSquareText}
-          title="Chris Vo asked for a Quote"
+          title="Chris Vo asked for a quote"
           when="Oct 1, 2026"
           description="Standard Clean"
         />

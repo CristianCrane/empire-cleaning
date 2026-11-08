@@ -34,7 +34,12 @@ import type {
   ServiceOffer,
   Weekday,
 } from "@empire-cleaning/models";
-import { business, openAlready, quoteEmailedTo } from "@empire-cleaning/models";
+import {
+  REQUEST_A_QUOTE,
+  business,
+  openAlready,
+  quoteEmailedTo,
+} from "@empire-cleaning/models";
 import {
   Actions,
   Button,
@@ -135,7 +140,7 @@ const ownWords = {
   extrasNote: "Optional. Your quote will show what each one costs.",
   regular:
     "After my first clean, I'd like regular visits (weekly, bi-weekly or monthly) at 10% off.",
-  submit: "Request a quote",
+  submit: REQUEST_A_QUOTE,
   businessName: "Business name",
   contactNote: "The person we'll deal with at the business.",
   failed: `Your request didn't go through. ${CALL_US}`,

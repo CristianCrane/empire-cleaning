@@ -13,7 +13,7 @@ const meta = {
   component: Select,
   args: {
     label: "Condition",
-    placeholder: "Choose a Condition",
+    placeholder: "Choose a condition",
     items: conditions,
     children: (item: { id: string; name: string }) => (
       <SelectItem id={item.id}>{item.name}</SelectItem>
@@ -49,7 +49,7 @@ export const Choosing: Story = {
 };
 
 export const Invalid: Story = {
-  args: { isInvalid: true, errorMessage: "Choose the Property's Condition" },
+  args: { isInvalid: true, errorMessage: "Choose the property's condition" },
 };
 
 export const Disabled: Story = {

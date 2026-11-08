@@ -7,7 +7,7 @@ export const manhattan: Area = {
   short: "Manhattan",
   title: "Apartment Cleaning in Manhattan, NY",
   description:
-    "Apartment, co-op and office cleaning in Manhattan, from Harlem to the Financial District. Building paperwork handled. Se habla español. Request a Quote.",
+    "Apartment, co-op and office cleaning in Manhattan, from Harlem to the Financial District. Building paperwork handled. Se habla español. Request a quote.",
   heading: "Apartment and office cleaning in Manhattan",
   intro:
     "Manhattan apartments are small, busy and in buildings with rules. We clean them properly, work around the doorman and the paperwork, and keep offices clean after everyone's gone home.",
@@ -36,7 +36,7 @@ export const manhattan: Area = {
   homes: {
     title: "Doorman buildings, co-ops and walk-ups",
     text: [
-      "Most of our Manhattan Clients live in a building with rules: a co-op board, a managing agent, a doorman who needs to know we're coming. Many ask for a certificate of insurance before anyone works in an apartment, and some only allow work on weekdays or through the service entrance. Tell us your building's rules when you request a Quote and we'll have the paperwork in before the first clean.",
+      "Most of our Manhattan clients live in a building with rules: a co-op board, a managing agent, a doorman who needs to know we're coming. Many ask for a certificate of insurance before anyone works in an apartment, and some only allow work on weekdays or through the service entrance. Tell us your building's rules when you request a quote and we'll have the paperwork in before the first clean.",
       "A smaller apartment doesn't mean a quicker clean. A studio's kitchen is also its living room, and a city apartment gathers soot on the sills and grime on the windows faster than you'd think. We clean it all, and leave it the way the building expects it, with the trash taken where it goes.",
       "You don't need to be home. Leave a key with the doorman or tell us how to get in, and we'll lock up when we're done.",
     ],
@@ -66,17 +66,17 @@ export const manhattan: Area = {
     {
       question: "My co-op needs a certificate of insurance. Can you send one?",
       answer:
-        "Yes. Put your managing agent's details in the note on your Quote Request and we'll send the certificate to them before your first clean.",
+        "Yes. Put your managing agent's details in the note on your quote request and we'll send the certificate to them before your first clean.",
     },
     {
       question: "Can you clean while I'm at work?",
       answer:
-        "Yes, most of our Manhattan Clients are out when we come. Leave a key with your doorman or tell us how we get in, and we'll lock up afterwards.",
+        "Yes, most of our Manhattan clients are out when we come. Leave a key with your doorman or tell us how we get in, and we'll lock up afterwards.",
     },
     {
       question: "How does office cleaning work?",
       answer:
-        "Request a Quote for business premises and choose the days and time you'd like us. We visit the space first, for free, to see what it needs, then send you a Quote.",
+        "Request a quote for business premises and choose the days and time you'd like us. We visit the space first, for free, to see what it needs, then send you a quote.",
     },
     {
       question: "Do you speak Spanish?",

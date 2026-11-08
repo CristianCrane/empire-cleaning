@@ -7,7 +7,7 @@ export const queens: Area = {
   short: "Queens",
   title: "House Cleaning in Queens, NY",
   description:
-    "House, apartment, move-out and post-construction cleaning across Queens, from Astoria to Bayside. Se habla español. Request a Quote in minutes.",
+    "House, apartment, move-out and post-construction cleaning across Queens, from Astoria to Bayside. Se habla español. Request a quote in minutes.",
   heading: "House and apartment cleaning in Queens",
   intro:
     "Queens is home for us. We clean two-family houses, co-ops, walk-ups and new condos in every corner of the borough, for families, renters and the businesses on their main streets.",
@@ -36,8 +36,8 @@ export const queens: Area = {
   homes: {
     title: "Every kind of Queens home",
     text: [
-      "A Queens home could be almost anything: a two-family house in Ridgewood with the owners downstairs and tenants up, a prewar co-op in Jackson Heights with a garden out back, a walk-up in Astoria, or a glass condo in Long Island City with a doorman and a service elevator. We clean all of them, and we ask about yours before we come, so the Quote fits the place.",
-      "Co-ops and condos often have rules for anyone working in the building: hours, a service entrance, a certificate of insurance on file with management. Tell us your building's rules in your Quote Request and we'll sort them out before the first clean. For a house, tell us about the basement, the stairs and any rooms you'd like left alone.",
+      "A Queens home could be almost anything: a two-family house in Ridgewood with the owners downstairs and tenants up, a prewar co-op in Jackson Heights with a garden out back, a walk-up in Astoria, or a glass condo in Long Island City with a doorman and a service elevator. We clean all of them, and we ask about yours before we come, so the quote fits the place.",
+      "Co-ops and condos often have rules for anyone working in the building: hours, a service entrance, a certificate of insurance on file with management. Tell us your building's rules in your quote request and we'll sort them out before the first clean. For a house, tell us about the basement, the stairs and any rooms you'd like left alone.",
       "Plenty of Queens homes are busy ones, with kids, pets and relatives in and out. That's where a regular clean earns its keep: after your first clean, choose weekly, bi-weekly or monthly visits and every one is 10% off.",
     ],
   },
@@ -66,17 +66,17 @@ export const queens: Area = {
     {
       question: "Do you clean co-ops that need a certificate of insurance?",
       answer:
-        "Yes. Many Queens co-ops and condos ask for a certificate of insurance before a cleaning company can come in. Put your building management's details in the note on your Quote Request and we'll send it to them before your first clean.",
+        "Yes. Many Queens co-ops and condos ask for a certificate of insurance before a cleaning company can come in. Put your building management's details in the note on your quote request and we'll send it to them before your first clean.",
     },
     {
       question: "Can you clean both units of a two-family house?",
       answer:
-        "Yes, on the same day or on different days. Ask for a Quote for each unit, so each is priced for its own rooms, and say in the note that they're in the same house.",
+        "Yes, on the same day or on different days. Ask for a quote for each unit, so each is priced for its own rooms, and say in the note that they're in the same house.",
     },
     {
       question: "Do I need to be home while you clean?",
       answer:
-        "No. Many of our Clients are at work. Tell us how we get in, whether that's a key with a neighbor, a lockbox or the doorman, and we'll lock up when we're done.",
+        "No. Many of our clients are at work. Tell us how we get in, whether that's a key with a neighbor, a lockbox or the doorman, and we'll lock up when we're done.",
     },
     {
       question: "Do you speak Spanish?",

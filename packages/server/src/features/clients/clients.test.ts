@@ -419,7 +419,7 @@ describe("a Client changing their email", () => {
 
     expect(res.status).toBe(409);
     expect(res.body.message).toBe(
-      "That email is already used by another Client",
+      "That email belongs to another client. Please use a different one.",
     );
     expect((await agent.get("/api/clients/me")).body.email).toBe(casey.email);
   });

@@ -49,6 +49,10 @@ export const validate =
     next();
   };
 
+// what a too-long text field says: "Keep the reason under 500 characters"
+export const keepUnder = (max: number, what = "it") =>
+  `Keep ${what} under ${max.toLocaleString("en-US")} characters`;
+
 // a day and a start time a person picks, New York
 export const day = z.iso.date("Pick a day");
 export const startTime = z

@@ -10,7 +10,7 @@ const meta = {
     description: "Forest Hills, NY 11375",
     children: (
       <p>
-        3 bedrooms · 2 bathrooms · Moderate Condition. Ring the bell for
+        3 bedrooms · 2 bathrooms · Moderate condition. Ring the bell for
         apartment 4B; the key is with the doorman.
       </p>
     ),

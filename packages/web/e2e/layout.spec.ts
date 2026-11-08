@@ -145,7 +145,7 @@ test("the Office's screens fit every width", async ({ page }) => {
   await page.getByText("Casey Client").click();
   await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
   const request = new URL(page.url()).pathname;
-  await page.getByRole("link", { name: "View Property" }).click();
+  await page.getByRole("link", { name: "View property" }).click();
   await expect(page).toHaveURL(/\/office\/properties\/[0-9a-f-]{36}$/);
   const property = new URL(page.url()).pathname;
   await page
@@ -202,7 +202,7 @@ test("business premises' screens fit every width, the form included", async ({
   await page.getByText(/Acme Dental Group/).click();
   await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
   const request = new URL(page.url()).pathname;
-  await page.getByRole("link", { name: "View Property" }).click();
+  await page.getByRole("link", { name: "View property" }).click();
   await expect(page).toHaveURL(/\/office\/properties\/[0-9a-f-]{36}$/);
   const property = new URL(page.url()).pathname;
   for (const path of [request, property, `/office/site-visits/${visit.id}`]) {

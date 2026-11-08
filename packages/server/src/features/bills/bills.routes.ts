@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { ConflictError } from "../../middleware/errors.ts";
-import { validate } from "../../middleware/validation.ts";
+import { keepUnder, validate } from "../../middleware/validation.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { ownClient } from "../clients/clients.ts";
 import { whyNotPaid } from "../payments/unpaid.ts";
@@ -114,7 +114,7 @@ router.post(
         .string({ error: "Say why it's cancelled" })
         .trim()
         .min(1, "Say why it's cancelled")
-        .max(500, "Use a shorter reason"),
+        .max(500, keepUnder(500, "the reason")),
     }),
   }),
   async (req, res) => {
@@ -138,7 +138,7 @@ router.post(
         .string({ error: "Say how it was paid" })
         .trim()
         .min(1, "Say how it was paid")
-        .max(500, "Use a shorter note"),
+        .max(500, keepUnder(500, "the note")),
     }),
   }),
   async (req, res) => {

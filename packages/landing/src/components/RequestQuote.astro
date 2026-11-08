@@ -1,5 +1,5 @@
 ---
-import { ASK_US } from "@empire-cleaning/models";
+import { ASK_US, REQUEST_A_QUOTE } from "@empire-cleaning/models";
 import { apiUrl } from "../api-url.ts";
 import { business } from "../business.ts";
 import { QuoteForm } from "./QuoteForm.tsx";
@@ -14,7 +14,7 @@ const { start } = Astro.props;
 
 <Section
   id="quote"
-  title="Request a quote"
+  title={REQUEST_A_QUOTE}
   intro={`${ASK_US} No account needed.`}
   align="center"
 >

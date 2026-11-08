@@ -46,11 +46,11 @@ const chooseService = async (page: Page, name = "Standard Clean") => {
 // in the order they appear
 const sections = [
   "What we clean",
-  "What our Clients say",
+  "What our clients say",
   "Why Empire",
   "How it works",
   "Request a quote",
-  "Save 10% with a Service Plan",
+  "Save 10% with a cleaning plan",
   "Questions we're asked",
 ];
 
@@ -640,7 +640,7 @@ test("Request a Quote leads to the quote section", async ({ page }) => {
 
   await page
     .getByRole("main")
-    .getByRole("link", { name: "Request a Quote" })
+    .getByRole("link", { name: "Request a quote" })
     .click();
 
   await expect(page).toHaveURL(/#quote$/);
@@ -1004,7 +1004,7 @@ test.describe("search engines", () => {
     await expect(page).toHaveTitle("Page not found | Empire Cleaning");
     await expect(page.locator('link[rel="canonical"]')).toHaveCount(0);
     await expect(
-      page.getByRole("link", { name: "Request a Quote" }),
+      page.getByRole("link", { name: "Request a quote" }),
     ).toHaveAttribute("href", "/#quote");
     await expect(
       page.getByRole("link", { name: `Call ${business.phone.display}` }),

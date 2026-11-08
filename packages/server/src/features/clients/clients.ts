@@ -64,6 +64,10 @@ export const createClient = async ({
   return connected!;
 };
 
+// an email another Client already has, refused when one is given or confirmed
+export const EMAIL_TAKEN =
+  "That email belongs to another client. Please use a different one.";
+
 export const findClientByEmail = async (email: string) => {
   const [client] = await db
     .select()
@@ -166,7 +170,7 @@ export const confirmEmailChange = async (token: string) =>
       .from(clients)
       .where(eq(clients.email, change.email));
     if (other && other.id !== change.clientId) {
-      throw new ConflictError("That email is already used by another Client");
+      throw new ConflictError(EMAIL_TAKEN);
     }
     await tx
       .update(clients)

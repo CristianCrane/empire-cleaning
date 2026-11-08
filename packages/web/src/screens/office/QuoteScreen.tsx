@@ -240,7 +240,7 @@ function PropertyLine({ quote }: { quote: OfficeQuote }) {
   return (
     <p className="text-fg-muted">
       {addressOf(quote.property)} · {propertySummary(quote.property)} ·{" "}
-      <Link href={propertyLink(quote)}>View Property</Link>
+      <Link href={propertyLink(quote)}>View property</Link>
     </p>
   );
 }

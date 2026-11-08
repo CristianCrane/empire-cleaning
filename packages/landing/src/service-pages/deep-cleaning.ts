@@ -7,7 +7,7 @@ export const deepCleaning: ServicePage = {
   office: officeServices.deep,
   title: "Deep Cleaning in Queens, NYC & Long Island",
   description:
-    "A top-to-bottom deep clean of your home in Queens, Brooklyn, Manhattan or Long Island: every room, behind the appliances, along every baseboard. Request a Quote.",
+    "A top-to-bottom deep clean of your home in Queens, Brooklyn, Manhattan or Long Island: every room, behind the appliances, along every baseboard. Request a quote.",
   heading: "Deep cleaning, top to bottom",
   intro:
     "A deep clean reaches everything a regular clean doesn't get to every time: the baseboards, the vents, behind the appliances, the grout. It's the clean we recommend for our first visit to any home.",
@@ -57,8 +57,8 @@ export const deepCleaning: ServicePage = {
   pricing: {
     title: "How a deep clean is priced",
     text: [
-      "Every home is different, so we don't publish a price. Your Quote is worked out from your home: the bedrooms and bathrooms, how many floors, whether there are pets, any Add-ons, and how much cleaning it needs (light, moderate or heavy).",
-      "A deep clean takes longer than a standard clean, and your Quote says how long we'll be there. To book, you accept the Quote online and pay a Deposit; the rest is charged once the clean is done.",
+      "Every home is different, so we don't publish a price. Your quote is worked out from your home: the bedrooms and bathrooms, how many floors, whether there are pets, any add-ons, and how much cleaning it needs (light, moderate or heavy).",
+      "A deep clean takes longer than a standard clean, and your quote says how long we'll be there. To book, you accept the quote online and pay a deposit; the rest is charged once the clean is done.",
     ],
   },
   when: {
@@ -83,7 +83,7 @@ export const deepCleaning: ServicePage = {
     {
       question: "Is inside the oven and fridge included?",
       answer:
-        "They're Add-ons, along with inside the cabinets and interior windows. Tick the ones you want when you request a Quote and they'll be priced in.",
+        "They're add-ons, along with inside the cabinets and interior windows. Tick the ones you want when you request a quote and they'll be priced in.",
     },
     {
       question: "Do I need to be home?",
@@ -93,7 +93,7 @@ export const deepCleaning: ServicePage = {
     {
       question: "Is it all right if I have pets?",
       answer:
-        "Of course. Say so when you request a Quote, so it's in the time we allow and the crew knows who they'll meet.",
+        "Of course. Say so when you request a quote, so it's in the time we allow and the crew knows who they'll meet.",
     },
   ],
   related: [

@@ -97,7 +97,7 @@ export function ClientDetail() {
             <dt className="font-semibold">Email</dt>
             <dd className="[overflow-wrap:anywhere]">
               {client.email ??
-                "None yet: Quotes can't be sent to them until one is added."}
+                "None yet. Quotes can't be sent to them until one is added."}
             </dd>
             <dt className="font-semibold">Phone</dt>
             <dd>{client.phone}</dd>
@@ -113,9 +113,9 @@ export function ClientDetail() {
 
       <Section title="Properties">
         <List
-          aria-label={`${clientName(client)}'s Properties`}
+          aria-label={`${clientName(client)}'s properties`}
           renderEmptyState={() => (
-            <p className="p-4 text-center text-fg-muted">No Properties yet.</p>
+            <p className="p-4 text-center text-fg-muted">No properties yet.</p>
           )}
         >
           {client.properties.map((home) => (
@@ -361,12 +361,12 @@ const statusLine = (status: PropertyStatus) => {
       return "Quote asked for";
     case "quote_sent":
       return status.quoteKind === "service_plan"
-        ? "Service Plan Quote sent"
+        ? "Cleaning plan quote sent"
         : "Quote sent";
     case "job_booked":
       return `Job booked ${formatDateTime(status.startsAt)}`;
     case "first_clean_done":
-      return "First Clean done";
+      return "First clean done";
     case "nothing_booked":
       return "Nothing booked";
   }
@@ -428,7 +428,7 @@ function EditContact({ client }: { client: OfficeClientView }) {
               autoComplete="off"
               defaultValue={client.email ?? ""}
               isRequired={client.email !== null}
-              description="Their Quotes and notices go here."
+              description="Their quotes and notices go here."
             />
             <TextField
               label="Phone"

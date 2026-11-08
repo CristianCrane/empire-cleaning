@@ -83,7 +83,7 @@ function Rule({ title, children }: { title: string; children: ReactNode }) {
 }
 
 const jobs = (
-  <List aria-label="Today's Jobs" onAction={() => {}}>
+  <List aria-label="Today's jobs" onAction={() => {}}>
     <ListItem
       id="1"
       title="9:00 AM · Maria Lopez"
@@ -132,10 +132,10 @@ function SectionsNotCards() {
       </Rule>
       <div className="flex flex-col gap-4 md:flex-row">
         <Example verdict="Do">
-          <Section title="Today's Jobs">{jobs}</Section>
+          <Section title="Today's jobs">{jobs}</Section>
         </Example>
         <Example verdict="Don't">
-          <Card title="Tomorrow's Jobs">{jobs}</Card>
+          <Card title="Tomorrow's jobs">{jobs}</Card>
         </Example>
       </div>
       <div className="flex flex-col gap-4 md:flex-row">
@@ -193,7 +193,7 @@ function ActionFirstRows() {
             />
             <ListItem
               id="2"
-              title="Assign Staff"
+              title="Find cleaners"
               description="Dev Patel · 88 Grand St · Oct 28, 1:00 PM"
               start={<IconTile icon={UserX} tone="warning" />}
             />
@@ -291,7 +291,7 @@ function WorkListsAreTables() {
       <Example verdict="Do">
         <div className="flex flex-col gap-4">
           <TextField
-            label="Search Quotes"
+            label="Search quotes"
             type="search"
             placeholder="Client, business or address"
           />
@@ -308,7 +308,7 @@ function WorkListsAreTables() {
               </Tab>
             </TabList>
             <TabPanel id="all">
-              <Table aria-label="Open Quotes">
+              <Table aria-label="Open quotes">
                 <TableHeader>
                   <Column isRowHeader>Client</Column>
                   <Column>Status</Column>
@@ -444,7 +444,7 @@ function RecordsAsStories() {
               <strong>Waiting for Max to accept.</strong> He needs a card saved
               first.
             </Notice>
-            <Timeline aria-label="A Quote's story, newest first">
+            <Timeline aria-label="A quote's story, newest first">
               <TimelineItem icon={FileClock} title="Now" current>
                 <Card>
                   <p>Current quote: Standard Clean, $194.89</p>
@@ -663,10 +663,10 @@ function AllAtOnceInTwoColumns() {
         <div className="flex flex-col gap-4">
           <Section title="Job">
             <Card>
-              <p>Deep Clean · 6 Labour Hours · crew of 2</p>
+              <p>Deep Clean · 6 cleaning hours · crew of 2</p>
             </Card>
           </Section>
-          <Section title="Crew" description="1 of 2 Cleaners Confirmed">
+          <Section title="Crew" description="1 of 2 cleaners confirmed">
             <List aria-label="Crew">
               <ListItem
                 id="ben"
@@ -686,7 +686,7 @@ function AllAtOnceInTwoColumns() {
             <Timeline aria-label="History, newest first">
               <TimelineItem
                 icon={CalendarCheck}
-                title="Ben Cleaner Confirmed"
+                title="Ben Cleaner confirmed"
                 when="Oct 21"
               />
               <TimelineItem
@@ -986,11 +986,11 @@ function WhatsNextFirst() {
         </Example>
         <Example verdict="Don't">
           {[
-            "Your Bills",
-            "Your Service Plan",
-            "Your upcoming Jobs",
-            "Your past Jobs",
-            "Your Quotes",
+            "Your bills",
+            "Your cleaning plan",
+            "Your upcoming cleans",
+            "Your past cleans",
+            "Your quotes",
             "Your homes",
           ].map((title) => (
             <Card key={title} title={title}>

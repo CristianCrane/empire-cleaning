@@ -48,6 +48,6 @@ export const Failure: Story = {
   args: {
     tone: "danger",
     title: "Couldn't charge the card",
-    description: "The Job is marked Unpaid.",
+    description: "The job is marked unpaid.",
   },
 };

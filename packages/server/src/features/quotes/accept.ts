@@ -397,7 +397,7 @@ const recordAcceptance = async (
 
 const describe = ({ revision, property, offer }: Booking) =>
   revision.kind === "service_plan"
-    ? `Deposit: Service Plan at ${addressOf(property)}, from ${formatWhen(revision.proposedStartsAt!)}`
+    ? `Deposit: cleaning plan at ${addressOf(property)}, from ${formatWhen(revision.proposedStartsAt!)}`
     : `Deposit: ${offer.cleans[0]!.option.serviceName} at ${addressOf(property)}, ${formatWhen(revision.proposedStartsAt!)}`;
 
 /**

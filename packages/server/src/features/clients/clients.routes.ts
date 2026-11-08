@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { email } from "#services/email";
 import { fieldError, NotFoundError } from "../../middleware/errors.ts";
-import { validate } from "../../middleware/validation.ts";
+import { keepUnder, validate } from "../../middleware/validation.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { contactSchema } from "../quotes/asking.validation.ts";
 import {
@@ -10,6 +10,7 @@ import {
   ownClient,
   clientView,
   confirmEmailChange,
+  EMAIL_TAKEN,
   findClientByEmail,
   listClients,
   officeClientView,
@@ -60,11 +61,7 @@ router.post(
 const refuseOthersEmail = async (clientId: string, email: string | null) => {
   const other = email ? await findClientByEmail(email) : undefined;
   if (other && other.id !== clientId) {
-    throw fieldError(
-      ["email"],
-      "That email is already used by another Client",
-      email,
-    );
+    throw fieldError(["email"], EMAIL_TAKEN, email);
   }
 };
 
@@ -80,7 +77,7 @@ router.patch(
       businessName: z
         .string()
         .trim()
-        .max(200, "Use a shorter business name")
+        .max(200, keepUnder(200, "the business name"))
         .nullish(),
     }),
   }),

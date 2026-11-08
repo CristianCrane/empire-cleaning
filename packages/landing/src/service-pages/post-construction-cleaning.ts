@@ -7,7 +7,7 @@ export const postConstruction: ServicePage = {
   // Deep Clean or Commercial cleaning and describe the work in the note
   title: "Post-Construction Cleaning in Queens & Long Island",
   description:
-    "Post-construction and renovation cleaning in Queens, Brooklyn, Manhattan and Long Island: the fine dust and residue cleared so you can move back in. Request a Quote.",
+    "Post-construction and renovation cleaning in Queens, Brooklyn, Manhattan and Long Island: the fine dust and residue cleared so you can move back in. Request a quote.",
   heading: "Post-construction cleaning",
   intro:
     "The builders have gone, and the dust hasn't. We clear the fine construction dust and residue from every surface, top to bottom, so you can move back in.",
@@ -41,8 +41,8 @@ export const postConstruction: ServicePage = {
   pricing: {
     title: "How it's priced",
     text: [
-      "Construction dust settles everywhere, so a post-construction clean takes longer than a regular one. In your Quote Request, choose Deep Clean for a home, or Commercial cleaning for business premises, pick Heavy for how much cleaning it needs, and tell us in the note what work was done. Say roughly how big the space is and which rooms were worked on, so the Quote allows enough time.",
-      "Your Quote says how long we'll be there. For business premises we visit first, for free, to see the space. Accept the Quote online and pay a Deposit to book; the rest is charged once the clean is done.",
+      "Construction dust settles everywhere, so a post-construction clean takes longer than a regular one. In your quote request, choose Deep Clean for a home, or Commercial cleaning for business premises, pick Heavy for how much cleaning it needs, and tell us in the note what work was done. Say roughly how big the space is and which rooms were worked on, so the quote allows enough time.",
+      "Your quote says how long we'll be there. For business premises we visit first, for free, to see the space. Accept the quote online and pay a deposit to book; the rest is charged once the clean is done.",
     ],
   },
   when: {
@@ -54,7 +54,7 @@ export const postConstruction: ServicePage = {
   },
   faqs: [
     {
-      question: "Which Service do I choose in the form?",
+      question: "Which service do I choose in the form?",
       answer:
         "Deep Clean for a home, or Commercial cleaning for business premises. Choose Heavy for how much cleaning it needs, and tell us in the note it's after construction and what was done.",
     },
@@ -71,7 +71,7 @@ export const postConstruction: ServicePage = {
     {
       question: "Do you clean new offices and shops?",
       answer:
-        "Yes. Request a Quote for business premises and we'll visit the space first, for free, to see what it needs.",
+        "Yes. Request a quote for business premises and we'll visit the space first, for free, to see what it needs.",
     },
     {
       question: "Can you clean while work is still going on?",
@@ -81,7 +81,7 @@ export const postConstruction: ServicePage = {
     {
       question: "Do you clean the windows?",
       answer:
-        "Sills, tracks and frames are part of the clean. For a home, interior windows are an Add-on: tick it in your Quote Request.",
+        "Sills, tracks and frames are part of the clean. For a home, interior windows are an add-on: tick it in your quote request.",
     },
     {
       question: "Do you clean apartments after a renovation?",

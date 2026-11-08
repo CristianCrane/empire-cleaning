@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { day, startTime } from "../../middleware/validation.ts";
+import { day, keepUnder, startTime } from "../../middleware/validation.ts";
 import {
   conditionSchema,
   serviceKey,
@@ -53,7 +53,7 @@ const override = z
       .string({ error: "Say why you're changing the suggested price" })
       .trim()
       .min(1, "Say why you're changing the suggested price")
-      .max(500, "Keep the reason under 500 characters"),
+      .max(500, keepUnder(500, "the reason")),
   })
   .nullable();
 
