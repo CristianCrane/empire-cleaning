@@ -328,7 +328,13 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
   const [condition, setCondition] = useState<Condition>(
     firstFree("residential")?.condition ?? "moderate",
   );
-  const [offered, setOffered] = useState<AddOnChoice[]>([]);
+  // the Add-ons loaded, with the Service they're for; asked for again after
+  // a send refused some (addOnsAsked)
+  const [loadedAddOns, setLoadedAddOns] = useState<{
+    serviceKey: string;
+    addOns: AddOnChoice[];
+  }>();
+  const [addOnsAsked, setAddOnsAsked] = useState(0);
   const [premisesTypes, setPremisesTypes] = useState<PremisesTypeChoice[]>();
   const [chosen, setChosen] = useState<string[]>([]);
   const [area, setArea] = useState<number | null>(null);
@@ -360,17 +366,19 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
     if (services) startWith(services);
   }, [services]);
   // a home's Add-ons are the Service's own: those of the one chosen now,
-  // never a slower answer for one chosen before
+  // never a slower answer for one chosen before, and none till they come
   useEffect(() => {
     if (!serviceKey) return;
     let current = true;
     void loadAddOns(apiUrl, serviceKey).then(
-      (found) => current && setOffered(found),
+      (addOns) => current && setLoadedAddOns({ serviceKey, addOns }),
     );
     return () => {
       current = false;
     };
-  }, [apiUrl, serviceKey]);
+  }, [apiUrl, serviceKey, addOnsAsked]);
+  const offered =
+    loadedAddOns?.serviceKey === serviceKey ? loadedAddOns.addOns : [];
   useEffect(() => {
     void loadPremisesTypes(apiUrl).then(setPremisesTypes);
   }, [apiUrl]);
@@ -973,7 +981,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
         setRefusal(
           "Some of the extras you chose are no longer offered. Please check your choices.",
         );
-        void loadAddOns(apiUrl, serviceKey!).then(setOffered);
+        setAddOnsAsked((n) => n + 1);
       }
     } else if (result.refusal) {
       setRefusal(result.refusal);

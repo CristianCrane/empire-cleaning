@@ -383,6 +383,69 @@ test.describe("requesting a Quote", () => {
     await expect(extras.getByText("From the first Service")).toHaveCount(0);
   });
 
+  test("extras refused on sending are asked for again, for the Service chosen by then", async ({
+    page,
+  }) => {
+    const email = newEmail();
+    // an extra withdrawn since the form loaded: the server would answer so
+    await page.route("**/api/quotes/ask", (route) =>
+      route.fulfill({
+        status: 400,
+        json: { details: [{ path: "addOns.0", issue: "No longer offered" }] },
+      }),
+    );
+    // the extras asked for again after the refusal are held back
+    let asked = 0;
+    let answerLate!: () => Promise<void>;
+    let heldUrl = "";
+    const held = new Promise<void>((resolve) => {
+      void page.route("**/api/price-list/add-ons?*", async (route) => {
+        if (++asked !== 2) return route.fallback();
+        heldUrl = route.request().url();
+        answerLate = () =>
+          route.fulfill({
+            json: [{ key: "from-before", name: "From the first Service" }],
+          });
+        resolve();
+      });
+    });
+    await openQuoteForm(page);
+    await fillWhere(page);
+    await next(page);
+    await page
+      .getByRole("group", { name: "Any extras?" })
+      .getByText("Inside the fridge")
+      .click();
+    await next(page);
+    await fillDetails(page, email);
+    await page.getByRole("button", { name: "Request a quote" }).click();
+    await expect(
+      page.getByText(
+        "Some of the extras you chose are no longer offered. Please check your choices.",
+      ),
+    ).toBeVisible();
+    await held;
+
+    // back to the start, for another Service, before the answer comes
+    await page.getByRole("button", { name: "Back" }).click();
+    await page.getByRole("button", { name: "Back" }).click();
+    const deep = page.waitForResponse(
+      (r) =>
+        r.url().includes("/api/price-list/add-ons?") && r.url() !== heldUrl,
+    );
+    await page.locator("form").getByText("Deep Clean", { exact: true }).click();
+    await deep;
+    const late = page.waitForResponse(heldUrl);
+    await answerLate();
+    await late;
+    await next(page);
+    await next(page);
+
+    const extras = page.getByRole("group", { name: "Any extras?" });
+    await expect(extras.getByRole("checkbox").first()).toBeVisible();
+    await expect(extras.getByText("From the first Service")).toHaveCount(0);
+  });
+
   test("extras are offered by name, with no prices, and can be chosen", async ({
     page,
   }) => {
