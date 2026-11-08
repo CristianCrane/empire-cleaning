@@ -452,18 +452,18 @@ function RecordsAsStories() {
               </TimelineItem>
               <TimelineItem
                 icon={Send}
-                title="Revision 1 sent"
+                title="Quote sent"
                 when="Oct 3"
                 description="$194.89 · for Tue, Oct 13, 9:00 AM"
               />
               <TimelineItem
                 icon={CalendarCheck}
-                title="Site Visit done"
+                title="Site visit done"
                 when="Oct 2"
               />
               <TimelineItem
                 icon={MessageSquareText}
-                title="Max asked for a Quote"
+                title="Max asked for a quote"
                 when="Oct 1"
               />
             </Timeline>
@@ -515,11 +515,11 @@ function NoticesHoldOneAction() {
               action={
                 <Button variant="text" size="sm">
                   <Pencil aria-hidden size={16} />
-                  Continue the Draft
+                  Carry on with the draft
                 </Button>
               }
             >
-              <strong>Revision 2 is a Draft, not sent yet.</strong>
+              <strong>This draft isn't sent yet.</strong>
             </Notice>
             <Notice
               action={
@@ -529,21 +529,23 @@ function NoticesHoldOneAction() {
                 </Button>
               }
             >
-              <strong>Waiting for Kim to accept Revision 1.</strong> She needs a
-              card saved first.
+              <strong>
+                Waiting for Kim to accept the quote you sent.
+              </strong>{" "}
+              They need to save a card first.
             </Notice>
           </div>
         </Example>
         <Example verdict="Don't">
           <Notice>
             <p>
-              <strong>Revision 2 is a Draft.</strong> Kim needs a card saved to
-              accept Revision 1.
+              <strong>This draft isn't sent yet.</strong> Kim needs to save a
+              card to accept the quote you sent.
             </p>
             <div className="flex gap-2 pt-2">
-              <Button>Continue the Draft</Button>
+              <Button>Carry on with the draft</Button>
               <Button>Email Kim a link</Button>
-              <Button variant="danger-text">Delete the Draft</Button>
+              <Button variant="danger-text">Delete the draft</Button>
             </div>
           </Notice>
         </Example>
