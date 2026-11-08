@@ -13,6 +13,9 @@ import { firstNameOf } from "../../services/email/format.ts";
 export const CAN_GET_IN =
   "Please make sure our team can get in. If anything has changed, such as a gate code or where the key is, update how we get in";
 
+// where a Client puts it right, from any email that asks them to check it
+export const accessButton = button("Check how we get in", "/portal/details");
+
 export const reminderEmail = ({
   name,
   clean,
@@ -26,6 +29,6 @@ export const reminderEmail = ({
     paragraph("A reminder that your clean is tomorrow."),
     cleanDetails(clean),
     paragraph(`${CAN_GET_IN}:`),
-    button("Check how we get in", "/portal/details"),
+    accessButton,
   ],
 });
