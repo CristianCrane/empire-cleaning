@@ -14,6 +14,7 @@ import type {
   StaffHolding,
   StaffRole,
 } from "@empire-cleaning/models";
+import { hasSiteVisit } from "@empire-cleaning/models";
 import {
   Actions,
   Avatar,
@@ -288,8 +289,11 @@ function WhatItFrees({
         }
       >
         <p>
-          {firstName} has a Site Visit at {visit.where},{" "}
-          {formatDateTime(visit.startsAt)}. Give it to someone else first.
+          {hasSiteVisit(
+            firstName!,
+            visit.where,
+            formatDateTime(visit.startsAt),
+          )}
         </p>
       </Notice>
     );

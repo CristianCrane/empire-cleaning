@@ -235,20 +235,23 @@ export const withoutReplaced = (
 // what happened to a Job that isn't booked any more
 type Ended = Exclude<JobStatus, "booked">;
 const ended: Record<Ended, string> = {
-  completed: "This Job has been Completed",
-  cancelled: "This Job has been cancelled",
-  no_access: "No Access was recorded for this Job",
+  completed: "This clean is done",
+  cancelled: "This clean was cancelled",
+  no_access: "The cleaner couldn't get in for this clean",
 };
 const already: Record<Ended, string> = {
-  completed: "This Job has already been Completed",
-  cancelled: "This Job has already been cancelled",
-  no_access: "No Access has already been recorded for this Job",
+  completed: "This clean is already done.",
+  cancelled: "This clean is already cancelled.",
+  no_access: "We already know the cleaner couldn't get in.",
 };
-const canDo: Record<Ended | "moved", string> = {
-  completed: "be Completed",
-  cancelled: "be cancelled",
-  no_access: "have No Access recorded",
-  moved: "move",
+// what someone can't do to a clean that has ended or started
+const canDo: Record<Ended | "moved" | "offered" | "confirmed", string> = {
+  completed: "mark it done",
+  cancelled: "cancel it",
+  no_access: "say the cleaner couldn't get in",
+  moved: "move it",
+  offered: "offer it to anyone",
+  confirmed: "confirm it",
 };
 
 // Why a Job that isn't booked can't be `doing`: what happened to it, or
@@ -256,4 +259,8 @@ const canDo: Record<Ended | "moved", string> = {
 export const whyNotBooked = (status: Ended, doing: Ended | "moved") =>
   status === doing
     ? already[status]
-    : `${ended[status]}, so it can't ${canDo[doing]}`;
+    : `${ended[status]}, so you can't ${canDo[doing]}.`;
+
+// why a Job that has started can't be `doing`
+export const whyStarted = (doing: keyof typeof canDo) =>
+  `This clean has already started, so you can't ${canDo[doing]}.`;

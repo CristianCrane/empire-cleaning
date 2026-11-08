@@ -189,7 +189,9 @@ describe("booking a Site Visit", () => {
 
     const full = await book(office, quote.id, cory.id, "15:00");
     expect(full.status).toBe(409);
-    expect(full.body.message).toContain("doesn't have room");
+    expect(full.body.message).toBe(
+      "Cory doesn't have enough working hours free that day. Pick another day or person.",
+    );
 
     // Saturday is a day off for Cory, who isn't Office Staff
     const dayOff = await book(office, quote.id, cory.id, "10:00", {

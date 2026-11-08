@@ -326,7 +326,7 @@ describe("asking to move a Job", () => {
           409,
         )
       ).body.message,
-    ).toBe("That's when the clean is already booked");
+    ).toBe("That's when it's booked now. Pick a different time.");
 
     await ask(client, jobId, WEDNESDAY).expect(201);
     expect(
@@ -468,7 +468,7 @@ describe("Office Staff answering", () => {
 
     const refused = await confirm(office, jobId).expect(409);
     expect(refused.body.message).toBe(
-      "Not enough Cleaners are free then: the Job needs 1, and 0 of the 1 available that day are. Turn the request down, or give a Cleaner hours that day.",
+      "Not enough cleaners are free then. Turn the request down, or give a cleaner more working hours that day.",
     );
     expect((await officeJob(office, jobId)).startsAt).toBe(
       new Date(STARTS_AT).toISOString(),

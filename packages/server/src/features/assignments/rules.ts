@@ -7,7 +7,7 @@ import {
 } from "@empire-cleaning/models";
 import { DAY_MS, HOUR_MS } from "../../services/clock/index.ts";
 import { formatWhen } from "../../services/email/index.ts";
-import { asClean, isFree } from "../jobs/rules.ts";
+import { asClean, isFree, whyStarted } from "../jobs/rules.ts";
 
 // The rules for a Job's crew (ADR-0019), over what the actions load: the
 // Job's day of the Schedule, and its Assignments. Each says why something is
@@ -38,8 +38,6 @@ export const opensAt = (job: When) =>
 export const releaseClosed = (job: Pick<Job, "startsAt">, now: Date) =>
   job.startsAt.getTime() - now.getTime() < RELEASE_CUTOFF_HOURS * HOUR_MS;
 
-const STARTED = "This Job has already started";
-
 // a Job seen at one time and since moved: they're asked to look again (#242)
 const moved = (startsAt: Date, seen: Date | undefined) =>
   seen && seen.getTime() !== startsAt.getTime()
@@ -64,7 +62,7 @@ export const whyNotOffer = (
   now: Date,
 ) => {
   const job = onDay(day, jobId);
-  if (new Date(job.startsAt) <= now) return STARTED;
+  if (new Date(job.startsAt) <= now) return whyStarted("offered");
   if (!member.active || !member.roles.includes("cleaner")) {
     return `${member.name} isn't an active Cleaner`;
   }
@@ -94,7 +92,7 @@ export const whyNotConfirm = (
 ) => {
   const job = onDay(day, jobId);
   const startsAt = new Date(job.startsAt);
-  if (startsAt <= now) return STARTED;
+  if (startsAt <= now) return whyStarted("confirmed");
   const since = moved(startsAt, seen);
   if (since) return since;
   if (!isFree(day, staffId, asClean(job))) {

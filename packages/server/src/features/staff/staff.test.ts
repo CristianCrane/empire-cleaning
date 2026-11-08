@@ -437,7 +437,7 @@ describe("deactivating Staff", () => {
       .expect(409);
 
     expect(body.message).toMatch(
-      /^Cory has a Site Visit at \d+ Austin St, 4B, 11375 on Friday, January 9 at 10:00 AM\. Give it to someone else first\.$/,
+      /^Cory has a site visit at \d+ Austin St, 4B, 11375 on Friday, January 9 at 10:00 AM\. Give it to someone else first\.$/,
     );
     expect((await office.get(`/api/staff/${member.id}`)).body.active).toBe(
       true,
@@ -643,7 +643,7 @@ describe("Staff availability", () => {
       .expect(409);
 
     expect(body.message).toMatch(
-      /^Cory has a Site Visit at \d+ Austin St, 4B, 11375 on Thursday, January 8 at 2:00 PM\. Give it to someone else first\.$/,
+      /^Cory has a site visit at \d+ Austin St, 4B, 11375 on Thursday, January 8 at 2:00 PM\. Give it to someone else first\.$/,
     );
     expect(
       ((await office.get(path)).body as StaffDetail).availability.exceptions,

@@ -7,6 +7,7 @@ import type {
   StaffMember,
   StaffRole,
 } from "@empire-cleaning/models";
+import { hasSiteVisit } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock, dayOf, weekdayOf } from "../../services/clock/index.ts";
@@ -394,7 +395,11 @@ const refuseSiteVisits = (member: Staff, visits: Held[]) => {
   const [visit] = visits;
   if (!visit) return;
   throw new ConflictError(
-    `${firstNameOf(member.name)} has a Site Visit at ${visit.where} on ${formatWhen(visit.startsAt)}. Give it to someone else first.`,
+    hasSiteVisit(
+      firstNameOf(member.name),
+      visit.where,
+      formatWhen(visit.startsAt),
+    ),
   );
 };
 

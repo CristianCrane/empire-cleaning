@@ -42,6 +42,7 @@ import type {
   ServiceChoice,
   ServicePlanInput,
 } from "@empire-cleaning/models";
+import { ADD_HOURS, DAY_FULL, NO_CREW } from "@empire-cleaning/models";
 import {
   Actions,
   Breadcrumbs,
@@ -86,11 +87,9 @@ import {
   clientName,
   conditionLabel,
   dayOfInstant,
-  formatClock,
   formatDate,
   formatDateTime,
   formatDay,
-  formatHours,
   formatMoney,
   planName,
   planRhythm,
@@ -1235,22 +1234,21 @@ function RoomOnDay({
   const crewless = options.filter((o) => fits(o) && crew(o)?.hasCrew === false);
   const crewNotice = crewless.length > 0 && time && (
     <Notice tone="danger">
-      {noCrewAt(time, crewSize, crew(crewless[0]!)!)}{" "}
       {crewless.length === options.length
-        ? `The Client couldn't accept this Quote: choose another time, or give a Cleaner hours that day.`
-        : `The Client couldn't choose ${crewless.map(describeOption).join(" or ")}.`}
+        ? `${NO_CREW} ${ADD_HOURS}`
+        : `Not enough cleaners are free then for ${crewless.map(describeOption).join(" or ")}. Pick another time to offer ${crewless.length === 1 ? "it" : "them"} too.`}
     </Notice>
   );
   const fitting = options.filter(fits);
   const missing = options.filter((o) => !fits(o));
   const describe = describeOption;
-  const opening = `${formatDay(day)} has ${formatHours(Math.max(free.hours, 0))} of Cleaner time free`;
 
   if (missing.length === 0) {
     return (
       <>
         <p className="text-sm text-fg-muted">
-          {opening}: room for {options.length === 1 ? "it" : "either clean"}.
+          {formatDay(day)} has room for{" "}
+          {options.length === 1 ? "it" : "either clean"}.
         </p>
         {crewNotice}
       </>
@@ -1260,26 +1258,15 @@ function RoomOnDay({
     <>
       <Notice tone="danger">
         {fitting.length > 0
-          ? `${opening}: room for ${fitting.map(describe).join(" and ")}, but not ${missing.map(describe).join(" or ")}. The Client will only be able to choose ${fitting.length === 1 ? "that one" : "those"}.`
-          : `${opening}, not enough for ${missing.map(describe).join(" or ")}. The Client couldn't accept this Quote: choose another day, or give a Cleaner more hours that day.`}
+          ? `That day only has room for ${fitting.map(describe).join(" and ")}. Pick another day to offer ${missing.map(describe).join(" and ")} too.`
+          : `${DAY_FULL} ${ADD_HOURS}`}
       </Notice>
       {crewNotice}
     </>
   );
 }
 
-const describeOption = (o: OfficeQuoteOption) =>
-  `the ${o.serviceName} (${formatHours(o.labourHours)})`;
-
-// why a crew can't be had at a time
-const noCrewAt = (
-  time: string,
-  crewSize: number,
-  { busy, cleaners }: { busy: number; cleaners: number },
-) => {
-  const free = Math.max(cleaners - busy, 0);
-  return `Not enough Cleaners are free at ${formatClock(time)}: a crew of ${crewSize} is needed, and ${free} of the ${cleaners} available that day ${free === 1 ? "is" : "are"}.`;
-};
+const describeOption = (o: OfficeQuoteOption) => `the ${o.serviceName}`;
 
 // A Service Plan Quote's own terms: how often, the Plan Discount, and the
 // Condition it's priced for, which is moderate unless changed here (the

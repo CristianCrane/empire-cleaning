@@ -292,7 +292,7 @@ describe("completing a Job", () => {
 
     // and once only
     expect((await complete(cory.agent, jobId).expect(409)).body.message).toBe(
-      "This Job has already been Completed",
+      "This clean is already done.",
     );
   });
 });

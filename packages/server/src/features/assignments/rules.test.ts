@@ -43,7 +43,7 @@ describe("Offering a Job", () => {
   test("refused once the Job has started", () => {
     const started = new Date(Date.parse(THURSDAY_9AM));
     expect(whyNotOffer(thursday(), "job", ana, started)).toBe(
-      "This Job has already started",
+      "This clean has already started, so you can't offer it to anyone.",
     );
   });
 
@@ -99,7 +99,7 @@ describe("Confirming an Offered Job", () => {
         undefined,
         new Date(THURSDAY_9AM),
       ),
-    ).toBe("This Job has already started");
+    ).toBe("This clean has already started, so you can't confirm it.");
     expect(
       whyNotConfirm(
         thursday(),

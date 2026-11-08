@@ -329,7 +329,7 @@ test("a Cleaner's Site Visit has to go to someone else before their day off, or 
   await signInAsOffice(page);
   await openStaffMember(page, "Cory Cleaner");
   const why =
-    /Cory has a Site Visit at 200 Park Ave S.*, Wed, Jan 7, 3:00 PM\. Give it to someone else first\./;
+    /Cory has a site visit at 200 Park Ave S.* on Wed, Jan 7, 3:00 PM\. Give it to someone else first\./;
 
   await dayOnCalendar(page, "Wed, Jan 7").click();
   const day = page.getByRole("dialog");

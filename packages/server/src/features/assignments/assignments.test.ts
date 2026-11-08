@@ -200,7 +200,7 @@ describe("Offering Assignments", () => {
 
     expect(
       (await offer(office, job.id, cory.id).expect(409)).body.message,
-    ).toBe("This Job has already started");
+    ).toBe("This clean has already started, so you can't offer it to anyone.");
   });
 
   test("shows the Add-ons on the Quote the Client accepted", async () => {
@@ -652,7 +652,9 @@ describe("Confirming an Offered Job (#242)", () => {
       THURSDAY_9AM,
     ).expect(409);
 
-    expect(refused.body.message).toBe("This Job has already started");
+    expect(refused.body.message).toBe(
+      "This clean has already started, so you can't confirm it.",
+    );
   });
 
   test("at a time the Job has moved from asks the Cleaner to look again", async () => {

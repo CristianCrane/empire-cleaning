@@ -8,6 +8,7 @@ import {
   type OfficeJob,
   type ScheduledJob,
 } from "@empire-cleaning/models";
+import { MORE_HOURS } from "@empire-cleaning/models";
 import {
   ActionBar,
   Actions,
@@ -432,7 +433,7 @@ function OpenTo({ job }: { job: OfficeJob }) {
         {!opened
           ? `It opens to free Cleaners on ${formatDateTime(opensAt)}.`
           : free === 0
-            ? "No Cleaner is free then. Offer it to someone, or give a Cleaner hours that day."
+            ? `No cleaner is free then. Offer it to someone, or ${MORE_HOURS}.`
             : `It's open to ${free} free ${free === 1 ? "Cleaner" : "Cleaners"}: ${firstTo} the crew.`}
       </p>
       {passedBy.length > 0 && (

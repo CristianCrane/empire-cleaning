@@ -10,6 +10,7 @@ import type {
   LocalDateTime,
   ScheduledJob,
 } from "@empire-cleaning/models";
+import { SAME_TIME, whyNoRoom } from "@empire-cleaning/models";
 import {
   Actions,
   Button,
@@ -27,7 +28,6 @@ import {
   formatDateTime,
   formatDay,
   formatHours,
-  formatTime,
   timeOfDay,
 } from "../format.ts";
 import { useAction } from "../action.ts";
@@ -106,9 +106,7 @@ export function ConfirmMove({ job, to, close }: MoveProps) {
         </dd>
       </dl>
       {chosen && unchanged && (
-        <p className="text-sm text-fg-muted">
-          That's when it's booked. Choose a new day or start time.
-        </p>
+        <p className="text-sm text-fg-muted">{SAME_TIME}</p>
       )}
       {room && !unchanged && <RoomAt room={room} job={job} />}
       <p className="text-sm text-fg-muted">
@@ -136,32 +134,8 @@ export function ConfirmMove({ job, to, close }: MoveProps) {
 // what the time chosen has room for, or why it hasn't
 function RoomAt({ room, job }: { room: DayCapacity; job: ScheduledJob }) {
   const day = formatDay(room.date);
-  if (!room.endsByMidnight) {
-    return (
-      <Notice tone="danger">
-        Cleans end by midnight: this Job would run past it from{" "}
-        {formatTime(room.startsAt)}. Choose an earlier start time.
-      </Notice>
-    );
-  }
-  if (!room.hasHours) {
-    return (
-      <Notice tone="danger">
-        {day} doesn't have room: this Job needs {formatHours(job.labourHours)}{" "}
-        and {formatHours(Math.max(room.freeHours, 0))}{" "}
-        {room.freeHours === 1 ? "is" : "are"} free.
-      </Notice>
-    );
-  }
-  if (!room.hasCrew) {
-    const free = Math.max(room.cleaners - room.crewsBusy, 0);
-    return (
-      <Notice tone="danger">
-        Not enough Cleaners are free at {formatTime(room.startsAt)}: this Job
-        needs {job.crewSize}, and {free} of the {room.cleaners} available that
-        day {free === 1 ? "is" : "are"}.
-      </Notice>
-    );
+  if (!room.hasRoom) {
+    return <Notice tone="danger">{whyNoRoom(room)}</Notice>;
   }
   return (
     <p className="text-sm text-fg-muted">

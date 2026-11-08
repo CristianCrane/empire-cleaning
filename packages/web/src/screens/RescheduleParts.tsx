@@ -11,6 +11,7 @@ import type {
   RescheduleTerms,
   RescheduleTimes,
 } from "@empire-cleaning/models";
+import { SAME_TIME } from "@empire-cleaning/models";
 import {
   Actions,
   Button,
@@ -280,7 +281,7 @@ function NewTimeForm({
         The new time is held while the Office confirms it. Until then, the clean
         stays booked for its current time.
       </p>
-      {unchanged && <Notice>That's when the clean is already booked.</Notice>}
+      {unchanged && <Notice>{SAME_TIME}</Notice>}
       {action.problem && <Notice tone="danger">{action.problem}</Notice>}
       <Actions>
         <Button variant="quiet" onPress={close}>

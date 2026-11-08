@@ -446,7 +446,7 @@ test("the draft says whether the proposed day has room for each clean", async ({
 
   await proposeNextMonday(page);
   await expect(proposed).toContainText(
-    "Mon, Jan 12 has 4 h of Cleaner time free: room for the Standard Clean (3.25 h), but not the Deep Clean (5 h)",
+    "That day only has room for the Standard Clean. Pick another day to offer the Deep Clean too.",
   );
 
   // Tuesday has the hours, but no crew at 9am
@@ -456,10 +456,10 @@ test("the draft says whether the proposed day has room for each clean", async ({
     .click();
   await page.keyboard.type("13");
   await expect(proposed).toContainText(
-    "Tue, Jan 13 has 7 h of Cleaner time free: room for either clean.",
+    "Tue, Jan 13 has room for either clean.",
   );
   await expect(proposed).toContainText(
-    "Not enough Cleaners are free at 9:00 AM: a crew of 2 is needed, and 0 of the 2 available that day are. The Client couldn't accept this Quote: choose another time, or give a Cleaner hours that day.",
+    "Not enough cleaners are free then. Pick another time, or give a cleaner more working hours that day.",
   );
 });
 
@@ -528,7 +528,7 @@ test(
     await expect(schedule).toBeHidden();
     await expect(
       page.getByRole("region", { name: "Proposed time" }),
-    ).toContainText("Tue, Jan 13 has 8 h of Cleaner time free");
+    ).toContainText("Tue, Jan 13 has room for");
 
     await send(page);
     await expect(

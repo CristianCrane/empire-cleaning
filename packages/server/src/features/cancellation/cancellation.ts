@@ -18,7 +18,7 @@ import {
   type Settled,
 } from "../completion/balance.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
-import { whyNotBooked } from "../jobs/rules.ts";
+import { whyNotBooked, whyStarted } from "../jobs/rules.ts";
 import { closePendingRequests } from "../reschedule/closing.ts";
 import { charges, refunds } from "../payments/payments.schema.ts";
 import { properties } from "../properties/properties.schema.ts";
@@ -211,9 +211,7 @@ export const cancelJob = async (jobId: string, cancellation: Cancellation) => {
       throw new ConflictError(whyNotBooked(job.status, "cancelled"));
     }
     if (cancellation.byClient && job.startsAt <= clock.now()) {
-      throw new ConflictError(
-        "Your clean has already started, so it can't be cancelled here. Please call the Office.",
-      );
+      throw new ConflictError(`${whyStarted("cancelled")} Please call us.`);
     }
 
     const onPlan = (await planOfJob(jobId, tx)) !== null;

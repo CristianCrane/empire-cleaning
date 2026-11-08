@@ -6,7 +6,13 @@ import type {
   RescheduleTerms,
   RescheduleTimes,
 } from "@empire-cleaning/models";
-import { ENDS_BY_MIDNIGHT, PASSED, whyNoRoom } from "@empire-cleaning/models";
+import {
+  ENDS_BY_MIDNIGHT,
+  MORE_HOURS,
+  PASSED,
+  SAME_TIME,
+  whyNoRoom,
+} from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import {
@@ -34,6 +40,7 @@ import {
   endsByMidnight,
   roomOn,
   whyNotBooked,
+  whyStarted,
 } from "../jobs/rules.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { warnOfficeOfQuotesWithoutRoom } from "../quotes/quote-room.ts";
@@ -246,8 +253,8 @@ export const requestReschedule = async (
     if (job.startsAt <= clock.now()) {
       throw new ConflictError(
         asking.byClient
-          ? "Your clean has already started, so it can't be moved. Please call the Office."
-          : "This Job has already started, so it can't be moved",
+          ? `${whyStarted("moved")} Please call us.`
+          : whyStarted("moved"),
       );
     }
     if (await pendingOf(jobId, tx)) {
@@ -266,7 +273,7 @@ export const requestReschedule = async (
       throw new ConflictError("Choose one of the start times on offer");
     }
     if (startsAt.getTime() === job.startsAt.getTime()) {
-      throw new ConflictError("That's when the clean is already booked");
+      throw new ConflictError(SAME_TIME);
     }
     if (!endsByMidnight(startsAt, job.labourHours / job.crewSize)) {
       throw new ConflictError(ENDS_BY_MIDNIGHT);
@@ -426,9 +433,7 @@ export const confirmReschedule = async (jobId: string, byAccountId: string) => {
     const { job, pending } = found;
     const now = clock.now();
     if (job.startsAt <= now) {
-      throw new ConflictError(
-        "This Job has already started at its booked time, so it can't move. Turn the request down instead.",
-      );
+      throw new ConflictError(`${whyStarted("moved")} Turn the request down.`);
     }
     if (pending.startsAt <= now) {
       throw new ConflictError(
@@ -443,7 +448,7 @@ export const confirmReschedule = async (jobId: string, byAccountId: string) => {
     );
     if (!room.hasRoom) {
       throw new ConflictError(
-        `${whyNoRoom(room)} Turn the request down, or give a Cleaner hours that day.`,
+        whyNoRoom(room, `Turn the request down, or ${MORE_HOURS}.`),
       );
     }
 
@@ -609,13 +614,13 @@ export const moveJob = async (jobId: string, to: LocalDateTime) => {
       throw new ConflictError(whyNotBooked(job.status, "moved"));
     }
     if (job.startsAt <= now) {
-      throw new ConflictError("This Job has already started, so it can't move");
+      throw new ConflictError(whyStarted("moved"));
     }
     if (startsAt <= now) {
       throw new ConflictError(PASSED);
     }
     if (startsAt.getTime() === job.startsAt.getTime()) {
-      throw new ConflictError("That's when the Job is already booked");
+      throw new ConflictError(SAME_TIME);
     }
     if (await pendingOf(jobId, tx)) {
       throw new ConflictError(

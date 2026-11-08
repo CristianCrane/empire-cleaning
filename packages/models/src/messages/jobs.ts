@@ -3,18 +3,23 @@ import type { DayCapacity } from "../index.js";
 // What the server and the screens both say about a time for a clean
 // (docs/ux.md, Words)
 
-export const ENDS_BY_MIDNIGHT =
-  "Cleans end by midnight: choose an earlier start time";
+const PAST_MIDNIGHT = "This would run past midnight.";
+export const ENDS_BY_MIDNIGHT = `${PAST_MIDNIGHT} Pick an earlier start time.`;
 
-// a time that has already passed
-export const PASSED = "Choose a time that's still to come";
+export const PASSED = "That time has passed. Pick a later time.";
 
-// why a clean has no room, for Office Staff
-export const whyNoRoom = (room: DayCapacity) => {
+export const SAME_TIME = "That's when it's booked now. Pick a different time.";
+
+export const DAY_FULL = "That day is too full for this job.";
+export const NO_CREW = "Not enough cleaners are free then.";
+
+// the Office's way to make room, after what else they can do
+export const MORE_HOURS = "give a cleaner more working hours that day";
+export const ADD_HOURS = `Pick another time, or ${MORE_HOURS}.`;
+
+// why a clean has no room, for Office Staff, then how to fix it: `fix`, or
+// another time or more hours
+export const whyNoRoom = (room: DayCapacity, fix = ADD_HOURS) => {
   if (!room.endsByMidnight) return ENDS_BY_MIDNIGHT;
-  if (!room.hasHours) {
-    return `That day doesn't have room: the Job needs ${room.labourHours} Labour Hours and ${Math.max(room.freeHours, 0)} are free.`;
-  }
-  const free = Math.max(room.cleaners - room.crewsBusy, 0);
-  return `Not enough Cleaners are free then: the Job needs ${room.crewSize}, and ${free} of the ${room.cleaners} available that day ${free === 1 ? "is" : "are"}.`;
+  return `${room.hasHours ? NO_CREW : DAY_FULL} ${fix}`;
 };

@@ -269,20 +269,24 @@ test("Office Staff move a Job from the Job screen, at any width", async ({
 
   await page.getByRole("button", { name: "Move Job" }).click();
   const dialog = page.getByRole("dialog", { name: "Move this Job" });
-  await expect(dialog).toContainText("That's when it's booked");
+  await expect(dialog).toContainText(
+    "That's when it's booked now. Pick a different time.",
+  );
   const moveButton = dialog.getByRole("button", { name: "Move Job" });
   await expect(moveButton).toBeDisabled();
 
   const dayField = dialog.getByRole("group", { name: "Day" });
   await dayField.getByRole("spinbutton", { name: /^day/ }).click();
   await page.keyboard.type("04");
-  await expect(dialog).toContainText("Thu, Mar 4 doesn't have room");
+  await expect(dialog).toContainText(
+    "That day is too full for this job. Pick another time, or give a cleaner more working hours that day.",
+  );
   await expect(moveButton).toBeDisabled();
 
   await dayField.getByRole("spinbutton", { name: /^day/ }).click();
   await page.keyboard.type("05");
   await expect(dialog).toContainText(
-    "Not enough Cleaners are free at 9:00 AM: this Job needs 1, and 0 of the 1 available that day are.",
+    "Not enough cleaners are free then. Pick another time, or give a cleaner more working hours that day.",
   );
   await expect(moveButton).toBeDisabled();
   await dialog

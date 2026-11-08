@@ -7,7 +7,7 @@ import type {
   OfficeSiteVisit,
   SiteVisitBooking,
 } from "@empire-cleaning/models";
-import { PASSED } from "@empire-cleaning/models";
+import { NO_CREW, PASSED } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import {
   ConflictError,
@@ -122,13 +122,11 @@ const refuseNoRoom = async (
     const room = roomOn(day, visit);
     if (!room.hasHours) {
       throw new ConflictError(
-        `That day doesn't have room: the Site Visit takes ${visit.labourHours} of ${firstNameOf(visitor.name)}'s Cleaner hours, and ${Math.max(room.freeHours, 0)} are free.`,
+        `${firstNameOf(visitor.name)} doesn't have enough working hours free that day. Pick another day or person.`,
       );
     }
     if (!room.hasCrew) {
-      throw new ConflictError(
-        `Every Cleaner available that day is on a Job then, so ${firstNameOf(visitor.name)} isn't free for a Site Visit.`,
-      );
+      throw new ConflictError(`${NO_CREW} Pick another time.`);
     }
   } else if (!visitor.roles.includes("office_staff")) {
     throw new ConflictError(

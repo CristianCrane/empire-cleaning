@@ -113,7 +113,7 @@ describe("room for a clean (roomOn)", () => {
     const room = roomOn(thursday(), newClean(3, 11, 2));
     expect(room).toMatchObject({ hasHours: false, hasRoom: false });
     expect(whyNoRoom(room)).toBe(
-      "That day doesn't have room: the Job needs 11 Labour Hours and 10 are free.",
+      "That day is too full for this job. Pick another time, or give a cleaner more working hours that day.",
     );
   });
 
@@ -125,7 +125,7 @@ describe("room for a clean (roomOn)", () => {
       hasRoom: false,
     });
     expect(whyNoRoom(room)).toBe(
-      "Not enough Cleaners are free then: the Job needs 1, and 0 of the 2 available that day are.",
+      "Not enough cleaners are free then. Pick another time, or give a cleaner more working hours that day.",
     );
   });
 
