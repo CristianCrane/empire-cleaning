@@ -133,15 +133,15 @@ test(
       .getByRole("group", { name: "What to do" })
       .getByRole("button", { name: "Couldn't get in" })
       .click();
-    const dialog = page.getByRole("alertdialog", { name: "Record No Access?" });
+    const dialog = page.getByRole("alertdialog", { name: "Couldn't get in?" });
     await expectAccessible(page);
     await dialog
       .getByRole("textbox", { name: "What happened?" })
       .fill("Nobody answered and the doorman had no key");
-    await dialog.getByRole("button", { name: "Record No Access" }).click();
+    await dialog.getByRole("button", { name: "Send" }).click();
 
-    await expect(page.getByText("No Access recorded")).toBeVisible();
-    const recorded = page.getByRole("region", { name: "No Access" });
+    await expect(page.getByText("Sent", { exact: true })).toBeVisible();
+    const recorded = page.getByRole("region", { name: "Couldn't get in" });
     await expect(recorded).toContainText(
       '"Nobody answered and the doorman had no key"',
     );

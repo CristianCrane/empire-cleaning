@@ -9,7 +9,7 @@ const meta = {
     "aria-label": "What to do",
     children: (
       <>
-        <Button variant="danger-text">Record No Access</Button>
+        <Button variant="danger-text">Couldn't get in</Button>
         <Button>Mark done</Button>
       </>
     ),

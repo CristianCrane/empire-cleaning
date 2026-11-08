@@ -118,7 +118,7 @@ describe("Confirming an Offered Job", () => {
         NOW,
       ),
     ).toBe(
-      "You're not free for this job any more. Release it, or call the office.",
+      "You're not free for this job any more. Drop out of it, or call the office.",
     );
   });
 });
@@ -131,7 +131,7 @@ describe("Releasing an Assignment", () => {
     expect(whyNotRelease("offered", job(), before(1))).toBeNull();
     expect(whyNotRelease("confirmed", job(), before(49))).toBeNull();
     expect(whyNotRelease("confirmed", job(), before(47))).toBe(
-      "It's less than 48 hours until this job, so you can't release it here. Please call the office.",
+      "It's less than 48 hours until this job, so you can't drop out here. Please call the office.",
     );
   });
 });
@@ -240,7 +240,7 @@ describe("Cleaners Needed", () => {
           NOW,
         );
       expect(refused("released")).toBe(
-        "You released this job, so you can't take it back.",
+        "You dropped out of this job, so you can't take it back.",
       );
       expect(refused("offered")).toBe("You're already on this job.");
       expect(refused()).toBe("You're not free for this job any more.");

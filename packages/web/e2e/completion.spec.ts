@@ -66,7 +66,7 @@ test(
     // the Job under way leads Your Jobs; Complete is in the bar at the foot
     await page
       .getByRole("region", { name: "Now" })
-      .getByRole("button", { name: "Open Job" })
+      .getByRole("button", { name: "Open job" })
       .click();
     await page
       .getByRole("group", { name: "What to do" })

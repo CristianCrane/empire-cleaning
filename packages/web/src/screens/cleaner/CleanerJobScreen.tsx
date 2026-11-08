@@ -57,7 +57,7 @@ export function CleanerJobScreen() {
           trail={[
             offered
               ? { label: "Offers", href: linkTo({ to: "/cleaner/offers" }) }
-              : { label: "Your Jobs", href: linkTo({ to: "/cleaner" }) },
+              : { label: "Your jobs", href: linkTo({ to: "/cleaner" }) },
             {
               label: `${formatDay(dayOfInstant(job.startsAt))}, ${formatTime(job.startsAt)}`,
             },
@@ -86,7 +86,7 @@ export function CleanerJobScreen() {
           (!job.started && job.assignment.canRelease)) && (
           <ActionFooter aria-label="What to do">
             {!job.started && job.assignment.canRelease && (
-              <Release job={job} label="Release this Job" />
+              <Release job={job} label="Drop out of this job" />
             )}
             {job.canRecordNoAccess && <RecordNoAccess job={job} />}
             {job.canComplete && <CompleteJob job={job} />}
@@ -135,10 +135,10 @@ function JobDetails({ job }: { job: CleanerJob }) {
               className="mt-0.5 shrink-0 text-fg-muted"
             />
             <div className="flex min-w-0 flex-col gap-1">
-              <p className="text-sm font-semibold text-fg">How to get in</p>
+              <p className="text-sm font-semibold text-fg">How we get in</p>
               <p className="whitespace-pre-line text-fg [overflow-wrap:anywhere]">
                 {job.property.accessInstructions ??
-                  "None given. Call the Client when you arrive."}
+                  "Nothing's written down. Call the client when you get there."}
               </p>
             </div>
           </div>
@@ -187,7 +187,7 @@ function JobDetails({ job }: { job: CleanerJob }) {
               line={
                 job.client.phone
                   ? "Client: tap to call"
-                  : "Client: their phone shows on the day"
+                  : "Client: their number shows on the day"
               }
             />
           </dl>
@@ -200,7 +200,7 @@ function JobDetails({ job }: { job: CleanerJob }) {
 // a Job the Office offered them: Confirm it, or let it go
 function TakeOffer({ job }: { job: CleanerJob }) {
   // reloads on failure too, to show the new time if the Job moved
-  const action = useAction("The Job wasn't confirmed. Please try again.", {
+  const action = useAction("The job wasn't confirmed. Please try again.", {
     reloadOnFailure: true,
   });
 
@@ -232,7 +232,7 @@ function TakeOffer({ job }: { job: CleanerJob }) {
             </>
           }
         >
-          <p>The Office offered you this Job. Can you make it?</p>
+          <p>The office offered you this job. Can you make it?</p>
         </ActionRow>
       </Card>
     </Section>
@@ -249,14 +249,14 @@ function Release({ job, label }: { job: CleanerJob; label: string }) {
     setProblem(undefined);
     try {
       await postJson(`/api/assignments/${job.assignment.id}/release`);
-      showToast({ tone: "success", title: "Job released" });
+      showToast({ tone: "success", title: "You've dropped out" });
       close();
       await navigate({ to: "/cleaner" });
     } catch (e) {
       setProblem(
         e instanceof ApiError && e.status === 409
           ? e.message
-          : "The Job wasn't released. Please try again.",
+          : "You're still on this job. Please try again.",
       );
     } finally {
       setPending(false);
@@ -266,12 +266,12 @@ function Release({ job, label }: { job: CleanerJob; label: string }) {
   return (
     <DialogTrigger>
       <Button variant="secondary">{label}</Button>
-      <Dialog title="Release this Job?" role="alertdialog">
+      <Dialog title="Drop out of this job?" role="alertdialog">
         {({ close }) => (
           <>
             <p>
-              It opens to every other Cleaner free then, and the Office will be
-              told. The Job will no longer be in your list.
+              It goes to the other cleaners free then, and the office is told.
+              It won't be on your list any more.
             </p>
             {problem && <Notice tone="danger">{problem}</Notice>}
             <Actions>
@@ -283,7 +283,7 @@ function Release({ job, label }: { job: CleanerJob; label: string }) {
                 isPending={isPending}
                 onPress={() => void release(close)}
               >
-                Release
+                Drop out
               </Button>
             </Actions>
           </>

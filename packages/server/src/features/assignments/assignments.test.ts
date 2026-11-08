@@ -456,7 +456,7 @@ describe("Releasing", () => {
     await offer(office, job.id, cory.id).expect(201);
 
     const email = testEmail().lastTo("olive@example.com");
-    expect(email.subject).toBe("Cory Cleaner released a job");
+    expect(email.subject).toBe("Cory Cleaner dropped out of a job");
     expect(email.text).toMatch(
       /Cory Cleaner can't make this job, so it needs a cleaner:\n\nWhen: .*\nWhere: \d+ Austin St/,
     );
@@ -496,7 +496,7 @@ describe("Releasing", () => {
       .post(`/api/assignments/${assignmentId}/release`)
       .expect(409);
     expect(refused.body.message).toBe(
-      "It's less than 48 hours until this job, so you can't release it here. Please call the office.",
+      "It's less than 48 hours until this job, so you can't drop out here. Please call the office.",
     );
     expect((await myJob(asCory, job.id)).assignment.status).toBe("confirmed");
   });
@@ -636,7 +636,7 @@ describe("Confirming an Offered Job (#242)", () => {
     );
 
     expect(refused.body.message).toBe(
-      "You're not free for this job any more. Release it, or call the office.",
+      "You're not free for this job any more. Drop out of it, or call the office.",
     );
     expect(await statusOf(assignmentId)).toBe("offered");
   });

@@ -122,7 +122,7 @@ const navFor: Record<AreaId, AreaNavItem[]> = {
   cleaner: [
     {
       href: linkTo({ to: "/cleaner" }),
-      label: "Your Jobs",
+      label: "Your jobs",
       icon: CalendarDays,
       alsoCurrentFor: ["/cleaner/jobs/"],
     },

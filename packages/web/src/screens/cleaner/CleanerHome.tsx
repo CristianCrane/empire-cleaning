@@ -105,7 +105,7 @@ export function CleanerHome() {
   return (
     <div className="flex flex-col gap-6">
       <Heading level={1} inBar>
-        Your Jobs
+        Your jobs
       </Heading>
       {next ? (
         <NextUp item={next} openJob={openJob} />
@@ -168,7 +168,7 @@ function NextUp({
                 ? `${job.serviceName} · ${formatHours(job.hoursOnSite)} on site${
                     others > 1 ? ` · crew of ${others}` : ""
                   }`
-                : `Site Visit for ${clientName(visit!.client)} · ${formatMinutes(visit!.minutes)} to see it`}
+                : `Site visit for ${clientName(visit!.client)} · ${formatMinutes(visit!.minutes)} to see it`}
             </p>
           </div>
           <div className="flex flex-wrap gap-2 sm:flex-col sm:items-stretch">
@@ -182,7 +182,7 @@ function NextUp({
               Directions
             </a>
             {job ? (
-              <Button onPress={() => openJob(job.id)}>Open Job</Button>
+              <Button onPress={() => openJob(job.id)}>Open job</Button>
             ) : (
               <a
                 className={buttonStyles({ variant: "primary" })}
@@ -244,7 +244,7 @@ function Rows({
             ]
               .filter(Boolean)
               .join(" · ")}
-            end={<StatusBadge tone="info">Site Visit</StatusBadge>}
+            end={<StatusBadge tone="info">Site visit</StatusBadge>}
           />
         ),
       )}

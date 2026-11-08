@@ -310,7 +310,7 @@ describe("Releasing a Confirmed Assignment", () => {
     expect(await openJobIds(await dee.signIn())).toEqual([job.id]);
     const refused = await confirm(asCory, job).expect(409);
     expect(refused.body.message).toBe(
-      "You released this job, so you can't take it back.",
+      "You dropped out of this job, so you can't take it back.",
     );
     expect((await jobFor(office, job.id)).openTo.cleaners).toBe(1);
   });
