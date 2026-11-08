@@ -31,6 +31,7 @@ import { useAction } from "../action.ts";
 import {
   addressOf,
   assignmentStateLabel,
+  cleaners,
   clientName,
   formatDate,
   formatDateTime,
@@ -57,10 +58,6 @@ const sinceOf = (a: AssignmentView) =>
     : `${assignmentStateLabel[a.status]} ${formatDate(a.answeredAt!)}`;
 
 const booked = (job: OfficeJob) => job.status === "booked";
-
-// so many Cleaners, e.g. "1 Cleaner", "2 more Cleaners"
-const cleaners = (n: number, more?: "more") =>
-  `${n}${more ? " more" : ""} ${n === 1 ? "Cleaner" : "Cleaners"}`;
 
 /**
  * A Job for the Office, all of it in one view: what there is to do in
@@ -401,7 +398,7 @@ function OpenTo({ job }: { job: OfficeJob }) {
           ? `It opens to free Cleaners on ${formatDateTime(opensAt)}.`
           : free === 0
             ? `No cleaner is free then. Offer it to someone, or ${MORE_HOURS}.`
-            : `It's open to ${free} free ${free === 1 ? "Cleaner" : "Cleaners"}: ${firstTo} the crew.`}
+            : `It's open to ${cleaners(free, "free")}: ${firstTo} the crew.`}
       </p>
       {passedBy.length > 0 && (
         <p>Not for them: {passedBy.map((p) => p.name).join(", ")}.</p>

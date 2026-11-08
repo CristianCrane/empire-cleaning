@@ -1,7 +1,7 @@
 import { FileText } from "lucide-react";
 import type { PriceBreakdown } from "@empire-cleaning/models";
 import { IconTile } from "@empire-cleaning/ui";
-import { formatHours, formatMoney } from "../format.ts";
+import { cleaners, formatHours, formatMoney } from "../format.ts";
 
 // About 1 h 38 min, shared by the Crew
 const onSite = (labourHours: number, crew: number) => {
@@ -59,8 +59,8 @@ export function WorkedOutQuote({
               {condition ? `, in ${condition} Condition` : ""}
             </span>
             <span className="text-sm text-fg-muted">
-              About {onSite(now.labourHours, crewSize)} on site for {crewSize}{" "}
-              {crewSize === 1 ? "Cleaner" : "Cleaners"}
+              About {onSite(now.labourHours, crewSize)} on site for{" "}
+              {cleaners(crewSize)}
             </span>
           </div>
         </div>

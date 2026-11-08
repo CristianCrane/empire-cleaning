@@ -37,7 +37,7 @@ import {
 } from "@empire-cleaning/ui";
 import { putJson } from "../../api.ts";
 import { useAction } from "../action.ts";
-import { formatDate } from "../format.ts";
+import { cleaners, formatDate } from "../format.ts";
 import { Fact } from "../Fact.tsx";
 
 // what's saved: every save is the whole list, as a new version
@@ -647,7 +647,7 @@ function QuoteDefaults({ list }: { list: PriceList }) {
           <Fact
             icon={UsersRound}
             label="Crew Size"
-            value={`${list.defaultCrewSize} ${list.defaultCrewSize === 1 ? "Cleaner" : "Cleaners"}`}
+            value={cleaners(list.defaultCrewSize)}
           />
         </>
       }

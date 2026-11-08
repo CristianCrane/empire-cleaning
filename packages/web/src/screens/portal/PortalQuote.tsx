@@ -38,6 +38,7 @@ import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import {
   addressOf,
+  cleaners,
   conditionLabel,
   formatDate,
   formatDateTime,
@@ -319,7 +320,7 @@ function QuoteDetails({
               <Fact
                 icon={Users}
                 label="On site"
-                value={`${quote.crewSize} ${quote.crewSize === 1 ? "Cleaner" : "Cleaners"}, about ${formatHours(chosen.hoursOnSite)}`}
+                value={`${cleaners(quote.crewSize)}, about ${formatHours(chosen.hoursOnSite)}`}
                 line="On site"
               />
             </dl>

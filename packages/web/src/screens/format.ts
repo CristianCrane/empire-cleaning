@@ -39,6 +39,10 @@ export const plural = (n: number, one: string) =>
 
 const sqFt = new Intl.NumberFormat("en-US");
 // 4500 -> "4,500 sq ft"
+// so many Cleaners, e.g. "1 Cleaner", "2 more Cleaners", "3 free Cleaners"
+export const cleaners = (n: number, which?: "more" | "free") =>
+  plural(n, which ? `${which} Cleaner` : "Cleaner");
+
 export const formatFloorArea = (area: number) => `${sqFt.format(area)} sq ft`;
 
 // what a Property is: "Apartment · 2 bedrooms · 1.5 bathrooms" ("Apartment ·
