@@ -52,7 +52,7 @@ test(
     await page.getByRole("textbox", { name: "Hourly rate" }).fill("$60");
     await page.getByRole("textbox", { name: "Hourly rate" }).blur();
     // the saved figures' price beside the new one
-    await expect(example).toContainText("Your changes: +$17.42 on this Quote");
+    await expect(example).toContainText("Your changes: +$17.42 on this quote");
     await expect(example).toContainText("Total$212.31");
     await expect(example).toContainText("was $179.00$195.00");
 

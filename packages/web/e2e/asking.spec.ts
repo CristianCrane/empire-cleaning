@@ -127,7 +127,7 @@ test("a Client's Home leads to a Quote they asked for, as they asked it", async 
   );
   await expect(
     page.getByText(
-      "We're preparing your Quote, and we'll email it to you, usually within a working day.",
+      "We're working on your quote. We'll email it to you, usually within a working day.",
     ),
   ).toBeVisible();
   const asked = page.getByRole("region", { name: "What you asked for" });

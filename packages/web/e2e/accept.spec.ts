@@ -158,7 +158,7 @@ test("Office Staff email a link to add a card, then record the Client's acceptan
 
   await page.reload();
   await expect(waiting).toContainText(
-    "the Deposit is charged to their Test card ending 4242",
+    "The deposit is charged to their Test card ending 4242",
   );
   await waiting.getByRole("button", { name: "Record acceptance" }).click();
   await page

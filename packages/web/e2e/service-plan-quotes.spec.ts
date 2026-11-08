@@ -131,7 +131,7 @@ test(
     await expect(
       page.getByText("Its cleaners found the home moderate"),
     ).toBeVisible();
-    await expect(page.getByText("No Adjustments.")).toBeVisible();
+    await expect(page.getByText("No price changes.")).toBeVisible();
 
     // a Standard Clean every 2 weeks at moderate Condition and 10% off, to
     // start with: $206 with tax is $224.28 as a one-off, and $185.40 with
@@ -145,7 +145,7 @@ test(
       terms.getByRole("button", { name: "Standard Clean Service" }),
     ).toBeVisible();
     await expect(
-      terms.getByRole("button", { name: /Priced for Condition/ }),
+      terms.getByRole("button", { name: /Priced for condition/ }),
     ).toContainText("Moderate");
 
     // the prices follow each change, without saving by hand
@@ -219,7 +219,7 @@ test(
     await client.goto("/portal");
     await expect(
       client.getByText(
-        "Service Plan, Standard Clean, every week: $231.36 a clean",
+        "Cleaning plan, Standard Clean, every week: $231.36 a clean",
       ),
     ).toBeVisible();
     await expect(

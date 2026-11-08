@@ -202,7 +202,7 @@ test("business premises can be offered a Service Plan with no First Clean, once 
   ).toHaveCount(0);
 
   await recordFindingsWithoutVisit(page);
-  await draftTheQuote(page, "Service Plan");
+  await draftTheQuote(page, "cleaning plan");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     "Draft quote for Acme Dental (Casey Client)",
   );
