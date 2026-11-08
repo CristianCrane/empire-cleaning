@@ -27,7 +27,10 @@ import {
   type ServicePlanSummary,
   ASK_AGAIN,
   ASK_US,
+  billNotPaid,
+  cleanNotPaid,
   turnDownReason,
+  UPDATE_CARD,
   WITHIN_A_DAY,
 } from "@empire-cleaning/models";
 import type { StatusTone } from "@empire-cleaning/ui";
@@ -154,11 +157,9 @@ export function whatsNext(data: HomeData, now = new Date()): WhatsNext {
   if (unpaidJob && (next || !paused)) {
     notices.push({
       text:
-        `We couldn't charge for your ${dayOf(unpaidJob.startsAt)} clean.` +
-        (paused
-          ? " Your Service Plan books no new cleans until it's paid."
-          : ""),
-      action: "Update your card",
+        `${cleanNotPaid(dayOf(unpaidJob.startsAt))}.` +
+        (paused ? " We won't book any more cleans until it's paid." : ""),
+      action: UPDATE_CARD,
       href: cardLink,
     });
   }
@@ -179,8 +180,8 @@ export function whatsNext(data: HomeData, now = new Date()): WhatsNext {
   for (const bill of data.bills) {
     if (bill.unpaid) {
       notices.push({
-        text: `We couldn't take payment for Bill ${bill.number}, ${formatMoney(bill.totalCents)}.`,
-        action: "See the Bill",
+        text: `${billNotPaid(bill.number)}, ${formatMoney(bill.totalCents)}.`,
+        action: "See the bill",
         href: billLink(bill.id),
       });
     } else if (
@@ -190,7 +191,7 @@ export function whatsNext(data: HomeData, now = new Date()): WhatsNext {
     ) {
       notices.push({
         text: `Bill ${bill.number}, ${formatMoney(bill.totalCents)}, is due by ${formatDay(bill.dueOn)}.`,
-        action: "Pay the Bill",
+        action: "Pay the bill",
         href: billLink(bill.id),
       });
     }
@@ -281,18 +282,18 @@ function heroOf(data: HomeData, ctx: Context): Hero {
 
   if (paused) {
     return {
-      label: "Your Service Plan is paused",
+      label: "Your cleaning plan is paused",
       icon: PauseCircle,
       tone: "warning",
       headline: unpaidJob ? "Update your card to carry on" : "A payment is due",
       lines: [
         unpaidJob
-          ? `We couldn't charge for your ${dayOf(unpaidJob.startsAt)} clean.`
-          : "A Bill on it hasn't been paid.",
+          ? `${cleanNotPaid(dayOf(unpaidJob.startsAt))}.`
+          : "A bill on it hasn't been paid.",
         "Once it's paid, your plan carries on from its next date.",
       ],
       action: unpaidJob
-        ? { label: "Update your card", href: cardLink }
+        ? { label: UPDATE_CARD, href: cardLink }
         : { label: "See your plan", href: planLink(paused.id) },
     };
   }
@@ -450,8 +451,8 @@ function shortcutsOf(data: HomeData, ctx: Context): Shortcut[] {
   const card: Shortcut = unpaidJob
     ? {
         icon: CreditCard,
-        label: "Update your card",
-        hint: "The last charge didn't go through",
+        label: UPDATE_CARD,
+        hint: "The last payment didn't go through",
         href: cardLink,
       }
     : {

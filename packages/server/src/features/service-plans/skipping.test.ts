@@ -100,7 +100,7 @@ describe("skipping a plan Job", () => {
     expect(chargesAfterDeposit()).toEqual([
       expect.objectContaining({
         amount: PLAN_DEPOSIT,
-        description: expect.stringMatching(/^Late Cancellation fee: /),
+        description: expect.stringMatching(/^Late cancellation fee: /),
       }),
     ]);
     expect(testPayments().refunds).toEqual([]);
@@ -225,7 +225,7 @@ describe("No Access on a plan Job", () => {
     expect(chargesAfterDeposit()).toEqual([
       expect.objectContaining({
         amount: PLAN_DEPOSIT,
-        description: expect.stringMatching(/^No Access fee: /),
+        description: expect.stringMatching(/^Couldn't-get-in fee: /),
       }),
     ]);
     const { noAccess } = await clientJob(client, jobId);

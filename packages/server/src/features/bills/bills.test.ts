@@ -465,6 +465,27 @@ describe("making Bills", () => {
     expect((await billOf(office, id)).status).toBe("due");
   });
 
+  test("a card declined on the page says why in plain words, never its code", async () => {
+    const { office, clientId } = await billedJob({ payment: "on_page" });
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    const [{ id }] = (await billsOf(office, clientId)) as [BillSummary];
+
+    const client = await signIn(casey.email);
+    const form = (
+      await client.post(`/api/bills/mine/${id}/payment-form`).expect(200)
+    ).body as BillPaymentForm;
+    testPayments().failCharges("expired_card");
+    testPayments().payBill(form.ref, "card");
+    const refused = await client
+      .post(`/api/bills/mine/${id}/payment`)
+      .send({ ref: form.ref })
+      .expect(409);
+    expect(refused.body.message).toBe(
+      "Your payment didn't go through. The card has expired. Please try again, or use another card or bank account.",
+    );
+  });
+
   test("a Client sees only their own Bills", async () => {
     const { office, clientId } = await billedJob();
     testClock().set(NEXT_MONDAY);
@@ -617,7 +638,7 @@ describe("Unpaid Bills", () => {
     const [summary] = await billsOf(office, client.id);
     expect(summary).toMatchObject({
       status: "due",
-      unpaid: { reason: "card_declined" },
+      unpaid: { kind: "declined", why: null },
     });
     const [plan] = await db
       .select()
@@ -626,7 +647,7 @@ describe("Unpaid Bills", () => {
     expect(plan!.status).toBe("on_hold");
     const notice = testEmail().lastTo(BILLING_EMAIL);
     expect(notice.subject).toBe("We couldn't take payment for bill EC-000001");
-    expect(notice.text).toContain("Service Plan is On Hold");
+    expect(notice.text).toContain("cleaning plan is paused");
     expect(
       (await office.get("/api/bills?unpaid=true").expect(200)).body,
     ).toHaveLength(1);
@@ -680,7 +701,7 @@ describe("Unpaid Bills", () => {
       .where(eq(servicePlans.id, planId));
     expect(resumed!.status).toBe("active");
     expect(testEmail().lastTo(BILLING_EMAIL).text).toContain(
-      "Your Service Plan is back on",
+      "Your cleaning plan is back on",
     );
   });
 
@@ -693,7 +714,10 @@ describe("Unpaid Bills", () => {
     testPayments().goDown(false);
     const [summary] = await billsOf(office, clientId);
     expect(summary).toMatchObject({
-      unpaid: { reason: "the payment provider couldn't be reached" },
+      unpaid: {
+        kind: "waiting",
+        why: "We couldn't reach the payment service.",
+      },
     });
 
     testClock().advance({ minutes: 15 });
@@ -828,7 +852,8 @@ describe("reminders and late Bills", () => {
     expect(testEmail().lastTo(BILLING_EMAIL).bcc).toBe("office@example.com");
     expect((await billOf(office, id)).unpaid).toEqual({
       since: "2026-01-27T05:00:00.000Z",
-      reason: "not paid by its due date",
+      kind: "late",
+      why: "It wasn't paid by its due date.",
     });
     expect(
       (await office.get("/api/dashboard/needs-attention").expect(200))
@@ -940,7 +965,7 @@ describe("reminders and late Bills", () => {
     testClock().set(at("2026-01-26"));
     await chaseBills();
     expect(testEmail().lastTo(BILLING_EMAIL).text).toContain(
-      "If it isn't paid by then, your Service Plan goes On Hold",
+      "If it isn't paid by then, your cleaning plan is paused",
     );
     expect(await planStatus()).toBe("active");
 
@@ -954,7 +979,7 @@ describe("reminders and late Bills", () => {
       ).unpaidBills,
     ).toHaveLength(1);
     expect(testEmail().lastTo(BILLING_EMAIL).text).toContain(
-      "your Service Plan is On Hold",
+      "your cleaning plan is paused",
     );
 
     // a bank debit on its way lifts On Hold; failing, it holds again
@@ -978,7 +1003,7 @@ describe("reminders and late Bills", () => {
     }).expect(200);
     expect(await planStatus()).toBe("on_hold");
     expect(testEmail().lastTo(BILLING_EMAIL).text).toContain(
-      "your Service Plan is On Hold",
+      "your cleaning plan is paused",
     );
 
     await office
@@ -987,7 +1012,7 @@ describe("reminders and late Bills", () => {
       .expect(200);
     expect(await planStatus()).toBe("active");
     expect(testEmail().lastTo(BILLING_EMAIL).text).toContain(
-      "Your Service Plan is back on",
+      "Your cleaning plan is back on",
     );
   });
 });
@@ -1077,7 +1102,7 @@ describe("putting Bills right", () => {
       status: "paid",
       paidVia: "nothing_due",
     });
-    expect(view.lines.every((l) => l.label.startsWith("Correction,"))).toBe(
+    expect(view.lines.every((l) => l.label.startsWith("Corrected:"))).toBe(
       true,
     );
     expect(testEmail().lastTo(BILLING_EMAIL).subject).toBe(
@@ -1238,7 +1263,7 @@ describe("switching weekly billing off", () => {
     expect(notice.text).toContain(
       `${settled[0]!.label}: charged ${formatMoney(owed)}`,
     );
-    expect(notice.text).toContain("Bills already sent stay due");
+    expect(notice.text).toContain("Bills already sent still need paying");
 
     testClock().set(NEXT_MONDAY);
     await makeDueBills();
@@ -1409,8 +1434,8 @@ describe("switching weekly billing off", () => {
     expect(notice.text).toContain(
       `couldn't charge ${formatMoney(settled[0]!.unpaidCents!)}`,
     );
-    expect(notice.text).toContain("update your Payment Method");
-    expect(notice.text).toContain("Service Plan is On Hold");
+    expect(notice.text).toContain("update your card");
+    expect(notice.text).toContain("cleaning plan is paused");
     expect(notice.html).toContain("/portal/payment-method");
   });
 
@@ -1445,7 +1470,9 @@ describe("switching weekly billing off", () => {
     expect(testPayments().charges.at(-1)!.amount).toBe(owed);
     const notice = testEmail().lastTo(BILLING_EMAIL);
     expect(notice.subject).toBe("Bill EC-000001 is cancelled");
-    expect(notice.text).toContain("Here's what we've settled for it per clean");
+    expect(notice.text).toContain(
+      "Here's what we've done about each clean on it instead",
+    );
     expect(notice.text).toContain(`charged ${formatMoney(owed)}`);
   });
 });

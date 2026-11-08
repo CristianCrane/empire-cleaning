@@ -10,7 +10,7 @@ const meta = {
     children: (
       <>
         <Button variant="danger-text">Record No Access</Button>
-        <Button>Complete Job</Button>
+        <Button>Mark done</Button>
       </>
     ),
   },

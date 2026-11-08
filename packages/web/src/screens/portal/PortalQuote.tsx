@@ -58,11 +58,11 @@ import { ConsentNote, usePaymentForm } from "./CardForm.tsx";
 import {
   ASK_AGAIN,
   billPaid,
+  cleansPaid,
   ON_WEEKS_BILL,
   turnedDown,
   WORKING_ON_IT,
 } from "@empire-cleaning/models";
-import { planPaymentLine } from "./payments.ts";
 import { requestQuote } from "./whats-next.ts";
 
 // A Quote as its Client sees it, from the link in every Quote email (ADR-0017):
@@ -650,7 +650,7 @@ const eachClean = (quote: QuoteView, chosen: QuoteOption) => {
   const price =
     quote.options.length === 1 ? formatMoney(chosen.totalCents) : null;
   return quote.weeklyBill
-    ? `${price ? `Each clean is ${price}. ` : ""}${planPaymentLine[quote.weeklyBill]}`
+    ? `${price ? `Each clean is ${price}. ` : ""}${cleansPaid(quote.weeklyBill)}`
     : `${price ? `Each clean, ${price},` : "Each clean"} is charged when it's done.`;
 };
 

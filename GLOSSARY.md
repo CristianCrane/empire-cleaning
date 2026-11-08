@@ -129,7 +129,7 @@ _On screen_: done
 **No Access**:
 The outcome of a Job where Staff could not get into the Property; it is not Completed and is charged like a Late Cancellation.
 _Avoid_: Lockout, missed job, no-show
-_On screen_: couldn't get in
+_On screen_: couldn't get in; its fee is a couldn't-get-in fee
 
 **Reschedule Request**:
 A Client's proposal to move a booked Job to a new available time, which is held for them while pending. The Job keeps its original time until Office Staff confirm the move, after which its crew are Offered the new time afresh, staying on it unless they aren't free then; Office Staff may instead turn it down, and the Client may withdraw it. If the Job stops being booked first (Cancelled, Completed or No Access), the request is closed unanswered, and the time held for it is freed; a held time also stops counting once the Job starts. One made less than 24 hours before the Job is a Late Reschedule (ADR-0010).
@@ -143,7 +143,7 @@ _Avoid_: No-show, short-notice cancellation
 **Late Reschedule**:
 A Reschedule Request made less than 24 hours before the Job starts, judged when it is made. The first one confirmed for a Job is free and its Deposit still counts towards the price; any later one confirmed for the same Job is a Late Cancellation, though the Job still moves (ADR-0010).
 _Avoid_: Late move, short-notice reschedule
-_On screen_: late move
+_On screen_: late move; its fee is a late move fee
 
 **On Hold**:
 A Service Plan that is temporarily generating no new Jobs while any of its Jobs, or a Bill with any of its Jobs on it, is Unpaid; a Bill with a bank payment for it on its way holds nothing while it clears. Its Jobs already booked go ahead. Once nothing is Unpaid it carries on, from its next date still to come: dates that passed while it was On Hold are never booked. On Hold plans appear in Needs attention.
@@ -205,6 +205,7 @@ _On screen_: price change
 **Bill**:
 Everything a commercial Client billed weekly owes for one week, Monday to Sunday: the Balances of their Jobs that started that week and were Completed, their fees, and approved Adjustments, as lines, made the following Monday (ADR-0016). It is charged to their saved Payment Method then, or, if Office Staff set it so, paid on its page by its due date. It never changes once made: mistakes are put right on the next Bill, and an unpaid one can be voided. One below zero is a credit on the next.
 _Avoid_: Invoice, statement
+_On screen_: bill; a voided one is cancelled
 
 **Unpaid**:
 A Job whose Balance, or part of it, or whose fee failed to be charged and has not yet been recovered; or a Bill whose Charge failed, or that is still unpaid after its due date.

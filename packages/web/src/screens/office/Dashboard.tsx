@@ -210,7 +210,7 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
         const { job } = item;
         return {
           key: `job_unpaid ${job.id}`,
-          action: "Collect the Balance",
+          action: "Collect the balance",
           icon: CircleDollarSign,
           tone: "danger",
           client: clientName(job.client),
@@ -242,11 +242,11 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
         const { job } = item;
         return {
           key: `adjustments_reported ${job.id}`,
-          action: "Review extras Staff reported",
+          action: "Review the cleaner's price changes",
           icon: ClipboardList,
           tone: "info",
           client: clientName(job.client),
-          description: `${item.count === 1 ? "1 extra" : `${item.count} extras`} to review · ${addressOf(job.property)} · ${formatDate(job.startsAt)}`,
+          description: `${item.count === 1 ? "1 price change" : `${item.count} price changes`} to review · ${addressOf(job.property)} · ${formatDate(job.startsAt)}`,
           open: () =>
             navigate({
               to: "/office/jobs/$jobId",
@@ -291,7 +291,7 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
         const { bill } = item;
         return {
           key: `bill_unpaid ${bill.id}`,
-          action: "Collect the Bill",
+          action: "Collect the bill",
           icon: Receipt,
           tone: "danger",
           client: clientName(bill.client),
@@ -306,8 +306,8 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
       case "plan_on_hold": {
         const { plan } = item;
         const unpaid = [
-          item.owedCents > 0 && `${formatMoney(item.owedCents)} Unpaid`,
-          item.bills.length > 0 && `Bill ${item.bills.join(" and ")} Unpaid`,
+          item.owedCents > 0 && `${formatMoney(item.owedCents)} unpaid`,
+          item.bills.length > 0 && `bill ${item.bills.join(" and ")} unpaid`,
         ]
           .filter(Boolean)
           .join(", ");
@@ -317,7 +317,7 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
           icon: CirclePause,
           tone: "warning",
           client: clientName(plan.client),
-          description: `${addressOf(plan.property)} · Service Plan: ${unpaid}, no new Jobs booked`,
+          description: `${addressOf(plan.property)} · Cleaning plan paused: ${unpaid}`,
           open: () =>
             navigate({
               to: "/office/service-plans/$planId",

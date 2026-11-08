@@ -50,12 +50,11 @@ const jobsById = async (ids: string[]) =>
 const unpaidJobsSource: Source = async () => {
   const unpaid = await unpaidJobs();
   const byId = await jobsById(unpaid.map((u) => u.jobId));
-  return unpaid.map(({ jobId, since, owedCents, reason }) => ({
+  return unpaid.map(({ jobId, since, owedCents }) => ({
     kind: "job_unpaid",
     since,
     job: byId.get(jobId)!,
     owedCents,
-    reason,
   }));
 };
 

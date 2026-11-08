@@ -17,6 +17,7 @@ import {
 import {
   ASK_AGAIN,
   billPaid,
+  cleansPaid,
   ON_WEEKS_BILL,
   PRICES_INCLUDE_TAX,
   quoteEmailedTo,
@@ -337,7 +338,7 @@ const planPrices = ({ cleans }: PlanCleans, paid: PaidWith, now = "") => {
           )
           .join(", ");
   if (paid.weeklyBill) {
-    return `Each clean is ${now}${each}. Each week's cleans go on one bill, ${billPaid[paid.weeklyBill]}.`;
+    return `Each clean is ${now}${each}. ${cleansPaid(paid.weeklyBill)}`;
   }
   return cleans.length === 1
     ? `Each clean is ${now}${each}, charged to ${chargedTo(paid)} when it's done.`

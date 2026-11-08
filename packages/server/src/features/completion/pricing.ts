@@ -87,7 +87,7 @@ export const quotedJobs = async (
 };
 
 // a Job to be priced from a Quote it hasn't got
-export const NO_QUOTE = "This Job has no Quote to price it from";
+export const NO_QUOTE = "This job has no quote to price it from.";
 
 export const quotedJob = async (
   jobId: string,
@@ -185,7 +185,7 @@ export const priceReports = async (
     }
 
     if (seen.has(report.addOnKey)) {
-      throw new ConflictError("Report each Add-on once");
+      throw new ConflictError("Report each add-on once.");
     }
     seen.add(report.addOnKey);
     const onQuote = suggested.addOns.find((a) => a.key === report.addOnKey);
@@ -201,8 +201,8 @@ export const priceReports = async (
     if (!addOn) {
       throw new ConflictError(
         report.kind === "add_on_not_done"
-          ? "That Add-on isn't on this Job"
-          : "That Add-on can't be added to this Job",
+          ? "That add-on isn't on this job."
+          : "That add-on can't be added to this job.",
       );
     }
     return {

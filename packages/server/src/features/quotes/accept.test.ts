@@ -378,7 +378,7 @@ describe("accepting a First Clean Quote", () => {
     expect(confirmation.subject).toBe("You're booked with Empire Cleaning");
     expect(confirmation.text).not.toContain("when the clean is done");
     expect(confirmation.text).toContain(
-      `The rest, ${formatMoney(deep.totalCents - deep.depositCents)}, goes on your Bill for that week, made the following Monday, which you pay on its page by its due date.`,
+      `The rest, ${formatMoney(deep.totalCents - deep.depositCents)}, goes on your bill for that week, made the following Monday, which you pay on its page by its due date.`,
     );
   });
 
@@ -1126,7 +1126,7 @@ describe("Office Staff recording acceptance on a Client's behalf", () => {
       .expect(409);
 
     expect(refused.body.message).toBe(
-      "Casey Client's Test card ending 4242 didn't go through, so nothing was booked. Email them a link to add another card.",
+      "Casey Client's Test card ending 4242 didn't go through, so nothing was booked. There wasn't enough money in the account. Email them a link to add another card.",
     );
   });
 
@@ -1175,7 +1175,7 @@ describe("Office Staff recording acceptance on a Client's behalf", () => {
 
     expect(sent.body).toEqual({ sentTo: casey.email });
     const email = testEmail().lastTo(casey.email);
-    expect(email.subject).toBe("Add a Payment Method for Empire Cleaning");
+    expect(email.subject).toBe("Add a card for Empire Cleaning");
     // a plain link, with no sign-in power (ADR-0006)
     expect(email.text).toContain("http://localhost:5173/portal/payment-method");
     expect(email.text).not.toMatch(/token=/);
@@ -1195,7 +1195,7 @@ describe("Office Staff recording acceptance on a Client's behalf", () => {
       .send({ clientId: quote.client.id })
       .expect(200);
     expect(testEmail().lastTo(casey.email).text).toContain(
-      "we take the Deposit when you book, and the rest goes on your Bill for that week, made the following Monday, which you pay on its page by its due date.",
+      "We take the deposit when you book, and the rest goes on your bill for that week, made the following Monday, which you pay on its page by its due date.",
     );
   });
 });

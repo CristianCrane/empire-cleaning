@@ -23,10 +23,10 @@ describe("a second Late Reschedule's fee (#244 #5)", () => {
 
   test("goes on that week's Bill, for a Client billed weekly", () => {
     expect(costForClient("late_cancellation", 5046, weeklyOneOff)).toMatch(
-      /deposit is kept as a late cancellation fee, and the full price goes on your Bill for that week\.$/,
+      /deposit is kept as a late cancellation fee, and the full price goes on your bill for that week\.$/,
     );
     expect(costForClient("late_cancellation", 5046, weeklyPlan)).toMatch(
-      /\$50\.46 late cancellation fee, which goes on your Bill for that week with the price\.$/,
+      /\$50\.46 late cancellation fee, which goes on your bill for that week with the price\.$/,
     );
     expect(costForOffice("late_cancellation", 5046, weeklyOneOff)).toMatch(
       /deposit is kept as a late cancellation fee, and the full price goes on that week's bill\.$/,

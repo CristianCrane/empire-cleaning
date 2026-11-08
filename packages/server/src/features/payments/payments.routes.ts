@@ -73,7 +73,7 @@ historyRouter.get("/mine", authorize("client"), async (_req, res) => {
 router.post(
   "/requests",
   authorize("office_staff"),
-  validate({ body: z.object({ clientId: z.uuid("Choose a Client") }) }),
+  validate({ body: z.object({ clientId: z.uuid("Choose a client") }) }),
   async (req, res) => {
     res.json(await sendPaymentMethodLink(req.body.clientId));
   },

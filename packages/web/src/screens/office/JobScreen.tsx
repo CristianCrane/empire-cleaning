@@ -6,7 +6,7 @@ import {
   type AssignmentView,
   type OfficeJob,
 } from "@empire-cleaning/models";
-import { MORE_HOURS } from "@empire-cleaning/models";
+import { MORE_HOURS, officeFix } from "@empire-cleaning/models";
 import {
   ActionBar,
   Actions,
@@ -239,10 +239,10 @@ const noticesFor = (job: OfficeJob): ReactNode[] => {
         <p>
           <strong>
             Unpaid since {formatDate(payment.unpaid.since)}:{" "}
-            {formatMoney(payment.owedCents)} didn't go through
-          </strong>{" "}
-          ({payment.unpaid.reason}). We've emailed the client to update their
-          card, which tries again.
+            {formatMoney(payment.owedCents)} didn't go through.
+          </strong>
+          {payment.unpaid.why && ` ${payment.unpaid.why}`}{" "}
+          {officeFix[payment.unpaid.kind]}
         </p>
       </Notice>,
     );

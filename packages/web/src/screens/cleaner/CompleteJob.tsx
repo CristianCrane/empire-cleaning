@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   adjustmentLabel,
+  NOT_ALL_CONFIRMED,
   type AddOnChoice,
   type CleanerJob,
   type CompletionReport,
@@ -39,10 +40,9 @@ export function CompleteJob({ job }: { job: CleanerJob }) {
   const [done, setDone] = useState<Ticked>({});
   const [extraHours, setExtraHours] = useState(0);
   const [extraReason, setExtraReason] = useState("");
-  const action = useAction(
-    "The Job wasn't marked Completed. Please try again.",
-    { fieldsProblem: "Some details need fixing." },
-  );
+  const action = useAction("The job wasn't marked done. Please try again.", {
+    fieldsProblem: "Some details need fixing.",
+  });
 
   const reports = (): CompletionReport[] => [
     ...Object.entries(notDone).map(([addOnKey, reason]) => ({
@@ -77,15 +77,15 @@ export function CompleteJob({ job }: { job: CleanerJob }) {
           condition,
           reports: reports(),
         }),
-      "Job Completed",
+      "Job marked done",
     );
     if (ok) close();
   };
 
   return (
     <DialogTrigger>
-      <Button>Complete Job</Button>
-      <Dialog title="Complete this Job">
+      <Button>Mark done</Button>
+      <Dialog title="Mark this job done">
         {({ close }) => (
           <Form
             validationErrors={action.fieldErrors}
@@ -95,8 +95,8 @@ export function CompleteJob({ job }: { job: CleanerJob }) {
             }}
           >
             <p className="text-fg-muted">
-              Tell us how it went. If anything was different from the Quote, the
-              Office sorts out the price with the Client.
+              Tell us how it went. If anything was different from the quote, the
+              office sorts out the price with the client.
             </p>
             <RadioGroup
               label="How was the home?"
@@ -114,7 +114,7 @@ export function CompleteJob({ job }: { job: CleanerJob }) {
 
             {job.reportable.quoted.length > 0 && (
               <AddOnReports
-                title="Add-ons on the Quote you couldn't do"
+                title="Add-ons on the quote you couldn't do"
                 addOns={job.reportable.quoted}
                 ticked={notDone}
                 onChange={setNotDone}
@@ -123,11 +123,11 @@ export function CompleteJob({ job }: { job: CleanerJob }) {
             )}
             {job.reportable.others.length > 0 && (
               <AddOnReports
-                title="Add-ons you did that weren't on the Quote"
+                title="Add-ons you did that weren't on the quote"
                 addOns={job.reportable.others}
                 ticked={done}
                 onChange={setDone}
-                reasonLabel="Why? For example, the Client asked"
+                reasonLabel="Why? For example, the client asked"
               />
             )}
 
@@ -161,7 +161,7 @@ export function CompleteJob({ job }: { job: CleanerJob }) {
                 Go back
               </Button>
               <Button type="submit" isPending={action.isPending}>
-                Mark Completed
+                Mark done
               </Button>
             </Actions>
           </Form>
@@ -224,10 +224,10 @@ function AddOnReports({
 export function Completed({ job }: { job: CleanerJob }) {
   const completion = job.completion!;
   return (
-    <Section title="Completed">
+    <Section title="Done">
       <Card>
         <p>
-          Marked Completed at {formatTime(completion.completedAt)}
+          Marked done at {formatTime(completion.completedAt)}
           {completion.completedBy && ` by ${completion.completedBy}`}. Thank
           you!
         </p>
@@ -237,7 +237,7 @@ export function Completed({ job }: { job: CleanerJob }) {
           <dt className="font-semibold">Reported</dt>
           <dd>
             {completion.reports.length === 0 ? (
-              "Nothing different from the Quote"
+              "Nothing different from the quote"
             ) : (
               <ul>
                 {completion.reports.map((r, i) => (
@@ -264,10 +264,5 @@ export function NotYet({ job }: { job: CleanerJob }) {
   ) {
     return null;
   }
-  return (
-    <Notice tone="warning">
-      Not everyone on this Job has Confirmed it, so it can't be marked Completed
-      yet. Please call the Office.
-    </Notice>
-  );
+  return <Notice tone="warning">{NOT_ALL_CONFIRMED}</Notice>;
 }

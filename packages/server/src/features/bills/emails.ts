@@ -12,11 +12,13 @@ import {
   formatDay,
   formatMoney,
 } from "../../services/email/format.ts";
-import { BACK_ON_LINE, ON_HOLD_LINE } from "../cancellation/emails.ts";
 import {
+  PLAN_BACK_ON,
+  PLAN_PAUSED,
   PRICES_INCLUDE_TAX,
   REFUND_TAKES_DAYS,
   UPDATE_AND_RETRY,
+  UPDATE_CARD,
 } from "@empire-cleaning/models";
 import type { Settled } from "../completion/balance.ts";
 
@@ -62,7 +64,7 @@ const aboutBill = (
       if (bill.unpaid) {
         return [
           `We couldn't take payment for bill ${number}`,
-          `We couldn't charge ${total} for bill ${number} to your ${card}. Please ${UPDATE_AND_RETRY}, or pay it on its page.`,
+          `We couldn't take ${total} for bill ${number} from your ${card}. Please ${UPDATE_AND_RETRY}, or pay it on its page.`,
         ];
       }
       if (bill.totalCents < 0) {
@@ -110,7 +112,7 @@ const aboutBill = (
     case "voided":
       return [
         `Bill ${number} is cancelled`,
-        `We've voided bill ${number}, so there's nothing to pay on it.${bill.voidReason ? ` ${bill.voidReason}` : ""}`,
+        `We've cancelled bill ${number}, so there's nothing to pay on it.${bill.voidReason ? ` ${bill.voidReason}` : ""}`,
         billedWeekly
           ? "Anything on it that's still owed will be on your next bill."
           : "Anything on it that's still owed is charged to your card per clean, as before.",
@@ -208,21 +210,21 @@ export const settledLines = (settled: SettledJob[]) => {
   if (charged || refunded) {
     const what =
       charged && refunded
-        ? "Charges and refunds are"
+        ? `Payments are taken from your ${card}, and refunds go back to it.`
         : charged
-          ? "Charges are"
-          : "Refunds are";
+          ? `Payments are taken from your ${card}.`
+          : `Refunds go back to your ${card}.`;
     lines.push(
-      `${what} to your ${card}.${refunded ? " A refund can take a few days to reach you." : ""}`,
+      `${what}${refunded ? " A refund can take a few days to reach you." : ""}`,
     );
   }
   if (settled.some((s) => s.unpaidCents !== null)) {
     lines.push(`We couldn't charge your ${card}. Please ${UPDATE_AND_RETRY}.`);
   }
   if (settled.some((s) => s.settled.plan === "held")) {
-    lines.push(ON_HOLD_LINE);
+    lines.push(PLAN_PAUSED);
   } else if (settled.some((s) => s.settled.plan === "resumed")) {
-    lines.push(BACK_ON_LINE);
+    lines.push(PLAN_BACK_ON);
   }
   return lines;
 };
@@ -244,13 +246,13 @@ export const chargedPerCleanEmail = ({
     blocks: [
       greeting(firstNameOf(name)),
       ...[
-        "We've stopped billing you weekly, so from now on each clean is charged to your card when it's done. Bills already sent stay due as they are.",
+        "We've stopped billing you weekly, so from now on each clean is charged to your card when it's done. Bills already sent still need paying as before.",
         "Here's what we've settled for cleans no bill has covered yet:",
         ...settledLines(settled),
         PRICES_INCLUDE_TAX,
       ].map(paragraph),
       unpaid
-        ? button("Update your Payment Method", "/portal/payment-method")
+        ? button(UPDATE_CARD, "/portal/payment-method")
         : button("See your cleans", "/portal"),
     ],
   };

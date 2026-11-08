@@ -43,7 +43,7 @@ export const InAList: Story = {
       />
       <ListItem
         id="4"
-        title="Collect the Balance"
+        title="Collect the balance"
         description="Nina Gold · $184.00 owed · 22 Pine St"
         start={<IconTile icon={CircleDollarSign} tone="danger" />}
       />

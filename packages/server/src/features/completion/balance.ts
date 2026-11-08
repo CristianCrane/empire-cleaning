@@ -23,6 +23,7 @@ import {
   refunds,
   type Charge,
 } from "../payments/payments.schema.ts";
+import { NOT_SETTLED, unpaidOf } from "../payments/unpaid.ts";
 import { properties } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
 import { holdOrResume } from "../service-plans/on-hold.ts";
@@ -191,12 +192,7 @@ export const paymentOf = async (job: Job): Promise<JobPayment> => {
     billedCents: ledger.billedCents,
     owedCents: ledger.owedCents,
     paymentMethod: owner?.label ?? null,
-    unpaid: job.unpaidSince
-      ? {
-          since: job.unpaidSince.toISOString(),
-          reason: job.unpaidReason ?? "",
-        }
-      : null,
+    unpaid: unpaidOf(job.unpaidSince, job.unpaidReason),
   };
 };
 
@@ -334,10 +330,6 @@ export const settleJob = async (
     settled.plan = await holdOrResume(tx, jobId);
     return settled;
   });
-
-// why a Job is Unpaid when settling it failed for want of anything the
-// Client could fix
-export const NOT_SETTLED = "its payment couldn't be worked out";
 
 /**
  * Settles a Job's money once a change to it is saved, as settleJob does,

@@ -1,6 +1,6 @@
 import { useLoaderData } from "@tanstack/react-router";
 import { Ban, Banknote } from "lucide-react";
-import type { BillView } from "@empire-cleaning/models";
+import { officeFix, type BillView } from "@empire-cleaning/models";
 import {
   Actions,
   Breadcrumbs,
@@ -25,8 +25,8 @@ import { useAction } from "../action.ts";
 import { clientName, formatDate, formatDay, formatMoney } from "../format.ts";
 
 // one weekly Bill for the Office (ADR-0016): the whole Bill as the Client
-// sees it, where it stands, and while it's unpaid, voiding it or recording a
-// payment made another way
+// sees it, where it stands, and while it's unpaid, voiding it (cancelling, on
+// screen) or recording a payment made another way
 export function BillScreen() {
   const bill = useLoaderData({ from: "/office/bills/$billId" });
 
@@ -86,35 +86,27 @@ function Standing({ bill }: { bill: BillView }) {
   if (bill.status === "processing") {
     return (
       <Notice tone="info">
-        The Client's bank payment of {formatMoney(bill.totalCents)} is on its
+        The client's bank payment of {formatMoney(bill.totalCents)} is on its
         way. It's paid once it clears, usually in a few working days.
       </Notice>
     );
   }
   if (bill.status !== "due") return null;
-  if (bill.unpaid && bill.payment === "on_page") {
-    return (
-      <Notice tone="danger">
-        It wasn't paid by its due date, {formatDay(bill.dueOn)}. The Client's
-        Service Plans with Jobs on it are On Hold until it's paid, on its page
-        or by a payment you record. They're reminded each week until then, and
-        the Office inbox gets a copy.
-      </Notice>
-    );
-  }
   if (bill.unpaid) {
+    const { kind, why } = bill.unpaid;
     return (
       <Notice tone="danger">
-        Its automatic Charge failed ({bill.unpaid.reason}) on{" "}
-        {formatDate(bill.unpaid.since)}. The Client's Service Plans with Jobs on
-        it are On Hold until it's paid, on its page, with a new Payment Method,
-        or by a payment you record.
+        {kind === "late"
+          ? `It wasn't paid by its due date, ${formatDay(bill.dueOn)}.`
+          : `Its payment didn't go through on ${formatDate(bill.unpaid.since)}.${why ? ` ${why}` : ""}`}{" "}
+        {officeFix[kind]} Until it's paid, the client's cleaning plans with jobs
+        on this bill are paused.
       </Notice>
     );
   }
   return bill.payment === "on_page" && bill.totalCents > 0 ? (
     <Notice>
-      Waiting for the Client to pay it on its page, by {formatDay(bill.dueOn)}.
+      Waiting for the client to pay it on its page, by {formatDay(bill.dueOn)}.
     </Notice>
   ) : null;
 }
@@ -153,8 +145,8 @@ function RecordPayment({ bill }: { bill: BillView }) {
             }}
           >
             <p>
-              For {formatMoney(bill.totalCents)} paid another way. It settles
-              the Bill, and the Client is sent a receipt.
+              For {formatMoney(bill.totalCents)} paid another way. It marks the
+              bill paid, and we email the client a receipt.
             </p>
             <TextField
               label="How it was paid"
@@ -181,14 +173,14 @@ function RecordPayment({ bill }: { bill: BillView }) {
 
 // a Bill that shouldn't have gone out: what was on it goes on the next one
 function VoidBill({ bill }: { bill: BillView }) {
-  const action = useBillAction(bill, "void", "Bill voided");
+  const action = useBillAction(bill, "void", "Bill cancelled");
   return (
     <DialogTrigger>
       <Button variant="danger-text" size="sm">
         <Ban aria-hidden size={16} />
-        Void
+        Cancel bill
       </Button>
-      <Dialog title={`Void bill ${bill.number}?`}>
+      <Dialog title={`Cancel bill ${bill.number}?`}>
         {({ close }) => (
           <Form
             validationErrors={action.fieldErrors}
@@ -199,14 +191,14 @@ function VoidBill({ bill }: { bill: BillView }) {
             }}
           >
             <p>
-              There'll be nothing to pay on it, and the Client is told. Whatever
-              on it is still owed goes on their next Bill, or is charged per Job
-              if they're no longer billed weekly.
+              There'll be nothing to pay on it, and we tell the client. Anything
+              on it still owed goes on their next bill, or is charged per job if
+              they're no longer billed weekly.
             </p>
             <TextField
-              label="Why it's voided"
+              label="Why it's cancelled"
               name="reason"
-              description="The Client sees this."
+              description="The client sees this."
               isRequired
               autoFocus
             />
@@ -220,7 +212,7 @@ function VoidBill({ bill }: { bill: BillView }) {
                 variant="danger"
                 isPending={action.isPending}
               >
-                Void
+                Cancel bill
               </Button>
             </Actions>
           </Form>

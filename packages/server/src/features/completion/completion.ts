@@ -12,6 +12,7 @@ import {
 import {
   adjustmentItem,
   adjustmentLabel,
+  NOT_ALL_CONFIRMED,
   type AdjustmentCorrection,
   type AdjustmentProposal,
   type AdjustmentView,
@@ -46,6 +47,7 @@ import {
   rescheduleTermsOf,
 } from "../reschedule/reschedule.ts";
 import { staff } from "../staff/staff.schema.ts";
+import { whyNotPaid } from "../payments/unpaid.ts";
 import {
   counts,
   paymentOf,
@@ -83,8 +85,9 @@ import { hoursOnSiteOf } from "../jobs/jobs.ts";
 const ANSWER_DAYS = 7;
 
 // a change to the price that the Office, or its Client, has dealt with already
-const REVIEWED = "This Adjustment has already been reviewed";
+const REVIEWED = "This price change has already been dealt with.";
 const ANSWERED = "You've already answered this.";
+const NOT_DONE = "This job hasn't been marked done.";
 const REMINDER_DAYS_BEFORE = 2;
 
 /**
@@ -196,13 +199,11 @@ export const completeJob = async (
       throw new ConflictError(whyNotBooked(job!.status, "completed"));
     }
     if (job!.startsAt > now) {
-      throw new ConflictError("This Job hasn't started yet");
+      throw new ConflictError("This job hasn't started yet.");
     }
     const status = (await assignmentStatusOf([job!], tx)).get(jobId);
     if (status !== "assigned") {
-      throw new ConflictError(
-        "Everyone on this Job must Confirm it before it can be Completed. Please call the Office.",
-      );
+      throw new ConflictError(NOT_ALL_CONFIRMED);
     }
 
     const [property] = await tx
@@ -593,7 +594,7 @@ export const correctAdjustment = async (
   const { adjustment } = await findAdjustment(jobId, adjustmentId);
   if (adjustment.status !== "applied" && adjustment.status !== "approved") {
     throw new ConflictError(
-      "Only an Adjustment that counts towards the price can be corrected",
+      "Only a price change that's been added to the price can be corrected.",
     );
   }
   if (
@@ -601,7 +602,7 @@ export const correctAdjustment = async (
     correction.priceCents > adjustment.priceCents
   ) {
     throw new ConflictError(
-      `The Client approved ${formatMoney(adjustment.totalCents)}, so it can't be raised`,
+      `The client approved ${formatMoney(adjustment.totalCents)}, so it can only be lowered.`,
     );
   }
   const quoted = await quotedJob(jobId);
@@ -641,7 +642,7 @@ const completedJob = async (jobId: string) => {
     .select()
     .from(jobs)
     .where(and(eq(jobs.id, jobId), eq(jobs.status, "completed")));
-  if (!job) throw new ConflictError("This Job hasn't been Completed");
+  if (!job) throw new ConflictError(NOT_DONE);
   return job;
 };
 
@@ -657,7 +658,7 @@ const owingJob = async (jobId: string) => {
         inArray(jobs.status, ["completed", "cancelled", "no_access"]),
       ),
     );
-  if (!job) throw new ConflictError("This Job hasn't been Completed");
+  if (!job) throw new ConflictError(NOT_DONE);
   return job;
 };
 
@@ -720,8 +721,9 @@ export const retryBalance = async (jobId: string) => {
   if (!job.unpaidSince) return;
   const settled = await settleJob(jobId);
   if (settled.failure) {
+    const { why } = whyNotPaid(settled.failure);
     throw new ConflictError(
-      `It still couldn't be charged (${settled.failure})`,
+      `The payment still didn't go through.${why ? ` ${why}` : ""}`,
     );
   }
   await sendCorrection(jobId, settled);
@@ -904,7 +906,7 @@ export const answerAdjustment = async (
   if (adjustment.status !== "proposed" || lapsed) {
     throw new ConflictError(
       lapsed || adjustment.status === "lapsed"
-        ? "This has lapsed, so it won't be charged."
+        ? "It wasn't answered in time, so you won't pay it."
         : ANSWERED,
     );
   }
@@ -947,7 +949,7 @@ export const clientRetryBalance = async (clientId: string, jobId: string) => {
   const settled = await settleJob(jobId);
   if (settled.failure) {
     throw new ConflictError(
-      "Your card still couldn't be charged. Please update your Payment Method, or try another card.",
+      "Your card still didn't go through. Please update your card, or use another one.",
     );
   }
 };
@@ -1077,7 +1079,6 @@ export const unpaidJobs = async () => {
     rows.map(async (job) => ({
       jobId: job.id,
       since: job.unpaidSince!.toISOString(),
-      reason: job.unpaidReason ?? "",
       owedCents: (await paymentOf(job)).owedCents,
     })),
   );

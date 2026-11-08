@@ -16,11 +16,12 @@ import {
   type Stripe,
   type StripeElements,
 } from "@stripe/stripe-js";
-import type {
-  BillPaymentForm,
-  CardForm,
-  PaymentForm,
-  PaymentMethodView,
+import {
+  NEVER_SEE_CARD,
+  type BillPaymentForm,
+  type CardForm,
+  type PaymentForm,
+  type PaymentMethodView,
 } from "@empire-cleaning/models";
 import { EmbeddedField, Notice } from "@empire-cleaning/ui";
 import { getJson, postJson, putJson } from "../../api.ts";
@@ -38,10 +39,10 @@ export class CardProblem extends Error {}
 export function ConsentNote({ action }: { action: "paying" | "saving" }) {
   return (
     <p className="text-sm text-fg-muted">
-      By {action === "paying" ? "paying" : "saving your card"}, you authorise
-      Empire Cleaning to charge this card for the Balance when each clean is
-      Completed, the Deposit amount for a late cancellation or No Access, and
-      any weekly Bill set to be charged to it.
+      By {action === "paying" ? "paying" : "saving your card"}, you agree that
+      Empire Cleaning can charge this card for the balance when each clean is
+      done, the deposit amount for a late cancellation or if we couldn't get in,
+      and any weekly bill set to be charged to it.
     </p>
   );
 }
@@ -188,9 +189,8 @@ const useStripeElement = (
 };
 
 // what the form says while the payment provider's part of it isn't ready
-const NOT_LOADED = "The payment form didn't load. Please refresh the page.";
-const LOADING = "The payment form is still loading.";
-const CARD_LOADING = "The card form is still loading.";
+const NOT_LOADED = "The form didn't load. Please refresh the page.";
+const LOADING = "The form is still loading.";
 
 const formField = (
   form: PaymentForm | undefined,
@@ -203,8 +203,8 @@ const formField = (
     </Notice>
   ) : (
     <EmbeddedField
-      label="Payment"
-      description="Entered straight into our payment provider's secure form: we never see your card number."
+      label="Card"
+      description={NEVER_SEE_CARD}
       errorMessage={problem}
       framed={false}
     >
@@ -334,11 +334,7 @@ export function useCardForm({ enabled = true }: { enabled?: boolean } = {}) {
     setForm(undefined);
     postJson<CardForm>("/api/payment-methods/mine/card-form")
       .then((next) => current && setForm(next))
-      .catch(
-        () =>
-          current &&
-          setProblem("The card form didn't load. Please refresh the page."),
-      );
+      .catch(() => current && setProblem(NOT_LOADED));
     return () => {
       current = false;
     };
@@ -358,11 +354,11 @@ export function useCardForm({ enabled = true }: { enabled?: boolean } = {}) {
   );
 
   const save = useCallback(async () => {
-    if (!form) throw new CardProblem(CARD_LOADING);
+    if (!form) throw new CardProblem(LOADING);
     let token = form.secret;
     if (form.form === "stripe") {
       if (!mounted.current) {
-        throw new CardProblem(CARD_LOADING);
+        throw new CardProblem(LOADING);
       }
       const { stripe, elements } = mounted.current;
       const result = await stripe.confirmSetup({
@@ -475,7 +471,7 @@ export function useBillPaymentForm(billId: string, enabled: boolean) {
       ) : (
         <EmbeddedField
           label="Payment"
-          description="Pay by card or straight from your US bank account. Entered into our payment provider's secure form: we never see your card or account number."
+          description="Pay by card or straight from your US bank account. It goes straight into our payment service's secure form, so we never see your card or account number."
           errorMessage={problem}
           framed={false}
         >

@@ -255,7 +255,7 @@ describe("Home's hero, with nothing booked", () => {
       pastJobs: [pastJob({ unpaid: true })],
     });
     expect(paused.hero).toMatchObject({
-      label: "Your Service Plan is paused",
+      label: "Your cleaning plan is paused",
       tone: "warning",
       headline: "Update your card to carry on",
       action: { label: "Update your card" },
@@ -369,7 +369,7 @@ describe("Home's Notices: what's waiting on the Client", () => {
     });
     expect(notices).toEqual([
       expect.objectContaining({
-        text: "We couldn't charge for your Tue, Oct 20 clean. Your Service Plan books no new cleans until it's paid.",
+        text: "We couldn't take payment for your Tue, Oct 20 clean. We won't book any more cleans until it's paid.",
         action: "Update your card",
       }),
     ]);
@@ -381,12 +381,14 @@ describe("Home's Notices: what's waiting on the Client", () => {
     expect(next({ jobs: [job()], bills: [bill()] }).notices).toEqual([
       expect.objectContaining({
         text: "Bill EC-000041, $214.50, is due by Sat, Nov 14.",
-        action: "Pay the Bill",
+        action: "Pay the bill",
       }),
     ]);
     expect(
-      next({ bills: [bill({ unpaid: { since: "", reason: "" } })] }).notices[0],
-    ).toMatchObject({ action: "See the Bill" });
+      next({
+        bills: [bill({ unpaid: { since: "", kind: "declined", why: null } })],
+      }).notices[0],
+    ).toMatchObject({ action: "See the bill" });
     // charged automatically: nothing to do
     expect(next({ bills: [bill({ payment: "automatic" })] }).notices).toEqual(
       [],

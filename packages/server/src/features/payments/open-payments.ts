@@ -4,7 +4,7 @@ import { clock } from "../../services/clock/index.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
 import { bills } from "../bills/bills.schema.ts";
 import { retryBill } from "../bills/bills.ts";
-import { NOT_SETTLED } from "../completion/balance.ts";
+import { NOT_SETTLED } from "./unpaid.ts";
 import { retryJob } from "../completion/completion.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
 import { quotes } from "../quotes/quotes.schema.ts";

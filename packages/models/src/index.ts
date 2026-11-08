@@ -758,7 +758,6 @@ export type NeedsAttentionItem =
       since: string;
       job: ScheduledJob;
       owedCents: number;
-      reason: string;
     }
   | {
       // increases Staff reported at completion, waiting on the Office to
@@ -1581,8 +1580,17 @@ export type JobPayment = {
   owedCents: number;
   // the Client's saved Payment Method, e.g. "Visa ending 4242"
   paymentMethod: string | null;
-  unpaid: { since: string; reason: string } | null;
+  unpaid: Unpaid | null;
 };
+
+// why a payment didn't go through, by what puts it right: "declined", a new
+// card or another way to pay; "waiting", nothing, as we try again ourselves
+// (ADR-0022); "no_card", adding one; "late", paying the Bill on its page
+export type UnpaidKind = "declined" | "waiting" | "no_card" | "late";
+
+// since when it's been Unpaid, and why, in words a person reads; `why` is
+// null when there's nothing more to say than that it didn't go through
+export type Unpaid = { since: string; kind: UnpaidKind; why: string | null };
 
 export type JobCompletion = {
   completedAt: string;
@@ -1954,7 +1962,7 @@ export type BillSummary = {
   totalCents: number;
   taxCents: number;
   // its automatic Charge failed, and it hasn't been paid since
-  unpaid: { since: string; reason: string } | null;
+  unpaid: Unpaid | null;
   paidAt: string | null;
   paidVia: BillPaidVia | null;
 };

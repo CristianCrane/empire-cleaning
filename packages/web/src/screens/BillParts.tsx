@@ -26,9 +26,9 @@ import { Fact } from "./Fact.tsx";
 
 // where a Bill stands: what's left to do about it, or how it ended
 export function BillStatusBadge({ bill }: { bill: BillSummary }) {
-  if (bill.status === "void") return <StatusBadge>Voided</StatusBadge>;
+  if (bill.status === "void") return <StatusBadge>Cancelled</StatusBadge>;
   if (bill.status === "processing")
-    return <StatusBadge tone="info">Processing</StatusBadge>;
+    return <StatusBadge tone="info">Clearing</StatusBadge>;
   if (bill.unpaid) return <StatusBadge tone="danger">Unpaid</StatusBadge>;
   if (bill.status === "due")
     return <StatusBadge tone="warning">Due</StatusBadge>;
@@ -64,14 +64,14 @@ const paidHow = (bill: BillView, forClient: boolean) => {
   const on = bill.paidAt ? `, ${formatDate(bill.paidAt)}` : "";
   switch (bill.paidVia) {
     case "charge":
-      return `Charged to ${forClient ? "your" : "their"} saved Payment Method${on}`;
+      return `Charged to ${forClient ? "your" : "their"} card${on}`;
     case "page":
       return `Paid on this page${on}`;
     case "outside":
       return `${bill.paymentNote ?? "Paid another way"}${on}`;
     case "nothing_due":
       return bill.totalCents < 0
-        ? `Nothing to pay: the credit comes off ${forClient ? "your" : "their"} next Bill`
+        ? `Nothing to pay: the credit comes off ${forClient ? "your" : "their"} next bill`
         : "Nothing to pay";
     default:
       return null;
@@ -81,33 +81,36 @@ const paidHow = (bill: BillView, forClient: boolean) => {
 // where it stands now, in a line under its total
 const nowLine = (bill: BillView, forClient: boolean) => {
   const your = forClient ? "your" : "their";
-  if (bill.status === "void") return "Nothing to pay: it was voided";
+  if (bill.status === "void") return "Nothing to pay: it was cancelled";
   if (bill.status === "processing") return "A bank payment is on its way";
-  if (bill.unpaid) return `Its Charge failed ${formatDate(bill.unpaid.since)}`;
+  if (bill.unpaid)
+    return bill.unpaid.kind === "late"
+      ? `Not paid by ${formatDay(bill.dueOn)}`
+      : `Payment didn't go through ${formatDate(bill.unpaid.since)}`;
   if (bill.status === "due")
     return bill.payment === "on_page"
       ? `To pay by ${formatDay(bill.dueOn)}`
-      : `To be charged to ${your} saved Payment Method`;
-  if (bill.totalCents < 0) return `Comes off ${your} next Bill`;
+      : `To be charged to ${your} card`;
+  if (bill.totalCents < 0) return `Comes off ${your} next bill`;
   return bill.paidAt ? `Paid ${formatDate(bill.paidAt)}` : "Nothing to pay";
 };
 
-// the last fact: due by, why its Charge failed, how it was paid, or why it
-// was voided
+// the last fact: due by, why its payment didn't go through, how it was
+// paid, or why it was cancelled
 const standingFact = (bill: BillView, forClient: boolean) => {
   if (bill.status === "void")
     return {
       icon: Ban,
-      label: "Voided",
-      value: `Voided ${formatDate(bill.voidedAt!)}`,
-      line: bill.voidReason ?? "Voided",
+      label: "Cancelled",
+      value: `Cancelled ${formatDate(bill.voidedAt!)}`,
+      line: bill.voidReason ?? "Cancelled",
     };
   if (bill.unpaid)
     return {
       icon: CreditCard,
-      label: "Charge failed",
-      value: `Charge failed ${formatDate(bill.unpaid.since)}`,
-      line: bill.unpaid.reason,
+      label: "Not paid",
+      value: formatDate(bill.unpaid.since),
+      line: bill.unpaid.why ?? "The payment didn't go through.",
     };
   if (bill.status === "due" || bill.status === "processing")
     return bill.payment === "on_page" && bill.totalCents > 0
@@ -182,8 +185,8 @@ export function BillDetail({
                 }
                 line={
                   bill.payment === "automatic"
-                    ? `How it's paid: to ${forClient ? "your" : "their"} saved Payment Method`
-                    : "How it's paid: by card or bank debit"
+                    ? `Charged to ${forClient ? "your" : "their"} card`
+                    : "Paid by card or bank"
                 }
               />
               {standing && (

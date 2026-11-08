@@ -1,5 +1,12 @@
 import { useLoaderData } from "@tanstack/react-router";
-import { UPDATE_AND_RETRY, type BillView } from "@empire-cleaning/models";
+import {
+  BANK_CLEARING,
+  clientFix,
+  PLAN_PAUSED,
+  UPDATE_AND_RETRY,
+  UPDATE_CARD,
+  type BillView,
+} from "@empire-cleaning/models";
 import {
   Actions,
   Breadcrumbs,
@@ -71,38 +78,41 @@ function Standing({ bill }: { bill: BillView }) {
   if (bill.status === "processing") {
     return (
       <Notice tone="info">
-        Your bank payment of {formatMoney(bill.totalCents)} is on its way. It
-        usually takes a few working days to clear, and we'll email you when it
-        has.
+        Your bank payment of {formatMoney(bill.totalCents)} is on its way.{" "}
+        {BANK_CLEARING} We'll email you once it has.
       </Notice>
     );
   }
   if (bill.status !== "due") return null;
-  if (bill.unpaid && bill.payment === "on_page") {
+  if (bill.unpaid?.kind === "late") {
     return (
       <Notice tone="danger">
-        This Bill was due by {formatDay(bill.dueOn)} and hasn't been paid.
-        Please pay {formatMoney(bill.totalCents)} below. Until it's paid, any
-        Service Plan with cleans on it is On Hold: cleans already booked go
-        ahead, but we won't book any more.
+        This bill was due by {formatDay(bill.dueOn)} and hasn't been paid.
+        Please pay {formatMoney(bill.totalCents)} below. {PLAN_PAUSED}
       </Notice>
     );
   }
   if (bill.unpaid) {
+    const { kind, why } = bill.unpaid;
     return (
       <div className="flex flex-col gap-3 print:hidden">
         <Notice tone="danger">
-          We couldn't charge {formatMoney(bill.totalCents)} for this Bill to
-          your saved Payment Method. Please pay it below, or {UPDATE_AND_RETRY}.
+          We couldn't take {formatMoney(bill.totalCents)} for this bill from
+          your card.{why && ` ${why}`}{" "}
+          {kind === "waiting"
+            ? clientFix.waiting
+            : `Please pay it below, or ${UPDATE_AND_RETRY}.`}
         </Notice>
-        <Actions>
-          <ButtonLink
-            variant="secondary"
-            href={linkTo({ to: "/portal/payment-method" })}
-          >
-            Update Payment Method
-          </ButtonLink>
-        </Actions>
+        {kind !== "waiting" && (
+          <Actions>
+            <ButtonLink
+              variant="secondary"
+              href={linkTo({ to: "/portal/payment-method" })}
+            >
+              {UPDATE_CARD}
+            </ButtonLink>
+          </Actions>
+        )}
       </div>
     );
   }
@@ -134,13 +144,13 @@ function PayBill({ bill }: { bill: BillView }) {
       (paid) =>
         paid.status === "processing"
           ? "Your bank payment is on its way"
-          : "Thank you: your Bill is paid",
+          : "Thank you, your bill is paid",
     );
 
   return (
     <Section
       className="print:hidden"
-      title="Pay this Bill"
+      title="Pay this bill"
       description={`${formatMoney(bill.totalCents)}, by card or from your bank account.`}
     >
       <Card>

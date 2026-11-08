@@ -147,9 +147,9 @@ test(
     await expect(recorded).toContainText(
       '"Nobody answered and the doorman had no key"',
     );
-    await expect(
-      page.getByRole("button", { name: "Complete Job" }),
-    ).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Mark done" })).toHaveCount(
+      0,
+    );
     await expect(page.getByText(/\$/)).toHaveCount(0);
 
     const told = (await emailsTo(casey.email)).at(-1)!;

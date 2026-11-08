@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { Pencil } from "lucide-react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
-import type {
-  BillPayment,
-  ClientBillingSaved,
-  OfficeClientView,
-  PropertyStatus,
-  SettledJobView,
+import {
+  cleansPaid,
+  type BillPayment,
+  type ClientBillingSaved,
+  type OfficeClientView,
+  type PropertyStatus,
+  type SettledJobView,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -141,7 +142,7 @@ export function ClientDetail() {
       {bills.length > 0 && (
         <Section title="Bills" description="Newest first.">
           <List
-            aria-label={`${clientName(client)}'s Bills`}
+            aria-label={`${clientName(client)}'s bills`}
             onAction={(id) =>
               void navigate({
                 to: "/office/bills/$billId",
@@ -177,21 +178,21 @@ function Billing({ client }: { client: OfficeClientView }) {
           <dd>
             {billing.weeklyFrom
               ? `Weekly, from the week of ${formatDay(billing.weeklyFrom)}`
-              : "Per Job, when each is done"}
+              : "Per job, when each is done"}
           </dd>
           {billing.weeklyFrom && (
             <>
               <dt className="font-semibold">Pays</dt>
               <dd>
                 {billing.payment === "automatic"
-                  ? "Charged to their saved Payment Method when each Bill is made"
-                  : `On each Bill's page within ${billing.termsDays} ${billing.termsDays === 1 ? "day" : "days"}, by card or bank debit`}
+                  ? "Charged to their card when each bill is made"
+                  : `On each bill's page within ${billing.termsDays} ${billing.termsDays === 1 ? "day" : "days"}, by card or bank`}
               </dd>
             </>
           )}
           <dt className="font-semibold">Billing email</dt>
           <dd className="[overflow-wrap:anywhere]">
-            {billing.billingEmail ?? "None: Bills go to their own email"}
+            {billing.billingEmail ?? "None: bills go to their own email"}
           </dd>
         </dl>
       </Card>
@@ -246,10 +247,10 @@ function EditBilling({ client }: { client: OfficeClientView }) {
               </Checkbox>
               <p className="text-sm text-fg-muted">
                 {weekly
-                  ? "Everything they owe for a week, Monday to Sunday, goes on one Bill made the following Monday, from this week on."
+                  ? "Everything they owe for a week, Monday to Sunday, goes on one bill made the following Monday, from this week on."
                   : billing.weeklyFrom
-                    ? "Bills already made stay due. Anything not billed yet is charged per Job."
-                    : "Each Job is charged to their card when it's done."}
+                    ? "Bills already made still need paying. Anything not billed yet is charged per job."
+                    : cleansPaid("per_clean", false)}
               </p>
               {weekly && (
                 <>
@@ -260,22 +261,22 @@ function EditBilling({ client }: { client: OfficeClientView }) {
                   >
                     <Radio
                       value="automatic"
-                      description="Each Bill is charged to their saved Payment Method when it's made, and emailed as a receipt."
+                      description="Each bill is charged to their card when it's made, and emailed as a receipt."
                     >
                       Charged automatically
                     </Radio>
                     <Radio
                       value="on_page"
-                      description="They pay each Bill on its page, by card or bank debit, by its due date."
+                      description="They pay each bill on its page, by card or bank, by its due date."
                     >
-                      On the Bill's page
+                      On the bill's page
                     </Radio>
                   </RadioGroup>
                   {payment === "on_page" && (
                     <NumberField
-                      label="Terms, in days"
+                      label="Days to pay"
                       name="termsDays"
-                      description="From the Monday a Bill is made to its due date."
+                      description="From the Monday a bill is made to its due date."
                       minValue={1}
                       maxValue={90}
                       value={termsDays}
@@ -326,8 +327,8 @@ function Settled({
   return (
     <div className="flex flex-col gap-4">
       <p>
-        Anything no Bill had taken yet is now settled per Job. We've emailed the
-        Client what we did:
+        Anything not on a bill yet is now charged per job. We've emailed the
+        client what we did:
       </p>
       <ul className="flex flex-col gap-2">
         {settled.map((s) => (
@@ -339,7 +340,7 @@ function Settled({
                 s.refundedCents > 0 &&
                   `Refunded ${formatMoney(s.refundedCents)}`,
                 s.unpaidCents !== null &&
-                  `Unpaid: couldn't charge ${formatMoney(s.unpaidCents)}`,
+                  `Unpaid: ${formatMoney(s.unpaidCents)} didn't go through`,
               ]
                 .filter(Boolean)
                 .join(". ")}

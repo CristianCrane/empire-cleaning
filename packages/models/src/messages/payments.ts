@@ -1,4 +1,4 @@
-import type { AdjustmentKind } from "../index.js";
+import type { AdjustmentKind, UnpaidKind } from "../index.js";
 
 // What the server and the screens both say about paying: a card, a payment,
 // a refund, and the price changes found when a clean is done
@@ -11,15 +11,48 @@ export const REFUND_TAKES_DAYS = "It can take a few days to reach you.";
 export const refundedTo = (amount: string, card: string) =>
   `We've refunded ${amount} to your ${card}. ${REFUND_TAKES_DAYS}`;
 
+// where a card is typed, as the Client is told
+export const NEVER_SEE_CARD =
+  "It goes straight into our payment service's secure form, so we never see your card number.";
+
+// a clean's payment that didn't go through, as its Client is told, for a
+// sentence to end: `day` already formatted
+export const cleanNotPaid = (day: string) =>
+  `We couldn't take payment for your ${day} clean`;
+
 // how a Client puts right a payment that didn't go through
 export const UPDATE_AND_RETRY =
-  "update your Payment Method and we'll try again straight away";
+  "update your card and we'll try again straight away";
+export const UPDATE_CARD = "Update your card";
+
+// what happens next, once a payment didn't go through, by why: as the
+// Client is told, and as the Office is
+export const clientFix: Record<UnpaidKind, string> = {
+  declined: `Please ${UPDATE_AND_RETRY}.`,
+  no_card: "Please add a card and we'll try again straight away.",
+  waiting: "We'll try again by ourselves, so there's nothing you need to do.",
+  late: "Please pay it on its page.",
+};
+export const officeFix: Record<UnpaidKind, string> = {
+  declined: "We've emailed the client to update their card, which tries again.",
+  no_card: "We've emailed the client to add a card, which tries again.",
+  waiting: "We'll try again by ourselves.",
+  late: "We remind the client each week until it's paid.",
+};
+
+// a Client's cleaning plan, paused while a payment on it is Unpaid, and back
+// on once it's paid
+export const PLAN_PAUSED =
+  "Until it's paid, your cleaning plan is paused. Cleans already booked still go ahead, but we won't book any more.";
+export const PLAN_BACK_ON =
+  "Your cleaning plan is back on, and we'll book your cleans as usual.";
 
 // a fee for a clean that didn't happen, by the Job's status
 export const feeName = {
-  cancelled: "Late Cancellation fee",
-  no_access: "No Access fee",
+  cancelled: "Late cancellation fee",
+  no_access: "Couldn't-get-in fee",
 };
+export const LATE_MOVE_FEE = "Late move fee";
 
 type Changed = {
   kind: AdjustmentKind;

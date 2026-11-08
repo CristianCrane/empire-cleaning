@@ -13,11 +13,14 @@ import {
   formatMoney,
   formatWhen,
 } from "../../services/email/format.ts";
-import { BACK_ON_LINE, ON_HOLD_LINE } from "../cancellation/emails.ts";
 import {
   PRICES_INCLUDE_TAX,
   refundedTo,
+  LATE_MOVE_FEE,
+  PLAN_BACK_ON,
+  PLAN_PAUSED,
   UPDATE_AND_RETRY,
+  UPDATE_CARD,
 } from "@empire-cleaning/models";
 import type { Settled } from "./balance.ts";
 
@@ -41,12 +44,12 @@ const moneyLines = (settled: Settled, owedCents: number) => {
   }
   if (settled.failure) {
     lines.push(
-      `We couldn't charge the ${formatMoney(owedCents)} still to pay to your ${card}. Please ${UPDATE_AND_RETRY}.`,
+      `We couldn't take the ${formatMoney(owedCents)} still to pay from your ${card}. Please ${UPDATE_AND_RETRY}.`,
     );
   }
   // putting it On Hold is told in the Unpaid notice
   if (settled.plan === "resumed") {
-    lines.push(BACK_ON_LINE);
+    lines.push(PLAN_BACK_ON);
   }
   return lines.map(paragraph);
 };
@@ -73,12 +76,12 @@ export const unpaidEmail = ({
   blocks: [
     greeting(firstNameOf(name)),
     paragraph(
-      `We couldn't charge ${formatMoney(owedCents)} for your clean to your ${paymentMethod ?? "card"}.`,
+      `We couldn't take ${formatMoney(owedCents)} for your clean from your ${paymentMethod ?? "card"}.`,
     ),
     cleanDetails(clean),
     paragraph(`Please ${UPDATE_AND_RETRY}:`),
-    ...(held ? [paragraph(ON_HOLD_LINE)] : []),
-    portalButton(jobId, "Update your Payment Method"),
+    ...(held ? [paragraph(PLAN_PAUSED)] : []),
+    portalButton(jobId, UPDATE_CARD),
   ],
 });
 
@@ -125,7 +128,7 @@ export const receiptEmail = ({
             ...(rescheduleFeeCents > 0
               ? [
                   {
-                    label: `Late Reschedule fee${depositCents > 0 ? " (your Deposit, kept)" : ""}`,
+                    label: `${LATE_MOVE_FEE}${depositCents > 0 ? " (your deposit, kept)" : ""}`,
                     value: formatMoney(rescheduleFeeCents),
                   },
                 ]
@@ -174,7 +177,7 @@ export const proposalEmail = ({
     ),
     cleanDetails(clean),
     paragraph(
-      `It comes to ${formatMoney(totalCents)}, tax included. You only pay it if you approve it. Please approve or decline it by ${formatWhen(answerBy)}; if we don't hear from you, it lapses and you don't pay it.`,
+      `It comes to ${formatMoney(totalCents)}, tax included, and you only pay it if you approve it. Please approve or decline it by ${formatWhen(answerBy)}. If we don't hear from you by then, you won't pay it.`,
     ),
     portalButton(jobId, "Approve or decline"),
   ],
@@ -313,7 +316,7 @@ export const completionUndoneEmail = ({
     ),
     cleanDetails(clean),
     ...moneyLines(settled, 0),
-    button("See your Jobs", "/portal"),
+    button("See your cleans", "/portal"),
   ],
 });
 
