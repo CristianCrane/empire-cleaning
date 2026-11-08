@@ -35,7 +35,7 @@ export function ActionFooter({
         ref={footer}
         role="group"
         aria-label={label}
-        className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 border-t border-border bg-surface px-4 py-3 shadow-raised md:bottom-0 md:left-64 md:px-8 print:hidden"
+        className="fixed inset-x-0 bottom-[calc(var(--spacing-tab-bar)+env(safe-area-inset-bottom))] z-30 border-t border-border bg-surface px-4 py-3 shadow-raised md:bottom-0 md:left-64 md:px-8 print:hidden"
       >
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-end gap-2">
           {children}
