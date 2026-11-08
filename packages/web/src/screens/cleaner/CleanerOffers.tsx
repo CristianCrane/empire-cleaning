@@ -10,7 +10,7 @@ import {
   StatusBadge,
 } from "@empire-cleaning/ui";
 import { formatDateTime, formatHours } from "../format.ts";
-import { crewOf } from "./CleanerNeededScreen.tsx";
+import { crewSizeOf } from "./CleanerNeededScreen.tsx";
 
 // Jobs that aren't the Cleaner's yet, apart from Your Jobs so their own
 // list says only where they're working (UX pass, #96): those the Office
@@ -29,7 +29,7 @@ export function CleanerOffers() {
       {offered.length > 0 && (
         <Section
           title="Offered to you"
-          description="The Office picked you for these. Confirm, or let them go to someone else."
+          description="The office picked you for these. Confirm, or let them go to someone else."
         >
           <List
             aria-label="Offered to you"
@@ -56,7 +56,7 @@ export function CleanerOffers() {
 
       <Section
         title="Open to you"
-        description="Jobs in the next 7 days that need a Cleaner, when you're free. The first to confirm takes each."
+        description="Jobs in the next 7 days that need a cleaner while you're free. The first to confirm gets each one."
       >
         {open.length > 0 ? (
           <List
@@ -78,7 +78,7 @@ export function CleanerOffers() {
                   job.postcode,
                   job.serviceName,
                   `${formatHours(job.hoursOnSite)} on site`,
-                  crewOf(job),
+                  crewSizeOf(job),
                 ].join(" · ")}
               />
             ))}
@@ -88,7 +88,7 @@ export function CleanerOffers() {
             headingLevel={3}
             icon={Inbox}
             title="Nothing open to you right now"
-            description="When a Job needs someone while you're free, it shows here."
+            description="When a job needs someone while you're free, it shows here."
           />
         )}
       </Section>

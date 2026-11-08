@@ -185,7 +185,7 @@ test(
     await expect(page).toHaveURL(`/cleaner/jobs/${job.id}`);
     const details = page.getByRole("region", { name: "Job details" });
     await expect(details).toContainText("Ring 4B; the doorman has a key.");
-    await expect(details).toContainText("their phone shows on the day");
+    await expect(details).toContainText("their number shows on the day");
     await expect(details).toContainText("Dee Cleaner not confirmed yet");
     // never any prices
     await expect(page.locator("main")).not.toContainText("$");
@@ -195,7 +195,7 @@ test(
     await expect(
       page.getByRole("region", { name: "Offered to you" }),
     ).toHaveCount(0);
-    await page.getByRole("link", { name: "Your Jobs" }).first().click();
+    await page.getByRole("link", { name: "Your jobs" }).first().click();
     await expect(page.getByRole("grid", { name: "Coming up" })).toContainText(
       "Thu, Jan 8, 9:00 AM",
     );
@@ -255,14 +255,14 @@ test("a Cleaner releases a Job they can't make", async ({ page }) => {
   await page.getByRole("button", { name: "Not for me" }).click();
   await page
     .getByRole("alertdialog")
-    .getByRole("button", { name: "Release" })
+    .getByRole("button", { name: "Drop out" })
     .click();
 
   await expect(page).toHaveURL("/cleaner");
-  await expect(page.getByText("Job released")).toBeVisible();
+  await expect(page.getByText("You've dropped out")).toBeVisible();
   await expect(page.getByText("Nothing booked for you yet")).toBeVisible();
   expect((await emailsTo(olive.email)).at(-1)!.subject).toBe(
-    "Cory Cleaner released a job",
+    "Cory Cleaner dropped out of a job",
   );
 });
 
@@ -277,8 +277,8 @@ test("a Confirmed Job can't be released within 48 hours of it", async ({
   await signInAsCleaner(page, cory.email);
   await page.goto(`/cleaner/jobs/${job.id}`);
 
-  await expect(page.getByText("you can't release it here")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Release" })).toHaveCount(0);
+  await expect(page.getByText("you can't drop out here")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Drop out" })).toHaveCount(0);
 });
 
 test("a Cleaner sees the Client's phone on the day of the Job", async ({
@@ -323,7 +323,7 @@ test("the Job screens pass automated accessibility checks", async ({
   const asCory = await (await browser.newContext()).newPage();
   await signInAsCleaner(asCory, cory.email);
   await expect(
-    asCory.getByRole("heading", { name: "Your Jobs" }),
+    asCory.getByRole("heading", { name: "Your jobs" }),
   ).toBeVisible();
   await expectAccessible(asCory);
   await asCory.goto(`/cleaner/jobs/${job.id}`);

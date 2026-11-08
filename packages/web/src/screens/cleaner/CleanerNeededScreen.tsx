@@ -23,12 +23,13 @@ import {
   formatDay,
   formatHours,
   formatTime,
+  cleaners,
 } from "../format.ts";
 import { untilAbout } from "./CleanerHome.tsx";
 
-// "Just you", "2 Cleaners"
-export const crewOf = (job: Pick<CleanerNeeded, "crewSize">) =>
-  job.crewSize === 1 ? "Just you" : `${job.crewSize} Cleaners`;
+// "Just you", "2 cleaners"
+export const crewSizeOf = (job: Pick<CleanerNeeded, "crewSize">) =>
+  job.crewSize === 1 ? "Just you" : cleaners(job.crewSize);
 
 // A Cleaner Needed as a Cleaner it's open to sees it (ADR-0019): what, when,
 // for how long and roughly where. They Confirm it, first come first served,
@@ -75,7 +76,7 @@ export function CleanerNeededScreen() {
                 label="On site"
                 value={`About ${formatHours(job.hoursOnSite)}`}
               />
-              <Fact icon={Users} label="Crew" value={crewOf(job)} />
+              <Fact icon={Users} label="Crew" value={crewSizeOf(job)} />
               <Fact
                 icon={MapPin}
                 label="Area"
@@ -163,9 +164,8 @@ function TakeIt({ job }: { job: CleanerNeeded }) {
           }
         >
           <p>
-            It needs a Cleaner, and you're free then. The first Cleaner to
-            confirm takes it, and sees the address, how to get in and the
-            Client.
+            It needs a cleaner, and you're free then. The first to confirm gets
+            it, and then sees the address, how we get in and the client.
           </p>
         </ActionRow>
       </Card>

@@ -92,7 +92,7 @@ export const whyNotConfirm = (
   const since = moved(startsAt, seen);
   if (since) return since;
   if (!isFree(day, staffId, asClean(job))) {
-    return "You're not free for this job any more. Release it, or call the office.";
+    return "You're not free for this job any more. Drop out of it, or call the office.";
   }
   return null;
 };
@@ -161,7 +161,7 @@ export const whyNotTakeCleanerNeeded = (
   if (opening.openTo.includes(staffId)) return null;
   const own = opening.assigned.find((p) => p.staffId === staffId);
   return own?.status === "released"
-    ? "You released this job, so you can't take it back."
+    ? "You dropped out of this job, so you can't take it back."
     : own
       ? "You're already on this job."
       : "You're not free for this job any more.";

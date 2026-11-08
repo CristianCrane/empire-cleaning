@@ -12,7 +12,7 @@ const meta = {
     "aria-label": "What to do",
     children: (
       <>
-        <Button variant="danger-text">Record No Access</Button>
+        <Button variant="danger-text">Couldn't get in</Button>
         <Button>Mark done</Button>
       </>
     ),
@@ -31,9 +31,9 @@ export const Wrapped: Story = {
   parameters: { layout: "fullscreen" },
   args: {
     children: [
-      "Record No Access",
-      "Release this Job",
-      "Call the Office",
+      "Couldn't get in",
+      "Drop out of this job",
+      "Call the office",
       "Directions",
       "Add a photo",
       "Mark done",

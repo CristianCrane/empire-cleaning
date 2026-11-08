@@ -25,6 +25,7 @@ import {
   type PropertyKind,
   type TurnDownReason,
 } from "@empire-cleaning/models";
+import { accessButton } from "../jobs/emails.ts";
 import { describePlan, recurrenceLabel } from "./plan-days.ts";
 
 // Every Quote email links to the Quote's page, with no sign-in power
@@ -344,8 +345,6 @@ const planPrices = ({ cleans }: PlanCleans, paid: PaidWith, now = "") => {
     ? `Each clean is ${now}${each}, charged to ${chargedTo(paid)} when it's done.`
     : `Each clean is charged to ${chargedTo(paid)} when it's done: ${each}.`;
 };
-
-const accessButton = button("Check how to get in", "/portal/details");
 
 // one email for the whole plan: its Jobs after the first get only the
 // day-before reminder

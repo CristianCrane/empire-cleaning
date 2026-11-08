@@ -28,7 +28,7 @@ export const offerEmail = ({
     greeting(firstNameOf(name)),
     paragraph("You've been offered this job:"),
     cleanDetails(clean),
-    paragraph("Please confirm it, or release it if you can't make it."),
+    paragraph("Please confirm it, or drop out if you can't make it."),
     jobButton(jobId),
   ],
 });
@@ -59,7 +59,7 @@ export const releasedEmail = ({
   jobId: string;
   clean: Clean;
 }): Email => ({
-  subject: `${cleaner} released a job`,
+  subject: `${cleaner} dropped out of a job`,
   blocks: [
     paragraph(`${cleaner} can't make this job, so it needs a cleaner:`),
     cleanDetails(clean),
@@ -102,6 +102,6 @@ export const cleanersNeededEmail = ({
     paragraph("Each goes to the first cleaner to confirm."),
     jobs.length === 1
       ? button("See the job", `/cleaner/open/${jobs[0]!.jobId}`)
-      : button("See the jobs", "/cleaner"),
+      : button("See the jobs", "/cleaner/offers"),
   ],
 });

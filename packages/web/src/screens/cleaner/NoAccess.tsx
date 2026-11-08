@@ -21,12 +21,12 @@ import { formatTime } from "../format.ts";
 // sorts out what's next.
 export function RecordNoAccess({ job }: { job: CleanerJob }) {
   const [reason, setReason] = useState("");
-  const action = useAction("No Access wasn't recorded. Please try again.");
+  const action = useAction("That didn't go through. Please try again.");
 
   const record = async (close: () => void) => {
     const ok = await action.run(
       () => postJson(`/api/assignments/mine/${job.id}/no-access`, { reason }),
-      "No Access recorded",
+      "Sent",
     );
     if (ok) close();
   };
@@ -37,7 +37,7 @@ export function RecordNoAccess({ job }: { job: CleanerJob }) {
         <DoorClosed aria-hidden size={18} />
         Couldn't get in
       </Button>
-      <Dialog title="Record No Access?" role="alertdialog">
+      <Dialog title="Couldn't get in?" role="alertdialog">
         {({ close }) => (
           <Form
             validationErrors={action.fieldErrors}
@@ -47,8 +47,8 @@ export function RecordNoAccess({ job }: { job: CleanerJob }) {
             }}
           >
             <p>
-              Check how to get in and try the Client's phone first. The Job
-              won't be Completed; the Client and the Office are told what
+              Check how we get in, and try calling the client first. The job
+              won't be marked done, and the client and the office are told what
               happened.
             </p>
             <TextField
@@ -70,7 +70,7 @@ export function RecordNoAccess({ job }: { job: CleanerJob }) {
                 variant="danger"
                 isPending={action.isPending}
               >
-                Record No Access
+                Send
               </Button>
             </Actions>
           </Form>
@@ -84,12 +84,12 @@ export function RecordNoAccess({ job }: { job: CleanerJob }) {
 export function NoAccessRecorded({ job }: { job: CleanerJob }) {
   const noAccess = job.noAccess!;
   return (
-    <Section title="No Access">
+    <Section title="Couldn't get in">
       <Card>
         <p>
-          Recorded at {formatTime(noAccess.recordedAt)}
-          {noAccess.recordedBy && ` by ${noAccess.recordedBy}`}. The Client and
-          the Office have been told.
+          Sent at {formatTime(noAccess.recordedAt)}
+          {noAccess.recordedBy && ` by ${noAccess.recordedBy}`}. The client and
+          the office have been told.
         </p>
         <p>"{noAccess.reason}"</p>
       </Card>

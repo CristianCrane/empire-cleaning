@@ -93,7 +93,7 @@ test("on a page with an ActionFooter, it sits above that too, wrapped or not", a
 
   // more than fits on one row
   await rerender(
-    actions(["Record No Access", "Release this Job", "Mark done", "Call"]),
+    actions(["Couldn't get in", "Drop out of this job", "Mark done", "Call"]),
   );
   await expect
     .poll(() => footer().getBoundingClientRect().height)
@@ -103,7 +103,7 @@ test("on a page with an ActionFooter, it sits above that too, wrapped or not", a
 
 test("an open Dialog covers it", async () => {
   await render(
-    <Dialog title="Release this Job?" isOpen>
+    <Dialog title="Drop out of this job?" isOpen>
       <p>Someone else will be asked.</p>
     </Dialog>,
   );
