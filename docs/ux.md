@@ -135,7 +135,7 @@ stays as it is (#336).
 - **To a Client, we're "us"**: "Please call us", not "the Office".
 - **A message the server and a screen both show is written once**, in
   `packages/models/src/messages/`, which both import: a file per subject,
-  such as `jobs.ts` for a clean's time and room. Once
+  such as `jobs.ts` for a Job's time and room. Once
   ADR-0025's catalogs come (#308), they are models' own strings.
 
 ### First-time help
