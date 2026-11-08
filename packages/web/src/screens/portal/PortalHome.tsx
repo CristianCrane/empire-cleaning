@@ -29,12 +29,9 @@ export function PortalHome() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <Heading level={1}>Hi, {firstName}</Heading>
         {!heroAsks && (
-          <ButtonLink
-            variant="secondary"
-            href={linkTo({ to: "/portal/request" })}
-          >
+          <ButtonLink variant="secondary" href={requestQuote.href}>
             <QuoteIcon aria-hidden size={18} />
-            Request a Quote
+            {requestQuote.label}
           </ButtonLink>
         )}
       </div>

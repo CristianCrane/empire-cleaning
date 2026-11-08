@@ -557,6 +557,7 @@ const figure =
     },
   ) => (
     <NumberField
+      key={name}
       label={label}
       name={name}
       minValue={limits.min}

@@ -102,7 +102,7 @@ export function DraftChangesBadge() {
   return <StatusBadge tone="info">Being updated</StatusBadge>;
 }
 
-// the same, as the Client reads it
+// a Quote's state as its Client reads it: QuoteStatusBadge's, in their words
 export function ClientQuoteStatusBadge({ status }: { status: QuoteStatus }) {
   const { tone, label } = clientQuoteStatus[status];
   return <StatusBadge tone={tone}>{label}</StatusBadge>;
