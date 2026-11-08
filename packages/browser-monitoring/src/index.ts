@@ -19,7 +19,7 @@ export type MonitoringOptions = {
   // how page loads and page changes are traced: by the app's router, or
   // else as plain page loads
   tracing?: Integration;
-  // Sentry's feedback button on every page (`feedbackButton()` from
+  // Sentry's feedback button on every page (`feedbackButton(look)` from
   // ./feedback.ts, the test sites', ADR-0020); passed in, so a build without
   // it leaves it out
   feedback?: Integration;
