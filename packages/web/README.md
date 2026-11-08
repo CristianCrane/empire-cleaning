@@ -100,12 +100,12 @@ pnpm --filter @empire-cleaning/web test:e2e   # just the end-to-end tests
 While working on a change, run only what it touches (the root `README.md` says what runs before the PR):
 
 ```sh
-pnpm test:change e2e/bills.spec.ts                                         # the specs the branch adds or edits (three times), the specs named, and the other packages' tests
+pnpm test:change e2e/bills.spec.ts                                         # the specs the branch adds or edits and the specs named, once each, and the other packages' tests
 pnpm --filter @empire-cleaning/web exec playwright test e2e/bills.spec.ts  # one spec
 pnpm --filter @empire-cleaning/server exec vitest run --changed main      # server tests affected by changes since main
 pnpm test                                                                  # the @smoke set and quick suites of every package
 ```
 
-`pnpm test:change` finds the specs the branch adds or edits from git, but a change in `src/` is in no spec: name the specs for the screens you changed. It doesn't use Playwright's `--only-changed`, which takes every spec importing a changed file too, so an edit to `e2e/harness.ts` would run nearly all of them three times.
+`pnpm test:change` finds the specs the branch adds or edits from git, but a change in `src/` is in no spec: name the specs for the screens you changed. It doesn't use Playwright's `--only-changed`, which takes every spec importing a changed file too, so an edit to `e2e/harness.ts` would run nearly all of them.
 
 Small screen-only behaviour can still use Vitest browser tests (`src/**/*.test.tsx`), as the design system does.
