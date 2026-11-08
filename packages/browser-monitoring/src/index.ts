@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/react";
-import type { Breadcrumb, ErrorEvent } from "@sentry/react";
+import type { Breadcrumb, Event } from "@sentry/react";
 import { scrub, scrubText } from "@empire-cleaning/models";
 
 // Sentry in the browser (ADR-0007): the web app and the landing site's Quote
@@ -19,6 +19,8 @@ export type MonitoringOptions = {
   // how page loads and page changes are traced: by the app's router, or
   // else as plain page loads
   tracing?: Integration;
+  // Sentry's feedback button on every page (the test site's, ADR-0020)
+  feedback?: boolean;
 };
 
 // set at build from the git commit (./vite.ts), the same release as the
@@ -30,6 +32,7 @@ export const startMonitoring = ({
   environment,
   apiUrl,
   tracing,
+  feedback = false,
 }: MonitoringOptions) => {
   if (!dsn || Sentry.isInitialized()) return;
   Sentry.init({
@@ -37,7 +40,10 @@ export const startMonitoring = ({
     environment,
     release: __RELEASE__ ?? undefined,
     // no session replay: it records what people type and see
-    integrations: [tracing ?? Sentry.browserTracingIntegration()],
+    integrations: [
+      tracing ?? Sentry.browserTracingIntegration(),
+      ...(feedback ? [feedbackButton()] : []),
+    ],
     tracesSampleRate: 0.2,
     tracePropagationTargets: apiUrl ? [apiUrl] : [/^\/api\//],
     dataCollection: {
@@ -54,11 +60,31 @@ export const startMonitoring = ({
       "NetworkError when attempting to fetch resource.",
       "Load failed",
     ],
-    beforeSend: scrubEvent,
     beforeSendSpan: (span) => scrub(span),
     beforeBreadcrumb: scrubBreadcrumb,
   });
+  // every event, scrubbed last: an error's, a report's from the feedback
+  // button (which `beforeSend` never sees: it's only for errors), and any
+  // other kind
+  Sentry.addEventProcessor(scrubEvent);
 };
+
+// a floating button opening a form: what they noticed, and a screenshot if
+// they like. They're known by the Account ID alone, so no name or email is
+// asked. Placed and coloured by the app (packages/web/src/feedback.css)
+const feedbackButton = () =>
+  Sentry.feedbackIntegration({
+    showBranding: false,
+    showName: false,
+    showEmail: false,
+    enableScreenshot: true,
+    triggerLabel: "Send feedback",
+    formTitle: "Send feedback",
+    messageLabel: "What did you notice?",
+    messagePlaceholder: "Something that's wrong, or that you'd change",
+    submitButtonLabel: "Send",
+    successMessageText: "Thanks! We got it.",
+  });
 
 // who's signed in, by Account ID only; none when signed out
 export const identify = (accountId: string | undefined) => {
@@ -82,7 +108,7 @@ export const scrubEvent = ({
   user,
   breadcrumbs,
   ...event
-}: ErrorEvent): ErrorEvent => ({
+}: Event): Event => ({
   ...scrub(event),
   ...(breadcrumbs ? { breadcrumbs } : {}),
   ...(request
