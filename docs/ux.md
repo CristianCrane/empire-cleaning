@@ -134,8 +134,8 @@ stays as it is (#336).
   be done, it says what happened: "This clean was cancelled."
 - **To a Client, we're "us"**: "Please call us", not "the Office".
 - **A message the server and a screen both show is written once**, in
-  `packages/models/src/messages/`, a file per server feature that sends
-  them (`jobs.ts`), which both import. Once
+  `packages/models/src/messages/`, which both import: a file per subject,
+  such as `jobs.ts` for a Job's time and room. Once
   ADR-0025's catalogs come (#308), they are models' own strings.
 
 ### First-time help

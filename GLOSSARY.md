@@ -110,7 +110,7 @@ _Avoid_: Pending, approved, rejected, Superseded
 **Job**:
 A single visit at one Property, of one Service, booked for a confirmed date and time.
 _Avoid_: Booking, appointment, clean
-_On screen_: job; to a Client, clean
+_On screen_: job; clean to a Client, and in a message a Client may see too
 
 **Service Plan**:
 An agreed recurring arrangement at one Property for one Service that can be on a plan, generating Jobs of it on a set recurrence: either on one day of the week every week, every 2 weeks or every 4 weeks, or every week on several days (ADR-0013, ADR-0018). Each of its days has its own time and its own visit: Labour Hours, Crew Size and price. It can only start once that Property has a Completed First Clean, or, for a Service that needs a Site Visit, once one has recorded its findings (ADR-0014, ADR-0018). Its terms change only by accepting a new Service Plan Quote for the Property, which the Client can ask for: from that Quote's proposed time, its booked Jobs are cancelled free and it carries on on the new terms, its Jobs before then going ahead as they were (and still booked on the old terms as they come within reach, whether or not it was On Hold) and its Deposit carrying over. A Client skips one of its Jobs by cancelling it, under the usual rules, and the plan carries on. Having one never stops the Property getting one-off Quotes.
