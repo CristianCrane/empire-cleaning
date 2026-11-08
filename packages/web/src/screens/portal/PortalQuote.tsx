@@ -38,6 +38,7 @@ import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import {
   addressOf,
+  cleaners,
   conditionLabel,
   formatDate,
   formatDateTime,
@@ -50,7 +51,8 @@ import {
 import { Fact } from "../Fact.tsx";
 import { PlanDayCard, PlanTotals, QuoteStatusBadge } from "../QuoteParts.tsx";
 import { ConsentNote, usePaymentForm } from "./CardForm.tsx";
-import { billPaid, ON_WEEKS_BILL, planPaymentLine } from "./payments.ts";
+import { ON_WEEKS_BILL } from "@empire-cleaning/models";
+import { billPaid, planPaymentLine } from "./payments.ts";
 
 // A Quote as its Client sees it, from the link in every Quote email (ADR-0017):
 // only its offer, the latest Sent Revision, which they accept right here; or,
@@ -318,7 +320,7 @@ function QuoteDetails({
               <Fact
                 icon={Users}
                 label="On site"
-                value={`${quote.crewSize} ${quote.crewSize === 1 ? "Cleaner" : "Cleaners"}, about ${formatHours(chosen.hoursOnSite)}`}
+                value={`${cleaners(quote.crewSize)}, about ${formatHours(chosen.hoursOnSite)}`}
                 line="On site"
               />
             </dl>

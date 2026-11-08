@@ -17,7 +17,13 @@ import type {
   RescheduleRequestStatus,
 } from "@empire-cleaning/models";
 import { Section, Timeline, TimelineItem } from "@empire-cleaning/ui";
-import { formatDate, formatDateTime, formatMoney } from "../format.ts";
+import {
+  assignmentStateLabel,
+  formatDate,
+  formatDateTime,
+  formatMoney,
+  jobStatusLabel,
+} from "../format.ts";
 
 type Moment = {
   key: string;
@@ -29,14 +35,15 @@ type Moment = {
 
 const chargeLabel = { deposit: "Deposit", balance: "Balance", fee: "Fee" };
 
-// an Assignment answered, by whom
+// an Assignment answered: its icon; its title is who and what they did,
+// "Cory confirmed"
 const assignmentAnswered: Record<
   Exclude<AssignmentState, "offered">,
-  { icon: LucideIcon; title: (name: string) => string }
+  { icon: LucideIcon }
 > = {
-  confirmed: { icon: UserCheck, title: (name) => `${name} Confirmed` },
-  released: { icon: UserMinus, title: (name) => `${name} Released` },
-  taken_off: { icon: UserMinus, title: (name) => `${name} taken off` },
+  confirmed: { icon: UserCheck },
+  released: { icon: UserMinus },
+  taken_off: { icon: UserMinus },
 };
 
 // a Reschedule Request answered, or closed unanswered
@@ -47,7 +54,7 @@ const requestAnswered: Record<
   confirmed: { icon: CalendarCheck, title: "Moved" },
   turned_down: { icon: CalendarX, title: "Move turned down" },
   closed: { icon: CalendarX, title: "Move request closed" },
-  withdrawn: { icon: CalendarX, title: "Move withdrawn by the Client" },
+  withdrawn: { icon: CalendarX, title: "Move withdrawn by the client" },
 };
 
 // everything that happened to a Job, newest first: its Assignments Offered,
@@ -64,12 +71,12 @@ const momentsOf = (job: OfficeJob): Moment[] => {
       title: `Offered to ${a.staff.name}`,
     });
     if (a.answeredAt && a.status !== "offered") {
-      const { icon, title } = assignmentAnswered[a.status];
+      const { icon } = assignmentAnswered[a.status];
       moments.push({
         key: `answered-${a.id}`,
         at: a.answeredAt,
         icon,
-        title: title(a.staff.name),
+        title: `${a.staff.name} ${assignmentStateLabel[a.status].toLowerCase()}`,
       });
     }
   }
@@ -79,7 +86,7 @@ const momentsOf = (job: OfficeJob): Moment[] => {
       key: "asked",
       at: request.requestedAt,
       icon: CalendarClock,
-      title: `${request.byClient ? "The Client" : "The Office"} asked to move it`,
+      title: `${request.byClient ? "The client" : "The office"} asked to move it`,
       description: `${formatDateTime(request.fromStartsAt)} to ${formatDateTime(request.startsAt)}`,
     });
     if (request.answeredAt && request.status !== "pending") {
@@ -114,7 +121,7 @@ const momentsOf = (job: OfficeJob): Moment[] => {
       key: "completed",
       at: job.completion.completedAt,
       icon: CircleCheck,
-      title: "Completed",
+      title: jobStatusLabel.completed,
       description: job.completion.completedBy
         ? `By ${job.completion.completedBy.name}`
         : undefined,
@@ -132,7 +139,7 @@ const momentsOf = (job: OfficeJob): Moment[] => {
       description:
         job.cancellation.by === "empire"
           ? "By Empire Cleaning"
-          : "By the Client",
+          : "By the client",
     });
   }
   if (job.noAccess) {
@@ -140,7 +147,7 @@ const momentsOf = (job: OfficeJob): Moment[] => {
       key: "no-access",
       at: job.noAccess.recordedAt,
       icon: DoorClosed,
-      title: "No Access",
+      title: jobStatusLabel.no_access,
       description: job.noAccess.recordedBy
         ? `Recorded by ${job.noAccess.recordedBy.name}`
         : undefined,

@@ -22,7 +22,6 @@ import {
   ListItem,
   Notice,
   Section,
-  StatusBadge,
   TimeField,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
@@ -30,6 +29,7 @@ import { linkTo } from "../../links.ts";
 import {
   addressOf,
   clientName,
+  crewOf,
   dayOfInstant,
   formatDateTime,
   formatDay,
@@ -38,7 +38,8 @@ import {
 } from "../format.ts";
 import { EndPlan, OnHold, PlanFacts, PlanStatusBadge } from "../PlanParts.tsx";
 import { useAction } from "../action.ts";
-import { homeCrumbs, JobStatusBadge } from "./PropertyScreen.tsx";
+import { JobBadge } from "../JobBadges.tsx";
+import { homeCrumbs } from "./PropertyScreen.tsx";
 import { PickFromSchedule } from "./SchedulePicker.tsx";
 import { OfferServicePlan } from "./StartDraft.tsx";
 
@@ -154,22 +155,8 @@ function PlanJobs({ plan }: { plan: OfficeServicePlan }) {
             key={job.id}
             id={job.id}
             title={formatDateTime(job.startsAt)}
-            description={
-              job.crew.length > 0
-                ? job.crew.map((c) => c.name).join(", ")
-                : "Nobody Offered yet"
-            }
-            end={
-              job.status === "booked" ? (
-                <StatusBadge
-                  tone={job.assignment === "assigned" ? "success" : "warning"}
-                >
-                  {job.assignment === "assigned" ? "Assigned" : "Unassigned"}
-                </StatusBadge>
-              ) : (
-                <JobStatusBadge status={job.status} />
-              )
-            }
+            description={crewOf(job.crew)}
+            end={<JobBadge job={job} />}
             onAction={() =>
               void navigate({
                 to: "/office/jobs/$jobId",

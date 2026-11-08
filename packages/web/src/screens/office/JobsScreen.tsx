@@ -17,7 +17,7 @@ import {
   TextField,
 } from "@empire-cleaning/ui";
 import { clientName, formatDateTime } from "../format.ts";
-import { AssignmentBadge } from "./JobScreen.tsx";
+import { JobBadge } from "../JobBadges.tsx";
 
 // the list's Tabs, Upcoming first: the Jobs still to do
 export const jobTabs = ["upcoming", "past", "cancelled", "all"] as const;
@@ -151,7 +151,7 @@ export function JobsScreen() {
             </Cell>
             <Cell className="hidden lg:table-cell">{job.serviceName}</Cell>
             <Cell>
-              <AssignmentBadge job={job} />
+              <JobBadge job={job} />
             </Cell>
           </Row>
         )}

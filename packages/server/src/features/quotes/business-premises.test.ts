@@ -168,7 +168,7 @@ describe("a Quote asked for business premises", () => {
       expect.arrayContaining([
         { path: "businessName", issue: "Enter the business's name" },
         { path: "weekdays", issue: "Choose the days you want cleaned" },
-        { path: "preferredTime", issue: "Choose a time" },
+        { path: "preferredTime", issue: "Pick a start time" },
       ]),
     );
   });
@@ -212,7 +212,7 @@ describe("a Quote asked for business premises", () => {
       expect(res.body.details).toContainEqual(
         expect.objectContaining({
           path: "property.new.premisesType",
-          issue: "Choose from the types of premises listed",
+          issue: "Pick a type of business from the list",
         }),
       );
     }

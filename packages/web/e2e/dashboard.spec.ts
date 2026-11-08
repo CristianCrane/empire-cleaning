@@ -82,7 +82,7 @@ test("Office Staff see what's waiting counted by kind, and pick one to see only 
     name: "Needs attention by kind",
   });
   const jobs = kinds.getByRole("radio", { name: /Jobs/ });
-  await expect(jobs).toHaveText(/Jobs\s*1\s*1 need Staff/);
+  await expect(jobs).toHaveText(/Jobs\s*1\s*1 need cleaners/);
   await expect(kinds.getByRole("radio", { name: /Quotes/ })).toHaveText(
     /Quotes\s*1\s*1 asked for/,
   );
@@ -94,7 +94,7 @@ test("Office Staff see what's waiting counted by kind, and pick one to see only 
   await jobs.click();
   await expect(jobs).toBeChecked();
   await expect(needsAttention.getByRole("row")).toHaveCount(1);
-  await expect(needsAttention).toContainText("Assign Staff");
+  await expect(needsAttention).toContainText("Find cleaners");
 
   await page.getByRole("button", { name: "Show all 2" }).click();
   await expect(jobs).not.toBeChecked();

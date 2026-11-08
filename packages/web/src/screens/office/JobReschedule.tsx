@@ -33,7 +33,7 @@ export function MoveActions({ job }: { job: OfficeJob }) {
     <>
       <MoveJob
         job={job}
-        trigger={<IconAction icon={CalendarSync} label="Move Job" />}
+        trigger={<IconAction icon={CalendarSync} label="Move job" />}
       />
       <ChooseNewTime
         job={job}
@@ -41,7 +41,7 @@ export function MoveActions({ job }: { job: OfficeJob }) {
         base={`/api/jobs/${job.id}`}
         label="Ask for a new time"
         describeCost={(cost, feeCents) => costForOffice(cost, feeCents, job)}
-        done="Reschedule Request made"
+        done="Request to move sent"
         Picker={PickInSchedule}
         size="wide"
         trigger={<IconAction icon={CalendarClock} label="Ask for a new time" />}
@@ -62,7 +62,7 @@ export function AnswerRequest({ job }: { job: OfficeJob }) {
         Answer
       </Button>
       <Dialog
-        title={turningDown ? "Turn down this request?" : "Move this Job?"}
+        title={turningDown ? "Turn down this request?" : "Move this job?"}
         role={turningDown ? "alertdialog" : "dialog"}
       >
         {({ close }) =>
@@ -109,8 +109,8 @@ function Confirm({
         <dd>{costForOffice(request.cost, request.feeCents, job)}</dd>
       </dl>
       <p className="text-sm text-fg-muted">
-        Confirming moves the Job and Offers it afresh to its crew. The Client
-        and the crew are emailed.
+        Its cleaners are asked to confirm the new time, and we'll email them and
+        the client.
       </p>
       {action.problem && <Notice tone="danger">{action.problem}</Notice>}
       <Actions>
@@ -156,12 +156,9 @@ function TurnDown({
 
   return (
     <>
-      <p>
-        The Job keeps its current time, the held hours are freed, and there's no
-        charge.
-      </p>
+      <p>The job stays at its current time, and there's no charge.</p>
       <TextField
-        label="Why? (told to the Client, optional)"
+        label="Why? (optional, we'll tell the client)"
         value={reason}
         onChange={setReason}
         multiline

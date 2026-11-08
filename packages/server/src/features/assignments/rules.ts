@@ -1,5 +1,7 @@
 import {
   isOnCrew,
+  RELEASE_CLOSED,
+  RELEASE_CUTOFF_HOURS,
   type AssignmentState,
   type ScheduleDay,
   type ScheduledJob,
@@ -7,7 +9,7 @@ import {
 } from "@empire-cleaning/models";
 import { DAY_MS, HOUR_MS } from "../../services/clock/index.ts";
 import { formatWhen } from "../../services/email/index.ts";
-import { asClean, isFree } from "../jobs/rules.ts";
+import { asClean, isFree, whyStarted } from "../jobs/rules.ts";
 
 // The rules for a Job's crew (ADR-0019), over what the actions load: the
 // Job's day of the Schedule, and its Assignments. Each says why something is
@@ -17,10 +19,6 @@ import { asClean, isFree } from "../jobs/rules.ts";
 // A Job's Cleaners Needed are open to free Cleaners from this many days before
 // it starts: who is free is only reliable nearer the day
 export const CLEANER_NEEDED_DAYS = 7;
-
-// a Confirmed Assignment can't be Released this close to the Job: the Office needs
-// time to find someone else
-const RELEASE_CUTOFF_HOURS = 48;
 
 // a Job as its row has it
 type Job = { id: string; status: string; startsAt: Date; crewSize: number };
@@ -38,12 +36,10 @@ export const opensAt = (job: When) =>
 export const releaseClosed = (job: Pick<Job, "startsAt">, now: Date) =>
   job.startsAt.getTime() - now.getTime() < RELEASE_CUTOFF_HOURS * HOUR_MS;
 
-const STARTED = "This Job has already started";
-
 // a Job seen at one time and since moved: they're asked to look again (#242)
 const moved = (startsAt: Date, seen: Date | undefined) =>
   seen && seen.getTime() !== startsAt.getTime()
-    ? `This Job has moved to ${formatWhen(startsAt)}. Please check the new time, then confirm again.`
+    ? `This job moved to ${formatWhen(startsAt)}. Check the new time, then confirm again.`
     : null;
 
 // a booked Job on its day of the Schedule
@@ -64,20 +60,18 @@ export const whyNotOffer = (
   now: Date,
 ) => {
   const job = onDay(day, jobId);
-  if (new Date(job.startsAt) <= now) return STARTED;
+  if (new Date(job.startsAt) <= now) return whyStarted("offered");
   if (!member.active || !member.roles.includes("cleaner")) {
-    return `${member.name} isn't an active Cleaner`;
+    return `${member.name} can't take jobs. Pick an active cleaner.`;
   }
   if (job.crew.some((c) => c.id === member.id)) {
-    return `${member.name} is already on this Job`;
+    return `${member.name} is already on this job.`;
   }
   if (job.crew.length >= job.crewSize) {
-    return job.crewSize === 1
-      ? "This Job already has its Cleaner"
-      : `This Job already has all ${job.crewSize} Cleaners it needs`;
+    return "This job already has all the cleaners it needs.";
   }
   if (!isFree(day, member.id, asClean(job))) {
-    return `${member.name} isn't free then: they're on another Job or a Site Visit at that time, or have no hours that day`;
+    return `${member.name} isn't free then. Pick someone else.`;
   }
   return null;
 };
@@ -94,11 +88,11 @@ export const whyNotConfirm = (
 ) => {
   const job = onDay(day, jobId);
   const startsAt = new Date(job.startsAt);
-  if (startsAt <= now) return STARTED;
+  if (startsAt <= now) return whyStarted("confirmed");
   const since = moved(startsAt, seen);
   if (since) return since;
   if (!isFree(day, staffId, asClean(job))) {
-    return "You're no longer free for this Job. Please release it, or call the Office.";
+    return "You're not free for this job any more. Release it, or call the office.";
   }
   return null;
 };
@@ -110,9 +104,7 @@ export const whyNotRelease = (
   job: Pick<Job, "startsAt">,
   now: Date,
 ) =>
-  status === "confirmed" && releaseClosed(job, now)
-    ? `A Confirmed Job can't be released within ${RELEASE_CUTOFF_HOURS} hours of it. Please call the Office.`
-    : null;
+  status === "confirmed" && releaseClosed(job, now) ? RELEASE_CLOSED : null;
 
 // whether a Job's Cleaners Needed are open now: booked, not yet started, and
 // within 7 days of starting
@@ -157,20 +149,20 @@ export const whyNotTakeCleanerNeeded = (
   now: Date,
 ) => {
   if (job.status !== "booked" || job.startsAt <= now) {
-    return "This Job isn't open any more";
+    return "This job isn't available any more.";
   }
   const since = moved(job.startsAt, seen);
   if (since) return since;
   if (!opening) {
     return opensAt(job) > now
-      ? "This Job isn't open to Cleaners yet"
-      : "Someone else took this Job";
+      ? "This job isn't open yet. Check back later."
+      : "Someone else already took this job.";
   }
   if (opening.openTo.includes(staffId)) return null;
   const own = opening.assigned.find((p) => p.staffId === staffId);
   return own?.status === "released"
-    ? "You released this Job"
+    ? "You released this job, so you can't take it back."
     : own
-      ? "You're already on this Job"
-      : "You're no longer free for this Job";
+      ? "You're already on this job."
+      : "You're not free for this job any more.";
 };

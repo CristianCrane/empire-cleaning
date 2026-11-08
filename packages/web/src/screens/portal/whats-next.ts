@@ -32,6 +32,7 @@ import { linkTo, type AppHref } from "../../links.ts";
 import { QuoteIcon } from "../icons.ts";
 import {
   addressOf,
+  cleaners,
   dayOfInstant,
   formatDateTime,
   formatDay,
@@ -242,8 +243,6 @@ function heroOf(data: HomeData, ctx: Context): Hero {
         (p) => p.status === "completed" && p.property.id === job.property.id,
       );
     const today = isToday(job.startsAt, now);
-    const cleaners =
-      job.crewSize === 1 ? "1 Cleaner" : `${job.crewSize} Cleaners`;
     return {
       label: today ? "Today" : first ? "Your first clean" : "Your next clean",
       icon: CalendarCheck,
@@ -257,7 +256,7 @@ function heroOf(data: HomeData, ctx: Context): Hero {
               `Part of your Service Plan, ${recurrenceLabel[plan.recurrence].toLowerCase()}`,
             ]
           : []),
-        `${cleaners}, about ${formatHours(job.hoursOnSite)} on site`,
+        `${cleaners(job.crewSize)}, about ${formatHours(job.hoursOnSite)} on site`,
       ],
       action: { label: "See the clean", href: jobLink(job.id) },
     };

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { validate } from "../../middleware/validation.ts";
+import { day, startTime, validate } from "../../middleware/validation.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { ownClient } from "../clients/clients.ts";
 import { endServicePlan } from "./ending.ts";
@@ -20,10 +20,8 @@ const visit = z.object({ id: z.uuid(), visitId: z.uuid() });
 
 // a time Office Staff book an unplaced visit at, New York
 const bookVisitSchema = z.object({
-  date: z.iso.date("Choose a day"),
-  time: z
-    .string({ error: "Choose a start time" })
-    .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Choose a start time"),
+  date: day,
+  time: startTime,
 });
 
 // Ending a plan: the Jobs going ahead that the person Ending it was shown,

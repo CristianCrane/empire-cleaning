@@ -210,7 +210,7 @@ describe("completing a Job", () => {
       .expect(201);
     const asDee = await signIn("dee2@example.com");
     expect((await complete(asDee, jobId).expect(409)).body.message).toMatch(
-      /Confirm this Job first/,
+      /Confirm this job first./,
     );
     await confirmOffer(asDee, jobId);
 
@@ -292,7 +292,7 @@ describe("completing a Job", () => {
 
     // and once only
     expect((await complete(cory.agent, jobId).expect(409)).body.message).toBe(
-      "This Job has already been Completed",
+      "This clean is already done.",
     );
   });
 });

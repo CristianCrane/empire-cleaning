@@ -23,7 +23,7 @@ const meta = {
         After that, it's a Late Reschedule, and only one per clean is free.
       </p>
     ),
-    actions: <Button variant="secondary">Choose a new time</Button>,
+    actions: <Button variant="secondary">Pick a new time</Button>,
   },
 } satisfies Meta<typeof ActionRow>;
 

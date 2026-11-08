@@ -271,7 +271,7 @@ describe("Home's hero, with something booked", () => {
       lines: [
         "Standard Clean at 12 Elm St, 4B, 11375",
         "Part of your Service Plan, every 2 weeks",
-        "2 Cleaners, about 2.5 h on site",
+        "2 cleaners, about 2.5 h on site",
       ],
       action: { label: "See the clean" },
     });

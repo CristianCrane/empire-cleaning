@@ -284,7 +284,7 @@ test("Office Staff correct the Condition and undo a completion made by mistake",
   await expect(
     completed.getByRole("heading", { name: "How it went" }),
   ).toBeHidden();
-  await expect(page.getByText("Assigned", { exact: true })).toBeVisible();
+  await expect(page.getByText("Staffed", { exact: true })).toBeVisible();
   expect((await emailsTo(casey.email)).at(-1)!.subject).toBe(
     "A correction to your clean",
   );

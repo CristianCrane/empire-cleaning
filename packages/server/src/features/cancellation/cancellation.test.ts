@@ -134,7 +134,9 @@ describe("what cancelling costs", () => {
     expect((await clientJob(client, jobId)).cancelTerms).toBeNull();
     expect(
       (await cancel(client, jobId, deposit).expect(409)).body.message,
-    ).toMatch(/already started.*call the Office/);
+    ).toBe(
+      "This clean has already started, so you can't cancel it. Please call us.",
+    );
     // the Office still can
     expect((await officeJob(office, jobId)).cancelTerms).not.toBeNull();
   });
@@ -299,7 +301,7 @@ describe("the Client cancelling", () => {
     const client = await signIn(casey.email);
     await cancel(client, jobId, 0).expect(200);
     expect((await cancel(client, jobId, 0).expect(409)).body.message).toBe(
-      "This Job has already been cancelled",
+      "This clean is already cancelled.",
     );
     await office
       .post(`/api/jobs/${jobId}/cancel`)
@@ -441,7 +443,7 @@ describe("No Access", () => {
       .send({ by: "empire", feeCents: 0 })
       .expect(409);
     expect((await noAccess(asCory, jobId).expect(409)).body.message).toBe(
-      "No Access has already been recorded for this Job",
+      "We already know the cleaner couldn't get in.",
     );
   });
 
@@ -498,7 +500,7 @@ describe("No Access", () => {
 
     const asDee = await signIn("dee@example.com");
     expect((await noAccess(asDee, jobId).expect(409)).body.message).toBe(
-      "Confirm this Job first",
+      "Confirm this job first.",
     );
   });
 });

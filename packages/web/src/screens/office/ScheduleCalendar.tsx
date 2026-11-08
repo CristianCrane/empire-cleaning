@@ -23,7 +23,6 @@ import {
   List,
   ListItem,
   StatusBadge,
-  type StatusTone,
 } from "@empire-cleaning/ui";
 import { linkTo } from "../../links.ts";
 import {
@@ -32,13 +31,16 @@ import {
   TimeGrid,
   type TimePickerProps,
 } from "../CalendarGrid.tsx";
+import { JobBadge } from "../JobBadges.tsx";
 import {
+  crewOf,
   dayOfInstant,
   formatClock,
   formatDay,
   formatHours,
   formatMinutes,
   formatTime,
+  jobLabelOf,
   shortClientName,
   timeOfDay,
   today,
@@ -72,37 +74,19 @@ const MIN_LANE_PX = 60;
 const AXIS_PX = 56;
 const WEEK_DAY_MIN_PX = 104;
 
-// a Job's colour and its words for it: how it turned out, or whether its
-// crew is Confirmed
-const toneOf = (
-  job: ScheduledJob,
-): { label: string; tone: StatusTone; block: string } =>
-  job.status === "completed"
-    ? {
-        label: "Completed",
-        tone: "success",
-        block: "border-success-strong bg-success-subtle",
-      }
-    : job.status === "no_access"
-      ? {
-          label: "No Access",
-          tone: "danger",
-          block: "border-danger-strong bg-danger-subtle",
-        }
-      : job.assignment === "assigned"
-        ? {
-            label: "Assigned",
-            tone: "info",
-            block: "border-info-strong bg-info-subtle",
-          }
-        : {
-            label: "Unassigned",
-            tone: "warning",
-            block: "border-warning-strong bg-warning-subtle",
-          };
+// a Job's block: its colours, by the tone of how it reads (jobLabelOf)
+const blockOf = {
+  success: "border-success-strong bg-success-subtle",
+  danger: "border-danger-strong bg-danger-subtle",
+  info: "border-info-strong bg-info-subtle",
+  warning: "border-warning-strong bg-warning-subtle",
+  neutral: "border-neutral-strong bg-neutral-subtle",
+} as const;
 
-const crewOf = (job: ScheduledJob) =>
-  job.crew.map((c) => c.name).join(", ") || "No crew yet";
+const toneOf = (job: ScheduledJob) => {
+  const { label, tone } = jobLabelOf(job);
+  return { label, tone, block: blockOf[tone] };
+};
 
 // a Site Visit's place on the time axis
 const visitSpanOf = (visit: ScheduledSiteVisit) => {
@@ -313,7 +297,9 @@ export function ScheduleCalendar({
                         axisStart={axis.start}
                         hours={PICK_HOURS}
                         className={crewFree ? "" : NO_CREW}
-                        label={crewFree ? undefined : "no crew free"}
+                        label={
+                          crewFree ? undefined : "not enough cleaners free"
+                        }
                         onPick={onPick}
                       >
                         {/* every half hour shows its time when pointed at; only
@@ -322,7 +308,7 @@ export function ScheduleCalendar({
                           className={`text-fg-muted ${limits ? "" : "opacity-0 group-hover:opacity-100"}`}
                         >
                           {formatClock(time)}
-                          {!crewFree && " · no crew free"}
+                          {!crewFree && " · not enough cleaners free"}
                         </span>
                       </PickSlot>
                     );
@@ -377,7 +363,7 @@ function MoreJobs({
   interactive: boolean;
 }) {
   const navigate = useNavigate();
-  const title = `More Jobs on ${formatDay(date)}`;
+  const title = `More jobs on ${formatDay(date)}`;
 
   return (
     <DialogTrigger>
@@ -400,17 +386,14 @@ function MoreJobs({
               }
             >
               {jobs.map((job) => {
-                const tone = toneOf(job);
                 return (
                   <ListItem
                     key={job.id}
                     id={job.id}
                     textValue={`${formatTime(job.startsAt)} ${shortClientName(job.client)}`}
                     title={`${formatTime(job.startsAt)} · ${shortClientName(job.client)}`}
-                    description={crewOf(job)}
-                    end={
-                      <StatusBadge tone={tone.tone}>{tone.label}</StatusBadge>
-                    }
+                    description={crewOf(job.crew)}
+                    end={<JobBadge job={job} />}
                   />
                 );
               })}
@@ -468,7 +451,7 @@ function DayHeader({
       </div>
       <p className="text-xs text-fg-muted">
         {nobody && day.bookedHours === 0
-          ? "Nobody available"
+          ? "Nobody working"
           : [
               `${formatHours(day.bookedHours)} booked`,
               ...(day.heldHours > 0
@@ -519,7 +502,11 @@ const layoutDay = (
   const proposedBlock =
     proposed && drawn(PROPOSED, hoursOf(proposed.time), proposed.hoursOnSite);
   const unassigned = new Set(
-    jobs.filter((job) => toneOf(job).label === "Unassigned").map((j) => j.id),
+    jobs
+      .filter(
+        (job) => job.status === "booked" && job.assignment === "unassigned",
+      )
+      .map((j) => j.id),
   );
   const { shown, hidden } = fitLanes(
     proposedBlock ? [...blocks, proposedBlock] : blocks,
@@ -586,7 +573,7 @@ function DayJobs({
       {jobs.map(({ job, block }) => {
         const style = place(block);
         const tone = toneOf(job);
-        const crew = crewOf(job);
+        const crew = crewOf(job.crew);
         // too short for three lines: the time and Client, the rest unseen
         // but still read out
         const compact = style.height < COMPACT_PX;
@@ -660,7 +647,7 @@ function DayJobs({
               {formatTime(visit.startsAt)} {shortClientName(visit.client)}
             </span>
             <span className={compact ? "sr-only" : "truncate"}>
-              Site Visit · {formatMinutes(visit.minutes)}
+              Site visit · {formatMinutes(visit.minutes)}
             </span>
             <span className={compact ? "sr-only" : "truncate text-fg-muted"}>
               {visit.visitor?.name}

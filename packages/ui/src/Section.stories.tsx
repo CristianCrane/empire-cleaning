@@ -22,7 +22,7 @@ const meta = {
           id="2"
           title="1:00 PM · Dev Patel"
           description="88 Grand St · Deep Clean · crew of 3, 4h on site"
-          end={<StatusBadge tone="warning">Unassigned</StatusBadge>}
+          end={<StatusBadge tone="warning">Needs cleaners</StatusBadge>}
         />
       </List>
     ),

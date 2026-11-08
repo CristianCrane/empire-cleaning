@@ -21,7 +21,7 @@ export const Default: Story = {
         id="1"
         title="41-12 Austin St"
         description="9:00 AM · Deep Clean · 2 Cleaners"
-        end={<StatusBadge tone="success">Completed</StatusBadge>}
+        end={<StatusBadge tone="success">Done</StatusBadge>}
       />
       <ListItem
         id="2"
@@ -33,7 +33,7 @@ export const Default: Story = {
         id="3"
         title="35-06 Ditmars Blvd"
         description="3:00 PM · Standard Clean"
-        end={<StatusBadge tone="warning">No Access</StatusBadge>}
+        end={<StatusBadge tone="danger">Couldn't get in</StatusBadge>}
       />
     </List>
   ),

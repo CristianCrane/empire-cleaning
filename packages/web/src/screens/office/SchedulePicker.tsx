@@ -42,9 +42,9 @@ export function PickFromSchedule(props: Props) {
           on a phone, centred beneath them on a larger screen */}
       <Button variant="secondary" className="w-full sm:w-auto sm:self-center">
         <CalendarDays aria-hidden size={20} />
-        Pick from the Schedule
+        Pick from the schedule
       </Button>
-      <Dialog title="Pick from the Schedule" size="wide">
+      <Dialog title="Pick from the schedule" size="wide">
         {({ close }) => <PickStart {...props} close={close} />}
       </Dialog>
     </DialogTrigger>
@@ -94,9 +94,9 @@ function PickStart({
     <>
       <p className="text-sm text-fg-muted">
         {limits
-          ? "Choose one of the start times on offer. Days without room for this clean are greyed out."
-          : "Choose a time to start the clean there."}{" "}
-        {crew && !limits && "Striped times have no crew free for it. "}
+          ? "Pick a start time. Grey days are full."
+          : "Pick a time to start the clean."}{" "}
+        {crew && !limits && "Striped times don't have enough cleaners free. "}
         New York time.
         {date &&
           repeats &&
@@ -109,7 +109,7 @@ function PickStart({
       />
       {problem && (
         <Notice tone="danger">
-          The Schedule couldn't be loaded. Please try again.
+          The schedule didn't load. Please try again.
         </Notice>
       )}
       {!days && !problem && <p className="text-fg-muted">Loading…</p>}

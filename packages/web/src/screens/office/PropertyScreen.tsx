@@ -15,7 +15,6 @@ import {
 import type {
   ClientName,
   HomeView,
-  JobStatus,
   OfficePropertyView,
   OfficeServicePlan,
   OfficeSiteVisit,
@@ -30,7 +29,6 @@ import {
   Button,
   ButtonLink,
   Card,
-  Checkbox,
   Dialog,
   DialogTrigger,
   Form,
@@ -39,16 +37,11 @@ import {
   List,
   ListItem,
   Notice,
-  NumberField,
   Section,
-  Select,
-  SelectItem,
-  StatusBadge,
   TextField,
   Timeline,
   TimelineItem,
   type Crumb,
-  type StatusTone,
 } from "@empire-cleaning/ui";
 import { patchJson } from "../../api.ts";
 import { linkTo, type AppHref } from "../../links.ts";
@@ -72,9 +65,18 @@ import {
   RecordFindingsWithoutVisit,
   SiteVisitBadge,
 } from "./SiteVisitParts.tsx";
-import { ConditionField, PlaceTiles } from "./PropertyFields.tsx";
+import {
+  ConditionField,
+  HomeFloorAreaField,
+  PetsField,
+  PlaceTiles,
+  PremisesFloorAreaField,
+  PremisesTypeField,
+  RoomFields,
+} from "./PropertyFields.tsx";
 import { PlanDetails } from "./ServicePlanScreen.tsx";
 import { OfferServicePlan } from "./StartDraft.tsx";
+import { JobStatusBadge } from "../JobBadges.tsx";
 
 // A home for the Office (ADR-0011), read as a whole (UX pass, #96): what to
 // know first in Notices; then its details, its Service Plan and its Site
@@ -456,30 +458,6 @@ function History({
   );
 }
 
-const jobStatusLabel: Record<JobStatus, string> = {
-  booked: "Booked",
-  completed: "Completed",
-  cancelled: "Cancelled",
-  no_access: "No Access",
-};
-
-// a Job's status in the tones every status takes: booked is just so, done
-// went well, cancelled is over, No Access went wrong
-const jobStatusTone: Record<JobStatus, StatusTone> = {
-  booked: "info",
-  completed: "success",
-  cancelled: "neutral",
-  no_access: "danger",
-};
-
-export function JobStatusBadge({ status }: { status: JobStatus }) {
-  return (
-    <StatusBadge tone={jobStatusTone[status]}>
-      {jobStatusLabel[status]}
-    </StatusBadge>
-  );
-}
-
 // Corrections to the details that affect the price: only what differs from
 // what's saved is sent
 function useCorrection<T extends Record<string, unknown>>(
@@ -761,47 +739,19 @@ function HomeDetails({
           isn't priced from them. Enter them to quote it for one that is.
         </Notice>
       )}
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-4">
-        <NumberField
-          label="Bedrooms"
-          name="bedrooms"
-          minValue={0}
-          maxValue={20}
-          value={details.bedrooms ?? Number.NaN}
-          onChange={(bedrooms) => change({ bedrooms: count(bedrooms) })}
-        />
-        <NumberField
-          label="Bathrooms"
-          name="bathrooms"
-          minValue={0.5}
-          maxValue={20}
-          step={0.5}
-          value={details.bathrooms ?? Number.NaN}
-          onChange={(bathrooms) => change({ bathrooms: count(bathrooms) })}
-        />
-        <NumberField
-          label="Floors"
-          name="storeys"
-          minValue={1}
-          maxValue={5}
-          value={details.storeys ?? Number.NaN}
-          onChange={(storeys) => change({ storeys: count(storeys) })}
-        />
-      </div>
-      <NumberField
-        label="Floor area in sq ft (optional)"
-        name="floorArea"
-        minValue={100}
-        maxValue={100_000}
-        step={50}
-        value={details.floorArea ?? Number.NaN}
-        onChange={(area) =>
-          change({ floorArea: Number.isNaN(area) ? null : area })
-        }
+      <RoomFields
+        rooms={{
+          bedrooms: details.bedrooms ?? Number.NaN,
+          bathrooms: details.bathrooms ?? Number.NaN,
+          storeys: details.storeys ?? Number.NaN,
+        }}
+        onChange={(room, value) => change({ [room]: count(value) })}
       />
-      <Checkbox isSelected={details.pets} onChange={(pets) => change({ pets })}>
-        There are pets at home
-      </Checkbox>
+      <HomeFloorAreaField
+        value={details.floorArea ?? Number.NaN}
+        onChange={(area) => change({ floorArea: count(area) })}
+      />
+      <PetsField value={details.pets} onChange={(pets) => change({ pets })} />
       <ConditionField
         value={details.condition}
         onChange={(condition) => change({ condition })}
@@ -846,25 +796,13 @@ function PremisesDetails({
   return (
     <CorrectionForm correction={correction} close={close}>
       <PlaceTiles value="commercial" />
-      <Select
-        label="Type of premises"
-        name="premisesType"
-        selectedKey={details.premisesType}
-        onSelectionChange={(key) => change({ premisesType: String(key) })}
-      >
-        {choices.map((t) => (
-          <SelectItem key={t.key} id={t.key}>
-            {t.name}
-          </SelectItem>
-        ))}
-      </Select>
-      <NumberField
-        label="Floor area in sq ft"
-        name="floorArea"
+      <PremisesTypeField
+        value={details.premisesType}
+        choices={choices}
+        onChange={(premisesType) => change({ premisesType })}
+      />
+      <PremisesFloorAreaField
         description="Leave empty until it's known: it's priced at the Minimum Charge until then."
-        minValue={100}
-        maxValue={1_000_000}
-        step={100}
         value={details.floorArea ?? Number.NaN}
         onChange={(area) =>
           change({ floorArea: Number.isNaN(area) ? null : area })

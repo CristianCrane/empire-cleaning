@@ -287,7 +287,7 @@ test("the Client screen lists each home, whose own page holds its history and of
   ).toContainText(["Deep Clean"]);
   await expect(
     history.getByRole("listitem").filter({ hasText: "Job ·" }),
-  ).toContainText(["Completed"]);
+  ).toContainText(["Done"]);
 
   await page.getByRole("button", { name: "Quote a Service Plan" }).click();
   await atPlanDraft(page);
@@ -444,10 +444,10 @@ test("picking a plan's start from the Schedule marks the days it repeats on", as
 
   await page
     .getByRole("region", { name: "Mondays" })
-    .getByRole("button", { name: "Pick from the Schedule" })
+    .getByRole("button", { name: "Pick from the schedule" })
     .click();
   const schedule = page.getByRole("dialog", {
-    name: "Pick from the Schedule",
+    name: "Pick from the schedule",
   });
   await expect(schedule).toContainText("Then every 2 weeks on Mondays.");
   await expect(

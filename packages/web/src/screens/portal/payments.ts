@@ -195,10 +195,6 @@ export function paymentRow(p: ClientPayment): PaymentRow {
 export const signedMoney = (cents: number) =>
   cents < 0 ? `−${formatMoney(-cents)}` : formatMoney(cents);
 
-// where a clean, or a fee, owed before its week's Bill is made goes, as the
-// Client is told; anything settled after the clean goes on their next Bill
-export const ON_WEEKS_BILL = "goes on your Bill for that week";
-
 // when a weekly Bill is made, and how the Client pays it (ADR-0016)
 export const billPaid: Record<BillPayment, string> = {
   automatic:

@@ -12,7 +12,7 @@ export const invitationSchema = z.object({
   email: z.email("Enter an email address").trim().toLowerCase(),
   roles: z
     .array(z.enum(["cleaner", "office_staff"]))
-    .min(1, "Choose at least one role")
+    .min(1, "Pick at least one role")
     .transform((roles) => [...new Set(roles)]),
 });
 
@@ -25,18 +25,16 @@ export const editStaffSchema = invitationSchema.pick({
 
 const hours = z
   .number({ error: "Enter a number of hours" })
-  .min(0, "Hours can't be negative")
-  .max(24, "That's more than a day")
+  .min(0, "Enter 0 or more hours")
+  .max(24, "That's more than 24 hours")
   .refine(
     (value) => Number.isInteger(value * 4),
     "Use quarter-hours, like 7.5 or 7.25",
   );
 
 export const usualWeekSchema = z.object({
-  usualWeek: z.array(hours).length(7, "Give hours for all seven days"),
+  usualWeek: z.array(hours).length(7, "Enter hours for every day"),
 });
-
-export const isoDate = z.iso.date("Enter a date");
 
 export const exceptionSchema = z.object({
   hours,

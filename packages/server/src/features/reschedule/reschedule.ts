@@ -6,6 +6,13 @@ import type {
   RescheduleTerms,
   RescheduleTimes,
 } from "@empire-cleaning/models";
+import {
+  ENDS_BY_MIDNIGHT,
+  LATE_RESCHEDULE_HOURS,
+  MORE_HOURS,
+  SAME_TIME,
+  whyNoRoom,
+} from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import {
@@ -17,6 +24,7 @@ import {
   timeOf,
 } from "../../services/clock/index.ts";
 import { email, notify } from "../../services/email/index.ts";
+import { formatMoney } from "../../services/email/format.ts";
 import { assignments, onCrew } from "../assignments/assignments.schema.ts";
 import {
   emailCleanersNeeded,
@@ -30,11 +38,11 @@ import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { freeFor, roomFor, scheduleFor } from "../jobs/schedule.ts";
 import {
   asClean,
-  ENDS_BY_MIDNIGHT,
   endsByMidnight,
   roomOn,
-  whyNoRoom,
+  PASSED,
   whyNotBooked,
+  whyStarted,
 } from "../jobs/rules.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { warnOfficeOfQuotesWithoutRoom } from "../quotes/quote-room.ts";
@@ -46,7 +54,6 @@ import {
 } from "./reschedule.schema.ts";
 import { cleanOf } from "../services/services.ts";
 import {
-  costLabel,
   crewLostEmail,
   crewMovedEmail,
   jobMovedEmail,
@@ -54,10 +61,6 @@ import {
   rescheduleConfirmedEmail,
   rescheduleTurnedDownEmail,
 } from "./emails.ts";
-
-// moving a Job is free until this long before it starts; after that it's a
-// Late Reschedule (ADR-0010)
-const LATE_RESCHEDULE_HOURS = 24;
 
 // a Job can be moved to a day from tomorrow up to this many days ahead
 const RESCHEDULE_DAYS_AHEAD = 56;
@@ -232,7 +235,7 @@ export const requestReschedule = async (
   asking: Asking,
 ) => {
   const startsAt = atTime(to.date, to.time);
-  const { job, property } = await db.transaction(async (tx) => {
+  const { job, property, feeCents } = await db.transaction(async (tx) => {
     const [found] = await tx
       .select({ job: jobs, property: properties })
       .from(jobs)
@@ -247,27 +250,27 @@ export const requestReschedule = async (
     if (job.startsAt <= clock.now()) {
       throw new ConflictError(
         asking.byClient
-          ? "Your clean has already started, so it can't be moved. Please call the Office."
-          : "This Job has already started, so it can't be moved",
+          ? `${whyStarted("moved")} Please call us.`
+          : whyStarted("moved"),
       );
     }
     if (await pendingOf(jobId, tx)) {
       throw new ConflictError(
-        "There's already a request to move this clean. Withdraw it first to ask for another time.",
+        "There's already a request to move this clean. Withdraw it to ask for another time.",
       );
     }
 
     const { from, to: last } = bookableRange();
     if (to.date < from || to.date > last) {
       throw new ConflictError(
-        `Choose a day from tomorrow up to ${RESCHEDULE_DAYS_AHEAD / 7} weeks ahead`,
+        `Pick a day between tomorrow and ${RESCHEDULE_DAYS_AHEAD / 7} weeks from now.`,
       );
     }
     if (!timesFor(job).includes(to.time)) {
-      throw new ConflictError("Choose one of the start times on offer");
+      throw new ConflictError("Pick one of the times shown.");
     }
     if (startsAt.getTime() === job.startsAt.getTime()) {
-      throw new ConflictError("That's when the clean is already booked");
+      throw new ConflictError(SAME_TIME);
     }
     if (!endsByMidnight(startsAt, job.labourHours / job.crewSize)) {
       throw new ConflictError(ENDS_BY_MIDNIGHT);
@@ -276,9 +279,7 @@ export const requestReschedule = async (
     const terms = await termsOf(job, tx);
     if (terms.cost !== asking.cost) {
       throw new ConflictError(
-        terms.cost === "free"
-          ? "What moving costs has changed. Please check and send it again."
-          : `It's now less than ${LATE_RESCHEDULE_HOURS} hours before the clean, so moving it is ${costLabel[terms.cost]}. Please check and send it again.`,
+        "The cost of moving has changed. Check it, then send again.",
       );
     }
 
@@ -287,9 +288,7 @@ export const requestReschedule = async (
     await lockDay(tx, to.date);
     const { hasRoom } = await roomFor(asClean({ ...job, startsAt }), tx);
     if (!hasRoom) {
-      throw new ConflictError(
-        "That time has just filled up. Please choose another.",
-      );
+      throw new ConflictError("That time was just taken. Pick another.");
     }
 
     await tx.insert(rescheduleRequests).values({
@@ -302,7 +301,7 @@ export const requestReschedule = async (
       requestedBy: asking.byAccountId,
       byClient: asking.byClient,
     });
-    return found;
+    return { ...found, feeCents: terms.feeCents };
   });
 
   await warnOfficeOfQuotesWithoutRoom(to.date);
@@ -316,7 +315,13 @@ export const requestReschedule = async (
           jobId,
           clean: await cleanOf({ ...job, startsAt }, property),
           from: job.startsAt,
-          cost: asking.cost,
+          cost: {
+            cost: asking.cost,
+            feeCents,
+            fee: formatMoney(feeCents),
+            onPlan: (await planOfJob(jobId)) !== null,
+            weeklyBill: weeklyBillFor(job, client) !== null,
+          },
         }),
     );
   }
@@ -345,7 +350,7 @@ const lockPending = async (tx: Tx, jobId: string) => {
   const pending =
     found.job.status === "booked" ? await pendingOf(jobId, tx) : null;
   if (!pending) {
-    throw new ConflictError("There's no request to move this Job waiting");
+    throw new ConflictError("There's no request to move this job.");
   }
   return { ...found, pending };
 };
@@ -427,13 +432,11 @@ export const confirmReschedule = async (jobId: string, byAccountId: string) => {
     const { job, pending } = found;
     const now = clock.now();
     if (job.startsAt <= now) {
-      throw new ConflictError(
-        "This Job has already started at its booked time, so it can't move. Turn the request down instead.",
-      );
+      throw new ConflictError(`${whyStarted("moved")} Turn the request down.`);
     }
     if (pending.startsAt <= now) {
       throw new ConflictError(
-        "The time asked for has passed. Turn the request down instead.",
+        "The time they asked for has passed. Turn the request down.",
       );
     }
     // what it held may no longer be enough: fewer Cleaners or hours that day
@@ -444,7 +447,7 @@ export const confirmReschedule = async (jobId: string, byAccountId: string) => {
     );
     if (!room.hasRoom) {
       throw new ConflictError(
-        `${whyNoRoom(room)} Turn the request down, or give a Cleaner hours that day.`,
+        whyNoRoom(room, `Turn the request down, or ${MORE_HOURS}.`),
       );
     }
 
@@ -468,11 +471,13 @@ export const confirmReschedule = async (jobId: string, byAccountId: string) => {
         jobId,
         clean: await cleanOf({ ...job, startsAt: pending.startsAt }, property),
         from: pending.fromStartsAt,
-        cost: pending.cost,
-        feeCents: pending.feeCents,
-        onPlan,
-        weeklyBill: weeklyBillFor(job, client),
-        lateHours: LATE_RESCHEDULE_HOURS,
+        cost: {
+          cost: pending.cost,
+          feeCents: pending.feeCents,
+          fee: formatMoney(pending.feeCents),
+          onPlan,
+          weeklyBill: weeklyBillFor(job, client) !== null,
+        },
       }),
     }),
   );
@@ -610,17 +615,17 @@ export const moveJob = async (jobId: string, to: LocalDateTime) => {
       throw new ConflictError(whyNotBooked(job.status, "moved"));
     }
     if (job.startsAt <= now) {
-      throw new ConflictError("This Job has already started, so it can't move");
+      throw new ConflictError(whyStarted("moved"));
     }
     if (startsAt <= now) {
-      throw new ConflictError("Choose a time that's still to come");
+      throw new ConflictError(PASSED);
     }
     if (startsAt.getTime() === job.startsAt.getTime()) {
-      throw new ConflictError("That's when the Job is already booked");
+      throw new ConflictError(SAME_TIME);
     }
     if (await pendingOf(jobId, tx)) {
       throw new ConflictError(
-        "The Client has asked to move this Job. Confirm or turn down their request first.",
+        "The client asked to move this job. Confirm or turn down their request first.",
       );
     }
 

@@ -95,7 +95,7 @@ describe("Office Staff moving a Job", () => {
     );
     expect(toCasey.text).toContain("There's no charge for this.");
     const toCory = testEmail().lastTo("cory@example.com");
-    expect(toCory.subject).toBe("A Job you're on has moved");
+    expect(toCory.subject).toBe("A job you're on has moved");
     expect(toCory.text).toContain(
       "When: Wednesday, January 14 at 10:30 AM\nWas: Monday, January 12 at 9:00 AM",
     );
@@ -108,7 +108,7 @@ describe("Office Staff moving a Job", () => {
   });
 
   test("needs room on a new day, counting held hours, but always has room on its own day", async () => {
-    const { office, jobId, job } = await bookedJob();
+    const { office, jobId } = await bookedJob();
     // Wednesday has 16 hours; another Job books all but 1 hour of it
     await otherJob({
       startsAt: "2026-01-14T14:00:00Z",
@@ -117,7 +117,7 @@ describe("Office Staff moving a Job", () => {
 
     const refused = await move(office, jobId, WEDNESDAY).expect(409);
     expect(refused.body.message).toBe(
-      `That day doesn't have room: the Job needs ${job.labourHours} Labour Hours and 1 are free.`,
+      "That day is too full for this job. Pick another time, or give a cleaner more working hours that day.",
     );
 
     // Monday fills up under it from 2pm, yet it can still move within Monday
@@ -134,7 +134,7 @@ describe("Office Staff moving a Job", () => {
 
     const refused = await move(office, jobId, WEDNESDAY).expect(409);
     expect(refused.body.message).toBe(
-      "Not enough Cleaners are free then: the Job needs 1, and 0 of the 2 available that day are.",
+      "Not enough cleaners are free then. Pick another time, or give a cleaner more working hours that day.",
     );
 
     // once they've gone
@@ -165,7 +165,7 @@ describe("Office Staff moving a Job", () => {
     testClock().set(new Date("2026-01-12T14:30:00Z"));
     expect(
       (await move(office, jobId, WEDNESDAY).expect(409)).body.message,
-    ).toBe("This Job has already started, so it can't move");
+    ).toBe("This clean has already started, so you can't move it.");
 
     testClock().set(new Date("2026-01-05T09:00:00Z"));
     await office
@@ -174,7 +174,7 @@ describe("Office Staff moving a Job", () => {
       .expect(200);
     expect(
       (await move(office, jobId, WEDNESDAY).expect(409)).body.message,
-    ).toBe("This Job has been cancelled, so it can't move");
+    ).toBe("This clean was cancelled, so you can't move it.");
   });
 
   test("is refused to a time that has passed, or the time it's at", async () => {
@@ -189,7 +189,7 @@ describe("Office Staff moving a Job", () => {
           409,
         )
       ).body.message,
-    ).toBe("That's when the Job is already booked");
+    ).toBe("That's when it's booked now. Pick a different time.");
     await move(office, jobId, { date: "2026-01-14", time: "25:00" }).expect(
       400,
     );
@@ -224,7 +224,7 @@ describe("Office Staff moving a Job", () => {
     }).expect(409);
 
     expect(refused.body.message).toBe(
-      "Cleans end by midnight: choose an earlier start time",
+      "This would run past midnight. Pick an earlier start time.",
     );
     // ending at midnight is fine
     await move(office, job.id, { date: "2026-01-14", time: "21:00" }).expect(

@@ -6,7 +6,11 @@ import { NotFoundError, RequestBodyError } from "../../middleware/errors.ts";
 import { validate } from "../../middleware/validation.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { clients } from "../clients/clients.schema.ts";
-import { currentPriceList } from "../price-list/price-list.ts";
+import {
+  currentPriceList,
+  NOT_A_PREMISES_TYPE,
+  offersPremisesType,
+} from "../price-list/price-list.ts";
 import {
   checkRooms,
   homeCorrectionSchema,
@@ -98,14 +102,14 @@ router.patch(
       if (
         premisesType !== undefined &&
         premisesType !== property.premisesTypeKey &&
-        !list.premisesTypes.some((t) => t.active && t.key === premisesType)
+        !offersPremisesType(list, premisesType)
       ) {
         throw new RequestBodyError(
           new z.ZodError([
             {
               code: "custom",
               path: ["premisesType"],
-              message: "Choose from the types of premises listed",
+              message: NOT_A_PREMISES_TYPE,
               input: premisesType,
             },
           ]),

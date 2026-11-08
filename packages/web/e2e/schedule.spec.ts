@@ -75,11 +75,11 @@ test(
     await expect(day(page, "Wed, Mar 3")).toContainText(
       "0 h booked · 3 h held · 5 h free",
     );
-    await expect(day(page, "Sat, Mar 6")).toContainText("Nobody available");
+    await expect(day(page, "Sat, Mar 6")).toContainText("Nobody working");
 
     const block = jobsOn(page, "Tue, Mar 2").getByRole("link");
     await expect(block).toContainText(/9:00 AM Client \d+/);
-    await expect(block).toContainText("Unassigned");
+    await expect(block).toContainText("Needs cleaners");
     await expect(block).toContainText("Cory Cleaner");
     // placed at 9am, two hours down the axis, and 2.5 hours on site tall
     const column = (await jobsOn(page, "Tue, Mar 2").boundingBox())!;
@@ -218,11 +218,11 @@ test(
       sourcePosition: { x: 10, y: 5 },
       targetPosition: { x: 10, y: 3.5 * HOUR_PX + 5 },
     });
-    const dialog = page.getByRole("dialog", { name: "Move this Job?" });
+    const dialog = page.getByRole("dialog", { name: "Move this job?" });
     await expect(dialog).toContainText("FromTue, Mar 2, 9:00 AM");
     await expect(dialog).toContainText("ToWed, Mar 3, 10:30 AM");
-    await expect(dialog).toContainText("Wed, Mar 3 has 8 h free");
-    await expect(dialog).toContainText("the Client and the crew are emailed");
+    await expect(dialog).toContainText("There's room on Wed, Mar 3 then.");
+    await expect(dialog).toContainText("we'll email them and the client");
 
     // nothing happens until it's confirmed
     await dialog.getByRole("button", { name: "Keep it" }).click();
@@ -236,19 +236,19 @@ test(
       sourcePosition: { x: 10, y: 5 },
       targetPosition: { x: 10, y: 3.5 * HOUR_PX + 5 },
     });
-    await dialog.getByRole("button", { name: "Move Job" }).click();
+    await dialog.getByRole("button", { name: "Move job" }).click();
 
     await expect(page.getByText("Job moved")).toBeVisible();
     const moved = jobsOn(page, "Wed, Mar 3").getByRole("link");
     await expect(moved).toContainText("10:30 AM Casey Client");
     // the whole crew is Offered it afresh
-    await expect(moved).toContainText("Unassigned");
+    await expect(moved).toContainText("Needs cleaners");
     await expect(jobsOn(page, "Tue, Mar 2").getByRole("link")).toHaveCount(0);
     expect((await emailsTo(casey.email)).at(-1)!.subject).toBe(
       "Your clean has moved",
     );
     expect((await emailsTo("cory@example.com")).at(-1)!.subject).toBe(
-      "A Job you're on has moved",
+      "A job you're on has moved",
     );
   },
 );
@@ -267,22 +267,26 @@ test("Office Staff move a Job from the Job screen, at any width", async ({
   await signedInAs(page, olive.email);
   await page.goto(`/office/jobs/${job.id}`);
 
-  await page.getByRole("button", { name: "Move Job" }).click();
-  const dialog = page.getByRole("dialog", { name: "Move this Job" });
-  await expect(dialog).toContainText("That's when it's booked");
-  const moveButton = dialog.getByRole("button", { name: "Move Job" });
+  await page.getByRole("button", { name: "Move job" }).click();
+  const dialog = page.getByRole("dialog", { name: "Move this job" });
+  await expect(dialog).toContainText(
+    "That's when it's booked now. Pick a different time.",
+  );
+  const moveButton = dialog.getByRole("button", { name: "Move job" });
   await expect(moveButton).toBeDisabled();
 
   const dayField = dialog.getByRole("group", { name: "Day" });
   await dayField.getByRole("spinbutton", { name: /^day/ }).click();
   await page.keyboard.type("04");
-  await expect(dialog).toContainText("Thu, Mar 4 doesn't have room");
+  await expect(dialog).toContainText(
+    "That day is too full for this job. Pick another time, or give a cleaner more working hours that day.",
+  );
   await expect(moveButton).toBeDisabled();
 
   await dayField.getByRole("spinbutton", { name: /^day/ }).click();
   await page.keyboard.type("05");
   await expect(dialog).toContainText(
-    "Not enough Cleaners are free at 9:00 AM: this Job needs 1, and 0 of the 1 available that day are.",
+    "Not enough cleaners are free then. Pick another time, or give a cleaner more working hours that day.",
   );
   await expect(moveButton).toBeDisabled();
   await dialog
@@ -319,7 +323,7 @@ test("a Job that has started, or isn't booked, can't be moved", async ({
   await expect(block).toHaveAttribute("draggable", "false");
   await page.goto(`/office/jobs/${job.id}`);
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Move Job" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Move job" })).toHaveCount(0);
 });
 
 test("the Schedule passes automated accessibility checks", async ({ page }) => {
@@ -385,7 +389,7 @@ test(
       .getByRole("link")
       .filter({ hasText: "9:30 AM" });
     await expect(short).toHaveAccessibleName(
-      /9:30 AM Client \d+ ?, Unassigned, No crew yet/,
+      /9:30 AM Client \d+ ?, Needs cleaners, No cleaners yet/,
     );
   },
 );
@@ -424,7 +428,7 @@ test(
     const shown = await blocks.count();
     expect(shown).toBeLessThan(4);
     for (const block of await blocks.all()) {
-      await expect(block).toContainText("Unassigned");
+      await expect(block).toContainText("Needs cleaners");
       expect((await block.boundingBox())!.width).toBeGreaterThanOrEqual(50);
     }
     await expect(blocks.filter({ hasText: "9:00 AM" })).toHaveCount(1);
@@ -436,7 +440,7 @@ test(
     const rows = more.getByRole("row");
     await expect(rows).toHaveCount(4 - shown);
     await expect(rows.first()).toContainText("8:00 AM");
-    await expect(rows.first()).toContainText("Assigned");
+    await expect(rows.first()).toContainText("Staffed");
     await expect(rows.first()).toContainText("Cory Cleaner");
     await rows.first().click();
     await expect(page).toHaveURL(`/office/jobs/${assigned.id}`);
@@ -458,9 +462,9 @@ test(
     await signedInAs(page, olive.email);
     await page.goto(`/office/jobs/${job.id}`);
 
-    await page.getByRole("button", { name: "Move Job" }).click();
+    await page.getByRole("button", { name: "Move job" }).click();
     // the Schedule in the dialog itself, never a dialog on a dialog
-    const dialog = page.getByRole("dialog", { name: "Move this Job" });
+    const dialog = page.getByRole("dialog", { name: "Move this job" });
     const schedule = dialog;
     // the Job where it is now, on Tuesday
     await expect(
@@ -475,7 +479,7 @@ test(
 
     await expect(page.getByRole("dialog")).toHaveCount(1);
     await expect(dialog).toContainText("ToFri, Mar 5, 1:00 PM");
-    await dialog.getByRole("button", { name: "Move Job" }).click();
+    await dialog.getByRole("button", { name: "Move job" }).click();
     await expect(
       page.locator("#main").getByText("Fri, Mar 5, 1:00 PM", { exact: true }),
     ).toBeVisible();

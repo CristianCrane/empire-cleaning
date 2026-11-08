@@ -48,3 +48,9 @@ export const validate =
 
     next();
   };
+
+// a day and a start time a person picks, New York
+export const day = z.iso.date("Pick a day");
+export const startTime = z
+  .string({ error: "Pick a start time" })
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Pick a start time");

@@ -1,8 +1,11 @@
 import type {
   AdjustmentKind,
+  AssignmentState,
+  AssignmentStatus,
   ClientName,
   Condition,
   HomeRooms,
+  JobStatus,
   PlanDaySummary,
   PropertyView,
   QuoteSummary,
@@ -32,6 +35,14 @@ export const conditionText = (condition: Condition | null) =>
   condition ? conditionLabel[condition] : "Not recorded yet";
 
 const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
+
+// so many cleaners, e.g. "1 cleaner", "2 more cleaners", "3 free cleaners"
+export const cleaners = (n: number, which?: "more" | "free") =>
+  plural(n, which ? `${which} cleaner` : "cleaner");
+
+// a Job's crew, or that it has none yet
+export const crewOf = (crew: { name: string }[]) =>
+  crew.map((c) => c.name).join(", ") || "No cleaners yet";
 
 const sqFt = new Intl.NumberFormat("en-US");
 // 4500 -> "4,500 sq ft"
@@ -118,7 +129,7 @@ export const formatHours = (hours: number) => `${hours} h`;
 
 export const roleLabel = {
   cleaner: "Cleaner",
-  office_staff: "Office Staff",
+  office_staff: "Office staff",
 };
 
 // Empire Cleaning's days and times are New York's, wherever the viewer is
@@ -313,3 +324,55 @@ export const siteVisitStatusLabel = {
   done: "Done",
   cancelled: "Cancelled",
 } as const;
+
+// A Job's status in the tones every status takes: booked is just so, done
+// went well, cancelled is over, No Access went wrong (JobStatusBadge)
+export const jobStatusLabel: Record<JobStatus, string> = {
+  booked: "Booked",
+  completed: "Done",
+  cancelled: "Cancelled",
+  no_access: "Couldn't get in",
+};
+
+export const jobStatusTone = {
+  booked: "info",
+  completed: "success",
+  cancelled: "neutral",
+  no_access: "danger",
+} as const satisfies Record<JobStatus, string>;
+
+// whether a booked Job's crew is whole, as the Office sees it (JobBadge)
+export const crewLabel: Record<AssignmentStatus, string> = {
+  assigned: "Staffed",
+  unassigned: "Needs cleaners",
+};
+
+export const crewTone = {
+  assigned: "info",
+  unassigned: "warning",
+} as const satisfies Record<AssignmentStatus, string>;
+
+// how a Job reads for Office Staff: how it went, or while it's booked,
+// whether its crew is whole (JobBadge, the Schedule's blocks)
+export const jobLabelOf = (job: {
+  status: JobStatus;
+  assignment: AssignmentStatus;
+}) =>
+  job.status === "booked"
+    ? { label: crewLabel[job.assignment], tone: crewTone[job.assignment] }
+    : { label: jobStatusLabel[job.status], tone: jobStatusTone[job.status] };
+
+// where someone stands on a Job's crew
+export const assignmentStateLabel: Record<AssignmentState, string> = {
+  offered: "Offered",
+  confirmed: "Confirmed",
+  released: "Dropped out",
+  taken_off: "Taken off",
+};
+
+export const assignmentStateTone = {
+  offered: "warning",
+  confirmed: "success",
+  released: "neutral",
+  taken_off: "neutral",
+} as const satisfies Record<AssignmentState, string>;

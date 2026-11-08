@@ -10,6 +10,7 @@ import type {
   LocalDateTime,
   ScheduledJob,
 } from "@empire-cleaning/models";
+import { SAME_TIME, whyNoRoom } from "@empire-cleaning/models";
 import {
   Actions,
   Button,
@@ -26,8 +27,6 @@ import {
   formatClock,
   formatDateTime,
   formatDay,
-  formatHours,
-  formatTime,
   timeOfDay,
 } from "../format.ts";
 import { useAction } from "../action.ts";
@@ -75,7 +74,7 @@ type MoveProps = {
  * the new time, whether its day has room, and what moving does.
  */
 export function ConfirmMove({ job, to, close }: MoveProps) {
-  const action = useAction("The Job wasn't moved. Please try again.");
+  const action = useAction("The job wasn't moved. Please try again.");
   const room = useRoom(job, to);
   const unchanged =
     to.date === dayOfInstant(job.startsAt) &&
@@ -106,15 +105,12 @@ export function ConfirmMove({ job, to, close }: MoveProps) {
         </dd>
       </dl>
       {chosen && unchanged && (
-        <p className="text-sm text-fg-muted">
-          That's when it's booked. Choose a new day or start time.
-        </p>
+        <p className="text-sm text-fg-muted">{SAME_TIME}</p>
       )}
       {room && !unchanged && <RoomAt room={room} job={job} />}
       <p className="text-sm text-fg-muted">
-        Its crew are each Offered it afresh, to confirm the new time. Its
-        reminder is reset, and the Client and the crew are emailed. It costs the
-        Client nothing.
+        Its cleaners are asked to confirm the new time, and we'll email them and
+        the client. It's free for the client.
       </p>
       {action.problem && <Notice tone="danger">{action.problem}</Notice>}
       <Actions>
@@ -126,7 +122,7 @@ export function ConfirmMove({ job, to, close }: MoveProps) {
           isDisabled={!chosen || unchanged || !fits}
           onPress={() => void move()}
         >
-          Move Job
+          Move job
         </Button>
       </Actions>
     </>
@@ -136,38 +132,14 @@ export function ConfirmMove({ job, to, close }: MoveProps) {
 // what the time chosen has room for, or why it hasn't
 function RoomAt({ room, job }: { room: DayCapacity; job: ScheduledJob }) {
   const day = formatDay(room.date);
-  if (!room.endsByMidnight) {
-    return (
-      <Notice tone="danger">
-        Cleans end by midnight: this Job would run past it from{" "}
-        {formatTime(room.startsAt)}. Choose an earlier start time.
-      </Notice>
-    );
-  }
-  if (!room.hasHours) {
-    return (
-      <Notice tone="danger">
-        {day} doesn't have room: this Job needs {formatHours(job.labourHours)}{" "}
-        and {formatHours(Math.max(room.freeHours, 0))}{" "}
-        {room.freeHours === 1 ? "is" : "are"} free.
-      </Notice>
-    );
-  }
-  if (!room.hasCrew) {
-    const free = Math.max(room.cleaners - room.crewsBusy, 0);
-    return (
-      <Notice tone="danger">
-        Not enough Cleaners are free at {formatTime(room.startsAt)}: this Job
-        needs {job.crewSize}, and {free} of the {room.cleaners} available that
-        day {free === 1 ? "is" : "are"}.
-      </Notice>
-    );
+  if (!room.hasRoom) {
+    return <Notice tone="danger">{whyNoRoom(room)}</Notice>;
   }
   return (
     <p className="text-sm text-fg-muted">
       {room.date === dayOfInstant(job.startsAt)
-        ? `It stays on ${day}, and a crew is free then.`
-        : `${day} has ${formatHours(room.freeHours)} free; this Job needs ${formatHours(job.labourHours)}, and a crew is free then.`}
+        ? `There's room then.`
+        : `There's room on ${day} then.`}
     </p>
   );
 }
@@ -184,8 +156,8 @@ export function MoveJob({
 }) {
   return (
     <DialogTrigger>
-      {trigger ?? <Button variant="secondary">Move Job</Button>}
-      <Dialog title="Move this Job" size="wide">
+      {trigger ?? <Button variant="secondary">Move job</Button>}
+      <Dialog title="Move this job" size="wide">
         {({ close }) => <ChooseTime job={job} close={close} />}
       </Dialog>
     </DialogTrigger>

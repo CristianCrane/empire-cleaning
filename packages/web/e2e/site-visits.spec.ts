@@ -51,8 +51,8 @@ test(
       page.getByText("Business premises are seen before they're quoted"),
     ).toBeVisible();
 
-    await page.getByRole("button", { name: "Book a Site Visit" }).click();
-    const dialog = page.getByRole("dialog", { name: "Book a Site Visit" });
+    await page.getByRole("button", { name: "Book a site visit" }).click();
+    const dialog = page.getByRole("dialog", { name: "Book a site visit" });
     await choose(dialog, /Who visits/, "Olive Owner");
     await dialog
       .getByRole("group", { name: "Day" })
@@ -64,10 +64,10 @@ test(
       .getByRole("spinbutton", { name: /hour/i })
       .click();
     await page.keyboard.type("1000AM");
-    await expect(dialog.getByRole("textbox", { name: /Duration/ })).toHaveValue(
+    await expect(dialog.getByRole("textbox", { name: /How long/ })).toHaveValue(
       "30",
     );
-    await dialog.getByRole("button", { name: "Book Site Visit" }).click();
+    await dialog.getByRole("button", { name: "Book site visit" }).click();
 
     await expect(page).toHaveURL(/\/office\/site-visits\/[0-9a-f-]{36}$/);
     await expect(page.getByText("Booked", { exact: true })).toBeVisible();
@@ -76,19 +76,19 @@ test(
       page.locator("#main").getByText("Olive Owner", { exact: true }),
     ).toBeVisible();
     const [email] = (await emailsTo(casey.email)).filter(
-      (e) => e.subject === "Your Site Visit is booked",
+      (e) => e.subject === "Your site visit is booked",
     );
     expect(email!.text).toContain("Tuesday, January 6 at 10:00 AM");
     const visit = page.url();
 
     await page.goto("/office/quotes");
-    await expect(page.getByText("Site Visit booked")).toBeVisible();
+    await expect(page.getByText("Site visit booked")).toBeVisible();
 
     await page.goto(visit);
     await expectAccessible(page);
     await page.getByRole("button", { name: "Record findings" }).click();
     const findings = page.getByRole("dialog", {
-      name: "What the Site Visit found",
+      name: "What the site visit found",
     });
     await expect(
       findings.getByRole("textbox", { name: "Floor area in sq ft" }),

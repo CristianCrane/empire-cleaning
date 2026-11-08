@@ -94,7 +94,7 @@ const tileOf: Record<NeedsAttentionKind, Tile> = {
   plan_on_hold: "money",
 };
 
-// what the tiles say beside their counts: how many need Staff, how many
+// what the tiles say beside their counts: how many need cleaners, how many
 // Quotes are newly asked for, and what's owed (a plan On Hold owes for Jobs
 // and Bills already counted)
 const hintsFor = (items: NeedsAttentionItem[]): Record<Tile, string> => {
@@ -113,7 +113,7 @@ const hintsFor = (items: NeedsAttentionItem[]): Record<Tile, string> => {
   const unassigned = count("job_unassigned");
   const asked = count("quote_requested");
   return {
-    jobs: unassigned > 0 ? `${unassigned} need Staff` : "",
+    jobs: unassigned > 0 ? `${unassigned} need cleaners` : "",
     quotes: asked > 0 ? `${asked} asked for` : "",
     money: owedCents > 0 ? `${formatMoney(owedCents)} owed` : "",
   };
@@ -193,7 +193,7 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
         const { job } = item;
         return {
           key: `job_unassigned ${job.id}`,
-          action: "Assign Staff",
+          action: "Find cleaners",
           icon: UserX,
           tone: "warning",
           client: clientName(job.client),

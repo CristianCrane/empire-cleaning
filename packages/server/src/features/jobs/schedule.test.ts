@@ -223,7 +223,7 @@ describe("the Schedule", () => {
       .expect(400);
     expect(tooLong.body.details[0]).toMatchObject({
       path: "to",
-      issue: "Choose at most 62 days",
+      issue: "Pick 62 days or fewer",
     });
     await office.get("/api/schedule?from=2026-01-07&to=2026-01-06").expect(400);
     await office.get("/api/schedule?from=2026-01-07").expect(400);

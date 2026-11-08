@@ -88,13 +88,13 @@ const jobs = (
       id="1"
       title="9:00 AM · Maria Lopez"
       description="41-12 Austin St · Standard Clean"
-      end={<StatusBadge tone="info">Assigned</StatusBadge>}
+      end={<StatusBadge tone="info">Staffed</StatusBadge>}
     />
     <ListItem
       id="2"
       title="1:00 PM · Dev Patel"
       description="88 Grand St · Deep Clean"
-      end={<StatusBadge tone="warning">Unassigned</StatusBadge>}
+      end={<StatusBadge tone="warning">Needs cleaners</StatusBadge>}
     />
   </List>
 );
@@ -217,7 +217,7 @@ function ActionFirstRows() {
               id="2"
               title="Dev Patel"
               description="88 Grand St · Oct 28, 1:00 PM"
-              end={<StatusBadge tone="warning">Unassigned</StatusBadge>}
+              end={<StatusBadge tone="warning">Needs cleaners</StatusBadge>}
             />
             <ListItem
               id="3"
@@ -839,10 +839,14 @@ function StatusColours() {
     [
       "success",
       "finished well, or running as it should",
-      ["Completed", "Done", "Active", "Confirmed"],
+      ["Done", "Active", "Confirmed"],
     ],
-    ["warning", "someone needs to act", ["Requested", "Unassigned", "Expired"]],
-    ["danger", "went wrong", ["No Access", "Unpaid"]],
+    [
+      "warning",
+      "someone needs to act",
+      ["Requested", "Needs cleaners", "Expired"],
+    ],
+    ["danger", "went wrong", ["Couldn't get in", "Unpaid"]],
     [
       "neutral",
       "not going ahead, or not live yet",
@@ -1136,7 +1140,7 @@ function DetailsPage() {
         <Section title="Need another time?">
           <Card>
             <ActionRow
-              actions={<Button variant="secondary">Choose a new time</Button>}
+              actions={<Button variant="secondary">Pick a new time</Button>}
             >
               <p>
                 You can move it for free until{" "}

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { startTime } from "../../middleware/validation.ts";
 
 // the messages are shown beside the form's fields, so they're written for people
 
@@ -102,10 +103,7 @@ const request = {
     .max(200, "Use a shorter business name")
     .nullish(),
   weekdays: z.array(z.number().int().min(0).max(6)).max(7).optional(),
-  preferredTime: z
-    .string()
-    .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Choose a time")
-    .nullish(),
+  preferredTime: startTime.nullish(),
   wantsRegularService: z.boolean(),
   // for a Service priced by area, a rough idea of it; kept only for one
   area: z
@@ -164,7 +162,7 @@ export const checkForKind = (
       problems.push(issue(["weekdays"], "Choose the days you want cleaned"));
     }
     if (!fields.preferredTime) {
-      problems.push(issue(["preferredTime"], "Choose a time"));
+      problems.push(issue(["preferredTime"], "Pick a start time"));
     }
   }
   return problems;

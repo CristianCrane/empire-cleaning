@@ -399,7 +399,7 @@ describe("a Service Plan's Jobs", () => {
     ]);
     expect(next.assignment).toBe("unassigned");
     expect(testEmail().lastTo("dee@example.com").subject).toBe(
-      "You've been offered a Job",
+      "You've been offered a job",
     );
   });
 
@@ -442,14 +442,16 @@ describe("a Service Plan's Jobs", () => {
       .post(`/api/service-plans/${planId}/visits/${visit!.id}/book`)
       .send({ date: "2026-02-02", time: "13:00" })
       .expect(409);
-    expect(full.body.message).toMatch(/doesn't have room/);
+    expect(full.body.message).toBe(
+      "That time is full. Pick another time, or give a cleaner more working hours that day.",
+    );
     // nor one ending after midnight (#242)
     const late = await office
       .post(`/api/service-plans/${planId}/visits/${visit!.id}/book`)
       .send({ date: "2026-02-03", time: "23:00" })
       .expect(409);
     expect(late.body.message).toBe(
-      "Cleans end by midnight: choose an earlier start time",
+      "This would run past midnight. Pick an earlier start time.",
     );
     // nor while the plan is On Hold (#242)
     await db
@@ -513,7 +515,7 @@ describe("a Service Plan's Jobs", () => {
         .post(`/api/service-plans/${planId}/visits/${visit!.id}/book`)
         .send({ date: "2026-02-02", time });
     expect((await book("09:30").expect(409)).body.message).toMatch(
-      /no crew free then/,
+      "That time is full. Pick another time, or give a cleaner more working hours that day.",
     );
     await book("10:00").expect(200);
   });

@@ -185,7 +185,7 @@ describe("asking to move a Job", () => {
     expect((await scheduleDay(office, "2026-01-12")).jobs).toHaveLength(1);
 
     const email = testEmail().lastTo("olive@example.com");
-    expect(email.subject).toBe("Casey Client asked to move a Job");
+    expect(email.subject).toBe("Casey Client asked to move a job");
     expect(email.text).toContain("Wednesday, January 14 at 10:00 AM");
 
     // the Client's Home shows it's waiting on the Office
@@ -222,7 +222,7 @@ describe("asking to move a Job", () => {
       .send({ ...WEDNESDAY, cost: "free" })
       .expect(409);
     expect(refused.body.message).toBe(
-      "That time has just filled up. Please choose another.",
+      "That time was just taken. Pick another.",
     );
     const times = (
       await office.get(`/api/jobs/${other.id}/reschedule-times`).expect(200)
@@ -253,7 +253,7 @@ describe("asking to move a Job", () => {
 
     const refused = await ask(client, jobId, WEDNESDAY).expect(409);
     expect(refused.body.message).toBe(
-      "That time has just filled up. Please choose another.",
+      "That time was just taken. Pick another.",
     );
     // the Client isn't offered it, but Wednesday's later times still
     const times = (
@@ -305,28 +305,28 @@ describe("asking to move a Job", () => {
           409,
         )
       ).body.message,
-    ).toBe("That time has just filled up. Please choose another.");
+    ).toBe("That time was just taken. Pick another.");
     expect(
       (
         await ask(client, jobId, { date: "2026-01-14", time: "10:30" }).expect(
           409,
         )
       ).body.message,
-    ).toBe("Choose one of the start times on offer");
+    ).toBe("Pick one of the times shown.");
     expect(
       (
         await ask(client, jobId, { date: "2026-01-05", time: "10:00" }).expect(
           409,
         )
       ).body.message,
-    ).toMatch(/from tomorrow/);
+    ).toBe("Pick a day between tomorrow and 8 weeks from now.");
     expect(
       (
         await ask(client, jobId, { date: "2026-01-12", time: "09:00" }).expect(
           409,
         )
       ).body.message,
-    ).toBe("That's when the clean is already booked");
+    ).toBe("That's when it's booked now. Pick a different time.");
 
     await ask(client, jobId, WEDNESDAY).expect(201);
     expect(
@@ -399,7 +399,7 @@ describe("Office Staff answering", () => {
     );
     expect(toCasey.text).toContain("There's no charge for moving it.");
     const toCory = testEmail().lastTo("cory@example.com");
-    expect(toCory.subject).toBe("A Job you're on has moved");
+    expect(toCory.subject).toBe("A job you're on has moved");
     expect(toCory.text).toContain("Please confirm you can make the new time");
 
     // Cory Confirms again at the new time
@@ -468,7 +468,7 @@ describe("Office Staff answering", () => {
 
     const refused = await confirm(office, jobId).expect(409);
     expect(refused.body.message).toBe(
-      "Not enough Cleaners are free then: the Job needs 1, and 0 of the 1 available that day are. Turn the request down, or give a Cleaner hours that day.",
+      "Not enough cleaners are free then. Turn the request down, or give a cleaner more working hours that day.",
     );
     expect((await officeJob(office, jobId)).startsAt).toBe(
       new Date(STARTS_AT).toISOString(),
@@ -577,8 +577,8 @@ describe("a Late Reschedule (ADR-0010)", () => {
 
     testClock().set(SUNDAY_9_01AM);
     const refused = await ask(client, jobId, WEDNESDAY, "free").expect(409);
-    expect(refused.body.message).toMatch(
-      /less than 24 hours .* a Late Reschedule, free as the Job's first/,
+    expect(refused.body.message).toBe(
+      "The cost of moving has changed. Check it, then send again.",
     );
     expect((await clientJob(client, jobId)).rescheduleRequest).toBeNull();
   });
@@ -595,7 +595,7 @@ describe("a Late Reschedule (ADR-0010)", () => {
     await ask(client, jobId, WEDNESDAY, "free_late").expect(201);
     await confirm(office, jobId).expect(200);
     expect(testEmail().lastTo(casey.email).text).toContain(
-      "Your first one is free, and your Deposit still counts towards the price.",
+      "Your first one is free, and your deposit still counts toward the price.",
     );
 
     await confirmOffer(asCory, jobId);
@@ -628,7 +628,7 @@ describe("a Late Reschedule (ADR-0010)", () => {
     const moved = (await confirm(office, jobId).expect(200)).body as OfficeJob;
     expect(moved.startsAt).toBe(THURSDAY_10AM);
     expect(testEmail().lastTo(casey.email).text).toMatch(
-      /second Late Reschedule, it's a Late Cancellation: your \$[\d.]+ Deposit is kept as the fee, and the full price is charged/,
+      /second late move, your \$[\d.]+ deposit is kept as a late cancellation fee, and the full price is charged/,
     );
     // nothing moves now: the Deposit has been paid
     expect(testPayments().charges).toHaveLength(1);
@@ -672,7 +672,7 @@ describe("a Late Reschedule (ADR-0010)", () => {
     await ask(client, jobId, THURSDAY, "late_cancellation").expect(201);
     await confirm(office, jobId).expect(200);
     expect(testEmail().lastTo(casey.email).text).toMatch(
-      /your \$[\d.]+ Deposit is kept as the fee, and the full price goes on your Bill for that week\./,
+      /your \$[\d.]+ deposit is kept as a late cancellation fee, and the full price goes on your Bill for that week\./,
     );
   });
 

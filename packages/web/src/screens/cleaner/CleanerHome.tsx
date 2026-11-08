@@ -23,19 +23,15 @@ import {
   formatMinutes,
   formatTime,
 } from "../format.ts";
+import { AssignmentStateBadge, JobStatusBadge } from "../JobBadges.tsx";
 
 // whether the Cleaner has Confirmed it yet, or once done, that it is
-export function JobBadge({ job }: { job: CleanerJob }) {
-  if (job.outcome === "completed") {
-    return <StatusBadge tone="success">Completed</StatusBadge>;
-  }
-  if (job.outcome === "no_access") {
-    return <StatusBadge tone="danger">No Access</StatusBadge>;
-  }
-  return job.assignment.status === "confirmed" ? (
-    <StatusBadge tone="success">Confirmed</StatusBadge>
-  ) : (
-    <StatusBadge tone="warning">Offered</StatusBadge>
+export function CleanerJobBadge({ job }: { job: CleanerJob }) {
+  if (job.outcome) return <JobStatusBadge status={job.outcome} />;
+  return (
+    <AssignmentStateBadge
+      state={job.assignment.status === "confirmed" ? "confirmed" : "offered"}
+    />
   );
 }
 
@@ -231,7 +227,9 @@ function Rows({
             start={<DateTile date={item.startsAt} size="sm" />}
             title={whenOf(item)}
             description={`${addressOf(item.job.property)} · ${item.job.serviceName}, ${formatHours(item.job.hoursOnSite)}`}
-            end={item.job.outcome ? <JobBadge job={item.job} /> : undefined}
+            end={
+              item.job.outcome ? <CleanerJobBadge job={item.job} /> : undefined
+            }
           />
         ) : (
           <ListItem

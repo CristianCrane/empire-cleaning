@@ -118,7 +118,7 @@ describe("booking a Site Visit", () => {
       property: { kind: "commercial", street: "200 Park Ave S" },
     });
     const sent = testEmail().lastTo(casey.email);
-    expect(sent.subject).toBe("Your Site Visit is booked");
+    expect(sent.subject).toBe("Your site visit is booked");
     expect(sent.text).toContain("Tuesday, January 6 at 10:00 AM");
     expect(sent.text).toContain("Olive from Empire Cleaning");
     expect(sent.text).toContain("There's no charge");
@@ -189,7 +189,9 @@ describe("booking a Site Visit", () => {
 
     const full = await book(office, quote.id, cory.id, "15:00");
     expect(full.status).toBe(409);
-    expect(full.body.message).toContain("doesn't have room");
+    expect(full.body.message).toBe(
+      "Cory doesn't have enough working hours free that day. Pick another day or person.",
+    );
 
     // Saturday is a day off for Cory, who isn't Office Staff
     const dayOff = await book(office, quote.id, cory.id, "10:00", {
@@ -197,7 +199,7 @@ describe("booking a Site Visit", () => {
     });
     expect(dayOff.status).toBe(409);
     expect(dayOff.body.message).toBe(
-      "Cory Cleaner has no Available Hours that day, so they can't make a Site Visit then.",
+      "Cory Cleaner isn't working that day. Pick another day or person.",
     );
   });
 
@@ -217,7 +219,7 @@ describe("booking a Site Visit", () => {
     const clash = await book(office, home.id, olive.id, "10:15");
     expect(clash.status).toBe(409);
     expect(clash.body.message).toBe(
-      "Olive Owner has another Site Visit then, at 10:00 AM.",
+      "Olive Owner has another site visit at 10:00 AM. Pick another time or person.",
     );
     await book(office, home.id, olive.id, "10:30").expect(201);
     expect((await quoteOf(office, home.id)).siteVisit).toBe("booked");
@@ -259,7 +261,7 @@ describe("booking a Site Visit", () => {
     const clash = await book(office, quote.id, cory.id, "11:30");
     expect(clash.status).toBe(409);
     expect(clash.body.message).toBe(
-      "Cory Cleaner is on a Job then, at 11:00 AM.",
+      "Cory Cleaner is on a job at 11:00 AM. Pick another time or person.",
     );
     await book(office, quote.id, cory.id, "13:00").expect(201);
   });
@@ -308,7 +310,7 @@ describe("booking a Site Visit", () => {
       .expect(200);
     const refused = await book(office, quote.id, olive.id).expect(409);
     expect(refused.body.message).toBe(
-      "A Site Visit is for a Quote before it's sent: this one has been sent, or has closed.",
+      "This quote was already sent or closed, so it can't have a site visit.",
     );
     await book(office, crypto.randomUUID(), olive.id).expect(404);
   });
@@ -333,7 +335,7 @@ describe("moving and cancelling a Site Visit", () => {
     expect(moved.status).toBe(200);
     expect(moved.body.startsAt).toBe("2026-01-06T21:30:00.000Z");
     const sent = testEmail().lastTo(casey.email);
-    expect(sent.subject).toBe("Your Site Visit has moved");
+    expect(sent.subject).toBe("Your site visit has moved");
     expect(sent.text).toContain(
       "When: Tuesday, January 6 at 4:30 PM\nWas: Tuesday, January 6 at 4:00 PM",
     );
@@ -355,7 +357,7 @@ describe("moving and cancelling a Site Visit", () => {
     expect(res.status).toBe(200);
     expect(res.body.status).toBe("cancelled");
     expect(testEmail().lastTo(casey.email).subject).toBe(
-      "Your Site Visit is cancelled",
+      "Your site visit is cancelled",
     );
     expect((await scheduleDay(office)).siteVisits).toEqual([]);
     expect((await quoteOf(office, quote.id)).siteVisit).toBe("needed");

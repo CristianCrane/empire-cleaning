@@ -23,6 +23,7 @@ import type {
   ServicePlanView,
   UnplacedVisit,
 } from "@empire-cleaning/models";
+import { ADD_HOURS, ENDS_BY_MIDNIGHT } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import {
@@ -48,7 +49,7 @@ import {
 } from "../jobs/jobs.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { freeFor, jobViews, roomFor } from "../jobs/schedule.ts";
-import { ENDS_BY_MIDNIGHT, endsByMidnight } from "../jobs/rules.ts";
+import { endsByMidnight, PASSED } from "../jobs/rules.ts";
 import { charges } from "../payments/payments.schema.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { warnOfficeOfQuotesWithoutRoom } from "../quotes/quote-room.ts";
@@ -508,7 +509,7 @@ export const bookVisit = async (
     refuseOnHold(plan);
     const startsAt = atTime(date, time);
     if (startsAt <= clock.now()) {
-      throw new ConflictError("Choose a time that's still to come.");
+      throw new ConflictError(PASSED);
     }
     // the visit of the weekday it came round on, on the terms it did
     const day = (await daysOfQuote(visit.quoteId, tx)).find(
@@ -519,9 +520,7 @@ export const bookVisit = async (
     }
     const booked = await bookOnto(tx, plan, day, startsAt);
     if (!booked) {
-      throw new ConflictError(
-        "That time doesn't have room for this Job: not enough free Cleaner hours that day, or no crew free then. Choose another.",
-      );
+      throw new ConflictError(`That time is full. ${ADD_HOURS}`);
     }
     await tx
       .update(servicePlanVisits)
