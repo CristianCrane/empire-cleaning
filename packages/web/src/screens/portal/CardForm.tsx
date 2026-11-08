@@ -162,35 +162,42 @@ const useStripeElement = (
   useEffect(() => {
     if (form?.form !== "stripe" || !box.current) return;
     let destroy: (() => void) | undefined;
+    // Stripe.js loaded for a form since gone (hidden, or another) mounts
+    // nothing: the next one's load mounts it
+    let current = true;
     failed.current = false;
-    loadStripe(form.publishableKey).then((stripe) => {
-      if (!stripe || !box.current) return;
-      const elements = elementsFor(stripe);
-      if (!elements) return;
-      // Stripe adds Link (and its bank payments) beside cards unless told
-      // not to, whatever the intent allows
-      const element = elements.create("payment", {
-        layout: "tabs",
-        wallets: { link: "never" },
-      });
-      element.on("change", () => clearProblem());
-      element.mount(box.current);
-      mounted.current = { stripe, elements };
+    loadStripe(form.publishableKey).then(
+      (stripe) => {
+        if (!current || !stripe || !box.current) return;
+        const elements = elementsFor(stripe);
+        if (!elements) return;
+        // Stripe adds Link (and its bank payments) beside cards unless told
+        // not to, whatever the intent allows
+        const element = elements.create("payment", {
+          layout: "tabs",
+          wallets: { link: "never" },
+        });
+        element.on("change", () => clearProblem());
+        element.mount(box.current);
+        mounted.current = { stripe, elements };
 
-      // switching theme (theme.tsx sets data-theme) redraws the form to match
-      const themeWatch = new MutationObserver(() =>
-        elements.update({ appearance: appearance() }),
-      );
-      themeWatch.observe(document.documentElement, {
-        attributeFilter: ["data-theme"],
-      });
+        // switching theme (theme.tsx sets data-theme) redraws the form to match
+        const themeWatch = new MutationObserver(() =>
+          elements.update({ appearance: appearance() }),
+        );
+        themeWatch.observe(document.documentElement, {
+          attributeFilter: ["data-theme"],
+        });
 
-      destroy = () => {
-        themeWatch.disconnect();
-        element.destroy();
-      };
-    }, notLoaded);
+        destroy = () => {
+          themeWatch.disconnect();
+          element.destroy();
+        };
+      },
+      (e: unknown) => current && notLoaded(e),
+    );
     return () => {
+      current = false;
       destroy?.();
       mounted.current = null;
     };
