@@ -102,6 +102,6 @@ export const cleanersNeededEmail = ({
     paragraph("Each goes to the first cleaner to confirm."),
     jobs.length === 1
       ? button("See the job", `/cleaner/open/${jobs[0]!.jobId}`)
-      : button("See the jobs", "/cleaner"),
+      : button("See the jobs", "/cleaner/offers"),
   ],
 });
