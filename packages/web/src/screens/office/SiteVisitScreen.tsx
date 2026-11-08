@@ -65,12 +65,12 @@ export function SiteVisitScreen() {
         <Breadcrumbs
           trail={[
             ...homeCrumbs(visit.client, visit.property),
-            { label: "Site Visit" },
+            { label: "Site visit" },
           ]}
         />
         <div className="flex flex-col gap-1">
           <div className="flex flex-wrap items-center gap-3">
-            <Heading level={1}>Site Visit</Heading>
+            <Heading level={1}>Site visit</Heading>
             <SiteVisitBadge status={visit.status} />
           </div>
           <p className="text-fg-muted">
@@ -80,14 +80,14 @@ export function SiteVisitScreen() {
       </div>
       {been && (
         <Notice tone="warning">
-          {visit.visitor?.name ?? "The visitor"} has been: record what was
-          found, so a Quote can be sent.
+          {visit.visitor?.name ?? "The visitor"} has been. Add what they found
+          so you can send a quote.
         </Notice>
       )}
       {visit.status === "cancelled" && (
         <Notice>
-          Cancelled {formatDateTime(visit.cancelledAt!)}, so nothing was
-          recorded. Another can be booked from the{" "}
+          Cancelled {formatDateTime(visit.cancelledAt!)}, so nothing was found.
+          You can book another from the{" "}
           {visit.property.kind === "commercial" ? "premises'" : "home's"} page.
         </Notice>
       )}
@@ -135,7 +135,7 @@ function VisitDetails({
             )}
             <div className="flex min-w-0 flex-col gap-1">
               <p className="text-sm text-fg-muted">
-                {premises ? "Business premises" : "A home"}
+                {premises ? "A business" : "A home"}
               </p>
               <p className="text-xl font-semibold text-fg">
                 {visit.startsAt
@@ -174,7 +174,7 @@ function VisitDetails({
               {visit.quoteId && (
                 <Fact
                   icon={QuoteIcon}
-                  label="The Quote it's for"
+                  label="The quote it's for"
                   value={
                     <Link
                       href={linkTo({
@@ -182,7 +182,7 @@ function VisitDetails({
                         params: { quoteId: visit.quoteId },
                       })}
                     >
-                      Open the Quote
+                      Open the quote
                     </Link>
                   }
                 />
@@ -201,9 +201,9 @@ function VisitDetails({
                 }
               >
                 <p>
-                  When it's done, record what was found: it updates the{" "}
-                  {premises ? "premises'" : "home's"} details, and a Quote can
-                  be sent.
+                  When it's done, add what was found. It updates the{" "}
+                  {premises ? "premises'" : "home's"} details so you can send a
+                  quote.
                 </p>
               </ActionRow>
             </div>

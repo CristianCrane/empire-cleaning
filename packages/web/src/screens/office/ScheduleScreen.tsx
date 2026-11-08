@@ -46,16 +46,16 @@ export function ScheduleScreen() {
         <JobStatusBadge status="completed" />
         <JobStatusBadge status="no_access" />
         <span className="hidden md:inline">
-          Drag a Job to move it, or open it to move it to any time.
+          Drag a job to move it, or open it to pick any time.
         </span>
-        <span className="md:hidden">Open a Job to move it.</span>
+        <span className="md:hidden">Open a job to move it.</span>
       </div>
       <ScheduleCalendar
         days={days}
         onDrop={(job, to) => setMoving({ job, to })}
       />
       <Dialog
-        title="Move this Job?"
+        title="Move this job?"
         isOpen={moving !== undefined}
         onOpenChange={(isOpen) => !isOpen && setMoving(undefined)}
       >

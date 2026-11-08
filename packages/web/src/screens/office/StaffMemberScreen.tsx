@@ -90,14 +90,14 @@ export function StaffMemberScreen() {
 
       {!member.active && (
         <Notice>
-          {member.name} has no Staff access. Invite them again to bring them
-          back.
+          {member.name} can't sign in as staff any more. Invite them again to
+          bring them back.
         </Notice>
       )}
       {member.active && !isCleaner && (
         <Notice>
-          Only Cleaners' hours count towards the Schedule, so there's no
-          availability to set for {member.name}.
+          Only cleaners have working hours, so there's nothing to set for{" "}
+          {member.name}.
         </Notice>
       )}
 
@@ -182,13 +182,13 @@ function EditStaff({ member }: { member: StaffDetail }) {
                 isSelected={roles.includes("cleaner")}
                 onChange={(on) => toggle("cleaner", on)}
               >
-                Cleaner: carries out Jobs
+                Cleaner: does the cleaning
               </Checkbox>
               <Checkbox
                 isSelected={roles.includes("office_staff")}
                 onChange={(on) => toggle("office_staff", on)}
               >
-                Office Staff: runs the Office workspace
+                Office staff: runs the business here
               </Checkbox>
             </fieldset>
             {action.fieldErrors.roles && (
@@ -243,7 +243,7 @@ const useSecondLook = (jobs: StaffHolding[]) => {
     },
     label: (save: string) =>
       freeing !== "" && freeing === shown
-        ? `Free ${jobs.length === 1 ? "the Job" : "the Jobs"} and save`
+        ? `Take them off ${jobs.length === 1 ? "it" : "them"} and save`
         : save,
   };
 };
@@ -303,8 +303,8 @@ function WhatItFrees({
     <Notice tone="warning">
       {jobs.length === 1 ? (
         <p>
-          {firstName} is on {heldLabel(jobs[0]!)}. {saving} frees it for other
-          free Cleaners.
+          {firstName} is on {heldLabel(jobs[0]!)}. {saving} opens it to other
+          cleaners.
         </p>
       ) : (
         <>
@@ -314,7 +314,7 @@ function WhatItFrees({
               <li key={p.id}>{heldLabel(p)}</li>
             ))}
           </ul>
-          <p>{saving} frees them for other free Cleaners.</p>
+          <p>{saving} opens them to other cleaners.</p>
         </>
       )}
     </Notice>
@@ -345,8 +345,8 @@ function Deactivate({ member }: { member: StaffDetail }) {
         {({ close }) => (
           <>
             <p>
-              They'll lose Staff access straight away. Anything they do as a
-              Client is unaffected. You can invite them again later.
+              They won't be able to sign in as staff any more. If they're a
+              client too, that still works. You can invite them again later.
             </p>
             <WhatItFrees
               member={member}
@@ -423,7 +423,7 @@ function Availability({ member }: { member: StaffDetail }) {
 
   return (
     <Section
-      title="Availability"
+      title="Working hours"
       description="Their usual week, and the days that differ. Pick a day to change it."
       actions={
         <UsualWeek key={usualWeek.join()} member={member} usual={usualWeek} />

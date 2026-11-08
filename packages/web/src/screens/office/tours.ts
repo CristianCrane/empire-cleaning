@@ -65,9 +65,9 @@ export const officeTours = {
       route: "/office/jobs/$jobId",
       steps: [
         {
-          target: { press: "Offer to a Cleaner" },
-          title: "Needs a Cleaner",
-          text: "From a week before, it's open to every free Cleaner. Offer it to someone yourself from here.",
+          target: { press: "Offer to a cleaner" },
+          title: "Needs a cleaner",
+          text: "From a week before, any free cleaner can take it. Or offer it to someone yourself from here.",
         },
       ],
     },
@@ -78,8 +78,8 @@ export const officeTours = {
         {
           // the first day shown
           target: { named: "Jobs on" },
-          title: "Your Schedule",
-          text: "Every clean and Site Visit, day by day. Open a Job to see it or move it; on a computer, drag it to a new time.",
+          title: "Your schedule",
+          text: "Every clean and site visit, day by day. Open a job to see it or move it. On a computer, drag it to a new time.",
         },
       ],
     },

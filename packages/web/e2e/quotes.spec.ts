@@ -478,10 +478,10 @@ test(
 
     await page
       .getByRole("region", { name: "Proposed time" })
-      .getByRole("button", { name: "Pick from the Schedule" })
+      .getByRole("button", { name: "Pick from the schedule" })
       .click();
     const schedule = page.getByRole("dialog", {
-      name: "Pick from the Schedule",
+      name: "Pick from the schedule",
     });
     // the week around the chosen day on a desktop, the day itself on a phone
     const monday = schedule.getByRole("region", {
@@ -510,7 +510,7 @@ test(
     // can still be picked; free again from 9:30
     await expect(
       monday.getByRole("button", {
-        name: "Mon, Jan 12, 9:00 AM, no crew free",
+        name: "Mon, Jan 12, 9:00 AM, not enough cleaners free",
       }),
     ).toBeVisible();
     await expect(

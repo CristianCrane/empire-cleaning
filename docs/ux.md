@@ -166,7 +166,7 @@ stays as it is (#336).
 
 ### Lists and tables
 
-- **Lead a to-do row with what to do** (Send a Quote, Assign Staff), a
+- **Lead a to-do row with what to do** (Send a Quote, Find cleaners), a
   toned `IconTile` for the kind; rows that only show things keep the name
   as the title. ("Action First To Do Rows")
 - **A growing work list is a Table**, a `Tab` per status with counts and a

@@ -48,8 +48,8 @@ test(
     await goTo(page, "Staff");
     await expect(page).toHaveURL("/office/staff");
 
-    await page.getByRole("button", { name: "Invite Staff" }).click();
-    const dialog = page.getByRole("dialog", { name: "Invite Staff" });
+    await page.getByRole("button", { name: "Invite staff" }).click();
+    const dialog = page.getByRole("dialog", { name: "Invite staff" });
     await dialog.getByRole("textbox", { name: "Name" }).fill(cory.name);
     await dialog.getByRole("textbox", { name: "Email" }).fill(cory.email);
     await expect(
@@ -136,8 +136,8 @@ test("an invitation needs a role, and can't repeat someone on Staff", async ({
   await createStaff(cory);
   await signInAsOffice(page);
   await page.goto("/office/staff");
-  await page.getByRole("button", { name: "Invite Staff" }).click();
-  const dialog = page.getByRole("dialog", { name: "Invite Staff" });
+  await page.getByRole("button", { name: "Invite staff" }).click();
+  const dialog = page.getByRole("dialog", { name: "Invite staff" });
   await dialog.getByRole("textbox", { name: "Name" }).fill(cory.name);
   await dialog.getByRole("textbox", { name: "Email" }).fill(cory.email);
 
@@ -145,7 +145,7 @@ test("an invitation needs a role, and can't repeat someone on Staff", async ({
   await dialog.getByRole("button", { name: "Send invitation" }).click();
   await expect(dialog.getByText("Pick at least one role")).toBeVisible();
 
-  await dialog.getByText(/^Office Staff/).click();
+  await dialog.getByText(/^Office staff/).click();
   await dialog.getByRole("button", { name: "Send invitation" }).click();
   await expect(
     dialog.getByText("Cory Cleaner is already on your staff."),
@@ -285,14 +285,14 @@ test("a day off frees a Cleaner's Jobs, and so does deactivating them, each said
 
   await dayOnCalendar(page, "Thu, Jan 8").click();
   const day = page.getByRole("dialog");
-  await expect(day).not.toContainText("for other free Cleaners");
+  await expect(day).not.toContainText("to other cleaners");
   await day.getByRole("textbox", { name: "Hours that day" }).fill("0");
   // saving straight from the field first shows what it frees
   await day.getByRole("button", { name: "Save day" }).click();
   await expect(day).toContainText(
-    /Cory is on Deep Clean at .+, Thu, Jan 8, 9:00 AM\. Saving frees it for other free Cleaners\./,
+    /Cory is on Deep Clean at .+, Thu, Jan 8, 9:00 AM\. Saving opens it to other cleaners\./,
   );
-  await day.getByRole("button", { name: "Free the Job and save" }).click();
+  await day.getByRole("button", { name: "Take them off it and save" }).click();
   await expect(page.getByText("Thu, Jan 8 saved")).toBeVisible();
   expect((await emailsTo(cory.email)).at(-1)!.subject).toBe(
     "You're no longer on a job",
@@ -364,7 +364,7 @@ test("Office Staff change someone's name and roles", async ({ page }) => {
   await page.getByRole("button", { name: "Edit", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Edit Cory Cleaner" });
   await dialog.getByRole("textbox", { name: "Name" }).fill("Cory Clean");
-  await dialog.getByText("Office Staff: runs the Office workspace").click();
+  await dialog.getByText("Office staff: runs the business here").click();
   await dialog.getByRole("button", { name: "Save changes" }).click();
 
   await expect(page.getByText("Changes saved")).toBeVisible();
@@ -383,7 +383,7 @@ test("Office Staff who don't clean have no availability to set", async ({
   await openStaffMember(page, "Olive Owner");
 
   await expect(
-    page.getByText("Only Cleaners' hours count towards the Schedule"),
+    page.getByText("Only cleaners have working hours"),
   ).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Monday" })).toHaveCount(0);
 });
@@ -397,7 +397,7 @@ test("the Staff screens pass automated accessibility checks", async ({
   await expect(page.getByRole("row", { name: /Cory Cleaner/ })).toBeVisible();
   await expectAccessible(page);
 
-  await page.getByRole("button", { name: "Invite Staff" }).click();
+  await page.getByRole("button", { name: "Invite staff" }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
   await expectAccessible(page, "[role=dialog]");
   await page.keyboard.press("Escape");

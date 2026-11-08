@@ -27,7 +27,6 @@ import {
   formatClock,
   formatDateTime,
   formatDay,
-  formatHours,
   timeOfDay,
 } from "../format.ts";
 import { useAction } from "../action.ts";
@@ -75,7 +74,7 @@ type MoveProps = {
  * the new time, whether its day has room, and what moving does.
  */
 export function ConfirmMove({ job, to, close }: MoveProps) {
-  const action = useAction("The Job wasn't moved. Please try again.");
+  const action = useAction("The job wasn't moved. Please try again.");
   const room = useRoom(job, to);
   const unchanged =
     to.date === dayOfInstant(job.startsAt) &&
@@ -110,9 +109,8 @@ export function ConfirmMove({ job, to, close }: MoveProps) {
       )}
       {room && !unchanged && <RoomAt room={room} job={job} />}
       <p className="text-sm text-fg-muted">
-        Its crew are each Offered it afresh, to confirm the new time. Its
-        reminder is reset, and the Client and the crew are emailed. It costs the
-        Client nothing.
+        Its cleaners are asked to confirm the new time, and we'll email them and
+        the client. It's free for the client.
       </p>
       {action.problem && <Notice tone="danger">{action.problem}</Notice>}
       <Actions>
@@ -124,7 +122,7 @@ export function ConfirmMove({ job, to, close }: MoveProps) {
           isDisabled={!chosen || unchanged || !fits}
           onPress={() => void move()}
         >
-          Move Job
+          Move job
         </Button>
       </Actions>
     </>
@@ -140,8 +138,8 @@ function RoomAt({ room, job }: { room: DayCapacity; job: ScheduledJob }) {
   return (
     <p className="text-sm text-fg-muted">
       {room.date === dayOfInstant(job.startsAt)
-        ? `It stays on ${day}, and a crew is free then.`
-        : `${day} has ${formatHours(room.freeHours)} free; this Job needs ${formatHours(job.labourHours)}, and a crew is free then.`}
+        ? `There's room then.`
+        : `There's room on ${day} then.`}
     </p>
   );
 }
@@ -158,8 +156,8 @@ export function MoveJob({
 }) {
   return (
     <DialogTrigger>
-      {trigger ?? <Button variant="secondary">Move Job</Button>}
-      <Dialog title="Move this Job" size="wide">
+      {trigger ?? <Button variant="secondary">Move job</Button>}
+      <Dialog title="Move this job" size="wide">
         {({ close }) => <ChooseTime job={job} close={close} />}
       </Dialog>
     </DialogTrigger>

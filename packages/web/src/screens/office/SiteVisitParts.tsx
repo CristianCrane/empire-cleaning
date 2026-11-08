@@ -153,13 +153,13 @@ function BookingForm({
     >
       {problem && (
         <Notice tone="danger">
-          The Staff couldn't be loaded. Please try again.
+          The staff list didn't load. Please try again.
         </Notice>
       )}
       <Select
         label="Who visits"
         name="staffId"
-        placeholder={staff ? "Choose someone" : "Loading…"}
+        placeholder={staff ? "Pick someone" : "Loading…"}
         selectedKey={staffId ?? null}
         onSelectionChange={(key) => setStaffId(String(key))}
       >
@@ -181,7 +181,7 @@ function BookingForm({
           onChange={setTime}
         />
         <NumberField
-          label="Duration in minutes"
+          label="How long, in minutes"
           name="minutes"
           minValue={15}
           maxValue={480}
@@ -207,7 +207,7 @@ function BookingForm({
               }
             : undefined
         }
-        label="Site Visit"
+        label="Site visit"
         inline
         onPick={(at) => {
           setDate(parseDate(at.date));
@@ -216,11 +216,11 @@ function BookingForm({
       />
       <p className="text-sm text-fg-muted">
         {visitor?.roles.includes("cleaner")
-          ? "A Cleaner's visit takes their hours that day, like a one-person Job. "
+          ? "A cleaner's visit uses their working hours that day. "
           : visitor
-            ? "Office Staff's visits take no Cleaner hours. "
+            ? "Office staff visits don't use any cleaner hours. "
             : ""}
-        The Client is emailed, and calls to change it.
+        We'll email the client, who can call us to change it.
       </p>
       {action.problem && <Notice tone="danger">{action.problem}</Notice>}
       <Actions>
@@ -244,7 +244,7 @@ export function BookSiteVisit({
   primary?: boolean;
 }) {
   const navigate = useNavigate();
-  const action = useAction("The Site Visit wasn't booked. Please try again.");
+  const action = useAction("The site visit wasn't booked. Please try again.");
   return (
     <DialogTrigger>
       <Button
@@ -252,12 +252,12 @@ export function BookSiteVisit({
         size={primary ? "md" : "sm"}
       >
         <CalendarPlus aria-hidden size={primary ? 18 : 16} />
-        Book a Site Visit
+        Book a site visit
       </Button>
-      <Dialog title="Book a Site Visit" size="wide">
+      <Dialog title="Book a site visit" size="wide">
         {({ close }) => (
           <BookingForm
-            submitLabel="Book Site Visit"
+            submitLabel="Book site visit"
             action={action}
             close={close}
             onSubmit={async (booking) => {
@@ -267,7 +267,7 @@ export function BookSiteVisit({
                   ...booking,
                   quoteId,
                 });
-              }, "Site Visit booked");
+              }, "Site visit booked");
               if (booked) {
                 close();
                 await navigate({
@@ -284,26 +284,26 @@ export function BookSiteVisit({
 }
 
 export function MoveSiteVisit({ visit }: { visit: OfficeSiteVisit }) {
-  const action = useAction("The Site Visit wasn't changed. Please try again.");
+  const action = useAction("The site visit wasn't changed. Please try again.");
   return (
     <DialogTrigger>
       <Button variant="text" size="sm">
         <CalendarClock aria-hidden size={16} />
         Move or change
       </Button>
-      <Dialog title="Move this Site Visit" size="wide">
+      <Dialog title="Move this site visit" size="wide">
         {({ close }) => (
           <BookingForm
             initial={visit}
             visitId={visit.id}
-            submitLabel="Save and tell the Client"
+            submitLabel="Save and tell the client"
             action={action}
             close={close}
             onSubmit={async (booking) => {
               if (
                 await action.run(
                   () => postJson(`/api/site-visits/${visit.id}/move`, booking),
-                  "Site Visit changed",
+                  "Site visit changed",
                 )
               )
                 close();
@@ -317,7 +317,7 @@ export function MoveSiteVisit({ visit }: { visit: OfficeSiteVisit }) {
 
 export function CancelSiteVisit({ visit }: { visit: OfficeSiteVisit }) {
   const action = useAction(
-    "The Site Visit wasn't cancelled. Please try again.",
+    "The site visit wasn't cancelled. Please try again.",
   );
   return (
     <DialogTrigger>
@@ -325,11 +325,11 @@ export function CancelSiteVisit({ visit }: { visit: OfficeSiteVisit }) {
         <CalendarX aria-hidden size={16} />
         Cancel visit
       </Button>
-      <Dialog title="Cancel this Site Visit?" role="alertdialog">
+      <Dialog title="Cancel this site visit?" role="alertdialog">
         {({ close }) => (
           <>
             <p>
-              The Client is emailed that it's cancelled. Book another when
+              We'll email the client that it's cancelled. Book another when
               they're ready.
             </p>
             {action.problem && <Notice tone="danger">{action.problem}</Notice>}
@@ -344,13 +344,13 @@ export function CancelSiteVisit({ visit }: { visit: OfficeSiteVisit }) {
                   if (
                     await action.run(
                       () => postJson(`/api/site-visits/${visit.id}/cancel`),
-                      "Site Visit cancelled",
+                      "Site visit cancelled",
                     )
                   )
                     close();
                 }}
               >
-                Cancel Site Visit
+                Cancel site visit
               </Button>
             </Actions>
           </>
@@ -460,7 +460,7 @@ function FindingsForm({
       <TextField
         label="Office notes (optional)"
         name="officeNotes"
-        description="Only Office Staff see these."
+        description="Only office staff see these."
         multiline
         value={notes}
         onChange={setNotes}
@@ -496,7 +496,7 @@ export function RecordFindings({
         <ClipboardCheck aria-hidden size={18} />
         Record findings
       </Button>
-      <Dialog title="What the Site Visit found" size="lg">
+      <Dialog title="What the site visit found" size="lg">
         {({ close }) => (
           <FindingsForm
             property={visit.property}
@@ -541,8 +541,8 @@ export function RecordFindingsWithoutVisit({
         {({ close }) => (
           <>
             <p className="text-sm text-fg-muted">
-              For premises you know already. It counts as a Site Visit Done, so
-              a Quote can be sent.
+              For a place you already know. It counts as a done site visit, so
+              you can send a quote.
             </p>
             <FindingsForm
               property={property}

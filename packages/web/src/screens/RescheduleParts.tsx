@@ -95,7 +95,7 @@ export function ChooseNewTime(props: Props) {
   return (
     <DialogTrigger>
       {props.trigger ?? <Button variant="secondary">{props.label}</Button>}
-      <Dialog title="Choose a new time" size={props.size}>
+      <Dialog title="Pick a new time" size={props.size}>
         {({ close }) => <NewTimeForm {...props} close={close} />}
       </Dialog>
     </DialogTrigger>
@@ -121,7 +121,7 @@ function NewTimeForm({
   });
 
   const loadFailed = useEffectEvent(() =>
-    action.fail("The times couldn't be loaded. Please try again."),
+    action.fail("The times didn't load. Please try again."),
   );
 
   useEffect(() => {
@@ -148,7 +148,7 @@ function NewTimeForm({
 
   const send = async () => {
     if (!date || !time) {
-      action.fail("Choose a day and a start time");
+      action.fail("Pick a day and a start time");
       return;
     }
     const ok = await action.run(
@@ -170,7 +170,7 @@ function NewTimeForm({
       <Select
         label="Day"
         description="Only days with room for this clean are shown."
-        placeholder="Choose a day"
+        placeholder="Pick a day"
         selectedKey={date}
         onSelectionChange={(key) => choose(key === null ? null : String(key))}
       >
@@ -184,10 +184,10 @@ function NewTimeForm({
         label="Start time"
         description={
           date
-            ? "New York time. Only times with a crew free are shown."
+            ? "New York time. Only times with cleaners free are shown."
             : "New York time. Choose a day first."
         }
-        placeholder="Choose a time"
+        placeholder="Pick a time"
         isDisabled={!date}
         selectedKey={time}
         onSelectionChange={(key) => setTime(key === null ? null : String(key))}
@@ -221,8 +221,7 @@ function NewTimeForm({
       )}
       {times && times.days.length === 0 && (
         <Notice tone="warning">
-          There's no day with room in the next few weeks. Please call the
-          Office.
+          There's no day with room in the next few weeks. Please call us.
         </Notice>
       )}
       {times && times.days.length > 0 && (
@@ -240,7 +239,7 @@ function NewTimeForm({
               )}
               <details className="text-sm">
                 <summary className="cursor-pointer font-semibold text-primary">
-                  Or choose from a list
+                  Or pick from a list
                 </summary>
                 <div className="mt-3 flex flex-col gap-4">{fields}</div>
               </details>
@@ -257,8 +256,8 @@ function NewTimeForm({
         <strong>{describeCost(terms.cost, terms.feeCents)}</strong>
       </p>
       <p className="text-sm text-fg-muted">
-        The new time is held while the Office confirms it. Until then, the clean
-        stays booked for its current time.
+        We'll hold the new time while we confirm it. Until then, the clean stays
+        at its current time.
       </p>
       {unchanged && <Notice>{SAME_TIME}</Notice>}
       {action.problem && <Notice tone="danger">{action.problem}</Notice>}

@@ -29,6 +29,7 @@ import { linkTo } from "../../links.ts";
 import {
   addressOf,
   clientName,
+  crewOf,
   dayOfInstant,
   formatDateTime,
   formatDay,
@@ -154,11 +155,7 @@ function PlanJobs({ plan }: { plan: OfficeServicePlan }) {
             key={job.id}
             id={job.id}
             title={formatDateTime(job.startsAt)}
-            description={
-              job.crew.length > 0
-                ? job.crew.map((c) => c.name).join(", ")
-                : "Nobody Offered yet"
-            }
+            description={crewOf(job.crew)}
             end={<JobBadge job={job} />}
             onAction={() =>
               void navigate({

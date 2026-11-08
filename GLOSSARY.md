@@ -169,7 +169,7 @@ _Avoid_: Dispatch, crew allocation, accept, decline, holding a place
 _On screen_: none: a cleaner is offered, confirms or releases the job itself
 
 **Cleaner Needed**:
-One of a Job's Crew Size that no Assignment puts on its crew, as the Office sees it in "Needs 1 more Cleaner". Once the Job is within 7 days of starting, it is open to every Cleaner free for it, except any who said it's not for them, and the first to Confirm takes it. Free here is stricter than for Schedule room: Available Hours that day and no Job or Site Visit of theirs overlapping it (ADR-0019). Until they Confirm, a Cleaner sees only its Service, time, Crew Size and area.
+One of a Job's Crew Size that no Assignment puts on its crew, as the Office sees it in "Needs 1 more cleaner". Once the Job is within 7 days of starting, it is open to every Cleaner free for it, except any who said it's not for them, and the first to Confirm takes it. Free here is stricter than for Schedule room: Available Hours that day and no Job or Site Visit of theirs overlapping it (ADR-0019). Until they Confirm, a Cleaner sees only its Service, time, Crew Size and area.
 _Avoid_: Open Place, place, vacancy, shift, open job, broadcast
 _On screen_: open job
 

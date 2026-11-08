@@ -33,6 +33,7 @@ import {
 } from "../CalendarGrid.tsx";
 import {
   crewLabel,
+  crewOf,
   crewTone,
   dayOfInstant,
   formatClock,
@@ -92,9 +93,6 @@ const toneOf = (job: ScheduledJob) => {
       : { label: crewLabel[job.assignment], tone: crewTone[job.assignment] };
   return { label, tone, block: blockOf[tone] };
 };
-
-const crewOf = (job: ScheduledJob) =>
-  job.crew.map((c) => c.name).join(", ") || "No crew yet";
 
 // a Site Visit's place on the time axis
 const visitSpanOf = (visit: ScheduledSiteVisit) => {
@@ -305,7 +303,9 @@ export function ScheduleCalendar({
                         axisStart={axis.start}
                         hours={PICK_HOURS}
                         className={crewFree ? "" : NO_CREW}
-                        label={crewFree ? undefined : "no crew free"}
+                        label={
+                          crewFree ? undefined : "not enough cleaners free"
+                        }
                         onPick={onPick}
                       >
                         {/* every half hour shows its time when pointed at; only
@@ -314,7 +314,7 @@ export function ScheduleCalendar({
                           className={`text-fg-muted ${limits ? "" : "opacity-0 group-hover:opacity-100"}`}
                         >
                           {formatClock(time)}
-                          {!crewFree && " · no crew free"}
+                          {!crewFree && " · not enough cleaners free"}
                         </span>
                       </PickSlot>
                     );
@@ -369,7 +369,7 @@ function MoreJobs({
   interactive: boolean;
 }) {
   const navigate = useNavigate();
-  const title = `More Jobs on ${formatDay(date)}`;
+  const title = `More jobs on ${formatDay(date)}`;
 
   return (
     <DialogTrigger>
@@ -399,7 +399,7 @@ function MoreJobs({
                     id={job.id}
                     textValue={`${formatTime(job.startsAt)} ${shortClientName(job.client)}`}
                     title={`${formatTime(job.startsAt)} · ${shortClientName(job.client)}`}
-                    description={crewOf(job)}
+                    description={crewOf(job.crew)}
                     end={
                       <StatusBadge tone={tone.tone}>{tone.label}</StatusBadge>
                     }
@@ -460,7 +460,7 @@ function DayHeader({
       </div>
       <p className="text-xs text-fg-muted">
         {nobody && day.bookedHours === 0
-          ? "Nobody available"
+          ? "Nobody working"
           : [
               `${formatHours(day.bookedHours)} booked`,
               ...(day.heldHours > 0
@@ -585,7 +585,7 @@ function DayJobs({
       {jobs.map(({ job, block }) => {
         const style = place(block);
         const tone = toneOf(job);
-        const crew = crewOf(job);
+        const crew = crewOf(job.crew);
         // too short for three lines: the time and Client, the rest unseen
         // but still read out
         const compact = style.height < COMPACT_PX;
@@ -659,7 +659,7 @@ function DayJobs({
               {formatTime(visit.startsAt)} {shortClientName(visit.client)}
             </span>
             <span className={compact ? "sr-only" : "truncate"}>
-              Site Visit · {formatMinutes(visit.minutes)}
+              Site visit · {formatMinutes(visit.minutes)}
             </span>
             <span className={compact ? "sr-only" : "truncate text-fg-muted"}>
               {visit.visitor?.name}

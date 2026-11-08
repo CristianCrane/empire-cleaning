@@ -168,7 +168,7 @@ const noticesFor = (job: OfficeJob): ReactNode[] => {
     notices.push(
       <Notice key="completed" tone="success">
         <p>
-          <strong>Completed {formatDateTime(completion.completedAt)}</strong>
+          <strong>Done {formatDateTime(completion.completedAt)}</strong>
           {completion.completedBy && ` by ${completion.completedBy.name}`}.
         </p>
       </Notice>,
@@ -193,7 +193,7 @@ const noticesFor = (job: OfficeJob): ReactNode[] => {
       >
         <p>
           <strong>
-            {request.byClient ? "The Client asked" : "The Office asked"} to move
+            {request.byClient ? "The client asked" : "The office asked"} to move
             it to {formatDateTime(request.startsAt)}.
           </strong>{" "}
           {costForOffice(request.cost, request.feeCents, job)} The new time is
@@ -225,10 +225,10 @@ const noticesFor = (job: OfficeJob): ReactNode[] => {
       <Notice key="review" tone="warning">
         <p>
           <strong>
-            The Cleaner reported {toReview}{" "}
-            {toReview === 1 ? "increase" : "increases"} to review.
+            The cleaner reported {toReview}{" "}
+            {toReview === 1 ? "price change" : "price changes"} to check.
           </strong>{" "}
-          Each is only added once the Client approves it.
+          Each is only added once the client approves it.
         </p>
       </Notice>,
     );
@@ -239,10 +239,10 @@ const noticesFor = (job: OfficeJob): ReactNode[] => {
         <p>
           <strong>
             Unpaid since {formatDate(payment.unpaid.since)}:{" "}
-            {formatMoney(payment.owedCents)} couldn't be charged
+            {formatMoney(payment.owedCents)} didn't go through
           </strong>{" "}
-          ({payment.unpaid.reason}). The Client has been emailed to update their
-          Payment Method, which tries again.
+          ({payment.unpaid.reason}). We've emailed the client to update their
+          card, which tries again.
         </p>
       </Notice>,
     );
@@ -254,8 +254,7 @@ const noticesFor = (job: OfficeJob): ReactNode[] => {
         action={<OfferServicePlan propertyId={job.property.id} />}
       >
         <p>
-          This home's First Clean is Completed, so it can be offered regular
-          cleaning.
+          This home's first clean is done, so you can offer a cleaning plan.
         </p>
       </Notice>,
     );
@@ -296,9 +295,9 @@ function JobFacts({ job }: { job: OfficeJob }) {
       </dd>
       <dt className="font-semibold">Add-ons</dt>
       <dd>{job.addOns.length > 0 ? job.addOns.join(", ") : "None"}</dd>
-      <dt className="font-semibold">Labour Hours</dt>
+      <dt className="font-semibold">Cleaning hours</dt>
       <dd>{formatHours(job.labourHours)}</dd>
-      <dt className="font-semibold">Crew</dt>
+      <dt className="font-semibold">Cleaners</dt>
       <dd>
         {job.crewSize}, {formatHours(job.hoursOnSite)} on site
       </dd>
@@ -312,7 +311,7 @@ function JobFacts({ job }: { job: OfficeJob }) {
         <>
           <dt className="font-semibold">Cancelling</dt>
           <dd>
-            Free for the Client until{" "}
+            Free for the client until{" "}
             {formatDateTime(job.cancelTerms.client.freeUntil)}
           </dd>
         </>
@@ -350,7 +349,7 @@ function Crew({ job }: { job: OfficeJob }) {
   return (
     <Section
       title="Crew"
-      description={`${confirmed} of ${cleaners(job.crewSize)} Confirmed`}
+      description={`${confirmed} of ${cleaners(job.crewSize)} confirmed`}
       actions={
         booked(job) &&
         job.cleanersNeeded > 0 &&
@@ -389,19 +388,19 @@ function OpenTo({ job }: { job: OfficeJob }) {
   const { opensAt, opened, cleaners: free, passedBy } = job.openTo;
   const firstTo =
     job.cleanersNeeded === 1
-      ? "the first to confirm joins"
-      : `the first ${job.cleanersNeeded} to confirm join`;
+      ? "the first to confirm gets it"
+      : `the first ${job.cleanersNeeded} to confirm get it`;
   return (
     <>
       <p>
         {!opened
-          ? `It opens to free Cleaners on ${formatDateTime(opensAt)}.`
+          ? `Free cleaners can take it from ${formatDateTime(opensAt)}.`
           : free === 0
             ? `No cleaner is free then. Offer it to someone, or ${MORE_HOURS}.`
-            : `It's open to ${cleaners(free, "free")}: ${firstTo} the crew.`}
+            : `${cleaners(free, "free")} can take it: ${firstTo}.`}
       </p>
       {passedBy.length > 0 && (
-        <p>Not for them: {passedBy.map((p) => p.name).join(", ")}.</p>
+        <p>Said no: {passedBy.map((p) => p.name).join(", ")}.</p>
       )}
     </>
   );
@@ -413,9 +412,9 @@ function OfferToCleaner({ job }: { job: OfficeJob }) {
     <DialogTrigger>
       <Button variant="text" size="sm">
         <UserPlus aria-hidden size={16} />
-        Offer to a Cleaner
+        Offer to a cleaner
       </Button>
-      <Dialog title="Offer to a Cleaner">
+      <Dialog title="Offer to a cleaner">
         {({ close }) => <Offer job={job} close={close} />}
       </Dialog>
     </DialogTrigger>
@@ -428,7 +427,7 @@ function Offer({ job, close }: { job: OfficeJob; close: () => void }) {
 
   const offer = async () => {
     if (!staffId) {
-      action.fail("Choose a Cleaner");
+      action.fail("Pick a cleaner");
       return;
     }
     const name = job.cleaners.find((c) => c.id === staffId)?.name;
@@ -448,8 +447,8 @@ function Offer({ job, close }: { job: OfficeJob; close: () => void }) {
     >
       <Select
         label="Offer to"
-        description={`It needs ${cleaners(job.cleanersNeeded, "more")}. Hours are what each is available that day.`}
-        placeholder="Choose a Cleaner"
+        description={`It needs ${cleaners(job.cleanersNeeded, "more")}. The hours are how long each can work that day.`}
+        placeholder="Pick a cleaner"
         selectedKey={staffId}
         onSelectionChange={(key) =>
           setStaffId(key === null ? null : String(key))
@@ -487,7 +486,7 @@ function Remove({
   const remove = async (close: () => void) => {
     const ok = await action.run(
       () => deleteJson(`/api/jobs/${job.id}/assignments/${assignment.id}`),
-      `${name} taken off the Job`,
+      `${name} taken off the job`,
     );
     if (ok) close();
   };
@@ -497,12 +496,12 @@ function Remove({
       <Button variant="quiet" size="sm" aria-label={`Remove ${name}`}>
         Remove
       </Button>
-      <Dialog title={`Take ${name} off this Job?`} role="alertdialog">
+      <Dialog title={`Take ${name} off this job?`} role="alertdialog">
         {({ close }) => (
           <>
             <p>
-              The Job then needs another Cleaner, to offer it to someone else.
-              We'll email {name} to say they don't need to go.
+              The job will need another cleaner. We'll email {name} to say they
+              don't need to go.
             </p>
             {action.problem && <Notice tone="danger">{action.problem}</Notice>}
             <Actions>

@@ -94,7 +94,7 @@ test("Office Staff see what's waiting counted by kind, and pick one to see only 
   await jobs.click();
   await expect(jobs).toBeChecked();
   await expect(needsAttention.getByRole("row")).toHaveCount(1);
-  await expect(needsAttention).toContainText("Assign Staff");
+  await expect(needsAttention).toContainText("Find cleaners");
 
   await page.getByRole("button", { name: "Show all 2" }).click();
   await expect(jobs).not.toBeChecked();

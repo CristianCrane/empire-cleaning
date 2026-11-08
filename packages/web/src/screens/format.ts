@@ -39,9 +39,13 @@ export const plural = (n: number, one: string) =>
 
 const sqFt = new Intl.NumberFormat("en-US");
 // 4500 -> "4,500 sq ft"
-// so many Cleaners, e.g. "1 Cleaner", "2 more Cleaners", "3 free Cleaners"
+// so many cleaners, e.g. "1 cleaner", "2 more cleaners", "3 free cleaners"
 export const cleaners = (n: number, which?: "more" | "free") =>
-  plural(n, which ? `${which} Cleaner` : "Cleaner");
+  plural(n, which ? `${which} cleaner` : "cleaner");
+
+// a Job's crew, or that it has none yet
+export const crewOf = (crew: { name: string }[]) =>
+  crew.map((c) => c.name).join(", ") || "No cleaners yet";
 
 export const formatFloorArea = (area: number) => `${sqFt.format(area)} sq ft`;
 
@@ -126,7 +130,7 @@ export const formatHours = (hours: number) => `${hours} h`;
 
 export const roleLabel = {
   cleaner: "Cleaner",
-  office_staff: "Office Staff",
+  office_staff: "Office staff",
 };
 
 // Empire Cleaning's days and times are New York's, wherever the viewer is
@@ -326,9 +330,9 @@ export const siteVisitStatusLabel = {
 // went well, cancelled is over, No Access went wrong (JobStatusBadge)
 export const jobStatusLabel: Record<JobStatus, string> = {
   booked: "Booked",
-  completed: "Completed",
+  completed: "Done",
   cancelled: "Cancelled",
-  no_access: "No Access",
+  no_access: "Couldn't get in",
 };
 
 export const jobStatusTone = {
@@ -340,8 +344,8 @@ export const jobStatusTone = {
 
 // whether a booked Job's crew is whole, as the Office sees it (JobBadge)
 export const crewLabel: Record<AssignmentStatus, string> = {
-  assigned: "Assigned",
-  unassigned: "Unassigned",
+  assigned: "Staffed",
+  unassigned: "Needs cleaners",
 };
 
 export const crewTone = {
@@ -353,7 +357,7 @@ export const crewTone = {
 export const assignmentStateLabel: Record<AssignmentState, string> = {
   offered: "Offered",
   confirmed: "Confirmed",
-  released: "Released",
+  released: "Can't make it",
   taken_off: "Taken off",
 };
 

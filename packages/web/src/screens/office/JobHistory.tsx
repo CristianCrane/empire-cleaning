@@ -42,11 +42,11 @@ const assignmentAnswered: Record<
 > = {
   confirmed: {
     icon: UserCheck,
-    title: (name) => `${name} ${assignmentStateLabel.confirmed}`,
+    title: (name) => `${name} ${assignmentStateLabel.confirmed.toLowerCase()}`,
   },
   released: {
     icon: UserMinus,
-    title: (name) => `${name} ${assignmentStateLabel.released}`,
+    title: (name) => `${name} ${assignmentStateLabel.released.toLowerCase()}`,
   },
   taken_off: {
     icon: UserMinus,

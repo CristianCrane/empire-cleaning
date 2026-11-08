@@ -177,21 +177,21 @@ eachTheme(() => {
       .click();
     await expect(step(page, "A new time")).toBeHidden();
     await page.reload();
-    await expect(step(page, "Needs a Cleaner")).toBeVisible();
-    await expectPointedAt(page, "Offer to a Cleaner");
-    await step(page, "Needs a Cleaner")
+    await expect(step(page, "Needs a cleaner")).toBeVisible();
+    await expectPointedAt(page, "Offer to a cleaner");
+    await step(page, "Needs a cleaner")
       .getByRole("button", { name: "Got it" })
       .click();
-    await expect(step(page, "Needs a Cleaner")).toBeHidden();
+    await expect(step(page, "Needs a cleaner")).toBeHidden();
 
     await page.getByRole("link", { name: "Schedule", exact: true }).click();
-    await expect(step(page, "Your Schedule")).toBeVisible();
+    await expect(step(page, "Your schedule")).toBeVisible();
     await expectPointedAt(page, "Jobs on");
     await expectAccessible(page);
-    await step(page, "Your Schedule")
+    await step(page, "Your schedule")
       .getByRole("button", { name: "Got it" })
       .click();
-    await expect(step(page, "Your Schedule")).toBeHidden();
+    await expect(step(page, "Your schedule")).toBeHidden();
 
     await expectEachSeen(page, officeTours);
   });

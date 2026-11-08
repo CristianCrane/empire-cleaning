@@ -151,7 +151,7 @@ test(
     await page.getByRole("link", { name: "View Property" }).click();
     await expect(page).toHaveURL(/\/office\/properties\//);
     await page.getByRole("button", { name: "Correct" }).click();
-    await choose(page, /Type of premises/, "Medical");
+    await choose(page, /Type of business/, "Medical");
     await page
       .getByRole("textbox", { name: "Floor area in sq ft" })
       .fill("2000");
@@ -214,7 +214,7 @@ test("Office Staff quote a business caller from New Quote", async ({
     .click();
   await page.getByRole("textbox", { name: "Street address" }).fill("9 Main St");
   await page.getByRole("textbox", { name: "ZIP code" }).fill("11375");
-  await choose(page, /Type of premises/, "Retail");
+  await choose(page, /Type of business/, "Retail");
   await page.getByText("One-off", { exact: true }).click();
   // a first idea only: the floor area isn't known
   await expect(

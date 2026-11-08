@@ -181,7 +181,7 @@ export function PremisesTypeField({
 }) {
   return (
     <Select
-      label="Type of premises"
+      label="Type of business"
       name="premisesType"
       selectedKey={value}
       onSelectionChange={(key) => onChange(String(key))}

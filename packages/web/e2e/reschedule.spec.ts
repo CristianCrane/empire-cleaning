@@ -58,11 +58,11 @@ test(
     await expect(card).toContainText(
       "You can move it for free until Sun, Jan 11, 9:00 AM.",
     );
-    await card.getByRole("button", { name: "Choose a new time" }).click();
-    const dialog = page.getByRole("dialog", { name: "Choose a new time" });
+    await card.getByRole("button", { name: "Pick a new time" }).click();
+    const dialog = page.getByRole("dialog", { name: "Pick a new time" });
     await expect(dialog).toContainText("There's no charge for moving it.");
     // the keyboard path: the same choice from a list
-    await dialog.getByText("Or choose from a list").click();
+    await dialog.getByText("Or pick from a list").click();
     await choose(page, "Day", "Wed, Jan 14");
     await choose(page, "Start time", "10:00 AM");
     await expect(dialog).toContainText("Move it to Wed, Jan 14 at 10:00 AM");
@@ -116,7 +116,7 @@ test(
       page.getByText("The Client asked to move it to Wed, Jan 14, 10:00 AM."),
     ).toBeVisible();
     await page.getByRole("button", { name: "Answer" }).click();
-    const dialog = page.getByRole("dialog", { name: "Move this Job?" });
+    const dialog = page.getByRole("dialog", { name: "Move this job?" });
     await expect(dialog).toContainText("Mon, Jan 12, 9:00 AM");
     await expect(dialog).toContainText("Wed, Jan 14, 10:00 AM");
     await expectAccessible(page);
@@ -149,7 +149,7 @@ test("Office Staff turn down a Reschedule Request, and the Client sees why", asy
 
   await page.getByRole("button", { name: "Answer" }).click();
   await page
-    .getByRole("dialog", { name: "Move this Job?" })
+    .getByRole("dialog", { name: "Move this job?" })
     .getByRole("button", { name: "Turn down" })
     .click();
   const dialog = page.getByRole("alertdialog", {
@@ -200,11 +200,11 @@ test(
 
     await page
       .getByRole("region", { name: "Need another time?" })
-      .getByRole("button", { name: "Choose a new time" })
+      .getByRole("button", { name: "Pick a new time" })
       .click();
     // a month in the dialog itself: only days with room can be picked,
     // then that day's open times
-    const dialog = page.getByRole("dialog", { name: "Choose a new time" });
+    const dialog = page.getByRole("dialog", { name: "Pick a new time" });
     const month = dialog.getByRole("application", { name: /^Day/ });
     await month.getByRole("button", { name: /January 12, 2026/ }).click();
     const monday = dialog.getByRole("group", {
@@ -250,10 +250,10 @@ test(
 
     await page.getByRole("button", { name: "Ask for a new time" }).click();
     // the Schedule in the dialog itself, never a dialog on a dialog
-    const dialog = page.getByRole("dialog", { name: "Choose a new time" });
+    const dialog = page.getByRole("dialog", { name: "Pick a new time" });
     const schedule = dialog;
     await expect(schedule).toContainText(
-      "Choose one of the start times on offer",
+      "Pick a start time. Grey days are full.",
     );
     await expect(
       schedule
