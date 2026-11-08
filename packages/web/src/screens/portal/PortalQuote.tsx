@@ -57,11 +57,12 @@ import {
 import { ConsentNote, usePaymentForm } from "./CardForm.tsx";
 import {
   ASK_AGAIN,
+  billPaid,
   ON_WEEKS_BILL,
   turnedDown,
   WORKING_ON_IT,
 } from "@empire-cleaning/models";
-import { billPaid, planPaymentLine } from "./payments.ts";
+import { planPaymentLine } from "./payments.ts";
 import { requestQuote } from "./whats-next.ts";
 
 // A Quote as its Client sees it, from the link in every Quote email (ADR-0017):

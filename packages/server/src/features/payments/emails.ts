@@ -6,8 +6,7 @@ import {
   type Email,
 } from "../../services/email/blocks.ts";
 import { firstNameOf } from "../../services/email/format.ts";
-import { ON_WEEKS_BILL } from "@empire-cleaning/models";
-import { billPaid } from "../bills/billed-weekly.ts";
+import { billPaid, ON_WEEKS_BILL } from "@empire-cleaning/models";
 
 // A plain link: it carries no sign-in power (ADR-0006). The rest of a
 // clean is charged when it's done, or goes on its week's Bill (ADR-0016).

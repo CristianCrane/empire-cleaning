@@ -1,5 +1,9 @@
 import { and, desc, eq, inArray, isNull, ne, sql, sum } from "drizzle-orm";
-import type { ChargeView, JobPayment } from "@empire-cleaning/models";
+import {
+  feeName,
+  type ChargeView,
+  type JobPayment,
+} from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { clock } from "../../services/clock/index.ts";
 import { formatWhen } from "../../services/email/index.ts";
@@ -219,11 +223,6 @@ const kindOf = (job: Job) =>
     ? ("fee" as const)
     : ("balance" as const);
 
-const feeLabel = {
-  cancelled: "Late Cancellation fee",
-  no_access: "No Access fee",
-};
-
 const describe = async (tx: Tx, job: Job) => {
   const [property] = await tx
     .select()
@@ -231,7 +230,7 @@ const describe = async (tx: Tx, job: Job) => {
     .where(eq(properties.id, job.propertyId));
   const what =
     job.status === "cancelled" || job.status === "no_access"
-      ? feeLabel[job.status]
+      ? feeName[job.status]
       : "Balance";
   return `${what}: ${await serviceNameOf(job.serviceId, tx)} at ${addressOf(property!)}, ${formatWhen(job.startsAt)}`;
 };

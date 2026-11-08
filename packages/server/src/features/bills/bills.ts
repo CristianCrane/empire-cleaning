@@ -22,6 +22,7 @@ import type {
   ClientBillingSaved,
   SettledJobView,
 } from "@empire-cleaning/models";
+import { adjustmentLabel, feeName } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import env from "../../env.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
@@ -36,7 +37,7 @@ import {
 } from "../../services/clock/index.ts";
 import { email, formatWhen, notify } from "../../services/email/index.ts";
 import { paymentGateway } from "../../services/payment-gateway/index.ts";
-import { ON_HOLD_LINE } from "../cancellation/emails.ts";
+import { BACK_ON_LINE, ON_HOLD_LINE } from "../cancellation/emails.ts";
 import {
   billEmail,
   chargedPerCleanEmail,
@@ -53,7 +54,7 @@ import {
   type Settled,
 } from "../completion/balance.ts";
 import { adjustments } from "../completion/completion.schema.ts";
-import { adjustmentLabel } from "../completion/completion.ts";
+import { NO_QUOTE } from "../completion/pricing.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { REMINDER_TIME } from "../jobs/reminders.ts";
 import { idempotencyKey } from "../payments/keys.ts";
@@ -87,11 +88,6 @@ const CREDIT_REFUND_DAYS = 30;
 const BILL_REMINDER_DAYS = 3;
 // why a Bill paid on its page is Unpaid
 const LATE_REASON = "not paid by its due date";
-
-const feeLabel = {
-  cancelled: "Late Cancellation fee",
-  no_access: "No Access fee",
-};
 
 // EC-000123
 export const billNumber = (number: number) =>
@@ -144,8 +140,7 @@ const partsOf = async (
     .select()
     .from(charges)
     .where(eq(charges.jobId, job.id));
-  if (!quoted)
-    throw new ConflictError("This Job has no Quote to price it from");
+  if (!quoted) throw new ConflictError(NO_QUOTE);
   const given =
     taken.length === 0
       ? []
@@ -231,7 +226,7 @@ const partsOf = async (
       : [
           share(
             "fee",
-            `${feeLabel[job.status as "cancelled" | "no_access"]}: ${what}`,
+            `${feeName[job.status as "cancelled" | "no_access"]}: ${what}`,
             job.feeCents ?? 0,
           ),
         ];
@@ -783,6 +778,13 @@ export const finishBillPayment = async (
 
 // ---- the Office ----
 
+// why Office Staff can't act on a Bill that isn't due: `then` follows a bank
+// payment still on its way
+const notDue = (bill: Pick<Bill, "status">, then = "") =>
+  bill.status === "processing"
+    ? `A bank payment for this Bill is on its way${then}.`
+    : `This Bill is already ${bill.status === "void" ? "voided" : "paid"}.`;
+
 /**
  * Office Staff void a Bill that shouldn't have gone out, while it's unpaid:
  * it stays, as voided, and everything on it goes on the next Bill, or is
@@ -801,11 +803,7 @@ export const voidBill = async (
       .for("update");
     if (!bill) throw new NotFoundError("Bill not found");
     if (bill.status !== "due") {
-      throw new ConflictError(
-        bill.status === "processing"
-          ? "A bank payment for this Bill is on its way, so it can't be voided."
-          : `This Bill is already ${bill.status === "void" ? "voided" : "paid"}.`,
-      );
+      throw new ConflictError(notDue(bill, ", so it can't be voided"));
     }
     await tx
       .update(bills)
@@ -866,11 +864,7 @@ export const recordOutsidePayment = async (
       .for("update");
     if (!bill) throw new NotFoundError("Bill not found");
     if (bill.status !== "due") {
-      throw new ConflictError(
-        bill.status === "processing"
-          ? "A bank payment for this Bill is on its way."
-          : `This Bill is already ${bill.status === "void" ? "voided" : "paid"}.`,
-      );
+      throw new ConflictError(notDue(bill));
     }
     await tx
       .update(bills)
@@ -1020,7 +1014,7 @@ const settleEach = async (jobIds: string[]) => {
 const labelOf = async (job: Job, property: Property) => {
   const what = `${await serviceNameOf(job.serviceId)} at ${addressOf(property)}, ${formatWhen(job.startsAt)}`;
   return job.status === "cancelled" || job.status === "no_access"
-    ? `${feeLabel[job.status]}: ${what}`
+    ? `${feeName[job.status]}: ${what}`
     : what;
 };
 
@@ -1405,13 +1399,7 @@ const sendBill = async (
 
 const tellPaid = (billId: string, plan: "held" | "resumed" | null) =>
   notify(`Receipt for Bill ${billId}`, () =>
-    sendBill(
-      billId,
-      "paid",
-      plan === "resumed"
-        ? ["Your Service Plan is back on, and we'll book your cleans as usual."]
-        : [],
-    ),
+    sendBill(billId, "paid", plan === "resumed" ? [BACK_ON_LINE] : []),
   );
 
 const tellDebitFailed = (billId: string, plan: "held" | "resumed" | null) =>

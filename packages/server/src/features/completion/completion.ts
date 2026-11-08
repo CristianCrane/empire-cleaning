@@ -9,16 +9,18 @@ import {
   lte,
   ne,
 } from "drizzle-orm";
-import type {
-  AdjustmentCorrection,
-  AdjustmentProposal,
-  AdjustmentView,
-  CleanerJob,
-  ClientJobDetail,
-  ClientPastJob,
-  CompletionInput,
-  Condition,
-  JobCompletion,
+import {
+  adjustmentItem,
+  adjustmentLabel,
+  type AdjustmentCorrection,
+  type AdjustmentProposal,
+  type AdjustmentView,
+  type CleanerJob,
+  type ClientJobDetail,
+  type ClientPastJob,
+  type CompletionInput,
+  type Condition,
+  type JobCompletion,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
@@ -79,21 +81,11 @@ import { hoursOnSiteOf } from "../jobs/jobs.ts";
 // a proposed increase the Client hasn't answered lapses after this long, with
 // one reminder this long before it does (ADR-0009)
 const ANSWER_DAYS = 7;
+
+// a change to the price that the Office, or its Client, has dealt with already
+const REVIEWED = "This Adjustment has already been reviewed";
+const ANSWERED = "You've already answered this.";
 const REMINDER_DAYS_BEFORE = 2;
-
-// what an Adjustment changed, by name: "Inside the fridge", "1 extra hour"
-const adjustmentItem = (a: Pick<Adjustment, "kind" | "addOnName" | "hours">) =>
-  a.kind === "extra_time"
-    ? `${a.hours} extra ${a.hours === 1 ? "hour" : "hours"}`
-    : a.addOnName!;
-
-// "Inside the oven, done on the day", "1.5 extra hours"
-export const adjustmentLabel = (
-  a: Pick<Adjustment, "kind" | "addOnName" | "hours">,
-) =>
-  a.kind === "extra_time"
-    ? adjustmentItem(a)
-    : `${a.addOnName}, ${a.kind === "add_on_done" ? "done on the day" : "not done"}`;
 
 /**
  * A Property's Condition is what its latest Completed Job reported (#244
@@ -454,7 +446,7 @@ export const proposeAdjustment = async (
 ) => {
   const { adjustment } = await findAdjustment(jobId, adjustmentId);
   if (adjustment.status !== "reported") {
-    throw new ConflictError("This Adjustment has already been reviewed");
+    throw new ConflictError(REVIEWED);
   }
   const quoted = await quotedJob(jobId);
   const priceCents = proposal.priceCents ?? adjustment.workedOutCents;
@@ -481,7 +473,7 @@ export const proposeAdjustment = async (
     )
     .returning();
   if (!proposed) {
-    throw new ConflictError("This Adjustment has already been reviewed");
+    throw new ConflictError(REVIEWED);
   }
 
   const { job, property, client } = await jobWithOwner(jobId);
@@ -534,7 +526,7 @@ export const dismissAdjustment = async (
     )
     .returning();
   if (!dismissed) {
-    throw new ConflictError("This Adjustment has already been reviewed");
+    throw new ConflictError(REVIEWED);
   }
 };
 
@@ -913,7 +905,7 @@ export const answerAdjustment = async (
     throw new ConflictError(
       lapsed || adjustment.status === "lapsed"
         ? "This has lapsed, so it won't be charged."
-        : "You've already answered this.",
+        : ANSWERED,
     );
   }
   const [answered] = await db
@@ -923,7 +915,7 @@ export const answerAdjustment = async (
       and(eq(adjustments.id, adjustmentId), eq(adjustments.status, "proposed")),
     )
     .returning();
-  if (!answered) throw new ConflictError("You've already answered this.");
+  if (!answered) throw new ConflictError(ANSWERED);
   if (!approve) return;
 
   const settled = await settleAfterChange(jobId, adjustmentItem(answered));

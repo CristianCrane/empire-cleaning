@@ -13,7 +13,12 @@ import {
   formatMoney,
   formatWhen,
 } from "../../services/email/format.ts";
-import { ON_HOLD_LINE } from "../cancellation/emails.ts";
+import { BACK_ON_LINE, ON_HOLD_LINE } from "../cancellation/emails.ts";
+import {
+  PRICES_INCLUDE_TAX,
+  refundedTo,
+  UPDATE_AND_RETRY,
+} from "@empire-cleaning/models";
 import type { Settled } from "./balance.ts";
 
 const portalButton = (jobId: string, label = "See your clean") =>
@@ -32,20 +37,16 @@ const moneyLines = (settled: Settled, owedCents: number) => {
     );
   }
   if (settled.refundedCents > 0) {
-    lines.push(
-      `We've refunded ${formatMoney(settled.refundedCents)} to your ${card}. It can take a few days to reach you.`,
-    );
+    lines.push(refundedTo(formatMoney(settled.refundedCents), card));
   }
   if (settled.failure) {
     lines.push(
-      `We couldn't charge the ${formatMoney(owedCents)} still to pay to your ${card}. Please update your Payment Method and we'll try again straight away.`,
+      `We couldn't charge the ${formatMoney(owedCents)} still to pay to your ${card}. Please ${UPDATE_AND_RETRY}.`,
     );
   }
   // putting it On Hold is told in the Unpaid notice
   if (settled.plan === "resumed") {
-    lines.push(
-      "Your Service Plan is back on, and we'll book your cleans as usual.",
-    );
+    lines.push(BACK_ON_LINE);
   }
   return lines.map(paragraph);
 };
@@ -75,9 +76,7 @@ export const unpaidEmail = ({
       `We couldn't charge ${formatMoney(owedCents)} for your clean to your ${paymentMethod ?? "card"}.`,
     ),
     cleanDetails(clean),
-    paragraph(
-      "Please update your Payment Method and we'll try again straight away:",
-    ),
+    paragraph(`Please ${UPDATE_AND_RETRY}:`),
     ...(held ? [paragraph(ON_HOLD_LINE)] : []),
     portalButton(jobId, "Update your Payment Method"),
   ],
@@ -138,7 +137,7 @@ export const receiptEmail = ({
         ]
       : []),
     ...moneyLines(settled, owedCents),
-    paragraph("Prices include tax."),
+    paragraph(PRICES_INCLUDE_TAX),
     portalButton(jobId, "See your receipt"),
   ],
 });

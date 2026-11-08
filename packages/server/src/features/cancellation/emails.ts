@@ -10,16 +10,23 @@ import { firstNameOf, formatMoney } from "../../services/email/format.ts";
 import { jobsButton } from "../assignments/emails.ts";
 import type { Settled } from "../completion/balance.ts";
 import { BOOK_ANOTHER } from "../quotes/emails.ts";
+import { refundedTo } from "@empire-cleaning/models";
 
 // for a Client whose plan an Unpaid Job has put On Hold
 export const ON_HOLD_LINE =
   "Until it's paid, your Service Plan is On Hold: cleans already booked go ahead, but we won't book any more.";
+// once it's paid
+export const BACK_ON_LINE =
+  "Your Service Plan is back on, and we'll book your cleans as usual.";
 
 // what was refunded, as a line for the Client
 const refundLine = (settled: Settled) =>
   settled.refundedCents > 0
     ? [
-        `We've refunded ${formatMoney(settled.refundedCents)} to your ${settled.paymentMethod ?? "card"}. It can take a few days to reach you.`,
+        refundedTo(
+          formatMoney(settled.refundedCents),
+          settled.paymentMethod ?? "card",
+        ),
       ]
     : [];
 

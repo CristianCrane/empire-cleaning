@@ -1,5 +1,5 @@
 import { useLoaderData } from "@tanstack/react-router";
-import type { BillView } from "@empire-cleaning/models";
+import { UPDATE_AND_RETRY, type BillView } from "@empire-cleaning/models";
 import {
   Actions,
   Breadcrumbs,
@@ -93,8 +93,7 @@ function Standing({ bill }: { bill: BillView }) {
       <div className="flex flex-col gap-3 print:hidden">
         <Notice tone="danger">
           We couldn't charge {formatMoney(bill.totalCents)} for this Bill to
-          your saved Payment Method. Please pay it below, or update your Payment
-          Method and we'll try again straight away.
+          your saved Payment Method. Please pay it below, or {UPDATE_AND_RETRY}.
         </Notice>
         <Actions>
           <ButtonLink

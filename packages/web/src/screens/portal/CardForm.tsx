@@ -187,6 +187,11 @@ const useStripeElement = (
   return { box, mounted };
 };
 
+// what the form says while the payment provider's part of it isn't ready
+const NOT_LOADED = "The payment form didn't load. Please refresh the page.";
+const LOADING = "The payment form is still loading.";
+const CARD_LOADING = "The card form is still loading.";
+
 const formField = (
   form: PaymentForm | undefined,
   box: RefObject<HTMLDivElement | null>,
@@ -229,11 +234,7 @@ export function usePaymentForm({
     let current = true;
     getJson<PaymentForm>("/api/payment-methods/form")
       .then((next) => current && setForm(next))
-      .catch(
-        () =>
-          current &&
-          setProblem("The payment form didn't load. Please refresh the page."),
-      );
+      .catch(() => current && setProblem(NOT_LOADED));
     return () => {
       current = false;
     };
@@ -265,11 +266,11 @@ export function usePaymentForm({
   }, [amountCents, mounted]);
 
   const token = useCallback(async () => {
-    if (!form) throw new CardProblem("The payment form is still loading.");
+    if (!form) throw new CardProblem(LOADING);
     // a card "entered" in the test form; each is used once
     if (form.form === "test") return `tok_test_${crypto.randomUUID()}`;
     if (!mounted.current) {
-      throw new CardProblem("The payment form is still loading.");
+      throw new CardProblem(LOADING);
     }
     const { stripe, elements } = mounted.current;
     const submitted = await elements.submit();
@@ -357,11 +358,11 @@ export function useCardForm({ enabled = true }: { enabled?: boolean } = {}) {
   );
 
   const save = useCallback(async () => {
-    if (!form) throw new CardProblem("The card form is still loading.");
+    if (!form) throw new CardProblem(CARD_LOADING);
     let token = form.secret;
     if (form.form === "stripe") {
       if (!mounted.current) {
-        throw new CardProblem("The card form is still loading.");
+        throw new CardProblem(CARD_LOADING);
       }
       const { stripe, elements } = mounted.current;
       const result = await stripe.confirmSetup({
@@ -418,11 +419,7 @@ export function useBillPaymentForm(billId: string, enabled: boolean) {
     setForm(undefined);
     postJson<BillPaymentForm>(`/api/bills/mine/${billId}/payment-form`)
       .then((next) => current && setForm(next))
-      .catch(
-        () =>
-          current &&
-          setProblem("The payment form didn't load. Please refresh the page."),
-      );
+      .catch(() => current && setProblem(NOT_LOADED));
     return () => {
       current = false;
     };
@@ -442,10 +439,10 @@ export function useBillPaymentForm(billId: string, enabled: boolean) {
   );
 
   const pay = useCallback(async () => {
-    if (!form) throw new CardProblem("The payment form is still loading.");
+    if (!form) throw new CardProblem(LOADING);
     if (form.form === "stripe") {
       if (!mounted.current) {
-        throw new CardProblem("The payment form is still loading.");
+        throw new CardProblem(LOADING);
       }
       const { stripe, elements } = mounted.current;
       const result = await stripe.confirmPayment({

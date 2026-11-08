@@ -14,10 +14,11 @@ import {
   formatWhen,
   weekdayName,
 } from "../../services/email/format.ts";
-import { billPaid } from "../bills/billed-weekly.ts";
 import {
   ASK_AGAIN,
+  billPaid,
   ON_WEEKS_BILL,
+  PRICES_INCLUDE_TAX,
   quoteEmailedTo,
   turnedDown,
   type PropertyKind,
@@ -295,7 +296,7 @@ export const quoteEmail = ({
             ),
           ]),
       paragraph(
-        `Prices include tax. It's open until ${formatWhen(new Date(offer.expiresAt))}. To see all of it, sign in with this email address (${email}):`,
+        `${PRICES_INCLUDE_TAX} It's open until ${formatWhen(new Date(offer.expiresAt))}. To see all of it, sign in with this email address (${email}):`,
       ),
       button("See your quote", `/portal/quotes/${quoteId}`),
     ],

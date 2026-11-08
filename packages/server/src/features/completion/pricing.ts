@@ -86,13 +86,15 @@ export const quotedJobs = async (
   );
 };
 
+// a Job to be priced from a Quote it hasn't got
+export const NO_QUOTE = "This Job has no Quote to price it from";
+
 export const quotedJob = async (
   jobId: string,
   tx: Tx | typeof db = db,
 ): Promise<QuotedJob> => {
   const quoted = (await quotedJobs([jobId], tx)).get(jobId);
-  if (!quoted)
-    throw new ConflictError("This Job has no Quote to price it from");
+  if (!quoted) throw new ConflictError(NO_QUOTE);
   return quoted;
 };
 

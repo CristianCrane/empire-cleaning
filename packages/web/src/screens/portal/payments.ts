@@ -1,9 +1,10 @@
-import type {
-  BillPayment,
-  BillSummary,
-  ClientPastJob,
-  ClientPayment,
-  PaymentMethodView,
+import {
+  billPaid,
+  type BillPayment,
+  type BillSummary,
+  type ClientPastJob,
+  type ClientPayment,
+  type PaymentMethodView,
 } from "@empire-cleaning/models";
 import { linkTo, type AppHref } from "../../links.ts";
 import { dayOfInstant, formatMoney, formatShortDay } from "../format.ts";
@@ -194,14 +195,6 @@ export function paymentRow(p: ClientPayment): PaymentRow {
 // "−$22.50" for money back
 export const signedMoney = (cents: number) =>
   cents < 0 ? `−${formatMoney(-cents)}` : formatMoney(cents);
-
-// when a weekly Bill is made, and how the Client pays it (ADR-0016)
-export const billPaid: Record<BillPayment, string> = {
-  automatic:
-    "made the following Monday and charged to your saved Payment Method",
-  on_page:
-    "made the following Monday, which you pay on its page by its due date",
-};
 
 // how the Client pays for their plan's cleans: each when it's done, or on a
 // weekly Bill, charged or paid on its page

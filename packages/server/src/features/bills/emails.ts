@@ -12,7 +12,12 @@ import {
   formatDay,
   formatMoney,
 } from "../../services/email/format.ts";
-import { ON_HOLD_LINE } from "../cancellation/emails.ts";
+import { BACK_ON_LINE, ON_HOLD_LINE } from "../cancellation/emails.ts";
+import {
+  PRICES_INCLUDE_TAX,
+  REFUND_TAKES_DAYS,
+  UPDATE_AND_RETRY,
+} from "@empire-cleaning/models";
 import type { Settled } from "../completion/balance.ts";
 
 export type Occasion = "made" | "reminder" | "paid" | "voided" | "debit_failed";
@@ -57,7 +62,7 @@ const aboutBill = (
       if (bill.unpaid) {
         return [
           `We couldn't take payment for bill ${number}`,
-          `We couldn't charge ${total} for bill ${number} to your ${card}. Please update your Payment Method and we'll try again straight away, or pay it on its page.`,
+          `We couldn't charge ${total} for bill ${number} to your ${card}. Please ${UPDATE_AND_RETRY}, or pay it on its page.`,
         ];
       }
       if (bill.totalCents < 0) {
@@ -212,16 +217,12 @@ export const settledLines = (settled: SettledJob[]) => {
     );
   }
   if (settled.some((s) => s.unpaidCents !== null)) {
-    lines.push(
-      `We couldn't charge your ${card}. Please update your Payment Method and we'll try again straight away.`,
-    );
+    lines.push(`We couldn't charge your ${card}. Please ${UPDATE_AND_RETRY}.`);
   }
   if (settled.some((s) => s.settled.plan === "held")) {
     lines.push(ON_HOLD_LINE);
   } else if (settled.some((s) => s.settled.plan === "resumed")) {
-    lines.push(
-      "Your Service Plan is back on, and we'll book your cleans as usual.",
-    );
+    lines.push(BACK_ON_LINE);
   }
   return lines;
 };
@@ -246,7 +247,7 @@ export const chargedPerCleanEmail = ({
         "We've stopped billing you weekly, so from now on each clean is charged to your card when it's done. Bills already sent stay due as they are.",
         "Here's what we've settled for cleans no bill has covered yet:",
         ...settledLines(settled),
-        "Prices include tax.",
+        PRICES_INCLUDE_TAX,
       ].map(paragraph),
       unpaid
         ? button("Update your Payment Method", "/portal/payment-method")
@@ -272,7 +273,7 @@ export const creditRefundedEmail = ({
   blocks: [
     greeting(firstNameOf(name)),
     paragraph(
-      `No bill has followed bill ${number} in ${creditRefundDays} days, so we've refunded its ${formatMoney(cents)} credit to you. It can take a few days to reach you.`,
+      `No bill has followed bill ${number} in ${creditRefundDays} days, so we've refunded its ${formatMoney(cents)} credit to you. ${REFUND_TAKES_DAYS}`,
     ),
     button("See the bill", `/portal/bills/${billId}`),
   ],

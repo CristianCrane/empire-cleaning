@@ -1,9 +1,10 @@
 import { useState } from "react";
-import type {
-  AddOnChoice,
-  CleanerJob,
-  CompletionReport,
-  Condition,
+import {
+  adjustmentLabel,
+  type AddOnChoice,
+  type CleanerJob,
+  type CompletionReport,
+  type Condition,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -23,7 +24,7 @@ import {
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
 import { useAction } from "../action.ts";
-import { adjustmentLabel, conditionLabel, formatTime } from "../format.ts";
+import { conditionLabel, formatTime } from "../format.ts";
 
 // the reason given for each Add-on ticked, by its key
 type Ticked = Record<string, string>;

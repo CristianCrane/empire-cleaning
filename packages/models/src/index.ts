@@ -2013,3 +2013,4 @@ export * from "./messages/bills.js";
 export * from "./messages/reschedule.js";
 export * from "./messages/staff.js";
 export * from "./messages/quotes.js";
+export * from "./messages/payments.js";

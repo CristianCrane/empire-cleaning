@@ -38,14 +38,18 @@ import { PickAvailableTime } from "../AvailabilityPicker.tsx";
 import { ChooseNewTime, costForClient } from "../RescheduleParts.tsx";
 import {
   addressOf,
-  adjustmentLabel,
   formatDate,
   formatDateTime,
   formatHours,
   formatMoney,
 } from "../format.ts";
 import { Fact } from "../Fact.tsx";
-import { ON_WEEKS_BILL } from "@empire-cleaning/models";
+import {
+  adjustmentLabel,
+  ON_WEEKS_BILL,
+  PRICES_INCLUDE_TAX,
+  refundedTo,
+} from "@empire-cleaning/models";
 import { JobStatusBadge } from "../JobBadges.tsx";
 
 // one of the Client's Jobs, from the links in their emails: while it's to come,
@@ -466,12 +470,7 @@ function Refund({ payment }: { payment: JobPayment }) {
   const card = payment.paymentMethod ?? "card";
   return (
     <>
-      {refunded > 0 && (
-        <p>
-          We've refunded {formatMoney(refunded)} to your {card}. It can take a
-          few days to reach you.
-        </p>
-      )}
+      {refunded > 0 && <p>{refundedTo(formatMoney(refunded), card)}</p>}
       {payment.owedCents < 0 && (
         <p>
           We're refunding {formatMoney(-payment.owedCents)} to your {card}.
@@ -702,7 +701,7 @@ function Receipt({ job }: { job: ClientJobDetail }) {
   return (
     <Part
       title="Your receipt"
-      description={`Done ${formatDateTime(completedAt)}. Prices include tax.`}
+      description={`Done ${formatDateTime(completedAt)}. ${PRICES_INCLUDE_TAX}`}
     >
       <dl className="grid grid-cols-[1fr_auto] gap-x-6 gap-y-2">
         <dt>Quoted price</dt>
