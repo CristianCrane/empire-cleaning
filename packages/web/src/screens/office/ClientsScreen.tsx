@@ -32,9 +32,9 @@ const tabLabel: Record<ClientTab, string> = {
 
 // what a Tab holds, for when it's empty
 const noneIn: Record<ClientStanding, string> = {
-  active: "No Active Clients.",
-  quoting: "No Clients waiting on a Quote.",
-  past: "No Past Clients.",
+  active: "No active clients.",
+  quoting: "No clients waiting on a quote.",
+  past: "No past clients.",
 };
 
 // a page of the list, and how many more Show more adds
@@ -117,9 +117,9 @@ export function ClientsScreen() {
         renderEmptyState={() => (
           <p className="p-6 text-center text-fg-muted">
             {q
-              ? `No Clients match “${q}”.`
+              ? `No clients match “${q}”.`
               : tab === "all"
-                ? "No Clients yet."
+                ? "No clients yet."
                 : noneIn[tab]}
           </p>
         )}
@@ -157,7 +157,7 @@ export function ClientsScreen() {
         Clients
       </Heading>
       <TextField
-        label="Search Clients"
+        label="Search clients"
         type="search"
         placeholder="Name, email, phone or address"
         value={text}

@@ -27,7 +27,7 @@ const Today = () => {
           icon={Sparkles}
           label="Jobs"
           count={7}
-          hint="3 need Staff"
+          hint="3 need cleaners"
         />
         <CountTile
           id="quotes"

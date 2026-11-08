@@ -60,7 +60,12 @@ export const proposalSchema = z
   });
 
 export const dismissalSchema = z.object({
-  reason: z.string().trim().max(500).nullable().optional(),
+  reason: z
+    .string()
+    .trim()
+    .max(500, keepUnder(500, "the reason"))
+    .nullable()
+    .optional(),
 });
 
 export const correctionSchema = z.object({

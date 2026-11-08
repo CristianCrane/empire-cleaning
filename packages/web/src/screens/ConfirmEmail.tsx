@@ -52,7 +52,7 @@ export function ConfirmEmail() {
     return (
       <MessagePage title="Confirm your new email" icon={Mail}>
         <p className="text-fg-muted">
-          Confirm it's yours, and we'll send your Quotes and notices there.
+          Confirm it's yours, and we'll send your quotes and notices there.
         </p>
         {failed && (
           <Notice tone="danger">
@@ -73,7 +73,7 @@ export function ConfirmEmail() {
     return (
       <MessagePage title="Email confirmed" icon={MailCheck} tone="success">
         <p className="text-fg-muted [overflow-wrap:anywhere]">
-          We'll send your Quotes and notices to {result.email}.
+          We'll send your quotes and notices to {result.email}.
         </p>
       </MessagePage>
     );

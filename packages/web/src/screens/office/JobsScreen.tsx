@@ -32,9 +32,9 @@ const tabLabel: Record<JobTab, string> = {
 
 // what a Tab holds, for when it's empty
 const noneIn: Record<JobsTab, string> = {
-  upcoming: "No Jobs booked.",
-  past: "No Jobs done yet.",
-  cancelled: "No Jobs cancelled.",
+  upcoming: "No jobs booked.",
+  past: "No jobs done yet.",
+  cancelled: "No jobs cancelled.",
 };
 
 // a page of the list, and how many more Show more adds
@@ -122,9 +122,9 @@ export function JobsScreen() {
         renderEmptyState={() => (
           <p className="p-6 text-center text-fg-muted">
             {q
-              ? `No Jobs match “${q}”.`
+              ? `No jobs match “${q}”.`
               : tab === "all"
-                ? "No Jobs yet."
+                ? "No jobs yet."
                 : noneIn[tab]}
           </p>
         )}
@@ -165,7 +165,7 @@ export function JobsScreen() {
         Jobs
       </Heading>
       <TextField
-        label="Search Jobs"
+        label="Search jobs"
         type="search"
         placeholder="Client or address"
         value={text}

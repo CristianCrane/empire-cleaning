@@ -4,7 +4,7 @@ import { ButtonLink, Link } from "./Link.tsx";
 const meta = {
   title: "Components/Link",
   component: Link,
-  args: { href: "#", children: "View the Quote" },
+  args: { href: "#", children: "View the quote" },
 } satisfies Meta<typeof Link>;
 
 export default meta;
@@ -15,7 +15,7 @@ export const Default: Story = {};
 export const InText: Story = {
   render: (args) => (
     <p>
-      Your Quote is ready. <Link {...args} /> to accept it.
+      Your quote is ready. <Link {...args} /> to accept it.
     </p>
   ),
 };

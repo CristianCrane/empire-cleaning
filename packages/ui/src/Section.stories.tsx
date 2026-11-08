@@ -11,7 +11,7 @@ const meta = {
     title: "Tue, Oct 27",
     description: "32h available · 24h booked",
     children: (
-      <List aria-label="Today's Jobs" onAction={() => {}}>
+      <List aria-label="Today's jobs" onAction={() => {}}>
         <ListItem
           id="1"
           title="9:00 AM · Maria Lopez"

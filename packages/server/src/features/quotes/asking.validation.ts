@@ -12,19 +12,27 @@ const phone = z
   );
 
 export const contactSchema = z.object({
-  name: z.string().trim().min(1, "Enter your name").max(100),
+  name: z
+    .string()
+    .trim()
+    .min(1, "Enter your name")
+    .max(100, "Use a shorter name"),
   email: z.email("Enter a full email address, like name@example.com"),
   phone,
 });
 
 const address = {
-  street: z.string().trim().min(1, "Enter the street address").max(200),
-  unit: z.string().trim().max(50).nullish(),
+  street: z
+    .string()
+    .trim()
+    .min(1, "Enter the street address")
+    .max(200, "Use a shorter street address"),
+  unit: z.string().trim().max(50, "Use a shorter unit").nullish(),
   postcode: z
     .string()
     .trim()
     .regex(/^\d{5}$/, "Enter a 5-digit ZIP code"),
-  accessInstructions: z.string().trim().max(2000).nullish(),
+  accessInstructions: z.string().trim().max(2000, keepUnder(2000)).nullish(),
 };
 
 const AREA = "Enter the area in sq ft";
@@ -127,7 +135,7 @@ const request = {
   wantsRegularService: z.boolean(),
   // for a Service priced by area, a rough idea of it; kept only for one
   area: squareFeet(10).nullish(),
-  notes: z.string().trim().max(2000).nullish(),
+  notes: z.string().trim().max(2000, keepUnder(2000, "the notes")).nullish(),
 };
 
 type RequestFields = {

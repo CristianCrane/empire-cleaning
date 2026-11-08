@@ -13,7 +13,7 @@ type Story = StoryObj<typeof meta>;
 
 export const Extras: Story = {
   args: {
-    description: "Optional. Your Quote will show what each one costs.",
+    description: "Optional. Your quote will show what each one costs.",
     defaultValue: ["fridge"],
     children: (
       <>

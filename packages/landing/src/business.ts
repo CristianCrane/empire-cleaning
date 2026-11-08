@@ -10,7 +10,7 @@ export const business = {
   // service and place first, the brand last, about 60 characters (#171)
   title: "House Cleaning in Queens, NYC & Long Island | Empire Cleaning",
   description:
-    "House, office and post-construction cleaning in Queens, Brooklyn, Manhattan and Long Island. Se habla español. Request a Quote in minutes.",
+    "House, office and post-construction cleaning in Queens, Brooklyn, Manhattan and Long Island. Se habla español. Request a quote in minutes.",
   // what and where, in the page's heading, under the slogan
   heading:
     "House and office cleaning in Queens, Brooklyn, Manhattan and Long Island",

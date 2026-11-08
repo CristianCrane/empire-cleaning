@@ -360,8 +360,8 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
         aria-label="Needs attention"
         renderEmptyState={() => (
           <p className="p-6 text-center text-fg-muted">
-            Nothing needs you right now. When a Client asks for a Quote or a new
-            time, or a Job needs a Cleaner, it shows up here.
+            Nothing needs you right now. When a client asks for a quote or a new
+            time, or a job needs a cleaner, it shows up here.
           </p>
         )}
       >

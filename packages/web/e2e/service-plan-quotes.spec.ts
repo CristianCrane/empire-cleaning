@@ -266,7 +266,7 @@ test("the Client screen lists each home, whose own page holds its history and of
 
   const homes = page.getByRole("grid", { name: /Properties/ });
   await expect(homes.getByRole("row")).toHaveCount(1);
-  await expect(homes.getByRole("row")).toContainText("First Clean done");
+  await expect(homes.getByRole("row")).toContainText("First clean done");
   // no history here: that's on the home's page
   await expect(page.getByRole("grid", { name: /^Jobs/ })).toHaveCount(0);
   await homes.getByRole("row", { name: /41-12 Austin St/ }).click();

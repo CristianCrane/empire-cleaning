@@ -10,6 +10,7 @@ import {
   ownClient,
   clientView,
   confirmEmailChange,
+  EMAIL_TAKEN,
   findClientByEmail,
   listClients,
   officeClientView,
@@ -60,11 +61,7 @@ router.post(
 const refuseOthersEmail = async (clientId: string, email: string | null) => {
   const other = email ? await findClientByEmail(email) : undefined;
   if (other && other.id !== clientId) {
-    throw fieldError(
-      ["email"],
-      "That email is already used by another Client",
-      email,
-    );
+    throw fieldError(["email"], EMAIL_TAKEN, email);
   }
 };
 

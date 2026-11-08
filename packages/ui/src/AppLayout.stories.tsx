@@ -50,7 +50,7 @@ const meta = {
             />
             <ListItem
               id="2"
-              title="Unpaid Job at 35-06 Ditmars Blvd"
+              title="Unpaid job at 35-06 Ditmars Blvd"
               description="Card declined yesterday"
               end={<StatusBadge tone="danger">Unpaid</StatusBadge>}
             />

@@ -28,13 +28,13 @@ export const Currency: Story = {
     maxValue: undefined,
     step: 5,
     formatOptions: { style: "currency", currency: "USD" },
-    description: "The Suggested Price is $185.00",
+    description: "The suggested price is $185.00",
   },
 };
 
 export const Hours: Story = {
   args: {
-    label: "Labour Hours",
+    label: "Cleaning hours",
     defaultValue: 4.5,
     minValue: 0.5,
     maxValue: undefined,
@@ -43,7 +43,7 @@ export const Hours: Story = {
 };
 
 export const Invalid: Story = {
-  args: { isInvalid: true, errorMessage: "At least one Cleaner is needed" },
+  args: { isInvalid: true, errorMessage: "At least one cleaner is needed" },
 };
 
 export const Disabled: Story = { args: { isDisabled: true } };

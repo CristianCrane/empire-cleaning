@@ -1,4 +1,5 @@
 ---
+import { REQUEST_A_QUOTE } from "@empire-cleaning/models";
 import { buttonStyles } from "@empire-cleaning/ui";
 import { Phone } from "lucide-react";
 import { business } from "../business.ts";
@@ -15,7 +16,7 @@ const { href } = Astro.props;
     href={href}
     class={buttonStyles({ variant: "primary", className: "px-6 text-lg" })}
   >
-    Request a Quote
+    {REQUEST_A_QUOTE}
   </a>
   <a
     href={business.phone.href}

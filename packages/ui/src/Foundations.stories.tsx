@@ -95,7 +95,7 @@ function LogoSizes() {
   return (
     <div className="flex flex-wrap items-end gap-8">
       {[
-        ["w-32", "Welcome, a printed Bill"],
+        ["w-32", "Welcome, a printed bill"],
         ["w-36", "phone home, landing footer"],
         ["w-44", "sidebar, sign in, message pages, landing hero (phone)"],
         ["w-64", "landing hero (laptop)"],

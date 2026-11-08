@@ -236,7 +236,8 @@ describe("Office Staff editing a Client's contact details", () => {
     expect(taken.body.details).toContainEqual(
       expect.objectContaining({
         path: "email",
-        issue: "That email is already used by another Client",
+        issue:
+          "That email belongs to another client. Please use a different one.",
       }),
     );
 

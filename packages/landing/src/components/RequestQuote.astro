@@ -1,5 +1,5 @@
 ---
-import { ASK_US } from "@empire-cleaning/models";
+import { ASK_US, REQUEST_A_QUOTE } from "@empire-cleaning/models";
 import { business } from "../business.ts";
 import { QuoteForm } from "./QuoteForm.tsx";
 import Section from "./Section.astro";
@@ -16,7 +16,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? "http://localhost:3000";
 
 <Section
   id="quote"
-  title="Request a quote"
+  title={REQUEST_A_QUOTE}
   intro={`${ASK_US} No account needed.`}
   align="center"
 >

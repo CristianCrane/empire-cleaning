@@ -30,6 +30,7 @@ import {
   billNotPaid,
   BOOKED_GO_AHEAD,
   cleanNotPaid,
+  REQUEST_A_QUOTE,
   turnDownReason,
   UPDATE_CARD,
   WITHIN_A_DAY,
@@ -105,7 +106,7 @@ export type WhatsNext = {
 
 // the Client's ways to a Quote: asking for one, and seeing one
 export const requestQuote = {
-  label: "Request a quote",
+  label: REQUEST_A_QUOTE,
   href: linkTo({ to: "/portal/request" }),
 };
 const jobLink = (jobId: string) =>

@@ -51,7 +51,7 @@ test(
     await openClients(page);
 
     // ready to type straight away
-    const search = page.getByRole("searchbox", { name: "Search Clients" });
+    const search = page.getByRole("searchbox", { name: "Search clients" });
     await expect(search).toBeFocused();
 
     // a search looks through every Client, whatever their standing
@@ -80,7 +80,7 @@ test(
 test("a phone number is found however it's written", async ({ page }) => {
   await twoClients();
   await openClients(page);
-  const search = page.getByRole("searchbox", { name: "Search Clients" });
+  const search = page.getByRole("searchbox", { name: "Search clients" });
 
   await search.fill("718555");
   await expect(rows(page)).toHaveCount(1);
@@ -91,7 +91,7 @@ test("a phone number is found however it's written", async ({ page }) => {
   await expect(rows(page).first()).toContainText("Casey Client");
 
   await search.fill("nobody");
-  await expect(page.getByText("No Clients match “nobody”.")).toBeVisible();
+  await expect(page.getByText("No clients match “nobody”.")).toBeVisible();
 
   // a link straight to a search, e.g. one typed in the address bar
   await page.goto("/office/clients?q=718555");
@@ -129,7 +129,7 @@ test("Clients are listed by standing, Active first, with how many in each", asyn
 
   const tab = (name: RegExp) => page.getByRole("tab", { name });
   await expect(tab(/Active/)).toHaveAttribute("aria-selected", "true");
-  await expect(page.getByText("No Active Clients.")).toBeVisible();
+  await expect(page.getByText("No active clients.")).toBeVisible();
   await expect(tab(/Quoting/)).toContainText("1");
   await expect(tab(/Past/)).toContainText("1");
   await expect(tab(/All/)).toContainText("2");
