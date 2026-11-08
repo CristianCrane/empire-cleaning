@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { ScheduledSiteVisit } from "@empire-cleaning/models";
+import { ENDS_BY_MIDNIGHT, whyNoRoom } from "@empire-cleaning/models";
 import {
   afterNine,
   clean,
@@ -11,11 +12,9 @@ import {
 } from "../../../tests/schedule-days.ts";
 import {
   busyWith,
-  ENDS_BY_MIDNIGHT,
   endsByMidnight,
   isFree,
   roomOn,
-  whyNoRoom,
   withoutReplaced,
 } from "./rules.ts";
 

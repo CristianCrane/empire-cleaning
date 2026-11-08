@@ -6,6 +6,7 @@ import type {
   RescheduleTerms,
   RescheduleTimes,
 } from "@empire-cleaning/models";
+import { ENDS_BY_MIDNIGHT, PASSED, whyNoRoom } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import {
@@ -30,10 +31,8 @@ import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { freeFor, roomFor, scheduleFor } from "../jobs/schedule.ts";
 import {
   asClean,
-  ENDS_BY_MIDNIGHT,
   endsByMidnight,
   roomOn,
-  whyNoRoom,
   whyNotBooked,
 } from "../jobs/rules.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
@@ -613,7 +612,7 @@ export const moveJob = async (jobId: string, to: LocalDateTime) => {
       throw new ConflictError("This Job has already started, so it can't move");
     }
     if (startsAt <= now) {
-      throw new ConflictError("Choose a time that's still to come");
+      throw new ConflictError(PASSED);
     }
     if (startsAt.getTime() === job.startsAt.getTime()) {
       throw new ConflictError("That's when the Job is already booked");

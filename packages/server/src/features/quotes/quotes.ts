@@ -21,6 +21,7 @@ import type {
   ServicePlanTerms,
   TurnDownReason,
 } from "@empire-cleaning/models";
+import { ENDS_BY_MIDNIGHT } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import {
   ConflictError,
@@ -39,7 +40,7 @@ import {
 import { email } from "../../services/email/index.ts";
 import { weeklyBillOf } from "../bills/billed-weekly.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
-import { ENDS_BY_MIDNIGHT, endsByMidnight } from "../jobs/rules.ts";
+import { endsByMidnight } from "../jobs/rules.ts";
 import { officeCompletionOf } from "../completion/completion.ts";
 import { paymentMethodOf, toPaymentMethodView } from "../payments/payments.ts";
 import {

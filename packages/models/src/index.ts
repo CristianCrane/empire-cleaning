@@ -2002,3 +2002,6 @@ export * from "./suggested-price.js";
 // what may leave for Sentry and the logs, the same on the server and in the
 // browser (ADR-0007)
 export * from "./scrub.js";
+
+// what the server and the screens both say, written once (docs/ux.md, Words)
+export * from "./messages/jobs.js";

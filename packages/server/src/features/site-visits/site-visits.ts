@@ -7,6 +7,7 @@ import type {
   OfficeSiteVisit,
   SiteVisitBooking,
 } from "@empire-cleaning/models";
+import { PASSED } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import {
   ConflictError,
@@ -105,7 +106,7 @@ const refuseNoRoom = async (
   },
 ) => {
   if (startsAt <= clock.now()) {
-    throw new ConflictError("Choose a time that's still to come");
+    throw new ConflictError(PASSED);
   }
   const date = dayOf(startsAt);
   await lockDay(tx, date);
