@@ -121,6 +121,9 @@
 
   /* the smallest comfortable tap target, for Cleaners using the app on site */
   --spacing-touch: 2.75rem;
+  /* the phone's tab bar (AppLayout), its top border included, above the
+     safe area; what floats over the page's foot sits above it */
+  --spacing-tab-bar: calc(3.5rem + 1px);
 
   --shadow-raised:
     0 1px 2px rgb(16 25 35 / 0.08), 0 4px 12px rgb(16 25 35 / 0.08);
