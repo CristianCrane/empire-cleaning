@@ -1140,7 +1140,7 @@ function DetailsPage() {
         <Section title="Need another time?">
           <Card>
             <ActionRow
-              actions={<Button variant="secondary">Choose a new time</Button>}
+              actions={<Button variant="secondary">Pick a new time</Button>}
             >
               <p>
                 You can move it for free until{" "}
