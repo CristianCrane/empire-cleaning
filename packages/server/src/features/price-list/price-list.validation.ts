@@ -4,10 +4,11 @@ import { crewSize, validityDays } from "../quotes/quotes.validation.ts";
 // messages are shown beside the Price List's fields, so they're written for
 // people
 
-const decimals = (places: number) => (value: number) =>
+// also a Service's
+export const decimals = (places: number) => (value: number) =>
   Math.abs(value * 10 ** places - Math.round(value * 10 ** places)) < 1e-9;
 
-const hours = z
+export const hours = z
   .number({ error: "Enter a number of hours" })
   .min(0, "Hours can't be negative")
   .max(24, "That's more than a day")
@@ -25,7 +26,7 @@ const percent = z
   .min(0, "A percentage can't be negative")
   .max(100, "A percentage can't be more than 100");
 
-const taxPercent = z
+export const taxPercent = z
   .number({ error: "Enter a tax rate" })
   .min(0, "A tax rate can't be negative")
   .max(30, "That's higher than any sales tax")

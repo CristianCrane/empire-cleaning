@@ -86,12 +86,23 @@ export const conditionSchema = z.enum(["light", "moderate", "heavy"], {
   error: "Choose how much cleaning the home needs",
 });
 
+// also a Draft's
+export const serviceKey = z.uuid("Choose a Service");
+
+// an area to price a Service on, in sq ft: an ask's rough idea, or a Draft's
+export const squareFeet = (min: number) =>
+  z
+    .number({ error: "Enter the area in sq ft" })
+    .int("Use whole sq ft")
+    .min(min, "Enter the area in sq ft")
+    .max(1_000_000, "That's larger than we can take on");
+
 // Everything a request may say. Which of it applies depends on the kind of
 // Property: `forKind` checks a new one's here, and recordRequest an existing
 // one's once it's found.
 const request = {
   // the Service asked for, by key; checked against those on offer on submit
-  serviceKey: z.uuid("Choose a Service"),
+  serviceKey,
   // a home's, where the Service says Condition applies (checked on submit)
   condition: conditionSchema.optional(),
   // the Add-ons chosen, by key; checked against the Price List on submit
@@ -106,12 +117,7 @@ const request = {
   preferredTime: startTime.nullish(),
   wantsRegularService: z.boolean(),
   // for a Service priced by area, a rough idea of it; kept only for one
-  area: z
-    .number({ error: "Enter the area in sq ft" })
-    .int("Use whole sq ft")
-    .min(10, "Enter the area in sq ft")
-    .max(1_000_000, "That's larger than we can take on")
-    .nullish(),
+  area: squareFeet(10).nullish(),
   notes: z.string().trim().max(2000).nullish(),
 };
 

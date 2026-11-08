@@ -47,6 +47,17 @@ export const quoteReceivedEmail = ({
   ],
 });
 
+// an ask for a Quote the Client has open already for `where`, as the
+// reply says it and the email to their own address
+export const alreadyAsked = (
+  why: "asked" | "sent",
+  where: string,
+  email: string | null,
+) =>
+  why === "sent"
+    ? `We've sent you a Quote for ${where} already: you'll find it in your account.`
+    : `You've already asked us for a Quote for ${where}. We'll email it to ${email} soon.`;
+
 // to the Client's own address, when an ask with their email can't go ahead
 // at a Property they already have: the Guest who asked is told only what
 // anyone would be, so the reply can't show what the Client has where (#243)
@@ -74,11 +85,7 @@ export const askClashEmail = ({
           button("Ask for a Quote", "/portal/request"),
         ]
       : [
-          paragraph(
-            why === "sent"
-              ? `We've sent you a Quote for ${address} already: you'll find it in your account.`
-              : `You've already asked us for a Quote for ${address}. We'll email it to ${email} soon.`,
-          ),
+          paragraph(alreadyAsked(why, address, email)),
           button("See your Quotes", "/portal"),
         ]),
     paragraph(

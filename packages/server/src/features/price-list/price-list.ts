@@ -7,7 +7,11 @@ import type {
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { fieldError } from "../../middleware/errors.ts";
-import { currentServices, findService } from "../services/services.ts";
+import {
+  currentServices,
+  findService,
+  NOT_A_SERVICE,
+} from "../services/services.ts";
 import { SEEDED, SEEDED_FOR_HOMES } from "../services/seeded.ts";
 import { staff } from "../staff/staff.schema.ts";
 import {
@@ -239,7 +243,7 @@ const checkServiceKeys = async (input: PriceListInput) => {
     if (addOn.serviceKeys.some((key) => !known.has(key))) {
       throw fieldError(
         ["addOns", i, "serviceKeys"],
-        "Choose from the Services listed",
+        NOT_A_SERVICE,
         addOn.serviceKeys,
       );
     }
@@ -317,6 +321,9 @@ export const choosableAddOns = async (
 export const offersPremisesType = (list: PriceList, key: string) =>
   list.premisesTypes.some((t) => t.active && t.key === key);
 export const NOT_A_PREMISES_TYPE = "Pick a type of business from the list";
+
+// what a choice of an Add-on that isn't on offer with its Service is told
+export const NOT_AN_ADD_ON = "Choose from the Add-ons listed";
 
 // the Premises Types business premises can be described as now; open to
 // everyone, for the landing page's form

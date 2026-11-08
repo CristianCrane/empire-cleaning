@@ -30,10 +30,15 @@ import { addressOf } from "../properties/property-view.ts";
 import {
   currentPriceList,
   NOT_A_PREMISES_TYPE,
+  NOT_AN_ADD_ON,
   offeredWith,
   offersPremisesType,
 } from "../price-list/price-list.ts";
-import { currentServices, onOfferAt } from "../services/services.ts";
+import {
+  currentServices,
+  NOT_A_SERVICE,
+  onOfferAt,
+} from "../services/services.ts";
 import {
   accountSubmission,
   checkCondition,
@@ -45,6 +50,7 @@ import {
 } from "./asking.validation.ts";
 import { tellOfficeStaff } from "../staff/staff.ts";
 import {
+  alreadyAsked,
   askClashEmail,
   quoteReceivedEmail,
   quoteRequestedEmail,
@@ -131,11 +137,7 @@ const checkAddOns = (list: PriceList, service: Service, keys: string[]) => {
   );
   const unknown = keys.findIndex((key) => !offered.has(key));
   if (unknown !== -1) {
-    throw fieldError(
-      ["addOns", unknown],
-      "Choose from the Add-ons listed",
-      keys[unknown],
-    );
+    throw fieldError(["addOns", unknown], NOT_AN_ADD_ON, keys[unknown]);
   }
 };
 
@@ -260,16 +262,14 @@ const clashMessage = (
   if (enteredBy) {
     return openAlready(property, "a Quote");
   }
-  return why === "sent"
-    ? `We've sent you a Quote for ${place} already: you'll find it in your account.`
-    : `You've already asked us for a Quote for ${place}. We'll email it to ${client.email} soon.`;
+  return alreadyAsked(why, place, client.email);
 };
 
 // The Service asked for, which must be on offer for the kind of Property
 const askedService = (all: Service[], kind: Property["kind"], key: string) => {
   const service = onOfferAt(all, kind).find((s) => s.key === key);
   if (!service) {
-    throw fieldError(["serviceKey"], "Choose from the Services listed", key);
+    throw fieldError(["serviceKey"], NOT_A_SERVICE, key);
   }
   return service;
 };

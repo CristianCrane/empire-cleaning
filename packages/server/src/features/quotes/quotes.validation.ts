@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { day, startTime } from "../../middleware/validation.ts";
+import { serviceKey, squareFeet } from "./asking.validation.ts";
 
 // the offer accepted, as the page showed it (a newer one Sent since is
 // refused), and the Service chosen, by key, on a one-off Quote; a Service
@@ -52,9 +53,11 @@ const override = z
   })
   .nullable();
 
+export const CREW_SIZE = "Enter a Crew Size";
+
 // also the Price List's default, which a new Draft starts from
 export const crewSize = z
-  .number({ error: "Enter a Crew Size" })
+  .number({ error: CREW_SIZE })
   .int("Crew Size is a whole number")
   .min(1, "Send at least 1 person")
   .max(10, "Send at most 10 people");
@@ -76,7 +79,7 @@ const planDay = z.object({
 
 const plan = z.object({
   // every day's
-  serviceKey: z.uuid("Choose a Service"),
+  serviceKey,
   recurrence: z.enum(["weekly", "fortnightly", "four_weekly"], {
     error: "Choose every week, every 2 weeks or every 4 weeks",
   }),
@@ -104,15 +107,9 @@ export const validityDays = z
 
 export const draftSchema = z.object({
   // a one-off Draft's Service, the Quote's once it's sent
-  serviceKey: z.uuid("Choose a Service").optional(),
+  serviceKey: serviceKey.optional(),
   // for a Service priced by area; none follows the Property's
-  area: z
-    .number({ error: "Enter the area in sq ft" })
-    .int("Use whole sq ft")
-    .min(1, "Enter the area in sq ft")
-    .max(1_000_000, "That's larger than we can take on")
-    .nullable()
-    .optional(),
+  area: squareFeet(1).nullable().optional(),
   addOns: z.array(z.uuid()).max(50),
   // a one-off Quote's; a Service Plan Quote's are its weekdays'
   crewSize: crewSize.optional(),

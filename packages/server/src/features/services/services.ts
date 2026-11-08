@@ -192,6 +192,9 @@ const latest = async () => {
 
 // Every Service as it is now, active and retired. The very first read
 // creates the starting ones, so a fresh install always has them.
+// what a choice of a Service that isn't on offer is told
+export const NOT_A_SERVICE = "Choose from the Services listed";
+
 export const currentServices = async (): Promise<Service[]> => {
   const existing = await latest();
   if (existing.length > 0) return existing;
@@ -335,10 +338,7 @@ const checkFirstVisit = (
     );
   }
   if (!all.some((s) => s.key === recommended)) {
-    throw fieldError(
-      ["firstVisitServiceKey"],
-      "Choose from the Services listed",
-    );
+    throw fieldError(["firstVisitServiceKey"], NOT_A_SERVICE);
   }
 };
 

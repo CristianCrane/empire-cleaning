@@ -45,6 +45,7 @@ import { paymentMethodOf, toPaymentMethodView } from "../payments/payments.ts";
 import {
   choiceOf,
   currentPricing,
+  NOT_A_SERVICE,
   offeredAt,
   oneOffServices,
   onOfferAt,
@@ -52,7 +53,12 @@ import {
   serviceOf,
   type Pricing,
 } from "../services/services.ts";
-import { goesWith, ownAddOns } from "../price-list/price-list.ts";
+import { CREW_SIZE } from "./quotes.validation.ts";
+import {
+  goesWith,
+  NOT_AN_ADD_ON,
+  ownAddOns,
+} from "../price-list/price-list.ts";
 import { priceLists } from "../price-list/price-list.schema.ts";
 import {
   pricedOf,
@@ -1385,7 +1391,7 @@ const draftServiceOf = (
     (s) => s.key === wanted,
   );
   if (!service) {
-    throw fieldError(["serviceKey"], "Choose from the Services listed");
+    throw fieldError(["serviceKey"], NOT_A_SERVICE);
   }
   return service;
 };
@@ -1456,7 +1462,7 @@ export const saveDraft = async (
       (addOnKeys.includes(key) && !allowed.has(key)),
   );
   if (unknown !== -1) {
-    throw fieldError(["addOns", unknown], "Choose from the Add-ons listed");
+    throw fieldError(["addOns", unknown], NOT_AN_ADD_ON);
   }
 
   // typed, or following the Property (or the Client's rough one)
@@ -1500,7 +1506,7 @@ export const saveDraft = async (
       throw fieldError(["plan"], "Only a Service Plan Quote has plan terms");
     }
     if (input.crewSize === undefined) {
-      throw fieldError(["crewSize"], "Enter a Crew Size");
+      throw fieldError(["crewSize"], CREW_SIZE);
     }
     terms = oneOffTerms(
       list,

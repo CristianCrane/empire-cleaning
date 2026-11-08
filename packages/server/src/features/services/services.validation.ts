@@ -1,22 +1,12 @@
 import { z } from "zod";
+import {
+  decimals,
+  hours,
+  taxPercent,
+} from "../price-list/price-list.validation.ts";
 
 // messages are shown beside the Service's fields, so they're written for
 // people
-
-const decimals = (places: number) => (value: number) =>
-  Math.abs(value * 10 ** places - Math.round(value * 10 ** places)) < 1e-9;
-
-const hours = z
-  .number({ error: "Enter a number of hours" })
-  .min(0, "Hours can't be negative")
-  .max(24, "That's more than a day")
-  .refine(decimals(2), "Use at most two decimal places");
-
-const taxPercent = z
-  .number({ error: "Enter a tax rate" })
-  .min(0, "A tax rate can't be negative")
-  .max(30, "That's higher than any sales tax")
-  .refine(decimals(3), "Use at most three decimal places");
 
 export const serviceSchema = z
   .object({
