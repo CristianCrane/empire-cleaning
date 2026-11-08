@@ -1,11 +1,19 @@
 import { Building2, House, Houses, Store } from "lucide-react";
-import type { Condition, PropertyType } from "@empire-cleaning/models";
+import type {
+  Condition,
+  PremisesTypeChoice,
+  PropertyType,
+} from "@empire-cleaning/models";
 import { conditions } from "@empire-cleaning/quote-request";
 import {
+  Checkbox,
   ChoiceTile,
   ChoiceTiles,
+  NumberField,
   Segment,
   SegmentedControl,
+  Select,
+  SelectItem,
 } from "@empire-cleaning/ui";
 
 // the fields the Office corrects a place with, asked as the quote form asks
@@ -76,5 +84,140 @@ export function ConditionField({
         </Segment>
       ))}
     </SegmentedControl>
+  );
+}
+
+// a home's rooms; a field left empty is NaN
+type Room = "bedrooms" | "bathrooms" | "storeys";
+
+export function RoomFields({
+  rooms,
+  onChange,
+  isRequired,
+}: {
+  rooms: Record<Room, number>;
+  onChange: (room: Room, count: number) => void;
+  isRequired?: boolean;
+}) {
+  return (
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-4">
+      <NumberField
+        label="Bedrooms"
+        name="bedrooms"
+        isRequired={isRequired}
+        minValue={0}
+        maxValue={20}
+        value={rooms.bedrooms}
+        onChange={(count) => onChange("bedrooms", count)}
+      />
+      <NumberField
+        label="Bathrooms"
+        name="bathrooms"
+        isRequired={isRequired}
+        minValue={0.5}
+        maxValue={20}
+        step={0.5}
+        value={rooms.bathrooms}
+        onChange={(count) => onChange("bathrooms", count)}
+      />
+      <NumberField
+        label="Floors"
+        name="storeys"
+        isRequired={isRequired}
+        minValue={1}
+        maxValue={5}
+        value={rooms.storeys}
+        onChange={(count) => onChange("storeys", count)}
+      />
+    </div>
+  );
+}
+
+// a home's floor area, which it isn't priced from
+export function HomeFloorAreaField({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (area: number) => void;
+}) {
+  return (
+    <NumberField
+      label="Floor area in sq ft (optional)"
+      name="floorArea"
+      minValue={100}
+      maxValue={100_000}
+      step={50}
+      value={value}
+      onChange={onChange}
+    />
+  );
+}
+
+export function PetsField({
+  value,
+  onChange,
+}: {
+  value: boolean;
+  onChange: (pets: boolean) => void;
+}) {
+  return (
+    <Checkbox isSelected={value} onChange={onChange}>
+      There are pets at home
+    </Checkbox>
+  );
+}
+
+// what kind of business premises they are: one on offer, or the retired one
+// they have
+export function PremisesTypeField({
+  value,
+  choices,
+  onChange,
+}: {
+  value: string | null;
+  choices: PremisesTypeChoice[];
+  onChange: (key: string) => void;
+}) {
+  return (
+    <Select
+      label="Type of premises"
+      name="premisesType"
+      selectedKey={value}
+      onSelectionChange={(key) => onChange(String(key))}
+    >
+      {choices.map((t) => (
+        <SelectItem key={t.key} id={t.key}>
+          {t.name}
+        </SelectItem>
+      ))}
+    </Select>
+  );
+}
+
+// business premises' floor area, which they're priced from
+export function PremisesFloorAreaField({
+  value,
+  onChange,
+  isRequired,
+  description,
+}: {
+  value: number;
+  onChange: (area: number) => void;
+  isRequired?: boolean;
+  description?: string;
+}) {
+  return (
+    <NumberField
+      label="Floor area in sq ft"
+      name="floorArea"
+      description={description}
+      isRequired={isRequired}
+      minValue={100}
+      maxValue={1_000_000}
+      step={100}
+      value={value}
+      onChange={onChange}
+    />
   );
 }

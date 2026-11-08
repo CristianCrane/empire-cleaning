@@ -25,7 +25,6 @@ import type {
 import {
   Actions,
   Button,
-  Checkbox,
   DatePicker,
   Dialog,
   DialogTrigger,
@@ -48,7 +47,15 @@ import {
   timeOfDay,
 } from "../format.ts";
 import { useAction, type Action } from "../action.ts";
-import { ConditionField, PlaceTiles } from "./PropertyFields.tsx";
+import {
+  ConditionField,
+  HomeFloorAreaField,
+  PetsField,
+  PlaceTiles,
+  PremisesFloorAreaField,
+  PremisesTypeField,
+  RoomFields,
+} from "./PropertyFields.tsx";
 import { PickFromSchedule } from "./SchedulePicker.tsx";
 
 // Site Visits (#73, ADR-0015): free visits by one Staff member to see a
@@ -418,27 +425,15 @@ function FindingsForm({
       {property.kind === "commercial" ? (
         <>
           <PlaceTiles value="commercial" />
-          <Select
-            label="Type of premises"
-            name="premisesType"
-            selectedKey={premisesType ?? null}
-            onSelectionChange={(key) => setPremisesType(String(key))}
-          >
-            {choices.map((t) => (
-              <SelectItem key={t.key} id={t.key}>
-                {t.name}
-              </SelectItem>
-            ))}
-          </Select>
-          <NumberField
-            label="Floor area in sq ft"
-            name="floorArea"
-            isRequired
-            minValue={100}
-            maxValue={1_000_000}
-            step={100}
+          <PremisesTypeField
+            value={premisesType ?? null}
+            choices={choices}
+            onChange={setPremisesType}
+          />
+          <PremisesFloorAreaField
             value={floorArea}
             onChange={setFloorArea}
+            isRequired
           />
         </>
       ) : (
@@ -448,51 +443,16 @@ function FindingsForm({
               value={home.type}
               onChange={(type) => setHome({ ...home, type })}
             />
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-4">
-              <NumberField
-                label="Bedrooms"
-                name="bedrooms"
-                isRequired
-                minValue={0}
-                maxValue={20}
-                value={home.bedrooms}
-                onChange={(bedrooms) => setHome({ ...home, bedrooms })}
-              />
-              <NumberField
-                label="Bathrooms"
-                name="bathrooms"
-                isRequired
-                minValue={0.5}
-                maxValue={20}
-                step={0.5}
-                value={home.bathrooms}
-                onChange={(bathrooms) => setHome({ ...home, bathrooms })}
-              />
-              <NumberField
-                label="Floors"
-                name="storeys"
-                isRequired
-                minValue={1}
-                maxValue={5}
-                value={home.storeys}
-                onChange={(storeys) => setHome({ ...home, storeys })}
-              />
-            </div>
-            <NumberField
-              label="Floor area in sq ft (optional)"
-              name="floorArea"
-              minValue={100}
-              maxValue={100_000}
-              step={50}
-              value={floorArea}
-              onChange={setFloorArea}
+            <RoomFields
+              rooms={home}
+              onChange={(room, count) => setHome({ ...home, [room]: count })}
+              isRequired
             />
-            <Checkbox
-              isSelected={home.pets}
+            <HomeFloorAreaField value={floorArea} onChange={setFloorArea} />
+            <PetsField
+              value={home.pets}
               onChange={(pets) => setHome({ ...home, pets })}
-            >
-              There are pets at home
-            </Checkbox>
+            />
           </>
         )
       )}
