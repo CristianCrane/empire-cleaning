@@ -1,7 +1,8 @@
 ---
-import { Logo, buttonStyles } from "@empire-cleaning/ui";
-import { ChevronRight, Phone } from "lucide-react";
+import { Logo } from "@empire-cleaning/ui";
+import { ChevronRight } from "lucide-react";
 import { business } from "../business.ts";
+import QuoteOrCall from "./QuoteOrCall.astro";
 
 // the top of an area's or a service's page: `crumb` names it after Home
 interface Props {
@@ -39,23 +40,6 @@ const { crumb, heading, intro } = Astro.props;
       {heading}
     </h1>
     <p class="max-w-2xl text-xl text-fg-muted">{intro}</p>
-    <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-      <a
-        href="#quote"
-        class={buttonStyles({ variant: "primary", className: "px-6 text-lg" })}
-      >
-        Request a Quote
-      </a>
-      <a
-        href={business.phone.href}
-        class={buttonStyles({
-          variant: "secondary",
-          className: "px-6 text-lg",
-        })}
-      >
-        <Phone aria-hidden size={20} />
-        Call {business.phone.display}
-      </a>
-    </div>
+    <QuoteOrCall href="#quote" />
   </div>
 </section>

@@ -1,9 +1,7 @@
 ---
-import { buttonStyles } from "@empire-cleaning/ui";
-import { Phone } from "lucide-react";
 import Footer from "../components/Footer.astro";
 import Header from "../components/Header.astro";
-import { business } from "../business.ts";
+import QuoteOrCall from "../components/QuoteOrCall.astro";
 import Page from "../layouts/Page.astro";
 ---
 
@@ -20,24 +18,7 @@ import Page from "../layouts/Page.astro";
       There's no page at this address. Request a Quote or give us a call, and
       we'll take it from there.
     </p>
-    <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-      <a
-        href="/#quote"
-        class={buttonStyles({ variant: "primary", className: "px-6 text-lg" })}
-      >
-        Request a Quote
-      </a>
-      <a
-        href={business.phone.href}
-        class={buttonStyles({
-          variant: "secondary",
-          className: "px-6 text-lg",
-        })}
-      >
-        <Phone aria-hidden size={20} />
-        Call {business.phone.display}
-      </a>
-    </div>
+    <QuoteOrCall href="/#quote" />
   </main>
   <Footer />
 </Page>
