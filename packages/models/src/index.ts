@@ -1211,6 +1211,9 @@ export type QuoteSummary = {
   // (the recommended one, if any), or a Service Plan Quote's round, a clean
   // on each weekday; null with no Revision
   headlineTotalCents: number | null;
+  // the Service a one-off Quote leads with, its first option's; null for a
+  // Service Plan Quote, or with no Revision
+  headlineServiceName: string | null;
   // a Service Plan Quote's; null otherwise
   plan: { recurrence: Recurrence; days: PlanDaySummary[] } | null;
   proposedStartsAt: string | null;

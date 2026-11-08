@@ -368,6 +368,10 @@ const summaries = async (
         homePlanId,
         headlineTotalCents:
           offered.length > 0 ? headlineOf(quote.kind, offered) : null,
+        headlineServiceName:
+          !plan && offered.length > 0
+            ? offered[0]!.suggested.serviceName
+            : null,
         plan:
           plan && shown
             ? {

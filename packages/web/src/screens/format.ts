@@ -311,17 +311,21 @@ export const planName = ({ recurrence, days }: PlanDays) => {
     : `${what}, every week${on.length > 0 ? ` on ${listed(on)}` : ""}`;
 };
 
-// how a Quote reads in a list: "Deep Clean $391.04", or "Cleaning plan,
+// how a Quote reads in a list: "Deep Clean $391.04", the Service it leads
+// with, or "Cleaning plan,
 // Standard Clean, every 2 weeks: $201.85 a clean", or for several weekdays
 // "...: $650.10 a week"
 export const quoteHeadline = (
-  quote: Pick<QuoteSummary, "headlineTotalCents" | "plan">,
+  quote: Pick<
+    QuoteSummary,
+    "headlineTotalCents" | "headlineServiceName" | "plan"
+  >,
 ) =>
   quote.headlineTotalCents === null
     ? "Not priced yet"
     : quote.plan
       ? `Cleaning plan, ${planName(quote.plan)}: ${formatMoney(quote.headlineTotalCents)} ${quote.plan.days.length === 1 ? "a clean" : "a week"}`
-      : `Deep Clean ${formatMoney(quote.headlineTotalCents)}`;
+      : `${quote.headlineServiceName} ${formatMoney(quote.headlineTotalCents)}`;
 
 // when a Service Plan's cleans come round, each weekday from its first:
 // "Every week, on Mondays at 9:00 AM", or "Every week, on Mondays at 9:00 AM

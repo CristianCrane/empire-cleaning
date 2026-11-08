@@ -71,6 +71,7 @@ const quote = (over: Partial<QuoteSummary> = {}): QuoteSummary =>
     service: { key: "deep", name: "Deep Clean" },
     property: home,
     headlineTotalCents: null,
+    headlineServiceName: null,
     plan: null,
     proposedStartsAt: null,
     sentAt: null,
@@ -83,6 +84,7 @@ const quote = (over: Partial<QuoteSummary> = {}): QuoteSummary =>
 const sentQuote = quote({
   status: "sent",
   headlineTotalCents: 39104,
+  headlineServiceName: "Deep Clean",
   proposedStartsAt: "2026-11-08T15:00:00.000Z",
   sentAt: "2026-10-31T19:00:00.000Z",
   expiresAt: "2026-11-14T04:59:00.000Z",
@@ -170,6 +172,17 @@ describe("Home's hero, with nothing booked", () => {
       action: { label: "See your quote" },
     });
     expect(notices).toEqual([]);
+  });
+
+  test("names the Service a one-off Quote leads with", () => {
+    const standard = {
+      ...sentQuote,
+      headlineTotalCents: 20185,
+      headlineServiceName: "Standard Clean",
+    };
+    expect(next({ quotes: [standard] }).hero.headline).toBe(
+      "Standard Clean $201.85",
+    );
   });
 
   test("names the last clean done, not one Skipped since", () => {
