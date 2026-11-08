@@ -55,6 +55,8 @@ Errors, signals and the scheduler's heartbeat go to Sentry (ADR-0007), always th
 
 Every email is built by a pure builder in its feature's `emails.ts` (e.g. `receiptEmail` in `features/completion/emails.ts`) that returns a subject and **blocks** (`#services/email`, `blocks.ts`): a greeting, paragraphs, details (`Label: value` rows; `cleanDetails` gives a Job's When, Where and Service, and Was after a move), amounts (rows and a bold total, from cents) and one button. A button's href may be a path in the web app, like `/portal`. `email.send({ to, ...builder(…) })` renders them through the one React Email layout (`layout.tsx`) as HTML and as text, where the button is its raw URL, and sets the reply-to to `OFFICE_EMAIL`. The inbox preview line is the email's `preview`, or else its first paragraph. Builders import only pure code (`blocks.ts`, `format.ts`, other `emails.ts`), never `env` or the database, so the preview server can load them; callers pass in names, times and amounts (`cleanOf(job, property)` gives a Job's).
 
+An email's words, like those of an error that reaches a screen, keep `docs/ux.md`'s Words rules: everyday words, each term's screen word from `GLOSSARY.md`.
+
 `pnpm email:dev` (from the repo root) runs React Email's preview server on http://localhost:3002, showing every file in `emails/`: one per email, `export default preview(someEmail({ … }))` with sample data from `emails/samples.ts`. It reloads on changes in `emails/` only; restart it after changing a builder or the layout. The layout is `.tsx`, which plain Node can't run, so the server starts with `tsx`.
 
 ## Accounts and sign-in

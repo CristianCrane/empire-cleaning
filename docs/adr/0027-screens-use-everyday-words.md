@@ -1,0 +1,7 @@
+# Screens, messages and emails use everyday words
+
+The glossary's terms were the words on every screen and in every email, capitalised: Labour Hours, Revision, Payment Method, Cleaner Needed (ADR-0019 has it that "code, tables, screens and emails all say Cleaner Needed"). They're exact, and they made the product read like a manual. The Office couldn't follow a paragraph-long warning about too few Cleaners free for a Job, and messages explained how the system works rather than what to do (#336). This retires that pattern: **screens and emails say the glossary's term**.
+
+Everything a person reads (labels, page text, messages, emails) uses everyday words now. A term that people don't say has a screen word, kept on its glossary entry as an `_On screen_:` line: Labour Hours are "cleaning hours", a Cleaner Needed is an "open job", a Payment Method is a "card". Labels are in sentence case and terms are lowercase in a sentence ("Send a quote", "your cleaning plan"); a Service's name, such as Deep Clean, keeps its capitals. The rules for writing them are in `docs/ux.md`, Words.
+
+The code, the database, the docs, issues and the glossary keep the terms. They name one idea each, exactly, which the screen words don't need to: "clean" is a Job only to a Client, and "card" also covers a bank account where one can pay. We chose this over renaming the terms to the screen words, which would leave the code saying one thing and the glossary another, or a rename across code and tables for words chosen for how they read.
