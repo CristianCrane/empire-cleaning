@@ -481,7 +481,7 @@ function RecordsAsStories() {
               <p>$48.72</p>
             </Card>
             <Button variant="secondary" className="self-end">
-              Draft an updated quote
+              Change quote
             </Button>
           </div>
         </Example>
@@ -499,8 +499,8 @@ function NoticesHoldOneAction() {
           is a <code>text</code> Button (<code>danger-text</code> to remove
           something), on the right of its text. One action per Notice: two
           things to say or do are two Notices, and an action that doesn't fit
-          one belongs where it acts (Draft an updated quote on the Current
-          quote, Delete the draft in the draft's header).
+          one belongs where it acts (Change quote on the Current quote, Delete
+          the draft in the draft's header).
         </p>
         <p>
           A page has at most one primary Button: once there are two, neither is

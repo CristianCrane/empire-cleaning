@@ -598,7 +598,7 @@ describe("sending a Quote", () => {
     expect(sent!.status).toBe(200);
     expect(saved!.status).toBe(409);
     expect(saved!.body.message).toBe(
-      "This quote has already been sent, so it can't change. Start an updated quote.",
+      "This quote was already sent, so this didn't go through. Reload the page to see it.",
     );
     const quote = await quoteOf(office, quoteId);
     expect(quote.draft).toBeNull();
@@ -690,7 +690,9 @@ describe("a new Revision", () => {
     expect(listed.map((q) => [q.id, q.status])).toEqual([[quoteId, "sent"]]);
     // its email says the Quote has changed, and links to the same Quote
     const sent = testEmail().lastTo(casey.email);
-    expect(sent.subject).toBe("Your updated quote from Empire Cleaning");
+    expect(sent.subject).toBe(
+      "Your quote from Empire Cleaning has been updated",
+    );
     expect(sent.text).toContain("has been updated");
     expect(sent.text).toContain(`/portal/quotes/${quoteId}`);
     // the Client sees only the new offer, which says it was updated

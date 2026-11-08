@@ -1325,7 +1325,7 @@ export const offerServicePlan = async (
 };
 
 const SENT_ALREADY =
-  "This quote has already been sent, so it can't change. Start an updated quote.";
+  "This quote was already sent, so this didn't go through. Reload the page to see it.";
 
 // the Revision being drafted, which is all Office Staff can change, while
 // the Quote is open

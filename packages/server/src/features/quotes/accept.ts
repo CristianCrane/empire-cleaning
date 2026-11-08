@@ -120,9 +120,7 @@ const unbookableMessage = (unbookable: Unbookable, acceptor: Acceptor) => {
     return closedMessage(unbookable.status, acceptor.by);
   }
   if (unbookable.reason === "revised") {
-    return acceptor.by === "client"
-      ? "This quote was just updated, so nothing was booked. Please reload the page to see it."
-      : "An updated quote was just sent, so nothing was booked. Reload the page to see it.";
+    return "This quote was just updated, so nothing was booked. Please reload the page to see it.";
   }
   if (
     unbookable.reason === "has_plan" ||
@@ -725,7 +723,7 @@ export const finalizeProblem = (finalized: Finalized) => {
             finalized.unbookable.reason === "plan_changed"
           ? "Your cleaning plan started while your bank was approving the payment, so we've refunded your deposit."
           : finalized.unbookable.reason === "revised"
-            ? "This quote was updated while your bank was approving the payment, so we've refunded your deposit. Please look at the updated quote."
+            ? "This quote was updated while your bank was approving the payment, so we've refunded your deposit. Please take a look at what's changed."
             : "This quote closed while your bank was approving the payment, so we've refunded your deposit.";
     default:
       return "There's no payment waiting on this quote.";

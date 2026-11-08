@@ -51,7 +51,7 @@ _Avoid_: Quote Request, enquiry, lead, estimate, proposal
 **Revision**:
 One priced version of a Quote: its Service, price, Labour Hours, Crew Size and proposed time, and for a Service priced by area the area, or for a Service Plan Quote its visits. Office Staff draft a Revision and send it; once Sent it is never changed, and a newer Sent Revision takes its place as the offer. Clients only ever see the latest Sent Revision.
 _Avoid_: Version, offer, Superseded Quote
-_On screen_: updated quote
+_On screen_: none: it's the quote, which the Office changes ("Change quote") and sends again ("Quote sent"); a person never reads of a second quote
 
 **Turned Down**:
 A Quote that Office Staff have closed before sending any Revision, with a recorded reason such as out of area, out of scope or no capacity. It is final; the Client asks for a new Quote.
