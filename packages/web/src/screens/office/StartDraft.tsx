@@ -45,12 +45,14 @@ export function useStartDraft() {
   return { start, starting, failure };
 }
 
+export const QUOTE_A_PLAN = "Quote a Service Plan";
+
 // offers a home a Service Plan, unprompted, once its First Clean is
 // Completed; or, for a home with a plan, new terms for it, which accepting
 // changes the plan to
 export function OfferServicePlan({
   propertyId,
-  label = "Quote a Service Plan",
+  label = QUOTE_A_PLAN,
   primary = false,
 }: {
   propertyId: string;

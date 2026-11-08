@@ -18,13 +18,14 @@ import {
   Tabs,
   TextField,
 } from "@empire-cleaning/ui";
-import { QuoteStatusBadge } from "../QuoteParts.tsx";
+import { DraftChangesBadge, QuoteStatusBadge } from "../QuoteParts.tsx";
 import {
   addressOf,
   clientName,
   formatMoney,
   quoteStatusLabel,
 } from "../format.ts";
+import { NEW_QUOTE } from "./NewQuoteScreen.tsx";
 
 // the statuses the list holds, in the order a Quote moves through them
 export const quoteListStatuses = [
@@ -192,7 +193,7 @@ export function QuotesScreen() {
                 )}
                 {quote.drafting &&
                   (quote.status === "sent" || quote.status === "expired") && (
-                    <StatusBadge tone="info">Draft changes</StatusBadge>
+                    <DraftChangesBadge />
                   )}
               </div>
             </Cell>
@@ -216,7 +217,7 @@ export function QuotesScreen() {
         </Heading>
         <Button onPress={() => void navigate({ to: "/office/quotes/new" })}>
           <QuoteIcon aria-hidden size={18} />
-          New Quote
+          {NEW_QUOTE}
         </Button>
       </div>
       <TextField

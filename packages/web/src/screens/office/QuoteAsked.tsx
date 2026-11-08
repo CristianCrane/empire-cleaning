@@ -29,8 +29,8 @@ import {
   formatHours,
   formatMoney,
   roomsText,
-  wantedCleaning,
 } from "../format.ts";
+import { AskedRows } from "../QuoteParts.tsx";
 
 // The parts of a Quote's page about what was asked and getting to its first
 // Revision: the ask itself, its Site Visit, the Suggested Price, drafting,
@@ -118,33 +118,7 @@ export function AskedFacts({ quote }: { quote: OfficeQuote }) {
             </dd>
           </>
         )}
-      {premises ? (
-        <>
-          <dt className="font-semibold">Cleaning wanted</dt>
-          <dd>{wantedCleaning(asked)}</dd>
-        </>
-      ) : (
-        <>
-          <dt className="font-semibold">Extras</dt>
-          <dd>
-            {asked.addOns.length > 0
-              ? asked.addOns.map((a) => a.name).join(", ")
-              : "None"}
-          </dd>
-          <dt className="font-semibold">Regular visits</dt>
-          <dd>
-            {asked.wantsRegularService
-              ? "Wanted after the first clean"
-              : "Not asked for"}
-          </dd>
-        </>
-      )}
-      {asked.notes && (
-        <>
-          <dt className="font-semibold">Notes</dt>
-          <dd className="whitespace-pre-line">{asked.notes}</dd>
-        </>
-      )}
+      <AskedRows asked={asked} premises={premises} />
     </dl>
   );
 }

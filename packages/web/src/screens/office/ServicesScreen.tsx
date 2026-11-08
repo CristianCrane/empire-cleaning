@@ -39,6 +39,7 @@ import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import { formatDate, formatMoney } from "../format.ts";
 import { ExampleQuote } from "./ExampleQuote.tsx";
+import { PRICES_CHANGE } from "./PriceListScreen.tsx";
 
 const methodLabel: Record<PricingMethod, string> = {
   rooms: "From a home's rooms",
@@ -71,9 +72,7 @@ export function ServicesScreen() {
         </ButtonLink>
       </div>
       <p className="text-fg-muted">
-        What Empire Cleaning sells, each with its own rate. Changes apply to
-        prices worked out from now on. Quotes already sent keep the prices they
-        were sent with.
+        What Empire Cleaning sells, each with its own rate. {PRICES_CHANGE}
       </p>
       <ServicesTable label="Services" services={active} />
       {retired.length > 0 && (

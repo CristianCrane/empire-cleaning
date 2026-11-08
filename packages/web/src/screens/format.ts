@@ -8,6 +8,7 @@ import type {
   JobStatus,
   PlanDaySummary,
   PropertyView,
+  QuoteKind,
   QuoteSummary,
   Recurrence,
   Weekday,
@@ -191,6 +192,10 @@ const dateTimeFormat = new Intl.DateTimeFormat("en-US", {
 // an instant -> "Mon, Jan 12, 9:00 AM" in New York
 export const formatDateTime = (iso: string) =>
   dateTimeFormat.format(new Date(iso));
+
+// what kind of Quote it is, as a title says it
+export const quoteKindName = (kind: QuoteKind | null) =>
+  kind === "service_plan" ? "Service Plan Quote" : "Quote";
 
 export const quoteStatusLabel = {
   requested: "Requested",

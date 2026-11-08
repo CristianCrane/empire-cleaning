@@ -34,7 +34,7 @@ import type {
   ServiceOffer,
   Weekday,
 } from "@empire-cleaning/models";
-import { openAlready } from "@empire-cleaning/models";
+import { business, openAlready } from "@empire-cleaning/models";
 import {
   Actions,
   Button,
@@ -116,13 +116,14 @@ export type QuoteRequestFormProps<R = QuoteAskReceipt> = {
   source?: () => QuoteSource;
 };
 
+const CALL_US = `Please try again, or call us on ${business.phone.display}.`;
+
 // the form speaks to whoever fills it in: the person asking, or Office Staff
 // on a caller's behalf
 const ownWords = {
   need: "What you need",
   service: "What can we help with?",
-  servicesFailed:
-    "We couldn't load what we offer. Please try again, or call us on (646) 320-9076.",
+  servicesFailed: `We couldn't load what we offer. ${CALL_US}`,
   what: "What kind of place is it?",
   details: "Your details",
   email: "Email",
@@ -137,8 +138,7 @@ const ownWords = {
   submit: "Request a Quote",
   businessName: "Business name",
   contactNote: "The person we'll deal with at the business.",
-  failed:
-    "Your request didn't go through. Please try again, or call us on (646) 320-9076.",
+  failed: `Your request didn't go through. ${CALL_US}`,
 };
 const officeWords: typeof ownWords = {
   need: "What they need",
@@ -160,6 +160,15 @@ const officeWords: typeof ownWords = {
   businessName: "Business name",
   contactNote: "The person we'll deal with at the business.",
   failed: "The request didn't save. Please try again.",
+};
+
+// the help under "How do we get in?", for each kind of place; the Client's
+// page for a home says it too
+export const accessHelp: Record<PropertyKind, string> = {
+  residential:
+    "Door codes, where the key is, parking. Only your Cleaners see this.",
+  commercial:
+    "Alarm codes, who has the keys, parking. Only your Cleaners see this.",
 };
 
 const NEW_PLACE = "new";
@@ -1082,8 +1091,7 @@ function PremisesTypeField({
 
   return premisesTypes?.length === 0 ? (
     <Notice tone="danger">
-      We couldn't load the types of premises. Please try again, or call us on
-      (646) 320-9076.
+      We couldn't load the types of premises. {CALL_US}
     </Notice>
   ) : (
     <Select
@@ -1147,7 +1155,7 @@ function NewPremisesFields({
           label="How do we get in? (optional)"
           name={field("accessInstructions")}
           multiline
-          description="Alarm codes, who has the keys, parking. Only your Cleaners see this."
+          description={accessHelp.commercial}
           value={premises.accessInstructions ?? ""}
           onChange={(accessInstructions) => update({ accessInstructions })}
           errorMessage={error(field("accessInstructions"))}
@@ -1308,7 +1316,7 @@ function NewHomeFields({
           label="How do we get in? (optional)"
           name={field("accessInstructions")}
           multiline
-          description="Door codes, where the key is, parking. Only your Cleaners see this."
+          description={accessHelp.residential}
           value={home.accessInstructions ?? ""}
           onChange={(accessInstructions) => update({ accessInstructions })}
           errorMessage={error(field("accessInstructions"))}

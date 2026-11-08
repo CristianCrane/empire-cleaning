@@ -41,6 +41,7 @@ import {
   formatMoney,
   propertySummary,
 } from "../format.ts";
+import { NEW_QUOTE } from "./NewQuoteScreen.tsx";
 
 // a Client for the Office: their contact details, which Office Staff can
 // correct (or add an email to), and their homes, each with where it stands
@@ -73,7 +74,7 @@ export function ClientDetail() {
             }
           >
             <QuoteIcon aria-hidden size={18} />
-            New Quote
+            {NEW_QUOTE}
           </Button>
         </div>
       </div>

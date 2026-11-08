@@ -6,7 +6,6 @@ import {
   FileText,
   House,
   KeyRound,
-  Ruler,
   Sparkles,
 } from "lucide-react";
 import type { PropertyView } from "@empire-cleaning/models";
@@ -30,6 +29,7 @@ import {
   type StatusTone,
   TextField,
 } from "@empire-cleaning/ui";
+import { accessHelp } from "@empire-cleaning/quote-request";
 import { patchJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
@@ -38,29 +38,18 @@ import {
   conditionLabel,
   dayOfInstant,
   formatDateTime,
-  formatFloorArea,
   formatShortDay,
   propertySummary,
   recurrenceLabel,
 } from "../format.ts";
-import { Fact } from "../Fact.tsx";
-import { planWhen, quoteTitle, standingOf } from "./properties.ts";
+import { AccessFact, Fact, FloorAreaFact } from "../Fact.tsx";
+import { planWhen, quoteStatus, quoteTitle, standingOf } from "./properties.ts";
+import { requestQuote } from "./whats-next.ts";
 
 const planStatus: Record<string, { tone: StatusTone; label: string }> = {
   active: { tone: "success", label: "Active" },
   on_hold: { tone: "warning", label: "On Hold" },
   ended: { tone: "danger", label: "Ended" },
-};
-
-// a Quote's state as its Client sees it: one being drafted is still asked for
-const quoteStatus: Record<string, { tone: StatusTone; label: string }> = {
-  requested: { tone: "info", label: "Asked for" },
-  draft: { tone: "info", label: "Asked for" },
-  sent: { tone: "warning", label: "To answer" },
-  accepted: { tone: "success", label: "Accepted" },
-  declined: { tone: "neutral", label: "Declined" },
-  expired: { tone: "neutral", label: "Expired" },
-  turned_down: { tone: "neutral", label: "Turned Down" },
 };
 
 const shortDayOf = (iso: string) => formatShortDay(dayOfInstant(iso));
@@ -117,15 +106,7 @@ export function PortalProperty() {
               </div>
             </div>
             <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Fact
-                icon={Ruler}
-                label="Floor area"
-                value={
-                  p.floorArea === null
-                    ? "Not known yet"
-                    : formatFloorArea(p.floorArea)
-                }
-              />
+              <FloorAreaFact property={p} />
               <Fact
                 icon={Sparkles}
                 label="Condition"
@@ -134,14 +115,8 @@ export function PortalProperty() {
                 }
                 line="Condition, at the last visit"
               />
-              <Fact
-                icon={KeyRound}
-                label="How we get in"
-                value={
-                  <span className="whitespace-pre-line">
-                    {p.accessInstructions || "Not added yet"}
-                  </span>
-                }
+              <AccessFact
+                property={p}
                 line="How we get in: only your Cleaners see it"
                 className="sm:col-span-2"
               />
@@ -190,11 +165,8 @@ export function PortalProperty() {
           <Card>
             <ActionRow
               actions={
-                <ButtonLink
-                  variant="secondary"
-                  href={linkTo({ to: "/portal/request" })}
-                >
-                  Request a Quote
+                <ButtonLink variant="secondary" href={requestQuote.href}>
+                  {requestQuote.label}
                 </ButtonLink>
               }
             >
@@ -279,7 +251,7 @@ function EditAccess({ property }: { property: PropertyView }) {
               name="access"
               multiline
               autoFocus
-              description="Door codes, where the key is, parking. Only your Cleaners see this."
+              description={accessHelp.residential}
               defaultValue={property.accessInstructions ?? ""}
             />
             {action.problem && <Notice tone="danger">{action.problem}</Notice>}

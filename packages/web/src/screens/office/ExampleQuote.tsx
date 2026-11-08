@@ -10,7 +10,7 @@ import {
   type ServiceInput,
 } from "@empire-cleaning/models";
 import { Card, Section, Segment, SegmentedControl } from "@empire-cleaning/ui";
-import { formatMoney } from "../format.ts";
+import { conditionLabel, formatMoney } from "../format.ts";
 import { WorkedOutQuote } from "./WorkedOutQuote.tsx";
 
 type Size = "small" | "typical" | "big";
@@ -163,9 +163,11 @@ export function ExampleQuote({
                 value={condition}
                 onChange={(value) => setCondition(value as Condition)}
               >
-                <Segment value="light">Light</Segment>
-                <Segment value="moderate">Moderate</Segment>
-                <Segment value="heavy">Heavy</Segment>
+                {(Object.keys(conditionLabel) as Condition[]).map((c) => (
+                  <Segment key={c} value={c}>
+                    {conditionLabel[c]}
+                  </Segment>
+                ))}
               </SegmentedControl>
             )}
           </div>

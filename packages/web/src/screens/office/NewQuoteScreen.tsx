@@ -37,6 +37,9 @@ import { WorkedOutQuote } from "./WorkedOutQuote.tsx";
 
 export type NewQuoteSearch = { clientId?: string };
 
+// the page, and the Buttons that open it
+export const NEW_QUOTE = "New Quote";
+
 // how long typing pauses before the search runs
 const SEARCH_DELAY_MS = 250;
 
@@ -68,10 +71,10 @@ export function NewQuoteScreen() {
         <Breadcrumbs
           trail={[
             { label: "Quotes", href: linkTo({ to: "/office/quotes" }) },
-            { label: "New Quote" },
+            { label: NEW_QUOTE },
           ]}
         />
-        <Heading level={1}>New Quote</Heading>
+        <Heading level={1}>{NEW_QUOTE}</Heading>
         <p className="text-fg-muted">
           For someone who phones. You'll go straight to the Quote Draft.
         </p>

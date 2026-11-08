@@ -10,6 +10,7 @@ import {
   Logo,
 } from "@empire-cleaning/ui";
 import { forgetAccount, signOut } from "../session.ts";
+import { quoteRequested } from "./QuoteParts.tsx";
 
 // for an Account connected to nothing yet (ADR-0006): someone who signed up
 // before asking for a Quote, or with a different email from their Quote
@@ -58,11 +59,7 @@ export function Welcome() {
             onSubmitted={async (receipt) => {
               // now a Client: the API connected this Account straight away
               forgetAccount();
-              showToast({
-                tone: "success",
-                title: "Quote requested",
-                description: `We'll email your Quote to ${receipt.emailedTo}.`,
-              });
+              showToast(quoteRequested(receipt.emailedTo));
               await navigate({ to: "/portal" });
             }}
           />

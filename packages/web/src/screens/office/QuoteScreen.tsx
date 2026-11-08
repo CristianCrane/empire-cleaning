@@ -104,9 +104,11 @@ import {
   recurrenceWeeks,
   timeOfDay,
   weekdayOf,
+  quoteKindName,
 } from "../format.ts";
 import {
   AddOnList,
+  DraftChangesBadge,
   OptionFigures,
   PlanFigures,
   PlanSaving,
@@ -200,7 +202,7 @@ export function QuoteScreen() {
 }
 
 function QuoteHeader({ quote }: { quote: OfficeQuote }) {
-  const kind = kindOf(quote);
+  const kind = quoteKindName(quote.kind);
   const revising = quote.draft !== null && quote.offer !== null;
   return (
     <div className="flex flex-col gap-4">
@@ -216,7 +218,7 @@ function QuoteHeader({ quote }: { quote: OfficeQuote }) {
           {kind} for {clientName(quote.client)}
         </Heading>
         <QuoteStatusBadge status={quote.status} />
-        {revising && <StatusBadge tone="info">Draft changes</StatusBadge>}
+        {revising && <DraftChangesBadge />}
         {unsent(quote) && (
           <div className="ml-auto flex flex-wrap gap-2">
             {/* optional for a home; business premises' notice asks for it */}
@@ -231,9 +233,6 @@ function QuoteHeader({ quote }: { quote: OfficeQuote }) {
     </div>
   );
 }
-
-const kindOf = (quote: OfficeQuote) =>
-  quote.kind === "service_plan" ? "Service Plan Quote" : "Quote";
 
 function PropertyLine({ quote }: { quote: OfficeQuote }) {
   return (
@@ -526,7 +525,7 @@ function DeleteDraft({ quote }: { quote: OfficeQuote }) {
 export function QuoteDraftScreen() {
   const quote = useLoaderData({ from: "/office/quotes/$quoteId/draft" });
   const draft = quote.draft!;
-  const kind = kindOf(quote);
+  const kind = quoteKindName(quote.kind);
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4">

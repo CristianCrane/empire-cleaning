@@ -4,10 +4,8 @@ import {
   Building2,
   CalendarCheck,
   House,
-  KeyRound,
   MapPin,
   NotebookPen,
-  Ruler,
   Sparkles,
   SquarePen,
   type LucideIcon,
@@ -49,15 +47,13 @@ import { useAction } from "../action.ts";
 import {
   addressOf,
   clientName,
-  conditionText,
   formatDate,
   formatDateTime,
-  formatFloorArea,
   formatMinutes,
   propertySummary,
   quoteHeadline,
 } from "../format.ts";
-import { Fact } from "../Fact.tsx";
+import { AccessFact, ConditionFact, Fact, FloorAreaFact } from "../Fact.tsx";
 import { QuoteIcon } from "../icons.ts";
 import { QuoteStatusBadge } from "../QuoteParts.tsx";
 import {
@@ -75,7 +71,7 @@ import {
   RoomFields,
 } from "./PropertyFields.tsx";
 import { PlanDetails } from "./ServicePlanScreen.tsx";
-import { OfferServicePlan } from "./StartDraft.tsx";
+import { OfferServicePlan, QUOTE_A_PLAN } from "./StartDraft.tsx";
 import { JobStatusBadge } from "../JobBadges.tsx";
 
 // A home for the Office (ADR-0011), read as a whole (UX pass, #96): what to
@@ -247,9 +243,7 @@ function PlanPart({
               canQuote && (
                 <OfferServicePlan
                   propertyId={home.id}
-                  label={
-                    resumes ? "Carry on with the draft" : "Quote a Service Plan"
-                  }
+                  label={resumes ? "Carry on with the draft" : QUOTE_A_PLAN}
                   primary={!seenFirst}
                 />
               )
@@ -568,29 +562,13 @@ function Details({
               shares the screen with the History */}
           <div className="@container">
             <dl className="grid gap-x-6 gap-y-4 @md:grid-cols-2 @3xl:grid-cols-4">
-              <Fact
-                icon={Ruler}
-                label="Floor area"
-                value={
-                  home.floorArea === null
-                    ? "Not known yet"
-                    : formatFloorArea(home.floorArea)
-                }
-              />
-              <Fact
-                icon={Sparkles}
-                label="Condition"
-                value={conditionText(home.condition)}
+              <FloorAreaFact property={home} />
+              <ConditionFact
+                property={home}
                 line="Condition, at the last visit"
               />
-              <Fact
-                icon={KeyRound}
-                label="How we get in"
-                value={
-                  <span className="whitespace-pre-line">
-                    {home.accessInstructions || "Not added yet"}
-                  </span>
-                }
+              <AccessFact
+                property={home}
                 line="How we get in: the Client's, and the crew's"
               />
               <Fact

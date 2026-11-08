@@ -45,13 +45,19 @@ import {
   formatMinutes,
   formatMoney,
   planRhythm,
-  wantedCleaning,
+  quoteKindName,
 } from "../format.ts";
 import { Fact } from "../Fact.tsx";
-import { PlanDayCard, PlanTotals, QuoteStatusBadge } from "../QuoteParts.tsx";
+import {
+  AskedRows,
+  PlanDayCard,
+  PlanTotals,
+  QuoteStatusBadge,
+} from "../QuoteParts.tsx";
 import { ConsentNote, usePaymentForm } from "./CardForm.tsx";
 import { ASK_AGAIN, ON_WEEKS_BILL, turnedDown } from "@empire-cleaning/models";
 import { billPaid, planPaymentLine } from "./payments.ts";
+import { requestQuote } from "./whats-next.ts";
 
 // A Quote as its Client sees it, from the link in every Quote email (ADR-0017):
 // only its offer, the latest Sent Revision, which they accept right here; or,
@@ -119,9 +125,7 @@ function AskedQuote({ quote }: { quote: AskedQuoteView }) {
             {turnedDown(quote.turnDownReason!)} {ASK_AGAIN}
           </p>
           <p>
-            <Link href={linkTo({ to: "/portal/request" })}>
-              Request a Quote
-            </Link>
+            <Link href={requestQuote.href}>{requestQuote.label}</Link>
           </p>
         </Notice>
       ) : siteVisit ? (
@@ -144,35 +148,13 @@ function AskedQuote({ quote }: { quote: AskedQuoteView }) {
           <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
             <dt className="font-semibold">Asked</dt>
             <dd>{formatDate(quote.createdAt)}</dd>
-            {premises ? (
-              <>
-                <dt className="font-semibold">Cleaning wanted</dt>
-                <dd>{wantedCleaning(asked)}</dd>
-              </>
-            ) : (
+            {!premises && (
               <>
                 <dt className="font-semibold">Condition</dt>
                 <dd>{conditionLabel[asked.condition!]}</dd>
-                <dt className="font-semibold">Extras</dt>
-                <dd>
-                  {asked.addOns.length > 0
-                    ? asked.addOns.map((a) => a.name).join(", ")
-                    : "None"}
-                </dd>
-                <dt className="font-semibold">Regular visits</dt>
-                <dd>
-                  {asked.wantsRegularService
-                    ? "Wanted after the first clean"
-                    : "Not asked for"}
-                </dd>
               </>
             )}
-            {asked.notes && (
-              <>
-                <dt className="font-semibold">Notes</dt>
-                <dd className="whitespace-pre-line">{asked.notes}</dd>
-              </>
-            )}
+            <AskedRows asked={asked} premises={premises} />
           </dl>
         </Card>
       </Section>
@@ -205,7 +187,7 @@ function OfferedQuote({
     <div className="flex flex-col gap-6">
       <QuoteHeader
         quote={quote}
-        title={quote.plan ? "Your Service Plan Quote" : "Your Quote"}
+        title={`Your ${quoteKindName(quote.kind)}`}
         updatedAt={quote.updatedAt}
         openUntil={quote.status === "sent" ? quote.expiresAt : null}
       />

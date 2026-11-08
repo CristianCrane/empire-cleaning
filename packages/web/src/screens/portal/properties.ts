@@ -36,6 +36,18 @@ export const planWhen = (plan: Pick<ServicePlanSummary, "days">) =>
     .flatMap((d) => (d.startsAt ? [planDayWhen(d.startsAt)] : []))
     .join(" and ");
 
+// a Quote's state as its Client sees it: one being drafted is still asked for
+export const quoteStatus: Record<string, { tone: StatusTone; label: string }> =
+  {
+    requested: { tone: "info", label: "Asked for" },
+    draft: { tone: "info", label: "Asked for" },
+    sent: { tone: "warning", label: "To answer" },
+    accepted: { tone: "success", label: "Accepted" },
+    declined: { tone: "neutral", label: "Declined" },
+    expired: { tone: "neutral", label: "Expired" },
+    turned_down: { tone: "neutral", label: "Turned Down" },
+  };
+
 // a Quote as a row's title: what it's for
 export const quoteTitle = (q: QuoteSummary) =>
   q.kind === "service_plan"

@@ -12,7 +12,7 @@ import {
 } from "@empire-cleaning/ui";
 import { linkTo } from "../../links.ts";
 import { QuoteIcon } from "../icons.ts";
-import { whatsNext, type Hero } from "./whats-next.ts";
+import { requestQuote, whatsNext, type Hero } from "./whats-next.ts";
 
 // The Client's Home answers what's next: what's waiting on them in Notices,
 // then the one thing next in a card, then shortcuts to what they can do
@@ -22,7 +22,7 @@ export function PortalHome() {
   const { notices, news, hero, after, shortcuts } = whatsNext(data);
   const [firstName] = data.client.name.split(" ");
   // the hero asking for a Quote makes the header's Button a repeat
-  const heroAsks = hero.action?.label === "Request a Quote";
+  const heroAsks = hero.action === requestQuote;
 
   return (
     <div className="flex flex-col gap-6">

@@ -96,7 +96,8 @@ export type WhatsNext = {
   shortcuts: Shortcut[];
 };
 
-const requestQuote = {
+// the Client's ways to a Quote: asking for one, and seeing one
+export const requestQuote = {
   label: "Request a Quote",
   href: linkTo({ to: "/portal/request" }),
 };
@@ -104,6 +105,10 @@ const jobLink = (jobId: string) =>
   linkTo({ to: "/portal/jobs/$jobId", params: { jobId } });
 const quoteLink = (quoteId: string) =>
   linkTo({ to: "/portal/quotes/$quoteId", params: { quoteId } });
+const seeQuote = (quoteId: string) => ({
+  label: "See your Quote",
+  href: quoteLink(quoteId),
+});
 const billLink = (billId: string) =>
   linkTo({ to: "/portal/bills/$billId", params: { billId } });
 const cardLink = linkTo({ to: "/portal/payment-method" });
@@ -164,8 +169,8 @@ export function whatsNext(data: HomeData, now = new Date()): WhatsNext {
   for (const quote of sent.filter((q) => q !== leadingQuote)) {
     notices.push({
       text: `Your Quote is ready: ${quoteHeadline(quote)}.`,
-      action: "See your Quote",
-      href: quoteLink(quote.id),
+      action: seeQuote(quote.id).label,
+      href: seeQuote(quote.id).href,
     });
   }
   for (const bill of data.bills) {
@@ -307,7 +312,7 @@ function heroOf(data: HomeData, ctx: Context): Hero {
           ? [`Open until ${dayOf(leadingQuote.expiresAt)}`]
           : []),
       ],
-      action: { label: "See your Quote", href: quoteLink(leadingQuote.id) },
+      action: seeQuote(leadingQuote.id),
     };
   }
 

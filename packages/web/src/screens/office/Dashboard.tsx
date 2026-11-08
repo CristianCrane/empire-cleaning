@@ -37,6 +37,7 @@ import {
   formatDay,
   formatMoney,
 } from "../format.ts";
+import { QUOTE_A_PLAN } from "./StartDraft.tsx";
 
 // how often a Dashboard left open asks again, while it can be seen: a new
 // Quote request shows within a minute (the Office is emailed of it too).
@@ -257,7 +258,7 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
         const { job } = item;
         return {
           key: `service_plan_due ${job.id}`,
-          action: "Quote a Service Plan",
+          action: QUOTE_A_PLAN,
           icon: Repeat,
           tone: "info",
           client: clientName(job.client),

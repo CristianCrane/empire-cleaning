@@ -37,7 +37,7 @@ import {
 } from "@empire-cleaning/ui";
 import { putJson } from "../../api.ts";
 import { useAction } from "../action.ts";
-import { cleaners, formatDate } from "../format.ts";
+import { cleaners, conditionLabel, formatDate } from "../format.ts";
 import { Fact } from "../Fact.tsx";
 
 // what's saved: every save is the whole list, as a new version
@@ -73,6 +73,10 @@ const times = (multiplier: number) => `${multiplier}×`;
 // The Price List read part by part: a row per Add-on and type of premises,
 // each opening its dialog, and the other figures as facts, each part changed
 // in its own dialog. A save is a new version. (UX pass, #96)
+// what a change to the prices touches, here and on Services
+export const PRICES_CHANGE =
+  "Changes apply to prices worked out from now on. Quotes already sent keep the prices they were sent with.";
+
 export function PriceListScreen() {
   const { list, services } = useLoaderData({ from: "/office/price-list" });
 
@@ -86,9 +90,8 @@ export function PriceListScreen() {
           {list.placeholder
             ? "Starting figures"
             : `Version ${list.version}, saved by ${list.createdByName ?? "someone"} on ${formatDate(list.createdAt)}`}
-          . Changes apply to prices worked out from now on. Quotes already sent
-          keep the prices they were sent with. Each Service's hourly rate,
-          Minimum Charge and tax are on{" "}
+          . {PRICES_CHANGE} Each Service's hourly rate, Minimum Charge and tax
+          are on{" "}
           <Link to="/office/services" className="font-semibold text-primary">
             Services
           </Link>
@@ -571,6 +574,13 @@ const multiplier = {
   formatOptions: { maximumFractionDigits: 2 },
 };
 
+// each level of Condition, and the Price List's figure for it
+const conditionFigures = [
+  ["light", "conditionLight"],
+  ["moderate", "conditionModerate"],
+  ["heavy", "conditionHeavy"],
+] as const;
+
 function Condition({ list }: { list: PriceList }) {
   return (
     <Figures
@@ -580,33 +590,24 @@ function Condition({ list }: { list: PriceList }) {
       names={["conditionLight", "conditionModerate", "conditionHeavy"]}
       facts={
         <>
-          <Fact
-            icon={Gauge}
-            label="Light Condition"
-            value={times(list.conditionLight)}
-            line="Light"
-          />
-          <Fact
-            icon={Gauge}
-            label="Moderate Condition"
-            value={times(list.conditionModerate)}
-            line="Moderate"
-          />
-          <Fact
-            icon={Gauge}
-            label="Heavy Condition"
-            value={times(list.conditionHeavy)}
-            line="Heavy"
-          />
+          {conditionFigures.map(([c, name]) => (
+            <Fact
+              key={c}
+              icon={Gauge}
+              label={`${conditionLabel[c]} Condition`}
+              value={times(list[name])}
+              line={conditionLabel[c]}
+            />
+          ))}
         </>
       }
       fields={(figures, set) => {
         const field = figure(figures, set);
         return (
           <div className="grid gap-4 sm:grid-cols-3">
-            {field("Light (×)", "conditionLight", multiplier)}
-            {field("Moderate (×)", "conditionModerate", multiplier)}
-            {field("Heavy (×)", "conditionHeavy", multiplier)}
+            {conditionFigures.map(([c, name]) =>
+              field(`${conditionLabel[c]} (×)`, name, multiplier),
+            )}
           </div>
         );
       }}
