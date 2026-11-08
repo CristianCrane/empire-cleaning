@@ -331,7 +331,7 @@ test("Office Staff Turn Down a Quote asked for, and the Client is told why", asy
   const told = (await emailsTo(casey.email)).find(
     (e) => e.subject === "About your quote from Empire Cleaning",
   );
-  expect(told?.text).toContain("it's outside the area we clean");
+  expect(told?.text).toContain("It's outside the area we clean");
   // the email's link shows them the same
   const client = await (await browser.newContext()).newPage();
   await signedInAs(client, casey.email);

@@ -15,14 +15,15 @@ const startOf = (kind: PropertyKind) =>
 export const openAlready = (kind: PropertyKind, what = "a quote") =>
   `${startOf(kind)} already has ${what} open.`;
 
-// why the Office couldn't quote, as the Client is told it, after
-// TURNED_DOWN
+// why the Office couldn't quote, as the Client is told it: alone, as a
+// headline, or after turnedDown's apology
 export const turnDownReason: Record<TurnDownReason, string> = {
   out_of_area: "It's outside the area we clean",
   out_of_scope: "It's not work we take on",
   no_capacity: "We're fully booked right now",
 };
-export const TURNED_DOWN = "Sorry, we can't take this one on.";
+export const turnedDown = (reason: TurnDownReason) =>
+  `Sorry, we can't take this one on. ${turnDownReason[reason]}.`;
 export const ASK_AGAIN = "If anything changes, you're welcome to ask us again.";
 
 // why a Quote can't be sent yet; each side adds where to fix it

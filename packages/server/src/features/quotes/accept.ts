@@ -543,7 +543,7 @@ export const acceptQuote = async (
               : "Your card didn't go through, so nothing was booked. Please try another card."
             : attempt.reason === UNREACHABLE
               ? PAYMENT_DOWN
-              : `${client.name}'s ${saved!.label} didn't go through (${attempt.reason.replaceAll("_", " ")}), so nothing was booked. Email them a link to add another card.`,
+              : `${client.name}'s ${saved!.label} didn't go through, so nothing was booked. Email them a link to add another card.`,
         );
       }
       if (attempt.status === "needs_approval") {

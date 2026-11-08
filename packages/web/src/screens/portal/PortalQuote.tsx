@@ -50,12 +50,7 @@ import {
 import { Fact } from "../Fact.tsx";
 import { PlanDayCard, PlanTotals, QuoteStatusBadge } from "../QuoteParts.tsx";
 import { ConsentNote, usePaymentForm } from "./CardForm.tsx";
-import {
-  ASK_AGAIN,
-  ON_WEEKS_BILL,
-  turnDownReason,
-  TURNED_DOWN,
-} from "@empire-cleaning/models";
+import { ASK_AGAIN, ON_WEEKS_BILL, turnedDown } from "@empire-cleaning/models";
 import { billPaid, planPaymentLine } from "./payments.ts";
 
 // A Quote as its Client sees it, from the link in every Quote email (ADR-0017):
@@ -121,7 +116,7 @@ function AskedQuote({ quote }: { quote: AskedQuoteView }) {
       {quote.status === "turned_down" ? (
         <Notice>
           <p>
-            {TURNED_DOWN} {turnDownReason[quote.turnDownReason!]}. {ASK_AGAIN}
+            {turnedDown(quote.turnDownReason!)} {ASK_AGAIN}
           </p>
           <p>
             <Link href={linkTo({ to: "/portal/request" })}>

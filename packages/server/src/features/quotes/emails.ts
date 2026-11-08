@@ -18,8 +18,7 @@ import { billPaid } from "../bills/billed-weekly.ts";
 import {
   ASK_AGAIN,
   ON_WEEKS_BILL,
-  turnDownReason,
-  TURNED_DOWN,
+  turnedDown,
   type PropertyKind,
   type TurnDownReason,
 } from "@empire-cleaning/models";
@@ -194,7 +193,7 @@ export const turnDownEmail = ({
   blocks: [
     greeting(firstNameOf(name)),
     paragraph(
-      `Thanks for asking us for a quote for ${address}. ${TURNED_DOWN} ${turnDownReason[reason]}.`,
+      `Thanks for asking us for a quote for ${address}. ${turnedDown(reason)}`,
     ),
     paragraph(ASK_AGAIN),
     button("See your quote", `/portal/quotes/${quoteId}`),
