@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { startTime } from "../../middleware/validation.ts";
+import { keepUnder, startTime } from "../../middleware/validation.ts";
 
 // the messages are shown beside the form's fields, so they're written for people
 
@@ -290,7 +290,7 @@ export const clientSubmission = z
 export const officeNotes = z
   .string()
   .trim()
-  .max(4000, "Keep the notes under 4,000 characters")
+  .max(4000, keepUnder(4000, "the notes"))
   .nullable()
   .transform((notes) => notes || null);
 

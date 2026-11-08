@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { keepUnder } from "../../middleware/validation.ts";
 
 const condition = z.enum(["light", "moderate", "heavy"], {
   error: "Say how the home was: light, moderate or heavy",
@@ -8,7 +9,7 @@ const reason = z
   .string({ error: "Say why" })
   .trim()
   .min(1, "Say why")
-  .max(500, "Keep the reason under 500 characters");
+  .max(500, keepUnder(500, "the reason"));
 
 const report = z.discriminatedUnion("kind", [
   z.object({
@@ -46,7 +47,7 @@ const officeReason = z
   .string()
   .trim()
   .min(1, "Say why you're changing the price")
-  .max(500, "Keep the reason under 500 characters");
+  .max(500, keepUnder(500, "the reason"));
 
 export const proposalSchema = z
   .object({
