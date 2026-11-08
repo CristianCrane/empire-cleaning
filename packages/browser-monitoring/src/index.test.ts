@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/react";
-import type { ErrorEvent } from "@sentry/react";
+import type { ErrorEvent, Event } from "@sentry/react";
 import { describe, expect, test } from "vitest";
 import { scrubBreadcrumb, scrubEvent, startMonitoring } from "./index.ts";
 
@@ -74,6 +74,34 @@ describe("scrubbing", () => {
         },
       },
       tags: { area: "portal" },
+    });
+  });
+
+  test("a report from the feedback button keeps the page, the Account ID and what they noticed, scrubbed", () => {
+    const report: Event = {
+      type: "feedback",
+      contexts: {
+        feedback: {
+          message: "Helen's card says casey@example.com, not hers",
+          url: "https://app.test.example.com/office/clients?q=helen",
+        },
+      },
+      request: { url: "https://app.test.example.com/office/clients?q=helen" },
+      user: { id: "account-1", email: "jen@example.com" },
+    };
+
+    expect(scrubEvent(report)).toEqual({
+      type: "feedback",
+      contexts: {
+        feedback: {
+          message: "Helen's card says [email], not hers",
+          url: "https://app.test.example.com/office/clients?q=[redacted]",
+        },
+      },
+      request: {
+        url: "https://app.test.example.com/office/clients?q=[redacted]",
+      },
+      user: { id: "account-1" },
     });
   });
 

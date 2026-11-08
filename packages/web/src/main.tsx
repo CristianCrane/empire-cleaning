@@ -3,18 +3,24 @@ import { createRoot } from "react-dom/client";
 import { RouterProvider } from "@tanstack/react-router";
 import { applyThemePreference, readThemePreference } from "@empire-cleaning/ui";
 import {
+  feedbackButton,
   routerTracing,
   startMonitoring,
 } from "@empire-cleaning/browser-monitoring";
 import { router } from "./router.tsx";
 import { forgetAccount } from "./session.ts";
+import "./feedback.css";
 
 // Sentry (ADR-0007), set at build time: without VITE_SENTRY_DSN (dev, tests)
-// nothing is sent
+// nothing is sent. The test site's pages carry its feedback button
+// (ADR-0020); no other build has it, as the mode is known at build time and
+// the button's code is dropped with the branch that isn't taken
+const mode = import.meta.env.VITE_APP_MODE ?? "dev";
 startMonitoring({
   dsn: import.meta.env.VITE_SENTRY_DSN,
-  environment: import.meta.env.VITE_APP_MODE ?? "dev",
+  environment: mode,
   tracing: routerTracing(router),
+  feedback: mode === "test" ? feedbackButton() : undefined,
 });
 
 applyThemePreference(readThemePreference());
