@@ -1,3 +1,7 @@
+---
+status: accepted, partly superseded by ADR-0028 (edited end-to-end specs run once before a PR)
+---
+
 # The full suite runs on CI, not locally
 
 Every PR ran the full suite (`pnpm test:full`) on the machine that made it, before it opened. That's every package's tests, one after another: 12.8 minutes, half of it the 288 web end-to-end tests (#309). Two worktrees doing so at once pegged the CPU, and each suite took twice as long and failed on load alone, so it ran again. This retires that pattern: **`pnpm test:full` before every PR**.

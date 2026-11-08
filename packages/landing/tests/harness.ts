@@ -15,7 +15,7 @@ export const emailsTo = (address: string): Promise<Email[]> =>
   control(`/emails?to=${encodeURIComponent(address)}`);
 
 // an address of a test's own, to send the Quote form with: new each time, as
-// --repeat-each runs a test more than once
+// the tests run in parallel against one database that nothing resets
 export const newEmail = () => `casey-${crypto.randomUUID()}@example.com`;
 
 // every test fails if the Content-Security-Policy (astro.config.ts) blocked

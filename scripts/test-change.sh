@@ -11,16 +11,14 @@
 # - the server (not the seed test), ui, models and browser-monitoring tests,
 #   and web's few browser tests in src/
 # - every end-to-end spec the branch adds or edits, the web app's (e2e/) and
-#   the landing site's (tests/), committed or not, three times
-#   (--repeat-each=3 --fail-on-flaky-tests), so a test that passes alone and
-#   fails beside others shows here rather than on CI (#310)
-# - the specs named, once
+#   the landing site's (tests/), committed or not, and the specs named, once
+#   each (ADR-0028)
 #
 # With no --project, each spec runs in every project its tags name: phone,
 # and desktop for @desktop (packages/web/playwright.config.ts). The edited
 # specs come from git rather than Playwright's --only-changed, which also
 # takes every spec importing a changed file: an edit to e2e/harness.ts would
-# run nearly all of them, three times.
+# run nearly all of them.
 
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
@@ -40,11 +38,6 @@ edited_specs() {
 }
 mapfile -t edited < <(edited_specs packages/web e2e)
 mapfile -t landing < <(edited_specs packages/landing tests)
-named=()
-for spec in "$@"; do
-  [[ " ${edited[*]} " == *" $spec "* ]] || named+=("$spec")
-done
-
 failed=0
 run() {
   echo "› $*"
@@ -56,18 +49,15 @@ run pnpm --color --recursive --workspace-concurrency=1 --no-bail \
   --filter @empire-cleaning/models --filter @empire-cleaning/browser-monitoring \
   run test:quick
 run pnpm --filter @empire-cleaning/web exec vitest run
-if ((${#edited[@]})); then
-  run pnpm --filter @empire-cleaning/web exec playwright test \
-    --repeat-each=3 --fail-on-flaky-tests "${edited[@]}"
-fi
-if ((${#named[@]})); then
-  run pnpm --filter @empire-cleaning/web exec playwright test "${named[@]}"
+# a spec both edited and named runs once: Playwright takes each argument as a
+# filter, and runs what any of them match
+if ((${#edited[@]} + $#)); then
+  run pnpm --filter @empire-cleaning/web exec playwright test "${edited[@]}" "$@"
 fi
 if ((${#landing[@]})); then
-  run pnpm --filter @empire-cleaning/landing exec playwright test \
-    --repeat-each=3 --fail-on-flaky-tests "${landing[@]}"
+  run pnpm --filter @empire-cleaning/landing exec playwright test "${landing[@]}"
 fi
-if ((${#edited[@]} + ${#named[@]} + ${#landing[@]} == 0)); then
+if ((${#edited[@]} + $# + ${#landing[@]} == 0)); then
   echo "No e2e spec ran: name the specs for the screens the change touches."
 fi
 exit $failed
