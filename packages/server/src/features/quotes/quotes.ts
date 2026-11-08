@@ -1326,6 +1326,9 @@ export const offerServicePlan = async (
 
 const SENT_ALREADY =
   "This quote was already sent, so this didn't go through. Reload the page to see it.";
+// no Draft any more: sent from another page, or deleted
+const DRAFT_GONE =
+  "This draft was sent or deleted since you opened it, so this didn't go through. Reload the page to see the quote.";
 
 // the Revision being drafted, which is all Office Staff can change, while
 // the Quote is open
@@ -1333,7 +1336,7 @@ const findDraftRevision = async (id: string, tx: Tx | typeof db = db) => {
   const quote = await openQuote(id, tx);
   const draft = await draftRevisionOf(id, tx);
   if (!draft) {
-    throw new ConflictError(SENT_ALREADY);
+    throw new ConflictError(DRAFT_GONE);
   }
   return { quote, draft: kinded(quote, draft) };
 };
