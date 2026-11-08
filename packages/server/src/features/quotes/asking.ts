@@ -26,7 +26,12 @@ import { clients, type Client } from "../clients/clients.schema.ts";
 import { addressKey } from "../properties/address.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
-import { currentPriceList, offeredWith } from "../price-list/price-list.ts";
+import {
+  currentPriceList,
+  NOT_A_PREMISES_TYPE,
+  offeredWith,
+  offersPremisesType,
+} from "../price-list/price-list.ts";
 import { currentServices, onOfferAt } from "../services/services.ts";
 import {
   accountSubmission,
@@ -144,12 +149,12 @@ const checkAddOns = (list: PriceList, service: Service, keys: string[]) => {
 
 // only Premises Types on offer now can be chosen for new premises
 const checkPremisesType = (list: PriceList, key: string) => {
-  if (!list.premisesTypes.some((t) => t.active && t.key === key)) {
+  if (!offersPremisesType(list, key)) {
     refuse([
       {
         code: "custom",
         path: ["property", "new", "premisesType"],
-        message: "Choose from the types of premises listed",
+        message: NOT_A_PREMISES_TYPE,
         input: key,
       },
     ]);

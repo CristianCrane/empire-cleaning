@@ -162,7 +162,7 @@ export const checkForKind = (
       problems.push(issue(["weekdays"], "Choose the days you want cleaned"));
     }
     if (!fields.preferredTime) {
-      problems.push(issue(["preferredTime"], "Choose a time"));
+      problems.push(issue(["preferredTime"], "Pick a start time"));
     }
   }
   return problems;

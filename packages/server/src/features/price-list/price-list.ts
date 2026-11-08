@@ -327,6 +327,12 @@ export const choosableAddOns = async (
     .map(({ key, name }) => ({ key, name }));
 };
 
+// whether premises can be described as a Premises Type now, and what
+// they're told when they can't
+export const offersPremisesType = (list: PriceList, key: string) =>
+  list.premisesTypes.some((t) => t.active && t.key === key);
+export const NOT_A_PREMISES_TYPE = "Pick a type of business from the list";
+
 // the Premises Types business premises can be described as now; open to
 // everyone, for the landing page's form
 export const choosablePremisesTypes = async (): Promise<

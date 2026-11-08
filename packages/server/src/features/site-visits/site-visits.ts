@@ -37,7 +37,11 @@ import { clients, type Client } from "../clients/clients.schema.ts";
 import { lockDay } from "../jobs/jobs.ts";
 import { scheduleOn } from "../jobs/schedule.ts";
 import { busyWith, PASSED, roomOn, visitHours } from "../jobs/rules.ts";
-import { currentPriceList } from "../price-list/price-list.ts";
+import {
+  currentPriceList,
+  NOT_A_PREMISES_TYPE,
+  offersPremisesType,
+} from "../price-list/price-list.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { addressOf, toPropertyView } from "../properties/property-view.ts";
 import { warnOfficeOfQuotesWithoutRoom } from "../quotes/quote-room.ts";
@@ -354,12 +358,9 @@ const findingsFor = async (property: Property, body: unknown) => {
     const list = await currentPriceList();
     if (
       premisesType !== property.premisesTypeKey &&
-      !list.premisesTypes.some((t) => t.active && t.key === premisesType)
+      !offersPremisesType(list, premisesType)
     ) {
-      throw fieldError(
-        ["premisesType"],
-        "Pick a type of business from the list",
-      );
+      throw fieldError(["premisesType"], NOT_A_PREMISES_TYPE);
     }
     return { ...rest, premisesTypeKey: premisesType };
   }
