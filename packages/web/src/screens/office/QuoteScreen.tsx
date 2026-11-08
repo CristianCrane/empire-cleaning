@@ -130,6 +130,7 @@ import {
 } from "./QuoteAsked.tsx";
 import { PickFromSchedule } from "./SchedulePicker.tsx";
 import { BookSiteVisit, visitSummary } from "./SiteVisitParts.tsx";
+import { useStartDraft } from "./StartDraft.tsx";
 
 // The Quote with one of its Revisions in hand: the one being drafted, or
 // else the offer, so it's edited while there's a Draft Revision and
@@ -894,33 +895,19 @@ function OfferPrice({
 // starts a new Revision of a Sent or Expired Quote, from the offer's terms,
 // and opens it; primary only when it's the one thing to do
 function NewRevision({ quote }: { quote: OfficeQuote }) {
-  const navigate = useNavigate();
-  const action = useActionWith(
-    () => Promise.resolve(),
-    "The updated quote couldn't be started. Please try again.",
-  );
+  const { start, starting, failure } = useStartDraft();
   return (
     <>
       <Button
         variant="text"
         size="sm"
-        isPending={action.isPending}
-        onPress={async () => {
-          const ok = await action.run(() =>
-            postJson<OfficeQuote>(`/api/quotes/${quote.id}/revisions`, {}),
-          );
-          if (ok) {
-            await navigate({
-              to: "/office/quotes/$quoteId/draft",
-              params: { quoteId: quote.id },
-            });
-          }
-        }}
+        isPending={starting !== undefined}
+        onPress={() => void start({ quoteId: quote.id, kind: quote.kind! })}
       >
         <FilePlus aria-hidden size={16} />
         Draft an updated quote
       </Button>
-      {action.problem && <ActionProblem>{action.problem}</ActionProblem>}
+      {failure && <ActionProblem>{failure}</ActionProblem>}
     </>
   );
 }
