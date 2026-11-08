@@ -26,6 +26,7 @@ import {
   formatMoney,
   formatTime,
 } from "../format.ts";
+import { JobStatusBadge } from "../JobBadges.tsx";
 
 // The Client's cleans: Upcoming (with their Site Visits) and Past, each by
 // month, a date tile leading each row. Only what isn't plain gets a badge:
@@ -92,8 +93,7 @@ const pastBadge = (job: ClientPastJob) => {
   if (job.unpaid) return <StatusBadge tone="danger">Unpaid</StatusBadge>;
   if (job.awaitingAnswer > 0)
     return <StatusBadge tone="warning">Needs your OK</StatusBadge>;
-  if (job.status === "no_access")
-    return <StatusBadge tone="danger">No Access</StatusBadge>;
+  if (job.status === "no_access") return <JobStatusBadge status="no_access" />;
   if (job.status === "cancelled")
     return <StatusBadge>{job.skipped ? "Skipped" : "Cancelled"}</StatusBadge>;
   return undefined;

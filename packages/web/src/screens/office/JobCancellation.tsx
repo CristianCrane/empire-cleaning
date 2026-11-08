@@ -19,7 +19,7 @@ import {
   TextField,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
-import { formatDateTime, formatMoney } from "../format.ts";
+import { formatDateTime, formatMoney, jobStatusLabel } from "../format.ts";
 import { useAction } from "../action.ts";
 import type { CostedJob } from "../RescheduleParts.tsx";
 
@@ -186,7 +186,7 @@ export const howItEnded = (
   }
   if (noAccess) {
     return {
-      title: `No Access ${formatDateTime(noAccess.recordedAt)}`,
+      title: `${jobStatusLabel.no_access} ${formatDateTime(noAccess.recordedAt)}`,
       at: noAccess.recordedAt,
       description: `${noAccess.recordedBy ? `${noAccess.recordedBy.name} said` : "The Cleaner said"}: "${noAccess.reason}" Charged like a Late Cancellation.`,
     };

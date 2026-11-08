@@ -22,7 +22,6 @@ import {
   ListItem,
   Notice,
   Section,
-  StatusBadge,
   TimeField,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
@@ -38,7 +37,8 @@ import {
 } from "../format.ts";
 import { EndPlan, OnHold, PlanFacts, PlanStatusBadge } from "../PlanParts.tsx";
 import { useAction } from "../action.ts";
-import { homeCrumbs, JobStatusBadge } from "./PropertyScreen.tsx";
+import { JobBadge } from "../JobBadges.tsx";
+import { homeCrumbs } from "./PropertyScreen.tsx";
 import { PickFromSchedule } from "./SchedulePicker.tsx";
 import { OfferServicePlan } from "./StartDraft.tsx";
 
@@ -159,17 +159,7 @@ function PlanJobs({ plan }: { plan: OfficeServicePlan }) {
                 ? job.crew.map((c) => c.name).join(", ")
                 : "Nobody Offered yet"
             }
-            end={
-              job.status === "booked" ? (
-                <StatusBadge
-                  tone={job.assignment === "assigned" ? "success" : "warning"}
-                >
-                  {job.assignment === "assigned" ? "Assigned" : "Unassigned"}
-                </StatusBadge>
-              ) : (
-                <JobStatusBadge status={job.status} />
-              )
-            }
+            end={<JobBadge job={job} />}
             onAction={() =>
               void navigate({
                 to: "/office/jobs/$jobId",

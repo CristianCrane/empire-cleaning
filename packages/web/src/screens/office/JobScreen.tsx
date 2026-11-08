@@ -3,10 +3,8 @@ import { useLoaderData } from "@tanstack/react-router";
 import { UserPlus } from "lucide-react";
 import {
   isOnCrew,
-  type AssignmentState,
   type AssignmentView,
   type OfficeJob,
-  type ScheduledJob,
 } from "@empire-cleaning/models";
 import { MORE_HOURS } from "@empire-cleaning/models";
 import {
@@ -26,13 +24,13 @@ import {
   Section,
   Select,
   SelectItem,
-  StatusBadge,
 } from "@empire-cleaning/ui";
 import { deleteJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import {
   addressOf,
+  assignmentStateLabel,
   clientName,
   formatDate,
   formatDateTime,
@@ -51,43 +49,12 @@ import {
 import { JobHistory } from "./JobHistory.tsx";
 import { AnswerRequest, MoveActions } from "./JobReschedule.tsx";
 import { OfferServicePlan } from "./StartDraft.tsx";
-
-// whether a Job's whole crew is Confirmed, or once it has happened
-// or been Cancelled, how it went
-export function AssignmentBadge({ job }: { job: ScheduledJob }) {
-  if (job.status === "completed") {
-    return <StatusBadge tone="success">Completed</StatusBadge>;
-  }
-  if (job.status === "no_access") {
-    return <StatusBadge tone="danger">No Access</StatusBadge>;
-  }
-  if (job.status === "cancelled") {
-    return <StatusBadge>Cancelled</StatusBadge>;
-  }
-  return job.assignment === "assigned" ? (
-    <StatusBadge tone="info">Assigned</StatusBadge>
-  ) : (
-    <StatusBadge tone="warning">Unassigned</StatusBadge>
-  );
-}
-
-const stateBadge: Record<AssignmentState, ReactNode> = {
-  offered: <StatusBadge tone="warning">Offered</StatusBadge>,
-  confirmed: <StatusBadge tone="success">Confirmed</StatusBadge>,
-  released: <StatusBadge>Released</StatusBadge>,
-  taken_off: <StatusBadge>Taken off</StatusBadge>,
-};
-
-const answered: Record<Exclude<AssignmentState, "offered">, string> = {
-  confirmed: "Confirmed",
-  released: "Released",
-  taken_off: "Taken off",
-};
+import { AssignmentStateBadge, JobBadge } from "../JobBadges.tsx";
 
 const sinceOf = (a: AssignmentView) =>
   a.status === "offered"
     ? `Offered ${formatDate(a.offeredAt)}`
-    : `${answered[a.status]} ${formatDate(a.answeredAt!)}`;
+    : `${assignmentStateLabel[a.status]} ${formatDate(a.answeredAt!)}`;
 
 const booked = (job: OfficeJob) => job.status === "booked";
 
@@ -165,7 +132,7 @@ function JobHeader({ job }: { job: OfficeJob }) {
             <Heading level={1}>
               {job.serviceName} at {placeOf(job.property)}
             </Heading>
-            <AssignmentBadge job={job} />
+            <JobBadge job={job} />
           </div>
           <p className="text-lg text-fg-muted">
             {formatDateTime(job.startsAt)}
@@ -405,7 +372,7 @@ function Crew({ job }: { job: OfficeJob }) {
               description={sinceOf(a)}
               end={
                 <>
-                  {stateBadge[a.status]}
+                  <AssignmentStateBadge state={a.status} />
                   {booked(job) && isOnCrew(a.status) && (
                     <Remove job={job} assignment={a} />
                   )}

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLoaderData, useNavigate, useSearch } from "@tanstack/react-router";
 import type { LocalDateTime, ScheduledJob } from "@empire-cleaning/models";
-import { Dialog, Heading, StatusBadge } from "@empire-cleaning/ui";
+import { Dialog, Heading } from "@empire-cleaning/ui";
 import { ConfirmMove } from "./JobMove.tsx";
 import { RangeBar } from "../CalendarGrid.tsx";
 import { ScheduleCalendar } from "./ScheduleCalendar.tsx";
@@ -11,6 +11,7 @@ import {
   scheduleRange,
   type Span,
 } from "../schedule-range.ts";
+import { CrewBadge, JobStatusBadge } from "../JobBadges.tsx";
 
 /**
  * The Schedule as a calendar: days as columns over a time axis, each Job a
@@ -40,10 +41,10 @@ export function ScheduleScreen() {
       </Heading>
       <RangeBar from={from} to={to} onShow={show} />
       <div className="flex flex-wrap items-center gap-2 text-sm text-fg-muted">
-        <StatusBadge tone="warning">Unassigned</StatusBadge>
-        <StatusBadge tone="info">Assigned</StatusBadge>
-        <StatusBadge tone="success">Completed</StatusBadge>
-        <StatusBadge tone="danger">No Access</StatusBadge>
+        <CrewBadge assignment="unassigned" />
+        <CrewBadge assignment="assigned" />
+        <JobStatusBadge status="completed" />
+        <JobStatusBadge status="no_access" />
         <span className="hidden md:inline">
           Drag a Job to move it, or open it to move it to any time.
         </span>

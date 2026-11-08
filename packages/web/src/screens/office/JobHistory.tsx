@@ -17,7 +17,13 @@ import type {
   RescheduleRequestStatus,
 } from "@empire-cleaning/models";
 import { Section, Timeline, TimelineItem } from "@empire-cleaning/ui";
-import { formatDate, formatDateTime, formatMoney } from "../format.ts";
+import {
+  assignmentStateLabel,
+  formatDate,
+  formatDateTime,
+  formatMoney,
+  jobStatusLabel,
+} from "../format.ts";
 
 type Moment = {
   key: string;
@@ -34,9 +40,18 @@ const assignmentAnswered: Record<
   Exclude<AssignmentState, "offered">,
   { icon: LucideIcon; title: (name: string) => string }
 > = {
-  confirmed: { icon: UserCheck, title: (name) => `${name} Confirmed` },
-  released: { icon: UserMinus, title: (name) => `${name} Released` },
-  taken_off: { icon: UserMinus, title: (name) => `${name} taken off` },
+  confirmed: {
+    icon: UserCheck,
+    title: (name) => `${name} ${assignmentStateLabel.confirmed}`,
+  },
+  released: {
+    icon: UserMinus,
+    title: (name) => `${name} ${assignmentStateLabel.released}`,
+  },
+  taken_off: {
+    icon: UserMinus,
+    title: (name) => `${name} ${assignmentStateLabel.taken_off.toLowerCase()}`,
+  },
 };
 
 // a Reschedule Request answered, or closed unanswered
@@ -140,7 +155,7 @@ const momentsOf = (job: OfficeJob): Moment[] => {
       key: "no-access",
       at: job.noAccess.recordedAt,
       icon: DoorClosed,
-      title: "No Access",
+      title: jobStatusLabel.no_access,
       description: job.noAccess.recordedBy
         ? `Recorded by ${job.noAccess.recordedBy.name}`
         : undefined,

@@ -1,8 +1,11 @@
 import type {
   AdjustmentKind,
+  AssignmentState,
+  AssignmentStatus,
   ClientName,
   Condition,
   HomeRooms,
+  JobStatus,
   PlanDaySummary,
   PropertyView,
   QuoteSummary,
@@ -31,7 +34,8 @@ export const conditionLabel: Record<Condition, string> = {
 export const conditionText = (condition: Condition | null) =>
   condition ? conditionLabel[condition] : "Not recorded yet";
 
-const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
+export const plural = (n: number, one: string) =>
+  `${n} ${one}${n === 1 ? "" : "s"}`;
 
 const sqFt = new Intl.NumberFormat("en-US");
 // 4500 -> "4,500 sq ft"
@@ -313,3 +317,45 @@ export const siteVisitStatusLabel = {
   done: "Done",
   cancelled: "Cancelled",
 } as const;
+
+// A Job's status in the tones every status takes: booked is just so, done
+// went well, cancelled is over, No Access went wrong (JobStatusBadge)
+export const jobStatusLabel: Record<JobStatus, string> = {
+  booked: "Booked",
+  completed: "Completed",
+  cancelled: "Cancelled",
+  no_access: "No Access",
+};
+
+export const jobStatusTone = {
+  booked: "info",
+  completed: "success",
+  cancelled: "neutral",
+  no_access: "danger",
+} as const satisfies Record<JobStatus, string>;
+
+// whether a booked Job's crew is whole, as the Office sees it (JobBadge)
+export const crewLabel: Record<AssignmentStatus, string> = {
+  assigned: "Assigned",
+  unassigned: "Unassigned",
+};
+
+export const crewTone = {
+  assigned: "info",
+  unassigned: "warning",
+} as const satisfies Record<AssignmentStatus, string>;
+
+// where someone stands on a Job's crew
+export const assignmentStateLabel: Record<AssignmentState, string> = {
+  offered: "Offered",
+  confirmed: "Confirmed",
+  released: "Released",
+  taken_off: "Taken off",
+};
+
+export const assignmentStateTone = {
+  offered: "warning",
+  confirmed: "success",
+  released: "neutral",
+  taken_off: "neutral",
+} as const satisfies Record<AssignmentState, string>;

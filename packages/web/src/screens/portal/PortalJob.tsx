@@ -45,6 +45,7 @@ import {
 } from "../format.ts";
 import { Fact } from "../Fact.tsx";
 import { ON_WEEKS_BILL } from "@empire-cleaning/models";
+import { JobStatusBadge } from "../JobBadges.tsx";
 
 // one of the Client's Jobs, from the links in their emails: while it's to come,
 // moving or cancelling it; once Completed, its receipt; any extra work proposed to them
@@ -77,9 +78,9 @@ export function PortalJob() {
                 : "Cancelled"}
             </StatusBadge>
           ) : job.noAccess ? (
-            <StatusBadge tone="danger">No Access</StatusBadge>
+            <JobStatusBadge status="no_access" />
           ) : (
-            <StatusBadge tone="info">Booked</StatusBadge>
+            <JobStatusBadge status="booked" />
           )}
         </div>
         <p className="text-fg-muted">{addressOf(job.property)}</p>

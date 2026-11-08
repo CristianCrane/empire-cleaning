@@ -15,7 +15,6 @@ import {
 import type {
   ClientName,
   HomeView,
-  JobStatus,
   OfficePropertyView,
   OfficeServicePlan,
   OfficeSiteVisit,
@@ -43,12 +42,10 @@ import {
   Section,
   Select,
   SelectItem,
-  StatusBadge,
   TextField,
   Timeline,
   TimelineItem,
   type Crumb,
-  type StatusTone,
 } from "@empire-cleaning/ui";
 import { patchJson } from "../../api.ts";
 import { linkTo, type AppHref } from "../../links.ts";
@@ -75,6 +72,7 @@ import {
 import { ConditionField, PlaceTiles } from "./PropertyFields.tsx";
 import { PlanDetails } from "./ServicePlanScreen.tsx";
 import { OfferServicePlan } from "./StartDraft.tsx";
+import { JobStatusBadge } from "../JobBadges.tsx";
 
 // A home for the Office (ADR-0011), read as a whole (UX pass, #96): what to
 // know first in Notices; then its details, its Service Plan and its Site
@@ -453,30 +451,6 @@ function History({
         )}
       </Card>
     </Section>
-  );
-}
-
-const jobStatusLabel: Record<JobStatus, string> = {
-  booked: "Booked",
-  completed: "Completed",
-  cancelled: "Cancelled",
-  no_access: "No Access",
-};
-
-// a Job's status in the tones every status takes: booked is just so, done
-// went well, cancelled is over, No Access went wrong
-const jobStatusTone: Record<JobStatus, StatusTone> = {
-  booked: "info",
-  completed: "success",
-  cancelled: "neutral",
-  no_access: "danger",
-};
-
-export function JobStatusBadge({ status }: { status: JobStatus }) {
-  return (
-    <StatusBadge tone={jobStatusTone[status]}>
-      {jobStatusLabel[status]}
-    </StatusBadge>
   );
 }
 

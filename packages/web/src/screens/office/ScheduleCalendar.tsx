@@ -23,7 +23,6 @@ import {
   List,
   ListItem,
   StatusBadge,
-  type StatusTone,
 } from "@empire-cleaning/ui";
 import { linkTo } from "../../links.ts";
 import {
@@ -33,12 +32,16 @@ import {
   type TimePickerProps,
 } from "../CalendarGrid.tsx";
 import {
+  crewLabel,
+  crewTone,
   dayOfInstant,
   formatClock,
   formatDay,
   formatHours,
   formatMinutes,
   formatTime,
+  jobStatusLabel,
+  jobStatusTone,
   shortClientName,
   timeOfDay,
   today,
@@ -74,32 +77,21 @@ const WEEK_DAY_MIN_PX = 104;
 
 // a Job's colour and its words for it: how it turned out, or whether its
 // crew is Confirmed
-const toneOf = (
-  job: ScheduledJob,
-): { label: string; tone: StatusTone; block: string } =>
-  job.status === "completed"
-    ? {
-        label: "Completed",
-        tone: "success",
-        block: "border-success-strong bg-success-subtle",
-      }
-    : job.status === "no_access"
-      ? {
-          label: "No Access",
-          tone: "danger",
-          block: "border-danger-strong bg-danger-subtle",
-        }
-      : job.assignment === "assigned"
-        ? {
-            label: "Assigned",
-            tone: "info",
-            block: "border-info-strong bg-info-subtle",
-          }
-        : {
-            label: "Unassigned",
-            tone: "warning",
-            block: "border-warning-strong bg-warning-subtle",
-          };
+// a block's colours, by the tone of the Job's status
+const blockOf = {
+  success: "border-success-strong bg-success-subtle",
+  danger: "border-danger-strong bg-danger-subtle",
+  info: "border-info-strong bg-info-subtle",
+  warning: "border-warning-strong bg-warning-subtle",
+} as const;
+
+const toneOf = (job: ScheduledJob) => {
+  const { label, tone } =
+    job.status === "completed" || job.status === "no_access"
+      ? { label: jobStatusLabel[job.status], tone: jobStatusTone[job.status] }
+      : { label: crewLabel[job.assignment], tone: crewTone[job.assignment] };
+  return { label, tone, block: blockOf[tone] };
+};
 
 const crewOf = (job: ScheduledJob) =>
   job.crew.map((c) => c.name).join(", ") || "No crew yet";
@@ -519,7 +511,14 @@ const layoutDay = (
   const proposedBlock =
     proposed && drawn(PROPOSED, hoursOf(proposed.time), proposed.hoursOnSite);
   const unassigned = new Set(
-    jobs.filter((job) => toneOf(job).label === "Unassigned").map((j) => j.id),
+    jobs
+      .filter(
+        (job) =>
+          job.status !== "completed" &&
+          job.status !== "no_access" &&
+          job.assignment === "unassigned",
+      )
+      .map((j) => j.id),
   );
   const { shown, hidden } = fitLanes(
     proposedBlock ? [...blocks, proposedBlock] : blocks,
