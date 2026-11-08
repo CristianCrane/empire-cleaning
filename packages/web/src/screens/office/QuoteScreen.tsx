@@ -812,8 +812,7 @@ function Offer({ quote, actions }: { quote: ShownQuote; actions?: ReactNode }) {
           </div>
         )}
         <p className="border-t border-border pt-4 text-sm text-fg-muted">
-          Priced from version {quote.priceListVersion} of the prices. To offer
-          something different, change the quote.
+          Priced from version {quote.priceListVersion} of the prices.
         </p>
       </Card>
     </Section>
