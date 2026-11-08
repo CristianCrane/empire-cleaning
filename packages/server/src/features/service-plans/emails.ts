@@ -13,6 +13,7 @@ import {
   formatWhen,
 } from "../../services/email/format.ts";
 import type { Settled } from "../completion/balance.ts";
+import { BOOK_ANOTHER } from "../quotes/emails.ts";
 
 const whenList = (times: string[]) =>
   times.map((t) => formatWhen(new Date(t))).join("; ");
@@ -108,7 +109,7 @@ export const planEndedEmail = ({
               "Whatever your final clean still owes, or is owed, goes on your next weekly bill.",
             ]
           : []),
-        "To book another clean, request a Quote from your account.",
+        BOOK_ANOTHER,
       ].map(paragraph),
       button("See your plan", `/portal/plans/${planId}`),
     ],

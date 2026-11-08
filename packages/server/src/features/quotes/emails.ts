@@ -28,6 +28,11 @@ import { describePlan, recurrenceLabel } from "./plan-days.ts";
 // Every Quote email links to the Quote's page, with no sign-in power
 // (ADR-0006): the same page shows the offer once it's Sent
 
+// how a Client books again once their cleans are cancelled or their plan
+// has ended
+export const BOOK_ANOTHER =
+  "To book another clean, ask us for a quote in your account.";
+
 // always to the Client's own address, so an existing Client hears about any
 // Quote asked for with their email
 export const quoteReceivedEmail = ({

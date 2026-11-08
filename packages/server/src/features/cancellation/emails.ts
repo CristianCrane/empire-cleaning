@@ -9,6 +9,7 @@ import {
 import { firstNameOf, formatMoney } from "../../services/email/format.ts";
 import { jobsButton } from "../assignments/emails.ts";
 import type { Settled } from "../completion/balance.ts";
+import { BOOK_ANOTHER } from "../quotes/emails.ts";
 
 // for a Client whose plan an Unpaid Job has put On Hold
 export const ON_HOLD_LINE =
@@ -111,9 +112,7 @@ export const cancelledEmail = ({
       ...[
         ...rest,
         ...refundLine(settled),
-        onPlan
-          ? "Your Service Plan carries on as usual."
-          : "To book another clean, request a Quote from your account.",
+        onPlan ? "Your Service Plan carries on as usual." : BOOK_ANOTHER,
       ].map(paragraph),
       portalButton(jobId),
     ],
@@ -224,7 +223,7 @@ export const noAccessEmail = ({
       ...refundLine(settled),
       onPlan
         ? "Your Service Plan carries on as usual. Please check your Access Instructions before your next clean."
-        : "To book another clean, request a Quote from your account. Please check your Access Instructions first.",
+        : `${BOOK_ANOTHER} Please check your Access Instructions first.`,
     ].map(paragraph),
     portalButton(jobId),
   ],
