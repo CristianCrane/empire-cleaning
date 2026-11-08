@@ -77,6 +77,19 @@ test(
     expect((await emailsTo(casey.email)).at(-1)!.subject).toBe(
       "Your cleaning plan has ended",
     );
+
+    // a clean the plan took with it reads as cancelled with the plan, not
+    // skipped, and the plan doesn't carry on
+    await page.goto("/portal/cleans");
+    await page.getByRole("tab", { name: /Past/ }).click();
+    const last = page.getByRole("row").first();
+    await expect(last).toContainText("Cancelled");
+    await last.getByRole("link").click();
+    const cancelled = page.getByRole("region", { name: "Cancelled" });
+    await expect(cancelled).toContainText(
+      "The cleaning plan ended, so this clean was cancelled. There's no charge for it.",
+    );
+    await expect(cancelled).not.toContainText("carries on");
   },
 );
 

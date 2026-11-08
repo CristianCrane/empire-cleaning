@@ -1693,7 +1693,8 @@ export type OfficeCancelInput = {
   by: CancelledBy;
   // the fee they were shown, as for the Client
   feeCents: number;
-  // told to the Client
+  // told to the Client when Empire Cleaning cancels, and dropped when it's
+  // the Client's own cancellation
   reason?: string | null;
 };
 

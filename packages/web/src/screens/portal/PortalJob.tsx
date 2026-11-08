@@ -49,6 +49,7 @@ import { Fact } from "../Fact.tsx";
 import {
   adjustmentLabel,
   cancelCostForClient,
+  cancelledWithPlanForClient,
   clientFix,
   LATE_MOVE_FEE,
   noAccessFee,
@@ -513,10 +514,10 @@ function Cancelled({ job }: { job: ClientJobDetail }) {
         </p>
       ) : cancellation.withPlan ? (
         <p>
-          {cancellation.reason}, so this clean was cancelled.{" "}
-          {cancellation.feeCents > 0
-            ? `The ${formatMoney(cancellation.feeCents)} fee from an earlier late move is still to pay.`
-            : "There's no charge for it."}
+          {cancelledWithPlanForClient(cancellation.reason!, {
+            feeCents: cancellation.feeCents,
+            fee: formatMoney(cancellation.feeCents),
+          })}
         </p>
       ) : (
         <p>

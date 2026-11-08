@@ -31,6 +31,10 @@ export type OfficeCancelCost = CancelCost & {
   refund: string | null;
 };
 
+// a fee a Late Reschedule left on the Job, which cancelling doesn't undo
+const earlierMoveFee = (fee: string) =>
+  `${fee} fee from an earlier late move is still to pay`;
+
 export const cancelCostForClient = ({
   onPlan,
   late,
@@ -44,7 +48,7 @@ export const cancelCostForClient = ({
   }
   if (feeCents > 0) {
     return onPlan
-      ? `The ${fee} fee from an earlier late move is still to pay, and skipping costs nothing more.`
+      ? `The ${earlierMoveFee(fee)}, and skipping costs nothing more.`
       : `Your ${fee} deposit was already kept for an earlier late move, so there's nothing more to pay.`;
   }
   return onPlan
@@ -60,7 +64,7 @@ const officeCost = ({ onPlan, late, feeCents, fee }: CancelCost) => {
   }
   if (feeCents > 0) {
     return onPlan
-      ? `Free, but the ${fee} fee from an earlier late move is still to pay.`
+      ? `Free, but the ${earlierMoveFee(fee)}.`
       : `Free, but the ${fee} deposit was already kept for an earlier late move.`;
   }
   return "Free.";
@@ -77,6 +81,15 @@ export const cancelCostForOffice = (cost: OfficeCancelCost) =>
   ]
     .filter(Boolean)
     .join(" ");
+
+// a plan Job cancelled as its plan ended or changed, not skipped, as its
+// Client is told. It's never a Late Cancellation (ending.ts, changing.ts), so
+// its only fee is one a Late Reschedule left
+export const cancelledWithPlanForClient = (
+  reason: string,
+  { feeCents, fee }: Pick<CancelCost, "feeCents" | "fee">,
+) =>
+  `${reason}, so this clean was cancelled. ${feeCents > 0 ? `The ${earlierMoveFee(fee)}.` : "There's no charge for it."}`;
 
 // the fee for a clean we couldn't get in for, as its Client is told: charged
 // as a late cancellation is
