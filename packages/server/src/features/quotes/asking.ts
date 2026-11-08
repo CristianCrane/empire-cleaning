@@ -11,6 +11,7 @@ import type {
 import { db } from "../../db/index.ts";
 import {
   ConflictError,
+  fieldError,
   NotFoundError,
   RequestBodyError,
   TooManyRequestsError,
@@ -122,10 +123,6 @@ const businessNameOf = (submission: Submission) =>
     ? submission.businessName || null
     : null;
 
-const refuse = (issues: z.core.$ZodIssue[]) => {
-  throw new RequestBodyError(new z.ZodError(issues));
-};
-
 // only Add-ons on offer now that go with the Service can be chosen
 const checkAddOns = (list: PriceList, service: Service, keys: string[]) => {
   if (keys.length === 0) return;
@@ -134,15 +131,10 @@ const checkAddOns = (list: PriceList, service: Service, keys: string[]) => {
   );
   const unknown = keys.findIndex((key) => !offered.has(key));
   if (unknown !== -1) {
-    throw new RequestBodyError(
-      new z.ZodError([
-        {
-          code: "custom",
-          path: ["addOns", unknown],
-          message: "Choose from the Add-ons listed",
-          input: keys[unknown],
-        },
-      ]),
+    throw fieldError(
+      ["addOns", unknown],
+      "Choose from the Add-ons listed",
+      keys[unknown],
     );
   }
 };
@@ -150,14 +142,11 @@ const checkAddOns = (list: PriceList, service: Service, keys: string[]) => {
 // only Premises Types on offer now can be chosen for new premises
 const checkPremisesType = (list: PriceList, key: string) => {
   if (!offersPremisesType(list, key)) {
-    refuse([
-      {
-        code: "custom",
-        path: ["property", "new", "premisesType"],
-        message: NOT_A_PREMISES_TYPE,
-        input: key,
-      },
-    ]);
+    throw fieldError(
+      ["property", "new", "premisesType"],
+      NOT_A_PREMISES_TYPE,
+      key,
+    );
   }
 };
 
@@ -280,16 +269,9 @@ const clashMessage = (
 const askedService = (all: Service[], kind: Property["kind"], key: string) => {
   const service = onOfferAt(all, kind).find((s) => s.key === key);
   if (!service) {
-    refuse([
-      {
-        code: "custom",
-        path: ["serviceKey"],
-        message: "Choose from the Services listed",
-        input: key,
-      },
-    ]);
+    throw fieldError(["serviceKey"], "Choose from the Services listed", key);
   }
-  return service!;
+  return service;
 };
 
 // the rooms an ask gives a home, and where they are in it: a new home's

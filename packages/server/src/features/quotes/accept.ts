@@ -1,11 +1,10 @@
 import { and, desc, eq, isNull } from "drizzle-orm";
-import { z } from "zod";
 import type { QuoteOption, QuoteStatus } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import {
   ConflictError,
+  fieldError,
   NotFoundError,
-  RequestBodyError,
 } from "../../middleware/errors.ts";
 import { clock, dayOf } from "../../services/clock/index.ts";
 import { email, formatWhen } from "../../services/email/index.ts";
@@ -186,15 +185,9 @@ const offerFor = async (
   if (revision.kind === "one_off") {
     const row = rows.find((r) => r.serviceKey === serviceKey);
     if (!row) {
-      throw new RequestBodyError(
-        new z.ZodError([
-          {
-            code: "custom",
-            path: ["serviceKey"],
-            message: `Choose ${rows.map((r) => `a ${r.suggested.serviceName}`).join(" or ")}`,
-            input: undefined,
-          },
-        ]),
+      throw fieldError(
+        ["serviceKey"],
+        `Choose ${rows.map((r) => `a ${r.suggested.serviceName}`).join(" or ")}`,
       );
     }
     const option = toOption(revision, row);

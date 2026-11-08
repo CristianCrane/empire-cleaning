@@ -1,5 +1,4 @@
 import { and, asc, eq, gte, inArray } from "drizzle-orm";
-import { z } from "zod";
 import type {
   BookSiteVisitInput,
   CleanerSiteVisits,
@@ -11,6 +10,7 @@ import { NO_CREW } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import {
   ConflictError,
+  fieldError,
   NotFoundError,
   RequestBodyError,
 } from "../../middleware/errors.ts";
@@ -53,11 +53,6 @@ import {
   premisesFindingsSchema,
 } from "./site-visits.validation.ts";
 import { toSiteVisitView } from "./views.ts";
-
-const fieldError = (path: (string | number)[], message: string) =>
-  new RequestBodyError(
-    new z.ZodError([{ code: "custom", path, message, input: undefined }]),
-  );
 
 // a Property with its Client
 const propertyOf = async (propertyId: string) => {

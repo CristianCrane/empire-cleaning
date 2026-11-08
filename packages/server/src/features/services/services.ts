@@ -9,8 +9,7 @@ import type {
   ServiceOffer,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
-import { NotFoundError, RequestBodyError } from "../../middleware/errors.ts";
-import { z } from "zod";
+import { fieldError, NotFoundError } from "../../middleware/errors.ts";
 import type { Clean } from "../../services/email/blocks.ts";
 import { currentPriceList } from "../price-list/price-list.ts";
 import { addressOf } from "../properties/property-view.ts";
@@ -320,11 +319,6 @@ export const cleanOf = async (
   address: addressOf(property),
   startsAt: job.startsAt,
 });
-
-const fieldError = (path: (string | number)[], message: string) =>
-  new RequestBodyError(
-    new z.ZodError([{ code: "custom", path, message, input: undefined }]),
-  );
 
 // a first-visit recommendation must be another Service there is
 const checkFirstVisit = (

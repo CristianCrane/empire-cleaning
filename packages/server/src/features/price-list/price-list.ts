@@ -6,8 +6,7 @@ import type {
   PriceListInput,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
-import { RequestBodyError } from "../../middleware/errors.ts";
-import { z } from "zod";
+import { fieldError } from "../../middleware/errors.ts";
 import { currentServices, findService } from "../services/services.ts";
 import { SEEDED, SEEDED_FOR_HOMES } from "../services/seeded.ts";
 import { staff } from "../staff/staff.schema.ts";
@@ -224,16 +223,7 @@ const keepRetired = <T extends { key?: string; name: string; active: boolean }>(
     (item) => item.key && !known.has(item.key),
   );
   if (unknown !== -1) {
-    throw new RequestBodyError(
-      new z.ZodError([
-        {
-          code: "custom",
-          path: [field, unknown, "name"],
-          message: gone,
-          input: submitted[unknown],
-        },
-      ]),
-    );
+    throw fieldError([field, unknown, "name"], gone, submitted[unknown]);
   }
   const keys = new Set(submitted.map((item) => item.key));
   const left = current
@@ -247,15 +237,10 @@ const checkServiceKeys = async (input: PriceListInput) => {
   const known = new Set((await currentServices()).map((s) => s.key));
   for (const [i, addOn] of input.addOns.entries()) {
     if (addOn.serviceKeys.some((key) => !known.has(key))) {
-      throw new RequestBodyError(
-        new z.ZodError([
-          {
-            code: "custom",
-            path: ["addOns", i, "serviceKeys"],
-            message: "Choose from the Services listed",
-            input: addOn.serviceKeys,
-          },
-        ]),
+      throw fieldError(
+        ["addOns", i, "serviceKeys"],
+        "Choose from the Services listed",
+        addOn.serviceKeys,
       );
     }
   }

@@ -1,5 +1,5 @@
 import type { ErrorRequestHandler } from "express";
-import type { ZodError } from "zod";
+import { z, type ZodError } from "zod";
 import { monitoring } from "#services/monitoring";
 import env from "../env.ts";
 
@@ -54,6 +54,16 @@ export class RequestBodyError extends APIError {
     }));
   }
 }
+
+// a request refused over one field, whose message shows beside it
+export const fieldError = (
+  path: (string | number)[],
+  message: string,
+  input?: unknown,
+) =>
+  new RequestBodyError(
+    new z.ZodError([{ code: "custom", path, message, input }]),
+  );
 
 export class QueryParameterError extends APIError {
   public readonly details: APIErrorDetail[];

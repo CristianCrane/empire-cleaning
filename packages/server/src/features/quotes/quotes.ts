@@ -1,6 +1,5 @@
 import { isDeepStrictEqual } from "node:util";
 import { and, asc, eq, inArray, isNull, max, ne } from "drizzle-orm";
-import { z } from "zod";
 import type {
   AddOnChoice,
   ClientQuoteView,
@@ -25,8 +24,8 @@ import { ENDS_BY_MIDNIGHT } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import {
   ConflictError,
+  fieldError,
   NotFoundError,
-  RequestBodyError,
 } from "../../middleware/errors.ts";
 import {
   addDays,
@@ -118,11 +117,6 @@ const PLAN_DEFAULTS = {
   recurrence: Recurrence;
   condition: Condition;
 };
-
-const fieldError = (path: (string | number)[], message: string) =>
-  new RequestBodyError(
-    new z.ZodError([{ code: "custom", path, message, input: undefined }]),
-  );
 
 // A Revision with its Quote's kind, which is set by the first Revision and
 // never changes: what prices and shows it
