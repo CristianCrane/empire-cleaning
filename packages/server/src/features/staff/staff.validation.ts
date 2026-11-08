@@ -36,8 +36,6 @@ export const usualWeekSchema = z.object({
   usualWeek: z.array(hours).length(7, "Give hours for all seven days"),
 });
 
-export const isoDate = z.iso.date("Enter a date");
-
 export const exceptionSchema = z.object({
   hours,
   note: z

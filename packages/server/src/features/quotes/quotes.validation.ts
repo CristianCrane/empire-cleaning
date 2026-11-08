@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { day, startTime } from "../../middleware/validation.ts";
 
 // the offer accepted, as the page showed it (a newer one Sent since is
 // refused), and the Service chosen, by key, on a one-off Quote; a Service
@@ -61,10 +62,8 @@ export const crewSize = z
 // a clean's time, New York
 const start = z
   .object({
-    date: z.iso.date("Use a date like 2026-11-03"),
-    time: z
-      .string()
-      .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use a time like 09:30"),
+    date: day,
+    time: startTime,
   })
   .nullable();
 

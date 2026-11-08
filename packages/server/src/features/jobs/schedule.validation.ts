@@ -1,10 +1,9 @@
 import { z } from "zod";
+import { day, startTime } from "../../middleware/validation.ts";
 import { daysFrom } from "../../services/clock/index.ts";
 
 // longest range the Schedule shows at once: about two months
 const MAX_SCHEDULE_DAYS = 62;
-
-const day = z.iso.date("Use a date like 2026-11-03");
 
 export const rangeSchema = z
   .object({ from: day, to: day })
@@ -19,9 +18,7 @@ export const rangeSchema = z
 
 export const capacitySchema = z.object({
   date: day,
-  time: z
-    .string({ error: "Enter a start time" })
-    .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use a time like 09:30"),
+  time: startTime,
   labourHours: z.coerce
     .number({ error: "Enter Labour Hours" })
     .positive("Labour Hours must be more than 0")

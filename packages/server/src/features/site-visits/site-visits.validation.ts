@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { day, startTime } from "../../middleware/validation.ts";
 import {
   conditionSchema,
   floorArea,
@@ -18,10 +19,8 @@ const minutes = z
 
 // when, who visits, and for how long; moving one sends the same
 export const bookingSchema = z.object({
-  date: z.iso.date("Choose a day"),
-  time: z
-    .string({ error: "Choose a start time" })
-    .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use a time like 09:30"),
+  date: day,
+  time: startTime,
   staffId: z.uuid("Choose who visits"),
   minutes: minutes.default(30),
 });
