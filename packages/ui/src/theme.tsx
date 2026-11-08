@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ToggleButton } from "react-aria-components";
 import { Moon, Sun } from "lucide-react";
+import { readStored, store } from "./stored.ts";
 import { THEME_STORAGE_KEY as STORAGE_KEY } from "./theme-boot.ts";
 import { focusRing } from "./utils.ts";
 
@@ -9,13 +10,8 @@ export type ThemePreference = "light" | "dark";
 
 // remembered per device; storage can be unavailable (private browsing), in
 // which case it's light
-export const readThemePreference = (): ThemePreference => {
-  try {
-    return localStorage.getItem(STORAGE_KEY) === "dark" ? "dark" : "light";
-  } catch {
-    return "light";
-  }
-};
+export const readThemePreference = (): ThemePreference =>
+  readStored("localStorage", STORAGE_KEY) === "dark" ? "dark" : "light";
 
 export const applyThemePreference = (preference: ThemePreference) => {
   const root = document.documentElement;
@@ -24,16 +20,8 @@ export const applyThemePreference = (preference: ThemePreference) => {
   } else {
     root.removeAttribute("data-theme");
   }
-
-  try {
-    if (preference === "dark") {
-      localStorage.setItem(STORAGE_KEY, "dark");
-    } else {
-      localStorage.removeItem(STORAGE_KEY);
-    }
-  } catch {
-    // not remembered, still applied
-  }
+  // not remembered if storage is blocked, but still applied
+  store("localStorage", STORAGE_KEY, preference === "dark" ? "dark" : null);
 };
 
 // one quiet button: a moon to switch to dark, a sun to switch back
