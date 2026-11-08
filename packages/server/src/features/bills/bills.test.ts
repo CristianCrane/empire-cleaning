@@ -599,7 +599,9 @@ describe("a Bill that can't be charged for want of the database", () => {
 });
 
 describe("Unpaid Bills", () => {
-  test("a failed automatic Charge makes the Bill Unpaid and the Client's plan On Hold, until a new card pays it", async () => {
+  // a weekly plan from Friday the 9th, its first Job done, for a business
+  // charged automatically each week
+  const planOnBill = async () => {
     const office = await signInAsOffice();
     const me = (await office.get("/api/me").expect(200))
       .body as SignedInAccount;
@@ -615,7 +617,6 @@ describe("Unpaid Bills", () => {
       condition: "moderate",
       reports: [],
     });
-    // a weekly plan from Friday the 9th
     const { planId, firstJob } = await startedServicePlan({
       propertyId: first.propertyId,
       byAccountId: me.id,
@@ -631,6 +632,11 @@ describe("Unpaid Bills", () => {
       condition: "moderate",
       reports: [],
     });
+    return { office, client, planId };
+  };
+
+  test("a failed automatic Charge makes the Bill Unpaid and the Client's plan On Hold, until a new card pays it", async () => {
+    const { office, client, planId } = await planOnBill();
 
     testPayments().failCharges();
     testClock().set(NEXT_MONDAY);
@@ -706,6 +712,21 @@ describe("Unpaid Bills", () => {
   });
 
   // #241: nobody has to try again
+  test("one declined once the provider is back says its plan is paused", async () => {
+    await planOnBill();
+    testPayments().goDown();
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    testPayments().goDown(false);
+    testPayments().failCharges();
+
+    testClock().advance({ minutes: 15 });
+    await settleOpenPayments();
+    const notice = testEmail().lastTo(BILLING_EMAIL);
+    expect(notice.subject).toBe("We couldn't take payment for bill EC-000001");
+    expect(notice.text).toContain("your cleaning plan is paused");
+  });
+
   test("one declined once the provider is back tells the Client then", async () => {
     const { clientId, office } = await billedJob();
     testPayments().goDown();

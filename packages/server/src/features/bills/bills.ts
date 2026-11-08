@@ -79,7 +79,7 @@ import { LATE, nowTheirs, unpaidOf } from "../payments/unpaid.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
 import { jobQuotes } from "../quotes/job-quotes.ts";
-import { holdOrResumePlan } from "../service-plans/on-hold.ts";
+import { anyOnHold, holdOrResumePlan } from "../service-plans/on-hold.ts";
 import {
   servicePlans,
   servicePlanVisits,
@@ -513,12 +513,21 @@ const chargeBill = async (
             }),
       })
       .where(eq(bills.id, bill.id));
+    const becameUnpaid =
+      failure !== null &&
+      nowTheirs(bill.unpaidSince ? (bill.unpaidReason ?? "") : null, failure);
+    const plan = await holdOrResumePlansOf(bill.id, tx);
     return {
       failure,
-      becameUnpaid:
-        failure !== null &&
-        nowTheirs(bill.unpaidSince ? (bill.unpaidReason ?? "") : null, failure),
-      plan: await holdOrResumePlansOf(bill.id, tx),
+      becameUnpaid,
+      // a plan held already, as while the payment only waited on the
+      // provider, is told now the payment is the Client's to put right
+      plan:
+        becameUnpaid &&
+        !plan &&
+        (await anyOnHold(tx, await plansOf(bill.id, tx)))
+          ? ("held" as const)
+          : plan,
     };
   });
 

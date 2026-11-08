@@ -26,7 +26,7 @@ import {
 import { nowTheirs, NOT_SETTLED, unpaidOf } from "../payments/unpaid.ts";
 import { properties } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
-import { holdOrResume } from "../service-plans/on-hold.ts";
+import { holdOrResume, planOnHold } from "../service-plans/on-hold.ts";
 import { adjustments, type Adjustment } from "./completion.schema.ts";
 import { quotedJob } from "./pricing.ts";
 import { serviceNameOf } from "../services/services.ts";
@@ -331,6 +331,10 @@ export const settleJob = async (
         .where(eq(jobs.id, jobId));
     }
     settled.plan = await holdOrResume(tx, jobId);
+    // a plan held already, as while the payment only waited on the
+    // provider, is told now the payment is the Client's to put right
+    if (settled.becameUnpaid && !settled.plan && (await planOnHold(tx, jobId)))
+      settled.plan = "held";
     return settled;
   });
 
