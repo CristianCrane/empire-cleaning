@@ -60,7 +60,7 @@ test(
       standard.getByText("Cleaning hours, rounded up to the quarter-hour"),
     ).toBeVisible();
     await expect(standard).toContainText(
-      "Labour Hours, rounded up to the quarter-hour3.25 h",
+      "Cleaning hours, rounded up to the quarter-hour3.25 h",
     );
     await expect(standard).toContainText("Suggested price, before tax$179.00");
     await expect(
@@ -87,7 +87,7 @@ test("the extras asked for are priced, and shown with their hours", async ({
   const standard = page.getByRole("region", { name: "Standard Clean" });
   await expect(standard).toContainText("+ Inside the oven0.5 h");
   await expect(standard).toContainText(
-    "Labour Hours, rounded up to the quarter-hour3.75 h",
+    "Cleaning hours, rounded up to the quarter-hour3.75 h",
   );
 });
 

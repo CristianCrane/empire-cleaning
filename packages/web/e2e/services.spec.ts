@@ -42,10 +42,10 @@ test(
     // + 1.5 x 0.75 = 3.125 h, up to 3.25 h, x $55 = $179, + 8.875%
     const example = page.getByRole("region", { name: "Example quote" });
     await expect(example).toContainText(
-      "A 2-bedroom, 1½-bathroom home, in moderate Condition",
+      "A 2-bedroom, 1½-bathroom home, in moderate condition",
     );
     await expect(example).toContainText(
-      "Labour Hours, up to the quarter-hour3.25 h",
+      "Cleaning hours, rounded up to the quarter-hour3.25 h",
     );
     await expect(example).toContainText("Total$194.89");
     await expect(example).not.toContainText("Your changes");
@@ -106,7 +106,7 @@ test("Office Staff add a Service priced by area, and retire it", async ({
   const example = page.getByRole("region", { name: "Example quote" });
   await expect(example).toContainText("2,000 sq ft of office");
   await expect(example).toContainText(
-    "Labour Hours, up to the quarter-hour12 h",
+    "Cleaning hours, rounded up to the quarter-hour12 h",
   );
   await expect(example).toContainText("Total$718.58");
   await expect(example).not.toContainText("Your changes");

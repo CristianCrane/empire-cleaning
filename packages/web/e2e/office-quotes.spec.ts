@@ -52,7 +52,7 @@ test(
     // who's calling comes first
     await page.getByRole("textbox", { name: "Full name" }).fill("Pat Phoner");
     const price = page.getByRole("region", { name: "What it comes to" });
-    await expect(price).toContainText("Choose what they need");
+    await expect(price).toContainText("Pick what they need");
     await chooseService(page);
     await describeNewHome(page);
     // what it comes to as it's said: 1 + 2 x 0.5 + 1 x 0.75 = 2.75 h, x $55

@@ -96,7 +96,7 @@ test(
     await expect(client).toHaveURL(link);
 
     await expect(client.getByRole("heading", { level: 1 })).toHaveText(
-      "Your Quote",
+      "Your quote",
     );
     const offer = client.getByRole("region", { name: "Quote details" });
     await expect(
@@ -123,7 +123,7 @@ test("prices follow the Draft as it changes, and an override waits for its reaso
     .fill("250");
   const status = page.getByRole("status").filter({ hasText: /prices|saved/ });
   await expect(status).toHaveText(
-    "Give a reason for the override to update the prices",
+    "Give a reason for the new price to update the prices",
   );
   await page.getByRole("button", { name: `Send to ${casey.name}` }).click();
   await expect(
@@ -426,7 +426,7 @@ test("Quote screens pass automated accessibility checks", async ({
   await signedInAs(client, casey.email);
   await client.goto(await quoteLink());
   await expect(client.getByRole("heading", { level: 1 })).toHaveText(
-    "Your Quote",
+    "Your quote",
   );
   await expectAccessible(client);
 });
@@ -584,7 +584,7 @@ test("deleting a first Draft whose Service was asked for again since leaves the 
   await page.getByRole("button", { name: "Delete the draft" }).click();
   const dialog = page.getByRole("alertdialog");
   await expect(dialog).toContainText(
-    `unless ${casey.name} has asked for a Standard Clean again since`,
+    `If ${casey.name} has asked for a Standard Clean again since`,
   );
   await dialog.getByRole("button", { name: "Delete the draft" }).click();
 

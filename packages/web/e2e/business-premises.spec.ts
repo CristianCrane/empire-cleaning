@@ -217,7 +217,7 @@ test("Office Staff quote a business caller from New quote", async ({
   // a first idea only: the floor area isn't known
   await expect(
     page.getByRole("region", { name: "What it comes to" }),
-  ).toContainText("priced after the Site Visit");
+  ).toContainText("priced after its site visit");
   await page
     .getByRole("textbox", { name: "Business name" })
     .fill("Phoner & Co");

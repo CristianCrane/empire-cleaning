@@ -123,7 +123,7 @@ test("a Client's Home leads to a Quote they asked for, as they asked it", async 
 
   await expect(page).toHaveURL(/\/portal\/quotes\/[0-9a-f-]{36}$/);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "Your Quote",
+    "Your quote",
   );
   await expect(
     page.getByText(

@@ -135,7 +135,7 @@ test("Office Staff email a link to add a card, then record the Client's acceptan
   const waiting = page
     .getByRole("status")
     .filter({ hasText: "Waiting for Casey to accept" });
-  await expect(waiting).toContainText("they need a card saved first");
+  await expect(waiting).toContainText("they need to save a card first");
   await waiting
     .getByRole("button", { name: "Email Casey a link to add a card" })
     .click();
@@ -237,7 +237,7 @@ test("a Quote whose day has filled up can't be paid for, and the Office is asked
 
   await page.goto("/office");
   const needs = page.getByRole("grid", { name: "Needs attention" });
-  await expect(needs).toContainText("Pick another time for the Quote");
+  await expect(needs).toContainText("Pick another time for the quote");
   await needs.getByText(casey.name).click();
   await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
   await expect(

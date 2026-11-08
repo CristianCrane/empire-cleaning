@@ -70,7 +70,7 @@ test(
     await expect(accept).toContainText(
       "Paying with your Test card ending 4242",
     );
-    await expect(accept).toContainText("hold it for as long as your plan runs");
+    await expect(accept).toContainText("keep it for as long as your plan runs");
     // one Service, so nothing to choose
     await expect(accept.getByRole("radio")).toHaveCount(0);
     await accept.getByRole("button", { name: "Accept and pay $50.46" }).click();
@@ -146,7 +146,7 @@ test("the Office records a plan's acceptance, then books a visit its day had no 
   await page.goto(`/office/quotes/${quote.id}`);
   await page.getByRole("button", { name: "Record acceptance" }).click();
   await expect(page.getByRole("alertdialog")).toContainText(
-    "held for the life of the plan",
+    "kept for as long as the plan runs",
   );
   await page.getByRole("button", { name: "Charge and book" }).click();
   await expect(

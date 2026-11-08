@@ -129,7 +129,7 @@ test(
     // above it, what the First Clean found, folded away until it's wanted
     await page.getByText("First Clean: the home was moderate").click();
     await expect(
-      page.getByText("Its Cleaner found the home moderate"),
+      page.getByText("Its cleaners found the home moderate"),
     ).toBeVisible();
     await expect(page.getByText("No Adjustments.")).toBeVisible();
 
@@ -197,7 +197,7 @@ test(
     await signedInAs(client, casey.email);
     await client.goto(await quoteLink());
     await expect(client.getByRole("heading", { level: 1 })).toHaveText(
-      "Your Service Plan Quote",
+      "Your cleaning plan quote",
     );
     const plan = client.getByRole("region", {
       name: "Mondays at 9:00 AM: Standard Clean",
@@ -346,7 +346,7 @@ test("a Service Plan Quote and the Client's view of it pass an accessibility che
   await signedInAs(client, casey.email);
   await client.goto(await quoteLink());
   await expect(client.getByRole("heading", { level: 1 })).toHaveText(
-    "Your Service Plan Quote",
+    "Your cleaning plan quote",
   );
   await expectAccessible(client);
 });
@@ -391,7 +391,7 @@ test("the Client Declines a Service Plan Quote", async ({ page, browser }) => {
     .click();
 
   await expect(client.getByText("Quote declined")).toBeVisible();
-  await expect(client.getByText(/You declined this Quote/)).toBeVisible();
+  await expect(client.getByText(/You declined this quote/)).toBeVisible();
 });
 
 test("a home whose First Clean isn't Completed is answered with a one-off Quote", async ({

@@ -154,7 +154,7 @@ eachTheme(() => {
     // the Quote asked for, drafted
     await page
       .getByRole("grid", { name: "Needs attention" })
-      .getByRole("row", { name: /^Send a Quote/ })
+      .getByRole("row", { name: /^Send a quote/ })
       .click();
     await draftTheQuote(page);
     await expect(step(page, "Price it")).toBeVisible();

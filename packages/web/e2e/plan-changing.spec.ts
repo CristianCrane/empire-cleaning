@@ -138,7 +138,7 @@ test(
     ).toBeVisible();
     await expect(
       page.getByText(
-        "A cleaning plan quote changes its terms once the Client accepts it.",
+        "A cleaning plan quote changes it once the client accepts.",
         { exact: false },
       ),
     ).toBeVisible();
