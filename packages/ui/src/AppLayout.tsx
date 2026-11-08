@@ -126,7 +126,7 @@ export function AppLayout({
 
       <nav
         aria-label={area}
-        className="fixed inset-x-0 bottom-0 z-40 flex border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] md:hidden print:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 flex h-[calc(var(--spacing-tab-bar)+env(safe-area-inset-bottom))] border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] md:hidden print:hidden"
       >
         {tabs.map((item) => (
           <TabLink key={item.label} item={item} />
@@ -211,7 +211,7 @@ function TabLink({ item }: { item: NavItem }) {
       href={item.href}
       aria-current={item.isCurrent ? "page" : undefined}
       className={(renderProps) =>
-        `${focusRing(renderProps)} flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-xs font-semibold text-fg-muted no-underline -outline-offset-2 current:text-primary`
+        `${focusRing(renderProps)} flex flex-1 flex-col items-center justify-center gap-0.5 text-xs font-semibold text-fg-muted no-underline -outline-offset-2 current:text-primary`
       }
     >
       <Icon aria-hidden size={22} />
