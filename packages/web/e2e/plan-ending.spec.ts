@@ -84,7 +84,7 @@ test(
     await page.getByRole("tab", { name: /Past/ }).click();
     const last = page.getByRole("row").first();
     await expect(last).toContainText("Cancelled");
-    await last.getByRole("link").click();
+    await last.click();
     const cancelled = page.getByRole("region", { name: "Cancelled" });
     await expect(cancelled).toContainText(
       "The cleaning plan ended, so this clean was cancelled. There's no charge for it.",
