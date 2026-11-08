@@ -1,17 +1,10 @@
 import type { OpenQuote, ServiceOffer } from "@empire-cleaning/models";
+import { loadList } from "./list.ts";
 
 // the Services a Quote can be asked for now. Without them (the API
 // unreachable) the form can't be filled in, and says so.
-export const loadServices = async (apiUrl: string): Promise<ServiceOffer[]> => {
-  try {
-    const res = await fetch(`${apiUrl}/api/services/on-offer`, {
-      credentials: "omit",
-    });
-    return res.ok ? ((await res.json()) as ServiceOffer[]) : [];
-  } catch {
-    return [];
-  }
-};
+export const loadServices = (apiUrl: string) =>
+  loadList<ServiceOffer>(`${apiUrl}/api/services/on-offer`);
 
 // whether a Service is offered for homes or business premises
 export const offeredAt = (service: ServiceOffer, premises: boolean) =>
