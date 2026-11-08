@@ -22,9 +22,9 @@ export const BesideATitle: Story = {
       </div>
       <div className="ml-auto">
         <ActionBar {...args}>
-          <IconAction icon={CalendarSync} label="Move Job" />
+          <IconAction icon={CalendarSync} label="Move job" />
           <IconAction icon={CalendarClock} label="Ask for a new time" />
-          <IconAction icon={CalendarX} label="Cancel Job" danger />
+          <IconAction icon={CalendarX} label="Cancel job" danger />
         </ActionBar>
       </div>
     </div>

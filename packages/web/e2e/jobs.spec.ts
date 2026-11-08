@@ -43,7 +43,7 @@ test(
     await expect(rows(page).first()).toContainText("Thu, Jan 8, 9:00 AM");
 
     await page.getByRole("tab", { name: /Past/ }).click();
-    await expect(page.getByText("No Jobs done yet.")).toBeVisible();
+    await expect(page.getByText("No jobs done yet.")).toBeVisible();
     await page.getByRole("tab", { name: /Upcoming/ }).click();
 
     await rows(page).first().click();
@@ -78,7 +78,7 @@ test("Office Staff search Jobs by the address", async ({ page }) => {
     .split(",")[0]!;
 
   await page.goto("/office/jobs");
-  await page.getByRole("searchbox", { name: "Search Jobs" }).fill(street);
+  await page.getByRole("searchbox", { name: "Search jobs" }).fill(street);
   await expect(rows(page)).toHaveCount(1);
   await expect(rows(page)).toContainText("Mon, Jan 12, 9:00 AM");
   await expect(page.getByRole("tab", { name: /All/ })).toHaveAttribute(

@@ -20,7 +20,7 @@ const meta = {
     children: (
       <p>
         You can move it for free until <strong>Mon, Nov 2, 9:00 AM</strong>.
-        After that, it's a Late Reschedule, and only one per clean is free.
+        After that, it's a late move, and only one per clean is free.
       </p>
     ),
     actions: <Button variant="secondary">Pick a new time</Button>,

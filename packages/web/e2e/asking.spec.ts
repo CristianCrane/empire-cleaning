@@ -318,7 +318,7 @@ test("a Client's new email waits for them to open the link sent to it", async ({
     page.getByRole("heading", { name: "Email confirmed" }),
   ).toBeVisible();
   await expect(
-    page.getByText(`We'll send your Quotes and notices to ${work}.`),
+    page.getByText(`We'll send your quotes and notices to ${work}.`),
   ).toBeVisible();
   await expectAccessible(page);
 
@@ -352,7 +352,7 @@ test("Office Staff see the Quote, open the home and correct its details", async 
   await page.getByText("Casey Client").click();
   // the Quote first; its home is one step further
   await expect(page).toHaveURL(/\/office\/quotes\//);
-  await page.getByRole("link", { name: "View Property" }).click();
+  await page.getByRole("link", { name: "View property" }).click();
 
   await expect(page).toHaveURL(/\/office\/properties\//);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(

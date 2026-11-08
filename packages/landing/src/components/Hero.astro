@@ -1,8 +1,8 @@
 ---
-import { Logo, buttonStyles } from "@empire-cleaning/ui";
-import { Phone } from "lucide-react";
+import { Logo } from "@empire-cleaning/ui";
 import { glint, ripples, skyline, towersPath } from "../backdrop.ts";
 import { business } from "../business.ts";
+import QuoteOrCall from "./QuoteOrCall.astro";
 ---
 
 <!-- the logo leads, at a size it reads at: above the headline, everything
@@ -188,27 +188,7 @@ import { business } from "../business.ts";
       <p class="-mt-4 max-w-xl text-xl text-fg-muted">
         Exceptional results, every visit.
       </p>
-      <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-        <a
-          href="#quote"
-          class={buttonStyles({
-            variant: "primary",
-            className: "px-6 text-lg",
-          })}
-        >
-          Request a Quote
-        </a>
-        <a
-          href={business.phone.href}
-          class={buttonStyles({
-            variant: "secondary",
-            className: "px-6 text-lg",
-          })}
-        >
-          <Phone aria-hidden size={20} />
-          Call {business.phone.display}
-        </a>
-      </div>
+      <QuoteOrCall href="#quote" />
     </div>
   </div>
 </section>

@@ -264,9 +264,9 @@ test("the Client screen lists each home, whose own page holds its history and of
     .click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(casey.name);
 
-  const homes = page.getByRole("grid", { name: /Properties/ });
+  const homes = page.getByRole("grid", { name: /properties/ });
   await expect(homes.getByRole("row")).toHaveCount(1);
-  await expect(homes.getByRole("row")).toContainText("First Clean done");
+  await expect(homes.getByRole("row")).toContainText("First clean done");
   // no history here: that's on the home's page
   await expect(page.getByRole("grid", { name: /^Jobs/ })).toHaveCount(0);
   await homes.getByRole("row", { name: /41-12 Austin St/ }).click();
@@ -365,7 +365,7 @@ test("the Client and Property screens pass an accessibility check", async ({
   await expectAccessible(page);
 
   await page
-    .getByRole("grid", { name: /Properties/ })
+    .getByRole("grid", { name: /properties/ })
     .getByRole("row")
     .click();
   await page.reload();

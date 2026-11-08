@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { startTime } from "../../middleware/validation.ts";
+import { keepUnder, startTime } from "../../middleware/validation.ts";
 
 // the messages are shown beside the form's fields, so they're written for people
 
@@ -12,19 +12,27 @@ const phone = z
   );
 
 export const contactSchema = z.object({
-  name: z.string().trim().min(1, "Enter your name").max(100),
+  name: z
+    .string()
+    .trim()
+    .min(1, "Enter your name")
+    .max(100, keepUnder(100, "the name")),
   email: z.email("Enter a full email address, like name@example.com"),
   phone,
 });
 
 const address = {
-  street: z.string().trim().min(1, "Enter the street address").max(200),
-  unit: z.string().trim().max(50).nullish(),
+  street: z
+    .string()
+    .trim()
+    .min(1, "Enter the street address")
+    .max(200, keepUnder(200, "the street address")),
+  unit: z.string().trim().max(50, keepUnder(50, "the unit")).nullish(),
   postcode: z
     .string()
     .trim()
     .regex(/^\d{5}$/, "Enter a 5-digit ZIP code"),
-  accessInstructions: z.string().trim().max(2000).nullish(),
+  accessInstructions: z.string().trim().max(2000, keepUnder(2000)).nullish(),
 };
 
 const AREA = "Enter the area in sq ft";
@@ -120,14 +128,14 @@ const request = {
   businessName: z
     .string()
     .trim()
-    .max(200, "Use a shorter business name")
+    .max(200, keepUnder(200, "the business name"))
     .nullish(),
   weekdays: z.array(z.number().int().min(0).max(6)).max(7).optional(),
   preferredTime: startTime.nullish(),
   wantsRegularService: z.boolean(),
   // for a Service priced by area, a rough idea of it; kept only for one
   area: squareFeet(10).nullish(),
-  notes: z.string().trim().max(2000).nullish(),
+  notes: z.string().trim().max(2000, keepUnder(2000, "the notes")).nullish(),
 };
 
 type RequestFields = {
@@ -290,7 +298,7 @@ export const clientSubmission = z
 export const officeNotes = z
   .string()
   .trim()
-  .max(4000, "Keep the notes under 4,000 characters")
+  .max(4000, keepUnder(4000, "the notes"))
   .nullable()
   .transform((notes) => notes || null);
 

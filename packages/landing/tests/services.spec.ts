@@ -9,7 +9,7 @@ const sections = (page: (typeof servicePages)[number]) => [
   page.included.title,
   page.pricing.title,
   page.when.title,
-  "What our Clients say",
+  "What our clients say",
   "Questions we're asked",
   "How it works",
   "Request a quote",

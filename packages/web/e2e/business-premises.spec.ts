@@ -146,7 +146,7 @@ test(
     await expect(page.getByText("All changes saved")).toBeVisible();
     await expectAccessible(page);
 
-    await page.getByRole("link", { name: "View Property" }).click();
+    await page.getByRole("link", { name: "View property" }).click();
     await expect(page).toHaveURL(/\/office\/properties\//);
     await page.getByRole("button", { name: "Correct" }).click();
     await choose(page, /Type of business/, "Medical");

@@ -7,7 +7,7 @@ import {
   NotFoundError,
   RequestBodyError,
 } from "../../middleware/errors.ts";
-import { validate } from "../../middleware/validation.ts";
+import { keepUnder, validate } from "../../middleware/validation.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { clients } from "../clients/clients.schema.ts";
 import {
@@ -48,7 +48,11 @@ router.patch(
   validate({
     params,
     body: z.object({
-      accessInstructions: z.string().trim().max(2000).nullable(),
+      accessInstructions: z
+        .string()
+        .trim()
+        .max(2000, keepUnder(2000))
+        .nullable(),
     }),
   }),
   async (req, res) => {

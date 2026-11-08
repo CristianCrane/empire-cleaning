@@ -7,7 +7,7 @@ const sections = (area: (typeof areas)[number]) => [
   area.places.title,
   area.homes.title,
   area.popular.title,
-  "What our Clients say",
+  "What our clients say",
   "Questions we're asked",
   "How it works",
   "Request a quote",

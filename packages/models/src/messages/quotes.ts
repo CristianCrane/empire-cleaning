@@ -34,6 +34,9 @@ export const needsVisit = (kind: PropertyKind) =>
 // when a Quote asked for comes, as the one asking is told it: before they
 // ask, once they have, and while it's worked on
 export const WITHIN_A_DAY = "usually within a working day";
+// the button, link or step that leads to asking for a quote, wherever it is
+export const REQUEST_A_QUOTE = "Request a quote";
+
 export const ASK_US = `Tell us what you'd like cleaned, and we'll email you a quote, ${WITHIN_A_DAY}.`;
 export const quoteEmailedTo = (email: string) =>
   `We'll email your quote to ${email}, ${WITHIN_A_DAY}.`;

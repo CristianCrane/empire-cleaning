@@ -43,7 +43,7 @@ export const AllControls: Story = {
       />
       <TimeField label="Preferred time" name="time" />
       <TextField label="Access Instructions" name="access" multiline />
-      <Checkbox name="pets">There are pets at the Property</Checkbox>
+      <Checkbox name="pets">There are pets at the property</Checkbox>
       <Actions>
         <Button type="submit">Request a quote</Button>
       </Actions>
@@ -54,14 +54,14 @@ export const AllControls: Story = {
 // the API's own field errors show against the fields they belong to
 export const ServerErrors: Story = {
   args: {
-    validationErrors: { email: "There is already an Account with this email" },
+    validationErrors: { email: "There is already an account with this email" },
   },
   render: AllControls.render,
   play: async ({ canvas }) => {
     await expect(
       canvas.getByRole("textbox", { name: "Email" }),
     ).toHaveAccessibleDescription(
-      "There is already an Account with this email",
+      "There is already an account with this email",
     );
   },
 };

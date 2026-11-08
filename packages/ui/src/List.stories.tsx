@@ -7,7 +7,7 @@ import { StatusBadge } from "./StatusBadge.tsx";
 const meta = {
   title: "Components/List",
   component: List,
-  args: { "aria-label": "Today's Jobs", onAction: fn() },
+  args: { "aria-label": "Today's jobs", onAction: fn() },
 } satisfies Meta<typeof List>;
 
 export default meta;
@@ -20,7 +20,7 @@ export const Default: Story = {
       <ListItem
         id="1"
         title="41-12 Austin St"
-        description="9:00 AM · Deep Clean · 2 Cleaners"
+        description="9:00 AM · Deep Clean · 2 cleaners"
         end={<StatusBadge tone="success">Done</StatusBadge>}
       />
       <ListItem
@@ -66,7 +66,7 @@ export const WithAvatars: Story = {
       <ListItem
         id="2"
         title="Olive Owner"
-        description="Office Staff · olive@example.com"
+        description="Office · olive@example.com"
         start={<Avatar />}
         end={<StatusBadge tone="info">Invited</StatusBadge>}
       />
@@ -79,7 +79,7 @@ export const Empty: Story = {
     <List
       {...args}
       renderEmptyState={() => (
-        <p className="p-6 text-center text-fg-muted">No Jobs today.</p>
+        <p className="p-6 text-center text-fg-muted">No jobs today.</p>
       )}
     >
       {[]}

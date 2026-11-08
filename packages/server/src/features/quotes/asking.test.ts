@@ -728,7 +728,8 @@ describe("a signed-in Client", () => {
     expect(res.status).toBe(400);
     expect(res.body.details[0]).toMatchObject({
       path: "email",
-      issue: "That email is already used by another Client",
+      issue:
+        "That email belongs to another client. Please use a different one.",
     });
   });
 

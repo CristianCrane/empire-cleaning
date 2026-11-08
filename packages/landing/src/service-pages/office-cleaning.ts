@@ -7,7 +7,7 @@ export const officeCleaning: ServicePage = {
   office: officeServices.commercial,
   title: "Office Cleaning in Queens, NYC & Long Island",
   description:
-    "Office and commercial cleaning in Queens, Brooklyn, Manhattan and Long Island, on the days and times you choose. A free Site Visit first. Request a Quote.",
+    "Office and commercial cleaning in Queens, Brooklyn, Manhattan and Long Island, on the days and times you choose. A free site visit first. Request a quote.",
   heading: "Office and commercial cleaning",
   intro:
     "Workspaces, kitchens and restrooms kept clean for your team and your visitors, on the days you choose, after hours if you like. We visit first, for free, to see the space.",
@@ -48,13 +48,13 @@ export const officeCleaning: ServicePage = {
         ],
       },
     ],
-    note: "Every space is different, and the Site Visit is where we agree exactly what's cleaned.",
+    note: "Every space is different, and the site visit is where we agree exactly what's cleaned.",
   },
   pricing: {
     title: "How it's priced",
     text: [
-      "Request a Quote for business premises and tell us the type of premises (an office, a medical practice, a shop), roughly how big it is, and the days and time you'd like us. We then visit the space, for free, to see what it needs.",
-      "Your Quote is priced from what we find: the floor area, the type of premises and how often we come. Accept it online and pay a Deposit to book; each clean is charged once it's done.",
+      "Request a quote for business premises and tell us the type of premises (an office, a medical practice, a shop), roughly how big it is, and the days and time you'd like us. We then visit the space, for free, to see what it needs.",
+      "Your quote is priced from what we find: the floor area, the type of premises and how often we come. Accept it online and pay a deposit to book; each clean is charged once it's done.",
     ],
   },
   when: {
@@ -66,14 +66,14 @@ export const officeCleaning: ServicePage = {
   },
   faqs: [
     {
-      question: "What happens at the Site Visit?",
+      question: "What happens at the site visit?",
       answer:
-        "We come to see the space: its size, its rooms and what's in them, and anything that needs care. It's free, and it's how your Quote gets priced for what's really there.",
+        "We come to see the space: its size, its rooms and what's in them, and anything that needs care. It's free, and it's how your quote gets priced for what's really there.",
     },
     {
       question: "Can you clean after hours?",
       answer:
-        "Yes. Choose your preferred start time when you request a Quote, in the evening or early in the morning, and tell us how we get in.",
+        "Yes. Choose your preferred start time when you request a quote, in the evening or early in the morning, and tell us how we get in.",
     },
     {
       question: "How often can you come?",
@@ -83,7 +83,7 @@ export const officeCleaning: ServicePage = {
     {
       question: "Do you clean medical and dental offices?",
       answer:
-        "Yes. Choose Medical as the type of premises when you request a Quote, and tell us about anything that needs particular care.",
+        "Yes. Choose Medical as the type of premises when you request a quote, and tell us about anything that needs particular care.",
     },
     {
       question: "Do we need to be there?",
@@ -93,7 +93,7 @@ export const officeCleaning: ServicePage = {
     {
       question: "Can we change the days later?",
       answer:
-        "Yes. Ask us for a new Quote with the days you'd like, and from when, and we'll carry on from then on the new days.",
+        "Yes. Ask us for a new quote with the days you'd like, and from when, and we'll carry on from then on the new days.",
     },
     {
       question: "Do you clean offices in shared buildings?",

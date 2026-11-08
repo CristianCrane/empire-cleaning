@@ -149,7 +149,7 @@ export function SignIn() {
       {!sentTo && (
         <p className="text-center text-sm text-fg-muted">
           New to Empire Cleaning? Sign in with your email, then tell us about
-          your home for a Quote.
+          your home for a quote.
         </p>
       )}
     </main>

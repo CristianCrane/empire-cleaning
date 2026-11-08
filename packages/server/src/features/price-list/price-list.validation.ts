@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { keepUnder } from "../../middleware/validation.ts";
 import {
   crewSize,
   depositPercent,
@@ -32,7 +33,11 @@ export const taxPercent = z
 
 const addOn = z.object({
   key: z.uuid().optional(),
-  name: z.string().trim().min(1, "Enter a name").max(80, "Use a shorter name"),
+  name: z
+    .string()
+    .trim()
+    .min(1, "Enter a name")
+    .max(80, keepUnder(80, "the name")),
   hours: hours,
   taxExempt: z.boolean(),
   serviceKeys: z
@@ -43,7 +48,11 @@ const addOn = z.object({
 
 const premisesType = z.object({
   key: z.uuid().optional(),
-  name: z.string().trim().min(1, "Enter a name").max(80, "Use a shorter name"),
+  name: z
+    .string()
+    .trim()
+    .min(1, "Enter a name")
+    .max(80, keepUnder(80, "the name")),
   multiplier,
   active: z.boolean(),
 });

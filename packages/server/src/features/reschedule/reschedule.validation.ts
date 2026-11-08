@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { day, startTime } from "../../middleware/validation.ts";
+import { day, keepUnder, startTime } from "../../middleware/validation.ts";
 
 export const rescheduleSchema = z.object({
   date: day,
@@ -14,7 +14,7 @@ export const turnDownSchema = z.object({
   reason: z
     .string()
     .trim()
-    .max(500, "Keep the reason under 500 characters")
+    .max(500, keepUnder(500, "the reason"))
     .nullable()
     .optional()
     .transform((reason) => reason || null),

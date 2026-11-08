@@ -135,7 +135,7 @@ export const Empty: Story = {
       </TableHeader>
       <TableBody
         renderEmptyState={() => (
-          <p className="p-6 text-center text-fg-muted">No Quotes yet.</p>
+          <p className="p-6 text-center text-fg-muted">No quotes yet.</p>
         )}
       >
         {[]}
