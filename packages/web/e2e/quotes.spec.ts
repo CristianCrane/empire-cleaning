@@ -223,18 +223,18 @@ test("Office Staff draft a new Revision of a Sent Quote, which keeps the last as
   const quote = page.url();
   // each Sent Revision is a moment in the Quote's story, the offer in full
   // on top
-  const sent = page.getByText(/^(Updated quote|Quote) sent$/);
+  const sent = page.getByText("Quote sent", { exact: true });
   const offer = page.getByRole("region", { name: "Current quote" });
   await expect(sent).toHaveText(["Quote sent"]);
   await expect(offer).toContainText("Sent ");
 
-  await page.getByRole("button", { name: "Draft an updated quote" }).click();
+  await page.getByRole("button", { name: "Change quote" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    `Updated quote for ${casey.name}`,
+    `Draft quote for ${casey.name}`,
   );
   await expect(
     page.getByText(
-      `${casey.name} still sees the quote you sent until you send this one.`,
+      `${casey.name} still sees the quote as you sent it until you send your changes.`,
     ),
   ).toBeVisible();
   // still Sent, the offer standing while the changes are drafted
@@ -243,7 +243,7 @@ test("Office Staff draft a new Revision of a Sent Quote, which keeps the last as
   await expect(page.getByText("Sent", { exact: true })).toBeVisible();
   await expect(
     page.getByText(
-      `This draft isn't sent yet. ${casey.name} still sees the quote you sent until you send this one.`,
+      `This draft isn't sent yet. ${casey.name} still sees the quote as you sent it until you send your changes.`,
     ),
   ).toBeVisible();
   await page.goto("/office/quotes");
@@ -255,7 +255,7 @@ test("Office Staff draft a new Revision of a Sent Quote, which keeps the last as
   await page.getByRole("link", { name: "Carry on with the draft" }).click();
   await send(page);
   await expect(page.getByText("Being updated")).toBeHidden();
-  await expect(sent).toHaveText(["Updated quote sent", "Quote sent"]);
+  await expect(sent).toHaveText(["Quote sent", "Quote sent"]);
   await expect(offer).toContainText("Sent ");
 });
 
@@ -277,7 +277,7 @@ test("the Client sees only the latest Revision, from any of its emails", async (
   ).toContainText("Deep Clean");
   await expect(client.getByText(/Updated/)).toBeHidden();
 
-  await page.getByRole("button", { name: "Draft an updated quote" }).click();
+  await page.getByRole("button", { name: "Change quote" }).click();
   const deep = page.getByRole("region", { name: "Deep Clean" });
   await deep.getByText("Set the Deep Clean price yourself").click();
   await deep

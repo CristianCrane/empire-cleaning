@@ -307,7 +307,7 @@ describe("accepting a First Clean Quote", () => {
           .expect(409)
       ).body.message,
     ).toBe(
-      "An updated quote was just sent, so nothing was booked. Reload the page to see it.",
+      "This quote was just updated, so nothing was booked. Please reload the page to see it.",
     );
   });
 
@@ -795,7 +795,7 @@ describe("paying the Deposit with a card entered just now", () => {
     const refused = await finalize(client, quote).expect(409);
 
     expect(refused.body.message).toBe(
-      "This quote was updated while your bank was approving the payment, so we've refunded your deposit. Please look at the updated quote.",
+      "This quote was updated while your bank was approving the payment, so we've refunded your deposit. Please take a look at what's changed.",
     );
     expect(testPayments().refunds).toHaveLength(1);
     expect((await scheduleOn(office, MONDAY)).jobs).toEqual([]);

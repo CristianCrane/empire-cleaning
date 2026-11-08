@@ -28,10 +28,10 @@ export const QuoteStory: Story = {
           <Card>
             <p>
               <strong>Expired Thu, Oct 8, 11:00 AM</strong> without a reply. To
-              offer it again, send an updated quote.
+              offer it again, change the quote.
             </p>
             <Button variant="secondary" className="self-end">
-              Send an updated quote
+              Change quote
             </Button>
           </Card>
         </TimelineItem>

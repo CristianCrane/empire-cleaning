@@ -621,7 +621,7 @@ describe("a Sent Service Plan Quote", () => {
     });
     const updated = testEmail().lastTo(casey.email);
     expect(updated.subject).toBe(
-      "Your updated cleaning plan quote from Empire Cleaning",
+      "Your cleaning plan quote from Empire Cleaning has been updated",
     );
     expect(updated.text).toContain("has been updated: a Deep Clean every week");
   });

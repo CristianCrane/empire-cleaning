@@ -281,7 +281,7 @@ export const quoteEmail = ({
   const revised = offer.number > 1;
   const ready = revised ? "has been updated" : "is ready";
   return {
-    subject: `${revised ? "Your updated" : "Your"} ${offer.plan ? "cleaning plan quote" : "quote"} from Empire Cleaning`,
+    subject: `Your ${offer.plan ? "cleaning plan quote" : "quote"} from Empire Cleaning${revised ? " has been updated" : ""}`,
     blocks: [
       greeting(firstNameOf(name)),
       ...(offer.plan

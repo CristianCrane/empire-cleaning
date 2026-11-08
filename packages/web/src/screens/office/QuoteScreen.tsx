@@ -13,10 +13,10 @@ import {
   CircleSlash,
   FileClock,
   FilePenLine,
-  FilePlus,
   Hourglass,
   Mail,
   MessageSquareText,
+  Pencil,
   Send,
   Trash2,
   CalendarPlus,
@@ -130,6 +130,7 @@ import {
 } from "./QuoteAsked.tsx";
 import { PickFromSchedule } from "./SchedulePicker.tsx";
 import { BookSiteVisit, visitSummary } from "./SiteVisitParts.tsx";
+import { useStartDraft } from "./StartDraft.tsx";
 
 // The Quote with one of its Revisions in hand: the one being drafted, or
 // else the offer, so it's edited while there's a Draft Revision and
@@ -248,6 +249,10 @@ function PropertyLine({ quote }: { quote: OfficeQuote }) {
 const shownFor = (quote: OfficeQuote) =>
   quote.draft || quote.offer ? shownOf(quote) : null;
 
+// a sent quote's draft, which its Client doesn't see till it's sent
+const stillSees = (name: string) =>
+  `${name} still sees the quote as you sent it until you send your changes.`;
+
 const draftLink = (quote: OfficeQuote) =>
   linkTo({
     to: "/office/quotes/$quoteId/draft",
@@ -316,7 +321,7 @@ const noticesFor = (quote: OfficeQuote): ReactNode[] => {
         <p>
           <strong>This draft isn't sent yet.</strong>{" "}
           {quote.offer
-            ? `${name} still sees the quote you sent until you send this one.`
+            ? stillSees(name)
             : `Nothing reaches ${name} until you send it.`}
         </p>
       </Notice>,
@@ -338,7 +343,7 @@ const noticesFor = (quote: OfficeQuote): ReactNode[] => {
                   ? "One of its first days has"
                   : `${formatDateTime(offer!.proposedStartsAt!)} has`}{" "}
                 filled up since this quote was sent, so {name} can't accept it.
-                Draft an updated quote with another time.
+                Change the quote to another time.
               </p>
             </Notice>,
           ];
@@ -347,7 +352,7 @@ const noticesFor = (quote: OfficeQuote): ReactNode[] => {
         <Notice key="expired">
           <p>
             <strong>Expired {formatDateTime(shown!.expiresAt!)}</strong> with no
-            answer. To offer it again, draft an updated quote.
+            answer. To offer it again, change the quote.
           </p>
         </Notice>,
       ];
@@ -358,7 +363,7 @@ const noticesFor = (quote: OfficeQuote): ReactNode[] => {
             <strong>
               {name} declined it {formatDateTime(quote.declinedAt!)}.
             </strong>{" "}
-            To offer something different, draft an updated quote.
+            To offer something different, change the quote.
           </p>
         </Notice>,
       ];
@@ -526,8 +531,6 @@ export function QuoteDraftScreen() {
   const quote = useLoaderData({ from: "/office/quotes/$quoteId/draft" });
   const draft = quote.draft!;
   const kind = quoteKindName(quote.kind);
-  // a Quote not yet sent, or a change to one that was
-  const draftName = quote.offer ? "Updated quote" : "Draft quote";
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4">
@@ -542,12 +545,12 @@ export function QuoteDraftScreen() {
                 params: { quoteId: quote.id },
               }),
             },
-            { label: draftName },
+            { label: "Draft quote" },
           ]}
         />
         <div className="flex flex-wrap items-center gap-3">
           <Heading level={1}>
-            {draftName} for {clientName(quote.client)}
+            Draft quote for {clientName(quote.client)}
           </Heading>
           <StatusBadge tone="neutral">Not sent yet</StatusBadge>
           <div className="ml-auto">
@@ -556,12 +559,7 @@ export function QuoteDraftScreen() {
         </div>
         <PropertyLine quote={quote} />
       </div>
-      {quote.offer && (
-        <Notice>
-          {quote.client.name} still sees the quote you sent until you send this
-          one.
-        </Notice>
-      )}
+      {quote.offer && <Notice>{stillSees(quote.client.name)}</Notice>}
       {quote.changesPlan && (
         <PlanChangeNotice quote={shownOf(quote)} change={quote.changesPlan} />
       )}
@@ -615,7 +613,7 @@ const momentsOf = (quote: OfficeQuote): Moment[] => {
       key: revision.id,
       at: revision.sentAt,
       icon: Send,
-      title: revision.number === 1 ? "Quote sent" : "Updated quote sent",
+      title: "Quote sent",
       description: `${formatMoney(revision.headlineTotalCents)} · for ${formatDateTime(revision.proposedStartsAt)}`,
     });
   }
@@ -814,9 +812,7 @@ function Offer({ quote, actions }: { quote: ShownQuote; actions?: ReactNode }) {
           </div>
         )}
         <p className="border-t border-border pt-4 text-sm text-fg-muted">
-          Priced from version {quote.priceListVersion} of the prices. A sent
-          quote never changes. To offer something different, draft an updated
-          quote.
+          Priced from version {quote.priceListVersion} of the prices.
         </p>
       </Card>
     </Section>
@@ -894,33 +890,19 @@ function OfferPrice({
 // starts a new Revision of a Sent or Expired Quote, from the offer's terms,
 // and opens it; primary only when it's the one thing to do
 function NewRevision({ quote }: { quote: OfficeQuote }) {
-  const navigate = useNavigate();
-  const action = useActionWith(
-    () => Promise.resolve(),
-    "The updated quote couldn't be started. Please try again.",
-  );
+  const { start, starting, failure } = useStartDraft();
   return (
     <>
       <Button
         variant="text"
         size="sm"
-        isPending={action.isPending}
-        onPress={async () => {
-          const ok = await action.run(() =>
-            postJson<OfficeQuote>(`/api/quotes/${quote.id}/revisions`, {}),
-          );
-          if (ok) {
-            await navigate({
-              to: "/office/quotes/$quoteId/draft",
-              params: { quoteId: quote.id },
-            });
-          }
-        }}
+        isPending={starting !== undefined}
+        onPress={() => void start({ quoteId: quote.id, kind: quote.kind! })}
       >
-        <FilePlus aria-hidden size={16} />
-        Draft an updated quote
+        <Pencil aria-hidden size={16} />
+        Change quote
       </Button>
-      {action.problem && <ActionProblem>{action.problem}</ActionProblem>}
+      {failure && <ActionProblem>{failure}</ActionProblem>}
     </>
   );
 }
