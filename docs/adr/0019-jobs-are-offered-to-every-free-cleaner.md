@@ -1,3 +1,7 @@
+---
+status: accepted, partly superseded by ADR-0027 (screens and emails say "open job", not Cleaner Needed)
+---
+
 # Jobs are offered to every free Cleaner
 
 Office Staff used to Offer each Job to named Cleaners, one for each of its Crew Size, and that Offer kept them on its crew until they Confirmed or Released it, so every Job waited on someone in the Office. Now each Cleaner a Job still needs, beyond those on its crew, is a Cleaner Needed, and once the Job is within 7 days of starting, it is open to every Cleaner who is free for it: they have Available Hours that day and are on no Job or Site Visit whose time overlaps it. The first to Confirm is on the crew. Only a Confirmation or a named Offer from Office Staff puts someone on a crew; Office Staff can still make one at any time, for a Client's regular Cleaner or anyone else. Office Staff step in only when a Job stays Unassigned.
