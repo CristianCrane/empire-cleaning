@@ -80,7 +80,7 @@ test(
 
     await client.getByRole("link", { name: "See your cleaning plan" }).click();
     await expect(client.getByRole("heading", { level: 1 })).toHaveText(
-      "Your Service Plan",
+      "Your cleaning plan",
     );
     const details = client.getByRole("region", { name: "Plan details" });
     await expect(details).toContainText("Every week");
@@ -110,7 +110,7 @@ test(
     await expect(client.getByText("Your next clean")).toBeVisible();
     await expect(client.getByText("Mon, Jan 19, 9:00 AM")).toBeVisible();
     await expect(
-      client.getByText("Part of your Service Plan, every week"),
+      client.getByText("Part of your cleaning plan, every week"),
     ).toBeVisible();
 
     // the Office finds it in full on the home's page
@@ -155,7 +155,7 @@ test("the Office records a plan's acceptance, then books a visit its day had no 
   await page
     .getByRole("grid", { name: "Needs attention" })
     .getByRole("row")
-    .filter({ hasText: "Service Plan visit on Mon, Feb 2" })
+    .filter({ hasText: "Cleaning plan visit on Mon, Feb 2" })
     .click();
   // the plan is on its home's page
   await expect(page).toHaveURL(/\/office\/properties\/[0-9a-f-]{36}$/);

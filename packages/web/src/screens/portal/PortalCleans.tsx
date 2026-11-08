@@ -81,7 +81,7 @@ const visitRow =
   (visit: ClientSiteVisit): Row => ({
     id: visit.id,
     startsAt: visit.startsAt,
-    title: "Site Visit",
+    title: "Site visit",
     line: lineOf([
       formatTime(visit.startsAt),
       homes > 1 && addressOf(visit.property),

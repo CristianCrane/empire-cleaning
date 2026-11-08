@@ -1,4 +1,8 @@
-import { refundedTo, type EndPlanTerms } from "@empire-cleaning/models";
+import {
+  CANCELLATION_CUTOFF_HOURS,
+  refundedTo,
+  type EndPlanTerms,
+} from "@empire-cleaning/models";
 import {
   button,
   cleanDetails,
@@ -36,12 +40,12 @@ export const planCleanBookedEmail = ({
   subject: "Your next clean is booked",
   blocks: [
     greeting(firstNameOf(name)),
-    paragraph("Your Service Plan's next clean is booked."),
+    paragraph("The next clean on your cleaning plan is booked."),
     cleanDetails(clean),
     ...(freeToSkip
       ? [
           paragraph(
-            "It was booked less than a day ahead, so you can skip it for free.",
+            `It was booked less than ${CANCELLATION_CUTOFF_HOURS} hours ahead, so you can skip it for free.`,
           ),
         ]
       : []),
@@ -56,23 +60,21 @@ export const planEndedEmail = ({
   planId,
   terms,
   settled,
-  cutoffHours,
 }: {
   name: string;
   address: string;
   planId: string;
   terms: EndPlanTerms;
   settled: Settled;
-  cutoffHours: number;
 }): Email => {
   const card = settled.paymentMethod ?? "card";
   const final = formatWhen(new Date(terms.finalJob.startsAt));
   return {
-    subject: "Your Service Plan has Ended",
+    subject: "Your cleaning plan has ended",
     blocks: [
       greeting(firstNameOf(name)),
       ...[
-        `We've Ended your Service Plan at ${address}, as you asked.`,
+        `We've ended your cleaning plan at ${address}, as you asked.`,
         ...(terms.cancelled.length > 0
           ? [
               `We've cancelled the cleans it had booked, free: ${whenList(terms.cancelled)}.`,
@@ -80,17 +82,17 @@ export const planEndedEmail = ({
           : []),
         ...(terms.goingAhead.length > 0
           ? [
-              `Your clean on ${whenList(terms.goingAhead)} is less than ${cutoffHours} hours away, so it goes ahead.`,
+              `Your clean on ${whenList(terms.goingAhead)} is less than ${CANCELLATION_CUTOFF_HOURS} hours away, so it goes ahead.`,
             ]
           : []),
         // refunded, it's said below
         ...(terms.depositCents > 0 && terms.deposit !== "refunded"
           ? terms.deposit === "comes_off"
             ? [
-                `Your ${formatMoney(terms.depositCents)} Deposit comes off the price of your clean on ${final}.`,
+                `Your ${formatMoney(terms.depositCents)} deposit comes off the price of your clean on ${final}.`,
               ]
             : [
-                `Your ${formatMoney(terms.depositCents)} Deposit goes towards your clean on ${final}.`,
+                `Your ${formatMoney(terms.depositCents)} deposit goes towards your clean on ${final}.`,
               ]
           : []),
         ...(settled.refundedCents > 0
@@ -98,7 +100,7 @@ export const planEndedEmail = ({
           : []),
         ...(settled.chargedCents > 0
           ? [
-              `We've charged the ${formatMoney(settled.chargedCents)} still to pay to your ${card}.`,
+              `We've taken the ${formatMoney(settled.chargedCents)} still to pay from your ${card}.`,
             ]
           : []),
         ...(settled.billed
@@ -125,13 +127,13 @@ export const officePlanEndedEmail = ({
   planId: string;
   terms: Pick<EndPlanTerms, "cancelled" | "goingAhead">;
 }): Email => ({
-  subject: `${client} Ended their Service Plan`,
+  subject: `${client} ended their cleaning plan`,
   blocks: [
-    paragraph(`${client} has Ended their Service Plan at ${address}.`),
+    paragraph(`${client} has ended their cleaning plan at ${address}.`),
     paragraph(
       terms.cancelled.length > 0
-        ? `Its ${terms.cancelled.length} booked ${terms.cancelled.length === 1 ? "Job is" : "Jobs are"} cancelled, free.`
-        : "It had no Jobs booked more than 24 hours out.",
+        ? `Its ${terms.cancelled.length} booked ${terms.cancelled.length === 1 ? "job is" : "jobs are"} cancelled, free.`
+        : `It had no jobs booked more than ${CANCELLATION_CUTOFF_HOURS} hours out.`,
     ),
     ...(terms.goingAhead.length > 0
       ? [paragraph(`Going ahead: ${whenList(terms.goingAhead)}.`)]

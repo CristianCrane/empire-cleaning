@@ -52,7 +52,7 @@ test(
     await expectAccessible(page);
     await ending.getByRole("button", { name: "End plan" }).click();
     const dialog = page.getByRole("alertdialog", {
-      name: "End your Service Plan?",
+      name: "End your cleaning plan?",
     });
     await expect(dialog).toContainText(
       "It cancels your 3 cleans booked more than 24 hours away, free: Mon, Jan 26, 9:00 AM; Mon, Feb 2, 9:00 AM; Mon, Feb 9, 9:00 AM.",
@@ -61,21 +61,21 @@ test(
       "Your clean on Mon, Jan 19, 9:00 AM is less than 24 hours away, so it goes ahead.",
     );
     await expect(dialog).toContainText(
-      "Your $50.46 Deposit comes off the price of the clean on Mon, Jan 19, 9:00 AM.",
+      "Your $50.46 deposit comes off the price of the clean on Mon, Jan 19, 9:00 AM.",
     );
-    await expect(dialog).toContainText("An Ended plan can't be started again.");
+    await expect(dialog).toContainText("An ended plan can't be started again.");
     await expectAccessible(page);
     await dialog.getByRole("button", { name: "End plan" }).click();
 
-    await expect(page.getByText("Your Service Plan has Ended")).toBeVisible();
+    await expect(page.getByText("Your cleaning plan has ended")).toBeVisible();
     await expect(page.getByRole("region", { name: "Ended" })).toContainText(
-      "Your Service Plan Ended on Jan 18",
+      "Your cleaning plan ended on Jan 18",
     );
     await expect(
       page.getByRole("grid", { name: "Your upcoming cleans" }).getByRole("row"),
     ).toHaveCount(1);
     expect((await emailsTo(casey.email)).at(-1)!.subject).toBe(
-      "Your Service Plan has Ended",
+      "Your cleaning plan has ended",
     );
   },
 );
@@ -129,10 +129,10 @@ test(
     await failCharges();
     await signedInAs(page, olive.email);
     await page.goto(`/office/jobs/${firstJob.id}`);
-    await page.getByRole("button", { name: "Cancel Job" }).click();
+    await page.getByRole("button", { name: "Cancel job" }).click();
     await page
-      .getByRole("alertdialog", { name: "Cancel this Job?" })
-      .getByRole("button", { name: "Cancel Job" })
+      .getByRole("alertdialog", { name: "Cancel this job?" })
+      .getByRole("button", { name: "Cancel job" })
       .click();
     await expect(page.getByText("Job cancelled")).toBeVisible();
 
@@ -154,23 +154,23 @@ test(
     const ending = page.getByRole("region", { name: "Ending the plan" });
     await ending.getByRole("button", { name: "End plan" }).click();
     const dialog = page.getByRole("alertdialog", {
-      name: "End this Service Plan?",
+      name: "End this cleaning plan?",
     });
     await expect(dialog).toContainText(
-      "It cancels the Client's 3 cleans booked more than 24 hours away, free",
+      "It cancels the client's 3 cleans booked more than 24 hours away, free",
     );
     await expectAccessible(page);
     await dialog.getByRole("button", { name: "End plan" }).click();
 
     // the toast; the home has no plan now, so its page offers a new one
     await expect(
-      page.getByText("Service Plan Ended", { exact: true }),
+      page.getByText("Cleaning plan ended", { exact: true }),
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Quote a cleaning plan" }),
     ).toBeVisible();
     expect((await emailsTo(casey.email)).at(-1)!.subject).toBe(
-      "Your Service Plan has Ended",
+      "Your cleaning plan has ended",
     );
   },
 );

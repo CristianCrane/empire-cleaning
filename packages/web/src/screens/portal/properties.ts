@@ -61,7 +61,7 @@ export function standingOf(
           label: planStatus.on_hold.label,
           line: planWhen(plan),
         }
-      : { tone: "success", label: "Service Plan", line: planWhen(plan) };
+      : { tone: "success", label: "Cleaning plan", line: planWhen(plan) };
   }
   const ours = data.quotes.filter((q) => q.property.id === property.id);
   const sent = ours.find((q) => q.status === "sent");

@@ -50,11 +50,11 @@ export function PortalPlan() {
                 params: { propertyId: plan.property.id },
               }),
             },
-            { label: "Your Service Plan" },
+            { label: "Your cleaning plan" },
           ]}
         />
         <div className="flex flex-wrap items-center gap-3">
-          <Heading level={1}>Your Service Plan</Heading>
+          <Heading level={1}>Your cleaning plan</Heading>
           <PlanStatusBadge status={plan.status} />
         </div>
         <p className="text-fg-muted">{addressOf(plan.property)}</p>
@@ -83,7 +83,7 @@ export function PortalPlan() {
 
       <Section
         title="Your upcoming cleans"
-        description="Each clean goes on the Schedule about 4 weeks ahead."
+        description="Each clean goes on the schedule about 4 weeks ahead."
       >
         <List
           aria-label="Your upcoming cleans"
@@ -138,7 +138,7 @@ function AskToChange({ plan }: { plan: ServicePlanView }) {
         wantsRegularService: true,
         notes,
       });
-    }, "Sent: we'll send you a new Service Plan Quote");
+    }, "Sent. We'll send you a new cleaning plan quote.");
     if (ok) close();
   };
 
@@ -184,7 +184,7 @@ function AskToChange({ plan }: { plan: ServicePlanView }) {
         >
           <p>
             A different day, how often, or what's included? Tell us, and we'll
-            send you a new Service Plan Quote. Nothing changes until you accept
+            send you a new cleaning plan quote. Nothing changes until you accept
             it.
           </p>
         </ActionRow>

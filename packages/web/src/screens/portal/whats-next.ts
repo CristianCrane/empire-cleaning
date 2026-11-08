@@ -216,7 +216,7 @@ export function whatsNext(data: HomeData, now = new Date()): WhatsNext {
     next && then
       ? then.kind === "job"
         ? `After that: ${then.job.serviceName}, ${formatDateTime(then.startsAt)}`
-        : `After that: your Site Visit, ${formatDateTime(then.startsAt)}`
+        : `After that: your site visit, ${formatDateTime(then.startsAt)}`
       : null;
 
   return {
@@ -261,7 +261,7 @@ function heroOf(data: HomeData, ctx: Context): Hero {
         `${job.serviceName} at ${addressOf(job.property)}`,
         ...(plan
           ? [
-              `Part of your Service Plan, ${recurrenceLabel[plan.recurrence].toLowerCase()}`,
+              `Part of your cleaning plan, ${recurrenceLabel[plan.recurrence].toLowerCase()}`,
             ]
           : []),
         `${cleaners(job.crewSize)}, about ${formatHours(job.hoursOnSite)} on site`,
@@ -273,7 +273,7 @@ function heroOf(data: HomeData, ctx: Context): Hero {
   if (next?.kind === "visit") {
     const { visit } = next;
     return {
-      label: "Your Site Visit",
+      label: "Your site visit",
       icon: MapPin,
       tone: "info",
       startsAt: visit.startsAt,
@@ -360,7 +360,7 @@ function heroOf(data: HomeData, ctx: Context): Hero {
   const plan = data.plans.find((p) => p.status === "active");
   if (plan) {
     return {
-      label: "Your Service Plan",
+      label: "Your cleaning plan",
       icon: Repeat,
       tone: "info",
       headline: planName(plan),

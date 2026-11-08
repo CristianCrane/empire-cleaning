@@ -64,7 +64,7 @@ import { freeUntilOf } from "../cancellation/cancellation.ts";
 import { email } from "../../services/email/index.ts";
 import { cleanOf } from "../services/services.ts";
 import { planCleanBookedEmail } from "./emails.ts";
-import { endServicePlan, endTermsOf } from "./ending.ts";
+import { endServicePlan, endTermsOf, PLAN_ENDED } from "./ending.ts";
 import {
   recordFirstVisits,
   type AcceptedQuote,
@@ -480,7 +480,7 @@ const findVisit = async (tx: Tx, planId: string, visitId: string) => {
     );
   }
   if (found.plan.status === "ended") {
-    throw new ConflictError("This Service Plan has Ended.");
+    throw new ConflictError(PLAN_ENDED);
   }
   return found;
 };
@@ -489,7 +489,7 @@ const findVisit = async (tx: Tx, planId: string, visitId: string) => {
 const refuseOnHold = (plan: ServicePlan) => {
   if (plan.status === "on_hold") {
     throw new ConflictError(
-      "This Service Plan is On Hold until what's Unpaid is paid, so it can't book a visit yet.",
+      "This cleaning plan is paused until what's unpaid is paid, so it can't book a visit yet.",
     );
   }
 };

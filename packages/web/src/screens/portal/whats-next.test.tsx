@@ -286,7 +286,7 @@ describe("Home's hero, with something booked", () => {
       headline: "Tue, Nov 3, 9:00 AM",
       lines: [
         "Standard Clean at 12 Elm St, 4B, 11375",
-        "Part of your Service Plan, every 2 weeks",
+        "Part of your cleaning plan, every 2 weeks",
         "2 cleaners, about 2.5 h on site",
       ],
       action: { label: "See the clean" },
@@ -308,7 +308,7 @@ describe("Home's hero, with something booked", () => {
 
   test("leads with a Site Visit when it's sooner", () => {
     expect(next({ jobs: [job()], siteVisits: [visit] }).hero).toMatchObject({
-      label: "Your Site Visit",
+      label: "Your site visit",
       headline: "Mon, Nov 2, 2:00 PM",
     });
   });

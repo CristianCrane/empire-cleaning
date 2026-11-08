@@ -45,6 +45,7 @@ import type {
 import {
   ADD_HOURS,
   adjustmentLabel,
+  CANCELLATION_CUTOFF_HOURS,
   DAY_FULL,
   NO_CREW,
   noEmailYet,
@@ -1829,7 +1830,7 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
         {!plan && (
           <DraftPart
             title="Proposed time"
-            description="New York time, more than 24 hours away. If it isn't accepted first, the quote expires 24 hours before it."
+            description={`New York time, more than ${CANCELLATION_CUTOFF_HOURS} hours away. If it isn't accepted first, the quote expires ${CANCELLATION_CUTOFF_HOURS} hours before it.`}
           >
             <div className="grid gap-4 sm:grid-cols-2">
               <DatePicker
@@ -1982,7 +1983,7 @@ function PlanDayFields({
       title={title}
       description={
         one
-          ? `Its first clean, New York time. Then ${recurrenceLabel[plan.recurrence].toLowerCase()} on the same weekday. If it isn't accepted first, the quote expires 24 hours before the plan's first clean.`
+          ? `Its first clean, New York time. Then ${recurrenceLabel[plan.recurrence].toLowerCase()} on the same weekday. If it isn't accepted first, the quote expires ${CANCELLATION_CUTOFF_HOURS} hours before the plan's first clean.`
           : "Its first clean, New York time. Then every week on the same weekday."
       }
       actions={

@@ -723,7 +723,7 @@ describe("a Late Reschedule (ADR-0010)", () => {
       .expect(200);
     expect(testPayments().refunds).toEqual([]);
     expect(testEmail().lastTo(casey.email).text).toContain(
-      "already kept as the fee for a Late Reschedule",
+      "already kept for an earlier late move",
     );
   });
 });

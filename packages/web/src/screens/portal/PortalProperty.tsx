@@ -115,10 +115,10 @@ export function PortalProperty() {
         </Card>
       </Section>
 
-      <Section title={plans.length > 1 ? "Service Plans" : "Service Plan"}>
+      <Section title={plans.length > 1 ? "Cleaning plans" : "Cleaning plan"}>
         {plans.length > 0 ? (
           <List
-            aria-label="Service Plans"
+            aria-label="Cleaning plans"
             onAction={(id: Key) =>
               navigate({
                 to: "/portal/plans/$planId",
@@ -157,7 +157,7 @@ export function PortalProperty() {
               }
             >
               <p>
-                No Service Plan here yet. Ask for a Quote for regular cleans,
+                No cleaning plan here yet. Ask for a quote for regular cleans,
                 with money off each one.
               </p>
             </ActionRow>

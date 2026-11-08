@@ -102,7 +102,7 @@ test(
     // the Office sees the plan on its new terms
     await page.goto(`/office/service-plans/${planId}`);
     await expect(
-      page.getByRole("region", { name: "Service Plan" }),
+      page.getByRole("region", { name: "Cleaning plan" }),
     ).toContainText("Every 2 weeks");
   },
 );
@@ -126,7 +126,7 @@ test(
     await expectAccessible(client, "[role=dialog]");
     await dialog.getByRole("button", { name: "Send" }).click();
     await expect(
-      client.getByText("Sent: we'll send you a new Service Plan Quote"),
+      client.getByText("Sent. We'll send you a new cleaning plan quote."),
     ).toBeVisible();
 
     await signedInAs(page, olive.email);

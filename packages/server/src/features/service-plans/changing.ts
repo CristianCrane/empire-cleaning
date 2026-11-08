@@ -3,7 +3,7 @@ import type { PlanChange } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError } from "../../middleware/errors.ts";
 import { clock, dayOf } from "../../services/clock/index.ts";
-import { tellCrew } from "../cancellation/cancellation.ts";
+import { CHANGED_SINCE, tellCrew } from "../cancellation/cancellation.ts";
 import { settleAfterChange } from "../completion/balance.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { closePendingRequests } from "../reschedule/closing.ts";
@@ -71,7 +71,7 @@ export const holdForChange = async (
   // generating may have booked one in between
   const now = (await bookedFrom(tx, planId, startsAt)).map((j) => j.id);
   if (now.join() !== ids.join()) {
-    throw new ConflictError("Something changed just then. Please try again.");
+    throw new ConflictError(CHANGED_SINCE);
   }
   return { plan: plan!, replaced };
 };
@@ -113,7 +113,7 @@ export const changeServicePlanTerms = async (
         cancelledBy: "client",
         cancelledByAccount: changedBy,
         lateCancellation: false,
-        cancellationReason: "The Service Plan's terms changed",
+        cancellationReason: "The cleaning plan changed",
         // a fee a Late Reschedule made due stays due, as when skipping
         feeCents: job.rescheduleFeeCents,
       })

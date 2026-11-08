@@ -190,10 +190,10 @@ describe("the Client cancelling", () => {
     expect(email.text).toContain("There's no charge for cancelling.");
     expect(email.text).toMatch(/We've refunded \$[\d.]+ to your Test card/);
     expect(testEmail().lastTo("cory@example.com").text).toMatch(
-      /We've cancelled this Job\. You don't need to go\.\n\nWhen: .*\nWhere: .*\nService: Deep Clean/,
+      /We've cancelled this job\. You don't need to go\.\n\nWhen: .*\nWhere: .*\nService: Deep Clean/,
     );
     expect(testEmail().lastTo("olive@example.com").subject).toBe(
-      "Casey Client cancelled a Job",
+      "Casey Client cancelled a job",
     );
   });
 
@@ -251,7 +251,7 @@ describe("the Client cancelling", () => {
     });
     expect(refunded()).toEqual([]);
     expect(testEmail().lastTo(casey.email).text).toContain(
-      "it's a Late Cancellation: your",
+      "is a late cancellation, so your",
     );
     // a one-off clean: Cancelled, not Skipped, with its fee
     const past = (await client.get("/api/jobs/mine/past").expect(200))
@@ -275,8 +275,8 @@ describe("the Client cancelling", () => {
 
     testClock().set(SUNDAY_9_01AM);
     const refused = await cancel(client, jobId, 0).expect(409);
-    expect(refused.body.message).toMatch(
-      /less than 24 hours .* Late Cancellation/,
+    expect(refused.body.message).toBe(
+      "Something changed just then. Please check it and try again.",
     );
     expect((await clientJob(client, jobId)).status).toBe("booked");
     await cancel(client, jobId, deposit).expect(200);
@@ -428,9 +428,9 @@ describe("No Access", () => {
     const email = testEmail().lastTo(casey.email);
     expect(email.subject).toBe("We couldn't get in for your clean");
     expect(email.text).toContain('("Nobody home and the gate was locked")');
-    expect(email.text).toContain("As with a Late Cancellation, your");
+    expect(email.text).toContain("As with a late cancellation, your");
     expect(testEmail().lastTo("olive@example.com").subject).toBe(
-      "No Access at 41-12 Austin St, 4B, 11375",
+      "Couldn't get in at 41-12 Austin St, 4B, 11375",
     );
 
     // and it can't then be Completed, cancelled or recorded again
@@ -456,7 +456,7 @@ describe("No Access", () => {
       .post(`/api/assignments/mine/${jobId}/no-access`)
       .send({ reason: "Locked out" });
     expect((await before.expect(409)).body.message).toBe(
-      "This Job hasn't started yet",
+      "This job hasn't started yet.",
     );
 
     testClock().set(MONDAY_9_30AM);

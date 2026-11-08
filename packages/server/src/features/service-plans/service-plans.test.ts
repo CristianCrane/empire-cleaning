@@ -462,7 +462,7 @@ describe("a Service Plan's Jobs", () => {
       .post(`/api/service-plans/${planId}/visits/${visit!.id}/book`)
       .send({ date: "2026-02-03", time: "10:00" })
       .expect(409);
-    expect(held.body.message).toMatch(/On Hold/);
+    expect(held.body.message).toMatch(/paused/);
     await db
       .update(servicePlans)
       .set({ status: "active" })

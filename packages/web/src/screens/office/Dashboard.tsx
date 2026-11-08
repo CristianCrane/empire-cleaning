@@ -279,7 +279,7 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
           icon: CalendarX,
           tone: "danger",
           client: clientName(plan.client),
-          description: `${addressOf(plan.property)} · Service Plan visit on ${formatDay(visit.dueOn)}: no room that day`,
+          description: `${addressOf(plan.property)} · Cleaning plan visit on ${formatDay(visit.dueOn)}: no room that day`,
           open: () =>
             navigate({
               to: "/office/service-plans/$planId",

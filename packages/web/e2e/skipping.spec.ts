@@ -49,26 +49,26 @@ test(
 
     const skip = page.getByRole("region", { name: "Need to skip this clean?" });
     await expect(skip).toContainText(
-      "You can skip it for free until Sun, Jan 18, 9:00 AM. After that, it's a Late Cancellation, with a fee the same as your plan's Deposit.",
+      "You can skip it for free until Sun, Jan 18, 9:00 AM. After that, it's a late cancellation, with a fee the same as your plan's deposit.",
     );
-    await expect(skip).toContainText("your Service Plan carries on");
+    await expect(skip).toContainText("Your cleaning plan carries on");
     await expectAccessible(page);
 
     await skip.getByRole("button", { name: "Skip this clean" }).click();
     const dialog = page.getByRole("alertdialog", { name: "Skip this clean?" });
-    await expect(dialog).toContainText("There's no charge.");
+    await expect(dialog).toContainText("There's no charge for skipping it.");
     await expectAccessible(page);
     await dialog.getByRole("button", { name: "Skip this clean" }).click();
 
     await expect(page.getByText("Your clean is skipped")).toBeVisible();
     const skipped = page.getByRole("region", { name: "Skipped" });
-    await expect(skipped).toContainText("There was no charge for skipping it.");
+    await expect(skipped).toContainText("There's no charge for skipping it.");
     await expect(skipped).toContainText(
-      "Your Service Plan carries on as usual.",
+      "Your cleaning plan carries on as usual.",
     );
-    await skipped.getByRole("link", { name: "See your Service Plan" }).click();
+    await skipped.getByRole("link", { name: "See your cleaning plan" }).click();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-      "Your Service Plan",
+      "Your cleaning plan",
     );
     expect((await emailsTo(casey.email)).at(-1)!.subject).toBe(
       "Your clean is skipped",
@@ -87,7 +87,7 @@ test("a Client skipping late is charged the fee, and pays it once their card wor
 
   const skip = page.getByRole("region", { name: "Need to skip this clean?" });
   await expect(skip).toContainText(
-    "It's less than 24 hours until your clean, so skipping it now is a Late Cancellation. A $50.46 Late Cancellation fee, the same as your plan's Deposit, is charged to your card. Your Deposit stays held.",
+    "Skipping it less than 24 hours before is a late cancellation, with a $50.46 fee, the same as your plan's deposit. Your deposit stays held. The fee is charged to your card.",
   );
   await skip.getByRole("button", { name: "Skip this clean" }).click();
   await page
@@ -97,7 +97,7 @@ test("a Client skipping late is charged the fee, and pays it once their card wor
 
   await expect(page.getByText("Your clean is skipped")).toBeVisible();
   await expect(page.getByRole("region", { name: "Skipped" })).toContainText(
-    "it's a Late Cancellation, with a $50.46 fee: the same as your plan's Deposit, which stays held.",
+    "Skipping it less than 24 hours before is a late cancellation, with a $50.46 fee, the same as your plan's deposit. Your deposit stays held.",
   );
   const payment = page.getByRole("alert").filter({ hasText: "Payment needed" });
   await expect(payment).toContainText("We couldn't take $50.46");
@@ -126,19 +126,19 @@ test(
     await signedInAs(page, olive.email);
     await page.goto(`/office/jobs/${job.id}`);
 
-    await page.getByRole("button", { name: "Cancel Job" }).click();
-    const dialog = page.getByRole("alertdialog", { name: "Cancel this Job?" });
+    await page.getByRole("button", { name: "Cancel job" }).click();
+    const dialog = page.getByRole("alertdialog", { name: "Cancel this job?" });
     await expect(dialog).toContainText(
-      "It's a Late Cancellation: a $50.46 fee, the plan's Deposit amount, is charged. The plan's Deposit stays held.",
+      "A late cancellation: a $50.46 fee, the plan's deposit amount. The plan's deposit stays held. The fee is charged.",
     );
-    await expect(dialog).toContainText("The Service Plan carries on.");
+    await expect(dialog).toContainText("The cleaning plan carries on.");
     await expectAccessible(page);
-    await dialog.getByRole("button", { name: "Cancel Job" }).click();
+    await dialog.getByRole("button", { name: "Cancel job" }).click();
 
     await expect(page.getByText("Job cancelled")).toBeVisible();
     await expect(
       page.getByText(
-        "By the Client, a Late Cancellation; the plan carries on.",
+        "By the client, a late cancellation; the plan carries on.",
       ),
     ).toBeVisible();
     await expect(page.getByRole("region", { name: "Money" })).toContainText(

@@ -72,7 +72,7 @@ test(
     await expect(page.getByText("Request sent")).toBeVisible();
     const pending = page.getByRole("region", { name: "Moving your clean" });
     await expect(pending).toContainText(
-      "You've asked to move it to Wed, Jan 14, 10:00 AM. That time is held for you while the Office confirms it. Until then, your clean stays booked for Mon, Jan 12, 9:00 AM.",
+      "You've asked to move it to Wed, Jan 14, 10:00 AM. That time is held for you while we confirm it. Until then, your clean stays booked for Mon, Jan 12, 9:00 AM.",
     );
     expect((await emailsTo(olive.email)).at(-1)!.subject).toBe(
       "Casey Client asked to move a job",

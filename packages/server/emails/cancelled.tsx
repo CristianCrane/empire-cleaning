@@ -13,6 +13,5 @@ export default preview(
     late: false,
     feeCents: 0,
     settled: { ...settled, refundedCents: 5988 },
-    cutoffHours: 24,
   }),
 );

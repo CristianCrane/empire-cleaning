@@ -58,10 +58,10 @@ export function ServicePlanScreen() {
         <Breadcrumbs
           trail={[
             ...homeCrumbs(plan.client, plan.property),
-            { label: "Service Plan" },
+            { label: "Cleaning plan" },
           ]}
         />
-        <Heading level={1}>Service Plan</Heading>
+        <Heading level={1}>Cleaning plan</Heading>
         <p className="text-fg-muted">
           {clientName(plan.client)} · {addressOf(plan.property)}
         </p>
@@ -102,7 +102,7 @@ export function PlanDetails({
 
       {plan.unplaced.length > 0 && <WaitingVisits plan={plan} />}
 
-      <Section title="Service Plan" actions={changeTerms}>
+      <Section title="Cleaning plan" actions={changeTerms}>
         <Card>
           <PlanFacts
             plan={plan}
@@ -117,7 +117,7 @@ export function PlanDetails({
                 params: { quoteId: plan.quoteId },
               })}
             >
-              Its Service Plan Quote
+              Its cleaning plan quote
             </Link>
           </p>
         </Card>
@@ -139,9 +139,9 @@ function PlanJobs({ plan }: { plan: OfficeServicePlan }) {
   return (
     <Section title="Jobs">
       <List
-        aria-label="The plan's Jobs"
+        aria-label="The plan's jobs"
         renderEmptyState={() => (
-          <p className="p-4 text-center text-fg-muted">No Jobs yet.</p>
+          <p className="p-4 text-center text-fg-muted">No jobs yet.</p>
         )}
       >
         {plan.jobs.map((job) => (
@@ -176,7 +176,7 @@ function WaitingVisits({ plan }: { plan: OfficeServicePlan }) {
   return (
     <Section
       title="Waiting to be booked"
-      description="These dates came round with no room on the Schedule, so nothing was booked. Agree another time with the Client, or skip the visit."
+      description="These dates came round with no room on the schedule, so nothing was booked. Agree another time with the client, or skip the visit."
     >
       <List
         aria-label="Visits waiting to be booked"
@@ -272,10 +272,10 @@ function BookOrSkip({
         }}
       />
       <p className="text-sm text-fg-muted">
-        It's booked as the plan's Job, at its price, and Offered to the crew of
-        the plan's Job before it. The plan's later Jobs stay on their usual day.
-        Skipping it books nothing, and the plan carries on from its next date:
-        let the Client know.
+        It's booked as the plan's job, at its price, and offered to the cleaners
+        of the plan's job before it. The plan's later jobs stay on their usual
+        day. Skipping it books nothing, and the plan carries on from its next
+        date. Let the client know.
       </p>
       {problem && <Notice tone="danger">{problem}</Notice>}
       <Actions>

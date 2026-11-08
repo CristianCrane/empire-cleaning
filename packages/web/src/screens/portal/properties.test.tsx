@@ -54,7 +54,7 @@ describe("where a Client's home stands", () => {
       standingOf(home, data({ plans: [plan()], quotes: [quote()] })),
     ).toEqual({
       tone: "success",
-      label: "Service Plan",
+      label: "Cleaning plan",
       line: "Mondays at 9:00 AM",
     });
   });

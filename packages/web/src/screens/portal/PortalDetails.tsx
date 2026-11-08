@@ -76,7 +76,7 @@ export function PortalDetails() {
               value={
                 <span className="[overflow-wrap:anywhere]">{client.email}</span>
               }
-              line="Where we send your Quotes"
+              line="Where we send your quotes"
             />
             <Fact icon={Phone} label="Phone" value={client.phone} />
           </dl>
@@ -87,8 +87,8 @@ export function PortalDetails() {
         title={homes}
         description={
           client.properties.length === 1
-            ? "How we get in, its Service Plan and Quotes are on its page."
-            : "How we get in, Service Plans and Quotes are on each one's page."
+            ? "How we get in, its cleaning plan and quotes are on its page."
+            : "How we get in, cleaning plans and quotes are on each one's page."
         }
       >
         <List
@@ -178,7 +178,7 @@ function EditContact({ client }: { client: ClientView }) {
               type="email"
               autoComplete="email"
               isRequired
-              description="Where we send your Quotes. A new one changes once you open the link we email to it. You still sign in the way you do now."
+              description="Where we send your quotes. We switch to a new one once you open the link we email to it. You still sign in the way you do now."
               defaultValue={client.email}
             />
             <TextField
