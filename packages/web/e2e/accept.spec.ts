@@ -135,7 +135,7 @@ test("Office Staff email a link to add a card, then record the Client's acceptan
   const waiting = page
     .getByRole("status")
     .filter({ hasText: "Waiting for Casey to accept" });
-  await expect(waiting).toContainText("they need a card saved first");
+  await expect(waiting).toContainText("they need to save a card first");
   await waiting
     .getByRole("button", { name: "Email Casey a link to add a card" })
     .click();
@@ -158,7 +158,7 @@ test("Office Staff email a link to add a card, then record the Client's acceptan
 
   await page.reload();
   await expect(waiting).toContainText(
-    "the Deposit is charged to their Test card ending 4242",
+    "The deposit is charged to their Test card ending 4242",
   );
   await waiting.getByRole("button", { name: "Record acceptance" }).click();
   await page
@@ -188,26 +188,24 @@ test("Office Staff record acceptance of the offer while drafting a new Revision,
 
   await page.reload();
   const quote = page.url();
-  await page.getByRole("button", { name: "Draft a new Revision" }).click();
+  await page.getByRole("button", { name: "Draft an updated quote" }).click();
   await expect(page).toHaveURL(/\/draft$/);
   // back on the Quote, the offer can still be accepted
   await page.goto(quote);
-  await expect(
-    page.getByText("Revision 2 is a Draft, not sent yet."),
-  ).toBeVisible();
+  await expect(page.getByText("This draft isn't sent yet.")).toBeVisible();
   await page
     .getByRole("status")
-    .filter({ hasText: "Waiting for Casey to accept Revision 1" })
+    .filter({ hasText: "Waiting for Casey to accept the quote you sent" })
     .getByRole("button", { name: "Record acceptance" })
     .click();
   const confirm = page.getByRole("alertdialog");
   await expect(confirm).toContainText(
-    "It accepts Revision 1, as sent, and deletes your Draft of Revision 2.",
+    "It accepts the quote you sent, and deletes your draft.",
   );
   await confirm.getByRole("button", { name: "Charge and book" }).click();
 
   await expect(page.getByText("Accepted and booked")).toBeVisible();
-  await expect(page.getByText("Draft changes")).toHaveCount(0);
+  await expect(page.getByText("Being updated")).toHaveCount(0);
   await expect(
     page.getByRole("status").filter({ hasText: "Deep Clean, booked" }),
   ).toBeVisible();
@@ -234,16 +232,16 @@ test("a Quote whose day has filled up can't be paid for, and the Office is asked
     client.getByRole("region", { name: "Pay and book" }),
   ).toHaveCount(0);
   await expect(
-    client.getByRole("button", { name: "Decline this Quote" }),
+    client.getByRole("button", { name: "Decline this quote" }),
   ).toBeVisible();
 
   await page.goto("/office");
   const needs = page.getByRole("grid", { name: "Needs attention" });
-  await expect(needs).toContainText("Pick another time for the Quote");
+  await expect(needs).toContainText("Pick another time for the quote");
   await needs.getByText(casey.name).click();
   await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
   await expect(
-    page.getByText(`can't accept it. Draft a new Revision with another time`),
+    page.getByText(`can't accept it. Draft an updated quote with another time`),
   ).toBeVisible();
   await expect(
     page.getByRole("region", { name: "Record acceptance" }),

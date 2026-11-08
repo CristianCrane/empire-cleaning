@@ -35,7 +35,7 @@ const firstCleanDone = async (page: Page) => {
 const atPlanDraft = async (page: Page) => {
   await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}\/draft$/);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    /^Revision \d+ for Casey Client$/,
+    /^(Draft|Updated) quote for Casey Client$/,
   );
 };
 
@@ -52,7 +52,7 @@ const saved = (page: Page) =>
 const startPlan = async (page: Page) => {
   const { job } = await firstCleanDone(page);
   await page.goto(`/office/jobs/${job.id}`);
-  await page.getByRole("button", { name: "Quote a Service Plan" }).click();
+  await page.getByRole("button", { name: "Quote a cleaning plan" }).click();
   await atPlanDraft(page);
 };
 
@@ -119,19 +119,19 @@ test(
     await page
       .getByRole("grid", { name: "Needs attention" })
       .getByRole("row")
-      .filter({ hasText: "Quote a Service Plan" })
+      .filter({ hasText: "Quote a cleaning plan" })
       .click();
     // the home's page
     await expect(page).toHaveURL(/\/office\/properties\/[0-9a-f-]{36}$/);
-    await page.getByRole("button", { name: "Quote a Service Plan" }).click();
+    await page.getByRole("button", { name: "Quote a cleaning plan" }).click();
     await atPlanDraft(page);
 
     // above it, what the First Clean found, folded away until it's wanted
     await page.getByText("First Clean: the home was moderate").click();
     await expect(
-      page.getByText("Its Cleaner found the home moderate"),
+      page.getByText("Its cleaners found the home moderate"),
     ).toBeVisible();
-    await expect(page.getByText("No Adjustments.")).toBeVisible();
+    await expect(page.getByText("No price changes.")).toBeVisible();
 
     // a Standard Clean every 2 weeks at moderate Condition and 10% off, to
     // start with: $206 with tax is $224.28 as a one-off, and $185.40 with
@@ -145,23 +145,21 @@ test(
       terms.getByRole("button", { name: "Standard Clean Service" }),
     ).toBeVisible();
     await expect(
-      terms.getByRole("button", { name: /Priced for Condition/ }),
+      terms.getByRole("button", { name: /Priced for condition/ }),
     ).toContainText("Moderate");
 
     // the prices follow each change, without saving by hand
     await terms.getByText("Every week").click();
-    await terms.getByRole("textbox", { name: "Plan Discount (%)" }).fill("15");
+    await terms.getByRole("textbox", { name: "Plan discount (%)" }).fill("15");
     const price = planCard(page, "Standard Clean, every week");
-    await price.getByText("Override the one-off price").click();
+    await price.getByText("Set the one-off price yourself").click();
     await price
       .getByRole("textbox", { name: "One-off price before tax" })
       .fill("250");
     await price
-      .getByRole("textbox", { name: "Reason for the override" })
+      .getByRole("textbox", { name: "Why this price" })
       .fill("Big garden room");
-    await price
-      .getByRole("textbox", { name: "Reason for the override" })
-      .blur();
+    await price.getByRole("textbox", { name: "Why this price" }).blur();
     // 15% off the $250 override: $212.50, with tax $231.36, against $272.19
     await expect(planCard(page, "Standard Clean, every week")).toContainText(
       "$231.36",
@@ -179,9 +177,9 @@ test(
     });
     await expect(offer).toContainText("$231.36");
     await expect(offer).toContainText("$272.19");
-    await expect(offer).toContainText("Overridden to $250.00 before tax");
+    await expect(offer).toContainText("Set to $250.00 before tax");
     await expect(
-      page.getByRole("region", { name: "Current Quote" }),
+      page.getByRole("region", { name: "Current quote" }),
     ).toContainText("Mon, Jan 19, 9:00 AM");
     // Casey hasn't been asked to accept by phone, but could be: their card
     // is saved from the First Clean
@@ -199,14 +197,14 @@ test(
     await signedInAs(client, casey.email);
     await client.goto(await quoteLink());
     await expect(client.getByRole("heading", { level: 1 })).toHaveText(
-      "Your Service Plan Quote",
+      "Your cleaning plan quote",
     );
     const plan = client.getByRole("region", {
       name: "Mondays at 9:00 AM: Standard Clean",
     });
     await expect(plan).toContainText("$231.36 a clean");
     await expect(plan).toContainText("As a one-off clean$272.19");
-    await expect(plan).toContainText("Plan Discount (15%)−$40.83");
+    await expect(plan).toContainText("Plan discount (15%)−$40.83");
     await expect(plan).toContainText("Save $40.83 a clean");
     await expect(
       client.getByRole("region", { name: "Quote details" }),
@@ -215,13 +213,13 @@ test(
       client.getByRole("region", { name: "Pay and start your plan" }),
     ).toBeVisible();
     await expect(
-      client.getByRole("button", { name: "Decline this Quote" }),
+      client.getByRole("button", { name: "Decline this quote" }),
     ).toBeVisible();
 
     await client.goto("/portal");
     await expect(
       client.getByText(
-        "Service Plan, Standard Clean, every week: $231.36 a clean",
+        "Cleaning plan, Standard Clean, every week: $231.36 a clean",
       ),
     ).toBeVisible();
     await expect(
@@ -241,7 +239,7 @@ test("a Service Plan of Deep Cleans", async ({ page, browser }) => {
   await page.getByRole("button", { name: `Send to ${casey.name}` }).click();
   await expect(page.getByText(`Quote sent to ${casey.email}`)).toBeVisible();
   await expect(
-    page.getByRole("region", { name: "Current Quote" }),
+    page.getByRole("region", { name: "Current quote" }),
   ).toContainText("Every 2 weeks, on Mondays at 9:00 AM");
 
   const client = await (await browser.newContext()).newPage();
@@ -289,7 +287,7 @@ test("the Client screen lists each home, whose own page holds its history and of
     history.getByRole("listitem").filter({ hasText: "Job ·" }),
   ).toContainText(["Done"]);
 
-  await page.getByRole("button", { name: "Quote a Service Plan" }).click();
+  await page.getByRole("button", { name: "Quote a cleaning plan" }).click();
   await atPlanDraft(page);
   // Back returns to the home, where the draft is carried on with
   await page.goBack();
@@ -297,7 +295,7 @@ test("the Client screen lists each home, whose own page holds its history and of
     page.getByRole("button", { name: "Carry on with the draft" }),
   ).toBeVisible();
   await expect(
-    history.getByRole("listitem").filter({ hasText: "Service Plan" }),
+    history.getByRole("listitem").filter({ hasText: "Cleaning plan" }),
   ).toContainText("Draft");
 });
 
@@ -310,13 +308,13 @@ test("a request for a home whose First Clean is done can be answered with either
   await page.goto(`/office/quotes/${asked}`);
 
   // asked which kind
-  await page.getByRole("button", { name: "Draft the Quote" }).click();
+  await page.getByRole("button", { name: "Draft the quote" }).click();
   await expect(
-    page.getByRole("dialog").getByRole("button", { name: "A one-off Quote" }),
+    page.getByRole("dialog").getByRole("button", { name: "A one-off quote" }),
   ).toBeVisible();
   await page
     .getByRole("dialog")
-    .getByRole("button", { name: "A Service Plan Quote" })
+    .getByRole("button", { name: "A cleaning plan quote" })
     .click();
   await atPlanDraft(page);
   // the same Quote's Draft, with what was asked above it
@@ -340,7 +338,7 @@ test("a Service Plan Quote and the Client's view of it pass an accessibility che
   await expect(page.getByText(`Quote sent to ${casey.email}`)).toBeVisible();
   await page.reload();
   await expect(
-    page.getByRole("region", { name: "Current Quote" }),
+    page.getByRole("region", { name: "Current quote" }),
   ).toBeVisible();
   await expectAccessible(page);
 
@@ -348,7 +346,7 @@ test("a Service Plan Quote and the Client's view of it pass an accessibility che
   await signedInAs(client, casey.email);
   await client.goto(await quoteLink());
   await expect(client.getByRole("heading", { level: 1 })).toHaveText(
-    "Your Service Plan Quote",
+    "Your cleaning plan quote",
   );
   await expectAccessible(client);
 });
@@ -386,14 +384,14 @@ test("the Client Declines a Service Plan Quote", async ({ page, browser }) => {
   const client = await (await browser.newContext()).newPage();
   await signedInAs(client, casey.email);
   await client.goto(await quoteLink());
-  await client.getByRole("button", { name: "Decline this Quote" }).click();
+  await client.getByRole("button", { name: "Decline this quote" }).click();
   await client
     .getByRole("alertdialog")
     .getByRole("button", { name: "Decline" })
     .click();
 
   await expect(client.getByText("Quote declined")).toBeVisible();
-  await expect(client.getByText(/You declined this Quote/)).toBeVisible();
+  await expect(client.getByText(/You declined this quote/)).toBeVisible();
 });
 
 test("a home whose First Clean isn't Completed is answered with a one-off Quote", async ({
@@ -431,7 +429,7 @@ test("a home whose First Clean isn't Completed is answered with a one-off Quote"
   // a one-off, without asking which
   await draftTheQuote(page);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    /^Revision 1 for /,
+    /^Draft quote for /,
   );
 });
 

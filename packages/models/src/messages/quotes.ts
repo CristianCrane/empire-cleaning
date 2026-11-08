@@ -26,6 +26,19 @@ export const turnedDown = (reason: TurnDownReason) =>
   `Sorry, we can't take this one on. ${turnDownReason[reason]}.`;
 export const ASK_AGAIN = "If anything changes, you're welcome to ask us again.";
 
+// a Property not seen yet, for a Service that's seen before it's quoted
+// (ADR-0018), for a home too; the Office adds how to see it
+export const needsVisit = (kind: PropertyKind) =>
+  `${startOf(kind)} needs a site visit before it's quoted.`;
+
+// when a Quote asked for comes, as the one asking is told it: before they
+// ask, once they have, and while it's worked on
+export const WITHIN_A_DAY = "usually within a working day";
+export const ASK_US = `Tell us what you'd like cleaned, and we'll email you a quote, ${WITHIN_A_DAY}.`;
+export const quoteEmailedTo = (email: string) =>
+  `We'll email your quote to ${email}, ${WITHIN_A_DAY}.`;
+export const WORKING_ON_IT = `We're working on your quote. We'll email it to you, ${WITHIN_A_DAY}.`;
+
 // why a Quote can't be sent yet; each side adds where to fix it
 export const noEmailYet = (name: string) =>
   `${name} has no email yet, so this quote can't be sent.`;

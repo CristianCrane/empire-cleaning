@@ -25,7 +25,10 @@ import {
   type PaymentMethodView,
   type QuoteSummary,
   type ServicePlanSummary,
+  ASK_AGAIN,
+  ASK_US,
   turnDownReason,
+  WITHIN_A_DAY,
 } from "@empire-cleaning/models";
 import type { StatusTone } from "@empire-cleaning/ui";
 import { linkTo, type AppHref } from "../../links.ts";
@@ -96,14 +99,19 @@ export type WhatsNext = {
   shortcuts: Shortcut[];
 };
 
-const requestQuote = {
-  label: "Request a Quote",
+// the Client's ways to a Quote: asking for one, and seeing one
+export const requestQuote = {
+  label: "Request a quote",
   href: linkTo({ to: "/portal/request" }),
 };
 const jobLink = (jobId: string) =>
   linkTo({ to: "/portal/jobs/$jobId", params: { jobId } });
 const quoteLink = (quoteId: string) =>
   linkTo({ to: "/portal/quotes/$quoteId", params: { quoteId } });
+const seeQuote = (quoteId: string) => ({
+  label: "See your quote",
+  href: quoteLink(quoteId),
+});
 const billLink = (billId: string) =>
   linkTo({ to: "/portal/bills/$billId", params: { billId } });
 const cardLink = linkTo({ to: "/portal/payment-method" });
@@ -163,9 +171,9 @@ export function whatsNext(data: HomeData, now = new Date()): WhatsNext {
   }
   for (const quote of sent.filter((q) => q !== leadingQuote)) {
     notices.push({
-      text: `Your Quote is ready: ${quoteHeadline(quote)}.`,
-      action: "See your Quote",
-      href: quoteLink(quote.id),
+      text: `Your quote is ready: ${quoteHeadline(quote)}.`,
+      action: seeQuote(quote.id).label,
+      href: seeQuote(quote.id).href,
     });
   }
   for (const bill of data.bills) {
@@ -291,7 +299,7 @@ function heroOf(data: HomeData, ctx: Context): Hero {
 
   if (leadingQuote) {
     return {
-      label: "Your Quote is ready",
+      label: "Your quote is ready",
       icon: QuoteIcon,
       tone: "info",
       headline: quoteHeadline(leadingQuote),
@@ -307,7 +315,7 @@ function heroOf(data: HomeData, ctx: Context): Hero {
           ? [`Open until ${dayOf(leadingQuote.expiresAt)}`]
           : []),
       ],
-      action: { label: "See your Quote", href: quoteLink(leadingQuote.id) },
+      action: seeQuote(leadingQuote.id),
     };
   }
 
@@ -331,13 +339,13 @@ function heroOf(data: HomeData, ctx: Context): Hero {
       };
     }
     return {
-      label: "We're preparing your Quote",
+      label: "Your quote",
       icon: Hourglass,
       tone: "info",
-      headline: "Usually within a working day",
+      headline: "We're working on it",
       lines: [
         `${asked.service.name} at ${addressOf(asked.property)}, asked ${dayOf(asked.createdAt)}`,
-        "We email it to you, and it shows here.",
+        `We'll email it to you, ${WITHIN_A_DAY}, and it shows here.`,
       ],
       action: seeIt,
     };
@@ -359,7 +367,7 @@ function heroOf(data: HomeData, ctx: Context): Hero {
   const last = data.quotes[0];
   if (last?.status === "expired") {
     return {
-      label: "Your Quote expired",
+      label: "Your quote expired",
       icon: CalendarClock,
       tone: "neutral",
       headline: quoteHeadline(last),
@@ -378,8 +386,8 @@ function heroOf(data: HomeData, ctx: Context): Hero {
       tone: "neutral",
       headline: last.turnDownReason
         ? turnDownReason[last.turnDownReason]
-        : "Sorry, we can't quote for it",
-      lines: [`${addressOf(last.property)}. If anything changes, ask again.`],
+        : "Sorry, we can't take this one on",
+      lines: [`${addressOf(last.property)}. ${ASK_AGAIN}`],
       action: requestQuote,
     };
   }
@@ -390,7 +398,7 @@ function heroOf(data: HomeData, ctx: Context): Hero {
       tone: "info",
       headline: "Changed your mind?",
       lines: [
-        `You turned down our Quote for ${last.service.name}. Ask for a new one any time.`,
+        `You declined our quote for ${last.service.name}. Ask for a new one any time.`,
       ],
       action: requestQuote,
     };
@@ -410,10 +418,8 @@ function heroOf(data: HomeData, ctx: Context): Hero {
     label: "Welcome to Empire Cleaning",
     icon: Sparkles,
     tone: "info",
-    headline: "Let's get you a Quote",
-    lines: [
-      "Tell us about your home and what you'd like cleaned. We email a price, usually within a working day.",
-    ],
+    headline: "Let's get you a quote",
+    lines: [ASK_US],
     action: requestQuote,
   };
 }

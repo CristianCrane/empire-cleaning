@@ -12,7 +12,7 @@ const sections = (page: (typeof servicePages)[number]) => [
   "What our Clients say",
   "Questions we're asked",
   "How it works",
-  "Request a Quote",
+  "Request a quote",
   "Related services",
 ];
 

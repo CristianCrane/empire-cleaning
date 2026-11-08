@@ -5,9 +5,7 @@ import {
   ClipboardCheck,
   Clock,
   House,
-  KeyRound,
   NotebookPen,
-  Sparkles,
   UserRound,
 } from "lucide-react";
 import type {
@@ -29,7 +27,6 @@ import { linkTo } from "../../links.ts";
 import {
   addressOf,
   clientName,
-  conditionText,
   dayOfInstant,
   formatDateTime,
   formatMinutes,
@@ -37,7 +34,7 @@ import {
   propertySummary,
   formatTime,
 } from "../format.ts";
-import { Fact } from "../Fact.tsx";
+import { AccessFact, ConditionFact, Fact } from "../Fact.tsx";
 import { QuoteIcon } from "../icons.ts";
 import { homeCrumbs } from "./PropertyScreen.tsx";
 import {
@@ -162,15 +159,7 @@ function VisitDetails({
                   line="Booked for"
                 />
               )}
-              <Fact
-                icon={KeyRound}
-                label="How we get in"
-                value={
-                  <span className="whitespace-pre-line">
-                    {visit.property.accessInstructions || "Not added yet"}
-                  </span>
-                }
-              />
+              <AccessFact property={visit.property} />
               {visit.quoteId && (
                 <Fact
                   icon={QuoteIcon}
@@ -219,11 +208,7 @@ function VisitDetails({
                     value={propertySummary(visit.property)}
                     className="@3xl:col-span-2"
                   />
-                  <Fact
-                    icon={Sparkles}
-                    label="Condition"
-                    value={conditionText(visit.property.condition)}
-                  />
+                  <ConditionFact property={visit.property} />
                   <Fact
                     icon={CalendarCheck}
                     label="Recorded"

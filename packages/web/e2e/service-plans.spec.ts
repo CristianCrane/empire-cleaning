@@ -70,15 +70,15 @@ test(
     await expect(accept).toContainText(
       "Paying with your Test card ending 4242",
     );
-    await expect(accept).toContainText("hold it for as long as your plan runs");
+    await expect(accept).toContainText("keep it for as long as your plan runs");
     // one Service, so nothing to choose
     await expect(accept.getByRole("radio")).toHaveCount(0);
     await accept.getByRole("button", { name: "Accept and pay $50.46" }).click();
-    await expect(client.getByText("Your Service Plan has started")).toHaveCount(
-      2,
-    );
+    await expect(
+      client.getByText("Your cleaning plan has started"),
+    ).toHaveCount(2);
 
-    await client.getByRole("link", { name: "See your Service Plan" }).click();
+    await client.getByRole("link", { name: "See your cleaning plan" }).click();
     await expect(client.getByRole("heading", { level: 1 })).toHaveText(
       "Your Service Plan",
     );
@@ -146,11 +146,11 @@ test("the Office records a plan's acceptance, then books a visit its day had no 
   await page.goto(`/office/quotes/${quote.id}`);
   await page.getByRole("button", { name: "Record acceptance" }).click();
   await expect(page.getByRole("alertdialog")).toContainText(
-    "held for the life of the plan",
+    "kept for as long as the plan runs",
   );
   await page.getByRole("button", { name: "Charge and book" }).click();
   await expect(
-    page.getByText("Accepted: the Service Plan has started"),
+    page.getByText("Accepted: the cleaning plan has started"),
   ).toBeVisible();
 
   await page.goto("/office");

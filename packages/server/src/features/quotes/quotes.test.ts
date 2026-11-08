@@ -766,6 +766,12 @@ describe("a Client's Quotes", () => {
     const mine = (await client.get("/api/quotes/mine").expect(200))
       .body as QuoteSummary[];
     expect(mine.map((q) => [q.id, q.status])).toEqual([[draft.id, "sent"]]);
+    // its headline leads with the Deep Clean recommended for a first visit,
+    // not the Standard Clean asked for
+    expect([mine[0]!.service.name, mine[0]!.headlineServiceName]).toEqual([
+      "Standard Clean",
+      "Deep Clean",
+    ]);
   });
 
   test("show each Service offered with tax, Deposit and time on site", async () => {

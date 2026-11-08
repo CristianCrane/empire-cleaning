@@ -37,6 +37,7 @@ import {
   formatDay,
   formatMoney,
 } from "../format.ts";
+import { QUOTE_A_PLAN } from "./StartDraft.tsx";
 
 // how often a Dashboard left open asks again, while it can be seen: a new
 // Quote request shows within a minute (the Office is emailed of it too).
@@ -145,7 +146,7 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
         const { quote } = item;
         return {
           key: `quote_requested ${quote.id}`,
-          action: "Send a Quote",
+          action: "Send a quote",
           icon: QuoteIcon,
           tone: "info",
           client: clientName(quote.client),
@@ -177,7 +178,7 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
         const { quote } = item;
         return {
           key: `quote_no_room ${quote.id}`,
-          action: "Pick another time for the Quote",
+          action: "Pick another time for the quote",
           icon: CalendarX,
           tone: "danger",
           client: clientName(quote.client),
@@ -257,11 +258,11 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
         const { job } = item;
         return {
           key: `service_plan_due ${job.id}`,
-          action: "Quote a Service Plan",
+          action: QUOTE_A_PLAN,
           icon: Repeat,
           tone: "info",
           client: clientName(job.client),
-          description: `${addressOf(job.property)} · First Clean done ${formatDate(item.since)}, wants regular visits`,
+          description: `${addressOf(job.property)} · First clean done ${formatDate(item.since)}, wants regular visits`,
           // the home's page: its Service Plan, its history beside it
           open: () =>
             navigate({

@@ -640,13 +640,13 @@ export const returnToTab = (page: import("@playwright/test").Page) =>
 // page; `kind` answers the dialog that asks which, where either is possible
 export const draftTheQuote = async (
   page: Page,
-  kind?: "one-off" | "Service Plan",
+  kind?: "one-off" | "cleaning plan",
 ) => {
-  await page.getByRole("button", { name: "Draft the Quote" }).click();
+  await page.getByRole("button", { name: "Draft the quote" }).click();
   if (kind) {
     await page
       .getByRole("dialog")
-      .getByRole("button", { name: `A ${kind} Quote` })
+      .getByRole("button", { name: `A ${kind} quote` })
       .click();
   }
   await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}\/draft$/);
@@ -677,7 +677,7 @@ export const quoteSent = async (
 // premises as the Office knows them, with no visit, and comes back
 export const recordFindingsWithoutVisit = async (page: Page) => {
   const quote = page.url();
-  await page.getByRole("link", { name: "Property", exact: true }).click();
+  await page.getByRole("link", { name: "property page", exact: true }).click();
   await page
     .getByRole("button", { name: "Record findings without a visit" })
     .click();

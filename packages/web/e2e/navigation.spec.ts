@@ -34,7 +34,7 @@ test("on a phone the Office keeps Today and the Schedule in the tab bar, the res
     "Clients",
     "Staff",
     "Services",
-    "Price List",
+    "Prices",
   ]);
   // related sections under one heading
   await expect(
@@ -45,7 +45,7 @@ test("on a phone the Office keeps Today and the Schedule in the tab bar, the res
   ).toHaveText(["Clients", "Staff"]);
   await expect(
     menu.getByRole("group", { name: "Pricing" }).getByRole("link"),
-  ).toHaveText(["Services", "Price List"]);
+  ).toHaveText(["Services", "Prices"]);
 
   // a section goes there and closes the menu; the top bar names it
   await menu.getByRole("link", { name: "Clients" }).click();
@@ -84,13 +84,13 @@ test(
       "Clients",
       "Staff",
       "Services",
-      "Price List",
+      "Prices",
     ]);
     // the busiest two first, then related sections under one heading
     await expect(sidebar.getByRole("group")).toHaveText([
       /^Work.*Jobs.*Quotes$/,
       /^People.*Clients.*Staff$/,
-      /^Pricing.*Services.*Price List$/,
+      /^Pricing.*Services.*Prices$/,
     ]);
     await expect(page.getByRole("img", logo)).toBeVisible();
     await expect(page.getByRole("button", { name: "Menu" })).toBeHidden();

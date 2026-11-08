@@ -1,4 +1,5 @@
 ---
+import { ASK_US } from "@empire-cleaning/models";
 import { business } from "../business.ts";
 import { QuoteForm } from "./QuoteForm.tsx";
 import Section from "./Section.astro";
@@ -15,8 +16,8 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? "http://localhost:3000";
 
 <Section
   id="quote"
-  title="Request a Quote"
-  intro="Tell us about your home and we'll email you a Quote, usually within a working day. No account needed."
+  title="Request a quote"
+  intro={`${ASK_US} No account needed.`}
   align="center"
 >
   {/* drawn at build time, then loaded once the browser is idle after the page

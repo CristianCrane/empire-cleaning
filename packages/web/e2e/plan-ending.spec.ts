@@ -169,7 +169,7 @@ test(
       page.getByText("Service Plan Ended", { exact: true }),
     ).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Quote a Service Plan" }),
+      page.getByRole("button", { name: "Quote a cleaning plan" }),
     ).toBeVisible();
     expect((await emailsTo(casey.email)).at(-1)!.subject).toBe(
       "Your Service Plan has Ended",

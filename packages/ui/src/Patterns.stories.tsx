@@ -187,7 +187,7 @@ function ActionFirstRows() {
           <List aria-label="Needs attention" onAction={() => {}}>
             <ListItem
               id="1"
-              title="Send a Quote"
+              title="Send a quote"
               description="Maria Lopez · 41-12 Austin St · asked Oct 26"
               start={<IconTile icon={ClipboardPenLine} tone="info" />}
             />
@@ -371,7 +371,7 @@ function QuietForms() {
                 Apartment
               </ChoiceTile>
               <ChoiceTile value="commercial" icon={Store}>
-                Business premises
+                A business
               </ChoiceTile>
             </ChoiceTiles>
             <TextField label="Street address" />
@@ -395,7 +395,7 @@ function QuietForms() {
           <div className="flex flex-col gap-4">
             <RadioGroup label="What needs cleaning?" defaultValue="home">
               <Radio value="home">A home</Radio>
-              <Radio value="commercial">Business premises</Radio>
+              <Radio value="commercial">A business</Radio>
             </RadioGroup>
             <RadioGroup label="Type of home" defaultValue="apartment">
               <Radio value="house">House</Radio>
@@ -423,7 +423,7 @@ function RecordsAsStories() {
           A page for something with a lifecycle, like a Quote, is a{" "}
           <code>Timeline</code>, newest first. Above it, what there is to do, in
           Notices. On top of it, <strong>Now</strong> holds the record as it
-          stands, in one Card (the Current Quote). Below, each thing that
+          stands, in one Card (the Current quote). Below, each thing that
           happened to it, dated, with its details folded away until they're
           wanted. Work in progress isn't part of the story: a Draft is written
           on a page of its own, one Card ruled off into parts, and the Quote
@@ -447,23 +447,23 @@ function RecordsAsStories() {
             <Timeline aria-label="A Quote's story, newest first">
               <TimelineItem icon={FileClock} title="Now" current>
                 <Card>
-                  <p>Current Quote: Standard Clean, $194.89</p>
+                  <p>Current quote: Standard Clean, $194.89</p>
                 </Card>
               </TimelineItem>
               <TimelineItem
                 icon={Send}
-                title="Revision 1 sent"
+                title="Quote sent"
                 when="Oct 3"
                 description="$194.89 · for Tue, Oct 13, 9:00 AM"
               />
               <TimelineItem
                 icon={CalendarCheck}
-                title="Site Visit done"
+                title="Site visit done"
                 when="Oct 2"
               />
               <TimelineItem
                 icon={MessageSquareText}
-                title="Max asked for a Quote"
+                title="Max asked for a quote"
                 when="Oct 1"
               />
             </Timeline>
@@ -481,7 +481,7 @@ function RecordsAsStories() {
               <p>$48.72</p>
             </Card>
             <Button variant="secondary" className="self-end">
-              Draft a new Revision
+              Draft an updated quote
             </Button>
           </div>
         </Example>
@@ -499,8 +499,8 @@ function NoticesHoldOneAction() {
           is a <code>text</code> Button (<code>danger-text</code> to remove
           something), on the right of its text. One action per Notice: two
           things to say or do are two Notices, and an action that doesn't fit
-          one belongs where it acts (Draft a new Revision on the Current Quote,
-          Delete the Draft in the Draft's header).
+          one belongs where it acts (Draft an updated quote on the Current
+          quote, Delete the draft in the draft's header).
         </p>
         <p>
           A page has at most one primary Button: once there are two, neither is
@@ -515,11 +515,11 @@ function NoticesHoldOneAction() {
               action={
                 <Button variant="text" size="sm">
                   <Pencil aria-hidden size={16} />
-                  Continue the Draft
+                  Carry on with the draft
                 </Button>
               }
             >
-              <strong>Revision 2 is a Draft, not sent yet.</strong>
+              <strong>This draft isn't sent yet.</strong>
             </Notice>
             <Notice
               action={
@@ -529,21 +529,23 @@ function NoticesHoldOneAction() {
                 </Button>
               }
             >
-              <strong>Waiting for Kim to accept Revision 1.</strong> She needs a
-              card saved first.
+              <strong>
+                Waiting for Kim to accept the quote you sent.
+              </strong>{" "}
+              They need to save a card first.
             </Notice>
           </div>
         </Example>
         <Example verdict="Don't">
           <Notice>
             <p>
-              <strong>Revision 2 is a Draft.</strong> Kim needs a card saved to
-              accept Revision 1.
+              <strong>This draft isn't sent yet.</strong> Kim needs to save a
+              card to accept the quote you sent.
             </p>
             <div className="flex gap-2 pt-2">
-              <Button>Continue the Draft</Button>
+              <Button>Carry on with the draft</Button>
               <Button>Email Kim a link</Button>
-              <Button variant="danger-text">Delete the Draft</Button>
+              <Button variant="danger-text">Delete the draft</Button>
             </div>
           </Notice>
         </Example>
@@ -714,8 +716,8 @@ function ToursPointNeverPush() {
         },
         {
           element: quote.current ?? undefined,
-          title: "Your Quote",
-          text: "Open it to choose your clean and book. You pay only the Deposit today.",
+          title: "Your quote",
+          text: "Open it to choose your clean and book. You only pay the deposit today.",
         },
       ],
       () => (stop.current = undefined),
@@ -746,12 +748,12 @@ function ToursPointNeverPush() {
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="flex flex-col gap-1">
                   <Heading level={2} size={4} className="text-fg-muted">
-                    Your Quote is ready
+                    Your quote is ready
                   </Heading>
                   <p className="text-xl font-semibold">Standard Clean, $180</p>
                 </div>
                 <div ref={quote}>
-                  <Button>See your Quote</Button>
+                  <Button>See your quote</Button>
                 </div>
               </div>
             </Card>
@@ -769,17 +771,17 @@ function ToursPointNeverPush() {
                 </Button>
               }
             >
-              Your Quote is waiting. Open it to choose your clean and book.
+              Your quote is waiting. Open it to choose your clean and book.
             </Notice>
             <Card>
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="flex flex-col gap-1">
                   <Heading level={2} size={4} className="text-fg-muted">
-                    Your Quote is ready
+                    Your quote is ready
                   </Heading>
                   <p className="text-xl font-semibold">Standard Clean, $180</p>
                 </div>
-                <Button>See your Quote</Button>
+                <Button>See your quote</Button>
               </div>
             </Card>
           </div>
@@ -814,12 +816,12 @@ function EmptyStatesOfferTheAction() {
         <Example verdict="Do">
           <EmptyState
             icon={Repeat}
-            title="No Service Plan"
+            title="No cleaning plan"
             description="Quote regular cleaning."
           >
             <Button>
               <Repeat aria-hidden size={18} />
-              Quote a Service Plan
+              Quote a cleaning plan
             </Button>
           </EmptyState>
         </Example>
@@ -1281,7 +1283,7 @@ export const ToursPointNeverPushStory: Story = {
       within(welcome).getByRole("button", { name: "Next" }),
     );
     // each step fades in
-    const quote = await page.findByRole("dialog", { name: "Your Quote" });
+    const quote = await page.findByRole("dialog", { name: "Your quote" });
     await waitFor(() => expect(quote).toBeVisible());
   },
 };

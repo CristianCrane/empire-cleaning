@@ -104,9 +104,11 @@ import {
   recurrenceWeeks,
   timeOfDay,
   weekdayOf,
+  quoteKindName,
 } from "../format.ts";
 import {
   AddOnList,
+  DraftChangesBadge,
   OptionFigures,
   PlanFigures,
   PlanSaving,
@@ -168,7 +170,7 @@ export function QuoteScreen() {
       {quote.status !== "turned_down" && shown?.changesPlan && (
         <PlanChangeNotice quote={shown} change={shown.changesPlan} />
       )}
-      <Timeline aria-label="This Quote's story, newest first">
+      <Timeline aria-label="This quote's story, newest first">
         {offer && (
           <TimelineItem icon={FileClock} title="Now" current>
             <Offer
@@ -200,7 +202,7 @@ export function QuoteScreen() {
 }
 
 function QuoteHeader({ quote }: { quote: OfficeQuote }) {
-  const kind = kindOf(quote);
+  const kind = quoteKindName(quote.kind);
   const revising = quote.draft !== null && quote.offer !== null;
   return (
     <div className="flex flex-col gap-4">
@@ -216,11 +218,12 @@ function QuoteHeader({ quote }: { quote: OfficeQuote }) {
           {kind} for {clientName(quote.client)}
         </Heading>
         <QuoteStatusBadge status={quote.status} />
-        {revising && <StatusBadge tone="info">Draft changes</StatusBadge>}
+        {revising && <DraftChangesBadge />}
         {unsent(quote) && (
           <div className="ml-auto flex flex-wrap gap-2">
-            {/* optional for a home; business premises' notice asks for it */}
-            {quote.property.kind !== "commercial" && !quote.bookedSiteVisit && (
+            {/* optional, unless its Service is seen first: then the notice
+                asks for it */}
+            {!quote.needsSiteVisit && !quote.bookedSiteVisit && (
               <BookSiteVisit quoteId={quote.id} />
             )}
             <TurnDownQuote quote={quote} />
@@ -231,9 +234,6 @@ function QuoteHeader({ quote }: { quote: OfficeQuote }) {
     </div>
   );
 }
-
-const kindOf = (quote: OfficeQuote) =>
-  quote.kind === "service_plan" ? "Service Plan Quote" : "Quote";
 
 function PropertyLine({ quote }: { quote: OfficeQuote }) {
   return (
@@ -287,14 +287,14 @@ const noticesFor = (quote: OfficeQuote): ReactNode[] => {
       <p>
         <strong>
           Waiting for {firstName} to accept
-          {quote.draft ? ` Revision ${offer.revision}` : ""}, until{" "}
+          {quote.draft ? " the quote you sent" : ""}, until{" "}
           {formatDateTime(offer.expiresAt!)}.
         </strong>{" "}
         {needsCard
-          ? "To record an acceptance by phone, they need a card saved first: we never take card details for them."
+          ? "To accept by phone, they need to save a card first. We never take card details for them."
           : offer.changesPlan
-            ? "If they accept by phone, record it: it changes their plan and charges nothing."
-            : `If they accept by phone, record it: the Deposit is charged to their ${quote.paymentMethod!.label}.`}
+            ? "If they accept by phone, record it here. It changes their plan and charges nothing."
+            : `If they accept by phone, record it here. The deposit is charged to their ${quote.paymentMethod!.label}.`}
       </p>
     </Notice>
   );
@@ -308,16 +308,14 @@ const noticesFor = (quote: OfficeQuote): ReactNode[] => {
         action={
           <ButtonLink variant="text" size="sm" href={draftLink(quote)}>
             <FilePenLine aria-hidden size={16} />
-            Continue the Draft
+            Carry on with the draft
           </ButtonLink>
         }
       >
         <p>
-          <strong>
-            Revision {quote.draft.number} is a Draft, not sent yet.
-          </strong>{" "}
+          <strong>This draft isn't sent yet.</strong>{" "}
           {quote.offer
-            ? `${name} still sees Revision ${quote.offer.number} until you send it.`
+            ? `${name} still sees the quote you sent until you send this one.`
             : `Nothing reaches ${name} until you send it.`}
         </p>
       </Notice>,
@@ -336,10 +334,10 @@ const noticesFor = (quote: OfficeQuote): ReactNode[] => {
             <Notice key="full" tone="danger">
               <p>
                 {offer!.plan && offer!.plan.days.length > 1
-                  ? "A day its first cleans are on has"
+                  ? "One of its first days has"
                   : `${formatDateTime(offer!.proposedStartsAt!)} has`}{" "}
-                filled up since this Quote was sent, so {name} can't accept it.
-                Draft a new Revision with another time: it replaces this offer.
+                filled up since this quote was sent, so {name} can't accept it.
+                Draft an updated quote with another time.
               </p>
             </Notice>,
           ];
@@ -347,8 +345,8 @@ const noticesFor = (quote: OfficeQuote): ReactNode[] => {
       return [
         <Notice key="expired">
           <p>
-            <strong>Expired {formatDateTime(shown!.expiresAt!)}</strong> without
-            a reply. To offer it again, draft a new Revision.
+            <strong>Expired {formatDateTime(shown!.expiresAt!)}</strong> with no
+            answer. To offer it again, draft an updated quote.
           </p>
         </Notice>,
       ];
@@ -359,7 +357,7 @@ const noticesFor = (quote: OfficeQuote): ReactNode[] => {
             <strong>
               {name} declined it {formatDateTime(quote.declinedAt!)}.
             </strong>{" "}
-            To offer something different, draft a new Revision.
+            To offer something different, draft an updated quote.
           </p>
         </Notice>,
       ];
@@ -376,8 +374,8 @@ const noticesFor = (quote: OfficeQuote): ReactNode[] => {
                 })}
               >
                 {quote.changedPlan
-                  ? "its Service Plan has changed"
-                  : "its Service Plan has started"}
+                  ? "its cleaning plan has changed"
+                  : "its cleaning plan has started"}
               </Link>
             ) : (
               `${shown!.options.find((o) => o.serviceKey === quote.acceptedServiceKey)?.serviceName}, booked`
@@ -389,9 +387,9 @@ const noticesFor = (quote: OfficeQuote): ReactNode[] => {
     case "turned_down":
       return [
         <Notice key="turned-down">
-          Turned Down {formatDate(quote.turnedDownAt!)}:{" "}
-          {turnDownLabel[quote.turnDownReason!].toLowerCase()}. The Client can
-          ask for a new Quote.
+          Turned down {formatDate(quote.turnedDownAt!)}:{" "}
+          {turnDownLabel[quote.turnDownReason!].toLowerCase()}. The client can
+          ask for a new quote.
         </Notice>,
       ];
   }
@@ -418,8 +416,8 @@ const toQuote = (quote: OfficeQuote): ReactNode[] => {
     return [
       <Notice key="visit">
         <p>
-          <strong>Site Visit booked:</strong> {visitLink}. Draft the Quote once
-          it's done and its findings are recorded.
+          <strong>Site visit booked:</strong> {visitLink}. Draft the quote once
+          it's done and what it found is recorded.
         </p>
       </Notice>,
     ];
@@ -428,11 +426,11 @@ const toQuote = (quote: OfficeQuote): ReactNode[] => {
     <Notice tone="warning" key="draft" action={<DraftQuote quote={quote} />}>
       <p>
         <strong>
-          {quote.client.name} asked for a {quote.asked?.service.name ?? "Quote"}
+          {quote.client.name} asked for a {quote.asked?.service.name ?? "quote"}
           .
         </strong>{" "}
-        Draft the Quote to send them a price.
-        {visit && <> Site Visit booked: {visitLink}.</>}
+        Draft the quote to send them a price.
+        {visit && <> Site visit booked: {visitLink}.</>}
       </p>
     </Notice>,
     quote.homePlanId && (
@@ -445,9 +443,9 @@ const toQuote = (quote: OfficeQuote): ReactNode[] => {
               params: { planId: quote.homePlanId },
             })}
           >
-            Service Plan
+            cleaning plan
           </Link>
-          . A Service Plan Quote changes its terms once the Client accepts it.
+          . A cleaning plan quote changes it once the client accepts.
         </p>
       </Notice>
     ),
@@ -459,7 +457,7 @@ function DeleteDraft({ quote }: { quote: OfficeQuote }) {
   const navigate = useNavigate();
   const action = useActionWith(
     () => Promise.resolve(),
-    "The Draft wasn't deleted. Please try again.",
+    "The draft wasn't deleted. Please try again.",
   );
   // what discarding leaves is the server's to say: nothing (204) once the
   // Quote has gone with its Draft
@@ -486,17 +484,17 @@ function DeleteDraft({ quote }: { quote: OfficeQuote }) {
     <DialogTrigger>
       <Button variant="danger-text" size="sm">
         <Trash2 aria-hidden size={16} />
-        Delete the Draft
+        Delete the draft
       </Button>
-      <Dialog title="Delete the Draft?" role="alertdialog">
+      <Dialog title="Delete the draft?" role="alertdialog">
         {({ close }) => (
           <>
             <p>
               {quote.offer
-                ? `Revision ${quote.draft!.number}'s changes are lost. ${quote.client.name} keeps Revision ${quote.offer.number}, as sent.`
+                ? `Your changes are lost. ${quote.client.name} keeps the quote you sent.`
                 : !quote.asked
-                  ? "Nothing was asked or sent, so the Quote goes with it."
-                  : `The Quote goes back to Requested, to be drafted afresh, unless ${quote.client.name} has asked for a ${quote.asked.service.name} again since: then that one carries on, and this Quote goes.`}
+                  ? "Nothing was asked for or sent, so the quote goes too."
+                  : `The quote goes back to asked for, so you can draft it again. If ${quote.client.name} has asked for a ${quote.asked.service.name} again since, that one carries on and this one goes.`}
             </p>
             {action.problem && <Notice tone="danger">{action.problem}</Notice>}
             <Actions>
@@ -508,7 +506,7 @@ function DeleteDraft({ quote }: { quote: OfficeQuote }) {
                 isPending={action.isPending}
                 onPress={() => void remove(close)}
               >
-                Delete the Draft
+                Delete the draft
               </Button>
             </Actions>
           </>
@@ -526,7 +524,9 @@ function DeleteDraft({ quote }: { quote: OfficeQuote }) {
 export function QuoteDraftScreen() {
   const quote = useLoaderData({ from: "/office/quotes/$quoteId/draft" });
   const draft = quote.draft!;
-  const kind = kindOf(quote);
+  const kind = quoteKindName(quote.kind);
+  // a Quote not yet sent, or a change to one that was
+  const draftName = quote.offer ? "Updated quote" : "Draft quote";
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4">
@@ -541,12 +541,12 @@ export function QuoteDraftScreen() {
                 params: { quoteId: quote.id },
               }),
             },
-            { label: `Revision ${draft.number}` },
+            { label: draftName },
           ]}
         />
         <div className="flex flex-wrap items-center gap-3">
           <Heading level={1}>
-            Revision {draft.number} for {clientName(quote.client)}
+            {draftName} for {clientName(quote.client)}
           </Heading>
           <StatusBadge tone="neutral">Not sent yet</StatusBadge>
           <div className="ml-auto">
@@ -557,8 +557,8 @@ export function QuoteDraftScreen() {
       </div>
       {quote.offer && (
         <Notice>
-          {quote.client.name} still sees Revision {quote.offer.number} until you
-          send this one.
+          {quote.client.name} still sees the quote you sent until you send this
+          one.
         </Notice>
       )}
       {quote.changesPlan && (
@@ -594,7 +594,7 @@ const momentsOf = (quote: OfficeQuote): Moment[] => {
       title:
         quote.origin === "caller"
           ? `${quote.client.name} asked by phone`
-          : `${quote.client.name} asked for a Quote`,
+          : `${quote.client.name} asked for a quote`,
       description: quote.asked.service.name,
       details: <WhatWasAsked quote={quote} />,
     });
@@ -604,7 +604,7 @@ const momentsOf = (quote: OfficeQuote): Moment[] => {
       key: "visit",
       at: visit.doneAt,
       icon: CalendarCheck,
-      title: "Site Visit done",
+      title: "Site visit done",
       description: visit.visitor ? `By ${visit.visitor.name}` : undefined,
     });
   }
@@ -614,7 +614,7 @@ const momentsOf = (quote: OfficeQuote): Moment[] => {
       key: revision.id,
       at: revision.sentAt,
       icon: Send,
-      title: `Revision ${revision.number} sent`,
+      title: revision.number === 1 ? "Quote sent" : "Updated quote sent",
       description: `${formatMoney(revision.headlineTotalCents)} · for ${formatDateTime(revision.proposedStartsAt)}`,
     });
   }
@@ -647,7 +647,7 @@ const momentsOf = (quote: OfficeQuote): Moment[] => {
       key: "turned-down",
       at: quote.turnedDownAt,
       icon: CircleSlash,
-      title: "Turned Down",
+      title: "Turned down",
       description: turnDownLabel[quote.turnDownReason!],
     });
   }
@@ -708,19 +708,19 @@ function PlanChangeNotice({
             params: { planId: change.servicePlanId },
           })}
         >
-          Service Plan
+          cleaning plan
         </Link>
-        <strong> from {from}.</strong> Its Jobs before then go ahead as they
+        <strong> from {from}.</strong> Its jobs before then go ahead as they
         are.
       </p>
       {change.replaces.length > 0 && (
         <p>
-          Its booked Jobs from then on are cancelled, free:{" "}
+          Its booked jobs from then on are cancelled, free of charge:{" "}
           {change.replaces.map((at) => formatDateTime(at)).join("; ")}.
         </p>
       )}
       <p>
-        The plan's {formatMoney(change.depositCents)} Deposit carries over, so
+        The plan's {formatMoney(change.depositCents)} deposit carries over, so
         accepting charges nothing.
       </p>
     </Notice>
@@ -733,8 +733,8 @@ function Offer({ quote, actions }: { quote: ShownQuote; actions?: ReactNode }) {
   const { plan } = quote;
   return (
     <Section
-      title="Current Quote"
-      description={`Revision ${quote.revision}, sent ${formatDateTime(quote.sentAt!)} to ${quote.client.email}`}
+      title="Current quote"
+      description={`Sent ${formatDateTime(quote.sentAt!)} to ${quote.client.email}`}
       actions={actions}
     >
       <Card>
@@ -752,7 +752,7 @@ function Offer({ quote, actions }: { quote: ShownQuote; actions?: ReactNode }) {
               <dt className="font-semibold">Then</dt>
               <dd>
                 {planRhythm(plan)}, priced for{" "}
-                {conditionLabel[plan.condition].toLowerCase()} Condition
+                {conditionLabel[plan.condition].toLowerCase()} condition
               </dd>
             </>
           )}
@@ -813,8 +813,9 @@ function Offer({ quote, actions }: { quote: ShownQuote; actions?: ReactNode }) {
           </div>
         )}
         <p className="border-t border-border pt-4 text-sm text-fg-muted">
-          Priced from Price List version {quote.priceListVersion}. A Sent
-          Revision never changes: to offer something different, draft a new one.
+          Priced from version {quote.priceListVersion} of the prices. A sent
+          quote never changes. To offer something different, draft an updated
+          quote.
         </p>
       </Card>
     </Section>
@@ -895,7 +896,7 @@ function NewRevision({ quote }: { quote: OfficeQuote }) {
   const navigate = useNavigate();
   const action = useActionWith(
     () => Promise.resolve(),
-    "The new Revision couldn't be started. Please try again.",
+    "The updated quote couldn't be started. Please try again.",
   );
   return (
     <>
@@ -916,7 +917,7 @@ function NewRevision({ quote }: { quote: OfficeQuote }) {
         }}
       >
         <FilePlus aria-hidden size={16} />
-        Draft a new Revision
+        Draft an updated quote
       </Button>
       {action.problem && <ActionProblem>{action.problem}</ActionProblem>}
     </>
@@ -995,9 +996,9 @@ function RecordAcceptance({
             : { revisionId: quote.revisionId, serviceKey },
         ),
       quote.changesPlan
-        ? "Accepted: the Service Plan has changed"
+        ? "Accepted: the cleaning plan has changed"
         : quote.plan
-          ? "Accepted: the Service Plan has started"
+          ? "Accepted: the cleaning plan has started"
           : "Accepted and booked",
     );
     if (ok) close();
@@ -1025,7 +1026,7 @@ function RecordAcceptance({
                     isDisabled={!quote.bookable.includes(option.serviceKey)}
                     description={
                       quote.bookable.includes(option.serviceKey)
-                        ? `${formatMoney(option.totalCents)}, Deposit ${formatMoney(option.depositCents)}`
+                        ? `${formatMoney(option.totalCents)}, deposit ${formatMoney(option.depositCents)}`
                         : "No longer fits: its time has filled up"
                     }
                   >
@@ -1036,12 +1037,12 @@ function RecordAcceptance({
             )}
             <p>
               {quote.changesPlan
-                ? `This changes ${quote.client.name}'s Service Plan to ${planName(quote.plan!)} from ${formatDateTime(quote.proposedStartsAt!)}, cancelling its booked Jobs from then on. Nothing is charged.`
+                ? `This changes ${quote.client.name}'s cleaning plan to ${planName(quote.plan!)} from ${formatDateTime(quote.proposedStartsAt!)}, and cancels its booked jobs from then on. Nothing is charged.`
                 : quote.plan
-                  ? `This charges the ${formatMoney(depositCents)} Deposit to ${quote.client.name}'s ${quote.paymentMethod!.label}, held for the life of the plan, and starts their Service Plan, ${planName(quote.plan)}, with its first clean on ${formatDateTime(quote.proposedStartsAt!)}.`
-                  : `This charges the ${formatMoney(chosen.depositCents)} Deposit to ${quote.client.name}'s ${quote.paymentMethod!.label} and books their ${chosen.serviceName} for ${formatDateTime(quote.proposedStartsAt!)}.`}{" "}
+                  ? `This charges the ${formatMoney(depositCents)} deposit to ${quote.client.name}'s ${quote.paymentMethod!.label}, kept for as long as the plan runs, and starts their cleaning plan, ${planName(quote.plan)}, with its first clean on ${formatDateTime(quote.proposedStartsAt!)}.`
+                  : `This charges the ${formatMoney(chosen.depositCents)} deposit to ${quote.client.name}'s ${quote.paymentMethod!.label} and books their ${chosen.serviceName} for ${formatDateTime(quote.proposedStartsAt!)}.`}{" "}
               {drafting
-                ? `It accepts Revision ${quote.revision}, as sent, and deletes your Draft of Revision ${drafting}.`
+                ? "It accepts the quote you sent, and deletes your draft."
                 : ""}{" "}
               Only do this if they've told you they accept.
             </p>
@@ -1069,7 +1070,7 @@ function PricedFrom({ option }: { option: OfficeQuoteOption }) {
   if (option.overrideCents === null) {
     return (
       <p className="text-sm text-fg-muted">
-        The Suggested Price, {formatMoney(option.suggested.priceCents)} before
+        The suggested price, {formatMoney(option.suggested.priceCents)} before
         tax.
       </p>
     );
@@ -1077,9 +1078,9 @@ function PricedFrom({ option }: { option: OfficeQuoteOption }) {
   return (
     <p className="text-sm text-fg-muted">
       <strong className="text-fg">
-        Overridden to {formatMoney(option.overrideCents)} before tax
+        Set to {formatMoney(option.overrideCents)} before tax
       </strong>{" "}
-      from the Suggested {formatMoney(option.suggested.priceCents)}:{" "}
+      from the suggested {formatMoney(option.suggested.priceCents)}:{" "}
       {option.overrideReason}
     </p>
   );
@@ -1324,7 +1325,7 @@ function PlanTerms({
       </RadioGroup>
       <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(10rem,1fr))]">
         <NumberField
-          label="Plan Discount (%)"
+          label="Plan discount (%)"
           name="plan.discountPercent"
           minValue={0}
           maxValue={100}
@@ -1332,7 +1333,7 @@ function PlanTerms({
           onChange={(discountPercent) => onChange({ discountPercent })}
         />
         <Select
-          label="Priced for Condition"
+          label="Priced for condition"
           selectedKey={plan.condition}
           onSelectionChange={(key) => onChange({ condition: key as Condition })}
         >
@@ -1368,8 +1369,8 @@ function OverrideFields({
     <>
       <details className="text-sm">
         <summary className="cursor-pointer text-fg-muted">
-          Suggested Price {formatMoney(option.suggested.priceCents)} before tax,
-          for {option.suggested.labourHours} Labour Hours.{" "}
+          Suggested price {formatMoney(option.suggested.priceCents)} before tax,
+          for {option.suggested.labourHours} cleaning hours.{" "}
           <span className="font-semibold text-primary">
             How it's worked out
           </span>
@@ -1379,7 +1380,7 @@ function OverrideFields({
         </div>
       </details>
       <Checkbox isSelected={override.on} onChange={(on) => onChange({ on })}>
-        Override the {label} price
+        Set the {label} price yourself
       </Checkbox>
       {override.on && (
         <div className="flex flex-col gap-4">
@@ -1393,7 +1394,7 @@ function OverrideFields({
             onChange={(price) => onChange({ price })}
           />
           <TextField
-            label="Reason for the override"
+            label="Why this price"
             name={`${name}.reason`}
             value={override.reason}
             onChange={(reason) => onChange({ reason })}
@@ -1420,9 +1421,9 @@ const saveStateLabel: Record<SaveState, string> = {
   saved: "All changes saved",
   changed: "Updating prices…",
   saving: "Updating prices…",
-  incomplete: "Give a reason for the override to update the prices",
-  invalid: "Fix the fields marked to update the prices",
-  failed: "Changes couldn't be saved. They'll be tried again as you edit.",
+  incomplete: "Give a reason for the new price to update the prices",
+  invalid: "Fix the marked fields to update the prices",
+  failed: "Your changes didn't save. We'll try again as you edit.",
 };
 
 // how long after the last change the Draft is saved and priced again
@@ -1458,7 +1459,7 @@ function AreaField({
     ? "None recorded yet: enter one to price it."
     : from.source === "property"
       ? `Leave empty to use the floor area, ${sqFt.format(from.sqFt)} sq ft.`
-      : `Leave empty to use the Client's rough figure, ${sqFt.format(from.sqFt)} sq ft.`;
+      : `Leave empty to use the client's rough figure, ${sqFt.format(from.sqFt)} sq ft.`;
   return (
     <NumberField
       label="Area in sq ft"
@@ -1749,9 +1750,9 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
               ))}
             </div>
             <p className="text-sm text-fg-muted">
-              Prices are worked out again from the current Price List (version{" "}
+              Prices are worked out again from the current prices (version{" "}
               {quote.priceListVersion}) and the home's details as you make
-              changes. Sending fixes them.
+              changes. Once it's sent, they stay as they are.
             </p>
           </DraftPart>
         )}
@@ -1769,8 +1770,8 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
           title="Add-ons"
           description={
             quote.plan
-              ? "Done on every clean. Each adds its hours to the price, and the Plan Discount comes off it too."
-              : "Each adds its hours to the price of each Service it goes with."
+              ? "Done on every clean. Each adds its hours to the price, and the plan discount comes off it too."
+              : "Each adds its hours to the price of each service it goes with."
           }
         >
           <div className="flex flex-col">
@@ -1797,7 +1798,7 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
             {/* each of a plan's weekdays has its own */}
             {!plan && (
               <NumberField
-                label="Crew Size"
+                label="Cleaners"
                 name="crewSize"
                 minValue={1}
                 maxValue={10}
@@ -1828,7 +1829,7 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
         {!plan && (
           <DraftPart
             title="Proposed time"
-            description="New York time, more than 24 hours away. The Quote Expires 24 hours before it if it isn't accepted first."
+            description="New York time, more than 24 hours away. If it isn't accepted first, the quote expires 24 hours before it."
           >
             <div className="grid gap-4 sm:grid-cols-2">
               <DatePicker
@@ -1885,7 +1886,7 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
         </Notice>
       )}
 
-      {/* business premises are seen before they're quoted (ADR-0014) */}
+      {/* a Service seen first is seen before it's quoted (ADR-0018) */}
       {quote.needsSiteVisit && (
         <Notice tone="warning">
           <p>
@@ -1981,7 +1982,7 @@ function PlanDayFields({
       title={title}
       description={
         one
-          ? `Its first clean, New York time. Then ${recurrenceLabel[plan.recurrence].toLowerCase()} on the same weekday. The Quote Expires 24 hours before the plan's first clean if it isn't accepted first.`
+          ? `Its first clean, New York time. Then ${recurrenceLabel[plan.recurrence].toLowerCase()} on the same weekday. If it isn't accepted first, the quote expires 24 hours before the plan's first clean.`
           : "Its first clean, New York time. Then every week on the same weekday."
       }
       actions={
@@ -2032,7 +2033,7 @@ function PlanDayFields({
       )}
       <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(10rem,1fr))]">
         <NumberField
-          label="Crew Size"
+          label="Cleaners"
           name={`${name}.crewSize`}
           minValue={1}
           maxValue={10}
@@ -2056,7 +2057,7 @@ function PlanDayFields({
               discountPercent={plan.discountPercent}
             />
             <p className="text-sm text-fg-muted">
-              The Plan Discount comes off the one-off price, overridden or not.
+              The plan discount comes off the one-off price, whoever set it.
             </p>
             <OverrideFields
               option={option}
@@ -2079,14 +2080,14 @@ function FirstCleanNote({ firstClean }: { firstClean: FirstCleanFindings }) {
   return (
     <details className="group">
       <summary className="cursor-pointer text-sm font-semibold text-primary">
-        First Clean: the home was{" "}
+        First clean: the home was{" "}
         {conditionLabel[firstClean.condition].toLowerCase()}
         {firstClean.adjustments.length > 0 &&
-          `, with ${firstClean.adjustments.length} Adjustment${firstClean.adjustments.length > 1 ? "s" : ""}`}
+          `, with ${firstClean.adjustments.length} price change${firstClean.adjustments.length > 1 ? "s" : ""}`}
       </summary>
       <Card className="mt-2">
         <p className="text-sm text-fg-muted">
-          {job.serviceName} on {formatDateTime(job.startsAt)}, Completed{" "}
+          {job.serviceName} on {formatDateTime(job.startsAt)}, done{" "}
           {formatDate(firstClean.completedAt)} ·{" "}
           <Link
             href={linkTo({
@@ -2094,17 +2095,17 @@ function FirstCleanNote({ firstClean }: { firstClean: FirstCleanFindings }) {
               params: { jobId: job.id },
             })}
           >
-            See the Job
+            See the job
           </Link>
         </p>
         <p>
-          Its Cleaner found the home{" "}
+          Its cleaners found the home{" "}
           <strong>{conditionLabel[firstClean.condition].toLowerCase()}</strong>.
         </p>
         {firstClean.adjustments.length === 0 ? (
-          <p className="text-fg-muted">No Adjustments.</p>
+          <p className="text-fg-muted">No price changes.</p>
         ) : (
-          <List aria-label="First Clean Adjustments">
+          <List aria-label="Price changes at the first clean">
             {firstClean.adjustments.map((a) => (
               <ListItem
                 key={a.id}

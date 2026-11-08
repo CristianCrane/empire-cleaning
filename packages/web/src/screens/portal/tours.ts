@@ -10,9 +10,9 @@ export const clientTours = {
       route: "/portal/",
       steps: [
         {
-          target: { press: "See your Quote" },
-          title: "Your Quote",
-          text: "Open it to choose your clean and book. You pay only the Deposit today.",
+          target: { press: "See your quote" },
+          title: "Your quote",
+          text: "Open it to choose your clean and book. You only pay the deposit today.",
         },
       ],
     },
@@ -25,7 +25,7 @@ export const clientTours = {
         {
           target: { named: "Pay and book" },
           title: "Pay and book",
-          text: "Pick the clean you want, then pay the Deposit to book it. The rest is charged once the clean is done.",
+          text: "Pick the clean you want, then pay the deposit to book it. The rest is charged once the clean is done.",
         },
       ],
     },

@@ -71,6 +71,7 @@ const quote = (over: Partial<QuoteSummary> = {}): QuoteSummary =>
     service: { key: "deep", name: "Deep Clean" },
     property: home,
     headlineTotalCents: null,
+    headlineServiceName: null,
     plan: null,
     proposedStartsAt: null,
     sentAt: null,
@@ -83,6 +84,7 @@ const quote = (over: Partial<QuoteSummary> = {}): QuoteSummary =>
 const sentQuote = quote({
   status: "sent",
   headlineTotalCents: 39104,
+  headlineServiceName: "Deep Clean",
   proposedStartsAt: "2026-11-08T15:00:00.000Z",
   sentAt: "2026-10-31T19:00:00.000Z",
   expiresAt: "2026-11-14T04:59:00.000Z",
@@ -126,8 +128,8 @@ describe("Home's hero, with nothing booked", () => {
   test("welcomes a Client who's asked for nothing yet", () => {
     expect(next().hero).toMatchObject({
       label: "Welcome to Empire Cleaning",
-      headline: "Let's get you a Quote",
-      action: { label: "Request a Quote" },
+      headline: "Let's get you a quote",
+      action: { label: "Request a quote" },
     });
     expect(shortcutLabels()).toEqual(["Your details", "Call us"]);
   });
@@ -135,11 +137,11 @@ describe("Home's hero, with nothing booked", () => {
   test("says a Quote asked for is being prepared", () => {
     const { hero, shortcuts } = next({ quotes: [quote()] });
     expect(hero).toMatchObject({
-      label: "We're preparing your Quote",
-      headline: "Usually within a working day",
+      label: "Your quote",
+      headline: "We're working on it",
       lines: [
         "Deep Clean at 12 Elm St, 4B, 11375, asked Sat, Oct 31",
-        "We email it to you, and it shows here.",
+        "We'll email it to you, usually within a working day, and it shows here.",
       ],
       action: { label: "See what you asked for" },
     });
@@ -161,15 +163,26 @@ describe("Home's hero, with nothing booked", () => {
   test("leads with a Quote that's ready", () => {
     const { hero, notices } = next({ quotes: [sentQuote] });
     expect(hero).toMatchObject({
-      label: "Your Quote is ready",
+      label: "Your quote is ready",
       headline: "Deep Clean $391.04",
       lines: [
         "For Sun, Nov 8, 10:00 AM at 12 Elm St, 4B, 11375",
         "Open until Fri, Nov 13",
       ],
-      action: { label: "See your Quote" },
+      action: { label: "See your quote" },
     });
     expect(notices).toEqual([]);
+  });
+
+  test("names the Service a one-off Quote leads with", () => {
+    const standard = {
+      ...sentQuote,
+      headlineTotalCents: 20185,
+      headlineServiceName: "Standard Clean",
+    };
+    expect(next({ quotes: [standard] }).hero.headline).toBe(
+      "Standard Clean $201.85",
+    );
   });
 
   test("names the last clean done, not one Skipped since", () => {
@@ -197,7 +210,7 @@ describe("Home's hero, with nothing booked", () => {
     expect(hero).toMatchObject({
       headline: "Want us back?",
       lines: ["Your last clean was Tue, Oct 20."],
-      action: { label: "Request a Quote" },
+      action: { label: "Request a quote" },
     });
     expect(shortcutLabels({ pastJobs: [pastJob()] })).toEqual([
       "Past cleans",
@@ -210,7 +223,7 @@ describe("Home's hero, with nothing booked", () => {
     expect(
       next({ quotes: [{ ...sentQuote, status: "expired" }] }).hero,
     ).toMatchObject({
-      label: "Your Quote expired",
+      label: "Your quote expired",
       headline: "Deep Clean $391.04",
       lines: [
         "It was open until Fri, Nov 13. Ask again and we'll price it afresh.",
@@ -220,6 +233,9 @@ describe("Home's hero, with nothing booked", () => {
       next({ quotes: [quote({ status: "declined" })] }).hero,
     ).toMatchObject({
       headline: "Changed your mind?",
+      lines: [
+        "You declined our quote for Deep Clean. Ask for a new one any time.",
+      ],
     });
     expect(
       next({
@@ -327,8 +343,8 @@ describe("Home's Notices: what's waiting on the Client", () => {
   test("a Quote ready while something's booked", () => {
     expect(next({ jobs: [job()], quotes: [sentQuote] }).notices).toEqual([
       expect.objectContaining({
-        text: "Your Quote is ready: Deep Clean $391.04.",
-        action: "See your Quote",
+        text: "Your quote is ready: Deep Clean $391.04.",
+        action: "See your quote",
       }),
     ]);
   });

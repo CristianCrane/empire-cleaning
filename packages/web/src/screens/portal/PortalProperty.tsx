@@ -6,8 +6,6 @@ import {
   FileText,
   House,
   KeyRound,
-  Ruler,
-  Sparkles,
 } from "lucide-react";
 import type { PropertyView } from "@empire-cleaning/models";
 import {
@@ -30,37 +28,27 @@ import {
   type StatusTone,
   TextField,
 } from "@empire-cleaning/ui";
+import { accessHelp } from "@empire-cleaning/quote-request";
 import { patchJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import {
   addressOf,
-  conditionLabel,
   dayOfInstant,
   formatDateTime,
-  formatFloorArea,
   formatShortDay,
   propertySummary,
   recurrenceLabel,
 } from "../format.ts";
-import { Fact } from "../Fact.tsx";
+import { AccessFact, ConditionFact, FloorAreaFact } from "../Fact.tsx";
 import { planWhen, quoteTitle, standingOf } from "./properties.ts";
+import { ClientQuoteStatusBadge } from "../QuoteParts.tsx";
+import { requestQuote } from "./whats-next.ts";
 
 const planStatus: Record<string, { tone: StatusTone; label: string }> = {
   active: { tone: "success", label: "Active" },
   on_hold: { tone: "warning", label: "On Hold" },
   ended: { tone: "danger", label: "Ended" },
-};
-
-// a Quote's state as its Client sees it: one being drafted is still asked for
-const quoteStatus: Record<string, { tone: StatusTone; label: string }> = {
-  requested: { tone: "info", label: "Asked for" },
-  draft: { tone: "info", label: "Asked for" },
-  sent: { tone: "warning", label: "To answer" },
-  accepted: { tone: "success", label: "Accepted" },
-  declined: { tone: "neutral", label: "Declined" },
-  expired: { tone: "neutral", label: "Expired" },
-  turned_down: { tone: "neutral", label: "Turned Down" },
 };
 
 const shortDayOf = (iso: string) => formatShortDay(dayOfInstant(iso));
@@ -100,7 +88,7 @@ export function PortalProperty() {
       </div>
 
       <Section
-        title={premises ? "Premises details" : "Home details"}
+        title={premises ? "Business details" : "Home details"}
         actions={<EditAccess property={p} />}
       >
         <Card>
@@ -109,7 +97,7 @@ export function PortalProperty() {
               <IconTile icon={premises ? Building2 : House} size="lg" />
               <div className="flex min-w-0 flex-col gap-1">
                 <p className="text-sm text-fg-muted">
-                  {premises ? "Business premises" : "Your home"}
+                  {premises ? "Your business" : "Your home"}
                 </p>
                 <p className="text-xl font-semibold text-fg">
                   {propertySummary(p)}
@@ -117,37 +105,16 @@ export function PortalProperty() {
               </div>
             </div>
             <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Fact
-                icon={Ruler}
-                label="Floor area"
-                value={
-                  p.floorArea === null
-                    ? "Not known yet"
-                    : formatFloorArea(p.floorArea)
-                }
-              />
-              <Fact
-                icon={Sparkles}
-                label="Condition"
-                value={
-                  p.condition ? conditionLabel[p.condition] : "Not known yet"
-                }
-                line="Condition, at the last visit"
-              />
-              <Fact
-                icon={KeyRound}
-                label="How we get in"
-                value={
-                  <span className="whitespace-pre-line">
-                    {p.accessInstructions || "Not added yet"}
-                  </span>
-                }
-                line="How we get in: only your Cleaners see it"
+              <FloorAreaFact property={p} />
+              <ConditionFact property={p} line="Condition, at the last visit" />
+              <AccessFact
+                property={p}
+                line="How we get in: only your cleaners see it"
                 className="sm:col-span-2"
               />
             </dl>
             <p className="border-t border-border pt-4 text-sm text-fg-muted">
-              To change its size or rooms, ask for a new Quote: they set the
+              To change its size or rooms, ask us for a new quote. They set the
               price.
             </p>
           </div>
@@ -190,11 +157,8 @@ export function PortalProperty() {
           <Card>
             <ActionRow
               actions={
-                <ButtonLink
-                  variant="secondary"
-                  href={linkTo({ to: "/portal/request" })}
-                >
-                  Request a Quote
+                <ButtonLink variant="secondary" href={requestQuote.href}>
+                  {requestQuote.label}
                 </ButtonLink>
               }
             >
@@ -229,11 +193,7 @@ export function PortalProperty() {
                     ? `Sent ${shortDayOf(q.sentAt)}`
                     : `Asked for ${shortDayOf(q.createdAt)}`
                 }
-                end={
-                  <StatusBadge tone={quoteStatus[q.status]!.tone}>
-                    {quoteStatus[q.status]!.label}
-                  </StatusBadge>
-                }
+                end={<ClientQuoteStatusBadge status={q.status} />}
               />
             ))}
           </List>
@@ -244,9 +204,7 @@ export function PortalProperty() {
 }
 
 function EditAccess({ property }: { property: PropertyView }) {
-  const action = useAction(
-    "Your Access Instructions weren't saved. Please try again.",
-  );
+  const action = useAction("How we get in wasn't saved. Please try again.");
 
   const save = async (text: string, close: () => void) => {
     const ok = await action.run(
@@ -254,7 +212,7 @@ function EditAccess({ property }: { property: PropertyView }) {
         patchJson(`/api/properties/${property.id}/access-instructions`, {
           accessInstructions: text || null,
         }),
-      "Access Instructions saved",
+      "Saved how we get in",
     );
     if (ok) close();
   };
@@ -279,7 +237,7 @@ function EditAccess({ property }: { property: PropertyView }) {
               name="access"
               multiline
               autoFocus
-              description="Door codes, where the key is, parking. Only your Cleaners see this."
+              description={accessHelp[property.kind]}
               defaultValue={property.accessInstructions ?? ""}
             />
             {action.problem && <Notice tone="danger">{action.problem}</Notice>}
@@ -288,7 +246,7 @@ function EditAccess({ property }: { property: PropertyView }) {
                 Cancel
               </Button>
               <Button type="submit" isPending={action.isPending}>
-                Save Access Instructions
+                Save
               </Button>
             </Actions>
           </Form>

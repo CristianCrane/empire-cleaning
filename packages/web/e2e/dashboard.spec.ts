@@ -36,7 +36,7 @@ test(
     const needsAttention = page.getByRole("grid", { name: "Needs attention" });
     const request = needsAttention.getByRole("row", { name: /Casey Client/ });
     await expect(request).toContainText("41-12 Austin St, 4B, 11375");
-    await expect(request).toContainText("Send a Quote");
+    await expect(request).toContainText("Send a quote");
 
     await request.click();
     await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
@@ -62,7 +62,7 @@ test("a Quote asked for while the Dashboard is open shows within a minute", asyn
   await expect(request).toHaveCount(0);
   await page.clock.runFor(1_000);
 
-  await expect(request).toContainText("Send a Quote");
+  await expect(request).toContainText("Send a quote");
 });
 
 // a long list reads as a few numbers first: a tile per part of the work,

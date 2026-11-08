@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { QuoteAskReceipt } from "@empire-cleaning/models";
+import { quoteEmailedTo, type QuoteAskReceipt } from "@empire-cleaning/models";
 import { QuoteRequestForm } from "@empire-cleaning/quote-request";
 import { Notice } from "@empire-cleaning/ui";
 import { business } from "../business.ts";
@@ -33,10 +33,7 @@ export function QuoteForm({
     return (
       <Notice tone="success">
         <p className="font-semibold">Thanks, we've got your request</p>
-        <p>
-          We'll email your Quote to {receipt.emailedTo}, usually within a
-          working day.
-        </p>
+        <p>{quoteEmailedTo(receipt.emailedTo)}</p>
       </Notice>
     );
   }
@@ -57,7 +54,7 @@ export function QuoteForm({
         <a href={business.phone.href} className="font-semibold text-fg">
           {business.phone.display}
         </a>{" "}
-        and we'll put your Quote together.
+        and we'll put your quote together.
       </p>
     </>
   );

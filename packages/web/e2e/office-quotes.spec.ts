@@ -23,7 +23,7 @@ const startNewQuote = async (page: Page) => {
   await createStaff(olive);
   await signedInAs(page, olive.email);
   await page.goto("/office/quotes");
-  await page.getByRole("button", { name: "New Quote" }).click();
+  await page.getByRole("button", { name: "New quote" }).click();
   await expect(page).toHaveURL("/office/quotes/new");
 };
 
@@ -45,14 +45,14 @@ test(
   async ({ page }) => {
     await startNewQuote(page);
     await expect(
-      page.getByRole("searchbox", { name: "Find a Client" }),
+      page.getByRole("searchbox", { name: "Find a client" }),
     ).toBeFocused();
 
-    await page.getByRole("button", { name: "New Client" }).click();
+    await page.getByRole("button", { name: "New client" }).click();
     // who's calling comes first
     await page.getByRole("textbox", { name: "Full name" }).fill("Pat Phoner");
     const price = page.getByRole("region", { name: "What it comes to" });
-    await expect(price).toContainText("Choose what they need");
+    await expect(price).toContainText("Pick what they need");
     await chooseService(page);
     await describeNewHome(page);
     // what it comes to as it's said: 1 + 2 x 0.5 + 1 x 0.75 = 2.75 h, x $55
@@ -69,7 +69,7 @@ test(
     await expectAccessible(page);
     await page.getByRole("textbox", { name: "Phone" }).fill("(718) 555-0123");
     await expectAccessible(page);
-    await page.getByRole("button", { name: "Draft a Quote" }).click();
+    await page.getByRole("button", { name: "Draft a quote" }).click();
     await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}\/draft$/);
     const quote = page.url();
     // the Draft starts at the price said on the phone
@@ -113,7 +113,7 @@ test(
     const sent = (await emailsTo(casey.email)).length;
     await startNewQuote(page);
 
-    await page.getByRole("searchbox", { name: "Find a Client" }).fill("casey");
+    await page.getByRole("searchbox", { name: "Find a client" }).fill("casey");
     await page
       .getByRole("grid", { name: "Clients found" })
       .getByRole("row", { name: /Casey Client/ })
@@ -131,10 +131,10 @@ test(
       page.getByRole("radio", { name: "A different home" }),
     ).toBeChecked();
     await describeNewHome(page);
-    await page.getByRole("button", { name: "Draft a Quote" }).click();
+    await page.getByRole("button", { name: "Draft a quote" }).click();
     await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}\/draft$/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-      "Revision 1 for Casey Client",
+      "Draft quote for Casey Client",
     );
     await expect(
       page
@@ -177,29 +177,29 @@ test(
     await page.goto("/office/quotes");
 
     await page
-      .getByRole("grid", { name: "Open Quotes" })
+      .getByRole("grid", { name: "Open quotes" })
       .getByRole("row")
       .filter({ hasText: "Standard Clean" })
       .click();
 
-    await expect(page.getByText("(the Client said moderate)")).toBeVisible();
+    await expect(page.getByText("(the client said moderate)")).toBeVisible();
     await expect(
       page.getByText(
-        "(the Client said 2 bedrooms, 1.5 bathrooms, 1 storey, no pets)",
+        "(the client said 2 bedrooms, 1.5 bathrooms, 1 storey, no pets)",
       ),
     ).toBeVisible();
     await expectAccessible(page);
   },
 );
 
-test("a Client's screen starts a New Quote for them", async ({ page }) => {
+test("a Client's screen starts a New quote for them", async ({ page }) => {
   await requestQuoteAsGuest(casey);
   await createStaff(olive);
   await signedInAs(page, olive.email);
   await page.goto("/office/clients?tab=all");
   await page.getByRole("row", { name: /Casey Client/ }).click();
 
-  await page.getByRole("button", { name: "New Quote" }).click();
+  await page.getByRole("button", { name: "New quote" }).click();
 
   await expect(page).toHaveURL(/\/office\/quotes\/new\?clientId=/);
   await expect(
@@ -221,7 +221,7 @@ test(
     await signedInAs(page, olive.email);
     await page.goto("/office/quotes");
 
-    const quotes = page.getByRole("grid", { name: "Open Quotes" });
+    const quotes = page.getByRole("grid", { name: "Open quotes" });
     await expect(quotes.getByRole("row")).toHaveCount(3);
     // what each is a Quote of
     await expect(
@@ -234,10 +234,10 @@ test(
       "2",
     );
     await page.getByRole("tab", { name: /Draft/ }).click();
-    await expect(page.getByText("No Draft Quotes.")).toBeVisible();
+    await expect(page.getByText("No draft quotes.")).toBeVisible();
     await page.getByRole("tab", { name: /All/ }).click();
 
-    await page.getByRole("searchbox", { name: "Search Quotes" }).fill("acme");
+    await page.getByRole("searchbox", { name: "Search quotes" }).fill("acme");
     await expect(page).toHaveURL("/office/quotes?q=acme");
     await expect(quotes.getByRole("row")).toHaveCount(2);
     await expect(quotes).toContainText("Acme Dental");
@@ -247,7 +247,7 @@ test(
     await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
     await page.goBack();
     await expect(
-      page.getByRole("searchbox", { name: "Search Quotes" }),
+      page.getByRole("searchbox", { name: "Search quotes" }),
     ).toHaveValue("acme");
     await expect(quotes.getByRole("row")).toHaveCount(2);
   },

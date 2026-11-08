@@ -33,6 +33,7 @@ import {
 import { postJson } from "../../api.ts";
 import { useAction } from "../action.ts";
 import { linkTo } from "../../links.ts";
+import { requestQuote } from "./whats-next.ts";
 import { PickAvailableTime } from "../AvailabilityPicker.tsx";
 import { ChooseNewTime, costForClient } from "../RescheduleParts.tsx";
 import {
@@ -492,9 +493,7 @@ function WhatNext({ job }: { job: ClientJobDetail }) {
       See your Service Plan
     </ButtonLink>
   ) : (
-    <ButtonLink href={linkTo({ to: "/portal/request" })}>
-      Request a Quote
-    </ButtonLink>
+    <ButtonLink href={requestQuote.href}>{requestQuote.label}</ButtonLink>
   );
 }
 

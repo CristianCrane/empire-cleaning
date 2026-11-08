@@ -71,7 +71,7 @@ test(
     await signedInAs(page, olive.email);
     const { job } = await completedFirstClean(olive.email);
     await page.goto(`/office/jobs/${job.id}`);
-    await page.getByRole("button", { name: "Quote a Service Plan" }).click();
+    await page.getByRole("button", { name: "Quote a cleaning plan" }).click();
     await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}\/draft$/);
 
     // Mondays at 9am
@@ -88,8 +88,8 @@ test(
     const tuesday = page.getByRole("region", { name: "Tuesdays" });
     await startOn(page, tuesday, "01212026", "0100PM");
     const wednesday = page.getByRole("region", { name: "Wednesdays" });
-    await wednesday.getByRole("textbox", { name: "Crew Size" }).fill("1");
-    await wednesday.getByRole("textbox", { name: "Crew Size" }).blur();
+    await wednesday.getByRole("textbox", { name: "Cleaners" }).fill("1");
+    await wednesday.getByRole("textbox", { name: "Cleaners" }).blur();
     await saved(page);
 
     // several weekdays come round every week
@@ -110,21 +110,21 @@ test(
     await page.getByRole("button", { name: `Send to ${casey.name}` }).click();
     await expect(page.getByText(`Quote sent to ${casey.email}`)).toBeVisible();
     await expect(
-      page.getByRole("region", { name: "Current Quote" }),
+      page.getByRole("region", { name: "Current quote" }),
     ).toContainText(
       "Every week, on Mondays at 9:00 AM and Wednesdays at 1:00 PM",
     );
     await expect(
       page.getByRole("region", { name: "Mondays at 9:00 AM: Standard Clean" }),
-    ).toContainText("Time on site, with a crew of 2");
+    ).toContainText("On site, with 2 cleaners");
     await expect(
       page.getByRole("region", {
         name: "Wednesdays at 1:00 PM: Standard Clean",
       }),
-    ).toContainText("Time on site, with a crew of 1");
+    ).toContainText("On site, with 1 cleaner");
     // the Current Quote ends with the plan's Deposit
     const deposit = (await page
-      .getByRole("region", { name: "Current Quote" })
+      .getByRole("region", { name: "Current quote" })
       .getByRole("definition")
       .last()
       .textContent())!;
@@ -161,10 +161,10 @@ test(
     await accept
       .getByRole("button", { name: `Accept and pay ${deposit}` })
       .click();
-    await expect(client.getByText("Your Service Plan has started")).toHaveCount(
-      2,
-    );
-    await client.getByRole("link", { name: "See your Service Plan" }).click();
+    await expect(
+      client.getByText("Your cleaning plan has started"),
+    ).toHaveCount(2);
+    await client.getByRole("link", { name: "See your cleaning plan" }).click();
     // one answer to when: both weekdays together
     const details = client.getByRole("region", { name: "Plan details" });
     await expect(details).toContainText("Mondays at 9:00 AM · Standard Clean");
@@ -198,13 +198,13 @@ test("business premises can be offered a Service Plan with no First Clean, once 
   await page.getByText("Acme Dental").click();
   // seen first: there's nothing to draft until they are
   await expect(
-    page.getByRole("button", { name: "Draft the Quote" }),
+    page.getByRole("button", { name: "Draft the quote" }),
   ).toHaveCount(0);
 
   await recordFindingsWithoutVisit(page);
-  await draftTheQuote(page, "Service Plan");
+  await draftTheQuote(page, "cleaning plan");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "Revision 1 for Acme Dental (Casey Client)",
+    "Draft quote for Acme Dental (Casey Client)",
   );
   await expect(
     page.getByText("This business hasn't had a site visit yet"),

@@ -67,7 +67,7 @@ test(
     await expect(
       client.getByRole("region", { name: "Quote details" }),
     ).toContainText("From Wed, Jan 28, 9:00 AM");
-    const change = client.getByText("This changes your Service Plan");
+    const change = client.getByText("This changes your cleaning plan");
     await expect(change).toBeVisible();
     await expect(
       client.getByText(
@@ -85,10 +85,10 @@ test(
     await accept.getByRole("button", { name: "Accept the new terms" }).click();
     await expect(
       client.getByText(
-        "Your Service Plan has changed: it's on these terms from Wed, Jan 28, 9:00 AM.",
+        "Your cleaning plan has changed: it's on these terms from Wed, Jan 28, 9:00 AM.",
       ),
     ).toBeVisible();
-    await client.getByRole("link", { name: "See your Service Plan" }).click();
+    await client.getByRole("link", { name: "See your cleaning plan" }).click();
     const cleans = client.getByRole("grid", { name: "Your upcoming cleans" });
     await expect(cleans.getByRole("row")).toHaveText([
       /Mon, Jan 19, 9:00 AM/,
@@ -138,7 +138,7 @@ test(
     ).toBeVisible();
     await expect(
       page.getByText(
-        "A Service Plan Quote changes its terms once the Client accepts it.",
+        "A cleaning plan quote changes it once the client accepts.",
         { exact: false },
       ),
     ).toBeVisible();
