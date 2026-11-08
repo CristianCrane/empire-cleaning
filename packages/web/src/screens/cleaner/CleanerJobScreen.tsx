@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import {
   CalendarClock,
@@ -23,11 +22,10 @@ import {
   IconTile,
   Notice,
   Section,
-  showToast,
 } from "@empire-cleaning/ui";
-import { ApiError, postJson } from "../../api.ts";
+import { postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
-import { useAction } from "../action.ts";
+import { useAction, useActionWith } from "../action.ts";
 import { Fact } from "../Fact.tsx";
 import {
   addressOf,
@@ -239,29 +237,21 @@ function TakeOffer({ job }: { job: CleanerJob }) {
   );
 }
 
+const STILL_ON = "You're still on this job. Please try again.";
+
 function Release({ job, label }: { job: CleanerJob; label: string }) {
   const navigate = useNavigate();
-  const [problem, setProblem] = useState<string>();
-  const [isPending, setPending] = useState(false);
+  // it leaves for Your jobs, so there's nothing here to reload
+  const action = useActionWith(() => Promise.resolve(), STILL_ON, {
+    fieldsProblem: STILL_ON,
+  });
 
-  const release = async (close: () => void) => {
-    setPending(true);
-    setProblem(undefined);
-    try {
+  const release = (close: () => void) =>
+    action.run(async () => {
       await postJson(`/api/assignments/${job.assignment.id}/release`);
-      showToast({ tone: "success", title: "You've dropped out" });
       close();
       await navigate({ to: "/cleaner" });
-    } catch (e) {
-      setProblem(
-        e instanceof ApiError && e.status === 409
-          ? e.message
-          : "You're still on this job. Please try again.",
-      );
-    } finally {
-      setPending(false);
-    }
-  };
+    }, "You've dropped out");
 
   return (
     <DialogTrigger>
@@ -273,14 +263,14 @@ function Release({ job, label }: { job: CleanerJob; label: string }) {
               It goes to the other cleaners free then, and the office is told.
               It won't be on your list any more.
             </p>
-            {problem && <Notice tone="danger">{problem}</Notice>}
+            {action.problem && <Notice tone="danger">{action.problem}</Notice>}
             <Actions>
               <Button variant="quiet" onPress={close}>
                 Keep it
               </Button>
               <Button
                 variant="danger"
-                isPending={isPending}
+                isPending={action.isPending}
                 onPress={() => void release(close)}
               >
                 Drop out

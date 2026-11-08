@@ -464,28 +464,26 @@ function DeleteDraft({ quote }: { quote: OfficeQuote }) {
   const action = useActionWith(
     () => Promise.resolve(),
     "The draft wasn't deleted. Please try again.",
+    { fieldsProblem: "The draft wasn't deleted. Please try again." },
   );
   // what discarding leaves is the server's to say: nothing (204) once the
   // Quote has gone with its Draft
-  const remove = async (close: () => void) => {
-    let left: OfficeQuote | undefined;
-    const ok = await action.run(async () => {
-      left = await deleteJson<OfficeQuote | undefined>(
+  const remove = (close: () => void) =>
+    action.run(async () => {
+      const left = await deleteJson<OfficeQuote | undefined>(
         `/api/quotes/${quote.id}/draft`,
       );
+      close();
+      await (!left
+        ? navigate({
+            to: "/office/properties/$propertyId",
+            params: { propertyId: quote.property.id },
+          })
+        : navigate({
+            to: "/office/quotes/$quoteId",
+            params: { quoteId: quote.id },
+          }));
     }, "Draft deleted");
-    if (!ok) return;
-    close();
-    await (!left
-      ? navigate({
-          to: "/office/properties/$propertyId",
-          params: { propertyId: quote.property.id },
-        })
-      : navigate({
-          to: "/office/quotes/$quoteId",
-          params: { quoteId: quote.id },
-        }));
-  };
   return (
     <DialogTrigger>
       <Button variant="danger-text" size="sm">

@@ -27,7 +27,8 @@ export const useAction = (fallback: string, options: ActionOptions = {}) => {
   return useActionWith(() => router.invalidate(), fallback, options);
 };
 
-// useAction, given how to reload: the seam its tests use
+// useAction, given how to reload, or a no-op where the change leaves the page
+// (it navigates); its tests use it as their seam too
 export const useActionWith = (
   reload: () => Promise<unknown>,
   fallback: string,
