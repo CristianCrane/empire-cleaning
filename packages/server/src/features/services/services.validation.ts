@@ -12,7 +12,7 @@ export const serviceSchema = z
       .trim()
       .min(1, "Enter a name")
       .max(80, keepUnder(80, "the name")),
-    description: z.string().trim().max(300, "Keep it to a sentence or two"),
+    description: z.string().trim().max(300, keepUnder(300, "the description")),
     offeredFor: z.enum(["homes", "businesses", "both"], {
       error: "Pick who it's for",
     }),
