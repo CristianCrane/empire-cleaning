@@ -88,7 +88,7 @@ import {
   postJson,
 } from "../../api.ts";
 import { linkTo } from "../../links.ts";
-import { useAction, useActionWith } from "../action.ts";
+import { useAction, useLeavingAction } from "../action.ts";
 import {
   addressOf,
   clientName,
@@ -462,10 +462,8 @@ const toQuote = (quote: OfficeQuote): ReactNode[] => {
 // throws the Draft away, once Office Staff are sure: see discardDraft
 function DeleteDraft({ quote }: { quote: OfficeQuote }) {
   const navigate = useNavigate();
-  const action = useActionWith(
-    () => Promise.resolve(),
+  const action = useLeavingAction(
     "The draft wasn't deleted. Please try again.",
-    { fieldsProblem: "The draft wasn't deleted. Please try again." },
   );
   // what discarding leaves is the server's to say: nothing (204) once the
   // Quote has gone with its Draft

@@ -25,7 +25,7 @@ import {
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
-import { useAction, useActionWith } from "../action.ts";
+import { useAction, useLeavingAction } from "../action.ts";
 import { Fact } from "../Fact.tsx";
 import {
   addressOf,
@@ -241,10 +241,8 @@ const STILL_ON = "You're still on this job. Please try again.";
 
 function Release({ job, label }: { job: CleanerJob; label: string }) {
   const navigate = useNavigate();
-  // it leaves for Your jobs, so there's nothing here to reload
-  const action = useActionWith(() => Promise.resolve(), STILL_ON, {
-    fieldsProblem: STILL_ON,
-  });
+  // it leaves for Your jobs
+  const action = useLeavingAction(STILL_ON);
 
   const release = (close: () => void) =>
     action.run(async () => {

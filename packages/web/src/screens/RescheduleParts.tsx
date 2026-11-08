@@ -1,10 +1,4 @@
-import {
-  useEffect,
-  useEffectEvent,
-  useState,
-  type ComponentType,
-  type ReactElement,
-} from "react";
+import { useState, type ComponentType, type ReactElement } from "react";
 import type {
   OfficeJob,
   RescheduleCost,
@@ -120,16 +114,13 @@ function NewTimeForm({
     reloadOnFailure: true,
   });
 
-  const loadFailed = useEffectEvent(() =>
-    action.fail("The times didn't load. Please try again."),
-  );
-
   const { value: times, failed } = useLoaded(base, () =>
     getJson<RescheduleTimes>(`${base}/reschedule-times`),
   );
-  useEffect(() => {
-    if (failed) loadFailed();
-  }, [failed]);
+  // Send waits for the times, so a problem is the send's or else theirs
+  const problem =
+    action.problem ??
+    (failed ? "The times didn't load. Please try again." : undefined);
 
   const unchanged =
     date === dayOfInstant(job.startsAt) && time === timeOfDay(job.startsAt);
@@ -213,9 +204,7 @@ function NewTimeForm({
 
   return (
     <>
-      {!times && !action.problem && (
-        <p className="text-fg-muted">Finding times…</p>
-      )}
+      {!times && !problem && <p className="text-fg-muted">Finding times…</p>}
       {times && times.days.length === 0 && (
         <Notice tone="warning">
           There's no day with room in the next few weeks. Please call us.
@@ -257,7 +246,7 @@ function NewTimeForm({
         at its current time.
       </p>
       {unchanged && <Notice>{SAME_TIME}</Notice>}
-      {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+      {problem && <Notice tone="danger">{problem}</Notice>}
       <Actions>
         <Button variant="quiet" onPress={close}>
           Keep the current time

@@ -14,7 +14,7 @@ import {
 } from "@empire-cleaning/ui";
 import { getJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
-import { useActionWith } from "../action.ts";
+import { useLeavingAction } from "../action.ts";
 import { Fact } from "../Fact.tsx";
 import {
   dayOfInstant,
@@ -96,9 +96,7 @@ function TakeIt({ job }: { job: CleanerNeeded }) {
   const navigate = useNavigate();
   const router = useRouter();
   // neither reloads this page: once taken or passed, it isn't open to them
-  const action = useActionWith(() => Promise.resolve(), DIDNT_WORK, {
-    fieldsProblem: DIDNT_WORK,
-  });
+  const action = useLeavingAction(DIDNT_WORK);
 
   const answer = (which: "confirm" | "pass") =>
     action.run(

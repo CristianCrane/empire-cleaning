@@ -3,7 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import type { OfficeQuote, QuoteKind } from "@empire-cleaning/models";
 import { Button, Notice } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
-import { useActionWith } from "../action.ts";
+import { useLeavingAction } from "../action.ts";
 
 // what a Draft is started for: a Quote's next Revision (its first setting
 // its kind), or a home offered a Service Plan unprompted (ADR-0011,
@@ -18,10 +18,8 @@ const NOT_STARTED = "The draft couldn't be started. Please try again.";
 // says why if it can't. `starting` is the kind being started
 export function useStartDraft() {
   const navigate = useNavigate();
-  // it opens the Draft, so there's nothing here to reload
-  const action = useActionWith(() => Promise.resolve(), NOT_STARTED, {
-    fieldsProblem: NOT_STARTED,
-  });
+  // it opens the Draft
+  const action = useLeavingAction(NOT_STARTED);
 
   const start = (target: DraftTarget) =>
     action.run(
