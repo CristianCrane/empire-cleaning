@@ -45,7 +45,7 @@ export const AllControls: Story = {
       <TextField label="Access Instructions" name="access" multiline />
       <Checkbox name="pets">There are pets at the Property</Checkbox>
       <Actions>
-        <Button type="submit">Request a Quote</Button>
+        <Button type="submit">Request a quote</Button>
       </Actions>
     </Form>
   ),
@@ -78,7 +78,7 @@ export const SubmitsWhenValid: Story = {
       "casey@example.com",
     );
     await userEvent.click(
-      canvas.getByRole("button", { name: "Request a Quote" }),
+      canvas.getByRole("button", { name: "Request a quote" }),
     );
 
     await expect(args.onSubmit).toHaveBeenCalledOnce();

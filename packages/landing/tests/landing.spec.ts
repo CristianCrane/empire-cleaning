@@ -49,7 +49,7 @@ const sections = [
   "What our Clients say",
   "Why Empire",
   "How it works",
-  "Request a Quote",
+  "Request a quote",
   "Save 10% with a Service Plan",
   "Questions we're asked",
 ];
@@ -190,13 +190,13 @@ test.describe("requesting a Quote", () => {
       await next(page);
       await fillDetails(page, email);
 
-      await page.getByRole("button", { name: "Request a Quote" }).click();
+      await page.getByRole("button", { name: "Request a quote" }).click();
 
       await expect(
         page.getByText("Thanks, we've got your request"),
       ).toBeVisible();
       await expect(
-        page.getByText(`We'll email your Quote to ${email}`),
+        page.getByText(`We'll email your quote to ${email}`),
       ).toBeVisible();
       const [receipt] = await emailsTo(email);
       expect(receipt?.subject).toBe("We got your request for a quote");
@@ -220,7 +220,7 @@ test.describe("requesting a Quote", () => {
     await fillIn(page, email);
 
     const sent = page.waitForRequest(/\/api\/quotes\/ask$/);
-    await page.getByRole("button", { name: "Request a Quote" }).click();
+    await page.getByRole("button", { name: "Request a quote" }).click();
 
     expect((await sent).postDataJSON().source).toEqual({
       page: "/queens/",
@@ -239,7 +239,7 @@ test.describe("requesting a Quote", () => {
     await fillIn(page, email);
 
     const sent = page.waitForRequest(/\/api\/quotes\/ask$/);
-    await page.getByRole("button", { name: "Request a Quote" }).click();
+    await page.getByRole("button", { name: "Request a quote" }).click();
 
     expect((await sent).postDataJSON().source).toEqual({
       page: "/",
@@ -254,7 +254,7 @@ test.describe("requesting a Quote", () => {
     await openQuoteForm(page);
     await fillIn(page, email, "1137");
 
-    await page.getByRole("button", { name: "Request a Quote" }).click();
+    await page.getByRole("button", { name: "Request a quote" }).click();
 
     // back on the step with the field
     const zip = page.getByRole("textbox", { name: "ZIP code" });
@@ -278,7 +278,7 @@ test.describe("requesting a Quote", () => {
     );
     await openQuoteForm(page);
     await fillIn(page, email);
-    await page.getByRole("button", { name: "Request a Quote" }).click();
+    await page.getByRole("button", { name: "Request a quote" }).click();
 
     await expect(
       page.getByText(
@@ -304,7 +304,7 @@ test.describe("requesting a Quote", () => {
       0,
     );
     const sent = page.waitForRequest(/\/api\/quotes\/ask$/);
-    await page.getByRole("button", { name: "Request a Quote" }).click();
+    await page.getByRole("button", { name: "Request a quote" }).click();
 
     expect((await sent).postDataJSON()).not.toHaveProperty("website");
   });
@@ -315,7 +315,7 @@ test.describe("requesting a Quote", () => {
     const email = newEmail();
     await openQuoteForm(page);
     await fillIn(page, email);
-    await page.getByRole("button", { name: "Request a Quote" }).click();
+    await page.getByRole("button", { name: "Request a quote" }).click();
     await expect(
       page.getByText("Thanks, we've got your request"),
     ).toBeVisible();
@@ -323,7 +323,7 @@ test.describe("requesting a Quote", () => {
     await page.reload();
     await openQuoteForm(page);
     await fillIn(page, email);
-    await page.getByRole("button", { name: "Request a Quote" }).click();
+    await page.getByRole("button", { name: "Request a quote" }).click();
 
     // anyone could have typed it, so the page says what it says to anyone,
     // and only the Client's inbox why (#243)
@@ -357,7 +357,7 @@ test.describe("requesting a Quote", () => {
     ).toBeChecked();
     await next(page);
     await fillDetails(page, email);
-    await page.getByRole("button", { name: "Request a Quote" }).click();
+    await page.getByRole("button", { name: "Request a quote" }).click();
 
     await expect(
       page.getByText("Thanks, we've got your request"),
@@ -374,9 +374,7 @@ test.describe("requesting a Quote", () => {
     await expect(page.getByText(/^Walls, ceilings and trim/)).toBeVisible();
     await next(page);
     // offered for homes and businesses alike
-    await expect(
-      page.getByText("Business premises", { exact: true }),
-    ).toBeVisible();
+    await expect(page.getByText("A business", { exact: true })).toBeVisible();
     await page.getByText("Apartment", { exact: true }).click();
     await page
       .getByRole("textbox", { name: "Street address" })
@@ -395,10 +393,10 @@ test.describe("requesting a Quote", () => {
       .fill("350");
     await next(page);
     await fillDetails(page, email);
-    await page.getByRole("button", { name: "Request a Quote" }).click();
+    await page.getByRole("button", { name: "Request a quote" }).click();
 
     await expect(
-      page.getByText(`We'll email your Quote to ${email}`),
+      page.getByText(`We'll email your quote to ${email}`),
     ).toBeVisible();
   });
 
@@ -422,7 +420,7 @@ test.describe("requesting a Quote", () => {
     await expect(page.getByRole("group", { name: "Any extras?" })).toHaveCount(
       0,
     );
-    await page.getByRole("button", { name: /Type of premises/ }).click();
+    await page.getByRole("button", { name: /Type of business/ }).click();
     await page.getByRole("option", { name: "Medical" }).click();
     await page.getByText("Tue", { exact: true }).click();
     await page.getByText("Thu", { exact: true }).click();
@@ -434,10 +432,10 @@ test.describe("requesting a Quote", () => {
       .fill("Acme Dental");
     await fillDetails(page, email);
 
-    await page.getByRole("button", { name: "Request a Quote" }).click();
+    await page.getByRole("button", { name: "Request a quote" }).click();
 
     await expect(
-      page.getByText(`We'll email your Quote to ${email}`),
+      page.getByText(`We'll email your quote to ${email}`),
     ).toBeVisible();
     const [receipt] = await emailsTo(email);
     expect(receipt?.text).toContain("200 Park Ave S, 10003");
@@ -461,7 +459,7 @@ test.describe("requesting a Quote", () => {
     await fillWhere(page);
     await next(page);
     await next(page);
-    await page.getByRole("button", { name: "Request a Quote" }).click();
+    await page.getByRole("button", { name: "Request a quote" }).click();
     await expect(
       page.getByRole("textbox", { name: "Full name" }),
     ).toHaveAttribute("aria-invalid", "true");
@@ -647,7 +645,7 @@ test("Request a Quote leads to the quote section", async ({ page }) => {
 
   await expect(page).toHaveURL(/#quote$/);
   await expect(
-    page.getByRole("heading", { level: 2, name: "Request a Quote" }),
+    page.getByRole("heading", { level: 2, name: "Request a quote" }),
   ).toBeInViewport();
 });
 

@@ -73,7 +73,7 @@ eachTheme(() => {
     await expectAccessible(page);
     await step(page, "Welcome").getByRole("button", { name: "Next" }).click();
     await expect(step(page, "Your Quote")).toBeVisible();
-    await expectPointedAt(page, "See your Quote");
+    await expectPointedAt(page, "See your quote");
     await expectAccessible(page);
     await step(page, "Your Quote")
       .getByRole("button", { name: "Got it" })
@@ -81,7 +81,7 @@ eachTheme(() => {
     await expect(step(page, "Your Quote")).toBeHidden();
 
     // the Quote page; closed partway, it counts as seen just the same
-    await page.getByRole("link", { name: "See your Quote" }).click();
+    await page.getByRole("link", { name: "See your quote" }).click();
     await expect(step(page, "Pay and book")).toBeVisible();
     await expectPointedAt(page, "Pay and book");
     await expectAccessible(page);

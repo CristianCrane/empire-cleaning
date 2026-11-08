@@ -74,11 +74,11 @@ test(
     // one Service, so nothing to choose
     await expect(accept.getByRole("radio")).toHaveCount(0);
     await accept.getByRole("button", { name: "Accept and pay $50.46" }).click();
-    await expect(client.getByText("Your Service Plan has started")).toHaveCount(
-      2,
-    );
+    await expect(
+      client.getByText("Your cleaning plan has started"),
+    ).toHaveCount(2);
 
-    await client.getByRole("link", { name: "See your Service Plan" }).click();
+    await client.getByRole("link", { name: "See your cleaning plan" }).click();
     await expect(client.getByRole("heading", { level: 1 })).toHaveText(
       "Your Service Plan",
     );
@@ -150,7 +150,7 @@ test("the Office records a plan's acceptance, then books a visit its day had no 
   );
   await page.getByRole("button", { name: "Charge and book" }).click();
   await expect(
-    page.getByText("Accepted: the Service Plan has started"),
+    page.getByText("Accepted: the cleaning plan has started"),
   ).toBeVisible();
 
   await page.goto("/office");

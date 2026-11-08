@@ -32,7 +32,7 @@ const signInAsOffice = async (page: Page) => {
 //   standard 3.25 h x $55 = $178.75, to $179, + 8.875% tax = $194.89
 //   deep     5 h    x $55 = $275,            + 8.875% tax = $299.41
 test(
-  "Office Staff see the Suggested Price for the Service and its first-visit recommendation, with the working",
+  "Office Staff see the Suggested price for the Service and its first-visit recommendation, with the working",
   { tag: ["@smoke", "@desktop"] },
   async ({ page }) => {
     await requestQuoteAsGuest(casey);
@@ -52,19 +52,19 @@ test(
     await expect(deep).toContainText("$299.41");
     await expect(deep).toContainText("Recommended");
     await expect(deep).toContainText("Includes $24.41 tax");
-    await expect(deep).toContainText("Suggested Price $275.00 before tax");
+    await expect(deep).toContainText("Suggested price $275.00 before tax");
     await expect(standard).toContainText("$194.89");
     // how it was reached, folded under the price
     await standard.getByText("How it's worked out").click();
     await expect(
-      standard.getByText("Labour Hours, rounded up to the quarter-hour"),
+      standard.getByText("Cleaning hours, rounded up to the quarter-hour"),
     ).toBeVisible();
     await expect(standard).toContainText(
       "Labour Hours, rounded up to the quarter-hour3.25 h",
     );
-    await expect(standard).toContainText("Suggested Price, before tax$179.00");
+    await expect(standard).toContainText("Suggested price, before tax$179.00");
     await expect(
-      page.getByText("from the current Price List (version 1)", {
+      page.getByText("from the current prices (version 1)", {
         exact: false,
       }),
     ).toBeVisible();
@@ -96,7 +96,7 @@ test(
   { tag: "@smoke" },
   async ({ page }) => {
     await signInAsOffice(page);
-    await goTo(page, "Price List");
+    await goTo(page, "Prices");
     await expect(page).toHaveURL("/office/price-list");
 
     // placeholders, until the Office saves their own
@@ -106,24 +106,24 @@ test(
     await page.getByRole("button", { name: "Edit Condition" }).click();
     await page.getByRole("textbox", { name: "Heavy (×)" }).fill("1.5");
     await page.getByRole("button", { name: "Save", exact: true }).click();
-    await expect(page.getByText("Price List saved as version 2")).toBeVisible();
+    await expect(page.getByText("Prices saved as version 2")).toBeVisible();
     await expect(page.getByText("These are placeholder figures")).toHaveCount(
       0,
     );
 
     await page.getByRole("row", { name: "Inside the fridge" }).click();
     await page.getByText("Offered").click();
-    await page.getByRole("button", { name: "Save Add-on" }).click();
-    await expect(page.getByText("Price List saved as version 3")).toBeVisible();
+    await page.getByRole("button", { name: "Save add-on" }).click();
+    await expect(page.getByText("Prices saved as version 3")).toBeVisible();
 
-    await page.getByRole("button", { name: "Add an Add-on" }).click();
+    await page.getByRole("button", { name: "Add an add-on" }).click();
     await page.getByRole("textbox", { name: "Name" }).fill("Steam clean");
     await page.getByText("Tax-exempt").click();
     await expect(
       page.getByRole("checkbox", { name: "Tax-exempt" }),
     ).toBeChecked();
-    await page.getByRole("button", { name: "Add Add-on" }).click();
-    await expect(page.getByText("Price List saved as version 4")).toBeVisible();
+    await page.getByRole("button", { name: "Add add-on" }).click();
+    await expect(page.getByText("Prices saved as version 4")).toBeVisible();
 
     await page.reload();
     await expect(
@@ -146,7 +146,7 @@ test("the starting figures can be kept as they are", async ({ page }) => {
   await signInAsOffice(page);
   await page.goto("/office/price-list");
   await page.getByRole("button", { name: "Keep these figures" }).click();
-  await expect(page.getByText("Price List saved as version 2")).toBeVisible();
+  await expect(page.getByText("Prices saved as version 2")).toBeVisible();
   await expect(page.getByText("These are placeholder figures")).toHaveCount(0);
 });
 
@@ -158,7 +158,7 @@ test("a saved Price List prices new Quotes, and a new Add-on appears on the form
   await page.getByRole("button", { name: "Edit Condition" }).click();
   await page.getByRole("textbox", { name: "Moderate (×)" }).fill("2");
   await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page.getByText("Price List saved as version 2")).toBeVisible();
+  await expect(page.getByText("Prices saved as version 2")).toBeVisible();
 
   await requestQuoteAsGuest(casey);
   await page.goto("/office/quotes");
@@ -170,7 +170,7 @@ test("a saved Price List prices new Quotes, and a new Add-on appears on the form
     page.getByRole("region", { name: "Standard Clean" }),
   ).toContainText("$374.53");
   await expect(
-    page.getByText("from the current Price List (version 2)", {
+    page.getByText("from the current prices (version 2)", {
       exact: false,
     }),
   ).toBeVisible();
@@ -204,7 +204,7 @@ test("a mistake is explained beside the field", async ({ page }) => {
   await expect(tax).toHaveAccessibleDescription(
     /That's higher than any sales tax/,
   );
-  await expect(page.getByText("Price List saved")).toHaveCount(0);
+  await expect(page.getByText("Prices saved")).toHaveCount(0);
 });
 
 test("the request form offers the Add-ons by name, and the choice reaches the Office", async ({
@@ -233,7 +233,7 @@ test("the request form offers the Add-ons by name, and the choice reaches the Of
   await nextStep(page);
   await page.getByRole("textbox", { name: "Full name" }).fill("Nina New");
   await page.getByRole("textbox", { name: "Phone" }).fill("(718) 555-0111");
-  await page.getByRole("button", { name: "Request a Quote" }).click();
+  await page.getByRole("button", { name: "Request a quote" }).click();
 
   await expect(page).toHaveURL("/portal");
   await page.getByRole("link", { name: "See what you asked for" }).click();
@@ -255,9 +255,7 @@ eachTheme(() => {
   test("the Price List has no accessibility violations", async ({ page }) => {
     await signInAsOffice(page);
     await page.goto("/office/price-list");
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-      "Price List",
-    );
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Prices");
 
     await expectAccessible(page);
   });
@@ -270,7 +268,7 @@ eachTheme(() => {
     await page.goto("/office/quotes");
     await page.getByText("Casey Client").click();
     await expect(
-      page.getByRole("button", { name: "Draft the Quote" }),
+      page.getByRole("button", { name: "Draft the quote" }),
     ).toBeVisible();
     await expectAccessible(page);
 

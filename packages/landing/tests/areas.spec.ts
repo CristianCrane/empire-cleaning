@@ -10,7 +10,7 @@ const sections = (area: (typeof areas)[number]) => [
   "What our Clients say",
   "Questions we're asked",
   "How it works",
-  "Request a Quote",
+  "Request a quote",
 ];
 
 for (const area of areas) {

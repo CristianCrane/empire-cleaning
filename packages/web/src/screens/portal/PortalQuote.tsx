@@ -52,10 +52,15 @@ import {
   AskedRows,
   PlanDayCard,
   PlanTotals,
-  QuoteStatusBadge,
+  ClientQuoteStatusBadge,
 } from "../QuoteParts.tsx";
 import { ConsentNote, usePaymentForm } from "./CardForm.tsx";
-import { ASK_AGAIN, ON_WEEKS_BILL, turnedDown } from "@empire-cleaning/models";
+import {
+  ASK_AGAIN,
+  ON_WEEKS_BILL,
+  turnedDown,
+  WORKING_ON_IT,
+} from "@empire-cleaning/models";
 import { billPaid, planPaymentLine } from "./payments.ts";
 import { requestQuote } from "./whats-next.ts";
 
@@ -91,12 +96,12 @@ function QuoteHeader({
       <Breadcrumbs
         trail={[
           { label: "Home", href: linkTo({ to: "/portal" }) },
-          { label: "Your Quote" },
+          { label: "Your quote" },
         ]}
       />
       <div className="flex flex-wrap items-center gap-3">
         <Heading level={1}>{title}</Heading>
-        <QuoteStatusBadge status={quote.status} />
+        <ClientQuoteStatusBadge status={quote.status} />
       </div>
       <p className="text-fg-muted">
         {addressOf(quote.property)}
@@ -117,7 +122,7 @@ function AskedQuote({ quote }: { quote: AskedQuoteView }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <QuoteHeader quote={quote} title="Your Quote" />
+      <QuoteHeader quote={quote} title="Your quote" />
 
       {quote.status === "turned_down" ? (
         <Notice>
@@ -130,17 +135,14 @@ function AskedQuote({ quote }: { quote: AskedQuoteView }) {
         </Notice>
       ) : siteVisit ? (
         <Notice tone="info">
-          We'll come to see {premises ? "the premises" : "your home"} first, for
+          We'll come to see {premises ? "the business" : "your home"} first, for
           free: {siteVisit.visitorName} visits on{" "}
           {formatDateTime(siteVisit.startsAt)}, for about{" "}
-          {formatMinutes(siteVisit.minutes)}. We email your Quote after the
+          {formatMinutes(siteVisit.minutes)}. We email your quote after the
           visit. To change the time, please call us.
         </Notice>
       ) : (
-        <Notice tone="info">
-          We're preparing your Quote, and we'll email it to you, usually within
-          a working day.
-        </Notice>
+        <Notice tone="info">{WORKING_ON_IT}</Notice>
       )}
 
       <Section title="What you asked for">
@@ -187,7 +189,7 @@ function OfferedQuote({
     <div className="flex flex-col gap-6">
       <QuoteHeader
         quote={quote}
-        title={`Your ${quoteKindName(quote.kind)}`}
+        title={`Your ${quoteKindName(quote.kind).toLowerCase()}`}
         updatedAt={quote.updatedAt}
         openUntil={quote.status === "sent" ? quote.expiresAt : null}
       />
@@ -208,8 +210,8 @@ function OfferedQuote({
               {quote.plan && quote.plan.days.length > 1
                 ? "one of the days your plan starts on has"
                 : `${formatDateTime(quote.proposedStartsAt)} has`}{" "}
-              been fully booked since we sent this Quote, so it can't be
-              accepted. We've let our team know, and we'll send you a new Quote
+              been fully booked since we sent this quote, so it can't be
+              accepted. We've let our team know, and we'll send you a new quote
               for another time.
             </Notice>
             <Actions>
@@ -323,8 +325,8 @@ function QuoteDetails({
                     </span>
                     <span className="text-sm text-fg-muted">
                       {quote.bookable.includes(option.serviceKey)
-                        ? `${formatHours(option.labourHours)} of cleaning · ${formatMoney(option.depositCents)} Deposit`
-                        : "No longer fits on that day: it's been booked up since we sent this Quote"}
+                        ? `${formatHours(option.labourHours)} of cleaning · ${formatMoney(option.depositCents)} deposit`
+                        : "No longer fits on that day: it's been booked up since we sent this quote"}
                     </span>
                   </RadioCard>
                 ))}
@@ -390,7 +392,7 @@ function QuoteDetails({
                     <Line
                       label={
                         quote.weeklyBill
-                          ? "The rest, on that week's Bill"
+                          ? "The rest, on that week's bill"
                           : "The rest, when the clean is done"
                       }
                       value={formatMoney(
@@ -444,34 +446,34 @@ function Standing({
       return quote.servicePlanId ? (
         <Notice tone="success">
           {quote.changedPlan
-            ? `Your Service Plan has changed: it's on these terms from ${proposed}.`
-            : `Your Service Plan has started: its first clean is on ${proposed}.`}{" "}
-          You accepted this Quote on {formatDateTime(quote.acceptedAt!)}.{" "}
+            ? `Your cleaning plan has changed: it's on these terms from ${proposed}.`
+            : `Your cleaning plan has started: its first clean is on ${proposed}.`}{" "}
+          You accepted this quote on {formatDateTime(quote.acceptedAt!)}.{" "}
           <Link
             href={linkTo({
               to: "/portal/plans/$planId",
               params: { planId: quote.servicePlanId },
             })}
           >
-            See your Service Plan
+            See your cleaning plan
           </Link>
         </Notice>
       ) : (
         <Notice tone="success">
           You're booked: a {chosen.serviceName} on {proposed}. You accepted this
-          Quote on {formatDateTime(quote.acceptedAt!)}.
+          quote on {formatDateTime(quote.acceptedAt!)}.
         </Notice>
       );
     case "declined":
       return (
         <Notice>
-          You declined this Quote on {formatDateTime(quote.declinedAt!)}.
+          You declined this quote on {formatDateTime(quote.declinedAt!)}.
         </Notice>
       );
     case "expired":
       return (
         <Notice>
-          This Quote expired on {formatDateTime(quote.expiresAt)}.
+          This quote expired on {formatDateTime(quote.expiresAt)}.
         </Notice>
       );
     default:
@@ -489,7 +491,7 @@ function PlanChangeNotice({
 }) {
   return (
     <Notice tone="info">
-      <strong>This changes your Service Plan</strong>
+      <strong>This changes your cleaning plan</strong>
       <p>
         From {formatDateTime(quote.proposedStartsAt)}, your plan moves to the
         terms below. Cleans before then go ahead as they are.
@@ -503,7 +505,7 @@ function PlanChangeNotice({
         </p>
       )}
       <p>
-        Your {formatMoney(change.depositCents)} Deposit stays as it is, so
+        Your {formatMoney(change.depositCents)} deposit stays as it is, so
         nothing is charged now.
       </p>
     </Notice>
@@ -559,7 +561,7 @@ function Accept({
           );
         }
       },
-      quote.plan ? "Your Service Plan has started" : "You're booked",
+      quote.plan ? "Your cleaning plan has started" : "You're booked",
     );
 
   return (
@@ -603,7 +605,7 @@ function Accept({
 
         <p className="text-sm text-fg-muted">
           {quote.plan
-            ? `${depositCents > 0 ? `We take the ${formatMoney(depositCents)} Deposit now and hold it for as long as your plan runs: it comes off your last clean when the plan ends. ` : ""}${eachClean(quote, chosen)} The first is on ${formatDateTime(quote.proposedStartsAt)}.`
+            ? `${depositCents > 0 ? `We take the ${formatMoney(depositCents)} deposit now and keep it for as long as your plan runs. It comes off your last clean when the plan ends. ` : ""}${eachClean(quote, chosen)} The first is on ${formatDateTime(quote.proposedStartsAt)}.`
             : `${oneOffPayment(quote, chosen, balance)} Booked for ${formatDateTime(quote.proposedStartsAt)}.`}
         </p>
         {newCard && <ConsentNote action="paying" />}
@@ -636,9 +638,9 @@ const oneOffPayment = (
     quote.weeklyBill && `${ON_WEEKS_BILL}, ${billPaid[quote.weeklyBill]}`;
   return chosen.depositCents > 0
     ? billed
-      ? `We take the ${formatMoney(chosen.depositCents)} Deposit now, and the rest, ${formatMoney(balance)}, ${billed}.`
-      : `We take the ${formatMoney(chosen.depositCents)} Deposit now and the rest, ${formatMoney(balance)}, when the clean is done.`
-    : `Nothing is taken now: the ${formatMoney(chosen.totalCents)} ${billed || "is charged when the clean is done"}.`;
+      ? `We take the ${formatMoney(chosen.depositCents)} deposit now, and the rest, ${formatMoney(balance)}, ${billed}.`
+      : `We take the ${formatMoney(chosen.depositCents)} deposit now and the rest, ${formatMoney(balance)}, when the clean is done.`
+    : `Nothing is taken now. The ${formatMoney(chosen.totalCents)} ${billed || "is charged when the clean is done"}.`;
 };
 
 // what each of a plan's cleans costs, when its days cost the same, and how
@@ -665,7 +667,7 @@ function AcceptChange({ quote }: { quote: QuoteView }) {
         postJson<AcceptOutcome>(`/api/quotes/mine/${quote.id}/accept`, {
           revisionId: quote.revisionId,
         }),
-      "Your Service Plan has changed",
+      "Your cleaning plan has changed",
     );
 
   return (
@@ -701,13 +703,13 @@ function Decline({ quote }: { quote: QuoteView }) {
 
   return (
     <DialogTrigger>
-      <Button variant="text">Decline this Quote</Button>
-      <Dialog title="Decline this Quote?" role="alertdialog">
+      <Button variant="text">Decline this quote</Button>
+      <Dialog title="Decline this quote?" role="alertdialog">
         {({ close }) => (
           <>
             <p>
-              We'll let the team know you're not going ahead. You can ask for a
-              new Quote whenever you like.
+              Thanks for letting us know. You can ask us for a new quote
+              whenever you like.
             </p>
             {action.problem && <Notice tone="danger">{action.problem}</Notice>}
             <Actions>

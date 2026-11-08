@@ -12,6 +12,20 @@ const onSite = (labourHours: number, crew: number) => {
     .join(" ");
 };
 
+// a working-out's lines, as a Quote's override and this both say them
+export const working = {
+  // the level, where it's known
+  condition: (level: string | null, multiplier: number) =>
+    `× ${level ? `${level.toLowerCase()} ` : ""}condition (${multiplier})`,
+  addOn: (addOn: { name: string; taxExempt: boolean }) =>
+    `+ ${addOn.name}${addOn.taxExempt ? " (no tax)" : ""}`,
+  hours: "Cleaning hours, rounded up to the quarter-hour",
+  rate: (cents: number, business = false) =>
+    `× ${formatMoney(cents)} an hour${business ? " for a business" : ""}, to the whole dollar`,
+  minimum: (cents: number) =>
+    `At least the minimum price (${formatMoney(cents)})`,
+};
+
 // A Suggested Price read as a Quote: its total, what it's for and how long
 // it takes on site, then each line of how it's worked out. With `was`, the
 // value another working-out came to stands struck through beside each line
@@ -56,7 +70,7 @@ export function WorkedOutQuote({
             </span>
             <span className="text-sm text-fg-muted">
               {place}
-              {condition ? `, in ${condition} Condition` : ""}
+              {condition ? `, in ${condition.toLowerCase()} condition` : ""}
             </span>
             <span className="text-sm text-fg-muted">
               About {onSite(now.labourHours, crewSize)} on site for{" "}
@@ -78,31 +92,31 @@ export function WorkedOutQuote({
         ))}
         {condition && (
           <Line
-            label={`× ${condition} Condition (${now.conditionMultiplier})`}
+            label={working.condition(condition, now.conditionMultiplier)}
             value=""
           />
         )}
         {now.addOns.map((addOn) => (
           <Line
             key={addOn.key}
-            label={`+ ${addOn.name}${addOn.taxExempt ? " (tax-exempt)" : ""}`}
+            label={working.addOn(addOn)}
             value={formatHours(addOn.hours)}
           />
         ))}
         <Line
-          label="Labour Hours, up to the quarter-hour"
+          label={working.hours}
           value={formatHours(now.labourHours)}
           was={was && formatHours(was.labourHours)}
           strong
         />
         <Line
-          label={`× ${formatMoney(now.hourlyRateCents)} an hour, to the dollar`}
+          label={working.rate(now.hourlyRateCents)}
           value={formatMoney(now.workedOutCents)}
           was={was && formatMoney(was.workedOutCents)}
         />
         {(now.minimumApplied || was?.minimumApplied) && (
           <Line
-            label={`At least the Minimum Charge (${formatMoney(now.minimumChargeCents)})`}
+            label={working.minimum(now.minimumChargeCents)}
             value={formatMoney(now.priceCents)}
             was={was && formatMoney(was.priceCents)}
           />

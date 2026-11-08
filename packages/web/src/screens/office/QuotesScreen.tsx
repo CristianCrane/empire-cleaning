@@ -137,7 +137,7 @@ export function QuotesScreen() {
 
   const table = (
     <Table
-      aria-label="Open Quotes"
+      aria-label="Open quotes"
       sortDescriptor={sort}
       onSortChange={(next) => setSort(next as Sort)}
       onRowAction={(id) =>
@@ -168,10 +168,10 @@ export function QuotesScreen() {
         renderEmptyState={() => (
           <p className="p-6 text-center text-fg-muted">
             {q
-              ? `No open Quotes match “${q}”.`
+              ? `No open quotes match “${q}”.`
               : status
-                ? `No ${quoteStatusLabel[status]} Quotes.`
-                : "No open Quotes."}
+                ? `No ${quoteStatusLabel[status].toLowerCase()} quotes.`
+                : "No open quotes."}
           </p>
         )}
       >
@@ -186,10 +186,10 @@ export function QuotesScreen() {
               <div className="flex flex-wrap gap-1">
                 <QuoteStatusBadge status={quote.status} />
                 {quote.siteVisit === "needed" && (
-                  <StatusBadge tone="warning">Needs Site Visit</StatusBadge>
+                  <StatusBadge tone="warning">Needs a site visit</StatusBadge>
                 )}
                 {quote.siteVisit === "booked" && (
-                  <StatusBadge tone="info">Site Visit booked</StatusBadge>
+                  <StatusBadge tone="info">Site visit booked</StatusBadge>
                 )}
                 {quote.drafting &&
                   (quote.status === "sent" || quote.status === "expired") && (
@@ -221,7 +221,7 @@ export function QuotesScreen() {
         </Button>
       </div>
       <TextField
-        label="Search Quotes"
+        label="Search quotes"
         type="search"
         placeholder="Client, business or address"
         value={text}

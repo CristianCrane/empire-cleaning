@@ -9,10 +9,13 @@ import type {
   ServicePlanTerms,
 } from "@empire-cleaning/models";
 import { Card, StatusBadge } from "@empire-cleaning/ui";
+import { quoteEmailedTo } from "@empire-cleaning/models";
 import {
+  cleaners,
   formatHours,
   formatMoney,
   planDayWhen,
+  clientQuoteStatus,
   quoteStatusLabel,
   quoteStatusTone,
   wantedCleaning,
@@ -75,11 +78,11 @@ function HoursRows({
 }) {
   return (
     <>
-      <dt className="text-fg-muted">Labour Hours</dt>
+      <dt className="text-fg-muted">Cleaning hours</dt>
       <dd className="text-right tabular-nums">
         {formatHours(option.labourHours)}
       </dd>
-      <dt className="text-fg-muted">Time on site, with a crew of {crewSize}</dt>
+      <dt className="text-fg-muted">On site, with {cleaners(crewSize)}</dt>
       <dd className="text-right tabular-nums">
         {formatHours(option.hoursOnSite)}
       </dd>
@@ -91,12 +94,18 @@ function HoursRows({
 export const quoteRequested = (emailedTo: string) => ({
   tone: "success" as const,
   title: "Quote requested",
-  description: `We'll email your Quote to ${emailedTo}.`,
+  description: quoteEmailedTo(emailedTo),
 });
 
 // a Sent or Expired Quote with a Revision being drafted
 export function DraftChangesBadge() {
-  return <StatusBadge tone="info">Draft changes</StatusBadge>;
+  return <StatusBadge tone="info">Being updated</StatusBadge>;
+}
+
+// the same, as the Client reads it
+export function ClientQuoteStatusBadge({ status }: { status: QuoteStatus }) {
+  const { tone, label } = clientQuoteStatus[status];
+  return <StatusBadge tone={tone}>{label}</StatusBadge>;
 }
 
 export function QuoteStatusBadge({ status }: { status: QuoteStatus }) {
@@ -209,7 +218,7 @@ export function PlanFigures({
         <dd className="text-right tabular-nums">
           {formatMoney(day.oneOffTotalCents)}
         </dd>
-        <dt className="text-fg-muted">Plan Discount ({discountPercent}%)</dt>
+        <dt className="text-fg-muted">Plan discount ({discountPercent}%)</dt>
         <dd className="text-right tabular-nums">
           −{formatMoney(day.savingCents)}
         </dd>

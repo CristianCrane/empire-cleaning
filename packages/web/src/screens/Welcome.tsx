@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { useNavigate, useRouteContext } from "@tanstack/react-router";
 import { QuoteRequestForm } from "@empire-cleaning/quote-request";
+import { ASK_US } from "@empire-cleaning/models";
 import {
   Button,
   Card,
@@ -43,10 +44,7 @@ export function Welcome() {
         <Heading level={1} size={2}>
           Welcome
         </Heading>
-        <p className="text-fg-muted">
-          Tell us about your home and we'll email you a Quote, usually within a
-          working day.
-        </p>
+        <p className="text-fg-muted">{ASK_US}</p>
       </div>
 
       {/* in one column; what happens next beside the form from xl, in view
@@ -73,16 +71,16 @@ export function Welcome() {
               <Step n={1} title="You tell us about your home">
                 The rooms, how it's looking and when suits you.
               </Step>
-              <Step n={2} title="We email you a Quote">
-                Usually within a working day, with the clean we'd recommend.
+              <Step n={2} title="We email you a quote">
+                With the clean we'd recommend.
               </Step>
               <Step n={3} title="You choose and book">
-                Pay the Deposit here and your clean is booked.
+                Pay the deposit here and your clean is booked.
               </Step>
             </ol>
           </Card>
           <Notice>
-            Asked us for a Quote with a different email? Sign out and sign in
+            Asked us for a quote with a different email? Sign out and sign in
             with that one.
           </Notice>
         </aside>

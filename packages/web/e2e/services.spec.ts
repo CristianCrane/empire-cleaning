@@ -40,7 +40,7 @@ test(
     ).toBeVisible();
     // what the figures come to, as a Quote, as they're typed: 1 + 2 x 0.5
     // + 1.5 x 0.75 = 3.125 h, up to 3.25 h, x $55 = $179, + 8.875%
-    const example = page.getByRole("region", { name: "Example Quote" });
+    const example = page.getByRole("region", { name: "Example quote" });
     await expect(example).toContainText(
       "A 2-bedroom, 1½-bathroom home, in moderate Condition",
     );
@@ -62,7 +62,7 @@ test(
     await example.getByText("4 bed").click();
     await example.getByText("Heavy").click();
     await expect(example).toContainText("Total$571.59");
-    await page.getByRole("button", { name: "Save Service" }).click();
+    await page.getByRole("button", { name: "Save service" }).click();
     await expect(page.getByText("Service saved")).toBeVisible();
     await expect(
       page.getByText(/^Version \d+, saved by Olive Owner/),
@@ -88,7 +88,7 @@ test("Office Staff add a Service priced by area, and retire it", async ({
 }) => {
   await signInAsOffice(page);
   await page.goto("/office/services");
-  await page.getByRole("link", { name: "New Service" }).click();
+  await page.getByRole("link", { name: "New service" }).click();
 
   await page.getByRole("textbox", { name: "Name" }).fill("Window cleaning");
   await page
@@ -103,14 +103,14 @@ test("Office Staff add a Service priced by area, and retire it", async ({
     .click();
   // 2 x 6 h = 12 h at $55 = $660, + 8.875% = $718.58; nothing saved to
   // compare with
-  const example = page.getByRole("region", { name: "Example Quote" });
+  const example = page.getByRole("region", { name: "Example quote" });
   await expect(example).toContainText("2,000 sq ft of office");
   await expect(example).toContainText(
     "Labour Hours, up to the quarter-hour12 h",
   );
   await expect(example).toContainText("Total$718.58");
   await expect(example).not.toContainText("Your changes");
-  await page.getByRole("button", { name: "Add Service" }).click();
+  await page.getByRole("button", { name: "Add service" }).click();
 
   await expect(page.getByText("Window cleaning added")).toBeVisible();
   await expect(
@@ -143,7 +143,7 @@ test("a mistake on a Service is explained beside the field", async ({
   await page.goto("/office/services/new");
 
   await page.getByRole("textbox", { name: "Name" }).fill("Deep Clean");
-  await page.getByRole("button", { name: "Add Service" }).click();
+  await page.getByRole("button", { name: "Add service" }).click();
 
   const name = page.getByRole("textbox", { name: "Name" });
   await expect(name).toHaveAttribute("aria-invalid", "true");

@@ -227,7 +227,7 @@ test("business premises' screens fit every width, the form included", async ({
 
   // New Quote for business premises, with its days to choose
   await page.goto("/office/quotes/new");
-  await page.getByRole("button", { name: "New Client" }).click();
+  await page.getByRole("button", { name: "New client" }).click();
   await page
     .locator("form")
     .getByText("Commercial cleaning", { exact: true })
@@ -286,7 +286,7 @@ test("a Sent Quote fits every width, for the Office and the Client", async ({
   await proposeNextMonday(page);
   await page.getByRole("button", { name: "Send to Casey Client" }).click();
   await expect(
-    page.getByRole("region", { name: "Current Quote" }),
+    page.getByRole("region", { name: "Current quote" }),
   ).toBeVisible();
 
   await expectFitsEveryWidth(page, quote);
@@ -316,7 +316,7 @@ test("an Accepted Quote and the Client's upcoming Jobs fit every width", async (
   await proposeNextMonday(page);
   await page.getByRole("button", { name: "Send to Casey Client" }).click();
   await expect(
-    page.getByRole("region", { name: "Current Quote" }),
+    page.getByRole("region", { name: "Current quote" }),
   ).toBeVisible();
 
   const client = await (await browser.newContext()).newPage();
@@ -343,7 +343,7 @@ test("a Service Plan Quote fits every width, Draft and Sent, for the Office and 
   const { job } = await completedFirstClean(olive.email);
   const firstClean = `/office/jobs/${job.id}`;
   await page.goto(firstClean);
-  await page.getByRole("button", { name: "Quote a Service Plan" }).click();
+  await page.getByRole("button", { name: "Quote a cleaning plan" }).click();
   await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}\/draft$/);
   const quote = new URL(page.url()).pathname.replace(/\/draft$/, "");
 
@@ -363,7 +363,7 @@ test("a Service Plan Quote fits every width, Draft and Sent, for the Office and 
   await page.keyboard.type("0900AM");
   await page.getByRole("button", { name: "Send to Casey Client" }).click();
   await expect(
-    page.getByRole("region", { name: "Current Quote" }),
+    page.getByRole("region", { name: "Current quote" }),
   ).toBeVisible();
   await expectFitsEveryWidth(page, quote);
   // the home's page, with its history
@@ -404,7 +404,7 @@ test("a Service Plan fits every width, for the Office and the Client", async ({
   await signedInAs(client, casey.email);
   await client.goto(`/portal/quotes/${quote.id}`);
   await client.getByRole("button", { name: /^Accept and pay/ }).click();
-  await client.getByRole("link", { name: "See your Service Plan" }).click();
+  await client.getByRole("link", { name: "See your cleaning plan" }).click();
   await expect(client).toHaveURL(/\/portal\/plans\/[0-9a-f-]{36}$/);
   const plan = new URL(client.url()).pathname;
 
@@ -440,7 +440,7 @@ test("a Service Plan on several weekdays fits every width, Draft, Sent and start
   const { job, propertyId } = await completedFirstClean(olive.email);
   // a Draft with two weekdays
   await page.goto(`/office/jobs/${job.id}`);
-  await page.getByRole("button", { name: "Quote a Service Plan" }).click();
+  await page.getByRole("button", { name: "Quote a cleaning plan" }).click();
   await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}\/draft$/);
   const draft = new URL(page.url()).pathname;
   await page.getByRole("button", { name: "Add a weekday" }).click();
@@ -466,7 +466,7 @@ test("a Service Plan on several weekdays fits every width, Draft, Sent and start
   await expectFitsEveryWidth(client, `/portal/quotes/${quote.id}`);
   await client.goto(`/portal/quotes/${quote.id}`);
   await client.getByRole("button", { name: /^Accept and pay/ }).click();
-  await client.getByRole("link", { name: "See your Service Plan" }).click();
+  await client.getByRole("link", { name: "See your cleaning plan" }).click();
   await expect(client).toHaveURL(/\/portal\/plans\/[0-9a-f-]{36}$/);
   const plan = new URL(client.url()).pathname;
   await expectFitsEveryWidth(client, plan);

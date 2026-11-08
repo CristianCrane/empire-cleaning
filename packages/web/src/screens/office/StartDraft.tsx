@@ -36,7 +36,7 @@ export function useStartDraft() {
       setFailure(
         e instanceof ApiError && e.status === 409
           ? e.message
-          : "The Draft couldn't be started. Please try again.",
+          : "The draft couldn't be started. Please try again.",
       );
       setStarting(undefined);
     }
@@ -45,7 +45,7 @@ export function useStartDraft() {
   return { start, starting, failure };
 }
 
-export const QUOTE_A_PLAN = "Quote a Service Plan";
+export const QUOTE_A_PLAN = "Quote a cleaning plan";
 
 // offers a home a Service Plan, unprompted, once its First Clean is
 // Completed; or, for a home with a plan, new terms for it, which accepting

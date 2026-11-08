@@ -52,7 +52,9 @@ describe("a Guest asking for a Quote", () => {
     const receipt = testEmail().lastTo("casey@example.com");
     expect(receipt.subject).toBe("We got your request for a quote");
     expect(receipt.text).toContain("41-12 Austin St, 4B, 11375");
-    expect(receipt.text).toContain("We'll email it to casey@example.com");
+    expect(receipt.text).toContain(
+      "We'll email your quote to casey@example.com",
+    );
     // its only link is to the Quote's page, which never signs anyone in
     // (ADR-0006): it shows the offer once it's Sent
     expect(receipt.text.match(/https?:\/\/\S+/g)).toEqual([

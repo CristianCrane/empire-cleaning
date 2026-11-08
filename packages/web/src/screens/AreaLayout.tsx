@@ -113,7 +113,7 @@ const navFor: Record<AreaId, AreaNavItem[]> = {
     },
     {
       href: linkTo({ to: "/office/price-list" }),
-      label: "Price List",
+      label: "Prices",
       icon: Tag,
       inMenu: true,
       group: "Pricing",

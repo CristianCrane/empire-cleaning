@@ -34,7 +34,7 @@ const areas: Record<Size, number> = { small: 1000, typical: 2000, big: 5000 };
 // what the figures on the form price, as a Service
 const serviceOf = (input: ServiceInput): Service => ({
   ...input,
-  name: input.name || "This Service",
+  name: input.name || "This service",
   key: "example",
   id: "example",
   version: 0,
@@ -125,8 +125,8 @@ export function ExampleQuote({
 
   return (
     <Section
-      title="Example Quote"
-      description="Worked out as a Suggested Price is, as you type. Add-ons and the Plan Discount come on top."
+      title="Example quote"
+      description="Worked out the way a suggested price is, as you type. Add-ons and the plan discount come on top."
     >
       <Card>
         <div className="flex flex-col gap-4">
@@ -146,7 +146,7 @@ export function ExampleQuote({
             </SegmentedControl>
             {!byRooms && forBusiness && input.conditionApplies && (
               <SegmentedControl
-                label="Type of premises"
+                label="Type of business"
                 value={typeKey ?? null}
                 onChange={setTypeKey}
               >
@@ -188,8 +188,8 @@ export function ExampleQuote({
                   banner={
                     changed && was
                       ? was.totalCents === now.totalCents
-                        ? "Your changes leave this Quote's price as it was"
-                        : `Your changes: ${difference(now.totalCents - was.totalCents)} on this Quote`
+                        ? "Your changes leave this quote's price as it was"
+                        : `Your changes: ${difference(now.totalCents - was.totalCents)} on this quote`
                       : undefined
                   }
                 />

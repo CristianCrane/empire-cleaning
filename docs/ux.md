@@ -66,7 +66,7 @@ can change, through the same loop.
   danger), its one Button; history after it, the latest few then See all.
   ("A money page answers what's owed")
 - **Settings are read, then changed part by part**: facts and rows, each
-  part changed in its own dialog (Price List, Staff). A form the owner
+  part changed in its own dialog (Prices, Staff). A form the owner
   tweaks to see what it does stays one form, with its example beside it
   (Service).
 - **The landing site's bands alternate**, plain then raised, by their place
@@ -88,7 +88,7 @@ can change, through the same loop.
 - **Related sections share a heading** in the sidebar and the ☰ menu
   (`NavItem.group`), the busiest first with none: the Office's Today and
   Schedule, then Work (Jobs, Quotes), People (Clients, Staff) and Pricing
-  (Services, Price List). ("Layout / AppLayout / Groups")
+  (Services, Prices). ("Layout / AppLayout / Groups")
 
 ### Buttons and actions
 

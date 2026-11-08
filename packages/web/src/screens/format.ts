@@ -10,9 +10,11 @@ import type {
   PropertyView,
   QuoteKind,
   QuoteSummary,
+  QuoteStatus,
   Recurrence,
   Weekday,
 } from "@empire-cleaning/models";
+import type { StatusTone } from "@empire-cleaning/ui";
 
 export const addressOf = (
   p: Pick<PropertyView, "street" | "unit" | "postcode">,
@@ -33,7 +35,7 @@ export const conditionLabel: Record<Condition, string> = {
 
 // business premises have none until a Site Visit records it
 export const conditionText = (condition: Condition | null) =>
-  condition ? conditionLabel[condition] : "Not recorded yet";
+  condition ? conditionLabel[condition] : "Not known yet";
 
 const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
 
@@ -195,7 +197,7 @@ export const formatDateTime = (iso: string) =>
 
 // what kind of Quote it is, as a title says it
 export const quoteKindName = (kind: QuoteKind | null) =>
-  kind === "service_plan" ? "Service Plan Quote" : "Quote";
+  kind === "service_plan" ? "Cleaning plan quote" : "Quote";
 
 export const quoteStatusLabel = {
   requested: "Requested",
@@ -204,7 +206,21 @@ export const quoteStatusLabel = {
   accepted: "Accepted",
   declined: "Declined",
   expired: "Expired",
-  turned_down: "Turned Down",
+  turned_down: "Turned down",
+};
+
+// a Quote's state as its Client sees it: one being drafted is still asked for
+export const clientQuoteStatus: Record<
+  QuoteStatus,
+  { tone: StatusTone; label: string }
+> = {
+  requested: { tone: "info", label: "Asked for" },
+  draft: { tone: "info", label: "Asked for" },
+  sent: { tone: "warning", label: "To answer" },
+  accepted: { tone: "success", label: "Accepted" },
+  declined: { tone: "neutral", label: "Declined" },
+  expired: { tone: "neutral", label: "Expired" },
+  turned_down: { tone: "neutral", label: "Turned down" },
 };
 
 export const quoteStatusTone = {
@@ -295,7 +311,7 @@ export const planName = ({ recurrence, days }: PlanDays) => {
     : `${what}, every week${on.length > 0 ? ` on ${listed(on)}` : ""}`;
 };
 
-// how a Quote reads in a list: "Deep Clean $391.04", or "Service Plan,
+// how a Quote reads in a list: "Deep Clean $391.04", or "Cleaning plan,
 // Standard Clean, every 2 weeks: $201.85 a clean", or for several weekdays
 // "...: $650.10 a week"
 export const quoteHeadline = (
@@ -304,7 +320,7 @@ export const quoteHeadline = (
   quote.headlineTotalCents === null
     ? "Not priced yet"
     : quote.plan
-      ? `Service Plan, ${planName(quote.plan)}: ${formatMoney(quote.headlineTotalCents)} ${quote.plan.days.length === 1 ? "a clean" : "a week"}`
+      ? `Cleaning plan, ${planName(quote.plan)}: ${formatMoney(quote.headlineTotalCents)} ${quote.plan.days.length === 1 ? "a clean" : "a week"}`
       : `Deep Clean ${formatMoney(quote.headlineTotalCents)}`;
 
 // when a Service Plan's cleans come round, each weekday from its first:

@@ -1,4 +1,5 @@
 import type { Locator, Page } from "@playwright/test";
+import { apiUrl } from "../playwright.config.ts";
 import {
   bookSiteVisit,
   createStaff,
@@ -11,6 +12,7 @@ import {
   draftTheQuote,
   recordFindingsWithoutVisit,
   addCleaner,
+  serviceKey,
 } from "./harness.ts";
 
 // The API's clock starts at 4am on Monday 5 January 2026 in New York.
@@ -45,10 +47,10 @@ test(
     await signInAsOffice(page);
 
     await page.goto("/office/quotes");
-    await expect(page.getByText("Needs Site Visit")).toBeVisible();
+    await expect(page.getByText("Needs a site visit")).toBeVisible();
     await page.getByText("Acme Dental").click();
     await expect(
-      page.getByText("Business premises are seen before they're quoted"),
+      page.getByText("This business needs a site visit before it's quoted"),
     ).toBeVisible();
 
     await page.getByRole("button", { name: "Book a site visit" }).click();
@@ -117,10 +119,10 @@ test("a Quote for business premises can't be drafted until their findings are re
 
   // not seen yet: seeing them is the only thing to do
   await expect(
-    page.getByText("Business premises are seen before they're quoted."),
+    page.getByText("This business needs a site visit before it's quoted."),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Draft the Quote" }),
+    page.getByRole("button", { name: "Draft the quote" }),
   ).toHaveCount(0);
 
   // premises the Office knows already
@@ -169,4 +171,39 @@ test("a Site Visit shows on the Schedule, in the Client's portal and in the visi
   await expect(
     page.getByText(/^Cory comes to see 200 Park Ave S.* for about 30 min$/),
   ).toBeVisible();
+});
+
+test("a home's Quote for a Service seen first asks for a site visit as a home's", async ({
+  page,
+}) => {
+  // Painting is seen before it's quoted, for a home too (ADR-0018)
+  const asked = await fetch(`${apiUrl}/api/quotes/ask`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      contact: { ...casey, phone: "(646) 555-0100" },
+      property: {
+        new: {
+          kind: "residential",
+          type: "apartment",
+          street: "41-12 Austin St",
+          unit: "4B",
+          postcode: "11375",
+        },
+      },
+      serviceKey: await serviceKey("Painting"),
+      wantsRegularService: false,
+    }),
+  });
+  expect(asked.status).toBe(201);
+  await signInAsOffice(page);
+  await page.goto("/office/quotes");
+  await page.getByText("41-12 Austin St").click();
+
+  await expect(page.getByText(/^This home needs a site visit/)).toBeVisible();
+  await expect(page.getByText(/business premises/i)).toHaveCount(0);
+  // the notice's Book button, not another in the header
+  await expect(
+    page.getByRole("button", { name: /^Book a site visit$/i }),
+  ).toHaveCount(1);
 });

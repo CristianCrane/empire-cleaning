@@ -31,7 +31,7 @@ export const WithTwoActions: Story = {
     icon: MapPin,
     title: "This Property doesn't have a Site Visit",
     description:
-      "Business premises are seen before they're quoted. Book a Site Visit, or record findings you know already.",
+      "This business needs a site visit before it's quoted. Book one, or record what you know about it already.",
     children: (
       <>
         <Button>Book a Site Visit</Button>

@@ -642,7 +642,7 @@ export const draftTheQuote = async (
   page: Page,
   kind?: "one-off" | "Service Plan",
 ) => {
-  await page.getByRole("button", { name: "Draft the Quote" }).click();
+  await page.getByRole("button", { name: "Draft the quote" }).click();
   if (kind) {
     await page
       .getByRole("dialog")

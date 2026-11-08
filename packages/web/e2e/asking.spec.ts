@@ -49,14 +49,14 @@ test(
     await nextStep(page);
     await page.getByRole("textbox", { name: "Full name" }).fill("Nina New");
     await page.getByRole("textbox", { name: "Phone" }).fill("(718) 555-0111");
-    await page.getByRole("button", { name: "Request a Quote" }).click();
+    await page.getByRole("button", { name: "Request a quote" }).click();
 
     await expect(page).toHaveURL("/portal");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
       "Hi, Nina",
     );
     // Home says what's next: their Quote being prepared
-    await expect(page.getByText("We're preparing your Quote")).toBeVisible();
+    await expect(page.getByText("We're working on it")).toBeVisible();
     await expect(
       page.getByText(/at 35-06 Ditmars Blvd, 11375, asked/),
     ).toBeVisible();
@@ -68,7 +68,7 @@ test("a home with a Quote open can't be asked about again, and points to it", as
 }) => {
   await requestQuoteAsGuest(casey);
   await signInAs(page, casey.email);
-  await page.getByRole("link", { name: "Request a Quote" }).click();
+  await page.getByRole("link", { name: "Request a quote" }).click();
   await expect(page).toHaveURL("/portal/request");
   await expect(
     page.getByText("We're working on your quote for 41-12 Austin St"),
@@ -99,7 +99,7 @@ test("a home with a Quote open can't be asked about again, and points to it", as
     unit: "apt 4b",
   });
   await nextStep(page);
-  await page.getByRole("button", { name: "Request a Quote" }).click();
+  await page.getByRole("button", { name: "Request a quote" }).click();
 
   await expect(
     page.getByText("You've already asked us for a quote for this home."),
@@ -109,7 +109,7 @@ test("a home with a Quote open can't be asked about again, and points to it", as
   // the way on is the Quote they have
   await page.getByRole("link", { name: "41-12 Austin St, 4B, 11375" }).click();
   await expect(page).toHaveURL(/\/portal\/quotes\/[0-9a-f-]{36}$/);
-  await expect(page.getByText("We're preparing your Quote")).toBeVisible();
+  await expect(page.getByText("We're working on your quote")).toBeVisible();
 });
 
 test("a Client's Home leads to a Quote they asked for, as they asked it", async ({
@@ -118,7 +118,7 @@ test("a Client's Home leads to a Quote they asked for, as they asked it", async 
   await requestQuoteAsGuest(casey, ["Inside the oven"]);
   await signInAs(page, casey.email);
 
-  await expect(page.getByText("We're preparing your Quote")).toBeVisible();
+  await expect(page.getByText("We're working on it")).toBeVisible();
   await page.getByRole("link", { name: "See what you asked for" }).click();
 
   await expect(page).toHaveURL(/\/portal\/quotes\/[0-9a-f-]{36}$/);
@@ -149,17 +149,17 @@ test("a home asked about only for Painting gives its rooms when it's asked about
   await nextStep(page);
   await page.getByRole("textbox", { name: "Full name" }).fill("Nina New");
   await page.getByRole("textbox", { name: "Phone" }).fill("(718) 555-0111");
-  await page.getByRole("button", { name: "Request a Quote" }).click();
+  await page.getByRole("button", { name: "Request a quote" }).click();
   await expect(page).toHaveURL("/portal");
 
-  await page.getByRole("link", { name: "Request a Quote" }).click();
+  await page.getByRole("link", { name: "Request a quote" }).click();
   await chooseService(page, "Move-in/out Clean");
   await expect(
     page.getByRole("radio", { name: /35-06 Ditmars Blvd/ }),
   ).toBeChecked();
   await nextStep(page);
   await page.getByRole("textbox", { name: "Bedrooms" }).fill("3");
-  await page.getByRole("button", { name: "Request a Quote" }).click();
+  await page.getByRole("button", { name: "Request a quote" }).click();
 
   await expect(page).toHaveURL("/portal");
   await page.goto("/portal/details");
@@ -175,7 +175,7 @@ test("a Client asks about a second home", async ({ page }) => {
   await page.getByText("A different home", { exact: true }).click();
   await describeNewHome(page);
   await nextStep(page);
-  await page.getByRole("button", { name: "Request a Quote" }).click();
+  await page.getByRole("button", { name: "Request a quote" }).click();
 
   await expect(page).toHaveURL("/portal");
   await expect(page.getByText("Quote requested")).toBeVisible();
@@ -197,12 +197,12 @@ test(
     await signInAs(page, casey.email);
     const portalNav = page.getByRole("navigation", { name: "Client portal" });
 
-    await page.getByRole("link", { name: "Request a Quote" }).click();
+    await page.getByRole("link", { name: "Request a quote" }).click();
     await expect(page).toHaveURL("/portal/request");
 
     const crumbs = page.getByLabel("Breadcrumbs");
     await expect(crumbs.getByRole("link", { name: "Home" })).toBeVisible();
-    await expect(crumbs.getByText("Request a Quote")).toHaveAttribute(
+    await expect(crumbs.getByText("Request a quote")).toHaveAttribute(
       "aria-current",
       "page",
     );
@@ -226,7 +226,7 @@ test("the API's explanation shows beside the field", async ({ page }) => {
   await page.getByText("A different home", { exact: true }).click();
   await describeNewHome(page, { zip: "1137" });
   await nextStep(page);
-  await page.getByRole("button", { name: "Request a Quote" }).click();
+  await page.getByRole("button", { name: "Request a quote" }).click();
 
   // back on the step with the field
   const zip = page.getByRole("textbox", { name: "ZIP code" });
@@ -269,10 +269,8 @@ test("a Client edits their contact details and Access Instructions", async ({
   await dialog
     .getByRole("textbox", { name: "How do we get in?" })
     .fill("Key in the lockbox, code 4821");
-  await dialog
-    .getByRole("button", { name: "Save Access Instructions" })
-    .click();
-  await expect(page.getByText("Access Instructions saved")).toBeVisible();
+  await dialog.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Saved how we get in")).toBeVisible();
 
   await page.reload();
   await expect(
@@ -368,7 +366,7 @@ test("Office Staff see the Quote, open the home and correct its details", async 
   await page.getByRole("textbox", { name: "Bedrooms" }).fill("4");
   await page.getByText("Heavy", { exact: true }).click();
   await page
-    .getByRole("textbox", { name: "Access Instructions" })
+    .getByRole("textbox", { name: "How we get in" })
     .fill("Key under the mat");
   await save.click();
   await expect(page.getByText("Details corrected")).toBeVisible();

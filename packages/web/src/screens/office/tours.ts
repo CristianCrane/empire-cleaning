@@ -38,12 +38,12 @@ export const officeTours = {
         {
           target: { named: "Service and prices" },
           title: "Price it",
-          text: "Prices are worked out from the Price List for this home. Override one if it needs to be different, with a reason.",
+          text: "Prices are worked out for this home from your prices. Set one yourself if it needs to be different, and say why.",
         },
         {
           target: { press: "Send to" },
           title: "Send it",
-          text: "Pick a time, then send it. The Client is emailed a link to accept it and book.",
+          text: "Pick a time, then send it. The client gets an email with a link to accept it and book.",
         },
       ],
     },

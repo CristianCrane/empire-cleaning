@@ -17,7 +17,7 @@ for (const guide of guides) {
       );
       await expect(page.getByRole("heading", { level: 2 })).toHaveText([
         ...guide.sections.map((s) => s.title),
-        "Request a Quote",
+        "Request a quote",
         "Our services",
       ]);
       await expect(

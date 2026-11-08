@@ -21,5 +21,5 @@ export const InText: Story = {
 };
 
 export const AsAButton: Story = {
-  render: () => <ButtonLink href="#">Request a Quote</ButtonLink>,
+  render: () => <ButtonLink href="#">Request a quote</ButtonLink>,
 };

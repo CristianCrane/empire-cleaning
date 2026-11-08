@@ -7,6 +7,7 @@ import type {
   QuoteSource,
   TurnDownReason,
 } from "@empire-cleaning/models";
+import { needsVisit } from "@empire-cleaning/models";
 import {
   Actions,
   Button,
@@ -31,6 +32,7 @@ import {
   roomsText,
 } from "../format.ts";
 import { AskedRows } from "../QuoteParts.tsx";
+import { working } from "./WorkedOutQuote.tsx";
 
 // The parts of a Quote's page about what was asked and getting to its first
 // Revision: the ask itself, its Site Visit, the Suggested Price, drafting,
@@ -98,7 +100,7 @@ export function AskedFacts({ quote }: { quote: OfficeQuote }) {
         {corrected && (
           <span className="text-fg-muted">
             {" "}
-            (the Client said {conditionLabel[stated].toLowerCase()})
+            (the client said {conditionLabel[stated].toLowerCase()})
           </span>
         )}
       </dd>
@@ -113,7 +115,7 @@ export function AskedFacts({ quote }: { quote: OfficeQuote }) {
               Not recorded yet
               <span className="text-fg-muted">
                 {" "}
-                (the Client said {roomsText(asked.rooms)})
+                (the client said {roomsText(asked.rooms)})
               </span>
             </dd>
           </>
@@ -134,7 +136,7 @@ export function DraftQuote({ quote }: { quote: OfficeQuote }) {
   const label = (
     <>
       <FilePenLine aria-hidden size={16} />
-      Draft the Quote
+      Draft the quote
     </>
   );
 
@@ -145,9 +147,9 @@ export function DraftQuote({ quote }: { quote: OfficeQuote }) {
           <Button variant="text" size="sm">
             {label}
           </Button>
-          <Dialog title="Which kind of Quote?">
+          <Dialog title="Which kind of quote?">
             <p>
-              A one-off clean, or a Service Plan of regular cleans at a
+              A one-off clean, or a cleaning plan of regular cleans at a
               discount.
             </p>
             {failure && <Notice tone="danger">{failure}</Notice>}
@@ -158,14 +160,14 @@ export function DraftQuote({ quote }: { quote: OfficeQuote }) {
                 isDisabled={starting !== undefined}
                 onPress={() => draft("one_off")}
               >
-                A one-off Quote
+                A one-off quote
               </Button>
               <Button
                 isPending={starting?.kind === "service_plan"}
                 isDisabled={starting !== undefined}
                 onPress={() => draft("service_plan")}
               >
-                A Service Plan Quote
+                A cleaning plan quote
               </Button>
             </Actions>
           </Dialog>
@@ -189,22 +191,22 @@ export function DraftQuote({ quote }: { quote: OfficeQuote }) {
   );
 }
 
-// Business premises are seen before they're quoted (ADR-0014): the Office
-// books a Site Visit, or records findings it knows already on the Property
+// A Service seen first is seen before it's quoted (ADR-0018), for a home
+// too: the Office books a Site Visit, or records findings it knows already
+// on the Property
 export function SeeThePremises({ quote }: { quote: OfficeQuote }) {
   return (
     <Notice tone="warning" action={<BookSiteVisit quoteId={quote.id} />}>
       <p>
-        <strong>Business premises are seen before they're quoted.</strong> Book
-        a Site Visit, or if you know the premises already, record what you know
-        on the{" "}
+        <strong>{needsVisit(quote.property.kind)}</strong> Book one, or if you
+        know it already, record what you know on the{" "}
         <Link
           href={linkTo({
             to: "/office/properties/$propertyId",
             params: { propertyId: quote.property.id },
           })}
         >
-          Property
+          property page
         </Link>
         .
       </p>
@@ -216,8 +218,8 @@ export function SeeThePremises({ quote }: { quote: OfficeQuote }) {
 // says the same in its own words
 export const turnDownLabel: Record<TurnDownReason, string> = {
   out_of_area: "Outside the area we clean",
-  out_of_scope: "More than the cleaning we offer",
-  no_capacity: "More than we have room for at the moment",
+  out_of_scope: "Not work we take on",
+  no_capacity: "We're fully booked",
 };
 
 // Turns Down a Requested or Draft Quote, with the reason the Client is
@@ -225,11 +227,11 @@ export const turnDownLabel: Record<TurnDownReason, string> = {
 // closes it
 export function TurnDownQuote({ quote }: { quote: OfficeQuote }) {
   const [reason, setReason] = useState<TurnDownReason>();
-  const action = useAction("The Quote wasn't Turned Down. Please try again.");
+  const action = useAction("The quote wasn't turned down. Please try again.");
 
   const turnDown = async (close: () => void) => {
     if (!reason) {
-      action.fail("Choose why it's being Turned Down.");
+      action.fail("Pick why you're turning it down.");
       return;
     }
     const ok = await action.run(
@@ -237,7 +239,7 @@ export function TurnDownQuote({ quote }: { quote: OfficeQuote }) {
         postJson<OfficeQuote>(`/api/quotes/${quote.id}/turn-down`, {
           reason,
         }),
-      "Quote Turned Down",
+      "Quote turned down",
     );
     if (ok) close();
   };
@@ -246,14 +248,14 @@ export function TurnDownQuote({ quote }: { quote: OfficeQuote }) {
     <DialogTrigger>
       <Button variant="text" size="sm">
         <CircleX aria-hidden size={16} />
-        Turn Down
+        Turn down
       </Button>
-      <Dialog title="Turn Down this Quote?" role="alertdialog">
+      <Dialog title="Turn down this quote?" role="alertdialog">
         {({ close }) => (
           <>
             <p>
               {quote.client.email
-                ? `${quote.client.name} is emailed to say we can't quote for it, and why. They can ask again later.`
+                ? `${quote.client.name} is emailed to say we can't take it on, and why. They can ask again later.`
                 : `${quote.client.name} has no email, so tell them yourself. They can ask again later.`}
             </p>
             <RadioGroup
@@ -277,7 +279,7 @@ export function TurnDownQuote({ quote }: { quote: OfficeQuote }) {
                 isPending={action.isPending}
                 onPress={() => void turnDown(close)}
               >
-                Turn Down
+                Turn down
               </Button>
             </Actions>
           </>
@@ -304,11 +306,11 @@ export function PriceWorking({ breakdown: b }: { breakdown: PriceBreakdown }) {
         />
       ))}
       <Row
-        label={premises ? "The premises" : "The home"}
+        label={premises ? "The business" : "The home"}
         value={formatHours(homeHours)}
         strong
       />
-      <Row label={`× Condition (${b.conditionMultiplier})`} value="" />
+      <Row label={working.condition(null, b.conditionMultiplier)} value="" />
       {/* saved before each Service had its own hours (ADR-0018) */}
       {b.cleanTypeMultiplier !== undefined && !premises && (
         <Row label={`× ${b.serviceName} (${b.cleanTypeMultiplier})`} value="" />
@@ -316,27 +318,23 @@ export function PriceWorking({ breakdown: b }: { breakdown: PriceBreakdown }) {
       {b.addOns.map((addOn) => (
         <Row
           key={addOn.key}
-          label={`+ ${addOn.name}${addOn.taxExempt ? " (tax-exempt)" : ""}`}
+          label={working.addOn(addOn)}
           value={formatHours(addOn.hours)}
         />
       ))}
+      <Row label={working.hours} value={formatHours(b.labourHours)} strong />
       <Row
-        label="Labour Hours, rounded up to the quarter-hour"
-        value={formatHours(b.labourHours)}
-        strong
-      />
-      <Row
-        label={`× ${formatMoney(b.hourlyRateCents)} an hour${premises ? " (commercial)" : ""}, to the whole dollar`}
+        label={working.rate(b.hourlyRateCents, premises)}
         value={formatMoney(b.workedOutCents)}
       />
       {b.minimumApplied && (
         <Row
-          label="Below the Minimum Charge, so that applies"
+          label={working.minimum(b.minimumChargeCents)}
           value={formatMoney(b.minimumChargeCents)}
         />
       )}
       <Row
-        label="Suggested Price, before tax"
+        label="Suggested price, before tax"
         value={formatMoney(b.priceCents)}
         strong
       />

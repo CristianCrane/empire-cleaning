@@ -18,6 +18,7 @@ import { billPaid } from "../bills/billed-weekly.ts";
 import {
   ASK_AGAIN,
   ON_WEEKS_BILL,
+  quoteEmailedTo,
   turnedDown,
   type PropertyKind,
   type TurnDownReason,
@@ -49,7 +50,7 @@ export const quoteReceivedEmail = ({
   blocks: [
     greeting(firstNameOf(name)),
     paragraph(
-      `Thanks for asking us for a quote for ${address}. We'll email it to ${email}, usually within a working day.`,
+      `Thanks for asking us for a quote for ${address}. ${quoteEmailedTo(email)}`,
     ),
     button("See your quote", `/portal/quotes/${quoteId}`),
     paragraph(NOT_YOU),
