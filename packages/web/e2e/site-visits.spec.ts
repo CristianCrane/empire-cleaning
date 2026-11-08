@@ -166,7 +166,7 @@ test("a Site Visit shows on the Schedule, in the Client's portal and in the visi
   await signedInAs(page, casey.email);
   await expect(page).toHaveURL("/portal");
   await expect(
-    page.getByText("Your Site Visit", { exact: true }),
+    page.getByText("Your site visit", { exact: true }),
   ).toBeVisible();
   await expect(
     page.getByText(/^Cory comes to see 200 Park Ave S.* for about 30 min$/),

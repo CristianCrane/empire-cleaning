@@ -25,7 +25,6 @@ import {
   Notice,
   Section,
   StatusBadge,
-  type StatusTone,
   TextField,
 } from "@empire-cleaning/ui";
 import { accessHelp } from "@empire-cleaning/quote-request";
@@ -42,14 +41,9 @@ import {
 } from "../format.ts";
 import { AccessFact, ConditionFact, FloorAreaFact } from "../Fact.tsx";
 import { planWhen, quoteTitle, standingOf } from "./properties.ts";
+import { PlanStatusBadge } from "../PlanParts.tsx";
 import { ClientQuoteStatusBadge } from "../QuoteParts.tsx";
 import { requestQuote } from "./whats-next.ts";
-
-const planStatus: Record<string, { tone: StatusTone; label: string }> = {
-  active: { tone: "success", label: "Active" },
-  on_hold: { tone: "warning", label: "On Hold" },
-  ended: { tone: "danger", label: "Ended" },
-};
 
 const shortDayOf = (iso: string) => formatShortDay(dayOfInstant(iso));
 
@@ -121,10 +115,10 @@ export function PortalProperty() {
         </Card>
       </Section>
 
-      <Section title={plans.length > 1 ? "Service Plans" : "Service Plan"}>
+      <Section title={plans.length > 1 ? "Cleaning plans" : "Cleaning plan"}>
         {plans.length > 0 ? (
           <List
-            aria-label="Service Plans"
+            aria-label="Cleaning plans"
             onAction={(id: Key) =>
               navigate({
                 to: "/portal/plans/$planId",
@@ -145,11 +139,7 @@ export function PortalProperty() {
                 ]
                   .filter(Boolean)
                   .join(" · ")}
-                end={
-                  <StatusBadge tone={planStatus[plan.status]!.tone}>
-                    {planStatus[plan.status]!.label}
-                  </StatusBadge>
-                }
+                end={<PlanStatusBadge status={plan.status} />}
               />
             ))}
           </List>
@@ -163,7 +153,7 @@ export function PortalProperty() {
               }
             >
               <p>
-                No Service Plan here yet. Ask for a Quote for regular cleans,
+                No cleaning plan here yet. Ask for a quote for regular cleans,
                 with money off each one.
               </p>
             </ActionRow>

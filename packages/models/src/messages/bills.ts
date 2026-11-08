@@ -6,6 +6,8 @@ import type { BillPayment } from "../index.js";
 // where a clean, or a fee, owed before its week's Bill is made goes, as the
 // Client is told; anything settled after the clean goes on their next Bill
 export const ON_WEEKS_BILL = "goes on your bill for that week";
+// the same, as the Office reads it
+export const ON_THAT_WEEKS_BILL = "goes on that week's bill";
 
 // when a weekly Bill is made, and how the Client pays it (ADR-0016): as they
 // read it, or as the Office does

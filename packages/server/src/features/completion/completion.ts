@@ -31,6 +31,7 @@ import { email, formatMoney, notify } from "../../services/email/index.ts";
 import { assignmentStatusOf, mustBeConfirmed } from "../assignments/crew.ts";
 import { weeklyBillOfJob } from "../bills/billed-weekly.ts";
 import {
+  cancelledWithPlan,
   cancellationOf,
   cancelTermsOf,
   planOfJob,
@@ -872,6 +873,7 @@ export const pastJobsFor = async (
         skipped:
           job.status === "cancelled" &&
           job.cancelledBy === "client" &&
+          !cancelledWithPlan(job) &&
           planId !== null,
         completedAt: job.completedAt?.toISOString() ?? null,
         totalCents:

@@ -1693,13 +1693,16 @@ export type OfficeCancelInput = {
   by: CancelledBy;
   // the fee they were shown, as for the Client
   feeCents: number;
-  // told to the Client
+  // told to the Client when Empire Cleaning cancels, and dropped when it's
+  // the Client's own cancellation
   reason?: string | null;
 };
 
 export type JobCancellation = {
   cancelledAt: string;
   by: CancelledBy;
+  // cancelled as its plan ended or changed, not skipped on its own
+  withPlan: boolean;
   late: boolean;
   reason: string | null;
   feeCents: number;
@@ -2024,3 +2027,4 @@ export * from "./messages/reschedule.js";
 export * from "./messages/staff.js";
 export * from "./messages/quotes.js";
 export * from "./messages/payments.js";
+export * from "./messages/cancellation.js";

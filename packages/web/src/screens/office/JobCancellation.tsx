@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { useRouter } from "@tanstack/react-router";
 import { CalendarX } from "lucide-react";
-import type {
-  CancellationTerms,
-  CancelledBy,
-  JobPayment,
-  OfficeJob,
+import {
+  CANCELLATION_CUTOFF_HOURS,
+  cancelCostForOffice,
+  type CancellationTerms,
+  type CancelledBy,
+  type JobPayment,
+  type OfficeJob,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -19,29 +21,26 @@ import {
   TextField,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
-import { formatDateTime, formatMoney, jobStatusLabel } from "../format.ts";
+import {
+  cancelledLabel,
+  formatDateTime,
+  formatMoney,
+  jobStatusLabel,
+  wasSkipped,
+} from "../format.ts";
 import { useAction } from "../action.ts";
 import type { CostedJob } from "../RescheduleParts.tsx";
 
-// What cancelling costs, in a sentence. A plan Job has no Deposit of its
-// own: its fee is the plan's Deposit amount, charged to the saved card, or
-// on the Bill for the Job's week (ADR-0016).
-const describeTerms = (terms: CancellationTerms, job: CostedJob) => {
-  const charged = job.weeklyBill ? "goes on that week's Bill" : "is charged";
-  return job.servicePlanId !== null
-    ? terms.late
-      ? `It's a Late Cancellation: a ${formatMoney(terms.feeCents)} fee, the plan's Deposit amount, ${charged}. The plan's Deposit stays held.`
-      : terms.feeCents > 0
-        ? `The ${formatMoney(terms.feeCents)} fee for a Late Reschedule ${charged}.`
-        : "It's free."
-    : terms.late
-      ? `It's a Late Cancellation: the ${formatMoney(terms.feeCents)} Deposit is kept as the fee.`
-      : terms.feeCents > 0
-        ? `The ${formatMoney(terms.feeCents)} Deposit was already kept as the fee for a Late Reschedule, and isn't refunded.`
-        : terms.refundCents > 0
-          ? `It's free: the ${formatMoney(terms.refundCents)} Deposit is refunded.`
-          : "It's free.";
-};
+// What cancelling costs, as the Office reads it
+const describeTerms = (terms: CancellationTerms, job: CostedJob) =>
+  cancelCostForOffice({
+    onPlan: job.servicePlanId !== null,
+    late: terms.late,
+    feeCents: terms.feeCents,
+    fee: formatMoney(terms.feeCents),
+    weeklyBill: job.weeklyBill !== null,
+    refund: terms.refundCents > 0 ? formatMoney(terms.refundCents) : null,
+  });
 
 // Office Staff cancel a booked Job, for the Client (by the cancellation
 // policy) or because Empire Cleaning can't do it (always refunded in full).
@@ -52,7 +51,7 @@ export function CancelJob({ job }: { job: OfficeJob }) {
   const router = useRouter();
   const [by, setBy] = useState<CancelledBy>("client");
   const [reason, setReason] = useState("");
-  const action = useAction("The Job wasn't cancelled. Please try again.");
+  const action = useAction("The job wasn't cancelled. Please try again.");
 
   const cancel = async (close: () => void) => {
     const ok = await action.run(
@@ -71,8 +70,8 @@ export function CancelJob({ job }: { job: OfficeJob }) {
 
   return (
     <DialogTrigger>
-      <IconAction icon={CalendarX} label="Cancel Job" danger />
-      <Dialog title="Cancel this Job?" role="alertdialog">
+      <IconAction icon={CalendarX} label="Cancel job" danger />
+      <Dialog title="Cancel this job?" role="alertdialog">
         {({ close }) => (
           <>
             <RadioGroup
@@ -84,7 +83,7 @@ export function CancelJob({ job }: { job: OfficeJob }) {
                 value="client"
                 description={describeTerms(terms.client, job)}
               >
-                The Client asked
+                The client asked
               </Radio>
               <Radio
                 value="empire"
@@ -95,16 +94,16 @@ export function CancelJob({ job }: { job: OfficeJob }) {
             </RadioGroup>
             {by === "empire" && (
               <TextField
-                label="Why? (told to the Client)"
+                label="Why? (the client sees this)"
                 value={reason}
                 onChange={setReason}
                 multiline
               />
             )}
             <p className="text-sm text-fg-muted">
-              It comes off the Schedule.
-              {onPlan && " The Service Plan carries on."} The Client and its
-              crew are emailed.
+              It comes off the schedule.
+              {onPlan && " The cleaning plan carries on."} We email the client
+              and the cleaners.
             </p>
             {action.problem && <Notice tone="danger">{action.problem}</Notice>}
             <Actions>
@@ -116,7 +115,7 @@ export function CancelJob({ job }: { job: OfficeJob }) {
                 isPending={action.isPending}
                 onPress={() => void cancel(close)}
               >
-                Cancel Job
+                Cancel job
               </Button>
             </Actions>
           </>
@@ -143,7 +142,7 @@ export function FeeMoney({
       <dd>{formatMoney(payment.paidCents)}</dd>
       {payment.billedCents !== 0 && (
         <>
-          <dt className="font-semibold">On weekly Bills</dt>
+          <dt className="font-semibold">On weekly bills</dt>
           <dd>{formatMoney(payment.billedCents)}</dd>
         </>
       )}
@@ -166,15 +165,15 @@ export const howItEnded = (
 ): { title: string; at: string; description: string } | null => {
   const { cancellation, noAccess } = job;
   if (cancellation) {
-    const skipped = job.servicePlanId !== null && cancellation.by === "client";
+    const skipped = wasSkipped(job);
     const why =
       cancellation.by === "empire"
         ? "By Empire Cleaning, refunded in full"
         : cancellation.late
-          ? "By the Client, a Late Cancellation"
-          : "By the Client, more than 24 hours ahead";
+          ? "By the client, a late cancellation"
+          : `By the client, more than ${CANCELLATION_CUTOFF_HOURS} hours ahead`;
     return {
-      title: `${skipped ? "Skipped" : "Cancelled"} ${formatDateTime(cancellation.cancelledAt)}`,
+      title: `${cancelledLabel(skipped)} ${formatDateTime(cancellation.cancelledAt)}`,
       at: cancellation.cancelledAt,
       description: [
         `${why}${skipped ? "; the plan carries on" : ""}.`,
@@ -188,7 +187,7 @@ export const howItEnded = (
     return {
       title: `${jobStatusLabel.no_access} ${formatDateTime(noAccess.recordedAt)}`,
       at: noAccess.recordedAt,
-      description: `${noAccess.recordedBy ? `${noAccess.recordedBy.name} said` : "The Cleaner said"}: "${noAccess.reason}" Charged like a Late Cancellation.`,
+      description: `${noAccess.recordedBy ? `${noAccess.recordedBy.name} said` : "The cleaner said"}: "${noAccess.reason}" Charged like a late cancellation.`,
     };
   }
   return null;

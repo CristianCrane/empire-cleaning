@@ -11,6 +11,7 @@ import type {
   QuoteSummary,
   QuoteStatus,
   Recurrence,
+  ServicePlanStatus,
   Weekday,
 } from "@empire-cleaning/models";
 import type { StatusTone } from "@empire-cleaning/ui";
@@ -222,6 +223,17 @@ export const clientQuoteStatus: Record<
   turned_down: { tone: "neutral", label: "Turned down" },
 };
 
+// a Service Plan's state, as both sides see it; Ended is red, stopped for
+// good
+export const planStatus: Record<
+  ServicePlanStatus,
+  { tone: StatusTone; label: string }
+> = {
+  active: { tone: "success", label: "Active" },
+  on_hold: { tone: "warning", label: "Paused" },
+  ended: { tone: "danger", label: "Ended" },
+};
+
 export const quoteStatusTone = {
   requested: "warning",
   draft: "neutral",
@@ -347,6 +359,18 @@ export const jobStatusLabel: Record<JobStatus, string> = {
   cancelled: "Cancelled",
   no_access: "Couldn't get in",
 };
+
+// a plan Job its Client cancelled on its own is skipped: the plan carries
+// on. One cancelled as the plan ended or changed isn't
+export const wasSkipped = (job: {
+  servicePlanId: string | null;
+  cancellation: { by: string; withPlan: boolean } | null;
+}) =>
+  job.servicePlanId !== null &&
+  job.cancellation?.by === "client" &&
+  !job.cancellation.withPlan;
+export const cancelledLabel = (skipped: boolean) =>
+  skipped ? "Skipped" : "Cancelled";
 
 export const jobStatusTone = {
   booked: "info",

@@ -158,7 +158,7 @@ describe("accepting a Service Plan Quote for a home with a plan", () => {
       by: "client",
       late: false,
       feeCents: 0,
-      reason: "The Service Plan's terms changed",
+      reason: "The cleaning plan changed",
     });
 
     const confirmation = testEmail().lastTo("casey@example.com");
@@ -172,7 +172,7 @@ describe("accepting a Service Plan Quote for a home with a plan", () => {
     expect(confirmation.text).toContain("Your deposit stays as it is");
     // Cory is on the 2 February Job, and hears it's off
     const off = testEmail().lastTo("cory@example.com");
-    expect(off.subject).toBe("A Job you're on is cancelled");
+    expect(off.subject).toBe("A job you're on is cancelled");
     expect(off.text).toContain("February 2");
 
     // it comes round every 2 weeks from the new first Job

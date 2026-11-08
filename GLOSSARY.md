@@ -20,7 +20,7 @@ _On screen_: type of business
 **Access Instructions**:
 How Staff get into and around a Property, such as gate codes, key location and pets; maintained by the Client and shown to Staff assigned to its Jobs.
 _Avoid_: Entry notes, access notes, directions
-_On screen_: how to get in
+_On screen_: how we get in
 
 **Staff**:
 A person working for Empire Cleaning, holding the Cleaner role, the Office Staff role, or both. Staff exist only by invitation from Office Staff, who can also deactivate them.

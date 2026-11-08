@@ -5,7 +5,7 @@ import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock } from "../../services/clock/index.ts";
 import { email, notify } from "../../services/email/index.ts";
 import {
-  CANCELLATION_CUTOFF_HOURS,
+  CHANGED_SINCE,
   freeUntilOf,
   tellCrew,
 } from "../cancellation/cancellation.ts";
@@ -23,6 +23,9 @@ import {
   servicePlanVisits,
   type ServicePlan,
 } from "./service-plans.schema.ts";
+
+// a plan Ended already can't be changed, ended again, or book a visit
+export const PLAN_ENDED = "This cleaning plan has already ended.";
 
 // a plan's Jobs, latest first
 const jobsOf = async (tx: Tx | typeof db, planId: string) =>
@@ -140,18 +143,16 @@ export const endServicePlan = async (planId: string, ending: Ending) => {
       .for("update");
     if (!plan) throw new NotFoundError("Service Plan not found");
     if (plan.status === "ended") {
-      throw new ConflictError("This Service Plan has already Ended.");
+      throw new ConflictError(PLAN_ENDED);
     }
     // generating may have booked one in between
     if ((await jobsOf(tx, planId)).length !== ids.length) {
-      throw new ConflictError("Something changed just then. Please try again.");
+      throw new ConflictError(CHANGED_SINCE);
     }
     const what = planOf(planJobs);
     const terms = toTerms(what, await heldDepositOf(tx, planId));
     if (terms.goingAhead.join() !== [...ending.goingAhead].sort().join()) {
-      throw new ConflictError(
-        "Something has changed since you looked: a clean is now less than 24 hours away, so it goes ahead. Please check and confirm again.",
-      );
+      throw new ConflictError(CHANGED_SINCE);
     }
 
     const now = clock.now();
@@ -164,7 +165,7 @@ export const endServicePlan = async (planId: string, ending: Ending) => {
           cancelledBy: "client",
           cancelledByAccount: ending.byAccountId,
           lateCancellation: false,
-          cancellationReason: "The Service Plan Ended",
+          cancellationReason: "The cleaning plan ended",
           // a fee a Late Reschedule made due stays due, as when skipping
           feeCents: job.rescheduleFeeCents,
         })
@@ -220,7 +221,6 @@ const tellClient = async (
         planId: plan.id,
         terms,
         settled,
-        cutoffHours: CANCELLATION_CUTOFF_HOURS,
       }),
     }),
   );

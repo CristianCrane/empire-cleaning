@@ -31,7 +31,11 @@ import {
   cleanerNeededAgain,
 } from "../assignments/cleaners-needed.ts";
 import { weeklyBillFor } from "../bills/billed-weekly.ts";
-import { lateFeeOf, planOfJob } from "../cancellation/cancellation.ts";
+import {
+  CHANGED_SINCE,
+  lateFeeOf,
+  planOfJob,
+} from "../cancellation/cancellation.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { lockDay } from "../jobs/jobs.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
@@ -278,9 +282,7 @@ export const requestReschedule = async (
 
     const terms = await termsOf(job, tx);
     if (terms.cost !== asking.cost) {
-      throw new ConflictError(
-        "The cost of moving has changed. Check it, then send again.",
-      );
+      throw new ConflictError(CHANGED_SINCE);
     }
 
     // the new time holds a crew, and on another day the hours, so two

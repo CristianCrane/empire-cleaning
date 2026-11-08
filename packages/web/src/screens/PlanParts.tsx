@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import {
   BOOKED_GO_AHEAD,
+  CANCELLATION_CUTOFF_HOURS,
   type EndPlanTerms,
   type ServicePlanView,
 } from "@empire-cleaning/models";
@@ -35,6 +36,7 @@ import {
   formatHours,
   formatMoney,
   planDayWhen,
+  planStatus,
   recurrenceLabel,
 } from "./format.ts";
 import { Fact } from "./Fact.tsx";
@@ -45,15 +47,11 @@ export function PlanStatusBadge({
 }: {
   status: ServicePlanView["status"];
 }) {
-  switch (status) {
-    case "active":
-      return <StatusBadge tone="success">Active</StatusBadge>;
-    case "on_hold":
-      return <StatusBadge tone="warning">On Hold</StatusBadge>;
-    default:
-      // stopped for good: red
-      return <StatusBadge tone="danger">Ended</StatusBadge>;
-  }
+  return (
+    <StatusBadge tone={planStatus[status].tone}>
+      {planStatus[status].label}
+    </StatusBadge>
+  );
 }
 
 // Who's looking: the Client, in the portal, or Office Staff, acting for
@@ -128,23 +126,23 @@ export function OnHold({
 
 // what Ending a plan does, as sentences
 function endingLines(terms: EndPlanTerms, forClient: boolean) {
-  const your = forClient ? "your" : "the Client's";
+  const your = forClient ? "your" : "the client's";
   const final = formatDateTime(terms.finalJob.startsAt);
   const deposit = formatMoney(terms.depositCents);
   return [
     terms.cancelled.length > 0 &&
-      `It cancels ${your} ${terms.cancelled.length === 1 ? "clean" : `${terms.cancelled.length} cleans`} booked more than 24 hours away, free: ${terms.cancelled.map(formatDateTime).join("; ")}.`,
+      `It cancels ${your} ${terms.cancelled.length === 1 ? "clean" : `${terms.cancelled.length} cleans`} booked more than ${CANCELLATION_CUTOFF_HOURS} hours away, free: ${terms.cancelled.map(formatDateTime).join("; ")}.`,
     terms.goingAhead.length > 0 &&
-      `${forClient ? "Your" : "The"} clean on ${terms.goingAhead.map(formatDateTime).join("; ")} is less than 24 hours away, so it goes ahead.`,
+      `${forClient ? "Your" : "The"} clean on ${terms.goingAhead.map(formatDateTime).join("; ")} is less than ${CANCELLATION_CUTOFF_HOURS} hours away, so it goes ahead.`,
     terms.depositCents > 0 &&
       (terms.deposit === "comes_off"
-        ? `${forClient ? "Your" : "The"} ${deposit} Deposit comes off the price of the clean on ${final}.`
+        ? `${forClient ? "Your" : "The"} ${deposit} deposit comes off the price of the clean on ${final}.`
         : terms.deposit === "refunded"
-          ? `${forClient ? "Your" : "The"} ${deposit} Deposit is refunded.`
-          : `${forClient ? "Your" : "The"} ${deposit} Deposit goes towards the clean on ${final}, and whatever isn't owed is refunded.`),
+          ? `${forClient ? "Your" : "The"} ${deposit} deposit is refunded.`
+          : `${forClient ? "Your" : "The"} ${deposit} deposit goes towards the clean on ${final}, and whatever isn't owed is refunded.`),
     forClient
       ? "We won't book any more cleans. You're welcome to start a new plan later."
-      : "No more Jobs are booked. The home can start a new plan later.",
+      : "No more jobs are booked. The home can start a new plan later.",
   ].filter((line): line is string => typeof line === "string");
 }
 
@@ -156,7 +154,7 @@ export function EndPlan({
   endPath,
 }: { plan: Omit<ServicePlanView, "upcoming"> } & Omit<Viewer, "jobHref">) {
   // what Ending does may have changed since the page loaded
-  const action = useAction("The plan wasn't Ended. Please try again.", {
+  const action = useAction("The plan wasn't ended. Please try again.", {
     reloadOnFailure: true,
   });
   if (plan.status === "ended") {
@@ -164,7 +162,7 @@ export function EndPlan({
       <Section title="Ended">
         <Card>
           <p>
-            {forClient ? "Your" : "This"} Service Plan Ended on{" "}
+            {forClient ? "Your" : "This"} cleaning plan ended on{" "}
             {formatDate(plan.endedAt!)}. No more cleans are booked for it.
           </p>
         </Card>
@@ -177,7 +175,7 @@ export function EndPlan({
   const end = async (close: () => void) => {
     const ok = await action.run(
       () => postJson(endPath, { goingAhead: terms.goingAhead }),
-      forClient ? "Your Service Plan has Ended" : "Service Plan Ended",
+      forClient ? "Your cleaning plan has ended" : "Cleaning plan ended",
     );
     if (ok) close();
   };
@@ -195,8 +193,8 @@ export function EndPlan({
               <Dialog
                 title={
                   forClient
-                    ? "End your Service Plan?"
-                    : "End this Service Plan?"
+                    ? "End your cleaning plan?"
+                    : "End this cleaning plan?"
                 }
                 role="alertdialog"
               >
@@ -206,7 +204,7 @@ export function EndPlan({
                       <p key={line}>{line}</p>
                     ))}
                     <p>
-                      <strong>An Ended plan can't be started again.</strong>
+                      <strong>An ended plan can't be started again.</strong>
                     </p>
                     {action.problem && (
                       <Notice tone="danger">{action.problem}</Notice>
@@ -230,7 +228,7 @@ export function EndPlan({
           }
         >
           <p>
-            {forClient ? "End your plan" : "End it for the Client"} at any time:
+            {forClient ? "End your plan" : "End it for the client"} at any time:
             you'll see what it cancels first.
           </p>
         </ActionRow>

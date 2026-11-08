@@ -1,14 +1,15 @@
 import { and, eq, isNull, ne, sum } from "drizzle-orm";
-import type {
-  CancellationTerms,
-  CancelledBy,
-  JobCancellation,
-  JobNoAccess,
+import {
+  CANCELLATION_CUTOFF_HOURS,
+  type CancellationTerms,
+  type CancelledBy,
+  type JobCancellation,
+  type JobNoAccess,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock, HOUR_MS } from "../../services/clock/index.ts";
-import { email, formatMoney, notify } from "../../services/email/index.ts";
+import { email, notify } from "../../services/email/index.ts";
 import { assignments, onCrew } from "../assignments/assignments.schema.ts";
 import { mustBeConfirmed } from "../assignments/crew.ts";
 import { clients } from "../clients/clients.schema.ts";
@@ -39,9 +40,10 @@ import {
   officeNoAccessEmail,
 } from "./emails.ts";
 
-// cancelling is free until this long before a Job starts; after that it's a
-// Late Cancellation
-export const CANCELLATION_CUTOFF_HOURS = 24;
+// what changed while a Client looked, such as the cost of cancelling: the
+// page reloads to show it
+export const CHANGED_SINCE =
+  "Something changed just then. Please check it and try again.";
 
 // when a clean starting then enters the Late Cancellation window
 export const lateFrom = (startsAt: Date) =>
@@ -222,11 +224,7 @@ export const cancelJob = async (jobId: string, cancellation: Cancellation) => {
       await lateFeeOf(jobId, tx),
     );
     if (feeCents !== cancellation.feeCents) {
-      throw new ConflictError(
-        late
-          ? `It's now less than ${CANCELLATION_CUTOFF_HOURS} hours before the clean, so ${onPlan ? `skipping it is a Late Cancellation, with a ${formatMoney(feeCents)} fee` : `cancelling is a Late Cancellation: the ${formatMoney(feeCents)} Deposit is kept as the fee`}. Please check and confirm again.`
-          : "What cancelling costs has changed. Please check and confirm again.",
-      );
+      throw new ConflictError(CHANGED_SINCE);
     }
 
     await tx
@@ -237,7 +235,9 @@ export const cancelJob = async (jobId: string, cancellation: Cancellation) => {
         cancelledBy: cancellation.by,
         cancelledByAccount: cancellation.byAccountId,
         lateCancellation: late,
-        cancellationReason: cancellation.reason,
+        // a reason is ours to give; the Client's own cancellation has none
+        cancellationReason:
+          cancellation.by === "empire" ? cancellation.reason : null,
         feeCents,
       })
       .where(eq(jobs.id, jobId));
@@ -283,7 +283,6 @@ const sendCancelled = async (
         late: job!.lateCancellation ?? false,
         feeCents: job!.feeCents ?? 0,
         settled,
-        cutoffHours: CANCELLATION_CUTOFF_HOURS,
       }),
     }),
   );
@@ -366,7 +365,7 @@ export const recordNoAccess = async (
       throw new ConflictError(whyNotBooked(job!.status, "no_access"));
     }
     if (job!.startsAt > clock.now()) {
-      throw new ConflictError("This Job hasn't started yet");
+      throw new ConflictError("This job hasn't started yet.");
     }
     await tx
       .update(jobs)
@@ -417,6 +416,12 @@ export const recordNoAccess = async (
 
 // ---- views ----
 
+// a Job cancelled as its plan ended or changed (ending.ts, changing.ts): the
+// Client's doing, with the plan's reason, where a skip has none
+export const cancelledWithPlan = (
+  job: Pick<Job, "cancelledBy" | "cancellationReason">,
+) => job.cancelledBy === "client" && job.cancellationReason !== null;
+
 // a Cancelled Job's cancellation; null otherwise
 export const cancellationOf = async (
   job: Job,
@@ -425,6 +430,7 @@ export const cancellationOf = async (
   return {
     cancelledAt: job.cancelledAt!.toISOString(),
     by: job.cancelledBy!,
+    withPlan: cancelledWithPlan(job),
     late: job.lateCancellation ?? false,
     reason: job.cancellationReason,
     feeCents: job.feeCents ?? 0,

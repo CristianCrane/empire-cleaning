@@ -21,6 +21,7 @@ import {
 } from "@empire-cleaning/ui";
 import {
   addressOf,
+  cancelledLabel,
   formatHours,
   formatMinutes,
   formatMoney,
@@ -80,7 +81,7 @@ const visitRow =
   (visit: ClientSiteVisit): Row => ({
     id: visit.id,
     startsAt: visit.startsAt,
-    title: "Site Visit",
+    title: "Site visit",
     line: lineOf([
       formatTime(visit.startsAt),
       homes > 1 && addressOf(visit.property),
@@ -95,7 +96,7 @@ const pastBadge = (job: ClientPastJob) => {
     return <StatusBadge tone="warning">Needs your OK</StatusBadge>;
   if (job.status === "no_access") return <JobStatusBadge status="no_access" />;
   if (job.status === "cancelled")
-    return <StatusBadge>{job.skipped ? "Skipped" : "Cancelled"}</StatusBadge>;
+    return <StatusBadge>{cancelledLabel(job.skipped)}</StatusBadge>;
   return undefined;
 };
 

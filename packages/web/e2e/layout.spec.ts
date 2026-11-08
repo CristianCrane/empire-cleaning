@@ -515,14 +515,14 @@ test("cancelling, Cancelled and No Access Jobs fit every width", async ({
     officeEmail: olive.email,
   });
   await page.goto(`/office/jobs/${cancelled.id}`);
-  await page.getByRole("button", { name: "Cancel Job" }).click();
+  await page.getByRole("button", { name: "Cancel job" }).click();
   await page.getByText("Empire Cleaning can't do it").click();
   await page
-    .getByRole("textbox", { name: "Why? (told to the Client)" })
+    .getByRole("textbox", { name: "Why? (the client sees this)" })
     .fill("Our crew is unwell.");
   await page
     .getByRole("alertdialog")
-    .getByRole("button", { name: "Cancel Job" })
+    .getByRole("button", { name: "Cancel job" })
     .click();
   await expect(
     page.getByText("By Empire Cleaning, refunded in full."),
