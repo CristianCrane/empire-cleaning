@@ -230,7 +230,7 @@ export const planStatus: Record<
   { tone: StatusTone; label: string }
 > = {
   active: { tone: "success", label: "Active" },
-  on_hold: { tone: "warning", label: "On Hold" },
+  on_hold: { tone: "warning", label: "Paused" },
   ended: { tone: "danger", label: "Ended" },
 };
 

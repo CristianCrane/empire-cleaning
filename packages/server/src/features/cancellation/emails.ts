@@ -16,6 +16,7 @@ import {
   cancelCostForClient,
   cancelCostForOffice,
   noAccessFee,
+  ON_THAT_WEEKS_BILL,
   PLAN_CARRIES_ON,
   PLAN_PAUSED,
   refundedTo,
@@ -56,7 +57,7 @@ const feeChargeLine = (settled: Settled) => {
 // where a plan Job's fee went, for the Office: charged now, or on the Bill
 // for the week the Job was in (ADR-0016), which needn't be the next one made
 const feeTaken = (settled: Settled) =>
-  settled.billed ? "goes on that week's bill" : "is charged";
+  settled.billed ? ON_THAT_WEEKS_BILL : "is charged";
 
 const portalButton = (jobId: string) =>
   button("See your clean", `/portal/jobs/${jobId}`);
@@ -172,21 +173,16 @@ export const officeCancelledEmail = ({
     ),
     cleanDetails(clean),
     paragraph(
-      [
-        cancelCostForOffice({
-          onPlan,
-          late,
-          feeCents,
-          fee: formatMoney(feeCents),
-        }),
-        onPlan && feeCents > 0 && !settled.failure
-          ? `The fee ${feeTaken(settled)}.`
-          : !onPlan && feeCents === 0
-            ? "The deposit is refunded."
-            : "",
-      ]
-        .filter(Boolean)
-        .join(" "),
+      cancelCostForOffice({
+        onPlan,
+        late,
+        feeCents,
+        fee: formatMoney(feeCents),
+        weeklyBill: settled.billed,
+        failed: settled.failure !== null,
+        refund:
+          settled.refundedCents > 0 ? formatMoney(settled.refundedCents) : null,
+      }),
     ),
     ...(settled.failure ? [paragraph(feeNotPaid(settled.failure))] : []),
     officeButton(jobId),

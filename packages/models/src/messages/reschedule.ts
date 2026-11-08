@@ -1,5 +1,5 @@
 import type { RescheduleCost } from "../index.js";
-import { ON_WEEKS_BILL } from "./bills.js";
+import { ON_THAT_WEEKS_BILL, ON_WEEKS_BILL } from "./bills.js";
 
 // What the server and the screens both say about moving a clean
 // (docs/ux.md, Words)
@@ -61,6 +61,6 @@ export const moveCostForOffice = ({
       }
       return onPlan
         ? `A second late move, so a ${fee} late cancellation fee, ${weeklyBill ? "on that week's bill with the price" : "charged with the price when it's done"}.`
-        : `A second late move, so the ${fee} deposit is kept as a late cancellation fee, and the full price ${weeklyBill ? "goes on that week's bill" : "is charged when it's done"}.`;
+        : `A second late move, so the ${fee} deposit is kept as a late cancellation fee, and the full price ${weeklyBill ? ON_THAT_WEEKS_BILL : "is charged when it's done"}.`;
   }
 };

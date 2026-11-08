@@ -1,3 +1,5 @@
+import { ON_THAT_WEEKS_BILL } from "./bills.js";
+
 // What the server and the screens both say about cancelling or skipping a
 // clean, and about one we couldn't get in for (docs/ux.md, Words)
 
@@ -11,13 +13,22 @@ export const PLAN_CARRIES_ON = "Your cleaning plan carries on as usual.";
 // What cancelling, or skipping a plan Job, costs (ADR-0010), the same rules
 // for the Office and its Client, said so it's true before and after. A plan
 // Job has no Deposit of its own: its fee is the plan's Deposit amount, and
-// the plan's Deposit stays held (ADR-0013). How the fee is taken, and a
-// refund, the caller says. `fee` is `feeCents` as the caller formats money.
+// the plan's Deposit stays held (ADR-0013). `fee` is `feeCents` as the
+// caller formats money.
 export type CancelCost = {
   onPlan: boolean;
   late: boolean;
   feeCents: number;
   fee: string;
+};
+
+// for the Office: also how a plan Job's fee is taken, charged or on its
+// week's Bill (ADR-0016), unless it couldn't be (`failed`, said apart),
+// and a one-off's Deposit refunded, as formatted
+export type OfficeCancelCost = CancelCost & {
+  weeklyBill: boolean;
+  failed?: boolean;
+  refund: string | null;
 };
 
 export const cancelCostForClient = ({
@@ -41,12 +52,7 @@ export const cancelCostForClient = ({
     : "There's no charge for cancelling.";
 };
 
-export const cancelCostForOffice = ({
-  onPlan,
-  late,
-  feeCents,
-  fee,
-}: CancelCost) => {
+const officeCost = ({ onPlan, late, feeCents, fee }: CancelCost) => {
   if (late && feeCents > 0) {
     return onPlan
       ? `A late cancellation: a ${fee} fee, the plan's deposit amount. The plan's deposit stays held.`
@@ -59,6 +65,18 @@ export const cancelCostForOffice = ({
   }
   return "Free.";
 };
+
+export const cancelCostForOffice = (cost: OfficeCancelCost) =>
+  [
+    officeCost(cost),
+    cost.onPlan &&
+      cost.feeCents > 0 &&
+      !cost.failed &&
+      `The fee ${cost.weeklyBill ? ON_THAT_WEEKS_BILL : "is charged"}.`,
+    cost.refund && `The ${cost.refund} deposit is refunded.`,
+  ]
+    .filter(Boolean)
+    .join(" ");
 
 // the fee for a clean we couldn't get in for, as its Client is told: charged
 // as a late cancellation is

@@ -31,28 +31,16 @@ import {
 import { useAction } from "../action.ts";
 import type { CostedJob } from "../RescheduleParts.tsx";
 
-// What cancelling costs, in a sentence, then how a plan Job's fee is
-// taken: charged to the saved card, or on the Bill for the Job's week
-// (ADR-0016)
-const describeTerms = (terms: CancellationTerms, job: CostedJob) => {
-  const onPlan = job.servicePlanId !== null;
-  return [
-    cancelCostForOffice({
-      onPlan,
-      late: terms.late,
-      feeCents: terms.feeCents,
-      fee: formatMoney(terms.feeCents),
-    }),
-    onPlan &&
-      terms.feeCents > 0 &&
-      `The fee ${job.weeklyBill ? "goes on that week's bill" : "is charged"}.`,
-    !onPlan &&
-      terms.refundCents > 0 &&
-      `The ${formatMoney(terms.refundCents)} deposit is refunded.`,
-  ]
-    .filter(Boolean)
-    .join(" ");
-};
+// What cancelling costs, as the Office reads it
+const describeTerms = (terms: CancellationTerms, job: CostedJob) =>
+  cancelCostForOffice({
+    onPlan: job.servicePlanId !== null,
+    late: terms.late,
+    feeCents: terms.feeCents,
+    fee: formatMoney(terms.feeCents),
+    weeklyBill: job.weeklyBill !== null,
+    refund: terms.refundCents > 0 ? formatMoney(terms.refundCents) : null,
+  });
 
 // Office Staff cancel a booked Job, for the Client (by the cancellation
 // policy) or because Empire Cleaning can't do it (always refunded in full).

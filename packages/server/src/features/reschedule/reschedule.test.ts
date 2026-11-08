@@ -578,7 +578,7 @@ describe("a Late Reschedule (ADR-0010)", () => {
     testClock().set(SUNDAY_9_01AM);
     const refused = await ask(client, jobId, WEDNESDAY, "free").expect(409);
     expect(refused.body.message).toBe(
-      "The cost of moving has changed. Check it, then send again.",
+      "Something changed just then. Please check it and try again.",
     );
     expect((await clientJob(client, jobId)).rescheduleRequest).toBeNull();
   });

@@ -36,12 +36,12 @@ import {
   dayOfInstant,
   formatDateTime,
   formatShortDay,
-  planStatus,
   propertySummary,
   recurrenceLabel,
 } from "../format.ts";
 import { AccessFact, ConditionFact, FloorAreaFact } from "../Fact.tsx";
 import { planWhen, quoteTitle, standingOf } from "./properties.ts";
+import { PlanStatusBadge } from "../PlanParts.tsx";
 import { ClientQuoteStatusBadge } from "../QuoteParts.tsx";
 import { requestQuote } from "./whats-next.ts";
 
@@ -139,11 +139,7 @@ export function PortalProperty() {
                 ]
                   .filter(Boolean)
                   .join(" · ")}
-                end={
-                  <StatusBadge tone={planStatus[plan.status].tone}>
-                    {planStatus[plan.status].label}
-                  </StatusBadge>
-                }
+                end={<PlanStatusBadge status={plan.status} />}
               />
             ))}
           </List>
