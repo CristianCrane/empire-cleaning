@@ -117,8 +117,9 @@ can change, through the same loop.
 ### Words
 
 Every word a person reads follows these: labels, page text, the screens'
-messages, the server's that reach a screen (a 409's message and field
-errors), and emails. A 404's text is never shown (`useAction`), so it
+messages, the server's that reach a screen (a 409's or 429's message,
+field errors, and a 404's where a screen shows it, as Confirm email
+does), and emails. Other 404s' text is never shown (`useAction`), so it
 stays as it is (#336).
 
 - **Everyday words, the ones a person would say.** A term from
@@ -133,7 +134,8 @@ stays as it is (#336).
   be done, it says what happened: "This clean was cancelled."
 - **To a Client, we're "us"**: "Please call us", not "the Office".
 - **A message the server and a screen both show is written once**, in
-  `packages/models`, one module of them per area, which both import. Once
+  `packages/models/src/messages/`, a file per server feature that sends
+  them (`jobs.ts`), which both import. Once
   ADR-0025's catalogs come (#308), they are models' own strings.
 
 ### First-time help
@@ -336,4 +338,4 @@ Newest last. "Built in" is the PR (or branch) that shipped it.
 | Client > Home, a Quote, Home once booked | How does a first-time Client learn the portal without calling (#291)? | First-time Notices / spotlight tour / spotlight tour as a sheet on a phone / getting-started checklist | **Spotlight tour, the popover beside what it points at** | Nothing on the page may move: a Notice or a checklist pushes it down, and again once dismissed. The sheet hid what it pointed at on a phone. Three tours, once each: See your Quote on Home with a Quote waiting; Pay and book on a one-off Quote with a Deposit; How we get in, then Move or cancel, on Home once booked. The first one met leads with "Book, move and pay for your cleans here, no phone calls needed." (with Jennifer, #206) | [`prototype-onboarding`](https://github.com/CristianCrane/empire-cleaning/tree/prototype-onboarding) | #294 |
 | Office > Today, a Draft, a Job, the Schedule | How do new Office Staff learn the Office without Jennifer training them (#291 Q2)? | (the Client's pick, #294) | **The same spotlight tour, five tours** | Today: Needs attention, then the Jobs, Quotes and Money tiles, then the Schedule in the navigation. A one-off Quote's Draft: Service and prices, then Send. A Job has two, as it seldom has both at once and a tour needs every step on the screen: Answer for a new time, Offer to a Cleaner for one Needed. The Schedule: its days. The first one met leads with "Every request, clean and payment, and what needs you today." Today's empty list teaches: "Nothing needs you right now. When a Client asks for a Quote or a new time, or a Job needs a Cleaner, it shows up here." | [`prototype-onboarding`](https://github.com/CristianCrane/empire-cleaning/tree/prototype-onboarding) | #295 |
 | Office, Cleaner and Client > the account menu | Switching area felt broken: the URL changed at once, but the old area stayed on screen, and took taps, until the new one had asked who's signed in and loaded its Home (#310). | (talked through) a pending state, the old area dimmed with a progress bar / preload on opening the menu, a fast press waiting in it | **Preload on opening the menu; a fast press waits in it** | Opening the Account menu is when an area is chosen: it looks again at who's signed in and loads each area it offers, its Home included, so the press shows the area at once. Preloading alone fails someone who presses straight away (#180's lesson), so a press before it's ready keeps the menu open, the row pending and nothing else pressable, and the menu goes with the old area as the new one shows. No dimming or progress bar: on most switches there's nothing to wait for | (none) | #318 |
-| Every screen, message and email | The Office couldn't follow a paragraph-long warning about too few Cleaners free for a Job; many messages explained how the system works, and the glossary's capitalised terms read like a manual (#336). | (talked through) | **Everyday words; a problem says what's wrong, then how to fix it** | The Words rules above, and ADR-0027: each term people don't say gets a screen word on its glossary entry (cleaning hours, open job, card), labels go to sentence case. This overturns the words of earlier rows: #148's "Needs 1 more Cleaner" (an open job now), the Payments row's "Payment Method" Button (a card), and ADR-0019's "screens and emails say Cleaner Needed". Each area's words change in its own PR | — | #336 |
+| Every screen, message and email | The Office couldn't follow a paragraph-long warning about too few Cleaners free for a Job; many messages explained how the system works, and the glossary's capitalised terms read like a manual (#336). | (talked through) | **Everyday words; a problem says what's wrong, then how to fix it** | The Words rules above, and ADR-0027: each term people don't say gets a screen word on its glossary entry (cleaning hours, open job, card), labels go to sentence case. This overturns the words of earlier rows: #148's "Needs 1 more Cleaner" (an open job now), the Payments row's "Payment Method" Button (a card), and ADR-0019's "screens and emails say Cleaner Needed". Each part of #336 changes its screens' words in its own PR, and the docs that quote them with it (the rules above that name labels, such as Today's "Send a Quote, Assign Staff", and the glossary's quotes) | — | #336 |

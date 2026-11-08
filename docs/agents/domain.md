@@ -42,7 +42,7 @@ Multi-context repo (presence of `GLOSSARY-MAP.md` at the root):
 
 When your output names a domain concept (in an issue title, a refactor proposal, a hypothesis, a test name), use the term as defined in `GLOSSARY.md`. Don't drift to synonyms the glossary explicitly avoids.
 
-What a person reads is the exception: labels, page text, messages and emails use everyday words (ADR-0027). An entry whose term people don't say carries an `_On screen_:` line after `_Avoid_`, the word every screen and email uses for it, which may be one its `_Avoid_` list keeps out of code and docs: a Completed Job is "done" on screen. The rules for writing them are in `docs/ux.md`, Words.
+What a person reads is the exception: labels, page text, messages and emails use everyday words (ADR-0027). An entry whose term people don't say carries an `_On screen_:` line after `_Avoid_`: the word screens and emails use for it, with when, where that depends on who reads it (Job: "clean" to a Client) or what it covers (Payment Method), or "none" where screens name something else instead (Assignment). It may be one its `_Avoid_` list keeps out of code and docs: a Completed Job is "done" on screen. The rules for writing them are in `docs/ux.md`, Words.
 
 If the concept you need isn't in the glossary yet, that's a signal: either you're inventing language the project doesn't use (reconsider) or there's a real gap (note it for `/domain-modeling`).
 
