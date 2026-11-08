@@ -10,7 +10,11 @@ import {
   Dialog,
   type NavItem,
 } from "@empire-cleaning/ui";
-import { identify, startMonitoring } from "@empire-cleaning/browser-monitoring";
+import {
+  feedbackButton,
+  identify,
+  startMonitoring,
+} from "@empire-cleaning/browser-monitoring";
 import { linkTo } from "./links.ts";
 import "./feedback.css";
 
@@ -41,7 +45,7 @@ beforeAll(() => {
   startMonitoring({
     dsn: "http://public@localhost:9/1",
     environment: "test",
-    feedback: true,
+    feedback: feedbackButton(),
   });
   Sentry.getClient()!.on("beforeEnvelope", ([, items]) => {
     sent.push(...(items as typeof sent));

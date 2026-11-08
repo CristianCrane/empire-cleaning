@@ -19,8 +19,9 @@ export type MonitoringOptions = {
   // how page loads and page changes are traced: by the app's router, or
   // else as plain page loads
   tracing?: Integration;
-  // Sentry's feedback button on every page (the test site's, ADR-0020)
-  feedback?: boolean;
+  // Sentry's feedback button on every page (`feedbackButton()`, the test
+  // site's, ADR-0020); passed in, so a build without it leaves it out
+  feedback?: Integration;
 };
 
 // set at build from the git commit (./vite.ts), the same release as the
@@ -32,7 +33,7 @@ export const startMonitoring = ({
   environment,
   apiUrl,
   tracing,
-  feedback = false,
+  feedback,
 }: MonitoringOptions) => {
   if (!dsn || Sentry.isInitialized()) return;
   Sentry.init({
@@ -42,7 +43,7 @@ export const startMonitoring = ({
     // no session replay: it records what people type and see
     integrations: [
       tracing ?? Sentry.browserTracingIntegration(),
-      ...(feedback ? [feedbackButton()] : []),
+      ...(feedback ? [feedback] : []),
     ],
     tracesSampleRate: 0.2,
     tracePropagationTargets: apiUrl ? [apiUrl] : [/^\/api\//],
@@ -71,8 +72,9 @@ export const startMonitoring = ({
 
 // a floating button opening a form: what they noticed, and a screenshot if
 // they like. They're known by the Account ID alone, so no name or email is
-// asked. Placed and coloured by the app (packages/web/src/feedback.css)
-const feedbackButton = () =>
+// asked. Placed and coloured by the app (packages/web/src/feedback.css). For
+// `feedback`
+export const feedbackButton = () =>
   Sentry.feedbackIntegration({
     showBranding: false,
     showName: false,

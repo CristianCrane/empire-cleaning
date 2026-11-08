@@ -3,10 +3,10 @@ import { useLayoutEffect, useRef, type ReactNode } from "react";
 // A page's actions, fixed at the foot of the screen so they stay in reach
 // while the page scrolls: above the phone's tab bar, beside the sidebar on
 // a wider screen. For a page used on the move, like a Cleaner's Job on
-// site. Put the main action last; it leaves room below the page so nothing
-// hides under it. While shown, its height (taller when its actions wrap) is
-// `--action-footer-height` on the page, for what floats above it (the test
-// site's feedback button).
+// site. Put the main action last. While shown, its height (taller when its
+// actions wrap) is `--action-footer-height` on the page: the room it leaves
+// below the page, so nothing hides under it, and for what floats above it
+// (the test site's feedback button).
 export function ActionFooter({
   "aria-label": label,
   children,
@@ -30,7 +30,10 @@ export function ActionFooter({
   }, []);
   return (
     <>
-      <div aria-hidden className="h-16 print:hidden" />
+      <div
+        aria-hidden
+        className="h-(--action-footer-height,4rem) print:hidden"
+      />
       <div
         ref={footer}
         role="group"
