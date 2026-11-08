@@ -808,6 +808,20 @@ describe("an Unpaid Job", () => {
     expect(amounts()).toHaveLength(2);
   });
 
+  test("is one declined once the provider is back: the Client is told then", async () => {
+    const { cory, jobId } = await bookedJob();
+    testPayments().goDown();
+    await complete(cory.agent, jobId).expect(200);
+    testPayments().goDown(false);
+    testPayments().failCharges();
+
+    testClock().advance({ minutes: 15 });
+    await settleOpenPayments();
+    expect(testEmail().lastTo(casey.email).subject).toBe(
+      "We couldn't take your payment",
+    );
+  });
+
   test("is one declined: open payments leave it for a new card", async () => {
     const { office, cory, jobId } = await bookedJob();
     testPayments().failCharges();

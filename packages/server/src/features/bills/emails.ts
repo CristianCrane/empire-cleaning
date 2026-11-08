@@ -14,6 +14,7 @@ import {
 } from "../../services/email/format.ts";
 import {
   billNotPaid,
+  clientFix,
   notTaken,
   PLAN_BACK_ON,
   PLAN_PAUSED,
@@ -24,8 +25,10 @@ import {
   type UnpaidKind,
 } from "@empire-cleaning/models";
 import type { Settled } from "../completion/balance.ts";
+import { whyNotPaid } from "../payments/unpaid.ts";
 
-export type Occasion = "made" | "reminder" | "paid" | "voided" | "debit_failed";
+export type Occasion =
+  "made" | "unpaid" | "reminder" | "paid" | "voided" | "debit_failed";
 
 // a Bill, as much of it as its email shows
 export type BillToSend = {
@@ -64,6 +67,9 @@ const aboutBill = (
   const { number } = bill;
   const total = formatMoney(bill.totalCents);
   switch (occasion) {
+    // declined on a later try, after the provider kept us waiting: said as
+    // a Bill just made and declined is
+    case "unpaid":
     case "made":
       // we try again ourselves, so they're only told the Bill
       if (bill.unpaid === "waiting") {
@@ -209,7 +215,7 @@ export const settledLines = (settled: SettledJob[]) => {
             ? [`refunded ${formatMoney(s.settled.refundedCents)}`]
             : []),
           ...(s.unpaidCents !== null
-            ? [`couldn't charge ${formatMoney(s.unpaidCents)}`]
+            ? [`couldn't take ${formatMoney(s.unpaidCents)}`]
             : []),
         ];
         return `${s.label}: ${moved.join(", ")}`;
@@ -229,8 +235,11 @@ export const settledLines = (settled: SettledJob[]) => {
       `${what}${refunded ? " A refund can take a few days to reach you." : ""}`,
     );
   }
-  if (settled.some((s) => s.unpaidCents !== null)) {
-    lines.push(`We couldn't charge your ${card}. Please ${UPDATE_AND_RETRY}.`);
+  const failed = settled.find((s) => s.settled.failure);
+  if (failed) {
+    lines.push(
+      `${notTaken("payment", card)} ${clientFix[whyNotPaid(failed.settled.failure!).kind]}`,
+    );
   }
   if (settled.some((s) => s.settled.plan === "held")) {
     lines.push(PLAN_PAUSED);
@@ -262,7 +271,12 @@ export const chargedPerCleanEmail = ({
         ...settledLines(settled),
         PRICES_INCLUDE_TAX,
       ].map(paragraph),
-      unpaid
+      // a card puts it right, unless we're trying again ourselves
+      unpaid &&
+      settled.some(
+        (s) =>
+          s.settled.failure && whyNotPaid(s.settled.failure).kind !== "waiting",
+      )
         ? button(UPDATE_CARD, "/portal/payment-method")
         : button("See your cleans", "/portal"),
     ],

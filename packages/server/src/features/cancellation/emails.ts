@@ -11,9 +11,10 @@ import { jobsButton } from "../assignments/emails.ts";
 import type { Settled } from "../completion/balance.ts";
 import { BOOK_ANOTHER } from "../quotes/emails.ts";
 import {
+  clientFix,
+  notTaken,
   PLAN_PAUSED,
   refundedTo,
-  UPDATE_AND_RETRY,
 } from "@empire-cleaning/models";
 import { whyNotPaid } from "../payments/unpaid.ts";
 
@@ -41,7 +42,7 @@ const feeChargeLine = (settled: Settled) => {
   if (settled.chargedCents > 0) return [`We've charged it to your ${card}.`];
   if (settled.failure) {
     return [
-      `We couldn't charge it to your ${card}. Please ${UPDATE_AND_RETRY}.`,
+      `${notTaken("it", card)} ${clientFix[whyNotPaid(settled.failure).kind]}`,
       ...(settled.plan === "held" ? [PLAN_PAUSED] : []),
     ];
   }

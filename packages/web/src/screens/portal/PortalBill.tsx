@@ -103,9 +103,9 @@ function Standing({ bill }: { bill: BillView }) {
             kind === "no_card" ? null : "card",
             why,
           )}{" "}
-          {kind === "waiting"
-            ? clientFix.waiting
-            : `Please pay it below, or ${UPDATE_AND_RETRY}.`}
+          {kind === "declined"
+            ? `Please pay it below, or ${UPDATE_AND_RETRY}.`
+            : clientFix[kind]}
         </Notice>
         {kind !== "waiting" && (
           <Actions>

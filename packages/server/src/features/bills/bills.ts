@@ -75,7 +75,7 @@ import {
   paymentMethods,
   refunds,
 } from "../payments/payments.schema.ts";
-import { LATE, unpaidOf } from "../payments/unpaid.ts";
+import { LATE, nowTheirs, unpaidOf } from "../payments/unpaid.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
 import { jobQuotes } from "../quotes/job-quotes.ts";
@@ -515,7 +515,9 @@ const chargeBill = async (
       .where(eq(bills.id, bill.id));
     return {
       failure,
-      becameUnpaid: failure !== null && bill.unpaidSince === null,
+      becameUnpaid:
+        failure !== null &&
+        nowTheirs(bill.unpaidSince ? (bill.unpaidReason ?? "") : null, failure),
       plan: await holdOrResumePlansOf(bill.id, tx),
     };
   });
@@ -597,6 +599,8 @@ export const retryBill = async (billId: string) => {
   const charged = await chargeBill(billId);
   if (charged) {
     if (!charged.failure) await tellPaid(billId, charged.plan);
+    // declined now, after the provider kept us waiting: told only now
+    else if (charged.becameUnpaid) await tellUnpaid(billId, charged.plan);
     return;
   }
   const extra = await db.transaction(async (tx) => {
@@ -1403,6 +1407,11 @@ const sendBill = async (
 const tellPaid = (billId: string, plan: "held" | "resumed" | null) =>
   notify(`Receipt for Bill ${billId}`, () =>
     sendBill(billId, "paid", plan === "resumed" ? [PLAN_BACK_ON] : []),
+  );
+
+const tellUnpaid = (billId: string, plan: "held" | "resumed" | null) =>
+  notify(`Unpaid notice for Bill ${billId}`, () =>
+    sendBill(billId, "unpaid", plan === "held" ? [PLAN_PAUSED] : []),
   );
 
 const tellDebitFailed = (billId: string, plan: "held" | "resumed" | null) =>

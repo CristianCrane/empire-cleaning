@@ -41,6 +41,13 @@ const declines: Record<string, string> = {
 export const whyNotPaid = (reason: string): Omit<Unpaid, "since"> =>
   known[reason] ?? { kind: "declined", why: declines[reason] ?? null };
 
+// whether a payment that failed is now the Client's to put right, and they
+// haven't been told: before, it was paid (`before` null), or only waiting
+// on the provider, which we try again ourselves
+export const nowTheirs = (before: string | null, failure: string) =>
+  whyNotPaid(failure).kind !== "waiting" &&
+  (before === null || whyNotPaid(before).kind === "waiting");
+
 // as a view shows it
 export const unpaidOf = (since: Date | null, reason: string | null) =>
   since ? { since: since.toISOString(), ...whyNotPaid(reason ?? "") } : null;

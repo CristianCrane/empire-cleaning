@@ -23,7 +23,7 @@ import {
   refunds,
   type Charge,
 } from "../payments/payments.schema.ts";
-import { NOT_SETTLED, unpaidOf } from "../payments/unpaid.ts";
+import { nowTheirs, NOT_SETTLED, unpaidOf } from "../payments/unpaid.ts";
 import { properties } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
 import { holdOrResume } from "../service-plans/on-hold.ts";
@@ -313,7 +313,10 @@ export const settleJob = async (
     }
 
     if (settled.failure) {
-      settled.becameUnpaid = job!.unpaidSince === null;
+      settled.becameUnpaid = nowTheirs(
+        job!.unpaidSince ? (job!.unpaidReason ?? "") : null,
+        settled.failure,
+      );
       await tx
         .update(jobs)
         .set({

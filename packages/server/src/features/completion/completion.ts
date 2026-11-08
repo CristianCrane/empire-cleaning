@@ -151,8 +151,6 @@ const jobWithOwner = async (jobId: string) => {
 // tells the Client a Job they owe on couldn't be charged, the first time it
 // becomes Unpaid
 const sendUnpaid = async (jobId: string, settled: Settled) => {
-  // nothing for them to do: we try again ourselves (ADR-0022)
-  if (whyNotPaid(settled.failure!).kind === "waiting") return;
   const { job, property, client } = await jobWithOwner(jobId);
   const payment = await paymentOf(job);
   await notify(`Unpaid notice for Job ${jobId}`, async () =>
@@ -963,6 +961,8 @@ export const clientRetryBalance = async (clientId: string, jobId: string) => {
 // (ADR-0022). One that still fails stays Unpaid, and isn't told again.
 export const retryJob = async (jobId: string) => {
   const settled = await settleJob(jobId);
+  // declined now, after the provider kept us waiting: told only now
+  if (settled.becameUnpaid) await sendUnpaid(jobId, settled);
   if (
     settled.failure ||
     (settled.chargedCents === 0 && settled.refundedCents === 0)

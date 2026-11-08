@@ -706,6 +706,23 @@ describe("Unpaid Bills", () => {
   });
 
   // #241: nobody has to try again
+  test("one declined once the provider is back tells the Client then", async () => {
+    const { clientId, office } = await billedJob();
+    testPayments().goDown();
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+    testPayments().goDown(false);
+    testPayments().failCharges();
+
+    testClock().advance({ minutes: 15 });
+    await settleOpenPayments();
+    const [summary] = await billsOf(office, clientId);
+    expect(summary).toMatchObject({ unpaid: { kind: "declined" } });
+    expect(testEmail().lastTo(BILLING_EMAIL).subject).toBe(
+      "We couldn't take payment for bill EC-000001",
+    );
+  });
+
   test("one Unpaid while the provider was down is charged once it's back", async () => {
     const { office, clientId } = await billedJob();
     testPayments().goDown();
@@ -1436,7 +1453,7 @@ describe("switching weekly billing off", () => {
     const notice = testEmail().lastTo(BILLING_EMAIL);
     expect(notice.subject).toBe("We couldn't take payment for your cleans");
     expect(notice.text).toContain(
-      `couldn't charge ${formatMoney(settled[0]!.unpaidCents!)}`,
+      `couldn't take ${formatMoney(settled[0]!.unpaidCents!)}`,
     );
     expect(notice.text).toContain("update your card");
     expect(notice.text).toContain("cleaning plan is paused");

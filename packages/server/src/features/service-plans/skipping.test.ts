@@ -166,7 +166,7 @@ describe("skipping a plan Job", () => {
       expect.objectContaining({ kind: "job_unpaid" }),
     );
     expect(testEmail().lastTo(casey.email).text).toMatch(
-      /couldn't charge it to your Test card ending 4242/,
+      /couldn't take it from your Test card ending 4242/,
     );
 
     testPayments().failCharges(null);
