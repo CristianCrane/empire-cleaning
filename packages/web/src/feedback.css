@@ -1,31 +1,14 @@
 @reference "@empire-cleaning/ui/tokens.css";
+@import "@empire-cleaning/ui/feedback.css";
 
 /*
- * Sentry's feedback button and form, on the test site only
- * (packages/browser-monitoring). It draws itself in a shadow root, which
- * inherits custom properties: its own, set on its host here, beat its
- * defaults, so it wears our font and colours, in both themes.
+ * Where the web app's feedback button sits, on the test site only; its look
+ * is the design system's (@empire-cleaning/ui/feedback.css).
  */
 
 #sentry-feedback {
-  /* the app's light or dark, not the device's, which it would pin */
-  color-scheme: inherit;
-
-  --font-family: var(--font-sans);
-  --foreground: var(--color-fg);
-  --background: var(--color-overlay);
-  --accent-foreground: var(--color-primary-fg);
-  --accent-background: var(--color-primary);
-  --success-color: var(--color-success-strong);
-  --error-color: var(--color-danger);
-  --border: 1px solid var(--color-border);
-  --box-shadow: var(--shadow-overlay);
-
-  /* over the bars it floats above (z-40), under every Dialog, Drawer and
-     Toast (z-50) */
-  --z-index: 45;
-
-  /* above the phone's tab bar, and a page's ActionFooter when it has one */
+  /* above the phone's tab bar (z-40), and a page's ActionFooter when it has
+     one */
   --actor-inset: auto 0
     calc(
       var(--spacing-tab-bar) + var(--action-footer-height, 0px) +
