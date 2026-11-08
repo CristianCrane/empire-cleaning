@@ -2,8 +2,8 @@ import * as Sentry from "@sentry/react";
 import type { Breadcrumb, Event } from "@sentry/react";
 import { scrub, scrubText } from "@empire-cleaning/models";
 
-// Sentry in the browser (ADR-0007): the web app and the landing site's Quote
-// form each start it once, and only here is it set up. Without a DSN (dev,
+// Sentry in the browser (ADR-0007): the web app and every landing page each
+// start it once, and only here is it set up. Without a DSN (dev,
 // tests) it never starts and nothing is sent.
 
 type Integration = Parameters<typeof Sentry.addIntegration>[0];
@@ -19,8 +19,9 @@ export type MonitoringOptions = {
   // how page loads and page changes are traced: by the app's router, or
   // else as plain page loads
   tracing?: Integration;
-  // Sentry's feedback button on every page (`feedbackButton()`, the test
-  // site's, ADR-0020); passed in, so a build without it leaves it out
+  // Sentry's feedback button on every page (`feedbackButton(look)` from
+  // ./feedback.ts, the test sites', ADR-0020); passed in, so a build without
+  // it leaves it out
   feedback?: Integration;
 };
 
@@ -69,24 +70,6 @@ export const startMonitoring = ({
   // other kind
   Sentry.addEventProcessor(scrubEvent);
 };
-
-// a floating button opening a form: what they noticed, and a screenshot if
-// they like. They're known by the Account ID alone, so no name or email is
-// asked. Placed and coloured by the app (packages/web/src/feedback.css). For
-// `feedback`
-export const feedbackButton = () =>
-  Sentry.feedbackIntegration({
-    showBranding: false,
-    showName: false,
-    showEmail: false,
-    enableScreenshot: true,
-    triggerLabel: "Send feedback",
-    formTitle: "Send feedback",
-    messageLabel: "What did you notice?",
-    messagePlaceholder: "Something that's wrong, or that you'd change",
-    submitButtonLabel: "Send",
-    successMessageText: "Thanks! We got it.",
-  });
 
 // who's signed in, by Account ID only; none when signed out
 export const identify = (accountId: string | undefined) => {

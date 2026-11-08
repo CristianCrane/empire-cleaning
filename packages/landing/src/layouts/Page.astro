@@ -73,3 +73,9 @@ const url = path === null ? null : new URL(path, business.url).href;
     <slot />
   </body>
 </html>
+
+<script>
+  // Sentry, and the test site's feedback button (src/monitoring.ts)
+  import { startLandingMonitoring } from "../monitoring.ts";
+  startLandingMonitoring();
+</script>

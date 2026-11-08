@@ -3,7 +3,6 @@ import { quoteEmailedTo, type QuoteAskReceipt } from "@empire-cleaning/models";
 import { QuoteRequestForm } from "@empire-cleaning/quote-request";
 import { Notice } from "@empire-cleaning/ui";
 import { business } from "../business.ts";
-import { startQuoteFormMonitoring } from "../monitoring.ts";
 import { keepCampaign, quoteSource } from "../source.ts";
 
 // the Guest Request a Quote form (#3, ADR-0005). Its first step is drawn into
@@ -12,7 +11,8 @@ import { keepCampaign, quoteSource } from "../source.ts";
 // JavaScript off it never could be, so the section offers the phone number
 // instead. Every page with content has it, so it keeps the campaign tags
 // of the link a visit began with, and sends them and the page with the
-// request (#185). Its errors are reported to Sentry (src/monitoring.ts).
+// request (#185). Its errors are reported to Sentry, which every page starts
+// (src/monitoring.ts).
 export function QuoteForm({
   apiUrl,
   start,
@@ -27,7 +27,6 @@ export function QuoteForm({
     keepCampaign();
     setReady(true);
   }, []);
-  useEffect(() => startQuoteFormMonitoring(apiUrl), [apiUrl]);
 
   if (receipt) {
     return (

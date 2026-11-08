@@ -1,0 +1,30 @@
+@reference "./tokens.css";
+
+/*
+ * Sentry's feedback button and form (packages/browser-monitoring), on the
+ * test sites only. It draws itself in a shadow root, which inherits custom
+ * properties: its own, set on its host here, beat its defaults, so it wears
+ * our font and colours, in both themes. Each value is written in at build
+ * time (--theme(… inline)): Tailwind writes a token's variable out only where
+ * the site uses it, and a site may use none of these. Where it sits is each
+ * site's own.
+ */
+
+#sentry-feedback {
+  /* the site's light or dark, not the device's, which it would pin */
+  color-scheme: inherit;
+
+  --font-family: --theme(--font-sans inline);
+  --foreground: --theme(--color-fg inline);
+  --background: --theme(--color-overlay inline);
+  --accent-foreground: --theme(--color-primary-fg inline);
+  --accent-background: --theme(--color-primary inline);
+  --success-color: --theme(--color-success-strong inline);
+  --error-color: --theme(--color-danger inline);
+  --border: 1px solid --theme(--color-border inline);
+  --box-shadow: --theme(--shadow-overlay inline);
+
+  /* under every Dialog, Drawer and Toast (z-50), which cover it while they
+     show */
+  --z-index: 45;
+}
