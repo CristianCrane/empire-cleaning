@@ -511,6 +511,13 @@ function Cancelled({ job }: { job: ClientJobDetail }) {
           {cancellation.reason && ` ${cancellation.reason}`} You haven't been
           charged anything for it.
         </p>
+      ) : cancellation.withPlan ? (
+        <p>
+          {cancellation.reason}, so this clean was cancelled.{" "}
+          {cancellation.feeCents > 0
+            ? `The ${formatMoney(cancellation.feeCents)} fee from an earlier late move is still to pay.`
+            : "There's no charge for it."}
+        </p>
       ) : (
         <p>
           {cancelCostForClient({
@@ -521,7 +528,7 @@ function Cancelled({ job }: { job: ClientJobDetail }) {
           })}
         </p>
       )}
-      {job.servicePlanId && <p>{PLAN_CARRIES_ON}</p>}
+      {skipped && <p>{PLAN_CARRIES_ON}</p>}
       <Refund payment={cancellation.payment} />
     </Part>
   );

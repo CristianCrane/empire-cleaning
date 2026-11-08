@@ -1700,6 +1700,8 @@ export type OfficeCancelInput = {
 export type JobCancellation = {
   cancelledAt: string;
   by: CancelledBy;
+  // cancelled as its plan ended or changed, not skipped on its own
+  withPlan: boolean;
   late: boolean;
   reason: string | null;
   feeCents: number;

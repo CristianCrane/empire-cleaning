@@ -360,11 +360,15 @@ export const jobStatusLabel: Record<JobStatus, string> = {
   no_access: "Couldn't get in",
 };
 
-// a plan Job its Client cancelled is skipped: the plan carries on
+// a plan Job its Client cancelled on its own is skipped: the plan carries
+// on. One cancelled as the plan ended or changed isn't
 export const wasSkipped = (job: {
   servicePlanId: string | null;
-  cancellation: { by: string } | null;
-}) => job.servicePlanId !== null && job.cancellation?.by === "client";
+  cancellation: { by: string; withPlan: boolean } | null;
+}) =>
+  job.servicePlanId !== null &&
+  job.cancellation?.by === "client" &&
+  !job.cancellation.withPlan;
 export const cancelledLabel = (skipped: boolean) =>
   skipped ? "Skipped" : "Cancelled";
 

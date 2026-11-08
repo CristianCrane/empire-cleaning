@@ -235,7 +235,9 @@ export const cancelJob = async (jobId: string, cancellation: Cancellation) => {
         cancelledBy: cancellation.by,
         cancelledByAccount: cancellation.byAccountId,
         lateCancellation: late,
-        cancellationReason: cancellation.reason,
+        // a reason is ours to give; the Client's own cancellation has none
+        cancellationReason:
+          cancellation.by === "empire" ? cancellation.reason : null,
         feeCents,
       })
       .where(eq(jobs.id, jobId));
@@ -414,6 +416,12 @@ export const recordNoAccess = async (
 
 // ---- views ----
 
+// a Job cancelled as its plan ended or changed (ending.ts, changing.ts): the
+// Client's doing, with the plan's reason, where a skip has none
+export const cancelledWithPlan = (
+  job: Pick<Job, "cancelledBy" | "cancellationReason">,
+) => job.cancelledBy === "client" && job.cancellationReason !== null;
+
 // a Cancelled Job's cancellation; null otherwise
 export const cancellationOf = async (
   job: Job,
@@ -422,6 +430,7 @@ export const cancellationOf = async (
   return {
     cancelledAt: job.cancelledAt!.toISOString(),
     by: job.cancelledBy!,
+    withPlan: cancelledWithPlan(job),
     late: job.lateCancellation ?? false,
     reason: job.cancellationReason,
     feeCents: job.feeCents ?? 0,

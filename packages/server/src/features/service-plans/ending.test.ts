@@ -102,6 +102,11 @@ describe("Ending a Service Plan", () => {
     expect(testEmail().lastTo("olive@example.com").subject).toMatch(
       /ended their cleaning plan/,
     );
+    // its cleans were cancelled by the plan ending, not skipped one by one
+    const past = (await client.get("/api/jobs/mine/past").expect(200)).body as {
+      skipped: boolean;
+    }[];
+    expect(past.filter((j) => j.skipped)).toEqual([]);
   });
 
   test("never books its Jobs again, and the home may start another plan", async () => {
