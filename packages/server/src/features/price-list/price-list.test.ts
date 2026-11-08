@@ -201,7 +201,7 @@ describe("the Price List", () => {
       conditionHeavy: "A multiplier can't be more than 10",
       taxFeePercent: "That's higher than any sales tax",
       depositPercent: "Use a whole percentage",
-      "addOns.0.name": "Name the Add-on",
+      "addOns.0.name": "Enter a name",
       "addOns.0.hours": "Hours can't be negative",
     });
   });
@@ -217,8 +217,11 @@ describe("the Price List", () => {
     expect(res.status).toBe(400);
     expect(res.body.details).toEqual(
       expect.arrayContaining([
-        { path: "quoteValidityDays", issue: "Valid for at most 90 days" },
-        { path: "defaultCrewSize", issue: "Send at most 10 people" },
+        {
+          path: "quoteValidityDays",
+          issue: "Keep it open for at most 90 days",
+        },
+        { path: "defaultCrewSize", issue: "Send at most 10 cleaners" },
       ]),
     );
   });
@@ -248,7 +251,7 @@ describe("the Price List", () => {
     expect(res.status).toBe(400);
     expect(res.body.details[0]).toMatchObject({
       path: "addOns.1.name",
-      issue: "Another Add-on already has this name",
+      issue: "Another add-on already has this name",
     });
   });
 
@@ -428,11 +431,11 @@ describe("Premises Types", () => {
 
     expect(none.body.details).toContainEqual({
       path: "premisesTypes",
-      issue: "Offer at least one Premises Type",
+      issue: "Offer at least one type of business",
     });
     expect(twice.body.details).toContainEqual({
       path: "premisesTypes.1.name",
-      issue: "Another Premises Type already has this name",
+      issue: "Another type of business already has this name",
     });
     expect(unknown.status).toBe(400);
   });
@@ -753,7 +756,7 @@ describe("Add-ons asked for on a Quote", () => {
       expect(res.status).toBe(400);
       expect(res.body.details[0]).toMatchObject({
         path: "addOns.0",
-        issue: "Choose from the Add-ons listed",
+        issue: "Pick add-ons from the list",
       });
     }
   });

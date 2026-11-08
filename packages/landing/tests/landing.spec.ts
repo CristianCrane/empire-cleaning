@@ -199,7 +199,7 @@ test.describe("requesting a Quote", () => {
         page.getByText(`We'll email your Quote to ${email}`),
       ).toBeVisible();
       const [receipt] = await emailsTo(email);
-      expect(receipt?.subject).toBe("We've received your request for a Quote");
+      expect(receipt?.subject).toBe("We got your request for a quote");
     },
   );
 
@@ -332,11 +332,11 @@ test.describe("requesting a Quote", () => {
     ).toBeVisible();
     const mail = await emailsTo(email);
     expect(mail.map((m) => m.subject)).toEqual([
-      "We've received your request for a Quote",
-      "About your request for a Quote",
+      "We got your request for a quote",
+      "About your request for a quote",
     ]);
     expect(mail[1]!.text).toContain(
-      "You've already asked us for a Quote for 41-12 Austin St, 11375.",
+      "You've already asked us for a quote for 41-12 Austin St, 11375.",
     );
   });
 

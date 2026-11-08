@@ -131,7 +131,7 @@ describe("Office Staff entering a caller's ask", () => {
     const refused = await send(office, quote);
     expect(refused.status).toBe(409);
     expect(refused.body.message).toBe(
-      "Pat Phoner has no email yet, so the Quote can't be sent. Add their email on their Client screen, then send it.",
+      "Pat Phoner has no email yet, so this quote can't be sent. Add their email on their client page, then send it.",
     );
 
     await office
@@ -140,7 +140,7 @@ describe("Office Staff entering a caller's ask", () => {
       .expect(200);
     expect((await send(office, quote)).status).toBe(200);
     expect(testEmail().lastTo("pat@example.com").subject).toBe(
-      "Your Quote from Empire Cleaning",
+      "Your quote from Empire Cleaning",
     );
   });
 
@@ -182,7 +182,7 @@ describe("Office Staff entering a caller's ask", () => {
       ),
     ).expect(409);
     expect(waiting.body.message).toBe(
-      "This home has a Quote open already: carry on with that one.",
+      "This home already has a quote open. Carry on with that one.",
     );
 
     await enter(
@@ -202,7 +202,7 @@ describe("Office Staff entering a caller's ask", () => {
     expect(neither.body.details).toContainEqual(
       expect.objectContaining({
         path: "clientId",
-        issue: "Choose a Client, or enter a new one",
+        issue: "Pick a client, or add a new one",
       }),
     );
     const bad = await enter(

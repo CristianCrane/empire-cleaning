@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { email } from "#services/email";
-import { NotFoundError, RequestBodyError } from "../../middleware/errors.ts";
+import { fieldError, NotFoundError } from "../../middleware/errors.ts";
 import { validate } from "../../middleware/validation.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { contactSchema } from "../quotes/asking.validation.ts";
@@ -60,15 +60,10 @@ router.post(
 const refuseOthersEmail = async (clientId: string, email: string | null) => {
   const other = email ? await findClientByEmail(email) : undefined;
   if (other && other.id !== clientId) {
-    throw new RequestBodyError(
-      new z.ZodError([
-        {
-          code: "custom",
-          path: ["email"],
-          message: "That email is already used by another Client",
-          input: email,
-        },
-      ]),
+    throw fieldError(
+      ["email"],
+      "That email is already used by another Client",
+      email,
     );
   }
 };

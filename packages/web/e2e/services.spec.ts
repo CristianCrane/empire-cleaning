@@ -148,7 +148,7 @@ test("a mistake on a Service is explained beside the field", async ({
   const name = page.getByRole("textbox", { name: "Name" });
   await expect(name).toHaveAttribute("aria-invalid", "true");
   await expect(name).toHaveAccessibleDescription(
-    /Another Service already has this name/,
+    /Another service already has this name/,
   );
 });
 

@@ -1,6 +1,5 @@
 import { isDeepStrictEqual } from "node:util";
 import { and, asc, eq, inArray, isNull, max, ne } from "drizzle-orm";
-import { z } from "zod";
 import type {
   AddOnChoice,
   ClientQuoteView,
@@ -21,12 +20,18 @@ import type {
   ServicePlanTerms,
   TurnDownReason,
 } from "@empire-cleaning/models";
-import { ENDS_BY_MIDNIGHT } from "@empire-cleaning/models";
+import {
+  ENDS_BY_MIDNIGHT,
+  noEmailYet,
+  notSeenYet,
+  openAlready,
+  thisPlace,
+} from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import {
   ConflictError,
+  fieldError,
   NotFoundError,
-  RequestBodyError,
 } from "../../middleware/errors.ts";
 import {
   addDays,
@@ -46,6 +51,7 @@ import { paymentMethodOf, toPaymentMethodView } from "../payments/payments.ts";
 import {
   choiceOf,
   currentPricing,
+  NOT_A_SERVICE,
   offeredAt,
   oneOffServices,
   onOfferAt,
@@ -53,7 +59,12 @@ import {
   serviceOf,
   type Pricing,
 } from "../services/services.ts";
-import { goesWith, ownAddOns } from "../price-list/price-list.ts";
+import { CREW_SIZE } from "./quotes.validation.ts";
+import {
+  goesWith,
+  NOT_AN_ADD_ON,
+  ownAddOns,
+} from "../price-list/price-list.ts";
 import { priceLists } from "../price-list/price-list.schema.ts";
 import {
   pricedOf,
@@ -92,6 +103,7 @@ import {
   siteVisitOf,
   sourceOf,
   statusOf,
+  whatClosed,
 } from "./quote-state.ts";
 import {
   quoteRevisions,
@@ -118,11 +130,6 @@ const PLAN_DEFAULTS = {
   recurrence: Recurrence;
   condition: Condition;
 };
-
-const fieldError = (path: (string | number)[], message: string) =>
-  new RequestBodyError(
-    new z.ZodError([{ code: "custom", path, message, input: undefined }]),
-  );
 
 // A Revision with its Quote's kind, which is set by the first Revision and
 // never changes: what prices and shows it
@@ -167,7 +174,7 @@ const planServiceFor = (
   const service = choices.find((s) => s.key === asked) ?? choices[0];
   if (!service) {
     throw new ConflictError(
-      "No Service on offer here can be on a Service Plan.",
+      "None of the services here can be on a cleaning plan.",
     );
   }
   return service;
@@ -889,8 +896,8 @@ export const clientQuoteView = async (
 };
 
 const kindLabel: Record<QuoteKind, string> = {
-  one_off: "one-off Quote",
-  service_plan: "Service Plan Quote",
+  one_off: "one-off quote",
+  service_plan: "cleaning plan quote",
 };
 
 /**
@@ -912,7 +919,7 @@ const refuseUnquotable = async (
     !(await firstCleanCompleted(property.id, tx))
   ) {
     throw new ConflictError(
-      `A Service Plan can only start once ${property.kind === "commercial" ? "these premises'" : "this home's"} First Clean is Completed.`,
+      `The first clean at ${thisPlace(property.kind)} isn't done yet. Quote a cleaning plan once it is.`,
     );
   }
 };
@@ -1009,25 +1016,21 @@ const refuseRevivingPastNewer = async (
     current,
     holding,
     all,
-    `A newer ${kindLabel[holding.kind]} is open for ${thisPlace(property)}: carry on with that one.`,
+    `There's a newer ${kindLabel[holding.kind]} for ${thisPlace(property.kind)}. Carry on with that one.`,
   );
   return true;
 };
 
-// "this home" or "these premises", as the Client or the Office would say it
-export const thisPlace = (property: Pick<Property, "kind">) =>
-  property.kind === "commercial" ? "these premises" : "this home";
-
 // refusing a Quote while `what` (another Quote) is open at the Property
-export const openAlready = (property: Pick<Property, "kind">, what: string) =>
-  `${thisPlace(property).replace(/^t/, "T")} ${property.kind === "commercial" ? "have" : "has"} ${what} open already: carry on with that one.`;
+export const openAlreadyAt = (property: Pick<Property, "kind">, what: string) =>
+  `${openAlready(property.kind, what)} Carry on with that one.`;
 
 // a one-off Quote's name for another open at the Property: "a Deep Clean
-// Quote", or a Service Plan Quote
+// quote", or a cleaning plan quote
 const quoteName = (all: Service[], kind: QuoteKind, serviceKey: string) =>
   kind === "service_plan"
-    ? "a Service Plan Quote"
-    : `a ${serviceOf(all, serviceKey).name} Quote`;
+    ? "a cleaning plan quote"
+    : `a ${serviceOf(all, serviceKey).name} quote`;
 
 // What a new Revision starts from: a copy of the offer's terms, or for the
 // first, the Price List's defaults and the Add-ons asked for (none on a
@@ -1165,22 +1168,19 @@ const insertRevision = async (
     .values(options.map((o) => ({ ...o, revisionId: inserted!.id })));
 };
 
-// why a closed Quote can't be drafted or sent (accept.ts says why one
-// can't be accepted)
-const closedToRevising: Partial<Record<QuoteStatus, string>> = {
-  accepted:
-    "The Client accepted this Quote, so it's booked. They can ask for a new Quote.",
-  declined:
-    "The Client declined this Quote, so it has ended. They can ask for a new Quote.",
-  turned_down:
-    "This Quote was Turned Down. The Client can ask for a new Quote.",
-};
-
-// the Quote, refused once it has closed
+// the Quote, refused once it has closed: accepted, declined or turned
+// down (accept.ts says why one can't be accepted)
 const openQuote = async (id: string, tx: Tx | typeof db = db) => {
   const quote = await findQuote(id, tx);
-  const closed = closedToRevising[quote.status];
-  if (closed) throw new ConflictError(closed);
+  if (
+    quote.status === "accepted" ||
+    quote.status === "declined" ||
+    quote.status === "turned_down"
+  ) {
+    throw new ConflictError(
+      `${whatClosed(quote.status)} The client can ask for a new one.`,
+    );
+  }
   return quote;
 };
 
@@ -1214,7 +1214,7 @@ export const startRevision = async (
   const kind = quote.kind ?? wanted ?? "one_off";
   if (wanted && wanted !== kind) {
     throw new ConflictError(
-      `This is a ${kindLabel[kind]}: its kind can't change. Start a new Quote for the other.`,
+      `This is a ${kindLabel[kind]}. Start a new quote for the other kind.`,
     );
   }
   if (await draftRevisionOf(id)) {
@@ -1249,7 +1249,7 @@ export const startRevision = async (
         current,
         holding,
         list.services,
-        openAlready(property, quoteName(list.services, kind, serviceKey)),
+        openAlreadyAt(property, quoteName(list.services, kind, serviceKey)),
       );
       await tx
         .update(quotes)
@@ -1307,7 +1307,7 @@ export const offerServicePlan = async (
       { id: null, propertyId },
       { kind: "service_plan", serviceKey: service.key },
       list.services,
-      openAlready(property, "a Service Plan Quote, or a Quote asked for,"),
+      openAlreadyAt(property, "a cleaning plan quote or a quote request"),
     );
     const [quote] = await tx
       .insert(quotes)
@@ -1327,7 +1327,7 @@ export const offerServicePlan = async (
 };
 
 const SENT_ALREADY =
-  "A Revision can't be changed once it's been sent: start a new one.";
+  "This quote has already been sent, so it can't change. Start an updated quote.";
 
 // the Revision being drafted, which is all Office Staff can change, while
 // the Quote is open
@@ -1354,7 +1354,7 @@ const planVisits = (plan: ServicePlanInput, service: Service) => {
   if (days.length > 1 && plan.recurrence !== "weekly") {
     throw fieldError(
       ["plan", "recurrence"],
-      "A plan on several weekdays comes round every week",
+      "A plan on more than one day a week has to be every week",
     );
   }
   const timed = days.flatMap((d, i) =>
@@ -1365,13 +1365,13 @@ const planVisits = (plan: ServicePlanInput, service: Service) => {
     if (timed.slice(0, n).some((t) => weekdayOf(t.day) === weekdayOf(day))) {
       throw fieldError(
         ["plan", "days", i, "start"],
-        "Another day of this plan is on that weekday: choose another",
+        "This plan already has a clean on that day. Pick another day",
       );
     }
     if (day >= addDays(first!, 7)) {
       throw fieldError(
         ["plan", "days", i, "start"],
-        "Start each weekday within a week of the plan's first clean",
+        "Pick a day within a week of the plan's first clean",
       );
     }
   }
@@ -1391,7 +1391,7 @@ const draftServiceOf = (
     (s) => s.key === wanted,
   );
   if (!service) {
-    throw fieldError(["serviceKey"], "Choose from the Services listed");
+    throw fieldError(["serviceKey"], NOT_A_SERVICE);
   }
   return service;
 };
@@ -1410,7 +1410,7 @@ const planServiceOf = (
   if (!service) {
     throw fieldError(
       ["plan", "serviceKey"],
-      "Choose a Service that can be on a Service Plan",
+      "Pick a service that can be on a cleaning plan",
     );
   }
   return service;
@@ -1439,7 +1439,7 @@ export const saveDraft = async (
   if (draft.kind === "service_plan" && input.serviceKey) {
     throw fieldError(
       ["serviceKey"],
-      "Choose a Service Plan's Service with its terms",
+      "Pick a cleaning plan's service with its other terms",
     );
   }
   const service =
@@ -1462,7 +1462,7 @@ export const saveDraft = async (
       (addOnKeys.includes(key) && !allowed.has(key)),
   );
   if (unknown !== -1) {
-    throw fieldError(["addOns", unknown], "Choose from the Add-ons listed");
+    throw fieldError(["addOns", unknown], NOT_AN_ADD_ON);
   }
 
   // typed, or following the Property (or the Client's rough one)
@@ -1474,7 +1474,7 @@ export const saveDraft = async (
     if (!plan) {
       throw fieldError(
         ["plan"],
-        "Choose how often, the Plan Discount, the Condition and the weekdays",
+        "Pick how often, the discount, the condition and the days",
       );
     }
     // each weekday has its own
@@ -1484,7 +1484,7 @@ export const saveDraft = async (
     if (other) {
       throw fieldError(
         ["overrides", other],
-        "Override each weekday's price on that weekday",
+        "Change each day's price on that day",
       );
     }
     const days = planVisits(plan, service!);
@@ -1503,10 +1503,10 @@ export const saveDraft = async (
     };
   } else {
     if (plan) {
-      throw fieldError(["plan"], "Only a Service Plan Quote has plan terms");
+      throw fieldError(["plan"], "Only a cleaning plan quote has plan terms");
     }
     if (input.crewSize === undefined) {
-      throw fieldError(["crewSize"], "Enter a Crew Size");
+      throw fieldError(["crewSize"], CREW_SIZE);
     }
     terms = oneOffTerms(
       list,
@@ -1540,7 +1540,7 @@ export const saveDraft = async (
           current,
           { kind: "one_off", serviceKey: service!.key },
           list.services,
-          openAlready(
+          openAlreadyAt(
             property,
             quoteName(list.services, "one_off", service!.key),
           ),
@@ -1608,15 +1608,15 @@ const refuseUntimely = (revision: KindedRevision, rows: PricedOption[]) => {
       throw fieldError(
         path,
         revision.kind === "service_plan"
-          ? "Choose when this weekday's first clean is"
-          : "Choose a proposed time",
+          ? "Pick when this day's first clean is"
+          : "Pick a time",
       );
     }
     // it Expires from then (sendQuote)
     if (lateFrom(startsAt) <= now) {
       throw fieldError(
         path,
-        `Choose a time more than ${CANCELLATION_CUTOFF_HOURS} hours away`,
+        `Pick a time more than ${CANCELLATION_CUTOFF_HOURS} hours away`,
       );
     }
     if (!endsByMidnight(startsAt, option.hoursOnSite)) {
@@ -1658,7 +1658,7 @@ export const sendQuote = async (id: string): Promise<OfficeQuote> => {
       !isDeepStrictEqual(pricesShown(draft, saved), pricesShown(draft, options))
     ) {
       throw new ConflictError(
-        "This Draft's prices have changed since it was saved: the Property's details or the Price List changed. Check the new prices, then send it.",
+        "The prices have changed since you saved this. Check them, then send it.",
       );
     }
 
@@ -1668,15 +1668,13 @@ export const sendQuote = async (id: string): Promise<OfficeQuote> => {
     // it goes by email, and is accepted signed in with that email (#34)
     if (!client.email) {
       throw new ConflictError(
-        `${client.name} has no email yet, so the Quote can't be sent. Add their email on their Client screen, then send it.`,
+        `${noEmailYet(client.name)} Add their email on their client page, then send it.`,
       );
     }
     // some Services are seen before they're quoted (ADR-0018)
     if (await needsSiteVisit(list.services, property, quoted, tx)) {
       throw new ConflictError(
-        property.kind === "commercial"
-          ? "These premises haven't had a Site Visit, so the Quote can't be sent. Record its findings on the Property, then send it."
-          : "This home hasn't had a Site Visit, so the Quote can't be sent. Record its findings on the Property, then send it.",
+        `${notSeenYet(property.kind)} Record what the visit found on the property page, then send it.`,
       );
     }
     // a Service priced by area is priced on one, which sending fixes
@@ -1684,7 +1682,7 @@ export const sendQuote = async (id: string): Promise<OfficeQuote> => {
       serviceOf(list.services, o.serviceKey).method;
     const byArea = options.find((o) => methodOf(o) === "area");
     if (byArea && (byArea.suggested.area ?? null) === null) {
-      throw fieldError(["area"], "Enter the area to price it on");
+      throw fieldError(["area"], "Enter the area in sq ft");
     }
     // and one priced from a home's rooms needs them known
     if (
@@ -1693,7 +1691,7 @@ export const sendQuote = async (id: string): Promise<OfficeQuote> => {
       options.some((o) => methodOf(o) === "rooms")
     ) {
       throw new ConflictError(
-        "This home's rooms aren't recorded yet, so the Quote can't be sent. Record them on the Property, then send it.",
+        "This home's rooms aren't filled in yet, so this quote can't be sent. Add them on the property page, then send it.",
       );
     }
 
@@ -1712,7 +1710,7 @@ export const sendQuote = async (id: string): Promise<OfficeQuote> => {
         current,
         holding,
         list.services,
-        openAlready(
+        openAlreadyAt(
           property,
           quoteName(list.services, draft.kind, draft.serviceKey),
         ),
@@ -1787,7 +1785,7 @@ export const discardDraft = async (id: string): Promise<OfficeQuote | null> => {
     await lockProperty(tx, quote.propertyId);
     const current = await findQuote(id, tx);
     if (!(await draftRevisionOf(id, tx))) {
-      throw new ConflictError("This Quote has no Draft to delete.");
+      throw new ConflictError("There's no draft to delete.");
     }
     if (current.sentRevisionId) {
       await dropDraftRevision(tx, id);
@@ -1836,11 +1834,7 @@ export const declineQuote = async (
 ): Promise<QuoteView> => {
   const quote = await clientQuote(id, clientId);
   if (quote.status !== "sent") {
-    throw new ConflictError(
-      quote.status === "expired"
-        ? "This Quote has expired, so there's nothing to decline."
-        : "This Quote is no longer open.",
-    );
+    throw new ConflictError(whatClosed(quote.status));
   }
   await db.transaction(async (tx) => {
     // takes turns with a send of a newer Revision
@@ -1853,13 +1847,6 @@ export const declineQuote = async (
     if (declined) await dropDraftRevision(tx, id);
   });
   return clientQuote(id, clientId);
-};
-
-// why, as the Client is told it
-const turnDownWording: Record<TurnDownReason, string> = {
-  out_of_area: "it's outside the area we clean",
-  out_of_scope: "it needs more than the cleaning we offer",
-  no_capacity: "we don't have room for it at the moment",
 };
 
 /**
@@ -1878,7 +1865,7 @@ export const turnDownQuote = async (
     const current = await lockOpenQuote(tx, quote);
     if (current.sentRevisionId) {
       throw new ConflictError(
-        "A Revision of this Quote has been sent, so it can't be Turned Down: the Client declines it, or it Expires.",
+        "This quote has already been sent, so it can't be turned down.",
       );
     }
     await tx
@@ -1917,7 +1904,7 @@ const sendTurnDownEmail = async (
       name: client.name,
       address: addressOf(property),
       quoteId,
-      why: turnDownWording[reason],
+      reason,
     }),
   });
 };

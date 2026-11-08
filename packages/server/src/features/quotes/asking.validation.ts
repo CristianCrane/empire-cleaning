@@ -27,16 +27,26 @@ const address = {
   accessInstructions: z.string().trim().max(2000).nullish(),
 };
 
-export const floorArea = z
-  .number({ error: "Enter the floor area in sq ft" })
-  .int("Use whole sq ft")
-  .min(100, "That's smaller than any premises we clean")
-  .max(1_000_000, "That's larger than we can clean");
+const AREA = "Enter the area in sq ft";
 
-export const premisesType = z.uuid("Choose the type of premises");
+// an area in sq ft: a place's floor area, an ask's rough idea of the area
+// to price a Service on, or a Draft's
+export const squareFeet = (min: number, tooSmall = AREA, max = 1_000_000) =>
+  z
+    .number({ error: AREA })
+    .int("Use whole sq ft")
+    .min(min, tooSmall)
+    .max(max, "That's bigger than we can take on");
+
+export const floorArea = squareFeet(
+  100,
+  "That's smaller than any place we clean",
+);
+
+export const premisesType = z.uuid("Pick a type of business");
 
 const homeType = z.enum(["house", "apartment", "townhouse"], {
-  error: "Choose the type of home",
+  error: "Pick the type of home",
 });
 
 // a home's rooms, all four together
@@ -51,7 +61,11 @@ const roomsSchema = z.object({
   pets: z.boolean(),
 });
 
-const homeFloorArea = z.number().int().min(100).max(100_000).nullish();
+const homeFloorArea = squareFeet(
+  100,
+  "That's smaller than any home we clean",
+  100_000,
+).nullish();
 
 // its rooms are optional here: the Service asked for decides whether
 // they're needed (checkRooms)
@@ -79,19 +93,25 @@ const newPremisesSchema = z.object({
 const newPropertySchema = z.discriminatedUnion(
   "kind",
   [newHomeSchema, newPremisesSchema],
-  { error: "Choose a home or business premises" },
+  { error: "Pick a home or a business" },
 );
 
+const CONDITION = "Pick how much cleaning the home needs";
+
+// also a Service Plan's
 export const conditionSchema = z.enum(["light", "moderate", "heavy"], {
-  error: "Choose how much cleaning the home needs",
+  error: CONDITION,
 });
+
+// also a Draft's
+export const serviceKey = z.uuid("Pick a service");
 
 // Everything a request may say. Which of it applies depends on the kind of
 // Property: `forKind` checks a new one's here, and recordRequest an existing
 // one's once it's found.
 const request = {
   // the Service asked for, by key; checked against those on offer on submit
-  serviceKey: z.uuid("Choose a Service"),
+  serviceKey,
   // a home's, where the Service says Condition applies (checked on submit)
   condition: conditionSchema.optional(),
   // the Add-ons chosen, by key; checked against the Price List on submit
@@ -106,12 +126,7 @@ const request = {
   preferredTime: startTime.nullish(),
   wantsRegularService: z.boolean(),
   // for a Service priced by area, a rough idea of it; kept only for one
-  area: z
-    .number({ error: "Enter the area in sq ft" })
-    .int("Use whole sq ft")
-    .min(10, "Enter the area in sq ft")
-    .max(1_000_000, "That's larger than we can take on")
-    .nullish(),
+  area: squareFeet(10).nullish(),
   notes: z.string().trim().max(2000).nullish(),
 };
 
@@ -149,17 +164,17 @@ export const checkForKind = (
   }
   if (fields.condition) {
     problems.push(
-      issue(["condition"], "Business premises' Condition is found on a visit"),
+      issue(["condition"], "We check a business's condition on our visit"),
     );
   }
   if (fields.addOns?.length) {
     problems.push(
-      issue(["addOns"], "Extras for business premises are agreed on a visit"),
+      issue(["addOns"], "We agree a business's extras on our visit"),
     );
   }
   if (fields.wantsRegularService) {
     if (!fields.weekdays?.length) {
-      problems.push(issue(["weekdays"], "Choose the days you want cleaned"));
+      problems.push(issue(["weekdays"], "Pick the days you want cleaned"));
     }
     if (!fields.preferredTime) {
       problems.push(issue(["preferredTime"], "Pick a start time"));
@@ -188,7 +203,7 @@ export const checkRooms = (
       [...at, r],
       needed
         ? "Tell us about the home's rooms"
-        : "Give all of the home's rooms, or none",
+        : "Fill in all of the home's rooms, or none",
     ),
   );
 };
@@ -201,7 +216,7 @@ export const checkCondition = (
   fields: Pick<RequestFields, "condition">,
 ) =>
   kind === "residential" && conditionApplies && !fields.condition
-    ? [issue(["condition"], "Choose how much cleaning the home needs")]
+    ? [issue(["condition"], CONDITION)]
     : [];
 
 // a new Property's request has the fields its kind needs
@@ -314,6 +329,6 @@ export const officeSubmission = z
   })
   .refine((s) => (s.clientId === undefined) !== (s.contact === undefined), {
     path: ["clientId"],
-    message: "Choose a Client, or enter a new one",
+    message: "Pick a client, or add a new one",
   })
   .superRefine(forKind);

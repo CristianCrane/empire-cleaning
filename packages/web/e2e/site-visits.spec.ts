@@ -127,7 +127,7 @@ test("a Quote for business premises can't be drafted until their findings are re
   await recordFindingsWithoutVisit(page);
   await draftTheQuote(page, "one-off");
   await expect(
-    page.getByText("These premises haven't had a Site Visit"),
+    page.getByText("This business hasn't had a site visit yet"),
   ).toHaveCount(0);
   await expect(page.getByRole("button", { name: /^Send to/ })).toBeEnabled();
 });

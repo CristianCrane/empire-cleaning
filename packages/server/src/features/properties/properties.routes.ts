@@ -2,7 +2,11 @@ import { Router } from "express";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../../db/index.ts";
-import { NotFoundError, RequestBodyError } from "../../middleware/errors.ts";
+import {
+  fieldError,
+  NotFoundError,
+  RequestBodyError,
+} from "../../middleware/errors.ts";
 import { validate } from "../../middleware/validation.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { clients } from "../clients/clients.schema.ts";
@@ -104,16 +108,7 @@ router.patch(
         premisesType !== property.premisesTypeKey &&
         !offersPremisesType(list, premisesType)
       ) {
-        throw new RequestBodyError(
-          new z.ZodError([
-            {
-              code: "custom",
-              path: ["premisesType"],
-              message: NOT_A_PREMISES_TYPE,
-              input: premisesType,
-            },
-          ]),
-        );
+        throw fieldError(["premisesType"], NOT_A_PREMISES_TYPE, premisesType);
       }
       changes = { ...rest, premisesTypeKey: premisesType };
     } else {

@@ -32,7 +32,7 @@ test(
     await quoteSent(page, olive, casey);
 
     const client = await (await browser.newContext()).newPage();
-    const link = await linkIn("Your Quote from Empire Cleaning");
+    const link = await linkIn("Your quote from Empire Cleaning");
     await client.goto(link);
     await signInWithLink(client, casey.email);
     await expect(client).toHaveURL(link);
@@ -82,16 +82,14 @@ test("a declined Deposit books nothing, and another try goes through", async ({
   await quoteSent(page, olive, casey);
   const client = await (await browser.newContext()).newPage();
   await signedInAs(client, casey.email);
-  await client.goto(await linkIn("Your Quote from Empire Cleaning"));
+  await client.goto(await linkIn("Your quote from Empire Cleaning"));
   await failCharges("card_declined");
 
   const accept = client.getByRole("region", { name: "Pay and book" });
   await accept.getByRole("button", { name: /^Accept and pay/ }).click();
 
   await expect(
-    accept.getByText(
-      "Your card couldn't be charged, so nothing has been booked",
-    ),
+    accept.getByText("Your card didn't go through, so nothing was booked"),
   ).toBeVisible();
   await expect(client.getByText("Open until", { exact: false })).toBeVisible();
   // a declined card isn't kept: the form is there for another
@@ -112,7 +110,7 @@ test("a Deposit the bank asks the Client to approve is booked once approved", as
   await quoteSent(page, olive, casey);
   const client = await (await browser.newContext()).newPage();
   await signedInAs(client, casey.email);
-  await client.goto(await linkIn("Your Quote from Empire Cleaning"));
+  await client.goto(await linkIn("Your quote from Empire Cleaning"));
   const accept = client.getByRole("region", { name: "Pay and book" });
 
   await requireApproval("refused");
@@ -225,7 +223,7 @@ test("a Quote whose day has filled up can't be paid for, and the Office is asked
 
   const client = await (await browser.newContext()).newPage();
   await signedInAs(client, casey.email);
-  await client.goto(await linkIn("Your Quote from Empire Cleaning"));
+  await client.goto(await linkIn("Your quote from Empire Cleaning"));
   await expect(
     client.getByText(
       "Sorry, Mon, Jan 12, 9:00 AM has been fully booked since we sent this Quote",

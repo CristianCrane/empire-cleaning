@@ -396,7 +396,7 @@ describe("Site Visit findings", () => {
     expect(draft.needsSiteVisit).toBe(true);
     const early = await office.post(`/api/quotes/${quoteId}/send`);
     expect(early.status).toBe(409);
-    expect(early.body.message).toContain("haven't had a Site Visit");
+    expect(early.body.message).toContain("hasn't had a site visit yet");
 
     const res = await office
       .post(`/api/site-visits/${visit.id}/findings`)

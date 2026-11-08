@@ -57,7 +57,7 @@ export const Invalid: Story = {
   args: {
     children: conditions,
     isInvalid: true,
-    errorMessage: "Choose how much cleaning the home needs",
+    errorMessage: "Pick how much cleaning the home needs",
   },
 };
 

@@ -71,7 +71,7 @@ test("a home with a Quote open can't be asked about again, and points to it", as
   await page.getByRole("link", { name: "Request a Quote" }).click();
   await expect(page).toHaveURL("/portal/request");
   await expect(
-    page.getByText("We're preparing your Quote for 41-12 Austin St"),
+    page.getByText("We're working on your quote for 41-12 Austin St"),
   ).toBeVisible();
 
   // their home is listed, but not selectable for the same Service: its
@@ -82,7 +82,7 @@ test("a home with a Quote open can't be asked about again, and points to it", as
   });
   await expect(existing).toBeDisabled();
   await expect(
-    page.getByText("This home has a Quote open already for this."),
+    page.getByText("This home already has a quote open."),
   ).toBeVisible();
 
   // but it can be for Painting, which can't overlap a Standard Clean
@@ -102,7 +102,7 @@ test("a home with a Quote open can't be asked about again, and points to it", as
   await page.getByRole("button", { name: "Request a Quote" }).click();
 
   await expect(
-    page.getByText("You've already asked us for a Quote for this home."),
+    page.getByText("You've already asked us for a quote for this home."),
   ).toBeVisible();
   await expect(page).toHaveURL("/portal/request");
 

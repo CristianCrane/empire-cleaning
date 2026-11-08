@@ -84,7 +84,7 @@ const recordFindings = (
     .expect(201);
 
 const PRICES_CHANGED =
-  "This Draft's prices have changed since it was saved: the Property's details or the Price List changed. Check the new prices, then send it.";
+  "The prices have changed since you saved this. Check them, then send it.";
 
 describe("a Quote for a Service priced by area", () => {
   test("is priced on the Client's rough area, ignoring Condition", async () => {
@@ -135,7 +135,7 @@ describe("a Quote for a Service priced by area", () => {
     expect(refused.body.details).toContainEqual(
       expect.objectContaining({
         path: "area",
-        issue: "Enter the area to price it on",
+        issue: "Enter the area in sq ft",
       }),
     );
 
@@ -171,7 +171,7 @@ describe("a Quote for a Service priced by area", () => {
       .post(`/api/quotes/${draft.id}/send`)
       .expect(409);
     expect(refused.body.message).toBe(
-      "This home's rooms aren't recorded yet, so the Quote can't be sent. Record them on the Property, then send it.",
+      "This home's rooms aren't filled in yet, so this quote can't be sent. Add them on the property page, then send it.",
     );
     const property = `/api/properties/${draft.property.id}`;
     await office.patch(property).send({ bedrooms: 2 }).expect(400);

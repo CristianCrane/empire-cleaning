@@ -25,7 +25,7 @@ import {
   type PaymentMethodView,
   type QuoteSummary,
   type ServicePlanSummary,
-  type TurnDownReason,
+  turnDownReason,
 } from "@empire-cleaning/models";
 import type { StatusTone } from "@empire-cleaning/ui";
 import { linkTo, type AppHref } from "../../links.ts";
@@ -111,12 +111,6 @@ const detailsLink = linkTo({ to: "/portal/details" });
 
 // "Tue, Oct 20" for an instant, New York's day
 const dayOf = (iso: string) => formatDay(dayOfInstant(iso));
-
-const turnedDownBecause: Record<TurnDownReason, string> = {
-  out_of_area: "It's outside the area we clean",
-  out_of_scope: "It's not work we take on",
-  no_capacity: "We're fully booked just now",
-};
 
 const open = (q: QuoteSummary) =>
   q.status === "requested" || q.status === "draft";
@@ -383,7 +377,7 @@ function heroOf(data: HomeData, ctx: Context): Hero {
       icon: Ban,
       tone: "neutral",
       headline: last.turnDownReason
-        ? turnedDownBecause[last.turnDownReason]
+        ? turnDownReason[last.turnDownReason]
         : "Sorry, we can't quote for it",
       lines: [`${addressOf(last.property)}. If anything changes, ask again.`],
       action: requestQuote,

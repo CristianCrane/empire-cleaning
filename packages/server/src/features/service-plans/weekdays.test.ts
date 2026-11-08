@@ -222,7 +222,7 @@ describe("a Service Plan Quote on several weekdays", () => {
     expect(twice.body.details).toContainEqual(
       expect.objectContaining({
         path: "plan.days.1.start",
-        issue: expect.stringMatching(/on that weekday/),
+        issue: expect.stringMatching(/already has a clean on that day/),
       }),
     );
 
@@ -288,7 +288,7 @@ describe("a Service Plan Quote on several weekdays", () => {
 
     const sent = testEmail()
       .to(casey.email)
-      .find((m) => /Service Plan Quote/.test(m.subject))!;
+      .find((m) => /cleaning plan quote/.test(m.subject))!;
     expect(sent.text).toContain(
       "a Standard Clean every week, on Mondays at 9:00 AM and Wednesdays at 1:00 PM",
     );
@@ -575,7 +575,7 @@ describe("a commercial Service Plan", () => {
     const unseen = await office
       .post(`/api/quotes/${draft.id}/send`)
       .expect(409);
-    expect(unseen.body.message).toMatch(/Site Visit/);
+    expect(unseen.body.message).toMatch(/site visit/);
 
     await office
       .post(`/api/properties/${propertyId}/findings`)
