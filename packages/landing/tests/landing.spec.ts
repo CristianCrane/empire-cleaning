@@ -340,6 +340,49 @@ test.describe("requesting a Quote", () => {
     );
   });
 
+  test("the extras are the last Service chosen's, even when the first one's come late", async ({
+    page,
+  }) => {
+    // the first Service's extras are held back until the next one's are in
+    let answerLate!: () => Promise<void>;
+    let firstUrl = "";
+    const held = new Promise<void>((resolve) => {
+      void page.route("**/api/price-list/add-ons?*", async (route) => {
+        if (firstUrl) return route.fallback();
+        firstUrl = route.request().url();
+        answerLate = () =>
+          route.fulfill({
+            json: [{ key: "from-before", name: "From the first Service" }],
+          });
+        resolve();
+      });
+    });
+    await openQuoteForm(page);
+    const form = page.locator("form");
+    await form.getByText("Standard Clean", { exact: true }).click();
+    await held;
+    const second = page.waitForResponse(
+      (r) =>
+        r.url().includes("/api/price-list/add-ons?") && r.url() !== firstUrl,
+    );
+    await form.getByText("Deep Clean", { exact: true }).click();
+    await second;
+    const late = page.waitForResponse(firstUrl);
+    await answerLate();
+    await late;
+
+    await next(page);
+    await page.getByText("Apartment", { exact: true }).click();
+    await page
+      .getByRole("textbox", { name: "Street address" })
+      .fill("41-12 Austin St");
+    await page.getByRole("textbox", { name: "ZIP code" }).fill("11375");
+    await next(page);
+    const extras = page.getByRole("group", { name: "Any extras?" });
+    await expect(extras.getByRole("checkbox").first()).toBeVisible();
+    await expect(extras.getByText("From the first Service")).toHaveCount(0);
+  });
+
   test("extras are offered by name, with no prices, and can be chosen", async ({
     page,
   }) => {

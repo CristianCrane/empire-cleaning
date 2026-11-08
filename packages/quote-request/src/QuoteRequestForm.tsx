@@ -359,10 +359,17 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
   useEffect(() => {
     if (services) startWith(services);
   }, [services]);
-  // a home's Add-ons are the Service's own
+  // a home's Add-ons are the Service's own: those of the one chosen now,
+  // never a slower answer for one chosen before
   useEffect(() => {
     if (!serviceKey) return;
-    void loadAddOns(apiUrl, serviceKey).then(setOffered);
+    let current = true;
+    void loadAddOns(apiUrl, serviceKey).then(
+      (found) => current && setOffered(found),
+    );
+    return () => {
+      current = false;
+    };
   }, [apiUrl, serviceKey]);
   useEffect(() => {
     void loadPremisesTypes(apiUrl).then(setPremisesTypes);
