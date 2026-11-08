@@ -74,7 +74,7 @@ test(
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(/ at /);
 
     const crew = page.getByRole("region", { name: "Crew" });
-    await expect(crew).toContainText("0 of 2 Cleaners Confirmed");
+    await expect(crew).toContainText("0 of 2 cleaners confirmed");
     await offerTo(page, /^Cory Cleaner \(8 h\)/);
     await expect(page.getByRole("region", { name: "History" })).toContainText(
       "Offered to Cory Cleaner",

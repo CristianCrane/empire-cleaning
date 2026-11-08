@@ -94,7 +94,7 @@ const tileOf: Record<NeedsAttentionKind, Tile> = {
   plan_on_hold: "money",
 };
 
-// what the tiles say beside their counts: how many need Staff, how many
+// what the tiles say beside their counts: how many need cleaners, how many
 // Quotes are newly asked for, and what's owed (a plan On Hold owes for Jobs
 // and Bills already counted)
 const hintsFor = (items: NeedsAttentionItem[]): Record<Tile, string> => {

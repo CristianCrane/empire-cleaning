@@ -24,8 +24,8 @@ export const officeTours = {
         {
           // in the navigation: Today has no link of its own to it
           target: { press: "Schedule" },
-          title: "The Schedule",
-          text: "Every clean and Site Visit, day by day. Move them there.",
+          title: "The schedule",
+          text: "Every clean and site visit, day by day. Move them there.",
         },
       ],
     },
@@ -56,7 +56,7 @@ export const officeTours = {
         {
           target: { press: "Answer" },
           title: "A new time",
-          text: "Someone asked to move this Job. Confirm the new time, or turn it down and say why. It's held until you answer.",
+          text: "Someone asked to move this job. Confirm the new time, or turn it down and say why. We hold the time until you answer.",
         },
       ],
     },

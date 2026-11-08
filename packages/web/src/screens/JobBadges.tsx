@@ -9,6 +9,7 @@ import {
   assignmentStateTone,
   crewLabel,
   crewTone,
+  jobLabelOf,
   jobStatusLabel,
   jobStatusTone,
 } from "./format.ts";
@@ -38,11 +39,8 @@ export function JobBadge({
 }: {
   job: { status: JobStatus; assignment: AssignmentStatus };
 }) {
-  return job.status === "booked" ? (
-    <CrewBadge assignment={job.assignment} />
-  ) : (
-    <JobStatusBadge status={job.status} />
-  );
+  const { label, tone } = jobLabelOf(job);
+  return <StatusBadge tone={tone}>{label}</StatusBadge>;
 }
 
 // where someone stands on a Job's crew

@@ -846,7 +846,7 @@ function StatusColours() {
       "someone needs to act",
       ["Requested", "Needs cleaners", "Expired"],
     ],
-    ["danger", "went wrong", ["No Access", "Unpaid"]],
+    ["danger", "went wrong", ["Couldn't get in", "Unpaid"]],
     [
       "neutral",
       "not going ahead, or not live yet",

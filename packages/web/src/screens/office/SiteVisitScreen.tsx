@@ -88,7 +88,7 @@ export function SiteVisitScreen() {
         <Notice>
           Cancelled {formatDateTime(visit.cancelledAt!)}, so nothing was found.
           You can book another from the{" "}
-          {visit.property.kind === "commercial" ? "premises'" : "home's"} page.
+          {visit.property.kind === "commercial" ? "business's" : "home's"} page.
         </Notice>
       )}
       <VisitDetails visit={visit} premisesTypes={premisesTypes} been={been} />
@@ -202,7 +202,7 @@ function VisitDetails({
               >
                 <p>
                   When it's done, add what was found. It updates the{" "}
-                  {premises ? "premises'" : "home's"} details so you can send a
+                  {premises ? "business's" : "home's"} details so you can send a
                   quote.
                 </p>
               </ActionRow>

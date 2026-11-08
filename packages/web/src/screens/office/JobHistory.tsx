@@ -35,23 +35,15 @@ type Moment = {
 
 const chargeLabel = { deposit: "Deposit", balance: "Balance", fee: "Fee" };
 
-// an Assignment answered, by whom
+// an Assignment answered: its icon; its title is who and what they did,
+// "Cory confirmed"
 const assignmentAnswered: Record<
   Exclude<AssignmentState, "offered">,
-  { icon: LucideIcon; title: (name: string) => string }
+  { icon: LucideIcon }
 > = {
-  confirmed: {
-    icon: UserCheck,
-    title: (name) => `${name} ${assignmentStateLabel.confirmed.toLowerCase()}`,
-  },
-  released: {
-    icon: UserMinus,
-    title: (name) => `${name} ${assignmentStateLabel.released.toLowerCase()}`,
-  },
-  taken_off: {
-    icon: UserMinus,
-    title: (name) => `${name} ${assignmentStateLabel.taken_off.toLowerCase()}`,
-  },
+  confirmed: { icon: UserCheck },
+  released: { icon: UserMinus },
+  taken_off: { icon: UserMinus },
 };
 
 // a Reschedule Request answered, or closed unanswered
@@ -62,7 +54,7 @@ const requestAnswered: Record<
   confirmed: { icon: CalendarCheck, title: "Moved" },
   turned_down: { icon: CalendarX, title: "Move turned down" },
   closed: { icon: CalendarX, title: "Move request closed" },
-  withdrawn: { icon: CalendarX, title: "Move withdrawn by the Client" },
+  withdrawn: { icon: CalendarX, title: "Move withdrawn by the client" },
 };
 
 // everything that happened to a Job, newest first: its Assignments Offered,
@@ -79,12 +71,12 @@ const momentsOf = (job: OfficeJob): Moment[] => {
       title: `Offered to ${a.staff.name}`,
     });
     if (a.answeredAt && a.status !== "offered") {
-      const { icon, title } = assignmentAnswered[a.status];
+      const { icon } = assignmentAnswered[a.status];
       moments.push({
         key: `answered-${a.id}`,
         at: a.answeredAt,
         icon,
-        title: title(a.staff.name),
+        title: `${a.staff.name} ${assignmentStateLabel[a.status].toLowerCase()}`,
       });
     }
   }
@@ -94,7 +86,7 @@ const momentsOf = (job: OfficeJob): Moment[] => {
       key: "asked",
       at: request.requestedAt,
       icon: CalendarClock,
-      title: `${request.byClient ? "The Client" : "The Office"} asked to move it`,
+      title: `${request.byClient ? "The client" : "The office"} asked to move it`,
       description: `${formatDateTime(request.fromStartsAt)} to ${formatDateTime(request.startsAt)}`,
     });
     if (request.answeredAt && request.status !== "pending") {
@@ -129,7 +121,7 @@ const momentsOf = (job: OfficeJob): Moment[] => {
       key: "completed",
       at: job.completion.completedAt,
       icon: CircleCheck,
-      title: "Completed",
+      title: jobStatusLabel.completed,
       description: job.completion.completedBy
         ? `By ${job.completion.completedBy.name}`
         : undefined,
@@ -147,7 +139,7 @@ const momentsOf = (job: OfficeJob): Moment[] => {
       description:
         job.cancellation.by === "empire"
           ? "By Empire Cleaning"
-          : "By the Client",
+          : "By the client",
     });
   }
   if (job.noAccess) {

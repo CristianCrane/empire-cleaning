@@ -221,8 +221,8 @@ test(
     const dialog = page.getByRole("dialog", { name: "Move this job?" });
     await expect(dialog).toContainText("FromTue, Mar 2, 9:00 AM");
     await expect(dialog).toContainText("ToWed, Mar 3, 10:30 AM");
-    await expect(dialog).toContainText("Wed, Mar 3 has 8 h free");
-    await expect(dialog).toContainText("the Client and the crew are emailed");
+    await expect(dialog).toContainText("There's room on Wed, Mar 3 then.");
+    await expect(dialog).toContainText("we'll email them and the client");
 
     // nothing happens until it's confirmed
     await dialog.getByRole("button", { name: "Keep it" }).click();
@@ -440,7 +440,7 @@ test(
     const rows = more.getByRole("row");
     await expect(rows).toHaveCount(4 - shown);
     await expect(rows.first()).toContainText("8:00 AM");
-    await expect(rows.first()).toContainText("Assigned");
+    await expect(rows.first()).toContainText("Staffed");
     await expect(rows.first()).toContainText("Cory Cleaner");
     await rows.first().click();
     await expect(page).toHaveURL(`/office/jobs/${assigned.id}`);

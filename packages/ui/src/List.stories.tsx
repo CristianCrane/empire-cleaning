@@ -33,7 +33,7 @@ export const Default: Story = {
         id="3"
         title="35-06 Ditmars Blvd"
         description="3:00 PM · Standard Clean"
-        end={<StatusBadge tone="warning">Couldn't get in</StatusBadge>}
+        end={<StatusBadge tone="danger">Couldn't get in</StatusBadge>}
       />
     </List>
   ),

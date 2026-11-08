@@ -292,7 +292,7 @@ test("a day off frees a Cleaner's Jobs, and so does deactivating them, each said
   await expect(day).toContainText(
     /Cory is on Deep Clean at .+, Thu, Jan 8, 9:00 AM\. Saving opens it to other cleaners\./,
   );
-  await day.getByRole("button", { name: "Take them off it and save" }).click();
+  await day.getByRole("button", { name: "Take them off and save" }).click();
   await expect(page.getByText("Thu, Jan 8 saved")).toBeVisible();
   expect((await emailsTo(cory.email)).at(-1)!.subject).toBe(
     "You're no longer on a job",
@@ -304,7 +304,7 @@ test("a day off frees a Cleaner's Jobs, and so does deactivating them, each said
     name: "Deactivate Cory Cleaner?",
   });
   await expect(deactivate).toContainText(
-    /Cory is on Deep Clean at .+, Fri, Jan 9, 9:00 AM\. Deactivating them frees it/,
+    /Cory is on Deep Clean at .+, Fri, Jan 9, 9:00 AM\. Deactivating them opens it/,
   );
   await expect(deactivate).not.toContainText("Thu, Jan 8");
   await deactivate.getByRole("button", { name: "Deactivate" }).click();
@@ -372,7 +372,7 @@ test("Office Staff change someone's name and roles", async ({ page }) => {
     "Cory Clean",
   );
   await expect(page.getByRole("region", { name: "Details" })).toContainText(
-    "Cleaner and Office Staff",
+    "Cleaner and Office staff",
   );
 });
 

@@ -31,18 +31,16 @@ import {
   TimeGrid,
   type TimePickerProps,
 } from "../CalendarGrid.tsx";
+import { JobBadge } from "../JobBadges.tsx";
 import {
-  crewLabel,
   crewOf,
-  crewTone,
   dayOfInstant,
   formatClock,
   formatDay,
   formatHours,
   formatMinutes,
   formatTime,
-  jobStatusLabel,
-  jobStatusTone,
+  jobLabelOf,
   shortClientName,
   timeOfDay,
   today,
@@ -76,21 +74,17 @@ const MIN_LANE_PX = 60;
 const AXIS_PX = 56;
 const WEEK_DAY_MIN_PX = 104;
 
-// a Job's colour and its words for it: how it turned out, or whether its
-// crew is Confirmed
-// a block's colours, by the tone of the Job's status
+// a Job's block: its colours, by the tone of how it reads (jobLabelOf)
 const blockOf = {
   success: "border-success-strong bg-success-subtle",
   danger: "border-danger-strong bg-danger-subtle",
   info: "border-info-strong bg-info-subtle",
   warning: "border-warning-strong bg-warning-subtle",
+  neutral: "border-neutral-strong bg-neutral-subtle",
 } as const;
 
 const toneOf = (job: ScheduledJob) => {
-  const { label, tone } =
-    job.status === "completed" || job.status === "no_access"
-      ? { label: jobStatusLabel[job.status], tone: jobStatusTone[job.status] }
-      : { label: crewLabel[job.assignment], tone: crewTone[job.assignment] };
+  const { label, tone } = jobLabelOf(job);
   return { label, tone, block: blockOf[tone] };
 };
 
@@ -392,7 +386,6 @@ function MoreJobs({
               }
             >
               {jobs.map((job) => {
-                const tone = toneOf(job);
                 return (
                   <ListItem
                     key={job.id}
@@ -400,9 +393,7 @@ function MoreJobs({
                     textValue={`${formatTime(job.startsAt)} ${shortClientName(job.client)}`}
                     title={`${formatTime(job.startsAt)} · ${shortClientName(job.client)}`}
                     description={crewOf(job.crew)}
-                    end={
-                      <StatusBadge tone={tone.tone}>{tone.label}</StatusBadge>
-                    }
+                    end={<JobBadge job={job} />}
                   />
                 );
               })}
@@ -513,10 +504,7 @@ const layoutDay = (
   const unassigned = new Set(
     jobs
       .filter(
-        (job) =>
-          job.status !== "completed" &&
-          job.status !== "no_access" &&
-          job.assignment === "unassigned",
+        (job) => job.status === "booked" && job.assignment === "unassigned",
       )
       .map((j) => j.id),
   );

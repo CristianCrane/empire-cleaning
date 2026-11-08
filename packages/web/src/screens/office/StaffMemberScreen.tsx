@@ -242,9 +242,7 @@ const useSecondLook = (jobs: StaffHolding[]) => {
       return true;
     },
     label: (save: string) =>
-      freeing !== "" && freeing === shown
-        ? `Take them off ${jobs.length === 1 ? "it" : "them"} and save`
-        : save,
+      freeing !== "" && freeing === shown ? "Take them off and save" : save,
   };
 };
 
@@ -284,7 +282,7 @@ function WhatItFrees({
               params: { visitId: visit.id },
             })}
           >
-            Open Site Visit
+            Open site visit
           </ButtonLink>
         }
       >

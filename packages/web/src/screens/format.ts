@@ -37,8 +37,6 @@ export const conditionText = (condition: Condition | null) =>
 export const plural = (n: number, one: string) =>
   `${n} ${one}${n === 1 ? "" : "s"}`;
 
-const sqFt = new Intl.NumberFormat("en-US");
-// 4500 -> "4,500 sq ft"
 // so many cleaners, e.g. "1 cleaner", "2 more cleaners", "3 free cleaners"
 export const cleaners = (n: number, which?: "more" | "free") =>
   plural(n, which ? `${which} cleaner` : "cleaner");
@@ -47,6 +45,8 @@ export const cleaners = (n: number, which?: "more" | "free") =>
 export const crewOf = (crew: { name: string }[]) =>
   crew.map((c) => c.name).join(", ") || "No cleaners yet";
 
+const sqFt = new Intl.NumberFormat("en-US");
+// 4500 -> "4,500 sq ft"
 export const formatFloorArea = (area: number) => `${sqFt.format(area)} sq ft`;
 
 // what a Property is: "Apartment · 2 bedrooms · 1.5 bathrooms" ("Apartment ·
@@ -353,11 +353,21 @@ export const crewTone = {
   unassigned: "warning",
 } as const satisfies Record<AssignmentStatus, string>;
 
+// how a Job reads for Office Staff: how it went, or while it's booked,
+// whether its crew is whole (JobBadge, the Schedule's blocks)
+export const jobLabelOf = (job: {
+  status: JobStatus;
+  assignment: AssignmentStatus;
+}) =>
+  job.status === "booked"
+    ? { label: crewLabel[job.assignment], tone: crewTone[job.assignment] }
+    : { label: jobStatusLabel[job.status], tone: jobStatusTone[job.status] };
+
 // where someone stands on a Job's crew
 export const assignmentStateLabel: Record<AssignmentState, string> = {
   offered: "Offered",
   confirmed: "Confirmed",
-  released: "Can't make it",
+  released: "Dropped out",
   taken_off: "Taken off",
 };
 

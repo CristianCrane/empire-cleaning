@@ -185,7 +185,7 @@ function NewTimeForm({
         description={
           date
             ? "New York time. Only times with cleaners free are shown."
-            : "New York time. Choose a day first."
+            : "New York time. Pick a day first."
         }
         placeholder="Pick a time"
         isDisabled={!date}

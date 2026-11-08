@@ -214,7 +214,7 @@ test("Office Staff quote a business caller from New Quote", async ({
     .click();
   await page.getByRole("textbox", { name: "Street address" }).fill("9 Main St");
   await page.getByRole("textbox", { name: "ZIP code" }).fill("11375");
-  await choose(page, /Type of business/, "Retail");
+  await choose(page, /Type of premises/, "Retail");
   await page.getByText("One-off", { exact: true }).click();
   // a first idea only: the floor area isn't known
   await expect(

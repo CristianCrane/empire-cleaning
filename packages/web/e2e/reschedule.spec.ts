@@ -282,6 +282,6 @@ test(
       "Wed, Jan 14",
     );
     await dialog.getByRole("button", { name: "Send request" }).click();
-    await expect(page.getByText("Reschedule Request made")).toBeVisible();
+    await expect(page.getByText("Request to move sent")).toBeVisible();
   },
 );

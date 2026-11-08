@@ -36,7 +36,7 @@ import {
   formatHours,
   formatTime,
 } from "../format.ts";
-import { directionsTo, JobBadge, untilAbout } from "./CleanerHome.tsx";
+import { CleanerJobBadge, directionsTo, untilAbout } from "./CleanerHome.tsx";
 import { CompleteJob, Completed, NotYet } from "./CompleteJob.tsx";
 import { NoAccessRecorded, RecordNoAccess } from "./NoAccess.tsx";
 
@@ -65,7 +65,7 @@ export function CleanerJobScreen() {
         />
         <div className="flex flex-wrap items-center gap-3">
           <Heading level={1}>{job.serviceName}</Heading>
-          <JobBadge job={job} />
+          <CleanerJobBadge job={job} />
         </div>
       </div>
 

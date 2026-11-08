@@ -26,7 +26,7 @@ import {
 import { AssignmentStateBadge, JobStatusBadge } from "../JobBadges.tsx";
 
 // whether the Cleaner has Confirmed it yet, or once done, that it is
-export function JobBadge({ job }: { job: CleanerJob }) {
+export function CleanerJobBadge({ job }: { job: CleanerJob }) {
   if (job.outcome) return <JobStatusBadge status={job.outcome} />;
   return (
     <AssignmentStateBadge
@@ -227,7 +227,9 @@ function Rows({
             start={<DateTile date={item.startsAt} size="sm" />}
             title={whenOf(item)}
             description={`${addressOf(item.job.property)} · ${item.job.serviceName}, ${formatHours(item.job.hoursOnSite)}`}
-            end={item.job.outcome ? <JobBadge job={item.job} /> : undefined}
+            end={
+              item.job.outcome ? <CleanerJobBadge job={item.job} /> : undefined
+            }
           />
         ) : (
           <ListItem

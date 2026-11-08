@@ -432,7 +432,7 @@ function Reschedule({ job }: { job: ClientJobDetail }) {
           job={job}
           terms={terms}
           base={`/api/jobs/mine/${job.id}`}
-          label="Choose a new time"
+          label="Pick a new time"
           describeCost={(cost, feeCents) => costForClient(cost, feeCents, job)}
           done="Request sent"
           Picker={PickAvailableTime}
