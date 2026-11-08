@@ -1,13 +1,17 @@
 import { z } from "zod";
 import { day, startTime } from "../../middleware/validation.ts";
-import { serviceKey, squareFeet } from "./asking.validation.ts";
+import {
+  conditionSchema,
+  serviceKey,
+  squareFeet,
+} from "./asking.validation.ts";
 
 // the offer accepted, as the page showed it (a newer one Sent since is
 // refused), and the Service chosen, by key, on a one-off Quote; a Service
 // Plan Quote is accepted whole, so it needs none
 export const acceptSchema = z.object({
-  revisionId: z.uuid("Reload the page and accept the Quote shown"),
-  serviceKey: z.uuid("Choose one of the Quote's Services").optional(),
+  revisionId: z.uuid("Reload the page, then accept the quote shown"),
+  serviceKey: z.uuid("Pick one of the quote's services").optional(),
 });
 
 // a Client may pay with a card entered just now: the payment form's token
@@ -17,9 +21,9 @@ export const clientAcceptSchema = acceptSchema.extend({
 
 // a Service Plan Quote Office Staff offer for a Property unprompted
 export const startSchema = z.object({
-  propertyId: z.uuid("Choose a home"),
+  propertyId: z.uuid("Pick a home"),
   kind: z.literal("service_plan", {
-    error: "A one-off Quote starts from what a Client asks for",
+    error: "A one-off quote starts from what a client asks for",
   }),
 });
 
@@ -31,7 +35,7 @@ export const startRevisionSchema = z.object({
 
 export const turnDownSchema = z.object({
   reason: z.enum(["out_of_area", "out_of_scope", "no_capacity"], {
-    error: "Choose why: out of area, out of scope or no capacity",
+    error: "Pick a reason",
   }),
 });
 
@@ -42,25 +46,35 @@ const override = z
   .object({
     priceCents: z
       .number({ error: "Enter a price" })
-      .int("Enter a price in whole cents")
+      .int("Enter a price in dollars and cents")
       .min(0, "A price can't be below $0")
       .max(10_000_000, "That's over $100,000"),
     reason: z
-      .string({ error: "Say why you're changing the Suggested Price" })
+      .string({ error: "Say why you're changing the suggested price" })
       .trim()
-      .min(1, "Say why you're changing the Suggested Price")
+      .min(1, "Say why you're changing the suggested price")
       .max(500, "Keep the reason under 500 characters"),
   })
   .nullable();
 
-export const CREW_SIZE = "Enter a Crew Size";
+export const CREW_SIZE = "Enter how many cleaners";
 
 // also the Price List's default, which a new Draft starts from
 export const crewSize = z
   .number({ error: CREW_SIZE })
-  .int("Crew Size is a whole number")
-  .min(1, "Send at least 1 person")
-  .max(10, "Send at most 10 people");
+  .int("Use a whole number of cleaners")
+  .min(1, "Send at least 1 cleaner")
+  .max(10, "Send at most 10 cleaners");
+
+// a percentage of the price, a Draft's or the Price List's default
+const percentOf = (what: string) =>
+  z
+    .number({ error: `Enter a ${what} percentage` })
+    .int("Use a whole percentage")
+    .min(0, `The ${what} can't be below 0%`)
+    .max(100, `The ${what} can't be more than 100%`);
+export const depositPercent = percentOf("deposit");
+export const discountPercent = percentOf("discount");
 
 // a clean's time, New York
 const start = z
@@ -81,29 +95,23 @@ const plan = z.object({
   // every day's
   serviceKey,
   recurrence: z.enum(["weekly", "fortnightly", "four_weekly"], {
-    error: "Choose every week, every 2 weeks or every 4 weeks",
+    error: "Pick every week, every 2 weeks or every 4 weeks",
   }),
-  discountPercent: z
-    .number({ error: "Enter a Plan Discount percentage" })
-    .int("Use a whole percentage")
-    .min(0, "The Plan Discount can't be below 0%")
-    .max(100, "The Plan Discount can't be more than 100%"),
-  condition: z.enum(["light", "moderate", "heavy"], {
-    error: "Choose light, moderate or heavy",
-  }),
+  discountPercent,
+  condition: conditionSchema,
   // a week has 7
   days: z
     .array(planDay)
-    .min(1, "Give the plan at least one weekday")
+    .min(1, "Pick at least one day")
     .max(7, "A week has only 7 days"),
 });
 
 // also the Price List's default, which a new Draft starts from
 export const validityDays = z
-  .number({ error: "Enter how many days it's valid for" })
+  .number({ error: "Enter how many days it stays open" })
   .int("Use a whole number of days")
-  .min(1, "Valid for at least 1 day")
-  .max(90, "Valid for at most 90 days");
+  .min(1, "Keep it open for at least 1 day")
+  .max(90, "Keep it open for at most 90 days");
 
 export const draftSchema = z.object({
   // a one-off Draft's Service, the Quote's once it's sent
@@ -113,11 +121,7 @@ export const draftSchema = z.object({
   addOns: z.array(z.uuid()).max(50),
   // a one-off Quote's; a Service Plan Quote's are its weekdays'
   crewSize: crewSize.optional(),
-  depositPercent: z
-    .number({ error: "Enter a Deposit percentage" })
-    .int("Use a whole percentage")
-    .min(0, "The Deposit can't be below 0%")
-    .max(100, "The Deposit can't be more than 100%"),
+  depositPercent,
   validityDays,
   proposedStart: start.optional(),
   // by the option's Service

@@ -125,7 +125,7 @@ describe("a one-off Quote", () => {
     expect(refused.body.details).toContainEqual(
       expect.objectContaining({
         path: "serviceKey",
-        issue: "Choose from the Services listed",
+        issue: "Pick a service from the list",
       }),
     );
   });
@@ -153,7 +153,7 @@ describe("open Quotes at one Property", () => {
 
     const again = await askAgain();
     expect(again.status).toBe(409);
-    expect(again.body.message).toMatch(/already asked us for a Quote/);
+    expect(again.body.message).toMatch(/already asked us for a quote/);
   });
 
   test("a Requested one holds the Service Plan Quote only if its Service can recur", async () => {
@@ -169,7 +169,7 @@ describe("open Quotes at one Property", () => {
     // a Standard Clean can, and the plan's Quote is open
     const refused = await askAgain();
     expect(refused.status).toBe(409);
-    expect(refused.body.message).toMatch(/already asked us for a Quote/);
+    expect(refused.body.message).toMatch(/already asked us for a quote/);
   });
 
   test("a first Draft deleted goes back to being asked for beside a Service Plan Quote offered meanwhile", async () => {
@@ -211,7 +211,7 @@ describe("open Quotes at one Property", () => {
       .send(edit(moving, { serviceKey: SEEDED.deep }))
       .expect(409);
     expect(taken.body.message).toBe(
-      "This home has a Deep Clean Quote open already: carry on with that one.",
+      "This home already has a Deep Clean quote open. Carry on with that one.",
     );
 
     const notHere = await office
@@ -261,7 +261,7 @@ describe("open Quotes at one Property", () => {
       .post(`/api/quotes/${quoteId}/send`)
       .expect(409);
     expect(refused.body.message).toBe(
-      "This home has a Deep Clean Quote open already: carry on with that one.",
+      "This home already has a Deep Clean quote open. Carry on with that one.",
     );
 
     await office
@@ -283,7 +283,7 @@ describe("the First Clean and Site Visit follow the Service", () => {
       .send({ propertyId, kind: "service_plan" })
       .expect(409);
     expect(refused.body.message).toBe(
-      "A Service Plan can only start once this home's First Clean is Completed.",
+      "The first clean at this home isn't done yet. Quote a cleaning plan once it is.",
     );
   });
 
@@ -301,7 +301,7 @@ describe("the First Clean and Site Visit follow the Service", () => {
       .post(`/api/quotes/${draft.id}/send`)
       .expect(409);
     expect(refused.body.message).toBe(
-      "This home hasn't had a Site Visit, so the Quote can't be sent. Record its findings on the Property, then send it.",
+      "This home hasn't had a site visit yet, so this quote can't be sent. Record what the visit found on the property page, then send it.",
     );
   });
 });

@@ -34,6 +34,7 @@ import type {
   ServiceOffer,
   Weekday,
 } from "@empire-cleaning/models";
+import { openAlready } from "@empire-cleaning/models";
 import {
   Actions,
   Button,
@@ -134,8 +135,6 @@ const ownWords = {
   regular:
     "After my first clean, I'd like regular visits (weekly, bi-weekly or monthly) at 10% off.",
   submit: "Request a Quote",
-  waiting: "This home has a Quote open already for this.",
-  premisesWaiting: "These premises have a Quote open already for this.",
   businessName: "Business name",
   contactNote: "The person we'll deal with at the business.",
   failed:
@@ -158,8 +157,6 @@ const officeWords: typeof ownWords = {
   regular:
     "After their first clean, they'd like regular visits (weekly, bi-weekly or monthly) at 10% off.",
   submit: "Draft a Quote",
-  waiting: "This home has a Quote open already for this.",
-  premisesWaiting: "These premises have a Quote open already for this.",
   businessName: "Business name",
   contactNote: "The person we'll deal with at the business.",
   failed: "The request didn't save. Please try again.",
@@ -640,9 +637,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
               isDisabled={held(p.id)}
               description={
                 held(p.id)
-                  ? premises
-                    ? words.premisesWaiting
-                    : words.waiting
+                  ? openAlready(premises ? "commercial" : "residential")
                   : undefined
               }
             >

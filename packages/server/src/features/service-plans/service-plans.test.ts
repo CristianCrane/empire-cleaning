@@ -200,7 +200,7 @@ describe("accepting a Service Plan Quote", () => {
 
     const sent = testEmail().sent.filter((m) => m.to === casey.email);
     const confirmations = sent.filter((m) =>
-      /Service Plan .* has started/.test(m.subject),
+      /cleaning plan .* has started/.test(m.subject),
     );
     expect(confirmations).toHaveLength(1);
     expect(confirmations[0]!.text).toContain(
@@ -218,11 +218,11 @@ describe("accepting a Service Plan Quote", () => {
 
     const confirmation = testEmail().lastTo(casey.email);
     expect(confirmation.subject).toBe(
-      "Your Service Plan with Empire Cleaning has started",
+      "Your cleaning plan with Empire Cleaning has started",
     );
     expect(confirmation.text).not.toContain("when it's done");
     expect(confirmation.text).toContain(
-      "Each clean is $201.85. Each week's cleans go on one Bill, made the following Monday, which you pay on its page by its due date.",
+      "Each clean is $201.85. Each week's cleans go on one bill, made the following Monday, which you pay on its page by its due date.",
     );
   });
 
@@ -272,7 +272,7 @@ describe("accepting a Service Plan Quote", () => {
 
     const refused = await accept(client, quote, "deep").expect(409);
     expect(refused.body.message).toBe(
-      "This Service Plan is for a Standard Clean.",
+      "This cleaning plan is for a Standard Clean.",
     );
   });
 

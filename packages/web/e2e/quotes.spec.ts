@@ -56,7 +56,7 @@ const send = async (page: Page) => {
 
 const quoteLink = async () => {
   const sent = (await emailsTo(casey.email)).find(
-    (e) => e.subject === "Your Quote from Empire Cleaning",
+    (e) => e.subject === "Your quote from Empire Cleaning",
   );
   return new URL(sent!.text.match(/https?:\/\/\S+/)![0]).pathname;
 };
@@ -127,7 +127,7 @@ test("prices follow the Draft as it changes, and an override waits for its reaso
   );
   await page.getByRole("button", { name: `Send to ${casey.name}` }).click();
   await expect(
-    standard.getByText("Say why you're changing the Suggested Price"),
+    standard.getByText("Say why you're changing the suggested price"),
   ).toBeVisible();
 
   await standard
@@ -145,7 +145,7 @@ test("a Quote can't be sent without a proposed time", async ({ page }) => {
 
   await page.getByRole("button", { name: `Send to ${casey.name}` }).click();
 
-  await expect(page.getByText("Choose a proposed time")).toBeVisible();
+  await expect(page.getByText("Pick a time")).toBeVisible();
 });
 
 test("a Draft whose prices changed since it was saved shows them before it's sent", async ({
@@ -175,7 +175,7 @@ test("a Draft whose prices changed since it was saved shows them before it's sen
 
   await expect(
     page.getByText(
-      "This Draft's prices have changed since it was saved: the Property's details or the Price List changed. Check the new prices, then send it.",
+      "The prices have changed since you saved this. Check them, then send it.",
     ),
   ).toBeVisible();
   await expect(standard).not.toHaveText(before);
@@ -329,7 +329,7 @@ test("Office Staff Turn Down a Quote asked for, and the Client is told why", asy
     page.getByRole("button", { name: "Draft the Quote" }),
   ).toBeHidden();
   const told = (await emailsTo(casey.email)).find(
-    (e) => e.subject === "About your Quote from Empire Cleaning",
+    (e) => e.subject === "About your quote from Empire Cleaning",
   );
   expect(told?.text).toContain("it's outside the area we clean");
   // the email's link shows them the same
@@ -338,7 +338,7 @@ test("Office Staff Turn Down a Quote asked for, and the Client is told why", asy
   await client.goto(new URL(told!.text.match(/https?:\/\/\S+/)![0]).pathname);
   await expect(
     client.getByText(
-      "We're sorry, but we can't quote for this home: it's outside the area we clean.",
+      "Sorry, we can't take this one on. It's outside the area we clean.",
     ),
   ).toBeVisible();
   await expect(client.getByText("Turned Down")).toBeVisible();

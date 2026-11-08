@@ -195,11 +195,9 @@ test.describe("requesting a Quote", () => {
       await expect(
         page.getByText("Thanks, we've got your request"),
       ).toBeVisible();
-      await expect(
-        page.getByText(`We'll email your Quote to ${email}`),
-      ).toBeVisible();
+      await expect(page.getByText(`We'll email it to ${email}`)).toBeVisible();
       const [receipt] = await emailsTo(email);
-      expect(receipt?.subject).toBe("We've received your request for a Quote");
+      expect(receipt?.subject).toBe("We got your request for a quote");
     },
   );
 
@@ -332,8 +330,8 @@ test.describe("requesting a Quote", () => {
     ).toBeVisible();
     const mail = await emailsTo(email);
     expect(mail.map((m) => m.subject)).toEqual([
-      "We've received your request for a Quote",
-      "About your request for a Quote",
+      "We got your request for a quote",
+      "About your request for a quote",
     ]);
     expect(mail[1]!.text).toContain(
       "You've already asked us for a Quote for 41-12 Austin St, 11375.",
@@ -397,9 +395,7 @@ test.describe("requesting a Quote", () => {
     await fillDetails(page, email);
     await page.getByRole("button", { name: "Request a Quote" }).click();
 
-    await expect(
-      page.getByText(`We'll email your Quote to ${email}`),
-    ).toBeVisible();
+    await expect(page.getByText(`We'll email it to ${email}`)).toBeVisible();
   });
 
   test("a business asks for its premises to be cleaned on chosen days", async ({
@@ -436,9 +432,7 @@ test.describe("requesting a Quote", () => {
 
     await page.getByRole("button", { name: "Request a Quote" }).click();
 
-    await expect(
-      page.getByText(`We'll email your Quote to ${email}`),
-    ).toBeVisible();
+    await expect(page.getByText(`We'll email it to ${email}`)).toBeVisible();
     const [receipt] = await emailsTo(email);
     expect(receipt?.text).toContain("200 Park Ave S, 10003");
   });

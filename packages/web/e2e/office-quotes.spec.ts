@@ -78,7 +78,7 @@ test(
     ).toContainText("$194.89");
     await expect(
       page.getByText(
-        "Pat Phoner has no email yet, so this Quote can't be sent.",
+        "Pat Phoner has no email yet, so this quote can't be sent.",
         { exact: false },
       ),
     ).toBeVisible();
@@ -86,7 +86,7 @@ test(
       page.getByRole("button", { name: "Send to Pat Phoner" }),
     ).toBeDisabled();
 
-    await page.getByRole("link", { name: "their Client screen" }).click();
+    await page.getByRole("link", { name: "their client page" }).click();
     await expect(page.getByText("None yet", { exact: false })).toBeVisible();
     await page.getByRole("button", { name: "Edit" }).click();
     const dialog = page.getByRole("dialog", { name: "Edit contact details" });

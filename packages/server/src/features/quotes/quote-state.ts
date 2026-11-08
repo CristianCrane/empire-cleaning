@@ -65,6 +65,19 @@ export const statusOf = (quote: {
 export const isOpen = (status: QuoteStatus) =>
   status === "requested" || status === "draft" || status === "sent";
 
+// what happened to a Quote that can't be accepted, revised or declined
+// now; each refusal adds what to do
+export const whatClosed = (status: QuoteStatus) =>
+  ({
+    requested: "This quote hasn't been sent yet.",
+    draft: "This quote hasn't been sent yet.",
+    sent: "",
+    accepted: "This quote has already been accepted.",
+    declined: "This quote was declined.",
+    expired: "This quote has expired.",
+    turned_down: "This quote was turned down.",
+  })[status];
+
 // still being worked on by the Office: nothing has been Sent
 const unsent = (status: QuoteStatus) =>
   status === "requested" || status === "draft";

@@ -36,8 +36,8 @@ export function PortalRequest() {
           {open.map((quote) => (
             <p key={quote.id}>
               {quote.status === "sent"
-                ? "We've sent your Quote for "
-                : "We're preparing your Quote for "}
+                ? "We've already sent you a quote for "
+                : "We're working on your quote for "}
               <Link
                 href={linkTo({
                   to: "/portal/quotes/$quoteId",

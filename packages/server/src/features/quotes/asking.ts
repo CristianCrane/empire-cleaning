@@ -8,6 +8,7 @@ import type {
   Service,
   SignedInAccount,
 } from "@empire-cleaning/models";
+import { thisPlace } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
 import {
   ConflictError,
@@ -51,11 +52,12 @@ import {
 import { tellOfficeStaff } from "../staff/staff.ts";
 import {
   alreadyAsked,
+  alreadyYours,
   askClashEmail,
   quoteReceivedEmail,
   quoteRequestedEmail,
 } from "./emails.ts";
-import { openAlongside, openAlready, thisPlace } from "./quotes.ts";
+import { openAlongside, openAlreadyAt } from "./quotes.ts";
 import { quoteAddOns, quotes, type Quote } from "./quotes.schema.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
 
@@ -255,12 +257,12 @@ const clashMessage = (
   client: Client,
   enteredBy: string | null,
 ) => {
-  const place = thisPlace(property);
+  const place = thisPlace(property.kind);
   if (why === "otherKind") {
-    return `${addressOf(property)} is already ${enteredBy ? "their" : "your"} ${property.kind === "commercial" ? "business premises" : "home"}: choose it from the list to ask about it.`;
+    return `${alreadyYours(addressOf(property), property.kind, enteredBy ? "their" : "your")} Pick it from the list to ask about it.`;
   }
   if (enteredBy) {
-    return openAlready(property, "a Quote");
+    return openAlreadyAt(property, "a quote");
   }
   return alreadyAsked(why, place, client.email);
 };

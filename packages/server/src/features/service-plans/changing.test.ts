@@ -163,13 +163,13 @@ describe("accepting a Service Plan Quote for a home with a plan", () => {
 
     const confirmation = testEmail().lastTo("casey@example.com");
     expect(confirmation.subject).toBe(
-      "Your Service Plan with Empire Cleaning has changed",
+      "Your cleaning plan with Empire Cleaning has changed",
     );
     expect(confirmation.text).toContain(
       "it's a Standard Clean every 2 weeks, on Wednesdays at 9:00 AM",
     );
     expect(confirmation.text).toContain("are cancelled, at no charge");
-    expect(confirmation.text).toContain("Your Deposit stays as it is");
+    expect(confirmation.text).toContain("Your deposit stays as it is");
     // Cory is on the 2 February Job, and hears it's off
     const off = testEmail().lastTo("cory@example.com");
     expect(off.subject).toBe("A Job you're on is cancelled");
@@ -200,11 +200,11 @@ describe("accepting a Service Plan Quote for a home with a plan", () => {
 
     const confirmation = testEmail().lastTo(casey.email);
     expect(confirmation.subject).toBe(
-      "Your Service Plan with Empire Cleaning has changed",
+      "Your cleaning plan with Empire Cleaning has changed",
     );
     expect(confirmation.text).not.toContain("when it's done");
     expect(confirmation.text).toContain(
-      "Each clean is now $201.85. Each week's cleans go on one Bill, made the following Monday and charged to your saved Payment Method.",
+      "Each clean is now $201.85. Each week's cleans go on one bill, made the following Monday and charged to your saved Payment Method.",
     );
   });
 
@@ -520,7 +520,7 @@ describe("accepting a change to a plan without a saved card", () => {
           .send({ revisionId: quote.offer!.id, serviceKey: SEEDED.standard })
           .expect(409)
       ).body.message,
-    ).toBe("Enter a card to accept this Quote.");
+    ).toBe("Add a card to accept this quote.");
   });
 
   test("can't be recorded by the Office", async () => {
@@ -534,7 +534,7 @@ describe("accepting a change to a plan without a saved card", () => {
           .expect(409)
       ).body.message,
     ).toBe(
-      "Casey Client hasn't added a Payment Method yet. Email them a link to add one.",
+      "Casey Client hasn't added a card yet. Email them a link to add one.",
     );
   });
 });

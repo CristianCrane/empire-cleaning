@@ -167,7 +167,7 @@ describe("a Quote asked for business premises", () => {
     expect(res.body.details).toEqual(
       expect.arrayContaining([
         { path: "businessName", issue: "Enter the business's name" },
-        { path: "weekdays", issue: "Choose the days you want cleaned" },
+        { path: "weekdays", issue: "Pick the days you want cleaned" },
         { path: "preferredTime", issue: "Pick a start time" },
       ]),
     );
@@ -274,7 +274,7 @@ describe("a Quote asked for business premises", () => {
 
     expect(res.status).toBe(409);
     expect(res.body.message).toBe(
-      "41-12 Austin St, 4B, 11375 is already your home: choose it from the list to ask about it.",
+      "41-12 Austin St, 4B, 11375 is already your home with us. Pick it from the list to ask about it.",
     );
   });
 
@@ -301,9 +301,9 @@ describe("a Quote asked for business premises", () => {
       emailedTo: casey.email,
     });
     const mail = testEmail().lastTo(casey.email);
-    expect(mail.subject).toBe("About your request for a Quote");
+    expect(mail.subject).toBe("About your request for a quote");
     expect(mail.text).toContain(
-      "41-12 Austin St, 4B, 11375 is already your home with us, so we haven't taken this request. Sign in and choose it from the list to ask about it.",
+      "41-12 Austin St, 4B, 11375 is already your home with us. Sign in and pick it from the list to ask about it.",
     );
   });
 
@@ -316,7 +316,7 @@ describe("a Quote asked for business premises", () => {
 
     expect(res.status).toBe(409);
     expect(res.body.message).toBe(
-      "You've already asked us for a Quote for these premises. We'll email it to casey@example.com soon.",
+      "You've already asked us for a quote for this business. We'll email it to casey@example.com soon.",
     );
   });
 });

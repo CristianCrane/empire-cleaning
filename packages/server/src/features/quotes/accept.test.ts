@@ -294,7 +294,7 @@ describe("accepting a First Clean Quote", () => {
     const refused = await accept(client, seen).expect(409);
 
     expect(refused.body.message).toBe(
-      "This Quote has just been updated, so nothing has been booked. Please reload the page to see it.",
+      "This quote was just updated, so nothing was booked. Please reload the page to see it.",
     );
     expect(testPayments().charges).toEqual([]);
     expect((await quoteOf(office, seen.id)).status).toBe("sent");
@@ -307,7 +307,7 @@ describe("accepting a First Clean Quote", () => {
           .expect(409)
       ).body.message,
     ).toBe(
-      "A newer Revision of this Quote was just sent, so nothing was booked. Reload the page to see it.",
+      "An updated quote was just sent, so nothing was booked. Reload the page to see it.",
     );
   });
 
@@ -353,7 +353,7 @@ describe("accepting a First Clean Quote", () => {
       "When: Monday, January 12 at 9:00 AM\nWhere: 41-12 Austin St, 4B, 11375\nService: Deep Clean",
     );
     expect(confirmation.text).toContain(
-      `Deposit of $${(deep.depositCents / 100).toFixed(2)} from your Test card ending 4242`,
+      `deposit of $${(deep.depositCents / 100).toFixed(2)} from your Test card ending 4242`,
     );
     expect(confirmation.text).toContain("http://localhost:5173/portal/details");
   });
@@ -460,7 +460,7 @@ describe("accepting a First Clean Quote", () => {
       .send({ revisionId: quote.offer!.id, serviceKey: "sparkling" })
       .expect(400);
     const refused = await accept(client, quote).expect(409);
-    expect(refused.body.message).toBe("Enter a card to accept this Quote.");
+    expect(refused.body.message).toBe("Add a card to accept this quote.");
   });
 
   test("leaves the Quote Sent and books nothing if the Deposit fails", async () => {
@@ -474,7 +474,7 @@ describe("accepting a First Clean Quote", () => {
     const refused = await accept(client, quote).expect(409);
 
     expect(refused.body.message).toBe(
-      "Your card couldn't be charged, so nothing has been booked. Please try another card.",
+      "Your card didn't go through, so nothing was booked. Please try another card.",
     );
     expect((await client.get(`/api/quotes/mine/${quote.id}`)).body.status).toBe(
       "sent",
@@ -504,7 +504,7 @@ describe("accepting a First Clean Quote", () => {
 
     const refused = await accept(client, quote).expect(409);
 
-    expect(refused.body.message).toMatch(/that time has just been booked up/);
+    expect(refused.body.message).toMatch(/that time just got booked up/);
     expect(testPayments().charges).toEqual([]);
     expect((await client.get(`/api/quotes/mine/${quote.id}`)).body.status).toBe(
       "sent",
@@ -529,7 +529,7 @@ describe("accepting a First Clean Quote", () => {
 
     const refused = await accept(client, quote).expect(409);
 
-    expect(refused.body.message).toMatch(/that time has just been booked up/);
+    expect(refused.body.message).toMatch(/that time just got booked up/);
     expect(testPayments().charges).toEqual([]);
     expect((await scheduleOn(office, MONDAY)).jobs).toHaveLength(1);
   });
@@ -588,13 +588,13 @@ describe("accepting a First Clean Quote", () => {
     await addCard(client);
     await client.post(`/api/quotes/mine/${declined.id}/decline`).expect(200);
     expect((await accept(client, declined).expect(409)).body.message).toBe(
-      "This Quote was declined, so it can't be accepted.",
+      "This quote was declined. Ask us for a new one.",
     );
 
     const newer = await sentQuote(office);
     await accept(client, newer).expect(200);
     expect((await accept(client, newer).expect(409)).body.message).toBe(
-      "This Quote has already been accepted.",
+      "This quote has already been accepted.",
     );
     expect(testPayments().charges).toHaveLength(1);
   });
@@ -609,7 +609,7 @@ describe("accepting a First Clean Quote", () => {
 
     const refused = await accept(client, quote).expect(409);
 
-    expect(refused.body.message).toMatch(/^This Quote has expired/);
+    expect(refused.body.message).toMatch(/^This quote has expired/);
     expect(testPayments().charges).toEqual([]);
   });
 });
@@ -709,13 +709,13 @@ describe("paying the Deposit with a card entered just now", () => {
 
     const early = await finalize(client, quote).expect(409);
     expect(early.body.message).toBe(
-      "Your bank hasn't approved the payment yet. Please approve it and try again.",
+      "Your bank hasn't approved the payment yet. Please approve it, then try again.",
     );
 
     testPayments().requireApproval("refused");
     const refused = await finalize(client, quote).expect(409);
     expect(refused.body.message).toBe(
-      "Your bank didn't approve the payment, so nothing has been booked. Please try again, or use another card.",
+      "Your bank didn't approve the payment, so nothing was booked. Please try again, or use another card.",
     );
     expect((await client.get(`/api/quotes/mine/${quote.id}`)).body.status).toBe(
       "sent",
@@ -742,7 +742,7 @@ describe("paying the Deposit with a card entered just now", () => {
     const refused = await finalize(client, quote).expect(409);
 
     expect(refused.body.message).toBe(
-      "Sorry, that time was booked up while your bank was approving the payment. We've refunded your Deposit and we'll be in touch with another time.",
+      "Sorry, that time got booked up while your bank was approving the payment. We've refunded your deposit, and we'll be in touch with another time.",
     );
     const [charge] = testPayments().charges;
     expect(testPayments().refunds).toEqual([
@@ -795,7 +795,7 @@ describe("paying the Deposit with a card entered just now", () => {
     const refused = await finalize(client, quote).expect(409);
 
     expect(refused.body.message).toBe(
-      "This Quote was updated while your bank was approving the payment, so we've refunded your Deposit. Please look at the new Quote.",
+      "This quote was updated while your bank was approving the payment, so we've refunded your deposit. Please look at the updated quote.",
     );
     expect(testPayments().refunds).toHaveLength(1);
     expect((await scheduleOn(office, MONDAY)).jobs).toEqual([]);
@@ -925,7 +925,7 @@ describe("when something goes wrong mid-way", () => {
     testPayments().goDown();
 
     expect((await accept(client, quote).expect(409)).body.message).toBe(
-      "We couldn't reach our payment provider, so nothing has been booked. Please try again in a few minutes.",
+      "Something went wrong taking the payment, so nothing was booked. Please try again in a few minutes.",
     );
     expect(
       (
@@ -935,7 +935,7 @@ describe("when something goes wrong mid-way", () => {
           .expect(409)
       ).body.message,
     ).toBe(
-      "The Deposit couldn't be charged to Casey Client's Test card ending 4242 (the payment provider couldn't be reached), so nothing has been booked.",
+      "Something went wrong taking the payment, so nothing was booked. Please try again in a few minutes.",
     );
 
     expect((await client.get(`/api/quotes/mine/${quote.id}`)).body.status).toBe(
@@ -1109,7 +1109,7 @@ describe("Office Staff recording acceptance on a Client's behalf", () => {
       .expect(409);
 
     expect(refused.body.message).toBe(
-      "Casey Client hasn't added a Payment Method yet. Email them a link to add one.",
+      "Casey Client hasn't added a card yet. Email them a link to add one.",
     );
   });
 
@@ -1126,7 +1126,7 @@ describe("Office Staff recording acceptance on a Client's behalf", () => {
       .expect(409);
 
     expect(refused.body.message).toBe(
-      "The Deposit couldn't be charged to Casey Client's Test card ending 4242 (insufficient_funds), so nothing has been booked.",
+      "Casey Client's Test card ending 4242 didn't go through (insufficient funds), so nothing was booked. Email them a link to add another card.",
     );
   });
 
@@ -1143,7 +1143,7 @@ describe("Office Staff recording acceptance on a Client's behalf", () => {
       .send({ revisionId: draft.draft!.id, serviceKey: SEEDED.deep })
       .expect(409);
     expect(refused.body.message).toBe(
-      "Send the Quote before recording its acceptance.",
+      "This quote hasn't been sent yet. Send it first.",
     );
   });
 
@@ -1418,7 +1418,7 @@ describe("when a Quote's day fills up before it's accepted", () => {
     await accept(drew, drews).expect(200);
 
     const notice = testEmail().lastTo("olive@example.com");
-    expect(notice.subject).toBe("A Quote needs another time");
+    expect(notice.subject).toBe("A quote needs another time");
     expect(notice.text).toContain("Casey Client: 41-12 Austin St, 4B, 11375");
     expect(notice.text).toContain("/office");
     // and Casey's Quote can't be taken
@@ -1444,7 +1444,7 @@ describe("when a Quote's day fills up before it's accepted", () => {
     const toldOffice = () =>
       testEmail()
         .to("olive@example.com")
-        .filter((m) => m.subject === "A Quote needs another time");
+        .filter((m) => m.subject === "A quote needs another time");
 
     // Tuesdays off: Monday still fits
     await setUsualWeek(cory.id, [4, 0, 4, 4, 4, 0, 0]);

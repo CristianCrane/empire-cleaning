@@ -52,7 +52,7 @@ const startOn = async (
 
 const quoteLink = async () => {
   const sent = (await emailsTo(casey.email)).find(
-    (e) => e.subject === "Your Service Plan Quote from Empire Cleaning",
+    (e) => e.subject === "Your cleaning plan quote from Empire Cleaning",
   );
   return new URL(sent!.text.match(/https?:\/\/\S+/)![0]).pathname;
 };
@@ -207,6 +207,6 @@ test("business premises can be offered a Service Plan with no First Clean, once 
     "Revision 1 for Acme Dental (Casey Client)",
   );
   await expect(
-    page.getByText("These premises haven't had a Site Visit"),
+    page.getByText("This business hasn't had a site visit yet"),
   ).toHaveCount(0);
 });

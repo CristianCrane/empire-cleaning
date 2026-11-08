@@ -72,7 +72,7 @@ const startOn19th = async (page: Page) => {
 
 const quoteLink = async () => {
   const sent = (await emailsTo(casey.email)).find(
-    (e) => e.subject === "Your Service Plan Quote from Empire Cleaning",
+    (e) => e.subject === "Your cleaning plan quote from Empire Cleaning",
   );
   return new URL(sent!.text.match(/https?:\/\/\S+/)![0]).pathname;
 };

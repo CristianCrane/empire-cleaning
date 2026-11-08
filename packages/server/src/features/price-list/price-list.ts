@@ -262,13 +262,13 @@ export const savePriceList = async (
     input.addOns,
     current.addOns,
     "addOns",
-    "That Add-on isn't on the Price List any more; reload it",
+    "That add-on was taken off the prices. Reload the page",
   );
   const premisesTypes = keepRetired(
     input.premisesTypes,
     current.premisesTypes,
     "premisesTypes",
-    "That Premises Type isn't on the Price List any more; reload it",
+    "That type of business was taken off the prices. Reload the page",
   );
 
   await db.transaction((tx) =>
@@ -323,7 +323,7 @@ export const offersPremisesType = (list: PriceList, key: string) =>
 export const NOT_A_PREMISES_TYPE = "Pick a type of business from the list";
 
 // what a choice of an Add-on that isn't on offer with its Service is told
-export const NOT_AN_ADD_ON = "Choose from the Add-ons listed";
+export const NOT_AN_ADD_ON = "Pick add-ons from the list";
 
 // the Premises Types business premises can be described as now; open to
 // everyone, for the landing page's form

@@ -193,7 +193,7 @@ const latest = async () => {
 // Every Service as it is now, active and retired. The very first read
 // creates the starting ones, so a fresh install always has them.
 // what a choice of a Service that isn't on offer is told
-export const NOT_A_SERVICE = "Choose from the Services listed";
+export const NOT_A_SERVICE = "Pick a service from the list";
 
 export const currentServices = async (): Promise<Service[]> => {
   const existing = await latest();
@@ -334,7 +334,7 @@ const checkFirstVisit = (
   if (recommended === key) {
     throw fieldError(
       ["firstVisitServiceKey"],
-      "Recommend a different Service, or none",
+      "Recommend a different service, or none",
     );
   }
   if (!all.some((s) => s.key === recommended)) {
@@ -348,7 +348,7 @@ const checkName = (all: Service[], key: string | null, input: ServiceInput) => {
     input.active &&
     all.some((s) => s.key !== key && s.active && s.name.toLowerCase() === name)
   ) {
-    throw fieldError(["name"], "Another Service already has this name");
+    throw fieldError(["name"], "Another service already has this name");
   }
 };
 

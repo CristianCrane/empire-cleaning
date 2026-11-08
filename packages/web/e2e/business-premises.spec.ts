@@ -98,9 +98,7 @@ test("a business wanting regular cleaning is asked which days, or may ask for a 
 
   await page.getByRole("button", { name: "Request a Quote" }).click();
   // back on the step that asks
-  await expect(
-    page.getByText("Choose the days you want cleaned"),
-  ).toBeVisible();
+  await expect(page.getByText("Pick the days you want cleaned")).toBeVisible();
 
   await page.getByText("One-off", { exact: true }).click();
   await nextStep(page);

@@ -7,6 +7,6 @@ export default preview(
     name: client.name,
     address,
     quoteId: jobId,
-    why: "it's outside the area we clean",
+    reason: "out_of_area",
   }),
 );

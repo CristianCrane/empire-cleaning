@@ -96,7 +96,7 @@ test(
       /Wed, Jan 28, 9:00 AM/,
     ]);
     expect((await emailsTo(casey.email)).at(-1)!.subject).toBe(
-      "Your Service Plan with Empire Cleaning has changed",
+      "Your cleaning plan with Empire Cleaning has changed",
     );
 
     // the Office sees the plan on its new terms

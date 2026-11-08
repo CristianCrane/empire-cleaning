@@ -195,10 +195,10 @@ describe("Services", () => {
 
     expect(res.status).toBe(400);
     expect(issuesOf(res.body)).toMatchObject({
-      name: "Name the Service",
+      name: "Enter a name",
       hourlyRateCents: "The hourly rate must be at least $1",
       roomHours: "Enter how long each part of a home takes",
-      offeredFor: "Price it by area to offer it for business premises",
+      offeredFor: "To offer it to businesses, price it by area",
       taxPlanPercent: "Enter a tax rate",
     });
   });
@@ -242,13 +242,13 @@ describe("Services", () => {
       .send({ ...windows, name: deep.name, firstVisitServiceKey: deep.key });
 
     expect(issuesOf(twice.body)).toEqual({
-      name: "Another Service already has this name",
+      name: "Another service already has this name",
     });
     expect(issuesOf(unknown.body)).toEqual({
-      firstVisitServiceKey: "Choose from the Services listed",
+      firstVisitServiceKey: "Pick a service from the list",
     });
     expect(issuesOf(itself.body)).toEqual({
-      firstVisitServiceKey: "Recommend a different Service, or none",
+      firstVisitServiceKey: "Recommend a different service, or none",
     });
   });
 

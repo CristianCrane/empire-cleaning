@@ -42,7 +42,13 @@ import type {
   ServiceChoice,
   ServicePlanInput,
 } from "@empire-cleaning/models";
-import { ADD_HOURS, DAY_FULL, NO_CREW } from "@empire-cleaning/models";
+import {
+  ADD_HOURS,
+  DAY_FULL,
+  NO_CREW,
+  noEmailYet,
+  notSeenYet,
+} from "@empire-cleaning/models";
 import {
   Actions,
   Breadcrumbs,
@@ -1865,15 +1871,14 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
       {!quote.client.email && (
         <Notice tone="warning">
           <p>
-            {quote.client.name} has no email yet, so this Quote can't be sent.
-            Add their email on{" "}
+            {noEmailYet(quote.client.name)} Add their email on{" "}
             <Link
               href={linkTo({
                 to: "/office/clients/$clientId",
                 params: { clientId: quote.client.id },
               })}
             >
-              their Client screen
+              their client page
             </Link>
             , then send it.
           </p>
@@ -1884,15 +1889,15 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
       {quote.needsSiteVisit && (
         <Notice tone="warning">
           <p>
-            These premises haven't had a Site Visit, so this Quote can't be
-            sent. Book one or record its findings on{" "}
+            {notSeenYet(quote.property.kind)} Book one, or record what it found
+            on{" "}
             <Link
               href={linkTo({
                 to: "/office/properties/$propertyId",
                 params: { propertyId: quote.property.id },
               })}
             >
-              the Property
+              the property page
             </Link>
             , then send it.
           </p>
