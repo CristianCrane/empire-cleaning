@@ -20,7 +20,7 @@ import { whyNotPaid } from "../payments/unpaid.ts";
 // a fee that didn't go through, for the Office, and why
 const feeNotPaid = (failure: string) => {
   const { why } = whyNotPaid(failure);
-  return `The fee didn't go through, so the job is unpaid.${why ? ` ${why}` : ""}`;
+  return `The fee didn't go through${why ? ` (${why})` : ""}, so the job is unpaid.`;
 };
 
 // what was refunded, as a line for the Client

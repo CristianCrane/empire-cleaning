@@ -24,6 +24,7 @@ import type {
 } from "@empire-cleaning/models";
 import {
   adjustmentLabel,
+  BOOKED_GO_AHEAD,
   feeName,
   LATE_MOVE_FEE,
   PLAN_BACK_ON,
@@ -1238,7 +1239,7 @@ const sendBillReminders = async () => {
           : claimed.unpaidSince
             ? [PLAN_PAUSED]
             : [
-                "If it isn't paid by then, your cleaning plan is paused until it is. Cleans already booked still go ahead, but we won't book any more.",
+                `If it isn't paid by then, your cleaning plan is paused until it is. ${BOOKED_GO_AHEAD}`,
               ],
         // the Office is copied once it's late, to chase it
         claimed.unpaidSince ? env.OFFICE_EMAIL : undefined,

@@ -482,7 +482,7 @@ describe("making Bills", () => {
       .send({ ref: form.ref })
       .expect(409);
     expect(refused.body.message).toBe(
-      "Your payment didn't go through. The card has expired. Please try again, or use another card or bank account.",
+      "Your payment didn't go through (the card has expired). Please try again, or use another card or bank account.",
     );
   });
 
@@ -716,7 +716,7 @@ describe("Unpaid Bills", () => {
     expect(summary).toMatchObject({
       unpaid: {
         kind: "waiting",
-        why: "We couldn't reach the payment service.",
+        why: "we couldn't reach the payment service",
       },
     });
     // nothing for the Client to do: we try again ourselves
@@ -857,7 +857,7 @@ describe("reminders and late Bills", () => {
     expect((await billOf(office, id)).unpaid).toEqual({
       since: "2026-01-27T05:00:00.000Z",
       kind: "late",
-      why: "It wasn't paid by its due date.",
+      why: "it wasn't paid by its due date",
     });
     expect(
       (await office.get("/api/dashboard/needs-attention").expect(200))

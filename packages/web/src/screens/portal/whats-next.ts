@@ -28,6 +28,7 @@ import {
   ASK_AGAIN,
   ASK_US,
   billNotPaid,
+  BOOKED_GO_AHEAD,
   cleanNotPaid,
   turnDownReason,
   UPDATE_CARD,
@@ -146,7 +147,11 @@ export function whatsNext(data: HomeData, now = new Date()): WhatsNext {
   ].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
   const [next, then] = booked;
 
-  const unpaidJob = data.pastJobs.find((j) => j.unpaid);
+  // a clean they can put right with a card; one waiting on the payment
+  // service we try again ourselves
+  const unpaidJob = data.pastJobs.find(
+    (j) => j.unpaid && j.unpaid !== "waiting",
+  );
   const paused = data.plans.find((p) => p.status === "on_hold");
   const sent = data.quotes.filter((q) => q.status === "sent");
   // a Sent Quote leads only when nothing is booked
@@ -158,7 +163,7 @@ export function whatsNext(data: HomeData, now = new Date()): WhatsNext {
     notices.push({
       text:
         `${cleanNotPaid(dayOf(unpaidJob.startsAt))}.` +
-        (paused ? " We won't book any more cleans until it's paid." : ""),
+        (paused ? ` ${BOOKED_GO_AHEAD}` : ""),
       action: UPDATE_CARD,
       href: cardLink,
     });
@@ -289,7 +294,7 @@ function heroOf(data: HomeData, ctx: Context): Hero {
       lines: [
         unpaidJob
           ? `${cleanNotPaid(dayOf(unpaidJob.startsAt))}.`
-          : "A bill on it hasn't been paid.",
+          : "A payment on it hasn't gone through yet.",
         "Once it's paid, your plan carries on from its next date.",
       ],
       action: unpaidJob

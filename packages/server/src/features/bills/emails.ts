@@ -13,6 +13,8 @@ import {
   formatMoney,
 } from "../../services/email/format.ts";
 import {
+  billNotPaid,
+  notTaken,
   PLAN_BACK_ON,
   PLAN_PAUSED,
   PRICES_INCLUDE_TAX,
@@ -72,8 +74,8 @@ const aboutBill = (
       }
       if (bill.unpaid) {
         return [
-          `We couldn't take payment for bill ${number}`,
-          `We couldn't take ${total} for bill ${number} from your ${card}. Please ${UPDATE_AND_RETRY}, or pay it on its page.`,
+          billNotPaid(number),
+          `${notTaken(`${total} for bill ${number}`, card)} Please ${UPDATE_AND_RETRY}, or pay it on its page.`,
         ];
       }
       if (bill.totalCents < 0) {

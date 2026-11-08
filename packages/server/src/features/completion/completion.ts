@@ -12,6 +12,7 @@ import {
 import {
   adjustmentItem,
   adjustmentLabel,
+  clientFix,
   NOT_ALL_CONFIRMED,
   type AdjustmentCorrection,
   type AdjustmentProposal,
@@ -47,7 +48,7 @@ import {
   rescheduleTermsOf,
 } from "../reschedule/reschedule.ts";
 import { staff } from "../staff/staff.schema.ts";
-import { whyNotPaid } from "../payments/unpaid.ts";
+import { unpaidOf, whyNotPaid } from "../payments/unpaid.ts";
 import {
   counts,
   paymentOf,
@@ -725,7 +726,7 @@ export const retryBalance = async (jobId: string) => {
   if (settled.failure) {
     const { why } = whyNotPaid(settled.failure);
     throw new ConflictError(
-      `The payment still didn't go through.${why ? ` ${why}` : ""}`,
+      `The payment still didn't go through${why ? ` (${why})` : ""}.`,
     );
   }
   await sendCorrection(jobId, settled);
@@ -880,7 +881,7 @@ export const pastJobsFor = async (
             ? totalOf(quoted.get(job.id)!.totalCents, own)
             : 0,
         feeCents: job.status === "completed" ? 0 : (job.feeCents ?? 0),
-        unpaid: job.unpaidSince !== null,
+        unpaid: unpaidOf(job.unpaidSince, job.unpaidReason)?.kind ?? null,
         owedCents: job.unpaidSince ? (await paymentOf(job)).owedCents : 0,
         awaitingAnswer: own.filter((a) => a.status === "proposed").length,
       };
@@ -950,8 +951,9 @@ export const clientRetryBalance = async (clientId: string, jobId: string) => {
   if (!job.unpaidSince) return;
   const settled = await settleJob(jobId);
   if (settled.failure) {
+    const { kind, why } = whyNotPaid(settled.failure);
     throw new ConflictError(
-      "Your card still didn't go through. Please update your card, or use another one.",
+      `It still didn't go through${why ? ` (${why})` : ""}. ${kind === "declined" ? "Please update your card, or use another one." : clientFix[kind]}`,
     );
   }
 };

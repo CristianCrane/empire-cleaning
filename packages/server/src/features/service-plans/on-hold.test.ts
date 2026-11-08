@@ -83,7 +83,7 @@ describe("a plan Job left Unpaid", () => {
         completedAt: null,
         totalCents: 0,
         feeCents: PLAN_DEPOSIT,
-        unpaid: true,
+        unpaid: "declined",
       }),
       // its First Clean, before the plan
       expect.objectContaining({ status: "completed", skipped: false }),

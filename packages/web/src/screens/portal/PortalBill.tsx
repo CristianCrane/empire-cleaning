@@ -2,6 +2,7 @@ import { useLoaderData } from "@tanstack/react-router";
 import {
   BANK_CLEARING,
   clientFix,
+  notTaken,
   PLAN_PAUSED,
   UPDATE_AND_RETRY,
   UPDATE_CARD,
@@ -97,8 +98,11 @@ function Standing({ bill }: { bill: BillView }) {
     return (
       <div className="flex flex-col gap-3 print:hidden">
         <Notice tone="danger">
-          We couldn't take {formatMoney(bill.totalCents)} for this bill from
-          your card.{why && ` ${why}`}{" "}
+          {notTaken(
+            `${formatMoney(bill.totalCents)} for this bill`,
+            kind === "no_card" ? null : "card",
+            why,
+          )}{" "}
           {kind === "waiting"
             ? clientFix.waiting
             : `Please pay it below, or ${UPDATE_AND_RETRY}.`}

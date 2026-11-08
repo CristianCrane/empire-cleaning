@@ -98,7 +98,7 @@ function Standing({ bill }: { bill: BillView }) {
       <Notice tone="danger">
         {kind === "late"
           ? `It wasn't paid by its due date, ${formatDay(bill.dueOn)}.`
-          : `Its payment didn't go through on ${formatDate(bill.unpaid.since)}.${why ? ` ${why}` : ""}`}{" "}
+          : `Its payment didn't go through on ${formatDate(bill.unpaid.since)}${why ? ` (${why})` : ""}.`}{" "}
         {officeFix[kind]} Until it's paid, the client's cleaning plans with jobs
         on this bill are paused.
       </Notice>

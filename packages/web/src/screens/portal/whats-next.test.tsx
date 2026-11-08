@@ -49,7 +49,7 @@ const pastJob = (over: Partial<ClientPastJob> = {}): ClientPastJob => ({
   completedAt: "2026-10-20T16:00:00.000Z",
   totalCents: 18450,
   feeCents: 0,
-  unpaid: false,
+  unpaid: null,
   owedCents: 0,
   awaitingAnswer: 0,
   ...over,
@@ -252,7 +252,7 @@ describe("Home's hero, with nothing booked", () => {
   test("says a Service Plan is paused until it's paid", () => {
     const paused = next({
       plans: [plan({ status: "on_hold", nextStartsAt: null })],
-      pastJobs: [pastJob({ unpaid: true })],
+      pastJobs: [pastJob({ unpaid: "declined" })],
     });
     expect(paused.hero).toMatchObject({
       label: "Your cleaning plan is paused",
@@ -365,16 +365,24 @@ describe("Home's Notices: what's waiting on the Client", () => {
     const { notices, hero, shortcuts } = next({
       plans: [plan({ status: "on_hold" })],
       jobs: [job({ servicePlanId: "plan" })],
-      pastJobs: [pastJob({ unpaid: true })],
+      pastJobs: [pastJob({ unpaid: "declined" })],
     });
     expect(notices).toEqual([
       expect.objectContaining({
-        text: "We couldn't take payment for your Tue, Oct 20 clean. We won't book any more cleans until it's paid.",
+        text: "We couldn't take payment for your Tue, Oct 20 clean. Cleans already booked still go ahead, but we won't book any more.",
         action: "Update your card",
       }),
     ]);
     expect(hero.label).toBe("Your next clean");
     expect(shortcuts[2]).toMatchObject({ label: "Update your card" });
+  });
+
+  test("a clean waiting on the payment service asks nothing of them", () => {
+    const { notices, shortcuts } = next({
+      pastJobs: [pastJob({ unpaid: "waiting" })],
+    });
+    expect(notices).toEqual([]);
+    expect(shortcuts.map((s) => s.label)).not.toContain("Update your card");
   });
 
   test("a Bill due on its page, or Unpaid", () => {

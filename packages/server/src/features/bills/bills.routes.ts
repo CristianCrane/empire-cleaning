@@ -65,7 +65,7 @@ router.post(
     if (failure) {
       const { why } = whyNotPaid(failure);
       throw new ConflictError(
-        `Your payment didn't go through.${why ? ` ${why}` : ""} Please try again, or use another card or bank account.`,
+        `Your payment didn't go through${why ? ` (${why})` : ""}. Please try again, or use another card or bank account.`,
       );
     }
     res.json(await billView(id, client.id));

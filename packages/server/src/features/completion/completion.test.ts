@@ -561,7 +561,7 @@ describe("Adjustments", () => {
         skipped: false,
         feeCents: 0,
         awaitingAnswer: 2,
-        unpaid: false,
+        unpaid: null,
       }),
     ]);
 
@@ -680,7 +680,7 @@ describe("an Unpaid Job", () => {
     expect(
       ((await client.get("/api/jobs/mine/past")).body as ClientPastJob[])[0]!
         .unpaid,
-    ).toBe(true);
+    ).toBe("declined");
 
     // retrying with the same card still fails
     expect(
@@ -1141,7 +1141,7 @@ describe("a Client's past Jobs", () => {
         id: jobId,
         completedAt: MONDAY_11AM.toISOString(),
         totalCents: deepOf(quote).totalCents,
-        unpaid: false,
+        unpaid: null,
         awaitingAnswer: 0,
       }),
     ]);

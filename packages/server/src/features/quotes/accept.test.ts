@@ -1126,7 +1126,7 @@ describe("Office Staff recording acceptance on a Client's behalf", () => {
       .expect(409);
 
     expect(refused.body.message).toBe(
-      "Casey Client's Test card ending 4242 didn't go through, so nothing was booked. There wasn't enough money in the account. Email them a link to add another card.",
+      "Casey Client's Test card ending 4242 didn't go through (there wasn't enough money in the account), so nothing was booked. Email them a link to add another card.",
     );
   });
 

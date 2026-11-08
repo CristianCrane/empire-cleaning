@@ -98,7 +98,7 @@ test(
     await form.getByRole("button", { name: "Mark done" }).click();
 
     await expect(page.getByText("Job marked done")).toBeVisible();
-    const completed = page.getByRole("region", { name: "Completed" });
+    const completed = page.getByRole("region", { name: "Done" });
     await expect(completed).toContainText("Heavy");
     await expect(completed).toContainText(
       "Inside the oven, not done: The oven was in use",
@@ -133,7 +133,7 @@ test(
     const attention = page.getByRole("grid", { name: "Needs attention" });
     await attention
       .getByRole("row")
-      .filter({ hasText: "1 extra to review" })
+      .filter({ hasText: "1 price change to review" })
       .click();
     const adjustments = page.getByRole("region", { name: "Price changes" });
     const extra = adjustments.getByRole("row", { name: /Extra time/ });
@@ -257,7 +257,7 @@ test("Office Staff remove an Adjustment from its own dialog, confirming in the s
   await confirm.getByRole("button", { name: "Remove" }).click();
   await expect(page.getByText("Price change removed")).toBeVisible();
   await expect(adjustments).toContainText(
-    "Nothing different from the Quote was reported.",
+    "Nothing different from the quote was reported.",
   );
 });
 

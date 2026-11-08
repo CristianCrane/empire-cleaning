@@ -48,7 +48,7 @@ test(
     await expect(accept.getByText("Test payments: no card")).toBeVisible();
     // paying saves the card for the Balance, which the form says
     await expect(
-      accept.getByText("By paying, you authorise Empire Cleaning"),
+      accept.getByText("By paying, you agree that Empire Cleaning"),
     ).toBeVisible();
     await accept.getByRole("button", { name: /^Accept and pay \$/ }).click();
 

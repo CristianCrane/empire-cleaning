@@ -538,13 +538,13 @@ export const acceptQuote = async (
         // the Client is told only that their card wasn't charged
         log.info(`Deposit for Quote ${id} not taken (${attempt.reason})`);
         const { kind, why } = whyNotPaid(attempt.reason);
-        const because = why ? ` ${why}` : "";
+        const because = why ? ` (${why})` : "";
         throw new ConflictError(
           kind === "waiting"
             ? PAYMENT_DOWN
             : acceptor.by === "client"
-              ? `Your card didn't go through, so nothing was booked.${because} Please try another card.`
-              : `${client.name}'s ${saved!.label} didn't go through, so nothing was booked.${because} Email them a link to add another card.`,
+              ? `Your card didn't go through${because}, so nothing was booked. Please try another card.`
+              : `${client.name}'s ${saved!.label} didn't go through${because}, so nothing was booked. Email them a link to add another card.`,
         );
       }
       if (attempt.status === "needs_approval") {

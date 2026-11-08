@@ -110,7 +110,7 @@ const standingFact = (bill: BillView, forClient: boolean) => {
       icon: CreditCard,
       label: "Not paid",
       value: formatDate(bill.unpaid.since),
-      line: bill.unpaid.why ?? "The payment didn't go through.",
+      line: `The payment didn't go through${bill.unpaid.why ? ` (${bill.unpaid.why})` : ""}.`,
     };
   if (bill.status === "due" || bill.status === "processing")
     return bill.payment === "on_page" && bill.totalCents > 0

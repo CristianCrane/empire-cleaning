@@ -1584,12 +1584,13 @@ export type JobPayment = {
 };
 
 // why a payment didn't go through, by what puts it right: "declined", a new
-// card or another way to pay; "waiting", nothing, as we try again ourselves
-// (ADR-0022); "no_card", adding one; "late", paying the Bill on its page
+// card or another way to pay (a bank asking for approval too); "waiting",
+// nothing, as we try again ourselves (ADR-0022); "no_card", adding one;
+// "late", paying the Bill on its page
 export type UnpaidKind = "declined" | "waiting" | "no_card" | "late";
 
-// since when it's been Unpaid, and why, in words a person reads; `why` is
-// null when there's nothing more to say than that it didn't go through
+// since when it's been Unpaid, and why: a clause for after "didn't go
+// through" ("the card has expired"), or null when there's no more to say
 export type Unpaid = { since: string; kind: UnpaidKind; why: string | null };
 
 export type JobCompletion = {
@@ -1621,7 +1622,8 @@ export type ClientPastJob = ClientJob & {
   totalCents: number;
   // what a Cancelled or No Access one cost; 0 if nothing
   feeCents: number;
-  unpaid: boolean;
+  // why it's Unpaid, if it is
+  unpaid: UnpaidKind | null;
   // what an Unpaid one still owes; 0 otherwise
   owedCents: number;
   // increases proposed to them, waiting on their answer

@@ -15,6 +15,16 @@ export const refundedTo = (amount: string, card: string) =>
 export const NEVER_SEE_CARD =
   "It goes straight into our payment service's secure form, so we never see your card number.";
 
+// a payment we couldn't take, as the Client is told: `amount` already
+// formatted, with what it's for ("$50 for this bill"); `card` null when
+// none is saved; `why` as whyNotPaid gives it
+export const notTaken = (
+  amount: string,
+  card: string | null,
+  why: string | null = null,
+) =>
+  `We couldn't take ${amount}${card ? ` from your ${card}` : ""}${why ? ` (${why})` : ""}.`;
+
 // a clean's payment that didn't go through, as its Client is told, for a
 // sentence to end: `day` already formatted
 export const cleanNotPaid = (day: string) =>
@@ -42,8 +52,9 @@ export const officeFix: Record<UnpaidKind, string> = {
 
 // a Client's cleaning plan, paused while a payment on it is Unpaid, and back
 // on once it's paid
-export const PLAN_PAUSED =
-  "Until it's paid, your cleaning plan is paused. Cleans already booked still go ahead, but we won't book any more.";
+export const BOOKED_GO_AHEAD =
+  "Cleans already booked still go ahead, but we won't book any more.";
+export const PLAN_PAUSED = `Until it's paid, your cleaning plan is paused. ${BOOKED_GO_AHEAD}`;
 export const PLAN_BACK_ON =
   "Your cleaning plan is back on, and we'll book your cleans as usual.";
 

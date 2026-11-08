@@ -239,9 +239,9 @@ const noticesFor = (job: OfficeJob): ReactNode[] => {
         <p>
           <strong>
             Unpaid since {formatDate(payment.unpaid.since)}:{" "}
-            {formatMoney(payment.owedCents)} didn't go through.
-          </strong>
-          {payment.unpaid.why && ` ${payment.unpaid.why}`}{" "}
+            {formatMoney(payment.owedCents)} didn't go through
+            {payment.unpaid.why && ` (${payment.unpaid.why})`}.
+          </strong>{" "}
           {officeFix[payment.unpaid.kind]}
         </p>
       </Notice>,

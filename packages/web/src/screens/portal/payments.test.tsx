@@ -17,7 +17,7 @@ const card = { label: "Visa ending 4242", savedAt: "", consentedAt: "" };
 const unpaidClean = {
   id: "job",
   startsAt: CLEAN,
-  unpaid: true,
+  unpaid: "declined",
   owedCents: 18450,
 } as ClientPastJob;
 
@@ -60,6 +60,20 @@ describe("what a Client owes now", () => {
       late: true,
       text: "We couldn't take payment for your Oct 20 clean",
       action: { label: "Update your card" },
+    });
+  });
+
+  test("a clean waiting on the payment service: nothing to do but see it", () => {
+    const { owed } = moneyNow(
+      data({ pastJobs: [{ ...unpaidClean, unpaid: "waiting" }] }),
+    );
+
+    expect(owed).toMatchObject({
+      text: "We couldn't take payment for your Oct 20 clean",
+      action: {
+        label: "See the clean",
+        href: { to: "/portal/jobs/$jobId", params: { jobId: "job" } },
+      },
     });
   });
 

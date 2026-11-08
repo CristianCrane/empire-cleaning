@@ -107,7 +107,7 @@ test("a Client skipping late is charged the fee, and pays it once their card wor
   await payment.getByRole("link", { name: "Update your card" }).click();
   const needed = page.getByRole("alert").filter({ hasText: "Payment needed" });
   await expect(needed).toContainText(
-    "$50.46 to pay. We couldn't take payment for your",
+    /We couldn't take \$50\.46 for your .+ clean from your Test card ending 4242\./,
   );
   await needed.getByRole("button", { name: "Try this card again" }).click();
   await expect(page.getByText("Payment taken")).toBeVisible();

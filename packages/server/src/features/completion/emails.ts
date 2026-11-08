@@ -15,6 +15,7 @@ import {
 } from "../../services/email/format.ts";
 import {
   clientFix,
+  notTaken,
   PRICES_INCLUDE_TAX,
   refundedTo,
   LATE_MOVE_FEE,
@@ -46,7 +47,7 @@ const moneyLines = (settled: Settled, owedCents: number) => {
   }
   if (settled.failure) {
     lines.push(
-      `We couldn't take the ${formatMoney(owedCents)} still to pay from your ${card}. ${clientFix[whyNotPaid(settled.failure).kind]}`,
+      `${notTaken(`the ${formatMoney(owedCents)} still to pay`, card)} ${clientFix[whyNotPaid(settled.failure).kind]}`,
     );
   }
   // putting it On Hold is told in the Unpaid notice
@@ -78,7 +79,7 @@ export const unpaidEmail = ({
   blocks: [
     greeting(firstNameOf(name)),
     paragraph(
-      `We couldn't take ${formatMoney(owedCents)} for your clean from your ${paymentMethod ?? "card"}.`,
+      notTaken(`${formatMoney(owedCents)} for your clean`, paymentMethod),
     ),
     cleanDetails(clean),
     paragraph(`Please ${UPDATE_AND_RETRY}:`),

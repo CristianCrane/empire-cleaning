@@ -63,7 +63,17 @@ export function moneyNow(data: PaymentsData): MoneyNow {
         cents: j.owedCents,
         late: true,
         text: cleanNotPaid(shortDayOf(j.startsAt)),
-        action: { label: UPDATE_CARD, href: cardLink },
+        // we try one waiting on the payment service again ourselves
+        action:
+          j.unpaid === "waiting"
+            ? {
+                label: "See the clean",
+                href: linkTo({
+                  to: "/portal/jobs/$jobId",
+                  params: { jobId: j.id },
+                }),
+              }
+            : { label: UPDATE_CARD, href: cardLink },
       })),
     // a Bill to pay on its page, not yet late
     ...data.bills

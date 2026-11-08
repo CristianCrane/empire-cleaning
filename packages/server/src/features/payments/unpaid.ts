@@ -12,33 +12,34 @@ export const NOT_SETTLED = "its payment couldn't be worked out";
 // why a Bill paid on its page is Unpaid
 export const LATE = "not paid by its due date";
 
-// ours, and the provider's own that needs nothing from the Client
-const ours: Record<string, { kind: UnpaidKind; why: string }> = {
+// ours, and the provider's own that we know: each with its kind. A bank
+// asking for approval reads as a decline, as a new card is how they fix it
+const known: Record<string, { kind: UnpaidKind; why: string }> = {
   [UNREACHABLE]: {
     kind: "waiting",
-    why: "We couldn't reach the payment service.",
+    why: "we couldn't reach the payment service",
   },
-  processing: { kind: "waiting", why: "The bank payment is still clearing." },
-  [NOT_SETTLED]: { kind: "waiting", why: "Something went wrong on our side." },
-  [NO_CARD]: { kind: "no_card", why: "No card is saved." },
-  [LATE]: { kind: "late", why: "It wasn't paid by its due date." },
+  processing: { kind: "waiting", why: "the bank payment is still clearing" },
+  [NOT_SETTLED]: { kind: "waiting", why: "something went wrong on our side" },
+  [NO_CARD]: { kind: "no_card", why: "no card is saved" },
+  [LATE]: { kind: "late", why: "it wasn't paid by its due date" },
   needs_approval: {
     kind: "declined",
-    why: "The bank asked for it to be approved first.",
+    why: "the bank asked for it to be approved first",
   },
 };
 
 // the few declines worth naming; any other, the fraud-type ones too, is
 // only "didn't go through", as the provider advises for what a customer sees
 const declines: Record<string, string> = {
-  expired_card: "The card has expired.",
-  insufficient_funds: "There wasn't enough money in the account.",
-  account_closed: "That bank account is closed.",
-  no_account: "That bank account is closed.",
+  expired_card: "the card has expired",
+  insufficient_funds: "there wasn't enough money in the account",
+  account_closed: "that bank account is closed",
+  no_account: "that bank account is closed",
 };
 
 export const whyNotPaid = (reason: string): Omit<Unpaid, "since"> =>
-  ours[reason] ?? { kind: "declined", why: declines[reason] ?? null };
+  known[reason] ?? { kind: "declined", why: declines[reason] ?? null };
 
 // as a view shows it
 export const unpaidOf = (since: Date | null, reason: string | null) =>

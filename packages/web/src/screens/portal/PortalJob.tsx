@@ -48,6 +48,7 @@ import {
   adjustmentLabel,
   clientFix,
   LATE_MOVE_FEE,
+  notTaken,
   ON_WEEKS_BILL,
   PRICES_INCLUDE_TAX,
   refundedTo,
@@ -608,9 +609,13 @@ function Unpaid({ payment }: { payment: JobPayment }) {
       }
     >
       <p>
-        <strong>Payment needed.</strong> We couldn't take{" "}
-        {formatMoney(payment.owedCents)} from your{" "}
-        {payment.paymentMethod ?? "card"}.{why && ` ${why}`} {clientFix[kind]}
+        <strong>Payment needed.</strong>{" "}
+        {notTaken(
+          formatMoney(payment.owedCents),
+          kind === "no_card" ? null : (payment.paymentMethod ?? "card"),
+          why,
+        )}{" "}
+        {clientFix[kind]}
       </p>
     </Notice>
   );

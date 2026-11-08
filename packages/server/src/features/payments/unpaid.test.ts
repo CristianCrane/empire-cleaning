@@ -6,11 +6,11 @@ describe("why a payment didn't go through", () => {
   test("a decline worth naming says what's wrong", () => {
     expect(whyNotPaid("expired_card")).toEqual({
       kind: "declined",
-      why: "The card has expired.",
+      why: "the card has expired",
     });
     expect(whyNotPaid("insufficient_funds")).toEqual({
       kind: "declined",
-      why: "There wasn't enough money in the account.",
+      why: "there wasn't enough money in the account",
     });
   });
 

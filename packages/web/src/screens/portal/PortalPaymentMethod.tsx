@@ -8,7 +8,7 @@ import {
   Heading,
   Notice,
 } from "@empire-cleaning/ui";
-import { cleanNotPaid } from "@empire-cleaning/models";
+import { notTaken } from "@empire-cleaning/models";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import { postJson } from "../../api.ts";
@@ -79,9 +79,11 @@ export function PortalPaymentMethod() {
           }
         >
           <p>
-            <strong>{formatMoney(owed)} to pay.</strong>{" "}
-            {cleanNotPaid(formatShortDay(dayOfInstant(first.startsAt)))}
-            {unpaid.length > 1 && `, and ${unpaid.length - 1} more`}.{" "}
+            <strong>Payment needed.</strong>{" "}
+            {notTaken(
+              `${formatMoney(owed)} for your ${formatShortDay(dayOfInstant(first.startsAt))} clean${unpaid.length > 1 ? `, and ${unpaid.length - 1} more,` : ""}`,
+              saved?.label ?? null,
+            )}{" "}
             {saved
               ? "Try it again, or save a different card below."
               : "Save a card below and we'll try again."}

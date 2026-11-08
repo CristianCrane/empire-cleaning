@@ -92,9 +92,7 @@ test(
       "$50.46Deposit, comes off your last clean",
     );
     await expect(
-      client.getByText(
-        /^Each clean is charged to your saved card when it's done\./,
-      ),
+      client.getByText(/^Each clean is charged to your card when it's done\./),
     ).toBeVisible();
     const upcoming = client
       .getByRole("grid", { name: "Your upcoming cleans" })

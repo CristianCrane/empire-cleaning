@@ -8,7 +8,11 @@ import {
   Receipt,
   Users,
 } from "lucide-react";
-import type { EndPlanTerms, ServicePlanView } from "@empire-cleaning/models";
+import {
+  BOOKED_GO_AHEAD,
+  type EndPlanTerms,
+  type ServicePlanView,
+} from "@empire-cleaning/models";
 import {
   ActionRow,
   Actions,
@@ -113,7 +117,7 @@ export function OnHold({
             {u.what}.
             {i === 0 &&
               (forClient
-                ? " Cleans already booked still go ahead, but we won't book any more until it's paid."
+                ? ` ${BOOKED_GO_AHEAD}`
                 : " Jobs already booked still go ahead, but no more are booked until it's paid.")}
           </p>
         </Notice>
