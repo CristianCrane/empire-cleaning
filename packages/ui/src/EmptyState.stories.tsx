@@ -45,7 +45,7 @@ export const CantAddYet: Story = {
   args: {
     children: (
       <Notice>
-        The Client asked for a quote that's still open: carry on with that one.
+        The client asked for a quote that's still open: carry on with that one.
       </Notice>
     ),
   },

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { keepUnder } from "../../middleware/validation.ts";
 import { hours, taxPercent } from "../price-list/price-list.validation.ts";
 
 // messages are shown beside the Service's fields, so they're written for
@@ -10,7 +11,7 @@ export const serviceSchema = z
       .string()
       .trim()
       .min(1, "Enter a name")
-      .max(80, "Use a shorter name"),
+      .max(80, keepUnder(80, "the name")),
     description: z.string().trim().max(300, "Keep it to a sentence or two"),
     offeredFor: z.enum(["homes", "businesses", "both"], {
       error: "Pick who it's for",

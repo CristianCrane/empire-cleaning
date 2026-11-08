@@ -444,7 +444,7 @@ function RecordsAsStories() {
               <strong>Waiting for Max to accept.</strong> He needs a card saved
               first.
             </Notice>
-            <Timeline aria-label="A Quote's story, newest first">
+            <Timeline aria-label="A quote's story, newest first">
               <TimelineItem icon={FileClock} title="Now" current>
                 <Card>
                   <p>Current quote: Standard Clean, $194.89</p>

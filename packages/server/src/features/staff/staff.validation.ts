@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { keepUnder } from "../../middleware/validation.ts";
 
 // messages are shown beside the Staff screens' fields, so they're written
 // for people
@@ -8,7 +9,7 @@ export const invitationSchema = z.object({
     .string()
     .trim()
     .min(1, "Enter their name")
-    .max(100, "Use a shorter name"),
+    .max(100, keepUnder(100, "the name")),
   email: z.email("Enter an email address").trim().toLowerCase(),
   roles: z
     .array(z.enum(["cleaner", "office_staff"]))
@@ -41,7 +42,7 @@ export const exceptionSchema = z.object({
   note: z
     .string()
     .trim()
-    .max(200, "Use a shorter note")
+    .max(200, keepUnder(200, "the note"))
     .nullish()
     .transform((note) => note || null),
 });

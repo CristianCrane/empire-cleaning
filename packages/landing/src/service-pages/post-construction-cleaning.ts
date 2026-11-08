@@ -41,7 +41,7 @@ export const postConstruction: ServicePage = {
   pricing: {
     title: "How it's priced",
     text: [
-      "Construction dust settles everywhere, so a post-construction clean takes longer than a regular one. In your quote Request, choose Deep Clean for a home, or Commercial cleaning for business premises, pick Heavy for how much cleaning it needs, and tell us in the note what work was done. Say roughly how big the space is and which rooms were worked on, so the quote allows enough time.",
+      "Construction dust settles everywhere, so a post-construction clean takes longer than a regular one. In your quote request, choose Deep Clean for a home, or Commercial cleaning for business premises, pick Heavy for how much cleaning it needs, and tell us in the note what work was done. Say roughly how big the space is and which rooms were worked on, so the quote allows enough time.",
       "Your quote says how long we'll be there. For business premises we visit first, for free, to see the space. Accept the quote online and pay a deposit to book; the rest is charged once the clean is done.",
     ],
   },
@@ -81,7 +81,7 @@ export const postConstruction: ServicePage = {
     {
       question: "Do you clean the windows?",
       answer:
-        "Sills, tracks and frames are part of the clean. For a home, interior windows are an add-on: tick it in your quote Request.",
+        "Sills, tracks and frames are part of the clean. For a home, interior windows are an add-on: tick it in your quote request.",
     },
     {
       question: "Do you clean apartments after a renovation?",

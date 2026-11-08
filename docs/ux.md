@@ -132,6 +132,9 @@ stays as it is (#336).
   or add working hours for a cleaner that day." Never how the system
   works, no counting unless the number helps, no codes. When nothing can
   be done, it says what happened: "This clean was cancelled."
+- **A field that's too long says its limit**: "Keep the reason under 500
+  characters", from the server's `keepUnder`, since the number is what fixes
+  it.
 - **To a Client, we're "us"**: "Please call us", not "the Office".
 - **A message the server and a screen both show is written once**, in
   `packages/models/src/messages/`, which both import: a file per subject,

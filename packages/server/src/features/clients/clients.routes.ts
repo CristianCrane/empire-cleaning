@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { email } from "#services/email";
 import { fieldError, NotFoundError } from "../../middleware/errors.ts";
-import { validate } from "../../middleware/validation.ts";
+import { keepUnder, validate } from "../../middleware/validation.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { contactSchema } from "../quotes/asking.validation.ts";
 import {
@@ -77,7 +77,7 @@ router.patch(
       businessName: z
         .string()
         .trim()
-        .max(200, "Use a shorter business name")
+        .max(200, keepUnder(200, "the business name"))
         .nullish(),
     }),
   }),

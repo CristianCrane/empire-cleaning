@@ -37,7 +37,7 @@ export const queens: Area = {
     title: "Every kind of Queens home",
     text: [
       "A Queens home could be almost anything: a two-family house in Ridgewood with the owners downstairs and tenants up, a prewar co-op in Jackson Heights with a garden out back, a walk-up in Astoria, or a glass condo in Long Island City with a doorman and a service elevator. We clean all of them, and we ask about yours before we come, so the quote fits the place.",
-      "Co-ops and condos often have rules for anyone working in the building: hours, a service entrance, a certificate of insurance on file with management. Tell us your building's rules in your quote Request and we'll sort them out before the first clean. For a house, tell us about the basement, the stairs and any rooms you'd like left alone.",
+      "Co-ops and condos often have rules for anyone working in the building: hours, a service entrance, a certificate of insurance on file with management. Tell us your building's rules in your quote request and we'll sort them out before the first clean. For a house, tell us about the basement, the stairs and any rooms you'd like left alone.",
       "Plenty of Queens homes are busy ones, with kids, pets and relatives in and out. That's where a regular clean earns its keep: after your first clean, choose weekly, bi-weekly or monthly visits and every one is 10% off.",
     ],
   },
@@ -66,7 +66,7 @@ export const queens: Area = {
     {
       question: "Do you clean co-ops that need a certificate of insurance?",
       answer:
-        "Yes. Many Queens co-ops and condos ask for a certificate of insurance before a cleaning company can come in. Put your building management's details in the note on your quote Request and we'll send it to them before your first clean.",
+        "Yes. Many Queens co-ops and condos ask for a certificate of insurance before a cleaning company can come in. Put your building management's details in the note on your quote request and we'll send it to them before your first clean.",
     },
     {
       question: "Can you clean both units of a two-family house?",

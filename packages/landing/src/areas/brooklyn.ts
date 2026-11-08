@@ -72,7 +72,7 @@ export const brooklyn: Area = {
       question:
         "My building needs a certificate of insurance. Can you send one?",
       answer:
-        "Yes. Put your management company's details in the note on your quote Request and we'll send it before your first clean, along with anything else the building asks for, like a booked elevator.",
+        "Yes. Put your management company's details in the note on your quote request and we'll send it before your first clean, along with anything else the building asks for, like a booked elevator.",
     },
     {
       question: "Can you clean the day I move out?",

@@ -94,11 +94,11 @@ export const Pending: Story = {
     <List {...args} aria-label="Switch to">
       <ListItem
         id="portal"
-        title="Switch to client portal"
+        title="Switch to Client portal"
         isPending
         isDisabled
       />
-      <ListItem id="cleaner" title="Switch to cleaner area" isDisabled />
+      <ListItem id="cleaner" title="Switch to Cleaner area" isDisabled />
     </List>
   ),
   play: async ({ canvas }) => {

@@ -45,7 +45,7 @@ export const disinfecting: ServicePage = {
   pricing: {
     title: "How it's priced",
     text: [
-      "Disinfecting is part of a clean. In your quote Request, choose the clean you need (a Standard or Deep Clean for a home, Commercial cleaning for business premises) and tell us in the note you'd like disinfecting, and of what. If you'd like it done at every visit, say so and we'll include it in each one.",
+      "Disinfecting is part of a clean. In your quote request, choose the clean you need (a Standard or Deep Clean for a home, Commercial cleaning for business premises) and tell us in the note you'd like disinfecting, and of what. If you'd like it done at every visit, say so and we'll include it in each one.",
       "Your quote says what it covers and how long we'll be there. Accept it online and pay a deposit to book; the rest is charged once the clean is done.",
     ],
   },

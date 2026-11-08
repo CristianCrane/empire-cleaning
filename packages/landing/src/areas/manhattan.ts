@@ -66,7 +66,7 @@ export const manhattan: Area = {
     {
       question: "My co-op needs a certificate of insurance. Can you send one?",
       answer:
-        "Yes. Put your managing agent's details in the note on your quote Request and we'll send the certificate to them before your first clean.",
+        "Yes. Put your managing agent's details in the note on your quote request and we'll send the certificate to them before your first clean.",
     },
     {
       question: "Can you clean while I'm at work?",

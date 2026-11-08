@@ -16,7 +16,7 @@ export const contactSchema = z.object({
     .string()
     .trim()
     .min(1, "Enter your name")
-    .max(100, "Use a shorter name"),
+    .max(100, keepUnder(100, "the name")),
   email: z.email("Enter a full email address, like name@example.com"),
   phone,
 });
@@ -26,8 +26,8 @@ const address = {
     .string()
     .trim()
     .min(1, "Enter the street address")
-    .max(200, "Use a shorter street address"),
-  unit: z.string().trim().max(50, "Use a shorter unit").nullish(),
+    .max(200, keepUnder(200, "the street address")),
+  unit: z.string().trim().max(50, keepUnder(50, "the unit")).nullish(),
   postcode: z
     .string()
     .trim()
@@ -128,7 +128,7 @@ const request = {
   businessName: z
     .string()
     .trim()
-    .max(200, "Use a shorter business name")
+    .max(200, keepUnder(200, "the business name"))
     .nullish(),
   weekdays: z.array(z.number().int().min(0).max(6)).max(7).optional(),
   preferredTime: startTime.nullish(),

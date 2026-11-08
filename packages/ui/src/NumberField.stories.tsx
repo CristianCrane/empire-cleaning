@@ -5,7 +5,7 @@ import { NumberField } from "./NumberField.tsx";
 const meta = {
   title: "Components/NumberField",
   component: NumberField,
-  args: { label: "Crew Size", defaultValue: 2, minValue: 1, maxValue: 6 },
+  args: { label: "Cleaners", defaultValue: 2, minValue: 1, maxValue: 6 },
 } satisfies Meta<typeof NumberField>;
 
 export default meta;
@@ -14,9 +14,9 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   play: async ({ canvas, userEvent }) => {
     await userEvent.click(canvas.getByRole("button", { name: /increase/i }));
-    await expect(
-      canvas.getByRole("textbox", { name: "Crew Size" }),
-    ).toHaveValue("3");
+    await expect(canvas.getByRole("textbox", { name: "Cleaners" })).toHaveValue(
+      "3",
+    );
   },
 };
 

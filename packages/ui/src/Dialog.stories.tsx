@@ -225,7 +225,7 @@ export const Busy: Story = {
     <DialogTrigger>
       <Button>Olive Owner</Button>
       <Dialog {...args}>
-        <p className="text-fg-muted">Switching to the client portal…</p>
+        <p className="text-fg-muted">Switching to the Client portal…</p>
       </Dialog>
     </DialogTrigger>
   ),
