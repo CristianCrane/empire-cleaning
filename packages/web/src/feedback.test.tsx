@@ -10,11 +10,8 @@ import {
   Dialog,
   type NavItem,
 } from "@empire-cleaning/ui";
-import {
-  feedbackButton,
-  identify,
-  startMonitoring,
-} from "@empire-cleaning/browser-monitoring";
+import { identify, startMonitoring } from "@empire-cleaning/browser-monitoring";
+import { feedbackButton } from "@empire-cleaning/browser-monitoring/feedback";
 import { linkTo } from "./links.ts";
 import "./feedback.css";
 

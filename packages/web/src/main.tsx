@@ -3,10 +3,10 @@ import { createRoot } from "react-dom/client";
 import { RouterProvider } from "@tanstack/react-router";
 import { applyThemePreference, readThemePreference } from "@empire-cleaning/ui";
 import {
-  feedbackButton,
   routerTracing,
   startMonitoring,
 } from "@empire-cleaning/browser-monitoring";
+import { feedbackButton } from "@empire-cleaning/browser-monitoring/feedback";
 import { router } from "./router.tsx";
 import { forgetAccount } from "./session.ts";
 import "./feedback.css";
