@@ -12,7 +12,7 @@ export default preview(
       dueOn: "2026-01-26",
       payment: "on_page",
       status: "due",
-      unpaid: false,
+      unpaid: null,
       paidVia: null,
       voidReason: null,
       totalCents: 64800,

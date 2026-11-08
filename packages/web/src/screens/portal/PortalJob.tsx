@@ -38,14 +38,22 @@ import { PickAvailableTime } from "../AvailabilityPicker.tsx";
 import { ChooseNewTime, costForClient } from "../RescheduleParts.tsx";
 import {
   addressOf,
-  adjustmentLabel,
   formatDate,
   formatDateTime,
   formatHours,
   formatMoney,
 } from "../format.ts";
 import { Fact } from "../Fact.tsx";
-import { ON_WEEKS_BILL } from "@empire-cleaning/models";
+import {
+  adjustmentLabel,
+  clientFix,
+  LATE_MOVE_FEE,
+  notTaken,
+  ON_WEEKS_BILL,
+  PRICES_INCLUDE_TAX,
+  refundedTo,
+  UPDATE_CARD,
+} from "@empire-cleaning/models";
 import { JobStatusBadge } from "../JobBadges.tsx";
 
 // one of the Client's Jobs, from the links in their emails: while it's to come,
@@ -466,12 +474,7 @@ function Refund({ payment }: { payment: JobPayment }) {
   const card = payment.paymentMethod ?? "card";
   return (
     <>
-      {refunded > 0 && (
-        <p>
-          We've refunded {formatMoney(refunded)} to your {card}. It can take a
-          few days to reach you.
-        </p>
-      )}
+      {refunded > 0 && <p>{refundedTo(formatMoney(refunded), card)}</p>}
       {payment.owedCents < 0 && (
         <p>
           We're refunding {formatMoney(-payment.owedCents)} to your {card}.
@@ -590,23 +593,29 @@ function NoAccess({ job }: { job: ClientJobDetail }) {
 // A charge that failed: what it was, and the way to fix it. Saving a card
 // tries it again. Red, as it's already late. (UX pass, #96)
 function Unpaid({ payment }: { payment: JobPayment }) {
+  const { kind, why } = payment.unpaid!;
   return (
     <Notice
       tone="danger"
       action={
-        <ButtonLink
-          variant="danger-text"
-          href={linkTo({ to: "/portal/payment-method" })}
-        >
-          Update Payment Method
-        </ButtonLink>
+        kind !== "waiting" && (
+          <ButtonLink
+            variant="danger-text"
+            href={linkTo({ to: "/portal/payment-method" })}
+          >
+            {UPDATE_CARD}
+          </ButtonLink>
+        )
       }
     >
       <p>
-        <strong>Payment needed.</strong> We couldn't charge{" "}
-        {formatMoney(payment.owedCents)} to your{" "}
-        {payment.paymentMethod ?? "card"}. We'll try again as soon as you save a
-        card.
+        <strong>Payment needed.</strong>{" "}
+        {notTaken(
+          formatMoney(payment.owedCents),
+          kind === "no_card" ? null : (payment.paymentMethod ?? "card"),
+          why,
+        )}{" "}
+        {clientFix[kind]}
       </p>
     </Notice>
   );
@@ -652,8 +661,8 @@ function Proposal({
                   It comes to{" "}
                   <strong>{formatMoney(adjustment.totalCents)}</strong>, tax
                   included, and you only pay it if you approve it. If we don't
-                  hear from you by {formatDate(adjustment.lapsesAt!)}, it lapses
-                  and you don't pay it.
+                  hear from you by {formatDate(adjustment.lapsesAt!)}, you won't
+                  pay it.
                 </p>
                 {action.problem && (
                   <Notice tone="danger">{action.problem}</Notice>
@@ -688,7 +697,7 @@ function Proposal({
   );
 }
 
-const chargeLabel = { deposit: "Deposit", balance: "Charged", fee: "Fee" };
+const chargeLabel = { deposit: "Deposit", balance: "Paid", fee: "Fee" };
 
 function Receipt({ job }: { job: ClientJobDetail }) {
   const { payment, adjustments, completedAt } = job.completion!;
@@ -702,7 +711,7 @@ function Receipt({ job }: { job: ClientJobDetail }) {
   return (
     <Part
       title="Your receipt"
-      description={`Done ${formatDateTime(completedAt)}. Prices include tax.`}
+      description={`Done ${formatDateTime(completedAt)}. ${PRICES_INCLUDE_TAX}`}
     >
       <dl className="grid grid-cols-[1fr_auto] gap-x-6 gap-y-2">
         <dt>Quoted price</dt>
@@ -720,8 +729,8 @@ function Receipt({ job }: { job: ClientJobDetail }) {
         {payment.rescheduleFeeCents > 0 && (
           <>
             <dt>
-              Late Reschedule fee
-              {!job.servicePlanId && " (your Deposit, kept)"}
+              {LATE_MOVE_FEE}
+              {!job.servicePlanId && " (your deposit, kept)"}
             </dt>
             <dd className="text-end">
               {formatMoney(payment.rescheduleFeeCents)}
@@ -746,7 +755,7 @@ function Receipt({ job }: { job: ClientJobDetail }) {
         </dd>
         {payment.billedCents !== 0 && (
           <>
-            <dt className="font-semibold">On your weekly Bills</dt>
+            <dt className="font-semibold">On your weekly bills</dt>
             <dd className="text-end font-semibold">
               {formatMoney(payment.billedCents)}
             </dd>
@@ -772,7 +781,7 @@ function Receipt({ job }: { job: ClientJobDetail }) {
       )}
       {job.weeklyBill && payment.owedCents > 0 && (
         <p className="text-sm text-fg-muted">
-          The rest, {formatMoney(payment.owedCents)}, goes on your weekly Bill.
+          The rest, {formatMoney(payment.owedCents)}, goes on your weekly bill.
         </p>
       )}
     </Part>

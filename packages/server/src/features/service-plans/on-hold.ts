@@ -1,4 +1,4 @@
-import { and, count, eq, isNotNull } from "drizzle-orm";
+import { and, count, eq, inArray, isNotNull } from "drizzle-orm";
 import type { Tx } from "../../db/index.ts";
 import { billLines, bills } from "../bills/bills.schema.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
@@ -24,6 +24,33 @@ export const holdOrResume = async (
   if (!visit) return null;
   return holdOrResumePlan(tx, visit.planId);
 };
+
+// whether any of these plans is On Hold
+export const anyOnHold = async (tx: Tx, planIds: string[]) =>
+  planIds.length > 0 &&
+  (
+    await tx
+      .select({ id: servicePlans.id })
+      .from(servicePlans)
+      .where(
+        and(
+          inArray(servicePlans.id, planIds),
+          eq(servicePlans.status, "on_hold"),
+        ),
+      )
+  ).length > 0;
+
+// whether a Job's plan is On Hold; false for a one-off Job
+export const planOnHold = async (tx: Tx, jobId: string) =>
+  anyOnHold(
+    tx,
+    (
+      await tx
+        .select({ planId: servicePlanVisits.servicePlanId })
+        .from(servicePlanVisits)
+        .where(eq(servicePlanVisits.jobId, jobId))
+    ).map((v) => v.planId),
+  );
 
 /**
  * Puts a Service Plan On Hold while any of its Jobs, or a Bill with any of

@@ -262,7 +262,7 @@ describe("the Client cancelling", () => {
         status: "cancelled",
         skipped: false,
         feeCents: deposit,
-        unpaid: false,
+        unpaid: null,
       }),
     ]);
   });

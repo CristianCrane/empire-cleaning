@@ -825,7 +825,12 @@ const portalPaymentMethodRoute = createRoute({
       ownPaymentMethod(),
       getJson<ClientPastJob[]>("/api/jobs/mine/past"),
     ]);
-    return { saved, unpaid: pastJobs.filter((j) => j.unpaid) };
+    // the cleans a card puts right; one waiting on the payment service we
+    // try again ourselves
+    return {
+      saved,
+      unpaid: pastJobs.filter((j) => j.unpaid && j.unpaid !== "waiting"),
+    };
   },
   component: PortalPaymentMethod,
 });

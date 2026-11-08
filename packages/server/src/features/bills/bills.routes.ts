@@ -4,6 +4,7 @@ import { ConflictError } from "../../middleware/errors.ts";
 import { validate } from "../../middleware/validation.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { ownClient } from "../clients/clients.ts";
+import { whyNotPaid } from "../payments/unpaid.ts";
 import {
   billView,
   finishBillPayment,
@@ -62,8 +63,9 @@ router.post(
     await billView(id, client.id);
     const failure = await finishBillPayment(id, req.body.ref);
     if (failure) {
+      const { why } = whyNotPaid(failure);
       throw new ConflictError(
-        `Your payment didn't go through (${failure}). Please try again, or use another card or account.`,
+        `Your payment didn't go through${why ? ` (${why})` : ""}. Please try again, or use another card or bank account.`,
       );
     }
     res.json(await billView(id, client.id));
@@ -109,9 +111,9 @@ router.post(
     params: bill,
     body: z.object({
       reason: z
-        .string({ error: "Say why it's voided" })
+        .string({ error: "Say why it's cancelled" })
         .trim()
-        .min(1, "Say why it's voided")
+        .min(1, "Say why it's cancelled")
         .max(500, "Use a shorter reason"),
     }),
   }),
@@ -164,10 +166,10 @@ clientBillingRouter.put(
         error: "Choose how they pay",
       }),
       termsDays: z
-        .number({ error: "Enter their terms in days" })
+        .number({ error: "Enter how many days they have to pay" })
         .int("Enter whole days")
         .min(1, "Give them at least a day")
-        .max(90, "Terms can be up to 90 days"),
+        .max(90, "Give them 90 days at most"),
       billingEmail: z.email("Enter a valid email").nullable(),
     }),
   }),

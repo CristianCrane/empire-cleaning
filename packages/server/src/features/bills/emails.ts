@@ -12,10 +12,23 @@ import {
   formatDay,
   formatMoney,
 } from "../../services/email/format.ts";
-import { ON_HOLD_LINE } from "../cancellation/emails.ts";
+import {
+  billNotPaid,
+  clientFix,
+  notTaken,
+  PLAN_BACK_ON,
+  PLAN_PAUSED,
+  PRICES_INCLUDE_TAX,
+  REFUND_TAKES_DAYS,
+  UPDATE_AND_RETRY,
+  UPDATE_CARD,
+  type UnpaidKind,
+} from "@empire-cleaning/models";
 import type { Settled } from "../completion/balance.ts";
+import { whyNotPaid } from "../payments/unpaid.ts";
 
-export type Occasion = "made" | "reminder" | "paid" | "voided" | "debit_failed";
+export type Occasion =
+  "made" | "unpaid" | "reminder" | "paid" | "voided" | "debit_failed";
 
 // a Bill, as much of it as its email shows
 export type BillToSend = {
@@ -26,7 +39,8 @@ export type BillToSend = {
   dueOn: string;
   payment: "automatic" | "on_page";
   status: string;
-  unpaid: boolean;
+  // why it's Unpaid, if it is
+  unpaid: UnpaidKind | null;
   paidVia: string | null;
   voidReason: string | null;
   totalCents: number;
@@ -53,11 +67,21 @@ const aboutBill = (
   const { number } = bill;
   const total = formatMoney(bill.totalCents);
   switch (occasion) {
+    // declined on a later try, after the provider kept us waiting: said as
+    // a Bill just made and declined is
+    case "unpaid":
     case "made":
+      // we try again ourselves, so they're only told the Bill
+      if (bill.unpaid === "waiting") {
+        return [
+          `Your bill ${number} from Empire Cleaning`,
+          `Here's your bill for the week: ${total}. We'll take it from your ${card} shortly.`,
+        ];
+      }
       if (bill.unpaid) {
         return [
-          `We couldn't take payment for bill ${number}`,
-          `We couldn't charge ${total} for bill ${number} to your ${card}. Please update your Payment Method and we'll try again straight away, or pay it on its page.`,
+          billNotPaid(number),
+          `${notTaken(`${total} for bill ${number}`, card)} Please ${UPDATE_AND_RETRY}, or pay it on its page.`,
         ];
       }
       if (bill.totalCents < 0) {
@@ -105,7 +129,7 @@ const aboutBill = (
     case "voided":
       return [
         `Bill ${number} is cancelled`,
-        `We've voided bill ${number}, so there's nothing to pay on it.${bill.voidReason ? ` ${bill.voidReason}` : ""}`,
+        `We've cancelled bill ${number}, so there's nothing to pay on it.${bill.voidReason ? ` ${bill.voidReason}` : ""}`,
         billedWeekly
           ? "Anything on it that's still owed will be on your next bill."
           : "Anything on it that's still owed is charged to your card per clean, as before.",
@@ -191,7 +215,7 @@ export const settledLines = (settled: SettledJob[]) => {
             ? [`refunded ${formatMoney(s.settled.refundedCents)}`]
             : []),
           ...(s.unpaidCents !== null
-            ? [`couldn't charge ${formatMoney(s.unpaidCents)}`]
+            ? [`couldn't take ${formatMoney(s.unpaidCents)}`]
             : []),
         ];
         return `${s.label}: ${moved.join(", ")}`;
@@ -203,25 +227,24 @@ export const settledLines = (settled: SettledJob[]) => {
   if (charged || refunded) {
     const what =
       charged && refunded
-        ? "Charges and refunds are"
+        ? `Payments are taken from your ${card}, and refunds go back to it.`
         : charged
-          ? "Charges are"
-          : "Refunds are";
+          ? `Payments are taken from your ${card}.`
+          : `Refunds go back to your ${card}.`;
     lines.push(
-      `${what} to your ${card}.${refunded ? " A refund can take a few days to reach you." : ""}`,
+      `${what}${refunded ? " A refund can take a few days to reach you." : ""}`,
     );
   }
-  if (settled.some((s) => s.unpaidCents !== null)) {
+  const failed = settled.find((s) => s.settled.failure);
+  if (failed) {
     lines.push(
-      `We couldn't charge your ${card}. Please update your Payment Method and we'll try again straight away.`,
+      `${notTaken("payment", card)} ${clientFix[whyNotPaid(failed.settled.failure!).kind]}`,
     );
   }
   if (settled.some((s) => s.settled.plan === "held")) {
-    lines.push(ON_HOLD_LINE);
+    lines.push(PLAN_PAUSED);
   } else if (settled.some((s) => s.settled.plan === "resumed")) {
-    lines.push(
-      "Your Service Plan is back on, and we'll book your cleans as usual.",
-    );
+    lines.push(PLAN_BACK_ON);
   }
   return lines;
 };
@@ -243,13 +266,18 @@ export const chargedPerCleanEmail = ({
     blocks: [
       greeting(firstNameOf(name)),
       ...[
-        "We've stopped billing you weekly, so from now on each clean is charged to your card when it's done. Bills already sent stay due as they are.",
+        "We've stopped billing you weekly, so from now on each clean is charged to your card when it's done. Bills already sent still need paying as before.",
         "Here's what we've settled for cleans no bill has covered yet:",
         ...settledLines(settled),
-        "Prices include tax.",
+        PRICES_INCLUDE_TAX,
       ].map(paragraph),
-      unpaid
-        ? button("Update your Payment Method", "/portal/payment-method")
+      // a card puts it right, unless we're trying again ourselves
+      unpaid &&
+      settled.some(
+        (s) =>
+          s.settled.failure && whyNotPaid(s.settled.failure).kind !== "waiting",
+      )
+        ? button(UPDATE_CARD, "/portal/payment-method")
         : button("See your cleans", "/portal"),
     ],
   };
@@ -272,7 +300,7 @@ export const creditRefundedEmail = ({
   blocks: [
     greeting(firstNameOf(name)),
     paragraph(
-      `No bill has followed bill ${number} in ${creditRefundDays} days, so we've refunded its ${formatMoney(cents)} credit to you. It can take a few days to reach you.`,
+      `No bill has followed bill ${number} in ${creditRefundDays} days, so we've refunded its ${formatMoney(cents)} credit to you. ${REFUND_TAKES_DAYS}`,
     ),
     button("See the bill", `/portal/bills/${billId}`),
   ],

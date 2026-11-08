@@ -7,7 +7,11 @@ import {
   type CalendarDate,
   type Time,
 } from "@internationalized/date";
-import type { OfficeServicePlan, UnplacedVisit } from "@empire-cleaning/models";
+import {
+  cleansPaid,
+  type OfficeServicePlan,
+  type UnplacedVisit,
+} from "@empire-cleaning/models";
 import {
   Actions,
   Breadcrumbs,
@@ -68,16 +72,6 @@ export function ServicePlanScreen() {
   );
 }
 
-// how the Client pays for the plan's cleans: each when it's done, or on a
-// weekly Bill (ADR-0016)
-const paymentLine = {
-  per_clean: "Each clean is charged to the Client's saved card when it's done.",
-  automatic:
-    "Each week's cleans go on one Bill, made the following Monday and charged to the Client's saved Payment Method.",
-  on_page:
-    "Each week's cleans go on one Bill, made the following Monday, which the Client pays on its page by its due date.",
-};
-
 // A Service Plan for the Office, as its Client reads it (UX pass, #96): why
 // it's On Hold, if it is; the dates it came round with no room, to book at
 // another time agreed with the Client or skip; then when, large, and its
@@ -116,7 +110,7 @@ export function PlanDetails({
             badge={<PlanStatusBadge status={plan.status} />}
           />
           <p className="border-t border-border pt-4 text-sm text-fg-muted">
-            {paymentLine[plan.weeklyBill ?? "per_clean"]}{" "}
+            {cleansPaid(plan.weeklyBill ?? "per_clean", false)}{" "}
             <Link
               href={linkTo({
                 to: "/office/quotes/$quoteId",

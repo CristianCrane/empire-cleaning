@@ -98,9 +98,9 @@ test("a Client's plan is On Hold while a fee is Unpaid, and back on once they pa
   await page.goto(`/portal/plans/${planId}`);
   const onHold = page
     .getByRole("alert")
-    .filter({ hasText: "Your plan is On Hold" });
+    .filter({ hasText: "Your plan is paused" });
   await expect(onHold).toContainText(
-    "Your plan is On Hold. We couldn't take payment for the clean on Mon, Jan 19, 9:00 AM ($50.46). Cleans already booked go ahead, but we won't book any more until it's paid.",
+    "Your plan is paused. We couldn't take payment for the clean on Mon, Jan 19, 9:00 AM ($50.46). Cleans already booked still go ahead, but we won't book any more.",
   );
   await expectAccessible(page);
 
@@ -110,13 +110,13 @@ test("a Client's plan is On Hold while a fee is Unpaid, and back on once they pa
   await page
     .getByRole("alert")
     .filter({ hasText: "Payment needed" })
-    .getByRole("link", { name: "Update Payment Method" })
+    .getByRole("link", { name: "Update your card" })
     .click();
   await page.getByRole("button", { name: "Save card" }).click();
   await expect(page.getByText("Card saved")).toBeVisible();
 
   await page.goto(`/portal/plans/${planId}`);
-  await expect(page.getByText("Your plan is On Hold")).toHaveCount(0);
+  await expect(page.getByText("Your plan is paused")).toHaveCount(0);
   await expect(page.getByText("Active", { exact: true })).toBeVisible();
 });
 
@@ -141,16 +141,14 @@ test(
       .getByRole("grid", { name: "Needs attention" })
       .getByRole("row")
       .filter({ hasText: "Collect what's owed to resume the plan" });
-    await expect(held).toContainText(
-      "Service Plan: $50.46 Unpaid, no new Jobs booked",
-    );
+    await expect(held).toContainText("Cleaning plan paused: $50.46 unpaid");
     await held.click();
     // the plan is on its home's page
     await expect(page).toHaveURL(/\/office\/properties\/[0-9a-f-]{36}$/);
     await expect(
-      page.getByRole("alert").filter({ hasText: "On Hold." }),
+      page.getByRole("alert").filter({ hasText: "Paused." }),
     ).toContainText(
-      "On Hold. The Client's payment couldn't be taken for the clean on Mon, Jan 19, 9:00 AM ($50.46).",
+      "Paused. The client's payment didn't go through for the clean on Mon, Jan 19, 9:00 AM ($50.46).",
     );
 
     const ending = page.getByRole("region", { name: "Ending the plan" });

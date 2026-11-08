@@ -100,7 +100,7 @@ can change, through the same loop.
   ("Clickable catches the eye")
 - **A Section's actions are text Buttons** on the title's line, no taller
   than it; on a phone they wrap under the title.
-- **Destructive actions are red** (End plan, Void, Deactivate, Decline).
+- **Destructive actions are red** (End plan, Cancel bill, Deactivate, Decline).
 - **A third-party sign-in button keeps its owner's branding**: Continue with
   Google is Google's own button (their colours in light and dark, their
   logo, Roboto), not ours. Only the 44px touch height is ours.

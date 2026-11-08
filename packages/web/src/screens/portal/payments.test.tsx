@@ -17,7 +17,7 @@ const card = { label: "Visa ending 4242", savedAt: "", consentedAt: "" };
 const unpaidClean = {
   id: "job",
   startsAt: CLEAN,
-  unpaid: true,
+  unpaid: "declined",
   owedCents: 18450,
 } as ClientPastJob;
 
@@ -58,8 +58,22 @@ describe("what a Client owes now", () => {
     expect(owed).toMatchObject({
       cents: 18450,
       late: true,
-      text: "Your card was declined for your Oct 20 clean",
+      text: "We couldn't take payment for your Oct 20 clean",
       action: { label: "Update your card" },
+    });
+  });
+
+  test("a clean waiting on the payment service: nothing to do but see it", () => {
+    const { owed } = moneyNow(
+      data({ pastJobs: [{ ...unpaidClean, unpaid: "waiting" }] }),
+    );
+
+    expect(owed).toMatchObject({
+      text: "We couldn't take payment for your Oct 20 clean",
+      action: {
+        label: "See the clean",
+        href: { to: "/portal/jobs/$jobId", params: { jobId: "job" } },
+      },
     });
   });
 
@@ -71,7 +85,7 @@ describe("what a Client owes now", () => {
       late: false,
       text: "Bill EC-000041 is due by Nov 3",
       action: {
-        label: "Pay Bill EC-000041",
+        label: "Pay bill EC-000041",
         href: href("/portal/bills/$billId", { billId: "bill" }),
       },
     });
@@ -82,7 +96,7 @@ describe("what a Client owes now", () => {
       id: "late",
       number: "EC-000040",
       payment: "automatic",
-      unpaid: { since: "", reason: "declined" },
+      unpaid: { since: "", kind: "declined", why: null },
       totalCents: 100000,
     });
 
@@ -91,8 +105,8 @@ describe("what a Client owes now", () => {
     expect(owed).toMatchObject({
       cents: 225350,
       late: true,
-      text: "We couldn't take payment for Bill EC-000040, and 1 more",
-      action: { label: "Pay Bill EC-000040" },
+      text: "We couldn't take payment for bill EC-000040, and 1 more",
+      action: { label: "Pay bill EC-000040" },
     });
   });
 
@@ -115,7 +129,7 @@ describe("what a Client owes now", () => {
     expect(
       moneyNow(data({ paymentMethod: null, bills: [bill({ status: "paid" })] }))
         .paying,
-    ).toBe("You pay each Bill on its page");
+    ).toBe("You pay each bill on its page");
     expect(moneyNow(data({ paymentMethod: null })).paying).toBe(
       "No card saved yet",
     );
@@ -219,7 +233,10 @@ describe("how a payment reads", () => {
       paymentRow(
         payment({ kind: "fee", job: { ...job, status: "no_access" } }),
       ),
-    ).toMatchObject({ title: "No Access fee", line: "Standard Clean, Oct 20" });
+    ).toMatchObject({
+      title: "Couldn't-get-in fee",
+      line: "Standard Clean, Oct 20",
+    });
     expect(
       paymentRow(payment({ kind: "fee", job: { ...job, status: "cancelled" } }))
         .title,
@@ -232,7 +249,7 @@ describe("how a payment reads", () => {
         payment({ kind: "deposit", job: null, servicePlanId: "plan" }),
       ),
     ).toEqual({
-      title: "Deposit for your Service Plan",
+      title: "Deposit for your cleaning plan",
       line: "Goes towards your plan's last clean",
       href: href("/portal/plans/$planId", { planId: "plan" }),
     });

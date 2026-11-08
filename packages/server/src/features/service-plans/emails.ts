@@ -1,4 +1,4 @@
-import type { EndPlanTerms } from "@empire-cleaning/models";
+import { refundedTo, type EndPlanTerms } from "@empire-cleaning/models";
 import {
   button,
   cleanDetails,
@@ -95,9 +95,7 @@ export const planEndedEmail = ({
               ]
           : []),
         ...(settled.refundedCents > 0
-          ? [
-              `We've refunded ${formatMoney(settled.refundedCents)} to your ${card}. It can take a few days to reach you.`,
-            ]
+          ? [refundedTo(formatMoney(settled.refundedCents), card)]
           : []),
         ...(settled.chargedCents > 0
           ? [

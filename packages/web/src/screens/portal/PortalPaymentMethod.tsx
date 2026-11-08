@@ -8,6 +8,7 @@ import {
   Heading,
   Notice,
 } from "@empire-cleaning/ui";
+import { notTaken } from "@empire-cleaning/models";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import { postJson } from "../../api.ts";
@@ -19,7 +20,7 @@ import {
 } from "../format.ts";
 import { ConsentNote, useCardForm } from "./CardForm.tsx";
 
-// where the Office's "add a Payment Method" email leads: the Client adds (or
+// where the Office's "add a card" email leads: the Client adds (or
 // replaces) the card that Deposits and Balances are charged to. Where a
 // clean couldn't be charged, they fix it here: try the same card again (the
 // money may be there now), or save another, which tries it too.
@@ -51,14 +52,14 @@ export function PortalPaymentMethod() {
         <Breadcrumbs
           trail={[
             { label: "Payments", href: linkTo({ to: "/portal/payments" }) },
-            { label: "Payment Method" },
+            { label: "Your card" },
           ]}
         />
-        <Heading level={1}>Payment Method</Heading>
+        <Heading level={1}>Your card</Heading>
         <p className="text-fg-muted">
-          We take a Deposit from this card when you book. Each clean is charged
-          to it when it's done, or goes on your weekly Bill if you have one. If
-          a clean couldn't be charged, saving a card here tries it again.
+          We take a deposit from this card when you book. Each clean is charged
+          to it when it's done, or goes on your weekly bill if you have one. If
+          a payment didn't go through, saving a card here tries it again.
         </p>
       </div>
 
@@ -78,10 +79,11 @@ export function PortalPaymentMethod() {
           }
         >
           <p>
-            <strong>Payment needed.</strong> We couldn't charge{" "}
-            {formatMoney(owed)} to your {saved?.label ?? "card"} for your{" "}
-            {formatShortDay(dayOfInstant(first.startsAt))} clean
-            {unpaid.length > 1 && `, and ${unpaid.length - 1} more`}.{" "}
+            <strong>Payment needed.</strong>{" "}
+            {notTaken(
+              `${formatMoney(owed)} for your ${formatShortDay(dayOfInstant(first.startsAt))} clean${unpaid.length > 1 ? `, and ${unpaid.length - 1} more,` : ""}`,
+              saved?.label ?? null,
+            )}{" "}
             {saved
               ? "Try it again, or save a different card below."
               : "Save a card below and we'll try again."}

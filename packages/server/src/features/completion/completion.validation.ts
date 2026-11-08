@@ -13,12 +13,12 @@ const reason = z
 const report = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("add_on_done"),
-    addOnKey: z.uuid("Choose an Add-on"),
+    addOnKey: z.uuid("Choose an add-on"),
     reason,
   }),
   z.object({
     kind: z.literal("add_on_not_done"),
-    addOnKey: z.uuid("Choose an Add-on"),
+    addOnKey: z.uuid("Choose an add-on"),
     reason,
   }),
   z.object({
@@ -39,7 +39,7 @@ export const completionSchema = z.object({
 
 const price = z
   .number({ error: "Enter a price" })
-  .int("Enter a price in whole cents")
+  .int("Enter a price like 12.50")
   .min(0, "A price can't be below $0");
 
 const officeReason = z

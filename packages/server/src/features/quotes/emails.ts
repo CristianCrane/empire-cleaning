@@ -14,10 +14,12 @@ import {
   formatWhen,
   weekdayName,
 } from "../../services/email/format.ts";
-import { billPaid } from "../bills/billed-weekly.ts";
 import {
   ASK_AGAIN,
+  billPaid,
+  cleansPaid,
   ON_WEEKS_BILL,
+  PRICES_INCLUDE_TAX,
   quoteEmailedTo,
   turnedDown,
   type PropertyKind,
@@ -295,7 +297,7 @@ export const quoteEmail = ({
             ),
           ]),
       paragraph(
-        `Prices include tax. It's open until ${formatWhen(new Date(offer.expiresAt))}. To see all of it, sign in with this email address (${email}):`,
+        `${PRICES_INCLUDE_TAX} It's open until ${formatWhen(new Date(offer.expiresAt))}. To see all of it, sign in with this email address (${email}):`,
       ),
       button("See your quote", `/portal/quotes/${quoteId}`),
     ],
@@ -336,7 +338,7 @@ const planPrices = ({ cleans }: PlanCleans, paid: PaidWith, now = "") => {
           )
           .join(", ");
   if (paid.weeklyBill) {
-    return `Each clean is ${now}${each}. Each week's cleans go on one bill, ${billPaid[paid.weeklyBill]}.`;
+    return `Each clean is ${now}${each}. ${cleansPaid(paid.weeklyBill)}`;
   }
   return cleans.length === 1
     ? `Each clean is ${now}${each}, charged to ${chargedTo(paid)} when it's done.`

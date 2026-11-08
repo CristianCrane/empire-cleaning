@@ -70,9 +70,9 @@ test(
       .click();
     await page
       .getByRole("group", { name: "What to do" })
-      .getByRole("button", { name: "Complete Job" })
+      .getByRole("button", { name: "Mark done" })
       .click();
-    const form = page.getByRole("dialog", { name: "Complete this Job" });
+    const form = page.getByRole("dialog", { name: "Mark this job done" });
     await expect(form).toBeVisible();
     await expectAccessible(page);
 
@@ -95,10 +95,10 @@ test(
       .getByRole("textbox", { name: "What took longer?" })
       .fill("Heavy grease in the kitchen");
     await expect(page.getByText(/\$/)).toHaveCount(0);
-    await form.getByRole("button", { name: "Mark Completed" }).click();
+    await form.getByRole("button", { name: "Mark done" }).click();
 
-    await expect(page.getByText("Job Completed")).toBeVisible();
-    const completed = page.getByRole("region", { name: "Completed" });
+    await expect(page.getByText("Job marked done")).toBeVisible();
+    const completed = page.getByRole("region", { name: "Done" });
     await expect(completed).toContainText("Heavy");
     await expect(completed).toContainText(
       "Inside the oven, not done: The oven was in use",
@@ -133,9 +133,9 @@ test(
     const attention = page.getByRole("grid", { name: "Needs attention" });
     await attention
       .getByRole("row")
-      .filter({ hasText: "1 extra to review" })
+      .filter({ hasText: "1 price change to review" })
       .click();
-    const adjustments = page.getByRole("region", { name: "Adjustments" });
+    const adjustments = page.getByRole("region", { name: "Price changes" });
     const extra = adjustments.getByRole("row", { name: /Extra time/ });
     await expect(extra).toContainText("+1 h");
     await expect(extra).toContainText("+$59.88");
@@ -144,10 +144,10 @@ test(
     const review = page.getByRole("dialog", { name: "Extra time" });
     await expect(review).toContainText('"Heavy grease"');
     await expect(review).toContainText("$55.00 before tax");
-    await review.getByRole("button", { name: "Propose to the Client" }).click();
-    await expect(page.getByText("Proposed to the Client")).toBeVisible();
+    await review.getByRole("button", { name: "Send to the client" }).click();
+    await expect(page.getByText("Sent to the client")).toBeVisible();
     await expect(review).toBeHidden();
-    await expect(extra).toContainText("Waiting on the Client");
+    await expect(extra).toContainText("Waiting on the client");
 
     const client = await asCasey(browser);
     await client.goto(
@@ -193,7 +193,7 @@ test("a Job that couldn't be charged is Unpaid until the Client saves a new card
   await signedInAs(page, olive.email);
   const attention = page.getByRole("grid", { name: "Needs attention" });
   await expect(
-    attention.getByRole("row").filter({ hasText: "Collect the Balance" }),
+    attention.getByRole("row").filter({ hasText: "Collect the balance" }),
   ).toBeVisible();
 
   const client = await asCasey(browser);
@@ -206,7 +206,7 @@ test("a Job that couldn't be charged is Unpaid until the Client saves a new card
   await expect(
     client.getByRole("alert").filter({ hasText: "Payment needed" }),
   ).toBeVisible();
-  await client.getByRole("link", { name: "Update Payment Method" }).click();
+  await client.getByRole("link", { name: "Update your card" }).click();
   await client.getByRole("button", { name: "Save card" }).click();
   await expect(client.getByText("Card saved")).toBeVisible();
 
@@ -217,7 +217,7 @@ test("a Job that couldn't be charged is Unpaid until the Client saves a new card
   // nothing left to pay on their Home
   await client.goto("/portal");
   await expect(client.getByRole("heading", { level: 1 })).toBeVisible();
-  await expect(client.getByText(/^We couldn't charge/)).toHaveCount(0);
+  await expect(client.getByText(/^We couldn't take payment/)).toHaveCount(0);
 
   await page.reload();
   await expect(
@@ -236,7 +236,7 @@ test("Office Staff remove an Adjustment from its own dialog, confirming in the s
   await signedInAs(page, olive.email);
   await page.goto(`/office/jobs/${job.id}`);
 
-  const adjustments = page.getByRole("region", { name: "Adjustments" });
+  const adjustments = page.getByRole("region", { name: "Price changes" });
   await adjustments.getByRole("row", { name: /Extra time/ }).click();
   const dialog = page.getByRole("dialog", { name: "Extra time" });
   await dialog.getByRole("button", { name: "Dismiss" }).click();
@@ -255,9 +255,9 @@ test("Office Staff remove an Adjustment from its own dialog, confirming in the s
   });
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await confirm.getByRole("button", { name: "Remove" }).click();
-  await expect(page.getByText("Adjustment removed")).toBeVisible();
+  await expect(page.getByText("Price change removed")).toBeVisible();
   await expect(adjustments).toContainText(
-    "Nothing different from the Quote was reported.",
+    "Nothing different from the quote was reported.",
   );
 });
 
@@ -274,13 +274,13 @@ test("Office Staff correct the Condition and undo a completion made by mistake",
   await page.getByRole("option", { name: "Light" }).click();
   await expect(page.getByText("Condition corrected")).toBeVisible();
 
-  await completed.getByRole("button", { name: "Undo completion" }).click();
+  await completed.getByRole("button", { name: "Mark not done" }).click();
   await page
     .getByRole("alertdialog")
-    .getByRole("button", { name: "Undo completion" })
+    .getByRole("button", { name: "Mark not done" })
     .click();
 
-  await expect(page.getByText("Completion undone")).toBeVisible();
+  await expect(page.getByText("Marked not done")).toBeVisible();
   await expect(
     completed.getByRole("heading", { name: "How it went" }),
   ).toBeHidden();

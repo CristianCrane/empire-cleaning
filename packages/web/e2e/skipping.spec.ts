@@ -100,14 +100,14 @@ test("a Client skipping late is charged the fee, and pays it once their card wor
     "it's a Late Cancellation, with a $50.46 fee: the same as your plan's Deposit, which stays held.",
   );
   const payment = page.getByRole("alert").filter({ hasText: "Payment needed" });
-  await expect(payment).toContainText("We couldn't charge $50.46");
+  await expect(payment).toContainText("We couldn't take $50.46");
 
   // the same card, tried again once the money is there
   await failCharges(null);
-  await payment.getByRole("link", { name: "Update Payment Method" }).click();
+  await payment.getByRole("link", { name: "Update your card" }).click();
   const needed = page.getByRole("alert").filter({ hasText: "Payment needed" });
   await expect(needed).toContainText(
-    "We couldn't charge $50.46 to your Test card ending 4242",
+    /We couldn't take \$50\.46 for your .+ clean from your Test card ending 4242\./,
   );
   await needed.getByRole("button", { name: "Try this card again" }).click();
   await expect(page.getByText("Payment taken")).toBeVisible();

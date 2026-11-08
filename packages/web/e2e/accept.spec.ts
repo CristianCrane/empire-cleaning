@@ -48,7 +48,7 @@ test(
     await expect(accept.getByText("Test payments: no card")).toBeVisible();
     // paying saves the card for the Balance, which the form says
     await expect(
-      accept.getByText("By paying, you authorise Empire Cleaning"),
+      accept.getByText("By paying, you agree that Empire Cleaning"),
     ).toBeVisible();
     await accept.getByRole("button", { name: /^Accept and pay \$/ }).click();
 
@@ -143,13 +143,13 @@ test("Office Staff email a link to add a card, then record the Client's acceptan
 
   const client = await (await browser.newContext()).newPage();
   await signedInAs(client, casey.email);
-  await client.goto(await linkIn("Add a Payment Method for Empire Cleaning"));
+  await client.goto(await linkIn("Add a card for Empire Cleaning"));
   await expect(client.getByRole("heading", { level: 1 })).toHaveText(
-    "Payment Method",
+    "Your card",
   );
   await expect(client.getByText("You haven't saved a card yet")).toBeVisible();
   await expect(
-    client.getByText("By saving your card, you authorise Empire Cleaning"),
+    client.getByText("By saving your card, you agree that Empire Cleaning"),
   ).toBeVisible();
   await client.getByRole("button", { name: "Save card" }).click();
   await expect(

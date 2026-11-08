@@ -1,6 +1,10 @@
 import type { Key } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
-import type { ClientView, ServicePlanView } from "@empire-cleaning/models";
+import {
+  cleansPaid,
+  type ClientView,
+  type ServicePlanView,
+} from "@empire-cleaning/models";
 import {
   ActionRow,
   Actions,
@@ -22,7 +26,6 @@ import { getJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import { addressOf, formatDateTime, formatHours } from "../format.ts";
-import { planPaymentLine } from "./payments.ts";
 import { EndPlan, OnHold, PlanFacts, PlanStatusBadge } from "../PlanParts.tsx";
 
 // one of the Client's Service Plans: its terms, what each clean costs, the
@@ -72,8 +75,8 @@ export function PortalPlan() {
         <Card>
           <PlanFacts plan={plan} forClient />
           <p className="border-t border-border pt-4 text-sm text-fg-muted">
-            {planPaymentLine[plan.weeklyBill ?? "per_clean"]} We email a
-            reminder the day before.
+            {cleansPaid(plan.weeklyBill ?? "per_clean")} We email a reminder the
+            day before.
           </p>
         </Card>
       </Section>

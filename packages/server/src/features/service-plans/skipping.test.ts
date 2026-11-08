@@ -100,7 +100,7 @@ describe("skipping a plan Job", () => {
     expect(chargesAfterDeposit()).toEqual([
       expect.objectContaining({
         amount: PLAN_DEPOSIT,
-        description: expect.stringMatching(/^Late Cancellation fee: /),
+        description: expect.stringMatching(/^Late cancellation fee: /),
       }),
     ]);
     expect(testPayments().refunds).toEqual([]);
@@ -166,7 +166,7 @@ describe("skipping a plan Job", () => {
       expect.objectContaining({ kind: "job_unpaid" }),
     );
     expect(testEmail().lastTo(casey.email).text).toMatch(
-      /couldn't charge it to your Test card ending 4242/,
+      /couldn't take it from your Test card ending 4242/,
     );
 
     testPayments().failCharges(null);
@@ -225,7 +225,7 @@ describe("No Access on a plan Job", () => {
     expect(chargesAfterDeposit()).toEqual([
       expect.objectContaining({
         amount: PLAN_DEPOSIT,
-        description: expect.stringMatching(/^No Access fee: /),
+        description: expect.stringMatching(/^Couldn't-get-in fee: /),
       }),
     ]);
     const { noAccess } = await clientJob(client, jobId);

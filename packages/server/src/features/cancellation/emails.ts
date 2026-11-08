@@ -10,16 +10,28 @@ import { firstNameOf, formatMoney } from "../../services/email/format.ts";
 import { jobsButton } from "../assignments/emails.ts";
 import type { Settled } from "../completion/balance.ts";
 import { BOOK_ANOTHER } from "../quotes/emails.ts";
+import {
+  clientFix,
+  notTaken,
+  PLAN_PAUSED,
+  refundedTo,
+} from "@empire-cleaning/models";
+import { whyNotPaid } from "../payments/unpaid.ts";
 
-// for a Client whose plan an Unpaid Job has put On Hold
-export const ON_HOLD_LINE =
-  "Until it's paid, your Service Plan is On Hold: cleans already booked go ahead, but we won't book any more.";
+// a fee that didn't go through, for the Office, and why
+const feeNotPaid = (failure: string) => {
+  const { why } = whyNotPaid(failure);
+  return `The fee didn't go through${why ? ` (${why})` : ""}, so the job is unpaid.`;
+};
 
 // what was refunded, as a line for the Client
 const refundLine = (settled: Settled) =>
   settled.refundedCents > 0
     ? [
-        `We've refunded ${formatMoney(settled.refundedCents)} to your ${settled.paymentMethod ?? "card"}. It can take a few days to reach you.`,
+        refundedTo(
+          formatMoney(settled.refundedCents),
+          settled.paymentMethod ?? "card",
+        ),
       ]
     : [];
 
@@ -30,8 +42,8 @@ const feeChargeLine = (settled: Settled) => {
   if (settled.chargedCents > 0) return [`We've charged it to your ${card}.`];
   if (settled.failure) {
     return [
-      `We couldn't charge it to your ${card}. Please update your Payment Method, and we'll try again straight away.`,
-      ...(settled.plan === "held" ? [ON_HOLD_LINE] : []),
+      `${notTaken("it", card)} ${clientFix[whyNotPaid(settled.failure).kind]}`,
+      ...(settled.plan === "held" ? [PLAN_PAUSED] : []),
     ];
   }
   return [];
@@ -177,13 +189,7 @@ export const officeCancelledEmail = ({
             ? "It was more than 24 hours ahead, but a Late Reschedule had already kept the Deposit as the fee."
             : "It was more than 24 hours ahead, so the Deposit has been refunded.",
     ),
-    ...(settled.failure
-      ? [
-          paragraph(
-            `The fee couldn't be charged (${settled.failure}), so the Job is Unpaid.`,
-          ),
-        ]
-      : []),
+    ...(settled.failure ? [paragraph(feeNotPaid(settled.failure))] : []),
     officeButton(jobId),
   ],
 });
@@ -253,7 +259,7 @@ export const officeNoAccessEmail = ({
     paragraph(
       onPlan
         ? settled.failure
-          ? `${client} has been told. The fee couldn't be charged (${settled.failure}), so the Job is Unpaid.`
+          ? `${client} has been told. ${feeNotPaid(settled.failure)}`
           : `${client} has been told, and the fee ${feeTaken(settled)}.`
         : `${client} has been told, and the Deposit is kept as the fee.`,
     ),

@@ -204,7 +204,7 @@ describe("accepting a Service Plan Quote for a home with a plan", () => {
     );
     expect(confirmation.text).not.toContain("when it's done");
     expect(confirmation.text).toContain(
-      "Each clean is now $201.85. Each week's cleans go on one bill, made the following Monday and charged to your saved Payment Method.",
+      "Each clean is now $201.85. Each week's cleans go on one bill, made the following Monday and charged to your card.",
     );
   });
 

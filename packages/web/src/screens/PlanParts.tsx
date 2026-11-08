@@ -8,7 +8,11 @@ import {
   Receipt,
   Users,
 } from "lucide-react";
-import type { EndPlanTerms, ServicePlanView } from "@empire-cleaning/models";
+import {
+  BOOKED_GO_AHEAD,
+  type EndPlanTerms,
+  type ServicePlanView,
+} from "@empire-cleaning/models";
 import {
   ActionRow,
   Actions,
@@ -78,7 +82,7 @@ export function OnHold({
       key: u.jobId,
       what: `the clean on ${formatDateTime(u.startsAt)} (${formatMoney(u.owedCents)})`,
       href: jobHref(u.jobId),
-      label: forClient ? "Pay for that clean" : "See the Job",
+      label: forClient ? "Pay for that clean" : "See the job",
     })),
     ...plan.unpaidBills.map((b) => ({
       key: b.billId,
@@ -103,18 +107,18 @@ export function OnHold({
             {i === 0 && (
               <>
                 <strong>
-                  {forClient ? "Your plan is On Hold." : "On Hold."}
+                  {forClient ? "Your plan is paused." : "Paused."}
                 </strong>{" "}
               </>
             )}
             {forClient
               ? "We couldn't take payment for "
-              : "The Client's payment couldn't be taken for "}
+              : "The client's payment didn't go through for "}
             {u.what}.
             {i === 0 &&
               (forClient
-                ? " Cleans already booked go ahead, but we won't book any more until it's paid."
-                : " Jobs already booked go ahead, but no more are booked until it's paid.")}
+                ? ` ${BOOKED_GO_AHEAD}`
+                : " Jobs already booked still go ahead, but no more are booked until it's paid.")}
           </p>
         </Notice>
       ))}

@@ -1,4 +1,3 @@
-import type { BillPayment } from "@empire-cleaning/models";
 import { and, count, eq, ne, sum } from "drizzle-orm";
 import type { db, Tx } from "../../db/index.ts";
 import { startOfDay } from "../../services/clock/index.ts";
@@ -45,14 +44,6 @@ export const weeklyBillFor = (
   client.billedWeeklyFrom && job.startsAt >= startOfDay(client.billedWeeklyFrom)
     ? client.billPayment
     : null;
-
-// when a weekly Bill is made, and how the Client pays it
-export const billPaid: Record<BillPayment, string> = {
-  automatic:
-    "made the following Monday and charged to your saved Payment Method",
-  on_page:
-    "made the following Monday, which you pay on its page by its due date",
-};
 
 // weeklyBillFor a Job, read from its home's Client, for the Job's views
 export const weeklyBillOfJob = async (

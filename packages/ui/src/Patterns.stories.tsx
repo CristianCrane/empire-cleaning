@@ -199,7 +199,7 @@ function ActionFirstRows() {
             />
             <ListItem
               id="3"
-              title="Collect the Balance"
+              title="Collect the balance"
               description="Nina Gold · $184.00 owed · 22 Pine St"
               start={<IconTile icon={CircleDollarSign} tone="danger" />}
             />
@@ -583,7 +583,7 @@ function RowsOpenOneDialog() {
       </Rule>
       <div className="flex flex-col gap-4 lg:flex-row">
         <Example verdict="Do">
-          <Table aria-label="Adjustments" onRowAction={() => {}}>
+          <Table aria-label="Price changes" onRowAction={() => {}}>
             <TableHeader>
               <Column isRowHeader>What</Column>
               <Column>Change</Column>
@@ -596,7 +596,7 @@ function RowsOpenOneDialog() {
                 <Cell>Not done</Cell>
                 <Cell>−$29.94</Cell>
                 <Cell>
-                  <StatusBadge tone="success">Applied</StatusBadge>
+                  <StatusBadge tone="success">Added</StatusBadge>
                 </Cell>
               </Row>
               <Row id="time">
@@ -611,7 +611,7 @@ function RowsOpenOneDialog() {
           </Table>
         </Example>
         <Example verdict="Don't">
-          <List aria-label="Adjustments">
+          <List aria-label="Price changes">
             <ListItem
               id="time"
               title="1 extra hour: $59.88"

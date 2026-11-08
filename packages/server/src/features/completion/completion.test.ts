@@ -187,7 +187,7 @@ describe("completing a Job", () => {
     // it needs a second Cleaner: Unassigned
     const unassigned = await complete(cory.agent, jobId).expect(409);
     expect(unassigned.body.message).toMatch(
-      /everyone on this Job must Confirm/i,
+      /not everyone on this job has confirmed it/i,
     );
     expect(
       (
@@ -217,7 +217,7 @@ describe("completing a Job", () => {
     // not before it starts
     testClock().set(new Date("2026-01-12T13:59:00Z"));
     expect((await complete(cory.agent, jobId).expect(409)).body.message).toBe(
-      "This Job hasn't started yet",
+      "This job hasn't started yet.",
     );
     testClock().set(new Date("2026-01-12T14:00:00Z"));
     expect(
@@ -438,11 +438,13 @@ describe("Adjustments", () => {
     const onQuote = await complete(cory.agent, jobId, {
       reports: [{ kind: "add_on_done", addOnKey: oven, reason: "x" }],
     }).expect(409);
-    expect(onQuote.body.message).toBe("That Add-on can't be added to this Job");
+    expect(onQuote.body.message).toBe(
+      "That add-on can't be added to this job.",
+    );
     const notOnQuote = await complete(cory.agent, jobId, {
       reports: [{ kind: "add_on_not_done", addOnKey: fridge, reason: "x" }],
     }).expect(409);
-    expect(notOnQuote.body.message).toBe("That Add-on isn't on this Job");
+    expect(notOnQuote.body.message).toBe("That add-on isn't on this job.");
     await complete(cory.agent, jobId, {
       reports: [{ kind: "extra_time", hours: 0.3, reason: "x" }],
     }).expect(400);
@@ -484,7 +486,9 @@ describe("Adjustments", () => {
         },
       ],
     }).expect(409);
-    expect(refused.body.message).toBe("That Add-on can't be added to this Job");
+    expect(refused.body.message).toBe(
+      "That add-on can't be added to this job.",
+    );
   });
 
   test("proposed by the Office are charged once the Client approves, with a receipt", async () => {
@@ -520,7 +524,7 @@ describe("Adjustments", () => {
     expect(proposal.text).toContain("$59.88");
     // true however the Client pays: by card, or on a weekly Bill (#244 #5)
     expect(proposal.text).toContain(
-      "You only pay it if you approve it. Please approve or decline it by",
+      "you only pay it if you approve it. Please approve or decline it by",
     );
     expect(proposal.text).toContain(`/portal/jobs/${jobId}`);
 
@@ -557,7 +561,7 @@ describe("Adjustments", () => {
         skipped: false,
         feeCents: 0,
         awaitingAnswer: 2,
-        unpaid: false,
+        unpaid: null,
       }),
     ]);
 
@@ -637,7 +641,7 @@ describe("Adjustments", () => {
           .post(`/api/jobs/mine/${jobId}/adjustments/${time!.id}/approve`)
           .expect(409)
       ).body.message,
-    ).toBe("This has lapsed, so it won't be charged.");
+    ).toBe("It wasn't answered in time, so you won't pay it.");
     await chaseProposedAdjustments();
     expect(
       (await clientJob(client, jobId)).completion!.adjustments[0]!.status,
@@ -657,7 +661,11 @@ describe("an Unpaid Job", () => {
     const job = await officeJob(office, jobId);
     expect(job.completion!.payment).toMatchObject({
       owedCents: deep.totalCents - deep.depositCents,
-      unpaid: { since: MONDAY_11AM.toISOString(), reason: "card_declined" },
+      unpaid: {
+        since: MONDAY_11AM.toISOString(),
+        kind: "declined",
+        why: null,
+      },
     });
     expect(testEmail().lastTo(casey.email).subject).toBe(
       "We couldn't take your payment",
@@ -667,19 +675,18 @@ describe("an Unpaid Job", () => {
         kind: "job_unpaid",
         since: MONDAY_11AM.toISOString(),
         owedCents: deep.totalCents - deep.depositCents,
-        reason: "card_declined",
       }),
     );
     expect(
       ((await client.get("/api/jobs/mine/past")).body as ClientPastJob[])[0]!
         .unpaid,
-    ).toBe(true);
+    ).toBe("declined");
 
     // retrying with the same card still fails
     expect(
       (await client.post(`/api/jobs/mine/${jobId}/balance/retry`).expect(409))
         .body.message,
-    ).toMatch(/still couldn't be charged/);
+    ).toMatch(/still didn't go through/);
   });
 
   test("is retried when the Client saves a new Payment Method", async () => {
@@ -739,7 +746,7 @@ describe("an Unpaid Job", () => {
     await complete(cory.agent, jobId).expect(200);
     expect(
       (await officeJob(office, jobId)).completion!.payment.unpaid,
-    ).toMatchObject({ reason: "the payment provider couldn't be reached" });
+    ).toMatchObject({ kind: "waiting" });
 
     await client.post(`/api/jobs/mine/${jobId}/balance/retry`).expect(200);
     expect(amounts()).toEqual([
@@ -785,6 +792,12 @@ describe("an Unpaid Job", () => {
     testPayments().goDown();
     await complete(cory.agent, jobId).expect(200);
     testPayments().goDown(false);
+    // nothing for the Client to do: we try again ourselves
+    const emails = testEmail().to(casey.email);
+    expect(emails.map((e) => e.subject)).not.toContain(
+      "We couldn't take your payment",
+    );
+    expect(emails.at(-1)!.text).not.toContain("update your card");
 
     testClock().advance({ minutes: 15 });
     await settleOpenPayments();
@@ -793,6 +806,20 @@ describe("an Unpaid Job", () => {
       unpaid: null,
     });
     expect(amounts()).toHaveLength(2);
+  });
+
+  test("is one declined once the provider is back: the Client is told then", async () => {
+    const { cory, jobId } = await bookedJob();
+    testPayments().goDown();
+    await complete(cory.agent, jobId).expect(200);
+    testPayments().goDown(false);
+    testPayments().failCharges();
+
+    testClock().advance({ minutes: 15 });
+    await settleOpenPayments();
+    expect(testEmail().lastTo(casey.email).subject).toBe(
+      "We couldn't take your payment",
+    );
   });
 
   test("is one declined: open payments leave it for a new card", async () => {
@@ -805,7 +832,7 @@ describe("an Unpaid Job", () => {
     await settleOpenPayments();
     expect(
       (await officeJob(office, jobId)).completion!.payment.unpaid,
-    ).toMatchObject({ reason: "card_declined" });
+    ).toMatchObject({ kind: "declined" });
     expect(amounts()).toHaveLength(1);
   });
 
@@ -853,7 +880,7 @@ describe("an Unpaid Job", () => {
 
     expect(after.completion!.payment).toMatchObject({
       owedCents: EXTRA_HOUR,
-      unpaid: { reason: "card_declined" },
+      unpaid: { kind: "declined" },
     });
   });
 });
@@ -1128,7 +1155,7 @@ describe("a Client's past Jobs", () => {
         id: jobId,
         completedAt: MONDAY_11AM.toISOString(),
         totalCents: deepOf(quote).totalCents,
-        unpaid: false,
+        unpaid: null,
         awaitingAnswer: 0,
       }),
     ]);

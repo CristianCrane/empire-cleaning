@@ -653,7 +653,7 @@ describe("a Late Reschedule (ADR-0010)", () => {
       completion!.payment.totalCents,
     );
     expect(testEmail().lastTo(casey.email).text).toContain(
-      "Late Reschedule fee (your Deposit, kept)",
+      "Late move fee (your deposit, kept)",
     );
   });
 
@@ -672,7 +672,7 @@ describe("a Late Reschedule (ADR-0010)", () => {
     await ask(client, jobId, THURSDAY, "late_cancellation").expect(201);
     await confirm(office, jobId).expect(200);
     expect(testEmail().lastTo(casey.email).text).toMatch(
-      /your \$[\d.]+ deposit is kept as a late cancellation fee, and the full price goes on your Bill for that week\./,
+      /your \$[\d.]+ deposit is kept as a late cancellation fee, and the full price goes on your bill for that week\./,
     );
   });
 

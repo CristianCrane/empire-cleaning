@@ -44,6 +44,7 @@ import type {
 } from "@empire-cleaning/models";
 import {
   ADD_HOURS,
+  adjustmentLabel,
   DAY_FULL,
   NO_CREW,
   noEmailYet,
@@ -89,7 +90,6 @@ import { linkTo } from "../../links.ts";
 import { useAction, useActionWith } from "../action.ts";
 import {
   addressOf,
-  adjustmentLabel,
   clientName,
   conditionLabel,
   dayOfInstant,

@@ -1,5 +1,4 @@
 import type {
-  AdjustmentKind,
   AssignmentState,
   AssignmentStatus,
   ClientName,
@@ -235,16 +234,6 @@ export const quoteStatusTone = {
 
 // for NumberField's formatOptions on prices
 export const dollars = { style: "currency", currency: "USD" } as const;
-
-// what was reported: "Inside the oven, not done", "1.5 extra hours"
-export const adjustmentLabel = (a: {
-  kind: AdjustmentKind;
-  addOnName: string | null;
-  hours: number | null;
-}) =>
-  a.kind === "extra_time"
-    ? `${a.hours} extra ${a.hours === 1 ? "hour" : "hours"}`
-    : `${a.addOnName}, ${a.kind === "add_on_done" ? "done on the day" : "not done"}`;
 
 const clockParts = new Intl.DateTimeFormat("en-US", {
   hour: "2-digit",
