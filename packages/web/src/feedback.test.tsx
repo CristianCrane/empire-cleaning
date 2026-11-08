@@ -13,7 +13,7 @@ import {
 import { identify, startMonitoring } from "@empire-cleaning/browser-monitoring";
 import { feedbackButton } from "@empire-cleaning/browser-monitoring/feedback";
 import { linkTo } from "./links.ts";
-import "./feedback.css";
+import feedbackLook from "./feedback.css?inline";
 
 declare module "vitest/browser" {
   interface BrowserCommands {
@@ -42,7 +42,7 @@ beforeAll(() => {
   startMonitoring({
     dsn: "http://public@localhost:9/1",
     environment: "test",
-    feedback: feedbackButton(),
+    feedback: feedbackButton(feedbackLook),
   });
   Sentry.getClient()!.on("beforeEnvelope", ([, items]) => {
     sent.push(...(items as typeof sent));

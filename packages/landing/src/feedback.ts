@@ -1,14 +1,7 @@
-import theme from "@empire-cleaning/ui/feedback.css?inline";
+import look from "@empire-cleaning/ui/feedback.css?inline";
+import { feedbackButton as button } from "@empire-cleaning/browser-monitoring/feedback";
 
-// the test site's feedback button (ADR-0020), imported by the start of Sentry
-// (monitoring.ts) only on the test site, so no other build carries its code or
-// its look. The look is added as the button starts, not imported as a
-// stylesheet: Astro would put that on every page of every build
-export const feedbackButton = async () => {
-  const style = document.createElement("style");
-  style.textContent = theme;
-  document.head.append(style);
-  const { feedbackButton } =
-    await import("@empire-cleaning/browser-monitoring/feedback");
-  return feedbackButton();
-};
+// the test site's feedback button (ADR-0020) in the design system's look,
+// bottom right: nothing else on these pages is fixed. Imported by the start of
+// Sentry (monitoring.ts) only on the test site, so no other build carries it
+export const feedbackButton = () => button(look);
