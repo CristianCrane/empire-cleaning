@@ -19,6 +19,7 @@ import {
   REFUND_TAKES_DAYS,
   UPDATE_AND_RETRY,
   UPDATE_CARD,
+  type UnpaidKind,
 } from "@empire-cleaning/models";
 import type { Settled } from "../completion/balance.ts";
 
@@ -33,7 +34,8 @@ export type BillToSend = {
   dueOn: string;
   payment: "automatic" | "on_page";
   status: string;
-  unpaid: boolean;
+  // why it's Unpaid, if it is
+  unpaid: UnpaidKind | null;
   paidVia: string | null;
   voidReason: string | null;
   totalCents: number;
@@ -61,6 +63,13 @@ const aboutBill = (
   const total = formatMoney(bill.totalCents);
   switch (occasion) {
     case "made":
+      // we try again ourselves, so they're only told the Bill
+      if (bill.unpaid === "waiting") {
+        return [
+          `Your bill ${number} from Empire Cleaning`,
+          `Here's your bill for the week: ${total}. We'll take it from your ${card} shortly.`,
+        ];
+      }
       if (bill.unpaid) {
         return [
           `We couldn't take payment for bill ${number}`,

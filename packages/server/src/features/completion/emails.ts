@@ -14,6 +14,7 @@ import {
   formatWhen,
 } from "../../services/email/format.ts";
 import {
+  clientFix,
   PRICES_INCLUDE_TAX,
   refundedTo,
   LATE_MOVE_FEE,
@@ -22,6 +23,7 @@ import {
   UPDATE_AND_RETRY,
   UPDATE_CARD,
 } from "@empire-cleaning/models";
+import { whyNotPaid } from "../payments/unpaid.ts";
 import type { Settled } from "./balance.ts";
 
 const portalButton = (jobId: string, label = "See your clean") =>
@@ -44,7 +46,7 @@ const moneyLines = (settled: Settled, owedCents: number) => {
   }
   if (settled.failure) {
     lines.push(
-      `We couldn't take the ${formatMoney(owedCents)} still to pay from your ${card}. Please ${UPDATE_AND_RETRY}.`,
+      `We couldn't take the ${formatMoney(owedCents)} still to pay from your ${card}. ${clientFix[whyNotPaid(settled.failure).kind]}`,
     );
   }
   // putting it On Hold is told in the Unpaid notice

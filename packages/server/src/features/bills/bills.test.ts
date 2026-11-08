@@ -719,6 +719,10 @@ describe("Unpaid Bills", () => {
         why: "We couldn't reach the payment service.",
       },
     });
+    // nothing for the Client to do: we try again ourselves
+    const made = testEmail().lastTo(BILLING_EMAIL);
+    expect(made.subject).toBe("Your bill EC-000001 from Empire Cleaning");
+    expect(made.text).not.toContain("update your card");
 
     testClock().advance({ minutes: 15 });
     await settleOpenPayments();

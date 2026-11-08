@@ -792,6 +792,12 @@ describe("an Unpaid Job", () => {
     testPayments().goDown();
     await complete(cory.agent, jobId).expect(200);
     testPayments().goDown(false);
+    // nothing for the Client to do: we try again ourselves
+    const emails = testEmail().to(casey.email);
+    expect(emails.map((e) => e.subject)).not.toContain(
+      "We couldn't take your payment",
+    );
+    expect(emails.at(-1)!.text).not.toContain("update your card");
 
     testClock().advance({ minutes: 15 });
     await settleOpenPayments();

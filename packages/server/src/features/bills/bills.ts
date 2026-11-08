@@ -1386,7 +1386,7 @@ const sendBill = async (
       bill: {
         ...bill,
         number: billNumber(bill.number),
-        unpaid: bill.unpaidSince !== null,
+        unpaid: unpaidOf(bill.unpaidSince, bill.unpaidReason)?.kind ?? null,
         lines: await linesOf(billId),
       },
       occasion,

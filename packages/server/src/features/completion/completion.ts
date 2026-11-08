@@ -150,6 +150,8 @@ const jobWithOwner = async (jobId: string) => {
 // tells the Client a Job they owe on couldn't be charged, the first time it
 // becomes Unpaid
 const sendUnpaid = async (jobId: string, settled: Settled) => {
+  // nothing for them to do: we try again ourselves (ADR-0022)
+  if (whyNotPaid(settled.failure!).kind === "waiting") return;
   const { job, property, client } = await jobWithOwner(jobId);
   const payment = await paymentOf(job);
   await notify(`Unpaid notice for Job ${jobId}`, async () =>
