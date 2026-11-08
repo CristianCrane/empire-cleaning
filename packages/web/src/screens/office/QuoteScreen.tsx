@@ -131,6 +131,7 @@ import {
 import { PickFromSchedule } from "./SchedulePicker.tsx";
 import { BookSiteVisit, visitSummary } from "./SiteVisitParts.tsx";
 import { useStartDraft } from "./StartDraft.tsx";
+import { useLoaded } from "../load.ts";
 
 // The Quote with one of its Revisions in hand: the one being drafted, or
 // else the offer, so it's edited while there's a Draft Revision and
@@ -1198,18 +1199,12 @@ function RoomOnDay({
   crewSize: number;
   options: OfficeQuoteOption[];
 }) {
-  const [found, setFound] = useState<ScheduleDay>();
-
-  useEffect(() => {
-    let current = true;
-    getJson<ScheduleDay[]>(`/api/schedule?from=${day}&to=${day}`)
-      .then(([found]) => current && setFound(found))
-      // nothing to say if it can't be found out
-      .catch(() => current && setFound(undefined));
-    return () => {
-      current = false;
-    };
-  }, [day]);
+  // nothing to say if it can't be found out
+  const { value: found } = useLoaded(day, () =>
+    getJson<ScheduleDay[]>(`/api/schedule?from=${day}&to=${day}`).then(
+      ([found]) => found,
+    ),
+  );
 
   if (found?.date !== day) return null;
   const free = { day, hours: found.freeHours };

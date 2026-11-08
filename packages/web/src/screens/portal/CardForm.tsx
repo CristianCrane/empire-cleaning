@@ -25,6 +25,7 @@ import {
 } from "@empire-cleaning/models";
 import { EmbeddedField, Notice } from "@empire-cleaning/ui";
 import { getJson, postJson, putJson } from "../../api.ts";
+import { useLoaded } from "../load.ts";
 
 // The payment provider's own form, so card numbers never reach our server
 // (ADR-0004): Stripe's Payment Element, for cards only (ADR-0008), except a
@@ -227,18 +228,10 @@ export function usePaymentForm({
   amountCents: number;
   showCard?: boolean;
 }) {
-  const [form, setForm] = useState<PaymentForm>();
+  const { value: form, failed } = useLoaded("payment-form", () =>
+    getJson<PaymentForm>("/api/payment-methods/form"),
+  );
   const [problem, setProblem] = useState<string>();
-
-  useEffect(() => {
-    let current = true;
-    getJson<PaymentForm>("/api/payment-methods/form")
-      .then((next) => current && setForm(next))
-      .catch(() => current && setProblem(NOT_LOADED));
-    return () => {
-      current = false;
-    };
-  }, []);
 
   // a 0 Deposit only saves the card
   const modeFor = (cents: number) =>
@@ -310,7 +303,7 @@ export function usePaymentForm({
   );
 
   return {
-    field: formField(form, box, problem),
+    field: formField(form, box, failed ? NOT_LOADED : problem),
     token,
     approve,
     isReady: Boolean(form),
@@ -322,23 +315,15 @@ export function usePaymentForm({
  * `save()` sets the card up with the provider, then saves it as the
  * Client's Payment Method. After a card is refused, `reset()` starts afresh.
  */
-export function useCardForm({ enabled = true }: { enabled?: boolean } = {}) {
-  const [form, setForm] = useState<CardForm>();
+export function useCardForm() {
   const [attempt, setAttempt] = useState(0);
   const [problem, setProblem] = useState<string>();
 
-  // a form is started only when it's shown: each is a setup with the provider
-  useEffect(() => {
-    if (!enabled) return;
-    let current = true;
-    setForm(undefined);
-    postJson<CardForm>("/api/payment-methods/mine/card-form")
-      .then((next) => current && setForm(next))
-      .catch(() => current && setProblem(NOT_LOADED));
-    return () => {
-      current = false;
-    };
-  }, [attempt, enabled]);
+  // a form is started only when it's shown, and again on each attempt: each
+  // is a setup with the provider
+  const { value: form, failed } = useLoaded(String(attempt), () =>
+    postJson<CardForm>("/api/payment-methods/mine/card-form"),
+  );
 
   const { box, mounted } = useStripeElement(
     form,
@@ -389,7 +374,7 @@ export function useCardForm({ enabled = true }: { enabled?: boolean } = {}) {
           Test payments: no card is needed. Saving uses a test card ending 4242.
         </Notice>
       ) : (
-        formField(form, box, problem)
+        formField(form, box, failed ? NOT_LOADED : problem)
       ),
     save,
     reset,
@@ -404,22 +389,13 @@ export function useCardForm({ enabled = true }: { enabled?: boolean } = {}) {
  * shown. `pay()` completes it there and hands back what our server then asks
  * the provider about. After a payment is refused, `reset()` starts afresh.
  */
-export function useBillPaymentForm(billId: string, enabled: boolean) {
-  const [form, setForm] = useState<BillPaymentForm>();
+export function useBillPaymentForm(billId: string) {
   const [attempt, setAttempt] = useState(0);
   const [problem, setProblem] = useState<string>();
 
-  useEffect(() => {
-    if (!enabled) return;
-    let current = true;
-    setForm(undefined);
-    postJson<BillPaymentForm>(`/api/bills/mine/${billId}/payment-form`)
-      .then((next) => current && setForm(next))
-      .catch(() => current && setProblem(NOT_LOADED));
-    return () => {
-      current = false;
-    };
-  }, [attempt, billId, enabled]);
+  const { value: form, failed } = useLoaded(`${billId}:${attempt}`, () =>
+    postJson<BillPaymentForm>(`/api/bills/mine/${billId}/payment-form`),
+  );
 
   const { box, mounted } = useStripeElement(
     form,
@@ -472,7 +448,7 @@ export function useBillPaymentForm(billId: string, enabled: boolean) {
         <EmbeddedField
           label="Payment"
           description="Pay by card or straight from your US bank account. It goes straight into our payment service's secure form, so we never see your card or account number."
-          errorMessage={problem}
+          errorMessage={failed ? NOT_LOADED : problem}
           framed={false}
         >
           <div ref={box} className="min-h-24" />

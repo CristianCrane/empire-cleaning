@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { CalendarDays } from "lucide-react";
 import type { ScheduleDay } from "@empire-cleaning/models";
 import {
@@ -9,6 +9,7 @@ import {
   Notice,
 } from "@empire-cleaning/ui";
 import { getJson } from "../../api.ts";
+import { useLoaded } from "../load.ts";
 import { RangeBar, type TimePickerProps } from "../CalendarGrid.tsx";
 import { today, weekdayOf } from "../format.ts";
 import type { Crew } from "../schedule-layout.ts";
@@ -68,22 +69,10 @@ function PickStart({
     rangeShowing(isWide() ? 7 : 1, date ?? current?.date ?? today()),
   );
   const query = `from=${range.from}&to=${range.to}`;
-  const [found, setFound] = useState<{ query: string; days: ScheduleDay[] }>();
-  const [problem, setProblem] = useState(false);
-
-  useEffect(() => {
-    let current = true;
-    setProblem(false);
-    getJson<ScheduleDay[]>(`/api/schedule?${query}`)
-      .then((days) => current && setFound({ query, days }))
-      .catch(() => current && setProblem(true));
-    return () => {
-      current = false;
-    };
-  }, [query]);
-
   // the range on screen, not one asked for before it
-  const days = found?.query === query ? found.days : undefined;
+  const { value: days, failed: problem } = useLoaded(query, () =>
+    getJson<ScheduleDay[]>(`/api/schedule?${query}`),
+  );
   // a time chosen, other than where the clean is now, which shows already
   const chosen =
     date && time && !(date === current?.date && time === current.time)

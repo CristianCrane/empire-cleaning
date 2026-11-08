@@ -130,7 +130,7 @@ function Standing({ bill }: { bill: BillView }) {
 // paying it here, by card or bank debit: a card pays at once, a bank debit
 // is processing until it clears
 function PayBill({ bill }: { bill: BillView }) {
-  const payment = useBillPaymentForm(bill.id, true);
+  const payment = useBillPaymentForm(bill.id);
   const action = useAction("That didn't work. Please try again.");
 
   const pay = () =>

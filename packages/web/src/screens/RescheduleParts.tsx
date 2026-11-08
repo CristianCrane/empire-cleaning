@@ -27,6 +27,7 @@ import {
   SelectItem,
 } from "@empire-cleaning/ui";
 import { getJson, postJson } from "../api.ts";
+import { useLoaded } from "./load.ts";
 import { useAction } from "./action.ts";
 import type { TimePickerProps } from "./CalendarGrid.tsx";
 import {
@@ -112,7 +113,6 @@ function NewTimeForm({
   inline = false,
   close,
 }: Props & { close: () => void }) {
-  const [times, setTimes] = useState<RescheduleTimes>();
   const [date, setDate] = useState<string | null>(null);
   const [time, setTime] = useState<string | null>(timeOfDay(job.startsAt));
   // what it costs, or the days with room, may have changed since
@@ -124,15 +124,12 @@ function NewTimeForm({
     action.fail("The times didn't load. Please try again."),
   );
 
+  const { value: times, failed } = useLoaded(base, () =>
+    getJson<RescheduleTimes>(`${base}/reschedule-times`),
+  );
   useEffect(() => {
-    let current = true;
-    getJson<RescheduleTimes>(`${base}/reschedule-times`)
-      .then((found) => current && setTimes(found))
-      .catch(() => current && loadFailed());
-    return () => {
-      current = false;
-    };
-  }, [base]);
+    if (failed) loadFailed();
+  }, [failed]);
 
   const unchanged =
     date === dayOfInstant(job.startsAt) && time === timeOfDay(job.startsAt);
