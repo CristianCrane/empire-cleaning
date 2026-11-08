@@ -72,10 +72,13 @@ export function WorkedOutQuote({
               {place}
               {condition ? `, in ${condition.toLowerCase()} condition` : ""}
             </span>
-            <span className="text-sm text-fg-muted">
-              About {onSite(now.labourHours, crewSize)} on site for{" "}
-              {cleaners(crewSize)}
-            </span>
+            {/* none yet, e.g. a business with no floor area given */}
+            {now.labourHours > 0 && (
+              <span className="text-sm text-fg-muted">
+                About {onSite(now.labourHours, crewSize)} on site for{" "}
+                {cleaners(crewSize)}
+              </span>
+            )}
           </div>
         </div>
       </div>
