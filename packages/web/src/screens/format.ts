@@ -34,8 +34,7 @@ export const conditionLabel: Record<Condition, string> = {
 export const conditionText = (condition: Condition | null) =>
   condition ? conditionLabel[condition] : "Not recorded yet";
 
-export const plural = (n: number, one: string) =>
-  `${n} ${one}${n === 1 ? "" : "s"}`;
+const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
 
 // so many cleaners, e.g. "1 cleaner", "2 more cleaners", "3 free cleaners"
 export const cleaners = (n: number, which?: "more" | "free") =>
