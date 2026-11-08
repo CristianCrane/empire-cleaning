@@ -9,13 +9,13 @@ import {
 import { feedbackButton } from "@empire-cleaning/browser-monitoring/feedback";
 import { router } from "./router.tsx";
 import { forgetAccount } from "./session.ts";
-import "./feedback.css";
 
 // Sentry (ADR-0007), set at build time: without VITE_SENTRY_DSN (dev, tests)
 // nothing is sent. The test site's pages carry its feedback button
 // (ADR-0020); no other build has it, as the mode is known at build time and
-// the button's code is dropped with the branch that isn't taken
+// the button's code and look are dropped with the branch that isn't taken
 const mode = import.meta.env.VITE_APP_MODE ?? "dev";
+if (mode === "test") void import("./feedback.css");
 startMonitoring({
   dsn: import.meta.env.VITE_SENTRY_DSN,
   environment: mode,
