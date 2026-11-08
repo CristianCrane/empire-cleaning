@@ -248,7 +248,7 @@ test(
       "Your clean has moved",
     );
     expect((await emailsTo("cory@example.com")).at(-1)!.subject).toBe(
-      "A Job you're on has moved",
+      "A job you're on has moved",
     );
   },
 );

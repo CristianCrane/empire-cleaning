@@ -75,7 +75,7 @@ test(
       "You've asked to move it to Wed, Jan 14, 10:00 AM. That time is held for you while the Office confirms it. Until then, your clean stays booked for Mon, Jan 12, 9:00 AM.",
     );
     expect((await emailsTo(olive.email)).at(-1)!.subject).toBe(
-      "Casey Client asked to move a Job",
+      "Casey Client asked to move a job",
     );
 
     await pending.getByRole("button", { name: "Withdraw request" }).click();
@@ -96,7 +96,7 @@ test("the portal shows a Late Reschedule's cost before it's sent", async ({
 
   const card = page.getByRole("region", { name: "Need another time?" });
   await expect(card).toContainText(
-    "It's less than 24 hours until your clean, so this is a Late Reschedule. Your first one is free, and your Deposit still counts towards the price.",
+    "Moving it less than 24 hours before is a late move. Your first one is free, and your deposit still counts toward the price.",
   );
 });
 
@@ -133,7 +133,7 @@ test(
       "Your clean has moved",
     );
     expect((await emailsTo("cory@example.com")).at(-1)!.subject).toBe(
-      "A Job you're on has moved",
+      "A job you're on has moved",
     );
   },
 );

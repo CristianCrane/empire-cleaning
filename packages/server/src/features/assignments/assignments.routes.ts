@@ -21,7 +21,7 @@ import {
 
 const job = z.object({ id: z.uuid() });
 const jobAssignment = z.object({ id: z.uuid(), assignmentId: z.uuid() });
-const offerSchema = z.object({ staffId: z.uuid("Choose a Cleaner") });
+const offerSchema = z.object({ staffId: z.uuid("Pick a cleaner") });
 
 // ---- Office Staff, on a Job: /api/jobs/:id ----
 

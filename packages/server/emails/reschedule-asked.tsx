@@ -8,6 +8,12 @@ export default preview(
     jobId,
     clean: { ...clean, startsAt: wednesday },
     from: monday,
-    cost: "free_late",
+    cost: {
+      cost: "free_late",
+      feeCents: 0,
+      fee: "$0.00",
+      onPlan: false,
+      weeklyBill: false,
+    },
   }),
 );

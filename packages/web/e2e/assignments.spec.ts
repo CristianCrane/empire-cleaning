@@ -237,7 +237,7 @@ test("a Cleaner can't take a Cleaner Needed at a time they weren't shown", async
 
   await moveJob(job.id, { date: "2026-01-08", time: "11:00" });
   await page.getByRole("button", { name: "Confirm" }).click();
-  await expect(page.getByText(/^This Job has moved to/)).toBeVisible();
+  await expect(page.getByText(/^This job moved to/)).toBeVisible();
   await expect(page.getByText("Thu, Jan 8, 11:00 AM").first()).toBeVisible();
   await page.getByRole("button", { name: "Confirm" }).click();
   await expect(page.getByText("Job confirmed")).toBeVisible();
@@ -277,7 +277,7 @@ test("a Confirmed Job can't be released within 48 hours of it", async ({
   await signInAsCleaner(page, cory.email);
   await page.goto(`/cleaner/jobs/${job.id}`);
 
-  await expect(page.getByText("it can't be released here")).toBeVisible();
+  await expect(page.getByText("you can't release it here")).toBeVisible();
   await expect(page.getByRole("button", { name: "Release" })).toHaveCount(0);
 });
 

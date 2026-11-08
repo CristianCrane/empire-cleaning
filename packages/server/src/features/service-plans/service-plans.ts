@@ -23,7 +23,7 @@ import type {
   ServicePlanView,
   UnplacedVisit,
 } from "@empire-cleaning/models";
-import { ADD_HOURS, ENDS_BY_MIDNIGHT, PASSED } from "@empire-cleaning/models";
+import { ADD_HOURS, ENDS_BY_MIDNIGHT } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import {
@@ -49,7 +49,7 @@ import {
 } from "../jobs/jobs.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { freeFor, jobViews, roomFor } from "../jobs/schedule.ts";
-import { endsByMidnight } from "../jobs/rules.ts";
+import { endsByMidnight, PASSED } from "../jobs/rules.ts";
 import { charges } from "../payments/payments.schema.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { warnOfficeOfQuotesWithoutRoom } from "../quotes/quote-room.ts";

@@ -44,7 +44,7 @@ import {
   formatMoney,
 } from "../format.ts";
 import { Fact } from "../Fact.tsx";
-import { ON_WEEKS_BILL } from "./payments.ts";
+import { ON_WEEKS_BILL } from "@empire-cleaning/models";
 
 // one of the Client's Jobs, from the links in their emails: while it's to come,
 // moving or cancelling it; once Completed, its receipt; any extra work proposed to them

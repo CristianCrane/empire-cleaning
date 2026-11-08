@@ -9,6 +9,7 @@ import {
   Users,
 } from "lucide-react";
 import type { CleanerJob } from "@empire-cleaning/models";
+import { RELEASE_CLOSED } from "@empire-cleaning/models";
 import {
   ActionFooter,
   ActionRow,
@@ -70,10 +71,7 @@ export function CleanerJobScreen() {
 
       <NotYet job={job} />
       {open && !offered && !job.started && !job.assignment.canRelease && (
-        <Notice>
-          It's less than 48 hours until this Job, so it can't be released here.
-          If you can't make it, please call the Office.
-        </Notice>
+        <Notice>{RELEASE_CLOSED}</Notice>
       )}
       {offered && <TakeOffer job={job} />}
       {job.outcome === "completed" && <Completed job={job} />}

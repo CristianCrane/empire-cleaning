@@ -1,4 +1,8 @@
-import type { BillPayment, RescheduleCost } from "@empire-cleaning/models";
+import {
+  moveCostForClient,
+  moveCostForOffice,
+  type MoveCost,
+} from "@empire-cleaning/models";
 import {
   button,
   cleanDetails,
@@ -7,25 +11,13 @@ import {
   type Clean,
   type Email,
 } from "../../services/email/blocks.ts";
-import {
-  firstNameOf,
-  formatMoney,
-  formatWhen,
-} from "../../services/email/format.ts";
+import { firstNameOf, formatWhen } from "../../services/email/format.ts";
 import { jobsButton } from "../assignments/emails.ts";
-import { ON_WEEKS_BILL } from "../bills/billed-weekly.ts";
 
 const portalButton = (jobId: string) =>
   button("See your clean", `/portal/jobs/${jobId}`);
 const officeButton = (jobId: string) =>
   button("See the job", `/office/jobs/${jobId}`);
-
-// how the Office hears what moving it costs
-export const costLabel: Record<RescheduleCost, string> = {
-  free: "free",
-  free_late: "free, as its first late move",
-  late_cancellation: "charged as a late cancellation, the same as the deposit",
-};
 
 // to the Office: a Client asked to move a Job, to `clean`'s time
 export const rescheduleAskedEmail = ({
@@ -39,14 +31,14 @@ export const rescheduleAskedEmail = ({
   jobId: string;
   clean: Clean;
   from: Date;
-  cost: RescheduleCost;
+  cost: MoveCost;
 }): Email => ({
   subject: `${client} asked to move a job`,
   blocks: [
     paragraph(`${client} asked to move this job:`),
     cleanDetails(clean, from),
     paragraph(
-      `It's ${costLabel[cost]}. The new time is held for them until you confirm it or turn it down.`,
+      `${moveCostForOffice(cost)} The new time is held for them until you confirm it or turn it down.`,
     ),
     officeButton(jobId),
   ],
@@ -80,57 +72,26 @@ export const rescheduleTurnedDownEmail = ({
   ],
 });
 
-// what moving it costs, from what the request was, and where a fee goes:
-// with the price when the clean is done, or on its week's Bill (ADR-0016)
-const costLine = ({
-  cost,
-  feeCents,
-  onPlan,
-  weeklyBill,
-  lateHours,
-}: {
-  cost: RescheduleCost;
-  feeCents: number;
-  onPlan: boolean;
-  weeklyBill: BillPayment | null;
-  lateHours: number;
-}) =>
-  cost === "free"
-    ? "There's no charge for moving it."
-    : cost === "free_late"
-      ? `As it was less than ${lateHours} hours before the clean, it's a late move. Your first one is free${onPlan ? "" : ", and your deposit still counts toward the price"}.`
-      : feeCents > 0
-        ? onPlan
-          ? `As it's your second late move, there's a ${formatMoney(feeCents)} late cancellation fee, ${weeklyBill ? `which ${ON_WEEKS_BILL} with the price` : "charged with the price when the clean is done"}.`
-          : `As it's your second late move, your ${formatMoney(feeCents)} deposit is kept as a late cancellation fee, and the full price ${weeklyBill ? ON_WEEKS_BILL : "is charged when the clean is done"}.`
-        : onPlan
-          ? "The fee from an earlier late move covers this, so there's nothing more to pay."
-          : "Your deposit was already kept for an earlier late move, so there's nothing more to pay.";
-
 // the Office confirmed the Client's request
 export const rescheduleConfirmedEmail = ({
   name,
   jobId,
   clean,
   from,
-  ...cost
+  cost,
 }: {
   name: string;
   jobId: string;
   clean: Clean;
   from: Date;
-  cost: RescheduleCost;
-  feeCents: number;
-  onPlan: boolean;
-  weeklyBill: BillPayment | null;
-  lateHours: number;
+  cost: MoveCost;
 }): Email => ({
   subject: "Your clean has moved",
   blocks: [
     greeting(firstNameOf(name)),
     paragraph("We've moved your clean, as you asked."),
     cleanDetails(clean, from),
-    paragraph(costLine(cost)),
+    paragraph(moveCostForClient(cost)),
     portalButton(jobId),
   ],
 });

@@ -1,5 +1,7 @@
 import {
   isOnCrew,
+  RELEASE_CLOSED,
+  RELEASE_CUTOFF_HOURS,
   type AssignmentState,
   type ScheduleDay,
   type ScheduledJob,
@@ -17,10 +19,6 @@ import { asClean, isFree, whyStarted } from "../jobs/rules.ts";
 // A Job's Cleaners Needed are open to free Cleaners from this many days before
 // it starts: who is free is only reliable nearer the day
 export const CLEANER_NEEDED_DAYS = 7;
-
-// a Confirmed Assignment can't be Released this close to the Job: the Office needs
-// time to find someone else
-const RELEASE_CUTOFF_HOURS = 48;
 
 // a Job as its row has it
 type Job = { id: string; status: string; startsAt: Date; crewSize: number };
@@ -106,9 +104,7 @@ export const whyNotRelease = (
   job: Pick<Job, "startsAt">,
   now: Date,
 ) =>
-  status === "confirmed" && releaseClosed(job, now)
-    ? `It's less than ${RELEASE_CUTOFF_HOURS} hours until this job, so you can't release it here. Please call the office.`
-    : null;
+  status === "confirmed" && releaseClosed(job, now) ? RELEASE_CLOSED : null;
 
 // whether a Job's Cleaners Needed are open now: booked, not yet started, and
 // within 7 days of starting

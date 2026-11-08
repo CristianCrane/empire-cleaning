@@ -8,8 +8,8 @@ import type {
 } from "@empire-cleaning/models";
 import {
   ENDS_BY_MIDNIGHT,
+  LATE_RESCHEDULE_HOURS,
   MORE_HOURS,
-  PASSED,
   SAME_TIME,
   whyNoRoom,
 } from "@empire-cleaning/models";
@@ -24,6 +24,7 @@ import {
   timeOf,
 } from "../../services/clock/index.ts";
 import { email, notify } from "../../services/email/index.ts";
+import { formatMoney } from "../../services/email/format.ts";
 import { assignments, onCrew } from "../assignments/assignments.schema.ts";
 import {
   emailCleanersNeeded,
@@ -39,6 +40,7 @@ import {
   asClean,
   endsByMidnight,
   roomOn,
+  PASSED,
   whyNotBooked,
   whyStarted,
 } from "../jobs/rules.ts";
@@ -52,7 +54,6 @@ import {
 } from "./reschedule.schema.ts";
 import { cleanOf } from "../services/services.ts";
 import {
-  costLabel,
   crewLostEmail,
   crewMovedEmail,
   jobMovedEmail,
@@ -60,10 +61,6 @@ import {
   rescheduleConfirmedEmail,
   rescheduleTurnedDownEmail,
 } from "./emails.ts";
-
-// moving a Job is free until this long before it starts; after that it's a
-// Late Reschedule (ADR-0010)
-const LATE_RESCHEDULE_HOURS = 24;
 
 // a Job can be moved to a day from tomorrow up to this many days ahead
 const RESCHEDULE_DAYS_AHEAD = 56;
@@ -238,7 +235,7 @@ export const requestReschedule = async (
   asking: Asking,
 ) => {
   const startsAt = atTime(to.date, to.time);
-  const { job, property } = await db.transaction(async (tx) => {
+  const { job, property, feeCents } = await db.transaction(async (tx) => {
     const [found] = await tx
       .select({ job: jobs, property: properties })
       .from(jobs)
@@ -282,9 +279,7 @@ export const requestReschedule = async (
     const terms = await termsOf(job, tx);
     if (terms.cost !== asking.cost) {
       throw new ConflictError(
-        terms.cost === "free"
-          ? "The cost of moving has changed. Check it, then send again."
-          : `It's now less than ${LATE_RESCHEDULE_HOURS} hours before the clean, so moving it is ${costLabel[terms.cost]}. Check it, then send again.`,
+        "The cost of moving has changed. Check it, then send again.",
       );
     }
 
@@ -306,7 +301,7 @@ export const requestReschedule = async (
       requestedBy: asking.byAccountId,
       byClient: asking.byClient,
     });
-    return found;
+    return { ...found, feeCents: terms.feeCents };
   });
 
   await warnOfficeOfQuotesWithoutRoom(to.date);
@@ -320,7 +315,13 @@ export const requestReschedule = async (
           jobId,
           clean: await cleanOf({ ...job, startsAt }, property),
           from: job.startsAt,
-          cost: asking.cost,
+          cost: {
+            cost: asking.cost,
+            feeCents,
+            fee: formatMoney(feeCents),
+            onPlan: (await planOfJob(jobId)) !== null,
+            weeklyBill: weeklyBillFor(job, client) !== null,
+          },
         }),
     );
   }
@@ -470,11 +471,13 @@ export const confirmReschedule = async (jobId: string, byAccountId: string) => {
         jobId,
         clean: await cleanOf({ ...job, startsAt: pending.startsAt }, property),
         from: pending.fromStartsAt,
-        cost: pending.cost,
-        feeCents: pending.feeCents,
-        onPlan,
-        weeklyBill: weeklyBillFor(job, client),
-        lateHours: LATE_RESCHEDULE_HOURS,
+        cost: {
+          cost: pending.cost,
+          feeCents: pending.feeCents,
+          fee: formatMoney(pending.feeCents),
+          onPlan,
+          weeklyBill: weeklyBillFor(job, client) !== null,
+        },
       }),
     }),
   );

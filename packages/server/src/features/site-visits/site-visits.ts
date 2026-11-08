@@ -7,7 +7,7 @@ import type {
   OfficeSiteVisit,
   SiteVisitBooking,
 } from "@empire-cleaning/models";
-import { NO_CREW, PASSED } from "@empire-cleaning/models";
+import { NO_CREW } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import {
   ConflictError,
@@ -36,7 +36,7 @@ import {
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { lockDay } from "../jobs/jobs.ts";
 import { scheduleOn } from "../jobs/schedule.ts";
-import { busyWith, roomOn, visitHours } from "../jobs/rules.ts";
+import { busyWith, PASSED, roomOn, visitHours } from "../jobs/rules.ts";
 import { currentPriceList } from "../price-list/price-list.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { addressOf, toPropertyView } from "../properties/property-view.ts";
@@ -72,7 +72,7 @@ const visitorOf = async (staffId: string) => {
     .select()
     .from(staff)
     .where(and(eq(staff.id, staffId), eq(staff.active, true)));
-  if (!member) throw fieldError(["staffId"], "Choose someone on the Staff");
+  if (!member) throw fieldError(["staffId"], "Pick someone on your staff");
   return member;
 };
 
@@ -358,7 +358,7 @@ const findingsFor = async (property: Property, body: unknown) => {
     ) {
       throw fieldError(
         ["premisesType"],
-        "Choose from the types of premises listed",
+        "Pick a type of business from the list",
       );
     }
     return { ...rest, premisesTypeKey: premisesType };

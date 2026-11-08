@@ -14,7 +14,8 @@ import {
   formatWhen,
   weekdayName,
 } from "../../services/email/format.ts";
-import { billPaid, ON_WEEKS_BILL } from "../bills/billed-weekly.ts";
+import { ON_WEEKS_BILL } from "@empire-cleaning/models";
+import { billPaid } from "../bills/billed-weekly.ts";
 import { describePlan, recurrenceLabel } from "./plan-days.ts";
 
 // Every Quote email links to the Quote's page, with no sign-in power

@@ -6,8 +6,6 @@ import type { DayCapacity } from "../index.js";
 const PAST_MIDNIGHT = "This would run past midnight.";
 export const ENDS_BY_MIDNIGHT = `${PAST_MIDNIGHT} Pick an earlier start time.`;
 
-export const PASSED = "That time has passed. Pick a later time.";
-
 export const SAME_TIME = "That's when it's booked now. Pick a different time.";
 
 export const DAY_FULL = "That day is too full for this job.";

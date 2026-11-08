@@ -232,6 +232,9 @@ export const withoutReplaced = (
   };
 };
 
+// a time asked for that has already passed
+export const PASSED = "That time has passed. Pick a later time.";
+
 // what happened to a Job that isn't booked any more
 type Ended = Exclude<JobStatus, "booked">;
 const ended: Record<Ended, string> = {

@@ -11,7 +11,12 @@ import type {
   RescheduleTerms,
   RescheduleTimes,
 } from "@empire-cleaning/models";
-import { SAME_TIME } from "@empire-cleaning/models";
+import {
+  moveCostForClient,
+  moveCostForOffice,
+  SAME_TIME,
+  type MoveCost,
+} from "@empire-cleaning/models";
 import {
   Actions,
   Button,
@@ -24,7 +29,6 @@ import {
 import { getJson, postJson } from "../api.ts";
 import { useAction } from "./action.ts";
 import type { TimePickerProps } from "./CalendarGrid.tsx";
-import { ON_WEEKS_BILL } from "./portal/payments.ts";
 import {
   dayOfInstant,
   formatClock,
@@ -36,56 +40,31 @@ import {
 // what a Job's costs are told from, the Client's or the Office's view of it
 export type CostedJob = Pick<OfficeJob, "servicePlanId" | "weeklyBill">;
 
-// What moving a Job costs, the same rules for the Office and its Client
-// (ADR-0010), told to the Client. A plan Job has no Deposit of its own: its
-// fee is the plan's Deposit amount, owed with the price: charged when it's
-// done, or on its week's Bill (ADR-0016).
+// what moving it costs (moveCostForClient, moveCostForOffice), from the
+// Client's or the Office's view of the Job
+const moveCost = (
+  cost: RescheduleCost,
+  feeCents: number,
+  job: CostedJob,
+): MoveCost => ({
+  cost,
+  feeCents,
+  fee: formatMoney(feeCents),
+  onPlan: job.servicePlanId !== null,
+  weeklyBill: job.weeklyBill !== null,
+});
+
 export const costForClient = (
   cost: RescheduleCost,
   feeCents: number,
   job: CostedJob,
-) => {
-  const onPlan = job.servicePlanId !== null;
-  switch (cost) {
-    case "free":
-      return "There's no charge for moving it.";
-    case "free_late":
-      return onPlan
-        ? "It's less than 24 hours until your clean, so this is a Late Reschedule. Your first one is free."
-        : "It's less than 24 hours until your clean, so this is a Late Reschedule. Your first one is free, and your Deposit still counts towards the price.";
-    case "late_cancellation":
-      return feeCents === 0
-        ? onPlan
-          ? "It's less than 24 hours until your clean. An earlier Late Reschedule already made the fee due, so moving it costs nothing more."
-          : "It's less than 24 hours until your clean. Your Deposit was already kept as the fee for an earlier Late Reschedule, so moving it costs nothing more."
-        : onPlan
-          ? `It's less than 24 hours until your clean and you've used your free Late Reschedule, so moving it is a Late Cancellation, with a ${formatMoney(feeCents)} fee (the same as your plan's Deposit), ${job.weeklyBill ? `which ${ON_WEEKS_BILL} with the price` : "charged with the price when it's done"}.`
-          : `It's less than 24 hours until your clean and you've used your free Late Reschedule, so moving it is a Late Cancellation: your ${formatMoney(feeCents)} Deposit is kept as the fee, and the full price ${job.weeklyBill ? ON_WEEKS_BILL : "is charged when it's done"}.`;
-  }
-};
+) => moveCostForClient(moveCost(cost, feeCents, job));
 
-// the same, told to Office Staff
 export const costForOffice = (
   cost: RescheduleCost,
   feeCents: number,
   job: CostedJob,
-) => {
-  const onPlan = job.servicePlanId !== null;
-  switch (cost) {
-    case "free":
-      return "Free.";
-    case "free_late":
-      return onPlan
-        ? "A Late Reschedule, free as this Job's first."
-        : "A Late Reschedule, free as this Job's first. The Deposit still counts towards the price.";
-    case "late_cancellation":
-      return feeCents === 0
-        ? "A Late Reschedule. An earlier one already made the fee due, so nothing more."
-        : onPlan
-          ? `A second Late Reschedule, so a Late Cancellation: a ${formatMoney(feeCents)} fee, the plan's Deposit amount, ${job.weeklyBill ? "goes on that week's Bill with the price" : "is charged with the price on completion"}.`
-          : `A second Late Reschedule, so a Late Cancellation: the ${formatMoney(feeCents)} Deposit is kept as the fee and the full price ${job.weeklyBill ? "goes on that week's Bill" : "is charged on completion"}.`;
-  }
-};
+) => moveCostForOffice(moveCost(cost, feeCents, job));
 
 type Props = {
   job: { id: string; startsAt: string; hoursOnSite: number };
