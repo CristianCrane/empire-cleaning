@@ -99,7 +99,7 @@ export const inviteStaff = async (
   if (!existing) {
     member = await createStaff({ ...invitation, email: address });
   } else if (existing.active) {
-    throw new ConflictError(`${existing.name} is already on Staff`);
+    throw new ConflictError(`${existing.name} is already on your staff.`);
   } else {
     [member] = (await db
       .update(staff)
@@ -153,7 +153,7 @@ const keepAnotherOffice = async (id: string, tx: Tx | typeof db = db) => {
     .limit(1);
   if (!another) {
     throw new ConflictError(
-      "Empire Cleaning needs at least one active Office Staff member",
+      "Someone else must be office staff first. Make another person office staff, then try again.",
     );
   }
 };
@@ -190,7 +190,7 @@ export const editStaff = async (
       .limit(1);
     if (held) {
       throw new ConflictError(
-        `${member.name} is on a Job to come: release it first`,
+        `${member.name} has jobs coming up. Take them off those jobs first.`,
       );
     }
   }

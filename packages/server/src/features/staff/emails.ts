@@ -19,7 +19,7 @@ export const staffInviteEmail = ({
   blocks: [
     greeting(firstNameOf(name)),
     paragraph(
-      `You've been invited to join Empire Cleaning's Staff. To get started, sign up with this email address (${email}), with an emailed link or with Google:`,
+      `You've been invited to join Empire Cleaning's staff. To get started, sign up with this email address (${email}), with an emailed link or with Google:`,
     ),
     button("Sign up", "/sign-in"),
     paragraph("If you weren't expecting this, you can ignore this email."),

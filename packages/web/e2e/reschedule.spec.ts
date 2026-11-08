@@ -252,9 +252,7 @@ test(
     // the Schedule in the dialog itself, never a dialog on a dialog
     const dialog = page.getByRole("dialog", { name: "Choose a new time" });
     const schedule = dialog;
-    await expect(schedule).toContainText(
-      "Choose one of the start times on offer",
-    );
+    await expect(schedule).toContainText("Pick one of the times shown.");
     await expect(
       schedule
         .getByRole("group", { name: "Jobs on Mon, Jan 12" })

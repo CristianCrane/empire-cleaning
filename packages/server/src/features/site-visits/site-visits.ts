@@ -130,7 +130,7 @@ const refuseNoRoom = async (
     }
   } else if (!visitor.roles.includes("office_staff")) {
     throw new ConflictError(
-      `${visitor.name} has no Available Hours that day, so they can't make a Site Visit then.`,
+      `${visitor.name} isn't working that day. Pick another day or person.`,
     );
   }
 
@@ -139,8 +139,8 @@ const refuseNoRoom = async (
     const at = formatTime(new Date(busy.startsAt));
     throw new ConflictError(
       busy.what === "site_visit"
-        ? `${visitor.name} has another Site Visit then, at ${at}.`
-        : `${visitor.name} is on a Job then, at ${at}.`,
+        ? `${visitor.name} has another site visit at ${at}. Pick another time or person.`
+        : `${visitor.name} is on a job at ${at}. Pick another time or person.`,
     );
   }
 };
@@ -164,7 +164,7 @@ const quoteToVisitFor = async (quoteId: string) => {
   if (!quote) throw new NotFoundError("Quote not found");
   if (quote.status !== "requested" && quote.status !== "draft") {
     throw new ConflictError(
-      "A Site Visit is for a Quote before it's sent: this one has been sent, or has closed.",
+      "This quote was already sent or closed, so it can't have a site visit.",
     );
   }
   return quote;
@@ -198,7 +198,7 @@ export const bookSiteVisit = async (
       .for("update");
     if (booked) {
       throw new ConflictError(
-        "This Property has a Site Visit booked already: move that one instead.",
+        "This property already has a site visit booked. Change that one instead.",
       );
     }
     await refuseNoRoom(tx, { startsAt, minutes: input.minutes, visitor });
@@ -244,8 +244,8 @@ const lockBooked = async (tx: Tx, id: string) => {
   if (visit.status !== "booked") {
     throw new ConflictError(
       visit.status === "done"
-        ? "This Site Visit is Done: its findings are recorded."
-        : "This Site Visit was cancelled.",
+        ? "This site visit is already done."
+        : "This site visit was cancelled.",
     );
   }
   return visit;
@@ -270,7 +270,9 @@ export const moveSiteVisit = async (
       visit.staffId === visitor.id &&
       visit.minutes === input.minutes
     ) {
-      throw new ConflictError("That's how the Site Visit is booked already.");
+      throw new ConflictError(
+        "Nothing changed: that's already how the site visit is booked.",
+      );
     }
     await refuseNoRoom(tx, {
       startsAt,
@@ -426,7 +428,7 @@ export const recordFindingsWithoutVisit = async (
       .for("update");
     if (booked) {
       throw new ConflictError(
-        "This Property has a Site Visit booked: record its findings there, or cancel it first.",
+        "This property has a site visit booked. Add the findings there, or cancel it first.",
       );
     }
     const now = clock.now();

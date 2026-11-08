@@ -84,7 +84,7 @@ test(
       "Offered",
     );
     expect((await emailsTo(cory.email)).at(-1)!.subject).toBe(
-      "You've been offered a Job",
+      "You've been offered a job",
     );
 
     await offerTo(page, /^Dee Cleaner/);
@@ -129,7 +129,7 @@ test("Office Staff take someone off a Job, leaving a Cleaner Needed", async ({
     page.getByRole("button", { name: "Offer to a Cleaner" }).first(),
   ).toBeVisible();
   expect((await emailsTo(cory.email)).at(-1)!.subject).toBe(
-    "You're no longer on a Job",
+    "You're no longer on a job",
   );
 });
 
@@ -217,7 +217,7 @@ test("a Cleaner can't confirm a Job at a time they weren't shown", async ({
   await page.getByRole("button", { name: "Confirm", exact: true }).click();
   await expect(
     page.getByText(
-      "This Job has moved to Thursday, January 8 at 11:00 AM. Please check the new time, then confirm again.",
+      "This job moved to Thursday, January 8 at 11:00 AM. Check the new time, then confirm again.",
     ),
   ).toBeVisible();
   // the page shows the new time, and it can be confirmed
@@ -262,7 +262,7 @@ test("a Cleaner releases a Job they can't make", async ({ page }) => {
   await expect(page.getByText("Job released")).toBeVisible();
   await expect(page.getByText("Nothing booked for you yet")).toBeVisible();
   expect((await emailsTo(olive.email)).at(-1)!.subject).toBe(
-    "Cory Cleaner released a Job",
+    "Cory Cleaner released a job",
   );
 });
 
@@ -401,7 +401,9 @@ test("a Cleaner is told when someone else took the Cleaner Needed first", async 
   await offerJob(job.id, dee.id, { confirmed: true });
   await page.getByRole("button", { name: "Confirm" }).click();
 
-  await expect(page.getByText("Someone else took this Job")).toBeVisible();
+  await expect(
+    page.getByText("Someone else already took this job."),
+  ).toBeVisible();
 });
 
 test("a Cleaner says a Cleaner Needed is not for them, and the Office sees it", async ({

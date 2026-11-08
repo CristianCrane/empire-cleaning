@@ -399,7 +399,7 @@ describe("a Service Plan's Jobs", () => {
     ]);
     expect(next.assignment).toBe("unassigned");
     expect(testEmail().lastTo("dee@example.com").subject).toBe(
-      "You've been offered a Job",
+      "You've been offered a job",
     );
   });
 

@@ -76,7 +76,7 @@ test(
       page.locator("#main").getByText("Olive Owner", { exact: true }),
     ).toBeVisible();
     const [email] = (await emailsTo(casey.email)).filter(
-      (e) => e.subject === "Your Site Visit is booked",
+      (e) => e.subject === "Your site visit is booked",
     );
     expect(email!.text).toContain("Tuesday, January 6 at 10:00 AM");
     const visit = page.url();

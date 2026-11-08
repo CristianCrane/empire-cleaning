@@ -259,18 +259,18 @@ export const requestReschedule = async (
     }
     if (await pendingOf(jobId, tx)) {
       throw new ConflictError(
-        "There's already a request to move this clean. Withdraw it first to ask for another time.",
+        "There's already a request to move this clean. Withdraw it to ask for another time.",
       );
     }
 
     const { from, to: last } = bookableRange();
     if (to.date < from || to.date > last) {
       throw new ConflictError(
-        `Choose a day from tomorrow up to ${RESCHEDULE_DAYS_AHEAD / 7} weeks ahead`,
+        `Pick a day between tomorrow and ${RESCHEDULE_DAYS_AHEAD / 7} weeks from now.`,
       );
     }
     if (!timesFor(job).includes(to.time)) {
-      throw new ConflictError("Choose one of the start times on offer");
+      throw new ConflictError("Pick one of the times shown.");
     }
     if (startsAt.getTime() === job.startsAt.getTime()) {
       throw new ConflictError(SAME_TIME);
@@ -283,8 +283,8 @@ export const requestReschedule = async (
     if (terms.cost !== asking.cost) {
       throw new ConflictError(
         terms.cost === "free"
-          ? "What moving costs has changed. Please check and send it again."
-          : `It's now less than ${LATE_RESCHEDULE_HOURS} hours before the clean, so moving it is ${costLabel[terms.cost]}. Please check and send it again.`,
+          ? "The cost of moving has changed. Check it, then send again."
+          : `It's now less than ${LATE_RESCHEDULE_HOURS} hours before the clean, so moving it is ${costLabel[terms.cost]}. Check it, then send again.`,
       );
     }
 
@@ -293,9 +293,7 @@ export const requestReschedule = async (
     await lockDay(tx, to.date);
     const { hasRoom } = await roomFor(asClean({ ...job, startsAt }), tx);
     if (!hasRoom) {
-      throw new ConflictError(
-        "That time has just filled up. Please choose another.",
-      );
+      throw new ConflictError("That time was just taken. Pick another.");
     }
 
     await tx.insert(rescheduleRequests).values({
@@ -351,7 +349,7 @@ const lockPending = async (tx: Tx, jobId: string) => {
   const pending =
     found.job.status === "booked" ? await pendingOf(jobId, tx) : null;
   if (!pending) {
-    throw new ConflictError("There's no request to move this Job waiting");
+    throw new ConflictError("There's no request to move this job.");
   }
   return { ...found, pending };
 };
@@ -437,7 +435,7 @@ export const confirmReschedule = async (jobId: string, byAccountId: string) => {
     }
     if (pending.startsAt <= now) {
       throw new ConflictError(
-        "The time asked for has passed. Turn the request down instead.",
+        "The time they asked for has passed. Turn the request down.",
       );
     }
     // what it held may no longer be enough: fewer Cleaners or hours that day
@@ -624,7 +622,7 @@ export const moveJob = async (jobId: string, to: LocalDateTime) => {
     }
     if (await pendingOf(jobId, tx)) {
       throw new ConflictError(
-        "The Client has asked to move this Job. Confirm or turn down their request first.",
+        "The client asked to move this job. Confirm or turn down their request first.",
       );
     }
 

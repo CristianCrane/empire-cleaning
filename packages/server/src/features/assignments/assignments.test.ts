@@ -119,7 +119,7 @@ describe("Offering Assignments", () => {
     expect(after.assignment).toBe("unassigned");
 
     const email = testEmail().lastTo(cory.email);
-    expect(email.subject).toBe("You've been offered a Job");
+    expect(email.subject).toBe("You've been offered a job");
     expect(email.text).toContain("Hi Cory,");
     expect(email.text).toMatch(
       /When: Thursday, January 8 at 9:00 AM\nWhere: \d+ Austin St, 4B, 11375\nService: Deep Clean/,
@@ -159,13 +159,15 @@ describe("Offering Assignments", () => {
 
     const refused = await offer(office, job.id, dee.id).expect(409);
 
-    expect(refused.body.message).toBe("This Job already has its Cleaner");
+    expect(refused.body.message).toBe(
+      "This job already has all the cleaners it needs.",
+    );
     expect((await jobFor(office, job.id)).cleaners).toEqual([
       { id: dee.id, name: "Dee Cleaner", hours: 8 },
     ]);
   });
 
-  test("is refused for someone already on the Job, or who isn't an active Cleaner", async () => {
+  test("is refused for someone already on the Job, or who can't take jobs. Pick an active cleaner.", async () => {
     const job = await thursdayJob(3);
     const cory = await cleaner("Cory Cleaner");
     const gone = await cleaner("Gil Gone");
@@ -180,13 +182,13 @@ describe("Offering Assignments", () => {
 
     expect(
       (await offer(office, job.id, cory.id).expect(409)).body.message,
-    ).toBe("Cory Cleaner is already on this Job");
+    ).toBe("Cory Cleaner is already on this job.");
     expect(
       (await offer(office, job.id, otto.id).expect(409)).body.message,
-    ).toBe("Otto Office isn't an active Cleaner");
+    ).toBe("Otto Office can't take jobs. Pick an active cleaner.");
     expect(
       (await offer(office, job.id, gone.id).expect(409)).body.message,
-    ).toBe("Gil Gone isn't an active Cleaner");
+    ).toBe("Gil Gone can't take jobs. Pick an active cleaner.");
     await offer(office, job.id, crypto.randomUUID()).expect(404);
     await offer(office, crypto.randomUUID(), cory.id).expect(404);
     await office.post(`/api/jobs/${job.id}/assignments`).send({}).expect(400);
@@ -275,7 +277,7 @@ describe("removing an Assignment", () => {
     ]);
     expect(after.cleanersNeeded).toBe(2);
     const email = testEmail().lastTo(cory.email);
-    expect(email.subject).toBe("You're no longer on a Job");
+    expect(email.subject).toBe("You're no longer on a job");
     expect(email.text).toContain("You don't need to go.");
     expect(await ids(asCory)).toEqual({ today: [], upcoming: [] });
     await office
@@ -454,9 +456,9 @@ describe("Releasing", () => {
     await offer(office, job.id, cory.id).expect(201);
 
     const email = testEmail().lastTo("olive@example.com");
-    expect(email.subject).toBe("Cory Cleaner released a Job");
+    expect(email.subject).toBe("Cory Cleaner released a job");
     expect(email.text).toMatch(
-      /Cory Cleaner has released this Job, so it needs a Cleaner:\n\nWhen: .*\nWhere: \d+ Austin St/,
+      /Cory Cleaner can't make this job, so it needs a cleaner:\n\nWhen: .*\nWhere: \d+ Austin St/,
     );
     expect(email.text).toContain(`http://localhost:5173/office/jobs/${job.id}`);
   });
@@ -494,7 +496,7 @@ describe("Releasing", () => {
       .post(`/api/assignments/${assignmentId}/release`)
       .expect(409);
     expect(refused.body.message).toBe(
-      "A Confirmed Job can't be released within 48 hours of it. Please call the Office.",
+      "It's less than 48 hours until this job, so you can't release it here. Please call the office.",
     );
     expect((await myJob(asCory, job.id)).assignment.status).toBe("confirmed");
   });
@@ -579,7 +581,7 @@ describe("Offering a Job to a Cleaner who isn't free (#242)", () => {
     const off = await offer(office, job.id, fay.id).expect(409);
 
     expect(busy.body.message).toBe(
-      "Cory Cleaner isn't free then: they're on another Job or a Site Visit at that time, or have no hours that day",
+      "Cory Cleaner isn't free then. Pick someone else.",
     );
     expect(off.body.message).toMatch(/^Fay Cleaner isn't free then/);
   });
@@ -634,7 +636,7 @@ describe("Confirming an Offered Job (#242)", () => {
     );
 
     expect(refused.body.message).toBe(
-      "You're no longer free for this Job. Please release it, or call the Office.",
+      "You're not free for this job any more. Release it, or call the office.",
     );
     expect(await statusOf(assignmentId)).toBe("offered");
   });
@@ -673,7 +675,7 @@ describe("Confirming an Offered Job (#242)", () => {
     );
 
     expect(refused.body.message).toBe(
-      "This Job has moved to Wednesday, January 7 at 10:00 AM. Please check the new time, then confirm again.",
+      "This job moved to Wednesday, January 7 at 10:00 AM. Check the new time, then confirm again.",
     );
     expect(await statusOf(assignmentId)).toBe("offered");
     await confirmAt(asDee, assignmentId, "2026-01-07T15:00:00.000Z").expect(
@@ -728,11 +730,9 @@ describe("taking a Cleaner off a Job (#242)", () => {
 
     expect(await openJobIds(asCory)).toEqual([]);
     expect(testEmail().lastTo(cory.email).subject).toBe(
-      "You're no longer on a Job",
+      "You're no longer on a job",
     );
-    expect(testEmail().lastTo(dee.email).subject).toBe(
-      "A Job soon is open to you",
-    );
+    expect(testEmail().lastTo(dee.email).subject).toBe("An open job, soon");
     await asCory
       .post(`/api/assignments/open/${job.id}/confirm`)
       .send({ startsAt: job.startsAt })

@@ -49,11 +49,11 @@ describe("Offering a Job", () => {
 
   test("refused to anyone but an active Cleaner", () => {
     expect(whyNotOffer(thursday(), "job", { ...ana, active: false }, NOW)).toBe(
-      "Ana Ruiz isn't an active Cleaner",
+      "Ana Ruiz can't take jobs. Pick an active cleaner.",
     );
     const office = { ...ana, roles: ["office_staff" as const] };
     expect(whyNotOffer(thursday(), "job", office, NOW)).toBe(
-      "Ana Ruiz isn't an active Cleaner",
+      "Ana Ruiz can't take jobs. Pick an active cleaner.",
     );
   });
 
@@ -62,23 +62,21 @@ describe("Offering a Job", () => {
       thursday({ jobs: [scheduled({ crew, crewSize })] });
     const anaOn = [{ id: "ana", name: "Ana Ruiz" }];
     expect(whyNotOffer(holding(anaOn), "job", ana, NOW)).toBe(
-      "Ana Ruiz is already on this Job",
+      "Ana Ruiz is already on this job.",
     );
     expect(whyNotOffer(holding(anaOn, 1), "job", bea, NOW)).toBe(
-      "This Job already has its Cleaner",
+      "This job already has all the cleaners it needs.",
     );
     const both = [...anaOn, { id: "cleo", name: "Cleo Diaz" }];
     expect(whyNotOffer(holding(both), "job", bea, NOW)).toBe(
-      "This Job already has all 2 Cleaners it needs",
+      "This job already has all the cleaners it needs.",
     );
   });
 
   test("refused when they aren't free for it", () => {
     expect(
       whyNotOffer(thursday({ jobs: [otherJob(1)] }), "job", ana, NOW),
-    ).toBe(
-      "Ana Ruiz isn't free then: they're on another Job or a Site Visit at that time, or have no hours that day",
-    );
+    ).toBe("Ana Ruiz isn't free then. Pick someone else.");
   });
 });
 
@@ -109,7 +107,7 @@ describe("Confirming an Offered Job", () => {
         NOW,
       ),
     ).toMatch(
-      /^This Job has moved to .+\. Please check the new time, then confirm again\.$/,
+      /^This job moved to .+\. Check the new time, then confirm again\.$/,
     );
     expect(
       whyNotConfirm(
@@ -120,7 +118,7 @@ describe("Confirming an Offered Job", () => {
         NOW,
       ),
     ).toBe(
-      "You're no longer free for this Job. Please release it, or call the Office.",
+      "You're not free for this job any more. Release it, or call the office.",
     );
   });
 });
@@ -133,7 +131,7 @@ describe("Releasing an Assignment", () => {
     expect(whyNotRelease("offered", job(), before(1))).toBeNull();
     expect(whyNotRelease("confirmed", job(), before(49))).toBeNull();
     expect(whyNotRelease("confirmed", job(), before(47))).toBe(
-      "A Confirmed Job can't be released within 48 hours of it. Please call the Office.",
+      "It's less than 48 hours until this job, so you can't release it here. Please call the office.",
     );
   });
 });
@@ -207,10 +205,10 @@ describe("Cleaners Needed", () => {
           undefined,
           NOW,
         ),
-      ).toBe("This Job isn't open any more");
+      ).toBe("This job isn't available any more.");
       expect(
         whyNotTakeCleanerNeeded(job(), "ana", open, undefined, startsAt),
-      ).toBe("This Job isn't open any more");
+      ).toBe("This job isn't available any more.");
       expect(
         whyNotTakeCleanerNeeded(
           job(),
@@ -219,17 +217,17 @@ describe("Cleaners Needed", () => {
           new Date(startsAt.getTime() + HOUR),
           NOW,
         ),
-      ).toMatch(/^This Job has moved to /);
+      ).toMatch(/^This job moved to /);
     });
 
     test("refused when it needs no Cleaner: not open yet, or taken", () => {
       const early = new Date(startsAt.getTime() - 8 * DAY);
       expect(
         whyNotTakeCleanerNeeded(job(), "ana", undefined, undefined, early),
-      ).toBe("This Job isn't open to Cleaners yet");
+      ).toBe("This job isn't open yet. Check back later.");
       expect(
         whyNotTakeCleanerNeeded(job(), "ana", undefined, undefined, NOW),
-      ).toBe("Someone else took this Job");
+      ).toBe("Someone else already took this job.");
     });
 
     test("refused, saying why, when it isn't open to them", () => {
@@ -241,9 +239,11 @@ describe("Cleaners Needed", () => {
           undefined,
           NOW,
         );
-      expect(refused("released")).toBe("You released this Job");
-      expect(refused("offered")).toBe("You're already on this Job");
-      expect(refused()).toBe("You're no longer free for this Job");
+      expect(refused("released")).toBe(
+        "You released this job, so you can't take it back.",
+      );
+      expect(refused("offered")).toBe("You're already on this job.");
+      expect(refused()).toBe("You're not free for this job any more.");
     });
   });
 });

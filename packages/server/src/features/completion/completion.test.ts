@@ -210,7 +210,7 @@ describe("completing a Job", () => {
       .expect(201);
     const asDee = await signIn("dee2@example.com");
     expect((await complete(asDee, jobId).expect(409)).body.message).toMatch(
-      /Confirm this Job first/,
+      /Confirm this job first./,
     );
     await confirmOffer(asDee, jobId);
 

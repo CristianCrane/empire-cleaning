@@ -143,12 +143,12 @@ test("an invitation needs a role, and can't repeat someone on Staff", async ({
 
   await dialog.getByText(/^Cleaner/).click();
   await dialog.getByRole("button", { name: "Send invitation" }).click();
-  await expect(dialog.getByText("Choose at least one role")).toBeVisible();
+  await expect(dialog.getByText("Pick at least one role")).toBeVisible();
 
   await dialog.getByText(/^Office Staff/).click();
   await dialog.getByRole("button", { name: "Send invitation" }).click();
   await expect(
-    dialog.getByText("Cory Cleaner is already on Staff"),
+    dialog.getByText("Cory Cleaner is already on your staff."),
   ).toBeVisible();
 });
 
@@ -197,7 +197,7 @@ test("the last Office Staff member can't deactivate themselves", async ({
 
   await expect(
     page.getByText(
-      "Empire Cleaning needs at least one active Office Staff member",
+      "Someone else must be office staff first. Make another person office staff, then try again.",
     ),
   ).toBeVisible();
 });
@@ -295,7 +295,7 @@ test("a day off frees a Cleaner's Jobs, and so does deactivating them, each said
   await day.getByRole("button", { name: "Free the Job and save" }).click();
   await expect(page.getByText("Thu, Jan 8 saved")).toBeVisible();
   expect((await emailsTo(cory.email)).at(-1)!.subject).toBe(
-    "You're no longer on a Job",
+    "You're no longer on a job",
   );
 
   // Friday's is what's left to free
