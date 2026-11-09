@@ -31,17 +31,7 @@ A worker's test files share one loaded copy of the server (`isolate: false`), be
 Errors, signals and the scheduler's heartbeat go to Sentry (ADR-0007), always through `#services/monitoring`; nothing else imports Sentry but its adapter (`services/monitoring/sentry.ts`) and startup (`src/instrument.ts`, loaded with `--import` by `pnpm start` so Express, Postgres and outgoing calls are traced, about 20% of requests, each release tagged with the commit Render deploys). Without `SENTRY_DSN` nothing is sent and everything is only logged: it is required when `APP_MODE=prod` and optional otherwise, the one exception to "the same variables in every mode".
 
 - **`monitoring.error(error, context)`** for failures nobody expected: the error handler reports every 5xx (never a 4xx, which is normal business), the scheduler each job that throws, and `src/index.ts` anything unhandled. A `catch` that carries on after an unexpected failure (an email after a saved change, one Bill in a run) reports through it too.
-- **`monitoring.signal(name, context)`** for business signals, named in `signals.ts`, each with its urgency, which Sentry's alert rules route on: `urgent` is alerted every time, `in_bulk` at more than 3 in 15 minutes, `counted` never.
-
-  | Signal                  | Raised where                                                                                          | Urgency |
-  | ----------------------- | ----------------------------------------------------------------------------------------------------- | ------- |
-  | `payment_gateway_error` | the Stripe adapter, for anything Stripe refuses but a decline; `chargeSaved` when the provider throws | urgent  |
-  | `refund_failed`         | `refundFrom`, and a Deposit taken but not booked                                                      | urgent  |
-  | `heartbeat_missed`      | by Sentry's cron monitor, when the heartbeat stops; never by our code                                 | urgent  |
-  | `dispute_opened`        | the payment webhook                                                                                   | urgent  |
-  | `email_send_failed`     | `email.send`, when the email service refuses or can't be reached                                      | in_bulk |
-  | `charge_declined`       | the Stripe adapter                                                                                    | counted |
-  | `refunded_at_provider`  | the payment webhook, for a refund made in Stripe's dashboard                                          | counted |
+- **`monitoring.signal(name, context)`** for business signals, each named in `SIGNALS` (`services/monitoring/signals.ts`) with what it means and its urgency, which Sentry's alert rules route on: `urgent` is alerted every time, `in_bulk` at more than 3 in 15 minutes, `counted` never. Search for `signal("<name>"` to find where one is raised.
 
   A failure already raised as a signal is thrown on as a `SignalledError`; `monitoring.error` only logs one, so an email that wasn't sent isn't also an error. To add a signal, add it to `SIGNALS` with its urgency and a line saying what it means, raise it where it happens, test it with `testMonitoring().signalled(name)`, and add it to ADR-0007's table and, if it's alerted, to Sentry's alert rules (#43).
 
