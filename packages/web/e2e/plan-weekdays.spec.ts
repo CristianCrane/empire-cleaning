@@ -1,4 +1,4 @@
-import type { Locator, Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import {
   completedFirstClean,
   createStaff,
@@ -10,6 +10,8 @@ import {
   test,
   draftTheQuote,
   recordFindingsWithoutVisit,
+  saved,
+  startOn,
 } from "./harness.ts";
 
 const olive = {
@@ -23,32 +25,7 @@ const casey = { name: "Casey Client", email: "casey@example.com" };
 // time, with their card saved, and the API's clock is left there. Cory and
 // Bea work 8 hours each weekday. Their plan here is a Standard Clean for the
 // usual crew of 2 on Mondays at 9am from the 19th, and for one Cleaner on
-
 // Wednesdays at 1pm from the 21st.
-const saved = (page: Page) =>
-  expect(
-    page.getByRole("status").filter({ hasText: /saved|prices/ }),
-  ).toHaveText("All changes saved");
-
-// types a time and a day into a weekday's pickers: the day last, as its
-// section is named after it
-const startOn = async (
-  page: Page,
-  weekday: Locator,
-  date: string,
-  time: string,
-) => {
-  await weekday
-    .getByRole("group", { name: "Start time" })
-    .getByRole("spinbutton", { name: /hour/i })
-    .click();
-  await page.keyboard.type(time);
-  await weekday
-    .getByRole("group", { name: "Date" })
-    .getByRole("spinbutton", { name: /month/i })
-    .click();
-  await page.keyboard.type(date);
-};
 
 const quoteLink = async () => {
   const sent = (await emailsTo(casey.email)).find(

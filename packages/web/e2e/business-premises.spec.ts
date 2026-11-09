@@ -11,6 +11,7 @@ import {
   draftTheQuote,
   recordFindingsWithoutVisit,
   goTo,
+  saved,
 } from "./harness.ts";
 
 const olive = {
@@ -143,7 +144,7 @@ test(
     ).toBeVisible();
     await expect(price.getByText("The business")).toBeVisible();
     // checked once settled: a pending button's spinner has no label yet
-    await expect(page.getByText("All changes saved")).toBeVisible();
+    await saved(page);
     await expectAccessible(page);
 
     await page.getByRole("link", { name: "View property" }).click();
