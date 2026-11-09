@@ -14,6 +14,7 @@ import type {
   ServicePlanStatus,
   Weekday,
 } from "@empire-cleaning/models";
+import { BUSINESS_TIME_ZONE, dayOf, timeOf } from "@empire-cleaning/models";
 import type { StatusTone } from "@empire-cleaning/ui";
 
 export const addressOf = (
@@ -136,7 +137,7 @@ export const roleLabel = {
 };
 
 // Empire Cleaning's days and times are New York's, wherever the viewer is
-const BUSINESS_TIME_ZONE = "America/New_York";
+// (BUSINESS_TIME_ZONE); the API sends instants as ISO strings
 
 const dayFormat = new Intl.DateTimeFormat("en-US", {
   weekday: "short",
@@ -165,23 +166,8 @@ const timeFormat = new Intl.DateTimeFormat("en-US", {
 // an instant -> "9:00 AM" in New York
 export const formatTime = (iso: string) => timeFormat.format(new Date(iso));
 
-const dayParts = new Intl.DateTimeFormat("en-CA", {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  timeZone: BUSINESS_TIME_ZONE,
-});
 // today in New York: "2026-01-05"
-export const today = () => dayParts.format(new Date());
-
-export const addDays = (day: string, days: number) =>
-  new Date(Date.parse(`${day}T00:00:00Z`) + days * 86_400_000)
-    .toISOString()
-    .slice(0, 10);
-
-// the Monday of the week a day is in
-export const mondayOf = (day: string) =>
-  addDays(day, -((new Date(`${day}T00:00:00Z`).getUTCDay() + 6) % 7));
+export const today = () => dayOf(new Date());
 
 const dateTimeFormat = new Intl.DateTimeFormat("en-US", {
   weekday: "short",
@@ -247,17 +233,11 @@ export const quoteStatusTone = {
 // for NumberField's formatOptions on prices
 export const dollars = { style: "currency", currency: "USD" } as const;
 
-const clockParts = new Intl.DateTimeFormat("en-US", {
-  hour: "2-digit",
-  minute: "2-digit",
-  hourCycle: "h23",
-  timeZone: BUSINESS_TIME_ZONE,
-});
 // an instant -> its New York wall-clock time, "09:00"
-export const timeOfDay = (iso: string) => clockParts.format(new Date(iso));
+export const timeOfDay = (iso: string) => timeOf(new Date(iso));
 
 // an instant -> the New York day it falls on, "2026-01-12"
-export const dayOfInstant = (iso: string) => dayParts.format(new Date(iso));
+export const dayOfInstant = (iso: string) => dayOf(new Date(iso));
 
 // "09:00" -> "9:00 AM"
 export const formatClock = (time: string) => {

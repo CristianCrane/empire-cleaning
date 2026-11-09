@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test";
+import { MINUTE_MS } from "@empire-cleaning/models";
 import {
   bookJob,
   createStaff,
@@ -58,7 +59,7 @@ test("a Quote asked for while the Dashboard is open shows within a minute", asyn
     name: "Casey Client",
     email: "casey@example.com",
   });
-  await page.clock.runFor(59_000);
+  await page.clock.runFor(MINUTE_MS - 1_000);
   await expect(request).toHaveCount(0);
   await page.clock.runFor(1_000);
 

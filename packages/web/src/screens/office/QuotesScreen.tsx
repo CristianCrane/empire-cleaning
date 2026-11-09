@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLoaderData, useNavigate, useSearch } from "@tanstack/react-router";
 import type { QuoteSummary } from "@empire-cleaning/models";
+import { DAY_MS } from "@empire-cleaning/models";
 import { QuoteIcon } from "../icons.ts";
 import {
   Button,
@@ -43,8 +44,6 @@ type Sort = { column: SortColumn; direction: "ascending" | "descending" };
 
 // how long typing pauses before the list follows it
 const SEARCH_DELAY_MS = 250;
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 // how long since it was asked for (or offered): "today", "3 days"
 const waiting = (quote: QuoteSummary) => {

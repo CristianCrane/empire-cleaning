@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import { MINUTE_MS } from "@empire-cleaning/models";
 import { E2E_DB_URL, slot, slotOf, WORKERS } from "./e2e/slots.ts";
 
 // Keep headless Chromium off the WSLg display so it doesn't steal Windows focus
@@ -36,7 +37,7 @@ export default defineConfig({
       command:
         "bash -c 'trap \"kill 0\" EXIT; pnpm --filter @empire-cleaning/server e2e:servers & (vite build && node e2e/preview.ts) & wait -n'",
       wait: { stdout: /(?=[\s\S]*e2e APIs ready)(?=[\s\S]*e2e apps ready)/ },
-      timeout: 120_000,
+      timeout: 2 * MINUTE_MS,
       env: {
         ...process.env,
         TEST_DB_URL: E2E_DB_URL,

@@ -1,5 +1,6 @@
+import { addDays, DAY_MS, mondayOf } from "@empire-cleaning/models";
 import { readStored, store } from "@empire-cleaning/ui";
-import { addDays, mondayOf, today } from "./format.ts";
+import { today } from "./format.ts";
 
 // the dates asked for; without valid ones, the Schedule shows today on the
 // span last chosen
@@ -14,8 +15,7 @@ export type Span = 1 | 3 | 7;
 export const SPANS: Span[] = [1, 3, 7];
 
 export const daysIn = (from: string, to: string) =>
-  (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) /
-    86_400_000 +
+  (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / DAY_MS +
   1;
 
 // where a span showing `day` starts: a week from its Monday, otherwise the

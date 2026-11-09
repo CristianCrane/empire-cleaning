@@ -4,6 +4,7 @@ import type {
   NeedsAttentionItem,
   NeedsAttentionKind,
 } from "@empire-cleaning/models";
+import { MINUTE_MS } from "@empire-cleaning/models";
 import {
   CalendarClock,
   CalendarX,
@@ -42,7 +43,7 @@ import { QUOTE_A_PLAN } from "./StartDraft.tsx";
 // how often a Dashboard left open asks again, while it can be seen: a new
 // Quote request shows within a minute (the Office is emailed of it too).
 // Coming back to the tab asks at once (main.tsx)
-const REFRESH_MS = 60_000;
+const REFRESH_MS = MINUTE_MS;
 
 // the Office's first screen: what's waiting on them, counted by kind (Jobs,
 // Quotes, Money) above the list. The day's Jobs are on the Schedule

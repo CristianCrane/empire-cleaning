@@ -1,8 +1,8 @@
 import type { HTMLAttributes, ReactNode } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import type { LocalDateTime } from "@empire-cleaning/models";
+import { addDays, type LocalDateTime } from "@empire-cleaning/models";
 import { Button, Select, SelectItem } from "@empire-cleaning/ui";
-import { addDays, formatClock, formatDay, today } from "./format.ts";
+import { formatClock, formatDay, today } from "./format.ts";
 import { hoursOf, timeAt } from "./schedule-layout.ts";
 import { daysIn, SPANS, type Span } from "./schedule-range.ts";
 

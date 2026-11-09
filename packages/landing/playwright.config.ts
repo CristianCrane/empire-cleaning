@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import { MINUTE_MS } from "@empire-cleaning/models";
 import { E2E_PORTS } from "@empire-cleaning/server/checkout";
 
 // Keep headless Chromium off the WSLg display so it doesn't steal Windows focus
@@ -43,7 +44,7 @@ export default defineConfig({
           `(?=[\\s\\S]*e2e APIs ready)(?=[\\s\\S]*Local\\s+${siteUrl})`,
         ),
       },
-      timeout: 120_000,
+      timeout: 2 * MINUTE_MS,
       env: {
         ...process.env,
         // the API's database is a copy of this one, `_0`: slot 0 of 1
