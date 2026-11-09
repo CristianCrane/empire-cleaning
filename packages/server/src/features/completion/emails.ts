@@ -162,7 +162,7 @@ export const proposalEmail = ({
   name: string;
   jobId: string;
   clean: Clean;
-  // "1 extra hour"
+  // "1 more hour"
   label: string;
   // the Cleaner's, e.g. "Heavy grease"
   reason: string;

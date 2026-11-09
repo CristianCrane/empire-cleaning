@@ -75,7 +75,7 @@ export const charges = pgTable(
     kind: chargeKind("kind").notNull(),
     amountCents: integer("amount_cents").notNull(),
     // the one change to the price it was for, by name ("Inside the fridge",
-    // "1 extra hour"), when it was taken for one; kept as words, as the
+    // "1 more hour"), when it was taken for one; kept as words, as the
     // Adjustment may later be taken off
     item: text("item"),
     // the Payment Gateway's id for it, for refunds

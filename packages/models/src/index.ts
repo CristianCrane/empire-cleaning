@@ -1297,7 +1297,7 @@ export type ClientPayment = {
   // a Bill's bank debit, on its way but not yet cleared
   clearing: boolean;
   // the one change to the price it was for, by name ("Inside the fridge",
-  // "1 extra hour, price corrected"), when it was for one
+  // "1 more hour, price corrected"), when it was for one
   item: string | null;
 };
 
