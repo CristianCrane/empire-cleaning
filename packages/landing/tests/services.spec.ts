@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
 import { business } from "../src/business.ts";
 import { areas as twinsOfAreas } from "../src/areas/index.ts";
-import { pathOf } from "../src/routes.ts";
+import { pathOf, urlOf } from "../src/routes.ts";
 import {
   servicePages as twins,
   type ServicePage,
@@ -12,6 +12,8 @@ import { serviceWords, services } from "../src/services.ts";
 const servicePages = twins.map((twin) => twin.en);
 const pathOfService = (page: ServicePage) =>
   pathOf({ kind: "service", service: page.card }, "en");
+const urlOfService = (page: ServicePage) =>
+  urlOf({ kind: "service", service: page.card }, "en");
 const nameOf = (page: ServicePage) => serviceWords.en[page.card].name;
 import { expect, expectAccessible, test } from "./harness.ts";
 
@@ -63,7 +65,7 @@ for (const service of servicePages) {
     test("gets its own title, description and address", async ({ page }) => {
       await page.goto(path);
 
-      const url = new URL(path, business.url).href;
+      const url = urlOfService(service);
       await expect(page).toHaveTitle(`${service.title} | Empire Cleaning`);
       const meta = (selector: string) =>
         page.locator(selector).getAttribute("content");
@@ -86,7 +88,7 @@ for (const service of servicePages) {
           .textContent()) ?? "",
       );
       const [place, , crumbs, offered] = data["@graph"];
-      const url = new URL(path, business.url).href;
+      const url = urlOfService(service);
       expect(crumbs).toMatchObject({
         "@type": "BreadcrumbList",
         itemListElement: [
@@ -230,9 +232,7 @@ test("an area's most-asked services lead to their pages", async ({ page }) => {
 test("every service page is in the sitemap", async ({ request }) => {
   const sitemap = await (await request.get("/sitemap-0.xml")).text();
   for (const service of servicePages) {
-    expect(sitemap).toContain(
-      `<loc>${new URL(pathOfService(service), business.url).href}</loc>`,
-    );
+    expect(sitemap).toContain(`<loc>${urlOfService(service)}</loc>`);
   }
 });
 
@@ -251,7 +251,7 @@ test("each service's page is its own: no two share a title, description or headi
       );
       seen[key].add(service[key]);
     }
-    await page.goto(`/services/${service.slug}/`);
+    await page.goto(pathOfService(service));
     // at least ~400 words of its own, beside what every page shares
     const own = await page
       .locator("#included, #pricing, #when, #faqs, #page-title")

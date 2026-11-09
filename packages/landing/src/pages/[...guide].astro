@@ -7,7 +7,7 @@ import PageHero from "../components/PageHero.astro";
 import RequestQuote from "../components/RequestQuote.astro";
 import Section from "../components/Section.astro";
 import ServiceCard from "../components/ServiceCard.astro";
-import { guides } from "../guides/index.ts";
+import { guideOf } from "../guides/index.ts";
 import Page from "../layouts/Page.astro";
 import { routesOf } from "../routes.ts";
 import { guideData } from "../structured-data.ts";
@@ -19,7 +19,7 @@ import { words } from "../words.ts";
 export const getStaticPaths = () => routesOf("guide");
 const { page } = Astro.props;
 const lang = languageOf(Astro.currentLocale);
-const guide = guides.find((g) => g.en.key === page.guide)![lang];
+const guide = guideOf(page.guide)[lang];
 const related = [...new Set(guide.linkedFrom.map((l) => l.service))].slice(
   0,
   3,

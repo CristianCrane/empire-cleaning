@@ -1,11 +1,7 @@
-import {
-  catalog,
-  type Catalog,
-  type Language,
-  LANGUAGES,
-} from "@empire-cleaning/models";
-import { areas, type Area } from "./areas/index.ts";
-import { guides, type GuideKey } from "./guides/index.ts";
+import { catalog, type Language, LANGUAGES } from "@empire-cleaning/models";
+import { areaOf, areas, type AreaKey } from "./areas/index.ts";
+import { business } from "./business.ts";
+import { guideOf, guides, type GuideKey } from "./guides/index.ts";
 import { pageOf, servicePages } from "./service-pages/index.ts";
 import type { ServiceKey } from "./services.ts";
 
@@ -16,7 +12,7 @@ import type { ServiceKey } from "./services.ts";
 // take a page's address from pathOf, so none is written by hand.
 export type Page =
   | { kind: "home" }
-  | { kind: "area"; area: Catalog<Area> }
+  | { kind: "area"; area: AreaKey }
   | { kind: "service"; service: ServiceKey }
   | { kind: "guide"; guide: GuideKey };
 
@@ -26,24 +22,29 @@ const folders = catalog({
   es: { services: "servicios", guides: "guias" },
 });
 
+// "/es/servicios/limpieza-profunda/"
 export const pathOf = (page: Page, lang: Language): string => {
   switch (page.kind) {
     case "home":
       return home[lang];
     case "area":
-      return `${home[lang]}${page.area[lang].slug}/`;
+      return `${home[lang]}${areaOf(page.area)[lang].slug}/`;
     case "service":
       return `${home[lang]}${folders[lang].services}/${pageOf(page.service)![lang].slug}/`;
     case "guide":
-      return `${home[lang]}${folders[lang].guides}/${guides.find((g) => g.en.key === page.guide)![lang].slug}/`;
+      return `${home[lang]}${folders[lang].guides}/${guideOf(page.guide)[lang].slug}/`;
   }
 };
+
+// the page's address in full: "https://www.empirecleaningandpro.com/es/"
+export const urlOf = (page: Page, lang: Language) =>
+  new URL(pathOf(page, lang), business.url).href;
 
 // every page there is, each in both languages (the 404 is no page's
 // address)
 export const pages: Page[] = [
   { kind: "home" },
-  ...areas.map((area) => ({ kind: "area" as const, area })),
+  ...areas.map((a) => ({ kind: "area" as const, area: a.en.key })),
   ...servicePages.map((p) => ({
     kind: "service" as const,
     service: p.en.card,
@@ -53,8 +54,8 @@ export const pages: Page[] = [
 
 // a route's pages in both languages, for its getStaticPaths: its rest
 // parameter, named for the kind of page (pages/[...area].astro), is the
-// address without its slashes (none for the home page).
-// A page's language is then Astro.currentLocale (languageOf)
+// address without its slashes (none for the home page). A page's language
+// is then Astro.currentLocale (languageOf)
 export const routesOf = <K extends Page["kind"]>(kind: K) =>
   LANGUAGES.flatMap((lang) =>
     pages

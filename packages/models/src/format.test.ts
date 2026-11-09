@@ -16,6 +16,15 @@ test("English reads as it always has", () => {
   expect(en.formatShortDay("2026-01-05")).toBe("Jan 5");
   expect(en.formatLongDay("2026-01-12")).toBe("Monday, January 12");
   expect(en.weekdayName("2026-01-05")).toBe("Monday");
+  expect(en.weekdays).toEqual([
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+  ]);
   expect(en.formatMonth("2026-11-01")).toBe("November 2026");
   expect(en.formatTime(MORNING)).toBe("9:00 AM");
   expect(en.formatTime(new Date(LATE_EVENING))).toBe("10:30 PM");
@@ -50,6 +59,7 @@ test("Spanish reads as es-US writes it", () => {
   expect(es.formatDay("2026-01-05")).toBe("lun, 5 de ene");
   expect(es.formatLongDay("2026-01-12")).toBe("lunes, 12 de enero");
   expect(es.weekdayName("2026-01-05")).toBe("lunes");
+  expect(es.weekdays[6]).toBe("domingo");
   expect(es.formatMonth("2026-11-01")).toBe("noviembre de 2026");
   expect(es.formatTime(MORNING)).toBe("9:00 a.m.");
   expect(es.formatClock("18:00")).toBe("6:00 p.m.");

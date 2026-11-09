@@ -43,7 +43,7 @@ const t = words[lang].footer;
         {areas.map((area) => (
           <li>
             <a
-              href={pathOf({ kind: "area", area }, lang)}
+              href={pathOf({ kind: "area", area: area.en.key }, lang)}
               class="font-semibold text-primary"
             >
               {area[lang].name}

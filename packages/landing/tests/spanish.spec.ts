@@ -1,13 +1,9 @@
 import { LANGUAGES } from "@empire-cleaning/models";
-import { business } from "../src/business.ts";
-import { pages, pathOf, type Page } from "../src/routes.ts";
+import { pages, pathOf, urlOf } from "../src/routes.ts";
 import { expect, expectAccessible, test } from "./harness.ts";
 
 // every page in English and in Spanish under /es/ (ADR-0025, #301): each
 // says its language, links its twin both ways, and switches to it
-const urlOf = (page: Page, lang: "en" | "es") =>
-  new URL(pathOf(page, lang), business.url).href;
-
 for (const page of pages) {
   for (const lang of LANGUAGES) {
     const other = lang === "en" ? "es" : "en";

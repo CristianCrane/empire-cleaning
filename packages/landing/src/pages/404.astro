@@ -22,7 +22,7 @@ import { pathOf } from "../routes.ts";
       There's no page at this address. Request a quote or give us a call, and
       we'll take it from there.
     </p>
-    <QuoteOrCall href="/#quote" />
+    <QuoteOrCall href={`${pathOf({ kind: "home" }, "en")}#quote`} />
     <div lang="es" class="flex flex-col items-center gap-4 pt-6">
       <p class="text-lg text-fg-muted">
         No hay ninguna página en esta dirección. Pida una cotización o llámenos,

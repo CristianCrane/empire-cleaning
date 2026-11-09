@@ -54,3 +54,6 @@ export const guidesFor = (
     .filter((guide) =>
       guide.linkedFrom.some((l) => l.service === service && l.under === under),
     );
+
+// a guide, by its key
+export const guideOf = (key: GuideKey) => guides.find((g) => g.en.key === key)!;

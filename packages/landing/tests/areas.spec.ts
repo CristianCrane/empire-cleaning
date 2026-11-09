@@ -1,11 +1,12 @@
 import { areas as twins, type Area } from "../src/areas/index.ts";
 import { business } from "../src/business.ts";
-import { pathOf } from "../src/routes.ts";
+import { pathOf, urlOf } from "../src/routes.ts";
 
 // each area's English page; the Spanish twins are spanish.spec.ts's
 const areas = twins.map((twin) => twin.en);
 const pathOfArea = (area: Area) =>
-  pathOf({ kind: "area", area: twins.find((t) => t.en === area)! }, "en");
+  pathOf({ kind: "area", area: area.key }, "en");
+const urlOfArea = (area: Area) => urlOf({ kind: "area", area: area.key }, "en");
 import { expect, expectAccessible, test } from "./harness.ts";
 
 // a page per area we serve (#176), each in its own words
@@ -49,7 +50,7 @@ for (const area of areas) {
     test("gets its own title, description and address", async ({ page }) => {
       await page.goto(path);
 
-      const url = new URL(pathOfArea(area), business.url).href;
+      const url = urlOfArea(area);
       await expect(page).toHaveTitle(`${area.title} | Empire Cleaning`);
       const meta = (selector: string) =>
         page.locator(selector).getAttribute("content");
@@ -80,7 +81,7 @@ for (const area of areas) {
           {
             position: 2,
             name: area.name,
-            item: new URL(pathOfArea(area), business.url).href,
+            item: urlOfArea(area),
           },
         ],
       });
@@ -170,7 +171,7 @@ test("the home page links to every area, in Why Empire and the footer", async ({
 test("every area's page is in the sitemap", async ({ request }) => {
   const sitemap = await (await request.get("/sitemap-0.xml")).text();
   for (const area of areas) {
-    expect(sitemap).toContain(`<loc>${business.url}${area.slug}/</loc>`);
+    expect(sitemap).toContain(`<loc>${urlOfArea(area)}</loc>`);
   }
 });
 

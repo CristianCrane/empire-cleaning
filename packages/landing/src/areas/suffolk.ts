@@ -2,6 +2,7 @@ import { speakSpanish } from "../faqs.ts";
 import type { Area } from "./index.ts";
 
 export const suffolk: Area = {
+  key: "suffolk",
   slug: "suffolk-county",
   name: "Western Suffolk County",
   wiki: "https://en.wikipedia.org/wiki/Suffolk_County,_New_York",

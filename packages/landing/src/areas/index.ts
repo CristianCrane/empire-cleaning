@@ -17,6 +17,8 @@ import { suffolk as suffolkEs } from "./suffolk.es.ts";
 // the whole site. The owner edits the words in each area's file, and their
 // Spanish in its twin (`queens.es.ts`)
 export type Area = {
+  // which area it is, in either language
+  key: "queens" | "brooklyn" | "manhattan" | "nassau" | "suffolk";
   // the page's address, /<slug>/ (or /es/<slug>/)
   slug: string;
   // as in the business's search data, with the Wikipedia page that says
@@ -39,8 +41,10 @@ export type Area = {
   faqs: { question: string; answer: string }[];
 };
 
-// what a twin takes from the English: the place itself
-const facts = ["wiki"] as const;
+export type AreaKey = Area["key"];
+
+// what a twin takes from the English: which area, and the place itself
+const facts = ["key", "wiki"] as const;
 export type AreaWords = Omit<Area, (typeof facts)[number]>;
 
 export const areas: Catalog<Area>[] = [
@@ -50,3 +54,6 @@ export const areas: Catalog<Area>[] = [
   twin(facts, nassau, nassauEs),
   twin(facts, suffolk, suffolkEs),
 ];
+
+// an area, by its key
+export const areaOf = (key: AreaKey) => areas.find((a) => a.en.key === key)!;

@@ -6,7 +6,7 @@ import {
 import { areas, type Area } from "./areas/index.ts";
 import { business, businessWords } from "./business.ts";
 import type { Guide } from "./guides/index.ts";
-import { pathOf, type Page } from "./routes.ts";
+import { urlOf } from "./routes.ts";
 import type { ServicePage } from "./service-pages/index.ts";
 import { serviceWords, services } from "./services.ts";
 import { words } from "./words.ts";
@@ -17,9 +17,6 @@ import { words } from "./words.ts";
 // to. No review stars: Google ignores a business's own reviews marked up on
 // its own site, and may count them as spam.
 const businessId = `${business.url}#business`;
-
-const urlOf = (page: Page, lang: Language) =>
-  new URL(pathOf(page, lang).slice(1), business.url).href;
 
 // a place, by its English name, which says which place it is
 const place = ({ name, wiki }: Area) => ({
@@ -106,7 +103,7 @@ const crumbs = (lang: Language, name: string, url: string) => ({
 // an area's page (#176): its breadcrumbs, and cleaning there, provided by
 // the business, referred to by its @id
 export const areaData = (area: Catalog<Area>, lang: Language) => {
-  const url = urlOf({ kind: "area", area }, lang);
+  const url = urlOf({ kind: "area", area: area.en.key }, lang);
   return [
     crumbs(lang, area[lang].name, url),
     {

@@ -39,17 +39,14 @@ import { dayOfInstant, formatHours, roleLabel, today } from "../format.ts";
 import { Fact } from "../Fact.tsx";
 import { MemberStatus } from "./StaffScreen.tsx";
 
-const { formatDateTime, formatDay, formatMonth, formatList } = formats.en;
-
-const weekdays = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
-];
+const {
+  formatDateTime,
+  formatDay,
+  formatMonth,
+  formatList,
+  weekdayName,
+  weekdays,
+} = formats.en;
 
 const hoursFormat = { maximumFractionDigits: 2 } as const;
 
@@ -666,8 +663,7 @@ function DayDialog({
         }}
       >
         <p className="text-sm text-fg-muted">
-          Usually {hoursLabel(usual).toLowerCase()} on a{" "}
-          {weekdays[weekdayOf(day)]}.
+          Usually {hoursLabel(usual).toLowerCase()} on a {weekdayName(day)}.
         </p>
         <NumberField
           label="Hours that day"

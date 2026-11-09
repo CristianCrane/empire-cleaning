@@ -2,6 +2,7 @@ import { speakSpanish } from "../faqs.ts";
 import type { Area } from "./index.ts";
 
 export const nassau: Area = {
+  key: "nassau",
   slug: "nassau-county",
   name: "Nassau County",
   wiki: "https://en.wikipedia.org/wiki/Nassau_County,_New_York",

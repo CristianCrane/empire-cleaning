@@ -16,7 +16,6 @@ import type {
 } from "@empire-cleaning/models";
 import type { Time } from "@internationalized/date";
 import {
-  addDays,
   clockTime,
   dayOf,
   formats,
@@ -34,6 +33,7 @@ const {
   formatNumber,
   plural,
   weekdayName,
+  weekdays,
 } = formats.en;
 const { planDaysWhen, recurrence } = messages.en;
 
@@ -78,7 +78,7 @@ export const propertySummary = (p: PropertyView) =>
           : formatFloorArea(p.floorArea),
       ].join(" · ")
     : [
-        p.type[0]!.toUpperCase() + p.type.slice(1),
+        upperFirst(p.type),
         ...(p.bedrooms === null
           ? ["rooms not known yet"]
           : [
@@ -117,9 +117,9 @@ export const wantedCleaning = (request: {
     ? `${weekdaysText(request.weekdays)}${request.preferredTime ? ` at ${formatClock(request.preferredTime)}` : ""}`
     : "A one-off clean";
 
-// [0, 2, 4] -> "Monday, Wednesday and Friday"; 2026-01-05 is a Monday
+// [0, 2, 4] -> "Monday, Wednesday and Friday"
 const weekdaysText = (days: Weekday[]) =>
-  formatList(days.map((d) => weekdayName(addDays("2026-01-05", d))));
+  formatList(days.map((d) => weekdays[d]!));
 
 // 3.75 -> "3.75 h", 4 -> "4 h"
 export const formatHours = (hours: number) => `${hours} h`;

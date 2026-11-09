@@ -249,15 +249,10 @@ const blankPremises: NewPremises = {
   accessInstructions: "",
 };
 
-const weekdays: { day: Weekday; label: string }[] = [
-  { day: 0, label: "Monday" },
-  { day: 1, label: "Tuesday" },
-  { day: 2, label: "Wednesday" },
-  { day: 3, label: "Thursday" },
-  { day: 4, label: "Friday" },
-  { day: 5, label: "Saturday" },
-  { day: 6, label: "Sunday" },
-];
+const weekdays = formats.en.weekdays.map((label, day) => ({
+  day: day as Weekday,
+  label,
+}));
 
 // a preferred start, from the times a picker offers, 5am to 11pm
 const startTimes = PICK_TIMES.filter((t) => t >= "05:00" && t <= "23:00");

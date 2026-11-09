@@ -5,7 +5,7 @@ import { firstScreenFonts } from "@empire-cleaning/ui/fonts";
 import { LANGUAGES, languageOf } from "@empire-cleaning/models";
 import { TestSiteBanner } from "@empire-cleaning/ui";
 import { business, businessWords } from "../business.ts";
-import { pathOf, type Page } from "../routes.ts";
+import { urlOf, type Page } from "../routes.ts";
 import { isTestSite } from "../site-mode.ts";
 import { structuredData } from "../structured-data.ts";
 
@@ -29,8 +29,7 @@ const {
 const pageTitle = title
   ? `${title} | Empire Cleaning`
   : businessWords[lang].title;
-const urlIn = (l: typeof lang) =>
-  page && new URL(pathOf(page, l).slice(1), business.url).href;
+const urlIn = (l: typeof lang) => page && urlOf(page, l);
 const url = urlIn(lang);
 // Open Graph's way of naming a language
 const ogLocale = { en: "en_US", es: "es_US" };

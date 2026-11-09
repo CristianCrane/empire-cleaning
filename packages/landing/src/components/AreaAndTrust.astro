@@ -40,7 +40,7 @@ const areaList = formats[lang]
           {areaList.map((part) =>
             "area" in part ? (
               <a
-                href={pathOf({ kind: "area", area: part.area }, lang)}
+                href={pathOf({ kind: "area", area: part.area.en.key }, lang)}
                 class="font-semibold text-primary"
               >
                 {part.area[lang].short}

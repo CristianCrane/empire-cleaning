@@ -1,13 +1,14 @@
-import { business } from "../src/business.ts";
 import { faqs } from "../src/faqs.ts";
 import { guides as twins, type Guide } from "../src/guides/index.ts";
-import { pathOf } from "../src/routes.ts";
+import { pathOf, urlOf } from "../src/routes.ts";
 import { servicePages } from "../src/service-pages/index.ts";
 
 // each guide's English page; the Spanish twins are spanish.spec.ts's
 const guides = twins.map((twin) => twin.en);
 const pathOfGuide = (guide: Guide) =>
   pathOf({ kind: "guide", guide: guide.key }, "en");
+const urlOfGuide = (guide: Guide) =>
+  urlOf({ kind: "guide", guide: guide.key }, "en");
 import { expect, expectAccessible, test } from "./harness.ts";
 
 // a few evergreen guides (#180), each answering one question
@@ -42,7 +43,7 @@ for (const guide of guides) {
     }) => {
       await page.goto(path);
 
-      const url = new URL(path, business.url).href;
+      const url = urlOfGuide(guide);
       await expect(page).toHaveTitle(`${guide.title} | Empire Cleaning`);
       expect(
         await page.locator('meta[name="description"]').getAttribute("content"),
@@ -140,9 +141,7 @@ test("the home page's questions open their answers, the price one leading to its
 test("every guide is in the sitemap", async ({ request }) => {
   const sitemap = await (await request.get("/sitemap-0.xml")).text();
   for (const guide of guides) {
-    expect(sitemap).toContain(
-      `<loc>${new URL(pathOfGuide(guide), business.url).href}</loc>`,
-    );
+    expect(sitemap).toContain(`<loc>${urlOfGuide(guide)}</loc>`);
   }
 });
 

@@ -82,6 +82,11 @@ const formatsIn = (lang: Language) => {
     formatLongDay: (d: string) => longDay.format(noonOf(d)),
     // "2026-01-05" -> "Monday"
     weekdayName: (d: string) => weekday.format(noonOf(d)),
+    // the days of the week, Monday first, as Weekday counts them: "Monday",
+    // …, "Sunday" (5 to 11 January 2026 are Monday to Sunday)
+    weekdays: [5, 6, 7, 8, 9, 10, 11].map((d) =>
+      weekday.format(noonOf(`2026-01-${String(d).padStart(2, "0")}`)),
+    ),
     // a day in a month -> "January 2026"
     formatMonth: (d: string) => month.format(noonOf(d)),
     // an instant -> "9:00 AM"

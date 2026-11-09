@@ -2,6 +2,7 @@ import { speakSpanish } from "../faqs.ts";
 import type { Area } from "./index.ts";
 
 export const brooklyn: Area = {
+  key: "brooklyn",
   slug: "brooklyn",
   name: "Brooklyn",
   wiki: "https://en.wikipedia.org/wiki/Brooklyn",

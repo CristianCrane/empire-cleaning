@@ -12,6 +12,7 @@ import ServiceCard from "../components/ServiceCard.astro";
 import { card } from "../band.ts";
 import { areaData } from "../structured-data.ts";
 import Page from "../layouts/Page.astro";
+import { areaOf } from "../areas/index.ts";
 import { routesOf } from "../routes.ts";
 
 // a page per area we serve (#176), in the home page's bands (prototype
@@ -20,14 +21,14 @@ import { routesOf } from "../routes.ts";
 export const getStaticPaths = () => routesOf("area");
 const { page } = Astro.props;
 const lang = languageOf(Astro.currentLocale);
-const area = page.area[lang];
+const area = areaOf(page.area)[lang];
 ---
 
 <Page
   title={area.title}
   description={area.description}
   page={page}
-  data={areaData(page.area, lang)}
+  data={areaData(areaOf(page.area), lang)}
 >
   <Header page={page} />
   <main>
