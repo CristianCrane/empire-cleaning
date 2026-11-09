@@ -3,7 +3,8 @@ import { claimTestDatabase, migratedCopies } from "./testDatabase.ts";
 
 declare module "vitest" {
   export interface ProvidedContext {
-    // this run's database (claimTestDatabase), which each worker has a copy of
+    // this run's database (claimTestDatabase): the one each server test
+    // worker has a copy of, or the seed test's (seedSetup.ts)
     testDatabase: string;
     // how many workers there are, each with a database of its own
     testWorkers: number;

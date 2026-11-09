@@ -97,7 +97,9 @@ const stopRun = (error: Error): void => {
 // holder connects before it makes anything. Should the holder's connection end
 // while the run goes on (Postgres restarted, the connection terminated), the
 // next claim would take this run for dead and drop its databases under it, so
-// `onLost` stops the run then, and by default ends the process saying why
+// `onLost` stops the run then, and by default ends the process saying why.
+// So a claim in Vitest goes in a global setup, in its own process: in a
+// worker, Vitest turns `process.exit` into an error and the run goes on
 export const claimTestDatabase = async (onLost = stopRun) => {
   const baseName = nameOf(TEST_DB_URL);
   const holder = new pg.Client({
