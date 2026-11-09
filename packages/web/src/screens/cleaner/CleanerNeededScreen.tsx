@@ -1,3 +1,4 @@
+import { formats } from "@empire-cleaning/models";
 import { useLoaderData, useNavigate, useRouter } from "@tanstack/react-router";
 import type { CleanerNeeded } from "@empire-cleaning/models";
 import { CalendarClock, Clock, MapPin, Users } from "lucide-react";
@@ -16,16 +17,11 @@ import { getJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useLeavingAction } from "../action.ts";
 import { Fact } from "../Fact.tsx";
-import {
-  dayOfInstant,
-  formatDateTime,
-  formatDay,
-  formatHours,
-  formatTime,
-  cleaners,
-} from "../format.ts";
+import { dayOfInstant, formatHours, cleaners } from "../format.ts";
 import { reportUnexpected } from "../../monitoring.ts";
 import { untilAbout } from "./CleanerHome.tsx";
+
+const { formatDateTime, formatDay, formatTime } = formats.en;
 
 // "Just you", "2 cleaners"
 export const crewSizeOf = (job: Pick<CleanerNeeded, "crewSize">) =>

@@ -1,3 +1,4 @@
+import { formats } from "@empire-cleaning/models";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import { Inbox } from "lucide-react";
 import {
@@ -9,8 +10,10 @@ import {
   Section,
   StatusBadge,
 } from "@empire-cleaning/ui";
-import { formatDateTime, formatHours } from "../format.ts";
+import { formatHours } from "../format.ts";
 import { crewSizeOf } from "./CleanerNeededScreen.tsx";
+
+const { formatDateTime } = formats.en;
 
 // Jobs that aren't the Cleaner's yet, apart from Your Jobs so their own
 // list says only where they're working (UX pass, #96): those the Office
@@ -44,7 +47,7 @@ export function CleanerOffers() {
               <ListItem
                 key={job.id}
                 id={job.id}
-                start={<DateTile date={job.startsAt} size="sm" />}
+                start={<DateTile lang="en" date={job.startsAt} size="sm" />}
                 title={formatDateTime(job.startsAt)}
                 description={`${job.property.postcode} · ${job.serviceName}, ${formatHours(job.hoursOnSite)}`}
                 end={<StatusBadge tone="warning">Offered</StatusBadge>}
@@ -72,7 +75,7 @@ export function CleanerOffers() {
               <ListItem
                 key={job.jobId}
                 id={job.jobId}
-                start={<DateTile date={job.startsAt} size="sm" />}
+                start={<DateTile lang="en" date={job.startsAt} size="sm" />}
                 title={formatDateTime(job.startsAt)}
                 description={[
                   job.postcode,

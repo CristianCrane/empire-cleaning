@@ -6,11 +6,7 @@ import {
   paragraph,
   type Email,
 } from "../../services/email/blocks.ts";
-import {
-  firstNameOf,
-  formatDay,
-  formatMoney,
-} from "../../services/email/format.ts";
+import { firstNameOf } from "../../services/email/format.ts";
 import {
   addDays,
   billNotPaid,
@@ -23,9 +19,12 @@ import {
   type UnpaidKind,
   UPDATE_AND_RETRY,
   UPDATE_CARD,
+  formats,
 } from "@empire-cleaning/models";
 import type { Settled } from "../completion/balance.ts";
 import { whyNotPaid } from "../payments/unpaid.ts";
+
+const { formatLongDay, formatMoney } = formats.en;
 
 export type Occasion =
   "made" | "unpaid" | "reminder" | "paid" | "voided" | "debit_failed";
@@ -100,13 +99,13 @@ const aboutBill = (
           ]
         : [
             `Your bill ${number} from Empire Cleaning`,
-            `Here's your bill for the week: ${total}, due by ${formatDay(bill.dueOn)}. You can pay it by card or bank transfer on its page.`,
+            `Here's your bill for the week: ${total}, due by ${formatLongDay(bill.dueOn)}. You can pay it by card or bank transfer on its page.`,
           ];
     case "reminder":
       if (today < bill.dueOn) {
         return [
-          `Bill ${number} is due ${formatDay(bill.dueOn)}`,
-          `A reminder that bill ${number}, ${total}, is due by ${formatDay(bill.dueOn)}. You can pay it by card or bank transfer on its page.`,
+          `Bill ${number} is due ${formatLongDay(bill.dueOn)}`,
+          `A reminder that bill ${number}, ${total}, is due by ${formatLongDay(bill.dueOn)}. You can pay it by card or bank transfer on its page.`,
         ];
       }
       if (today === bill.dueOn) {
@@ -117,7 +116,7 @@ const aboutBill = (
       }
       return [
         `Bill ${number} is overdue`,
-        `Bill ${number}, ${total}, was due by ${formatDay(bill.dueOn)} and hasn't been paid yet. Please pay it on its page, by card or bank transfer.`,
+        `Bill ${number}, ${total}, was due by ${formatLongDay(bill.dueOn)} and hasn't been paid yet. Please pay it on its page, by card or bank transfer.`,
       ];
     case "paid":
       return [
@@ -172,10 +171,10 @@ export const billEmail = ({
         { label: "Bill", value: bill.number },
         {
           label: "Week",
-          value: `${formatDay(bill.weekStart)} to ${formatDay(addDays(bill.weekStart, 6))}`,
+          value: `${formatLongDay(bill.weekStart)} to ${formatLongDay(addDays(bill.weekStart, 6))}`,
         },
         ...(bill.payment === "on_page" && bill.totalCents > 0
-          ? [{ label: "Due by", value: formatDay(bill.dueOn) }]
+          ? [{ label: "Due by", value: formatLongDay(bill.dueOn) }]
           : []),
       ]),
       amounts(

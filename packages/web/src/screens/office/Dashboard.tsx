@@ -4,7 +4,7 @@ import type {
   NeedsAttentionItem,
   NeedsAttentionKind,
 } from "@empire-cleaning/models";
-import { MINUTE_MS } from "@empire-cleaning/models";
+import { MINUTE_MS, formats } from "@empire-cleaning/models";
 import {
   CalendarClock,
   CalendarX,
@@ -30,15 +30,10 @@ import {
 } from "@empire-cleaning/ui";
 import { JobIcon, QuoteIcon } from "../icons.ts";
 import { billWeek } from "../BillParts.tsx";
-import {
-  addressOf,
-  clientName,
-  formatDate,
-  formatDateTime,
-  formatDay,
-  formatMoney,
-} from "../format.ts";
+import { addressOf, clientName } from "../format.ts";
 import { QUOTE_A_PLAN } from "./StartDraft.tsx";
+
+const { formatDate, formatDateTime, formatDay, formatMoney } = formats.en;
 
 // how often a Dashboard left open asks again, while it can be seen: a new
 // Quote request shows within a minute (the Office is emailed of it too).

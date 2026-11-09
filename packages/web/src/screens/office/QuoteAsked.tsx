@@ -7,7 +7,7 @@ import type {
   QuoteSource,
   TurnDownReason,
 } from "@empire-cleaning/models";
-import { needsVisit } from "@empire-cleaning/models";
+import { needsVisit, formats } from "@empire-cleaning/models";
 import {
   Actions,
   Button,
@@ -26,13 +26,14 @@ import { useStartDraft } from "./StartDraft.tsx";
 import {
   conditionLabel,
   conditionText,
-  formatDate,
   formatHours,
-  formatMoney,
   roomsText,
+  formatFloorArea,
 } from "../format.ts";
 import { AskedRows } from "../QuoteParts.tsx";
 import { working } from "./WorkedOutQuote.tsx";
+
+const { formatDate, formatMoney } = formats.en;
 
 // The parts of a Quote's page about what was asked and getting to its first
 // Revision: the ask itself, its Site Visit, the Suggested Price, drafting,
@@ -91,7 +92,7 @@ export function AskedFacts({ quote }: { quote: OfficeQuote }) {
       {asked.area !== null && (
         <>
           <dt className="font-semibold">Area</dt>
-          <dd>About {asked.area.toLocaleString("en-US")} sq ft</dd>
+          <dd>About {formatFloorArea(asked.area)}</dd>
         </>
       )}
       <dt className="font-semibold">Condition</dt>

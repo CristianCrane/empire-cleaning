@@ -17,12 +17,12 @@ import {
   SAME_TIME,
   timeOf,
   whyNoRoom,
+  formats,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock } from "../../services/clock/index.ts";
 import { email, notify } from "../../services/email/index.ts";
-import { formatMoney } from "../../services/email/format.ts";
 import { assignments, onCrew } from "../assignments/assignments.schema.ts";
 import {
   emailCleanersNeeded,
@@ -63,6 +63,8 @@ import {
   rescheduleConfirmedEmail,
   rescheduleTurnedDownEmail,
 } from "./emails.ts";
+
+const { formatMoney } = formats.en;
 
 // a Job can be moved to a day from tomorrow up to this many days ahead
 const RESCHEDULE_DAYS_AHEAD = 56;

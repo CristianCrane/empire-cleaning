@@ -1,6 +1,6 @@
 import { and, desc, eq, isNull } from "drizzle-orm";
 import type { QuoteOption, QuoteStatus } from "@empire-cleaning/models";
-import { dayOf } from "@empire-cleaning/models";
+import { dayOf, formats } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import {
   ConflictError,
@@ -8,7 +8,7 @@ import {
   NotFoundError,
 } from "../../middleware/errors.ts";
 import { clock } from "../../services/clock/index.ts";
-import { email, formatWhen } from "../../services/email/index.ts";
+import { email } from "../../services/email/index.ts";
 import {
   paymentGateway,
   type DepositAttempt,
@@ -72,6 +72,8 @@ import {
   type Quote,
 } from "./quotes.schema.ts";
 import { log, monitoring } from "../../services/monitoring/index.ts";
+
+const { formatWhen, formatList } = formats.en;
 
 // who is accepting: the Client, from the portal, or Office Staff recording
 // the Client's acceptance on their behalf (they never enter card details: the
@@ -187,7 +189,10 @@ const offerFor = async (
     if (!row) {
       throw fieldError(
         ["serviceKey"],
-        `Pick ${rows.map((r) => `a ${r.suggested.serviceName}`).join(" or ")}`,
+        `Pick ${formatList(
+          rows.map((r) => `a ${r.suggested.serviceName}`),
+          "or",
+        )}`,
       );
     }
     const option = toOption(revision, row);

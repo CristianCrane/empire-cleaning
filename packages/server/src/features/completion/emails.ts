@@ -8,11 +8,7 @@ import {
   type Clean,
   type Email,
 } from "../../services/email/blocks.ts";
-import {
-  firstNameOf,
-  formatMoney,
-  formatWhen,
-} from "../../services/email/format.ts";
+import { firstNameOf } from "../../services/email/format.ts";
 import {
   clientFix,
   notTaken,
@@ -23,9 +19,12 @@ import {
   PLAN_PAUSED,
   UPDATE_AND_RETRY,
   UPDATE_CARD,
+  formats,
 } from "@empire-cleaning/models";
 import { whyNotPaid } from "../payments/unpaid.ts";
 import type { Settled } from "./balance.ts";
+
+const { formatMoney, formatWhen } = formats.en;
 
 const portalButton = (jobId: string, label = "See your clean") =>
   button(label, `/portal/jobs/${jobId}`);

@@ -7,9 +7,12 @@ import {
   type ClientPastJob,
   type ClientPayment,
   type PaymentMethodView,
+  formats,
 } from "@empire-cleaning/models";
 import { linkTo, type AppHref } from "../../links.ts";
-import { dayOfInstant, formatMoney, formatShortDay } from "../format.ts";
+import { dayOfInstant } from "../format.ts";
+
+const { formatMoney, formatShortDay } = formats.en;
 
 // The Client's Payments page: one card saying what they owe now, or that
 // it's nothing, and every payment between us after it. (UX pass, #96)

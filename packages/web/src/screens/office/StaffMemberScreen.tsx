@@ -14,7 +14,7 @@ import type {
   StaffHolding,
   StaffRole,
 } from "@empire-cleaning/models";
-import { hasSiteVisit, weekdayOf } from "@empire-cleaning/models";
+import { hasSiteVisit, weekdayOf, formats } from "@empire-cleaning/models";
 import {
   Actions,
   Avatar,
@@ -35,16 +35,11 @@ import {
 import { deleteJson, patchJson, postJson, putJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
-import {
-  dayOfInstant,
-  formatDateTime,
-  formatDay,
-  formatHours,
-  roleLabel,
-  today,
-} from "../format.ts";
+import { dayOfInstant, formatHours, roleLabel, today } from "../format.ts";
 import { Fact } from "../Fact.tsx";
 import { MemberStatus } from "./StaffScreen.tsx";
+
+const { formatDateTime, formatDay, formatMonth, formatList } = formats.en;
 
 const weekdays = [
   "Monday",
@@ -114,7 +109,7 @@ export function StaffMemberScreen() {
               <Fact
                 icon={UserRound}
                 label="Roles"
-                value={member.roles.map((r) => roleLabel[r]).join(" and ")}
+                value={formatList(member.roles.map((r) => roleLabel[r]))}
               />
               <Fact
                 icon={UserCheck}
@@ -378,12 +373,6 @@ function Deactivate({ member }: { member: StaffDetail }) {
 // "2026-11" for a day
 const monthOf = (day: string) => day.slice(0, 7);
 
-const monthName = new Intl.DateTimeFormat("en-US", {
-  month: "long",
-  year: "numeric",
-  timeZone: "UTC",
-});
-
 // the month after (or before) one, as "2026-12"
 const stepMonth = (month: string, by: number) => {
   const [y, m] = month.split("-").map(Number) as [number, number];
@@ -427,7 +416,7 @@ function Availability({ member }: { member: StaffDetail }) {
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between gap-3">
             <p className="font-semibold text-fg">
-              {monthName.format(new Date(`${month}-01T00:00:00Z`))}
+              {formatMonth(`${month}-01`)}
             </p>
             <div className="flex gap-1">
               <Button

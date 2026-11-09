@@ -3,10 +3,10 @@ import {
   feeName,
   type ChargeView,
   type JobPayment,
+  formats,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { clock } from "../../services/clock/index.ts";
-import { formatWhen } from "../../services/email/index.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
 import { billedOf, isBilledWeekly } from "../bills/billed-weekly.ts";
 import { billLines, bills } from "../bills/bills.schema.ts";
@@ -30,6 +30,8 @@ import { holdOrResume, planOnHold } from "../service-plans/on-hold.ts";
 import { adjustments, type Adjustment } from "./completion.schema.ts";
 import { quotedJob } from "./pricing.ts";
 import { serviceNameOf } from "../services/services.ts";
+
+const { formatWhen } = formats.en;
 
 // the Adjustments that change what the Client pays
 export const counts = (adjustment: Pick<Adjustment, "status">) =>

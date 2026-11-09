@@ -15,8 +15,9 @@ import {
   type ScheduleDay,
   type ScheduledJob,
   type ScheduledSiteVisit,
+  formats,
 } from "@empire-cleaning/models";
-import { daysIn, formatClock } from "@empire-cleaning/models";
+import { daysIn } from "@empire-cleaning/models";
 import {
   Actions,
   Button,
@@ -39,10 +40,8 @@ import { JobBadge } from "../JobBadges.tsx";
 import {
   crewOf,
   dayOfInstant,
-  formatDay,
   formatHours,
   formatMinutes,
-  formatTime,
   jobLabelOf,
   shortClientName,
   timeOfDay,
@@ -59,6 +58,8 @@ import {
   spanOf,
   timeAt,
 } from "../schedule-layout.ts";
+
+const { formatClock, formatDay, formatTime } = formats.en;
 
 // a short Job is still tall enough to read its time and Client
 const MIN_BLOCK_PX = 22;

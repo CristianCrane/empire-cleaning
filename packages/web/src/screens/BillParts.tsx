@@ -1,3 +1,4 @@
+import { formats } from "@empire-cleaning/models";
 import {
   Ban,
   CalendarClock,
@@ -19,8 +20,9 @@ import {
   Logo,
 } from "@empire-cleaning/ui";
 import type { AppHref } from "../links.ts";
-import { formatDate, formatDay, formatMoney } from "./format.ts";
 import { Fact } from "./Fact.tsx";
+
+const { formatDate, formatDay, formatMoney } = formats.en;
 
 // Weekly Bills (ADR-0016), as the Office and the Client both see them
 

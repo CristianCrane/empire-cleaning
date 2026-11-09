@@ -24,11 +24,12 @@ import {
   DAY_MS,
   type JobCompletion,
   NOT_ALL_CONFIRMED,
+  formats,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock } from "../../services/clock/index.ts";
-import { email, formatMoney, notify } from "../../services/email/index.ts";
+import { email, notify } from "../../services/email/index.ts";
 import { assignmentStatusOf, mustBeConfirmed } from "../assignments/crew.ts";
 import { weeklyBillOfJob } from "../bills/billed-weekly.ts";
 import {
@@ -82,6 +83,8 @@ import {
 } from "./emails.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
 import { hoursOnSiteOf } from "../jobs/jobs.ts";
+
+const { formatMoney } = formats.en;
 
 // a proposed increase the Client hasn't answered lapses after this long, with
 // one reminder this long before it does (ADR-0009)

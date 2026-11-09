@@ -3,8 +3,8 @@ import { useLoaderData, useNavigate, useSearch } from "@tanstack/react-router";
 import { CircleCheck, CreditCard, Receipt, TriangleAlert } from "lucide-react";
 import {
   BANK_CLEARING,
-  BUSINESS_TIME_ZONE,
   type ClientPayment,
+  formats,
 } from "@empire-cleaning/models";
 import {
   Button,
@@ -21,8 +21,10 @@ import {
   StatusBadge,
 } from "@empire-cleaning/ui";
 import { linkTo } from "../../links.ts";
-import { dayOfInstant, formatMoney, formatShortDay } from "../format.ts";
+import { dayOfInstant } from "../format.ts";
 import { moneyNow, paymentRow, signedMoney } from "./payments.ts";
+
+const { formatMoney, formatShortDay, formatMonth } = formats.en;
 
 // The Client's Payments: what they owe now, or that it's nothing, in one
 // card with its one Button; then their latest payments, one line each, and
@@ -35,12 +37,6 @@ export type PaymentsSearch = { all?: true };
 const LATEST = 5;
 // and at a time after it
 const PAGE = 20;
-
-const monthFormat = new Intl.DateTimeFormat("en-US", {
-  month: "long",
-  year: "numeric",
-  timeZone: BUSINESS_TIME_ZONE,
-});
 
 export function PortalPayments() {
   const data = useLoaderData({ from: "/portal/payments" });
@@ -130,7 +126,7 @@ function Statement({ history }: { history: ClientPayment[] }) {
   const [shown, setShown] = useState(PAGE);
   const months: { month: string; payments: ClientPayment[] }[] = [];
   for (const p of history.slice(0, shown)) {
-    const month = monthFormat.format(new Date(p.at));
+    const month = formatMonth(dayOfInstant(p.at));
     if (months.at(-1)?.month !== month) months.push({ month, payments: [] });
     months.at(-1)!.payments.push(p);
   }

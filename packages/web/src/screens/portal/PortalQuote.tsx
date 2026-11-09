@@ -39,11 +39,8 @@ import {
   addressOf,
   cleaners,
   conditionLabel,
-  formatDate,
-  formatDateTime,
   formatHours,
   formatMinutes,
-  formatMoney,
   planRhythm,
   quoteKindName,
 } from "../format.ts";
@@ -62,8 +59,11 @@ import {
   ON_WEEKS_BILL,
   turnedDown,
   WORKING_ON_IT,
+  formats,
 } from "@empire-cleaning/models";
 import { requestQuote } from "./whats-next.ts";
+
+const { formatDate, formatDateTime, formatMoney } = formats.en;
 
 // A Quote as its Client sees it, from the link in every Quote email (ADR-0017):
 // only its offer, the latest Sent Revision, which they accept right here; or,

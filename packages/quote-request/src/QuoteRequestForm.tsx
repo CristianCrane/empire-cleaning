@@ -38,9 +38,9 @@ import {
   PICK_TIMES,
   REQUEST_A_QUOTE,
   business,
-  formatClock,
   openAlready,
   quoteEmailedTo,
+  formats,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -70,6 +70,8 @@ import { Optional } from "./Optional.tsx";
 import { loadPremisesTypes } from "./premises-types.ts";
 import { isHeld, loadServices, offeredAt } from "./services.ts";
 import { submitQuoteRequest, type SubmitResult } from "./submit.ts";
+
+const { formatClock } = formats.en;
 
 // who is asking, which decides what the form needs from them (ADR-0006)
 export type Asker =

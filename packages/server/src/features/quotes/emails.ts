@@ -8,12 +8,7 @@ import {
   type Clean,
   type Email,
 } from "../../services/email/blocks.ts";
-import {
-  firstNameOf,
-  formatMoney,
-  formatWhen,
-  weekdayName,
-} from "../../services/email/format.ts";
+import { firstNameOf } from "../../services/email/format.ts";
 import {
   ASK_AGAIN,
   billPaid,
@@ -24,9 +19,13 @@ import {
   turnedDown,
   type PropertyKind,
   type TurnDownReason,
+  formats,
+  dayOf,
 } from "@empire-cleaning/models";
 import { accessButton } from "../jobs/emails.ts";
 import { describePlan, recurrenceLabel } from "./plan-days.ts";
+
+const { formatMoney, formatWhen, weekdayName } = formats.en;
 
 // Every Quote email links to the Quote's page, with no sign-in power
 // (ADR-0006): the same page shows the offer once it's Sent
@@ -252,7 +251,7 @@ const planOffer = (
     ),
     details(
       offer.options.map((option, i) => ({
-        label: weekdayName(new Date(plan.days[i]!.startsAt!)),
+        label: weekdayName(dayOf(new Date(plan.days[i]!.startsAt!))),
         value: formatMoney(option.totalCents),
       })),
     ),
@@ -335,7 +334,7 @@ const planPrices = ({ cleans }: PlanCleans, paid: PaidWith, now = "") => {
       : cleans
           .map(
             (c) =>
-              `${formatMoney(c.totalCents)} on ${weekdayName(c.startsAt)}s`,
+              `${formatMoney(c.totalCents)} on ${weekdayName(dayOf(c.startsAt))}s`,
           )
           .join(", ");
   if (paid.weeklyBill) {

@@ -1,3 +1,4 @@
+import { formats } from "@empire-cleaning/models";
 import { useState, type ReactNode } from "react";
 import { Link, useLoaderData } from "@tanstack/react-router";
 import {
@@ -37,13 +38,10 @@ import {
 } from "@empire-cleaning/ui";
 import { putJson } from "../../api.ts";
 import { useAction } from "../action.ts";
-import {
-  cleaners,
-  conditionLabel,
-  formatDate,
-  formatHours,
-} from "../format.ts";
+import { cleaners, conditionLabel, formatHours } from "../format.ts";
 import { Fact } from "../Fact.tsx";
+
+const { formatDate } = formats.en;
 
 // what's saved: every save is the whole list, as a new version
 type Draft = Omit<

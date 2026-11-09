@@ -7,6 +7,7 @@ import {
   UPDATE_AND_RETRY,
   UPDATE_CARD,
   type BillView,
+  formats,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -28,8 +29,9 @@ import {
   PrintBill,
   billWeek,
 } from "../BillParts.tsx";
-import { formatDay, formatMoney } from "../format.ts";
 import { useBillPaymentForm } from "./CardForm.tsx";
+
+const { formatDay, formatMoney } = formats.en;
 
 // one of the Client's weekly Bills (ADR-0016), where its emails lead: the
 // whole Bill, which prints cleanly, and paying it here by card or bank debit

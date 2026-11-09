@@ -1,5 +1,6 @@
 import type { RequestHandler } from "express";
 import { z } from "zod";
+import { formats } from "@empire-cleaning/models";
 import {
   PathParameterError,
   QueryParameterError,
@@ -64,7 +65,7 @@ export const validate =
 
 // what a too-long text field says: "Keep the reason under 500 characters"
 export const keepUnder = (max: number, what = "it") =>
-  `Keep ${what} under ${max.toLocaleString("en-US")} characters`;
+  `Keep ${what} under ${formats.en.formatNumber(max)} characters`;
 
 // a day and a start time a person picks, New York
 export const day = z.iso.date("Pick a day");

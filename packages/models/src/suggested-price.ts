@@ -6,6 +6,7 @@ import type {
   RoomHours,
   Service,
 } from "./index.ts";
+import { formats } from "./format.ts";
 
 // The Suggested Price (#4, #72, ADR-0018), as the glossary defines it, for
 // one Service:
@@ -47,7 +48,8 @@ export type Priced = (
     }
 ) & { area: number | null };
 
-const sqFt = new Intl.NumberFormat("en-US");
+// the Suggested Price's working is the Office's, in English
+const { formatNumber } = formats.en;
 
 const homeParts = (hours: RoomHours, home: HomeRooms | null) => {
   if (home === null) return [{ label: "Rooms not recorded yet", units: 0 }];
@@ -99,7 +101,7 @@ const areaParts = (list: PriceList, service: Service, property: Priced) => {
       },
     ];
   }
-  const area = `${sqFt.format(property.area)} sq ft ÷ 1,000 × ${perThousand} h`;
+  const area = `${formatNumber(property.area)} sq ft ÷ 1,000 × ${perThousand} h`;
   return [
     {
       // an office is the measure, so its multiplier of 1 goes unsaid

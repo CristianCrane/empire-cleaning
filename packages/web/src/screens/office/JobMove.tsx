@@ -10,7 +10,7 @@ import type {
   LocalDateTime,
   ScheduledJob,
 } from "@empire-cleaning/models";
-import { formatClock, SAME_TIME, whyNoRoom } from "@empire-cleaning/models";
+import { SAME_TIME, whyNoRoom, formats } from "@empire-cleaning/models";
 import {
   Actions,
   Button,
@@ -22,16 +22,11 @@ import {
 } from "@empire-cleaning/ui";
 import { getJson, postJson } from "../../api.ts";
 import { useLoaded } from "../load.ts";
-import {
-  clientName,
-  dayOfInstant,
-  formatDateTime,
-  formatDay,
-  timeOfDay,
-  timeOfField,
-} from "../format.ts";
+import { clientName, dayOfInstant, timeOfDay, timeOfField } from "../format.ts";
 import { useAction } from "../action.ts";
 import { PickFromSchedule } from "./SchedulePicker.tsx";
+
+const { formatClock, formatDateTime, formatDay } = formats.en;
 
 // whether a time a Job would move to has room for it: the hours on its day,
 // counting held hours (its own day always has them), and a crew free then.

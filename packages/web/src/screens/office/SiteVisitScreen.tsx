@@ -1,3 +1,4 @@
+import { formats } from "@empire-cleaning/models";
 import { useLoaderData } from "@tanstack/react-router";
 import {
   Building2,
@@ -28,11 +29,8 @@ import {
   addressOf,
   clientName,
   dayOfInstant,
-  formatDateTime,
   formatMinutes,
-  formatDay,
   propertySummary,
-  formatTime,
 } from "../format.ts";
 import { AccessFact, ConditionFact, Fact } from "../Fact.tsx";
 import { QuoteIcon } from "../icons.ts";
@@ -43,6 +41,8 @@ import {
   RecordFindings,
   SiteVisitBadge,
 } from "./SiteVisitParts.tsx";
+
+const { formatDateTime, formatDay, formatTime } = formats.en;
 
 // One Site Visit for the Office (ADR-0015), on a page of its own: a home's
 // page shows its current one as a row opening it
@@ -126,7 +126,7 @@ function VisitDetails({
         <div className="flex flex-col gap-6">
           <div className="flex items-start gap-4">
             {visit.startsAt ? (
-              <DateTile date={visit.startsAt} />
+              <DateTile lang="en" date={visit.startsAt} />
             ) : (
               <IconTile icon={ClipboardCheck} size="lg" />
             )}

@@ -6,11 +6,11 @@ import type {
   RescheduleTimes,
 } from "@empire-cleaning/models";
 import {
-  formatClock,
   moveCostForClient,
   moveCostForOffice,
   SAME_TIME,
   type MoveCost,
+  formats,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -25,7 +25,9 @@ import { getJson, postJson } from "../api.ts";
 import { useLoaded } from "./load.ts";
 import { useAction } from "./action.ts";
 import type { TimePickerProps } from "./CalendarGrid.tsx";
-import { dayOfInstant, formatDay, formatMoney, timeOfDay } from "./format.ts";
+import { dayOfInstant, timeOfDay } from "./format.ts";
+
+const { formatClock, formatDay, formatMoney } = formats.en;
 
 // what a Job's costs are told from, the Client's or the Office's view of it
 export type CostedJob = Pick<OfficeJob, "servicePlanId" | "weeklyBill">;

@@ -1,5 +1,8 @@
+import { formats } from "@empire-cleaning/models";
 import { expect, test } from "vitest";
-import { formatDate, planDayWhen } from "./format.ts";
+import { planDayWhen } from "./format.ts";
+
+const { formatDate } = formats.en;
 
 // 10:30pm on Tuesday 3 November 2026 in New York, already the 4th in UTC,
 // where these tests' browser is (vitest.config.ts)

@@ -1,3 +1,4 @@
+import { formats } from "@empire-cleaning/models";
 import { useState, type ReactNode } from "react";
 import { CreditCard, Undo2 } from "lucide-react";
 import type {
@@ -30,13 +31,9 @@ import {
 } from "@empire-cleaning/ui";
 import { deleteJson, patchJson, postJson } from "../../api.ts";
 import { useAction } from "../action.ts";
-import {
-  conditionLabel,
-  dollars,
-  formatDate,
-  formatHours,
-  formatMoney,
-} from "../format.ts";
+import { conditionLabel, dollars, formatHours } from "../format.ts";
+
+const { formatDate, formatMoney } = formats.en;
 
 const statusBadge: Record<AdjustmentStatus, ReactNode> = {
   applied: <StatusBadge tone="success">Added</StatusBadge>,

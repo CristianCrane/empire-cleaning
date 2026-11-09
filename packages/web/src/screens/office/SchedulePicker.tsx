@@ -1,3 +1,4 @@
+import { formats } from "@empire-cleaning/models";
 import { useState } from "react";
 import { CalendarDays } from "lucide-react";
 import type { DayTimes, ScheduleDay } from "@empire-cleaning/models";
@@ -11,9 +12,11 @@ import {
 import { getJson } from "../../api.ts";
 import { useLoaded } from "../load.ts";
 import { RangeBar, type TimePickerProps } from "../CalendarGrid.tsx";
-import { today, weekdayName } from "../format.ts";
+import { today } from "../format.ts";
 import { isWide, rangeShowing } from "../schedule-range.ts";
 import { ScheduleCalendar } from "./ScheduleCalendar.tsx";
+
+const { weekdayName } = formats.en;
 
 // whose crew the picker marks the times without (#62): a clean's, by its
 // figures, and a booked Job or Site Visit being moved, so it isn't counted

@@ -1,3 +1,4 @@
+import { formats } from "@empire-cleaning/models";
 import type { Key } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import {
@@ -34,8 +35,6 @@ import { useAction } from "../action.ts";
 import {
   addressOf,
   dayOfInstant,
-  formatDateTime,
-  formatShortDay,
   propertySummary,
   recurrenceLabel,
 } from "../format.ts";
@@ -44,6 +43,8 @@ import { planWhen, quoteTitle, standingOf } from "./properties.ts";
 import { PlanStatusBadge } from "../PlanParts.tsx";
 import { ClientQuoteStatusBadge } from "../QuoteParts.tsx";
 import { requestQuote } from "./whats-next.ts";
+
+const { formatDateTime, formatShortDay } = formats.en;
 
 const shortDayOf = (iso: string) => formatShortDay(dayOfInstant(iso));
 

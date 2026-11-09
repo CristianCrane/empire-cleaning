@@ -6,7 +6,7 @@ import type {
   ClientSiteVisit,
   ClientUpcomingJob,
 } from "@empire-cleaning/models";
-import { BUSINESS_TIME_ZONE } from "@empire-cleaning/models";
+import { formats } from "@empire-cleaning/models";
 import {
   Button,
   DateTile,
@@ -25,10 +25,11 @@ import {
   cancelledLabel,
   formatHours,
   formatMinutes,
-  formatMoney,
-  formatTime,
+  dayOfInstant,
 } from "../format.ts";
 import { JobStatusBadge } from "../JobBadges.tsx";
+
+const { formatMoney, formatTime, formatMonth } = formats.en;
 
 // The Client's cleans: Upcoming (with their Site Visits) and Past, each by
 // month, a date tile leading each row. Only what isn't plain gets a badge:
@@ -40,12 +41,6 @@ export type CleansSearch = { tab?: CleansTab };
 
 // past cleans shown at a time
 const PAGE = 10;
-
-const monthFormat = new Intl.DateTimeFormat("en-US", {
-  month: "long",
-  year: "numeric",
-  timeZone: BUSINESS_TIME_ZONE,
-});
 
 // a row's worth: its date, what it is, a line under it, and where it opens
 type Row = {
@@ -123,7 +118,7 @@ const pastRow =
 const byMonth = (rows: Row[]) => {
   const months: { month: string; rows: Row[] }[] = [];
   for (const row of rows) {
-    const month = monthFormat.format(new Date(row.startsAt));
+    const month = formatMonth(dayOfInstant(row.startsAt));
     if (months.at(-1)?.month !== month) months.push({ month, rows: [] });
     months.at(-1)!.rows.push(row);
   }
@@ -160,7 +155,7 @@ export function PortalCleans() {
             <ListItem
               key={row.id}
               id={row.id}
-              start={<DateTile date={row.startsAt} size="sm" />}
+              start={<DateTile lang="en" date={row.startsAt} size="sm" />}
               title={row.title}
               description={row.line}
               end={row.badge}

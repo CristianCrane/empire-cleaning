@@ -13,6 +13,7 @@ import {
   CANCELLATION_CUTOFF_HOURS,
   type EndPlanTerms,
   type ServicePlanView,
+  formats,
 } from "@empire-cleaning/models";
 import {
   ActionRow,
@@ -31,15 +32,14 @@ import { postJson } from "../api.ts";
 import type { AppHref } from "../links.ts";
 import { useAction } from "./action.ts";
 import {
-  formatDate,
-  formatDateTime,
   formatHours,
-  formatMoney,
   planDayWhen,
   planStatus,
   recurrenceLabel,
 } from "./format.ts";
 import { Fact } from "./Fact.tsx";
+
+const { formatDate, formatDateTime, formatMoney } = formats.en;
 
 // a Service Plan's status
 export function PlanStatusBadge({

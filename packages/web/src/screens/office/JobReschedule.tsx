@@ -1,3 +1,4 @@
+import { formats } from "@empire-cleaning/models";
 import { useState } from "react";
 import { CalendarCheck, CalendarClock, CalendarSync } from "lucide-react";
 import type { OfficeJob } from "@empire-cleaning/models";
@@ -11,12 +12,13 @@ import {
   TextField,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
-import { formatDateTime } from "../format.ts";
 import { ChooseNewTime, costForOffice } from "../RescheduleParts.tsx";
 import { PickFromSchedule } from "./SchedulePicker.tsx";
 import type { TimePickerProps } from "../CalendarGrid.tsx";
 import { useAction } from "../action.ts";
 import { MoveJob } from "./JobMove.tsx";
+
+const { formatDateTime } = formats.en;
 
 // the Schedule in the dialog itself, never a dialog on a dialog (#96)
 const PickInSchedule = (props: TimePickerProps) => (

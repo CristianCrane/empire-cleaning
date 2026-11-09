@@ -1,12 +1,10 @@
+import { formats } from "@empire-cleaning/models";
 import { FileText } from "lucide-react";
 import type { PriceBreakdown } from "@empire-cleaning/models";
 import { IconTile } from "@empire-cleaning/ui";
-import {
-  cleaners,
-  formatHours,
-  formatMinutes,
-  formatMoney,
-} from "../format.ts";
+import { cleaners, formatHours, formatMinutes } from "../format.ts";
+
+const { formatMoney } = formats.en;
 
 // About 1 h 38 min, shared by the Crew
 const onSite = (labourHours: number, crew: number) =>

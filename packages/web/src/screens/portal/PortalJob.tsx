@@ -39,10 +39,7 @@ import { ChooseNewTime, costForClient } from "../RescheduleParts.tsx";
 import {
   addressOf,
   cancelledLabel,
-  formatDate,
-  formatDateTime,
   formatHours,
-  formatMoney,
   wasSkipped,
 } from "../format.ts";
 import { Fact } from "../Fact.tsx";
@@ -59,8 +56,11 @@ import {
   PRICES_INCLUDE_TAX,
   refundedTo,
   UPDATE_CARD,
+  formats,
 } from "@empire-cleaning/models";
 import { JobStatusBadge } from "../JobBadges.tsx";
+
+const { formatDate, formatDateTime, formatMoney } = formats.en;
 
 // one of the Client's Jobs, from the links in their emails: while it's to come,
 // moving or cancelling it; once Completed, its receipt; any extra work proposed to them

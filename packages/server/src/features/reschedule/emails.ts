@@ -2,6 +2,7 @@ import {
   moveCostForClient,
   moveCostForOffice,
   type MoveCost,
+  formats,
 } from "@empire-cleaning/models";
 import {
   button,
@@ -11,8 +12,10 @@ import {
   type Clean,
   type Email,
 } from "../../services/email/blocks.ts";
-import { firstNameOf, formatWhen } from "../../services/email/format.ts";
+import { firstNameOf } from "../../services/email/format.ts";
 import { jobsButton } from "../assignments/emails.ts";
+
+const { formatWhen } = formats.en;
 
 const portalButton = (jobId: string) =>
   button("See your clean", `/portal/jobs/${jobId}`);

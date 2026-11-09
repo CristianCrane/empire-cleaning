@@ -1,3 +1,4 @@
+import { formats } from "@empire-cleaning/models";
 import { describe, expect, test } from "vitest";
 import { eq } from "drizzle-orm";
 import type {
@@ -20,7 +21,6 @@ import { db } from "#db";
 import { confirmAssignment, offerAssignment } from "#features/assignments";
 import { chaseProposedAdjustments, completeJob } from "#features/completion";
 import { settleOpenPayments } from "#features/payments";
-import { formatMoney } from "#services/email";
 import { properties } from "#features/properties";
 import { createStaff, setUsualWeek } from "#features/staff";
 import {
@@ -42,6 +42,8 @@ import {
   submit,
 } from "../../../tests/fixtures.ts";
 import { SEEDED } from "#features/services";
+
+const { formatMoney } = formats.en;
 
 // the test clock starts at 4am on Monday 5 January 2026 in New York. Jobs
 // here are at 9am on Monday the 12th (14:00 UTC), with "Inside the oven" on

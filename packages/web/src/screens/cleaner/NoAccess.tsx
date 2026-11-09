@@ -1,3 +1,4 @@
+import { formats } from "@empire-cleaning/models";
 import { useState } from "react";
 import { DoorClosed } from "lucide-react";
 import type { CleanerJob } from "@empire-cleaning/models";
@@ -14,7 +15,8 @@ import {
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
 import { useAction } from "../action.ts";
-import { formatTime } from "../format.ts";
+
+const { formatTime } = formats.en;
 
 // The Cleaner couldn't get into the home. Recording it ends the Job without
 // it being Completed, and the Client and the Office are told; the Office

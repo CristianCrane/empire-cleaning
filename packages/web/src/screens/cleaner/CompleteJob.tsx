@@ -6,6 +6,7 @@ import {
   type CleanerJob,
   type CompletionReport,
   type Condition,
+  formats,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -25,7 +26,9 @@ import {
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
 import { useAction } from "../action.ts";
-import { conditionLabel, formatTime } from "../format.ts";
+import { conditionLabel } from "../format.ts";
+
+const { formatTime } = formats.en;
 
 // the reason given for each Add-on ticked, by its key
 type Ticked = Record<string, string>;

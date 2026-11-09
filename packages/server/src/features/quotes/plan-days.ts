@@ -1,5 +1,6 @@
-import type { Recurrence } from "@empire-cleaning/models";
-import { formatTime, weekdayName } from "../../services/email/format.ts";
+import { dayOf, formats, type Recurrence } from "@empire-cleaning/models";
+
+const { formatList, formatTime, weekdayName } = formats.en;
 
 // a percentage of an amount, to the cent, halves up: a Plan Discount, or a
 // Deposit
@@ -25,11 +26,7 @@ export const describePlan = (
   where = "",
 ) => {
   const each = days.map(
-    (d) => `${weekdayName(d.startsAt)}s at ${formatTime(d.startsAt)}`,
+    (d) => `${weekdayName(dayOf(d.startsAt))}s at ${formatTime(d.startsAt)}`,
   );
-  const on =
-    each.length === 1
-      ? each[0]
-      : `${each.slice(0, -1).join(", ")} and ${each.at(-1)}`;
-  return `a ${days[0]!.serviceName}${where} ${recurrenceLabel[recurrence]}, on ${on}`;
+  return `a ${days[0]!.serviceName}${where} ${recurrenceLabel[recurrence]}, on ${formatList(each)}`;
 };

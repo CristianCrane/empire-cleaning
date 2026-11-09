@@ -2,6 +2,7 @@ import {
   CANCELLATION_CUTOFF_HOURS,
   refundedTo,
   type EndPlanTerms,
+  formats,
 } from "@empire-cleaning/models";
 import {
   button,
@@ -11,14 +12,12 @@ import {
   type Clean,
   type Email,
 } from "../../services/email/blocks.ts";
-import {
-  firstNameOf,
-  formatMoney,
-  formatWhen,
-} from "../../services/email/format.ts";
+import { firstNameOf } from "../../services/email/format.ts";
 import type { Settled } from "../completion/balance.ts";
 import { CAN_GET_IN } from "../jobs/emails.ts";
 import { BOOK_ANOTHER } from "../quotes/emails.ts";
+
+const { formatMoney, formatWhen } = formats.en;
 
 const whenList = (times: string[]) =>
   times.map((t) => formatWhen(new Date(t))).join("; ");

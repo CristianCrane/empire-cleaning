@@ -12,6 +12,7 @@ import {
   dayOf,
   NO_CREW,
   startOfDay,
+  formats,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import {
@@ -21,12 +22,7 @@ import {
   RequestBodyError,
 } from "../../middleware/errors.ts";
 import { clock } from "../../services/clock/index.ts";
-import {
-  email,
-  firstNameOf,
-  formatTime,
-  notify,
-} from "../../services/email/index.ts";
+import { email, firstNameOf, notify } from "../../services/email/index.ts";
 import type { Email } from "../../services/email/blocks.ts";
 import {
   siteVisitBookedEmail,
@@ -53,6 +49,8 @@ import {
   premisesFindingsSchema,
 } from "./site-visits.validation.ts";
 import { toSiteVisitView } from "./views.ts";
+
+const { formatTime } = formats.en;
 
 // a Property with its Client
 const propertyOf = async (propertyId: string) => {

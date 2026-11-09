@@ -20,7 +20,7 @@ import type {
   PremisesView,
   PropertyView,
 } from "@empire-cleaning/models";
-import { needsVisit } from "@empire-cleaning/models";
+import { needsVisit, formats } from "@empire-cleaning/models";
 import {
   ActionRow,
   Actions,
@@ -48,8 +48,6 @@ import { useAction } from "../action.ts";
 import {
   addressOf,
   clientName,
-  formatDate,
-  formatDateTime,
   formatMinutes,
   propertySummary,
   quoteHeadline,
@@ -74,6 +72,8 @@ import {
 import { PlanDetails } from "./ServicePlanScreen.tsx";
 import { OfferServicePlan, QUOTE_A_PLAN } from "./StartDraft.tsx";
 import { JobStatusBadge } from "../JobBadges.tsx";
+
+const { formatDate, formatDateTime } = formats.en;
 
 // A home for the Office (ADR-0011), read as a whole (UX pass, #96): what to
 // know first in Notices; then its details, its Service Plan and its Site

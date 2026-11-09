@@ -12,6 +12,7 @@ import {
   type OfficeServicePlan,
   type UnplacedVisit,
   weekdayOf,
+  formats,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -36,8 +37,6 @@ import {
   clientName,
   crewOf,
   dayOfInstant,
-  formatDateTime,
-  formatDay,
   timeOfDay,
   timeOfField,
 } from "../format.ts";
@@ -47,6 +46,8 @@ import { JobBadge } from "../JobBadges.tsx";
 import { homeCrumbs } from "./PropertyScreen.tsx";
 import { PickFromSchedule } from "./SchedulePicker.tsx";
 import { OfferServicePlan } from "./StartDraft.tsx";
+
+const { formatDateTime, formatDay } = formats.en;
 
 // an Ended Service Plan, on a page of its own: a current one is on its
 // home's page

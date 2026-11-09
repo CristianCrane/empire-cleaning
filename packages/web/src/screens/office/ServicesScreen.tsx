@@ -1,3 +1,4 @@
+import { formats } from "@empire-cleaning/models";
 import { useState } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import { Archive, ArchiveRestore, Plus } from "lucide-react";
@@ -37,9 +38,10 @@ import {
 import { postJson, putJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
-import { formatDate, formatMoney } from "../format.ts";
 import { ExampleQuote } from "./ExampleQuote.tsx";
 import { PRICES_CHANGE } from "./PriceListScreen.tsx";
+
+const { formatDate, formatMoney } = formats.en;
 
 const methodLabel: Record<PricingMethod, string> = {
   rooms: "From a home's rooms",

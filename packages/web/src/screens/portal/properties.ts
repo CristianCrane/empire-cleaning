@@ -1,3 +1,4 @@
+import { formats } from "@empire-cleaning/models";
 import type {
   ClientUpcomingJob,
   PropertyView,
@@ -7,13 +8,13 @@ import type {
 import type { StatusTone } from "@empire-cleaning/ui";
 import {
   dayOfInstant,
-  formatDateTime,
-  formatShortDay,
   clientQuoteStatus,
   planDayWhen,
   planStatus,
   quoteKindName,
 } from "../format.ts";
+
+const { formatDateTime, formatShortDay } = formats.en;
 
 // The Client's homes on Your details, and a page each: where each stands,
 // from their plans, Quotes and cleans. (UX pass, #96)

@@ -16,26 +16,29 @@ import type {
 } from "@empire-cleaning/models";
 import type { Time } from "@internationalized/date";
 import {
-  BUSINESS_TIME_ZONE,
+  addDays,
   clockTime,
   dayOf,
-  formatClock,
+  formats,
   timeOf,
 } from "@empire-cleaning/models";
 import type { StatusTone } from "@empire-cleaning/ui";
 
+// the screens' own words for things are English until each screen has its
+// reader's language (#303–#305)
+const {
+  formatClock,
+  formatList,
+  formatMoney,
+  formatNumber,
+  formatTime,
+  plural,
+  weekdayName,
+} = formats.en;
+
 export const addressOf = (
   p: Pick<PropertyView, "street" | "unit" | "postcode">,
 ) => [p.street, p.unit, p.postcode].filter(Boolean).join(", ");
-
-const date = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-  year: "numeric",
-  timeZone: BUSINESS_TIME_ZONE,
-});
-// an instant -> "Nov 3, 2026", the day it was in New York
-export const formatDate = (iso: string) => date.format(new Date(iso));
 
 export const conditionLabel: Record<Condition, string> = {
   light: "Light",
@@ -47,19 +50,20 @@ export const conditionLabel: Record<Condition, string> = {
 export const conditionText = (condition: Condition | null) =>
   condition ? conditionLabel[condition] : "Not known yet";
 
-const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
+// "2 bedrooms", "1 bathroom"
+const count = (n: number, one: string) =>
+  `${n} ${plural(n, { one, other: `${one}s` })}`;
 
 // so many cleaners, e.g. "1 cleaner", "2 more cleaners", "3 free cleaners"
 export const cleaners = (n: number, which?: "more" | "free") =>
-  plural(n, which ? `${which} cleaner` : "cleaner");
+  count(n, which ? `${which} cleaner` : "cleaner");
 
 // a Job's crew, or that it has none yet
 export const crewOf = (crew: { name: string }[]) =>
   crew.map((c) => c.name).join(", ") || "No cleaners yet";
 
-const sqFt = new Intl.NumberFormat("en-US");
 // 4500 -> "4,500 sq ft"
-export const formatFloorArea = (area: number) => `${sqFt.format(area)} sq ft`;
+export const formatFloorArea = (area: number) => `${formatNumber(area)} sq ft`;
 
 // what a Property is: "Apartment · 2 bedrooms · 1.5 bathrooms" ("Apartment ·
 // rooms not known yet" before they're given), or "Office · 4,500 sq ft" for
@@ -77,8 +81,8 @@ export const propertySummary = (p: PropertyView) =>
         ...(p.bedrooms === null
           ? ["rooms not known yet"]
           : [
-              p.bedrooms === 0 ? "Studio" : plural(p.bedrooms, "bedroom"),
-              plural(p.bathrooms!, "bathroom"),
+              p.bedrooms === 0 ? "Studio" : count(p.bedrooms, "bedroom"),
+              count(p.bathrooms!, "bathroom"),
             ]),
       ].join(" · ");
 
@@ -86,9 +90,9 @@ export const propertySummary = (p: PropertyView) =>
 // bathrooms, 1 storey, pets"
 export const roomsText = (r: HomeRooms) =>
   [
-    r.bedrooms === 0 ? "a studio" : plural(r.bedrooms, "bedroom"),
-    plural(r.bathrooms, "bathroom"),
-    plural(r.storeys, "storey"),
+    r.bedrooms === 0 ? "a studio" : count(r.bedrooms, "bedroom"),
+    count(r.bathrooms, "bathroom"),
+    count(r.storeys, "storey"),
     r.pets ? "pets" : "no pets",
   ].join(", ");
 
@@ -112,30 +116,9 @@ export const wantedCleaning = (request: {
     ? `${weekdaysText(request.weekdays)}${request.preferredTime ? ` at ${formatClock(request.preferredTime)}` : ""}`
     : "A one-off clean";
 
-const weekdayNames = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
-] as const;
-
-// [0, 2, 4] -> "Monday, Wednesday and Friday"
-const weekdaysText = (days: Weekday[]) => {
-  const names = days.map((d) => weekdayNames[d]);
-  return names.length > 1
-    ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`
-    : (names[0] ?? "");
-};
-
-const money = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-});
-// cents to "$391.04"
-export const formatMoney = (cents: number) => money.format(cents / 100);
+// [0, 2, 4] -> "Monday, Wednesday and Friday"; 2026-01-05 is a Monday
+const weekdaysText = (days: Weekday[]) =>
+  formatList(days.map((d) => weekdayName(addDays("2026-01-05", d))));
 
 // 3.75 -> "3.75 h", 4 -> "4 h"
 export const formatHours = (hours: number) => `${hours} h`;
@@ -148,47 +131,8 @@ export const roleLabel = {
 // Empire Cleaning's days and times are New York's, wherever the viewer is
 // (BUSINESS_TIME_ZONE); the API sends instants as ISO strings
 
-const dayFormat = new Intl.DateTimeFormat("en-US", {
-  weekday: "short",
-  month: "short",
-  day: "numeric",
-  timeZone: "UTC",
-});
-// "2026-01-05" -> "Mon, Jan 5"
-export const formatDay = (day: string) =>
-  dayFormat.format(new Date(`${day}T00:00:00Z`));
-
-const shortDayFormat = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-  timeZone: "UTC",
-});
-// "2026-01-05" -> "Jan 5", where the weekday would crowd it
-export const formatShortDay = (day: string) =>
-  shortDayFormat.format(new Date(`${day}T00:00:00Z`));
-
-const timeFormat = new Intl.DateTimeFormat("en-US", {
-  hour: "numeric",
-  minute: "2-digit",
-  timeZone: BUSINESS_TIME_ZONE,
-});
-// an instant -> "9:00 AM" in New York
-export const formatTime = (iso: string) => timeFormat.format(new Date(iso));
-
 // today in New York: "2026-01-05"
 export const today = () => dayOf(new Date());
-
-const dateTimeFormat = new Intl.DateTimeFormat("en-US", {
-  weekday: "short",
-  month: "short",
-  day: "numeric",
-  hour: "numeric",
-  minute: "2-digit",
-  timeZone: BUSINESS_TIME_ZONE,
-});
-// an instant -> "Mon, Jan 12, 9:00 AM" in New York
-export const formatDateTime = (iso: string) =>
-  dateTimeFormat.format(new Date(iso));
 
 // what kind of Quote it is, as a title says it
 export const quoteKindName = (kind: QuoteKind | null) =>
@@ -261,25 +205,12 @@ export const recurrenceLabel: Record<Recurrence, string> = {
   four_weekly: "Every 4 weeks",
 };
 
-const weekdayFormat = new Intl.DateTimeFormat("en-US", {
-  weekday: "long",
-  timeZone: "UTC",
-});
-// "2026-01-05" -> "Monday"
-export const weekdayName = (day: string) =>
-  weekdayFormat.format(new Date(`${day}T00:00:00Z`));
-
 // a Service Plan, or a Service Plan Quote, with its weekdays
 type PlanDays = { recurrence: Recurrence; days: PlanDaySummary[] };
 
 // "Monday", or a Draft's weekday that has no time yet
 const weekdayOfStart = (startsAt: string | null) =>
   startsAt ? weekdayName(dayOfInstant(startsAt)) : null;
-
-const listed = (items: string[]) =>
-  items.length > 1
-    ? `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`
-    : (items[0] ?? "");
 
 // a weekday's clean and when: "Mondays at 9:00 AM"
 export const planDayWhen = (startsAt: string) =>
@@ -288,11 +219,11 @@ export const planDayWhen = (startsAt: string) =>
 // what a Service Plan is, in a line: "Standard Clean, every 2 weeks", or
 // "Standard Clean and Deep Clean, every week on Mon, Wed and Fri"
 export const planName = ({ recurrence, days }: PlanDays) => {
-  const what = listed([...new Set(days.map((d) => d.serviceName))]);
+  const what = formatList([...new Set(days.map((d) => d.serviceName))]);
   const on = days.flatMap((d) => weekdayOfStart(d.startsAt)?.slice(0, 3) ?? []);
   return days.length === 1
     ? `${what}, ${recurrenceLabel[recurrence].toLowerCase()}`
-    : `${what}, every week${on.length > 0 ? ` on ${listed(on)}` : ""}`;
+    : `${what}, every week${on.length > 0 ? ` on ${formatList(on)}` : ""}`;
 };
 
 // how a Quote reads in a list: "Deep Clean $391.04", the Service it leads
@@ -315,7 +246,7 @@ export const quoteHeadline = (
 // "Every week, on Mondays at 9:00 AM", or "Every week, on Mondays at 9:00 AM
 // and Wednesdays at 1:00 PM"
 export const planRhythm = ({ recurrence, days }: PlanDays) =>
-  `${recurrenceLabel[recurrence]}, on ${listed(
+  `${recurrenceLabel[recurrence]}, on ${formatList(
     days.flatMap((d) => (d.startsAt ? [planDayWhen(d.startsAt)] : [])),
   )}`;
 

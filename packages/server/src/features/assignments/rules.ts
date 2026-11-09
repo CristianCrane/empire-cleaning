@@ -8,9 +8,11 @@ import {
   type ScheduleDay,
   type ScheduledJob,
   type StaffRole,
+  formats,
 } from "@empire-cleaning/models";
-import { formatWhen } from "../../services/email/index.ts";
 import { asClean, isFree, whyStarted } from "../jobs/rules.ts";
+
+const { formatWhen } = formats.en;
 
 // The rules for a Job's crew (ADR-0019), over what the actions load: the
 // Job's day of the Schedule, and its Assignments. Each says why something is

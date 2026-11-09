@@ -34,6 +34,7 @@ import {
   turnDownReason,
   UPDATE_CARD,
   WITHIN_A_DAY,
+  formats,
 } from "@empire-cleaning/models";
 import type { StatusTone } from "@empire-cleaning/ui";
 import { linkTo, type AppHref } from "../../links.ts";
@@ -42,16 +43,14 @@ import {
   addressOf,
   cleaners,
   dayOfInstant,
-  formatDateTime,
-  formatDay,
   formatHours,
   formatMinutes,
-  formatMoney,
-  formatTime,
   planName,
   quoteHeadline,
   recurrenceLabel,
 } from "../format.ts";
+
+const { formatDateTime, formatDay, formatMoney, formatTime } = formats.en;
 
 // The Client's Home answers one question: what's next. Its hero is the
 // soonest thing booked, or, with nothing booked, where they stand with us;

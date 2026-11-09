@@ -2041,6 +2041,10 @@ export const business = {
 // (ADR-0025)
 export * from "./language.ts";
 
+// dates, times, money, numbers, lists and plurals as a person reads them,
+// in either language
+export * from "./format.ts";
+
 // the Suggested Price, worked out the same on the server and on screen
 export * from "./suggested-price.ts";
 

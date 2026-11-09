@@ -8,6 +8,7 @@ import {
   type OfficeClientView,
   type PropertyStatus,
   type SettledJobView,
+  formats,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -33,16 +34,10 @@ import { linkTo } from "../../links.ts";
 import { QuoteIcon } from "../icons.ts";
 import { useAction } from "../action.ts";
 import { BillStatusBadge, billLine } from "../BillParts.tsx";
-import {
-  addressOf,
-  clientName,
-  formatDate,
-  formatDateTime,
-  formatDay,
-  formatMoney,
-  propertySummary,
-} from "../format.ts";
+import { addressOf, clientName, propertySummary } from "../format.ts";
 import { NEW_QUOTE } from "./NewQuoteScreen.tsx";
+
+const { formatDate, formatDateTime, formatDay, formatMoney } = formats.en;
 
 // a Client for the Office: their contact details, which Office Staff can
 // correct (or add an email to), and their homes, each with where it stands

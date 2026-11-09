@@ -1,7 +1,7 @@
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import { CalendarDays, Navigation, Phone } from "lucide-react";
 import type { CleanerJob, CleanerSiteVisit } from "@empire-cleaning/models";
-import { HOUR_MS } from "@empire-cleaning/models";
+import { HOUR_MS, formats } from "@empire-cleaning/models";
 import {
   Button,
   buttonStyles,
@@ -18,13 +18,12 @@ import {
   addressOf,
   clientName,
   dayOfInstant,
-  formatDateTime,
-  formatDay,
   formatHours,
   formatMinutes,
-  formatTime,
 } from "../format.ts";
 import { AssignmentStateBadge, JobStatusBadge } from "../JobBadges.tsx";
+
+const { formatDateTime, formatDay, formatTime } = formats.en;
 
 // whether the Cleaner has Confirmed it yet, or once done, that it is
 export function CleanerJobBadge({ job }: { job: CleanerJob }) {
@@ -150,7 +149,7 @@ function NextUp({
     <Section title={job?.started ? "Now" : "Next up"}>
       <Card>
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-6">
-          <DateTile date={item.startsAt} />
+          <DateTile lang="en" date={item.startsAt} />
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <p className="text-3xl font-semibold text-fg tabular-nums">
               {formatTime(item.startsAt)}
@@ -225,7 +224,7 @@ function Rows({
           <ListItem
             key={item.job.id}
             id={item.job.id}
-            start={<DateTile date={item.startsAt} size="sm" />}
+            start={<DateTile lang="en" date={item.startsAt} size="sm" />}
             title={whenOf(item)}
             description={`${addressOf(item.job.property)} · ${item.job.serviceName}, ${formatHours(item.job.hoursOnSite)}`}
             end={
@@ -236,7 +235,7 @@ function Rows({
           <ListItem
             key={item.visit.id}
             id={item.visit.id}
-            start={<DateTile date={item.startsAt} size="sm" />}
+            start={<DateTile lang="en" date={item.startsAt} size="sm" />}
             title={whenOf(item)}
             description={[
               addressOf(item.visit.property),
