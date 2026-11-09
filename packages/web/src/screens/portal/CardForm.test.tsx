@@ -1,6 +1,6 @@
-import { beforeEach, expect, test, vi } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
-import { loadStripe, type Stripe } from "@stripe/stripe-js";
+import { loadStripe, type Stripe, type StripeError } from "@stripe/stripe-js";
 import { report } from "@empire-cleaning/browser-monitoring";
 import { getJson } from "../../api.ts";
 import { CardProblem, usePaymentForm } from "./CardForm.tsx";
@@ -18,7 +18,10 @@ vi.mock(import("@empire-cleaning/browser-monitoring"), async (original) => ({
   report: vi.fn(),
 }));
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  delete document.body.dataset.said;
+});
 
 // the Deposit's form, with what pressing Pay says
 function PayForm({ showCard = true }: { showCard?: boolean }) {
@@ -91,4 +94,67 @@ test("the card box is mounted once, though it's hidden and shown while Stripe.js
   await new Promise((resolve) => setTimeout(resolve));
 
   expect(mount).toHaveBeenCalledOnce();
+});
+
+describe("paying, when Stripe says no", () => {
+  // presses Pay on a loaded card form, where Stripe answers with `error`
+  const pay = async (error: Partial<StripeError>) => {
+    vi.mocked(getJson).mockResolvedValue({
+      form: "stripe",
+      publishableKey: "pk_test_123",
+    });
+    const mount = vi.fn();
+    vi.mocked(loadStripe).mockResolvedValue({
+      elements: () => ({
+        create: () => ({ on: () => {}, mount, destroy: () => {} }),
+        update: () => {},
+        submit: async () => ({}),
+      }),
+      createConfirmationToken: async () => ({ error }),
+    } as unknown as Stripe);
+    const screen = await render(<PayForm />);
+    await vi.waitFor(() => expect(mount).toHaveBeenCalledOnce());
+    await screen.getByRole("button", { name: "Pay" }).click();
+    await vi.waitFor(() => expect(document.body.dataset.said).toBeDefined());
+  };
+
+  test("about something of ours is reported, and the Client sees Stripe's words", async () => {
+    await pay({
+      type: "invalid_request_error",
+      code: "resource_missing",
+      message: "No such payment_intent.",
+    });
+
+    expect(document.body.dataset.said).toBe("No such payment_intent.");
+    expect(report).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message:
+          "Stripe invalid_request_error (resource_missing): No such payment_intent.",
+      }),
+    );
+  });
+
+  test.each([
+    {
+      type: "card_error",
+      code: "card_declined",
+      message: "Your card was declined.",
+    },
+    // what Stripe's test mode answers when the 3D Secure check is failed
+    // or closed (card 4000 0027 6000 3184), paying and saving a card
+    ...(["payment_intent", "setup_intent"] as const).map((intent) => ({
+      type: "invalid_request_error" as const,
+      code: `${intent}_authentication_failure`,
+      message:
+        "We are unable to authenticate your payment method. Please choose a different payment method and try again.",
+    })),
+  ] as const)(
+    "about the Client's card ($code) isn't reported",
+    async (error) => {
+      await pay(error);
+
+      expect(document.body.dataset.said).toBe(error.message);
+      expect(report).not.toHaveBeenCalled();
+    },
+  );
 });

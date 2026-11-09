@@ -290,6 +290,30 @@ test.describe("requesting a Quote", () => {
     ).toBeVisible();
   });
 
+  test("an answer that can't be read says it didn't go through, and can be sent again", async ({
+    page,
+  }) => {
+    const email = newEmail();
+    // a page in front of the API (a proxy's own "too many requests"), not JSON
+    await page.route("**/api/quotes/ask", (route) =>
+      route.fulfill({
+        status: 429,
+        contentType: "text/html",
+        body: "<html><body>Too many requests</body></html>",
+      }),
+    );
+    await openQuoteForm(page);
+    await fillIn(page, email);
+    await page.getByRole("button", { name: "Request a quote" }).click();
+
+    await expect(
+      page.getByText(/^Your request didn't go through\./),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Request a quote" }),
+    ).toBeEnabled();
+  });
+
   test("the field for bots is out of sight and reach, and sent only if filled (#32)", async ({
     page,
   }) => {

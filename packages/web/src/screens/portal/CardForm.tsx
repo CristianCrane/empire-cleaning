@@ -15,6 +15,7 @@ import {
   type Appearance,
   type Stripe,
   type StripeElements,
+  type StripeError,
 } from "@stripe/stripe-js";
 import {
   NEVER_SEE_CARD,
@@ -36,6 +37,31 @@ import { useLoaded } from "../load.ts";
 
 // the card couldn't be used; the message is for the Client
 export class CardProblem extends Error {}
+
+// What Stripe said, as a CardProblem with its message for the Client. A card
+// or bank that said no, details to check, a dropped connection, or the Client
+// failing or closing the 3D Secure check (an invalid_request_error, with
+// code payment_intent_ or setup_intent_authentication_failure, as Stripe's
+// test mode gives both) is theirs to fix; anything else (a wrong key, a bad request, Stripe failing) is ours,
+// so it's reported
+const theirs = new Set([
+  "card_error",
+  "validation_error",
+  "api_connection_error",
+]);
+const cardProblem = (error: StripeError, fallback: string) => {
+  if (
+    !theirs.has(error.type) &&
+    !error.code?.endsWith("_authentication_failure")
+  ) {
+    reportUnexpected(
+      new Error(
+        `Stripe ${error.type}${error.code ? ` (${error.code})` : ""}: ${error.message ?? ""}`,
+      ),
+    );
+  }
+  return new CardProblem(error.message ?? fallback);
+};
 
 // what saving a card agrees to, shown beside every form that saves one
 export function ConsentNote({ action }: { action: "paying" | "saving" }) {
@@ -153,8 +179,7 @@ const useStripeElement = (
   const elementsFor = useEffectEvent(options);
   const clearProblem = useEffectEvent(() => setProblem(undefined));
   const failed = useRef(false);
-  const notLoaded = useEffectEvent((e: unknown) => {
-    reportUnexpected(e);
+  const notLoaded = useEffectEvent(() => {
     failed.current = true;
     setProblem(NOT_LOADED);
   });
@@ -194,7 +219,11 @@ const useStripeElement = (
           element.destroy();
         };
       },
-      (e: unknown) => current && notLoaded(e),
+      // reported even for a form since gone: it would fail for the next too
+      (e: unknown) => {
+        reportUnexpected(e);
+        if (current) notLoaded();
+      },
     );
     return () => {
       current = false;
@@ -288,18 +317,14 @@ export function usePaymentForm({
     const submitted = await elements.submit();
     if (submitted.error) {
       setProblem(submitted.error.message);
-      throw new CardProblem(
-        submitted.error.message ?? "Please check your card details.",
-      );
+      throw cardProblem(submitted.error, "Please check your card details.");
     }
     const result = await stripe.createConfirmationToken({
       elements,
       params: { return_url: window.location.href },
     });
     if (result.error) {
-      throw new CardProblem(
-        result.error.message ?? "Your card couldn't be used.",
-      );
+      throw cardProblem(result.error, "Your card couldn't be used.");
     }
     return result.confirmationToken.id;
   }, [form, ready]);
@@ -313,8 +338,9 @@ export function usePaymentForm({
       if (!stripe) throw new CardProblem("The payment form didn't load.");
       const result = await stripe.handleNextAction({ clientSecret: secret });
       if (result.error) {
-        throw new CardProblem(
-          result.error.message ?? "Your bank didn't approve the payment.",
+        throw cardProblem(
+          result.error,
+          "Your bank didn't approve the payment.",
         );
       }
     },
@@ -369,9 +395,7 @@ export function useCardForm() {
       });
       if (result.error) {
         setProblem(result.error.message);
-        throw new CardProblem(
-          result.error.message ?? "Your card couldn't be set up.",
-        );
+        throw cardProblem(result.error, "Your card couldn't be set up.");
       }
       token = result.setupIntent.id;
     }
@@ -437,9 +461,7 @@ export function useBillPaymentForm(billId: string) {
       });
       if (result.error) {
         setProblem(result.error.message);
-        throw new CardProblem(
-          result.error.message ?? "Your payment didn't go through.",
-        );
+        throw cardProblem(result.error, "Your payment didn't go through.");
       }
     }
     return form.ref;

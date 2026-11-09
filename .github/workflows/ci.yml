@@ -35,6 +35,9 @@ jobs:
         run: pnpm format:check
       - name: Package consistency
         run: pnpm check:packages
+      # our own lint rules, through oxlint's RuleTester (packages/lint)
+      - name: Lint rule tests
+        run: pnpm --filter @empire-cleaning/lint test
       # what may reach Sentry and the logs, and the browsers' Sentry setup
       - name: Scrubbing tests
         run: pnpm --filter @empire-cleaning/models --filter @empire-cleaning/browser-monitoring test

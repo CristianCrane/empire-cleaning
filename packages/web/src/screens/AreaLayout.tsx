@@ -49,6 +49,7 @@ import {
   signOut,
   type AreaId,
 } from "../session.ts";
+import { reportUnexpected } from "../monitoring.ts";
 import { useAction } from "./action.ts";
 import { useTours } from "./run-tours.ts";
 
@@ -237,9 +238,11 @@ function AccountMenu({
   // so pressing one shows it at once (the router keeps them 30 s)
   const preloadAreas = () => {
     forgetAccount();
-    getAccount().catch(() => {});
+    getAccount().catch(reportUnexpected);
     for (const id of otherAreas) {
-      router.preloadRoute({ to: areas[id].path }).catch(() => {});
+      // a failed load is caught by the router itself (and runs again on the
+      // visit, which PageError reports)
+      void router.preloadRoute({ to: areas[id].path });
     }
   };
 

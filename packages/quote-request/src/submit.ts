@@ -12,24 +12,32 @@ export type SubmitResult<R = QuoteAskReceipt> =
     };
 
 // posts an ask for a Quote to `url`, and reads the API's answer: what it
-// returned, its messages for each field, or why it refused
+// returned, its messages for each field, or why it refused. One that can't
+// be read (no connection, a body that isn't JSON) is a failure the form
+// says, and is reported through the host's Sentry, which drops a dropped
+// connection
 export const postQuoteRequest = async <R>(
   url: string,
   body: object,
   credentials: RequestCredentials,
 ): Promise<SubmitResult<R>> => {
-  let res: Response;
   try {
-    res = await fetch(url, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      credentials,
-      body: JSON.stringify(body),
-    });
-  } catch {
+    return await answerOf<R>(
+      await fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        credentials,
+        body: JSON.stringify(body),
+      }),
+    );
+  } catch (e) {
+    reportError(e);
     return { ok: false };
   }
+};
 
+// the API's answer, read
+const answerOf = async <R>(res: Response): Promise<SubmitResult<R>> => {
   if (res.ok) return { ok: true, receipt: (await res.json()) as R };
 
   if (res.status === 400) {
