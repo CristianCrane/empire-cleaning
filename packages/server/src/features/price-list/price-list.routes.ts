@@ -19,7 +19,7 @@ router.get(
   "/add-ons",
   validate({ query: z.object({ service: z.uuid("Pick a service") }) }),
   async (req, res) => {
-    res.json(await choosableAddOns(String(req.query.service)));
+    res.json(await choosableAddOns(req.query.service));
   },
 );
 

@@ -42,8 +42,9 @@ router.post(
   authorize("office_staff"),
   validate({ body: newVisitSchema }),
   async (req, res) => {
-    const input = newVisitSchema.parse(req.body);
-    res.status(201).json(await bookSiteVisit(input, signedInAccount(res).id));
+    res
+      .status(201)
+      .json(await bookSiteVisit(req.body, signedInAccount(res).id));
   },
 );
 
@@ -61,8 +62,7 @@ router.post(
   authorize("office_staff"),
   validate({ params, body: bookingSchema }),
   async (req, res) => {
-    const input = bookingSchema.parse(req.body);
-    res.json(await moveSiteVisit(String(req.params.id), input));
+    res.json(await moveSiteVisit(String(req.params.id), req.body));
   },
 );
 

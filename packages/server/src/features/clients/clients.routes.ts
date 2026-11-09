@@ -103,7 +103,7 @@ router.get(
   authorize("office_staff"),
   validate({ query: listQuery }),
   async (req, res) => {
-    const { q, standing, limit } = listQuery.parse(req.query);
+    const { q, standing, limit } = req.query;
     res.json(await listClients({ search: q, standing, limit }));
   },
 );

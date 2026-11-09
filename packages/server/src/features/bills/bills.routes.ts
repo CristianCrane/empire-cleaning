@@ -82,14 +82,17 @@ router.get(
   validate({
     query: z.object({
       clientId: z.uuid().optional(),
-      unpaid: z.enum(["true", "false"]).optional(),
+      unpaid: z
+        .enum(["true", "false"])
+        .transform((unpaid) => unpaid === "true")
+        .optional(),
     }),
   }),
   async (req, res) => {
     res.json(
       await listBills({
-        clientId: req.query.clientId as string | undefined,
-        unpaid: req.query.unpaid === "true",
+        clientId: req.query.clientId,
+        unpaid: req.query.unpaid ?? false,
       }),
     );
   },

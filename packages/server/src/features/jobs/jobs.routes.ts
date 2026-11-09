@@ -27,7 +27,7 @@ jobsRouter.get(
   authorize("office_staff"),
   validate({ query: listQuery }),
   async (req, res) => {
-    const { q, tab, limit } = listQuery.parse(req.query);
+    const { q, tab, limit } = req.query;
     res.json(await listJobs({ search: q, tab, limit }));
   },
 );

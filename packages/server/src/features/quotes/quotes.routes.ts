@@ -203,12 +203,12 @@ router.get(
   authorize("office_staff"),
   validate({ ...byId, query: draftStartsSchema }),
   async (req, res) => {
-    const { from, to, weekday } = draftStartsSchema.parse(req.query);
+    const { from, to, weekday } = req.query;
     res.json(
       await draftStarts(String(req.params.id), {
         from,
         to,
-        weekday: weekday === undefined ? undefined : Number(weekday),
+        weekday,
       }),
     );
   },
