@@ -12,10 +12,11 @@ import {
 export const draftStartsSchema = withinRange(
   z.object({
     ...range,
-    // kept as typed: Express's routes take a query of strings
+    // a digit, as typed: a coerced number would read "?weekday=" as 0
     weekday: z
       .string()
       .regex(/^[0-6]$/, "Pick one of the plan's weekdays")
+      .transform(Number)
       .optional(),
   }),
 );

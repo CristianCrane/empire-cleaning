@@ -8,7 +8,7 @@ import { accessFor } from "./connections.ts";
 // the caller, if they're signed in, with what their connections let them do;
 // null for Guests. For endpoints open to both, such as asking for a Quote.
 export const currentAccount = async (
-  req: Request,
+  req: Pick<Request, "headers">,
 ): Promise<SignedInAccount | null> => {
   const session = await auth.api.getSession({
     headers: fromNodeHeaders(req.headers),
@@ -26,9 +26,15 @@ export const currentAccount = async (
  * simply don't use this.
  *
  *   router.get("/", authorize("office_staff"), handler)
+ *
+ * It reads only the headers, so it types no params, body or query: a route's
+ * handlers share one request type, and a bare RequestHandler would pin its
+ * query to strings, ruling out a validated query of numbers.
  */
 export const authorize =
-  (...roles: AccountRole[]): RequestHandler =>
+  (
+    ...roles: AccountRole[]
+  ): RequestHandler<unknown, unknown, unknown, unknown> =>
   async (req, res, next) => {
     const account = await currentAccount(req);
     if (!account) {

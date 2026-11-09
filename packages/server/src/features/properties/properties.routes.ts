@@ -7,7 +7,7 @@ import {
   NotFoundError,
   RequestBodyError,
 } from "../../middleware/errors.ts";
-import { keepUnder, validate } from "../../middleware/validation.ts";
+import { byId, keepUnder, validate } from "../../middleware/validation.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { clients } from "../clients/clients.schema.ts";
 import {
@@ -26,15 +26,13 @@ import { toPropertyView } from "./property-view.ts";
 
 export const router = Router();
 
-const params = z.object({ id: z.uuid() });
-
 // any Property, for the Office, with its whole history
 router.get(
   "/:id",
   authorize("office_staff"),
-  validate({ params }),
+  validate({ params: byId }),
   async (req, res) => {
-    const view = await officePropertyView(String(req.params.id));
+    const view = await officePropertyView(req.params.id);
     if (!view) throw new NotFoundError("Property not found");
     res.json(view);
   },
@@ -46,7 +44,7 @@ router.patch(
   "/:id/access-instructions",
   authorize("client", "office_staff"),
   validate({
-    params,
+    params: byId,
     body: z.object({
       accessInstructions: z
         .string()
@@ -57,7 +55,7 @@ router.patch(
   }),
   async (req, res) => {
     const account = signedInAccount(res);
-    const id = String(req.params.id);
+    const id = req.params.id;
     const owned = account.roles.includes("office_staff")
       ? eq(properties.id, id)
       : and(
@@ -92,9 +90,9 @@ router.patch(
 router.patch(
   "/:id",
   authorize("office_staff"),
-  validate({ params }),
+  validate({ params: byId }),
   async (req, res) => {
-    const id = String(req.params.id);
+    const id = req.params.id;
     const [property] = await db
       .select()
       .from(properties)

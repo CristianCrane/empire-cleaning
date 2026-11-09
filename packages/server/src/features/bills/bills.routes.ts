@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { ConflictError } from "../../middleware/errors.ts";
-import { keepUnder, validate } from "../../middleware/validation.ts";
+import { byId, keepUnder, validate } from "../../middleware/validation.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { ownClient } from "../clients/clients.ts";
 import { whyNotPaid } from "../payments/unpaid.ts";
@@ -17,8 +17,6 @@ import {
 
 export const router = Router();
 
-const bill = z.object({ id: z.uuid() });
-
 // ---- the signed-in Client: /api/bills/mine ----
 
 // their Bills, newest first
@@ -31,10 +29,10 @@ router.get("/mine", authorize("client"), async (_req, res) => {
 router.get(
   "/mine/:id",
   authorize("client"),
-  validate({ params: bill }),
+  validate({ params: byId }),
   async (req, res) => {
     const client = await ownClient(signedInAccount(res).id);
-    res.json(await billView(String(req.params.id), client.id));
+    res.json(await billView(req.params.id, client.id));
   },
 );
 
@@ -42,10 +40,10 @@ router.get(
 router.post(
   "/mine/:id/payment-form",
   authorize("client"),
-  validate({ params: bill }),
+  validate({ params: byId }),
   async (req, res) => {
     const client = await ownClient(signedInAccount(res).id);
-    res.json(await startBillPayment(client, String(req.params.id)));
+    res.json(await startBillPayment(client, req.params.id));
   },
 );
 
@@ -54,12 +52,12 @@ router.post(
   "/mine/:id/payment",
   authorize("client"),
   validate({
-    params: bill,
+    params: byId,
     body: z.object({ ref: z.string().min(1) }),
   }),
   async (req, res) => {
     const client = await ownClient(signedInAccount(res).id);
-    const id = String(req.params.id);
+    const id = req.params.id;
     await billView(id, client.id);
     const failure = await finishBillPayment(id, req.body.ref);
     if (failure) {
@@ -82,14 +80,17 @@ router.get(
   validate({
     query: z.object({
       clientId: z.uuid().optional(),
-      unpaid: z.enum(["true", "false"]).optional(),
+      unpaid: z
+        .enum(["true", "false"])
+        .transform((unpaid) => unpaid === "true")
+        .optional(),
     }),
   }),
   async (req, res) => {
     res.json(
       await listBills({
-        clientId: req.query.clientId as string | undefined,
-        unpaid: req.query.unpaid === "true",
+        clientId: req.query.clientId,
+        unpaid: req.query.unpaid ?? false,
       }),
     );
   },
@@ -98,9 +99,9 @@ router.get(
 router.get(
   "/:id",
   authorize("office_staff"),
-  validate({ params: bill }),
+  validate({ params: byId }),
   async (req, res) => {
-    res.json(await billView(String(req.params.id)));
+    res.json(await billView(req.params.id));
   },
 );
 
@@ -108,7 +109,7 @@ router.post(
   "/:id/void",
   authorize("office_staff"),
   validate({
-    params: bill,
+    params: byId,
     body: z.object({
       reason: z
         .string({ error: "Say why it's cancelled" })
@@ -119,7 +120,7 @@ router.post(
   }),
   async (req, res) => {
     res.json(
-      await voidBill(String(req.params.id), {
+      await voidBill(req.params.id, {
         byAccountId: signedInAccount(res).id,
         reason: req.body.reason,
       }),
@@ -132,7 +133,7 @@ router.post(
   "/:id/outside-payment",
   authorize("office_staff"),
   validate({
-    params: bill,
+    params: byId,
     body: z.object({
       note: z
         .string({ error: "Say how it was paid" })
@@ -143,7 +144,7 @@ router.post(
   }),
   async (req, res) => {
     res.json(
-      await recordOutsidePayment(String(req.params.id), {
+      await recordOutsidePayment(req.params.id, {
         byAccountId: signedInAccount(res).id,
         note: req.body.note,
       }),
@@ -159,7 +160,7 @@ clientBillingRouter.put(
   "/:id/billing",
   authorize("office_staff"),
   validate({
-    params: z.object({ id: z.uuid() }),
+    params: byId,
     body: z.object({
       weekly: z.boolean(),
       payment: z.enum(["automatic", "on_page"], {
@@ -174,6 +175,6 @@ clientBillingRouter.put(
     }),
   }),
   async (req, res) => {
-    res.json(await setBilling(String(req.params.id), req.body));
+    res.json(await setBilling(req.params.id, req.body));
   },
 );

@@ -1,6 +1,5 @@
 import { Router } from "express";
-import { z } from "zod";
-import { validate } from "../../middleware/validation.ts";
+import { byId, validate } from "../../middleware/validation.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { ownClient } from "../clients/clients.ts";
 import { staffForAccount } from "../staff/staff.ts";
@@ -17,8 +16,6 @@ import {
 import { bookingSchema, newVisitSchema } from "./site-visits.validation.ts";
 
 export const router = Router();
-
-const params = z.object({ id: z.uuid() });
 
 // ---- the Client's and the visitor's own ----
 
@@ -42,38 +39,36 @@ router.post(
   authorize("office_staff"),
   validate({ body: newVisitSchema }),
   async (req, res) => {
-    const input = newVisitSchema.parse(req.body);
-    res.status(201).json(await bookSiteVisit(input, signedInAccount(res).id));
+    res
+      .status(201)
+      .json(await bookSiteVisit(req.body, signedInAccount(res).id));
   },
 );
 
 router.get(
   "/:id",
   authorize("office_staff"),
-  validate({ params }),
+  validate({ params: byId }),
   async (req, res) => {
-    res.json(await officeSiteVisit(String(req.params.id)));
+    res.json(await officeSiteVisit(req.params.id));
   },
 );
 
 router.post(
   "/:id/move",
   authorize("office_staff"),
-  validate({ params, body: bookingSchema }),
+  validate({ params: byId, body: bookingSchema }),
   async (req, res) => {
-    const input = bookingSchema.parse(req.body);
-    res.json(await moveSiteVisit(String(req.params.id), input));
+    res.json(await moveSiteVisit(req.params.id, req.body));
   },
 );
 
 router.post(
   "/:id/cancel",
   authorize("office_staff"),
-  validate({ params }),
+  validate({ params: byId }),
   async (req, res) => {
-    res.json(
-      await cancelSiteVisit(String(req.params.id), signedInAccount(res).id),
-    );
+    res.json(await cancelSiteVisit(req.params.id, signedInAccount(res).id));
   },
 );
 
@@ -81,14 +76,10 @@ router.post(
 router.post(
   "/:id/findings",
   authorize("office_staff"),
-  validate({ params }),
+  validate({ params: byId }),
   async (req, res) => {
     res.json(
-      await recordFindings(
-        String(req.params.id),
-        req.body,
-        signedInAccount(res).id,
-      ),
+      await recordFindings(req.params.id, req.body, signedInAccount(res).id),
     );
   },
 );
@@ -101,13 +92,13 @@ export const propertyFindingsRouter = Router();
 propertyFindingsRouter.post(
   "/:id/findings",
   authorize("office_staff"),
-  validate({ params }),
+  validate({ params: byId }),
   async (req, res) => {
     res
       .status(201)
       .json(
         await recordFindingsWithoutVisit(
-          String(req.params.id),
+          req.params.id,
           req.body,
           signedInAccount(res).id,
         ),
