@@ -97,6 +97,7 @@ import {
   propertySummary,
   recurrenceLabel,
   timeOfDay,
+  timeOfField,
   weekdayName,
   quoteKindName,
 } from "../format.ts";
@@ -1131,9 +1132,7 @@ const toFields = (quote: ShownQuote): Fields => {
 };
 
 const startOf = (date: CalendarDate | null, time: Time | null) =>
-  date && time
-    ? { date: date.toString(), time: time.toString().slice(0, 5) }
-    : null;
+  date && time ? { date: date.toString(), time: timeOfField(time) } : null;
 
 const priced = ({ on, price, reason }: Override) =>
   on ? { priceCents: Math.round(price * 100), reason } : null;
@@ -1840,7 +1839,7 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
             </div>
             <PickFromSchedule
               date={fields.date?.toString()}
-              time={fields.time?.toString().slice(0, 5)}
+              time={timeOfField(fields.time)}
               hoursOnSite={longest?.hoursOnSite ?? 0}
               crew={longest && { quoteId: quote.id, saves }}
               onPick={({ date, time }) =>
@@ -1850,7 +1849,7 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
             {fields.date && (
               <RoomOnDay
                 day={fields.date.toString()}
-                time={fields.time?.toString().slice(0, 5)}
+                time={timeOfField(fields.time)}
                 crewSize={fields.crewSize}
                 options={quote.options}
                 stale={stale}
@@ -1967,7 +1966,7 @@ function PlanDayFields({
   onRemove: (() => void) | undefined;
 }) {
   const name = `plan.days.${index}`;
-  const time = day.time?.toString().slice(0, 5);
+  const time = timeOfField(day.time);
   const one = plan.days.length === 1;
   const title = day.date
     ? `${weekdayName(day.date.toString())}s`

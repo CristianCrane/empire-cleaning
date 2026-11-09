@@ -47,8 +47,8 @@ export default defineConfig({
       timeout: 2 * MINUTE_MS,
       env: {
         ...process.env,
-        // the API's database is a copy of this one, `_0`: slot 0 of 1
-        // (packages/server/tests/e2e/servers.ts)
+        // the API's database is named from this one: `_0`, slot 0 of 1,
+        // of one migrated for the run (packages/server/tests/e2e/servers.ts)
         TEST_DB_URL:
           "postgresql://postgres:password@localhost:5433/empire_e2e_landing_test",
         E2E_SLOTS: JSON.stringify([

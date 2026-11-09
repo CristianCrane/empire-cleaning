@@ -414,7 +414,7 @@ const historyOf = (home: OfficePropertyView): HistoryEvent[] =>
       icon: visit.startsAt ? MapPin : CalendarCheck,
       kind: "Site visit",
       what: visit.startsAt
-        ? [visit.visitor?.name, `${visit.minutes} min`]
+        ? [visit.visitor?.name, formatMinutes(visit.minutes)]
             .filter(Boolean)
             .join(" · ")
         : "Findings recorded, no visit",

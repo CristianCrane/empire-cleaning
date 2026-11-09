@@ -39,6 +39,7 @@ import {
   formatDateTime,
   formatDay,
   timeOfDay,
+  timeOfField,
 } from "../format.ts";
 import { EndPlan, OnHold, PlanFacts, PlanStatusBadge } from "../PlanParts.tsx";
 import { useAction } from "../action.ts";
@@ -227,7 +228,7 @@ function BookOrSkip({
   const at = date &&
     time && {
       date: date.toString(),
-      time: time.toString().slice(0, 5),
+      time: timeOfField(time),
     };
 
   const book = async () => {
@@ -262,7 +263,7 @@ function BookOrSkip({
       </div>
       <PickFromSchedule
         date={date?.toString()}
-        time={time?.toString().slice(0, 5)}
+        time={timeOfField(time)}
         hoursOnSite={day.hoursOnSite}
         crew={{ labourHours: day.labourHours, crewSize: day.crewSize }}
         inline

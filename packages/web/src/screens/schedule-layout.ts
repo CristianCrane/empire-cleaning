@@ -1,4 +1,4 @@
-import type { ScheduledJob } from "@empire-cleaning/models";
+import { clockTime, type ScheduledJob } from "@empire-cleaning/models";
 import { timeOfDay } from "./format.ts";
 
 // "09:30" -> 9.5
@@ -8,10 +8,7 @@ export const hoursOf = (time: string) => {
 };
 
 // 9.5 -> "09:30", to the nearest minute
-export const timeAt = (hours: number) => {
-  const minutes = Math.round(hours * 60);
-  return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
-};
+export const timeAt = (hours: number) => clockTime(Math.round(hours * 60));
 
 // a dropped Job starts on the quarter hour
 export const SNAP_HOURS = 0.25;

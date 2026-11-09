@@ -3,11 +3,12 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   addDays,
   daysIn,
+  formatClock,
   type DayTimes,
   type LocalDateTime,
 } from "@empire-cleaning/models";
 import { Button, Select, SelectItem } from "@empire-cleaning/ui";
-import { formatClock, formatDay, today } from "./format.ts";
+import { formatDay, today } from "./format.ts";
 import { hoursOf, timeAt } from "./schedule-layout.ts";
 import { SPANS, type Span } from "./schedule-range.ts";
 
