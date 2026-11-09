@@ -1,4 +1,4 @@
-import { HOUR_MS } from "@empire-cleaning/models";
+import { HOUR_MS, MINUTE_MS } from "@empire-cleaning/models";
 
 // Business signals (ADR-0007): named, never free-form, each with how loudly
 // it's alerted. Sentry's alert rules (#43) route on the urgency tag:
@@ -25,6 +25,9 @@ const SIGNALS = {
   // a site-wide cap on emails to typed addresses was reached, so real
   // people are being refused sign-in links or Quote Requests (#243)
   rate_cap_reached: { urgency: "urgent", atMostEvery: HOUR_MS },
+  // a database pool had no connection free for as long as a request may
+  // wait, so requests are failing (db/pool.ts, #284)
+  db_pool_exhausted: { urgency: "urgent", atMostEvery: MINUTE_MS },
   // the email service refused a message or was unreachable
   email_send_failed: { urgency: "in_bulk" },
   // a Client's card was declined
