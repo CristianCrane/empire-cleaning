@@ -1,4 +1,4 @@
-import type { BillPayment } from "../index.js";
+import type { BillPayment } from "../index.ts";
 
 // What the server and the screens both say about a weekly Bill
 // (docs/ux.md, Words)

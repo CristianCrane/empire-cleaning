@@ -12,9 +12,8 @@
     "./checkout": "./tests/checkout.ts"
   },
   "scripts": {
-    "dev": "nodemon --watch src -e ts,tsx --exec \"tsx --env-file=.env src/index.ts\"",
+    "dev": "tsx watch --clear-screen=false --env-file=.env src/index.ts",
     "start": "tsx --import ./src/instrument.ts src/index.ts",
-    "build": "tsc -p tsconfig.build.json",
     "check": "tsc -p tsconfig.json",
     "db:generate": "drizzle-kit generate --config=./src/db/drizzle.config.ts",
     "db:push": "drizzle-kit push --config=./src/db/drizzle.config.ts",
@@ -35,7 +34,7 @@
   },
   "dependencies": {
     "@empire-cleaning/models": "workspace:*",
-    "@sentry/node": "^11.10.0",
+    "@sentry/node": "^11.11.0",
     "better-auth": "^1.7.7",
     "cors": "^2.8.6",
     "drizzle-orm": "1.0.0-rc.4",
@@ -45,14 +44,14 @@
     "pino-http": "^11.0.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "react-email": "6.11.3",
+    "react-email": "6.11.8",
     "resend": "^6.34.1",
     "stripe": "^23.0.1",
     "tsx": "^4.23.13",
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@react-email/ui": "6.11.3",
+    "@react-email/ui": "6.11.8",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^26.2.0",
@@ -61,7 +60,6 @@
     "@types/react-dom": "^19.3.0",
     "@types/supertest": "^7.2.1",
     "drizzle-kit": "1.0.0-rc.4",
-    "nodemon": "^3.1.14",
     "pino-pretty": "^13.2.0",
     "supertest": "^7.3.1"
   }

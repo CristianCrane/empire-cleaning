@@ -2018,18 +2018,18 @@ export const business = {
 } as const;
 
 // the Suggested Price, worked out the same on the server and on screen
-export * from "./suggested-price.js";
+export * from "./suggested-price.ts";
 
 // what may leave for Sentry and the logs, the same on the server and in the
 // browser (ADR-0007)
-export * from "./scrub.js";
+export * from "./scrub.ts";
 
 // what the server and the screens both say, written once (docs/ux.md, Words)
-export * from "./messages/jobs.js";
-export * from "./messages/assignments.js";
-export * from "./messages/bills.js";
-export * from "./messages/reschedule.js";
-export * from "./messages/staff.js";
-export * from "./messages/quotes.js";
-export * from "./messages/payments.js";
-export * from "./messages/cancellation.js";
+export * from "./messages/jobs.ts";
+export * from "./messages/assignments.ts";
+export * from "./messages/bills.ts";
+export * from "./messages/reschedule.ts";
+export * from "./messages/staff.ts";
+export * from "./messages/quotes.ts";
+export * from "./messages/payments.ts";
+export * from "./messages/cancellation.ts";
