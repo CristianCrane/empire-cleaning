@@ -48,9 +48,9 @@ If the concept you need isn't in the glossary yet, that's a signal: either you'r
 
 ## Spanish words
 
-Guests, Clients and Cleaners see the product in English or Spanish (ADR-0025). Each `GLOSSARY.md` entry for a term they see carries a `_Spanish_:` line after `_Avoid_` and any `_On screen_` line: the one Spanish word every screen and email uses for it, which translates its `_On screen_` word where it has one, not the term. Entries only the Office sees, such as Labour Hours or the Price List, have none: the Office reads their `_On screen_` word (cleaning hours, prices), in English.
+Guests, Clients and Cleaners see the product in English or Spanish (ADR-0025). Each `GLOSSARY.md` entry for a term they see carries a `_Spanish_:` line after `_Avoid_` and any `_On screen_` line, in that line's shape: the Spanish word every screen and email uses for each of its screen words, one per case where it gives one per case (Job: "job", and "clean" to a Client), "none" where it says none (Revision), and one word for the term where the entry has no `_On screen_` line (Quote). It never translates a term that screens don't show. Entries only the Office sees, such as Labour Hours or the Price List, have none: the Office reads their `_On screen_` word (cleaning hours, prices), in English.
 
-- Write Spanish copy with these words, as English copy uses each term's `_On screen_` word.
+- Write Spanish copy with these words, as English copy uses each term's `_On screen_` word, or the term where it has none.
 - The lines come in with #300, once the owner has checked the word list. From then on, a new term they see gets its `_Spanish_:` line when it's added, and the owner checks the word on #206.
 
 ## Flag ADR conflicts

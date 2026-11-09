@@ -11,7 +11,7 @@ The API turns its messages into words itself, in the language each request says 
 ## Consequences
 
 - Every landing page has a Spanish twin under `/es/`, with `hreflang` links both ways and both in the sitemap. The header switches between them; nothing redirects by browser language, so nobody is trapped in the one they didn't want. Reviews stay in the words their Client wrote.
-- Spanish is neutral Latin American, *usted* to Guests and Clients, *tú* to Cleaners, as the English is polite to Clients and relaxed with the crew. Each Client- or Cleaner-facing term in `GLOSSARY.md` has one Spanish word, which every screen and email uses, translating the term's `_On screen_` word where it has one (ADR-0027); `docs/agents/domain.md` says which entries carry it.
+- Spanish is neutral Latin American, *usted* to Guests and Clients, *tú* to Cleaners, as the English is polite to Clients and relaxed with the crew. Each Client- or Cleaner-facing term in `GLOSSARY.md` has one Spanish word for each of its screen words (ADR-0027), which every screen and email uses; `docs/agents/domain.md` says which entries carry it.
 - A Guest's first Quote sets the new Client's Preferred Language from the page they asked on; a Quote added to an existing Client leaves theirs as it is, as it does their other details (ADR-0012). Office Staff set it for a Client they enter or Staff they invite, and see it on both, so they know to phone in Spanish.
 - Anyone may change their own, and that writes every Client and Staff member their Account is connected to: one person, one language. Office Staff set each on its own.
 - Services, Add-ons and Premises Types have an optional Spanish name beside the English, which Clients see when it's set and the English when it isn't.
