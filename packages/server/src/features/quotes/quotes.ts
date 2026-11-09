@@ -92,7 +92,7 @@ import { siteVisitViews } from "../site-visits/views.ts";
 import { askedAddOns } from "./asked-add-ons.ts";
 import { quoteEmail, turnDownEmail } from "./emails.ts";
 import { percentOf } from "./plan-days.ts";
-import { bookableFor, draftRoomsOf } from "./quote-room.ts";
+import { bookableFor, optionRoomsOf } from "./quote-room.ts";
 import {
   askedOf,
   firstCleanCompleted,
@@ -635,7 +635,7 @@ const officeRevision = async (
   const ordered = inOrder(rows);
   const rooms = sent
     ? ordered.map(() => null)
-    : await draftRoomsOf(revision, propertyId, ordered);
+    : await optionRoomsOf(revision, propertyId, ordered);
   return {
     id: revision.id,
     number: revision.number,
