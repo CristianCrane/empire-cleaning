@@ -18,6 +18,7 @@ import { quotesWithoutRoomEmail } from "./emails.ts";
 import { openQuotes } from "./quote-state.ts";
 import { quotes, revisionOptions } from "./quotes.schema.ts";
 import { cleanRooms, cleansFit } from "./rules.ts";
+import type { Clean } from "../jobs/rules.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
 
 // A Sent Quote doesn't hold its time: a booking for another Client, or fewer
@@ -26,12 +27,32 @@ import { monitoring } from "../../services/monitoring/index.ts";
 // and the Office is told it needs another time.
 
 /**
+ * The booked Jobs each of these sets of a Quote's cleans would replace: for
+ * a Service Plan Quote, its home's plan's from the set's earliest clean on
+ * (jobsReplacedAt); none for a one-off, which never changes a plan.
+ */
+const replacedFor = async (
+  kind: QuoteKind,
+  propertyId: string,
+  sets: Clean[][],
+): Promise<string[][]> =>
+  kind === "service_plan"
+    ? jobsReplacedAt(
+        propertyId,
+        sets.map(
+          (cleans) =>
+            new Date(Math.min(...cleans.map((c) => c.startsAt.getTime()))),
+        ),
+      )
+    : sets.map(() => []);
+
+/**
  * Each of a Revision's options' room now, in the order given, as accepting
  * asks it (cleanRooms): at its start, a weekday's own or else the proposed
  * time, over its days of the Schedule from the earliest to the latest (a
  * Draft's weekdays are in the order typed), a Service Plan Quote counting
  * as gone the booked Jobs of its home's plan it replaces from its earliest
- * clean on (jobsReplacedAt). Null for an option with no start yet: a
+ * clean on (replacedFor). Null for an option with no start yet: a
  * Draft's earliest so far may come before a weekday still to be timed,
  * which can only replace fewer.
  */
@@ -48,17 +69,12 @@ export const optionRoomsOf = async (
   });
   const timed = cleans.filter((clean) => clean !== null);
   if (timed.length === 0) return cleans.map(() => null);
-  const earliest = new Date(
-    Math.min(...timed.map((clean) => clean.startsAt.getTime())),
-  );
   const dates = timed.map((clean) => dayOf(clean.startsAt)).sort();
-  const [days, replacing] = await Promise.all([
+  const [days, [replacing]] = await Promise.all([
     scheduleFor(dates[0]!, dates.at(-1)!),
-    revision.kind === "service_plan"
-      ? jobsReplacedAt(propertyId, earliest)
-      : [],
+    replacedFor(revision.kind, propertyId, [timed]),
   ]);
-  const rooms = cleanRooms(days, timed, replacing);
+  const rooms = cleanRooms(days, timed, replacing!);
   return cleans.map((clean) => clean && rooms[timed.indexOf(clean)]!);
 };
 
