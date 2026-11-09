@@ -72,6 +72,12 @@ export const clockTime = (minutes: number) => {
   return `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}`;
 };
 
+// a time -> how a person reads it: "18:00" -> "6:00 PM"
+export const formatClock = (time: string) => {
+  const [hours, minutes] = time.split(":").map(Number);
+  return `${hours! % 12 || 12}:${String(minutes).padStart(2, "0")} ${hours! < 12 ? "AM" : "PM"}`;
+};
+
 export const MINUTE_MS = 60_000;
 export const HOUR_MS = 60 * MINUTE_MS;
 // a day of 24 hours: a calendar day in New York is 23 or 25 across the

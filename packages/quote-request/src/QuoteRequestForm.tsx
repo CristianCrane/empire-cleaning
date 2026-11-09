@@ -38,6 +38,7 @@ import {
   PICK_TIMES,
   REQUEST_A_QUOTE,
   business,
+  formatClock,
   openAlready,
   quoteEmailedTo,
 } from "@empire-cleaning/models";
@@ -255,12 +256,6 @@ const weekdays: { day: Weekday; label: string }[] = [
   { day: 5, label: "Saturday" },
   { day: 6, label: "Sunday" },
 ];
-
-// "18:00" -> "6:00 PM"
-const clockLabel = (time: string) => {
-  const [hours, minutes] = time.split(":").map(Number);
-  return `${hours! % 12 || 12}:${String(minutes).padStart(2, "0")} ${hours! < 12 ? "AM" : "PM"}`;
-};
 
 // a preferred start, from the times a picker offers, 5am to 11pm
 const startTimes = PICK_TIMES.filter((t) => t >= "05:00" && t <= "23:00");
@@ -857,7 +852,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
           >
             {startTimes.map((time) => (
               <SelectItem key={time} id={time}>
-                {clockLabel(time)}
+                {formatClock(time)}
               </SelectItem>
             ))}
           </Select>

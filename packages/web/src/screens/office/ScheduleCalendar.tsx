@@ -16,7 +16,7 @@ import {
   type ScheduledJob,
   type ScheduledSiteVisit,
 } from "@empire-cleaning/models";
-import { daysIn } from "@empire-cleaning/models";
+import { daysIn, formatClock } from "@empire-cleaning/models";
 import {
   Actions,
   Button,
@@ -39,7 +39,6 @@ import { JobBadge } from "../JobBadges.tsx";
 import {
   crewOf,
   dayOfInstant,
-  formatClock,
   formatDay,
   formatHours,
   formatMinutes,

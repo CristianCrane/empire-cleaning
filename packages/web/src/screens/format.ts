@@ -19,6 +19,7 @@ import {
   BUSINESS_TIME_ZONE,
   clockTime,
   dayOf,
+  formatClock,
   timeOf,
 } from "@empire-cleaning/models";
 import type { StatusTone } from "@empire-cleaning/ui";
@@ -253,12 +254,6 @@ export function timeOfField(time: Time | null | undefined) {
 
 // an instant -> the New York day it falls on, "2026-01-12"
 export const dayOfInstant = (iso: string) => dayOf(new Date(iso));
-
-// "09:00" -> "9:00 AM"
-export const formatClock = (time: string) => {
-  const [hours, minutes] = time.split(":").map(Number);
-  return `${hours! % 12 || 12}:${String(minutes).padStart(2, "0")} ${hours! < 12 ? "AM" : "PM"}`;
-};
 
 export const recurrenceLabel: Record<Recurrence, string> = {
   weekly: "Every week",

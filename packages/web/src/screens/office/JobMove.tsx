@@ -10,7 +10,7 @@ import type {
   LocalDateTime,
   ScheduledJob,
 } from "@empire-cleaning/models";
-import { SAME_TIME, whyNoRoom } from "@empire-cleaning/models";
+import { formatClock, SAME_TIME, whyNoRoom } from "@empire-cleaning/models";
 import {
   Actions,
   Button,
@@ -25,7 +25,6 @@ import { useLoaded } from "../load.ts";
 import {
   clientName,
   dayOfInstant,
-  formatClock,
   formatDateTime,
   formatDay,
   timeOfDay,
