@@ -14,7 +14,14 @@ import type {
   ServicePlanStatus,
   Weekday,
 } from "@empire-cleaning/models";
-import { BUSINESS_TIME_ZONE, dayOf, timeOf } from "@empire-cleaning/models";
+import type { Time } from "@internationalized/date";
+import {
+  BUSINESS_TIME_ZONE,
+  clockTime,
+  dayOf,
+  formatClock,
+  timeOf,
+} from "@empire-cleaning/models";
 import type { StatusTone } from "@empire-cleaning/ui";
 
 export const addressOf = (
@@ -238,14 +245,15 @@ export const dollars = { style: "currency", currency: "USD" } as const;
 // an instant -> its New York wall-clock time, "09:00"
 export const timeOfDay = (iso: string) => timeOf(new Date(iso));
 
+// a time field's value -> its start time, "09:30"; none while it's empty
+export function timeOfField(time: Time): string;
+export function timeOfField(time: Time | null | undefined): string | undefined;
+export function timeOfField(time: Time | null | undefined) {
+  return time ? clockTime(time.hour * 60 + time.minute) : undefined;
+}
+
 // an instant -> the New York day it falls on, "2026-01-12"
 export const dayOfInstant = (iso: string) => dayOf(new Date(iso));
-
-// "09:00" -> "9:00 AM"
-export const formatClock = (time: string) => {
-  const [hours, minutes] = time.split(":").map(Number);
-  return `${hours! % 12 || 12}:${String(minutes).padStart(2, "0")} ${hours! < 12 ? "AM" : "PM"}`;
-};
 
 export const recurrenceLabel: Record<Recurrence, string> = {
   weekly: "Every week",
@@ -275,7 +283,7 @@ const listed = (items: string[]) =>
 
 // a weekday's clean and when: "Mondays at 9:00 AM"
 export const planDayWhen = (startsAt: string) =>
-  `${weekdayOfStart(startsAt)}s at ${formatClock(timeOfDay(startsAt))}`;
+  `${weekdayOfStart(startsAt)}s at ${formatTime(startsAt)}`;
 
 // what a Service Plan is, in a line: "Standard Clean, every 2 weeks", or
 // "Standard Clean and Deep Clean, every week on Mon, Wed and Fri"

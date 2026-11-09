@@ -494,6 +494,9 @@ test(
     await bookJob({ startsAt: "2026-01-12T19:00:00Z", labourHours: 4 });
     await startDraft(page);
     await proposeNextMonday(page);
+    // a save landing while the picker is open loads it again, and redraws its
+    // days: a box measured then is of a block already gone
+    await saved(page);
 
     await page
       .getByRole("region", { name: "Proposed time" })

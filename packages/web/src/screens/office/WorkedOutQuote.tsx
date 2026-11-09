@@ -1,16 +1,16 @@
 import { FileText } from "lucide-react";
 import type { PriceBreakdown } from "@empire-cleaning/models";
 import { IconTile } from "@empire-cleaning/ui";
-import { cleaners, formatHours, formatMoney } from "../format.ts";
+import {
+  cleaners,
+  formatHours,
+  formatMinutes,
+  formatMoney,
+} from "../format.ts";
 
 // About 1 h 38 min, shared by the Crew
-const onSite = (labourHours: number, crew: number) => {
-  const minutes = Math.round((labourHours / crew) * 60);
-  const hours = Math.floor(minutes / 60);
-  return [hours && `${hours} h`, minutes % 60 && `${minutes % 60} min`]
-    .filter(Boolean)
-    .join(" ");
-};
+const onSite = (labourHours: number, crew: number) =>
+  formatMinutes(Math.round((labourHours / crew) * 60));
 
 // a working-out's lines, as a Quote's override and this both say them
 export const working = {

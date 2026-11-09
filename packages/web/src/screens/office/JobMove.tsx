@@ -10,7 +10,7 @@ import type {
   LocalDateTime,
   ScheduledJob,
 } from "@empire-cleaning/models";
-import { SAME_TIME, whyNoRoom } from "@empire-cleaning/models";
+import { formatClock, SAME_TIME, whyNoRoom } from "@empire-cleaning/models";
 import {
   Actions,
   Button,
@@ -25,10 +25,10 @@ import { useLoaded } from "../load.ts";
 import {
   clientName,
   dayOfInstant,
-  formatClock,
   formatDateTime,
   formatDay,
   timeOfDay,
+  timeOfField,
 } from "../format.ts";
 import { useAction } from "../action.ts";
 import { PickFromSchedule } from "./SchedulePicker.tsx";
@@ -175,7 +175,7 @@ function ChooseTime({ job, close }: Omit<MoveProps, "to">) {
       </div>
       <PickFromSchedule
         date={date?.toString()}
-        time={time?.toString().slice(0, 5)}
+        time={timeOfField(time)}
         hoursOnSite={job.hoursOnSite}
         crew={{
           labourHours: job.labourHours,
@@ -197,7 +197,7 @@ function ChooseTime({ job, close }: Omit<MoveProps, "to">) {
         job={job}
         to={{
           date: date?.toString(),
-          time: time?.toString().slice(0, 5),
+          time: timeOfField(time),
         }}
         close={close}
       />

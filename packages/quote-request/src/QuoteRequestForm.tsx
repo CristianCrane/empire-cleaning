@@ -35,8 +35,10 @@ import type {
   Weekday,
 } from "@empire-cleaning/models";
 import {
+  PICK_TIMES,
   REQUEST_A_QUOTE,
   business,
+  formatClock,
   openAlready,
   quoteEmailedTo,
 } from "@empire-cleaning/models";
@@ -255,17 +257,8 @@ const weekdays: { day: Weekday; label: string }[] = [
   { day: 6, label: "Sunday" },
 ];
 
-// "18:00" -> "6:00 PM"
-const clockLabel = (time: string) => {
-  const [hours, minutes] = time.split(":").map(Number);
-  return `${hours! % 12 || 12}:${String(minutes).padStart(2, "0")} ${hours! < 12 ? "AM" : "PM"}`;
-};
-
-// a preferred start, on the half hour from 5am to 11pm
-const startTimes = Array.from({ length: 37 }, (_, i) => {
-  const minutes = 5 * 60 + i * 30;
-  return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
-});
+// a preferred start, from the times a picker offers, 5am to 11pm
+const startTimes = PICK_TIMES.filter((t) => t >= "05:00" && t <= "23:00");
 
 const addressOf = (p: Pick<PropertyView, "street" | "unit" | "postcode">) =>
   [p.street, p.unit, p.postcode].filter(Boolean).join(", ");
@@ -859,7 +852,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
           >
             {startTimes.map((time) => (
               <SelectItem key={time} id={time}>
-                {clockLabel(time)}
+                {formatClock(time)}
               </SelectItem>
             ))}
           </Select>

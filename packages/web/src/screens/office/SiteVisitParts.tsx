@@ -46,6 +46,7 @@ import {
   formatMinutes,
   siteVisitStatusLabel,
   timeOfDay,
+  timeOfField,
 } from "../format.ts";
 import { useAction, type Action } from "../action.ts";
 import {
@@ -141,7 +142,7 @@ function BookingForm({
         void onSubmit({
           staffId,
           date: date.toString(),
-          time: time.toString().slice(0, 5),
+          time: timeOfField(time),
           minutes,
         });
       }}
@@ -187,7 +188,7 @@ function BookingForm({
       </div>
       <PickFromSchedule
         date={date?.toString()}
-        time={time?.toString().slice(0, 5)}
+        time={timeOfField(time)}
         hoursOnSite={minutes / 60}
         crew={
           visitor?.roles.includes("cleaner")
