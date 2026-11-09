@@ -28,6 +28,7 @@ import {
   submit,
 } from "../../../tests/fixtures.ts";
 import { SEEDED } from "#features/services";
+import { DAY_MS, MINUTE_MS } from "#services/clock";
 
 // one Service's Suggested Price, as an option records it
 const priceOf = (
@@ -939,9 +940,9 @@ describe("Expiry", () => {
       ).map((q) => [q.id, q.status]);
 
     const expiry = new Date(first.offer!.expiresAt!).getTime();
-    testClock().set(new Date(expiry + 30 * 86_400_000 - 60_000));
+    testClock().set(new Date(expiry + 30 * DAY_MS - MINUTE_MS));
     expect(await listed()).toEqual([[quoteId, "expired"]]);
-    testClock().set(new Date(expiry + 30 * 86_400_000));
+    testClock().set(new Date(expiry + 30 * DAY_MS));
     expect(await listed()).toEqual([]);
   });
 

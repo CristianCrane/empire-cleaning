@@ -6,7 +6,7 @@ import type {
   ClientView,
   OfficeClientView,
 } from "@empire-cleaning/models";
-import { clock } from "#services/clock";
+import { clock, HOUR_MS } from "#services/clock";
 import { rateLimit, tooManyTries } from "#services/rate-limit";
 import { db } from "../../db/index.ts";
 import {
@@ -139,7 +139,7 @@ export const changeOwnEmail = async (
     email: address,
     tokenHash: hashOf(token),
     expiresAt: new Date(
-      clock.now().getTime() + EMAIL_CHANGE_TTL_HOURS * 3_600_000,
+      clock.now().getTime() + EMAIL_CHANGE_TTL_HOURS * HOUR_MS,
     ),
   };
   await db

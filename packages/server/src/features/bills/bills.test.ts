@@ -31,6 +31,7 @@ import { jobs } from "#features/jobs";
 import { currentPriceList } from "#features/price-list";
 import { servicePlans } from "#features/service-plans";
 import { settleOpenPayments } from "#features/payments";
+import { HOUR_MS } from "#services/clock";
 import { formatMoney } from "#services/email";
 import { createStaff, setUsualWeek } from "#features/staff";
 import {
@@ -557,7 +558,7 @@ describe("a Bill that can't be charged for want of the database", () => {
       await setBilling(office, client.id, { billingEmail: null }).expect(200);
       const offered = await offerAssignment(job.id, coryId, me.id);
       await confirmAssignment(coryId, offered.assignments[0]!.id);
-      testClock().set(new Date(new Date(startsAt).getTime() + 3 * 3_600_000));
+      testClock().set(new Date(new Date(startsAt).getTime() + 3 * HOUR_MS));
       await completeJob(coryId, job.id, { condition: "moderate", reports: [] });
     }
     // Casey's Bill's Charge can't be recorded

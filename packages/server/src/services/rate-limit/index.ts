@@ -1,5 +1,5 @@
 import { business } from "@empire-cleaning/models";
-import { clock } from "#services/clock";
+import { clock, MINUTE_MS } from "#services/clock";
 import { monitoring } from "#services/monitoring";
 import env, { type Env } from "../../env.ts";
 
@@ -74,7 +74,7 @@ class MemoryRateLimiter implements RateLimiter {
   // the tries at `id` still within the limit's window, how long until
   // another is allowed (0 if it is now), and a way to count one
   private recent(id: string, { tries, minutes }: Limit, now: number) {
-    const window = minutes * 60_000;
+    const window = minutes * MINUTE_MS;
     const recent = (this.tries.get(id) ?? []).filter((at) => at > now - window);
     this.tries.set(id, recent);
     return {
@@ -87,14 +87,14 @@ class MemoryRateLimiter implements RateLimiter {
   // enough: a flood mustn't use up the monitoring quota too
   private tellCapReached(name: LimitName, { minutes }: Limit, now: number) {
     const told = this.toldAt.get(name);
-    if (told !== undefined && now - told < minutes * 60_000) return;
+    if (told !== undefined && now - told < minutes * MINUTE_MS) return;
     this.toldAt.set(name, now);
     monitoring.signal("rate_cap_reached", { limit: name });
   }
 
   // forgets, once a minute, whoever hasn't tried within the longest window
   private sweep(now: number) {
-    if (now - this.sweptAt < 60_000) return;
+    if (now - this.sweptAt < MINUTE_MS) return;
     this.sweptAt = now;
     const longest =
       Math.max(
@@ -102,7 +102,7 @@ class MemoryRateLimiter implements RateLimiter {
           l.perInbox.minutes,
           l.siteWide.minutes,
         ]),
-      ) * 60_000;
+      ) * MINUTE_MS;
     for (const [id, tries] of this.tries) {
       if ((tries.at(-1) ?? 0) <= now - longest) this.tries.delete(id);
     }

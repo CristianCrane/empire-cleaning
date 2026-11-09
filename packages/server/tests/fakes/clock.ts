@@ -1,4 +1,4 @@
-import type { Clock } from "#services/clock";
+import { type Clock, DAY_MS, HOUR_MS, MINUTE_MS } from "#services/clock";
 
 export class FakeClock implements Clock {
   private current: Date;
@@ -16,7 +16,7 @@ export class FakeClock implements Clock {
   }
 
   advance({ days = 0, hours = 0, minutes = 0 }) {
-    const ms = ((days * 24 + hours) * 60 + minutes) * 60 * 1000;
+    const ms = days * DAY_MS + hours * HOUR_MS + minutes * MINUTE_MS;
     this.current = new Date(this.current.getTime() + ms);
   }
 }
