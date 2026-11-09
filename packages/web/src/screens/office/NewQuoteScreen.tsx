@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Search, UserPlus, Users } from "lucide-react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import {
+  NotPriced,
   suggestedPrice,
   type ClientList,
   type ClientListItem,
@@ -34,6 +35,7 @@ import { getJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { clientName } from "../format.ts";
 import { WorkedOutQuote } from "./WorkedOutQuote.tsx";
+import { reportUnexpected } from "../../monitoring.ts";
 
 export type NewQuoteSearch = { clientId?: string };
 
@@ -270,8 +272,11 @@ function PriceSoFar({
         what.condition,
         list.addOns.filter((a) => ask.addOns?.includes(a.key)),
       );
-    } catch {
-      // a place the Service isn't priced for: nothing to show yet
+    } catch (e) {
+      // a place the Service isn't priced for: nothing to show yet. A bug is
+      // reported on each render, which Sentry sends once (its Dedupe drops
+      // a repeat of the last error)
+      if (!(e instanceof NotPriced)) reportUnexpected(e);
     }
   }
   const business = what?.priced.kind === "commercial";

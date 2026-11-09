@@ -3,6 +3,7 @@ import { magicLinkClient } from "better-auth/client/plugins";
 import type { AccountRole, Me, SignedInAccount } from "@empire-cleaning/models";
 import { identify } from "@empire-cleaning/browser-monitoring";
 import { putJson } from "./api.ts";
+import { reportUnexpected } from "./monitoring.ts";
 
 // Better Auth's browser client: plain functions over the API's /api/auth
 // endpoints (same origin; Vite forwards /api to the server), no UI of its own
@@ -54,7 +55,7 @@ export const seeTour = (tour: string) => {
       account.seenTours.push(tour);
     }
   });
-  putJson(`/api/me/tours/${tour}`, undefined).catch(() => {});
+  putJson(`/api/me/tours/${tour}`, undefined).catch(reportUnexpected);
 };
 
 // asks the API again next time it is needed, e.g. after becoming a Client
