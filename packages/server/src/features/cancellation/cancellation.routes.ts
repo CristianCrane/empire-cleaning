@@ -26,7 +26,7 @@ clientCancellationRouter.post(
   async (req, res) => {
     const account = signedInAccount(res);
     const client = await ownClient(account.id);
-    const id = String(req.params.id);
+    const id = req.params.id;
     await ownJob(client.id, id);
     await cancelJob(id, {
       by: "client",
@@ -48,7 +48,7 @@ officeCancellationRouter.post(
   authorize("office_staff"),
   validate({ params: job, body: officeCancelSchema }),
   async (req, res) => {
-    const id = String(req.params.id);
+    const id = req.params.id;
     await cancelJob(id, {
       by: req.body.by,
       feeCents: req.body.feeCents,
@@ -70,7 +70,7 @@ noAccessRouter.post(
   validate({ params: job, body: noAccessSchema }),
   async (req, res) => {
     const member = await staffForAccount(signedInAccount(res).id);
-    const id = String(req.params.id);
+    const id = req.params.id;
     await recordNoAccess(member.id, id, req.body.reason);
     res.json(await jobAssignedTo(member.id, id));
   },

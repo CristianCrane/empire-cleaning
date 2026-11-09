@@ -41,7 +41,7 @@ router.get(
   validate({ params: plan }),
   async (req, res) => {
     const client = await ownClient(signedInAccount(res).id);
-    res.json(await clientServicePlan(client.id, String(req.params.id)));
+    res.json(await clientServicePlan(client.id, req.params.id));
   },
 );
 
@@ -53,7 +53,7 @@ router.post(
     const account = signedInAccount(res);
     const client = await ownClient(account.id);
     res.json(
-      await clientEndServicePlan(client.id, String(req.params.id), {
+      await clientEndServicePlan(client.id, req.params.id, {
         goingAhead: req.body.goingAhead,
         byAccountId: account.id,
         byClient: true,
@@ -69,7 +69,7 @@ router.get(
   authorize("office_staff"),
   validate({ params: plan }),
   async (req, res) => {
-    res.json(await officeServicePlan(String(req.params.id)));
+    res.json(await officeServicePlan(req.params.id));
   },
 );
 
@@ -79,7 +79,7 @@ router.post(
   authorize("office_staff"),
   validate({ params: plan, body: endSchema }),
   async (req, res) => {
-    const id = String(req.params.id);
+    const id = req.params.id;
     await endServicePlan(id, {
       goingAhead: req.body.goingAhead,
       byAccountId: signedInAccount(res).id,
@@ -94,13 +94,7 @@ router.post(
   authorize("office_staff"),
   validate({ params: visit, body: bookVisitSchema }),
   async (req, res) => {
-    res.json(
-      await bookVisit(
-        String(req.params.id),
-        String(req.params.visitId),
-        req.body,
-      ),
-    );
+    res.json(await bookVisit(req.params.id, req.params.visitId, req.body));
   },
 );
 
@@ -109,8 +103,6 @@ router.post(
   authorize("office_staff"),
   validate({ params: visit }),
   async (req, res) => {
-    res.json(
-      await skipVisit(String(req.params.id), String(req.params.visitId)),
-    );
+    res.json(await skipVisit(req.params.id, req.params.visitId));
   },
 );

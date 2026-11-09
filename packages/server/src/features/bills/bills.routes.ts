@@ -34,7 +34,7 @@ router.get(
   validate({ params: bill }),
   async (req, res) => {
     const client = await ownClient(signedInAccount(res).id);
-    res.json(await billView(String(req.params.id), client.id));
+    res.json(await billView(req.params.id, client.id));
   },
 );
 
@@ -45,7 +45,7 @@ router.post(
   validate({ params: bill }),
   async (req, res) => {
     const client = await ownClient(signedInAccount(res).id);
-    res.json(await startBillPayment(client, String(req.params.id)));
+    res.json(await startBillPayment(client, req.params.id));
   },
 );
 
@@ -59,7 +59,7 @@ router.post(
   }),
   async (req, res) => {
     const client = await ownClient(signedInAccount(res).id);
-    const id = String(req.params.id);
+    const id = req.params.id;
     await billView(id, client.id);
     const failure = await finishBillPayment(id, req.body.ref);
     if (failure) {
@@ -103,7 +103,7 @@ router.get(
   authorize("office_staff"),
   validate({ params: bill }),
   async (req, res) => {
-    res.json(await billView(String(req.params.id)));
+    res.json(await billView(req.params.id));
   },
 );
 
@@ -122,7 +122,7 @@ router.post(
   }),
   async (req, res) => {
     res.json(
-      await voidBill(String(req.params.id), {
+      await voidBill(req.params.id, {
         byAccountId: signedInAccount(res).id,
         reason: req.body.reason,
       }),
@@ -146,7 +146,7 @@ router.post(
   }),
   async (req, res) => {
     res.json(
-      await recordOutsidePayment(String(req.params.id), {
+      await recordOutsidePayment(req.params.id, {
         byAccountId: signedInAccount(res).id,
         note: req.body.note,
       }),
@@ -177,6 +177,6 @@ clientBillingRouter.put(
     }),
   }),
   async (req, res) => {
-    res.json(await setBilling(String(req.params.id), req.body));
+    res.json(await setBilling(req.params.id, req.body));
   },
 );

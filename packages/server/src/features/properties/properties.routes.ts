@@ -34,7 +34,7 @@ router.get(
   authorize("office_staff"),
   validate({ params }),
   async (req, res) => {
-    const view = await officePropertyView(String(req.params.id));
+    const view = await officePropertyView(req.params.id);
     if (!view) throw new NotFoundError("Property not found");
     res.json(view);
   },
@@ -57,7 +57,7 @@ router.patch(
   }),
   async (req, res) => {
     const account = signedInAccount(res);
-    const id = String(req.params.id);
+    const id = req.params.id;
     const owned = account.roles.includes("office_staff")
       ? eq(properties.id, id)
       : and(
@@ -94,7 +94,7 @@ router.patch(
   authorize("office_staff"),
   validate({ params }),
   async (req, res) => {
-    const id = String(req.params.id);
+    const id = req.params.id;
     const [property] = await db
       .select()
       .from(properties)

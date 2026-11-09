@@ -82,7 +82,7 @@ router.patch(
     }),
   }),
   async (req, res) => {
-    const id = String(req.params.id);
+    const id = req.params.id;
     await refuseOthersEmail(id, req.body.email);
     const view = await officeUpdateContactDetails(id, req.body);
     if (!view) throw new NotFoundError("Client not found");
@@ -114,7 +114,7 @@ router.get(
   authorize("office_staff"),
   validate({ params: z.object({ id: z.uuid() }) }),
   async (req, res) => {
-    const view = await officeClientView(String(req.params.id));
+    const view = await officeClientView(req.params.id);
     if (!view) throw new NotFoundError("Client not found");
     res.json(view);
   },

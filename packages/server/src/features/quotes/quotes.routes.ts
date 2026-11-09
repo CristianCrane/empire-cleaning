@@ -76,7 +76,7 @@ router.get(
   validate(byId),
   async (req, res) => {
     const client = await ownClient(signedInAccount(res).id);
-    res.json(await clientQuoteView(String(req.params.id), client.id));
+    res.json(await clientQuoteView(req.params.id, client.id));
   },
 );
 
@@ -90,7 +90,7 @@ router.post(
   async (req, res) => {
     const account = signedInAccount(res);
     const client = await ownClient(account.id);
-    const id = String(req.params.id);
+    const id = req.params.id;
     const result = await acceptQuote(id, req.body, {
       by: "client",
       clientId: client.id,
@@ -111,7 +111,7 @@ router.post(
   validate(byId),
   async (req, res) => {
     const client = await ownClient(signedInAccount(res).id);
-    const id = String(req.params.id);
+    const id = req.params.id;
     // theirs, or a 404
     await clientQuote(id, client.id);
     const pending = await pendingDepositFor(id);
@@ -134,7 +134,7 @@ router.post(
   validate(byId),
   async (req, res) => {
     const client = await ownClient(signedInAccount(res).id);
-    res.json(await declineQuote(String(req.params.id), client.id));
+    res.json(await declineQuote(req.params.id, client.id));
   },
 );
 
@@ -165,7 +165,7 @@ router.get(
   authorize("office_staff"),
   validate(byId),
   async (req, res) => {
-    res.json(await officeQuote(String(req.params.id)));
+    res.json(await officeQuote(req.params.id));
   },
 );
 
@@ -176,7 +176,7 @@ router.post(
   validate({ ...byId, body: startRevisionSchema }),
   async (req, res) => {
     const { quote, started } = await startRevision(
-      String(req.params.id),
+      req.params.id,
       req.body.kind,
       signedInAccount(res).id,
     );
@@ -190,7 +190,7 @@ router.patch(
   authorize("office_staff"),
   validate({ ...byId, body: draftSchema }),
   async (req, res) => {
-    res.json(await saveDraft(String(req.params.id), req.body));
+    res.json(await saveDraft(req.params.id, req.body));
   },
 );
 
@@ -205,7 +205,7 @@ router.get(
   async (req, res) => {
     const { from, to, weekday } = req.query;
     res.json(
-      await draftStarts(String(req.params.id), {
+      await draftStarts(req.params.id, {
         from,
         to,
         weekday,
@@ -220,7 +220,7 @@ router.delete(
   authorize("office_staff"),
   validate(byId),
   async (req, res) => {
-    const quote = await discardDraft(String(req.params.id));
+    const quote = await discardDraft(req.params.id);
     if (quote) res.json(quote);
     else res.status(204).end();
   },
@@ -231,7 +231,7 @@ router.post(
   authorize("office_staff"),
   validate(byId),
   async (req, res) => {
-    res.json(await sendQuote(String(req.params.id)));
+    res.json(await sendQuote(req.params.id));
   },
 );
 
@@ -243,7 +243,7 @@ router.post(
   async (req, res) => {
     res.json(
       await turnDownQuote(
-        String(req.params.id),
+        req.params.id,
         req.body.reason,
         signedInAccount(res).id,
       ),
@@ -258,7 +258,7 @@ router.post(
   authorize("office_staff"),
   validate({ ...byId, body: acceptSchema }),
   async (req, res) => {
-    const id = String(req.params.id);
+    const id = req.params.id;
     await acceptQuote(
       id,
       { revisionId: req.body.revisionId, serviceKey: req.body.serviceKey },

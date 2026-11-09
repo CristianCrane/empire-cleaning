@@ -53,7 +53,7 @@ router.get(
   authorize("office_staff"),
   validate({ params }),
   async (req, res) => {
-    res.json(await officeSiteVisit(String(req.params.id)));
+    res.json(await officeSiteVisit(req.params.id));
   },
 );
 
@@ -62,7 +62,7 @@ router.post(
   authorize("office_staff"),
   validate({ params, body: bookingSchema }),
   async (req, res) => {
-    res.json(await moveSiteVisit(String(req.params.id), req.body));
+    res.json(await moveSiteVisit(req.params.id, req.body));
   },
 );
 
@@ -71,9 +71,7 @@ router.post(
   authorize("office_staff"),
   validate({ params }),
   async (req, res) => {
-    res.json(
-      await cancelSiteVisit(String(req.params.id), signedInAccount(res).id),
-    );
+    res.json(await cancelSiteVisit(req.params.id, signedInAccount(res).id));
   },
 );
 
@@ -84,11 +82,7 @@ router.post(
   validate({ params }),
   async (req, res) => {
     res.json(
-      await recordFindings(
-        String(req.params.id),
-        req.body,
-        signedInAccount(res).id,
-      ),
+      await recordFindings(req.params.id, req.body, signedInAccount(res).id),
     );
   },
 );
@@ -107,7 +101,7 @@ propertyFindingsRouter.post(
       .status(201)
       .json(
         await recordFindingsWithoutVisit(
-          String(req.params.id),
+          req.params.id,
           req.body,
           signedInAccount(res).id,
         ),

@@ -32,7 +32,7 @@ jobAssignmentsRouter.get(
   authorize("office_staff"),
   validate({ params: job }),
   async (req, res) => {
-    res.json(await officeJob(String(req.params.id)));
+    res.json(await officeJob(req.params.id));
   },
 );
 
@@ -45,7 +45,7 @@ jobAssignmentsRouter.post(
       .status(201)
       .json(
         await offerAssignment(
-          String(req.params.id),
+          req.params.id,
           req.body.staffId,
           signedInAccount(res).id,
         ),
@@ -58,10 +58,7 @@ jobAssignmentsRouter.delete(
   authorize("office_staff"),
   validate({ params: jobAssignment }),
   async (req, res) => {
-    const { id, assignmentId } = req.params as {
-      id: string;
-      assignmentId: string;
-    };
+    const { id, assignmentId } = req.params;
     res.json(await removeAssignment(id, assignmentId, signedInAccount(res).id));
   },
 );
@@ -86,7 +83,7 @@ router.get("/mine", async (_req, res) => {
 });
 
 router.get("/mine/:id", validate({ params: job }), async (req, res) => {
-  res.json(await jobAssignedTo((await cleaner(res)).id, String(req.params.id)));
+  res.json(await jobAssignedTo((await cleaner(res)).id, req.params.id));
 });
 
 // Cleaners Needed open to them (ADR-0019), soonest first; one, by its Job; and
@@ -96,9 +93,7 @@ router.get("/open", async (_req, res) => {
 });
 
 router.get("/open/:id", validate({ params: job }), async (req, res) => {
-  res.json(
-    await cleanerNeededFor((await cleaner(res)).id, String(req.params.id)),
-  );
+  res.json(await cleanerNeededFor((await cleaner(res)).id, req.params.id));
 });
 
 router.post(
@@ -106,17 +101,13 @@ router.post(
   validate({ params: job, body: seenSchema }),
   async (req, res) => {
     const { id } = await cleaner(res);
-    await confirmCleanerNeeded(
-      id,
-      String(req.params.id),
-      new Date(req.body.startsAt),
-    );
-    res.json(await jobAssignedTo(id, String(req.params.id)));
+    await confirmCleanerNeeded(id, req.params.id, new Date(req.body.startsAt));
+    res.json(await jobAssignedTo(id, req.params.id));
   },
 );
 
 router.post("/open/:id/pass", validate({ params: job }), async (req, res) => {
-  await passCleanerNeeded((await cleaner(res)).id, String(req.params.id));
+  await passCleanerNeeded((await cleaner(res)).id, req.params.id);
   res.status(204).end();
 });
 
@@ -127,7 +118,7 @@ router.post(
     res.json(
       await confirmAssignment(
         (await cleaner(res)).id,
-        String(req.params.id),
+        req.params.id,
         new Date(req.body.startsAt),
       ),
     );
@@ -138,7 +129,7 @@ router.post(
   "/:id/release",
   validate({ params: assignment }),
   async (req, res) => {
-    await releaseAssignment((await cleaner(res)).id, String(req.params.id));
+    await releaseAssignment((await cleaner(res)).id, req.params.id);
     res.status(204).end();
   },
 );

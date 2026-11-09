@@ -41,7 +41,7 @@ clientRescheduleRouter.get(
   authorize("client"),
   validate({ params: job }),
   async (req, res) => {
-    const { job } = await mine(signedInAccount(res).id, String(req.params.id));
+    const { job } = await mine(signedInAccount(res).id, req.params.id);
     res.json(await rescheduleTimesFor(job));
   },
 );
@@ -52,7 +52,7 @@ clientRescheduleRouter.post(
   validate({ params: job, body: rescheduleSchema }),
   async (req, res) => {
     const account = signedInAccount(res);
-    const id = String(req.params.id);
+    const id = req.params.id;
     const { client } = await mine(account.id, id);
     const { date, time, cost } = req.body;
     await requestReschedule(
@@ -70,7 +70,7 @@ clientRescheduleRouter.post(
   validate({ params: job }),
   async (req, res) => {
     const account = signedInAccount(res);
-    const id = String(req.params.id);
+    const id = req.params.id;
     const { client } = await mine(account.id, id);
     await withdrawReschedule(id, account.id);
     res.json(await clientJob(client.id, id));
@@ -92,7 +92,7 @@ officeRescheduleRouter.get(
   authorize("office_staff"),
   validate({ params: job }),
   async (req, res) => {
-    res.json(await rescheduleTimesFor(await jobById(String(req.params.id))));
+    res.json(await rescheduleTimesFor(await jobById(req.params.id)));
   },
 );
 
@@ -102,7 +102,7 @@ officeRescheduleRouter.post(
   authorize("office_staff"),
   validate({ params: job, body: rescheduleSchema }),
   async (req, res) => {
-    const id = String(req.params.id);
+    const id = req.params.id;
     const { date, time, cost } = req.body;
     await requestReschedule(
       id,
@@ -118,7 +118,7 @@ officeRescheduleRouter.post(
   authorize("office_staff"),
   validate({ params: job }),
   async (req, res) => {
-    const id = String(req.params.id);
+    const id = req.params.id;
     await confirmReschedule(id, signedInAccount(res).id);
     res.json(await officeJob(id));
   },
@@ -129,7 +129,7 @@ officeRescheduleRouter.post(
   authorize("office_staff"),
   validate({ params: job, body: turnDownSchema }),
   async (req, res) => {
-    const id = String(req.params.id);
+    const id = req.params.id;
     await turnDownReschedule(id, req.body.reason, signedInAccount(res).id);
     res.json(await officeJob(id));
   },
@@ -141,7 +141,7 @@ officeRescheduleRouter.post(
   authorize("office_staff"),
   validate({ params: job, body: moveSchema }),
   async (req, res) => {
-    const id = String(req.params.id);
+    const id = req.params.id;
     const { date, time } = req.body;
     await moveJob(id, { date, time });
     res.json(await officeJob(id));
