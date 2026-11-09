@@ -7,6 +7,7 @@ import {
   expectAccessible,
   proposeNextMonday,
   requestQuoteAsGuest,
+  saved,
   setClock,
   signedInAs,
   signInWithLink,
@@ -155,8 +156,7 @@ test("a Draft whose prices changed since it was saved shows them before it's sen
   await signInAsOffice(page);
   await startDraft(page);
   await proposeNextMonday(page);
-  const status = page.getByRole("status").filter({ hasText: /prices|saved/ });
-  await expect(status).toHaveText("All changes saved");
+  await saved(page);
   const standard = page.getByRole("region", { name: "Standard Clean" });
   const before = (await standard.textContent())!;
 
@@ -179,7 +179,7 @@ test("a Draft whose prices changed since it was saved shows them before it's sen
     ),
   ).toBeVisible();
   await expect(standard).not.toHaveText(before);
-  await expect(status).toHaveText("All changes saved");
+  await saved(page);
   await send(page);
 });
 
@@ -570,8 +570,7 @@ test("Office Staff change what a Draft is for, and what was asked stays", async 
 
   await page.getByRole("button", { name: "Standard Clean Service" }).click();
   await page.getByRole("option", { name: "Move-in/out Clean" }).click();
-  const status = page.getByRole("status").filter({ hasText: /prices|saved/ });
-  await expect(status).toHaveText("All changes saved");
+  await saved(page);
 
   await expect(
     page.getByRole("region", { name: "Move-in/out Clean" }),
@@ -595,8 +594,7 @@ test("deleting a first Draft whose Service was asked for again since leaves the 
   await startDraft(page);
   await page.getByRole("button", { name: "Standard Clean Service" }).click();
   await page.getByRole("option", { name: "Move-in/out Clean" }).click();
-  const status = page.getByRole("status").filter({ hasText: /prices|saved/ });
-  await expect(status).toHaveText("All changes saved");
+  await saved(page);
   // the Standard Clean is free again, and Casey asks for it
   await requestQuoteAsGuest(casey);
 
@@ -628,8 +626,7 @@ test("a Draft for a Service priced by area is priced on the area Office Staff ty
 
   await area.fill("1200");
   await area.blur();
-  const status = page.getByRole("status").filter({ hasText: /prices|saved/ });
-  await expect(status).toHaveText("All changes saved");
+  await saved(page);
   // 1.2 x 8 h, to the quarter-hour, at $60: $585 plus 8.875% tax
   await expect(page.getByRole("region", { name: "Painting" })).toContainText(
     "$636.92",

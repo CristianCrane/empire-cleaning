@@ -11,6 +11,7 @@ import {
   offerJob,
   proposeNextMonday,
   saved,
+  startOn,
   recordNoAccess,
   requestQuoteAsGuest,
   requestQuoteForPremises,
@@ -352,16 +353,7 @@ test("a Service Plan Quote fits every width, Draft and Sent, for the Office and 
   await expectFitsEveryWidth(page, `${quote}/draft`);
 
   // its first Job on Monday 19 January 2026 at 9:00 AM
-  await page
-    .getByRole("group", { name: "Date" })
-    .getByRole("spinbutton", { name: /month/i })
-    .click();
-  await page.keyboard.type("01192026");
-  await page
-    .getByRole("group", { name: "Start time" })
-    .getByRole("spinbutton", { name: /hour/i })
-    .click();
-  await page.keyboard.type("0900AM");
+  await startOn(page, page, "01192026", "0900AM");
   await page.getByRole("button", { name: "Send to Casey Client" }).click();
   await expect(
     page.getByRole("region", { name: "Current quote" }),
