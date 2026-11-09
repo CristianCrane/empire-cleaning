@@ -43,8 +43,6 @@ export interface RateLimiter {
 class MemoryRateLimiter implements RateLimiter {
   private readonly tries = new Map<string, number[]>();
   private sweptAt = 0;
-  // when each site-wide cap was last said to be reached
-  private readonly toldAt = new Map<LimitName, number>();
 
   private readonly limits: Record<LimitName, Limits>;
 
@@ -64,7 +62,8 @@ class MemoryRateLimiter implements RateLimiter {
     // try leaves the window, however often they press
     const wait = Math.max(mine.wait, all.wait);
     if (wait > 0) {
-      if (all.wait > 0) this.tellCapReached(name, siteWide, now);
+      // real people are being turned away (told once an hour for each cap)
+      if (all.wait > 0) monitoring.signal("rate_cap_reached", { limit: name });
       return { allowed: false, retryAfterSeconds: Math.ceil(wait / 1000) };
     }
     mine.count(now);
@@ -81,15 +80,6 @@ class MemoryRateLimiter implements RateLimiter {
       wait: recent.length >= tries ? recent[0]! + window - now : 0,
       count: (at: number) => recent.push(at),
     };
-  }
-
-  // real people are being turned away, so it's urgent, but once a window is
-  // enough: a flood mustn't use up the monitoring quota too
-  private tellCapReached(name: LimitName, { window }: Limit, now: number) {
-    const told = this.toldAt.get(name);
-    if (told !== undefined && now - told < window) return;
-    this.toldAt.set(name, now);
-    monitoring.signal("rate_cap_reached", { limit: name });
   }
 
   // forgets, once a minute, whoever hasn't tried within the longest window

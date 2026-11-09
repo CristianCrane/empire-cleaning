@@ -1,6 +1,7 @@
 import { log } from "./log.ts";
 import { scrub } from "@empire-cleaning/models";
-import { urgencyOf, type Signal, type Urgency } from "./signals.ts";
+import { clock } from "#services/clock";
+import { urgencyOf, windowOf, type Signal, type Urgency } from "./signals.ts";
 
 // IDs and short facts about what was happening: Client, Staff and Account IDs,
 // never their details (ADR-0007). Scrubbed anyway, in case
@@ -34,6 +35,23 @@ export class SignalledError extends Error {
 
 let current: Reporter = consoleOnly;
 
+// when each signal told at most once a window was last told, by its name and
+// context
+const toldAt = new Map<string, number>();
+
+// whether `name` was told with this `context` within its window; if not, it
+// counts as told now
+const toldWithin = (name: Signal, context: Context) => {
+  const window = windowOf(name);
+  if (window === undefined) return false;
+  const key = JSON.stringify([name, context]);
+  const now = clock.now().getTime();
+  const told = toldAt.get(key);
+  if (told !== undefined && now - told < window) return true;
+  toldAt.set(key, now);
+  return false;
+};
+
 // The one way the server reports (ADR-0007). Everything is logged; errors,
 // signals and heartbeats also go to the Reporter.
 export const monitoring = {
@@ -48,6 +66,7 @@ export const monitoring = {
     current.error(error, scrub(context));
   },
   signal: (name: Signal, context: Context = {}) => {
+    if (toldWithin(name, context)) return;
     const urgency = urgencyOf(name);
     log.warn({ signal: name, urgency, ...context }, name);
     current.signal(name, urgency, scrub(context));
@@ -62,9 +81,11 @@ export const monitoring = {
 const messageOf = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
 
-// startup installs Sentry, and tests a fake
+// startup installs Sentry, and tests a fake. A new Reporter hears every
+// signal afresh
 export const setReporter = (next: Reporter) => {
   current = next;
+  toldAt.clear();
 };
 
 export { log, withRequest } from "./log.ts";
