@@ -41,7 +41,7 @@ export const recurringCleaning: ServicePageWords = {
         ],
       },
     ],
-    note: "Cada visita es una limpieza estándar. ¿Quiere una limpieza profunda de vez en cuando, o un extra como el interior del refrigerador? Pídalo como una cotización aparte cuando quiera; su plan sigue igual.",
+    note: "Cada visita es una limpieza estándar. ¿Quiere una limpieza profunda de vez en cuando, o un adicional como el interior del refrigerador? Pídalo como una cotización aparte cuando quiera; su plan sigue igual.",
   },
   pricing: {
     title: "Cómo se calcula el precio de un plan de limpieza",
@@ -84,14 +84,14 @@ export const recurringCleaning: ServicePageWords = {
         "Sí. Pida una nueva cotización del plan con el día que quiera; cuando la acepte, el plan sigue desde entonces en el nuevo día.",
     },
     {
-      question: "¿Y si necesito una limpieza extra antes de una fiesta?",
+      question: "¿Y si necesito otra limpieza antes de una fiesta?",
       answer:
-        "Pida una cotización aparte cuando quiera, para una limpieza profunda o una estándar. Tener un plan nunca le impide reservar una visita extra.",
+        "Pida una cotización aparte cuando quiera, para una limpieza profunda o una estándar. Tener un plan nunca le impide reservar otra visita.",
     },
     {
-      question: "¿Puedo añadir extras a una visita?",
+      question: "¿Puedo añadir adicionales a una visita?",
       answer:
-        "Sí. Pida una cotización aparte para el extra, o una nueva cotización del plan si quiere que se haga en cada visita a partir de entonces.",
+        "Sí. Pida una cotización aparte para el adicional, o una nueva cotización del plan si quiere que se haga en cada visita a partir de entonces.",
     },
   ],
 };

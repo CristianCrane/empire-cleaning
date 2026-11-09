@@ -80,7 +80,7 @@ export const postConstruction: ServicePageWords = {
     {
       question: "¿Limpian las ventanas?",
       answer:
-        "Los marcos, rieles y bordes son parte de la limpieza. En una casa, las ventanas por dentro son un extra: márquelo en su solicitud de cotización.",
+        "Los marcos, rieles y bordes son parte de la limpieza. En una casa, las ventanas por dentro son un adicional: márquelo en su solicitud de cotización.",
     },
     {
       question: "¿Limpian apartamentos después de una renovación?",

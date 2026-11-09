@@ -40,7 +40,7 @@ export const suffolk: AreaWords = {
   homes: {
     title: "Casas de familia, del puerto a la bahía",
     text: [
-      "Las casas del oeste de Suffolk son en su mayoría casas con espacio: una colonial en Dix Hills, una ranch en West Babylon, una high ranch en Commack, una casa frente al agua en Northport o Bay Shore. Muchas tienen un sótano terminado, una terraza, una oficina en casa o un cuarto de juegos, y más baños de los que un apartamento de la ciudad tiene cuartos. Díganos los dormitorios y baños, y cualquier extra, cuando pida una cotización, y tendrá el precio para su casa.",
+      "Las casas del oeste de Suffolk son en su mayoría casas con espacio: una colonial en Dix Hills, una ranch en West Babylon, una high ranch en Commack, una casa frente al agua en Northport o Bay Shore. Muchas tienen un sótano terminado, una terraza, una oficina en casa o un cuarto de juegos, y más baños de los que un apartamento de la ciudad tiene cuartos. Díganos los dormitorios y baños, y cualquier otra cosa que quiera limpiar, cuando pida una cotización, y tendrá el precio para su casa.",
       "Las casas grandes agradecen una rutina. Primero, una limpieza profunda lo deja todo como nuevo, detrás de los electrodomésticos, a lo largo de cada zócalo y en cada escalón. Después, un plan de limpieza lo mantiene así: visitas semanales, cada dos semanas o mensuales, cada una con un 10% de descuento.",
       "Las mascotas pueden quedarse en casa mientras trabajamos. Díganoslo cuando pida una cotización, para que el equipo sepa quién lo recibirá en la puerta, y cuéntenos de los cuartos que prefiere que no toquemos.",
     ],

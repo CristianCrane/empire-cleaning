@@ -40,7 +40,7 @@ export const nassau: AreaWords = {
   homes: {
     title: "Casas con espacio para limpiar",
     text: [
-      "La mayoría de las casas que limpiamos en Nassau son casas independientes: una Cape Cod en Levittown, una colonial en Garden City, una de dos niveles en Massapequa, una casa de playa en Long Beach. Más cuartos y más baños significan una visita más larga, y muchas tienen además un sótano terminado, un cuarto de juegos o una oficina en casa. Cuando pida una cotización, díganos los dormitorios y baños y cualquier extra que quiera limpiar, y le damos el precio para su casa.",
+      "La mayoría de las casas que limpiamos en Nassau son casas independientes: una Cape Cod en Levittown, una colonial en Garden City, una de dos niveles en Massapequa, una casa de playa en Long Beach. Más cuartos y más baños significan una visita más larga, y muchas tienen además un sótano terminado, un cuarto de juegos o una oficina en casa. Cuando pida una cotización, díganos los dormitorios y baños y cualquier otra cosa que quiera limpiar, y le damos el precio para su casa.",
       "Las casas juntan otra suciedad que los apartamentos: arena de la playa, barro del jardín, pelo de mascota en cada escalón. Una limpieza profunda primero llega a todo, detrás de los electrodomésticos y a lo largo de cada zócalo. Después, una limpieza regular lo mantiene al día.",
       "Con un plan de limpieza, después de su primera limpieza usted elige visitas semanales, cada dos semanas o mensuales, y cada una tiene un 10% de descuento. Salte una visita cuando esté de viaje o termine el plan cuando lo necesite.",
     ],

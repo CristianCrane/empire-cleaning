@@ -49,7 +49,7 @@ export const moveInMoveOut: ServicePageWords = {
   pricing: {
     title: "Cómo se calcula el precio",
     text: [
-      "Su cotización se calcula a partir de la casa: los dormitorios y baños, cuántos pisos, los extras que elija y cuánta limpieza necesita. Una casa después de un alquiler largo suele necesitar más que una que se mantuvo al día.",
+      "Su cotización se calcula a partir de la casa: los dormitorios y baños, cuántos pisos, los adicionales que elija y cuánta limpieza necesita. Una casa después de un alquiler largo suele necesitar más que una que se mantuvo al día.",
       "Tiene el precio de una limpieza profunda, porque lo es, con la casa vacía. Su cotización dice cuánto tiempo estaremos; acéptela en línea y pague un depósito para reservar, y el resto se cobra cuando la limpieza está terminada.",
     ],
   },
@@ -79,7 +79,7 @@ export const moveInMoveOut: ServicePageWords = {
     {
       question: "¿Está incluido el interior del refrigerador y del horno?",
       answer:
-        "Son extras, junto con el interior de los gabinetes y las ventanas por dentro. Márquelos cuando pida una cotización, como hace la mayoría de la gente que se muda.",
+        "Son adicionales, junto con el interior de los gabinetes y las ventanas por dentro. Márquelos cuando pida una cotización, como hace la mayoría de la gente que se muda.",
     },
     {
       question: "Soy dueño de un alquiler. ¿Pueden limpiar entre inquilinos?",

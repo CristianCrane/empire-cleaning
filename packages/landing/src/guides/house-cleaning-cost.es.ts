@@ -7,7 +7,7 @@ export const houseCleaningCost: GuideWords = {
   crumb: "Qué influye en el precio",
   title: "Cuánto cuesta limpiar una casa en Queens, NYC y Long Island",
   description:
-    "Qué decide el precio de una limpieza de casa en Queens, NYC y Long Island: la limpieza, el tamaño de la casa, su estado, las mascotas, los extras y cada cuánto.",
+    "Qué decide el precio de una limpieza de casa en Queens, NYC y Long Island: la limpieza, el tamaño de la casa, su estado, las mascotas, los adicionales y cada cuánto.",
   heading: "¿Cuánto cuesta limpiar una casa?",
   intro:
     "Es lo primero que pregunta casi todo el mundo, y la respuesta honesta es que depende de su casa. Aquí le explicamos de qué depende el precio, por qué cotizamos cada casa por separado y cómo mantener bajo el costo.",
@@ -30,7 +30,7 @@ export const houseCleaningCost: GuideWords = {
         "El tamaño de la casa: los dormitorios, los baños y cuántos pisos tiene.",
         "Cuánta limpieza necesita: ligera (ordenada, con el polvo de todos los días), moderada (con uso, algo de suciedad acumulada en la cocina y los baños) o intensa (sin limpiar en un tiempo, o después de una mudanza, una renovación o una fiesta).",
         "Las mascotas, cuyo pelo lleva tiempo quitar de los pisos y los muebles.",
-        "Los extras: el interior del refrigerador, el interior del horno, el interior de los gabinetes y las ventanas por dentro. Usted elige solo los que quiera.",
+        "Los adicionales: el interior del refrigerador, el interior del horno, el interior de los gabinetes y las ventanas por dentro. Usted elige solo los que quiera.",
       ],
     },
     {
@@ -51,7 +51,7 @@ export const houseCleaningCost: GuideWords = {
       title: "Qué paga, y cuándo",
       text: [
         "Acepta su cotización en línea y paga un depósito para reservar. El resto se cobra cuando la limpieza está terminada, así que solo paga completo por una limpieza que ya se hizo.",
-        "Si la casa resulta necesitar más de lo que preveía la cotización, el equipo le pregunta primero, y usted aprueba el precio de cualquier trabajo extra antes de que se haga. Reprogramar una limpieza es gratis con 24 horas o más de anticipación, y una vez con menos de 24 horas; cancelar con menos de 24 horas conserva el depósito como cargo.",
+        "Si la casa resulta necesitar más de lo que preveía la cotización, el equipo le pregunta primero, y usted aprueba cualquier cambio de precio antes de que se haga el trabajo. Reprogramar una limpieza es gratis con 24 horas o más de anticipación, y una vez con menos de 24 horas; cancelar con menos de 24 horas conserva el depósito como cargo.",
       ],
     },
     {
@@ -60,7 +60,7 @@ export const houseCleaningCost: GuideWords = {
       list: [
         "Empiece con una limpieza profunda, y luego manténgala con visitas estándar en un plan de limpieza, con un 10% de descuento cada una.",
         "Recoja el desorden antes de que lleguemos, para que nuestro tiempo se use en limpiar y no en ordenar.",
-        "Elija solo los extras que necesite, cuando los necesite.",
+        "Elija solo los adicionales que necesite, cuando los necesite.",
         "Describa su casa tal como está. Una cotización exacta significa que no hay sorpresas ese día.",
       ],
     },

@@ -16,7 +16,7 @@ export const faqs: Faq[] = [
   {
     question: "¿Cuánto cuesta una limpieza?",
     answer:
-      "Cada casa recibe su propia cotización, calculada a partir de la limpieza que elija, los dormitorios y baños, cuántos pisos, las mascotas o extras, y cuánta limpieza necesita. Pida una y se la enviamos por correo, normalmente en un día hábil.",
+      "Cada casa recibe su propia cotización, calculada a partir de la limpieza que elija, los dormitorios y baños, cuántos pisos, las mascotas o adicionales, y cuánta limpieza necesita. Pida una y se la enviamos por correo, normalmente en un día hábil.",
     more: {
       page: { kind: "guide", guide: "cost" },
       text: "Qué influye en el precio",

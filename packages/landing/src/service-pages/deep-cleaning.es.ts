@@ -57,7 +57,7 @@ export const deepCleaning: ServicePageWords = {
   pricing: {
     title: "Cómo se calcula el precio de una limpieza profunda",
     text: [
-      "Cada casa es distinta, así que no publicamos un precio. Su cotización se calcula a partir de su casa: los dormitorios y baños, cuántos pisos, si hay mascotas, los extras que elija y cuánta limpieza necesita (ligera, moderada o intensa).",
+      "Cada casa es distinta, así que no publicamos un precio. Su cotización se calcula a partir de su casa: los dormitorios y baños, cuántos pisos, si hay mascotas, los adicionales que elija y cuánta limpieza necesita (ligera, moderada o intensa).",
       "Una limpieza profunda tarda más que una limpieza estándar, y su cotización dice cuánto tiempo estaremos. Para reservar, acepte la cotización en línea y pague un depósito; el resto se cobra cuando la limpieza está terminada.",
     ],
   },
@@ -84,7 +84,7 @@ export const deepCleaning: ServicePageWords = {
     {
       question: "¿Está incluido el interior del horno y del refrigerador?",
       answer:
-        "Son extras, junto con el interior de los gabinetes y las ventanas por dentro. Marque los que quiera cuando pida una cotización y se incluyen en el precio.",
+        "Son adicionales, junto con el interior de los gabinetes y las ventanas por dentro. Marque los que quiera cuando pida una cotización y se incluyen en el precio.",
     },
     {
       question: "¿Tengo que estar en casa?",

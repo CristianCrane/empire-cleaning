@@ -53,7 +53,7 @@ export const standardCleaning: ServicePageWords = {
   pricing: {
     title: "Cómo se calcula el precio de una limpieza estándar",
     text: [
-      "No publicamos un precio, porque no hay dos casas iguales. Su cotización se calcula a partir de su casa: los dormitorios y baños, cuántos pisos, si hay mascotas, los extras que elija y cuánta limpieza necesita (ligera, moderada o intensa).",
+      "No publicamos un precio, porque no hay dos casas iguales. Su cotización se calcula a partir de su casa: los dormitorios y baños, cuántos pisos, si hay mascotas, los adicionales que elija y cuánta limpieza necesita (ligera, moderada o intensa).",
       "Su cotización dice cuánto tiempo estaremos. La acepta en línea y paga un depósito para reservar; el resto se cobra cuando la limpieza está terminada.",
     ],
   },
@@ -95,9 +95,9 @@ export const standardCleaning: ServicePageWords = {
         "Claro que sí. Díganoslo cuando pida una cotización, para que esté en el tiempo que calculamos y el equipo sepa a quién va a encontrar.",
     },
     {
-      question: "¿Puedo añadir extras, como el interior del refrigerador?",
+      question: "¿Puedo añadir adicionales, como el interior del refrigerador?",
       answer:
-        "Sí. El interior del refrigerador, el interior del horno, el interior de los gabinetes y las ventanas por dentro son extras: marque los que quiera cuando pida una cotización y se incluyen en el precio.",
+        "Sí. El interior del refrigerador, el interior del horno, el interior de los gabinetes y las ventanas por dentro son adicionales: marque los que quiera cuando pida una cotización y se incluyen en el precio.",
     },
   ],
 };
