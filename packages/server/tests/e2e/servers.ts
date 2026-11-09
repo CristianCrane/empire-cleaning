@@ -10,24 +10,20 @@
 // to time out.
 //
 // E2E_SLOTS: the slots, as JSON, each `{ apiUrl, controlUrl, appUrl }`, the
-// app's being the origin the API lets in. TEST_DB_URL: the template, whose
-// copies are numbered from 0. LANDING_ORIGIN_URL: the landing site's origin.
+// app's being the origin the API lets in. TEST_DB_URL: the database this
+// run's are named from (setup/testDatabase.ts), its copies numbered from 0.
+// LANDING_ORIGIN_URL: the landing site's origin.
 import { spawn, type ChildProcess } from "node:child_process";
 import {
+  claimTestDatabase,
   copiesOf,
   migratedCopies,
-  TEST_DB_URL,
 } from "../setup/testDatabase.ts";
 import { testEnv } from "../setup/testEnv.ts";
 
 type Slot = { apiUrl: string; controlUrl: string; appUrl: string };
 const slots = JSON.parse(process.env.E2E_SLOTS ?? "[]") as Slot[];
 if (slots.length === 0) throw new Error("E2E_SLOTS names no slot");
-
-// the APIs load, which takes seconds, while their databases are made: an
-// API touches its database only once a test asks it something
-const databases = copiesOf(TEST_DB_URL, 0, slots.length);
-const made = migratedCopies(TEST_DB_URL, 0, slots.length);
 
 const apis: ChildProcess[] = [];
 let stopping = false;
@@ -38,6 +34,16 @@ const stop = (code: number) => {
 };
 process.on("SIGTERM", () => stop(0));
 process.on("SIGINT", () => stop(0));
+
+// names of this run's own, held until it exits; the next run drops them
+const claim = await claimTestDatabase((error) => {
+  console.error(error.message);
+  stop(1);
+});
+// the APIs load, which takes seconds, while their databases are made: an
+// API touches its database only once a test asks it something
+const databases = copiesOf(claim.url, 0, slots.length);
+const made = migratedCopies(claim.url, 0, slots.length);
 
 // each a process of its own, in this Node with tsx's loader (execArgv)
 const server = new URL("server.ts", import.meta.url).pathname;

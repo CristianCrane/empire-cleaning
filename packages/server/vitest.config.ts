@@ -44,6 +44,7 @@ export default defineConfig({
           name: "seed",
           environment: "node",
           include: ["tests/seed.test.ts"],
+          globalSetup: ["./tests/setup/seedSetup.ts"],
           env: testEnv,
           sequence: { groupOrder: 1 },
           // as many seeds at once as test workers: each keeps up to 13
