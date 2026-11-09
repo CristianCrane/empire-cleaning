@@ -28,7 +28,7 @@ Repo rules: CLAUDE.md or AGENTS.md, and the ADRs that bear on the code touched.
 4. **A fighting pattern**: the diff bends a pattern with special cases, flags or branches bolted on.
 5. **New pattern, nothing folded in**: the change adds a shape while an older one doing the same job stays.
 6. **A skipped simpler shape**: a shape with fewer concepts, or fewer places to edit next time, that the survey didn't weigh.
-7. On each refactor commit: **any behaviour change**, and whether the new shape is really simpler than the old one.
+7. On each refactor commit: **any behaviour change** (a dropped one is a change finding, below), and whether the new shape is really simpler than the old one.
 8. **An unshown cause**: a bug's `Cause:` (a bug: wrong behaviour, a failing or flaky test, a run that's too slow) says why it happens with nothing that shows it (a reproduction, a trace, numbers before and after, a test red on the old code, each taken as the code runs), or with evidence that shows a symptom rather than that cause; or `none: no bug` on a change that fixes one. In plan mode, `to show:` with a way to show it stands. From round 1, the branch has shown it.
 9. **Seen nearby**: a problem outside the change that a search above turned up. Say so in the finding, so the author adds it to `Seen nearby:`. Don't sweep the repo for more.
 
@@ -41,6 +41,8 @@ Every finding is a fix the author makes before merge; if it isn't worth fixing n
 
 Style is never a finding: a ragged wrap, or a true comment you'd word differently.
 
+**A shape keeps every behaviour it replaces**, in every mode: error reporting, a guard, a retry are each a behaviour. A `Simpler:` you propose that would drop one says how it keeps it. A survey or diff that drops one (a move onto a shared helper that doesn't report errors, say) is a `[change]` finding whose fix restores it, never one the commit message names and lets go.
+
 The impact list, which grows as new kinds turn up:
 
 - adding, removing, moving or copying a pattern
@@ -48,6 +50,7 @@ The impact list, which grows as new kinds turn up:
 - adding a dependency
 - adding a flag or branch to a pattern
 - a bug whose cause isn't shown (hunt 8)
+- dropping a behaviour the replaced code had (above)
 
 Each finding has an id, `F<n>`, run on from the highest id in the output file (in round 1, the plan review's), so one id names one finding for the whole change. The header's open count is every change finding not fixed, conceded or ruled on by the user: the PR gate reads that count and nothing else.
 
@@ -60,13 +63,15 @@ The header's sha is HEAD as you start (`git rev-parse --short HEAD`, before you 
 ```
 # Change review: <branch> @ <short sha>, <plan | round n | recheck of round n>, <k> open change findings
 ## Previous findings          (after the plan)
-- F<n> [change|text] <finding, as first written> → fixed in <sha> | open: <why> | reopened: <how> | conceded: <why> | held: <why> | ruled by the user: <ruling>
+- F<n> [change|text] <finding, as first written> → fixed in <sha> | fixed in the survey | answered: <where> | open: <why> | reopened: <how> | conceded: <why> | held: <why> | ruled by the user: <ruling>
 ## Findings
 F<n>. [change|text] <hunt>: <claim> — <paths>
    Simpler: <shape> (~<n> files)
 ## Searched
 - <each search you ran> → <what it found>
 ```
+
+A fix is `fixed in <sha>` only for a commit on the branch; a fix to the survey's text is `fixed in the survey`, and one anywhere else (an issue's body, a comment) is `answered: <where>`. The author copies these words into the PR's Review lines, and the PR gate accepts no others.
 
 Done when everything your mode covers has been searched, and `Searched` lists each search. "No findings" stands only with that list.
 

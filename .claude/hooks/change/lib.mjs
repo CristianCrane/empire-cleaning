@@ -8,7 +8,7 @@
 // way and turns every other way down, saying how to run it: reading each
 // spelling the tool accepts (-R…, GH_REPO, flags before `pr`) kept missing
 // routes, round after round (47b0a6c, 3b948a6, then 6442db7 took this
-// shape; the cases: CristianCrane/.dotfiles#10).
+// shape; the cases: change-hooks.test.mjs).
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
@@ -128,18 +128,31 @@ const headSha = (cwd) => {
 };
 
 // the survey and whether it counts: it must name a path that exists,
-// with or without its lines (`path:12`, `path:3-5`)
+// from the top of the checkout or absolute, with or without its lines
+// (`path:12`, `path:3-5`). When it names none, `fix` says what to
+// write: the full path of a file it names by its name alone, or the files
+// that name could be, or else a path from the top as an example
 const survey = (cwd, key) => {
   const path = stateFile(cwd, "survey", key);
-  if (!existsSync(path)) return { path, ok: false, reason: "missing" };
+  if (!existsSync(path)) return { path, ok: false };
   const text = readFileSync(path, "utf8");
   const top = topOf(cwd);
-  const named = text
+  const words = text
     .split(/[\s,;()`'"<>]+/)
     .map((word) => word.replace(/[:.]+$/, "").replace(/:\d[\d-]*$/, ""))
-    .filter((word) => /\w/.test(word) && /[/.]/.test(word))
-    .some((word) => existsSync(isAbsolute(word) ? word : join(top, word)));
-  if (!named) return { path, ok: false, reason: "names no path that exists" };
+    .filter((word) => /\w/.test(word) && /[/.]/.test(word));
+  if (!words.some((word) => existsSync(isAbsolute(word) ? word : join(top, word)))) {
+    const tracked = lines(git(top, "ls-files"));
+    const short = words
+      .map((word) => [word, tracked.filter((file) => file.endsWith(`/${word}`))])
+      .find(([, files]) => files.length);
+    const fix = !short
+      ? `such as \`${tracked.find((file) => file.includes("/")) ?? "src/index.ts"}\``
+      : short[1].length === 1
+        ? `\`${short[0]}\` is \`${short[1][0]}\``
+        : `\`${short[0]}\` could be ${short[1].length} files, such as \`${short[1][0]}\`: give the one you mean`;
+    return { path, ok: false, fix };
+  }
   const expected = Number(text.match(/^Expected files:\s*~?(\d+)/m)?.[1]);
   return { path, ok: true, expected: expected || null };
 };
@@ -157,7 +170,9 @@ export const beforeEdit = (cwd, work) => {
   if (!found.ok)
     return {
       survey: found,
-      missing: `there is no survey for ${work.branch} (${found.reason}): load the \`change\` skill and write its survey to ${found.path}`,
+      missing: found.fix
+        ? `the survey for ${work.branch} (${found.path}) names no file by its path from the top of the checkout (${found.fix}): name each file it touches so`
+        : `there is no survey for ${work.branch}: load the \`change\` skill and write its survey to ${found.path}`,
     };
   const plan = planReview(cwd, work.key);
   if (!plan.ok)
@@ -251,8 +266,16 @@ export const review = (cwd, key) => {
   const path = stateFile(cwd, "review", key);
   if (!existsSync(path)) return { path, ok: false, reason: "missing" };
   const text = readFileSync(path, "utf8");
-  const header = text.match(/^# Change review:.* @ ([0-9a-f]{7,40}),.*round (\d+), (\d+) open change finding/m);
-  if (!header) return { path, ok: false, reason: "its header has no commit, round and open count" };
+  // the first `round <n>` after the sha, and the first open count after
+  // that, whatever words come between (a "(with a recheck of …)")
+  const header = text.match(/^# Change review:.* @ ([0-9a-f]{7,40}),.*?\bround (\d+)\b.*?\b(\d+) open change finding/m);
+  if (!header)
+    return {
+      path,
+      ok: false,
+      reason:
+        "its header has no commit, round and open count: its first line reads `# Change review: <branch> @ <short sha>, round <n>, <k> open change findings` (or `recheck of round <n>`), with anything more after the round",
+    };
   const [sha, ...counts] = header.slice(1);
   if (!headSha(cwd).startsWith(sha) && !commentOnly(cwd, sha))
     return { path, ok: false, reason: `it reviewed ${sha}, and the commits since change more than comment lines` };

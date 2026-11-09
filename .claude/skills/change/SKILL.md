@@ -24,7 +24,7 @@ A **pattern** is any shape the change follows or adds: a helper, a table, a laye
 
 ## 1. Survey
 
-Before the first edit: the survey gate turns edits down until it exists, and its turn-down names the path. (The survey lives in the git dir, one per branch, or on `main` one per session.)
+Before the first edit: the survey gate turns edits down until it exists and names a file by its path from the top of the checkout (`home/.claude/hooks/lib.mjs`, not `lib.mjs`), and its turn-down names the survey's path. (The survey lives in the git dir, one per branch, or on `main` one per session.)
 
 ```
 Change: <one line>
@@ -76,7 +76,7 @@ Write the PR body to `pr-body-…` beside the review (the gate names it) and ope
 ## Change
 - Extended | Retired | New: <pattern> — <paths>
 - Simpler shape considered: <a real shape>; <why not, or "done in <sha>">
-- Review: F<n> <finding> → fixed in <sha> | answered: <why, and the reviewer's or user's word on it>
+- Review: F<n> <finding> → fixed in <sha> | fixed in the survey | answered: <why, and the reviewer's or user's word on it>
 - Seen nearby: <problem> → fixed in <sha>
 - Harder to change: <what, or nothing>
 ```
