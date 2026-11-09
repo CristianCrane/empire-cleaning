@@ -14,6 +14,9 @@
       "entry": [
         // react-email's previews (`pnpm email:dev`)
         "emails/*.tsx",
+        // the config `pnpm pr:shots` (tests/e2e/shots.ts) hands Playwright
+        // by path
+        "tests/e2e/shots.config.ts",
         // drizzle-kit reads every *.schema.ts (src/db/drizzle.config.ts), so
         // their tables and enums stay exported
         "src/db/drizzle.config.ts",
@@ -24,6 +27,9 @@
       "drizzle": false,
       // pino loads it by name, in development (src/services/monitoring/log.ts)
       "ignoreDependencies": ["pino-pretty"],
+      // `pnpm pr:shots` runs the web app's or the landing site's own
+      // Playwright, from that package's folder (tests/e2e/shots.ts)
+      "ignoreBinaries": ["playwright"],
     },
   },
 }

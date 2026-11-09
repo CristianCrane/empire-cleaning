@@ -1,6 +1,6 @@
 ---
 name: change
-description: Survey the patterns a code change touches before its first edit, get a fresh change review before its PR, write the PR's Change section, and close with its lessons. Use when starting any change in a git repo, or when a hook asks for a survey, a review or lessons.
+description: Survey the patterns a code change touches before its first edit, get a fresh change review before its PR, write the PR's body, and close with its lessons. Use when starting any change in a git repo, or when a hook asks for a survey, a review or lessons.
 ---
 
 <!-- The change rules: edited in github.com/CristianCrane/.dotfiles (home/.claude); repos carry copies made by hooks/sync.mjs. -->
@@ -68,20 +68,45 @@ A round is the reviewer and you arguing about shape, and about a bug's evidence.
 - **Going nowhere** goes to the user in any round. When a round reopens a finding an earlier round marked fixed, the fixes are going back and forth: stop and put it to them with both sides. New, narrower findings each round are progress; keep going.
 - **After round 5**, any change finding still open goes to the user: stop and put each one to them with its paths. A round 6 runs only when they say so.
 
-## 5. Change section
+## 5. PR body
 
-Write the PR body to `pr-body-…` beside the review (the gate names it) and open the PR with `gh pr create --body-file <that path>`: the gate reads the body there and turns the PR down until its Change section answers every finding of the last review, by id. Every PR body ends with:
+A PR body says what a reader needs to check the change, and nothing else. Write it to `pr-body-…` beside the review (the gate names it) and open the PR with `gh pr create --body-file <that path>`. This shape replaces any other PR template, such as `mattpocock-skills:pr`'s. In this order:
 
 ```
+**Problem:** <one sentence>
+
+**Fix:** <one sentence>
+
+**Check these:**
+- [<path>:<lines>](https://github.com/<owner>/<repo>/blob/<sha>/<path>#L<a>-L<b>): <a few words on why>
+
+**Before / after:**
+<the screenshots, side by side>
+
+**Tests:**
+- [<test>](<permalink>): <what it shows>; red on the old code
+
+<details><summary>Change</summary>
+
 ## Change
 - Extended | Retired | New: <pattern> — <paths>
 - Simpler shape considered: <a real shape>; <why not, or "done in <sha>">
 - Review: F<n> <finding> → fixed in <sha> | fixed in the survey | answered: <why, and the reviewer's or user's word on it>
 - Seen nearby: <problem> → fixed in <sha>
 - Harder to change: <what, or nothing>
+
+</details>
+
+<the attribution footer>
 ```
 
-One line per pattern, per review finding and per `Seen nearby:` item. When the PR has refactor commits, Change names what they retired and says how behaviour was shown unchanged.
+- **Problem** and **Fix**: one sentence each, in the repo's own words.
+- **Check these**: 3 to 5 links to the lines that matter most, each a permalink at HEAD's full sha as the body is written, with a few words on why.
+- **Before / after**: only for a change a person sees, and then always: screenshots of each screen it changes, before and after side by side, made as the repo's CLAUDE.md says.
+- **Tests**: only for a change to the server or other code a person doesn't see: permalinks to the most relevant tests, at HEAD's full sha too, saying which one was red on the old code.
+- **Change**, collapsed: the blank line after `</summary>` lets GitHub draw the heading. One line per pattern, per review finding and per `Seen nearby:` item. When the PR has refactor commits, Change names what they retired and says how behaviour was shown unchanged.
+
+No other headings or labels (a line led by bold is a label): no summary of runs, no list of commits. The gate turns the PR down until the body has Problem and Fix with their sentences, Check these with 3 to 5 permalinks, every permalink at a commit on the branch, and Change in its closed `<details>`, with no other heading or label, and until Change answers every finding of the last review, by id.
 
 ## 6. Lessons
 

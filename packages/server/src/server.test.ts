@@ -15,6 +15,7 @@ import {
   testMonitoring,
   testPayments,
 } from "../tests/harness.ts";
+import { claimTestDatabase } from "../tests/setup/testDatabase.ts";
 import { casey, signInAsOffice } from "../tests/fixtures.ts";
 import { listen } from "./server.ts";
 
@@ -126,9 +127,72 @@ test("tests run against the dedicated test database", async () => {
     sql`select current_database() as name`,
   );
 
-  // one of the workers' copies of this checkout's empire_test
-  // (tests/setup/workerDatabase.ts, tests/checkout.ts)
-  expect(rows[0]?.name).toMatch(/^empire_test_c[0-9a-f]{6}_\d+$/);
+  // one of the workers' copies of this run's empire_test
+  // (tests/setup/workerDatabase.ts, tests/setup/testDatabase.ts)
+  expect(rows[0]?.name).toMatch(/^empire_test_r\d+_\d+$/);
+});
+
+// the name of the database at `url`, and its holder's pid (claimTestDatabase)
+const claimed = (url: string) => {
+  const name = new URL(url).pathname.slice(1);
+  return { name, pid: Number(/_r(\d+)$/.exec(name)?.[1]) };
+};
+const databasesNamed = async (...names: string[]) => {
+  const { rows } = await db.execute<{ name: string }>(
+    sql`select datname as name from pg_database where datname in (${sql.join(
+      names.map((name) => sql`${name}`),
+      sql`, `,
+    )})`,
+  );
+  return rows.map((row) => row.name).sort();
+};
+const holderIsGone = async (pid: number) => {
+  const { rows } = await db.execute(
+    sql`select 1 from pg_stat_activity where pid = ${pid}`,
+  );
+  return rows.length === 0;
+};
+
+test("each test run has databases of its own, and the next run drops those of one that ended (#375)", async () => {
+  const ended = await claimTestDatabase();
+  const going = await claimTestDatabase();
+  try {
+    const a = claimed(ended.url);
+    const b = claimed(going.url);
+    expect(a.name).not.toBe(b.name);
+    for (const name of [a.name, `${a.name}_1`, b.name]) {
+      await db.execute(sql.raw(`create database "${name}"`));
+    }
+
+    await ended.release();
+    await expect.poll(() => holderIsGone(a.pid)).toBe(true);
+    const next = await claimTestDatabase();
+    await next.release();
+
+    expect(await databasesNamed(a.name, `${a.name}_1`, b.name)).toEqual([
+      b.name,
+    ]);
+  } finally {
+    await ended.release();
+    await going.release();
+  }
+});
+
+test("a test run whose hold on its databases ends stops, saying why", async () => {
+  const onLost = vi.fn();
+  const claim = await claimTestDatabase(onLost);
+  try {
+    await db.execute(
+      sql`select pg_terminate_backend(${claimed(claim.url).pid})`,
+    );
+
+    await expect.poll(() => onLost.mock.calls.length).toBe(1);
+    expect(onLost.mock.calls[0]?.[0].message).toMatch(
+      /^the test run's hold on its databases \(empire_test_r…\) ended, and the next run would drop them: stopping\. terminating connection due to administrator command/,
+    );
+  } finally {
+    await claim.release();
+  }
 });
 
 test("time can be set and advanced through the injected clock", () => {

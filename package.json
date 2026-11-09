@@ -24,6 +24,7 @@
     "db:seed": "pnpm --filter @empire-cleaning/server db:seed",
     "test:full": "pnpm --color --recursive --workspace-concurrency=1 --no-bail run test",
     "test:change": "scripts/test-change.sh",
+    "pr:shots": "node packages/server/tests/e2e/shots.ts",
     "email:dev": "pnpm --filter @empire-cleaning/server email:dev"
   },
   "devDependencies": {

@@ -260,7 +260,8 @@ stays as it is (#336).
 3. **Pick one** with the user, and note any tweaks.
 4. **Build it** on a `ux-<screen>` branch, with its tests (e2e on phone and
    desktop, axe in light and dark through the harness's `expectAccessible`,
-   the layout test at every width).
+   the layout test at every width). Its PR shows the screen before and
+   after, from `pnpm pr:shots` (`packages/web/README.md`, Testing).
 5. **Record it**: a row in the decisions log below; a new rule above, and a
    pattern in Storybook, if it carries over to other screens.
 

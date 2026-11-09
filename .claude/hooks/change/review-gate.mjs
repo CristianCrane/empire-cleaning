@@ -4,8 +4,9 @@
 // it is turned down until the review exists, is of the last commit (or
 // of one before it with only comment lines changed since) and, before the
 // last round, leaves no change finding open, and until the PR body, read
-// from its file, answers every finding of that review in its Change
-// section. A PR leaves draft (`gh pr ready`, or `gh pr create` without
+// from its file, is in the skill's shape (its parts, Check these's
+// permalinks, Change collapsed, nothing else) and answers every finding of
+// that review in its Change section. A PR leaves draft (`gh pr ready`, or `gh pr create` without
 // `--draft`) once the branch's lessons file (the `lessons` skill) says
 // where every lesson went, and the review is still of the last commit.
 import { existsSync, readFileSync } from "node:fs";
@@ -55,8 +56,73 @@ const lessonsMissing = (cwd, work) => {
     return `The lessons file for ${work.branch} (${file}) ${items.length ? `has ${unsaid.length} lesson(s) that don't say where they went` : "lists none"}: ${how}.`;
 };
 
-// gh pr create: the review, the body's Change section, and its lessons
-// unless it opens as a draft
+// the PR body's labelled parts (the `change` skill's PR body step), in its
+// order: whether each must be there, whether its sentence is on its line, and
+// how many permalinks it holds. `## Change` follows, collapsed
+const PARTS = [
+  { label: "Problem", required: true, sentence: true },
+  { label: "Fix", required: true, sentence: true },
+  { label: "Check these", required: true, links: [3, 5] },
+  { label: "Before / after" },
+  { label: "Tests" },
+];
+
+// the Change section, collapsed in a closed <details>: the blank line after
+// </summary> lets GitHub draw its heading
+const COLLAPSED = /^<details>\s*<summary>Change<\/summary>[ \t]*\n[ \t]*\n(## Change[ \t]*\n[\s\S]*?)^<\/details>/m;
+
+// a permalink: a file's lines at a commit's full sha
+const PERMALINK = /https:\/\/github\.com\/[^/\s]+\/[^/\s]+\/blob\/([0-9a-f]{40})\//g;
+
+// what keeps the body from the skill's shape, outside fenced code: a part
+// missing or short of what it holds, a label (any line led by bold) or
+// heading it doesn't have, a permalink at no commit on the branch, or
+// Change not collapsed. The Change section, when it's there, comes back to
+// be checked against the review
+const shapeOf = (text, cwd) => {
+  const prose = text.replace(/^```[\s\S]*?^```/gm, "");
+  const problems = [];
+  // each label's block: its line's rest, then the lines up to the next
+  // label or the collapsed Change
+  const blocks = new Map();
+  let block = null;
+  for (const line of prose.split("\n")) {
+    const label = /^\*\*(.+?):?\*\*:?(.*)$/.exec(line);
+    if (label) blocks.set(label[1], (block = { rest: label[2].trim(), text: "" }));
+    else if (/^<details>/.test(line)) block = null;
+    else if (block) block.text += `${line}\n`;
+  }
+  for (const { label, required, sentence, links } of PARTS) {
+    const part = blocks.get(label);
+    if (!part) {
+      if (required) problems.push(`no \`**${label}:**\``);
+      continue;
+    }
+    if (sentence && !part.rest) problems.push(`\`**${label}:**\` has no sentence on its line`);
+    const count = links && [...part.text.matchAll(PERMALINK)].length;
+    if (links && (count < links[0] || count > links[1]))
+      problems.push(
+        `\`**${label}:**\` has ${count} permalink(s) (\`https://github.com/<owner>/<repo>/blob/<full sha>/<path>#L<a>-L<b>\`), not ${links.join(" to ")}`,
+      );
+  }
+  const stray = [
+    ...[...blocks.keys()].filter((label) => !PARTS.some((part) => part.label === label)).map((label) => `**${label}**`),
+    ...lines(prose).filter((line) => /^#{1,6}\s/.test(line) && !/^## Change\s*$/.test(line)),
+  ];
+  if (stray.length) problems.push(`parts it doesn't have: ${stray.map((part) => `\`${part}\``).join(", ")}`);
+  const elsewhere = [...new Set([...prose.matchAll(PERMALINK)].map((link) => link[1]))].filter((sha) => !onBranch(cwd, sha));
+  if (elsewhere.length)
+    problems.push(`permalinks at ${elsewhere.map((sha) => sha.slice(0, 7)).join(", ")}, no commit on this branch: link at HEAD's full sha`);
+  const collapsed = COLLAPSED.exec(prose);
+  if (!collapsed)
+    problems.push(
+      "no `## Change` collapsed as `<details><summary>Change</summary>`, a blank line, `## Change` and its lines, then `</details>`",
+    );
+  return { problems, section: collapsed ? lines(collapsed[1]) : null };
+};
+
+// gh pr create: the review, the body's shape and its Change section, and
+// its lessons unless it opens as a draft
 const createGate = (command, hidden, match, input) => {
   const cwd = dirOf(command, hidden, match.index, input.cwd);
   const work = workOf(cwd, input);
@@ -77,17 +143,18 @@ const createGate = (command, hidden, match, input) => {
       `The change review for ${work.branch} isn't ready (${found.reason}). Run the change-reviewer agent as the \`change\` skill's Review step says, with output ${found.path}. Answer each finding in the PR's Change section, then open the PR. (This checked ${work.branch}, checked out in ${cwd} when the command started.)`,
     );
 
-  // the body comes from its file beside the review, and its Change section
-  // answers every finding
+  // the body comes from its file beside the review, is in the skill's
+  // shape, and its Change section answers every finding
   const body = stateFile(cwd, "pr-body", work.key);
   if (!command.includes(body) || !existsSync(body))
     return turnDownCreate(
-      `Write the PR body for ${work.branch} to ${body} and open the PR with \`--body-file ${body}\`, as the \`change\` skill's Change section step says.`,
+      `Write the PR body for ${work.branch} to ${body} and open the PR with \`--body-file ${body}\`, as the \`change\` skill's PR body step says.`,
     );
-  const text = readFileSync(body, "utf8");
-  const at = text.search(/^## Change\b/m);
-  if (at < 0) return turnDownCreate(`The PR body (${body}) has no \`## Change\` section: end it with one, as the \`change\` skill says.`);
-  const section = lines(text.slice(at));
+  const { problems, section } = shapeOf(readFileSync(body, "utf8"), cwd);
+  if (problems.length)
+    return turnDownCreate(
+      `The PR body (${body}) isn't in the shape the \`change\` skill's PR body step gives: ${problems.join("; ")}.`,
+    );
   // why no line answers a finding, or null when one does, in the words of
   // the reviewer's template: `fixed in <sha>` (a commit on this branch),
   // `fixed in the survey` (its text, never committed) or `answered: <why>`
