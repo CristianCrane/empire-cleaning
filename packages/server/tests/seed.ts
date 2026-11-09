@@ -76,7 +76,7 @@ import {
   servicePlanVisits,
 } from "#features/service-plans";
 import { createStaff, setException, setUsualWeek } from "#features/staff";
-import { addDays, atTime, dayOf, weekdayOf } from "#services/clock";
+import { addDays, atTime, dayOf, HOUR_MS, weekdayOf } from "#services/clock";
 import { installFakes, signIn, testClock, testPayments } from "./harness.ts";
 import { sentServicePlanQuote, startedServicePlan } from "./fixtures.ts";
 import { addTesters } from "./testers.ts";
@@ -996,7 +996,7 @@ async function seed() {
 
 // some hours after a Job starts (before it, if negative)
 const after = (job: { startsAt: Date }, hours: number) =>
-  new Date(job.startsAt.getTime() + hours * 3_600_000);
+  new Date(job.startsAt.getTime() + hours * HOUR_MS);
 
 // a Service Plan's Jobs, soonest first
 const planJobs = async (planId: string) =>

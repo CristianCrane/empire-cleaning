@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import type { ScheduledJob, StaffRole } from "@empire-cleaning/models";
+import { DAY_MS, HOUR_MS } from "#services/clock";
 import {
-  HOUR,
   NOW,
   THURSDAY_9AM,
   otherJob,
@@ -103,7 +103,7 @@ describe("Confirming an Offered Job", () => {
         thursday(),
         "job",
         "ana",
-        new Date(Date.parse(THURSDAY_9AM) - HOUR),
+        new Date(Date.parse(THURSDAY_9AM) - HOUR_MS),
         NOW,
       ),
     ).toMatch(
@@ -125,7 +125,7 @@ describe("Confirming an Offered Job", () => {
 
 describe("Releasing an Assignment", () => {
   const before = (hours: number) =>
-    new Date(Date.parse(THURSDAY_9AM) - hours * HOUR);
+    new Date(Date.parse(THURSDAY_9AM) - hours * HOUR_MS);
 
   test("an Offered one any time, a Confirmed one until 48 hours before", () => {
     expect(whyNotRelease("offered", job(), before(1))).toBeNull();
@@ -137,13 +137,12 @@ describe("Releasing an Assignment", () => {
 });
 
 describe("Cleaners Needed", () => {
-  const DAY = 24 * HOUR;
   const startsAt = new Date(THURSDAY_9AM);
 
   test("are open from 7 days before a booked Job until it starts", () => {
     const at = (ms: number) => new Date(startsAt.getTime() - ms);
-    expect(neededOpen(job(), at(7 * DAY))).toBe(true);
-    expect(neededOpen(job(), at(7 * DAY + 1))).toBe(false);
+    expect(neededOpen(job(), at(7 * DAY_MS))).toBe(true);
+    expect(neededOpen(job(), at(7 * DAY_MS + 1))).toBe(false);
     expect(neededOpen(job(), at(1))).toBe(true);
     expect(neededOpen(job(), startsAt)).toBe(false);
     expect(neededOpen(job({ status: "cancelled" }), NOW)).toBe(false);
@@ -214,14 +213,14 @@ describe("Cleaners Needed", () => {
           job(),
           "ana",
           open,
-          new Date(startsAt.getTime() + HOUR),
+          new Date(startsAt.getTime() + HOUR_MS),
           NOW,
         ),
       ).toMatch(/^This job moved to /);
     });
 
     test("refused when it needs no Cleaner: not open yet, or taken", () => {
-      const early = new Date(startsAt.getTime() - 8 * DAY);
+      const early = new Date(startsAt.getTime() - 8 * DAY_MS);
       expect(
         whyNotTakeCleanerNeeded(job(), "ana", undefined, undefined, early),
       ).toBe("This job isn't open yet. Check back later.");
