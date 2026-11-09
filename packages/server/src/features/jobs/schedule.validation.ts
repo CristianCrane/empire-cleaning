@@ -5,20 +5,28 @@ import { daysFrom } from "../../services/clock/index.ts";
 // longest range the Schedule shows at once: about two months
 const MAX_SCHEDULE_DAYS = 62;
 
-export const rangeSchema = z
-  .object({ from: day, to: day })
-  .refine(({ from, to }) => from <= to, {
-    path: ["to"],
-    message: "Pick an end date after the start date",
-  })
-  .refine(({ from, to }) => daysFrom(from, to).length <= MAX_SCHEDULE_DAYS, {
-    path: ["to"],
-    message: `Pick ${MAX_SCHEDULE_DAYS} days or fewer`,
-  });
+// some days of the Schedule, from the first to the last
+export const range = { from: day, to: day };
 
-export const capacitySchema = z.object({
-  date: day,
-  time: startTime,
+// a range's days in order, and no more of them than the Schedule shows
+export const withinRange = <T extends z.ZodType<{ from: string; to: string }>>(
+  schema: T,
+) =>
+  schema
+    .refine(({ from, to }) => from <= to, {
+      path: ["to"],
+      message: "Pick an end date after the start date",
+    })
+    .refine(({ from, to }) => daysFrom(from, to).length <= MAX_SCHEDULE_DAYS, {
+      path: ["to"],
+      message: `Pick ${MAX_SCHEDULE_DAYS} days or fewer`,
+    });
+
+export const rangeSchema = withinRange(z.object(range));
+
+// a clean to find room for: its figures, and a booked Job or Site Visit
+// being moved, so it isn't counted against itself
+const clean = {
   labourHours: z.coerce
     .number({ error: "Enter the cleaning hours" })
     .positive("Enter more than 0 hours")
@@ -28,6 +36,15 @@ export const capacitySchema = z.object({
     .int("Enter a whole number")
     .positive("Enter at least 1")
     .max(20, "That's too many cleaners. Check the number"),
-  // a booked Job being moved, so it isn't counted against itself
   jobId: z.uuid().optional(),
+};
+
+export const capacitySchema = z.object({
+  date: day,
+  time: startTime,
+  ...clean,
 });
+
+export const startsSchema = withinRange(
+  z.object({ ...range, ...clean, siteVisitId: z.uuid().optional() }),
+);

@@ -7,11 +7,14 @@ import {
   type RefObject,
 } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import type {
-  LocalDateTime,
-  ScheduleDay,
-  ScheduledJob,
-  ScheduledSiteVisit,
+import {
+  PICK_MINUTES,
+  PICK_TIMES,
+  type DayTimes,
+  type LocalDateTime,
+  type ScheduleDay,
+  type ScheduledJob,
+  type ScheduledSiteVisit,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -47,12 +50,10 @@ import {
 } from "../format.ts";
 import {
   axisFor,
-  crewAt,
   fitLanes,
   hoursOf,
   lanesFor,
   type Block,
-  type Crew,
   snap,
   SNAP_HOURS,
   spanOf,
@@ -64,8 +65,7 @@ import { daysIn } from "../schedule-range.ts";
 const MIN_BLOCK_PX = 22;
 // shorter than this, a Job's block has room for only that one line
 const COMPACT_PX = 44;
-// a time is picked to the half hour, then fine-tuned in the time field
-const PICK_HOURS = 0.5;
+const PICK_HOURS = PICK_MINUTES / 60;
 // in the week view, a lane narrower than this can't show a Job's time, so
 // the Jobs that don't fit are listed behind "+N more" instead
 const MIN_LANE_PX = 60;
@@ -132,9 +132,10 @@ type Dragging = { job: ScheduledJob; grabbedAtPx: number };
  * moves it. To choose a time instead (onPick), the Jobs are only there to
  * see, and clicking a free half hour picks it, or with limits, one of the
  * start times on offer on a day that has them; a proposed clean is drawn
- * where it would go. Given the clean's crew, times without a crew free for
- * it are marked: they can still be picked, for a Quote the Office may add a
- * Cleaner for, but the server refuses to book there.
+ * where it would go. Given the times without a crew free for the clean
+ * (noCrew, from the server), they're marked: they can still be picked, for
+ * a Quote the Office may add a Cleaner for, but the server refuses to book
+ * there.
  *
  * To only look and open (opensJobs, as on the Today screen), clicking a Job
  * opens it and nothing moves.
@@ -145,7 +146,7 @@ export function ScheduleCalendar({
   onPick,
   limits,
   proposed,
-  crew,
+  noCrew,
   opensJobs = false,
 }: {
   days: ScheduleDay[];
@@ -154,7 +155,7 @@ export function ScheduleCalendar({
   onPick?: (at: LocalDateTime) => void;
   limits?: TimePickerProps["limits"];
   proposed?: Proposed;
-  crew?: Crew & { hoursOnSite: number };
+  noCrew?: DayTimes[];
 }) {
   // whether Jobs open on click, and whether they can be dragged to move
   const opens = onDrop !== undefined || opensJobs;
@@ -173,21 +174,18 @@ export function ScheduleCalendar({
           ]),
     ],
   );
-  // the times to pick from on a day: those on offer there, or every half hour
-  const everyHalfHour = Array.from(
-    { length: (axis.end - axis.start) / PICK_HOURS },
-    (_, i) => timeAt(axis.start + i * PICK_HOURS),
-  );
+  // the times to pick from on a day, on the axis: those on offer there, or
+  // every one a picker offers
   const timesOn = (date: string) =>
     (limits
       ? (limits.find((d) => d.date === date)?.times ?? [])
-      : everyHalfHour
+      : PICK_TIMES
     ).filter((t) => hoursOf(t) >= axis.start && hoursOf(t) < axis.end);
   const isOpen = (date: string) =>
     !limits || limits.some((d) => d.date === date);
   // whether the clean's crew would be free at a time
   const hasCrew = (day: ScheduleDay, time: string) =>
-    !crew || crewAt(day, time, crew.hoursOnSite, crew).hasCrew;
+    !noCrew?.find((d) => d.date === day.date)?.times.includes(time);
   // which Job is being dragged, and how far down it was grabbed, so it lands
   // where it's let go; state too, so days without room for it fade
   const dragging = useRef<Dragging>(undefined);

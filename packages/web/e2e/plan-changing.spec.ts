@@ -138,6 +138,27 @@ test("a Draft changing the plan can take the time of a Job it replaces", async (
   await saved(page);
   await expect(mondays).toContainText("Mon, Jan 26 has room for it.");
   await expect(mondays).not.toContainText("Not enough cleaners are free then");
+
+  // the Schedule says the same: from 8 or 9 the plan's Job is replaced, so
+  // Cory and Bea are free; from 9:30 it isn't (it starts before the new
+  // terms), and it's still on then
+  await mondays.getByRole("button", { name: "Pick from the schedule" }).click();
+  const monday = page
+    .getByRole("dialog", { name: "Pick from the schedule" })
+    .getByRole("region", { name: "Mon, Jan 26", exact: true });
+  for (const time of ["8:00 AM", "9:00 AM"]) {
+    await expect(
+      monday.getByRole("button", {
+        name: `Mon, Jan 26, ${time}`,
+        exact: true,
+      }),
+    ).toBeAttached();
+  }
+  await expect(
+    monday.getByRole("button", {
+      name: "Mon, Jan 26, 9:30 AM, not enough cleaners free",
+    }),
+  ).toBeAttached();
 });
 
 test(

@@ -574,6 +574,23 @@ export type ScheduledJob = {
   movable: boolean;
 };
 
+// some start times on a day, "09:30", New York time
+export type DayTimes = { date: IsoDate; times: string[] };
+
+// a start is picked from the Schedule to the half hour, then fine-tuned in
+// the time field
+export const PICK_MINUTES = 30;
+
+// every start a picker offers on a day, from midnight: "00:00", "00:30", …
+export const PICK_TIMES = Array.from(
+  { length: (24 * 60) / PICK_MINUTES },
+  (_, i) => {
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const minutes = i * PICK_MINUTES;
+    return `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}`;
+  },
+);
+
 // one day of the Schedule. Only Cleaners' hours count towards it.
 export type ScheduleDay = {
   date: IsoDate;
@@ -1773,9 +1790,7 @@ export type RescheduleRequestView = {
 // Labour Hours (counting what's held for other requests), each with the
 // start times on offer that have a crew free (#62). A day without any is
 // left out.
-export type RescheduleTimes = {
-  days: { date: IsoDate; times: string[] }[];
-};
+export type RescheduleTimes = { days: DayTimes[] };
 
 // POST /api/jobs/mine/:id/reschedule-request (and the Office's
 // /api/jobs/:id/reschedule-request): the new time, and the cost the person

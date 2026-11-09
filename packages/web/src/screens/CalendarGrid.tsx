@@ -1,6 +1,6 @@
 import type { HTMLAttributes, ReactNode } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import type { LocalDateTime } from "@empire-cleaning/models";
+import type { DayTimes, LocalDateTime } from "@empire-cleaning/models";
 import { Button, Select, SelectItem } from "@empire-cleaning/ui";
 import { addDays, formatClock, formatDay, today } from "./format.ts";
 import { hoursOf, timeAt } from "./schedule-layout.ts";
@@ -214,6 +214,6 @@ export type TimePickerProps = {
   time?: string;
   hoursOnSite: number;
   current?: LocalDateTime;
-  limits?: { date: string; times: string[] }[];
+  limits?: DayTimes[];
   onPick: (at: LocalDateTime) => void;
 };

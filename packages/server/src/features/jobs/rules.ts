@@ -1,12 +1,15 @@
-import type {
-  DayCapacity,
-  HeldTime,
-  JobStatus,
-  ScheduleDay,
-  ScheduledSiteVisit,
+import {
+  PICK_TIMES,
+  type DayCapacity,
+  type DayTimes,
+  type HeldTime,
+  type JobStatus,
+  type ScheduleDay,
+  type ScheduledSiteVisit,
 } from "@empire-cleaning/models";
 import {
   addDays,
+  atTime,
   dayOf,
   HOUR_MS,
   startOfDay,
@@ -163,6 +166,28 @@ export const roomOn = (day: ScheduleDay, clean: Clean): DayCapacity => {
     hasRoom: inTime && hasHours && hasCrew,
   };
 };
+
+// the starts a picker offers on a day of the Schedule
+export const startsOn = (day: ScheduleDay) =>
+  PICK_TIMES.map((time) => atTime(day.date, time));
+
+/**
+ * The starts on each of these days of the Schedule (startsOn) where a clean
+ * would find no crew free, as `hasCrew` says of it there (roomOn's, or a
+ * Quote's cleanRooms'): the times the Office's pickers mark. Only the
+ * headcount: a day's hours show in its header.
+ */
+export const startsWithoutCrew = (
+  days: ScheduleDay[],
+  hasCrew: (day: ScheduleDay, startsAt: Date) => boolean,
+): DayTimes[] =>
+  days.map((day) => {
+    const starts = startsOn(day);
+    return {
+      date: day.date,
+      times: PICK_TIMES.filter((_, i) => !hasCrew(day, starts[i]!)),
+    };
+  });
 
 /**
  * What a Staff member is busy with during a clean's time on site, on its
