@@ -177,7 +177,11 @@ function ChooseTime({ job, close }: Omit<MoveProps, "to">) {
         date={date?.toString()}
         time={time?.toString().slice(0, 5)}
         hoursOnSite={job.hoursOnSite}
-        crew={{ crewSize: job.crewSize, jobId: job.id }}
+        crew={{
+          labourHours: job.labourHours,
+          crewSize: job.crewSize,
+          jobId: job.id,
+        }}
         current={{
           date: dayOfInstant(job.startsAt),
           time: timeOfDay(job.startsAt),

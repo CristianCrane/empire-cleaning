@@ -9,6 +9,7 @@ import {
 import { useNavigate } from "@tanstack/react-router";
 import {
   PICK_MINUTES,
+  type DayTimes,
   type LocalDateTime,
   type ScheduleDay,
   type ScheduledJob,
@@ -48,12 +49,10 @@ import {
 } from "../format.ts";
 import {
   axisFor,
-  crewAt,
   fitLanes,
   hoursOf,
   lanesFor,
   type Block,
-  type Crew,
   snap,
   SNAP_HOURS,
   spanOf,
@@ -132,9 +131,10 @@ type Dragging = { job: ScheduledJob; grabbedAtPx: number };
  * moves it. To choose a time instead (onPick), the Jobs are only there to
  * see, and clicking a free half hour picks it, or with limits, one of the
  * start times on offer on a day that has them; a proposed clean is drawn
- * where it would go. Given the clean's crew, times without a crew free for
- * it are marked: they can still be picked, for a Quote the Office may add a
- * Cleaner for, but the server refuses to book there.
+ * where it would go. Given the times without a crew free for the clean
+ * (noCrew, from the server), they're marked: they can still be picked, for
+ * a Quote the Office may add a Cleaner for, but the server refuses to book
+ * there.
  *
  * To only look and open (opensJobs, as on the Today screen), clicking a Job
  * opens it and nothing moves.
@@ -145,7 +145,7 @@ export function ScheduleCalendar({
   onPick,
   limits,
   proposed,
-  crew,
+  noCrew,
   opensJobs = false,
 }: {
   days: ScheduleDay[];
@@ -154,7 +154,7 @@ export function ScheduleCalendar({
   onPick?: (at: LocalDateTime) => void;
   limits?: TimePickerProps["limits"];
   proposed?: Proposed;
-  crew?: Crew & { hoursOnSite: number };
+  noCrew?: DayTimes[];
 }) {
   // whether Jobs open on click, and whether they can be dragged to move
   const opens = onDrop !== undefined || opensJobs;
@@ -187,7 +187,7 @@ export function ScheduleCalendar({
     !limits || limits.some((d) => d.date === date);
   // whether the clean's crew would be free at a time
   const hasCrew = (day: ScheduleDay, time: string) =>
-    !crew || crewAt(day, time, crew.hoursOnSite, crew).hasCrew;
+    !noCrew?.find((d) => d.date === day.date)?.times.includes(time);
   // which Job is being dragged, and how far down it was grabbed, so it lands
   // where it's let go; state too, so days without room for it fade
   const dragging = useRef<Dragging>(undefined);

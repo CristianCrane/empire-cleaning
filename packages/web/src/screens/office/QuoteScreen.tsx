@@ -1604,6 +1604,11 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
 
   const stale = saveState === "changed" || saveState === "saving";
   const plan = fields.plan;
+  // a one-off's longest clean, as last saved: its crew is free for the others
+  const longest = quote.options.reduce<OfficeQuoteOption | undefined>(
+    (most, o) => (most && most.hoursOnSite >= o.hoursOnSite ? most : o),
+    undefined,
+  );
   const areaPriced =
     quote.serviceChoices.find(
       (s) => s.key === (plan?.serviceKey ?? fields.serviceKey),
@@ -1828,11 +1833,14 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
             <PickFromSchedule
               date={fields.date?.toString()}
               time={fields.time?.toString().slice(0, 5)}
-              hoursOnSite={Math.max(
-                0,
-                ...quote.options.map((o) => o.hoursOnSite),
-              )}
-              crew={{ crewSize: fields.crewSize }}
+              hoursOnSite={longest?.hoursOnSite ?? 0}
+              // the longest clean's, once priced
+              crew={
+                longest && {
+                  labourHours: longest.labourHours,
+                  crewSize: fields.crewSize,
+                }
+              }
               onPick={({ date, time }) =>
                 set({ date: parseDate(date), time: parseTime(time) })
               }
@@ -1993,7 +2001,12 @@ function PlanDayFields({
         date={day.date?.toString()}
         time={time}
         hoursOnSite={option?.hoursOnSite ?? 0}
-        crew={{ crewSize: day.crewSize }}
+        crew={
+          option && {
+            labourHours: option.labourHours,
+            crewSize: day.crewSize,
+          }
+        }
         repeats={{
           everyWeeks: recurrenceWeeks[plan.recurrence],
           label: recurrenceLabel[plan.recurrence],
