@@ -293,7 +293,7 @@ function JobFacts({ job }: { job: OfficeJob }) {
           {addressOf(job.property)}
         </Link>
       </dd>
-      <dt className="font-semibold">Add-ons</dt>
+      <dt className="font-semibold">Extras</dt>
       <dd>{job.addOns.length > 0 ? job.addOns.join(", ") : "None"}</dd>
       <dt className="font-semibold">Cleaning hours</dt>
       <dd>{formatHours(job.labourHours)}</dd>

@@ -69,7 +69,7 @@ const homeParts = (hours: RoomHours, home: HomeRooms | null) => {
       units: (home.bathrooms * 2 * hoursUnits(hours.bathroomHours)) / 2,
     },
     {
-      label: `Extra floors (${extraStoreys} × ${hours.extraStoreyHours} h)`,
+      label: `Upper floors (${extraStoreys} × ${hours.extraStoreyHours} h)`,
       units: extraStoreys * hoursUnits(hours.extraStoreyHours),
     },
     {

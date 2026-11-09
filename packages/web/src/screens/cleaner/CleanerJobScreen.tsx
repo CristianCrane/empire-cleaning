@@ -146,7 +146,7 @@ function JobDetails({ job }: { job: CleanerJob }) {
             />
             <Fact
               icon={CirclePlus}
-              label="Add-ons"
+              label="Extras"
               value={job.addOns.length > 0 ? job.addOns.join(", ") : "None"}
             />
             <Fact

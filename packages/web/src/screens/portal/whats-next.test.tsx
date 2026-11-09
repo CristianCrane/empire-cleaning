@@ -349,13 +349,13 @@ describe("Home's Notices: what's waiting on the Client", () => {
     ]);
   });
 
-  test("an extra to agree to", () => {
+  test("a price change to agree to", () => {
     expect(
       next({ jobs: [job()], pastJobs: [pastJob({ awaitingAnswer: 1 })] })
         .notices,
     ).toEqual([
       expect.objectContaining({
-        text: "Your Tue, Oct 20 clean needs your OK on an extra.",
+        text: "Your Tue, Oct 20 clean needs your OK on a price change.",
         action: "Review it",
       }),
     ]);

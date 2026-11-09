@@ -14,20 +14,20 @@ const reason = z
 const report = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("add_on_done"),
-    addOnKey: z.uuid("Choose an add-on"),
+    addOnKey: z.uuid("Choose an extra"),
     reason,
   }),
   z.object({
     kind: z.literal("add_on_not_done"),
-    addOnKey: z.uuid("Choose an add-on"),
+    addOnKey: z.uuid("Choose an extra"),
     reason,
   }),
   z.object({
     kind: z.literal("extra_time"),
     hours: z
-      .number({ error: "Enter the extra hours" })
-      .positive("Enter the extra hours")
-      .max(24, "At most 24 extra hours")
+      .number({ error: "Enter how many more hours" })
+      .positive("Enter how many more hours")
+      .max(24, "At most 24 more hours")
       .refine((h) => Number.isInteger(h * 4), "Use quarter hours, like 1.25"),
     reason,
   }),

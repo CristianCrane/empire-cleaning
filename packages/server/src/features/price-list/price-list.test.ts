@@ -251,7 +251,7 @@ describe("the Price List", () => {
     expect(res.status).toBe(400);
     expect(res.body.details[0]).toMatchObject({
       path: "addOns.1.name",
-      issue: "Another add-on already has this name",
+      issue: "Another extra already has this name",
     });
   });
 
@@ -756,7 +756,7 @@ describe("Add-ons asked for on a Quote", () => {
       expect(res.status).toBe(400);
       expect(res.body.details[0]).toMatchObject({
         path: "addOns.0",
-        issue: "Pick add-ons from the list",
+        issue: "Pick extras from the list",
       });
     }
   });

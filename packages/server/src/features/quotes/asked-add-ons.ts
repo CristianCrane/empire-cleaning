@@ -26,7 +26,7 @@ export const askedAddOns = async (
   for (const { quoteId, addOnKey } of chosen) {
     byQuote
       .get(quoteId)!
-      .push({ key: addOnKey, name: names.get(addOnKey) ?? "Add-on" });
+      .push({ key: addOnKey, name: names.get(addOnKey) ?? "Extra" });
   }
   for (const choices of byQuote.values()) {
     choices.sort((a, b) => (order.get(a.key) ?? 0) - (order.get(b.key) ?? 0));

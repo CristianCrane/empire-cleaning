@@ -118,7 +118,7 @@ export function CompleteJob({ job }: { job: CleanerJob }) {
 
             {job.reportable.quoted.length > 0 && (
               <AddOnReports
-                title="Add-ons on the quote you couldn't do"
+                title="Extras on the quote you couldn't do"
                 addOns={job.reportable.quoted}
                 ticked={notDone}
                 onChange={setNotDone}
@@ -127,7 +127,7 @@ export function CompleteJob({ job }: { job: CleanerJob }) {
             )}
             {job.reportable.others.length > 0 && (
               <AddOnReports
-                title="Add-ons you did that weren't on the quote"
+                title="Extras you did that weren't on the quote"
                 addOns={job.reportable.others}
                 ticked={done}
                 onChange={setDone}
@@ -136,9 +136,9 @@ export function CompleteJob({ job }: { job: CleanerJob }) {
             )}
 
             <fieldset className="flex flex-col gap-3">
-              <Heading level={3}>Extra time</Heading>
+              <Heading level={3}>More time</Heading>
               <NumberField
-                label="Extra hours, all of you together"
+                label="More hours, all of you together"
                 description="Leave at 0 if the clean took about as long as planned."
                 minValue={0}
                 maxValue={24}

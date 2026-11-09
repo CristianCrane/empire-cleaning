@@ -50,7 +50,7 @@ export const standardCleaning: ServicePage = {
   pricing: {
     title: "How a standard clean is priced",
     text: [
-      "We don't publish a price, because no two homes are the same. Your quote is worked out from your home: the bedrooms and bathrooms, how many floors, any pets, any add-ons, and how much cleaning it needs (light, moderate or heavy).",
+      "We don't publish a price, because no two homes are the same. Your quote is worked out from your home: the bedrooms and bathrooms, how many floors, any pets, any extras, and how much cleaning it needs (light, moderate or heavy).",
       "Your quote says how long we'll be there. You accept it online and pay a deposit to book; the rest is charged once the clean is done.",
     ],
   },
@@ -94,7 +94,7 @@ export const standardCleaning: ServicePage = {
     {
       question: "Can I add extras, like inside the fridge?",
       answer:
-        "Yes. Inside the fridge, inside the oven, inside the cabinets and interior windows are add-ons: tick the ones you'd like when you request a quote, and they're priced in.",
+        "Yes. Inside the fridge, inside the oven, inside the cabinets and interior windows are extras: tick the ones you'd like when you request a quote, and they're priced in.",
     },
   ],
   related: ["deep", "recurring", "disinfecting"],

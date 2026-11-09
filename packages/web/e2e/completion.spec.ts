@@ -86,10 +86,10 @@ test(
       .getByRole("textbox", { name: /Why\? .* \(Inside the fridge\)/ })
       .fill("Casey asked on the day");
     await form
-      .getByRole("textbox", { name: "Extra hours, all of you together" })
+      .getByRole("textbox", { name: "More hours, all of you together" })
       .fill("1");
     await form
-      .getByRole("textbox", { name: "Extra hours, all of you together" })
+      .getByRole("textbox", { name: "More hours, all of you together" })
       .blur();
     await form
       .getByRole("textbox", { name: "What took longer?" })
@@ -107,7 +107,7 @@ test(
       "Inside the fridge, done on the day: Casey asked on the day",
     );
     await expect(completed).toContainText(
-      "1 extra hour: Heavy grease in the kitchen",
+      "1 more hour: Heavy grease in the kitchen",
     );
     await expect(page.getByText(/\$/)).toHaveCount(0);
 
@@ -120,7 +120,7 @@ test(
 );
 
 test(
-  "the Office proposes an extra the Cleaner reported, and the Client approves it in the portal",
+  "the Office proposes a price change the Cleaner reported, and the Client approves it in the portal",
   { tag: ["@desktop"] },
   async ({ page, browser }) => {
     const { job, cory } = await jobUnderway();
@@ -136,35 +136,35 @@ test(
       .filter({ hasText: "1 price change to review" })
       .click();
     const adjustments = page.getByRole("region", { name: "Price changes" });
-    const extra = adjustments.getByRole("row", { name: /Extra time/ });
-    await expect(extra).toContainText("+1 h");
-    await expect(extra).toContainText("+$59.88");
-    await expect(extra).toContainText("To review");
-    await extra.click();
-    const review = page.getByRole("dialog", { name: "Extra time" });
+    const extraTime = adjustments.getByRole("row", { name: /More time/ });
+    await expect(extraTime).toContainText("+1 h");
+    await expect(extraTime).toContainText("+$59.88");
+    await expect(extraTime).toContainText("To review");
+    await extraTime.click();
+    const review = page.getByRole("dialog", { name: "More time" });
     await expect(review).toContainText('"Heavy grease"');
     await expect(review).toContainText("$55.00 before tax");
     await review.getByRole("button", { name: "Send to the client" }).click();
     await expect(page.getByText("Sent to the client")).toBeVisible();
     await expect(review).toBeHidden();
-    await expect(extra).toContainText("Waiting on the client");
+    await expect(extraTime).toContainText("Waiting on the client");
 
     const client = await asCasey(browser);
     await client.goto(
       await pathOfLatestEmail(
         casey.email,
-        "Please approve extra work on your clean",
+        "Please approve a price change on your clean",
       ),
     );
     // an alert above the clean, answered in a dialog
     const proposal = client
       .getByRole("status")
-      .filter({ hasText: "Please approve extra work" });
-    await expect(proposal).toContainText("1 extra hour, $59.88");
+      .filter({ hasText: "Please approve a price change" });
+    await expect(proposal).toContainText("1 more hour, $59.88");
     await expectAccessible(client);
     await proposal.getByRole("button", { name: "Review" }).click();
     const dialog = client.getByRole("dialog", {
-      name: "Please approve extra work",
+      name: "Please approve a price change",
     });
     await expect(dialog).toContainText('"Heavy grease"');
     await expectAccessible(client);
@@ -173,7 +173,7 @@ test(
     await expect(client.getByText("Approved")).toBeVisible();
     await expect(proposal).toBeHidden();
     const receipt = client.getByRole("region", { name: "Your receipt" });
-    await expect(receipt).toContainText("1 extra hour");
+    await expect(receipt).toContainText("1 more hour");
     await expect(receipt).toContainText("$59.88");
 
     await page.reload();
@@ -237,21 +237,21 @@ test("Office Staff remove an Adjustment from its own dialog, confirming in the s
   await page.goto(`/office/jobs/${job.id}`);
 
   const adjustments = page.getByRole("region", { name: "Price changes" });
-  await adjustments.getByRole("row", { name: /Extra time/ }).click();
-  const dialog = page.getByRole("dialog", { name: "Extra time" });
+  await adjustments.getByRole("row", { name: /More time/ }).click();
+  const dialog = page.getByRole("dialog", { name: "More time" });
   await dialog.getByRole("button", { name: "Dismiss" }).click();
   await expect(
-    adjustments.getByRole("row", { name: /Extra time/ }),
+    adjustments.getByRole("row", { name: /More time/ }),
   ).toContainText("Dismissed");
 
-  await adjustments.getByRole("row", { name: /Extra time/ }).click();
+  await adjustments.getByRole("row", { name: /More time/ }).click();
   await page
-    .getByRole("dialog", { name: "Extra time" })
+    .getByRole("dialog", { name: "More time" })
     .getByRole("button", { name: "Remove" })
     .click();
   // the same dialog asks again: never a dialog on a dialog
   const confirm = page.getByRole("alertdialog", {
-    name: "Remove Extra time?",
+    name: "Remove More time?",
   });
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await confirm.getByRole("button", { name: "Remove" }).click();

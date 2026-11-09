@@ -20,6 +20,6 @@ export const officeServices = {
 
 // the Add-ons every home Service offers, so never listed as included
 export const addOnsNote = catalog({
-  en: "Inside the fridge, inside the oven, inside the cabinets and interior windows are add-ons: tick the ones you'd like when you request a quote.",
+  en: "Inside the fridge, inside the oven, inside the cabinets and interior windows are extras: tick the ones you'd like when you request a quote.",
   es: "El interior del refrigerador, el interior del horno, el interior de los gabinetes y las ventanas por dentro son adicionales: marque los que quiera cuando pida una cotización.",
 });

@@ -129,7 +129,7 @@ export function ExampleQuote({
   return (
     <Section
       title="Example quote"
-      description="Worked out the way a suggested price is, as you type. Add-ons and the plan discount come on top."
+      description="Worked out the way a suggested price is, as you type. Extras and the plan discount come on top."
     >
       <Card>
         <div className="flex flex-col gap-4">

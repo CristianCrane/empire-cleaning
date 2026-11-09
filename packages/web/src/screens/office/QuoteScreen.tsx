@@ -758,7 +758,7 @@ function Offer({ quote, actions }: { quote: ShownQuote; actions?: ReactNode }) {
             {quote.status === "expired" ? "Expired" : "Expires"}
           </dt>
           <dd>{formatDateTime(quote.expiresAt!)}</dd>
-          <dt className="font-semibold">Add-ons</dt>
+          <dt className="font-semibold">Extras</dt>
           <dd>
             {quote.addOns.length === 0
               ? "None"
@@ -1767,7 +1767,7 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
         )}
 
         <DraftPart
-          title="Add-ons"
+          title="Extras"
           description={
             quote.plan
               ? "Done on every clean. Each adds its hours to the price, and the plan discount comes off it too."

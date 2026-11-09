@@ -1083,7 +1083,7 @@ describe("putting Bills right", () => {
     const view = await billOf(office, next!.id);
     expect(view.weekStart).toBe("2026-01-12");
     expect(view.lines).toHaveLength(1);
-    expect(view.lines[0]!.label).toMatch(/^1 extra hour: Deep Clean/);
+    expect(view.lines[0]!.label).toMatch(/^1 more hour: Deep Clean/);
     expect(view.totalCents).toBeGreaterThan(0);
     expect(testPayments().charges.at(-1)!.amount).toBe(view.totalCents);
   });

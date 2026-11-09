@@ -81,7 +81,7 @@ export const postConstruction: ServicePage = {
     {
       question: "Do you clean the windows?",
       answer:
-        "Sills, tracks and frames are part of the clean. For a home, interior windows are an add-on: tick it in your quote request.",
+        "Sills, tracks and frames are part of the clean. For a home, interior windows are an extra: tick it in your quote request.",
     },
     {
       question: "Do you clean apartments after a renovation?",

@@ -366,7 +366,7 @@ test.describe("requesting a Quote", () => {
     );
   });
 
-  test("the extras are the last Service chosen's, even when the first one's come late", async ({
+  test("the Add-ons are the last Service chosen's, even when the first one's come late", async ({
     page,
   }) => {
     // the first Service's extras are held back until the next one's are in
@@ -409,7 +409,7 @@ test.describe("requesting a Quote", () => {
     await expect(extras.getByText("From the first Service")).toHaveCount(0);
   });
 
-  test("extras refused on sending are asked for again, for the Service chosen by then", async ({
+  test("Add-ons refused on sending are asked for again, for the Service chosen by then", async ({
     page,
   }) => {
     const email = newEmail();
@@ -472,7 +472,7 @@ test.describe("requesting a Quote", () => {
     await expect(extras.getByText("From the first Service")).toHaveCount(0);
   });
 
-  test("extras are offered by name, with no prices, and can be chosen", async ({
+  test("Add-ons are offered by name, with no prices, and can be chosen", async ({
     page,
   }) => {
     const email = newEmail();

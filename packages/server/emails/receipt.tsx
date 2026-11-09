@@ -10,7 +10,7 @@ export default preview(
     quotedCents: 29940,
     adjustments: [
       { label: "Inside the oven, done on the day", totalCents: 2994 },
-      { label: "1 extra hour", totalCents: 5988 },
+      { label: "1 more hour", totalCents: 5988 },
     ],
     totalCents: 38922,
     rescheduleFeeCents: 0,

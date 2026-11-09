@@ -1267,10 +1267,10 @@ export type PaymentMethodView = {
 };
 
 // what a payment in a Client's history was: a Deposit, a clean's Balance,
-// more of it for an increase they approved later (an extra), a plan Job's
+// more of it for an increase they approved later (an Adjustment), a plan Job's
 // fee, a weekly Bill, or money given back
 export type ClientPaymentKind =
-  "deposit" | "balance" | "extra" | "fee" | "bill" | "refund";
+  "deposit" | "balance" | "adjustment" | "fee" | "bill" | "refund";
 
 // money that moved between a Client and us, for their Payments page
 // (GET /api/payments/mine). It was for a Job, a Service Plan's
@@ -1297,7 +1297,7 @@ export type ClientPayment = {
   // a Bill's bank debit, on its way but not yet cleared
   clearing: boolean;
   // the one change to the price it was for, by name ("Inside the fridge",
-  // "1 extra hour, price corrected"), when it was for one
+  // "1 more hour, price corrected"), when it was for one
   item: string | null;
 };
 

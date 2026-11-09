@@ -7,7 +7,7 @@ export default preview(
     name: client.name,
     jobId,
     clean,
-    label: "1 extra hour",
+    label: "1 more hour",
     amountCents: 5988,
     totalCents: 35928,
     owedCents: 5988,

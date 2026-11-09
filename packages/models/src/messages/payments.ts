@@ -17,8 +17,8 @@ const UPDATE_AND_RETRY = "update your card and we'll try again straight away";
 const BOOKED_GO_AHEAD =
   "Cleans already booked still go ahead, but we won't book any more.";
 
-const extraHoursEn = (a: Changed) =>
-  `${a.hours} ${formats.en.plural(a.hours!, { one: "extra hour", other: "extra hours" })}`;
+const moreHoursEn = (a: Changed) =>
+  `${a.hours} ${formats.en.plural(a.hours!, { one: "more hour", other: "more hours" })}`;
 
 const REFUND_TAKES_DAYS_ES = "Puede tardar unos días en llegarle.";
 const UPDATE_AND_RETRY_ES =
@@ -26,8 +26,8 @@ const UPDATE_AND_RETRY_ES =
 const BOOKED_GO_AHEAD_ES =
   "Las limpiezas ya reservadas siguen en pie, pero no reservaremos más.";
 
-const extraHoursEs = (a: Changed) =>
-  `${a.hours} ${formats.es.plural(a.hours!, { one: "hora extra", other: "horas extra" })}`;
+const moreHoursEs = (a: Changed) =>
+  `${a.hours} ${formats.es.plural(a.hours!, { one: "hora más", other: "horas más" })}`;
 
 export const payments = catalog({
   en: {
@@ -75,14 +75,14 @@ export const payments = catalog({
       no_access: "Couldn't-get-in fee",
     },
     LATE_MOVE_FEE: "Late move fee",
-    // what a price change changed, by name: "Inside the fridge", "1 extra
+    // what a price change changed, by name: "Inside the fridge", "1 more
     // hour"
     adjustmentItem: (a: Changed) =>
-      a.kind === "extra_time" ? extraHoursEn(a) : a.addOnName!,
-    // what was reported: "Inside the oven, not done", "1.5 extra hours"
+      a.kind === "extra_time" ? moreHoursEn(a) : a.addOnName!,
+    // what was reported: "Inside the oven, not done", "1.5 more hours"
     adjustmentLabel: (a: Changed) =>
       a.kind === "extra_time"
-        ? extraHoursEn(a)
+        ? moreHoursEn(a)
         : `${a.addOnName}, ${a.kind === "add_on_done" ? "done on the day" : "not done"}`,
   },
   es: {
@@ -120,10 +120,10 @@ export const payments = catalog({
     },
     LATE_MOVE_FEE: "Cargo por reprogramación tardía",
     adjustmentItem: (a: Changed) =>
-      a.kind === "extra_time" ? extraHoursEs(a) : a.addOnName!,
+      a.kind === "extra_time" ? moreHoursEs(a) : a.addOnName!,
     adjustmentLabel: (a: Changed) =>
       a.kind === "extra_time"
-        ? extraHoursEs(a)
+        ? moreHoursEs(a)
         : `${a.addOnName}, ${a.kind === "add_on_done" ? "se hizo ese día" : "no se hizo"}`,
   },
 });

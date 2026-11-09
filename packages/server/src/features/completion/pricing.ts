@@ -185,7 +185,7 @@ export const priceReports = async (
     }
 
     if (seen.has(report.addOnKey)) {
-      throw new ConflictError("Report each add-on once.");
+      throw new ConflictError("Report each extra once.");
     }
     seen.add(report.addOnKey);
     const onQuote = suggested.addOns.find((a) => a.key === report.addOnKey);
@@ -201,8 +201,8 @@ export const priceReports = async (
     if (!addOn) {
       throw new ConflictError(
         report.kind === "add_on_not_done"
-          ? "That add-on isn't on this job."
-          : "That add-on can't be added to this job.",
+          ? "That extra isn't on this job."
+          : "That extra can't be added to this job.",
       );
     }
     return {

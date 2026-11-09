@@ -174,7 +174,7 @@ export function whatsNext(data: HomeData, now = new Date()): WhatsNext {
   }
   for (const job of data.pastJobs.filter((j) => j.awaitingAnswer > 0)) {
     notices.push({
-      text: `Your ${dayOf(job.startsAt)} clean needs your OK on ${job.awaitingAnswer === 1 ? "an extra" : `${job.awaitingAnswer} extras`}.`,
+      text: `Your ${dayOf(job.startsAt)} clean needs your OK on ${job.awaitingAnswer === 1 ? "a price change" : `${job.awaitingAnswer} price changes`}.`,
       action: "Review it",
       href: jobLink(job.id),
     });

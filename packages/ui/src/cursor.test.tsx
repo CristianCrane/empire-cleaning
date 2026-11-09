@@ -40,7 +40,7 @@ test("things that can't be pressed don't pretend they can", async () => {
   const screen = await render(
     <>
       <Button isDisabled>Send Quote</Button>
-      <List aria-label="Add-ons">
+      <List aria-label="Extras">
         <ListItem id="1" title="Inside the oven" />
       </List>
     </>,

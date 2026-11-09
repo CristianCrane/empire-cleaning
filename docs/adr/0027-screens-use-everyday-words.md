@@ -1,3 +1,7 @@
+---
+status: accepted, partly superseded by ADR-0029 (one screen word per concept for every reader; Job is the one exception)
+---
+
 # Screens, messages and emails use everyday words
 
 The glossary's terms were the words on every screen and in every email, capitalised: Labour Hours, Revision, Payment Method, Cleaner Needed (ADR-0019 has it that "code, tables, screens and emails all say Cleaner Needed"). They're exact, and they made the product read like a manual. The Office couldn't follow a paragraph-long warning about too few Cleaners free for a Job, and messages explained how the system works rather than what to do (#336). This retires that pattern: **screens and emails say the glossary's term**.

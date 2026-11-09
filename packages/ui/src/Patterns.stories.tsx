@@ -600,7 +600,7 @@ function RowsOpenOneDialog() {
                 </Cell>
               </Row>
               <Row id="time">
-                <Cell>Extra time</Cell>
+                <Cell>More time</Cell>
                 <Cell>+1 h</Cell>
                 <Cell>+$59.88</Cell>
                 <Cell>
@@ -614,7 +614,7 @@ function RowsOpenOneDialog() {
           <List aria-label="Price changes">
             <ListItem
               id="time"
-              title="1 extra hour: $59.88"
+              title="1 more hour: $59.88"
               description={'"Heavier than quoted, the kitchen…" · lapses Nov 2'}
               end={
                 <>
@@ -1058,7 +1058,7 @@ function OwedFirst() {
           <List aria-label="Latest payments">
             {payment(
               "Oct 21",
-              "Extra on Standard Clean",
+              "Price change on Standard Clean",
               "$22.50",
               "Approved after your Oct 19 clean",
             )}
@@ -1123,7 +1123,7 @@ function DetailsPage() {
       <Example verdict="Do">
         <Notice tone="warning" action={<Button variant="text">Review</Button>}>
           <p>
-            <strong>Please approve extra work.</strong> 1 extra hour, $59.88.
+            <strong>Please approve a price change.</strong> 1 more hour, $59.88.
             Please answer by Jan 19, 2026.
           </p>
         </Notice>
