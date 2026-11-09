@@ -192,7 +192,6 @@ export const requestReschedule = (
     body: JSON.stringify({ cost: "free", ...to }),
   });
 
-// a Job Offered to a Cleaner (and Confirmed by them, if asked)
 // Office Staff move a booked Job straight to a new time, New York's
 export const moveJob = (jobId: string, to: { date: string; time: string }) =>
   control(`/jobs/${jobId}/move`, {
@@ -200,6 +199,7 @@ export const moveJob = (jobId: string, to: { date: string; time: string }) =>
     body: JSON.stringify(to),
   });
 
+// a Job Offered to a Cleaner (and Confirmed by them, if asked)
 export const offerJob = (
   jobId: string,
   staffId: string,
