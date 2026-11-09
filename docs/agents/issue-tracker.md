@@ -14,6 +14,8 @@ Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all o
 
 Infer the repo from `git remote -v`; `gh` does this automatically when run inside a clone.
 
+**Keep open issues true.** An open issue's body is the plan the next agent builds from. A change that makes one wrong (a file it names, where something lives, a placeholder for an issue number) edits that body in the same PR, and a merge of `main` into a branch rechecks the bodies of the issues the branch plans. #337 moved the shared messages into `packages/models/src/messages/` while #302 still planned them a second home in the server's catalog (#308, review F11).
+
 ## Pull requests as a triage surface
 
 **PRs as a request surface: no.** _(Set to `yes` if this repo treats external PRs as feature requests; `/triage` reads this flag.)_
