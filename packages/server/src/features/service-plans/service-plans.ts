@@ -18,7 +18,6 @@ import {
 import type {
   LocalDateTime,
   OfficeServicePlan,
-  Recurrence,
   ServicePlanSummary,
   ServicePlanView,
   UnplacedVisit,
@@ -29,6 +28,7 @@ import {
   atTime,
   dayOf,
   ENDS_BY_MIDNIGHT,
+  recurrenceDays,
   timeOf,
   weekdayOf,
 } from "@empire-cleaning/models";
@@ -77,12 +77,6 @@ import {
   type ServicePlan,
 } from "./service-plans.schema.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
-
-export const INTERVAL_DAYS: Record<Recurrence, number> = {
-  weekly: 7,
-  fortnightly: 14,
-  four_weekly: 28,
-};
 
 // how far ahead a plan's Jobs are put on the Schedule: every recurrence has
 // at least one showing, and the Office has a month's notice of a full day
@@ -332,7 +326,7 @@ const termsOf = async (tx: Tx, plan: ServicePlan) => {
     const later = accepted.slice(i + 1).map((t) => t.startsAt!.getTime());
     return {
       quoteId: terms.quoteId,
-      every: INTERVAL_DAYS[terms.recurrence!],
+      every: recurrenceDays[terms.recurrence!],
       until: later.length > 0 ? new Date(Math.min(...later)) : null,
     };
   });

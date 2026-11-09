@@ -23,6 +23,7 @@ import {
   HOUR_MS,
   isOnCrew,
   mondayOf,
+  recurrenceDays,
   type NewHome,
   type NewPremises,
   type QuoteAsk,
@@ -77,7 +78,6 @@ import { refuseOnProduction } from "#features/site";
 import { jobs } from "#features/jobs";
 import {
   generateServicePlanJobs,
-  INTERVAL_DAYS,
   servicePlans,
   servicePlanVisits,
 } from "#features/service-plans";
@@ -878,7 +878,7 @@ async function seed() {
       .select({ recurrence: servicePlans.recurrence })
       .from(servicePlans)
       .where(eq(servicePlans.id, planId));
-    const step = INTERVAL_DAYS[plan!.recurrence];
+    const step = recurrenceDays[plan!.recurrence];
     const days = (await planJobs(planId)).map((job) => dayOf(job.startsAt));
     const gap = days.findIndex(
       (day, i) => i > 0 && day !== addDays(days[i - 1]!, step),

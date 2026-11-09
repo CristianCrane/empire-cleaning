@@ -106,20 +106,18 @@ const hasRoomFor = (day: ScheduleDay, job: ScheduledJob) =>
 
 // a clean placed on the calendar before it's booked there: when it starts,
 // its time on site, what it's called, and for a Service Plan, how many
-// weeks apart its cleans are
+// days apart its cleans are
 export type Proposed = {
   start: LocalDateTime;
   hoursOnSite: number;
   label: string;
-  everyWeeks?: number;
+  everyDays?: number;
 };
 
 // whether a Service Plan's later clean falls on a day
 const repeatsOn = (proposed: Proposed | undefined, date: string) => {
-  if (!proposed?.everyWeeks || date <= proposed.start.date) return false;
-  return (
-    (daysIn(proposed.start.date, date) - 1) % (7 * proposed.everyWeeks) === 0
-  );
+  if (!proposed?.everyDays || date <= proposed.start.date) return false;
+  return (daysIn(proposed.start.date, date) - 1) % proposed.everyDays === 0;
 };
 
 type Dragging = { job: ScheduledJob; grabbedAtPx: number };

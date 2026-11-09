@@ -251,13 +251,6 @@ export const recurrenceLabel: Record<Recurrence, string> = {
   four_weekly: "Every 4 weeks",
 };
 
-// how many weeks apart a Service Plan's cleans are
-export const recurrenceWeeks: Record<Recurrence, number> = {
-  weekly: 1,
-  fortnightly: 2,
-  four_weekly: 4,
-};
-
 const weekdayFormat = new Intl.DateTimeFormat("en-US", {
   weekday: "long",
   timeZone: "UTC",

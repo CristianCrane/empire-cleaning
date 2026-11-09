@@ -47,6 +47,7 @@ import {
   CANCELLATION_CUTOFF_HOURS,
   noEmailYet,
   notSeenYet,
+  recurrenceDays,
   whyNoRoom,
 } from "@empire-cleaning/models";
 import {
@@ -94,7 +95,6 @@ import {
   planRhythm,
   propertySummary,
   recurrenceLabel,
-  recurrenceWeeks,
   timeOfDay,
   weekdayName,
   quoteKindName,
@@ -1995,7 +1995,7 @@ function PlanDayFields({
         hoursOnSite={option?.hoursOnSite ?? 0}
         crew={{ crewSize: day.crewSize }}
         repeats={{
-          everyWeeks: recurrenceWeeks[plan.recurrence],
+          everyDays: recurrenceDays[plan.recurrence],
           label: recurrenceLabel[plan.recurrence],
         }}
         onPick={(picked) =>
