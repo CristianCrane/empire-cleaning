@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import { defineConfig } from "vitest/config";
+import { MINUTE_MS } from "@empire-cleaning/models";
 import { testEnv } from "./tests/setup/testEnv.ts";
 
 // The Payment Gateway contract on Stripe itself (tests/contract/
@@ -24,7 +25,7 @@ export default defineConfig({
     },
     // each test waits on Stripe, some on its webhooks for up to five
     // minutes; one at a time, as its test-mode rate limits are strict
-    testTimeout: 360_000,
+    testTimeout: 6 * MINUTE_MS,
     fileParallelism: false,
   },
 });

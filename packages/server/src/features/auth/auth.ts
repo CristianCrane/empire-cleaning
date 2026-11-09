@@ -3,6 +3,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { magicLink } from "better-auth/plugins";
 import { eq } from "drizzle-orm";
+import { MINUTE_MS } from "@empire-cleaning/models";
 import env from "../../env.ts";
 import { db } from "../../db/index.ts";
 import { email } from "../../services/email/index.ts";
@@ -16,8 +17,9 @@ import {
   verifications,
 } from "./auth.schema.ts";
 
-// sign-in links are short-lived; no other email can sign anyone in (ADR-0006)
-const SIGN_IN_LINK_TTL_SECONDS = 15 * 60;
+// sign-in links are short-lived; no other email can sign anyone in (ADR-0006).
+// Better Auth takes seconds
+const SIGN_IN_LINK_TTL_SECONDS = (15 * MINUTE_MS) / 1000;
 
 // the link opens the app's page, whose Sign in button sends its query on to
 // Better Auth's `url`: mail scanners open links before the person does, and

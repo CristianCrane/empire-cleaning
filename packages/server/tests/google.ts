@@ -1,4 +1,5 @@
 import { vi } from "vitest";
+import { HOUR_MS } from "@empire-cleaning/models";
 import { apiAgent } from "./harness.ts";
 
 // signs in through the real Google flow on our side; only Google's servers are
@@ -33,7 +34,7 @@ export const signInWithGoogle = async (profile: {
       name: "Casey from Google",
       picture: profile.picture,
       iat: now,
-      exp: now + 3600,
+      exp: now + HOUR_MS / 1000,
     }),
     "",
   ].join(".");
@@ -44,7 +45,7 @@ export const signInWithGoogle = async (profile: {
         access_token: "google-access-token",
         id_token: idToken,
         token_type: "Bearer",
-        expires_in: 3600,
+        expires_in: HOUR_MS / 1000,
         scope: "openid email profile",
       });
     }
