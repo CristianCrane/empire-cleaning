@@ -37,8 +37,9 @@ router.get(
 router.get("/starts", validate({ query: startsSchema }), async (req, res) => {
   const { from, to, ...clean } = startsSchema.parse(req.query);
   res.json(
-    startsWithoutCrew(await scheduleFor(from, to), (day, startsAt) =>
-      roomOn(day, { ...clean, startsAt }),
+    startsWithoutCrew(
+      await scheduleFor(from, to),
+      (day, startsAt) => roomOn(day, { ...clean, startsAt }).hasCrew,
     ),
   );
 });

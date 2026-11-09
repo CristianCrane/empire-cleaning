@@ -1,8 +1,10 @@
 import { and, asc, eq, inArray, max } from "drizzle-orm";
 import type {
   DayCapacity,
+  DayTimes,
   QuoteKind,
   QuoteSummary,
+  ScheduleDay,
 } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
 import { dayOf } from "../../services/clock/index.ts";
@@ -18,7 +20,7 @@ import { quotesWithoutRoomEmail } from "./emails.ts";
 import { openQuotes } from "./quote-state.ts";
 import { quotes, revisionOptions } from "./quotes.schema.ts";
 import { cleanRooms, cleansFit } from "./rules.ts";
-import type { Clean } from "../jobs/rules.ts";
+import { startsOn, startsWithoutCrew, type Clean } from "../jobs/rules.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
 
 // A Sent Quote doesn't hold its time: a booking for another Client, or fewer
@@ -76,6 +78,50 @@ export const optionRoomsOf = async (
   ]);
   const rooms = cleanRooms(days, timed, replacing!);
   return cleans.map((clean) => clean && rooms[timed.indexOf(clean)]!);
+};
+
+/**
+ * The starts on these days of the Schedule where a Draft's clean would
+ * find no crew free (startsWithoutCrew), as its room line asks it
+ * (cleanRooms), the Draft as last saved: a Service Plan Quote's weekday
+ * `weekday` moved to each start beside its other weekdays' starts, the
+ * Jobs of its home's plan that the Quote would then replace counting as
+ * gone (replacedFor, from its earliest clean); a one-off's options all
+ * moved there, marked when any has no crew (its longest).
+ */
+export const draftStartsWithoutCrew = async (
+  revision: { kind: QuoteKind; proposedStartsAt: Date | null },
+  propertyId: string,
+  options: { startsAt: Date | null; labourHours: number; crewSize: number }[],
+  weekday: number | undefined,
+  days: ScheduleDay[],
+): Promise<DayTimes[]> => {
+  const moves = (i: number) => revision.kind === "one_off" || i === weekday;
+  const moving = options.filter((_, i) => moves(i));
+  const others = options.flatMap((option, i) => {
+    const startsAt = option.startsAt ?? revision.proposedStartsAt;
+    return moves(i) || !startsAt ? [] : [{ ...option, startsAt }];
+  });
+  const at = (startsAt: Date): Clean[] =>
+    moving.map(({ labourHours, crewSize }) => ({
+      startsAt,
+      labourHours,
+      crewSize,
+    }));
+  const starts = days.flatMap(startsOn);
+  const replaced = await replacedFor(
+    revision.kind,
+    propertyId,
+    starts.map((startsAt) => [...others, ...at(startsAt)]),
+  );
+  const replacing = new Map(
+    starts.map((startsAt, i) => [startsAt.getTime(), replaced[i]!]),
+  );
+  return startsWithoutCrew(days, (day, startsAt) =>
+    cleanRooms([day], at(startsAt), replacing.get(startsAt.getTime())!).every(
+      (room) => room.hasCrew,
+    ),
+  );
 };
 
 /**

@@ -15,19 +15,29 @@ import { today, weekdayOf } from "../format.ts";
 import { isWide, rangeShowing } from "../schedule-range.ts";
 import { ScheduleCalendar } from "./ScheduleCalendar.tsx";
 
-// a clean whose crew the picker marks the times without (#62): its figures,
-// and a booked Job or Site Visit being moved, so it isn't counted against
-// itself
-type Crew = {
-  labourHours: number;
-  crewSize: number;
-  jobId?: string;
-  siteVisitId?: string;
-};
+// whose crew the picker marks the times without (#62): a clean's, by its
+// figures, and a booked Job or Site Visit being moved, so it isn't counted
+// against itself; or a Draft quote's as last saved (a plan's weekday,
+// counting from 0), the Jobs it would replace counted as gone, as its room
+// line counts them. `saves` counts the Draft's saves, so the marks load
+// again after each.
+export type Crew =
+  | {
+      labourHours: number;
+      crewSize: number;
+      jobId?: string;
+      siteVisitId?: string;
+    }
+  | { quoteId: string; weekday?: number; saves: number };
 
 // where the server says which starts on the days shown have no crew free
 // for it
 const startsOf = (crew: Crew, range: string) => {
+  if ("quoteId" in crew) {
+    const weekday =
+      crew.weekday === undefined ? "" : `&weekday=${crew.weekday}`;
+    return `/api/quotes/${crew.quoteId}/draft/starts?${range}${weekday}`;
+  }
   const figures = Object.entries(crew).flatMap(([key, value]) =>
     value === undefined ? [] : [[key, String(value)]],
   );
@@ -90,7 +100,7 @@ function PickStart({
   const starts = crew && startsOf(crew, query);
   // the range on screen, not one asked for before it, and its marks with it
   const { value: loaded, failed: problem } = useLoaded(
-    `${query} ${starts}`,
+    `${query} ${JSON.stringify(crew)}`,
     () =>
       Promise.all([
         getJson<ScheduleDay[]>(`/api/schedule?${query}`),

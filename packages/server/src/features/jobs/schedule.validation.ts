@@ -6,10 +6,10 @@ import { daysFrom } from "../../services/clock/index.ts";
 const MAX_SCHEDULE_DAYS = 62;
 
 // some days of the Schedule, from the first to the last
-const range = { from: day, to: day };
+export const range = { from: day, to: day };
 
 // a range's days in order, and no more of them than the Schedule shows
-const withinRange = <T extends z.ZodType<{ from: string; to: string }>>(
+export const withinRange = <T extends z.ZodType<{ from: string; to: string }>>(
   schema: T,
 ) =>
   schema

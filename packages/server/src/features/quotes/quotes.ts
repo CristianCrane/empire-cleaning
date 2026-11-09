@@ -92,7 +92,11 @@ import { siteVisitViews } from "../site-visits/views.ts";
 import { askedAddOns } from "./asked-add-ons.ts";
 import { quoteEmail, turnDownEmail } from "./emails.ts";
 import { percentOf } from "./plan-days.ts";
-import { bookableFor, optionRoomsOf } from "./quote-room.ts";
+import {
+  bookableFor,
+  draftStartsWithoutCrew,
+  optionRoomsOf,
+} from "./quote-room.ts";
 import {
   askedOf,
   firstCleanCompleted,
@@ -118,6 +122,7 @@ import {
 } from "./quotes.schema.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
 import { hoursOnSiteOf } from "../jobs/jobs.ts";
+import { scheduleFor } from "../jobs/schedule.ts";
 import { lateFrom } from "../cancellation/cancellation.ts";
 
 // a new Service Plan Quote's terms, until Office Staff change them: not a
@@ -1428,6 +1433,27 @@ const planServiceOf = (
     );
   }
   return service;
+};
+
+// the starts on the days from `from` to `to` where the Quote's Draft, as
+// last saved, would have no crew free for a plan's weekday at `weekday` (in
+// the Draft's order), or for a one-off: see draftStartsWithoutCrew
+export const draftStarts = async (
+  id: string,
+  { from, to, weekday }: { from: string; to: string; weekday?: number },
+) => {
+  const { quote, draft } = await findDraftRevision(id);
+  const [rows, days] = await Promise.all([
+    optionsOf(draft.id),
+    scheduleFor(from, to),
+  ]);
+  return draftStartsWithoutCrew(
+    draft,
+    quote.propertyId,
+    inOrder(rows),
+    weekday,
+    days,
+  );
 };
 
 // saves what Office Staff set on a Quote's Draft Revision, pricing it afresh

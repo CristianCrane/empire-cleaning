@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import { eq } from "drizzle-orm";
 import type {
   AcceptOutcome,
+  DayTimes,
   OfficeQuote,
   QuoteSummary,
   OfficeServicePlan,
@@ -265,6 +266,64 @@ describe("accepting a Service Plan Quote for a home with a plan", () => {
     expect(viewed.draft!.options.map((o) => o.room)).toMatchObject([
       { date: "2026-02-02", hasRoom: true, crewsBusy: 0 },
     ]);
+  });
+
+  test("a Draft's picker marks the starts without a crew free as accepting would count them", async () => {
+    const { office, planId } = await crewedServicePlan();
+    // both Cleaners from 9am on the 2nd: the plan's own Job, 9am for a crew
+    // of 1, takes one
+    const draft = await draftedChange(office, planId, {
+      startsAt: MONDAYS[2]!,
+      recurrence: "weekly",
+      crewSize: 2,
+    });
+    const marked = async (weekday: number) =>
+      (
+        (
+          await office
+            .get(
+              `/api/quotes/${draft.id}/draft/starts?from=2026-02-02&to=2026-02-02&weekday=${weekday}`,
+            )
+            .expect(200)
+        ).body as DayTimes[]
+      )[0]!.times;
+
+    // from 9 it replaces the plan's Job; from 9:30 it doesn't, as that Job
+    // starts before it, and it's still on
+    const times = await marked(0);
+    expect(times).not.toContain("08:00");
+    expect(times).not.toContain("09:00");
+    expect(times).toContain("09:30");
+  });
+
+  test("a Draft's picker counts the replaced Jobs from its earliest weekday, as saved", async () => {
+    const { office, planId } = await crewedServicePlan();
+    // Sunday the 1st first, then Monday the 2nd: the Sunday's start replaces
+    // the plan's Monday Job, whenever on the Monday the second weekday starts
+    const draft = await draftedChange(office, planId, {
+      startsAt: ["2026-02-01T14:00:00.000Z", MONDAYS[2]!],
+      recurrence: "weekly",
+      crewSize: 2,
+    });
+    const { times } = (
+      (
+        await office
+          .get(
+            `/api/quotes/${draft.id}/draft/starts?from=2026-02-02&to=2026-02-02&weekday=1`,
+          )
+          .expect(200)
+      ).body as DayTimes[]
+    )[0]!;
+    expect(times).not.toContain("09:30");
+
+    await office
+      .get(`/api/quotes/${draft.id}/draft/starts?from=2026-02-02&to=2026-02-01`)
+      .expect(400);
+    await office
+      .get(
+        `/api/quotes/${draft.id}/draft/starts?from=2026-02-02&to=2026-02-02&weekday=7`,
+      )
+      .expect(400);
   });
 
   test("can take the time of a Job it replaces, which no longer counts against the day", async () => {

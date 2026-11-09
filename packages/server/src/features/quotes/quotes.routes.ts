@@ -22,6 +22,7 @@ import {
   clientQuoteView,
   declineQuote,
   discardDraft,
+  draftStarts,
   offerServicePlan,
   officeQuote,
   saveDraft,
@@ -33,6 +34,7 @@ import {
   acceptSchema,
   clientAcceptSchema,
   draftSchema,
+  draftStartsSchema,
   startRevisionSchema,
   startSchema,
   turnDownSchema,
@@ -189,6 +191,26 @@ router.patch(
   validate({ ...byId, body: draftSchema }),
   async (req, res) => {
     res.json(await saveDraft(String(req.params.id), req.body));
+  },
+);
+
+// GET /api/quotes/:id/draft/starts?from=2026-01-26&to=2026-02-01&weekday=0:
+// the starts on those days without a crew free for the Draft as last saved
+// (a plan's weekday, counting from 0, or a one-off's cleans), as its
+// picker marks them
+router.get(
+  "/:id/draft/starts",
+  authorize("office_staff"),
+  validate({ ...byId, query: draftStartsSchema }),
+  async (req, res) => {
+    const { from, to, weekday } = draftStartsSchema.parse(req.query);
+    res.json(
+      await draftStarts(String(req.params.id), {
+        from,
+        to,
+        weekday: weekday === undefined ? undefined : Number(weekday),
+      }),
+    );
   },
 );
 

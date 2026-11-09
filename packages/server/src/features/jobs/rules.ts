@@ -174,22 +174,27 @@ const pickTimes = Array.from({ length: (24 * 60) / PICK_MINUTES }, (_, i) => {
   return `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}`;
 });
 
+// the starts a picker offers on a day of the Schedule
+export const startsOn = (day: ScheduleDay) =>
+  pickTimes.map((time) => atTime(day.date, time));
+
 /**
- * The starts on each of these days of the Schedule, every PICK_MINUTES
- * from midnight, where a clean would find no crew free, as `roomAt` gives
- * its room there (roomOn, or a Quote's cleanRooms): the times the Office's
- * pickers mark. Only the headcount: a day's hours show in its header.
+ * The starts on each of these days of the Schedule (startsOn) where a clean
+ * would find no crew free, as `hasCrew` says of it there (roomOn's, or a
+ * Quote's cleanRooms'): the times the Office's pickers mark. Only the
+ * headcount: a day's hours show in its header.
  */
 export const startsWithoutCrew = (
   days: ScheduleDay[],
-  roomAt: (day: ScheduleDay, startsAt: Date) => DayCapacity,
+  hasCrew: (day: ScheduleDay, startsAt: Date) => boolean,
 ): DayTimes[] =>
-  days.map((day) => ({
-    date: day.date,
-    times: pickTimes.filter(
-      (time) => !roomAt(day, atTime(day.date, time)).hasCrew,
-    ),
-  }));
+  days.map((day) => {
+    const starts = startsOn(day);
+    return {
+      date: day.date,
+      times: pickTimes.filter((_, i) => !hasCrew(day, starts[i]!)),
+    };
+  });
 
 /**
  * What a Staff member is busy with during a clean's time on site, on its
