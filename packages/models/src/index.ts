@@ -581,6 +581,16 @@ export type DayTimes = { date: IsoDate; times: string[] };
 // the time field
 export const PICK_MINUTES = 30;
 
+// every start a picker offers on a day, from midnight: "00:00", "00:30", …
+export const PICK_TIMES = Array.from(
+  { length: (24 * 60) / PICK_MINUTES },
+  (_, i) => {
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const minutes = i * PICK_MINUTES;
+    return `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}`;
+  },
+);
+
 // one day of the Schedule. Only Cleaners' hours count towards it.
 export type ScheduleDay = {
   date: IsoDate;

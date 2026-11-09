@@ -1447,6 +1447,15 @@ export const draftStarts = async (
     optionsOf(draft.id),
     scheduleFor(from, to),
   ]);
+  if (draft.kind === "one_off" && weekday !== undefined) {
+    throw fieldError(["weekday"], "A one-off quote has no weekdays");
+  }
+  if (
+    draft.kind === "service_plan" &&
+    (weekday === undefined || weekday >= rows.length)
+  ) {
+    throw fieldError(["weekday"], "Pick one of the plan's weekdays");
+  }
   return draftStartsWithoutCrew(
     draft,
     quote.propertyId,

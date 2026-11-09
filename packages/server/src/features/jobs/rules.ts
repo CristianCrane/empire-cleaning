@@ -1,5 +1,5 @@
 import {
-  PICK_MINUTES,
+  PICK_TIMES,
   type DayCapacity,
   type DayTimes,
   type HeldTime,
@@ -167,16 +167,9 @@ export const roomOn = (day: ScheduleDay, clean: Clean): DayCapacity => {
   };
 };
 
-// every start the Schedule's pickers offer on a day: "00:00", "00:30", …
-const pickTimes = Array.from({ length: (24 * 60) / PICK_MINUTES }, (_, i) => {
-  const minutes = i * PICK_MINUTES;
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}`;
-});
-
 // the starts a picker offers on a day of the Schedule
 export const startsOn = (day: ScheduleDay) =>
-  pickTimes.map((time) => atTime(day.date, time));
+  PICK_TIMES.map((time) => atTime(day.date, time));
 
 /**
  * The starts on each of these days of the Schedule (startsOn) where a clean
@@ -192,7 +185,7 @@ export const startsWithoutCrew = (
     const starts = startsOn(day);
     return {
       date: day.date,
-      times: pickTimes.filter((_, i) => !hasCrew(day, starts[i]!)),
+      times: PICK_TIMES.filter((_, i) => !hasCrew(day, starts[i]!)),
     };
   });
 

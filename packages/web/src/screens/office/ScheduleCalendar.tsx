@@ -9,6 +9,7 @@ import {
 import { useNavigate } from "@tanstack/react-router";
 import {
   PICK_MINUTES,
+  PICK_TIMES,
   type DayTimes,
   type LocalDateTime,
   type ScheduleDay,
@@ -173,15 +174,12 @@ export function ScheduleCalendar({
           ]),
     ],
   );
-  // the times to pick from on a day: those on offer there, or every half hour
-  const everyHalfHour = Array.from(
-    { length: (axis.end - axis.start) / PICK_HOURS },
-    (_, i) => timeAt(axis.start + i * PICK_HOURS),
-  );
+  // the times to pick from on a day, on the axis: those on offer there, or
+  // every one a picker offers
   const timesOn = (date: string) =>
     (limits
       ? (limits.find((d) => d.date === date)?.times ?? [])
-      : everyHalfHour
+      : PICK_TIMES
     ).filter((t) => hoursOf(t) >= axis.start && hoursOf(t) < axis.end);
   const isOpen = (date: string) =>
     !limits || limits.some((d) => d.date === date);

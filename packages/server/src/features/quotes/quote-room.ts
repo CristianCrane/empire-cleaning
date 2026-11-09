@@ -48,6 +48,19 @@ const replacedFor = async (
       )
     : sets.map(() => []);
 
+// a Revision's options as cleans, as saved: each at its own start (a plan's
+// weekday's) or else the proposed time; null for one with neither yet
+const cleansOf = (
+  revision: { proposedStartsAt: Date | null },
+  options: { startsAt: Date | null; labourHours: number; crewSize: number }[],
+): (Clean | null)[] =>
+  options.map((option) => {
+    const startsAt = option.startsAt ?? revision.proposedStartsAt;
+    return startsAt
+      ? { startsAt, labourHours: option.labourHours, crewSize: option.crewSize }
+      : null;
+  });
+
 /**
  * Each of a Revision's options' room now, in the order given, as accepting
  * asks it (cleanRooms): at its start, a weekday's own or else the proposed
@@ -63,12 +76,7 @@ export const optionRoomsOf = async (
   propertyId: string,
   options: { startsAt: Date | null; labourHours: number; crewSize: number }[],
 ): Promise<(DayCapacity | null)[]> => {
-  const cleans = options.map((option) => {
-    const startsAt = option.startsAt ?? revision.proposedStartsAt;
-    return startsAt
-      ? { startsAt, labourHours: option.labourHours, crewSize: option.crewSize }
-      : null;
-  });
+  const cleans = cleansOf(revision, options);
   const timed = cleans.filter((clean) => clean !== null);
   if (timed.length === 0) return cleans.map(() => null);
   const dates = timed.map((clean) => dayOf(clean.startsAt)).sort();
@@ -87,7 +95,9 @@ export const optionRoomsOf = async (
  * `weekday` moved to each start beside its other weekdays' starts, the
  * Jobs of its home's plan that the Quote would then replace counting as
  * gone (replacedFor, from its earliest clean); a one-off's options all
- * moved there, marked when any has no crew (its longest).
+ * moved there, marked when any has no crew (its longest). A plan's
+ * `weekday` is one of its saved ones; a one-off has none (draftStarts
+ * refuses either).
  */
 export const draftStartsWithoutCrew = async (
   revision: { kind: QuoteKind; proposedStartsAt: Date | null },
@@ -98,10 +108,9 @@ export const draftStartsWithoutCrew = async (
 ): Promise<DayTimes[]> => {
   const moves = (i: number) => revision.kind === "one_off" || i === weekday;
   const moving = options.filter((_, i) => moves(i));
-  const others = options.flatMap((option, i) => {
-    const startsAt = option.startsAt ?? revision.proposedStartsAt;
-    return moves(i) || !startsAt ? [] : [{ ...option, startsAt }];
-  });
+  const others = cleansOf(revision, options).filter(
+    (clean, i): clean is Clean => clean !== null && !moves(i),
+  );
   const at = (startsAt: Date): Clean[] =>
     moving.map(({ labourHours, crewSize }) => ({
       startsAt,
