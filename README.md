@@ -72,6 +72,8 @@ Before each commit, a git hook (`.githooks/pre-commit`, which `pnpm install` tur
 
 CI starts `postgres_test` from `docker-compose.yml`, needs no secrets (email, payments and the clock are faked in tests), and builds `@empire-cleaning/models` first, since the other packages read its types from `dist`. When an end-to-end check fails, its Playwright report and the failed tests' traces are kept as an artifact on the run; open a trace with `pnpm --filter @empire-cleaning/web exec playwright show-trace <trace.zip>`.
 
+CodeQL is GitHub's default setup, not a workflow here: it scans `main` and every pull request, and its alerts are under the repo's Security tab (`gh api repos/CristianCrane/empire-cleaning/code-scanning/alerts`). A pull request's scan reports only on the lines it changes (the `pr-diff-range` extension in its SARIF), so a pull request that doesn't touch an alert's line passes with the alert still in the code. Its passing shows a fix only when the diff covers the alert's line. The alert itself closes on `main`'s next scan (#292).
+
 # Test site
 
 The test site (ADR-0020) is described in `render.yaml`: the server, its Postgres and the two static sites on Render, at `test.empirecleaningandpro.com` (landing) and `app.test.empirecleaningandpro.com` (web app, with `/api` rewritten to the server). A push to `main` deploys it once CI passes, and migrations run before each new server starts. Production is never deployed automatically.

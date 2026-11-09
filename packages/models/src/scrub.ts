@@ -39,23 +39,32 @@ function normalise(key: string) {
   return key.toLowerCase().replace(/[-_]/g, "");
 }
 
+// EMAIL and QUERY_VALUE match every run of the characters they start with,
+// whole, and only a run with its tail (`@example.com`, `=value`) is
+// replaced. Matched only where it was one, a long run with no tail was
+// scanned to its end from every character in it: 2 s for 50,000 (#292).
+// Starting only where a run starts (a lookbehind) misses emails that touch,
+// a@b.com.x@c.com.
+
 // ending in letters, so a package folder in a stack trace
 // (drizzle-orm@1.0.0-rc.4_pg@8.23.0) isn't one
-const EMAIL = /[\w.+-]+@[\w-]+(\.[\w-]+)*\.[a-z]{2,}\b/gi;
+const EMAIL = /[\w.+-]+(@[\w-]+(?:\.[\w-]+)*\.[a-z]{2,}\b)?/gi;
 // US numbers, as Clients write them: 718-555-0123, (718) 555 0123,
 // +1 718.555.0123, 7185550123; not inside longer runs of digits
 const PHONE =
   /(?<![\w+])(\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}(?!\w)/g;
 // values in a URL's query, e.g. a sign-in link's token
-const QUERY_VALUE = /([?&][^=&#\s]+=)[^&#\s]*/g;
+const QUERY_VALUE = /([?&][^=&#\s]+)(=[^&#\s]*)?/g;
 // a failed query's values, in the message Drizzle gives its error
 const QUERY_PARAMS = /^params: .*$/gm;
 
 export const scrubText = (text: string) =>
   text
-    .replace(EMAIL, "[email]")
+    .replace(EMAIL, (run, email?: string) => (email ? "[email]" : run))
     .replace(PHONE, "[phone]")
-    .replace(QUERY_VALUE, `$1${REDACTED}`)
+    .replace(QUERY_VALUE, (run, key: string, value?: string) =>
+      value === undefined ? run : `${key}=${REDACTED}`,
+    )
     .replace(QUERY_PARAMS, `params: ${REDACTED}`);
 
 // a copy of `value` with personal keys dropped and every string scrubbed;
