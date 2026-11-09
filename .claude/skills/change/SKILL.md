@@ -1,6 +1,6 @@
 ---
 name: change
-description: Survey the patterns a code change touches before its first edit, get a fresh change review before its PR, and write the PR's Change section. Use when starting any change in a git repo, or when a hook asks for a survey or a review.
+description: Survey the patterns a code change touches before its first edit, get a fresh change review before its PR, write the PR's Change section, and close with its lessons. Use when starting any change in a git repo, or when a hook asks for a survey, a review or lessons.
 ---
 
 <!-- The change rules: edited in github.com/CristianCrane/.dotfiles (home/.claude); repos carry copies made by hooks/sync.mjs. -->
@@ -82,3 +82,7 @@ Write the PR body to `pr-body-…` beside the review (the gate names it) and ope
 ```
 
 One line per pattern, per review finding and per `Seen nearby:` item. When the PR has refactor commits, Change names what they retired and says how behaviour was shown unchanged.
+
+## 6. Lessons
+
+Once the full suite has passed, run the `lessons` skill: before the PR leaves draft (`gh pr ready`, or `gh pr create` without `--draft`), or before the push to main where there's no PR. Its lessons for the repo land as one cleanup commit, which gets its recheck. The gate holds a PR in draft until its lessons file says where every lesson went and the review is of the last commit.

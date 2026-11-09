@@ -3,8 +3,14 @@
 // What the change hooks share: git, and the survey, plan review and review
 // files the `change` skill writes into the git dir (never committed, kept
 // per worktree): one set per branch, and on main one per session.
+//
+// A gate that must know what a command acts on (which PR) has it named one
+// way and turns every other way down, saying how to run it: reading each
+// spelling the tool accepts (-R…, GH_REPO, flags before `pr`) kept missing
+// routes, round after round (47b0a6c, 3b948a6, then 6442db7 took this
+// shape; the cases: CristianCrane/.dotfiles#10).
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -49,13 +55,16 @@ export const deny = (reason) => ({
 });
 
 // the edited file's own checkout (the nearest folder that exists: a new
-// file's own may not yet), so an edit in a worktree counts that worktree
+// file's own may not yet), so an edit in a worktree counts that worktree;
+// through a symlink (~/.claude's links into the dotfiles), the checkout
+// it really is in, so the link is gated like its target
 export const cwdFor = (input) => {
   const path = input.tool_input?.file_path ?? input.tool_input?.notebook_path;
   if (!path) return input.cwd;
-  let cwd = dirname(path);
-  while (!existsSync(cwd)) cwd = dirname(cwd);
-  return cwd;
+  let at = path;
+  while (!existsSync(at)) at = dirname(at);
+  const real = realpathSync(at);
+  return at === path ? dirname(real) : real;
 };
 
 // the branch being worked on, and the name its files go by: the branch,
