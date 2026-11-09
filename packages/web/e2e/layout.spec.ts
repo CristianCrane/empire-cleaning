@@ -10,6 +10,8 @@ import {
   expect,
   offerJob,
   proposeNextMonday,
+  saved,
+  startOn,
   recordNoAccess,
   requestQuoteAsGuest,
   requestQuoteForPremises,
@@ -351,16 +353,7 @@ test("a Service Plan Quote fits every width, Draft and Sent, for the Office and 
   await expectFitsEveryWidth(page, `${quote}/draft`);
 
   // its first Job on Monday 19 January 2026 at 9:00 AM
-  await page
-    .getByRole("group", { name: "Date" })
-    .getByRole("spinbutton", { name: /month/i })
-    .click();
-  await page.keyboard.type("01192026");
-  await page
-    .getByRole("group", { name: "Start time" })
-    .getByRole("spinbutton", { name: /hour/i })
-    .click();
-  await page.keyboard.type("0900AM");
+  await startOn(page, page, "01192026", "0900AM");
   await page.getByRole("button", { name: "Send to Casey Client" }).click();
   await expect(
     page.getByRole("region", { name: "Current quote" }),
@@ -445,9 +438,7 @@ test("a Service Plan on several weekdays fits every width, Draft, Sent and start
   const draft = new URL(page.url()).pathname;
   await page.getByRole("button", { name: "Add a weekday" }).click();
   await expect(page.getByRole("region", { name: "Weekday 2" })).toBeVisible();
-  await expect(
-    page.getByRole("status").filter({ hasText: /saved|prices/ }),
-  ).toHaveText("All changes saved");
+  await saved(page);
   await expectFitsEveryWidth(page, draft);
 
   // Sent on Mondays, Wednesdays and Fridays, and started

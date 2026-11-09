@@ -4,10 +4,12 @@ import {
   emailsTo,
   expect,
   expectAccessible,
+  saved,
   sentServicePlanQuote,
   signedInAs,
   signUp,
   startedServicePlan,
+  startOn,
   test,
 } from "./harness.ts";
 
@@ -26,8 +28,8 @@ const olive = {
 };
 const casey = { name: "Casey Client", email: "casey@example.com" };
 
-// Casey's plan, its acceptance recorded by Olive
-const planStarted = async () => {
+// Casey's plan, its acceptance recorded by Olive, for a crew of `crewSize`
+const planStarted = async (crewSize?: number) => {
   await createStaff(olive);
   await signUp(olive.email);
   const { propertyId } = await completedFirstClean(olive.email);
@@ -35,6 +37,7 @@ const planStarted = async () => {
     officeEmail: olive.email,
     propertyId,
     startsAt: FIRST,
+    ...(crewSize && { crewSize }),
   });
   return { ...plan, propertyId };
 };
@@ -106,6 +109,36 @@ test(
     ).toContainText("Every 2 weeks");
   },
 );
+
+test("a Draft changing the plan can take the time of a Job it replaces", async ({
+  page,
+}) => {
+  // Cory and Bea, the only Cleaners, are both on the plan's Job at 9am on
+  // Monday the 26th, which new terms from then replace
+  const { planId } = await planStarted(2);
+  await signedInAs(page, olive.email);
+  await page.goto(`/office/service-plans/${planId}`);
+  await page.getByRole("button", { name: "Change terms" }).click();
+  await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}\/draft$/);
+
+  await page
+    .getByRole("region", { name: "Plan" })
+    .getByRole("radio", { name: "Every 2 weeks" })
+    .check();
+  await startOn(
+    page,
+    page.getByRole("region", { name: "Weekday 1" }),
+    "01262026",
+    "0900AM",
+  );
+  const mondays = page.getByRole("region", { name: "Mondays" });
+  await expect(mondays.getByRole("textbox", { name: "Cleaners" })).toHaveValue(
+    "2",
+  );
+  await saved(page);
+  await expect(mondays).toContainText("Mon, Jan 26 has room for it.");
+  await expect(mondays).not.toContainText("Not enough cleaners are free then");
+});
 
 test(
   "a Client asks to change their plan, which reaches the Office as a plan change",

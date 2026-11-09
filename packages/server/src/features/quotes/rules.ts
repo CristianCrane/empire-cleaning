@@ -1,12 +1,17 @@
-import type { QuoteStatus, ScheduleDay } from "@empire-cleaning/models";
+import type {
+  DayCapacity,
+  QuoteStatus,
+  ScheduleDay,
+} from "@empire-cleaning/models";
 import { dayOf } from "../../services/clock/index.ts";
 import { roomOn, withoutReplaced, type Clean } from "../jobs/rules.ts";
 
 // The rules for accepting a Quote, over what acceptance loads: the Quote as
 // it is now, its home's plan, and the days of the cleans it books. Whether
 // those cleans have room (cleansFit) also answers what the Quote screen
-// offers (bookableFor), over the days it loads. They never query: the
-// actions lock and load, ask, then write.
+// offers (bookableFor), over the rooms it loads (optionRoomsOf), and each
+// clean's room (cleanRooms) what a Draft is told. They never query: the actions lock and
+// load, ask, then write.
 
 // why a Quote can't be booked, as its Deposit is taken or once it has been
 export type Unbookable =
@@ -46,21 +51,27 @@ export const whyClosed = (
 };
 
 /**
- * Whether every one of these cleans of a Quote has room on its day, as
- * roomOn says, the booked Jobs its new terms replace counting as gone
- * (withoutReplaced). `days` holds each clean's day. A Service Plan Quote's
- * cleans are asked together, as it's accepted whole; a one-off Quote's
- * Services each alone.
+ * The room each of these cleans of a Quote has on its day, as roomOn says,
+ * the booked Jobs its new terms replace counting as gone (withoutReplaced).
+ * `days` holds each clean's day.
  */
-export const cleansFit = (
+export const cleanRooms = (
   days: ScheduleDay[],
   cleans: Clean[],
   replacing: string[],
-) =>
-  cleans.every((clean) => {
+): DayCapacity[] =>
+  cleans.map((clean) => {
     const day = days.find((d) => d.date === dayOf(clean.startsAt))!;
-    return roomOn(withoutReplaced(day, replacing), clean).hasRoom;
+    return roomOn(withoutReplaced(day, replacing), clean);
   });
+
+/**
+ * Whether cleans of a Quote with these rooms (cleanRooms) fit: every one
+ * has room. A Service Plan Quote's cleans are asked together, as it's
+ * accepted whole; a one-off Quote's Services each alone.
+ */
+export const cleansFit = (rooms: DayCapacity[]) =>
+  rooms.every((room) => room.hasRoom);
 
 /**
  * Accepting a Quote's offer, `revisionId`, booking these cleans: refused
@@ -77,7 +88,7 @@ export const whyUnbookable = (
   if (held.planId !== accepting.changing) {
     return { reason: accepting.changing ? "plan_changed" : "has_plan" };
   }
-  if (!cleansFit(held.days, accepting.cleans, held.replacing)) {
+  if (!cleansFit(cleanRooms(held.days, accepting.cleans, held.replacing))) {
     return { reason: "no_room" };
   }
   return null;

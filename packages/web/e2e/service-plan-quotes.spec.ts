@@ -10,6 +10,8 @@ import {
   test,
   serviceKey,
   draftTheQuote,
+  saved,
+  startOn,
 } from "./harness.ts";
 
 const olive = {
@@ -43,11 +45,6 @@ const atPlanDraft = async (page: Page) => {
 const planCard = (page: Page, name: string) =>
   page.getByRole("region", { name });
 
-const saved = (page: Page) =>
-  expect(
-    page.getByRole("status").filter({ hasText: /saved|prices/ }),
-  ).toHaveText("All changes saved");
-
 // offered from the First Clean Job's screen
 const startPlan = async (page: Page) => {
   const { job } = await firstCleanDone(page);
@@ -57,18 +54,7 @@ const startPlan = async (page: Page) => {
 };
 
 // the first Job of the plan: Monday 19 January 2026 at 9:00 AM
-const startOn19th = async (page: Page) => {
-  await page
-    .getByRole("group", { name: "Date" })
-    .getByRole("spinbutton", { name: /month/i })
-    .click();
-  await page.keyboard.type("01192026");
-  await page
-    .getByRole("group", { name: "Start time" })
-    .getByRole("spinbutton", { name: /hour/i })
-    .click();
-  await page.keyboard.type("0900AM");
-};
+const startOn19th = (page: Page) => startOn(page, page, "01192026", "0900AM");
 
 const quoteLink = async () => {
   const sent = (await emailsTo(casey.email)).find(

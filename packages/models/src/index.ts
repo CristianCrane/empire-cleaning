@@ -1035,6 +1035,11 @@ export type OfficeQuoteOption = QuoteOption & {
   suggested: PriceBreakdown;
   overrideCents: number | null;
   overrideReason: string | null;
+  // on a Draft, once the option has a start (a weekday's own, or the
+  // proposed time): its room then, as of now, by the rule accepting asks
+  // (the Jobs a plan change replaces counted as gone). Null on a Sent
+  // Revision's, whose room is the Quote's bookable, and before a start.
+  room: DayCapacity | null;
 };
 
 // One Revision of a Quote in full, for the Office: unsent ("draft"), priced

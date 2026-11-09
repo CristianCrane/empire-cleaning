@@ -3,6 +3,7 @@ import {
   test as base,
   expect,
   type BrowserContext,
+  type Locator,
   type Page,
 } from "@playwright/test";
 import type { Me, QuoteSource, StaffRole } from "@empire-cleaning/models";
@@ -620,18 +621,34 @@ export const requestQuoteForPremises = async (
   if (!res.ok) throw new Error(`quote request: ${res.status}`);
 };
 
-export const proposeNextMonday = async (page: Page) => {
-  await page
-    .getByRole("group", { name: "Date" })
-    .getByRole("spinbutton", { name: /month/i })
-    .click();
-  await page.keyboard.type("01122026");
-  await page
+// types a start into a Draft's pickers, in `part`: a plan's weekday, or the
+// page. The day goes last, as a weekday's section is named after it.
+export const startOn = async (
+  page: Page,
+  part: Page | Locator,
+  date: string,
+  time: string,
+) => {
+  await part
     .getByRole("group", { name: "Start time" })
     .getByRole("spinbutton", { name: /hour/i })
     .click();
-  await page.keyboard.type("0900AM");
+  await page.keyboard.type(time);
+  await part
+    .getByRole("group", { name: "Date" })
+    .getByRole("spinbutton", { name: /month/i })
+    .click();
+  await page.keyboard.type(date);
 };
+
+export const proposeNextMonday = (page: Page) =>
+  startOn(page, page, "01122026", "0900AM");
+
+// once the Draft has saved all that's on screen
+export const saved = (page: Page) =>
+  expect(
+    page.getByRole("status").filter({ hasText: /saved|prices/ }),
+  ).toHaveText("All changes saved");
 
 // what the browser does when the person comes back to this tab
 export const returnToTab = (page: import("@playwright/test").Page) =>

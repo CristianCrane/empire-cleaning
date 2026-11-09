@@ -1,5 +1,9 @@
 import { and, asc, eq, inArray, max } from "drizzle-orm";
-import type { QuoteSummary } from "@empire-cleaning/models";
+import type {
+  DayCapacity,
+  QuoteKind,
+  QuoteSummary,
+} from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
 import { dayOf } from "../../services/clock/index.ts";
 import { onSchedule } from "../jobs/jobs.ts";
@@ -13,13 +17,50 @@ import { tellOfficeStaff } from "../staff/staff.ts";
 import { quotesWithoutRoomEmail } from "./emails.ts";
 import { openQuotes } from "./quote-state.ts";
 import { quotes, revisionOptions } from "./quotes.schema.ts";
-import { cleansFit } from "./rules.ts";
+import { cleanRooms, cleansFit } from "./rules.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
 
 // A Sent Quote doesn't hold its time: a booking for another Client, or fewer
 // Cleaners or hours, can fill its proposed day or time under it. Then it can't be
 // accepted (acceptQuote checks again), the Client is told so on the Quote,
 // and the Office is told it needs another time.
+
+/**
+ * Each of a Revision's options' room now, in the order given, as accepting
+ * asks it (cleanRooms): at its start, a weekday's own or else the proposed
+ * time, over its days of the Schedule from the earliest to the latest (a
+ * Draft's weekdays are in the order typed), a Service Plan Quote counting
+ * as gone the booked Jobs of its home's plan it replaces from its earliest
+ * clean on (jobsReplacedAt). Null for an option with no start yet: a
+ * Draft's earliest so far may come before a weekday still to be timed,
+ * which can only replace fewer.
+ */
+export const optionRoomsOf = async (
+  revision: { kind: QuoteKind; proposedStartsAt: Date | null },
+  propertyId: string,
+  options: { startsAt: Date | null; labourHours: number; crewSize: number }[],
+): Promise<(DayCapacity | null)[]> => {
+  const cleans = options.map((option) => {
+    const startsAt = option.startsAt ?? revision.proposedStartsAt;
+    return startsAt
+      ? { startsAt, labourHours: option.labourHours, crewSize: option.crewSize }
+      : null;
+  });
+  const timed = cleans.filter((clean) => clean !== null);
+  if (timed.length === 0) return cleans.map(() => null);
+  const earliest = new Date(
+    Math.min(...timed.map((clean) => clean.startsAt.getTime())),
+  );
+  const dates = timed.map((clean) => dayOf(clean.startsAt)).sort();
+  const [days, replacing] = await Promise.all([
+    scheduleFor(dates[0]!, dates.at(-1)!),
+    revision.kind === "service_plan"
+      ? jobsReplacedAt(propertyId, earliest)
+      : [],
+  ]);
+  const rooms = cleanRooms(days, timed, replacing);
+  return cleans.map((clean) => clean && rooms[timed.indexOf(clean)]!);
+};
 
 /**
  * The Services each open Sent Quote can still be booked as, by key, in its
@@ -29,7 +70,7 @@ import { monitoring } from "../../services/monitoring/index.ts";
  * it can be while the first clean on each of its weekdays has room, and
  * then offers its weekdays' Services; one changing its home's plan
  * doesn't count the plan's Jobs it would replace. Accepting asks the same
- * rule (cleansFit), over each Quote's days, loaded once.
+ * rule (cleansFit), over each Quote's rooms (optionRoomsOf).
  */
 export const bookableFor = async (
   open: { id: string; proposedStartsAt: Date }[],
@@ -60,22 +101,19 @@ export const bookableFor = async (
   const startOfQuote = new Map(open.map((q) => [q.id, q.proposedStartsAt]));
 
   for (const [quoteId, offered] of Map.groupBy(options, (o) => o.quoteId)) {
-    const proposed = startOfQuote.get(quoteId)!;
     const [{ kind, propertyId }] = offered as [(typeof offered)[number]];
-    const replacing =
-      kind === "service_plan" ? await jobsReplacedAt(propertyId, proposed) : [];
-    const cleans = offered.map((option) => ({
-      startsAt: option.startsAt ?? proposed,
-      labourHours: option.labourHours,
-      crewSize: option.crewSize,
-    }));
-    // earliest first, as sending put a plan's weekdays
-    const dates = cleans.map((clean) => dayOf(clean.startsAt));
-    const days = await scheduleFor(dates[0]!, dates.at(-1)!);
+    // every option of a Sent Revision has a start
+    const rooms = (
+      await optionRoomsOf(
+        { kind: kind!, proposedStartsAt: startOfQuote.get(quoteId)! },
+        propertyId,
+        offered,
+      )
+    ).map((room) => room!);
     const fitting =
       kind === "one_off"
-        ? offered.filter((_, i) => cleansFit(days, [cleans[i]!], replacing))
-        : cleansFit(days, cleans, replacing)
+        ? offered.filter((_, i) => cleansFit([rooms[i]!]))
+        : cleansFit(rooms)
           ? offered
           : [];
     bookable.set(quoteId, [...new Set(fitting.map((o) => o.serviceKey))]);

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { afterNine, thursday } from "../../../tests/schedule-days.ts";
 import type { Clean } from "../jobs/rules.ts";
-import { whyUnbookable, type Held } from "./rules.ts";
+import { cleanRooms, whyUnbookable, type Held } from "./rules.ts";
 
 // Accepting a Quote over plain data (tests/schedule-days.ts): Thursday has
 // Ana and Bea, 16 hours, 10 of them free, with a Job from 9am to noon.
@@ -115,5 +115,27 @@ describe("accepting a Quote (whyUnbookable)", () => {
         accepting({ changing: "plan", cleans: [at1pm(12)] }),
       ),
     ).toBeNull();
+  });
+});
+
+describe("each clean's room (cleanRooms)", () => {
+  test("says, for each clean in turn, whether it has room and why not", () => {
+    const [fits, tooLong] = cleanRooms([thursday()], [at1pm(2), at1pm(12)], []);
+    expect(fits).toMatchObject({ hasRoom: true, freeHours: 10 });
+    expect(tooLong).toMatchObject({
+      hasRoom: false,
+      hasHours: false,
+      hasCrew: true,
+    });
+  });
+
+  test("counts the Jobs a plan's new terms replace as gone", () => {
+    // the Job's 6 hours, and its crew of two from 9am, free again
+    const [room] = cleanRooms(
+      [thursday()],
+      [{ startsAt: afterNine(0), labourHours: 12, crewSize: 2 }],
+      ["job"],
+    );
+    expect(room).toMatchObject({ hasRoom: true, freeHours: 16, crewsBusy: 0 });
   });
 });

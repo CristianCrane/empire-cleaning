@@ -51,8 +51,9 @@ const officePlan = async (office: Agent, id: string) =>
 const startsOf = (plan: OfficeServicePlan, status = "booked") =>
   plan.jobs.filter((j) => j.status === status).map((j) => j.startsAt);
 
-// a new Service Plan Quote for the plan's home, Sent by the Office
-const sentChange = async (
+// a new Service Plan Quote for the plan's home, saved as a Draft by the
+// Office
+const draftedChange = async (
   office: Agent,
   planId: string,
   {
@@ -71,7 +72,7 @@ const sentChange = async (
   const me = (await office.get("/api/me").expect(200)).body as SignedInAccount;
   const { property } = await officePlan(office, planId);
   const { quote } = await offerServicePlan(property.id, me.id);
-  await saveDraft(quote.id, {
+  return saveDraft(quote.id, {
     addOns: [],
     depositPercent: quote.draft!.depositPercent,
     validityDays: quote.draft!.validityDays,
@@ -90,8 +91,14 @@ const sentChange = async (
       }),
     },
   });
-  return sendQuote(quote.id);
 };
+
+// such a Quote, Sent
+const sentChange = async (
+  office: Agent,
+  planId: string,
+  terms: Parameters<typeof draftedChange>[2],
+) => sendQuote((await draftedChange(office, planId, terms)).id);
 
 const accept = async (
   client: Agent,
@@ -243,6 +250,21 @@ describe("accepting a Service Plan Quote for a home with a plan", () => {
     expect(deepTotal).toBeGreaterThan(PLAN_TOTAL);
     expect(totals.get(after[1]!.id)).toBe(deepTotal);
     expect(plan.days[0]!.totalCents).toBe(deepTotal);
+  });
+
+  test("a Draft is told the time of a Job it replaces has room, as accepting would", async () => {
+    const { office, planId } = await crewedServicePlan();
+    // both Cleaners at 9am on the 2nd: the plan's own Job takes one
+    const draft = await draftedChange(office, planId, {
+      startsAt: MONDAYS[2]!,
+      recurrence: "weekly",
+      crewSize: 2,
+    });
+    const viewed = (await office.get(`/api/quotes/${draft.id}`).expect(200))
+      .body as OfficeQuote;
+    expect(viewed.draft!.options.map((o) => o.room)).toMatchObject([
+      { date: "2026-02-02", hasRoom: true, crewsBusy: 0 },
+    ]);
   });
 
   test("can take the time of a Job it replaces, which no longer counts against the day", async () => {
