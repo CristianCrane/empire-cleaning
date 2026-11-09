@@ -54,6 +54,12 @@ export const deny = (reason) => ({
   },
 });
 
+// what a hook answers to add `text` to the agent's context on `event`
+// (SessionStart, PostToolUse, SubagentStart …)
+export const context = (event, text) => ({
+  hookSpecificOutput: { hookEventName: event, additionalContext: text },
+});
+
 // the command with heredoc bodies and quoted text blanked out, keeping
 // every other character where it was
 export const masked = (command) =>

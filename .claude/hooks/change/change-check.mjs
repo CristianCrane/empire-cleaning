@@ -7,13 +7,13 @@
 // past the survey gate) are pointed out once per commit. A nudge, never a
 // block.
 import { readFileSync, writeFileSync } from "node:fs";
-import { beforeEdit, changedFiles, cwdFor, git, hook, stateFile, workOf } from "./lib.mjs";
+import { beforeEdit, changedFiles, context, cwdFor, git, hook, stateFile, workOf } from "./lib.mjs";
 
 const STEP = 25;
 
 const say = (text) => ({
   systemMessage: text.split(". ")[0] + ".",
-  hookSpecificOutput: { hookEventName: "PostToolUse", additionalContext: text },
+  ...context("PostToolUse", text),
 });
 
 hook((input) => {
