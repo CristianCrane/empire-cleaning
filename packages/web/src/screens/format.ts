@@ -283,7 +283,7 @@ const listed = (items: string[]) =>
 
 // a weekday's clean and when: "Mondays at 9:00 AM"
 export const planDayWhen = (startsAt: string) =>
-  `${weekdayOfStart(startsAt)}s at ${formatClock(timeOfDay(startsAt))}`;
+  `${weekdayOfStart(startsAt)}s at ${formatTime(startsAt)}`;
 
 // what a Service Plan is, in a line: "Standard Clean, every 2 weeks", or
 // "Standard Clean and Deep Clean, every week on Mon, Wed and Fri"
