@@ -9,40 +9,13 @@
 // `--draft`) once the branch's lessons file (the `lessons` skill) says
 // where every lesson went, and the review is still of the last commit.
 import { existsSync, readFileSync } from "node:fs";
-import { homedir } from "node:os";
-import { resolve } from "node:path";
-import { deny, hook, lines, onBranch, review, stateFile, workOf } from "./lib.mjs";
+import { deny, dirOf, hook, lines, masked, onBranch, review, stateFile, workOf } from "./lib.mjs";
 
 // where a command starts (not inside a message that mentions it), after
 // any VAR=value prefixes, with any gh flags before `pr`
 // (a VAR=value prefix's value may be quoted: in the masked text its quotes
 // hold blanks; a wrapper such as env, command or time runs gh all the same)
 const PR_STEP = /(?:^|[;&|(\n])\s*(?:(?:\w+=(?:"[^"]*"|'[^']*'|[^\s"'])*|env|command|time|nohup|exec)\s+)*gh\s+(?:-\S+(?:\s+[^-\s]\S*)?\s+)*pr\s+(create|ready)\b/g;
-
-// the command with heredoc bodies and quoted text blanked out, keeping
-// every other character where it was
-const masked = (command) =>
-  command
-    .replace(/(<<-?\s*(['"]?)(\w+)\2[^\n]*\n)([\s\S]*?\n)(\t*\3)(?=\n|$)/g, (_, open, _q, _tag, body, close) =>
-      open + body.replace(/[^\n]/g, " ") + close,
-    )
-    .replace(/'[^']*'|"(?:\\.|[^"\\])*"/g, (quoted) => quoted[0] + " ".repeat(quoted.length - 2) + quoted[0]);
-
-// the folder gh runs in: the last `cd` before it, if any, found in the
-// masked command with `$( … )` blanked too (so a `cd` in a heredoc, a
-// quote or a command substitution doesn't count) and read from the original
-const dirOf = (command, hidden, at, cwd) => {
-  let outside = hidden.slice(0, at);
-  for (let inner = ""; inner !== outside; ) {
-    inner = outside;
-    outside = outside.replace(/\$\([^()]*\)/g, (sub) => " ".repeat(sub.length));
-  }
-  const cds = [...outside.matchAll(/(?:^|[;&|(\n])\s*cd\s+("[^"]+"|'[^']+'|[^\s;&|)]+)/dg)];
-  if (cds.length === 0) return cwd;
-  const [start, end] = cds.at(-1).indices[1];
-  const dir = command.slice(start, end).replace(/^["']|["']$/g, "").replace(/^~(?=\/|$)/, homedir());
-  return resolve(cwd, dir);
-};
 
 // this gh command's own arguments, up to the next command: in the masked
 // text (`masked`), so a quoted title or body is blanks

@@ -22,7 +22,7 @@ A cost is a lesson only when all four hold:
 - **It recurs:** it would happen again in other work. A fact about this ticket alone is not a lesson.
 - **It's unrecorded:** search the code, its comments, the docs, git history and the existing rules first. Recorded already is not a lesson.
 - **It changes behaviour:** it reads as "when X, do Y", with why.
-- **It's worth the space:** a small slip that cost one quick fix, or a fact about one helper, isn't a lesson, even if it recurs. Lessons are for what changes how work is approached.
+- **It's foundational:** it changes how work is approached, across many changes. A small slip that cost one quick fix, a fact about one helper, or a workaround for a tool's snag isn't a lesson, even if it recurs (the snag itself goes to a fix, below). Few lessons, each one heavy: a list of minor ones is noise nobody reads.
 
 Done when each cost is a lesson in that form or ruled out with its reason.
 
@@ -30,7 +30,7 @@ Done when each cost is a lesson in that form or ruled out with its reason.
 
 Sort it first:
 
-- **Mechanical** (a fixed pattern, a banned call, a file-location rule): a deterministic check, such as a lint rule, a hook, a test or a CI job. It's a change of its own: propose it to the user, and it went to their answer (the change that built it, or the issue that holds it).
+- **Mechanical** (a fixed pattern, a banned call, a file-location rule, or a snag that keeps costing: a refused command, a gate that misreads, a missing tool): a deterministic check (a lint rule, a hook, a test, a CI job), or a fix at the snag's source (the config, the hook, the package), so nobody has to remember a way around it. It's never written down as a workaround. It's a change of its own: propose it to the user, and it went to their answer (the change that built it, or the issue that holds it). A workaround line that must stay meanwhile names that issue ("until <issue>") and goes when it lands; one whose source isn't ours to fix says so.
 - **A miss the review should have caught:** a rule for the reviewer agent.
 - **A judgement call:** prose, in the narrowest place every agent that needs it loads:
 

@@ -12,7 +12,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, isAbsolute, join } from "node:path";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // A repo's copy of these hooks (for cloud sessions, which have no
@@ -54,11 +54,40 @@ export const deny = (reason) => ({
   },
 });
 
+// the command with heredoc bodies and quoted text blanked out, keeping
+// every other character where it was
+export const masked = (command) =>
+  command
+    .replace(/(<<-?\s*(['"]?)(\w+)\2[^\n]*\n)([\s\S]*?\n)(\t*\3)(?=\n|$)/g, (_, open, _q, _tag, body, close) =>
+      open + body.replace(/[^\n]/g, " ") + close,
+    )
+    .replace(/'[^']*'|"(?:\\.|[^"\\])*"/g, (quoted) => quoted[0] + " ".repeat(quoted.length - 2) + quoted[0]);
+
+// the folder a command runs in at `at`: the last `cd` before it, if any, found in the
+// masked command with `$( … )` blanked too (so a `cd` in a heredoc, a
+// quote or a command substitution doesn't count) and read from the original
+export const dirOf = (command, hidden, at, cwd) => {
+  let outside = hidden.slice(0, at);
+  for (let inner = ""; inner !== outside; ) {
+    inner = outside;
+    outside = outside.replace(/\$\([^()]*\)/g, (sub) => " ".repeat(sub.length));
+  }
+  const cds = [...outside.matchAll(/(?:^|[;&|(\n])\s*cd\s+("[^"]+"|'[^']+'|[^\s;&|)]+)/dg)];
+  if (cds.length === 0) return cwd;
+  const [start, end] = cds.at(-1).indices[1];
+  const dir = command.slice(start, end).replace(/^["']|["']$/g, "").replace(/^~(?=\/|$)/, homedir());
+  return resolve(cwd, dir);
+};
+
 // the edited file's own checkout (the nearest folder that exists: a new
 // file's own may not yet), so an edit in a worktree counts that worktree;
 // through a symlink (~/.claude's links into the dotfiles), the checkout
-// it really is in, so the link is gated like its target
+// it really is in, so the link is gated like its target; for a shell
+// command, the folder its last `cd` leaves (an agent's shell starts in its
+// parent's folder on every call, so it works in its own worktree by cd)
 export const cwdFor = (input) => {
+  const command = input.tool_input?.command;
+  if (command) return dirOf(command, masked(command), command.length, input.cwd);
   const path = input.tool_input?.file_path ?? input.tool_input?.notebook_path;
   if (!path) return input.cwd;
   let at = path;
