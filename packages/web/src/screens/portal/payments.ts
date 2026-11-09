@@ -165,7 +165,7 @@ export function paymentRow(p: ClientPayment): PaymentRow {
         line: `Booked for ${cleanDay}`,
         href,
       };
-    case "extra":
+    case "adjustment":
       return p.item
         ? {
             title: `Price change: ${p.item}`,

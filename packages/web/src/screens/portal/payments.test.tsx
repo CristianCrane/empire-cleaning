@@ -180,17 +180,23 @@ describe("how a payment reads", () => {
   });
 
   test("a price change says which clean it was approved after", () => {
-    expect(paymentRow(payment({ kind: "extra", at: WEEK_LATER }))).toEqual({
-      title: "Price change on Standard Clean",
-      line: "Approved after your Oct 20 clean",
-      href: jobHref,
-    });
+    expect(paymentRow(payment({ kind: "adjustment", at: WEEK_LATER }))).toEqual(
+      {
+        title: "Price change on Standard Clean",
+        line: "Approved after your Oct 20 clean",
+        href: jobHref,
+      },
+    );
   });
 
   test("a price change for one change names it", () => {
     expect(
       paymentRow(
-        payment({ kind: "extra", at: WEEK_LATER, item: "Inside the fridge" }),
+        payment({
+          kind: "adjustment",
+          at: WEEK_LATER,
+          item: "Inside the fridge",
+        }),
       ),
     ).toEqual({
       title: "Price change: Inside the fridge",

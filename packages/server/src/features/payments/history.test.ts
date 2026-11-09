@@ -76,7 +76,7 @@ describe("a Client's payment history", () => {
       amountCents: own!.amountCents,
       item: null,
     });
-    expect(history.find((p) => p.kind === "extra")).toMatchObject({
+    expect(history.find((p) => p.kind === "adjustment")).toMatchObject({
       amountCents: 5988,
       item: "1 extra hour",
     });

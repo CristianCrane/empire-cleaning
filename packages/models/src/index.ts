@@ -1267,10 +1267,10 @@ export type PaymentMethodView = {
 };
 
 // what a payment in a Client's history was: a Deposit, a clean's Balance,
-// more of it for an increase they approved later (an extra), a plan Job's
+// more of it for an increase they approved later (an Adjustment), a plan Job's
 // fee, a weekly Bill, or money given back
 export type ClientPaymentKind =
-  "deposit" | "balance" | "extra" | "fee" | "bill" | "refund";
+  "deposit" | "balance" | "adjustment" | "fee" | "bill" | "refund";
 
 // money that moved between a Client and us, for their Payments page
 // (GET /api/payments/mine). It was for a Job, a Service Plan's

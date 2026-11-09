@@ -948,7 +948,7 @@ describe("Office Staff correcting a completion", () => {
     // the Client's Payments page names what each was for
     const history = (await client.get("/api/payments/mine").expect(200))
       .body as ClientPayment[];
-    expect(history.find((p) => p.kind === "extra")).toMatchObject({
+    expect(history.find((p) => p.kind === "adjustment")).toMatchObject({
       amountCents: EXTRA_HOUR,
       item: "1 extra hour",
     });
