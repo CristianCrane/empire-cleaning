@@ -1,6 +1,6 @@
 import { and, eq, inArray, isNotNull, lte } from "drizzle-orm";
 import { db } from "../../db/index.ts";
-import { clock } from "../../services/clock/index.ts";
+import { clock, MINUTE_MS } from "../../services/clock/index.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
 import { bills } from "../bills/bills.schema.ts";
 import { retryBill } from "../bills/bills.ts";
@@ -19,7 +19,7 @@ import { charges } from "./payments.schema.ts";
 // ---- the Clock: payments nobody heard the end of (ADR-0022) ----
 
 // long enough after asking that a try still waiting on its reply has had it
-const SETTLED_AFTER_MS = 15 * 60_000;
+const SETTLED_AFTER_MS = 15 * MINUTE_MS;
 
 /**
  * Tries again what's waiting on the payment provider, so nobody has to:
