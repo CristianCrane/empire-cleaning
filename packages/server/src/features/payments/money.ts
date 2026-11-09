@@ -1,6 +1,7 @@
 import { and, eq, inArray, isNull, lte, notExists, or, sql } from "drizzle-orm";
+import { DAY_MS } from "@empire-cleaning/models";
 import { apart, db, type Tx } from "../../db/index.ts";
-import { clock, DAY_MS } from "../../services/clock/index.ts";
+import { clock } from "../../services/clock/index.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
 import {
   paymentGateway,

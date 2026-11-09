@@ -1,12 +1,13 @@
 import { and, desc, eq, isNull } from "drizzle-orm";
 import type { QuoteOption, QuoteStatus } from "@empire-cleaning/models";
+import { dayOf } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import {
   ConflictError,
   fieldError,
   NotFoundError,
 } from "../../middleware/errors.ts";
-import { clock, dayOf } from "../../services/clock/index.ts";
+import { clock } from "../../services/clock/index.ts";
 import { email, formatWhen } from "../../services/email/index.ts";
 import {
   paymentGateway,

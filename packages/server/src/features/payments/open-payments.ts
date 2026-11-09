@@ -1,6 +1,7 @@
 import { and, eq, inArray, isNotNull, lte } from "drizzle-orm";
+import { MINUTE_MS } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
-import { clock, MINUTE_MS } from "../../services/clock/index.ts";
+import { clock } from "../../services/clock/index.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
 import { bills } from "../bills/bills.schema.ts";
 import { retryBill } from "../bills/bills.ts";

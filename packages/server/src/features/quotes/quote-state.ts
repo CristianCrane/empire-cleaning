@@ -24,8 +24,9 @@ import type {
   SiteVisitStage,
   Weekday,
 } from "@empire-cleaning/models";
+import { DAY_MS, HOUR_MS } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
-import { clock, DAY_MS, HOUR_MS } from "../../services/clock/index.ts";
+import { clock } from "../../services/clock/index.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { currentPriceList } from "../price-list/price-list.ts";

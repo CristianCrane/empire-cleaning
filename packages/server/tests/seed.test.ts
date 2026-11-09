@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { afterAll, beforeAll, describe, test } from "vitest";
-import { addDays } from "#services/clock";
+import { addDays } from "@empire-cleaning/models";
 import {
   copiesOf,
   dropTestDatabaseCopies,

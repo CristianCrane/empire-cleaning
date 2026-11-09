@@ -10,23 +10,24 @@ import {
   ne,
 } from "drizzle-orm";
 import {
+  type AdjustmentCorrection,
   adjustmentItem,
   adjustmentLabel,
-  clientFix,
-  NOT_ALL_CONFIRMED,
-  type AdjustmentCorrection,
   type AdjustmentProposal,
   type AdjustmentView,
   type CleanerJob,
+  clientFix,
   type ClientJobDetail,
   type ClientPastJob,
   type CompletionInput,
   type Condition,
+  DAY_MS,
   type JobCompletion,
+  NOT_ALL_CONFIRMED,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
-import { clock, DAY_MS } from "../../services/clock/index.ts";
+import { clock } from "../../services/clock/index.ts";
 import { email, formatMoney, notify } from "../../services/email/index.ts";
 import { assignmentStatusOf, mustBeConfirmed } from "../assignments/crew.ts";
 import { weeklyBillOfJob } from "../bills/billed-weekly.ts";

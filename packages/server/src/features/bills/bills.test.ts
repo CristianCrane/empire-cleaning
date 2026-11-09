@@ -12,6 +12,7 @@ import type {
   OfficeServicePlan,
   SignedInAccount,
 } from "@empire-cleaning/models";
+import { HOUR_MS } from "@empire-cleaning/models";
 import { db } from "#db";
 import { confirmAssignment, offerAssignment } from "#features/assignments";
 import { bills, chaseBills, makeDueBills } from "#features/bills";
@@ -31,7 +32,6 @@ import { jobs } from "#features/jobs";
 import { currentPriceList } from "#features/price-list";
 import { servicePlans } from "#features/service-plans";
 import { settleOpenPayments } from "#features/payments";
-import { HOUR_MS } from "#services/clock";
 import { formatMoney } from "#services/email";
 import { createStaff, setUsualWeek } from "#features/staff";
 import {

@@ -7,10 +7,10 @@ import type {
   StaffMember,
   StaffRole,
 } from "@empire-cleaning/models";
-import { hasSiteVisit } from "@empire-cleaning/models";
+import { dayOf, hasSiteVisit, weekdayOf } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
-import { clock, dayOf, weekdayOf } from "../../services/clock/index.ts";
+import { clock } from "../../services/clock/index.ts";
 import {
   email,
   firstNameOf,

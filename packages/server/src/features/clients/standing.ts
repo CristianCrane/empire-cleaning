@@ -1,7 +1,8 @@
 import { and, eq, exists, gt, gte, inArray, ne, or, sql } from "drizzle-orm";
 import type { ClientStanding } from "@empire-cleaning/models";
+import { DAY_MS } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
-import { clock, DAY_MS } from "../../services/clock/index.ts";
+import { clock } from "../../services/clock/index.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
 import { properties } from "../properties/properties.schema.ts";
 import { offers } from "../quotes/quote-state.ts";

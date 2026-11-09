@@ -23,25 +23,23 @@ import type {
   SettledJobView,
 } from "@empire-cleaning/models";
 import {
+  addDays,
   adjustmentLabel,
   BOOKED_GO_AHEAD,
+  DAY_MS,
+  dayOf,
   feeName,
   LATE_MOVE_FEE,
+  mondayOf,
   PLAN_BACK_ON,
   PLAN_PAUSED,
+  startOfDay,
+  timeOf,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import env from "../../env.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
-import {
-  addDays,
-  clock,
-  DAY_MS,
-  dayOf,
-  startOfDay,
-  timeOf,
-  weekdayOf,
-} from "../../services/clock/index.ts";
+import { clock } from "../../services/clock/index.ts";
 import { email, formatWhen, notify } from "../../services/email/index.ts";
 import { paymentGateway } from "../../services/payment-gateway/index.ts";
 import {
@@ -97,9 +95,6 @@ const BILL_REMINDER_DAYS = 3;
 // EC-000123
 export const billNumber = (number: number) =>
   `EC-${String(number).padStart(6, "0")}`;
-
-// the Monday of the week a day is in
-const mondayOf = (day: string) => addDays(day, -weekdayOf(day));
 
 // ---- what a Bill bills ----
 

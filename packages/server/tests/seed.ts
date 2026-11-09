@@ -17,12 +17,18 @@
 // signed up stays signed up.
 import { asc, eq, sql } from "drizzle-orm";
 import {
+  addDays,
+  atTime,
+  dayOf,
+  HOUR_MS,
   isOnCrew,
+  mondayOf,
   type NewHome,
   type NewPremises,
   type QuoteAsk,
   type SignedInAccount,
   type Weekday,
+  weekdayOf,
 } from "@empire-cleaning/models";
 import { db } from "#db";
 import {
@@ -76,7 +82,6 @@ import {
   servicePlanVisits,
 } from "#features/service-plans";
 import { createStaff, setException, setUsualWeek } from "#features/staff";
-import { addDays, atTime, dayOf, HOUR_MS, weekdayOf } from "#services/clock";
 import { installFakes, signIn, testClock, testPayments } from "./harness.ts";
 import { sentServicePlanQuote, startedServicePlan } from "./fixtures.ts";
 import { addTesters } from "./testers.ts";
@@ -107,7 +112,6 @@ const weekdayUpTo = (days: number) => {
   while (weekdayOf(day) > 4) day = addDays(day, -1);
   return { date: day, time: "09:00" };
 };
-const mondayOf = (day: string) => addDays(day, -weekdayOf(day));
 
 // created_at and updated_at come from the database's own clock, so each move
 // of the fake clock first stamps the rows made since the last move with the

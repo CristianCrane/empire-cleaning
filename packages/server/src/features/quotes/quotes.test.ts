@@ -11,6 +11,7 @@ import type {
   QuoteSummary,
   QuoteView,
 } from "@empire-cleaning/models";
+import { DAY_MS, MINUTE_MS } from "@empire-cleaning/models";
 import {
   type Agent,
   api,
@@ -28,7 +29,6 @@ import {
   submit,
 } from "../../../tests/fixtures.ts";
 import { SEEDED } from "#features/services";
-import { DAY_MS, MINUTE_MS } from "#services/clock";
 
 // one Service's Suggested Price, as an option records it
 const priceOf = (

@@ -5,12 +5,7 @@ import type {
   ScheduleDay,
   ScheduledSiteVisit,
 } from "@empire-cleaning/models";
-import {
-  addDays,
-  dayOf,
-  HOUR_MS,
-  startOfDay,
-} from "../../services/clock/index.ts";
+import { addDays, dayOf, HOUR_MS, startOfDay } from "@empire-cleaning/models";
 
 // The Schedule's rules, over a day of it as scheduleFor loads it: whether a
 // clean has room (roomOn), whether a Staff member is free for one (isFree),

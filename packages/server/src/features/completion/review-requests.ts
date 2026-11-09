@@ -1,13 +1,8 @@
 import { and, eq, gte, isNotNull, isNull, lt, min } from "drizzle-orm";
+import { addDays, dayOf, startOfDay, timeOf } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
 import env from "../../env.ts";
-import {
-  addDays,
-  clock,
-  dayOf,
-  startOfDay,
-  timeOf,
-} from "../../services/clock/index.ts";
+import { clock } from "../../services/clock/index.ts";
 import { email } from "../../services/email/index.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { jobs } from "../jobs/jobs.schema.ts";

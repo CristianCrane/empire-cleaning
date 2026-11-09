@@ -23,17 +23,18 @@ import type {
   ServicePlanView,
   UnplacedVisit,
 } from "@empire-cleaning/models";
-import { ADD_HOURS, ENDS_BY_MIDNIGHT } from "@empire-cleaning/models";
-import { db, type Tx } from "../../db/index.ts";
-import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import {
+  ADD_HOURS,
   addDays,
   atTime,
-  clock,
   dayOf,
+  ENDS_BY_MIDNIGHT,
   timeOf,
   weekdayOf,
-} from "../../services/clock/index.ts";
+} from "@empire-cleaning/models";
+import { db, type Tx } from "../../db/index.ts";
+import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
+import { clock } from "../../services/clock/index.ts";
 import { emailOffer } from "../assignments/assignments.ts";
 import { assignments, onCrew } from "../assignments/assignments.schema.ts";
 import { weeklyBillOf } from "../bills/billed-weekly.ts";

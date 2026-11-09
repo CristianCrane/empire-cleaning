@@ -1,3 +1,4 @@
+import { MINUTE_MS } from "@empire-cleaning/models";
 import { emailCleanersNeeded } from "#features/assignments";
 import { chaseBills, makeDueBills } from "#features/bills";
 import {
@@ -7,7 +8,6 @@ import {
 import { sendDueReminders } from "#features/jobs";
 import { settleOpenPayments } from "#features/payments";
 import { generateServicePlanJobs } from "#features/service-plans";
-import { MINUTE_MS } from "#services/clock";
 import { monitoring } from "#services/monitoring";
 
 export type ScheduledJob = { name: string; run: () => Promise<unknown> };

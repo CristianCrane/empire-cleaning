@@ -1,5 +1,6 @@
 import { inArray } from "drizzle-orm";
 import type { NeedsAttentionItem, ScheduledJob } from "@empire-cleaning/models";
+import { HOUR_MS } from "@empire-cleaning/models";
 import { unassignedJobsWithin } from "../assignments/assignments.ts";
 import { listBills } from "../bills/bills.ts";
 import {
@@ -16,7 +17,6 @@ import {
 } from "../quotes/quote-state.ts";
 import { pendingRescheduleRequests } from "../reschedule/reschedule.ts";
 import { plansOnHold, unplacedVisits } from "../service-plans/service-plans.ts";
-import { HOUR_MS } from "../../services/clock/index.ts";
 
 type Source = () => Promise<NeedsAttentionItem[]>;
 

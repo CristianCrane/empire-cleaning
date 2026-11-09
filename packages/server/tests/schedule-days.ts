@@ -3,7 +3,7 @@ import type {
   ScheduledJob,
   ScheduledSiteVisit,
 } from "@empire-cleaning/models";
-import { HOUR_MS } from "#services/clock";
+import { HOUR_MS } from "@empire-cleaning/models";
 import { asClean } from "../src/features/jobs/rules.ts";
 
 // Days of the Schedule as plain data, for testing the rules over them with

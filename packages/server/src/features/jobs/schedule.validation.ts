@@ -1,6 +1,6 @@
 import { z } from "zod";
+import { daysFrom } from "@empire-cleaning/models";
 import { day, startTime } from "../../middleware/validation.ts";
-import { daysFrom } from "../../services/clock/index.ts";
 
 // longest range the Schedule shows at once: about two months
 const MAX_SCHEDULE_DAYS = 62;

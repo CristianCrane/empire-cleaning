@@ -3,7 +3,7 @@ import type {
   QuoteStatus,
   ScheduleDay,
 } from "@empire-cleaning/models";
-import { dayOf } from "../../services/clock/index.ts";
+import { dayOf } from "@empire-cleaning/models";
 import { roomOn, withoutReplaced, type Clean } from "../jobs/rules.ts";
 
 // The rules for accepting a Quote, over what acceptance loads: the Quote as

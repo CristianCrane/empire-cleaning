@@ -1,4 +1,5 @@
-import { type Clock, DAY_MS, HOUR_MS, MINUTE_MS } from "#services/clock";
+import { DAY_MS, HOUR_MS, MINUTE_MS } from "@empire-cleaning/models";
+import { type Clock } from "#services/clock";
 
 export class FakeClock implements Clock {
   private current: Date;
