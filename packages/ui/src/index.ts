@@ -37,6 +37,7 @@ export { Segment, SegmentedControl } from "./SegmentedControl.tsx";
 export { Select, SelectItem } from "./Select.tsx";
 export { ShortcutTile, ShortcutTiles } from "./ShortcutTile.tsx";
 export { StatusBadge, type StatusTone } from "./StatusBadge.tsx";
+export { readStored, store } from "./stored.ts";
 export { Cell, Column, Row, Table, TableBody, TableHeader } from "./Table.tsx";
 export { Tab, TabList, TabPanel, Tabs } from "./Tabs.tsx";
 export { TestSiteBanner } from "./TestSiteBanner.tsx";

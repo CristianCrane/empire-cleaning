@@ -88,7 +88,7 @@ import {
   postJson,
 } from "../../api.ts";
 import { linkTo } from "../../links.ts";
-import { useAction, useActionWith } from "../action.ts";
+import { useAction, useLeavingAction } from "../action.ts";
 import {
   addressOf,
   clientName,
@@ -131,6 +131,7 @@ import {
 import { PickFromSchedule } from "./SchedulePicker.tsx";
 import { BookSiteVisit, visitSummary } from "./SiteVisitParts.tsx";
 import { useStartDraft } from "./StartDraft.tsx";
+import { useLoaded } from "../load.ts";
 
 // The Quote with one of its Revisions in hand: the one being drafted, or
 // else the offer, so it's edited while there's a Draft Revision and
@@ -461,31 +462,27 @@ const toQuote = (quote: OfficeQuote): ReactNode[] => {
 // throws the Draft away, once Office Staff are sure: see discardDraft
 function DeleteDraft({ quote }: { quote: OfficeQuote }) {
   const navigate = useNavigate();
-  const action = useActionWith(
-    () => Promise.resolve(),
+  const action = useLeavingAction(
     "The draft wasn't deleted. Please try again.",
   );
   // what discarding leaves is the server's to say: nothing (204) once the
   // Quote has gone with its Draft
-  const remove = async (close: () => void) => {
-    let left: OfficeQuote | undefined;
-    const ok = await action.run(async () => {
-      left = await deleteJson<OfficeQuote | undefined>(
+  const remove = (close: () => void) =>
+    action.run(async () => {
+      const left = await deleteJson<OfficeQuote | undefined>(
         `/api/quotes/${quote.id}/draft`,
       );
+      close();
+      await (!left
+        ? navigate({
+            to: "/office/properties/$propertyId",
+            params: { propertyId: quote.property.id },
+          })
+        : navigate({
+            to: "/office/quotes/$quoteId",
+            params: { quoteId: quote.id },
+          }));
     }, "Draft deleted");
-    if (!ok) return;
-    close();
-    await (!left
-      ? navigate({
-          to: "/office/properties/$propertyId",
-          params: { propertyId: quote.property.id },
-        })
-      : navigate({
-          to: "/office/quotes/$quoteId",
-          params: { quoteId: quote.id },
-        }));
-  };
   return (
     <DialogTrigger>
       <Button variant="danger-text" size="sm">
@@ -1200,18 +1197,12 @@ function RoomOnDay({
   crewSize: number;
   options: OfficeQuoteOption[];
 }) {
-  const [found, setFound] = useState<ScheduleDay>();
-
-  useEffect(() => {
-    let current = true;
-    getJson<ScheduleDay[]>(`/api/schedule?from=${day}&to=${day}`)
-      .then(([found]) => current && setFound(found))
-      // nothing to say if it can't be found out
-      .catch(() => current && setFound(undefined));
-    return () => {
-      current = false;
-    };
-  }, [day]);
+  // nothing to say if it can't be found out
+  const { value: found } = useLoaded(day, () =>
+    getJson<ScheduleDay[]>(`/api/schedule?from=${day}&to=${day}`).then(
+      ([found]) => found,
+    ),
+  );
 
   if (found?.date !== day) return null;
   const free = { day, hours: found.freeHours };

@@ -156,14 +156,14 @@ export function DraftQuote({ quote }: { quote: OfficeQuote }) {
             <Actions>
               <Button
                 variant="quiet"
-                isPending={starting?.kind === "one_off"}
+                isPending={starting === "one_off"}
                 isDisabled={starting !== undefined}
                 onPress={() => draft("one_off")}
               >
                 A one-off quote
               </Button>
               <Button
-                isPending={starting?.kind === "service_plan"}
+                isPending={starting === "service_plan"}
                 isDisabled={starting !== undefined}
                 onPress={() => draft("service_plan")}
               >

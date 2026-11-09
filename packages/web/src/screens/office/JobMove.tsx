@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactElement } from "react";
+import { useState, type ReactElement } from "react";
 import {
   parseDate,
   parseTime,
@@ -21,6 +21,7 @@ import {
   TimeField,
 } from "@empire-cleaning/ui";
 import { getJson, postJson } from "../../api.ts";
+import { useLoaded } from "../load.ts";
 import {
   clientName,
   dayOfInstant,
@@ -46,21 +47,10 @@ const useRoom = (job: ScheduledJob, to: Partial<LocalDateTime>) => {
           jobId: job.id,
         }).toString()
       : undefined;
-  const [found, setFound] = useState<{ query: string; room: DayCapacity }>();
-
-  useEffect(() => {
-    if (!query) return;
-    let current = true;
-    getJson<DayCapacity>(`/api/schedule/capacity?${query}`)
-      .then((room) => current && setFound({ query, room }))
-      // moving checks again, and says why if it can't
-      .catch(() => {});
-    return () => {
-      current = false;
-    };
-  }, [query]);
-
-  return found && found.query === query ? found.room : undefined;
+  // moving checks again, and says why if it can't
+  return useLoaded(query, () =>
+    getJson<DayCapacity>(`/api/schedule/capacity?${query}`),
+  ).value;
 };
 
 type MoveProps = {

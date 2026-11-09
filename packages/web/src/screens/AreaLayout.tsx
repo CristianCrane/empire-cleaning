@@ -19,7 +19,7 @@ import {
   Wallet,
   Users,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type {
   CleanerJobs,
   CleanerNeeded,
@@ -37,6 +37,7 @@ import {
   type NavItem,
 } from "@empire-cleaning/ui";
 import { deleteJson, getJson } from "../api.ts";
+import { useLoaded } from "./load.ts";
 import { linkTo } from "../links.ts";
 import { InArea } from "./MessagePage.tsx";
 import { JobIcon, QuoteIcon } from "./icons.ts";
@@ -197,26 +198,22 @@ export function AreaLayout({ area }: { area: AreaId }) {
 // Offers' label: so they're noticed without crowding Your Jobs. Counted
 // again on each page, as answering one changes it; none if it can't be.
 function useOffersCount(on: boolean, pathname: string) {
-  const [count, setCount] = useState(0);
-  useEffect(() => {
-    if (!on) return;
-    let live = true;
-    Promise.all([
-      getJson<CleanerJobs>("/api/assignments/mine"),
-      getJson<CleanerNeeded[]>("/api/assignments/open"),
-    ])
-      .then(([{ today, upcoming }, open]) => {
+  // the last count stays while the next is counted, or if it can't be
+  const { value } = useLoaded(
+    on ? pathname : undefined,
+    () =>
+      Promise.all([
+        getJson<CleanerJobs>("/api/assignments/mine"),
+        getJson<CleanerNeeded[]>("/api/assignments/open"),
+      ]).then(([{ today, upcoming }, open]) => {
         const offered = [...today, ...upcoming].filter(
           (job) => job.assignment.status === "offered" && !job.outcome,
         );
-        if (live) setCount(offered.length + open.length);
-      })
-      .catch(() => {});
-    return () => {
-      live = false;
-    };
-  }, [on, pathname]);
-  return count;
+        return offered.length + open.length;
+      }),
+    { keep: true },
+  );
+  return value ?? 0;
 }
 
 // who's signed in, a way into their other area (Staff holding both roles),

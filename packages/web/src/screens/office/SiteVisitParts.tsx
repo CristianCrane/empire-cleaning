@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   CalendarClock,
   CalendarPlus,
@@ -39,6 +39,7 @@ import {
   type StatusTone,
 } from "@empire-cleaning/ui";
 import { getJson, postJson } from "../../api.ts";
+import { useLoaded } from "../load.ts";
 import {
   dayOfInstant,
   formatDateTime,
@@ -91,17 +92,11 @@ export const visitSummary = (visit: SiteVisitView) =>
 
 // everyone active on the Staff, who can make a Site Visit
 const useStaff = () => {
-  const [staff, setStaff] = useState<StaffMember[]>();
-  const [problem, setProblem] = useState(false);
-  useEffect(() => {
-    let current = true;
-    getJson<StaffMember[]>("/api/staff")
-      .then((all) => current && setStaff(all.filter((s) => s.active)))
-      .catch(() => current && setProblem(true));
-    return () => {
-      current = false;
-    };
-  }, []);
+  const { value: staff, failed: problem } = useLoaded("staff", () =>
+    getJson<StaffMember[]>("/api/staff").then((all) =>
+      all.filter((s) => s.active),
+    ),
+  );
   return { staff, problem };
 };
 

@@ -1,10 +1,4 @@
-import {
-  useEffect,
-  useEffectEvent,
-  useState,
-  type ComponentType,
-  type ReactElement,
-} from "react";
+import { useState, type ComponentType, type ReactElement } from "react";
 import type {
   OfficeJob,
   RescheduleCost,
@@ -27,6 +21,7 @@ import {
   SelectItem,
 } from "@empire-cleaning/ui";
 import { getJson, postJson } from "../api.ts";
+import { useLoaded } from "./load.ts";
 import { useAction } from "./action.ts";
 import type { TimePickerProps } from "./CalendarGrid.tsx";
 import {
@@ -112,7 +107,6 @@ function NewTimeForm({
   inline = false,
   close,
 }: Props & { close: () => void }) {
-  const [times, setTimes] = useState<RescheduleTimes>();
   const [date, setDate] = useState<string | null>(null);
   const [time, setTime] = useState<string | null>(timeOfDay(job.startsAt));
   // what it costs, or the days with room, may have changed since
@@ -120,19 +114,13 @@ function NewTimeForm({
     reloadOnFailure: true,
   });
 
-  const loadFailed = useEffectEvent(() =>
-    action.fail("The times didn't load. Please try again."),
+  const { value: times, failed } = useLoaded(base, () =>
+    getJson<RescheduleTimes>(`${base}/reschedule-times`),
   );
-
-  useEffect(() => {
-    let current = true;
-    getJson<RescheduleTimes>(`${base}/reschedule-times`)
-      .then((found) => current && setTimes(found))
-      .catch(() => current && loadFailed());
-    return () => {
-      current = false;
-    };
-  }, [base]);
+  // Send waits for the times, so a problem is the send's or else theirs
+  const problem =
+    action.problem ??
+    (failed ? "The times didn't load. Please try again." : undefined);
 
   const unchanged =
     date === dayOfInstant(job.startsAt) && time === timeOfDay(job.startsAt);
@@ -216,9 +204,7 @@ function NewTimeForm({
 
   return (
     <>
-      {!times && !action.problem && (
-        <p className="text-fg-muted">Finding times…</p>
-      )}
+      {!times && !problem && <p className="text-fg-muted">Finding times…</p>}
       {times && times.days.length === 0 && (
         <Notice tone="warning">
           There's no day with room in the next few weeks. Please call us.
@@ -260,7 +246,7 @@ function NewTimeForm({
         at its current time.
       </p>
       {unchanged && <Notice>{SAME_TIME}</Notice>}
-      {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+      {problem && <Notice tone="danger">{problem}</Notice>}
       <Actions>
         <Button variant="quiet" onPress={close}>
           Keep the current time

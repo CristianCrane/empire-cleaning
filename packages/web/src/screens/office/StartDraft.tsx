@@ -1,9 +1,9 @@
-import { useState } from "react";
 import { Repeat } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import type { OfficeQuote, QuoteKind } from "@empire-cleaning/models";
 import { Button, Notice } from "@empire-cleaning/ui";
-import { ApiError, postJson } from "../../api.ts";
+import { postJson } from "../../api.ts";
+import { useLeavingAction } from "../action.ts";
 
 // what a Draft is started for: a Quote's next Revision (its first setting
 // its kind), or a home offered a Service Plan unprompted (ADR-0011,
@@ -12,37 +12,33 @@ export type DraftTarget =
   | { quoteId: string; kind: QuoteKind }
   | { propertyId: string; kind: "service_plan" };
 
+const NOT_STARTED = "The draft couldn't be started. Please try again.";
+
 // Starts a Draft (or finds the Revision already being drafted) and opens it;
-// says why if it can't
+// says why if it can't. `starting` is the kind being started
 export function useStartDraft() {
   const navigate = useNavigate();
-  const [failure, setFailure] = useState<string>();
-  const [starting, setStarting] = useState<DraftTarget>();
+  // it opens the Draft
+  const action = useLeavingAction(NOT_STARTED);
 
-  const start = async (target: DraftTarget) => {
-    setStarting(target);
-    setFailure(undefined);
-    try {
-      const quote = await ("quoteId" in target
-        ? postJson<OfficeQuote>(`/api/quotes/${target.quoteId}/revisions`, {
-            kind: target.kind,
-          })
-        : postJson<OfficeQuote>("/api/quotes", target));
-      await navigate({
-        to: "/office/quotes/$quoteId/draft",
-        params: { quoteId: quote.id },
-      });
-    } catch (e) {
-      setFailure(
-        e instanceof ApiError && e.status === 409
-          ? e.message
-          : "The draft couldn't be started. Please try again.",
-      );
-      setStarting(undefined);
-    }
-  };
+  const start = (target: DraftTarget) =>
+    action.run(
+      async () => {
+        const quote = await ("quoteId" in target
+          ? postJson<OfficeQuote>(`/api/quotes/${target.quoteId}/revisions`, {
+              kind: target.kind,
+            })
+          : postJson<OfficeQuote>("/api/quotes", target));
+        await navigate({
+          to: "/office/quotes/$quoteId/draft",
+          params: { quoteId: quote.id },
+        });
+      },
+      undefined,
+      target.kind,
+    );
 
-  return { start, starting, failure };
+  return { start, starting: action.pending, failure: action.problem };
 }
 
 export const QUOTE_A_PLAN = "Quote a cleaning plan";
