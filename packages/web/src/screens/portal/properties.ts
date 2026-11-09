@@ -9,7 +9,10 @@ import {
   dayOfInstant,
   formatDateTime,
   formatShortDay,
+  clientQuoteStatus,
   planDayWhen,
+  planStatus,
+  quoteKindName,
 } from "../format.ts";
 
 // The Client's homes on Your details, and a page each: where each stands,
@@ -39,7 +42,7 @@ export const planWhen = (plan: Pick<ServicePlanSummary, "days">) =>
 // a Quote as a row's title: what it's for
 export const quoteTitle = (q: QuoteSummary) =>
   q.kind === "service_plan"
-    ? `Service Plan Quote, ${q.service.name}`
+    ? `${quoteKindName(q.kind)}, ${q.service.name}`
     : `Quote for a ${q.service.name}`;
 
 // the most pressing thing about a home: its plan, a Quote to answer, the
@@ -53,15 +56,19 @@ export function standingOf(
   );
   if (plan) {
     return plan.status === "on_hold"
-      ? { tone: "warning", label: "On Hold", line: planWhen(plan) }
-      : { tone: "success", label: "Service Plan", line: planWhen(plan) };
+      ? {
+          tone: "warning",
+          label: planStatus.on_hold.label,
+          line: planWhen(plan),
+        }
+      : { tone: "success", label: "Cleaning plan", line: planWhen(plan) };
   }
   const ours = data.quotes.filter((q) => q.property.id === property.id);
   const sent = ours.find((q) => q.status === "sent");
   if (sent) {
     return {
       tone: "warning",
-      label: "Quote to answer",
+      label: `Quote ${clientQuoteStatus.sent.label.toLowerCase()}`,
       line: `${sent.service.name}, sent ${shortDayOf(sent.sentAt!)}`,
     };
   }
@@ -81,7 +88,7 @@ export function standingOf(
   if (asked) {
     return {
       tone: "info",
-      label: "Quote asked for",
+      label: `Quote ${clientQuoteStatus.requested.label.toLowerCase()}`,
       line: `${asked.service.name}, asked ${shortDayOf(asked.createdAt)}`,
     };
   }

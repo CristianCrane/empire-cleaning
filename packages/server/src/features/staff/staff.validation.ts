@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { keepUnder } from "../../middleware/validation.ts";
 
 // messages are shown beside the Staff screens' fields, so they're written
 // for people
@@ -8,11 +9,11 @@ export const invitationSchema = z.object({
     .string()
     .trim()
     .min(1, "Enter their name")
-    .max(100, "Use a shorter name"),
+    .max(100, keepUnder(100, "the name")),
   email: z.email("Enter an email address").trim().toLowerCase(),
   roles: z
     .array(z.enum(["cleaner", "office_staff"]))
-    .min(1, "Choose at least one role")
+    .min(1, "Pick at least one role")
     .transform((roles) => [...new Set(roles)]),
 });
 
@@ -25,25 +26,23 @@ export const editStaffSchema = invitationSchema.pick({
 
 const hours = z
   .number({ error: "Enter a number of hours" })
-  .min(0, "Hours can't be negative")
-  .max(24, "That's more than a day")
+  .min(0, "Enter 0 or more hours")
+  .max(24, "That's more than 24 hours")
   .refine(
     (value) => Number.isInteger(value * 4),
     "Use quarter-hours, like 7.5 or 7.25",
   );
 
 export const usualWeekSchema = z.object({
-  usualWeek: z.array(hours).length(7, "Give hours for all seven days"),
+  usualWeek: z.array(hours).length(7, "Enter hours for every day"),
 });
-
-export const isoDate = z.iso.date("Enter a date");
 
 export const exceptionSchema = z.object({
   hours,
   note: z
     .string()
     .trim()
-    .max(200, "Use a shorter note")
+    .max(200, keepUnder(200, "the note"))
     .nullish()
     .transform((note) => note || null),
 });

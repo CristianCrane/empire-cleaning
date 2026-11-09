@@ -1,5 +1,6 @@
 import Stripe from "stripe";
 import type { CardForm, PaymentForm } from "@empire-cleaning/models";
+import { MINUTE_MS } from "@empire-cleaning/models";
 import { monitoring } from "#services/monitoring";
 import {
   PaymentMethodError,
@@ -243,7 +244,7 @@ export class StripePaymentGateway implements PaymentGateway {
     const made = await this.stripe.paymentIntents
       .list({
         customer: payerId,
-        created: { gte: Math.floor(since.getTime() / 1000) - 60 },
+        created: { gte: Math.floor((since.getTime() - MINUTE_MS) / 1000) },
         limit: 100,
       })
       .autoPagingToArray({ limit: 1000 });

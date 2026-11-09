@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { validate } from "../../middleware/validation.ts";
+import { day, validate } from "../../middleware/validation.ts";
 import { authorize } from "../auth/authorize.ts";
 import {
   deactivateStaff,
@@ -16,7 +16,6 @@ import {
   editStaffSchema,
   exceptionSchema,
   invitationSchema,
-  isoDate,
   usualWeekSchema,
 } from "./staff.validation.ts";
 
@@ -26,7 +25,7 @@ export const router = Router();
 router.use(authorize("office_staff"));
 
 const member = z.object({ id: z.uuid() });
-const memberDay = z.object({ id: z.uuid(), date: isoDate });
+const memberDay = z.object({ id: z.uuid(), date: day });
 
 router.get("/", async (_req, res) => {
   res.json(await listStaff());

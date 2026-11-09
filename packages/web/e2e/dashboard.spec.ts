@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test";
+import { MINUTE_MS } from "@empire-cleaning/models";
 import {
   bookJob,
   createStaff,
@@ -36,7 +37,7 @@ test(
     const needsAttention = page.getByRole("grid", { name: "Needs attention" });
     const request = needsAttention.getByRole("row", { name: /Casey Client/ });
     await expect(request).toContainText("41-12 Austin St, 4B, 11375");
-    await expect(request).toContainText("Send a Quote");
+    await expect(request).toContainText("Send a quote");
 
     await request.click();
     await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
@@ -58,11 +59,11 @@ test("a Quote asked for while the Dashboard is open shows within a minute", asyn
     name: "Casey Client",
     email: "casey@example.com",
   });
-  await page.clock.runFor(59_000);
+  await page.clock.runFor(MINUTE_MS - 1_000);
   await expect(request).toHaveCount(0);
   await page.clock.runFor(1_000);
 
-  await expect(request).toContainText("Send a Quote");
+  await expect(request).toContainText("Send a quote");
 });
 
 // a long list reads as a few numbers first: a tile per part of the work,
@@ -82,7 +83,7 @@ test("Office Staff see what's waiting counted by kind, and pick one to see only 
     name: "Needs attention by kind",
   });
   const jobs = kinds.getByRole("radio", { name: /Jobs/ });
-  await expect(jobs).toHaveText(/Jobs\s*1\s*1 need Staff/);
+  await expect(jobs).toHaveText(/Jobs\s*1\s*1 need cleaners/);
   await expect(kinds.getByRole("radio", { name: /Quotes/ })).toHaveText(
     /Quotes\s*1\s*1 asked for/,
   );
@@ -94,7 +95,7 @@ test("Office Staff see what's waiting counted by kind, and pick one to see only 
   await jobs.click();
   await expect(jobs).toBeChecked();
   await expect(needsAttention.getByRole("row")).toHaveCount(1);
-  await expect(needsAttention).toContainText("Assign Staff");
+  await expect(needsAttention).toContainText("Find cleaners");
 
   await page.getByRole("button", { name: "Show all 2" }).click();
   await expect(jobs).not.toBeChecked();
@@ -106,7 +107,7 @@ test("a quiet day says so", async ({ page }) => {
 
   await expect(
     page.getByText(
-      "Nothing needs you right now. When a Client asks for a Quote or a new time, or a Job needs a Cleaner, it shows up here.",
+      "Nothing needs you right now. When a client asks for a quote or a new time, or a job needs a cleaner, it shows up here.",
     ),
   ).toBeVisible();
 });

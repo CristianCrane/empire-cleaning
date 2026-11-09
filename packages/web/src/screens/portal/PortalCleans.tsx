@@ -6,6 +6,7 @@ import type {
   ClientSiteVisit,
   ClientUpcomingJob,
 } from "@empire-cleaning/models";
+import { BUSINESS_TIME_ZONE } from "@empire-cleaning/models";
 import {
   Button,
   DateTile,
@@ -21,11 +22,13 @@ import {
 } from "@empire-cleaning/ui";
 import {
   addressOf,
+  cancelledLabel,
   formatHours,
   formatMinutes,
   formatMoney,
   formatTime,
 } from "../format.ts";
+import { JobStatusBadge } from "../JobBadges.tsx";
 
 // The Client's cleans: Upcoming (with their Site Visits) and Past, each by
 // month, a date tile leading each row. Only what isn't plain gets a badge:
@@ -41,7 +44,7 @@ const PAGE = 10;
 const monthFormat = new Intl.DateTimeFormat("en-US", {
   month: "long",
   year: "numeric",
-  timeZone: "America/New_York",
+  timeZone: BUSINESS_TIME_ZONE,
 });
 
 // a row's worth: its date, what it is, a line under it, and where it opens
@@ -79,7 +82,7 @@ const visitRow =
   (visit: ClientSiteVisit): Row => ({
     id: visit.id,
     startsAt: visit.startsAt,
-    title: "Site Visit",
+    title: "Site visit",
     line: lineOf([
       formatTime(visit.startsAt),
       homes > 1 && addressOf(visit.property),
@@ -92,10 +95,9 @@ const pastBadge = (job: ClientPastJob) => {
   if (job.unpaid) return <StatusBadge tone="danger">Unpaid</StatusBadge>;
   if (job.awaitingAnswer > 0)
     return <StatusBadge tone="warning">Needs your OK</StatusBadge>;
-  if (job.status === "no_access")
-    return <StatusBadge tone="danger">No Access</StatusBadge>;
+  if (job.status === "no_access") return <JobStatusBadge status="no_access" />;
   if (job.status === "cancelled")
-    return <StatusBadge>{job.skipped ? "Skipped" : "Cancelled"}</StatusBadge>;
+    return <StatusBadge>{cancelledLabel(job.skipped)}</StatusBadge>;
   return undefined;
 };
 

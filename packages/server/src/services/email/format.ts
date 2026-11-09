@@ -1,3 +1,5 @@
+import { BUSINESS_TIME_ZONE } from "@empire-cleaning/models";
+
 // how emails write money, times, days and names
 
 const money = new Intl.NumberFormat("en-US", {
@@ -13,14 +15,14 @@ const when = new Intl.DateTimeFormat("en-US", {
   day: "numeric",
   hour: "numeric",
   minute: "2-digit",
-  timeZone: "America/New_York",
+  timeZone: BUSINESS_TIME_ZONE,
 });
 // "Monday, January 12 at 9:00 AM", in New York
 export const formatWhen = (instant: Date) => when.format(instant);
 
 const weekday = new Intl.DateTimeFormat("en-US", {
   weekday: "long",
-  timeZone: "America/New_York",
+  timeZone: BUSINESS_TIME_ZONE,
 });
 // "Monday", in New York
 export const weekdayName = (instant: Date) => weekday.format(instant);
@@ -28,7 +30,7 @@ export const weekdayName = (instant: Date) => weekday.format(instant);
 const time = new Intl.DateTimeFormat("en-US", {
   hour: "numeric",
   minute: "2-digit",
-  timeZone: "America/New_York",
+  timeZone: BUSINESS_TIME_ZONE,
 });
 // "9:00 AM", in New York
 export const formatTime = (instant: Date) => time.format(instant);

@@ -1,5 +1,11 @@
 import { z } from "zod";
-import { crewSize, validityDays } from "../quotes/quotes.validation.ts";
+import { keepUnder } from "../../middleware/validation.ts";
+import {
+  crewSize,
+  depositPercent,
+  discountPercent,
+  validityDays,
+} from "../quotes/quotes.validation.ts";
 
 // messages are shown beside the Price List's fields, so they're written for
 // people
@@ -7,7 +13,7 @@ import { crewSize, validityDays } from "../quotes/quotes.validation.ts";
 const decimals = (places: number) => (value: number) =>
   Math.abs(value * 10 ** places - Math.round(value * 10 ** places)) < 1e-9;
 
-const hours = z
+export const hours = z
   .number({ error: "Enter a number of hours" })
   .min(0, "Hours can't be negative")
   .max(24, "That's more than a day")
@@ -19,13 +25,7 @@ const multiplier = z
   .max(10, "A multiplier can't be more than 10")
   .refine(decimals(2), "Use at most two decimal places");
 
-const percent = z
-  .number({ error: "Enter a percentage" })
-  .int("Use a whole percentage")
-  .min(0, "A percentage can't be negative")
-  .max(100, "A percentage can't be more than 100");
-
-const taxPercent = z
+export const taxPercent = z
   .number({ error: "Enter a tax rate" })
   .min(0, "A tax rate can't be negative")
   .max(30, "That's higher than any sales tax")
@@ -36,13 +36,13 @@ const addOn = z.object({
   name: z
     .string()
     .trim()
-    .min(1, "Name the Add-on")
-    .max(80, "Use a shorter name"),
+    .min(1, "Enter a name")
+    .max(80, keepUnder(80, "the name")),
   hours: hours,
   taxExempt: z.boolean(),
   serviceKeys: z
-    .array(z.uuid(), { error: "Choose the Services it goes with" })
-    .min(1, "Choose at least one Service it goes with"),
+    .array(z.uuid(), { error: "Pick the services it goes with" })
+    .min(1, "Pick at least one service it goes with"),
   active: z.boolean(),
 });
 
@@ -51,8 +51,8 @@ const premisesType = z.object({
   name: z
     .string()
     .trim()
-    .min(1, "Name the Premises Type")
-    .max(80, "Use a shorter name"),
+    .min(1, "Enter a name")
+    .max(80, keepUnder(80, "the name")),
   multiplier,
   active: z.boolean(),
 });
@@ -80,24 +80,25 @@ export const priceListSchema = z
     conditionLight: multiplier,
     conditionModerate: multiplier,
     conditionHeavy: multiplier,
-    depositPercent: percent,
-    planDiscountPercent: percent,
+    depositPercent,
+    planDiscountPercent: discountPercent,
     // a new Draft's, so within what a Draft can have
     quoteValidityDays: validityDays,
     defaultCrewSize: crewSize,
     taxFeePercent: taxPercent,
-    addOns: z
-      .array(addOn)
-      .max(50, "That's more Add-ons than the form can offer"),
+    addOns: z.array(addOn).max(50, "That's too many add-ons. Remove some"),
     premisesTypes: z
       .array(premisesType)
-      .max(50, "That's more Premises Types than the form can offer")
+      .max(50, "That's too many types of business. Remove some")
       .refine(
         (types) => types.some((t) => t.active),
-        "Offer at least one Premises Type",
+        "Offer at least one type of business",
       ),
   })
-  .superRefine(uniqueNames("addOns", "Another Add-on already has this name"))
+  .superRefine(uniqueNames("addOns", "Another add-on already has this name"))
   .superRefine(
-    uniqueNames("premisesTypes", "Another Premises Type already has this name"),
+    uniqueNames(
+      "premisesTypes",
+      "Another type of business already has this name",
+    ),
   );

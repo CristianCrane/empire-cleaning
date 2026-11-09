@@ -35,6 +35,12 @@ import type {
   Weekday,
 } from "@empire-cleaning/models";
 import {
+  REQUEST_A_QUOTE,
+  business,
+  openAlready,
+  quoteEmailedTo,
+} from "@empire-cleaning/models";
+import {
   Actions,
   Button,
   Card,
@@ -115,54 +121,59 @@ export type QuoteRequestFormProps<R = QuoteAskReceipt> = {
   source?: () => QuoteSource;
 };
 
+const CALL_US = `Please try again, or call us on ${business.phone.display}.`;
+
 // the form speaks to whoever fills it in: the person asking, or Office Staff
 // on a caller's behalf
 const ownWords = {
   need: "What you need",
   service: "What can we help with?",
-  servicesFailed:
-    "We couldn't load what we offer. Please try again, or call us on (646) 320-9076.",
+  servicesFailed: `We couldn't load what we offer. ${CALL_US}`,
   what: "What kind of place is it?",
   details: "Your details",
   email: "Email",
-  emailNote: "We'll email your Quote here.",
-  phoneNote: "Your Cleaners can reach you on the day.",
+  emailNote: "We'll email your quote here.",
+  phoneNote: "Your cleaners can reach you on the day.",
   home: "Your home",
-  premises: "Your business premises",
+  premises: "Your business",
   when: "When would you like us to clean?",
-  extrasNote: "Optional. Your Quote will show what each one costs.",
+  extrasNote: "Optional. Your quote will show what each one costs.",
   regular:
     "After my first clean, I'd like regular visits (weekly, bi-weekly or monthly) at 10% off.",
-  submit: "Request a Quote",
-  waiting: "This home has a Quote open already for this.",
-  premisesWaiting: "These premises have a Quote open already for this.",
+  submit: REQUEST_A_QUOTE,
   businessName: "Business name",
   contactNote: "The person we'll deal with at the business.",
-  failed:
-    "Your request didn't go through. Please try again, or call us on (646) 320-9076.",
+  failed: `Your request didn't go through. ${CALL_US}`,
 };
 const officeWords: typeof ownWords = {
   need: "What they need",
   service: "What can we help them with?",
-  servicesFailed: "The Services didn't load. Please try again.",
+  servicesFailed: "The services didn't load. Please try again.",
   what: "What kind of place is it?",
   details: "Who's calling",
   email: "Email (optional)",
   emailNote:
-    "Their Quote is emailed here. Without an email it can't be sent until one is added.",
-  phoneNote: "Their Cleaners can reach them on the day.",
+    "Their quote is emailed here. Without an email, it can't be sent until one is added.",
+  phoneNote: "Their cleaners can reach them on the day.",
   home: "Their home",
-  premises: "Their business premises",
+  premises: "Their business",
   when: "When would they like us to clean?",
-  extrasNote: "Optional. The Quote shows what each one costs.",
+  extrasNote: "Optional. The quote shows what each one costs.",
   regular:
     "After their first clean, they'd like regular visits (weekly, bi-weekly or monthly) at 10% off.",
-  submit: "Draft a Quote",
-  waiting: "This home has a Quote open already for this.",
-  premisesWaiting: "These premises have a Quote open already for this.",
+  submit: "Draft a quote",
   businessName: "Business name",
   contactNote: "The person we'll deal with at the business.",
   failed: "The request didn't save. Please try again.",
+};
+
+// the help under "How do we get in?", for each kind of place; the Client's
+// page for a home says it too
+export const accessHelp: Record<PropertyKind, string> = {
+  residential:
+    "Door codes, where the key is, parking. Only your cleaners see this.",
+  commercial:
+    "Alarm codes, who has the keys, parking. Only your cleaners see this.",
 };
 
 const NEW_PLACE = "new";
@@ -317,7 +328,13 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
   const [condition, setCondition] = useState<Condition>(
     firstFree("residential")?.condition ?? "moderate",
   );
-  const [offered, setOffered] = useState<AddOnChoice[]>([]);
+  // the Add-ons loaded, with the Service they're for; asked for again after
+  // a send refused some (addOnsAsked)
+  const [loadedAddOns, setLoadedAddOns] = useState<{
+    serviceKey: string;
+    addOns: AddOnChoice[];
+  }>();
+  const [addOnsAsked, setAddOnsAsked] = useState(0);
   const [premisesTypes, setPremisesTypes] = useState<PremisesTypeChoice[]>();
   const [chosen, setChosen] = useState<string[]>([]);
   const [area, setArea] = useState<number | null>(null);
@@ -348,11 +365,20 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
   useEffect(() => {
     if (services) startWith(services);
   }, [services]);
-  // a home's Add-ons are the Service's own
+  // a home's Add-ons are the Service's own: those of the one chosen now,
+  // never a slower answer for one chosen before, and none till they come
   useEffect(() => {
     if (!serviceKey) return;
-    void loadAddOns(apiUrl, serviceKey).then(setOffered);
-  }, [apiUrl, serviceKey]);
+    let current = true;
+    void loadAddOns(apiUrl, serviceKey).then(
+      (addOns) => current && setLoadedAddOns({ serviceKey, addOns }),
+    );
+    return () => {
+      current = false;
+    };
+  }, [apiUrl, serviceKey, addOnsAsked]);
+  const offered =
+    loadedAddOns?.serviceKey === serviceKey ? loadedAddOns.addOns : [];
   useEffect(() => {
     void loadPremisesTypes(apiUrl).then(setPremisesTypes);
   }, [apiUrl]);
@@ -544,7 +570,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
       </ChoiceTile>
       {forPremises && (
         <ChoiceTile value="commercial" icon={Store}>
-          Business premises
+          A business
         </ChoiceTile>
       )}
     </ChoiceTiles>
@@ -576,9 +602,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
         errorMessage={error("contact.name")}
       />
       {asker.kind === "account" ? (
-        <p className="text-sm text-fg-muted">
-          We'll email your Quote to {asker.email}.
-        </p>
+        <p className="text-sm text-fg-muted">{quoteEmailedTo(asker.email)}</p>
       ) : (
         <TextField
           label={words.email}
@@ -625,7 +649,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
     <>
       {places.length > 0 && (
         <RadioGroup
-          label={premises ? "Which premises?" : "Which home?"}
+          label={premises ? "Which business?" : "Which home?"}
           value={place}
           onChange={(id) => {
             setPlace(id);
@@ -640,9 +664,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
               isDisabled={held(p.id)}
               description={
                 held(p.id)
-                  ? premises
-                    ? words.premisesWaiting
-                    : words.waiting
+                  ? openAlready(premises ? "commercial" : "residential")
                   : undefined
               }
             >
@@ -650,7 +672,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
             </Radio>
           ))}
           <Radio value={NEW_PLACE}>
-            {premises ? "Different premises" : "A different home"}
+            {premises ? "A different business" : "A different home"}
           </Radio>
         </RadioGroup>
       )}
@@ -959,7 +981,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
         setRefusal(
           "Some of the extras you chose are no longer offered. Please check your choices.",
         );
-        void loadAddOns(apiUrl, serviceKey!).then(setOffered);
+        setAddOnsAsked((n) => n + 1);
       }
     } else if (result.refusal) {
       setRefusal(result.refusal);
@@ -1087,12 +1109,11 @@ function PremisesTypeField({
 
   return premisesTypes?.length === 0 ? (
     <Notice tone="danger">
-      We couldn't load the types of premises. Please try again, or call us on
-      (646) 320-9076.
+      We couldn't load the types of business. {CALL_US}
     </Notice>
   ) : (
     <Select
-      label="Type of premises"
+      label="Type of business"
       name={field("premisesType")}
       placeholder="Choose one"
       isRequired
@@ -1152,7 +1173,7 @@ function NewPremisesFields({
           label="How do we get in? (optional)"
           name={field("accessInstructions")}
           multiline
-          description="Alarm codes, who has the keys, parking. Only your Cleaners see this."
+          description={accessHelp.commercial}
           value={premises.accessInstructions ?? ""}
           onChange={(accessInstructions) => update({ accessInstructions })}
           errorMessage={error(field("accessInstructions"))}
@@ -1313,7 +1334,7 @@ function NewHomeFields({
           label="How do we get in? (optional)"
           name={field("accessInstructions")}
           multiline
-          description="Door codes, where the key is, parking. Only your Cleaners see this."
+          description={accessHelp.residential}
           value={home.accessInstructions ?? ""}
           onChange={(accessInstructions) => update({ accessInstructions })}
           errorMessage={error(field("accessInstructions"))}

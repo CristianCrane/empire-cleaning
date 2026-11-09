@@ -53,9 +53,9 @@ describe("Turning Down a Quote", () => {
       turnDownReason: "out_of_area",
     });
     const sent = testEmail().lastTo(casey.email);
-    expect(sent.subject).toBe("About your Quote from Empire Cleaning");
+    expect(sent.subject).toBe("About your quote from Empire Cleaning");
     expect(sent.text).toContain(
-      "we can't quote for it: it's outside the area we clean.",
+      "Sorry, we can't take this one on. It's outside the area we clean.",
     );
     expect(sent.text).toContain(`/portal/quotes/${id}`);
     // closed: off the Office's open list and Needs attention
@@ -98,7 +98,7 @@ describe("Turning Down a Quote", () => {
       turnDownReason: "no_capacity",
     });
     expect(testEmail().lastTo(casey.email).text).toContain(
-      "we don't have room for it at the moment",
+      "We're fully booked right now",
     );
     // final
     await office.post(`/api/quotes/${id}/revisions`).send({}).expect(409);
@@ -117,7 +117,7 @@ describe("Turning Down a Quote", () => {
     const refused = await turnDown(office, id).expect(409);
 
     expect(refused.body.message).toBe(
-      "A Revision of this Quote has been sent, so it can't be Turned Down: the Client declines it, or it Expires.",
+      "This quote has already been sent, so it can't be turned down.",
     );
   });
 
@@ -131,7 +131,7 @@ describe("Turning Down a Quote", () => {
     expect(turned.draft).toBeNull();
     const saved = await saveFor(office, draft).expect(409);
     expect(saved.body.message).toBe(
-      "This Quote was Turned Down. The Client can ask for a new Quote.",
+      "This quote was turned down. The client can ask for a new one.",
     );
     await office.post(`/api/quotes/${id}/send`).expect(409);
   });
@@ -150,7 +150,7 @@ describe("Turning Down a Quote", () => {
     expect(sent!.status).toBe(200);
     expect(turned!.status).toBe(409);
     expect(turned!.body.message).toBe(
-      "A Revision of this Quote has been sent, so it can't be Turned Down: the Client declines it, or it Expires.",
+      "This quote has already been sent, so it can't be turned down.",
     );
     expect(
       (await office.get(`/api/quotes/${id}`).expect(200)).body,
@@ -165,7 +165,7 @@ describe("Turning Down a Quote", () => {
 
     expect(refused.body.details[0]).toMatchObject({
       path: "reason",
-      issue: "Choose why: out of area, out of scope or no capacity",
+      issue: "Pick a reason",
     });
   });
 

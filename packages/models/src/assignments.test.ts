@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { isOnCrew } from "./index.js";
+import { isOnCrew } from "./index.ts";
 
 // only Offered and Confirmed are on the crew: a Released one, or one Office
 // Staff took off, has let it go

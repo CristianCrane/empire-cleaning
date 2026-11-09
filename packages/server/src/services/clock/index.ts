@@ -16,5 +16,3 @@ export const clock: Clock = {
 export const setClock = (next: Clock) => {
   current = next;
 };
-
-export * from "./days.ts";

@@ -11,8 +11,8 @@ import { firstNameOf, formatWhen } from "../../services/email/format.ts";
 
 // a Cleaner's own Job page; their list is /cleaner
 const jobButton = (jobId: string) =>
-  button("See the Job", `/cleaner/jobs/${jobId}`);
-export const jobsButton = button("See your Jobs", "/cleaner");
+  button("See the job", `/cleaner/jobs/${jobId}`);
+export const jobsButton = button("See your jobs", "/cleaner");
 
 export const offerEmail = ({
   name,
@@ -23,12 +23,12 @@ export const offerEmail = ({
   jobId: string;
   clean: Clean;
 }): Email => ({
-  subject: "You've been offered a Job",
+  subject: "You've been offered a job",
   blocks: [
     greeting(firstNameOf(name)),
-    paragraph("You've been offered this Job:"),
+    paragraph("You've been offered this job:"),
     cleanDetails(clean),
-    paragraph("Please confirm it, or release it if you can't make it."),
+    paragraph("Please confirm it, or drop out if you can't make it."),
     jobButton(jobId),
   ],
 });
@@ -40,10 +40,10 @@ export const takenOffEmail = ({
   name: string;
   clean: Clean;
 }): Email => ({
-  subject: "You're no longer on a Job",
+  subject: "You're no longer on a job",
   blocks: [
     greeting(firstNameOf(name)),
-    paragraph("The Office has taken you off this Job. You don't need to go."),
+    paragraph("The office has taken you off this job. You don't need to go."),
     cleanDetails(clean),
     jobsButton,
   ],
@@ -59,14 +59,12 @@ export const releasedEmail = ({
   jobId: string;
   clean: Clean;
 }): Email => ({
-  subject: `${cleaner} released a Job`,
+  subject: `${cleaner} dropped out of a job`,
   blocks: [
-    paragraph(`${cleaner} has released this Job, so it needs a Cleaner:`),
+    paragraph(`${cleaner} can't make this job, so it needs a cleaner:`),
     cleanDetails(clean),
-    paragraph(
-      "It's open to every free Cleaner now, or you can offer it to someone.",
-    ),
-    button("See the Job", `/office/jobs/${jobId}`),
+    paragraph("Free cleaners can take it now, or you can offer it to someone."),
+    button("See the job", `/office/jobs/${jobId}`),
   ],
 });
 
@@ -78,7 +76,7 @@ const lineFor = (job: CleanerNeeded) =>
     formatWhen(new Date(job.startsAt)),
     job.postcode,
     `about ${job.hoursOnSite} ${job.hoursOnSite === 1 ? "hour" : "hours"} on site`,
-    job.crewSize === 1 ? "on your own" : `crew of ${job.crewSize}`,
+    job.crewSize === 1 ? "on your own" : `with ${job.crewSize} cleaners`,
   ].join(", ");
 
 // the morning's list of every Job open to a Cleaner, new ones first, or
@@ -92,18 +90,18 @@ export const cleanersNeededEmail = ({
   soon: boolean;
   jobs: CleanerNeeded[];
 }): Email => ({
-  subject: soon ? "A Job soon is open to you" : "Jobs open to you",
+  subject: soon ? "An open job, soon" : "Open jobs for you",
   blocks: [
     greeting(firstNameOf(name)),
     paragraph(
       soon
-        ? "These Jobs in the next two days need a Cleaner, and you're free for them:"
-        : "These Jobs need a Cleaner, and you're free for them. New ones first:",
+        ? "These jobs in the next two days need a cleaner, and you're free:"
+        : "These jobs need a cleaner, and you're free. Newest first:",
     ),
     ...jobs.map((job) => paragraph(lineFor(job))),
-    paragraph("Each one goes to the first Cleaner to confirm."),
+    paragraph("Each goes to the first cleaner to confirm."),
     jobs.length === 1
-      ? button("See the Job", `/cleaner/open/${jobs[0]!.jobId}`)
-      : button("See the Jobs", "/cleaner"),
+      ? button("See the job", `/cleaner/open/${jobs[0]!.jobId}`)
+      : button("See the jobs", "/cleaner/offers"),
   ],
 });

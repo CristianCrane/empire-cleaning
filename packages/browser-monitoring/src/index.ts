@@ -1,9 +1,9 @@
 import * as Sentry from "@sentry/react";
-import type { Breadcrumb, ErrorEvent } from "@sentry/react";
+import type { Breadcrumb, Event } from "@sentry/react";
 import { scrub, scrubText } from "@empire-cleaning/models";
 
-// Sentry in the browser (ADR-0007): the web app and the landing site's Quote
-// form each start it once, and only here is it set up. Without a DSN (dev,
+// Sentry in the browser (ADR-0007): the web app and every landing page each
+// start it once, and only here is it set up. Without a DSN (dev,
 // tests) it never starts and nothing is sent.
 
 type Integration = Parameters<typeof Sentry.addIntegration>[0];
@@ -19,6 +19,10 @@ export type MonitoringOptions = {
   // how page loads and page changes are traced: by the app's router, or
   // else as plain page loads
   tracing?: Integration;
+  // Sentry's feedback button on every page (`feedbackButton(look)` from
+  // ./feedback.ts, the test sites', ADR-0020); passed in, so a build without
+  // it leaves it out
+  feedback?: Integration;
 };
 
 // set at build from the git commit (./vite.ts), the same release as the
@@ -30,6 +34,7 @@ export const startMonitoring = ({
   environment,
   apiUrl,
   tracing,
+  feedback,
 }: MonitoringOptions) => {
   if (!dsn || Sentry.isInitialized()) return;
   Sentry.init({
@@ -37,7 +42,10 @@ export const startMonitoring = ({
     environment,
     release: __RELEASE__ ?? undefined,
     // no session replay: it records what people type and see
-    integrations: [tracing ?? Sentry.browserTracingIntegration()],
+    integrations: [
+      tracing ?? Sentry.browserTracingIntegration(),
+      ...(feedback ? [feedback] : []),
+    ],
     tracesSampleRate: 0.2,
     tracePropagationTargets: apiUrl ? [apiUrl] : [/^\/api\//],
     dataCollection: {
@@ -54,10 +62,13 @@ export const startMonitoring = ({
       "NetworkError when attempting to fetch resource.",
       "Load failed",
     ],
-    beforeSend: scrubEvent,
     beforeSendSpan: (span) => scrub(span),
     beforeBreadcrumb: scrubBreadcrumb,
   });
+  // every event, scrubbed last: an error's, a report's from the feedback
+  // button (which `beforeSend` never sees: it's only for errors), and any
+  // other kind
+  Sentry.addEventProcessor(scrubEvent);
 };
 
 // who's signed in, by Account ID only; none when signed out
@@ -82,7 +93,7 @@ export const scrubEvent = ({
   user,
   breadcrumbs,
   ...event
-}: ErrorEvent): ErrorEvent => ({
+}: Event): Event => ({
   ...scrub(event),
   ...(breadcrumbs ? { breadcrumbs } : {}),
   ...(request

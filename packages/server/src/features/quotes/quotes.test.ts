@@ -11,6 +11,7 @@ import type {
   QuoteSummary,
   QuoteView,
 } from "@empire-cleaning/models";
+import { DAY_MS, MINUTE_MS } from "@empire-cleaning/models";
 import {
   type Agent,
   api,
@@ -219,7 +220,7 @@ describe("drafting a First Clean Quote", () => {
       .expect(409);
 
     expect(other.body.message).toBe(
-      "This is a one-off Quote: its kind can't change. Start a new Quote for the other.",
+      "This is a one-off quote. Start a new quote for the other kind.",
     );
     expect((await quoteOf(office, quoteId)).kind).toBe("one_off");
   });
@@ -243,7 +244,7 @@ describe("drafting a First Clean Quote", () => {
     expect(refused.body.details).toContainEqual(
       expect.objectContaining({
         path: `overrides.${SEEDED.deep}.reason`,
-        issue: "Say why you're changing the Suggested Price",
+        issue: "Say why you're changing the suggested price",
       }),
     );
 
@@ -510,7 +511,7 @@ describe("sending a Quote", () => {
     const soon = await office.post(`/api/quotes/${draft.id}/send`).expect(400);
     expect(soon.body.details[0]).toMatchObject({
       path: "proposedStart",
-      issue: "Choose a time more than 24 hours away",
+      issue: "Pick a time more than 24 hours away",
     });
 
     await save(office, draft, {
@@ -527,7 +528,7 @@ describe("sending a Quote", () => {
     const none = await office.post(`/api/quotes/${draft.id}/send`).expect(400);
     expect(none.body.details[0]).toMatchObject({
       path: "proposedStart",
-      issue: "Choose a proposed time",
+      issue: "Pick a time",
     });
 
     await save(office, draft, {
@@ -535,7 +536,7 @@ describe("sending a Quote", () => {
     });
     const past = await office.post(`/api/quotes/${draft.id}/send`).expect(400);
     expect(past.body.details[0].issue).toBe(
-      "Choose a time more than 24 hours away",
+      "Pick a time more than 24 hours away",
     );
   });
 
@@ -557,7 +558,7 @@ describe("sending a Quote", () => {
       },
     });
     const sent = testEmail().lastTo(casey.email);
-    expect(sent.subject).toBe("Your Quote from Empire Cleaning");
+    expect(sent.subject).toBe("Your quote from Empire Cleaning");
     expect(sent.text).toContain("Deep Clean (recommended)");
     // the only link is to the Quote's page, with no token on it
     expect(sent.text.match(/https?:\/\/\S+/g)).toEqual([
@@ -598,7 +599,7 @@ describe("sending a Quote", () => {
     expect(sent!.status).toBe(200);
     expect(saved!.status).toBe(409);
     expect(saved!.body.message).toBe(
-      "A Revision can't be changed once it's been sent: start a new one.",
+      "This draft was sent or deleted since you opened it, so this didn't go through. Reload the page to see the quote.",
     );
     const quote = await quoteOf(office, quoteId);
     expect(quote.draft).toBeNull();
@@ -690,7 +691,9 @@ describe("a new Revision", () => {
     expect(listed.map((q) => [q.id, q.status])).toEqual([[quoteId, "sent"]]);
     // its email says the Quote has changed, and links to the same Quote
     const sent = testEmail().lastTo(casey.email);
-    expect(sent.subject).toBe("Your updated Quote from Empire Cleaning");
+    expect(sent.subject).toBe(
+      "Your quote from Empire Cleaning has been updated",
+    );
     expect(sent.text).toContain("has been updated");
     expect(sent.text).toContain(`/portal/quotes/${quoteId}`);
     // the Client sees only the new offer, which says it was updated
@@ -717,7 +720,7 @@ describe("a new Revision", () => {
       .expect(409);
 
     expect(refused.body.message).toBe(
-      "The Client declined this Quote, so it has ended. They can ask for a new Quote.",
+      "This quote was declined. The client can ask for a new one.",
     );
   });
 });
@@ -766,6 +769,12 @@ describe("a Client's Quotes", () => {
     const mine = (await client.get("/api/quotes/mine").expect(200))
       .body as QuoteSummary[];
     expect(mine.map((q) => [q.id, q.status])).toEqual([[draft.id, "sent"]]);
+    // its headline leads with the Deep Clean recommended for a first visit,
+    // not the Standard Clean asked for
+    expect([mine[0]!.service.name, mine[0]!.headlineServiceName]).toEqual([
+      "Standard Clean",
+      "Deep Clean",
+    ]);
   });
 
   test("show each Service offered with tax, Deposit and time on site", async () => {
@@ -931,9 +940,9 @@ describe("Expiry", () => {
       ).map((q) => [q.id, q.status]);
 
     const expiry = new Date(first.offer!.expiresAt!).getTime();
-    testClock().set(new Date(expiry + 30 * 86_400_000 - 60_000));
+    testClock().set(new Date(expiry + 30 * DAY_MS - MINUTE_MS));
     expect(await listed()).toEqual([[quoteId, "expired"]]);
-    testClock().set(new Date(expiry + 30 * 86_400_000));
+    testClock().set(new Date(expiry + 30 * DAY_MS));
     expect(await listed()).toEqual([]);
   });
 
@@ -944,7 +953,7 @@ describe("Expiry", () => {
     // a Guest gets the usual reply, and the Client's inbox why (#243)
     await submit(guestAsk()).expect(201);
     expect(testEmail().lastTo(casey.email).text).toContain(
-      "We've sent you a Quote for 41-12 Austin St, 4B, 11375 already: you'll find it in your account.",
+      "We've already sent you a quote for 41-12 Austin St, 4B, 11375. You'll find it in your account.",
     );
 
     testClock().set(new Date(first.offer!.expiresAt!));
@@ -966,7 +975,7 @@ describe("Expiry", () => {
       .send({})
       .expect(409);
     expect(whileRequested.body.message).toBe(
-      "A newer one-off Quote is open for this home: carry on with that one.",
+      "There's a newer one-off quote for this home. Carry on with that one.",
     );
 
     await startDraft(office, newer.body.id);
@@ -1066,6 +1075,22 @@ describe("deleting a Draft", () => {
     expect(after.asked).not.toBeNull();
     // and it can be drafted afresh
     expect((await startDraft(office, quoteId)).draft!.number).toBe(1);
+  });
+
+  test("then saving it, from a page still open, says it's gone, not that it was sent", async () => {
+    const quoteId = await asked();
+    const office = await signInAsOffice();
+    const draft = await startDraft(office, quoteId);
+    await office.delete(`/api/quotes/${quoteId}/draft`).expect(200);
+
+    const saved = await office
+      .patch(`/api/quotes/${quoteId}/draft`)
+      .send(edit(draft, { crewSize: 3 }))
+      .expect(409);
+
+    expect(saved.body.message).toBe(
+      "This draft was sent or deleted since you opened it, so this didn't go through. Reload the page to see the quote.",
+    );
   });
 
   test("of a first Draft whose Service was asked for again meanwhile deletes it: the newer ask carries on", async () => {

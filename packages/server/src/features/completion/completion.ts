@@ -9,24 +9,30 @@ import {
   lte,
   ne,
 } from "drizzle-orm";
-import type {
-  AdjustmentCorrection,
-  AdjustmentProposal,
-  AdjustmentView,
-  CleanerJob,
-  ClientJobDetail,
-  ClientPastJob,
-  CompletionInput,
-  Condition,
-  JobCompletion,
+import {
+  type AdjustmentCorrection,
+  adjustmentItem,
+  adjustmentLabel,
+  type AdjustmentProposal,
+  type AdjustmentView,
+  type CleanerJob,
+  clientFix,
+  type ClientJobDetail,
+  type ClientPastJob,
+  type CompletionInput,
+  type Condition,
+  DAY_MS,
+  type JobCompletion,
+  NOT_ALL_CONFIRMED,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
-import { clock, DAY_MS } from "../../services/clock/index.ts";
+import { clock } from "../../services/clock/index.ts";
 import { email, formatMoney, notify } from "../../services/email/index.ts";
 import { assignmentStatusOf, mustBeConfirmed } from "../assignments/crew.ts";
 import { weeklyBillOfJob } from "../bills/billed-weekly.ts";
 import {
+  cancelledWithPlan,
   cancellationOf,
   cancelTermsOf,
   planOfJob,
@@ -44,6 +50,7 @@ import {
   rescheduleTermsOf,
 } from "../reschedule/reschedule.ts";
 import { staff } from "../staff/staff.schema.ts";
+import { unpaidOf, whyNotPaid } from "../payments/unpaid.ts";
 import {
   counts,
   paymentOf,
@@ -79,21 +86,12 @@ import { hoursOnSiteOf } from "../jobs/jobs.ts";
 // a proposed increase the Client hasn't answered lapses after this long, with
 // one reminder this long before it does (ADR-0009)
 const ANSWER_DAYS = 7;
+
+// a change to the price that the Office, or its Client, has dealt with already
+const REVIEWED = "This price change has already been dealt with.";
+const ANSWERED = "You've already answered this.";
+const NOT_DONE = "This job hasn't been marked done.";
 const REMINDER_DAYS_BEFORE = 2;
-
-// what an Adjustment changed, by name: "Inside the fridge", "1 extra hour"
-const adjustmentItem = (a: Pick<Adjustment, "kind" | "addOnName" | "hours">) =>
-  a.kind === "extra_time"
-    ? `${a.hours} extra ${a.hours === 1 ? "hour" : "hours"}`
-    : a.addOnName!;
-
-// "Inside the oven, done on the day", "1.5 extra hours"
-export const adjustmentLabel = (
-  a: Pick<Adjustment, "kind" | "addOnName" | "hours">,
-) =>
-  a.kind === "extra_time"
-    ? adjustmentItem(a)
-    : `${a.addOnName}, ${a.kind === "add_on_done" ? "done on the day" : "not done"}`;
 
 /**
  * A Property's Condition is what its latest Completed Job reported (#244
@@ -204,13 +202,11 @@ export const completeJob = async (
       throw new ConflictError(whyNotBooked(job!.status, "completed"));
     }
     if (job!.startsAt > now) {
-      throw new ConflictError("This Job hasn't started yet");
+      throw new ConflictError("This job hasn't started yet.");
     }
     const status = (await assignmentStatusOf([job!], tx)).get(jobId);
     if (status !== "assigned") {
-      throw new ConflictError(
-        "Everyone on this Job must Confirm it before it can be Completed. Please call the Office.",
-      );
+      throw new ConflictError(NOT_ALL_CONFIRMED);
     }
 
     const [property] = await tx
@@ -454,7 +450,7 @@ export const proposeAdjustment = async (
 ) => {
   const { adjustment } = await findAdjustment(jobId, adjustmentId);
   if (adjustment.status !== "reported") {
-    throw new ConflictError("This Adjustment has already been reviewed");
+    throw new ConflictError(REVIEWED);
   }
   const quoted = await quotedJob(jobId);
   const priceCents = proposal.priceCents ?? adjustment.workedOutCents;
@@ -481,7 +477,7 @@ export const proposeAdjustment = async (
     )
     .returning();
   if (!proposed) {
-    throw new ConflictError("This Adjustment has already been reviewed");
+    throw new ConflictError(REVIEWED);
   }
 
   const { job, property, client } = await jobWithOwner(jobId);
@@ -534,7 +530,7 @@ export const dismissAdjustment = async (
     )
     .returning();
   if (!dismissed) {
-    throw new ConflictError("This Adjustment has already been reviewed");
+    throw new ConflictError(REVIEWED);
   }
 };
 
@@ -601,7 +597,7 @@ export const correctAdjustment = async (
   const { adjustment } = await findAdjustment(jobId, adjustmentId);
   if (adjustment.status !== "applied" && adjustment.status !== "approved") {
     throw new ConflictError(
-      "Only an Adjustment that counts towards the price can be corrected",
+      "Only a price change that's been added to the price can be corrected.",
     );
   }
   if (
@@ -609,7 +605,7 @@ export const correctAdjustment = async (
     correction.priceCents > adjustment.priceCents
   ) {
     throw new ConflictError(
-      `The Client approved ${formatMoney(adjustment.totalCents)}, so it can't be raised`,
+      `The client approved ${formatMoney(adjustment.totalCents)}, so it can only be lowered.`,
     );
   }
   const quoted = await quotedJob(jobId);
@@ -649,7 +645,7 @@ const completedJob = async (jobId: string) => {
     .select()
     .from(jobs)
     .where(and(eq(jobs.id, jobId), eq(jobs.status, "completed")));
-  if (!job) throw new ConflictError("This Job hasn't been Completed");
+  if (!job) throw new ConflictError(NOT_DONE);
   return job;
 };
 
@@ -665,7 +661,7 @@ const owingJob = async (jobId: string) => {
         inArray(jobs.status, ["completed", "cancelled", "no_access"]),
       ),
     );
-  if (!job) throw new ConflictError("This Job hasn't been Completed");
+  if (!job) throw new ConflictError(NOT_DONE);
   return job;
 };
 
@@ -728,8 +724,9 @@ export const retryBalance = async (jobId: string) => {
   if (!job.unpaidSince) return;
   const settled = await settleJob(jobId);
   if (settled.failure) {
+    const { why } = whyNotPaid(settled.failure);
     throw new ConflictError(
-      `It still couldn't be charged (${settled.failure})`,
+      `The payment still didn't go through${why ? ` (${why})` : ""}.`,
     );
   }
   await sendCorrection(jobId, settled);
@@ -877,6 +874,7 @@ export const pastJobsFor = async (
         skipped:
           job.status === "cancelled" &&
           job.cancelledBy === "client" &&
+          !cancelledWithPlan(job) &&
           planId !== null,
         completedAt: job.completedAt?.toISOString() ?? null,
         totalCents:
@@ -884,7 +882,7 @@ export const pastJobsFor = async (
             ? totalOf(quoted.get(job.id)!.totalCents, own)
             : 0,
         feeCents: job.status === "completed" ? 0 : (job.feeCents ?? 0),
-        unpaid: job.unpaidSince !== null,
+        unpaid: unpaidOf(job.unpaidSince, job.unpaidReason)?.kind ?? null,
         owedCents: job.unpaidSince ? (await paymentOf(job)).owedCents : 0,
         awaitingAnswer: own.filter((a) => a.status === "proposed").length,
       };
@@ -912,8 +910,8 @@ export const answerAdjustment = async (
   if (adjustment.status !== "proposed" || lapsed) {
     throw new ConflictError(
       lapsed || adjustment.status === "lapsed"
-        ? "This has lapsed, so it won't be charged."
-        : "You've already answered this.",
+        ? "It wasn't answered in time, so you won't pay it."
+        : ANSWERED,
     );
   }
   const [answered] = await db
@@ -923,7 +921,7 @@ export const answerAdjustment = async (
       and(eq(adjustments.id, adjustmentId), eq(adjustments.status, "proposed")),
     )
     .returning();
-  if (!answered) throw new ConflictError("You've already answered this.");
+  if (!answered) throw new ConflictError(ANSWERED);
   if (!approve) return;
 
   const settled = await settleAfterChange(jobId, adjustmentItem(answered));
@@ -954,8 +952,9 @@ export const clientRetryBalance = async (clientId: string, jobId: string) => {
   if (!job.unpaidSince) return;
   const settled = await settleJob(jobId);
   if (settled.failure) {
+    const { kind, why } = whyNotPaid(settled.failure);
     throw new ConflictError(
-      "Your card still couldn't be charged. Please update your Payment Method, or try another card.",
+      `It still didn't go through${why ? ` (${why})` : ""}. ${kind === "declined" ? "Please update your card, or use another one." : clientFix[kind]}`,
     );
   }
 };
@@ -965,6 +964,8 @@ export const clientRetryBalance = async (clientId: string, jobId: string) => {
 // (ADR-0022). One that still fails stays Unpaid, and isn't told again.
 export const retryJob = async (jobId: string) => {
   const settled = await settleJob(jobId);
+  // declined now, after the provider kept us waiting: told only now
+  if (settled.becameUnpaid) await sendUnpaid(jobId, settled);
   if (
     settled.failure ||
     (settled.chargedCents === 0 && settled.refundedCents === 0)
@@ -1085,7 +1086,6 @@ export const unpaidJobs = async () => {
     rows.map(async (job) => ({
       jobId: job.id,
       since: job.unpaidSince!.toISOString(),
-      reason: job.unpaidReason ?? "",
       owedCents: (await paymentOf(job)).owedCents,
     })),
   );

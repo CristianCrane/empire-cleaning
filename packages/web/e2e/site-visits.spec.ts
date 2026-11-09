@@ -1,4 +1,5 @@
 import type { Locator, Page } from "@playwright/test";
+import { apiUrl } from "../playwright.config.ts";
 import {
   bookSiteVisit,
   createStaff,
@@ -11,6 +12,7 @@ import {
   draftTheQuote,
   recordFindingsWithoutVisit,
   addCleaner,
+  serviceKey,
 } from "./harness.ts";
 
 // The API's clock starts at 4am on Monday 5 January 2026 in New York.
@@ -45,14 +47,14 @@ test(
     await signInAsOffice(page);
 
     await page.goto("/office/quotes");
-    await expect(page.getByText("Needs Site Visit")).toBeVisible();
+    await expect(page.getByText("Needs a site visit")).toBeVisible();
     await page.getByText("Acme Dental").click();
     await expect(
-      page.getByText("Business premises are seen before they're quoted"),
+      page.getByText("This business needs a site visit before it's quoted"),
     ).toBeVisible();
 
-    await page.getByRole("button", { name: "Book a Site Visit" }).click();
-    const dialog = page.getByRole("dialog", { name: "Book a Site Visit" });
+    await page.getByRole("button", { name: "Book a site visit" }).click();
+    const dialog = page.getByRole("dialog", { name: "Book a site visit" });
     await choose(dialog, /Who visits/, "Olive Owner");
     await dialog
       .getByRole("group", { name: "Day" })
@@ -64,10 +66,10 @@ test(
       .getByRole("spinbutton", { name: /hour/i })
       .click();
     await page.keyboard.type("1000AM");
-    await expect(dialog.getByRole("textbox", { name: /Duration/ })).toHaveValue(
+    await expect(dialog.getByRole("textbox", { name: /How long/ })).toHaveValue(
       "30",
     );
-    await dialog.getByRole("button", { name: "Book Site Visit" }).click();
+    await dialog.getByRole("button", { name: "Book site visit" }).click();
 
     await expect(page).toHaveURL(/\/office\/site-visits\/[0-9a-f-]{36}$/);
     await expect(page.getByText("Booked", { exact: true })).toBeVisible();
@@ -76,19 +78,19 @@ test(
       page.locator("#main").getByText("Olive Owner", { exact: true }),
     ).toBeVisible();
     const [email] = (await emailsTo(casey.email)).filter(
-      (e) => e.subject === "Your Site Visit is booked",
+      (e) => e.subject === "Your site visit is booked",
     );
     expect(email!.text).toContain("Tuesday, January 6 at 10:00 AM");
     const visit = page.url();
 
     await page.goto("/office/quotes");
-    await expect(page.getByText("Site Visit booked")).toBeVisible();
+    await expect(page.getByText("Site visit booked")).toBeVisible();
 
     await page.goto(visit);
     await expectAccessible(page);
     await page.getByRole("button", { name: "Record findings" }).click();
     const findings = page.getByRole("dialog", {
-      name: "What the Site Visit found",
+      name: "What the site visit found",
     });
     await expect(
       findings.getByRole("textbox", { name: "Floor area in sq ft" }),
@@ -117,17 +119,17 @@ test("a Quote for business premises can't be drafted until their findings are re
 
   // not seen yet: seeing them is the only thing to do
   await expect(
-    page.getByText("Business premises are seen before they're quoted."),
+    page.getByText("This business needs a site visit before it's quoted."),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Draft the Quote" }),
+    page.getByRole("button", { name: "Draft the quote" }),
   ).toHaveCount(0);
 
   // premises the Office knows already
   await recordFindingsWithoutVisit(page);
   await draftTheQuote(page, "one-off");
   await expect(
-    page.getByText("These premises haven't had a Site Visit"),
+    page.getByText("This business hasn't had a site visit yet"),
   ).toHaveCount(0);
   await expect(page.getByRole("button", { name: /^Send to/ })).toBeEnabled();
 });
@@ -164,9 +166,44 @@ test("a Site Visit shows on the Schedule, in the Client's portal and in the visi
   await signedInAs(page, casey.email);
   await expect(page).toHaveURL("/portal");
   await expect(
-    page.getByText("Your Site Visit", { exact: true }),
+    page.getByText("Your site visit", { exact: true }),
   ).toBeVisible();
   await expect(
     page.getByText(/^Cory comes to see 200 Park Ave S.* for about 30 min$/),
   ).toBeVisible();
+});
+
+test("a home's Quote for a Service seen first asks for a site visit as a home's", async ({
+  page,
+}) => {
+  // Painting is seen before it's quoted, for a home too (ADR-0018)
+  const asked = await fetch(`${apiUrl}/api/quotes/ask`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      contact: { ...casey, phone: "(646) 555-0100" },
+      property: {
+        new: {
+          kind: "residential",
+          type: "apartment",
+          street: "41-12 Austin St",
+          unit: "4B",
+          postcode: "11375",
+        },
+      },
+      serviceKey: await serviceKey("Painting"),
+      wantsRegularService: false,
+    }),
+  });
+  expect(asked.status).toBe(201);
+  await signInAsOffice(page);
+  await page.goto("/office/quotes");
+  await page.getByText("41-12 Austin St").click();
+
+  await expect(page.getByText(/^This home needs a site visit/)).toBeVisible();
+  await expect(page.getByText(/business premises/i)).toHaveCount(0);
+  // the notice's Book button, not another in the header
+  await expect(
+    page.getByRole("button", { name: /^Book a site visit$/i }),
+  ).toHaveCount(1);
 });

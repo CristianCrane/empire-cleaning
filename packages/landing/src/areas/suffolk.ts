@@ -39,9 +39,9 @@ export const suffolk: Area = {
   homes: {
     title: "Family houses, from the harbor to the bay",
     text: [
-      "Western Suffolk homes are mostly houses with space to them: a colonial in Dix Hills, a ranch in West Babylon, a high ranch in Commack, a waterfront home in Northport or Bay Shore. Many have a finished basement, a deck, a home office or a playroom, and more bathrooms than a city apartment has rooms. Tell us the bedrooms and bathrooms, and anything extra, when you request a Quote, and it's priced for your house.",
-      "Big houses reward a routine. A deep clean first resets everything, behind the appliances, along every baseboard and down every stair. After that, a Service Plan keeps it there: weekly, bi-weekly or monthly visits, each one 10% off.",
-      "Pets can stay home while we work. Say so when you request a Quote, so the crew knows who'll meet them at the door, and tell us about any rooms you'd like left alone.",
+      "Western Suffolk homes are mostly houses with space to them: a colonial in Dix Hills, a ranch in West Babylon, a high ranch in Commack, a waterfront home in Northport or Bay Shore. Many have a finished basement, a deck, a home office or a playroom, and more bathrooms than a city apartment has rooms. Tell us the bedrooms and bathrooms, and anything extra, when you request a quote, and it's priced for your house.",
+      "Big houses reward a routine. A deep clean first resets everything, behind the appliances, along every baseboard and down every stair. After that, a cleaning plan keeps it there: weekly, bi-weekly or monthly visits, each one 10% off.",
+      "Pets can stay home while we work. Say so when you request a quote, so the crew knows who'll meet them at the door, and tell us about any rooms you'd like left alone.",
     ],
   },
   popular: {
@@ -53,7 +53,7 @@ export const suffolk: Area = {
       },
       {
         service: "Residential deep cleaning",
-        text: "Top to bottom, before guests, after the holidays, or as the first visit of a Service Plan.",
+        text: "Top to bottom, before guests, after the holidays, or as the first visit of a cleaning plan.",
       },
       {
         service: "Post-construction",
@@ -74,7 +74,7 @@ export const suffolk: Area = {
     {
       question: "Do you clean basements and home offices?",
       answer:
-        "Yes. Tell us about them when you request a Quote so they're in the price. For a garage or anything unusual, say what you need in the note and we'll quote it.",
+        "Yes. Tell us about them when you request a quote so they're in the price. For a garage or anything unusual, say what you need in the note and we'll quote it.",
     },
     {
       question: "Do I need to be home?",

@@ -1,4 +1,5 @@
 import { defineConfig } from "vitest/config";
+import { MINUTE_MS } from "@empire-cleaning/models";
 import { TEST_WORKERS } from "./tests/setup/testDatabase.ts";
 import { testEnv } from "./tests/setup/testEnv.ts";
 
@@ -48,8 +49,8 @@ export default defineConfig({
           // as many seeds at once as test workers: each keeps up to 13
           // connections (src/db/index.ts), as a worker does
           maxConcurrency: TEST_WORKERS,
-          testTimeout: 120_000,
-          hookTimeout: 120_000,
+          testTimeout: 2 * MINUTE_MS,
+          hookTimeout: 2 * MINUTE_MS,
         },
       },
     ],

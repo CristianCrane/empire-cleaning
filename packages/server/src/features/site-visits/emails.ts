@@ -35,11 +35,11 @@ const visitDetails = (
 const accountButton = button("See it in your account", "/portal");
 
 export const siteVisitBookedEmail = (visit: SiteVisitNotice): Email => ({
-  subject: "Your Site Visit is booked",
+  subject: "Your site visit is booked",
   blocks: [
     greeting(firstNameOf(visit.name)),
     paragraph(
-      `We've booked a free Site Visit: we'll come to see the ${visit.place} before we quote.`,
+      `We've booked a free visit to see the ${visit.place} before we quote.`,
     ),
     visitDetails(visit),
     paragraph(
@@ -55,14 +55,14 @@ export const siteVisitChangedEmail = (
   visit: SiteVisitNotice & { was?: Date },
 ): Email => ({
   subject: visit.was
-    ? "Your Site Visit has moved"
-    : "Your Site Visit has changed",
+    ? "Your site visit has moved"
+    : "Your site visit has changed",
   blocks: [
     greeting(firstNameOf(visit.name)),
     paragraph(
       visit.was
-        ? "We've moved your free Site Visit."
-        : "We've changed your free Site Visit. It's still at the same time.",
+        ? "We've moved your free site visit."
+        : "We've changed your free site visit. It's still at the same time.",
     ),
     visitDetails(visit, visit.was),
     paragraph("If the time doesn't suit you, please call us to change it."),
@@ -79,11 +79,11 @@ export const siteVisitCancelledEmail = ({
   address: string;
   startsAt: Date;
 }): Email => ({
-  subject: "Your Site Visit is cancelled",
+  subject: "Your site visit is cancelled",
   blocks: [
     greeting(firstNameOf(name)),
     paragraph(
-      `We've cancelled your Site Visit at ${address} on ${formatWhen(startsAt)}.`,
+      `We've cancelled your site visit at ${address} on ${formatWhen(startsAt)}.`,
     ),
     paragraph(
       "If you'd still like us to come and see it, please call us to book another.",

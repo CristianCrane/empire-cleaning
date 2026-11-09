@@ -24,8 +24,8 @@ export const officeTours = {
         {
           // in the navigation: Today has no link of its own to it
           target: { press: "Schedule" },
-          title: "The Schedule",
-          text: "Every clean and Site Visit, day by day. Move them there.",
+          title: "The schedule",
+          text: "Every clean and site visit, day by day. Move them there.",
         },
       ],
     },
@@ -38,12 +38,12 @@ export const officeTours = {
         {
           target: { named: "Service and prices" },
           title: "Price it",
-          text: "Prices are worked out from the Price List for this home. Override one if it needs to be different, with a reason.",
+          text: "Prices are worked out for this home from your prices. Set one yourself if it needs to be different, and say why.",
         },
         {
           target: { press: "Send to" },
           title: "Send it",
-          text: "Pick a time, then send it. The Client is emailed a link to accept it and book.",
+          text: "Pick a time, then send it. The client gets an email with a link to accept it and book.",
         },
       ],
     },
@@ -56,7 +56,7 @@ export const officeTours = {
         {
           target: { press: "Answer" },
           title: "A new time",
-          text: "Someone asked to move this Job. Confirm the new time, or turn it down and say why. It's held until you answer.",
+          text: "Someone asked to move this job. Confirm the new time, or turn it down and say why. We hold the time until you answer.",
         },
       ],
     },
@@ -65,9 +65,9 @@ export const officeTours = {
       route: "/office/jobs/$jobId",
       steps: [
         {
-          target: { press: "Offer to a Cleaner" },
-          title: "Needs a Cleaner",
-          text: "From a week before, it's open to every free Cleaner. Offer it to someone yourself from here.",
+          target: { press: "Offer to a cleaner" },
+          title: "Needs a cleaner",
+          text: "From a week before, any free cleaner can take it. Or offer it to someone yourself from here.",
         },
       ],
     },
@@ -78,8 +78,8 @@ export const officeTours = {
         {
           // the first day shown
           target: { named: "Jobs on" },
-          title: "Your Schedule",
-          text: "Every clean and Site Visit, day by day. Open a Job to see it or move it; on a computer, drag it to a new time.",
+          title: "Your schedule",
+          text: "Every clean and site visit, day by day. Open a job to see it or move it. On a computer, drag it to a new time.",
         },
       ],
     },

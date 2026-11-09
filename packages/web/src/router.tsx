@@ -143,11 +143,15 @@ import {
   safeNext,
   type AreaId,
 } from "./session.ts";
+import { reportUnexpected } from "./monitoring.ts";
 
 // lets design-system links (Link, AppLayout's nav) navigate through the router
 // asked once: which site this is doesn't change while the app is open. The
 // banner is only a label, so it isn't worth holding up the page for
-const site = getJson<Site>("/api/site").catch(() => null);
+const site = getJson<Site>("/api/site").catch((e: unknown) => {
+  reportUnexpected(e);
+  return null;
+});
 
 function Root() {
   const router = useRouter();
@@ -299,22 +303,17 @@ const peopleRoute = createRoute({
   component: PeopleScreen,
 });
 
-// the area the person was last in; moving to another is a moment to look
-// again at what their Account is connected to
-let lastArea: AreaId | undefined;
-
 // an area is only for Accounts holding its role: anyone signed out goes to
-// sign-in (and comes back afterwards), anyone else to their own area
+// sign-in (and comes back afterwards), anyone else to their own area. The
+// Account is the one remembered: opening the Account menu, where an area is
+// chosen, looks again (AreaLayout's AccountMenu), so switching to one asks
+// nothing new
 const areaRoute = <Id extends AreaId>(id: Id) =>
   createRoute({
     getParentRoute: () => rootRoute,
     // the area's own path as a literal type, so its child routes are typed
     path: areas[id].path as (typeof areas)[Id]["path"],
     beforeLoad: async ({ location }) => {
-      if (lastArea !== id) {
-        forgetAccount();
-        lastArea = id;
-      }
       const account = await getAccount();
       if (!account) {
         throw redirect({ to: "/sign-in", search: { next: location.href } });
@@ -830,7 +829,12 @@ const portalPaymentMethodRoute = createRoute({
       ownPaymentMethod(),
       getJson<ClientPastJob[]>("/api/jobs/mine/past"),
     ]);
-    return { saved, unpaid: pastJobs.filter((j) => j.unpaid) };
+    // the cleans a card puts right; one waiting on the payment service we
+    // try again ourselves
+    return {
+      saved,
+      unpaid: pastJobs.filter((j) => j.unpaid && j.unpaid !== "waiting"),
+    };
   },
   component: PortalPaymentMethod,
 });

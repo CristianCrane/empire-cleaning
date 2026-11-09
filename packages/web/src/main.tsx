@@ -6,15 +6,21 @@ import {
   routerTracing,
   startMonitoring,
 } from "@empire-cleaning/browser-monitoring";
+import { feedbackButton } from "@empire-cleaning/browser-monitoring/feedback";
+import feedbackLook from "./feedback.css?inline";
 import { router } from "./router.tsx";
 import { forgetAccount } from "./session.ts";
 
 // Sentry (ADR-0007), set at build time: without VITE_SENTRY_DSN (dev, tests)
-// nothing is sent
+// nothing is sent. The test site's pages carry its feedback button
+// (ADR-0020); no other build has it, as the mode is known at build time and
+// the button's code and look are dropped with the branch that isn't taken
+const mode = import.meta.env.VITE_APP_MODE ?? "dev";
 startMonitoring({
   dsn: import.meta.env.VITE_SENTRY_DSN,
-  environment: import.meta.env.VITE_APP_MODE ?? "dev",
+  environment: mode,
   tracing: routerTracing(router),
+  feedback: mode === "test" ? feedbackButton(feedbackLook) : undefined,
 });
 
 applyThemePreference(readThemePreference());

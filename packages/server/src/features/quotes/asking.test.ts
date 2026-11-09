@@ -50,10 +50,10 @@ describe("a Guest asking for a Quote", () => {
     const { body } = await submit(guestAsk()).expect(201);
 
     const receipt = testEmail().lastTo("casey@example.com");
-    expect(receipt.subject).toBe("We've received your request for a Quote");
+    expect(receipt.subject).toBe("We got your request for a quote");
     expect(receipt.text).toContain("41-12 Austin St, 4B, 11375");
     expect(receipt.text).toContain(
-      "We'll email your Quote to casey@example.com",
+      "We'll email your quote to casey@example.com",
     );
     // its only link is to the Quote's page, which never signs anyone in
     // (ADR-0006): it shows the offer once it's Sent
@@ -96,7 +96,7 @@ describe("a Guest asking for a Quote", () => {
     // the real owner hears about it, at their own address
     const receipts = testEmail()
       .to("casey@example.com")
-      .filter((m) => m.subject === "We've received your request for a Quote");
+      .filter((m) => m.subject === "We got your request for a quote");
     expect(receipts).toHaveLength(2);
   });
 
@@ -229,7 +229,7 @@ describe("the Service asked for", () => {
     expect(forBusinesses.body.details).toEqual([
       expect.objectContaining({
         path: "serviceKey",
-        issue: "Choose from the Services listed",
+        issue: "Pick a service from the list",
       }),
     ]);
   });
@@ -249,7 +249,7 @@ describe("the Service asked for", () => {
 
     expect(cleaning.status).toBe(400);
     expect(cleaning.body.details).toEqual([
-      { path: "condition", issue: "Choose how much cleaning the home needs" },
+      { path: "condition", issue: "Pick how much cleaning the home needs" },
     ]);
     const office = await signInAsOffice();
     const quote = (await office.get(`/api/quotes/${painting.body.id}`)).body;
@@ -333,7 +333,7 @@ describe("a home's rooms", () => {
     expect(res.status).toBe(400);
     expect(res.body.details).toContainEqual({
       path: "property.new.bathrooms",
-      issue: "Give all of the home's rooms, or none",
+      issue: "Fill in all of the home's rooms, or none",
     });
   });
 
@@ -463,7 +463,7 @@ describe("one address is one home", () => {
 
 describe("one open Quote per home", () => {
   const refusal =
-    "You've already asked us for a Quote for this home. We'll email it to casey@example.com soon.";
+    "You've already asked us for a quote for this home. We'll email it to casey@example.com soon.";
 
   test("a Guest asking again about the same home gets the usual reply, and the Client's inbox why", async () => {
     const first = await submit(guestAsk()).expect(201);
@@ -480,11 +480,11 @@ describe("one open Quote per home", () => {
     // no second receipt, but word of the one already asked for
     const mail = testEmail().to("casey@example.com");
     expect(mail.map((m) => m.subject)).toEqual([
-      "We've received your request for a Quote",
-      "About your request for a Quote",
+      "We got your request for a quote",
+      "About your request for a quote",
     ]);
     expect(mail[1]!.text).toContain(
-      "You've already asked us for a Quote for 41-12 Austin St, 4B, 11375. We'll email it to casey@example.com soon.",
+      "You've already asked us for a quote for 41-12 Austin St, 4B, 11375. We'll email it to casey@example.com soon.",
     );
     expect((await ownHomes("casey@example.com")).quotes).toHaveLength(1);
   });
@@ -546,7 +546,7 @@ describe("the Office's email", () => {
 
     for (const to of ["olive@example.com", "dana@example.com"]) {
       const notice = testEmail().lastTo(to);
-      expect(notice.subject).toBe("New Quote request from Casey Client");
+      expect(notice.subject).toBe("New quote request from Casey Client");
       expect(notice.text).toContain("41-12 Austin St, 4B, 11375");
       expect(notice.text.match(/https?:\/\/\S+/g)).toEqual([
         expect.stringMatching(new RegExp(`/office/quotes/${body.id}$`)),
@@ -567,7 +567,7 @@ describe("the Office's email", () => {
     await submit(guestAsk()).expect(201);
 
     expect(testEmail().lastTo("dana@example.com").subject).toBe(
-      "New Quote request from Casey Client",
+      "New quote request from Casey Client",
     );
   });
 
@@ -728,7 +728,8 @@ describe("a signed-in Client", () => {
     expect(res.status).toBe(400);
     expect(res.body.details[0]).toMatchObject({
       path: "email",
-      issue: "That email is already used by another Client",
+      issue:
+        "That email belongs to another client. Please use a different one.",
     });
   });
 

@@ -22,21 +22,26 @@ import type {
   ClientBillingSaved,
   SettledJobView,
 } from "@empire-cleaning/models";
+import {
+  addDays,
+  adjustmentLabel,
+  BOOKED_GO_AHEAD,
+  DAY_MS,
+  dayOf,
+  feeName,
+  LATE_MOVE_FEE,
+  mondayOf,
+  PLAN_BACK_ON,
+  PLAN_PAUSED,
+  startOfDay,
+  timeOf,
+} from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import env from "../../env.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
-import {
-  addDays,
-  clock,
-  DAY_MS,
-  dayOf,
-  startOfDay,
-  timeOf,
-  weekdayOf,
-} from "../../services/clock/index.ts";
+import { clock } from "../../services/clock/index.ts";
 import { email, formatWhen, notify } from "../../services/email/index.ts";
 import { paymentGateway } from "../../services/payment-gateway/index.ts";
-import { ON_HOLD_LINE } from "../cancellation/emails.ts";
 import {
   billEmail,
   chargedPerCleanEmail,
@@ -53,7 +58,7 @@ import {
   type Settled,
 } from "../completion/balance.ts";
 import { adjustments } from "../completion/completion.schema.ts";
-import { adjustmentLabel } from "../completion/completion.ts";
+import { NO_QUOTE } from "../completion/pricing.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { REMINDER_TIME } from "../jobs/reminders.ts";
 import { idempotencyKey } from "../payments/keys.ts";
@@ -68,10 +73,11 @@ import {
   paymentMethods,
   refunds,
 } from "../payments/payments.schema.ts";
+import { LATE, nowTheirs, unpaidOf } from "../payments/unpaid.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
 import { jobQuotes } from "../quotes/job-quotes.ts";
-import { holdOrResumePlan } from "../service-plans/on-hold.ts";
+import { anyOnHold, holdOrResumePlan } from "../service-plans/on-hold.ts";
 import {
   servicePlans,
   servicePlanVisits,
@@ -85,20 +91,10 @@ import { log, monitoring } from "../../services/monitoring/index.ts";
 const CREDIT_REFUND_DAYS = 30;
 // a Bill paid on its page is first reminded this many days before it's due
 const BILL_REMINDER_DAYS = 3;
-// why a Bill paid on its page is Unpaid
-const LATE_REASON = "not paid by its due date";
-
-const feeLabel = {
-  cancelled: "Late Cancellation fee",
-  no_access: "No Access fee",
-};
 
 // EC-000123
 export const billNumber = (number: number) =>
   `EC-${String(number).padStart(6, "0")}`;
-
-// the Monday of the week a day is in
-const mondayOf = (day: string) => addDays(day, -weekdayOf(day));
 
 // ---- what a Bill bills ----
 
@@ -144,8 +140,7 @@ const partsOf = async (
     .select()
     .from(charges)
     .where(eq(charges.jobId, job.id));
-  if (!quoted)
-    throw new ConflictError("This Job has no Quote to price it from");
+  if (!quoted) throw new ConflictError(NO_QUOTE);
   const given =
     taken.length === 0
       ? []
@@ -208,7 +203,7 @@ const partsOf = async (
   if (below.amountCents < 0) {
     priced.push({
       key: "floor",
-      label: `Reductions beyond the price: ${what}`,
+      label: `The price can't go below $0: ${what}`,
       amountCents: -below.amountCents,
       taxCents: -below.taxCents,
     });
@@ -222,7 +217,7 @@ const partsOf = async (
             ? [
                 share(
                   "reschedule_fee",
-                  `Late Reschedule fee: ${what}`,
+                  `${LATE_MOVE_FEE}: ${what}`,
                   job.rescheduleFeeCents,
                 ),
               ]
@@ -231,7 +226,7 @@ const partsOf = async (
       : [
           share(
             "fee",
-            `${feeLabel[job.status as "cancelled" | "no_access"]}: ${what}`,
+            `${feeName[job.status as "cancelled" | "no_access"]}: ${what}`,
             job.feeCents ?? 0,
           ),
         ];
@@ -292,7 +287,7 @@ const linesFor = async (
     lines.push({
       jobId: job.id,
       key,
-      label: was ? `Correction, ${label}` : label,
+      label: was ? `Corrected: ${label}` : label,
       amountCents,
       taxCents: (part?.taxCents ?? 0) - (was?.taxCents ?? 0),
     });
@@ -513,10 +508,21 @@ const chargeBill = async (
             }),
       })
       .where(eq(bills.id, bill.id));
+    const becameUnpaid =
+      failure !== null &&
+      nowTheirs(bill.unpaidSince ? (bill.unpaidReason ?? "") : null, failure);
+    const plan = await holdOrResumePlansOf(bill.id, tx);
     return {
       failure,
-      becameUnpaid: failure !== null && bill.unpaidSince === null,
-      plan: await holdOrResumePlansOf(bill.id, tx),
+      becameUnpaid,
+      // a plan held already, as while the payment only waited on the
+      // provider, is told now the payment is the Client's to put right
+      plan:
+        becameUnpaid &&
+        !plan &&
+        (await anyOnHold(tx, await plansOf(bill.id, tx)))
+          ? ("held" as const)
+          : plan,
     };
   });
 
@@ -544,7 +550,7 @@ const issueBill = async (billId: string) => {
     await sendBill(
       billId,
       "made",
-      charged?.plan === "held" ? [ON_HOLD_LINE] : [],
+      charged?.plan === "held" ? [PLAN_PAUSED] : [],
     );
   } catch (error) {
     monitoring.error(error, { what: `Bill ${billId} not sent` });
@@ -597,6 +603,8 @@ export const retryBill = async (billId: string) => {
   const charged = await chargeBill(billId);
   if (charged) {
     if (!charged.failure) await tellPaid(billId, charged.plan);
+    // declined now, after the provider kept us waiting: told only now
+    else if (charged.becameUnpaid) await tellUnpaid(billId, charged.plan);
     return;
   }
   const extra = await db.transaction(async (tx) => {
@@ -654,8 +662,8 @@ export const startBillPayment = async (
   if (!payable(bill)) {
     throw new ConflictError(
       bill.status === "processing"
-        ? "Your bank payment for this Bill is on its way."
-        : "This Bill has nothing to pay.",
+        ? "Your bank payment for this bill is on its way."
+        : "There's nothing to pay on this bill.",
     );
   }
   const { ref, secret } = await paymentGateway.startBillPayment({
@@ -783,6 +791,13 @@ export const finishBillPayment = async (
 
 // ---- the Office ----
 
+// why Office Staff can't act on a Bill that isn't due: `then` follows a bank
+// payment still on its way
+const notDue = (bill: Pick<Bill, "status">, then = "") =>
+  bill.status === "processing"
+    ? `A bank payment for this bill is on its way${then}.`
+    : `This bill is already ${bill.status === "void" ? "cancelled" : "paid"}.`;
+
 /**
  * Office Staff void a Bill that shouldn't have gone out, while it's unpaid:
  * it stays, as voided, and everything on it goes on the next Bill, or is
@@ -801,11 +816,7 @@ export const voidBill = async (
       .for("update");
     if (!bill) throw new NotFoundError("Bill not found");
     if (bill.status !== "due") {
-      throw new ConflictError(
-        bill.status === "processing"
-          ? "A bank payment for this Bill is on its way, so it can't be voided."
-          : `This Bill is already ${bill.status === "void" ? "voided" : "paid"}.`,
-      );
+      throw new ConflictError(notDue(bill, ", so it can't be cancelled"));
     }
     await tx
       .update(bills)
@@ -835,7 +846,7 @@ export const voidBill = async (
       "voided",
       settled.length > 0
         ? [
-            "Here's what we've settled for it per clean:",
+            "Here's what we've done about each clean on it instead:",
             ...settledLines(settled),
           ]
         : [],
@@ -866,11 +877,7 @@ export const recordOutsidePayment = async (
       .for("update");
     if (!bill) throw new NotFoundError("Bill not found");
     if (bill.status !== "due") {
-      throw new ConflictError(
-        bill.status === "processing"
-          ? "A bank payment for this Bill is on its way."
-          : `This Bill is already ${bill.status === "void" ? "voided" : "paid"}.`,
-      );
+      throw new ConflictError(notDue(bill));
     }
     await tx
       .update(bills)
@@ -923,7 +930,7 @@ export const setBilling = async (
     !(await commercial(clientId))
   ) {
     throw new ConflictError(
-      "Only a business Client, with business premises, can be billed weekly.",
+      "Only a client with a business can be billed weekly.",
     );
   }
   const from = input.weekly
@@ -1020,7 +1027,7 @@ const settleEach = async (jobIds: string[]) => {
 const labelOf = async (job: Job, property: Property) => {
   const what = `${await serviceNameOf(job.serviceId)} at ${addressOf(property)}, ${formatWhen(job.startsAt)}`;
   return job.status === "cancelled" || job.status === "no_access"
-    ? `${feeLabel[job.status]}: ${what}`
+    ? `${feeName[job.status]}: ${what}`
     : what;
 };
 
@@ -1183,7 +1190,7 @@ const markLate = (billId: string) =>
       .update(bills)
       .set({
         unpaidSince: startOfDay(addDays(bill.dueOn, 1)),
-        unpaidReason: LATE_REASON,
+        unpaidReason: LATE,
       })
       .where(eq(bills.id, billId));
     await holdOrResumePlansOf(billId, tx);
@@ -1238,9 +1245,9 @@ const sendBillReminders = async () => {
         !plans
           ? []
           : claimed.unpaidSince
-            ? [ON_HOLD_LINE]
+            ? [PLAN_PAUSED]
             : [
-                "If it isn't paid by then, your Service Plan goes On Hold until it is: cleans already booked go ahead, but we won't book any more.",
+                `If it isn't paid by then, your cleaning plan is paused until it is. ${BOOKED_GO_AHEAD}`,
               ],
         // the Office is copied once it's late, to chase it
         claimed.unpaidSince ? env.OFFICE_EMAIL : undefined,
@@ -1295,9 +1302,7 @@ const toSummary = (
   status: bill.status,
   totalCents: bill.totalCents,
   taxCents: bill.taxCents,
-  unpaid: bill.unpaidSince
-    ? { since: bill.unpaidSince.toISOString(), reason: bill.unpaidReason ?? "" }
-    : null,
+  unpaid: unpaidOf(bill.unpaidSince, bill.unpaidReason),
   paidAt: bill.paidAt?.toISOString() ?? null,
   paidVia: bill.paidVia,
 });
@@ -1390,7 +1395,7 @@ const sendBill = async (
       bill: {
         ...bill,
         number: billNumber(bill.number),
-        unpaid: bill.unpaidSince !== null,
+        unpaid: unpaidOf(bill.unpaidSince, bill.unpaidReason)?.kind ?? null,
         lines: await linesOf(billId),
       },
       occasion,
@@ -1405,18 +1410,17 @@ const sendBill = async (
 
 const tellPaid = (billId: string, plan: "held" | "resumed" | null) =>
   notify(`Receipt for Bill ${billId}`, () =>
-    sendBill(
-      billId,
-      "paid",
-      plan === "resumed"
-        ? ["Your Service Plan is back on, and we'll book your cleans as usual."]
-        : [],
-    ),
+    sendBill(billId, "paid", plan === "resumed" ? [PLAN_BACK_ON] : []),
+  );
+
+const tellUnpaid = (billId: string, plan: "held" | "resumed" | null) =>
+  notify(`Unpaid notice for Bill ${billId}`, () =>
+    sendBill(billId, "unpaid", plan === "held" ? [PLAN_PAUSED] : []),
   );
 
 const tellDebitFailed = (billId: string, plan: "held" | "resumed" | null) =>
   notify(`Failed bank payment notice for Bill ${billId}`, () =>
-    sendBill(billId, "debit_failed", plan === "held" ? [ON_HOLD_LINE] : []),
+    sendBill(billId, "debit_failed", plan === "held" ? [PLAN_PAUSED] : []),
   );
 
 const tellCreditRefunded = async (billId: string, cents: number) => {

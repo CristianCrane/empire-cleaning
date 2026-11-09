@@ -1,3 +1,4 @@
+import { MINUTE_MS } from "@empire-cleaning/models";
 import { emailCleanersNeeded } from "#features/assignments";
 import { chaseBills, makeDueBills } from "#features/bills";
 import {
@@ -13,7 +14,7 @@ export type ScheduledJob = { name: string; run: () => Promise<unknown> };
 
 // day-before reminders go out from 8am; looking every 10 minutes sends them
 // soon after, and running twice (or on two servers) sends nothing twice
-export const TICK_MS = 10 * 60 * 1000;
+export const TICK_MS = 10 * MINUTE_MS;
 
 // and so do reminders and lapses of increases proposed to Clients, and
 // Service Plans' Jobs coming within reach of the Schedule, each Monday's

@@ -13,7 +13,18 @@ import {
   formatMoney,
   formatWhen,
 } from "../../services/email/format.ts";
-import { ON_HOLD_LINE } from "../cancellation/emails.ts";
+import {
+  clientFix,
+  notTaken,
+  PRICES_INCLUDE_TAX,
+  refundedTo,
+  LATE_MOVE_FEE,
+  PLAN_BACK_ON,
+  PLAN_PAUSED,
+  UPDATE_AND_RETRY,
+  UPDATE_CARD,
+} from "@empire-cleaning/models";
+import { whyNotPaid } from "../payments/unpaid.ts";
 import type { Settled } from "./balance.ts";
 
 const portalButton = (jobId: string, label = "See your clean") =>
@@ -32,20 +43,16 @@ const moneyLines = (settled: Settled, owedCents: number) => {
     );
   }
   if (settled.refundedCents > 0) {
-    lines.push(
-      `We've refunded ${formatMoney(settled.refundedCents)} to your ${card}. It can take a few days to reach you.`,
-    );
+    lines.push(refundedTo(formatMoney(settled.refundedCents), card));
   }
   if (settled.failure) {
     lines.push(
-      `We couldn't charge the ${formatMoney(owedCents)} still to pay to your ${card}. Please update your Payment Method and we'll try again straight away.`,
+      `${notTaken(`the ${formatMoney(owedCents)} still to pay`, card)} ${clientFix[whyNotPaid(settled.failure).kind]}`,
     );
   }
   // putting it On Hold is told in the Unpaid notice
   if (settled.plan === "resumed") {
-    lines.push(
-      "Your Service Plan is back on, and we'll book your cleans as usual.",
-    );
+    lines.push(PLAN_BACK_ON);
   }
   return lines.map(paragraph);
 };
@@ -72,14 +79,12 @@ export const unpaidEmail = ({
   blocks: [
     greeting(firstNameOf(name)),
     paragraph(
-      `We couldn't charge ${formatMoney(owedCents)} for your clean to your ${paymentMethod ?? "card"}.`,
+      notTaken(`${formatMoney(owedCents)} for your clean`, paymentMethod),
     ),
     cleanDetails(clean),
-    paragraph(
-      "Please update your Payment Method and we'll try again straight away:",
-    ),
-    ...(held ? [paragraph(ON_HOLD_LINE)] : []),
-    portalButton(jobId, "Update your Payment Method"),
+    paragraph(`Please ${UPDATE_AND_RETRY}:`),
+    ...(held ? [paragraph(PLAN_PAUSED)] : []),
+    portalButton(jobId, UPDATE_CARD),
   ],
 });
 
@@ -126,7 +131,7 @@ export const receiptEmail = ({
             ...(rescheduleFeeCents > 0
               ? [
                   {
-                    label: `Late Reschedule fee${depositCents > 0 ? " (your Deposit, kept)" : ""}`,
+                    label: `${LATE_MOVE_FEE}${depositCents > 0 ? " (your deposit, kept)" : ""}`,
                     value: formatMoney(rescheduleFeeCents),
                   },
                 ]
@@ -138,7 +143,7 @@ export const receiptEmail = ({
         ]
       : []),
     ...moneyLines(settled, owedCents),
-    paragraph("Prices include tax."),
+    paragraph(PRICES_INCLUDE_TAX),
     portalButton(jobId, "See your receipt"),
   ],
 });
@@ -175,7 +180,7 @@ export const proposalEmail = ({
     ),
     cleanDetails(clean),
     paragraph(
-      `It comes to ${formatMoney(totalCents)}, tax included. You only pay it if you approve it. Please approve or decline it by ${formatWhen(answerBy)}; if we don't hear from you, it lapses and you don't pay it.`,
+      `It comes to ${formatMoney(totalCents)}, tax included, and you only pay it if you approve it. Please approve or decline it by ${formatWhen(answerBy)}. If we don't hear from you by then, you won't pay it.`,
     ),
     portalButton(jobId, "Approve or decline"),
   ],
@@ -314,7 +319,7 @@ export const completionUndoneEmail = ({
     ),
     cleanDetails(clean),
     ...moneyLines(settled, 0),
-    button("See your Jobs", "/portal"),
+    button("See your cleans", "/portal"),
   ],
 });
 

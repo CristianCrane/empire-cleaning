@@ -1,0 +1,15 @@
+{
+  "name": "@empire-cleaning/lint",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "check": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:quick": "vitest run"
+  },
+  "devDependencies": {
+    "oxlint": "^1.90.0",
+    "vitest": "^4.1.12"
+  }
+}

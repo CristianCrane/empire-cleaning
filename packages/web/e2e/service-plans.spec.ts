@@ -42,7 +42,7 @@ const planQuoteSent = async (page: Page) => {
 
 const quoteLink = async () => {
   const sent = (await emailsTo(casey.email)).find(
-    (e) => e.subject === "Your Service Plan Quote from Empire Cleaning",
+    (e) => e.subject === "Your cleaning plan quote from Empire Cleaning",
   );
   return new URL(sent!.text.match(/https?:\/\/\S+/)![0]).pathname;
 };
@@ -70,17 +70,17 @@ test(
     await expect(accept).toContainText(
       "Paying with your Test card ending 4242",
     );
-    await expect(accept).toContainText("hold it for as long as your plan runs");
+    await expect(accept).toContainText("keep it for as long as your plan runs");
     // one Service, so nothing to choose
     await expect(accept.getByRole("radio")).toHaveCount(0);
     await accept.getByRole("button", { name: "Accept and pay $50.46" }).click();
-    await expect(client.getByText("Your Service Plan has started")).toHaveCount(
-      2,
-    );
+    await expect(
+      client.getByText("Your cleaning plan has started"),
+    ).toHaveCount(2);
 
-    await client.getByRole("link", { name: "See your Service Plan" }).click();
+    await client.getByRole("link", { name: "See your cleaning plan" }).click();
     await expect(client.getByRole("heading", { level: 1 })).toHaveText(
-      "Your Service Plan",
+      "Your cleaning plan",
     );
     const details = client.getByRole("region", { name: "Plan details" });
     await expect(details).toContainText("Every week");
@@ -92,9 +92,7 @@ test(
       "$50.46Deposit, comes off your last clean",
     );
     await expect(
-      client.getByText(
-        /^Each clean is charged to your saved card when it's done\./,
-      ),
+      client.getByText(/^Each clean is charged to your card when it's done\./),
     ).toBeVisible();
     const upcoming = client
       .getByRole("grid", { name: "Your upcoming cleans" })
@@ -112,7 +110,7 @@ test(
     await expect(client.getByText("Your next clean")).toBeVisible();
     await expect(client.getByText("Mon, Jan 19, 9:00 AM")).toBeVisible();
     await expect(
-      client.getByText("Part of your Service Plan, every week"),
+      client.getByText("Part of your cleaning plan, every week"),
     ).toBeVisible();
 
     // the Office finds it in full on the home's page
@@ -146,18 +144,18 @@ test("the Office records a plan's acceptance, then books a visit its day had no 
   await page.goto(`/office/quotes/${quote.id}`);
   await page.getByRole("button", { name: "Record acceptance" }).click();
   await expect(page.getByRole("alertdialog")).toContainText(
-    "held for the life of the plan",
+    "kept for as long as the plan runs",
   );
   await page.getByRole("button", { name: "Charge and book" }).click();
   await expect(
-    page.getByText("Accepted: the Service Plan has started"),
+    page.getByText("Accepted: the cleaning plan has started"),
   ).toBeVisible();
 
   await page.goto("/office");
   await page
     .getByRole("grid", { name: "Needs attention" })
     .getByRole("row")
-    .filter({ hasText: "Service Plan visit on Mon, Feb 2" })
+    .filter({ hasText: "Cleaning plan visit on Mon, Feb 2" })
     .click();
   // the plan is on its home's page
   await expect(page).toHaveURL(/\/office\/properties\/[0-9a-f-]{36}$/);

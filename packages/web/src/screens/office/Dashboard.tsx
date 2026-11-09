@@ -4,6 +4,7 @@ import type {
   NeedsAttentionItem,
   NeedsAttentionKind,
 } from "@empire-cleaning/models";
+import { MINUTE_MS } from "@empire-cleaning/models";
 import {
   CalendarClock,
   CalendarX,
@@ -37,11 +38,12 @@ import {
   formatDay,
   formatMoney,
 } from "../format.ts";
+import { QUOTE_A_PLAN } from "./StartDraft.tsx";
 
 // how often a Dashboard left open asks again, while it can be seen: a new
 // Quote request shows within a minute (the Office is emailed of it too).
 // Coming back to the tab asks at once (main.tsx)
-const REFRESH_MS = 60_000;
+const REFRESH_MS = MINUTE_MS;
 
 // the Office's first screen: what's waiting on them, counted by kind (Jobs,
 // Quotes, Money) above the list. The day's Jobs are on the Schedule
@@ -94,7 +96,7 @@ const tileOf: Record<NeedsAttentionKind, Tile> = {
   plan_on_hold: "money",
 };
 
-// what the tiles say beside their counts: how many need Staff, how many
+// what the tiles say beside their counts: how many need cleaners, how many
 // Quotes are newly asked for, and what's owed (a plan On Hold owes for Jobs
 // and Bills already counted)
 const hintsFor = (items: NeedsAttentionItem[]): Record<Tile, string> => {
@@ -113,7 +115,7 @@ const hintsFor = (items: NeedsAttentionItem[]): Record<Tile, string> => {
   const unassigned = count("job_unassigned");
   const asked = count("quote_requested");
   return {
-    jobs: unassigned > 0 ? `${unassigned} need Staff` : "",
+    jobs: unassigned > 0 ? `${unassigned} need cleaners` : "",
     quotes: asked > 0 ? `${asked} asked for` : "",
     money: owedCents > 0 ? `${formatMoney(owedCents)} owed` : "",
   };
@@ -145,7 +147,7 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
         const { quote } = item;
         return {
           key: `quote_requested ${quote.id}`,
-          action: "Send a Quote",
+          action: "Send a quote",
           icon: QuoteIcon,
           tone: "info",
           client: clientName(quote.client),
@@ -177,7 +179,7 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
         const { quote } = item;
         return {
           key: `quote_no_room ${quote.id}`,
-          action: "Pick another time for the Quote",
+          action: "Pick another time for the quote",
           icon: CalendarX,
           tone: "danger",
           client: clientName(quote.client),
@@ -193,7 +195,7 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
         const { job } = item;
         return {
           key: `job_unassigned ${job.id}`,
-          action: "Assign Staff",
+          action: "Find cleaners",
           icon: UserX,
           tone: "warning",
           client: clientName(job.client),
@@ -209,7 +211,7 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
         const { job } = item;
         return {
           key: `job_unpaid ${job.id}`,
-          action: "Collect the Balance",
+          action: "Collect the balance",
           icon: CircleDollarSign,
           tone: "danger",
           client: clientName(job.client),
@@ -241,11 +243,11 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
         const { job } = item;
         return {
           key: `adjustments_reported ${job.id}`,
-          action: "Review extras Staff reported",
+          action: "Review the cleaner's price changes",
           icon: ClipboardList,
           tone: "info",
           client: clientName(job.client),
-          description: `${item.count === 1 ? "1 extra" : `${item.count} extras`} to review · ${addressOf(job.property)} · ${formatDate(job.startsAt)}`,
+          description: `${item.count === 1 ? "1 price change" : `${item.count} price changes`} to review · ${addressOf(job.property)} · ${formatDate(job.startsAt)}`,
           open: () =>
             navigate({
               to: "/office/jobs/$jobId",
@@ -257,11 +259,11 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
         const { job } = item;
         return {
           key: `service_plan_due ${job.id}`,
-          action: "Quote a Service Plan",
+          action: QUOTE_A_PLAN,
           icon: Repeat,
           tone: "info",
           client: clientName(job.client),
-          description: `${addressOf(job.property)} · First Clean done ${formatDate(item.since)}, wants regular visits`,
+          description: `${addressOf(job.property)} · First clean done ${formatDate(item.since)}, wants regular visits`,
           // the home's page: its Service Plan, its history beside it
           open: () =>
             navigate({
@@ -278,7 +280,7 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
           icon: CalendarX,
           tone: "danger",
           client: clientName(plan.client),
-          description: `${addressOf(plan.property)} · Service Plan visit on ${formatDay(visit.dueOn)}: no room that day`,
+          description: `${addressOf(plan.property)} · Cleaning plan visit on ${formatDay(visit.dueOn)}: no room that day`,
           open: () =>
             navigate({
               to: "/office/service-plans/$planId",
@@ -290,7 +292,7 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
         const { bill } = item;
         return {
           key: `bill_unpaid ${bill.id}`,
-          action: "Collect the Bill",
+          action: "Collect the bill",
           icon: Receipt,
           tone: "danger",
           client: clientName(bill.client),
@@ -305,8 +307,8 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
       case "plan_on_hold": {
         const { plan } = item;
         const unpaid = [
-          item.owedCents > 0 && `${formatMoney(item.owedCents)} Unpaid`,
-          item.bills.length > 0 && `Bill ${item.bills.join(" and ")} Unpaid`,
+          item.owedCents > 0 && `${formatMoney(item.owedCents)} unpaid`,
+          item.bills.length > 0 && `bill ${item.bills.join(" and ")} unpaid`,
         ]
           .filter(Boolean)
           .join(", ");
@@ -316,7 +318,7 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
           icon: CirclePause,
           tone: "warning",
           client: clientName(plan.client),
-          description: `${addressOf(plan.property)} · Service Plan: ${unpaid}, no new Jobs booked`,
+          description: `${addressOf(plan.property)} · Cleaning plan paused: ${unpaid}`,
           open: () =>
             navigate({
               to: "/office/service-plans/$planId",
@@ -359,8 +361,8 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
         aria-label="Needs attention"
         renderEmptyState={() => (
           <p className="p-6 text-center text-fg-muted">
-            Nothing needs you right now. When a Client asks for a Quote or a new
-            time, or a Job needs a Cleaner, it shows up here.
+            Nothing needs you right now. When a client asks for a quote or a new
+            time, or a job needs a cleaner, it shows up here.
           </p>
         )}
       >

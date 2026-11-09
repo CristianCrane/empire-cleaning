@@ -52,7 +52,7 @@ test(
     await expectAccessible(page);
     await ending.getByRole("button", { name: "End plan" }).click();
     const dialog = page.getByRole("alertdialog", {
-      name: "End your Service Plan?",
+      name: "End your cleaning plan?",
     });
     await expect(dialog).toContainText(
       "It cancels your 3 cleans booked more than 24 hours away, free: Mon, Jan 26, 9:00 AM; Mon, Feb 2, 9:00 AM; Mon, Feb 9, 9:00 AM.",
@@ -61,22 +61,35 @@ test(
       "Your clean on Mon, Jan 19, 9:00 AM is less than 24 hours away, so it goes ahead.",
     );
     await expect(dialog).toContainText(
-      "Your $50.46 Deposit comes off the price of the clean on Mon, Jan 19, 9:00 AM.",
+      "Your $50.46 deposit comes off the price of the clean on Mon, Jan 19, 9:00 AM.",
     );
-    await expect(dialog).toContainText("An Ended plan can't be started again.");
+    await expect(dialog).toContainText("An ended plan can't be started again.");
     await expectAccessible(page);
     await dialog.getByRole("button", { name: "End plan" }).click();
 
-    await expect(page.getByText("Your Service Plan has Ended")).toBeVisible();
+    await expect(page.getByText("Your cleaning plan has ended")).toBeVisible();
     await expect(page.getByRole("region", { name: "Ended" })).toContainText(
-      "Your Service Plan Ended on Jan 18",
+      "Your cleaning plan ended on Jan 18",
     );
     await expect(
       page.getByRole("grid", { name: "Your upcoming cleans" }).getByRole("row"),
     ).toHaveCount(1);
     expect((await emailsTo(casey.email)).at(-1)!.subject).toBe(
-      "Your Service Plan has Ended",
+      "Your cleaning plan has ended",
     );
+
+    // a clean the plan took with it reads as cancelled with the plan, not
+    // skipped, and the plan doesn't carry on
+    await page.goto("/portal/cleans");
+    await page.getByRole("tab", { name: /Past/ }).click();
+    const last = page.getByRole("row").first();
+    await expect(last).toContainText("Cancelled");
+    await last.click();
+    const cancelled = page.getByRole("region", { name: "Cancelled" });
+    await expect(cancelled).toContainText(
+      "The cleaning plan ended, so this clean was cancelled. There's no charge for it.",
+    );
+    await expect(cancelled).not.toContainText("carries on");
   },
 );
 
@@ -98,9 +111,9 @@ test("a Client's plan is On Hold while a fee is Unpaid, and back on once they pa
   await page.goto(`/portal/plans/${planId}`);
   const onHold = page
     .getByRole("alert")
-    .filter({ hasText: "Your plan is On Hold" });
+    .filter({ hasText: "Your plan is paused" });
   await expect(onHold).toContainText(
-    "Your plan is On Hold. We couldn't take payment for the clean on Mon, Jan 19, 9:00 AM ($50.46). Cleans already booked go ahead, but we won't book any more until it's paid.",
+    "Your plan is paused. We couldn't take payment for the clean on Mon, Jan 19, 9:00 AM ($50.46). Cleans already booked still go ahead, but we won't book any more.",
   );
   await expectAccessible(page);
 
@@ -110,13 +123,13 @@ test("a Client's plan is On Hold while a fee is Unpaid, and back on once they pa
   await page
     .getByRole("alert")
     .filter({ hasText: "Payment needed" })
-    .getByRole("link", { name: "Update Payment Method" })
+    .getByRole("link", { name: "Update your card" })
     .click();
   await page.getByRole("button", { name: "Save card" }).click();
   await expect(page.getByText("Card saved")).toBeVisible();
 
   await page.goto(`/portal/plans/${planId}`);
-  await expect(page.getByText("Your plan is On Hold")).toHaveCount(0);
+  await expect(page.getByText("Your plan is paused")).toHaveCount(0);
   await expect(page.getByText("Active", { exact: true })).toBeVisible();
 });
 
@@ -129,10 +142,10 @@ test(
     await failCharges();
     await signedInAs(page, olive.email);
     await page.goto(`/office/jobs/${firstJob.id}`);
-    await page.getByRole("button", { name: "Cancel Job" }).click();
+    await page.getByRole("button", { name: "Cancel job" }).click();
     await page
-      .getByRole("alertdialog", { name: "Cancel this Job?" })
-      .getByRole("button", { name: "Cancel Job" })
+      .getByRole("alertdialog", { name: "Cancel this job?" })
+      .getByRole("button", { name: "Cancel job" })
       .click();
     await expect(page.getByText("Job cancelled")).toBeVisible();
 
@@ -141,38 +154,36 @@ test(
       .getByRole("grid", { name: "Needs attention" })
       .getByRole("row")
       .filter({ hasText: "Collect what's owed to resume the plan" });
-    await expect(held).toContainText(
-      "Service Plan: $50.46 Unpaid, no new Jobs booked",
-    );
+    await expect(held).toContainText("Cleaning plan paused: $50.46 unpaid");
     await held.click();
     // the plan is on its home's page
     await expect(page).toHaveURL(/\/office\/properties\/[0-9a-f-]{36}$/);
     await expect(
-      page.getByRole("alert").filter({ hasText: "On Hold." }),
+      page.getByRole("alert").filter({ hasText: "Paused." }),
     ).toContainText(
-      "On Hold. The Client's payment couldn't be taken for the clean on Mon, Jan 19, 9:00 AM ($50.46).",
+      "Paused. The client's payment didn't go through for the clean on Mon, Jan 19, 9:00 AM ($50.46).",
     );
 
     const ending = page.getByRole("region", { name: "Ending the plan" });
     await ending.getByRole("button", { name: "End plan" }).click();
     const dialog = page.getByRole("alertdialog", {
-      name: "End this Service Plan?",
+      name: "End this cleaning plan?",
     });
     await expect(dialog).toContainText(
-      "It cancels the Client's 3 cleans booked more than 24 hours away, free",
+      "It cancels the client's 3 cleans booked more than 24 hours away, free",
     );
     await expectAccessible(page);
     await dialog.getByRole("button", { name: "End plan" }).click();
 
     // the toast; the home has no plan now, so its page offers a new one
     await expect(
-      page.getByText("Service Plan Ended", { exact: true }),
+      page.getByText("Cleaning plan ended", { exact: true }),
     ).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Quote a Service Plan" }),
+      page.getByRole("button", { name: "Quote a cleaning plan" }),
     ).toBeVisible();
     expect((await emailsTo(casey.email)).at(-1)!.subject).toBe(
-      "Your Service Plan has Ended",
+      "Your cleaning plan has ended",
     );
   },
 );

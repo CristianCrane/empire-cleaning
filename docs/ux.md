@@ -2,7 +2,8 @@
 
 How Empire Cleaning's screens are meant to look and behave, and why. Read
 this before changing any screen in `packages/web`, `packages/ui`,
-`packages/quote-request` or `packages/landing`.
+`packages/quote-request` or `packages/landing`, and before writing any
+words a person reads: a server message or an email too (Words).
 
 - **The rules** below are what every screen keeps. Most have a live example
   in Storybook under **Patterns** (`packages/ui/src/Patterns.stories.tsx`),
@@ -65,7 +66,7 @@ can change, through the same loop.
   danger), its one Button; history after it, the latest few then See all.
   ("A money page answers what's owed")
 - **Settings are read, then changed part by part**: facts and rows, each
-  part changed in its own dialog (Price List, Staff). A form the owner
+  part changed in its own dialog (Prices, Staff). A form the owner
   tweaks to see what it does stays one form, with its example beside it
   (Service).
 - **The landing site's bands alternate**, plain then raised, by their place
@@ -87,7 +88,7 @@ can change, through the same loop.
 - **Related sections share a heading** in the sidebar and the ☰ menu
   (`NavItem.group`), the busiest first with none: the Office's Today and
   Schedule, then Work (Jobs, Quotes), People (Clients, Staff) and Pricing
-  (Services, Price List). ("Layout / AppLayout / Groups")
+  (Services, Prices). ("Layout / AppLayout / Groups")
 
 ### Buttons and actions
 
@@ -99,7 +100,7 @@ can change, through the same loop.
   ("Clickable catches the eye")
 - **A Section's actions are text Buttons** on the title's line, no taller
   than it; on a phone they wrap under the title.
-- **Destructive actions are red** (End plan, Void, Deactivate, Decline).
+- **Destructive actions are red** (End plan, Cancel bill, Deactivate, Decline).
 - **A third-party sign-in button keeps its owner's branding**: Continue with
   Google is Google's own button (their colours in light and dark, their
   logo, Roboto), not ours. Only the 44px touch height is ours.
@@ -112,6 +113,33 @@ can change, through the same loop.
 - **Tone means what a status's does**: warning for something waiting on
   someone, danger for something that failed or is late, info for what
   they're waiting on us for, success for done.
+
+### Words
+
+Every word a person reads follows these: labels, page text, the screens'
+messages, the server's that reach a screen (a 409's or 429's message,
+field errors, and a 404's where a screen shows it, as Confirm email
+does), and emails. Other 404s' text is never shown (`useAction`), so it
+stays as it is (#336).
+
+- **Everyday words, the ones a person would say.** A term from
+  `GLOSSARY.md` uses its `_On screen_` word where it has one: cleaning
+  hours, not Labour Hours. Labels are in sentence case and terms are
+  lowercase in a sentence: "Send a quote", "your cleaning plan". A
+  Service's name, such as Deep Clean, keeps its capitals.
+- **A problem says what's wrong, then how to fix it**, in two short
+  sentences at most: "Not enough cleaners are free then. Pick another time,
+  or add working hours for a cleaner that day." Never how the system
+  works, no counting unless the number helps, no codes. When nothing can
+  be done, it says what happened: "This clean was cancelled."
+- **A field that's too long says its limit**: "Keep the reason under 500
+  characters", from the server's `keepUnder`, since the number is what fixes
+  it.
+- **To a Client, we're "us"**: "Please call us", not "the Office".
+- **A message the server and a screen both show is written once**, in
+  `packages/models/src/messages/`, which both import: a file per subject,
+  such as `jobs.ts` for a Job's time and room. Once
+  ADR-0025's catalogs come (#308), they are models' own strings.
 
 ### Language
 
@@ -149,7 +177,7 @@ can change, through the same loop.
 
 ### Lists and tables
 
-- **Lead a to-do row with what to do** (Send a Quote, Assign Staff), a
+- **Lead a to-do row with what to do** (Send a quote, Find cleaners), a
   toned `IconTile` for the kind; rows that only show things keep the name
   as the title. ("Action First To Do Rows")
 - **A growing work list is a Table**, a `Tab` per status with counts and a
@@ -161,7 +189,8 @@ can change, through the same loop.
 - **Dated things a person scans are grouped by month**, a small `DateTile`
   leading each row; a row is badged only when it isn't plain.
 - **An empty place offers what fills it** (`EmptyState` with its action),
-  never a card in a card. ("Empty states offer the action")
+  never a card in a card, and never says again what its Section's
+  description above it already says. ("Empty states offer the action")
 
 ### Forms
 
@@ -320,4 +349,12 @@ Newest last. "Built in" is the PR (or branch) that shipped it.
 | Office, Cleaner and Client > the account menu | Once first-time help's tours have been seen, how does someone see them again (#291 Q6)? | (tried in the #291 prototype, with its tours) | **Show tips again, beside Sign out** | A closed tour has no other way back, and the help shows once per Account, not per device. A quiet Button before Sign out in the Account dialog every area shares. It forgets every tour the Account has seen, on every device, says "Tips will show again" and closes the menu; each screen's tour then shows on its next visit | [`prototype-onboarding`](https://github.com/CristianCrane/empire-cleaning/tree/prototype-onboarding) | #293 |
 | Client > Home, a Quote, Home once booked | How does a first-time Client learn the portal without calling (#291)? | First-time Notices / spotlight tour / spotlight tour as a sheet on a phone / getting-started checklist | **Spotlight tour, the popover beside what it points at** | Nothing on the page may move: a Notice or a checklist pushes it down, and again once dismissed. The sheet hid what it pointed at on a phone. Three tours, once each: See your Quote on Home with a Quote waiting; Pay and book on a one-off Quote with a Deposit; How we get in, then Move or cancel, on Home once booked. The first one met leads with "Book, move and pay for your cleans here, no phone calls needed." (with Jennifer, #206) | [`prototype-onboarding`](https://github.com/CristianCrane/empire-cleaning/tree/prototype-onboarding) | #294 |
 | Office > Today, a Draft, a Job, the Schedule | How do new Office Staff learn the Office without Jennifer training them (#291 Q2)? | (the Client's pick, #294) | **The same spotlight tour, five tours** | Today: Needs attention, then the Jobs, Quotes and Money tiles, then the Schedule in the navigation. A one-off Quote's Draft: Service and prices, then Send. A Job has two, as it seldom has both at once and a tour needs every step on the screen: Answer for a new time, Offer to a Cleaner for one Needed. The Schedule: its days. The first one met leads with "Every request, clean and payment, and what needs you today." Today's empty list teaches: "Nothing needs you right now. When a Client asks for a Quote or a new time, or a Job needs a Cleaner, it shows up here." | [`prototype-onboarding`](https://github.com/CristianCrane/empire-cleaning/tree/prototype-onboarding) | #295 |
+| Office, Cleaner and Client > the account menu | Switching area felt broken: the URL changed at once, but the old area stayed on screen, and took taps, until the new one had asked who's signed in and loaded its Home (#310). | (talked through) a pending state, the old area dimmed with a progress bar / preload on opening the menu, a fast press waiting in it | **Preload on opening the menu; a fast press waits in it** | Opening the Account menu is when an area is chosen: it looks again at who's signed in and loads each area it offers, its Home included, so the press shows the area at once. Preloading alone fails someone who presses straight away (#180's lesson), so a press before it's ready keeps the menu open, the row pending and nothing else pressable, and the menu goes with the old area as the new one shows. No dimming or progress bar: on most switches there's nothing to wait for | (none) | #318 |
+| Every screen, message and email | The Office couldn't follow a paragraph-long warning about too few Cleaners free for a Job; many messages explained how the system works, and the glossary's capitalised terms read like a manual (#336). | (talked through) | **Everyday words; a problem says what's wrong, then how to fix it** | The Words rules above, and ADR-0027: each term people don't say gets a screen word on its glossary entry (cleaning hours, open job, card), labels go to sentence case. This overturns the words of earlier rows: #148's Cleaner Needed (an open job, to a Cleaner; the Office's "Needs 1 more cleaner" stays, in lowercase), the Payments row's "Payment Method" Button (a card), and ADR-0019's "screens and emails say Cleaner Needed". Each part of #336 changes its screens' words in its own PR, and the docs that quote them with it (the rules above that name labels, such as Today's "Send a Quote, Assign Staff", and the glossary's quotes) | — | #336 |
+| Office > Quote, its Draft and story; the Client's quote messages and email | An Office user found "Revision" and "updated quote" unclear while changing a sent quote: was it a new quote? (#336, the owner's feedback) | Change quote / Edit quote / New quote (asked) | **Change quote; a Revision is never a word on screen** | To a person there's one quote, which changes. The sent quote's Button is **Change quote**, its draft is a **Draft quote** ("Casey still sees the quote as you sent it until you send your changes."), and the story says **Quote sent** for each send. No screen, message or email says "updated quote", which names a second thing; the verb stays ("Being updated", "Your quote … has been updated") | — | #336 |
+| Every screen, on the test site | Where does the button for the owner's feedback go (#131), when the phone's tab bar, an ActionFooter and Toasts already hold the foot of the screen? | Sentry's floating button / a link in the test banner | **Sentry's floating button, lifted clear** | Always in reach, wherever the owner is on the page. On a phone it sits above the tab bar, and above an ActionFooter when a page has one, however many rows it wraps to; under every Dialog, Drawer and Toast, which cover it while they show. In the app's font and colours, and its light or dark rather than the device's. On a phone it's an icon (Sentry's), named Send feedback for screen readers | (talked through) | #131 |
+| Landing > every page, on the test site | The owner checks the landing pages' words (#206); where does the feedback button go there (#347)? | (talked through) | **Sentry's floating button, bottom right, as in the app** | Nothing on the landing pages is fixed, so Sentry's own corner is free; it wears the app's look (`@empire-cleaning/ui/feedback.css`), the site's light or dark, under any dialog | (none) | #347 |
+| Cleaner > Your Jobs, an Offer's page, a Job | How does a new Cleaner learn the Cleaner area without Jennifer showing them (#291)? | (the Client's pick, #294) | **The same spotlight tour, four tours** | Your Jobs: Next up, then Open job. Taking a Job is on the page each Offer opens, not the Offers list, which has nothing to press and whose Open to you shows even when empty: Can you take it? on a Job open to them, Offered to you on one the Office offered them. A Job has a second, apart, once it's started and its whole crew has confirmed (Mark done waits for them): Mark done, then Couldn't get in. The first one met leads with "Pick up work and find everything about each job in one place." Offers' empty Open to you teaches: "When a job needs someone while you're free, it shows here. Jobs the office offers you show at the top." | [`prototype-onboarding`](https://github.com/CristianCrane/empire-cleaning/tree/prototype-onboarding) | #296 |
+| Office > Quote, Draft | The Draft's room line ("has room", "too full", "not enough cleaners") was the browser's own check, which counted a plan change's own Jobs, so a new plan could be told its old plan's Job left no room when sending and accepting would fit it (#356). | Drop the replaced Jobs in the browser / the server answers, by the rule accepting asks (the user's pick) | **The server answers, on each save** | One rule for the Draft, the Sent Quote and accepting, so they can't drift. The room comes back with each save, as the prices do, so it's faded while a change is saved and hidden while the time or cleaners on screen aren't what was saved; it shows once a start has both a day and a time. Each line keys on one thing: "has room" only when every clean has, the shared "too full" or "not enough cleaners" when neither has for the same reason, and the one that's short named when the other fits, now with running past midnight too | (none) | #356 |
+| Office > Pick from the schedule | On a Draft changing a plan, the picker striped the plan's own Job's time "not enough cleaners free" while the room line under it said the day had room: the picker counted the Jobs the new terms replace, by its own copy of the rule (#365). | Send the picker the plan's Jobs to skip / never count the plan's Jobs / the server marks each start | **The server marks each start, every picker** | One rule for the line and the picker, as #356 chose for the line. Which Jobs a start replaces depends on the start (an old Job that starts before it stays), so the server answers every half hour of the days shown, for a Draft as last saved, and loads them again after each save. Every other picker (moving a Job, a Site Visit, a plan's visit) asks it too, so no picker keeps a copy. The words stay: "Striped times don't have enough cleaners free." A clean not yet priced shows no stripes until it is. The day's header still shows the hours as booked, the replaced Job among them | (none) | #365 |
 | Landing, Quote form, Client and Cleaner areas | The site says "Se habla español", but every screen and email was English. Which screens come in Spanish, and how does a person get theirs? | (talked through) | **Everything a Guest, Client or Cleaner sees, in their Preferred Language; the Office stays English** | Spanish twins of every landing page under `/es/`, switched in the header, never redirected. The portal and the Cleaner area follow the Client's or Staff member's Preferred Language, which a Guest's first Quote, asked for in Spanish, sets and anyone may change. Neutral Latin American Spanish, *usted* to Clients, *tú* to Cleaners, one Spanish word per glossary term. Labels are shortened to fit, never the layout squeezed (a rule above). ADR-0025 | — | #299 |

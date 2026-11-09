@@ -83,18 +83,18 @@ function Rule({ title, children }: { title: string; children: ReactNode }) {
 }
 
 const jobs = (
-  <List aria-label="Today's Jobs" onAction={() => {}}>
+  <List aria-label="Today's jobs" onAction={() => {}}>
     <ListItem
       id="1"
       title="9:00 AM · Maria Lopez"
       description="41-12 Austin St · Standard Clean"
-      end={<StatusBadge tone="info">Assigned</StatusBadge>}
+      end={<StatusBadge tone="info">Staffed</StatusBadge>}
     />
     <ListItem
       id="2"
       title="1:00 PM · Dev Patel"
       description="88 Grand St · Deep Clean"
-      end={<StatusBadge tone="warning">Unassigned</StatusBadge>}
+      end={<StatusBadge tone="warning">Needs cleaners</StatusBadge>}
     />
   </List>
 );
@@ -132,10 +132,10 @@ function SectionsNotCards() {
       </Rule>
       <div className="flex flex-col gap-4 md:flex-row">
         <Example verdict="Do">
-          <Section title="Today's Jobs">{jobs}</Section>
+          <Section title="Today's jobs">{jobs}</Section>
         </Example>
         <Example verdict="Don't">
-          <Card title="Tomorrow's Jobs">{jobs}</Card>
+          <Card title="Tomorrow's jobs">{jobs}</Card>
         </Example>
       </div>
       <div className="flex flex-col gap-4 md:flex-row">
@@ -187,19 +187,19 @@ function ActionFirstRows() {
           <List aria-label="Needs attention" onAction={() => {}}>
             <ListItem
               id="1"
-              title="Send a Quote"
+              title="Send a quote"
               description="Maria Lopez · 41-12 Austin St · asked Oct 26"
               start={<IconTile icon={ClipboardPenLine} tone="info" />}
             />
             <ListItem
               id="2"
-              title="Assign Staff"
+              title="Find cleaners"
               description="Dev Patel · 88 Grand St · Oct 28, 1:00 PM"
               start={<IconTile icon={UserX} tone="warning" />}
             />
             <ListItem
               id="3"
-              title="Collect the Balance"
+              title="Collect the balance"
               description="Nina Gold · $184.00 owed · 22 Pine St"
               start={<IconTile icon={CircleDollarSign} tone="danger" />}
             />
@@ -217,7 +217,7 @@ function ActionFirstRows() {
               id="2"
               title="Dev Patel"
               description="88 Grand St · Oct 28, 1:00 PM"
-              end={<StatusBadge tone="warning">Unassigned</StatusBadge>}
+              end={<StatusBadge tone="warning">Needs cleaners</StatusBadge>}
             />
             <ListItem
               id="3"
@@ -291,7 +291,7 @@ function WorkListsAreTables() {
       <Example verdict="Do">
         <div className="flex flex-col gap-4">
           <TextField
-            label="Search Quotes"
+            label="Search quotes"
             type="search"
             placeholder="Client, business or address"
           />
@@ -308,7 +308,7 @@ function WorkListsAreTables() {
               </Tab>
             </TabList>
             <TabPanel id="all">
-              <Table aria-label="Open Quotes">
+              <Table aria-label="Open quotes">
                 <TableHeader>
                   <Column isRowHeader>Client</Column>
                   <Column>Status</Column>
@@ -371,7 +371,7 @@ function QuietForms() {
                 Apartment
               </ChoiceTile>
               <ChoiceTile value="commercial" icon={Store}>
-                Business premises
+                A business
               </ChoiceTile>
             </ChoiceTiles>
             <TextField label="Street address" />
@@ -395,7 +395,7 @@ function QuietForms() {
           <div className="flex flex-col gap-4">
             <RadioGroup label="What needs cleaning?" defaultValue="home">
               <Radio value="home">A home</Radio>
-              <Radio value="commercial">Business premises</Radio>
+              <Radio value="commercial">A business</Radio>
             </RadioGroup>
             <RadioGroup label="Type of home" defaultValue="apartment">
               <Radio value="house">House</Radio>
@@ -423,7 +423,7 @@ function RecordsAsStories() {
           A page for something with a lifecycle, like a Quote, is a{" "}
           <code>Timeline</code>, newest first. Above it, what there is to do, in
           Notices. On top of it, <strong>Now</strong> holds the record as it
-          stands, in one Card (the Current Quote). Below, each thing that
+          stands, in one Card (the Current quote). Below, each thing that
           happened to it, dated, with its details folded away until they're
           wanted. Work in progress isn't part of the story: a Draft is written
           on a page of its own, one Card ruled off into parts, and the Quote
@@ -444,26 +444,26 @@ function RecordsAsStories() {
               <strong>Waiting for Max to accept.</strong> He needs a card saved
               first.
             </Notice>
-            <Timeline aria-label="A Quote's story, newest first">
+            <Timeline aria-label="A quote's story, newest first">
               <TimelineItem icon={FileClock} title="Now" current>
                 <Card>
-                  <p>Current Quote: Standard Clean, $194.89</p>
+                  <p>Current quote: Standard Clean, $194.89</p>
                 </Card>
               </TimelineItem>
               <TimelineItem
                 icon={Send}
-                title="Revision 1 sent"
+                title="Quote sent"
                 when="Oct 3"
                 description="$194.89 · for Tue, Oct 13, 9:00 AM"
               />
               <TimelineItem
                 icon={CalendarCheck}
-                title="Site Visit done"
+                title="Site visit done"
                 when="Oct 2"
               />
               <TimelineItem
                 icon={MessageSquareText}
-                title="Max asked for a Quote"
+                title="Max asked for a quote"
                 when="Oct 1"
               />
             </Timeline>
@@ -481,7 +481,7 @@ function RecordsAsStories() {
               <p>$48.72</p>
             </Card>
             <Button variant="secondary" className="self-end">
-              Draft a new Revision
+              Change quote
             </Button>
           </div>
         </Example>
@@ -499,8 +499,8 @@ function NoticesHoldOneAction() {
           is a <code>text</code> Button (<code>danger-text</code> to remove
           something), on the right of its text. One action per Notice: two
           things to say or do are two Notices, and an action that doesn't fit
-          one belongs where it acts (Draft a new Revision on the Current Quote,
-          Delete the Draft in the Draft's header).
+          one belongs where it acts (Change quote on the Current quote, Delete
+          the draft in the draft's header).
         </p>
         <p>
           A page has at most one primary Button: once there are two, neither is
@@ -515,11 +515,11 @@ function NoticesHoldOneAction() {
               action={
                 <Button variant="text" size="sm">
                   <Pencil aria-hidden size={16} />
-                  Continue the Draft
+                  Carry on with the draft
                 </Button>
               }
             >
-              <strong>Revision 2 is a Draft, not sent yet.</strong>
+              <strong>This draft isn't sent yet.</strong>
             </Notice>
             <Notice
               action={
@@ -529,21 +529,23 @@ function NoticesHoldOneAction() {
                 </Button>
               }
             >
-              <strong>Waiting for Kim to accept Revision 1.</strong> She needs a
-              card saved first.
+              <strong>
+                Waiting for Kim to accept the quote you sent.
+              </strong>{" "}
+              They need to save a card first.
             </Notice>
           </div>
         </Example>
         <Example verdict="Don't">
           <Notice>
             <p>
-              <strong>Revision 2 is a Draft.</strong> Kim needs a card saved to
-              accept Revision 1.
+              <strong>This draft isn't sent yet.</strong> Kim needs to save a
+              card to accept the quote you sent.
             </p>
             <div className="flex gap-2 pt-2">
-              <Button>Continue the Draft</Button>
+              <Button>Carry on with the draft</Button>
               <Button>Email Kim a link</Button>
-              <Button variant="danger-text">Delete the Draft</Button>
+              <Button variant="danger-text">Delete the draft</Button>
             </div>
           </Notice>
         </Example>
@@ -581,7 +583,7 @@ function RowsOpenOneDialog() {
       </Rule>
       <div className="flex flex-col gap-4 lg:flex-row">
         <Example verdict="Do">
-          <Table aria-label="Adjustments" onRowAction={() => {}}>
+          <Table aria-label="Price changes" onRowAction={() => {}}>
             <TableHeader>
               <Column isRowHeader>What</Column>
               <Column>Change</Column>
@@ -594,7 +596,7 @@ function RowsOpenOneDialog() {
                 <Cell>Not done</Cell>
                 <Cell>−$29.94</Cell>
                 <Cell>
-                  <StatusBadge tone="success">Applied</StatusBadge>
+                  <StatusBadge tone="success">Added</StatusBadge>
                 </Cell>
               </Row>
               <Row id="time">
@@ -609,7 +611,7 @@ function RowsOpenOneDialog() {
           </Table>
         </Example>
         <Example verdict="Don't">
-          <List aria-label="Adjustments">
+          <List aria-label="Price changes">
             <ListItem
               id="time"
               title="1 extra hour: $59.88"
@@ -661,10 +663,10 @@ function AllAtOnceInTwoColumns() {
         <div className="flex flex-col gap-4">
           <Section title="Job">
             <Card>
-              <p>Deep Clean · 6 Labour Hours · crew of 2</p>
+              <p>Deep Clean · 6 cleaning hours · crew of 2</p>
             </Card>
           </Section>
-          <Section title="Crew" description="1 of 2 Cleaners Confirmed">
+          <Section title="Crew" description="1 of 2 cleaners confirmed">
             <List aria-label="Crew">
               <ListItem
                 id="ben"
@@ -684,7 +686,7 @@ function AllAtOnceInTwoColumns() {
             <Timeline aria-label="History, newest first">
               <TimelineItem
                 icon={CalendarCheck}
-                title="Ben Cleaner Confirmed"
+                title="Ben Cleaner confirmed"
                 when="Oct 21"
               />
               <TimelineItem
@@ -714,8 +716,8 @@ function ToursPointNeverPush() {
         },
         {
           element: quote.current ?? undefined,
-          title: "Your Quote",
-          text: "Open it to choose your clean and book. You pay only the Deposit today.",
+          title: "Your quote",
+          text: "Open it to choose your clean and book. You only pay the deposit today.",
         },
       ],
       () => (stop.current = undefined),
@@ -746,12 +748,12 @@ function ToursPointNeverPush() {
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="flex flex-col gap-1">
                   <Heading level={2} size={4} className="text-fg-muted">
-                    Your Quote is ready
+                    Your quote is ready
                   </Heading>
                   <p className="text-xl font-semibold">Standard Clean, $180</p>
                 </div>
                 <div ref={quote}>
-                  <Button>See your Quote</Button>
+                  <Button>See your quote</Button>
                 </div>
               </div>
             </Card>
@@ -769,17 +771,17 @@ function ToursPointNeverPush() {
                 </Button>
               }
             >
-              Your Quote is waiting. Open it to choose your clean and book.
+              Your quote is waiting. Open it to choose your clean and book.
             </Notice>
             <Card>
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="flex flex-col gap-1">
                   <Heading level={2} size={4} className="text-fg-muted">
-                    Your Quote is ready
+                    Your quote is ready
                   </Heading>
                   <p className="text-xl font-semibold">Standard Clean, $180</p>
                 </div>
-                <Button>See your Quote</Button>
+                <Button>See your quote</Button>
               </div>
             </Card>
           </div>
@@ -807,19 +809,20 @@ function EmptyStatesOfferTheAction() {
           what's missing and offers the action that adds it, as a primary
           Button. When the action would be refused, say why in an info{" "}
           <code>Notice</code> in its place, with a link to what's in the way,
-          rather than a Button that fails.
+          rather than a Button that fails. Inside a Section, it never says again
+          what the Section's description above it already says.
         </p>
       </Rule>
       <div className="flex flex-col gap-4 md:flex-row">
         <Example verdict="Do">
           <EmptyState
             icon={Repeat}
-            title="No Service Plan"
+            title="No cleaning plan"
             description="Quote regular cleaning."
           >
             <Button>
               <Repeat aria-hidden size={18} />
-              Quote a Service Plan
+              Quote a cleaning plan
             </Button>
           </EmptyState>
         </Example>
@@ -839,10 +842,14 @@ function StatusColours() {
     [
       "success",
       "finished well, or running as it should",
-      ["Completed", "Done", "Active", "Confirmed"],
+      ["Done", "Active", "Confirmed"],
     ],
-    ["warning", "someone needs to act", ["Requested", "Unassigned", "Expired"]],
-    ["danger", "went wrong", ["No Access", "Unpaid"]],
+    [
+      "warning",
+      "someone needs to act",
+      ["Requested", "Needs cleaners", "Expired"],
+    ],
+    ["danger", "went wrong", ["Couldn't get in", "Unpaid"]],
     [
       "neutral",
       "not going ahead, or not live yet",
@@ -980,11 +987,11 @@ function WhatsNextFirst() {
         </Example>
         <Example verdict="Don't">
           {[
-            "Your Bills",
-            "Your Service Plan",
-            "Your upcoming Jobs",
-            "Your past Jobs",
-            "Your Quotes",
+            "Your bills",
+            "Your cleaning plan",
+            "Your upcoming cleans",
+            "Your past cleans",
+            "Your quotes",
             "Your homes",
           ].map((title) => (
             <Card key={title} title={title}>
@@ -1136,7 +1143,7 @@ function DetailsPage() {
         <Section title="Need another time?">
           <Card>
             <ActionRow
-              actions={<Button variant="secondary">Choose a new time</Button>}
+              actions={<Button variant="secondary">Pick a new time</Button>}
             >
               <p>
                 You can move it for free until{" "}
@@ -1277,7 +1284,7 @@ export const ToursPointNeverPushStory: Story = {
       within(welcome).getByRole("button", { name: "Next" }),
     );
     // each step fades in
-    const quote = await page.findByRole("dialog", { name: "Your Quote" });
+    const quote = await page.findByRole("dialog", { name: "Your quote" });
     await waitFor(() => expect(quote).toBeVisible());
   },
 };

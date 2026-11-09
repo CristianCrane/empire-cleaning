@@ -6,6 +6,7 @@ import type {
   ClientView,
   OfficeClientView,
 } from "@empire-cleaning/models";
+import { HOUR_MS } from "@empire-cleaning/models";
 import { clock } from "#services/clock";
 import { rateLimit, tooManyTries } from "#services/rate-limit";
 import { db } from "../../db/index.ts";
@@ -63,6 +64,10 @@ export const createClient = async ({
     .where(eq(clients.id, client!.id));
   return connected!;
 };
+
+// an email another Client already has, refused when one is given or confirmed
+export const EMAIL_TAKEN =
+  "That email belongs to another client. Please use a different one.";
 
 export const findClientByEmail = async (email: string) => {
   const [client] = await db
@@ -135,7 +140,7 @@ export const changeOwnEmail = async (
     email: address,
     tokenHash: hashOf(token),
     expiresAt: new Date(
-      clock.now().getTime() + EMAIL_CHANGE_TTL_HOURS * 3_600_000,
+      clock.now().getTime() + EMAIL_CHANGE_TTL_HOURS * HOUR_MS,
     ),
   };
   await db
@@ -166,7 +171,7 @@ export const confirmEmailChange = async (token: string) =>
       .from(clients)
       .where(eq(clients.email, change.email));
     if (other && other.id !== change.clientId) {
-      throw new ConflictError("That email is already used by another Client");
+      throw new ConflictError(EMAIL_TAKEN);
     }
     await tx
       .update(clients)

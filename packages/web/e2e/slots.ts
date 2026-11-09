@@ -22,10 +22,10 @@ const workersFlag = () => {
 const MAX_SLOTS = 60;
 
 const workerCount = (value: string | undefined) => {
-  // half the CPU cores, up to 6: more weren't faster
-  if (value === undefined) {
-    return Math.max(1, Math.min(6, Math.floor(availableParallelism() / 2)));
-  }
+  // two: alone it's as fast as 6 for the specs a change touches, and two
+  // runs at once (two checkouts) stay green, where at 6 each both slowed and
+  // one failed (#309). CI's 4-core runners came to 2 already
+  if (value === undefined) return 2;
   const count = Number(value);
   if (!Number.isInteger(count) || count < 1 || count > MAX_SLOTS) {
     throw new Error(
@@ -39,8 +39,8 @@ const workerCount = (value: string | undefined) => {
 // Playwright starts, whose command lines don't have the flag
 export const WORKERS = workerCount(process.env.E2E_WORKERS ?? workersFlag());
 
-// the slots' databases: each API makes its own from this one's name and its
-// slot's number (packages/server/tests/e2e/server.ts)
+// the slots' databases are copies of this one, migrated for the run, numbered
+// by slot (packages/server/tests/e2e/servers.ts)
 export const E2E_DB_URL =
   "postgresql://postgres:password@localhost:5433/empire_e2e_test";
 

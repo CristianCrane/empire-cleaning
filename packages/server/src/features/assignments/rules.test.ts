@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import type { ScheduledJob, StaffRole } from "@empire-cleaning/models";
+import { DAY_MS, HOUR_MS } from "@empire-cleaning/models";
 import {
-  HOUR,
   NOW,
   THURSDAY_9AM,
   otherJob,
@@ -43,17 +43,17 @@ describe("Offering a Job", () => {
   test("refused once the Job has started", () => {
     const started = new Date(Date.parse(THURSDAY_9AM));
     expect(whyNotOffer(thursday(), "job", ana, started)).toBe(
-      "This Job has already started",
+      "This clean has already started, so you can't offer it to anyone.",
     );
   });
 
   test("refused to anyone but an active Cleaner", () => {
     expect(whyNotOffer(thursday(), "job", { ...ana, active: false }, NOW)).toBe(
-      "Ana Ruiz isn't an active Cleaner",
+      "Ana Ruiz can't take jobs. Pick an active cleaner.",
     );
     const office = { ...ana, roles: ["office_staff" as const] };
     expect(whyNotOffer(thursday(), "job", office, NOW)).toBe(
-      "Ana Ruiz isn't an active Cleaner",
+      "Ana Ruiz can't take jobs. Pick an active cleaner.",
     );
   });
 
@@ -62,23 +62,21 @@ describe("Offering a Job", () => {
       thursday({ jobs: [scheduled({ crew, crewSize })] });
     const anaOn = [{ id: "ana", name: "Ana Ruiz" }];
     expect(whyNotOffer(holding(anaOn), "job", ana, NOW)).toBe(
-      "Ana Ruiz is already on this Job",
+      "Ana Ruiz is already on this job.",
     );
     expect(whyNotOffer(holding(anaOn, 1), "job", bea, NOW)).toBe(
-      "This Job already has its Cleaner",
+      "This job already has all the cleaners it needs.",
     );
     const both = [...anaOn, { id: "cleo", name: "Cleo Diaz" }];
     expect(whyNotOffer(holding(both), "job", bea, NOW)).toBe(
-      "This Job already has all 2 Cleaners it needs",
+      "This job already has all the cleaners it needs.",
     );
   });
 
   test("refused when they aren't free for it", () => {
     expect(
       whyNotOffer(thursday({ jobs: [otherJob(1)] }), "job", ana, NOW),
-    ).toBe(
-      "Ana Ruiz isn't free then: they're on another Job or a Site Visit at that time, or have no hours that day",
-    );
+    ).toBe("Ana Ruiz isn't free then. Pick someone else.");
   });
 });
 
@@ -99,17 +97,17 @@ describe("Confirming an Offered Job", () => {
         undefined,
         new Date(THURSDAY_9AM),
       ),
-    ).toBe("This Job has already started");
+    ).toBe("This clean has already started, so you can't confirm it.");
     expect(
       whyNotConfirm(
         thursday(),
         "job",
         "ana",
-        new Date(Date.parse(THURSDAY_9AM) - HOUR),
+        new Date(Date.parse(THURSDAY_9AM) - HOUR_MS),
         NOW,
       ),
     ).toMatch(
-      /^This Job has moved to .+\. Please check the new time, then confirm again\.$/,
+      /^This job moved to .+\. Check the new time, then confirm again\.$/,
     );
     expect(
       whyNotConfirm(
@@ -120,32 +118,31 @@ describe("Confirming an Offered Job", () => {
         NOW,
       ),
     ).toBe(
-      "You're no longer free for this Job. Please release it, or call the Office.",
+      "You're not free for this job any more. Drop out of it, or call the office.",
     );
   });
 });
 
 describe("Releasing an Assignment", () => {
   const before = (hours: number) =>
-    new Date(Date.parse(THURSDAY_9AM) - hours * HOUR);
+    new Date(Date.parse(THURSDAY_9AM) - hours * HOUR_MS);
 
   test("an Offered one any time, a Confirmed one until 48 hours before", () => {
     expect(whyNotRelease("offered", job(), before(1))).toBeNull();
     expect(whyNotRelease("confirmed", job(), before(49))).toBeNull();
     expect(whyNotRelease("confirmed", job(), before(47))).toBe(
-      "A Confirmed Job can't be released within 48 hours of it. Please call the Office.",
+      "It's less than 48 hours until this job, so you can't drop out here. Please call the office.",
     );
   });
 });
 
 describe("Cleaners Needed", () => {
-  const DAY = 24 * HOUR;
   const startsAt = new Date(THURSDAY_9AM);
 
   test("are open from 7 days before a booked Job until it starts", () => {
     const at = (ms: number) => new Date(startsAt.getTime() - ms);
-    expect(neededOpen(job(), at(7 * DAY))).toBe(true);
-    expect(neededOpen(job(), at(7 * DAY + 1))).toBe(false);
+    expect(neededOpen(job(), at(7 * DAY_MS))).toBe(true);
+    expect(neededOpen(job(), at(7 * DAY_MS + 1))).toBe(false);
     expect(neededOpen(job(), at(1))).toBe(true);
     expect(neededOpen(job(), startsAt)).toBe(false);
     expect(neededOpen(job({ status: "cancelled" }), NOW)).toBe(false);
@@ -207,29 +204,29 @@ describe("Cleaners Needed", () => {
           undefined,
           NOW,
         ),
-      ).toBe("This Job isn't open any more");
+      ).toBe("This job isn't available any more.");
       expect(
         whyNotTakeCleanerNeeded(job(), "ana", open, undefined, startsAt),
-      ).toBe("This Job isn't open any more");
+      ).toBe("This job isn't available any more.");
       expect(
         whyNotTakeCleanerNeeded(
           job(),
           "ana",
           open,
-          new Date(startsAt.getTime() + HOUR),
+          new Date(startsAt.getTime() + HOUR_MS),
           NOW,
         ),
-      ).toMatch(/^This Job has moved to /);
+      ).toMatch(/^This job moved to /);
     });
 
     test("refused when it needs no Cleaner: not open yet, or taken", () => {
-      const early = new Date(startsAt.getTime() - 8 * DAY);
+      const early = new Date(startsAt.getTime() - 8 * DAY_MS);
       expect(
         whyNotTakeCleanerNeeded(job(), "ana", undefined, undefined, early),
-      ).toBe("This Job isn't open to Cleaners yet");
+      ).toBe("This job isn't open yet. Check back later.");
       expect(
         whyNotTakeCleanerNeeded(job(), "ana", undefined, undefined, NOW),
-      ).toBe("Someone else took this Job");
+      ).toBe("Someone else already took this job.");
     });
 
     test("refused, saying why, when it isn't open to them", () => {
@@ -241,9 +238,11 @@ describe("Cleaners Needed", () => {
           undefined,
           NOW,
         );
-      expect(refused("released")).toBe("You released this Job");
-      expect(refused("offered")).toBe("You're already on this Job");
-      expect(refused()).toBe("You're no longer free for this Job");
+      expect(refused("released")).toBe(
+        "You dropped out of this job, so you can't take it back.",
+      );
+      expect(refused("offered")).toBe("You're already on this job.");
+      expect(refused()).toBe("You're not free for this job any more.");
     });
   });
 });

@@ -1,14 +1,21 @@
 import type {
-  AdjustmentKind,
+  AssignmentState,
+  AssignmentStatus,
   ClientName,
   Condition,
   HomeRooms,
+  JobStatus,
   PlanDaySummary,
   PropertyView,
+  QuoteKind,
   QuoteSummary,
+  QuoteStatus,
   Recurrence,
+  ServicePlanStatus,
   Weekday,
 } from "@empire-cleaning/models";
+import { BUSINESS_TIME_ZONE, dayOf, timeOf } from "@empire-cleaning/models";
+import type { StatusTone } from "@empire-cleaning/ui";
 
 export const addressOf = (
   p: Pick<PropertyView, "street" | "unit" | "postcode">,
@@ -18,7 +25,9 @@ const date = new Intl.DateTimeFormat("en-US", {
   month: "short",
   day: "numeric",
   year: "numeric",
+  timeZone: BUSINESS_TIME_ZONE,
 });
+// an instant -> "Nov 3, 2026", the day it was in New York
 export const formatDate = (iso: string) => date.format(new Date(iso));
 
 export const conditionLabel: Record<Condition, string> = {
@@ -29,9 +38,17 @@ export const conditionLabel: Record<Condition, string> = {
 
 // business premises have none until a Site Visit records it
 export const conditionText = (condition: Condition | null) =>
-  condition ? conditionLabel[condition] : "Not recorded yet";
+  condition ? conditionLabel[condition] : "Not known yet";
 
 const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
+
+// so many cleaners, e.g. "1 cleaner", "2 more cleaners", "3 free cleaners"
+export const cleaners = (n: number, which?: "more" | "free") =>
+  plural(n, which ? `${which} cleaner` : "cleaner");
+
+// a Job's crew, or that it has none yet
+export const crewOf = (crew: { name: string }[]) =>
+  crew.map((c) => c.name).join(", ") || "No cleaners yet";
 
 const sqFt = new Intl.NumberFormat("en-US");
 // 4500 -> "4,500 sq ft"
@@ -118,11 +135,11 @@ export const formatHours = (hours: number) => `${hours} h`;
 
 export const roleLabel = {
   cleaner: "Cleaner",
-  office_staff: "Office Staff",
+  office_staff: "Office staff",
 };
 
 // Empire Cleaning's days and times are New York's, wherever the viewer is
-const BUSINESS_TIME_ZONE = "America/New_York";
+// (BUSINESS_TIME_ZONE); the API sends instants as ISO strings
 
 const dayFormat = new Intl.DateTimeFormat("en-US", {
   weekday: "short",
@@ -151,23 +168,8 @@ const timeFormat = new Intl.DateTimeFormat("en-US", {
 // an instant -> "9:00 AM" in New York
 export const formatTime = (iso: string) => timeFormat.format(new Date(iso));
 
-const dayParts = new Intl.DateTimeFormat("en-CA", {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  timeZone: BUSINESS_TIME_ZONE,
-});
 // today in New York: "2026-01-05"
-export const today = () => dayParts.format(new Date());
-
-export const addDays = (day: string, days: number) =>
-  new Date(Date.parse(`${day}T00:00:00Z`) + days * 86_400_000)
-    .toISOString()
-    .slice(0, 10);
-
-// the Monday of the week a day is in
-export const mondayOf = (day: string) =>
-  addDays(day, -((new Date(`${day}T00:00:00Z`).getUTCDay() + 6) % 7));
+export const today = () => dayOf(new Date());
 
 const dateTimeFormat = new Intl.DateTimeFormat("en-US", {
   weekday: "short",
@@ -181,6 +183,10 @@ const dateTimeFormat = new Intl.DateTimeFormat("en-US", {
 export const formatDateTime = (iso: string) =>
   dateTimeFormat.format(new Date(iso));
 
+// what kind of Quote it is, as a title says it
+export const quoteKindName = (kind: QuoteKind | null) =>
+  kind === "service_plan" ? "Cleaning plan quote" : "Quote";
+
 export const quoteStatusLabel = {
   requested: "Requested",
   draft: "Draft",
@@ -188,7 +194,32 @@ export const quoteStatusLabel = {
   accepted: "Accepted",
   declined: "Declined",
   expired: "Expired",
-  turned_down: "Turned Down",
+  turned_down: "Turned down",
+};
+
+// a Quote's state as its Client sees it: one being drafted is still asked for
+export const clientQuoteStatus: Record<
+  QuoteStatus,
+  { tone: StatusTone; label: string }
+> = {
+  requested: { tone: "info", label: "Asked for" },
+  draft: { tone: "info", label: "Asked for" },
+  sent: { tone: "warning", label: "To answer" },
+  accepted: { tone: "success", label: "Accepted" },
+  declined: { tone: "neutral", label: "Declined" },
+  expired: { tone: "neutral", label: "Expired" },
+  turned_down: { tone: "neutral", label: "Turned down" },
+};
+
+// a Service Plan's state, as both sides see it; Ended is red, stopped for
+// good
+export const planStatus: Record<
+  ServicePlanStatus,
+  { tone: StatusTone; label: string }
+> = {
+  active: { tone: "success", label: "Active" },
+  on_hold: { tone: "warning", label: "Paused" },
+  ended: { tone: "danger", label: "Ended" },
 };
 
 export const quoteStatusTone = {
@@ -204,27 +235,11 @@ export const quoteStatusTone = {
 // for NumberField's formatOptions on prices
 export const dollars = { style: "currency", currency: "USD" } as const;
 
-// what was reported: "Inside the oven, not done", "1.5 extra hours"
-export const adjustmentLabel = (a: {
-  kind: AdjustmentKind;
-  addOnName: string | null;
-  hours: number | null;
-}) =>
-  a.kind === "extra_time"
-    ? `${a.hours} extra ${a.hours === 1 ? "hour" : "hours"}`
-    : `${a.addOnName}, ${a.kind === "add_on_done" ? "done on the day" : "not done"}`;
-
-const clockParts = new Intl.DateTimeFormat("en-US", {
-  hour: "2-digit",
-  minute: "2-digit",
-  hourCycle: "h23",
-  timeZone: BUSINESS_TIME_ZONE,
-});
 // an instant -> its New York wall-clock time, "09:00"
-export const timeOfDay = (iso: string) => clockParts.format(new Date(iso));
+export const timeOfDay = (iso: string) => timeOf(new Date(iso));
 
 // an instant -> the New York day it falls on, "2026-01-12"
-export const dayOfInstant = (iso: string) => dayParts.format(new Date(iso));
+export const dayOfInstant = (iso: string) => dayOf(new Date(iso));
 
 // "09:00" -> "9:00 AM"
 export const formatClock = (time: string) => {
@@ -238,19 +253,12 @@ export const recurrenceLabel: Record<Recurrence, string> = {
   four_weekly: "Every 4 weeks",
 };
 
-// how many weeks apart a Service Plan's cleans are
-export const recurrenceWeeks: Record<Recurrence, number> = {
-  weekly: 1,
-  fortnightly: 2,
-  four_weekly: 4,
-};
-
 const weekdayFormat = new Intl.DateTimeFormat("en-US", {
   weekday: "long",
   timeZone: "UTC",
 });
 // "2026-01-05" -> "Monday"
-export const weekdayOf = (day: string) =>
+export const weekdayName = (day: string) =>
   weekdayFormat.format(new Date(`${day}T00:00:00Z`));
 
 // a Service Plan, or a Service Plan Quote, with its weekdays
@@ -258,7 +266,7 @@ type PlanDays = { recurrence: Recurrence; days: PlanDaySummary[] };
 
 // "Monday", or a Draft's weekday that has no time yet
 const weekdayOfStart = (startsAt: string | null) =>
-  startsAt ? weekdayOf(dayOfInstant(startsAt)) : null;
+  startsAt ? weekdayName(dayOfInstant(startsAt)) : null;
 
 const listed = (items: string[]) =>
   items.length > 1
@@ -279,17 +287,21 @@ export const planName = ({ recurrence, days }: PlanDays) => {
     : `${what}, every week${on.length > 0 ? ` on ${listed(on)}` : ""}`;
 };
 
-// how a Quote reads in a list: "Deep Clean $391.04", or "Service Plan,
+// how a Quote reads in a list: "Deep Clean $391.04", the Service it leads
+// with, or "Cleaning plan,
 // Standard Clean, every 2 weeks: $201.85 a clean", or for several weekdays
 // "...: $650.10 a week"
 export const quoteHeadline = (
-  quote: Pick<QuoteSummary, "headlineTotalCents" | "plan">,
+  quote: Pick<
+    QuoteSummary,
+    "headlineTotalCents" | "headlineServiceName" | "plan"
+  >,
 ) =>
   quote.headlineTotalCents === null
     ? "Not priced yet"
     : quote.plan
-      ? `Service Plan, ${planName(quote.plan)}: ${formatMoney(quote.headlineTotalCents)} ${quote.plan.days.length === 1 ? "a clean" : "a week"}`
-      : `Deep Clean ${formatMoney(quote.headlineTotalCents)}`;
+      ? `Cleaning plan, ${planName(quote.plan)}: ${formatMoney(quote.headlineTotalCents)} ${quote.plan.days.length === 1 ? "a clean" : "a week"}`
+      : `${quote.headlineServiceName} ${formatMoney(quote.headlineTotalCents)}`;
 
 // when a Service Plan's cleans come round, each weekday from its first:
 // "Every week, on Mondays at 9:00 AM", or "Every week, on Mondays at 9:00 AM
@@ -313,3 +325,67 @@ export const siteVisitStatusLabel = {
   done: "Done",
   cancelled: "Cancelled",
 } as const;
+
+// A Job's status in the tones every status takes: booked is just so, done
+// went well, cancelled is over, No Access went wrong (JobStatusBadge)
+export const jobStatusLabel: Record<JobStatus, string> = {
+  booked: "Booked",
+  completed: "Done",
+  cancelled: "Cancelled",
+  no_access: "Couldn't get in",
+};
+
+// a plan Job its Client cancelled on its own is skipped: the plan carries
+// on. One cancelled as the plan ended or changed isn't
+export const wasSkipped = (job: {
+  servicePlanId: string | null;
+  cancellation: { by: string; withPlan: boolean } | null;
+}) =>
+  job.servicePlanId !== null &&
+  job.cancellation?.by === "client" &&
+  !job.cancellation.withPlan;
+export const cancelledLabel = (skipped: boolean) =>
+  skipped ? "Skipped" : "Cancelled";
+
+export const jobStatusTone = {
+  booked: "info",
+  completed: "success",
+  cancelled: "neutral",
+  no_access: "danger",
+} as const satisfies Record<JobStatus, string>;
+
+// whether a booked Job's crew is whole, as the Office sees it (JobBadge)
+export const crewLabel: Record<AssignmentStatus, string> = {
+  assigned: "Staffed",
+  unassigned: "Needs cleaners",
+};
+
+export const crewTone = {
+  assigned: "info",
+  unassigned: "warning",
+} as const satisfies Record<AssignmentStatus, string>;
+
+// how a Job reads for Office Staff: how it went, or while it's booked,
+// whether its crew is whole (JobBadge, the Schedule's blocks)
+export const jobLabelOf = (job: {
+  status: JobStatus;
+  assignment: AssignmentStatus;
+}) =>
+  job.status === "booked"
+    ? { label: crewLabel[job.assignment], tone: crewTone[job.assignment] }
+    : { label: jobStatusLabel[job.status], tone: jobStatusTone[job.status] };
+
+// where someone stands on a Job's crew
+export const assignmentStateLabel: Record<AssignmentState, string> = {
+  offered: "Offered",
+  confirmed: "Confirmed",
+  released: "Dropped out",
+  taken_off: "Taken off",
+};
+
+export const assignmentStateTone = {
+  offered: "warning",
+  confirmed: "success",
+  released: "neutral",
+  taken_off: "neutral",
+} as const satisfies Record<AssignmentState, string>;

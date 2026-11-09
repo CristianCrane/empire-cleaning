@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { expect, fn } from "storybook/test";
+import { expect, fn, within } from "storybook/test";
 import { Avatar } from "./Avatar.tsx";
 import { List, ListItem } from "./List.tsx";
 import { StatusBadge } from "./StatusBadge.tsx";
@@ -7,7 +7,7 @@ import { StatusBadge } from "./StatusBadge.tsx";
 const meta = {
   title: "Components/List",
   component: List,
-  args: { "aria-label": "Today's Jobs", onAction: fn() },
+  args: { "aria-label": "Today's jobs", onAction: fn() },
 } satisfies Meta<typeof List>;
 
 export default meta;
@@ -20,8 +20,8 @@ export const Default: Story = {
       <ListItem
         id="1"
         title="41-12 Austin St"
-        description="9:00 AM · Deep Clean · 2 Cleaners"
-        end={<StatusBadge tone="success">Completed</StatusBadge>}
+        description="9:00 AM · Deep Clean · 2 cleaners"
+        end={<StatusBadge tone="success">Done</StatusBadge>}
       />
       <ListItem
         id="2"
@@ -33,7 +33,7 @@ export const Default: Story = {
         id="3"
         title="35-06 Ditmars Blvd"
         description="3:00 PM · Standard Clean"
-        end={<StatusBadge tone="warning">No Access</StatusBadge>}
+        end={<StatusBadge tone="danger">Couldn't get in</StatusBadge>}
       />
     </List>
   ),
@@ -66,7 +66,7 @@ export const WithAvatars: Story = {
       <ListItem
         id="2"
         title="Olive Owner"
-        description="Office Staff · olive@example.com"
+        description="Office · olive@example.com"
         start={<Avatar />}
         end={<StatusBadge tone="info">Invited</StatusBadge>}
       />
@@ -79,10 +79,38 @@ export const Empty: Story = {
     <List
       {...args}
       renderEmptyState={() => (
-        <p className="p-6 text-center text-fg-muted">No Jobs today.</p>
+        <p className="p-6 text-center text-fg-muted">No jobs today.</p>
       )}
     >
       {[]}
     </List>
   ),
+};
+
+// pressed, and what it opens is on its way, e.g. switching area from the
+// Account menu before the area is ready
+export const Pending: Story = {
+  render: (args) => (
+    <List {...args} aria-label="Switch to">
+      <ListItem
+        id="portal"
+        title="Switch to Client portal"
+        isPending
+        isDisabled
+      />
+      <ListItem id="cleaner" title="Switch to Cleaner area" isDisabled />
+    </List>
+  ),
+  play: async ({ canvas }) => {
+    await expect(
+      within(
+        canvas.getByRole("row", { name: /Switch to Client portal/ }),
+      ).getByRole("status"),
+    ).toHaveTextContent("Opening");
+    await expect(
+      within(
+        canvas.getByRole("row", { name: /Switch to Cleaner area/ }),
+      ).getByRole("status"),
+    ).toBeEmptyDOMElement();
+  },
 };

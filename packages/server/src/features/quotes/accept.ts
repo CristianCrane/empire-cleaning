@@ -1,13 +1,13 @@
 import { and, desc, eq, isNull } from "drizzle-orm";
-import { z } from "zod";
 import type { QuoteOption, QuoteStatus } from "@empire-cleaning/models";
+import { dayOf } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import {
   ConflictError,
+  fieldError,
   NotFoundError,
-  RequestBodyError,
 } from "../../middleware/errors.ts";
-import { clock, dayOf } from "../../services/clock/index.ts";
+import { clock } from "../../services/clock/index.ts";
 import { email, formatWhen } from "../../services/email/index.ts";
 import {
   paymentGateway,
@@ -30,6 +30,7 @@ import {
 } from "../payments/money.ts";
 import { idempotencyKey } from "../payments/keys.ts";
 import { charges } from "../payments/payments.schema.ts";
+import { whyNotPaid } from "../payments/unpaid.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
 import {
@@ -55,7 +56,7 @@ import {
 } from "./emails.ts";
 import { lockProperty } from "../properties/locking.ts";
 import { warnOfficeOfQuotesWithoutRoom } from "./quote-room.ts";
-import { offers, statusOf } from "./quote-state.ts";
+import { offers, statusOf, whatClosed } from "./quote-state.ts";
 import { whyClosed, whyUnbookable, type Unbookable } from "./rules.ts";
 import {
   dropDraftRevision,
@@ -79,23 +80,23 @@ export type Acceptor =
   | { by: "client"; clientId: string; accountId: string }
   | { by: "office"; accountId: string };
 
+// the payment provider couldn't be reached
+const PAYMENT_DOWN =
+  "Something went wrong taking the payment, so nothing was booked. Please try again in a few minutes.";
+
 export type AcceptResult =
   | { status: "accepted"; job: Job }
   | { status: "needs_approval"; secret: string };
 
-const closedMessage = (status: QuoteStatus, acceptor: Acceptor["by"]) =>
-  ({
-    requested: "Send the Quote before recording its acceptance.",
-    draft: "Send the Quote before recording its acceptance.",
-    sent: "",
-    accepted: "This Quote has already been accepted.",
-    declined: "This Quote was declined, so it can't be accepted.",
-    expired:
-      acceptor === "client"
-        ? "This Quote has expired, so it can't be accepted. Ask us for a new Quote and we'll find another time."
-        : "This Quote has expired, so it can't be accepted. Send a new one.",
-    turned_down: "This Quote was Turned Down, so it can't be accepted.",
-  })[status];
+// what happened (whatClosed), then what to do: the Client asks us for a new
+// Quote, and the Office sends one
+const closedMessage = (status: QuoteStatus, acceptor: Acceptor["by"]) => {
+  if (status === "requested" || status === "draft") {
+    return `${whatClosed(status)} Send it first.`;
+  }
+  if (status === "accepted") return whatClosed(status);
+  return `${whatClosed(status)} ${acceptor === "client" ? "Ask us for a new one." : "Send a new one."}`;
+};
 
 // only a Sent Quote's offer, `revisionId`, can be Accepted, and only before
 // it Expires (whyClosed, as booking checks again under the lock)
@@ -120,21 +121,19 @@ const unbookableMessage = (unbookable: Unbookable, acceptor: Acceptor) => {
     return closedMessage(unbookable.status, acceptor.by);
   }
   if (unbookable.reason === "revised") {
-    return acceptor.by === "client"
-      ? "This Quote has just been updated, so nothing has been booked. Please reload the page to see it."
-      : "A newer Revision of this Quote was just sent, so nothing was booked. Reload the page to see it.";
+    return "This quote was just updated, so nothing was booked. Please reload the page to see it.";
   }
   if (
     unbookable.reason === "has_plan" ||
     unbookable.reason === "plan_changed"
   ) {
     return acceptor.by === "client"
-      ? "This home's Service Plan changed just then, so nothing has been booked. Please reload the page and try again."
-      : "This home's Service Plan changed just then, so nothing was booked. Reload the page and try again.";
+      ? "Your cleaning plan changed just now, so nothing was booked. Please reload the page and try again."
+      : "This home's cleaning plan changed just now, so nothing was booked. Reload the page and try again.";
   }
   return acceptor.by === "client"
-    ? "Sorry, that time has just been booked up, so nothing has been charged. We'll be in touch with another time."
-    : "That day no longer has room for this Job, so nothing was charged. Send a Quote for another time.";
+    ? "Sorry, that time just got booked up, so nothing was charged. We'll be in touch with another time."
+    : "That day is now too full for this job, so nothing was charged. Send a quote for another time.";
 };
 
 const findForAcceptance = async (id: string) => {
@@ -186,15 +185,9 @@ const offerFor = async (
   if (revision.kind === "one_off") {
     const row = rows.find((r) => r.serviceKey === serviceKey);
     if (!row) {
-      throw new RequestBodyError(
-        new z.ZodError([
-          {
-            code: "custom",
-            path: ["serviceKey"],
-            message: `Choose ${rows.map((r) => `a ${r.suggested.serviceName}`).join(" or ")}`,
-            input: undefined,
-          },
-        ]),
+      throw fieldError(
+        ["serviceKey"],
+        `Pick ${rows.map((r) => `a ${r.suggested.serviceName}`).join(" or ")}`,
       );
     }
     const option = toOption(revision, row);
@@ -215,7 +208,7 @@ const offerFor = async (
   // a Service Plan Quote offers its weekdays' Services, and only those
   if (serviceKey && !rows.some((r) => r.serviceKey === serviceKey)) {
     throw new ConflictError(
-      `This Service Plan is for ${describeServices(rows.map((r) => r.suggested.serviceName))}.`,
+      `This cleaning plan is for ${describeServices(rows.map((r) => r.suggested.serviceName))}.`,
     );
   }
   const cleans = rows.map((row) => ({
@@ -403,7 +396,7 @@ const recordAcceptance = async (
 
 const describe = ({ revision, property, offer }: Booking) =>
   revision.kind === "service_plan"
-    ? `Deposit: Service Plan at ${addressOf(property)}, from ${formatWhen(revision.proposedStartsAt!)}`
+    ? `Deposit: cleaning plan at ${addressOf(property)}, from ${formatWhen(revision.proposedStartsAt!)}`
     : `Deposit: ${offer.cleans[0]!.option.serviceName} at ${addressOf(property)}, ${formatWhen(revision.proposedStartsAt!)}`;
 
 /**
@@ -473,8 +466,8 @@ export const acceptQuote = async (
   if (!token && !saved) {
     throw new ConflictError(
       acceptor.by === "client"
-        ? "Enter a card to accept this Quote."
-        : `${client.name} hasn't added a Payment Method yet. Email them a link to add one.`,
+        ? "Add a card to accept this quote."
+        : `${client.name} hasn't added a card yet. Email them a link to add one.`,
     );
   }
 
@@ -543,12 +536,14 @@ export const acceptQuote = async (
       if (attempt.status === "failed") {
         // the Client is told only that their card wasn't charged
         log.info(`Deposit for Quote ${id} not taken (${attempt.reason})`);
+        const { kind, why } = whyNotPaid(attempt.reason);
+        const because = why ? ` (${why})` : "";
         throw new ConflictError(
-          acceptor.by === "client"
-            ? attempt.reason === UNREACHABLE
-              ? "We couldn't reach our payment provider, so nothing has been booked. Please try again in a few minutes."
-              : "Your card couldn't be charged, so nothing has been booked. Please try another card."
-            : `The Deposit couldn't be charged to ${client.name}'s ${saved!.label} (${attempt.reason}), so nothing has been booked.`,
+          kind === "waiting"
+            ? PAYMENT_DOWN
+            : acceptor.by === "client"
+              ? `Your card didn't go through${because}, so nothing was booked. Please try another card.`
+              : `${client.name}'s ${saved!.label} didn't go through${because}, so nothing was booked. Email them a link to add another card.`,
         );
       }
       if (attempt.status === "needs_approval") {
@@ -719,20 +714,20 @@ export const pendingDepositFor = async (quoteId: string) => {
 export const finalizeProblem = (finalized: Finalized) => {
   switch (finalized.status) {
     case "waiting":
-      return "Your bank hasn't approved the payment yet. Please approve it and try again.";
+      return "Your bank hasn't approved the payment yet. Please approve it, then try again.";
     case "failed":
-      return "Your bank didn't approve the payment, so nothing has been booked. Please try again, or use another card.";
+      return "Your bank didn't approve the payment, so nothing was booked. Please try again, or use another card.";
     case "refunded":
       return finalized.unbookable.reason === "no_room"
-        ? "Sorry, that time was booked up while your bank was approving the payment. We've refunded your Deposit and we'll be in touch with another time."
+        ? "Sorry, that time got booked up while your bank was approving the payment. We've refunded your deposit, and we'll be in touch with another time."
         : finalized.unbookable.reason === "has_plan" ||
             finalized.unbookable.reason === "plan_changed"
-          ? "This home's Service Plan started while your bank was approving the payment, so we've refunded your Deposit."
+          ? "Your cleaning plan started while your bank was approving the payment, so we've refunded your deposit."
           : finalized.unbookable.reason === "revised"
-            ? "This Quote was updated while your bank was approving the payment, so we've refunded your Deposit. Please look at the new Quote."
-            : "This Quote closed while your bank was approving the payment, so we've refunded your Deposit.";
+            ? "This quote was updated while your bank was approving the payment, so we've refunded your deposit. Please take a look at what's changed."
+            : "This quote closed while your bank was approving the payment, so we've refunded your deposit.";
     default:
-      return "There's no payment waiting for approval on this Quote.";
+      return "There's no payment waiting on this quote.";
   }
 };
 

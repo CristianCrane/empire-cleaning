@@ -1,16 +1,19 @@
-import type {
-  DayCapacity,
-  HeldTime,
-  JobStatus,
-  ScheduleDay,
-  ScheduledSiteVisit,
+import {
+  PICK_TIMES,
+  type DayCapacity,
+  type DayTimes,
+  type HeldTime,
+  type JobStatus,
+  type ScheduleDay,
+  type ScheduledSiteVisit,
 } from "@empire-cleaning/models";
 import {
   addDays,
+  atTime,
   dayOf,
   HOUR_MS,
   startOfDay,
-} from "../../services/clock/index.ts";
+} from "@empire-cleaning/models";
 
 // The Schedule's rules, over a day of it as scheduleFor loads it: whether a
 // clean has room (roomOn), whether a Staff member is free for one (isFree),
@@ -164,6 +167,28 @@ export const roomOn = (day: ScheduleDay, clean: Clean): DayCapacity => {
   };
 };
 
+// the starts a picker offers on a day of the Schedule
+export const startsOn = (day: ScheduleDay) =>
+  PICK_TIMES.map((time) => atTime(day.date, time));
+
+/**
+ * The starts on each of these days of the Schedule (startsOn) where a clean
+ * would find no crew free, as `hasCrew` says of it there (roomOn's, or a
+ * Quote's cleanRooms'): the times the Office's pickers mark. Only the
+ * headcount: a day's hours show in its header.
+ */
+export const startsWithoutCrew = (
+  days: ScheduleDay[],
+  hasCrew: (day: ScheduleDay, startsAt: Date) => boolean,
+): DayTimes[] =>
+  days.map((day) => {
+    const starts = startsOn(day);
+    return {
+      date: day.date,
+      times: PICK_TIMES.filter((_, i) => !hasCrew(day, starts[i]!)),
+    };
+  });
+
 /**
  * What a Staff member is busy with during a clean's time on site, on its
  * day of the Schedule (which has its Jobs and Site Visits earliest first):
@@ -207,19 +232,6 @@ export const busyWith = (
 export const isFree = (day: ScheduleDay, staffId: string, clean: Clean) =>
   day.available.some((c) => c.id === staffId) && !busyWith(day, staffId, clean);
 
-export const ENDS_BY_MIDNIGHT =
-  "Cleans end by midnight: choose an earlier start time";
-
-// why a clean has no room, for Office Staff
-export const whyNoRoom = (room: DayCapacity) => {
-  if (!room.endsByMidnight) return ENDS_BY_MIDNIGHT;
-  if (!room.hasHours) {
-    return `That day doesn't have room: the Job needs ${room.labourHours} Labour Hours and ${Math.max(room.freeHours, 0)} are free.`;
-  }
-  const free = Math.max(room.cleaners - room.crewsBusy, 0);
-  return `Not enough Cleaners are free then: the Job needs ${room.crewSize}, and ${free} of the ${room.cleaners} available that day ${free === 1 ? "is" : "are"}.`;
-};
-
 // A day as it is once some of its booked Jobs are replaced, as a plan's new
 // terms replace them (#15): they're gone, and so are the times held for
 // moving them (#242). Their hours are free again, and so are a held time's
@@ -245,23 +257,29 @@ export const withoutReplaced = (
   };
 };
 
+// a time asked for that has already passed
+export const PASSED = "That time has passed. Pick a later time.";
+
 // what happened to a Job that isn't booked any more
 type Ended = Exclude<JobStatus, "booked">;
 const ended: Record<Ended, string> = {
-  completed: "This Job has been Completed",
-  cancelled: "This Job has been cancelled",
-  no_access: "No Access was recorded for this Job",
+  completed: "This clean is done",
+  cancelled: "This clean was cancelled",
+  no_access: "The cleaner couldn't get in for this clean",
 };
 const already: Record<Ended, string> = {
-  completed: "This Job has already been Completed",
-  cancelled: "This Job has already been cancelled",
-  no_access: "No Access has already been recorded for this Job",
+  completed: "This clean is already done.",
+  cancelled: "This clean is already cancelled.",
+  no_access: "We already know the cleaner couldn't get in.",
 };
-const canDo: Record<Ended | "moved", string> = {
-  completed: "be Completed",
-  cancelled: "be cancelled",
-  no_access: "have No Access recorded",
-  moved: "move",
+// what someone can't do to a clean that has ended or started
+const canDo: Record<Ended | "moved" | "offered" | "confirmed", string> = {
+  completed: "mark it done",
+  cancelled: "cancel it",
+  no_access: "say the cleaner couldn't get in",
+  moved: "move it",
+  offered: "offer it to anyone",
+  confirmed: "confirm it",
 };
 
 // Why a Job that isn't booked can't be `doing`: what happened to it, or
@@ -269,4 +287,8 @@ const canDo: Record<Ended | "moved", string> = {
 export const whyNotBooked = (status: Ended, doing: Ended | "moved") =>
   status === doing
     ? already[status]
-    : `${ended[status]}, so it can't ${canDo[doing]}`;
+    : `${ended[status]}, so you can't ${canDo[doing]}.`;
+
+// why a Job that has started can't be `doing`
+export const whyStarted = (doing: keyof typeof canDo) =>
+  `This clean has already started, so you can't ${canDo[doing]}.`;

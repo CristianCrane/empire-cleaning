@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { keepUnder } from "../../middleware/validation.ts";
 
 const condition = z.enum(["light", "moderate", "heavy"], {
   error: "Say how the home was: light, moderate or heavy",
@@ -8,17 +9,17 @@ const reason = z
   .string({ error: "Say why" })
   .trim()
   .min(1, "Say why")
-  .max(500, "Keep the reason under 500 characters");
+  .max(500, keepUnder(500, "the reason"));
 
 const report = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("add_on_done"),
-    addOnKey: z.uuid("Choose an Add-on"),
+    addOnKey: z.uuid("Choose an add-on"),
     reason,
   }),
   z.object({
     kind: z.literal("add_on_not_done"),
-    addOnKey: z.uuid("Choose an Add-on"),
+    addOnKey: z.uuid("Choose an add-on"),
     reason,
   }),
   z.object({
@@ -39,14 +40,14 @@ export const completionSchema = z.object({
 
 const price = z
   .number({ error: "Enter a price" })
-  .int("Enter a price in whole cents")
+  .int("Enter a price like 12.50")
   .min(0, "A price can't be below $0");
 
 const officeReason = z
   .string()
   .trim()
   .min(1, "Say why you're changing the price")
-  .max(500, "Keep the reason under 500 characters");
+  .max(500, keepUnder(500, "the reason"));
 
 export const proposalSchema = z
   .object({
@@ -59,7 +60,12 @@ export const proposalSchema = z
   });
 
 export const dismissalSchema = z.object({
-  reason: z.string().trim().max(500).nullable().optional(),
+  reason: z
+    .string()
+    .trim()
+    .max(500, keepUnder(500, "the reason"))
+    .nullable()
+    .optional(),
 });
 
 export const correctionSchema = z.object({

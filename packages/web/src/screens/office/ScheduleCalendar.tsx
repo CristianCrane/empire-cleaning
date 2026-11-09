@@ -7,12 +7,16 @@ import {
   type RefObject,
 } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import type {
-  LocalDateTime,
-  ScheduleDay,
-  ScheduledJob,
-  ScheduledSiteVisit,
+import {
+  PICK_MINUTES,
+  PICK_TIMES,
+  type DayTimes,
+  type LocalDateTime,
+  type ScheduleDay,
+  type ScheduledJob,
+  type ScheduledSiteVisit,
 } from "@empire-cleaning/models";
+import { daysIn } from "@empire-cleaning/models";
 import {
   Actions,
   Button,
@@ -23,7 +27,6 @@ import {
   List,
   ListItem,
   StatusBadge,
-  type StatusTone,
 } from "@empire-cleaning/ui";
 import { linkTo } from "../../links.ts";
 import {
@@ -32,38 +35,37 @@ import {
   TimeGrid,
   type TimePickerProps,
 } from "../CalendarGrid.tsx";
+import { JobBadge } from "../JobBadges.tsx";
 import {
+  crewOf,
   dayOfInstant,
   formatClock,
   formatDay,
   formatHours,
   formatMinutes,
   formatTime,
+  jobLabelOf,
   shortClientName,
   timeOfDay,
   today,
 } from "../format.ts";
 import {
   axisFor,
-  crewAt,
   fitLanes,
   hoursOf,
   lanesFor,
   type Block,
-  type Crew,
   snap,
   SNAP_HOURS,
   spanOf,
   timeAt,
 } from "../schedule-layout.ts";
-import { daysIn } from "../schedule-range.ts";
 
 // a short Job is still tall enough to read its time and Client
 const MIN_BLOCK_PX = 22;
 // shorter than this, a Job's block has room for only that one line
 const COMPACT_PX = 44;
-// a time is picked to the half hour, then fine-tuned in the time field
-const PICK_HOURS = 0.5;
+const PICK_HOURS = PICK_MINUTES / 60;
 // in the week view, a lane narrower than this can't show a Job's time, so
 // the Jobs that don't fit are listed behind "+N more" instead
 const MIN_LANE_PX = 60;
@@ -72,37 +74,19 @@ const MIN_LANE_PX = 60;
 const AXIS_PX = 56;
 const WEEK_DAY_MIN_PX = 104;
 
-// a Job's colour and its words for it: how it turned out, or whether its
-// crew is Confirmed
-const toneOf = (
-  job: ScheduledJob,
-): { label: string; tone: StatusTone; block: string } =>
-  job.status === "completed"
-    ? {
-        label: "Completed",
-        tone: "success",
-        block: "border-success-strong bg-success-subtle",
-      }
-    : job.status === "no_access"
-      ? {
-          label: "No Access",
-          tone: "danger",
-          block: "border-danger-strong bg-danger-subtle",
-        }
-      : job.assignment === "assigned"
-        ? {
-            label: "Assigned",
-            tone: "info",
-            block: "border-info-strong bg-info-subtle",
-          }
-        : {
-            label: "Unassigned",
-            tone: "warning",
-            block: "border-warning-strong bg-warning-subtle",
-          };
+// a Job's block: its colours, by the tone of how it reads (jobLabelOf)
+const blockOf = {
+  success: "border-success-strong bg-success-subtle",
+  danger: "border-danger-strong bg-danger-subtle",
+  info: "border-info-strong bg-info-subtle",
+  warning: "border-warning-strong bg-warning-subtle",
+  neutral: "border-neutral-strong bg-neutral-subtle",
+} as const;
 
-const crewOf = (job: ScheduledJob) =>
-  job.crew.map((c) => c.name).join(", ") || "No crew yet";
+const toneOf = (job: ScheduledJob) => {
+  const { label, tone } = jobLabelOf(job);
+  return { label, tone, block: blockOf[tone] };
+};
 
 // a Site Visit's place on the time axis
 const visitSpanOf = (visit: ScheduledSiteVisit) => {
@@ -122,20 +106,18 @@ const hasRoomFor = (day: ScheduleDay, job: ScheduledJob) =>
 
 // a clean placed on the calendar before it's booked there: when it starts,
 // its time on site, what it's called, and for a Service Plan, how many
-// weeks apart its cleans are
+// days apart its cleans are
 export type Proposed = {
   start: LocalDateTime;
   hoursOnSite: number;
   label: string;
-  everyWeeks?: number;
+  everyDays?: number;
 };
 
 // whether a Service Plan's later clean falls on a day
 const repeatsOn = (proposed: Proposed | undefined, date: string) => {
-  if (!proposed?.everyWeeks || date <= proposed.start.date) return false;
-  return (
-    (daysIn(proposed.start.date, date) - 1) % (7 * proposed.everyWeeks) === 0
-  );
+  if (!proposed?.everyDays || date <= proposed.start.date) return false;
+  return (daysIn(proposed.start.date, date) - 1) % proposed.everyDays === 0;
 };
 
 type Dragging = { job: ScheduledJob; grabbedAtPx: number };
@@ -148,9 +130,10 @@ type Dragging = { job: ScheduledJob; grabbedAtPx: number };
  * moves it. To choose a time instead (onPick), the Jobs are only there to
  * see, and clicking a free half hour picks it, or with limits, one of the
  * start times on offer on a day that has them; a proposed clean is drawn
- * where it would go. Given the clean's crew, times without a crew free for
- * it are marked: they can still be picked, for a Quote the Office may add a
- * Cleaner for, but the server refuses to book there.
+ * where it would go. Given the times without a crew free for the clean
+ * (noCrew, from the server), they're marked: they can still be picked, for
+ * a Quote the Office may add a Cleaner for, but the server refuses to book
+ * there.
  *
  * To only look and open (opensJobs, as on the Today screen), clicking a Job
  * opens it and nothing moves.
@@ -161,7 +144,7 @@ export function ScheduleCalendar({
   onPick,
   limits,
   proposed,
-  crew,
+  noCrew,
   opensJobs = false,
 }: {
   days: ScheduleDay[];
@@ -170,7 +153,7 @@ export function ScheduleCalendar({
   onPick?: (at: LocalDateTime) => void;
   limits?: TimePickerProps["limits"];
   proposed?: Proposed;
-  crew?: Crew & { hoursOnSite: number };
+  noCrew?: DayTimes[];
 }) {
   // whether Jobs open on click, and whether they can be dragged to move
   const opens = onDrop !== undefined || opensJobs;
@@ -189,21 +172,18 @@ export function ScheduleCalendar({
           ]),
     ],
   );
-  // the times to pick from on a day: those on offer there, or every half hour
-  const everyHalfHour = Array.from(
-    { length: (axis.end - axis.start) / PICK_HOURS },
-    (_, i) => timeAt(axis.start + i * PICK_HOURS),
-  );
+  // the times to pick from on a day, on the axis: those on offer there, or
+  // every one a picker offers
   const timesOn = (date: string) =>
     (limits
       ? (limits.find((d) => d.date === date)?.times ?? [])
-      : everyHalfHour
+      : PICK_TIMES
     ).filter((t) => hoursOf(t) >= axis.start && hoursOf(t) < axis.end);
   const isOpen = (date: string) =>
     !limits || limits.some((d) => d.date === date);
   // whether the clean's crew would be free at a time
   const hasCrew = (day: ScheduleDay, time: string) =>
-    !crew || crewAt(day, time, crew.hoursOnSite, crew).hasCrew;
+    !noCrew?.find((d) => d.date === day.date)?.times.includes(time);
   // which Job is being dragged, and how far down it was grabbed, so it lands
   // where it's let go; state too, so days without room for it fade
   const dragging = useRef<Dragging>(undefined);
@@ -313,7 +293,9 @@ export function ScheduleCalendar({
                         axisStart={axis.start}
                         hours={PICK_HOURS}
                         className={crewFree ? "" : NO_CREW}
-                        label={crewFree ? undefined : "no crew free"}
+                        label={
+                          crewFree ? undefined : "not enough cleaners free"
+                        }
                         onPick={onPick}
                       >
                         {/* every half hour shows its time when pointed at; only
@@ -322,7 +304,7 @@ export function ScheduleCalendar({
                           className={`text-fg-muted ${limits ? "" : "opacity-0 group-hover:opacity-100"}`}
                         >
                           {formatClock(time)}
-                          {!crewFree && " · no crew free"}
+                          {!crewFree && " · not enough cleaners free"}
                         </span>
                       </PickSlot>
                     );
@@ -377,7 +359,7 @@ function MoreJobs({
   interactive: boolean;
 }) {
   const navigate = useNavigate();
-  const title = `More Jobs on ${formatDay(date)}`;
+  const title = `More jobs on ${formatDay(date)}`;
 
   return (
     <DialogTrigger>
@@ -400,17 +382,14 @@ function MoreJobs({
               }
             >
               {jobs.map((job) => {
-                const tone = toneOf(job);
                 return (
                   <ListItem
                     key={job.id}
                     id={job.id}
                     textValue={`${formatTime(job.startsAt)} ${shortClientName(job.client)}`}
                     title={`${formatTime(job.startsAt)} · ${shortClientName(job.client)}`}
-                    description={crewOf(job)}
-                    end={
-                      <StatusBadge tone={tone.tone}>{tone.label}</StatusBadge>
-                    }
+                    description={crewOf(job.crew)}
+                    end={<JobBadge job={job} />}
                   />
                 );
               })}
@@ -468,7 +447,7 @@ function DayHeader({
       </div>
       <p className="text-xs text-fg-muted">
         {nobody && day.bookedHours === 0
-          ? "Nobody available"
+          ? "Nobody working"
           : [
               `${formatHours(day.bookedHours)} booked`,
               ...(day.heldHours > 0
@@ -519,7 +498,11 @@ const layoutDay = (
   const proposedBlock =
     proposed && drawn(PROPOSED, hoursOf(proposed.time), proposed.hoursOnSite);
   const unassigned = new Set(
-    jobs.filter((job) => toneOf(job).label === "Unassigned").map((j) => j.id),
+    jobs
+      .filter(
+        (job) => job.status === "booked" && job.assignment === "unassigned",
+      )
+      .map((j) => j.id),
   );
   const { shown, hidden } = fitLanes(
     proposedBlock ? [...blocks, proposedBlock] : blocks,
@@ -586,7 +569,7 @@ function DayJobs({
       {jobs.map(({ job, block }) => {
         const style = place(block);
         const tone = toneOf(job);
-        const crew = crewOf(job);
+        const crew = crewOf(job.crew);
         // too short for three lines: the time and Client, the rest unseen
         // but still read out
         const compact = style.height < COMPACT_PX;
@@ -660,7 +643,7 @@ function DayJobs({
               {formatTime(visit.startsAt)} {shortClientName(visit.client)}
             </span>
             <span className={compact ? "sr-only" : "truncate"}>
-              Site Visit · {formatMinutes(visit.minutes)}
+              Site visit · {formatMinutes(visit.minutes)}
             </span>
             <span className={compact ? "sr-only" : "truncate text-fg-muted"}>
               {visit.visitor?.name}

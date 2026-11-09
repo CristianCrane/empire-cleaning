@@ -5,6 +5,7 @@
 - `@empire-cleaning/ui`: the components (and the styles, imported once by the app).
 - `@empire-cleaning/ui/tokens.css`: just the styles, for pages without React (the landing site).
 - `@empire-cleaning/ui/theme`: just the ThemeToggle, so an island ships only that.
+- `@empire-cleaning/ui/feedback.css`: the look of Sentry's feedback button and form on the test sites (packages/browser-monitoring); each site places it.
 - `@empire-cleaning/ui/theme-boot`: the inline `<head>` script that applies a chosen dark theme before first paint.
 
 Apps compile the styles with their own Tailwind (`@tailwindcss/vite`); `tokens.css` points Tailwind at this package's sources.

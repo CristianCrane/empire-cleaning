@@ -1,5 +1,9 @@
 import { and, desc, eq, inArray, isNull, ne, sql, sum } from "drizzle-orm";
-import type { ChargeView, JobPayment } from "@empire-cleaning/models";
+import {
+  feeName,
+  type ChargeView,
+  type JobPayment,
+} from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { clock } from "../../services/clock/index.ts";
 import { formatWhen } from "../../services/email/index.ts";
@@ -19,9 +23,10 @@ import {
   refunds,
   type Charge,
 } from "../payments/payments.schema.ts";
+import { nowTheirs, NOT_SETTLED, unpaidOf } from "../payments/unpaid.ts";
 import { properties } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
-import { holdOrResume } from "../service-plans/on-hold.ts";
+import { holdOrResume, planOnHold } from "../service-plans/on-hold.ts";
 import { adjustments, type Adjustment } from "./completion.schema.ts";
 import { quotedJob } from "./pricing.ts";
 import { serviceNameOf } from "../services/services.ts";
@@ -187,12 +192,7 @@ export const paymentOf = async (job: Job): Promise<JobPayment> => {
     billedCents: ledger.billedCents,
     owedCents: ledger.owedCents,
     paymentMethod: owner?.label ?? null,
-    unpaid: job.unpaidSince
-      ? {
-          since: job.unpaidSince.toISOString(),
-          reason: job.unpaidReason ?? "",
-        }
-      : null,
+    unpaid: unpaidOf(job.unpaidSince, job.unpaidReason),
   };
 };
 
@@ -219,11 +219,6 @@ const kindOf = (job: Job) =>
     ? ("fee" as const)
     : ("balance" as const);
 
-const feeLabel = {
-  cancelled: "Late Cancellation fee",
-  no_access: "No Access fee",
-};
-
 const describe = async (tx: Tx, job: Job) => {
   const [property] = await tx
     .select()
@@ -231,7 +226,7 @@ const describe = async (tx: Tx, job: Job) => {
     .where(eq(properties.id, job.propertyId));
   const what =
     job.status === "cancelled" || job.status === "no_access"
-      ? feeLabel[job.status]
+      ? feeName[job.status]
       : "Balance";
   return `${what}: ${await serviceNameOf(job.serviceId, tx)} at ${addressOf(property!)}, ${formatWhen(job.startsAt)}`;
 };
@@ -318,7 +313,10 @@ export const settleJob = async (
     }
 
     if (settled.failure) {
-      settled.becameUnpaid = job!.unpaidSince === null;
+      settled.becameUnpaid = nowTheirs(
+        job!.unpaidSince ? (job!.unpaidReason ?? "") : null,
+        settled.failure,
+      );
       await tx
         .update(jobs)
         .set({
@@ -333,12 +331,12 @@ export const settleJob = async (
         .where(eq(jobs.id, jobId));
     }
     settled.plan = await holdOrResume(tx, jobId);
+    // a plan held already, as while the payment only waited on the
+    // provider, is told now the payment is the Client's to put right
+    if (settled.becameUnpaid && !settled.plan && (await planOnHold(tx, jobId)))
+      settled.plan = "held";
     return settled;
   });
-
-// why a Job is Unpaid when settling it failed for want of anything the
-// Client could fix
-export const NOT_SETTLED = "its payment couldn't be worked out";
 
 /**
  * Settles a Job's money once a change to it is saved, as settleJob does,

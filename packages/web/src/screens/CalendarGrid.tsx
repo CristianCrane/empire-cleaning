@@ -1,10 +1,15 @@
 import type { HTMLAttributes, ReactNode } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import type { LocalDateTime } from "@empire-cleaning/models";
+import {
+  addDays,
+  daysIn,
+  type DayTimes,
+  type LocalDateTime,
+} from "@empire-cleaning/models";
 import { Button, Select, SelectItem } from "@empire-cleaning/ui";
-import { addDays, formatClock, formatDay, today } from "./format.ts";
+import { formatClock, formatDay, today } from "./format.ts";
 import { hoursOf, timeAt } from "./schedule-layout.ts";
-import { daysIn, SPANS, type Span } from "./schedule-range.ts";
+import { SPANS, type Span } from "./schedule-range.ts";
 
 // the frame every calendar here shares, for the Office's Schedule and a
 // Client's own times alike: days as columns over a time axis
@@ -214,6 +219,6 @@ export type TimePickerProps = {
   time?: string;
   hoursOnSite: number;
   current?: LocalDateTime;
-  limits?: { date: string; times: string[] }[];
+  limits?: DayTimes[];
   onPick: (at: LocalDateTime) => void;
 };

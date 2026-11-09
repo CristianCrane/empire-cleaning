@@ -1,7 +1,7 @@
-import { and, eq, inArray, isNull, or } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, or } from "drizzle-orm";
 import type { ClientPayment, ClientPaymentKind } from "@empire-cleaning/models";
+import { addDays } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
-import { addDays } from "../../services/clock/index.ts";
 import { billNumber } from "../bills/bills.ts";
 import { bills } from "../bills/bills.schema.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
@@ -49,7 +49,10 @@ export const paymentHistoryFor = async (
       : await db
           .select()
           .from(charges)
-          .where(or(...theirs));
+          .where(or(...theirs))
+          // newest first; two taken at one moment by the clock (a test's
+          // stands still) by when each was recorded, as balance.ts orders them
+          .orderBy(desc(charges.chargedAt), desc(charges.createdAt));
   const given =
     charged.length === 0
       ? []
@@ -101,14 +104,13 @@ export const paymentHistoryFor = async (
     bill: billOf(charge.billId),
   });
 
-  // a Job's Balance taken after its first was for an increase approved later
+  // a Job's Balance taken after its first was for an increase approved later.
+  // The charges come newest first, so its first is the last seen. Two
+  // recorded in one transaction at one moment of the clock still tie, as
+  // created_at is the transaction's start
   const firstBalance = new Map<string, Charge>();
-  for (const c of [...charged].sort(
-    (a, b) => a.chargedAt.getTime() - b.chargedAt.getTime(),
-  )) {
-    if (c.kind === "balance" && c.jobId && !firstBalance.has(c.jobId)) {
-      firstBalance.set(c.jobId, c);
-    }
+  for (const c of charged) {
+    if (c.kind === "balance" && c.jobId) firstBalance.set(c.jobId, c);
   }
   const kindOf = (c: Charge): ClientPaymentKind =>
     c.kind === "balance" && firstBalance.get(c.jobId!)?.id !== c.id

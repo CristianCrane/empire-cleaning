@@ -1,7 +1,8 @@
 // Empire Cleaning's days are New York's: a Job at 11pm on the 3rd is on the
-// 3rd, wherever the server runs. A day is written "2026-11-03".
+// 3rd, wherever the server runs or the screen is. A day is written
+// "2026-11-03". The same on the server and on screen.
 
-const BUSINESS_TIME_ZONE = "America/New_York";
+export const BUSINESS_TIME_ZONE = "America/New_York";
 
 const parts = new Intl.DateTimeFormat("en-US", {
   timeZone: BUSINESS_TIME_ZONE,
@@ -65,7 +66,7 @@ export const timeOf = (instant: Date) => {
   return `${p.hour}:${p.minute}`;
 };
 
-const MINUTE_MS = 60_000;
+export const MINUTE_MS = 60_000;
 export const HOUR_MS = 60 * MINUTE_MS;
 // a day of 24 hours: a calendar day in New York is 23 or 25 across the
 // clocks changing, so count those with addDays and startOfDay
@@ -75,6 +76,11 @@ export const addDays = (day: string, days: number) =>
   new Date(Date.parse(`${day}T00:00:00Z`) + days * DAY_MS)
     .toISOString()
     .slice(0, 10);
+
+// how many days from `from` to `to`, both included
+export const daysIn = (from: string, to: string) =>
+  (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / DAY_MS +
+  1;
 
 // every day from `from` to `to`, both included
 export const daysFrom = (from: string, to: string) => {
@@ -86,3 +92,6 @@ export const daysFrom = (from: string, to: string) => {
 // 0 for Monday to 6 for Sunday
 export const weekdayOf = (day: string) =>
   (new Date(`${day}T00:00:00Z`).getUTCDay() + 6) % 7;
+
+// the Monday of the week a day is in
+export const mondayOf = (day: string) => addDays(day, -weekdayOf(day));

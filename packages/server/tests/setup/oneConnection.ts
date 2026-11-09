@@ -49,12 +49,22 @@ const builders = ["select", "selectDistinct", "insert", "update", "delete"];
 
 // each pooled connection, watched once: how many queries it's running, and
 // where the latest one built in a transaction was written (the one that
-// overlaps, as each starts as soon as it's awaited)
-const watched = new WeakMap<Client, { running: number; writtenAt: string }>();
-const overlaps = new Set<string>();
+// overlaps, as each starts as soon as it's awaited). That's an Error whose
+// stack is formatted only on an overlap. Formatting maps it through the
+// source maps, and done for every query it took 7% of the CPU in a profile
+// of the three biggest test files (#316)
+const watched = new WeakMap<
+  Client,
+  { running: number; writtenAt: Error | undefined }
+>();
+const overlaps = new Set<Error>();
 
 afterEach(() => {
-  const found = [...overlaps];
+  const found = [
+    ...new Set(
+      [...overlaps].map((at) => at.stack!.split("\n").slice(2, 6).join("\n")),
+    ),
+  ];
   overlaps.clear();
   if (found.length > 0) {
     throw new Error(
@@ -66,11 +76,11 @@ afterEach(() => {
 const watch = (client: Client) => {
   const known = watched.get(client);
   if (known) return known;
-  const state = { running: 0, writtenAt: "" };
+  const state = { running: 0, writtenAt: undefined as Error | undefined };
   watched.set(client, state);
   const query = client.query.bind(client);
   client.query = (...args) => {
-    if (state.running > 0) overlaps.add(state.writtenAt);
+    if (state.running > 0) overlaps.add(state.writtenAt ?? new Error());
     const result = query(...args) as Promise<unknown> | undefined;
     // the pool's own queries, outside transactions, pass a callback instead
     if (result) {
@@ -88,7 +98,7 @@ const oneAtATime = (tx: Record<string, unknown>) => {
   for (const method of [...builders, "execute"]) {
     const original = (tx[method] as (...args: unknown[]) => unknown).bind(tx);
     tx[method] = (...args: unknown[]) => {
-      state.writtenAt = new Error().stack!.split("\n").slice(2, 6).join("\n");
+      state.writtenAt = new Error();
       return original(...args);
     };
   }

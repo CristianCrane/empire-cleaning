@@ -1,11 +1,11 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { afterAll, beforeAll, describe, test } from "vitest";
-import { addDays } from "#services/clock";
+import { addDays } from "@empire-cleaning/models";
 import {
-  copyTestDatabase,
+  copiesOf,
   dropTestDatabaseCopies,
-  recreateTestDatabase,
+  migratedCopies,
   TEST_DB_URL,
   withSuffix,
 } from "./setup/testDatabase.ts";
@@ -18,26 +18,31 @@ import {
 // tomorrow in UTC. A Vitest project of its own runs it after the other
 // tests (vitest.config.ts).
 const MONDAY = "2026-11-09";
-const instants = Array.from({ length: 7 }, (_, i) =>
-  addDays(MONDAY, i),
-).flatMap((day) => [
-  `${day}T12:00:00Z`,
-  `${day}T17:00:00Z`,
-  `${day}T23:30:00Z`,
-  `${addDays(day, 1)}T03:00:00Z`,
-]);
+const every = Array.from({ length: 7 }, (_, i) => addDays(MONDAY, i)).flatMap(
+  (day) => [
+    `${day}T12:00:00Z`,
+    `${day}T17:00:00Z`,
+    `${day}T23:30:00Z`,
+    `${addDays(day, 1)}T03:00:00Z`,
+  ],
+);
+
+// SEED_SHARD=<n>/<of> runs every <of>th instant from the <n>th, so CI's seed
+// jobs share them out (.github/workflows/ci.yml); without it, every one
+const shardOf = (value = "1/1") => {
+  const [, part, of] = (value.match(/^(\d+)\/(\d+)$/) ?? []).map(Number);
+  if (!part || !of || part > of) {
+    throw new Error(`SEED_SHARD must be like 1/2, not "${value}"`);
+  }
+  return every.filter((_, i) => i % of === part - 1);
+};
+const instants = shardOf(process.env.SEED_SHARD);
 
 // a database each, copied from one migrated for the seed test alone, and
 // dropped after: the test Postgres keeps them in memory
 const TEMPLATE = withSuffix(TEST_DB_URL, "seed");
-const databaseFor = (i: number) => withSuffix(TEMPLATE, i);
-beforeAll(async () => {
-  await recreateTestDatabase(TEMPLATE);
-  await copyTestDatabase(
-    TEMPLATE,
-    instants.map((_, i) => databaseFor(i)),
-  );
-});
+const databases = copiesOf(TEMPLATE, 0, instants.length);
+beforeAll(() => migratedCopies(TEMPLATE, 0, instants.length));
 afterAll(() => dropTestDatabaseCopies(TEMPLATE, 0));
 
 const run = promisify(execFile);
@@ -58,7 +63,7 @@ describe.concurrent("the seed runs", () => {
           cwd: new URL("..", import.meta.url).pathname,
           env: {
             ...process.env,
-            DB_URL: databaseFor(i),
+            DB_URL: databases[i],
             SEED_NOW: now,
             APP_MODE: "test",
             // which test mode needs, and the tests leave out

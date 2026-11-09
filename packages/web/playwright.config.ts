@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import { MINUTE_MS } from "@empire-cleaning/models";
 import { E2E_DB_URL, slot, slotOf, WORKERS } from "./e2e/slots.ts";
 
 // Keep headless Chromium off the WSLg display so it doesn't steal Windows focus
@@ -25,36 +26,24 @@ export default defineConfig({
   // CI also keeps an HTML report, and the trace of every failed test
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   use: { baseURL: appUrl, trace: "retain-on-failure" },
+  // Playwright starts its `webServer` entries one after another, so one entry
+  // builds the app while every slot's API starts, each on a copy of one
+  // database migrated for the run (packages/server/tests/e2e/servers.ts).
+  // Ready once both say so. Either one exiting ends it at once (`wait -n`),
+  // and takes the other with it (`kill 0`), else what's left would hold the
+  // output open and Playwright would wait out its timeout
   webServer: [
-    ...slots.map((s, i) => ({
-      command: "pnpm --filter @empire-cleaning/server e2e:server",
-      url: `${s.controlUrl}/health`,
-      timeout: 120_000,
+    {
+      command:
+        "bash -c 'trap \"kill 0\" EXIT; pnpm --filter @empire-cleaning/server e2e:servers & (vite build && node e2e/preview.ts) & wait -n'",
+      wait: { stdout: /(?=[\s\S]*e2e APIs ready)(?=[\s\S]*e2e apps ready)/ },
+      timeout: 2 * MINUTE_MS,
       env: {
         ...process.env,
-        APP_MODE: "dev",
-        PORT: new URL(s.apiUrl).port,
-        E2E_CONTROL_PORT: new URL(s.controlUrl).port,
         TEST_DB_URL: E2E_DB_URL,
-        E2E_SLOT: String(i),
-        BETTER_AUTH_URL: s.apiUrl,
-        BETTER_AUTH_SECRET: "e2e-secret-at-least-32-characters-long",
-        CORS_ORIGIN_URL: s.appUrl,
+        E2E_SLOTS: JSON.stringify(slots),
         LANDING_ORIGIN_URL: "http://localhost:4399",
-        RESEND_API_KEY: "e2e-resend-api-key",
-        OFFICE_EMAIL: "office@example.com",
-        GOOGLE_CLIENT_ID: "e2e-google-client-id",
-        GOOGLE_CLIENT_SECRET: "e2e-google-client-secret",
-        STRIPE_SECRET_KEY: "e2e-stripe-secret-key",
-        STRIPE_PUBLISHABLE_KEY: "e2e-stripe-publishable-key",
-        STRIPE_WEBHOOK_SECRET: "e2e-stripe-webhook-secret",
       },
-    })),
-    {
-      command: "vite build && node e2e/preview.ts",
-      // the last slot's app is served last
-      url: slots.at(-1)!.appUrl,
-      timeout: 120_000,
     },
   ],
   projects: [

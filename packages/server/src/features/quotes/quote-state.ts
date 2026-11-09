@@ -24,8 +24,9 @@ import type {
   SiteVisitStage,
   Weekday,
 } from "@empire-cleaning/models";
+import { DAY_MS, HOUR_MS } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
-import { clock, DAY_MS, HOUR_MS } from "../../services/clock/index.ts";
+import { clock } from "../../services/clock/index.ts";
 import { clients } from "../clients/clients.schema.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { currentPriceList } from "../price-list/price-list.ts";
@@ -64,6 +65,19 @@ export const statusOf = (quote: {
 // counting as both where its Service can recur (ADR-0018)
 export const isOpen = (status: QuoteStatus) =>
   status === "requested" || status === "draft" || status === "sent";
+
+// what happened to a Quote that can't be accepted, revised or declined
+// now; each refusal adds what to do
+export const whatClosed = (status: QuoteStatus) =>
+  ({
+    requested: "This quote hasn't been sent yet.",
+    draft: "This quote hasn't been sent yet.",
+    sent: "",
+    accepted: "This quote has already been accepted.",
+    declined: "This quote was declined.",
+    expired: "This quote has expired.",
+    turned_down: "This quote was turned down.",
+  })[status];
 
 // still being worked on by the Office: nothing has been Sent
 const unsent = (status: QuoteStatus) =>
@@ -318,17 +332,17 @@ const summaries = async (
             ),
           );
   const draftOf = new Map(drafts.map((d) => [d.quoteId, d]));
+  const [list, all] = await Promise.all([
+    currentPriceList(),
+    currentServices(),
+  ]);
   const [options, addOns, stages] = await Promise.all([
     optionsOfRevisions([
       ...rows.flatMap((r) => (r.offer ? [r.offer.id] : [])),
       ...(forClient ? [] : drafts.map((d) => d.id)),
     ]),
-    askedAddOns(ids),
+    askedAddOns(ids, list),
     siteVisitStages(rows.map((r) => r.property.id)),
-  ]);
-  const [list, all] = await Promise.all([
-    currentPriceList(),
-    currentServices(),
   ]);
 
   return rows.map(
@@ -355,6 +369,10 @@ const summaries = async (
         homePlanId,
         headlineTotalCents:
           offered.length > 0 ? headlineOf(quote.kind, offered) : null,
+        headlineServiceName:
+          !plan && offered.length > 0
+            ? offered[0]!.suggested.serviceName
+            : null,
         plan:
           plan && shown
             ? {

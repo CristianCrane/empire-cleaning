@@ -10,6 +10,8 @@ import {
 } from "@empire-cleaning/ui";
 import { linkTo } from "../../links.ts";
 import { addressOf } from "../format.ts";
+import { quoteRequested } from "../QuoteParts.tsx";
+import { requestQuote } from "./whats-next.ts";
 
 // a signed-in Client asking about a new home or one of theirs
 export function PortalRequest() {
@@ -27,17 +29,17 @@ export function PortalRequest() {
       <Breadcrumbs
         trail={[
           { label: "Home", href: linkTo({ to: "/portal" }) },
-          { label: "Request a Quote" },
+          { label: requestQuote.label },
         ]}
       />
-      <Heading level={1}>Request a Quote</Heading>
+      <Heading level={1}>{requestQuote.label}</Heading>
       {open.length > 0 && (
         <Notice tone="info">
           {open.map((quote) => (
             <p key={quote.id}>
               {quote.status === "sent"
-                ? "We've sent your Quote for "
-                : "We're preparing your Quote for "}
+                ? "We've already sent you a quote for "
+                : "We're working on your quote for "}
               <Link
                 href={linkTo({
                   to: "/portal/quotes/$quoteId",
@@ -65,11 +67,7 @@ export function PortalRequest() {
             businessName: client.businessName,
           }}
           onSubmitted={async (receipt) => {
-            showToast({
-              tone: "success",
-              title: "Quote requested",
-              description: `We'll email your Quote to ${receipt.emailedTo}.`,
-            });
+            showToast(quoteRequested(receipt.emailedTo));
             await router.invalidate();
             await navigate({ to: "/portal" });
           }}

@@ -54,7 +54,7 @@ describe("where a Client's home stands", () => {
       standingOf(home, data({ plans: [plan()], quotes: [quote()] })),
     ).toEqual({
       tone: "success",
-      label: "Service Plan",
+      label: "Cleaning plan",
       line: "Mondays at 9:00 AM",
     });
   });
@@ -62,7 +62,7 @@ describe("where a Client's home stands", () => {
   test("a plan On Hold says so", () => {
     expect(
       standingOf(home, data({ plans: [plan({ status: "on_hold" })] })).label,
-    ).toBe("On Hold");
+    ).toBe("Paused");
   });
 
   test("an Ended plan, or another home's, doesn't count", () => {

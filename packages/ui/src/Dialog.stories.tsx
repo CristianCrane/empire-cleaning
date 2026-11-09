@@ -11,7 +11,7 @@ type Args = Omit<DialogProps, "children"> & { onConfirm: () => void };
 
 const meta: Meta<Args> = {
   title: "Components/Dialog",
-  args: { title: "Send Quote", onConfirm: fn() },
+  args: { title: "Send quote", onConfirm: fn() },
   parameters: { layout: "centered" },
 };
 
@@ -22,12 +22,12 @@ type Story = StoryObj<Args>;
 export const Default: Story = {
   render: ({ onConfirm, ...args }) => (
     <DialogTrigger>
-      <Button>Send Quote</Button>
+      <Button>Send quote</Button>
       <Dialog {...args}>
         {({ close }) => (
           <>
             <p className="text-fg-muted">
-              Casey Client will get an email with the Quote for 41-12 Austin St.
+              Casey Client will get an email with the quote for 41-12 Austin St.
             </p>
             <Actions>
               <Button variant="quiet" onPress={close}>
@@ -48,12 +48,12 @@ export const Default: Story = {
     </DialogTrigger>
   ),
   play: async ({ canvas, canvasElement, userEvent }) => {
-    const opener = canvas.getByRole("button", { name: "Send Quote" });
+    const opener = canvas.getByRole("button", { name: "Send quote" });
     await userEvent.click(opener);
 
     const dialog = await within(canvasElement.ownerDocument.body).findByRole(
       "dialog",
-      { name: "Send Quote" },
+      { name: "Send quote" },
     );
     await expect(dialog).toContainElement(
       canvasElement.ownerDocument.activeElement as HTMLElement,
@@ -68,15 +68,15 @@ export const Default: Story = {
 
 // for something that can't be undone: tapping outside doesn't close it
 export const Destructive: Story = {
-  args: { title: "End Service Plan", role: "alertdialog" },
+  args: { title: "End cleaning plan", role: "alertdialog" },
   render: ({ onConfirm, ...args }) => (
     <DialogTrigger>
-      <Button variant="danger">End Service Plan</Button>
+      <Button variant="danger">End cleaning plan</Button>
       <Dialog {...args}>
         {({ close }) => (
           <>
             <p className="text-fg-muted">
-              No more Jobs will be scheduled for 41-12 Austin St.
+              No more jobs will be scheduled for 41-12 Austin St.
             </p>
             <Actions>
               <Button variant="quiet" onPress={close}>
@@ -89,7 +89,7 @@ export const Destructive: Story = {
                   close();
                 }}
               >
-                End Service Plan
+                End cleaning plan
               </Button>
             </Actions>
           </>
@@ -100,10 +100,10 @@ export const Destructive: Story = {
 };
 
 export const WithForm: Story = {
-  args: { title: "Add Property" },
+  args: { title: "Add property" },
   render: ({ onConfirm, ...args }) => (
     <DialogTrigger>
-      <Button>Add Property</Button>
+      <Button>Add property</Button>
       <Dialog {...args}>
         {({ close }) => (
           <Form
@@ -131,10 +131,10 @@ export const WithForm: Story = {
 // for something that needs the room, e.g. a week's calendar; still a sheet on
 // a phone
 export const Wide: Story = {
-  args: { title: "Pick from the Schedule", size: "wide" },
+  args: { title: "Pick from the schedule", size: "wide" },
   render: ({ onConfirm, ...args }) => (
     <DialogTrigger>
-      <Button variant="secondary">Pick from the Schedule</Button>
+      <Button variant="secondary">Pick from the schedule</Button>
       <Dialog {...args}>
         {({ close }) => (
           <>
@@ -172,7 +172,7 @@ function FromCode({ onConfirm, ...args }: Args) {
   return (
     <>
       <Button variant="secondary" onPress={() => setOpen(true)}>
-        Drop a Job
+        Drop a job
       </Button>
       <Dialog {...args} isOpen={isOpen} onOpenChange={setOpen}>
         {({ close }) => (
@@ -190,7 +190,7 @@ function FromCode({ onConfirm, ...args }: Args) {
                   close();
                 }}
               >
-                Move Job
+                Move job
               </Button>
             </Actions>
           </>
@@ -201,18 +201,45 @@ function FromCode({ onConfirm, ...args }: Args) {
 }
 
 export const OpenedFromCode: Story = {
-  args: { title: "Move this Job?" },
+  args: { title: "Move this job?" },
   render: (args) => <FromCode {...args} />,
   play: async ({ args, canvas, canvasElement, userEvent }) => {
-    await userEvent.click(canvas.getByRole("button", { name: "Drop a Job" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Drop a job" }));
     const dialog = await within(canvasElement.ownerDocument.body).findByRole(
       "dialog",
-      { name: "Move this Job?" },
+      { name: "Move this job?" },
     );
     await userEvent.click(
-      within(dialog).getByRole("button", { name: "Move Job" }),
+      within(dialog).getByRole("button", { name: "Move job" }),
     );
     await expect(args.onConfirm).toHaveBeenCalled();
     await waitFor(() => expect(dialog).not.toBeInTheDocument());
+  },
+};
+
+// held open while what it started finishes: tapping outside, Escape and ✕
+// don't close it
+export const Busy: Story = {
+  args: { title: "Account", isBusy: true },
+  render: ({ onConfirm: _onConfirm, ...args }) => (
+    <DialogTrigger>
+      <Button>Olive Owner</Button>
+      <Dialog {...args}>
+        <p className="text-fg-muted">Switching to the Client portal…</p>
+      </Dialog>
+    </DialogTrigger>
+  ),
+  play: async ({ canvas, canvasElement, userEvent }) => {
+    await userEvent.click(canvas.getByRole("button", { name: "Olive Owner" }));
+    const dialog = await within(canvasElement.ownerDocument.body).findByRole(
+      "dialog",
+      { name: "Account" },
+    );
+
+    await userEvent.keyboard("{Escape}");
+    await expect(
+      within(dialog).getByRole("button", { name: "Close" }),
+    ).toBeDisabled();
+    await expect(dialog).toBeInTheDocument();
   },
 };

@@ -574,6 +574,23 @@ export type ScheduledJob = {
   movable: boolean;
 };
 
+// some start times on a day, "09:30", New York time
+export type DayTimes = { date: IsoDate; times: string[] };
+
+// a start is picked from the Schedule to the half hour, then fine-tuned in
+// the time field
+export const PICK_MINUTES = 30;
+
+// every start a picker offers on a day, from midnight: "00:00", "00:30", …
+export const PICK_TIMES = Array.from(
+  { length: (24 * 60) / PICK_MINUTES },
+  (_, i) => {
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const minutes = i * PICK_MINUTES;
+    return `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}`;
+  },
+);
+
 // one day of the Schedule. Only Cleaners' hours count towards it.
 export type ScheduleDay = {
   date: IsoDate;
@@ -758,7 +775,6 @@ export type NeedsAttentionItem =
       since: string;
       job: ScheduledJob;
       owedCents: number;
-      reason: string;
     }
   | {
       // increases Staff reported at completion, waiting on the Office to
@@ -860,6 +876,13 @@ export type QuoteKind = "one_off" | "service_plan";
 // how often a Service Plan's Job comes round, always on the same weekday:
 // every week, every 2 weeks or every 4 weeks
 export type Recurrence = "weekly" | "fortnightly" | "four_weekly";
+
+// how many days apart a Service Plan's cleans are
+export const recurrenceDays: Record<Recurrence, number> = {
+  weekly: 7,
+  fortnightly: 14,
+  four_weekly: 28,
+};
 
 // One weekday of a Service Plan Quote (ADR-0013), with its own visit: its
 // Service priced as a one-off Job (its Suggested Price or the override),
@@ -1036,6 +1059,11 @@ export type OfficeQuoteOption = QuoteOption & {
   suggested: PriceBreakdown;
   overrideCents: number | null;
   overrideReason: string | null;
+  // on a Draft, once the option has a start (a weekday's own, or the
+  // proposed time): its room then, as of now, by the rule accepting asks
+  // (the Jobs a plan change replaces counted as gone). Null on a Sent
+  // Revision's, whose room is the Quote's bookable, and before a start.
+  room: DayCapacity | null;
 };
 
 // One Revision of a Quote in full, for the Office: unsent ("draft"), priced
@@ -1211,6 +1239,9 @@ export type QuoteSummary = {
   // (the recommended one, if any), or a Service Plan Quote's round, a clean
   // on each weekday; null with no Revision
   headlineTotalCents: number | null;
+  // the Service a one-off Quote leads with, its first option's; null for a
+  // Service Plan Quote, or with no Revision
+  headlineServiceName: string | null;
   // a Service Plan Quote's; null otherwise
   plan: { recurrence: Recurrence; days: PlanDaySummary[] } | null;
   proposedStartsAt: string | null;
@@ -1578,8 +1609,18 @@ export type JobPayment = {
   owedCents: number;
   // the Client's saved Payment Method, e.g. "Visa ending 4242"
   paymentMethod: string | null;
-  unpaid: { since: string; reason: string } | null;
+  unpaid: Unpaid | null;
 };
+
+// why a payment didn't go through, by what puts it right: "declined", a new
+// card or another way to pay (a bank asking for approval too); "waiting",
+// nothing, as we try again ourselves (ADR-0022); "no_card", adding one;
+// "late", paying the Bill on its page
+export type UnpaidKind = "declined" | "waiting" | "no_card" | "late";
+
+// since when it's been Unpaid, and why: a clause for after "didn't go
+// through" ("the card has expired"), or null when there's no more to say
+export type Unpaid = { since: string; kind: UnpaidKind; why: string | null };
 
 export type JobCompletion = {
   completedAt: string;
@@ -1610,7 +1651,8 @@ export type ClientPastJob = ClientJob & {
   totalCents: number;
   // what a Cancelled or No Access one cost; 0 if nothing
   feeCents: number;
-  unpaid: boolean;
+  // why it's Unpaid, if it is
+  unpaid: UnpaidKind | null;
   // what an Unpaid one still owes; 0 otherwise
   owedCents: number;
   // increases proposed to them, waiting on their answer
@@ -1680,13 +1722,16 @@ export type OfficeCancelInput = {
   by: CancelledBy;
   // the fee they were shown, as for the Client
   feeCents: number;
-  // told to the Client
+  // told to the Client when Empire Cleaning cancels, and dropped when it's
+  // the Client's own cancellation
   reason?: string | null;
 };
 
 export type JobCancellation = {
   cancelledAt: string;
   by: CancelledBy;
+  // cancelled as its plan ended or changed, not skipped on its own
+  withPlan: boolean;
   late: boolean;
   reason: string | null;
   feeCents: number;
@@ -1752,9 +1797,7 @@ export type RescheduleRequestView = {
 // Labour Hours (counting what's held for other requests), each with the
 // start times on offer that have a crew free (#62). A day without any is
 // left out.
-export type RescheduleTimes = {
-  days: { date: IsoDate; times: string[] }[];
-};
+export type RescheduleTimes = { days: DayTimes[] };
 
 // POST /api/jobs/mine/:id/reschedule-request (and the Office's
 // /api/jobs/:id/reschedule-request): the new time, and the cost the person
@@ -1951,7 +1994,7 @@ export type BillSummary = {
   totalCents: number;
   taxCents: number;
   // its automatic Charge failed, and it hasn't been paid since
-  unpaid: { since: string; reason: string } | null;
+  unpaid: Unpaid | null;
   paidAt: string | null;
   paidVia: BillPaidVia | null;
 };
@@ -1997,8 +2040,21 @@ export const business = {
 } as const;
 
 // the Suggested Price, worked out the same on the server and on screen
-export * from "./suggested-price.js";
+export * from "./suggested-price.ts";
+
+// New York's days and times, and how long a minute, hour and day are
+export * from "./days.ts";
 
 // what may leave for Sentry and the logs, the same on the server and in the
 // browser (ADR-0007)
-export * from "./scrub.js";
+export * from "./scrub.ts";
+
+// what the server and the screens both say, written once (docs/ux.md, Words)
+export * from "./messages/jobs.ts";
+export * from "./messages/assignments.ts";
+export * from "./messages/bills.ts";
+export * from "./messages/reschedule.ts";
+export * from "./messages/staff.ts";
+export * from "./messages/quotes.ts";
+export * from "./messages/payments.ts";
+export * from "./messages/cancellation.ts";

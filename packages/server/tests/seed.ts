@@ -17,12 +17,19 @@
 // signed up stays signed up.
 import { asc, eq, sql } from "drizzle-orm";
 import {
+  addDays,
+  atTime,
+  dayOf,
+  HOUR_MS,
   isOnCrew,
+  mondayOf,
+  recurrenceDays,
   type NewHome,
   type NewPremises,
   type QuoteAsk,
   type SignedInAccount,
   type Weekday,
+  weekdayOf,
 } from "@empire-cleaning/models";
 import { db } from "#db";
 import {
@@ -71,12 +78,10 @@ import { refuseOnProduction } from "#features/site";
 import { jobs } from "#features/jobs";
 import {
   generateServicePlanJobs,
-  INTERVAL_DAYS,
   servicePlans,
   servicePlanVisits,
 } from "#features/service-plans";
 import { createStaff, setException, setUsualWeek } from "#features/staff";
-import { addDays, atTime, dayOf, weekdayOf } from "#services/clock";
 import { installFakes, signIn, testClock, testPayments } from "./harness.ts";
 import { sentServicePlanQuote, startedServicePlan } from "./fixtures.ts";
 import { addTesters } from "./testers.ts";
@@ -107,7 +112,6 @@ const weekdayUpTo = (days: number) => {
   while (weekdayOf(day) > 4) day = addDays(day, -1);
   return { date: day, time: "09:00" };
 };
-const mondayOf = (day: string) => addDays(day, -weekdayOf(day));
 
 // created_at and updated_at come from the database's own clock, so each move
 // of the fake clock first stamps the rows made since the last move with the
@@ -874,7 +878,7 @@ async function seed() {
       .select({ recurrence: servicePlans.recurrence })
       .from(servicePlans)
       .where(eq(servicePlans.id, planId));
-    const step = INTERVAL_DAYS[plan!.recurrence];
+    const step = recurrenceDays[plan!.recurrence];
     const days = (await planJobs(planId)).map((job) => dayOf(job.startsAt));
     const gap = days.findIndex(
       (day, i) => i > 0 && day !== addDays(days[i - 1]!, step),
@@ -996,7 +1000,7 @@ async function seed() {
 
 // some hours after a Job starts (before it, if negative)
 const after = (job: { startsAt: Date }, hours: number) =>
-  new Date(job.startsAt.getTime() + hours * 3_600_000);
+  new Date(job.startsAt.getTime() + hours * HOUR_MS);
 
 // a Service Plan's Jobs, soonest first
 const planJobs = async (planId: string) =>

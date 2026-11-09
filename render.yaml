@@ -25,9 +25,7 @@ services:
     # always on: the scheduled runs live in the server process (src/index.ts)
     plan: starter
     region: virginia
-    buildCommand: >-
-      npx --yes pnpm@11.18.0 install --frozen-lockfile &&
-      npx --yes pnpm@11.18.0 --filter @empire-cleaning/models build
+    buildCommand: npx --yes pnpm@11.18.0 install --frozen-lockfile
     # migrations run on every deploy, before the new server starts
     preDeployCommand: npm --prefix packages/server run db:migrate
     startCommand: npm --prefix packages/server start

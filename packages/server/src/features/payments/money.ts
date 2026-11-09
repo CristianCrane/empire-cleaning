@@ -1,6 +1,7 @@
 import { and, eq, inArray, isNull, lte, notExists, or, sql } from "drizzle-orm";
+import { DAY_MS } from "@empire-cleaning/models";
 import { apart, db, type Tx } from "../../db/index.ts";
-import { clock, DAY_MS } from "../../services/clock/index.ts";
+import { clock } from "../../services/clock/index.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
 import {
   paymentGateway,
@@ -44,6 +45,8 @@ export const UNREACHABLE = "the payment provider couldn't be reached";
 // why nothing was taken when what the provider made of it isn't known yet:
 // a later try asks again
 export const WAITING_ON_PROVIDER = [UNREACHABLE, "processing"];
+// why nothing was taken from a Client with no card saved
+export const NO_CARD = "no Payment Method is saved";
 
 // ---- asking the provider once (#241) ----
 //
@@ -287,7 +290,7 @@ export const chargeSaved = async (
     item?: string | null;
   },
 ): Promise<Taken> => {
-  if (!method) return { ok: false, reason: "no Payment Method is saved" };
+  if (!method) return { ok: false, reason: NO_CARD };
   const earlier = await recordTakenEarlier(tx, chargeFor);
   // it may yet take the money, so nothing more is asked for meanwhile
   if ("unknown" in earlier) return { ok: false, reason: earlier.unknown };

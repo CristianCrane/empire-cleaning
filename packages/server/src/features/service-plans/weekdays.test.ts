@@ -143,6 +143,24 @@ const percent = (cents: number, of: number) =>
   Math.floor((cents * of + 50) / 100);
 
 describe("a Service Plan Quote on several weekdays", () => {
+  test("a Draft's weekdays each have their room, in the order typed, once timed", async () => {
+    const { office, propertyId } = await firstCleanDone();
+    const draft = await draftPlan(office, propertyId);
+    // Wednesday typed before Monday, and a third weekday not timed yet
+    const saved = (
+      await save(office, draft, [
+        day(WEDNESDAY, { crewSize: 2 }),
+        day(MONDAY),
+        day(null),
+      ]).expect(200)
+    ).body as OfficeQuote;
+    expect(saved.draft!.options.map((o) => o.room)).toMatchObject([
+      { date: WEDNESDAY.date, crewSize: 2, hasRoom: true },
+      { date: MONDAY.date, crewSize: 1, hasRoom: true },
+      null,
+    ]);
+  });
+
   test("gives each weekday its own time and visit, priced as each would be, with the round's total and a Deposit for one clean on each", async () => {
     const { office, propertyId } = await firstCleanDone();
     const draft = await draftPlan(office, propertyId);
@@ -222,7 +240,7 @@ describe("a Service Plan Quote on several weekdays", () => {
     expect(twice.body.details).toContainEqual(
       expect.objectContaining({
         path: "plan.days.1.start",
-        issue: expect.stringMatching(/on that weekday/),
+        issue: expect.stringMatching(/already has a clean on that day/),
       }),
     );
 
@@ -288,7 +306,7 @@ describe("a Service Plan Quote on several weekdays", () => {
 
     const sent = testEmail()
       .to(casey.email)
-      .find((m) => /Service Plan Quote/.test(m.subject))!;
+      .find((m) => /cleaning plan quote/.test(m.subject))!;
     expect(sent.text).toContain(
       "a Standard Clean every week, on Mondays at 9:00 AM and Wednesdays at 1:00 PM",
     );
@@ -575,7 +593,7 @@ describe("a commercial Service Plan", () => {
     const unseen = await office
       .post(`/api/quotes/${draft.id}/send`)
       .expect(409);
-    expect(unseen.body.message).toMatch(/Site Visit/);
+    expect(unseen.body.message).toMatch(/site visit/);
 
     await office
       .post(`/api/properties/${propertyId}/findings`)

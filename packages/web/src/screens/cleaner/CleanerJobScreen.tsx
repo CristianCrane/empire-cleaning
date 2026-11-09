@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import {
   CalendarClock,
@@ -9,6 +8,7 @@ import {
   Users,
 } from "lucide-react";
 import type { CleanerJob } from "@empire-cleaning/models";
+import { RELEASE_CLOSED } from "@empire-cleaning/models";
 import {
   ActionFooter,
   ActionRow,
@@ -22,11 +22,10 @@ import {
   IconTile,
   Notice,
   Section,
-  showToast,
 } from "@empire-cleaning/ui";
-import { ApiError, postJson } from "../../api.ts";
+import { postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
-import { useAction } from "../action.ts";
+import { useAction, useLeavingAction } from "../action.ts";
 import { Fact } from "../Fact.tsx";
 import {
   addressOf,
@@ -35,7 +34,7 @@ import {
   formatHours,
   formatTime,
 } from "../format.ts";
-import { directionsTo, JobBadge, untilAbout } from "./CleanerHome.tsx";
+import { CleanerJobBadge, directionsTo, untilAbout } from "./CleanerHome.tsx";
 import { CompleteJob, Completed, NotYet } from "./CompleteJob.tsx";
 import { NoAccessRecorded, RecordNoAccess } from "./NoAccess.tsx";
 
@@ -56,7 +55,7 @@ export function CleanerJobScreen() {
           trail={[
             offered
               ? { label: "Offers", href: linkTo({ to: "/cleaner/offers" }) }
-              : { label: "Your Jobs", href: linkTo({ to: "/cleaner" }) },
+              : { label: "Your jobs", href: linkTo({ to: "/cleaner" }) },
             {
               label: `${formatDay(dayOfInstant(job.startsAt))}, ${formatTime(job.startsAt)}`,
             },
@@ -64,16 +63,13 @@ export function CleanerJobScreen() {
         />
         <div className="flex flex-wrap items-center gap-3">
           <Heading level={1}>{job.serviceName}</Heading>
-          <JobBadge job={job} />
+          <CleanerJobBadge job={job} />
         </div>
       </div>
 
       <NotYet job={job} />
       {open && !offered && !job.started && !job.assignment.canRelease && (
-        <Notice>
-          It's less than 48 hours until this Job, so it can't be released here.
-          If you can't make it, please call the Office.
-        </Notice>
+        <Notice>{RELEASE_CLOSED}</Notice>
       )}
       {offered && <TakeOffer job={job} />}
       {job.outcome === "completed" && <Completed job={job} />}
@@ -88,7 +84,7 @@ export function CleanerJobScreen() {
           (!job.started && job.assignment.canRelease)) && (
           <ActionFooter aria-label="What to do">
             {!job.started && job.assignment.canRelease && (
-              <Release job={job} label="Release this Job" />
+              <Release job={job} label="Drop out of this job" />
             )}
             {job.canRecordNoAccess && <RecordNoAccess job={job} />}
             {job.canComplete && <CompleteJob job={job} />}
@@ -137,10 +133,10 @@ function JobDetails({ job }: { job: CleanerJob }) {
               className="mt-0.5 shrink-0 text-fg-muted"
             />
             <div className="flex min-w-0 flex-col gap-1">
-              <p className="text-sm font-semibold text-fg">How to get in</p>
+              <p className="text-sm font-semibold text-fg">How we get in</p>
               <p className="whitespace-pre-line text-fg [overflow-wrap:anywhere]">
                 {job.property.accessInstructions ??
-                  "None given. Call the Client when you arrive."}
+                  "Nothing's written down. Call the client when you get there."}
               </p>
             </div>
           </div>
@@ -189,7 +185,7 @@ function JobDetails({ job }: { job: CleanerJob }) {
               line={
                 job.client.phone
                   ? "Client: tap to call"
-                  : "Client: their phone shows on the day"
+                  : "Client: their number shows on the day"
               }
             />
           </dl>
@@ -202,7 +198,7 @@ function JobDetails({ job }: { job: CleanerJob }) {
 // a Job the Office offered them: Confirm it, or let it go
 function TakeOffer({ job }: { job: CleanerJob }) {
   // reloads on failure too, to show the new time if the Job moved
-  const action = useAction("The Job wasn't confirmed. Please try again.", {
+  const action = useAction("The job wasn't confirmed. Please try again.", {
     reloadOnFailure: true,
   });
 
@@ -234,58 +230,48 @@ function TakeOffer({ job }: { job: CleanerJob }) {
             </>
           }
         >
-          <p>The Office offered you this Job. Can you make it?</p>
+          <p>The office offered you this job. Can you make it?</p>
         </ActionRow>
       </Card>
     </Section>
   );
 }
 
+const STILL_ON = "You're still on this job. Please try again.";
+
 function Release({ job, label }: { job: CleanerJob; label: string }) {
   const navigate = useNavigate();
-  const [problem, setProblem] = useState<string>();
-  const [isPending, setPending] = useState(false);
+  // it leaves for Your jobs
+  const action = useLeavingAction(STILL_ON);
 
-  const release = async (close: () => void) => {
-    setPending(true);
-    setProblem(undefined);
-    try {
+  const release = (close: () => void) =>
+    action.run(async () => {
       await postJson(`/api/assignments/${job.assignment.id}/release`);
-      showToast({ tone: "success", title: "Job released" });
       close();
       await navigate({ to: "/cleaner" });
-    } catch (e) {
-      setProblem(
-        e instanceof ApiError && e.status === 409
-          ? e.message
-          : "The Job wasn't released. Please try again.",
-      );
-    } finally {
-      setPending(false);
-    }
-  };
+    }, "You've dropped out");
 
   return (
     <DialogTrigger>
       <Button variant="secondary">{label}</Button>
-      <Dialog title="Release this Job?" role="alertdialog">
+      <Dialog title="Drop out of this job?" role="alertdialog">
         {({ close }) => (
           <>
             <p>
-              It opens to every other Cleaner free then, and the Office will be
-              told. The Job will no longer be in your list.
+              It goes to the other cleaners free then, and the office is told.
+              It won't be on your list any more.
             </p>
-            {problem && <Notice tone="danger">{problem}</Notice>}
+            {action.problem && <Notice tone="danger">{action.problem}</Notice>}
             <Actions>
               <Button variant="quiet" onPress={close}>
                 Keep it
               </Button>
               <Button
                 variant="danger"
-                isPending={isPending}
+                isPending={action.isPending}
                 onPress={() => void release(close)}
               >
-                Release
+                Drop out
               </Button>
             </Actions>
           </>

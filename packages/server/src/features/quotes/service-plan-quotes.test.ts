@@ -12,7 +12,7 @@ import type {
   ServicePlanInput,
   SignedInAccount,
 } from "@empire-cleaning/models";
-import { dayOf, timeOf } from "#services/clock";
+import { dayOf, timeOf } from "@empire-cleaning/models";
 import {
   type Agent,
   signIn,
@@ -172,12 +172,16 @@ describe("starting a Service Plan Quote", () => {
       .post(`/api/quotes/${body.id}/revisions`)
       .send({ kind: "service_plan" })
       .expect(409);
-    expect(fromRequest.body.message).toMatch(/First Clean is Completed/);
+    expect(fromRequest.body.message).toMatch(
+      /first clean at this home isn't done yet/,
+    );
     const fromHome = await office
       .post("/api/quotes")
       .send({ propertyId: property.id, kind: "service_plan" })
       .expect(409);
-    expect(fromHome.body.message).toMatch(/First Clean is Completed/);
+    expect(fromHome.body.message).toMatch(
+      /first clean at this home isn't done yet/,
+    );
     expect((await officeQuote(office, body.id)).firstCleanCompleted).toBe(
       false,
     );
@@ -204,7 +208,9 @@ describe("starting a Service Plan Quote", () => {
     const refused = await office
       .post(`/api/quotes/${draft.id}/send`)
       .expect(409);
-    expect(refused.body.message).toMatch(/First Clean is Completed/);
+    expect(refused.body.message).toMatch(
+      /first clean at this home isn't done yet/,
+    );
   });
 
   test("can be offered for the home, unprompted, once its First Clean is Completed", async () => {
@@ -237,7 +243,7 @@ describe("starting a Service Plan Quote", () => {
       .send({ propertyId, kind: "service_plan" })
       .expect(409);
     expect(refused.body.message).toBe(
-      "This home has a Service Plan Quote, or a Quote asked for, open already: carry on with that one.",
+      "This home already has a cleaning plan quote or a quote request open. Carry on with that one.",
     );
     // a Quote of its own: the First Clean's is as it was
     expect(await officeQuote(office, quoteId)).toMatchObject({
@@ -258,7 +264,7 @@ describe("starting a Service Plan Quote", () => {
         .post(`/api/quotes/${quoteId}/revisions`)
         .send({ kind })
         .expect(409);
-      expect(refused.body.message).toMatch(/booked/);
+      expect(refused.body.message).toMatch(/already been accepted/);
     }
   });
 
@@ -440,7 +446,7 @@ describe("drafting a Service Plan Quote", () => {
     expect(refused.body.details).toContainEqual(
       expect.objectContaining({
         path: "plan.serviceKey",
-        issue: "Choose a Service that can be on a Service Plan",
+        issue: "Pick a service that can be on a cleaning plan",
       }),
     );
 
@@ -593,9 +599,9 @@ describe("a Sent Service Plan Quote", () => {
     const quote = await sentPlan(office, propertyId);
 
     const sent = testEmail().lastTo(casey.email);
-    expect(sent.subject).toBe("Your Service Plan Quote from Empire Cleaning");
+    expect(sent.subject).toBe("Your cleaning plan quote from Empire Cleaning");
     expect(sent.text).toContain("a Standard Clean every 2 weeks");
-    expect(sent.text).toContain("$201.85 a clean, saving $22.43");
+    expect(sent.text).toContain("$201.85 a clean, which saves you $22.43");
     expect(sent.text).toContain("one-off price of $224.28");
     expect(sent.text.match(/https?:\/\/\S+/g)).toEqual([
       expect.stringMatching(new RegExp(`/portal/quotes/${quote.id}$`)),
@@ -615,7 +621,7 @@ describe("a Sent Service Plan Quote", () => {
     });
     const updated = testEmail().lastTo(casey.email);
     expect(updated.subject).toBe(
-      "Your updated Service Plan Quote from Empire Cleaning",
+      "Your cleaning plan quote from Empire Cleaning has been updated",
     );
     expect(updated.text).toContain("has been updated: a Deep Clean every week");
   });

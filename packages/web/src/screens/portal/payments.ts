@@ -1,9 +1,12 @@
-import type {
-  BillPayment,
-  BillSummary,
-  ClientPastJob,
-  ClientPayment,
-  PaymentMethodView,
+import {
+  billNotPaid,
+  cleanNotPaid,
+  feeName,
+  UPDATE_CARD,
+  type BillSummary,
+  type ClientPastJob,
+  type ClientPayment,
+  type PaymentMethodView,
 } from "@empire-cleaning/models";
 import { linkTo, type AppHref } from "../../links.ts";
 import { dayOfInstant, formatMoney, formatShortDay } from "../format.ts";
@@ -50,8 +53,8 @@ export function moneyNow(data: PaymentsData): MoneyNow {
       .map((b) => ({
         cents: b.totalCents,
         late: true,
-        text: `We couldn't take payment for Bill ${b.number}`,
-        action: { label: `Pay Bill ${b.number}`, href: billLink(b.id) },
+        text: billNotPaid(b.number),
+        action: { label: `Pay bill ${b.number}`, href: billLink(b.id) },
       })),
     // a clean, or its fee, that couldn't be charged
     ...data.pastJobs
@@ -59,8 +62,18 @@ export function moneyNow(data: PaymentsData): MoneyNow {
       .map((j) => ({
         cents: j.owedCents,
         late: true,
-        text: `Your card was declined for your ${shortDayOf(j.startsAt)} clean`,
-        action: { label: "Update your card", href: cardLink },
+        text: cleanNotPaid(shortDayOf(j.startsAt)),
+        // we try one waiting on the payment service again ourselves
+        action:
+          j.unpaid === "waiting"
+            ? {
+                label: "See the clean",
+                href: linkTo({
+                  to: "/portal/jobs/$jobId",
+                  params: { jobId: j.id },
+                }),
+              }
+            : { label: UPDATE_CARD, href: cardLink },
       })),
     // a Bill to pay on its page, not yet late
     ...data.bills
@@ -75,7 +88,7 @@ export function moneyNow(data: PaymentsData): MoneyNow {
         cents: b.totalCents,
         late: false,
         text: `Bill ${b.number} is due by ${formatShortDay(b.dueOn)}`,
-        action: { label: `Pay Bill ${b.number}`, href: billLink(b.id) },
+        action: { label: `Pay bill ${b.number}`, href: billLink(b.id) },
       })),
   ];
   const [first] = owing;
@@ -96,7 +109,7 @@ export function moneyNow(data: PaymentsData): MoneyNow {
   const paying = data.paymentMethod
     ? `Paying with ${data.paymentMethod.label}`
     : onPage
-      ? "You pay each Bill on its page"
+      ? "You pay each bill on its page"
       : "No card saved yet";
 
   return {
@@ -113,9 +126,6 @@ export type PaymentRow = {
   href: AppHref | null;
 };
 
-const feeName = (status: string) =>
-  status === "no_access" ? "No Access fee" : "Late cancellation fee";
-
 // how one payment reads in the history: what it was for first
 export function paymentRow(p: ClientPayment): PaymentRow {
   const day = shortDayOf(p.at);
@@ -125,7 +135,10 @@ export function paymentRow(p: ClientPayment): PaymentRow {
 
   if (p.bill) {
     return {
-      title: `${p.kind === "refund" ? "Refund on " : ""}Bill ${p.bill.number}`,
+      title:
+        p.kind === "refund"
+          ? `Refund on bill ${p.bill.number}`
+          : `Bill ${p.bill.number}`,
       line: `${formatShortDay(p.bill.weekStart)} – ${formatShortDay(p.bill.weekEnd)}`,
       href: billLink(p.bill.id),
     };
@@ -136,9 +149,9 @@ export function paymentRow(p: ClientPayment): PaymentRow {
       params: { planId: p.servicePlanId },
     });
     return p.kind === "refund"
-      ? { title: "Refund of your Service Plan Deposit", href }
+      ? { title: "Refund of your cleaning plan deposit", href }
       : {
-          title: "Deposit for your Service Plan",
+          title: "Deposit for your cleaning plan",
           line: "Goes towards your plan's last clean",
           href,
         };
@@ -166,7 +179,8 @@ export function paymentRow(p: ClientPayment): PaymentRow {
           };
     case "fee":
       return {
-        title: feeName(job.status),
+        title:
+          job.status === "no_access" ? feeName.no_access : feeName.cancelled,
         line: `${job.serviceName}, ${cleanDay}`,
         href,
       };
@@ -194,23 +208,3 @@ export function paymentRow(p: ClientPayment): PaymentRow {
 // "−$22.50" for money back
 export const signedMoney = (cents: number) =>
   cents < 0 ? `−${formatMoney(-cents)}` : formatMoney(cents);
-
-// where a clean, or a fee, owed before its week's Bill is made goes, as the
-// Client is told; anything settled after the clean goes on their next Bill
-export const ON_WEEKS_BILL = "goes on your Bill for that week";
-
-// when a weekly Bill is made, and how the Client pays it (ADR-0016)
-export const billPaid: Record<BillPayment, string> = {
-  automatic:
-    "made the following Monday and charged to your saved Payment Method",
-  on_page:
-    "made the following Monday, which you pay on its page by its due date",
-};
-
-// how the Client pays for their plan's cleans: each when it's done, or on a
-// weekly Bill, charged or paid on its page
-export const planPaymentLine: Record<BillPayment | "per_clean", string> = {
-  per_clean: "Each clean is charged to your saved card when it's done.",
-  automatic: `Each week's cleans go on one Bill, ${billPaid.automatic}.`,
-  on_page: `Each week's cleans go on one Bill, ${billPaid.on_page}.`,
-};

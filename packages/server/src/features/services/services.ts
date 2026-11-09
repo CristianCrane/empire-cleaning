@@ -9,8 +9,7 @@ import type {
   ServiceOffer,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
-import { NotFoundError, RequestBodyError } from "../../middleware/errors.ts";
-import { z } from "zod";
+import { fieldError, NotFoundError } from "../../middleware/errors.ts";
 import type { Clean } from "../../services/email/blocks.ts";
 import { currentPriceList } from "../price-list/price-list.ts";
 import { addressOf } from "../properties/property-view.ts";
@@ -191,6 +190,9 @@ const latest = async () => {
     .map((r) => toService(r.service, r.authorName));
 };
 
+// what a choice of a Service that isn't on offer is told
+export const NOT_A_SERVICE = "Pick a service from the list";
+
 // Every Service as it is now, active and retired. The very first read
 // creates the starting ones, so a fresh install always has them.
 export const currentServices = async (): Promise<Service[]> => {
@@ -321,11 +323,6 @@ export const cleanOf = async (
   startsAt: job.startsAt,
 });
 
-const fieldError = (path: (string | number)[], message: string) =>
-  new RequestBodyError(
-    new z.ZodError([{ code: "custom", path, message, input: undefined }]),
-  );
-
 // a first-visit recommendation must be another Service there is
 const checkFirstVisit = (
   all: Service[],
@@ -337,14 +334,11 @@ const checkFirstVisit = (
   if (recommended === key) {
     throw fieldError(
       ["firstVisitServiceKey"],
-      "Recommend a different Service, or none",
+      "Recommend a different service, or none",
     );
   }
   if (!all.some((s) => s.key === recommended)) {
-    throw fieldError(
-      ["firstVisitServiceKey"],
-      "Choose from the Services listed",
-    );
+    throw fieldError(["firstVisitServiceKey"], NOT_A_SERVICE);
   }
 };
 
@@ -354,7 +348,7 @@ const checkName = (all: Service[], key: string | null, input: ServiceInput) => {
     input.active &&
     all.some((s) => s.key !== key && s.active && s.name.toLowerCase() === name)
   ) {
-    throw fieldError(["name"], "Another Service already has this name");
+    throw fieldError(["name"], "Another service already has this name");
   }
 };
 

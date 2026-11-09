@@ -4,6 +4,9 @@
   // with type information from TypeScript 7 (`--type-aware`, oxlint-tsgolint);
   // typescript-eslint can't read TypeScript 7
   "plugins": ["typescript", "react", "oxc", "unicorn", "import"],
+  // our own rules (packages/lint): JS plugins are in alpha in oxlint, and
+  // packages/lint's tests run each rule through oxlint's RuleTester
+  "jsPlugins": ["./packages/lint/src/report-unexpected.ts"],
   "categories": { "correctness": "error" },
   "rules": {
     // a promise nobody awaits fails silently
@@ -32,6 +35,35 @@
     "typescript/no-base-to-string": "off"
   },
   "overrides": [
+    // every error a screen catches but didn't expect goes to Sentry, through
+    // the one place in each package that skips what's expected
+    // (packages/lint/README.md)
+    {
+      "files": ["packages/web/src/**"],
+      "rules": {
+        "empire/report-unexpected": [
+          "error",
+          { "reporters": ["reportUnexpected"] }
+        ]
+      }
+    },
+    {
+      // no Sentry of their own: the browser's reportError reaches the host's
+      "files": ["packages/quote-request/src/**", "packages/landing/src/**"],
+      "rules": {
+        "empire/report-unexpected": ["error", { "reporters": ["reportError"] }]
+      }
+    },
+    {
+      // nothing in the design system reports: each catch says why it expects
+      // its throw
+      "files": ["packages/ui/src/**"],
+      "rules": { "empire/report-unexpected": "error" }
+    },
+    {
+      "files": ["packages/*/src/**/*.test.*", "packages/*/src/**/*.stories.*"],
+      "rules": { "empire/report-unexpected": "off" }
+    },
     {
       // Playwright reads a fixture's dependencies from its first argument,
       // which must be an object pattern: `async ({}, use) => …`

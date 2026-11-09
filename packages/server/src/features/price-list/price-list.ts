@@ -6,9 +6,12 @@ import type {
   PriceListInput,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
-import { RequestBodyError } from "../../middleware/errors.ts";
-import { z } from "zod";
-import { currentServices, findService } from "../services/services.ts";
+import { fieldError } from "../../middleware/errors.ts";
+import {
+  currentServices,
+  findService,
+  NOT_A_SERVICE,
+} from "../services/services.ts";
 import { SEEDED, SEEDED_FOR_HOMES } from "../services/seeded.ts";
 import { staff } from "../staff/staff.schema.ts";
 import {
@@ -224,16 +227,7 @@ const keepRetired = <T extends { key?: string; name: string; active: boolean }>(
     (item) => item.key && !known.has(item.key),
   );
   if (unknown !== -1) {
-    throw new RequestBodyError(
-      new z.ZodError([
-        {
-          code: "custom",
-          path: [field, unknown, "name"],
-          message: gone,
-          input: submitted[unknown],
-        },
-      ]),
-    );
+    throw fieldError([field, unknown, "name"], gone, submitted[unknown]);
   }
   const keys = new Set(submitted.map((item) => item.key));
   const left = current
@@ -247,15 +241,10 @@ const checkServiceKeys = async (input: PriceListInput) => {
   const known = new Set((await currentServices()).map((s) => s.key));
   for (const [i, addOn] of input.addOns.entries()) {
     if (addOn.serviceKeys.some((key) => !known.has(key))) {
-      throw new RequestBodyError(
-        new z.ZodError([
-          {
-            code: "custom",
-            path: ["addOns", i, "serviceKeys"],
-            message: "Choose from the Services listed",
-            input: addOn.serviceKeys,
-          },
-        ]),
+      throw fieldError(
+        ["addOns", i, "serviceKeys"],
+        NOT_A_SERVICE,
+        addOn.serviceKeys,
       );
     }
   }
@@ -273,13 +262,13 @@ export const savePriceList = async (
     input.addOns,
     current.addOns,
     "addOns",
-    "That Add-on isn't on the Price List any more; reload it",
+    "That add-on was taken off the prices. Reload the page",
   );
   const premisesTypes = keepRetired(
     input.premisesTypes,
     current.premisesTypes,
     "premisesTypes",
-    "That Premises Type isn't on the Price List any more; reload it",
+    "That type of business was taken off the prices. Reload the page",
   );
 
   await db.transaction((tx) =>
@@ -326,6 +315,15 @@ export const choosableAddOns = async (
     .filter((a) => offeredWith(a, service.key))
     .map(({ key, name }) => ({ key, name }));
 };
+
+// whether premises can be described as a Premises Type now, and what
+// they're told when they can't
+export const offersPremisesType = (list: PriceList, key: string) =>
+  list.premisesTypes.some((t) => t.active && t.key === key);
+export const NOT_A_PREMISES_TYPE = "Pick a type of business from the list";
+
+// what a choice of an Add-on that isn't on offer with its Service is told
+export const NOT_AN_ADD_ON = "Pick add-ons from the list";
 
 // the Premises Types business premises can be described as now; open to
 // everyone, for the landing page's form

@@ -1,0 +1,22 @@
+@reference "@empire-cleaning/ui/tokens.css";
+@import "@empire-cleaning/ui/feedback.css";
+
+/*
+ * Where the web app's feedback button sits, on the test site only; its look
+ * is the design system's (@empire-cleaning/ui/feedback.css).
+ */
+
+#sentry-feedback {
+  /* above the phone's tab bar (z-40), and a page's ActionFooter when it has
+     one */
+  --actor-inset: auto 0
+    calc(
+      var(--spacing-tab-bar) + var(--action-footer-height, 0px) +
+        env(safe-area-inset-bottom)
+    )
+    auto;
+
+  @variant md {
+    --actor-inset: auto 0 var(--action-footer-height, 0px) auto;
+  }
+}

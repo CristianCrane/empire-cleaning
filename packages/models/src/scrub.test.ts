@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { scrub } from "./scrub.js";
+import { scrub } from "./scrub.ts";
 
 // Client details never reach Sentry or the logs (ADR-0007)
 describe("scrubbing", () => {
@@ -33,8 +33,30 @@ describe("scrubbing", () => {
       "/api/auth/magic-link/verify?token=abc123&callbackURL=%2F",
       "/api/auth/magic-link/verify?token=[redacted]&callbackURL=[redacted]",
     ],
+    // emails that touch, which a match starting only where a run starts misses
+    ["a@b.com.x@c.com", "[email][email]"],
+    ["a@b.com+x@c.com", "[email][email]"],
+    // a key ending in "?", which a key without "?" misses
+    ["/x?foo?=secret", "/x?foo?=[redacted]"],
   ])("scrubs %j from text", (text, scrubbed) => {
     expect(scrub(text)).toBe(scrubbed);
+  });
+
+  // a long run a visitor sends can end up in an error message: a pattern
+  // that tries every start in it and scans to its end took 1.8–2.8 s on
+  // 50,000 characters (#292). It takes ~0.2 ms. The fastest of three runs,
+  // under 100 ms, rides out a pause on a busy machine and still fails the
+  // old patterns on one twice as fast
+  test.each(["+", "a", "?"])("scrubs a long run of %j quickly", (character) => {
+    const text = character.repeat(50_000);
+
+    const times = [1, 2, 3].map(() => {
+      const start = performance.now();
+      expect(scrub(text)).toBe(text);
+      return performance.now() - start;
+    });
+
+    expect(Math.min(...times)).toBeLessThan(100);
   });
 
   test.each([

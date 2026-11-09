@@ -55,12 +55,12 @@ test(
     await page.getByText("Acme Dental").click();
 
     const billing = page.getByRole("region", { name: "Billing" });
-    await expect(billing).toContainText("Per Job, when each is done");
+    await expect(billing).toContainText("Per job, when each is done");
     await billing.getByRole("button", { name: "Edit" }).click();
     const dialog = page.getByRole("dialog", { name: "Billing" });
     await dialog.getByText("Bill weekly").click();
     await dialog.getByText("On the Bill's page").click();
-    await dialog.getByRole("textbox", { name: "Terms, in days" }).fill("7");
+    await dialog.getByRole("textbox", { name: "Days to pay" }).fill("7");
     await dialog
       .getByRole("textbox", { name: "Billing email (optional)" })
       .fill("accounts@acme.example.com");
@@ -69,7 +69,7 @@ test(
     await expect(dialog).toBeHidden();
     await expect(billing).toContainText("Weekly, from the week of Mon, Jan 5");
     await expect(billing).toContainText(
-      "On each Bill's page within 7 days, by card or bank debit",
+      "On each bill's page within 7 days, by card or bank",
     );
     await expect(billing).toContainText("accounts@acme.example.com");
   },
@@ -88,7 +88,7 @@ test("switching weekly billing off shows what it charged per Job", async ({
   await dialog.getByText("Bill weekly").click();
   await dialog.getByRole("button", { name: "Save" }).click();
 
-  await expect(dialog).toContainText("We've emailed the Client what we did");
+  await expect(dialog).toContainText("We've emailed the client what we did");
   await expect(dialog).toContainText(/Deep Clean at 41-12 Austin St/);
   await expect(dialog).toContainText(/Charged \$\d/);
   expect((await emailsTo(casey.email)).at(-1)!.subject).toBe(
@@ -96,7 +96,7 @@ test("switching weekly billing off shows what it charged per Job", async ({
   );
   await dialog.getByRole("button", { name: "Done" }).click();
   await expect(dialog).toBeHidden();
-  await expect(billing).toContainText("Per Job, when each is done");
+  await expect(billing).toContainText("Per job, when each is done");
 });
 
 test("a Client with only a home has no weekly billing to set", async ({
@@ -164,18 +164,18 @@ test("Office Staff void a Bill that shouldn't have gone out", async ({
   await signedInAs(page, olive.email);
   await page.goto(`/office/bills/${billId}`);
 
-  await page.getByRole("button", { name: "Void" }).click();
-  const dialog = page.getByRole("dialog", { name: "Void bill EC-000001?" });
+  await page.getByRole("button", { name: "Cancel bill" }).click();
+  const dialog = page.getByRole("dialog", { name: "Cancel bill EC-000001?" });
   // a reason is needed
-  await dialog.getByRole("button", { name: "Void" }).click();
+  await dialog.getByRole("button", { name: "Cancel bill" }).click();
   await expect(dialog).toBeVisible();
   await dialog
-    .getByRole("textbox", { name: "Why it's voided" })
+    .getByRole("textbox", { name: "Why it's cancelled" })
     .fill("Sent before the Adjustment was agreed");
-  await dialog.getByRole("button", { name: "Void" }).click();
+  await dialog.getByRole("button", { name: "Cancel bill" }).click();
 
   await expect(dialog).toBeHidden();
-  await expect(badge(page, "Voided")).toBeVisible();
+  await expect(badge(page, "Cancelled")).toBeVisible();
   await expect(
     page.getByRole("region", { name: "Bill details" }),
   ).toContainText("Sent before the Adjustment was agreed");
@@ -217,13 +217,13 @@ test(
     ).toBeVisible();
     await page.getByRole("button", { name: /^Pay \$/ }).click();
 
-    await expect(page.getByText("Thank you: your Bill is paid")).toBeVisible();
+    await expect(page.getByText("Thank you, your bill is paid")).toBeVisible();
     await expect(badge(page, "Paid")).toBeVisible();
     await expect(
       page.getByRole("region", { name: "Bill details" }),
     ).toContainText("Paid on this page");
     await expect(
-      page.getByRole("region", { name: "Pay this Bill" }),
+      page.getByRole("region", { name: "Pay this bill" }),
     ).toBeHidden();
 
     // their Payments show it paid, and owe nothing
@@ -245,9 +245,9 @@ test("a Bill paid from a bank account is processing until it clears", async ({
   await page.getByRole("button", { name: /^Pay \$/ }).click();
 
   await expect(page.getByText("Your bank payment is on its way")).toBeVisible();
-  await expect(badge(page, "Processing")).toBeVisible();
+  await expect(badge(page, "Clearing")).toBeVisible();
   await expect(
-    page.getByRole("region", { name: "Pay this Bill" }),
+    page.getByRole("region", { name: "Pay this bill" }),
   ).toBeHidden();
 });
 
@@ -281,19 +281,21 @@ test("a Bill whose Charge failed is under Needs attention, holds the plan, and p
   const unpaidBill = attention
     .getByRole("row")
     .filter({ hasText: "Bill EC-000001 ·" });
-  await expect(unpaidBill).toContainText("Collect the Bill");
+  await expect(unpaidBill).toContainText("Collect the bill");
   const onHold = attention
     .getByRole("row")
     .filter({ hasText: "Collect what's owed to resume the plan" });
-  await expect(onHold).toContainText("Bill EC-000001 Unpaid");
+  await expect(onHold).toContainText("bill EC-000001 unpaid");
   await unpaidBill.click();
   await expect(page).toHaveURL(`/office/bills/${billId}`);
   await expect(
-    page.getByText(/^Its automatic Charge failed \(card_declined\)/),
+    page.getByText(
+      /^Its payment didn't go through on .+\. We've emailed the client to update their card/,
+    ),
   ).toBeVisible();
 
   await page.goto(`/office/service-plans/${planId}`);
-  const hold = page.getByRole("alert").filter({ hasText: "On Hold" });
+  const hold = page.getByRole("alert").filter({ hasText: "Paused." });
   await expect(hold).toContainText("bill EC-000001");
   await expect(
     hold.getByRole("link", { name: "See bill EC-000001" }),
@@ -306,11 +308,11 @@ test("a Bill whose Charge failed is under Needs attention, holds the plan, and p
   await client.goto(`/portal/plans/${planId}`);
   await client
     .getByRole("alert")
-    .filter({ hasText: "Your plan is On Hold" })
+    .filter({ hasText: "Your plan is paused" })
     .getByRole("link", { name: "Pay bill EC-000001" })
     .click();
   await expect(
-    client.getByText(/^We couldn't charge \$[\d.,]+ for this Bill/),
+    client.getByText(/^We couldn't take \$[\d.,]+ for this bill/),
   ).toBeVisible();
   await client.getByRole("button", { name: /^Pay \$/ }).click();
   await expect(badge(client, "Paid")).toBeVisible();
@@ -320,10 +322,10 @@ test("a Bill whose Charge failed is under Needs attention, holds the plan, and p
   // its cleans go on Bills, not charged one by one
   await expect(
     client.getByText(
-      /^Each week's cleans go on one Bill, made the following Monday and charged to your saved Payment Method\./,
+      /^Each week's cleans go on one bill, made the following Monday and charged to your card\./,
     ),
   ).toBeVisible();
-  await expect(client.getByText("Your plan is On Hold")).toBeHidden();
+  await expect(client.getByText("Your plan is paused")).toBeHidden();
 });
 
 test(
@@ -350,7 +352,7 @@ test(
       await expect(nav).toBeHidden();
     }
     await expect(
-      page.getByRole("region", { name: "Pay this Bill" }),
+      page.getByRole("region", { name: "Pay this bill" }),
     ).toBeHidden();
     await expect(page.getByRole("button", { name: "Print" })).toBeHidden();
   },

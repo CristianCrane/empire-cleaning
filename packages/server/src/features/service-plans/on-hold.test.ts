@@ -6,6 +6,7 @@ import type {
   ServicePlanView,
 } from "@empire-cleaning/models";
 import { completeJob } from "#features/completion";
+import { settleOpenPayments } from "#features/payments";
 import {
   type Agent,
   testClock,
@@ -70,7 +71,7 @@ describe("a plan Job left Unpaid", () => {
       }),
     );
     expect(testEmail().lastTo(casey.email).text).toMatch(
-      /Service Plan is On Hold/,
+      /cleaning plan is paused/,
     );
     // their past cleans show it Skipped, its fee Unpaid, latest first
     const past = (await client.get("/api/jobs/mine/past").expect(200))
@@ -83,7 +84,7 @@ describe("a plan Job left Unpaid", () => {
         completedAt: null,
         totalCents: 0,
         feeCents: PLAN_DEPOSIT,
-        unpaid: true,
+        unpaid: "declined",
       }),
       // its First Clean, before the plan
       expect.objectContaining({ status: "completed", skipped: false }),
@@ -152,6 +153,21 @@ describe("a plan Job left Unpaid", () => {
     expect(cancelTerms).toMatchObject({ late: false, feeCents: 0 });
   });
 
+  test("held while the provider was down, then declined, says so in the late notice", async () => {
+    const { cleanerId, jobId } = await crewedServicePlan();
+    testClock().set(new Date("2026-01-19T16:00:00Z"));
+    testPayments().goDown();
+    await completeJob(cleanerId, jobId, { condition: "moderate", reports: [] });
+    testPayments().goDown(false);
+    testPayments().failCharges();
+
+    testClock().advance({ minutes: 15 });
+    await settleOpenPayments();
+    const notice = testEmail().lastTo(casey.email);
+    expect(notice.subject).toBe("We couldn't take your payment");
+    expect(notice.text).toMatch(/cleaning plan is paused/);
+  });
+
   test("when it's a completed Job's Balance puts the plan On Hold too, and the Office's retry resumes it", async () => {
     const { office, client, planId, jobId, cleanerId } =
       await crewedServicePlan();
@@ -162,14 +178,14 @@ describe("a plan Job left Unpaid", () => {
     expect((await clientPlan(client, planId)).status).toBe("on_hold");
     const unpaidNotice = testEmail().lastTo(casey.email);
     expect(unpaidNotice.subject).toBe("We couldn't take your payment");
-    expect(unpaidNotice.text).toMatch(/Service Plan is On Hold/);
+    expect(unpaidNotice.text).toMatch(/cleaning plan is paused/);
 
     testPayments().failCharges(null);
     await office.post(`/api/jobs/${jobId}/balance/retry`).expect(200);
     expect((await clientPlan(client, planId)).status).toBe("active");
     expect(testPayments().charges.at(-1)!.amount).toBe(PLAN_TOTAL);
     expect(testEmail().lastTo(casey.email).text).toMatch(
-      /Service Plan is back on/,
+      /cleaning plan is back on/,
     );
   });
 });

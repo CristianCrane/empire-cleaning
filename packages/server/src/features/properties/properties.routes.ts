@@ -2,11 +2,19 @@ import { Router } from "express";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../../db/index.ts";
-import { NotFoundError, RequestBodyError } from "../../middleware/errors.ts";
-import { validate } from "../../middleware/validation.ts";
+import {
+  fieldError,
+  NotFoundError,
+  RequestBodyError,
+} from "../../middleware/errors.ts";
+import { keepUnder, validate } from "../../middleware/validation.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { clients } from "../clients/clients.schema.ts";
-import { currentPriceList } from "../price-list/price-list.ts";
+import {
+  currentPriceList,
+  NOT_A_PREMISES_TYPE,
+  offersPremisesType,
+} from "../price-list/price-list.ts";
 import {
   checkRooms,
   homeCorrectionSchema,
@@ -40,7 +48,11 @@ router.patch(
   validate({
     params,
     body: z.object({
-      accessInstructions: z.string().trim().max(2000).nullable(),
+      accessInstructions: z
+        .string()
+        .trim()
+        .max(2000, keepUnder(2000))
+        .nullable(),
     }),
   }),
   async (req, res) => {
@@ -98,18 +110,9 @@ router.patch(
       if (
         premisesType !== undefined &&
         premisesType !== property.premisesTypeKey &&
-        !list.premisesTypes.some((t) => t.active && t.key === premisesType)
+        !offersPremisesType(list, premisesType)
       ) {
-        throw new RequestBodyError(
-          new z.ZodError([
-            {
-              code: "custom",
-              path: ["premisesType"],
-              message: "Choose from the types of premises listed",
-              input: premisesType,
-            },
-          ]),
-        );
+        throw fieldError(["premisesType"], NOT_A_PREMISES_TYPE, premisesType);
       }
       changes = { ...rest, premisesTypeKey: premisesType };
     } else {

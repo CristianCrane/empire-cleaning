@@ -1,9 +1,10 @@
 import { and, desc, eq, gte, inArray, isNull, sum } from "drizzle-orm";
 import type { PlanChange } from "@empire-cleaning/models";
+import { dayOf } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError } from "../../middleware/errors.ts";
-import { clock, dayOf } from "../../services/clock/index.ts";
-import { tellCrew } from "../cancellation/cancellation.ts";
+import { clock } from "../../services/clock/index.ts";
+import { CHANGED_SINCE, tellCrew } from "../cancellation/cancellation.ts";
 import { settleAfterChange } from "../completion/balance.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { closePendingRequests } from "../reschedule/closing.ts";
@@ -71,7 +72,7 @@ export const holdForChange = async (
   // generating may have booked one in between
   const now = (await bookedFrom(tx, planId, startsAt)).map((j) => j.id);
   if (now.join() !== ids.join()) {
-    throw new ConflictError("Something changed just then. Please try again.");
+    throw new ConflictError(CHANGED_SINCE);
   }
   return { plan: plan!, replaced };
 };
@@ -113,7 +114,7 @@ export const changeServicePlanTerms = async (
         cancelledBy: "client",
         cancelledByAccount: changedBy,
         lateCancellation: false,
-        cancellationReason: "The Service Plan's terms changed",
+        cancellationReason: "The cleaning plan changed",
         // a fee a Late Reschedule made due stays due, as when skipping
         feeCents: job.rescheduleFeeCents,
       })
@@ -181,11 +182,20 @@ export const planChangeOf = async (
   };
 };
 
-// the Jobs a Service Plan Quote for the home, starting at `startsAt`, would
-// replace, which don't count against its room: its plan's booked Jobs from
-// then on, or none if it has no plan
-export const jobsReplacedAt = async (propertyId: string, startsAt: Date) => {
+// the Jobs a Service Plan Quote for the home would replace, starting at
+// each of `starts`, which don't count against its room: its plan's booked
+// Jobs from then on, or none if it has no plan. One load, from the earliest.
+export const jobsReplacedAt = async (
+  propertyId: string,
+  starts: Date[],
+): Promise<string[][]> => {
   const plan = await currentPlanOf(propertyId);
-  if (!plan) return [];
-  return (await replacedBy(plan.id, startsAt)).map((j) => j.id);
+  if (!plan || starts.length === 0) return starts.map(() => []);
+  const booked = await replacedBy(
+    plan.id,
+    new Date(Math.min(...starts.map((s) => s.getTime()))),
+  );
+  return starts.map((startsAt) =>
+    booked.filter((job) => job.startsAt >= startsAt).map((job) => job.id),
+  );
 };

@@ -50,7 +50,7 @@ export const deepCleanHowOften: Guide = {
     {
       title: "A routine that works",
       text: [
-        "For most homes: start with one deep clean, then keep the home there with standard cleans on a Service Plan, weekly, every two weeks or every four weeks, 10% off every visit. Add a one-off deep clean every season or two, as the home needs it.",
+        "For most homes: start with one deep clean, then keep the home there with standard cleans on a cleaning plan, weekly, every two weeks or every four weeks, 10% off every visit. Add a one-off deep clean every season or two, as the home needs it.",
         "Weekly suits busy homes with children or pets; every two weeks suits most; every four weeks suits a tidy home with one or two people.",
       ],
     },

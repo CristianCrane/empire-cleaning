@@ -4,10 +4,12 @@ import {
   emailsTo,
   expect,
   expectAccessible,
+  saved,
   sentServicePlanQuote,
   signedInAs,
   signUp,
   startedServicePlan,
+  startOn,
   test,
 } from "./harness.ts";
 
@@ -26,8 +28,8 @@ const olive = {
 };
 const casey = { name: "Casey Client", email: "casey@example.com" };
 
-// Casey's plan, its acceptance recorded by Olive
-const planStarted = async () => {
+// Casey's plan, its acceptance recorded by Olive, for a crew of `crewSize`
+const planStarted = async (crewSize?: number) => {
   await createStaff(olive);
   await signUp(olive.email);
   const { propertyId } = await completedFirstClean(olive.email);
@@ -35,6 +37,7 @@ const planStarted = async () => {
     officeEmail: olive.email,
     propertyId,
     startsAt: FIRST,
+    ...(crewSize && { crewSize }),
   });
   return { ...plan, propertyId };
 };
@@ -67,7 +70,7 @@ test(
     await expect(
       client.getByRole("region", { name: "Quote details" }),
     ).toContainText("From Wed, Jan 28, 9:00 AM");
-    const change = client.getByText("This changes your Service Plan");
+    const change = client.getByText("This changes your cleaning plan");
     await expect(change).toBeVisible();
     await expect(
       client.getByText(
@@ -85,10 +88,10 @@ test(
     await accept.getByRole("button", { name: "Accept the new terms" }).click();
     await expect(
       client.getByText(
-        "Your Service Plan has changed: it's on these terms from Wed, Jan 28, 9:00 AM.",
+        "Your cleaning plan has changed: it's on these terms from Wed, Jan 28, 9:00 AM.",
       ),
     ).toBeVisible();
-    await client.getByRole("link", { name: "See your Service Plan" }).click();
+    await client.getByRole("link", { name: "See your cleaning plan" }).click();
     const cleans = client.getByRole("grid", { name: "Your upcoming cleans" });
     await expect(cleans.getByRole("row")).toHaveText([
       /Mon, Jan 19, 9:00 AM/,
@@ -96,16 +99,67 @@ test(
       /Wed, Jan 28, 9:00 AM/,
     ]);
     expect((await emailsTo(casey.email)).at(-1)!.subject).toBe(
-      "Your Service Plan with Empire Cleaning has changed",
+      "Your cleaning plan with Empire Cleaning has changed",
     );
 
     // the Office sees the plan on its new terms
     await page.goto(`/office/service-plans/${planId}`);
     await expect(
-      page.getByRole("region", { name: "Service Plan" }),
+      page.getByRole("region", { name: "Cleaning plan" }),
     ).toContainText("Every 2 weeks");
   },
 );
+
+test("a Draft changing the plan can take the time of a Job it replaces", async ({
+  page,
+}) => {
+  // Cory and Bea, the only Cleaners, are both on the plan's Job at 9am on
+  // Monday the 26th, which new terms from then replace
+  const { planId } = await planStarted(2);
+  await signedInAs(page, olive.email);
+  await page.goto(`/office/service-plans/${planId}`);
+  await page.getByRole("button", { name: "Change terms" }).click();
+  await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}\/draft$/);
+
+  await page
+    .getByRole("region", { name: "Plan" })
+    .getByRole("radio", { name: "Every 2 weeks" })
+    .check();
+  await startOn(
+    page,
+    page.getByRole("region", { name: "Weekday 1" }),
+    "01262026",
+    "0900AM",
+  );
+  const mondays = page.getByRole("region", { name: "Mondays" });
+  await expect(mondays.getByRole("textbox", { name: "Cleaners" })).toHaveValue(
+    "2",
+  );
+  await saved(page);
+  await expect(mondays).toContainText("Mon, Jan 26 has room for it.");
+  await expect(mondays).not.toContainText("Not enough cleaners are free then");
+
+  // the Schedule says the same: from 8 or 9 the plan's Job is replaced, so
+  // Cory and Bea are free; from 9:30 it isn't (it starts before the new
+  // terms), and it's still on then
+  await mondays.getByRole("button", { name: "Pick from the schedule" }).click();
+  const monday = page
+    .getByRole("dialog", { name: "Pick from the schedule" })
+    .getByRole("region", { name: "Mon, Jan 26", exact: true });
+  for (const time of ["8:00 AM", "9:00 AM"]) {
+    await expect(
+      monday.getByRole("button", {
+        name: `Mon, Jan 26, ${time}`,
+        exact: true,
+      }),
+    ).toBeAttached();
+  }
+  await expect(
+    monday.getByRole("button", {
+      name: "Mon, Jan 26, 9:30 AM, not enough cleaners free",
+    }),
+  ).toBeAttached();
+});
 
 test(
   "a Client asks to change their plan, which reaches the Office as a plan change",
@@ -126,7 +180,7 @@ test(
     await expectAccessible(client, "[role=dialog]");
     await dialog.getByRole("button", { name: "Send" }).click();
     await expect(
-      client.getByText("Sent: we'll send you a new Service Plan Quote"),
+      client.getByText("Sent. We'll send you a new cleaning plan quote."),
     ).toBeVisible();
 
     await signedInAs(page, olive.email);
@@ -138,7 +192,7 @@ test(
     ).toBeVisible();
     await expect(
       page.getByText(
-        "A Service Plan Quote changes its terms once the Client accepts it.",
+        "A cleaning plan quote changes it once the client accepts.",
         { exact: false },
       ),
     ).toBeVisible();

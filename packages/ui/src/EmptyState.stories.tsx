@@ -9,13 +9,13 @@ const meta = {
   component: EmptyState,
   args: {
     icon: Repeat,
-    title: "This Property doesn't have a Service Plan",
+    title: "This property doesn't have a cleaning plan",
     description:
-      "Quote regular cleaning: the Client accepts the Quote and their Jobs are booked for them.",
+      "Quote regular cleaning: the client accepts the quote and their jobs are booked for them.",
     children: (
       <Button>
         <Repeat aria-hidden size={18} />
-        Quote a Service Plan
+        Quote a cleaning plan
       </Button>
     ),
   },
@@ -29,12 +29,12 @@ export const WithAction: Story = {};
 export const WithTwoActions: Story = {
   args: {
     icon: MapPin,
-    title: "This Property doesn't have a Site Visit",
+    title: "This property doesn't have a site visit",
     description:
-      "Business premises are seen before they're quoted. Book a Site Visit, or record findings you know already.",
+      "This business needs a site visit before it's quoted. Book one, or record what you know about it already.",
     children: (
       <>
-        <Button>Book a Site Visit</Button>
+        <Button>Book a site visit</Button>
         <Button variant="secondary">Record findings without a visit</Button>
       </>
     ),
@@ -45,7 +45,7 @@ export const CantAddYet: Story = {
   args: {
     children: (
       <Notice>
-        The Client asked for a Quote that's still open: carry on with that one.
+        The client asked for a quote that's still open: carry on with that one.
       </Notice>
     ),
   },
@@ -54,7 +54,7 @@ export const CantAddYet: Story = {
 export const NoAction: Story = {
   args: {
     description:
-      "A home can be quoted a Service Plan once its First Clean is Completed.",
+      "A home can be quoted a cleaning plan once its first clean is done.",
     children: undefined,
   },
 };

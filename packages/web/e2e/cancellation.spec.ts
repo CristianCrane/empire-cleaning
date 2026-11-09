@@ -50,7 +50,7 @@ test(
 
     const cancel = page.getByRole("region", { name: "Need to cancel?" });
     await expect(cancel).toContainText(
-      /You can cancel for free until Sun, Jan 11, 9:00 AM, and we'll refund your \$[\d.]+ Deposit\./,
+      /You can cancel for free until Sun, Jan 11, 9:00 AM, and we'll refund your \$[\d.]+ deposit\./,
     );
     await expectAccessible(page);
 
@@ -59,16 +59,14 @@ test(
       name: "Cancel your clean?",
     });
     await expect(dialog).toContainText(
-      /There's no charge, and we'll refund your \$[\d.]+ Deposit\./,
+      /There's no charge for cancelling\. We'll refund your \$[\d.]+ deposit\./,
     );
     await expectAccessible(page);
     await dialog.getByRole("button", { name: "Cancel clean" }).click();
 
     await expect(page.getByText("Your clean is cancelled")).toBeVisible();
     const cancelled = page.getByRole("region", { name: "Cancelled" });
-    await expect(cancelled).toContainText(
-      "There was no charge for cancelling.",
-    );
+    await expect(cancelled).toContainText("There's no charge for cancelling.");
     await expect(cancelled).toContainText(/We've refunded \$[\d.]+ to your/);
     await expect(
       page.getByRole("region", { name: "Need to cancel?" }),
@@ -109,16 +107,16 @@ test("a Client is told, not charged, when cancelling has become late since they 
   await setClock(SUNDAY_9_01AM);
   await dialog.getByRole("button", { name: "Cancel clean" }).click();
   await expect(dialog).toContainText(
-    /less than 24 hours .* the \$[\d.]+ Deposit is kept as the fee\. Please check and confirm again\./,
+    /Something changed just then\. Please check it and try again\./,
   );
   // the cost shown is now the late one
   await expect(dialog).toContainText(
-    /Your \$[\d.]+ Deposit is kept as the Late Cancellation fee\./,
+    /Cancelling less than 24 hours before is a late cancellation, so your \$[\d.]+ deposit is kept as the fee\./,
   );
 
   await dialog.getByRole("button", { name: "Cancel clean" }).click();
   await expect(page.getByRole("region", { name: "Cancelled" })).toContainText(
-    /cancelled less than 24 hours before it was due, so your \$[\d.]+ Deposit was kept/,
+    /Cancelling less than 24 hours before is a late cancellation, so your \$[\d.]+ deposit is kept as the fee/,
   );
 });
 
@@ -135,28 +133,28 @@ test(
       .getByRole("group", { name: "What to do" })
       .getByRole("button", { name: "Couldn't get in" })
       .click();
-    const dialog = page.getByRole("alertdialog", { name: "Record No Access?" });
+    const dialog = page.getByRole("alertdialog", { name: "Couldn't get in?" });
     await expectAccessible(page);
     await dialog
       .getByRole("textbox", { name: "What happened?" })
       .fill("Nobody answered and the doorman had no key");
-    await dialog.getByRole("button", { name: "Record No Access" }).click();
+    await dialog.getByRole("button", { name: "Send" }).click();
 
-    await expect(page.getByText("No Access recorded")).toBeVisible();
-    const recorded = page.getByRole("region", { name: "No Access" });
+    await expect(page.getByText("Sent", { exact: true })).toBeVisible();
+    const recorded = page.getByRole("region", { name: "Couldn't get in" });
     await expect(recorded).toContainText(
       '"Nobody answered and the doorman had no key"',
     );
-    await expect(
-      page.getByRole("button", { name: "Complete Job" }),
-    ).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Mark done" })).toHaveCount(
+      0,
+    );
     await expect(page.getByText(/\$/)).toHaveCount(0);
 
     const told = (await emailsTo(casey.email)).at(-1)!;
     expect(told.subject).toBe("We couldn't get in for your clean");
     expect(
       (await emailsTo(olive.email)).some((e) =>
-        e.subject.startsWith("No Access at"),
+        e.subject.startsWith("Couldn't get in at"),
       ),
     ).toBe(true);
   },
@@ -173,22 +171,22 @@ test(
 
     // an icon in the Job's action bar, named in a tooltip
     const actions = page.getByRole("toolbar", { name: "Job actions" });
-    const cancelJob = actions.getByRole("button", { name: "Cancel Job" });
+    const cancelJob = actions.getByRole("button", { name: "Cancel job" });
     // a mouse moves before it rests on anything
     await actions.hover();
     await cancelJob.hover();
-    await expect(page.getByRole("tooltip")).toHaveText("Cancel Job");
+    await expect(page.getByRole("tooltip")).toHaveText("Cancel job");
     await cancelJob.click();
-    const dialog = page.getByRole("alertdialog", { name: "Cancel this Job?" });
+    const dialog = page.getByRole("alertdialog", { name: "Cancel this job?" });
     await expect(dialog).toContainText(
-      /The Client asked\s*It's a Late Cancellation: the \$[\d.]+ Deposit is kept as the fee\./,
+      /The client asked\s*A late cancellation: the \$[\d.]+ deposit is kept as the fee\./,
     );
     await dialog.getByText("Empire Cleaning can't do it").click();
     await dialog
-      .getByRole("textbox", { name: "Why? (told to the Client)" })
+      .getByRole("textbox", { name: "Why? (the client sees this)" })
       .fill("Our crew is unwell.");
     await expectAccessible(page);
-    await dialog.getByRole("button", { name: "Cancel Job" }).click();
+    await dialog.getByRole("button", { name: "Cancel job" }).click();
 
     await expect(page.getByText("Job cancelled")).toBeVisible();
     await expect(
@@ -199,7 +197,7 @@ test(
     await expect(page.getByRole("region", { name: "History" })).toContainText(
       /Deposit of \$[\d.]+ charged.*\$[\d.]+ refunded/,
     );
-    await expect(page.getByRole("button", { name: "Cancel Job" })).toHaveCount(
+    await expect(page.getByRole("button", { name: "Cancel job" })).toHaveCount(
       0,
     );
 
@@ -209,7 +207,7 @@ test(
     await expect(
       client.getByRole("region", { name: "Cancelled" }),
     ).toContainText(
-      "We're sorry: we had to cancel this clean. Our crew is unwell.",
+      "We're sorry, we had to cancel this clean. Our crew is unwell.",
     );
   },
 );

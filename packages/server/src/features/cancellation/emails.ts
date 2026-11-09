@@ -9,16 +9,34 @@ import {
 import { firstNameOf, formatMoney } from "../../services/email/format.ts";
 import { jobsButton } from "../assignments/emails.ts";
 import type { Settled } from "../completion/balance.ts";
+import { BOOK_ANOTHER } from "../quotes/emails.ts";
+import {
+  clientFix,
+  notTaken,
+  cancelCostForClient,
+  cancelCostForOffice,
+  noAccessFee,
+  ON_THAT_WEEKS_BILL,
+  PLAN_CARRIES_ON,
+  PLAN_PAUSED,
+  refundedTo,
+} from "@empire-cleaning/models";
+import { whyNotPaid } from "../payments/unpaid.ts";
 
-// for a Client whose plan an Unpaid Job has put On Hold
-export const ON_HOLD_LINE =
-  "Until it's paid, your Service Plan is On Hold: cleans already booked go ahead, but we won't book any more.";
+// a fee that didn't go through, for the Office, and why
+const feeNotPaid = (failure: string) => {
+  const { why } = whyNotPaid(failure);
+  return `The fee didn't go through${why ? ` (${why})` : ""}, so the job is unpaid.`;
+};
 
 // what was refunded, as a line for the Client
 const refundLine = (settled: Settled) =>
   settled.refundedCents > 0
     ? [
-        `We've refunded ${formatMoney(settled.refundedCents)} to your ${settled.paymentMethod ?? "card"}. It can take a few days to reach you.`,
+        refundedTo(
+          formatMoney(settled.refundedCents),
+          settled.paymentMethod ?? "card",
+        ),
       ]
     : [];
 
@@ -29,8 +47,8 @@ const feeChargeLine = (settled: Settled) => {
   if (settled.chargedCents > 0) return [`We've charged it to your ${card}.`];
   if (settled.failure) {
     return [
-      `We couldn't charge it to your ${card}. Please update your Payment Method, and we'll try again straight away.`,
-      ...(settled.plan === "held" ? [ON_HOLD_LINE] : []),
+      `${notTaken("it", card)} ${clientFix[whyNotPaid(settled.failure).kind]}`,
+      ...(settled.plan === "held" ? [PLAN_PAUSED] : []),
     ];
   }
   return [];
@@ -39,12 +57,12 @@ const feeChargeLine = (settled: Settled) => {
 // where a plan Job's fee went, for the Office: charged now, or on the Bill
 // for the week the Job was in (ADR-0016), which needn't be the next one made
 const feeTaken = (settled: Settled) =>
-  settled.billed ? "goes on that week's Bill" : "is charged";
+  settled.billed ? ON_THAT_WEEKS_BILL : "is charged";
 
 const portalButton = (jobId: string) =>
   button("See your clean", `/portal/jobs/${jobId}`);
 const officeButton = (jobId: string) =>
-  button("See the Job", `/office/jobs/${jobId}`);
+  button("See the job", `/office/jobs/${jobId}`);
 
 export type Cancelled = {
   name: string;
@@ -58,8 +76,6 @@ export type Cancelled = {
   late: boolean;
   feeCents: number;
   settled: Settled;
-  // a Late Cancellation is within this many hours of the clean
-  cutoffHours: number;
 };
 
 export const cancelledEmail = ({
@@ -72,32 +88,25 @@ export const cancelledEmail = ({
   late,
   feeCents: fee,
   settled,
-  cutoffHours,
 }: Cancelled): Email => {
   const lines =
     by === "empire"
       ? [
-          `We're sorry: we've had to cancel your clean.${reason ? ` ${reason}` : ""}`,
+          `We're sorry, we've had to cancel your clean.${reason ? ` ${reason}` : ""}`,
           "You won't be charged anything for it.",
         ]
-      : onPlan
-        ? [
-            "We've skipped your clean, as you asked.",
-            late && fee > 0
-              ? `As it was less than ${cutoffHours} hours before the clean, it's a Late Cancellation, with a ${formatMoney(fee)} fee: the same as your plan's Deposit, which stays held.`
-              : fee > 0
-                ? `The ${formatMoney(fee)} fee for an earlier Late Reschedule is still to pay.`
-                : "There's no charge for skipping it.",
-            ...feeChargeLine(settled),
-          ]
-        : [
-            "We've cancelled your clean, as you asked.",
-            late && fee > 0
-              ? `As it was less than ${cutoffHours} hours before the clean, it's a Late Cancellation: your ${formatMoney(fee)} Deposit is kept as the fee.`
-              : fee > 0
-                ? `Your ${formatMoney(fee)} Deposit was already kept as the fee for a Late Reschedule, so there's nothing more to pay.`
-                : "There's no charge for cancelling.",
-          ];
+      : [
+          onPlan
+            ? "We've skipped your clean, as you asked."
+            : "We've cancelled your clean, as you asked.",
+          cancelCostForClient({
+            onPlan,
+            late,
+            feeCents: fee,
+            fee: formatMoney(fee),
+          }),
+          ...(onPlan ? feeChargeLine(settled) : []),
+        ];
   const [first, ...rest] = lines;
   return {
     subject:
@@ -111,9 +120,7 @@ export const cancelledEmail = ({
       ...[
         ...rest,
         ...refundLine(settled),
-        onPlan
-          ? "Your Service Plan carries on as usual."
-          : "To book another clean, request a Quote from your account.",
+        onPlan ? PLAN_CARRIES_ON : BOOK_ANOTHER,
       ].map(paragraph),
       portalButton(jobId),
     ],
@@ -128,10 +135,10 @@ export const crewCancelledEmail = ({
   name: string;
   clean: Clean;
 }): Email => ({
-  subject: "A Job you're on is cancelled",
+  subject: "A job you're on is cancelled",
   blocks: [
     greeting(firstNameOf(name)),
-    paragraph("We've cancelled this Job. You don't need to go."),
+    paragraph("We've cancelled this job. You don't need to go."),
     cleanDetails(clean),
     jobsButton,
   ],
@@ -156,35 +163,28 @@ export const officeCancelledEmail = ({
   settled: Settled;
 }): Email => ({
   subject: onPlan
-    ? `${client} skipped a plan Job`
-    : `${client} cancelled a Job`,
+    ? `${client} skipped a cleaning plan job`
+    : `${client} cancelled a job`,
   blocks: [
     paragraph(
       onPlan
-        ? `${client} has skipped this Job. Their Service Plan carries on.`
-        : `${client} has cancelled this Job.`,
+        ? `${client} has skipped this job. Their cleaning plan carries on.`
+        : `${client} has cancelled this job.`,
     ),
     cleanDetails(clean),
     paragraph(
-      onPlan
-        ? late
-          ? `It was a Late Cancellation, so the ${formatMoney(feeCents)} fee ${feeTaken(settled)}.`
-          : feeCents > 0
-            ? `It was more than 24 hours ahead, but the ${formatMoney(feeCents)} fee for a Late Reschedule ${feeTaken(settled)}.`
-            : "It was more than 24 hours ahead, so there's no fee."
-        : late
-          ? "It was a Late Cancellation, so the Deposit is kept as the fee."
-          : feeCents > 0
-            ? "It was more than 24 hours ahead, but a Late Reschedule had already kept the Deposit as the fee."
-            : "It was more than 24 hours ahead, so the Deposit has been refunded.",
+      cancelCostForOffice({
+        onPlan,
+        late,
+        feeCents,
+        fee: formatMoney(feeCents),
+        weeklyBill: settled.billed,
+        failed: settled.failure !== null,
+        refund:
+          settled.refundedCents > 0 ? formatMoney(settled.refundedCents) : null,
+      }),
     ),
-    ...(settled.failure
-      ? [
-          paragraph(
-            `The fee couldn't be charged (${settled.failure}), so the Job is Unpaid.`,
-          ),
-        ]
-      : []),
+    ...(settled.failure ? [paragraph(feeNotPaid(settled.failure))] : []),
     officeButton(jobId),
   ],
 });
@@ -217,14 +217,12 @@ export const noAccessEmail = ({
     ...[
       feeCents === 0
         ? "There's no charge for it."
-        : onPlan
-          ? `As with a Late Cancellation, there's a ${formatMoney(feeCents)} fee: the same as your plan's Deposit, which stays held.`
-          : `As with a Late Cancellation, your ${formatMoney(feeCents)} Deposit is kept as the fee.`,
+        : noAccessFee({ onPlan, fee: formatMoney(feeCents) }),
       ...(onPlan ? feeChargeLine(settled) : []),
       ...refundLine(settled),
       onPlan
-        ? "Your Service Plan carries on as usual. Please check your Access Instructions before your next clean."
-        : "To book another clean, request a Quote from your account. Please check your Access Instructions first.",
+        ? `${PLAN_CARRIES_ON} Before your next clean, please check how we get in.`
+        : `${BOOK_ANOTHER} Please check how we get in first.`,
     ].map(paragraph),
     portalButton(jobId),
   ],
@@ -247,16 +245,16 @@ export const officeNoAccessEmail = ({
   onPlan: boolean;
   settled: Settled;
 }): Email => ({
-  subject: `No Access at ${clean.address}`,
+  subject: `Couldn't get in at ${clean.address}`,
   blocks: [
-    paragraph(`${cleaner} couldn't get in for this Job ("${reason}").`),
+    paragraph(`${cleaner} couldn't get in for this job ("${reason}").`),
     cleanDetails(clean),
     paragraph(
       onPlan
         ? settled.failure
-          ? `${client} has been told. The fee couldn't be charged (${settled.failure}), so the Job is Unpaid.`
+          ? `${client} has been told. ${feeNotPaid(settled.failure)}`
           : `${client} has been told, and the fee ${feeTaken(settled)}.`
-        : `${client} has been told, and the Deposit is kept as the fee.`,
+        : `${client} has been told, and the deposit is kept as the fee.`,
     ),
     officeButton(jobId),
   ],

@@ -1,4 +1,6 @@
-import { addDays, mondayOf, today } from "./format.ts";
+import { addDays, daysIn, mondayOf } from "@empire-cleaning/models";
+import { readStored, store } from "@empire-cleaning/ui";
+import { today } from "./format.ts";
 
 // the dates asked for; without valid ones, the Schedule shows today on the
 // span last chosen
@@ -11,11 +13,6 @@ export const isDay = (value: unknown): value is string =>
 // week's columns are too narrow to read, a day or three
 export type Span = 1 | 3 | 7;
 export const SPANS: Span[] = [1, 3, 7];
-
-export const daysIn = (from: string, to: string) =>
-  (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) /
-    86_400_000 +
-  1;
 
 // where a span showing `day` starts: a week from its Monday, otherwise the
 // day itself
@@ -36,21 +33,14 @@ const SPAN_KEY = "ec-schedule-span";
 const DEFAULT_SPAN: Span = 3;
 
 const chosenSpan = (): Span => {
-  try {
-    const stored = Number(localStorage.getItem(SPAN_KEY));
-    return SPANS.includes(stored as Span) ? (stored as Span) : DEFAULT_SPAN;
-  } catch {
-    return DEFAULT_SPAN;
-  }
+  const stored = Number(readStored("localStorage", SPAN_KEY));
+  return SPANS.includes(stored as Span) ? (stored as Span) : DEFAULT_SPAN;
 };
 
-export const chooseSpan = (span: Span) => {
-  try {
-    localStorage.setItem(SPAN_KEY, String(span));
-  } catch {
-    // not remembered; the Schedule opens on the default next time
-  }
-};
+// not remembered if storage is blocked: the Schedule opens on the default
+// next time
+export const chooseSpan = (span: Span) =>
+  store("localStorage", SPAN_KEY, String(span));
 
 // the range a search shows: the days asked for, if they're a day, three days
 // or a week; otherwise today, on the span last chosen

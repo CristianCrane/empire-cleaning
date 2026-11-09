@@ -1,36 +1,23 @@
 import { z } from "zod";
+import { keepUnder } from "../../middleware/validation.ts";
+import { hours, taxPercent } from "../price-list/price-list.validation.ts";
 
 // messages are shown beside the Service's fields, so they're written for
 // people
-
-const decimals = (places: number) => (value: number) =>
-  Math.abs(value * 10 ** places - Math.round(value * 10 ** places)) < 1e-9;
-
-const hours = z
-  .number({ error: "Enter a number of hours" })
-  .min(0, "Hours can't be negative")
-  .max(24, "That's more than a day")
-  .refine(decimals(2), "Use at most two decimal places");
-
-const taxPercent = z
-  .number({ error: "Enter a tax rate" })
-  .min(0, "A tax rate can't be negative")
-  .max(30, "That's higher than any sales tax")
-  .refine(decimals(3), "Use at most three decimal places");
 
 export const serviceSchema = z
   .object({
     name: z
       .string()
       .trim()
-      .min(1, "Name the Service")
-      .max(80, "Use a shorter name"),
-    description: z.string().trim().max(300, "Keep it to a sentence or two"),
+      .min(1, "Enter a name")
+      .max(80, keepUnder(80, "the name")),
+    description: z.string().trim().max(300, keepUnder(300, "the description")),
     offeredFor: z.enum(["homes", "businesses", "both"], {
-      error: "Choose who the Service is offered to",
+      error: "Pick who it's for",
     }),
     method: z.enum(["rooms", "area"], {
-      error: "Choose how the Service is priced",
+      error: "Pick how it's priced",
     }),
     roomHours: z
       .object({
@@ -41,21 +28,16 @@ export const serviceSchema = z
         petHours: hours,
       })
       .nullable(),
-    hoursPerThousandSqFt: z
-      .number({ error: "Enter a number of hours" })
-      .min(0.01, "The work takes some time")
-      .max(24, "That's more than a day")
-      .refine(decimals(2), "Use at most two decimal places")
-      .nullable(),
+    hoursPerThousandSqFt: hours.min(0.01, "Enter more than 0 hours").nullable(),
     hourlyRateCents: z
       .number({ error: "Enter an hourly rate" })
       .int()
       .min(100, "The hourly rate must be at least $1")
       .max(100_000, "That's over $1,000 an hour"),
     minimumChargeCents: z
-      .number({ error: "Enter a Minimum Charge" })
+      .number({ error: "Enter a minimum price" })
       .int()
-      .min(0, "The Minimum Charge can't be negative")
+      .min(0, "The minimum price can't be below $0")
       .max(1_000_000, "That's over $10,000"),
     taxOneOffPercent: taxPercent,
     taxPlanPercent: taxPercent.nullable(),
@@ -77,7 +59,7 @@ export const serviceSchema = z
     }
     // homes are described by their rooms; business premises aren't
     if (s.method === "rooms" && s.offeredFor !== "homes") {
-      require("offeredFor", "Price it by area to offer it for business premises");
+      require("offeredFor", "To offer it to businesses, price it by area");
     }
     if (s.canRecur && s.taxPlanPercent === null) {
       require("taxPlanPercent", "Enter a tax rate");

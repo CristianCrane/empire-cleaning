@@ -130,7 +130,9 @@ describe("Cleaners Needed", () => {
     expect(await openJobIds(asCory)).toEqual([]);
     await asCory.get(`/api/assignments/open/${job.id}`).expect(404);
     const refused = await confirm(asCory, job).expect(409);
-    expect(refused.body.message).toBe("This Job isn't open to Cleaners yet");
+    expect(refused.body.message).toBe(
+      "This job isn't open yet. Check back later.",
+    );
     expect((await jobFor(office, job.id)).openTo).toMatchObject({
       opensAt: "2026-01-06T14:00:00.000Z",
       opened: false,
@@ -216,7 +218,7 @@ describe("Confirming a Cleaner Needed", () => {
 
     await confirm(asDee, job).expect(200);
     const refused = await confirm(asCory, job).expect(409);
-    expect(refused.body.message).toBe("Someone else took this Job");
+    expect(refused.body.message).toBe("Someone else already took this job.");
   });
 
   test("lets only the first of two at once take the last one", async () => {
@@ -234,7 +236,9 @@ describe("Confirming a Cleaner Needed", () => {
   });
 
   // more than the database pool's connections, each waiting on the Job's
-  // lock while holding one: the one holding the lock mustn't need another
+  // lock while holding one: the one holding the lock mustn't need another.
+  // 5 s, under the pools' 10 s wait (src/db/index.ts), so a pool that runs
+  // dry fails the test rather than its requests answering late
   test("lets only the first of a dozen at once take the last one, answering everyone", async () => {
     const job = await thursdayJob(1);
     const agents = [];
@@ -260,7 +264,7 @@ describe("Confirming a Cleaner Needed", () => {
 
     await confirm(asCory, overlapping).expect(200);
     const refused = await confirm(asCory, job).expect(409);
-    expect(refused.body.message).toBe("You're no longer free for this Job");
+    expect(refused.body.message).toBe("You're not free for this job any more.");
   });
 });
 
@@ -285,7 +289,7 @@ describe("Saying a Cleaner Needed is not for me", () => {
     testClock().set(new Date("2026-01-05T12:00:00Z"));
     expect(await emailCleanersNeeded()).toBe(1);
     expect(subjectsTo(dee.email)).toEqual([]);
-    expect(testEmail().lastTo(cory.email).subject).toBe("Jobs open to you");
+    expect(testEmail().lastTo(cory.email).subject).toBe("Open jobs for you");
   });
 });
 
@@ -305,7 +309,9 @@ describe("Releasing a Confirmed Assignment", () => {
     expect(await openJobIds(asCory)).toEqual([]);
     expect(await openJobIds(await dee.signIn())).toEqual([job.id]);
     const refused = await confirm(asCory, job).expect(409);
-    expect(refused.body.message).toBe("You released this Job");
+    expect(refused.body.message).toBe(
+      "You dropped out of this job, so you can't take it back.",
+    );
     expect((await jobFor(office, job.id)).openTo.cleaners).toBe(1);
   });
 
@@ -329,14 +335,14 @@ describe("Releasing a Confirmed Assignment", () => {
       .expect(204);
 
     const toDee = testEmail().lastTo(dee.email);
-    expect(toDee.subject).toBe("A Job soon is open to you");
+    expect(toDee.subject).toBe("An open job, soon");
     expect(toDee.text).toContain(
       "Deep Clean, Tuesday, January 6 at 9:00 AM, 11375, about 3 hours on site, on your own",
     );
     expect(toDee.text).toContain(
       `http://localhost:5173/cleaner/open/${job.id}`,
     );
-    expect(subjectsTo(cory.email)).toEqual(["You've been offered a Job"]);
+    expect(subjectsTo(cory.email)).toEqual(["You've been offered a job"]);
     // and only once
     expect(await emailCleanersNeeded()).toBe(0);
   });
@@ -353,10 +359,10 @@ describe("The morning email of Cleaners Needed", () => {
     testClock().set(new Date("2026-01-05T12:00:00Z"));
     expect(await emailCleanersNeeded()).toBe(1);
     const first = testEmail().lastTo(cory.email);
-    expect(first.subject).toBe("Jobs open to you");
+    expect(first.subject).toBe("Open jobs for you");
     expect(first.text).toContain("Hi Cory,");
     expect(first.text).toContain(
-      "Deep Clean, Thursday, January 8 at 9:00 AM, 11375, about 3 hours on site, crew of 2",
+      "Deep Clean, Thursday, January 8 at 9:00 AM, 11375, about 3 hours on site, with 2 cleaners",
     );
     expect(first.text).toContain(
       `http://localhost:5173/cleaner/open/${thursday.id}`,
@@ -379,14 +385,15 @@ describe("The morning email of Cleaners Needed", () => {
     expect(second.indexOf("Friday, January 9")).toBeLessThan(
       second.indexOf("Thursday, January 8"),
     );
-    expect(second).toMatch(/http:\/\/localhost:5173\/cleaner\n/);
+    // more than one: they're all under Offers
+    expect(second).toMatch(/http:\/\/localhost:5173\/cleaner\/offers\n/);
 
     // nothing new the day after
     testClock().set(new Date("2026-01-07T12:05:00Z"));
     expect(await emailCleanersNeeded()).toBe(0);
     expect(subjectsTo(cory.email)).toEqual([
-      "Jobs open to you",
-      "Jobs open to you",
+      "Open jobs for you",
+      "Open jobs for you",
     ]);
   });
 
@@ -402,7 +409,7 @@ describe("The morning email of Cleaners Needed", () => {
     expect(await emailCleanersNeeded()).toBe(0);
     testClock().set(new Date("2026-01-06T12:00:00Z"));
     expect(await emailCleanersNeeded()).toBe(1);
-    expect(testEmail().lastTo(cory.email).subject).toBe("Jobs open to you");
+    expect(testEmail().lastTo(cory.email).subject).toBe("Open jobs for you");
   });
 });
 
@@ -435,12 +442,12 @@ describe("Moving a Job", () => {
     ]);
     expect(moved.cleanersNeeded).toBe(1);
     expect(testEmail().lastTo(cory.email).subject).toBe(
-      "A Job you're on has moved",
+      "A job you're on has moved",
     );
     const toDee = testEmail().lastTo(dee.email);
-    expect(toDee.subject).toBe("You're no longer on a Job");
+    expect(toDee.subject).toBe("You're no longer on a job");
     expect(toDee.text).toContain(
-      "to Thursday, January 8 at 9:00 AM, when you aren't free, so you're no longer on it",
+      "to Thursday, January 8 at 9:00 AM, when you're not free, so you're off it",
     );
     expect(await openJobIds(await eve.signIn())).toEqual([job.id]);
   });

@@ -25,13 +25,22 @@ import {
   type PaymentMethodView,
   type QuoteSummary,
   type ServicePlanSummary,
-  type TurnDownReason,
+  ASK_AGAIN,
+  ASK_US,
+  billNotPaid,
+  BOOKED_GO_AHEAD,
+  cleanNotPaid,
+  REQUEST_A_QUOTE,
+  turnDownReason,
+  UPDATE_CARD,
+  WITHIN_A_DAY,
 } from "@empire-cleaning/models";
 import type { StatusTone } from "@empire-cleaning/ui";
 import { linkTo, type AppHref } from "../../links.ts";
 import { QuoteIcon } from "../icons.ts";
 import {
   addressOf,
+  cleaners,
   dayOfInstant,
   formatDateTime,
   formatDay,
@@ -95,14 +104,19 @@ export type WhatsNext = {
   shortcuts: Shortcut[];
 };
 
-const requestQuote = {
-  label: "Request a Quote",
+// the Client's ways to a Quote: asking for one, and seeing one
+export const requestQuote = {
+  label: REQUEST_A_QUOTE,
   href: linkTo({ to: "/portal/request" }),
 };
 const jobLink = (jobId: string) =>
   linkTo({ to: "/portal/jobs/$jobId", params: { jobId } });
 const quoteLink = (quoteId: string) =>
   linkTo({ to: "/portal/quotes/$quoteId", params: { quoteId } });
+const seeQuote = (quoteId: string) => ({
+  label: "See your quote",
+  href: quoteLink(quoteId),
+});
 const billLink = (billId: string) =>
   linkTo({ to: "/portal/bills/$billId", params: { billId } });
 const cardLink = linkTo({ to: "/portal/payment-method" });
@@ -110,12 +124,6 @@ const detailsLink = linkTo({ to: "/portal/details" });
 
 // "Tue, Oct 20" for an instant, New York's day
 const dayOf = (iso: string) => formatDay(dayOfInstant(iso));
-
-const turnedDownBecause: Record<TurnDownReason, string> = {
-  out_of_area: "It's outside the area we clean",
-  out_of_scope: "It's not work we take on",
-  no_capacity: "We're fully booked just now",
-};
 
 const open = (q: QuoteSummary) =>
   q.status === "requested" || q.status === "draft";
@@ -140,7 +148,11 @@ export function whatsNext(data: HomeData, now = new Date()): WhatsNext {
   ].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
   const [next, then] = booked;
 
-  const unpaidJob = data.pastJobs.find((j) => j.unpaid);
+  // a clean they can put right with a card; one waiting on the payment
+  // service we try again ourselves
+  const unpaidJob = data.pastJobs.find(
+    (j) => j.unpaid && j.unpaid !== "waiting",
+  );
   const paused = data.plans.find((p) => p.status === "on_hold");
   const sent = data.quotes.filter((q) => q.status === "sent");
   // a Sent Quote leads only when nothing is booked
@@ -151,11 +163,9 @@ export function whatsNext(data: HomeData, now = new Date()): WhatsNext {
   if (unpaidJob && (next || !paused)) {
     notices.push({
       text:
-        `We couldn't charge for your ${dayOf(unpaidJob.startsAt)} clean.` +
-        (paused
-          ? " Your Service Plan books no new cleans until it's paid."
-          : ""),
-      action: "Update your card",
+        `${cleanNotPaid(dayOf(unpaidJob.startsAt))}.` +
+        (paused ? ` ${BOOKED_GO_AHEAD}` : ""),
+      action: UPDATE_CARD,
       href: cardLink,
     });
   }
@@ -168,16 +178,16 @@ export function whatsNext(data: HomeData, now = new Date()): WhatsNext {
   }
   for (const quote of sent.filter((q) => q !== leadingQuote)) {
     notices.push({
-      text: `Your Quote is ready: ${quoteHeadline(quote)}.`,
-      action: "See your Quote",
-      href: quoteLink(quote.id),
+      text: `Your quote is ready: ${quoteHeadline(quote)}.`,
+      action: seeQuote(quote.id).label,
+      href: seeQuote(quote.id).href,
     });
   }
   for (const bill of data.bills) {
     if (bill.unpaid) {
       notices.push({
-        text: `We couldn't take payment for Bill ${bill.number}, ${formatMoney(bill.totalCents)}.`,
-        action: "See the Bill",
+        text: `${billNotPaid(bill.number)}, ${formatMoney(bill.totalCents)}.`,
+        action: "See the bill",
         href: billLink(bill.id),
       });
     } else if (
@@ -187,7 +197,7 @@ export function whatsNext(data: HomeData, now = new Date()): WhatsNext {
     ) {
       notices.push({
         text: `Bill ${bill.number}, ${formatMoney(bill.totalCents)}, is due by ${formatDay(bill.dueOn)}.`,
-        action: "Pay the Bill",
+        action: "Pay the bill",
         href: billLink(bill.id),
       });
     }
@@ -207,7 +217,7 @@ export function whatsNext(data: HomeData, now = new Date()): WhatsNext {
     next && then
       ? then.kind === "job"
         ? `After that: ${then.job.serviceName}, ${formatDateTime(then.startsAt)}`
-        : `After that: your Site Visit, ${formatDateTime(then.startsAt)}`
+        : `After that: your site visit, ${formatDateTime(then.startsAt)}`
       : null;
 
   return {
@@ -242,8 +252,6 @@ function heroOf(data: HomeData, ctx: Context): Hero {
         (p) => p.status === "completed" && p.property.id === job.property.id,
       );
     const today = isToday(job.startsAt, now);
-    const cleaners =
-      job.crewSize === 1 ? "1 Cleaner" : `${job.crewSize} Cleaners`;
     return {
       label: today ? "Today" : first ? "Your first clean" : "Your next clean",
       icon: CalendarCheck,
@@ -254,10 +262,10 @@ function heroOf(data: HomeData, ctx: Context): Hero {
         `${job.serviceName} at ${addressOf(job.property)}`,
         ...(plan
           ? [
-              `Part of your Service Plan, ${recurrenceLabel[plan.recurrence].toLowerCase()}`,
+              `Part of your cleaning plan, ${recurrenceLabel[plan.recurrence].toLowerCase()}`,
             ]
           : []),
-        `${cleaners}, about ${formatHours(job.hoursOnSite)} on site`,
+        `${cleaners(job.crewSize)}, about ${formatHours(job.hoursOnSite)} on site`,
       ],
       action: { label: "See the clean", href: jobLink(job.id) },
     };
@@ -266,7 +274,7 @@ function heroOf(data: HomeData, ctx: Context): Hero {
   if (next?.kind === "visit") {
     const { visit } = next;
     return {
-      label: "Your Site Visit",
+      label: "Your site visit",
       icon: MapPin,
       tone: "info",
       startsAt: visit.startsAt,
@@ -280,25 +288,25 @@ function heroOf(data: HomeData, ctx: Context): Hero {
 
   if (paused) {
     return {
-      label: "Your Service Plan is paused",
+      label: "Your cleaning plan is paused",
       icon: PauseCircle,
       tone: "warning",
       headline: unpaidJob ? "Update your card to carry on" : "A payment is due",
       lines: [
         unpaidJob
-          ? `We couldn't charge for your ${dayOf(unpaidJob.startsAt)} clean.`
-          : "A Bill on it hasn't been paid.",
+          ? `${cleanNotPaid(dayOf(unpaidJob.startsAt))}.`
+          : "A payment on it hasn't gone through yet.",
         "Once it's paid, your plan carries on from its next date.",
       ],
       action: unpaidJob
-        ? { label: "Update your card", href: cardLink }
+        ? { label: UPDATE_CARD, href: cardLink }
         : { label: "See your plan", href: planLink(paused.id) },
     };
   }
 
   if (leadingQuote) {
     return {
-      label: "Your Quote is ready",
+      label: "Your quote is ready",
       icon: QuoteIcon,
       tone: "info",
       headline: quoteHeadline(leadingQuote),
@@ -314,7 +322,7 @@ function heroOf(data: HomeData, ctx: Context): Hero {
           ? [`Open until ${dayOf(leadingQuote.expiresAt)}`]
           : []),
       ],
-      action: { label: "See your Quote", href: quoteLink(leadingQuote.id) },
+      action: seeQuote(leadingQuote.id),
     };
   }
 
@@ -338,13 +346,13 @@ function heroOf(data: HomeData, ctx: Context): Hero {
       };
     }
     return {
-      label: "We're preparing your Quote",
+      label: "Your quote",
       icon: Hourglass,
       tone: "info",
-      headline: "Usually within a working day",
+      headline: "We're working on it",
       lines: [
         `${asked.service.name} at ${addressOf(asked.property)}, asked ${dayOf(asked.createdAt)}`,
-        "We email it to you, and it shows here.",
+        `We'll email it to you, ${WITHIN_A_DAY}, and it shows here.`,
       ],
       action: seeIt,
     };
@@ -353,7 +361,7 @@ function heroOf(data: HomeData, ctx: Context): Hero {
   const plan = data.plans.find((p) => p.status === "active");
   if (plan) {
     return {
-      label: "Your Service Plan",
+      label: "Your cleaning plan",
       icon: Repeat,
       tone: "info",
       headline: planName(plan),
@@ -366,7 +374,7 @@ function heroOf(data: HomeData, ctx: Context): Hero {
   const last = data.quotes[0];
   if (last?.status === "expired") {
     return {
-      label: "Your Quote expired",
+      label: "Your quote expired",
       icon: CalendarClock,
       tone: "neutral",
       headline: quoteHeadline(last),
@@ -384,9 +392,9 @@ function heroOf(data: HomeData, ctx: Context): Hero {
       icon: Ban,
       tone: "neutral",
       headline: last.turnDownReason
-        ? turnedDownBecause[last.turnDownReason]
-        : "Sorry, we can't quote for it",
-      lines: [`${addressOf(last.property)}. If anything changes, ask again.`],
+        ? turnDownReason[last.turnDownReason]
+        : "Sorry, we can't take this one on",
+      lines: [`${addressOf(last.property)}. ${ASK_AGAIN}`],
       action: requestQuote,
     };
   }
@@ -397,7 +405,7 @@ function heroOf(data: HomeData, ctx: Context): Hero {
       tone: "info",
       headline: "Changed your mind?",
       lines: [
-        `You turned down our Quote for ${last.service.name}. Ask for a new one any time.`,
+        `You declined our quote for ${last.service.name}. Ask for a new one any time.`,
       ],
       action: requestQuote,
     };
@@ -417,10 +425,8 @@ function heroOf(data: HomeData, ctx: Context): Hero {
     label: "Welcome to Empire Cleaning",
     icon: Sparkles,
     tone: "info",
-    headline: "Let's get you a Quote",
-    lines: [
-      "Tell us about your home and what you'd like cleaned. We email a price, usually within a working day.",
-    ],
+    headline: "Let's get you a quote",
+    lines: [ASK_US],
     action: requestQuote,
   };
 }
@@ -451,8 +457,8 @@ function shortcutsOf(data: HomeData, ctx: Context): Shortcut[] {
   const card: Shortcut = unpaidJob
     ? {
         icon: CreditCard,
-        label: "Update your card",
-        hint: "The last charge didn't go through",
+        label: UPDATE_CARD,
+        hint: "The last payment didn't go through",
         href: cardLink,
       }
     : {

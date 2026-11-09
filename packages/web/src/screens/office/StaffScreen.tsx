@@ -36,9 +36,9 @@ export function StaffScreen() {
         <DialogTrigger>
           <Button>
             <UserPlus aria-hidden size={18} />
-            Invite Staff
+            Invite staff
           </Button>
-          <Dialog title="Invite Staff">
+          <Dialog title="Invite staff">
             {({ close }) => <InviteForm close={close} />}
           </Dialog>
         </DialogTrigger>
@@ -107,8 +107,7 @@ function InviteForm({ close }: { close: () => void }) {
       }}
     >
       <p className="text-fg-muted">
-        We'll email them a link to sign up. Signing up with this email connects
-        them to Empire Cleaning's Staff.
+        We'll email them a link to sign up with this email.
       </p>
       <TextField label="Name" name="name" isRequired autoFocus />
       <TextField
@@ -124,13 +123,13 @@ function InviteForm({ close }: { close: () => void }) {
           isSelected={roles.includes("cleaner")}
           onChange={(on) => toggle("cleaner", on)}
         >
-          Cleaner: carries out Jobs
+          Cleaner: does the cleaning
         </Checkbox>
         <Checkbox
           isSelected={roles.includes("office_staff")}
           onChange={(on) => toggle("office_staff", on)}
         >
-          Office Staff: runs the Office workspace
+          Office staff: runs the business here
         </Checkbox>
       </fieldset>
       {action.fieldErrors.roles && (

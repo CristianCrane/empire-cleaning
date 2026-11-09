@@ -1,7 +1,11 @@
 import { useState } from "react";
 import { useLoaderData, useNavigate, useSearch } from "@tanstack/react-router";
 import { CircleCheck, CreditCard, Receipt, TriangleAlert } from "lucide-react";
-import type { ClientPayment } from "@empire-cleaning/models";
+import {
+  BANK_CLEARING,
+  BUSINESS_TIME_ZONE,
+  type ClientPayment,
+} from "@empire-cleaning/models";
 import {
   Button,
   ButtonLink,
@@ -35,7 +39,7 @@ const PAGE = 20;
 const monthFormat = new Intl.DateTimeFormat("en-US", {
   month: "long",
   year: "numeric",
-  timeZone: "America/New_York",
+  timeZone: BUSINESS_TIME_ZONE,
 });
 
 export function PortalPayments() {
@@ -55,7 +59,7 @@ export function PortalPayments() {
           href={linkTo({ to: "/portal/payment-method" })}
         >
           <CreditCard aria-hidden size={18} />
-          Payment Method
+          Your card
         </ButtonLink>
       </div>
 
@@ -89,9 +93,8 @@ export function PortalPayments() {
 
       {clearing.map((bill) => (
         <Notice key={bill.id}>
-          Your bank payment of {formatMoney(bill.totalCents)} for Bill{" "}
-          {bill.number} is on its way. It usually takes a few working days to
-          clear.
+          Your bank payment of {formatMoney(bill.totalCents)} for bill{" "}
+          {bill.number} is on its way. {BANK_CLEARING}
         </Notice>
       ))}
 
@@ -100,7 +103,7 @@ export function PortalPayments() {
           <EmptyState
             icon={Receipt}
             title="Nothing paid yet"
-            description="Each Deposit, clean and refund shows here."
+            description="Each deposit, clean and refund shows here."
           />
         ) : all ? (
           <Statement history={history} />

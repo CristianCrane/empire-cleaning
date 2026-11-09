@@ -1,4 +1,5 @@
 import type { QuoteSource } from "@empire-cleaning/models";
+import { readStored, store } from "@empire-cleaning/ui";
 
 // Where a Guest asks for a Quote from (#185): this page, and the campaign
 // tags (utm_source, utm_medium, utm_campaign) of the link that brought them
@@ -27,19 +28,16 @@ const tagsOf = (search: string): Tags | null => {
 // be blocked (a private window), and then only this page knows them
 export const keepCampaign = () => {
   const tags = tagsOf(location.search);
-  if (!tags) return;
-  try {
-    sessionStorage.setItem(KEY, JSON.stringify(tags));
-  } catch {
-    // not kept
-  }
+  if (tags) store("sessionStorage", KEY, JSON.stringify(tags));
 };
 
 const keptCampaign = (): Tags | null => {
+  const kept = readStored("sessionStorage", KEY);
+  if (!kept) return null;
   try {
-    const kept = sessionStorage.getItem(KEY);
-    return kept ? (JSON.parse(kept) as Tags) : null;
-  } catch {
+    return JSON.parse(kept) as Tags;
+  } catch (e) {
+    reportError(e);
     return null;
   }
 };

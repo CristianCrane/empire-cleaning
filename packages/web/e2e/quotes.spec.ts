@@ -7,6 +7,7 @@ import {
   expectAccessible,
   proposeNextMonday,
   requestQuoteAsGuest,
+  saved,
   setClock,
   signedInAs,
   signInWithLink,
@@ -41,7 +42,7 @@ const startDraft = async (page: Page) => {
   await page.getByText(casey.name).click();
   await draftTheQuote(page);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    `Revision 1 for ${casey.name}`,
+    `Draft quote for ${casey.name}`,
   );
 };
 
@@ -56,7 +57,7 @@ const send = async (page: Page) => {
 
 const quoteLink = async () => {
   const sent = (await emailsTo(casey.email)).find(
-    (e) => e.subject === "Your Quote from Empire Cleaning",
+    (e) => e.subject === "Your quote from Empire Cleaning",
   );
   return new URL(sent!.text.match(/https?:\/\/\S+/)![0]).pathname;
 };
@@ -71,21 +72,21 @@ test(
 
     const deep = page.getByRole("region", { name: "Deep Clean" });
     await expect(deep).toContainText("Recommended");
-    await deep.getByText("Override the Deep Clean price").click();
+    await deep.getByText("Set the Deep Clean price yourself").click();
     await deep
       .getByRole("textbox", { name: "Deep Clean price before tax" })
       .fill("250");
     await deep
-      .getByRole("textbox", { name: "Reason for the override" })
+      .getByRole("textbox", { name: "Why this price" })
       .fill("Regular Client's friend");
     await proposeNextMonday(page);
     await send(page);
     await expect(
-      page.getByRole("region", { name: "Current Quote" }),
+      page.getByRole("region", { name: "Current quote" }),
     ).toContainText("Mon, Jan 12, 9:00 AM");
     await expect(
       page.getByRole("region", { name: "Deep Clean" }),
-    ).toContainText("Overridden to $250.00 before tax");
+    ).toContainText("Set to $250.00 before tax");
 
     // a fresh browser, signed out: the link asks them to sign in first
     const client = await (await browser.newContext()).newPage();
@@ -96,7 +97,7 @@ test(
     await expect(client).toHaveURL(link);
 
     await expect(client.getByRole("heading", { level: 1 })).toHaveText(
-      "Your Quote",
+      "Your quote",
     );
     const offer = client.getByRole("region", { name: "Quote details" });
     await expect(
@@ -117,21 +118,21 @@ test("prices follow the Draft as it changes, and an override waits for its reaso
   await startDraft(page);
 
   const standard = page.getByRole("region", { name: "Standard Clean" });
-  await standard.getByText("Override the Standard Clean price").click();
+  await standard.getByText("Set the Standard Clean price yourself").click();
   await standard
     .getByRole("textbox", { name: "Standard Clean price before tax" })
     .fill("250");
   const status = page.getByRole("status").filter({ hasText: /prices|saved/ });
   await expect(status).toHaveText(
-    "Give a reason for the override to update the prices",
+    "Give a reason for the new price to update the prices",
   );
   await page.getByRole("button", { name: `Send to ${casey.name}` }).click();
   await expect(
-    standard.getByText("Say why you're changing the Suggested Price"),
+    standard.getByText("Say why you're changing the suggested price"),
   ).toBeVisible();
 
   await standard
-    .getByRole("textbox", { name: "Reason for the override" })
+    .getByRole("textbox", { name: "Why this price" })
     .fill("Small flat");
   // $250 plus 8.875% tax, without saving by hand
   await expect(standard).toContainText("$272.19");
@@ -145,7 +146,7 @@ test("a Quote can't be sent without a proposed time", async ({ page }) => {
 
   await page.getByRole("button", { name: `Send to ${casey.name}` }).click();
 
-  await expect(page.getByText("Choose a proposed time")).toBeVisible();
+  await expect(page.getByText("Pick a time")).toBeVisible();
 });
 
 test("a Draft whose prices changed since it was saved shows them before it's sent", async ({
@@ -155,8 +156,7 @@ test("a Draft whose prices changed since it was saved shows them before it's sen
   await signInAsOffice(page);
   await startDraft(page);
   await proposeNextMonday(page);
-  const status = page.getByRole("status").filter({ hasText: /prices|saved/ });
-  await expect(status).toHaveText("All changes saved");
+  await saved(page);
   const standard = page.getByRole("region", { name: "Standard Clean" });
   const before = (await standard.textContent())!;
 
@@ -175,11 +175,11 @@ test("a Draft whose prices changed since it was saved shows them before it's sen
 
   await expect(
     page.getByText(
-      "This Draft's prices have changed since it was saved: the Property's details or the Price List changed. Check the new prices, then send it.",
+      "The prices have changed since you saved this. Check them, then send it.",
     ),
   ).toBeVisible();
   await expect(standard).not.toHaveText(before);
-  await expect(status).toHaveText("All changes saved");
+  await saved(page);
   await send(page);
 });
 
@@ -195,10 +195,10 @@ test("the Client Declines a Quote from the portal", async ({
 
   const client = await (await browser.newContext()).newPage();
   await signedInAs(client, casey.email);
-  await expect(client.getByText("Your Quote is ready")).toBeVisible();
-  await client.getByRole("link", { name: "See your Quote" }).click();
+  await expect(client.getByText("Your quote is ready")).toBeVisible();
+  await client.getByRole("link", { name: "See your quote" }).click();
 
-  await client.getByRole("button", { name: "Decline this Quote" }).click();
+  await client.getByRole("button", { name: "Decline this quote" }).click();
   await client
     .getByRole("alertdialog")
     .getByRole("button", { name: "Decline" })
@@ -206,7 +206,7 @@ test("the Client Declines a Quote from the portal", async ({
 
   await expect(client.getByText("You declined this Quote")).toBeVisible();
   await expect(
-    client.getByRole("button", { name: "Decline this Quote" }),
+    client.getByRole("button", { name: "Decline this quote" }),
   ).toBeHidden();
   await page.reload();
   await expect(page.getByText(/ declined it$/)).toBeVisible();
@@ -223,40 +223,40 @@ test("Office Staff draft a new Revision of a Sent Quote, which keeps the last as
   const quote = page.url();
   // each Sent Revision is a moment in the Quote's story, the offer in full
   // on top
-  const sent = page.getByText(/^Revision \d+ sent$/);
-  const offer = page.getByRole("region", { name: "Current Quote" });
-  await expect(sent).toHaveText(["Revision 1 sent"]);
-  await expect(offer).toContainText("Revision 1, sent");
+  const sent = page.getByText("Quote sent", { exact: true });
+  const offer = page.getByRole("region", { name: "Current quote" });
+  await expect(sent).toHaveText(["Quote sent"]);
+  await expect(offer).toContainText("Sent ");
 
-  await page.getByRole("button", { name: "Draft a new Revision" }).click();
+  await page.getByRole("button", { name: "Change quote" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    `Revision 2 for ${casey.name}`,
+    `Draft quote for ${casey.name}`,
   );
   await expect(
     page.getByText(
-      `${casey.name} still sees Revision 1 until you send this one.`,
+      `${casey.name} still sees the quote as you sent it until you send your changes.`,
     ),
   ).toBeVisible();
   // still Sent, the offer standing while the changes are drafted
   await page.goto(quote);
-  await expect(page.getByText("Draft changes")).toBeVisible();
+  await expect(page.getByText("Being updated")).toBeVisible();
   await expect(page.getByText("Sent", { exact: true })).toBeVisible();
   await expect(
     page.getByText(
-      `Revision 2 is a Draft, not sent yet. ${casey.name} still sees Revision 1 until you send it.`,
+      `This draft isn't sent yet. ${casey.name} still sees the quote as you sent it until you send your changes.`,
     ),
   ).toBeVisible();
   await page.goto("/office/quotes");
   await expect(
     page.getByRole("row", { name: new RegExp(casey.name) }),
-  ).toContainText("Draft changes");
+  ).toContainText("Being updated");
 
   await page.goto(quote);
-  await page.getByRole("link", { name: "Continue the Draft" }).click();
+  await page.getByRole("link", { name: "Carry on with the draft" }).click();
   await send(page);
-  await expect(page.getByText("Draft changes")).toBeHidden();
-  await expect(sent).toHaveText(["Revision 2 sent", "Revision 1 sent"]);
-  await expect(offer).toContainText("Revision 2, sent");
+  await expect(page.getByText("Being updated")).toBeHidden();
+  await expect(sent).toHaveText(["Quote sent", "Quote sent"]);
+  await expect(offer).toContainText("Sent ");
 });
 
 test("the Client sees only the latest Revision, from any of its emails", async ({
@@ -277,14 +277,14 @@ test("the Client sees only the latest Revision, from any of its emails", async (
   ).toContainText("Deep Clean");
   await expect(client.getByText(/Updated/)).toBeHidden();
 
-  await page.getByRole("button", { name: "Draft a new Revision" }).click();
+  await page.getByRole("button", { name: "Change quote" }).click();
   const deep = page.getByRole("region", { name: "Deep Clean" });
-  await deep.getByText("Override the Deep Clean price").click();
+  await deep.getByText("Set the Deep Clean price yourself").click();
   await deep
     .getByRole("textbox", { name: "Deep Clean price before tax" })
     .fill("250");
   await deep
-    .getByRole("textbox", { name: "Reason for the override" })
+    .getByRole("textbox", { name: "Why this price" })
     .fill("Regular Client's friend");
   await send(page);
 
@@ -300,11 +300,11 @@ test("the Client sees only the latest Revision, from any of its emails", async (
   await expect(client.getByText(/Revision/)).toBeHidden();
   // Home shows the one Quote, as it stands now
   await client.goto("/portal");
-  await expect(client.getByText("Your Quote is ready")).toBeVisible();
+  await expect(client.getByText("Your quote is ready")).toBeVisible();
   await expect(client.getByText("Deep Clean $272.19")).toBeVisible();
 });
 
-test("Office Staff Turn Down a Quote asked for, and the Client is told why", async ({
+test("Office Staff Turn down a Quote asked for, and the Client is told why", async ({
   page,
   browser,
 }) => {
@@ -313,51 +313,51 @@ test("Office Staff Turn Down a Quote asked for, and the Client is told why", asy
   await page.goto("/office/quotes");
   await page.getByText(casey.name).click();
 
-  await page.getByRole("button", { name: "Turn Down" }).click();
+  await page.getByRole("button", { name: "Turn down" }).click();
   const dialog = page.getByRole("alertdialog", {
-    name: "Turn Down this Quote?",
+    name: "Turn down this quote?",
   });
   await dialog.getByText("Outside the area we clean").click();
-  await dialog.getByRole("button", { name: "Turn Down" }).click();
+  await dialog.getByRole("button", { name: "Turn down" }).click();
 
-  await expect(page.getByText("Quote Turned Down")).toBeVisible();
+  await expect(page.getByText("Quote turned down")).toBeVisible();
   await expect(
-    page.getByText(/Turned Down .*: outside the area we clean\./),
+    page.getByText(/Turned down .*: outside the area we clean\./),
   ).toBeVisible();
-  await expect(page.getByRole("button", { name: "Turn Down" })).toBeHidden();
+  await expect(page.getByRole("button", { name: "Turn down" })).toBeHidden();
   await expect(
-    page.getByRole("button", { name: "Draft the Quote" }),
+    page.getByRole("button", { name: "Draft the quote" }),
   ).toBeHidden();
   const told = (await emailsTo(casey.email)).find(
-    (e) => e.subject === "About your Quote from Empire Cleaning",
+    (e) => e.subject === "About your quote from Empire Cleaning",
   );
-  expect(told?.text).toContain("it's outside the area we clean");
+  expect(told?.text).toContain("It's outside the area we clean");
   // the email's link shows them the same
   const client = await (await browser.newContext()).newPage();
   await signedInAs(client, casey.email);
   await client.goto(new URL(told!.text.match(/https?:\/\/\S+/)![0]).pathname);
   await expect(
     client.getByText(
-      "We're sorry, but we can't quote for this home: it's outside the area we clean.",
+      "Sorry, we can't take this one on. It's outside the area we clean.",
     ),
   ).toBeVisible();
-  await expect(client.getByText("Turned Down")).toBeVisible();
+  await expect(client.getByText("Turned down")).toBeVisible();
   // closed, so off the list of open Quotes
   await page.goto("/office/quotes");
   await expect(page.getByText("No open Quotes.")).toBeVisible();
 });
 
-test("a Sent Quote can't be Turned Down", async ({ page }) => {
+test("a Sent Quote can't be Turned down", async ({ page }) => {
   await requestQuoteAsGuest(casey);
   await signInAsOffice(page);
   await page.goto("/office/quotes");
   await page.getByText(casey.name).click();
-  await expect(page.getByRole("button", { name: "Turn Down" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Turn down" })).toBeVisible();
   await draftTheQuote(page);
   await proposeNextMonday(page);
   await send(page);
 
-  await expect(page.getByRole("button", { name: "Turn Down" })).toBeHidden();
+  await expect(page.getByRole("button", { name: "Turn down" })).toBeHidden();
 });
 
 test("old Requests links lead to Quotes", async ({ page }) => {
@@ -418,7 +418,7 @@ test("Quote screens pass automated accessibility checks", async ({
   await send(page);
   await page.goto(url);
   await expect(
-    page.getByRole("region", { name: "Current Quote" }),
+    page.getByRole("region", { name: "Current quote" }),
   ).toBeVisible();
   await expectAccessible(page);
 
@@ -426,7 +426,7 @@ test("Quote screens pass automated accessibility checks", async ({
   await signedInAs(client, casey.email);
   await client.goto(await quoteLink());
   await expect(client.getByRole("heading", { level: 1 })).toHaveText(
-    "Your Quote",
+    "Your quote",
   );
   await expectAccessible(client);
 });
@@ -446,20 +446,39 @@ test("the draft says whether the proposed day has room for each clean", async ({
 
   await proposeNextMonday(page);
   await expect(proposed).toContainText(
-    "Mon, Jan 12 has 4 h of Cleaner time free: room for the Standard Clean (3.25 h), but not the Deep Clean (5 h)",
+    "That day only has room for the Standard Clean. Pick another day to offer the Deep Clean too.",
   );
 
-  // Tuesday has the hours, but no crew at 9am
+  // Tuesday has the hours, but no crew at 9am, for either: so no room
   await page
     .getByRole("group", { name: "Date" })
     .getByRole("spinbutton", { name: /day/i })
     .click();
   await page.keyboard.type("13");
   await expect(proposed).toContainText(
-    "Tue, Jan 13 has 7 h of Cleaner time free: room for either clean.",
+    "Not enough cleaners are free then. Pick another time, or give a cleaner more working hours that day.",
   );
+  await expect(proposed).not.toContainText("has room");
+
+  // and at 10am, room for both
+  await page
+    .getByRole("group", { name: "Start time" })
+    .getByRole("spinbutton", { name: /hour/i })
+    .click();
+  await page.keyboard.type("10");
   await expect(proposed).toContainText(
-    "Not enough Cleaners are free at 9:00 AM: a crew of 2 is needed, and 0 of the 2 available that day are. The Client couldn't accept this Quote: choose another time, or give a Cleaner hours that day.",
+    "Tue, Jan 13 has room for either clean.",
+  );
+  await expect(proposed).not.toContainText("Not enough cleaners");
+
+  // from 10pm the Deep Clean, 2.5 hours on site, would run past midnight
+  await page
+    .getByRole("group", { name: "Start time" })
+    .getByRole("spinbutton", { name: /hour/i })
+    .click();
+  await page.keyboard.type("1000PM");
+  await expect(proposed).toContainText(
+    "The Deep Clean would run past midnight. Pick an earlier start time to offer it too.",
   );
 });
 
@@ -478,10 +497,10 @@ test(
 
     await page
       .getByRole("region", { name: "Proposed time" })
-      .getByRole("button", { name: "Pick from the Schedule" })
+      .getByRole("button", { name: "Pick from the schedule" })
       .click();
     const schedule = page.getByRole("dialog", {
-      name: "Pick from the Schedule",
+      name: "Pick from the schedule",
     });
     // the week around the chosen day on a desktop, the day itself on a phone
     const monday = schedule.getByRole("region", {
@@ -510,7 +529,7 @@ test(
     // can still be picked; free again from 9:30
     await expect(
       monday.getByRole("button", {
-        name: "Mon, Jan 12, 9:00 AM, no crew free",
+        name: "Mon, Jan 12, 9:00 AM, not enough cleaners free",
       }),
     ).toBeVisible();
     await expect(
@@ -528,11 +547,11 @@ test(
     await expect(schedule).toBeHidden();
     await expect(
       page.getByRole("region", { name: "Proposed time" }),
-    ).toContainText("Tue, Jan 13 has 8 h of Cleaner time free");
+    ).toContainText("Tue, Jan 13 has room for");
 
     await send(page);
     await expect(
-      page.getByRole("region", { name: "Current Quote" }),
+      page.getByRole("region", { name: "Current quote" }),
     ).toContainText("Tue, Jan 13, 10:30 AM");
   },
 );
@@ -551,8 +570,7 @@ test("Office Staff change what a Draft is for, and what was asked stays", async 
 
   await page.getByRole("button", { name: "Standard Clean Service" }).click();
   await page.getByRole("option", { name: "Move-in/out Clean" }).click();
-  const status = page.getByRole("status").filter({ hasText: /prices|saved/ });
-  await expect(status).toHaveText("All changes saved");
+  await saved(page);
 
   await expect(
     page.getByRole("region", { name: "Move-in/out Clean" }),
@@ -576,17 +594,16 @@ test("deleting a first Draft whose Service was asked for again since leaves the 
   await startDraft(page);
   await page.getByRole("button", { name: "Standard Clean Service" }).click();
   await page.getByRole("option", { name: "Move-in/out Clean" }).click();
-  const status = page.getByRole("status").filter({ hasText: /prices|saved/ });
-  await expect(status).toHaveText("All changes saved");
+  await saved(page);
   // the Standard Clean is free again, and Casey asks for it
   await requestQuoteAsGuest(casey);
 
-  await page.getByRole("button", { name: "Delete the Draft" }).click();
+  await page.getByRole("button", { name: "Delete the draft" }).click();
   const dialog = page.getByRole("alertdialog");
   await expect(dialog).toContainText(
-    `unless ${casey.name} has asked for a Standard Clean again since`,
+    `If ${casey.name} has asked for a Standard Clean again since`,
   );
-  await dialog.getByRole("button", { name: "Delete the Draft" }).click();
+  await dialog.getByRole("button", { name: "Delete the draft" }).click();
 
   await expect(page.getByText("Draft deleted")).toBeVisible();
   await expect(page).toHaveURL(/\/office\/properties\/[0-9a-f-]{36}$/);
@@ -609,8 +626,7 @@ test("a Draft for a Service priced by area is priced on the area Office Staff ty
 
   await area.fill("1200");
   await area.blur();
-  const status = page.getByRole("status").filter({ hasText: /prices|saved/ });
-  await expect(status).toHaveText("All changes saved");
+  await saved(page);
   // 1.2 x 8 h, to the quarter-hour, at $60: $585 plus 8.875% tax
   await expect(page.getByRole("region", { name: "Painting" })).toContainText(
     "$636.92",

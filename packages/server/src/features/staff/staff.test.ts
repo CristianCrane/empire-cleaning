@@ -186,7 +186,7 @@ describe("inviting Staff", () => {
       email: "CORY@example.com",
     }).expect(409);
 
-    expect(body.message).toBe("Cory Cleaner is already on Staff");
+    expect(body.message).toBe("Cory Cleaner is already on your staff.");
   });
 
   test("still invites them when the email can't be sent", async () => {
@@ -297,7 +297,7 @@ describe("editing Staff", () => {
       ]),
     ).toEqual([
       ["name", "Enter their name"],
-      ["roles", "Choose at least one role"],
+      ["roles", "Pick at least one role"],
     ]);
   });
 
@@ -311,7 +311,7 @@ describe("editing Staff", () => {
     }).expect(409);
 
     expect(body.message).toBe(
-      "Empire Cleaning needs at least one active Office Staff member",
+      "Someone else must be office staff first. Make another person office staff, then try again.",
     );
   });
 
@@ -334,7 +334,7 @@ describe("editing Staff", () => {
     }).expect(409);
 
     expect(body.message).toBe(
-      "Cory Cleaner is on a Job to come: release it first",
+      "Cory Cleaner has jobs coming up. Take them off those jobs first.",
     );
   });
 });
@@ -402,7 +402,7 @@ describe("deactivating Staff", () => {
       .expect(409);
 
     expect(body.message).toBe(
-      "Empire Cleaning needs at least one active Office Staff member",
+      "Someone else must be office staff first. Make another person office staff, then try again.",
     );
     expect((await me(office)).roles).toEqual(["office_staff"]);
   });
@@ -437,7 +437,7 @@ describe("deactivating Staff", () => {
       .expect(409);
 
     expect(body.message).toMatch(
-      /^Cory has a Site Visit at \d+ Austin St, 4B, 11375 on Friday, January 9 at 10:00 AM\. Give it to someone else first\.$/,
+      /^Cory has a site visit at \d+ Austin St, 4B, 11375 on Friday, January 9 at 10:00 AM\. Give it to someone else first\.$/,
     );
     expect((await office.get(`/api/staff/${member.id}`)).body.active).toBe(
       true,
@@ -538,8 +538,8 @@ describe("Staff availability", () => {
         d.issue,
       ]),
     ).toEqual([
-      ["usualWeek.4", "That's more than a day"],
-      ["usualWeek.5", "Hours can't be negative"],
+      ["usualWeek.4", "That's more than 24 hours"],
+      ["usualWeek.5", "Enter 0 or more hours"],
       ["usualWeek.6", "Use quarter-hours, like 7.5 or 7.25"],
     ]);
     await office
@@ -590,7 +590,7 @@ describe("Staff availability", () => {
     });
     expect(await openToDee()).toHaveLength(1);
     expect(testEmail().lastTo(cory.email).subject).toBe(
-      "You're no longer on a Job",
+      "You're no longer on a job",
     );
   });
 
@@ -643,7 +643,7 @@ describe("Staff availability", () => {
       .expect(409);
 
     expect(body.message).toMatch(
-      /^Cory has a Site Visit at \d+ Austin St, 4B, 11375 on Thursday, January 8 at 2:00 PM\. Give it to someone else first\.$/,
+      /^Cory has a site visit at \d+ Austin St, 4B, 11375 on Thursday, January 8 at 2:00 PM\. Give it to someone else first\.$/,
     );
     expect(
       ((await office.get(path)).body as StaffDetail).availability.exceptions,

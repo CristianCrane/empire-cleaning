@@ -11,6 +11,7 @@ import {
   draftTheQuote,
   recordFindingsWithoutVisit,
   goTo,
+  saved,
 } from "./harness.ts";
 
 const olive = {
@@ -40,7 +41,7 @@ const describeNewPremises = async (page: Page) => {
     .fill("200 Park Ave S");
   await page.getByRole("textbox", { name: "ZIP code" }).fill("10003");
   await nextStep(page);
-  await choose(page, /Type of premises/, "Office");
+  await choose(page, /Type of business/, "Office");
   await page.getByRole("button", { name: "+ Add the floor area" }).click();
   await page
     .getByRole("textbox", { name: /^Floor area in sq ft/ })
@@ -76,7 +77,7 @@ test(
     await nextStep(page);
     await giveDetails(page);
     await expectAccessible(page);
-    await page.getByRole("button", { name: "Request a Quote" }).click();
+    await page.getByRole("button", { name: "Request a quote" }).click();
 
     await expect(page).toHaveURL("/portal");
     // premises are seen before they're priced
@@ -96,15 +97,13 @@ test("a business wanting regular cleaning is asked which days, or may ask for a 
   await nextStep(page);
   await giveDetails(page);
 
-  await page.getByRole("button", { name: "Request a Quote" }).click();
+  await page.getByRole("button", { name: "Request a quote" }).click();
   // back on the step that asks
-  await expect(
-    page.getByText("Choose the days you want cleaned"),
-  ).toBeVisible();
+  await expect(page.getByText("Pick the days you want cleaned")).toBeVisible();
 
   await page.getByText("One-off", { exact: true }).click();
   await nextStep(page);
-  await page.getByRole("button", { name: "Request a Quote" }).click();
+  await page.getByRole("button", { name: "Request a quote" }).click();
   await expect(page).toHaveURL("/portal");
   await page.getByRole("link", { name: "See what you asked for" }).click();
   await expect(page.getByText("A one-off clean")).toBeVisible();
@@ -129,7 +128,7 @@ test(
     await expect(
       page.getByText("Monday, Wednesday and Friday at 6:00 PM"),
     ).toBeVisible();
-    await expect(page.getByText("Not recorded yet")).toBeVisible();
+    await expect(page.getByText("Not known yet")).toBeVisible();
     await expectAccessible(page);
 
     // priced once they're known, on the Draft: the placeholder Price List
@@ -143,15 +142,15 @@ test(
     await expect(
       price.getByText("Office: 4,500 sq ft ÷ 1,000 × 0.5 h"),
     ).toBeVisible();
-    await expect(price.getByText("The premises")).toBeVisible();
+    await expect(price.getByText("The business")).toBeVisible();
     // checked once settled: a pending button's spinner has no label yet
-    await expect(page.getByText("All changes saved")).toBeVisible();
+    await saved(page);
     await expectAccessible(page);
 
-    await page.getByRole("link", { name: "View Property" }).click();
+    await page.getByRole("link", { name: "View property" }).click();
     await expect(page).toHaveURL(/\/office\/properties\//);
     await page.getByRole("button", { name: "Correct" }).click();
-    await choose(page, /Type of premises/, "Medical");
+    await choose(page, /Type of business/, "Medical");
     await page
       .getByRole("textbox", { name: "Floor area in sq ft" })
       .fill("2000");
@@ -160,7 +159,7 @@ test(
     await expect(page.getByText("Details corrected")).toBeVisible();
 
     await page.reload();
-    const details = page.getByRole("region", { name: "Premises details" });
+    const details = page.getByRole("region", { name: "Business details" });
     await expect(details).toContainText("Medical · 2,000 sq ft");
     await expect(details).toContainText("Heavy");
   },
@@ -175,20 +174,20 @@ test("Office Staff keep the Premises Types, and the Services each Add-on goes wi
   await page.getByRole("row", { name: "Retail" }).click();
   await page.getByText("Offered").click();
   await page.getByRole("button", { name: "Save type" }).click();
-  await expect(page.getByText("Price List saved as version 2")).toBeVisible();
+  await expect(page.getByText("Prices saved as version 2")).toBeVisible();
 
-  await page.getByRole("button", { name: "Add a type of premises" }).click();
-  await page.getByRole("textbox", { name: "Type of premises" }).fill("Gym");
+  await page.getByRole("button", { name: "Add a type of business" }).click();
+  await page.getByRole("textbox", { name: "Type of business" }).fill("Gym");
   await page.getByRole("button", { name: "Add type" }).click();
-  await expect(page.getByText("Price List saved as version 3")).toBeVisible();
+  await expect(page.getByText("Prices saved as version 3")).toBeVisible();
 
   await page.getByRole("row", { name: "Inside the cabinets" }).click();
   await page
     .getByRole("group", { name: "Goes with" })
     .getByText("Commercial cleaning")
     .click();
-  await page.getByRole("button", { name: "Save Add-on" }).click();
-  await expect(page.getByText("Price List saved as version 4")).toBeVisible();
+  await page.getByRole("button", { name: "Save add-on" }).click();
+  await expect(page.getByText("Prices saved as version 4")).toBeVisible();
 
   await page.reload();
   await expect(page.getByRole("row", { name: "Retail" })).toContainText(
@@ -200,13 +199,13 @@ test("Office Staff keep the Premises Types, and the Services each Add-on goes wi
   ).toContainText("Commercial cleaning");
 });
 
-test("Office Staff quote a business caller from New Quote", async ({
+test("Office Staff quote a business caller from New quote", async ({
   page,
 }) => {
   await signInAsOffice(page);
   await page.goto("/office/quotes/new");
 
-  await page.getByRole("button", { name: "New Client" }).click();
+  await page.getByRole("button", { name: "New client" }).click();
   // all on one page
   await page
     .locator("form")
@@ -214,21 +213,21 @@ test("Office Staff quote a business caller from New Quote", async ({
     .click();
   await page.getByRole("textbox", { name: "Street address" }).fill("9 Main St");
   await page.getByRole("textbox", { name: "ZIP code" }).fill("11375");
-  await choose(page, /Type of premises/, "Retail");
+  await choose(page, /Type of business/, "Retail");
   await page.getByText("One-off", { exact: true }).click();
   // a first idea only: the floor area isn't known
   await expect(
     page.getByRole("region", { name: "What it comes to" }),
-  ).toContainText("priced after the Site Visit");
+  ).toContainText("priced after its site visit");
   await page
     .getByRole("textbox", { name: "Business name" })
     .fill("Phoner & Co");
   await page.getByRole("textbox", { name: "Full name" }).fill("Pat Phoner");
   await page.getByRole("textbox", { name: "Phone" }).fill("(718) 555-0123");
-  await page.getByRole("button", { name: "Draft a Quote" }).click();
+  await page.getByRole("button", { name: "Draft a quote" }).click();
   await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}\/draft$/);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "Revision 1 for Phoner & Co (Pat Phoner)",
+    "Draft quote for Phoner & Co (Pat Phoner)",
   );
   await expect(
     page.getByText("Retail · floor area not known yet", { exact: false }),

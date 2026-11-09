@@ -80,7 +80,7 @@ describe("skipping a plan Job", () => {
     const toClient = testEmail().lastTo(casey.email);
     expect(toClient.subject).toBe("Your clean is skipped");
     expect(toClient.text).toMatch(/no charge for skipping/);
-    expect(toClient.text).toMatch(/Service Plan carries on/);
+    expect(toClient.text).toMatch(/cleaning plan carries on/);
     expect(toClient.text).not.toMatch(/request a Quote/);
   });
 
@@ -100,7 +100,7 @@ describe("skipping a plan Job", () => {
     expect(chargesAfterDeposit()).toEqual([
       expect.objectContaining({
         amount: PLAN_DEPOSIT,
-        description: expect.stringMatching(/^Late Cancellation fee: /),
+        description: expect.stringMatching(/^Late cancellation fee: /),
       }),
     ]);
     expect(testPayments().refunds).toEqual([]);
@@ -121,7 +121,7 @@ describe("skipping a plan Job", () => {
     expect((await officePlan(office, planId)).depositCents).toBe(PLAN_DEPOSIT);
 
     const toClient = testEmail().lastTo(casey.email);
-    expect(toClient.text).toMatch(/Late Cancellation, with a \$50\.46 fee/);
+    expect(toClient.text).toMatch(/late cancellation, with a \$50\.46 fee/);
     expect(toClient.text).toMatch(
       /We've charged it to your Test card ending 4242/,
     );
@@ -135,7 +135,7 @@ describe("skipping a plan Job", () => {
 
     expect(chargesAfterDeposit()).toEqual([]);
     expect(testEmail().lastTo("olive@example.com").text).toContain(
-      "It was a Late Cancellation, so the $50.46 fee goes on that week's Bill.",
+      "A late cancellation: a $50.46 fee, the plan's deposit amount. The plan's deposit stays held. The fee goes on that week's bill.",
     );
   });
 
@@ -143,8 +143,8 @@ describe("skipping a plan Job", () => {
     const { client, jobId } = await startedPlan();
     testClock().set(SUNDAY_10AM);
 
-    expect((await skip(client, jobId, 0).expect(409)).body.message).toMatch(
-      /Late Cancellation, with a \$50\.46 fee/,
+    expect((await skip(client, jobId, 0).expect(409)).body.message).toBe(
+      "Something changed just then. Please check it and try again.",
     );
     expect(chargesAfterDeposit()).toEqual([]);
   });
@@ -166,7 +166,7 @@ describe("skipping a plan Job", () => {
       expect.objectContaining({ kind: "job_unpaid" }),
     );
     expect(testEmail().lastTo(casey.email).text).toMatch(
-      /couldn't charge it to your Test card ending 4242/,
+      /couldn't take it from your Test card ending 4242/,
     );
 
     testPayments().failCharges(null);
@@ -205,7 +205,7 @@ describe("skipping a plan Job", () => {
       .expect(200);
     expect(chargesAfterDeposit()).toEqual([]);
     expect(testEmail().lastTo(casey.email).text).toMatch(
-      /Service Plan carries on/,
+      /cleaning plan carries on/,
     );
   });
 });
@@ -225,7 +225,7 @@ describe("No Access on a plan Job", () => {
     expect(chargesAfterDeposit()).toEqual([
       expect.objectContaining({
         amount: PLAN_DEPOSIT,
-        description: expect.stringMatching(/^No Access fee: /),
+        description: expect.stringMatching(/^Couldn't-get-in fee: /),
       }),
     ]);
     const { noAccess } = await clientJob(client, jobId);
@@ -235,7 +235,7 @@ describe("No Access on a plan Job", () => {
     ]);
     expect((await officePlan(office, planId)).depositCents).toBe(PLAN_DEPOSIT);
     expect(testEmail().lastTo(casey.email).text).toMatch(
-      /Service Plan carries on/,
+      /cleaning plan carries on/,
     );
   });
 
@@ -252,7 +252,7 @@ describe("No Access on a plan Job", () => {
 
     expect(chargesAfterDeposit()).toEqual([]);
     expect(testEmail().lastTo("olive@example.com").text).toContain(
-      "Casey Client has been told, and the fee goes on that week's Bill.",
+      "Casey Client has been told, and the fee goes on that week's bill.",
     );
   });
 

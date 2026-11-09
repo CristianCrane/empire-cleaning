@@ -27,6 +27,12 @@ export const useAction = (fallback: string, options: ActionOptions = {}) => {
   return useActionWith(() => router.invalidate(), fallback, options);
 };
 
+// an action whose change leaves the page (it navigates there), so nothing
+// here reloads. It has no fields of its own, so a 400's field details say
+// the fallback too
+export const useLeavingAction = (fallback: string) =>
+  useActionWith(() => Promise.resolve(), fallback, { fieldsProblem: fallback });
+
 // useAction, given how to reload: the seam its tests use
 export const useActionWith = (
   reload: () => Promise<unknown>,

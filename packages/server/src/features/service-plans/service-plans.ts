@@ -18,21 +18,23 @@ import {
 import type {
   LocalDateTime,
   OfficeServicePlan,
-  Recurrence,
   ServicePlanSummary,
   ServicePlanView,
   UnplacedVisit,
 } from "@empire-cleaning/models";
-import { db, type Tx } from "../../db/index.ts";
-import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import {
+  ADD_HOURS,
   addDays,
   atTime,
-  clock,
   dayOf,
+  ENDS_BY_MIDNIGHT,
+  recurrenceDays,
   timeOf,
   weekdayOf,
-} from "../../services/clock/index.ts";
+} from "@empire-cleaning/models";
+import { db, type Tx } from "../../db/index.ts";
+import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
+import { clock } from "../../services/clock/index.ts";
 import { emailOffer } from "../assignments/assignments.ts";
 import { assignments, onCrew } from "../assignments/assignments.schema.ts";
 import { weeklyBillOf } from "../bills/billed-weekly.ts";
@@ -48,7 +50,7 @@ import {
 } from "../jobs/jobs.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { freeFor, jobViews, roomFor } from "../jobs/schedule.ts";
-import { ENDS_BY_MIDNIGHT, endsByMidnight } from "../jobs/rules.ts";
+import { endsByMidnight, PASSED } from "../jobs/rules.ts";
 import { charges } from "../payments/payments.schema.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { warnOfficeOfQuotesWithoutRoom } from "../quotes/quote-room.ts";
@@ -63,7 +65,7 @@ import { freeUntilOf } from "../cancellation/cancellation.ts";
 import { email } from "../../services/email/index.ts";
 import { cleanOf } from "../services/services.ts";
 import { planCleanBookedEmail } from "./emails.ts";
-import { endServicePlan, endTermsOf } from "./ending.ts";
+import { endServicePlan, endTermsOf, PLAN_ENDED } from "./ending.ts";
 import {
   recordFirstVisits,
   type AcceptedQuote,
@@ -75,12 +77,6 @@ import {
   type ServicePlan,
 } from "./service-plans.schema.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
-
-export const INTERVAL_DAYS: Record<Recurrence, number> = {
-  weekly: 7,
-  fortnightly: 14,
-  four_weekly: 28,
-};
 
 // how far ahead a plan's Jobs are put on the Schedule: every recurrence has
 // at least one showing, and the Office has a month's notice of a full day
@@ -330,7 +326,7 @@ const termsOf = async (tx: Tx, plan: ServicePlan) => {
     const later = accepted.slice(i + 1).map((t) => t.startsAt!.getTime());
     return {
       quoteId: terms.quoteId,
-      every: INTERVAL_DAYS[terms.recurrence!],
+      every: recurrenceDays[terms.recurrence!],
       until: later.length > 0 ? new Date(Math.min(...later)) : null,
     };
   });
@@ -479,7 +475,7 @@ const findVisit = async (tx: Tx, planId: string, visitId: string) => {
     );
   }
   if (found.plan.status === "ended") {
-    throw new ConflictError("This Service Plan has Ended.");
+    throw new ConflictError(PLAN_ENDED);
   }
   return found;
 };
@@ -488,7 +484,7 @@ const findVisit = async (tx: Tx, planId: string, visitId: string) => {
 const refuseOnHold = (plan: ServicePlan) => {
   if (plan.status === "on_hold") {
     throw new ConflictError(
-      "This Service Plan is On Hold until what's Unpaid is paid, so it can't book a visit yet.",
+      "This cleaning plan is paused until what's unpaid is paid, so it can't book a visit yet.",
     );
   }
 };
@@ -508,7 +504,7 @@ export const bookVisit = async (
     refuseOnHold(plan);
     const startsAt = atTime(date, time);
     if (startsAt <= clock.now()) {
-      throw new ConflictError("Choose a time that's still to come.");
+      throw new ConflictError(PASSED);
     }
     // the visit of the weekday it came round on, on the terms it did
     const day = (await daysOfQuote(visit.quoteId, tx)).find(
@@ -519,9 +515,7 @@ export const bookVisit = async (
     }
     const booked = await bookOnto(tx, plan, day, startsAt);
     if (!booked) {
-      throw new ConflictError(
-        "That time doesn't have room for this Job: not enough free Cleaner hours that day, or no crew free then. Choose another.",
-      );
+      throw new ConflictError(`That time is full. ${ADD_HOURS}`);
     }
     await tx
       .update(servicePlanVisits)

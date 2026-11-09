@@ -14,6 +14,7 @@ import type {
   StaffHolding,
   StaffRole,
 } from "@empire-cleaning/models";
+import { hasSiteVisit, weekdayOf } from "@empire-cleaning/models";
 import {
   Actions,
   Avatar,
@@ -89,14 +90,14 @@ export function StaffMemberScreen() {
 
       {!member.active && (
         <Notice>
-          {member.name} has no Staff access. Invite them again to bring them
-          back.
+          {member.name} can't sign in as staff any more. Invite them again to
+          bring them back.
         </Notice>
       )}
       {member.active && !isCleaner && (
         <Notice>
-          Only Cleaners' hours count towards the Schedule, so there's no
-          availability to set for {member.name}.
+          Only cleaners have working hours, so there's nothing to set for{" "}
+          {member.name}.
         </Notice>
       )}
 
@@ -181,13 +182,13 @@ function EditStaff({ member }: { member: StaffDetail }) {
                 isSelected={roles.includes("cleaner")}
                 onChange={(on) => toggle("cleaner", on)}
               >
-                Cleaner: carries out Jobs
+                Cleaner: does the cleaning
               </Checkbox>
               <Checkbox
                 isSelected={roles.includes("office_staff")}
                 onChange={(on) => toggle("office_staff", on)}
               >
-                Office Staff: runs the Office workspace
+                Office staff: runs the business here
               </Checkbox>
             </fieldset>
             {action.fieldErrors.roles && (
@@ -241,9 +242,7 @@ const useSecondLook = (jobs: StaffHolding[]) => {
       return true;
     },
     label: (save: string) =>
-      freeing !== "" && freeing === shown
-        ? `Free ${jobs.length === 1 ? "the Job" : "the Jobs"} and save`
-        : save,
+      freeing !== "" && freeing === shown ? "Take them off and save" : save,
   };
 };
 
@@ -283,13 +282,16 @@ function WhatItFrees({
               params: { visitId: visit.id },
             })}
           >
-            Open Site Visit
+            Open site visit
           </ButtonLink>
         }
       >
         <p>
-          {firstName} has a Site Visit at {visit.where},{" "}
-          {formatDateTime(visit.startsAt)}. Give it to someone else first.
+          {hasSiteVisit(
+            firstName!,
+            visit.where,
+            formatDateTime(visit.startsAt),
+          )}
         </p>
       </Notice>
     );
@@ -299,8 +301,8 @@ function WhatItFrees({
     <Notice tone="warning">
       {jobs.length === 1 ? (
         <p>
-          {firstName} is on {heldLabel(jobs[0]!)}. {saving} frees it for other
-          free Cleaners.
+          {firstName} is on {heldLabel(jobs[0]!)}. {saving} opens it to other
+          cleaners.
         </p>
       ) : (
         <>
@@ -310,7 +312,7 @@ function WhatItFrees({
               <li key={p.id}>{heldLabel(p)}</li>
             ))}
           </ul>
-          <p>{saving} frees them for other free Cleaners.</p>
+          <p>{saving} opens them to other cleaners.</p>
         </>
       )}
     </Notice>
@@ -341,8 +343,8 @@ function Deactivate({ member }: { member: StaffDetail }) {
         {({ close }) => (
           <>
             <p>
-              They'll lose Staff access straight away. Anything they do as a
-              Client is unaffected. You can invite them again later.
+              They won't be able to sign in as staff any more. If they're a
+              client too, that still works. You can invite them again later.
             </p>
             <WhatItFrees
               member={member}
@@ -390,10 +392,8 @@ const stepMonth = (month: string, by: number) => {
 // each day of a month, Monday first, with blanks before the 1st
 const daysOf = (month: string) => {
   const [y, m] = month.split("-").map(Number) as [number, number];
-  const first = new Date(Date.UTC(y, m - 1, 1));
   const count = new Date(Date.UTC(y, m, 0)).getUTCDate();
-  // getUTCDay is Sunday first
-  const blanks = (first.getUTCDay() + 6) % 7;
+  const blanks = weekdayOf(`${month}-01`);
   return [
     ...Array.from({ length: blanks }, () => null),
     ...Array.from(
@@ -402,10 +402,6 @@ const daysOf = (month: string) => {
     ),
   ];
 };
-
-// Mon=0 … Sun=6, as the usual week is kept
-const weekdayIndex = (day: string) =>
-  (new Date(`${day}T00:00:00Z`).getUTCDay() + 6) % 7;
 
 // Their usual week and the days that differ, on a month calendar: each day
 // its hours, the days that differ tinted, past days dimmed. A day from today
@@ -419,7 +415,7 @@ function Availability({ member }: { member: StaffDetail }) {
 
   return (
     <Section
-      title="Availability"
+      title="Working hours"
       description="Their usual week, and the days that differ. Pick a day to change it."
       actions={
         <UsualWeek key={usualWeek.join()} member={member} usual={usualWeek} />
@@ -463,7 +459,7 @@ function Availability({ member }: { member: StaffDetail }) {
             {daysOf(month).map((day, i) => {
               if (day === null) return <span key={`blank ${i}`} />;
               const exception = exceptionOn(day);
-              const hours = exception?.hours ?? usualWeek[weekdayIndex(day)]!;
+              const hours = exception?.hours ?? usualWeek[weekdayOf(day)]!;
               const past = day < now;
               const tone = exception
                 ? hours > 0
@@ -511,7 +507,7 @@ function Availability({ member }: { member: StaffDetail }) {
         <DayDialog
           member={member}
           day={open}
-          usual={usualWeek[weekdayIndex(open)]!}
+          usual={usualWeek[weekdayOf(open)]!}
           exception={exceptionOn(open)}
           close={() => setOpen(null)}
         />
@@ -535,8 +531,7 @@ function UsualWeek({
   const { jobs, visits } = heldOnDaysOff(
     member,
     (day) =>
-      !exceptions.some((e) => e.date === day) &&
-      !(week[weekdayIndex(day)]! > 0),
+      !exceptions.some((e) => e.date === day) && !(week[weekdayOf(day)]! > 0),
   );
   const secondLook = useSecondLook(jobs);
 
@@ -681,7 +676,7 @@ function DayDialog({
       >
         <p className="text-sm text-fg-muted">
           Usually {hoursLabel(usual).toLowerCase()} on a{" "}
-          {weekdays[weekdayIndex(day)]}.
+          {weekdays[weekdayOf(day)]}.
         </p>
         <NumberField
           label="Hours that day"

@@ -10,6 +10,8 @@ import {
   expect,
   offerJob,
   proposeNextMonday,
+  saved,
+  startOn,
   recordNoAccess,
   requestQuoteAsGuest,
   requestQuoteForPremises,
@@ -145,7 +147,7 @@ test("the Office's screens fit every width", async ({ page }) => {
   await page.getByText("Casey Client").click();
   await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
   const request = new URL(page.url()).pathname;
-  await page.getByRole("link", { name: "View Property" }).click();
+  await page.getByRole("link", { name: "View property" }).click();
   await expect(page).toHaveURL(/\/office\/properties\/[0-9a-f-]{36}$/);
   const property = new URL(page.url()).pathname;
   await page
@@ -202,7 +204,7 @@ test("business premises' screens fit every width, the form included", async ({
   await page.getByText(/Acme Dental Group/).click();
   await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}$/);
   const request = new URL(page.url()).pathname;
-  await page.getByRole("link", { name: "View Property" }).click();
+  await page.getByRole("link", { name: "View property" }).click();
   await expect(page).toHaveURL(/\/office\/properties\/[0-9a-f-]{36}$/);
   const property = new URL(page.url()).pathname;
   for (const path of [request, property, `/office/site-visits/${visit.id}`]) {
@@ -217,7 +219,7 @@ test("business premises' screens fit every width, the form included", async ({
   await page.getByRole("button", { name: "Cancel visit" }).click();
   await page.getByRole("button", { name: "Cancel Site Visit" }).click();
   await expect(page.getByText("Site Visit cancelled")).toBeVisible();
-  await expectDialogFitsEveryWidth(page, property, "Book a Site Visit");
+  await expectDialogFitsEveryWidth(page, property, "Book a site visit");
 
   // once the premises are known, its Draft
   await page.goto(request);
@@ -227,7 +229,7 @@ test("business premises' screens fit every width, the form included", async ({
 
   // New Quote for business premises, with its days to choose
   await page.goto("/office/quotes/new");
-  await page.getByRole("button", { name: "New Client" }).click();
+  await page.getByRole("button", { name: "New client" }).click();
   await page
     .locator("form")
     .getByText("Commercial cleaning", { exact: true })
@@ -286,7 +288,7 @@ test("a Sent Quote fits every width, for the Office and the Client", async ({
   await proposeNextMonday(page);
   await page.getByRole("button", { name: "Send to Casey Client" }).click();
   await expect(
-    page.getByRole("region", { name: "Current Quote" }),
+    page.getByRole("region", { name: "Current quote" }),
   ).toBeVisible();
 
   await expectFitsEveryWidth(page, quote);
@@ -316,7 +318,7 @@ test("an Accepted Quote and the Client's upcoming Jobs fit every width", async (
   await proposeNextMonday(page);
   await page.getByRole("button", { name: "Send to Casey Client" }).click();
   await expect(
-    page.getByRole("region", { name: "Current Quote" }),
+    page.getByRole("region", { name: "Current quote" }),
   ).toBeVisible();
 
   const client = await (await browser.newContext()).newPage();
@@ -335,12 +337,15 @@ test("a Service Plan Quote fits every width, Draft and Sent, for the Office and 
   page,
   browser,
 }) => {
+  // 16-18 s alone, as the Office's screens are: past the 30 s budget while
+  // other workers load the machine
+  test.slow();
   await createStaff(olive);
   await signedInAs(page, olive.email);
   const { job } = await completedFirstClean(olive.email);
   const firstClean = `/office/jobs/${job.id}`;
   await page.goto(firstClean);
-  await page.getByRole("button", { name: "Quote a Service Plan" }).click();
+  await page.getByRole("button", { name: "Quote a cleaning plan" }).click();
   await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}\/draft$/);
   const quote = new URL(page.url()).pathname.replace(/\/draft$/, "");
 
@@ -348,19 +353,10 @@ test("a Service Plan Quote fits every width, Draft and Sent, for the Office and 
   await expectFitsEveryWidth(page, `${quote}/draft`);
 
   // its first Job on Monday 19 January 2026 at 9:00 AM
-  await page
-    .getByRole("group", { name: "Date" })
-    .getByRole("spinbutton", { name: /month/i })
-    .click();
-  await page.keyboard.type("01192026");
-  await page
-    .getByRole("group", { name: "Start time" })
-    .getByRole("spinbutton", { name: /hour/i })
-    .click();
-  await page.keyboard.type("0900AM");
+  await startOn(page, page, "01192026", "0900AM");
   await page.getByRole("button", { name: "Send to Casey Client" }).click();
   await expect(
-    page.getByRole("region", { name: "Current Quote" }),
+    page.getByRole("region", { name: "Current quote" }),
   ).toBeVisible();
   await expectFitsEveryWidth(page, quote);
   // the home's page, with its history
@@ -384,6 +380,9 @@ test("a Service Plan fits every width, for the Office and the Client", async ({
   page,
   browser,
 }) => {
+  // 16-18 s alone, as the Office's screens are: past the 30 s budget while
+  // other workers load the machine
+  test.slow();
   await createStaff(olive);
   await signedInAs(page, olive.email);
   const { propertyId } = await completedFirstClean(olive.email);
@@ -398,7 +397,7 @@ test("a Service Plan fits every width, for the Office and the Client", async ({
   await signedInAs(client, casey.email);
   await client.goto(`/portal/quotes/${quote.id}`);
   await client.getByRole("button", { name: /^Accept and pay/ }).click();
-  await client.getByRole("link", { name: "See your Service Plan" }).click();
+  await client.getByRole("link", { name: "See your cleaning plan" }).click();
   await expect(client).toHaveURL(/\/portal\/plans\/[0-9a-f-]{36}$/);
   const plan = new URL(client.url()).pathname;
 
@@ -426,19 +425,20 @@ test("a Service Plan on several weekdays fits every width, Draft, Sent and start
   page,
   browser,
 }) => {
+  // 16-18 s alone, as the Office's screens are: past the 30 s budget while
+  // other workers load the machine
+  test.slow();
   await createStaff(olive);
   await signedInAs(page, olive.email);
   const { job, propertyId } = await completedFirstClean(olive.email);
   // a Draft with two weekdays
   await page.goto(`/office/jobs/${job.id}`);
-  await page.getByRole("button", { name: "Quote a Service Plan" }).click();
+  await page.getByRole("button", { name: "Quote a cleaning plan" }).click();
   await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}\/draft$/);
   const draft = new URL(page.url()).pathname;
   await page.getByRole("button", { name: "Add a weekday" }).click();
   await expect(page.getByRole("region", { name: "Weekday 2" })).toBeVisible();
-  await expect(
-    page.getByRole("status").filter({ hasText: /saved|prices/ }),
-  ).toHaveText("All changes saved");
+  await saved(page);
   await expectFitsEveryWidth(page, draft);
 
   // Sent on Mondays, Wednesdays and Fridays, and started
@@ -457,7 +457,7 @@ test("a Service Plan on several weekdays fits every width, Draft, Sent and start
   await expectFitsEveryWidth(client, `/portal/quotes/${quote.id}`);
   await client.goto(`/portal/quotes/${quote.id}`);
   await client.getByRole("button", { name: /^Accept and pay/ }).click();
-  await client.getByRole("link", { name: "See your Service Plan" }).click();
+  await client.getByRole("link", { name: "See your cleaning plan" }).click();
   await expect(client).toHaveURL(/\/portal\/plans\/[0-9a-f-]{36}$/);
   const plan = new URL(client.url()).pathname;
   await expectFitsEveryWidth(client, plan);
@@ -471,6 +471,9 @@ test("cancelling, Cancelled and No Access Jobs fit every width", async ({
   page,
   browser,
 }) => {
+  // 16-18 s alone, as the Office's screens are: past the 30 s budget while
+  // other workers load the machine
+  test.slow();
   await createStaff(olive);
   await signUp(olive.email);
   const cory = await addCleaner("Cory Cleaner");
@@ -503,14 +506,14 @@ test("cancelling, Cancelled and No Access Jobs fit every width", async ({
     officeEmail: olive.email,
   });
   await page.goto(`/office/jobs/${cancelled.id}`);
-  await page.getByRole("button", { name: "Cancel Job" }).click();
+  await page.getByRole("button", { name: "Cancel job" }).click();
   await page.getByText("Empire Cleaning can't do it").click();
   await page
-    .getByRole("textbox", { name: "Why? (told to the Client)" })
+    .getByRole("textbox", { name: "Why? (the client sees this)" })
     .fill("Our crew is unwell.");
   await page
     .getByRole("alertdialog")
-    .getByRole("button", { name: "Cancel Job" })
+    .getByRole("button", { name: "Cancel job" })
     .click();
   await expect(
     page.getByText("By Empire Cleaning, refunded in full."),

@@ -17,7 +17,7 @@ export const router = Router();
 // Quote" form lists them
 router.get(
   "/add-ons",
-  validate({ query: z.object({ service: z.uuid("Choose a Service") }) }),
+  validate({ query: z.object({ service: z.uuid("Pick a service") }) }),
   async (req, res) => {
     res.json(await choosableAddOns(String(req.query.service)));
   },

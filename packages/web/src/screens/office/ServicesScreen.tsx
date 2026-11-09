@@ -39,6 +39,7 @@ import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import { formatDate, formatMoney } from "../format.ts";
 import { ExampleQuote } from "./ExampleQuote.tsx";
+import { PRICES_CHANGE } from "./PriceListScreen.tsx";
 
 const methodLabel: Record<PricingMethod, string> = {
   rooms: "From a home's rooms",
@@ -67,19 +68,17 @@ export function ServicesScreen() {
         </Heading>
         <ButtonLink href={linkTo({ to: "/office/services/new" })}>
           <Plus aria-hidden size={18} />
-          New Service
+          New service
         </ButtonLink>
       </div>
       <p className="text-fg-muted">
-        What Empire Cleaning sells, each with its own rate. Changes apply to
-        prices worked out from now on. Quotes already sent keep the prices they
-        were sent with.
+        What Empire Cleaning sells, each with its own rate. {PRICES_CHANGE}
       </p>
       <ServicesTable label="Services" services={active} />
       {retired.length > 0 && (
         <Section
           title="Retired"
-          description="Offered for nothing new. Quotes, plans and Jobs that used one still price by it."
+          description="Not offered any more. Quotes, plans and jobs that used one still price by it."
           actions={
             <Button variant="text" onPress={() => setShowRetired((v) => !v)}>
               {showRetired ? "Hide" : `Show ${retired.length}`}
@@ -87,7 +86,7 @@ export function ServicesScreen() {
           }
         >
           {showRetired && (
-            <ServicesTable label="Retired Services" services={retired} />
+            <ServicesTable label="Retired services" services={retired} />
           )}
         </Section>
       )}
@@ -184,10 +183,10 @@ export function NewServiceScreen() {
         <Breadcrumbs
           trail={[
             { label: "Services", href: linkTo({ to: "/office/services" }) },
-            { label: "New Service" },
+            { label: "New service" },
           ]}
         />
-        <Heading level={1}>New Service</Heading>
+        <Heading level={1}>New service</Heading>
       </div>
       <ServiceForm services={services} list={list} />
     </div>
@@ -272,7 +271,7 @@ function ServiceForm({
   const [draft, setDraft] = useState(() =>
     toDraft(service ? inputOf(service) : blank),
   );
-  const action = useAction("The Service wasn't saved. Please try again.");
+  const action = useAction("The service wasn't saved. Please try again.");
   const navigate = useNavigate();
   const set = (change: Partial<Draft>) =>
     setDraft((current) => ({ ...current, ...change }));
@@ -339,7 +338,7 @@ function ServiceForm({
             <TextField
               label="Description"
               name="description"
-              description="A sentence or two Clients see when asking for it"
+              description="A sentence or two clients see when they ask for it"
               multiline
               value={draft.description}
               onChange={(description) => set({ description })}
@@ -361,7 +360,7 @@ function ServiceForm({
 
         <Section
           title="How long it takes"
-          description="Labour Hours, however many Cleaners share them. They set the price, and how long the Schedule books."
+          description="Cleaning hours, however many cleaners share them. They set the price, and how long the schedule books."
         >
           <Card>
             <SegmentedControl
@@ -400,7 +399,7 @@ function ServiceForm({
                 description={
                   draft.offeredFor === "homes"
                     ? undefined
-                    : "For an office; other types of premises take longer or shorter, as set on the Price List"
+                    : "For an office. Other types of business take longer or shorter, as set on Prices"
                 }
                 minValue={0}
                 step={0.05}
@@ -415,7 +414,7 @@ function ServiceForm({
               isSelected={draft.conditionApplies}
               onChange={(conditionApplies) => set({ conditionApplies })}
             >
-              Takes longer the dirtier the place is (Condition)
+              Takes longer the dirtier the place is (condition)
             </Checkbox>
           </Card>
         </Section>
@@ -435,9 +434,9 @@ function ServiceForm({
                 onChange={(hourlyRate) => set({ hourlyRate })}
               />
               <NumberField
-                label="Minimum Charge"
+                label="Minimum price"
                 name="minimumChargeCents"
-                description="No Suggested Price is lower. You can still override it on a Quote."
+                description="No suggested price is lower. You can still set your own price on a quote."
                 minValue={0}
                 formatOptions={dollars}
                 value={draft.minimumCharge}
@@ -468,13 +467,13 @@ function ServiceForm({
                 })
               }
             >
-              Can be on a Service Plan
+              Can be on a cleaning plan
             </Checkbox>
             <Checkbox
               isSelected={draft.needsSiteVisit}
               onChange={(needsSiteVisit) => set({ needsSiteVisit })}
             >
-              Needs a Site Visit before a Quote is sent
+              Needs a site visit before a quote is sent
             </Checkbox>
             <Select
               label="For a first visit, recommend"
@@ -499,12 +498,12 @@ function ServiceForm({
 
         <Section
           title="Sales tax"
-          description="Added to its price, so Clients see prices with tax. Confirm these with your accountant."
+          description="Added to its price, so clients see prices with tax. Check these with your accountant."
         >
           <Card>
             <div className="grid gap-4 sm:grid-cols-2">
               <NumberField
-                label="One-off Jobs (%)"
+                label="One-off jobs (%)"
                 name="taxOneOffPercent"
                 minValue={0}
                 step={0.125}
@@ -514,7 +513,7 @@ function ServiceForm({
               />
               {draft.canRecur && (
                 <NumberField
-                  label="Service Plan Jobs (%)"
+                  label="Cleaning plan jobs (%)"
                   name="taxPlanPercent"
                   minValue={0}
                   step={0.125}
@@ -551,7 +550,7 @@ function ServiceForm({
               </Button>
             )}
             <Button type="submit" isPending={action.isPending}>
-              {service ? "Save Service" : "Add Service"}
+              {service ? "Save service" : "Add service"}
             </Button>
           </Actions>
         </div>

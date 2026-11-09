@@ -3,6 +3,7 @@ import {
   test as base,
   expect,
   type BrowserContext,
+  type Locator,
   type Page,
 } from "@playwright/test";
 import type { Me, QuoteSource, StaffRole } from "@empire-cleaning/models";
@@ -71,7 +72,8 @@ export const requireApproval = (
     body: JSON.stringify({ answer }),
   });
 
-// a booked Job at a home of its own, straight onto the Schedule
+// a booked Job at a home of its own, straight onto the Schedule, a crew of
+// 2 unless said: one Cleaner Confirmed on it can't mark it done alone
 export const bookJob = (job: {
   startsAt: string;
   labourHours: number;
@@ -192,7 +194,6 @@ export const requestReschedule = (
     body: JSON.stringify({ cost: "free", ...to }),
   });
 
-// a Job Offered to a Cleaner (and Confirmed by them, if asked)
 // Office Staff move a booked Job straight to a new time, New York's
 export const moveJob = (jobId: string, to: { date: string; time: string }) =>
   control(`/jobs/${jobId}/move`, {
@@ -200,6 +201,7 @@ export const moveJob = (jobId: string, to: { date: string; time: string }) =>
     body: JSON.stringify(to),
   });
 
+// a Job Offered to a Cleaner (and Confirmed by them, if asked)
 export const offerJob = (
   jobId: string,
   staffId: string,
@@ -408,6 +410,18 @@ export const goTo = async (page: Page, name: string) => {
   await link.click();
 };
 
+// moves to another area ("Office", "Cleaner area", "Client portal") from the
+// person's Account menu, which the test has opened, and waits until the area
+// is on screen. The URL changes at once, but until the new area is ready the
+// old one stays, its menu open (AreaLayout's AccountMenu), so a test that went
+// on at the URL could press something in the old one, which then goes (#310)
+export const switchArea = async (page: Page, area: string) => {
+  await page.getByRole("row", { name: `Switch to ${area}` }).click();
+  await expect(
+    page.getByRole("navigation", { name: area, exact: true }).first(),
+  ).toBeVisible();
+};
+
 // whether the navigation marks a section as the one you're in
 export const expectCurrentSection = async (
   page: Page,
@@ -427,7 +441,13 @@ export const expectCurrentSection = async (
 // nothing is animating: a dialog checked while it opens is still fading in,
 // and its text fails on contrast now and then. React Aria's hidden live
 // announcer is left out: a button pending as it navigates away leaves its
-// announcement pointing at a label that's gone.
+// announcement pointing at a label that's gone. axe runs in the page itself
+// (legacy mode), asked for violations only, as landing's does
+// (packages/landing/tests/harness.ts): its default runs it in each frame and
+// then again in a blank page, ~0.9 s a check against ~0.5 s. Legacy mode
+// skips frames of another origin, so each must be hidden: Stripe.js adds its
+// metrics frame, hidden, to every screen, and any other, such as the real
+// card form, fails here rather than go unchecked.
 // within: only part of the page, e.g. an open dialog (which hides the rest,
 // main landmark and heading included, from assistive technology)
 export const expectAccessible = async (page: Page, within?: string) => {
@@ -441,7 +461,29 @@ export const expectAccessible = async (page: Page, within?: string) => {
     }
     return true;
   }, within);
-  const axe = new AxeBuilder({ page }).exclude("[data-live-announcer]");
+  const { origin } = new URL(page.url());
+  const shownElsewhere: string[] = [];
+  for (const frame of page.mainFrame().childFrames()) {
+    if (URL.canParse(frame.url()) && new URL(frame.url()).origin === origin) {
+      continue;
+    }
+    const shown = await (
+      await frame.frameElement()
+    ).evaluate((node) => {
+      const iframe = node as HTMLIFrameElement;
+      return iframe.checkVisibility({ visibilityProperty: true })
+        ? iframe.src
+        : null;
+    });
+    if (shown !== null) shownElsewhere.push(shown || frame.url());
+  }
+  expect(shownElsewhere, "frames of another origin, which axe skips").toEqual(
+    [],
+  );
+  const axe = new AxeBuilder({ page })
+    .exclude("[data-live-announcer]")
+    .setLegacyMode()
+    .options({ resultTypes: ["violations"] });
   const { violations } = await (within ? axe.include(within) : axe).analyze();
   expect(
     violations.map((v) => ({
@@ -579,18 +621,34 @@ export const requestQuoteForPremises = async (
   if (!res.ok) throw new Error(`quote request: ${res.status}`);
 };
 
-export const proposeNextMonday = async (page: Page) => {
-  await page
-    .getByRole("group", { name: "Date" })
-    .getByRole("spinbutton", { name: /month/i })
-    .click();
-  await page.keyboard.type("01122026");
-  await page
+// types a start into a Draft's pickers, in `part`: a plan's weekday, or the
+// page. The day goes last, as a weekday's section is named after it.
+export const startOn = async (
+  page: Page,
+  part: Page | Locator,
+  date: string,
+  time: string,
+) => {
+  await part
     .getByRole("group", { name: "Start time" })
     .getByRole("spinbutton", { name: /hour/i })
     .click();
-  await page.keyboard.type("0900AM");
+  await page.keyboard.type(time);
+  await part
+    .getByRole("group", { name: "Date" })
+    .getByRole("spinbutton", { name: /month/i })
+    .click();
+  await page.keyboard.type(date);
 };
+
+export const proposeNextMonday = (page: Page) =>
+  startOn(page, page, "01122026", "0900AM");
+
+// once the Draft has saved all that's on screen
+export const saved = (page: Page) =>
+  expect(
+    page.getByRole("status").filter({ hasText: /saved|prices/ }),
+  ).toHaveText("All changes saved");
 
 // what the browser does when the person comes back to this tab
 export const returnToTab = (page: import("@playwright/test").Page) =>
@@ -600,13 +658,13 @@ export const returnToTab = (page: import("@playwright/test").Page) =>
 // page; `kind` answers the dialog that asks which, where either is possible
 export const draftTheQuote = async (
   page: Page,
-  kind?: "one-off" | "Service Plan",
+  kind?: "one-off" | "cleaning plan",
 ) => {
-  await page.getByRole("button", { name: "Draft the Quote" }).click();
+  await page.getByRole("button", { name: "Draft the quote" }).click();
   if (kind) {
     await page
       .getByRole("dialog")
-      .getByRole("button", { name: `A ${kind} Quote` })
+      .getByRole("button", { name: `A ${kind} quote` })
       .click();
   }
   await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}\/draft$/);
@@ -637,7 +695,7 @@ export const quoteSent = async (
 // premises as the Office knows them, with no visit, and comes back
 export const recordFindingsWithoutVisit = async (page: Page) => {
   const quote = page.url();
-  await page.getByRole("link", { name: "Property", exact: true }).click();
+  await page.getByRole("link", { name: "property page", exact: true }).click();
   await page
     .getByRole("button", { name: "Record findings without a visit" })
     .click();

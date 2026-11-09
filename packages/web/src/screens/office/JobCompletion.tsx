@@ -33,13 +33,13 @@ import { useAction } from "../action.ts";
 import { conditionLabel, dollars, formatDate, formatMoney } from "../format.ts";
 
 const statusBadge: Record<AdjustmentStatus, ReactNode> = {
-  applied: <StatusBadge tone="success">Applied</StatusBadge>,
+  applied: <StatusBadge tone="success">Added</StatusBadge>,
   reported: <StatusBadge tone="warning">To review</StatusBadge>,
   dismissed: <StatusBadge>Dismissed</StatusBadge>,
-  proposed: <StatusBadge tone="info">Waiting on the Client</StatusBadge>,
+  proposed: <StatusBadge tone="info">Waiting on the client</StatusBadge>,
   approved: <StatusBadge tone="success">Approved</StatusBadge>,
   declined: <StatusBadge>Declined</StatusBadge>,
-  lapsed: <StatusBadge>Lapsed</StatusBadge>,
+  lapsed: <StatusBadge>Not answered</StatusBadge>,
 };
 
 export function ConditionField({
@@ -49,11 +49,11 @@ export function ConditionField({
   job: OfficeJob;
   completion: JobCompletion;
 }) {
-  const action = useAction("The Condition wasn't saved. Please try again.");
+  const action = useAction("The condition wasn't saved. Please try again.");
   return (
     <Select
       label="Condition reported"
-      description="It's the home's Condition too, for future Quotes."
+      description="It's the home's condition too, for future quotes."
       selectedKey={completion.condition}
       onSelectionChange={(key) =>
         void action.run(
@@ -163,8 +163,8 @@ const fullChangeOf = (a: AdjustmentView) =>
   a.kind === "extra_time"
     ? `${a.hours} more ${a.hours === 1 ? "hour" : "hours"}, all the crew together`
     : a.kind === "add_on_done"
-      ? "Done on the day, not on the Quote"
-      : "On the Quote, not done";
+      ? "Done on the day, not on the quote"
+      : "On the quote, not done";
 
 // what it changes the total by, signed so a reduction reads as one
 const signed = (cents: number) =>
@@ -187,16 +187,16 @@ export function Adjustments({ job }: { job: OfficeJob }) {
 
   return (
     <Section
-      title="Adjustments"
-      description="What the Cleaner reported that differs from the Quote, priced from the Price List the Quote used. Increases are only added once the Client approves them."
+      title="Price changes"
+      description="What the cleaner reported that was different from the quote, priced from the quote's prices. A price that goes up is only added once the client approves it."
     >
       {adjustments.length === 0 ? (
         <p className="text-sm text-fg-muted">
-          Nothing different from the Quote was reported.
+          Nothing different from the quote was reported.
         </p>
       ) : (
         <Table
-          aria-label="Adjustments"
+          aria-label="Price changes"
           onRowAction={(key) => setOpenId(String(key))}
         >
           <TableHeader>
@@ -263,11 +263,11 @@ function AdjustmentDialog({
           <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
             <dt className="font-semibold">What happened</dt>
             <dd>{fullChangeOf(a)}</dd>
-            <dt className="font-semibold">The Cleaner said</dt>
+            <dt className="font-semibold">The cleaner said</dt>
             <dd>"{a.reason}"</dd>
             {a.officeReason && (
               <>
-                <dt className="font-semibold">The Office said</dt>
+                <dt className="font-semibold">The office said</dt>
                 <dd>{a.officeReason}</dd>
               </>
             )}
@@ -280,8 +280,8 @@ function AdjustmentDialog({
             </dd>
             {a.lapsesAt && (
               <>
-                <dt className="font-semibold">Lapses</dt>
-                <dd>{formatDate(a.lapsesAt)}, unless the Client answers</dd>
+                <dt className="font-semibold">Answer by</dt>
+                <dd>{formatDate(a.lapsesAt)}, or it isn't added</dd>
               </>
             )}
           </dl>
@@ -323,16 +323,16 @@ function ReviewForm({
   return (
     <>
       <p className="text-sm text-fg-muted">
-        Worked out from the Price List, it's{" "}
-        {formatMoney(adjustment.workedOutCents)} before tax. The Client is
-        emailed to approve it, and it's only added if they do.
+        From the quote's prices, it's {formatMoney(adjustment.workedOutCents)}{" "}
+        before tax. We email the client to approve it, and it's only added if
+        they do.
       </p>
       <PriceForm
         label="Price before tax"
         initialCents={adjustment.workedOutCents}
         needsReason={(cents) => cents !== adjustment.workedOutCents}
         fieldErrors={action.fieldErrors}
-        submitLabel="Propose to the Client"
+        submitLabel="Send to the client"
         isPending={action.isPending}
         problem={action.problem}
         onCancel={close}
@@ -346,7 +346,7 @@ function ReviewForm({
                     ? {}
                     : { priceCents, reason },
                 ),
-              "Proposed to the Client",
+              "Sent to the client",
             )
             .then((ok) => ok && close())
         }
@@ -371,7 +371,7 @@ function ReviewForm({
 // or on the Client's next weekly Bill (ADR-0016)
 const settledHow = (job: OfficeJob) =>
   job.weeklyBill
-    ? "goes on the Client's next Bill"
+    ? "goes on the client's next bill"
     : "is charged or refunded straight away";
 
 // an Adjustment that counts: change its price, charging or refunding the
@@ -392,8 +392,8 @@ function CorrectForm({
     <>
       <p className="text-sm text-fg-muted">
         {adjustment.status === "approved"
-          ? "The Client approved this price, so it can only be lowered."
-          : "This takes the price off the Job."}{" "}
+          ? "The client approved this price, so it can only be lowered."
+          : "This takes the price off the job."}{" "}
         A correction {settledHow(job)}.
       </p>
       <PriceForm
@@ -417,7 +417,7 @@ function CorrectForm({
                   priceCents,
                   reason,
                 }),
-              "Adjustment corrected",
+              "Price change corrected",
             )
             .then((ok) => ok && close())
         }
@@ -445,8 +445,8 @@ function ConfirmRemove({
   return (
     <>
       <p>
-        If it changed the price, the difference {settledHow(job)}, and the
-        Client is emailed.
+        If it changed the price, the difference {settledHow(job)}, and we email
+        the client.
       </p>
       {action.problem && <Notice tone="danger">{action.problem}</Notice>}
       <Actions>
@@ -463,7 +463,7 @@ function ConfirmRemove({
                   deleteJson(
                     `/api/jobs/${job.id}/adjustments/${adjustment.id}`,
                   ),
-                "Adjustment removed",
+                "Price change removed",
               )
               .then((ok) => ok && close())
           }
@@ -476,23 +476,23 @@ function ConfirmRemove({
 }
 
 export function UndoCompletion({ job }: { job: OfficeJob }) {
-  const action = useAction("The completion wasn't undone. Please try again.");
+  const action = useAction("It wasn't undone. Please try again.");
   return (
     <DialogTrigger>
       <Button variant="text" size="sm">
         <Undo2 aria-hidden size={16} />
-        Undo completion
+        Mark not done
       </Button>
-      <Dialog title="Undo this completion?" role="alertdialog">
+      <Dialog title="Mark this job not done?" role="alertdialog">
         {({ close }) => (
           <>
             <p>
-              For a Job marked Completed by mistake. It goes back to booked, its
-              Adjustments are removed, and{" "}
+              For a job marked done by mistake. It goes back to booked, its
+              price changes are removed, and{" "}
               {job.weeklyBill
-                ? "what its Bills billed is credited on the Client's next Bill"
-                : "everything charged except the Deposit is refunded"}
-              . The Client is emailed, and the Cleaner can complete it again.
+                ? "what its bills charged comes off the client's next bill"
+                : "everything paid except the deposit is refunded"}
+              . We email the client, and the cleaner can mark it done again.
             </p>
             {action.problem && <Notice tone="danger">{action.problem}</Notice>}
             <Actions>
@@ -506,12 +506,12 @@ export function UndoCompletion({ job }: { job: OfficeJob }) {
                   void action
                     .run(
                       () => deleteJson(`/api/jobs/${job.id}/completion`),
-                      "Completion undone",
+                      "Marked not done",
                     )
                     .then((ok) => ok && close())
                 }
               >
-                Undo completion
+                Mark not done
               </Button>
             </Actions>
           </>
@@ -530,7 +530,7 @@ export function JobMoney({ payment }: { payment: JobPayment }) {
       <dd>{formatMoney(payment.quotedCents)}</dd>
       {payment.adjustmentsCents !== 0 && (
         <>
-          <dt className="font-semibold">Adjustments</dt>
+          <dt className="font-semibold">Price changes</dt>
           <dd>{formatMoney(payment.adjustmentsCents)}</dd>
         </>
       )}
@@ -543,7 +543,7 @@ export function JobMoney({ payment }: { payment: JobPayment }) {
       </dd>
       {payment.billedCents !== 0 && (
         <>
-          <dt className="font-semibold">On weekly Bills</dt>
+          <dt className="font-semibold">On weekly bills</dt>
           <dd>{formatMoney(payment.billedCents)}</dd>
         </>
       )}
@@ -562,7 +562,7 @@ export function JobMoney({ payment }: { payment: JobPayment }) {
 // charges what a Job owes again, after a failed charge: a Balance, or the
 // fee of a plan Job that didn't happen
 export function RetryCharge({ job }: { job: OfficeJob }) {
-  const action = useAction("It wasn't retried. Please try again.");
+  const action = useAction("It wasn't tried again. Please try again.");
   return (
     <div className="flex flex-col gap-2">
       <Button
@@ -572,12 +572,12 @@ export function RetryCharge({ job }: { job: OfficeJob }) {
         onPress={() =>
           void action.run(
             () => postJson(`/api/jobs/${job.id}/balance/retry`),
-            "Charged",
+            "Payment taken",
           )
         }
       >
         <CreditCard aria-hidden size={16} />
-        Try the charge again
+        Try the payment again
       </Button>
       {action.problem && <Notice tone="danger">{action.problem}</Notice>}
     </div>

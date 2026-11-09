@@ -1,6 +1,7 @@
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import { CalendarDays, Navigation, Phone } from "lucide-react";
 import type { CleanerJob, CleanerSiteVisit } from "@empire-cleaning/models";
+import { HOUR_MS } from "@empire-cleaning/models";
 import {
   Button,
   buttonStyles,
@@ -23,19 +24,15 @@ import {
   formatMinutes,
   formatTime,
 } from "../format.ts";
+import { AssignmentStateBadge, JobStatusBadge } from "../JobBadges.tsx";
 
 // whether the Cleaner has Confirmed it yet, or once done, that it is
-export function JobBadge({ job }: { job: CleanerJob }) {
-  if (job.outcome === "completed") {
-    return <StatusBadge tone="success">Completed</StatusBadge>;
-  }
-  if (job.outcome === "no_access") {
-    return <StatusBadge tone="danger">No Access</StatusBadge>;
-  }
-  return job.assignment.status === "confirmed" ? (
-    <StatusBadge tone="success">Confirmed</StatusBadge>
-  ) : (
-    <StatusBadge tone="warning">Offered</StatusBadge>
+export function CleanerJobBadge({ job }: { job: CleanerJob }) {
+  if (job.outcome) return <JobStatusBadge status={job.outcome} />;
+  return (
+    <AssignmentStateBadge
+      state={job.assignment.status === "confirmed" ? "confirmed" : "offered"}
+    />
   );
 }
 
@@ -45,7 +42,7 @@ export const directionsTo = (address: string) =>
 
 // "until about 12:00 PM": the start plus its time on site
 export const untilAbout = (startsAt: string, hours: number) =>
-  `until about ${formatTime(new Date(Date.parse(startsAt) + hours * 3_600_000).toISOString())}`;
+  `until about ${formatTime(new Date(Date.parse(startsAt) + hours * HOUR_MS).toISOString())}`;
 
 // what's theirs, in time order: a Job they hold, or a Site Visit they're
 // making
@@ -109,7 +106,7 @@ export function CleanerHome() {
   return (
     <div className="flex flex-col gap-6">
       <Heading level={1} inBar>
-        Your Jobs
+        Your jobs
       </Heading>
       {next ? (
         <NextUp item={next} openJob={openJob} />
@@ -172,7 +169,7 @@ function NextUp({
                 ? `${job.serviceName} · ${formatHours(job.hoursOnSite)} on site${
                     others > 1 ? ` · crew of ${others}` : ""
                   }`
-                : `Site Visit for ${clientName(visit!.client)} · ${formatMinutes(visit!.minutes)} to see it`}
+                : `Site visit for ${clientName(visit!.client)} · ${formatMinutes(visit!.minutes)} to see it`}
             </p>
           </div>
           <div className="flex flex-wrap gap-2 sm:flex-col sm:items-stretch">
@@ -186,7 +183,7 @@ function NextUp({
               Directions
             </a>
             {job ? (
-              <Button onPress={() => openJob(job.id)}>Open Job</Button>
+              <Button onPress={() => openJob(job.id)}>Open job</Button>
             ) : (
               <a
                 className={buttonStyles({ variant: "primary" })}
@@ -231,7 +228,9 @@ function Rows({
             start={<DateTile date={item.startsAt} size="sm" />}
             title={whenOf(item)}
             description={`${addressOf(item.job.property)} · ${item.job.serviceName}, ${formatHours(item.job.hoursOnSite)}`}
-            end={item.job.outcome ? <JobBadge job={item.job} /> : undefined}
+            end={
+              item.job.outcome ? <CleanerJobBadge job={item.job} /> : undefined
+            }
           />
         ) : (
           <ListItem
@@ -246,7 +245,7 @@ function Rows({
             ]
               .filter(Boolean)
               .join(" · ")}
-            end={<StatusBadge tone="info">Site Visit</StatusBadge>}
+            end={<StatusBadge tone="info">Site visit</StatusBadge>}
           />
         ),
       )}

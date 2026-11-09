@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import { DAY_MS, HOUR_MS, MINUTE_MS } from "@empire-cleaning/models";
 import { auth } from "#features/auth";
 import {
   api,
@@ -106,7 +107,9 @@ describe("sign-in links (#32)", () => {
     await askForLink("robin@example.com").expect(429);
 
     expect(refused.status).toBe(429);
-    expect(refused.headers["retry-after"]).toBe(String(50 * 60));
+    expect(refused.headers["retry-after"]).toBe(
+      String((50 * MINUTE_MS) / 1000),
+    );
     expect(refused.body.message).toBe(
       "Too many tries. Please try again in 50 minutes, or call us on (646) 320-9076.",
     );
@@ -148,7 +151,7 @@ describe("Guest Quote Requests (#32)", () => {
     const refused = await askAboutNewHome();
 
     expect(refused.status).toBe(429);
-    expect(refused.headers["retry-after"]).toBe(String(24 * 60 * 60));
+    expect(refused.headers["retry-after"]).toBe(String(DAY_MS / 1000));
     expect(refused.body.message).toBe(
       "Too many tries. Please try again in 24 hours, or call us on (646) 320-9076.",
     );
@@ -177,7 +180,7 @@ describe("Guest Quote Requests (#32)", () => {
     const refused = await askAboutNewHome();
 
     expect(refused.status).toBe(429);
-    expect(refused.headers["retry-after"]).toBe(String(60 * 60));
+    expect(refused.headers["retry-after"]).toBe(String(HOUR_MS / 1000));
     expect(testEmail().to(casey.email)).toHaveLength(0);
     expect(testMonitoring().signalled("rate_cap_reached")).toHaveLength(1);
     testClock().advance({ hours: 1 });

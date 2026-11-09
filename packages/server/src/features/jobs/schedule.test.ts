@@ -1,5 +1,9 @@
 import { describe, expect, test } from "vitest";
-import type { DayCapacity, ScheduleDay } from "@empire-cleaning/models";
+import type {
+  DayCapacity,
+  DayTimes,
+  ScheduleDay,
+} from "@empire-cleaning/models";
 import { eq } from "drizzle-orm";
 import { db } from "../../db/index.ts";
 import { createStaff } from "#features/staff";
@@ -223,7 +227,7 @@ describe("the Schedule", () => {
       .expect(400);
     expect(tooLong.body.details[0]).toMatchObject({
       path: "to",
-      issue: "Choose at most 62 days",
+      issue: "Pick 62 days or fewer",
     });
     await office.get("/api/schedule?from=2026-01-07&to=2026-01-06").expect(400);
     await office.get("/api/schedule?from=2026-01-07").expect(400);
@@ -419,5 +423,39 @@ describe("whether a clean has a crew free", () => {
           .body as DayCapacity
       ).hasCrew,
     ).toBe(true);
+  });
+
+  test("marks the starts without one, every half hour, as the pickers show them", async () => {
+    const office = await signInAsOffice();
+    await twoCleaners(office);
+    // both Cleaners from 9 to 11
+    const job = await bookedJob({
+      startsAt: "2026-01-06T14:00:00Z",
+      labourHours: 4,
+      crewSize: 2,
+    });
+    const starts = async (query: string) =>
+      (
+        await office
+          .get(`/api/schedule/starts?from=2026-01-06&to=2026-01-07&${query}`)
+          .expect(200)
+      ).body as DayTimes[];
+
+    // two hours on site: from 7:30, it meets the Job; from 11, it's gone
+    expect(await starts("labourHours=2&crewSize=1")).toEqual([
+      {
+        date: "2026-01-06",
+        times: ["07:30", "08:00", "08:30", "09:00", "09:30", "10:00", "10:30"],
+      },
+      { date: "2026-01-07", times: [] },
+    ]);
+    // the Job itself, being moved, stands in nobody's way
+    expect(await starts(`labourHours=4&crewSize=2&jobId=${job.id}`)).toEqual([
+      { date: "2026-01-06", times: [] },
+      { date: "2026-01-07", times: [] },
+    ]);
+    await office
+      .get("/api/schedule/starts?from=2026-01-06&to=2026-01-07&crewSize=1")
+      .expect(400);
   });
 });

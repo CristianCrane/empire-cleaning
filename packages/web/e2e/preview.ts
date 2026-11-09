@@ -1,5 +1,6 @@
 // serves the built app once per slot (e2e/slots.ts), each sending /api to its
-// slot's API. Started by Playwright after `vite build` (playwright.config.ts).
+// slot's API, and says so once every slot's is up. Started after `vite build`
+// (playwright.config.ts).
 // Without vite.config.ts: serving dist/ needs none of its plugins, and loading
 // them once per slot slowed the start.
 import { preview } from "vite";
@@ -20,3 +21,4 @@ for (let i = 0; i < WORKERS; i++) {
   });
   console.log(`app for slot ${i} on ${appUrl}`);
 }
+console.log(`e2e apps ready: ${WORKERS}`);

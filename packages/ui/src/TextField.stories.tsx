@@ -16,7 +16,7 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {};
 
 export const WithDescription: Story = {
-  args: { description: "We'll send your Quote here." },
+  args: { description: "We'll send your quote here." },
 };
 
 export const WithPlaceholder: Story = {

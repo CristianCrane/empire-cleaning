@@ -4,3 +4,10 @@ allowBuilds:
   esbuild: true
   sharp: false
   unrs-resolver: true
+overrides:
+  # glob 13 has GHSA-3g3m-2fjr-6pw4 (#363), and Storybook 10's react-vite pins
+  # this docgen plugin at ^0.7.0, which uses it; Storybook never loads the
+  # plugin here (packages/ui/.storybook/main.ts sets no reactDocgen). Goes
+  # when ui moves to Storybook 11, where the plugin is an optional peer
+  # (storybookjs/storybook#37141)
+  '@joshwooding/vite-plugin-react-docgen-typescript>glob': ^14.0.3

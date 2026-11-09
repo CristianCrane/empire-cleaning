@@ -7,7 +7,12 @@ import {
   type CalendarDate,
   type Time,
 } from "@internationalized/date";
-import type { OfficeServicePlan, UnplacedVisit } from "@empire-cleaning/models";
+import {
+  cleansPaid,
+  type OfficeServicePlan,
+  type UnplacedVisit,
+  weekdayOf,
+} from "@empire-cleaning/models";
 import {
   Actions,
   Breadcrumbs,
@@ -22,7 +27,6 @@ import {
   ListItem,
   Notice,
   Section,
-  StatusBadge,
   TimeField,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
@@ -30,15 +34,16 @@ import { linkTo } from "../../links.ts";
 import {
   addressOf,
   clientName,
+  crewOf,
   dayOfInstant,
   formatDateTime,
   formatDay,
   timeOfDay,
-  weekdayOf,
 } from "../format.ts";
 import { EndPlan, OnHold, PlanFacts, PlanStatusBadge } from "../PlanParts.tsx";
 import { useAction } from "../action.ts";
-import { homeCrumbs, JobStatusBadge } from "./PropertyScreen.tsx";
+import { JobBadge } from "../JobBadges.tsx";
+import { homeCrumbs } from "./PropertyScreen.tsx";
 import { PickFromSchedule } from "./SchedulePicker.tsx";
 import { OfferServicePlan } from "./StartDraft.tsx";
 
@@ -53,10 +58,10 @@ export function ServicePlanScreen() {
         <Breadcrumbs
           trail={[
             ...homeCrumbs(plan.client, plan.property),
-            { label: "Service Plan" },
+            { label: "Cleaning plan" },
           ]}
         />
-        <Heading level={1}>Service Plan</Heading>
+        <Heading level={1}>Cleaning plan</Heading>
         <p className="text-fg-muted">
           {clientName(plan.client)} · {addressOf(plan.property)}
         </p>
@@ -66,16 +71,6 @@ export function ServicePlanScreen() {
     </div>
   );
 }
-
-// how the Client pays for the plan's cleans: each when it's done, or on a
-// weekly Bill (ADR-0016)
-const paymentLine = {
-  per_clean: "Each clean is charged to the Client's saved card when it's done.",
-  automatic:
-    "Each week's cleans go on one Bill, made the following Monday and charged to the Client's saved Payment Method.",
-  on_page:
-    "Each week's cleans go on one Bill, made the following Monday, which the Client pays on its page by its due date.",
-};
 
 // A Service Plan for the Office, as its Client reads it (UX pass, #96): why
 // it's On Hold, if it is; the dates it came round with no room, to book at
@@ -107,7 +102,7 @@ export function PlanDetails({
 
       {plan.unplaced.length > 0 && <WaitingVisits plan={plan} />}
 
-      <Section title="Service Plan" actions={changeTerms}>
+      <Section title="Cleaning plan" actions={changeTerms}>
         <Card>
           <PlanFacts
             plan={plan}
@@ -115,14 +110,14 @@ export function PlanDetails({
             badge={<PlanStatusBadge status={plan.status} />}
           />
           <p className="border-t border-border pt-4 text-sm text-fg-muted">
-            {paymentLine[plan.weeklyBill ?? "per_clean"]}{" "}
+            {cleansPaid(plan.weeklyBill ?? "per_clean", false)}{" "}
             <Link
               href={linkTo({
                 to: "/office/quotes/$quoteId",
                 params: { quoteId: plan.quoteId },
               })}
             >
-              Its Service Plan Quote
+              Its cleaning plan quote
             </Link>
           </p>
         </Card>
@@ -144,9 +139,9 @@ function PlanJobs({ plan }: { plan: OfficeServicePlan }) {
   return (
     <Section title="Jobs">
       <List
-        aria-label="The plan's Jobs"
+        aria-label="The plan's jobs"
         renderEmptyState={() => (
-          <p className="p-4 text-center text-fg-muted">No Jobs yet.</p>
+          <p className="p-4 text-center text-fg-muted">No jobs yet.</p>
         )}
       >
         {plan.jobs.map((job) => (
@@ -154,22 +149,8 @@ function PlanJobs({ plan }: { plan: OfficeServicePlan }) {
             key={job.id}
             id={job.id}
             title={formatDateTime(job.startsAt)}
-            description={
-              job.crew.length > 0
-                ? job.crew.map((c) => c.name).join(", ")
-                : "Nobody Offered yet"
-            }
-            end={
-              job.status === "booked" ? (
-                <StatusBadge
-                  tone={job.assignment === "assigned" ? "success" : "warning"}
-                >
-                  {job.assignment === "assigned" ? "Assigned" : "Unassigned"}
-                </StatusBadge>
-              ) : (
-                <JobStatusBadge status={job.status} />
-              )
-            }
+            description={crewOf(job.crew)}
+            end={<JobBadge job={job} />}
             onAction={() =>
               void navigate({
                 to: "/office/jobs/$jobId",
@@ -195,7 +176,7 @@ function WaitingVisits({ plan }: { plan: OfficeServicePlan }) {
   return (
     <Section
       title="Waiting to be booked"
-      description="These dates came round with no room on the Schedule, so nothing was booked. Agree another time with the Client, or skip the visit."
+      description="These dates came round with no room on the schedule, so nothing was booked. Agree another time with the client, or skip the visit."
     >
       <List
         aria-label="Visits waiting to be booked"
@@ -283,7 +264,7 @@ function BookOrSkip({
         date={date?.toString()}
         time={time?.toString().slice(0, 5)}
         hoursOnSite={day.hoursOnSite}
-        crew={{ crewSize: day.crewSize }}
+        crew={{ labourHours: day.labourHours, crewSize: day.crewSize }}
         inline
         onPick={(picked) => {
           setDate(parseDate(picked.date));
@@ -291,10 +272,10 @@ function BookOrSkip({
         }}
       />
       <p className="text-sm text-fg-muted">
-        It's booked as the plan's Job, at its price, and Offered to the crew of
-        the plan's Job before it. The plan's later Jobs stay on their usual day.
-        Skipping it books nothing, and the plan carries on from its next date:
-        let the Client know.
+        It's booked as the plan's job, at its price, and offered to the cleaners
+        of the plan's job before it. The plan's later jobs stay on their usual
+        day. Skipping it books nothing, and the plan carries on from its next
+        date. Let the client know.
       </p>
       {problem && <Notice tone="danger">{problem}</Notice>}
       <Actions>

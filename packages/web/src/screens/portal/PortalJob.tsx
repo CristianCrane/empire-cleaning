@@ -33,18 +33,34 @@ import {
 import { postJson } from "../../api.ts";
 import { useAction } from "../action.ts";
 import { linkTo } from "../../links.ts";
+import { requestQuote } from "./whats-next.ts";
 import { PickAvailableTime } from "../AvailabilityPicker.tsx";
 import { ChooseNewTime, costForClient } from "../RescheduleParts.tsx";
 import {
   addressOf,
-  adjustmentLabel,
+  cancelledLabel,
   formatDate,
   formatDateTime,
   formatHours,
   formatMoney,
+  wasSkipped,
 } from "../format.ts";
 import { Fact } from "../Fact.tsx";
-import { ON_WEEKS_BILL } from "./payments.ts";
+import {
+  adjustmentLabel,
+  cancelCostForClient,
+  cancelledWithPlanForClient,
+  clientFix,
+  LATE_MOVE_FEE,
+  noAccessFee,
+  notTaken,
+  ON_WEEKS_BILL,
+  PLAN_CARRIES_ON,
+  PRICES_INCLUDE_TAX,
+  refundedTo,
+  UPDATE_CARD,
+} from "@empire-cleaning/models";
+import { JobStatusBadge } from "../JobBadges.tsx";
 
 // one of the Client's Jobs, from the links in their emails: while it's to come,
 // moving or cancelling it; once Completed, its receipt; any extra work proposed to them
@@ -71,15 +87,11 @@ export function PortalJob() {
           ) : completion ? (
             <StatusBadge tone="success">Done</StatusBadge>
           ) : job.cancellation ? (
-            <StatusBadge>
-              {job.servicePlanId && job.cancellation.by === "client"
-                ? "Skipped"
-                : "Cancelled"}
-            </StatusBadge>
+            <StatusBadge>{cancelledLabel(wasSkipped(job))}</StatusBadge>
           ) : job.noAccess ? (
-            <StatusBadge tone="danger">No Access</StatusBadge>
+            <JobStatusBadge status="no_access" />
           ) : (
-            <StatusBadge tone="info">Booked</StatusBadge>
+            <JobStatusBadge status="booked" />
           )}
         </div>
         <p className="text-fg-muted">{addressOf(job.property)}</p>
@@ -137,7 +149,7 @@ function JobDetails({ job }: { job: ClientJobDetail }) {
         <IconTile icon={CalendarClock} size="lg" />
         <div className="flex min-w-0 flex-col gap-1">
           <p className="text-sm text-fg-muted">
-            {job.servicePlanId ? "Part of your Service Plan" : "One-off clean"}
+            {job.servicePlanId ? "Part of your cleaning plan" : "One-off clean"}
           </p>
           <p className="text-xl font-semibold text-fg">
             {formatDateTime(job.startsAt)}
@@ -169,7 +181,7 @@ function JobDetails({ job }: { job: ClientJobDetail }) {
         {job.servicePlanId ? (
           <Fact
             icon={CalendarSync}
-            label="Service Plan"
+            label="Cleaning plan"
             value={
               <Link
                 href={linkTo({
@@ -180,7 +192,7 @@ function JobDetails({ job }: { job: ClientJobDetail }) {
                 See your plan
               </Link>
             }
-            line="Its Deposit is held there"
+            line="Its deposit is held there"
           />
         ) : (
           <Fact
@@ -280,22 +292,22 @@ function Cancel({
     `Your clean wasn't ${onPlan ? "skipped" : "cancelled"}. Please try again.`,
     { reloadOnFailure: true },
   );
-  const fee = formatMoney(terms.feeCents);
-  const doing = onPlan ? "skipping" : "cancelling";
-
-  const cost = onPlan
-    ? terms.feeCents > 0 && !terms.late
-      ? `The ${fee} fee for an earlier Late Reschedule ${job.weeklyBill ? ON_WEEKS_BILL : "is charged now"}, and skipping costs nothing more.`
-      : terms.feeCents > 0
-        ? `A ${fee} Late Cancellation fee, the same as your plan's Deposit, ${job.weeklyBill ? ON_WEEKS_BILL : "is charged to your card"}. Your Deposit stays held.`
-        : "There's no charge."
-    : terms.feeCents > 0 && !terms.late
-      ? `Your ${fee} Deposit was already kept as the fee for a Late Reschedule, so cancelling costs nothing more.`
-      : terms.feeCents > 0
-        ? `Your ${fee} Deposit is kept as the Late Cancellation fee.`
-        : terms.refundCents > 0
-          ? `There's no charge, and we'll refund your ${formatMoney(terms.refundCents)} Deposit.`
-          : "There's no charge.";
+  const cost = [
+    cancelCostForClient({
+      onPlan,
+      late: terms.late,
+      feeCents: terms.feeCents,
+      fee: formatMoney(terms.feeCents),
+    }),
+    onPlan &&
+      terms.feeCents > 0 &&
+      `The fee ${job.weeklyBill ? ON_WEEKS_BILL : "is charged to your card"}.`,
+    !onPlan &&
+      terms.refundCents > 0 &&
+      `We'll refund your ${formatMoney(terms.refundCents)} deposit.`,
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   const cancel = async (close: () => void) => {
     const ok = await action.run(
@@ -350,31 +362,26 @@ function Cancel({
         </DialogTrigger>
       }
     >
-      {terms.late ? (
-        <p>
-          It's less than 24 hours until your clean, so {doing} it now is a Late
-          Cancellation. {cost}
-        </p>
-      ) : terms.feeCents > 0 ? (
+      {terms.late || terms.feeCents > 0 ? (
         <p>{cost}</p>
       ) : onPlan ? (
         <p>
           You can skip it for free until{" "}
           <strong>{formatDateTime(terms.freeUntil)}</strong>. After that, it's a
-          Late Cancellation, with a fee the same as your plan's Deposit.
+          late cancellation, with a fee the same as your plan's deposit.
         </p>
       ) : (
         <p>
           You can cancel for free until{" "}
           <strong>{formatDateTime(terms.freeUntil)}</strong>
           {terms.refundCents > 0 &&
-            `, and we'll refund your ${formatMoney(terms.refundCents)} Deposit`}
-          . After that, it's a Late Cancellation and the Deposit is kept as the
-          fee.
+            `, and we'll refund your ${formatMoney(terms.refundCents)} deposit`}
+          . After that, it's a late cancellation, and your deposit is kept as
+          the fee.
         </p>
       )}
       {onPlan && (
-        <p>Only this clean is skipped: your Service Plan carries on.</p>
+        <p>Only this clean is skipped. Your cleaning plan carries on.</p>
       )}
     </ActionCard>
   );
@@ -413,8 +420,8 @@ function Reschedule({ job }: { job: ClientJobDetail }) {
         <p>
           You've asked to move it to{" "}
           <strong>{formatDateTime(request.startsAt)}</strong>. That time is held
-          for you while the Office confirms it. Until then, your clean stays
-          booked for {formatDateTime(job.startsAt)}.
+          for you while we confirm it. Until then, your clean stays booked for{" "}
+          {formatDateTime(job.startsAt)}.
         </p>
         <p>{costForClient(request.cost, request.feeCents, job)}</p>
       </ActionCard>
@@ -431,7 +438,7 @@ function Reschedule({ job }: { job: ClientJobDetail }) {
           job={job}
           terms={terms}
           base={`/api/jobs/mine/${job.id}`}
-          label="Choose a new time"
+          label="Pick a new time"
           describeCost={(cost, feeCents) => costForClient(cost, feeCents, job)}
           done="Request sent"
           Picker={PickAvailableTime}
@@ -449,7 +456,7 @@ function Reschedule({ job }: { job: ClientJobDetail }) {
         <p>
           You can move it for free until{" "}
           <strong>{formatDateTime(terms.freeUntil)}</strong>. After that, it's a
-          Late Reschedule, and only one per clean is free.
+          late move, and only one per clean is free.
         </p>
       ) : (
         <p>{costForClient(terms.cost, terms.feeCents, job)}</p>
@@ -464,12 +471,7 @@ function Refund({ payment }: { payment: JobPayment }) {
   const card = payment.paymentMethod ?? "card";
   return (
     <>
-      {refunded > 0 && (
-        <p>
-          We've refunded {formatMoney(refunded)} to your {card}. It can take a
-          few days to reach you.
-        </p>
-      )}
+      {refunded > 0 && <p>{refundedTo(formatMoney(refunded), card)}</p>}
       {payment.owedCents < 0 && (
         <p>
           We're refunding {formatMoney(-payment.owedCents)} to your {card}.
@@ -488,60 +490,46 @@ function WhatNext({ job }: { job: ClientJobDetail }) {
         params: { planId: job.servicePlanId },
       })}
     >
-      See your Service Plan
+      See your cleaning plan
     </ButtonLink>
   ) : (
-    <ButtonLink href={linkTo({ to: "/portal/request" })}>
-      Request a Quote
-    </ButtonLink>
+    <ButtonLink href={requestQuote.href}>{requestQuote.label}</ButtonLink>
   );
-}
-
-// a plan Job the Client skipped: its fee, if late, was charged as its own or
-// went on its week's Bill (ADR-0016), and the plan's Deposit stays held
-function skippedFee(
-  cancellation: NonNullable<ClientJobDetail["cancellation"]>,
-) {
-  const fee = formatMoney(cancellation.feeCents);
-  return cancellation.late && cancellation.feeCents > 0
-    ? `It was skipped less than 24 hours before it was due, so it's a Late Cancellation, with a ${fee} fee: the same as your plan's Deposit, which stays held.`
-    : cancellation.feeCents > 0
-      ? `The ${fee} fee for an earlier Late Reschedule was still to pay.`
-      : "There was no charge for skipping it.";
 }
 
 function Cancelled({ job }: { job: ClientJobDetail }) {
   const cancellation = job.cancellation!;
-  const skipped = job.servicePlanId !== null && cancellation.by === "client";
+  const skipped = wasSkipped(job);
   return (
     <Part
-      title={skipped ? "Skipped" : "Cancelled"}
-      description={`${skipped ? "Skipped" : "Cancelled"} ${formatDateTime(cancellation.cancelledAt)}.`}
+      title={cancelledLabel(skipped)}
+      description={`${cancelledLabel(skipped)} ${formatDateTime(cancellation.cancelledAt)}.`}
       actions={<WhatNext job={job} />}
     >
       {cancellation.by === "empire" ? (
         <p>
-          We're sorry: we had to cancel this clean.
+          We're sorry, we had to cancel this clean.
           {cancellation.reason && ` ${cancellation.reason}`} You haven't been
           charged anything for it.
         </p>
-      ) : skipped ? (
-        <p>{skippedFee(cancellation)}</p>
-      ) : cancellation.late && cancellation.feeCents > 0 ? (
+      ) : cancellation.withPlan ? (
         <p>
-          It was cancelled less than 24 hours before it was due, so your{" "}
-          {formatMoney(cancellation.feeCents)} Deposit was kept as the Late
-          Cancellation fee.
-        </p>
-      ) : cancellation.feeCents > 0 ? (
-        <p>
-          Your {formatMoney(cancellation.feeCents)} Deposit was already kept as
-          the fee for a Late Reschedule, so there was nothing more to pay.
+          {cancelledWithPlanForClient(cancellation.reason!, {
+            feeCents: cancellation.feeCents,
+            fee: formatMoney(cancellation.feeCents),
+          })}
         </p>
       ) : (
-        <p>There was no charge for cancelling.</p>
+        <p>
+          {cancelCostForClient({
+            onPlan: skipped,
+            late: cancellation.late,
+            feeCents: cancellation.feeCents,
+            fee: formatMoney(cancellation.feeCents),
+          })}
+        </p>
       )}
-      {job.servicePlanId && <p>Your Service Plan carries on as usual.</p>}
+      {skipped && <p>{PLAN_CARRIES_ON}</p>}
       <Refund payment={cancellation.payment} />
     </Part>
   );
@@ -555,23 +543,18 @@ function NoAccess({ job }: { job: ClientJobDetail }) {
         Our team came at {formatDateTime(noAccess.recordedAt)}, but couldn't get
         in: "{noAccess.reason}".
       </p>
-      {noAccess.feeCents > 0 &&
-        (job.servicePlanId ? (
-          <p>
-            As with a Late Cancellation, there's a{" "}
-            {formatMoney(noAccess.feeCents)} fee: the same as your plan's
-            Deposit, which stays held.
-          </p>
-        ) : (
-          <p>
-            As with a Late Cancellation, your {formatMoney(noAccess.feeCents)}{" "}
-            Deposit was kept as the fee.
-          </p>
-        ))}
+      {noAccess.feeCents > 0 && (
+        <p>
+          {noAccessFee({
+            onPlan: job.servicePlanId !== null,
+            fee: formatMoney(noAccess.feeCents),
+          })}
+        </p>
+      )}
       <Refund payment={noAccess.payment} />
       <p>
         {job.servicePlanId
-          ? "Your Service Plan carries on. Before your next clean, please "
+          ? `${PLAN_CARRIES_ON} Before your next clean, please `
           : "Before booking again, please "}
         <Link
           href={linkTo({
@@ -579,7 +562,7 @@ function NoAccess({ job }: { job: ClientJobDetail }) {
             params: { propertyId: job.property.id },
           })}
         >
-          check your Access Instructions
+          check how we get in
         </Link>
         .
       </p>
@@ -590,23 +573,29 @@ function NoAccess({ job }: { job: ClientJobDetail }) {
 // A charge that failed: what it was, and the way to fix it. Saving a card
 // tries it again. Red, as it's already late. (UX pass, #96)
 function Unpaid({ payment }: { payment: JobPayment }) {
+  const { kind, why } = payment.unpaid!;
   return (
     <Notice
       tone="danger"
       action={
-        <ButtonLink
-          variant="danger-text"
-          href={linkTo({ to: "/portal/payment-method" })}
-        >
-          Update Payment Method
-        </ButtonLink>
+        kind !== "waiting" && (
+          <ButtonLink
+            variant="danger-text"
+            href={linkTo({ to: "/portal/payment-method" })}
+          >
+            {UPDATE_CARD}
+          </ButtonLink>
+        )
       }
     >
       <p>
-        <strong>Payment needed.</strong> We couldn't charge{" "}
-        {formatMoney(payment.owedCents)} to your{" "}
-        {payment.paymentMethod ?? "card"}. We'll try again as soon as you save a
-        card.
+        <strong>Payment needed.</strong>{" "}
+        {notTaken(
+          formatMoney(payment.owedCents),
+          kind === "no_card" ? null : (payment.paymentMethod ?? "card"),
+          why,
+        )}{" "}
+        {clientFix[kind]}
       </p>
     </Notice>
   );
@@ -652,8 +641,8 @@ function Proposal({
                   It comes to{" "}
                   <strong>{formatMoney(adjustment.totalCents)}</strong>, tax
                   included, and you only pay it if you approve it. If we don't
-                  hear from you by {formatDate(adjustment.lapsesAt!)}, it lapses
-                  and you don't pay it.
+                  hear from you by {formatDate(adjustment.lapsesAt!)}, you won't
+                  pay it.
                 </p>
                 {action.problem && (
                   <Notice tone="danger">{action.problem}</Notice>
@@ -688,7 +677,7 @@ function Proposal({
   );
 }
 
-const chargeLabel = { deposit: "Deposit", balance: "Charged", fee: "Fee" };
+const chargeLabel = { deposit: "Deposit", balance: "Paid", fee: "Fee" };
 
 function Receipt({ job }: { job: ClientJobDetail }) {
   const { payment, adjustments, completedAt } = job.completion!;
@@ -702,7 +691,7 @@ function Receipt({ job }: { job: ClientJobDetail }) {
   return (
     <Part
       title="Your receipt"
-      description={`Done ${formatDateTime(completedAt)}. Prices include tax.`}
+      description={`Done ${formatDateTime(completedAt)}. ${PRICES_INCLUDE_TAX}`}
     >
       <dl className="grid grid-cols-[1fr_auto] gap-x-6 gap-y-2">
         <dt>Quoted price</dt>
@@ -720,8 +709,8 @@ function Receipt({ job }: { job: ClientJobDetail }) {
         {payment.rescheduleFeeCents > 0 && (
           <>
             <dt>
-              Late Reschedule fee
-              {!job.servicePlanId && " (your Deposit, kept)"}
+              {LATE_MOVE_FEE}
+              {!job.servicePlanId && " (your deposit, kept)"}
             </dt>
             <dd className="text-end">
               {formatMoney(payment.rescheduleFeeCents)}
@@ -746,7 +735,7 @@ function Receipt({ job }: { job: ClientJobDetail }) {
         </dd>
         {payment.billedCents !== 0 && (
           <>
-            <dt className="font-semibold">On your weekly Bills</dt>
+            <dt className="font-semibold">On your weekly bills</dt>
             <dd className="text-end font-semibold">
               {formatMoney(payment.billedCents)}
             </dd>
@@ -772,7 +761,7 @@ function Receipt({ job }: { job: ClientJobDetail }) {
       )}
       {job.weeklyBill && payment.owedCents > 0 && (
         <p className="text-sm text-fg-muted">
-          The rest, {formatMoney(payment.owedCents)}, goes on your weekly Bill.
+          The rest, {formatMoney(payment.owedCents)}, goes on your weekly bill.
         </p>
       )}
     </Part>

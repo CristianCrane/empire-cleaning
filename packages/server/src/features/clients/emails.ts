@@ -5,7 +5,7 @@ export const emailChangeEmail = ({ token }: { token: string }): Email => ({
   subject: "Confirm your new email",
   blocks: [
     paragraph(
-      "You asked us to send your Quotes and notices to this address. Confirm it's yours:",
+      "You asked us to send your quotes and notices to this address. Confirm it's yours:",
     ),
     button("Confirm my email", `/confirm-email?token=${token}`),
     paragraph(

@@ -71,6 +71,6 @@ export const mustBeConfirmed = async (staffId: string, jobId: string) => {
     );
   if (!mine) throw new NotFoundError("Job not found");
   if (mine.status !== "confirmed") {
-    throw new ConflictError("Confirm this Job first");
+    throw new ConflictError("Confirm this job first.");
   }
 };

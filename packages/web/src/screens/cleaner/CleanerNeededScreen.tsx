@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useLoaderData, useNavigate, useRouter } from "@tanstack/react-router";
 import type { CleanerNeeded } from "@empire-cleaning/models";
 import { CalendarClock, Clock, MapPin, Users } from "lucide-react";
@@ -12,10 +11,10 @@ import {
   Notice,
   Section,
   StatusBadge,
-  showToast,
 } from "@empire-cleaning/ui";
-import { ApiError, getJson, postJson } from "../../api.ts";
+import { getJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
+import { useLeavingAction } from "../action.ts";
 import { Fact } from "../Fact.tsx";
 import {
   dayOfInstant,
@@ -23,12 +22,14 @@ import {
   formatDay,
   formatHours,
   formatTime,
+  cleaners,
 } from "../format.ts";
+import { reportUnexpected } from "../../monitoring.ts";
 import { untilAbout } from "./CleanerHome.tsx";
 
-// "Just you", "2 Cleaners"
-export const crewOf = (job: Pick<CleanerNeeded, "crewSize">) =>
-  job.crewSize === 1 ? "Just you" : `${job.crewSize} Cleaners`;
+// "Just you", "2 cleaners"
+export const crewSizeOf = (job: Pick<CleanerNeeded, "crewSize">) =>
+  job.crewSize === 1 ? "Just you" : cleaners(job.crewSize);
 
 // A Cleaner Needed as a Cleaner it's open to sees it (ADR-0019): what, when,
 // for how long and roughly where. They Confirm it, first come first served,
@@ -75,7 +76,7 @@ export function CleanerNeededScreen() {
                 label="On site"
                 value={`About ${formatHours(job.hoursOnSite)}`}
               />
-              <Fact icon={Users} label="Crew" value={crewOf(job)} />
+              <Fact icon={Users} label="Crew" value={crewSizeOf(job)} />
               <Fact
                 icon={MapPin}
                 label="Area"
@@ -90,52 +91,50 @@ export function CleanerNeededScreen() {
   );
 }
 
+const DIDNT_WORK = "That didn't work. Please try again.";
+
 function TakeIt({ job }: { job: CleanerNeeded }) {
   const navigate = useNavigate();
   const router = useRouter();
-  const [problem, setProblem] = useState<string>();
-  const [pending, setPending] = useState<"confirm" | "pass">();
-
   // neither reloads this page: once taken or passed, it isn't open to them
-  const answer = async (which: "confirm" | "pass") => {
-    setPending(which);
-    setProblem(undefined);
-    try {
-      // Confirm sends the time they were shown, so a Job moved meanwhile
-      // isn't taken at a time they never saw
-      await postJson(
-        `/api/assignments/open/${job.jobId}/${which}`,
-        which === "confirm" ? { startsAt: job.startsAt } : undefined,
-      );
-      if (which === "confirm") {
-        showToast({ tone: "success", title: "Job confirmed" });
-        await navigate({
-          to: "/cleaner/jobs/$jobId",
-          params: { jobId: job.jobId },
-        });
-      } else {
-        showToast({ tone: "success", title: "Taken off your list" });
-        await navigate({ to: "/cleaner/offers" });
-      }
-    } catch (e) {
-      setProblem(
-        e instanceof ApiError && e.status === 409
-          ? e.message
-          : "That didn't work. Please try again.",
-      );
-      // shows the new time if the Job moved; if it's no longer open to
-      // them, the page stays, with why
-      const stillOpen = await getJson<CleanerNeeded>(
-        `/api/assignments/open/${job.jobId}`,
-      ).then(
-        () => true,
-        () => false,
-      );
-      if (stillOpen) await router.invalidate();
-    } finally {
-      setPending(undefined);
-    }
-  };
+  const action = useLeavingAction(DIDNT_WORK);
+
+  const answer = (which: "confirm" | "pass") =>
+    action.run(
+      async () => {
+        try {
+          // Confirm sends the time they were shown, so a Job moved
+          // meanwhile isn't taken at a time they never saw
+          await postJson(
+            `/api/assignments/open/${job.jobId}/${which}`,
+            which === "confirm" ? { startsAt: job.startsAt } : undefined,
+          );
+        } catch (e) {
+          // shows the new time if the Job moved; if it's no longer open to
+          // them, the page stays, with why
+          const stillOpen = await getJson<CleanerNeeded>(
+            `/api/assignments/open/${job.jobId}`,
+          ).then(
+            () => true,
+            (e: unknown) => {
+              reportUnexpected(e);
+              return false;
+            },
+          );
+          if (stillOpen) await router.invalidate();
+          throw e;
+        }
+        await (which === "confirm"
+          ? navigate({
+              to: "/cleaner/jobs/$jobId",
+              params: { jobId: job.jobId },
+            })
+          : navigate({ to: "/cleaner/offers" }));
+      },
+      which === "confirm" ? "Job confirmed" : "Taken off your list",
+      which,
+    );
+  const { problem, pending } = action;
 
   return (
     <Section title="Can you take it?">
@@ -163,9 +162,8 @@ function TakeIt({ job }: { job: CleanerNeeded }) {
           }
         >
           <p>
-            It needs a Cleaner, and you're free then. The first Cleaner to
-            confirm takes it, and sees the address, how to get in and the
-            Client.
+            It needs a cleaner, and you're free then. The first to confirm gets
+            it, and then sees the address, how we get in and the client.
           </p>
         </ActionRow>
       </Card>

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Search, UserPlus, Users } from "lucide-react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import {
+  NotPriced,
   suggestedPrice,
   type ClientList,
   type ClientListItem,
@@ -34,8 +35,12 @@ import { getJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { clientName } from "../format.ts";
 import { WorkedOutQuote } from "./WorkedOutQuote.tsx";
+import { reportUnexpected } from "../../monitoring.ts";
 
 export type NewQuoteSearch = { clientId?: string };
+
+// the page, and the Buttons that open it
+export const NEW_QUOTE = "New quote";
 
 // how long typing pauses before the search runs
 const SEARCH_DELAY_MS = 250;
@@ -68,12 +73,12 @@ export function NewQuoteScreen() {
         <Breadcrumbs
           trail={[
             { label: "Quotes", href: linkTo({ to: "/office/quotes" }) },
-            { label: "New Quote" },
+            { label: NEW_QUOTE },
           ]}
         />
-        <Heading level={1}>New Quote</Heading>
+        <Heading level={1}>{NEW_QUOTE}</Heading>
         <p className="text-fg-muted">
-          For someone who phones. You'll go straight to the Quote Draft.
+          For someone who phones. You'll go straight to the draft.
         </p>
       </div>
 
@@ -94,7 +99,7 @@ export function NewQuoteScreen() {
                 onPress={() => setNewClient(false)}
               >
                 <Search aria-hidden size={16} />
-                Find a Client
+                Find a client
               </Button>
             ),
             aside: (
@@ -186,8 +191,8 @@ const pricing = (
       return {
         priced: { kind: "commercial", premisesTypeKey: p.premisesType, area },
         place: area
-          ? `${area.toLocaleString("en-US")} sq ft of business premises`
-          : "Business premises, floor area not given",
+          ? `${area.toLocaleString("en-US")} sq ft, a business`
+          : "A business, floor area not given",
         condition: null,
       };
     }
@@ -267,8 +272,11 @@ function PriceSoFar({
         what.condition,
         list.addOns.filter((a) => ask.addOns?.includes(a.key)),
       );
-    } catch {
-      // a place the Service isn't priced for: nothing to show yet
+    } catch (e) {
+      // a place the Service isn't priced for: nothing to show yet. A bug is
+      // reported on each render, which Sentry sends once (its Dedupe drops
+      // a repeat of the last error)
+      if (!(e instanceof NotPriced)) reportUnexpected(e);
     }
   }
   const business = what?.priced.kind === "commercial";
@@ -278,8 +286,8 @@ function PriceSoFar({
       title="What it comes to"
       description={
         business
-          ? "A first idea: business premises are priced after the Site Visit."
-          : "The Suggested Price so far, as the Draft will start with it. You can change it there."
+          ? "A first idea: a business is priced after its site visit."
+          : "The suggested price so far, which the draft starts with. You can change it there."
       }
     >
       <Card>
@@ -295,7 +303,7 @@ function PriceSoFar({
             />
           ) : (
             <p className="text-sm text-fg-muted">
-              Choose what they need to see what it comes to.
+              Pick what they need to see what it comes to.
             </p>
           )}
         </div>
@@ -350,13 +358,13 @@ function FindClient({
       actions={
         <Button variant="text" size="sm" onPress={onNew}>
           <UserPlus aria-hidden size={16} />
-          New Client
+          New client
         </Button>
       }
     >
       <Card>
         <TextField
-          label="Find a Client"
+          label="Find a client"
           type="search"
           placeholder="Name, email, phone or address"
           value={text}
@@ -369,7 +377,7 @@ function FindClient({
             onAction={(id) => onChoose(String(id))}
             renderEmptyState={() => (
               <p className="p-4 text-center text-fg-muted">
-                No Clients match “{found.q}”. Add them as a New Client.
+                No clients match “{found.q}”. Add them as a new client.
               </p>
             )}
           >

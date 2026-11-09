@@ -8,9 +8,11 @@ import type {
   Service,
   SignedInAccount,
 } from "@empire-cleaning/models";
+import { thisPlace } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
 import {
   ConflictError,
+  fieldError,
   NotFoundError,
   RequestBodyError,
   TooManyRequestsError,
@@ -26,8 +28,18 @@ import { clients, type Client } from "../clients/clients.schema.ts";
 import { addressKey } from "../properties/address.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
-import { currentPriceList, offeredWith } from "../price-list/price-list.ts";
-import { currentServices, onOfferAt } from "../services/services.ts";
+import {
+  currentPriceList,
+  NOT_A_PREMISES_TYPE,
+  NOT_AN_ADD_ON,
+  offeredWith,
+  offersPremisesType,
+} from "../price-list/price-list.ts";
+import {
+  currentServices,
+  NOT_A_SERVICE,
+  onOfferAt,
+} from "../services/services.ts";
 import {
   accountSubmission,
   checkCondition,
@@ -39,11 +51,13 @@ import {
 } from "./asking.validation.ts";
 import { tellOfficeStaff } from "../staff/staff.ts";
 import {
+  alreadyAsked,
+  alreadyYours,
   askClashEmail,
   quoteReceivedEmail,
   quoteRequestedEmail,
 } from "./emails.ts";
-import { openAlongside, openAlready, thisPlace } from "./quotes.ts";
+import { openAlongside, openAlreadyAt } from "./quotes.ts";
 import { quoteAddOns, quotes, type Quote } from "./quotes.schema.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
 
@@ -117,10 +131,6 @@ const businessNameOf = (submission: Submission) =>
     ? submission.businessName || null
     : null;
 
-const refuse = (issues: z.core.$ZodIssue[]) => {
-  throw new RequestBodyError(new z.ZodError(issues));
-};
-
 // only Add-ons on offer now that go with the Service can be chosen
 const checkAddOns = (list: PriceList, service: Service, keys: string[]) => {
   if (keys.length === 0) return;
@@ -129,30 +139,18 @@ const checkAddOns = (list: PriceList, service: Service, keys: string[]) => {
   );
   const unknown = keys.findIndex((key) => !offered.has(key));
   if (unknown !== -1) {
-    throw new RequestBodyError(
-      new z.ZodError([
-        {
-          code: "custom",
-          path: ["addOns", unknown],
-          message: "Choose from the Add-ons listed",
-          input: keys[unknown],
-        },
-      ]),
-    );
+    throw fieldError(["addOns", unknown], NOT_AN_ADD_ON, keys[unknown]);
   }
 };
 
 // only Premises Types on offer now can be chosen for new premises
 const checkPremisesType = (list: PriceList, key: string) => {
-  if (!list.premisesTypes.some((t) => t.active && t.key === key)) {
-    refuse([
-      {
-        code: "custom",
-        path: ["property", "new", "premisesType"],
-        message: "Choose from the types of premises listed",
-        input: key,
-      },
-    ]);
+  if (!offersPremisesType(list, key)) {
+    throw fieldError(
+      ["property", "new", "premisesType"],
+      NOT_A_PREMISES_TYPE,
+      key,
+    );
   }
 };
 
@@ -259,32 +257,23 @@ const clashMessage = (
   client: Client,
   enteredBy: string | null,
 ) => {
-  const place = thisPlace(property);
+  const place = thisPlace(property.kind);
   if (why === "otherKind") {
-    return `${addressOf(property)} is already ${enteredBy ? "their" : "your"} ${property.kind === "commercial" ? "business premises" : "home"}: choose it from the list to ask about it.`;
+    return `${alreadyYours(addressOf(property), property.kind, enteredBy ? "their" : "your")} Pick it from the list to ask about it.`;
   }
   if (enteredBy) {
-    return openAlready(property, "a Quote");
+    return openAlreadyAt(property, "a quote");
   }
-  return why === "sent"
-    ? `We've sent you a Quote for ${place} already: you'll find it in your account.`
-    : `You've already asked us for a Quote for ${place}. We'll email it to ${client.email} soon.`;
+  return alreadyAsked(why, place, client.email);
 };
 
 // The Service asked for, which must be on offer for the kind of Property
 const askedService = (all: Service[], kind: Property["kind"], key: string) => {
   const service = onOfferAt(all, kind).find((s) => s.key === key);
   if (!service) {
-    refuse([
-      {
-        code: "custom",
-        path: ["serviceKey"],
-        message: "Choose from the Services listed",
-        input: key,
-      },
-    ]);
+    throw fieldError(["serviceKey"], NOT_A_SERVICE, key);
   }
-  return service!;
+  return service;
 };
 
 // the rooms an ask gives a home, and where they are in it: a new home's

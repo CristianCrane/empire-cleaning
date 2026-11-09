@@ -1,15 +1,15 @@
-import {
-  useEffect,
-  useEffectEvent,
-  useState,
-  type ComponentType,
-  type ReactElement,
-} from "react";
+import { useState, type ComponentType, type ReactElement } from "react";
 import type {
   OfficeJob,
   RescheduleCost,
   RescheduleTerms,
   RescheduleTimes,
+} from "@empire-cleaning/models";
+import {
+  moveCostForClient,
+  moveCostForOffice,
+  SAME_TIME,
+  type MoveCost,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -21,9 +21,9 @@ import {
   SelectItem,
 } from "@empire-cleaning/ui";
 import { getJson, postJson } from "../api.ts";
+import { useLoaded } from "./load.ts";
 import { useAction } from "./action.ts";
 import type { TimePickerProps } from "./CalendarGrid.tsx";
-import { ON_WEEKS_BILL } from "./portal/payments.ts";
 import {
   dayOfInstant,
   formatClock,
@@ -35,56 +35,31 @@ import {
 // what a Job's costs are told from, the Client's or the Office's view of it
 export type CostedJob = Pick<OfficeJob, "servicePlanId" | "weeklyBill">;
 
-// What moving a Job costs, the same rules for the Office and its Client
-// (ADR-0010), told to the Client. A plan Job has no Deposit of its own: its
-// fee is the plan's Deposit amount, owed with the price: charged when it's
-// done, or on its week's Bill (ADR-0016).
+// what moving it costs (moveCostForClient, moveCostForOffice), from the
+// Client's or the Office's view of the Job
+const moveCost = (
+  cost: RescheduleCost,
+  feeCents: number,
+  job: CostedJob,
+): MoveCost => ({
+  cost,
+  feeCents,
+  fee: formatMoney(feeCents),
+  onPlan: job.servicePlanId !== null,
+  weeklyBill: job.weeklyBill !== null,
+});
+
 export const costForClient = (
   cost: RescheduleCost,
   feeCents: number,
   job: CostedJob,
-) => {
-  const onPlan = job.servicePlanId !== null;
-  switch (cost) {
-    case "free":
-      return "There's no charge for moving it.";
-    case "free_late":
-      return onPlan
-        ? "It's less than 24 hours until your clean, so this is a Late Reschedule. Your first one is free."
-        : "It's less than 24 hours until your clean, so this is a Late Reschedule. Your first one is free, and your Deposit still counts towards the price.";
-    case "late_cancellation":
-      return feeCents === 0
-        ? onPlan
-          ? "It's less than 24 hours until your clean. An earlier Late Reschedule already made the fee due, so moving it costs nothing more."
-          : "It's less than 24 hours until your clean. Your Deposit was already kept as the fee for an earlier Late Reschedule, so moving it costs nothing more."
-        : onPlan
-          ? `It's less than 24 hours until your clean and you've used your free Late Reschedule, so moving it is a Late Cancellation, with a ${formatMoney(feeCents)} fee (the same as your plan's Deposit), ${job.weeklyBill ? `which ${ON_WEEKS_BILL} with the price` : "charged with the price when it's done"}.`
-          : `It's less than 24 hours until your clean and you've used your free Late Reschedule, so moving it is a Late Cancellation: your ${formatMoney(feeCents)} Deposit is kept as the fee, and the full price ${job.weeklyBill ? ON_WEEKS_BILL : "is charged when it's done"}.`;
-  }
-};
+) => moveCostForClient(moveCost(cost, feeCents, job));
 
-// the same, told to Office Staff
 export const costForOffice = (
   cost: RescheduleCost,
   feeCents: number,
   job: CostedJob,
-) => {
-  const onPlan = job.servicePlanId !== null;
-  switch (cost) {
-    case "free":
-      return "Free.";
-    case "free_late":
-      return onPlan
-        ? "A Late Reschedule, free as this Job's first."
-        : "A Late Reschedule, free as this Job's first. The Deposit still counts towards the price.";
-    case "late_cancellation":
-      return feeCents === 0
-        ? "A Late Reschedule. An earlier one already made the fee due, so nothing more."
-        : onPlan
-          ? `A second Late Reschedule, so a Late Cancellation: a ${formatMoney(feeCents)} fee, the plan's Deposit amount, ${job.weeklyBill ? "goes on that week's Bill with the price" : "is charged with the price on completion"}.`
-          : `A second Late Reschedule, so a Late Cancellation: the ${formatMoney(feeCents)} Deposit is kept as the fee and the full price ${job.weeklyBill ? "goes on that week's Bill" : "is charged on completion"}.`;
-  }
-};
+) => moveCostForOffice(moveCost(cost, feeCents, job));
 
 type Props = {
   job: { id: string; startsAt: string; hoursOnSite: number };
@@ -115,7 +90,7 @@ export function ChooseNewTime(props: Props) {
   return (
     <DialogTrigger>
       {props.trigger ?? <Button variant="secondary">{props.label}</Button>}
-      <Dialog title="Choose a new time" size={props.size}>
+      <Dialog title="Pick a new time" size={props.size}>
         {({ close }) => <NewTimeForm {...props} close={close} />}
       </Dialog>
     </DialogTrigger>
@@ -132,7 +107,6 @@ function NewTimeForm({
   inline = false,
   close,
 }: Props & { close: () => void }) {
-  const [times, setTimes] = useState<RescheduleTimes>();
   const [date, setDate] = useState<string | null>(null);
   const [time, setTime] = useState<string | null>(timeOfDay(job.startsAt));
   // what it costs, or the days with room, may have changed since
@@ -140,19 +114,13 @@ function NewTimeForm({
     reloadOnFailure: true,
   });
 
-  const loadFailed = useEffectEvent(() =>
-    action.fail("The times couldn't be loaded. Please try again."),
+  const { value: times, failed } = useLoaded(base, () =>
+    getJson<RescheduleTimes>(`${base}/reschedule-times`),
   );
-
-  useEffect(() => {
-    let current = true;
-    getJson<RescheduleTimes>(`${base}/reschedule-times`)
-      .then((found) => current && setTimes(found))
-      .catch(() => current && loadFailed());
-    return () => {
-      current = false;
-    };
-  }, [base]);
+  // Send waits for the times, so a problem is the send's or else theirs
+  const problem =
+    action.problem ??
+    (failed ? "The times didn't load. Please try again." : undefined);
 
   const unchanged =
     date === dayOfInstant(job.startsAt) && time === timeOfDay(job.startsAt);
@@ -168,7 +136,7 @@ function NewTimeForm({
 
   const send = async () => {
     if (!date || !time) {
-      action.fail("Choose a day and a start time");
+      action.fail("Pick a day and a start time");
       return;
     }
     const ok = await action.run(
@@ -190,7 +158,7 @@ function NewTimeForm({
       <Select
         label="Day"
         description="Only days with room for this clean are shown."
-        placeholder="Choose a day"
+        placeholder="Pick a day"
         selectedKey={date}
         onSelectionChange={(key) => choose(key === null ? null : String(key))}
       >
@@ -204,10 +172,10 @@ function NewTimeForm({
         label="Start time"
         description={
           date
-            ? "New York time. Only times with a crew free are shown."
-            : "New York time. Choose a day first."
+            ? "New York time. Only times with cleaners free are shown."
+            : "New York time. Pick a day first."
         }
-        placeholder="Choose a time"
+        placeholder="Pick a time"
         isDisabled={!date}
         selectedKey={time}
         onSelectionChange={(key) => setTime(key === null ? null : String(key))}
@@ -236,13 +204,10 @@ function NewTimeForm({
 
   return (
     <>
-      {!times && !action.problem && (
-        <p className="text-fg-muted">Finding times…</p>
-      )}
+      {!times && !problem && <p className="text-fg-muted">Finding times…</p>}
       {times && times.days.length === 0 && (
         <Notice tone="warning">
-          There's no day with room in the next few weeks. Please call the
-          Office.
+          There's no day with room in the next few weeks. Please call us.
         </Notice>
       )}
       {times && times.days.length > 0 && (
@@ -260,7 +225,7 @@ function NewTimeForm({
               )}
               <details className="text-sm">
                 <summary className="cursor-pointer font-semibold text-primary">
-                  Or choose from a list
+                  Or pick from a list
                 </summary>
                 <div className="mt-3 flex flex-col gap-4">{fields}</div>
               </details>
@@ -277,11 +242,11 @@ function NewTimeForm({
         <strong>{describeCost(terms.cost, terms.feeCents)}</strong>
       </p>
       <p className="text-sm text-fg-muted">
-        The new time is held while the Office confirms it. Until then, the clean
-        stays booked for its current time.
+        We'll hold the new time while we confirm it. Until then, the clean stays
+        at its current time.
       </p>
-      {unchanged && <Notice>That's when the clean is already booked.</Notice>}
-      {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+      {unchanged && <Notice>{SAME_TIME}</Notice>}
+      {problem && <Notice tone="danger">{problem}</Notice>}
       <Actions>
         <Button variant="quiet" onPress={close}>
           Keep the current time

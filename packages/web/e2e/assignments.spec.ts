@@ -45,9 +45,9 @@ const thursdayJob = (crewSize = 2) =>
 const offerTo = async (page: Page, name: RegExp) => {
   await page
     .getByRole("region", { name: "Crew" })
-    .getByRole("button", { name: "Offer to a Cleaner" })
+    .getByRole("button", { name: "Offer to a cleaner" })
     .click();
-  const dialog = page.getByRole("dialog", { name: "Offer to a Cleaner" });
+  const dialog = page.getByRole("dialog", { name: "Offer to a cleaner" });
   await dialog.getByRole("button", { name: /Offer to$/ }).click();
   await page.getByRole("option", { name }).click();
   await dialog.getByRole("button", { name: "Offer", exact: true }).click();
@@ -64,7 +64,7 @@ test(
 
     await page.goto("/office/schedule?from=2026-01-05&to=2026-01-11");
     const thursday = page.getByRole("group", { name: "Jobs on Thu, Jan 8" });
-    await expect(thursday).toContainText("Unassigned");
+    await expect(thursday).toContainText("Needs cleaners");
     await thursday.getByRole("link").click();
     await expect(page).toHaveURL(JOB_SCREEN);
     await expect(
@@ -74,7 +74,7 @@ test(
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(/ at /);
 
     const crew = page.getByRole("region", { name: "Crew" });
-    await expect(crew).toContainText("0 of 2 Cleaners Confirmed");
+    await expect(crew).toContainText("0 of 2 cleaners confirmed");
     await offerTo(page, /^Cory Cleaner \(8 h\)/);
     await expect(page.getByRole("region", { name: "History" })).toContainText(
       "Offered to Cory Cleaner",
@@ -84,14 +84,14 @@ test(
       "Offered",
     );
     expect((await emailsTo(cory.email)).at(-1)!.subject).toBe(
-      "You've been offered a Job",
+      "You've been offered a job",
     );
 
     await offerTo(page, /^Dee Cleaner/);
     await expect(list.getByRole("row")).toHaveCount(2);
     // the crew is whole: nothing left to offer
     await expect(
-      page.getByRole("button", { name: "Offer to a Cleaner" }),
+      page.getByRole("button", { name: "Offer to a cleaner" }),
     ).toHaveCount(0);
   },
 );
@@ -126,10 +126,10 @@ test("Office Staff take someone off a Job, leaving a Cleaner Needed", async ({
     "Cory Cleaner taken off",
   );
   await expect(
-    page.getByRole("button", { name: "Offer to a Cleaner" }).first(),
+    page.getByRole("button", { name: "Offer to a cleaner" }).first(),
   ).toBeVisible();
   expect((await emailsTo(cory.email)).at(-1)!.subject).toBe(
-    "You're no longer on a Job",
+    "You're no longer on a job",
   );
 });
 
@@ -146,7 +146,7 @@ test("an Unassigned Job within 48 hours needs attention", async ({ page }) => {
   const item = page
     .getByRole("grid", { name: "Needs attention" })
     .getByRole("row", { name: /Client/ });
-  await expect(item).toContainText("Assign Staff");
+  await expect(item).toContainText("Find cleaners");
   await expect(item).toContainText("Tue, Jan 6, 9:00 AM");
   await item.click();
   await expect(page).toHaveURL(JOB_SCREEN);
@@ -185,7 +185,7 @@ test(
     await expect(page).toHaveURL(`/cleaner/jobs/${job.id}`);
     const details = page.getByRole("region", { name: "Job details" });
     await expect(details).toContainText("Ring 4B; the doorman has a key.");
-    await expect(details).toContainText("their phone shows on the day");
+    await expect(details).toContainText("their number shows on the day");
     await expect(details).toContainText("Dee Cleaner not confirmed yet");
     // never any prices
     await expect(page.locator("main")).not.toContainText("$");
@@ -195,7 +195,7 @@ test(
     await expect(
       page.getByRole("region", { name: "Offered to you" }),
     ).toHaveCount(0);
-    await page.getByRole("link", { name: "Your Jobs" }).first().click();
+    await page.getByRole("link", { name: "Your jobs" }).first().click();
     await expect(page.getByRole("grid", { name: "Coming up" })).toContainText(
       "Thu, Jan 8, 9:00 AM",
     );
@@ -217,7 +217,7 @@ test("a Cleaner can't confirm a Job at a time they weren't shown", async ({
   await page.getByRole("button", { name: "Confirm", exact: true }).click();
   await expect(
     page.getByText(
-      "This Job has moved to Thursday, January 8 at 11:00 AM. Please check the new time, then confirm again.",
+      "This job moved to Thursday, January 8 at 11:00 AM. Check the new time, then confirm again.",
     ),
   ).toBeVisible();
   // the page shows the new time, and it can be confirmed
@@ -237,7 +237,7 @@ test("a Cleaner can't take a Cleaner Needed at a time they weren't shown", async
 
   await moveJob(job.id, { date: "2026-01-08", time: "11:00" });
   await page.getByRole("button", { name: "Confirm" }).click();
-  await expect(page.getByText(/^This Job has moved to/)).toBeVisible();
+  await expect(page.getByText(/^This job moved to/)).toBeVisible();
   await expect(page.getByText("Thu, Jan 8, 11:00 AM").first()).toBeVisible();
   await page.getByRole("button", { name: "Confirm" }).click();
   await expect(page.getByText("Job confirmed")).toBeVisible();
@@ -255,14 +255,14 @@ test("a Cleaner releases a Job they can't make", async ({ page }) => {
   await page.getByRole("button", { name: "Not for me" }).click();
   await page
     .getByRole("alertdialog")
-    .getByRole("button", { name: "Release" })
+    .getByRole("button", { name: "Drop out" })
     .click();
 
   await expect(page).toHaveURL("/cleaner");
-  await expect(page.getByText("Job released")).toBeVisible();
+  await expect(page.getByText("You've dropped out")).toBeVisible();
   await expect(page.getByText("Nothing booked for you yet")).toBeVisible();
   expect((await emailsTo(olive.email)).at(-1)!.subject).toBe(
-    "Cory Cleaner released a Job",
+    "Cory Cleaner dropped out of a job",
   );
 });
 
@@ -277,8 +277,8 @@ test("a Confirmed Job can't be released within 48 hours of it", async ({
   await signInAsCleaner(page, cory.email);
   await page.goto(`/cleaner/jobs/${job.id}`);
 
-  await expect(page.getByText("it can't be released here")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Release" })).toHaveCount(0);
+  await expect(page.getByText("you can't drop out here")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Drop out" })).toHaveCount(0);
 });
 
 test("a Cleaner sees the Client's phone on the day of the Job", async ({
@@ -323,7 +323,7 @@ test("the Job screens pass automated accessibility checks", async ({
   const asCory = await (await browser.newContext()).newPage();
   await signInAsCleaner(asCory, cory.email);
   await expect(
-    asCory.getByRole("heading", { name: "Your Jobs" }),
+    asCory.getByRole("heading", { name: "Your jobs" }),
   ).toBeVisible();
   await expectAccessible(asCory);
   await asCory.goto(`/cleaner/jobs/${job.id}`);
@@ -401,7 +401,9 @@ test("a Cleaner is told when someone else took the Cleaner Needed first", async 
   await offerJob(job.id, dee.id, { confirmed: true });
   await page.getByRole("button", { name: "Confirm" }).click();
 
-  await expect(page.getByText("Someone else took this Job")).toBeVisible();
+  await expect(
+    page.getByText("Someone else already took this job."),
+  ).toBeVisible();
 });
 
 test("a Cleaner says a Cleaner Needed is not for them, and the Office sees it", async ({
@@ -425,10 +427,10 @@ test("a Cleaner says a Cleaner Needed is not for them, and the Office sees it", 
   await office.goto(`/office/jobs/${job.id}`);
   await expect(
     office.getByText(
-      "It's open to 1 free Cleaner: the first to confirm joins the crew.",
+      "1 free cleaner can take it: the first to confirm gets it.",
     ),
   ).toBeVisible();
-  await expect(office.getByText("Not for them: Cory Cleaner.")).toBeVisible();
+  await expect(office.getByText("Said no: Cory Cleaner.")).toBeVisible();
 });
 
 test("the Office sees when a Job's Cleaners Needed open to Cleaners", async ({
@@ -445,7 +447,7 @@ test("the Office sees when a Job's Cleaners Needed open to Cleaners", async ({
   await page.goto(`/office/jobs/${job.id}`);
 
   await expect(
-    page.getByText("It opens to free Cleaners on Tue, Jan 6, 9:00 AM."),
+    page.getByText("Free cleaners can take it from Tue, Jan 6, 9:00 AM."),
   ).toBeVisible();
-  await expect(page.getByText("Needs 2 more Cleaners.")).toBeVisible();
+  await expect(page.getByText("Needs 2 more cleaners.")).toBeVisible();
 });

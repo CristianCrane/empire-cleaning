@@ -17,7 +17,7 @@ import {
   TextField,
 } from "@empire-cleaning/ui";
 import { clientName, formatDateTime } from "../format.ts";
-import { AssignmentBadge } from "./JobScreen.tsx";
+import { JobBadge } from "../JobBadges.tsx";
 
 // the list's Tabs, Upcoming first: the Jobs still to do
 export const jobTabs = ["upcoming", "past", "cancelled", "all"] as const;
@@ -32,9 +32,9 @@ const tabLabel: Record<JobTab, string> = {
 
 // what a Tab holds, for when it's empty
 const noneIn: Record<JobsTab, string> = {
-  upcoming: "No Jobs booked.",
-  past: "No Jobs done yet.",
-  cancelled: "No Jobs cancelled.",
+  upcoming: "No jobs booked.",
+  past: "No jobs done yet.",
+  cancelled: "No jobs cancelled.",
 };
 
 // a page of the list, and how many more Show more adds
@@ -122,9 +122,9 @@ export function JobsScreen() {
         renderEmptyState={() => (
           <p className="p-6 text-center text-fg-muted">
             {q
-              ? `No Jobs match “${q}”.`
+              ? `No jobs match “${q}”.`
               : tab === "all"
-                ? "No Jobs yet."
+                ? "No jobs yet."
                 : noneIn[tab]}
           </p>
         )}
@@ -151,7 +151,7 @@ export function JobsScreen() {
             </Cell>
             <Cell className="hidden lg:table-cell">{job.serviceName}</Cell>
             <Cell>
-              <AssignmentBadge job={job} />
+              <JobBadge job={job} />
             </Cell>
           </Row>
         )}
@@ -165,7 +165,7 @@ export function JobsScreen() {
         Jobs
       </Heading>
       <TextField
-        label="Search Jobs"
+        label="Search jobs"
         type="search"
         placeholder="Client or address"
         value={text}

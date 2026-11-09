@@ -6,7 +6,7 @@ import { Button } from "./Button.tsx";
 const meta = {
   title: "Components/Button",
   component: Button,
-  args: { children: "Send Quote", onPress: fn() },
+  args: { children: "Send quote", onPress: fn() },
 } satisfies Meta<typeof Button>;
 
 export default meta;
@@ -14,7 +14,7 @@ type Story = StoryObj<typeof meta>;
 
 export const Primary: Story = {
   play: async ({ args, canvas, userEvent }) => {
-    await userEvent.click(canvas.getByRole("button", { name: "Send Quote" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Send quote" }));
     await expect(args.onPress).toHaveBeenCalledOnce();
   },
 };
@@ -62,7 +62,7 @@ export const WithIcon: Story = {
     children: (
       <>
         <Plus aria-hidden size={20} />
-        Add Property
+        Add property
       </>
     ),
   },
@@ -72,7 +72,7 @@ export const IconOnly: Story = {
   args: {
     variant: "quiet",
     size: "icon",
-    "aria-label": "Remove Add-on",
+    "aria-label": "Remove add-on",
     children: <Trash2 aria-hidden size={20} />,
   },
 };

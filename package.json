@@ -23,6 +23,7 @@
     "db:studio": "pnpm --filter @empire-cleaning/server db:studio",
     "db:seed": "pnpm --filter @empire-cleaning/server db:seed",
     "test:full": "pnpm --color --recursive --workspace-concurrency=1 --no-bail run test",
+    "test:change": "scripts/test-change.sh",
     "email:dev": "pnpm --filter @empire-cleaning/server email:dev"
   },
   "devDependencies": {

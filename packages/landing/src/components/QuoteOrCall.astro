@@ -1,0 +1,28 @@
+---
+import { REQUEST_A_QUOTE } from "@empire-cleaning/models";
+import { buttonStyles } from "@empire-cleaning/ui";
+import { Phone } from "lucide-react";
+import { business } from "../business.ts";
+
+// a page's two actions: to the quote form at `href`, or call us
+interface Props {
+  href: string;
+}
+const { href } = Astro.props;
+---
+
+<div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+  <a
+    href={href}
+    class={buttonStyles({ variant: "primary", className: "px-6 text-lg" })}
+  >
+    {REQUEST_A_QUOTE}
+  </a>
+  <a
+    href={business.phone.href}
+    class={buttonStyles({ variant: "secondary", className: "px-6 text-lg" })}
+  >
+    <Phone aria-hidden size={20} />
+    Call {business.phone.display}
+  </a>
+</div>

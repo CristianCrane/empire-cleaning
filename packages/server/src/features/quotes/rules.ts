@@ -1,10 +1,17 @@
-import type { QuoteStatus, ScheduleDay } from "@empire-cleaning/models";
-import { dayOf } from "../../services/clock/index.ts";
+import type {
+  DayCapacity,
+  QuoteStatus,
+  ScheduleDay,
+} from "@empire-cleaning/models";
+import { dayOf } from "@empire-cleaning/models";
 import { roomOn, withoutReplaced, type Clean } from "../jobs/rules.ts";
 
 // The rules for accepting a Quote, over what acceptance loads: the Quote as
-// it is now, its home's plan, and the days of the cleans it books. They
-// never query: the actions lock and load, ask, then write.
+// it is now, its home's plan, and the days of the cleans it books. Whether
+// those cleans have room (cleansFit) also answers what the Quote screen
+// offers (bookableFor), over the rooms it loads (optionRoomsOf), and each
+// clean's room (cleanRooms) what a Draft is told. They never query: the actions lock and
+// load, ask, then write.
 
 // why a Quote can't be booked, as its Deposit is taken or once it has been
 export type Unbookable =
@@ -44,10 +51,33 @@ export const whyClosed = (
 };
 
 /**
+ * The room each of these cleans of a Quote has on its day, as roomOn says,
+ * the booked Jobs its new terms replace counting as gone (withoutReplaced).
+ * `days` holds each clean's day.
+ */
+export const cleanRooms = (
+  days: ScheduleDay[],
+  cleans: Clean[],
+  replacing: string[],
+): DayCapacity[] =>
+  cleans.map((clean) => {
+    const day = days.find((d) => d.date === dayOf(clean.startsAt))!;
+    return roomOn(withoutReplaced(day, replacing), clean);
+  });
+
+/**
+ * Whether cleans of a Quote with these rooms (cleanRooms) fit: every one
+ * has room. A Service Plan Quote's cleans are asked together, as it's
+ * accepted whole; a one-off Quote's Services each alone.
+ */
+export const cleansFit = (rooms: DayCapacity[]) =>
+  rooms.every((room) => room.hasRoom);
+
+/**
  * Accepting a Quote's offer, `revisionId`, booking these cleans: refused
  * as whyClosed says, then unless its home's plan is still the one expected
- * (`changing`: none for a Quote starting one), and unless every clean has
- * room, the Jobs it replaces counting as gone.
+ * (`changing`: none for a Quote starting one), and unless its cleans fit
+ * (cleansFit).
  */
 export const whyUnbookable = (
   held: Held,
@@ -58,11 +88,8 @@ export const whyUnbookable = (
   if (held.planId !== accepting.changing) {
     return { reason: accepting.changing ? "plan_changed" : "has_plan" };
   }
-  for (const clean of accepting.cleans) {
-    const day = held.days.find((d) => d.date === dayOf(clean.startsAt))!;
-    if (!roomOn(withoutReplaced(day, held.replacing), clean).hasRoom) {
-      return { reason: "no_room" };
-    }
+  if (!cleansFit(cleanRooms(held.days, accepting.cleans, held.replacing))) {
+    return { reason: "no_room" };
   }
   return null;
 };

@@ -11,7 +11,7 @@ const meta = {
     title: "Tue, Oct 27",
     description: "32h available · 24h booked",
     children: (
-      <List aria-label="Today's Jobs" onAction={() => {}}>
+      <List aria-label="Today's jobs" onAction={() => {}}>
         <ListItem
           id="1"
           title="9:00 AM · Maria Lopez"
@@ -22,7 +22,7 @@ const meta = {
           id="2"
           title="1:00 PM · Dev Patel"
           description="88 Grand St · Deep Clean · crew of 3, 4h on site"
-          end={<StatusBadge tone="warning">Unassigned</StatusBadge>}
+          end={<StatusBadge tone="warning">Needs cleaners</StatusBadge>}
         />
       </List>
     ),

@@ -1,4 +1,6 @@
 ---
+import { ASK_US, REQUEST_A_QUOTE } from "@empire-cleaning/models";
+import { apiUrl } from "../api-url.ts";
 import { business } from "../business.ts";
 import { QuoteForm } from "./QuoteForm.tsx";
 import Section from "./Section.astro";
@@ -8,15 +10,12 @@ interface Props {
   start?: { serviceKey: string; regular?: boolean };
 }
 const { start } = Astro.props;
-
-// where the Guest form sends what is asked: the API's public address
-const apiUrl = import.meta.env.PUBLIC_API_URL ?? "http://localhost:3000";
 ---
 
 <Section
   id="quote"
-  title="Request a Quote"
-  intro="Tell us about your home and we'll email you a Quote, usually within a working day. No account needed."
+  title={REQUEST_A_QUOTE}
+  intro={`${ASK_US} No account needed.`}
   align="center"
 >
   {/* drawn at build time, then loaded once the browser is idle after the page

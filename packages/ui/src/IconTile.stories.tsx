@@ -25,13 +25,13 @@ export const InAList: Story = {
     <List aria-label="Needs attention" onAction={() => {}}>
       <ListItem
         id="1"
-        title="Send a Quote"
+        title="Send a quote"
         description="Maria Lopez · 41-12 Austin St · asked Oct 26"
         start={<IconTile icon={ClipboardPenLine} tone="info" />}
       />
       <ListItem
         id="2"
-        title="Assign Staff"
+        title="Find cleaners"
         description="Cleo Hart · 301 Main St · Oct 28, 1:00 PM"
         start={<IconTile icon={UserX} tone="warning" />}
       />
@@ -43,7 +43,7 @@ export const InAList: Story = {
       />
       <ListItem
         id="4"
-        title="Collect the Balance"
+        title="Collect the balance"
         description="Nina Gold · $184.00 owed · 22 Pine St"
         start={<IconTile icon={CircleDollarSign} tone="danger" />}
       />

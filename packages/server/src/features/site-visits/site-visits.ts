@@ -1,5 +1,4 @@
 import { and, asc, eq, gte, inArray } from "drizzle-orm";
-import { z } from "zod";
 import type {
   BookSiteVisitInput,
   CleanerSiteVisits,
@@ -7,19 +6,21 @@ import type {
   OfficeSiteVisit,
   SiteVisitBooking,
 } from "@empire-cleaning/models";
-import { db, type Tx } from "../../db/index.ts";
-import {
-  ConflictError,
-  NotFoundError,
-  RequestBodyError,
-} from "../../middleware/errors.ts";
 import {
   addDays,
   atTime,
-  clock,
   dayOf,
+  NO_CREW,
   startOfDay,
-} from "../../services/clock/index.ts";
+} from "@empire-cleaning/models";
+import { db, type Tx } from "../../db/index.ts";
+import {
+  ConflictError,
+  fieldError,
+  NotFoundError,
+  RequestBodyError,
+} from "../../middleware/errors.ts";
+import { clock } from "../../services/clock/index.ts";
 import {
   email,
   firstNameOf,
@@ -35,8 +36,12 @@ import {
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { lockDay } from "../jobs/jobs.ts";
 import { scheduleOn } from "../jobs/schedule.ts";
-import { busyWith, roomOn, visitHours } from "../jobs/rules.ts";
-import { currentPriceList } from "../price-list/price-list.ts";
+import { busyWith, PASSED, roomOn, visitHours } from "../jobs/rules.ts";
+import {
+  currentPriceList,
+  NOT_A_PREMISES_TYPE,
+  offersPremisesType,
+} from "../price-list/price-list.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { addressOf, toPropertyView } from "../properties/property-view.ts";
 import { warnOfficeOfQuotesWithoutRoom } from "../quotes/quote-room.ts";
@@ -48,11 +53,6 @@ import {
   premisesFindingsSchema,
 } from "./site-visits.validation.ts";
 import { toSiteVisitView } from "./views.ts";
-
-const fieldError = (path: (string | number)[], message: string) =>
-  new RequestBodyError(
-    new z.ZodError([{ code: "custom", path, message, input: undefined }]),
-  );
 
 // a Property with its Client
 const propertyOf = async (propertyId: string) => {
@@ -71,7 +71,7 @@ const visitorOf = async (staffId: string) => {
     .select()
     .from(staff)
     .where(and(eq(staff.id, staffId), eq(staff.active, true)));
-  if (!member) throw fieldError(["staffId"], "Choose someone on the Staff");
+  if (!member) throw fieldError(["staffId"], "Pick someone on your staff");
   return member;
 };
 
@@ -105,7 +105,7 @@ const refuseNoRoom = async (
   },
 ) => {
   if (startsAt <= clock.now()) {
-    throw new ConflictError("Choose a time that's still to come");
+    throw new ConflictError(PASSED);
   }
   const date = dayOf(startsAt);
   await lockDay(tx, date);
@@ -121,17 +121,15 @@ const refuseNoRoom = async (
     const room = roomOn(day, visit);
     if (!room.hasHours) {
       throw new ConflictError(
-        `That day doesn't have room: the Site Visit takes ${visit.labourHours} of ${firstNameOf(visitor.name)}'s Cleaner hours, and ${Math.max(room.freeHours, 0)} are free.`,
+        `${firstNameOf(visitor.name)} doesn't have enough working hours free that day. Pick another day or person.`,
       );
     }
     if (!room.hasCrew) {
-      throw new ConflictError(
-        `Every Cleaner available that day is on a Job then, so ${firstNameOf(visitor.name)} isn't free for a Site Visit.`,
-      );
+      throw new ConflictError(`${NO_CREW} Pick another time.`);
     }
   } else if (!visitor.roles.includes("office_staff")) {
     throw new ConflictError(
-      `${visitor.name} has no Available Hours that day, so they can't make a Site Visit then.`,
+      `${visitor.name} isn't working that day. Pick another day or person.`,
     );
   }
 
@@ -140,8 +138,8 @@ const refuseNoRoom = async (
     const at = formatTime(new Date(busy.startsAt));
     throw new ConflictError(
       busy.what === "site_visit"
-        ? `${visitor.name} has another Site Visit then, at ${at}.`
-        : `${visitor.name} is on a Job then, at ${at}.`,
+        ? `${visitor.name} has another site visit at ${at}. Pick another time or person.`
+        : `${visitor.name} is on a job at ${at}. Pick another time or person.`,
     );
   }
 };
@@ -165,7 +163,7 @@ const quoteToVisitFor = async (quoteId: string) => {
   if (!quote) throw new NotFoundError("Quote not found");
   if (quote.status !== "requested" && quote.status !== "draft") {
     throw new ConflictError(
-      "A Site Visit is for a Quote before it's sent: this one has been sent, or has closed.",
+      "This quote was already sent or closed, so it can't have a site visit.",
     );
   }
   return quote;
@@ -199,7 +197,7 @@ export const bookSiteVisit = async (
       .for("update");
     if (booked) {
       throw new ConflictError(
-        "This Property has a Site Visit booked already: move that one instead.",
+        "This property already has a site visit booked. Change that one instead.",
       );
     }
     await refuseNoRoom(tx, { startsAt, minutes: input.minutes, visitor });
@@ -245,8 +243,8 @@ const lockBooked = async (tx: Tx, id: string) => {
   if (visit.status !== "booked") {
     throw new ConflictError(
       visit.status === "done"
-        ? "This Site Visit is Done: its findings are recorded."
-        : "This Site Visit was cancelled.",
+        ? "This site visit is already done."
+        : "This site visit was cancelled.",
     );
   }
   return visit;
@@ -271,7 +269,9 @@ export const moveSiteVisit = async (
       visit.staffId === visitor.id &&
       visit.minutes === input.minutes
     ) {
-      throw new ConflictError("That's how the Site Visit is booked already.");
+      throw new ConflictError(
+        "Nothing changed: that's already how the site visit is booked.",
+      );
     }
     await refuseNoRoom(tx, {
       startsAt,
@@ -353,12 +353,9 @@ const findingsFor = async (property: Property, body: unknown) => {
     const list = await currentPriceList();
     if (
       premisesType !== property.premisesTypeKey &&
-      !list.premisesTypes.some((t) => t.active && t.key === premisesType)
+      !offersPremisesType(list, premisesType)
     ) {
-      throw fieldError(
-        ["premisesType"],
-        "Choose from the types of premises listed",
-      );
+      throw fieldError(["premisesType"], NOT_A_PREMISES_TYPE);
     }
     return { ...rest, premisesTypeKey: premisesType };
   }
@@ -427,7 +424,7 @@ export const recordFindingsWithoutVisit = async (
       .for("update");
     if (booked) {
       throw new ConflictError(
-        "This Property has a Site Visit booked: record its findings there, or cancel it first.",
+        "This property has a site visit booked. Add the findings there, or cancel it first.",
       );
     }
     const now = clock.now();

@@ -4,10 +4,8 @@ import {
   Building2,
   CalendarCheck,
   House,
-  KeyRound,
   MapPin,
   NotebookPen,
-  Ruler,
   Sparkles,
   SquarePen,
   type LucideIcon,
@@ -15,7 +13,6 @@ import {
 import type {
   ClientName,
   HomeView,
-  JobStatus,
   OfficePropertyView,
   OfficeServicePlan,
   OfficeSiteVisit,
@@ -23,6 +20,7 @@ import type {
   PremisesView,
   PropertyView,
 } from "@empire-cleaning/models";
+import { needsVisit } from "@empire-cleaning/models";
 import {
   ActionRow,
   Actions,
@@ -30,7 +28,6 @@ import {
   Button,
   ButtonLink,
   Card,
-  Checkbox,
   Dialog,
   DialogTrigger,
   Form,
@@ -39,16 +36,11 @@ import {
   List,
   ListItem,
   Notice,
-  NumberField,
   Section,
-  Select,
-  SelectItem,
-  StatusBadge,
   TextField,
   Timeline,
   TimelineItem,
   type Crumb,
-  type StatusTone,
 } from "@empire-cleaning/ui";
 import { patchJson } from "../../api.ts";
 import { linkTo, type AppHref } from "../../links.ts";
@@ -56,15 +48,13 @@ import { useAction } from "../action.ts";
 import {
   addressOf,
   clientName,
-  conditionText,
   formatDate,
   formatDateTime,
-  formatFloorArea,
   formatMinutes,
   propertySummary,
   quoteHeadline,
 } from "../format.ts";
-import { Fact } from "../Fact.tsx";
+import { AccessFact, ConditionFact, Fact, FloorAreaFact } from "../Fact.tsx";
 import { QuoteIcon } from "../icons.ts";
 import { QuoteStatusBadge } from "../QuoteParts.tsx";
 import {
@@ -72,9 +62,18 @@ import {
   RecordFindingsWithoutVisit,
   SiteVisitBadge,
 } from "./SiteVisitParts.tsx";
-import { ConditionField, PlaceTiles } from "./PropertyFields.tsx";
+import {
+  ConditionField,
+  HomeFloorAreaField,
+  PetsField,
+  PlaceTiles,
+  PremisesFloorAreaField,
+  PremisesTypeField,
+  RoomFields,
+} from "./PropertyFields.tsx";
 import { PlanDetails } from "./ServicePlanScreen.tsx";
-import { OfferServicePlan } from "./StartDraft.tsx";
+import { OfferServicePlan, QUOTE_A_PLAN } from "./StartDraft.tsx";
+import { JobStatusBadge } from "../JobBadges.tsx";
 
 // A home for the Office (ADR-0011), read as a whole (UX pass, #96): what to
 // know first in Notices; then its details, its Service Plan and its Site
@@ -105,10 +104,7 @@ export function PropertyScreen() {
         </div>
       </div>
       {home.kind === "commercial" && !home.findingsRecorded && (
-        <Notice>
-          Business premises are seen before they're quoted: book a Site Visit,
-          or record findings you know already.
-        </Notice>
+        <Notice>{SEE_IT_FIRST}</Notice>
       )}
       {newTerms && (
         <Notice action={<OpenQuote quoteId={newTerms.id} />}>
@@ -158,7 +154,7 @@ function OpenQuote({ quoteId }: { quoteId: string }) {
       size="sm"
       href={linkTo({ to: "/office/quotes/$quoteId", params: { quoteId } })}
     >
-      Open the Quote
+      Open the quote
     </ButtonLink>
   );
 }
@@ -179,17 +175,25 @@ const quoteInTheWay = (home: OfficePropertyView) => {
   return { open, resumes };
 };
 
+// a business, seen before it's quoted (ADR-0014); seeing it records what
+// it is
+const SEE_IT_FIRST = `${needsVisit("commercial")} Book one, or record what you know about it already.`;
+
+// a home asked about first for a Service not priced from its rooms
+const roomsMissing = (fix: "Correct" | "Enter") =>
+  `Its rooms aren't filled in yet. ${fix} them to quote it for a clean.`;
+
 const inTheWayLine: Record<"requested" | "draft" | "sent", string> = {
-  requested: "The Client asked for a Quote that's still open",
-  draft: "A Service Plan Quote is being drafted",
-  sent: "A Service Plan Quote is with the Client",
+  requested: "The client asked for a quote that's still open",
+  draft: "A cleaning plan quote is being drafted",
+  sent: "A cleaning plan quote is with the client",
 };
 
 // the same, for a home with a plan: what the open Quote means for its terms
 const newTermsLine: Record<"requested" | "draft" | "sent", string> = {
-  requested: "The Client asked for a Quote: draft new terms from it",
+  requested: "The client asked for a quote. Draft new terms from it",
   draft: "New terms are being drafted",
-  sent: "New terms are with the Client, waiting on their answer",
+  sent: "New terms are with the client, waiting on their answer",
 };
 
 // its Service Plan in full; or, with none, the way to quote one: a home once
@@ -227,7 +231,7 @@ function PlanPart({
   const seenFirst = home.kind === "commercial" && !home.findingsRecorded;
   const inTheWay = canQuote && open && !resumes ? open : undefined;
   return (
-    <Section title="Service Plan">
+    <Section title="Cleaning plan">
       <Card>
         <ActionRow
           actions={
@@ -239,15 +243,13 @@ function PlanPart({
                   params: { quoteId: inTheWay.id },
                 })}
               >
-                Open the Quote
+                Open the quote
               </ButtonLink>
             ) : (
               canQuote && (
                 <OfferServicePlan
                   propertyId={home.id}
-                  label={
-                    resumes ? "Carry on with the draft" : "Quote a Service Plan"
-                  }
+                  label={resumes ? "Carry on with the draft" : QUOTE_A_PLAN}
                   primary={!seenFirst}
                 />
               )
@@ -256,10 +258,10 @@ function PlanPart({
         >
           <p>
             {inTheWay
-              ? `${inTheWayLine[inTheWay.status as keyof typeof inTheWayLine]}: carry on with that one.`
+              ? `${inTheWayLine[inTheWay.status as keyof typeof inTheWayLine]}. Carry on with that one.`
               : canQuote
-                ? "Quote regular cleaning: once the Client accepts, their Jobs are booked for them."
-                : "A home can be quoted a Service Plan once its First Clean is Completed."}
+                ? "Quote regular cleaning. Once the client accepts, their jobs are booked for them."
+                : "A home can be quoted a cleaning plan once its first clean is done."}
           </p>
         </ActionRow>
       </Card>
@@ -314,13 +316,13 @@ function VisitPart({
     // nothing to book it for: nothing to say
     if (!can) return null;
     return (
-      <Section title="Site Visit">
+      <Section title="Site visit">
         <Card>
           <ActionRow actions={can}>
             <p>
               {premises
-                ? "Business premises are seen before they're quoted. Book a Site Visit, or record findings you know already."
-                : "Optional for a home: book one to see it before quoting."}
+                ? SEE_IT_FIRST
+                : "Book one to see this home before quoting it."}
             </p>
           </ActionRow>
         </Card>
@@ -331,14 +333,14 @@ function VisitPart({
   // once it's done, another can be booked for a Quote not sent yet
   return (
     <Section
-      title="Site Visit"
+      title="Site visit"
       actions={
         visit.status !== "booked" &&
         unsent && <BookSiteVisit quoteId={unsent.id} />
       }
     >
       <List
-        aria-label="Site Visit"
+        aria-label="Site visit"
         onAction={() =>
           void navigate({
             to: "/office/site-visits/$visitId",
@@ -410,7 +412,7 @@ const historyOf = (home: OfficePropertyView): HistoryEvent[] =>
       id: `visit ${visit.id}`,
       on: visit.startsAt ?? visit.doneAt ?? visit.bookedAt,
       icon: visit.startsAt ? MapPin : CalendarCheck,
-      kind: "Site Visit",
+      kind: "Site visit",
       what: visit.startsAt
         ? [visit.visitor?.name, `${visit.minutes} min`]
             .filter(Boolean)
@@ -453,30 +455,6 @@ function History({
         )}
       </Card>
     </Section>
-  );
-}
-
-const jobStatusLabel: Record<JobStatus, string> = {
-  booked: "Booked",
-  completed: "Completed",
-  cancelled: "Cancelled",
-  no_access: "No Access",
-};
-
-// a Job's status in the tones every status takes: booked is just so, done
-// went well, cancelled is over, No Access went wrong
-const jobStatusTone: Record<JobStatus, StatusTone> = {
-  booked: "info",
-  completed: "success",
-  cancelled: "neutral",
-  no_access: "danger",
-};
-
-export function JobStatusBadge({ status }: { status: JobStatus }) {
-  return (
-    <StatusBadge tone={jobStatusTone[status]}>
-      {jobStatusLabel[status]}
-    </StatusBadge>
   );
 }
 
@@ -535,7 +513,7 @@ function Details({
   const premises = home.kind === "commercial";
   return (
     <Section
-      title={premises ? "Premises details" : "Home details"}
+      title={premises ? "Business details" : "Home details"}
       actions={
         <DialogTrigger>
           <Button variant="text" size="sm">
@@ -543,7 +521,7 @@ function Details({
             Correct
           </Button>
           <Dialog
-            title={premises ? "Correct the premises" : "Correct the home"}
+            title={premises ? "Correct the business" : "Correct the home"}
             size="lg"
           >
             {({ close }) =>
@@ -572,7 +550,7 @@ function Details({
             <IconTile icon={premises ? Building2 : House} size="lg" />
             <div className="flex min-w-0 flex-col gap-1">
               <p className="text-sm text-fg-muted">
-                {premises ? "Business premises" : "A home"}
+                {premises ? "A business" : "A home"}
               </p>
               <p className="text-xl font-semibold text-fg">
                 {propertySummary(home)}
@@ -580,40 +558,20 @@ function Details({
             </div>
           </div>
           {home.kind !== "commercial" && home.bedrooms === null && (
-            <Notice tone="warning">
-              Its rooms aren't recorded yet: it was asked about for a Service
-              that isn't priced from them. Correct them to quote it for one that
-              is.
-            </Notice>
+            <Notice tone="warning">{roomsMissing("Correct")}</Notice>
           )}
           {/* the columns follow the card's width, not the screen's: it
               shares the screen with the History */}
           <div className="@container">
             <dl className="grid gap-x-6 gap-y-4 @md:grid-cols-2 @3xl:grid-cols-4">
-              <Fact
-                icon={Ruler}
-                label="Floor area"
-                value={
-                  home.floorArea === null
-                    ? "Not known yet"
-                    : formatFloorArea(home.floorArea)
-                }
-              />
-              <Fact
-                icon={Sparkles}
-                label="Condition"
-                value={conditionText(home.condition)}
+              <FloorAreaFact property={home} />
+              <ConditionFact
+                property={home}
                 line="Condition, at the last visit"
               />
-              <Fact
-                icon={KeyRound}
-                label="How we get in"
-                value={
-                  <span className="whitespace-pre-line">
-                    {home.accessInstructions || "Not added yet"}
-                  </span>
-                }
-                line="How we get in: the Client's, and the crew's"
+              <AccessFact
+                property={home}
+                line="How we get in, which the client and cleaners see"
               />
               <Fact
                 icon={NotebookPen}
@@ -623,7 +581,7 @@ function Details({
                     {home.officeNotes || "None"}
                   </span>
                 }
-                line="Office notes: only Office Staff see them"
+                line="Office notes, which only the office sees"
               />
             </dl>
           </div>
@@ -651,7 +609,7 @@ function CorrectionForm({
       }}
     >
       <p className="text-sm text-fg-muted">
-        Corrections to what it is change the price of Quotes made from now on.
+        Correcting what it is changes the price of quotes made from now on.
       </p>
       {children}
       {correction.problem && (
@@ -684,9 +642,9 @@ function AccessInstructionsField({
 }) {
   return (
     <TextField
-      label="Access Instructions"
+      label="How we get in"
       name="accessInstructions"
-      description="The Client sees these, and can change them too."
+      description="The client sees this, and can change it too."
       multiline
       value={value}
       onChange={onChange}
@@ -706,7 +664,7 @@ function OfficeNotesField({
     <TextField
       label="Office notes"
       name="officeNotes"
-      description="Only Office Staff see these."
+      description="Only the office sees these."
       multiline
       value={value}
       onChange={onChange}
@@ -755,53 +713,20 @@ function HomeDetails({
   return (
     <CorrectionForm correction={correction} close={close}>
       <PlaceTiles value={details.type} onChange={(type) => change({ type })} />
-      {noRooms && (
-        <Notice tone="warning">
-          Its rooms aren't recorded yet: it was asked about for a Service that
-          isn't priced from them. Enter them to quote it for one that is.
-        </Notice>
-      )}
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-4">
-        <NumberField
-          label="Bedrooms"
-          name="bedrooms"
-          minValue={0}
-          maxValue={20}
-          value={details.bedrooms ?? Number.NaN}
-          onChange={(bedrooms) => change({ bedrooms: count(bedrooms) })}
-        />
-        <NumberField
-          label="Bathrooms"
-          name="bathrooms"
-          minValue={0.5}
-          maxValue={20}
-          step={0.5}
-          value={details.bathrooms ?? Number.NaN}
-          onChange={(bathrooms) => change({ bathrooms: count(bathrooms) })}
-        />
-        <NumberField
-          label="Floors"
-          name="storeys"
-          minValue={1}
-          maxValue={5}
-          value={details.storeys ?? Number.NaN}
-          onChange={(storeys) => change({ storeys: count(storeys) })}
-        />
-      </div>
-      <NumberField
-        label="Floor area in sq ft (optional)"
-        name="floorArea"
-        minValue={100}
-        maxValue={100_000}
-        step={50}
-        value={details.floorArea ?? Number.NaN}
-        onChange={(area) =>
-          change({ floorArea: Number.isNaN(area) ? null : area })
-        }
+      {noRooms && <Notice tone="warning">{roomsMissing("Enter")}</Notice>}
+      <RoomFields
+        rooms={{
+          bedrooms: details.bedrooms ?? Number.NaN,
+          bathrooms: details.bathrooms ?? Number.NaN,
+          storeys: details.storeys ?? Number.NaN,
+        }}
+        onChange={(room, value) => change({ [room]: count(value) })}
       />
-      <Checkbox isSelected={details.pets} onChange={(pets) => change({ pets })}>
-        There are pets at home
-      </Checkbox>
+      <HomeFloorAreaField
+        value={details.floorArea ?? Number.NaN}
+        onChange={(area) => change({ floorArea: count(area) })}
+      />
+      <PetsField value={details.pets} onChange={(pets) => change({ pets })} />
       <ConditionField
         value={details.condition}
         onChange={(condition) => change({ condition })}
@@ -846,25 +771,13 @@ function PremisesDetails({
   return (
     <CorrectionForm correction={correction} close={close}>
       <PlaceTiles value="commercial" />
-      <Select
-        label="Type of premises"
-        name="premisesType"
-        selectedKey={details.premisesType}
-        onSelectionChange={(key) => change({ premisesType: String(key) })}
-      >
-        {choices.map((t) => (
-          <SelectItem key={t.key} id={t.key}>
-            {t.name}
-          </SelectItem>
-        ))}
-      </Select>
-      <NumberField
-        label="Floor area in sq ft"
-        name="floorArea"
-        description="Leave empty until it's known: it's priced at the Minimum Charge until then."
-        minValue={100}
-        maxValue={1_000_000}
-        step={100}
+      <PremisesTypeField
+        value={details.premisesType}
+        choices={choices}
+        onChange={(premisesType) => change({ premisesType })}
+      />
+      <PremisesFloorAreaField
+        description="Leave it empty until you know it. Until then, it's priced at the minimum price."
         value={details.floorArea ?? Number.NaN}
         onChange={(area) =>
           change({ floorArea: Number.isNaN(area) ? null : area })

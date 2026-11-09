@@ -22,6 +22,5 @@ export default preview(
       finalJob: { id: jobId, startsAt: monday.toISOString(), status: "booked" },
     },
     settled,
-    cutoffHours: 24,
   }),
 );

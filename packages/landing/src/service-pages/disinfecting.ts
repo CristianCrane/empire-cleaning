@@ -7,7 +7,7 @@ export const disinfecting: ServicePage = {
   // and ask for disinfecting in the note
   title: "Disinfecting in Queens, NYC & Long Island",
   description:
-    "Disinfecting of high-touch surfaces and shared spaces in homes and businesses across Queens, Brooklyn, Manhattan and Long Island. Request a Quote.",
+    "Disinfecting of high-touch surfaces and shared spaces in homes and businesses across Queens, Brooklyn, Manhattan and Long Island. Request a quote.",
   heading: "Disinfecting homes and workplaces",
   intro:
     "The handles, switches and counters everyone touches, disinfected as well as cleaned: at home after someone's been ill, or in a shared workplace all through the year.",
@@ -45,8 +45,8 @@ export const disinfecting: ServicePage = {
   pricing: {
     title: "How it's priced",
     text: [
-      "Disinfecting is part of a clean. In your Quote Request, choose the clean you need (a Standard or Deep Clean for a home, Commercial cleaning for business premises) and tell us in the note you'd like disinfecting, and of what. If you'd like it done at every visit, say so and we'll include it in each one.",
-      "Your Quote says what it covers and how long we'll be there. Accept it online and pay a Deposit to book; the rest is charged once the clean is done.",
+      "Disinfecting is part of a clean. In your quote request, choose the clean you need (a Standard or Deep Clean for a home, Commercial cleaning for business premises) and tell us in the note you'd like disinfecting, and of what. If you'd like it done at every visit, say so and we'll include it in each one.",
+      "Your quote says what it covers and how long we'll be there. Accept it online and pay a deposit to book; the rest is charged once the clean is done.",
     ],
   },
   when: {
@@ -58,7 +58,7 @@ export const disinfecting: ServicePage = {
   },
   faqs: [
     {
-      question: "Which Service do I choose in the form?",
+      question: "Which service do I choose in the form?",
       answer:
         "The clean you need: Standard or Deep Clean for a home, Commercial cleaning for business premises. Then say in the note you'd like disinfecting, and anything in particular.",
     },
@@ -70,7 +70,7 @@ export const disinfecting: ServicePage = {
     {
       question: "I have children and pets. Is that a problem?",
       answer:
-        "Not at all. Tell us about them when you request a Quote, so we can plan around them.",
+        "Not at all. Tell us about them when you request a quote, so we can plan around them.",
     },
     {
       question: "Can you disinfect our office regularly?",
@@ -85,7 +85,7 @@ export const disinfecting: ServicePage = {
     {
       question: "How long does it take?",
       answer:
-        "It depends on how much there is to disinfect. Your Quote says how long we'll be there.",
+        "It depends on how much there is to disinfect. Your quote says how long we'll be there.",
     },
     {
       question: "Do I need to be home?",
@@ -99,7 +99,7 @@ export const disinfecting: ServicePage = {
     {
       question: "Can you disinfect a home before we move in?",
       answer:
-        "Yes. Choose Move-in/out Clean when you request a Quote, and say in the note you'd like it disinfected too.",
+        "Yes. Choose Move-in/out Clean when you request a quote, and say in the note you'd like it disinfected too.",
     },
   ],
   related: ["office-cleaning", "standard-cleaning", "deep-cleaning"],

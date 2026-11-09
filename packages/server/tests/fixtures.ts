@@ -12,6 +12,7 @@ import type {
   ServiceInput,
   SignedInAccount,
 } from "@empire-cleaning/models";
+import { dayOf, timeOf } from "@empire-cleaning/models";
 import { apart, db } from "#db";
 import { confirmAssignment, offerAssignment } from "#features/assignments";
 import { bills, makeDueBills, setBilling } from "#features/bills";
@@ -30,7 +31,6 @@ import {
   sendQuote,
   startRevision,
 } from "#features/quotes";
-import { dayOf, timeOf } from "#services/clock";
 import { lockProperty, properties } from "#features/properties";
 import { createStaff, setUsualWeek } from "#features/staff";
 import { servicePlans } from "#features/service-plans";

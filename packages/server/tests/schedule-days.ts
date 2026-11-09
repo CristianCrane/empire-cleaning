@@ -3,6 +3,7 @@ import type {
   ScheduledJob,
   ScheduledSiteVisit,
 } from "@empire-cleaning/models";
+import { HOUR_MS } from "@empire-cleaning/models";
 import { asClean } from "../src/features/jobs/rules.ts";
 
 // Days of the Schedule as plain data, for testing the rules over them with
@@ -11,11 +12,10 @@ import { asClean } from "../src/features/jobs/rules.ts";
 // Bea available that day.
 export const NOW = new Date("2026-01-05T09:00:00Z");
 export const THURSDAY_9AM = "2026-01-08T14:00:00.000Z";
-export const HOUR = 3_600_000;
 
 // an instant some hours after the Job starts (before it, if negative)
 export const afterNine = (hours: number) =>
-  new Date(Date.parse(THURSDAY_9AM) + hours * HOUR);
+  new Date(Date.parse(THURSDAY_9AM) + hours * HOUR_MS);
 
 export const scheduled = (over: Partial<ScheduledJob> = {}): ScheduledJob => ({
   id: "job",

@@ -10,6 +10,7 @@ import {
   followSignInLink,
   signInLinkFor,
   signInWithLink,
+  switchArea,
   test,
   eachTheme,
 } from "./harness.ts";
@@ -255,11 +256,11 @@ test.describe("areas", () => {
       await expect(page).toHaveURL("/office");
 
       await page.getByRole("button", { name: officeStaff.name }).click();
-      await page.getByRole("row", { name: "Switch to Cleaner area" }).click();
+      await switchArea(page, "Cleaner area");
       await expect(page).toHaveURL("/cleaner");
 
       await page.getByRole("button", { name: officeStaff.name }).click();
-      await page.getByRole("row", { name: "Switch to Office" }).click();
+      await switchArea(page, "Office");
       await expect(page).toHaveURL("/office");
     },
   );
@@ -273,7 +274,7 @@ test.describe("areas", () => {
     await expect(page).toHaveURL("/cleaner");
 
     await page.getByRole("button", { name: cleaner.name }).click();
-    await page.getByRole("row", { name: "Switch to Client portal" }).click();
+    await switchArea(page, "Client portal");
 
     await expect(page).toHaveURL("/portal");
   });

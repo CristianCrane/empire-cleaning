@@ -96,12 +96,17 @@ describe("Ending a Service Plan", () => {
     expect(testPayments().refunds.map((r) => r.amount)).toEqual([PLAN_DEPOSIT]);
 
     const toClient = testEmail().lastTo(casey.email);
-    expect(toClient.subject).toBe("Your Service Plan has Ended");
+    expect(toClient.subject).toBe("Your cleaning plan has ended");
     expect(toClient.text).toMatch(/cancelled the cleans it had booked, free/);
     expect(toClient.text).toMatch(/refunded \$50\.46/);
     expect(testEmail().lastTo("olive@example.com").subject).toMatch(
-      /Ended their Service Plan/,
+      /ended their cleaning plan/,
     );
+    // its cleans were cancelled by the plan ending, not skipped one by one
+    const past = (await client.get("/api/jobs/mine/past").expect(200)).body as {
+      skipped: boolean;
+    }[];
+    expect(past.filter((j) => j.skipped)).toEqual([]);
   });
 
   test("never books its Jobs again, and the home may start another plan", async () => {
@@ -132,7 +137,7 @@ describe("Ending a Service Plan", () => {
     await end(client, planId, [MONDAYS[0]!]).expect(200);
     expect(testPayments().refunds).toEqual([]);
     expect(testEmail().lastTo(casey.email).text).toMatch(
-      /\$50\.46 Deposit comes off the price of your clean/,
+      /\$50\.46 deposit comes off the price of your clean/,
     );
 
     // it's a one-off Job now: its own Deposit, and no plan to skip
@@ -154,8 +159,8 @@ describe("Ending a Service Plan", () => {
     const { client, planId } = await crewedServicePlan();
     testClock().set(SUNDAY_10AM);
 
-    expect((await end(client, planId, []).expect(409)).body.message).toMatch(
-      /less than 24 hours away, so it goes ahead/,
+    expect((await end(client, planId, []).expect(409)).body.message).toBe(
+      "Something changed just then. Please check it and try again.",
     );
     expect((await clientPlan(client, planId)).status).toBe("active");
   });
@@ -190,7 +195,7 @@ describe("Ending a Service Plan", () => {
       ).completion.payment.unpaid,
     ).not.toBeNull();
     expect(testEmail().lastTo(casey.email).subject).toBe(
-      "Your Service Plan has Ended",
+      "Your cleaning plan has ended",
     );
 
     await office.post(`/api/jobs/${jobId}/balance/retry`).expect(200);
@@ -239,9 +244,11 @@ describe("Ending a Service Plan", () => {
     expect(plan.status).toBe("ended");
 
     const sent = testEmail().sent.slice(before);
-    expect(sent.map((e) => e.subject)).toContain("Your Service Plan has Ended");
+    expect(sent.map((e) => e.subject)).toContain(
+      "Your cleaning plan has ended",
+    );
     expect(sent.map((e) => e.subject)).not.toContainEqual(
-      expect.stringMatching(/Ended their Service Plan/),
+      expect.stringMatching(/ended their cleaning plan/),
     );
   });
 

@@ -2,18 +2,19 @@ import { describe, expect, test } from "vitest";
 import { eq } from "drizzle-orm";
 import type {
   AcceptOutcome,
+  DayTimes,
   OfficeQuote,
   QuoteSummary,
   OfficeServicePlan,
   Recurrence,
   SignedInAccount,
 } from "@empire-cleaning/models";
+import { dayOf, timeOf } from "@empire-cleaning/models";
 import { db } from "#db";
 import { findClientByEmail } from "#features/clients";
 import { paymentMethods } from "#features/payments";
 import { offerAssignment } from "#features/assignments";
 import { offerServicePlan, saveDraft, sendQuote } from "#features/quotes";
-import { dayOf, timeOf } from "#services/clock";
 import {
   type Agent,
   testClock,
@@ -51,8 +52,9 @@ const officePlan = async (office: Agent, id: string) =>
 const startsOf = (plan: OfficeServicePlan, status = "booked") =>
   plan.jobs.filter((j) => j.status === status).map((j) => j.startsAt);
 
-// a new Service Plan Quote for the plan's home, Sent by the Office
-const sentChange = async (
+// a new Service Plan Quote for the plan's home, saved as a Draft by the
+// Office
+const draftedChange = async (
   office: Agent,
   planId: string,
   {
@@ -71,7 +73,7 @@ const sentChange = async (
   const me = (await office.get("/api/me").expect(200)).body as SignedInAccount;
   const { property } = await officePlan(office, planId);
   const { quote } = await offerServicePlan(property.id, me.id);
-  await saveDraft(quote.id, {
+  return saveDraft(quote.id, {
     addOns: [],
     depositPercent: quote.draft!.depositPercent,
     validityDays: quote.draft!.validityDays,
@@ -90,8 +92,14 @@ const sentChange = async (
       }),
     },
   });
-  return sendQuote(quote.id);
 };
+
+// such a Quote, Sent
+const sentChange = async (
+  office: Agent,
+  planId: string,
+  terms: Parameters<typeof draftedChange>[2],
+) => sendQuote((await draftedChange(office, planId, terms)).id);
 
 const accept = async (
   client: Agent,
@@ -110,6 +118,11 @@ const totalsOf = async (jobIds: string[]) =>
   new Map((await jobQuotes(jobIds)).map((r) => [r.jobId, r.option.totalCents]));
 
 describe("accepting a Service Plan Quote for a home with a plan", () => {
+  // the slowest server test, ~3.6 s in a full run where the median takes
+  // 0.3 s, so with two checkouts' runs at once it passed Vitest's 5 s. Its own
+  // 10 s: it crews a plan, sends and accepts a change to it, which cancels
+  // Jobs and emails each person, and books the plan on. #316 brought it down
+  // only 0.2 s
   test("changes the plan from the Quote's time: its Jobs from then on are cancelled free, and it carries on on the new terms", async () => {
     const { office, client, planId, cleanerId } = await crewedServicePlan();
     const me = (await office.get("/api/me").expect(200))
@@ -153,21 +166,21 @@ describe("accepting a Service Plan Quote for a home with a plan", () => {
       by: "client",
       late: false,
       feeCents: 0,
-      reason: "The Service Plan's terms changed",
+      reason: "The cleaning plan changed",
     });
 
     const confirmation = testEmail().lastTo("casey@example.com");
     expect(confirmation.subject).toBe(
-      "Your Service Plan with Empire Cleaning has changed",
+      "Your cleaning plan with Empire Cleaning has changed",
     );
     expect(confirmation.text).toContain(
       "it's a Standard Clean every 2 weeks, on Wednesdays at 9:00 AM",
     );
     expect(confirmation.text).toContain("are cancelled, at no charge");
-    expect(confirmation.text).toContain("Your Deposit stays as it is");
+    expect(confirmation.text).toContain("Your deposit stays as it is");
     // Cory is on the 2 February Job, and hears it's off
     const off = testEmail().lastTo("cory@example.com");
-    expect(off.subject).toBe("A Job you're on is cancelled");
+    expect(off.subject).toBe("A job you're on is cancelled");
     expect(off.text).toContain("February 2");
 
     // it comes round every 2 weeks from the new first Job
@@ -180,7 +193,7 @@ describe("accepting a Service Plan Quote for a home with a plan", () => {
       "2026-02-11T14:00:00.000Z",
       "2026-02-25T14:00:00.000Z",
     ]);
-  });
+  }, 10_000);
 
   test("tells a Client billed weekly that each week's cleans go on one Bill (#244 #5)", async () => {
     const { office, client, planId } = await crewedServicePlan();
@@ -195,11 +208,11 @@ describe("accepting a Service Plan Quote for a home with a plan", () => {
 
     const confirmation = testEmail().lastTo(casey.email);
     expect(confirmation.subject).toBe(
-      "Your Service Plan with Empire Cleaning has changed",
+      "Your cleaning plan with Empire Cleaning has changed",
     );
     expect(confirmation.text).not.toContain("when it's done");
     expect(confirmation.text).toContain(
-      "Each clean is now $201.85. Each week's cleans go on one Bill, made the following Monday and charged to your saved Payment Method.",
+      "Each clean is now $201.85. Each week's cleans go on one bill, made the following Monday and charged to your card.",
     );
   });
 
@@ -238,6 +251,82 @@ describe("accepting a Service Plan Quote for a home with a plan", () => {
     expect(deepTotal).toBeGreaterThan(PLAN_TOTAL);
     expect(totals.get(after[1]!.id)).toBe(deepTotal);
     expect(plan.days[0]!.totalCents).toBe(deepTotal);
+  });
+
+  test("a Draft is told the time of a Job it replaces has room, as accepting would", async () => {
+    const { office, planId } = await crewedServicePlan();
+    // both Cleaners at 9am on the 2nd: the plan's own Job takes one
+    const draft = await draftedChange(office, planId, {
+      startsAt: MONDAYS[2]!,
+      recurrence: "weekly",
+      crewSize: 2,
+    });
+    const viewed = (await office.get(`/api/quotes/${draft.id}`).expect(200))
+      .body as OfficeQuote;
+    expect(viewed.draft!.options.map((o) => o.room)).toMatchObject([
+      { date: "2026-02-02", hasRoom: true, crewsBusy: 0 },
+    ]);
+  });
+
+  test("a Draft's picker marks the starts without a crew free as accepting would count them", async () => {
+    const { office, planId } = await crewedServicePlan();
+    // both Cleaners from 9am on the 2nd: the plan's own Job, 9am for a crew
+    // of 1, takes one
+    const draft = await draftedChange(office, planId, {
+      startsAt: MONDAYS[2]!,
+      recurrence: "weekly",
+      crewSize: 2,
+    });
+    const marked = async (weekday: number) =>
+      (
+        (
+          await office
+            .get(
+              `/api/quotes/${draft.id}/draft/starts?from=2026-02-02&to=2026-02-02&weekday=${weekday}`,
+            )
+            .expect(200)
+        ).body as DayTimes[]
+      )[0]!.times;
+
+    // from 9 it replaces the plan's Job; from 9:30 it doesn't, as that Job
+    // starts before it, and it's still on
+    const times = await marked(0);
+    expect(times).not.toContain("08:00");
+    expect(times).not.toContain("09:00");
+    expect(times).toContain("09:30");
+  });
+
+  test("a Draft's picker counts the replaced Jobs from its earliest weekday, as saved", async () => {
+    const { office, planId } = await crewedServicePlan();
+    // Sunday the 1st first, then Monday the 2nd: the Sunday's start replaces
+    // the plan's Monday Job, whenever on the Monday the second weekday starts
+    const draft = await draftedChange(office, planId, {
+      startsAt: ["2026-02-01T14:00:00.000Z", MONDAYS[2]!],
+      recurrence: "weekly",
+      crewSize: 2,
+    });
+    const { times } = (
+      (
+        await office
+          .get(
+            `/api/quotes/${draft.id}/draft/starts?from=2026-02-02&to=2026-02-02&weekday=1`,
+          )
+          .expect(200)
+      ).body as DayTimes[]
+    )[0]!;
+    expect(times).not.toContain("09:30");
+
+    await office
+      .get(`/api/quotes/${draft.id}/draft/starts?from=2026-02-02&to=2026-02-01`)
+      .expect(400);
+    // a weekday it hasn't, or none, is refused rather than shown as free
+    for (const weekday of ["&weekday=7", "&weekday=2", ""]) {
+      await office
+        .get(
+          `/api/quotes/${draft.id}/draft/starts?from=2026-02-02&to=2026-02-02${weekday}`,
+        )
+        .expect(400);
+    }
   });
 
   test("can take the time of a Job it replaces, which no longer counts against the day", async () => {
@@ -515,7 +604,7 @@ describe("accepting a change to a plan without a saved card", () => {
           .send({ revisionId: quote.offer!.id, serviceKey: SEEDED.standard })
           .expect(409)
       ).body.message,
-    ).toBe("Enter a card to accept this Quote.");
+    ).toBe("Add a card to accept this quote.");
   });
 
   test("can't be recorded by the Office", async () => {
@@ -529,7 +618,7 @@ describe("accepting a change to a plan without a saved card", () => {
           .expect(409)
       ).body.message,
     ).toBe(
-      "Casey Client hasn't added a Payment Method yet. Email them a link to add one.",
+      "Casey Client hasn't added a card yet. Email them a link to add one.",
     );
   });
 });

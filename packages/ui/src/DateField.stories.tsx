@@ -7,7 +7,7 @@ import { DatePicker, TimeField } from "./DateField.tsx";
 const meta = {
   title: "Components/Date and time",
   component: DatePicker,
-  args: { label: "First Clean" },
+  args: { label: "First clean" },
 } satisfies Meta<typeof DatePicker>;
 
 export default meta;

@@ -28,8 +28,9 @@ type NewJob = {
 };
 
 // Holds a day of the Schedule until the transaction ends, so that checking it
-// has room (hasRoomFor) and booking onto it happen as one: two acceptances for
-// the same day take turns rather than both fitting into the last free hours.
+// has room (roomFor, or cleansFit for a Quote's cleans) and booking onto it
+// happen as one: two acceptances for the same day take turns rather than
+// both fitting into the last free hours.
 export const lockDay = async (tx: Tx, day: string) => {
   await tx.execute(
     sql`select pg_advisory_xact_lock(hashtext(${`schedule ${day}`}))`,
