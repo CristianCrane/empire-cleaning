@@ -10,14 +10,13 @@ import {
   addDays,
   atTime,
   dayOf,
-  ENDS_BY_MIDNIGHT,
   HOUR_MS,
   LATE_RESCHEDULE_HOURS,
   MORE_HOURS,
-  SAME_TIME,
   timeOf,
   whyNoRoom,
   formats,
+  messages,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
@@ -63,6 +62,8 @@ import {
   rescheduleConfirmedEmail,
   rescheduleTurnedDownEmail,
 } from "./emails.ts";
+
+const { ENDS_BY_MIDNIGHT, SAME_TIME } = messages.en;
 
 const { formatMoney } = formats.en;
 

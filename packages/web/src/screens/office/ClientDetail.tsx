@@ -2,13 +2,13 @@ import { useState } from "react";
 import { Pencil } from "lucide-react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import {
-  cleansPaid,
   type BillPayment,
   type ClientBillingSaved,
   type OfficeClientView,
   type PropertyStatus,
   type SettledJobView,
   formats,
+  cleansPaidForOffice,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -245,7 +245,7 @@ function EditBilling({ client }: { client: OfficeClientView }) {
                   ? "Everything they owe for a week, Monday to Sunday, goes on one bill made the following Monday, from this week on."
                   : billing.weeklyFrom
                     ? "Bills already made still need paying. Anything not billed yet is charged per job."
-                    : cleansPaid("per_clean", false)}
+                    : cleansPaidForOffice("per_clean")}
               </p>
               {weekly && (
                 <>

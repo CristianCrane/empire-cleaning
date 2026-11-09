@@ -2056,11 +2056,4 @@ export * from "./days.ts";
 export * from "./scrub.ts";
 
 // what the server and the screens both say, written once (docs/ux.md, Words)
-export * from "./messages/jobs.ts";
-export * from "./messages/assignments.ts";
-export * from "./messages/bills.ts";
-export * from "./messages/reschedule.ts";
-export * from "./messages/staff.ts";
-export * from "./messages/quotes.ts";
-export * from "./messages/payments.ts";
-export * from "./messages/cancellation.ts";
+export * from "./messages/index.ts";

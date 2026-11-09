@@ -43,7 +43,6 @@ import type {
   ServicePlanInput,
 } from "@empire-cleaning/models";
 import {
-  adjustmentLabel,
   CANCELLATION_CUTOFF_HOURS,
   noEmailYet,
   notSeenYet,
@@ -51,6 +50,7 @@ import {
   weekdayOf,
   whyNoRoom,
   formats,
+  messages,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -122,6 +122,8 @@ import { PickFromSchedule, type Crew } from "./SchedulePicker.tsx";
 import { BookSiteVisit, visitSummary } from "./SiteVisitParts.tsx";
 import { useStartDraft } from "./StartDraft.tsx";
 import { reportUnexpected } from "../../monitoring.ts";
+
+const { adjustmentLabel } = messages.en;
 
 const {
   formatDate,

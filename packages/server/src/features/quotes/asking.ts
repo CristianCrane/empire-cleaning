@@ -1,3 +1,4 @@
+import { messages } from "@empire-cleaning/models";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import type {
@@ -8,7 +9,6 @@ import type {
   Service,
   SignedInAccount,
 } from "@empire-cleaning/models";
-import { thisPlace } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
 import {
   ConflictError,
@@ -60,6 +60,8 @@ import {
 import { openAlongside, openAlreadyAt } from "./quotes.ts";
 import { quoteAddOns, quotes, type Quote } from "./quotes.schema.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
+
+const { thisPlace } = messages.en;
 
 const parse = <T>(schema: z.ZodType<T>, body: unknown): T => {
   const result = schema.safeParse(body);

@@ -1,6 +1,7 @@
-import { formats } from "@empire-cleaning/models";
+import { formats, messages } from "@empire-cleaning/models";
 import { expect, test } from "vitest";
-import { planDayWhen } from "./format.ts";
+
+const { planDayWhen } = messages.en;
 
 const { formatDate } = formats.en;
 

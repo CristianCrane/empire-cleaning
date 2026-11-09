@@ -1,8 +1,8 @@
 import {
   CANCELLATION_CUTOFF_HOURS,
-  refundedTo,
   type EndPlanTerms,
   formats,
+  messages,
 } from "@empire-cleaning/models";
 import {
   button,
@@ -16,6 +16,8 @@ import { firstNameOf } from "../../services/email/format.ts";
 import type { Settled } from "../completion/balance.ts";
 import { CAN_GET_IN } from "../jobs/emails.ts";
 import { BOOK_ANOTHER } from "../quotes/emails.ts";
+
+const { refundedTo } = messages.en;
 
 const { formatMoney, formatWhen } = formats.en;
 

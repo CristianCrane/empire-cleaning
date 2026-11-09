@@ -8,12 +8,14 @@ import {
   Heading,
   Notice,
 } from "@empire-cleaning/ui";
-import { notTaken, formats } from "@empire-cleaning/models";
+import { formats, messages } from "@empire-cleaning/models";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import { postJson } from "../../api.ts";
 import { dayOfInstant } from "../format.ts";
 import { ConsentNote, useCardForm } from "./CardForm.tsx";
+
+const { notTaken } = messages.en;
 
 const { formatDate, formatMoney, formatShortDay } = formats.en;
 

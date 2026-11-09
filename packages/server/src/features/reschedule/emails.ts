@@ -1,8 +1,8 @@
 import {
-  moveCostForClient,
   moveCostForOffice,
   type MoveCost,
   formats,
+  messages,
 } from "@empire-cleaning/models";
 import {
   button,
@@ -14,6 +14,8 @@ import {
 } from "../../services/email/blocks.ts";
 import { firstNameOf } from "../../services/email/format.ts";
 import { jobsButton } from "../assignments/emails.ts";
+
+const { moveCostForClient } = messages.en;
 
 const { formatWhen } = formats.en;
 

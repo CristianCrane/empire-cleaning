@@ -8,7 +8,7 @@ import {
   Users,
 } from "lucide-react";
 import type { CleanerJob } from "@empire-cleaning/models";
-import { RELEASE_CLOSED, formats } from "@empire-cleaning/models";
+import { formats, messages } from "@empire-cleaning/models";
 import {
   ActionFooter,
   ActionRow,
@@ -31,6 +31,8 @@ import { addressOf, dayOfInstant, formatHours } from "../format.ts";
 import { CleanerJobBadge, directionsTo, untilAbout } from "./CleanerHome.tsx";
 import { CompleteJob, Completed, NotYet } from "./CompleteJob.tsx";
 import { NoAccessRecorded, RecordNoAccess } from "./NoAccess.tsx";
+
+const { RELEASE_CLOSED } = messages.en;
 
 const { formatDay, formatTime } = formats.en;
 

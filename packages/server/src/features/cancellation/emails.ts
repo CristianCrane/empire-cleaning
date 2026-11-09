@@ -11,18 +11,22 @@ import { jobsButton } from "../assignments/emails.ts";
 import type { Settled } from "../completion/balance.ts";
 import { BOOK_ANOTHER } from "../quotes/emails.ts";
 import {
+  cancelCostForOffice,
+  ON_THAT_WEEKS_BILL,
+  formats,
+  messages,
+} from "@empire-cleaning/models";
+import { whyNotPaid } from "../payments/unpaid.ts";
+
+const {
   clientFix,
   notTaken,
   cancelCostForClient,
-  cancelCostForOffice,
   noAccessFee,
-  ON_THAT_WEEKS_BILL,
   PLAN_CARRIES_ON,
   PLAN_PAUSED,
   refundedTo,
-  formats,
-} from "@empire-cleaning/models";
-import { whyNotPaid } from "../payments/unpaid.ts";
+} = messages.en;
 
 const { formatMoney } = formats.en;
 

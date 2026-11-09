@@ -10,6 +10,16 @@ import {
 } from "../../services/email/blocks.ts";
 import { firstNameOf } from "../../services/email/format.ts";
 import {
+  type PropertyKind,
+  type TurnDownReason,
+  formats,
+  dayOf,
+  messages,
+} from "@empire-cleaning/models";
+import { accessButton } from "../jobs/emails.ts";
+import { describePlan } from "./plan-days.ts";
+
+const {
   ASK_AGAIN,
   billPaid,
   cleansPaid,
@@ -17,13 +27,8 @@ import {
   PRICES_INCLUDE_TAX,
   quoteEmailedTo,
   turnedDown,
-  type PropertyKind,
-  type TurnDownReason,
-  formats,
-  dayOf,
-} from "@empire-cleaning/models";
-import { accessButton } from "../jobs/emails.ts";
-import { describePlan, recurrenceLabel } from "./plan-days.ts";
+  recurrence,
+} = messages.en;
 
 const { formatMoney, formatWhen, weekdayName } = formats.en;
 
@@ -235,7 +240,7 @@ const planOffer = (
     const [day] = plan.days;
     return [
       paragraph(
-        `Your cleaning plan quote for ${address} ${ready}: a ${day!.serviceName} ${recurrenceLabel[plan.recurrence]}, starting ${starting}.`,
+        `Your cleaning plan quote for ${address} ${ready}: a ${day!.serviceName} ${recurrence[plan.recurrence]}, starting ${starting}.`,
       ),
       paragraph(
         `${formatMoney(offer.options[0]!.totalCents)} a clean, which saves you ${formatMoney(day!.savingCents)} on the one-off price of ${formatMoney(day!.oneOffTotalCents)}.`,

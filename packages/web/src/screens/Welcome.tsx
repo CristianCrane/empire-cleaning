@@ -1,7 +1,7 @@
+import { messages } from "@empire-cleaning/models";
 import type { ReactNode } from "react";
 import { useNavigate, useRouteContext } from "@tanstack/react-router";
 import { QuoteRequestForm } from "@empire-cleaning/quote-request";
-import { ASK_US } from "@empire-cleaning/models";
 import {
   Button,
   Card,
@@ -12,6 +12,8 @@ import {
 } from "@empire-cleaning/ui";
 import { forgetAccount, signOut } from "../session.ts";
 import { quoteRequested } from "./QuoteParts.tsx";
+
+const { ASK_US } = messages.en;
 
 // for an Account connected to nothing yet (ADR-0006): someone who signed up
 // before asking for a Quote, or with a different email from their Quote

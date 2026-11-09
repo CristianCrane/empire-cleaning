@@ -1,9 +1,9 @@
 import { and, desc, eq, inArray, isNull, ne, sql, sum } from "drizzle-orm";
 import {
-  feeName,
   type ChargeView,
   type JobPayment,
   formats,
+  messages,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { clock } from "../../services/clock/index.ts";
@@ -30,6 +30,8 @@ import { holdOrResume, planOnHold } from "../service-plans/on-hold.ts";
 import { adjustments, type Adjustment } from "./completion.schema.ts";
 import { quotedJob } from "./pricing.ts";
 import { serviceNameOf } from "../services/services.ts";
+
+const { feeName } = messages.en;
 
 const { formatWhen } = formats.en;
 

@@ -27,13 +27,11 @@ import {
   CANCELLATION_CUTOFF_HOURS,
   DAY_MS,
   dayOf,
-  ENDS_BY_MIDNIGHT,
   noEmailYet,
   notSeenYet,
-  openAlready,
-  thisPlace,
   timeOf,
   weekdayOf,
+  messages,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import {
@@ -122,6 +120,8 @@ import { monitoring } from "../../services/monitoring/index.ts";
 import { hoursOnSiteOf } from "../jobs/jobs.ts";
 import { scheduleFor } from "../jobs/schedule.ts";
 import { lateFrom } from "../cancellation/cancellation.ts";
+
+const { ENDS_BY_MIDNIGHT, openAlready, thisPlace } = messages.en;
 
 // a new Service Plan Quote's terms, until Office Staff change them: not a
 // copy of the First Clean, whatever it was

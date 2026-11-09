@@ -18,8 +18,21 @@ export const languageOf = (tag: string | null | undefined): Language =>
 // (`words[lang]`)
 export type Catalog<T> = Record<Language, T>;
 
+// the type of a catalog's words, from its English: any string where the
+// English has one, and a function's words any string, not the English
+// ones ("this home" | "this business")
+export type Words<T> = T extends (...args: infer A) => string
+  ? (...args: A) => string
+  : T extends string
+    ? string
+    : T extends object
+      ? { [K in keyof T]: Words<T[K]> }
+      : T;
+
 // a catalog, its Spanish typed by its English: a Spanish string missing,
 // or a function taking other arguments, fails the typecheck rather than
 // showing English on a Spanish screen
-export const catalog = <T>(words: { en: T; es: NoInfer<T> }): Catalog<T> =>
-  words;
+export const catalog = <T>(words: {
+  en: T;
+  es: NoInfer<Words<T>>;
+}): Catalog<Words<T>> => words as Catalog<Words<T>>;

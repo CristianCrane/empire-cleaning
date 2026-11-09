@@ -1,12 +1,11 @@
 import { useState } from "react";
 import {
-  adjustmentLabel,
-  NOT_ALL_CONFIRMED,
   type AddOnChoice,
   type CleanerJob,
   type CompletionReport,
   type Condition,
   formats,
+  messages,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -27,6 +26,8 @@ import {
 import { postJson } from "../../api.ts";
 import { useAction } from "../action.ts";
 import { conditionLabel } from "../format.ts";
+
+const { adjustmentLabel, NOT_ALL_CONFIRMED } = messages.en;
 
 const { formatTime } = formats.en;
 

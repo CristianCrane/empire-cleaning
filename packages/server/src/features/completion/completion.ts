@@ -11,20 +11,17 @@ import {
 } from "drizzle-orm";
 import {
   type AdjustmentCorrection,
-  adjustmentItem,
-  adjustmentLabel,
   type AdjustmentProposal,
   type AdjustmentView,
   type CleanerJob,
-  clientFix,
   type ClientJobDetail,
   type ClientPastJob,
   type CompletionInput,
   type Condition,
   DAY_MS,
   type JobCompletion,
-  NOT_ALL_CONFIRMED,
   formats,
+  messages,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
@@ -83,6 +80,9 @@ import {
 } from "./emails.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
 import { hoursOnSiteOf } from "../jobs/jobs.ts";
+
+const { adjustmentItem, adjustmentLabel, clientFix, NOT_ALL_CONFIRMED } =
+  messages.en;
 
 const { formatMoney } = formats.en;
 

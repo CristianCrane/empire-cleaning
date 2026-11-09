@@ -3,14 +3,16 @@ import {
   DAY_MS,
   HOUR_MS,
   isOnCrew,
-  RELEASE_CLOSED,
   RELEASE_CUTOFF_HOURS,
   type ScheduleDay,
   type ScheduledJob,
   type StaffRole,
   formats,
+  messages,
 } from "@empire-cleaning/models";
 import { asClean, isFree, whyStarted } from "../jobs/rules.ts";
+
+const { RELEASE_CLOSED } = messages.en;
 
 const { formatWhen } = formats.en;
 

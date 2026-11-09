@@ -9,16 +9,17 @@ import type {
   ServicePlanTerms,
 } from "@empire-cleaning/models";
 import { Card, StatusBadge } from "@empire-cleaning/ui";
-import { quoteEmailedTo, formats } from "@empire-cleaning/models";
+import { formats, messages } from "@empire-cleaning/models";
 import {
   cleaners,
   formatHours,
-  planDayWhen,
   clientQuoteStatus,
   quoteStatusLabel,
   quoteStatusTone,
   wantedCleaning,
 } from "./format.ts";
+
+const { planDayWhen, quoteEmailedTo } = messages.en;
 
 const { formatMoney } = formats.en;
 

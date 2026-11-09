@@ -1,11 +1,7 @@
 import { useState } from "react";
 import { useLoaderData, useNavigate, useSearch } from "@tanstack/react-router";
 import { CircleCheck, CreditCard, Receipt, TriangleAlert } from "lucide-react";
-import {
-  BANK_CLEARING,
-  type ClientPayment,
-  formats,
-} from "@empire-cleaning/models";
+import { type ClientPayment, formats, messages } from "@empire-cleaning/models";
 import {
   Button,
   ButtonLink,
@@ -23,6 +19,8 @@ import {
 import { linkTo } from "../../links.ts";
 import { dayOfInstant } from "../format.ts";
 import { moneyNow, paymentRow, signedMoney } from "./payments.ts";
+
+const { BANK_CLEARING } = messages.en;
 
 const { formatMoney, formatShortDay, formatMonth } = formats.en;
 

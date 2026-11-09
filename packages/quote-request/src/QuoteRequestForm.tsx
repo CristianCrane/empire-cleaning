@@ -36,11 +36,9 @@ import type {
 } from "@empire-cleaning/models";
 import {
   PICK_TIMES,
-  REQUEST_A_QUOTE,
   business,
-  openAlready,
-  quoteEmailedTo,
   formats,
+  messages,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -70,6 +68,8 @@ import { Optional } from "./Optional.tsx";
 import { loadPremisesTypes } from "./premises-types.ts";
 import { isHeld, loadServices, offeredAt } from "./services.ts";
 import { submitQuoteRequest, type SubmitResult } from "./submit.ts";
+
+const { REQUEST_A_QUOTE, openAlready, quoteEmailedTo } = messages.en;
 
 const { formatClock } = formats.en;
 

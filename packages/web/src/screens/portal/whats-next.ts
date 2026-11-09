@@ -25,16 +25,8 @@ import {
   type PaymentMethodView,
   type QuoteSummary,
   type ServicePlanSummary,
-  ASK_AGAIN,
-  ASK_US,
-  billNotPaid,
-  BOOKED_GO_AHEAD,
-  cleanNotPaid,
-  REQUEST_A_QUOTE,
-  turnDownReason,
-  UPDATE_CARD,
-  WITHIN_A_DAY,
   formats,
+  messages,
 } from "@empire-cleaning/models";
 import type { StatusTone } from "@empire-cleaning/ui";
 import { linkTo, type AppHref } from "../../links.ts";
@@ -49,6 +41,18 @@ import {
   quoteHeadline,
   recurrenceLabel,
 } from "../format.ts";
+
+const {
+  ASK_AGAIN,
+  ASK_US,
+  billNotPaid,
+  BOOKED_GO_AHEAD,
+  cleanNotPaid,
+  REQUEST_A_QUOTE,
+  turnDownReason,
+  UPDATE_CARD,
+  WITHIN_A_DAY,
+} = messages.en;
 
 const { formatDateTime, formatDay, formatMoney, formatTime } = formats.en;
 

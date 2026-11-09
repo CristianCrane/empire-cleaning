@@ -1,16 +1,15 @@
 import {
-  billNotPaid,
-  cleanNotPaid,
-  feeName,
-  UPDATE_CARD,
   type BillSummary,
   type ClientPastJob,
   type ClientPayment,
   type PaymentMethodView,
   formats,
+  messages,
 } from "@empire-cleaning/models";
 import { linkTo, type AppHref } from "../../links.ts";
 import { dayOfInstant } from "../format.ts";
+
+const { billNotPaid, cleanNotPaid, feeName, UPDATE_CARD } = messages.en;
 
 const { formatMoney, formatShortDay } = formats.en;
 

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { ScheduledSiteVisit } from "@empire-cleaning/models";
-import { ENDS_BY_MIDNIGHT, whyNoRoom } from "@empire-cleaning/models";
+import { whyNoRoom, messages } from "@empire-cleaning/models";
 import {
   afterNine,
   clean,
@@ -17,6 +17,8 @@ import {
   roomOn,
   withoutReplaced,
 } from "./rules.ts";
+
+const { ENDS_BY_MIDNIGHT } = messages.en;
 
 // The Schedule's rules over plain data (tests/schedule-days.ts): the Job is
 // 9am to noon on Thursday with a crew of two, and the day has Ana and Bea,

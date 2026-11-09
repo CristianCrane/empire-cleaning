@@ -9,6 +9,14 @@ import {
 import { firstNameOf } from "../../services/email/format.ts";
 import {
   addDays,
+  type UnpaidKind,
+  formats,
+  messages,
+} from "@empire-cleaning/models";
+import type { Settled } from "../completion/balance.ts";
+import { whyNotPaid } from "../payments/unpaid.ts";
+
+const {
   billNotPaid,
   clientFix,
   notTaken,
@@ -16,13 +24,9 @@ import {
   PLAN_PAUSED,
   PRICES_INCLUDE_TAX,
   REFUND_TAKES_DAYS,
-  type UnpaidKind,
   UPDATE_AND_RETRY,
   UPDATE_CARD,
-  formats,
-} from "@empire-cleaning/models";
-import type { Settled } from "../completion/balance.ts";
-import { whyNotPaid } from "../payments/unpaid.ts";
+} = messages.en;
 
 const { formatLongDay, formatMoney } = formats.en;
 

@@ -6,11 +6,10 @@ import type {
   RescheduleTimes,
 } from "@empire-cleaning/models";
 import {
-  moveCostForClient,
   moveCostForOffice,
-  SAME_TIME,
   type MoveCost,
   formats,
+  messages,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -26,6 +25,8 @@ import { useLoaded } from "./load.ts";
 import { useAction } from "./action.ts";
 import type { TimePickerProps } from "./CalendarGrid.tsx";
 import { dayOfInstant, timeOfDay } from "./format.ts";
+
+const { moveCostForClient, SAME_TIME } = messages.en;
 
 const { formatClock, formatDay, formatMoney } = formats.en;
 

@@ -1,10 +1,10 @@
 import type { Key } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import {
-  cleansPaid,
   type ClientView,
   type ServicePlanView,
   formats,
+  messages,
 } from "@empire-cleaning/models";
 import {
   ActionRow,
@@ -28,6 +28,8 @@ import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import { addressOf, formatHours } from "../format.ts";
 import { EndPlan, OnHold, PlanFacts, PlanStatusBadge } from "../PlanParts.tsx";
+
+const { cleansPaid } = messages.en;
 
 const { formatDateTime } = formats.en;
 

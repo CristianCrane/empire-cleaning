@@ -9,11 +9,11 @@ import {
   Users,
 } from "lucide-react";
 import {
-  BOOKED_GO_AHEAD,
   CANCELLATION_CUTOFF_HOURS,
   type EndPlanTerms,
   type ServicePlanView,
   formats,
+  messages,
 } from "@empire-cleaning/models";
 import {
   ActionRow,
@@ -31,13 +31,10 @@ import {
 import { postJson } from "../api.ts";
 import type { AppHref } from "../links.ts";
 import { useAction } from "./action.ts";
-import {
-  formatHours,
-  planDayWhen,
-  planStatus,
-  recurrenceLabel,
-} from "./format.ts";
+import { formatHours, planStatus, recurrenceLabel } from "./format.ts";
 import { Fact } from "./Fact.tsx";
+
+const { planDayWhen, BOOKED_GO_AHEAD } = messages.en;
 
 const { formatDate, formatDateTime, formatMoney } = formats.en;
 

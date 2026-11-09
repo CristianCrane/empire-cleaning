@@ -1,14 +1,5 @@
 import { useLoaderData } from "@tanstack/react-router";
-import {
-  BANK_CLEARING,
-  clientFix,
-  notTaken,
-  PLAN_PAUSED,
-  UPDATE_AND_RETRY,
-  UPDATE_CARD,
-  type BillView,
-  formats,
-} from "@empire-cleaning/models";
+import { type BillView, formats, messages } from "@empire-cleaning/models";
 import {
   Actions,
   Breadcrumbs,
@@ -30,6 +21,15 @@ import {
   billWeek,
 } from "../BillParts.tsx";
 import { useBillPaymentForm } from "./CardForm.tsx";
+
+const {
+  BANK_CLEARING,
+  clientFix,
+  notTaken,
+  PLAN_PAUSED,
+  UPDATE_AND_RETRY,
+  UPDATE_CARD,
+} = messages.en;
 
 const { formatDay, formatMoney } = formats.en;
 

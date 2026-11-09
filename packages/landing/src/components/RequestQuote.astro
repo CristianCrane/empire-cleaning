@@ -1,9 +1,11 @@
 ---
-import { ASK_US, REQUEST_A_QUOTE } from "@empire-cleaning/models";
+import { messages } from "@empire-cleaning/models";
 import { apiUrl } from "../api-url.ts";
 import { business } from "../business.ts";
 import { QuoteForm } from "./QuoteForm.tsx";
 import Section from "./Section.astro";
+
+const { ASK_US, REQUEST_A_QUOTE } = messages.en;
 
 // a service page's Service, chosen to start with (#177)
 interface Props {

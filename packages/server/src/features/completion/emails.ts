@@ -9,7 +9,11 @@ import {
   type Email,
 } from "../../services/email/blocks.ts";
 import { firstNameOf } from "../../services/email/format.ts";
-import {
+import { formats, messages } from "@empire-cleaning/models";
+import { whyNotPaid } from "../payments/unpaid.ts";
+import type { Settled } from "./balance.ts";
+
+const {
   clientFix,
   notTaken,
   PRICES_INCLUDE_TAX,
@@ -19,10 +23,7 @@ import {
   PLAN_PAUSED,
   UPDATE_AND_RETRY,
   UPDATE_CARD,
-  formats,
-} from "@empire-cleaning/models";
-import { whyNotPaid } from "../payments/unpaid.ts";
-import type { Settled } from "./balance.ts";
+} = messages.en;
 
 const { formatMoney, formatWhen } = formats.en;
 

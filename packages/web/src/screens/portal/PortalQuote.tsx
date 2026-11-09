@@ -52,16 +52,17 @@ import {
   ClientQuoteStatusBadge,
 } from "../QuoteParts.tsx";
 import { ConsentNote, usePaymentForm } from "./CardForm.tsx";
-import {
+import { formats, messages } from "@empire-cleaning/models";
+import { requestQuote } from "./whats-next.ts";
+
+const {
   ASK_AGAIN,
   billPaid,
   cleansPaid,
   ON_WEEKS_BILL,
   turnedDown,
   WORKING_ON_IT,
-  formats,
-} from "@empire-cleaning/models";
-import { requestQuote } from "./whats-next.ts";
+} = messages.en;
 
 const { formatDate, formatDateTime, formatMoney } = formats.en;
 

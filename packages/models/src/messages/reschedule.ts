@@ -1,5 +1,6 @@
 import type { RescheduleCost } from "../index.ts";
-import { ON_THAT_WEEKS_BILL, ON_WEEKS_BILL } from "./bills.ts";
+import { catalog } from "../language.ts";
+import { bills, ON_THAT_WEEKS_BILL } from "./bills.ts";
 
 // What the server and the screens both say about moving a clean
 // (docs/ux.md, Words)
@@ -19,30 +20,60 @@ export type MoveCost = {
   weeklyBill: boolean;
 };
 
-export const moveCostForClient = ({
-  cost,
-  feeCents,
-  fee,
-  onPlan,
-  weeklyBill,
-}: MoveCost) => {
-  switch (cost) {
-    case "free":
-      return "There's no charge for moving it.";
-    case "free_late":
-      return `Moving it less than ${LATE_RESCHEDULE_HOURS} hours before is a late move. Your first one is free${onPlan ? "" : ", and your deposit still counts toward the price"}.`;
-    case "late_cancellation":
-      if (feeCents === 0) {
-        return onPlan
-          ? "The fee from an earlier late move covers this, so there's nothing more to pay."
-          : "Your deposit was already kept for an earlier late move, so there's nothing more to pay.";
+export const reschedule = catalog({
+  en: {
+    moveCostForClient: ({
+      cost,
+      feeCents,
+      fee,
+      onPlan,
+      weeklyBill,
+    }: MoveCost) => {
+      switch (cost) {
+        case "free":
+          return "There's no charge for moving it.";
+        case "free_late":
+          return `Moving it less than ${LATE_RESCHEDULE_HOURS} hours before is a late move. Your first one is free${onPlan ? "" : ", and your deposit still counts toward the price"}.`;
+        case "late_cancellation":
+          if (feeCents === 0) {
+            return onPlan
+              ? "The fee from an earlier late move covers this, so there's nothing more to pay."
+              : "Your deposit was already kept for an earlier late move, so there's nothing more to pay.";
+          }
+          return onPlan
+            ? `As your second late move, it has a ${fee} late cancellation fee, which ${weeklyBill ? `${bills.en.ON_WEEKS_BILL} with the price` : "is charged with the price when the clean is done"}.`
+            : `As your second late move, your ${fee} deposit is kept as a late cancellation fee, and the full price ${weeklyBill ? bills.en.ON_WEEKS_BILL : "is charged when the clean is done"}.`;
       }
-      return onPlan
-        ? `As your second late move, it has a ${fee} late cancellation fee, which ${weeklyBill ? `${ON_WEEKS_BILL} with the price` : "is charged with the price when the clean is done"}.`
-        : `As your second late move, your ${fee} deposit is kept as a late cancellation fee, and the full price ${weeklyBill ? ON_WEEKS_BILL : "is charged when the clean is done"}.`;
-  }
-};
+    },
+  },
+  es: {
+    moveCostForClient: ({
+      cost,
+      feeCents,
+      fee,
+      onPlan,
+      weeklyBill,
+    }: MoveCost) => {
+      switch (cost) {
+        case "free":
+          return "Reprogramarla no tiene ningún cargo.";
+        case "free_late":
+          return `Reprogramarla con menos de ${LATE_RESCHEDULE_HOURS} horas de anticipación es una reprogramación tardía. La primera es gratis${onPlan ? "" : ", y su depósito sigue contando para el precio"}.`;
+        case "late_cancellation":
+          if (feeCents === 0) {
+            return onPlan
+              ? "El cargo de una reprogramación tardía anterior cubre esta, así que no hay nada más que pagar."
+              : "Su depósito ya se conservó por una reprogramación tardía anterior, así que no hay nada más que pagar.";
+          }
+          return onPlan
+            ? `Como es su segunda reprogramación tardía, tiene un cargo de ${fee} por cancelación tardía, que ${weeklyBill ? `${bills.es.ON_WEEKS_BILL} con el precio` : "se cobra con el precio cuando la limpieza está terminada"}.`
+            : `Como es su segunda reprogramación tardía, su depósito de ${fee} se conserva como cargo por cancelación tardía, y el precio completo ${weeklyBill ? bills.es.ON_WEEKS_BILL : "se cobra cuando la limpieza está terminada"}.`;
+      }
+    },
+  },
+});
 
+// the Office's, in English (ADR-0025)
 export const moveCostForOffice = ({
   cost,
   feeCents,

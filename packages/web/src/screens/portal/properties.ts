@@ -1,4 +1,4 @@
-import { formats } from "@empire-cleaning/models";
+import { formats, messages } from "@empire-cleaning/models";
 import type {
   ClientUpcomingJob,
   PropertyView,
@@ -9,10 +9,11 @@ import type { StatusTone } from "@empire-cleaning/ui";
 import {
   dayOfInstant,
   clientQuoteStatus,
-  planDayWhen,
   planStatus,
   quoteKindName,
 } from "../format.ts";
+
+const { planDayWhen } = messages.en;
 
 const { formatDateTime, formatShortDay } = formats.en;
 

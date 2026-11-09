@@ -20,6 +20,7 @@ import {
   clockTime,
   dayOf,
   formats,
+  messages,
   timeOf,
 } from "@empire-cleaning/models";
 import type { StatusTone } from "@empire-cleaning/ui";
@@ -31,10 +32,10 @@ const {
   formatList,
   formatMoney,
   formatNumber,
-  formatTime,
   plural,
   weekdayName,
 } = formats.en;
+const { planDaysWhen, recurrence } = messages.en;
 
 export const addressOf = (
   p: Pick<PropertyView, "street" | "unit" | "postcode">,
@@ -199,11 +200,13 @@ export function timeOfField(time: Time | null | undefined) {
 // an instant -> the New York day it falls on, "2026-01-12"
 export const dayOfInstant = (iso: string) => dayOf(new Date(iso));
 
-export const recurrenceLabel: Record<Recurrence, string> = {
-  weekly: "Every week",
-  fortnightly: "Every 2 weeks",
-  four_weekly: "Every 4 weeks",
-};
+// how often a plan's cleans come round, as a label: "Every 2 weeks"
+export const recurrenceLabel = Object.fromEntries(
+  (Object.entries(recurrence) as [Recurrence, string][]).map(([r, words]) => [
+    r,
+    words[0]!.toUpperCase() + words.slice(1),
+  ]),
+) as Record<Recurrence, string>;
 
 // a Service Plan, or a Service Plan Quote, with its weekdays
 type PlanDays = { recurrence: Recurrence; days: PlanDaySummary[] };
@@ -212,17 +215,13 @@ type PlanDays = { recurrence: Recurrence; days: PlanDaySummary[] };
 const weekdayOfStart = (startsAt: string | null) =>
   startsAt ? weekdayName(dayOfInstant(startsAt)) : null;
 
-// a weekday's clean and when: "Mondays at 9:00 AM"
-export const planDayWhen = (startsAt: string) =>
-  `${weekdayOfStart(startsAt)}s at ${formatTime(startsAt)}`;
-
 // what a Service Plan is, in a line: "Standard Clean, every 2 weeks", or
 // "Standard Clean and Deep Clean, every week on Mon, Wed and Fri"
-export const planName = ({ recurrence, days }: PlanDays) => {
+export const planName = ({ recurrence: plan, days }: PlanDays) => {
   const what = formatList([...new Set(days.map((d) => d.serviceName))]);
   const on = days.flatMap((d) => weekdayOfStart(d.startsAt)?.slice(0, 3) ?? []);
   return days.length === 1
-    ? `${what}, ${recurrenceLabel[recurrence].toLowerCase()}`
+    ? `${what}, ${recurrence[plan]}`
     : `${what}, every week${on.length > 0 ? ` on ${formatList(on)}` : ""}`;
 };
 
@@ -245,9 +244,9 @@ export const quoteHeadline = (
 // when a Service Plan's cleans come round, each weekday from its first:
 // "Every week, on Mondays at 9:00 AM", or "Every week, on Mondays at 9:00 AM
 // and Wednesdays at 1:00 PM"
-export const planRhythm = ({ recurrence, days }: PlanDays) =>
-  `${recurrenceLabel[recurrence]}, on ${formatList(
-    days.flatMap((d) => (d.startsAt ? [planDayWhen(d.startsAt)] : [])),
+export const planRhythm = ({ recurrence: plan, days }: PlanDays) =>
+  `${recurrenceLabel[plan]}, on ${planDaysWhen(
+    days.flatMap((d) => d.startsAt ?? []),
   )}`;
 
 // a Site Visit's length: 30 -> "30 min", 90 -> "1 h 30 min"

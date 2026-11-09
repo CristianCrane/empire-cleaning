@@ -10,7 +10,7 @@ import type {
   LocalDateTime,
   ScheduledJob,
 } from "@empire-cleaning/models";
-import { SAME_TIME, whyNoRoom, formats } from "@empire-cleaning/models";
+import { whyNoRoom, formats, messages } from "@empire-cleaning/models";
 import {
   Actions,
   Button,
@@ -25,6 +25,8 @@ import { useLoaded } from "../load.ts";
 import { clientName, dayOfInstant, timeOfDay, timeOfField } from "../format.ts";
 import { useAction } from "../action.ts";
 import { PickFromSchedule } from "./SchedulePicker.tsx";
+
+const { SAME_TIME } = messages.en;
 
 const { formatClock, formatDateTime, formatDay } = formats.en;
 
