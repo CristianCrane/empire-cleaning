@@ -99,7 +99,7 @@ const shoot = (
       "--reporter=list,json",
       spec,
       "--grep",
-      options.title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+      RegExp.escape(options.title),
       ...options.projects.flatMap((project) => ["--project", project]),
     ],
     {
@@ -152,13 +152,18 @@ const shoot = (
         : `The ${side} run failed: ${errors.join("; ")}`,
     );
   }
+  // --grep finds the title anywhere in a test's, so a test whose whole title
+  // is the one given wins over those it's only part of
   const titles = new Set(found.map(({ title }) => title));
-  if (titles.size > 1) {
+  const whole = found.filter(
+    ({ title }) => title.toLowerCase() === options.title.toLowerCase(),
+  );
+  if (titles.size > 1 && !whole.length) {
     throw new Stop(
       `"${options.title}" names ${titles.size} tests in ${options.spec} (${[...titles].join("; ")}): give the one you mean in full.`,
     );
   }
-  return found.map(({ project, status, path }) => {
+  return (titles.size > 1 ? whole : found).map(({ project, status, path }) => {
     if (status !== "passed" || !path) {
       throw new Stop(
         `The test ${status === "passed" ? "left no screenshot" : status} on ${project}, ${side}: its output above says why. A test that stopped partway shows the wrong screen, so nothing was pushed.`,
