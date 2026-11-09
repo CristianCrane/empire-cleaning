@@ -33,7 +33,8 @@ import { billWeek } from "../BillParts.tsx";
 import { addressOf, clientName } from "../format.ts";
 import { QUOTE_A_PLAN } from "./StartDraft.tsx";
 
-const { formatDate, formatDateTime, formatDay, formatMoney } = formats.en;
+const { formatDate, formatDateTime, formatDay, formatMoney, formatList } =
+  formats.en;
 
 // how often a Dashboard left open asks again, while it can be seen: a new
 // Quote request shows within a minute (the Office is emailed of it too).
@@ -303,7 +304,7 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
         const { plan } = item;
         const unpaid = [
           item.owedCents > 0 && `${formatMoney(item.owedCents)} unpaid`,
-          item.bills.length > 0 && `bill ${item.bills.join(" and ")} unpaid`,
+          item.bills.length > 0 && `bill ${formatList(item.bills)} unpaid`,
         ]
           .filter(Boolean)
           .join(", ");

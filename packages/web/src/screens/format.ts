@@ -200,11 +200,16 @@ export function timeOfField(time: Time | null | undefined) {
 // an instant -> the New York day it falls on, "2026-01-12"
 export const dayOfInstant = (iso: string) => dayOf(new Date(iso));
 
+// words that start a sentence or a label: "the Deep Clean" -> "The Deep
+// Clean"
+export const upperFirst = (words: string) =>
+  words.charAt(0).toUpperCase() + words.slice(1);
+
 // how often a plan's cleans come round, as a label: "Every 2 weeks"
 export const recurrenceLabel = Object.fromEntries(
   (Object.entries(recurrence) as [Recurrence, string][]).map(([r, words]) => [
     r,
-    words[0]!.toUpperCase() + words.slice(1),
+    upperFirst(words),
   ]),
 ) as Record<Recurrence, string>;
 

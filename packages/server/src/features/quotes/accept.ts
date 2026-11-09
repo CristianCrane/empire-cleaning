@@ -177,7 +177,7 @@ type Offer = {
 };
 
 const describeServices = (names: string[]) =>
-  [...new Set(names)].map((name) => `a ${name}`).join(" and ");
+  formatList([...new Set(names)].map((name) => `a ${name}`));
 
 const offerFor = async (
   revision: KindedRevision,

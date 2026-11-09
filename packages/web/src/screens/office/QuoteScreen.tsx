@@ -97,6 +97,7 @@ import {
   timeOfField,
   quoteKindName,
   formatFloorArea,
+  upperFirst,
 } from "../format.ts";
 import {
   AddOnList,
@@ -1249,10 +1250,10 @@ const roomProblems = (
   const them = (some: OfficeQuoteOption[]) =>
     some.length === 1 ? "it" : "them";
   const names = (some: OfficeQuoteOption[]) =>
-    some.map(describeOption).join(" and ");
+    formatList(some.map(describeOption));
   return [
     late.length > 0 &&
-      `The ${late.map((o) => o.serviceName).join(" and the ")} would run past midnight. Pick an earlier start time to offer ${them(late)} too.`,
+      `${upperFirst(formatList(late.map(describeOption)))} would run past midnight. Pick an earlier start time to offer ${them(late)} too.`,
     full.length > 0 &&
       `That day only has room for ${names(fitting)}. Pick another day to offer ${names(full)} too.`,
     crewless.length > 0 &&

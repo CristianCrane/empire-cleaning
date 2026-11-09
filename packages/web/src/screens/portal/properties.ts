@@ -13,7 +13,7 @@ import {
   quoteKindName,
 } from "../format.ts";
 
-const { planDayWhen } = messages.en;
+const { planDaysWhen } = messages.en;
 
 const { formatDateTime, formatShortDay } = formats.en;
 
@@ -37,9 +37,7 @@ const shortDayOf = (iso: string) => formatShortDay(dayOfInstant(iso));
 
 // "Mondays at 9:00 AM", or "Mondays at 9:00 AM and Thursdays at 1:00 PM"
 export const planWhen = (plan: Pick<ServicePlanSummary, "days">) =>
-  plan.days
-    .flatMap((d) => (d.startsAt ? [planDayWhen(d.startsAt)] : []))
-    .join(" and ");
+  planDaysWhen(plan.days.flatMap((d) => d.startsAt ?? []));
 
 // a Quote as a row's title: what it's for
 export const quoteTitle = (q: QuoteSummary) =>
