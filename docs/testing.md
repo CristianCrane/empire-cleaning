@@ -16,6 +16,8 @@ How each package's tests work, and how to run them, is in its README (`packages/
 
 **A spec that walks through something the app holds as data reads it from that data, never types it again**: a tour's steps from its tours file (`walkTour` in `packages/web/e2e/tours.spec.ts`). Playwright's `getByRole` matches `name` ignoring case and as a substring unless `exact`, so a copy that has drifted still passes: two tour titles did after #336 (the log, 2026-11-09).
 
+**After editing a Quote Draft, wait for `saved(page)` before opening or measuring anything built from it**, such as the Schedule picker. A save reloads what's keyed on it (`saves`), which redraws it, so a `boundingBox()` or element handle read during that redraw can belong to a node that's already gone. Web-first assertions retry; `boundingBox()` reads only once. On main, the Schedule picker test failed 2 of 20 under load (the log, 2026-11-09).
+
 **Switch area with `switchArea(page, area)` from `packages/web/e2e/harness.ts`, never by pressing "Switch to …" and waiting on the URL.** Open the person's Account menu first; `switchArea` presses the row and waits until the new area is on screen. The URL changes at once, but until the new area is ready the old one stays on screen, its menu open, so a test that goes on at the URL can press something in the old area, which the new one then throws away. It passed alone and timed out in every full local run (#310).
 
 ### Browser tests (Vitest)
