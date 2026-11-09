@@ -78,7 +78,7 @@ const createGate = (command, hidden, match, input) => {
     );
 
   // the body comes from its file beside the review, and its Change section
-  // answers every finding: fixed in a commit on the branch, or answered
+  // answers every finding
   const body = stateFile(cwd, "pr-body", work.key);
   if (!command.includes(body) || !existsSync(body))
     return turnDownCreate(
@@ -88,16 +88,30 @@ const createGate = (command, hidden, match, input) => {
   const at = text.search(/^## Change\b/m);
   if (at < 0) return turnDownCreate(`The PR body (${body}) has no \`## Change\` section: end it with one, as the \`change\` skill says.`);
   const section = lines(text.slice(at));
-  const answers = (id) =>
-    section.some((line) => {
-      if (!new RegExp(`\\b${id}\\b`).test(line)) return false;
-      const fixed = line.match(/fixed in ([0-9a-f]{7,40})\b/)?.[1];
-      return (fixed && onBranch(cwd, fixed)) || /answered:\s*\S/.test(line);
+  // why no line answers a finding, or null when one does, in the words of
+  // the reviewer's template: `fixed in <sha>` (a commit on this branch),
+  // `fixed in the survey` (its text, never committed) or `answered: <why>`
+  const unanswered = (id) => {
+    const named = section.filter((line) => new RegExp(`\\b${id}\\b`).test(line));
+    if (!named.length) return "no line names it";
+    const whys = named.map((line) => {
+      if (/fixed in the survey\b|answered:\s*\S/.test(line)) return null;
+      const sha = line.match(/fixed in ([0-9a-f]{7,40})\b/)?.[1];
+      if (sha) return onBranch(cwd, sha) ? null : `\`fixed in ${sha}\` is no commit on this branch: after a rebase or an amend, give the new sha; a fix that landed elsewhere (main, another PR) is \`answered: <where>\``;
+      if (/\bfixed\b/.test(line))
+        return "it says fixed, but in no commit on this branch: a fix to the survey's text is `fixed in the survey`, one anywhere else (an issue, a comment) is `answered: <where>`";
+      if (/\banswered\b/.test(line)) return "`answered` takes a colon: `answered: <why>`";
+      return "its line says neither `fixed in` nor `answered:`";
     });
-  const open = found.ids.filter((id) => !answers(id));
+    return whys.includes(null) ? null : whys[0];
+  };
+  const open = found.ids.flatMap((id) => {
+    const why = unanswered(id);
+    return why ? [`${id}: ${why}`] : [];
+  });
   if (open.length)
     return turnDownCreate(
-      `The PR body's Change section (${body}) doesn't answer ${open.join(", ")} from the last change review (${found.path}). Give each its own Review line: \`fixed in <sha>\`, a commit on this branch, or \`answered: <why>\`.`,
+      `The PR body's Change section (${body}) doesn't answer every finding of the last change review (${found.path}): ${open.join("; ")}. Each finding gets its own Review line ending \`fixed in <sha>\` (a commit on this branch), \`fixed in the survey\` (a fix to the survey's text, which isn't committed) or \`answered: <why>\`.`,
     );
 
   if (/(?:^|\s)(?:--draft|-d)(?=\s|=|$)/.test(argsOf(hidden, end))) return;
