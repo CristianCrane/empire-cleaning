@@ -120,7 +120,7 @@ import {
   propertyLink,
   turnDownLabel,
 } from "./QuoteAsked.tsx";
-import { PickFromSchedule } from "./SchedulePicker.tsx";
+import { PickFromSchedule, type Crew } from "./SchedulePicker.tsx";
 import { BookSiteVisit, visitSummary } from "./SiteVisitParts.tsx";
 import { useStartDraft } from "./StartDraft.tsx";
 import { reportUnexpected } from "../../monitoring.ts";
@@ -1468,6 +1468,9 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [failure, setFailure] = useState<string>();
   const [saveState, setSaveState] = useState<SaveState>("saved");
+  // how many saves have landed, so what's worked out from the Draft as
+  // saved loads again
+  const [saves, setSaves] = useState(0);
   const [isSending, setSending] = useState(false);
 
   // every change counts up; a save records the change it saved, so a save
@@ -1542,6 +1545,7 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
         );
         setFieldErrors({});
         setFailure(undefined);
+        setSaves((n) => n + 1);
         saved.current = { edit, ok: true };
       } catch (e) {
         reportUnexpected(e);
@@ -1605,6 +1609,11 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
 
   const stale = saveState === "changed" || saveState === "saving";
   const plan = fields.plan;
+  // a one-off's longest clean, as last saved, which its picker shows
+  const longest = quote.options.reduce<OfficeQuoteOption | undefined>(
+    (most, o) => (most && most.hoursOnSite >= o.hoursOnSite ? most : o),
+    undefined,
+  );
   const areaPriced =
     quote.serviceChoices.find(
       (s) => s.key === (plan?.serviceKey ?? fields.serviceKey),
@@ -1653,6 +1662,9 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
                 // as last saved, at the same place
                 option={quote.options[i]}
                 terms={quote.plan?.days[i]}
+                crew={
+                  quote.options[i] && { quoteId: quote.id, weekday: i, saves }
+                }
                 onChange={(change) => setDay(day.key, change)}
                 onRemove={
                   plan.days.length > 1
@@ -1829,11 +1841,8 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
             <PickFromSchedule
               date={fields.date?.toString()}
               time={fields.time?.toString().slice(0, 5)}
-              hoursOnSite={Math.max(
-                0,
-                ...quote.options.map((o) => o.hoursOnSite),
-              )}
-              crew={{ crewSize: fields.crewSize }}
+              hoursOnSite={longest?.hoursOnSite ?? 0}
+              crew={longest && { quoteId: quote.id, saves }}
               onPick={({ date, time }) =>
                 set({ date: parseDate(date), time: parseTime(time) })
               }
@@ -1941,6 +1950,7 @@ function PlanDayFields({
   stale,
   option,
   terms,
+  crew,
   onChange,
   onRemove,
 }: {
@@ -1949,6 +1959,8 @@ function PlanDayFields({
   plan: PlanFields;
   stale: boolean;
   option: OfficeQuoteOption | undefined;
+  // whose crew its picker marks, once it's priced
+  crew: Crew | undefined;
   terms: PlanDayTerms | undefined;
   onChange: (change: Partial<DayFields>) => void;
   // none while it's the plan's only weekday
@@ -1994,7 +2006,7 @@ function PlanDayFields({
         date={day.date?.toString()}
         time={time}
         hoursOnSite={option?.hoursOnSite ?? 0}
-        crew={{ crewSize: day.crewSize }}
+        crew={crew}
         repeats={{
           everyDays: recurrenceDays[plan.recurrence],
           label: recurrenceLabel[plan.recurrence],

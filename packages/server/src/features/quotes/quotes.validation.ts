@@ -1,10 +1,24 @@
 import { z } from "zod";
 import { day, keepUnder, startTime } from "../../middleware/validation.ts";
+import { range, withinRange } from "../jobs/schedule.validation.ts";
 import {
   conditionSchema,
   serviceKey,
   squareFeet,
 } from "./asking.validation.ts";
+
+// the days a Draft's picker shows, and for a plan, which of its weekdays,
+// counting from 0 in the Draft's order
+export const draftStartsSchema = withinRange(
+  z.object({
+    ...range,
+    // kept as typed: Express's routes take a query of strings
+    weekday: z
+      .string()
+      .regex(/^[0-6]$/, "Pick one of the plan's weekdays")
+      .optional(),
+  }),
+);
 
 // the offer accepted, as the page showed it (a newer one Sent since is
 // refused), and the Service chosen, by key, on a one-off Quote; a Service

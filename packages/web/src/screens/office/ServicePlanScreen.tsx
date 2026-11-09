@@ -264,7 +264,7 @@ function BookOrSkip({
         date={date?.toString()}
         time={time?.toString().slice(0, 5)}
         hoursOnSite={day.hoursOnSite}
-        crew={{ crewSize: day.crewSize }}
+        crew={{ labourHours: day.labourHours, crewSize: day.crewSize }}
         inline
         onPick={(picked) => {
           setDate(parseDate(picked.date));

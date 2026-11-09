@@ -191,7 +191,7 @@ function BookingForm({
         hoursOnSite={minutes / 60}
         crew={
           visitor?.roles.includes("cleaner")
-            ? { crewSize: 1, siteVisitId: visitId }
+            ? { labourHours: minutes / 60, crewSize: 1, siteVisitId: visitId }
             : undefined
         }
         current={

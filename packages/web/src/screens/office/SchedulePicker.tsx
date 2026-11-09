@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { CalendarDays } from "lucide-react";
-import type { ScheduleDay } from "@empire-cleaning/models";
+import type { DayTimes, ScheduleDay } from "@empire-cleaning/models";
 import {
   Actions,
   Button,
@@ -12,9 +12,37 @@ import { getJson } from "../../api.ts";
 import { useLoaded } from "../load.ts";
 import { RangeBar, type TimePickerProps } from "../CalendarGrid.tsx";
 import { today, weekdayName } from "../format.ts";
-import type { Crew } from "../schedule-layout.ts";
 import { isWide, rangeShowing } from "../schedule-range.ts";
 import { ScheduleCalendar } from "./ScheduleCalendar.tsx";
+
+// whose crew the picker marks the times without (#62): a clean's, by its
+// figures, and a booked Job or Site Visit being moved, so it isn't counted
+// against itself; or a Draft quote's as last saved (a plan's weekday,
+// counting from 0), the Jobs it would replace counted as gone, as its room
+// line counts them. `saves` counts the Draft's saves, so the marks load
+// again after each.
+export type Crew =
+  | {
+      labourHours: number;
+      crewSize: number;
+      jobId?: string;
+      siteVisitId?: string;
+    }
+  | { quoteId: string; weekday?: number; saves: number };
+
+// where the server says which starts on the days shown have no crew free
+// for it
+const startsOf = (crew: Crew, range: string) => {
+  if ("quoteId" in crew) {
+    const weekday =
+      crew.weekday === undefined ? "" : `&weekday=${crew.weekday}`;
+    return `/api/quotes/${crew.quoteId}/draft/starts?${range}${weekday}`;
+  }
+  const figures = Object.entries(crew).flatMap(([key, value]) =>
+    value === undefined ? [] : [[key, String(value)]],
+  );
+  return `/api/schedule/starts?${range}&${new URLSearchParams(figures)}`;
+};
 
 type Props = TimePickerProps & {
   // a Service Plan's: how many days apart its cleans are, and in words
@@ -33,7 +61,7 @@ type Props = TimePickerProps & {
  * around the date chosen so far, with its Jobs and free Cleaner hours.
  * Choosing a time sets the date and start time: any half hour, or for a
  * Reschedule Request, one of the times on offer on a day with room. Times
- * with no crew free for the clean are marked.
+ * with no crew free for the clean are marked, as the server says.
  */
 export function PickFromSchedule(props: Props) {
   if (props.inline) return <PickStart {...props} />;
@@ -69,10 +97,17 @@ function PickStart({
     rangeShowing(isWide() ? 7 : 1, date ?? current?.date ?? today()),
   );
   const query = `from=${range.from}&to=${range.to}`;
-  // the range on screen, not one asked for before it
-  const { value: days, failed: problem } = useLoaded(query, () =>
-    getJson<ScheduleDay[]>(`/api/schedule?${query}`),
+  const starts = crew && startsOf(crew, query);
+  // the range on screen, not one asked for before it, and its marks with it
+  const { value: loaded, failed: problem } = useLoaded(
+    `${query} ${JSON.stringify(crew)}`,
+    () =>
+      Promise.all([
+        getJson<ScheduleDay[]>(`/api/schedule?${query}`),
+        starts ? getJson<DayTimes[]>(starts) : undefined,
+      ]),
   );
+  const [days, noCrew] = loaded ?? [];
   // a time chosen, other than where the clean is now, which shows already
   const chosen =
     date && time && !(date === current?.date && time === current.time)
@@ -106,7 +141,7 @@ function PickStart({
         <ScheduleCalendar
           days={days}
           limits={limits}
-          crew={crew && { ...crew, hoursOnSite }}
+          noCrew={noCrew}
           proposed={
             chosen && {
               start: chosen,
