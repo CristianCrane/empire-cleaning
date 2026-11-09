@@ -4,6 +4,7 @@ import "./instrument.ts";
 import { log, monitoring } from "#services/monitoring";
 import { flushSentry } from "./services/monitoring/sentry.ts";
 import { markDatabase } from "#features/site";
+import { samplePools, SAMPLE_MS } from "#db";
 import { tick, TICK_MS } from "./scheduler.ts";
 import { app, listen } from "./server.ts";
 import env from "./env.ts";
@@ -26,3 +27,5 @@ log.info(`Server running on port ${env.PORT}`);
 
 void tick();
 setInterval(() => void tick(), TICK_MS);
+// the database pools' numbers, for Sentry's Metric Monitor (ADR-0007)
+setInterval(samplePools, SAMPLE_MS);
