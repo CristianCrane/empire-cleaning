@@ -11,6 +11,7 @@ _Avoid_: Customer, user, lead
 **Property**:
 A physical location where Empire Cleaning works, belonging to exactly one Client. One address is one Property per Client, however it is typed; separate units in a building (apartments, floors) are separate Properties. A Property is either _residential_, a home described by its rooms, or _commercial_, business premises described by their Premises Type and floor area. A home asked about only for a Service not priced from rooms, such as painting, may have no rooms recorded until its Client, signed in, asks about it for one that is, or Office Staff record them. Its price-affecting details are as first given and only Office Staff correct them, from a Site Visit or otherwise.
 _Avoid_: Address, site, location
+_On screen_: home, or business for business premises; place where it can be either
 
 **Premises Type**:
 What kind of business premises a commercial Property is, such as office, retail or medical; it makes cleaning its floor area take longer or shorter, for any Service priced by area that Condition affects (ADR-0018). Office Staff keep the list on the Price List and retire a Premises Type rather than delete it.
@@ -33,6 +34,7 @@ _Avoid_: Technician, worker, crew member
 **Office Staff**:
 A Staff role: prices Quotes, manages the Schedule and Assignments, and chases Unpaid Jobs. One person may hold both this and the Cleaner role.
 _Avoid_: Admin, manager, dispatcher
+_On screen_: the office; us to a Client
 
 **Account**:
 A sign-in identity with a proven email, created only when a person signs up by emailed link or Google, never on their behalf. Anyone may sign up. Being a Client or Staff member is separate: an Account is connected to a Client, a Staff member, or both, automatically when its proven email matches theirs, and that connection is what lets its holder act as them. Once made, a connection stays even if either email later changes. Asking for a Quote creates a Client, not an Account, and a Client the Office entered without an email has none to connect until one is added.
@@ -96,10 +98,12 @@ _Avoid_: State, dirtiness, level
 **Add-on**:
 A priced extra task, such as cleaning inside the oven, agreed on a Quote before a Job; distinct from an Adjustment made on the day. Each is offered with particular Services, and only those Services' prices on a Quote include it. Clients choose Add-ons by name when asking for a Quote. On the Quote, each costs what it adds to the price: nothing at the Minimum Charge, less any Plan Discount, and its share of an override. Office Staff retire an Add-on rather than delete it, so Quotes that asked for it still price it.
 _Avoid_: Extra, upgrade, option
+_On screen_: add-on; extra to a Client
 
 **Preferred Service Area**:
 A set of postcodes close enough to Staff that Empire Cleaning prefers to work there. Distance never changes a price; whether to take on work outside these areas is Office Staff's call.
 _Avoid_: Coverage area, zone, territory
+_On screen_: the area we clean
 
 **Site Visit**:
 A free, scheduled visit by one Staff member to see a Property for a Quote, before its first Revision is Sent; required for a Service that needs one and optional otherwise (ADR-0018). It is not a Job: it is never charged and has no Assignments, though it appears on the Schedule (ADR-0015). Office Staff book, move and cancel it, telling the Client each time. It ends _Done_, when its findings (for business premises, the Premises Type, floor area and Condition) are recorded on the Property, or _Cancelled_. Office Staff may record findings as already done without a visit, for premises they know.
@@ -191,6 +195,7 @@ _Avoid_: Down payment, prepayment, booking fee
 **Balance**:
 What is charged when a Job is Completed: its price including Adjustments, less any Deposit already paid. A negative Balance is refunded. An increase the Client approves after completion is charged then, as the rest of the Balance. For a Client billed weekly, it goes on a Bill instead (ADR-0016).
 _Avoid_: Remainder, final payment, outstanding amount
+_On screen_: the rest
 
 **Charge**:
 Money taken from a Client's Payment Method: a Deposit, a Balance, a plan Job's Late Cancellation or No Access fee, or a Bill.
