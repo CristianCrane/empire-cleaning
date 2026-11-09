@@ -1,5 +1,5 @@
-import type { RescheduleCost } from "../index.js";
-import { ON_THAT_WEEKS_BILL, ON_WEEKS_BILL } from "./bills.js";
+import type { RescheduleCost } from "../index.ts";
+import { ON_THAT_WEEKS_BILL, ON_WEEKS_BILL } from "./bills.ts";
 
 // What the server and the screens both say about moving a clean
 // (docs/ux.md, Words)

@@ -1,4 +1,4 @@
-import type { PropertyKind, TurnDownReason } from "../index.js";
+import type { PropertyKind, TurnDownReason } from "../index.ts";
 
 // What the server and the screens both say about a Quote
 // (docs/ux.md, Words)

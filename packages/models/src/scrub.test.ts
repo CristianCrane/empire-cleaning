@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { scrub } from "./scrub.js";
+import { scrub } from "./scrub.ts";
 
 // Client details never reach Sentry or the logs (ADR-0007)
 describe("scrubbing", () => {

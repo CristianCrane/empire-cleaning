@@ -5,7 +5,7 @@ import type {
   PriceList,
   RoomHours,
   Service,
-} from "./index.js";
+} from "./index.ts";
 
 // The Suggested Price (#4, #72, ADR-0018), as the glossary defines it, for
 // one Service:

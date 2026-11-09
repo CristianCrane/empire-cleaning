@@ -12,7 +12,3 @@ runs:
         cache: pnpm
     - run: pnpm install --frozen-lockfile
       shell: bash
-    # the other packages read the shared types from models' build output, which
-    # isn't committed
-    - run: pnpm --filter @empire-cleaning/models build
-      shell: bash
