@@ -132,9 +132,9 @@ export function CompleteJob({ job }: { job: CleanerJob }) {
             )}
 
             <fieldset className="flex flex-col gap-3">
-              <Heading level={3}>Extra time</Heading>
+              <Heading level={3}>More time</Heading>
               <NumberField
-                label="Extra hours, all of you together"
+                label="More hours, all of you together"
                 description="Leave at 0 if the clean took about as long as planned."
                 minValue={0}
                 maxValue={24}

@@ -518,7 +518,7 @@ describe("Adjustments", () => {
     expect(proposal.subject).toBe(
       "Please approve a price change on your clean",
     );
-    expect(proposal.text).toContain("1 extra hour (Heavy grease)");
+    expect(proposal.text).toContain("1 more hour (Heavy grease)");
     expect(proposal.text).toContain("$59.88");
     // true however the Client pays: by card, or on a weekly Bill (#244 #5)
     expect(proposal.text).toContain(
@@ -950,11 +950,11 @@ describe("Office Staff correcting a completion", () => {
       .body as ClientPayment[];
     expect(history.find((p) => p.kind === "adjustment")).toMatchObject({
       amountCents: EXTRA_HOUR,
-      item: "1 extra hour",
+      item: "1 more hour",
     });
     expect(history.find((p) => p.kind === "refund")).toMatchObject({
       amountCents: -(EXTRA_HOUR - 2994),
-      item: "1 extra hour, price corrected",
+      item: "1 more hour, price corrected",
     });
   });
 

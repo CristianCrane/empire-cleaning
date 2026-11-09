@@ -212,11 +212,11 @@ describe("how a payment reads", () => {
           kind: "refund",
           amountCents: -2250,
           at: WEEK_LATER,
-          item: "1 extra hour, taken off",
+          item: "1 more hour, taken off",
         }),
       ),
     ).toEqual({
-      title: "Refund: 1 extra hour, taken off",
+      title: "Refund: 1 more hour, taken off",
       line: "From your Oct 20 Standard Clean",
       href: jobHref,
     });

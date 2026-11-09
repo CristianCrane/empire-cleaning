@@ -71,13 +71,13 @@ type Changed = {
   hours: number | null;
 };
 
-// what a price change changed, by name: "Inside the fridge", "1 extra hour"
+// what a price change changed, by name: "Inside the fridge", "1 more hour"
 export const adjustmentItem = (a: Changed) =>
   a.kind === "extra_time"
-    ? `${a.hours} extra ${a.hours === 1 ? "hour" : "hours"}`
+    ? `${a.hours} more ${a.hours === 1 ? "hour" : "hours"}`
     : a.addOnName!;
 
-// what was reported: "Inside the oven, not done", "1.5 extra hours"
+// what was reported: "Inside the oven, not done", "1.5 more hours"
 export const adjustmentLabel = (a: Changed) =>
   a.kind === "extra_time"
     ? adjustmentItem(a)

@@ -86,9 +86,9 @@ export const recurringCleaning: ServicePage = {
         "Yes. Ask for a new plan quote with the day you'd like; once you accept it, the plan carries on from then on the new day.",
     },
     {
-      question: "What if I need an extra clean before a party?",
+      question: "What if I need another clean before a party?",
       answer:
-        "Ask for a one-off quote any time, a deep clean or a standard one. Having a plan never stops you booking an extra visit.",
+        "Ask for a one-off quote any time, a deep clean or a standard one. Having a plan never stops you booking another visit.",
     },
     {
       question: "Can I add extras to a visit?",

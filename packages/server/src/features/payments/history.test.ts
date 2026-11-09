@@ -64,7 +64,7 @@ describe("a Client's payment history", () => {
     await db.insert(charges).values({
       ...rest,
       amountCents: 5988,
-      item: "1 extra hour",
+      item: "1 more hour",
       gatewayRef: "fake_extra",
     });
     await db.delete(charges).where(eq(charges.id, own!.id));
@@ -78,7 +78,7 @@ describe("a Client's payment history", () => {
     });
     expect(history.find((p) => p.kind === "adjustment")).toMatchObject({
       amountCents: 5988,
-      item: "1 extra hour",
+      item: "1 more hour",
     });
   });
 

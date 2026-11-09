@@ -573,7 +573,7 @@ const roomFields: {
   { name: "bathroomHours", label: "Per bathroom" },
   {
     name: "extraStoreyHours",
-    label: "Per extra floor",
+    label: "Per upper floor",
     description: "For each floor above the first",
   },
   {
