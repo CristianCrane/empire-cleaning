@@ -1,13 +1,19 @@
 import { business } from "../src/business.ts";
 import { faqs } from "../src/faqs.ts";
-import { guides } from "../src/guides/index.ts";
+import { guides as twins, type Guide } from "../src/guides/index.ts";
+import { pathOf } from "../src/routes.ts";
 import { servicePages } from "../src/service-pages/index.ts";
+
+// each guide's English page; the Spanish twins are spanish.spec.ts's
+const guides = twins.map((twin) => twin.en);
+const pathOfGuide = (guide: Guide) =>
+  pathOf({ kind: "guide", guide: guide.key }, "en");
 import { expect, expectAccessible, test } from "./harness.ts";
 
 // a few evergreen guides (#180), each answering one question
 for (const guide of guides) {
   test.describe(guide.crumb, () => {
-    const path = `/guides/${guide.slug}/`;
+    const path = pathOfGuide(guide);
 
     test("reads as one article, then the form", async ({ page }) => {
       await page.goto(path);
@@ -36,7 +42,7 @@ for (const guide of guides) {
     }) => {
       await page.goto(path);
 
-      const url = `${business.url}guides/${guide.slug}/`;
+      const url = new URL(path, business.url).href;
       await expect(page).toHaveTitle(`${guide.title} | Empire Cleaning`);
       expect(
         await page.locator('meta[name="description"]').getAttribute("content"),
@@ -65,12 +71,12 @@ for (const guide of guides) {
     });
 
     test("is linked from the service pages it belongs to", async ({ page }) => {
-      for (const { service, under, text } of guide.linkedFrom) {
-        await page.goto(`/services/${service}/`);
+      for (const { service, under } of guide.linkedFrom) {
+        await page.goto(pathOf({ kind: "service", service }, "en"));
         await expect(
           page
             .locator(under === "pricing" ? "#pricing" : "#when")
-            .getByRole("link", { name: text }),
+            .getByRole("link", { name: guide.link, exact: true }),
         ).toHaveAttribute("href", path);
       }
     });
@@ -95,7 +101,7 @@ test("a guide reads without JavaScript", async ({ browser }) => {
   const context = await browser.newContext({ javaScriptEnabled: false });
   const page = await context.newPage();
   const guide = guides[0]!;
-  await page.goto(`/guides/${guide.slug}/`);
+  await page.goto(pathOfGuide(guide));
 
   for (const { title } of guide.sections) {
     await expect(
@@ -113,7 +119,7 @@ test("the home page doesn't link to the guides, except the price answer", async 
   const links = await page
     .locator('a[href^="/guides/"]')
     .evaluateAll((all) => all.map((a) => a.getAttribute("href")));
-  expect(links).toEqual(["/guides/house-cleaning-cost/"]);
+  expect(links).toEqual([pathOfGuide(guides[0]!)]);
 });
 
 test("the home page's questions open their answers, the price one leading to its guide", async ({
@@ -122,7 +128,7 @@ test("the home page's questions open their answers, the price one leading to its
   await page.goto("/");
 
   const section = page.locator("#faqs");
-  for (const { question, answer } of faqs) {
+  for (const { question, answer } of faqs.en) {
     await expect(section.getByText(answer)).toBeHidden();
     await section.getByText(question).click();
     await expect(section.getByText(answer)).toBeVisible();
@@ -133,8 +139,10 @@ test("the home page's questions open their answers, the price one leading to its
 
 test("every guide is in the sitemap", async ({ request }) => {
   const sitemap = await (await request.get("/sitemap-0.xml")).text();
-  for (const { slug } of guides) {
-    expect(sitemap).toContain(`<loc>${business.url}guides/${slug}/</loc>`);
+  for (const guide of guides) {
+    expect(sitemap).toContain(
+      `<loc>${new URL(pathOfGuide(guide), business.url).href}</loc>`,
+    );
   }
 });
 
@@ -142,8 +150,8 @@ test("each guide links from service pages that exist", () => {
   for (const guide of guides) {
     for (const { service } of guide.linkedFrom) {
       expect(
-        servicePages.some((p) => p.slug === service),
-        `${guide.slug} → ${service}`,
+        servicePages.some((p) => p.en.card === service),
+        `${guide.key} → ${service}`,
       ).toBe(true);
     }
   }

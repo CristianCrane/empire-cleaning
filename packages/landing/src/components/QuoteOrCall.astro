@@ -1,10 +1,12 @@
 ---
-import { messages } from "@empire-cleaning/models";
+import { languageOf, messages } from "@empire-cleaning/models";
 import { buttonStyles } from "@empire-cleaning/ui";
 import { Phone } from "lucide-react";
 import { business } from "../business.ts";
+import { words } from "../words.ts";
 
-const { REQUEST_A_QUOTE } = messages.en;
+const lang = languageOf(Astro.currentLocale);
+const { REQUEST_A_QUOTE } = messages[lang];
 
 // a page's two actions: to the quote form at `href`, or call us
 interface Props {
@@ -25,6 +27,6 @@ const { href } = Astro.props;
     class={buttonStyles({ variant: "secondary", className: "px-6 text-lg" })}
   >
     <Phone aria-hidden size={20} />
-    Call {business.phone.display}
+    {words[lang].call(business.phone.display)}
   </a>
 </div>

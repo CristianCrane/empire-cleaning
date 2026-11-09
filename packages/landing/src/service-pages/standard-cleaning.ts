@@ -3,7 +3,7 @@ import { addOnsNote, officeServices } from "./shared.ts";
 
 export const standardCleaning: ServicePage = {
   slug: "standard-cleaning",
-  card: "Standard cleaning",
+  card: "standard",
   office: officeServices.standard,
   title: "Standard House Cleaning in Queens & Long Island",
   description:
@@ -45,7 +45,7 @@ export const standardCleaning: ServicePage = {
         items: ["Light switches and door handles wiped", "Trash emptied"],
       },
     ],
-    note: `Baseboards, vents, grout and behind the appliances are part of a deep clean. ${addOnsNote}`,
+    note: `Baseboards, vents, grout and behind the appliances are part of a deep clean. ${addOnsNote.en}`,
   },
   pricing: {
     title: "How a standard clean is priced",
@@ -97,5 +97,5 @@ export const standardCleaning: ServicePage = {
         "Yes. Inside the fridge, inside the oven, inside the cabinets and interior windows are add-ons: tick the ones you'd like when you request a quote, and they're priced in.",
     },
   ],
-  related: ["deep-cleaning", "recurring-cleaning", "disinfecting"],
+  related: ["deep", "recurring", "disinfecting"],
 };

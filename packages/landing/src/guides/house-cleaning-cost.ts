@@ -1,16 +1,18 @@
+import type { ServiceKey } from "../services.ts";
 import type { Guide } from "./index.ts";
 
-const everyService = [
-  "deep-cleaning",
-  "standard-cleaning",
-  "recurring-cleaning",
-  "move-in-move-out-cleaning",
-  "post-construction-cleaning",
-  "office-cleaning",
+const everyService: ServiceKey[] = [
+  "deep",
+  "standard",
+  "recurring",
+  "move",
+  "post-construction",
+  "office",
   "disinfecting",
 ];
 
 export const houseCleaningCost: Guide = {
+  key: "cost",
   slug: "house-cleaning-cost",
   crumb: "What affects the price",
   title: "House Cleaning Cost in Queens, NYC & Long Island",
@@ -74,9 +76,6 @@ export const houseCleaningCost: Guide = {
       ],
     },
   ],
-  linkedFrom: everyService.map((service) => ({
-    service,
-    under: "pricing" as const,
-    text: "More on what affects the price",
-  })),
+  linkedFrom: everyService.map((service) => ({ service, under: "pricing" })),
+  link: "More on what affects the price",
 };

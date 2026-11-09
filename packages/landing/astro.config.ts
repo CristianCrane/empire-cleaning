@@ -44,6 +44,13 @@ export default defineConfig({
       styleDirective: { resources: ["'self'", "'unsafe-inline'"] },
     },
   },
+  // every page in English at its address, and in Spanish under /es/
+  // (ADR-0025): its language is Astro.currentLocale (src/routes.ts)
+  i18n: {
+    locales: ["en", "es"],
+    defaultLocale: "en",
+    routing: { prefixDefaultLocale: false },
+  },
   integrations: [react(), sitemap()],
   // the release, and source maps for Sentry's landing project
   vite: {

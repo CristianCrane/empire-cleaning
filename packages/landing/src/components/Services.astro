@@ -1,18 +1,18 @@
 ---
+import { languageOf } from "@empire-cleaning/models";
 import { services } from "../services.ts";
+import { words } from "../words.ts";
 import Section from "./Section.astro";
 import ServiceCard from "./ServiceCard.astro";
+
+const t = words[languageOf(Astro.currentLocale)].services;
 ---
 
-<Section
-  id="services"
-  title="What we clean"
-  intro="Homes, offices and everything in between, done properly the first time."
->
+<Section id="services" title={t.title} intro={t.intro}>
   {/* each card leads to its service's page (#177) */}
   <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-    {services.map(({ name }) => (
-      <ServiceCard name={name} />
+    {services.map(({ key }) => (
+      <ServiceCard service={key} />
     ))}
   </ul>
 </Section>

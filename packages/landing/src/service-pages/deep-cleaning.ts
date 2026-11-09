@@ -3,7 +3,7 @@ import { addOnsNote, officeServices } from "./shared.ts";
 
 export const deepCleaning: ServicePage = {
   slug: "deep-cleaning",
-  card: "Residential deep cleaning",
+  card: "deep",
   office: officeServices.deep,
   title: "Deep Cleaning in Queens, NYC & Long Island",
   description:
@@ -52,7 +52,7 @@ export const deepCleaning: ServicePage = {
         ],
       },
     ],
-    note: addOnsNote,
+    note: addOnsNote.en,
   },
   pricing: {
     title: "How a deep clean is priced",
@@ -96,9 +96,5 @@ export const deepCleaning: ServicePage = {
         "Of course. Say so when you request a quote, so it's in the time we allow and the crew knows who they'll meet.",
     },
   ],
-  related: [
-    "standard-cleaning",
-    "recurring-cleaning",
-    "move-in-move-out-cleaning",
-  ],
+  related: ["standard", "recurring", "move"],
 };

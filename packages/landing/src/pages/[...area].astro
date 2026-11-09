@@ -1,5 +1,5 @@
 ---
-import { areas, type Area } from "../areas/index.ts";
+import { languageOf } from "@empire-cleaning/models";
 import PageHero from "../components/PageHero.astro";
 import Faqs from "../components/Faqs.astro";
 import Footer from "../components/Footer.astro";
@@ -12,26 +12,24 @@ import ServiceCard from "../components/ServiceCard.astro";
 import { card } from "../band.ts";
 import { areaData } from "../structured-data.ts";
 import Page from "../layouts/Page.astro";
+import { routesOf } from "../routes.ts";
 
 // a page per area we serve (#176), in the home page's bands (prototype
-// "Bands"); its words are the area's own, in src/areas. The footer links
-// to the other areas
-export function getStaticPaths() {
-  return areas.map((area) => ({
-    params: { area: area.slug },
-    props: { area },
-  }));
-}
-const { area } = Astro.props as { area: Area };
+// "Bands"), at its address in each language (src/routes.ts); its words are
+// the area's own, in src/areas. The footer links to the other areas
+export const getStaticPaths = () => routesOf("area");
+const { page } = Astro.props;
+const lang = languageOf(Astro.currentLocale);
+const area = page.area[lang];
 ---
 
 <Page
   title={area.title}
   description={area.description}
-  path={`${area.slug}/`}
-  data={areaData(area)}
+  page={page}
+  data={areaData(page.area, lang)}
 >
-  <Header />
+  <Header page={page} />
   <main>
     <PageHero crumb={area.name} heading={area.heading} intro={area.intro} />
     <Section id="places" title={area.places.title}>
@@ -59,7 +57,7 @@ const { area } = Astro.props as { area: Area };
       {/* the home page's service cards, two across, in the area's words */}
       <ul class="grid gap-4 sm:grid-cols-2">
         {area.popular.list.map(({ service, text }) => (
-          <ServiceCard name={service} text={text} />
+          <ServiceCard service={service} text={text} />
         ))}
       </ul>
     </Section>

@@ -46,19 +46,19 @@ export const brooklyn: Area = {
     title: "What Brooklyn asks us for most",
     list: [
       {
-        service: "Move-in and move-out",
+        service: "move",
         text: "Brooklyn moves fast, and a lease often asks for the place back broom-clean or better. We clean it empty, inside every cabinet and closet, so you get your deposit back or start fresh.",
       },
       {
-        service: "Post-construction",
+        service: "post-construction",
         text: "Brownstone gut renovations and new kitchens leave dust in every crack of an old house. We clear it from the top floor down.",
       },
       {
-        service: "Recurring service",
+        service: "recurring",
         text: "Weekly or bi-weekly visits for busy households, on the same day each time, 10% off every visit.",
       },
       {
-        service: "Residential deep cleaning",
+        service: "deep",
         text: "A first clean that reaches the radiators, baseboards and window sills an old Brooklyn home collects dust on.",
       },
     ],

@@ -1,4 +1,5 @@
 ---
+import { languageOf } from "@empire-cleaning/models";
 import AreaAndTrust from "../components/AreaAndTrust.astro";
 import Faqs from "../components/Faqs.astro";
 import Footer from "../components/Footer.astro";
@@ -11,10 +12,16 @@ import ServicePlans from "../components/ServicePlans.astro";
 import Services from "../components/Services.astro";
 import { faqs } from "../faqs.ts";
 import Page from "../layouts/Page.astro";
+import { routesOf } from "../routes.ts";
+
+// the home page, at / and /es/ (src/routes.ts)
+export const getStaticPaths = () => routesOf("home");
+const { page } = Astro.props;
+const lang = languageOf(Astro.currentLocale);
 ---
 
-<Page>
-  <Header />
+<Page page={page}>
+  <Header page={page} />
   <main>
     <Hero />
     <Services />
@@ -26,7 +33,7 @@ import Page from "../layouts/Page.astro";
     <ServicePlans />
     {/* after the form, for whoever still has a question; folded, so the
         page stays quiet (#180) */}
-    <Faqs faqs={faqs} />
+    <Faqs faqs={faqs[lang]} />
   </main>
   <Footer />
 </Page>

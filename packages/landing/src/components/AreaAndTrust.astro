@@ -1,74 +1,76 @@
 ---
-import { formats } from "@empire-cleaning/models";
+import { type Catalog, formats, languageOf } from "@empire-cleaning/models";
 import { Gem, MapPin, ShieldCheck, Users } from "lucide-react";
-import { areas } from "../areas/index.ts";
+import { areas, type Area } from "../areas/index.ts";
 import { card } from "../band.ts";
-import { business } from "../business.ts";
+import { businessWords } from "../business.ts";
+import { pathOf } from "../routes.ts";
+import { words } from "../words.ts";
 import Section from "./Section.astro";
 
-// the area first, then what we promise; each a card of its own, alike
-const points = [
-  {
-    icon: MapPin,
-    name: `Serving ${business.area}`,
-    // each area links to its page (#176)
-    areas: true,
-    // the crew speaks Spanish; said in Spanish, for those it's for
-    spanish: "Se habla español.",
-  },
-  {
-    icon: ShieldCheck,
-    name: "Trusted and reliable",
-    text: "We turn up when we say we will, every time.",
-  },
-  {
-    icon: Gem,
-    name: "Attention to every detail",
-    text: "The corners, edges and surfaces others miss.",
-  },
-  {
-    icon: Users,
-    name: "Professional and insured",
-    text: "Trained, insured cleaners you can let into your home.",
-  },
-];
+const lang = languageOf(Astro.currentLocale);
+const t = words[lang].why;
+const icons = [ShieldCheck, Gem, Users];
 
 // the areas, in a sentence: "Queens, Brooklyn, Manhattan, Nassau and
-// western Suffolk", each a link
-const areaList = formats.en.listParts(areas.map((a) => a.slug));
-const areaBySlug = new Map(areas.map((a) => [a.slug, a]));
+// western Suffolk", each a link to its page (#176)
+const areaList = formats[lang]
+  .listParts(areas.map((_, i) => String(i)))
+  .map(({ type, value }): { text: string } | { area: Catalog<Area> } =>
+    type === "literal" ? { text: value } : { area: areas[Number(value)]! },
+  );
 ---
 
-<Section id="why-empire" title="Why Empire">
-  {/* the icon beside the words, or above them in four narrow columns */}
+<Section id="why-empire" title={t.title}>
+  {/* the icon beside the words, or above them in four narrow columns; the
+      area first, then what we promise, each a card of its own, alike */}
   <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-    {points.map(({ icon: Icon, name, text, areas: linked, spanish }) => (
-      <li
-        class:list={[
-          "flex items-start gap-4 rounded-lg border border-border p-5 lg:flex-col lg:gap-3",
-          card,
-        ]}
-      >
-        <Icon aria-hidden size={28} className="shrink-0 text-primary" />
-        <div class="flex flex-col gap-1">
-          <h3 class="text-lg font-semibold">{name}</h3>
-          <p class="text-fg-muted">
-            {linked &&
-              areaList.map(({ type, value }) =>
-                type === "literal" ? (
-                  value
-                ) : (
-                  <a href={`/${value}/`} class="font-semibold text-primary">
-                    {areaBySlug.get(value)!.short}
-                  </a>
-                ),
-              )}
-            {linked && "."}
-            {text}
-            {spanish && <span lang="es"> {spanish}</span>}
-          </p>
-        </div>
-      </li>
-    ))}
+    <li
+      class:list={[
+        "flex items-start gap-4 rounded-lg border border-border p-5 lg:flex-col lg:gap-3",
+        card,
+      ]}
+    >
+      <MapPin aria-hidden size={28} className="shrink-0 text-primary" />
+      <div class="flex flex-col gap-1">
+        <h3 class="text-lg font-semibold">
+          {t.serving(businessWords[lang].area)}
+        </h3>
+        <p class="text-fg-muted">
+          {areaList.map((part) =>
+            "area" in part ? (
+              <a
+                href={pathOf({ kind: "area", area: part.area }, lang)}
+                class="font-semibold text-primary"
+              >
+                {part.area[lang].short}
+              </a>
+            ) : (
+              part.text
+            ),
+          )}
+          {"."}
+          {/* the crew speaks Spanish, said in Spanish on an English page */}
+          {t.spanish && <span lang="es"> {t.spanish}</span>}
+        </p>
+      </div>
+    </li>
+    {t.points.map(({ name, text }, i) => {
+      const Icon = icons[i]!;
+      return (
+        <li
+          class:list={[
+            "flex items-start gap-4 rounded-lg border border-border p-5 lg:flex-col lg:gap-3",
+            card,
+          ]}
+        >
+          <Icon aria-hidden size={28} className="shrink-0 text-primary" />
+          <div class="flex flex-col gap-1">
+            <h3 class="text-lg font-semibold">{name}</h3>
+            <p class="text-fg-muted">{text}</p>
+          </div>
+        </li>
+      );
+    })}
   </ul>
 </Section>

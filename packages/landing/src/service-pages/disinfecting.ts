@@ -2,7 +2,7 @@ import type { ServicePage } from "./index.ts";
 
 export const disinfecting: ServicePage = {
   slug: "disinfecting",
-  card: "Disinfecting",
+  card: "disinfecting",
   // the Office has no Disinfecting Service: the copy says to choose a clean
   // and ask for disinfecting in the note
   title: "Disinfecting in Queens, NYC & Long Island",
@@ -102,5 +102,5 @@ export const disinfecting: ServicePage = {
         "Yes. Choose Move-in/out Clean when you request a quote, and say in the note you'd like it disinfected too.",
     },
   ],
-  related: ["office-cleaning", "standard-cleaning", "deep-cleaning"],
+  related: ["office", "standard", "deep"],
 };

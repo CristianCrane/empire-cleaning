@@ -1,11 +1,22 @@
 import type { Page } from "@playwright/test";
 import { business } from "../src/business.ts";
-import { servicePages } from "../src/service-pages/index.ts";
-import { services } from "../src/services.ts";
+import { areas as twinsOfAreas } from "../src/areas/index.ts";
+import { pathOf } from "../src/routes.ts";
+import {
+  servicePages as twins,
+  type ServicePage,
+} from "../src/service-pages/index.ts";
+import { serviceWords, services } from "../src/services.ts";
+
+// each service's English page; the Spanish twins are spanish.spec.ts's
+const servicePages = twins.map((twin) => twin.en);
+const pathOfService = (page: ServicePage) =>
+  pathOf({ kind: "service", service: page.card }, "en");
+const nameOf = (page: ServicePage) => serviceWords.en[page.card].name;
 import { expect, expectAccessible, test } from "./harness.ts";
 
 // a page per service (#177), each in its own words
-const sections = (page: (typeof servicePages)[number]) => [
+const sections = (page: ServicePage) => [
   page.included.title,
   page.pricing.title,
   page.when.title,
@@ -21,8 +32,8 @@ const formReady = (page: Page) =>
   expect(page.getByRole("radio", { name: /^Standard Clean/ })).toBeVisible();
 
 for (const service of servicePages) {
-  test.describe(service.card, () => {
-    const path = `/services/${service.slug}/`;
+  test.describe(nameOf(service), () => {
+    const path = pathOfService(service);
 
     test("shows its sections, in order", async ({ page }) => {
       await page.goto(path);
@@ -35,7 +46,7 @@ for (const service of servicePages) {
       );
       await expect(
         page.getByRole("navigation", { name: "Breadcrumbs" }),
-      ).toHaveText(`Home${service.card}`);
+      ).toHaveText(`Home${nameOf(service)}`);
       for (const { items } of service.included.rooms) {
         for (const item of items) {
           await expect(page.locator("#included")).toContainText(item);
@@ -52,7 +63,7 @@ for (const service of servicePages) {
     test("gets its own title, description and address", async ({ page }) => {
       await page.goto(path);
 
-      const url = `${business.url}services/${service.slug}/`;
+      const url = new URL(path, business.url).href;
       await expect(page).toHaveTitle(`${service.title} | Empire Cleaning`);
       const meta = (selector: string) =>
         page.locator(selector).getAttribute("content");
@@ -75,12 +86,12 @@ for (const service of servicePages) {
           .textContent()) ?? "",
       );
       const [place, , crumbs, offered] = data["@graph"];
-      const url = `${business.url}services/${service.slug}/`;
+      const url = new URL(path, business.url).href;
       expect(crumbs).toMatchObject({
         "@type": "BreadcrumbList",
         itemListElement: [
           { position: 1, name: "Home", item: business.url },
-          { position: 2, name: service.card, item: url },
+          { position: 2, name: nameOf(service), item: url },
         ],
       });
       expect(offered).toMatchObject({
@@ -90,7 +101,7 @@ for (const service of servicePages) {
         provider: { "@id": place["@id"] },
       });
       expect(offered.areaServed.map((a: { name: string }) => a.name)).toEqual(
-        business.areas.map((a) => a.name),
+        twinsOfAreas.map((a) => a.en.name),
       );
     });
 
@@ -153,7 +164,7 @@ test("a service page reads without JavaScript, its answers a tap away", async ({
   const context = await browser.newContext({ javaScriptEnabled: false });
   const page = await context.newPage();
   const service = servicePages[0]!;
-  await page.goto(`/services/${service.slug}/`);
+  await page.goto(pathOfService(service));
 
   for (const name of sections(service)) {
     await expect(page.getByRole("heading", { level: 2, name })).toBeVisible();
@@ -168,7 +179,7 @@ test("a service page reads without JavaScript, its answers a tap away", async ({
 test("a service page's only JavaScript is the theme toggle, the Quote form and the reviews' buttons", async ({
   page,
 }) => {
-  await page.goto(`/services/${servicePages[0]!.slug}/`);
+  await page.goto(pathOfService(servicePages[0]!));
 
   expect(
     await page
@@ -185,11 +196,11 @@ test("the home page's service cards lead to their pages, all but Custom cleaning
   await page.goto("/");
 
   const cards = page.locator("#services");
-  for (const { name } of services) {
-    const service = servicePages.find((p) => p.card === name);
-    const link = cards.getByRole("link", { name });
+  for (const { key } of services) {
+    const service = servicePages.find((p) => p.card === key);
+    const link = cards.getByRole("link", { name: serviceWords.en[key].name });
     if (service) {
-      await expect(link).toHaveAttribute("href", `/services/${service.slug}/`);
+      await expect(link).toHaveAttribute("href", pathOfService(service));
     } else {
       await expect(link).toHaveCount(0);
     }
@@ -218,8 +229,10 @@ test("an area's most-asked services lead to their pages", async ({ page }) => {
 
 test("every service page is in the sitemap", async ({ request }) => {
   const sitemap = await (await request.get("/sitemap-0.xml")).text();
-  for (const { slug } of servicePages) {
-    expect(sitemap).toContain(`<loc>${business.url}services/${slug}/</loc>`);
+  for (const service of servicePages) {
+    expect(sitemap).toContain(
+      `<loc>${new URL(pathOfService(service), business.url).href}</loc>`,
+    );
   }
 });
 
@@ -233,7 +246,9 @@ test("each service's page is its own: no two share a title, description or headi
   };
   for (const service of servicePages) {
     for (const key of ["title", "description", "heading"] as const) {
-      expect(seen[key].has(service[key]), `${service.card} ${key}`).toBe(false);
+      expect(seen[key].has(service[key]), `${nameOf(service)} ${key}`).toBe(
+        false,
+      );
       seen[key].add(service[key]);
     }
     await page.goto(`/services/${service.slug}/`);
@@ -242,6 +257,6 @@ test("each service's page is its own: no two share a title, description or headi
       .locator("#included, #pricing, #when, #faqs, #page-title")
       .allTextContents();
     const words = own.join(" ").split(/\s+/).length;
-    expect(words, service.card).toBeGreaterThanOrEqual(400);
+    expect(words, nameOf(service)).toBeGreaterThanOrEqual(400);
   }
 });

@@ -46,19 +46,19 @@ export const queens: Area = {
     title: "What Queens asks us for most",
     list: [
       {
-        service: "Move-in and move-out",
+        service: "move",
         text: "Astoria, Long Island City and Sunnyside are full of renters, and leases end on the first of the month. We get the place ready for the final walk-through, or for you to move in.",
       },
       {
-        service: "Post-construction",
+        service: "post-construction",
         text: "Renovated kitchens, finished basements and two-family houses split or joined: we clear the fine dust that settles on everything after the contractors leave.",
       },
       {
-        service: "Residential deep cleaning",
+        service: "deep",
         text: "Our first visit to most homes, top to bottom, behind the appliances and along every baseboard. After that, a standard clean keeps it there.",
       },
       {
-        service: "Office cleaning",
+        service: "office",
         text: "Offices, practices and shops along Queens Boulevard, Austin Street and Bell Boulevard, cleaned after hours on the days you choose.",
       },
     ],

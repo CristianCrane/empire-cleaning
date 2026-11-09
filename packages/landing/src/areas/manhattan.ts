@@ -46,19 +46,19 @@ export const manhattan: Area = {
     title: "What Manhattan asks us for most",
     list: [
       {
-        service: "Recurring service",
+        service: "recurring",
         text: "A weekly or bi-weekly clean while you're at work, the same day each time, 10% off every visit after the first.",
       },
       {
-        service: "Move-in and move-out",
+        service: "move",
         text: "Leases turn over all year. We clean the empty apartment for the final walk-through or for your first night in.",
       },
       {
-        service: "Office cleaning",
+        service: "office",
         text: "Offices in Midtown, Flatiron and the Financial District, cleaned after hours on the days you choose. We visit first to see the space, for free.",
       },
       {
-        service: "Residential deep cleaning",
+        service: "deep",
         text: "The baseboards, the window tracks and sills, behind the fridge: a first clean that resets the whole apartment.",
       },
     ],

@@ -3,7 +3,7 @@ import { officeServices } from "./shared.ts";
 
 export const officeCleaning: ServicePage = {
   slug: "office-cleaning",
-  card: "Office cleaning",
+  card: "office",
   office: officeServices.commercial,
   title: "Office Cleaning in Queens, NYC & Long Island",
   description:
@@ -101,5 +101,5 @@ export const officeCleaning: ServicePage = {
         "Yes. Tell us about the building's rules in the note, like a service entrance or a certificate of insurance for management, and we'll arrange it before the first clean.",
     },
   ],
-  related: ["disinfecting", "post-construction-cleaning", "recurring-cleaning"],
+  related: ["disinfecting", "post-construction", "recurring"],
 };

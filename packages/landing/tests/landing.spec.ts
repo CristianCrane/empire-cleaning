@@ -1,6 +1,6 @@
 import type { Locator, Page } from "@playwright/test";
-import { business } from "../src/business.ts";
-import { guides } from "../src/guides/index.ts";
+import { business, businessWords } from "../src/business.ts";
+import { pages, pathOf } from "../src/routes.ts";
 import { reviews } from "../src/reviews.ts";
 import { appUrl } from "../playwright.config.ts";
 import {
@@ -16,7 +16,9 @@ const everyKindOfPage = [
   "/",
   "/queens/",
   "/services/deep-cleaning/",
-  ...guides.map((g) => `/guides/${g.slug}/`),
+  ...pages
+    .filter((page) => page.kind === "guide")
+    .map((page) => pathOf(page, "en")),
 ];
 
 // the form loads once its section scrolls into view, and lists the Services
@@ -1005,11 +1007,15 @@ test.describe("search engines", () => {
   test("get a title, description and link preview", async ({ page }) => {
     await page.goto("/");
 
-    await expect(page).toHaveTitle(business.title);
+    await expect(page).toHaveTitle(businessWords.en.title);
     const meta = (selector: string) =>
       page.locator(selector).getAttribute("content");
-    expect(await meta('meta[name="description"]')).toBe(business.description);
-    expect(await meta('meta[property="og:title"]')).toBe(business.title);
+    expect(await meta('meta[name="description"]')).toBe(
+      businessWords.en.description,
+    );
+    expect(await meta('meta[property="og:title"]')).toBe(
+      businessWords.en.title,
+    );
     expect(await meta('meta[property="og:url"]')).toBe(business.url);
     expect(await meta('meta[property="og:image"]')).toBe(
       `${business.url}og-image.png`,
@@ -1088,7 +1094,7 @@ test.describe("search engines", () => {
     await page.goto("/");
 
     await expect(page.getByRole("heading", { level: 1 })).toContainText(
-      business.heading,
+      businessWords.en.heading,
     );
     for (const place of [
       "Brooklyn",
@@ -1104,7 +1110,7 @@ test.describe("search engines", () => {
     await expect(page.locator('footer [lang="es"]')).toHaveText(
       "Se habla español",
     );
-    await expect(page.locator("footer")).toContainText(business.hours.display);
+    await expect(page.locator("footer")).toContainText(businessWords.en.hours);
   });
 
   test("get icons for the tab, the home screen and the results", async ({
