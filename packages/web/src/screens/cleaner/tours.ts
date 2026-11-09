@@ -52,7 +52,8 @@ export const cleanerTours = {
     {
       id: "cleaner-job",
       route: "/cleaner/jobs/$jobId",
-      // both from the Job's start
+      // once it's started: Couldn't get in from then, Mark done once its
+      // whole crew has confirmed too
       steps: [
         {
           target: { press: "Mark done" },

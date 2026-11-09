@@ -174,9 +174,10 @@ eachTheme(() => {
     page,
   }) => {
     const cory = await addCleaner("Cory Cleaner");
-    // within the week, each its own day, a crew of one: Tuesday's theirs,
-    // Wednesday's offered to them, and Thursday's open to them, as they're
-    // free
+    // within the week, each its own day: Tuesday's theirs, Wednesday's
+    // offered to them, and Thursday's open to them, as they're free. A crew
+    // of one, so theirs is fully crewed: Mark done waits for every Cleaner
+    // on a Job to confirm
     const [theirs, offered, open] = (await Promise.all(
       ["06", "07", "08"].map((day) =>
         bookJob({
