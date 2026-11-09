@@ -12,6 +12,10 @@ type ValidationMiddlewareOptions<TParamsSchema, TBodySchema, TQuerySchema> = {
   query?: TQuerySchema;
 };
 
+// checks a request's params, body and query against their schemas, and hands
+// the handlers after it what each schema made of them (numbers, trimmed
+// strings), typed so: they read req.params, req.body and req.query, never
+// parse them again
 export const validate =
   <TParams, TBody, TQuery>({
     params: paramsSchema,
@@ -28,6 +32,7 @@ export const validate =
       if (!result.success) {
         throw new PathParameterError(result.error);
       }
+      req.params = result.data;
     }
 
     if (bodySchema) {
@@ -35,7 +40,6 @@ export const validate =
       if (!result.success) {
         throw new RequestBodyError(result.error);
       }
-      // handlers see the parsed body, e.g. trimmed strings
       req.body = result.data;
     }
 
@@ -44,6 +48,15 @@ export const validate =
       if (!result.success) {
         throw new QueryParameterError(result.error);
       }
+      // Express 5's req.query is a getter that parses the URL afresh each
+      // time: this one on the request hides it, writable and configurable
+      // as a plain property is, so another validate can set it again
+      Object.defineProperty(req, "query", {
+        value: result.data,
+        writable: true,
+        configurable: true,
+        enumerable: true,
+      });
     }
 
     next();
@@ -58,3 +71,6 @@ export const day = z.iso.date("Pick a day");
 export const startTime = z
   .string({ error: "Pick a start time" })
   .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Pick a start time");
+
+// a route's one path param, the id of what it's about: /:id
+export const byId = z.object({ id: z.uuid() });

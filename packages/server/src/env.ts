@@ -54,8 +54,8 @@ export const envSchema = z
     STRIPE_PUBLISHABLE_KEY: z.string().nonempty(),
     // proves webhooks come from Stripe (`stripe listen` prints one locally)
     STRIPE_WEBHOOK_SECRET: z.string().nonempty(),
-    // where errors, signals and heartbeats go (ADR-0007). Without it they are
-    // only logged
+    // where errors, signals, measures and heartbeats go (ADR-0007). Without
+    // it errors and signals are only logged
     SENTRY_DSN: z
       .url()
       .or(z.literal(""))

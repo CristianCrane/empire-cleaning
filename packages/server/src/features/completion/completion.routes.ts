@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { validate } from "../../middleware/validation.ts";
+import { byId, validate } from "../../middleware/validation.ts";
 import { jobAssignedTo, officeJob } from "../assignments/assignments.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { ownClient } from "../clients/clients.ts";
@@ -27,10 +27,7 @@ import {
   proposalSchema,
 } from "./completion.validation.ts";
 
-const job = z.object({ id: z.uuid() });
 const jobAdjustment = z.object({ id: z.uuid(), adjustmentId: z.uuid() });
-
-type JobAdjustment = { id: string; adjustmentId: string };
 
 // ---- the Cleaner: /api/assignments/mine/:id/complete ----
 
@@ -39,10 +36,10 @@ export const cleanerCompletionRouter = Router();
 cleanerCompletionRouter.post(
   "/mine/:id/complete",
   authorize("cleaner"),
-  validate({ params: job, body: completionSchema }),
+  validate({ params: byId, body: completionSchema }),
   async (req, res) => {
     const member = await staffForAccount(signedInAccount(res).id);
-    const jobId = String(req.params.id);
+    const jobId = req.params.id;
     await completeJob(member.id, jobId, req.body);
     res.json(await jobAssignedTo(member.id, jobId));
   },
@@ -57,7 +54,7 @@ officeCompletionRouter.post(
   authorize("office_staff"),
   validate({ params: jobAdjustment, body: proposalSchema }),
   async (req, res) => {
-    const { id, adjustmentId } = req.params as JobAdjustment;
+    const { id, adjustmentId } = req.params;
     await proposeAdjustment(
       id,
       adjustmentId,
@@ -73,7 +70,7 @@ officeCompletionRouter.post(
   authorize("office_staff"),
   validate({ params: jobAdjustment, body: dismissalSchema }),
   async (req, res) => {
-    const { id, adjustmentId } = req.params as JobAdjustment;
+    const { id, adjustmentId } = req.params;
     await dismissAdjustment(
       id,
       adjustmentId,
@@ -89,7 +86,7 @@ officeCompletionRouter.patch(
   authorize("office_staff"),
   validate({ params: jobAdjustment, body: correctionSchema }),
   async (req, res) => {
-    const { id, adjustmentId } = req.params as JobAdjustment;
+    const { id, adjustmentId } = req.params;
     await correctAdjustment(
       id,
       adjustmentId,
@@ -105,7 +102,7 @@ officeCompletionRouter.delete(
   authorize("office_staff"),
   validate({ params: jobAdjustment }),
   async (req, res) => {
-    const { id, adjustmentId } = req.params as JobAdjustment;
+    const { id, adjustmentId } = req.params;
     await removeAdjustment(id, adjustmentId);
     res.json(await officeJob(id));
   },
@@ -114,9 +111,9 @@ officeCompletionRouter.delete(
 officeCompletionRouter.patch(
   "/:id/completion",
   authorize("office_staff"),
-  validate({ params: job, body: conditionSchema }),
+  validate({ params: byId, body: conditionSchema }),
   async (req, res) => {
-    const id = String(req.params.id);
+    const id = req.params.id;
     await correctCondition(id, req.body.condition);
     res.json(await officeJob(id));
   },
@@ -126,9 +123,9 @@ officeCompletionRouter.patch(
 officeCompletionRouter.delete(
   "/:id/completion",
   authorize("office_staff"),
-  validate({ params: job }),
+  validate({ params: byId }),
   async (req, res) => {
-    const id = String(req.params.id);
+    const id = req.params.id;
     await undoCompletion(id);
     res.json(await officeJob(id));
   },
@@ -137,9 +134,9 @@ officeCompletionRouter.delete(
 officeCompletionRouter.post(
   "/:id/balance/retry",
   authorize("office_staff"),
-  validate({ params: job }),
+  validate({ params: byId }),
   async (req, res) => {
-    const id = String(req.params.id);
+    const id = req.params.id;
     await retryBalance(id);
     res.json(await officeJob(id));
   },
@@ -157,10 +154,10 @@ clientJobsRouter.get("/mine/past", authorize("client"), async (_req, res) => {
 clientJobsRouter.get(
   "/mine/:id",
   authorize("client"),
-  validate({ params: job }),
+  validate({ params: byId }),
   async (req, res) => {
     const client = await ownClient(signedInAccount(res).id);
-    res.json(await clientJob(client.id, String(req.params.id)));
+    res.json(await clientJob(client.id, req.params.id));
   },
 );
 
@@ -174,7 +171,7 @@ for (const [answer, approve] of [
     validate({ params: jobAdjustment }),
     async (req, res) => {
       const client = await ownClient(signedInAccount(res).id);
-      const { id, adjustmentId } = req.params as JobAdjustment;
+      const { id, adjustmentId } = req.params;
       await answerAdjustment(client.id, id, adjustmentId, approve);
       res.json(await clientJob(client.id, id));
     },
@@ -184,10 +181,10 @@ for (const [answer, approve] of [
 clientJobsRouter.post(
   "/mine/:id/balance/retry",
   authorize("client"),
-  validate({ params: job }),
+  validate({ params: byId }),
   async (req, res) => {
     const client = await ownClient(signedInAccount(res).id);
-    const id = String(req.params.id);
+    const id = req.params.id;
     await clientRetryBalance(client.id, id);
     res.json(await clientJob(client.id, id));
   },

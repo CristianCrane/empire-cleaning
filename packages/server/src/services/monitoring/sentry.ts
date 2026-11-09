@@ -47,6 +47,7 @@ export const startSentry = ({
     // spans are streamed as they end, so are scrubbed one by one
     beforeSendSpan: (span) => scrub(span),
     beforeBreadcrumb: (breadcrumb) => scrub(breadcrumb),
+    beforeSendMetric: (metric) => scrub(metric),
   });
 };
 
@@ -65,6 +66,10 @@ export const sentryReporter: Reporter = {
       // one issue per signal, however its context varies
       fingerprint: ["signal", name],
     });
+  },
+  // a gauge: Sentry keeps each window's min, max and average
+  measure: (name, value, unit, context) => {
+    Sentry.metrics.gauge(name, value, { unit, attributes: context });
   },
   heartbeat: () => {
     Sentry.captureCheckIn(

@@ -319,8 +319,9 @@ describe("accepting a Service Plan Quote for a home with a plan", () => {
     await office
       .get(`/api/quotes/${draft.id}/draft/starts?from=2026-02-02&to=2026-02-01`)
       .expect(400);
-    // a weekday it hasn't, or none, is refused rather than shown as free
-    for (const weekday of ["&weekday=7", "&weekday=2", ""]) {
+    // a weekday it hasn't, or none, is refused rather than shown as free;
+    // an empty one too, rather than read as the first
+    for (const weekday of ["&weekday=7", "&weekday=2", "", "&weekday="]) {
       await office
         .get(
           `/api/quotes/${draft.id}/draft/starts?from=2026-02-02&to=2026-02-02${weekday}`,

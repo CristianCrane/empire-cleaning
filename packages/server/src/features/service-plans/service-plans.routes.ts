@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { day, startTime, validate } from "../../middleware/validation.ts";
+import { byId, day, startTime, validate } from "../../middleware/validation.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { ownClient } from "../clients/clients.ts";
 import { endServicePlan } from "./ending.ts";
@@ -15,7 +15,6 @@ import {
 
 export const router = Router();
 
-const plan = z.object({ id: z.uuid() });
 const visit = z.object({ id: z.uuid(), visitId: z.uuid() });
 
 // a time Office Staff book an unplaced visit at, New York
@@ -38,22 +37,22 @@ router.get("/mine", authorize("client"), async (_req, res) => {
 router.get(
   "/mine/:id",
   authorize("client"),
-  validate({ params: plan }),
+  validate({ params: byId }),
   async (req, res) => {
     const client = await ownClient(signedInAccount(res).id);
-    res.json(await clientServicePlan(client.id, String(req.params.id)));
+    res.json(await clientServicePlan(client.id, req.params.id));
   },
 );
 
 router.post(
   "/mine/:id/end",
   authorize("client"),
-  validate({ params: plan, body: endSchema }),
+  validate({ params: byId, body: endSchema }),
   async (req, res) => {
     const account = signedInAccount(res);
     const client = await ownClient(account.id);
     res.json(
-      await clientEndServicePlan(client.id, String(req.params.id), {
+      await clientEndServicePlan(client.id, req.params.id, {
         goingAhead: req.body.goingAhead,
         byAccountId: account.id,
         byClient: true,
@@ -67,9 +66,9 @@ router.post(
 router.get(
   "/:id",
   authorize("office_staff"),
-  validate({ params: plan }),
+  validate({ params: byId }),
   async (req, res) => {
-    res.json(await officeServicePlan(String(req.params.id)));
+    res.json(await officeServicePlan(req.params.id));
   },
 );
 
@@ -77,9 +76,9 @@ router.get(
 router.post(
   "/:id/end",
   authorize("office_staff"),
-  validate({ params: plan, body: endSchema }),
+  validate({ params: byId, body: endSchema }),
   async (req, res) => {
-    const id = String(req.params.id);
+    const id = req.params.id;
     await endServicePlan(id, {
       goingAhead: req.body.goingAhead,
       byAccountId: signedInAccount(res).id,
@@ -94,13 +93,7 @@ router.post(
   authorize("office_staff"),
   validate({ params: visit, body: bookVisitSchema }),
   async (req, res) => {
-    res.json(
-      await bookVisit(
-        String(req.params.id),
-        String(req.params.visitId),
-        req.body,
-      ),
-    );
+    res.json(await bookVisit(req.params.id, req.params.visitId, req.body));
   },
 );
 
@@ -109,8 +102,6 @@ router.post(
   authorize("office_staff"),
   validate({ params: visit }),
   async (req, res) => {
-    res.json(
-      await skipVisit(String(req.params.id), String(req.params.visitId)),
-    );
+    res.json(await skipVisit(req.params.id, req.params.visitId));
   },
 );

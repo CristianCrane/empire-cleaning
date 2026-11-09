@@ -14,7 +14,7 @@ router.use(authorize());
 const tourParams = z.object({ tour: z.string().regex(/^[a-z0-9-]{1,40}$/) });
 
 router.put("/:tour", validate({ params: tourParams }), async (req, res) => {
-  await markTourSeen(signedInAccount(res).id, String(req.params.tour));
+  await markTourSeen(signedInAccount(res).id, req.params.tour);
   res.status(204).end();
 });
 
