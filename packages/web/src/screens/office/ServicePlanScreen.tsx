@@ -11,6 +11,7 @@ import {
   cleansPaid,
   type OfficeServicePlan,
   type UnplacedVisit,
+  weekdayOf,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -38,7 +39,6 @@ import {
   formatDateTime,
   formatDay,
   timeOfDay,
-  weekdayName,
 } from "../format.ts";
 import { EndPlan, OnHold, PlanFacts, PlanStatusBadge } from "../PlanParts.tsx";
 import { useAction } from "../action.ts";
@@ -216,7 +216,7 @@ function BookOrSkip({
   // the weekday it came round on: its usual time, and its visit
   const day =
     plan.days.find(
-      (d) => weekdayName(dayOfInstant(d.startsAt)) === weekdayName(visit.dueOn),
+      (d) => weekdayOf(dayOfInstant(d.startsAt)) === weekdayOf(visit.dueOn),
     ) ?? plan.days[0]!;
   const usual = timeOfDay(day.startsAt);
   const [date, setDate] = useState<CalendarDate | null>(parseDate(visit.dueOn));

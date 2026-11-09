@@ -77,6 +77,11 @@ export const addDays = (day: string, days: number) =>
     .toISOString()
     .slice(0, 10);
 
+// how many days from `from` to `to`, both included
+export const daysIn = (from: string, to: string) =>
+  (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / DAY_MS +
+  1;
+
 // every day from `from` to `to`, both included
 export const daysFrom = (from: string, to: string) => {
   const days: string[] = [];

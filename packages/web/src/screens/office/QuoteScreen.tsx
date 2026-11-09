@@ -48,6 +48,7 @@ import {
   noEmailYet,
   notSeenYet,
   recurrenceDays,
+  weekdayOf,
   whyNoRoom,
 } from "@empire-cleaning/models";
 import {
@@ -1920,7 +1921,7 @@ const anotherDay = (days: DayFields[]): DayFields => {
   );
   const next = last.date?.add({ days: 1 });
   const taken = (d: CalendarDate) =>
-    dates.some((t) => weekdayName(t.toString()) === weekdayName(d.toString()));
+    dates.some((t) => weekdayOf(t.toString()) === weekdayOf(d.toString()));
   return {
     key: nextKey(),
     date:

@@ -13,6 +13,7 @@ import type {
   ScheduledJob,
   ScheduledSiteVisit,
 } from "@empire-cleaning/models";
+import { daysIn } from "@empire-cleaning/models";
 import {
   Actions,
   Button,
@@ -58,7 +59,6 @@ import {
   spanOf,
   timeAt,
 } from "../schedule-layout.ts";
-import { daysIn } from "../schedule-range.ts";
 
 // a short Job is still tall enough to read its time and Client
 const MIN_BLOCK_PX = 22;

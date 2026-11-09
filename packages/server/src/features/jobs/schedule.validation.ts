@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { daysFrom } from "@empire-cleaning/models";
+import { daysIn } from "@empire-cleaning/models";
 import { day, startTime } from "../../middleware/validation.ts";
 
 // longest range the Schedule shows at once: about two months
@@ -11,7 +11,7 @@ export const rangeSchema = z
     path: ["to"],
     message: "Pick an end date after the start date",
   })
-  .refine(({ from, to }) => daysFrom(from, to).length <= MAX_SCHEDULE_DAYS, {
+  .refine(({ from, to }) => daysIn(from, to) <= MAX_SCHEDULE_DAYS, {
     path: ["to"],
     message: `Pick ${MAX_SCHEDULE_DAYS} days or fewer`,
   });

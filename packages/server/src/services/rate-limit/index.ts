@@ -143,10 +143,10 @@ export const rateLimit = {
 
 // what someone refused is told, the wait rounded up: "5 minutes", "3 hours"
 export const tooManyTries = (retryAfterSeconds: number) => {
-  const minutes = Math.ceil((retryAfterSeconds * 1000) / MINUTE_MS);
-  const hours = Math.ceil((retryAfterSeconds * 1000) / HOUR_MS);
+  const minutes = Math.ceil(retryAfterSeconds / 60);
+  const hours = Math.ceil(minutes / 60);
   const wait =
-    minutes * MINUTE_MS < HOUR_MS
+    minutes < 60
       ? `${minutes} ${minutes === 1 ? "minute" : "minutes"}`
       : `${hours} ${hours === 1 ? "hour" : "hours"}`;
   return `Too many tries. Please try again in ${wait}, or call us on ${business.phone.display}.`;
