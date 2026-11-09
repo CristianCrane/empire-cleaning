@@ -1,7 +1,8 @@
 import { parseDate, type CalendarDate } from "@internationalized/date";
+import { formatClock } from "@empire-cleaning/models";
 import { Calendar } from "@empire-cleaning/ui";
 import type { TimePickerProps } from "./CalendarGrid.tsx";
-import { formatClock, formatDay } from "./format.ts";
+import { formatDay } from "./format.ts";
 
 /**
  * A Client choosing a new time for their clean, the way booking anywhere
