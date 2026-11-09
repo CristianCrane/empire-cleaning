@@ -69,15 +69,18 @@ const rule = {
     ],
     messages: {
       unreported:
-        "This catch hides errors it didn't expect. Call {{reporters}} with the error (it skips what's expected), or rethrow; a throw that's always expected takes `// oxlint-disable-next-line empire/report-unexpected -- <why>`.",
+        "This catch hides errors it didn't expect. {{fix}}; a throw that's always expected takes `// oxlint-disable-next-line empire/report-unexpected -- <why>`.",
     },
   },
   create(context) {
     const { reporters = [] } = (context.options[0] ?? {}) as {
       reporters?: string[];
     };
+    // a package with no reporter (ui) can only rethrow
     const data = {
-      reporters: reporters.join(" or ") || "a reporter",
+      fix: reporters.length
+        ? `Call ${reporters.join(" or ")} with the error, or rethrow it`
+        : "Rethrow it",
     };
     const unreported = (node: { range: [number, number] }) =>
       context.report({ node, messageId: "unreported", data });

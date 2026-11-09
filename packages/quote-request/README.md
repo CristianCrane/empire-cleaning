@@ -19,6 +19,6 @@ A signed-in Client's form lists their homes, with `waiting` (the ids of homes wh
 
 The form lists the Add-ons on offer by name ("Any extras?"), loaded from `GET /api/price-list/add-ons`, with no prices: those are on the Quote. If they can't be loaded the section is simply absent.
 
-What the form can't read from the API (a body that isn't JSON) is a failure it says, and is passed to the browser's `reportError`, which the host's Sentry reports once it has started (ADR-0007: on the landing site, Sentry starts after the page has loaded); `empire/report-unexpected` (`packages/lint`) holds every catch to it.
+What the form can't read from the API (a body that isn't JSON) counts as not loaded (a list) or not sent (the request, which the form says), and is passed to the browser's `reportError`, which the host's Sentry reports once it has started (ADR-0007: on the landing site, Sentry starts after the page has loaded); `empire/report-unexpected` (`packages/lint`) holds every catch to it.
 
 The API is the only validator. The form shows the API's field messages beside the matching fields, plus the browser's own checks for required fields. A Guest's request is sent without cookies, so someone signed in to the app is still treated as a Guest on the landing page. The form is tested end to end where it's used: `packages/landing/tests` and `packages/web/e2e`.
