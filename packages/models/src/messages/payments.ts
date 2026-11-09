@@ -1,4 +1,4 @@
-import type { AdjustmentKind, UnpaidKind } from "../index.js";
+import type { AdjustmentKind, UnpaidKind } from "../index.ts";
 
 // What the server and the screens both say about paying: a card, a payment,
 // a refund, and the price changes found when a clean is done

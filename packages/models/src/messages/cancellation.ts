@@ -1,4 +1,4 @@
-import { ON_THAT_WEEKS_BILL } from "./bills.js";
+import { ON_THAT_WEEKS_BILL } from "./bills.ts";
 
 // What the server and the screens both say about cancelling or skipping a
 // clean, and about one we couldn't get in for (docs/ux.md, Words)

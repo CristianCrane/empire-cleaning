@@ -1,4 +1,4 @@
-import type { DayCapacity } from "../index.js";
+import type { DayCapacity } from "../index.ts";
 
 // What the server and the screens both say about a time for a clean
 // (docs/ux.md, Words)
