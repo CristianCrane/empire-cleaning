@@ -143,11 +143,15 @@ import {
   safeNext,
   type AreaId,
 } from "./session.ts";
+import { reportUnexpected } from "./monitoring.ts";
 
 // lets design-system links (Link, AppLayout's nav) navigate through the router
 // asked once: which site this is doesn't change while the app is open. The
 // banner is only a label, so it isn't worth holding up the page for
-const site = getJson<Site>("/api/site").catch(() => null);
+const site = getJson<Site>("/api/site").catch((e: unknown) => {
+  reportUnexpected(e);
+  return null;
+});
 
 function Root() {
   const router = useRouter();

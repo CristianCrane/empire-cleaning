@@ -24,6 +24,7 @@ import {
   formatTime,
   cleaners,
 } from "../format.ts";
+import { reportUnexpected } from "../../monitoring.ts";
 import { untilAbout } from "./CleanerHome.tsx";
 
 // "Just you", "2 cleaners"
@@ -115,7 +116,10 @@ function TakeIt({ job }: { job: CleanerNeeded }) {
             `/api/assignments/open/${job.jobId}`,
           ).then(
             () => true,
-            () => false,
+            (e: unknown) => {
+              reportUnexpected(e);
+              return false;
+            },
           );
           if (stillOpen) await router.invalidate();
           throw e;

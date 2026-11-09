@@ -8,7 +8,8 @@
 # naming each of the web app's specs as packages/web takes it, for the
 # screens the change touches. It runs:
 #
-# - the server (not the seed test), ui, models and browser-monitoring tests,
+# - the server (not the seed test), ui, models, browser-monitoring and lint
+#   rule tests,
 #   and web's few browser tests in src/
 # - every end-to-end spec the branch adds or edits, the web app's (e2e/) and
 #   the landing site's (tests/), committed or not, and the specs named, once
@@ -47,6 +48,7 @@ run() {
 run pnpm --color --recursive --workspace-concurrency=1 --no-bail \
   --filter @empire-cleaning/server --filter @empire-cleaning/ui \
   --filter @empire-cleaning/models --filter @empire-cleaning/browser-monitoring \
+  --filter @empire-cleaning/lint \
   run test:quick
 run pnpm --filter @empire-cleaning/web exec vitest run
 # a spec both edited and named runs once: Playwright takes each argument as a

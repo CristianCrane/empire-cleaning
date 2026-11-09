@@ -132,6 +132,7 @@ import { PickFromSchedule } from "./SchedulePicker.tsx";
 import { BookSiteVisit, visitSummary } from "./SiteVisitParts.tsx";
 import { useStartDraft } from "./StartDraft.tsx";
 import { useLoaded } from "../load.ts";
+import { reportUnexpected } from "../../monitoring.ts";
 
 // The Quote with one of its Revisions in hand: the one being drafted, or
 // else the offer, so it's edited while there's a Draft Revision and
@@ -1538,6 +1539,7 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
         setFailure(undefined);
         saved.current = { edit, ok: true };
       } catch (e) {
+        reportUnexpected(e);
         const invalid =
           e instanceof ApiError && Object.keys(e.fieldErrors).length > 0;
         if (invalid) setFieldErrors(e.fieldErrors);
@@ -1580,6 +1582,7 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
         params: { quoteId: quote.id },
       });
     } catch (e) {
+      reportUnexpected(e);
       if (e instanceof ApiError && Object.keys(e.fieldErrors).length) {
         setFieldErrors(e.fieldErrors);
       } else if (e instanceof ApiError && e.status === 409) {

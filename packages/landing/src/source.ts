@@ -36,7 +36,8 @@ const keptCampaign = (): Tags | null => {
   if (!kept) return null;
   try {
     return JSON.parse(kept) as Tags;
-  } catch {
+  } catch (e) {
+    reportError(e);
     return null;
   }
 };

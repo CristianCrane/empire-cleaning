@@ -157,6 +157,11 @@ export const taxOn = (
   );
 };
 
+// a Service that can't price this place: one priced from a home's rooms,
+// asked of business premises. A screen asking ahead (the Office's preview)
+// shows nothing for it; anything else suggestedPrice throws is a bug
+export class NotPriced extends Error {}
+
 export const suggestedPrice = (
   list: PriceList,
   service: Service,
@@ -166,7 +171,7 @@ export const suggestedPrice = (
   addOns: ChosenAddOn[],
 ): PriceBreakdown => {
   if (service.method === "rooms" && property.kind !== "residential") {
-    throw new Error(`${service.name} is priced from a home's rooms`);
+    throw new NotPriced(`${service.name} is priced from a home's rooms`);
   }
   const parts =
     service.method === "area"
