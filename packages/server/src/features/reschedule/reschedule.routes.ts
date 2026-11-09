@@ -1,9 +1,8 @@
 import { eq } from "drizzle-orm";
 import { Router } from "express";
-import { z } from "zod";
 import { db } from "../../db/index.ts";
 import { NotFoundError } from "../../middleware/errors.ts";
-import { validate } from "../../middleware/validation.ts";
+import { byId, validate } from "../../middleware/validation.ts";
 import { officeJob } from "../assignments/assignments.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { ownClient } from "../clients/clients.ts";
@@ -23,8 +22,6 @@ import {
   turnDownSchema,
 } from "./reschedule.validation.ts";
 
-const job = z.object({ id: z.uuid() });
-
 // ---- the signed-in Client: /api/jobs/mine/:id/reschedule-... ----
 
 export const clientRescheduleRouter = Router();
@@ -39,7 +36,7 @@ const mine = async (accountId: string, jobId: string) => {
 clientRescheduleRouter.get(
   "/mine/:id/reschedule-times",
   authorize("client"),
-  validate({ params: job }),
+  validate({ params: byId }),
   async (req, res) => {
     const { job } = await mine(signedInAccount(res).id, req.params.id);
     res.json(await rescheduleTimesFor(job));
@@ -49,7 +46,7 @@ clientRescheduleRouter.get(
 clientRescheduleRouter.post(
   "/mine/:id/reschedule-request",
   authorize("client"),
-  validate({ params: job, body: rescheduleSchema }),
+  validate({ params: byId, body: rescheduleSchema }),
   async (req, res) => {
     const account = signedInAccount(res);
     const id = req.params.id;
@@ -67,7 +64,7 @@ clientRescheduleRouter.post(
 clientRescheduleRouter.post(
   "/mine/:id/reschedule-request/withdraw",
   authorize("client"),
-  validate({ params: job }),
+  validate({ params: byId }),
   async (req, res) => {
     const account = signedInAccount(res);
     const id = req.params.id;
@@ -90,7 +87,7 @@ const jobById = async (jobId: string) => {
 officeRescheduleRouter.get(
   "/:id/reschedule-times",
   authorize("office_staff"),
-  validate({ params: job }),
+  validate({ params: byId }),
   async (req, res) => {
     res.json(await rescheduleTimesFor(await jobById(req.params.id)));
   },
@@ -100,7 +97,7 @@ officeRescheduleRouter.get(
 officeRescheduleRouter.post(
   "/:id/reschedule-request",
   authorize("office_staff"),
-  validate({ params: job, body: rescheduleSchema }),
+  validate({ params: byId, body: rescheduleSchema }),
   async (req, res) => {
     const id = req.params.id;
     const { date, time, cost } = req.body;
@@ -116,7 +113,7 @@ officeRescheduleRouter.post(
 officeRescheduleRouter.post(
   "/:id/reschedule-request/confirm",
   authorize("office_staff"),
-  validate({ params: job }),
+  validate({ params: byId }),
   async (req, res) => {
     const id = req.params.id;
     await confirmReschedule(id, signedInAccount(res).id);
@@ -127,7 +124,7 @@ officeRescheduleRouter.post(
 officeRescheduleRouter.post(
   "/:id/reschedule-request/turn-down",
   authorize("office_staff"),
-  validate({ params: job, body: turnDownSchema }),
+  validate({ params: byId, body: turnDownSchema }),
   async (req, res) => {
     const id = req.params.id;
     await turnDownReschedule(id, req.body.reason, signedInAccount(res).id);
@@ -139,7 +136,7 @@ officeRescheduleRouter.post(
 officeRescheduleRouter.post(
   "/:id/move",
   authorize("office_staff"),
-  validate({ params: job, body: moveSchema }),
+  validate({ params: byId, body: moveSchema }),
   async (req, res) => {
     const id = req.params.id;
     const { date, time } = req.body;

@@ -1,6 +1,6 @@
 import { Router, type Response } from "express";
 import { z } from "zod";
-import { validate } from "../../middleware/validation.ts";
+import { byId, validate } from "../../middleware/validation.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { staffForAccount } from "../staff/staff.ts";
 import {
@@ -19,7 +19,6 @@ import {
   passCleanerNeeded,
 } from "./cleaners-needed.ts";
 
-const job = z.object({ id: z.uuid() });
 const jobAssignment = z.object({ id: z.uuid(), assignmentId: z.uuid() });
 const offerSchema = z.object({ staffId: z.uuid("Pick a cleaner") });
 
@@ -30,7 +29,7 @@ export const jobAssignmentsRouter = Router();
 jobAssignmentsRouter.get(
   "/:id",
   authorize("office_staff"),
-  validate({ params: job }),
+  validate({ params: byId }),
   async (req, res) => {
     res.json(await officeJob(req.params.id));
   },
@@ -39,7 +38,7 @@ jobAssignmentsRouter.get(
 jobAssignmentsRouter.post(
   "/:id/assignments",
   authorize("office_staff"),
-  validate({ params: job, body: offerSchema }),
+  validate({ params: byId, body: offerSchema }),
   async (req, res) => {
     res
       .status(201)
@@ -72,7 +71,6 @@ router.use(authorize("cleaner"));
 // the signed-in Cleaner's Staff record
 const cleaner = (res: Response) => staffForAccount(signedInAccount(res).id);
 
-const assignment = z.object({ id: z.uuid() });
 // the Job's time the Cleaner was shown, so a Job moved meanwhile isn't
 // taken at a time they never saw (#242)
 const seenSchema = z.object({ startsAt: z.iso.datetime() });
@@ -82,7 +80,7 @@ router.get("/mine", async (_req, res) => {
   res.json(await jobsAssignedTo((await cleaner(res)).id));
 });
 
-router.get("/mine/:id", validate({ params: job }), async (req, res) => {
+router.get("/mine/:id", validate({ params: byId }), async (req, res) => {
   res.json(await jobAssignedTo((await cleaner(res)).id, req.params.id));
 });
 
@@ -92,13 +90,13 @@ router.get("/open", async (_req, res) => {
   res.json(await cleanersNeededFor((await cleaner(res)).id));
 });
 
-router.get("/open/:id", validate({ params: job }), async (req, res) => {
+router.get("/open/:id", validate({ params: byId }), async (req, res) => {
   res.json(await cleanerNeededFor((await cleaner(res)).id, req.params.id));
 });
 
 router.post(
   "/open/:id/confirm",
-  validate({ params: job, body: seenSchema }),
+  validate({ params: byId, body: seenSchema }),
   async (req, res) => {
     const { id } = await cleaner(res);
     await confirmCleanerNeeded(id, req.params.id, new Date(req.body.startsAt));
@@ -106,14 +104,14 @@ router.post(
   },
 );
 
-router.post("/open/:id/pass", validate({ params: job }), async (req, res) => {
+router.post("/open/:id/pass", validate({ params: byId }), async (req, res) => {
   await passCleanerNeeded((await cleaner(res)).id, req.params.id);
   res.status(204).end();
 });
 
 router.post(
   "/:id/confirm",
-  validate({ params: assignment, body: seenSchema }),
+  validate({ params: byId, body: seenSchema }),
   async (req, res) => {
     res.json(
       await confirmAssignment(
@@ -125,11 +123,7 @@ router.post(
   },
 );
 
-router.post(
-  "/:id/release",
-  validate({ params: assignment }),
-  async (req, res) => {
-    await releaseAssignment((await cleaner(res)).id, req.params.id);
-    res.status(204).end();
-  },
-);
+router.post("/:id/release", validate({ params: byId }), async (req, res) => {
+  await releaseAssignment((await cleaner(res)).id, req.params.id);
+  res.status(204).end();
+});

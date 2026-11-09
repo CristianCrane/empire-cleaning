@@ -7,7 +7,7 @@ import {
   NotFoundError,
   RequestBodyError,
 } from "../../middleware/errors.ts";
-import { keepUnder, validate } from "../../middleware/validation.ts";
+import { byId, keepUnder, validate } from "../../middleware/validation.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { clients } from "../clients/clients.schema.ts";
 import {
@@ -26,13 +26,11 @@ import { toPropertyView } from "./property-view.ts";
 
 export const router = Router();
 
-const params = z.object({ id: z.uuid() });
-
 // any Property, for the Office, with its whole history
 router.get(
   "/:id",
   authorize("office_staff"),
-  validate({ params }),
+  validate({ params: byId }),
   async (req, res) => {
     const view = await officePropertyView(req.params.id);
     if (!view) throw new NotFoundError("Property not found");
@@ -46,7 +44,7 @@ router.patch(
   "/:id/access-instructions",
   authorize("client", "office_staff"),
   validate({
-    params,
+    params: byId,
     body: z.object({
       accessInstructions: z
         .string()
@@ -92,7 +90,7 @@ router.patch(
 router.patch(
   "/:id",
   authorize("office_staff"),
-  validate({ params }),
+  validate({ params: byId }),
   async (req, res) => {
     const id = req.params.id;
     const [property] = await db

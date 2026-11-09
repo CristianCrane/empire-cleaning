@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { email } from "#services/email";
 import { fieldError, NotFoundError } from "../../middleware/errors.ts";
-import { keepUnder, validate } from "../../middleware/validation.ts";
+import { byId, keepUnder, validate } from "../../middleware/validation.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { contactSchema } from "../quotes/asking.validation.ts";
 import {
@@ -71,7 +71,7 @@ router.patch(
   "/:id",
   authorize("office_staff"),
   validate({
-    params: z.object({ id: z.uuid() }),
+    params: byId,
     body: contactSchema.extend({
       email: contactSchema.shape.email.nullable(),
       businessName: z
@@ -112,7 +112,7 @@ router.get(
 router.get(
   "/:id",
   authorize("office_staff"),
-  validate({ params: z.object({ id: z.uuid() }) }),
+  validate({ params: byId }),
   async (req, res) => {
     const view = await officeClientView(req.params.id);
     if (!view) throw new NotFoundError("Client not found");

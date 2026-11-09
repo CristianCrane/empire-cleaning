@@ -71,3 +71,6 @@ export const day = z.iso.date("Pick a day");
 export const startTime = z
   .string({ error: "Pick a start time" })
   .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Pick a start time");
+
+// a route's one path param, the id of what it's about: /:id
+export const byId = z.object({ id: z.uuid() });

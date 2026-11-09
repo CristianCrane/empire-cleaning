@@ -1,8 +1,7 @@
 import { Router } from "express";
-import { z } from "zod";
 import type { AcceptOutcome, CallerQuoteEntry } from "@empire-cleaning/models";
 import { ConflictError } from "../../middleware/errors.ts";
-import { validate } from "../../middleware/validation.ts";
+import { byId, validate } from "../../middleware/validation.ts";
 import {
   authorize,
   currentAccount,
@@ -42,8 +41,6 @@ import {
 
 export const router = Router();
 
-const byId = { params: z.object({ id: z.uuid() }) };
-
 // ---- asking ----
 
 // a Client (or a Guest, from the landing page) asks for a Quote: it starts
@@ -73,7 +70,7 @@ router.get("/mine", authorize("client"), async (_req, res) => {
 router.get(
   "/mine/:id",
   authorize("client"),
-  validate(byId),
+  validate({ params: byId }),
   async (req, res) => {
     const client = await ownClient(signedInAccount(res).id);
     res.json(await clientQuoteView(req.params.id, client.id));
@@ -86,7 +83,7 @@ router.get(
 router.post(
   "/mine/:id/accept",
   authorize("client"),
-  validate({ ...byId, body: clientAcceptSchema }),
+  validate({ params: byId, body: clientAcceptSchema }),
   async (req, res) => {
     const account = signedInAccount(res);
     const client = await ownClient(account.id);
@@ -108,7 +105,7 @@ router.post(
 router.post(
   "/mine/:id/accept/finalize",
   authorize("client"),
-  validate(byId),
+  validate({ params: byId }),
   async (req, res) => {
     const client = await ownClient(signedInAccount(res).id);
     const id = req.params.id;
@@ -131,7 +128,7 @@ router.post(
 router.post(
   "/mine/:id/decline",
   authorize("client"),
-  validate(byId),
+  validate({ params: byId }),
   async (req, res) => {
     const client = await ownClient(signedInAccount(res).id);
     res.json(await declineQuote(req.params.id, client.id));
@@ -163,7 +160,7 @@ router.post(
 router.get(
   "/:id",
   authorize("office_staff"),
-  validate(byId),
+  validate({ params: byId }),
   async (req, res) => {
     res.json(await officeQuote(req.params.id));
   },
@@ -173,7 +170,7 @@ router.get(
 router.post(
   "/:id/revisions",
   authorize("office_staff"),
-  validate({ ...byId, body: startRevisionSchema }),
+  validate({ params: byId, body: startRevisionSchema }),
   async (req, res) => {
     const { quote, started } = await startRevision(
       req.params.id,
@@ -188,7 +185,7 @@ router.post(
 router.patch(
   "/:id/draft",
   authorize("office_staff"),
-  validate({ ...byId, body: draftSchema }),
+  validate({ params: byId, body: draftSchema }),
   async (req, res) => {
     res.json(await saveDraft(req.params.id, req.body));
   },
@@ -201,7 +198,7 @@ router.patch(
 router.get(
   "/:id/draft/starts",
   authorize("office_staff"),
-  validate({ ...byId, query: draftStartsSchema }),
+  validate({ params: byId, query: draftStartsSchema }),
   async (req, res) => {
     const { from, to, weekday } = req.query;
     res.json(
@@ -218,7 +215,7 @@ router.get(
 router.delete(
   "/:id/draft",
   authorize("office_staff"),
-  validate(byId),
+  validate({ params: byId }),
   async (req, res) => {
     const quote = await discardDraft(req.params.id);
     if (quote) res.json(quote);
@@ -229,7 +226,7 @@ router.delete(
 router.post(
   "/:id/send",
   authorize("office_staff"),
-  validate(byId),
+  validate({ params: byId }),
   async (req, res) => {
     res.json(await sendQuote(req.params.id));
   },
@@ -239,7 +236,7 @@ router.post(
 router.post(
   "/:id/turn-down",
   authorize("office_staff"),
-  validate({ ...byId, body: turnDownSchema }),
+  validate({ params: byId, body: turnDownSchema }),
   async (req, res) => {
     res.json(
       await turnDownQuote(
@@ -256,7 +253,7 @@ router.post(
 router.post(
   "/:id/accept",
   authorize("office_staff"),
-  validate({ ...byId, body: acceptSchema }),
+  validate({ params: byId, body: acceptSchema }),
   async (req, res) => {
     const id = req.params.id;
     await acceptQuote(

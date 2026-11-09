@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { day, validate } from "../../middleware/validation.ts";
+import { byId, day, validate } from "../../middleware/validation.ts";
 import { authorize } from "../auth/authorize.ts";
 import {
   deactivateStaff,
@@ -24,7 +24,6 @@ export const router = Router();
 // everything here is for Office Staff
 router.use(authorize("office_staff"));
 
-const member = z.object({ id: z.uuid() });
 const memberDay = z.object({ id: z.uuid(), date: day });
 
 router.get("/", async (_req, res) => {
@@ -35,29 +34,25 @@ router.post("/", validate({ body: invitationSchema }), async (req, res) => {
   res.status(201).json(await inviteStaff(req.body));
 });
 
-router.get("/:id", validate({ params: member }), async (req, res) => {
+router.get("/:id", validate({ params: byId }), async (req, res) => {
   res.json(await staffDetail(req.params.id));
 });
 
 router.patch(
   "/:id",
-  validate({ params: member, body: editStaffSchema }),
+  validate({ params: byId, body: editStaffSchema }),
   async (req, res) => {
     res.json(await editStaff(req.params.id, req.body));
   },
 );
 
-router.post(
-  "/:id/deactivate",
-  validate({ params: member }),
-  async (req, res) => {
-    res.json(await deactivateStaff(req.params.id));
-  },
-);
+router.post("/:id/deactivate", validate({ params: byId }), async (req, res) => {
+  res.json(await deactivateStaff(req.params.id));
+});
 
 router.put(
   "/:id/usual-week",
-  validate({ params: member, body: usualWeekSchema }),
+  validate({ params: byId, body: usualWeekSchema }),
   async (req, res) => {
     res.json(await setUsualWeek(req.params.id, req.body.usualWeek));
   },

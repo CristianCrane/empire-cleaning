@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { day, startTime, validate } from "../../middleware/validation.ts";
+import { byId, day, startTime, validate } from "../../middleware/validation.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { ownClient } from "../clients/clients.ts";
 import { endServicePlan } from "./ending.ts";
@@ -15,7 +15,6 @@ import {
 
 export const router = Router();
 
-const plan = z.object({ id: z.uuid() });
 const visit = z.object({ id: z.uuid(), visitId: z.uuid() });
 
 // a time Office Staff book an unplaced visit at, New York
@@ -38,7 +37,7 @@ router.get("/mine", authorize("client"), async (_req, res) => {
 router.get(
   "/mine/:id",
   authorize("client"),
-  validate({ params: plan }),
+  validate({ params: byId }),
   async (req, res) => {
     const client = await ownClient(signedInAccount(res).id);
     res.json(await clientServicePlan(client.id, req.params.id));
@@ -48,7 +47,7 @@ router.get(
 router.post(
   "/mine/:id/end",
   authorize("client"),
-  validate({ params: plan, body: endSchema }),
+  validate({ params: byId, body: endSchema }),
   async (req, res) => {
     const account = signedInAccount(res);
     const client = await ownClient(account.id);
@@ -67,7 +66,7 @@ router.post(
 router.get(
   "/:id",
   authorize("office_staff"),
-  validate({ params: plan }),
+  validate({ params: byId }),
   async (req, res) => {
     res.json(await officeServicePlan(req.params.id));
   },
@@ -77,7 +76,7 @@ router.get(
 router.post(
   "/:id/end",
   authorize("office_staff"),
-  validate({ params: plan, body: endSchema }),
+  validate({ params: byId, body: endSchema }),
   async (req, res) => {
     const id = req.params.id;
     await endServicePlan(id, {

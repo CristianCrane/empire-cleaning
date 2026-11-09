@@ -1,6 +1,5 @@
 import { Router } from "express";
-import { z } from "zod";
-import { validate } from "../../middleware/validation.ts";
+import { byId, validate } from "../../middleware/validation.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { ownClient } from "../clients/clients.ts";
 import { staffForAccount } from "../staff/staff.ts";
@@ -17,8 +16,6 @@ import {
 import { bookingSchema, newVisitSchema } from "./site-visits.validation.ts";
 
 export const router = Router();
-
-const params = z.object({ id: z.uuid() });
 
 // ---- the Client's and the visitor's own ----
 
@@ -51,7 +48,7 @@ router.post(
 router.get(
   "/:id",
   authorize("office_staff"),
-  validate({ params }),
+  validate({ params: byId }),
   async (req, res) => {
     res.json(await officeSiteVisit(req.params.id));
   },
@@ -60,7 +57,7 @@ router.get(
 router.post(
   "/:id/move",
   authorize("office_staff"),
-  validate({ params, body: bookingSchema }),
+  validate({ params: byId, body: bookingSchema }),
   async (req, res) => {
     res.json(await moveSiteVisit(req.params.id, req.body));
   },
@@ -69,7 +66,7 @@ router.post(
 router.post(
   "/:id/cancel",
   authorize("office_staff"),
-  validate({ params }),
+  validate({ params: byId }),
   async (req, res) => {
     res.json(await cancelSiteVisit(req.params.id, signedInAccount(res).id));
   },
@@ -79,7 +76,7 @@ router.post(
 router.post(
   "/:id/findings",
   authorize("office_staff"),
-  validate({ params }),
+  validate({ params: byId }),
   async (req, res) => {
     res.json(
       await recordFindings(req.params.id, req.body, signedInAccount(res).id),
@@ -95,7 +92,7 @@ export const propertyFindingsRouter = Router();
 propertyFindingsRouter.post(
   "/:id/findings",
   authorize("office_staff"),
-  validate({ params }),
+  validate({ params: byId }),
   async (req, res) => {
     res
       .status(201)

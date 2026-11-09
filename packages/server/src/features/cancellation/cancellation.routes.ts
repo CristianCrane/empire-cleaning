@@ -1,6 +1,5 @@
 import { Router } from "express";
-import { z } from "zod";
-import { validate } from "../../middleware/validation.ts";
+import { byId, validate } from "../../middleware/validation.ts";
 import { jobAssignedTo, officeJob } from "../assignments/assignments.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { ownClient } from "../clients/clients.ts";
@@ -13,8 +12,6 @@ import {
   officeCancelSchema,
 } from "./cancellation.validation.ts";
 
-const job = z.object({ id: z.uuid() });
-
 // ---- the signed-in Client: /api/jobs/mine/:id/cancel ----
 
 export const clientCancellationRouter = Router();
@@ -22,7 +19,7 @@ export const clientCancellationRouter = Router();
 clientCancellationRouter.post(
   "/mine/:id/cancel",
   authorize("client"),
-  validate({ params: job, body: cancelSchema }),
+  validate({ params: byId, body: cancelSchema }),
   async (req, res) => {
     const account = signedInAccount(res);
     const client = await ownClient(account.id);
@@ -46,7 +43,7 @@ export const officeCancellationRouter = Router();
 officeCancellationRouter.post(
   "/:id/cancel",
   authorize("office_staff"),
-  validate({ params: job, body: officeCancelSchema }),
+  validate({ params: byId, body: officeCancelSchema }),
   async (req, res) => {
     const id = req.params.id;
     await cancelJob(id, {
@@ -67,7 +64,7 @@ export const noAccessRouter = Router();
 noAccessRouter.post(
   "/mine/:id/no-access",
   authorize("cleaner"),
-  validate({ params: job, body: noAccessSchema }),
+  validate({ params: byId, body: noAccessSchema }),
   async (req, res) => {
     const member = await staffForAccount(signedInAccount(res).id);
     const id = req.params.id;
