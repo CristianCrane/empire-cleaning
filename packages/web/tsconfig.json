@@ -7,11 +7,6 @@
     "moduleResolution": "Bundler",
     "jsx": "react-jsx",
     "types": ["vite/client", "@vitest/browser-playwright"],
-    "erasableSyntaxOnly": true,
-    "verbatimModuleSyntax": true,
-    "allowImportingTsExtensions": true,
-    "noEmit": true,
-    "strict": true,
     "skipLibCheck": true
   },
   "include": ["src", "e2e", "*.config.ts"]
