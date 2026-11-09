@@ -73,7 +73,7 @@ test(
   },
 );
 
-test("the extras asked for are priced, and shown with their hours", async ({
+test("the Add-ons asked for are priced, and shown with their hours", async ({
   page,
 }) => {
   await requestQuoteAsGuest(casey, ["Inside the oven"]);

@@ -58,7 +58,7 @@ const giveDetails = async (page: Page) => {
 };
 
 test(
-  "a business asks for regular cleaning on chosen days, with no Condition or extras",
+  "a business asks for regular cleaning on chosen days, with no Condition or Add-ons",
   { tag: "@smoke" },
   async ({ page }) => {
     await signedInAs(page, "nina@example.com");
