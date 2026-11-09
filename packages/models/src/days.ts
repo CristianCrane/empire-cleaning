@@ -66,6 +66,12 @@ export const timeOf = (instant: Date) => {
   return `${p.hour}:${p.minute}`;
 };
 
+// minutes since midnight -> the time they come to: 570 -> "09:30"
+export const clockTime = (minutes: number) => {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}`;
+};
+
 export const MINUTE_MS = 60_000;
 export const HOUR_MS = 60 * MINUTE_MS;
 // a day of 24 hours: a calendar day in New York is 23 or 25 across the
