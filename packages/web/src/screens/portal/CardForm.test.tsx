@@ -140,11 +140,14 @@ describe("paying, when Stripe says no", () => {
       code: "card_declined",
       message: "Your card was declined.",
     },
-    {
-      type: "invalid_request_error",
-      code: "payment_intent_authentication_failure",
-      message: "We are unable to authenticate your payment method.",
-    },
+    // what Stripe's test mode answers when the 3D Secure check is failed
+    // or closed (card 4000 0027 6000 3184), paying and saving a card
+    ...(["payment_intent", "setup_intent"] as const).map((intent) => ({
+      type: "invalid_request_error" as const,
+      code: `${intent}_authentication_failure`,
+      message:
+        "We are unable to authenticate your payment method. Please choose a different payment method and try again.",
+    })),
   ] as const)(
     "about the Client's card ($code) isn't reported",
     async (error) => {

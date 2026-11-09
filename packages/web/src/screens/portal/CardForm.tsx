@@ -40,8 +40,9 @@ export class CardProblem extends Error {}
 
 // What Stripe said, as a CardProblem with its message for the Client. A card
 // or bank that said no, details to check, a dropped connection, or the Client
-// failing or closing the 3D Secure check (whatever its type, #331) is theirs
-// to fix; anything else (a wrong key, a bad request, Stripe failing) is ours,
+// failing or closing the 3D Secure check (an invalid_request_error, with
+// code payment_intent_ or setup_intent_authentication_failure, as Stripe's
+// test mode gives both) is theirs to fix; anything else (a wrong key, a bad request, Stripe failing) is ours,
 // so it's reported
 const theirs = new Set([
   "card_error",
