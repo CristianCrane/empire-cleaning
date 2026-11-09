@@ -19,12 +19,13 @@ A **pattern** is any shape the change follows or adds: a helper, a table, a laye
 - **Refactor first.** A refactor that changes no behaviour goes in the PR's first commits, and the change is built on top of it.
 - **Fix what you see.** A problem outside the change, seen while building or by the reviewer, goes on the survey's `Seen nearby:` list and is fixed in a cleanup commit after the change's. Nothing is filed for later.
 - **Big work.** A refactor or cleanup over ~10 files, or one that crosses packages: stop and ask the user one thing, whether it rides in this PR or gets its own. It's done either way. A refactor's own PR merges first, and the change's branch then starts from the default branch; a cleanup's own PR follows the change's.
-- **Every change** gets a survey, a plan review and a review. A small change writes a one-line survey; one for a bug carries its Cause.
+- **Every change** but a dictated one (below) gets a survey, a plan review and a review. A small change writes a one-line survey; one for a bug carries its Cause.
+- **Dictated config:** a change to one Claude settings file that the user dictated exactly (they named the permission rule, model or theme), that only makes Claude ask or refuse more (an allow rule removed, a deny or ask rule added) or sets the model or theme to a value they named, touching no code, hook or rule text, gets a one-line survey, `dictated: "<their words>" <the file's path>`, and no plan review or review; the report to the user says it went with no reviewer. The gates hold it: they find the quote in a message the user typed, and each entry the change makes named in it; anything wider (another file, a plugin, a rule that widens what runs, an entry the quote doesn't name as a whole, more than five entries) gets the full flow. Its lessons still run (a `Ruled out:` line is enough), and a lesson that lands in a file takes the full flow; a PR's Change section says `Review: none, dictated`.
 - The repo's own rules (CLAUDE.md, ADRs) add to these.
 
 ## 1. Survey
 
-Before the first edit: the survey gate turns edits down until it exists and names a file by its path from the top of the checkout (`home/.claude/hooks/lib.mjs`, not `lib.mjs`), and its turn-down names the survey's path. (The survey lives in the git dir, one per branch, or on `main` one per session.)
+Before the first edit: the survey gate turns edits down until it exists and names a file by its path from the top of the checkout (`home/.claude/hooks/lib.mjs`, not `lib.mjs`), and its turn-down names the survey's path. (The survey lives in the git dir, one per branch, or on `main` one per change: from the commit where HEAD meets origin until the change is pushed, so push before starting the next one. A pull, merge or rebase of origin's newer work moves that commit too: move the change's files to the path the turn-down names.)
 
 ```
 Change: <one line>
@@ -56,7 +57,7 @@ Keep the survey true: when the plan or the file count changes, update it, and wh
 
 Once the change is committed, before opening the PR (`gh pr create` is turned down until the review is of the last commit, or of one before it with only comment lines changed since, and, before the last round, has no open change findings), run the `change-reviewer` agent: **round 1**, with the branch, the repo root, which commits are refactors (the survey's `Commits:`), the survey's and plan review's paths, and the review's path (`review-…` beside the survey).
 
-A round is the reviewer and you arguing about shape, and about a bug's evidence. The reviewer reads the diff and the survey and runs no tests, so tests never hold it up: start each round as its commit lands, and run the repo's quick tests beside it (its CLAUDE.md or AGENTS.md names them, and its full suite).
+A round is the reviewer and you arguing about shape, and about a bug's evidence. The reviewer reads the diff and the survey and runs nothing that writes (a gate holds it to reading), so tests never hold it up: start each round as its commit lands, and run the repo's quick tests beside it (its CLAUDE.md or AGENTS.md names them, and its full suite).
 
 - **Every finding is a fix**, made now and never filed for later. Each has an id (`F<n>`) and a severity:
   - **`[change]`**: a shape decision, or a bug's unshown cause (the reviewer's impact list). Fix it, with any failure the round's quick tests found, commit, and run the reviewer again: **round 2**, **round 3**, and on. A follow-up round checks only the fixes, against the previous review in the same file. Only these fixes count rounds.

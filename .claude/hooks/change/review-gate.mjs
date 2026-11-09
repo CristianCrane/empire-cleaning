@@ -1,7 +1,8 @@
 // The change rules: edited in github.com/CristianCrane/.dotfiles (home/.claude); repos carry copies made by hooks/sync.mjs.
 //
 // `gh pr create` waits for the branch's change review (the `change` skill):
-// it is turned down until the review exists, is of the last commit (or
+// it is turned down until the review exists (a dictated change that holds
+// has none: lib's dictatedHolds), is of the last commit (or
 // of one before it with only comment lines changed since) and, before the
 // last round, leaves no change finding open, and until the PR body, read
 // from its file, is in the skill's shape (its parts, Check these's
@@ -10,21 +11,16 @@
 // `--draft`) once the branch's lessons file (the `lessons` skill) says
 // where every lesson went, and the review is still of the last commit.
 import { existsSync, readFileSync } from "node:fs";
-import { deny, dirOf, hook, lines, masked, onBranch, review, stateFile, workOf } from "./lib.mjs";
+import { argsOf, BOUNDARY, deny, dirOf, hook, lines, masked, onBranch, REDIRECT, review, stateFile, unquote, workOf } from "./lib.mjs";
 
 // where a command starts (not inside a message that mentions it), after
 // any VAR=value prefixes, with any gh flags before `pr`
 // (a VAR=value prefix's value may be quoted: in the masked text its quotes
 // hold blanks; a wrapper such as env, command or time runs gh all the same)
-const PR_STEP = /(?:^|[;&|(\n])\s*(?:(?:\w+=(?:"[^"]*"|'[^']*'|[^\s"'])*|env|command|time|nohup|exec)\s+)*gh\s+(?:-\S+(?:\s+[^-\s]\S*)?\s+)*pr\s+(create|ready)\b/g;
-
-// this gh command's own arguments, up to the next command: in the masked
-// text (`masked`), so a quoted title or body is blanks
-const argsOf = (hidden, end) => {
-  // an & in a redirect (2>&1, >&2, &>f, <&0) is no command boundary
-  const stop = hidden.slice(end).search(/[;|\n]|(?<![<>])&(?!>)/);
-  return hidden.slice(end, stop < 0 ? undefined : end + stop);
-};
+const PR_STEP = new RegExp(
+  String.raw`(?:^|${BOUNDARY})\s*(?:(?:\w+=(?:"[^"]*"|'[^']*'|[^\s"'])*|env|command|time|nohup|exec)\s+)*gh\s+(?:-\S+(?:\s+[^-\s]\S*)?\s+)*pr\s+(create|ready)\b`,
+  "g",
+);
 
 // the branch `--head` names, if any, in this gh command's own arguments:
 // found in the masked text (so a title or body that mentions --head doesn't
@@ -34,7 +30,7 @@ const headOf = (command, hidden, end) => {
   const flag = /(?:^|\s)(?:--head|-H)(?:=|\s+)("[^"]+"|'[^']+'|\S+)/d.exec(args);
   if (!flag) return undefined;
   const [start, finish] = flag.indices[1];
-  return command.slice(end + start, end + finish).replace(/^["']|["']$/g, "").replace(/^[^:]*:/, "");
+  return unquote(command.slice(end + start, end + finish)).replace(/^[^:]*:/, "");
 };
 
 // a turn-down stops the whole command, so it says so: a push or an edit of
@@ -43,16 +39,19 @@ const turnDown = (reason, verb) =>
   deny(`${reason} Nothing in this command ran, steps before gh pr ${verb} included: run each one as its own command.`);
 
 // why the branch's PR can't leave draft yet, if it can't: its lessons file
-// is missing, lists nothing, or has a lesson that doesn't say where it went
+// is missing, lists nothing, or has a lesson that doesn't say where it went.
+// The lessons are the bullets before the first line starting `Ruled out`
+// (or `None:`, its older spelling); the costs ruled out follow, in any form
 const lessonsMissing = (cwd, work) => {
   const file = stateFile(cwd, "lessons", work.key);
-  const how = `run the \`lessons\` skill (the \`change\` skill's step 6) and write them to ${file}, each lesson saying where it went (\`→ <where>\`), or \`None: <why>\``;
+  const how = `run the \`lessons\` skill (the \`change\` skill's step 6) and write them to ${file}, each lesson saying where it went (\`→ <where>\`), and the costs that aren't lessons after a \`Ruled out:\` line`;
   if (!existsSync(file)) return `${work.branch}'s PR can't leave draft before its lessons: ${how}.`;
-  const text = readFileSync(file, "utf8");
-  if (/^None:\s*\S/m.test(text)) return;
-  const items = lines(text).filter((line) => /^\s*-\s/.test(line));
+  const all = lines(readFileSync(file, "utf8"));
+  const split = all.findIndex((line) => /^(?:ruled out|none:)/i.test(line.trim()));
+  const items = (split < 0 ? all : all.slice(0, split)).filter((line) => /^\s*-\s/.test(line));
+  const ruledOut = split >= 0 && /\w/.test(all.slice(split).join(" ").replace(/^\s*(?:ruled out|none)\W*/i, ""));
   const unsaid = items.filter((line) => !/→\s*\S/.test(line));
-  if (items.length === 0 || unsaid.length)
+  if ((items.length === 0 && !ruledOut) || unsaid.length)
     return `The lessons file for ${work.branch} (${file}) ${items.length ? `has ${unsaid.length} lesson(s) that don't say where they went` : "lists none"}: ${how}.`;
 };
 
@@ -137,7 +136,7 @@ const createGate = (command, hidden, match, input) => {
       `gh pr create --head ${head} runs from ${work.branch}'s checkout (${cwd}), but a branch's change review lives with its own checkout. Run it from ${head}'s checkout: git switch ${head} first, as its own command, or in its worktree.`,
     );
 
-  const found = review(cwd, work.key);
+  const found = review(cwd, work, input);
   if (!found.ok)
     return turnDownCreate(
       `The change review for ${work.branch} isn't ready (${found.reason}). Run the change-reviewer agent as the \`change\` skill's Review step says, with output ${found.path}. Answer each finding in the PR's Change section, then open the PR. (This checked ${work.branch}, checked out in ${cwd} when the command started.)`,
@@ -203,7 +202,7 @@ const readyGate = (command, hidden, match, input) => {
   // `ready`; GH_REPO or GH_HOST anywhere in the command) could be another
   // branch's, so it's turned down. Redirects are no argument
   const named = args
-    .replace(/(?:\d*|&)[<>]+&?\s*\S*/g, " ")
+    .replace(new RegExp(REDIRECT, "g"), " ")
     .trim();
   const ghFlags = /gh\s+-/.test(hidden.slice(match.index, end));
   if (named || ghFlags || /\bGH_(?:REPO|HOST)\b/.test(command))
@@ -214,7 +213,7 @@ const readyGate = (command, hidden, match, input) => {
 
   // the review still holds: of the last commit, so the lessons commit got
   // its recheck
-  const found = review(cwd, work.key);
+  const found = review(cwd, work, input);
   if (!found.ok)
     return turnDown(
       `The change review for ${work.branch} isn't ready (${found.reason}), with output ${found.path}: finish it as the \`change\` skill's Review step says (after a lessons commit, that's the recheck of it), then mark the PR ready.`,
