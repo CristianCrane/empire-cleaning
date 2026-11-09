@@ -1,0 +1,7 @@
+# One screen word per concept, for every reader
+
+ADR-0027 gave each glossary term an everyday screen word, and let that word change with who reads it: "clean" is a Job to a Client. By #300 the glossary recorded such words for four entries, and two collided. The Office and Cleaners read an Add-on as an "add-on", Clients and Guests as an "extra", while a Client read an Adjustment as "extra work" or "an extra" and the Office as a "price change". So one concept had two words, and one word named two concepts. The owner's ruling: "I don't like how we now have two words from two perspectives referring to the same concept. This is how confusion starts." This retires that pattern: **a screen word per reader**.
+
+A term has one screen word, the same for the Office, Cleaners, Clients and Guests, and no screen word names two terms: an Add-on is an "extra" to everyone, an Adjustment a "price change". Its `_Spanish_` line gives one word to match. A word may still change with what the term covers (a Payment Method is a "card", or "card or bank" where a bank account can pay), since that's the same word for every reader.
+
+Job is the one exception, kept on purpose: "job" to the Office and Cleaners, "clean" to a Client. To the Office a job isn't always a clean (painting is a job too), while a Client only ever books a clean. Don't fold it into one word, and don't copy it for another term. "Us" to a Client isn't a second name for Office Staff either: it's how we speak to a Client (`docs/ux.md`, Words).
