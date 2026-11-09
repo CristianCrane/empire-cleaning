@@ -69,7 +69,8 @@ export const bookableFor = async (
       labourHours: option.labourHours,
       crewSize: option.crewSize,
     }));
-    const dates = cleans.map((clean) => dayOf(clean.startsAt)).sort();
+    // earliest first, as sending put a plan's weekdays
+    const dates = cleans.map((clean) => dayOf(clean.startsAt));
     const days = await scheduleFor(dates[0]!, dates.at(-1)!);
     const fitting =
       kind === "one_off"
