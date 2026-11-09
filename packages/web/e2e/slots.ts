@@ -39,8 +39,9 @@ const workerCount = (value: string | undefined) => {
 // Playwright starts, whose command lines don't have the flag
 export const WORKERS = workerCount(process.env.E2E_WORKERS ?? workersFlag());
 
-// the slots' databases are copies of this one, migrated for the run, numbered
-// by slot (packages/server/tests/e2e/servers.ts)
+// the slots' databases are named from this one: copies, numbered by slot, of
+// one migrated for the run under a name of its own
+// (packages/server/tests/e2e/servers.ts)
 export const E2E_DB_URL =
   "postgresql://postgres:password@localhost:5433/empire_e2e_test";
 
