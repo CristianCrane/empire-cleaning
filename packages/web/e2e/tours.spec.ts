@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test";
+import { cleanerTours } from "../src/screens/cleaner/tours.ts";
 import { officeTours } from "../src/screens/office/tours.ts";
 import { clientTours } from "../src/screens/portal/tours.ts";
 import { toursFor, type AreaTours } from "../src/screens/tours.ts";
@@ -10,10 +11,12 @@ import {
   eachTheme,
   expect,
   expectAccessible,
+  offerJob,
   quoteSent,
   requestQuoteAsGuest,
   requestReschedule,
   returnToTab,
+  setClock,
   signedInAs,
   test,
 } from "./harness.ts";
@@ -88,7 +91,7 @@ const expectEachSeen = (page: Page, area: AreaTours) =>
 // each area with tours is walked through here; a new area's fails this
 // until it is
 test("every area's tours are walked through", () => {
-  expect(Object.keys(toursFor)).toEqual(["portal", "office"]);
+  expect(Object.keys(toursFor)).toEqual(["portal", "office", "cleaner"]);
 });
 
 eachTheme(() => {
@@ -165,5 +168,42 @@ eachTheme(() => {
     await walkTour(page, officeTours, "office-schedule");
 
     await expectEachSeen(page, officeTours);
+  });
+
+  test("a new Cleaner meets each of the Cleaner's tours once, as each screen first matters", async ({
+    page,
+  }) => {
+    const cory = await addCleaner("Cory Cleaner");
+    // within the week, each its own day, a crew of one: Tuesday's theirs,
+    // Wednesday's offered to them, and Thursday's open to them, as they're
+    // free
+    const [theirs, offered, open] = (await Promise.all(
+      ["06", "07", "08"].map((day) =>
+        bookJob({
+          startsAt: `2026-01-${day}T14:00:00.000Z`,
+          labourHours: 4,
+          crewSize: 1,
+        }),
+      ),
+    )) as { id: string }[];
+    await offerJob(theirs!.id, cory.id, { confirmed: true });
+    await offerJob(offered!.id, cory.id);
+
+    // Your Jobs, theirs next up
+    await signedInAs(page, cory.email);
+    await walkTour(page, cleanerTours, "cleaner-home", { first: true });
+
+    await page.goto(`/cleaner/jobs/${offered!.id}`);
+    await walkTour(page, cleanerTours, "cleaner-job-offered");
+
+    await page.goto(`/cleaner/open/${open!.id}`);
+    await walkTour(page, cleanerTours, "cleaner-open");
+
+    // theirs, once it's started
+    await setClock("2026-01-06T14:00:00.000Z");
+    await page.goto(`/cleaner/jobs/${theirs!.id}`);
+    await walkTour(page, cleanerTours, "cleaner-job");
+
+    await expectEachSeen(page, cleanerTours);
   });
 });
