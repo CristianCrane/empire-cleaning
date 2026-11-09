@@ -7,11 +7,12 @@ import {
   type RefObject,
 } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import type {
-  LocalDateTime,
-  ScheduleDay,
-  ScheduledJob,
-  ScheduledSiteVisit,
+import {
+  PICK_MINUTES,
+  type LocalDateTime,
+  type ScheduleDay,
+  type ScheduledJob,
+  type ScheduledSiteVisit,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -64,8 +65,7 @@ import { daysIn } from "../schedule-range.ts";
 const MIN_BLOCK_PX = 22;
 // shorter than this, a Job's block has room for only that one line
 const COMPACT_PX = 44;
-// a time is picked to the half hour, then fine-tuned in the time field
-const PICK_HOURS = 0.5;
+const PICK_HOURS = PICK_MINUTES / 60;
 // in the week view, a lane narrower than this can't show a Job's time, so
 // the Jobs that don't fit are listed behind "+N more" instead
 const MIN_LANE_PX = 60;

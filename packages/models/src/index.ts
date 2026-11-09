@@ -574,6 +574,13 @@ export type ScheduledJob = {
   movable: boolean;
 };
 
+// some start times on a day, "09:30", New York time
+export type DayTimes = { date: IsoDate; times: string[] };
+
+// a start is picked from the Schedule to the half hour, then fine-tuned in
+// the time field
+export const PICK_MINUTES = 30;
+
 // one day of the Schedule. Only Cleaners' hours count towards it.
 export type ScheduleDay = {
   date: IsoDate;
@@ -1773,9 +1780,7 @@ export type RescheduleRequestView = {
 // Labour Hours (counting what's held for other requests), each with the
 // start times on offer that have a crew free (#62). A day without any is
 // left out.
-export type RescheduleTimes = {
-  days: { date: IsoDate; times: string[] }[];
-};
+export type RescheduleTimes = { days: DayTimes[] };
 
 // POST /api/jobs/mine/:id/reschedule-request (and the Office's
 // /api/jobs/:id/reschedule-request): the new time, and the cost the person
