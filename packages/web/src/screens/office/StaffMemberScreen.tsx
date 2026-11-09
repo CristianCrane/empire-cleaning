@@ -39,6 +39,7 @@ import {
   dayOfInstant,
   formatDateTime,
   formatDay,
+  formatHours,
   roleLabel,
   today,
 } from "../format.ts";
@@ -58,7 +59,8 @@ const weekdays = [
 const hoursFormat = { maximumFractionDigits: 2 } as const;
 
 // a day's hours as a calendar cell says them
-const hoursLabel = (hours: number) => (hours === 0 ? "Off" : `${hours} h`);
+const hoursLabel = (hours: number) =>
+  hours === 0 ? "Off" : formatHours(hours);
 
 // One Staff member (UX pass, #96): who they are, changed in a dialog; a
 // Cleaner's availability as a month calendar, a day opening its dialog;

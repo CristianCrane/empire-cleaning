@@ -30,7 +30,13 @@ import {
 } from "@empire-cleaning/ui";
 import { deleteJson, patchJson, postJson } from "../../api.ts";
 import { useAction } from "../action.ts";
-import { conditionLabel, dollars, formatDate, formatMoney } from "../format.ts";
+import {
+  conditionLabel,
+  dollars,
+  formatDate,
+  formatHours,
+  formatMoney,
+} from "../format.ts";
 
 const statusBadge: Record<AdjustmentStatus, ReactNode> = {
   applied: <StatusBadge tone="success">Added</StatusBadge>,
@@ -154,7 +160,7 @@ const whatOf = (a: AdjustmentView) =>
 // it's opened
 const changeOf = (a: AdjustmentView) =>
   a.kind === "extra_time"
-    ? `+${a.hours} h`
+    ? `+${formatHours(a.hours!)}`
     : a.kind === "add_on_done"
       ? "Done on the day"
       : "Not done";
