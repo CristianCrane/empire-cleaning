@@ -1,5 +1,5 @@
 import { inject } from "vitest";
-import { TEST_DB_URL, withSuffix } from "./testDatabase.ts";
+import { withSuffix } from "./testDatabase.ts";
 
 // each worker has a database of its own, made by setup/globalSetup.ts, so
 // test files can run in parallel. Before anything imports the app, which
@@ -11,4 +11,4 @@ if (!Number.isInteger(worker) || worker < 1 || worker > workers) {
     `worker ${process.env.VITEST_POOL_ID} has no database: globalSetup.ts made ${workers}`,
   );
 }
-process.env.DB_URL = withSuffix(TEST_DB_URL, worker);
+process.env.DB_URL = withSuffix(inject("testDatabase"), worker);

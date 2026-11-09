@@ -3,11 +3,10 @@ import { promisify } from "node:util";
 import { afterAll, beforeAll, describe, test } from "vitest";
 import { addDays } from "@empire-cleaning/models";
 import {
+  claimTestDatabase,
   copiesOf,
   dropTestDatabaseCopies,
   migratedCopies,
-  TEST_DB_URL,
-  withSuffix,
 } from "./setup/testDatabase.ts";
 
 // The seed (seed.ts) lays out its demo by days from today, so where its cleans
@@ -38,12 +37,16 @@ const shardOf = (value = "1/1") => {
 };
 const instants = shardOf(process.env.SEED_SHARD);
 
-// a database each, copied from one migrated for the seed test alone, and
-// dropped after: the test Postgres keeps them in memory
-const TEMPLATE = withSuffix(TEST_DB_URL, "seed");
-const databases = copiesOf(TEMPLATE, 0, instants.length);
-beforeAll(() => migratedCopies(TEMPLATE, 0, instants.length));
-afterAll(() => dropTestDatabaseCopies(TEMPLATE, 0));
+// a database each, copied from one migrated for the seed test alone, under
+// names it claims (it has no global setup: `pnpm test:seed` runs it alone),
+// and dropped after: the test Postgres keeps them in memory
+const claim = await claimTestDatabase();
+const databases = copiesOf(claim.url, 0, instants.length);
+beforeAll(() => migratedCopies(claim.url, 0, instants.length));
+afterAll(async () => {
+  await dropTestDatabaseCopies(claim.url);
+  await claim.release();
+});
 
 const run = promisify(execFile);
 
