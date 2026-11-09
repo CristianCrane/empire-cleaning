@@ -63,7 +63,7 @@ export function ListItem({
         <>
           {start}
           <div className="flex min-w-0 flex-1 flex-col">
-            <span className="truncate font-semibold text-fg">{title}</span>
+            <span className="font-semibold break-words text-fg">{title}</span>
             {description && (
               <span className="text-sm text-fg-muted">{description}</span>
             )}

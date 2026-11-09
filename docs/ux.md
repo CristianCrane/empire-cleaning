@@ -192,6 +192,9 @@ stays as it is (#336).
 - **A growing work list is a Table**, a `Tab` per status with counts and a
   search, both in the URL; 50 at a time with Show more once it can grow
   without end. ("Work Lists As Tables")
+- **A row's title wraps, never cut.** A cut title hides what the row is:
+  a payment's "Price change: 1 more hour" lost its hour at phone width,
+  and Spanish runs longer. `ListItem` wraps its title, so every List does.
 - **Lean rows**: the fewest columns that drive the decision (who, where,
   status, money, age); no cell that means something different from row to
   row; no colour without a visible label.
