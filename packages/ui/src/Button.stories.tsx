@@ -72,7 +72,7 @@ export const IconOnly: Story = {
   args: {
     variant: "quiet",
     size: "icon",
-    "aria-label": "Remove add-on",
+    "aria-label": "Remove extra",
     children: <Trash2 aria-hidden size={20} />,
   },
 };

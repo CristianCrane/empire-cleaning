@@ -49,7 +49,7 @@ export const moveInMoveOut: ServicePage = {
   pricing: {
     title: "How it's priced",
     text: [
-      "Your quote is worked out from the home: the bedrooms and bathrooms, how many floors, any add-ons, and how much cleaning it needs. A home after a long tenancy usually needs more than one that was kept up.",
+      "Your quote is worked out from the home: the bedrooms and bathrooms, how many floors, any extras, and how much cleaning it needs. A home after a long tenancy usually needs more than one that was kept up.",
       "It's priced like a deep clean, because it is one, with the home empty. Your quote says how long we'll be there; accept it online and pay a deposit to book, and the rest is charged once the clean is done.",
     ],
   },
@@ -79,7 +79,7 @@ export const moveInMoveOut: ServicePage = {
     {
       question: "Is inside the fridge and oven included?",
       answer:
-        "They're add-ons, along with inside the cabinets and interior windows. Tick them when you request a quote, as most people moving do.",
+        "They're extras, along with inside the cabinets and interior windows. Tick them when you request a quote, as most people moving do.",
     },
     {
       question: "I'm a landlord. Can you clean between tenants?",

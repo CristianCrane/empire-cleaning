@@ -18,4 +18,4 @@ export const officeServices = {
 
 // the Add-ons every home Service offers, so never listed as included
 export const addOnsNote =
-  "Inside the fridge, inside the oven, inside the cabinets and interior windows are add-ons: tick the ones you'd like when you request a quote.";
+  "Inside the fridge, inside the oven, inside the cabinets and interior windows are extras: tick the ones you'd like when you request a quote.";

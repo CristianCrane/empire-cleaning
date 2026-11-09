@@ -57,7 +57,7 @@ export const deepCleaning: ServicePage = {
   pricing: {
     title: "How a deep clean is priced",
     text: [
-      "Every home is different, so we don't publish a price. Your quote is worked out from your home: the bedrooms and bathrooms, how many floors, whether there are pets, any add-ons, and how much cleaning it needs (light, moderate or heavy).",
+      "Every home is different, so we don't publish a price. Your quote is worked out from your home: the bedrooms and bathrooms, how many floors, whether there are pets, any extras, and how much cleaning it needs (light, moderate or heavy).",
       "A deep clean takes longer than a standard clean, and your quote says how long we'll be there. To book, you accept the quote online and pay a deposit; the rest is charged once the clean is done.",
     ],
   },
@@ -83,7 +83,7 @@ export const deepCleaning: ServicePage = {
     {
       question: "Is inside the oven and fridge included?",
       answer:
-        "They're add-ons, along with inside the cabinets and interior windows. Tick the ones you want when you request a quote and they'll be priced in.",
+        "They're extras, along with inside the cabinets and interior windows. Tick the ones you want when you request a quote and they'll be priced in.",
     },
     {
       question: "Do I need to be home?",

@@ -22,7 +22,7 @@ export const Default: Story = {
 export const Selected: Story = { args: { defaultSelected: true } };
 
 export const Indeterminate: Story = {
-  args: { children: "All add-ons", isIndeterminate: true },
+  args: { children: "All extras", isIndeterminate: true },
 };
 
 export const Invalid: Story = {

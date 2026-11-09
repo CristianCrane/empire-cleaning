@@ -127,6 +127,16 @@ stays as it is (#336).
   hours, not Labour Hours. Labels are in sentence case and terms are
   lowercase in a sentence: "Send a quote", "your cleaning plan". A
   Service's name, such as Deep Clean, keeps its capitals.
+- **One word per concept, for every reader, and one concept per word**
+  (ADR-0029). The Office, Cleaners, Clients and Guests read the same word
+  for a term: an Add-on is an "extra" to everyone, an Adjustment a "price
+  change". No word names two terms, and where a reader also sees extras,
+  "extra" isn't an adjective either: more time is "1 more hour", a home's
+  floors above the first "upper floors". Job is the one exception, kept
+  on purpose: "clean" to a Client, "job" to the Office and Cleaners, since
+  to the Office a job isn't always a clean (painting is a job too). Don't
+  fold it, or copy it for another term. "Us" to a Client is how we speak (below),
+  not a second name for the Office.
 - **A problem says what's wrong, then how to fix it**, in two short
   sentences at most: "Not enough cleaners are free then. Pick another time,
   or add working hours for a cleaner that day." Never how the system
@@ -183,6 +193,9 @@ stays as it is (#336).
 - **A growing work list is a Table**, a `Tab` per status with counts and a
   search, both in the URL; 50 at a time with Show more once it can grow
   without end. ("Work Lists As Tables")
+- **A row's title wraps, never cut.** A cut title hides what the row is:
+  a payment's "Price change: 1 more hour" lost its hour at phone width,
+  and Spanish runs longer. `ListItem` wraps its title, so every List does.
 - **Lean rows**: the fewest columns that drive the decision (who, where,
   status, money, age); no cell that means something different from row to
   row; no colour without a visible label.
@@ -359,3 +372,4 @@ Newest last. "Built in" is the PR (or branch) that shipped it.
 | Office > Quote, Draft | The Draft's room line ("has room", "too full", "not enough cleaners") was the browser's own check, which counted a plan change's own Jobs, so a new plan could be told its old plan's Job left no room when sending and accepting would fit it (#356). | Drop the replaced Jobs in the browser / the server answers, by the rule accepting asks (the user's pick) | **The server answers, on each save** | One rule for the Draft, the Sent Quote and accepting, so they can't drift. The room comes back with each save, as the prices do, so it's faded while a change is saved and hidden while the time or cleaners on screen aren't what was saved; it shows once a start has both a day and a time. Each line keys on one thing: "has room" only when every clean has, the shared "too full" or "not enough cleaners" when neither has for the same reason, and the one that's short named when the other fits, now with running past midnight too | (none) | #356 |
 | Office > Pick from the schedule | On a Draft changing a plan, the picker striped the plan's own Job's time "not enough cleaners free" while the room line under it said the day had room: the picker counted the Jobs the new terms replace, by its own copy of the rule (#365). | Send the picker the plan's Jobs to skip / never count the plan's Jobs / the server marks each start | **The server marks each start, every picker** | One rule for the line and the picker, as #356 chose for the line. Which Jobs a start replaces depends on the start (an old Job that starts before it stays), so the server answers every half hour of the days shown, for a Draft as last saved, and loads them again after each save. Every other picker (moving a Job, a Site Visit, a plan's visit) asks it too, so no picker keeps a copy. The words stay: "Striped times don't have enough cleaners free." A clean not yet priced shows no stripes until it is. The day's header still shows the hours as booked, the replaced Job among them | (none) | #365 |
 | Landing, Quote form, Client and Cleaner areas | The site says "Se habla español", but every screen and email was English. Which screens come in Spanish, and how does a person get theirs? | (talked through) | **Everything a Guest, Client or Cleaner sees, in their Preferred Language; the Office stays English** | Spanish twins of every landing page under `/es/`, switched in the header, never redirected. The portal and the Cleaner area follow the Client's or Staff member's Preferred Language, which a Guest's first Quote, asked for in Spanish, sets and anyone may change. Neutral Latin American Spanish, *usted* to Clients, *tú* to Cleaners, one Spanish word for each of the glossary's screen words. Labels are shortened to fit, never the layout squeezed (a rule above). ADR-0025 | — | #299 |
+| Every screen, message and email | Add-ons read "add-ons" to the Office and Cleaners but "extras" to Clients and Guests, and an Adjustment "price change" to the Office but "extra work" or "an extra" to a Client, so "extra" named two concepts (#300) | One word per reader (as before) / add-ons for everyone / extras for everyone; for an Adjustment, price change / extra charge / added cost | **Extras for Add-ons and price change for Adjustments, to everyone** | The owner: "two words from two perspectives referring to the same concept … is how confusion starts. Keep extras for both." Extras is what Clients and the Quote form already said. "Price change" is what the Office already said, it covers a price that goes down as well as up, and it doesn't say "extra". Then, at the user's word, "extra" as an adjective went where extras are seen too: the Cleaner's and Office's "Extra time" is "More time", "1 extra hour" is "1 more hour", the Office's "extra floor" an "upper floor" and its Staff calendar's "extra hours" "more hours", and the recurring page's "an extra clean" "another clean". Spanish: adicional, cambio de precio. Job keeps "clean" to a Client as the one exception: to the Office a job isn't always a clean (painting is a job too). A rule above, ADR-0029 | — | `extras-one-word` |

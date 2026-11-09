@@ -438,13 +438,11 @@ describe("Adjustments", () => {
     const onQuote = await complete(cory.agent, jobId, {
       reports: [{ kind: "add_on_done", addOnKey: oven, reason: "x" }],
     }).expect(409);
-    expect(onQuote.body.message).toBe(
-      "That add-on can't be added to this job.",
-    );
+    expect(onQuote.body.message).toBe("That extra can't be added to this job.");
     const notOnQuote = await complete(cory.agent, jobId, {
       reports: [{ kind: "add_on_not_done", addOnKey: fridge, reason: "x" }],
     }).expect(409);
-    expect(notOnQuote.body.message).toBe("That add-on isn't on this job.");
+    expect(notOnQuote.body.message).toBe("That extra isn't on this job.");
     await complete(cory.agent, jobId, {
       reports: [{ kind: "extra_time", hours: 0.3, reason: "x" }],
     }).expect(400);
@@ -486,9 +484,7 @@ describe("Adjustments", () => {
         },
       ],
     }).expect(409);
-    expect(refused.body.message).toBe(
-      "That add-on can't be added to this job.",
-    );
+    expect(refused.body.message).toBe("That extra can't be added to this job.");
   });
 
   test("proposed by the Office are charged once the Client approves, with a receipt", async () => {
@@ -519,8 +515,10 @@ describe("Adjustments", () => {
       .send({})
       .expect(200);
     const proposal = testEmail().lastTo(casey.email);
-    expect(proposal.subject).toBe("Please approve extra work on your clean");
-    expect(proposal.text).toContain("1 extra hour (Heavy grease)");
+    expect(proposal.subject).toBe(
+      "Please approve a price change on your clean",
+    );
+    expect(proposal.text).toContain("1 more hour (Heavy grease)");
     expect(proposal.text).toContain("$59.88");
     // true however the Client pays: by card, or on a weekly Bill (#244 #5)
     expect(proposal.text).toContain(
@@ -577,7 +575,7 @@ describe("Adjustments", () => {
       owedCents: 0,
     });
     expect(testEmail().lastTo(casey.email).subject).toBe(
-      "Your receipt for extra work",
+      "Your receipt for a price change",
     );
     await client
       .post(`/api/jobs/mine/${jobId}/adjustments/${fridge!.id}/decline`)
@@ -630,7 +628,7 @@ describe("Adjustments", () => {
     await chaseProposedAdjustments();
     expect(testEmail().sent).toHaveLength(sent + 1);
     expect(testEmail().lastTo(casey.email).subject).toBe(
-      "Reminder: please approve extra work on your clean",
+      "Reminder: please approve a price change on your clean",
     );
 
     testClock().set(new Date("2026-01-19T16:00:00Z"));
@@ -950,13 +948,13 @@ describe("Office Staff correcting a completion", () => {
     // the Client's Payments page names what each was for
     const history = (await client.get("/api/payments/mine").expect(200))
       .body as ClientPayment[];
-    expect(history.find((p) => p.kind === "extra")).toMatchObject({
+    expect(history.find((p) => p.kind === "adjustment")).toMatchObject({
       amountCents: EXTRA_HOUR,
-      item: "1 extra hour",
+      item: "1 more hour",
     });
     expect(history.find((p) => p.kind === "refund")).toMatchObject({
       amountCents: -(EXTRA_HOUR - 2994),
-      item: "1 extra hour, price corrected",
+      item: "1 more hour, price corrected",
     });
   });
 

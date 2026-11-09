@@ -501,7 +501,7 @@ function Availability({ member }: { member: StaffDetail }) {
           </div>
           <p className="text-sm text-fg-muted">
             Tinted days differ from the usual week: amber for time off, blue for
-            extra hours.
+            more hours.
           </p>
         </div>
       </Card>

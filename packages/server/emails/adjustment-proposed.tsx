@@ -7,7 +7,7 @@ export default preview(
     name: client.name,
     jobId,
     clean,
-    label: "1 extra hour",
+    label: "1 more hour",
     reason: "Heavy grease",
     totalCents: 5988,
     answerBy: wednesday,

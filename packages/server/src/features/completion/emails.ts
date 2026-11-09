@@ -162,7 +162,7 @@ export const proposalEmail = ({
   name: string;
   jobId: string;
   clean: Clean;
-  // "1 extra hour"
+  // "1 more hour"
   label: string;
   // the Cleaner's, e.g. "Heavy grease"
   reason: string;
@@ -171,8 +171,8 @@ export const proposalEmail = ({
   reminder: boolean;
 }): Email => ({
   subject: reminder
-    ? "Reminder: please approve extra work on your clean"
-    : "Please approve extra work on your clean",
+    ? "Reminder: please approve a price change on your clean"
+    : "Please approve a price change on your clean",
   blocks: [
     greeting(firstNameOf(name)),
     paragraph(
@@ -208,7 +208,7 @@ export const approvedEmail = ({
   owedCents: number;
   settled: Settled;
 }): Email => ({
-  subject: "Your receipt for extra work",
+  subject: "Your receipt for a price change",
   blocks: [
     greeting(firstNameOf(name)),
     paragraph(

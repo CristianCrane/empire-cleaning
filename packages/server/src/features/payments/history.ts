@@ -114,7 +114,7 @@ export const paymentHistoryFor = async (
   }
   const kindOf = (c: Charge): ClientPaymentKind =>
     c.kind === "balance" && firstBalance.get(c.jobId!)?.id !== c.id
-      ? "extra"
+      ? "adjustment"
       : c.kind;
 
   const history: ClientPayment[] = [

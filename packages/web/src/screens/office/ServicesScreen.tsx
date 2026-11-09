@@ -421,7 +421,7 @@ function ServiceForm({
 
         <Section
           title="Price"
-          description="Before tax. Add-ons are charged at the same rate, for their own hours."
+          description="Before tax. Extras are charged at the same rate, for their own hours."
         >
           <Card>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -573,7 +573,7 @@ const roomFields: {
   { name: "bathroomHours", label: "Per bathroom" },
   {
     name: "extraStoreyHours",
-    label: "Per extra floor",
+    label: "Per upper floor",
     description: "For each floor above the first",
   },
   {
