@@ -96,7 +96,7 @@ import {
   recurrenceLabel,
   recurrenceWeeks,
   timeOfDay,
-  weekdayOf,
+  weekdayName,
   quoteKindName,
 } from "../format.ts";
 import {
@@ -1920,7 +1920,7 @@ const anotherDay = (days: DayFields[]): DayFields => {
   );
   const next = last.date?.add({ days: 1 });
   const taken = (d: CalendarDate) =>
-    dates.some((t) => weekdayOf(t.toString()) === weekdayOf(d.toString()));
+    dates.some((t) => weekdayName(t.toString()) === weekdayName(d.toString()));
   return {
     key: nextKey(),
     date:
@@ -1957,7 +1957,7 @@ function PlanDayFields({
   const time = day.time?.toString().slice(0, 5);
   const one = plan.days.length === 1;
   const title = day.date
-    ? `${weekdayOf(day.date.toString())}s`
+    ? `${weekdayName(day.date.toString())}s`
     : `Weekday ${index + 1}`;
   return (
     <DraftPart

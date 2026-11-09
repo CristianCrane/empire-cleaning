@@ -263,7 +263,7 @@ const weekdayFormat = new Intl.DateTimeFormat("en-US", {
   timeZone: "UTC",
 });
 // "2026-01-05" -> "Monday"
-export const weekdayOf = (day: string) =>
+export const weekdayName = (day: string) =>
   weekdayFormat.format(new Date(`${day}T00:00:00Z`));
 
 // a Service Plan, or a Service Plan Quote, with its weekdays
@@ -271,7 +271,7 @@ type PlanDays = { recurrence: Recurrence; days: PlanDaySummary[] };
 
 // "Monday", or a Draft's weekday that has no time yet
 const weekdayOfStart = (startsAt: string | null) =>
-  startsAt ? weekdayOf(dayOfInstant(startsAt)) : null;
+  startsAt ? weekdayName(dayOfInstant(startsAt)) : null;
 
 const listed = (items: string[]) =>
   items.length > 1

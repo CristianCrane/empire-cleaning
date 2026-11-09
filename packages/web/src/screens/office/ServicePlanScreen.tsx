@@ -38,7 +38,7 @@ import {
   formatDateTime,
   formatDay,
   timeOfDay,
-  weekdayOf,
+  weekdayName,
 } from "../format.ts";
 import { EndPlan, OnHold, PlanFacts, PlanStatusBadge } from "../PlanParts.tsx";
 import { useAction } from "../action.ts";
@@ -216,7 +216,7 @@ function BookOrSkip({
   // the weekday it came round on: its usual time, and its visit
   const day =
     plan.days.find(
-      (d) => weekdayOf(dayOfInstant(d.startsAt)) === weekdayOf(visit.dueOn),
+      (d) => weekdayName(dayOfInstant(d.startsAt)) === weekdayName(visit.dueOn),
     ) ?? plan.days[0]!;
   const usual = timeOfDay(day.startsAt);
   const [date, setDate] = useState<CalendarDate | null>(parseDate(visit.dueOn));

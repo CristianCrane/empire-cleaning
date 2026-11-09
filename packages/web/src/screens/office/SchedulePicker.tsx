@@ -11,7 +11,7 @@ import {
 import { getJson } from "../../api.ts";
 import { useLoaded } from "../load.ts";
 import { RangeBar, type TimePickerProps } from "../CalendarGrid.tsx";
-import { today, weekdayOf } from "../format.ts";
+import { today, weekdayName } from "../format.ts";
 import type { Crew } from "../schedule-layout.ts";
 import { isWide, rangeShowing } from "../schedule-range.ts";
 import { ScheduleCalendar } from "./ScheduleCalendar.tsx";
@@ -89,7 +89,7 @@ function PickStart({
         New York time.
         {date &&
           repeats &&
-          ` Then ${repeats.label.toLowerCase()} on ${weekdayOf(date)}s.`}
+          ` Then ${repeats.label.toLowerCase()} on ${weekdayName(date)}s.`}
       </p>
       <RangeBar
         from={range.from}
