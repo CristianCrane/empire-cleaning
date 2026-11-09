@@ -73,7 +73,7 @@ _Spanish_: none
 **Turned Down**:
 A Quote that Office Staff have closed before sending any Revision, with a recorded reason such as out of area, out of scope or no capacity. It is final; the Client asks for a new Quote.
 _Avoid_: Declined, rejected, refused, withdrawn
-_Spanish_: rechazada
+_Spanish_: descartada
 
 **Service**:
 Something Empire Cleaning sells, such as a _Standard Clean_, a _Deep Clean_, a move-out clean, commercial cleaning or painting; Office Staff keep the list, and retire a Service rather than delete it. Each is offered for homes, businesses or both, has its own hourly rate, Minimum Charge and tax rates, and is priced either from a home's rooms, at so many hours for each, or by area, at so many hours per 1,000 sq ft. It also says whether Condition affects it, whether it can be on a Service Plan, whether a Quote for it needs a Site Visit, and which Service, if any, to recommend in its place for a first visit (ADR-0018). Changing it never reprices Sent Quotes or existing Service Plans.
@@ -167,7 +167,7 @@ _Spanish_: no se pudo entrar; its fee is a cargo por no poder entrar
 A Client's proposal to move a booked Job to a new available time, which is held for them while pending. The Job keeps its original time until Office Staff confirm the move, after which its crew are Offered the new time afresh, staying on it unless they aren't free then; Office Staff may instead turn it down, and the Client may withdraw it. If the Job stops being booked first (Cancelled, Completed or No Access), the request is closed unanswered, and the time held for it is freed; a held time also stops counting once the Job starts. One made less than 24 hours before the Job is a Late Reschedule (ADR-0010).
 _Avoid_: Reschedule, rebooking, change request
 _On screen_: request to move
-_Spanish_: solicitud de cambio de fecha
+_Spanish_: solicitud para reprogramar
 
 **Late Cancellation**:
 A Client cancelling a Job less than 24 hours before it starts (exactly 24 hours before is still free), or moving it by a second Late Reschedule; the fee is the Job's Deposit amount (ADR-0010). A one-off Job's Deposit is kept as the fee. A plan Job has no Deposit of its own, so its fee is the plan's Deposit percentage of that Job's price, charged as a Charge of its own, and the plan's held Deposit is untouched (ADR-0013).
@@ -178,7 +178,7 @@ _Spanish_: cancelación tardía
 A Reschedule Request made less than 24 hours before the Job starts, judged when it is made. The first one confirmed for a Job is free and its Deposit still counts towards the price; any later one confirmed for the same Job is a Late Cancellation, though the Job still moves (ADR-0010).
 _Avoid_: Late move, short-notice reschedule
 _On screen_: late move; its fee is a late move fee
-_Spanish_: cambio de fecha tardío; its fee is a cargo por cambio de fecha tardío
+_Spanish_: reprogramación tardía; its fee is a cargo por reprogramación tardía
 
 **On Hold**:
 A Service Plan that is temporarily generating no new Jobs while any of its Jobs, or a Bill with any of its Jobs on it, is Unpaid; a Bill with a bank payment for it on its way holds nothing while it clears. Its Jobs already booked go ahead. Once nothing is Unpaid it carries on, from its next date still to come: dates that passed while it was On Hold are never booked. On Hold plans appear in Needs attention.
@@ -246,8 +246,8 @@ _Spanish_: descuento del plan
 **Adjustment**:
 A recorded change to a Job's quoted price, with a reason, from what the assigned Staff report at completion: an Add-on done on the day, a quoted Add-on not done, or extra time. Staff never set amounts: each is priced from the Price List and Service versions the Job's Quote used, a quoted Add-on not done at what it added to the quoted price. Reductions count at once; an increase counts only once Office Staff have proposed it and the Client has approved it in the portal, within 7 days (ADR-0009).
 _Avoid_: Surcharge, discount, extra
-_On screen_: price change
-_Spanish_: cambio de precio
+_On screen_: price change; extra work, or an extra, to a Client
+_Spanish_: trabajo extra, or un extra, to a Client
 
 **Bill**:
 Everything a commercial Client billed weekly owes for one week, Monday to Sunday: the Balances of their Jobs that started that week and were Completed, their fees, and approved Adjustments, as lines, made the following Monday (ADR-0016). It is charged to their saved Payment Method then, or, if Office Staff set it so, paid on its page by its due date. It never changes once made: mistakes are put right on the next Bill, and an unpaid one can be voided. One below zero is a credit on the next.
