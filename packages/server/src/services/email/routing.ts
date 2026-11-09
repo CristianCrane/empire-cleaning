@@ -14,7 +14,7 @@ const patternOf = (allowed: string) =>
   new RegExp(
     `^${allowed
       .split("*")
-      .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+      .map((part) => RegExp.escape(part))
       .join(".*")}$`,
     "i",
   );
