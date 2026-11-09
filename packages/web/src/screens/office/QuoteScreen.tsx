@@ -30,6 +30,7 @@ import {
 } from "@internationalized/date";
 import type {
   Condition,
+  DayCapacity,
   FirstCleanFindings,
   OfficeQuote,
   OfficeQuoteOption,
@@ -38,18 +39,15 @@ import type {
   PlanDayTerms,
   QuoteDraftInput,
   Recurrence,
-  ScheduleDay,
   ServiceChoice,
   ServicePlanInput,
 } from "@empire-cleaning/models";
 import {
-  ADD_HOURS,
   adjustmentLabel,
   CANCELLATION_CUTOFF_HOURS,
-  DAY_FULL,
-  NO_CREW,
   noEmailYet,
   notSeenYet,
+  whyNoRoom,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -80,13 +78,7 @@ import {
   TimelineItem,
   showToast,
 } from "@empire-cleaning/ui";
-import {
-  ApiError,
-  deleteJson,
-  getJson,
-  patchJson,
-  postJson,
-} from "../../api.ts";
+import { ApiError, deleteJson, patchJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction, useLeavingAction } from "../action.ts";
 import {
@@ -117,7 +109,6 @@ import {
   QuoteStatusBadge,
   planDayTitle,
 } from "../QuoteParts.tsx";
-import { crewAt } from "../schedule-layout.ts";
 import { homeCrumbs } from "./PropertyScreen.tsx";
 import {
   AskedFacts,
@@ -131,7 +122,6 @@ import {
 import { PickFromSchedule } from "./SchedulePicker.tsx";
 import { BookSiteVisit, visitSummary } from "./SiteVisitParts.tsx";
 import { useStartDraft } from "./StartDraft.tsx";
-import { useLoaded } from "../load.ts";
 import { reportUnexpected } from "../../monitoring.ts";
 
 // The Quote with one of its Revisions in hand: the one being drafted, or
@@ -1182,71 +1172,85 @@ const toInput = (fields: Fields): QuoteDraftInput => {
 
 const dollars = { style: "currency", currency: "USD" } as const;
 
-// Whether the proposed day has room for each Service, from its free
-// Cleaner hours now and the Labour Hours as last saved, and whether a crew
-// is free at the proposed time (#62). A warning, not a rule: the Office may
-// be about to add hours or a Cleaner. A Quote sent for a full day or time
-// can't be accepted, and goes straight under Needs attention.
+// Whether the clean has room at its start, for each Service: each option's
+// room on the Draft as last saved, which the server works out by the rule
+// accepting asks (the Jobs a plan change replaces counting as gone). A
+// warning, not a rule: the Office may be about to add hours or a Cleaner. A
+// Quote sent for a full day or time can't be accepted, and goes straight
+// under Needs attention. Faded while a change is saved, as the prices are,
+// and not shown while what's on screen is another time or crew.
 function RoomOnDay({
   day,
   time,
   crewSize,
   options,
+  stale,
 }: {
   day: string;
-  time?: string;
+  time: string | undefined;
   crewSize: number;
   options: OfficeQuoteOption[];
+  stale: boolean;
 }) {
-  // nothing to say if it can't be found out
-  const { value: found } = useLoaded(day, () =>
-    getJson<ScheduleDay[]>(`/api/schedule?from=${day}&to=${day}`).then(
-      ([found]) => found,
-    ),
-  );
-
-  if (found?.date !== day) return null;
-  const free = { day, hours: found.freeHours };
-  // in hundredths, as the server compares them
-  const fits = (option: OfficeQuoteOption) =>
-    Math.round(free.hours * 100) >= Math.round(option.labourHours * 100);
-  const crew = (option: OfficeQuoteOption) =>
-    time ? crewAt(found, time, option.hoursOnSite, { crewSize }) : undefined;
-  // those with the hours but no crew free then
-  const crewless = options.filter((o) => fits(o) && crew(o)?.hasCrew === false);
-  const crewNotice = crewless.length > 0 && time && (
-    <Notice tone="danger">
-      {crewless.length === options.length
-        ? `${NO_CREW} ${ADD_HOURS}`
-        : `Not enough cleaners are free then for ${crewless.map(describeOption).join(" or ")}. Pick another time to offer ${crewless.length === 1 ? "it" : "them"} too.`}
-    </Notice>
-  );
-  const fitting = options.filter(fits);
-  const missing = options.filter((o) => !fits(o));
-  const describe = describeOption;
-
-  if (missing.length === 0) {
-    return (
-      <>
+  const rooms = options.map((o) => o.room);
+  const onScreen = (room: DayCapacity | null): room is DayCapacity =>
+    room?.date === day &&
+    timeOfDay(room.startsAt) === time &&
+    room.crewSize === crewSize;
+  if (!rooms.every(onScreen)) return null;
+  const problems = roomProblems(options, rooms);
+  return (
+    <div
+      aria-busy={stale}
+      className={`flex flex-col gap-3 ${staleStyle(stale)}`}
+    >
+      {problems.length === 0 ? (
         <p className="text-sm text-fg-muted">
           {formatDay(day)} has room for{" "}
           {options.length === 1 ? "it" : "either clean"}.
         </p>
-        {crewNotice}
-      </>
-    );
-  }
-  return (
-    <>
-      <Notice tone="danger">
-        {fitting.length > 0
-          ? `That day only has room for ${fitting.map(describe).join(" and ")}. Pick another day to offer ${missing.map(describe).join(" and ")} too.`
-          : `${DAY_FULL} ${ADD_HOURS}`}
-      </Notice>
-      {crewNotice}
-    </>
+      ) : (
+        problems.map((problem) => (
+          <Notice key={problem} tone="danger">
+            {problem}
+          </Notice>
+        ))
+      )}
+    </div>
   );
 }
+
+// What's wrong with these options' rooms, then how to fix it, a line for
+// each of a room's rules that fails; none when every one has room. With
+// none of them fitting, why, once for each reason; with one fitting, the
+// others named by what keeps them out.
+const roomProblems = (
+  options: OfficeQuoteOption[],
+  rooms: DayCapacity[],
+): string[] => {
+  const fitting = options.filter((_, i) => rooms[i]!.hasRoom);
+  if (fitting.length === options.length) return [];
+  if (fitting.length === 0) {
+    return [...new Set(rooms.map((r) => whyNoRoom(r)))];
+  }
+  const missing = (rule: (room: DayCapacity) => boolean) =>
+    options.filter((_, i) => !rooms[i]!.hasRoom && rule(rooms[i]!));
+  const late = missing((r) => !r.endsByMidnight);
+  const full = missing((r) => r.endsByMidnight && !r.hasHours);
+  const crewless = missing((r) => r.endsByMidnight && r.hasHours);
+  const them = (some: OfficeQuoteOption[]) =>
+    some.length === 1 ? "it" : "them";
+  const names = (some: OfficeQuoteOption[]) =>
+    some.map(describeOption).join(" and ");
+  return [
+    late.length > 0 &&
+      `The ${late.map((o) => o.serviceName).join(" and the ")} would run past midnight. Pick an earlier start time to offer ${them(late)} too.`,
+    full.length > 0 &&
+      `That day only has room for ${names(fitting)}. Pick another day to offer ${names(full)} too.`,
+    crewless.length > 0 &&
+      `Not enough cleaners are free then for ${crewless.map(describeOption).join(" or ")}. Pick another time to offer ${them(crewless)} too.`,
+  ].filter((problem) => problem !== false);
+};
 
 const describeOption = (o: OfficeQuoteOption) => `the ${o.serviceName}`;
 
@@ -1839,6 +1843,7 @@ function DraftEditor({ quote: loaded }: { quote: ShownQuote }) {
                 time={fields.time?.toString().slice(0, 5)}
                 crewSize={fields.crewSize}
                 options={quote.options}
+                stale={stale}
               />
             )}
           </DraftPart>
@@ -2006,6 +2011,7 @@ function PlanDayFields({
           time={time}
           crewSize={day.crewSize}
           options={[option]}
+          stale={stale}
         />
       )}
       <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(10rem,1fr))]">

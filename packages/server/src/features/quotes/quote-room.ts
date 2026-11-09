@@ -1,5 +1,9 @@
 import { and, asc, eq, inArray, max } from "drizzle-orm";
-import type { QuoteKind, QuoteSummary } from "@empire-cleaning/models";
+import type {
+  DayCapacity,
+  QuoteKind,
+  QuoteSummary,
+} from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
 import { dayOf } from "../../services/clock/index.ts";
 import { onSchedule } from "../jobs/jobs.ts";
@@ -14,7 +18,7 @@ import { tellOfficeStaff } from "../staff/staff.ts";
 import { quotesWithoutRoomEmail } from "./emails.ts";
 import { openQuotes } from "./quote-state.ts";
 import { quotes, revisionOptions } from "./quotes.schema.ts";
-import { cleansFit } from "./rules.ts";
+import { cleanRooms, cleansFit } from "./rules.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
 
 // A Sent Quote doesn't hold its time: a booking for another Client, or fewer
@@ -30,7 +34,7 @@ import { monitoring } from "../../services/monitoring/index.ts";
  * A Draft's earliest so far may come before a weekday still to be timed,
  * which can only replace fewer.
  */
-export const roomInputsOf = async (
+const roomInputsOf = async (
   kind: QuoteKind,
   propertyId: string,
   cleans: Clean[],
@@ -102,6 +106,29 @@ export const bookableFor = async (
     bookable.set(quoteId, [...new Set(fitting.map((o) => o.serviceKey))]);
   }
   return bookable;
+};
+
+/**
+ * A Draft's options' room now, in the order given: each with a start (a
+ * weekday's own, else the Draft's proposed time) as accepting would ask it
+ * (cleanRooms), and null for one with none yet.
+ */
+export const draftRoomsOf = async (
+  draft: { kind: QuoteKind; proposedStartsAt: Date | null },
+  propertyId: string,
+  options: { startsAt: Date | null; labourHours: number; crewSize: number }[],
+): Promise<(DayCapacity | null)[]> => {
+  const cleans = options.map((option) => {
+    const startsAt = option.startsAt ?? draft.proposedStartsAt;
+    return startsAt
+      ? { startsAt, labourHours: option.labourHours, crewSize: option.crewSize }
+      : null;
+  });
+  const timed = cleans.filter((clean) => clean !== null);
+  if (timed.length === 0) return cleans.map(() => null);
+  const { days, replacing } = await roomInputsOf(draft.kind, propertyId, timed);
+  const rooms = cleanRooms(days, timed, replacing);
+  return cleans.map((clean) => clean && rooms[timed.indexOf(clean)]!);
 };
 
 const startOf = (quote: QuoteSummary) => new Date(quote.proposedStartsAt!);

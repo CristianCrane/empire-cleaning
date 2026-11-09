@@ -449,17 +449,36 @@ test("the draft says whether the proposed day has room for each clean", async ({
     "That day only has room for the Standard Clean. Pick another day to offer the Deep Clean too.",
   );
 
-  // Tuesday has the hours, but no crew at 9am
+  // Tuesday has the hours, but no crew at 9am, for either: so no room
   await page
     .getByRole("group", { name: "Date" })
     .getByRole("spinbutton", { name: /day/i })
     .click();
   await page.keyboard.type("13");
   await expect(proposed).toContainText(
+    "Not enough cleaners are free then. Pick another time, or give a cleaner more working hours that day.",
+  );
+  await expect(proposed).not.toContainText("has room");
+
+  // and at 10am, room for both
+  await page
+    .getByRole("group", { name: "Start time" })
+    .getByRole("spinbutton", { name: /hour/i })
+    .click();
+  await page.keyboard.type("10");
+  await expect(proposed).toContainText(
     "Tue, Jan 13 has room for either clean.",
   );
+  await expect(proposed).not.toContainText("Not enough cleaners");
+
+  // from 10pm the Deep Clean, 2.5 hours on site, would run past midnight
+  await page
+    .getByRole("group", { name: "Start time" })
+    .getByRole("spinbutton", { name: /hour/i })
+    .click();
+  await page.keyboard.type("1000PM");
   await expect(proposed).toContainText(
-    "Not enough cleaners are free then. Pick another time, or give a cleaner more working hours that day.",
+    "The Deep Clean would run past midnight. Pick an earlier start time to offer it too.",
   );
 });
 

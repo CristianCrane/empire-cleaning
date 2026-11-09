@@ -4,6 +4,7 @@ import type {
   AddOnChoice,
   ClientQuoteView,
   Condition,
+  DayCapacity,
   FirstCleanFindings,
   OfficeQuote,
   OfficeQuoteOption,
@@ -91,7 +92,7 @@ import { siteVisitViews } from "../site-visits/views.ts";
 import { askedAddOns } from "./asked-add-ons.ts";
 import { quoteEmail, turnDownEmail } from "./emails.ts";
 import { percentOf } from "./plan-days.ts";
-import { bookableFor } from "./quote-room.ts";
+import { bookableFor, draftRoomsOf } from "./quote-room.ts";
 import {
   askedOf,
   firstCleanCompleted,
@@ -607,16 +608,20 @@ const findingsOf = async (
 const officeOption = (
   revision: KindedRevision,
   row: RevisionOptionRow,
+  room: DayCapacity | null,
 ): OfficeQuoteOption => ({
   ...toOption(revision, row),
   suggested: row.suggested,
   overrideCents: row.overrideCents,
   overrideReason: row.overrideReason,
+  room,
 });
 
-// one Revision in full, for the Office
+// one Revision in full, for the Office: a Draft's options with their room
+// now, at the home on `propertyId`
 const officeRevision = async (
   revision: KindedRevision,
+  propertyId: string,
 ): Promise<OfficeRevision> => {
   const [rows, [priced]] = await Promise.all([
     optionsOf(revision.id),
@@ -627,13 +632,17 @@ const officeRevision = async (
   ]);
   const plan = planOf(revision, rows);
   const sent = revision.sentAt !== null;
+  const ordered = inOrder(rows);
+  const rooms = sent
+    ? ordered.map(() => null)
+    : await draftRoomsOf(revision, propertyId, ordered);
   return {
     id: revision.id,
     number: revision.number,
     status: sent ? "sent" : "draft",
     serviceKey: revision.serviceKey!,
     area: revision.area,
-    options: inOrder(rows).map((r) => officeOption(revision, r)),
+    options: ordered.map((r, i) => officeOption(revision, r, rooms[i]!)),
     // with the Condition it's priced for, which is the Office's working
     plan: plan && { ...plan, condition: revision.condition! },
     addOns: ownOption(revision, rows).suggested.addOns.map(({ key, name }) => ({
@@ -781,8 +790,12 @@ export const officeQuote = async (id: string): Promise<OfficeQuote> => {
     homePlanId,
     firstClean,
     addOnChoices: await addOnChoices(list, id, serviceKey),
-    draft: draft ? await officeRevision(kinded(quote, draft)) : null,
-    offer: offer ? await officeRevision(kinded(quote, offer)) : null,
+    draft: draft
+      ? await officeRevision(kinded(quote, draft), propertyId)
+      : null,
+    offer: offer
+      ? await officeRevision(kinded(quote, offer), propertyId)
+      : null,
     revisions,
     declinedAt: iso(quote.declinedAt),
     acceptedAt: iso(quote.acceptedAt),
