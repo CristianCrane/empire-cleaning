@@ -14,7 +14,13 @@ import type {
   ServicePlanStatus,
   Weekday,
 } from "@empire-cleaning/models";
-import { BUSINESS_TIME_ZONE, dayOf, timeOf } from "@empire-cleaning/models";
+import type { Time } from "@internationalized/date";
+import {
+  BUSINESS_TIME_ZONE,
+  clockTime,
+  dayOf,
+  timeOf,
+} from "@empire-cleaning/models";
 import type { StatusTone } from "@empire-cleaning/ui";
 
 export const addressOf = (
@@ -237,6 +243,13 @@ export const dollars = { style: "currency", currency: "USD" } as const;
 
 // an instant -> its New York wall-clock time, "09:00"
 export const timeOfDay = (iso: string) => timeOf(new Date(iso));
+
+// a time field's value -> its start time, "09:30"; none while it's empty
+export function timeOfField(time: Time): string;
+export function timeOfField(time: Time | null | undefined): string | undefined;
+export function timeOfField(time: Time | null | undefined) {
+  return time ? clockTime(time.hour * 60 + time.minute) : undefined;
+}
 
 // an instant -> the New York day it falls on, "2026-01-12"
 export const dayOfInstant = (iso: string) => dayOf(new Date(iso));
