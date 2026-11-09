@@ -1,8 +1,9 @@
 import { and, asc, eq, inArray, max } from "drizzle-orm";
-import type { QuoteSummary } from "@empire-cleaning/models";
+import type { QuoteKind, QuoteSummary } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
 import { dayOf } from "../../services/clock/index.ts";
 import { onSchedule } from "../jobs/jobs.ts";
+import type { Clean } from "../jobs/rules.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
 import { rescheduleRequests } from "../reschedule/reschedule.schema.ts";
 import { siteVisits } from "../site-visits/site-visits.schema.ts";
@@ -20,6 +21,30 @@ import { monitoring } from "../../services/monitoring/index.ts";
 // Cleaners or hours, can fill its proposed day or time under it. Then it can't be
 // accepted (acceptQuote checks again), the Client is told so on the Quote,
 // and the Office is told it needs another time.
+
+/**
+ * What a Quote's cleans' room is asked over (cleansFit, cleanRooms): their
+ * days of the Schedule, from the earliest to the latest (a Draft's weekdays
+ * are in the order typed), and, for a Service Plan Quote, the booked Jobs of
+ * its home's plan it replaces from its earliest clean on (jobsReplacedAt).
+ * A Draft's earliest so far may come before a weekday still to be timed,
+ * which can only replace fewer.
+ */
+export const roomInputsOf = async (
+  kind: QuoteKind,
+  propertyId: string,
+  cleans: Clean[],
+) => {
+  const earliest = new Date(
+    Math.min(...cleans.map((clean) => clean.startsAt.getTime())),
+  );
+  const dates = cleans.map((clean) => dayOf(clean.startsAt)).sort();
+  const [days, replacing] = await Promise.all([
+    scheduleFor(dates[0]!, dates.at(-1)!),
+    kind === "service_plan" ? jobsReplacedAt(propertyId, earliest) : [],
+  ]);
+  return { days, replacing };
+};
 
 /**
  * The Services each open Sent Quote can still be booked as, by key, in its
@@ -62,16 +87,12 @@ export const bookableFor = async (
   for (const [quoteId, offered] of Map.groupBy(options, (o) => o.quoteId)) {
     const proposed = startOfQuote.get(quoteId)!;
     const [{ kind, propertyId }] = offered as [(typeof offered)[number]];
-    const replacing =
-      kind === "service_plan" ? await jobsReplacedAt(propertyId, proposed) : [];
     const cleans = offered.map((option) => ({
       startsAt: option.startsAt ?? proposed,
       labourHours: option.labourHours,
       crewSize: option.crewSize,
     }));
-    // earliest first, as sending put a plan's weekdays
-    const dates = cleans.map((clean) => dayOf(clean.startsAt));
-    const days = await scheduleFor(dates[0]!, dates.at(-1)!);
+    const { days, replacing } = await roomInputsOf(kind!, propertyId, cleans);
     const fitting =
       kind === "one_off"
         ? offered.filter((_, i) => cleansFit(days, [cleans[i]!], replacing))
