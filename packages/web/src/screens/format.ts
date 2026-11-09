@@ -25,7 +25,9 @@ const date = new Intl.DateTimeFormat("en-US", {
   month: "short",
   day: "numeric",
   year: "numeric",
+  timeZone: BUSINESS_TIME_ZONE,
 });
+// an instant -> "Nov 3, 2026", the day it was in New York
 export const formatDate = (iso: string) => date.format(new Date(iso));
 
 export const conditionLabel: Record<Condition, string> = {
