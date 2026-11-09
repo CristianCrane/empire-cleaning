@@ -239,7 +239,9 @@ function AccountMenu({
     forgetAccount();
     getAccount().catch(() => {});
     for (const id of otherAreas) {
-      router.preloadRoute({ to: areas[id].path }).catch(() => {});
+      // a failed load is caught by the router itself (and runs again on the
+      // visit, which PageError reports)
+      void router.preloadRoute({ to: areas[id].path });
     }
   };
 
