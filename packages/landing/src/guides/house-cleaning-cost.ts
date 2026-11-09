@@ -60,7 +60,7 @@ export const houseCleaningCost: Guide = {
       title: "What you pay, and when",
       text: [
         "You accept your quote online and pay a deposit to book. The rest is charged once the clean is done, so you only pay in full for a clean that's happened.",
-        "If the home turns out to need more than the quote allowed for, the crew asks first, and you approve the price of any extra work before it's done. Moving a clean is free 24 hours or more before it, and once within 24 hours; cancelling within 24 hours keeps the deposit as a fee.",
+        "If the home turns out to need more than the quote allowed for, the crew asks first, and you approve any price change before the work is done. Moving a clean is free 24 hours or more before it, and once within 24 hours; cancelling within 24 hours keeps the deposit as a fee.",
       ],
     },
     {

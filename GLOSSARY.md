@@ -246,8 +246,8 @@ _Spanish_: descuento del plan
 **Adjustment**:
 A recorded change to a Job's quoted price, with a reason, from what the assigned Staff report at completion: an Add-on done on the day, a quoted Add-on not done, or extra time. Staff never set amounts: each is priced from the Price List and Service versions the Job's Quote used, a quoted Add-on not done at what it added to the quoted price. Reductions count at once; an increase counts only once Office Staff have proposed it and the Client has approved it in the portal, within 7 days (ADR-0009).
 _Avoid_: Surcharge, discount, extra
-_On screen_: price change; extra work, or an extra, to a Client
-_Spanish_: trabajo extra, or un extra, to a Client
+_On screen_: price change
+_Spanish_: cambio de precio
 
 **Bill**:
 Everything a commercial Client billed weekly owes for one week, Monday to Sunday: the Balances of their Jobs that started that week and were Completed, their fees, and approved Adjustments, as lines, made the following Monday (ADR-0016). It is charged to their saved Payment Method then, or, if Office Staff set it so, paid on its page by its due date. It never changes once made: mistakes are put right on the next Bill, and an unpaid one can be voided. One below zero is a credit on the next.

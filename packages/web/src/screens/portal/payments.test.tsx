@@ -179,21 +179,21 @@ describe("how a payment reads", () => {
     });
   });
 
-  test("an extra says which clean it was approved after", () => {
+  test("a price change says which clean it was approved after", () => {
     expect(paymentRow(payment({ kind: "extra", at: WEEK_LATER }))).toEqual({
-      title: "Extra on Standard Clean",
+      title: "Price change on Standard Clean",
       line: "Approved after your Oct 20 clean",
       href: jobHref,
     });
   });
 
-  test("an extra for one change names it", () => {
+  test("a price change for one change names it", () => {
     expect(
       paymentRow(
         payment({ kind: "extra", at: WEEK_LATER, item: "Inside the fridge" }),
       ),
     ).toEqual({
-      title: "Extra: Inside the fridge",
+      title: "Price change: Inside the fridge",
       line: "Approved after your Oct 20 Standard Clean",
       href: jobHref,
     });

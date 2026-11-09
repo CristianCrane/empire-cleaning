@@ -515,7 +515,9 @@ describe("Adjustments", () => {
       .send({})
       .expect(200);
     const proposal = testEmail().lastTo(casey.email);
-    expect(proposal.subject).toBe("Please approve extra work on your clean");
+    expect(proposal.subject).toBe(
+      "Please approve a price change on your clean",
+    );
     expect(proposal.text).toContain("1 extra hour (Heavy grease)");
     expect(proposal.text).toContain("$59.88");
     // true however the Client pays: by card, or on a weekly Bill (#244 #5)
@@ -573,7 +575,7 @@ describe("Adjustments", () => {
       owedCents: 0,
     });
     expect(testEmail().lastTo(casey.email).subject).toBe(
-      "Your receipt for extra work",
+      "Your receipt for a price change",
     );
     await client
       .post(`/api/jobs/mine/${jobId}/adjustments/${fridge!.id}/decline`)
@@ -626,7 +628,7 @@ describe("Adjustments", () => {
     await chaseProposedAdjustments();
     expect(testEmail().sent).toHaveLength(sent + 1);
     expect(testEmail().lastTo(casey.email).subject).toBe(
-      "Reminder: please approve extra work on your clean",
+      "Reminder: please approve a price change on your clean",
     );
 
     testClock().set(new Date("2026-01-19T16:00:00Z"));

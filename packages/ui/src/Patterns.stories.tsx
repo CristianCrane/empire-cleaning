@@ -1058,7 +1058,7 @@ function OwedFirst() {
           <List aria-label="Latest payments">
             {payment(
               "Oct 21",
-              "Extra on Standard Clean",
+              "Price change on Standard Clean",
               "$22.50",
               "Approved after your Oct 19 clean",
             )}
@@ -1123,8 +1123,8 @@ function DetailsPage() {
       <Example verdict="Do">
         <Notice tone="warning" action={<Button variant="text">Review</Button>}>
           <p>
-            <strong>Please approve extra work.</strong> 1 extra hour, $59.88.
-            Please answer by Jan 19, 2026.
+            <strong>Please approve a price change.</strong> 1 extra hour,
+            $59.88. Please answer by Jan 19, 2026.
           </p>
         </Notice>
         <Section title="Clean details">

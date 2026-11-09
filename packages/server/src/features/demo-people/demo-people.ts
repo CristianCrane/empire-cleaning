@@ -21,7 +21,7 @@ export const DEMO_PEOPLE = {
     { name: "Helen Kowalski", shows: "On a weekly plan" },
     { name: "Sam Ng", shows: "A quote that runs out tomorrow" },
     { name: "Max Rivera", shows: "Offered a plan after a first clean" },
-    { name: "Grace Lee", shows: "An extra charge to approve" },
+    { name: "Grace Lee", shows: "A price change to approve" },
     { name: "Rosa Diaz", shows: "Asked to move a clean" },
     { name: "Tia Moore", shows: "A payment that failed" },
     { name: "Rachel Bell", shows: "Bell Blvd Pediatrics, billed weekly" },

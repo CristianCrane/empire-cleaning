@@ -120,7 +120,7 @@ test(
 );
 
 test(
-  "the Office proposes an extra the Cleaner reported, and the Client approves it in the portal",
+  "the Office proposes a price change the Cleaner reported, and the Client approves it in the portal",
   { tag: ["@desktop"] },
   async ({ page, browser }) => {
     const { job, cory } = await jobUnderway();
@@ -136,35 +136,35 @@ test(
       .filter({ hasText: "1 price change to review" })
       .click();
     const adjustments = page.getByRole("region", { name: "Price changes" });
-    const extra = adjustments.getByRole("row", { name: /Extra time/ });
-    await expect(extra).toContainText("+1 h");
-    await expect(extra).toContainText("+$59.88");
-    await expect(extra).toContainText("To review");
-    await extra.click();
+    const extraTime = adjustments.getByRole("row", { name: /Extra time/ });
+    await expect(extraTime).toContainText("+1 h");
+    await expect(extraTime).toContainText("+$59.88");
+    await expect(extraTime).toContainText("To review");
+    await extraTime.click();
     const review = page.getByRole("dialog", { name: "Extra time" });
     await expect(review).toContainText('"Heavy grease"');
     await expect(review).toContainText("$55.00 before tax");
     await review.getByRole("button", { name: "Send to the client" }).click();
     await expect(page.getByText("Sent to the client")).toBeVisible();
     await expect(review).toBeHidden();
-    await expect(extra).toContainText("Waiting on the client");
+    await expect(extraTime).toContainText("Waiting on the client");
 
     const client = await asCasey(browser);
     await client.goto(
       await pathOfLatestEmail(
         casey.email,
-        "Please approve extra work on your clean",
+        "Please approve a price change on your clean",
       ),
     );
     // an alert above the clean, answered in a dialog
     const proposal = client
       .getByRole("status")
-      .filter({ hasText: "Please approve extra work" });
+      .filter({ hasText: "Please approve a price change" });
     await expect(proposal).toContainText("1 extra hour, $59.88");
     await expectAccessible(client);
     await proposal.getByRole("button", { name: "Review" }).click();
     const dialog = client.getByRole("dialog", {
-      name: "Please approve extra work",
+      name: "Please approve a price change",
     });
     await expect(dialog).toContainText('"Heavy grease"');
     await expectAccessible(client);

@@ -63,8 +63,8 @@ import {
 import { JobStatusBadge } from "../JobBadges.tsx";
 
 // one of the Client's Jobs, from the links in their emails: while it's to come,
-// moving or cancelling it; once Completed, its receipt; any extra work proposed to them
-// to approve or decline; if it couldn't be charged, the way to pay; and if
+// moving or cancelling it; once Completed, its receipt; any price change (an
+// Adjustment) proposed to them to approve or decline; if it couldn't be charged, the way to pay; and if
 // it was Cancelled (Skipped, on a plan) or No Access, what it cost
 export function PortalJob() {
   const job = useLoaderData({ from: "/portal/jobs/$jobId" });
@@ -601,7 +601,7 @@ function Unpaid({ payment }: { payment: JobPayment }) {
   );
 }
 
-// Extra work the Office has proposed, which they only pay if they
+// A price change (an Adjustment) the Office has proposed, which they only pay if they
 // approve: a yellow alert to answer it, its one action opening the answer.
 // (UX pass, #96)
 function Proposal({
@@ -628,7 +628,7 @@ function Proposal({
       action={
         <DialogTrigger>
           <Button variant="text">Review</Button>
-          <Dialog title="Please approve extra work">
+          <Dialog title="Please approve a price change">
             {({ close }) => (
               <>
                 <p>
@@ -669,7 +669,7 @@ function Proposal({
       }
     >
       <p>
-        <strong>Please approve extra work.</strong>{" "}
+        <strong>Please approve a price change.</strong>{" "}
         {adjustmentLabel(adjustment)}, {formatMoney(adjustment.totalCents)}.
         Please answer by {formatDate(adjustment.lapsesAt!)}.
       </p>
