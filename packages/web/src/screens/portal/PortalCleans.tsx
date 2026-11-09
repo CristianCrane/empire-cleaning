@@ -6,6 +6,7 @@ import type {
   ClientSiteVisit,
   ClientUpcomingJob,
 } from "@empire-cleaning/models";
+import { BUSINESS_TIME_ZONE } from "@empire-cleaning/models";
 import {
   Button,
   DateTile,
@@ -43,7 +44,7 @@ const PAGE = 10;
 const monthFormat = new Intl.DateTimeFormat("en-US", {
   month: "long",
   year: "numeric",
-  timeZone: "America/New_York",
+  timeZone: BUSINESS_TIME_ZONE,
 });
 
 // a row's worth: its date, what it is, a line under it, and where it opens
