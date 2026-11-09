@@ -14,12 +14,12 @@ const reason = z
 const report = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("add_on_done"),
-    addOnKey: z.uuid("Choose an add-on"),
+    addOnKey: z.uuid("Choose an extra"),
     reason,
   }),
   z.object({
     kind: z.literal("add_on_not_done"),
-    addOnKey: z.uuid("Choose an add-on"),
+    addOnKey: z.uuid("Choose an extra"),
     reason,
   }),
   z.object({

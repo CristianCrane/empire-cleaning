@@ -43,7 +43,7 @@ export const recurringCleaning: ServicePage = {
         ],
       },
     ],
-    note: "Each visit is a standard clean. Want a deep clean now and then, or an add-on like inside the fridge? Ask for it as a one-off quote any time; your plan carries on.",
+    note: "Each visit is a standard clean. Want a deep clean now and then, or an extra like inside the fridge? Ask for it as a one-off quote any time; your plan carries on.",
   },
   pricing: {
     title: "How a cleaning plan is priced",

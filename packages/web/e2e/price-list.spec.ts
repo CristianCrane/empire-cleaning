@@ -113,16 +113,16 @@ test(
 
     await page.getByRole("row", { name: "Inside the fridge" }).click();
     await page.getByText("Offered").click();
-    await page.getByRole("button", { name: "Save add-on" }).click();
+    await page.getByRole("button", { name: "Save extra" }).click();
     await expect(page.getByText("Prices saved as version 3")).toBeVisible();
 
-    await page.getByRole("button", { name: "Add an add-on" }).click();
+    await page.getByRole("button", { name: "Add an extra" }).click();
     await page.getByRole("textbox", { name: "Name" }).fill("Steam clean");
     await page.getByText("Tax-exempt").click();
     await expect(
       page.getByRole("checkbox", { name: "Tax-exempt" }),
     ).toBeChecked();
-    await page.getByRole("button", { name: "Add add-on" }).click();
+    await page.getByRole("button", { name: "Add extra" }).click();
     await expect(page.getByText("Prices saved as version 4")).toBeVisible();
 
     await page.reload();

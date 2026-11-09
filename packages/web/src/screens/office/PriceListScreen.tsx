@@ -205,8 +205,8 @@ function AddOns({ list, services }: { list: PriceList; services: Service[] }) {
 
   return (
     <Section
-      title="Add-ons"
-      description="Extras for homes, businesses or both, priced by their hours. Clients asking about a home see the ones for homes. A business's are agreed after a visit."
+      title="Extras"
+      description="For homes, businesses or both, priced by their hours. Clients asking about a home see the ones for homes. A business's are agreed after a visit."
       actions={
         <Button
           variant="text"
@@ -214,12 +214,12 @@ function AddOns({ list, services }: { list: PriceList; services: Service[] }) {
           onPress={() => setOpen(list.addOns.length)}
         >
           <Plus aria-hidden size={16} />
-          Add an add-on
+          Add an extra
         </Button>
       }
     >
       {list.addOns.length > 0 && (
-        <List aria-label="Add-ons" onAction={(key) => setOpen(Number(key))}>
+        <List aria-label="Extras" onAction={(key) => setOpen(Number(key))}>
           {list.addOns.map((addOn, i) => (
             <ListItem
               key={addOn.key}
@@ -287,14 +287,14 @@ function AddOnDialog({
 
   return (
     <Dialog
-      title={saved ? saved.name : "New add-on"}
+      title={saved ? saved.name : "New extra"}
       isOpen
       onOpenChange={(isOpen) => !isOpen && close()}
     >
       <PartForm
         action={action}
         close={close}
-        saveLabel={saved ? "Save add-on" : "Add add-on"}
+        saveLabel={saved ? "Save extra" : "Add extra"}
         onSave={() =>
           void save(
             {
@@ -592,7 +592,7 @@ function Condition({ list }: { list: PriceList }) {
     <Figures
       list={list}
       title="Condition"
-      description="It multiplies a home's or business's hours, for services that condition affects. Add-ons aren't multiplied."
+      description="It multiplies a home's or business's hours, for services that condition affects. Extras aren't multiplied."
       names={["conditionLight", "conditionModerate", "conditionHeavy"]}
       facts={
         <>

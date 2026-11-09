@@ -12,7 +12,7 @@ export const faqs = [
   {
     question: "How much does a clean cost?",
     answer:
-      "Every home gets its own quote, worked out from the clean you choose, the bedrooms and bathrooms, how many floors, any pets or add-ons, and how much cleaning it needs. Request one and we'll email it to you, usually within a working day.",
+      "Every home gets its own quote, worked out from the clean you choose, the bedrooms and bathrooms, how many floors, any pets or extras, and how much cleaning it needs. Request one and we'll email it to you, usually within a working day.",
     more: {
       href: "/guides/house-cleaning-cost/",
       text: "What affects the price",

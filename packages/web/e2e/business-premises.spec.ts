@@ -186,7 +186,7 @@ test("Office Staff keep the Premises Types, and the Services each Add-on goes wi
     .getByRole("group", { name: "Goes with" })
     .getByText("Commercial cleaning")
     .click();
-  await page.getByRole("button", { name: "Save add-on" }).click();
+  await page.getByRole("button", { name: "Save extra" }).click();
   await expect(page.getByText("Prices saved as version 4")).toBeVisible();
 
   await page.reload();

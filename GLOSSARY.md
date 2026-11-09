@@ -114,8 +114,8 @@ _Spanish_: estado
 **Add-on**:
 A priced extra task, such as cleaning inside the oven, agreed on a Quote before a Job; distinct from an Adjustment made on the day. Each is offered with particular Services, and only those Services' prices on a Quote include it. Clients choose Add-ons by name when asking for a Quote. On the Quote, each costs what it adds to the price: nothing at the Minimum Charge, less any Plan Discount, and its share of an override. Office Staff retire an Add-on rather than delete it, so Quotes that asked for it still price it.
 _Avoid_: Extra, upgrade, option
-_On screen_: add-on; extra to a Client
-_Spanish_: adicional; extra to a Client
+_On screen_: extra
+_Spanish_: adicional
 
 **Preferred Service Area**:
 A set of postcodes close enough to Staff that Empire Cleaning prefers to work there. Distance never changes a price; whether to take on work outside these areas is Office Staff's call.

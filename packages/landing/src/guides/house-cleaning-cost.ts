@@ -15,7 +15,7 @@ export const houseCleaningCost: Guide = {
   crumb: "What affects the price",
   title: "House Cleaning Cost in Queens, NYC & Long Island",
   description:
-    "What decides the price of a house cleaning in Queens, NYC and Long Island: the clean, the size of the home, its condition, pets, add-ons and how often.",
+    "What decides the price of a house cleaning in Queens, NYC and Long Island: the clean, the size of the home, its condition, pets, extras and how often.",
   heading: "How much does house cleaning cost?",
   intro:
     "It's the first thing most people ask, and the honest answer is that it depends on your home. Here's what the price depends on, why we quote every home on its own, and how to keep the cost down.",
@@ -39,7 +39,7 @@ export const houseCleaningCost: Guide = {
         "The size of the home: the bedrooms, the bathrooms and how many floors.",
         "How much cleaning it needs: light (tidy, with everyday dust), moderate (lived in, with some build-up in the kitchen and bathrooms) or heavy (not cleaned in a while, or after a move, renovation or party).",
         "Pets, whose hair takes time to get up from floors and furniture.",
-        "Add-ons: inside the fridge, inside the oven, inside the cabinets and interior windows. You choose only the ones you want.",
+        "Extras: inside the fridge, inside the oven, inside the cabinets and interior windows. You choose only the ones you want.",
       ],
     },
     {
@@ -69,7 +69,7 @@ export const houseCleaningCost: Guide = {
       list: [
         "Start with one deep clean, then keep it up with standard visits on a cleaning plan, 10% off each.",
         "Clear away clutter before we arrive, so our time goes on cleaning rather than tidying.",
-        "Choose only the add-ons you need, when you need them.",
+        "Choose only the extras you need, when you need them.",
         "Describe your home as it is. An accurate quote means no surprises on the day.",
       ],
     },

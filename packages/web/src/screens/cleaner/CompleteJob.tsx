@@ -114,7 +114,7 @@ export function CompleteJob({ job }: { job: CleanerJob }) {
 
             {job.reportable.quoted.length > 0 && (
               <AddOnReports
-                title="Add-ons on the quote you couldn't do"
+                title="Extras on the quote you couldn't do"
                 addOns={job.reportable.quoted}
                 ticked={notDone}
                 onChange={setNotDone}
@@ -123,7 +123,7 @@ export function CompleteJob({ job }: { job: CleanerJob }) {
             )}
             {job.reportable.others.length > 0 && (
               <AddOnReports
-                title="Add-ons you did that weren't on the quote"
+                title="Extras you did that weren't on the quote"
                 addOns={job.reportable.others}
                 ticked={done}
                 onChange={setDone}

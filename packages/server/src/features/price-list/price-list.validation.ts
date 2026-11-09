@@ -86,7 +86,7 @@ export const priceListSchema = z
     quoteValidityDays: validityDays,
     defaultCrewSize: crewSize,
     taxFeePercent: taxPercent,
-    addOns: z.array(addOn).max(50, "That's too many add-ons. Remove some"),
+    addOns: z.array(addOn).max(50, "That's too many extras. Remove some"),
     premisesTypes: z
       .array(premisesType)
       .max(50, "That's too many types of business. Remove some")
@@ -95,7 +95,7 @@ export const priceListSchema = z
         "Offer at least one type of business",
       ),
   })
-  .superRefine(uniqueNames("addOns", "Another add-on already has this name"))
+  .superRefine(uniqueNames("addOns", "Another extra already has this name"))
   .superRefine(
     uniqueNames(
       "premisesTypes",

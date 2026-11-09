@@ -438,13 +438,11 @@ describe("Adjustments", () => {
     const onQuote = await complete(cory.agent, jobId, {
       reports: [{ kind: "add_on_done", addOnKey: oven, reason: "x" }],
     }).expect(409);
-    expect(onQuote.body.message).toBe(
-      "That add-on can't be added to this job.",
-    );
+    expect(onQuote.body.message).toBe("That extra can't be added to this job.");
     const notOnQuote = await complete(cory.agent, jobId, {
       reports: [{ kind: "add_on_not_done", addOnKey: fridge, reason: "x" }],
     }).expect(409);
-    expect(notOnQuote.body.message).toBe("That add-on isn't on this job.");
+    expect(notOnQuote.body.message).toBe("That extra isn't on this job.");
     await complete(cory.agent, jobId, {
       reports: [{ kind: "extra_time", hours: 0.3, reason: "x" }],
     }).expect(400);
@@ -486,9 +484,7 @@ describe("Adjustments", () => {
         },
       ],
     }).expect(409);
-    expect(refused.body.message).toBe(
-      "That add-on can't be added to this job.",
-    );
+    expect(refused.body.message).toBe("That extra can't be added to this job.");
   });
 
   test("proposed by the Office are charged once the Client approves, with a receipt", async () => {
