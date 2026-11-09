@@ -6,13 +6,14 @@ import { onSchedule } from "../jobs/jobs.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
 import { rescheduleRequests } from "../reschedule/reschedule.schema.ts";
 import { siteVisits } from "../site-visits/site-visits.schema.ts";
-import { onDays, roomFor } from "../jobs/schedule.ts";
+import { onDays, scheduleFor } from "../jobs/schedule.ts";
 import { addressOf } from "../properties/property-view.ts";
 import { jobsReplacedAt } from "../service-plans/changing.ts";
 import { tellOfficeStaff } from "../staff/staff.ts";
 import { quotesWithoutRoomEmail } from "./emails.ts";
 import { openQuotes } from "./quote-state.ts";
 import { quotes, revisionOptions } from "./quotes.schema.ts";
+import { cleansFit } from "./rules.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
 
 // A Sent Quote doesn't hold its time: a booking for another Client, or fewer
@@ -27,7 +28,8 @@ import { monitoring } from "../../services/monitoring/index.ts";
  * and a crew of its Crew Size then. A Service Plan Quote is booked whole, so
  * it can be while the first clean on each of its weekdays has room, and
  * then offers its weekdays' Services; one changing its home's plan
- * doesn't count the plan's Jobs it would replace.
+ * doesn't count the plan's Jobs it would replace. Accepting asks the same
+ * rule (cleansFit), over each Quote's days, loaded once.
  */
 export const bookableFor = async (
   open: { id: string; proposedStartsAt: Date }[],
@@ -62,21 +64,20 @@ export const bookableFor = async (
     const [{ kind, propertyId }] = offered as [(typeof offered)[number]];
     const replacing =
       kind === "service_plan" ? await jobsReplacedAt(propertyId, proposed) : [];
-    const fitting: string[] = [];
-    for (const option of offered) {
-      const { hasRoom } = await roomFor(
-        {
-          startsAt: option.startsAt ?? proposed,
-          labourHours: option.labourHours,
-          crewSize: option.crewSize,
-        },
-        db,
-        replacing,
-      );
-      if (hasRoom) fitting.push(option.serviceKey);
-    }
-    const whole = kind === "one_off" || fitting.length === offered.length;
-    bookable.set(quoteId, whole ? [...new Set(fitting)] : []);
+    const cleans = offered.map((option) => ({
+      startsAt: option.startsAt ?? proposed,
+      labourHours: option.labourHours,
+      crewSize: option.crewSize,
+    }));
+    const dates = cleans.map((clean) => dayOf(clean.startsAt)).sort();
+    const days = await scheduleFor(dates[0]!, dates.at(-1)!);
+    const fitting =
+      kind === "one_off"
+        ? offered.filter((_, i) => cleansFit(days, [cleans[i]!], replacing))
+        : cleansFit(days, cleans, replacing)
+          ? offered
+          : [];
+    bookable.set(quoteId, [...new Set(fitting.map((o) => o.serviceKey))]);
   }
   return bookable;
 };
