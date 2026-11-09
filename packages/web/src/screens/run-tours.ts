@@ -54,7 +54,6 @@ export function useTours(area: AreaId, account: Me) {
   // the tour for the screen drawn now, started; how to end it early
   const start = useEffectEvent(() => {
     const forArea = toursFor[area];
-    if (!forArea) return undefined;
     const route = router.state.matches.at(-1)?.fullPath;
     for (const tour of forArea.tours) {
       if (tour.route !== route || account.seenTours.includes(tour.id)) {

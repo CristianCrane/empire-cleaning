@@ -88,7 +88,7 @@ export function CleanerOffers() {
             headingLevel={3}
             icon={Inbox}
             title="Nothing open to you right now"
-            description="When a job needs someone while you're free, it shows here."
+            description="When a job needs someone while you're free, it shows here. Jobs the office offers you show at the top."
           />
         )}
       </Section>

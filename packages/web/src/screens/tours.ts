@@ -1,4 +1,5 @@
 import type { AreaId } from "../session.ts";
+import { cleanerTours } from "./cleaner/tours.ts";
 import { officeTours } from "./office/tours.ts";
 import { clientTours } from "./portal/tours.ts";
 
@@ -34,10 +35,11 @@ export type AreaTours = {
   tours: Tour[];
 };
 
-// the Cleaner area's come in #296
-export const toursFor: Partial<Record<AreaId, AreaTours>> = {
+// every area's: one added without tours fails the typecheck here
+export const toursFor: Record<AreaId, AreaTours> = {
   portal: clientTours,
   office: officeTours,
+  cleaner: cleanerTours,
 };
 
 export const tourIds = Object.values(toursFor).flatMap((area) =>

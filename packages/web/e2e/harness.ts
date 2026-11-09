@@ -71,7 +71,8 @@ export const requireApproval = (
     body: JSON.stringify({ answer }),
   });
 
-// a booked Job at a home of its own, straight onto the Schedule
+// a booked Job at a home of its own, straight onto the Schedule, a crew of
+// 2 unless said: one Cleaner Confirmed on it can't mark it done alone
 export const bookJob = (job: {
   startsAt: string;
   labourHours: number;
@@ -192,7 +193,6 @@ export const requestReschedule = (
     body: JSON.stringify({ cost: "free", ...to }),
   });
 
-// a Job Offered to a Cleaner (and Confirmed by them, if asked)
 // Office Staff move a booked Job straight to a new time, New York's
 export const moveJob = (jobId: string, to: { date: string; time: string }) =>
   control(`/jobs/${jobId}/move`, {
@@ -200,6 +200,7 @@ export const moveJob = (jobId: string, to: { date: string; time: string }) =>
     body: JSON.stringify(to),
   });
 
+// a Job Offered to a Cleaner (and Confirmed by them, if asked)
 export const offerJob = (
   jobId: string,
   staffId: string,

@@ -809,7 +809,8 @@ function EmptyStatesOfferTheAction() {
           what's missing and offers the action that adds it, as a primary
           Button. When the action would be refused, say why in an info{" "}
           <code>Notice</code> in its place, with a link to what's in the way,
-          rather than a Button that fails.
+          rather than a Button that fails. Inside a Section, it never says again
+          what the Section's description above it already says.
         </p>
       </Rule>
       <div className="flex flex-col gap-4 md:flex-row">
