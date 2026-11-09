@@ -11,6 +11,7 @@ import {
   cleansPaid,
   type OfficeServicePlan,
   type UnplacedVisit,
+  weekdayOf,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -38,7 +39,6 @@ import {
   formatDateTime,
   formatDay,
   timeOfDay,
-  weekdayOf,
 } from "../format.ts";
 import { EndPlan, OnHold, PlanFacts, PlanStatusBadge } from "../PlanParts.tsx";
 import { useAction } from "../action.ts";

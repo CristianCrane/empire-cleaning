@@ -12,7 +12,7 @@ import type {
   ServicePlanInput,
   SignedInAccount,
 } from "@empire-cleaning/models";
-import { dayOf, timeOf } from "#services/clock";
+import { dayOf, timeOf } from "@empire-cleaning/models";
 import {
   type Agent,
   signIn,

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { ScheduledJob, StaffRole } from "@empire-cleaning/models";
-import { DAY_MS, HOUR_MS } from "#services/clock";
+import { DAY_MS, HOUR_MS } from "@empire-cleaning/models";
 import {
   NOW,
   THURSDAY_9AM,

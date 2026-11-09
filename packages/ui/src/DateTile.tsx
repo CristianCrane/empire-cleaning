@@ -1,3 +1,4 @@
+import { BUSINESS_TIME_ZONE } from "@empire-cleaning/models";
 import { tv } from "./utils.ts";
 
 const tile = tv({
@@ -33,15 +34,16 @@ const tile = tv({
 export function DateTile({
   date,
   size = "md",
-  timeZone = "America/New_York",
 }: {
   // an instant, e.g. "2026-11-03T14:00:00Z"
   date: string;
   size?: "md" | "sm";
-  timeZone?: string;
 }) {
   const part = (options: Intl.DateTimeFormatOptions) =>
-    new Date(date).toLocaleDateString("en-US", { timeZone, ...options });
+    new Date(date).toLocaleDateString("en-US", {
+      timeZone: BUSINESS_TIME_ZONE,
+      ...options,
+    });
   const { base, month, day } = tile({ size });
   return (
     <span aria-hidden className={base()}>

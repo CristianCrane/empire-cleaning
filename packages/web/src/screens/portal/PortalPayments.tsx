@@ -1,7 +1,11 @@
 import { useState } from "react";
 import { useLoaderData, useNavigate, useSearch } from "@tanstack/react-router";
 import { CircleCheck, CreditCard, Receipt, TriangleAlert } from "lucide-react";
-import { BANK_CLEARING, type ClientPayment } from "@empire-cleaning/models";
+import {
+  BANK_CLEARING,
+  BUSINESS_TIME_ZONE,
+  type ClientPayment,
+} from "@empire-cleaning/models";
 import {
   Button,
   ButtonLink,
@@ -35,7 +39,7 @@ const PAGE = 20;
 const monthFormat = new Intl.DateTimeFormat("en-US", {
   month: "long",
   year: "numeric",
-  timeZone: "America/New_York",
+  timeZone: BUSINESS_TIME_ZONE,
 });
 
 export function PortalPayments() {

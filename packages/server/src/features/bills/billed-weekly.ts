@@ -1,6 +1,6 @@
 import { and, count, eq, ne, sum } from "drizzle-orm";
+import { startOfDay } from "@empire-cleaning/models";
 import type { db, Tx } from "../../db/index.ts";
-import { startOfDay } from "../../services/clock/index.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
 import type { Job } from "../jobs/jobs.schema.ts";
 import { properties } from "../properties/properties.schema.ts";

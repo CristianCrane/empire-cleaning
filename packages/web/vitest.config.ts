@@ -28,7 +28,10 @@ export default mergeConfig(
       browser: {
         enabled: true,
         headless: true,
-        provider: playwright(),
+        // the browser is in UTC whatever the machine's zone, so a screen
+        // that says the viewer's day where it should say New York's fails
+        // everywhere, not only away from New York (format.test.tsx)
+        provider: playwright({ contextOptions: { timezoneId: "UTC" } }),
         instances: [{ browser: "chromium", name: "web" }],
         commands: { darkDevice },
       },

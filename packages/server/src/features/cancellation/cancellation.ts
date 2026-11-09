@@ -3,12 +3,13 @@ import {
   CANCELLATION_CUTOFF_HOURS,
   type CancellationTerms,
   type CancelledBy,
+  HOUR_MS,
   type JobCancellation,
   type JobNoAccess,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
-import { clock, HOUR_MS } from "../../services/clock/index.ts";
+import { clock } from "../../services/clock/index.ts";
 import { email, notify } from "../../services/email/index.ts";
 import { assignments, onCrew } from "../assignments/assignments.schema.ts";
 import { mustBeConfirmed } from "../assignments/crew.ts";

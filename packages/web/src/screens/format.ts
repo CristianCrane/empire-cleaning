@@ -14,6 +14,7 @@ import type {
   ServicePlanStatus,
   Weekday,
 } from "@empire-cleaning/models";
+import { BUSINESS_TIME_ZONE, dayOf, timeOf } from "@empire-cleaning/models";
 import type { StatusTone } from "@empire-cleaning/ui";
 
 export const addressOf = (
@@ -24,7 +25,9 @@ const date = new Intl.DateTimeFormat("en-US", {
   month: "short",
   day: "numeric",
   year: "numeric",
+  timeZone: BUSINESS_TIME_ZONE,
 });
+// an instant -> "Nov 3, 2026", the day it was in New York
 export const formatDate = (iso: string) => date.format(new Date(iso));
 
 export const conditionLabel: Record<Condition, string> = {
@@ -136,7 +139,7 @@ export const roleLabel = {
 };
 
 // Empire Cleaning's days and times are New York's, wherever the viewer is
-const BUSINESS_TIME_ZONE = "America/New_York";
+// (BUSINESS_TIME_ZONE); the API sends instants as ISO strings
 
 const dayFormat = new Intl.DateTimeFormat("en-US", {
   weekday: "short",
@@ -165,23 +168,8 @@ const timeFormat = new Intl.DateTimeFormat("en-US", {
 // an instant -> "9:00 AM" in New York
 export const formatTime = (iso: string) => timeFormat.format(new Date(iso));
 
-const dayParts = new Intl.DateTimeFormat("en-CA", {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  timeZone: BUSINESS_TIME_ZONE,
-});
 // today in New York: "2026-01-05"
-export const today = () => dayParts.format(new Date());
-
-export const addDays = (day: string, days: number) =>
-  new Date(Date.parse(`${day}T00:00:00Z`) + days * 86_400_000)
-    .toISOString()
-    .slice(0, 10);
-
-// the Monday of the week a day is in
-export const mondayOf = (day: string) =>
-  addDays(day, -((new Date(`${day}T00:00:00Z`).getUTCDay() + 6) % 7));
+export const today = () => dayOf(new Date());
 
 const dateTimeFormat = new Intl.DateTimeFormat("en-US", {
   weekday: "short",
@@ -247,17 +235,11 @@ export const quoteStatusTone = {
 // for NumberField's formatOptions on prices
 export const dollars = { style: "currency", currency: "USD" } as const;
 
-const clockParts = new Intl.DateTimeFormat("en-US", {
-  hour: "2-digit",
-  minute: "2-digit",
-  hourCycle: "h23",
-  timeZone: BUSINESS_TIME_ZONE,
-});
 // an instant -> its New York wall-clock time, "09:00"
-export const timeOfDay = (iso: string) => clockParts.format(new Date(iso));
+export const timeOfDay = (iso: string) => timeOf(new Date(iso));
 
 // an instant -> the New York day it falls on, "2026-01-12"
-export const dayOfInstant = (iso: string) => dayParts.format(new Date(iso));
+export const dayOfInstant = (iso: string) => dayOf(new Date(iso));
 
 // "09:00" -> "9:00 AM"
 export const formatClock = (time: string) => {
@@ -271,19 +253,12 @@ export const recurrenceLabel: Record<Recurrence, string> = {
   four_weekly: "Every 4 weeks",
 };
 
-// how many weeks apart a Service Plan's cleans are
-export const recurrenceWeeks: Record<Recurrence, number> = {
-  weekly: 1,
-  fortnightly: 2,
-  four_weekly: 4,
-};
-
 const weekdayFormat = new Intl.DateTimeFormat("en-US", {
   weekday: "long",
   timeZone: "UTC",
 });
 // "2026-01-05" -> "Monday"
-export const weekdayOf = (day: string) =>
+export const weekdayName = (day: string) =>
   weekdayFormat.format(new Date(`${day}T00:00:00Z`));
 
 // a Service Plan, or a Service Plan Quote, with its weekdays
@@ -291,7 +266,7 @@ type PlanDays = { recurrence: Recurrence; days: PlanDaySummary[] };
 
 // "Monday", or a Draft's weekday that has no time yet
 const weekdayOfStart = (startsAt: string | null) =>
-  startsAt ? weekdayOf(dayOfInstant(startsAt)) : null;
+  startsAt ? weekdayName(dayOfInstant(startsAt)) : null;
 
 const listed = (items: string[]) =>
   items.length > 1

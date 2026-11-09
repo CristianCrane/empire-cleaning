@@ -1,13 +1,14 @@
 import {
+  type AssignmentState,
+  DAY_MS,
+  HOUR_MS,
   isOnCrew,
   RELEASE_CLOSED,
   RELEASE_CUTOFF_HOURS,
-  type AssignmentState,
   type ScheduleDay,
   type ScheduledJob,
   type StaffRole,
 } from "@empire-cleaning/models";
-import { DAY_MS, HOUR_MS } from "../../services/clock/index.ts";
 import { formatWhen } from "../../services/email/index.ts";
 import { asClean, isFree, whyStarted } from "../jobs/rules.ts";
 

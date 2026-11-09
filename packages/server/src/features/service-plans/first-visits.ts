@@ -1,5 +1,6 @@
+import { dayOf } from "@empire-cleaning/models";
 import type { Tx } from "../../db/index.ts";
-import { clock, dayOf } from "../../services/clock/index.ts";
+import { clock } from "../../services/clock/index.ts";
 import type { Job } from "../jobs/jobs.schema.ts";
 import type { Quote, Revision } from "../quotes/quotes.schema.ts";
 import { servicePlanVisits } from "./service-plans.schema.ts";

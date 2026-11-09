@@ -1,6 +1,7 @@
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import { CalendarDays, Navigation, Phone } from "lucide-react";
 import type { CleanerJob, CleanerSiteVisit } from "@empire-cleaning/models";
+import { HOUR_MS } from "@empire-cleaning/models";
 import {
   Button,
   buttonStyles,
@@ -41,7 +42,7 @@ export const directionsTo = (address: string) =>
 
 // "until about 12:00 PM": the start plus its time on site
 export const untilAbout = (startsAt: string, hours: number) =>
-  `until about ${formatTime(new Date(Date.parse(startsAt) + hours * 3_600_000).toISOString())}`;
+  `until about ${formatTime(new Date(Date.parse(startsAt) + hours * HOUR_MS).toISOString())}`;
 
 // what's theirs, in time order: a Job they hold, or a Site Visit they're
 // making

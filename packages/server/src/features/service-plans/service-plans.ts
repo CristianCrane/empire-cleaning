@@ -18,22 +18,23 @@ import {
 import type {
   LocalDateTime,
   OfficeServicePlan,
-  Recurrence,
   ServicePlanSummary,
   ServicePlanView,
   UnplacedVisit,
 } from "@empire-cleaning/models";
-import { ADD_HOURS, ENDS_BY_MIDNIGHT } from "@empire-cleaning/models";
-import { db, type Tx } from "../../db/index.ts";
-import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import {
+  ADD_HOURS,
   addDays,
   atTime,
-  clock,
   dayOf,
+  ENDS_BY_MIDNIGHT,
+  recurrenceDays,
   timeOf,
   weekdayOf,
-} from "../../services/clock/index.ts";
+} from "@empire-cleaning/models";
+import { db, type Tx } from "../../db/index.ts";
+import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
+import { clock } from "../../services/clock/index.ts";
 import { emailOffer } from "../assignments/assignments.ts";
 import { assignments, onCrew } from "../assignments/assignments.schema.ts";
 import { weeklyBillOf } from "../bills/billed-weekly.ts";
@@ -76,12 +77,6 @@ import {
   type ServicePlan,
 } from "./service-plans.schema.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
-
-export const INTERVAL_DAYS: Record<Recurrence, number> = {
-  weekly: 7,
-  fortnightly: 14,
-  four_weekly: 28,
-};
 
 // how far ahead a plan's Jobs are put on the Schedule: every recurrence has
 // at least one showing, and the Office has a month's notice of a full day
@@ -331,7 +326,7 @@ const termsOf = async (tx: Tx, plan: ServicePlan) => {
     const later = accepted.slice(i + 1).map((t) => t.startsAt!.getTime());
     return {
       quoteId: terms.quoteId,
-      every: INTERVAL_DAYS[terms.recurrence!],
+      every: recurrenceDays[terms.recurrence!],
       until: later.length > 0 ? new Date(Math.min(...later)) : null,
     };
   });

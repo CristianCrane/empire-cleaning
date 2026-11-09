@@ -13,7 +13,7 @@ import {
   dayOf,
   HOUR_MS,
   startOfDay,
-} from "../../services/clock/index.ts";
+} from "@empire-cleaning/models";
 
 // The Schedule's rules, over a day of it as scheduleFor loads it: whether a
 // clean has room (roomOn), whether a Staff member is free for one (isFree),

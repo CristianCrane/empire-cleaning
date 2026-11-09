@@ -13,11 +13,14 @@ delete process.env.DISPLAY;
 delete process.env.WAYLAND_DISPLAY;
 
 // every test runs in a real Chromium, never a simulated DOM. Vitest's default
-// frame is 414px wide, so everything is also exercised at phone width.
+// frame is 414px wide, so everything is also exercised at phone width. The
+// browser is in UTC whatever the machine's zone, so a component that says the
+// viewer's day where it should say New York's (DateTile) fails everywhere,
+// not only away from New York, as in web's browser tests
 const browser = (name: string) => ({
   enabled: true,
   headless: true,
-  provider: playwright(),
+  provider: playwright({ contextOptions: { timezoneId: "UTC" } }),
   instances: [{ browser: "chromium" as const, name }],
 });
 

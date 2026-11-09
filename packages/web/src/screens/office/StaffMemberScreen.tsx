@@ -14,7 +14,7 @@ import type {
   StaffHolding,
   StaffRole,
 } from "@empire-cleaning/models";
-import { hasSiteVisit } from "@empire-cleaning/models";
+import { hasSiteVisit, weekdayOf } from "@empire-cleaning/models";
 import {
   Actions,
   Avatar,
@@ -392,10 +392,8 @@ const stepMonth = (month: string, by: number) => {
 // each day of a month, Monday first, with blanks before the 1st
 const daysOf = (month: string) => {
   const [y, m] = month.split("-").map(Number) as [number, number];
-  const first = new Date(Date.UTC(y, m - 1, 1));
   const count = new Date(Date.UTC(y, m, 0)).getUTCDate();
-  // getUTCDay is Sunday first
-  const blanks = (first.getUTCDay() + 6) % 7;
+  const blanks = weekdayOf(`${month}-01`);
   return [
     ...Array.from({ length: blanks }, () => null),
     ...Array.from(
@@ -404,10 +402,6 @@ const daysOf = (month: string) => {
     ),
   ];
 };
-
-// Mon=0 … Sun=6, as the usual week is kept
-const weekdayIndex = (day: string) =>
-  (new Date(`${day}T00:00:00Z`).getUTCDay() + 6) % 7;
 
 // Their usual week and the days that differ, on a month calendar: each day
 // its hours, the days that differ tinted, past days dimmed. A day from today
@@ -465,7 +459,7 @@ function Availability({ member }: { member: StaffDetail }) {
             {daysOf(month).map((day, i) => {
               if (day === null) return <span key={`blank ${i}`} />;
               const exception = exceptionOn(day);
-              const hours = exception?.hours ?? usualWeek[weekdayIndex(day)]!;
+              const hours = exception?.hours ?? usualWeek[weekdayOf(day)]!;
               const past = day < now;
               const tone = exception
                 ? hours > 0
@@ -513,7 +507,7 @@ function Availability({ member }: { member: StaffDetail }) {
         <DayDialog
           member={member}
           day={open}
-          usual={usualWeek[weekdayIndex(open)]!}
+          usual={usualWeek[weekdayOf(open)]!}
           exception={exceptionOn(open)}
           close={() => setOpen(null)}
         />
@@ -537,8 +531,7 @@ function UsualWeek({
   const { jobs, visits } = heldOnDaysOff(
     member,
     (day) =>
-      !exceptions.some((e) => e.date === day) &&
-      !(week[weekdayIndex(day)]! > 0),
+      !exceptions.some((e) => e.date === day) && !(week[weekdayOf(day)]! > 0),
   );
   const secondLook = useSecondLook(jobs);
 
@@ -683,7 +676,7 @@ function DayDialog({
       >
         <p className="text-sm text-fg-muted">
           Usually {hoursLabel(usual).toLowerCase()} on a{" "}
-          {weekdays[weekdayIndex(day)]}.
+          {weekdays[weekdayOf(day)]}.
         </p>
         <NumberField
           label="Hours that day"

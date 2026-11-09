@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test";
+import { weekdayOf } from "@empire-cleaning/models";
 import {
   acceptedJob,
   bookJob,
@@ -135,7 +136,7 @@ test(
     await page.getByRole("button", { name: "This week" }).click();
     await expect(page).not.toHaveURL(/from=2027-02-22/);
     const from = new URL(page.url()).searchParams.get("from")!;
-    expect(new Date(`${from}T00:00:00Z`).getUTCDay()).toBe(1);
+    expect(weekdayOf(from)).toBe(0);
     await expect(page.getByRole("region")).toHaveCount(7);
   },
 );

@@ -47,6 +47,8 @@ import {
   CANCELLATION_CUTOFF_HOURS,
   noEmailYet,
   notSeenYet,
+  recurrenceDays,
+  weekdayOf,
   whyNoRoom,
 } from "@empire-cleaning/models";
 import {
@@ -94,9 +96,8 @@ import {
   planRhythm,
   propertySummary,
   recurrenceLabel,
-  recurrenceWeeks,
   timeOfDay,
-  weekdayOf,
+  weekdayName,
   quoteKindName,
 } from "../format.ts";
 import {
@@ -1969,7 +1970,7 @@ function PlanDayFields({
   const time = day.time?.toString().slice(0, 5);
   const one = plan.days.length === 1;
   const title = day.date
-    ? `${weekdayOf(day.date.toString())}s`
+    ? `${weekdayName(day.date.toString())}s`
     : `Weekday ${index + 1}`;
   return (
     <DraftPart
@@ -2007,7 +2008,7 @@ function PlanDayFields({
         hoursOnSite={option?.hoursOnSite ?? 0}
         crew={crew}
         repeats={{
-          everyWeeks: recurrenceWeeks[plan.recurrence],
+          everyDays: recurrenceDays[plan.recurrence],
           label: recurrenceLabel[plan.recurrence],
         }}
         onPick={(picked) =>

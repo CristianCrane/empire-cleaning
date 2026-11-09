@@ -1,6 +1,6 @@
 import { z } from "zod";
+import { daysIn } from "@empire-cleaning/models";
 import { day, startTime } from "../../middleware/validation.ts";
-import { daysFrom } from "../../services/clock/index.ts";
 
 // longest range the Schedule shows at once: about two months
 const MAX_SCHEDULE_DAYS = 62;
@@ -17,7 +17,7 @@ export const withinRange = <T extends z.ZodType<{ from: string; to: string }>>(
       path: ["to"],
       message: "Pick an end date after the start date",
     })
-    .refine(({ from, to }) => daysFrom(from, to).length <= MAX_SCHEDULE_DAYS, {
+    .refine(({ from, to }) => daysIn(from, to) <= MAX_SCHEDULE_DAYS, {
       path: ["to"],
       message: `Pick ${MAX_SCHEDULE_DAYS} days or fewer`,
     });

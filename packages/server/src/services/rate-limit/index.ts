@@ -1,5 +1,5 @@
-import { business } from "@empire-cleaning/models";
-import { clock, MINUTE_MS } from "#services/clock";
+import { business, DAY_MS, HOUR_MS, MINUTE_MS } from "@empire-cleaning/models";
+import { clock } from "#services/clock";
 import { monitoring } from "#services/monitoring";
 import env, { type Env } from "../../env.ts";
 
@@ -11,21 +11,22 @@ import env, { type Env } from "../../env.ts";
 // documented. The site-wide caps are well above a busy hour's real use
 const LIMITS = {
   signInLink: {
-    perInbox: { tries: 6, minutes: 15 },
-    siteWide: { tries: 100, minutes: 60 },
+    perInbox: { tries: 6, window: 15 * MINUTE_MS },
+    siteWide: { tries: 100, window: HOUR_MS },
   },
   guestQuoteRequest: {
-    perInbox: { tries: 6, minutes: 24 * 60 },
-    siteWide: { tries: 30, minutes: 60 },
+    perInbox: { tries: 6, window: DAY_MS },
+    siteWide: { tries: 30, window: HOUR_MS },
   },
   // a Client's link to confirm a new email (#243)
   emailChange: {
-    perInbox: { tries: 6, minutes: 24 * 60 },
-    siteWide: { tries: 20, minutes: 60 },
+    perInbox: { tries: 6, window: DAY_MS },
+    siteWide: { tries: 20, window: HOUR_MS },
   },
 } as const satisfies Record<string, Limits>;
 
-type Limit = { tries: number; minutes: number };
+// so many tries within a window of so many ms
+type Limit = { tries: number; window: number };
 type Limits = { perInbox: Limit; siteWide: Limit };
 export type LimitName = keyof typeof LIMITS;
 
@@ -73,8 +74,7 @@ class MemoryRateLimiter implements RateLimiter {
 
   // the tries at `id` still within the limit's window, how long until
   // another is allowed (0 if it is now), and a way to count one
-  private recent(id: string, { tries, minutes }: Limit, now: number) {
-    const window = minutes * MINUTE_MS;
+  private recent(id: string, { tries, window }: Limit, now: number) {
     const recent = (this.tries.get(id) ?? []).filter((at) => at > now - window);
     this.tries.set(id, recent);
     return {
@@ -85,9 +85,9 @@ class MemoryRateLimiter implements RateLimiter {
 
   // real people are being turned away, so it's urgent, but once a window is
   // enough: a flood mustn't use up the monitoring quota too
-  private tellCapReached(name: LimitName, { minutes }: Limit, now: number) {
+  private tellCapReached(name: LimitName, { window }: Limit, now: number) {
     const told = this.toldAt.get(name);
-    if (told !== undefined && now - told < minutes * MINUTE_MS) return;
+    if (told !== undefined && now - told < window) return;
     this.toldAt.set(name, now);
     monitoring.signal("rate_cap_reached", { limit: name });
   }
@@ -96,13 +96,12 @@ class MemoryRateLimiter implements RateLimiter {
   private sweep(now: number) {
     if (now - this.sweptAt < MINUTE_MS) return;
     this.sweptAt = now;
-    const longest =
-      Math.max(
-        ...Object.values(this.limits).flatMap((l) => [
-          l.perInbox.minutes,
-          l.siteWide.minutes,
-        ]),
-      ) * MINUTE_MS;
+    const longest = Math.max(
+      ...Object.values(this.limits).flatMap((l) => [
+        l.perInbox.window,
+        l.siteWide.window,
+      ]),
+    );
     for (const [id, tries] of this.tries) {
       if ((tries.at(-1) ?? 0) <= now - longest) this.tries.delete(id);
     }

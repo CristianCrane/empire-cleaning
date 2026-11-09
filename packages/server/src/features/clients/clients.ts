@@ -6,7 +6,8 @@ import type {
   ClientView,
   OfficeClientView,
 } from "@empire-cleaning/models";
-import { clock, HOUR_MS } from "#services/clock";
+import { HOUR_MS } from "@empire-cleaning/models";
+import { clock } from "#services/clock";
 import { rateLimit, tooManyTries } from "#services/rate-limit";
 import { db } from "../../db/index.ts";
 import {

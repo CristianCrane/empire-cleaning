@@ -148,7 +148,7 @@ A Quote option prices only the Add-ons that go with its Service, so a first-visi
 
 ## Staff, availability and the Schedule
 
-Everything here is for Office Staff. Days are Empire Cleaning's own, in New York (`#services/clock`: `dayOf`, `startOfDay`), written `2026-11-03`: a Job at 9pm on the 3rd is on the 3rd, though it is the 4th in UTC.
+Everything here is for Office Staff. Days are Empire Cleaning's own, in New York (`dayOf`, `startOfDay` and the rest of `packages/models/src/days.ts`, which the screens share; the time now is `clock.now()` from `#services/clock`), written `2026-11-03`: a Job at 9pm on the 3rd is on the 3rd, though it is the 4th in UTC.
 
 - `GET /api/staff` lists everyone ever invited, active first. Each has an `imageUrl`: their Google profile picture, refreshed at every Google sign-in (`overrideUserInfoOnSignIn`), or null until they've used Google. `POST /api/staff` invites someone by name, email and roles. It creates a Staff record, never an Account (ADR-0006), and emails a link to the sign-in page; the email itself grants nothing. Inviting a deactivated member again brings them back with the roles given now; inviting an active one is a 409.
 - `POST /api/staff/:id/deactivate` ends their Staff access at once and leaves their Account and any Client untouched. The last active Office Staff member can't be deactivated (409).

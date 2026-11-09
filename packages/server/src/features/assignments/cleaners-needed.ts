@@ -1,14 +1,9 @@
 import { and, arrayContains, asc, eq, inArray, lt } from "drizzle-orm";
 import type { CleanerNeeded } from "@empire-cleaning/models";
+import { addDays, dayOf, HOUR_MS, timeOf } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
-import {
-  addDays,
-  clock,
-  dayOf,
-  HOUR_MS,
-  timeOf,
-} from "../../services/clock/index.ts";
+import { clock } from "../../services/clock/index.ts";
 import { email } from "../../services/email/index.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { scheduleFor } from "../jobs/schedule.ts";

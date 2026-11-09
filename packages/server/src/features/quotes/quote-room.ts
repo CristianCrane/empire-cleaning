@@ -6,8 +6,8 @@ import type {
   QuoteSummary,
   ScheduleDay,
 } from "@empire-cleaning/models";
+import { dayOf } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
-import { dayOf } from "../../services/clock/index.ts";
 import { onSchedule } from "../jobs/jobs.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
 import { rescheduleRequests } from "../reschedule/reschedule.schema.ts";

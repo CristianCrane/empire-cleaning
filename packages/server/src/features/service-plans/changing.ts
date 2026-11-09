@@ -1,8 +1,9 @@
 import { and, desc, eq, gte, inArray, isNull, sum } from "drizzle-orm";
 import type { PlanChange } from "@empire-cleaning/models";
+import { dayOf } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError } from "../../middleware/errors.ts";
-import { clock, dayOf } from "../../services/clock/index.ts";
+import { clock } from "../../services/clock/index.ts";
 import { CHANGED_SINCE, tellCrew } from "../cancellation/cancellation.ts";
 import { settleAfterChange } from "../completion/balance.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";

@@ -11,7 +11,7 @@ import {
 import { getJson } from "../../api.ts";
 import { useLoaded } from "../load.ts";
 import { RangeBar, type TimePickerProps } from "../CalendarGrid.tsx";
-import { today, weekdayOf } from "../format.ts";
+import { today, weekdayName } from "../format.ts";
 import { isWide, rangeShowing } from "../schedule-range.ts";
 import { ScheduleCalendar } from "./ScheduleCalendar.tsx";
 
@@ -45,8 +45,8 @@ const startsOf = (crew: Crew, range: string) => {
 };
 
 type Props = TimePickerProps & {
-  // a Service Plan's: how many weeks apart its cleans are, and in words
-  repeats?: { everyWeeks: number; label: string };
+  // a Service Plan's: how many days apart its cleans are, and in words
+  repeats?: { everyDays: number; label: string };
   // what the chosen time's block is called: "This clean" unless said
   label?: string;
   // the clean's crew, to mark the times without one free (#62)
@@ -124,7 +124,7 @@ function PickStart({
         New York time.
         {date &&
           repeats &&
-          ` Then ${repeats.label.toLowerCase()} on ${weekdayOf(date)}s.`}
+          ` Then ${repeats.label.toLowerCase()} on ${weekdayName(date)}s.`}
       </p>
       <RangeBar
         from={range.from}
@@ -147,7 +147,7 @@ function PickStart({
               start: chosen,
               hoursOnSite,
               label,
-              everyWeeks: repeats?.everyWeeks,
+              everyDays: repeats?.everyDays,
             }
           }
           onPick={(at) => {

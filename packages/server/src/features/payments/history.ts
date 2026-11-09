@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray, isNull, or } from "drizzle-orm";
 import type { ClientPayment, ClientPaymentKind } from "@empire-cleaning/models";
+import { addDays } from "@empire-cleaning/models";
 import { db } from "../../db/index.ts";
-import { addDays } from "../../services/clock/index.ts";
 import { billNumber } from "../bills/bills.ts";
 import { bills } from "../bills/bills.schema.ts";
 import { jobs } from "../jobs/jobs.schema.ts";

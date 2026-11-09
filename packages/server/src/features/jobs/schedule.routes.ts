@@ -1,6 +1,6 @@
 import { Router } from "express";
+import { atTime } from "@empire-cleaning/models";
 import { validate } from "../../middleware/validation.ts";
-import { atTime } from "../../services/clock/index.ts";
 import { authorize } from "../auth/authorize.ts";
 import { roomOn, startsWithoutCrew } from "./rules.ts";
 import { roomFor, scheduleFor } from "./schedule.ts";

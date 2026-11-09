@@ -877,6 +877,13 @@ export type QuoteKind = "one_off" | "service_plan";
 // every week, every 2 weeks or every 4 weeks
 export type Recurrence = "weekly" | "fortnightly" | "four_weekly";
 
+// how many days apart a Service Plan's cleans are
+export const recurrenceDays: Record<Recurrence, number> = {
+  weekly: 7,
+  fortnightly: 14,
+  four_weekly: 28,
+};
+
 // One weekday of a Service Plan Quote (ADR-0013), with its own visit: its
 // Service priced as a one-off Job (its Suggested Price or the override),
 // with one-off tax, against the plan clean's price, which is that less the
@@ -2034,6 +2041,9 @@ export const business = {
 
 // the Suggested Price, worked out the same on the server and on screen
 export * from "./suggested-price.ts";
+
+// New York's days and times, and how long a minute, hour and day are
+export * from "./days.ts";
 
 // what may leave for Sentry and the logs, the same on the server and in the
 // browser (ADR-0007)
