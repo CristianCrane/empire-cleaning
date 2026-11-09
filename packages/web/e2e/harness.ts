@@ -71,7 +71,8 @@ export const requireApproval = (
     body: JSON.stringify({ answer }),
   });
 
-// a booked Job at a home of its own, straight onto the Schedule
+// a booked Job at a home of its own, straight onto the Schedule, a crew of
+// 2 unless said: one Cleaner Confirmed on it can't mark it done alone
 export const bookJob = (job: {
   startsAt: string;
   labourHours: number;

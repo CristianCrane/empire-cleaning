@@ -181,7 +181,8 @@ stays as it is (#336).
 - **Dated things a person scans are grouped by month**, a small `DateTile`
   leading each row; a row is badged only when it isn't plain.
 - **An empty place offers what fills it** (`EmptyState` with its action),
-  never a card in a card. ("Empty states offer the action")
+  never a card in a card, and never says again what its Section's
+  description above it already says. ("Empty states offer the action")
 
 ### Forms
 
