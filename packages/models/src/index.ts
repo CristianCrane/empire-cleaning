@@ -2037,6 +2037,10 @@ export const business = {
   area: "Queens, NYC and Long Island",
 } as const;
 
+// the languages people read the product in, and catalogs of words in each
+// (ADR-0025)
+export * from "./language.ts";
+
 // the Suggested Price, worked out the same on the server and on screen
 export * from "./suggested-price.ts";
 
