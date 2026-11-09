@@ -45,7 +45,6 @@ import {
   isFree,
   roomOn,
   visitHours,
-  withoutReplaced,
   type Clean,
 } from "./rules.ts";
 import { jobs } from "./jobs.schema.ts";
@@ -320,16 +319,11 @@ export const scheduleOn = async (instant: Date, tx: Tx | typeof db = db) => {
 
 // Whether a clean has room at its time, as roomOn says. Reschedule Requests
 // (#20), moving a Job (#52) and Service Plan Jobs (#14) ask this in their
-// transaction, holding the day (lockDay) while they book. Jobs it replaces
-// count as gone (withoutReplaced).
+// transaction, holding the day (lockDay) while they book.
 export const roomFor = async (
   clean: Clean,
   tx: Tx | typeof db = db,
-  replacing: string[] = [],
-): Promise<DayCapacity> => {
-  const day = await scheduleOn(clean.startsAt, tx);
-  return roomOn(withoutReplaced(day, replacing), clean);
-};
+): Promise<DayCapacity> => roomOn(await scheduleOn(clean.startsAt, tx), clean);
 
 // Which of these Staff are free for a Job at its time, as isFree says. Moving
 // a Job, and a Service Plan Offering its next clean to the last crew, ask
