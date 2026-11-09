@@ -25,7 +25,7 @@ Single-context: one `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agen
 
 Before changing any screen, or writing words a person reads (a server message, an email), read `docs/ux.md`: the UX rules every screen keeps, how a new UX question is settled (prototype, pick, build, record), and the log of past decisions. Record each new decision there, and add a Storybook pattern (`packages/ui/src/Patterns.stories.tsx`) when a rule carries over to other screens.
 
-A screen never keeps its own copy of a rule the server keeps (room, prices, which Jobs a plan change replaces), not even as a hint: it shows the server's answer, asking for it once per thing shown. Two browser copies of room drifted from the server one after the other (#356, #365). The Schedule's drag fade (`hasRoomFor`) is the one copy left.
+A screen never writes its own copy of a rule the server keeps (room, which Jobs a plan change replaces), not even as a hint: it shows the server's answer. A rule both run from `@empire-cleaning/models`, as the Suggested Price is, is the one copy, not a second. Two browser copies of room drifted from the server one after the other (#356, #365); the one left is the Schedule's drag (`hasRoomFor`, `packages/server/README.md`, Room).
 
 ## Tests
 
