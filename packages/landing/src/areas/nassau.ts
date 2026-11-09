@@ -1,3 +1,4 @@
+import { speakSpanish } from "../faqs.ts";
 import type { Area } from "./index.ts";
 
 export const nassau: Area = {
@@ -80,10 +81,6 @@ export const nassau: Area = {
       answer:
         "Yes. A cleaning plan visits on the days you choose, every week, two weeks or month, and you can skip a visit or move it when something comes up.",
     },
-    {
-      question: "Do you speak Spanish?",
-      answer:
-        "Sí. Our crew speaks English and Spanish, so you can talk to us in whichever you prefer.",
-    },
+    speakSpanish,
   ],
 };

@@ -1,3 +1,4 @@
+import { speakSpanish } from "../faqs.ts";
 import type { Area } from "./index.ts";
 
 export const suffolk: Area = {
@@ -80,11 +81,7 @@ export const suffolk: Area = {
       answer:
         "No. Tell us how we get in, whether that's a lockbox, a code or a key under the mat, and we'll lock up when we're done.",
     },
-    {
-      question: "Do you speak Spanish?",
-      answer:
-        "Sí. Our crew speaks English and Spanish, so you can talk to us in whichever you prefer.",
-    },
+    speakSpanish,
     {
       question: "Do you clean new builds?",
       answer:

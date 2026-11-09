@@ -31,7 +31,7 @@ router.get(
   authorize("office_staff"),
   validate({ params }),
   async (req, res) => {
-    res.json(await findService(String(req.params.key)));
+    res.json(await findService(req.params.key));
   },
 );
 
@@ -53,11 +53,7 @@ router.put(
   validate({ params, body: serviceSchema }),
   async (req, res) => {
     res.json(
-      await saveService(
-        String(req.params.key),
-        req.body,
-        signedInAccount(res).id,
-      ),
+      await saveService(req.params.key, req.body, signedInAccount(res).id),
     );
   },
 );
