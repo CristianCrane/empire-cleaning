@@ -243,7 +243,8 @@ const words = catalog({
     planChangedToast: "Su plan de limpieza cambió",
     acceptNew: "Aceptar las nuevas condiciones",
     nothingCharged: "No se cobra nada ahora.",
-    newStart: (when: string) => ` Las nuevas condiciones empiezan el ${when}.`,
+    newStart: (when: string) =>
+      oneStop(` Las nuevas condiciones empiezan el ${when}.`),
     declined: "Cotización rechazada",
     decline: "Rechazar esta cotización",
     declineQ: "¿Rechazar esta cotización?",

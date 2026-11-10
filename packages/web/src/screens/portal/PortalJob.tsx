@@ -189,9 +189,12 @@ const words = catalog({
     withdraw: "Retirar solicitud",
     askedTo: "Pidió reprogramarla para el",
     held: (when: string) =>
-      `. Le guardamos esa hora mientras la confirmamos. Hasta entonces, su limpieza sigue reservada para el ${when}.`,
+      oneStop(
+        `. Le guardamos esa hora mientras la confirmamos. Hasta entonces, su limpieza sigue reservada para el ${when}.`,
+      ),
     sent: "Solicitud enviada",
-    couldntMove: (when: string) => `No pudimos reprogramarla para el ${when}.`,
+    couldntMove: (when: string) =>
+      oneStop(`No pudimos reprogramarla para el ${when}.`),
     moveFreeUntil: "Puede reprogramarla sin cargo hasta el",
     moveAfter:
       ". Después, es una reprogramación tardía, y solo una por limpieza es gratis.",
@@ -222,7 +225,7 @@ const words = catalog({
     answerBy: (day: string) => `Responda antes del ${day}.`,
     charge: { deposit: "Depósito", balance: "Pagado", fee: "Cargo" },
     receipt: "Su recibo",
-    doneAt: (when: string) => `Terminada el ${when}.`,
+    doneAt: (when: string) => oneStop(`Terminada el ${when}.`),
     quoted: "Precio cotizado",
     total: "Total",
     depositKept: " (su depósito, retenido)",
