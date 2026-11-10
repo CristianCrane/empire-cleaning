@@ -55,10 +55,11 @@ const CARD = {
   approvalFails: "4000002760003184",
 };
 
-// the Payment Element's frame, under `within`
+// the Payment Element's frame, under `within`, titled in the form's
+// language
 const cardFrame = (within: Locator) =>
   within.frameLocator(
-    'iframe[title="Secure payment input frame"]:not([aria-hidden="true"])',
+    'iframe:is([title="Secure payment input frame"], [title="Cuadro de entrada de pago seguro"]):not([aria-hidden="true"])',
   );
 
 // types a card into the Payment Element under `within`
@@ -201,10 +202,14 @@ test("the card form's own words turn Spanish when the Client switches language",
   const added = cardFrame(
     page.getByRole("region", { name: "Agregar una tarjeta" }),
   );
+  // Stripe's own Spanish, in tú, its terms line among it
+  await expect(
+    added.getByText(/^Al suministrar tus datos de tarjeta/),
+  ).toBeVisible();
+  await expect(added.getByText("Número de tarjeta")).toBeVisible();
   await expect(
     added.getByText(/By providing your card information/),
   ).toBeHidden();
-  await expect(added.getByText(/tarjeta/).first()).toBeVisible();
 });
 
 test("the Client pays a Bill on its page by card", async ({ page }) => {
