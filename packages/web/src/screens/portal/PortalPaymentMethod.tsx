@@ -12,7 +12,6 @@ import { catalog } from "@empire-cleaning/models";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import { postJson } from "../../api.ts";
-import { dayOfInstant } from "../format.ts";
 import { ConsentNote, useCardForm } from "./CardForm.tsx";
 import { useSaid } from "../words.ts";
 
@@ -116,7 +115,7 @@ export function PortalPaymentMethod() {
             {t.notTaken(
               t.w.forClean(
                 t.formatMoney(owed),
-                t.formatShortDay(dayOfInstant(first.startsAt)),
+                t.shortDayOf(first.startsAt),
                 unpaid.length - 1,
               ),
               saved?.label ?? null,

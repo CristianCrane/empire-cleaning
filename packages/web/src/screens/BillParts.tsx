@@ -21,7 +21,7 @@ import {
 } from "@empire-cleaning/ui";
 import type { AppHref } from "../links.ts";
 import { Fact } from "./Fact.tsx";
-import { said, type Said, useSaid } from "./words.ts";
+import { type Said, saidWith, useSaid } from "./words.ts";
 
 // in the screen's language: the Office's English, the portal's its
 // Client's (ADR-0025). Where the Office and the Client read it differently,
@@ -139,12 +139,14 @@ export function BillStatusBadge({ bill }: { bill: BillSummary }) {
 export const billWeek = (
   lang: Language,
   bill: Pick<BillSummary, "weekStart">,
-) => words[lang].weekOf(said[lang].formatDay(bill.weekStart));
+) => {
+  const { w, formatDay } = saidWith(lang, words);
+  return w.weekOf(formatDay(bill.weekStart));
+};
 
 // how a Bill reads in a list: its total, and when it's due or how it was paid
 export const billLine = (lang: Language, bill: BillSummary) => {
-  const w = words[lang];
-  const { formatDay, formatMoney } = said[lang];
+  const { w, formatDay, formatMoney } = saidWith(lang, words);
   return [
     billWeek(lang, bill),
     bill.totalCents < 0

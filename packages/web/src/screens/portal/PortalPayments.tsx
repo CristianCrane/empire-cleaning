@@ -217,7 +217,7 @@ function Rows({
           id={p.id}
           start={
             <span className="w-12 shrink-0 text-sm text-fg-muted tabular-nums">
-              {t.formatShortDay(dayOfInstant(p.at))}
+              {t.shortDayOf(p.at)}
             </span>
           }
           title={row.title}
