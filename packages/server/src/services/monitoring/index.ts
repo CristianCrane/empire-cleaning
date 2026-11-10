@@ -109,7 +109,7 @@ export const setReporter = (next: Reporter) => {
   toldAt.clear();
 };
 
-export { log, withRequest } from "./log.ts";
+export { log } from "./log.ts";
 export { scrubText } from "@empire-cleaning/models";
 export { type Signal, type Urgency } from "./signals.ts";
 export { type Measure, type Unit } from "./measures.ts";

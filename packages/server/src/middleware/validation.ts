@@ -1,6 +1,7 @@
 import type { RequestHandler } from "express";
 import { z } from "zod";
-import { formats } from "@empire-cleaning/models";
+import { type Catalog, catalog, formats } from "@empire-cleaning/models";
+import { currentLanguage } from "#services/request";
 import {
   PathParameterError,
   QueryParameterError,
@@ -63,15 +64,69 @@ export const validate =
     next();
   };
 
-// what a too-long text field says: "Keep the reason under 500 characters"
-export const keepUnder = (max: number, what = "it") =>
-  `Keep ${what} under ${formats.en.formatNumber(max)} characters`;
+// A schema's message, in the language of the request it checks
+// (ADR-0025): worked out as each request is checked, not once when the
+// schema is made. `key` names one of `words`' messages. A message only the
+// Office reads stays a plain English string
+type MessageKey<T> = {
+  [K in keyof T]: T[K] extends string ? K : never;
+}[keyof T];
+export const say = <T>(words: Catalog<T>, key: MessageKey<T>) => ({
+  error: () => words[currentLanguage()][key] as string,
+});
+
+// what a too-long text field says, in the request's language: "Keep the
+// reason under 500 characters". Each field is named in either language
+type Field =
+  | "it"
+  | "the name"
+  | "the business name"
+  | "the street address"
+  | "the unit"
+  | "the description"
+  | "the reason"
+  | "the note"
+  | "the notes";
+const keepUnderWords = catalog({
+  en: {
+    keepUnder: (n: string, what: Field) => `Keep ${what} under ${n} characters`,
+  },
+  es: {
+    keepUnder: (n: string, what: Field) =>
+      `Use menos de ${n} caracteres${what === "it" ? "" : ` en ${fieldsEs[what]}`}`,
+  },
+});
+const fieldsEs: Record<Exclude<Field, "it">, string> = {
+  "the name": "el nombre",
+  "the business name": "el nombre del negocio",
+  "the street address": "la dirección",
+  "the unit": "el apartamento o la unidad",
+  "the description": "la descripción",
+  "the reason": "el motivo",
+  "the note": "la nota",
+  "the notes": "las notas",
+};
+export const keepUnder = (max: number, what: Field = "it") => ({
+  error: () => {
+    const lang = currentLanguage();
+    return keepUnderWords[lang].keepUnder(
+      formats[lang].formatNumber(max),
+      what,
+    );
+  },
+});
+
+// what picking a day or a time says; a Quote request's days say it too
+export const pickerWords = catalog({
+  en: { pickDay: "Pick a day", pickStartTime: "Pick a start time" },
+  es: { pickDay: "Elija un día", pickStartTime: "Elija una hora de inicio" },
+});
 
 // a day and a start time a person picks, New York
-export const day = z.iso.date("Pick a day");
+export const day = z.iso.date(say(pickerWords, "pickDay"));
 export const startTime = z
-  .string({ error: "Pick a start time" })
-  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Pick a start time");
+  .string(say(pickerWords, "pickStartTime"))
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, say(pickerWords, "pickStartTime"));
 
 // a route's one path param, the id of what it's about: /:id
 export const byId = z.object({ id: z.uuid() });

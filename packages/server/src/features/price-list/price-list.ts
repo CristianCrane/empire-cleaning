@@ -1,3 +1,4 @@
+import { catalog, inLanguage, type Language } from "@empire-cleaning/models";
 import { desc, eq, sql } from "drizzle-orm";
 import type {
   AddOnChoice,
@@ -10,7 +11,7 @@ import { fieldError } from "../../middleware/errors.ts";
 import {
   currentServices,
   findService,
-  NOT_A_SERVICE,
+  notAService,
 } from "../services/services.ts";
 import { SEEDED, SEEDED_FOR_HOMES } from "../services/seeded.ts";
 import { staff } from "../staff/staff.schema.ts";
@@ -26,7 +27,8 @@ import {
 // The starting figures, until Office Staff save their own. They are
 // placeholders (the real ones are the business's to supply) and the Price List
 // screen says so. The fee tax is the NYC combined rate, pending the
-// accountant. Premises Types are against an office (#72). Add-ons go with
+// accountant. Premises Types are against an office (#72). The Spanish names
+// are a draft the owner checks (#206). Add-ons go with
 // the seeded Services for homes, and windows with every one.
 const placeholders: PriceListInput = {
   conditionLight: 0.85,
@@ -40,6 +42,7 @@ const placeholders: PriceListInput = {
   addOns: [
     {
       name: "Inside the oven",
+      nameEs: "Dentro del horno",
       hours: 0.5,
       taxExempt: false,
       serviceKeys: SEEDED_FOR_HOMES,
@@ -47,6 +50,7 @@ const placeholders: PriceListInput = {
     },
     {
       name: "Inside the fridge",
+      nameEs: "Dentro del refrigerador",
       hours: 0.5,
       taxExempt: false,
       serviceKeys: SEEDED_FOR_HOMES,
@@ -54,6 +58,7 @@ const placeholders: PriceListInput = {
     },
     {
       name: "Inside the cabinets",
+      nameEs: "Dentro de los gabinetes",
       hours: 1,
       taxExempt: false,
       serviceKeys: SEEDED_FOR_HOMES,
@@ -61,6 +66,7 @@ const placeholders: PriceListInput = {
     },
     {
       name: "Interior windows",
+      nameEs: "Ventanas por dentro",
       hours: 1,
       taxExempt: false,
       serviceKeys: [...SEEDED_FOR_HOMES, SEEDED.commercial],
@@ -68,10 +74,15 @@ const placeholders: PriceListInput = {
     },
   ],
   premisesTypes: [
-    { name: "Office", multiplier: 1, active: true },
-    { name: "Retail", multiplier: 0.8, active: true },
-    { name: "Medical", multiplier: 1.4, active: true },
-    { name: "Other", multiplier: 1.2, active: true },
+    { name: "Office", nameEs: "Oficina", multiplier: 1, active: true },
+    { name: "Retail", nameEs: "Tienda", multiplier: 0.8, active: true },
+    {
+      name: "Medical",
+      nameEs: "Consultorio médico",
+      multiplier: 1.4,
+      active: true,
+    },
+    { name: "Other", nameEs: "Otro", multiplier: 1.2, active: true },
   ],
 };
 
@@ -101,6 +112,7 @@ const toPriceList = (
     .map((a) => ({
       key: a.key,
       name: a.name,
+      nameEs: a.nameEs,
       hours: a.hours,
       taxExempt: a.taxExempt,
       serviceKeys: a.serviceKeys,
@@ -111,6 +123,7 @@ const toPriceList = (
     .map((p) => ({
       key: p.key,
       name: p.name,
+      nameEs: p.nameEs,
       multiplier: p.multiplier,
       active: p.active,
     })),
@@ -243,7 +256,7 @@ const checkServiceKeys = async (input: PriceListInput) => {
     if (addOn.serviceKeys.some((key) => !known.has(key))) {
       throw fieldError(
         ["addOns", i, "serviceKeys"],
-        NOT_A_SERVICE,
+        notAService.en,
         addOn.serviceKeys,
       );
     }
@@ -302,10 +315,11 @@ export const offeredWith = (
 
 // The Add-ons a Client can pick now for a Service, by default the first on
 // offer for homes: names only, never prices (those are on the Quote). Open
-// to everyone, as the landing page's form needs it. A business's request
-// picks none: its Site Visit comes first.
+// to everyone, as the landing page's form needs it, so named in its
+// language. A business's request picks none: its Site Visit comes first.
 export const choosableAddOns = async (
   serviceKey: string,
+  lang: Language,
 ): Promise<AddOnChoice[]> => {
   const [list, service] = await Promise.all([
     currentPriceList(),
@@ -313,6 +327,7 @@ export const choosableAddOns = async (
   ]);
   return list.addOns
     .filter((a) => offeredWith(a, service.key))
+    .map((a) => inLanguage(lang, a))
     .map(({ key, name }) => ({ key, name }));
 };
 
@@ -320,18 +335,25 @@ export const choosableAddOns = async (
 // they're told when they can't
 export const offersPremisesType = (list: PriceList, key: string) =>
   list.premisesTypes.some((t) => t.active && t.key === key);
-export const NOT_A_PREMISES_TYPE = "Pick a type of business from the list";
+export const notAPremisesType = catalog({
+  en: "Pick a type of business from the list",
+  es: "Elija un tipo de negocio de la lista",
+});
 
 // what a choice of an Add-on that isn't on offer with its Service is told
-export const NOT_AN_ADD_ON = "Pick extras from the list";
+export const notAnAddOn = catalog({
+  en: "Pick extras from the list",
+  es: "Elija adicionales de la lista",
+});
 
 // the Premises Types business premises can be described as now; open to
-// everyone, for the landing page's form
-export const choosablePremisesTypes = async (): Promise<
-  PremisesTypeChoice[]
-> => {
+// everyone, for the landing page's form, so named in its language
+export const choosablePremisesTypes = async (
+  lang: Language,
+): Promise<PremisesTypeChoice[]> => {
   const list = await currentPriceList();
   return list.premisesTypes
     .filter((p) => p.active)
+    .map((p) => inLanguage(lang, p))
     .map(({ key, name }) => ({ key, name }));
 };

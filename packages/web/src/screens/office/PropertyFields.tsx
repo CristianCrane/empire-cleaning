@@ -74,11 +74,11 @@ export function ConditionField({
       onChange={(condition) => onChange(condition as Condition)}
       description={
         value
-          ? conditions.find((c) => c.value === value)?.description
+          ? conditions.en.find((c) => c.value === value)?.description
           : "Not recorded yet"
       }
     >
-      {conditions.map((c) => (
+      {conditions.en.map((c) => (
         <Segment key={c.value} value={c.value}>
           {c.label}
         </Segment>

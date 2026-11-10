@@ -12,7 +12,7 @@ import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { clients } from "../clients/clients.schema.ts";
 import {
   currentPriceList,
-  NOT_A_PREMISES_TYPE,
+  notAPremisesType,
   offersPremisesType,
 } from "../price-list/price-list.ts";
 import {
@@ -110,7 +110,7 @@ router.patch(
         premisesType !== property.premisesTypeKey &&
         !offersPremisesType(list, premisesType)
       ) {
-        throw fieldError(["premisesType"], NOT_A_PREMISES_TYPE, premisesType);
+        throw fieldError(["premisesType"], notAPremisesType.en, premisesType);
       }
       changes = { ...rest, premisesTypeKey: premisesType };
     } else {

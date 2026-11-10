@@ -1,3 +1,4 @@
+import { APP_LANGUAGE } from "../../api.ts";
 import { useLoaderData } from "@tanstack/react-router";
 import {
   ButtonLink,
@@ -97,7 +98,7 @@ function HeroCard({ hero }: { hero: Hero }) {
     <Card>
       <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-6">
         {hero.startsAt ? (
-          <DateTile lang="en" date={hero.startsAt} />
+          <DateTile lang={APP_LANGUAGE} date={hero.startsAt} />
         ) : (
           <IconTile icon={hero.icon} tone={hero.tone} size="lg" />
         )}

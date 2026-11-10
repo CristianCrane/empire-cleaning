@@ -1,4 +1,4 @@
-import { business } from "@empire-cleaning/models";
+import { business, type Language } from "@empire-cleaning/models";
 import {
   Body,
   Button,
@@ -11,7 +11,13 @@ import {
   Text,
 } from "react-email";
 import type { CSSProperties } from "react";
-import { previewOf, type Block, type Email, type Row } from "./blocks.ts";
+import {
+  greetingText,
+  previewOf,
+  type Block,
+  type Email,
+  type Row,
+} from "./blocks.ts";
 
 // the brand, as hex: email clients don't know CSS variables. Keep in step with
 // packages/ui/src/tokens.css (light theme). One light design only: Gmail and
@@ -133,10 +139,10 @@ const ActionButton = ({ label, href }: { label: string; href: string }) => (
   </table>
 );
 
-const BlockView = ({ block }: { block: Block }) => {
+const BlockView = ({ block, lang }: { block: Block; lang: Language }) => {
   switch (block.kind) {
     case "greeting":
-      return <Text style={text}>Hi {block.name},</Text>;
+      return <Text style={text}>{greetingText(lang, block.name)}</Text>;
     case "paragraph":
       return (
         <Text style={text}>
@@ -184,7 +190,7 @@ export const EmailLayout = ({
   email: Email;
   logoUrl: string;
 }) => (
-  <Html lang="en">
+  <Html lang={email.lang ?? "en"}>
     <Head>
       <meta name="color-scheme" content="light" />
       <meta name="supported-color-schemes" content="light" />
@@ -209,7 +215,7 @@ export const EmailLayout = ({
         <Logo src={logoUrl} />
         <Section style={{ padding: "24px 24px 8px" }}>
           {email.blocks.map((block, i) => (
-            <BlockView key={i} block={block} />
+            <BlockView key={i} block={block} lang={email.lang ?? "en"} />
           ))}
         </Section>
       </Container>

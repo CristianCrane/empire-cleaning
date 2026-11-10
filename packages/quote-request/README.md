@@ -5,11 +5,14 @@ The one Request a Quote form (#3), used by the landing site for Guests and by th
 ```tsx
 <QuoteRequestForm
   asker={{ kind: "guest" }} // or { kind: "account", email } / { kind: "client", properties }
+  lang="es" // the page's language, or a Client's Preferred Language; "en" for the Office
   apiUrl="https://…" // "" (the default) when served alongside the API
   headingLevel={2} // one below the heading the form sits under (default 3)
   onSubmitted={(receipt) => …} // receipt.emailedTo is where the Quote will go
 />
 ```
+
+It's in `lang`, English or Spanish (ADR-0025): its words are one catalog (`src/words.ts`), the Office's own words for a caller beside it in English, and every request it makes says the language (`Accept-Language`), so the API's messages and the names of the Services, extras and types of business it lists come in it too.
 
 It asks in steps, so only a few questions show at once (#96): what and where (one question for a house, apartment, townhouse or business premises, then the address), then about the place, then who is asking, when the form needs that (a Guest, a signed-up Account or a new caller; a Client's details are known). Next checks the step's required fields. A message from the API takes the form back to the step with that field. Optional extras (floor area, how we get in, a note) wait behind "+ Add …" links until they're wanted. Short choices are segmented controls and chips rather than a box per option.
 

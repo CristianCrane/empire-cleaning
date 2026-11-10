@@ -20,6 +20,7 @@ import type {
   AddOnChoice,
   Condition,
   HomeRooms,
+  Language,
   NewHome,
   NewPremises,
   OpenQuote,
@@ -34,12 +35,7 @@ import type {
   ServiceOffer,
   Weekday,
 } from "@empire-cleaning/models";
-import {
-  PICK_TIMES,
-  business,
-  formats,
-  messages,
-} from "@empire-cleaning/models";
+import { PICK_TIMES, formats, messages } from "@empire-cleaning/models";
 import {
   Actions,
   Button,
@@ -68,10 +64,14 @@ import { Optional } from "./Optional.tsx";
 import { loadPremisesTypes } from "./premises-types.ts";
 import { isHeld, loadServices, offeredAt } from "./services.ts";
 import { submitQuoteRequest, type SubmitResult } from "./submit.ts";
+import {
+  accessHelp,
+  conditions,
+  officeWords,
+  words as formWords,
+} from "./words.ts";
 
-const { REQUEST_A_QUOTE, openAlready, quoteEmailedTo } = messages.en;
-
-const { formatClock } = formats.en;
+type FormWords = (typeof formWords)["en"];
 
 // who is asking, which decides what the form needs from them (ADR-0006)
 export type Asker =
@@ -102,6 +102,10 @@ export type Asker =
 
 export type QuoteRequestFormProps<R = QuoteAskReceipt> = {
   asker: Asker;
+  // the language it's in: the page's, or a Client's Preferred Language; the
+  // Office's is English (ADR-0025). Its requests say it, so the API's
+  // messages and the names it lists come in it too
+  lang: Language;
   // the API's origin; "" when the page is served alongside it (the web app)
   apiUrl?: string;
   // the level of the form's step headings: one below the page's heading it
@@ -125,61 +129,6 @@ export type QuoteRequestFormProps<R = QuoteAskReceipt> = {
   source?: () => QuoteSource;
 };
 
-const CALL_US = `Please try again, or call us on ${business.phone.display}.`;
-
-// the form speaks to whoever fills it in: the person asking, or Office Staff
-// on a caller's behalf
-const ownWords = {
-  need: "What you need",
-  service: "What can we help with?",
-  servicesFailed: `We couldn't load what we offer. ${CALL_US}`,
-  what: "What kind of place is it?",
-  details: "Your details",
-  email: "Email",
-  emailNote: "We'll email your quote here.",
-  phoneNote: "Your cleaners can reach you on the day.",
-  home: "Your home",
-  premises: "Your business",
-  when: "When would you like us to clean?",
-  extrasNote: "Optional. Your quote will show what each one costs.",
-  regular:
-    "After my first clean, I'd like regular visits (weekly, bi-weekly or monthly) at 10% off.",
-  submit: REQUEST_A_QUOTE,
-  businessName: "Business name",
-  contactNote: "The person we'll deal with at the business.",
-  failed: `Your request didn't go through. ${CALL_US}`,
-};
-const officeWords: typeof ownWords = {
-  need: "What they need",
-  service: "What can we help them with?",
-  servicesFailed: "The services didn't load. Please try again.",
-  what: "What kind of place is it?",
-  details: "Who's calling",
-  email: "Email (optional)",
-  emailNote:
-    "Their quote is emailed here. Without an email, it can't be sent until one is added.",
-  phoneNote: "Their cleaners can reach them on the day.",
-  home: "Their home",
-  premises: "Their business",
-  when: "When would they like us to clean?",
-  extrasNote: "Optional. The quote shows what each one costs.",
-  regular:
-    "After their first clean, they'd like regular visits (weekly, bi-weekly or monthly) at 10% off.",
-  submit: "Draft a quote",
-  businessName: "Business name",
-  contactNote: "The person we'll deal with at the business.",
-  failed: "The request didn't save. Please try again.",
-};
-
-// the help under "How do we get in?", for each kind of place; the Client's
-// page for a home says it too
-export const accessHelp: Record<PropertyKind, string> = {
-  residential:
-    "Door codes, where the key is, parking. Only your cleaners see this.",
-  commercial:
-    "Alarm codes, who has the keys, parking. Only your cleaners see this.",
-};
-
 const NEW_PLACE = "new";
 
 // how many Services are usually on offer, for the blank tiles while they
@@ -196,30 +145,6 @@ const serviceIcons: Record<ServiceIcon, LucideIcon> = {
   "paint-roller": PaintRoller,
   custom: SlidersHorizontal,
 };
-
-// how much cleaning a place needs, as asked here and wherever the Office
-// records it
-export const conditions: {
-  value: Condition;
-  label: string;
-  description: string;
-}[] = [
-  {
-    value: "light",
-    label: "Light",
-    description: "Tidy, with everyday dust and marks",
-  },
-  {
-    value: "moderate",
-    label: "Moderate",
-    description: "Lived in, with some build-up in the kitchen and bathrooms",
-  },
-  {
-    value: "heavy",
-    label: "Heavy",
-    description: "Not cleaned in a while, or after a move, renovation or party",
-  },
-];
 
 const blankHome: NewHome = {
   kind: "residential",
@@ -249,11 +174,6 @@ const blankPremises: NewPremises = {
   accessInstructions: "",
 };
 
-const weekdays = formats.en.weekdays.map((label, day) => ({
-  day: day as Weekday,
-  label,
-}));
-
 // a preferred start, from the times a picker offers, 5am to 11pm
 const startTimes = PICK_TIMES.filter((t) => t >= "05:00" && t <= "23:00");
 
@@ -273,6 +193,7 @@ const WHERE_FIELDS =
 // its messages show beside each field, on its step.
 export function QuoteRequestForm<R = QuoteAskReceipt>({
   asker,
+  lang,
   apiUrl = "",
   headingLevel = 3,
   submit,
@@ -282,7 +203,14 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
   start,
   source,
 }: QuoteRequestFormProps<R>) {
-  const words = asker.kind === "office" ? officeWords : ownWords;
+  const t = formWords[lang];
+  const words = asker.kind === "office" ? officeWords : t.own;
+  const { openAlready, quoteEmailedTo } = messages[lang];
+  const { formatClock } = formats[lang];
+  const weekdays = formats[lang].weekdays.map((label, day) => ({
+    day: day as Weekday,
+    label,
+  }));
   // whose Properties are offered: a Client's own, or the one the Office found
   const placesOf =
     asker.kind === "client"
@@ -343,8 +271,8 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
   const [step, setStep] = useState(0);
 
   useEffect(() => {
-    void loadServices(apiUrl).then(setServices);
-  }, [apiUrl]);
+    void loadServices(apiUrl, lang).then(setServices);
+  }, [apiUrl, lang]);
   // the Service to start with, once, as the Services arrive
   const startWith = useEffectEvent((services: ServiceOffer[]) => {
     if (!start || serviceKey) return;
@@ -360,18 +288,18 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
   useEffect(() => {
     if (!serviceKey) return;
     let current = true;
-    void loadAddOns(apiUrl, serviceKey).then(
+    void loadAddOns(apiUrl, lang, serviceKey).then(
       (addOns) => current && setLoadedAddOns({ serviceKey, addOns }),
     );
     return () => {
       current = false;
     };
-  }, [apiUrl, serviceKey, addOnsAsked]);
+  }, [apiUrl, lang, serviceKey, addOnsAsked]);
   const offered =
     loadedAddOns?.serviceKey === serviceKey ? loadedAddOns.addOns : [];
   useEffect(() => {
-    void loadPremisesTypes(apiUrl).then(setPremisesTypes);
-  }, [apiUrl]);
+    void loadPremisesTypes(apiUrl, lang).then(setPremisesTypes);
+  }, [apiUrl, lang]);
 
   const premises = kind === "commercial";
   const places = ownPlaces.filter((p) => p.kind === kind);
@@ -550,17 +478,17 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
       errorMessage={error("property.new.type")}
     >
       <ChoiceTile value="house" icon={House}>
-        House
+        {t.house}
       </ChoiceTile>
       <ChoiceTile value="apartment" icon={Building2}>
-        Apartment
+        {t.apartment}
       </ChoiceTile>
       <ChoiceTile value="townhouse" icon={Houses}>
-        Townhouse
+        {t.townhouse}
       </ChoiceTile>
       {forPremises && (
         <ChoiceTile value="commercial" icon={Store}>
-          A business
+          {t.aBusiness}
         </ChoiceTile>
       )}
     </ChoiceTiles>
@@ -582,7 +510,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
     <>
       {premises && businessNameField}
       <TextField
-        label="Full name"
+        label={t.fullName}
         description={premises ? words.contactNote : undefined}
         name="contact.name"
         autoComplete={asker.kind === "office" ? "off" : "name"}
@@ -607,7 +535,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
         />
       )}
       <TextField
-        label="Phone"
+        label={t.phone}
         name="contact.phone"
         type="tel"
         autoComplete={asker.kind === "office" ? "off" : "tel"}
@@ -639,7 +567,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
     <>
       {places.length > 0 && (
         <RadioGroup
-          label={premises ? "Which business?" : "Which home?"}
+          label={premises ? t.whichBusiness : t.whichHome}
           value={place}
           onChange={(id) => {
             setPlace(id);
@@ -662,7 +590,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
             </Radio>
           ))}
           <Radio value={NEW_PLACE}>
-            {premises ? "A different business" : "A different home"}
+            {premises ? t.differentBusiness : t.differentHome}
           </Radio>
         </RadioGroup>
       )}
@@ -671,7 +599,8 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
         (premises ? (
           <AddressFields
             place={newPremises}
-            unitLabel="Suite, floor or unit (optional)"
+            unitLabel={t.premisesUnit}
+            t={t}
             update={(change) =>
               setNewPremises((current) => ({ ...current, ...change }))
             }
@@ -680,7 +609,8 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
         ) : (
           <AddressFields
             place={newHome}
-            unitLabel="Apartment or unit (optional)"
+            unitLabel={t.homeUnit}
+            t={t}
             update={(change) =>
               setNewHome((current) => ({ ...current, ...change }))
             }
@@ -694,9 +624,9 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
   // question, so it comes first
   const areaField = asksArea && (
     <NumberField
-      label="Area in sq ft (optional)"
+      label={t.area}
       name="area"
-      description="Roughly how much there is to do. If you're not sure, we'll measure on our visit."
+      description={t.areaNote}
       minValue={10}
       maxValue={1_000_000}
       step={50}
@@ -707,9 +637,9 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
   );
 
   const notesField = (
-    <Optional add="Add a note" shown={!!notes || !!error("notes")}>
+    <Optional add={t.addNote} shown={!!notes || !!error("notes")}>
       <TextField
-        label="Anything else we should know?"
+        label={t.notes}
         name="notes"
         multiline
         value={notes}
@@ -736,17 +666,17 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
     <>
       {asksCondition && (
         <SegmentedControl
-          label="How much cleaning does it need?"
+          label={t.condition}
           name="condition"
           isRequired
           value={condition}
           onChange={(value) => setCondition(value as Condition)}
           description={
-            conditions.find((c) => c.value === condition)?.description
+            conditions[lang].find((c) => c.value === condition)?.description
           }
           errorMessage={error("condition")}
         >
-          {conditions.map((c) => (
+          {conditions[lang].map((c) => (
             <Segment key={c.value} value={c.value}>
               {c.label}
             </Segment>
@@ -760,11 +690,12 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
           at={roomsAt}
           update={updateRooms}
           error={error}
+          t={t}
         />
       )}
       {offered.length > 0 && (
         <ChipGroup
-          label="Any extras?"
+          label={t.extras}
           description={words.extrasNote}
           value={chosen}
           onChange={setChosen}
@@ -784,7 +715,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
               isSelected={rooms.pets}
               onChange={(pets) => updateRooms({ pets })}
             >
-              There are pets at home
+              {t.pets}
             </Checkbox>
           )}
           {canRecur && (
@@ -801,6 +732,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
         <NewHomeFields
           home={newHome}
           asksFloorArea={asksRooms}
+          lang={lang}
           update={(change) =>
             setNewHome((current) => ({ ...current, ...change }))
           }
@@ -817,18 +749,18 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
         {words.when}
       </Heading>
       <SegmentedControl
-        label="How often?"
+        label={t.howOften}
         value={regular ? "regular" : "one_off"}
         onChange={(value) => setRegular(value === "regular")}
-        description={regular ? "On set days each week" : undefined}
+        description={regular ? t.regularNote : undefined}
       >
-        <Segment value="regular">Regularly</Segment>
-        <Segment value="one_off">One-off</Segment>
+        <Segment value="regular">{t.regularly}</Segment>
+        <Segment value="one_off">{t.oneOff}</Segment>
       </SegmentedControl>
       {regular && (
         <>
           <ChipGroup
-            label="Which days?"
+            label={t.whichDays}
             value={days}
             onChange={setDays}
             errorMessage={error("weekdays")}
@@ -840,9 +772,9 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
             ))}
           </ChipGroup>
           <Select
-            label="Preferred start time"
+            label={t.startTime}
             name="preferredTime"
-            placeholder="Choose a time"
+            placeholder={t.chooseTime}
             selectedKey={preferredTime}
             onSelectionChange={(key) => setPreferredTime(String(key))}
             errorMessage={error("preferredTime")}
@@ -871,6 +803,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
           premisesTypes={premisesTypes}
           update={updatePremises}
           error={error}
+          t={t}
         />
       )}
       {canRecur && whenFields}
@@ -880,6 +813,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
           premises={newPremises}
           update={updatePremises}
           error={error}
+          lang={lang}
         />
       )}
     </>
@@ -888,7 +822,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
   const steps: { title: string; fields: ReactNode }[] = [
     { title: words.need, fields: serviceField },
     {
-      title: kindField ? "What and where" : "Where",
+      title: kindField ? t.whatAndWhere : t.where,
       fields: (
         <>
           {kindField}
@@ -955,6 +889,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
           apiUrl,
           submission(),
           asker.kind === "guest",
+          lang,
         )) as SubmitResult<R>);
     setSending(false);
     if (result.ok) {
@@ -968,9 +903,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
         path.startsWith("addOns"),
       );
       if (addOnError) {
-        setRefusal(
-          "Some of the extras you chose are no longer offered. Please check your choices.",
-        );
+        setRefusal(t.extrasGone);
         setAddOnsAsked((n) => n + 1);
       }
     } else if (result.refusal) {
@@ -1052,9 +985,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
             />
           ))}
         </div>
-        <p className="text-sm text-fg-muted">
-          Step {at + 1} of {steps.length}
-        </p>
+        <p className="text-sm text-fg-muted">{t.step(at + 1, steps.length)}</p>
         <Heading level={headingLevel} size={3}>
           {steps[at]!.title}
         </Heading>
@@ -1069,11 +1000,11 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
       <Actions>
         {at > 0 && (
           <Button variant="secondary" onPress={() => setStep(at - 1)}>
-            Back
+            {t.back}
           </Button>
         )}
         <Button type="submit" isPending={isLast && isSending}>
-          {isLast ? words.submit : "Next"}
+          {isLast ? words.submit : t.next}
         </Button>
       </Actions>
     </Form>
@@ -1088,7 +1019,9 @@ function PremisesTypeField({
   premisesTypes,
   update,
   error,
+  t,
 }: {
+  t: FormWords;
   premises: NewPremises;
   // undefined while loading
   premisesTypes: PremisesTypeChoice[] | undefined;
@@ -1098,14 +1031,12 @@ function PremisesTypeField({
   const field = (name: keyof NewPremises) => `property.new.${name}`;
 
   return premisesTypes?.length === 0 ? (
-    <Notice tone="danger">
-      We couldn't load the types of business. {CALL_US}
-    </Notice>
+    <Notice tone="danger">{t.typesFailed}</Notice>
   ) : (
     <Select
-      label="Type of business"
+      label={t.typeOfBusiness}
       name={field("premisesType")}
-      placeholder="Choose one"
+      placeholder={t.chooseOne}
       isRequired
       selectedKey={premises.premisesType || null}
       onSelectionChange={(key) => update({ premisesType: String(key) })}
@@ -1126,23 +1057,26 @@ function NewPremisesFields({
   premises,
   update,
   error,
+  lang,
 }: {
+  lang: Language;
   premises: NewPremises;
   update: (change: Partial<NewPremises>) => void;
   error: (path: string) => string | undefined;
 }) {
   const field = (name: keyof NewPremises) => `property.new.${name}`;
+  const t = formWords[lang];
 
   return (
     <>
       <Optional
-        add="Add the floor area"
+        add={t.addFloorArea}
         shown={premises.floorArea !== null || !!error(field("floorArea"))}
       >
         <NumberField
-          label="Floor area in sq ft (optional)"
+          label={t.floorArea}
           name={field("floorArea")}
-          description="Roughly is fine. If you're not sure, we'll measure on our visit."
+          description={t.floorAreaNote}
           minValue={100}
           maxValue={1_000_000}
           step={100}
@@ -1154,16 +1088,16 @@ function NewPremisesFields({
         />
       </Optional>
       <Optional
-        add="Add how we get in"
+        add={t.addAccess}
         shown={
           !!premises.accessInstructions || !!error(field("accessInstructions"))
         }
       >
         <TextField
-          label="How do we get in? (optional)"
+          label={t.access}
           name={field("accessInstructions")}
           multiline
-          description={accessHelp.commercial}
+          description={accessHelp[lang].commercial}
           value={premises.accessInstructions ?? ""}
           onChange={(accessInstructions) => update({ accessInstructions })}
           errorMessage={error(field("accessInstructions"))}
@@ -1180,7 +1114,9 @@ function AddressFields({
   unitLabel,
   update,
   error,
+  t,
 }: {
+  t: FormWords;
   place: Pick<NewHome, "street" | "unit" | "postcode">;
   unitLabel: string;
   update: (
@@ -1193,7 +1129,7 @@ function AddressFields({
   return (
     <>
       <TextField
-        label="Street address"
+        label={t.street}
         name={field("street")}
         autoComplete="address-line1"
         isRequired
@@ -1211,7 +1147,7 @@ function AddressFields({
           errorMessage={error(field("unit"))}
         />
         <TextField
-          label="ZIP code"
+          label={t.zip}
           name={field("postcode")}
           autoComplete="postal-code"
           inputMode="numeric"
@@ -1233,7 +1169,9 @@ function RoomsFields({
   at,
   update,
   error,
+  t,
 }: {
+  t: FormWords;
   rooms: HomeRooms;
   at: string;
   update: (change: Partial<HomeRooms>) => void;
@@ -1244,9 +1182,9 @@ function RoomsFields({
   return (
     <div className="grid gap-4 sm:grid-cols-3">
       <NumberField
-        label="Bedrooms"
+        label={t.bedrooms}
         name={field("bedrooms")}
-        description="0 for a studio"
+        description={t.studio}
         minValue={0}
         maxValue={20}
         value={rooms.bedrooms}
@@ -1254,9 +1192,9 @@ function RoomsFields({
         errorMessage={error(field("bedrooms"))}
       />
       <NumberField
-        label="Bathrooms"
+        label={t.bathrooms}
         name={field("bathrooms")}
-        description="Half-baths count as 0.5"
+        description={t.halfBaths}
         minValue={0.5}
         maxValue={20}
         step={0.5}
@@ -1265,7 +1203,7 @@ function RoomsFields({
         errorMessage={error(field("bathrooms"))}
       />
       <NumberField
-        label="Floors"
+        label={t.floors}
         name={field("storeys")}
         minValue={1}
         maxValue={5}
@@ -1285,23 +1223,26 @@ function NewHomeFields({
   asksFloorArea,
   update,
   error,
+  lang,
 }: {
+  lang: Language;
   home: NewHome;
   asksFloorArea: boolean;
   update: (change: Partial<NewHome>) => void;
   error: (path: string) => string | undefined;
 }) {
   const field = (name: keyof NewHome) => `property.new.${name}`;
+  const t = formWords[lang];
 
   return (
     <>
       {asksFloorArea && (
         <Optional
-          add="Add the floor area"
+          add={t.addFloorArea}
           shown={home.floorArea !== null || !!error(field("floorArea"))}
         >
           <NumberField
-            label="Floor area in sq ft (optional)"
+            label={t.floorArea}
             name={field("floorArea")}
             minValue={100}
             maxValue={100_000}
@@ -1315,16 +1256,16 @@ function NewHomeFields({
         </Optional>
       )}
       <Optional
-        add="Add how we get in"
+        add={t.addAccess}
         shown={
           !!home.accessInstructions || !!error(field("accessInstructions"))
         }
       >
         <TextField
-          label="How do we get in? (optional)"
+          label={t.access}
           name={field("accessInstructions")}
           multiline
-          description={accessHelp.residential}
+          description={accessHelp[lang].residential}
           value={home.accessInstructions ?? ""}
           onChange={(accessInstructions) => update({ accessInstructions })}
           errorMessage={error(field("accessInstructions"))}

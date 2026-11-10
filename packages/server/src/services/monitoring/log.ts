@@ -1,18 +1,6 @@
-import { AsyncLocalStorage } from "node:async_hooks";
 import { pino, type DestinationStream, type Logger } from "pino";
 import { scrub, scrubText } from "@empire-cleaning/models";
-
-// what's known about the request being served, wherever in it code runs
-type RequestContext = { requestId: string };
-
-const requests = new AsyncLocalStorage<RequestContext>();
-
-// runs `work` as part of the request `requestId`: every log line and Sentry
-// event from it carries the ID
-export const withRequest = <T>(requestId: string, work: () => T) =>
-  requests.run({ requestId }, work);
-
-export const currentRequestId = () => requests.getStore()?.requestId;
+import { currentRequestId } from "#services/request";
 
 // JSON to stdout (ADR-0007), kept by the host, scrubbed like Sentry events.
 // LOG_LEVEL picks how much (tests silence it); `pretty` is for a person

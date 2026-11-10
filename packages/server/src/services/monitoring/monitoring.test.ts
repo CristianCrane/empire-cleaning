@@ -1,7 +1,8 @@
 import { describe, expect, test } from "vitest";
 import { email, paragraph } from "#services/email";
 import { testEmail, testMonitoring } from "../../../tests/harness.ts";
-import { createLogger, withRequest } from "./log.ts";
+import { withRequest } from "#services/request";
+import { createLogger } from "./log.ts";
 import { monitoring, SignalledError } from "./index.ts";
 
 // Client details never reach Sentry or the logs (ADR-0007)
@@ -12,7 +13,7 @@ describe("scrubbing", () => {
       destination: { write: (line: string) => lines.push(line) },
     });
 
-    withRequest("req-1", () =>
+    withRequest({ requestId: "req-1", language: "en" }, () =>
       logger.error(
         {
           clientId: "c1",

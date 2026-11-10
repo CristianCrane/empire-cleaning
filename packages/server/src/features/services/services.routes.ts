@@ -1,3 +1,4 @@
+import { currentLanguage } from "#services/request";
 import { Router } from "express";
 import { z } from "zod";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
@@ -18,7 +19,7 @@ const params = z.object({ key: z.uuid() });
 // the Services a Quote can be asked for now; open to Guests because the
 // landing page's "Request a Quote" form lists them
 router.get("/on-offer", async (_req, res) => {
-  res.json(await servicesOnOffer());
+  res.json(await servicesOnOffer(currentLanguage()));
 });
 
 // every Service, active and retired, for the Office

@@ -1,3 +1,4 @@
+import { catalog, inLanguage, type Language } from "@empire-cleaning/models";
 import { asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type {
   PriceList,
@@ -20,13 +21,18 @@ import { services, type ServiceRow } from "./services.schema.ts";
 export { SEEDED } from "./seeded.ts";
 
 // the starting figures, as the Price List's placeholders were before
-// Services had their own (the real ones are the business's to supply)
+// Services had their own (the real ones are the business's to supply). The
+// Spanish is a draft the owner checks (#206); a migration gave it to the
+// Services already saved (20261110082341)
 const TAX = 8.875;
 const placeholders: (ServiceInput & { key: string })[] = [
   {
     key: SEEDED.standard,
     name: "Standard Clean",
     description: "The regular upkeep that keeps a clean home feeling that way.",
+    nameEs: "Limpieza estándar",
+    descriptionEs:
+      "El mantenimiento regular que hace que una casa limpia se siga sintiendo así.",
     offeredFor: "homes",
     method: "rooms",
     roomHours: {
@@ -52,6 +58,9 @@ const placeholders: (ServiceInput & { key: string })[] = [
     name: "Deep Clean",
     description:
       "A top-to-bottom clean, inside cabinets, behind appliances and everywhere in between.",
+    nameEs: "Limpieza profunda",
+    descriptionEs:
+      "Una limpieza de arriba abajo, dentro de los gabinetes, detrás de los electrodomésticos y en todo lo demás.",
     offeredFor: "homes",
     method: "rooms",
     roomHours: {
@@ -76,6 +85,8 @@ const placeholders: (ServiceInput & { key: string })[] = [
     key: SEEDED.moveInOut,
     name: "Move-in/out Clean",
     description: "An empty home made spotless, ready for keys to change hands.",
+    nameEs: "Limpieza de mudanza",
+    descriptionEs: "Una casa vacía impecable, lista para entregar las llaves.",
     offeredFor: "homes",
     method: "rooms",
     roomHours: {
@@ -101,6 +112,9 @@ const placeholders: (ServiceInput & { key: string })[] = [
     name: "Commercial cleaning",
     description:
       "Workspaces, kitchens and restrooms kept clean for your team and visitors.",
+    nameEs: "Limpieza comercial",
+    descriptionEs:
+      "Espacios de trabajo, cocinas y baños limpios para su equipo y sus visitas.",
     offeredFor: "businesses",
     method: "area",
     roomHours: null,
@@ -120,6 +134,9 @@ const placeholders: (ServiceInput & { key: string })[] = [
     name: "Painting",
     description:
       "Walls, ceilings and trim painted cleanly, with the room left as we found it.",
+    nameEs: "Pintura",
+    descriptionEs:
+      "Paredes, techos y molduras pintados con cuidado, y el cuarto queda como lo encontramos.",
     offeredFor: "both",
     method: "area",
     roomHours: null,
@@ -150,6 +167,8 @@ const toService = (row: ServiceRow, authorName: string | null): Service => ({
   createdByName: authorName,
   name: row.name,
   description: row.description,
+  nameEs: row.nameEs,
+  descriptionEs: row.descriptionEs,
   offeredFor: row.offeredFor,
   method: row.method,
   roomHours:
@@ -190,8 +209,12 @@ const latest = async () => {
     .map((r) => toService(r.service, r.authorName));
 };
 
-// what a choice of a Service that isn't on offer is told
-export const NOT_A_SERVICE = "Pick a service from the list";
+// what a choice of a Service that isn't on offer is told, in the
+// request's language (the Quote form's in Spanish too)
+export const notAService = catalog({
+  en: "Pick a service from the list",
+  es: "Elija un servicio de la lista",
+});
 
 // Every Service as it is now, active and retired. The very first read
 // creates the starting ones, so a fresh install always has them.
@@ -256,10 +279,13 @@ const icons: Record<string, ServiceIcon> = {
 };
 
 // The Services a new Quote can be asked for, in the list's order, as the
-// "Request a Quote" form offers them
-export const servicesOnOffer = async (): Promise<ServiceOffer[]> =>
+// "Request a Quote" form offers them, named in its language
+export const servicesOnOffer = async (
+  lang: Language,
+): Promise<ServiceOffer[]> =>
   (await currentServices())
     .filter((s) => s.active)
+    .map((service) => inLanguage(lang, service))
     .map((s) => ({
       key: s.key,
       name: s.name,
@@ -338,7 +364,7 @@ const checkFirstVisit = (
     );
   }
   if (!all.some((s) => s.key === recommended)) {
-    throw fieldError(["firstVisitServiceKey"], NOT_A_SERVICE);
+    throw fieldError(["firstVisitServiceKey"], notAService.en);
   }
 };
 

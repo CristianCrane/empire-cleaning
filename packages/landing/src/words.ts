@@ -63,8 +63,10 @@ export const words = catalog({
     quote: {
       noAccount: "No account needed.",
       preferToTalk: "Prefer to talk? Call us on",
-      // the Quote form is in English on every page until #302
-      formInEnglish: "",
+      // once it's sent
+      thanks: "Thanks, we've got your request",
+      // with JavaScript off, in its place: before and after the phone number
+      callUs: ["Call us on", "and we'll put your quote together."],
     },
     plans: {
       title: "Save 10% with a cleaning plan",
@@ -138,8 +140,8 @@ export const words = catalog({
     quote: {
       noAccount: "No necesita crear una cuenta.",
       preferToTalk: "¿Prefiere hablar? Llámenos al",
-      formInEnglish:
-        "Por ahora el formulario está en inglés. Si lo prefiere, llámenos y lo hacemos en español.",
+      thanks: "Gracias, recibimos su solicitud",
+      callUs: ["Llámenos al", "y le preparamos su cotización."],
     },
     plans: {
       title: "Ahorre un 10% con un plan de limpieza",

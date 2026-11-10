@@ -32,6 +32,9 @@ export const services = pgTable(
     version: integer("version").generatedAlwaysAsIdentity().notNull().unique(),
     name: text("name").notNull(),
     description: text("description").notNull().default(""),
+    // in Spanish, shown to Spanish readers when set (ADR-0025)
+    nameEs: text("name_es"),
+    descriptionEs: text("description_es"),
     offeredFor: offeredFor("offered_for").notNull(),
     method: pricingMethod("method").notNull(),
     // how long each part of a home takes; only for "rooms"

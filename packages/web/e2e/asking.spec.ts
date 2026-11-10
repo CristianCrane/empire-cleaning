@@ -217,6 +217,33 @@ test(
   },
 );
 
+test("a Client who first asked in Spanish asks again in Spanish, the API's messages in Spanish too (#302)", async ({
+  page,
+}) => {
+  await requestQuoteAsGuest(casey, [], undefined, "es");
+  await signInAs(page, casey.email);
+  await page.goto("/portal/request");
+
+  await page
+    .locator("form")
+    .getByText("Limpieza profunda", { exact: true })
+    .click();
+  await page.getByRole("button", { name: "Siguiente", exact: true }).click();
+  await page.getByText("Otra casa", { exact: true }).click();
+  await page.getByText("Apartamento", { exact: true }).click();
+  await page.getByRole("textbox", { name: "Dirección" }).fill("7 Elm St");
+  await page.getByRole("textbox", { name: "Código postal" }).fill("1137");
+  await page.getByRole("button", { name: "Siguiente", exact: true }).click();
+  await expect(page.getByText("Paso 3 de 3")).toBeVisible();
+  await page.getByRole("button", { name: "Pedir una cotización" }).click();
+
+  const zip = page.getByRole("textbox", { name: "Código postal" });
+  await expect(zip).toHaveAccessibleDescription(
+    /Escriba un código postal de 5 dígitos/,
+  );
+  await expectAccessible(page);
+});
+
 test("the API's explanation shows beside the field", async ({ page }) => {
   await requestQuoteAsGuest(casey);
   await signInAs(page, casey.email);

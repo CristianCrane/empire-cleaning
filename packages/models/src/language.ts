@@ -33,3 +33,23 @@ export const catalog = <T>(words: {
   en: T;
   es: NoInfer<Words<T>>;
 }): Catalog<Words<T>> => words as Catalog<Words<T>>;
+
+// what the Office names in both languages (a Service, an Add-on, a Premises
+// Type), as a reader of `lang` sees it: the Spanish name and description
+// where they're set, the English otherwise (ADR-0025)
+type Named = {
+  name: string;
+  nameEs?: string | null;
+  description?: string;
+  descriptionEs?: string | null;
+};
+export const inLanguage = <T extends Named>(lang: Language, item: T): T =>
+  lang === "en"
+    ? item
+    : {
+        ...item,
+        name: item.nameEs || item.name,
+        ...(item.description !== undefined && {
+          description: item.descriptionEs || item.description,
+        }),
+      };

@@ -1,3 +1,4 @@
+import { currentLanguage } from "#services/request";
 import { messages } from "@empire-cleaning/models";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
@@ -30,14 +31,14 @@ import { properties, type Property } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
 import {
   currentPriceList,
-  NOT_A_PREMISES_TYPE,
-  NOT_AN_ADD_ON,
+  notAPremisesType,
+  notAnAddOn,
   offeredWith,
   offersPremisesType,
 } from "../price-list/price-list.ts";
 import {
   currentServices,
-  NOT_A_SERVICE,
+  notAService,
   onOfferAt,
 } from "../services/services.ts";
 import {
@@ -51,8 +52,7 @@ import {
 } from "./asking.validation.ts";
 import { tellOfficeStaff } from "../staff/staff.ts";
 import {
-  alreadyAsked,
-  alreadyYours,
+  askClash,
   askClashEmail,
   quoteReceivedEmail,
   quoteRequestedEmail,
@@ -60,8 +60,6 @@ import {
 import { openAlongside, openAlreadyAt } from "./quotes.ts";
 import { quoteAddOns, quotes, type Quote } from "./quotes.schema.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
-
-const { thisPlace } = messages.en;
 
 const parse = <T>(schema: z.ZodType<T>, body: unknown): T => {
   const result = schema.safeParse(body);
@@ -87,7 +85,7 @@ const clientFor = async (caller: SignedInAccount | null, body: unknown) => {
     );
     if (!verdict.allowed) {
       throw new TooManyRequestsError(
-        tooManyTries(verdict.retryAfterSeconds),
+        tooManyTries(currentLanguage(), verdict.retryAfterSeconds),
         verdict.retryAfterSeconds,
       );
     }
@@ -97,6 +95,8 @@ const clientFor = async (caller: SignedInAccount | null, body: unknown) => {
       (await createClient({
         ...submission.contact,
         businessName: businessNameOf(submission),
+        // the language of the page they asked on (ADR-0025)
+        preferredLanguage: currentLanguage(),
       }));
     return {
       client,
@@ -123,6 +123,7 @@ const clientFor = async (caller: SignedInAccount | null, body: unknown) => {
       ...submission.contact,
       email: caller.email,
       businessName: businessNameOf(submission),
+      preferredLanguage: currentLanguage(),
     }));
   return { client, submission, trusted: true, source: null };
 };
@@ -141,7 +142,11 @@ const checkAddOns = (list: PriceList, service: Service, keys: string[]) => {
   );
   const unknown = keys.findIndex((key) => !offered.has(key));
   if (unknown !== -1) {
-    throw fieldError(["addOns", unknown], NOT_AN_ADD_ON, keys[unknown]);
+    throw fieldError(
+      ["addOns", unknown],
+      notAnAddOn[currentLanguage()],
+      keys[unknown],
+    );
   }
 };
 
@@ -150,7 +155,7 @@ const checkPremisesType = (list: PriceList, key: string) => {
   if (!offersPremisesType(list, key)) {
     throw fieldError(
       ["property", "new", "premisesType"],
-      NOT_A_PREMISES_TYPE,
+      notAPremisesType[currentLanguage()],
       key,
     );
   }
@@ -252,28 +257,34 @@ type Submission = z.infer<typeof clientSubmission>;
 // `asked` for or already `sent`
 type Clash = { property: Property; why: "otherKind" | "asked" | "sent" };
 
-// a clash, as the reply tells it to the signed-in Client, or to Office Staff
-// entering a caller's ask (`enteredBy`)
+// a clash, as the reply tells it to the signed-in Client, in the language
+// of their screen, or to Office Staff entering a caller's ask (`enteredBy`),
+// in English
 const clashMessage = (
   { property, why }: Clash,
   client: Client,
   enteredBy: string | null,
 ) => {
-  const place = thisPlace(property.kind);
+  const lang = enteredBy ? "en" : currentLanguage();
+  const { alreadyAsked, alreadyYours, PICK_IT } = askClash[lang];
   if (why === "otherKind") {
-    return `${alreadyYours(addressOf(property), property.kind, enteredBy ? "their" : "your")} Pick it from the list to ask about it.`;
+    return `${alreadyYours(addressOf(property), property.kind, enteredBy ? "their" : "your")} ${PICK_IT}`;
   }
   if (enteredBy) {
     return openAlreadyAt(property, "a quote");
   }
-  return alreadyAsked(why, place, client.email);
+  return alreadyAsked(
+    why,
+    messages[lang].thisPlace(property.kind),
+    client.email,
+  );
 };
 
 // The Service asked for, which must be on offer for the kind of Property
 const askedService = (all: Service[], kind: Property["kind"], key: string) => {
   const service = onOfferAt(all, kind).find((s) => s.key === key);
   if (!service) {
-    throw fieldError(["serviceKey"], NOT_A_SERVICE, key);
+    throw fieldError(["serviceKey"], notAService[currentLanguage()], key);
   }
   return service;
 };
@@ -560,7 +571,7 @@ const sendReceipt = async (
   if (!client.email) return;
   await email.send({
     to: client.email,
-    ...quoteReceivedEmail({
+    ...quoteReceivedEmail(client.preferredLanguage, {
       name: client.name,
       email: client.email,
       address: addressOf(property),

@@ -1,6 +1,8 @@
+import { currentLanguage } from "#services/request";
 import { createHash, randomBytes } from "node:crypto";
 import { and, asc, count, eq, exists, gt, ilike, or, sql } from "drizzle-orm";
 import type {
+  Language,
   ClientList,
   ClientStanding,
   ClientView,
@@ -27,12 +29,14 @@ import { clients, emailChanges } from "./clients.schema.ts";
 import { clientStandings, standingOfClient } from "./standing.ts";
 
 // no email only when the Office enters a caller without one (#34); a
-// business name only for a business (#72)
+// business name only for a business (#72); the language of the page a
+// Guest asked on, or English (ADR-0025)
 type NewClient = {
   email: string | null;
   name: string;
   phone: string;
   businessName?: string | null;
+  preferredLanguage?: Language;
 };
 
 const normalise = (email: string) => email.trim().toLowerCase();
@@ -44,6 +48,7 @@ export const createClient = async ({
   name,
   phone,
   businessName,
+  preferredLanguage,
 }: NewClient) => {
   const [client] = await db
     .insert(clients)
@@ -52,6 +57,7 @@ export const createClient = async ({
       name,
       phone,
       businessName: businessName || null,
+      preferredLanguage,
     })
     .returning();
   if (!client!.email) return client!;
@@ -131,7 +137,7 @@ export const changeOwnEmail = async (
   const verdict = rateLimit.attempt("emailChange", address);
   if (!verdict.allowed) {
     throw new TooManyRequestsError(
-      tooManyTries(verdict.retryAfterSeconds),
+      tooManyTries(currentLanguage(), verdict.retryAfterSeconds),
       verdict.retryAfterSeconds,
     );
   }
@@ -254,6 +260,7 @@ export const clientView = async (
     email: client.email!,
     pendingEmail,
     phone: client.phone,
+    preferredLanguage: client.preferredLanguage,
     properties: ownProperties.map((p) => toPropertyView(p, list)),
     quotes: ownQuotes,
   };

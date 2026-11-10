@@ -1,6 +1,6 @@
 import * as Sentry from "@sentry/node";
 import type { ErrorEvent } from "@sentry/node";
-import { currentRequestId } from "./log.ts";
+import { currentRequestId } from "#services/request";
 import { scrub } from "@empire-cleaning/models";
 import type { Reporter } from "./index.ts";
 

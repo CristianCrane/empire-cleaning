@@ -7,12 +7,17 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
+import { LANGUAGES } from "@empire-cleaning/models";
 import { timestamps } from "../../db/index.ts";
 import { accounts } from "../auth/auth.schema.ts";
 
 // how a Client billed weekly pays each Bill: charged to their saved Payment
 // Method when it's made, or paid by them on its page by its due date
 export const billPayment = pgEnum("bill_payment", ["automatic", "on_page"]);
+
+// the languages a Client (and, with #305, a Staff member) reads screens and
+// messages in (ADR-0025)
+export const language = pgEnum("language", LANGUAGES);
 
 // a person or business Empire Cleaning has a relationship with, from their
 // first asking for a Quote onward. Created by asking for one, never by
@@ -34,6 +39,9 @@ export const clients = pgTable("clients", {
   email: text("email").unique(),
   // shown to the Cleaners assigned to a Job, on the day
   phone: text("phone").notNull(),
+  // the language their screens and messages are in: a Guest's first Quote
+  // sets it from the page they asked on (ADR-0025)
+  preferredLanguage: language("preferred_language").notNull().default("en"),
   // weekly billing (ADR-0016), for a commercial Client only: the Monday of
   // the week it was switched on, from which their Jobs go on Bills; null
   // while it's off. How they pay and their terms stay set while it's off.

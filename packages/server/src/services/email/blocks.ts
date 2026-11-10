@@ -1,4 +1,4 @@
-import { formats } from "@empire-cleaning/models";
+import { catalog, type Language, formats } from "@empire-cleaning/models";
 
 const { formatMoney, formatWhen } = formats.en;
 
@@ -24,6 +24,11 @@ export type Block =
   | { kind: "button"; label: string; href: string };
 
 export type Email = {
+  // the language it's written in, for its `lang` and greeting: its
+  // reader's Preferred Language (ADR-0025). English where not given: every
+  // email but the Quote receipt is English until #304, through
+  // `messages.en` and `formats.en`
+  lang?: Language;
   subject: string;
   // the inbox preview line; by default the first paragraph
   preview?: string;
@@ -31,6 +36,14 @@ export type Email = {
 };
 
 export const greeting = (name: string): Block => ({ kind: "greeting", name });
+
+// a greeting block's words, in the HTML and the text part alike
+const greetings = catalog({
+  en: (name: string) => `Hi ${name},`,
+  es: (name: string) => `Hola, ${name}:`,
+});
+export const greetingText = (lang: Language, name: string) =>
+  greetings[lang](name);
 
 export const paragraph = (text: string): Block => ({ kind: "paragraph", text });
 

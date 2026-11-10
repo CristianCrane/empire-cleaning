@@ -1,5 +1,13 @@
 // the JSON API, on the same origin (Vite forwards /api to the server)
 
+import type { Language } from "@empire-cleaning/models";
+
+// the language the app's screens are in: English until they come in Spanish
+// (#303). The API answers in it (ADR-0025), so it's said on every request,
+// as otherwise the browser says its own
+export const APP_LANGUAGE: Language = "en";
+export const LANGUAGE_HEADER = { "accept-language": APP_LANGUAGE };
+
 export class ApiError extends Error {
   readonly status: number;
   // the API's per-field messages, keyed by the field's path (e.g. "email")
@@ -15,7 +23,10 @@ export class ApiError extends Error {
 const call = async <T>(method: string, path: string, body?: unknown) => {
   const res = await fetch(path, {
     method,
-    headers: body === undefined ? {} : { "content-type": "application/json" },
+    headers: {
+      ...LANGUAGE_HEADER,
+      ...(body !== undefined && { "content-type": "application/json" }),
+    },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const data = res.headers.get("content-type")?.includes("json")

@@ -1,4 +1,12 @@
-import { business, DAY_MS, HOUR_MS, MINUTE_MS } from "@empire-cleaning/models";
+import {
+  business,
+  catalog,
+  DAY_MS,
+  formats,
+  HOUR_MS,
+  type Language,
+  MINUTE_MS,
+} from "@empire-cleaning/models";
 import { clock } from "#services/clock";
 import { monitoring } from "#services/monitoring";
 import env, { type Env } from "../../env.ts";
@@ -131,13 +139,26 @@ export const rateLimit = {
     current.attempt(name, inboxOf(email)),
 };
 
-// what someone refused is told, the wait rounded up: "5 minutes", "3 hours"
-export const tooManyTries = (retryAfterSeconds: number) => {
+// what someone refused is told, in the language of the screen that asked,
+// the wait rounded up: "5 minutes", "3 hours"
+const triesWords = catalog({
+  en: {
+    minute: { one: "minute", other: "minutes" },
+    hour: { one: "hour", other: "hours" },
+    tooMany: (wait: string) =>
+      `Too many tries. Please try again in ${wait}, or call us on ${business.phone.display}.`,
+  },
+  es: {
+    minute: { one: "minuto", other: "minutos" },
+    hour: { one: "hora", other: "horas" },
+    tooMany: (wait: string) =>
+      `Demasiados intentos. Vuelva a intentarlo en ${wait}, o llámenos al ${business.phone.display}.`,
+  },
+});
+export const tooManyTries = (lang: Language, retryAfterSeconds: number) => {
   const minutes = Math.ceil(retryAfterSeconds / 60);
   const hours = Math.ceil(minutes / 60);
-  const wait =
-    minutes < 60
-      ? `${minutes} ${minutes === 1 ? "minute" : "minutes"}`
-      : `${hours} ${hours === 1 ? "hour" : "hours"}`;
-  return `Too many tries. Please try again in ${wait}, or call us on ${business.phone.display}.`;
+  const w = triesWords[lang];
+  const [n, unit] = minutes < 60 ? [minutes, w.minute] : [hours, w.hour];
+  return w.tooMany(`${n} ${formats[lang].plural(n, unit)}`);
 };

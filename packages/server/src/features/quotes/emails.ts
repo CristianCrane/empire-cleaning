@@ -11,7 +11,9 @@ import {
 import { firstNameOf } from "../../services/email/format.ts";
 import {
   type PropertyKind,
+  type Language,
   type TurnDownReason,
+  catalog,
   formats,
   dayOf,
   messages,
@@ -25,7 +27,6 @@ const {
   cleansPaid,
   ON_WEEKS_BILL,
   PRICES_INCLUDE_TAX,
-  quoteEmailedTo,
   turnedDown,
   recurrence,
 } = messages.en;
@@ -40,51 +41,95 @@ const { formatMoney, formatWhen, weekdayName } = formats.en;
 export const BOOK_ANOTHER =
   "To book another clean, ask us for a quote in your account.";
 
-// always to the Client's own address, so an existing Client hears about any
-// Quote asked for with their email
-export const quoteReceivedEmail = ({
-  name,
-  email,
-  address,
-  quoteId,
-}: {
-  name: string;
-  email: string;
-  address: string;
-  quoteId: string;
-}): Email => ({
-  subject: "We got your request for a quote",
-  blocks: [
-    greeting(firstNameOf(name)),
-    paragraph(
-      `Thanks for asking us for a quote for ${address}. ${quoteEmailedTo(email)}`,
-    ),
-    button("See your quote", `/portal/quotes/${quoteId}`),
-    paragraph(NOT_YOU),
-  ],
+const receiptWords = catalog({
+  en: {
+    subject: "We got your request for a quote",
+    thanks: (address: string) =>
+      `Thanks for asking us for a quote for ${address}.`,
+    see: "See your quote",
+    notYou:
+      "If you didn't ask for a quote, you can ignore this email, or reply and let us know.",
+  },
+  es: {
+    subject: "Recibimos su solicitud de cotización",
+    thanks: (address: string) =>
+      `Gracias por pedirnos una cotización para ${address}.`,
+    see: "Ver su cotización",
+    notYou:
+      "Si usted no pidió una cotización, puede ignorar este correo, o respondernos para avisarnos.",
+  },
 });
 
-// an ask for a Quote the Client has open already for `where`, as the
-// reply says it and the email to their own address
-export const alreadyAsked = (
-  why: "asked" | "sent",
-  where: string,
-  email: string | null,
-) =>
-  why === "sent"
-    ? `We've already sent you a quote for ${where}. You'll find it in your account.`
-    : `You've already asked us for a quote for ${where}. We'll email it to ${email} soon.`;
+// always to the Client's own address, so an existing Client hears about any
+// Quote asked for with their email; in their Preferred Language (ADR-0025)
+export const quoteReceivedEmail = (
+  lang: Language,
+  {
+    name,
+    email,
+    address,
+    quoteId,
+  }: {
+    name: string;
+    email: string;
+    address: string;
+    quoteId: string;
+  },
+): Email => {
+  const w = receiptWords[lang];
+  return {
+    lang,
+    subject: w.subject,
+    blocks: [
+      greeting(firstNameOf(name)),
+      paragraph(`${w.thanks(address)} ${messages[lang].quoteEmailedTo(email)}`),
+      button(w.see, `/portal/quotes/${quoteId}`),
+      paragraph(w.notYou),
+    ],
+  };
+};
 
-// an ask for a Property the Client has already, as the other kind
-export const alreadyYours = (
-  address: string,
-  kind: PropertyKind,
-  whose: "your" | "their",
-) =>
-  `${address} is already ${whose} ${kind === "commercial" ? "business" : "home"} with us.`;
+// Why an ask can't go ahead at a Property the Client has, as the reply
+// says it, in the language of the screen that asked, and the email to their
+// own address (in English until #304)
+export const askClash = catalog({
+  en: {
+    // a Quote the Client has open already for `where`
+    alreadyAsked: (
+      why: "asked" | "sent",
+      where: string,
+      email: string | null,
+    ) =>
+      why === "sent"
+        ? `We've already sent you a quote for ${where}. You'll find it in your account.`
+        : `You've already asked us for a quote for ${where}. We'll email it to ${email} soon.`,
+    // a Property the Client has already, as the other kind
+    alreadyYours: (
+      address: string,
+      kind: PropertyKind,
+      whose: "your" | "their",
+    ) =>
+      `${address} is already ${whose} ${kind === "commercial" ? "business" : "home"} with us.`,
+    PICK_IT: "Pick it from the list to ask about it.",
+  },
+  es: {
+    alreadyAsked: (
+      why: "asked" | "sent",
+      where: string,
+      email: string | null,
+    ) =>
+      why === "sent"
+        ? `Ya le enviamos una cotización para ${where}. La encontrará en su cuenta.`
+        : `Ya nos pidió una cotización para ${where}. Se la enviaremos a ${email} pronto.`,
+    // "your" and "their" are both "su"
+    alreadyYours: (address: string, kind: PropertyKind) =>
+      `${address} ya está con nosotros como su ${kind === "commercial" ? "negocio" : "casa"}.`,
+    PICK_IT: "Elija esa dirección de la lista para pedir una cotización.",
+  },
+});
+const { alreadyAsked, alreadyYours } = askClash.en;
 
-const NOT_YOU =
-  "If you didn't ask for a quote, you can ignore this email, or reply and let us know.";
+const NOT_YOU = receiptWords.en.notYou;
 
 // to the Client's own address, when an ask with their email can't go ahead
 // at a Property they already have: the Guest who asked is told only what

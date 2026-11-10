@@ -2,11 +2,12 @@ import { randomUUID } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { RequestHandler } from "express";
 import { pinoHttp } from "pino-http";
-import { log, scrubText, withRequest } from "#services/monitoring";
+import { log, scrubText } from "#services/monitoring";
 
-// one line per request, and a request ID on every line logged while serving
-// it and on every Sentry event (ADR-0007): the caller's when it sends one, so
-// the host's logs and ours match up
+// one line per request, and a request ID for it (ADR-0007): the caller's when
+// it sends one, so the host's logs and ours match up. The request context
+// (request-context.ts) puts it on every line logged while serving it and on
+// every Sentry event
 const requestLogger = pinoHttp({
   logger: log,
   genReqId: (req) => {
@@ -34,5 +35,5 @@ const requestLogger = pinoHttp({
 
 export const networkLoggingMiddleware: RequestHandler = (req, res, next) => {
   requestLogger(req, res);
-  withRequest(String(req.id), next);
+  next();
 };

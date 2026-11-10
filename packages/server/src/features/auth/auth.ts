@@ -1,3 +1,4 @@
+import { currentLanguage } from "#services/request";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { APIError, createAuthMiddleware } from "better-auth/api";
@@ -38,7 +39,7 @@ const limitSignInLinks = (body: Record<string, unknown> | undefined) => {
   if (verdict.allowed) return;
   throw new APIError(
     "TOO_MANY_REQUESTS",
-    { message: tooManyTries(verdict.retryAfterSeconds) },
+    { message: tooManyTries(currentLanguage(), verdict.retryAfterSeconds) },
     { "Retry-After": String(verdict.retryAfterSeconds) },
   );
 };

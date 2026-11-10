@@ -1,23 +1,87 @@
 import { z } from "zod";
-import { keepUnder, startTime } from "../../middleware/validation.ts";
+import { catalog } from "@empire-cleaning/models";
+import { currentLanguage } from "#services/request";
+import {
+  keepUnder,
+  pickerWords,
+  say,
+  startTime,
+} from "../../middleware/validation.ts";
 
-// the messages are shown beside the form's fields, so they're written for people
+// the messages are shown beside the form's fields, so they're written for
+// people, in the language of the request (ADR-0025): the Quote form's in
+// English and Spanish. The Office's own (corrections, a caller's ask) are
+// English
+const words = catalog({
+  en: {
+    phone: "Enter a phone number with its area code",
+    name: "Enter your name",
+    email: "Enter a full email address, like name@example.com",
+    street: "Enter the street address",
+    zip: "Enter a 5-digit ZIP code",
+    area: "Enter the area in sq ft",
+    wholeFeet: "Use whole sq ft",
+    tooBig: "That's bigger than we can take on",
+    smallerThanAnyPlace: "That's smaller than any place we clean",
+    smallerThanAnyHome: "That's smaller than any home we clean",
+    premisesType: "Pick a type of business",
+    homeType: "Pick the type of home",
+    halfBathroom: "A home needs at least half a bathroom",
+    wholeOrHalf: "Use whole or half bathrooms, like 1.5",
+    kind: "Pick a home or a business",
+    condition: "Pick how much cleaning the home needs",
+    service: "Pick a service",
+    businessName: "Enter the business's name",
+    noCondition: "We check a business's condition on our visit",
+    noExtras: "We agree a business's extras on our visit",
+    days: "Pick the days you want cleaned",
+    rooms: "Tell us about the home's rooms",
+    allRoomsOrNone: "Fill in all of the home's rooms, or none",
+  },
+  es: {
+    phone: "Escriba un número de teléfono con su código de área",
+    name: "Escriba su nombre",
+    email: "Escriba un correo electrónico completo, como nombre@ejemplo.com",
+    street: "Escriba la dirección",
+    zip: "Escriba un código postal de 5 dígitos",
+    area: "Escriba el área en pies cuadrados",
+    wholeFeet: "Use pies cuadrados enteros",
+    tooBig: "Es más grande de lo que podemos atender",
+    smallerThanAnyPlace: "Es más pequeño que cualquier lugar que limpiamos",
+    smallerThanAnyHome: "Es más pequeña que cualquier casa que limpiamos",
+    premisesType: "Elija un tipo de negocio",
+    homeType: "Elija el tipo de casa",
+    halfBathroom: "Una casa necesita al menos medio baño",
+    wholeOrHalf: "Use baños enteros o medios, como 1.5",
+    kind: "Elija una casa o un negocio",
+    condition: "Elija cuánta limpieza necesita la casa",
+    service: "Elija un servicio",
+    businessName: "Escriba el nombre del negocio",
+    noCondition: "Revisamos el estado de un negocio en nuestra visita",
+    noExtras: "Los adicionales de un negocio los acordamos en nuestra visita",
+    days: "Elija los días en que quiere que limpiemos",
+    rooms: "Cuéntenos cómo son los cuartos de la casa",
+    allRoomsOrNone: "Complete todos los cuartos de la casa, o ninguno",
+  },
+});
+
+const email = z.email(say(words, "email"));
 
 const phone = z
   .string()
   .trim()
   .refine(
     (value) => value.replace(/\D/g, "").length >= 10,
-    "Enter a phone number with its area code",
+    say(words, "phone"),
   );
 
 export const contactSchema = z.object({
   name: z
     .string()
     .trim()
-    .min(1, "Enter your name")
+    .min(1, say(words, "name"))
     .max(100, keepUnder(100, "the name")),
-  email: z.email("Enter a full email address, like name@example.com"),
+  email,
   phone,
 });
 
@@ -25,55 +89,51 @@ const address = {
   street: z
     .string()
     .trim()
-    .min(1, "Enter the street address")
+    .min(1, say(words, "street"))
     .max(200, keepUnder(200, "the street address")),
   unit: z.string().trim().max(50, keepUnder(50, "the unit")).nullish(),
   postcode: z
     .string()
     .trim()
-    .regex(/^\d{5}$/, "Enter a 5-digit ZIP code"),
+    .regex(/^\d{5}$/, say(words, "zip")),
   accessInstructions: z.string().trim().max(2000, keepUnder(2000)).nullish(),
 };
 
-const AREA = "Enter the area in sq ft";
-
 // an area in sq ft: a place's floor area, an ask's rough idea of the area
 // to price a Service on, or a Draft's
-export const squareFeet = (min: number, tooSmall = AREA, max = 1_000_000) =>
+export const squareFeet = (
+  min: number,
+  tooSmall: "area" | "smallerThanAnyPlace" | "smallerThanAnyHome" = "area",
+  max = 1_000_000,
+) =>
   z
-    .number({ error: AREA })
-    .int("Use whole sq ft")
-    .min(min, tooSmall)
-    .max(max, "That's bigger than we can take on");
+    .number(say(words, "area"))
+    .int(say(words, "wholeFeet"))
+    .min(min, say(words, tooSmall))
+    .max(max, say(words, "tooBig"));
 
-export const floorArea = squareFeet(
-  100,
-  "That's smaller than any place we clean",
+export const floorArea = squareFeet(100, "smallerThanAnyPlace");
+
+export const premisesType = z.uuid(say(words, "premisesType"));
+
+const homeType = z.enum(
+  ["house", "apartment", "townhouse"],
+  say(words, "homeType"),
 );
-
-export const premisesType = z.uuid("Pick a type of business");
-
-const homeType = z.enum(["house", "apartment", "townhouse"], {
-  error: "Pick the type of home",
-});
 
 // a home's rooms, all four together
 const roomsSchema = z.object({
   bedrooms: z.number().int().min(0).max(20),
   bathrooms: z
     .number()
-    .min(0.5, "A home needs at least half a bathroom")
+    .min(0.5, say(words, "halfBathroom"))
     .max(20)
-    .multipleOf(0.5, "Use whole or half bathrooms, like 1.5"),
+    .multipleOf(0.5, say(words, "wholeOrHalf")),
   storeys: z.number().int().min(1).max(5),
   pets: z.boolean(),
 });
 
-const homeFloorArea = squareFeet(
-  100,
-  "That's smaller than any home we clean",
-  100_000,
-).nullish();
+const homeFloorArea = squareFeet(100, "smallerThanAnyHome", 100_000).nullish();
 
 // its rooms are optional here: the Service asked for decides whether
 // they're needed (checkRooms)
@@ -101,18 +161,17 @@ const newPremisesSchema = z.object({
 const newPropertySchema = z.discriminatedUnion(
   "kind",
   [newHomeSchema, newPremisesSchema],
-  { error: "Pick a home or a business" },
+  say(words, "kind"),
 );
 
-const CONDITION = "Pick how much cleaning the home needs";
-
 // also a Service Plan's
-export const conditionSchema = z.enum(["light", "moderate", "heavy"], {
-  error: CONDITION,
-});
+export const conditionSchema = z.enum(
+  ["light", "moderate", "heavy"],
+  say(words, "condition"),
+);
 
 // also a Draft's
-export const serviceKey = z.uuid("Pick a service");
+export const serviceKey = z.uuid(say(words, "service"));
 
 // Everything a request may say. Which of it applies depends on the kind of
 // Property: `forKind` checks a new one's here, and recordRequest an existing
@@ -148,10 +207,17 @@ type RequestFields = {
   wantsRegularService: boolean;
 };
 
-const issue = (path: (string | number)[], message: string) => ({
+// a problem found once the request is read, in its language
+const issue = (
+  path: (string | number)[],
+  key: keyof (typeof words)["en"] | "pickStartTime",
+) => ({
   code: "custom" as const,
   path,
-  message,
+  message:
+    key === "pickStartTime"
+      ? pickerWords[currentLanguage()].pickStartTime
+      : words[currentLanguage()][key],
   input: undefined,
 });
 
@@ -168,24 +234,20 @@ export const checkForKind = (
   if (kind === "residential") return [];
   const problems = [];
   if (isNew && !fields.businessName) {
-    problems.push(issue(["businessName"], "Enter the business's name"));
+    problems.push(issue(["businessName"], "businessName"));
   }
   if (fields.condition) {
-    problems.push(
-      issue(["condition"], "We check a business's condition on our visit"),
-    );
+    problems.push(issue(["condition"], "noCondition"));
   }
   if (fields.addOns?.length) {
-    problems.push(
-      issue(["addOns"], "We agree a business's extras on our visit"),
-    );
+    problems.push(issue(["addOns"], "noExtras"));
   }
   if (fields.wantsRegularService) {
     if (!fields.weekdays?.length) {
-      problems.push(issue(["weekdays"], "Pick the days you want cleaned"));
+      problems.push(issue(["weekdays"], "days"));
     }
     if (!fields.preferredTime) {
-      problems.push(issue(["preferredTime"], "Pick a start time"));
+      problems.push(issue(["preferredTime"], "pickStartTime"));
     }
   }
   return problems;
@@ -207,12 +269,7 @@ export const checkRooms = (
     return [];
   }
   return missing.map((r) =>
-    issue(
-      [...at, r],
-      needed
-        ? "Tell us about the home's rooms"
-        : "Fill in all of the home's rooms, or none",
-    ),
+    issue([...at, r], needed ? "rooms" : "allRoomsOrNone"),
   );
 };
 
@@ -224,7 +281,7 @@ export const checkCondition = (
   fields: Pick<RequestFields, "condition">,
 ) =>
   kind === "residential" && conditionApplies && !fields.condition
-    ? [issue(["condition"], CONDITION)]
+    ? [issue(["condition"], "condition")]
     : [];
 
 // a new Property's request has the fields its kind needs
@@ -328,9 +385,7 @@ export const officeSubmission = z
     clientId: z.uuid().optional(),
     contact: contactSchema
       .extend({
-        email: z
-          .email("Enter a full email address, like name@example.com")
-          .nullish(),
+        email: email.nullish(),
       })
       .optional(),
     property: existingOrNew,
