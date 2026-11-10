@@ -129,7 +129,6 @@ const words = catalog({
       `We take the ${deposit} deposit now and the rest, ${rest}, when the clean is done.`,
     nothingNow: (total: string, how: string) =>
       `Nothing is taken now. The ${total} ${how}.`,
-    chargedWhenDone: "is charged when the clean is done",
     eachIs: (price: string) => `Each clean is ${price}. `,
     eachCharged: (price: string | null) =>
       price
@@ -226,7 +225,6 @@ const words = catalog({
       `Cobramos ahora el depósito de ${deposit} y el resto, ${rest}, cuando la limpieza esté terminada.`,
     nothingNow: (total: string, how: string) =>
       `No se cobra nada ahora. El total de ${total} ${how}.`,
-    chargedWhenDone: "se cobra cuando la limpieza esté terminada",
     eachIs: (price: string) => `Cada limpieza cuesta ${price}. `,
     eachCharged: (price: string | null) =>
       price
@@ -836,7 +834,7 @@ const oneOffPayment = (
         )
     : t.w.nothingNow(
         t.formatMoney(chosen.totalCents),
-        billed || t.w.chargedWhenDone,
+        billed || t.CHARGED_WHEN_DONE,
       );
 };
 

@@ -42,7 +42,7 @@ export const reschedule = catalog({
           }
           return onPlan
             ? `As your second late move, it has a ${fee} late cancellation fee, which ${weeklyBill ? `${bills.en.ON_WEEKS_BILL} with the price` : "is charged with the price when the clean is done"}.`
-            : `As your second late move, your ${fee} deposit is kept as a late cancellation fee, and the full price ${weeklyBill ? bills.en.ON_WEEKS_BILL : "is charged when the clean is done"}.`;
+            : `As your second late move, your ${fee} deposit is kept as a late cancellation fee, and the full price ${weeklyBill ? bills.en.ON_WEEKS_BILL : bills.en.CHARGED_WHEN_DONE}.`;
       }
     },
   },
@@ -66,8 +66,8 @@ export const reschedule = catalog({
               : "Su depósito ya se conservó por una reprogramación tardía anterior, así que no hay nada más que pagar.";
           }
           return onPlan
-            ? `Como es su segunda reprogramación tardía, tiene un cargo de ${fee} por cancelación tardía, que ${weeklyBill ? `${bills.es.ON_WEEKS_BILL} con el precio` : "se cobra con el precio cuando la limpieza está terminada"}.`
-            : `Como es su segunda reprogramación tardía, su depósito de ${fee} se conserva como cargo por cancelación tardía, y el precio completo ${weeklyBill ? bills.es.ON_WEEKS_BILL : "se cobra cuando la limpieza está terminada"}.`;
+            ? `Como es su segunda reprogramación tardía, tiene un cargo de ${fee} por cancelación tardía, que ${weeklyBill ? `${bills.es.ON_WEEKS_BILL} con el precio` : "se cobra con el precio cuando la limpieza esté terminada"}.`
+            : `Como es su segunda reprogramación tardía, su depósito de ${fee} se conserva como cargo por cancelación tardía, y el precio completo ${weeklyBill ? bills.es.ON_WEEKS_BILL : bills.es.CHARGED_WHEN_DONE}.`;
       }
     },
   },

@@ -8,6 +8,8 @@ import {
   expectAccessible,
   offerJob,
   quoteSent,
+  requestReschedule,
+  setClock,
   setLanguage,
   signedInAs,
   signInLinkFor,
@@ -168,6 +170,36 @@ test("a Client reading in Spanish moves a clean, then cancels it, the API answer
   await expect(page.getByRole("region", { name: "Cancelada" })).toBeVisible();
   expect((await emailsTo(casey.email)).at(-1)!.subject).toBe(
     "Your clean is cancelled",
+  );
+});
+
+test("a Client reading in Spanish sees what a second late move costs", async ({
+  page,
+}) => {
+  const job = await bookedJob(page);
+  // Sunday 3pm: the clean, on Monday at 9am, is less than 24 hours away
+  await setClock("2026-01-11T20:00:00Z");
+  // the first late move, free, which the Office confirms
+  await requestReschedule(job.id, {
+    date: "2026-01-12",
+    time: "10:00",
+    cost: "free_late",
+  });
+  await signedInAs(page, olive.email);
+  await page.goto(`/office/jobs/${job.id}`);
+  await page.getByRole("button", { name: "Answer" }).click();
+  await page
+    .getByRole("dialog", { name: "Move this job?" })
+    .getByRole("button", { name: "Confirm move" })
+    .click();
+  await expect(page.getByText("Job moved")).toBeVisible();
+
+  await signedInAs(page, casey.email);
+  await page.goto(`/portal/jobs/${job.id}`);
+  await expect(
+    page.getByRole("region", { name: "¿Necesita otra hora?" }),
+  ).toContainText(
+    /se conserva como cargo por cancelación tardía, y el precio completo se cobra cuando la limpieza esté terminada\./,
   );
 });
 
