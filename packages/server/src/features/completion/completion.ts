@@ -32,7 +32,7 @@ import { email, notify } from "../../services/email/index.ts";
 import {
   assignmentStatusOf,
   mustBeConfirmed,
-  NOT_STARTED,
+  notStarted,
 } from "../assignments/crew.ts";
 import { weeklyBillOfJob } from "../bills/billed-weekly.ts";
 import {
@@ -87,9 +87,9 @@ import {
 import { monitoring } from "../../services/monitoring/index.ts";
 import { hoursOnSiteOf } from "../jobs/jobs.ts";
 
-// the Office's and Cleaners' words (#305), and a Charge's item, a record
-// the Office reads too, until it's worded as it's read (#395)
-const { adjustmentItem, NOT_ALL_CONFIRMED } = messages.en;
+// a Charge's item, a record the Office reads too, until it's worded as
+// it's read (#395); the Office's words
+const { adjustmentItem } = messages.en;
 
 const { formatMoney } = formats.en;
 
@@ -227,11 +227,11 @@ export const completeJob = async (
       throw new ConflictError(whyNotBooked(job!.status, "completed"));
     }
     if (job!.startsAt > now) {
-      throw new ConflictError(NOT_STARTED);
+      throw new ConflictError(notStarted());
     }
     const status = (await assignmentStatusOf([job!], tx)).get(jobId);
     if (status !== "assigned") {
-      throw new ConflictError(NOT_ALL_CONFIRMED);
+      throw new ConflictError(messages[currentLanguage()].NOT_ALL_CONFIRMED);
     }
 
     const [property] = await tx

@@ -5,6 +5,8 @@ import type {
   PriceBreakdown,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
+import { catalog } from "@empire-cleaning/models";
+import { currentLanguage } from "#services/request";
 import { ConflictError } from "../../middleware/errors.ts";
 import { offeredWith } from "../price-list/price-list.ts";
 import {
@@ -85,6 +87,21 @@ export const quotedJobs = async (
     }),
   );
 };
+
+// what a Cleaner reporting extras is told, in the request's language, tú in
+// Spanish (ADR-0025)
+const words = catalog({
+  en: {
+    ONCE: "Report each extra once.",
+    NOT_ON_JOB: "That extra isn't on this job.",
+    CANT_ADD: "That extra can't be added to this job.",
+  },
+  es: {
+    ONCE: "Indica cada adicional una sola vez.",
+    NOT_ON_JOB: "Ese adicional no está en este trabajo.",
+    CANT_ADD: "Ese adicional no se puede agregar a este trabajo.",
+  },
+});
 
 // a Job to be priced from a Quote it hasn't got
 export const NO_QUOTE = "This job has no quote to price it from.";
@@ -185,7 +202,7 @@ export const priceReports = async (
     }
 
     if (seen.has(report.addOnKey)) {
-      throw new ConflictError("Report each extra once.");
+      throw new ConflictError(words[currentLanguage()].ONCE);
     }
     seen.add(report.addOnKey);
     const onQuote = suggested.addOns.find((a) => a.key === report.addOnKey);
@@ -199,10 +216,9 @@ export const priceReports = async (
                 a.key === report.addOnKey && offeredWith(a, quoted.serviceKey),
             );
     if (!addOn) {
+      const w = words[currentLanguage()];
       throw new ConflictError(
-        report.kind === "add_on_not_done"
-          ? "That extra isn't on this job."
-          : "That extra can't be added to this job.",
+        report.kind === "add_on_not_done" ? w.NOT_ON_JOB : w.CANT_ADD,
       );
     }
     return {
