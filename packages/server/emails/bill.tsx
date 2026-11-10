@@ -1,6 +1,15 @@
 import { billEmail } from "../src/features/bills/emails.ts";
 import { preview } from "../src/services/email/preview.tsx";
-import { client, jobId, lang } from "./samples.ts";
+import { clean, client, jobId, lang } from "./samples.ts";
+
+// a line for each thing a Bill can bill
+const line = {
+  corrected: false,
+  fee: null,
+  change: null,
+  clean,
+  creditFrom: null,
+};
 
 export default preview(
   billEmail(lang, {
@@ -18,8 +27,27 @@ export default preview(
       totalCents: 64800,
       taxCents: 5351,
       lines: [
-        { label: "Commercial clean, Monday, January 5", amountCents: 32400 },
-        { label: "Commercial clean, Thursday, January 8", amountCents: 32400 },
+        { ...line, key: "price", amountCents: 32400 },
+        {
+          ...line,
+          key: "adjustment:1",
+          change: {
+            kind: "add_on_done",
+            addOn: { name: "Inside the oven", nameEs: "Dentro del horno" },
+            hours: null,
+          },
+          amountCents: 3000,
+        },
+        { ...line, key: "deposit", amountCents: -8100 },
+        { ...line, key: "fee", fee: "cancelled", amountCents: 4000 },
+        { ...line, key: "price", corrected: true, amountCents: -2000 },
+        {
+          ...line,
+          key: "credit",
+          clean: null,
+          creditFrom: "EC-000011",
+          amountCents: -1000,
+        },
       ],
     },
     occasion: "made",

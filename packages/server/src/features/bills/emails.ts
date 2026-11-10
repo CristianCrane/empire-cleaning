@@ -19,6 +19,7 @@ import {
   messages,
 } from "@empire-cleaning/models";
 import type { Settled } from "../completion/balance.ts";
+import { changeLabel, type Changed } from "../completion/emails.ts";
 import { cardOf } from "../payments/emails.ts";
 import { unpaidKind } from "../payments/unpaid.ts";
 
@@ -45,7 +46,61 @@ export type BillToSend = {
   voidReason: string | null;
   totalCents: number;
   taxCents: number;
-  lines: { label: string; amountCents: number }[];
+  lines: LineToSay[];
+};
+
+// A Bill's line, as its words are made from it (#395): its key, whether it
+// corrects an earlier Bill, a fee's Job status, a price change (its Add-on
+// in both languages), its Job as an email gives it (none for a credit) and
+// the Bill a credit is from
+export type LineToSay = {
+  key: string;
+  corrected: boolean;
+  fee: "cancelled" | "no_access" | null;
+  change: Changed | null;
+  clean: Clean | null;
+  creditFrom: string | null;
+  amountCents: number;
+};
+
+// the words around a line's Job, by what it is
+const lineWords = catalog({
+  en: {
+    corrected: (line: string) => `Corrected: ${line}`,
+    floor: (what: string) => `The price can't go below $0: ${what}`,
+    deposit: (what: string) => `Deposit paid: ${what}`,
+    paid: (what: string) => `Already paid: ${what}`,
+    credit: (number: string) => `Credit from ${number}`,
+  },
+  es: {
+    corrected: (line: string) => `Corrección: ${line}`,
+    floor: (what: string) => `El precio no puede bajar de $0: ${what}`,
+    deposit: (what: string) => `Depósito pagado: ${what}`,
+    paid: (what: string) => `Ya pagado: ${what}`,
+    credit: (number: string) => `Crédito de ${number}`,
+  },
+});
+
+// A line in `lang`, for the Bill's page and its email: "Deep Clean at 41-12
+// Austin St, 4B, 11375, Monday, January 12 at 9:00 AM", "Inside the oven,
+// not done: …", "Corrected: Late cancellation fee: …", "Credit from
+// EC-000011"
+export const lineLabel = (lang: Language, line: LineToSay) => {
+  const w = lineWords[lang];
+  const kind = line.key.startsWith("adjustment:") ? "adjustment" : line.key;
+  const what = () => jobNamed(lang, { clean: line.clean!, fee: null });
+  const said: Record<string, () => string> = {
+    price: what,
+    adjustment: () => `${changeLabel(lang, line.change!)}: ${what()}`,
+    floor: () => w.floor(what()),
+    reschedule_fee: () => `${messages[lang].LATE_MOVE_FEE}: ${what()}`,
+    fee: () => jobNamed(lang, { clean: line.clean!, fee: line.fee }),
+    deposit: () => w.deposit(what()),
+    paid: () => w.paid(what()),
+    credit: () => w.credit(line.creditFrom!),
+  };
+  const words = said[kind]!();
+  return line.corrected ? w.corrected(words) : words;
 };
 
 // what a Bill email says, each subject first and then its opening
@@ -363,10 +418,12 @@ export const billEmail = (
           ? [{ label: w.DUE_BY, value: formatLongDay(bill.dueOn) }]
           : []),
       ]),
-      // its lines as the Bill keeps them, English until #395
       amounts(
         lang,
-        bill.lines.map((l): [string, number] => [l.label, l.amountCents]),
+        bill.lines.map((l): [string, number] => [
+          lineLabel(lang, l),
+          l.amountCents,
+        ]),
         [w.TOTAL, bill.totalCents],
       ),
       paragraph(w.taxIn(formatMoney(bill.taxCents))),
@@ -388,7 +445,7 @@ export type SettledJob = {
 
 // a Job, as its lines on a Bill name it, and a fee for one that didn't
 // happen: "Deep Clean at 41-12 Austin St, 4B, 11375, Monday, January 12 at
-// 9:00 AM". The Office's, and a Bill's lines (#395), in English
+// 9:00 AM"
 export const jobNamed = (
   lang: Language,
   { clean, fee }: { clean: Clean; fee: SettledJob["fee"] },

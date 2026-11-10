@@ -1,7 +1,9 @@
 import {
   date,
+  boolean,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   smallint,
@@ -14,6 +16,7 @@ import {
 import { timestamps } from "../../db/timestamps.ts";
 import { accounts } from "../auth/auth.schema.ts";
 import { billPayment, clients } from "../clients/clients.schema.ts";
+import type { ReportedChange } from "../completion/completion.schema.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
 
 // due until it's paid, or voided by Office Staff; processing while a bank
@@ -111,7 +114,9 @@ export const bills = pgTable(
 // Adjustment, a fee, a Deposit already paid coming off, or a correction to
 // one billed before; or the credit from an earlier Bill. A Job's line has a
 // key saying which of these it is (e.g. "price", "adjustment:<id>"), so each
-// Bill bills only what changed since the last.
+// Bill bills only what changed since the last. It keeps what happened, not
+// words: they're made as it's read, in the reader's language (#395), from
+// its key, its Job, these and its Bill's credit.
 export const billLines = pgTable(
   "bill_lines",
   {
@@ -122,7 +127,12 @@ export const billLines = pgTable(
     position: smallint("position").notNull(),
     jobId: uuid("job_id").references(() => jobs.id, { onDelete: "restrict" }),
     key: text("key").notNull(),
-    label: text("label").notNull(),
+    // a correction to what an earlier Bill billed for this key
+    corrected: boolean("corrected").notNull().default(false),
+    // a "fee" line's: the Job's status it was for
+    fee: text("fee").$type<"cancelled" | "no_access">(),
+    // an "adjustment:<id>" line's price change, as it may be taken off later
+    change: jsonb("change").$type<ReportedChange>(),
     amountCents: integer("amount_cents").notNull(),
     taxCents: integer("tax_cents").notNull(),
     ...timestamps,

@@ -118,6 +118,23 @@ const settlings: Settled[] = [
   { ...nothing, failure: "processing" },
   { ...nothing, billed: true },
 ];
+// each kind of price change
+const changes = [
+  { kind: "extra_time" as const, addOn: null, hours: 1 },
+  { kind: "add_on_done" as const, addOn: oven, hours: null },
+  { kind: "add_on_not_done" as const, addOn: oven, hours: null },
+];
+const [changed] = changes;
+
+// a Bill's line, of a key
+const line = {
+  corrected: false,
+  fee: null,
+  change: null,
+  clean,
+  creditFrom: null,
+  amountCents: 32400,
+};
 const bill: BillToSend = {
   id: jobId,
   number: "EC-000012",
@@ -130,7 +147,16 @@ const bill: BillToSend = {
   voidReason: null,
   totalCents: 64800,
   taxCents: 5351,
-  lines: [{ label: address, amountCents: 64800 }],
+  // every kind of line a Bill words
+  lines: [
+    ...["price", "floor", "reschedule_fee", "deposit", "paid"].flatMap((key) =>
+      [false, true].map((corrected) => ({ ...line, key, corrected })),
+    ),
+    ...changes.map((change) => ({ ...line, key: "adjustment:1", change })),
+    { ...line, key: "fee", fee: "cancelled" as const },
+    { ...line, key: "fee", fee: "no_access" as const },
+    { ...line, key: "credit", clean: null, creditFrom: "EC-000011" },
+  ],
 };
 const settledJob = (settled: Settled): SettledJob => ({
   jobId,
@@ -170,13 +196,6 @@ const visit = {
   minutes: 30,
   place: "home" as const,
 };
-// each kind of price change
-const changes = [
-  { kind: "extra_time" as const, addOn: null, hours: 1 },
-  { kind: "add_on_done" as const, addOn: oven, hours: null },
-  { kind: "add_on_not_done" as const, addOn: oven, hours: null },
-];
-const [changed] = changes;
 
 // a Job open to a Cleaner, as the Cleaners Needed email lists it
 const needed = (crewSize: number, hoursOnSite: number) => ({

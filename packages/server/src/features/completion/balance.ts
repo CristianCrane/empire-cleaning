@@ -23,6 +23,7 @@ import {
   paymentMethods,
   refunds,
   type Charge,
+  type ChargeItem,
 } from "../payments/payments.schema.ts";
 import { nowTheirs, NOT_SETTLED, unpaidOf } from "../payments/unpaid.ts";
 import { properties } from "../properties/properties.schema.ts";
@@ -256,7 +257,7 @@ export const settleJob = async (
   jobId: string,
   // the one change to its price that moved this money, by name, for the
   // Client's Payments page to say
-  item: string | null = null,
+  item: ChargeItem | null = null,
 ): Promise<Settled> =>
   db.transaction(async (tx) => {
     const [job] = await tx
@@ -353,7 +354,7 @@ export const settleJob = async (
  */
 export const settleAfterChange = async (
   jobId: string,
-  item: string | null = null,
+  item: ChargeItem | null = null,
 ): Promise<Settled> => {
   try {
     return await settleJob(jobId, item);

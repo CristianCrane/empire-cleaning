@@ -32,7 +32,6 @@ import {
   timeOf,
   catalog,
   type Language,
-  messages,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import env from "../../env.ts";
@@ -45,6 +44,8 @@ import {
   chargedPerCleanEmail,
   creditRefundedEmail,
   jobNamed,
+  lineLabel,
+  type LineToSay,
   type Occasion,
   type PlanNote,
   type SettledJob,
@@ -52,7 +53,10 @@ import {
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { officeClientView } from "../clients/clients.ts";
 import { counts, paymentOf, settleAfterChange } from "../completion/balance.ts";
-import { adjustments } from "../completion/completion.schema.ts";
+import {
+  adjustments,
+  reportedChange,
+} from "../completion/completion.schema.ts";
 import { NO_QUOTE } from "../completion/pricing.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { REMINDER_TIME } from "../jobs/reminders.ts";
@@ -69,7 +73,9 @@ import {
   refunds,
 } from "../payments/payments.schema.ts";
 import { LATE, nowTheirs, unpaidKind, unpaidOf } from "../payments/unpaid.ts";
-import { properties, type Property } from "../properties/properties.schema.ts";
+import { properties } from "../properties/properties.schema.ts";
+import { currentPriceList, namedByKey } from "../price-list/price-list.ts";
+import { changedOf } from "../completion/emails.ts";
 import { jobQuotes } from "../quotes/job-quotes.ts";
 import { anyOnHold, holdOrResumePlan } from "../service-plans/on-hold.ts";
 import {
@@ -80,15 +86,6 @@ import { billedOf, isBilledWeekly, owesOnBill } from "./billed-weekly.ts";
 import { billLines, bills, type Bill, type BillLine } from "./bills.schema.ts";
 import { cleanOf } from "../services/services.ts";
 import { log, monitoring } from "../../services/monitoring/index.ts";
-
-// A Bill's lines are a record, in English for now: the Office reads them
-// too, and their Client's Spanish waits for them being worded as they're
-// read (#395)
-const { adjustmentLabel, feeName, LATE_MOVE_FEE } = messages.en;
-
-// what a Job is, as its lines on a Bill name it, before what each line is
-const whatOf = async (job: Job, property: Property) =>
-  jobNamed("en", { clean: await cleanOf(job, property), fee: null });
 
 // a credit no Bill follows within this long is refunded (ADR-0016)
 const CREDIT_REFUND_DAYS = 30;
@@ -101,10 +98,9 @@ export const billNumber = (number: number) =>
 
 // ---- what a Bill bills ----
 
-// one thing billed for a Job, tax included, by the key its lines carry
-type Part = {
-  key: string;
-  label: string;
+// one thing billed for a Job, tax included, by the key its lines carry,
+// with what its words are made from: a fee's Job status, a price change
+type Part = Pick<BillLine, "key" | "fee" | "change"> & {
   amountCents: number;
   taxCents: number;
 };
@@ -126,11 +122,7 @@ const taxShare = (
  * was switched on. A Job that owes nothing a Bill bills, as when its
  * completion was undone, should have billed nothing.
  */
-const partsOf = async (
-  job: Job,
-  property: Property,
-  tx: Tx | typeof db,
-): Promise<Part[]> => {
+const partsOf = async (job: Job, tx: Tx | typeof db): Promise<Part[]> => {
   if (!owesOnBill(job)) return [];
   // one after the other, as a transaction's queries share one connection
   // (ADR-0024)
@@ -175,10 +167,10 @@ const partsOf = async (
       );
 
   const { option } = quoted;
-  const what = await whatOf(job, property);
-  const share = (key: string, label: string, cents: number): Part => ({
+  const none = { fee: null, change: null };
+  const share = (key: string, cents: number): Part => ({
     key,
-    label,
+    ...none,
     amountCents: cents,
     taxCents: taxShare(cents, option),
   });
@@ -186,13 +178,14 @@ const partsOf = async (
   const priced: Part[] = [
     {
       key: "price",
-      label: what,
+      ...none,
       amountCents: option.totalCents,
       taxCents: option.taxCents,
     },
     ...rows.filter(counts).map((a) => ({
       key: `adjustment:${a.id}`,
-      label: `${adjustmentLabel(a)}: ${what}`,
+      fee: null,
+      change: reportedChange(a),
       amountCents: a.totalCents,
       taxCents: a.taxCents,
     })),
@@ -206,7 +199,7 @@ const partsOf = async (
   if (below.amountCents < 0) {
     priced.push({
       key: "floor",
-      label: `The price can't go below $0: ${what}`,
+      ...none,
       amountCents: -below.amountCents,
       taxCents: -below.taxCents,
     });
@@ -217,27 +210,19 @@ const partsOf = async (
       ? [
           ...priced,
           ...(job.rescheduleFeeCents > 0
-            ? [
-                share(
-                  "reschedule_fee",
-                  `${LATE_MOVE_FEE}: ${what}`,
-                  job.rescheduleFeeCents,
-                ),
-              ]
+            ? [share("reschedule_fee", job.rescheduleFeeCents)]
             : []),
         ]
       : [
-          share(
-            "fee",
-            `${feeName[job.status as "cancelled" | "no_access"]}: ${what}`,
-            job.feeCents ?? 0,
-          ),
+          {
+            ...share("fee", job.feeCents ?? 0),
+            fee: job.status as "cancelled" | "no_access",
+          },
         ];
   const deposit = net("deposit");
-  if (deposit !== 0)
-    parts.push(share("deposit", `Deposit paid: ${what}`, -deposit));
+  if (deposit !== 0) parts.push(share("deposit", -deposit));
   const paid = net("other");
-  if (paid !== 0) parts.push(share("paid", `Already paid: ${what}`, -paid));
+  if (paid !== 0) parts.push(share("paid", -paid));
   return parts;
 };
 
@@ -250,30 +235,26 @@ type NewLine = Omit<
 // billed for it already, so nothing is billed twice; whatever was billed and
 // is no longer owed comes off, as a correction. Nothing for a Job never
 // billed that nets to nothing, such as a fee its Deposit already covers.
-const linesFor = async (
-  job: Job,
-  property: Property,
-  tx: Tx | typeof db,
-): Promise<NewLine[]> => {
-  const parts = await partsOf(job, property, tx);
+const linesFor = async (job: Job, tx: Tx | typeof db): Promise<NewLine[]> => {
+  const parts = await partsOf(job, tx);
   const before = await tx
     .select({
       key: billLines.key,
-      label: billLines.label,
+      fee: billLines.fee,
+      change: billLines.change,
       amountCents: billLines.amountCents,
       taxCents: billLines.taxCents,
     })
     .from(billLines)
     .innerJoin(bills, eq(bills.id, billLines.billId))
     .where(and(eq(billLines.jobId, job.id), ne(bills.status, "void")));
-  const billed = new Map<
-    string,
-    { label: string; amountCents: number; taxCents: number }
-  >();
+  const billed = new Map<string, Part>();
   for (const line of before) {
     const known = billed.get(line.key);
     billed.set(line.key, {
-      label: known?.label ?? line.label,
+      key: line.key,
+      fee: known?.fee ?? line.fee,
+      change: known?.change ?? line.change,
       amountCents: (known?.amountCents ?? 0) + line.amountCents,
       taxCents: (known?.taxCents ?? 0) + line.taxCents,
     });
@@ -286,11 +267,14 @@ const linesFor = async (
     const was = billed.get(key);
     const amountCents = (part?.amountCents ?? 0) - (was?.amountCents ?? 0);
     if (amountCents === 0) continue;
-    const label = part?.label ?? was!.label;
+    // a part no longer owed (an Adjustment taken off) is said as it was
+    const said = part ?? was!;
     lines.push({
       jobId: job.id,
       key,
-      label: was ? `Corrected: ${label}` : label,
+      corrected: was !== undefined,
+      fee: said.fee,
+      change: said.change,
       amountCents,
       taxCents: (part?.taxCents ?? 0) - (was?.taxCents ?? 0),
     });
@@ -374,9 +358,9 @@ const makeBill = async (
       .orderBy(asc(jobs.startsAt), asc(jobs.id))
       .for("update", { of: jobs });
     const lines: NewLine[] = [];
-    for (const { job, property } of candidates) {
+    for (const { job } of candidates) {
       if (!isBilledWeekly(job, client, await billedOf(job.id, tx))) continue;
-      lines.push(...(await linesFor(job, property, tx)));
+      lines.push(...(await linesFor(job, tx)));
     }
     if (lines.length === 0) return null;
 
@@ -385,7 +369,9 @@ const makeBill = async (
       lines.push({
         jobId: null,
         key: "credit",
-        label: `Credit from ${billNumber(credit.bill.number)}`,
+        corrected: false,
+        fee: null,
+        change: null,
         amountCents: -credit.cents,
         taxCents: 0,
       });
@@ -1305,12 +1291,55 @@ const toSummary = (
   paidVia: bill.paidVia,
 });
 
-const linesOf = (billId: string) =>
-  db
+// A Bill's lines with what their words are made from (lineLabel): each
+// Job as an email gives it, each price change's Add-on in both languages,
+// and the Bill a credit is from
+const linesToSay = async (bill: Bill) => {
+  const lines = await db
     .select()
     .from(billLines)
-    .where(eq(billLines.billId, billId))
+    .where(eq(billLines.billId, bill.id))
     .orderBy(asc(billLines.position));
+  const jobIds = [...new Set(lines.flatMap((l) => (l.jobId ? [l.jobId] : [])))];
+  const [rows, list, [from]] = await Promise.all([
+    jobIds.length === 0
+      ? []
+      : db
+          .select({ job: jobs, property: properties })
+          .from(jobs)
+          .innerJoin(properties, eq(properties.id, jobs.propertyId))
+          .where(inArray(jobs.id, jobIds)),
+    currentPriceList(),
+    bill.creditFromBillId
+      ? db
+          .select({ number: bills.number })
+          .from(bills)
+          .where(eq(bills.id, bill.creditFromBillId))
+      : [],
+  ]);
+  const cleans = new Map(
+    await Promise.all(
+      rows.map(
+        async ({ job, property }) =>
+          [job.id, await cleanOf(job, property)] as const,
+      ),
+    ),
+  );
+  const named = namedByKey(list.addOns);
+  return lines.map(
+    (l): LineToSay & { jobId: string | null; taxCents: number } => ({
+      jobId: l.jobId,
+      key: l.key,
+      corrected: l.corrected,
+      fee: l.fee,
+      change: l.change && changedOf(named, l.change),
+      clean: l.jobId ? cleans.get(l.jobId)! : null,
+      creditFrom: from ? billNumber(from.number) : null,
+      amountCents: l.amountCents,
+      taxCents: l.taxCents,
+    }),
+  );
+};
 
 // a Bill with its lines; the Office's own, or one of the Client's
 export const billView = async (
@@ -1331,9 +1360,10 @@ export const billView = async (
   const { bill, client } = found;
   return {
     ...toSummary(bill, client),
-    lines: (await linesOf(billId)).map((l) => ({
+    // worded in the reply's language: the Office's English, the Client's own
+    lines: (await linesToSay(bill)).map((l) => ({
       jobId: l.jobId,
-      label: l.label,
+      label: lineLabel(currentLanguage(), l),
       amountCents: l.amountCents,
       taxCents: l.taxCents,
     })),
@@ -1387,7 +1417,7 @@ const sendBill = async (
     .leftJoin(paymentMethods, eq(paymentMethods.clientId, clients.id))
     .where(eq(bills.id, billId));
   const { bill, client, method } = found!;
-  const lines = await linesOf(billId);
+  const lines = await linesToSay(bill);
   const billIn = (lang: Language) =>
     billEmail(lang, {
       name: client.name,

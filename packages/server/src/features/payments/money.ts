@@ -22,6 +22,7 @@ import {
   refundAttempts,
   refunds,
   type Charge,
+  type ChargeItem,
   type ChargeAttempt,
   type PaymentMethodRow,
   type RefundAttempt,
@@ -225,7 +226,7 @@ const record = async (
   tx: Tx,
   chargeFor: ChargeFor,
   taken: ChargeAttempt,
-  item: string | null,
+  item: ChargeItem | null,
 ) => {
   const [charge] = await tx
     .insert(charges)
@@ -287,7 +288,7 @@ export const chargeSaved = async (
     description: string;
     for: ChargeFor;
     // the one change to the price it's for, by name, if it is
-    item?: string | null;
+    item?: ChargeItem | null;
   },
 ): Promise<Taken> => {
   if (!method) return { ok: false, reason: NO_CARD };
@@ -531,7 +532,7 @@ type RefundFor = {
   // what an earlier one gave back
   for: string;
   // the one change to the price it gives back for, by name, if it is
-  item?: string | null;
+  item?: ChargeItem | null;
   // when `from` are Bills' Charges: the Job it gives back for, or the Bill
   // whose credit it is
   jobId?: string | null;

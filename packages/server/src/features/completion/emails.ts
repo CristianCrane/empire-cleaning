@@ -31,8 +31,27 @@ export type Changed = Omit<
   "addOnName"
 > & { addOn: Named | null };
 
+// a price change a record keeps (an Adjustment, a Bill's line), for an
+// email: its Add-on in both languages, by `named` (namedByKey), the name it
+// was reported with being the English
+export const changedOf = <
+  T extends Omit<Changed, "addOn"> & {
+    addOnKey: string | null;
+    addOnName: string | null;
+  },
+>(
+  named: (addOn: { key: string; name: string }) => Named,
+  a: T,
+): T & Changed => ({
+  ...a,
+  addOn:
+    a.addOnName === null
+      ? null
+      : named({ key: a.addOnKey ?? "", name: a.addOnName }),
+});
+
 // what the price change was, in `lang`: "Inside the oven, not done"
-const changeLabel = (lang: Language, a: Changed) =>
+export const changeLabel = (lang: Language, a: Changed) =>
   messages[lang].adjustmentLabel({
     ...a,
     addOnName: a.addOn && inLanguage(lang, a.addOn).name,

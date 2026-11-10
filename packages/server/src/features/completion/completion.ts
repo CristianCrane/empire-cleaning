@@ -63,7 +63,12 @@ import {
   totalOf,
   type Settled,
 } from "./balance.ts";
-import { adjustments, type Adjustment } from "./completion.schema.ts";
+import {
+  adjustments,
+  reportedChange,
+  type Adjustment,
+} from "./completion.schema.ts";
+import type { ChargeItem } from "../payments/payments.schema.ts";
 import {
   addOnsOfVersions,
   isReduction,
@@ -81,6 +86,7 @@ import {
 } from "../price-list/price-list.ts";
 import {
   approvedEmail,
+  changedOf,
   completionUndoneEmail,
   correctedEmail,
   feeTakenEmail,
@@ -91,10 +97,6 @@ import {
 } from "./emails.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
 import { hoursOnSiteOf } from "../jobs/jobs.ts";
-
-// a Charge's item, a record the Office reads too, until it's worded as
-// it's read (#395); the Office's words
-const { adjustmentItem } = messages.en;
 
 const { formatMoney } = formats.en;
 
@@ -319,13 +321,7 @@ const sendReceipt = async (jobId: string, settled: Settled) => {
 // to name in its own; the name it was reported with is the English
 const forEmail = async <T extends Adjustment>(rows: T[]) => {
   const named = namedByKey((await currentPriceList()).addOns);
-  return rows.map((a) => ({
-    ...a,
-    addOn:
-      a.addOnName === null
-        ? null
-        : named({ key: a.addOnKey ?? "", name: a.addOnName }),
-  }));
+  return rows.map((a) => changedOf(named, a));
 };
 
 // the Add-on a price change reported, by `nameOf` (addOnNamesIn): the name
@@ -634,7 +630,7 @@ const sendCorrection = async (jobId: string, settled: Settled) => {
   );
 };
 
-const settleAfterCorrection = async (jobId: string, item: string) => {
+const settleAfterCorrection = async (jobId: string, item: ChargeItem) => {
   const settled = await settleAfterChange(jobId, item);
   await sendCorrection(jobId, settled);
   if (settled.becameUnpaid) await sendUnpaid(jobId, settled);
@@ -681,10 +677,10 @@ export const correctAdjustment = async (
       reviewedAt: clock.now(),
     })
     .where(eq(adjustments.id, adjustmentId));
-  await settleAfterCorrection(
-    jobId,
-    `${adjustmentItem(adjustment)}, price corrected`,
-  );
+  await settleAfterCorrection(jobId, {
+    ...reportedChange(adjustment),
+    how: "corrected",
+  });
 };
 
 // Office Staff take an Adjustment off, whatever its state; the difference is
@@ -692,10 +688,10 @@ export const correctAdjustment = async (
 export const removeAdjustment = async (jobId: string, adjustmentId: string) => {
   const { adjustment } = await findAdjustment(jobId, adjustmentId);
   await db.delete(adjustments).where(eq(adjustments.id, adjustmentId));
-  await settleAfterCorrection(
-    jobId,
-    `${adjustmentItem(adjustment)}, taken off`,
-  );
+  await settleAfterCorrection(jobId, {
+    ...reportedChange(adjustment),
+    how: "taken_off",
+  });
 };
 
 const completedJob = async (jobId: string) => {
@@ -984,7 +980,10 @@ export const answerAdjustment = async (
   if (!answered) throw new ConflictError(words[currentLanguage()].ANSWERED);
   if (!approve) return;
 
-  const settled = await settleAfterChange(jobId, adjustmentItem(answered));
+  const settled = await settleAfterChange(jobId, {
+    ...reportedChange(answered),
+    how: "approved",
+  });
   const { job, property, client } = await jobWithOwner(jobId);
   const payment = await paymentOf(job);
   await notify(`Receipt for Adjustment ${adjustmentId}`, async () =>

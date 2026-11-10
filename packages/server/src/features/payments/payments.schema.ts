@@ -15,8 +15,15 @@ import {
 import { timestamps } from "../../db/timestamps.ts";
 import { bills } from "../bills/bills.schema.ts";
 import { clients } from "../clients/clients.schema.ts";
+import type { ReportedChange } from "../completion/completion.schema.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
 import { servicePlans } from "../service-plans/service-plans.schema.ts";
+
+// the one change to a Job's price a payment moved for: approved, its price
+// corrected, or taken off
+export type ChargeItem = ReportedChange & {
+  how: "approved" | "corrected" | "taken_off";
+};
 
 // the Client as the payment provider knows them, made the first time they
 // pay or save a card; their Payment Methods are kept with it
@@ -74,10 +81,10 @@ export const charges = pgTable(
     }),
     kind: chargeKind("kind").notNull(),
     amountCents: integer("amount_cents").notNull(),
-    // the one change to the price it was for, by name ("Inside the fridge",
-    // "1 more hour"), when it was taken for one; kept as words, as the
-    // Adjustment may later be taken off
-    item: text("item"),
+    // the one change to the price it was for ("Inside the fridge", "1 more
+    // hour"), when it was taken for one: kept, as the Adjustment may later be
+    // taken off, and worded as it's read (#395)
+    item: jsonb("item").$type<ChargeItem>(),
     // the Payment Gateway's id for it, for refunds
     gatewayRef: text("gateway_ref").notNull(),
     chargedAt: timestamp("charged_at", { withTimezone: true }).notNull(),
@@ -108,7 +115,7 @@ export const refunds = pgTable(
       .references(() => charges.id, { onDelete: "restrict" }),
     amountCents: integer("amount_cents").notNull(),
     // as a Charge's: the one change to the price it gave back for
-    item: text("item"),
+    item: jsonb("item").$type<ChargeItem>(),
     // the Job a Bill's Charge was refunded for, which it billed: it counts
     // against what Bills took for that Job. Never set on a Job's own
     jobId: uuid("job_id").references(() => jobs.id, { onDelete: "restrict" }),
@@ -194,7 +201,7 @@ export const refundAttempts = pgTable(
     chargeId: uuid("charge_id").notNull(),
     amountCents: integer("amount_cents").notNull(),
     // as its Refund will have them
-    item: text("item"),
+    item: jsonb("item").$type<ChargeItem>(),
     jobId: uuid("job_id"),
     creditBillId: uuid("credit_bill_id"),
     status: refundAttemptStatus("status").notNull().default("pending"),
