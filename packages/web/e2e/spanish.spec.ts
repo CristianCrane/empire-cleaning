@@ -196,9 +196,10 @@ test("a Client reading in Spanish sees what a second late move costs", async ({
 
   await signedInAs(page, casey.email);
   await page.goto(`/portal/jobs/${job.id}`);
-  await expect(
-    page.getByRole("region", { name: "¿Necesita otra hora?" }),
-  ).toContainText(
+  const card = page.getByRole("region", { name: "¿Necesita otra hora?" });
+  // at the top of the page, clear of the bottom navigation
+  await card.evaluate((region) => region.scrollIntoView());
+  await expect(card).toContainText(
     /se conserva como cargo por cancelación tardía, y el precio completo se cobra cuando la limpieza esté terminada\./,
   );
 });
