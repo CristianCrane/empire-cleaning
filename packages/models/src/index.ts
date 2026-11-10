@@ -280,6 +280,9 @@ export type ClientList = {
 // where it stands. A home's history is on its own page (ADR-0011).
 export type OfficeClientView = OfficeContactDetails & {
   id: string;
+  // the language of their screens and messages, which the Office sets and
+  // phones them in (ADR-0025)
+  preferredLanguage: Language;
   // each with its open Quotes, so a caller's ask can tell which Services
   // it can be asked about for
   properties: (PropertyView & {
@@ -520,6 +523,8 @@ export type StaffInvitation = {
   name: string;
   email: string;
   roles: StaffRole[];
+  // English when not given (ADR-0025)
+  preferredLanguage?: Language;
 };
 
 export type StaffMember = {
@@ -533,6 +538,8 @@ export type StaffMember = {
   signedUp: boolean;
   // their Google profile picture, once they've signed in with Google
   imageUrl: string | null;
+  // the language of the Cleaner area and their emails (ADR-0025)
+  preferredLanguage: Language;
   createdAt: string;
 };
 

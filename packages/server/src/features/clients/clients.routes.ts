@@ -2,7 +2,12 @@ import { Router } from "express";
 import { z } from "zod";
 import { email } from "#services/email";
 import { fieldError, NotFoundError } from "../../middleware/errors.ts";
-import { byId, keepUnder, validate } from "../../middleware/validation.ts";
+import {
+  byId,
+  keepUnder,
+  language,
+  validate,
+} from "../../middleware/validation.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { contactSchema } from "../quotes/asking.validation.ts";
 import {
@@ -68,8 +73,9 @@ const refuseOthersEmail = async (clientId: string, email: string | null) => {
   }
 };
 
-// Office Staff correcting a Client's contact details and business name, or
-// adding the email of one they entered without it; an email can't be removed
+// Office Staff correcting a Client's contact details, business name and
+// Preferred Language, or adding the email of one they entered without it;
+// an email can't be removed
 router.patch(
   "/:id",
   authorize("office_staff"),
@@ -82,6 +88,7 @@ router.patch(
         .trim()
         .max(200, keepUnder(200, "the business name"))
         .nullish(),
+      preferredLanguage: language.optional(),
     }),
   }),
   async (req, res) => {

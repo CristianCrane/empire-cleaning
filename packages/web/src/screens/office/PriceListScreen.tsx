@@ -314,6 +314,13 @@ function AddOnDialog({
           isRequired
           autoFocus
         />
+        <TextField
+          label="Name in Spanish (optional)"
+          name={`addOns.${index}.nameEs`}
+          description="Shown to clients reading in Spanish. Left blank, they see the English."
+          value={addOn.nameEs ?? ""}
+          onChange={(nameEs) => set({ nameEs })}
+        />
         <NumberField
           label="Hours"
           name={`addOns.${index}.hours`}
@@ -453,6 +460,13 @@ function PremisesTypeDialog({
           onChange={(name) => set({ name })}
           isRequired
           autoFocus
+        />
+        <TextField
+          label="In Spanish (optional)"
+          name={`premisesTypes.${index}.nameEs`}
+          description="Shown to clients reading in Spanish. Left blank, they see the English."
+          value={premisesType.nameEs ?? ""}
+          onChange={(nameEs) => set({ nameEs })}
         />
         <NumberField
           label="Multiplier (×)"

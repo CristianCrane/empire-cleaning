@@ -7,8 +7,8 @@ import {
 } from "../../services/email/blocks.ts";
 import { firstNameOf } from "../../services/email/format.ts";
 
-// in the invitee's Preferred Language, English until the Office sets it
-// (#306); tú in Spanish, a draft the owner checks (#206)
+// in the invitee's Preferred Language, which the Office sets as it invites
+// them; tú in Spanish, a draft the owner checks (#206)
 const words = catalog({
   en: {
     subject: "You're invited to join Empire Cleaning",
