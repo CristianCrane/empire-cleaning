@@ -22,7 +22,6 @@ import {
   Button,
   ButtonLink,
   Card,
-  Checkbox,
   Dialog,
   DialogTrigger,
   Form,
@@ -37,7 +36,7 @@ import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import { dayOfInstant, formatHours, roleLabel, today } from "../format.ts";
 import { Fact } from "../Fact.tsx";
-import { MemberStatus } from "./StaffScreen.tsx";
+import { MemberStatus, StaffFields } from "./StaffScreen.tsx";
 
 const {
   formatDateTime,
@@ -132,11 +131,6 @@ function EditStaff({ member }: { member: StaffDetail }) {
   const [roles, setRoles] = useState<StaffRole[]>(member.roles);
   const action = useAction("The changes weren't saved. Please try again.");
 
-  const toggle = (role: StaffRole, on: boolean) =>
-    setRoles((current) =>
-      on ? [...current, role] : current.filter((r) => r !== role),
-    );
-
   return (
     <DialogTrigger onOpenChange={(open) => open && setRoles(member.roles)}>
       <Button variant="text" size="sm">
@@ -170,24 +164,11 @@ function EditStaff({ member }: { member: StaffDetail }) {
               isRequired
               autoFocus
             />
-            <fieldset className="flex flex-col gap-1">
-              <legend className="mb-1 font-semibold">Roles</legend>
-              <Checkbox
-                isSelected={roles.includes("cleaner")}
-                onChange={(on) => toggle("cleaner", on)}
-              >
-                Cleaner: does the cleaning
-              </Checkbox>
-              <Checkbox
-                isSelected={roles.includes("office_staff")}
-                onChange={(on) => toggle("office_staff", on)}
-              >
-                Office staff: runs the business here
-              </Checkbox>
-            </fieldset>
-            {action.fieldErrors.roles && (
-              <Notice tone="danger">{action.fieldErrors.roles}</Notice>
-            )}
+            <StaffFields
+              roles={roles}
+              onRolesChange={setRoles}
+              errors={action.fieldErrors}
+            />
             {action.problem && <Notice tone="danger">{action.problem}</Notice>}
             <Actions>
               <Button variant="quiet" onPress={close}>

@@ -83,11 +83,6 @@ function InviteForm({ close }: { close: () => void }) {
   const [roles, setRoles] = useState<StaffRole[]>(["cleaner"]);
   const action = useAction("The invitation wasn't sent. Please try again.");
 
-  const toggle = (role: StaffRole, on: boolean) =>
-    setRoles((current) =>
-      on ? [...current, role] : current.filter((r) => r !== role),
-    );
-
   const invite = async (form: FormData) => {
     const ok = await action.run(
       () =>
@@ -120,6 +115,39 @@ function InviteForm({ close }: { close: () => void }) {
         autoComplete="off"
         isRequired
       />
+      <StaffFields
+        roles={roles}
+        onRolesChange={setRoles}
+        errors={action.fieldErrors}
+      />
+      {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+      <Actions>
+        <Button variant="quiet" onPress={close}>
+          Cancel
+        </Button>
+        <Button type="submit" isPending={action.isPending}>
+          Send invitation
+        </Button>
+      </Actions>
+    </Form>
+  );
+}
+
+// what an invitation and an edit both set: their roles
+export function StaffFields({
+  roles,
+  onRolesChange,
+  errors,
+}: {
+  roles: StaffRole[];
+  onRolesChange: (roles: StaffRole[]) => void;
+  errors: Record<string, string>;
+}) {
+  const toggle = (role: StaffRole, on: boolean) =>
+    onRolesChange(on ? [...roles, role] : roles.filter((r) => r !== role));
+
+  return (
+    <>
       <fieldset className="flex flex-col gap-1">
         <legend className="mb-1 font-semibold">Roles</legend>
         <Checkbox
@@ -135,18 +163,7 @@ function InviteForm({ close }: { close: () => void }) {
           Office staff: runs the business here
         </Checkbox>
       </fieldset>
-      {action.fieldErrors.roles && (
-        <Notice tone="danger">{action.fieldErrors.roles}</Notice>
-      )}
-      {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-      <Actions>
-        <Button variant="quiet" onPress={close}>
-          Cancel
-        </Button>
-        <Button type="submit" isPending={action.isPending}>
-          Send invitation
-        </Button>
-      </Actions>
-    </Form>
+      {errors.roles && <Notice tone="danger">{errors.roles}</Notice>}
+    </>
   );
 }
