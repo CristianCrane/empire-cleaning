@@ -351,12 +351,14 @@ export const setLanguage = async (page: Page, language: "en" | "es") => {
 // Content-Security-Policy (vite.config.ts) blocked anything a page loads.
 // First-time help's tours dim the page and take every press, so a test meets
 // none, as if each had been seen, unless it asks to in its own page
-// (showTours, tours.spec.ts)
+// (showTours, tours.spec.ts). Under `pnpm pr:shots`, each test ends on a
+// picture of its screen at rest (prShot)
 export const test = base.extend<{
   cleanSlate: void;
   allowedByCsp: void;
   showTours: boolean;
   toursSeen: void;
+  prShot: void;
 }>({
   cleanSlate: [
     async ({}, use) => {
@@ -380,6 +382,32 @@ export const test = base.extend<{
       );
       await use();
       expect(blocked, "blocked by the Content-Security-Policy").toEqual([]);
+    },
+    { auto: true },
+  ],
+  // the screen a test ends on as a person would see it, for `pnpm pr:shots`
+  // (packages/server/tests/e2e/shots.ts): no focus ring or hover left by the
+  // last press, no toast over it (#407, #410). Playwright's own screenshot
+  // is taken before any fixture can let go of them, so this takes its own
+  prShot: [
+    // the context, not the page, so a test with no page doesn't get one
+    async ({ context }, use, testInfo) => {
+      await use();
+      const [page] = context.pages();
+      if (!process.env.PR_SHOTS_OUT || testInfo.status !== "passed" || !page)
+        return;
+      await page.mouse.move(0, 0);
+      await page.evaluate(() => {
+        (document.activeElement as HTMLElement | null)?.blur();
+        // React Aria marks only the toast region as its top layer
+        for (const toasts of document.querySelectorAll<HTMLElement>(
+          "[data-react-aria-top-layer]",
+        ))
+          toasts.style.visibility = "hidden";
+      });
+      const path = testInfo.outputPath("pr-shot.png");
+      await page.screenshot({ path, fullPage: true });
+      await testInfo.attach("pr-shot", { path, contentType: "image/png" });
     },
     { auto: true },
   ],
