@@ -41,7 +41,7 @@ As it looks deep, it also flags a string under a branch that isn't words, such a
 
 ## `catalog-copies`
 
-The same English in two of the screens' catalogs is a second Spanish to keep in step, and to have checked by the owner (#206, #397). A word several screens show has one home (`docs/ux.md`, Words): the portal's in `packages/web/src/screens/portal/words.ts` (`p`), the rest in `format.ts`'s `labels`, part of `screenWords`, or models' messages when the server says it too. `src/catalog-copies.ts` reads every `catalog({ en })` in `packages/web/src` and `packages/models/src/messages` (models' messages are in what a screen says, `said`) and prints each English string that's in more than one catalog, with every file and key it's in:
+The same English in two of the screens' catalogs is a second Spanish to keep in step, and to have checked by the owner (#206, #397). A word several screens show has one home (`docs/ux.md`, Words): the portal's in `packages/web/src/screens/portal/words.ts` (`p`), the Cleaner area's in `cleaner/words.ts` (`c`), the rest in `labels.ts`, part of `screenWords`, or models' messages when the server says it too. `src/catalog-copies.ts` reads every `catalog({ en })` in `packages/web/src` and `packages/models/src/messages` (models' messages are in what a screen says, `said`) and prints each English string that's in more than one catalog, with every file and key it's in:
 
 - a string, a template (its placeholders as `${…}`: `Pay bill ${n}` is `Pay bill ${…}`) and a string in a placeholder each count, under any key, in a function or through `satisfies` or `as`; one with no letter doesn't
 - the same words twice in one catalog (two states of a Quote, both "Asked for") are one place to keep in step, so aren't a copy

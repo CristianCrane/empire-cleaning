@@ -252,7 +252,7 @@ function EditAccess({ property }: { property: PropertyView }) {
         <KeyRound aria-hidden size={18} />
         {w.edit}
       </Button>
-      <Dialog title={t.p.howWeGetIn}>
+      <Dialog title={t.howWeGetIn}>
         {({ close }) => (
           <Form
             onSubmit={(e) => {

@@ -34,7 +34,6 @@ const words = catalog({
   en: {
     about: (length: string) => `about ${length}`,
     moveAsked: "Move asked",
-    siteVisit: "Site visit",
     visit: (visitor: string, length: string) =>
       `${visitor}, about ${length}, free`,
     needsOk: "Needs your OK",
@@ -48,7 +47,6 @@ const words = catalog({
   es: {
     about: (length: string) => `unas ${length}`,
     moveAsked: "Reprogramación pedida",
-    siteVisit: "Visita previa",
     visit: (visitor: string, length: string) =>
       `${visitor}, unos ${length}, gratis`,
     needsOk: "Necesita su aprobación",
@@ -109,7 +107,7 @@ const visitRow =
   (visit: ClientSiteVisit): Row => ({
     id: visit.id,
     startsAt: visit.startsAt,
-    title: t.w.siteVisit,
+    title: t.siteVisit,
     line: lineOf([
       t.formatTime(visit.startsAt),
       homes > 1 && addressOf(visit.property),

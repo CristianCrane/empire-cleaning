@@ -55,10 +55,13 @@ import {
 import { reportUnexpected } from "../monitoring.ts";
 import { useAction } from "./action.ts";
 import { useTours } from "./run-tours.ts";
+import { cleanerWords } from "./cleaner/words.ts";
 import { portalWords } from "./portal/words.ts";
 import { said } from "./words.ts";
 
-// the Account menu's words, in every area's language (ADR-0025)
+// the Account menu's words, in every area's language (ADR-0025): said to
+// Clients and Cleaners alike, so their Spanish addresses no one, neither
+// usted nor tú (docs/ux.md, Language)
 const words = catalog({
   en: {
     account: "Account",
@@ -67,7 +70,6 @@ const words = catalog({
     showTips: "Show tips again",
     tipsBack: "Tips will show again",
     tipsFailed: "Couldn't bring the tips back. Try again.",
-    offers: (n: number) => `Offers (${n})`,
   },
   es: {
     account: "Cuenta",
@@ -76,8 +78,7 @@ const words = catalog({
     showTips: "Volver a mostrar consejos",
     tipsBack: "Los consejos se volverán a mostrar",
     tipsFailed:
-      "No se pudieron volver a mostrar los consejos. Inténtelo de nuevo.",
-    offers: (n: number) => `Ofertas (${n})`,
+      "No se pudieron volver a mostrar los consejos. Se puede intentar de nuevo.",
   },
 });
 
@@ -88,8 +89,8 @@ type AreaNavItem = NavItem & { alsoCurrentFor?: string[] };
 // each area's navigation; feature tickets add their screens here. A phone's
 // tab bar holds five at most: the Office keeps the two it checks all day
 // there, the rest in its ☰ menu (#200). The Office's sections come in
-// groups of related ones, the busiest first. The portal's are in its
-// Client's language; the Office's and the Cleaner area's English (#305)
+// groups of related ones, the busiest first. The portal's and the Cleaner
+// area's are in their person's language; the Office's English
 const navFor = (lang: Language): Record<AreaId, AreaNavItem[]> => ({
   office: [
     { href: linkTo({ to: "/office" }), label: "Today", icon: LayoutDashboard },
@@ -153,13 +154,13 @@ const navFor = (lang: Language): Record<AreaId, AreaNavItem[]> => ({
   cleaner: [
     {
       href: linkTo({ to: "/cleaner" }),
-      label: "Your jobs",
+      label: cleanerWords[lang].yourJobs,
       icon: CalendarDays,
       alsoCurrentFor: ["/cleaner/jobs/"],
     },
     {
       href: linkTo({ to: "/cleaner/offers" }),
-      label: "Offers",
+      label: cleanerWords[lang].offers,
       icon: Inbox,
       alsoCurrentFor: ["/cleaner/open/"],
     },
@@ -202,8 +203,8 @@ export function AreaLayout({ area }: { area: AreaId }) {
     ({ alsoCurrentFor = [], ...item }) => ({
       ...item,
       label:
-        item.label === "Offers" && offers > 0
-          ? words[lang].offers(offers)
+        item.href === linkTo({ to: "/cleaner/offers" }) && offers > 0
+          ? cleanerWords[lang].offersCount(offers)
           : item.label,
       isCurrent:
         Boolean(matchRoute(item.href)) ||

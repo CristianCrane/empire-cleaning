@@ -13,7 +13,8 @@ import { NotFound } from "./NotFound.tsx";
 // is mangled (an id that isn't one): either way there's no such page. Anything
 // else (a server error, the connection dropping) can be tried again. No
 // details: they're no use to a Client. A failure in the app itself, not the
-// API's answer, is reported.
+// API's answer, is reported. Every area shows it, so its Spanish addresses
+// no one (docs/ux.md, Language).
 const words = catalog({
   en: {
     title: "Something went wrong",
@@ -22,7 +23,7 @@ const words = catalog({
   },
   es: {
     title: "Algo salió mal",
-    text: "No pudimos cargar esta página. Vuelva a intentarlo en un momento.",
+    text: "No pudimos cargar esta página. Se puede intentar de nuevo en un momento.",
     tryAgain: "Intentar de nuevo",
   },
 });

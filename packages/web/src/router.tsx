@@ -321,12 +321,11 @@ const peopleRoute = createRoute({
 });
 
 // each area's language (ADR-0025): the portal the Client's Preferred
-// Language, the Office English for good, the Cleaner area English until it
-// comes in Spanish (#305)
+// Language, the Cleaner area the Staff member's, the Office English for good
 const areaLanguage: Record<AreaId, (account: Me) => Language> = {
   portal: (account) => account.languages.portal ?? signedOutLanguage(),
   office: () => "en",
-  cleaner: () => "en",
+  cleaner: (account) => account.languages.cleaner ?? signedOutLanguage(),
 };
 
 // an area is only for Accounts holding its role: anyone signed out goes to

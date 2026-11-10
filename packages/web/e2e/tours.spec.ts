@@ -197,19 +197,19 @@ eachTheme(() => {
 
     // Your Jobs, theirs next up
     await signedInAs(page, cory.email);
-    await walkTour(page, cleanerTours, "cleaner-home", { first: true });
+    await walkTour(page, cleanerTours.en, "cleaner-home", { first: true });
 
     await page.goto(`/cleaner/jobs/${offered!.id}`);
-    await walkTour(page, cleanerTours, "cleaner-job-offered");
+    await walkTour(page, cleanerTours.en, "cleaner-job-offered");
 
     await page.goto(`/cleaner/open/${open!.id}`);
-    await walkTour(page, cleanerTours, "cleaner-open");
+    await walkTour(page, cleanerTours.en, "cleaner-open");
 
     // theirs, once it's started
     await setClock("2026-01-06T14:00:00.000Z");
     await page.goto(`/cleaner/jobs/${theirs!.id}`);
-    await walkTour(page, cleanerTours, "cleaner-job");
+    await walkTour(page, cleanerTours.en, "cleaner-job");
 
-    await expectEachSeen(page, cleanerTours);
+    await expectEachSeen(page, cleanerTours.en);
   });
 });

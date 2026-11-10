@@ -1,4 +1,4 @@
-import { formats } from "@empire-cleaning/models";
+import { catalog } from "@empire-cleaning/models";
 import { useLoaderData, useNavigate, useRouter } from "@tanstack/react-router";
 import type { CleanerNeeded } from "@empire-cleaning/models";
 import { CalendarClock, Clock, MapPin, Users } from "lucide-react";
@@ -17,17 +17,35 @@ import { getJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useLeavingAction } from "../action.ts";
 import { Fact } from "../Fact.tsx";
-import { dayOfInstant, formatHours, screenWords } from "../format.ts";
+import { dayOfInstant, formatHours } from "../format.ts";
 import { reportUnexpected } from "../../monitoring.ts";
+import { type Said, useSaid } from "../words.ts";
 import { untilAbout } from "./CleanerHome.tsx";
 
-const { cleaners } = screenWords.en;
-
-const { formatDateTime, formatDay, formatTime } = formats.en;
+const words = catalog({
+  en: {
+    open: "Open",
+    area: "Area",
+    areaLine: "Area: the address shows once it's yours",
+    didntWork: "That didn't work. Try again.",
+    takenOff: "Taken off your list",
+    needsYou:
+      "It needs a cleaner, and you're free then. The first to confirm gets it, and then sees the address, how we get in and the client.",
+  },
+  es: {
+    open: "Disponible",
+    area: "Zona",
+    areaLine: "Zona: la dirección aparece cuando sea tuyo",
+    didntWork: "No funcionó. Vuelve a intentarlo.",
+    takenOff: "Quitado de tu lista",
+    needsYou:
+      "Necesita un limpiador, y estás libre a esa hora. El primero que lo confirme se lo queda, y entonces ve la dirección, cómo entramos y el cliente.",
+  },
+});
 
 // "Just you", "2 cleaners"
-export const crewSizeOf = (job: Pick<CleanerNeeded, "crewSize">) =>
-  job.crewSize === 1 ? "Just you" : cleaners(job.crewSize);
+export const crewSizeOf = (t: Said, job: Pick<CleanerNeeded, "crewSize">) =>
+  job.crewSize === 1 ? t.c.justYou : t.cleaners(job.crewSize);
 
 // A Cleaner Needed as a Cleaner it's open to sees it (ADR-0019): what, when,
 // for how long and roughly where. They Confirm it, first come first served,
@@ -35,51 +53,53 @@ export const crewSizeOf = (job: Pick<CleanerNeeded, "crewSize">) =>
 // come once they've taken it.
 export function CleanerNeededScreen() {
   const job = useLoaderData({ from: "/cleaner/open/$jobId" });
+  const t = useSaid(words);
+  const { c, w } = t;
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4">
         <Breadcrumbs
           trail={[
-            { label: "Offers", href: linkTo({ to: "/cleaner/offers" }) },
-            { label: formatDateTime(job.startsAt) },
+            { label: c.offers, href: linkTo({ to: "/cleaner/offers" }) },
+            { label: t.formatDateTime(job.startsAt) },
           ]}
         />
         <div className="flex flex-wrap items-center gap-3">
           <Heading level={1}>{job.serviceName}</Heading>
-          <StatusBadge tone="info">Open</StatusBadge>
+          <StatusBadge tone="info">{w.open}</StatusBadge>
         </div>
       </div>
 
       <TakeIt job={job} />
 
-      <Section title="Job details">
+      <Section title={c.jobDetails}>
         <Card>
           <div className="flex flex-col gap-6">
             <div className="flex items-start gap-4">
               <IconTile icon={CalendarClock} size="lg" />
               <div className="flex min-w-0 flex-col gap-1">
                 <p className="text-sm text-fg-muted">
-                  {formatDay(dayOfInstant(job.startsAt))},{" "}
-                  {untilAbout(job.startsAt, job.hoursOnSite)}
+                  {t.formatDay(dayOfInstant(job.startsAt))},{" "}
+                  {untilAbout(t, job.startsAt, job.hoursOnSite)}
                 </p>
                 <p className="text-3xl font-semibold text-fg tabular-nums">
-                  {formatTime(job.startsAt)}
+                  {t.formatTime(job.startsAt)}
                 </p>
               </div>
             </div>
             <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-3">
               <Fact
                 icon={Clock}
-                label="On site"
-                value={`About ${formatHours(job.hoursOnSite)}`}
+                label={t.onSite}
+                value={t.about(formatHours(job.hoursOnSite))}
               />
-              <Fact icon={Users} label="Crew" value={crewSizeOf(job)} />
+              <Fact icon={Users} label={c.crew} value={crewSizeOf(t, job)} />
               <Fact
                 icon={MapPin}
-                label="Area"
+                label={w.area}
                 value={job.postcode}
-                line="Area: the address shows once it's yours"
+                line={w.areaLine}
               />
             </dl>
           </div>
@@ -89,13 +109,12 @@ export function CleanerNeededScreen() {
   );
 }
 
-const DIDNT_WORK = "That didn't work. Please try again.";
-
 function TakeIt({ job }: { job: CleanerNeeded }) {
   const navigate = useNavigate();
   const router = useRouter();
+  const { c, w } = useSaid(words);
   // neither reloads this page: once taken or passed, it isn't open to them
-  const action = useLeavingAction(DIDNT_WORK);
+  const action = useLeavingAction(w.didntWork);
 
   const answer = (which: "confirm" | "pass") =>
     action.run(
@@ -129,13 +148,13 @@ function TakeIt({ job }: { job: CleanerNeeded }) {
             })
           : navigate({ to: "/cleaner/offers" }));
       },
-      which === "confirm" ? "Job confirmed" : "Taken off your list",
+      which === "confirm" ? c.jobConfirmed : w.takenOff,
       which,
     );
   const { problem, pending } = action;
 
   return (
-    <Section title="Can you take it?">
+    <Section title={c.canYouTakeIt}>
       <Card>
         {problem && <Notice tone="danger">{problem}</Notice>}
         <ActionRow
@@ -147,22 +166,19 @@ function TakeIt({ job }: { job: CleanerNeeded }) {
                 isDisabled={pending === "confirm"}
                 onPress={() => void answer("pass")}
               >
-                Not for me
+                {c.notForMe}
               </Button>
               <Button
                 isPending={pending === "confirm"}
                 isDisabled={pending === "pass"}
                 onPress={() => void answer("confirm")}
               >
-                Confirm
+                {c.confirm}
               </Button>
             </>
           }
         >
-          <p>
-            It needs a cleaner, and you're free then. The first to confirm gets
-            it, and then sees the address, how we get in and the client.
-          </p>
+          <p>{w.needsYou}</p>
         </ActionRow>
       </Card>
     </Section>

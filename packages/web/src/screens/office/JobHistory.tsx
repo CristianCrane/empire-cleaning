@@ -18,9 +18,9 @@ import type {
   RescheduleRequestStatus,
 } from "@empire-cleaning/models";
 import { Section, Timeline, TimelineItem } from "@empire-cleaning/ui";
-import { assignmentStateLabel, wasSkipped, screenWords } from "../format.ts";
+import { wasSkipped, screenWords } from "../format.ts";
 
-const { cancelledLabel, jobStatusLabel } = screenWords.en;
+const { assignmentStateLabel, cancelledLabel, jobStatusLabel } = screenWords.en;
 
 const { formatDate, formatDateTime, formatMoney } = formats.en;
 

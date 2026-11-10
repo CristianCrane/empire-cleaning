@@ -38,7 +38,7 @@ export const allowed: Allowed[] = [
     words: "Cancelled",
     in: [
       "packages/web/src/screens/BillParts.tsx",
-      "packages/web/src/screens/format.ts",
+      "packages/web/src/screens/labels.ts",
     ],
     why: "a Bill's state and a Job's: the Spanish agrees with each noun",
   },
@@ -51,9 +51,25 @@ export const allowed: Allowed[] = [
     why: "a Quote is Rechazada, a price change Rechazado",
   },
   {
+    words: "Keep it",
+    in: [
+      "packages/web/src/screens/cleaner/CleanerJobScreen.tsx",
+      "packages/web/src/screens/portal/PortalQuote.tsx",
+    ],
+    why: "a Quote is Conservarla, a job Conservarlo",
+  },
+  {
+    words: "Done",
+    in: [
+      "packages/web/src/screens/cleaner/words.ts",
+      "packages/web/src/screens/labels.ts",
+    ],
+    why: "a clean is Terminada, a job Terminado",
+  },
+  {
     words: "${…} at ${…}",
     in: [
-      "packages/web/src/screens/format.ts",
+      "packages/web/src/screens/labels.ts",
       "packages/web/src/screens/portal/whats-next.ts",
     ],
     why: "a day at a time (a las) and a clean at an address (en)",

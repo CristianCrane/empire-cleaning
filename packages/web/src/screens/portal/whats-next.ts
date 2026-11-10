@@ -57,7 +57,6 @@ const words = catalog({
       `You asked to move your ${day} clean to ${to}. We'll confirm, usually within a working day.`,
     afterThat: (what: string, when: string) => `After that: ${what}, ${when}`,
     yourSiteVisit: "your site visit",
-    today: "Today",
     firstClean: "Your first clean",
     nextClean: "Your next clean",
     serviceAt: (service: string, address: string) => `${service} at ${address}`,
@@ -127,7 +126,6 @@ const words = catalog({
       ),
     afterThat: (what: string, when: string) => `Después: ${what}, ${when}`,
     yourSiteVisit: "su visita previa",
-    today: "Hoy",
     firstClean: "Su primera limpieza",
     nextClean: "Su próxima limpieza",
     serviceAt: (service: string, address: string) => `${service} en ${address}`,
@@ -394,7 +392,7 @@ function heroOf(data: HomeData, t: Said, ctx: Context): Hero {
       );
     const today = isToday(job.startsAt, now);
     return {
-      label: today ? w.today : first ? w.firstClean : w.nextClean,
+      label: today ? t.today : first ? w.firstClean : w.nextClean,
       icon: CalendarCheck,
       tone: "info",
       startsAt: job.startsAt,
@@ -622,7 +620,7 @@ function shortcutsOf(data: HomeData, t: Said, ctx: Context): Shortcut[] {
     ? [
         {
           icon: KeyRound,
-          label: p.howWeGetIn,
+          label: t.howWeGetIn,
           hint: home.accessInstructions || t.notAdded,
           href: linkTo({
             to: "/portal/properties/$propertyId",

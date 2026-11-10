@@ -4,8 +4,8 @@ import {
   type CleanerJob,
   type CompletionReport,
   type Condition,
-  formats,
-  messages,
+  catalog,
+  oneStop,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -25,13 +25,56 @@ import {
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
 import { useAction } from "../action.ts";
-import { screenWords } from "../format.ts";
+import { useSaid } from "../words.ts";
 
-const { conditionLabel } = screenWords.en;
-
-const { adjustmentLabel, NOT_ALL_CONFIRMED } = messages.en;
-
-const { formatTime } = formats.en;
+const words = catalog({
+  en: {
+    notMarked: "The job wasn't marked done. Please try again.",
+    fixDetails: "Some details need fixing.",
+    sayHow: "Say how the home was",
+    marked: "Job marked done",
+    title: "Mark this job done",
+    intro:
+      "Tell us how it went. If anything was different from the quote, the office sorts out the price with the client.",
+    howWasHome: "How was the home?",
+    couldntDo: "Extras on the quote you couldn't do",
+    whyNot: "Why not?",
+    didMore: "Extras you did that weren't on the quote",
+    whyMore: "Why? For example, the client asked",
+    moreTime: "More time",
+    moreHours: "More hours, all of you together",
+    leaveAt0: "Leave at 0 if the clean took about as long as planned.",
+    whatTookLonger: "What took longer?",
+    markedAt: (time: string, by: string) =>
+      `Marked done at ${time}${by}. Thank you!`,
+    reported: "Reported",
+    nothingDifferent: "Nothing different from the quote",
+  },
+  es: {
+    notMarked: "El trabajo no se marcó como terminado. Vuelve a intentarlo.",
+    fixDetails: "Hay que corregir algunos datos.",
+    sayHow: "Di cómo estaba la casa",
+    marked: "Trabajo marcado como terminado",
+    title: "Marcar este trabajo como terminado",
+    intro:
+      "Cuéntanos cómo te fue. Si algo fue distinto de la cotización, la oficina arregla el precio con el cliente.",
+    howWasHome: "¿Cómo estaba la casa?",
+    couldntDo: "Adicionales de la cotización que no pudiste hacer",
+    whyNot: "¿Por qué no?",
+    didMore: "Adicionales que hiciste y no estaban en la cotización",
+    whyMore: "¿Por qué? Por ejemplo, lo pidió el cliente",
+    moreTime: "Más tiempo",
+    moreHours: "Horas de más, entre todos",
+    leaveAt0: "Déjalo en 0 si la limpieza tomó más o menos lo previsto.",
+    whatTookLonger: "¿Qué tomó más tiempo?",
+    markedAt: (time: string, by: string) =>
+      oneStop(
+        `Marcado como terminado a ${time.startsWith("1:") ? "la" : "las"} ${time}${by}. ¡Gracias!`,
+      ),
+    reported: "Lo que informaste",
+    nothingDifferent: "Nada distinto de la cotización",
+  },
+});
 
 // the reason given for each Add-on ticked, by its key
 type Ticked = Record<string, string>;
@@ -46,9 +89,9 @@ export function CompleteJob({ job }: { job: CleanerJob }) {
   const [done, setDone] = useState<Ticked>({});
   const [extraHours, setExtraHours] = useState(0);
   const [extraReason, setExtraReason] = useState("");
-  const action = useAction("The job wasn't marked done. Please try again.", {
-    fieldsProblem: "Some details need fixing.",
-  });
+  const t = useSaid(words);
+  const { c, w } = t;
+  const action = useAction(w.notMarked, { fieldsProblem: w.fixDetails });
 
   const reports = (): CompletionReport[] => [
     ...Object.entries(notDone).map(([addOnKey, reason]) => ({
@@ -74,7 +117,7 @@ export function CompleteJob({ job }: { job: CleanerJob }) {
 
   const complete = async (close: () => void) => {
     if (!condition) {
-      action.fail(undefined, { condition: "Say how the home was" });
+      action.fail(undefined, { condition: w.sayHow });
       return;
     }
     const ok = await action.run(
@@ -83,15 +126,15 @@ export function CompleteJob({ job }: { job: CleanerJob }) {
           condition,
           reports: reports(),
         }),
-      "Job marked done",
+      w.marked,
     );
     if (ok) close();
   };
 
   return (
     <DialogTrigger>
-      <Button>Mark done</Button>
-      <Dialog title="Mark this job done">
+      <Button>{c.markDone}</Button>
+      <Dialog title={w.title}>
         {({ close }) => (
           <Form
             validationErrors={action.fieldErrors}
@@ -100,12 +143,9 @@ export function CompleteJob({ job }: { job: CleanerJob }) {
               void complete(close);
             }}
           >
-            <p className="text-fg-muted">
-              Tell us how it went. If anything was different from the quote, the
-              office sorts out the price with the client.
-            </p>
+            <p className="text-fg-muted">{w.intro}</p>
             <RadioGroup
-              label="How was the home?"
+              label={w.howWasHome}
               name="condition"
               value={condition}
               onChange={(value) => setCondition(value as Condition)}
@@ -113,35 +153,35 @@ export function CompleteJob({ job }: { job: CleanerJob }) {
             >
               {(["light", "moderate", "heavy"] as const).map((c) => (
                 <Radio key={c} value={c}>
-                  {conditionLabel[c]}
+                  {t.conditionLabel[c]}
                 </Radio>
               ))}
             </RadioGroup>
 
             {job.reportable.quoted.length > 0 && (
               <AddOnReports
-                title="Extras on the quote you couldn't do"
+                title={w.couldntDo}
                 addOns={job.reportable.quoted}
                 ticked={notDone}
                 onChange={setNotDone}
-                reasonLabel="Why not?"
+                reasonLabel={w.whyNot}
               />
             )}
             {job.reportable.others.length > 0 && (
               <AddOnReports
-                title="Extras you did that weren't on the quote"
+                title={w.didMore}
                 addOns={job.reportable.others}
                 ticked={done}
                 onChange={setDone}
-                reasonLabel="Why? For example, the client asked"
+                reasonLabel={w.whyMore}
               />
             )}
 
             <fieldset className="flex flex-col gap-3">
-              <Heading level={3}>More time</Heading>
+              <Heading level={3}>{w.moreTime}</Heading>
               <NumberField
-                label="More hours, all of you together"
-                description="Leave at 0 if the clean took about as long as planned."
+                label={w.moreHours}
+                description={w.leaveAt0}
                 minValue={0}
                 maxValue={24}
                 step={0.25}
@@ -153,7 +193,7 @@ export function CompleteJob({ job }: { job: CleanerJob }) {
               />
               {extraHours > 0 && (
                 <TextField
-                  label="What took longer?"
+                  label={w.whatTookLonger}
                   value={extraReason}
                   onChange={setExtraReason}
                   isRequired
@@ -164,10 +204,10 @@ export function CompleteJob({ job }: { job: CleanerJob }) {
             {action.problem && <Notice tone="danger">{action.problem}</Notice>}
             <Actions>
               <Button variant="quiet" onPress={close}>
-                Go back
+                {c.goBack}
               </Button>
               <Button type="submit" isPending={action.isPending}>
-                Mark done
+                {c.markDone}
               </Button>
             </Actions>
           </Form>
@@ -229,26 +269,29 @@ function AddOnReports({
 // what the Cleaner reported once it's Completed, never with prices
 export function Completed({ job }: { job: CleanerJob }) {
   const completion = job.completion!;
+  const t = useSaid(words);
+  const { c, w } = t;
   return (
-    <Section title="Done">
+    <Section title={c.done}>
       <Card>
         <p>
-          Marked done at {formatTime(completion.completedAt)}
-          {completion.completedBy && ` by ${completion.completedBy}`}. Thank
-          you!
+          {w.markedAt(
+            t.formatTime(completion.completedAt),
+            c.by(completion.completedBy),
+          )}
         </p>
         <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
-          <dt className="font-semibold">Condition</dt>
-          <dd>{conditionLabel[completion.condition]}</dd>
-          <dt className="font-semibold">Reported</dt>
+          <dt className="font-semibold">{t.condition}</dt>
+          <dd>{t.conditionLabel[completion.condition]}</dd>
+          <dt className="font-semibold">{w.reported}</dt>
           <dd>
             {completion.reports.length === 0 ? (
-              "Nothing different from the quote"
+              w.nothingDifferent
             ) : (
               <ul>
                 {completion.reports.map((r, i) => (
                   <li key={i}>
-                    {adjustmentLabel(r)}: {r.reason}
+                    {t.adjustmentLabel(r)}: {r.reason}
                   </li>
                 ))}
               </ul>
@@ -262,6 +305,7 @@ export function Completed({ job }: { job: CleanerJob }) {
 
 // why a Job can't be Completed yet, for a Confirmed Cleaner
 export function NotYet({ job }: { job: CleanerJob }) {
+  const { NOT_ALL_CONFIRMED } = useSaid(words);
   if (
     job.assignment.status !== "confirmed" ||
     job.outcome ||

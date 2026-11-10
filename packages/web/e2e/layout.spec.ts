@@ -99,13 +99,14 @@ const expectFitsEveryWidth = async (page: Page, path: string) => {
 };
 
 // the same, then in Spanish (ADR-0025, docs/ux.md: Spanish runs 20–30%
-// longer), for a Guest's or Client's screen: the signed-in person's
-// Preferred Language, or before sign-in the language of the page that linked
+// longer), for a Guest's, Client's or Cleaner's screen: the signed-in
+// person's Preferred Language, or before sign-in the language of the page that linked
 // here (?lang=es). English again after
 const expectFitsInBoth = async (page: Page, path: string) => {
   await expectFitsEveryWidth(page, path);
   const me = await page.request.get("/api/me");
-  const client = me.ok() && (await me.json()).languages.portal !== null;
+  const languages = me.ok() ? (await me.json()).languages : {};
+  const client = Object.values(languages).some((lang) => lang !== null);
   if (client) {
     await setLanguage(page, "es");
     await expectFitsEveryWidth(page, path);
@@ -517,9 +518,9 @@ test("cancelling, Cancelled and No Access Jobs fit every width", async ({
   await setClock("2026-01-12T14:30:00Z");
   const cleaner = await (await browser.newContext()).newPage();
   await signedInAs(cleaner, "cory@example.com");
-  await expectFitsEveryWidth(cleaner, `/cleaner/jobs/${booked.id}`);
+  await expectFitsInBoth(cleaner, `/cleaner/jobs/${booked.id}`);
   await recordNoAccess(booked.id, cory.id, "Nobody answered");
-  await expectFitsEveryWidth(cleaner, `/cleaner/jobs/${booked.id}`);
+  await expectFitsInBoth(cleaner, `/cleaner/jobs/${booked.id}`);
   await expectFitsInBoth(client, `/portal/jobs/${booked.id}`);
   await expectFitsEveryWidth(page, `/office/jobs/${booked.id}`);
 
@@ -598,9 +599,10 @@ test("signing in, the welcome page and the Cleaner area fit every width", async 
   })) as { id: string };
   await page.context().clearCookies();
   await signedInAs(page, "cory@example.com");
-  await expectFitsEveryWidth(page, "/cleaner");
-  await expectFitsEveryWidth(page, `/cleaner/jobs/${job.id}`);
-  await expectFitsEveryWidth(page, `/cleaner/open/${open.id}`);
+  await expectFitsInBoth(page, "/cleaner");
+  await expectFitsInBoth(page, `/cleaner/jobs/${job.id}`);
+  await expectFitsInBoth(page, `/cleaner/open/${open.id}`);
+  await expectFitsInBoth(page, "/cleaner/offers");
 });
 
 test("weekly Bills fit every width, for the Office and the Client", async ({

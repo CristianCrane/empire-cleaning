@@ -1,10 +1,18 @@
+import { catalog } from "@empire-cleaning/models";
+import { labels } from "../labels.ts";
 import type { AreaTours } from "../tours.ts";
+import { cleanerWords } from "./words.ts";
 
 // The Cleaner's first-time help (#296): its tours, the first one a person
-// meets led by the value line
-export const cleanerTours = {
-  welcomeTitle: "Welcome",
-  welcome: "Pick up work and find everything about each job in one place.",
+// meets led by the value line, in each language (#305), tú in Spanish. A
+// step's target is the screen's own word, from cleanerWords or the shared
+// labels, so the two can't drift apart
+const toursIn = (
+  w: (typeof cleanerWords)["en"] & (typeof labels)["en"],
+  t: (typeof words)["en"],
+): AreaTours => ({
+  welcomeTitle: w.welcome,
+  welcome: t.welcome,
   tours: [
     {
       id: "cleaner-home",
@@ -13,14 +21,14 @@ export const cleanerTours = {
       // started is "Now", so it waits for the next
       steps: [
         {
-          target: { named: "Next up" },
-          title: "Your next job",
-          text: "When and where, with directions.",
+          target: { named: w.nextUp },
+          title: t.nextTitle,
+          text: t.nextText,
         },
         {
-          target: { press: "Open job" },
-          title: "Open it",
-          text: "How to get in, the crew and the client's phone are on the job's page.",
+          target: { press: w.openJob },
+          title: t.openTitle,
+          text: t.openText,
         },
       ],
     },
@@ -31,9 +39,9 @@ export const cleanerTours = {
       route: "/cleaner/open/$jobId",
       steps: [
         {
-          target: { named: "Can you take it?" },
-          title: "Take a job",
-          text: "Confirm to take it. The first cleaner to confirm gets it. Not for me takes it off your list.",
+          target: { named: w.canYouTakeIt },
+          title: t.takeTitle,
+          text: t.takeText,
         },
       ],
     },
@@ -44,9 +52,9 @@ export const cleanerTours = {
       route: "/cleaner/jobs/$jobId",
       steps: [
         {
-          target: { named: "Offered to you" },
-          title: "Offered to you",
-          text: "Confirm it, or say Not for me and it goes to someone else.",
+          target: { named: w.offeredToYou },
+          title: w.offeredToYou,
+          text: t.offeredText,
         },
       ],
     },
@@ -57,16 +65,54 @@ export const cleanerTours = {
       // whole crew has confirmed too
       steps: [
         {
-          target: { press: "Mark done" },
-          title: "When you're done",
-          text: "Mark it done and say how the home was.",
+          target: { press: w.markDone },
+          title: t.doneTitle,
+          text: t.doneText,
         },
         {
-          target: { press: "Couldn't get in" },
-          title: "Couldn't get in?",
-          text: "Say so here. We tell the client and the office.",
+          target: { press: w.jobStatus.no_access },
+          title: w.couldntGetIn,
+          text: t.getInText,
         },
       ],
     },
   ],
-} satisfies AreaTours;
+});
+
+const words = catalog({
+  en: {
+    welcome: "Pick up work and find everything about each job in one place.",
+    nextTitle: "Your next job",
+    nextText: "When and where, with directions.",
+    openTitle: "Open it",
+    openText:
+      "How to get in, the crew and the client's phone are on the job's page.",
+    takeTitle: "Take a job",
+    takeText:
+      "Confirm to take it. The first cleaner to confirm gets it. Not for me takes it off your list.",
+    offeredText: "Confirm it, or say Not for me and it goes to someone else.",
+    doneTitle: "When you're done",
+    doneText: "Mark it done and say how the home was.",
+    getInText: "Say so here. We tell the client and the office.",
+  },
+  es: {
+    welcome: "Toma trabajos y encuentra todo sobre cada uno en un solo lugar.",
+    nextTitle: "Tu próximo trabajo",
+    nextText: "Cuándo y dónde, con cómo llegar.",
+    openTitle: "Ábrelo",
+    openText:
+      "Cómo entrar, el equipo y el teléfono del cliente están en la página del trabajo.",
+    takeTitle: "Toma un trabajo",
+    takeText:
+      "Confírmalo para tomarlo. Se lo queda el primer limpiador que lo confirme. No es para mí lo quita de tu lista.",
+    offeredText: "Confírmalo, o di No es para mí y pasa a otra persona.",
+    doneTitle: "Cuando termines",
+    doneText: "Márcalo como terminado y di cómo estaba la casa.",
+    getInText: "Dilo aquí. Les avisamos al cliente y a la oficina.",
+  },
+});
+
+export const cleanerTours = {
+  en: toursIn({ ...cleanerWords.en, ...labels.en }, words.en),
+  es: toursIn({ ...cleanerWords.es, ...labels.es }, words.es),
+};

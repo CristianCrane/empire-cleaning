@@ -17,11 +17,11 @@ import {
   test,
 } from "./harness.ts";
 
-// Sign-in and the Client portal in Spanish (ADR-0025, #303): before sign-in
-// in the language of the page the person came from, then in the Client's
-// Preferred Language, the API's messages and Stripe's form with it. The
-// core flows run once each in Spanish; the layout test opens every screen
-// in it (layout.spec.ts).
+// Sign-in, the Client portal (#303) and the Cleaner area (#305) in Spanish
+// (ADR-0025): before sign-in in the language of the page the person came
+// from, then in the Client's or Staff member's Preferred Language, the
+// API's messages and Stripe's form with it. The core flows run once each
+// in Spanish; the layout test opens every screen in it (layout.spec.ts).
 
 const olive = {
   email: "olive@example.com",
@@ -251,4 +251,61 @@ test("a Client changes their language on Your details, and the portal follows", 
   await expect(
     page.getByRole("heading", { level: 1, name: "Your details" }),
   ).toBeVisible();
+});
+
+test("a Cleaner reading in Spanish takes an open job and marks it done, in tú", async ({
+  page,
+}) => {
+  await createStaff(olive);
+  await signUp(olive.email);
+  await addCleaner("Cory Cleaner");
+  // Friday, within 7 days, so it's open to Cory, free then
+  const job = await acceptedJob({
+    startsAt: "2026-01-09T14:00:00Z",
+    officeEmail: olive.email,
+  });
+  await signedInAs(page, "cory@example.com");
+  await setLanguage(page, "es");
+
+  await page.goto("/cleaner");
+  await expect(page.locator("html")).toHaveAttribute("lang", "es");
+  await expect(
+    page.getByText("Todavía no tienes nada reservado"),
+  ).toBeVisible();
+  await page
+    .getByRole("link", { name: /^Ofertas/ })
+    .first()
+    .click();
+  const open = page.getByRole("grid", { name: "Disponibles para ti" });
+  await expect(open.getByRole("row")).toContainText("vie, 9 de ene, 9:00 a.m.");
+  await open.getByRole("row").click();
+  await expect(
+    page.getByRole("region", { name: "¿Puedes tomarlo?" }),
+  ).toBeVisible();
+  await expectAccessible(page);
+  await page.getByRole("button", { name: "Confirmar" }).click();
+
+  await expect(page).toHaveURL(`/cleaner/jobs/${job.id}`);
+  await expect(page.getByText("Confirmado", { exact: true })).toBeVisible();
+
+  // on the day, once it's started
+  await setClock("2026-01-09T16:00:00Z");
+  await page.reload();
+  await page
+    .getByRole("group", { name: "Qué hacer" })
+    .getByRole("button", { name: "Marcar como terminado" })
+    .click();
+  const form = page.getByRole("dialog", {
+    name: "Marcar este trabajo como terminado",
+  });
+  await expect(form).toContainText("Cuéntanos cómo te fue.");
+  await expectAccessible(page);
+  await form.getByText("Ligera", { exact: true }).click();
+  await form.getByRole("button", { name: "Marcar como terminado" }).click();
+
+  await expect(page.getByText("Trabajo marcado como terminado")).toBeVisible();
+  const done = page.getByRole("region", { name: "Terminado" });
+  await expect(done).toContainText("Ligera");
+  await expect(done).toContainText("Nada distinto de la cotización");
+  await expectAccessible(page);
 });
