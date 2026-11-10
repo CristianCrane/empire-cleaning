@@ -10,6 +10,7 @@ import {
   signUp,
   startedServicePlan,
   test,
+  jobAction,
 } from "./harness.ts";
 
 // Casey's First Clean is done at 11am on Monday 12 January 2026, New York
@@ -126,7 +127,7 @@ test(
     await signedInAs(page, olive.email);
     await page.goto(`/office/jobs/${job.id}`);
 
-    await page.getByRole("button", { name: "Cancel job" }).click();
+    await jobAction(page, "Cancel job");
     const dialog = page.getByRole("alertdialog", { name: "Cancel this job?" });
     await expect(dialog).toContainText(
       "A late cancellation: a $50.46 fee, the plan's deposit amount. The plan's deposit stays held. The fee is charged.",

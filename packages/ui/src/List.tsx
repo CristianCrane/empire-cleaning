@@ -34,6 +34,10 @@ export type ListItemProps = Omit<GridListItemProps, "children"> & {
   start?: ReactNode;
   // trailing content, e.g. a StatusBadge
   end?: ReactNode;
+  // in a row that opens nothing, its one action where the chevron would be,
+  // beside the text at every width: a quiet icon Button, e.g. an X to take
+  // someone off a Job's crew
+  action?: ReactNode;
 };
 
 export function ListItem({
@@ -41,13 +45,14 @@ export function ListItem({
   description,
   start,
   end,
+  action,
   ...props
 }: ListItemProps) {
   const opens = useContext(OpensItems) || props.onAction !== undefined;
 
   // on a phone, `end` (a badge) goes under the text rather than squeezing
   // it beside: a grid of the text's column, with `start` and the chevron
-  // beside both lines. A row with no `end` keeps its one line
+  // (or `action`) beside both lines. A row with no `end` keeps its one line
   const stacked = end !== undefined && end !== null && end !== false;
   const grid = !stacked
     ? ""
@@ -93,6 +98,9 @@ export function ListItem({
             >
               {end}
             </div>
+          )}
+          {action && (
+            <div className={`shrink-0 self-center ${beside}`}>{action}</div>
           )}
           {opens && !isDisabled && (
             <ChevronRight

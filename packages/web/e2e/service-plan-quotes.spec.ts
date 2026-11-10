@@ -241,7 +241,7 @@ test("the Client screen lists each home, whose own page holds its history and of
   const { job } = await firstCleanDone(page);
   await page.goto(`/office/jobs/${job.id}`);
   await page
-    .getByRole("region", { name: "Job" })
+    .getByRole("region", { name: "Job details" })
     .getByRole("link", { name: casey.name })
     .click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(casey.name);
@@ -339,7 +339,7 @@ test("the Client and Property screens pass an accessibility check", async ({
   const { job } = await firstCleanDone(page);
   await page.goto(`/office/jobs/${job.id}`);
   await page
-    .getByRole("region", { name: "Job" })
+    .getByRole("region", { name: "Job details" })
     .getByRole("link", { name: casey.name })
     .click();
   await page.reload();

@@ -14,6 +14,7 @@ import {
   weekdayOf,
   formats,
 } from "@empire-cleaning/models";
+import type { SelectedFields } from "drizzle-orm/pg-core";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock } from "../../services/clock/index.ts";
@@ -94,10 +95,15 @@ const toMember = (member: Staff, imageUrl: string | null): StaffMember => ({
   createdAt: member.createdAt.toISOString(),
 });
 
-// Staff members with their connected Account's picture, if any
-const selectStaff = (tx: Tx | typeof db = db) =>
+// Staff members with their connected Account's picture, if any, and any
+// more columns asked for, of a table joined after (a Job's crew, its
+// Assignments)
+export const selectStaff = <More extends SelectedFields>(
+  more: More,
+  tx: Tx | typeof db = db,
+) =>
   tx
-    .select({ member: staff, imageUrl: accounts.image })
+    .select({ member: staff, imageUrl: accounts.image, ...more })
     .from(staff)
     .leftJoin(accounts, eq(accounts.id, staff.accountId));
 
@@ -153,7 +159,7 @@ export const inviteStaff = async (
 
 // everyone ever invited, active first, then by name
 export const listStaff = async (): Promise<StaffMember[]> => {
-  const rows = await selectStaff().orderBy(asc(staff.name));
+  const rows = await selectStaff({}).orderBy(asc(staff.name));
   return rows
     .map(({ member, imageUrl }) => toMember(member, imageUrl))
     .sort((a, b) => Number(b.active) - Number(a.active));
@@ -162,7 +168,7 @@ export const listStaff = async (): Promise<StaffMember[]> => {
 // the record, and how the Office sees it; held until the transaction ends,
 // if one is given, so their hours and crews change one way at a time
 const findStaff = async (id: string, tx?: Tx) => {
-  const query = selectStaff(tx).where(eq(staff.id, id));
+  const query = selectStaff({}, tx).where(eq(staff.id, id));
   const [found] = await (tx ? query.for("update", { of: staff }) : query);
   if (!found) throw new NotFoundError("Staff member not found");
   return {
