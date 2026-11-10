@@ -176,16 +176,22 @@ const catalogFiles = [
   "packages/models/src/messages/*.ts",
 ];
 
-if (import.meta.url === `file://${process.argv[1]}`) {
-  // the paths from the top of the checkout, wherever it runs from
-  const top = fileURLToPath(new URL("../../..", import.meta.url));
-  const files = execFileSync("git", ["ls-files", "--", ...catalogFiles], {
+// the catalog files in the checkout at `top`, by their paths from it
+export const catalogPaths = (top: string) =>
+  execFileSync("git", ["ls-files", "--", ...catalogFiles], {
     cwd: top,
     encoding: "utf8",
   })
     .split("\n")
-    .filter(Boolean)
-    .map((path) => ({ path, source: readFileSync(join(top, path), "utf8") }));
+    .filter(Boolean);
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  // the paths from the top of the checkout, wherever it runs from
+  const top = fileURLToPath(new URL("../../..", import.meta.url));
+  const files = catalogPaths(top).map((path) => ({
+    path,
+    source: readFileSync(join(top, path), "utf8"),
+  }));
   const copies = catalogCopies(files);
   for (const { words, places } of copies) {
     console.error(
