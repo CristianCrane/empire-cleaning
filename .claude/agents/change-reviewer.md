@@ -56,7 +56,7 @@ Each finding has an id, `F<n>`, run on from the highest id in the output file (i
 
 ## Output
 
-Write to the output path you're given, last, once you're done. Your review replaces what's there: the previous review, read first, lives on in `Previous findings`, and the PR gate reads one review. It's the only file you write, and Bash runs only commands that read: a hook (`hooks/reviewer-gate.mjs`) turns down the rest, tests and builds included, as the author runs them beside you in this same checkout. Where a claim needs a run, take the author's numbers or call it unshown; a script that only reads runs as `node --permission`.
+Write to the output path you're given, last, once you're done. Your review replaces what's there: the previous review, read first, lives on in `Previous findings`, and the PR gate reads one review. It's the only file you write, and Bash runs only commands that read: a hook (reviewer-gate) turns down the rest, tests and builds included, as the author runs them beside you in this same checkout. Where a claim needs a run, take the author's numbers or call it unshown; a script that only reads runs as `node --permission`.
 
 The header's sha is HEAD as you start (`git rev-parse --short HEAD`, before you read anything else): the PR gate passes a review only of the last commit, so a fix committed while you work still needs its own review.
 

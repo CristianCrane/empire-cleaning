@@ -14,6 +14,7 @@ import { existsSync, mkdirSync, readFileSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseArgs } from "node:util";
 
 // A repo's copy of these hooks (for cloud sessions, which have no
 // ~/.claude) stands aside wherever the user-level ones are installed, so
@@ -31,6 +32,19 @@ export const git = (cwd, ...args) =>
   }).trim();
 
 export const lines = (text) => text.split("\n").filter(Boolean);
+
+// the flags a script run by hand was given (node's parseArgs, strict): a
+// flag it doesn't know prints how it runs and exits 1, so a typo never runs
+// it (`prune-merged.mjs --dryrun` ran a real prune when flags were looked
+// up one by one)
+export const flagsOf = (name, usage, config) => {
+  try {
+    return parseArgs({ ...config, strict: true });
+  } catch (error) {
+    console.error(`${name}: ${error.message}\nUsage: node ~/.claude/hooks/${name}.mjs ${usage}`);
+    process.exit(1);
+  }
+};
 
 // the top folder of the checkout `cwd` is in
 export const topOf = (cwd) => git(cwd, "rev-parse", "--show-toplevel");
