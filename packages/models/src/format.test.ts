@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { formats, oneStop } from "./format.ts";
+import { formats, oneStop, stopAfter } from "./format.ts";
 
 const { en, es } = formats;
 // 9:00am in New York on Monday, January 12, 2026
@@ -81,4 +81,9 @@ describe("oneStop", () => {
       "Cancelled Mon, Jan 12, 9:00 AM.",
     );
   });
+});
+
+test("stopAfter ends what came before once, whether or not it has its own", () => {
+  expect(stopAfter("lun, 12 de ene, 9:00 a.m.")).toBe("");
+  expect(stopAfter("Mon, Jan 12, 9:00 AM")).toBe(".");
 });
