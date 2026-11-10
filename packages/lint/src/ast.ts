@@ -13,7 +13,7 @@ export type Node = { type: string };
 // a node with its fields, read as a rule needs them
 export type Fields = Node & Record<string, unknown>;
 
-export const isNode = (value: unknown): value is Node =>
+const isNode = (value: unknown): value is Node =>
   typeof value === "object" &&
   value !== null &&
   typeof (value as Node).type === "string";
