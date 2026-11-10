@@ -1,9 +1,9 @@
 import { rescheduleConfirmedEmail } from "../src/features/reschedule/emails.ts";
 import { preview } from "../src/services/email/preview.tsx";
-import { clean, client, jobId, monday, wednesday } from "./samples.ts";
+import { clean, client, jobId, lang, monday, wednesday } from "./samples.ts";
 
 export default preview(
-  rescheduleConfirmedEmail({
+  rescheduleConfirmedEmail(lang, {
     name: client.name,
     jobId,
     clean: { ...clean, startsAt: wednesday },
@@ -11,7 +11,6 @@ export default preview(
     cost: {
       cost: "free_late",
       feeCents: 0,
-      fee: "$0.00",
       onPlan: false,
       weeklyBill: false,
     },

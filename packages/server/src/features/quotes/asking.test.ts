@@ -58,7 +58,7 @@ describe("a Guest asking for a Quote", () => {
     // its only link is to the Quote's page, which never signs anyone in
     // (ADR-0006): it shows the offer once it's Sent
     expect(receipt.text.match(/https?:\/\/\S+/g)).toEqual([
-      expect.stringMatching(new RegExp(`/portal/quotes/${body.id}$`)),
+      expect.stringMatching(new RegExp(`/portal/quotes/${body.id}\\?lang=en$`)),
     ]);
   });
 
@@ -549,7 +549,9 @@ describe("the Office's email", () => {
       expect(notice.subject).toBe("New quote request from Casey Client");
       expect(notice.text).toContain("41-12 Austin St, 4B, 11375");
       expect(notice.text.match(/https?:\/\/\S+/g)).toEqual([
-        expect.stringMatching(new RegExp(`/office/quotes/${body.id}$`)),
+        expect.stringMatching(
+          new RegExp(`/office/quotes/${body.id}\\?lang=en$`),
+        ),
       ]);
     }
     expect(testEmail().to("cory@example.com")).toEqual([]);

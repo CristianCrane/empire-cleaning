@@ -38,7 +38,12 @@ export const sendDueReviewRequests = async (
 
   const firstCompleted = min(jobs.completedAt);
   const due = await db
-    .select({ id: clients.id, name: clients.name, email: clients.email })
+    .select({
+      id: clients.id,
+      name: clients.name,
+      email: clients.email,
+      preferredLanguage: clients.preferredLanguage,
+    })
     .from(clients)
     .innerJoin(properties, eq(properties.clientId, clients.id))
     .innerJoin(jobs, eq(jobs.propertyId, properties.id))
@@ -72,7 +77,10 @@ export const sendDueReviewRequests = async (
     try {
       await email.send({
         to: client.email!,
-        ...reviewRequestEmail({ name: client.name, reviewUrl }),
+        ...reviewRequestEmail(client.preferredLanguage, {
+          name: client.name,
+          reviewUrl,
+        }),
       });
       sent += 1;
     } catch (error) {

@@ -83,10 +83,9 @@ import {
 import { monitoring } from "../../services/monitoring/index.ts";
 import { hoursOnSiteOf } from "../jobs/jobs.ts";
 
-// the emails' words, English until #304, the Office's and Cleaners'
-// (#305), and a Charge's item, a record the Office reads too, until it's
-// worded as it's read (#395)
-const { adjustmentItem, adjustmentLabel, NOT_ALL_CONFIRMED } = messages.en;
+// the Office's and Cleaners' words (#305), and a Charge's item, a record
+// the Office reads too, until it's worded as it's read (#395)
+const { adjustmentItem, NOT_ALL_CONFIRMED } = messages.en;
 
 const { formatMoney } = formats.en;
 
@@ -180,7 +179,7 @@ const sendUnpaid = async (jobId: string, settled: Settled) => {
   await notify(`Unpaid notice for Job ${jobId}`, async () =>
     email.send({
       to: client.email,
-      ...unpaidEmail({
+      ...unpaidEmail(client.preferredLanguage, {
         name: client.name,
         jobId,
         clean: await cleanOf(job, property),
@@ -289,15 +288,12 @@ const sendReceipt = async (jobId: string, settled: Settled) => {
   await notify(`Receipt for Job ${jobId}`, async () =>
     email.send({
       to: client.email,
-      ...receiptEmail({
+      ...receiptEmail(client.preferredLanguage, {
         name: client.name,
         jobId,
         clean: await cleanOf(job, property),
         quotedCents: payment.quotedCents,
-        adjustments: rows.filter(counts).map((a) => ({
-          label: adjustmentLabel(a),
-          totalCents: a.totalCents,
-        })),
+        adjustments: rows.filter(counts),
         totalCents: payment.totalCents,
         rescheduleFeeCents: payment.rescheduleFeeCents,
         depositCents: deposit,
@@ -518,11 +514,11 @@ const sendProposal = async (
   const by = new Date(adjustment.proposedAt!.getTime() + ANSWER_DAYS * DAY_MS);
   return email.send({
     to: client.email,
-    ...proposalEmail({
+    ...proposalEmail(client.preferredLanguage, {
       name: client.name,
       jobId: job.id,
       clean: await cleanOf(job, property),
-      label: adjustmentLabel(adjustment),
+      adjustment,
       reason: adjustment.reason,
       totalCents: adjustment.totalCents,
       answerBy: by,
@@ -571,7 +567,7 @@ const sendCorrection = async (jobId: string, settled: Settled) => {
     await notify(`Fee notice for Job ${jobId}`, async () =>
       email.send({
         to: client.email,
-        ...feeTakenEmail({
+        ...feeTakenEmail(client.preferredLanguage, {
           name: client.name,
           jobId,
           clean: await cleanOf(job, property),
@@ -586,7 +582,7 @@ const sendCorrection = async (jobId: string, settled: Settled) => {
   await notify(`Correction notice for Job ${jobId}`, async () =>
     email.send({
       to: client.email,
-      ...correctedEmail({
+      ...correctedEmail(client.preferredLanguage, {
         name: client.name,
         jobId,
         clean: await cleanOf(job, property),
@@ -731,7 +727,7 @@ export const undoCompletion = async (jobId: string) => {
   await notify(`Undone completion notice for Job ${jobId}`, async () =>
     email.send({
       to: client.email,
-      ...completionUndoneEmail({
+      ...completionUndoneEmail(client.preferredLanguage, {
         name: client.name,
         clean: await cleanOf(job, property),
         settled,
@@ -952,11 +948,11 @@ export const answerAdjustment = async (
   await notify(`Receipt for Adjustment ${adjustmentId}`, async () =>
     email.send({
       to: client.email,
-      ...approvedEmail({
+      ...approvedEmail(client.preferredLanguage, {
         name: client.name,
         jobId,
         clean: await cleanOf(job, property),
-        label: adjustmentLabel(answered),
+        adjustment: answered,
         amountCents: answered.totalCents,
         totalCents: payment.totalCents,
         owedCents: payment.owedCents,
@@ -1001,7 +997,7 @@ export const retryJob = async (jobId: string) => {
   await notify(`Payment notice for Job ${jobId}`, async () =>
     email.send({
       to: client.email,
-      ...paymentWentThroughEmail({
+      ...paymentWentThroughEmail(client.preferredLanguage, {
         name: client.name,
         jobId,
         clean: await cleanOf(job, property),

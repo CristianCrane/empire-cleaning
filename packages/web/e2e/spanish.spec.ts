@@ -167,7 +167,7 @@ test("a Client reading in Spanish moves a clean, then cancels it, the API answer
   await expect(page.getByText("Se canceló su limpieza")).toBeVisible();
   await expect(page.getByRole("region", { name: "Cancelada" })).toBeVisible();
   expect((await emailsTo(casey.email)).at(-1)!.subject).toBe(
-    "Your clean is cancelled",
+    "Su limpieza está cancelada",
   );
 });
 

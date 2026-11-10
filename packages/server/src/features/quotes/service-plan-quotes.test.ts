@@ -604,7 +604,9 @@ describe("a Sent Service Plan Quote", () => {
     expect(sent.text).toContain("$201.85 a clean, which saves you $22.43");
     expect(sent.text).toContain("one-off price of $224.28");
     expect(sent.text.match(/https?:\/\/\S+/g)).toEqual([
-      expect.stringMatching(new RegExp(`/portal/quotes/${quote.id}$`)),
+      expect.stringMatching(
+        new RegExp(`/portal/quotes/${quote.id}\\?lang=en$`),
+      ),
     ]);
 
     // a new Revision says it's been updated

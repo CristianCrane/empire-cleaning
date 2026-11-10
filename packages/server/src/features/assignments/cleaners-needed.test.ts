@@ -386,7 +386,9 @@ describe("The morning email of Cleaners Needed", () => {
       second.indexOf("Thursday, January 8"),
     );
     // more than one: they're all under Offers
-    expect(second).toMatch(/http:\/\/localhost:5173\/cleaner\/offers\n/);
+    expect(second).toMatch(
+      /http:\/\/localhost:5173\/cleaner\/offers\?lang=en\n/,
+    );
 
     // nothing new the day after
     testClock().set(new Date("2026-01-07T12:05:00Z"));

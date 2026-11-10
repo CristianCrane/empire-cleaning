@@ -1,9 +1,9 @@
 import { bookingConfirmationEmail } from "../src/features/quotes/emails.ts";
 import { preview } from "../src/services/email/preview.tsx";
-import { clean, client } from "./samples.ts";
+import { clean, client, lang } from "./samples.ts";
 
 export default preview(
-  bookingConfirmationEmail({
+  bookingConfirmationEmail(lang, {
     name: client.name,
     clean,
     paid: {

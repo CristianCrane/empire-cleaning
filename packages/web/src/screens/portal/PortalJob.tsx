@@ -39,7 +39,7 @@ import { ChooseNewTime, costForClient } from "../RescheduleParts.tsx";
 import { addressOf, formatHours, wasSkipped } from "../format.ts";
 import { useSaid } from "../words.ts";
 import { Fact } from "../Fact.tsx";
-import { catalog } from "@empire-cleaning/models";
+import { catalog, oneStop, stopAfter } from "@empire-cleaning/models";
 import { JobStatusBadge } from "../JobBadges.tsx";
 
 // in the Client's language (ADR-0025)
@@ -80,11 +80,11 @@ const words = catalog({
     keep: "Keep my clean",
     skipFreeUntil: "You can skip it for free until",
     skipAfter:
-      ". After that, it's a late cancellation, with a fee the same as your plan's deposit.",
+      " After that, it's a late cancellation, with a fee the same as your plan's deposit.",
     cancelFreeUntil: "You can cancel for free until",
     andRefund: (amount: string) => `, and we'll refund your ${amount} deposit`,
     cancelAfter:
-      ". After that, it's a late cancellation, and your deposit is kept as the fee.",
+      " After that, it's a late cancellation, and your deposit is kept as the fee.",
     onlyThis: "Only this clean is skipped. Your cleaning plan carries on.",
     notWithdrawn: "Your request wasn't withdrawn. Please try again.",
     moving: "Moving your clean",
@@ -92,12 +92,11 @@ const words = catalog({
     withdraw: "Withdraw request",
     askedTo: "You've asked to move it to",
     held: (when: string) =>
-      `. That time is held for you while we confirm it. Until then, your clean stays booked for ${when}.`,
+      ` That time is held for you while we confirm it. Until then, your clean stays booked for ${when}.`,
     sent: "Request sent",
     couldntMove: (when: string) => `We couldn't move it to ${when}.`,
     moveFreeUntil: "You can move it for free until",
-    moveAfter:
-      ". After that, it's a late move, and only one per clean is free.",
+    moveAfter: " After that, it's a late move, and only one per clean is free.",
     refunding: (amount: string, card: string) =>
       `We're refunding ${amount} to your ${card}.`,
     card: "card",
@@ -172,16 +171,16 @@ const words = catalog({
     skipQ: "¿Saltar esta limpieza?",
     cancelQ: "¿Cancelar su limpieza?",
     serviceAt: (service: string, address: string, when: string) =>
-      `${service} en ${address}, ${when}.`,
+      oneStop(`${service} en ${address}, ${when}.`),
     keep: "Mantener mi limpieza",
     skipFreeUntil: "Puede saltarla sin cargo hasta el",
     skipAfter:
-      ". Después, es una cancelación tardía, con un cargo igual al depósito de su plan.",
+      " Después, es una cancelación tardía, con un cargo igual al depósito de su plan.",
     cancelFreeUntil: "Puede cancelarla sin cargo hasta el",
     andRefund: (amount: string) =>
       `, y le devolveremos su depósito de ${amount}`,
     cancelAfter:
-      ". Después, es una cancelación tardía, y nos quedamos con su depósito como cargo.",
+      " Después, es una cancelación tardía, y nos quedamos con su depósito como cargo.",
     onlyThis: "Solo se salta esta limpieza. Su plan de limpieza continúa.",
     notWithdrawn: "No se retiró su solicitud. Vuelva a intentarlo.",
     moving: "Reprogramar su limpieza",
@@ -189,12 +188,15 @@ const words = catalog({
     withdraw: "Retirar solicitud",
     askedTo: "Pidió reprogramarla para el",
     held: (when: string) =>
-      `. Le guardamos esa hora mientras la confirmamos. Hasta entonces, su limpieza sigue reservada para el ${when}.`,
+      oneStop(
+        ` Le guardamos esa hora mientras la confirmamos. Hasta entonces, su limpieza sigue reservada para el ${when}.`,
+      ),
     sent: "Solicitud enviada",
-    couldntMove: (when: string) => `No pudimos reprogramarla para el ${when}.`,
+    couldntMove: (when: string) =>
+      oneStop(`No pudimos reprogramarla para el ${when}.`),
     moveFreeUntil: "Puede reprogramarla sin cargo hasta el",
     moveAfter:
-      ". Después, es una reprogramación tardía, y solo una por limpieza es gratis.",
+      " Después, es una reprogramación tardía, y solo una por limpieza es gratis.",
     refunding: (amount: string, card: string) =>
       `Le estamos devolviendo ${amount} a su ${card}.`,
     card: "tarjeta",
@@ -222,7 +224,7 @@ const words = catalog({
     answerBy: (day: string) => `Responda antes del ${day}.`,
     charge: { deposit: "Depósito", balance: "Pagado", fee: "Cargo" },
     receipt: "Su recibo",
-    doneAt: (when: string) => `Terminada el ${when}.`,
+    doneAt: (when: string) => oneStop(`Terminada el ${when}.`),
     quoted: "Precio cotizado",
     total: "Total",
     depositKept: " (su depósito, retenido)",
@@ -484,6 +486,11 @@ function Cancel({
   ]
     .filter(Boolean)
     .join(" ");
+  const freeUntil = t.formatDateTime(terms.freeUntil);
+  const refund =
+    terms.refundCents > 0
+      ? t.w.andRefund(t.formatMoney(terms.refundCents))
+      : "";
 
   const cancel = async (close: () => void) => {
     const ok = await action.run(
@@ -542,16 +549,15 @@ function Cancel({
         <p>{cost}</p>
       ) : onPlan ? (
         <p>
-          {t.w.skipFreeUntil}{" "}
-          <strong>{t.formatDateTime(terms.freeUntil)}</strong>
+          {t.w.skipFreeUntil} <strong>{freeUntil}</strong>
+          {stopAfter(freeUntil)}
           {t.w.skipAfter}
         </p>
       ) : (
         <p>
-          {t.w.cancelFreeUntil}{" "}
-          <strong>{t.formatDateTime(terms.freeUntil)}</strong>
-          {terms.refundCents > 0 &&
-            t.w.andRefund(t.formatMoney(terms.refundCents))}
+          {t.w.cancelFreeUntil} <strong>{freeUntil}</strong>
+          {refund}
+          {stopAfter(refund || freeUntil)}
           {t.w.cancelAfter}
         </p>
       )}
@@ -568,6 +574,7 @@ function Reschedule({ job }: { job: ClientJobDetail }) {
   const request = job.rescheduleRequest;
 
   if (request?.status === "pending") {
+    const asked = t.formatDateTime(request.startsAt);
     return (
       <ActionCard
         title={t.w.moving}
@@ -592,7 +599,8 @@ function Reschedule({ job }: { job: ClientJobDetail }) {
       >
         {action.problem && <Notice tone="danger">{action.problem}</Notice>}
         <p>
-          {t.w.askedTo} <strong>{t.formatDateTime(request.startsAt)}</strong>
+          {t.w.askedTo} <strong>{asked}</strong>
+          {stopAfter(asked)}
           {t.w.held(t.formatDateTime(job.startsAt))}
         </p>
         <p>{costForClient(t.lang, request.cost, request.feeCents, job)}</p>
@@ -602,6 +610,7 @@ function Reschedule({ job }: { job: ClientJobDetail }) {
 
   const terms = job.rescheduleTerms;
   if (!terms) return null;
+  const freeUntil = t.formatDateTime(terms.freeUntil);
   return (
     <ActionCard
       title={t.p.anotherTime}
@@ -628,8 +637,8 @@ function Reschedule({ job }: { job: ClientJobDetail }) {
       )}
       {terms.cost === "free" ? (
         <p>
-          {t.w.moveFreeUntil}{" "}
-          <strong>{t.formatDateTime(terms.freeUntil)}</strong>
+          {t.w.moveFreeUntil} <strong>{freeUntil}</strong>
+          {stopAfter(freeUntil)}
           {t.w.moveAfter}
         </p>
       ) : (
@@ -678,7 +687,9 @@ function Cancelled({ job }: { job: ClientJobDetail }) {
   return (
     <Part
       title={t.cancelledLabel(skipped)}
-      description={`${t.cancelledLabel(skipped)} ${t.formatDateTime(cancellation.cancelledAt)}.`}
+      description={oneStop(
+        `${t.cancelledLabel(skipped)} ${t.formatDateTime(cancellation.cancelledAt)}.`,
+      )}
       actions={<WhatNext job={job} />}
     >
       {cancellation.by === "empire" ? (

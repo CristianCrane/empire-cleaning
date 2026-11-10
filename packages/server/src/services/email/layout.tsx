@@ -173,14 +173,16 @@ const Logo = ({ src }: { src: string }) => (
   </Section>
 );
 
-const footer = [
+// the business, under every email: the area served in its reader's
+// language
+const footerOf = (lang: Language) => [
   business.name,
-  business.area,
+  business.area[lang],
   business.phone.display,
   business.site,
 ];
 
-export const footerLine = footer.join(" · ");
+export const footerLine = (lang: Language) => footerOf(lang).join(" · ");
 
 // logoUrl: the logo PNG on the landing site (see logoUrlOn)
 export const EmailLayout = ({
@@ -190,7 +192,7 @@ export const EmailLayout = ({
   email: Email;
   logoUrl: string;
 }) => (
-  <Html lang={email.lang ?? "en"}>
+  <Html lang={email.lang}>
     <Head>
       <meta name="color-scheme" content="light" />
       <meta name="supported-color-schemes" content="light" />
@@ -215,7 +217,7 @@ export const EmailLayout = ({
         <Logo src={logoUrl} />
         <Section style={{ padding: "24px 24px 8px" }}>
           {email.blocks.map((block, i) => (
-            <BlockView key={i} block={block} lang={email.lang ?? "en"} />
+            <BlockView key={i} block={block} lang={email.lang} />
           ))}
         </Section>
       </Container>
@@ -230,7 +232,7 @@ export const EmailLayout = ({
             margin: 0,
           }}
         >
-          {footer.map((part, i) => (
+          {footerOf(email.lang).map((part, i) => (
             <span key={part}>
               {i > 0 && " · "}
               {/* wraps between the parts, never inside one */}

@@ -66,7 +66,7 @@ import {
   rescheduleTurnedDownEmail,
 } from "./emails.ts";
 
-// the emails' money is English until #304
+// the Office's money, in its email
 const { formatMoney } = formats.en;
 
 // a Job can be moved to a day from tomorrow up to this many days ahead
@@ -430,7 +430,7 @@ export const turnDownReschedule = async (
   await notify(`Reschedule turned down for Job ${jobId}`, async () =>
     email.send({
       to: client.email,
-      ...rescheduleTurnedDownEmail({
+      ...rescheduleTurnedDownEmail(client.preferredLanguage, {
         name: client.name,
         jobId,
         clean: await cleanOf(job, property),
@@ -492,7 +492,7 @@ export const confirmReschedule = async (jobId: string, byAccountId: string) => {
   await notify(`Reschedule confirmation for Job ${jobId}`, async () =>
     email.send({
       to: client.email,
-      ...rescheduleConfirmedEmail({
+      ...rescheduleConfirmedEmail(client.preferredLanguage, {
         name: client.name,
         jobId,
         clean: await cleanOf({ ...job, startsAt: pending.startsAt }, property),
@@ -500,7 +500,6 @@ export const confirmReschedule = async (jobId: string, byAccountId: string) => {
         cost: {
           cost: pending.cost,
           feeCents: pending.feeCents,
-          fee: formatMoney(pending.feeCents),
           onPlan,
           weeklyBill: weeklyBillFor(job, client) !== null,
         },
@@ -671,7 +670,7 @@ export const moveJob = async (jobId: string, to: LocalDateTime) => {
   await notify(`Move notice for Job ${jobId}`, async () =>
     email.send({
       to: client.email,
-      ...jobMovedEmail({
+      ...jobMovedEmail(client.preferredLanguage, {
         name: client.name,
         jobId,
         clean: await cleanOf(moved, property),

@@ -17,46 +17,213 @@ import {
   formats,
   dayOf,
   messages,
+  oneStop,
 } from "@empire-cleaning/models";
 import { accessButton } from "../jobs/emails.ts";
+import { cardOf } from "../payments/emails.ts";
 import { describePlan } from "./plan-days.ts";
 
-const {
-  ASK_AGAIN,
-  billPaid,
-  cleansPaid,
-  ON_WEEKS_BILL,
-  PRICES_INCLUDE_TAX,
-  turnedDown,
-  recurrence,
-} = messages.en;
-
-const { formatMoney, formatWhen, weekdayName } = formats.en;
+// the Office's
+const { formatWhen } = formats.en;
 
 // Every Quote email links to the Quote's page, with no sign-in power
 // (ADR-0006): the same page shows the offer once it's Sent
 
 // how a Client books again once their cleans are cancelled or their plan
 // has ended
-export const BOOK_ANOTHER =
-  "To book another clean, ask us for a quote in your account.";
+export const bookAnother = catalog({
+  en: "To book another clean, ask us for a quote in your account.",
+  es: "Para reservar otra limpieza, pídanos una cotización en su cuenta.",
+});
 
-const receiptWords = catalog({
+// what the emails to a Client about their Quotes say, in each language
+const words = catalog({
   en: {
-    subject: "We got your request for a quote",
+    SEE_QUOTE: "See your quote",
     thanks: (address: string) =>
       `Thanks for asking us for a quote for ${address}.`,
-    see: "See your quote",
-    notYou:
+    NOT_YOU:
       "If you didn't ask for a quote, you can ignore this email, or reply and let us know.",
+    RECEIVED: "We got your request for a quote",
+    askClash: {
+      subject: "About your request for a quote",
+      signInToPick: "Sign in and pick it from the list to ask about it.",
+      ASK: "Ask for a quote",
+      SEE_QUOTES: "See your quotes",
+    },
+    turnDown: {
+      subject: "About your quote from Empire Cleaning",
+    },
+    quote: {
+      subject: (plan: boolean, revised: boolean) =>
+        `Your ${plan ? "cleaning plan quote" : "quote"} from Empire Cleaning${revised ? " has been updated" : ""}`,
+      // the quote is ready, or has been updated
+      ready: (revised: boolean) => (revised ? "has been updated" : "is ready"),
+      oneOff: (address: string, ready: string, when: string) =>
+        `Your quote for ${address} ${ready}, for ${when}:`,
+      RECOMMENDED: " (recommended)",
+      // a plan on one weekday: "a Standard Clean every week"
+      oneDay: (service: string, often: string) => `a ${service} ${often}`,
+      planOne: (
+        address: string,
+        ready: string,
+        plan: string,
+        starting: string,
+      ) =>
+        `Your cleaning plan quote for ${address} ${ready}: ${plan}, starting ${starting}.`,
+      saves: (each: string, saving: string, oneOff: string) =>
+        `${each} a clean, which saves you ${saving} on the one-off price of ${oneOff}.`,
+      weekly: (week: string, percent: number) =>
+        `${week} a week, ${percent}% off the one-off prices.`,
+      openUntil: (until: string, email: string) =>
+        `It's open until ${until}. To see all of it, sign in with this email address (${email}):`,
+    },
+    // how a card is named when it's charged: "your Visa ending 4242"
+    yourCard: (card: string) => `your ${card}`,
+    // a plan's prices: `now` for a change of plan
+    eachIs: (now: boolean, each: string) =>
+      `Each clean is ${now ? "now " : ""}${each}.`,
+    eachOn: (price: string, weekday: string) => `${price} on ${weekday}s`,
+    eachChargedOne: (now: boolean, each: string, card: string) =>
+      `Each clean is ${now ? "now " : ""}${each}, charged to ${card} when it's done.`,
+    eachCharged: (card: string, each: string) =>
+      `Each clean is charged to ${card} when it's done: ${each}.`,
+    started: {
+      subject: "Your cleaning plan with Empire Cleaning has started",
+      at: (address: string) => ` at ${address}`,
+      started: (plan: string, first: string) =>
+        `Your cleaning plan has started: ${plan}. The first is on ${first}.`,
+      deposit: (deposit: string) =>
+        `We've taken your deposit of ${deposit}. We keep it while the plan runs, and it comes off your last clean when the plan ends.`,
+      REMIND:
+        "We'll remind you the day before each clean. Please check we know how to get in:",
+    },
+    changed: {
+      subject: "Your cleaning plan with Empire Cleaning has changed",
+      changed: (address: string, from: string, plan: string) =>
+        `Your cleaning plan at ${address} has changed: from ${from}, it's ${plan}.`,
+      BEFORE: "Cleans before then go ahead as they were.",
+      replaced: (count: number, when: string) =>
+        count === 1
+          ? `The clean you had booked from then on (${when}) is cancelled, at no charge.`
+          : `The cleans you had booked from then on (${when}) are cancelled, at no charge.`,
+      DEPOSIT:
+        "Your deposit stays as it is: we keep it while the plan runs, and it comes off your last clean when the plan ends.",
+      SEE_PLAN: "See your cleaning plan",
+    },
+    booked: {
+      subject: "You're booked with Empire Cleaning",
+      BOOKED: "You're booked.",
+      depositTaken: (
+        deposit: string,
+        card: string,
+        rest: string,
+        then: string,
+      ) =>
+        `We've taken your deposit of ${deposit} from ${card}. The rest, ${rest}, ${then}.`,
+      CHARGED_WHEN_DONE: "is charged to it when the clean is done",
+      total: (total: string, then: string) => `The ${total} ${then}.`,
+      chargedTo: (card: string) =>
+        `is charged to ${card} when the clean is done`,
+      REMIND:
+        "We'll remind you the day before. Please check we know how to get in:",
+    },
   },
   es: {
-    subject: "Recibimos su solicitud de cotización",
+    SEE_QUOTE: "Ver su cotización",
     thanks: (address: string) =>
       `Gracias por pedirnos una cotización para ${address}.`,
-    see: "Ver su cotización",
-    notYou:
+    NOT_YOU:
       "Si usted no pidió una cotización, puede ignorar este correo, o respondernos para avisarnos.",
+    RECEIVED: "Recibimos su solicitud de cotización",
+    askClash: {
+      subject: "Sobre su solicitud de cotización",
+      signInToPick:
+        "Inicie sesión y elíjala de la lista para pedir una cotización.",
+      ASK: "Pedir una cotización",
+      SEE_QUOTES: "Ver sus cotizaciones",
+    },
+    turnDown: {
+      subject: "Sobre su cotización de Empire Cleaning",
+    },
+    quote: {
+      subject: (plan: boolean, revised: boolean) =>
+        `Su ${plan ? "cotización de plan de limpieza" : "cotización"} de Empire Cleaning${revised ? " cambió" : ""}`,
+      ready: (revised: boolean) => (revised ? "cambió" : "está lista"),
+      oneOff: (address: string, ready: string, when: string) =>
+        `Su cotización para ${address} ${ready}, para el ${when}:`,
+      RECOMMENDED: " (recomendado)",
+      oneDay: (service: string, often: string) => `${service} ${often}`,
+      planOne: (
+        address: string,
+        ready: string,
+        plan: string,
+        starting: string,
+      ) =>
+        oneStop(
+          `Su cotización de plan de limpieza para ${address} ${ready}: ${plan}, a partir del ${starting}.`,
+        ),
+      saves: (each: string, saving: string, oneOff: string) =>
+        `${each} por limpieza, que le ahorra ${saving} sobre el precio de una sola limpieza, ${oneOff}.`,
+      weekly: (week: string, percent: number) =>
+        `${week} por semana, un ${percent}% menos que los precios de una sola limpieza.`,
+      openUntil: (until: string, email: string) =>
+        oneStop(
+          `Está abierta hasta el ${until}. Para verla completa, inicie sesión con este correo (${email}):`,
+        ),
+    },
+    yourCard: (card: string) => `su ${card}`,
+    eachIs: (now: boolean, each: string) =>
+      `Cada limpieza ${now ? "ahora " : ""}cuesta ${each}.`,
+    eachOn: (price: string, weekday: string) => `${price} los ${weekday}`,
+    eachChargedOne: (now: boolean, each: string, card: string) =>
+      `Cada limpieza ${now ? "ahora " : ""}cuesta ${each}, y se cobra a ${card} cuando está terminada.`,
+    eachCharged: (card: string, each: string) =>
+      `Cada limpieza se cobra a ${card} cuando está terminada: ${each}.`,
+    started: {
+      subject: "Su plan de limpieza con Empire Cleaning comenzó",
+      at: (address: string) => ` en ${address}`,
+      started: (plan: string, first: string) =>
+        oneStop(
+          `Su plan de limpieza comenzó: ${plan}. La primera es el ${first}.`,
+        ),
+      deposit: (deposit: string) =>
+        `Cobramos su depósito de ${deposit}. Lo guardamos mientras dure el plan, y se descuenta de su última limpieza cuando el plan termine.`,
+      REMIND:
+        "Le recordaremos el día antes de cada limpieza. Por favor, revise que sepamos cómo entrar:",
+    },
+    changed: {
+      subject: "Su plan de limpieza con Empire Cleaning cambió",
+      changed: (address: string, from: string, plan: string) =>
+        oneStop(
+          `Su plan de limpieza en ${address} cambió: a partir del ${from}, es ${plan}.`,
+        ),
+      BEFORE: "Las limpiezas antes de esa fecha siguen como estaban.",
+      replaced: (count: number, when: string) =>
+        count === 1
+          ? `La limpieza que tenía reservada desde entonces (${when}) está cancelada, sin ningún cargo.`
+          : `Las limpiezas que tenía reservadas desde entonces (${when}) están canceladas, sin ningún cargo.`,
+      DEPOSIT:
+        "Su depósito sigue igual: lo guardamos mientras dure el plan, y se descuenta de su última limpieza cuando el plan termine.",
+      SEE_PLAN: "Ver su plan de limpieza",
+    },
+    booked: {
+      subject: "Su limpieza con Empire Cleaning está reservada",
+      BOOKED: "Su limpieza está reservada.",
+      depositTaken: (
+        deposit: string,
+        card: string,
+        rest: string,
+        then: string,
+      ) =>
+        `Cobramos su depósito de ${deposit} a ${card}. El resto, ${rest}, ${then}.`,
+      CHARGED_WHEN_DONE: "se le cobra cuando la limpieza está terminada",
+      total: (total: string, then: string) => `El total de ${total} ${then}.`,
+      chargedTo: (card: string) =>
+        `se cobra a ${card} cuando la limpieza está terminada`,
+      REMIND:
+        "Le recordaremos el día antes. Por favor, revise que sepamos cómo entrar:",
+    },
   },
 });
 
@@ -76,22 +243,22 @@ export const quoteReceivedEmail = (
     quoteId: string;
   },
 ): Email => {
-  const w = receiptWords[lang];
+  const w = words[lang];
   return {
     lang,
-    subject: w.subject,
+    subject: w.RECEIVED,
     blocks: [
       greeting(firstNameOf(name)),
       paragraph(`${w.thanks(address)} ${messages[lang].quoteEmailedTo(email)}`),
-      button(w.see, `/portal/quotes/${quoteId}`),
-      paragraph(w.notYou),
+      button(w.SEE_QUOTE, `/portal/quotes/${quoteId}`),
+      paragraph(w.NOT_YOU),
     ],
   };
 };
 
 // Why an ask can't go ahead at a Property the Client has, as the reply
 // says it, in the language of the screen that asked, and the email to their
-// own address (in English until #304)
+// own address, in their Preferred Language
 export const askClash = catalog({
   en: {
     // a Quote the Client has open already for `where`
@@ -127,43 +294,47 @@ export const askClash = catalog({
     PICK_IT: "Elija esa dirección de la lista para pedir una cotización.",
   },
 });
-const { alreadyAsked, alreadyYours } = askClash.en;
-
-const NOT_YOU = receiptWords.en.notYou;
-
 // to the Client's own address, when an ask with their email can't go ahead
 // at a Property they already have: the Guest who asked is told only what
 // anyone would be, so the reply can't show what the Client has where (#243)
-export const askClashEmail = ({
-  name,
-  email,
-  address,
-  kind,
-  why,
-}: {
-  name: string;
-  email: string;
-  address: string;
-  kind: "residential" | "commercial";
-  why: "otherKind" | "asked" | "sent";
-}): Email => ({
-  subject: "About your request for a quote",
-  blocks: [
-    greeting(firstNameOf(name)),
-    ...(why === "otherKind"
-      ? [
-          paragraph(
-            `${alreadyYours(address, kind, "your")} Sign in and pick it from the list to ask about it.`,
-          ),
-          button("Ask for a quote", "/portal/request"),
-        ]
-      : [
-          paragraph(alreadyAsked(why, address, email)),
-          button("See your quotes", "/portal"),
-        ]),
-    paragraph(NOT_YOU),
-  ],
-});
+export const askClashEmail = (
+  lang: Language,
+  {
+    name,
+    email,
+    address,
+    kind,
+    why,
+  }: {
+    name: string;
+    email: string;
+    address: string;
+    kind: "residential" | "commercial";
+    why: "otherKind" | "asked" | "sent";
+  },
+): Email => {
+  const w = words[lang].askClash;
+  const { alreadyAsked, alreadyYours } = askClash[lang];
+  return {
+    lang,
+    subject: w.subject,
+    blocks: [
+      greeting(firstNameOf(name)),
+      ...(why === "otherKind"
+        ? [
+            paragraph(
+              `${alreadyYours(address, kind, "your")} ${w.signInToPick}`,
+            ),
+            button(w.ASK, "/portal/request"),
+          ]
+        : [
+            paragraph(alreadyAsked(why, address, email)),
+            button(w.SEE_QUOTES, "/portal"),
+          ]),
+      paragraph(words[lang].NOT_YOU),
+    ],
+  };
+};
 
 // to the Office: someone asked for a Quote on the landing page or in the
 // portal, and was told to expect it within a working day
@@ -182,6 +353,7 @@ export const quoteRequestedEmail = ({
   address: string;
   quoteId: string;
 }): Email => ({
+  lang: "en",
   subject: `New quote request from ${client}`,
   blocks: [
     paragraph(
@@ -208,6 +380,7 @@ export const quotesWithoutRoomEmail = ({
 }: {
   quotes: { client: string; address: string; startsAt: Date }[];
 }): Email => ({
+  lang: "en",
   subject:
     quotes.length === 1
       ? "A quote needs another time"
@@ -231,27 +404,33 @@ export const quotesWithoutRoomEmail = ({
   ],
 });
 
-export const turnDownEmail = ({
-  name,
-  address,
-  quoteId,
-  reason,
-}: {
-  name: string;
-  address: string;
-  quoteId: string;
-  reason: TurnDownReason;
-}): Email => ({
-  subject: "About your quote from Empire Cleaning",
-  blocks: [
-    greeting(firstNameOf(name)),
-    paragraph(
-      `Thanks for asking us for a quote for ${address}. ${turnedDown(reason)}`,
-    ),
-    paragraph(ASK_AGAIN),
-    button("See your quote", `/portal/quotes/${quoteId}`),
-  ],
-});
+export const turnDownEmail = (
+  lang: Language,
+  {
+    name,
+    address,
+    quoteId,
+    reason,
+  }: {
+    name: string;
+    address: string;
+    quoteId: string;
+    reason: TurnDownReason;
+  },
+): Email => {
+  const w = words[lang];
+  const { ASK_AGAIN, turnedDown } = messages[lang];
+  return {
+    lang,
+    subject: w.turnDown.subject,
+    blocks: [
+      greeting(firstNameOf(name)),
+      paragraph(`${w.thanks(address)} ${turnedDown(reason)}`),
+      paragraph(ASK_AGAIN),
+      button(w.SEE_QUOTE, `/portal/quotes/${quoteId}`),
+    ],
+  };
+};
 
 // a Sent Revision, as much of it as the email shows
 export type QuoteOffer = {
@@ -275,29 +454,50 @@ export type QuoteOffer = {
 // a Service Plan Quote's offer: on one weekday, what each clean saves; on
 // several, each weekday and what a week of them costs
 const planOffer = (
+  lang: Language,
   address: string,
   offer: QuoteOffer,
   plan: NonNullable<QuoteOffer["plan"]>,
   ready: string,
 ) => {
+  const w = words[lang].quote;
+  const { formatMoney, formatWhen, weekdayName } = formats[lang];
   const starting = formatWhen(new Date(offer.proposedStartsAt));
   if (plan.days.length === 1) {
     const [day] = plan.days;
     return [
       paragraph(
-        `Your cleaning plan quote for ${address} ${ready}: a ${day!.serviceName} ${recurrence[plan.recurrence]}, starting ${starting}.`,
+        w.planOne(
+          address,
+          ready,
+          w.oneDay(
+            day!.serviceName,
+            messages[lang].recurrence[plan.recurrence],
+          ),
+          starting,
+        ),
       ),
       paragraph(
-        `${formatMoney(offer.options[0]!.totalCents)} a clean, which saves you ${formatMoney(day!.savingCents)} on the one-off price of ${formatMoney(day!.oneOffTotalCents)}.`,
+        w.saves(
+          formatMoney(offer.options[0]!.totalCents),
+          formatMoney(day!.savingCents),
+          formatMoney(day!.oneOffTotalCents),
+        ),
       ),
     ];
   }
   return [
     paragraph(
-      `Your cleaning plan quote for ${address} ${ready}: ${describePlan(
-        plan.recurrence,
-        plan.days.map((d) => ({ ...d, startsAt: new Date(d.startsAt!) })),
-      )}, starting ${starting}.`,
+      w.planOne(
+        address,
+        ready,
+        describePlan(
+          lang,
+          plan.recurrence,
+          plan.days.map((d) => ({ ...d, startsAt: new Date(d.startsAt!) })),
+        ),
+        starting,
+      ),
     ),
     details(
       offer.options.map((option, i) => ({
@@ -306,7 +506,7 @@ const planOffer = (
       })),
     ),
     paragraph(
-      `${formatMoney(plan.roundTotalCents)} a week, ${plan.discountPercent}% off the one-off prices.`,
+      w.weekly(formatMoney(plan.roundTotalCents), plan.discountPercent),
     ),
   ];
 };
@@ -314,42 +514,52 @@ const planOffer = (
 // A plain link to the Quote's page, not the Revision's, so a signed-out
 // Client signs in (or up) with this email and comes back to it. A later
 // Revision says the Quote has changed.
-export const quoteEmail = ({
-  name,
-  email,
-  quoteId,
-  address,
-  offer,
-}: {
-  name: string;
-  email: string;
-  quoteId: string;
-  address: string;
-  offer: QuoteOffer;
-}): Email => {
+export const quoteEmail = (
+  lang: Language,
+  {
+    name,
+    email,
+    quoteId,
+    address,
+    offer,
+  }: {
+    name: string;
+    email: string;
+    quoteId: string;
+    address: string;
+    offer: QuoteOffer;
+  },
+): Email => {
+  const w = words[lang];
+  const { formatMoney, formatWhen } = formats[lang];
   const revised = offer.number > 1;
-  const ready = revised ? "has been updated" : "is ready";
+  const ready = w.quote.ready(revised);
   return {
-    subject: `Your ${offer.plan ? "cleaning plan quote" : "quote"} from Empire Cleaning${revised ? " has been updated" : ""}`,
+    lang,
+    subject: w.quote.subject(offer.plan !== null, revised),
     blocks: [
       greeting(firstNameOf(name)),
       ...(offer.plan
-        ? planOffer(address, offer, offer.plan, ready)
+        ? planOffer(lang, address, offer, offer.plan, ready)
         : [
             paragraph(
-              `Your quote for ${address} ${ready}, for ${formatWhen(new Date(offer.proposedStartsAt))}:`,
+              w.quote.oneOff(
+                address,
+                ready,
+                formatWhen(new Date(offer.proposedStartsAt)),
+              ),
             ),
             details(
               offer.options.map((o) => ({
-                label: `${o.serviceName}${o.recommended ? " (recommended)" : ""}`,
+                label: `${o.serviceName}${o.recommended ? w.quote.RECOMMENDED : ""}`,
                 value: formatMoney(o.totalCents),
               })),
             ),
           ]),
       paragraph(
-        `${PRICES_INCLUDE_TAX} It's open until ${formatWhen(new Date(offer.expiresAt))}. To see all of it, sign in with this email address (${email}):`,
+        `${messages[lang].PRICES_INCLUDE_TAX} ${w.quote.openUntil(formatWhen(new Date(offer.expiresAt)), email)}`,
       ),
-      button("See your quote", `/portal/quotes/${quoteId}`),
+      button(w.SEE_QUOTE, `/portal/quotes/${quoteId}`),
     ],
   };
 };
@@ -373,129 +583,155 @@ export type PlanCleans = {
   cleans: { startsAt: Date; serviceName: string; totalCents: number }[];
 };
 
-const chargedTo = (paid: PaidWith) =>
-  paid.paymentMethod ? `your ${paid.paymentMethod}` : "your card";
+const chargedTo = (lang: Language, paid: PaidWith) =>
+  words[lang].yourCard(cardOf(lang, paid.paymentMethod));
 
-// a plan's weekdays, what each clean on them costs, and how it's paid
-const planPrices = ({ cleans }: PlanCleans, paid: PaidWith, now = "") => {
+// a plan's weekdays, what each clean on them costs, and how it's paid;
+// `now` for a change of plan
+const planPrices = (
+  lang: Language,
+  { cleans }: PlanCleans,
+  paid: PaidWith,
+  now = false,
+) => {
+  const w = words[lang];
+  const { formatMoney, weekdayName } = formats[lang];
   const each =
     cleans.length === 1
       ? formatMoney(cleans[0]!.totalCents)
       : cleans
-          .map(
-            (c) =>
-              `${formatMoney(c.totalCents)} on ${weekdayName(dayOf(c.startsAt))}s`,
+          .map((c) =>
+            w.eachOn(formatMoney(c.totalCents), weekdayName(dayOf(c.startsAt))),
           )
           .join(", ");
   if (paid.weeklyBill) {
-    return `Each clean is ${now}${each}. ${cleansPaid(paid.weeklyBill)}`;
+    return `${w.eachIs(now, each)} ${messages[lang].cleansPaid(paid.weeklyBill)}`;
   }
   return cleans.length === 1
-    ? `Each clean is ${now}${each}, charged to ${chargedTo(paid)} when it's done.`
-    : `Each clean is charged to ${chargedTo(paid)} when it's done: ${each}.`;
+    ? w.eachChargedOne(now, each, chargedTo(lang, paid))
+    : w.eachCharged(chargedTo(lang, paid), each);
 };
 
 // one email for the whole plan: its Jobs after the first get only the
 // day-before reminder
-export const planConfirmationEmail = ({
-  name,
-  address,
-  plan,
-  paid,
-}: {
-  name: string;
-  address: string;
-  plan: PlanCleans;
-  paid: PaidWith & { depositCents: number };
-}): Email => ({
-  subject: "Your cleaning plan with Empire Cleaning has started",
-  blocks: [
-    greeting(firstNameOf(name)),
-    paragraph(
-      `Your cleaning plan has started: ${describePlan(plan.recurrence, plan.cleans, ` at ${address}`)}. The first is on ${formatWhen(plan.cleans[0]!.startsAt)}.`,
-    ),
-    paragraph(planPrices(plan, paid)),
-    ...(paid.depositCents > 0
-      ? [
-          paragraph(
-            `We've taken your deposit of ${formatMoney(paid.depositCents)}. We keep it while the plan runs, and it comes off your last clean when the plan ends.`,
-          ),
-        ]
-      : []),
-    paragraph(
-      "We'll remind you the day before each clean. Please check we know how to get in:",
-    ),
-    accessButton,
-  ],
-});
+export const planConfirmationEmail = (
+  lang: Language,
+  {
+    name,
+    address,
+    plan,
+    paid,
+  }: {
+    name: string;
+    address: string;
+    plan: PlanCleans;
+    paid: PaidWith & { depositCents: number };
+  },
+): Email => {
+  const w = words[lang].started;
+  const { formatMoney, formatWhen } = formats[lang];
+  return {
+    lang,
+    subject: w.subject,
+    blocks: [
+      greeting(firstNameOf(name)),
+      paragraph(
+        w.started(
+          describePlan(lang, plan.recurrence, plan.cleans, w.at(address)),
+          formatWhen(plan.cleans[0]!.startsAt),
+        ),
+      ),
+      paragraph(planPrices(lang, plan, paid)),
+      ...(paid.depositCents > 0
+        ? [paragraph(w.deposit(formatMoney(paid.depositCents)))]
+        : []),
+      paragraph(w.REMIND),
+      accessButton(lang),
+    ],
+  };
+};
 
 // the plan's new terms, from the first Job on them, and the Jobs they
 // replaced
-export const planChangeEmail = ({
-  name,
-  address,
-  planId,
-  plan,
-  replaced,
-  paid,
-}: {
-  name: string;
-  address: string;
-  planId: string;
-  plan: PlanCleans;
-  replaced: Date[];
-  paid: PaidWith;
-}): Email => ({
-  subject: "Your cleaning plan with Empire Cleaning has changed",
-  blocks: [
-    greeting(firstNameOf(name)),
-    paragraph(
-      `Your cleaning plan at ${address} has changed: from ${formatWhen(plan.cleans[0]!.startsAt)}, it's ${describePlan(plan.recurrence, plan.cleans)}.`,
-    ),
-    paragraph(
-      `${planPrices(plan, paid, "now ")} Cleans before then go ahead as they were.`,
-    ),
-    ...(replaced.length > 0
-      ? [
-          paragraph(
-            `The ${replaced.length === 1 ? "clean" : "cleans"} you had booked from then on (${replaced.map(formatWhen).join("; ")}) ${replaced.length === 1 ? "is" : "are"} cancelled, at no charge.`,
-          ),
-        ]
-      : []),
-    paragraph(
-      "Your deposit stays as it is: we keep it while the plan runs, and it comes off your last clean when the plan ends.",
-    ),
-    button("See your cleaning plan", `/portal/plans/${planId}`),
-  ],
-});
-
-// what was taken for a one-off Job, and how the rest is paid
-const bookingPrice = (paid: Paid) => {
-  const billed =
-    paid.weeklyBill && `${ON_WEEKS_BILL}, ${billPaid[paid.weeklyBill]}`;
-  return paid.depositCents > 0
-    ? `We've taken your deposit of ${formatMoney(paid.depositCents)} from ${chargedTo(paid)}. The rest, ${formatMoney(paid.totalCents - paid.depositCents)}, ${billed || "is charged to it when the clean is done"}.`
-    : `The ${formatMoney(paid.totalCents)} ${billed || `is charged to ${chargedTo(paid)} when the clean is done`}.`;
+export const planChangeEmail = (
+  lang: Language,
+  {
+    name,
+    address,
+    planId,
+    plan,
+    replaced,
+    paid,
+  }: {
+    name: string;
+    address: string;
+    planId: string;
+    plan: PlanCleans;
+    replaced: Date[];
+    paid: PaidWith;
+  },
+): Email => {
+  const w = words[lang].changed;
+  const { formatWhen } = formats[lang];
+  return {
+    lang,
+    subject: w.subject,
+    blocks: [
+      greeting(firstNameOf(name)),
+      paragraph(
+        w.changed(
+          address,
+          formatWhen(plan.cleans[0]!.startsAt),
+          describePlan(lang, plan.recurrence, plan.cleans),
+        ),
+      ),
+      paragraph(`${planPrices(lang, plan, paid, true)} ${w.BEFORE}`),
+      ...(replaced.length > 0
+        ? [
+            paragraph(
+              w.replaced(replaced.length, replaced.map(formatWhen).join("; ")),
+            ),
+          ]
+        : []),
+      paragraph(w.DEPOSIT),
+      button(w.SEE_PLAN, `/portal/plans/${planId}`),
+    ],
+  };
 };
 
-export const bookingConfirmationEmail = ({
-  name,
-  clean,
-  paid,
-}: {
-  name: string;
-  clean: Clean;
-  paid: Paid;
-}): Email => ({
-  subject: "You're booked with Empire Cleaning",
-  blocks: [
-    greeting(firstNameOf(name)),
-    paragraph("You're booked."),
-    cleanDetails(clean),
-    paragraph(bookingPrice(paid)),
-    paragraph(
-      "We'll remind you the day before. Please check we know how to get in:",
-    ),
-    accessButton,
-  ],
-});
+// what was taken for a one-off Job, and how the rest is paid
+const bookingPrice = (lang: Language, paid: Paid) => {
+  const w = words[lang].booked;
+  const { billPaid, ON_WEEKS_BILL } = messages[lang];
+  const { formatMoney } = formats[lang];
+  const billed =
+    paid.weeklyBill && `${ON_WEEKS_BILL}, ${billPaid[paid.weeklyBill]}`;
+  const card = chargedTo(lang, paid);
+  return paid.depositCents > 0
+    ? w.depositTaken(
+        formatMoney(paid.depositCents),
+        card,
+        formatMoney(paid.totalCents - paid.depositCents),
+        billed || w.CHARGED_WHEN_DONE,
+      )
+    : w.total(formatMoney(paid.totalCents), billed || w.chargedTo(card));
+};
+
+export const bookingConfirmationEmail = (
+  lang: Language,
+  { name, clean, paid }: { name: string; clean: Clean; paid: Paid },
+): Email => {
+  const w = words[lang].booked;
+  return {
+    lang,
+    subject: w.subject,
+    blocks: [
+      greeting(firstNameOf(name)),
+      paragraph(w.BOOKED),
+      cleanDetails(lang, clean),
+      paragraph(bookingPrice(lang, paid)),
+      paragraph(w.REMIND),
+      accessButton(lang),
+    ],
+  };
+};

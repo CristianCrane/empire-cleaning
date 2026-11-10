@@ -45,7 +45,7 @@ import {
   ClientQuoteStatusBadge,
 } from "../QuoteParts.tsx";
 import { ConsentNote, usePaymentForm } from "./CardForm.tsx";
-import { catalog } from "@empire-cleaning/models";
+import { catalog, oneStop } from "@empire-cleaning/models";
 import { requestQuoteHref } from "./whats-next.ts";
 
 // in the Client's language (ADR-0025)
@@ -196,14 +196,17 @@ const words = catalog({
     restOnBill: "El resto, en la factura de esa semana",
     restWhenDone: "El resto, cuando la limpieza esté terminada",
     planChanged: (when: string) =>
-      `Su plan de limpieza cambió: tiene estas condiciones desde el ${when}.`,
+      oneStop(
+        `Su plan de limpieza cambió: tiene estas condiciones desde el ${when}.`,
+      ),
     planStarted: (when: string) =>
-      `Su plan de limpieza empezó: su primera limpieza es el ${when}.`,
-    acceptedOn: (when: string) => `Aceptó esta cotización el ${when}.`,
+      oneStop(`Su plan de limpieza empezó: su primera limpieza es el ${when}.`),
+    acceptedOn: (when: string) => oneStop(`Aceptó esta cotización el ${when}.`),
     booked: (service: string, when: string) =>
-      `Está reservado: ${service} el ${when}.`,
-    declinedOn: (when: string) => `Rechazó esta cotización el ${when}.`,
-    expiredOn: (when: string) => `Esta cotización venció el ${when}.`,
+      oneStop(`Está reservado: ${service} el ${when}.`),
+    declinedOn: (when: string) =>
+      oneStop(`Rechazó esta cotización el ${when}.`),
+    expiredOn: (when: string) => oneStop(`Esta cotización venció el ${when}.`),
     changesPlan: "Esto cambia su plan de limpieza",
     movesTerms: (when: string) =>
       `Desde el ${when}, su plan pasa a las condiciones de abajo. Las limpiezas de antes siguen como están.`,
@@ -223,8 +226,8 @@ const words = catalog({
     savedCard: "tarjeta guardada",
     takeAndKeep: (amount: string) =>
       `Cobramos ahora el depósito de ${amount} y lo guardamos mientras dure su plan. Se descuenta de su última limpieza cuando el plan termine. `,
-    firstOn: (when: string) => ` La primera es el ${when}.`,
-    bookedFor: (when: string) => ` Reservada para el ${when}.`,
+    firstOn: (when: string) => oneStop(` La primera es el ${when}.`),
+    bookedFor: (when: string) => oneStop(` Reservada para el ${when}.`),
     acceptPay: (amount: string) => `Aceptar y pagar ${amount}`,
     acceptBook: "Aceptar y reservar",
     takeRestBilled: (deposit: string, rest: string, billed: string) =>
@@ -240,7 +243,8 @@ const words = catalog({
     planChangedToast: "Su plan de limpieza cambió",
     acceptNew: "Aceptar las nuevas condiciones",
     nothingCharged: "No se cobra nada ahora.",
-    newStart: (when: string) => ` Las nuevas condiciones empiezan el ${when}.`,
+    newStart: (when: string) =>
+      oneStop(` Las nuevas condiciones empiezan el ${when}.`),
     declined: "Cotización rechazada",
     decline: "Rechazar esta cotización",
     declineQ: "¿Rechazar esta cotización?",
@@ -695,7 +699,9 @@ function PlanChangeNotice({
       {change.replaces.length > 0 && (
         <p>
           {t.w.replaces(change.replaces.length)}{" "}
-          {change.replaces.map((at) => t.formatDateTime(at)).join("; ")}.
+          {oneStop(
+            `${change.replaces.map((at) => t.formatDateTime(at)).join("; ")}.`,
+          )}
         </p>
       )}
       <p>{t.w.depositStays(t.formatMoney(change.depositCents))}</p>

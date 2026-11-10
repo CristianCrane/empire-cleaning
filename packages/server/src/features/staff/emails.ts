@@ -15,6 +15,7 @@ export const staffInviteEmail = ({
   name: string;
   email: string;
 }): Email => ({
+  lang: "en",
   subject: "You're invited to join Empire Cleaning",
   blocks: [
     greeting(firstNameOf(name)),

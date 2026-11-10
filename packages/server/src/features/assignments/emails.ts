@@ -26,11 +26,12 @@ export const offerEmail = ({
   jobId: string;
   clean: Clean;
 }): Email => ({
+  lang: "en",
   subject: "You've been offered a job",
   blocks: [
     greeting(firstNameOf(name)),
     paragraph("You've been offered this job:"),
-    cleanDetails(clean),
+    cleanDetails("en", clean),
     paragraph("Please confirm it, or drop out if you can't make it."),
     jobButton(jobId),
   ],
@@ -43,11 +44,12 @@ export const takenOffEmail = ({
   name: string;
   clean: Clean;
 }): Email => ({
+  lang: "en",
   subject: "You're no longer on a job",
   blocks: [
     greeting(firstNameOf(name)),
     paragraph("The office has taken you off this job. You don't need to go."),
-    cleanDetails(clean),
+    cleanDetails("en", clean),
     jobsButton,
   ],
 });
@@ -62,10 +64,11 @@ export const releasedEmail = ({
   jobId: string;
   clean: Clean;
 }): Email => ({
+  lang: "en",
   subject: `${cleaner} dropped out of a job`,
   blocks: [
     paragraph(`${cleaner} can't make this job, so it needs a cleaner:`),
-    cleanDetails(clean),
+    cleanDetails("en", clean),
     paragraph("Free cleaners can take it now, or you can offer it to someone."),
     button("See the job", `/office/jobs/${jobId}`),
   ],
@@ -93,6 +96,7 @@ export const cleanersNeededEmail = ({
   soon: boolean;
   jobs: CleanerNeeded[];
 }): Email => ({
+  lang: "en",
   subject: soon ? "An open job, soon" : "Open jobs for you",
   blocks: [
     greeting(firstNameOf(name)),

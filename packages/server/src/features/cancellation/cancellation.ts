@@ -285,7 +285,7 @@ const sendCancelled = async (
   await notify(`Cancellation notice for Job ${jobId}`, async () =>
     email.send({
       to: client.email,
-      ...cancelledEmail({
+      ...cancelledEmail(client.preferredLanguage, {
         name: client.name,
         jobId,
         clean: await cleanOf(job!, property),
@@ -402,7 +402,7 @@ export const recordNoAccess = async (
   await notify(`No Access notice for Job ${jobId}`, async () =>
     email.send({
       to: client.email,
-      ...noAccessEmail({
+      ...noAccessEmail(client.preferredLanguage, {
         name: client.name,
         jobId,
         clean: await cleanOf(job, property),

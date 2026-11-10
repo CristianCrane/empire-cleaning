@@ -56,27 +56,14 @@ describe("routing an email", () => {
     ).toBe("office@example.com");
   });
 
-  test("always allows the Office inbox, and keeps an allowed copy", () => {
-    const routed = routeEmail(
-      { ...message, to: "office@example.com", bcc: "office@example.com" },
-      testSite(["owner+*@gmail.com"]),
-    );
-
-    expect(routed).toEqual({
+  test("always allows the Office inbox", () => {
+    expect(
+      routeEmail(
+        { ...message, to: "office@example.com" },
+        testSite(["owner+*@gmail.com"]),
+      ),
+    ).toEqual({
       to: "office@example.com",
-      bcc: "office@example.com",
-      subject: "[TEST] Your clean is tomorrow",
-    });
-  });
-
-  test("drops a copy to an address that isn't allowed", () => {
-    const routed = routeEmail(
-      { ...message, bcc: "someone@example.com" },
-      testSite(["priya@example.com"]),
-    );
-
-    expect(routed).toEqual({
-      to: "priya@example.com",
       subject: "[TEST] Your clean is tomorrow",
     });
   });

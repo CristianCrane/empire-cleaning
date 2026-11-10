@@ -141,7 +141,7 @@ export const sendPaymentMethodLink = async (clientId: string) => {
   if (client.email) {
     await email.send({
       to: client.email,
-      ...paymentMethodLinkEmail({
+      ...paymentMethodLinkEmail(client.preferredLanguage, {
         name: client.name,
         email: client.email,
         weeklyBill: weeklyBillOf(client),

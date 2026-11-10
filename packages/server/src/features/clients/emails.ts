@@ -1,15 +1,38 @@
+import { catalog, type Language } from "@empire-cleaning/models";
 import { button, paragraph, type Email } from "../../services/email/blocks.ts";
 import { EMAIL_CHANGE_TTL_HOURS } from "./clients.ts";
 
-export const emailChangeEmail = ({ token }: { token: string }): Email => ({
-  subject: "Confirm your new email",
-  blocks: [
-    paragraph(
+const words = catalog({
+  en: {
+    subject: "Confirm your new email",
+    asked:
       "You asked us to send your quotes and notices to this address. Confirm it's yours:",
-    ),
-    button("Confirm my email", `/confirm-email?token=${token}`),
-    paragraph(
-      `The link works for ${EMAIL_CHANGE_TTL_HOURS} hours. If you didn't ask for this, you can ignore this email: nothing changes.`,
-    ),
-  ],
+    confirm: "Confirm my email",
+    works: (hours: number) =>
+      `The link works for ${hours} hours. If you didn't ask for this, you can ignore this email: nothing changes.`,
+  },
+  es: {
+    subject: "Confirme su nuevo correo",
+    asked:
+      "Nos pidió enviar sus cotizaciones y avisos a esta dirección. Confirme que es suya:",
+    confirm: "Confirmar mi correo",
+    works: (hours: number) =>
+      `El enlace funciona durante ${hours} horas. Si usted no pidió esto, puede ignorar este correo: no cambia nada.`,
+  },
 });
+
+export const emailChangeEmail = (
+  lang: Language,
+  { token }: { token: string },
+): Email => {
+  const w = words[lang];
+  return {
+    lang,
+    subject: w.subject,
+    blocks: [
+      paragraph(w.asked),
+      button(w.confirm, `/confirm-email?token=${token}`),
+      paragraph(w.works(EMAIL_CHANGE_TTL_HOURS)),
+    ],
+  };
+};
