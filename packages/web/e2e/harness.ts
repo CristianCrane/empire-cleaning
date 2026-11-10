@@ -407,9 +407,9 @@ export const test = base.extend<{
 });
 
 // something in the navigation or the account's parts, wherever it shows:
-// on a phone, sections that don't fit the tab bar (#200) and, in the portal
-// and the Cleaner area, the account's parts (#305) are in the ☰ menu, in
-// either language, which is opened first. Whether it opened it, so a check
+// on a phone, sections that don't fit the tab bar (#200) and every area's
+// account parts (#305) are in the ☰ menu, in either language, which is
+// opened first. Whether it opened it, so a check
 // can close it again
 export const showInMenu = async (page: Page, wanted: Locator) => {
   const item = wanted.filter({ visible: true });
