@@ -23,15 +23,11 @@ import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import { BookSiteVisit } from "./SiteVisitParts.tsx";
 import { useStartDraft } from "./StartDraft.tsx";
-import {
-  conditionLabel,
-  conditionText,
-  formatHours,
-  roomsText,
-  formatFloorArea,
-} from "../format.ts";
+import { formatHours, roomsText, screenWords } from "../format.ts";
 import { AskedRows } from "../QuoteParts.tsx";
 import { working } from "./WorkedOutQuote.tsx";
+
+const { conditionLabel, conditionText, formatFloorArea } = screenWords.en;
 
 const { formatDate, formatMoney } = formats.en;
 

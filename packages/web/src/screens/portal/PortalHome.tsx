@@ -1,4 +1,3 @@
-import { APP_LANGUAGE } from "../../api.ts";
 import { useLoaderData } from "@tanstack/react-router";
 import {
   ButtonLink,
@@ -10,29 +9,47 @@ import {
   Notice,
   ShortcutTile,
   ShortcutTiles,
+  useLanguage,
 } from "@empire-cleaning/ui";
+import { catalog } from "@empire-cleaning/models";
+import { useSaid } from "../words.ts";
 import { linkTo } from "../../links.ts";
 import { QuoteIcon } from "../icons.ts";
-import { requestQuote, whatsNext, type Hero } from "./whats-next.ts";
+import { requestQuoteHref, whatsNext, type Hero } from "./whats-next.ts";
+
+const words = catalog({
+  en: {
+    hi: (name: string) => `Hi, ${name}`,
+    allCleans: "All your cleans",
+    shortcuts: "Shortcuts",
+  },
+  es: {
+    hi: (name: string) => `Hola, ${name}`,
+    allCleans: "Todas sus limpiezas",
+    shortcuts: "Accesos directos",
+  },
+});
 
 // The Client's Home answers what's next: what's waiting on them in Notices,
 // then the one thing next in a card, then shortcuts to what they can do
 // from there (see whats-next.ts)
 export function PortalHome() {
   const data = useLoaderData({ from: "/portal/" });
-  const { notices, news, hero, after, shortcuts } = whatsNext(data);
+  const lang = useLanguage();
+  const { w, REQUEST_A_QUOTE } = useSaid(words);
+  const { notices, news, hero, after, shortcuts } = whatsNext(data, lang);
   const [firstName] = data.client.name.split(" ");
   // the hero asking for a Quote makes the header's Button a repeat
-  const heroAsks = hero.action === requestQuote;
+  const heroAsks = hero.action?.href === requestQuoteHref;
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <Heading level={1}>Hi, {firstName}</Heading>
+        <Heading level={1}>{w.hi(firstName!)}</Heading>
         {!heroAsks && (
-          <ButtonLink variant="secondary" href={requestQuote.href}>
+          <ButtonLink variant="secondary" href={requestQuoteHref}>
             <QuoteIcon aria-hidden size={18} />
-            {requestQuote.label}
+            {REQUEST_A_QUOTE}
           </ButtonLink>
         )}
       </div>
@@ -62,11 +79,11 @@ export function PortalHome() {
       {after && (
         <p className="text-fg-muted">
           {after} ·{" "}
-          <Link href={linkTo({ to: "/portal/cleans" })}>All your cleans</Link>
+          <Link href={linkTo({ to: "/portal/cleans" })}>{w.allCleans}</Link>
         </p>
       )}
 
-      <ShortcutTiles label="Shortcuts">
+      <ShortcutTiles label={w.shortcuts}>
         {shortcuts.map((s) =>
           typeof s.href === "string" ? (
             <ShortcutTile
@@ -98,7 +115,7 @@ function HeroCard({ hero }: { hero: Hero }) {
     <Card>
       <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-6">
         {hero.startsAt ? (
-          <DateTile lang={APP_LANGUAGE} date={hero.startsAt} />
+          <DateTile date={hero.startsAt} />
         ) : (
           <IconTile icon={hero.icon} tone={hero.tone} size="lg" />
         )}

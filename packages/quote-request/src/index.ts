@@ -1,4 +1,4 @@
-export { accessHelp, conditions } from "./words.ts";
+export { accessHelp, conditions, words as formWords } from "./words.ts";
 export {
   QuoteRequestForm,
   type Asker,

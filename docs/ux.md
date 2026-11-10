@@ -165,9 +165,24 @@ stays as it is (#336).
   comma before "and" ("Monday, Wednesday and Friday"), so English lists
   alone use `en-GB`'s `Intl.ListFormat`; everything else is `en-US` or
   `es-US`.
-- **A screen still English takes `messages.en` and `formats.en`**, so a
-  search for `.en` finds every one left to translate. The Office's stay
-  that way.
+- **A screen's words come from its catalog, in the language it's shown
+  in** (`useSaid(words)` in `packages/web/src/screens/words.ts`: its own
+  words as `w`, with `formats`, `messages` and `screenWords` of that
+  language). A word more than one portal screen shows (its navigation,
+  breadcrumbs, tours) is in `portal/words.ts`, once. Never a
+  `lang === "es" ? … : …` branch: the words differ, so they're a catalog's.
+- **Which language a screen is in** is the app's one store
+  (`packages/web/src/language.ts`): the portal the Client's Preferred
+  Language, the Office English, the Cleaner area English until #305, and
+  before sign-in the language of the page that linked here (`?lang=es`,
+  remembered in the browser) or else the browser's. The design system and
+  react-aria follow it through `LanguageProvider`; the API is told it on
+  every request; `<html lang>` says it.
+- **A screen still English takes `messages.en` and `formats.en`** (and
+  `screenWords.en`), so a search for `.en` finds every one left to
+  translate. The Office's stay that way; where a part shared with the portal
+  words something only the Office reads, that stays an English string
+  beside the Client's catalog word.
 
 ### First-time help
 
@@ -273,8 +288,10 @@ stays as it is (#336).
 3. **Pick one** with the user, and note any tweaks.
 4. **Build it** on a `ux-<screen>` branch, with its tests (e2e on phone and
    desktop, axe in light and dark through the harness's `expectAccessible`,
-   the layout test at every width). Its PR shows the screen before and
-   after, from `pnpm pr:shots` (`packages/web/README.md`, Testing).
+   the layout test at every width, a Guest's, Client's or Cleaner's screen
+   in Spanish too, through `expectFitsInBoth`). Its PR shows the screen
+   before and after, from `pnpm pr:shots` (`packages/web/README.md`,
+   Testing).
 5. **Record it**: a row in the decisions log below; a new rule above, and a
    pattern in Storybook, if it carries over to other screens.
 
@@ -385,3 +402,4 @@ Newest last. "Built in" is the PR (or branch) that shipped it.
 | Every screen, message and email | Add-ons read "add-ons" to the Office and Cleaners but "extras" to Clients and Guests, and an Adjustment "price change" to the Office but "extra work" or "an extra" to a Client, so "extra" named two concepts (#300) | One word per reader (as before) / add-ons for everyone / extras for everyone; for an Adjustment, price change / extra charge / added cost | **Extras for Add-ons and price change for Adjustments, to everyone** | The owner: "two words from two perspectives referring to the same concept … is how confusion starts. Keep extras for both." Extras is what Clients and the Quote form already said. "Price change" is what the Office already said, it covers a price that goes down as well as up, and it doesn't say "extra". Then, at the user's word, "extra" as an adjective went where extras are seen too: the Cleaner's and Office's "Extra time" is "More time", "1 extra hour" is "1 more hour", the Office's "extra floor" an "upper floor" and its Staff calendar's "extra hours" "more hours", and the recurring page's "an extra clean" "another clean". Spanish: adicional, cambio de precio. Job keeps "clean" to a Client as the one exception: to the Office a job isn't always a clean (painting is a job too). A rule above, ADR-0029 | — | `extras-one-word` |
 | Landing > every page | Every landing page in Spanish (#301, ADR-0025): how does a person get to the Spanish one, and what of the Spanish already on the English pages? | (decided on #299, no prototype) | **A twin under `/es/`, switched in the header; English pages keep their Spanish** | Each page's twin has the same bands in Spanish at a Spanish address (`/es/servicios/limpieza-profunda/`). The header's first quiet action, before Sign in, names the other language in its own words (Español, English) and leads to this page's twin; nothing redirects by the browser's language. English pages keep "Se habla español" and the "Do you speak Spanish?" question; a Spanish page drops the line and asks "¿Me pueden atender en español?" instead. Reviews stay in English, as their Clients wrote them. The one 404 page says it in both, leading to either home page. The Spanish is a draft Jen checks on #206 | — | #301 |
 | Landing and portal > the Quote form | The Quote form was English on every Spanish page (#302): in which language does it ask, and in which do the API's messages and the receipt come? | (decided on #299, no prototype) | **The page's language on the landing site, the Client's Preferred Language in the portal; the API answers in the form's** | The form asks in the language of the page it's on, its Services, extras and types of business by their Spanish names where the Office has given them (English where not), and its requests say that language, so the API's messages beside each field come in it too. A Guest's first Quote makes their Preferred Language the page's; the receipt goes in the Client's Preferred Language, whatever page a later ask came from. In the portal the form follows the Client's Preferred Language before the rest of the portal does (#303). The Office's form for a caller stays English. The Spanish is a draft Jen checks on #206 | — | #302 |
+| Sign-in and the Client portal | Every portal and sign-in screen was English (#303): which language does each show, and how does a Client change theirs? | (decided on #299, no prototype) | **The Client's Preferred Language in the portal; before sign-in the language of the page they came from, or their browser's; a Language field on Your details** | The landing site's Sign in link says the page's language (`?lang=es`), which the sign-in screens, its emailed link's page and the welcome page follow; the browser's otherwise. Signed in, the portal is in the Client's Preferred Language, which the edit dialog on Your details changes, each language named in its own words (English, Español), on every Client their Account is connected to. The design system's own words, react-aria's, Stripe's card form and pages, the Google button and the first-time help follow it; the API's messages too. Words that differ by language come from catalogs, never a branch. Services', extras' and business types' names in the portal's views, and a Bill's lines, stay English until they're worded as they're read (#395). The Spanish is a draft Jen checks on #206 | — | #303 |

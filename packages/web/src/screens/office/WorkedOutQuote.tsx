@@ -2,7 +2,9 @@ import { formats } from "@empire-cleaning/models";
 import { FileText } from "lucide-react";
 import type { PriceBreakdown } from "@empire-cleaning/models";
 import { IconTile } from "@empire-cleaning/ui";
-import { cleaners, formatHours, formatMinutes } from "../format.ts";
+import { formatHours, formatMinutes, screenWords } from "../format.ts";
+
+const { cleaners } = screenWords.en;
 
 const { formatMoney } = formats.en;
 

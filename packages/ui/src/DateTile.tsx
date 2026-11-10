@@ -1,4 +1,5 @@
-import { formats, type Language } from "@empire-cleaning/models";
+import { formats } from "@empire-cleaning/models";
+import { useLanguage } from "./language.ts";
 import { tv } from "./utils.ts";
 
 const tile = tv({
@@ -30,18 +31,16 @@ const tile = tv({
 // a page off a calendar: the month on a band, the day large and, at md,
 // the weekday under it, for when something booked is. Decorative: say the
 // date in text beside it. Days are Empire Cleaning's, New York's, wherever
-// the viewer is, in the screen's language.
+// the viewer is, in the language LanguageProvider gives.
 export function DateTile({
   date,
-  lang,
   size = "md",
 }: {
   // an instant, e.g. "2026-11-03T14:00:00Z"
   date: string;
-  lang: Language;
   size?: "md" | "sm";
 }) {
-  const parts = formats[lang].dateTile(date);
+  const parts = formats[useLanguage()].dateTile(date);
   const { base, month, day } = tile({ size });
   return (
     <span aria-hidden className={base()}>

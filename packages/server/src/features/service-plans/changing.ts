@@ -4,7 +4,7 @@ import { dayOf } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError } from "../../middleware/errors.ts";
 import { clock } from "../../services/clock/index.ts";
-import { CHANGED_SINCE, tellCrew } from "../cancellation/cancellation.ts";
+import { changedSince, tellCrew } from "../cancellation/cancellation.ts";
 import { settleAfterChange } from "../completion/balance.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { closePendingRequests } from "../reschedule/closing.ts";
@@ -72,7 +72,7 @@ export const holdForChange = async (
   // generating may have booked one in between
   const now = (await bookedFrom(tx, planId, startsAt)).map((j) => j.id);
   if (now.join() !== ids.join()) {
-    throw new ConflictError(CHANGED_SINCE);
+    throw new ConflictError(changedSince());
   }
   return { plan: plan!, replaced };
 };

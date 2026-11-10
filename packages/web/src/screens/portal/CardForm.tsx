@@ -22,14 +22,63 @@ import {
   type CardForm,
   type PaymentForm,
   type PaymentMethodView,
-  messages,
+  catalog,
+  stripeLocales,
 } from "@empire-cleaning/models";
-import { EmbeddedField, Notice } from "@empire-cleaning/ui";
+import { EmbeddedField, Notice, useLanguage } from "@empire-cleaning/ui";
 import { getJson, postJson, putJson } from "../../api.ts";
 import { reportUnexpected } from "../../monitoring.ts";
 import { useLoaded } from "../load.ts";
+import { useSaid } from "../words.ts";
 
-const { NEVER_SEE_CARD } = messages.en;
+// in the Client's language (ADR-0025), as Stripe's own form is
+const words = catalog({
+  en: {
+    consent: (paying: boolean) =>
+      `By ${paying ? "paying" : "saving your card"}, you agree that Empire Cleaning can charge this card for the balance when each clean is done, the deposit amount for a late cancellation or if we couldn't get in, and any weekly bill set to be charged to it.`,
+    // while the payment provider's part of the form isn't ready
+    NOT_LOADED: "The form didn't load. Please refresh the page.",
+    LOADING: "The form is still loading.",
+    testPay:
+      "Test payments: no card is needed. Paying uses a test card ending 4242.",
+    testSave:
+      "Test payments: no card is needed. Saving uses a test card ending 4242.",
+    testBill:
+      "Test payments: no card or bank account is needed. Paying uses a test one.",
+    card: "Card",
+    payment: "Payment",
+    cardOrBank:
+      "Pay by card or straight from your US bank account. It goes straight into our payment service's secure form, so we never see your card or account number.",
+    checkCard: "Please check your card details.",
+    cardNotUsed: "Your card couldn't be used.",
+    formNotLoaded: "The payment form didn't load.",
+    bankDidnt: "Your bank didn't approve the payment.",
+    notSetUp: "Your card couldn't be set up.",
+    didntGo: "Your payment didn't go through.",
+  },
+  es: {
+    consent: (paying: boolean) =>
+      `Al ${paying ? "pagar" : "guardar su tarjeta"}, acepta que Empire Cleaning cobre a esta tarjeta el resto cuando cada limpieza esté terminada, el monto del depósito por una cancelación tardía o si no pudimos entrar, y cualquier factura semanal que se cobre a ella.`,
+    NOT_LOADED: "No se cargó el formulario. Vuelva a cargar la página.",
+    LOADING: "El formulario todavía se está cargando.",
+    testPay:
+      "Pagos de prueba: no hace falta tarjeta. Se paga con una tarjeta de prueba que termina en 4242.",
+    testSave:
+      "Pagos de prueba: no hace falta tarjeta. Se guarda una tarjeta de prueba que termina en 4242.",
+    testBill:
+      "Pagos de prueba: no hace falta tarjeta ni cuenta bancaria. Se paga con una de prueba.",
+    card: "Tarjeta",
+    payment: "Pago",
+    cardOrBank:
+      "Pague con tarjeta o directamente desde su cuenta bancaria de EE. UU. Va directo al formulario seguro de nuestro servicio de pagos, así que nunca vemos su número de tarjeta ni de cuenta.",
+    checkCard: "Revise los datos de su tarjeta.",
+    cardNotUsed: "No se pudo usar su tarjeta.",
+    formNotLoaded: "No se cargó el formulario de pago.",
+    bankDidnt: "Su banco no aprobó el pago.",
+    notSetUp: "No se pudo guardar su tarjeta.",
+    didntGo: "Su pago no pasó.",
+  },
+});
 
 // The payment provider's own form, so card numbers never reach our server
 // (ADR-0004): Stripe's Payment Element, for cards only (ADR-0008), except a
@@ -67,13 +116,9 @@ const cardProblem = (error: StripeError, fallback: string) => {
 
 // what saving a card agrees to, shown beside every form that saves one
 export function ConsentNote({ action }: { action: "paying" | "saving" }) {
+  const { w } = useSaid(words);
   return (
-    <p className="text-sm text-fg-muted">
-      By {action === "paying" ? "paying" : "saving your card"}, you agree that
-      Empire Cleaning can charge this card for the balance when each clean is
-      done, the deposit amount for a late cancellation or if we couldn't get in,
-      and any weekly bill set to be charged to it.
-    </p>
+    <p className="text-sm text-fg-muted">{w.consent(action === "paying")}</p>
   );
 }
 
@@ -175,6 +220,7 @@ const useStripeElement = (
   options: (stripe: Stripe) => StripeElements | null,
   setProblem: (problem: string | undefined) => void,
 ) => {
+  const { NOT_LOADED, LOADING } = useSaid(words).w;
   const box = useRef<HTMLDivElement>(null);
   const mounted = useRef<{ stripe: Stripe; elements: StripeElements }>(null);
   // the options are read once per form, as it mounts
@@ -237,28 +283,23 @@ const useStripeElement = (
   const ready = useCallback(() => {
     if (mounted.current) return mounted.current;
     throw new CardProblem(failed.current ? NOT_LOADED : LOADING);
-  }, []);
+  }, [NOT_LOADED, LOADING]);
 
   return { box, mounted, ready };
 };
 
-// what the form says while the payment provider's part of it isn't ready
-const NOT_LOADED = "The form didn't load. Please refresh the page.";
-const LOADING = "The form is still loading.";
-
 const formField = (
+  t: ReturnType<typeof useCardWords>,
   form: PaymentForm | undefined,
   box: RefObject<HTMLDivElement | null>,
   problem: string | undefined,
 ): ReactNode =>
   form?.form === "test" ? (
-    <Notice>
-      Test payments: no card is needed. Paying uses a test card ending 4242.
-    </Notice>
+    <Notice>{t.w.testPay}</Notice>
   ) : (
     <EmbeddedField
-      label="Card"
-      description={NEVER_SEE_CARD}
+      label={t.w.card}
+      description={t.NEVER_SEE_CARD}
       errorMessage={problem}
       framed={false}
     >
@@ -281,6 +322,8 @@ export function usePaymentForm({
   amountCents: number;
   showCard?: boolean;
 }) {
+  const t = useCardWords();
+  const { w, locale } = t;
   const { value: form, failed } = useLoaded("payment-form", () =>
     getJson<PaymentForm>("/api/payment-methods/form"),
   );
@@ -302,6 +345,7 @@ export function usePaymentForm({
         allowedPaymentMethodTypes: ALLOWED_PAYMENT_METHOD_TYPES,
         appearance: appearance(),
         fonts: FONTS,
+        locale,
       }),
     setProblem,
   );
@@ -312,24 +356,24 @@ export function usePaymentForm({
   }, [amountCents, mounted]);
 
   const token = useCallback(async () => {
-    if (!form) throw new CardProblem(LOADING);
+    if (!form) throw new CardProblem(w.LOADING);
     // a card "entered" in the test form; each is used once
     if (form.form === "test") return `tok_test_${crypto.randomUUID()}`;
     const { stripe, elements } = ready();
     const submitted = await elements.submit();
     if (submitted.error) {
       setProblem(submitted.error.message);
-      throw cardProblem(submitted.error, "Please check your card details.");
+      throw cardProblem(submitted.error, w.checkCard);
     }
     const result = await stripe.createConfirmationToken({
       elements,
       params: { return_url: window.location.href },
     });
     if (result.error) {
-      throw cardProblem(result.error, "Your card couldn't be used.");
+      throw cardProblem(result.error, w.cardNotUsed);
     }
     return result.confirmationToken.id;
-  }, [form, ready]);
+  }, [form, ready, w]);
 
   const approve = useCallback(
     async (secret: string) => {
@@ -337,20 +381,17 @@ export function usePaymentForm({
       if (form?.form !== "stripe") return;
       const stripe =
         mounted.current?.stripe ?? (await loadStripe(form.publishableKey));
-      if (!stripe) throw new CardProblem("The payment form didn't load.");
+      if (!stripe) throw new CardProblem(w.formNotLoaded);
       const result = await stripe.handleNextAction({ clientSecret: secret });
       if (result.error) {
-        throw cardProblem(
-          result.error,
-          "Your bank didn't approve the payment.",
-        );
+        throw cardProblem(result.error, w.bankDidnt);
       }
     },
-    [form, mounted],
+    [form, mounted, w],
   );
 
   return {
-    field: formField(form, box, failed ? NOT_LOADED : problem),
+    field: formField(t, form, box, failed ? w.NOT_LOADED : problem),
     token,
     approve,
     isReady: Boolean(form),
@@ -363,6 +404,8 @@ export function usePaymentForm({
  * Client's Payment Method. After a card is refused, `reset()` starts afresh.
  */
 export function useCardForm() {
+  const t = useCardWords();
+  const { w, locale } = t;
   const [attempt, setAttempt] = useState(0);
   const [problem, setProblem] = useState<string>();
 
@@ -380,13 +423,14 @@ export function useCardForm() {
             clientSecret: form.secret,
             appearance: appearance(),
             fonts: FONTS,
+            locale,
           })
         : null,
     setProblem,
   );
 
   const save = useCallback(async () => {
-    if (!form) throw new CardProblem(LOADING);
+    if (!form) throw new CardProblem(w.LOADING);
     let token = form.secret;
     if (form.form === "stripe") {
       const { stripe, elements } = ready();
@@ -397,12 +441,12 @@ export function useCardForm() {
       });
       if (result.error) {
         setProblem(result.error.message);
-        throw cardProblem(result.error, "Your card couldn't be set up.");
+        throw cardProblem(result.error, w.notSetUp);
       }
       token = result.setupIntent.id;
     }
     return putJson<PaymentMethodView>("/api/payment-methods/mine", { token });
-  }, [form, ready]);
+  }, [form, ready, w]);
 
   const reset = useCallback(() => {
     setProblem(undefined);
@@ -412,11 +456,9 @@ export function useCardForm() {
   return {
     field:
       form?.form === "test" ? (
-        <Notice>
-          Test payments: no card is needed. Saving uses a test card ending 4242.
-        </Notice>
+        <Notice>{w.testSave}</Notice>
       ) : (
-        formField(form, box, failed ? NOT_LOADED : problem)
+        formField(t, form, box, failed ? w.NOT_LOADED : problem)
       ),
     save,
     reset,
@@ -432,6 +474,7 @@ export function useCardForm() {
  * the provider about. After a payment is refused, `reset()` starts afresh.
  */
 export function useBillPaymentForm(billId: string) {
+  const { w, locale } = useCardWords();
   const [attempt, setAttempt] = useState(0);
   const [problem, setProblem] = useState<string>();
 
@@ -447,13 +490,14 @@ export function useBillPaymentForm(billId: string) {
             clientSecret: form.secret,
             appearance: appearance(),
             fonts: FONTS,
+            locale,
           })
         : null,
     setProblem,
   );
 
   const pay = useCallback(async () => {
-    if (!form) throw new CardProblem(LOADING);
+    if (!form) throw new CardProblem(w.LOADING);
     if (form.form === "stripe") {
       const { stripe, elements } = ready();
       const result = await stripe.confirmPayment({
@@ -463,11 +507,11 @@ export function useBillPaymentForm(billId: string) {
       });
       if (result.error) {
         setProblem(result.error.message);
-        throw cardProblem(result.error, "Your payment didn't go through.");
+        throw cardProblem(result.error, w.didntGo);
       }
     }
     return form.ref;
-  }, [form, ready]);
+  }, [form, ready, w]);
 
   const reset = useCallback(() => {
     setProblem(undefined);
@@ -477,15 +521,12 @@ export function useBillPaymentForm(billId: string) {
   return {
     field:
       form?.form === "test" ? (
-        <Notice>
-          Test payments: no card or bank account is needed. Paying uses a test
-          one.
-        </Notice>
+        <Notice>{w.testBill}</Notice>
       ) : (
         <EmbeddedField
-          label="Payment"
-          description="Pay by card or straight from your US bank account. It goes straight into our payment service's secure form, so we never see your card or account number."
-          errorMessage={failed ? NOT_LOADED : problem}
+          label={w.payment}
+          description={w.cardOrBank}
+          errorMessage={failed ? w.NOT_LOADED : problem}
           framed={false}
         >
           <div ref={box} className="min-h-24" />
@@ -496,3 +537,10 @@ export function useBillPaymentForm(billId: string) {
     isReady: Boolean(form),
   };
 }
+
+// the form's words, and Stripe's locale, so its own words and the errors
+// it gives follow the screen's language (ADR-0025)
+const useCardWords = () => {
+  const t = useSaid(words);
+  return { ...t, locale: stripeLocales[useLanguage()] };
+};

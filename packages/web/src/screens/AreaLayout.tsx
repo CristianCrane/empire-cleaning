@@ -35,13 +35,16 @@ import {
   ListItem,
   Notice,
   type NavItem,
+  useLanguage,
 } from "@empire-cleaning/ui";
+import { catalog, type Language } from "@empire-cleaning/models";
 import { deleteJson, getJson } from "../api.ts";
 import { useLoaded } from "./load.ts";
 import { linkTo } from "../links.ts";
 import { InArea } from "./MessagePage.tsx";
 import { JobIcon, QuoteIcon } from "./icons.ts";
 import {
+  areaLabels,
   areas,
   areasFor,
   forgetAccount,
@@ -52,6 +55,32 @@ import {
 import { reportUnexpected } from "../monitoring.ts";
 import { useAction } from "./action.ts";
 import { useTours } from "./run-tours.ts";
+import { portalWords } from "./portal/words.ts";
+
+// the Account menu's words, in every area's language (ADR-0025)
+const words = catalog({
+  en: {
+    account: "Account",
+    switchTo: "Switch to",
+    switchToArea: (area: string) => `Switch to ${area}`,
+    showTips: "Show tips again",
+    tipsBack: "Tips will show again",
+    tipsFailed: "Couldn't bring the tips back. Try again.",
+    signOut: "Sign out",
+    offers: (n: number) => `Offers (${n})`,
+  },
+  es: {
+    account: "Cuenta",
+    switchTo: "Cambiar a",
+    switchToArea: (area: string) => `Cambiar a ${area}`,
+    showTips: "Volver a mostrar consejos",
+    tipsBack: "Los consejos se volverán a mostrar",
+    tipsFailed:
+      "No se pudieron volver a mostrar los consejos. Inténtelo de nuevo.",
+    signOut: "Cerrar sesión",
+    offers: (n: number) => `Ofertas (${n})`,
+  },
+});
 
 // an item is current on its own page, and on the pages that belong to its
 // section (alsoCurrentFor: URL prefixes), e.g. a Quote reached from Quotes
@@ -60,8 +89,9 @@ type AreaNavItem = NavItem & { alsoCurrentFor?: string[] };
 // each area's navigation; feature tickets add their screens here. A phone's
 // tab bar holds five at most: the Office keeps the two it checks all day
 // there, the rest in its ☰ menu (#200). The Office's sections come in
-// groups of related ones, the busiest first
-const navFor: Record<AreaId, AreaNavItem[]> = {
+// groups of related ones, the busiest first. The portal's are in its
+// Client's language; the Office's and the Cleaner area's English (#305)
+const navFor = (lang: Language): Record<AreaId, AreaNavItem[]> => ({
   office: [
     { href: linkTo({ to: "/office" }), label: "Today", icon: LayoutDashboard },
     {
@@ -138,29 +168,29 @@ const navFor: Record<AreaId, AreaNavItem[]> = {
   portal: [
     {
       href: linkTo({ to: "/portal" }),
-      label: "Home",
+      label: portalWords[lang].home,
       icon: House,
       alsoCurrentFor: ["/portal/request", "/portal/quotes"],
     },
     {
       href: linkTo({ to: "/portal/cleans" }),
-      label: "Cleans",
+      label: portalWords[lang].cleans,
       icon: Sparkles,
       alsoCurrentFor: ["/portal/jobs/"],
     },
     {
       href: linkTo({ to: "/portal/payments" }),
-      label: "Payments",
+      label: portalWords[lang].payments,
       icon: Wallet,
       alsoCurrentFor: ["/portal/payment-method", "/portal/bills/"],
     },
     {
       href: linkTo({ to: "/portal/details" }),
-      label: "Your details",
+      label: portalWords[lang].yourDetails,
       icon: UserRound,
     },
   ],
-};
+});
 
 export function AreaLayout({ area }: { area: AreaId }) {
   const { account } = useRouteContext({ from: areas[area].path });
@@ -168,12 +198,13 @@ export function AreaLayout({ area }: { area: AreaId }) {
   const { pathname } = useLocation();
   const offers = useOffersCount(area === "cleaner", pathname);
   useTours(area, account);
-  const nav: NavItem[] = navFor[area].map(
+  const lang = useLanguage();
+  const nav: NavItem[] = navFor(lang)[area].map(
     ({ alsoCurrentFor = [], ...item }) => ({
       ...item,
       label:
         item.label === "Offers" && offers > 0
-          ? `Offers (${offers})`
+          ? words[lang].offers(offers)
           : item.label,
       isCurrent:
         Boolean(matchRoute(item.href)) ||
@@ -183,7 +214,7 @@ export function AreaLayout({ area }: { area: AreaId }) {
 
   return (
     <AppLayout
-      area={areas[area].label}
+      area={areaLabels[lang][area]}
       nav={nav}
       account={<AccountMenu account={account} area={area} />}
       atHome={pathname.replace(/\/$/, "") === areas[area].path}
@@ -229,7 +260,9 @@ function AccountMenu({
   const navigate = useNavigate();
   const router = useRouter();
   const otherAreas = areasFor(account).filter((id) => id !== area);
-  const action = useAction("Couldn't bring the tips back. Try again.");
+  const lang = useLanguage();
+  const w = words[lang];
+  const action = useAction(w.tipsFailed);
   // the area being switched to, until it's on screen
   const [switching, setSwitching] = useState<AreaId>();
 
@@ -265,7 +298,7 @@ function AccountMenu({
     const ok = await action.run(async () => {
       await deleteJson("/api/me/tours");
       forgetAccount();
-    }, "Tips will show again");
+    }, w.tipsBack);
     if (ok) close();
   };
 
@@ -275,7 +308,7 @@ function AccountMenu({
         <User aria-hidden size={20} />
         <span className="max-md:sr-only">{account.name}</span>
       </Button>
-      <Dialog title="Account" isBusy={switching !== undefined}>
+      <Dialog title={w.account} isBusy={switching !== undefined}>
         {({ close }) => (
           <>
             <div className="flex flex-col">
@@ -284,14 +317,14 @@ function AccountMenu({
             </div>
             {otherAreas.length > 0 && (
               <List
-                aria-label="Switch to"
+                aria-label={w.switchTo}
                 onAction={(id) => void switchTo(id as AreaId, close)}
               >
                 {otherAreas.map((id) => (
                   <ListItem
                     key={id}
                     id={id}
-                    title={`Switch to ${areas[id].label}`}
+                    title={w.switchToArea(areaLabels[lang][id])}
                     isPending={switching === id}
                     isDisabled={switching !== undefined}
                   />
@@ -306,7 +339,7 @@ function AccountMenu({
                 isDisabled={switching !== undefined}
                 onPress={() => void showTipsAgain(close)}
               >
-                Show tips again
+                {w.showTips}
               </Button>
               <Button
                 variant="quiet"
@@ -317,7 +350,7 @@ function AccountMenu({
                   void navigate({ to: "/sign-in" });
                 }}
               >
-                Sign out
+                {w.signOut}
               </Button>
             </Actions>
           </>

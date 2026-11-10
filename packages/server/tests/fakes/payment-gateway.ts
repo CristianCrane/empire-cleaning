@@ -1,4 +1,4 @@
-import type { CardForm, PaymentForm } from "@empire-cleaning/models";
+import type { CardForm, Language, PaymentForm } from "@empire-cleaning/models";
 import {
   PaymentMethodError,
   type BillPaymentInput,
@@ -64,7 +64,8 @@ const cardOf = (token: string): TestCard => {
  * finished as soon as it's started, unless abandonCardForm() says otherwise.
  */
 export class FakePaymentGateway implements PaymentGateway {
-  readonly payers: { clientId: string; payerId: string }[] = [];
+  readonly payers: { clientId: string; payerId: string; language: Language }[] =
+    [];
   readonly paymentMethods: (SavedPaymentMethod & { payerId: string })[] = [];
   readonly charges: RecordedCharge[] = [];
   readonly refunds: RecordedRefund[] = [];
@@ -373,13 +374,25 @@ export class FakePaymentGateway implements PaymentGateway {
     return { form: "test" };
   }
 
-  async createPayer({ clientId }: { clientId: string }) {
+  async createPayer({
+    clientId,
+    language,
+  }: {
+    clientId: string;
+    language: Language;
+  }) {
     this.check();
     const known = this.payers.find((p) => p.clientId === clientId);
     if (known) return { payerId: known.payerId };
     const payerId = this.id("cus");
-    this.payers.push({ clientId, payerId });
+    this.payers.push({ clientId, payerId, language });
     return { payerId };
+  }
+
+  async setPayerLanguage(payerId: string, language: Language) {
+    this.check();
+    const payer = this.payers.find((p) => p.payerId === payerId);
+    if (payer) payer.language = language;
   }
 
   async startCardForm(_payerId: string): Promise<CardForm> {
@@ -399,9 +412,7 @@ export class FakePaymentGateway implements PaymentGateway {
     this.check();
     const card = this.forms.get(token);
     if (!card) {
-      throw new PaymentMethodError(
-        "Your card wasn't set up. Please enter it again.",
-      );
+      throw new PaymentMethodError(`no test form ${token}`);
     }
     this.forms.delete(token);
     return this.save(payerId, card);

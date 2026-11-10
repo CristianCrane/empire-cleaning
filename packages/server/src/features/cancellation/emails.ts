@@ -16,7 +16,7 @@ import {
   formats,
   messages,
 } from "@empire-cleaning/models";
-import { whyNotPaid } from "../payments/unpaid.ts";
+import { unpaidKind, whyNotPaid } from "../payments/unpaid.ts";
 
 const {
   clientFix,
@@ -32,7 +32,8 @@ const { formatMoney } = formats.en;
 
 // a fee that didn't go through, for the Office, and why
 const feeNotPaid = (failure: string) => {
-  const { why } = whyNotPaid(failure);
+  // English until #304
+  const { why } = whyNotPaid("en", failure);
   return `The fee didn't go through${why ? ` (${why})` : ""}, so the job is unpaid.`;
 };
 
@@ -54,7 +55,7 @@ const feeChargeLine = (settled: Settled) => {
   if (settled.chargedCents > 0) return [`We've charged it to your ${card}.`];
   if (settled.failure) {
     return [
-      `${notTaken("it", card)} ${clientFix[whyNotPaid(settled.failure).kind]}`,
+      `${notTaken("it", card)} ${clientFix[unpaidKind(settled.failure)]}`,
       ...(settled.plan === "held" ? [PLAN_PAUSED] : []),
     ];
   }

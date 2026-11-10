@@ -324,6 +324,15 @@ export const signedInAs = async (page: Page, email: string) => {
   await page.goto("/");
 };
 
+// the signed-in person's own Preferred Language, as Your details sets it
+// (ADR-0025): the portal shows it from the next page loaded
+export const setLanguage = async (page: Page, language: "en" | "es") => {
+  const res = await page.request.put("/api/me/language", {
+    data: { language },
+  });
+  expect(res.status()).toBe(204);
+};
+
 // every test starts from an empty database and no emails, and fails if the
 // Content-Security-Policy (vite.config.ts) blocked anything a page loads.
 // First-time help's tours dim the page and take every press, so a test meets

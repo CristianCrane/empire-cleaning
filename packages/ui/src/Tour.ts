@@ -1,6 +1,8 @@
 import { driver } from "driver.js";
 import "driver.js/dist/driver.css";
 import "./tour.css";
+import type { Language } from "@empire-cleaning/models";
+import { uiWords } from "./language.ts";
 
 export type TourStep = {
   // what it points at; none for a word about the whole screen, in the middle
@@ -20,8 +22,14 @@ const popupAttributes = ["aria-haspopup", "aria-expanded", "aria-controls"];
 // the page moves. onClose is called however it ends: done, or closed partway
 // (Escape, ×, or a press outside), and once only. Only one runs at a time;
 // the function returned ends it early, e.g. when the person leaves the
-// screen, which counts as closing it too.
-export const startTour = (steps: TourStep[], onClose: () => void) => {
+// screen, which counts as closing it too. Its buttons are in `lang`, the
+// screen's.
+export const startTour = (
+  steps: TourStep[],
+  onClose: () => void,
+  lang: Language,
+) => {
+  const words = uiWords[lang];
   const tour = driver({
     steps: steps.map((step, i) => ({
       element: step.element,
@@ -34,10 +42,11 @@ export const startTour = (steps: TourStep[], onClose: () => void) => {
       },
     })),
     showProgress: steps.length > 1,
-    progressText: "{{current}} of {{total}}",
-    nextBtnText: "Next",
-    prevBtnText: "Back",
-    doneBtnText: "Got it",
+    progressText: words.progress,
+    nextBtnText: words.next,
+    prevBtnText: words.back,
+    doneBtnText: words.gotIt,
+    closeBtnLabel: words.close,
     popoverClass: "ec-tour",
     overlayColor: "var(--ec-backdrop)",
     // the backdrop token is already see-through

@@ -653,7 +653,7 @@ test("the only JavaScript is the theme toggle, the Quote form and the reviews' b
     await islands.evaluateAll((all) =>
       all.map((i) => i.getAttribute("component-export") ?? "").sort(),
     ),
-  ).toEqual(["QuoteForm", "ThemeToggle"]);
+  ).toEqual(["QuoteForm", "ThemeToggleIn"]);
 });
 
 test("a chosen theme applies straight away and is remembered", async ({
@@ -662,7 +662,7 @@ test("a chosen theme applies straight away and is remembered", async ({
   await page.goto("/");
   // the toggle hydrates once the browser is idle; Astro drops "ssr" when it has
   await expect(
-    page.locator(`astro-island[component-export="ThemeToggle"]`),
+    page.locator(`astro-island[component-export="ThemeToggleIn"]`),
   ).not.toHaveAttribute("ssr");
   await page.getByRole("button", { name: "Dark theme" }).click();
 
@@ -758,13 +758,23 @@ test.describe("the Quote form, as it loads", () => {
   });
 });
 
-test("Sign in in the header leads to the app, on a phone too", async ({
+test("Sign in in the header leads to the app, on a phone too, saying the page's language", async ({
   page,
 }) => {
   await page.goto("/");
   await expect(
     page.getByRole("banner").getByRole("link", { name: "Sign in" }),
-  ).toHaveAttribute("href", appUrl);
+  ).toHaveAttribute("href", `${appUrl}/?lang=en`);
+  // the app's sign-in screens follow it (ADR-0025), and the design
+  // system's own words follow the page
+  await page.goto("/es/");
+  const banner = page.getByRole("banner");
+  await expect(
+    banner.getByRole("link", { name: "Iniciar sesión" }),
+  ).toHaveAttribute("href", `${appUrl}/?lang=es`);
+  await expect(
+    banner.getByRole("button", { name: "Tema oscuro" }),
+  ).toBeVisible();
 });
 
 test("Request a Quote leads to the quote section", async ({ page }) => {

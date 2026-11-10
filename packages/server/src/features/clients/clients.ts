@@ -8,7 +8,7 @@ import type {
   ClientView,
   OfficeClientView,
 } from "@empire-cleaning/models";
-import { HOUR_MS } from "@empire-cleaning/models";
+import { HOUR_MS, catalog } from "@empire-cleaning/models";
 import { clock } from "#services/clock";
 import { rateLimit, tooManyTries } from "#services/rate-limit";
 import { db } from "../../db/index.ts";
@@ -72,8 +72,21 @@ export const createClient = async ({
 };
 
 // an email another Client already has, refused when one is given or confirmed
-export const EMAIL_TAKEN =
-  "That email belongs to another client. Please use a different one.";
+// in the request's language (ADR-0025), as Confirm email shows the link's
+// 404 too
+const words = catalog({
+  en: {
+    EMAIL_TAKEN:
+      "That email belongs to another client. Please use a different one.",
+    LINK_USED: "This link has expired or was used already.",
+  },
+  es: {
+    EMAIL_TAKEN:
+      "Ese correo electrónico es de otro cliente. Use uno diferente.",
+    LINK_USED: "Este enlace venció o ya se usó.",
+  },
+});
+export const emailTaken = () => words[currentLanguage()].EMAIL_TAKEN;
 
 export const findClientByEmail = async (email: string) => {
   const [client] = await db
@@ -170,14 +183,14 @@ export const confirmEmailChange = async (token: string) =>
       )
       .returning();
     if (!change) {
-      throw new NotFoundError("This link has expired or was used already.");
+      throw new NotFoundError(words[currentLanguage()].LINK_USED);
     }
     const [other] = await tx
       .select({ id: clients.id })
       .from(clients)
       .where(eq(clients.email, change.email));
     if (other && other.id !== change.clientId) {
-      throw new ConflictError(EMAIL_TAKEN);
+      throw new ConflictError(emailTaken());
     }
     await tx
       .update(clients)

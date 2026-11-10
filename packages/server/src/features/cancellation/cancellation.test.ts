@@ -137,6 +137,16 @@ describe("what cancelling costs", () => {
     ).toBe(
       "This clean has already started, so you can't cancel it. Please call us.",
     );
+    // in the language the Client's screen is showing (ADR-0025)
+    expect(
+      (
+        await cancel(client, jobId, deposit)
+          .set("Accept-Language", "es")
+          .expect(409)
+      ).body.message,
+    ).toBe(
+      "Esta limpieza ya empezó, así que no se puede cancelar. Por favor, llámenos.",
+    );
     // the Office still can
     expect((await officeJob(office, jobId)).cancelTerms).not.toBeNull();
   });

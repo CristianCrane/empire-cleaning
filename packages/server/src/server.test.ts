@@ -208,6 +208,7 @@ test("payments go to the fake gateway, which records them", async () => {
     clientId: "client-1",
     name: "Casey Client",
     email: "casey@example.com",
+    language: "en",
   });
   const deposit = await paymentGateway.takeDeposit({
     payerId,

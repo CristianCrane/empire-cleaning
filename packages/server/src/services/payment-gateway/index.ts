@@ -1,4 +1,4 @@
-import type { CardForm, PaymentForm } from "@empire-cleaning/models";
+import type { CardForm, Language, PaymentForm } from "@empire-cleaning/models";
 import env from "../../env.ts";
 import { StripePaymentGateway } from "./stripe.ts";
 
@@ -131,7 +131,12 @@ export interface PaymentGateway {
     name: string;
     // none for a Client the Office entered without one (#34)
     email: string | null;
+    // their Preferred Language, which the provider's own pages and emails
+    // follow (ADR-0025)
+    language: Language;
   }): Promise<{ payerId: string }>;
+  // the Client changed their Preferred Language
+  setPayerLanguage(payerId: string, language: Language): Promise<void>;
   // a browser form that only saves a Payment Method, taking nothing
   startCardForm(payerId: string): Promise<CardForm>;
   // keeps what that form set up; throws PaymentMethodError if it wasn't
@@ -168,7 +173,7 @@ export interface PaymentGateway {
 }
 
 // the provider refused a form's result, e.g. it was never completed; the
-// message is for the Client
+// message is for the logs, and payments.ts words it for the Client
 export class PaymentMethodError extends Error {}
 
 let current: PaymentGateway = new StripePaymentGateway({
@@ -180,6 +185,8 @@ let current: PaymentGateway = new StripePaymentGateway({
 export const paymentGateway: PaymentGateway = {
   paymentForm: () => current.paymentForm(),
   createPayer: (input) => current.createPayer(input),
+  setPayerLanguage: (payerId, language) =>
+    current.setPayerLanguage(payerId, language),
   startCardForm: (payerId) => current.startCardForm(payerId),
   savePaymentMethod: (input) => current.savePaymentMethod(input),
   takeDeposit: (input) => current.takeDeposit(input),

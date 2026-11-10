@@ -1,7 +1,22 @@
 import type { ReactNode } from "react";
 import { KeyRound, Ruler, Sparkles, type LucideIcon } from "lucide-react";
-import type { PropertyView } from "@empire-cleaning/models";
-import { conditionText, formatFloorArea } from "./format.ts";
+import { catalog, type PropertyView } from "@empire-cleaning/models";
+import { useSaid } from "./words.ts";
+
+// in the screen's language: the Office's English, the portal's its
+// Client's (ADR-0025)
+const words = catalog({
+  en: {
+    floorArea: "Floor area",
+    condition: "Condition",
+    notAdded: "Not added yet",
+  },
+  es: {
+    floorArea: "Superficie",
+    condition: "Estado",
+    notAdded: "Aún no se agregó",
+  },
+});
 
 // An icon, a value and a muted line saying what it is: every fact's shape on
 // a details card, in even columns across. Put them in a dl. (UX pass, #96)
@@ -45,14 +60,15 @@ export function FloorAreaFact({
 }: {
   property: Pick<PropertyView, "floorArea">;
 }) {
+  const t = useSaid(words);
   return (
     <Fact
       icon={Ruler}
-      label="Floor area"
+      label={t.w.floorArea}
       value={
         property.floorArea === null
-          ? "Not known yet"
-          : formatFloorArea(property.floorArea)
+          ? t.notKnownYet
+          : t.formatFloorArea(property.floorArea)
       }
     />
   );
@@ -65,11 +81,12 @@ export function ConditionFact({
   property: Pick<PropertyView, "condition">;
   line?: string;
 }) {
+  const t = useSaid(words);
   return (
     <Fact
       icon={Sparkles}
-      label="Condition"
-      value={conditionText(property.condition)}
+      label={t.w.condition}
+      value={t.conditionText(property.condition)}
       line={line}
     />
   );
@@ -84,13 +101,14 @@ export function AccessFact({
   line?: string;
   className?: string;
 }) {
+  const t = useSaid(words);
   return (
     <Fact
       icon={KeyRound}
-      label="How we get in"
+      label={t.p.howWeGetIn}
       value={
         <span className="whitespace-pre-line">
-          {property.accessInstructions || "Not added yet"}
+          {property.accessInstructions || t.w.notAdded}
         </span>
       }
       line={line}

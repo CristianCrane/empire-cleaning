@@ -8,6 +8,7 @@ import {
 } from "react-aria-components";
 import type { ReactNode } from "react";
 import { X } from "lucide-react";
+import { useUiWords } from "./language.ts";
 import { Button } from "./Button.tsx";
 
 export { DialogTrigger } from "react-aria-components";
@@ -49,6 +50,7 @@ export function Dialog({
 }: DialogProps) {
   const isAlert = props.role === "alertdialog";
 
+  const words = useUiWords();
   return (
     <ModalOverlay
       isDismissable={!isBusy && (isDismissable ?? !isAlert)}
@@ -76,7 +78,7 @@ export function Dialog({
                 <Button
                   variant="quiet"
                   size="icon"
-                  aria-label="Close"
+                  aria-label={words.close}
                   isDisabled={isBusy}
                   onPress={close}
                   className="-mt-2 -mr-2 shrink-0"

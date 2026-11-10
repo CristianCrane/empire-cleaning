@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLoaderData, useNavigate, useSearch } from "@tanstack/react-router";
 import { CircleCheck, CreditCard, Receipt, TriangleAlert } from "lucide-react";
-import { type ClientPayment, formats, messages } from "@empire-cleaning/models";
+import { catalog, type ClientPayment } from "@empire-cleaning/models";
 import {
   Button,
   ButtonLink,
@@ -19,10 +19,39 @@ import {
 import { linkTo } from "../../links.ts";
 import { dayOfInstant } from "../format.ts";
 import { moneyNow, paymentRow, signedMoney } from "./payments.ts";
+import { useSaid } from "../words.ts";
 
-const { BANK_CLEARING } = messages.en;
-
-const { formatMoney, formatShortDay, formatMonth } = formats.en;
+// in the Client's language (ADR-0025)
+const words = catalog({
+  en: {
+    toPay: "To pay",
+    allPaid: "You're all paid up",
+    nothingOwed: "Nothing owed",
+    bankOnWay: (amount: string, bill: string) =>
+      `Your bank payment of ${amount} for bill ${bill} is on its way.`,
+    history: "History",
+    nothingPaid: "Nothing paid yet",
+    eachShows: "Each deposit, clean and refund shows here.",
+    latest: "Latest payments",
+    seeAll: (n: number) => `See all ${n} payments`,
+    paymentsIn: (month: string) => `Payments, ${month}`,
+    clearing: "Clearing",
+  },
+  es: {
+    toPay: "Por pagar",
+    allPaid: "Está al día",
+    nothingOwed: "No debe nada",
+    bankOnWay: (amount: string, bill: string) =>
+      `Su pago bancario de ${amount} de la factura ${bill} está en camino.`,
+    history: "Historial",
+    nothingPaid: "Aún no hay pagos",
+    eachShows: "Cada depósito, limpieza y devolución aparece aquí.",
+    latest: "Últimos pagos",
+    seeAll: (n: number) => `Ver los ${n} pagos`,
+    paymentsIn: (month: string) => `Pagos, ${month}`,
+    clearing: "En proceso",
+  },
+});
 
 // The Client's Payments: what they owe now, or that it's nothing, in one
 // card with its one Button; then their latest payments, one line each, and
@@ -37,23 +66,24 @@ const LATEST = 5;
 const PAGE = 20;
 
 export function PortalPayments() {
+  const t = useSaid(words);
   const data = useLoaderData({ from: "/portal/payments" });
   const { all } = useSearch({ from: "/portal/payments" });
-  const { owed, paying, clearing } = moneyNow(data);
+  const { owed, paying, clearing } = moneyNow(data, t.lang);
   const { history } = data;
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <Heading level={1} inBar>
-          Payments
+          {t.p.payments}
         </Heading>
         <ButtonLink
           variant="secondary"
           href={linkTo({ to: "/portal/payment-method" })}
         >
           <CreditCard aria-hidden size={18} />
-          Your card
+          {t.p.yourCard}
         </ButtonLink>
       </div>
 
@@ -66,10 +96,10 @@ export function PortalPayments() {
           />
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <Heading level={2} size={4} className="text-fg-muted">
-              {owed ? "To pay" : "You're all paid up"}
+              {owed ? t.w.toPay : t.w.allPaid}
             </Heading>
             <p className="text-2xl font-semibold text-fg sm:text-3xl">
-              {owed ? formatMoney(owed.cents) : "Nothing owed"}
+              {owed ? t.formatMoney(owed.cents) : t.w.nothingOwed}
             </p>
             {owed && <p className="text-fg-muted">{owed.text}</p>}
             <p className="text-fg-muted">{paying}</p>
@@ -87,29 +117,29 @@ export function PortalPayments() {
 
       {clearing.map((bill) => (
         <Notice key={bill.id}>
-          Your bank payment of {formatMoney(bill.totalCents)} for bill{" "}
-          {bill.number} is on its way. {BANK_CLEARING}
+          {t.w.bankOnWay(t.formatMoney(bill.totalCents), bill.number)}{" "}
+          {t.BANK_CLEARING}
         </Notice>
       ))}
 
-      <Section title="History">
+      <Section title={t.w.history}>
         {history.length === 0 ? (
           <EmptyState
             icon={Receipt}
-            title="Nothing paid yet"
-            description="Each deposit, clean and refund shows here."
+            title={t.w.nothingPaid}
+            description={t.w.eachShows}
           />
         ) : all ? (
           <Statement history={history} />
         ) : (
           <div className="flex flex-col gap-3">
-            <Rows label="Latest payments" payments={history.slice(0, LATEST)} />
+            <Rows label={t.w.latest} payments={history.slice(0, LATEST)} />
             {history.length > LATEST && (
               <Link
                 className="self-start"
                 href={linkTo({ to: "/portal/payments", search: { all: true } })}
               >
-                See all {history.length} payments
+                {t.w.seeAll(history.length)}
               </Link>
             )}
           </div>
@@ -121,10 +151,11 @@ export function PortalPayments() {
 
 // every payment, by month, each month's total by its name
 function Statement({ history }: { history: ClientPayment[] }) {
+  const t = useSaid(words);
   const [shown, setShown] = useState(PAGE);
   const months: { month: string; payments: ClientPayment[] }[] = [];
   for (const p of history.slice(0, shown)) {
-    const month = formatMonth(dayOfInstant(p.at));
+    const month = t.formatMonth(dayOfInstant(p.at));
     if (months.at(-1)?.month !== month) months.push({ month, payments: [] });
     months.at(-1)!.payments.push(p);
   }
@@ -138,10 +169,13 @@ function Statement({ history }: { history: ClientPayment[] }) {
               {month}
             </Heading>
             <span className="text-sm text-fg-muted tabular-nums">
-              {signedMoney(payments.reduce((sum, p) => sum + p.amountCents, 0))}
+              {signedMoney(
+                t.lang,
+                payments.reduce((sum, p) => sum + p.amountCents, 0),
+              )}
             </span>
           </div>
-          <Rows label={`Payments, ${month}`} payments={payments} />
+          <Rows label={t.w.paymentsIn(month)} payments={payments} />
         </section>
       ))}
       {history.length > shown && (
@@ -150,7 +184,7 @@ function Statement({ history }: { history: ClientPayment[] }) {
           className="self-center"
           onPress={() => setShown(shown + PAGE)}
         >
-          Show more
+          {t.p.showMore}
         </Button>
       )}
     </div>
@@ -165,8 +199,9 @@ function Rows({
   label: string;
   payments: ClientPayment[];
 }) {
+  const t = useSaid(words);
   const navigate = useNavigate();
-  const rows = payments.map((p) => ({ p, row: paymentRow(p) }));
+  const rows = payments.map((p) => ({ p, row: paymentRow(p, t.lang) }));
 
   return (
     <List
@@ -182,16 +217,18 @@ function Rows({
           id={p.id}
           start={
             <span className="w-12 shrink-0 text-sm text-fg-muted tabular-nums">
-              {formatShortDay(dayOfInstant(p.at))}
+              {t.shortDayOf(p.at)}
             </span>
           }
           title={row.title}
           description={row.line}
           end={
             <span className="flex items-center gap-3">
-              {p.clearing && <StatusBadge tone="info">Clearing</StatusBadge>}
+              {p.clearing && (
+                <StatusBadge tone="info">{t.w.clearing}</StatusBadge>
+              )}
               <span className="font-semibold text-fg tabular-nums">
-                {signedMoney(p.amountCents)}
+                {signedMoney(t.lang, p.amountCents)}
               </span>
             </span>
           }

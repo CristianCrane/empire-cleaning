@@ -463,6 +463,13 @@ describe("accepting a First Clean Quote", () => {
       .expect(400);
     const refused = await accept(client, quote).expect(409);
     expect(refused.body.message).toBe("Add a card to accept this quote.");
+    // in the language the Client's screen is showing (ADR-0025)
+    const enSpanish = await accept(client, quote)
+      .set("Accept-Language", "es")
+      .expect(409);
+    expect(enSpanish.body.message).toBe(
+      "Agregue una tarjeta para aceptar esta cotización.",
+    );
   });
 
   test("leaves the Quote Sent and books nothing if the Deposit fails", async () => {

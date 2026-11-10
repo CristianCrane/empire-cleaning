@@ -25,6 +25,8 @@ import type {
   ClientQuoteView,
   ClientView,
   DemoPerson,
+  Language,
+  Me,
   OfficeClientView,
   OfficePropertyView,
   NeedsAttentionItem,
@@ -46,12 +48,18 @@ import type {
   StaffMember,
 } from "@empire-cleaning/models";
 import {
+  LanguageProvider,
   Link,
   RouterProvider,
   TestSiteBanner,
   ToastRegion,
 } from "@empire-cleaning/ui";
 import { getJson } from "./api.ts";
+import {
+  setAppLanguage,
+  signedOutLanguage,
+  useAppLanguage,
+} from "./language.ts";
 import { linkTo } from "./links.ts";
 import { AreaLayout } from "./screens/AreaLayout.tsx";
 import { CleanerHome } from "./screens/cleaner/CleanerHome.tsx";
@@ -166,30 +174,39 @@ function Root() {
   useEffect(() => {
     if (isTestSite) void getAccount().then((account) => setYou(account?.name));
   }, [isTestSite, pathname]);
+  const lang = useAppLanguage();
   return (
-    <RouterProvider
-      navigate={(to, options) => router.navigate({ ...to, ...options })}
-      useHref={(to) => router.buildLocation(to).href}
-    >
-      {isTestSite && (
-        <TestSiteBanner>
-          {you && (
-            <Link
-              href={linkTo({ to: "/people" })}
-              className="font-normal text-warning-strong"
-            >
-              You're {you}
-            </Link>
-          )}
-        </TestSiteBanner>
-      )}
-      <Outlet />
-      <ToastRegion />
-    </RouterProvider>
+    <LanguageProvider lang={lang}>
+      <RouterProvider
+        navigate={(to, options) => router.navigate({ ...to, ...options })}
+        useHref={(to) => router.buildLocation(to).href}
+      >
+        {isTestSite && (
+          <TestSiteBanner>
+            {you && (
+              <Link
+                href={linkTo({ to: "/people" })}
+                className="font-normal text-warning-strong"
+              >
+                You're {you}
+              </Link>
+            )}
+          </TestSiteBanner>
+        )}
+        <Outlet />
+        <ToastRegion />
+      </RouterProvider>
+    </LanguageProvider>
   );
 }
 
 const rootRoute = createRootRoute({
+  // a screen outside an area (sign-in, its links' pages, not found) is in
+  // the signed-out language; an area's route then says its own. A preload
+  // (the Account menu's) changes nothing on screen
+  beforeLoad: ({ preload }) => {
+    if (!preload) setAppLanguage(signedOutLanguage());
+  },
   component: Root,
   notFoundComponent: NotFound,
 });
@@ -303,6 +320,15 @@ const peopleRoute = createRoute({
   component: PeopleScreen,
 });
 
+// each area's language (ADR-0025): the portal the Client's Preferred
+// Language, the Office English for good, the Cleaner area English until it
+// comes in Spanish (#305)
+const areaLanguage: Record<AreaId, (account: Me) => Language> = {
+  portal: (account) => account.language ?? signedOutLanguage(),
+  office: () => "en",
+  cleaner: () => "en",
+};
+
 // an area is only for Accounts holding its role: anyone signed out goes to
 // sign-in (and comes back afterwards), anyone else to their own area. The
 // Account is the one remembered: opening the Account menu, where an area is
@@ -313,7 +339,7 @@ const areaRoute = <Id extends AreaId>(id: Id) =>
     getParentRoute: () => rootRoute,
     // the area's own path as a literal type, so its child routes are typed
     path: areas[id].path as (typeof areas)[Id]["path"],
-    beforeLoad: async ({ location }) => {
+    beforeLoad: async ({ location, preload }) => {
       const account = await getAccount();
       if (!account) {
         throw redirect({ to: "/sign-in", search: { next: location.href } });
@@ -321,6 +347,7 @@ const areaRoute = <Id extends AreaId>(id: Id) =>
       if (!account.roles.includes(areas[id].role)) {
         throw redirect({ to: (await homeOf()) ?? "/sign-in" });
       }
+      if (!preload) setAppLanguage(areaLanguage[id](account));
       return { account };
     },
     component: () => <AreaLayout area={id} />,

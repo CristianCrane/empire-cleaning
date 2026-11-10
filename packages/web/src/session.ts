@@ -1,29 +1,52 @@
 import { createAuthClient } from "better-auth/react";
 import { magicLinkClient } from "better-auth/client/plugins";
-import type { AccountRole, Me, SignedInAccount } from "@empire-cleaning/models";
+import {
+  type AccountRole,
+  catalog,
+  type Me,
+  type SignedInAccount,
+} from "@empire-cleaning/models";
 import { identify } from "@empire-cleaning/browser-monitoring";
-import { LANGUAGE_HEADER, putJson } from "./api.ts";
+import { putJson } from "./api.ts";
+import { languageHeader } from "./language.ts";
 import { reportUnexpected } from "./monitoring.ts";
 
 // Better Auth's browser client: plain functions over the API's /api/auth
 // endpoints (same origin; Vite forwards /api to the server), no UI of its own
 export const authClient = createAuthClient({
   plugins: [magicLinkClient()],
-  fetchOptions: { headers: LANGUAGE_HEADER },
+  fetchOptions: {
+    // the screen's language as each request goes, so the API's messages
+    // (too many tries) come in it
+    onRequest: (context) => {
+      context.headers.set(
+        "accept-language",
+        languageHeader()["accept-language"],
+      );
+      return context;
+    },
+  },
 });
 
 // the three parts of the app, each for one role. For Staff holding both
 // roles, the Office comes first.
 export const areas = {
-  office: { role: "office_staff", label: "Office", path: "/office" },
-  cleaner: { role: "cleaner", label: "Cleaner area", path: "/cleaner" },
-  portal: { role: "client", label: "Client portal", path: "/portal" },
-} as const satisfies Record<
-  string,
-  { role: AccountRole; label: string; path: string }
->;
+  office: { role: "office_staff", path: "/office" },
+  cleaner: { role: "cleaner", path: "/cleaner" },
+  portal: { role: "client", path: "/portal" },
+} as const satisfies Record<string, { role: AccountRole; path: string }>;
 
 export type AreaId = keyof typeof areas;
+
+// each area's name, in the language of the screen naming it (ADR-0025)
+export const areaLabels = catalog({
+  en: { office: "Office", cleaner: "Cleaner area", portal: "Client portal" },
+  es: {
+    office: "Oficina",
+    cleaner: "Área de limpiadores",
+    portal: "Portal del cliente",
+  },
+});
 
 export const areasFor = (account: SignedInAccount): AreaId[] =>
   (Object.keys(areas) as AreaId[]).filter((id) =>
@@ -40,7 +63,7 @@ export const areasFor = (account: SignedInAccount): AreaId[] =>
 let current: Promise<Me | null> | undefined;
 
 export const getAccount = () =>
-  (current ??= fetch("/api/me", { headers: LANGUAGE_HEADER })
+  (current ??= fetch("/api/me", { headers: languageHeader() })
     .then((res) => (res.ok ? (res.json() as Promise<Me>) : null))
     .then((account) => {
       // Sentry knows people by Account ID only (ADR-0007)

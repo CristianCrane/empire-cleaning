@@ -33,9 +33,11 @@ import {
 } from "@empire-cleaning/ui";
 import { getJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
-import { clientName, formatFloorArea } from "../format.ts";
+import { clientName, screenWords } from "../format.ts";
 import { WorkedOutQuote } from "./WorkedOutQuote.tsx";
 import { reportUnexpected } from "../../monitoring.ts";
+
+const { formatFloorArea } = screenWords.en;
 
 export type NewQuoteSearch = { clientId?: string };
 
@@ -87,7 +89,6 @@ export function NewQuoteScreen() {
           // a fresh form for each Client
           key={client?.id ?? "new"}
           headingLevel={2}
-          lang="en"
           asker={{ kind: "office", client: client && homesOf(client) }}
           page={{
             before: client && (

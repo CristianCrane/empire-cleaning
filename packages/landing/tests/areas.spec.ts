@@ -137,7 +137,7 @@ test("an area's only JavaScript is the theme toggle, the Quote form and the revi
     await islands.evaluateAll((all) =>
       all.map((i) => i.getAttribute("component-export") ?? "").sort(),
     ),
-  ).toEqual(["QuoteForm", "ThemeToggle"]);
+  ).toEqual(["QuoteForm", "ThemeToggleIn"]);
 });
 
 test("the home page links to every area, in Why Empire and the footer", async ({

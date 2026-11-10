@@ -79,6 +79,7 @@ export const paymentGatewayContract = (
         clientId,
         name: "Contract Check",
         email: "contract-check@example.com",
+        language: "en",
       });
       return { clientId, payerId };
     };
@@ -122,9 +123,18 @@ export const paymentGatewayContract = (
           clientId,
           name: "Contract Check",
           email: "contract-check@example.com",
+          language: "en",
         });
 
         expect(again.payerId).toBe(payerId);
+      });
+
+      test("a payer's language can change, for the provider's own pages (ADR-0025)", async () => {
+        const t = await setup();
+        const { payerId } = await payer(t);
+        await expect(
+          t.gateway.setPayerLanguage(payerId, "es"),
+        ).resolves.toBeUndefined();
       });
     });
 

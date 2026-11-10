@@ -17,9 +17,11 @@ import { getJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useLeavingAction } from "../action.ts";
 import { Fact } from "../Fact.tsx";
-import { dayOfInstant, formatHours, cleaners } from "../format.ts";
+import { dayOfInstant, formatHours, screenWords } from "../format.ts";
 import { reportUnexpected } from "../../monitoring.ts";
 import { untilAbout } from "./CleanerHome.tsx";
+
+const { cleaners } = screenWords.en;
 
 const { formatDateTime, formatDay, formatTime } = formats.en;
 

@@ -30,7 +30,7 @@ import {
   clientName,
   dayOfInstant,
   formatMinutes,
-  propertySummary,
+  screenWords,
 } from "../format.ts";
 import { AccessFact, ConditionFact, Fact } from "../Fact.tsx";
 import { QuoteIcon } from "../icons.ts";
@@ -41,6 +41,8 @@ import {
   RecordFindings,
   SiteVisitBadge,
 } from "./SiteVisitParts.tsx";
+
+const { propertySummary } = screenWords.en;
 
 const { formatDateTime, formatDay, formatTime } = formats.en;
 
@@ -126,7 +128,7 @@ function VisitDetails({
         <div className="flex flex-col gap-6">
           <div className="flex items-start gap-4">
             {visit.startsAt ? (
-              <DateTile lang="en" date={visit.startsAt} />
+              <DateTile date={visit.startsAt} />
             ) : (
               <IconTile icon={ClipboardCheck} size="lg" />
             )}

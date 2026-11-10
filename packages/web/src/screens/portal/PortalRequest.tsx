@@ -8,16 +8,29 @@ import {
   Notice,
   showToast,
 } from "@empire-cleaning/ui";
+import { catalog } from "@empire-cleaning/models";
+import { useSaid } from "../words.ts";
 import { linkTo } from "../../links.ts";
 import { addressOf } from "../format.ts";
 import { quoteRequested } from "../QuoteParts.tsx";
-import { requestQuote } from "./whats-next.ts";
+
+const words = catalog({
+  en: {
+    sentFor: "We've already sent you a quote for ",
+    workingOn: "We're working on your quote for ",
+  },
+  es: {
+    sentFor: "Ya le enviamos una cotización para ",
+    workingOn: "Estamos preparando su cotización para ",
+  },
+});
 
 // a signed-in Client asking about a new home or one of theirs
 export function PortalRequest() {
   const client = useLoaderData({ from: "/portal/request" });
   const navigate = useNavigate();
   const router = useRouter();
+  const { w, lang, p, REQUEST_A_QUOTE } = useSaid(words);
   // their open Quotes are pointed to, and a home can't be asked about for a
   // Service one of them would overlap
   const open = client.quotes.filter(
@@ -28,18 +41,16 @@ export function PortalRequest() {
     <div className="flex flex-col gap-4">
       <Breadcrumbs
         trail={[
-          { label: "Home", href: linkTo({ to: "/portal" }) },
-          { label: requestQuote.label },
+          { label: p.home, href: linkTo({ to: "/portal" }) },
+          { label: REQUEST_A_QUOTE },
         ]}
       />
-      <Heading level={1}>{requestQuote.label}</Heading>
+      <Heading level={1}>{REQUEST_A_QUOTE}</Heading>
       {open.length > 0 && (
         <Notice tone="info">
           {open.map((quote) => (
             <p key={quote.id}>
-              {quote.status === "sent"
-                ? "We've already sent you a quote for "
-                : "We're working on your quote for "}
+              {quote.status === "sent" ? w.sentFor : w.workingOn}
               <Link
                 href={linkTo({
                   to: "/portal/quotes/$quoteId",
@@ -56,9 +67,6 @@ export function PortalRequest() {
       <Card>
         <QuoteRequestForm
           headingLevel={2}
-          // in their Preferred Language (ADR-0025); the rest of the portal
-          // follows it with #303
-          lang={client.preferredLanguage}
           asker={{
             kind: "client",
             properties: client.properties,
@@ -70,7 +78,7 @@ export function PortalRequest() {
             businessName: client.businessName,
           }}
           onSubmitted={async (receipt) => {
-            showToast(quoteRequested(receipt.emailedTo));
+            showToast(quoteRequested(lang, receipt.emailedTo));
             await router.invalidate();
             await navigate({ to: "/portal" });
           }}

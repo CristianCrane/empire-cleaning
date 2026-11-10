@@ -1,7 +1,8 @@
 import { useEffect } from "react";
 import { useRouter, type ErrorComponentProps } from "@tanstack/react-router";
 import { CircleAlert } from "lucide-react";
-import { Button } from "@empire-cleaning/ui";
+import { catalog } from "@empire-cleaning/models";
+import { Button, useLanguage } from "@empire-cleaning/ui";
 import { ApiError } from "../api.ts";
 import { reportUnexpected } from "../monitoring.ts";
 import { MessagePage } from "./MessagePage.tsx";
@@ -13,8 +14,22 @@ import { NotFound } from "./NotFound.tsx";
 // else (a server error, the connection dropping) can be tried again. No
 // details: they're no use to a Client. A failure in the app itself, not the
 // API's answer, is reported.
+const words = catalog({
+  en: {
+    title: "Something went wrong",
+    text: "We couldn't load this page. Try again in a moment.",
+    tryAgain: "Try again",
+  },
+  es: {
+    title: "Algo salió mal",
+    text: "No pudimos cargar esta página. Vuelva a intentarlo en un momento.",
+    tryAgain: "Intentar de nuevo",
+  },
+});
+
 export function PageError({ error }: ErrorComponentProps) {
   const router = useRouter();
+  const w = words[useLanguage()];
   useEffect(() => reportUnexpected(error), [error]);
   if (
     error instanceof ApiError &&
@@ -24,12 +39,10 @@ export function PageError({ error }: ErrorComponentProps) {
   }
 
   return (
-    <MessagePage title="Something went wrong" icon={CircleAlert} tone="warning">
-      <p className="text-fg-muted">
-        We couldn't load this page. Try again in a moment.
-      </p>
+    <MessagePage title={w.title} icon={CircleAlert} tone="warning">
+      <p className="text-fg-muted">{w.text}</p>
       {/* re-running the loaders resets this screen once they succeed */}
-      <Button onPress={() => void router.invalidate()}>Try again</Button>
+      <Button onPress={() => void router.invalidate()}>{w.tryAgain}</Button>
     </MessagePage>
   );
 }

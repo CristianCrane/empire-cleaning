@@ -120,7 +120,7 @@ const data = (over: Partial<HomeData> = {}): HomeData => ({
   ...over,
 });
 
-const next = (over: Partial<HomeData> = {}) => whatsNext(data(over), NOW);
+const next = (over: Partial<HomeData> = {}) => whatsNext(data(over), "en", NOW);
 const shortcutLabels = (over: Partial<HomeData> = {}) =>
   next(over).shortcuts.map((s) => s.label);
 

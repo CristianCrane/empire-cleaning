@@ -10,7 +10,7 @@ import {
 } from "../../services/email/blocks.ts";
 import { firstNameOf } from "../../services/email/format.ts";
 import { formats, messages } from "@empire-cleaning/models";
-import { whyNotPaid } from "../payments/unpaid.ts";
+import { unpaidKind } from "../payments/unpaid.ts";
 import type { Settled } from "./balance.ts";
 
 const {
@@ -47,7 +47,7 @@ const moneyLines = (settled: Settled, owedCents: number) => {
   }
   if (settled.failure) {
     lines.push(
-      `${notTaken(`the ${formatMoney(owedCents)} still to pay`, card)} ${clientFix[whyNotPaid(settled.failure).kind]}`,
+      `${notTaken(`the ${formatMoney(owedCents)} still to pay`, card)} ${clientFix[unpaidKind(settled.failure)]}`,
     );
   }
   // putting it On Hold is told in the Unpaid notice

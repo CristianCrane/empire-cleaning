@@ -1,4 +1,5 @@
 import { isDeepStrictEqual } from "node:util";
+import { currentLanguage } from "#services/request";
 import { and, asc, eq, inArray, isNull, max, ne } from "drizzle-orm";
 import type {
   AddOnChoice,
@@ -117,7 +118,8 @@ import { hoursOnSiteOf } from "../jobs/jobs.ts";
 import { scheduleFor } from "../jobs/schedule.ts";
 import { lateFrom } from "../cancellation/cancellation.ts";
 
-const { ENDS_BY_MIDNIGHT, openAlready, thisPlace } = messages.en;
+// the Office's words, English (ADR-0025)
+const { openAlready, thisPlace } = messages.en;
 
 // a new Service Plan Quote's terms, until Office Staff change them: not a
 // copy of the First Clean, whatever it was
@@ -1663,7 +1665,7 @@ const refuseUntimely = (revision: KindedRevision, rows: PricedOption[]) => {
       );
     }
     if (!endsByMidnight(startsAt, option.hoursOnSite)) {
-      throw fieldError(path, ENDS_BY_MIDNIGHT);
+      throw fieldError(path, messages[currentLanguage()].ENDS_BY_MIDNIGHT);
     }
   }
 };

@@ -28,6 +28,8 @@ export { Heading } from "./Heading.tsx";
 export { IconTile } from "./IconTile.tsx";
 export { ButtonLink, Link } from "./Link.tsx";
 export { Logo } from "./Logo.tsx";
+export { useLanguage } from "./language.ts";
+export { LanguageProvider } from "./LanguageProvider.tsx";
 export { List, ListItem } from "./List.tsx";
 export { Notice } from "./Notice.tsx";
 export { NumberField } from "./NumberField.tsx";

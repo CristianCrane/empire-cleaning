@@ -25,36 +25,165 @@ import {
   type PaymentMethodView,
   type QuoteSummary,
   type ServicePlanSummary,
-  formats,
-  messages,
+  catalog,
+  type Language,
 } from "@empire-cleaning/models";
 import type { StatusTone } from "@empire-cleaning/ui";
 import { linkTo, type AppHref } from "../../links.ts";
 import { QuoteIcon } from "../icons.ts";
 import {
   addressOf,
-  cleaners,
   dayOfInstant,
   formatHours,
   formatMinutes,
-  planName,
-  quoteHeadline,
-  recurrenceLabel,
 } from "../format.ts";
+import { saidWith } from "../words.ts";
 
-const {
-  ASK_AGAIN,
-  ASK_US,
-  billNotPaid,
-  BOOKED_GO_AHEAD,
-  cleanNotPaid,
-  REQUEST_A_QUOTE,
-  turnDownReason,
-  UPDATE_CARD,
-  WITHIN_A_DAY,
-} = messages.en;
+// Home's words, in the Client's language (ADR-0025)
+const words = catalog({
+  en: {
+    needsOk: (day: string, n: number) =>
+      `Your ${day} clean needs your OK on ${n === 1 ? "a price change" : `${n} price changes`}.`,
+    reviewIt: "Review it",
+    quoteReady: (headline: string) => `Your quote is ready: ${headline}.`,
+    quoteReadyLabel: "Your quote is ready",
+    billNotPaid: (bill: string, amount: string) => `${bill}, ${amount}.`,
+    seeBill: "See the bill",
+    billDue: (n: string, amount: string, day: string) =>
+      `Bill ${n}, ${amount}, is due by ${day}.`,
+    payBill: "Pay the bill",
+    askedToMove: (day: string, to: string) =>
+      `You asked to move your ${day} clean to ${to}. We'll confirm, usually within a working day.`,
+    afterThat: (what: string, when: string) => `After that: ${what}, ${when}`,
+    yourSiteVisit: "your site visit",
+    today: "Today",
+    firstClean: "Your first clean",
+    nextClean: "Your next clean",
+    serviceAt: (service: string, address: string) => `${service} at ${address}`,
+    partOfPlan: (often: string) => `Part of your cleaning plan, ${often}`,
+    crewOnSite: (cleaners: string, hours: string) =>
+      `${cleaners}, about ${hours} on site`,
+    siteVisit: "Your site visit",
+    comesToSee: (visitor: string, address: string, length: string) =>
+      `${visitor} comes to see ${address} for about ${length}`,
+    visitFree: (phone: string) =>
+      `Free: we look before we quote. To change the time, call ${phone}.`,
+    planPaused: "Your cleaning plan is paused",
+    updateToCarryOn: "Update your card to carry on",
+    paymentDue: "A payment is due",
+    notThroughYet: "A payment on it hasn't gone through yet.",
+    carriesOn: "Once it's paid, your plan carries on from its next date.",
+    forWhen: (when: string) => `For ${when}`,
+    at: " at ",
+    openUntil: (day: string) => `Open until ${day}`,
+    seeAsked: "See what you asked for",
+    beforeWeQuote: "Before we quote",
+    callToArrange: "We'll call to arrange a visit",
+    weSee: (address: string) =>
+      `We see ${address} before we price it. It's free.`,
+    callWithinDay: "We'll call you within a working day.",
+    workingOnIt: "We're working on it",
+    askedOn: (service: string, address: string, day: string) =>
+      `${service} at ${address}, asked ${day}`,
+    emailIt: (withinADay: string) =>
+      `We'll email it to you, ${withinADay}, and it shows here.`,
+    expired: "Your quote expired",
+    wasOpenUntil: (day: string) =>
+      `It was open until ${day}. Ask again and we'll price it afresh.`,
+    askAgain: "Ask again and we'll price it afresh.",
+    couldntTake: "We couldn't take this one on",
+    sorry: "Sorry, we can't take this one on",
+    changedMind: "Changed your mind?",
+    declined: (service: string) =>
+      `You declined our quote for ${service}. Ask for a new one any time.`,
+    wantUsBack: "Want us back?",
+    lastClean: (day: string) => `Your last clean was ${day}.`,
+    welcome: "Welcome to Empire Cleaning",
+    getAQuote: "Let's get you a quote",
+    callUs: "Call us",
+    pastCleans: "Past cleans",
+    receipts: "And their receipts",
+    nameEmailPhone: "Name, email, phone",
+    lastDidntGo: "The last payment didn't go through",
+    noneSaved: "None saved yet",
+    notAdded: "Not added yet",
+    moveRequest: "Your move request",
+    to: (when: string) => `To ${when}`,
+    yourClean: (day: string) => `Your ${day} clean`,
+  },
+  es: {
+    needsOk: (day: string, n: number) =>
+      `Su limpieza del ${day} necesita su aprobación de ${n === 1 ? "un cambio de precio" : `${n} cambios de precio`}.`,
+    reviewIt: "Revisar",
+    quoteReady: (headline: string) => `Su cotización está lista: ${headline}.`,
+    quoteReadyLabel: "Su cotización está lista",
+    billNotPaid: (bill: string, amount: string) => `${bill}, ${amount}.`,
+    seeBill: "Ver la factura",
+    billDue: (n: string, amount: string, day: string) =>
+      `La factura ${n}, de ${amount}, vence el ${day}.`,
+    payBill: "Pagar la factura",
+    askedToMove: (day: string, to: string) =>
+      `Pidió reprogramar su limpieza del ${day} para el ${to}. Se la confirmaremos, normalmente en un día hábil.`,
+    afterThat: (what: string, when: string) => `Después: ${what}, ${when}`,
+    yourSiteVisit: "su visita previa",
+    today: "Hoy",
+    firstClean: "Su primera limpieza",
+    nextClean: "Su próxima limpieza",
+    serviceAt: (service: string, address: string) => `${service} en ${address}`,
+    partOfPlan: (often: string) => `Parte de su plan de limpieza, ${often}`,
+    crewOnSite: (cleaners: string, hours: string) =>
+      `${cleaners}, unas ${hours} en el lugar`,
+    siteVisit: "Su visita previa",
+    comesToSee: (visitor: string, address: string, length: string) =>
+      `${visitor} va a ver ${address} durante unos ${length}`,
+    visitFree: (phone: string) =>
+      `Gratis: vemos el lugar antes de cotizar. Para cambiar la hora, llame al ${phone}.`,
+    planPaused: "Su plan de limpieza está en pausa",
+    updateToCarryOn: "Actualice su tarjeta para continuar",
+    paymentDue: "Hay un pago pendiente",
+    notThroughYet: "Un pago del plan aún no ha pasado.",
+    carriesOn: "Cuando esté pagado, su plan continúa desde su próxima fecha.",
+    forWhen: (when: string) => `Para el ${when}`,
+    at: " en ",
+    openUntil: (day: string) => `Abierta hasta el ${day}`,
+    seeAsked: "Ver lo que pidió",
+    beforeWeQuote: "Antes de cotizar",
+    callToArrange: "Le llamaremos para programar una visita",
+    weSee: (address: string) =>
+      `Vemos ${address} antes de ponerle precio. Es gratis.`,
+    callWithinDay: "Le llamaremos en un día hábil.",
+    workingOnIt: "Estamos trabajando en ella",
+    askedOn: (service: string, address: string, day: string) =>
+      `${service} en ${address}, pedida el ${day}`,
+    emailIt: (withinADay: string) =>
+      `Se la enviaremos por correo, ${withinADay}, y aparecerá aquí.`,
+    expired: "Su cotización venció",
+    wasOpenUntil: (day: string) =>
+      `Estuvo abierta hasta el ${day}. Pídala de nuevo y le daremos un precio nuevo.`,
+    askAgain: "Pídala de nuevo y le daremos un precio nuevo.",
+    couldntTake: "No pudimos aceptar este trabajo",
+    sorry: "Lo sentimos, no podemos aceptar este trabajo",
+    changedMind: "¿Cambió de opinión?",
+    declined: (service: string) =>
+      `Rechazó nuestra cotización de ${service}. Pida una nueva cuando quiera.`,
+    wantUsBack: "¿Quiere que volvamos?",
+    lastClean: (day: string) => `Su última limpieza fue el ${day}.`,
+    welcome: "Bienvenido a Empire Cleaning",
+    getAQuote: "Le preparamos una cotización",
+    callUs: "Llámenos",
+    pastCleans: "Limpiezas pasadas",
+    receipts: "Y sus recibos",
+    nameEmailPhone: "Nombre, correo, teléfono",
+    lastDidntGo: "El último pago no pasó",
+    noneSaved: "Ninguna guardada todavía",
+    notAdded: "Aún no se agregó",
+    moveRequest: "Su solicitud para reprogramar",
+    to: (when: string) => `Para el ${when}`,
+    yourClean: (day: string) => `Su limpieza del ${day}`,
+  },
+});
 
-const { formatDateTime, formatDay, formatMoney, formatTime } = formats.en;
+type Said = ReturnType<typeof saidWith<(typeof words)["en"]>>;
 
 // The Client's Home answers one question: what's next. Its hero is the
 // soonest thing booked, or, with nothing booked, where they stand with us;
@@ -108,25 +237,23 @@ export type WhatsNext = {
 };
 
 // the Client's ways to a Quote: asking for one, and seeing one
-export const requestQuote = {
-  label: REQUEST_A_QUOTE,
-  href: linkTo({ to: "/portal/request" }),
-};
+export const requestQuoteHref = linkTo({ to: "/portal/request" });
+const requestQuote = (t: Said) => ({
+  label: t.REQUEST_A_QUOTE,
+  href: requestQuoteHref,
+});
 const jobLink = (jobId: string) =>
   linkTo({ to: "/portal/jobs/$jobId", params: { jobId } });
 const quoteLink = (quoteId: string) =>
   linkTo({ to: "/portal/quotes/$quoteId", params: { quoteId } });
-const seeQuote = (quoteId: string) => ({
-  label: "See your quote",
+const seeQuote = (t: Said, quoteId: string) => ({
+  label: t.p.seeYourQuote,
   href: quoteLink(quoteId),
 });
 const billLink = (billId: string) =>
   linkTo({ to: "/portal/bills/$billId", params: { billId } });
 const cardLink = linkTo({ to: "/portal/payment-method" });
 const detailsLink = linkTo({ to: "/portal/details" });
-
-// "Tue, Oct 20" for an instant, New York's day
-const dayOf = (iso: string) => formatDay(dayOfInstant(iso));
 
 const open = (q: QuoteSummary) =>
   q.status === "requested" || q.status === "draft";
@@ -136,7 +263,13 @@ type Booked =
   | { kind: "job"; startsAt: string; job: ClientUpcomingJob }
   | { kind: "visit"; startsAt: string; visit: ClientSiteVisit };
 
-export function whatsNext(data: HomeData, now = new Date()): WhatsNext {
+export function whatsNext(
+  data: HomeData,
+  lang: Language,
+  now = new Date(),
+): WhatsNext {
+  const t = saidWith(lang, words);
+  const { w, dayOf, formatDateTime, formatDay, formatMoney } = t;
   const booked: Booked[] = [
     ...data.jobs.map((job) => ({
       kind: "job" as const,
@@ -166,31 +299,34 @@ export function whatsNext(data: HomeData, now = new Date()): WhatsNext {
   if (unpaidJob && (next || !paused)) {
     notices.push({
       text:
-        `${cleanNotPaid(dayOf(unpaidJob.startsAt))}.` +
-        (paused ? ` ${BOOKED_GO_AHEAD}` : ""),
-      action: UPDATE_CARD,
+        `${t.cleanNotPaid(dayOf(unpaidJob.startsAt))}.` +
+        (paused ? ` ${t.BOOKED_GO_AHEAD}` : ""),
+      action: t.UPDATE_CARD,
       href: cardLink,
     });
   }
   for (const job of data.pastJobs.filter((j) => j.awaitingAnswer > 0)) {
     notices.push({
-      text: `Your ${dayOf(job.startsAt)} clean needs your OK on ${job.awaitingAnswer === 1 ? "a price change" : `${job.awaitingAnswer} price changes`}.`,
-      action: "Review it",
+      text: w.needsOk(dayOf(job.startsAt), job.awaitingAnswer),
+      action: w.reviewIt,
       href: jobLink(job.id),
     });
   }
   for (const quote of sent.filter((q) => q !== leadingQuote)) {
     notices.push({
-      text: `Your quote is ready: ${quoteHeadline(quote)}.`,
-      action: seeQuote(quote.id).label,
-      href: seeQuote(quote.id).href,
+      text: w.quoteReady(t.quoteHeadline(quote)),
+      action: seeQuote(t, quote.id).label,
+      href: seeQuote(t, quote.id).href,
     });
   }
   for (const bill of data.bills) {
     if (bill.unpaid) {
       notices.push({
-        text: `${billNotPaid(bill.number)}, ${formatMoney(bill.totalCents)}.`,
-        action: "See the bill",
+        text: w.billNotPaid(
+          t.billNotPaid(bill.number),
+          formatMoney(bill.totalCents),
+        ),
+        action: w.seeBill,
         href: billLink(bill.id),
       });
     } else if (
@@ -199,8 +335,12 @@ export function whatsNext(data: HomeData, now = new Date()): WhatsNext {
       bill.totalCents > 0
     ) {
       notices.push({
-        text: `Bill ${bill.number}, ${formatMoney(bill.totalCents)}, is due by ${formatDay(bill.dueOn)}.`,
-        action: "Pay the bill",
+        text: w.billDue(
+          bill.number,
+          formatMoney(bill.totalCents),
+          formatDay(bill.dueOn),
+        ),
+        action: w.payBill,
         href: billLink(bill.id),
       });
     }
@@ -208,19 +348,17 @@ export function whatsNext(data: HomeData, now = new Date()): WhatsNext {
 
   const news = data.jobs.flatMap((job) =>
     job.movingTo
-      ? [
-          `You asked to move your ${dayOf(job.startsAt)} clean to ${formatDateTime(job.movingTo)}. We'll confirm, usually within a working day.`,
-        ]
+      ? [w.askedToMove(dayOf(job.startsAt), formatDateTime(job.movingTo))]
       : [],
   );
 
-  const hero = heroOf(data, { next, paused, unpaidJob, leadingQuote, now });
+  const hero = heroOf(data, t, { next, paused, unpaidJob, leadingQuote, now });
 
   const after =
     next && then
       ? then.kind === "job"
-        ? `After that: ${then.job.serviceName}, ${formatDateTime(then.startsAt)}`
-        : `After that: your site visit, ${formatDateTime(then.startsAt)}`
+        ? w.afterThat(then.job.serviceName, formatDateTime(then.startsAt))
+        : w.afterThat(w.yourSiteVisit, formatDateTime(then.startsAt))
       : null;
 
   return {
@@ -228,7 +366,7 @@ export function whatsNext(data: HomeData, now = new Date()): WhatsNext {
     news,
     hero,
     after,
-    shortcuts: shortcutsOf(data, { next, paused, unpaidJob, now }),
+    shortcuts: shortcutsOf(data, t, { next, paused, unpaidJob, now }),
   };
 }
 
@@ -243,8 +381,9 @@ type Context = {
 const isToday = (iso: string, now: Date) =>
   dayOfInstant(iso) === dayOfInstant(now.toISOString());
 
-function heroOf(data: HomeData, ctx: Context): Hero {
+function heroOf(data: HomeData, t: Said, ctx: Context): Hero {
   const { next, paused, unpaidJob, leadingQuote, now } = ctx;
+  const { w, dayOf, formatDateTime } = t;
 
   if (next?.kind === "job") {
     const { job } = next;
@@ -256,106 +395,109 @@ function heroOf(data: HomeData, ctx: Context): Hero {
       );
     const today = isToday(job.startsAt, now);
     return {
-      label: today ? "Today" : first ? "Your first clean" : "Your next clean",
+      label: today ? w.today : first ? w.firstClean : w.nextClean,
       icon: CalendarCheck,
       tone: "info",
       startsAt: job.startsAt,
-      headline: today ? formatTime(job.startsAt) : formatDateTime(job.startsAt),
+      headline: today
+        ? t.formatTime(job.startsAt)
+        : formatDateTime(job.startsAt),
       lines: [
-        `${job.serviceName} at ${addressOf(job.property)}`,
-        ...(plan
-          ? [
-              `Part of your cleaning plan, ${recurrenceLabel[plan.recurrence].toLowerCase()}`,
-            ]
-          : []),
-        `${cleaners(job.crewSize)}, about ${formatHours(job.hoursOnSite)} on site`,
+        w.serviceAt(job.serviceName, addressOf(job.property)),
+        ...(plan ? [w.partOfPlan(t.recurrence[plan.recurrence])] : []),
+        w.crewOnSite(t.cleaners(job.crewSize), formatHours(job.hoursOnSite)),
       ],
-      action: { label: "See the clean", href: jobLink(job.id) },
+      action: { label: t.p.seeTheClean, href: jobLink(job.id) },
     };
   }
 
   if (next?.kind === "visit") {
     const { visit } = next;
     return {
-      label: "Your site visit",
+      label: w.siteVisit,
       icon: MapPin,
       tone: "info",
       startsAt: visit.startsAt,
       headline: formatDateTime(visit.startsAt),
       lines: [
-        `${visit.visitorName} comes to see ${addressOf(visit.property)} for about ${formatMinutes(visit.minutes)}`,
-        `Free: we look before we quote. To change the time, call ${business.phone.display}.`,
+        w.comesToSee(
+          visit.visitorName,
+          addressOf(visit.property),
+          formatMinutes(visit.minutes),
+        ),
+        w.visitFree(business.phone.display),
       ],
     };
   }
 
   if (paused) {
     return {
-      label: "Your cleaning plan is paused",
+      label: w.planPaused,
       icon: PauseCircle,
       tone: "warning",
-      headline: unpaidJob ? "Update your card to carry on" : "A payment is due",
+      headline: unpaidJob ? w.updateToCarryOn : w.paymentDue,
       lines: [
         unpaidJob
-          ? `${cleanNotPaid(dayOf(unpaidJob.startsAt))}.`
-          : "A payment on it hasn't gone through yet.",
-        "Once it's paid, your plan carries on from its next date.",
+          ? `${t.cleanNotPaid(dayOf(unpaidJob.startsAt))}.`
+          : w.notThroughYet,
+        w.carriesOn,
       ],
       action: unpaidJob
-        ? { label: UPDATE_CARD, href: cardLink }
-        : { label: "See your plan", href: planLink(paused.id) },
+        ? { label: t.UPDATE_CARD, href: cardLink }
+        : { label: t.p.seeYourPlan, href: planLink(paused.id) },
     };
   }
 
   if (leadingQuote) {
     return {
-      label: "Your quote is ready",
+      label: w.quoteReadyLabel,
       icon: QuoteIcon,
       tone: "info",
-      headline: quoteHeadline(leadingQuote),
+      headline: t.quoteHeadline(leadingQuote),
       lines: [
         [
           leadingQuote.proposedStartsAt &&
-            `For ${formatDateTime(leadingQuote.proposedStartsAt)}`,
+            w.forWhen(formatDateTime(leadingQuote.proposedStartsAt)),
           addressOf(leadingQuote.property),
         ]
           .filter(Boolean)
-          .join(" at "),
+          .join(w.at),
         ...(leadingQuote.expiresAt
-          ? [`Open until ${dayOf(leadingQuote.expiresAt)}`]
+          ? [w.openUntil(dayOf(leadingQuote.expiresAt))]
           : []),
       ],
-      action: seeQuote(leadingQuote.id),
+      action: seeQuote(t, leadingQuote.id),
     };
   }
 
   const asked = data.quotes.find(open);
   if (asked) {
     const seeIt = {
-      label: "See what you asked for",
+      label: w.seeAsked,
       href: quoteLink(asked.id),
     };
     if (asked.siteVisit === "needed") {
       return {
-        label: "Before we quote",
+        label: w.beforeWeQuote,
         icon: MapPin,
         tone: "info",
-        headline: "We'll call to arrange a visit",
-        lines: [
-          `We see ${addressOf(asked.property)} before we price it. It's free.`,
-          "We'll call you within a working day.",
-        ],
+        headline: w.callToArrange,
+        lines: [w.weSee(addressOf(asked.property)), w.callWithinDay],
         action: seeIt,
       };
     }
     return {
-      label: "Your quote",
+      label: t.p.yourQuote,
       icon: Hourglass,
       tone: "info",
-      headline: "We're working on it",
+      headline: w.workingOnIt,
       lines: [
-        `${asked.service.name} at ${addressOf(asked.property)}, asked ${dayOf(asked.createdAt)}`,
-        `We'll email it to you, ${WITHIN_A_DAY}, and it shows here.`,
+        w.askedOn(
+          asked.service.name,
+          addressOf(asked.property),
+          dayOf(asked.createdAt),
+        ),
+        w.emailIt(t.WITHIN_A_DAY),
       ],
       action: seeIt,
     };
@@ -364,12 +506,12 @@ function heroOf(data: HomeData, ctx: Context): Hero {
   const plan = data.plans.find((p) => p.status === "active");
   if (plan) {
     return {
-      label: "Your cleaning plan",
+      label: t.p.yourPlan,
       icon: Repeat,
       tone: "info",
-      headline: planName(plan),
-      lines: ["Your next clean shows here once it's booked."],
-      action: { label: "See your plan", href: planLink(plan.id) },
+      headline: t.planName(plan),
+      lines: [t.p.nextShowsHere],
+      action: { label: t.p.seeYourPlan, href: planLink(plan.id) },
     };
   }
 
@@ -377,97 +519,94 @@ function heroOf(data: HomeData, ctx: Context): Hero {
   const last = data.quotes[0];
   if (last?.status === "expired") {
     return {
-      label: "Your quote expired",
+      label: w.expired,
       icon: CalendarClock,
       tone: "neutral",
-      headline: quoteHeadline(last),
+      headline: t.quoteHeadline(last),
       lines: [
-        last.expiresAt
-          ? `It was open until ${dayOf(last.expiresAt)}. Ask again and we'll price it afresh.`
-          : "Ask again and we'll price it afresh.",
+        last.expiresAt ? w.wasOpenUntil(dayOf(last.expiresAt)) : w.askAgain,
       ],
-      action: requestQuote,
+      action: requestQuote(t),
     };
   }
   if (last?.status === "turned_down") {
     return {
-      label: "We couldn't take this one on",
+      label: w.couldntTake,
       icon: Ban,
       tone: "neutral",
       headline: last.turnDownReason
-        ? turnDownReason[last.turnDownReason]
-        : "Sorry, we can't take this one on",
-      lines: [`${addressOf(last.property)}. ${ASK_AGAIN}`],
-      action: requestQuote,
+        ? t.turnDownReason[last.turnDownReason]
+        : w.sorry,
+      lines: [`${addressOf(last.property)}. ${t.ASK_AGAIN}`],
+      action: requestQuote(t),
     };
   }
   if (last?.status === "declined") {
     return {
-      label: "Nothing booked",
+      label: t.p.nothingBooked,
       icon: CalendarDays,
       tone: "info",
-      headline: "Changed your mind?",
-      lines: [
-        `You declined our quote for ${last.service.name}. Ask for a new one any time.`,
-      ],
-      action: requestQuote,
+      headline: w.changedMind,
+      lines: [w.declined(last.service.name)],
+      action: requestQuote(t),
     };
   }
   const latest = data.pastJobs.find((j) => j.status === "completed");
   if (last || latest) {
     return {
-      label: "Nothing booked",
+      label: t.p.nothingBooked,
       icon: CalendarDays,
       tone: "info",
-      headline: "Want us back?",
-      lines: latest ? [`Your last clean was ${dayOf(latest.startsAt)}.`] : [],
-      action: requestQuote,
+      headline: w.wantUsBack,
+      lines: latest ? [w.lastClean(dayOf(latest.startsAt))] : [],
+      action: requestQuote(t),
     };
   }
   return {
-    label: "Welcome to Empire Cleaning",
+    label: w.welcome,
     icon: Sparkles,
     tone: "info",
-    headline: "Let's get you a quote",
-    lines: [ASK_US],
-    action: requestQuote,
+    headline: w.getAQuote,
+    lines: [t.ASK_US],
+    action: requestQuote(t),
   };
 }
 
 const planLink = (planId: string) =>
   linkTo({ to: "/portal/plans/$planId", params: { planId } });
 
-function shortcutsOf(data: HomeData, ctx: Context): Shortcut[] {
+function shortcutsOf(data: HomeData, t: Said, ctx: Context): Shortcut[] {
   const { next, paused, unpaidJob, now } = ctx;
+  const { w, p, dayOf, formatDateTime } = t;
   const callUs: Shortcut = {
     icon: Phone,
-    label: "Call us",
+    label: w.callUs,
     hint: business.phone.display,
     href: business.phone.href,
   };
   const pastCleans: Shortcut = {
     icon: Receipt,
-    label: "Past cleans",
-    hint: "And their receipts",
+    label: w.pastCleans,
+    hint: w.receipts,
     href: linkTo({ to: "/portal/cleans", search: { tab: "past" } }),
   };
   const details: Shortcut = {
     icon: UserRound,
-    label: "Your details",
-    hint: "Name, email, phone",
+    label: p.yourDetails,
+    hint: w.nameEmailPhone,
     href: detailsLink,
   };
   const card: Shortcut = unpaidJob
     ? {
         icon: CreditCard,
-        label: UPDATE_CARD,
-        hint: "The last payment didn't go through",
+        label: t.UPDATE_CARD,
+        hint: w.lastDidntGo,
         href: cardLink,
       }
     : {
         icon: CreditCard,
-        label: "Your card",
-        hint: data.paymentMethod?.label ?? "None saved yet",
+        label: p.yourCard,
+        hint: data.paymentMethod?.label ?? w.noneSaved,
         href: cardLink,
       };
   // the home the next thing is at, else their only one
@@ -484,8 +623,8 @@ function shortcutsOf(data: HomeData, ctx: Context): Shortcut[] {
     ? [
         {
           icon: KeyRound,
-          label: "How we get in",
-          hint: home.accessInstructions || "Not added yet",
+          label: p.howWeGetIn,
+          hint: home.accessInstructions || w.notAdded,
           href: linkTo({
             to: "/portal/properties/$propertyId",
             params: { propertyId: home.id },
@@ -500,14 +639,14 @@ function shortcutsOf(data: HomeData, ctx: Context): Shortcut[] {
     const move: Shortcut = job.movingTo
       ? {
           icon: CalendarClock,
-          label: "Your move request",
-          hint: `To ${formatDateTime(job.movingTo)}`,
+          label: w.moveRequest,
+          hint: w.to(formatDateTime(job.movingTo)),
           href: jobLink(job.id),
         }
       : {
           icon: CalendarClock,
-          label: job.servicePlanId ? "Move or skip" : "Move or cancel",
-          hint: `Your ${dayOf(job.startsAt)} clean`,
+          label: job.servicePlanId ? p.moveOrSkip : p.moveOrCancel,
+          hint: w.yourClean(dayOf(job.startsAt)),
           href: jobLink(job.id),
         };
     return [move, ...getIn, card, callUs];

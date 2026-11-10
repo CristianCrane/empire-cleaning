@@ -12,19 +12,64 @@ import {
   TextField,
   showToast,
   Logo,
+  useLanguage,
 } from "@empire-cleaning/ui";
+import { catalog } from "@empire-cleaning/models";
 import { authClient } from "../session.ts";
 import { GoogleButton } from "./GoogleButton.tsx";
 
-// what went wrong, in words; codes come back from the API on ?error=
-const errorMessages: Record<string, string> = {
-  INVALID_TOKEN:
-    "That sign-in link has expired or has already been used. Enter your email below for a fresh one.",
-};
-const fallbackError = "Signing in didn't work. Please try again.";
+// its words, in the language of the page the person came from (ADR-0025);
+// what went wrong comes back from the API as a code on ?error=
+const words = catalog({
+  en: {
+    errors: {
+      INVALID_TOKEN:
+        "That sign-in link has expired or has already been used. Enter your email below for a fresh one.",
+    } as Record<string, string>,
+    failed: "Signing in didn't work. Please try again.",
+    another: "Another link is on its way",
+    checkEmail: "Check your email",
+    signIn: "Sign in",
+    onItsWay: "A sign-in link is on its way to",
+    worksOnce: "It works once, for 15 minutes.",
+    notThere: "Not there? Check your spam folder, or send it again.",
+    differentEmail: "Use a different email",
+    sendAgain: "Send it again",
+    or: "or",
+    noPassword: "We'll email you a link that signs you in. No password needed.",
+    email: "Email",
+    emailMe: "Email me a sign-in link",
+    newHere:
+      "New to Empire Cleaning? Sign in with your email, then tell us about your home for a quote.",
+  },
+  es: {
+    errors: {
+      INVALID_TOKEN:
+        "Ese enlace para iniciar sesión venció o ya se usó. Escriba su correo electrónico abajo para recibir uno nuevo.",
+    },
+    failed: "No se pudo iniciar sesión. Vuelva a intentarlo.",
+    another: "Va en camino otro enlace",
+    checkEmail: "Revise su correo",
+    signIn: "Iniciar sesión",
+    onItsWay: "Va en camino un enlace para iniciar sesión a",
+    worksOnce: "Funciona una vez, durante 15 minutos.",
+    notThere:
+      "¿No le llegó? Revise la carpeta de correo no deseado, o envíelo de nuevo.",
+    differentEmail: "Usar otro correo electrónico",
+    sendAgain: "Enviarlo de nuevo",
+    or: "o",
+    noPassword:
+      "Le enviaremos por correo un enlace para iniciar sesión. No necesita contraseña.",
+    email: "Correo electrónico",
+    emailMe: "Enviarme un enlace para iniciar sesión",
+    newHere:
+      "¿Es nuevo en Empire Cleaning? Inicie sesión con su correo electrónico y luego cuéntenos sobre su casa para recibir una cotización.",
+  },
+});
 
 export function SignIn() {
   const { next, error } = useSearch({ from: "/sign-in" });
+  const w = words[useLanguage()];
   const [sentTo, setSentTo] = useState<string>();
   const [isSending, setSending] = useState(false);
   // why the link wasn't sent, when it wasn't
@@ -48,12 +93,12 @@ export function SignIn() {
     if (error) {
       // asked too often for now (#32): the API says how long to wait
       setSendFailed(
-        error.status === 429 && error.message ? error.message : fallbackError,
+        error.status === 429 && error.message ? error.message : w.failed,
       );
     } else {
       setSentTo(email);
       if (again) {
-        showToast({ tone: "success", title: "Another link is on its way" });
+        showToast({ tone: "success", title: w.another });
       }
     }
   };
@@ -66,13 +111,11 @@ export function SignIn() {
 
       <Card>
         <Heading level={1} size={2}>
-          {sentTo ? "Check your email" : "Sign in"}
+          {sentTo ? w.checkEmail : w.signIn}
         </Heading>
 
         {error && !sentTo && (
-          <Notice tone="warning">
-            {errorMessages[error] ?? fallbackError}
-          </Notice>
+          <Notice tone="warning">{w.errors[error] ?? w.failed}</Notice>
         )}
 
         {sentTo ? (
@@ -80,24 +123,21 @@ export function SignIn() {
             <div className="flex items-start gap-3">
               <IconTile icon={MailCheck} tone="success" />
               <p>
-                A sign-in link is on its way to <strong>{sentTo}</strong>. It
-                works once, for 15 minutes.
+                {w.onItsWay} <strong>{sentTo}</strong>. {w.worksOnce}
               </p>
             </div>
-            <p className="text-sm text-fg-muted">
-              Not there? Check your spam folder, or send it again.
-            </p>
+            <p className="text-sm text-fg-muted">{w.notThere}</p>
             {sendFailed && <Notice tone="danger">{sendFailed}</Notice>}
             <Actions>
               <Button variant="text" onPress={() => setSentTo(undefined)}>
-                Use a different email
+                {w.differentEmail}
               </Button>
               <Button
                 variant="secondary"
                 isPending={isSending}
                 onPress={() => void sendLink(sentTo, true)}
               >
-                Send it again
+                {w.sendAgain}
               </Button>
             </Actions>
           </>
@@ -115,13 +155,11 @@ export function SignIn() {
 
             <div className="flex items-center gap-3 text-sm text-fg-muted">
               <span className="h-px flex-1 bg-border" />
-              or
+              {w.or}
               <span className="h-px flex-1 bg-border" />
             </div>
 
-            <p className="text-sm text-fg-muted">
-              We'll email you a link that signs you in. No password needed.
-            </p>
+            <p className="text-sm text-fg-muted">{w.noPassword}</p>
             {sendFailed && <Notice tone="danger">{sendFailed}</Notice>}
             <Form
               onSubmit={(e) => {
@@ -131,7 +169,7 @@ export function SignIn() {
               }}
             >
               <TextField
-                label="Email"
+                label={w.email}
                 name="email"
                 type="email"
                 autoComplete="email"
@@ -139,7 +177,7 @@ export function SignIn() {
               />
               {/* full width: the form is narrow at every screen size */}
               <Button type="submit" isPending={isSending} className="w-full">
-                Email me a sign-in link
+                {w.emailMe}
               </Button>
             </Form>
           </>
@@ -147,10 +185,7 @@ export function SignIn() {
       </Card>
 
       {!sentTo && (
-        <p className="text-center text-sm text-fg-muted">
-          New to Empire Cleaning? Sign in with your email, then tell us about
-          your home for a quote.
-        </p>
+        <p className="text-center text-sm text-fg-muted">{w.newHere}</p>
       )}
     </main>
   );

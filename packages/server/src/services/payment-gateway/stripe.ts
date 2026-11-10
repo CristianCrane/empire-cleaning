@@ -1,5 +1,6 @@
 import Stripe from "stripe";
-import type { CardForm, PaymentForm } from "@empire-cleaning/models";
+import type { CardForm, Language, PaymentForm } from "@empire-cleaning/models";
+import { stripeLocales } from "@empire-cleaning/models";
 import { MINUTE_MS } from "@empire-cleaning/models";
 import { monitoring } from "#services/monitoring";
 import {
@@ -88,16 +89,29 @@ export class StripePaymentGateway implements PaymentGateway {
     clientId,
     name,
     email,
+    language,
   }: {
     clientId: string;
     name: string;
     email: string | null;
+    language: Language;
   }) {
     const customer = await this.stripe.customers.create(
-      { name, email: email ?? undefined, metadata: { clientId } },
+      {
+        name,
+        email: email ?? undefined,
+        metadata: { clientId },
+        preferred_locales: [stripeLocales[language]],
+      },
       { idempotencyKey: `customer:${clientId}` },
     );
     return { payerId: customer.id };
+  }
+
+  async setPayerLanguage(payerId: string, language: Language) {
+    await this.stripe.customers.update(payerId, {
+      preferred_locales: [stripeLocales[language]],
+    });
   }
 
   async startCardForm(payerId: string): Promise<CardForm> {
@@ -128,7 +142,7 @@ export class StripePaymentGateway implements PaymentGateway {
       typeof method === "string"
     ) {
       throw new PaymentMethodError(
-        "Your card wasn't set up. Please enter it again.",
+        `setup ${token} is ${setup?.status ?? "missing"}, for ${String(setup?.customer)}`,
       );
     }
     return saved(method);

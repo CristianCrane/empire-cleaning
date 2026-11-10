@@ -5,7 +5,7 @@ import {
   messages,
 } from "@empire-cleaning/models";
 import { QuoteRequestForm } from "@empire-cleaning/quote-request";
-import { Notice } from "@empire-cleaning/ui";
+import { LanguageProvider, Notice } from "@empire-cleaning/ui";
 import { business } from "../business.ts";
 import { keepCampaign, quoteSource } from "../source.ts";
 import { words } from "../words.ts";
@@ -49,14 +49,16 @@ export function QuoteForm({
   return (
     <>
       <div inert={!ready} className="[@media(scripting:none)]:hidden">
-        <QuoteRequestForm
-          asker={{ kind: "guest" }}
-          lang={lang}
-          apiUrl={apiUrl}
-          start={start}
-          source={quoteSource}
-          onSubmitted={setReceipt}
-        />
+        {/* in the page's language, react-aria's own words too */}
+        <LanguageProvider lang={lang}>
+          <QuoteRequestForm
+            asker={{ kind: "guest" }}
+            apiUrl={apiUrl}
+            start={start}
+            source={quoteSource}
+            onSubmitted={setReceipt}
+          />
+        </LanguageProvider>
       </div>
       <p className="hidden text-center text-fg-muted [@media(scripting:none)]:block">
         {t.callUs[0]}{" "}

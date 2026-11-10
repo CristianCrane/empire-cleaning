@@ -8,6 +8,7 @@ import {
   UNSTABLE_ToastRegion as AriaToastRegion,
 } from "react-aria-components";
 import { CircleAlert, CircleCheck, Info, X } from "lucide-react";
+import { useUiWords } from "./language.ts";
 import { focusRing, tv } from "./utils.ts";
 
 export type ToastContent = {
@@ -40,6 +41,7 @@ const accent = tv({
 
 // render once, at the root of the app
 export function ToastRegion() {
+  const words = useUiWords();
   return (
     <AriaToastRegion
       queue={toastQueue}
@@ -68,7 +70,7 @@ export function ToastRegion() {
             </AriaToastContent>
             <AriaButton
               slot="close"
-              aria-label="Dismiss"
+              aria-label={words.dismiss}
               className={(renderProps) =>
                 `${focusRing(renderProps)} -m-2 flex size-touch shrink-0 items-center justify-center rounded-md text-fg-muted hover:text-fg`
               }

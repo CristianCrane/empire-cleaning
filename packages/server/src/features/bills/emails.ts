@@ -14,7 +14,7 @@ import {
   messages,
 } from "@empire-cleaning/models";
 import type { Settled } from "../completion/balance.ts";
-import { whyNotPaid } from "../payments/unpaid.ts";
+import { unpaidKind } from "../payments/unpaid.ts";
 
 const {
   billNotPaid,
@@ -241,7 +241,7 @@ export const settledLines = (settled: SettledJob[]) => {
   const failed = settled.find((s) => s.settled.failure);
   if (failed) {
     lines.push(
-      `${notTaken("payment", card)} ${clientFix[whyNotPaid(failed.settled.failure!).kind]}`,
+      `${notTaken("payment", card)} ${clientFix[unpaidKind(failed.settled.failure!)]}`,
     );
   }
   if (settled.some((s) => s.settled.plan === "held")) {
@@ -277,8 +277,7 @@ export const chargedPerCleanEmail = ({
       // a card puts it right, unless we're trying again ourselves
       unpaid &&
       settled.some(
-        (s) =>
-          s.settled.failure && whyNotPaid(s.settled.failure).kind !== "waiting",
+        (s) => s.settled.failure && unpaidKind(s.settled.failure) !== "waiting",
       )
         ? button(UPDATE_CARD, "/portal/payment-method")
         : button("See your cleans", "/portal"),

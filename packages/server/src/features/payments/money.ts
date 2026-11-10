@@ -281,7 +281,7 @@ export const chargeSaved = async (
     for: chargeFor,
     item = null,
   }: {
-    client: Pick<Client, "id" | "name" | "email">;
+    client: Pick<Client, "id" | "name" | "email" | "preferredLanguage">;
     method: PaymentMethodRow | null;
     amount: number;
     description: string;

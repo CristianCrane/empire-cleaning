@@ -6,6 +6,7 @@ import {
 } from "react-aria-components";
 import type { ReactNode } from "react";
 import { X } from "lucide-react";
+import { useUiWords } from "./language.ts";
 import { Button } from "./Button.tsx";
 
 export type DrawerProps = {
@@ -25,6 +26,7 @@ export function Drawer({
   onOpenChange,
   ...props
 }: DrawerProps) {
+  const words = useUiWords();
   return (
     <ModalOverlay
       isDismissable
@@ -42,7 +44,7 @@ export function Drawer({
               <Button
                 variant="quiet"
                 size="icon"
-                aria-label="Close"
+                aria-label={words.close}
                 onPress={close}
                 className="absolute top-2 right-2"
               >

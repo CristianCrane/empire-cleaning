@@ -14,6 +14,7 @@ import {
   notInArray,
   or,
 } from "drizzle-orm";
+import { currentLanguage } from "#services/request";
 import type {
   BillPaymentForm,
   BillSummary,
@@ -29,6 +30,7 @@ import {
   mondayOf,
   startOfDay,
   timeOf,
+  catalog,
   formats,
   messages,
 } from "@empire-cleaning/models";
@@ -69,7 +71,7 @@ import {
   paymentMethods,
   refunds,
 } from "../payments/payments.schema.ts";
-import { LATE, nowTheirs, unpaidOf } from "../payments/unpaid.ts";
+import { LATE, nowTheirs, unpaidKind, unpaidOf } from "../payments/unpaid.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
 import { jobQuotes } from "../quotes/job-quotes.ts";
@@ -83,16 +85,18 @@ import { billLines, bills, type Bill, type BillLine } from "./bills.schema.ts";
 import { serviceNameOf } from "../services/services.ts";
 import { log, monitoring } from "../../services/monitoring/index.ts";
 
-const {
-  adjustmentLabel,
-  BOOKED_GO_AHEAD,
-  feeName,
-  LATE_MOVE_FEE,
-  PLAN_BACK_ON,
-  PLAN_PAUSED,
-} = messages.en;
+// the emails' words, English until #304
+const { BOOKED_GO_AHEAD, PLAN_BACK_ON, PLAN_PAUSED } = messages.en;
 
+// A Bill's lines are a record, in English for now: the Office reads them
+// too, and their Client's Spanish waits for them being worded as they're
+// read (#395)
+const { adjustmentLabel, feeName, LATE_MOVE_FEE } = messages.en;
 const { formatWhen } = formats.en;
+
+// what a Job is, as its lines on a Bill name it, before what each line is
+const whatOf = async (job: Job, property: Property) =>
+  `${await serviceNameOf(job.serviceId)} at ${addressOf(property)}, ${formatWhen(job.startsAt)}`;
 
 // a credit no Bill follows within this long is refunded (ADR-0016)
 const CREDIT_REFUND_DAYS = 30;
@@ -179,7 +183,7 @@ const partsOf = async (
       );
 
   const { option } = quoted;
-  const what = `${await serviceNameOf(job.serviceId)} at ${addressOf(property)}, ${formatWhen(job.startsAt)}`;
+  const what = await whatOf(job, property);
   const share = (key: string, label: string, cents: number): Part => ({
     key,
     label,
@@ -659,6 +663,23 @@ const clientBill = async (clientId: string, billId: string) => {
   return bill;
 };
 
+// what the API says to a Client paying a Bill, in the request's language
+// (ADR-0025)
+export const payWords = catalog({
+  en: {
+    onItsWay: "Your bank payment for this bill is on its way.",
+    nothingToPay: "There's nothing to pay on this bill.",
+    notThrough: (because: string) =>
+      `Your payment didn't go through${because}. Please try again, or use another card or bank account.`,
+  },
+  es: {
+    onItsWay: "Su pago bancario de esta factura ya está en camino.",
+    nothingToPay: "No hay nada que pagar en esta factura.",
+    notThrough: (because: string) =>
+      `Su pago no pasó${because}. Vuelva a intentarlo, o use otra tarjeta o cuenta bancaria.`,
+  },
+});
+
 // the provider's form for the Client to pay a Bill on its page, by card or
 // bank debit
 export const startBillPayment = async (
@@ -669,8 +690,8 @@ export const startBillPayment = async (
   if (!payable(bill)) {
     throw new ConflictError(
       bill.status === "processing"
-        ? "Your bank payment for this bill is on its way."
-        : "There's nothing to pay on this bill.",
+        ? payWords[currentLanguage()].onItsWay
+        : payWords[currentLanguage()].nothingToPay,
     );
   }
   const { ref, secret } = await paymentGateway.startBillPayment({
@@ -1030,9 +1051,10 @@ const settleEach = async (jobIds: string[]) => {
   return moved;
 };
 
-// what a Job is, as its lines on a Bill name it
+// what a Job is, as an email of the Jobs it settled names it: English
+// until #304
 const labelOf = async (job: Job, property: Property) => {
-  const what = `${await serviceNameOf(job.serviceId)} at ${addressOf(property)}, ${formatWhen(job.startsAt)}`;
+  const what = await whatOf(job, property);
   return job.status === "cancelled" || job.status === "no_access"
     ? `${feeName[job.status]}: ${what}`
     : what;
@@ -1309,7 +1331,7 @@ const toSummary = (
   status: bill.status,
   totalCents: bill.totalCents,
   taxCents: bill.taxCents,
-  unpaid: unpaidOf(bill.unpaidSince, bill.unpaidReason),
+  unpaid: unpaidOf(currentLanguage(), bill.unpaidSince, bill.unpaidReason),
   paidAt: bill.paidAt?.toISOString() ?? null,
   paidVia: bill.paidVia,
 });
@@ -1402,7 +1424,7 @@ const sendBill = async (
       bill: {
         ...bill,
         number: billNumber(bill.number),
-        unpaid: unpaidOf(bill.unpaidSince, bill.unpaidReason)?.kind ?? null,
+        unpaid: bill.unpaidSince ? unpaidKind(bill.unpaidReason ?? "") : null,
         lines: await linesOf(billId),
       },
       occasion,

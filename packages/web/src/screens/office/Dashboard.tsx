@@ -292,7 +292,7 @@ function NeedsAttention({ items }: { items: NeedsAttentionItem[] }) {
           icon: Receipt,
           tone: "danger",
           client: clientName(bill.client),
-          description: `Bill ${bill.number} · ${formatMoney(bill.totalCents)} · ${billWeek(bill)}`,
+          description: `Bill ${bill.number} · ${formatMoney(bill.totalCents)} · ${billWeek("en", bill)}`,
           open: () =>
             navigate({
               to: "/office/bills/$billId",

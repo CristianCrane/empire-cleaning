@@ -20,8 +20,13 @@ export type SignedInAccount = {
 };
 
 // the signed-in caller as GET /api/me returns it, with the first-time help
-// tours they've seen (by the web app's name for each), which don't show again
-export type Me = SignedInAccount & { seenTours: string[] };
+// tours they've seen (by the web app's name for each), which don't show again,
+// and their Preferred Language: their Client's, null while their Account is
+// connected to no Client (ADR-0025)
+export type Me = SignedInAccount & {
+  seenTours: string[];
+  language: Language | null;
+};
 
 // which site the API is, as GET /api/site returns it: "test" is the test
 // site (ADR-0020)

@@ -32,7 +32,7 @@ import {
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { lockDay } from "../jobs/jobs.ts";
 import { scheduleOn } from "../jobs/schedule.ts";
-import { busyWith, PASSED, roomOn, visitHours } from "../jobs/rules.ts";
+import { busyWith, passed, roomOn, visitHours } from "../jobs/rules.ts";
 import {
   currentPriceList,
   notAPremisesType,
@@ -103,7 +103,7 @@ const refuseNoRoom = async (
   },
 ) => {
   if (startsAt <= clock.now()) {
-    throw new ConflictError(PASSED);
+    throw new ConflictError(passed());
   }
   const date = dayOf(startsAt);
   await lockDay(tx, date);

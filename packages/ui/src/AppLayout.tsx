@@ -6,6 +6,7 @@ import { DialogTrigger } from "./Dialog.tsx";
 import { Drawer } from "./Drawer.tsx";
 import { Logo } from "./Logo.tsx";
 import { ThemeToggle } from "./theme.tsx";
+import { useUiWords } from "./language.ts";
 import { focusRing } from "./utils.ts";
 
 export type NavItem = {
@@ -53,6 +54,7 @@ export function AppLayout({
   const section = nav.find((item) => item.isCurrent)?.label ?? area;
   const menu = nav.filter((item) => item.inMenu);
   const tabs = nav.filter((item) => !item.inMenu);
+  const words = useUiWords();
   return (
     <div className="min-h-dvh md:flex">
       <a
@@ -83,12 +85,12 @@ export function AppLayout({
               <Button
                 variant="quiet"
                 size="icon"
-                aria-label="Menu"
+                aria-label={words.menu}
                 className="-ml-2 shrink-0"
               >
                 <Menu aria-hidden size={22} />
               </Button>
-              <Drawer aria-label="Menu">
+              <Drawer aria-label={words.menu}>
                 {({ close }) => (
                   <>
                     <div className="flex flex-col items-center gap-3 px-2 pt-8">

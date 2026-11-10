@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { validate } from "../../middleware/validation.ts";
+import { say, validate } from "../../middleware/validation.ts";
 import { paymentGateway } from "../../services/payment-gateway/index.ts";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { ownClient } from "../clients/clients.ts";
@@ -8,6 +8,7 @@ import { retryUnpaidBillsFor } from "../bills/bills.ts";
 import { retryUnpaidJobsFor } from "../completion/completion.ts";
 import { paymentHistoryFor } from "./history.ts";
 import {
+  cardWords,
   paymentMethodOf,
   savePaymentMethod,
   sendPaymentMethodLink,
@@ -45,7 +46,9 @@ router.put(
   authorize("client"),
   validate({
     body: z.object({
-      token: z.string({ error: "Enter your card" }).min(1, "Enter your card"),
+      token: z
+        .string(say(cardWords, "ENTER_CARD"))
+        .min(1, say(cardWords, "ENTER_CARD")),
     }),
   }),
   async (req, res) => {
