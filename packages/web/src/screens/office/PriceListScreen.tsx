@@ -38,8 +38,10 @@ import {
 } from "@empire-cleaning/ui";
 import { putJson } from "../../api.ts";
 import { useAction } from "../action.ts";
-import { cleaners, conditionLabel, formatHours } from "../format.ts";
+import { formatHours, screenWords } from "../format.ts";
 import { Fact } from "../Fact.tsx";
+
+const { cleaners, conditionLabel } = screenWords.en;
 
 const { formatDate } = formats.en;
 

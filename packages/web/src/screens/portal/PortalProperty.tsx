@@ -32,17 +32,14 @@ import { accessHelp } from "@empire-cleaning/quote-request";
 import { patchJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
-import {
-  addressOf,
-  dayOfInstant,
-  propertySummary,
-  recurrenceLabel,
-} from "../format.ts";
+import { addressOf, dayOfInstant, screenWords } from "../format.ts";
 import { AccessFact, ConditionFact, FloorAreaFact } from "../Fact.tsx";
 import { planWhen, quoteTitle, standingOf } from "./properties.ts";
 import { PlanStatusBadge } from "../PlanParts.tsx";
 import { ClientQuoteStatusBadge } from "../QuoteParts.tsx";
 import { requestQuote } from "./whats-next.ts";
+
+const { propertySummary, recurrenceLabel } = screenWords.en;
 
 const { formatDateTime, formatShortDay } = formats.en;
 

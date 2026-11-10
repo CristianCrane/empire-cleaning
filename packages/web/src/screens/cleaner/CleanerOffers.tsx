@@ -1,4 +1,3 @@
-import { APP_LANGUAGE } from "../../api.ts";
 import { formats } from "@empire-cleaning/models";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import { Inbox } from "lucide-react";
@@ -48,9 +47,7 @@ export function CleanerOffers() {
               <ListItem
                 key={job.id}
                 id={job.id}
-                start={
-                  <DateTile lang={APP_LANGUAGE} date={job.startsAt} size="sm" />
-                }
+                start={<DateTile date={job.startsAt} size="sm" />}
                 title={formatDateTime(job.startsAt)}
                 description={`${job.property.postcode} · ${job.serviceName}, ${formatHours(job.hoursOnSite)}`}
                 end={<StatusBadge tone="warning">Offered</StatusBadge>}
@@ -78,9 +75,7 @@ export function CleanerOffers() {
               <ListItem
                 key={job.jobId}
                 id={job.jobId}
-                start={
-                  <DateTile lang={APP_LANGUAGE} date={job.startsAt} size="sm" />
-                }
+                start={<DateTile date={job.startsAt} size="sm" />}
                 title={formatDateTime(job.startsAt)}
                 description={[
                   job.postcode,

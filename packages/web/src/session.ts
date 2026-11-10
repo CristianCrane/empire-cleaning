@@ -2,14 +2,25 @@ import { createAuthClient } from "better-auth/react";
 import { magicLinkClient } from "better-auth/client/plugins";
 import type { AccountRole, Me, SignedInAccount } from "@empire-cleaning/models";
 import { identify } from "@empire-cleaning/browser-monitoring";
-import { LANGUAGE_HEADER, putJson } from "./api.ts";
+import { putJson } from "./api.ts";
+import { languageHeader } from "./language.ts";
 import { reportUnexpected } from "./monitoring.ts";
 
 // Better Auth's browser client: plain functions over the API's /api/auth
 // endpoints (same origin; Vite forwards /api to the server), no UI of its own
 export const authClient = createAuthClient({
   plugins: [magicLinkClient()],
-  fetchOptions: { headers: LANGUAGE_HEADER },
+  fetchOptions: {
+    // the screen's language as each request goes, so the API's messages
+    // (too many tries) come in it
+    onRequest: (context) => {
+      context.headers.set(
+        "accept-language",
+        languageHeader()["accept-language"],
+      );
+      return context;
+    },
+  },
 });
 
 // the three parts of the app, each for one role. For Staff holding both
@@ -40,7 +51,7 @@ export const areasFor = (account: SignedInAccount): AreaId[] =>
 let current: Promise<Me | null> | undefined;
 
 export const getAccount = () =>
-  (current ??= fetch("/api/me", { headers: LANGUAGE_HEADER })
+  (current ??= fetch("/api/me", { headers: languageHeader() })
     .then((res) => (res.ok ? (res.json() as Promise<Me>) : null))
     .then((account) => {
       // Sentry knows people by Account ID only (ADR-0007)

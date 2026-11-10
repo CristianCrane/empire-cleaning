@@ -49,8 +49,7 @@ import {
   addressOf,
   clientName,
   formatMinutes,
-  propertySummary,
-  quoteHeadline,
+  screenWords,
 } from "../format.ts";
 import { AccessFact, ConditionFact, Fact, FloorAreaFact } from "../Fact.tsx";
 import { QuoteIcon } from "../icons.ts";
@@ -72,6 +71,8 @@ import {
 import { PlanDetails } from "./ServicePlanScreen.tsx";
 import { OfferServicePlan, QUOTE_A_PLAN } from "./StartDraft.tsx";
 import { JobStatusBadge } from "../JobBadges.tsx";
+
+const { propertySummary, quoteHeadline } = screenWords.en;
 
 const { formatDate, formatDateTime } = formats.en;
 

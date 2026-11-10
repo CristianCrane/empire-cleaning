@@ -37,12 +37,9 @@ import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import {
   addressOf,
-  cleaners,
-  conditionLabel,
   formatHours,
   formatMinutes,
-  planRhythm,
-  quoteKindName,
+  screenWords,
 } from "../format.ts";
 import { Fact } from "../Fact.tsx";
 import {
@@ -54,6 +51,8 @@ import {
 import { ConsentNote, usePaymentForm } from "./CardForm.tsx";
 import { formats, messages } from "@empire-cleaning/models";
 import { requestQuote } from "./whats-next.ts";
+
+const { cleaners, conditionLabel, planRhythm, quoteKindName } = screenWords.en;
 
 const {
   ASK_AGAIN,

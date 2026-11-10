@@ -9,12 +9,10 @@ import {
   Notice,
   showToast,
   Logo,
+  useLanguage,
 } from "@empire-cleaning/ui";
-import { APP_LANGUAGE } from "../api.ts";
 import { forgetAccount, signOut } from "../session.ts";
 import { quoteRequested } from "./QuoteParts.tsx";
-
-const { ASK_US } = messages.en;
 
 // for an Account connected to nothing yet (ADR-0006): someone who signed up
 // before asking for a Quote, or with a different email from their Quote
@@ -23,6 +21,8 @@ const { ASK_US } = messages.en;
 export function Welcome() {
   const { account } = useRouteContext({ from: "/welcome" });
   const navigate = useNavigate();
+  const lang = useLanguage();
+  const { ASK_US } = messages[lang];
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-6xl flex-col gap-6 p-4 py-10">
@@ -58,7 +58,7 @@ export function Welcome() {
             headingLevel={2}
             // signed up but not yet a Client, so no Preferred Language:
             // the app's
-            lang={APP_LANGUAGE}
+            lang={lang}
             asker={{ kind: "account", email: account.email }}
             onSubmitted={async (receipt) => {
               // now a Client: the API connected this Account straight away

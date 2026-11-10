@@ -6,12 +6,9 @@ import type {
   ServicePlanSummary,
 } from "@empire-cleaning/models";
 import type { StatusTone } from "@empire-cleaning/ui";
-import {
-  dayOfInstant,
-  clientQuoteStatus,
-  planStatus,
-  quoteKindName,
-} from "../format.ts";
+import { dayOfInstant, screenWords } from "../format.ts";
+
+const { clientQuoteStatus, planStatus, quoteKindName } = screenWords.en;
 
 const { planDaysWhen } = messages.en;
 

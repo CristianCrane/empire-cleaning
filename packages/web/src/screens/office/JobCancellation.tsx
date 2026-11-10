@@ -22,9 +22,11 @@ import {
   TextField,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
-import { cancelledLabel, jobStatusLabel, wasSkipped } from "../format.ts";
+import { wasSkipped, screenWords } from "../format.ts";
 import { useAction } from "../action.ts";
 import type { CostedJob } from "../RescheduleParts.tsx";
+
+const { cancelledLabel, jobStatusLabel } = screenWords.en;
 
 const { formatDateTime, formatMoney } = formats.en;
 

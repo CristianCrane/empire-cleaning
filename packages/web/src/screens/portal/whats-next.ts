@@ -33,14 +33,13 @@ import { linkTo, type AppHref } from "../../links.ts";
 import { QuoteIcon } from "../icons.ts";
 import {
   addressOf,
-  cleaners,
   dayOfInstant,
   formatHours,
   formatMinutes,
-  planName,
-  quoteHeadline,
-  recurrenceLabel,
+  screenWords,
 } from "../format.ts";
+
+const { cleaners, planName, quoteHeadline, recurrenceLabel } = screenWords.en;
 
 const {
   ASK_AGAIN,

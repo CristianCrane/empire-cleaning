@@ -33,9 +33,11 @@ import {
 } from "@empire-cleaning/ui";
 import { getJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
-import { clientName, formatFloorArea } from "../format.ts";
+import { clientName, screenWords } from "../format.ts";
 import { WorkedOutQuote } from "./WorkedOutQuote.tsx";
 import { reportUnexpected } from "../../monitoring.ts";
+
+const { formatFloorArea } = screenWords.en;
 
 export type NewQuoteSearch = { clientId?: string };
 

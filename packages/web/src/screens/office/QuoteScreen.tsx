@@ -87,17 +87,11 @@ import { useAction, useLeavingAction } from "../action.ts";
 import {
   addressOf,
   clientName,
-  conditionLabel,
   dayOfInstant,
-  planName,
-  planRhythm,
-  propertySummary,
-  recurrenceLabel,
   timeOfDay,
   timeOfField,
-  quoteKindName,
-  formatFloorArea,
   upperFirst,
+  screenWords,
 } from "../format.ts";
 import {
   AddOnList,
@@ -123,6 +117,16 @@ import { PickFromSchedule, type Crew } from "./SchedulePicker.tsx";
 import { BookSiteVisit, visitSummary } from "./SiteVisitParts.tsx";
 import { useStartDraft } from "./StartDraft.tsx";
 import { reportUnexpected } from "../../monitoring.ts";
+
+const {
+  conditionLabel,
+  planName,
+  planRhythm,
+  propertySummary,
+  recurrenceLabel,
+  quoteKindName,
+  formatFloorArea,
+} = screenWords.en;
 
 const { adjustmentLabel } = messages.en;
 

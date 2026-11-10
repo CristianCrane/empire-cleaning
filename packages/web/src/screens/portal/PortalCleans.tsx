@@ -1,4 +1,3 @@
-import { APP_LANGUAGE } from "../../api.ts";
 import { useState, type ReactNode } from "react";
 import { useLoaderData, useNavigate, useSearch } from "@tanstack/react-router";
 import { Receipt, Sparkles } from "lucide-react";
@@ -23,12 +22,14 @@ import {
 } from "@empire-cleaning/ui";
 import {
   addressOf,
-  cancelledLabel,
   formatHours,
   formatMinutes,
   dayOfInstant,
+  screenWords,
 } from "../format.ts";
 import { JobStatusBadge } from "../JobBadges.tsx";
+
+const { cancelledLabel } = screenWords.en;
 
 const { formatMoney, formatTime, formatMonth } = formats.en;
 
@@ -156,9 +157,7 @@ export function PortalCleans() {
             <ListItem
               key={row.id}
               id={row.id}
-              start={
-                <DateTile lang={APP_LANGUAGE} date={row.startsAt} size="sm" />
-              }
+              start={<DateTile date={row.startsAt} size="sm" />}
               title={row.title}
               description={row.line}
               end={row.badge}

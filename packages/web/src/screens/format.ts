@@ -16,78 +16,30 @@ import type {
 } from "@empire-cleaning/models";
 import type { Time } from "@internationalized/date";
 import {
+  catalog,
   clockTime,
   dayOf,
   formats,
+  type Language,
   messages,
   timeOf,
 } from "@empire-cleaning/models";
+import { conditions, formWords } from "@empire-cleaning/quote-request";
 import type { StatusTone } from "@empire-cleaning/ui";
-
-// the screens' own words for things are English until each screen has its
-// reader's language (#303–#305)
-const {
-  formatClock,
-  formatList,
-  formatMoney,
-  formatNumber,
-  plural,
-  weekdayName,
-  weekdays,
-} = formats.en;
-const { planDaysWhen, recurrence } = messages.en;
 
 export const addressOf = (
   p: Pick<PropertyView, "street" | "unit" | "postcode">,
 ) => [p.street, p.unit, p.postcode].filter(Boolean).join(", ");
 
-export const conditionLabel: Record<Condition, string> = {
-  light: "Light",
-  moderate: "Moderate",
-  heavy: "Heavy",
-};
-
-// business premises have none until a Site Visit records it
-export const conditionText = (condition: Condition | null) =>
-  condition ? conditionLabel[condition] : "Not known yet";
-
-// "2 bedrooms", "1 bathroom"
-const count = (n: number, one: string) =>
-  `${n} ${plural(n, { one, other: `${one}s` })}`;
-
-// so many cleaners, e.g. "1 cleaner", "2 more cleaners", "3 free cleaners"
-export const cleaners = (n: number, which?: "more" | "free") =>
-  count(n, which ? `${which} cleaner` : "cleaner");
-
 // a Job's crew, or that it has none yet
 export const crewOf = (crew: { name: string }[]) =>
   crew.map((c) => c.name).join(", ") || "No cleaners yet";
 
-// 4500 -> "4,500 sq ft"
-export const formatFloorArea = (area: number) => `${formatNumber(area)} sq ft`;
+// "2 bedrooms", "1 bathroom", for the Office
+const count = (n: number, one: string) =>
+  `${n} ${formats.en.plural(n, { one, other: `${one}s` })}`;
 
-// what a Property is: "Apartment · 2 bedrooms · 1.5 bathrooms" ("Apartment ·
-// rooms not known yet" before they're given), or "Office · 4,500 sq ft" for
-// business premises
-export const propertySummary = (p: PropertyView) =>
-  p.kind === "commercial"
-    ? [
-        p.premisesType.name,
-        p.floorArea === null
-          ? "floor area not known yet"
-          : formatFloorArea(p.floorArea),
-      ].join(" · ")
-    : [
-        upperFirst(p.type),
-        ...(p.bedrooms === null
-          ? ["rooms not known yet"]
-          : [
-              p.bedrooms === 0 ? "Studio" : count(p.bedrooms, "bedroom"),
-              count(p.bathrooms!, "bathroom"),
-            ]),
-      ].join(" · ");
-
-// a home's rooms in full, as a Client gives them: "2 bedrooms, 1.5
+// a home's rooms in full, as a Client gives them, for the Office: "2 bedrooms, 1.5
 // bathrooms, 1 storey, pets"
 export const roomsText = (r: HomeRooms) =>
   [
@@ -107,20 +59,6 @@ export const clientName = (c: Pick<ClientName, "name" | "businessName">) =>
 export const shortClientName = (c: Pick<ClientName, "name" | "businessName">) =>
   c.businessName ?? c.name;
 
-// when a business wants cleaning: "Monday, Wednesday and Friday at 6:00 PM",
-// or a one-off
-export const wantedCleaning = (request: {
-  weekdays: Weekday[];
-  preferredTime: string | null;
-}) =>
-  request.weekdays.length > 0
-    ? `${weekdaysText(request.weekdays)}${request.preferredTime ? ` at ${formatClock(request.preferredTime)}` : ""}`
-    : "A one-off clean";
-
-// [0, 2, 4] -> "Monday, Wednesday and Friday"
-const weekdaysText = (days: Weekday[]) =>
-  formatList(days.map((d) => weekdays[d]!));
-
 // 3.75 -> "3.75 h", 4 -> "4 h"
 export const formatHours = (hours: number) => `${hours} h`;
 
@@ -135,10 +73,6 @@ export const roleLabel = {
 // today in New York: "2026-01-05"
 export const today = () => dayOf(new Date());
 
-// what kind of Quote it is, as a title says it
-export const quoteKindName = (kind: QuoteKind | null) =>
-  kind === "service_plan" ? "Cleaning plan quote" : "Quote";
-
 export const quoteStatusLabel = {
   requested: "Requested",
   draft: "Draft",
@@ -147,31 +81,6 @@ export const quoteStatusLabel = {
   declined: "Declined",
   expired: "Expired",
   turned_down: "Turned down",
-};
-
-// a Quote's state as its Client sees it: one being drafted is still asked for
-export const clientQuoteStatus: Record<
-  QuoteStatus,
-  { tone: StatusTone; label: string }
-> = {
-  requested: { tone: "info", label: "Asked for" },
-  draft: { tone: "info", label: "Asked for" },
-  sent: { tone: "warning", label: "To answer" },
-  accepted: { tone: "success", label: "Accepted" },
-  declined: { tone: "neutral", label: "Declined" },
-  expired: { tone: "neutral", label: "Expired" },
-  turned_down: { tone: "neutral", label: "Turned down" },
-};
-
-// a Service Plan's state, as both sides see it; Ended is red, stopped for
-// good
-export const planStatus: Record<
-  ServicePlanStatus,
-  { tone: StatusTone; label: string }
-> = {
-  active: { tone: "success", label: "Active" },
-  on_hold: { tone: "warning", label: "Paused" },
-  ended: { tone: "danger", label: "Ended" },
 };
 
 export const quoteStatusTone = {
@@ -205,55 +114,6 @@ export const dayOfInstant = (iso: string) => dayOf(new Date(iso));
 export const upperFirst = (words: string) =>
   words.charAt(0).toUpperCase() + words.slice(1);
 
-// how often a plan's cleans come round, as a label: "Every 2 weeks"
-export const recurrenceLabel = Object.fromEntries(
-  (Object.entries(recurrence) as [Recurrence, string][]).map(([r, words]) => [
-    r,
-    upperFirst(words),
-  ]),
-) as Record<Recurrence, string>;
-
-// a Service Plan, or a Service Plan Quote, with its weekdays
-type PlanDays = { recurrence: Recurrence; days: PlanDaySummary[] };
-
-// "Monday", or a Draft's weekday that has no time yet
-const weekdayOfStart = (startsAt: string | null) =>
-  startsAt ? weekdayName(dayOfInstant(startsAt)) : null;
-
-// what a Service Plan is, in a line: "Standard Clean, every 2 weeks", or
-// "Standard Clean and Deep Clean, every week on Mon, Wed and Fri"
-export const planName = ({ recurrence: plan, days }: PlanDays) => {
-  const what = formatList([...new Set(days.map((d) => d.serviceName))]);
-  const on = days.flatMap((d) => weekdayOfStart(d.startsAt)?.slice(0, 3) ?? []);
-  return days.length === 1
-    ? `${what}, ${recurrence[plan]}`
-    : `${what}, every week${on.length > 0 ? ` on ${formatList(on)}` : ""}`;
-};
-
-// how a Quote reads in a list: "Deep Clean $391.04", the Service it leads
-// with, or "Cleaning plan,
-// Standard Clean, every 2 weeks: $201.85 a clean", or for several weekdays
-// "...: $650.10 a week"
-export const quoteHeadline = (
-  quote: Pick<
-    QuoteSummary,
-    "headlineTotalCents" | "headlineServiceName" | "plan"
-  >,
-) =>
-  quote.headlineTotalCents === null
-    ? "Not priced yet"
-    : quote.plan
-      ? `Cleaning plan, ${planName(quote.plan)}: ${formatMoney(quote.headlineTotalCents)} ${quote.plan.days.length === 1 ? "a clean" : "a week"}`
-      : `${quote.headlineServiceName} ${formatMoney(quote.headlineTotalCents)}`;
-
-// when a Service Plan's cleans come round, each weekday from its first:
-// "Every week, on Mondays at 9:00 AM", or "Every week, on Mondays at 9:00 AM
-// and Wednesdays at 1:00 PM"
-export const planRhythm = ({ recurrence: plan, days }: PlanDays) =>
-  `${recurrenceLabel[plan]}, on ${planDaysWhen(
-    days.flatMap((d) => d.startsAt ?? []),
-  )}`;
-
 // a Site Visit's length: 30 -> "30 min", 90 -> "1 h 30 min"
 export const formatMinutes = (minutes: number) => {
   const hours = Math.floor(minutes / 60);
@@ -269,15 +129,6 @@ export const siteVisitStatusLabel = {
   cancelled: "Cancelled",
 } as const;
 
-// A Job's status in the tones every status takes: booked is just so, done
-// went well, cancelled is over, No Access went wrong (JobStatusBadge)
-export const jobStatusLabel: Record<JobStatus, string> = {
-  booked: "Booked",
-  completed: "Done",
-  cancelled: "Cancelled",
-  no_access: "Couldn't get in",
-};
-
 // a plan Job its Client cancelled on its own is skipped: the plan carries
 // on. One cancelled as the plan ended or changed isn't
 export const wasSkipped = (job: {
@@ -287,9 +138,9 @@ export const wasSkipped = (job: {
   job.servicePlanId !== null &&
   job.cancellation?.by === "client" &&
   !job.cancellation.withPlan;
-export const cancelledLabel = (skipped: boolean) =>
-  skipped ? "Skipped" : "Cancelled";
 
+// A Job's status in the tones every status takes: booked is just so, done
+// went well, cancelled is over, No Access went wrong (JobStatusBadge)
 export const jobStatusTone = {
   booked: "info",
   completed: "success",
@@ -316,7 +167,10 @@ export const jobLabelOf = (job: {
 }) =>
   job.status === "booked"
     ? { label: crewLabel[job.assignment], tone: crewTone[job.assignment] }
-    : { label: jobStatusLabel[job.status], tone: jobStatusTone[job.status] };
+    : {
+        label: screenWords.en.jobStatusLabel[job.status],
+        tone: jobStatusTone[job.status],
+      };
 
 // where someone stands on a Job's crew
 export const assignmentStateLabel: Record<AssignmentState, string> = {
@@ -332,3 +186,261 @@ export const assignmentStateTone = {
   released: "neutral",
   taken_off: "neutral",
 } as const satisfies Record<AssignmentState, string>;
+
+// The screens' words for things, in each language (ADR-0025):
+// `screenWords[lang]`, as models' `formats[lang]`; the Office's screens take
+// `screenWords.en`. A literal here is in `words` below, in both languages.
+const words = catalog({
+  en: {
+    notKnownYet: "Not known yet",
+    cleaner: { one: "cleaner", other: "cleaners" },
+    moreCleaners: (n: string) => `${n} more`,
+    freeCleaners: (n: string) => `${n} free`,
+    sqFt: (area: string) => `${area} sq ft`,
+    floorAreaNotKnown: "floor area not known yet",
+    roomsNotKnown: "rooms not known yet",
+    studio: "Studio",
+    bedroom: { one: "bedroom", other: "bedrooms" },
+    bathroom: { one: "bathroom", other: "bathrooms" },
+    oneOff: "A one-off clean",
+    at: (when: string, time: string) => `${when} at ${time}`,
+    quoteKind: { service_plan: "Cleaning plan quote", one_off: "Quote" },
+    clientQuoteStatus: {
+      requested: "Asked for",
+      draft: "Asked for",
+      sent: "To answer",
+      accepted: "Accepted",
+      declined: "Declined",
+      expired: "Expired",
+      turned_down: "Turned down",
+    } satisfies Record<QuoteStatus, string>,
+    planStatus: {
+      active: "Active",
+      on_hold: "Paused",
+      ended: "Ended",
+    } satisfies Record<ServicePlanStatus, string>,
+    everyWeekOn: (what: string, days: string) =>
+      `${what}, every week${days ? ` on ${days}` : ""}`,
+    notPriced: "Not priced yet",
+    planHeadline: (plan: string, price: string, perWeek: boolean) =>
+      `Cleaning plan, ${plan}: ${price} ${perWeek ? "a week" : "a clean"}`,
+    rhythm: (often: string, when: string) => `${often}, on ${when}`,
+    jobStatus: {
+      booked: "Booked",
+      completed: "Done",
+      cancelled: "Cancelled",
+      no_access: "Couldn't get in",
+    } satisfies Record<JobStatus, string>,
+    skipped: "Skipped",
+  },
+  es: {
+    notKnownYet: "Aún no se sabe",
+    cleaner: { one: "limpiador", other: "limpiadores" },
+    moreCleaners: (n: string) => `${n} más`,
+    freeCleaners: (n: string) => `${n} libres`,
+    sqFt: (area: string) => `${area} pies²`,
+    floorAreaNotKnown: "superficie aún sin saber",
+    roomsNotKnown: "habitaciones aún sin saber",
+    studio: "Estudio",
+    bedroom: { one: "dormitorio", other: "dormitorios" },
+    bathroom: { one: "baño", other: "baños" },
+    oneOff: "Una sola limpieza",
+    at: (when: string, time: string) =>
+      `${when} ${time.startsWith("1:") ? "a la" : "a las"} ${time}`,
+    quoteKind: {
+      service_plan: "Cotización de plan de limpieza",
+      one_off: "Cotización",
+    },
+    clientQuoteStatus: {
+      requested: "Solicitada",
+      draft: "Solicitada",
+      sent: "Por responder",
+      accepted: "Aceptada",
+      declined: "Rechazada",
+      expired: "Vencida",
+      turned_down: "Descartada",
+    },
+    planStatus: { active: "Activo", on_hold: "En pausa", ended: "Finalizado" },
+    everyWeekOn: (what: string, days: string) =>
+      `${what}, cada semana${days ? ` los ${days}` : ""}`,
+    notPriced: "Aún sin precio",
+    planHeadline: (plan: string, price: string, perWeek: boolean) =>
+      `Plan de limpieza, ${plan}: ${price} ${perWeek ? "por semana" : "por limpieza"}`,
+    rhythm: (often: string, when: string) => `${often}, ${when}`,
+    jobStatus: {
+      booked: "Reservada",
+      completed: "Terminada",
+      cancelled: "Cancelada",
+      no_access: "No se pudo entrar",
+    },
+    skipped: "Omitida",
+  },
+});
+
+// a Service Plan, or a Service Plan Quote, with its weekdays
+type PlanDays = { recurrence: Recurrence; days: PlanDaySummary[] };
+
+const screenWordsIn = (lang: Language) => {
+  const w = words[lang];
+  const { formatClock, formatList, formatMoney, formatNumber, plural } =
+    formats[lang];
+  const { weekdayName, weekdays } = formats[lang];
+  const { planDaysWhen, recurrence } = messages[lang];
+  const form = formWords[lang];
+  // "2 bedrooms", "1 baño"
+  const count = (n: number, forms: { one: string; other: string }) =>
+    `${n} ${plural(n, forms)}`;
+
+  const conditionLabel = Object.fromEntries(
+    conditions[lang].map((c) => [c.value, c.label]),
+  ) as Record<Condition, string>;
+
+  // 4500 -> "4,500 sq ft"
+  const formatFloorArea = (area: number) => w.sqFt(formatNumber(area));
+
+  // how often a plan's cleans come round, as a label: "Every 2 weeks"
+  const recurrenceLabel = Object.fromEntries(
+    (Object.entries(recurrence) as [Recurrence, string][]).map(([r, often]) => [
+      r,
+      upperFirst(often),
+    ]),
+  ) as Record<Recurrence, string>;
+
+  // "Monday", or a Draft's weekday that has no time yet
+  const weekdayOfStart = (startsAt: string | null) =>
+    startsAt ? weekdayName(dayOfInstant(startsAt)) : null;
+
+  // what a Service Plan is, in a line: "Standard Clean, every 2 weeks", or
+  // "Standard Clean and Deep Clean, every week on Mon, Wed and Fri"
+  const planName = ({ recurrence: plan, days }: PlanDays) => {
+    const what = formatList([...new Set(days.map((d) => d.serviceName))]);
+    const on = days.flatMap(
+      (d) => weekdayOfStart(d.startsAt)?.slice(0, 3) ?? [],
+    );
+    return days.length === 1
+      ? `${what}, ${recurrence[plan]}`
+      : w.everyWeekOn(what, on.length > 0 ? formatList(on) : "");
+  };
+
+  return {
+    conditionLabel,
+    // business premises have none until a Site Visit records it
+    conditionText: (condition: Condition | null) =>
+      condition ? conditionLabel[condition] : w.notKnownYet,
+    // so many cleaners, e.g. "1 cleaner", "2 more cleaners", "3 free
+    // cleaners"
+    cleaners: (n: number, which?: "more" | "free") => {
+      const some = count(n, w.cleaner);
+      return which === "more"
+        ? w.moreCleaners(some)
+        : which === "free"
+          ? w.freeCleaners(some)
+          : some;
+    },
+    formatFloorArea,
+    // what a Property is: "Apartment · 2 bedrooms · 1.5 bathrooms"
+    // ("Apartment · rooms not known yet" before they're given), or "Office ·
+    // 4,500 sq ft" for business premises
+    propertySummary: (p: PropertyView) =>
+      p.kind === "commercial"
+        ? [
+            p.premisesType.name,
+            p.floorArea === null
+              ? w.floorAreaNotKnown
+              : formatFloorArea(p.floorArea),
+          ].join(" · ")
+        : [
+            form[p.type],
+            ...(p.bedrooms === null
+              ? [w.roomsNotKnown]
+              : [
+                  p.bedrooms === 0 ? w.studio : count(p.bedrooms, w.bedroom),
+                  count(p.bathrooms!, w.bathroom),
+                ]),
+          ].join(" · "),
+    // when a business wants cleaning: "Monday, Wednesday and Friday at 6:00
+    // PM", or a one-off
+    wantedCleaning: (request: {
+      weekdays: Weekday[];
+      preferredTime: string | null;
+    }) => {
+      if (request.weekdays.length === 0) return w.oneOff;
+      // [0, 2, 4] -> "Monday, Wednesday and Friday"
+      const days = formatList(request.weekdays.map((d) => weekdays[d]!));
+      return request.preferredTime
+        ? w.at(days, formatClock(request.preferredTime))
+        : days;
+    },
+    // what kind of Quote it is, as a title says it
+    quoteKindName: (kind: QuoteKind | null) =>
+      w.quoteKind[kind === "service_plan" ? "service_plan" : "one_off"],
+    // a Quote's state as its Client sees it: one being drafted is still asked
+    // for
+    clientQuoteStatus: Object.fromEntries(
+      (Object.keys(clientQuoteTone) as QuoteStatus[]).map((s) => [
+        s,
+        { tone: clientQuoteTone[s], label: w.clientQuoteStatus[s] },
+      ]),
+    ) as Record<QuoteStatus, { tone: StatusTone; label: string }>,
+    // a Service Plan's state, as both sides see it; Ended is red, stopped
+    // for good
+    planStatus: Object.fromEntries(
+      (Object.keys(planTone) as ServicePlanStatus[]).map((s) => [
+        s,
+        { tone: planTone[s], label: w.planStatus[s] },
+      ]),
+    ) as Record<ServicePlanStatus, { tone: StatusTone; label: string }>,
+    recurrenceLabel,
+    planName,
+    // how a Quote reads in a list: "Deep Clean $391.04", the Service it
+    // leads with, or "Cleaning plan, Standard Clean, every 2 weeks: $201.85
+    // a clean", or for several weekdays "...: $650.10 a week"
+    quoteHeadline: (
+      quote: Pick<
+        QuoteSummary,
+        "headlineTotalCents" | "headlineServiceName" | "plan"
+      >,
+    ) =>
+      quote.headlineTotalCents === null
+        ? w.notPriced
+        : quote.plan
+          ? w.planHeadline(
+              planName(quote.plan),
+              formatMoney(quote.headlineTotalCents),
+              quote.plan.days.length > 1,
+            )
+          : `${quote.headlineServiceName} ${formatMoney(quote.headlineTotalCents)}`,
+    // when a Service Plan's cleans come round, each weekday from its first:
+    // "Every week, on Mondays at 9:00 AM", or "Every week, on Mondays at
+    // 9:00 AM and Wednesdays at 1:00 PM"
+    planRhythm: ({ recurrence: plan, days }: PlanDays) =>
+      w.rhythm(
+        recurrenceLabel[plan],
+        planDaysWhen(days.flatMap((d) => d.startsAt ?? [])),
+      ),
+    jobStatusLabel: w.jobStatus,
+    cancelledLabel: (skipped: boolean) =>
+      skipped ? w.skipped : w.jobStatus.cancelled,
+  };
+};
+
+const clientQuoteTone: Record<QuoteStatus, StatusTone> = {
+  requested: "info",
+  draft: "info",
+  sent: "warning",
+  accepted: "success",
+  declined: "neutral",
+  expired: "neutral",
+  turned_down: "neutral",
+};
+
+const planTone: Record<ServicePlanStatus, StatusTone> = {
+  active: "success",
+  on_hold: "warning",
+  ended: "danger",
+};
+
+export const screenWords = {
+  en: screenWordsIn("en"),
+  es: screenWordsIn("es"),
+};

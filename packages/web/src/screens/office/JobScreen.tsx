@@ -32,9 +32,9 @@ import { useAction } from "../action.ts";
 import {
   addressOf,
   assignmentStateLabel,
-  cleaners,
   clientName,
   formatHours,
+  screenWords,
 } from "../format.ts";
 import { costForOffice } from "../RescheduleParts.tsx";
 import { CancelJob, FeeMoney, howItEnded } from "./JobCancellation.tsx";
@@ -49,6 +49,8 @@ import { JobHistory } from "./JobHistory.tsx";
 import { AnswerRequest, MoveActions } from "./JobReschedule.tsx";
 import { OfferServicePlan } from "./StartDraft.tsx";
 import { AssignmentStateBadge, JobBadge } from "../JobBadges.tsx";
+
+const { cleaners } = screenWords.en;
 
 const { formatDate, formatDateTime, formatMoney } = formats.en;
 

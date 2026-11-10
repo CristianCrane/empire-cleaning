@@ -46,12 +46,14 @@ import type {
   StaffMember,
 } from "@empire-cleaning/models";
 import {
+  LanguageProvider,
   Link,
   RouterProvider,
   TestSiteBanner,
   ToastRegion,
 } from "@empire-cleaning/ui";
 import { getJson } from "./api.ts";
+import { useAppLanguage } from "./language.ts";
 import { linkTo } from "./links.ts";
 import { AreaLayout } from "./screens/AreaLayout.tsx";
 import { CleanerHome } from "./screens/cleaner/CleanerHome.tsx";
@@ -166,26 +168,29 @@ function Root() {
   useEffect(() => {
     if (isTestSite) void getAccount().then((account) => setYou(account?.name));
   }, [isTestSite, pathname]);
+  const lang = useAppLanguage();
   return (
-    <RouterProvider
-      navigate={(to, options) => router.navigate({ ...to, ...options })}
-      useHref={(to) => router.buildLocation(to).href}
-    >
-      {isTestSite && (
-        <TestSiteBanner>
-          {you && (
-            <Link
-              href={linkTo({ to: "/people" })}
-              className="font-normal text-warning-strong"
-            >
-              You're {you}
-            </Link>
-          )}
-        </TestSiteBanner>
-      )}
-      <Outlet />
-      <ToastRegion />
-    </RouterProvider>
+    <LanguageProvider lang={lang}>
+      <RouterProvider
+        navigate={(to, options) => router.navigate({ ...to, ...options })}
+        useHref={(to) => router.buildLocation(to).href}
+      >
+        {isTestSite && (
+          <TestSiteBanner>
+            {you && (
+              <Link
+                href={linkTo({ to: "/people" })}
+                className="font-normal text-warning-strong"
+              >
+                You're {you}
+              </Link>
+            )}
+          </TestSiteBanner>
+        )}
+        <Outlet />
+        <ToastRegion />
+      </RouterProvider>
+    </LanguageProvider>
   );
 }
 

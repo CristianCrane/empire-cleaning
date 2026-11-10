@@ -26,9 +26,11 @@ import {
 } from "@empire-cleaning/ui";
 import { patchJson } from "../../api.ts";
 import { useAction } from "../action.ts";
-import { addressOf, propertySummary } from "../format.ts";
+import { addressOf, screenWords } from "../format.ts";
 import { Fact } from "../Fact.tsx";
 import { standingOf } from "./properties.ts";
+
+const { propertySummary } = screenWords.en;
 
 // A Client's contact details, read first and changed in a dialog; then
 // their homes, a row each saying where it stands, each opening its own page

@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
 import { KeyRound, Ruler, Sparkles, type LucideIcon } from "lucide-react";
 import type { PropertyView } from "@empire-cleaning/models";
-import { conditionText, formatFloorArea } from "./format.ts";
+import { screenWords } from "./format.ts";
+
+const { conditionText, formatFloorArea } = screenWords.en;
 
 // An icon, a value and a muted line saying what it is: every fact's shape on
 // a details card, in even columns across. Put them in a dl. (UX pass, #96)

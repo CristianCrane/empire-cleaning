@@ -31,8 +31,10 @@ import {
 import { postJson } from "../api.ts";
 import type { AppHref } from "../links.ts";
 import { useAction } from "./action.ts";
-import { formatHours, planStatus, recurrenceLabel } from "./format.ts";
+import { formatHours, screenWords } from "./format.ts";
 import { Fact } from "./Fact.tsx";
+
+const { planStatus, recurrenceLabel } = screenWords.en;
 
 const { planDayWhen, BOOKED_GO_AHEAD } = messages.en;
 

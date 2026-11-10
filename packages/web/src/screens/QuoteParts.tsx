@@ -11,13 +11,13 @@ import type {
 import { Card, StatusBadge } from "@empire-cleaning/ui";
 import { formats, messages } from "@empire-cleaning/models";
 import {
-  cleaners,
   formatHours,
-  clientQuoteStatus,
   quoteStatusLabel,
   quoteStatusTone,
-  wantedCleaning,
+  screenWords,
 } from "./format.ts";
+
+const { cleaners, clientQuoteStatus, wantedCleaning } = screenWords.en;
 
 const { planDayWhen, quoteEmailedTo } = messages.en;
 

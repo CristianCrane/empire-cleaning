@@ -11,8 +11,10 @@ import {
   formats,
 } from "@empire-cleaning/models";
 import { Card, Section, Segment, SegmentedControl } from "@empire-cleaning/ui";
-import { conditionLabel, formatFloorArea } from "../format.ts";
+import { screenWords } from "../format.ts";
 import { WorkedOutQuote } from "./WorkedOutQuote.tsx";
+
+const { conditionLabel, formatFloorArea } = screenWords.en;
 
 const { formatMoney } = formats.en;
 

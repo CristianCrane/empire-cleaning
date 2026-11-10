@@ -947,7 +947,7 @@ function WhatsNextFirst() {
         <Example verdict="Do">
           <Card>
             <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-6">
-              <DateTile lang="en" date="2026-11-03T14:00:00Z" />
+              <DateTile date="2026-11-03T14:00:00Z" />
               <div className="flex min-w-0 flex-1 flex-col gap-1">
                 <p className="font-semibold text-fg-muted">Your next clean</p>
                 <p className="text-2xl font-semibold text-fg">

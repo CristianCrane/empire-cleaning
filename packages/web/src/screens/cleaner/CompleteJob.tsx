@@ -25,7 +25,9 @@ import {
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
 import { useAction } from "../action.ts";
-import { conditionLabel } from "../format.ts";
+import { screenWords } from "../format.ts";
+
+const { conditionLabel } = screenWords.en;
 
 const { adjustmentLabel, NOT_ALL_CONFIRMED } = messages.en;
 

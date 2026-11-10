@@ -31,7 +31,9 @@ import {
 } from "@empire-cleaning/ui";
 import { deleteJson, patchJson, postJson } from "../../api.ts";
 import { useAction } from "../action.ts";
-import { conditionLabel, dollars, formatHours } from "../format.ts";
+import { dollars, formatHours, screenWords } from "../format.ts";
+
+const { conditionLabel } = screenWords.en;
 
 const { formatDate, formatMoney } = formats.en;
 

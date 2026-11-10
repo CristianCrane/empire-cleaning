@@ -36,15 +36,12 @@ import { linkTo } from "../../links.ts";
 import { requestQuote } from "./whats-next.ts";
 import { PickAvailableTime } from "../AvailabilityPicker.tsx";
 import { ChooseNewTime, costForClient } from "../RescheduleParts.tsx";
-import {
-  addressOf,
-  cancelledLabel,
-  formatHours,
-  wasSkipped,
-} from "../format.ts";
+import { addressOf, formatHours, wasSkipped, screenWords } from "../format.ts";
 import { Fact } from "../Fact.tsx";
 import { formats, messages } from "@empire-cleaning/models";
 import { JobStatusBadge } from "../JobBadges.tsx";
+
+const { cancelledLabel } = screenWords.en;
 
 const {
   adjustmentLabel,

@@ -34,8 +34,10 @@ import { linkTo } from "../../links.ts";
 import { QuoteIcon } from "../icons.ts";
 import { useAction } from "../action.ts";
 import { BillStatusBadge, billLine } from "../BillParts.tsx";
-import { addressOf, clientName, propertySummary } from "../format.ts";
+import { addressOf, clientName, screenWords } from "../format.ts";
 import { NEW_QUOTE } from "./NewQuoteScreen.tsx";
+
+const { propertySummary } = screenWords.en;
 
 const { formatDate, formatDateTime, formatDay, formatMoney } = formats.en;
 

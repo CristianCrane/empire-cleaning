@@ -10,9 +10,11 @@ import {
   crewLabel,
   crewTone,
   jobLabelOf,
-  jobStatusLabel,
   jobStatusTone,
+  screenWords,
 } from "./format.ts";
+
+const { jobStatusLabel } = screenWords.en;
 
 // how a Job's statuses read, the same on every screen
 
