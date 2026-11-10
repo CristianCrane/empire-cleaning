@@ -12,6 +12,7 @@ import {
   expectCurrentSection,
   goTo,
   eachTheme,
+  serviceKey,
 } from "./harness.ts";
 
 const casey = { name: "Casey Client", email: "casey@example.com" };
@@ -141,6 +142,53 @@ test(
     await expect(page.getByText("Retired")).toHaveCount(1);
   },
 );
+
+test("Office Staff give an extra and a type of business their Spanish names, which Spanish readers get", async ({
+  page,
+}) => {
+  await signInAsOffice(page);
+  await goTo(page, "Prices");
+
+  await page.getByRole("button", { name: "Add an extra" }).click();
+  await page
+    .getByRole("textbox", { name: "Name", exact: true })
+    .fill("Steam clean");
+  await page
+    .getByRole("textbox", { name: "Name in Spanish (optional)" })
+    .fill("Limpieza a vapor");
+  await page.getByRole("button", { name: "Add extra" }).click();
+  await expect(page.getByText("Prices saved as version 2")).toBeVisible();
+
+  await page.getByRole("button", { name: "Add a type of business" }).click();
+  await page.getByRole("textbox", { name: "Type of business" }).fill("Gym");
+  await page
+    .getByRole("textbox", { name: "In Spanish (optional)" })
+    .fill("Gimnasio");
+  await page.getByRole("button", { name: "Add type" }).click();
+  await expect(page.getByText("Prices saved as version 3")).toBeVisible();
+
+  await page.reload();
+  await page.getByRole("row", { name: "Steam clean" }).click();
+  await expect(
+    page.getByRole("textbox", { name: "Name in Spanish (optional)" }),
+  ).toHaveValue("Limpieza a vapor");
+
+  // what the Quote form lists, to a Spanish reader and an English one
+  const addOns = `/api/price-list/add-ons?service=${await serviceKey("Standard Clean")}`;
+  const listed = async (path: string, language: string) =>
+    (
+      (await (
+        await page.request.get(path, {
+          headers: { "accept-language": language },
+        })
+      ).json()) as { name: string }[]
+    ).map((item) => item.name);
+  expect(await listed(addOns, "es")).toContain("Limpieza a vapor");
+  expect(await listed(addOns, "en")).toContain("Steam clean");
+  expect(await listed("/api/price-list/premises-types", "es")).toContain(
+    "Gimnasio",
+  );
+});
 
 test("the starting figures can be kept as they are", async ({ page }) => {
   await signInAsOffice(page);

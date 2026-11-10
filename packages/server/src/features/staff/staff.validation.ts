@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { keepUnder } from "../../middleware/validation.ts";
+import { keepUnder, language } from "../../middleware/validation.ts";
 
 // messages are shown beside the Staff screens' fields, so they're written
 // for people
@@ -15,6 +15,8 @@ export const invitationSchema = z.object({
     .array(z.enum(["cleaner", "office_staff"]))
     .min(1, "Pick at least one role")
     .transform((roles) => [...new Set(roles)]),
+  // English when not given; an edit without it leaves it (ADR-0025)
+  preferredLanguage: language.optional(),
 });
 
 // what the Office can change about someone after inviting them: not their
@@ -22,6 +24,7 @@ export const invitationSchema = z.object({
 export const editStaffSchema = invitationSchema.pick({
   name: true,
   roles: true,
+  preferredLanguage: true,
 });
 
 const hours = z

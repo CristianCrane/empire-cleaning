@@ -3,6 +3,7 @@ import { catalog } from "@empire-cleaning/models";
 import { currentLanguage } from "#services/request";
 import {
   keepUnder,
+  language,
   pickerWords,
   say,
   startTime,
@@ -386,6 +387,8 @@ export const officeSubmission = z
     contact: contactSchema
       .extend({
         email: email.nullish(),
+        // English when not given (ADR-0025)
+        preferredLanguage: language.optional(),
       })
       .optional(),
     property: existingOrNew,

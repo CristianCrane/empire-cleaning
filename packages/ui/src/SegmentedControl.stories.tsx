@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
 import { expect } from "storybook/test";
+import { LanguagePicker } from "./LanguagePicker.tsx";
 import { Segment, SegmentedControl } from "./SegmentedControl.tsx";
 
 const meta = {
@@ -59,5 +60,24 @@ export const ExplainsThePick: Story = {
     await expect(canvas.getByRole("radiogroup")).toHaveAccessibleDescription(
       conditions.heavy,
     );
+  },
+};
+
+// a Preferred Language, each named in its own words, read from a form
+export const Language: Story = {
+  render: () => (
+    <form aria-label="Language">
+      <LanguagePicker
+        label="Preferred language"
+        name="preferredLanguage"
+        defaultValue="en"
+      />
+    </form>
+  ),
+  play: async ({ canvas, canvasElement, userEvent }) => {
+    await userEvent.click(canvas.getByText("Español"));
+    await expect(canvas.getByRole("radio", { name: "Español" })).toBeChecked();
+    const form = canvasElement.querySelector("form")!;
+    await expect(new FormData(form).get("preferredLanguage")).toBe("es");
   },
 };

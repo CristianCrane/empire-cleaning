@@ -9,6 +9,7 @@ import {
   type SettledJobView,
   formats,
   cleansPaidForOffice,
+  languageNames,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -20,6 +21,7 @@ import {
   DialogTrigger,
   Form,
   Heading,
+  LanguagePicker,
   List,
   ListItem,
   Notice,
@@ -98,6 +100,10 @@ export function ClientDetail() {
             </dd>
             <dt className="font-semibold">Phone</dt>
             <dd>{client.phone}</dd>
+            <dt className="font-semibold">Preferred language</dt>
+            <dd lang={client.preferredLanguage}>
+              {languageNames[client.preferredLanguage]}
+            </dd>
             {client.reviewRequestedAt && (
               <>
                 <dt className="font-semibold">Google review</dt>
@@ -369,7 +375,8 @@ const statusLine = (status: PropertyStatus) => {
   }
 };
 
-// Office Staff correcting a Client's name, business name, email or phone.
+// Office Staff correcting a Client's name, business name, email, phone or
+// Preferred Language, which is this Client's alone (ADR-0025).
 // An email can be added or changed but not removed: Quotes and notices go
 // there.
 function EditContact({ client }: { client: OfficeClientView }) {
@@ -383,6 +390,7 @@ function EditContact({ client }: { client: OfficeClientView }) {
           businessName: form.get("businessName") || null,
           email: form.get("email") || null,
           phone: form.get("phone"),
+          preferredLanguage: form.get("preferredLanguage"),
         }),
       "Contact details saved",
     );
@@ -434,6 +442,12 @@ function EditContact({ client }: { client: OfficeClientView }) {
               autoComplete="off"
               defaultValue={client.phone}
               isRequired
+            />
+            <LanguagePicker
+              label="Preferred language"
+              name="preferredLanguage"
+              defaultValue={client.preferredLanguage}
+              description="Their screens and emails come in it."
             />
             {action.problem && <Notice tone="danger">{action.problem}</Notice>}
             <Actions>

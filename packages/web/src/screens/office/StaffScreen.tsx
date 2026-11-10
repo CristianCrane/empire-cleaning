@@ -2,7 +2,7 @@ import { useState } from "react";
 import { formats } from "@empire-cleaning/models";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import { UserPlus } from "lucide-react";
-import type { StaffMember, StaffRole } from "@empire-cleaning/models";
+import type { Language, StaffMember, StaffRole } from "@empire-cleaning/models";
 import {
   Actions,
   Avatar,
@@ -12,6 +12,7 @@ import {
   DialogTrigger,
   Form,
   Heading,
+  LanguagePicker,
   List,
   ListItem,
   Notice,
@@ -90,6 +91,7 @@ function InviteForm({ close }: { close: () => void }) {
           name: form.get("name"),
           email: form.get("email"),
           roles,
+          preferredLanguage: form.get("preferredLanguage"),
         }),
       (member) => `Invitation sent to ${member.email}`,
     );
@@ -116,6 +118,7 @@ function InviteForm({ close }: { close: () => void }) {
         isRequired
       />
       <StaffFields
+        language="en"
         roles={roles}
         onRolesChange={setRoles}
         errors={action.fieldErrors}
@@ -133,12 +136,15 @@ function InviteForm({ close }: { close: () => void }) {
   );
 }
 
-// what an invitation and an edit both set: their roles
+// what an invitation and an edit both set: their roles, and the language
+// the Cleaner area and their emails come in (ADR-0025)
 export function StaffFields({
+  language,
   roles,
   onRolesChange,
   errors,
 }: {
+  language: Language;
   roles: StaffRole[];
   onRolesChange: (roles: StaffRole[]) => void;
   errors: Record<string, string>;
@@ -164,6 +170,12 @@ export function StaffFields({
         </Checkbox>
       </fieldset>
       {errors.roles && <Notice tone="danger">{errors.roles}</Notice>}
+      <LanguagePicker
+        label="Preferred language"
+        name="preferredLanguage"
+        defaultValue={language}
+        description="Their screens and emails come in it."
+      />
     </>
   );
 }

@@ -4,6 +4,7 @@ import {
   Ban,
   ChevronLeft,
   ChevronRight,
+  Languages,
   Mail,
   SquarePen,
   UserCheck,
@@ -14,7 +15,12 @@ import type {
   StaffHolding,
   StaffRole,
 } from "@empire-cleaning/models";
-import { hasSiteVisit, weekdayOf, formats } from "@empire-cleaning/models";
+import {
+  hasSiteVisit,
+  languageNames,
+  weekdayOf,
+  formats,
+} from "@empire-cleaning/models";
 import {
   Actions,
   Avatar,
@@ -115,6 +121,16 @@ export function StaffMemberScreen() {
                 }
                 line="Their account"
               />
+              <Fact
+                icon={Languages}
+                label="Preferred language"
+                value={
+                  <span lang={member.preferredLanguage}>
+                    {languageNames[member.preferredLanguage]}
+                  </span>
+                }
+                line="Their screens and emails"
+              />
             </dl>
           </div>
         </Card>
@@ -125,8 +141,8 @@ export function StaffMemberScreen() {
   );
 }
 
-// their name and roles; their email is how their account connects, so it
-// stays (ADR-0006)
+// their name, roles and language, this record's alone; their email is how
+// their account connects, so it stays (ADR-0006)
 function EditStaff({ member }: { member: StaffDetail }) {
   const [roles, setRoles] = useState<StaffRole[]>(member.roles);
   const action = useAction("The changes weren't saved. Please try again.");
@@ -150,6 +166,7 @@ function EditStaff({ member }: { member: StaffDetail }) {
                     patchJson(`/api/staff/${member.id}`, {
                       name: form.get("name"),
                       roles,
+                      preferredLanguage: form.get("preferredLanguage"),
                     }),
                   "Changes saved",
                 )
@@ -165,6 +182,7 @@ function EditStaff({ member }: { member: StaffDetail }) {
               autoFocus
             />
             <StaffFields
+              language={member.preferredLanguage}
               roles={roles}
               onRolesChange={setRoles}
               errors={action.fieldErrors}
