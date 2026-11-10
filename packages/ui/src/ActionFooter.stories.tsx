@@ -42,6 +42,8 @@ export const Wrapped: Story = {
   render: (args) => (
     <AppLayout
       area="Cleaner"
+      account={null}
+      menuFoot={() => null}
       nav={[
         {
           href: "#today",

@@ -30,11 +30,18 @@ const meta = {
   args: {
     area: "Office",
     nav: officeNav,
-    // the app puts its account menu here
+    // the app puts its account menu here, and on a phone its parts at the
+    // ☰ menu's foot
     account: (
       <Button variant="quiet" className="justify-start">
         <User aria-hidden size={20} />
-        <span className="max-md:sr-only">Olive Owner</span>
+        Olive Owner
+      </Button>
+    ),
+    menuFoot: () => (
+      <Button variant="quiet" className="justify-start">
+        <LogOut aria-hidden size={20} />
+        Sign out
       </Button>
     ),
     children: (
@@ -125,15 +132,10 @@ export const PhoneMenu: Story = {
       },
       { href: "#schedule", label: "Schedule", icon: CalendarDays },
     ],
-    atHome: true,
   },
   play: async ({ canvas, userEvent }) => {
     const bar = canvas.getByRole("navigation", { name: "Office" });
     await expect(bar).toHaveTextContent("TodaySchedule");
-    // the logo heads the menu, not the home page
-    await expect(
-      canvas.queryByRole("img", { name: /Empire Cleaning/ }),
-    ).toBeNull();
 
     await userEvent.click(canvas.getByRole("button", { name: "Menu" }));
     const menu = within(document.body).getByRole("dialog", { name: "Menu" });
@@ -211,7 +213,7 @@ export const PhoneMenuFoot: Story = {
     account: (
       <Button variant="quiet" className="justify-start">
         <User aria-hidden size={20} />
-        <span className="max-md:sr-only">Cory Cleaner</span>
+        Cory Cleaner
       </Button>
     ),
     menuFoot: () => (

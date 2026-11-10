@@ -28,44 +28,37 @@ export type AppLayoutProps = {
   // which part of the app this is, e.g. "Office" or "Cleaner"
   area: string;
   nav: NavItem[];
-  // who is signed in and what they can do (switch area, sign out); shown in
-  // the top bar on a phone and at the foot of the sidebar on larger screens
-  account?: ReactNode;
-  // on the area's home (Today, Your Jobs, Home): a phone shows the logo there,
-  // unless the area has a ☰ menu, which holds it instead
-  atHome?: boolean;
-  // on a phone, the account's parts at the foot of the ☰ menu, under a
-  // divider, in place of the top bar's account and theme: the top bar then
-  // holds only the ☰ and the section. Given `close` to close the menu
-  menuFoot?: (opts: { close: () => void }) => ReactNode;
+  // who is signed in and what they can do (switch area, sign out), at the
+  // foot of the sidebar on larger screens
+  account: ReactNode;
+  // the same on a phone, at the foot of the ☰ menu under a divider, the
+  // theme after it. Given `close` to close the menu
+  menuFoot: (opts: { close: () => void }) => ReactNode;
+  // something pressed in the ☰ menu's foot is under way: it stays open
+  menuBusy?: boolean;
   children: ReactNode;
 };
 
-// the frame around every screen. On a phone: a top bar and a bottom tab bar
-// within thumb reach, five shortcuts at most (the items not inMenu), and a
-// drawer opened by a ☰ in the top bar that is the full menu, every section
-// as the sidebar lists them (#200, #305). With a menuFoot, the account's
-// parts are at the drawer's foot, so the top bar holds only the ☰ and the
-// section. From tablet width up: a sidebar.
+// the frame around every screen. On a phone: a top bar holding only a ☰
+// and the section's name, a bottom tab bar within thumb reach of five
+// shortcuts at most (the items not inMenu), and the drawer the ☰ opens,
+// the full menu: every section as the sidebar lists them, then the
+// account's parts and the theme at its foot (#200, #305). From tablet width
+// up: a sidebar.
 //
 // The logo is never shrunk to fit: the phone's top bar is too short for it,
-// so the bar names the section you're in and the logo heads the area's home
-// (or its ☰ menu) instead; the sidebar has room for it (UX pass, #96)
+// so the bar names the section you're in and the logo heads the ☰ menu
+// instead; the sidebar has room for it (UX pass, #96)
 export function AppLayout({
   area,
   nav,
   account,
-  atHome = false,
   menuFoot,
+  menuBusy = false,
   children,
 }: AppLayoutProps) {
   const section = nav.find((item) => item.isCurrent)?.label ?? area;
-  const menu = nav.filter((item) => item.inMenu);
   const tabs = nav.filter((item) => !item.inMenu);
-  // the ☰ menu, where there's one (sections the tab bar can't hold, or the
-  // account's foot): the full menu, every section as the sidebar lists
-  // them, the tab bar its shortcuts
-  const hasMenu = menu.length > 0 || menuFoot !== undefined;
   const words = useUiWords();
   return (
     <div className="min-h-dvh md:flex">
@@ -92,47 +85,37 @@ export function AppLayout({
 
       <header className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-border bg-surface px-4 py-2 md:hidden print:hidden">
         <div className="flex min-w-0 items-center gap-1">
-          {hasMenu && (
-            <DialogTrigger>
-              <Button
-                variant="quiet"
-                size="icon"
-                aria-label={words.menu}
-                className="-ml-2 shrink-0"
-              >
-                <Menu aria-hidden size={22} />
-              </Button>
-              <Drawer aria-label={words.menu}>
-                {({ close }) => (
-                  <>
-                    <div className="flex flex-col items-center gap-3 px-2 pt-8">
-                      <Logo className="w-44" />
-                      <span className="text-sm text-fg-muted">{area}</span>
-                    </div>
-                    <nav aria-label={area} className="flex flex-col gap-4">
-                      <NavGroups items={nav} onPress={close} />
-                    </nav>
-                    {menuFoot && (
-                      <div className="mt-auto flex flex-col gap-3 border-t border-border pt-4">
-                        {menuFoot({ close })}
-                        <ThemeToggle />
-                      </div>
-                    )}
-                  </>
-                )}
-              </Drawer>
-            </DialogTrigger>
-          )}
+          <DialogTrigger>
+            <Button
+              variant="quiet"
+              size="icon"
+              aria-label={words.menu}
+              className="-ml-2 shrink-0"
+            >
+              <Menu aria-hidden size={22} />
+            </Button>
+            <Drawer aria-label={words.menu} isBusy={menuBusy}>
+              {({ close }) => (
+                <>
+                  <div className="flex flex-col items-center gap-3 px-2 pt-8">
+                    <Logo className="w-44" />
+                    <span className="text-sm text-fg-muted">{area}</span>
+                  </div>
+                  <nav aria-label={area} className="flex flex-col gap-4">
+                    <NavGroups items={nav} onPress={close} />
+                  </nav>
+                  <div className="mt-auto flex flex-col gap-3 border-t border-border pt-4">
+                    {menuFoot({ close })}
+                    <ThemeToggle />
+                  </div>
+                </>
+              )}
+            </Drawer>
+          </DialogTrigger>
           <span className="truncate font-display text-xl font-bold tracking-wide uppercase">
             {section}
           </span>
         </div>
-        {!menuFoot && (
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            {account}
-          </div>
-        )}
       </header>
 
       <main
@@ -140,7 +123,6 @@ export function AppLayout({
         tabIndex={-1}
         className="mx-auto w-full max-w-5xl min-w-0 flex-1 px-4 pt-4 pb-28 outline-none md:px-8 md:py-8 print:max-w-none print:p-0"
       >
-        {atHome && !hasMenu && <Logo className="mx-auto mb-4 w-36 md:hidden" />}
         {children}
       </main>
 
