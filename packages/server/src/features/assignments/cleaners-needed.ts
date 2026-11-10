@@ -1,12 +1,21 @@
 import { and, arrayContains, asc, eq, inArray, lt } from "drizzle-orm";
 import type { CleanerNeeded } from "@empire-cleaning/models";
-import { addDays, dayOf, HOUR_MS, timeOf } from "@empire-cleaning/models";
+import {
+  addDays,
+  dayOf,
+  HOUR_MS,
+  inLanguage,
+  type Language,
+  timeOf,
+} from "@empire-cleaning/models";
+import { currentLanguage } from "#services/request";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock } from "../../services/clock/index.ts";
 import { email } from "../../services/email/index.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { scheduleFor } from "../jobs/schedule.ts";
+import { serviceVersions } from "../services/services.ts";
 import { cleanersNeededEmail } from "./emails.ts";
 import {
   staff,
@@ -111,15 +120,42 @@ const toCleanersNeeded = (open: Opening[]): CleanerNeeded[] =>
   }));
 
 // the Cleaners Needed open to a Cleaner now, soonest first
+// each Job's Service by its name in `lang`, where it has one: the
+// Schedule's are the Office's, in English
+const namedIn = async (lang: Language, needed: CleanerNeeded[]) => {
+  if (lang === "en" || needed.length === 0) return needed;
+  const rows = await db
+    .select({ id: jobs.id, serviceId: jobs.serviceId })
+    .from(jobs)
+    .where(
+      inArray(
+        jobs.id,
+        needed.map((n) => n.jobId),
+      ),
+    );
+  const serviceOf = new Map(rows.map((r) => [r.id, r.serviceId]));
+  const versions = await serviceVersions(rows.map((r) => r.serviceId));
+  return needed.map((n) => ({
+    ...n,
+    serviceName: inLanguage(lang, versions.get(serviceOf.get(n.jobId)!)!).name,
+  }));
+};
+
 export const cleanersNeededFor = async (staffId: string) =>
-  toCleanersNeeded(
-    (await openings()).filter((o) => o.openTo.includes(staffId)),
+  namedIn(
+    currentLanguage(),
+    toCleanersNeeded(
+      (await openings()).filter((o) => o.openTo.includes(staffId)),
+    ),
   );
 
 // one Cleaner Needed open to a Cleaner; to anyone else it doesn't exist
 export const cleanerNeededFor = async (staffId: string, jobId: string) => {
-  const [needed] = toCleanersNeeded(
-    (await openings(jobId)).filter((o) => o.openTo.includes(staffId)),
+  const [needed] = await namedIn(
+    currentLanguage(),
+    toCleanersNeeded(
+      (await openings(jobId)).filter((o) => o.openTo.includes(staffId)),
+    ),
   );
   if (!needed) throw new NotFoundError("Job not found");
   return needed;
@@ -232,7 +268,7 @@ const sendList = async (
     ...cleanersNeededEmail(member.preferredLanguage, {
       name: member.name,
       soon,
-      jobs,
+      jobs: await namedIn(member.preferredLanguage, jobs),
     }),
   });
 
