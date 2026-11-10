@@ -7,7 +7,6 @@ import { useSaid } from "./words.ts";
 // in the Client's language (ADR-0025)
 const words = catalog({
   en: {
-    day: "Day",
     openOn: (day: string) => `Open times on ${day}`,
     openTimes: (day: string) => `${day}: open times`,
     time: (day: string, time: string, now: boolean) =>
@@ -15,7 +14,6 @@ const words = catalog({
     onlyDays: "Only days with room can be picked.",
   },
   es: {
-    day: "Día",
     openOn: (day: string) => `Horas libres el ${day}`,
     openTimes: (day: string) => `${day}: horas libres`,
     time: (day: string, time: string, now: boolean) =>
@@ -38,7 +36,7 @@ export function PickAvailableTime({
   limits = [],
   onPick,
 }: TimePickerProps) {
-  const { w, formatClock, formatDay } = useSaid(words);
+  const { w, day, formatClock, formatDay } = useSaid(words);
   const open = limits.filter((d) => d.times.length > 0);
   const first = open[0]?.date;
   const last = open.at(-1)?.date;
@@ -57,7 +55,7 @@ export function PickAvailableTime({
     <div className="flex flex-col gap-4">
       <div className="flex justify-center">
         <Calendar<CalendarDate>
-          aria-label={w.day}
+          aria-label={day}
           value={date ? parseDate(date) : null}
           defaultFocusedValue={parseDate(date ?? current?.date ?? first)}
           minValue={parseDate(first)}

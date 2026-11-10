@@ -9,7 +9,6 @@ import { portalWords } from "./words.ts";
 const toursIn = (
   w: (typeof portalWords)["en"],
   t: {
-    welcomeTitle: string;
     welcome: string;
     quoteText: string;
     payText: string;
@@ -17,7 +16,7 @@ const toursIn = (
     moveText: string;
   },
 ): AreaTours => ({
-  welcomeTitle: t.welcomeTitle,
+  welcomeTitle: w.welcome,
   welcome: t.welcome,
   tours: [
     {
@@ -66,7 +65,6 @@ const toursIn = (
 
 const words = catalog({
   en: {
-    welcomeTitle: "Welcome",
     welcome: "Book, move and pay for your cleans here, no phone calls needed.",
     quoteText:
       "Open it to choose your clean and book. You only pay the deposit today.",
@@ -76,7 +74,6 @@ const words = catalog({
     moveText: "Move your clean from here.",
   },
   es: {
-    welcomeTitle: "Bienvenido",
     welcome: "Reserve, reprograme y pague sus limpiezas aquí, sin llamadas.",
     quoteText:
       "Ábrala para elegir su limpieza y reservar. Hoy solo paga el depósito.",

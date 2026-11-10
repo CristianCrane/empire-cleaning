@@ -43,7 +43,6 @@ const words = catalog({
       `the clean on ${when} (${amount})`,
     payForClean: "Pay for that clean",
     billN: (n: string, amount: string) => `bill ${n} (${amount})`,
-    payBill: (n: string) => `Pay bill ${n}`,
     paused: "Your plan is paused.",
     couldntTake: "We couldn't take payment for ",
     cancels: (cleans: number, hours: number, when: string) =>
@@ -58,7 +57,6 @@ const words = catalog({
     noMore:
       "We won't book any more cleans. You're welcome to start a new plan later.",
     notEnded: "The plan wasn't ended. Please try again.",
-    ended: "Ended",
     endedOn: (day: string) =>
       `Your cleaning plan ended on ${day}. No more cleans are booked for it.`,
     hasEnded: "Your cleaning plan has ended",
@@ -72,13 +70,7 @@ const words = catalog({
     eachClean: "Each clean",
     taxOff: (each: string, percent: number) =>
       `${each}, tax included, ${percent}% off`,
-    onSite: "On site",
     onSiteEachDay: "On site, each day",
-    about: (hours: string) => `About ${hours}`,
-    onSiteWith: (cleaners: string) => `On site, ${cleaners}`,
-    extras: "Extras",
-    none: "None",
-    deposit: "Deposit",
     towardsLast: "Deposit, put towards the last clean",
     offLast: "Deposit, comes off your last clean",
     started: (day: string) => `Started ${day}`,
@@ -89,7 +81,6 @@ const words = catalog({
       `la limpieza del ${when} (${amount})`,
     payForClean: "Pagar esa limpieza",
     billN: (n: string, amount: string) => `la factura ${n} (${amount})`,
-    payBill: (n: string) => `Pagar la factura ${n}`,
     paused: "Su plan está en pausa.",
     couldntTake: "No pudimos cobrar ",
     cancels: (cleans: number, hours: number, when: string) =>
@@ -108,7 +99,6 @@ const words = catalog({
     noMore:
       "No reservaremos más limpiezas. Puede empezar un plan nuevo más adelante.",
     notEnded: "No se finalizó el plan. Vuelva a intentarlo.",
-    ended: "Finalizado",
     endedOn: (day: string) =>
       `Su plan de limpieza finalizó el ${day}. No hay más limpiezas reservadas.`,
     hasEnded: "Su plan de limpieza finalizó",
@@ -122,13 +112,7 @@ const words = catalog({
     eachClean: "Cada limpieza",
     taxOff: (each: string, percent: number) =>
       `${each}, impuestos incluidos, ${percent}% de descuento`,
-    onSite: "En el lugar",
     onSiteEachDay: "En el lugar, cada día",
-    about: (hours: string) => `Unas ${hours}`,
-    onSiteWith: (cleaners: string) => `En el lugar, ${cleaners}`,
-    extras: "Adicionales",
-    none: "Ninguno",
-    deposit: "Depósito",
     towardsLast: "Depósito, aplicado a la última limpieza",
     offLast: "Depósito, se descuenta de su última limpieza",
     started: (day: string) => `Empezó el ${day}`,
@@ -188,7 +172,7 @@ export function OnHold({
         ? t.w.billN(b.number, t.formatMoney(b.totalCents))
         : `bill ${b.number} (${t.formatMoney(b.totalCents)})`,
       href: billHref(b.billId),
-      label: forClient ? t.w.payBill(b.number) : `See bill ${b.number}`,
+      label: forClient ? t.payBill(b.number) : `See bill ${b.number}`,
     })),
   ];
   return (
@@ -279,7 +263,7 @@ export function EndPlan({
   );
   if (plan.status === "ended") {
     return (
-      <Section title={forClient ? t.w.ended : "Ended"}>
+      <Section title={forClient ? t.planStatus.ended.label : "Ended"}>
         <Card>
           <p>
             {forClient
@@ -420,7 +404,7 @@ export function PlanFacts({
           {several ? (
             <Fact
               icon={Users}
-              label={t.w.onSite}
+              label={t.onSite}
               value={plan.days
                 .map((d) => formatHours(d.hoursOnSite))
                 .join(" + ")}
@@ -429,27 +413,27 @@ export function PlanFacts({
           ) : (
             <Fact
               icon={Clock}
-              label={t.w.onSite}
-              value={t.w.about(formatHours(one!.hoursOnSite))}
-              line={t.w.onSiteWith(t.cleaners(one!.crewSize))}
+              label={t.onSite}
+              value={t.about(formatHours(one!.hoursOnSite))}
+              line={t.onSiteWith(t.cleaners(one!.crewSize))}
             />
           )}
           <Fact
             icon={CirclePlus}
-            label={t.w.extras}
-            value={plan.addOns.length > 0 ? plan.addOns.join(", ") : t.w.none}
+            label={t.extras}
+            value={plan.addOns.length > 0 ? plan.addOns.join(", ") : t.none}
           />
           <Fact
             icon={PiggyBank}
-            label={t.w.deposit}
+            label={t.deposit}
             value={
               plan.depositCents === 0
-                ? t.w.none
+                ? t.none
                 : t.formatMoney(plan.depositCents)
             }
             line={
               plan.depositCents === 0
-                ? t.w.deposit
+                ? t.deposit
                 : ended
                   ? t.w.towardsLast
                   : forClient

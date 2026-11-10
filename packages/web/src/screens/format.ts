@@ -187,12 +187,64 @@ export const assignmentStateTone = {
   taken_off: "neutral",
 } as const satisfies Record<AssignmentState, string>;
 
-// The screens' words for things, in each language (ADR-0025):
-// `screenWords[lang]`, as models' `formats[lang]`; the Office's screens take
-// `screenWords.en`. A literal here is in `words` below, in both languages.
-const words = catalog({
+// Words several screens show as they are, each once (docs/ux.md, Words):
+// part of `screenWords` below. A word only portal screens share is
+// portal/words.ts's.
+const labels = catalog({
   en: {
     notKnownYet: "Not known yet",
+    unpaid: "Unpaid",
+    pickNewTime: "Pick a new time",
+    signIn: "Sign in",
+    signOut: "Sign out",
+    email: "Email",
+    day: "Day",
+    dayAt: (when: string, time: string) => `${when} at ${time}`,
+    condition: "Condition",
+    notAdded: "Not added yet",
+    onSite: "On site",
+    about: (hours: string) => `About ${hours}`,
+    onSiteWith: (cleaners: string) => `On site, ${cleaners}`,
+    extras: "Extras",
+    none: "None",
+    deposit: "Deposit",
+    total: "Total",
+    taxIncludedOf: (what: string) => `${what}, tax included`,
+    payBill: (n: string) => `Pay bill ${n}`,
+    // a bank payment, or a Bill paid by one, on its way
+    clearing: "Clearing",
+  },
+  es: {
+    notKnownYet: "Aún no se sabe",
+    unpaid: "Sin pagar",
+    pickNewTime: "Elegir otra hora",
+    signIn: "Iniciar sesión",
+    signOut: "Cerrar sesión",
+    email: "Correo electrónico",
+    day: "Día",
+    dayAt: (when: string, time: string) =>
+      `${when} ${time.startsWith("1:") ? "a la" : "a las"} ${time}`,
+    condition: "Estado",
+    notAdded: "Aún no se agregó",
+    onSite: "En el lugar",
+    about: (hours: string) => `Unas ${hours}`,
+    onSiteWith: (cleaners: string) => `En el lugar, ${cleaners}`,
+    extras: "Adicionales",
+    none: "Ninguno",
+    deposit: "Depósito",
+    total: "Total",
+    taxIncludedOf: (what: string) => `${what}, impuestos incluidos`,
+    payBill: (n: string) => `Pagar la factura ${n}`,
+    clearing: "En proceso",
+  },
+});
+
+// The screens' words for things, in each language (ADR-0025):
+// `screenWords[lang]`, as models' `formats[lang]`; the Office's screens take
+// `screenWords.en`. A literal here is in `words` or `labels`, in both
+// languages.
+const words = catalog({
+  en: {
     cleaner: { one: "cleaner", other: "cleaners" },
     moreCleaner: { one: "more cleaner", other: "more cleaners" },
     freeCleaner: { one: "free cleaner", other: "free cleaners" },
@@ -203,7 +255,6 @@ const words = catalog({
     bedroom: { one: "bedroom", other: "bedrooms" },
     bathroom: { one: "bathroom", other: "bathrooms" },
     oneOff: "A one-off clean",
-    at: (when: string, time: string) => `${when} at ${time}`,
     quoteKind: { service_plan: "Cleaning plan quote", one_off: "Quote" },
     clientQuoteStatus: {
       requested: "Asked for",
@@ -232,11 +283,8 @@ const words = catalog({
       no_access: "Couldn't get in",
     } satisfies Record<JobStatus, string>,
     skipped: "Skipped",
-    unpaid: "Unpaid",
-    pickNewTime: "Pick a new time",
   },
   es: {
-    notKnownYet: "Aún no se sabe",
     cleaner: { one: "limpiador", other: "limpiadores" },
     moreCleaner: { one: "limpiador más", other: "limpiadores más" },
     freeCleaner: { one: "limpiador libre", other: "limpiadores libres" },
@@ -247,8 +295,6 @@ const words = catalog({
     bedroom: { one: "dormitorio", other: "dormitorios" },
     bathroom: { one: "baño", other: "baños" },
     oneOff: "Una sola limpieza",
-    at: (when: string, time: string) =>
-      `${when} ${time.startsWith("1:") ? "a la" : "a las"} ${time}`,
     quoteKind: {
       service_plan: "Cotización de plan de limpieza",
       one_off: "Cotización",
@@ -276,8 +322,6 @@ const words = catalog({
       no_access: "No se pudo entrar",
     },
     skipped: "Saltada",
-    unpaid: "Sin pagar",
-    pickNewTime: "Elegir otra hora",
   },
 });
 
@@ -286,6 +330,7 @@ type PlanDays = { recurrence: Recurrence; days: PlanDaySummary[] };
 
 const screenWordsIn = (lang: Language) => {
   const w = words[lang];
+  const l = labels[lang];
   const { formatClock, formatList, formatMoney, formatNumber, plural } =
     formats[lang];
   const { weekdayName, weekdays } = formats[lang];
@@ -331,13 +376,11 @@ const screenWordsIn = (lang: Language) => {
     dayOf: (iso: string) => formats[lang].formatDay(dayOfInstant(iso)),
     shortDayOf: (iso: string) =>
       formats[lang].formatShortDay(dayOfInstant(iso)),
-    notKnownYet: w.notKnownYet,
-    unpaid: w.unpaid,
-    pickNewTime: w.pickNewTime,
+    ...l,
     conditionLabel,
     // business premises have none until a Site Visit records it
     conditionText: (condition: Condition | null) =>
-      condition ? conditionLabel[condition] : w.notKnownYet,
+      condition ? conditionLabel[condition] : l.notKnownYet,
     // so many cleaners, e.g. "1 cleaner", "2 more cleaners", "3 free
     // cleaners"
     cleaners: (n: number, which?: "more" | "free") =>
@@ -380,7 +423,7 @@ const screenWordsIn = (lang: Language) => {
       // [0, 2, 4] -> "Monday, Wednesday and Friday"
       const days = formatList(request.weekdays.map((d) => weekdays[d]!));
       return request.preferredTime
-        ? w.at(days, formatClock(request.preferredTime))
+        ? l.dayAt(days, formatClock(request.preferredTime))
         : days;
     },
     // what kind of Quote it is, as a title says it

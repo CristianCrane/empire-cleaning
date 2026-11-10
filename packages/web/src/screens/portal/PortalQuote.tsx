@@ -62,19 +62,16 @@ const words = catalog({
       `We'll come to see ${premises ? "the business" : "your home"} first, for free: ${visitor} visits on ${when}, for about ${length}. We email your quote after the visit. To change the time, please call us.`,
     askedFor: "What you asked for",
     asked: "Asked",
-    condition: "Condition",
     yourKind: (kind: string) => `Your ${kind.toLowerCase()}`,
     bookedUp: (planDays: boolean, when: string) =>
       `Sorry, ${planDays ? "one of the days your plan starts on has" : `${when} has`} been fully booked since we sent this quote, so it can't be accepted. We've let our team know, and we'll send you a new quote for another time.`,
     details: "Quote details",
     aWeekTax: "A week, with a clean on each day, tax included",
     aCleanTax: (service: string) => `${service}, a clean, tax included`,
-    taxIncluded: (service: string) => `${service}, tax included`,
     when: "When",
     from: (when: string) => `From ${when}`,
     yourClean: "Your clean",
     where: "Where",
-    onSite: "On site",
     crewAbout: (cleaners: string, hours: string) =>
       `${cleaners}, about ${hours}`,
     recommend: (recommended: string, own: string) =>
@@ -90,7 +87,6 @@ const words = catalog({
     onEvery: (extras: string) => `On every clean, included: ${extras}`,
     includes: (extras: string) => `Includes ${extras}`,
     tax: "Tax",
-    total: "Total",
     deposit: (percent: number, paid: boolean) =>
       `Deposit (${percent}%)${paid ? ", paid" : ""}`,
     restOnBill: "The rest, on that week's bill",
@@ -133,10 +129,11 @@ const words = catalog({
       `We take the ${deposit} deposit now and the rest, ${rest}, when the clean is done.`,
     nothingNow: (total: string, how: string) =>
       `Nothing is taken now. The ${total} ${how}.`,
-    chargedWhenDone: "is charged when the clean is done",
     eachIs: (price: string) => `Each clean is ${price}. `,
     eachCharged: (price: string | null) =>
-      `${price ? `Each clean, ${price},` : "Each clean"} is charged when it's done.`,
+      price
+        ? `Each clean, ${price}, is charged when it's done.`
+        : "Each clean is charged when it's done.",
     planChangedToast: "Your cleaning plan has changed",
     acceptNew: "Accept the new terms",
     nothingCharged: "Nothing is charged now.",
@@ -147,7 +144,6 @@ const words = catalog({
     thanks:
       "Thanks for letting us know. You can ask us for a new quote whenever you like.",
     keep: "Keep it",
-    declineButton: "Decline",
   },
   es: {
     updated: (day: string) => ` · Actualizada el ${day}`,
@@ -161,7 +157,6 @@ const words = catalog({
       `Primero iremos a ver ${premises ? "el negocio" : "su casa"}, sin costo: ${visitor} lo visita el ${when}, durante unos ${length}. Le enviamos la cotización por correo después de la visita. Para cambiar la hora, por favor llámenos.`,
     askedFor: "Lo que pidió",
     asked: "Pedida",
-    condition: "Estado",
     yourKind: (kind: string) => `Su ${kind.toLowerCase()}`,
     bookedUp: (planDays: boolean, when: string) =>
       `Lo sentimos, ${planDays ? "uno de los días en que empieza su plan se llenó" : `el ${when} se llenó`} después de que le enviamos esta cotización, así que no se puede aceptar. Ya le avisamos a nuestro equipo, y le enviaremos una nueva cotización para otra hora.`,
@@ -169,12 +164,10 @@ const words = catalog({
     aWeekTax: "Una semana, con una limpieza cada día, impuestos incluidos",
     aCleanTax: (service: string) =>
       `${service}, por limpieza, impuestos incluidos`,
-    taxIncluded: (service: string) => `${service}, impuestos incluidos`,
     when: "Cuándo",
     from: (when: string) => `Desde el ${when}`,
     yourClean: "Su limpieza",
     where: "Dónde",
-    onSite: "En el lugar",
     crewAbout: (cleaners: string, hours: string) =>
       `${cleaners}, unas ${hours}`,
     recommend: (recommended: string, own: string) =>
@@ -190,7 +183,6 @@ const words = catalog({
     onEvery: (extras: string) => `En cada limpieza, incluido: ${extras}`,
     includes: (extras: string) => `Incluye ${extras}`,
     tax: "Impuestos",
-    total: "Total",
     deposit: (percent: number, paid: boolean) =>
       `Depósito (${percent}%)${paid ? ", pagado" : ""}`,
     restOnBill: "El resto, en la factura de esa semana",
@@ -236,10 +228,11 @@ const words = catalog({
       `Cobramos ahora el depósito de ${deposit} y el resto, ${rest}, cuando la limpieza esté terminada.`,
     nothingNow: (total: string, how: string) =>
       `No se cobra nada ahora. El total de ${total} ${how}.`,
-    chargedWhenDone: "se cobra cuando la limpieza esté terminada",
     eachIs: (price: string) => `Cada limpieza cuesta ${price}. `,
     eachCharged: (price: string | null) =>
-      `${price ? `Cada limpieza, de ${price},` : "Cada limpieza"} se cobra cuando esté terminada.`,
+      price
+        ? `Cada limpieza, de ${price}, se cobra cuando esté terminada.`
+        : "Cada limpieza se cobra cuando esté terminada.",
     planChangedToast: "Su plan de limpieza cambió",
     acceptNew: "Aceptar las nuevas condiciones",
     nothingCharged: "No se cobra nada ahora.",
@@ -251,7 +244,6 @@ const words = catalog({
     thanks:
       "Gracias por avisarnos. Puede pedirnos una nueva cotización cuando quiera.",
     keep: "Conservarla",
-    declineButton: "Rechazar",
   },
 });
 
@@ -346,7 +338,7 @@ function AskedQuote({ quote }: { quote: AskedQuoteView }) {
             <dd>{t.formatDate(quote.createdAt)}</dd>
             {!premises && (
               <>
-                <dt className="font-semibold">{t.w.condition}</dt>
+                <dt className="font-semibold">{t.condition}</dt>
                 <dd>{t.conditionLabel[asked.condition!]}</dd>
               </>
             )}
@@ -456,7 +448,7 @@ function QuoteDetails({
                   ? plan.days.length > 1
                     ? t.w.aWeekTax
                     : t.w.aCleanTax(chosen.serviceName)
-                  : t.w.taxIncluded(chosen.serviceName)}
+                  : t.taxIncludedOf(chosen.serviceName)}
               </span>
             </div>
           </div>
@@ -485,12 +477,12 @@ function QuoteDetails({
               />
               <Fact
                 icon={Users}
-                label={t.w.onSite}
+                label={t.onSite}
                 value={t.w.crewAbout(
                   t.cleaners(quote.crewSize),
                   formatHours(chosen.hoursOnSite),
                 )}
-                line={t.w.onSite}
+                line={t.onSite}
               />
             </dl>
           </div>
@@ -581,7 +573,7 @@ function QuoteDetails({
                 )}
                 <Line label={t.w.tax} value={t.formatMoney(chosen.taxCents)} />
                 <div className="mt-1 flex justify-between gap-4 border-t border-border pt-2 text-base font-semibold text-fg">
-                  <dt>{t.w.total}</dt>
+                  <dt>{t.total}</dt>
                   <dd className="tabular-nums">
                     {t.formatMoney(chosen.totalCents)}
                   </dd>
@@ -848,7 +840,7 @@ const oneOffPayment = (
         )
     : t.w.nothingNow(
         t.formatMoney(chosen.totalCents),
-        billed || t.w.chargedWhenDone,
+        billed || t.CHARGED_WHEN_DONE,
       );
 };
 
@@ -933,7 +925,7 @@ function Decline({ quote }: { quote: QuoteView }) {
                 isPending={action.isPending}
                 onPress={() => void decline(close)}
               >
-                {t.w.declineButton}
+                {t.p.decline}
               </Button>
             </Actions>
           </>

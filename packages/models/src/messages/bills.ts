@@ -28,6 +28,8 @@ export const bills = catalog({
     // the Client is told; anything settled after the clean goes on their
     // next Bill
     ON_WEEKS_BILL: "goes on your bill for that week",
+    // what's owed for a clean paid for on its own, as the Client is told
+    CHARGED_WHEN_DONE: "is charged when the clean is done",
     billPaid: billPaidBy(true),
     // how a Client pays for their cleans: each when it's done, or on a
     // weekly Bill
@@ -40,6 +42,7 @@ export const bills = catalog({
   },
   es: {
     ON_WEEKS_BILL: "va en su factura de esa semana",
+    CHARGED_WHEN_DONE: "se cobra cuando la limpieza esté terminada",
     billPaid: billPaidEs,
     cleansPaid: (how: BillPayment | "per_clean") =>
       how === "per_clean"

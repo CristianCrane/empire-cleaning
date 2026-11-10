@@ -41,6 +41,8 @@ Every finding is a fix the author makes before merge; if it isn't worth fixing n
 
 Style is never a finding: a ragged wrap, or a true comment you'd word differently.
 
+**A bug that recurs by its shape** (a pattern in a string such as a doubled stop, a missing argument, a copied call), in any mode, a later round's or a recheck's too: sweep the whole change for every place it occurs and every shape it can take, in the round that finds it, and list them all in its finding, not only the sites met reading the diff. Found one per round, it costs a round each. Outside the change, hunt 9's limit holds.
+
 **A shape keeps every behaviour it replaces**, in every mode: error reporting, a guard, a retry are each a behaviour. A `Simpler:` you propose that would drop one says how it keeps it. A survey or diff that drops one (a move onto a shared helper that doesn't report errors, say) is a `[change]` finding whose fix restores it, never one the commit message names and lets go.
 
 The impact list, which grows as new kinds turn up:

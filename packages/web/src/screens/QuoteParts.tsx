@@ -18,8 +18,6 @@ import { useSaid } from "./words.ts";
 const words = catalog({
   en: {
     cleaningWanted: "Cleaning wanted",
-    extras: "Extras",
-    none: "None",
     regularVisits: "Regular visits",
     wantedAfter: "Wanted after the first clean",
     notAsked: "Not asked for",
@@ -42,8 +40,6 @@ const words = catalog({
   },
   es: {
     cleaningWanted: "Limpieza que quiere",
-    extras: "Adicionales",
-    none: "Ninguno",
     regularVisits: "Visitas regulares",
     wantedAfter: "Las quiere después de la primera limpieza",
     notAsked: "No las pidió",
@@ -81,7 +77,7 @@ export function AskedRows({
   asked: QuoteAsked;
   premises: boolean;
 }) {
-  const { w, wantedCleaning } = useWords();
+  const { w, wantedCleaning, extras, none } = useWords();
   return (
     <>
       {premises ? (
@@ -91,11 +87,11 @@ export function AskedRows({
         </>
       ) : (
         <>
-          <dt className="font-semibold">{w.extras}</dt>
+          <dt className="font-semibold">{extras}</dt>
           <dd>
             {asked.addOns.length > 0
               ? asked.addOns.map((a) => a.name).join(", ")
-              : w.none}
+              : none}
           </dd>
           <dt className="font-semibold">{w.regularVisits}</dt>
           <dd>{asked.wantsRegularService ? w.wantedAfter : w.notAsked}</dd>

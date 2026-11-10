@@ -18,8 +18,6 @@ import { useSaid } from "./words.ts";
 const words = catalog({
   en: {
     signedInAs: (email: string) => `Signed in as ${email}`,
-    signOut: "Sign out",
-    welcome: "Welcome",
     next: "What happens next",
     tell: "You tell us about your home",
     tellText: "The rooms, how it's looking and when suits you.",
@@ -32,8 +30,6 @@ const words = catalog({
   },
   es: {
     signedInAs: (email: string) => `Sesión iniciada como ${email}`,
-    signOut: "Cerrar sesión",
-    welcome: "Bienvenido",
     next: "Qué pasa después",
     tell: "Nos cuenta sobre su casa",
     tellText: "Las habitaciones, cómo está y cuándo le conviene.",
@@ -54,7 +50,8 @@ export function Welcome() {
   const { account } = useRouteContext({ from: "/welcome" });
   const navigate = useNavigate();
   const lang = useLanguage();
-  const { w, ASK_US } = useSaid(words);
+  const t = useSaid(words);
+  const { w, ASK_US } = t;
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-6xl flex-col gap-6 p-4 py-10">
@@ -70,14 +67,14 @@ export function Welcome() {
               void navigate({ to: "/sign-in" });
             }}
           >
-            {w.signOut}
+            {t.signOut}
           </Button>
         </span>
       </header>
 
       <div className="flex flex-col gap-2">
         <Heading level={1} size={2}>
-          {w.welcome}
+          {t.p.welcome}
         </Heading>
         <p className="text-fg-muted">{ASK_US}</p>
       </div>

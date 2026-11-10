@@ -130,6 +130,9 @@ importers:
       '@empire-cleaning/models':
         specifier: workspace:*
         version: link:../models
+      oxc-parser:
+        specifier: ^0.155.0
+        version: 0.155.0
     devDependencies:
       '@types/node':
         specifier: ^26.2.0

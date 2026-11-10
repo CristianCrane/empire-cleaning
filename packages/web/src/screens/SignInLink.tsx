@@ -1,8 +1,9 @@
 import { LogIn } from "lucide-react";
 import { useSearch } from "@tanstack/react-router";
 import { catalog } from "@empire-cleaning/models";
-import { Button, useLanguage } from "@empire-cleaning/ui";
+import { Button } from "@empire-cleaning/ui";
 import { MessagePage } from "./MessagePage.tsx";
+import { useSaid } from "./words.ts";
 
 export type SignInLinkSearch = {
   token: string;
@@ -18,18 +19,16 @@ const words = catalog({
   en: {
     title: "Sign in to Empire Cleaning",
     ready: "Your link is ready. Press Sign in to go on.",
-    signIn: "Sign in",
   },
   es: {
     title: "Inicie sesión en Empire Cleaning",
     ready: "Su enlace está listo. Presione Iniciar sesión para continuar.",
-    signIn: "Iniciar sesión",
   },
 });
 
 export function SignInLink() {
   const search = useSearch({ from: "/sign-in/link" });
-  const w = words[useLanguage()];
+  const { w, signIn } = useSaid(words);
 
   return (
     <MessagePage title={w.title} icon={LogIn}>
@@ -46,7 +45,7 @@ export function SignInLink() {
             ),
         )}
         <Button type="submit" className="w-full">
-          {w.signIn}
+          {signIn}
         </Button>
       </form>
     </MessagePage>

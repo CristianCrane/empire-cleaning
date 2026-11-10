@@ -56,6 +56,7 @@ import { reportUnexpected } from "../monitoring.ts";
 import { useAction } from "./action.ts";
 import { useTours } from "./run-tours.ts";
 import { portalWords } from "./portal/words.ts";
+import { said } from "./words.ts";
 
 // the Account menu's words, in every area's language (ADR-0025)
 const words = catalog({
@@ -66,7 +67,6 @@ const words = catalog({
     showTips: "Show tips again",
     tipsBack: "Tips will show again",
     tipsFailed: "Couldn't bring the tips back. Try again.",
-    signOut: "Sign out",
     offers: (n: number) => `Offers (${n})`,
   },
   es: {
@@ -77,7 +77,6 @@ const words = catalog({
     tipsBack: "Los consejos se volverán a mostrar",
     tipsFailed:
       "No se pudieron volver a mostrar los consejos. Inténtelo de nuevo.",
-    signOut: "Cerrar sesión",
     offers: (n: number) => `Ofertas (${n})`,
   },
 });
@@ -350,7 +349,7 @@ function AccountMenu({
                   void navigate({ to: "/sign-in" });
                 }}
               >
-                {w.signOut}
+                {said[lang].signOut}
               </Button>
             </Actions>
           </>

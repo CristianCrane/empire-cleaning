@@ -26,14 +26,12 @@ import { useSaid } from "../words.ts";
 // in the Client's language (ADR-0025)
 const words = catalog({
   en: {
-    bill: (n: string) => `Bill ${n}`,
     onItsWay: (amount: string) =>
       `Your bank payment of ${amount} is on its way.`,
     emailOnce: "We'll email you once it has.",
     wasDue: (day: string, amount: string) =>
       `This bill was due by ${day} and hasn't been paid. Please pay ${amount} below.`,
     forBill: (amount: string) => `${amount} for this bill`,
-    card: "card",
     payBelow: (fix: string) => `Please pay it below, or ${fix}.`,
     pleasePay: (amount: string, day: string) =>
       `Please pay ${amount} by ${day}.`,
@@ -45,14 +43,12 @@ const words = catalog({
     pay: (amount: string) => `Pay ${amount}`,
   },
   es: {
-    bill: (n: string) => `Factura ${n}`,
     onItsWay: (amount: string) =>
       `Su pago bancario de ${amount} está en camino.`,
     emailOnce: "Le avisaremos por correo cuando se acredite.",
     wasDue: (day: string, amount: string) =>
       `Esta factura vencía el ${day} y no se ha pagado. Pague ${amount} abajo.`,
     forBill: (amount: string) => `${amount} de esta factura`,
-    card: "tarjeta",
     payBelow: (fix: string) => `Páguela abajo, o ${fix}.`,
     pleasePay: (amount: string, day: string) =>
       `Pague ${amount} antes del ${day}.`,
@@ -80,13 +76,13 @@ export function PortalBill() {
           <Breadcrumbs
             trail={[
               { label: t.p.payments, href: linkTo({ to: "/portal/payments" }) },
-              { label: t.w.bill(bill.number) },
+              { label: t.p.bill(bill.number) },
             ]}
           />
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
-            <Heading level={1}>{t.w.bill(bill.number)}</Heading>
+            <Heading level={1}>{t.p.bill(bill.number)}</Heading>
             <BillStatusBadge bill={bill} />
           </div>
           <div className="print:hidden">
@@ -136,7 +132,7 @@ function Standing({ bill }: { bill: BillView }) {
         <Notice tone="danger">
           {t.notTaken(
             t.w.forBill(t.formatMoney(bill.totalCents)),
-            kind === "no_card" ? null : t.w.card,
+            kind === "no_card" ? null : t.p.card,
             why,
           )}{" "}
           {kind === "declined"

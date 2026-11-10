@@ -35,7 +35,6 @@ const words = catalog({
     latest: "Latest payments",
     seeAll: (n: number) => `See all ${n} payments`,
     paymentsIn: (month: string) => `Payments, ${month}`,
-    clearing: "Clearing",
   },
   es: {
     toPay: "Por pagar",
@@ -49,7 +48,6 @@ const words = catalog({
     latest: "Últimos pagos",
     seeAll: (n: number) => `Ver los ${n} pagos`,
     paymentsIn: (month: string) => `Pagos, ${month}`,
-    clearing: "En proceso",
   },
 });
 
@@ -225,7 +223,7 @@ function Rows({
           end={
             <span className="flex items-center gap-3">
               {p.clearing && (
-                <StatusBadge tone="info">{t.w.clearing}</StatusBadge>
+                <StatusBadge tone="info">{t.clearing}</StatusBadge>
               )}
               <span className="font-semibold text-fg tabular-nums">
                 {signedMoney(t.lang, p.amountCents)}
