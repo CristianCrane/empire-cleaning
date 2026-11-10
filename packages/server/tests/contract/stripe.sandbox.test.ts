@@ -8,31 +8,17 @@
 // (the Payment Element, 3D Secure) can't run here: ConfirmationTokens come
 // from Stripe's test helper, and forms are confirmed as the browser would.
 // Webhooks are the real events, fetched from the Events API and signed here.
-import Stripe from "stripe";
 import env from "../../src/env.ts";
-// before stripe.ts: the gateway's index makes the app's adapter on loading,
-// so it has to load first
-import { paymentGatewayContract, type TestCard } from "./payment-gateway.ts";
+// before stripe.ts, as the gateway's index makes the app's adapter on loading
+import {
+  fillCardForm,
+  PAYMENT_METHOD,
+  sandboxStripe,
+} from "./stripe-sandbox.ts";
+import { paymentGatewayContract } from "./payment-gateway.ts";
 import { StripePaymentGateway } from "../../src/services/payment-gateway/stripe.ts";
 
-if (!env.STRIPE_SECRET_KEY.startsWith("sk_test_")) {
-  throw new Error("refusing to run: STRIPE_SECRET_KEY isn't a test-mode key");
-}
-
-// Stripe's test PaymentMethods for each (docs.stripe.com/testing)
-const PAYMENT_METHOD: Record<TestCard, string> = {
-  visa: "pm_card_visa",
-  mastercard: "pm_card_mastercard",
-  amex: "pm_card_amex",
-  insufficientFunds: "pm_card_visa_chargeDeclinedInsufficientFunds",
-  declinesLater: "pm_card_chargeCustomerFail",
-  approvalOnSetup: "pm_card_authenticationRequiredOnSetup",
-  alwaysApproval: "pm_card_authenticationRequired",
-  refundFails: "pm_card_refundFail",
-  refundPending: "pm_card_pendingRefund",
-};
-
-const stripe = new Stripe(env.STRIPE_SECRET_KEY);
+const stripe = sandboxStripe(env.STRIPE_SECRET_KEY);
 const gateway = new StripePaymentGateway({
   secretKey: env.STRIPE_SECRET_KEY,
   publishableKey: env.STRIPE_PUBLISHABLE_KEY,
@@ -78,14 +64,8 @@ paymentGatewayContract("StripePaymentGateway in a sandbox", () => ({
         setup_future_usage: "off_session",
       })
     ).id,
-  // what confirmSetup does in the browser; the token is the SetupIntent
-  fillCardForm: async (secret, card) => {
-    const setupId = secret.split("_secret_")[0]!;
-    await stripe.setupIntents.confirm(setupId, {
-      payment_method: PAYMENT_METHOD[card],
-    });
-    return setupId;
-  },
+  fillCardForm: (secret, card) =>
+    fillCardForm(stripe, secret, PAYMENT_METHOD[card]),
   abandonCardForm: async (secret) => secret.split("_secret_")[0]!,
   // what confirmPayment does in the browser, by a test bank account
   payByBankDebit: async (ref) => {

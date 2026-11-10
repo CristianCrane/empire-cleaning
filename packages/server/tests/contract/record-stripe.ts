@@ -11,20 +11,12 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import Stripe from "stripe";
 import env from "../../src/env.ts";
-// before stripe.ts, as in stripe.sandbox.test.ts: the gateway's index makes
-// the app's adapter on loading
-import "../../src/services/payment-gateway/index.ts";
-import {
-  API_VERSION,
-  StripePaymentGateway,
-} from "../../src/services/payment-gateway/stripe.ts";
-
-if (!env.STRIPE_SECRET_KEY.startsWith("sk_test_")) {
-  throw new Error("refusing to run: STRIPE_SECRET_KEY isn't a test-mode key");
-}
+// before stripe.ts, as the gateway's index makes the app's adapter on loading
+import { fillCardForm, sandboxStripe } from "./stripe-sandbox.ts";
+import { StripePaymentGateway } from "../../src/services/payment-gateway/stripe.ts";
 
 const OUT = new URL("../stripe-recordings/", import.meta.url);
-const stripe = new Stripe(env.STRIPE_SECRET_KEY, { apiVersion: API_VERSION });
+const stripe = sandboxStripe(env.STRIPE_SECRET_KEY);
 const gateway = new StripePaymentGateway({
   secretKey: env.STRIPE_SECRET_KEY,
   publishableKey: "pk_test_unused",
@@ -57,7 +49,7 @@ const savedCard = async (payerId: string, card: string) => {
     usage: "off_session",
     allowed_payment_method_types: ["card"],
   });
-  await stripe.setupIntents.confirm(setup.id, { payment_method: card });
+  await fillCardForm(stripe, setup.client_secret!, card);
   return (await stripe.setupIntents.retrieve(setup.id))
     .payment_method as string;
 };
