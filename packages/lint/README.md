@@ -30,7 +30,7 @@ A JS plugin gets no types, so the rule knows a language by what it's compared wi
 
 It allows a branch that picks no words (`inLanguage`), and one that picks the other language: `lang === "en" ? "es" : "en"` (the landing header).
 
-In an `.astro` file's markup (`{lang === "es" ? "Hola" : "Hi"}`, an attribute, a branch in a `.map`) the same checks run from `src/astro-markup.ts`, on the file as Astro's compiler parses it, with the same message and `file:line:col`. A `const` there is found by its name across the file, frontmatter and markup alike; a name declared twice isn't followed. An `oxlint-disable` comment doesn't reach markup.
+In an `.astro` file's markup (`{lang === "es" ? "Hola" : "Hi"}`, an attribute, a branch in a `.map`) the same checks run from `src/astro-markup.ts`, on the file as Astro's compiler parses it, with the same message and `file:line:col`. A `const` there is found by its name across the file, frontmatter and markup alike; a name bound twice (again as a `const`, a parameter or a destructured name) isn't followed. An `oxlint-disable` comment doesn't reach markup.
 
 What it can't see:
 

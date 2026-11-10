@@ -63,6 +63,15 @@ describe("words-from-catalog over .astro markup", () => {
     ['<p>{open ? "Open" : "Closed"}</p>'],
     // a `let` may change, so it isn't followed
     ['<p>{es ? "Hola" : "Hi"}</p>', 'let es = lang === "es";'],
+    // a name bound again in markup isn't the frontmatter's `const`
+    [
+      '<ul>{items.map((es) => <li>{es ? "Hola" : "Hi"}</li>)}</ul>',
+      'const es = lang === "es";',
+    ],
+    [
+      '<ul>{items.map(({ es }) => <li>{es ? "Hola" : "Hi"}</li>)}</ul>',
+      'const es = lang === "es";',
+    ],
     // the frontmatter and a <script> are oxlint's, so not reported twice
     ["<p>{greeting}</p>", 'const greeting = lang === "es" ? "Hola" : "Hi";'],
     ['<script>const hi = lang === "es" ? "Hola" : "Hi";</script>'],

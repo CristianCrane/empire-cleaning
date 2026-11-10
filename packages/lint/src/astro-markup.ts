@@ -7,8 +7,8 @@
 //
 // The frontmatter and <script>s stay oxlint's, so a branch there is reported
 // once. With no scope analysis for the template, a name's `const` is found by
-// its name across the file: one declared more than once counts as unknown,
-// as it does in the rule.
+// its name across the file: one bound more than once (a `const`, a parameter,
+// a destructured name) counts as unknown, as it does in the rule.
 
 import { readFileSync } from "node:fs";
 import { parse } from "@astrojs/compiler-rs";
@@ -26,24 +26,62 @@ const nodesUnder = (node: Node): Fields[] =>
         ...children(node).flatMap(([, child]) => nodesUnder(child)),
       ];
 
-// what each name was set to by a `const`, for a name declared once
+// the names a pattern binds: `x`, `{ x, y: z }`, `[x, ...rest]`, `x = 1`
+const namesIn = (value: unknown): string[] => {
+  const node = fields(value);
+  switch (node?.type) {
+    case "Identifier":
+      return [node.name as string];
+    case "ObjectPattern":
+      return (node.properties as Fields[]).flatMap((p) =>
+        namesIn(p.type === "RestElement" ? p.argument : p.value),
+      );
+    case "ArrayPattern":
+      return (node.elements as unknown[]).flatMap(namesIn);
+    case "RestElement":
+      return namesIn(node.argument);
+    case "AssignmentPattern":
+      return namesIn(node.left);
+    default:
+      return [];
+  }
+};
+
+// the names a node binds, each with what a `const` set it to
+const bindings = (node: Fields): [string, unknown][] => {
+  switch (node.type) {
+    case "VariableDeclaration":
+      return (node.declarations as Fields[]).flatMap((declarator) =>
+        namesIn(declarator.id).map((name): [string, unknown] => [
+          name,
+          node.kind === "const" && fields(declarator.id)?.type === "Identifier"
+            ? declarator.init
+            : undefined,
+        ]),
+      );
+    case "FunctionDeclaration":
+    case "FunctionExpression":
+    case "ArrowFunctionExpression":
+      return [node.id, ...(node.params as unknown[])]
+        .flatMap(namesIn)
+        .map((name) => [name, undefined]);
+    case "CatchClause":
+      return namesIn(node.param).map((name) => [name, undefined]);
+    default:
+      return [];
+  }
+};
+
+// what each name was set to by a `const`, for a name bound once in the file
 const constsOf = (nodes: Fields[]) => {
-  const declared = new Map<string, unknown>();
+  const bound = new Map<string, unknown>();
   const twice = new Set<string>();
-  for (const node of nodes) {
-    if (node.type !== "VariableDeclaration") continue;
-    for (const declarator of node.declarations as Fields[]) {
-      const id = fields(declarator.id);
-      if (id?.type !== "Identifier") continue;
-      const name = id.name as string;
-      if (declared.has(name)) twice.add(name);
-      declared.set(name, node.kind === "const" ? declarator.init : undefined);
-    }
+  for (const [name, init] of nodes.flatMap(bindings)) {
+    if (bound.has(name)) twice.add(name);
+    bound.set(name, init);
   }
   return (name: Fields) =>
-    twice.has(name.name as string)
-      ? undefined
-      : declared.get(name.name as string);
+    twice.has(name.name as string) ? undefined : bound.get(name.name as string);
 };
 
 // where each branch on the language that picks words in `source`'s markup
@@ -65,7 +103,7 @@ export const markupBranches = (source: string): At[] => {
   return found;
 };
 
-if (import.meta.main) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   let count = 0;
   for (const path of process.argv.slice(2)) {
     if (!path.endsWith(".astro")) continue;
