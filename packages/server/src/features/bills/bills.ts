@@ -31,6 +31,7 @@ import {
   startOfDay,
   timeOf,
   catalog,
+  type Language,
   messages,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
@@ -87,7 +88,7 @@ const { adjustmentLabel, feeName, LATE_MOVE_FEE } = messages.en;
 
 // what a Job is, as its lines on a Bill name it, before what each line is
 const whatOf = async (job: Job, property: Property) =>
-  jobNamed({ clean: await cleanOf(job, property), fee: null });
+  jobNamed("en", { clean: await cleanOf(job, property), fee: null });
 
 // a credit no Bill follows within this long is refunded (ADR-0016)
 const CREDIT_REFUND_DAYS = 30;
@@ -1027,7 +1028,7 @@ const settleEach = async (jobIds: string[]) => {
 
 const toSettledView = (s: SettledJob): SettledJobView => ({
   jobId: s.jobId,
-  label: jobNamed(s),
+  label: jobNamed("en", s),
   chargedCents: s.settled.chargedCents,
   refundedCents: s.settled.refundedCents,
   unpaidCents: s.unpaidCents,
@@ -1042,7 +1043,10 @@ const tellChargedPerClean = async (clientId: string, settled: SettledJob[]) => {
     .where(eq(clients.id, clientId));
   await email.send({
     to: client!.billingEmail ?? client!.email,
-    ...chargedPerCleanEmail({ name: client!.name, settled }),
+    ...chargedPerCleanEmail(client!.preferredLanguage, {
+      name: client!.name,
+      settled,
+    }),
   });
 };
 
@@ -1372,8 +1376,9 @@ const sendBill = async (
   occasion: Occasion,
   // what else it says, as billEmail takes it
   extra: { plan?: PlanNote | null; settled?: SettledJob[] } = {},
-  // a copy, as for the Office
-  bcc?: string,
+  // the Office's copy, in English (ADR-0025): sent after the Client's, and
+  // one that fails is logged, so the Client's isn't sent again
+  officeCopy?: string,
 ) => {
   const [found] = await db
     .select({ bill: bills, client: clients, method: paymentMethods })
@@ -1382,16 +1387,15 @@ const sendBill = async (
     .leftJoin(paymentMethods, eq(paymentMethods.clientId, clients.id))
     .where(eq(bills.id, billId));
   const { bill, client, method } = found!;
-  await email.send({
-    to: client.billingEmail ?? client.email,
-    bcc,
-    ...billEmail({
+  const lines = await linesOf(billId);
+  const billIn = (lang: Language) =>
+    billEmail(lang, {
       name: client.name,
       bill: {
         ...bill,
         number: billNumber(bill.number),
         unpaid: bill.unpaidSince ? unpaidKind(bill.unpaidReason ?? "") : null,
-        lines: await linesOf(billId),
+        lines,
       },
       occasion,
       ...extra,
@@ -1399,8 +1403,16 @@ const sendBill = async (
       today: dayOf(clock.now()),
       billedWeekly: client.billedWeeklyFrom !== null,
       creditRefundDays: CREDIT_REFUND_DAYS,
-    }),
+    });
+  await email.send({
+    to: client.billingEmail ?? client.email,
+    ...billIn(client.preferredLanguage),
   });
+  if (officeCopy) {
+    await notify(`Office's copy of Bill ${billId}`, () =>
+      email.send({ to: officeCopy, ...billIn("en") }),
+    );
+  }
 };
 
 const tellPaid = (billId: string, plan: "held" | "resumed" | null) =>
@@ -1427,7 +1439,7 @@ const tellCreditRefunded = async (billId: string, cents: number) => {
   const { bill, client } = found!;
   await email.send({
     to: client.billingEmail ?? client.email,
-    ...creditRefundedEmail({
+    ...creditRefundedEmail(client.preferredLanguage, {
       name: client.name,
       billId,
       number: billNumber(bill.number),

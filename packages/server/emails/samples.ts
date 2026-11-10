@@ -1,7 +1,12 @@
+import { languageOf } from "@empire-cleaning/models";
 import type { Clean } from "../src/services/email/blocks.ts";
 import type { Settled } from "../src/features/completion/balance.ts";
 
 // sample data the previews share; not itself an email (no default export)
+
+// the language every Client email is shown in: English, or Spanish with
+// `EMAIL_LANG=es pnpm email:dev` (ADR-0025)
+export const lang = languageOf(process.env.EMAIL_LANG);
 
 export const client = { name: "Casey Client", email: "casey@example.com" };
 export const cleaner = "Cory Cleaner";

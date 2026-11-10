@@ -1,9 +1,9 @@
 import { planChangeEmail } from "../src/features/quotes/emails.ts";
 import { preview } from "../src/services/email/preview.tsx";
-import { address, client, jobId, monday, wednesday } from "./samples.ts";
+import { address, client, jobId, lang, monday, wednesday } from "./samples.ts";
 
 export default preview(
-  planChangeEmail({
+  planChangeEmail(lang, {
     name: client.name,
     address,
     planId: jobId,

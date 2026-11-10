@@ -1,9 +1,9 @@
 import { proposalEmail } from "../src/features/completion/emails.ts";
 import { preview } from "../src/services/email/preview.tsx";
-import { clean, client, jobId, wednesday } from "./samples.ts";
+import { clean, client, jobId, lang, wednesday } from "./samples.ts";
 
 export default preview(
-  proposalEmail({
+  proposalEmail(lang, {
     name: client.name,
     jobId,
     clean,

@@ -55,7 +55,7 @@ export const sendDueReminders = async () => {
     try {
       await email.send({
         to: client.email,
-        ...reminderEmail({
+        ...reminderEmail(client.preferredLanguage, {
           name: client.name,
           clean: await cleanOf(job, property),
         }),

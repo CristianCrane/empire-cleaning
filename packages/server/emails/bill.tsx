@@ -1,9 +1,9 @@
 import { billEmail } from "../src/features/bills/emails.ts";
 import { preview } from "../src/services/email/preview.tsx";
-import { client, jobId } from "./samples.ts";
+import { client, jobId, lang } from "./samples.ts";
 
 export default preview(
-  billEmail({
+  billEmail(lang, {
     name: client.name,
     bill: {
       id: jobId,

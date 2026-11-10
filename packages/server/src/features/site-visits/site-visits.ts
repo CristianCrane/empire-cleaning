@@ -218,7 +218,7 @@ export const bookSiteVisit = async (
   await tellClient(
     client,
     `Booking notice for Site Visit ${id}`,
-    siteVisitBookedEmail({
+    siteVisitBookedEmail(client.preferredLanguage, {
       name: client.name,
       address: addressOf(property),
       startsAt,
@@ -290,7 +290,7 @@ export const moveSiteVisit = async (
   await tellClient(
     client,
     `Move notice for Site Visit ${id}`,
-    siteVisitChangedEmail({
+    siteVisitChangedEmail(client.preferredLanguage, {
       name: client.name,
       address: addressOf(property),
       startsAt,
@@ -325,7 +325,7 @@ export const cancelSiteVisit = async (
   await tellClient(
     client,
     `Cancellation notice for Site Visit ${id}`,
-    siteVisitCancelledEmail({
+    siteVisitCancelledEmail(client.preferredLanguage, {
       name: client.name,
       address: addressOf(property),
       startsAt: visit.startsAt!,

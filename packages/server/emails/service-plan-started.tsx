@@ -1,9 +1,9 @@
 import { planConfirmationEmail } from "../src/features/quotes/emails.ts";
 import { preview } from "../src/services/email/preview.tsx";
-import { address, client, monday, wednesday } from "./samples.ts";
+import { address, client, lang, monday, wednesday } from "./samples.ts";
 
 export default preview(
-  planConfirmationEmail({
+  planConfirmationEmail(lang, {
     name: client.name,
     address,
     plan: {

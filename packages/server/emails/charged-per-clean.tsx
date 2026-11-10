@@ -1,9 +1,9 @@
 import { chargedPerCleanEmail } from "../src/features/bills/emails.ts";
 import { preview } from "../src/services/email/preview.tsx";
-import { clean, client, jobId, settled } from "./samples.ts";
+import { clean, client, jobId, lang, settled } from "./samples.ts";
 
 export default preview(
-  chargedPerCleanEmail({
+  chargedPerCleanEmail(lang, {
     name: client.name,
     settled: [
       {

@@ -57,7 +57,7 @@ const t = words[lang].footer;
       <a href={business.phone.href} class="font-semibold text-fg">
         {business.phone.display}
       </a>
-      <span>{businessWords[lang].area}</span>
+      <span>{business.area[lang]}</span>
       <span>{businessWords[lang].hours}</span>
       {/* said in Spanish on an English page */}
       {t.spanish && <span lang="es">{t.spanish}</span>}

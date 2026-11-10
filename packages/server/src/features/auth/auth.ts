@@ -24,11 +24,15 @@ const SIGN_IN_LINK_TTL_SECONDS = (15 * MINUTE_MS) / 1000;
 
 // the link opens the app's page, whose Sign in button sends its query on to
 // Better Auth's `url`: mail scanners open links before the person does, and
-// opening Better Auth's own would use the link up (#243)
+// opening Better Auth's own would use the link up (#243). The email and its
+// page are in the language of the screen that asked (`lang`, which the app
+// reads on any page), as the person may have no Preferred Language yet
 const sendSignInLink = async ({ to, url }: { to: string; url: string }) => {
+  const lang = currentLanguage();
   const page = new URL("/sign-in/link", env.CORS_ORIGIN_URL);
   page.search = new URL(url).search;
-  await email.send({ to, ...signInEmail({ url: page.toString() }) });
+  page.searchParams.set("lang", lang);
+  await email.send({ to, ...signInEmail(lang, { url: page.toString() }) });
 };
 
 // a sign-in link is emailed to one address only so often (#32)

@@ -1,5 +1,7 @@
 import { paymentMethodLinkEmail } from "../src/features/payments/emails.ts";
 import { preview } from "../src/services/email/preview.tsx";
-import { client } from "./samples.ts";
+import { client, lang } from "./samples.ts";
 
-export default preview(paymentMethodLinkEmail({ ...client, weeklyBill: null }));
+export default preview(
+  paymentMethodLinkEmail(lang, { ...client, weeklyBill: null }),
+);

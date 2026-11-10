@@ -11,7 +11,7 @@ import {
 
 const render = (email: Partial<Email>) =>
   renderEmail(
-    { subject: "A subject", blocks: [], ...email },
+    { lang: "en", subject: "A subject", blocks: [], ...email },
     "https://landing.example/email-logo.png",
   );
 
@@ -28,6 +28,20 @@ describe("the email layout", () => {
     expect(html).toContain("(646) 320-9076");
     expect(text).toBe(
       "Hello\n\n-- \nEmpire Cleaning & Pro Services Inc · Queens, NYC and Long Island · (646) 320-9076 · empirecleaningandpro.com",
+    );
+  });
+
+  test("frames a Spanish email in Spanish: its lang, greeting and footer (ADR-0025)", async () => {
+    const { html, text } = await render({
+      lang: "es",
+      blocks: [greeting("Ana"), paragraph("Hola")],
+    });
+
+    expect(html).toMatch(/<html[^>]* lang="es"/);
+    expect(html).toContain(">Hola, Ana:</p>");
+    expect(html).toContain("Queens, NYC y Long Island");
+    expect(text).toBe(
+      "Hola, Ana:\n\nHola\n\n-- \nEmpire Cleaning & Pro Services Inc · Queens, NYC y Long Island · (646) 320-9076 · empirecleaningandpro.com",
     );
   });
 
@@ -93,6 +107,7 @@ describe("the blocks", () => {
     const { html, text } = await render({
       blocks: [
         amounts(
+          "en",
           [
             ["Clean", 12000],
             ["Tax", 1065],

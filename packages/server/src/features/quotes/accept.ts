@@ -876,7 +876,7 @@ const sendPlanConfirmation = async (
 ) => {
   await email.send({
     to: client.email,
-    ...planConfirmationEmail({
+    ...planConfirmationEmail(client.preferredLanguage, {
       name: client.name,
       address: addressOf(property),
       plan: cleansOf(plan, offer),
@@ -897,7 +897,7 @@ const sendPlanChangeConfirmation = async (
 ) => {
   await email.send({
     to: client.email,
-    ...planChangeEmail({
+    ...planChangeEmail(client.preferredLanguage, {
       name: client.name,
       address: addressOf(property),
       planId: plan.id,
@@ -916,7 +916,7 @@ const sendBookingConfirmation = async (
 ) => {
   await email.send({
     to: client.email,
-    ...bookingConfirmationEmail({
+    ...bookingConfirmationEmail(client.preferredLanguage, {
       name: client.name,
       clean: await cleanOf(job, property),
       paid,
