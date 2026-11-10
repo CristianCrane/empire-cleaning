@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
-import { LANGUAGES, type Me } from "@empire-cleaning/models";
-import { validate } from "../../middleware/validation.ts";
+import type { Me } from "@empire-cleaning/models";
+import { language, validate } from "../../middleware/validation.ts";
 import { toursSeenBy } from "../tours/tours.ts";
 import { authorize, signedInAccount } from "./authorize.ts";
 import { languagesOfAccount, setOwnLanguage } from "./language.ts";
@@ -27,7 +27,7 @@ router.get("/", authorize(), async (_req, res) => {
 router.put(
   "/language",
   authorize(),
-  validate({ body: z.object({ language: z.enum(LANGUAGES) }) }),
+  validate({ body: z.object({ language }) }),
   async (req, res) => {
     await setOwnLanguage(signedInAccount(res).id, req.body.language);
     res.status(204).end();
