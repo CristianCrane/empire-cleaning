@@ -411,6 +411,7 @@ test("Office Staff invite a Cleaner in Spanish, whose area and invitation are in
   await edit.getByText("English").click();
   await edit.getByRole("button", { name: "Save changes" }).click();
   await expect(page.getByText("Changes saved")).toBeVisible();
+  await page.reload();
   await expect(details).toContainText("English");
 
   await corysPage.reload();

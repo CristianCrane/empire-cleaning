@@ -118,7 +118,9 @@ test(
     await expect(page.getByText("Prices saved as version 3")).toBeVisible();
 
     await page.getByRole("button", { name: "Add an extra" }).click();
-    await page.getByRole("textbox", { name: "Name" }).fill("Steam clean");
+    await page
+      .getByRole("textbox", { name: "Name", exact: true })
+      .fill("Steam clean");
     await page.getByText("Tax-exempt").click();
     await expect(
       page.getByRole("checkbox", { name: "Tax-exempt" }),
@@ -160,7 +162,9 @@ test("Office Staff give an extra and a type of business their Spanish names, whi
   await expect(page.getByText("Prices saved as version 2")).toBeVisible();
 
   await page.getByRole("button", { name: "Add a type of business" }).click();
-  await page.getByRole("textbox", { name: "Type of business" }).fill("Gym");
+  await page
+    .getByRole("textbox", { name: "Type of business", exact: true })
+    .fill("Gym");
   await page
     .getByRole("textbox", { name: "In Spanish (optional)" })
     .fill("Gimnasio");

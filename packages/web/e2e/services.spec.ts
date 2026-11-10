@@ -90,9 +90,11 @@ test("Office Staff add a Service priced by area, and retire it", async ({
   await page.goto("/office/services");
   await page.getByRole("link", { name: "New service" }).click();
 
-  await page.getByRole("textbox", { name: "Name" }).fill("Window cleaning");
   await page
-    .getByRole("textbox", { name: "Description" })
+    .getByRole("textbox", { name: "Name", exact: true })
+    .fill("Window cleaning");
+  await page
+    .getByRole("textbox", { name: "Description", exact: true })
     .fill("Every window, inside and out.");
   await page.getByText("Both", { exact: true }).click();
   // only area pricing suits business premises
@@ -180,10 +182,12 @@ test("a mistake on a Service is explained beside the field", async ({
   await signInAsOffice(page);
   await page.goto("/office/services/new");
 
-  await page.getByRole("textbox", { name: "Name" }).fill("Deep Clean");
+  await page
+    .getByRole("textbox", { name: "Name", exact: true })
+    .fill("Deep Clean");
   await page.getByRole("button", { name: "Add service" }).click();
 
-  const name = page.getByRole("textbox", { name: "Name" });
+  const name = page.getByRole("textbox", { name: "Name", exact: true });
   await expect(name).toHaveAttribute("aria-invalid", "true");
   await expect(name).toHaveAccessibleDescription(
     /Another service already has this name/,

@@ -62,6 +62,7 @@ test("Office Staff set a new caller's language, see it on their page, and change
   await dialog.getByText("English").click();
   await dialog.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("Contact details saved")).toBeVisible();
+  await page.reload();
   await expect(contact).toContainText("Preferred languageEnglish");
 });
 
