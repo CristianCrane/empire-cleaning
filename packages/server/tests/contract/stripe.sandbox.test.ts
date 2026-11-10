@@ -12,6 +12,7 @@
 import env from "../../src/env.ts";
 // before stripe.ts, as the gateway's index makes the app's adapter on loading
 import {
+  eventFor,
   fillCardForm,
   PAYMENT_METHOD,
   sandboxStripe,
@@ -36,25 +37,6 @@ const signed = (payload: string) => ({
     }),
   },
 });
-
-// Stripe's event of `type` for `objectId`, once it's been sent. A test
-// card's refund fails about two minutes after it's made
-const eventFor = async (
-  type: string,
-  objectId: string,
-  matches: (object: { status?: string | null }) => boolean = () => true,
-) => {
-  for (let tries = 0; tries < 60; tries += 1) {
-    const { data } = await stripe.events.list({ type, limit: 20 });
-    const event = data.find((e) => {
-      const object = e.data.object as { id?: string; status?: string };
-      return object.id === objectId && matches(object);
-    });
-    if (event) return event;
-    await new Promise((resolve) => setTimeout(resolve, 5000));
-  }
-  throw new Error(`no ${type} event for ${objectId} within five minutes`);
-};
 
 paymentGatewayContract("StripePaymentGateway in a sandbox", () => ({
   gateway,
@@ -89,8 +71,9 @@ paymentGatewayContract("StripePaymentGateway in a sandbox", () => ({
   refundWebhook: async (refundId, became) => {
     const event =
       became === "failed"
-        ? await eventFor("refund.failed", refundId)
+        ? await eventFor(stripe, "refund.failed", refundId)
         : await eventFor(
+            stripe,
             "refund.updated",
             refundId,
             (refund) => refund.status === "succeeded",

@@ -48,3 +48,27 @@ export const fillCardForm = async (
   await stripe.setupIntents.confirm(setupId, { payment_method: paymentMethod });
   return setupId;
 };
+
+// Stripe's event of `type` about `objectId` (the object's own id, or its
+// PaymentIntent's), once it's been sent. A test card's refund fails about
+// two minutes after it's made
+export const eventFor = async (
+  stripe: Stripe,
+  type: string,
+  objectId: string,
+  matches: (object: Record<string, unknown>) => boolean = () => true,
+) => {
+  for (let tries = 0; tries < 60; tries += 1) {
+    const { data } = await stripe.events.list({ type, limit: 50 });
+    const event = data.find((e) => {
+      const object = e.data.object as unknown as Record<string, unknown>;
+      return (
+        (object.id === objectId || object.payment_intent === objectId) &&
+        matches(object)
+      );
+    });
+    if (event) return event;
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+  }
+  throw new Error(`no ${type} event for ${objectId} within five minutes`);
+};
