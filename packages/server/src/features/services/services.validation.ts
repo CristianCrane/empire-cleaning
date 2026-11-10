@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { keepUnder } from "../../middleware/validation.ts";
-import { hours, taxPercent } from "../price-list/price-list.validation.ts";
+import {
+  hours,
+  inSpanish,
+  taxPercent,
+} from "../price-list/price-list.validation.ts";
 
 // messages are shown beside the Service's fields, so they're written for
 // people
@@ -13,6 +17,8 @@ export const serviceSchema = z
       .min(1, "Enter a name")
       .max(80, keepUnder(80, "the name")),
     description: z.string().trim().max(300, keepUnder(300, "the description")),
+    nameEs: inSpanish(80, "the name"),
+    descriptionEs: inSpanish(300, "the description"),
     offeredFor: z.enum(["homes", "businesses", "both"], {
       error: "Pick who it's for",
     }),

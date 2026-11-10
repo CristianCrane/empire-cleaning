@@ -288,6 +288,38 @@ describe("the Price List", () => {
     );
   });
 
+  test("starts with the Spanish names, which a save keeps (ADR-0025)", async () => {
+    const office = await signInAsOffice();
+    const list = await getList(office);
+    expect(list.addOns.map((a) => a.nameEs)).toEqual([
+      "Dentro del horno",
+      "Dentro del refrigerador",
+      "Dentro de los gabinetes",
+      "Ventanas por dentro",
+    ]);
+    expect(list.premisesTypes.map((t) => t.nameEs)).toEqual([
+      "Oficina",
+      "Tienda",
+      "Consultorio médico",
+      "Otro",
+    ]);
+
+    // as the Office's screen saves: the whole list, one part changed
+    const { addOns, premisesTypes } = list;
+    const saved = (
+      await save(office, {
+        addOns: addOns.map((a, i) => (i === 0 ? { ...a, hours: 1 } : a)),
+        premisesTypes,
+      }).expect(200)
+    ).body as PriceList;
+    expect(saved.addOns.map((a) => a.nameEs)).toEqual(
+      list.addOns.map((a) => a.nameEs),
+    );
+    expect(saved.premisesTypes.map((t) => t.nameEs)).toEqual(
+      list.premisesTypes.map((t) => t.nameEs),
+    );
+  });
+
   test("won't take an Add-on it has never heard of", async () => {
     const office = await signInAsOffice();
 
@@ -387,12 +419,14 @@ describe("Premises Types", () => {
       {
         key: keys["Office"],
         name: "Offices",
+        nameEs: null,
         multiplier: 1.2,
         active: true,
       },
       {
         key: expect.any(String),
         name: "Gym",
+        nameEs: null,
         multiplier: 1.4,
         active: true,
       },
@@ -401,6 +435,7 @@ describe("Premises Types", () => {
     expect(premisesTypes.find((t) => t.key === keys["Medical"])).toEqual({
       key: keys["Medical"],
       name: "Medical",
+      nameEs: null,
       multiplier: 1.6,
       active: false,
     });

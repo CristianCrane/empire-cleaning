@@ -62,6 +62,8 @@ export const priceListAddOns = pgTable(
       .references(() => priceLists.id, { onDelete: "cascade" }),
     key: uuid("key").notNull(),
     name: text("name").notNull(),
+    // in Spanish, shown to Spanish readers when set (ADR-0025)
+    nameEs: text("name_es"),
     hours: decimal("hours"),
     taxExempt: boolean("tax_exempt").notNull().default(false),
     // the Services it goes with, by key (ADR-0018)
@@ -87,6 +89,8 @@ export const priceListPremisesTypes = pgTable(
       .references(() => priceLists.id, { onDelete: "cascade" }),
     key: uuid("key").notNull(),
     name: text("name").notNull(),
+    // in Spanish, shown to Spanish readers when set (ADR-0025)
+    nameEs: text("name_es"),
     // on the hours of a Service priced by area (ADR-0018)
     multiplier: decimal("multiplier"),
     active: boolean("active").notNull().default(true),

@@ -146,6 +146,28 @@ describe("Services", () => {
     expect((await list(office)).map((s) => s.name)[1]).toBe("Deep Clean");
   });
 
+  test("start with their Spanish, which a new version keeps unless it changes it (ADR-0025)", async () => {
+    const office = await signInAsOffice();
+
+    expect((await list(office)).map((s) => s.nameEs)).toEqual([
+      "Limpieza estándar",
+      "Limpieza profunda",
+      "Limpieza de mudanza",
+      "Limpieza comercial",
+      "Pintura",
+    ]);
+    const kept = await setService(office, "deep", { hourlyRateCents: 6000 });
+    expect(kept).toMatchObject({
+      nameEs: "Limpieza profunda",
+      descriptionEs: expect.stringMatching(/^Una limpieza de arriba abajo/),
+    });
+    const blanked = await setService(office, "deep", {
+      nameEs: " ",
+      descriptionEs: null,
+    });
+    expect(blanked).toMatchObject({ nameEs: null, descriptionEs: null });
+  });
+
   test("are retired rather than deleted, and still listed", async () => {
     const office = await signInAsOffice();
 

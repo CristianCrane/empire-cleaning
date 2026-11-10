@@ -31,6 +31,16 @@ export const taxPercent = z
   .max(30, "That's higher than any sales tax")
   .refine(decimals(3), "Use at most three decimal places");
 
+// a name or description in Spanish, optional: blank is none, and English
+// is shown in its place (ADR-0025)
+export const inSpanish = (max: number, what: "the name" | "the description") =>
+  z
+    .string()
+    .trim()
+    .max(max, keepUnder(max, what))
+    .nullish()
+    .transform((words) => words || null);
+
 const addOn = z.object({
   key: z.uuid().optional(),
   name: z
@@ -38,6 +48,7 @@ const addOn = z.object({
     .trim()
     .min(1, "Enter a name")
     .max(80, keepUnder(80, "the name")),
+  nameEs: inSpanish(80, "the name"),
   hours: hours,
   taxExempt: z.boolean(),
   serviceKeys: z
@@ -53,6 +64,7 @@ const premisesType = z.object({
     .trim()
     .min(1, "Enter a name")
     .max(80, keepUnder(80, "the name")),
+  nameEs: inSpanish(80, "the name"),
   multiplier,
   active: z.boolean(),
 });

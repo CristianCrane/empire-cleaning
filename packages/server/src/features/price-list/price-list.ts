@@ -26,7 +26,8 @@ import {
 // The starting figures, until Office Staff save their own. They are
 // placeholders (the real ones are the business's to supply) and the Price List
 // screen says so. The fee tax is the NYC combined rate, pending the
-// accountant. Premises Types are against an office (#72). Add-ons go with
+// accountant. Premises Types are against an office (#72). The Spanish names
+// are a draft the owner checks (#206). Add-ons go with
 // the seeded Services for homes, and windows with every one.
 const placeholders: PriceListInput = {
   conditionLight: 0.85,
@@ -40,6 +41,7 @@ const placeholders: PriceListInput = {
   addOns: [
     {
       name: "Inside the oven",
+      nameEs: "Dentro del horno",
       hours: 0.5,
       taxExempt: false,
       serviceKeys: SEEDED_FOR_HOMES,
@@ -47,6 +49,7 @@ const placeholders: PriceListInput = {
     },
     {
       name: "Inside the fridge",
+      nameEs: "Dentro del refrigerador",
       hours: 0.5,
       taxExempt: false,
       serviceKeys: SEEDED_FOR_HOMES,
@@ -54,6 +57,7 @@ const placeholders: PriceListInput = {
     },
     {
       name: "Inside the cabinets",
+      nameEs: "Dentro de los gabinetes",
       hours: 1,
       taxExempt: false,
       serviceKeys: SEEDED_FOR_HOMES,
@@ -61,6 +65,7 @@ const placeholders: PriceListInput = {
     },
     {
       name: "Interior windows",
+      nameEs: "Ventanas por dentro",
       hours: 1,
       taxExempt: false,
       serviceKeys: [...SEEDED_FOR_HOMES, SEEDED.commercial],
@@ -68,10 +73,15 @@ const placeholders: PriceListInput = {
     },
   ],
   premisesTypes: [
-    { name: "Office", multiplier: 1, active: true },
-    { name: "Retail", multiplier: 0.8, active: true },
-    { name: "Medical", multiplier: 1.4, active: true },
-    { name: "Other", multiplier: 1.2, active: true },
+    { name: "Office", nameEs: "Oficina", multiplier: 1, active: true },
+    { name: "Retail", nameEs: "Tienda", multiplier: 0.8, active: true },
+    {
+      name: "Medical",
+      nameEs: "Consultorio médico",
+      multiplier: 1.4,
+      active: true,
+    },
+    { name: "Other", nameEs: "Otro", multiplier: 1.2, active: true },
   ],
 };
 
@@ -101,6 +111,7 @@ const toPriceList = (
     .map((a) => ({
       key: a.key,
       name: a.name,
+      nameEs: a.nameEs,
       hours: a.hours,
       taxExempt: a.taxExempt,
       serviceKeys: a.serviceKeys,
@@ -111,6 +122,7 @@ const toPriceList = (
     .map((p) => ({
       key: p.key,
       name: p.name,
+      nameEs: p.nameEs,
       multiplier: p.multiplier,
       active: p.active,
     })),

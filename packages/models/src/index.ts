@@ -1,6 +1,7 @@
 // Shared domain types live here; see GLOSSARY.md for the vocabulary.
 
 import { clockTime } from "./days.ts";
+import type { Language } from "./language.ts";
 
 // the roles a Staff member can hold; one person may hold both
 export type StaffRole = "cleaner" | "office_staff";
@@ -228,6 +229,8 @@ export type ClientView = ContactDetails & {
   businessName: string | null;
   // a new email they gave, theirs once they open the link sent to it (#243)
   pendingEmail: string | null;
+  // the language their screens and messages are in (ADR-0025)
+  preferredLanguage: Language;
   properties: PropertyView[];
   // their Quotes as they see them, newest first (see GET /api/quotes/mine)
   quotes: QuoteSummary[];
@@ -313,6 +316,9 @@ export type PriceListAddOn = {
   // absent on a new Add-on; the server gives it one
   key?: string;
   name: string;
+  // its name in Spanish, which Spanish readers see when it's set (ADR-0025);
+  // absent or null: none
+  nameEs?: string | null;
   // price-relevant hours, not multiplied by Condition or the Service
   hours: number;
   taxExempt: boolean;
@@ -335,6 +341,9 @@ export type PriceListPremisesType = {
   // absent on a new Premises Type; the server gives it one
   key?: string;
   name: string;
+  // its name in Spanish, which Spanish readers see when it's set (ADR-0025);
+  // absent or null: none
+  nameEs?: string | null;
   multiplier: number;
   active: boolean;
 };
@@ -427,9 +436,12 @@ export type RoomHours = {
 
 // what Office Staff edit on a Service. Money is in cents, before tax.
 export type ServiceInput = {
-  // the name and description Clients see
+  // the name and description Clients see, and in Spanish, which Spanish
+  // readers see when it's set (ADR-0025); absent or null: none
   name: string;
   description: string;
+  nameEs?: string | null;
+  descriptionEs?: string | null;
   offeredFor: OfferedFor;
   method: PricingMethod;
   // only for "rooms"
