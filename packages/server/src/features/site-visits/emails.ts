@@ -1,4 +1,9 @@
-import { catalog, formats, type Language } from "@empire-cleaning/models";
+import {
+  catalog,
+  formats,
+  type Language,
+  oneStop,
+} from "@empire-cleaning/models";
 import {
   button,
   details,
@@ -7,7 +12,7 @@ import {
   paragraph,
   type Email,
 } from "../../services/email/blocks.ts";
-import { firstNameOf, oneStop } from "../../services/email/format.ts";
+import { firstNameOf } from "../../services/email/format.ts";
 
 // A Client is emailed when a Site Visit is booked, moved or cancelled; they
 // ask for changes by phone

@@ -39,7 +39,7 @@ import { ChooseNewTime, costForClient } from "../RescheduleParts.tsx";
 import { addressOf, formatHours, wasSkipped } from "../format.ts";
 import { useSaid } from "../words.ts";
 import { Fact } from "../Fact.tsx";
-import { catalog } from "@empire-cleaning/models";
+import { catalog, oneStop } from "@empire-cleaning/models";
 import { JobStatusBadge } from "../JobBadges.tsx";
 
 // in the Client's language (ADR-0025)
@@ -678,7 +678,9 @@ function Cancelled({ job }: { job: ClientJobDetail }) {
   return (
     <Part
       title={t.cancelledLabel(skipped)}
-      description={`${t.cancelledLabel(skipped)} ${t.formatDateTime(cancellation.cancelledAt)}.`}
+      description={oneStop(
+        `${t.cancelledLabel(skipped)} ${t.formatDateTime(cancellation.cancelledAt)}.`,
+      )}
       actions={<WhatNext job={job} />}
     >
       {cancellation.by === "empire" ? (

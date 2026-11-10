@@ -5,6 +5,7 @@ import {
   type MoveCost,
   formats,
   messages,
+  oneStop,
 } from "@empire-cleaning/models";
 import {
   button,
@@ -14,7 +15,7 @@ import {
   type Clean,
   type Email,
 } from "../../services/email/blocks.ts";
-import { firstNameOf, oneStop } from "../../services/email/format.ts";
+import { firstNameOf } from "../../services/email/format.ts";
 import { jobsButton } from "../assignments/emails.ts";
 
 // the Office's and Cleaners' (#305)

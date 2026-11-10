@@ -1,5 +1,5 @@
-import { expect, test } from "vitest";
-import { formats } from "./format.ts";
+import { describe, expect, test } from "vitest";
+import { formats, oneStop } from "./format.ts";
 
 const { en, es } = formats;
 // 9:00am in New York on Monday, January 12, 2026
@@ -69,4 +69,16 @@ test("Spanish reads as es-US writes it", () => {
   expect(es.formatList(["a", "b"], "or")).toBe("a o b");
   expect(es.plural(1, { one: "hora", other: "horas" })).toBe("hora");
   expect(es.plural(2, { one: "hora", other: "horas" })).toBe("horas");
+});
+
+describe("oneStop", () => {
+  test("ends a Spanish sentence once after a time", () => {
+    const at = new Date("2026-01-12T14:00:00Z");
+    expect(oneStop(`Cancelada el ${formats.es.formatDateTime(at)}.`)).toBe(
+      "Cancelada el lun, 12 de ene, 9:00 a.m.",
+    );
+    expect(oneStop(`Cancelled ${formats.en.formatDateTime(at)}.`)).toBe(
+      "Cancelled Mon, Jan 12, 9:00 AM.",
+    );
+  });
 });

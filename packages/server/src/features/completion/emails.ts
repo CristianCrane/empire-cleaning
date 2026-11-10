@@ -8,12 +8,13 @@ import {
   type Clean,
   type Email,
 } from "../../services/email/blocks.ts";
-import { firstNameOf, oneStop } from "../../services/email/format.ts";
+import { firstNameOf } from "../../services/email/format.ts";
 import {
   catalog,
   type Language,
   formats,
   messages,
+  oneStop,
 } from "@empire-cleaning/models";
 import { cardOf } from "../payments/emails.ts";
 import { unpaidKind } from "../payments/unpaid.ts";

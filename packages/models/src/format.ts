@@ -126,3 +126,8 @@ export const formats: Catalog<Formats> = {
   en: formatsIn("en"),
   es: formatsIn("es"),
 };
+
+// a Spanish sentence with a time in it, from the server or a screen: es-US
+// writes "9:00 a.m.", so one that ends a sentence, or a plan's days before
+// one ends, takes no second stop ("a las 9:00 a.m.", not "a.m..")
+export const oneStop = (sentence: string) => sentence.replaceAll("..", ".");
