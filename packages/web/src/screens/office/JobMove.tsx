@@ -1,4 +1,4 @@
-import { useState, type ReactElement } from "react";
+import { useState } from "react";
 import {
   parseDate,
   parseTime,
@@ -16,7 +16,6 @@ import {
   Button,
   DatePicker,
   Dialog,
-  DialogTrigger,
   Notice,
   TimeField,
 } from "@empire-cleaning/ui";
@@ -135,19 +134,23 @@ function RoomAt({ room, job }: { room: DayCapacity; job: ScheduledJob }) {
 // action, at any width, where dragging on the Schedule isn't to hand
 export function MoveJob({
   job,
-  trigger,
+  isOpen,
+  onOpenChange,
 }: {
   job: ScheduledJob;
-  // what opens it, e.g. an IconAction; a Move Job Button otherwise
-  trigger?: ReactElement;
+  // whether it's open, and told when it closes
+  isOpen: boolean;
+  onOpenChange: (isOpen: boolean) => void;
 }) {
   return (
-    <DialogTrigger>
-      {trigger ?? <Button variant="secondary">Move job</Button>}
-      <Dialog title="Move this job" size="wide">
-        {({ close }) => <ChooseTime job={job} close={close} />}
-      </Dialog>
-    </DialogTrigger>
+    <Dialog
+      title="Move this job"
+      size="wide"
+      isOpen={isOpen}
+      onOpenChange={onOpenChange}
+    >
+      {({ close }) => <ChooseTime job={job} close={close} />}
+    </Dialog>
   );
 }
 

@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { useLoaderData } from "@tanstack/react-router";
-import { UserPlus } from "lucide-react";
+import { CalendarClock, CalendarSync, CalendarX, UserPlus } from "lucide-react";
 import {
   isOnCrew,
   type AssignmentView,
@@ -11,6 +11,7 @@ import { MORE_HOURS, officeFix } from "@empire-cleaning/models";
 import {
   ActionBar,
   Actions,
+  IconAction,
   Breadcrumbs,
   Button,
   Card,
@@ -40,7 +41,8 @@ import {
   UndoCompletion,
 } from "./JobCompletion.tsx";
 import { JobHistory } from "./JobHistory.tsx";
-import { AnswerRequest, MoveActions } from "./JobReschedule.tsx";
+import { AnswerRequest, AskForNewTime } from "./JobReschedule.tsx";
+import { MoveJob } from "./JobMove.tsx";
 import { OfferServicePlan } from "./StartDraft.tsx";
 import { AssignmentStateBadge, JobBadge } from "../JobBadges.tsx";
 
@@ -111,6 +113,7 @@ export function JobScreen() {
 // be done to the whole Job as text actions: none of them is the page's
 // main action
 function JobHeader({ job }: { job: OfficeJob }) {
+  const [open, setOpen] = useState<JobAction | null>(null);
   return (
     <div className="flex flex-col gap-4">
       <Breadcrumbs
@@ -134,13 +137,63 @@ function JobHeader({ job }: { job: OfficeJob }) {
         {(job.rescheduleTerms || job.cancelTerms) && (
           <div className="ml-auto">
             <ActionBar aria-label="Job actions">
-              <MoveActions job={job} />
-              {job.cancelTerms && <CancelJob job={job} />}
+              {job.rescheduleTerms && (
+                <>
+                  <IconAction
+                    icon={CalendarSync}
+                    label="Move job"
+                    onPress={() => setOpen("move")}
+                  />
+                  <IconAction
+                    icon={CalendarClock}
+                    label="Ask for a new time"
+                    onPress={() => setOpen("ask")}
+                  />
+                </>
+              )}
+              {job.cancelTerms && (
+                <IconAction
+                  icon={CalendarX}
+                  label="Cancel job"
+                  danger
+                  onPress={() => setOpen("cancel")}
+                />
+              )}
             </ActionBar>
           </div>
         )}
       </div>
+      <JobDialogs job={job} open={open} setOpen={setOpen} />
     </div>
+  );
+}
+
+// what can be done to the whole Job, each in a dialog; which one is open
+type JobAction = "move" | "ask" | "cancel";
+
+function JobDialogs({
+  job,
+  open,
+  setOpen,
+}: {
+  job: OfficeJob;
+  open: JobAction | null;
+  setOpen: (open: JobAction | null) => void;
+}) {
+  const openAs = (action: JobAction) => ({
+    isOpen: open === action,
+    onOpenChange: (isOpen: boolean) => setOpen(isOpen ? action : null),
+  });
+  return (
+    <>
+      {job.rescheduleTerms && (
+        <>
+          <MoveJob job={job} {...openAs("move")} />
+          <AskForNewTime job={job} {...openAs("ask")} />
+        </>
+      )}
+      {job.cancelTerms && <CancelJob job={job} {...openAs("cancel")} />}
+    </>
   );
 }
 

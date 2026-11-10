@@ -596,18 +596,20 @@ function Reschedule({ job }: { job: ClientJobDetail }) {
     <ActionCard
       title={t.p.anotherTime}
       actions={
-        <ChooseNewTime
-          job={job}
-          terms={terms}
-          base={`/api/jobs/mine/${job.id}`}
-          label={t.pickNewTime}
-          describeCost={(cost, feeCents) =>
-            costForClient(t.lang, cost, feeCents, job)
-          }
-          done={t.w.sent}
-          Picker={PickAvailableTime}
-          inline
-        />
+        <DialogTrigger>
+          <Button variant="secondary">{t.pickNewTime}</Button>
+          <ChooseNewTime
+            job={job}
+            terms={terms}
+            base={`/api/jobs/mine/${job.id}`}
+            describeCost={(cost, feeCents) =>
+              costForClient(t.lang, cost, feeCents, job)
+            }
+            done={t.w.sent}
+            Picker={PickAvailableTime}
+            inline
+          />
+        </DialogTrigger>
       }
     >
       {request?.status === "turned_down" && (
