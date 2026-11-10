@@ -171,7 +171,7 @@ const words = catalog({
     skipQ: "¿Saltar esta limpieza?",
     cancelQ: "¿Cancelar su limpieza?",
     serviceAt: (service: string, address: string, when: string) =>
-      `${service} en ${address}, ${when}.`,
+      oneStop(`${service} en ${address}, ${when}.`),
     keep: "Mantener mi limpieza",
     skipFreeUntil: "Puede saltarla sin cargo hasta el",
     skipAfter:
