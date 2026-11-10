@@ -5,7 +5,8 @@
 // names a path that exists and the plan review is written, or the survey
 // is a dictated one that holds with this edit made (lib's dictatedHolds).
 // Edits outside a checkout, inside the git dir (where those files live)
-// and on a detached HEAD go through.
+// and on a detached HEAD or a prototype branch (lib's prototypeBranch) go
+// through.
 import { existsSync, readFileSync } from "node:fs";
 import { beforeEdit, cwdFor, deny, hook, inGitDir, workOf } from "./lib.mjs";
 

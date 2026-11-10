@@ -298,7 +298,9 @@ stays as it is (#336).
 2. **Prototype it** on a `prototype-<screen>` branch: a signed-out route
    (`/prototype/<screen>?case=&layout=`) with made-up data for every state,
    ↑/↓ to switch layouts and ←/→ to switch cases (`PrototypeSwitcher`).
-   Usually three layouts. Push the branch; it's kept as the record.
+   Usually three layouts. Push the branch; it's kept as the record. It never
+   becomes a PR, so it skips the change review (the `change` skill's
+   Prototype rule).
 3. **Pick one** with the user, and note any tweaks.
 4. **Build it** on a `ux-<screen>` branch, with its tests (e2e on phone and
    desktop, axe in light and dark through the harness's `expectAccessible`,
