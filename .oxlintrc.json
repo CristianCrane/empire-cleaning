@@ -6,9 +6,12 @@
   "plugins": ["typescript", "react", "oxc", "unicorn", "import"],
   // our own rules (packages/lint): JS plugins are in alpha in oxlint, and
   // packages/lint's tests run each rule through oxlint's RuleTester
-  "jsPlugins": ["./packages/lint/src/report-unexpected.ts"],
+  "jsPlugins": ["./packages/lint/src/index.ts"],
   "categories": { "correctness": "error" },
   "rules": {
+    // words that differ by language come from a catalog, never a branch on
+    // the language (packages/lint/README.md)
+    "empire/words-from-catalog": "error",
     // a promise nobody awaits fails silently
     "typescript/no-floating-promises": "error",
     // a switch with no default fails once its union gains a member; one with
