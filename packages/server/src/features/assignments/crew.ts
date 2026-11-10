@@ -1,5 +1,6 @@
 import { and, asc, count, eq, inArray } from "drizzle-orm";
-import type { AssignmentStatus } from "@empire-cleaning/models";
+import { type AssignmentStatus, catalog } from "@empire-cleaning/models";
+import { currentLanguage } from "#services/request";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { staff } from "../staff/staff.schema.ts";
@@ -55,6 +56,23 @@ export const crewOf = async (jobIds: string[], tx: Tx | typeof db = db) => {
   return crews;
 };
 
+// what a Cleaner acting on a Job as its crew is told, in the request's
+// language, tú in Spanish (ADR-0025)
+const words = catalog({
+  en: {
+    NOT_STARTED: "This job hasn't started yet.",
+    CONFIRM_FIRST: "Confirm this job first.",
+  },
+  es: {
+    NOT_STARTED: "Este trabajo todavía no empezó.",
+    CONFIRM_FIRST: "Primero confirma este trabajo.",
+  },
+});
+
+// a Cleaner completing a Job, or saying they couldn't get in, before it
+// starts
+export const notStarted = () => words[currentLanguage()].NOT_STARTED;
+
 // Refuses a Cleaner acting on a Job as its crew (completing it, recording
 // No Access) until their Assignment is Confirmed; to anyone not on its crew,
 // the Job doesn't exist
@@ -71,6 +89,6 @@ export const mustBeConfirmed = async (staffId: string, jobId: string) => {
     );
   if (!mine) throw new NotFoundError("Job not found");
   if (mine.status !== "confirmed") {
-    throw new ConflictError("Confirm this job first.");
+    throw new ConflictError(words[currentLanguage()].CONFIRM_FIRST);
   }
 };

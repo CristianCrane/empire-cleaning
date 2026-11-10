@@ -12,9 +12,10 @@ import {
 import { catalog } from "@empire-cleaning/models";
 import { linkTo } from "../links.ts";
 
+// every area's, so its Spanish addresses no one (docs/ux.md, Language)
 const words = catalog({
   en: { goHome: "Go to your home page" },
-  es: { goHome: "Ir a su página de inicio" },
+  es: { goHome: "Ir a la página de inicio" },
 });
 
 // true inside an area's layout, which already gives the page its frame

@@ -15,8 +15,8 @@ import { accounts } from "../auth/auth.schema.ts";
 // Method when it's made, or paid by them on its page by its due date
 export const billPayment = pgEnum("bill_payment", ["automatic", "on_page"]);
 
-// the languages a Client (and, with #305, a Staff member) reads screens and
-// messages in (ADR-0025)
+// the languages a Client or a Staff member reads screens and messages in
+// (ADR-0025)
 export const language = pgEnum("language", LANGUAGES);
 
 // a person or business Empire Cleaning has a relationship with, from their

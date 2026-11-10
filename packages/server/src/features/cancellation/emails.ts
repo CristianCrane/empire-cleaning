@@ -1,13 +1,14 @@
 import {
-  button,
+  cleanButton,
   cleanDetails,
   greeting,
+  officeJobButton,
   paragraph,
   type Clean,
   type Email,
 } from "../../services/email/blocks.ts";
 import { firstNameOf } from "../../services/email/format.ts";
-import { jobsButton } from "../assignments/emails.ts";
+import { crewWords, jobsButton } from "../assignments/emails.ts";
 import type { Settled } from "../completion/balance.ts";
 import { bookAnother } from "../quotes/emails.ts";
 import {
@@ -26,7 +27,6 @@ const { formatMoney } = formats.en;
 
 const words = catalog({
   en: {
-    SEE_CLEAN: "See your clean",
     ON_WEEKLY_BILL: "It goes on your weekly bill.",
     // the fee, as "We couldn't take it" says it
     IT: "it",
@@ -47,9 +47,12 @@ const words = catalog({
       CHECK_NEXT: "Before your next clean, please check how we get in.",
       CHECK_FIRST: "Please check how we get in first.",
     },
+    crewCancelled: {
+      subject: "A job you're on is cancelled",
+      CANCELLED: "We've cancelled this job.",
+    },
   },
   es: {
-    SEE_CLEAN: "Ver su limpieza",
     ON_WEEKLY_BILL: "Va en su factura semanal.",
     IT: "el cargo",
     chargedTo: (card: string) => `Lo cobramos a su ${card}.`,
@@ -69,6 +72,10 @@ const words = catalog({
       CHECK_NEXT:
         "Antes de su próxima limpieza, por favor revise cómo entramos.",
       CHECK_FIRST: "Por favor, revise primero cómo entramos.",
+    },
+    crewCancelled: {
+      subject: "Se canceló un trabajo tuyo",
+      CANCELLED: "Cancelamos este trabajo.",
     },
   },
 });
@@ -110,11 +117,6 @@ const feeChargeLine = (lang: Language, settled: Settled) => {
 // for the week the Job was in (ADR-0016), which needn't be the next one made
 const feeTaken = (settled: Settled) =>
   settled.billed ? ON_THAT_WEEKS_BILL : "is charged";
-
-const portalButton = (lang: Language, jobId: string) =>
-  button(words[lang].SEE_CLEAN, `/portal/jobs/${jobId}`);
-const officeButton = (jobId: string) =>
-  button("See the job", `/office/jobs/${jobId}`);
 
 export type Cancelled = {
   name: string;
@@ -173,28 +175,28 @@ export const cancelledEmail = (
         ...refundLine(lang, settled),
         onPlan ? PLAN_CARRIES_ON : bookAnother[lang],
       ].map(paragraph),
-      portalButton(lang, jobId),
+      cleanButton(lang, jobId),
     ],
   };
 };
 
 // everyone on its crew hears it's off
-export const crewCancelledEmail = ({
-  name,
-  clean,
-}: {
-  name: string;
-  clean: Clean;
-}): Email => ({
-  lang: "en",
-  subject: "A job you're on is cancelled",
-  blocks: [
-    greeting(firstNameOf(name)),
-    paragraph("We've cancelled this job. You don't need to go."),
-    cleanDetails("en", clean),
-    jobsButton,
-  ],
-});
+export const crewCancelledEmail = (
+  lang: Language,
+  { name, clean }: { name: string; clean: Clean },
+): Email => {
+  const w = words[lang].crewCancelled;
+  return {
+    lang,
+    subject: w.subject,
+    blocks: [
+      greeting(firstNameOf(name)),
+      paragraph(`${w.CANCELLED} ${crewWords[lang].NO_NEED_TO_GO}`),
+      cleanDetails(lang, clean),
+      jobsButton(lang),
+    ],
+  };
+};
 
 // the Office hears when a Client cancels or skips a Job themselves
 export const officeCancelledEmail = ({
@@ -238,7 +240,7 @@ export const officeCancelledEmail = ({
       }),
     ),
     ...(settled.failure ? [paragraph(feeNotPaid(settled.failure))] : []),
-    officeButton(jobId),
+    officeJobButton(jobId),
   ],
 });
 
@@ -282,7 +284,7 @@ export const noAccessEmail = (
           ? `${PLAN_CARRIES_ON} ${w.CHECK_NEXT}`
           : `${bookAnother[lang]} ${w.CHECK_FIRST}`,
       ].map(paragraph),
-      portalButton(lang, jobId),
+      cleanButton(lang, jobId),
     ],
   };
 };
@@ -316,6 +318,6 @@ export const officeNoAccessEmail = ({
           : `${client} has been told, and the fee ${feeTaken(settled)}.`
         : `${client} has been told, and the deposit is kept as the fee.`,
     ),
-    officeButton(jobId),
+    officeJobButton(jobId),
   ],
 });

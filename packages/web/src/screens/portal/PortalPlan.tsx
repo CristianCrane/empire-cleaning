@@ -46,7 +46,6 @@ const words = catalog({
     askToChange: "Ask to change",
     askTitle: "Ask to change your plan",
     what: "What would you like to change?",
-    send: "Send",
     tellUs:
       "A different day, how often, or what's included? Tell us, and we'll send you a new cleaning plan quote. Nothing changes until you accept it.",
   },
@@ -58,14 +57,13 @@ const words = catalog({
     noneBooked: "No hay limpiezas reservadas.",
     noneJustNow:
       "Por ahora no hay limpiezas reservadas. Le contactaremos sobre la próxima.",
-    aboutOnSite: (hours: string) => `Unas ${hours} en el lugar`,
+    aboutOnSite: (hours: string) => `Cerca de ${hours} en el lugar`,
     didntSend: "No se envió. Vuelva a intentarlo.",
     sent: "Enviado. Le enviaremos una nueva cotización de plan de limpieza.",
     change: "Cambiar su plan",
     askToChange: "Pedir un cambio",
     askTitle: "Pedir un cambio en su plan",
     what: "¿Qué le gustaría cambiar?",
-    send: "Enviar",
     tellUs:
       "¿Otro día, otra frecuencia u otra cosa incluida? Cuéntenos y le enviaremos una nueva cotización de plan de limpieza. Nada cambia hasta que la acepte.",
   },
@@ -214,7 +212,7 @@ function AskToChange({ plan }: { plan: ServicePlanView }) {
                         {t.p.cancel}
                       </Button>
                       <Button type="submit" isPending={action.isPending}>
-                        {t.w.send}
+                        {t.send}
                       </Button>
                     </Actions>
                   </Form>

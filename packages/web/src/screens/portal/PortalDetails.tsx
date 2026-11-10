@@ -1,21 +1,13 @@
-import { useState } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import {
   Building2,
   House,
-  Languages,
   Mail,
   Phone,
   SquarePen,
   UserRound,
 } from "lucide-react";
-import {
-  catalog,
-  type ClientView,
-  type Language,
-  LANGUAGES,
-  languageNames,
-} from "@empire-cleaning/models";
+import { catalog, type ClientView } from "@empire-cleaning/models";
 import {
   Actions,
   Button,
@@ -29,13 +21,10 @@ import {
   ListItem,
   Notice,
   Section,
-  Select,
-  SelectItem,
   StatusBadge,
   TextField,
 } from "@empire-cleaning/ui";
-import { patchJson, putJson } from "../../api.ts";
-import { forgetAccount } from "../../session.ts";
+import { patchJson } from "../../api.ts";
 import { useAction } from "../action.ts";
 import { addressOf } from "../format.ts";
 import { useSaid } from "../words.ts";
@@ -53,8 +42,6 @@ const words = catalog({
     name: "Name",
     whereQuotes: "Where we send your quotes",
     phone: "Phone",
-    language: "Language",
-    languageLine: "Your screens and emails",
     oneHome: "How we get in, its cleaning plan and quotes are on its page.",
     manyHomes:
       "How we get in, cleaning plans and quotes are on each one's page.",
@@ -66,7 +53,6 @@ const words = catalog({
     fullName: "Full name",
     emailNote:
       "Where we send your quotes. We switch to a new one once you open the link we email to it. You still sign in the way you do now.",
-    languageNote: "We'll show the app and send our emails in it.",
     saveDetails: "Save details",
   },
   es: {
@@ -78,8 +64,6 @@ const words = catalog({
     name: "Nombre",
     whereQuotes: "Adonde le enviamos las cotizaciones",
     phone: "Teléfono",
-    language: "Idioma",
-    languageLine: "Sus pantallas y correos",
     oneHome:
       "Cómo entramos, su plan de limpieza y cotizaciones están en su página.",
     manyHomes:
@@ -92,8 +76,6 @@ const words = catalog({
     fullName: "Nombre completo",
     emailNote:
       "Adonde le enviamos las cotizaciones. Cambiamos al nuevo cuando abra el enlace que le enviamos. Sigue iniciando sesión como ahora.",
-    languageNote:
-      "Le mostramos la aplicación y le enviamos los correos en este idioma.",
     saveDetails: "Guardar datos",
   },
 });
@@ -129,7 +111,7 @@ export function PortalDetails() {
           </Notice>
         )}
         <Card>
-          <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
+          <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
             <Fact
               icon={UserRound}
               label={w.name}
@@ -145,12 +127,6 @@ export function PortalDetails() {
               line={w.whereQuotes}
             />
             <Fact icon={Phone} label={w.phone} value={client.phone} />
-            <Fact
-              icon={Languages}
-              label={w.language}
-              value={languageNames[client.preferredLanguage]}
-              line={w.languageLine}
-            />
           </dl>
         </Card>
       </Section>
@@ -201,7 +177,6 @@ function EditContact({ client }: { client: ClientView }) {
   const t = useSaid(words);
   const { w } = t;
   const action = useAction(w.notSaved);
-  const [language, setLanguage] = useState<Language>(client.preferredLanguage);
 
   const save = async (form: FormData, close: () => void) => {
     const ok = await action.run(
@@ -211,20 +186,13 @@ function EditContact({ client }: { client: ClientView }) {
           email: form.get("email"),
           phone: form.get("phone"),
         });
-        // their own language, on every record they are (ADR-0025): the
-        // portal follows it once the Account is asked for again
-        if (language !== client.preferredLanguage) {
-          await putJson("/api/me/language", { language });
-          forgetAccount();
-        }
         return saved;
       },
       // a new email is theirs once they open the link sent to it (#243);
-      // said in the language they chose, which the page turns to
       (saved) =>
         saved.pendingEmail && saved.pendingEmail !== client.pendingEmail
-          ? words[language].checkFor(saved.pendingEmail)
-          : words[language].saved,
+          ? w.checkFor(saved.pendingEmail)
+          : w.saved,
     );
     if (ok) close();
   };
@@ -269,22 +237,6 @@ function EditContact({ client }: { client: ClientView }) {
               isRequired
               defaultValue={client.phone}
             />
-            <Select
-              label={w.language}
-              description={w.languageNote}
-              selectedKey={language}
-              onSelectionChange={(key) => setLanguage(key as Language)}
-            >
-              {LANGUAGES.map((lang) => (
-                <SelectItem
-                  key={lang}
-                  id={lang}
-                  textValue={languageNames[lang]}
-                >
-                  <span lang={lang}>{languageNames[lang]}</span>
-                </SelectItem>
-              ))}
-            </Select>
             {action.problem && <Notice tone="danger">{action.problem}</Notice>}
             <Actions>
               <Button variant="quiet" onPress={close}>

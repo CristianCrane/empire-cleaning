@@ -39,13 +39,13 @@ export type AreaTours = {
 
 // every area's, in each language it comes in: one added without tours
 // fails the typecheck here. English always; Spanish where the area is
-// shown in it (the portal; the Cleaner area from #305; never the Office,
+// shown in it (the portal and the Cleaner area; never the Office,
 // ADR-0025), so an area's English is its tours in a language it hasn't
 type InLanguages = Partial<Catalog<AreaTours>> & { en: AreaTours };
 export const toursFor: Record<AreaId, InLanguages> = {
   portal: clientTours,
   office: { en: officeTours },
-  cleaner: { en: cleanerTours },
+  cleaner: cleanerTours,
 };
 
 export const tourIds = Object.values(toursFor).flatMap((area) =>

@@ -25,7 +25,10 @@ export type SignedInAccount = {
 // connected to no Client (ADR-0025)
 export type Me = SignedInAccount & {
   seenTours: string[];
-  language: Language | null;
+  // each area's language that follows the person (ADR-0025): the portal
+  // their Client's Preferred Language, the Cleaner area their Staff
+  // member's; null while the Account is connected to none
+  languages: { portal: Language | null; cleaner: Language | null };
 };
 
 // which site the API is, as GET /api/site returns it: "test" is the test

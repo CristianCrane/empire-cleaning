@@ -7,10 +7,14 @@ import {
   useRouter,
 } from "@tanstack/react-router";
 import {
+  ArrowRightLeft,
   CalendarDays,
   ContactRound,
   House,
   Inbox,
+  Languages,
+  Lightbulb,
+  LogOut,
   Sparkles,
   Tag,
   LayoutDashboard,
@@ -26,19 +30,19 @@ import type {
   SignedInAccount,
 } from "@empire-cleaning/models";
 import {
-  Actions,
   AppLayout,
   Button,
-  Dialog,
-  DialogTrigger,
-  List,
-  ListItem,
   Notice,
   type NavItem,
   useLanguage,
 } from "@empire-cleaning/ui";
-import { catalog, type Language } from "@empire-cleaning/models";
-import { deleteJson, getJson } from "../api.ts";
+import {
+  catalog,
+  type Language,
+  LANGUAGES,
+  languageNames,
+} from "@empire-cleaning/models";
+import { deleteJson, getJson, putJson } from "../api.ts";
 import { useLoaded } from "./load.ts";
 import { linkTo } from "../links.ts";
 import { InArea } from "./MessagePage.tsx";
@@ -48,36 +52,33 @@ import {
   areas,
   areasFor,
   forgetAccount,
-  getAccount,
   signOut,
   type AreaId,
 } from "../session.ts";
-import { reportUnexpected } from "../monitoring.ts";
 import { useAction } from "./action.ts";
 import { useTours } from "./run-tours.ts";
+import { cleanerWords } from "./cleaner/words.ts";
 import { portalWords } from "./portal/words.ts";
 import { said } from "./words.ts";
 
-// the Account menu's words, in every area's language (ADR-0025)
+// the account's words, at the foot of the sidebar and the ☰ menu, in every
+// area's language (ADR-0025): said to Clients and Cleaners alike, so their
+// Spanish addresses no one, neither usted nor tú (docs/ux.md, Language)
 const words = catalog({
   en: {
-    account: "Account",
-    switchTo: "Switch to",
     switchToArea: (area: string) => `Switch to ${area}`,
     showTips: "Show tips again",
     tipsBack: "Tips will show again",
     tipsFailed: "Couldn't bring the tips back. Try again.",
-    offers: (n: number) => `Offers (${n})`,
+    languageFailed: "Couldn't change the language. Try again.",
   },
   es: {
-    account: "Cuenta",
-    switchTo: "Cambiar a",
     switchToArea: (area: string) => `Cambiar a ${area}`,
     showTips: "Volver a mostrar consejos",
     tipsBack: "Los consejos se volverán a mostrar",
     tipsFailed:
-      "No se pudieron volver a mostrar los consejos. Inténtelo de nuevo.",
-    offers: (n: number) => `Ofertas (${n})`,
+      "No se pudieron volver a mostrar los consejos. Se puede intentar de nuevo.",
+    languageFailed: "No se pudo cambiar el idioma. Se puede intentar de nuevo.",
   },
 });
 
@@ -88,8 +89,8 @@ type AreaNavItem = NavItem & { alsoCurrentFor?: string[] };
 // each area's navigation; feature tickets add their screens here. A phone's
 // tab bar holds five at most: the Office keeps the two it checks all day
 // there, the rest in its ☰ menu (#200). The Office's sections come in
-// groups of related ones, the busiest first. The portal's are in its
-// Client's language; the Office's and the Cleaner area's English (#305)
+// groups of related ones, the busiest first. The portal's and the Cleaner
+// area's are in their person's language; the Office's English
 const navFor = (lang: Language): Record<AreaId, AreaNavItem[]> => ({
   office: [
     { href: linkTo({ to: "/office" }), label: "Today", icon: LayoutDashboard },
@@ -153,13 +154,13 @@ const navFor = (lang: Language): Record<AreaId, AreaNavItem[]> => ({
   cleaner: [
     {
       href: linkTo({ to: "/cleaner" }),
-      label: "Your jobs",
+      label: cleanerWords[lang].yourJobs,
       icon: CalendarDays,
       alsoCurrentFor: ["/cleaner/jobs/"],
     },
     {
       href: linkTo({ to: "/cleaner/offers" }),
-      label: "Offers",
+      label: cleanerWords[lang].offers,
       icon: Inbox,
       alsoCurrentFor: ["/cleaner/open/"],
     },
@@ -202,8 +203,8 @@ export function AreaLayout({ area }: { area: AreaId }) {
     ({ alsoCurrentFor = [], ...item }) => ({
       ...item,
       label:
-        item.label === "Offers" && offers > 0
-          ? words[lang].offers(offers)
+        item.href === linkTo({ to: "/cleaner/offers" }) && offers > 0
+          ? cleanerWords[lang].offersCount(offers)
           : item.label,
       isCurrent:
         Boolean(matchRoute(item.href)) ||
@@ -211,12 +212,26 @@ export function AreaLayout({ area }: { area: AreaId }) {
     }),
   );
 
+  // every area's account parts are at the foot of the sidebar, and of the
+  // ☰ menu on a phone (#305). The areas that follow the person's language
+  // offer the other one among them; the Office is English for good
+  const own = area !== "office";
+  // here, so the ☰ menu stays open while an area switches
+  const footActions = useAccountActions(account, area);
+
   return (
     <AppLayout
       area={areaLabels[lang][area]}
       nav={nav}
-      account={<AccountMenu account={account} area={area} />}
-      atHome={pathname.replace(/\/$/, "") === areas[area].path}
+      foot={({ close }) => (
+        <AccountFoot
+          account={account}
+          actions={footActions}
+          close={close}
+          withLanguage={own}
+        />
+      )}
+      menuBusy={footActions.switching !== undefined}
     >
       <InArea value>
         <Outlet />
@@ -247,38 +262,20 @@ function useOffersCount(on: boolean, pathname: string) {
   return value ?? 0;
 }
 
-// who's signed in, a way into their other area (Staff holding both roles),
-// bringing back first-time help's tours, and signing out
-function AccountMenu({
-  account,
-  area,
-}: {
-  account: SignedInAccount;
-  area: AreaId;
-}) {
+// what the person can do with their Account, at the foot of the sidebar or
+// a phone's ☰ menu: switch to their other area (Staff
+// holding both roles, or a Cleaner who's a Client too), bring back
+// first-time help's tours, and sign out
+function useAccountActions(account: SignedInAccount, area: AreaId) {
   const navigate = useNavigate();
-  const router = useRouter();
   const otherAreas = areasFor(account).filter((id) => id !== area);
   const lang = useLanguage();
-  const w = words[lang];
+  const w = { ...words[lang], signOut: said[lang].signOut };
   const action = useAction(w.tipsFailed);
   // the area being switched to, until it's on screen
   const [switching, setSwitching] = useState<AreaId>();
 
-  // opening the menu is when an area is chosen: look again at what the
-  // Account is connected to, and load each area it offers, its Home included,
-  // so pressing one shows it at once (the router keeps them 30 s)
-  const preloadAreas = () => {
-    forgetAccount();
-    getAccount().catch(reportUnexpected);
-    for (const id of otherAreas) {
-      // a failed load is caught by the router itself (and runs again on the
-      // visit, which PageError reports)
-      void router.preloadRoute({ to: areas[id].path });
-    }
-  };
-
-  // pressed before the area is ready, the menu stays open with the row
+  // pressed before the area is ready, a ☰ menu stays open with the item
   // pending, and goes with this area as the new one shows. Still here once
   // the switch is over, it went nowhere new (a redirect back to this area,
   // or Back pressed meanwhile), so the menu closes itself
@@ -301,60 +298,126 @@ function AccountMenu({
     if (ok) close();
   };
 
+  const signOutHere = async (close: () => void) => {
+    await signOut();
+    close();
+    void navigate({ to: "/sign-in" });
+  };
+
+  return {
+    w,
+    lang,
+    otherAreas,
+    switching,
+    action,
+    switchTo,
+    showTipsAgain,
+    signOutHere,
+  };
+}
+
+// who's signed in, and what they can do with their Account, one plain item
+// each, at the foot of the sidebar and of a phone's ☰ menu, the other
+// language among them where the area follows it (#305)
+function AccountFoot({
+  account,
+  actions: a,
+  close,
+  withLanguage,
+}: {
+  account: SignedInAccount;
+  actions: ReturnType<typeof useAccountActions>;
+  close: () => void;
+  // the other language, in an area that follows the person's
+  withLanguage: boolean;
+}) {
+  // nothing here asks who's signed in again: a record connected meanwhile
+  // shows on returning to the tab (main.tsx)
+  const { w, switching } = a;
+
   return (
-    <DialogTrigger onOpenChange={(isOpen) => isOpen && preloadAreas()}>
-      <Button variant="quiet" className="justify-start">
-        <User aria-hidden size={20} />
-        <span className="max-md:sr-only">{account.name}</span>
+    <>
+      <div className="flex items-center gap-3 px-3">
+        <User aria-hidden size={20} className="shrink-0 text-fg-muted" />
+        <div className="flex min-w-0 flex-col">
+          <span className="font-semibold">{account.name}</span>
+          <span className="truncate text-sm text-fg-muted">
+            {account.email}
+          </span>
+        </div>
+      </div>
+      <div className="flex flex-col gap-1">
+        {withLanguage && <OtherLanguage onChanged={close} />}
+        {a.otherAreas.map((id) => (
+          <Button
+            key={id}
+            variant="quiet"
+            className="justify-start"
+            isPending={switching === id}
+            isDisabled={switching !== undefined}
+            onPress={() => void a.switchTo(id, close)}
+          >
+            <ArrowRightLeft aria-hidden size={20} />
+            {w.switchToArea(areaLabels[a.lang][id])}
+          </Button>
+        ))}
+        <Button
+          variant="quiet"
+          className="justify-start"
+          isPending={a.action.isPending}
+          isDisabled={switching !== undefined}
+          onPress={() => void a.showTipsAgain(close)}
+        >
+          <Lightbulb aria-hidden size={20} />
+          {w.showTips}
+        </Button>
+        <Button
+          variant="quiet"
+          className="justify-start"
+          isDisabled={switching !== undefined}
+          onPress={() => void a.signOutHere(close)}
+        >
+          <LogOut aria-hidden size={20} />
+          {w.signOut}
+        </Button>
+      </div>
+      {a.action.problem && <Notice tone="danger">{a.action.problem}</Notice>}
+    </>
+  );
+}
+
+// the other language, named in its own words (Español on an English screen,
+// English on a Spanish one), one press away, so someone who can't read the
+// screen's language still finds it (#305). It's the person's own choice,
+// written on every Client and Staff member they are (ADR-0025); the area
+// turns to it once the Account is asked for again
+function OtherLanguage({ onChanged }: { onChanged?: () => void }) {
+  const router = useRouter();
+  const lang = useLanguage();
+  const other = LANGUAGES.find((l) => l !== lang)!;
+  const action = useAction(words[lang].languageFailed);
+
+  const change = async () => {
+    const ok = await action.run(async () => {
+      await putJson("/api/me/language", { language: other });
+      forgetAccount();
+      await router.invalidate();
+    });
+    if (ok) onChanged?.();
+  };
+
+  return (
+    <>
+      <Button
+        variant="quiet"
+        className="justify-start"
+        isPending={action.isPending}
+        onPress={() => void change()}
+      >
+        <Languages aria-hidden size={20} />
+        <span lang={other}>{languageNames[other]}</span>
       </Button>
-      <Dialog title={w.account} isBusy={switching !== undefined}>
-        {({ close }) => (
-          <>
-            <div className="flex flex-col">
-              <span className="font-semibold">{account.name}</span>
-              <span className="text-fg-muted">{account.email}</span>
-            </div>
-            {otherAreas.length > 0 && (
-              <List
-                aria-label={w.switchTo}
-                onAction={(id) => void switchTo(id as AreaId, close)}
-              >
-                {otherAreas.map((id) => (
-                  <ListItem
-                    key={id}
-                    id={id}
-                    title={w.switchToArea(areaLabels[lang][id])}
-                    isPending={switching === id}
-                    isDisabled={switching !== undefined}
-                  />
-                ))}
-              </List>
-            )}
-            {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-            <Actions>
-              <Button
-                variant="quiet"
-                isPending={action.isPending}
-                isDisabled={switching !== undefined}
-                onPress={() => void showTipsAgain(close)}
-              >
-                {w.showTips}
-              </Button>
-              <Button
-                variant="quiet"
-                isDisabled={switching !== undefined}
-                onPress={async () => {
-                  await signOut();
-                  close();
-                  void navigate({ to: "/sign-in" });
-                }}
-              >
-                {said[lang].signOut}
-              </Button>
-            </Actions>
-          </>
-        )}
-      </Dialog>
-    </DialogTrigger>
+      {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+    </>
   );
 }

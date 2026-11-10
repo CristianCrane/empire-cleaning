@@ -200,12 +200,21 @@ function Root() {
   );
 }
 
+// whether a path is in an area, whose route says its language once it
+// knows who's signed in
+const inArea = (pathname: string) =>
+  Object.values(areas).some(
+    ({ path }) => pathname === path || pathname.startsWith(`${path}/`),
+  );
+
 const rootRoute = createRootRoute({
   // a screen outside an area (sign-in, its links' pages, not found) is in
-  // the signed-out language; an area's route then says its own. A preload
-  // (the Account menu's) changes nothing on screen
-  beforeLoad: ({ preload }) => {
-    if (!preload) setAppLanguage(signedOutLanguage());
+  // the signed-out language. An area's is left as it is until its route says
+  // its own: the screen on show keeps its language while the Account is
+  // asked for again (returning to the tab), rather than flashing the
+  // signed-out one (#305)
+  beforeLoad: ({ location }) => {
+    if (!inArea(location.pathname)) setAppLanguage(signedOutLanguage());
   },
   component: Root,
   notFoundComponent: NotFound,
@@ -321,25 +330,23 @@ const peopleRoute = createRoute({
 });
 
 // each area's language (ADR-0025): the portal the Client's Preferred
-// Language, the Office English for good, the Cleaner area English until it
-// comes in Spanish (#305)
+// Language, the Cleaner area the Staff member's, the Office English for good
 const areaLanguage: Record<AreaId, (account: Me) => Language> = {
-  portal: (account) => account.language ?? signedOutLanguage(),
+  portal: (account) => account.languages.portal ?? signedOutLanguage(),
   office: () => "en",
-  cleaner: () => "en",
+  cleaner: (account) => account.languages.cleaner ?? signedOutLanguage(),
 };
 
 // an area is only for Accounts holding its role: anyone signed out goes to
 // sign-in (and comes back afterwards), anyone else to their own area. The
-// Account is the one remembered: opening the Account menu, where an area is
-// chosen, looks again (AreaLayout's AccountMenu), so switching to one asks
+// Account is the one remembered (session.ts), so switching to one asks
 // nothing new
 const areaRoute = <Id extends AreaId>(id: Id) =>
   createRoute({
     getParentRoute: () => rootRoute,
     // the area's own path as a literal type, so its child routes are typed
     path: areas[id].path as (typeof areas)[Id]["path"],
-    beforeLoad: async ({ location, preload }) => {
+    beforeLoad: async ({ location }) => {
       const account = await getAccount();
       if (!account) {
         throw redirect({ to: "/sign-in", search: { next: location.href } });
@@ -347,7 +354,7 @@ const areaRoute = <Id extends AreaId>(id: Id) =>
       if (!account.roles.includes(areas[id].role)) {
         throw redirect({ to: (await homeOf()) ?? "/sign-in" });
       }
-      if (!preload) setAppLanguage(areaLanguage[id](account));
+      setAppLanguage(areaLanguage[id](account));
       return { account };
     },
     component: () => <AreaLayout area={id} />,

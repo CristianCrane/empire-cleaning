@@ -6,6 +6,7 @@ import {
   linkIn,
   quoteSent,
   requestQuoteAsGuest,
+  showInMenu,
   signUp,
   signedInAs,
   test,
@@ -54,10 +55,11 @@ const CARD = {
   approvalFails: "4000002760003184",
 };
 
-// the Payment Element's frame, under `within`
+// the Payment Element's frame, under `within`, titled in the form's
+// language
 const cardFrame = (within: Locator) =>
   within.frameLocator(
-    'iframe[title="Secure payment input frame"]:not([aria-hidden="true"])',
+    'iframe:is([title="Secure payment input frame"], [title="Cuadro de entrada de pago seguro"]):not([aria-hidden="true"])',
   );
 
 // types a card into the Payment Element under `within`
@@ -175,6 +177,39 @@ test("the Client saves a card as their Payment Method", async ({ page }) => {
   await enterCard(add, CARD.visa);
   await add.getByRole("button", { name: "Save card" }).click();
   await expect(page.getByText(/^Your Visa ending 4242 is saved/)).toBeVisible();
+});
+
+// Stripe's own words, its terms line among them, follow a change of
+// language without the page loading again (#305): only here does its real
+// form show them
+test("the card form's own words turn Spanish when the Client switches language", async ({
+  page,
+}) => {
+  await requestQuoteAsGuest(casey);
+  await signedInAs(page, casey.email);
+  await page.goto("/portal/payment-method");
+  const card = cardFrame(page.getByRole("region", { name: "Add a card" }));
+  await expect(
+    card.getByText(/By providing your card information/),
+  ).toBeVisible();
+
+  const { item } = await showInMenu(
+    page,
+    page.getByRole("button", { name: "Español", exact: true }),
+  );
+  await item.click();
+
+  const added = cardFrame(
+    page.getByRole("region", { name: "Agregar una tarjeta" }),
+  );
+  // Stripe's own Spanish, in tú, its terms line among it
+  await expect(
+    added.getByText(/^Al suministrar tus datos de tarjeta/),
+  ).toBeVisible();
+  await expect(added.getByText("Número de tarjeta")).toBeVisible();
+  await expect(
+    added.getByText(/By providing your card information/),
+  ).toBeHidden();
 });
 
 test("the Client pays a Bill on its page by card", async ({ page }) => {

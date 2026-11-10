@@ -324,8 +324,9 @@ export const signedInAs = async (page: Page, email: string) => {
   await page.goto("/");
 };
 
-// the signed-in person's own Preferred Language, as Your details sets it
-// (ADR-0025): the portal shows it from the next page loaded
+// the signed-in person's own Preferred Language, as the other language's
+// button sets it (ADR-0025): the portal and the Cleaner area show it from the
+// next page loaded
 export const setLanguage = async (page: Page, language: "en" | "es") => {
   const res = await page.request.put("/api/me/language", {
     data: { language },
@@ -405,35 +406,64 @@ export const test = base.extend<{
   ],
 });
 
-// a section in the navigation, wherever it shows: on a phone most of the
-// Office's sit in its ☰ menu, which is opened first (#200). Whether it opened
-// it, so a check can close it again
-const showNavLink = async (page: Page, name: string) => {
-  const link = page
-    .getByRole("navigation")
-    .getByRole("link", { name, exact: true })
-    .filter({ visible: true });
-  const menu = page.getByRole("button", { name: "Menu" });
-  await expect(link.or(menu).first()).toBeVisible();
-  if (await link.isVisible()) return { link, opened: false };
+// something in the navigation or the account's parts, wherever it shows:
+// on a phone, sections that don't fit the tab bar (#200) and every area's
+// account parts (#305) are in the ☰ menu, in either language, which is
+// opened first. Whether it opened it, so a check
+// can close it again
+export const showInMenu = async (page: Page, wanted: Locator) => {
+  const item = wanted.filter({ visible: true });
+  const menu = page.getByRole("button", { name: /^(Menu|Menú)$/ });
+  await expect(item.or(menu).first()).toBeVisible();
+  if (await item.isVisible()) return { item, opened: false };
   await menu.click();
-  await expect(link).toBeVisible();
-  return { link, opened: true };
+  await expect(item).toBeVisible();
+  return { item, opened: true };
 };
 
-// goes to a section through the navigation
-export const goTo = async (page: Page, name: string) => {
-  const { link } = await showNavLink(page, name);
-  await link.click();
+// a section in the navigation, wherever it shows
+const showNavLink = async (page: Page, name: string) => {
+  const { item, opened } = await showInMenu(
+    page,
+    page.getByRole("navigation").getByRole("link", { name, exact: true }),
+  );
+  return { link: item, opened };
 };
+
+// goes to a section through the navigation; a ☰ menu it was in has closed
+// by the end, as it slides away still showing the same links (#305)
+export const goTo = async (page: Page, name: string) => {
+  const { link, opened } = await showNavLink(page, name);
+  await link.click();
+  if (opened) await expect(page.getByRole("dialog")).toBeHidden();
+};
+
+// shows what the person can do with their Account: at the sidebar's foot
+// on a larger screen, at the ☰ menu's foot on a phone, which is opened
+// first (#305)
+export const openAccount = async (page: Page, name: string) => {
+  await showInMenu(
+    page,
+    page
+      .getByRole("complementary")
+      .or(page.getByRole("dialog"))
+      .getByText(name, { exact: true }),
+  );
+};
+
+// the way into another area, among the account's parts (openAccount)
+export const switchItem = (page: Page, area: string) =>
+  page
+    .getByRole("button", { name: `Switch to ${area}` })
+    .filter({ visible: true });
 
 // moves to another area ("Office", "Cleaner area", "Client portal") from the
-// person's Account menu, which the test has opened, and waits until the area
-// is on screen. The URL changes at once, but until the new area is ready the
-// old one stays, its menu open (AreaLayout's AccountMenu), so a test that went
-// on at the URL could press something in the old one, which then goes (#310)
+// person's account, which the test has shown (openAccount), and waits until
+// the area is on screen. The URL changes at once, but until the new area is
+// ready the old one stays, so a test that went on at the URL could press
+// something in the old one, which then goes (#310)
 export const switchArea = async (page: Page, area: string) => {
-  await page.getByRole("row", { name: `Switch to ${area}` }).click();
+  await switchItem(page, area).click();
   await expect(
     page.getByRole("navigation", { name: area, exact: true }).first(),
   ).toBeVisible();

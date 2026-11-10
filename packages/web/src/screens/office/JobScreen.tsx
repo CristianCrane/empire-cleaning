@@ -29,13 +29,7 @@ import {
 import { deleteJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
-import {
-  addressOf,
-  assignmentStateLabel,
-  clientName,
-  formatHours,
-  screenWords,
-} from "../format.ts";
+import { addressOf, clientName, formatHours, screenWords } from "../format.ts";
 import { costForOffice } from "../RescheduleParts.tsx";
 import { CancelJob, FeeMoney, howItEnded } from "./JobCancellation.tsx";
 import {
@@ -50,7 +44,7 @@ import { AnswerRequest, MoveActions } from "./JobReschedule.tsx";
 import { OfferServicePlan } from "./StartDraft.tsx";
 import { AssignmentStateBadge, JobBadge } from "../JobBadges.tsx";
 
-const { cleaners } = screenWords.en;
+const { assignmentStateLabel, cleaners } = screenWords.en;
 
 const { formatDate, formatDateTime, formatMoney } = formats.en;
 

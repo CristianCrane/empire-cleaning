@@ -91,20 +91,22 @@ const keepUnderWords = catalog({
   en: {
     keepUnder: (n: string, what: Field) => `Keep ${what} under ${n} characters`,
   },
+  // impersonal, as Clients (usted) and Cleaners (tú) both read it
   es: {
     keepUnder: (n: string, what: Field) =>
-      `Use menos de ${n} caracteres${what === "it" ? "" : ` en ${fieldsEs[what]}`}`,
+      `${what === "it" ? "Debe" : fieldsEs[what]} tener menos de ${n} caracteres`,
   },
 });
+// each field and its verb, which agrees with it
 const fieldsEs: Record<Exclude<Field, "it">, string> = {
-  "the name": "el nombre",
-  "the business name": "el nombre del negocio",
-  "the street address": "la dirección",
-  "the unit": "el apartamento o la unidad",
-  "the description": "la descripción",
-  "the reason": "el motivo",
-  "the note": "la nota",
-  "the notes": "las notas",
+  "the name": "El nombre debe",
+  "the business name": "El nombre del negocio debe",
+  "the street address": "La dirección debe",
+  "the unit": "El apartamento o la unidad debe",
+  "the description": "La descripción debe",
+  "the reason": "El motivo debe",
+  "the note": "La nota debe",
+  "the notes": "Las notas deben",
 };
 export const keepUnder = (max: number, what: Field = "it") => ({
   error: () => {

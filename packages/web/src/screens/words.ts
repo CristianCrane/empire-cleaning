@@ -6,17 +6,19 @@ import {
 } from "@empire-cleaning/models";
 import { useLanguage } from "@empire-cleaning/ui";
 import { screenWords } from "./format.ts";
+import { cleanerWords } from "./cleaner/words.ts";
 import { portalWords } from "./portal/words.ts";
 
 // Everything a screen says that isn't its own: models' formats and shared
-// messages, web's screen words and the portal's shared words, in one
-// language (ADR-0025)
+// messages, web's screen words, and the portal's (`p`) and the Cleaner
+// area's (`c`) shared words, in one language (ADR-0025)
 const saidIn = (lang: Language) => ({
   lang,
   ...formats[lang],
   ...messages[lang],
   ...screenWords[lang],
   p: portalWords[lang],
+  c: cleanerWords[lang],
 });
 
 export const said = { en: saidIn("en"), es: saidIn("es") };

@@ -10,6 +10,7 @@ import {
   followSignInLink,
   signInLinkFor,
   signInWithLink,
+  openAccount,
   switchArea,
   test,
   eachTheme,
@@ -255,11 +256,11 @@ test.describe("areas", () => {
       await signedInAs(page, officeStaff.email);
       await expect(page).toHaveURL("/office");
 
-      await page.getByRole("button", { name: officeStaff.name }).click();
+      await openAccount(page, officeStaff.name);
       await switchArea(page, "Cleaner area");
       await expect(page).toHaveURL("/cleaner");
 
-      await page.getByRole("button", { name: officeStaff.name }).click();
+      await openAccount(page, officeStaff.name);
       await switchArea(page, "Office");
       await expect(page).toHaveURL("/office");
     },
@@ -273,7 +274,7 @@ test.describe("areas", () => {
     await signedInAs(page, cleaner.email);
     await expect(page).toHaveURL("/cleaner");
 
-    await page.getByRole("button", { name: cleaner.name }).click();
+    await openAccount(page, cleaner.name);
     await switchArea(page, "Client portal");
 
     await expect(page).toHaveURL("/portal");
@@ -283,7 +284,7 @@ test.describe("areas", () => {
     await createStaff(cleaner);
     await signedInAs(page, cleaner.email);
 
-    await page.getByRole("button", { name: cleaner.name }).click();
+    await openAccount(page, cleaner.name);
     await page.getByRole("button", { name: "Sign out" }).click();
     await expect(page).toHaveURL(/\/sign-in/);
 

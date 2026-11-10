@@ -1,4 +1,6 @@
 import {
+  cleanButton,
+  cleansButton,
   amounts,
   button,
   cleanDetails,
@@ -25,7 +27,6 @@ type Changed = Parameters<(typeof messages.en)["adjustmentLabel"]>[0];
 
 const words = catalog({
   en: {
-    SEE_CLEAN: "See your clean",
     SEE_RECEIPT: "See your receipt",
     ON_WEEKLY_BILL: "It goes on your weekly bill.",
     charged: (amount: string, card: string) =>
@@ -84,7 +85,6 @@ const words = catalog({
       subject: "A correction to your clean",
       MISTAKE:
         "Your clean was marked done by mistake, so we've put it back as booked.",
-      SEE_CLEANS: "See your cleans",
     },
     review: {
       subject: "How was your clean?",
@@ -93,7 +93,6 @@ const words = catalog({
     },
   },
   es: {
-    SEE_CLEAN: "Ver su limpieza",
     SEE_RECEIPT: "Ver su recibo",
     ON_WEEKLY_BILL: "Va en su factura semanal.",
     charged: (amount: string, card: string) =>
@@ -152,7 +151,6 @@ const words = catalog({
       subject: "Una corrección en su limpieza",
       MISTAKE:
         "Su limpieza se marcó como terminada por error, así que la dejamos reservada otra vez.",
-      SEE_CLEANS: "Ver sus limpiezas",
     },
     review: {
       subject: "¿Cómo estuvo su limpieza?",
@@ -161,9 +159,6 @@ const words = catalog({
     },
   },
 });
-
-const portalButton = (lang: Language, jobId: string, label?: string) =>
-  button(label ?? words[lang].SEE_CLEAN, `/portal/jobs/${jobId}`);
 
 // what settling moved, as paragraphs for the Client
 const moneyLines = (lang: Language, settled: Settled, owedCents: number) => {
@@ -231,7 +226,7 @@ export const unpaidEmail = (
       cleanDetails(lang, clean),
       paragraph(w.unpaid.please(UPDATE_AND_RETRY)),
       ...(held ? [paragraph(PLAN_PAUSED)] : []),
-      portalButton(lang, jobId, UPDATE_CARD),
+      cleanButton(lang, jobId, UPDATE_CARD),
     ],
   };
 };
@@ -304,7 +299,7 @@ export const receiptEmail = (
         : []),
       ...moneyLines(lang, settled, owedCents),
       paragraph(PRICES_INCLUDE_TAX),
-      portalButton(lang, jobId, words[lang].SEE_RECEIPT),
+      cleanButton(lang, jobId, words[lang].SEE_RECEIPT),
     ],
   };
 };
@@ -343,7 +338,7 @@ export const proposalEmail = (
       paragraph(w.did(messages[lang].adjustmentLabel(adjustment), reason)),
       cleanDetails(lang, clean),
       paragraph(w.approveBy(formatMoney(totalCents), formatWhen(answerBy))),
-      portalButton(lang, jobId, w.ANSWER),
+      cleanButton(lang, jobId, w.ANSWER),
     ],
   };
 };
@@ -389,7 +384,7 @@ export const approvedEmail = (
       ),
       cleanDetails(lang, clean),
       ...moneyLines(lang, settled, owedCents),
-      portalButton(lang, jobId, words[lang].SEE_RECEIPT),
+      cleanButton(lang, jobId, words[lang].SEE_RECEIPT),
     ],
   };
 };
@@ -422,7 +417,7 @@ export const feeTakenEmail = (
       paragraph(w.what(formats[lang].formatMoney(feeCents))),
       cleanDetails(lang, clean),
       ...moneyLines(lang, settled, owedCents),
-      portalButton(lang, jobId),
+      cleanButton(lang, jobId),
     ],
   };
 };
@@ -454,7 +449,7 @@ export const correctedEmail = (
       paragraph(w.now(formats[lang].formatMoney(totalCents))),
       cleanDetails(lang, clean),
       ...moneyLines(lang, settled, owedCents),
-      portalButton(lang, jobId, words[lang].SEE_RECEIPT),
+      cleanButton(lang, jobId, words[lang].SEE_RECEIPT),
     ],
   };
 };
@@ -487,7 +482,7 @@ export const paymentWentThroughEmail = (
       paragraph(w.what),
       cleanDetails(lang, clean),
       ...moneyLines(lang, settled, owedCents),
-      portalButton(lang, jobId, words[lang].SEE_RECEIPT),
+      cleanButton(lang, jobId, words[lang].SEE_RECEIPT),
     ],
   };
 };
@@ -506,7 +501,7 @@ export const completionUndoneEmail = (
       paragraph(w.MISTAKE),
       cleanDetails(lang, clean),
       ...moneyLines(lang, settled, 0),
-      button(w.SEE_CLEANS, "/portal"),
+      cleansButton(lang),
     ],
   };
 };

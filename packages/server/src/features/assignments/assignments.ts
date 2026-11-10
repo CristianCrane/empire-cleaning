@@ -6,10 +6,12 @@ import {
   type CrewState,
   dayOf,
   HOUR_MS,
+  inLanguage,
   isOnCrew,
   type OfficeJob,
   startOfDay,
 } from "@empire-cleaning/models";
+import { currentLanguage } from "#services/request";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock } from "../../services/clock/index.ts";
@@ -36,7 +38,7 @@ import {
   rescheduleRequestOf,
   rescheduleTermsOf,
 } from "../reschedule/reschedule.ts";
-import { staff } from "../staff/staff.schema.ts";
+import { staff, type StaffAddressee } from "../staff/staff.schema.ts";
 import { tellOfficeStaff } from "../staff/staff.ts";
 import { assignments, onCrew, type Assignment } from "./assignments.schema.ts";
 import {
@@ -212,14 +214,14 @@ export const offerAssignment = async (
 
 // tells a Cleaner they've been offered a Job, once it's saved
 export const emailOffer = (
-  member: { id: string; name: string; email: string },
+  member: StaffAddressee,
   job: Job,
   property: Property,
 ) =>
   notify(`Offer of Job ${job.id} to Staff ${member.id}`, async () =>
     email.send({
       to: member.email,
-      ...offerEmail({
+      ...offerEmail(member.preferredLanguage, {
         name: member.name,
         jobId: job.id,
         clean: await cleanOf(job, property),
@@ -265,7 +267,7 @@ export const removeAssignment = async (
     await notify(`Removal from Job ${jobId} to Staff ${member.id}`, async () =>
       email.send({
         to: member.email,
-        ...takenOffEmail({
+        ...takenOffEmail(member.preferredLanguage, {
           name: member.name,
           clean: await cleanOf(job, property),
         }),
@@ -340,7 +342,10 @@ const cleanerJobs = async (
     return {
       id: job.id,
       startsAt: job.startsAt.toISOString(),
-      serviceName: versions.get(job.serviceId)!.name,
+      // in the Cleaner's language where the Service has its Spanish name; the
+      // extras as the Quote named them, until #395
+      serviceName: inLanguage(currentLanguage(), versions.get(job.serviceId)!)
+        .name,
       hoursOnSite: hoursOnSiteOf(job),
       addOns: addOns.get(job.id)!,
       property: {

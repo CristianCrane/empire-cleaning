@@ -8,8 +8,9 @@ const olive = {
 const logo = { name: "Empire Cleaning & Pro Services" };
 
 // the Office has more sections than a phone's tab bar holds: Today and the
-// Schedule stay in it, the rest sit in the ☰ menu with the logo (#200)
-test("on a phone the Office keeps Today and the Schedule in the tab bar, the rest in the menu", async ({
+// Schedule are its shortcuts, and the ☰ menu, with the logo, lists every
+// section (#200, #305)
+test("on a phone the Office keeps Today and the Schedule in the tab bar, and every section in the menu", async ({
   page,
 }) => {
   await createStaff(olive);
@@ -29,6 +30,8 @@ test("on a phone the Office keeps Today and the Schedule in the tab bar, the res
   const menu = page.getByRole("dialog", { name: "Menu" });
   await expect(menu.getByRole("img", logo)).toBeVisible();
   await expect(menu.getByRole("link")).toHaveText([
+    "Today",
+    "Schedule",
     "Jobs",
     "Quotes",
     "Clients",

@@ -61,7 +61,11 @@ import {
   revisionOptions,
   type RevisionOptionRow,
 } from "../quotes/quotes.schema.ts";
-import { staff } from "../staff/staff.schema.ts";
+import {
+  staff,
+  staffAddressee,
+  type StaffAddressee,
+} from "../staff/staff.schema.ts";
 import { freeUntilOf } from "../cancellation/cancellation.ts";
 import { email } from "../../services/email/index.ts";
 import { cleanOf } from "../services/services.ts";
@@ -150,7 +154,7 @@ export const currentPlanOf = async (
 
 // ---- generating Jobs ----
 
-type Offered = { id: string; name: string; email: string };
+type Offered = StaffAddressee;
 
 // how far back to look for a plan's latest Job on the same weekday: a
 // fortnight of cleans 6 days a week, and then some
@@ -185,7 +189,7 @@ const offerPreviousCrew = async (
   if (!previous) return [];
 
   const crew = await tx
-    .select({ id: staff.id, name: staff.name, email: staff.email })
+    .select(staffAddressee)
     .from(assignments)
     .innerJoin(staff, eq(staff.id, assignments.staffId))
     .where(

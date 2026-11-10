@@ -101,7 +101,7 @@ export function AccessFact({
   return (
     <Fact
       icon={KeyRound}
-      label={t.p.howWeGetIn}
+      label={t.howWeGetIn}
       value={
         <span className="whitespace-pre-line">
           {property.accessInstructions || t.notAdded}

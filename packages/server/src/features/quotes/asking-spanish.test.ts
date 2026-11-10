@@ -33,7 +33,7 @@ describe("asking in Spanish", () => {
         ]),
       );
     expect(issues(es)).toEqual({
-      "contact.name": "Use menos de 100 caracteres en el nombre",
+      "contact.name": "El nombre debe tener menos de 100 caracteres",
       "property.new.postcode": "Escriba un código postal de 5 dígitos",
     });
     expect(issues(en)).toEqual({

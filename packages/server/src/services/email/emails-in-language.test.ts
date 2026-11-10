@@ -9,7 +9,13 @@ import {
   type SettledJob,
 } from "../../features/bills/emails.ts";
 import {
+  cleanersNeededEmail,
+  offerEmail,
+  takenOffEmail,
+} from "../../features/assignments/emails.ts";
+import {
   cancelledEmail,
+  crewCancelledEmail,
   noAccessEmail,
 } from "../../features/cancellation/emails.ts";
 import { emailChangeEmail } from "../../features/clients/emails.ts";
@@ -38,6 +44,8 @@ import {
   type QuoteOffer,
 } from "../../features/quotes/emails.ts";
 import {
+  crewLostEmail,
+  crewMovedEmail,
   jobMovedEmail,
   rescheduleConfirmedEmail,
   rescheduleTurnedDownEmail,
@@ -51,18 +59,21 @@ import {
   siteVisitCancelledEmail,
   siteVisitChangedEmail,
 } from "../../features/site-visits/emails.ts";
+import { staffInviteEmail } from "../../features/staff/emails.ts";
 import type { Clean, Email } from "./blocks.ts";
 import { renderEmail } from "./render.tsx";
 import { createClient } from "#features/clients";
-import { testEmail } from "../../../tests/harness.ts";
+import { createStaff, setUsualWeek } from "#features/staff";
+import { emailedLinkFor, signIn, testEmail } from "../../../tests/harness.ts";
 import {
+  bookedJob,
   casey,
   completedFirstClean,
   signInAsOffice,
 } from "../../../tests/fixtures.ts";
 
-// Every email to a Client, each way it can read, in their Preferred
-// Language (ADR-0025, #304). The data is what a Spanish reader's would be,
+// Every email to a Client (#304) or a Cleaner (#305), each way it can
+// read, in their Preferred Language (ADR-0025). The data is what a Spanish reader's would be,
 // with nothing English in it, so any English left in the words is ours.
 // Names of Services and a Bill's lines stay as stored until #395
 
@@ -160,8 +171,32 @@ const visit = {
 };
 const changed = { kind: "extra_time" as const, addOnName: null, hours: 1 };
 
-// each Client email, every way it reads, in `lang`
+// a Job open to a Cleaner, as the Cleaners Needed email lists it
+const needed = (crewSize: number, hoursOnSite: number) => ({
+  jobId,
+  startsAt: monday.toISOString(),
+  serviceName: clean.service,
+  hoursOnSite,
+  crewSize,
+  postcode: "11375",
+});
+
+// each Client and Cleaner email, every way it reads, in `lang`
 const emailsIn = (lang: Language): Email[] => [
+  offerEmail(lang, { name, jobId, clean }),
+  takenOffEmail(lang, { name, clean }),
+  ...[true, false].flatMap((soon) => [
+    cleanersNeededEmail(lang, { name, soon, jobs: [needed(1, 1)] }),
+    cleanersNeededEmail(lang, {
+      name,
+      soon,
+      jobs: [needed(2, 3.5), needed(1, 2)],
+    }),
+  ]),
+  crewMovedEmail(lang, { name, jobId, clean, from: wednesday }),
+  crewLostEmail(lang, { name, clean, from: wednesday }),
+  crewCancelledEmail(lang, { name, clean }),
+  staffInviteEmail(lang, { name, email }),
   signInEmail(lang, { path: "/sign-in/link?token=t" }),
   emailChangeEmail(lang, { token: "t" }),
   reminderEmail(lang, { name, clean }),
@@ -532,7 +567,7 @@ const shared = new Set([
   "use",
 ]);
 
-describe("every email to a Client, in their Preferred Language", () => {
+describe("every email to a Client or a Cleaner, in their Preferred Language", () => {
   test("in Spanish, has none of the English email's words, and says it's Spanish", async () => {
     const en = emailsIn("en");
     const es = emailsIn("es");
@@ -577,19 +612,48 @@ describe("a Client's emails as they're sent", () => {
     for (const sent of theirs) {
       expect(sent.html, sent.subject).toMatch(/<html[^>]* lang="es"/);
     }
-    // Olive in the Office, and Cory, a Cleaner, until #305
-    const ours = [
-      ...testEmail().to("olive@example.com"),
-      ...testEmail().to("cory@example.com"),
-    ];
+    // Olive in the Office
+    const ours = testEmail().to("olive@example.com");
     expect(ours.map((m) => m.subject)).toEqual(
-      expect.arrayContaining([
-        "New quote request from Casey Client",
-        "You've been offered a job",
-      ]),
+      expect.arrayContaining(["New quote request from Casey Client"]),
     );
     for (const sent of ours) {
       expect(sent.html, sent.subject).toMatch(/<html[^>]* lang="en"/);
     }
+  });
+});
+
+describe("a Cleaner's emails as they're sent", () => {
+  test("go in the language they chose, their links opening in it (#305)", async () => {
+    const office = await signInAsOffice();
+    const cory = await createStaff({
+      name: "Cory Cleaner",
+      email: "cory@example.com",
+      roles: ["cleaner"],
+    });
+    await setUsualWeek(cory.id, [8, 8, 8, 8, 8, 0, 0]);
+    await (
+      await signIn(cory.email)
+    )
+      .put("/api/me/language")
+      .send({ language: "es" })
+      .expect(204);
+    const job = await bookedJob({
+      startsAt: "2026-01-12T14:00:00Z",
+      labourHours: 3,
+      crewSize: 1,
+    });
+
+    await office
+      .post(`/api/jobs/${job.id}/assignments`)
+      .send({ staffId: cory.id })
+      .expect(201);
+
+    const offer = testEmail().lastTo(cory.email);
+    expect(offer.subject).toBe("Te ofrecieron un trabajo");
+    expect(offer.html).toMatch(/<html[^>]* lang="es"/);
+    const link = emailedLinkFor(cory.email);
+    expect(link.pathname).toBe(`/cleaner/jobs/${job.id}`);
+    expect(link.searchParams.get("lang")).toBe("es");
   });
 });

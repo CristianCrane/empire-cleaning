@@ -74,7 +74,7 @@ export function Welcome() {
 
       <div className="flex flex-col gap-2">
         <Heading level={1} size={2}>
-          {t.p.welcome}
+          {t.welcome}
         </Heading>
         <p className="text-fg-muted">{ASK_US}</p>
       </div>

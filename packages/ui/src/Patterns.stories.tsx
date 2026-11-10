@@ -735,7 +735,7 @@ function ToursPointNeverPush() {
           dims the page and moves nothing, so the screen a person comes back to
           is the one they learnt. The first of an area's tours a person meets
           starts with its one line of value. Closing it partway counts as seen;
-          Show tips again in the account menu brings every tour back.
+          Show tips again, at the menu's foot, brings every tour back.
         </p>
         <p>
           Never a Notice or a checklist card for it: either pushes the page

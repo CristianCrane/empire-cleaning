@@ -5,7 +5,6 @@ import type {
 } from "@empire-cleaning/models";
 import { StatusBadge } from "@empire-cleaning/ui";
 import {
-  assignmentStateLabel,
   assignmentStateTone,
   crewLabel,
   crewTone,
@@ -48,6 +47,7 @@ export function JobBadge({
 
 // where someone stands on a Job's crew
 export function AssignmentStateBadge({ state }: { state: AssignmentState }) {
+  const { assignmentStateLabel } = useShared();
   return (
     <StatusBadge tone={assignmentStateTone[state]}>
       {assignmentStateLabel[state]}

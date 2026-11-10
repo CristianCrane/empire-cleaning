@@ -7,19 +7,50 @@ import {
   testPayments,
 } from "../../../tests/harness.ts";
 import { casey, guestAsk, submit } from "../../../tests/fixtures.ts";
+import { createStaff } from "#features/staff";
 
-// A person's Preferred Language, as their own (ADR-0025, #303): the web app
-// reads it from /api/me, and their choice of it writes every Client their
-// Account is connected to, and the payment provider's own pages follow it
+// A person's Preferred Language, as their own (ADR-0025, #303, #305): the
+// web app reads each area's from /api/me, and their choice of it writes
+// every Client and Staff member their Account is connected to, and the
+// payment provider's own pages follow it
 
 const me = async (agent: Awaited<ReturnType<typeof signIn>>) =>
   (await agent.get("/api/me").expect(200)).body;
 
 describe("a person's own language", () => {
-  test("is their Client's, and none for an Account connected to no Client", async () => {
+  test("is the portal's from their Client, the Cleaner area's from their Staff member, none where there's no record", async () => {
     await submit(guestAsk()).set("Accept-Language", "es").expect(201);
-    expect((await me(await signIn(casey.email))).language).toBe("es");
-    expect((await me(await signIn("new@example.com"))).language).toBeNull();
+    expect((await me(await signIn(casey.email))).languages).toEqual({
+      portal: "es",
+      cleaner: null,
+    });
+    await createStaff({
+      name: "Cory Cleaner",
+      email: "cory@example.com",
+      roles: ["cleaner"],
+    });
+    expect((await me(await signIn("cory@example.com"))).languages).toEqual({
+      portal: null,
+      cleaner: "en",
+    });
+    expect((await me(await signIn("new@example.com"))).languages).toEqual({
+      portal: null,
+      cleaner: null,
+    });
+  });
+
+  test("changes on every record they are, a Client and a Staff member alike", async () => {
+    await submit(guestAsk()).expect(201);
+    await createStaff({
+      name: casey.name,
+      email: casey.email,
+      roles: ["cleaner"],
+    });
+    const both = await signIn(casey.email);
+
+    await both.put("/api/me/language").send({ language: "es" }).expect(204);
+
+    expect((await me(both)).languages).toEqual({ portal: "es", cleaner: "es" });
   });
 
   test("changes on their Client, and with the payment provider", async () => {
@@ -39,7 +70,7 @@ describe("a person's own language", () => {
 
     await client.put("/api/me/language").send({ language: "es" }).expect(204);
 
-    expect((await me(client)).language).toBe("es");
+    expect((await me(client)).languages.portal).toBe("es");
     expect(
       (await client.get("/api/clients/me").expect(200)).body.preferredLanguage,
     ).toBe("es");

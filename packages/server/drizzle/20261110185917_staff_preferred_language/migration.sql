@@ -1,0 +1,1 @@
+ALTER TABLE "staff" ADD COLUMN "preferred_language" "language" DEFAULT 'en'::"language" NOT NULL;

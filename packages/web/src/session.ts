@@ -55,9 +55,8 @@ export const areasFor = (account: SignedInAccount): AreaId[] =>
 
 // the signed-in Account, with the first-time help tours it has seen, asked
 // of the API and remembered, not asked on every click. It is asked again
-// when the person opens the Account menu, where they switch area, or returns
-// to the tab (see AreaLayout.tsx and main.tsx), and after something that can
-// connect their Account to a record
+// when the person returns to the tab (main.tsx), and after something that
+// can connect their Account to a record
 // or forgets the tours seen (forgetAccount). A tour seen is added to it in
 // place (seeTour).
 let current: Promise<Me | null> | undefined;

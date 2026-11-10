@@ -14,7 +14,7 @@ import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock } from "../../services/clock/index.ts";
 import { email, notify } from "../../services/email/index.ts";
 import { assignments, onCrew } from "../assignments/assignments.schema.ts";
-import { mustBeConfirmed } from "../assignments/crew.ts";
+import { mustBeConfirmed, notStarted } from "../assignments/crew.ts";
 import { clients } from "../clients/clients.schema.ts";
 import {
   paymentOf,
@@ -32,7 +32,7 @@ import {
   servicePlans,
   servicePlanVisits,
 } from "../service-plans/service-plans.schema.ts";
-import { staff } from "../staff/staff.schema.ts";
+import { staff, staffAddressee } from "../staff/staff.schema.ts";
 import { tellOfficeStaff } from "../staff/staff.ts";
 import { cleanOf } from "../services/services.ts";
 import {
@@ -304,7 +304,7 @@ const sendCancelled = async (
 export const tellCrew = async (job: Job) => {
   const { property } = await ownerOf(job);
   const crew = await db
-    .select({ id: staff.id, name: staff.name, email: staff.email })
+    .select(staffAddressee)
     .from(assignments)
     .innerJoin(staff, eq(staff.id, assignments.staffId))
     .where(and(eq(assignments.jobId, job.id), onCrew()));
@@ -314,7 +314,7 @@ export const tellCrew = async (job: Job) => {
       async () =>
         email.send({
           to: member.email,
-          ...crewCancelledEmail({
+          ...crewCancelledEmail(member.preferredLanguage, {
             name: member.name,
             clean: await cleanOf(job, property),
           }),
@@ -377,7 +377,7 @@ export const recordNoAccess = async (
       throw new ConflictError(whyNotBooked(job!.status, "no_access"));
     }
     if (job!.startsAt > clock.now()) {
-      throw new ConflictError("This job hasn't started yet.");
+      throw new ConflictError(notStarted());
     }
     await tx
       .update(jobs)

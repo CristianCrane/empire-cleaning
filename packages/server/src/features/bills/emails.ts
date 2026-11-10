@@ -1,4 +1,5 @@
 import {
+  cleansButton,
   amounts,
   button,
   details,
@@ -122,7 +123,6 @@ const words = catalog({
       STOPPED:
         "We've stopped billing you weekly, so from now on each clean is charged to your card when it's done. Bills already sent still need paying as before.",
       SETTLED: "Here's what we've settled for cleans no bill has covered yet:",
-      SEE_CLEANS: "See your cleans",
     },
     creditRefunded: {
       subject: (number: string) =>
@@ -203,7 +203,6 @@ const words = catalog({
         "Dejamos de facturarle cada semana, así que a partir de ahora cada limpieza se cobra a su tarjeta cuando está terminada. Las facturas ya enviadas se siguen pagando como antes.",
       SETTLED:
         "Esto es lo que cobramos o reembolsamos por las limpiezas que ninguna factura incluía todavía:",
-      SEE_CLEANS: "Ver sus limpiezas",
     },
     creditRefunded: {
       subject: (number: string) =>
@@ -478,7 +477,7 @@ export const chargedPerCleanEmail = (
         (s) => s.settled.failure && unpaidKind(s.settled.failure) !== "waiting",
       )
         ? button(UPDATE_CARD, "/portal/payment-method")
-        : button(w.SEE_CLEANS, "/portal"),
+        : cleansButton(lang),
     ],
   };
 };

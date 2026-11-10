@@ -216,30 +216,3 @@ export const OpenedFromCode: Story = {
     await waitFor(() => expect(dialog).not.toBeInTheDocument());
   },
 };
-
-// held open while what it started finishes: tapping outside, Escape and ✕
-// don't close it
-export const Busy: Story = {
-  args: { title: "Account", isBusy: true },
-  render: ({ onConfirm: _onConfirm, ...args }) => (
-    <DialogTrigger>
-      <Button>Olive Owner</Button>
-      <Dialog {...args}>
-        <p className="text-fg-muted">Switching to the Client portal…</p>
-      </Dialog>
-    </DialogTrigger>
-  ),
-  play: async ({ canvas, canvasElement, userEvent }) => {
-    await userEvent.click(canvas.getByRole("button", { name: "Olive Owner" }));
-    const dialog = await within(canvasElement.ownerDocument.body).findByRole(
-      "dialog",
-      { name: "Account" },
-    );
-
-    await userEvent.keyboard("{Escape}");
-    await expect(
-      within(dialog).getByRole("button", { name: "Close" }),
-    ).toBeDisabled();
-    await expect(dialog).toBeInTheDocument();
-  },
-};

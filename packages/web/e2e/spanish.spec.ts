@@ -9,19 +9,21 @@ import {
   offerJob,
   quoteSent,
   requestReschedule,
+  returnToTab,
   setClock,
   setLanguage,
   signedInAs,
   signInLinkFor,
+  showInMenu,
   signUp,
   test,
 } from "./harness.ts";
 
-// Sign-in and the Client portal in Spanish (ADR-0025, #303): before sign-in
-// in the language of the page the person came from, then in the Client's
-// Preferred Language, the API's messages and Stripe's form with it. The
-// core flows run once each in Spanish; the layout test opens every screen
-// in it (layout.spec.ts).
+// Sign-in, the Client portal (#303) and the Cleaner area (#305) in Spanish
+// (ADR-0025): before sign-in in the language of the page the person came
+// from, then in the Client's or Staff member's Preferred Language, the
+// API's messages and Stripe's form with it. The core flows run once each
+// in Spanish; the layout test opens every screen in it (layout.spec.ts).
 
 const olive = {
   email: "olive@example.com",
@@ -204,7 +206,56 @@ test("a Client reading in Spanish sees what a second late move costs", async ({
   );
 });
 
-test("a Client changes their language on Your details, and the portal follows", async ({
+// the other language, named in its own words, one press away: in the
+// sidebar on a larger screen, at the foot of the ☰ menu on a phone (#305)
+const pressLanguage = async (page: Page, name: string) => {
+  const { item } = await showInMenu(
+    page,
+    page.getByRole("button", { name, exact: true }),
+  );
+  await expectAccessible(page);
+  await item.click();
+};
+
+// on a phone at the ☰ menu's foot, on a larger screen at the sidebar's
+test(
+  "someone both a Client and a Cleaner changes their language in one press, and both areas follow",
+  { tag: "@desktop" },
+  async ({ page }) => {
+    await createStaff(olive);
+    await signUp(olive.email);
+    await addCleaner("Casey Client");
+    await acceptedJob({ startsAt: MONDAY_9AM, officeEmail: olive.email });
+    await signedInAs(page, casey.email);
+
+    await page.goto("/portal");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "Hi, Casey",
+    );
+    await pressLanguage(page, "Español");
+    await expect(page.locator("html")).toHaveAttribute("lang", "es");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "Hola, Casey",
+    );
+    // no field for it on Your details any more
+    await page.goto("/portal/details");
+    await expect(page.getByRole("main")).not.toContainText("Idioma");
+
+    // one person, one language: their Cleaner area is in it too
+    await page.goto("/cleaner");
+    await expect(page.locator("html")).toHaveAttribute("lang", "es");
+    await expect(
+      page.getByText("Todavía no tienes nada reservado"),
+    ).toBeVisible();
+
+    // and back
+    await pressLanguage(page, "English");
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    await expect(page.getByText("Nothing booked for you yet")).toBeVisible();
+  },
+);
+
+test("a screen in Spanish stays in Spanish while the app asks who's signed in again on returning to the tab", async ({
   page,
 }) => {
   await createStaff(olive);
@@ -212,43 +263,95 @@ test("a Client changes their language on Your details, and the portal follows", 
   await addCleaner("Cory Cleaner");
   await acceptedJob({ startsAt: MONDAY_9AM, officeEmail: olive.email });
   await signedInAs(page, casey.email);
+  await setLanguage(page, "es");
+  await page.goto("/portal");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "Hola, Casey",
+  );
 
-  await page.goto("/portal/details");
-  await expect(
-    page.getByRole("main").getByText("English", { exact: true }),
-  ).toBeVisible();
-  await page
-    .getByRole("region", { name: "Contact details" })
-    .getByRole("button", { name: "Edit" })
-    .click();
-  const dialog = page.getByRole("dialog", { name: "Your contact details" });
-  await dialog.getByRole("button", { name: /Language$/ }).click();
-  await page.getByRole("option", { name: "Español" }).click();
-  await dialog.getByRole("button", { name: "Save details" }).click();
+  // every language the page says it's in from here, and who's signed in
+  // answering slowly, so a language in between would show
+  await page.evaluate(() => {
+    const seen: string[] = [];
+    (window as unknown as { langs: string[] }).langs = seen;
+    new MutationObserver(() =>
+      seen.push(document.documentElement.lang),
+    ).observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["lang"],
+    });
+  });
+  const asked = page.waitForResponse("**/api/me");
+  await page.route("**/api/me", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await route.fallback();
+  });
+  await returnToTab(page);
+  await asked;
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "Hola, Casey",
+  );
 
-  await expect(dialog).toBeHidden();
-  // said in the language just chosen
-  await expect(page.getByText("Datos guardados")).toBeVisible();
-  await expect(
-    page.getByRole("heading", { level: 1, name: "Sus datos" }),
-  ).toBeVisible();
+  expect(
+    await page.evaluate(() => (window as unknown as { langs: string[] }).langs),
+  ).not.toContain("en");
+});
+
+test("a Cleaner reading in Spanish takes an open job and marks it done, in tú", async ({
+  page,
+}) => {
+  await createStaff(olive);
+  await signUp(olive.email);
+  await addCleaner("Cory Cleaner");
+  // Friday, within 7 days, so it's open to Cory, free then
+  const job = await acceptedJob({
+    startsAt: "2026-01-09T14:00:00Z",
+    officeEmail: olive.email,
+  });
+  await signedInAs(page, "cory@example.com");
+  await setLanguage(page, "es");
+
+  await page.goto("/cleaner");
   await expect(page.locator("html")).toHaveAttribute("lang", "es");
   await expect(
-    page.getByRole("main").getByText("Español", { exact: true }),
+    page.getByText("Todavía no tienes nada reservado"),
+  ).toBeVisible();
+  await page
+    .getByRole("link", { name: /^Ofertas/ })
+    .first()
+    .click();
+  const open = page.getByRole("grid", { name: "Disponibles para ti" });
+  await expect(open.getByRole("row")).toContainText("vie, 9 de ene, 9:00 a.m.");
+  // the Service by its Spanish name
+  await expect(open.getByRole("row")).toContainText("Limpieza profunda");
+  await open.getByRole("row").click();
+  await expect(
+    page.getByRole("region", { name: "¿Puedes tomarlo?" }),
   ).toBeVisible();
   await expectAccessible(page);
+  await page.getByRole("button", { name: "Confirmar" }).click();
 
-  // and back
+  await expect(page).toHaveURL(`/cleaner/jobs/${job.id}`);
+  await expect(page.getByText("Confirmado", { exact: true })).toBeVisible();
+
+  // on the day, once it's started
+  await setClock("2026-01-09T16:00:00Z");
+  await page.reload();
   await page
-    .getByRole("region", { name: "Datos de contacto" })
-    .getByRole("button", { name: "Editar" })
+    .getByRole("group", { name: "Qué hacer" })
+    .getByRole("button", { name: "Marcar como terminado" })
     .click();
-  const again = page.getByRole("dialog", { name: "Sus datos de contacto" });
-  await again.getByRole("button", { name: /Idioma$/ }).click();
-  await page.getByRole("option", { name: "English" }).click();
-  await again.getByRole("button", { name: "Guardar datos" }).click();
-  await expect(again).toBeHidden();
-  await expect(
-    page.getByRole("heading", { level: 1, name: "Your details" }),
-  ).toBeVisible();
+  const form = page.getByRole("dialog", {
+    name: "Marcar este trabajo como terminado",
+  });
+  await expect(form).toContainText("Cuéntanos cómo te fue.");
+  await expectAccessible(page);
+  await form.getByText("Ligera", { exact: true }).click();
+  await form.getByRole("button", { name: "Marcar como terminado" }).click();
+
+  await expect(page.getByText("Trabajo marcado como terminado")).toBeVisible();
+  const done = page.getByRole("region", { name: "Terminado" });
+  await expect(done).toContainText("Ligera");
+  await expect(done).toContainText("Nada distinto de la cotización");
+  await expectAccessible(page);
 });

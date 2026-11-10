@@ -80,15 +80,28 @@ can change, through the same loop.
 
 ### Navigation
 
-- **A phone's tab bar holds five at most**, what's used all day. The rest
-  go in a drawer from the left, opened by a ☰ in the top bar, with the logo
-  at its head (`NavItem.inMenu`). The Office keeps Today and the Schedule
-  in the bar. Larger screens list every section in the sidebar.
+- **A phone's tab bar holds five shortcuts at most**, what's used all day;
+  the ☰ menu, a drawer from the left opened from the top bar with the logo
+  at its head, is the full menu, every section as the sidebar lists them,
+  the shortcuts too (#305). Sections that aren't shortcuts are `inMenu`:
+  the Office's tab bar keeps Today and the Schedule. Larger screens list
+  every section in the sidebar.
   ("Layout / AppLayout / Phone Menu")
 - **Related sections share a heading** in the sidebar and the ☰ menu
   (`NavItem.group`), the busiest first with none: the Office's Today and
   Schedule, then Work (Jobs, Quotes), People (Clients, Staff) and Pricing
   (Services, Prices). ("Layout / AppLayout / Groups")
+- **The account's parts are the menu's foot**, in every area: under a
+  divider at the foot of the sidebar, and of the ☰ menu on a phone, one
+  plain item each, never behind a dialog (name and email, the other
+  language in the portal and the Cleaner area, Switch to, Show tips again,
+  Sign out, the theme; `AppLayout`'s `foot`). So a phone's top bar is the
+  ☰ and the section. ("Layout / AppLayout / Phone Menu Foot")
+- **The language is changed in one press, by the other language named in
+  its own words** ("Español" on an English screen, "English" on a Spanish
+  one), so someone who can't read the screen's language still finds it:
+  at the foot of the sidebar and of the ☰ menu on a phone.
+  It writes every Client and Staff member the person is (ADR-0025).
 
 ### Buttons and actions
 
@@ -169,13 +182,23 @@ stays as it is (#336).
   in** (`useSaid(words)` in `packages/web/src/screens/words.ts`: its own
   words as `w`, with `formats`, `messages` and `screenWords` of that
   language). A word more than one screen shows is in one catalog, once:
-  the portal's (its navigation, breadcrumbs, tours) in `portal/words.ts`,
-  the rest in `format.ts`'s `labels`. `pnpm lint` fails on the same
+  the portal's (its navigation, breadcrumbs, tours) in `portal/words.ts`
+  (`p`), the Cleaner area's in `cleaner/words.ts` (`c`), the rest in
+  `labels.ts`, which tours can import too. `pnpm lint` fails on the same
   English in two catalogs (`packages/lint`, `catalog-copies`). Never a
   `lang === "es" ? … : …` branch: the words differ, so they're a catalog's.
+- **A word every area shows addresses no one.** Clients read *usted*,
+  Cleaners *tú*, and a catalog has one Spanish per language, so the Account
+  menu, error pages, `labels.ts` and the design system's words are
+  impersonal ("Se puede intentar de nuevo", "Ir a la página de inicio",
+  "Intentar de nuevo"). A word that has to address its reader goes in the
+  area's own words; English whose Spanish differs in each place, as it
+  agrees with a different noun (a clean is *Terminada*, a job *Terminado*)
+  or speaks to a Client in one and a Cleaner in the other ("Vuelva" and
+  "Vuelve a intentarlo"), is listed as allowed in `catalog-copies` (#305).
 - **Which language a screen is in** is the app's one store
   (`packages/web/src/language.ts`): the portal the Client's Preferred
-  Language, the Office English, the Cleaner area English until #305, and
+  Language, the Cleaner area the Staff member's, the Office English, and
   before sign-in the language of the page that linked here (`?lang=es`,
   remembered in the browser) or else the browser's. The design system and
   react-aria follow it through `LanguageProvider`; the API is told it on
@@ -197,6 +220,18 @@ stays as it is (#336).
   bold) is followed by `stopAfter(time)` rather than a string starting
   with ".". Five review rounds of #304 found "a.m.." one shape at a time
   across the portal; the emails' test fails on it.
+- **A change of language takes effect on the screen as it is**, with no
+  reload: whatever is set up once in a language (Stripe's form,
+  `elements.update({ locale })`; a route deciding the screen's language)
+  follows the change, and no step in between shows another language. Its
+  test switches language on a screen already showing and checks what
+  shows, not only a screen opened in it. Both of #303's misses, the card
+  form and the English flash on returning to the tab, passed tests that
+  opened screens in Spanish (#305).
+- **A Spanish amount that's roughly so many says "cerca de"**, never
+  "unas" or "unos" before the number, which agree with it and read "unas 1
+  h" when it's one (`labels.about`). Round 1 of #305 found it in an email
+  and four screens, each written the same way.
 
 ### First-time help
 
@@ -211,7 +246,7 @@ stays as it is (#336).
   be found.
 - **Each area's one line of value leads the first of its tours a person
   meets.**
-  Closing a tour partway counts as seen; Show tips again in the account menu
+  Closing a tour partway counts as seen; Show tips again, at the menu's foot,
   brings every tour back.
 
 ### Dialogs and rows
@@ -235,6 +270,8 @@ stays as it is (#336).
 - **A row's title wraps, never cut.** A cut title hides what the row is:
   a payment's "Price change: 1 more hour" lost its hour at phone width,
   and Spanish runs longer. `ListItem` wraps its title, so every List does.
+  On a phone a row's badge (`end`) sits under its text rather than beside
+  it, which squeezed an address to a word a line at 320px (#305).
 - **Lean rows**: the fewest columns that drive the decision (who, where,
   status, money, age); no cell that means something different from row to
   row; no colour without a visible label.
@@ -279,8 +316,8 @@ stays as it is (#336).
 - **The logo is used exactly as drawn** (`Logo`): never redrawn, cropped,
   recoloured beyond its own dark version, or rearranged into a lockup.
   Where it doesn't fit, the screen changes around it. On a phone the top
-  bar names the section you're in and the logo heads the area's home (or,
-  where the area has one, its ☰ menu); the sidebar holds it centred; the landing site has no header bar, just Sign
+  bar names the section you're in and the logo heads the ☰ menu; the
+  sidebar holds it centred; the landing site has no header bar, just Sign
   in and the theme in the top right corner, and the logo leads the hero.
   ("Foundations / Logo")
 - **A section is named once on a phone.** The top bar names the section,
@@ -406,7 +443,7 @@ Newest last. "Built in" is the PR (or branch) that shipped it.
 | Office, Cleaner and Client > the account menu | Once first-time help's tours have been seen, how does someone see them again (#291 Q6)? | (tried in the #291 prototype, with its tours) | **Show tips again, beside Sign out** | A closed tour has no other way back, and the help shows once per Account, not per device. A quiet Button before Sign out in the Account dialog every area shares. It forgets every tour the Account has seen, on every device, says "Tips will show again" and closes the menu; each screen's tour then shows on its next visit | [`prototype-onboarding`](https://github.com/CristianCrane/empire-cleaning/tree/prototype-onboarding) | #293 |
 | Client > Home, a Quote, Home once booked | How does a first-time Client learn the portal without calling (#291)? | First-time Notices / spotlight tour / spotlight tour as a sheet on a phone / getting-started checklist | **Spotlight tour, the popover beside what it points at** | Nothing on the page may move: a Notice or a checklist pushes it down, and again once dismissed. The sheet hid what it pointed at on a phone. Three tours, once each: See your Quote on Home with a Quote waiting; Pay and book on a one-off Quote with a Deposit; How we get in, then Move or cancel, on Home once booked. The first one met leads with "Book, move and pay for your cleans here, no phone calls needed." (with Jennifer, #206) | [`prototype-onboarding`](https://github.com/CristianCrane/empire-cleaning/tree/prototype-onboarding) | #294 |
 | Office > Today, a Draft, a Job, the Schedule | How do new Office Staff learn the Office without Jennifer training them (#291 Q2)? | (the Client's pick, #294) | **The same spotlight tour, five tours** | Today: Needs attention, then the Jobs, Quotes and Money tiles, then the Schedule in the navigation. A one-off Quote's Draft: Service and prices, then Send. A Job has two, as it seldom has both at once and a tour needs every step on the screen: Answer for a new time, Offer to a Cleaner for one Needed. The Schedule: its days. The first one met leads with "Every request, clean and payment, and what needs you today." Today's empty list teaches: "Nothing needs you right now. When a Client asks for a Quote or a new time, or a Job needs a Cleaner, it shows up here." | [`prototype-onboarding`](https://github.com/CristianCrane/empire-cleaning/tree/prototype-onboarding) | #295 |
-| Office, Cleaner and Client > the account menu | Switching area felt broken: the URL changed at once, but the old area stayed on screen, and took taps, until the new one had asked who's signed in and loaded its Home (#310). | (talked through) a pending state, the old area dimmed with a progress bar / preload on opening the menu, a fast press waiting in it | **Preload on opening the menu; a fast press waits in it** | Opening the Account menu is when an area is chosen: it looks again at who's signed in and loads each area it offers, its Home included, so the press shows the area at once. Preloading alone fails someone who presses straight away (#180's lesson), so a press before it's ready keeps the menu open, the row pending and nothing else pressable, and the menu goes with the old area as the new one shows. No dimming or progress bar: on most switches there's nothing to wait for | (none) | #318 |
+| Office, Cleaner and Client > the account menu | Switching area felt broken: the URL changed at once, but the old area stayed on screen, and took taps, until the new one had asked who's signed in and loaded its Home (#310). | (talked through) a pending state, the old area dimmed with a progress bar / preload on opening the menu, a fast press waiting in it | **Preload on opening the menu; a fast press waits in it** (the menu and its pre-load superseded by #305: the account's parts are the menu's foot, an area loads as Switch to is pressed, which waits, the ☰ menu with it) | Opening the Account menu is when an area is chosen: it looks again at who's signed in and loads each area it offers, its Home included, so the press shows the area at once. Preloading alone fails someone who presses straight away (#180's lesson), so a press before it's ready keeps the menu open, the row pending and nothing else pressable, and the menu goes with the old area as the new one shows. No dimming or progress bar: on most switches there's nothing to wait for | (none) | #318 |
 | Every screen, message and email | The Office couldn't follow a paragraph-long warning about too few Cleaners free for a Job; many messages explained how the system works, and the glossary's capitalised terms read like a manual (#336). | (talked through) | **Everyday words; a problem says what's wrong, then how to fix it** | The Words rules above, and ADR-0027: each term people don't say gets a screen word on its glossary entry (cleaning hours, open job, card), labels go to sentence case. This overturns the words of earlier rows: #148's Cleaner Needed (an open job, to a Cleaner; the Office's "Needs 1 more cleaner" stays, in lowercase), the Payments row's "Payment Method" Button (a card), and ADR-0019's "screens and emails say Cleaner Needed". Each part of #336 changes its screens' words in its own PR, and the docs that quote them with it (the rules above that name labels, such as Today's "Send a Quote, Assign Staff", and the glossary's quotes) | — | #336 |
 | Office > Quote, its Draft and story; the Client's quote messages and email | An Office user found "Revision" and "updated quote" unclear while changing a sent quote: was it a new quote? (#336, the owner's feedback) | Change quote / Edit quote / New quote (asked) | **Change quote; a Revision is never a word on screen** | To a person there's one quote, which changes. The sent quote's Button is **Change quote**, its draft is a **Draft quote** ("Casey still sees the quote as you sent it until you send your changes."), and the story says **Quote sent** for each send. No screen, message or email says "updated quote", which names a second thing; the verb stays ("Being updated", "Your quote … has been updated") | — | #336 |
 | Every screen, on the test site | Where does the button for the owner's feedback go (#131), when the phone's tab bar, an ActionFooter and Toasts already hold the foot of the screen? | Sentry's floating button / a link in the test banner | **Sentry's floating button, lifted clear** | Always in reach, wherever the owner is on the page. On a phone it sits above the tab bar, and above an ActionFooter when a page has one, however many rows it wraps to; under every Dialog, Drawer and Toast, which cover it while they show. In the app's font and colours, and its light or dark rather than the device's. On a phone it's an icon (Sentry's), named Send feedback for screen readers | (talked through) | #131 |
@@ -418,5 +455,7 @@ Newest last. "Built in" is the PR (or branch) that shipped it.
 | Every screen, message and email | Add-ons read "add-ons" to the Office and Cleaners but "extras" to Clients and Guests, and an Adjustment "price change" to the Office but "extra work" or "an extra" to a Client, so "extra" named two concepts (#300) | One word per reader (as before) / add-ons for everyone / extras for everyone; for an Adjustment, price change / extra charge / added cost | **Extras for Add-ons and price change for Adjustments, to everyone** | The owner: "two words from two perspectives referring to the same concept … is how confusion starts. Keep extras for both." Extras is what Clients and the Quote form already said. "Price change" is what the Office already said, it covers a price that goes down as well as up, and it doesn't say "extra". Then, at the user's word, "extra" as an adjective went where extras are seen too: the Cleaner's and Office's "Extra time" is "More time", "1 extra hour" is "1 more hour", the Office's "extra floor" an "upper floor" and its Staff calendar's "extra hours" "more hours", and the recurring page's "an extra clean" "another clean". Spanish: adicional, cambio de precio. Job keeps "clean" to a Client as the one exception: to the Office a job isn't always a clean (painting is a job too). A rule above, ADR-0029 | — | `extras-one-word` |
 | Landing > every page | Every landing page in Spanish (#301, ADR-0025): how does a person get to the Spanish one, and what of the Spanish already on the English pages? | (decided on #299, no prototype) | **A twin under `/es/`, switched in the header; English pages keep their Spanish** | Each page's twin has the same bands in Spanish at a Spanish address (`/es/servicios/limpieza-profunda/`). The header's first quiet action, before Sign in, names the other language in its own words (Español, English) and leads to this page's twin; nothing redirects by the browser's language. English pages keep "Se habla español" and the "Do you speak Spanish?" question; a Spanish page drops the line and asks "¿Me pueden atender en español?" instead. Reviews stay in English, as their Clients wrote them. The one 404 page says it in both, leading to either home page. The Spanish is a draft Jen checks on #206 | — | #301 |
 | Landing and portal > the Quote form | The Quote form was English on every Spanish page (#302): in which language does it ask, and in which do the API's messages and the receipt come? | (decided on #299, no prototype) | **The page's language on the landing site, the Client's Preferred Language in the portal; the API answers in the form's** | The form asks in the language of the page it's on, its Services, extras and types of business by their Spanish names where the Office has given them (English where not), and its requests say that language, so the API's messages beside each field come in it too. A Guest's first Quote makes their Preferred Language the page's; the receipt goes in the Client's Preferred Language, whatever page a later ask came from. In the portal the form follows the Client's Preferred Language before the rest of the portal does (#303). The Office's form for a caller stays English. The Spanish is a draft Jen checks on #206 | — | #302 |
-| Sign-in and the Client portal | Every portal and sign-in screen was English (#303): which language does each show, and how does a Client change theirs? | (decided on #299, no prototype) | **The Client's Preferred Language in the portal; before sign-in the language of the page they came from, or their browser's; a Language field on Your details** | The landing site's Sign in link says the page's language (`?lang=es`), which the sign-in screens, its emailed link's page and the welcome page follow; the browser's otherwise. Signed in, the portal is in the Client's Preferred Language, which the edit dialog on Your details changes, each language named in its own words (English, Español), on every Client their Account is connected to. The design system's own words, react-aria's, Stripe's card form and pages, the Google button and the first-time help follow it; the API's messages too. Words that differ by language come from catalogs, never a branch. Services', extras' and business types' names in the portal's views, and a Bill's lines, stay English until they're worded as they're read (#395). The Spanish is a draft Jen checks on #206 | — | #303 |
+| Sign-in and the Client portal | Every portal and sign-in screen was English (#303): which language does each show, and how does a Client change theirs? | (decided on #299, no prototype) | **The Client's Preferred Language in the portal; before sign-in the language of the page they came from, or their browser's; a Language field on Your details** (the field superseded by #305's language button) | The landing site's Sign in link says the page's language (`?lang=es`), which the sign-in screens, its emailed link's page and the welcome page follow; the browser's otherwise. Signed in, the portal is in the Client's Preferred Language, which the edit dialog on Your details changes, each language named in its own words (English, Español), on every Client their Account is connected to. The design system's own words, react-aria's, Stripe's card form and pages, the Google button and the first-time help follow it; the API's messages too. Words that differ by language come from catalogs, never a branch. Services', extras' and business types' names in the portal's views, and a Bill's lines, stay English until they're worded as they're read (#395). The Spanish is a draft Jen checks on #206 | — | #303 |
 | Every email to a Client | Every email but the Quote receipt was English (#304): which language does each come in, and what of the words the Office or a Cleaner typed? | (decided on #299, no prototype) | **The Client's Preferred Language, subject to footer; the sign-in link the screen's; typed text as written** | Reminders, moves and cancellations, Quotes, receipts, Bills, payment failures, price changes, site visits and plan changes come in the Client's Preferred Language, whatever screen set off the email, the footer's area too. The sign-in link's email is in the language of the screen it was asked from, as the person may have none yet, and every link in an email opens its page in the email's language (`?lang`), signed in or not. A reason, a note or a Cleaner's report goes in as written. The Office's copy of a late Bill's reminder is its own, in English. Names of Services, a Bill's lines and a card's label stay as stored until #395. The Spanish is a draft Jen checks on #206 | — | #304 |
+| The Cleaner area and every email to a Cleaner | Every Cleaner screen, tour and email was English (#305): which language does each show, and who reads *tú* where Clients read *usted*? | (decided on #299, no prototype) | **The Staff member's Preferred Language, in tú; words every area shows address no one** | The Cleaner area follows the Staff member's Preferred Language, apart from their Client's should they be both, as the Office sets each (#306); the API's messages to a Cleaner, their tours and every email to them (offers, open jobs, moves, being taken off, cancellations, the invitation) come in it, each link opening its page in it. The Account menu, error pages and the shared labels were *usted* in Spanish, so they became impersonal (a rule above). Services' names come in Spanish on the Cleaner's screens; extras', and Services' in every email, stay English until #395. The Spanish is a draft Jen checks on #206 | — | #305 |
+| Client portal and Cleaner area > changing language, the phone's top bar | Where does a Cleaner, who has no details page, change their language (#305), and the Client, whose field sat in Your details' edit dialog? | A: the Cleaner's Account menu / B: the Account menu in both / C: a Your details page for Cleaners / D: the other language in its own words beside the Account / E: D, with a phone's account in the ☰ menu | **E, keeping the tab bar** | The user: D "makes it immediately clear for a person who doesnt speak the language", but beside the Account it crowded a phone's top bar, so "make hamburger menu consistent for mobile like the office screens"; the language item "in the bottom area of the menu same style as the others", and "the bottom bar is still useful for the most common actions", so it stays. On a phone the top bar is the ☰ and the section, and the ☰ menu's foot holds the account's parts. As in the Office, the logo heads the ☰ menu, so a phone's Home (Your jobs, the portal's Home) no longer shows it above the page. The Language field left Your details. Then, at the user's word, every area's ☰ menu lists every section, the tab bar its shortcuts, and the Office's account and theme moved to its ☰ menu's foot too, so all three areas' phone frames match; and the sidebar's foot lists the same items in place of the Account dialog, which went with its pre-loading of the other areas and its asking again who's signed in as it opened (returning to the tab still does). Rules above | [`prototype-language-control`](https://github.com/CristianCrane/empire-cleaning/tree/prototype-language-control) | #305 |

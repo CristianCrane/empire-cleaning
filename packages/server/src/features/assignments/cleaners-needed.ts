@@ -1,14 +1,26 @@
 import { and, arrayContains, asc, eq, inArray, lt } from "drizzle-orm";
 import type { CleanerNeeded } from "@empire-cleaning/models";
-import { addDays, dayOf, HOUR_MS, timeOf } from "@empire-cleaning/models";
+import {
+  addDays,
+  dayOf,
+  HOUR_MS,
+  inLanguage,
+  timeOf,
+} from "@empire-cleaning/models";
+import { currentLanguage } from "#services/request";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock } from "../../services/clock/index.ts";
 import { email } from "../../services/email/index.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { scheduleFor } from "../jobs/schedule.ts";
+import { serviceVersions } from "../services/services.ts";
 import { cleanersNeededEmail } from "./emails.ts";
-import { staff } from "../staff/staff.schema.ts";
+import {
+  staff,
+  staffAddressee,
+  type StaffAddressee,
+} from "../staff/staff.schema.ts";
 import {
   assignments,
   cleanerNeededDigests,
@@ -106,16 +118,43 @@ const toCleanersNeeded = (open: Opening[]): CleanerNeeded[] =>
     postcode: job.property.postcode,
   }));
 
+// each Job's Service by its name in the reply's language, where it has
+// one: the Schedule's are the Office's, in English. The open-jobs email
+// names them in English, as every other email does, until #395
+const inReplyLanguage = async (needed: CleanerNeeded[]) => {
+  const lang = currentLanguage();
+  if (lang === "en" || needed.length === 0) return needed;
+  const rows = await db
+    .select({ id: jobs.id, serviceId: jobs.serviceId })
+    .from(jobs)
+    .where(
+      inArray(
+        jobs.id,
+        needed.map((n) => n.jobId),
+      ),
+    );
+  const serviceOf = new Map(rows.map((r) => [r.id, r.serviceId]));
+  const versions = await serviceVersions(rows.map((r) => r.serviceId));
+  return needed.map((n) => ({
+    ...n,
+    serviceName: inLanguage(lang, versions.get(serviceOf.get(n.jobId)!)!).name,
+  }));
+};
+
 // the Cleaners Needed open to a Cleaner now, soonest first
 export const cleanersNeededFor = async (staffId: string) =>
-  toCleanersNeeded(
-    (await openings()).filter((o) => o.openTo.includes(staffId)),
+  inReplyLanguage(
+    toCleanersNeeded(
+      (await openings()).filter((o) => o.openTo.includes(staffId)),
+    ),
   );
 
 // one Cleaner Needed open to a Cleaner; to anyone else it doesn't exist
 export const cleanerNeededFor = async (staffId: string, jobId: string) => {
-  const [needed] = toCleanersNeeded(
-    (await openings(jobId)).filter((o) => o.openTo.includes(staffId)),
+  const [needed] = await inReplyLanguage(
+    toCleanersNeeded(
+      (await openings(jobId)).filter((o) => o.openTo.includes(staffId)),
+    ),
   );
   if (!needed) throw new NotFoundError("Job not found");
   return needed;
@@ -219,13 +258,17 @@ export const cleanerNeededAgain = async (jobId: string) => {
 // ---- emails ----
 
 const sendList = async (
-  member: { id: string; name: string; email: string },
+  member: StaffAddressee,
   soon: boolean,
   jobs: CleanerNeeded[],
 ) =>
   email.send({
     to: member.email,
-    ...cleanersNeededEmail({ name: member.name, soon, jobs }),
+    ...cleanersNeededEmail(member.preferredLanguage, {
+      name: member.name,
+      soon,
+      jobs,
+    }),
   });
 
 // The Cleaners whose morning email is due: from 7am, the first time this
@@ -273,10 +316,7 @@ export const emailCleanersNeeded = async () => {
   if (staffIds.length === 0) return 0;
 
   const [members, emailed] = await Promise.all([
-    db
-      .select({ id: staff.id, name: staff.name, email: staff.email })
-      .from(staff)
-      .where(inArray(staff.id, staffIds)),
+    db.select(staffAddressee).from(staff).where(inArray(staff.id, staffIds)),
     db
       .select()
       .from(cleanerNeededEmails)

@@ -15,6 +15,9 @@ export type DrawerProps = {
   children: ReactNode | ((opts: { close: () => void }) => ReactNode);
   isOpen?: ModalOverlayProps["isOpen"];
   onOpenChange?: ModalOverlayProps["onOpenChange"];
+  // something pressed in it is under way (switching area): it stays open,
+  // as a busy Dialog does, until that's done
+  isBusy?: boolean;
 };
 
 // a panel sliding in from the left over the page, for a phone's menu. Use
@@ -24,12 +27,14 @@ export function Drawer({
   children,
   isOpen,
   onOpenChange,
+  isBusy = false,
   ...props
 }: DrawerProps) {
   const words = useUiWords();
   return (
     <ModalOverlay
-      isDismissable
+      isDismissable={!isBusy}
+      isKeyboardDismissDisabled={isBusy}
       isOpen={isOpen}
       onOpenChange={onOpenChange}
       className="fixed inset-0 z-50 bg-backdrop entering:animate-in entering:fade-in exiting:animate-out exiting:fade-out"
@@ -45,6 +50,7 @@ export function Drawer({
                 variant="quiet"
                 size="icon"
                 aria-label={words.close}
+                isDisabled={isBusy}
                 onPress={close}
                 className="absolute top-2 right-2"
               >

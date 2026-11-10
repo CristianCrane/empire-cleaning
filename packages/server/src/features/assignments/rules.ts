@@ -7,14 +7,13 @@ import {
   type ScheduleDay,
   type ScheduledJob,
   type StaffRole,
+  catalog,
   formats,
   messages,
+  oneStop,
 } from "@empire-cleaning/models";
+import { currentLanguage } from "#services/request";
 import { asClean, isFree, whyStarted } from "../jobs/rules.ts";
-
-const { RELEASE_CLOSED } = messages.en;
-
-const { formatWhen } = formats.en;
 
 // The rules for a Job's crew (ADR-0019), over what the actions load: the
 // Job's day of the Schedule, and its Assignments. Each says why something is
@@ -41,11 +40,43 @@ export const opensAt = (job: When) =>
 export const releaseClosed = (job: Pick<Job, "startsAt">, now: Date) =>
   job.startsAt.getTime() - now.getTime() < RELEASE_CUTOFF_HOURS * HOUR_MS;
 
+// What the API tells a Cleaner about taking or leaving a Job, in the
+// request's language (ADR-0025), tú in Spanish: a draft the owner checks
+// (#206). What it tells the Office stays English, below
+const words = catalog({
+  en: {
+    moved: (when: string) =>
+      `This job moved to ${when}. Check the new time, then confirm again.`,
+    NOT_FREE: "You're not free for this job any more.",
+    DROP_OUT_OR_CALL: "Drop out of it, or call the office.",
+    NOT_AVAILABLE: "This job isn't available any more.",
+    NOT_OPEN_YET: "This job isn't open yet. Check back later.",
+    TAKEN: "Someone else already took this job.",
+    DROPPED_OUT: "You dropped out of this job, so you can't take it back.",
+    ALREADY_ON: "You're already on this job.",
+  },
+  es: {
+    moved: (when: string) =>
+      oneStop(
+        `Este trabajo cambió al ${when}. Revisa la nueva hora y vuelve a confirmar.`,
+      ),
+    NOT_FREE: "Ya no estás libre para este trabajo.",
+    DROP_OUT_OR_CALL: "Déjalo, o llama a la oficina.",
+    NOT_AVAILABLE: "Este trabajo ya no está disponible.",
+    NOT_OPEN_YET:
+      "Este trabajo todavía no está disponible. Vuelve a revisar más tarde.",
+    TAKEN: "Otra persona ya tomó este trabajo.",
+    DROPPED_OUT: "Dejaste este trabajo, así que no puedes volver a tomarlo.",
+    ALREADY_ON: "Ya estás en este trabajo.",
+  },
+});
+
 // a Job seen at one time and since moved: they're asked to look again (#242)
-const moved = (startsAt: Date, seen: Date | undefined) =>
-  seen && seen.getTime() !== startsAt.getTime()
-    ? `This job moved to ${formatWhen(startsAt)}. Check the new time, then confirm again.`
-    : null;
+const moved = (startsAt: Date, seen: Date | undefined) => {
+  if (!seen || seen.getTime() === startsAt.getTime()) return null;
+  const lang = currentLanguage();
+  return words[lang].moved(formats[lang].formatWhen(startsAt));
+};
 
 // a booked Job on its day of the Schedule
 const onDay = (day: ScheduleDay, jobId: string) =>
@@ -97,7 +128,8 @@ export const whyNotConfirm = (
   const since = moved(startsAt, seen);
   if (since) return since;
   if (!isFree(day, staffId, asClean(job))) {
-    return "You're not free for this job any more. Drop out of it, or call the office.";
+    const w = words[currentLanguage()];
+    return `${w.NOT_FREE} ${w.DROP_OUT_OR_CALL}`;
   }
   return null;
 };
@@ -109,7 +141,9 @@ export const whyNotRelease = (
   job: Pick<Job, "startsAt">,
   now: Date,
 ) =>
-  status === "confirmed" && releaseClosed(job, now) ? RELEASE_CLOSED : null;
+  status === "confirmed" && releaseClosed(job, now)
+    ? messages[currentLanguage()].RELEASE_CLOSED
+    : null;
 
 // whether a Job's Cleaners Needed are open now: booked, not yet started, and
 // within 7 days of starting
@@ -153,21 +187,16 @@ export const whyNotTakeCleanerNeeded = (
   seen: Date | undefined,
   now: Date,
 ) => {
-  if (job.status !== "booked" || job.startsAt <= now) {
-    return "This job isn't available any more.";
-  }
+  const w = words[currentLanguage()];
+  if (job.status !== "booked" || job.startsAt <= now) return w.NOT_AVAILABLE;
   const since = moved(job.startsAt, seen);
   if (since) return since;
-  if (!opening) {
-    return opensAt(job) > now
-      ? "This job isn't open yet. Check back later."
-      : "Someone else already took this job.";
-  }
+  if (!opening) return opensAt(job) > now ? w.NOT_OPEN_YET : w.TAKEN;
   if (opening.openTo.includes(staffId)) return null;
   const own = opening.assigned.find((p) => p.staffId === staffId);
   return own?.status === "released"
-    ? "You dropped out of this job, so you can't take it back."
+    ? w.DROPPED_OUT
     : own
-      ? "You're already on this job."
-      : "You're not free for this job any more.";
+      ? w.ALREADY_ON
+      : w.NOT_FREE;
 };

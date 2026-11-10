@@ -2,7 +2,9 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import {
   CalendarDays,
   ClipboardPenLine,
+  Languages,
   LayoutDashboard,
+  LogOut,
   User,
   Users,
 } from "lucide-react";
@@ -28,11 +30,12 @@ const meta = {
   args: {
     area: "Office",
     nav: officeNav,
-    // the app puts its account menu here
-    account: (
+    // the app puts the account's parts here: the sidebar's foot, and on a
+    // phone the ☰ menu's
+    foot: () => (
       <Button variant="quiet" className="justify-start">
-        <User aria-hidden size={20} />
-        <span className="max-md:sr-only">Olive Owner</span>
+        <LogOut aria-hidden size={20} />
+        Sign out
       </Button>
     ),
     children: (
@@ -101,8 +104,8 @@ export const Cleaner: Story = {
   },
 };
 
-// more sections than the tab bar holds: the rest go in a drawer opened by the
-// ☰, which holds the logo too (#200)
+// more sections than the tab bar holds: the rest are only in the drawer the
+// ☰ opens, which lists every section, with the logo (#200, #305)
 export const PhoneMenu: Story = {
   globals: { viewport: { value: "phone" } },
   args: {
@@ -123,15 +126,10 @@ export const PhoneMenu: Story = {
       },
       { href: "#schedule", label: "Schedule", icon: CalendarDays },
     ],
-    atHome: true,
   },
   play: async ({ canvas, userEvent }) => {
     const bar = canvas.getByRole("navigation", { name: "Office" });
     await expect(bar).toHaveTextContent("TodaySchedule");
-    // the logo heads the menu, not the home page
-    await expect(
-      canvas.queryByRole("img", { name: /Empire Cleaning/ }),
-    ).toBeNull();
 
     await userEvent.click(canvas.getByRole("button", { name: "Menu" }));
     const menu = within(document.body).getByRole("dialog", { name: "Menu" });
@@ -186,5 +184,60 @@ export const Groups: Story = {
   play: async ({ canvas }) => {
     const people = canvas.getByRole("group", { name: "People" });
     await expect(people).toHaveTextContent("PeopleClientsStaff");
+  },
+};
+
+// on a phone the tab bar keeps the shortcuts, and the account's parts sit
+// at the foot of the ☰ menu, as of the sidebar, the other language among
+// them named in its own words, so the top bar holds only the ☰ and the
+// section (#305)
+export const PhoneMenuFoot: Story = {
+  globals: { viewport: { value: "phone" } },
+  args: {
+    area: "Cleaner area",
+    nav: [
+      {
+        href: "#jobs",
+        label: "Your jobs",
+        icon: CalendarDays,
+        isCurrent: true,
+      },
+      { href: "#offers", label: "Offers", icon: ClipboardPenLine },
+    ],
+    foot: () => (
+      <div className="flex flex-col gap-1">
+        <Button variant="quiet" className="justify-start">
+          <Languages aria-hidden size={20} />
+          <span lang="es">Español</span>
+        </Button>
+        <Button variant="quiet" className="justify-start">
+          <LogOut aria-hidden size={20} />
+          Sign out
+        </Button>
+      </div>
+    ),
+  },
+  play: async ({ canvas, canvasElement, userEvent }) => {
+    const bar = canvas.getByRole("navigation", { name: "Cleaner area" });
+    await expect(bar).toHaveTextContent("Your jobsOffers");
+    // the top bar holds only the ☰ and the section
+    await expect(canvasElement.querySelector("header")).toHaveTextContent(
+      /^Your jobs$/i,
+    );
+
+    await userEvent.click(canvas.getByRole("button", { name: "Menu" }));
+    const menu = within(document.body).getByRole("dialog", { name: "Menu" });
+    await waitFor(() =>
+      expect(
+        within(menu).getByRole("button", { name: "Español" }),
+      ).toBeVisible(),
+    );
+    // the full menu, the tab bar's sections too
+    await expect(
+      within(menu).getByRole("link", { name: "Your jobs" }),
+    ).toHaveAttribute("aria-current", "page");
+    await expect(
+      within(menu).getByRole("button", { name: "Sign out" }),
+    ).toBeVisible();
   },
 };

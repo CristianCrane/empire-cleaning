@@ -23,8 +23,8 @@ export type Block =
 
 export type Email = {
   // the language it's written in, for its `lang`, greeting and footer: a
-  // Client's Preferred Language (ADR-0025); English to the Office, and to
-  // Cleaners until #305, through `messages.en` and `formats.en`
+  // Client's or Staff member's Preferred Language (ADR-0025); English to the
+  // Office, through `messages.en` and `formats.en`
   lang: Language;
   subject: string;
   // the inbox preview line; by default the first paragraph
@@ -66,6 +66,19 @@ export const button = (label: string, href: string): Block => ({
   label,
   href,
 });
+
+// the buttons many emails end on, into a Client's Job (`label` when it says
+// more than "See your clean") or all their cleans, and the Office's Job
+const buttonWords = catalog({
+  en: { SEE_CLEAN: "See your clean", SEE_CLEANS: "See your cleans" },
+  es: { SEE_CLEAN: "Ver su limpieza", SEE_CLEANS: "Ver sus limpiezas" },
+});
+export const cleanButton = (lang: Language, jobId: string, label?: string) =>
+  button(label ?? buttonWords[lang].SEE_CLEAN, `/portal/jobs/${jobId}`);
+export const cleansButton = (lang: Language) =>
+  button(buttonWords[lang].SEE_CLEANS, "/portal");
+export const officeJobButton = (jobId: string) =>
+  button("See the job", `/office/jobs/${jobId}`);
 
 // a Job or Site Visit, as the details of an email about it
 export type Clean = { service: string; address: string; startsAt: Date };

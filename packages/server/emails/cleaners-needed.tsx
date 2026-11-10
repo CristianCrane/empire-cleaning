@@ -1,9 +1,9 @@
 import { cleanersNeededEmail } from "../src/features/assignments/emails.ts";
 import { preview } from "../src/services/email/preview.tsx";
-import { cleaner, jobId, monday, wednesday } from "./samples.ts";
+import { cleaner, jobId, monday, wednesday, lang } from "./samples.ts";
 
 export default preview(
-  cleanersNeededEmail({
+  cleanersNeededEmail(lang, {
     name: cleaner,
     soon: false,
     jobs: [

@@ -25,6 +25,7 @@ import {
   timeOf,
 } from "@empire-cleaning/models";
 import { conditions, formWords } from "@empire-cleaning/quote-request";
+import { labels } from "./labels.ts";
 import type { StatusTone } from "@empire-cleaning/ui";
 
 export const addressOf = (
@@ -172,14 +173,6 @@ export const jobLabelOf = (job: {
         tone: jobStatusTone[job.status],
       };
 
-// where someone stands on a Job's crew
-export const assignmentStateLabel: Record<AssignmentState, string> = {
-  offered: "Offered",
-  confirmed: "Confirmed",
-  released: "Dropped out",
-  taken_off: "Taken off",
-};
-
 export const assignmentStateTone = {
   offered: "warning",
   confirmed: "success",
@@ -187,61 +180,9 @@ export const assignmentStateTone = {
   taken_off: "neutral",
 } as const satisfies Record<AssignmentState, string>;
 
-// Words several screens show as they are, each once (docs/ux.md, Words):
-// part of `screenWords` below. A word only portal screens share is
-// portal/words.ts's.
-const labels = catalog({
-  en: {
-    notKnownYet: "Not known yet",
-    unpaid: "Unpaid",
-    pickNewTime: "Pick a new time",
-    signIn: "Sign in",
-    signOut: "Sign out",
-    email: "Email",
-    day: "Day",
-    dayAt: (when: string, time: string) => `${when} at ${time}`,
-    condition: "Condition",
-    notAdded: "Not added yet",
-    onSite: "On site",
-    about: (hours: string) => `About ${hours}`,
-    onSiteWith: (cleaners: string) => `On site, ${cleaners}`,
-    extras: "Extras",
-    none: "None",
-    deposit: "Deposit",
-    total: "Total",
-    taxIncludedOf: (what: string) => `${what}, tax included`,
-    payBill: (n: string) => `Pay bill ${n}`,
-    // a bank payment, or a Bill paid by one, on its way
-    clearing: "Clearing",
-  },
-  es: {
-    notKnownYet: "Aún no se sabe",
-    unpaid: "Sin pagar",
-    pickNewTime: "Elegir otra hora",
-    signIn: "Iniciar sesión",
-    signOut: "Cerrar sesión",
-    email: "Correo electrónico",
-    day: "Día",
-    dayAt: (when: string, time: string) =>
-      `${when} ${time.startsWith("1:") ? "a la" : "a las"} ${time}`,
-    condition: "Estado",
-    notAdded: "Aún no se agregó",
-    onSite: "En el lugar",
-    about: (hours: string) => `Unas ${hours}`,
-    onSiteWith: (cleaners: string) => `En el lugar, ${cleaners}`,
-    extras: "Adicionales",
-    none: "Ninguno",
-    deposit: "Depósito",
-    total: "Total",
-    taxIncludedOf: (what: string) => `${what}, impuestos incluidos`,
-    payBill: (n: string) => `Pagar la factura ${n}`,
-    clearing: "En proceso",
-  },
-});
-
 // The screens' words for things, in each language (ADR-0025):
 // `screenWords[lang]`, as models' `formats[lang]`; the Office's screens take
-// `screenWords.en`. A literal here is in `words` or `labels`, in both
+// `screenWords.en`. A literal here is in `words` or `labels` (labels.ts), in both
 // languages.
 const words = catalog({
   en: {
@@ -276,13 +217,15 @@ const words = catalog({
     planHeadline: (plan: string, price: string, perWeek: boolean) =>
       `Cleaning plan, ${plan}: ${price} ${perWeek ? "a week" : "a clean"}`,
     rhythm: (often: string, when: string) => `${often}, on ${when}`,
-    jobStatus: {
-      booked: "Booked",
-      completed: "Done",
-      cancelled: "Cancelled",
-      no_access: "Couldn't get in",
-    } satisfies Record<JobStatus, string>,
     skipped: "Skipped",
+    // where someone stands on a Job's crew: the Office's, and a Cleaner's
+    // own Offered or Confirmed
+    assignmentState: {
+      offered: "Offered",
+      confirmed: "Confirmed",
+      released: "Dropped out",
+      taken_off: "Taken off",
+    } satisfies Record<AssignmentState, string>,
   },
   es: {
     cleaner: { one: "limpiador", other: "limpiadores" },
@@ -315,13 +258,14 @@ const words = catalog({
     planHeadline: (plan: string, price: string, perWeek: boolean) =>
       `Plan de limpieza, ${plan}: ${price} ${perWeek ? "por semana" : "por limpieza"}`,
     rhythm: (often: string, when: string) => `${often}, ${when}`,
-    jobStatus: {
-      booked: "Reservada",
-      completed: "Terminada",
-      cancelled: "Cancelada",
-      no_access: "No se pudo entrar",
-    },
     skipped: "Saltada",
+    // a trabajo, as a Cleaner reads it
+    assignmentState: {
+      offered: "Ofrecido",
+      confirmed: "Confirmado",
+      released: "Lo dejó",
+      taken_off: "Quitado",
+    },
   },
 });
 
@@ -473,9 +417,10 @@ const screenWordsIn = (lang: Language) => {
         recurrenceLabel[plan],
         planDaysWhen(days.flatMap((d) => d.startsAt ?? [])),
       ),
-    jobStatusLabel: w.jobStatus,
+    jobStatusLabel: l.jobStatus,
+    assignmentStateLabel: w.assignmentState,
     cancelledLabel: (skipped: boolean) =>
-      skipped ? w.skipped : w.jobStatus.cancelled,
+      skipped ? w.skipped : l.jobStatus.cancelled,
   };
 };
 
