@@ -2,8 +2,8 @@ import type { Locator, Page } from "@playwright/test";
 import {
   billedWeek,
   createStaff,
-  emailsTo,
   expect,
+  linkIn,
   quoteSent,
   requestQuoteAsGuest,
   signUp,
@@ -33,7 +33,7 @@ if (
   !STRIPE_SANDBOX_PUBLISHABLE_KEY.startsWith("pk_test_")
 ) {
   throw new Error(
-    "a Stripe sandbox's keys are needed: STRIPE_SANDBOX_SECRET_KEY (sk_test_) and STRIPE_SANDBOX_PUBLISHABLE_KEY (pk_test_), or the server's .env (#205 adds CI's)",
+    "a Stripe sandbox's keys are needed: STRIPE_SANDBOX_SECRET_KEY (sk_test_) and STRIPE_SANDBOX_PUBLISHABLE_KEY (pk_test_), or the server's .env",
   );
 }
 
@@ -96,10 +96,9 @@ const onTheQuote = async (
   await quoteSent(page, olive, casey);
   const client = await (await browser.newContext()).newPage();
   await signedInAs(client, casey.email);
-  const sent = (await emailsTo(casey.email)).find(
-    (e) => e.subject === "Your quote from Empire Cleaning",
+  await client.goto(
+    await linkIn(casey.email, "Your quote from Empire Cleaning"),
   );
-  await client.goto(new URL(sent!.text.match(/https?:\/\/\S+/)![0]).pathname);
   return {
     client,
     accept: client.getByRole("region", { name: "Pay and book" }),
