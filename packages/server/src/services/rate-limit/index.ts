@@ -1,6 +1,8 @@
 import {
   business,
+  catalog,
   DAY_MS,
+  formats,
   HOUR_MS,
   type Language,
   MINUTE_MS,
@@ -139,16 +141,24 @@ export const rateLimit = {
 
 // what someone refused is told, in the language of the screen that asked,
 // the wait rounded up: "5 minutes", "3 hours"
+const triesWords = catalog({
+  en: {
+    minute: { one: "minute", other: "minutes" },
+    hour: { one: "hour", other: "hours" },
+    tooMany: (wait: string) =>
+      `Too many tries. Please try again in ${wait}, or call us on ${business.phone.display}.`,
+  },
+  es: {
+    minute: { one: "minuto", other: "minutos" },
+    hour: { one: "hora", other: "horas" },
+    tooMany: (wait: string) =>
+      `Demasiados intentos. Vuelva a intentarlo en ${wait}, o llámenos al ${business.phone.display}.`,
+  },
+});
 export const tooManyTries = (lang: Language, retryAfterSeconds: number) => {
   const minutes = Math.ceil(retryAfterSeconds / 60);
   const hours = Math.ceil(minutes / 60);
-  const [n, unit] = minutes < 60 ? [minutes, "minute"] : [hours, "hour"];
-  const units = {
-    en: { minute: ["minute", "minutes"], hour: ["hour", "hours"] },
-    es: { minute: ["minuto", "minutos"], hour: ["hora", "horas"] },
-  }[lang][unit as "minute" | "hour"];
-  const wait = `${n} ${units[n === 1 ? 0 : 1]}`;
-  return lang === "es"
-    ? `Demasiados intentos. Vuelva a intentarlo en ${wait}, o llámenos al ${business.phone.display}.`
-    : `Too many tries. Please try again in ${wait}, or call us on ${business.phone.display}.`;
+  const w = triesWords[lang];
+  const [n, unit] = minutes < 60 ? [minutes, w.minute] : [hours, w.hour];
+  return w.tooMany(`${n} ${formats[lang].plural(n, unit)}`);
 };

@@ -3,6 +3,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { authorize, signedInAccount } from "../auth/authorize.ts";
 import { validate } from "../../middleware/validation.ts";
+import { serviceKey } from "../quotes/asking.validation.ts";
 import {
   choosableAddOns,
   choosablePremisesTypes,
@@ -18,7 +19,7 @@ export const router = Router();
 // Quote" form lists them
 router.get(
   "/add-ons",
-  validate({ query: z.object({ service: z.uuid("Pick a service") }) }),
+  validate({ query: z.object({ service: serviceKey }) }),
   async (req, res) => {
     res.json(await choosableAddOns(req.query.service, currentLanguage()));
   },

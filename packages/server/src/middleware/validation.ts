@@ -75,7 +75,8 @@ export const say = <T>(words: Catalog<T>, key: MessageKey<T>) => ({
   error: () => words[currentLanguage()][key] as string,
 });
 
-// what a too-long text field is called, in each language
+// what a too-long text field says, in the request's language: "Keep the
+// reason under 500 characters". Each field is named in either language
 type Field =
   | "it"
   | "the name"
@@ -86,8 +87,16 @@ type Field =
   | "the reason"
   | "the note"
   | "the notes";
-const fieldsEs: Record<Field, string> = {
-  it: "",
+const keepUnderWords = catalog({
+  en: {
+    keepUnder: (n: string, what: Field) => `Keep ${what} under ${n} characters`,
+  },
+  es: {
+    keepUnder: (n: string, what: Field) =>
+      `Use menos de ${n} caracteres${what === "it" ? "" : ` en ${fieldsEs[what]}`}`,
+  },
+});
+const fieldsEs: Record<Exclude<Field, "it">, string> = {
   "the name": "el nombre",
   "the business name": "el nombre del negocio",
   "the street address": "la dirección",
@@ -97,16 +106,13 @@ const fieldsEs: Record<Field, string> = {
   "the note": "la nota",
   "the notes": "las notas",
 };
-
-// what a too-long text field says, in the request's language: "Keep the
-// reason under 500 characters"
 export const keepUnder = (max: number, what: Field = "it") => ({
   error: () => {
     const lang = currentLanguage();
-    const n = formats[lang].formatNumber(max);
-    return lang === "es"
-      ? `Use menos de ${n} caracteres${what === "it" ? "" : ` en ${fieldsEs[what]}`}`
-      : `Keep ${what} under ${n} characters`;
+    return keepUnderWords[lang].keepUnder(
+      formats[lang].formatNumber(max),
+      what,
+    );
   },
 });
 

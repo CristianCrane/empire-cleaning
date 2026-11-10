@@ -10,6 +10,7 @@ import {
   showToast,
   Logo,
 } from "@empire-cleaning/ui";
+import { APP_LANGUAGE } from "../api.ts";
 import { forgetAccount, signOut } from "../session.ts";
 import { quoteRequested } from "./QuoteParts.tsx";
 
@@ -56,8 +57,8 @@ export function Welcome() {
           <QuoteRequestForm
             headingLevel={2}
             // signed up but not yet a Client, so no Preferred Language:
-            // English, as the app is until #303
-            lang="en"
+            // the app's
+            lang={APP_LANGUAGE}
             asker={{ kind: "account", email: account.email }}
             onSubmitted={async (receipt) => {
               // now a Client: the API connected this Account straight away

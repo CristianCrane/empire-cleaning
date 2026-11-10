@@ -1,4 +1,4 @@
-import { type Language, formats } from "@empire-cleaning/models";
+import { catalog, type Language, formats } from "@empire-cleaning/models";
 
 const { formatMoney, formatWhen } = formats.en;
 
@@ -38,8 +38,12 @@ export type Email = {
 export const greeting = (name: string): Block => ({ kind: "greeting", name });
 
 // a greeting block's words, in the HTML and the text part alike
+const greetings = catalog({
+  en: (name: string) => `Hi ${name},`,
+  es: (name: string) => `Hola, ${name}:`,
+});
 export const greetingText = (lang: Language, name: string) =>
-  lang === "es" ? `Hola, ${name}:` : `Hi ${name},`;
+  greetings[lang](name);
 
 export const paragraph = (text: string): Block => ({ kind: "paragraph", text });
 

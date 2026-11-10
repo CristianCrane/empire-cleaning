@@ -1,9 +1,12 @@
 // the JSON API, on the same origin (Vite forwards /api to the server)
 
-// the language the app's screens are in, which the API answers in
-// (ADR-0025): said on every request, as otherwise the browser says its own.
-// English until the app's screens come in Spanish (#303)
-export const LANGUAGE_HEADER = { "accept-language": "en" };
+import type { Language } from "@empire-cleaning/models";
+
+// the language the app's screens are in: English until they come in Spanish
+// (#303). The API answers in it (ADR-0025), so it's said on every request,
+// as otherwise the browser says its own
+export const APP_LANGUAGE: Language = "en";
+export const LANGUAGE_HEADER = { "accept-language": APP_LANGUAGE };
 
 export class ApiError extends Error {
   readonly status: number;
