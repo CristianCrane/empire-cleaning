@@ -16,10 +16,7 @@ import {
   type Email,
 } from "../../services/email/blocks.ts";
 import { firstNameOf } from "../../services/email/format.ts";
-import { jobsButton } from "../assignments/emails.ts";
-
-// the Office's and Cleaners' (#305)
-const { formatWhen } = formats.en;
+import { crewWords, jobButton, jobsButton } from "../assignments/emails.ts";
 
 const words = catalog({
   en: {
@@ -36,6 +33,15 @@ const words = catalog({
     WE_MOVED: "We've moved your clean.",
     NO_CHARGE:
       "There's no charge for this. If the new time doesn't suit you, you can ask for another from your account, or call us.",
+    // to a Cleaner on it
+    crewMoved: {
+      subject: "A job you're on has moved",
+      moved: "A job you're on has moved:",
+      answer:
+        "Please confirm you can make the new time, or release the job if you can't.",
+    },
+    crewLost: (when: string) =>
+      `A job you were on moved to ${when}, when you're not free, so you're off it.`,
   },
   es: {
     SEE_CLEAN: "Ver su limpieza",
@@ -53,6 +59,14 @@ const words = catalog({
     WE_MOVED: "Reprogramamos su limpieza.",
     NO_CHARGE:
       "Esto no tiene ningún cargo. Si la nueva hora no le conviene, puede pedir otra desde su cuenta, o llamarnos.",
+    crewMoved: {
+      subject: "Un trabajo tuyo cambió de hora",
+      moved: "Un trabajo tuyo cambió de hora:",
+      answer:
+        "Por favor, confirma que puedes ir a la nueva hora, o deja el trabajo si no puedes.",
+    },
+    crewLost: (when: string) =>
+      `Un trabajo en el que estabas cambió al ${when}, cuando no estás libre, así que ya no estás en él.`,
   },
 });
 
@@ -181,48 +195,55 @@ export const jobMovedEmail = (
 });
 
 // to each of the crew still on it, Offered the new time afresh
-export const crewMovedEmail = ({
-  name,
-  jobId,
-  clean,
-  from,
-}: {
-  name: string;
-  jobId: string;
-  clean: Clean;
-  from: Date;
-}): Email => ({
-  lang: "en",
-  subject: "A job you're on has moved",
-  blocks: [
-    greeting(firstNameOf(name)),
-    paragraph("A job you're on has moved:"),
-    cleanDetails("en", clean, from),
-    paragraph(
-      "Please confirm you can make the new time, or release the job if you can't.",
-    ),
-    button("See the job", `/cleaner/jobs/${jobId}`),
-  ],
-});
+export const crewMovedEmail = (
+  lang: Language,
+  {
+    name,
+    jobId,
+    clean,
+    from,
+  }: {
+    name: string;
+    jobId: string;
+    clean: Clean;
+    from: Date;
+  },
+): Email => {
+  const w = words[lang].crewMoved;
+  return {
+    lang,
+    subject: w.subject,
+    blocks: [
+      greeting(firstNameOf(name)),
+      paragraph(w.moved),
+      cleanDetails(lang, clean, from),
+      paragraph(w.answer),
+      jobButton(lang, jobId),
+    ],
+  };
+};
 
 // to each of the crew who isn't free at the new time
-export const crewLostEmail = ({
-  name,
-  clean,
-  from,
-}: {
-  name: string;
-  clean: Clean;
-  from: Date;
-}): Email => ({
-  lang: "en",
-  subject: "You're no longer on a job",
+export const crewLostEmail = (
+  lang: Language,
+  {
+    name,
+    clean,
+    from,
+  }: {
+    name: string;
+    clean: Clean;
+    from: Date;
+  },
+): Email => ({
+  lang,
+  subject: crewWords[lang].OFF_A_JOB,
   blocks: [
     greeting(firstNameOf(name)),
     paragraph(
-      `A job you were on moved to ${formatWhen(clean.startsAt)}, when you're not free, so you're off it. You don't need to go.`,
+      `${words[lang].crewLost(formats[lang].formatWhen(clean.startsAt))} ${crewWords[lang].NO_NEED_TO_GO}`,
     ),
-    cleanDetails("en", clean, from),
-    jobsButton,
+    cleanDetails(lang, clean, from),
+    jobsButton(lang),
   ],
 });

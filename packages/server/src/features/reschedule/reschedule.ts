@@ -600,7 +600,7 @@ const tellCrewOfMove = async (
     await notify(`Move of Job ${job.id} to Staff ${member.id}`, async () =>
       email.send({
         to: member.email,
-        ...crewMovedEmail({
+        ...crewMovedEmail(member.preferredLanguage, {
           name: member.name,
           jobId: job.id,
           clean: await cleanOf(job, property),
@@ -704,7 +704,7 @@ const tellLost = async (
     await notify(`Move of Job ${job.id} off Staff ${member.id}`, async () =>
       email.send({
         to: member.email,
-        ...crewLostEmail({
+        ...crewLostEmail(member.preferredLanguage, {
           name: member.name,
           clean: await cleanOf(job, property),
           from: fromStartsAt,

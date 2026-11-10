@@ -304,7 +304,12 @@ const sendCancelled = async (
 export const tellCrew = async (job: Job) => {
   const { property } = await ownerOf(job);
   const crew = await db
-    .select({ id: staff.id, name: staff.name, email: staff.email })
+    .select({
+      id: staff.id,
+      name: staff.name,
+      email: staff.email,
+      preferredLanguage: staff.preferredLanguage,
+    })
     .from(assignments)
     .innerJoin(staff, eq(staff.id, assignments.staffId))
     .where(and(eq(assignments.jobId, job.id), onCrew()));
@@ -314,7 +319,7 @@ export const tellCrew = async (job: Job) => {
       async () =>
         email.send({
           to: member.email,
-          ...crewCancelledEmail({
+          ...crewCancelledEmail(member.preferredLanguage, {
             name: member.name,
             clean: await cleanOf(job, property),
           }),

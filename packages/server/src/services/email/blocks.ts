@@ -23,8 +23,8 @@ export type Block =
 
 export type Email = {
   // the language it's written in, for its `lang`, greeting and footer: a
-  // Client's Preferred Language (ADR-0025); English to the Office, and to
-  // Cleaners until #305, through `messages.en` and `formats.en`
+  // Client's or Staff member's Preferred Language (ADR-0025); English to the
+  // Office, through `messages.en` and `formats.en`
   lang: Language;
   subject: string;
   // the inbox preview line; by default the first paragraph

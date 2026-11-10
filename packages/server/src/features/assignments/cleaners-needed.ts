@@ -8,7 +8,7 @@ import { email } from "../../services/email/index.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { scheduleFor } from "../jobs/schedule.ts";
 import { cleanersNeededEmail } from "./emails.ts";
-import { staff } from "../staff/staff.schema.ts";
+import { staff, type Staff } from "../staff/staff.schema.ts";
 import {
   assignments,
   cleanerNeededDigests,
@@ -219,13 +219,17 @@ export const cleanerNeededAgain = async (jobId: string) => {
 // ---- emails ----
 
 const sendList = async (
-  member: { id: string; name: string; email: string },
+  member: Pick<Staff, "id" | "name" | "email" | "preferredLanguage">,
   soon: boolean,
   jobs: CleanerNeeded[],
 ) =>
   email.send({
     to: member.email,
-    ...cleanersNeededEmail({ name: member.name, soon, jobs }),
+    ...cleanersNeededEmail(member.preferredLanguage, {
+      name: member.name,
+      soon,
+      jobs,
+    }),
   });
 
 // The Cleaners whose morning email is due: from 7am, the first time this
@@ -274,7 +278,12 @@ export const emailCleanersNeeded = async () => {
 
   const [members, emailed] = await Promise.all([
     db
-      .select({ id: staff.id, name: staff.name, email: staff.email })
+      .select({
+        id: staff.id,
+        name: staff.name,
+        email: staff.email,
+        preferredLanguage: staff.preferredLanguage,
+      })
       .from(staff)
       .where(inArray(staff.id, staffIds)),
     db

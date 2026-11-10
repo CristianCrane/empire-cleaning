@@ -86,7 +86,10 @@ const selectStaff = (tx: Tx | typeof db = db) =>
 const sendInvitation = async (member: Staff) => {
   await email.send({
     to: member.email,
-    ...staffInviteEmail({ name: member.name, email: member.email }),
+    ...staffInviteEmail(member.preferredLanguage, {
+      name: member.name,
+      email: member.email,
+    }),
   });
 };
 
@@ -495,7 +498,7 @@ const afterHoursChanged = async (member: Staff, freed: Held[]) => {
       async () =>
         email.send({
           to: member.email,
-          ...takenOffEmail({
+          ...takenOffEmail(member.preferredLanguage, {
             name: member.name,
             clean: await cleanOf(held.job, held.property),
           }),

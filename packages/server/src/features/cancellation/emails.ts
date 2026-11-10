@@ -7,7 +7,7 @@ import {
   type Email,
 } from "../../services/email/blocks.ts";
 import { firstNameOf } from "../../services/email/format.ts";
-import { jobsButton } from "../assignments/emails.ts";
+import { crewWords, jobsButton } from "../assignments/emails.ts";
 import type { Settled } from "../completion/balance.ts";
 import { bookAnother } from "../quotes/emails.ts";
 import {
@@ -47,6 +47,10 @@ const words = catalog({
       CHECK_NEXT: "Before your next clean, please check how we get in.",
       CHECK_FIRST: "Please check how we get in first.",
     },
+    crewCancelled: {
+      subject: "A job you're on is cancelled",
+      CANCELLED: "We've cancelled this job.",
+    },
   },
   es: {
     SEE_CLEAN: "Ver su limpieza",
@@ -69,6 +73,10 @@ const words = catalog({
       CHECK_NEXT:
         "Antes de su próxima limpieza, por favor revise cómo entramos.",
       CHECK_FIRST: "Por favor, revise primero cómo entramos.",
+    },
+    crewCancelled: {
+      subject: "Se canceló un trabajo tuyo",
+      CANCELLED: "Cancelamos este trabajo.",
     },
   },
 });
@@ -179,22 +187,22 @@ export const cancelledEmail = (
 };
 
 // everyone on its crew hears it's off
-export const crewCancelledEmail = ({
-  name,
-  clean,
-}: {
-  name: string;
-  clean: Clean;
-}): Email => ({
-  lang: "en",
-  subject: "A job you're on is cancelled",
-  blocks: [
-    greeting(firstNameOf(name)),
-    paragraph("We've cancelled this job. You don't need to go."),
-    cleanDetails("en", clean),
-    jobsButton,
-  ],
-});
+export const crewCancelledEmail = (
+  lang: Language,
+  { name, clean }: { name: string; clean: Clean },
+): Email => {
+  const w = words[lang].crewCancelled;
+  return {
+    lang,
+    subject: w.subject,
+    blocks: [
+      greeting(firstNameOf(name)),
+      paragraph(`${w.CANCELLED} ${crewWords[lang].NO_NEED_TO_GO}`),
+      cleanDetails(lang, clean),
+      jobsButton(lang),
+    ],
+  };
+};
 
 // the Office hears when a Client cancels or skips a Job themselves
 export const officeCancelledEmail = ({

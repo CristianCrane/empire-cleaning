@@ -36,7 +36,7 @@ import {
   rescheduleRequestOf,
   rescheduleTermsOf,
 } from "../reschedule/reschedule.ts";
-import { staff } from "../staff/staff.schema.ts";
+import { staff, type Staff } from "../staff/staff.schema.ts";
 import { tellOfficeStaff } from "../staff/staff.ts";
 import { assignments, onCrew, type Assignment } from "./assignments.schema.ts";
 import {
@@ -212,14 +212,14 @@ export const offerAssignment = async (
 
 // tells a Cleaner they've been offered a Job, once it's saved
 export const emailOffer = (
-  member: { id: string; name: string; email: string },
+  member: Pick<Staff, "id" | "name" | "email" | "preferredLanguage">,
   job: Job,
   property: Property,
 ) =>
   notify(`Offer of Job ${job.id} to Staff ${member.id}`, async () =>
     email.send({
       to: member.email,
-      ...offerEmail({
+      ...offerEmail(member.preferredLanguage, {
         name: member.name,
         jobId: job.id,
         clean: await cleanOf(job, property),
@@ -265,7 +265,7 @@ export const removeAssignment = async (
     await notify(`Removal from Job ${jobId} to Staff ${member.id}`, async () =>
       email.send({
         to: member.email,
-        ...takenOffEmail({
+        ...takenOffEmail(member.preferredLanguage, {
           name: member.name,
           clean: await cleanOf(job, property),
         }),
