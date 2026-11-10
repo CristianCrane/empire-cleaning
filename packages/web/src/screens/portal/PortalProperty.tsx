@@ -51,7 +51,6 @@ const words = catalog({
     sizeNote:
       "To change its size or rooms, ask us for a new quote. They set the price.",
     plans: "Cleaning plans",
-    plan: "Cleaning plan",
     nextClean: (when: string) => `next clean ${when}`,
     noPlan:
       "No cleaning plan here yet. Ask for a quote for regular cleans, with money off each one.",
@@ -73,7 +72,6 @@ const words = catalog({
     sizeNote:
       "Para cambiar su tamaño o habitaciones, pídanos una nueva cotización: de eso depende el precio.",
     plans: "Planes de limpieza",
-    plan: "Plan de limpieza",
     nextClean: (when: string) => `próxima limpieza el ${when}`,
     noPlan:
       "Aún no hay plan de limpieza aquí. Pida una cotización para limpiezas regulares, con un descuento en cada una.",
@@ -157,7 +155,7 @@ export function PortalProperty() {
         </Card>
       </Section>
 
-      <Section title={plans.length > 1 ? w.plans : w.plan}>
+      <Section title={plans.length > 1 ? w.plans : t.p.cleaningPlan}>
         {plans.length > 0 ? (
           <List
             aria-label={w.plans}

@@ -1,7 +1,7 @@
 import { catalog } from "@empire-cleaning/models";
 
 // The Client portal's words that more than one of its files shows (its
-// navigation, breadcrumbs, shortcuts and tours), in English and Spanish
+// navigation, breadcrumbs, shortcuts and tours, and its Welcome page), in English and Spanish
 // (ADR-0025), usted to Clients. A word only one screen shows is in that
 // screen's own catalog. The Spanish is a draft the owner checks (#206).
 export const portalWords = catalog({
@@ -33,6 +33,14 @@ export const portalWords = catalog({
     seeTheClean: "See the clean",
     showMore: "Show more",
     anotherTime: "Need another time?",
+    // its Welcome page's heading, and its first tour's title
+    welcome: "Welcome",
+    cleaningPlan: "Cleaning plan",
+    bill: (n: string) => `Bill ${n}`,
+    yourClean: (day: string) => `Your ${day} clean`,
+    // what a payment was made with, when its card isn't known
+    card: "card",
+    decline: "Decline",
   },
   es: {
     home: "Inicio",
@@ -61,5 +69,11 @@ export const portalWords = catalog({
     seeTheClean: "Ver la limpieza",
     showMore: "Mostrar más",
     anotherTime: "¿Necesita otra hora?",
+    welcome: "Bienvenido",
+    cleaningPlan: "Plan de limpieza",
+    bill: (n: string) => `Factura ${n}`,
+    yourClean: (day: string) => `Su limpieza del ${day}`,
+    card: "tarjeta",
+    decline: "Rechazar",
   },
 });

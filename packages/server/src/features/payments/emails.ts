@@ -26,7 +26,7 @@ const words = catalog({
   es: {
     subject: "Agregue una tarjeta para Empire Cleaning",
     needCard: (billed: string | null) =>
-      `Para reservar su limpieza necesitamos una tarjeta guardada. ${billed ? `Cobramos el depósito al reservar, y el resto ${billed}.` : "Cobramos el depósito al reservar, y el resto cuando la limpieza está terminada."} La agrega usted.`,
+      `Para reservar su limpieza necesitamos una tarjeta guardada. ${billed ? `Cobramos el depósito al reservar, y el resto ${billed}.` : "Cobramos el depósito al reservar, y el resto cuando la limpieza esté terminada."} La agrega usted.`,
     signInWith: (email: string) =>
       `Inicie sesión con este correo (${email}) para agregarla:`,
     addCard: "Agregar una tarjeta",

@@ -12,14 +12,12 @@ import { said, saidWith } from "../words.ts";
 const words = catalog({
   en: {
     quoteFor: (service: string) => `Quote for a ${service}`,
-    plan: "Cleaning plan",
     quote: (status: string) => `Quote ${status.toLowerCase()}`,
     sent: (service: string, day: string) => `${service}, sent ${day}`,
     asked: (service: string, day: string) => `${service}, asked ${day}`,
   },
   es: {
     quoteFor: (service: string) => `Cotización de ${service}`,
-    plan: "Plan de limpieza",
     quote: (status: string) => `Cotización ${status.toLowerCase()}`,
     sent: (service: string, day: string) => `${service}, enviada el ${day}`,
     asked: (service: string, day: string) => `${service}, pedida el ${day}`,
@@ -62,7 +60,7 @@ export function standingOf(
   data: PropertiesData,
 ): Standing {
   const t = saidWith(lang, words);
-  const { w, clientQuoteStatus, formatDateTime, planStatus, shortDayOf } = t;
+  const { w, p, clientQuoteStatus, formatDateTime, planStatus, shortDayOf } = t;
   const plan = data.plans.find(
     (p) => p.property.id === property.id && p.status !== "ended",
   );
@@ -73,7 +71,7 @@ export function standingOf(
           label: planStatus.on_hold.label,
           line: planWhen(lang, plan),
         }
-      : { tone: "success", label: w.plan, line: planWhen(lang, plan) };
+      : { tone: "success", label: p.cleaningPlan, line: planWhen(lang, plan) };
   }
   const ours = data.quotes.filter((q) => q.property.id === property.id);
   const sent = ours.find((q) => q.status === "sent");

@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "@astrojs/compiler-rs": "^0.5.2",
-    "@empire-cleaning/models": "workspace:*"
+    "@empire-cleaning/models": "workspace:*",
+    "oxc-parser": "^0.155.0"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",

@@ -29,7 +29,6 @@ import { type Said, saidWith, useSaid } from "./words.ts";
 const words = catalog({
   en: {
     cancelled: "Cancelled",
-    clearing: "Clearing",
     due: "Due",
     credit: "Credit",
     nothingToPay: "Nothing to pay",
@@ -55,8 +54,6 @@ const words = catalog({
       `The payment didn't go through${because}.`,
     dueByLabel: "Due by",
     details: "Bill details",
-    taxIncludedOf: (what: string) => `${what}, tax included`,
-    total: "Total",
     week: "Week",
     weekRange: (from: string, to: string) => `${from} to ${to}`,
     covers: "The week it covers",
@@ -72,7 +69,6 @@ const words = catalog({
   },
   es: {
     cancelled: "Cancelada",
-    clearing: "En proceso",
     due: "Pendiente",
     credit: "Crédito",
     nothingToPay: "Nada que pagar",
@@ -98,8 +94,6 @@ const words = catalog({
     paymentDidnt: (because: string) => `El pago no pasó${because}.`,
     dueByLabel: "Vence el",
     details: "Detalles de la factura",
-    taxIncludedOf: (what: string) => `${what}, impuestos incluidos`,
-    total: "Total",
     week: "Semana",
     weekRange: (from: string, to: string) => `Del ${from} al ${to}`,
     covers: "La semana que cubre",
@@ -120,10 +114,10 @@ type T = Said & { w: (typeof words)["en"] };
 
 // where a Bill stands: what's left to do about it, or how it ended
 export function BillStatusBadge({ bill }: { bill: BillSummary }) {
-  const { w, unpaid } = useSaid(words);
+  const { w, unpaid, clearing } = useSaid(words);
   if (bill.status === "void") return <StatusBadge>{w.cancelled}</StatusBadge>;
   if (bill.status === "processing")
-    return <StatusBadge tone="info">{w.clearing}</StatusBadge>;
+    return <StatusBadge tone="info">{clearing}</StatusBadge>;
   if (bill.unpaid) return <StatusBadge tone="danger">{unpaid}</StatusBadge>;
   if (bill.status === "due")
     return <StatusBadge tone="warning">{w.due}</StatusBadge>;
@@ -250,7 +244,7 @@ export function BillDetail({
   jobHref: (jobId: string) => AppHref;
 }) {
   const t = useSaid(words);
-  const { w, formatDate, formatDay, formatMoney } = t;
+  const { w, formatDate, formatDay, formatMoney, taxIncludedOf, total } = t;
   const credit = bill.totalCents < 0;
   const standing = standingFact(t, bill, forClient);
   const row = "flex items-start justify-between gap-6";
@@ -263,7 +257,7 @@ export function BillDetail({
             <IconTile icon={FileText} size="lg" />
             <div className="flex min-w-0 flex-col gap-1">
               <p className="text-sm text-fg-muted">
-                {w.taxIncludedOf(credit ? w.credit : w.total)}
+                {taxIncludedOf(credit ? w.credit : total)}
               </p>
               <p
                 className={`text-3xl font-semibold tabular-nums ${bill.status === "void" ? "text-fg-muted line-through" : "text-fg"}`}
@@ -354,7 +348,7 @@ export function BillDetail({
                 </span>
               </div>
               <div className={`${row} pt-1 font-semibold`}>
-                <span>{credit ? w.credit : w.total}</span>
+                <span>{credit ? w.credit : total}</span>
                 <span className="tabular-nums">
                   {formatMoney(Math.abs(bill.totalCents))}
                 </span>

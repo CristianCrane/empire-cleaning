@@ -21,6 +21,15 @@ describe("a second Late Reschedule's fee (#244 #5)", () => {
     );
   });
 
+  test("is charged when the clean is done, in Spanish too", () => {
+    expect(costForClient("es", "late_cancellation", 5046, oneOff)).toMatch(
+      /y el precio completo se cobra cuando la limpieza esté terminada\.$/,
+    );
+    expect(costForClient("es", "late_cancellation", 5046, plan)).toMatch(
+      /que se cobra con el precio cuando la limpieza esté terminada\.$/,
+    );
+  });
+
   test("goes on that week's Bill, for a Client billed weekly", () => {
     expect(
       costForClient("en", "late_cancellation", 5046, weeklyOneOff),

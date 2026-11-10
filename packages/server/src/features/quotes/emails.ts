@@ -217,10 +217,10 @@ const words = catalog({
         then: string,
       ) =>
         `Cobramos su depósito de ${deposit} a ${card}. El resto, ${rest}, ${then}.`,
-      CHARGED_WHEN_DONE: "se le cobra cuando la limpieza está terminada",
+      CHARGED_WHEN_DONE: "se le cobra cuando la limpieza esté terminada",
       total: (total: string, then: string) => `El total de ${total} ${then}.`,
       chargedTo: (card: string) =>
-        `se cobra a ${card} cuando la limpieza está terminada`,
+        `se cobra a ${card} cuando la limpieza esté terminada`,
       REMIND:
         "Le recordaremos el día antes. Por favor, revise que sepamos cómo entrar:",
     },
