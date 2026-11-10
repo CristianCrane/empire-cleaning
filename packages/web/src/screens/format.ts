@@ -197,7 +197,6 @@ const labels = catalog({
     pickNewTime: "Pick a new time",
     signIn: "Sign in",
     signOut: "Sign out",
-    welcome: "Welcome",
     email: "Email",
     day: "Day",
     dayAt: (when: string, time: string) => `${when} at ${time}`,
@@ -221,7 +220,6 @@ const labels = catalog({
     pickNewTime: "Elegir otra hora",
     signIn: "Iniciar sesión",
     signOut: "Cerrar sesión",
-    welcome: "Bienvenido",
     email: "Correo electrónico",
     day: "Día",
     dayAt: (when: string, time: string) =>

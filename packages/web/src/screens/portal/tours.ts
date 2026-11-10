@@ -1,13 +1,13 @@
 import { catalog } from "@empire-cleaning/models";
-import { type Said, said } from "../words.ts";
 import type { AreaTours } from "../tours.ts";
+import { portalWords } from "./words.ts";
 
 // The Client portal's first-time help (#294): its tours, the first one a
 // person meets led by the value line (its wording is with Jennifer, #206),
 // in each language. A step's target is the screen's own word, from
 // portalWords, so the two can't drift apart
 const toursIn = (
-  { p: w, welcome }: Said,
+  w: (typeof portalWords)["en"],
   t: {
     welcome: string;
     quoteText: string;
@@ -16,7 +16,7 @@ const toursIn = (
     moveText: string;
   },
 ): AreaTours => ({
-  welcomeTitle: welcome,
+  welcomeTitle: w.welcome,
   welcome: t.welcome,
   tours: [
     {
@@ -86,6 +86,6 @@ const words = catalog({
 });
 
 export const clientTours = {
-  en: toursIn(said.en, words.en),
-  es: toursIn(said.es, words.es),
+  en: toursIn(portalWords.en, words.en),
+  es: toursIn(portalWords.es, words.es),
 };
