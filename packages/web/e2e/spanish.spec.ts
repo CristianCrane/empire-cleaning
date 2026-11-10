@@ -9,6 +9,7 @@ import {
   offerJob,
   quoteSent,
   requestReschedule,
+  returnToTab,
   setClock,
   setLanguage,
   signedInAs,
@@ -247,6 +248,48 @@ test("someone both a Client and a Cleaner changes their language in one press, a
   await pressLanguage(page, "English");
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
   await expect(page.getByText("Nothing booked for you yet")).toBeVisible();
+});
+
+test("a screen in Spanish stays in Spanish while the app asks who's signed in again on returning to the tab", async ({
+  page,
+}) => {
+  await createStaff(olive);
+  await signUp(olive.email);
+  await addCleaner("Cory Cleaner");
+  await acceptedJob({ startsAt: MONDAY_9AM, officeEmail: olive.email });
+  await signedInAs(page, casey.email);
+  await setLanguage(page, "es");
+  await page.goto("/portal");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "Hola, Casey",
+  );
+
+  // every language the page says it's in from here, and who's signed in
+  // answering slowly, so a language in between would show
+  await page.evaluate(() => {
+    const seen: string[] = [];
+    (window as unknown as { langs: string[] }).langs = seen;
+    new MutationObserver(() =>
+      seen.push(document.documentElement.lang),
+    ).observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["lang"],
+    });
+  });
+  const asked = page.waitForResponse("**/api/me");
+  await page.route("**/api/me", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await route.fallback();
+  });
+  await returnToTab(page);
+  await asked;
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "Hola, Casey",
+  );
+
+  expect(
+    await page.evaluate(() => (window as unknown as { langs: string[] }).langs),
+  ).not.toContain("en");
 });
 
 test("a Cleaner reading in Spanish takes an open job and marks it done, in tú", async ({

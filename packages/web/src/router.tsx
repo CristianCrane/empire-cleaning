@@ -200,12 +200,24 @@ function Root() {
   );
 }
 
+// whether a path is in an area, whose route says its language once it
+// knows who's signed in
+const inArea = (pathname: string) =>
+  Object.values(areas).some(
+    ({ path }) => pathname === path || pathname.startsWith(`${path}/`),
+  );
+
 const rootRoute = createRootRoute({
   // a screen outside an area (sign-in, its links' pages, not found) is in
-  // the signed-out language; an area's route then says its own. A preload
-  // (the Account menu's) changes nothing on screen
-  beforeLoad: ({ preload }) => {
-    if (!preload) setAppLanguage(signedOutLanguage());
+  // the signed-out language. An area's is left as it is until its route says
+  // its own: the screen on show keeps its language while the Account is
+  // asked for again (returning to the tab), rather than flashing the
+  // signed-out one (#305). A preload (the Account menu's) changes nothing on
+  // screen
+  beforeLoad: ({ preload, location }) => {
+    if (!preload && !inArea(location.pathname)) {
+      setAppLanguage(signedOutLanguage());
+    }
   },
   component: Root,
   notFoundComponent: NotFound,
