@@ -267,6 +267,19 @@ export const setGooglePicture = (email: string, picture: string) =>
     body: JSON.stringify({ email, picture }),
   });
 
+// Google's picture servers, stood in for on this page: each picture a 1 x 1
+// PNG. Before the page loads one
+export const serveGooglePictures = (page: Page) =>
+  page.route("https://lh3.googleusercontent.com/**", (route) =>
+    route.fulfill({
+      contentType: "image/png",
+      body: Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+        "base64",
+      ),
+    }),
+  );
+
 type Email = { to: string; subject: string; text: string };
 
 export const emailsTo = (address: string): Promise<Email[]> =>

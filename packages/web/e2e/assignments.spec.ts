@@ -8,6 +8,7 @@ import {
   moveJob,
   offerJob,
   setClock,
+  serveGooglePictures,
   setGooglePicture,
   signUp,
   signedInAs,
@@ -153,16 +154,7 @@ test(
       cory.email,
       "https://lh3.googleusercontent.com/a/cory-photo",
     );
-    // Google's servers, stood in for: a 1 x 1 picture
-    await page.route("https://lh3.googleusercontent.com/**", (route) =>
-      route.fulfill({
-        contentType: "image/png",
-        body: Buffer.from(
-          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
-          "base64",
-        ),
-      }),
-    );
+    await serveGooglePictures(page);
     await signInAsOffice(page);
     await page.goto(`/office/jobs/${job.id}`);
 
@@ -176,6 +168,8 @@ test(
     await expect(menu.getByRole("separator")).toHaveCount(1);
     await page.keyboard.press("Escape");
     await expect(menu).toBeHidden();
+    // focus is back on Actions; let go of it, so the page ends as it opens
+    await page.getByRole("button", { name: "Actions", exact: true }).blur();
 
     const details = page.getByRole("region", { name: "Job details" });
     await expect(details.getByRole("term")).toHaveText([
