@@ -8,6 +8,8 @@ import {
   moveJob,
   offerJob,
   setClock,
+  setGooglePicture,
+  signUp,
   signedInAs,
   test,
   addCleaner,
@@ -133,6 +135,76 @@ test("Office Staff take someone off a Job, leaving a Cleaner Needed", async ({
     "You're no longer on a job",
   );
 });
+
+// #406: what can be done to the Job in an Actions menu, Cancel last after a
+// rule; each fact with its label; the Crew drawn as the Staff list, the
+// picture the Staff list shows, a badge only when it isn't Confirmed
+test(
+  "the Office's Job page names its actions, its details and its crew",
+  { tag: "@desktop" },
+  async ({ page }) => {
+    const cory = await addCleaner("Cory Cleaner");
+    const dee = await addCleaner("Dee Cleaner");
+    const job = await thursdayJob();
+    await offerJob(job.id, cory.id, { confirmed: true });
+    await offerJob(job.id, dee.id);
+    await signUp(cory.email);
+    await setGooglePicture(
+      cory.email,
+      "https://lh3.googleusercontent.com/a/cory-photo",
+    );
+    // Google's servers, stood in for: a 1 x 1 picture
+    await page.route("https://lh3.googleusercontent.com/**", (route) =>
+      route.fulfill({
+        contentType: "image/png",
+        body: Buffer.from(
+          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+          "base64",
+        ),
+      }),
+    );
+    await signInAsOffice(page);
+    await page.goto(`/office/jobs/${job.id}`);
+
+    await page.getByRole("button", { name: "Actions", exact: true }).click();
+    const menu = page.getByRole("menu");
+    await expect(menu.getByRole("menuitem")).toHaveText([
+      "Move job",
+      "Ask for a new time",
+      "Cancel job",
+    ]);
+    await expect(menu.getByRole("separator")).toHaveCount(1);
+    await page.keyboard.press("Escape");
+    await expect(menu).toBeHidden();
+
+    const details = page.getByRole("region", { name: "Job details" });
+    await expect(details.getByRole("term")).toHaveText([
+      "Client",
+      "Home",
+      "Extras",
+      "Cleaning hours",
+      "Cleaners",
+      "Moving",
+      "Cancelling",
+    ]);
+
+    const crew = page.getByRole("grid", { name: "Crew" });
+    const coryRow = crew.getByRole("row", { name: /Cory Cleaner/ });
+    const deeRow = crew.getByRole("row", { name: /Dee Cleaner/ });
+    await expect(coryRow.locator("img")).toHaveAttribute(
+      "src",
+      "https://lh3.googleusercontent.com/a/cory-photo",
+    );
+    await expect(coryRow.getByText("Confirmed", { exact: true })).toHaveCount(
+      0,
+    );
+    await expect(deeRow.getByText("Offered", { exact: true })).toBeVisible();
+    await expect(
+      deeRow.getByRole("button", { name: "Remove Dee Cleaner" }),
+    ).toBeVisible();
+    await expectAccessible(page);
+  },
+);
 
 test("an Unassigned Job within 48 hours needs attention", async ({ page }) => {
   await addCleaner("Cory Cleaner");
