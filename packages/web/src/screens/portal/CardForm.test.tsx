@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { loadStripe, type Stripe, type StripeError } from "@stripe/stripe-js";
 import { report } from "@empire-cleaning/browser-monitoring";
+import { LanguageProvider } from "@empire-cleaning/ui";
 import { getJson } from "../../api.ts";
 import { CardProblem, usePaymentForm } from "./CardForm.tsx";
 
@@ -93,6 +94,42 @@ test("the card box is mounted once, though it's hidden and shown while Stripe.js
   await loading;
   await new Promise((resolve) => setTimeout(resolve));
 
+  expect(mount).toHaveBeenCalledOnce();
+});
+
+test("the card form follows a change of language, Stripe's own words too, without starting afresh", async () => {
+  vi.mocked(getJson).mockResolvedValue({
+    form: "stripe",
+    publishableKey: "pk_test_123",
+  });
+  const mount = vi.fn();
+  const update = vi.fn();
+  const elements = vi.fn(() => ({
+    create: () => ({ on: () => {}, mount, destroy: () => {} }),
+    update,
+  }));
+  vi.mocked(loadStripe).mockResolvedValue({ elements } as unknown as Stripe);
+  const screen = await render(
+    <LanguageProvider lang="en">
+      <PayForm />
+    </LanguageProvider>,
+  );
+  await vi.waitFor(() => expect(mount).toHaveBeenCalledOnce());
+  expect(elements).toHaveBeenCalledWith(
+    expect.objectContaining({ locale: "en" }),
+  );
+
+  // the person presses Español (AreaLayout's OtherLanguage)
+  await screen.rerender(
+    <LanguageProvider lang="es">
+      <PayForm />
+    </LanguageProvider>,
+  );
+
+  await vi.waitFor(() =>
+    expect(update).toHaveBeenCalledWith({ locale: "es-419" }),
+  );
+  expect(elements).toHaveBeenCalledOnce();
   expect(mount).toHaveBeenCalledOnce();
 });
 

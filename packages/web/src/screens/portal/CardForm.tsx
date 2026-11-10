@@ -14,6 +14,7 @@ import {
   loadStripe,
   type Appearance,
   type Stripe,
+  type StripeElementLocale,
   type StripeElements,
   type StripeError,
 } from "@stripe/stripe-js";
@@ -212,13 +213,16 @@ const FONTS = [
 const ALLOWED_PAYMENT_METHOD_TYPES = ["card"];
 
 // Mounts the Payment Element into a box once Stripe has loaded, and tears it
-// down when the form changes or goes away. `ready()` is what's mounted, to
+// down when the form changes or goes away. It follows the screen's language
+// (`locale`) as it changes, Stripe's own words too (its terms line), without
+// starting the form afresh. `ready()` is what's mounted, to
 // pay or save with, or says why there's nothing: still loading, or Stripe.js
 // couldn't load (blocked, or no connection), which is reported
 const useStripeElement = (
   form: PaymentForm | undefined,
   options: (stripe: Stripe) => StripeElements | null,
   setProblem: (problem: string | undefined) => void,
+  locale: StripeElementLocale,
 ) => {
   const { NOT_LOADED, LOADING } = useSaid(words).w;
   const box = useRef<HTMLDivElement>(null);
@@ -279,6 +283,12 @@ const useStripeElement = (
       mounted.current = null;
     };
   }, [form]);
+
+  // the options were read as it mounted, in that language: a change of
+  // language since is Stripe's to redraw (#305)
+  useEffect(() => {
+    void mounted.current?.elements.update({ locale });
+  }, [locale]);
 
   const ready = useCallback(() => {
     if (mounted.current) return mounted.current;
@@ -348,6 +358,7 @@ export function usePaymentForm({
         locale,
       }),
     setProblem,
+    locale,
   );
 
   // the amount follows the Service chosen
@@ -427,6 +438,7 @@ export function useCardForm() {
           })
         : null,
     setProblem,
+    locale,
   );
 
   const save = useCallback(async () => {
@@ -494,6 +506,7 @@ export function useBillPaymentForm(billId: string) {
           })
         : null,
     setProblem,
+    locale,
   );
 
   const pay = useCallback(async () => {
