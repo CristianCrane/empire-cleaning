@@ -1,7 +1,9 @@
 // runs the real API for the web app's and the landing site's end-to-end tests
 // (packages/web/e2e, packages/landing/tests),
 // exactly as in production except that email, payments and the clock are the
-// same fakes the server tests use. A second, local-only control server lets
+// same fakes the server tests use; in the sandbox run (packages/web/
+// playwright.sandbox.config.ts) payments are the real Stripe adapter in a
+// Stripe sandbox (tests/harness.ts). A second, local-only control server lets
 // the tests reset state, add Staff, Clients and Jobs, move the clock and read
 // the emails that were "sent". Accounts aren't created here: tests sign up, as people do (ADR-0006).
 // One slot's API, started with the rest by servers.ts, which sets its
@@ -28,6 +30,7 @@ import {
   offerAssignment,
 } from "../../src/features/assignments/index.ts";
 import {
+  inPaymentsSandbox,
   installFakes,
   resetDatabase,
   testClock,
@@ -61,10 +64,11 @@ import { accounts } from "../../src/features/auth/auth.schema.ts";
 const CONTROL_PORT = Number(process.env.E2E_CONTROL_PORT ?? 3101);
 
 // fresh fakes, whose payments the browser's test form makes: a Bill paid on
-// its page is paid by card unless a test says otherwise
+// its page is paid by card unless a test says otherwise. The sandbox run's
+// browser pays Stripe itself
 const freshFakes = () => {
   installFakes();
-  testPayments().payBillsInBrowser("card");
+  if (!inPaymentsSandbox) testPayments().payBillsInBrowser("card");
 };
 
 freshFakes();

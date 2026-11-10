@@ -12,7 +12,8 @@
     "test:watch": "vitest --watch",
     "test:install-browser": "playwright install chromium",
     "test:e2e": "playwright test",
-    "test:quick": "playwright test --project phone --grep @smoke"
+    "test:quick": "playwright test --project phone --grep @smoke",
+    "stripe:sandbox": "playwright test --config playwright.sandbox.config.ts"
   },
   "dependencies": {
     "@empire-cleaning/browser-monitoring": "workspace:*",

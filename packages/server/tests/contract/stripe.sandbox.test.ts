@@ -5,8 +5,9 @@
 //   pnpm --filter @empire-cleaning/server stripe:sandbox
 //
 // It makes test Customers and payments in the sandbox. The browser's part
-// (the Payment Element, 3D Secure) can't run here: ConfirmationTokens come
-// from Stripe's test helper, and forms are confirmed as the browser would.
+// (the Payment Element, 3D Secure) runs in the web app's sandbox run
+// (packages/web/e2e/card-form.sandbox.ts): here ConfirmationTokens come from
+// Stripe's test helper, and forms are confirmed as the browser would.
 // Webhooks are the real events, fetched from the Events API and signed here.
 import env from "../../src/env.ts";
 // before stripe.ts, as the gateway's index makes the app's adapter on loading
