@@ -176,16 +176,34 @@ const catalogFiles = [
   "packages/models/src/messages/*.ts",
 ];
 
+// the catalog files in the checkout at `top`, by their paths from it: those
+// not added to git yet too, as the working tree has them (#405)
+export const catalogPaths = (top: string) =>
+  execFileSync(
+    "git",
+    [
+      "ls-files",
+      "--cached",
+      "--others",
+      "--exclude-standard",
+      "--",
+      ...catalogFiles,
+    ],
+    {
+      cwd: top,
+      encoding: "utf8",
+    },
+  )
+    .split("\n")
+    .filter(Boolean);
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   // the paths from the top of the checkout, wherever it runs from
   const top = fileURLToPath(new URL("../../..", import.meta.url));
-  const files = execFileSync("git", ["ls-files", "--", ...catalogFiles], {
-    cwd: top,
-    encoding: "utf8",
-  })
-    .split("\n")
-    .filter(Boolean)
-    .map((path) => ({ path, source: readFileSync(join(top, path), "utf8") }));
+  const files = catalogPaths(top).map((path) => ({
+    path,
+    source: readFileSync(join(top, path), "utf8"),
+  }));
   const copies = catalogCopies(files);
   for (const { words, places } of copies) {
     console.error(

@@ -168,10 +168,6 @@ test(
     await expect(menu.getByRole("separator")).toHaveCount(1);
     await page.keyboard.press("Escape");
     await expect(menu).toBeHidden();
-    // focus is back on Actions, the mouse over it; let go of both, so the
-    // page ends as it opens
-    await page.getByRole("button", { name: "Actions", exact: true }).blur();
-    await page.mouse.move(0, 0);
 
     const details = page.getByRole("region", { name: "Job details" });
     await expect(details.getByRole("term")).toHaveText([
