@@ -9,7 +9,6 @@ import {
   type SettledJobView,
   formats,
   cleansPaidForOffice,
-  languageNames,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -21,6 +20,7 @@ import {
   DialogTrigger,
   Form,
   Heading,
+  LanguageName,
   LanguagePicker,
   List,
   ListItem,
@@ -101,8 +101,8 @@ export function ClientDetail() {
             <dt className="font-semibold">Phone</dt>
             <dd>{client.phone}</dd>
             <dt className="font-semibold">Preferred language</dt>
-            <dd lang={client.preferredLanguage}>
-              {languageNames[client.preferredLanguage]}
+            <dd>
+              <LanguageName language={client.preferredLanguage} />
             </dd>
             {client.reviewRequestedAt && (
               <>
@@ -444,10 +444,8 @@ function EditContact({ client }: { client: OfficeClientView }) {
               isRequired
             />
             <LanguagePicker
-              label="Preferred language"
               name="preferredLanguage"
               defaultValue={client.preferredLanguage}
-              description="Their screens and emails come in it."
             />
             {action.problem && <Notice tone="danger">{action.problem}</Notice>}
             <Actions>

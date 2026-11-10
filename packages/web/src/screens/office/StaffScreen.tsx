@@ -170,12 +170,7 @@ export function StaffFields({
         </Checkbox>
       </fieldset>
       {errors.roles && <Notice tone="danger">{errors.roles}</Notice>}
-      <LanguagePicker
-        label="Preferred language"
-        name="preferredLanguage"
-        defaultValue={language}
-        description="Their screens and emails come in it."
-      />
+      <LanguagePicker name="preferredLanguage" defaultValue={language} />
     </>
   );
 }

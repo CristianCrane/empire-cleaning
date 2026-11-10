@@ -35,13 +35,9 @@ import {
   Notice,
   type NavItem,
   useLanguage,
+  LanguageName,
 } from "@empire-cleaning/ui";
-import {
-  catalog,
-  type Language,
-  LANGUAGES,
-  languageNames,
-} from "@empire-cleaning/models";
+import { catalog, type Language, LANGUAGES } from "@empire-cleaning/models";
 import { deleteJson, getJson, putJson } from "../api.ts";
 import { useLoaded } from "./load.ts";
 import { linkTo } from "../links.ts";
@@ -415,7 +411,7 @@ function OtherLanguage({ onChanged }: { onChanged?: () => void }) {
         onPress={() => void change()}
       >
         <Languages aria-hidden size={20} />
-        <span lang={other}>{languageNames[other]}</span>
+        <LanguageName language={other} />
       </Button>
       {action.problem && <Notice tone="danger">{action.problem}</Notice>}
     </>

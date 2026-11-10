@@ -556,12 +556,7 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
         errorMessage={error("contact.phone")}
       />
       {asker.kind === "office" && (
-        <LanguagePicker
-          label="Preferred language"
-          value={callerLanguage}
-          onChange={setCallerLanguage}
-          description="Their screens and emails come in it."
-        />
+        <LanguagePicker value={callerLanguage} onChange={setCallerLanguage} />
       )}
       {asker.kind === "guest" && (
         // a field people never see or reach, for bots that fill in every

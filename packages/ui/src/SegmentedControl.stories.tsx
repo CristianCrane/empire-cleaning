@@ -67,11 +67,7 @@ export const ExplainsThePick: Story = {
 export const Language: Story = {
   render: () => (
     <form aria-label="Language">
-      <LanguagePicker
-        label="Preferred language"
-        name="preferredLanguage"
-        defaultValue="en"
-      />
+      <LanguagePicker name="preferredLanguage" defaultValue="en" />
     </form>
   ),
   play: async ({ canvas, canvasElement, userEvent }) => {

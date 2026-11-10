@@ -15,12 +15,7 @@ import type {
   StaffHolding,
   StaffRole,
 } from "@empire-cleaning/models";
-import {
-  hasSiteVisit,
-  languageNames,
-  weekdayOf,
-  formats,
-} from "@empire-cleaning/models";
+import { hasSiteVisit, weekdayOf, formats } from "@empire-cleaning/models";
 import {
   Actions,
   Avatar,
@@ -32,6 +27,7 @@ import {
   DialogTrigger,
   Form,
   Heading,
+  LanguageName,
   Notice,
   NumberField,
   Section,
@@ -124,11 +120,7 @@ export function StaffMemberScreen() {
               <Fact
                 icon={Languages}
                 label="Preferred language"
-                value={
-                  <span lang={member.preferredLanguage}>
-                    {languageNames[member.preferredLanguage]}
-                  </span>
-                }
+                value={<LanguageName language={member.preferredLanguage} />}
                 line="Their screens and emails"
               />
             </dl>
