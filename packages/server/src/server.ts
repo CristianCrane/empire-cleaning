@@ -43,6 +43,7 @@ import { router as toursRouter } from "#features/tours";
 import {
   networkLoggingMiddleware,
   corsMiddleware,
+  requestContextMiddleware,
   errorHandler,
   securityHeadersMiddleware,
 } from "#middleware";
@@ -57,6 +58,7 @@ app.disable("x-powered-by");
 app.use(securityHeadersMiddleware);
 app.use(corsMiddleware);
 app.use(networkLoggingMiddleware);
+app.use(requestContextMiddleware);
 
 // Better Auth and the payment provider's webhook read the raw request body,
 // so they are mounted before express.json()

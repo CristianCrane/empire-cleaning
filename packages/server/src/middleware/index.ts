@@ -1,5 +1,6 @@
 export * from "./cors.ts";
 export * from "./logging.ts";
+export * from "./request-context.ts";
 export * from "./errors.ts";
 export * from "./validation.ts";
 export * from "./security-headers.ts";
