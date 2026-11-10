@@ -4,9 +4,8 @@ import {
   type GridListItemProps,
   type GridListProps,
 } from "react-aria-components";
-import { ChevronRight, LoaderCircle } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { createContext, useContext, type ReactNode } from "react";
-import { useUiWords } from "./language.ts";
 import { composeTailwindRenderProps, focusRing } from "./utils.ts";
 
 // whether rows open something, set by the List's (or a row's own) onAction
@@ -35,10 +34,6 @@ export type ListItemProps = Omit<GridListItemProps, "children"> & {
   start?: ReactNode;
   // trailing content, e.g. a StatusBadge
   end?: ReactNode;
-  // what it opens is on its way: a spinner where its chevron is, as a
-  // pending Button shows one, and "Opening" said to a screen reader. Disable
-  // it too while pending, so a second press does nothing
-  isPending?: boolean;
 };
 
 export function ListItem({
@@ -46,32 +41,44 @@ export function ListItem({
   description,
   start,
   end,
-  isPending,
   ...props
 }: ListItemProps) {
   const opens = useContext(OpensItems) || props.onAction !== undefined;
 
-  const words = useUiWords();
+  // on a phone, `end` (a badge) goes under the text rather than squeezing
+  // it beside: a grid of the text's column, with `start` and the chevron
+  // beside both lines. A row with no `end` keeps its one line
+  const stacked = end !== undefined && end !== null && end !== false;
+  const grid = !stacked
+    ? ""
+    : start
+      ? "max-sm:grid max-sm:grid-cols-[auto_minmax(0,1fr)_auto] max-sm:gap-y-1"
+      : "max-sm:grid max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:gap-y-1";
+  const beside = !stacked
+    ? ""
+    : start
+      ? "max-sm:col-start-3 max-sm:row-span-2 max-sm:row-start-1"
+      : "max-sm:col-start-2 max-sm:row-span-2 max-sm:row-start-1";
   return (
     <GridListItem
       textValue={title}
       {...props}
       data-actionable={(opens && !props.isDisabled) || undefined}
       className={(renderProps) =>
-        // on a phone, `end` (a badge) goes under the text rather than
-        // squeezing it beside, `start` and the chevron spanning both lines
-        `${focusRing(renderProps)} flex min-h-touch items-center gap-3 border-b border-border px-4 py-3 -outline-offset-2 last:border-b-0 max-sm:grid max-sm:grid-cols-[auto_minmax(0,1fr)_auto] max-sm:gap-y-1 ${opens ? "hover:bg-surface-sunken pressed:bg-surface-sunken" : ""}`
+        `${focusRing(renderProps)} flex min-h-touch items-center gap-3 border-b border-border px-4 py-3 -outline-offset-2 last:border-b-0 ${grid} ${opens ? "hover:bg-surface-sunken pressed:bg-surface-sunken" : ""}`
       }
     >
       {({ isDisabled }) => (
         <>
           {start && (
-            <div className="shrink-0 self-center max-sm:row-span-2">
+            <div
+              className={`shrink-0 self-center ${stacked ? "max-sm:row-span-2" : ""}`}
+            >
               {start}
             </div>
           )}
           <div
-            className={`flex min-w-0 flex-1 flex-col ${start ? "max-sm:col-start-2" : "max-sm:col-span-2"}`}
+            className={`flex min-w-0 flex-1 flex-col ${stacked && start ? "max-sm:col-start-2" : ""}`}
           >
             <span className="font-semibold text-fg [overflow-wrap:anywhere]">
               {title}
@@ -80,30 +87,19 @@ export function ListItem({
               <span className="text-sm text-fg-muted">{description}</span>
             )}
           </div>
-          {end && (
-            <div className="shrink-0 max-sm:col-start-2 max-sm:row-start-2 max-sm:justify-self-start">
+          {stacked && (
+            <div
+              className={`shrink-0 max-sm:row-start-2 max-sm:justify-self-start ${start ? "max-sm:col-start-2" : "max-sm:col-start-1"}`}
+            >
               {end}
             </div>
           )}
-          {/* there before it's pending, so a screen reader hears it change */}
-          <span role="status" className="sr-only">
-            {isPending ? words.opening : ""}
-          </span>
-          {isPending ? (
-            <LoaderCircle
+          {opens && !isDisabled && (
+            <ChevronRight
               aria-hidden
               size={20}
-              className="animate-spin text-fg-muted self-center max-sm:col-start-3 max-sm:row-span-2 max-sm:row-start-1"
+              className={`text-fg-muted self-center ${beside}`}
             />
-          ) : (
-            opens &&
-            !isDisabled && (
-              <ChevronRight
-                aria-hidden
-                size={20}
-                className="text-fg-muted self-center max-sm:col-start-3 max-sm:row-span-2 max-sm:row-start-1"
-              />
-            )
           )}
         </>
       )}
