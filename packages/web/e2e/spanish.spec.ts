@@ -217,38 +217,43 @@ const pressLanguage = async (page: Page, name: string) => {
   await item.click();
 };
 
-test("someone both a Client and a Cleaner changes their language in one press, and both areas follow", async ({
-  page,
-}) => {
-  await createStaff(olive);
-  await signUp(olive.email);
-  await addCleaner("Casey Client");
-  await acceptedJob({ startsAt: MONDAY_9AM, officeEmail: olive.email });
-  await signedInAs(page, casey.email);
+// on a phone at the ☰ menu's foot, on a larger screen at the sidebar's
+test(
+  "someone both a Client and a Cleaner changes their language in one press, and both areas follow",
+  { tag: "@desktop" },
+  async ({ page }) => {
+    await createStaff(olive);
+    await signUp(olive.email);
+    await addCleaner("Casey Client");
+    await acceptedJob({ startsAt: MONDAY_9AM, officeEmail: olive.email });
+    await signedInAs(page, casey.email);
 
-  await page.goto("/portal");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Hi, Casey");
-  await pressLanguage(page, "Español");
-  await expect(page.locator("html")).toHaveAttribute("lang", "es");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "Hola, Casey",
-  );
-  // no field for it on Your details any more
-  await page.goto("/portal/details");
-  await expect(page.getByRole("main")).not.toContainText("Idioma");
+    await page.goto("/portal");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "Hi, Casey",
+    );
+    await pressLanguage(page, "Español");
+    await expect(page.locator("html")).toHaveAttribute("lang", "es");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "Hola, Casey",
+    );
+    // no field for it on Your details any more
+    await page.goto("/portal/details");
+    await expect(page.getByRole("main")).not.toContainText("Idioma");
 
-  // one person, one language: their Cleaner area is in it too
-  await page.goto("/cleaner");
-  await expect(page.locator("html")).toHaveAttribute("lang", "es");
-  await expect(
-    page.getByText("Todavía no tienes nada reservado"),
-  ).toBeVisible();
+    // one person, one language: their Cleaner area is in it too
+    await page.goto("/cleaner");
+    await expect(page.locator("html")).toHaveAttribute("lang", "es");
+    await expect(
+      page.getByText("Todavía no tienes nada reservado"),
+    ).toBeVisible();
 
-  // and back
-  await pressLanguage(page, "English");
-  await expect(page.locator("html")).toHaveAttribute("lang", "en");
-  await expect(page.getByText("Nothing booked for you yet")).toBeVisible();
-});
+    // and back
+    await pressLanguage(page, "English");
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    await expect(page.getByText("Nothing booked for you yet")).toBeVisible();
+  },
+);
 
 test("a screen in Spanish stays in Spanish while the app asks who's signed in again on returning to the tab", async ({
   page,
