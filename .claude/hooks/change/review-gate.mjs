@@ -10,8 +10,10 @@
 // that review in its Change section. A PR leaves draft (`gh pr ready`, or `gh pr create` without
 // `--draft`) once the branch's lessons file (the `lessons` skill) says
 // where every lesson went, and the review is still of the last commit.
+// A prototype branch's PR (lib's prototypeBranch) is turned down either
+// way: it skipped the reviews because it never merges.
 import { existsSync, readFileSync } from "node:fs";
-import { argsOf, BOUNDARY, deny, dirOf, hook, lines, masked, onBranch, REDIRECT, review, stateFile, unquote, workOf } from "./lib.mjs";
+import { argsOf, BOUNDARY, branchOf, deny, dirOf, hook, lines, masked, onBranch, prototypeBranch, REDIRECT, review, stateFile, unquote, workOf } from "./lib.mjs";
 
 // where a command starts (not inside a message that mentions it), after
 // any VAR=value prefixes, with any gh flags before `pr`
@@ -37,6 +39,13 @@ const headOf = (command, hidden, end) => {
 // the body chained before the gh command didn't run either
 const turnDown = (reason, verb) =>
   deny(`${reason} Nothing in this command ran, steps before gh pr ${verb} included: run each one as its own command.`);
+
+// a prototype branch's PR, turned down whatever else it has
+const prototypeTurnDown = (branch, verb) =>
+  turnDown(
+    `${branch} is a prototype branch: it skipped the survey and the reviews because it never merges, so it never becomes a PR. Build the pick on its own branch (not prototype-…) with the full flow, as the \`change\` skill's Prototype rule says.`,
+    verb,
+  );
 
 // why the branch's PR can't leave draft yet, if it can't: its lessons file
 // is missing, lists nothing, or has a lesson that doesn't say where it went.
@@ -120,21 +129,26 @@ const shapeOf = (text, cwd) => {
   return { problems, section: collapsed ? lines(collapsed[1]) : null };
 };
 
-// gh pr create: the review, the body's shape and its Change section, and
-// its lessons unless it opens as a draft
+// gh pr create: the PR's branch (not a prototype, and the one checked
+// out), then the review, the body's shape and its Change section, and its
+// lessons unless it opens as a draft. The branch is settled before a
+// checkout with no work to gate (a detached HEAD, a prototype) stands
+// aside, so neither opens another branch's PR unchecked
 const createGate = (command, hidden, match, input) => {
   const cwd = dirOf(command, hidden, match.index, input.cwd);
-  const work = workOf(cwd, input);
-  if (!work) return;
+  const branch = branchOf(cwd);
   const end = match.index + match[0].length;
   const turnDownCreate = (reason) => turnDown(reason, "create");
 
-  // a branch's review lives with its own checkout
   const head = headOf(command, hidden, end);
-  if (head && head !== work.branch)
+  if (prototypeBranch(head ?? branch)) return prototypeTurnDown(head ?? branch, "create");
+  // a branch's review lives with its own checkout
+  if (head && head !== branch)
     return turnDownCreate(
-      `gh pr create --head ${head} runs from ${work.branch}'s checkout (${cwd}), but a branch's change review lives with its own checkout. Run it from ${head}'s checkout: git switch ${head} first, as its own command, or in its worktree.`,
+      `gh pr create --head ${head} runs from ${branch}'s checkout (${cwd}), but a branch's change review lives with its own checkout. Run it from ${head}'s checkout: git switch ${head} first, as its own command, or in its worktree.`,
     );
+  const work = workOf(cwd, input);
+  if (!work) return;
 
   const found = review(cwd, work, input);
   if (!found.ok)
@@ -193,8 +207,7 @@ const readyGate = (command, hidden, match, input) => {
   const args = argsOf(hidden, end);
   if (/(?:^|\s)--undo(?=\s|$)/.test(args)) return;
   const cwd = dirOf(command, hidden, match.index, input.cwd);
-  const work = workOf(cwd, input);
-  if (!work) return;
+  const branch = branchOf(cwd);
 
   // The gate reads the lessons and review of the branch checked out where
   // it runs, which is the PR a bare `gh pr ready` readies. A PR named any
@@ -207,9 +220,12 @@ const readyGate = (command, hidden, match, input) => {
   const ghFlags = /gh\s+-/.test(hidden.slice(match.index, end));
   if (named || ghFlags || /\bGH_(?:REPO|HOST)\b/.test(command))
     return turnDown(
-      `Run \`gh pr ready\` bare, as its own command, from the PR's own checkout (for ${work.branch}'s, in ${cwd}): the gate checks the lessons and review of the branch checked out where it runs, so it can't vouch for a PR named another way (a number, -R, --repo, GH_REPO).`,
+      `Run \`gh pr ready\` bare, as its own command, from the PR's own checkout (for ${branch}'s, in ${cwd}): the gate checks the lessons and review of the branch checked out where it runs, so it can't vouch for a PR named another way (a number, -R, --repo, GH_REPO).`,
       "ready",
     );
+  if (prototypeBranch(branch)) return prototypeTurnDown(branch, "ready");
+  const work = workOf(cwd, input);
+  if (!work) return;
 
   // the review still holds: of the last commit, so the lessons commit got
   // its recheck

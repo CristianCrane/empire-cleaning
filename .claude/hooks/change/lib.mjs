@@ -198,6 +198,19 @@ export const cwdFor = (input) => {
   return at === path ? dirname(real) : real;
 };
 
+// the branch checked out in `cwd`'s checkout; "HEAD" when it's detached
+export const branchOf = (cwd) => git(cwd, "rev-parse", "--abbrev-ref", "HEAD");
+
+// A prototype branch (the change skill's rule): `prototype-<name>` holds a
+// throwaway look, pushed as the record and never merged; the pick is built
+// on its own branch with the full flow. So it skips the survey, plan
+// review and review (workOf), and its PR is turned down (review-gate).
+// What it can't hold: a prototype merged into the default branch with no
+// PR, which in a repo whose changes go straight to main (the dotfiles) is
+// the usual route; no gate watches a merge or a push, so there only the
+// rule's text holds it.
+export const prototypeBranch = (branch) => /^prototype-/.test(branch);
+
 // the branch being worked on, and the name its files go by: the branch,
 // or on main one change's: the session, and the commit where HEAD meets
 // origin (7 characters of it, a length that never grows). That commit
@@ -206,11 +219,11 @@ export const cwdFor = (input) => {
 // session's later changes rode its first one's survey). It moves too when
 // HEAD takes in origin's newer work (a pull, a merge, a rebase): then move
 // the change's files to the path the turn-down names. With no origin,
-// the session alone. null on a detached HEAD (a rebase, a bisect), which
-// is not gated
+// the session alone. null on a detached HEAD (a rebase, a bisect) and on
+// a prototype branch, neither of which is gated
 export const workOf = (cwd, input) => {
-  const branch = git(cwd, "rev-parse", "--abbrev-ref", "HEAD");
-  if (branch === "HEAD") return null;
+  const branch = branchOf(cwd);
+  if (branch === "HEAD" || prototypeBranch(branch)) return null;
   if (!["main", "master"].includes(branch) || !input.session_id) return { branch, key: branch };
   const start = originBase(cwd);
   return { branch, key: [branch, input.session_id, start?.slice(0, 7)].filter(Boolean).join("-") };

@@ -6,7 +6,8 @@
 // Changes made before the survey and its plan review (a Bash edit slips
 // past the survey gate), or a dictated change grown past its limits, are
 // pointed out once per commit. A nudge, never a
-// block.
+// block. A detached HEAD or a prototype branch (lib's prototypeBranch) is
+// never counted.
 import { readFileSync, writeFileSync } from "node:fs";
 import { beforeEdit, changedFiles, context, cwdFor, git, hook, stateFile, workOf } from "./lib.mjs";
 
