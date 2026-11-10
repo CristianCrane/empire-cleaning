@@ -9,6 +9,13 @@ export const LANGUAGES = ["en", "es"] as const satisfies Language[];
 // Neutral Latin American Spanish, as it's written in the United States
 export const locales: Record<Language, string> = { en: "en-US", es: "es-US" };
 
+// each language as it names itself, the same to every reader: a switch
+// between them, a person's choice of theirs
+export const languageNames: Record<Language, string> = {
+  en: "English",
+  es: "Español",
+};
+
 // the language a BCP 47 tag ("es-MX", "en") asks for: Spanish for any
 // Spanish, otherwise English
 export const languageOf = (tag: string | null | undefined): Language =>

@@ -1,4 +1,5 @@
 import { and, desc, eq, inArray, isNull, ne, sql, sum } from "drizzle-orm";
+import { currentLanguage } from "#services/request";
 import {
   type ChargeView,
   type JobPayment,
@@ -196,7 +197,7 @@ export const paymentOf = async (job: Job): Promise<JobPayment> => {
     billedCents: ledger.billedCents,
     owedCents: ledger.owedCents,
     paymentMethod: owner?.label ?? null,
-    unpaid: unpaidOf(job.unpaidSince, job.unpaidReason),
+    unpaid: unpaidOf(currentLanguage(), job.unpaidSince, job.unpaidReason),
   };
 };
 

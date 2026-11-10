@@ -1,6 +1,7 @@
 import { and, desc, eq, isNull } from "drizzle-orm";
 import type { QuoteOption, QuoteStatus } from "@empire-cleaning/models";
-import { dayOf, formats } from "@empire-cleaning/models";
+import { catalog, dayOf, formats } from "@empire-cleaning/models";
+import { currentLanguage } from "#services/request";
 import { db, type Tx } from "../../db/index.ts";
 import {
   ConflictError,
@@ -73,7 +74,8 @@ import {
 } from "./quotes.schema.ts";
 import { log, monitoring } from "../../services/monitoring/index.ts";
 
-const { formatWhen, formatList } = formats.en;
+// the payment's description, a record: English (ADR-0025)
+const { formatWhen } = formats.en;
 
 // who is accepting: the Client, from the portal, or Office Staff recording
 // the Client's acceptance on their behalf (they never enter card details: the
@@ -82,9 +84,77 @@ export type Acceptor =
   | { by: "client"; clientId: string; accountId: string }
   | { by: "office"; accountId: string };
 
-// the payment provider couldn't be reached
-const PAYMENT_DOWN =
-  "Something went wrong taking the payment, so nothing was booked. Please try again in a few minutes.";
+// What the API says to someone accepting a Quote, in the request's language
+// (ADR-0025): the Client's words, and those the Office reads too. The
+// Office's own stay English, where they're said
+const words = catalog({
+  en: {
+    // the payment provider couldn't be reached
+    PAYMENT_DOWN:
+      "Something went wrong taking the payment, so nothing was booked. Please try again in a few minutes.",
+    sendFirst: "Send it first.",
+    askNew: "Ask us for a new one.",
+    revised:
+      "This quote was just updated, so nothing was booked. Please reload the page to see it.",
+    planChanged:
+      "Your cleaning plan changed just now, so nothing was booked. Please reload the page and try again.",
+    bookedUp:
+      "Sorry, that time just got booked up, so nothing was charged. We'll be in touch with another time.",
+    addCard: "Add a card to accept this quote.",
+    cardFailed: (because: string) =>
+      `Your card didn't go through${because}, so nothing was booked. Please try another card.`,
+    planFor: (services: string) => `This cleaning plan is for ${services}.`,
+    aService: (name: string) => `a ${name}`,
+    pick: (services: string) => `Pick ${services}`,
+    waiting:
+      "Your bank hasn't approved the payment yet. Please approve it, then try again.",
+    bankFailed:
+      "Your bank didn't approve the payment, so nothing was booked. Please try again, or use another card.",
+    refundedNoRoom:
+      "Sorry, that time got booked up while your bank was approving the payment. We've refunded your deposit, and we'll be in touch with another time.",
+    refundedPlan:
+      "Your cleaning plan started while your bank was approving the payment, so we've refunded your deposit.",
+    refundedRevised:
+      "This quote was updated while your bank was approving the payment, so we've refunded your deposit. Please take a look at what's changed.",
+    refundedClosed:
+      "This quote closed while your bank was approving the payment, so we've refunded your deposit.",
+    nothingWaiting: "There's no payment waiting on this quote.",
+  },
+  es: {
+    PAYMENT_DOWN:
+      "Algo salió mal al cobrar el pago, así que no se reservó nada. Vuelva a intentarlo en unos minutos.",
+    sendFirst: "Envíela primero.",
+    askNew: "Pídanos una nueva.",
+    revised:
+      "Esta cotización se acaba de actualizar, así que no se reservó nada. Vuelva a cargar la página para verla.",
+    planChanged:
+      "Su plan de limpieza acaba de cambiar, así que no se reservó nada. Vuelva a cargar la página e inténtelo de nuevo.",
+    bookedUp:
+      "Lo sentimos, esa hora se acaba de llenar, así que no se cobró nada. Le contactaremos con otra hora.",
+    addCard: "Agregue una tarjeta para aceptar esta cotización.",
+    cardFailed: (because: string) =>
+      `Su tarjeta no pasó${because}, así que no se reservó nada. Pruebe con otra tarjeta.`,
+    planFor: (services: string) => `Este plan de limpieza es para ${services}.`,
+    aService: (name: string) => name,
+    pick: (services: string) => `Elija ${services}`,
+    waiting:
+      "Su banco aún no ha aprobado el pago. Apruébelo y vuelva a intentarlo.",
+    bankFailed:
+      "Su banco no aprobó el pago, así que no se reservó nada. Vuelva a intentarlo, o use otra tarjeta.",
+    refundedNoRoom:
+      "Lo sentimos, esa hora se llenó mientras su banco aprobaba el pago. Le devolvimos el depósito, y le contactaremos con otra hora.",
+    refundedPlan:
+      "Su plan de limpieza empezó mientras su banco aprobaba el pago, así que le devolvimos el depósito.",
+    refundedRevised:
+      "Esta cotización se actualizó mientras su banco aprobaba el pago, así que le devolvimos el depósito. Revise lo que cambió.",
+    refundedClosed:
+      "Esta cotización se cerró mientras su banco aprobaba el pago, así que le devolvimos el depósito.",
+    nothingWaiting: "No hay ningún pago pendiente en esta cotización.",
+  },
+});
+const said = () => words[currentLanguage()];
+const formatList = (items: string[], type?: "and" | "or") =>
+  formats[currentLanguage()].formatList(items, type);
 
 export type AcceptResult =
   | { status: "accepted"; job: Job }
@@ -94,10 +164,10 @@ export type AcceptResult =
 // Quote, and the Office sends one
 const closedMessage = (status: QuoteStatus, acceptor: Acceptor["by"]) => {
   if (status === "requested" || status === "draft") {
-    return `${whatClosed(status)} Send it first.`;
+    return `${whatClosed(status)} ${said().sendFirst}`;
   }
   if (status === "accepted") return whatClosed(status);
-  return `${whatClosed(status)} ${acceptor === "client" ? "Ask us for a new one." : "Send a new one."}`;
+  return `${whatClosed(status)} ${acceptor === "client" ? said().askNew : "Send a new one."}`;
 };
 
 // only a Sent Quote's offer, `revisionId`, can be Accepted, and only before
@@ -123,18 +193,18 @@ const unbookableMessage = (unbookable: Unbookable, acceptor: Acceptor) => {
     return closedMessage(unbookable.status, acceptor.by);
   }
   if (unbookable.reason === "revised") {
-    return "This quote was just updated, so nothing was booked. Please reload the page to see it.";
+    return said().revised;
   }
   if (
     unbookable.reason === "has_plan" ||
     unbookable.reason === "plan_changed"
   ) {
     return acceptor.by === "client"
-      ? "Your cleaning plan changed just now, so nothing was booked. Please reload the page and try again."
+      ? said().planChanged
       : "This home's cleaning plan changed just now, so nothing was booked. Reload the page and try again.";
   }
   return acceptor.by === "client"
-    ? "Sorry, that time just got booked up, so nothing was charged. We'll be in touch with another time."
+    ? said().bookedUp
     : "That day is now too full for this job, so nothing was charged. Send a quote for another time.";
 };
 
@@ -177,7 +247,7 @@ type Offer = {
 };
 
 const describeServices = (names: string[]) =>
-  formatList([...new Set(names)].map((name) => `a ${name}`));
+  formatList([...new Set(names)].map(said().aService));
 
 const offerFor = async (
   revision: KindedRevision,
@@ -189,10 +259,12 @@ const offerFor = async (
     if (!row) {
       throw fieldError(
         ["serviceKey"],
-        `Pick ${formatList(
-          rows.map((r) => `a ${r.suggested.serviceName}`),
-          "or",
-        )}`,
+        said().pick(
+          formatList(
+            rows.map((r) => said().aService(r.suggested.serviceName)),
+            "or",
+          ),
+        ),
       );
     }
     const option = toOption(revision, row);
@@ -213,7 +285,9 @@ const offerFor = async (
   // a Service Plan Quote offers its weekdays' Services, and only those
   if (serviceKey && !rows.some((r) => r.serviceKey === serviceKey)) {
     throw new ConflictError(
-      `This cleaning plan is for ${describeServices(rows.map((r) => r.suggested.serviceName))}.`,
+      said().planFor(
+        describeServices(rows.map((r) => r.suggested.serviceName)),
+      ),
     );
   }
   const cleans = rows.map((row) => ({
@@ -471,7 +545,7 @@ export const acceptQuote = async (
   if (!token && !saved) {
     throw new ConflictError(
       acceptor.by === "client"
-        ? "Add a card to accept this quote."
+        ? said().addCard
         : `${client.name} hasn't added a card yet. Email them a link to add one.`,
     );
   }
@@ -541,13 +615,13 @@ export const acceptQuote = async (
       if (attempt.status === "failed") {
         // the Client is told only that their card wasn't charged
         log.info(`Deposit for Quote ${id} not taken (${attempt.reason})`);
-        const { kind, why } = whyNotPaid(attempt.reason);
+        const { kind, why } = whyNotPaid(currentLanguage(), attempt.reason);
         const because = why ? ` (${why})` : "";
         throw new ConflictError(
           kind === "waiting"
-            ? PAYMENT_DOWN
+            ? said().PAYMENT_DOWN
             : acceptor.by === "client"
-              ? `Your card didn't go through${because}, so nothing was booked. Please try another card.`
+              ? said().cardFailed(because)
               : `${client.name}'s ${saved!.label} didn't go through${because}, so nothing was booked. Email them a link to add another card.`,
         );
       }
@@ -719,20 +793,20 @@ export const pendingDepositFor = async (quoteId: string) => {
 export const finalizeProblem = (finalized: Finalized) => {
   switch (finalized.status) {
     case "waiting":
-      return "Your bank hasn't approved the payment yet. Please approve it, then try again.";
+      return said().waiting;
     case "failed":
-      return "Your bank didn't approve the payment, so nothing was booked. Please try again, or use another card.";
+      return said().bankFailed;
     case "refunded":
       return finalized.unbookable.reason === "no_room"
-        ? "Sorry, that time got booked up while your bank was approving the payment. We've refunded your deposit, and we'll be in touch with another time."
+        ? said().refundedNoRoom
         : finalized.unbookable.reason === "has_plan" ||
             finalized.unbookable.reason === "plan_changed"
-          ? "Your cleaning plan started while your bank was approving the payment, so we've refunded your deposit."
+          ? said().refundedPlan
           : finalized.unbookable.reason === "revised"
-            ? "This quote was updated while your bank was approving the payment, so we've refunded your deposit. Please take a look at what's changed."
-            : "This quote closed while your bank was approving the payment, so we've refunded your deposit.";
+            ? said().refundedRevised
+            : said().refundedClosed;
     default:
-      return "There's no payment waiting on this quote.";
+      return said().nothingWaiting;
   }
 };
 

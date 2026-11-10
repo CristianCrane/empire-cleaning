@@ -24,7 +24,8 @@ import type {
   SiteVisitStage,
   Weekday,
 } from "@empire-cleaning/models";
-import { DAY_MS, HOUR_MS } from "@empire-cleaning/models";
+import { catalog, DAY_MS, HOUR_MS } from "@empire-cleaning/models";
+import { currentLanguage } from "#services/request";
 import { db, type Tx } from "../../db/index.ts";
 import { clock } from "../../services/clock/index.ts";
 import { clients } from "../clients/clients.schema.ts";
@@ -68,8 +69,8 @@ export const isOpen = (status: QuoteStatus) =>
 
 // what happened to a Quote that can't be accepted, revised or declined
 // now; each refusal adds what to do
-export const whatClosed = (status: QuoteStatus) =>
-  ({
+const closedWords = catalog({
+  en: {
     requested: "This quote hasn't been sent yet.",
     draft: "This quote hasn't been sent yet.",
     sent: "",
@@ -77,7 +78,19 @@ export const whatClosed = (status: QuoteStatus) =>
     declined: "This quote was declined.",
     expired: "This quote has expired.",
     turned_down: "This quote was turned down.",
-  })[status];
+  } satisfies Record<QuoteStatus, string>,
+  es: {
+    requested: "Esta cotización aún no se ha enviado.",
+    draft: "Esta cotización aún no se ha enviado.",
+    sent: "",
+    accepted: "Esta cotización ya se aceptó.",
+    declined: "Esta cotización se rechazó.",
+    expired: "Esta cotización venció.",
+    turned_down: "Esta cotización se descartó.",
+  },
+});
+export const whatClosed = (status: QuoteStatus) =>
+  closedWords[currentLanguage()][status];
 
 // still being worked on by the Office: nothing has been Sent
 const unsent = (status: QuoteStatus) =>

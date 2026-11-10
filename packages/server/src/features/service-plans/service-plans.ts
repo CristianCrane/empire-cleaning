@@ -15,6 +15,7 @@ import {
   or,
   sum,
 } from "drizzle-orm";
+import { currentLanguage } from "#services/request";
 import type {
   LocalDateTime,
   OfficeServicePlan,
@@ -50,7 +51,7 @@ import {
 } from "../jobs/jobs.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
 import { freeFor, jobViews, roomFor } from "../jobs/schedule.ts";
-import { endsByMidnight, PASSED } from "../jobs/rules.ts";
+import { endsByMidnight, passed } from "../jobs/rules.ts";
 import { charges } from "../payments/payments.schema.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { warnOfficeOfQuotesWithoutRoom } from "../quotes/quote-room.ts";
@@ -65,7 +66,7 @@ import { freeUntilOf } from "../cancellation/cancellation.ts";
 import { email } from "../../services/email/index.ts";
 import { cleanOf } from "../services/services.ts";
 import { planCleanBookedEmail } from "./emails.ts";
-import { endServicePlan, endTermsOf, PLAN_ENDED } from "./ending.ts";
+import { endServicePlan, endTermsOf, planEnded } from "./ending.ts";
 import {
   recordFirstVisits,
   type AcceptedQuote,
@@ -77,8 +78,6 @@ import {
   type ServicePlan,
 } from "./service-plans.schema.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
-
-const { ENDS_BY_MIDNIGHT } = messages.en;
 
 // how far ahead a plan's Jobs are put on the Schedule: every recurrence has
 // at least one showing, and the Office has a month's notice of a full day
@@ -477,7 +476,7 @@ const findVisit = async (tx: Tx, planId: string, visitId: string) => {
     );
   }
   if (found.plan.status === "ended") {
-    throw new ConflictError(PLAN_ENDED);
+    throw new ConflictError(planEnded());
   }
   return found;
 };
@@ -506,14 +505,14 @@ export const bookVisit = async (
     refuseOnHold(plan);
     const startsAt = atTime(date, time);
     if (startsAt <= clock.now()) {
-      throw new ConflictError(PASSED);
+      throw new ConflictError(passed());
     }
     // the visit of the weekday it came round on, on the terms it did
     const day = (await daysOfQuote(visit.quoteId, tx)).find(
       (d) => d.position === visit.position,
     )!;
     if (!endsByMidnight(startsAt, day.labourHours / day.crewSize)) {
-      throw new ConflictError(ENDS_BY_MIDNIGHT);
+      throw new ConflictError(messages[currentLanguage()].ENDS_BY_MIDNIGHT);
     }
     const booked = await bookOnto(tx, plan, day, startsAt);
     if (!booked) {

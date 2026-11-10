@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { currentLanguage } from "#services/request";
 import { z } from "zod";
 import { ConflictError } from "../../middleware/errors.ts";
 import { byId, keepUnder, validate } from "../../middleware/validation.ts";
@@ -9,6 +10,7 @@ import {
   billView,
   finishBillPayment,
   listBills,
+  payWords,
   recordOutsidePayment,
   setBilling,
   startBillPayment,
@@ -61,9 +63,9 @@ router.post(
     await billView(id, client.id);
     const failure = await finishBillPayment(id, req.body.ref);
     if (failure) {
-      const { why } = whyNotPaid(failure);
+      const { why } = whyNotPaid(currentLanguage(), failure);
       throw new ConflictError(
-        `Your payment didn't go through${why ? ` (${why})` : ""}. Please try again, or use another card or bank account.`,
+        payWords[currentLanguage()].notThrough(why ? ` (${why})` : ""),
       );
     }
     res.json(await billView(id, client.id));

@@ -1,5 +1,5 @@
 import Stripe from "stripe";
-import type { CardForm, PaymentForm } from "@empire-cleaning/models";
+import type { CardForm, Language, PaymentForm } from "@empire-cleaning/models";
 import { MINUTE_MS } from "@empire-cleaning/models";
 import { monitoring } from "#services/monitoring";
 import {
@@ -65,6 +65,10 @@ const BILL_ALLOWED: ("card" | "us_bank_account")[] = [
 //   or bank debit; a bank debit is processing until it clears, which a
 //   webhook tells us.
 // - Our charge ids are PaymentIntent ids.
+// the locales Stripe words its own pages and emails in for a Customer:
+// Latin American Spanish, as ours is (ADR-0025)
+const stripeLocales: Record<Language, string> = { en: "en-US", es: "es-419" };
+
 export class StripePaymentGateway implements PaymentGateway {
   private readonly stripe: Stripe;
   private readonly publishableKey: string;
@@ -88,16 +92,29 @@ export class StripePaymentGateway implements PaymentGateway {
     clientId,
     name,
     email,
+    language,
   }: {
     clientId: string;
     name: string;
     email: string | null;
+    language: Language;
   }) {
     const customer = await this.stripe.customers.create(
-      { name, email: email ?? undefined, metadata: { clientId } },
+      {
+        name,
+        email: email ?? undefined,
+        metadata: { clientId },
+        preferred_locales: [stripeLocales[language]],
+      },
       { idempotencyKey: `customer:${clientId}` },
     );
     return { payerId: customer.id };
+  }
+
+  async setPayerLanguage(payerId: string, language: Language) {
+    await this.stripe.customers.update(payerId, {
+      preferred_locales: [stripeLocales[language]],
+    });
   }
 
   async startCardForm(payerId: string): Promise<CardForm> {

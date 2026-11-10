@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
-import type { PaymentMethodView } from "@empire-cleaning/models";
+import { currentLanguage } from "#services/request";
+import { catalog, type PaymentMethodView } from "@empire-cleaning/models";
 import { apart, db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock } from "../../services/clock/index.ts";
@@ -44,7 +45,7 @@ export const toPaymentMethodView = (
 // once still make one. Kept apart from any transaction around it, as it
 // stands at the provider whatever that does.
 export const payerFor = async (
-  client: Pick<Client, "id" | "name" | "email">,
+  client: Pick<Client, "id" | "name" | "email" | "preferredLanguage">,
 ) => {
   const [known] = await apart
     .select()
@@ -56,6 +57,7 @@ export const payerFor = async (
     clientId: client.id,
     name: client.name,
     email: client.email,
+    language: client.preferredLanguage,
   });
   await apart
     .insert(payers)
@@ -92,6 +94,20 @@ export const storePaymentMethod = async (
 export const startCardForm = async (client: Client) =>
   paymentGateway.startCardForm(await payerFor(client));
 
+// what the Client reads when the provider refused the form's result, in
+// the request's language (ADR-0025); the provider's own words are for the
+// logs
+export const cardWords = catalog({
+  en: {
+    NOT_SET_UP: "Your card wasn't set up. Please enter it again.",
+    ENTER_CARD: "Enter your card",
+  },
+  es: {
+    NOT_SET_UP: "Su tarjeta no se guardó. Vuelva a ingresarla.",
+    ENTER_CARD: "Ingrese su tarjeta",
+  },
+});
+
 // Keeps the card a Client set up in that form as their Payment Method. Only
 // the Client does this: Office Staff never handle card details.
 export const savePaymentMethod = async (
@@ -103,7 +119,7 @@ export const savePaymentMethod = async (
     .savePaymentMethod({ payerId, token })
     .catch((error) => {
       if (error instanceof PaymentMethodError) {
-        throw new ConflictError(error.message);
+        throw new ConflictError(cardWords[currentLanguage()].NOT_SET_UP);
       }
       throw error;
     });

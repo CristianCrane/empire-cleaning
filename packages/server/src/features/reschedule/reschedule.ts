@@ -15,9 +15,11 @@ import {
   MORE_HOURS,
   timeOf,
   whyNoRoom,
+  catalog,
   formats,
   messages,
 } from "@empire-cleaning/models";
+import { currentLanguage } from "#services/request";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock } from "../../services/clock/index.ts";
@@ -29,7 +31,7 @@ import {
 } from "../assignments/cleaners-needed.ts";
 import { weeklyBillFor } from "../bills/billed-weekly.ts";
 import {
-  CHANGED_SINCE,
+  changedSince,
   lateFeeOf,
   planOfJob,
 } from "../cancellation/cancellation.ts";
@@ -41,7 +43,8 @@ import {
   asClean,
   endsByMidnight,
   roomOn,
-  PASSED,
+  passed,
+  callUs,
   whyNotBooked,
   whyStarted,
 } from "../jobs/rules.ts";
@@ -63,12 +66,34 @@ import {
   rescheduleTurnedDownEmail,
 } from "./emails.ts";
 
-const { ENDS_BY_MIDNIGHT, SAME_TIME } = messages.en;
-
+// the emails' money is English until #304
 const { formatMoney } = formats.en;
 
 // a Job can be moved to a day from tomorrow up to this many days ahead
 const RESCHEDULE_DAYS_AHEAD = 56;
+
+// what the API says to a Client asking to move a clean, in the request's
+// language (ADR-0025)
+const words = catalog({
+  en: {
+    alreadyAsked:
+      "There's already a request to move this clean. Withdraw it to ask for another time.",
+    pickDayBetween: (weeks: number) =>
+      `Pick a day between tomorrow and ${weeks} weeks from now.`,
+    pickShown: "Pick one of the times shown.",
+    justTaken: "That time was just taken. Pick another.",
+    noRequest: "There's no request to move this job.",
+  },
+  es: {
+    alreadyAsked:
+      "Ya hay una solicitud para reprogramar esta limpieza. Retírela para pedir otra hora.",
+    pickDayBetween: (weeks: number) =>
+      `Elija un día entre mañana y dentro de ${weeks} semanas.`,
+    pickShown: "Elija una de las horas que se muestran.",
+    justTaken: "Alguien acaba de reservar esa hora. Elija otra.",
+    noRequest: "No hay ninguna solicitud para reprogramar esta limpieza.",
+  },
+});
 
 // the start times a Job can be moved to, New York time
 const START_TIMES = [
@@ -255,35 +280,33 @@ export const requestReschedule = async (
     if (job.startsAt <= clock.now()) {
       throw new ConflictError(
         asking.byClient
-          ? `${whyStarted("moved")} Please call us.`
+          ? `${whyStarted("moved")} ${callUs()}`
           : whyStarted("moved"),
       );
     }
     if (await pendingOf(jobId, tx)) {
-      throw new ConflictError(
-        "There's already a request to move this clean. Withdraw it to ask for another time.",
-      );
+      throw new ConflictError(words[currentLanguage()].alreadyAsked);
     }
 
     const { from, to: last } = bookableRange();
     if (to.date < from || to.date > last) {
       throw new ConflictError(
-        `Pick a day between tomorrow and ${RESCHEDULE_DAYS_AHEAD / 7} weeks from now.`,
+        words[currentLanguage()].pickDayBetween(RESCHEDULE_DAYS_AHEAD / 7),
       );
     }
     if (!timesFor(job).includes(to.time)) {
-      throw new ConflictError("Pick one of the times shown.");
+      throw new ConflictError(words[currentLanguage()].pickShown);
     }
     if (startsAt.getTime() === job.startsAt.getTime()) {
-      throw new ConflictError(SAME_TIME);
+      throw new ConflictError(messages[currentLanguage()].SAME_TIME);
     }
     if (!endsByMidnight(startsAt, job.labourHours / job.crewSize)) {
-      throw new ConflictError(ENDS_BY_MIDNIGHT);
+      throw new ConflictError(messages[currentLanguage()].ENDS_BY_MIDNIGHT);
     }
 
     const terms = await termsOf(job, tx);
     if (terms.cost !== asking.cost) {
-      throw new ConflictError(CHANGED_SINCE);
+      throw new ConflictError(changedSince());
     }
 
     // the new time holds a crew, and on another day the hours, so two
@@ -291,7 +314,7 @@ export const requestReschedule = async (
     await lockDay(tx, to.date);
     const { hasRoom } = await roomFor(asClean({ ...job, startsAt }), tx);
     if (!hasRoom) {
-      throw new ConflictError("That time was just taken. Pick another.");
+      throw new ConflictError(words[currentLanguage()].justTaken);
     }
 
     await tx.insert(rescheduleRequests).values({
@@ -353,7 +376,7 @@ const lockPending = async (tx: Tx, jobId: string) => {
   const pending =
     found.job.status === "booked" ? await pendingOf(jobId, tx) : null;
   if (!pending) {
-    throw new ConflictError("There's no request to move this job.");
+    throw new ConflictError(words[currentLanguage()].noRequest);
   }
   return { ...found, pending };
 };
@@ -621,10 +644,10 @@ export const moveJob = async (jobId: string, to: LocalDateTime) => {
       throw new ConflictError(whyStarted("moved"));
     }
     if (startsAt <= now) {
-      throw new ConflictError(PASSED);
+      throw new ConflictError(passed());
     }
     if (startsAt.getTime() === job.startsAt.getTime()) {
-      throw new ConflictError(SAME_TIME);
+      throw new ConflictError(messages[currentLanguage()].SAME_TIME);
     }
     if (await pendingOf(jobId, tx)) {
       throw new ConflictError(

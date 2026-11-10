@@ -1,11 +1,12 @@
 import { and, desc, eq, inArray, sum } from "drizzle-orm";
-import type { EndPlanTerms } from "@empire-cleaning/models";
+import { currentLanguage } from "#services/request";
+import { catalog, type EndPlanTerms } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock } from "../../services/clock/index.ts";
 import { email, notify } from "../../services/email/index.ts";
 import {
-  CHANGED_SINCE,
+  changedSince,
   freeUntilOf,
   tellCrew,
 } from "../cancellation/cancellation.ts";
@@ -25,7 +26,11 @@ import {
 } from "./service-plans.schema.ts";
 
 // a plan Ended already can't be changed, ended again, or book a visit
-export const PLAN_ENDED = "This cleaning plan has already ended.";
+const endedWords = catalog({
+  en: { PLAN_ENDED: "This cleaning plan has already ended." },
+  es: { PLAN_ENDED: "Este plan de limpieza ya terminó." },
+});
+export const planEnded = () => endedWords[currentLanguage()].PLAN_ENDED;
 
 // a plan's Jobs, latest first
 const jobsOf = async (tx: Tx | typeof db, planId: string) =>
@@ -143,16 +148,16 @@ export const endServicePlan = async (planId: string, ending: Ending) => {
       .for("update");
     if (!plan) throw new NotFoundError("Service Plan not found");
     if (plan.status === "ended") {
-      throw new ConflictError(PLAN_ENDED);
+      throw new ConflictError(planEnded());
     }
     // generating may have booked one in between
     if ((await jobsOf(tx, planId)).length !== ids.length) {
-      throw new ConflictError(CHANGED_SINCE);
+      throw new ConflictError(changedSince());
     }
     const what = planOf(planJobs);
     const terms = toTerms(what, await heldDepositOf(tx, planId));
     if (terms.goingAhead.join() !== [...ending.goingAhead].sort().join()) {
-      throw new ConflictError(CHANGED_SINCE);
+      throw new ConflictError(changedSince());
     }
 
     const now = clock.now();

@@ -7,8 +7,10 @@ import {
   type ScheduleDay,
   type ScheduledSiteVisit,
 } from "@empire-cleaning/models";
+import { currentLanguage } from "#services/request";
 import {
   addDays,
+  catalog,
   atTime,
   dayOf,
   HOUR_MS,
@@ -257,38 +259,84 @@ export const withoutReplaced = (
   };
 };
 
-// a time asked for that has already passed
-export const PASSED = "That time has passed. Pick a later time.";
-
-// what happened to a Job that isn't booked any more
+// What the API says of a clean's time and state, in the request's language
+// (ADR-0025). Spanish is impersonal ("no se puede"), so it reads right to a
+// Client (usted) and a Cleaner (tú) alike
 type Ended = Exclude<JobStatus, "booked">;
-const ended: Record<Ended, string> = {
-  completed: "This clean is done",
-  cancelled: "This clean was cancelled",
-  no_access: "The cleaner couldn't get in for this clean",
-};
-const already: Record<Ended, string> = {
-  completed: "This clean is already done.",
-  cancelled: "This clean is already cancelled.",
-  no_access: "We already know the cleaner couldn't get in.",
-};
-// what someone can't do to a clean that has ended or started
-const canDo: Record<Ended | "moved" | "offered" | "confirmed", string> = {
-  completed: "mark it done",
-  cancelled: "cancel it",
-  no_access: "say the cleaner couldn't get in",
-  moved: "move it",
-  offered: "offer it to anyone",
-  confirmed: "confirm it",
-};
+type Doing = Ended | "moved" | "offered" | "confirmed";
+const words = catalog({
+  en: {
+    // a time asked for that has already passed
+    PASSED: "That time has passed. Pick a later time.",
+    // what happened to a Job that isn't booked any more
+    ended: {
+      completed: "This clean is done",
+      cancelled: "This clean was cancelled",
+      no_access: "The cleaner couldn't get in for this clean",
+    } satisfies Record<Ended, string>,
+    already: {
+      completed: "This clean is already done.",
+      cancelled: "This clean is already cancelled.",
+      no_access: "We already know the cleaner couldn't get in.",
+    } satisfies Record<Ended, string>,
+    // what someone can't do to a clean that has ended or started
+    canDo: {
+      completed: "mark it done",
+      cancelled: "cancel it",
+      no_access: "say the cleaner couldn't get in",
+      moved: "move it",
+      offered: "offer it to anyone",
+      confirmed: "confirm it",
+    } satisfies Record<Doing, string>,
+    cantBecause: (why: string, doing: string) =>
+      `${why}, so you can't ${doing}.`,
+    started: "This clean has already started",
+    // what a Client does about a clean that has started
+    CALL_US: "Please call us.",
+  },
+  es: {
+    PASSED: "Esa hora ya pasó. Elija una hora más tarde.",
+    ended: {
+      completed: "Esta limpieza ya terminó",
+      cancelled: "Esta limpieza se canceló",
+      no_access: "El limpiador no pudo entrar para esta limpieza",
+    },
+    already: {
+      completed: "Esta limpieza ya está terminada.",
+      cancelled: "Esta limpieza ya está cancelada.",
+      no_access: "Ya sabemos que el limpiador no pudo entrar.",
+    },
+    canDo: {
+      completed: "marcar como terminada",
+      cancelled: "cancelar",
+      no_access: "indicar que el limpiador no pudo entrar",
+      moved: "reprogramar",
+      offered: "ofrecer a nadie",
+      confirmed: "confirmar",
+    },
+    cantBecause: (why: string, doing: string) =>
+      `${why}, así que no se puede ${doing}.`,
+    started: "Esta limpieza ya empezó",
+    CALL_US: "Por favor, llámenos.",
+  },
+});
+
+export const passed = () => words[currentLanguage()].PASSED;
+
+// a Client is asked to call about a clean that has started
+export const callUs = () => words[currentLanguage()].CALL_US;
 
 // Why a Job that isn't booked can't be `doing`: what happened to it, or
 // that it already was
-export const whyNotBooked = (status: Ended, doing: Ended | "moved") =>
-  status === doing
-    ? already[status]
-    : `${ended[status]}, so you can't ${canDo[doing]}.`;
+export const whyNotBooked = (status: Ended, doing: Ended | "moved") => {
+  const w = words[currentLanguage()];
+  return status === doing
+    ? w.already[status]
+    : w.cantBecause(w.ended[status], w.canDo[doing]);
+};
 
 // why a Job that has started can't be `doing`
-export const whyStarted = (doing: keyof typeof canDo) =>
-  `This clean has already started, so you can't ${canDo[doing]}.`;
+export const whyStarted = (doing: Doing) => {
+  const w = words[currentLanguage()];
+  return w.cantBecause(w.started, w.canDo[doing]);
+};

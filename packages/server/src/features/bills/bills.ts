@@ -14,6 +14,7 @@ import {
   notInArray,
   or,
 } from "drizzle-orm";
+import { currentLanguage } from "#services/request";
 import type {
   BillPaymentForm,
   BillSummary,
@@ -29,7 +30,9 @@ import {
   mondayOf,
   startOfDay,
   timeOf,
+  catalog,
   formats,
+  type Language,
   messages,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
@@ -69,7 +72,7 @@ import {
   paymentMethods,
   refunds,
 } from "../payments/payments.schema.ts";
-import { LATE, nowTheirs, unpaidOf } from "../payments/unpaid.ts";
+import { LATE, nowTheirs, unpaidKind, unpaidOf } from "../payments/unpaid.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
 import { addressOf } from "../properties/property-view.ts";
 import { jobQuotes } from "../quotes/job-quotes.ts";
@@ -83,16 +86,39 @@ import { billLines, bills, type Bill, type BillLine } from "./bills.schema.ts";
 import { serviceNameOf } from "../services/services.ts";
 import { log, monitoring } from "../../services/monitoring/index.ts";
 
-const {
-  adjustmentLabel,
-  BOOKED_GO_AHEAD,
-  feeName,
-  LATE_MOVE_FEE,
-  PLAN_BACK_ON,
-  PLAN_PAUSED,
-} = messages.en;
+// the emails' words, English until #304
+const { BOOKED_GO_AHEAD, PLAN_BACK_ON, PLAN_PAUSED } = messages.en;
 
-const { formatWhen } = formats.en;
+// A Bill's lines are a record, worded as they're made in their Client's
+// Preferred Language (ADR-0025)
+const lineWords = catalog({
+  en: {
+    what: (service: string, address: string, when: string) =>
+      `${service} at ${address}, ${when}`,
+    floor: "The price can't go below $0",
+    depositPaid: "Deposit paid",
+    alreadyPaid: "Already paid",
+    corrected: "Corrected",
+    creditFrom: (bill: string) => `Credit from ${bill}`,
+  },
+  es: {
+    what: (service: string, address: string, when: string) =>
+      `${service} en ${address}, ${when}`,
+    floor: "El precio no puede bajar de $0",
+    depositPaid: "Depósito pagado",
+    alreadyPaid: "Ya pagado",
+    corrected: "Corregido",
+    creditFrom: (bill: string) => `Crédito de la factura ${bill}`,
+  },
+});
+
+// what a Job is, as its lines on a Bill name it, before what each line is
+const whatOf = async (lang: Language, job: Job, property: Property) =>
+  lineWords[lang].what(
+    await serviceNameOf(job.serviceId),
+    addressOf(property),
+    formats[lang].formatWhen(job.startsAt),
+  );
 
 // a credit no Bill follows within this long is refunded (ADR-0016)
 const CREDIT_REFUND_DAYS = 30;
@@ -131,10 +157,13 @@ const taxShare = (
  * completion was undone, should have billed nothing.
  */
 const partsOf = async (
+  lang: Language,
   job: Job,
   property: Property,
   tx: Tx | typeof db,
 ): Promise<Part[]> => {
+  const words = lineWords[lang];
+  const { adjustmentLabel, feeName, LATE_MOVE_FEE } = messages[lang];
   if (!owesOnBill(job)) return [];
   // one after the other, as a transaction's queries share one connection
   // (ADR-0024)
@@ -179,7 +208,7 @@ const partsOf = async (
       );
 
   const { option } = quoted;
-  const what = `${await serviceNameOf(job.serviceId)} at ${addressOf(property)}, ${formatWhen(job.startsAt)}`;
+  const what = await whatOf(lang, job, property);
   const share = (key: string, label: string, cents: number): Part => ({
     key,
     label,
@@ -210,7 +239,7 @@ const partsOf = async (
   if (below.amountCents < 0) {
     priced.push({
       key: "floor",
-      label: `The price can't go below $0: ${what}`,
+      label: `${words.floor}: ${what}`,
       amountCents: -below.amountCents,
       taxCents: -below.taxCents,
     });
@@ -239,9 +268,10 @@ const partsOf = async (
         ];
   const deposit = net("deposit");
   if (deposit !== 0)
-    parts.push(share("deposit", `Deposit paid: ${what}`, -deposit));
+    parts.push(share("deposit", `${words.depositPaid}: ${what}`, -deposit));
   const paid = net("other");
-  if (paid !== 0) parts.push(share("paid", `Already paid: ${what}`, -paid));
+  if (paid !== 0)
+    parts.push(share("paid", `${words.alreadyPaid}: ${what}`, -paid));
   return parts;
 };
 
@@ -255,11 +285,12 @@ type NewLine = Omit<
 // is no longer owed comes off, as a correction. Nothing for a Job never
 // billed that nets to nothing, such as a fee its Deposit already covers.
 const linesFor = async (
+  lang: Language,
   job: Job,
   property: Property,
   tx: Tx | typeof db,
 ): Promise<NewLine[]> => {
-  const parts = await partsOf(job, property, tx);
+  const parts = await partsOf(lang, job, property, tx);
   const before = await tx
     .select({
       key: billLines.key,
@@ -294,7 +325,7 @@ const linesFor = async (
     lines.push({
       jobId: job.id,
       key,
-      label: was ? `Corrected: ${label}` : label,
+      label: was ? `${lineWords[lang].corrected}: ${label}` : label,
       amountCents,
       taxCents: (part?.taxCents ?? 0) - (was?.taxCents ?? 0),
     });
@@ -380,7 +411,9 @@ const makeBill = async (
     const lines: NewLine[] = [];
     for (const { job, property } of candidates) {
       if (!isBilledWeekly(job, client, await billedOf(job.id, tx))) continue;
-      lines.push(...(await linesFor(job, property, tx)));
+      lines.push(
+        ...(await linesFor(client.preferredLanguage, job, property, tx)),
+      );
     }
     if (lines.length === 0) return null;
 
@@ -389,7 +422,9 @@ const makeBill = async (
       lines.push({
         jobId: null,
         key: "credit",
-        label: `Credit from ${billNumber(credit.bill.number)}`,
+        label: lineWords[client.preferredLanguage].creditFrom(
+          billNumber(credit.bill.number),
+        ),
         amountCents: -credit.cents,
         taxCents: 0,
       });
@@ -659,6 +694,23 @@ const clientBill = async (clientId: string, billId: string) => {
   return bill;
 };
 
+// what the API says to a Client paying a Bill, in the request's language
+// (ADR-0025)
+export const payWords = catalog({
+  en: {
+    onItsWay: "Your bank payment for this bill is on its way.",
+    nothingToPay: "There's nothing to pay on this bill.",
+    notThrough: (because: string) =>
+      `Your payment didn't go through${because}. Please try again, or use another card or bank account.`,
+  },
+  es: {
+    onItsWay: "Su pago bancario de esta factura ya está en camino.",
+    nothingToPay: "No hay nada que pagar en esta factura.",
+    notThrough: (because: string) =>
+      `Su pago no pasó${because}. Vuelva a intentarlo, o use otra tarjeta o cuenta bancaria.`,
+  },
+});
+
 // the provider's form for the Client to pay a Bill on its page, by card or
 // bank debit
 export const startBillPayment = async (
@@ -669,8 +721,8 @@ export const startBillPayment = async (
   if (!payable(bill)) {
     throw new ConflictError(
       bill.status === "processing"
-        ? "Your bank payment for this bill is on its way."
-        : "There's nothing to pay on this bill.",
+        ? payWords[currentLanguage()].onItsWay
+        : payWords[currentLanguage()].nothingToPay,
     );
   }
   const { ref, secret } = await paymentGateway.startBillPayment({
@@ -1030,11 +1082,12 @@ const settleEach = async (jobIds: string[]) => {
   return moved;
 };
 
-// what a Job is, as its lines on a Bill name it
+// what a Job is, as an email of the Jobs it settled names it: English
+// until #304
 const labelOf = async (job: Job, property: Property) => {
-  const what = `${await serviceNameOf(job.serviceId)} at ${addressOf(property)}, ${formatWhen(job.startsAt)}`;
+  const what = await whatOf("en", job, property);
   return job.status === "cancelled" || job.status === "no_access"
-    ? `${feeName[job.status]}: ${what}`
+    ? `${messages.en.feeName[job.status]}: ${what}`
     : what;
 };
 
@@ -1309,7 +1362,7 @@ const toSummary = (
   status: bill.status,
   totalCents: bill.totalCents,
   taxCents: bill.taxCents,
-  unpaid: unpaidOf(bill.unpaidSince, bill.unpaidReason),
+  unpaid: unpaidOf(currentLanguage(), bill.unpaidSince, bill.unpaidReason),
   paidAt: bill.paidAt?.toISOString() ?? null,
   paidVia: bill.paidVia,
 });
@@ -1402,7 +1455,7 @@ const sendBill = async (
       bill: {
         ...bill,
         number: billNumber(bill.number),
-        unpaid: unpaidOf(bill.unpaidSince, bill.unpaidReason)?.kind ?? null,
+        unpaid: bill.unpaidSince ? unpaidKind(bill.unpaidReason ?? "") : null,
         lines: await linesOf(billId),
       },
       occasion,

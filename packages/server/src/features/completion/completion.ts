@@ -9,6 +9,7 @@ import {
   lte,
   ne,
 } from "drizzle-orm";
+import { currentLanguage } from "#services/request";
 import {
   type AdjustmentCorrection,
   type AdjustmentProposal,
@@ -22,6 +23,7 @@ import {
   type JobCompletion,
   formats,
   messages,
+  catalog,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
@@ -48,7 +50,7 @@ import {
   rescheduleTermsOf,
 } from "../reschedule/reschedule.ts";
 import { staff } from "../staff/staff.schema.ts";
-import { unpaidOf, whyNotPaid } from "../payments/unpaid.ts";
+import { unpaidKind, whyNotPaid } from "../payments/unpaid.ts";
 import {
   counts,
   paymentOf,
@@ -81,8 +83,8 @@ import {
 import { monitoring } from "../../services/monitoring/index.ts";
 import { hoursOnSiteOf } from "../jobs/jobs.ts";
 
-const { adjustmentItem, adjustmentLabel, clientFix, NOT_ALL_CONFIRMED } =
-  messages.en;
+// a record's and the Office's words: English (ADR-0025)
+const { adjustmentItem, adjustmentLabel, NOT_ALL_CONFIRMED } = messages.en;
 
 const { formatMoney } = formats.en;
 
@@ -92,7 +94,22 @@ const ANSWER_DAYS = 7;
 
 // a change to the price that the Office, or its Client, has dealt with already
 const REVIEWED = "This price change has already been dealt with.";
-const ANSWERED = "You've already answered this.";
+// what the API says to a Client answering one or paying, in the request's
+// language (ADR-0025)
+const words = catalog({
+  en: {
+    ANSWERED: "You've already answered this.",
+    LAPSED: "It wasn't answered in time, so you won't pay it.",
+    stillNot: (because: string) => `It still didn't go through${because}.`,
+    UPDATE_OR_ANOTHER: "Please update your card, or use another one.",
+  },
+  es: {
+    ANSWERED: "Ya respondió a esto.",
+    LAPSED: "No se respondió a tiempo, así que no lo pagará.",
+    stillNot: (because: string) => `Todavía no pasó${because}.`,
+    UPDATE_OR_ANOTHER: "Actualice su tarjeta, o use otra.",
+  },
+});
 const NOT_DONE = "This job hasn't been marked done.";
 const REMINDER_DAYS_BEFORE = 2;
 
@@ -727,7 +744,7 @@ export const retryBalance = async (jobId: string) => {
   if (!job.unpaidSince) return;
   const settled = await settleJob(jobId);
   if (settled.failure) {
-    const { why } = whyNotPaid(settled.failure);
+    const { why } = whyNotPaid(currentLanguage(), settled.failure);
     throw new ConflictError(
       `The payment still didn't go through${why ? ` (${why})` : ""}.`,
     );
@@ -885,7 +902,7 @@ export const pastJobsFor = async (
             ? totalOf(quoted.get(job.id)!.totalCents, own)
             : 0,
         feeCents: job.status === "completed" ? 0 : (job.feeCents ?? 0),
-        unpaid: unpaidOf(job.unpaidSince, job.unpaidReason)?.kind ?? null,
+        unpaid: job.unpaidSince ? unpaidKind(job.unpaidReason ?? "") : null,
         owedCents: job.unpaidSince ? (await paymentOf(job)).owedCents : 0,
         awaitingAnswer: own.filter((a) => a.status === "proposed").length,
       };
@@ -913,8 +930,8 @@ export const answerAdjustment = async (
   if (adjustment.status !== "proposed" || lapsed) {
     throw new ConflictError(
       lapsed || adjustment.status === "lapsed"
-        ? "It wasn't answered in time, so you won't pay it."
-        : ANSWERED,
+        ? words[currentLanguage()].LAPSED
+        : words[currentLanguage()].ANSWERED,
     );
   }
   const [answered] = await db
@@ -924,7 +941,7 @@ export const answerAdjustment = async (
       and(eq(adjustments.id, adjustmentId), eq(adjustments.status, "proposed")),
     )
     .returning();
-  if (!answered) throw new ConflictError(ANSWERED);
+  if (!answered) throw new ConflictError(words[currentLanguage()].ANSWERED);
   if (!approve) return;
 
   const settled = await settleAfterChange(jobId, adjustmentItem(answered));
@@ -955,9 +972,11 @@ export const clientRetryBalance = async (clientId: string, jobId: string) => {
   if (!job.unpaidSince) return;
   const settled = await settleJob(jobId);
   if (settled.failure) {
-    const { kind, why } = whyNotPaid(settled.failure);
+    const lang = currentLanguage();
+    const said = words[lang];
+    const { kind, why } = whyNotPaid(lang, settled.failure);
     throw new ConflictError(
-      `It still didn't go through${why ? ` (${why})` : ""}. ${kind === "declined" ? "Please update your card, or use another one." : clientFix[kind]}`,
+      `${said.stillNot(why ? ` (${why})` : "")} ${kind === "declined" ? said.UPDATE_OR_ANOTHER : messages[lang].clientFix[kind]}`,
     );
   }
 };

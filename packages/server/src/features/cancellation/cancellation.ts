@@ -1,12 +1,14 @@
 import { and, eq, isNull, ne, sum } from "drizzle-orm";
 import {
   CANCELLATION_CUTOFF_HOURS,
+  catalog,
   type CancellationTerms,
   type CancelledBy,
   HOUR_MS,
   type JobCancellation,
   type JobNoAccess,
 } from "@empire-cleaning/models";
+import { currentLanguage } from "#services/request";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock } from "../../services/clock/index.ts";
@@ -20,7 +22,7 @@ import {
   type Settled,
 } from "../completion/balance.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
-import { whyNotBooked, whyStarted } from "../jobs/rules.ts";
+import { callUs, whyNotBooked, whyStarted } from "../jobs/rules.ts";
 import { closePendingRequests } from "../reschedule/closing.ts";
 import { charges, refunds } from "../payments/payments.schema.ts";
 import { properties } from "../properties/properties.schema.ts";
@@ -42,9 +44,18 @@ import {
 } from "./emails.ts";
 
 // what changed while a Client looked, such as the cost of cancelling: the
-// page reloads to show it
-export const CHANGED_SINCE =
-  "Something changed just then. Please check it and try again.";
+// page reloads to show it. In the request's language (ADR-0025)
+const changedWords = catalog({
+  en: {
+    CHANGED_SINCE:
+      "Something changed just then. Please check it and try again.",
+  },
+  es: {
+    CHANGED_SINCE:
+      "Algo cambió en este momento. Revíselo y vuelva a intentarlo.",
+  },
+});
+export const changedSince = () => changedWords[currentLanguage()].CHANGED_SINCE;
 
 // when a clean starting then enters the Late Cancellation window
 export const lateFrom = (startsAt: Date) =>
@@ -214,7 +225,7 @@ export const cancelJob = async (jobId: string, cancellation: Cancellation) => {
       throw new ConflictError(whyNotBooked(job.status, "cancelled"));
     }
     if (cancellation.byClient && job.startsAt <= clock.now()) {
-      throw new ConflictError(`${whyStarted("cancelled")} Please call us.`);
+      throw new ConflictError(`${whyStarted("cancelled")} ${callUs()}`);
     }
 
     const onPlan = (await planOfJob(jobId, tx)) !== null;
@@ -225,7 +236,7 @@ export const cancelJob = async (jobId: string, cancellation: Cancellation) => {
       await lateFeeOf(jobId, tx),
     );
     if (feeCents !== cancellation.feeCents) {
-      throw new ConflictError(CHANGED_SINCE);
+      throw new ConflictError(changedSince());
     }
 
     await tx
