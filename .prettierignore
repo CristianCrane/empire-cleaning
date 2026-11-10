@@ -1,0 +1,9 @@
+# Prettier lays out the TypeScript and Astro under packages/ and nothing else.
+# This file is that scope: `pnpm format` and `format:check` run Prettier on the
+# whole repo, and so does a stray `prettier --write <file>`, so Markdown keeps
+# its tables as written (#383).
+*
+!*/
+!/packages/**/*.ts
+!/packages/**/*.tsx
+!/packages/**/*.astro
