@@ -187,12 +187,28 @@ export const assignmentStateTone = {
   taken_off: "neutral",
 } as const satisfies Record<AssignmentState, string>;
 
-// The screens' words for things, in each language (ADR-0025):
-// `screenWords[lang]`, as models' `formats[lang]`; the Office's screens take
-// `screenWords.en`. A literal here is in `words` below, in both languages.
-const words = catalog({
+// Words several screens show as they are, each once (docs/ux.md, Words):
+// part of `screenWords` below. A word only portal screens share is
+// portal/words.ts's.
+const labels = catalog({
   en: {
     notKnownYet: "Not known yet",
+    unpaid: "Unpaid",
+    pickNewTime: "Pick a new time",
+  },
+  es: {
+    notKnownYet: "Aún no se sabe",
+    unpaid: "Sin pagar",
+    pickNewTime: "Elegir otra hora",
+  },
+});
+
+// The screens' words for things, in each language (ADR-0025):
+// `screenWords[lang]`, as models' `formats[lang]`; the Office's screens take
+// `screenWords.en`. A literal here is in `words` or `labels`, in both
+// languages.
+const words = catalog({
+  en: {
     cleaner: { one: "cleaner", other: "cleaners" },
     moreCleaner: { one: "more cleaner", other: "more cleaners" },
     freeCleaner: { one: "free cleaner", other: "free cleaners" },
@@ -232,11 +248,8 @@ const words = catalog({
       no_access: "Couldn't get in",
     } satisfies Record<JobStatus, string>,
     skipped: "Skipped",
-    unpaid: "Unpaid",
-    pickNewTime: "Pick a new time",
   },
   es: {
-    notKnownYet: "Aún no se sabe",
     cleaner: { one: "limpiador", other: "limpiadores" },
     moreCleaner: { one: "limpiador más", other: "limpiadores más" },
     freeCleaner: { one: "limpiador libre", other: "limpiadores libres" },
@@ -276,8 +289,6 @@ const words = catalog({
       no_access: "No se pudo entrar",
     },
     skipped: "Saltada",
-    unpaid: "Sin pagar",
-    pickNewTime: "Elegir otra hora",
   },
 });
 
@@ -286,6 +297,7 @@ type PlanDays = { recurrence: Recurrence; days: PlanDaySummary[] };
 
 const screenWordsIn = (lang: Language) => {
   const w = words[lang];
+  const l = labels[lang];
   const { formatClock, formatList, formatMoney, formatNumber, plural } =
     formats[lang];
   const { weekdayName, weekdays } = formats[lang];
@@ -331,13 +343,11 @@ const screenWordsIn = (lang: Language) => {
     dayOf: (iso: string) => formats[lang].formatDay(dayOfInstant(iso)),
     shortDayOf: (iso: string) =>
       formats[lang].formatShortDay(dayOfInstant(iso)),
-    notKnownYet: w.notKnownYet,
-    unpaid: w.unpaid,
-    pickNewTime: w.pickNewTime,
+    ...l,
     conditionLabel,
     // business premises have none until a Site Visit records it
     conditionText: (condition: Condition | null) =>
-      condition ? conditionLabel[condition] : w.notKnownYet,
+      condition ? conditionLabel[condition] : l.notKnownYet,
     // so many cleaners, e.g. "1 cleaner", "2 more cleaners", "3 free
     // cleaners"
     cleaners: (n: number, which?: "more" | "free") =>
