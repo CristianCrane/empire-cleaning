@@ -19,7 +19,8 @@
 // passed in (`isSpanish`), or words a branch reaches through a call
 // (`lang === "es" ? spanish() : english()`). Being deep, it flags a string
 // that isn't words under a branch on the language too (an Intl option, a
-// class name): those go in a table by language as well (`locales`).
+// class name): those go in a table by language as well (`locales`). oxlint
+// never shows it an .astro file's markup: astro-markup.ts runs `checks` there.
 
 import { LANGUAGES } from "@empire-cleaning/models";
 import { children, fields, type Fields, type Rule } from "./ast.ts";

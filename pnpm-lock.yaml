@@ -124,10 +124,16 @@ importers:
 
   packages/lint:
     dependencies:
+      '@astrojs/compiler-rs':
+        specifier: ^0.5.2
+        version: 0.5.2
       '@empire-cleaning/models':
         specifier: workspace:*
         version: link:../models
     devDependencies:
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.2.0
       oxlint:
         specifier: ^1.90.0
         version: 1.90.0(oxlint-tsgolint@7.0.2005)

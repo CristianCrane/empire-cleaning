@@ -10,4 +10,6 @@ set -e
 files=$(git diff --cached --name-only --diff-filter=ACMR -- 'packages/*.ts' 'packages/*.tsx' 'packages/*.astro')
 
 [ -z "$files" ] || pnpm exec oxlint --type-aware $files
+# words-from-catalog over .astro markup, which oxlint can't see
+[ -z "$files" ] || node packages/lint/src/astro-markup.ts $files
 [ -z "$files" ] || pnpm exec prettier --check $files

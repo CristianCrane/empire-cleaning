@@ -1,6 +1,6 @@
 # Lint rules
 
-The repo's own lint rules, `empire/…`, as one oxlint JS plugin (`src/index.ts`, `.oxlintrc.json`'s `jsPlugins`, run by `pnpm lint`): each rule is a file of its own, registered there. JS plugins are in alpha in oxlint and not bound by semver, so each rule is tested through oxlint's own `RuleTester` (`pnpm --filter @empire-cleaning/lint test`, in CI's Checks job), and an oxlint update that changes the plugin API fails there.
+The repo's own lint rules, `empire/…`, as one oxlint JS plugin (`src/index.ts`, `.oxlintrc.json`'s `jsPlugins`, run by `pnpm lint`): each rule is a file of its own, registered there. JS plugins are in alpha in oxlint and not bound by semver, so each rule is tested through oxlint's own `RuleTester` (`pnpm --filter @empire-cleaning/lint test`, in CI's Checks job), and an oxlint update that changes the plugin API fails there. oxlint reads only an `.astro` file's frontmatter and `<script>`s, so `pnpm lint` and the pre-commit hook also run `src/astro-markup.ts` on the `.astro` files, which runs `words-from-catalog` over their markup (below); its own tests are plain vitest.
 
 ## `empire/report-unexpected`
 
@@ -30,10 +30,11 @@ A JS plugin gets no types, so the rule knows a language by what it's compared wi
 
 It allows a branch that picks no words (`inLanguage`), and one that picks the other language: `lang === "en" ? "es" : "en"` (the landing header).
 
+In an `.astro` file's markup (`{lang === "es" ? "Hola" : "Hi"}`, an attribute, a branch in a `.map`) the same checks run from `src/astro-markup.ts`, on the file as Astro's compiler parses it, with the same message and `file:line:col`. A `const` there is found by its name across the file, frontmatter and markup alike; a name declared twice isn't followed. An `oxlint-disable` comment doesn't reach markup.
+
 What it can't see:
 
 - a language compared with anything but a code: `lang === other`, `lang.startsWith("es")`, a boolean kept by `let` or passed in (`isSpanish`)
 - words a branch reaches through a call: `lang === "es" ? spanish() : english()`
-- an `.astro` file's template: oxlint reads only its frontmatter, so `{lang === "es" ? "Hola" : "Hi"}` in markup passes
 
 As it looks deep, it also flags a string under a branch that isn't words, such as an Intl option or a locale tag (`lang === "en" ? "en_US" : "es_US"`): that goes in a table by language too, as `locales` does. The rule is on everywhere, tests included: a test's expected words in each language go in a table by language, not a branch.

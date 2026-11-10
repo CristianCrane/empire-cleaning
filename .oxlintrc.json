@@ -10,7 +10,9 @@
   "categories": { "correctness": "error" },
   "rules": {
     // words that differ by language come from a catalog, never a branch on
-    // the language (packages/lint/README.md)
+    // the language (packages/lint/README.md); .astro markup, which oxlint
+    // can't see, gets the same check from packages/lint/src/astro-markup.ts,
+    // run by `pnpm lint`
     "empire/words-from-catalog": "error",
     // a promise nobody awaits fails silently
     "typescript/no-floating-promises": "error",
