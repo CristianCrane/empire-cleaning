@@ -19,15 +19,19 @@ const words = catalog({
 });
 
 // in the language of the screen it was asked from: the person may have no
-// Client or Staff member yet
+// Client or Staff member yet. `path`: the link's page in the web app
 export const signInEmail = (
   lang: Language,
-  { url }: { url: string },
+  { path }: { path: string },
 ): Email => {
   const w = words[lang];
   return {
     lang,
     subject: w.subject,
-    blocks: [paragraph(w.useLink), button(w.signIn, url), paragraph(w.expires)],
+    blocks: [
+      paragraph(w.useLink),
+      button(w.signIn, path),
+      paragraph(w.expires),
+    ],
   };
 };

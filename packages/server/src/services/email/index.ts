@@ -8,8 +8,6 @@ import { routeEmail } from "./routing.ts";
 
 export type EmailMessage = {
   to: string;
-  // copied, unseen by `to`
-  bcc?: string;
   // where replies go: the Office's shared inbox
   replyTo: string;
   subject: string;
@@ -51,7 +49,7 @@ let current: EmailSender = new ResendEmailSender(
 // the shared layout, then routed for the test site. A message to nobody is not sent: a Client the Office
 // entered without an email gets no emails until one is added (#34).
 export const email = {
-  send: async (message: { to: string | null; bcc?: string } & Email) => {
+  send: async (message: { to: string | null } & Email) => {
     if (message.to === null) return;
     const { subject, html, text } = await renderEmail(
       withAppUrl(message, env.CORS_ORIGIN_URL),
@@ -60,7 +58,6 @@ export const email = {
     const routed = routeEmail(
       {
         to: message.to,
-        ...(message.bcc ? { bcc: message.bcc } : {}),
         replyTo: env.OFFICE_EMAIL,
         subject,
         html,

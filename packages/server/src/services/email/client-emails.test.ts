@@ -162,7 +162,7 @@ const changed = { kind: "extra_time" as const, addOnName: null, hours: 1 };
 
 // each Client email, every way it reads, in `lang`
 const emailsIn = (lang: Language): Email[] => [
-  signInEmail(lang, { url: "https://app.example.com/sign-in/link?token=t" }),
+  signInEmail(lang, { path: "/sign-in/link?token=t" }),
   emailChangeEmail(lang, { token: "t" }),
   reminderEmail(lang, { name, clean }),
   ...([null, "automatic", "on_page"] as const).map((weeklyBill) =>
@@ -547,6 +547,13 @@ describe("every email to a Client, in their Preferred Language", () => {
       if (words.length > 0) left.push({ email: spanish.subject, words });
     }
     expect(left).toEqual([]);
+  });
+
+  test('in Spanish, ends no sentence with a second stop after a time ("9:00 a.m..")', async () => {
+    for (const spanish of emailsIn("es")) {
+      const { subject, text } = await renderEmail(spanish, "logo.png");
+      expect(`${subject}\n${text}`, subject).not.toContain("..");
+    }
   });
 });
 

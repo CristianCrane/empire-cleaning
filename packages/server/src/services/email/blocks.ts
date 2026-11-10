@@ -97,14 +97,17 @@ export const cleanDetails = (
   ]);
 };
 
-// a button's path made a full URL in the web app at `appUrl`
+// a button's path made a full URL in the web app at `appUrl`, saying the
+// email's language (`lang`), so the page it opens is in it before sign-in
+// too, as the landing site's links say theirs
 export const withAppUrl = (email: Email, appUrl: string): Email => ({
   ...email,
-  blocks: email.blocks.map((block) =>
-    block.kind === "button" && block.href.startsWith("/")
-      ? { ...block, href: `${appUrl.replace(/\/$/, "")}${block.href}` }
-      : block,
-  ),
+  blocks: email.blocks.map((block) => {
+    if (block.kind !== "button" || !block.href.startsWith("/")) return block;
+    const url = new URL(`${appUrl.replace(/\/$/, "")}${block.href}`);
+    url.searchParams.set("lang", email.lang);
+    return { ...block, href: url.toString() };
+  }),
 });
 
 export const previewOf = (email: Email) =>

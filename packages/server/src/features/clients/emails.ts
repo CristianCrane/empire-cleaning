@@ -21,8 +21,6 @@ const words = catalog({
   },
 });
 
-// its link's page opens in the same language (?lang, as the landing site's
-// links say it)
 export const emailChangeEmail = (
   lang: Language,
   { token }: { token: string },
@@ -33,7 +31,7 @@ export const emailChangeEmail = (
     subject: w.subject,
     blocks: [
       paragraph(w.asked),
-      button(w.confirm, `/confirm-email?token=${token}&lang=${lang}`),
+      button(w.confirm, `/confirm-email?token=${token}`),
       paragraph(w.works(EMAIL_CHANGE_TTL_HOURS)),
     ],
   };

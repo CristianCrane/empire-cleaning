@@ -4,6 +4,6 @@ import { lang } from "./samples.ts";
 
 export default preview(
   signInEmail(lang, {
-    url: "http://localhost:3000/api/auth/magic-link/verify?token=sample",
+    path: "/sign-in/link?token=sample",
   }),
 );

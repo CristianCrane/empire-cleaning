@@ -6,6 +6,7 @@ import {
   details,
   greeting,
   paragraph,
+  withAppUrl,
   type Email,
 } from "./blocks.ts";
 
@@ -65,6 +66,29 @@ describe("the email layout", () => {
 
     expect(html).toMatch(/data-skip-in-text="true">Paid, thank you</);
   });
+});
+
+test("a button's path becomes a link into the app, saying the email's language", () => {
+  const email = withAppUrl(
+    {
+      lang: "es",
+      subject: "Hola",
+      blocks: [
+        button("Ver", "/portal/jobs/1?token=t"),
+        button("Google", "https://g.page/r"),
+      ],
+    },
+    "https://app.example.com/",
+  );
+
+  expect(email.blocks).toEqual([
+    {
+      kind: "button",
+      label: "Ver",
+      href: "https://app.example.com/portal/jobs/1?token=t&lang=es",
+    },
+    { kind: "button", label: "Google", href: "https://g.page/r" },
+  ]);
 });
 
 describe("the blocks", () => {
