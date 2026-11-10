@@ -430,10 +430,12 @@ const showNavLink = async (page: Page, name: string) => {
   return { link: item, opened };
 };
 
-// goes to a section through the navigation
+// goes to a section through the navigation; a ☰ menu it was in has closed
+// by the end, as it slides away still showing the same links (#305)
 export const goTo = async (page: Page, name: string) => {
-  const { link } = await showNavLink(page, name);
+  const { link, opened } = await showNavLink(page, name);
   await link.click();
+  if (opened) await expect(page.getByRole("dialog")).toBeHidden();
 };
 
 // opens what the person can do with their Account: the Account menu, a

@@ -23,7 +23,7 @@ import {
   Wallet,
   Users,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type {
   CleanerJobs,
   CleanerNeeded,
@@ -228,6 +228,8 @@ export function AreaLayout({ area }: { area: AreaId }) {
   // follow the person's language offer the other one beside them; the
   // Office is English for good
   const own = area !== "office";
+  // the ☰ menu foot's, here so the menu stays open while an area switches
+  const footActions = useAccountActions(account, area);
 
   return (
     <AppLayout
@@ -242,12 +244,12 @@ export function AreaLayout({ area }: { area: AreaId }) {
       menuFoot={({ close }) => (
         <AccountFoot
           account={account}
-          area={area}
+          actions={footActions}
           close={close}
           withLanguage={own}
         />
       )}
-      atHome={pathname.replace(/\/$/, "") === areas[area].path}
+      menuBusy={footActions.switching !== undefined}
     >
       <InArea value>
         <Outlet />
@@ -363,7 +365,7 @@ function AccountMenu({
     <DialogTrigger onOpenChange={(isOpen) => isOpen && a.preloadAreas()}>
       <Button variant="quiet" className="justify-start">
         <User aria-hidden size={20} />
-        <span className="max-md:sr-only">{account.name}</span>
+        {account.name}
       </Button>
       <Dialog title={w.account} isBusy={switching !== undefined}>
         {({ close }) => (
@@ -419,21 +421,20 @@ function AccountMenu({
 // other language among them where the area follows it (#305)
 function AccountFoot({
   account,
-  area,
+  actions: a,
   close,
   withLanguage,
 }: {
   account: SignedInAccount;
-  area: AreaId;
+  actions: ReturnType<typeof useAccountActions>;
   close: () => void;
   // the other language, in an area that follows the person's
   withLanguage: boolean;
 }) {
-  const a = useAccountActions(account, area);
-  const { w, switching, preloadAreas } = a;
-  // shown as the menu opens: what the Account menu does on opening
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(preloadAreas, []);
+  // opening the ☰ menu asks nothing again, as it's how a phone moves
+  // between pages: a record connected meanwhile shows on returning to the
+  // tab (main.tsx)
+  const { w, switching } = a;
 
   return (
     <>

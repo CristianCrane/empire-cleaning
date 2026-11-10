@@ -39,43 +39,57 @@ test("coming back to the tab notices a Client record connected meanwhile", async
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Hi, Olive");
 });
 
-test("switching areas notices a Client record connected meanwhile", async ({
-  page,
-}) => {
-  await createStaff({ ...olive, roles: ["office_staff", "cleaner"] });
-  await signedInAs(page, olive.email);
-  // the app has asked who this is, and been told: Staff, nothing more
-  await expect(page).toHaveURL("/office");
-  await createClient({ email: olive.email, name: "Olive Owner" });
+// the Account menu, on a larger screen: a phone's ☰ menu asks nothing as
+// it opens, as it's how a phone moves between pages (returning to the tab
+// does, above)
+test(
+  "switching areas notices a Client record connected meanwhile",
+  { tag: "@desktop" },
+  async ({ page, isMobile }) => {
+    test.skip(isMobile, "a phone's ☰ menu doesn't ask again as it opens");
+    await createStaff({ ...olive, roles: ["office_staff", "cleaner"] });
+    await signedInAs(page, olive.email);
+    // the app has asked who this is, and been told: Staff, nothing more
+    await expect(page).toHaveURL("/office");
+    await createClient({ email: olive.email, name: "Olive Owner" });
 
-  // the menu still offers only what it knew; opening it looks again, so the
-  // area it switches to knows
-  await openAccount(page, olive.name);
-  await switchArea(page, "Cleaner area");
-  await expect(page).toHaveURL("/cleaner");
+    // the menu still offers only what it knew; opening it looks again, so the
+    // area it switches to knows
+    await openAccount(page, olive.name);
+    await switchArea(page, "Cleaner area");
+    await expect(page).toHaveURL("/cleaner");
 
-  await openAccount(page, olive.name);
-  await expect(switchItem(page, "Client portal")).toBeVisible();
-});
+    await openAccount(page, olive.name);
+    await expect(switchItem(page, "Client portal")).toBeVisible();
+  },
+);
 
-test("switching area once the menu has been open a moment shows it at once", async ({
-  page,
-}) => {
-  await createStaff(olive);
-  await createClient({ email: olive.email, name: olive.name });
-  await signedInAs(page, olive.email);
-  await expect(page).toHaveURL("/office");
+test(
+  "switching area once the menu has been open a moment shows it at once",
+  { tag: "@desktop" },
+  async ({ page, isMobile }) => {
+    test.skip(
+      isMobile,
+      "a phone's ☰ menu doesn't load the other areas as it opens",
+    );
+    await createStaff(olive);
+    await createClient({ email: olive.email, name: olive.name });
+    await signedInAs(page, olive.email);
+    await expect(page).toHaveURL("/office");
 
-  // opening the menu loads the portal, its Home included
-  const homeLoaded = page.waitForResponse("**/api/clients/me");
-  await openAccount(page, olive.name);
-  await homeLoaded;
+    // opening the menu loads the portal, its Home included
+    const homeLoaded = page.waitForResponse("**/api/clients/me");
+    await openAccount(page, olive.name);
+    await homeLoaded;
 
-  // from here the API answers nothing, so whatever shows came before the press
-  await page.route("**/api/**", () => {});
-  await switchArea(page, "Client portal");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Hi, Olive");
-});
+    // from here the API answers nothing, so whatever shows came before the press
+    await page.route("**/api/**", () => {});
+    await switchArea(page, "Client portal");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "Hi, Olive",
+    );
+  },
+);
 
 test("a press before the area is ready waits in the menu, then the area shows", async ({
   page,
@@ -93,12 +107,12 @@ test("a press before the area is ready waits in the menu, then the area shows", 
     await route.fallback();
   });
 
-  // pressed by hand, not with switchArea, to look at the menu while it waits
+  // pressed by hand, not with switchArea, to look at the menu while it waits:
+  // the Account menu on a larger screen, the ☰ menu's foot on a phone
   await openAccount(page, olive.name);
   const portal = switchItem(page, "Client portal");
   await portal.click();
-  const menu = page.getByRole("dialog", { name: "Account" });
-  await expect(portal.getByRole("status")).toHaveText("Opening");
+  const menu = page.getByRole("dialog", { name: /^(Account|Menu)$/ });
   await expect(portal).toBeDisabled();
   await page.keyboard.press("Escape");
   await expect(menu).toBeVisible();
