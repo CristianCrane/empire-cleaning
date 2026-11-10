@@ -33,6 +33,12 @@ export const portalWords = catalog({
     seeTheClean: "See the clean",
     showMore: "Show more",
     anotherTime: "Need another time?",
+    cleaningPlan: "Cleaning plan",
+    bill: (n: string) => `Bill ${n}`,
+    yourClean: (day: string) => `Your ${day} clean`,
+    // what a payment was made with, when its card isn't known
+    card: "card",
+    decline: "Decline",
   },
   es: {
     home: "Inicio",
@@ -61,5 +67,10 @@ export const portalWords = catalog({
     seeTheClean: "Ver la limpieza",
     showMore: "Mostrar más",
     anotherTime: "¿Necesita otra hora?",
+    cleaningPlan: "Plan de limpieza",
+    bill: (n: string) => `Factura ${n}`,
+    yourClean: (day: string) => `Su limpieza del ${day}`,
+    card: "tarjeta",
+    decline: "Rechazar",
   },
 });

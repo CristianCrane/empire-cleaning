@@ -51,7 +51,6 @@ const words = catalog({
     emailed: (email: string) =>
       `We've emailed a link to ${email}. Your email changes once you open it.`,
     name: "Name",
-    email: "Email",
     whereQuotes: "Where we send your quotes",
     phone: "Phone",
     language: "Language",
@@ -77,7 +76,6 @@ const words = catalog({
     emailed: (email: string) =>
       `Le enviamos un enlace a ${email}. Su correo cambia cuando lo abra.`,
     name: "Nombre",
-    email: "Correo electrónico",
     whereQuotes: "Adonde le enviamos las cotizaciones",
     phone: "Teléfono",
     language: "Idioma",
@@ -140,7 +138,7 @@ export function PortalDetails() {
             />
             <Fact
               icon={Mail}
-              label={w.email}
+              label={t.email}
               value={
                 <span className="[overflow-wrap:anywhere]">{client.email}</span>
               }
@@ -255,7 +253,7 @@ function EditContact({ client }: { client: ClientView }) {
               defaultValue={client.name}
             />
             <TextField
-              label={w.email}
+              label={t.email}
               name="email"
               type="email"
               autoComplete="email"

@@ -8,13 +8,9 @@ import { useSaid } from "./words.ts";
 const words = catalog({
   en: {
     floorArea: "Floor area",
-    condition: "Condition",
-    notAdded: "Not added yet",
   },
   es: {
     floorArea: "Superficie",
-    condition: "Estado",
-    notAdded: "Aún no se agregó",
   },
 });
 
@@ -85,7 +81,7 @@ export function ConditionFact({
   return (
     <Fact
       icon={Sparkles}
-      label={t.w.condition}
+      label={t.condition}
       value={t.conditionText(property.condition)}
       line={line}
     />
@@ -108,7 +104,7 @@ export function AccessFact({
       label={t.p.howWeGetIn}
       value={
         <span className="whitespace-pre-line">
-          {property.accessInstructions || t.w.notAdded}
+          {property.accessInstructions || t.notAdded}
         </span>
       }
       line={line}

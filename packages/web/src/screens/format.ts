@@ -195,11 +195,49 @@ const labels = catalog({
     notKnownYet: "Not known yet",
     unpaid: "Unpaid",
     pickNewTime: "Pick a new time",
+    signIn: "Sign in",
+    signOut: "Sign out",
+    welcome: "Welcome",
+    email: "Email",
+    day: "Day",
+    dayAt: (when: string, time: string) => `${when} at ${time}`,
+    condition: "Condition",
+    notAdded: "Not added yet",
+    onSite: "On site",
+    about: (hours: string) => `About ${hours}`,
+    onSiteWith: (cleaners: string) => `On site, ${cleaners}`,
+    extras: "Extras",
+    none: "None",
+    deposit: "Deposit",
+    total: "Total",
+    taxIncludedOf: (what: string) => `${what}, tax included`,
+    payBill: (n: string) => `Pay bill ${n}`,
+    // a bank payment, or a Bill paid by one, on its way
+    clearing: "Clearing",
   },
   es: {
     notKnownYet: "Aún no se sabe",
     unpaid: "Sin pagar",
     pickNewTime: "Elegir otra hora",
+    signIn: "Iniciar sesión",
+    signOut: "Cerrar sesión",
+    welcome: "Bienvenido",
+    email: "Correo electrónico",
+    day: "Día",
+    dayAt: (when: string, time: string) =>
+      `${when} ${time.startsWith("1:") ? "a la" : "a las"} ${time}`,
+    condition: "Estado",
+    notAdded: "Aún no se agregó",
+    onSite: "En el lugar",
+    about: (hours: string) => `Unas ${hours}`,
+    onSiteWith: (cleaners: string) => `En el lugar, ${cleaners}`,
+    extras: "Adicionales",
+    none: "Ninguno",
+    deposit: "Depósito",
+    total: "Total",
+    taxIncludedOf: (what: string) => `${what}, impuestos incluidos`,
+    payBill: (n: string) => `Pagar la factura ${n}`,
+    clearing: "En proceso",
   },
 });
 
@@ -219,7 +257,6 @@ const words = catalog({
     bedroom: { one: "bedroom", other: "bedrooms" },
     bathroom: { one: "bathroom", other: "bathrooms" },
     oneOff: "A one-off clean",
-    at: (when: string, time: string) => `${when} at ${time}`,
     quoteKind: { service_plan: "Cleaning plan quote", one_off: "Quote" },
     clientQuoteStatus: {
       requested: "Asked for",
@@ -260,8 +297,6 @@ const words = catalog({
     bedroom: { one: "dormitorio", other: "dormitorios" },
     bathroom: { one: "baño", other: "baños" },
     oneOff: "Una sola limpieza",
-    at: (when: string, time: string) =>
-      `${when} ${time.startsWith("1:") ? "a la" : "a las"} ${time}`,
     quoteKind: {
       service_plan: "Cotización de plan de limpieza",
       one_off: "Cotización",
@@ -390,7 +425,7 @@ const screenWordsIn = (lang: Language) => {
       // [0, 2, 4] -> "Monday, Wednesday and Friday"
       const days = formatList(request.weekdays.map((d) => weekdays[d]!));
       return request.preferredTime
-        ? w.at(days, formatClock(request.preferredTime))
+        ? l.dayAt(days, formatClock(request.preferredTime))
         : days;
     },
     // what kind of Quote it is, as a title says it

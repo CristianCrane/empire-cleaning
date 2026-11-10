@@ -12,11 +12,11 @@ import {
   TextField,
   showToast,
   Logo,
-  useLanguage,
 } from "@empire-cleaning/ui";
 import { catalog } from "@empire-cleaning/models";
 import { authClient } from "../session.ts";
 import { GoogleButton } from "./GoogleButton.tsx";
+import { useSaid } from "./words.ts";
 
 // its words, in the language of the page the person came from (ADR-0025);
 // what went wrong comes back from the API as a code on ?error=
@@ -29,7 +29,6 @@ const words = catalog({
     failed: "Signing in didn't work. Please try again.",
     another: "Another link is on its way",
     checkEmail: "Check your email",
-    signIn: "Sign in",
     onItsWay: "A sign-in link is on its way to",
     worksOnce: "It works once, for 15 minutes.",
     notThere: "Not there? Check your spam folder, or send it again.",
@@ -37,7 +36,6 @@ const words = catalog({
     sendAgain: "Send it again",
     or: "or",
     noPassword: "We'll email you a link that signs you in. No password needed.",
-    email: "Email",
     emailMe: "Email me a sign-in link",
     newHere:
       "New to Empire Cleaning? Sign in with your email, then tell us about your home for a quote.",
@@ -50,7 +48,6 @@ const words = catalog({
     failed: "No se pudo iniciar sesión. Vuelva a intentarlo.",
     another: "Va en camino otro enlace",
     checkEmail: "Revise su correo",
-    signIn: "Iniciar sesión",
     onItsWay: "Va en camino un enlace para iniciar sesión a",
     worksOnce: "Funciona una vez, durante 15 minutos.",
     notThere:
@@ -60,7 +57,6 @@ const words = catalog({
     or: "o",
     noPassword:
       "Le enviaremos por correo un enlace para iniciar sesión. No necesita contraseña.",
-    email: "Correo electrónico",
     emailMe: "Enviarme un enlace para iniciar sesión",
     newHere:
       "¿Es nuevo en Empire Cleaning? Inicie sesión con su correo electrónico y luego cuéntenos sobre su casa para recibir una cotización.",
@@ -69,7 +65,7 @@ const words = catalog({
 
 export function SignIn() {
   const { next, error } = useSearch({ from: "/sign-in" });
-  const w = words[useLanguage()];
+  const { w, signIn, email } = useSaid(words);
   const [sentTo, setSentTo] = useState<string>();
   const [isSending, setSending] = useState(false);
   // why the link wasn't sent, when it wasn't
@@ -111,7 +107,7 @@ export function SignIn() {
 
       <Card>
         <Heading level={1} size={2}>
-          {sentTo ? w.checkEmail : w.signIn}
+          {sentTo ? w.checkEmail : signIn}
         </Heading>
 
         {error && !sentTo && (
@@ -169,7 +165,7 @@ export function SignIn() {
               }}
             >
               <TextField
-                label={w.email}
+                label={email}
                 name="email"
                 type="email"
                 autoComplete="email"

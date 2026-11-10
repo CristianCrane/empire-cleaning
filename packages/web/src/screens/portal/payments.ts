@@ -12,14 +12,12 @@ import { said, saidWith } from "../words.ts";
 // in the Client's language (ADR-0025)
 const words = catalog({
   en: {
-    payBill: (n: string) => `Pay bill ${n}`,
     billDue: (n: string, day: string) => `Bill ${n} is due by ${day}`,
     andMore: (first: string, n: number) => `${first}, and ${n} more`,
     payingWith: (card: string) => `Paying with ${card}`,
     onPage: "You pay each bill on its page",
     noCard: "No card saved yet",
     refundOnBill: (n: string) => `Refund on bill ${n}`,
-    bill: (n: string) => `Bill ${n}`,
     range: (from: string, to: string) => `${from} – ${to}`,
     planRefund: "Refund of your cleaning plan deposit",
     planDeposit: "Deposit for your cleaning plan",
@@ -36,17 +34,14 @@ const words = catalog({
     fromYour: (day: string, service: string) => `From your ${day} ${service}`,
     refundOn: (service: string) => `Refund on ${service}`,
     fromYourClean: (day: string) => `From your ${day} clean`,
-    yourClean: (day: string) => `Your ${day} clean`,
   },
   es: {
-    payBill: (n: string) => `Pagar la factura ${n}`,
     billDue: (n: string, day: string) => `La factura ${n} vence el ${day}`,
     andMore: (first: string, n: number) => `${first}, y ${n} más`,
     payingWith: (card: string) => `Paga con ${card}`,
     onPage: "Paga cada factura en su página",
     noCard: "Aún no hay tarjeta guardada",
     refundOnBill: (n: string) => `Devolución de la factura ${n}`,
-    bill: (n: string) => `Factura ${n}`,
     range: (from: string, to: string) => `${from} – ${to}`,
     planRefund: "Devolución del depósito de su plan de limpieza",
     planDeposit: "Depósito de su plan de limpieza",
@@ -64,7 +59,6 @@ const words = catalog({
     fromYour: (day: string, service: string) => `De su ${service} del ${day}`,
     refundOn: (service: string) => `Devolución de ${service}`,
     fromYourClean: (day: string) => `De su limpieza del ${day}`,
-    yourClean: (day: string) => `Su limpieza del ${day}`,
   },
 });
 
@@ -103,7 +97,8 @@ const billLink = (billId: string) =>
 
 export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
   const t = saidWith(lang, words);
-  const { w, billNotPaid, cleanNotPaid, formatShortDay, shortDayOf } = t;
+  const { w, billNotPaid, cleanNotPaid, formatShortDay, payBill, shortDayOf } =
+    t;
   const owing: Owed[] = [
     // a Bill that couldn't be taken, or is past its due date
     ...data.bills
@@ -112,7 +107,7 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
         cents: b.totalCents,
         late: true,
         text: billNotPaid(b.number),
-        action: { label: w.payBill(b.number), href: billLink(b.id) },
+        action: { label: payBill(b.number), href: billLink(b.id) },
       })),
     // a clean, or its fee, that couldn't be charged
     ...data.pastJobs
@@ -146,7 +141,7 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
         cents: b.totalCents,
         late: false,
         text: w.billDue(b.number, formatShortDay(b.dueOn)),
-        action: { label: w.payBill(b.number), href: billLink(b.id) },
+        action: { label: payBill(b.number), href: billLink(b.id) },
       })),
   ];
   const [first] = owing;
@@ -186,7 +181,13 @@ export type PaymentRow = {
 
 // how one payment reads in the history: what it was for first
 export function paymentRow(p: ClientPayment, lang: Language): PaymentRow {
-  const { w, feeName, formatShortDay, shortDayOf } = saidWith(lang, words);
+  const {
+    w,
+    p: portal,
+    feeName,
+    formatShortDay,
+    shortDayOf,
+  } = saidWith(lang, words);
   const day = shortDayOf(p.at);
   const cleanDay = p.job ? shortDayOf(p.job.startsAt) : null;
   // the clean's day, only when it isn't the payment's own
@@ -197,7 +198,7 @@ export function paymentRow(p: ClientPayment, lang: Language): PaymentRow {
       title:
         p.kind === "refund"
           ? w.refundOnBill(p.bill.number)
-          : w.bill(p.bill.number),
+          : portal.bill(p.bill.number),
       line: w.range(
         formatShortDay(p.bill.weekStart),
         formatShortDay(p.bill.weekEnd),
@@ -261,7 +262,7 @@ export function paymentRow(p: ClientPayment, lang: Language): PaymentRow {
     default:
       return {
         title: job.serviceName,
-        line: otherDay ? w.yourClean(otherDay) : undefined,
+        line: otherDay ? portal.yourClean(otherDay) : undefined,
         href,
       };
   }

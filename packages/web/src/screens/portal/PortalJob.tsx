@@ -52,14 +52,7 @@ const words = catalog({
     withDiscount: (percent: number) =>
       `Price with your ${percent}% plan discount, tax included`,
     taxIncluded: "Price, tax included",
-    onSite: "On site",
-    about: (hours: string) => `About ${hours}`,
-    onSiteWith: (cleaners: string) => `On site, ${cleaners}`,
-    extras: "Extras",
-    none: "None",
-    plan: "Cleaning plan",
     heldThere: "Its deposit is held there",
-    deposit: "Deposit",
     offPrice: "Deposit, comes off the price",
     reminder: "We'll email a reminder the day before.",
     notSkipped: "Your clean wasn't skipped. Please try again.",
@@ -100,7 +93,6 @@ const words = catalog({
       ". After that, it's a late move, and only one per clean is free.",
     refunding: (amount: string, card: string) =>
       `We're refunding ${amount} to your ${card}.`,
-    card: "card",
     sorry: "We're sorry, we had to cancel this clean.",
     notCharged: "You haven't been charged anything for it.",
     couldntGetIn: "We couldn't get in",
@@ -119,15 +111,14 @@ const words = catalog({
     comesTo: "It comes to",
     onlyIfApprove: (day: string) =>
       `, tax included, and you only pay it if you approve it. If we don't hear from you by ${day}, you won't pay it.`,
-    decline: "Decline",
     approve: (amount: string) => `Approve ${amount}`,
     pleaseApproveDot: "Please approve a price change.",
     answerBy: (day: string) => `Please answer by ${day}.`,
-    charge: { deposit: "Deposit", balance: "Paid", fee: "Fee" },
+    // what each kind of charge is called; a deposit is the screens' `deposit`
+    charge: { balance: "Paid", fee: "Fee" },
     receipt: "Your receipt",
     doneAt: (when: string) => `Done ${when}.`,
     quoted: "Quoted price",
-    total: "Total",
     depositKept: " (your deposit, kept)",
     refunded: (amount: string) => `, ${amount} refunded`,
     paid: "Paid",
@@ -147,14 +138,7 @@ const words = catalog({
     withDiscount: (percent: number) =>
       `Precio con su ${percent}% de descuento del plan, impuestos incluidos`,
     taxIncluded: "Precio, impuestos incluidos",
-    onSite: "En el lugar",
-    about: (hours: string) => `Unas ${hours}`,
-    onSiteWith: (cleaners: string) => `En el lugar, ${cleaners}`,
-    extras: "Adicionales",
-    none: "Ninguno",
-    plan: "Plan de limpieza",
     heldThere: "Su depósito está retenido allí",
-    deposit: "Depósito",
     offPrice: "Depósito, se descuenta del precio",
     reminder: "Le enviaremos un recordatorio por correo el día antes.",
     notSkipped: "No se saltó su limpieza. Vuelva a intentarlo.",
@@ -197,7 +181,6 @@ const words = catalog({
       ". Después, es una reprogramación tardía, y solo una por limpieza es gratis.",
     refunding: (amount: string, card: string) =>
       `Le estamos devolviendo ${amount} a su ${card}.`,
-    card: "tarjeta",
     sorry: "Lo sentimos, tuvimos que cancelar esta limpieza.",
     notCharged: "No se le cobró nada por ella.",
     couldntGetIn: "No se pudo entrar",
@@ -216,15 +199,13 @@ const words = catalog({
     comesTo: "Son",
     onlyIfApprove: (day: string) =>
       `, impuestos incluidos, y solo lo paga si lo aprueba. Si no sabemos de usted antes del ${day}, no lo pagará.`,
-    decline: "Rechazar",
     approve: (amount: string) => `Aprobar ${amount}`,
     pleaseApproveDot: "Apruebe un cambio de precio.",
     answerBy: (day: string) => `Responda antes del ${day}.`,
-    charge: { deposit: "Depósito", balance: "Pagado", fee: "Cargo" },
+    charge: { balance: "Pagado", fee: "Cargo" },
     receipt: "Su recibo",
     doneAt: (when: string) => `Terminada el ${when}.`,
     quoted: "Precio cotizado",
-    total: "Total",
     depositKept: " (su depósito, retenido)",
     refunded: (amount: string) => `, ${amount} devueltos`,
     paid: "Pagado",
@@ -349,19 +330,19 @@ function JobDetails({ job }: { job: ClientJobDetail }) {
         />
         <Fact
           icon={Clock}
-          label={t.w.onSite}
-          value={t.w.about(formatHours(job.hoursOnSite))}
-          line={t.w.onSiteWith(t.cleaners(job.crewSize))}
+          label={t.onSite}
+          value={t.about(formatHours(job.hoursOnSite))}
+          line={t.onSiteWith(t.cleaners(job.crewSize))}
         />
         <Fact
           icon={CirclePlus}
-          label={t.w.extras}
-          value={job.addOns.length > 0 ? job.addOns.join(", ") : t.w.none}
+          label={t.extras}
+          value={job.addOns.length > 0 ? job.addOns.join(", ") : t.none}
         />
         {job.servicePlanId ? (
           <Fact
             icon={CalendarSync}
-            label={t.w.plan}
+            label={t.p.cleaningPlan}
             value={
               <Link
                 href={linkTo({
@@ -377,9 +358,9 @@ function JobDetails({ job }: { job: ClientJobDetail }) {
         ) : (
           <Fact
             icon={PiggyBank}
-            label={t.w.deposit}
-            value={deposit ? t.formatMoney(deposit.amountCents) : t.w.none}
-            line={deposit ? t.w.offPrice : t.w.deposit}
+            label={t.deposit}
+            value={deposit ? t.formatMoney(deposit.amountCents) : t.none}
+            line={deposit ? t.w.offPrice : t.deposit}
           />
         )}
       </dl>
@@ -643,7 +624,7 @@ function Reschedule({ job }: { job: ClientJobDetail }) {
 function Refund({ payment }: { payment: JobPayment }) {
   const t = useSaid(words);
   const refunded = payment.charges.reduce((sum, c) => sum + c.refundedCents, 0);
-  const card = payment.paymentMethod ?? t.w.card;
+  const card = payment.paymentMethod ?? t.p.card;
   return (
     <>
       {refunded > 0 && <p>{t.refundedTo(t.formatMoney(refunded), card)}</p>}
@@ -767,7 +748,7 @@ function Unpaid({ payment }: { payment: JobPayment }) {
         <strong>{t.p.paymentNeeded}</strong>{" "}
         {t.notTaken(
           t.formatMoney(payment.owedCents),
-          kind === "no_card" ? null : (payment.paymentMethod ?? t.w.card),
+          kind === "no_card" ? null : (payment.paymentMethod ?? t.p.card),
           why,
         )}{" "}
         {t.clientFix[kind]}
@@ -827,7 +808,7 @@ function Proposal({
                     isPending={action.pending === "decline"}
                     onPress={() => void answer("decline", close)}
                   >
-                    {t.w.decline}
+                    {t.p.decline}
                   </Button>
                   <Button
                     isPending={action.pending === "approve"}
@@ -875,7 +856,7 @@ function Receipt({ job }: { job: ClientJobDetail }) {
             <dd className="text-end">{t.formatMoney(a.totalCents)}</dd>
           </div>
         ))}
-        <dt className="font-semibold">{t.w.total}</dt>
+        <dt className="font-semibold">{t.total}</dt>
         <dd className="text-end font-semibold">
           {t.formatMoney(payment.totalCents)}
         </dd>
@@ -893,7 +874,8 @@ function Receipt({ job }: { job: ClientJobDetail }) {
         {payment.charges.map((c, i) => (
           <div key={i} className="contents">
             <dt>
-              {t.w.charge[c.kind]} {t.formatDate(c.chargedAt)}
+              {{ deposit: t.deposit, ...t.w.charge }[c.kind]}{" "}
+              {t.formatDate(c.chargedAt)}
               {c.refundedCents > 0 &&
                 t.w.refunded(t.formatMoney(c.refundedCents))}
             </dt>

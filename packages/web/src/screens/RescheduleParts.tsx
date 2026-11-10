@@ -36,7 +36,6 @@ const words = catalog({
     notSent: "The request wasn't sent. Please try again.",
     notLoaded: "The times didn't load. Please try again.",
     pickBoth: "Pick a day and a start time",
-    day: "Day",
     onlyDays: "Only days with room for this clean are shown.",
     pickDay: "Pick a day",
     startTime: "Start time",
@@ -46,7 +45,6 @@ const words = catalog({
     finding: "Finding times…",
     noDay: "There's no day with room in the next few weeks. Please call us.",
     moveTo: "Move it to",
-    dayAt: (day: string, time: string) => `${day} at ${time}`,
     orList: "Or pick from a list",
     holdNew:
       "We'll hold the new time while we confirm it. Until then, the clean stays at its current time.",
@@ -57,7 +55,6 @@ const words = catalog({
     notSent: "No se envió la solicitud. Vuelva a intentarlo.",
     notLoaded: "No se cargaron las horas. Vuelva a intentarlo.",
     pickBoth: "Elija un día y una hora de inicio",
-    day: "Día",
     onlyDays: "Solo se muestran los días con lugar para esta limpieza.",
     pickDay: "Elija un día",
     startTime: "Hora de inicio",
@@ -69,8 +66,6 @@ const words = catalog({
     noDay:
       "No hay ningún día con lugar en las próximas semanas. Por favor, llámenos.",
     moveTo: "Reprogramarla para el",
-    dayAt: (day: string, time: string) =>
-      `${day} ${time.startsWith("1:") ? "a la" : "a las"} ${time}`,
     orList: "O elija de una lista",
     holdNew:
       "Le guardamos la nueva hora mientras la confirmamos. Hasta entonces, la limpieza sigue a su hora actual.",
@@ -157,7 +152,7 @@ function NewTimeForm({
   inline = false,
   close,
 }: Props & { close: () => void }) {
-  const { w, formatClock, formatDay, SAME_TIME } = useSaid(words);
+  const { w, day, dayAt, formatClock, formatDay, SAME_TIME } = useSaid(words);
   const [date, setDate] = useState<string | null>(null);
   const [time, setTime] = useState<string | null>(timeOfDay(job.startsAt));
   // what it costs, or the days with room, may have changed since
@@ -205,7 +200,7 @@ function NewTimeForm({
   const fields = (
     <>
       <Select
-        label={w.day}
+        label={day}
         description={w.onlyDays}
         placeholder={w.pickDay}
         selectedKey={date}
@@ -261,7 +256,7 @@ function NewTimeForm({
               {date && time && (
                 <p>
                   {w.moveTo}{" "}
-                  <strong>{w.dayAt(formatDay(date), formatClock(time))}</strong>
+                  <strong>{dayAt(formatDay(date), formatClock(time))}</strong>
                 </p>
               )}
               <details className="text-sm">

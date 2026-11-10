@@ -106,10 +106,8 @@ const words = catalog({
     nameEmailPhone: "Name, email, phone",
     lastDidntGo: "The last payment didn't go through",
     noneSaved: "None saved yet",
-    notAdded: "Not added yet",
     moveRequest: "Your move request",
     to: (when: string) => `To ${when}`,
-    yourClean: (day: string) => `Your ${day} clean`,
   },
   es: {
     needsOk: (day: string, n: number) =>
@@ -176,10 +174,8 @@ const words = catalog({
     nameEmailPhone: "Nombre, correo, teléfono",
     lastDidntGo: "El último pago no pasó",
     noneSaved: "Ninguna guardada todavía",
-    notAdded: "Aún no se agregó",
     moveRequest: "Su solicitud para reprogramar",
     to: (when: string) => `Para el ${when}`,
-    yourClean: (day: string) => `Su limpieza del ${day}`,
   },
 });
 
@@ -624,7 +620,7 @@ function shortcutsOf(data: HomeData, t: Said, ctx: Context): Shortcut[] {
         {
           icon: KeyRound,
           label: p.howWeGetIn,
-          hint: home.accessInstructions || w.notAdded,
+          hint: home.accessInstructions || t.notAdded,
           href: linkTo({
             to: "/portal/properties/$propertyId",
             params: { propertyId: home.id },
@@ -646,7 +642,7 @@ function shortcutsOf(data: HomeData, t: Said, ctx: Context): Shortcut[] {
       : {
           icon: CalendarClock,
           label: job.servicePlanId ? p.moveOrSkip : p.moveOrCancel,
-          hint: w.yourClean(dayOf(job.startsAt)),
+          hint: p.yourClean(dayOf(job.startsAt)),
           href: jobLink(job.id),
         };
     return [move, ...getIn, card, callUs];
