@@ -1,6 +1,6 @@
 # Lint rules
 
-The repo's own lint rules, as oxlint JS plugins (`.oxlintrc.json`'s `jsPlugins`, run by `pnpm lint`). JS plugins are in alpha in oxlint and not bound by semver, so each rule is tested through oxlint's own `RuleTester` (`pnpm --filter @empire-cleaning/lint test`, in CI's Checks job), and an oxlint update that changes the plugin API fails there.
+The repo's own lint rules, `empire/…`, as one oxlint JS plugin (`src/index.ts`, `.oxlintrc.json`'s `jsPlugins`, run by `pnpm lint`): each rule is a file of its own, registered there. JS plugins are in alpha in oxlint and not bound by semver, so each rule is tested through oxlint's own `RuleTester` (`pnpm --filter @empire-cleaning/lint test`, in CI's Checks job), and an oxlint update that changes the plugin API fails there.
 
 ## `empire/report-unexpected`
 
@@ -18,3 +18,22 @@ A handler passed by name (`.catch(reportUnexpected)`) passes when it's the repor
 ```
 
 The rule is on in `packages/{web,quote-request,landing,ui}/src`, but not in tests or stories. The server reports through its own Sentry.
+
+## `empire/words-from-catalog`
+
+Words that differ by language come from a catalog, never a branch on the language (ADR-0025, #388). A branch (`lang === "es" ? "Hola" : "Hi"`) skips the typecheck that fails the build on a missing Spanish string, and its plurals skip `formats[lang].plural`. Write the words in `catalog()` (`packages/models/src/language.ts`) and look them up by the language: `words[lang].greeting(name)`.
+
+A JS plugin gets no types, so the rule knows a language by what it's compared with: one of models' `LANGUAGES` codes. It flags a ternary, `&&`, `||`, `if` or `switch` on such a comparison when a branch holds words:
+
+- the comparison either way round, with `===`, `!==`, `==` or `!=`, under any name (`lang`, `client.preferredLanguage`, `currentLanguage()`), inside a bigger test (`formal && lang === "es"`, `!(…)`), or kept in a `const` (`const es = lang === "es"`)
+- words are a string, template or JSX text anywhere under a branch, with a letter, that isn't a language code; what a branch compares with, an object's key, a member's name and a type aren't words
+
+It allows a branch that picks no words (`inLanguage`), and one that picks the other language: `lang === "en" ? "es" : "en"` (the landing header).
+
+What it can't see:
+
+- a language compared with anything but a code: `lang === other`, `lang.startsWith("es")`, a boolean kept by `let` or passed in (`isSpanish`)
+- words a branch reaches through a call: `lang === "es" ? spanish() : english()`
+- an `.astro` file's template: oxlint reads only its frontmatter, so `{lang === "es" ? "Hola" : "Hi"}` in markup passes
+
+As it looks deep, it also flags a string under a branch that isn't words, such as an Intl option or a locale tag (`lang === "en" ? "en_US" : "es_US"`): that goes in a table by language too, as `locales` does. The rule is on everywhere, tests included: a test's expected words in each language go in a table by language, not a branch.

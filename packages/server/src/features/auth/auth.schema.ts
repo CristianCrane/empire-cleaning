@@ -6,7 +6,7 @@ import {
   timestamp,
   index,
 } from "drizzle-orm/pg-core";
-import { timestamps } from "../../db/index.ts";
+import { timestamps } from "../../db/timestamps.ts";
 
 // Better Auth's tables, named after our glossary: Better Auth's "user" is our
 // Account, and its "account" (a linked sign-in method, e.g. Google) is an

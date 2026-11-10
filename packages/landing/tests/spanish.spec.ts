@@ -1,4 +1,4 @@
-import { LANGUAGES, languageNames } from "@empire-cleaning/models";
+import { LANGUAGES, type Language } from "@empire-cleaning/models";
 import { pages, pathOf, urlOf } from "../src/routes.ts";
 import type { Page } from "@playwright/test";
 import {
@@ -8,6 +8,14 @@ import {
   newEmail,
   test,
 } from "./harness.ts";
+
+// what each language's pages say, written here rather than read from the
+// site, so a wrong one there fails: Open Graph's name for the language, and
+// the switch to the other one
+const expected: Record<Language, { ogLocale: string; switchTo: string }> = {
+  en: { ogLocale: "en_US", switchTo: "Español" },
+  es: { ogLocale: "es_US", switchTo: "English" },
+};
 
 // every page in English and in Spanish under /es/ (ADR-0025, #301): each
 // says its language, links its twin both ways, and switches to it
@@ -24,7 +32,7 @@ for (const page of pages) {
       await expect(tab.locator("html")).toHaveAttribute("lang", lang);
       await expect(tab.locator('meta[property="og:locale"]')).toHaveAttribute(
         "content",
-        lang === "en" ? "en_US" : "es_US",
+        expected[lang].ogLocale,
       );
       await expect(tab.locator('link[rel="canonical"]')).toHaveAttribute(
         "href",
@@ -46,7 +54,7 @@ for (const page of pages) {
         ),
       ).toBe(true);
 
-      await tab.getByRole("link", { name: languageNames[other] }).click();
+      await tab.getByRole("link", { name: expected[lang].switchTo }).click();
       await expect(tab).toHaveURL(new RegExp(`${pathOf(page, other)}$`));
       await expect(tab.locator("html")).toHaveAttribute("lang", other);
     });

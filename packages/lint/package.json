@@ -8,6 +8,9 @@
     "test": "vitest run",
     "test:quick": "vitest run"
   },
+  "dependencies": {
+    "@empire-cleaning/models": "workspace:*"
+  },
   "devDependencies": {
     "oxlint": "^1.90.0",
     "vitest": "^4.1.12"

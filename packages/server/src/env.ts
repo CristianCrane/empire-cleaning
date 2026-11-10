@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { log } from "#services/monitoring";
+import { dbUrl } from "./db/url.ts";
 
 // the same variables are required in every mode, but for Sentry's keys,
 // required in prod only (ADR-0007), and BETTER_AUTH_URL, which dev may leave
@@ -16,7 +17,7 @@ export const envSchema = z
     // the landing site's origin, allowed to send a Guest's ask for a Quote
     LANDING_ORIGIN_URL: z.url(),
     PORT: z.coerce.number().positive().default(3000),
-    DB_URL: z.url().nonempty(),
+    DB_URL: dbUrl,
     RESEND_API_KEY: z.string().nonempty(),
     EMAIL_FROM: z
       .string()
