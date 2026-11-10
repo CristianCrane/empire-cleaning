@@ -1,3 +1,4 @@
+import { messages } from "@empire-cleaning/models";
 import type { BillPayment } from "@empire-cleaning/models";
 import {
   button,
@@ -6,11 +7,8 @@ import {
   type Email,
 } from "../../services/email/blocks.ts";
 import { firstNameOf } from "../../services/email/format.ts";
-import {
-  billPaid,
-  NEVER_SEE_CARD,
-  ON_WEEKS_BILL,
-} from "@empire-cleaning/models";
+
+const { billPaid, NEVER_SEE_CARD, ON_WEEKS_BILL } = messages.en;
 
 // A plain link: it carries no sign-in power (ADR-0006). The rest of a
 // clean is charged when it's done, or goes on its week's Bill (ADR-0016).

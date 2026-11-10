@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import { quoteEmailedTo, type QuoteAskReceipt } from "@empire-cleaning/models";
+import { type QuoteAskReceipt, messages } from "@empire-cleaning/models";
 import { QuoteRequestForm } from "@empire-cleaning/quote-request";
 import { Notice } from "@empire-cleaning/ui";
 import { business } from "../business.ts";
 import { keepCampaign, quoteSource } from "../source.ts";
+
+const { quoteEmailedTo } = messages.en;
 
 // the Guest Request a Quote form (#3, ADR-0005). Its first step is drawn into
 // the page at build time, its tiles blank until the Services arrive, so the

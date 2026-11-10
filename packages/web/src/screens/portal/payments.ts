@@ -1,15 +1,17 @@
 import {
-  billNotPaid,
-  cleanNotPaid,
-  feeName,
-  UPDATE_CARD,
   type BillSummary,
   type ClientPastJob,
   type ClientPayment,
   type PaymentMethodView,
+  formats,
+  messages,
 } from "@empire-cleaning/models";
 import { linkTo, type AppHref } from "../../links.ts";
-import { dayOfInstant, formatMoney, formatShortDay } from "../format.ts";
+import { dayOfInstant } from "../format.ts";
+
+const { billNotPaid, cleanNotPaid, feeName, UPDATE_CARD } = messages.en;
+
+const { formatMoney, formatShortDay } = formats.en;
 
 // The Client's Payments page: one card saying what they owe now, or that
 // it's nothing, and every payment between us after it. (UX pass, #96)

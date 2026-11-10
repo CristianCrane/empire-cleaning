@@ -1,4 +1,4 @@
-import { BUSINESS_TIME_ZONE } from "@empire-cleaning/models";
+import { formats, type Language } from "@empire-cleaning/models";
 import { tv } from "./utils.ts";
 
 const tile = tv({
@@ -30,29 +30,25 @@ const tile = tv({
 // a page off a calendar: the month on a band, the day large and, at md,
 // the weekday under it, for when something booked is. Decorative: say the
 // date in text beside it. Days are Empire Cleaning's, New York's, wherever
-// the viewer is.
+// the viewer is, in the screen's language.
 export function DateTile({
   date,
+  lang,
   size = "md",
 }: {
   // an instant, e.g. "2026-11-03T14:00:00Z"
   date: string;
+  lang: Language;
   size?: "md" | "sm";
 }) {
-  const part = (options: Intl.DateTimeFormatOptions) =>
-    new Date(date).toLocaleDateString("en-US", {
-      timeZone: BUSINESS_TIME_ZONE,
-      ...options,
-    });
+  const parts = formats[lang].dateTile(date);
   const { base, month, day } = tile({ size });
   return (
     <span aria-hidden className={base()}>
-      <span className={month()}>{part({ month: "short" })}</span>
-      <span className={day()}>{part({ day: "numeric" })}</span>
+      <span className={month()}>{parts.month}</span>
+      <span className={day()}>{parts.day}</span>
       {size === "md" && (
-        <span className="pb-2 text-sm text-fg-muted">
-          {part({ weekday: "short" })}
-        </span>
+        <span className="pb-2 text-sm text-fg-muted">{parts.weekday}</span>
       )}
     </span>
   );

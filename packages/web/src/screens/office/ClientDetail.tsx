@@ -2,12 +2,13 @@ import { useState } from "react";
 import { Pencil } from "lucide-react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import {
-  cleansPaid,
   type BillPayment,
   type ClientBillingSaved,
   type OfficeClientView,
   type PropertyStatus,
   type SettledJobView,
+  formats,
+  cleansPaidForOffice,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -33,16 +34,10 @@ import { linkTo } from "../../links.ts";
 import { QuoteIcon } from "../icons.ts";
 import { useAction } from "../action.ts";
 import { BillStatusBadge, billLine } from "../BillParts.tsx";
-import {
-  addressOf,
-  clientName,
-  formatDate,
-  formatDateTime,
-  formatDay,
-  formatMoney,
-  propertySummary,
-} from "../format.ts";
+import { addressOf, clientName, propertySummary } from "../format.ts";
 import { NEW_QUOTE } from "./NewQuoteScreen.tsx";
+
+const { formatDate, formatDateTime, formatDay, formatMoney } = formats.en;
 
 // a Client for the Office: their contact details, which Office Staff can
 // correct (or add an email to), and their homes, each with where it stands
@@ -250,7 +245,7 @@ function EditBilling({ client }: { client: OfficeClientView }) {
                   ? "Everything they owe for a week, Monday to Sunday, goes on one bill made the following Monday, from this week on."
                   : billing.weeklyFrom
                     ? "Bills already made still need paying. Anything not billed yet is charged per job."
-                    : cleansPaid("per_clean", false)}
+                    : cleansPaidForOffice("per_clean")}
               </p>
               {weekly && (
                 <>

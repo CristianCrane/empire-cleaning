@@ -1,3 +1,4 @@
+import { formats } from "@empire-cleaning/models";
 import { describe, expect, test } from "vitest";
 import { sql } from "drizzle-orm";
 import type {
@@ -35,8 +36,9 @@ import {
   signInAsOffice,
   submit,
 } from "../../../tests/fixtures.ts";
-import { formatMoney } from "#services/email";
 import { SEEDED } from "#features/services";
+
+const { formatMoney } = formats.en;
 
 // the test clock starts at 4am on Monday 5 January 2026 in New York; Quotes
 // here propose 9am on Monday 12 January (14:00 UTC)

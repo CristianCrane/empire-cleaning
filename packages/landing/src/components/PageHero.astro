@@ -1,7 +1,10 @@
 ---
 import { Logo } from "@empire-cleaning/ui";
+import { languageOf } from "@empire-cleaning/models";
 import { ChevronRight } from "lucide-react";
 import { business } from "../business.ts";
+import { pathOf } from "../routes.ts";
+import { words } from "../words.ts";
 import QuoteOrCall from "./QuoteOrCall.astro";
 
 // the top of an area's or a service's page: `crumb` names it after Home
@@ -11,20 +14,23 @@ interface Props {
   intro: string;
 }
 const { crumb, heading, intro } = Astro.props;
+const lang = languageOf(Astro.currentLocale);
+const t = words[lang];
+const home = pathOf({ kind: "home" }, lang);
 ---
 
 <!-- the home page's hero, smaller: the logo leads, back to the home page; the
      breadcrumbs, then what and where, then the two actions, all centred -->
 <section aria-labelledby="page-title" class="pt-4 pb-14 sm:pb-20">
   <div class="mx-auto flex max-w-5xl flex-col items-center gap-6 px-4 text-center">
-    <a href="/" aria-label={`${business.brand}, home`}>
+    <a href={home} aria-label={`${business.brand}, ${t.home.toLowerCase()}`}>
       <Logo className="w-32 sm:w-36" />
     </a>
-    <nav aria-label="Breadcrumbs">
+    <nav aria-label={t.breadcrumbs}>
       <ol class="flex items-center gap-1 text-fg-muted">
         <li>
-          <a href="/" class="font-semibold text-primary">
-            Home
+          <a href={home} class="font-semibold text-primary">
+            {t.home}
           </a>
         </li>
         <li aria-hidden="true">

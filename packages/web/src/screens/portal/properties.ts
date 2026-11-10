@@ -1,3 +1,4 @@
+import { formats, messages } from "@empire-cleaning/models";
 import type {
   ClientUpcomingJob,
   PropertyView,
@@ -7,13 +8,14 @@ import type {
 import type { StatusTone } from "@empire-cleaning/ui";
 import {
   dayOfInstant,
-  formatDateTime,
-  formatShortDay,
   clientQuoteStatus,
-  planDayWhen,
   planStatus,
   quoteKindName,
 } from "../format.ts";
+
+const { planDaysWhen } = messages.en;
+
+const { formatDateTime, formatShortDay } = formats.en;
 
 // The Client's homes on Your details, and a page each: where each stands,
 // from their plans, Quotes and cleans. (UX pass, #96)
@@ -35,9 +37,7 @@ const shortDayOf = (iso: string) => formatShortDay(dayOfInstant(iso));
 
 // "Mondays at 9:00 AM", or "Mondays at 9:00 AM and Thursdays at 1:00 PM"
 export const planWhen = (plan: Pick<ServicePlanSummary, "days">) =>
-  plan.days
-    .flatMap((d) => (d.startsAt ? [planDayWhen(d.startsAt)] : []))
-    .join(" and ");
+  planDaysWhen(plan.days.flatMap((d) => d.startsAt ?? []));
 
 // a Quote as a row's title: what it's for
 export const quoteTitle = (q: QuoteSummary) =>

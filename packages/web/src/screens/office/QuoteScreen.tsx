@@ -43,13 +43,14 @@ import type {
   ServicePlanInput,
 } from "@empire-cleaning/models";
 import {
-  adjustmentLabel,
   CANCELLATION_CUTOFF_HOURS,
   noEmailYet,
   notSeenYet,
   recurrenceDays,
   weekdayOf,
   whyNoRoom,
+  formats,
+  messages,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -88,18 +89,15 @@ import {
   clientName,
   conditionLabel,
   dayOfInstant,
-  formatDate,
-  formatDateTime,
-  formatDay,
-  formatMoney,
   planName,
   planRhythm,
   propertySummary,
   recurrenceLabel,
   timeOfDay,
   timeOfField,
-  weekdayName,
   quoteKindName,
+  formatFloorArea,
+  upperFirst,
 } from "../format.ts";
 import {
   AddOnList,
@@ -125,6 +123,17 @@ import { PickFromSchedule, type Crew } from "./SchedulePicker.tsx";
 import { BookSiteVisit, visitSummary } from "./SiteVisitParts.tsx";
 import { useStartDraft } from "./StartDraft.tsx";
 import { reportUnexpected } from "../../monitoring.ts";
+
+const { adjustmentLabel } = messages.en;
+
+const {
+  formatDate,
+  formatDateTime,
+  formatDay,
+  formatMoney,
+  weekdayName,
+  formatList,
+} = formats.en;
 
 // The Quote with one of its Revisions in hand: the one being drafted, or
 // else the offer, so it's edited while there's a Draft Revision and
@@ -1241,14 +1250,14 @@ const roomProblems = (
   const them = (some: OfficeQuoteOption[]) =>
     some.length === 1 ? "it" : "them";
   const names = (some: OfficeQuoteOption[]) =>
-    some.map(describeOption).join(" and ");
+    formatList(some.map(describeOption));
   return [
     late.length > 0 &&
-      `The ${late.map((o) => o.serviceName).join(" and the ")} would run past midnight. Pick an earlier start time to offer ${them(late)} too.`,
+      `${upperFirst(formatList(late.map(describeOption)))} would run past midnight. Pick an earlier start time to offer ${them(late)} too.`,
     full.length > 0 &&
       `That day only has room for ${names(fitting)}. Pick another day to offer ${names(full)} too.`,
     crewless.length > 0 &&
-      `Not enough cleaners are free then for ${crewless.map(describeOption).join(" or ")}. Pick another time to offer ${them(crewless)} too.`,
+      `Not enough cleaners are free then for ${formatList(crewless.map(describeOption), "or")}. Pick another time to offer ${them(crewless)} too.`,
   ].filter((problem) => problem !== false);
 };
 
@@ -1421,8 +1430,6 @@ const priceSummary = (quote: ShownQuote) => {
     .join(" · ");
 };
 
-const sqFt = new Intl.NumberFormat("en-US");
-
 // The area a Service priced by area is priced on: typed, or left empty to
 // follow the Property's floor area, else the Client's rough one (ADR-0018)
 function AreaField({
@@ -1437,8 +1444,8 @@ function AreaField({
   const following = !from
     ? "None recorded yet: enter one to price it."
     : from.source === "property"
-      ? `Leave empty to use the floor area, ${sqFt.format(from.sqFt)} sq ft.`
-      : `Leave empty to use the client's rough figure, ${sqFt.format(from.sqFt)} sq ft.`;
+      ? `Leave empty to use the floor area, ${formatFloorArea(from.sqFt)}.`
+      : `Leave empty to use the client's rough figure, ${formatFloorArea(from.sqFt)}.`;
   return (
     <NumberField
       label="Area in sq ft"

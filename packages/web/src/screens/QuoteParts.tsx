@@ -9,17 +9,19 @@ import type {
   ServicePlanTerms,
 } from "@empire-cleaning/models";
 import { Card, StatusBadge } from "@empire-cleaning/ui";
-import { quoteEmailedTo } from "@empire-cleaning/models";
+import { formats, messages } from "@empire-cleaning/models";
 import {
   cleaners,
   formatHours,
-  formatMoney,
-  planDayWhen,
   clientQuoteStatus,
   quoteStatusLabel,
   quoteStatusTone,
   wantedCleaning,
 } from "./format.ts";
+
+const { planDayWhen, quoteEmailedTo } = messages.en;
+
+const { formatMoney } = formats.en;
 
 // how a Quote reads, the same for the Office and its Client: prices include
 // tax, as Clients always see them

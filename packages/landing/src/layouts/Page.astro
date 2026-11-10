@@ -2,32 +2,41 @@
 import "@empire-cleaning/ui/tokens.css";
 import { themeBootScript } from "@empire-cleaning/ui/theme-boot";
 import { firstScreenFonts } from "@empire-cleaning/ui/fonts";
+import { LANGUAGES, languageOf } from "@empire-cleaning/models";
 import { TestSiteBanner } from "@empire-cleaning/ui";
-import { business } from "../business.ts";
+import { business, businessWords } from "../business.ts";
+import { urlOf, type Page } from "../routes.ts";
 import { isTestSite } from "../site-mode.ts";
 import { structuredData } from "../structured-data.ts";
 
-// a page other than the home page names itself first, and says where it is
-// (path, e.g. "queens/"); the 404 isn't any page's address (null). Its own
-// structured data joins the business's
+// a page other than the home page names itself first; every page says which
+// it is, for its address and its twin's in the other language; the 404
+// isn't any page's address (null). Its own structured data joins the
+// business's. Its language is its address's (Astro.currentLocale)
 type Props = {
   title?: string;
   description?: string;
-  path?: string | null;
+  page: Page | null;
   data?: object[];
 };
+const lang = languageOf(Astro.currentLocale);
 const {
   title,
-  description = business.description,
-  path = "",
+  description = businessWords[lang].description,
+  page,
   data,
 } = Astro.props;
-const pageTitle = title ? `${title} | Empire Cleaning` : business.title;
-const url = path === null ? null : new URL(path, business.url).href;
+const pageTitle = title
+  ? `${title} | Empire Cleaning`
+  : businessWords[lang].title;
+const urlIn = (l: typeof lang) => page && urlOf(page, l);
+const url = urlIn(lang);
+// Open Graph's way of naming a language
+const ogLocale = { en: "en_US", es: "es_US" };
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang={lang}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -40,6 +49,12 @@ const url = path === null ? null : new URL(path, business.url).href;
     <title>{pageTitle}</title>
     <meta name="description" content={description} />
     {url && <link rel="canonical" href={url} />}
+    {/* the page in each language, and English for any other (ADR-0025) */}
+    {page &&
+      LANGUAGES.map((l) => (
+        <link rel="alternate" hreflang={l} href={urlIn(l)} />
+      ))}
+    {page && <link rel="alternate" hreflang="x-default" href={urlIn("en")} />}
     <meta name="theme-color" content="#06682f" />
     <link rel="icon" href="/favicon.ico" sizes="48x48" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
@@ -52,7 +67,10 @@ const url = path === null ? null : new URL(path, business.url).href;
     <meta property="og:title" content={pageTitle} />
     <meta property="og:description" content={description} />
     {url && <meta property="og:url" content={url} />}
-    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale" content={ogLocale[lang]} />
+    {LANGUAGES.filter((l) => l !== lang).map((l) => (
+      <meta property="og:locale:alternate" content={ogLocale[l]} />
+    ))}
     <meta
       property="og:image"
       content={new URL("og-image.png", business.url).href}
@@ -65,7 +83,7 @@ const url = path === null ? null : new URL(path, business.url).href;
     <script
       is:inline
       type="application/ld+json"
-      set:html={JSON.stringify(structuredData(data))}
+      set:html={JSON.stringify(structuredData(lang, data))}
     />
   </head>
   <body>

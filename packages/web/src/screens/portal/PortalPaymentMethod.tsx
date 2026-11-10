@@ -8,17 +8,16 @@ import {
   Heading,
   Notice,
 } from "@empire-cleaning/ui";
-import { notTaken } from "@empire-cleaning/models";
+import { formats, messages } from "@empire-cleaning/models";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import { postJson } from "../../api.ts";
-import {
-  dayOfInstant,
-  formatDate,
-  formatMoney,
-  formatShortDay,
-} from "../format.ts";
+import { dayOfInstant } from "../format.ts";
 import { ConsentNote, useCardForm } from "./CardForm.tsx";
+
+const { notTaken } = messages.en;
+
+const { formatDate, formatMoney, formatShortDay } = formats.en;
 
 // where the Office's "add a card" email leads: the Client adds (or
 // replaces) the card that Deposits and Balances are charged to. Where a

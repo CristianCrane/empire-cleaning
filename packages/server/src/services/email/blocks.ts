@@ -1,4 +1,6 @@
-import { formatMoney, formatWhen } from "./format.ts";
+import { formats } from "@empire-cleaning/models";
+
+const { formatMoney, formatWhen } = formats.en;
 
 // what every email is written from: a builder next to its feature returns
 // blocks, and the shared layout (layout.tsx) turns them into the HTML and the

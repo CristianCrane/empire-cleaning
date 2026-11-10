@@ -1,3 +1,4 @@
+import { formats } from "@empire-cleaning/models";
 import type { CleanerNeeded } from "@empire-cleaning/models";
 import {
   button,
@@ -7,7 +8,9 @@ import {
   type Clean,
   type Email,
 } from "../../services/email/blocks.ts";
-import { firstNameOf, formatWhen } from "../../services/email/format.ts";
+import { firstNameOf } from "../../services/email/format.ts";
+
+const { formatWhen } = formats.en;
 
 // a Cleaner's own Job page; their list is /cleaner
 const jobButton = (jobId: string) =>

@@ -1,3 +1,4 @@
+import { formats } from "@empire-cleaning/models";
 import {
   button,
   details,
@@ -5,7 +6,9 @@ import {
   paragraph,
   type Email,
 } from "../../services/email/blocks.ts";
-import { firstNameOf, formatWhen } from "../../services/email/format.ts";
+import { firstNameOf } from "../../services/email/format.ts";
+
+const { formatWhen } = formats.en;
 
 // A Client is emailed when a Site Visit is booked, moved or cancelled; they
 // ask for changes by phone

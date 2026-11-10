@@ -27,10 +27,10 @@ import {
   addDays,
   atTime,
   dayOf,
-  ENDS_BY_MIDNIGHT,
   recurrenceDays,
   timeOf,
   weekdayOf,
+  messages,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
@@ -77,6 +77,8 @@ import {
   type ServicePlan,
 } from "./service-plans.schema.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
+
+const { ENDS_BY_MIDNIGHT } = messages.en;
 
 // how far ahead a plan's Jobs are put on the Schedule: every recurrence has
 // at least one showing, and the Office has a month's notice of a full day

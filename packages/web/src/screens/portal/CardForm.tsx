@@ -18,16 +18,18 @@ import {
   type StripeError,
 } from "@stripe/stripe-js";
 import {
-  NEVER_SEE_CARD,
   type BillPaymentForm,
   type CardForm,
   type PaymentForm,
   type PaymentMethodView,
+  messages,
 } from "@empire-cleaning/models";
 import { EmbeddedField, Notice } from "@empire-cleaning/ui";
 import { getJson, postJson, putJson } from "../../api.ts";
 import { reportUnexpected } from "../../monitoring.ts";
 import { useLoaded } from "../load.ts";
+
+const { NEVER_SEE_CARD } = messages.en;
 
 // The payment provider's own form, so card numbers never reach our server
 // (ADR-0004): Stripe's Payment Element, for cards only (ADR-0008), except a

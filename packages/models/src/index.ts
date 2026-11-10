@@ -2037,6 +2037,14 @@ export const business = {
   area: "Queens, NYC and Long Island",
 } as const;
 
+// the languages people read the product in, and catalogs of words in each
+// (ADR-0025)
+export * from "./language.ts";
+
+// dates, times, money, numbers, lists and plurals as a person reads them,
+// in either language
+export * from "./format.ts";
+
 // the Suggested Price, worked out the same on the server and on screen
 export * from "./suggested-price.ts";
 
@@ -2048,11 +2056,4 @@ export * from "./days.ts";
 export * from "./scrub.ts";
 
 // what the server and the screens both say, written once (docs/ux.md, Words)
-export * from "./messages/jobs.ts";
-export * from "./messages/assignments.ts";
-export * from "./messages/bills.ts";
-export * from "./messages/reschedule.ts";
-export * from "./messages/staff.ts";
-export * from "./messages/quotes.ts";
-export * from "./messages/payments.ts";
-export * from "./messages/cancellation.ts";
+export * from "./messages/index.ts";

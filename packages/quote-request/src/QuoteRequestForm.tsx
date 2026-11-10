@@ -36,11 +36,9 @@ import type {
 } from "@empire-cleaning/models";
 import {
   PICK_TIMES,
-  REQUEST_A_QUOTE,
   business,
-  formatClock,
-  openAlready,
-  quoteEmailedTo,
+  formats,
+  messages,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -70,6 +68,10 @@ import { Optional } from "./Optional.tsx";
 import { loadPremisesTypes } from "./premises-types.ts";
 import { isHeld, loadServices, offeredAt } from "./services.ts";
 import { submitQuoteRequest, type SubmitResult } from "./submit.ts";
+
+const { REQUEST_A_QUOTE, openAlready, quoteEmailedTo } = messages.en;
+
+const { formatClock } = formats.en;
 
 // who is asking, which decides what the form needs from them (ADR-0006)
 export type Asker =
@@ -247,15 +249,10 @@ const blankPremises: NewPremises = {
   accessInstructions: "",
 };
 
-const weekdays: { day: Weekday; label: string }[] = [
-  { day: 0, label: "Monday" },
-  { day: 1, label: "Tuesday" },
-  { day: 2, label: "Wednesday" },
-  { day: 3, label: "Thursday" },
-  { day: 4, label: "Friday" },
-  { day: 5, label: "Saturday" },
-  { day: 6, label: "Sunday" },
-];
+const weekdays = formats.en.weekdays.map((label, day) => ({
+  day: day as Weekday,
+  label,
+}));
 
 // a preferred start, from the times a picker offers, 5am to 11pm
 const startTimes = PICK_TIMES.filter((t) => t >= "05:00" && t <= "23:00");

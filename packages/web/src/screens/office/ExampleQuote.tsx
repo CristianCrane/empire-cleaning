@@ -8,10 +8,13 @@ import {
   type Priced,
   type Service,
   type ServiceInput,
+  formats,
 } from "@empire-cleaning/models";
 import { Card, Section, Segment, SegmentedControl } from "@empire-cleaning/ui";
-import { conditionLabel, formatMoney } from "../format.ts";
+import { conditionLabel, formatFloorArea } from "../format.ts";
 import { WorkedOutQuote } from "./WorkedOutQuote.tsx";
+
+const { formatMoney } = formats.en;
 
 type Size = "small" | "typical" | "big";
 
@@ -121,7 +124,7 @@ export function ExampleQuote({
       : null;
   const place = byRooms
     ? homes[size].name
-    : `${areas[size].toLocaleString("en-US")} sq ft${forBusiness && type ? ` of ${type.name.toLowerCase()}` : ""}`;
+    : `${formatFloorArea(areas[size])}${forBusiness && type ? ` of ${type.name.toLowerCase()}` : ""}`;
 
   return (
     <Section

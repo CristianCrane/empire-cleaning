@@ -7,14 +7,18 @@ import type {
   StaffMember,
   StaffRole,
 } from "@empire-cleaning/models";
-import { dayOf, hasSiteVisit, weekdayOf } from "@empire-cleaning/models";
+import {
+  dayOf,
+  hasSiteVisit,
+  weekdayOf,
+  formats,
+} from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock } from "../../services/clock/index.ts";
 import {
   email,
   firstNameOf,
-  formatWhen,
   notify,
   type Email,
 } from "../../services/email/index.ts";
@@ -41,6 +45,8 @@ import {
   type Staff,
 } from "./staff.schema.ts";
 import { monitoring } from "../../services/monitoring/index.ts";
+
+const { formatWhen } = formats.en;
 
 type NewStaff = { email: string; name: string; roles: StaffRole[] };
 

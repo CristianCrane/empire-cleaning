@@ -1,13 +1,5 @@
 import { useLoaderData } from "@tanstack/react-router";
-import {
-  BANK_CLEARING,
-  clientFix,
-  notTaken,
-  PLAN_PAUSED,
-  UPDATE_AND_RETRY,
-  UPDATE_CARD,
-  type BillView,
-} from "@empire-cleaning/models";
+import { type BillView, formats, messages } from "@empire-cleaning/models";
 import {
   Actions,
   Breadcrumbs,
@@ -28,8 +20,18 @@ import {
   PrintBill,
   billWeek,
 } from "../BillParts.tsx";
-import { formatDay, formatMoney } from "../format.ts";
 import { useBillPaymentForm } from "./CardForm.tsx";
+
+const {
+  BANK_CLEARING,
+  clientFix,
+  notTaken,
+  PLAN_PAUSED,
+  UPDATE_AND_RETRY,
+  UPDATE_CARD,
+} = messages.en;
+
+const { formatDay, formatMoney } = formats.en;
 
 // one of the Client's weekly Bills (ADR-0016), where its emails lead: the
 // whole Bill, which prints cleanly, and paying it here by card or bank debit

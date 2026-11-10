@@ -1,33 +1,37 @@
 ---
+import { languageOf } from "@empire-cleaning/models";
 import { Check } from "lucide-react";
-import Faqs from "../../components/Faqs.astro";
-import Footer from "../../components/Footer.astro";
-import Header from "../../components/Header.astro";
-import HowItWorks from "../../components/HowItWorks.astro";
-import PageHero from "../../components/PageHero.astro";
-import RequestQuote from "../../components/RequestQuote.astro";
-import Reviews from "../../components/Reviews.astro";
-import Section from "../../components/Section.astro";
-import ServiceCard from "../../components/ServiceCard.astro";
-import Page from "../../layouts/Page.astro";
-import { servicePages, type ServicePage } from "../../service-pages/index.ts";
-import { guidesFor } from "../../guides/index.ts";
-import { card } from "../../band.ts";
-import { serviceData } from "../../structured-data.ts";
+import Faqs from "../components/Faqs.astro";
+import Footer from "../components/Footer.astro";
+import Header from "../components/Header.astro";
+import HowItWorks from "../components/HowItWorks.astro";
+import PageHero from "../components/PageHero.astro";
+import RequestQuote from "../components/RequestQuote.astro";
+import Reviews from "../components/Reviews.astro";
+import Section from "../components/Section.astro";
+import ServiceCard from "../components/ServiceCard.astro";
+import Page from "../layouts/Page.astro";
+import { pageOf } from "../service-pages/index.ts";
+import { guidesFor } from "../guides/index.ts";
+import { card } from "../band.ts";
+import { pathOf, routesOf } from "../routes.ts";
+import { serviceWords } from "../services.ts";
+import { serviceData } from "../structured-data.ts";
+import { words } from "../words.ts";
 
-// a page per service (#177), in the area pages' bands; its words are the
-// service's own, in src/service-pages. Its Quote form starts with its
-// Service chosen, where the Office has one. The footer links every area
-export function getStaticPaths() {
-  return servicePages.map((page) => ({
-    params: { service: page.slug },
-    props: { page },
+// a page per service (#177), in the area pages' bands, at its address in
+// each language (src/routes.ts); its words are the service's own, in
+// src/service-pages. Its Quote form starts with its Service chosen, where
+// the Office has one. The footer links every area
+export const getStaticPaths = () => routesOf("service");
+const { page: route } = Astro.props;
+const lang = languageOf(Astro.currentLocale);
+const page = pageOf(route.service)![lang];
+const linksUnder = (under: "pricing" | "when") =>
+  guidesFor(page.card, under, lang).map((guide) => ({
+    href: pathOf({ kind: "guide", guide: guide.key }, lang),
+    text: guide.link,
   }));
-}
-const { page } = Astro.props as { page: ServicePage };
-const related = page.related.map((slug) =>
-  servicePages.find((p) => p.slug === slug)!,
-);
 const start = page.office && {
   serviceKey: page.office.key,
   regular: page.office.regular,
@@ -37,12 +41,16 @@ const start = page.office && {
 <Page
   title={page.title}
   description={page.description}
-  path={`services/${page.slug}/`}
-  data={serviceData(page)}
+  page={route}
+  data={serviceData(page, lang)}
 >
-  <Header />
+  <Header page={route} />
   <main>
-    <PageHero crumb={page.card} heading={page.heading} intro={page.intro} />
+    <PageHero
+      crumb={serviceWords[lang][page.card].name}
+      heading={page.heading}
+      intro={page.intro}
+    />
     <Section id="included" title={page.included.title}>
       {/* a card per room, its checklist under it; three rooms sit three
           across from a laptop, the last filling its row before that */}
@@ -87,7 +95,7 @@ const start = page.office && {
         {page.pricing.text.map((t) => (
           <p>{t}</p>
         ))}
-        {guidesFor(page.slug, "pricing").map(({ href, text }) => (
+        {linksUnder("pricing").map(({ href, text }) => (
           <a href={href} class="font-semibold text-primary">
             {text}
           </a>
@@ -99,7 +107,7 @@ const start = page.office && {
         {page.when.text.map((t) => (
           <p>{t}</p>
         ))}
-        {guidesFor(page.slug, "when").map(({ href, text }) => (
+        {linksUnder("when").map(({ href, text }) => (
           <a href={href} class="font-semibold text-primary">
             {text}
           </a>
@@ -110,10 +118,10 @@ const start = page.office && {
     <Faqs faqs={page.faqs} />
     <HowItWorks />
     <RequestQuote start={start} />
-    <Section id="related" title="Related services">
+    <Section id="related" title={words[lang].relatedServices}>
       <ul class="grid gap-4 sm:grid-cols-3">
-        {related.map((p) => (
-          <ServiceCard name={p.card} />
+        {page.related.map((service) => (
+          <ServiceCard service={service} />
         ))}
       </ul>
     </Section>

@@ -1,3 +1,4 @@
+import { formats } from "@empire-cleaning/models";
 import { useEffect, useState } from "react";
 import { useLoaderData, useNavigate, useSearch } from "@tanstack/react-router";
 import type { JobsTab } from "@empire-cleaning/models";
@@ -16,8 +17,10 @@ import {
   Tabs,
   TextField,
 } from "@empire-cleaning/ui";
-import { clientName, formatDateTime } from "../format.ts";
+import { clientName } from "../format.ts";
 import { JobBadge } from "../JobBadges.tsx";
+
+const { formatDateTime } = formats.en;
 
 // the list's Tabs, Upcoming first: the Jobs still to do
 export const jobTabs = ["upcoming", "past", "cancelled", "all"] as const;

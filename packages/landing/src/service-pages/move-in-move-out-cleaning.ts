@@ -3,7 +3,7 @@ import { addOnsNote, officeServices } from "./shared.ts";
 
 export const moveInMoveOut: ServicePage = {
   slug: "move-in-move-out-cleaning",
-  card: "Move-in and move-out",
+  card: "move",
   office: officeServices.move,
   title: "Move-Out Cleaning in Queens, NYC & Long Island",
   description:
@@ -44,7 +44,7 @@ export const moveInMoveOut: ServicePage = {
         ],
       },
     ],
-    note: addOnsNote,
+    note: addOnsNote.en,
   },
   pricing: {
     title: "How it's priced",
@@ -91,5 +91,5 @@ export const moveInMoveOut: ServicePage = {
         "It depends on the size of the home and how much cleaning it needs. Your quote says how long we'll be there, so you can plan the move around it.",
     },
   ],
-  related: ["deep-cleaning", "post-construction-cleaning", "standard-cleaning"],
+  related: ["deep", "post-construction", "standard"],
 };

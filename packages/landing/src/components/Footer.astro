@@ -1,4 +1,5 @@
 ---
+import { languageOf } from "@empire-cleaning/models";
 import { Logo } from "@empire-cleaning/ui";
 import {
   siFacebook,
@@ -8,7 +9,9 @@ import {
   type SimpleIcon,
 } from "simple-icons";
 import { areas } from "../areas/index.ts";
-import { business } from "../business.ts";
+import { business, businessWords } from "../business.ts";
+import { pathOf } from "../routes.ts";
+import { words } from "../words.ts";
 
 // each of the business's pages elsewhere (business.social) has its
 // network's mark, shown in one colour (#223): a page added without its mark
@@ -25,6 +28,8 @@ const social = Object.entries(business.social).map(([network, page]) => ({
   ...page,
   mark: marks[network as keyof typeof marks],
 }));
+const lang = languageOf(Astro.currentLocale);
+const t = words[lang].footer;
 ---
 
 <footer class="flex flex-col gap-8 py-10">
@@ -33,12 +38,15 @@ const social = Object.entries(business.social).map(([network, page]) => ({
      level -->
   <div class="mx-auto flex w-full max-w-5xl flex-col items-center gap-8 px-4 text-center sm:grid sm:grid-cols-3 sm:gap-4">
     <!-- every area's page, from every page (#176) -->
-    <nav aria-label="Areas we serve" class="sm:justify-self-start">
+    <nav aria-label={t.areas} class="sm:justify-self-start">
       <ul class="flex flex-wrap justify-center gap-x-6 gap-y-2 sm:flex-col sm:items-start">
-        {areas.map((a) => (
+        {areas.map((area) => (
           <li>
-            <a href={`/${a.slug}/`} class="font-semibold text-primary">
-              {a.name}
+            <a
+              href={pathOf({ kind: "area", area: area.en.key }, lang)}
+              class="font-semibold text-primary"
+            >
+              {area[lang].name}
             </a>
           </li>
         ))}
@@ -49,17 +57,18 @@ const social = Object.entries(business.social).map(([network, page]) => ({
       <a href={business.phone.href} class="font-semibold text-fg">
         {business.phone.display}
       </a>
-      <span>{business.area}</span>
-      <span>{business.hours.display}</span>
-      <span lang="es">Se habla español</span>
-      <ul aria-label="Find us online" class="my-2 flex gap-4">
+      <span>{businessWords[lang].area}</span>
+      <span>{businessWords[lang].hours}</span>
+      {/* said in Spanish on an English page */}
+      {t.spanish && <span lang="es">{t.spanish}</span>}
+      <ul aria-label={t.online} class="my-2 flex gap-4">
         {social.map(({ name, href, mark }) => (
           <li>
             <a
               href={href}
               target="_blank"
               rel="noopener"
-              aria-label={`Empire Cleaning on ${name}`}
+              aria-label={t.on(name)}
               class="flex size-8 items-center justify-center text-fg-muted hover:text-primary"
             >
               <svg

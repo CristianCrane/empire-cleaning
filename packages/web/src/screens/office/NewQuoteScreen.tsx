@@ -33,7 +33,7 @@ import {
 } from "@empire-cleaning/ui";
 import { getJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
-import { clientName } from "../format.ts";
+import { clientName, formatFloorArea } from "../format.ts";
 import { WorkedOutQuote } from "./WorkedOutQuote.tsx";
 import { reportUnexpected } from "../../monitoring.ts";
 
@@ -191,7 +191,7 @@ const pricing = (
       return {
         priced: { kind: "commercial", premisesTypeKey: p.premisesType, area },
         place: area
-          ? `${area.toLocaleString("en-US")} sq ft, a business`
+          ? `${formatFloorArea(area)}, a business`
           : "A business, floor area not given",
         condition: null,
       };

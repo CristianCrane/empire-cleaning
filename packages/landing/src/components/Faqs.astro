@@ -1,19 +1,20 @@
 ---
+import { languageOf } from "@empire-cleaning/models";
 import { ChevronDown } from "lucide-react";
+import type { Faq } from "../faqs.ts";
+import { pathOf } from "../routes.ts";
+import { words } from "../words.ts";
 import Section from "./Section.astro";
 
-// an answer can end with a link to more (a guide, the area pages)
+// an answer can end with a link to more (a guide)
 interface Props {
-  faqs: {
-    question: string;
-    answer: string;
-    more?: { href: string; text: string };
-  }[];
+  faqs: Faq[];
 }
 const { faqs } = Astro.props;
+const lang = languageOf(Astro.currentLocale);
 ---
 
-<Section id="faqs" title="Questions we're asked">
+<Section id="faqs" title={words[lang].faqs}>
   {/* each question opens its answer, without JavaScript; every answer is in
       the page for search engines */}
   <div class="mx-auto flex w-full max-w-2xl flex-col divide-y divide-border border-y border-border">
@@ -32,7 +33,10 @@ const { faqs } = Astro.props;
           {more && (
             <>
               {" "}
-              <a href={more.href} class="font-semibold text-primary">
+              <a
+                href={pathOf(more.page, lang)}
+                class="font-semibold text-primary"
+              >
                 {more.text}
               </a>
             </>

@@ -2,7 +2,7 @@ import type { ServicePage } from "./index.ts";
 
 export const postConstruction: ServicePage = {
   slug: "post-construction-cleaning",
-  card: "Post-construction",
+  card: "post-construction",
   // the Office has no Post-construction Service: the copy says to choose a
   // Deep Clean or Commercial cleaning and describe the work in the note
   title: "Post-Construction Cleaning in Queens & Long Island",
@@ -89,5 +89,5 @@ export const postConstruction: ServicePage = {
         "Yes. Tell us about the building's rules in the note, like a service elevator to book or a certificate of insurance for management, and we'll arrange it.",
     },
   ],
-  related: ["deep-cleaning", "move-in-move-out-cleaning", "office-cleaning"],
+  related: ["deep", "move", "office"],
 };

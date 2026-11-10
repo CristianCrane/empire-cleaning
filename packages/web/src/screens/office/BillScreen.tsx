@@ -1,6 +1,6 @@
 import { useLoaderData } from "@tanstack/react-router";
 import { Ban, Banknote } from "lucide-react";
-import { officeFix, type BillView } from "@empire-cleaning/models";
+import { officeFix, type BillView, formats } from "@empire-cleaning/models";
 import {
   Actions,
   Breadcrumbs,
@@ -22,7 +22,9 @@ import {
   billWeek,
 } from "../BillParts.tsx";
 import { useAction } from "../action.ts";
-import { clientName, formatDate, formatDay, formatMoney } from "../format.ts";
+import { clientName } from "../format.ts";
+
+const { formatDate, formatDay, formatMoney } = formats.en;
 
 // one weekly Bill for the Office (ADR-0016): the whole Bill as the Client
 // sees it, where it stands, and while it's unpaid, voiding it (cancelling, on

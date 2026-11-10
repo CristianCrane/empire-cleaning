@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLoaderData, useNavigate, useSearch } from "@tanstack/react-router";
 import type { QuoteSummary } from "@empire-cleaning/models";
-import { DAY_MS } from "@empire-cleaning/models";
+import { DAY_MS, formats } from "@empire-cleaning/models";
 import { QuoteIcon } from "../icons.ts";
 import {
   Button,
@@ -20,13 +20,10 @@ import {
   TextField,
 } from "@empire-cleaning/ui";
 import { DraftChangesBadge, QuoteStatusBadge } from "../QuoteParts.tsx";
-import {
-  addressOf,
-  clientName,
-  formatMoney,
-  quoteStatusLabel,
-} from "../format.ts";
+import { addressOf, clientName, quoteStatusLabel } from "../format.ts";
 import { NEW_QUOTE } from "./NewQuoteScreen.tsx";
+
+const { formatMoney } = formats.en;
 
 // the statuses the list holds, in the order a Quote moves through them
 export const quoteListStatuses = [

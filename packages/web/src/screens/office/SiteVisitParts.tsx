@@ -1,3 +1,4 @@
+import { formats } from "@empire-cleaning/models";
 import { useState } from "react";
 import {
   CalendarClock,
@@ -42,7 +43,6 @@ import { getJson, postJson } from "../../api.ts";
 import { useLoaded } from "../load.ts";
 import {
   dayOfInstant,
-  formatDateTime,
   formatMinutes,
   siteVisitStatusLabel,
   timeOfDay,
@@ -59,6 +59,8 @@ import {
   RoomFields,
 } from "./PropertyFields.tsx";
 import { PickFromSchedule } from "./SchedulePicker.tsx";
+
+const { formatDateTime } = formats.en;
 
 // Site Visits (#73, ADR-0015): free visits by one Staff member to see a
 // Property before it's quoted. Office Staff book, move and cancel them, and

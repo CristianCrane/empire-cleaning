@@ -12,7 +12,7 @@ import type {
   OfficeServicePlan,
   SignedInAccount,
 } from "@empire-cleaning/models";
-import { HOUR_MS } from "@empire-cleaning/models";
+import { HOUR_MS, formats } from "@empire-cleaning/models";
 import { db } from "#db";
 import { confirmAssignment, offerAssignment } from "#features/assignments";
 import { bills, chaseBills, makeDueBills } from "#features/bills";
@@ -32,7 +32,6 @@ import { jobs } from "#features/jobs";
 import { currentPriceList } from "#features/price-list";
 import { servicePlans } from "#features/service-plans";
 import { settleOpenPayments } from "#features/payments";
-import { formatMoney } from "#services/email";
 import { createStaff, setUsualWeek } from "#features/staff";
 import {
   type Agent,
@@ -51,6 +50,8 @@ import {
   signInAsOffice,
   startedServicePlan,
 } from "../../../tests/fixtures.ts";
+
+const { formatMoney } = formats.en;
 
 // The test clock starts at 4am on Monday 5 January 2026 in New York. Casey's
 // Deep Clean is at 9am on Wednesday the 7th, done at noon; that week's Bill

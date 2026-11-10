@@ -1,6 +1,7 @@
 import type { Guide } from "./index.ts";
 
 export const deepCleanHowOften: Guide = {
+  key: "how-often",
   slug: "how-often-deep-clean",
   crumb: "How often to deep clean",
   title: "How Often Should You Deep Clean Your Home?",
@@ -62,20 +63,9 @@ export const deepCleanHowOften: Guide = {
     },
   ],
   linkedFrom: [
-    {
-      service: "deep-cleaning",
-      under: "when",
-      text: "How often to deep clean",
-    },
-    {
-      service: "standard-cleaning",
-      under: "when",
-      text: "How often should you deep clean?",
-    },
-    {
-      service: "recurring-cleaning",
-      under: "when",
-      text: "How often should you deep clean?",
-    },
+    { service: "deep", under: "when" },
+    { service: "standard", under: "when" },
+    { service: "recurring", under: "when" },
   ],
+  link: "How often should you deep clean?",
 };

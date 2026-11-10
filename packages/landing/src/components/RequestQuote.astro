@@ -1,7 +1,8 @@
 ---
-import { ASK_US, REQUEST_A_QUOTE } from "@empire-cleaning/models";
+import { languageOf, messages } from "@empire-cleaning/models";
 import { apiUrl } from "../api-url.ts";
 import { business } from "../business.ts";
+import { words } from "../words.ts";
 import { QuoteForm } from "./QuoteForm.tsx";
 import Section from "./Section.astro";
 
@@ -10,19 +11,31 @@ interface Props {
   start?: { serviceKey: string; regular?: boolean };
 }
 const { start } = Astro.props;
+const lang = languageOf(Astro.currentLocale);
+const { ASK_US, REQUEST_A_QUOTE } = messages[lang];
+const t = words[lang].quote;
 ---
 
 <Section
   id="quote"
   title={REQUEST_A_QUOTE}
-  intro={`${ASK_US} No account needed.`}
+  intro={`${ASK_US} ${t.noAccount}`}
   align="center"
 >
+  {
+    /* on a Spanish page, the form is still in English (#302) and says so
+       before it */
+    t.formInEnglish && (
+      <p class="text-center text-fg-muted">{t.formInEnglish}</p>
+    )
+  }
   {/* drawn at build time, then loaded once the browser is idle after the page
       has: ready before almost anyone scrolls or jumps down to it */}
-  <QuoteForm client:idle apiUrl={apiUrl} start={start} />
+  <div lang="en">
+    <QuoteForm client:idle apiUrl={apiUrl} start={start} />
+  </div>
   <p class="text-center text-sm text-fg-muted">
-    Prefer to talk? Call us on{" "}
+    {t.preferToTalk}{" "}
     <a href={business.phone.href} class="font-semibold text-fg">
       {business.phone.display}
     </a>

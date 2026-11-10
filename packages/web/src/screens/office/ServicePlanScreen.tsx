@@ -8,10 +8,11 @@ import {
   type Time,
 } from "@internationalized/date";
 import {
-  cleansPaid,
   type OfficeServicePlan,
   type UnplacedVisit,
   weekdayOf,
+  formats,
+  cleansPaidForOffice,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -36,8 +37,6 @@ import {
   clientName,
   crewOf,
   dayOfInstant,
-  formatDateTime,
-  formatDay,
   timeOfDay,
   timeOfField,
 } from "../format.ts";
@@ -47,6 +46,8 @@ import { JobBadge } from "../JobBadges.tsx";
 import { homeCrumbs } from "./PropertyScreen.tsx";
 import { PickFromSchedule } from "./SchedulePicker.tsx";
 import { OfferServicePlan } from "./StartDraft.tsx";
+
+const { formatDateTime, formatDay } = formats.en;
 
 // an Ended Service Plan, on a page of its own: a current one is on its
 // home's page
@@ -111,7 +112,7 @@ export function PlanDetails({
             badge={<PlanStatusBadge status={plan.status} />}
           />
           <p className="border-t border-border pt-4 text-sm text-fg-muted">
-            {cleansPaid(plan.weeklyBill ?? "per_clean", false)}{" "}
+            {cleansPaidForOffice(plan.weeklyBill ?? "per_clean")}{" "}
             <Link
               href={linkTo({
                 to: "/office/quotes/$quoteId",

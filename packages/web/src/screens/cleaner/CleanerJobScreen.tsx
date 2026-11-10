@@ -8,7 +8,7 @@ import {
   Users,
 } from "lucide-react";
 import type { CleanerJob } from "@empire-cleaning/models";
-import { RELEASE_CLOSED } from "@empire-cleaning/models";
+import { formats, messages } from "@empire-cleaning/models";
 import {
   ActionFooter,
   ActionRow,
@@ -27,16 +27,14 @@ import { postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction, useLeavingAction } from "../action.ts";
 import { Fact } from "../Fact.tsx";
-import {
-  addressOf,
-  dayOfInstant,
-  formatDay,
-  formatHours,
-  formatTime,
-} from "../format.ts";
+import { addressOf, dayOfInstant, formatHours } from "../format.ts";
 import { CleanerJobBadge, directionsTo, untilAbout } from "./CleanerHome.tsx";
 import { CompleteJob, Completed, NotYet } from "./CompleteJob.tsx";
 import { NoAccessRecorded, RecordNoAccess } from "./NoAccess.tsx";
+
+const { RELEASE_CLOSED } = messages.en;
+
+const { formatDay, formatTime } = formats.en;
 
 // One Job as its Cleaner sees it, never with prices (UX pass, #96): an Offer
 // to them to Confirm or Release first; then its details, its time

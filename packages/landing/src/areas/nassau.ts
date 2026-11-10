@@ -2,6 +2,7 @@ import { speakSpanish } from "../faqs.ts";
 import type { Area } from "./index.ts";
 
 export const nassau: Area = {
+  key: "nassau",
   slug: "nassau-county",
   name: "Nassau County",
   wiki: "https://en.wikipedia.org/wiki/Nassau_County,_New_York",
@@ -48,19 +49,19 @@ export const nassau: Area = {
     title: "What Nassau asks us for most",
     list: [
       {
-        service: "Recurring service",
+        service: "recurring",
         text: "Weekly or bi-weekly visits for family homes: often enough that the house never gets away from you, 10% off every visit.",
       },
       {
-        service: "Residential deep cleaning",
+        service: "deep",
         text: "Our first visit to most houses, and the one to book before a holiday, a party or a houseful of guests.",
       },
       {
-        service: "Move-in and move-out",
+        service: "move",
         text: "Selling, buying or moving out of a rental: an empty house cleaned from top to bottom, ready for the walk-through or the new owners.",
       },
       {
-        service: "Post-construction",
+        service: "post-construction",
         text: "Extensions, new kitchens and finished basements leave dust through the whole house. We clean it once the builders have gone.",
       },
     ],

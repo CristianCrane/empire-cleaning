@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { formats } from "@empire-cleaning/models";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import { UserPlus } from "lucide-react";
 import type { StaffMember, StaffRole } from "@empire-cleaning/models";
@@ -20,6 +21,8 @@ import {
 import { postJson } from "../../api.ts";
 import { useAction } from "../action.ts";
 import { roleLabel } from "../format.ts";
+
+const { formatList } = formats.en;
 
 // everyone on Staff, active first; open one to set their availability or
 // deactivate them
@@ -59,7 +62,7 @@ export function StaffScreen() {
             title={member.name}
             start={<Avatar src={member.imageUrl} />}
             description={[
-              member.roles.map((r) => roleLabel[r]).join(" and "),
+              formatList(member.roles.map((r) => roleLabel[r])),
               member.email,
             ].join(" · ")}
             end={<MemberStatus member={member} />}

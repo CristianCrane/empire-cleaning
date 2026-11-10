@@ -1,9 +1,10 @@
 import type { Key } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import {
-  cleansPaid,
   type ClientView,
   type ServicePlanView,
+  formats,
+  messages,
 } from "@empire-cleaning/models";
 import {
   ActionRow,
@@ -25,8 +26,12 @@ import {
 import { getJson, postJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
-import { addressOf, formatDateTime, formatHours } from "../format.ts";
+import { addressOf, formatHours } from "../format.ts";
 import { EndPlan, OnHold, PlanFacts, PlanStatusBadge } from "../PlanParts.tsx";
+
+const { cleansPaid } = messages.en;
+
+const { formatDateTime } = formats.en;
 
 // one of the Client's Service Plans: its terms, what each clean costs, the
 // Deposit held for it, and its cleans on the Schedule; why it's On Hold, if

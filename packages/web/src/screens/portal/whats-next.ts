@@ -25,6 +25,24 @@ import {
   type PaymentMethodView,
   type QuoteSummary,
   type ServicePlanSummary,
+  formats,
+  messages,
+} from "@empire-cleaning/models";
+import type { StatusTone } from "@empire-cleaning/ui";
+import { linkTo, type AppHref } from "../../links.ts";
+import { QuoteIcon } from "../icons.ts";
+import {
+  addressOf,
+  cleaners,
+  dayOfInstant,
+  formatHours,
+  formatMinutes,
+  planName,
+  quoteHeadline,
+  recurrenceLabel,
+} from "../format.ts";
+
+const {
   ASK_AGAIN,
   ASK_US,
   billNotPaid,
@@ -34,24 +52,9 @@ import {
   turnDownReason,
   UPDATE_CARD,
   WITHIN_A_DAY,
-} from "@empire-cleaning/models";
-import type { StatusTone } from "@empire-cleaning/ui";
-import { linkTo, type AppHref } from "../../links.ts";
-import { QuoteIcon } from "../icons.ts";
-import {
-  addressOf,
-  cleaners,
-  dayOfInstant,
-  formatDateTime,
-  formatDay,
-  formatHours,
-  formatMinutes,
-  formatMoney,
-  formatTime,
-  planName,
-  quoteHeadline,
-  recurrenceLabel,
-} from "../format.ts";
+} = messages.en;
+
+const { formatDateTime, formatDay, formatMoney, formatTime } = formats.en;
 
 // The Client's Home answers one question: what's next. Its hero is the
 // soonest thing booked, or, with nothing booked, where they stand with us;

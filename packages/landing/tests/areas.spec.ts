@@ -1,9 +1,16 @@
-import { areas } from "../src/areas/index.ts";
+import { areas as twins, type Area } from "../src/areas/index.ts";
 import { business } from "../src/business.ts";
+import { pathOf, urlOf } from "../src/routes.ts";
+
+// each area's English page; the Spanish twins are spanish.spec.ts's
+const areas = twins.map((twin) => twin.en);
+const pathOfArea = (area: Area) =>
+  pathOf({ kind: "area", area: area.key }, "en");
+const urlOfArea = (area: Area) => urlOf({ kind: "area", area: area.key }, "en");
 import { expect, expectAccessible, test } from "./harness.ts";
 
 // a page per area we serve (#176), each in its own words
-const sections = (area: (typeof areas)[number]) => [
+const sections = (area: Area) => [
   area.places.title,
   area.homes.title,
   area.popular.title,
@@ -15,7 +22,7 @@ const sections = (area: (typeof areas)[number]) => [
 
 for (const area of areas) {
   test.describe(area.name, () => {
-    const path = `/${area.slug}/`;
+    const path = pathOfArea(area);
 
     test("shows its sections, in order", async ({ page }) => {
       await page.goto(path);
@@ -43,7 +50,7 @@ for (const area of areas) {
     test("gets its own title, description and address", async ({ page }) => {
       await page.goto(path);
 
-      const url = `${business.url}${area.slug}/`;
+      const url = urlOfArea(area);
       await expect(page).toHaveTitle(`${area.title} | Empire Cleaning`);
       const meta = (selector: string) =>
         page.locator(selector).getAttribute("content");
@@ -74,7 +81,7 @@ for (const area of areas) {
           {
             position: 2,
             name: area.name,
-            item: `${business.url}${area.slug}/`,
+            item: urlOfArea(area),
           },
         ],
       });
@@ -108,7 +115,7 @@ test("an area's page reads without JavaScript, its answers a tap away", async ({
   const context = await browser.newContext({ javaScriptEnabled: false });
   const page = await context.newPage();
   const area = areas[0]!;
-  await page.goto(`/${area.slug}/`);
+  await page.goto(pathOfArea(area));
 
   for (const name of sections(area)) {
     await expect(page.getByRole("heading", { level: 2, name })).toBeVisible();
@@ -123,7 +130,7 @@ test("an area's page reads without JavaScript, its answers a tap away", async ({
 test("an area's only JavaScript is the theme toggle, the Quote form and the reviews' buttons", async ({
   page,
 }) => {
-  await page.goto(`/${areas[0]!.slug}/`);
+  await page.goto(pathOfArea(areas[0]!));
 
   const islands = page.locator("astro-island");
   expect(
@@ -141,12 +148,12 @@ test("the home page links to every area, in Why Empire and the footer", async ({
   for (const area of areas) {
     await expect(
       page.locator("#why-empire").getByRole("link", { name: area.short }),
-    ).toHaveAttribute("href", `/${area.slug}/`);
+    ).toHaveAttribute("href", pathOfArea(area));
     await expect(
       page
         .getByRole("navigation", { name: "Areas we serve" })
         .getByRole("link", { name: area.name }),
-    ).toHaveAttribute("href", `/${area.slug}/`);
+    ).toHaveAttribute("href", pathOfArea(area));
   }
   await page
     .getByRole("navigation", { name: "Areas we serve" })
@@ -164,7 +171,7 @@ test("the home page links to every area, in Why Empire and the footer", async ({
 test("every area's page is in the sitemap", async ({ request }) => {
   const sitemap = await (await request.get("/sitemap-0.xml")).text();
   for (const area of areas) {
-    expect(sitemap).toContain(`<loc>${business.url}${area.slug}/</loc>`);
+    expect(sitemap).toContain(`<loc>${urlOfArea(area)}</loc>`);
   }
 });
 
@@ -177,7 +184,7 @@ test("each area's page is its own: no two share a title, description, heading or
       expect(seen[key].has(area[key]), `${area.name} ${key}`).toBe(false);
       seen[key].add(area[key]);
     }
-    await page.goto(`/${area.slug}/`);
+    await page.goto(pathOfArea(area));
     // at least ~400 words of its own, beside what every page shares
     const own = await page
       .locator("#places, #homes, #popular, #faqs, #page-title")

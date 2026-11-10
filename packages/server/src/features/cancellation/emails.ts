@@ -6,22 +6,29 @@ import {
   type Clean,
   type Email,
 } from "../../services/email/blocks.ts";
-import { firstNameOf, formatMoney } from "../../services/email/format.ts";
+import { firstNameOf } from "../../services/email/format.ts";
 import { jobsButton } from "../assignments/emails.ts";
 import type { Settled } from "../completion/balance.ts";
 import { BOOK_ANOTHER } from "../quotes/emails.ts";
 import {
+  cancelCostForOffice,
+  ON_THAT_WEEKS_BILL,
+  formats,
+  messages,
+} from "@empire-cleaning/models";
+import { whyNotPaid } from "../payments/unpaid.ts";
+
+const {
   clientFix,
   notTaken,
   cancelCostForClient,
-  cancelCostForOffice,
   noAccessFee,
-  ON_THAT_WEEKS_BILL,
   PLAN_CARRIES_ON,
   PLAN_PAUSED,
   refundedTo,
-} from "@empire-cleaning/models";
-import { whyNotPaid } from "../payments/unpaid.ts";
+} = messages.en;
+
+const { formatMoney } = formats.en;
 
 // a fee that didn't go through, for the Office, and why
 const feeNotPaid = (failure: string) => {

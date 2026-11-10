@@ -39,11 +39,8 @@ import {
   addressOf,
   cleaners,
   conditionLabel,
-  formatDate,
-  formatDateTime,
   formatHours,
   formatMinutes,
-  formatMoney,
   planRhythm,
   quoteKindName,
 } from "../format.ts";
@@ -55,15 +52,19 @@ import {
   ClientQuoteStatusBadge,
 } from "../QuoteParts.tsx";
 import { ConsentNote, usePaymentForm } from "./CardForm.tsx";
-import {
+import { formats, messages } from "@empire-cleaning/models";
+import { requestQuote } from "./whats-next.ts";
+
+const {
   ASK_AGAIN,
   billPaid,
   cleansPaid,
   ON_WEEKS_BILL,
   turnedDown,
   WORKING_ON_IT,
-} from "@empire-cleaning/models";
-import { requestQuote } from "./whats-next.ts";
+} = messages.en;
+
+const { formatDate, formatDateTime, formatMoney } = formats.en;
 
 // A Quote as its Client sees it, from the link in every Quote email (ADR-0017):
 // only its offer, the latest Sent Revision, which they accept right here; or,

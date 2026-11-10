@@ -8,6 +8,7 @@ import {
   type CancelledBy,
   type JobPayment,
   type OfficeJob,
+  formats,
 } from "@empire-cleaning/models";
 import {
   Actions,
@@ -21,15 +22,11 @@ import {
   TextField,
 } from "@empire-cleaning/ui";
 import { postJson } from "../../api.ts";
-import {
-  cancelledLabel,
-  formatDateTime,
-  formatMoney,
-  jobStatusLabel,
-  wasSkipped,
-} from "../format.ts";
+import { cancelledLabel, jobStatusLabel, wasSkipped } from "../format.ts";
 import { useAction } from "../action.ts";
 import type { CostedJob } from "../RescheduleParts.tsx";
+
+const { formatDateTime, formatMoney } = formats.en;
 
 // What cancelling costs, as the Office reads it
 const describeTerms = (terms: CancellationTerms, job: CostedJob) =>

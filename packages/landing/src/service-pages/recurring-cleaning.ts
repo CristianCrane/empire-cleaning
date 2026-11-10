@@ -3,7 +3,7 @@ import { officeServices } from "./shared.ts";
 
 export const recurringCleaning: ServicePage = {
   slug: "recurring-cleaning",
-  card: "Recurring service",
+  card: "recurring",
   // asked for as a Standard Clean with regular visits
   office: { ...officeServices.standard, regular: true },
   title: "Recurring Cleaning in Queens, NYC & Long Island",
@@ -96,5 +96,5 @@ export const recurringCleaning: ServicePage = {
         "Yes. Ask for a one-off quote for the extra, or for a new plan quote if you'd like it done at every visit from then on.",
     },
   ],
-  related: ["standard-cleaning", "deep-cleaning", "office-cleaning"],
+  related: ["standard", "deep", "office"],
 };

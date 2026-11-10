@@ -24,23 +24,19 @@ import type {
 } from "@empire-cleaning/models";
 import {
   addDays,
-  adjustmentLabel,
-  BOOKED_GO_AHEAD,
   DAY_MS,
   dayOf,
-  feeName,
-  LATE_MOVE_FEE,
   mondayOf,
-  PLAN_BACK_ON,
-  PLAN_PAUSED,
   startOfDay,
   timeOf,
+  formats,
+  messages,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
 import env from "../../env.ts";
 import { ConflictError, NotFoundError } from "../../middleware/errors.ts";
 import { clock } from "../../services/clock/index.ts";
-import { email, formatWhen, notify } from "../../services/email/index.ts";
+import { email, notify } from "../../services/email/index.ts";
 import { paymentGateway } from "../../services/payment-gateway/index.ts";
 import {
   billEmail,
@@ -86,6 +82,17 @@ import { billedOf, isBilledWeekly, owesOnBill } from "./billed-weekly.ts";
 import { billLines, bills, type Bill, type BillLine } from "./bills.schema.ts";
 import { serviceNameOf } from "../services/services.ts";
 import { log, monitoring } from "../../services/monitoring/index.ts";
+
+const {
+  adjustmentLabel,
+  BOOKED_GO_AHEAD,
+  feeName,
+  LATE_MOVE_FEE,
+  PLAN_BACK_ON,
+  PLAN_PAUSED,
+} = messages.en;
+
+const { formatWhen } = formats.en;
 
 // a credit no Bill follows within this long is refunded (ADR-0016)
 const CREDIT_REFUND_DAYS = 30;

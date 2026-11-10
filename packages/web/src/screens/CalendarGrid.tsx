@@ -3,14 +3,16 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   addDays,
   daysIn,
-  formatClock,
   type DayTimes,
   type LocalDateTime,
+  formats,
 } from "@empire-cleaning/models";
 import { Button, Select, SelectItem } from "@empire-cleaning/ui";
-import { formatDay, today } from "./format.ts";
+import { today } from "./format.ts";
 import { hoursOf, timeAt } from "./schedule-layout.ts";
 import { SPANS, type Span } from "./schedule-range.ts";
+
+const { formatClock, formatDay } = formats.en;
 
 // the frame every calendar here shares, for the Office's Schedule and a
 // Client's own times alike: days as columns over a time axis

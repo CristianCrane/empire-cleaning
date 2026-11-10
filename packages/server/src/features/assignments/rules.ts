@@ -3,14 +3,18 @@ import {
   DAY_MS,
   HOUR_MS,
   isOnCrew,
-  RELEASE_CLOSED,
   RELEASE_CUTOFF_HOURS,
   type ScheduleDay,
   type ScheduledJob,
   type StaffRole,
+  formats,
+  messages,
 } from "@empire-cleaning/models";
-import { formatWhen } from "../../services/email/index.ts";
 import { asClean, isFree, whyStarted } from "../jobs/rules.ts";
+
+const { RELEASE_CLOSED } = messages.en;
+
+const { formatWhen } = formats.en;
 
 // The rules for a Job's crew (ADR-0019), over what the actions load: the
 // Job's day of the Schedule, and its Assignments. Each says why something is

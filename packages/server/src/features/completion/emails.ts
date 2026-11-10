@@ -8,12 +8,12 @@ import {
   type Clean,
   type Email,
 } from "../../services/email/blocks.ts";
-import {
-  firstNameOf,
-  formatMoney,
-  formatWhen,
-} from "../../services/email/format.ts";
-import {
+import { firstNameOf } from "../../services/email/format.ts";
+import { formats, messages } from "@empire-cleaning/models";
+import { whyNotPaid } from "../payments/unpaid.ts";
+import type { Settled } from "./balance.ts";
+
+const {
   clientFix,
   notTaken,
   PRICES_INCLUDE_TAX,
@@ -23,9 +23,9 @@ import {
   PLAN_PAUSED,
   UPDATE_AND_RETRY,
   UPDATE_CARD,
-} from "@empire-cleaning/models";
-import { whyNotPaid } from "../payments/unpaid.ts";
-import type { Settled } from "./balance.ts";
+} = messages.en;
+
+const { formatMoney, formatWhen } = formats.en;
 
 const portalButton = (jobId: string, label = "See your clean") =>
   button(label, `/portal/jobs/${jobId}`);

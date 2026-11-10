@@ -2,6 +2,7 @@ import { speakSpanish } from "../faqs.ts";
 import type { Area } from "./index.ts";
 
 export const suffolk: Area = {
+  key: "suffolk",
   slug: "suffolk-county",
   name: "Western Suffolk County",
   wiki: "https://en.wikipedia.org/wiki/Suffolk_County,_New_York",
@@ -48,19 +49,19 @@ export const suffolk: Area = {
     title: "What Suffolk asks us for most",
     list: [
       {
-        service: "Recurring service",
+        service: "recurring",
         text: "A regular bi-weekly or monthly clean for a busy family house, the same day each time.",
       },
       {
-        service: "Residential deep cleaning",
+        service: "deep",
         text: "Top to bottom, before guests, after the holidays, or as the first visit of a cleaning plan.",
       },
       {
-        service: "Post-construction",
+        service: "post-construction",
         text: "New builds, extensions and kitchen remodels: the construction dust cleared from every floor so you can move back in.",
       },
       {
-        service: "Move-in and move-out",
+        service: "move",
         text: "An empty house cleaned for the sale, the closing or the first day in your new home.",
       },
     ],

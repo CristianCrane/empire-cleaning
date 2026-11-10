@@ -1,3 +1,4 @@
+import { formats } from "@empire-cleaning/models";
 import {
   Ban,
   CalendarCheck,
@@ -20,12 +21,11 @@ import { Section, Timeline, TimelineItem } from "@empire-cleaning/ui";
 import {
   assignmentStateLabel,
   cancelledLabel,
-  formatDate,
-  formatDateTime,
-  formatMoney,
   jobStatusLabel,
   wasSkipped,
 } from "../format.ts";
+
+const { formatDate, formatDateTime, formatMoney } = formats.en;
 
 type Moment = {
   key: string;

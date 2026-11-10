@@ -1,35 +1,45 @@
 ---
+import { languageOf } from "@empire-cleaning/models";
 import { buttonStyles } from "@empire-cleaning/ui";
 import { ChevronLeft, ChevronRight, ExternalLink, Quote } from "lucide-react";
 import { business } from "../business.ts";
 import { reviews } from "../reviews.ts";
+import { words } from "../words.ts";
 import Section from "./Section.astro";
+
+const lang = languageOf(Astro.currentLocale);
+const t = words[lang].reviews;
 ---
 
-<Section id="reviews" title="What our clients say" align="center">
+<Section id="reviews" title={t.title} align="center">
   {/* one review at a time. Every review is in the page, so it reads without
       JavaScript and to search engines; the strip snaps to each one and swipes
       on a phone, and the script below works Previous, Next and the count */}
   <div
     data-reviews
     aria-roledescription="carousel"
-    aria-label="Reviews"
+    aria-label={t.label}
+    data-of={t.of}
     class="flex flex-col gap-6"
   >
     <div
       data-track
       tabindex="0"
-      aria-label="Reviews, one at a time"
+      aria-label={t.strip}
       class="flex snap-x snap-mandatory overflow-x-auto rounded-md outline-offset-4 outline-focus focus-visible:outline-2 [@media(scripting:enabled)]:[scrollbar-width:none]"
     >
       {reviews.map((r, i) => (
         <div
           role="group"
           aria-roledescription="slide"
-          aria-label={`${i + 1} of ${reviews.length}`}
+          aria-label={`${i + 1} ${t.of} ${reviews.length}`}
           class="w-full shrink-0 snap-start"
         >
-          <figure class="flex flex-col items-center gap-4 text-center">
+          {/* as their Client wrote them, in English on either page */}
+          <figure
+            lang="en"
+            class="flex flex-col items-center gap-4 text-center"
+          >
             <Quote aria-hidden size={40} className="text-primary" />
             <blockquote class="text-xl leading-snug sm:text-2xl">
               {r.text}
@@ -51,7 +61,7 @@ import Section from "./Section.astro";
       <button
         type="button"
         data-prev
-        aria-label="Previous review"
+        aria-label={t.previous}
         class={buttonStyles({ variant: "secondary", size: "icon" })}
       >
         <ChevronLeft aria-hidden size={20} />
@@ -61,12 +71,12 @@ import Section from "./Section.astro";
         aria-live="polite"
         class="min-w-16 text-center text-fg-muted tabular-nums"
       >
-        1 of {reviews.length}
+        1 {t.of} {reviews.length}
       </span>
       <button
         type="button"
         data-next
-        aria-label="Next review"
+        aria-label={t.next}
         class={buttonStyles({ variant: "secondary", size: "icon" })}
       >
         <ChevronRight aria-hidden size={20} />
@@ -78,7 +88,7 @@ import Section from "./Section.astro";
       rel="noopener"
       class="inline-flex items-center gap-2 self-center font-semibold text-primary"
     >
-      Read all our reviews on Google
+      {t.all}
       <ExternalLink aria-hidden size={16} />
     </a>
   </div>
@@ -91,6 +101,7 @@ import Section from "./Section.astro";
     const track = root.querySelector<HTMLElement>("[data-track]")!;
     const count = root.querySelector<HTMLElement>("[data-count]")!;
     const total = track.children.length;
+    const of = root.dataset.of!;
     const current = () => Math.round(track.scrollLeft / track.clientWidth);
     const smooth = !matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -106,7 +117,7 @@ import Section from "./Section.astro";
       .querySelector("[data-next]")!
       .addEventListener("click", () => go(current() + 1));
     track.addEventListener("scroll", () => {
-      count.textContent = `${current() + 1} of ${total}`;
+      count.textContent = `${current() + 1} ${of} ${total}`;
     });
   }
 </script>
