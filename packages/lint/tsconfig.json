@@ -3,6 +3,8 @@
   "compilerOptions": {
     "target": "ES2023",
     "lib": ["ES2023"],
+    // astro-markup.ts runs in Node
+    "types": ["node"],
     "skipLibCheck": true
   },
   "include": ["src"]

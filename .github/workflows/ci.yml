@@ -42,7 +42,8 @@ jobs:
           pnpm db:generate
           changed=$(git status --porcelain packages/server/drizzle)
           if [ -n "$changed" ]; then echo "$changed"; echo "run pnpm db:generate and commit the migration"; exit 1; fi
-      # our own lint rules, through oxlint's RuleTester (packages/lint)
+      # our own lint rules, through oxlint's RuleTester, and the .astro markup
+      # check (packages/lint)
       - name: Lint rule tests
         run: pnpm --filter @empire-cleaning/lint test
       # what may reach Sentry and the logs, and the browsers' Sentry setup

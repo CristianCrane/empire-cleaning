@@ -19,7 +19,8 @@
 // passed in (`isSpanish`), or words a branch reaches through a call
 // (`lang === "es" ? spanish() : english()`). Being deep, it flags a string
 // that isn't words under a branch on the language too (an Intl option, a
-// class name): those go in a table by language as well (`locales`).
+// class name): those go in a table by language as well (`locales`). oxlint
+// never shows it an .astro file's markup: astro-markup.ts runs `checks` there.
 
 import { LANGUAGES } from "@empire-cleaning/models";
 import { children, fields, type Fields, type Rule } from "./ast.ts";
@@ -80,6 +81,68 @@ const holdsWords = (value: unknown): boolean => {
   );
 };
 
+// the rule's checks, as visitors, wherever the nodes come from: oxlint's
+// rule below, and an .astro file's markup (astro-markup.ts). `constOf` gives
+// what a name (an Identifier) was set to by its one `const`, or undefined;
+// `report` hears each branch that picks words
+export const checks = (
+  constOf: (name: Fields) => unknown,
+  report: (node: unknown) => void,
+): ReturnType<Rule["create"]> => {
+  // whether `value`, a test, compares a language with a code: itself, in
+  // `&&`, `||` or `!`, or through a `const` set to one
+  const comparesLanguage = (value: unknown): boolean => {
+    const node = fields(value);
+    switch (node?.type) {
+      case "BinaryExpression":
+        return (
+          isComparison(node) &&
+          (isCode(textOf(node.left)) || isCode(textOf(node.right)))
+        );
+      case "LogicalExpression":
+        return comparesLanguage(node.left) || comparesLanguage(node.right);
+      case "UnaryExpression":
+        return node.operator === "!" && comparesLanguage(node.argument);
+      case "Identifier":
+        return comparesLanguage(constOf(node));
+      default:
+        return false;
+    }
+  };
+
+  return {
+    ConditionalExpression(node) {
+      if (
+        comparesLanguage(node.test) &&
+        holdsWords([node.consequent, node.alternate])
+      )
+        report(node);
+    },
+    IfStatement(node) {
+      if (
+        comparesLanguage(node.test) &&
+        holdsWords([node.consequent, node.alternate])
+      )
+        report(node);
+    },
+    LogicalExpression(node) {
+      if (
+        node.operator !== "??" &&
+        comparesLanguage(node.left) &&
+        holdsWords(node.right)
+      )
+        report(node);
+    },
+    SwitchStatement(node) {
+      const onLanguage = node.cases.some(
+        ({ test }) => isCode(textOf(test)) || comparesLanguage(test),
+      );
+      if (onLanguage && holdsWords(node.cases.map((c) => c.consequent)))
+        report(node);
+    },
+  };
+};
+
 const rule = {
   meta: {
     type: "problem" as const,
@@ -94,71 +157,21 @@ const rule = {
     },
   },
   create(context) {
-    // whether `value`, a test, compares a language with a code: itself, in
-    // `&&`, `||` or `!`, or through a `const` set to one
-    const comparesLanguage = (value: unknown): boolean => {
-      const node = fields(value);
-      switch (node?.type) {
-        case "BinaryExpression":
-          return (
-            isComparison(node) &&
-            (isCode(textOf(node.left)) || isCode(textOf(node.right)))
-          );
-        case "LogicalExpression":
-          return comparesLanguage(node.left) || comparesLanguage(node.right);
-        case "UnaryExpression":
-          return node.operator === "!" && comparesLanguage(node.argument);
-        case "Identifier": {
-          let scope: ReturnType<typeof context.sourceCode.getScope> | null =
-            context.sourceCode.getScope(value as never);
-          const name = node.name as string;
-          while (scope && !scope.set.has(name)) scope = scope.upper;
-          const defs = scope?.set.get(name)?.defs ?? [];
-          const def = defs.length === 1 ? defs[0] : undefined;
-          if (def?.type !== "Variable") return false;
-          const { kind } = def.parent as unknown as { kind: string };
-          const { init } = def.node as unknown as { init: unknown };
-          return kind === "const" && comparesLanguage(init);
-        }
-        default:
-          return false;
-      }
-    };
-
-    const branch = (node: unknown) =>
-      context.report({ node: node as never, messageId: "branch" });
-
-    return {
-      ConditionalExpression(node) {
-        if (
-          comparesLanguage(node.test) &&
-          holdsWords([node.consequent, node.alternate])
-        )
-          branch(node);
+    return checks(
+      (name) => {
+        let scope: ReturnType<typeof context.sourceCode.getScope> | null =
+          context.sourceCode.getScope(name as never);
+        while (scope && !scope.set.has(name.name as string))
+          scope = scope.upper;
+        const defs = scope?.set.get(name.name as string)?.defs ?? [];
+        const def = defs.length === 1 ? defs[0] : undefined;
+        if (def?.type !== "Variable") return undefined;
+        const { kind } = def.parent as unknown as { kind: string };
+        const { init } = def.node as unknown as { init: unknown };
+        return kind === "const" ? init : undefined;
       },
-      IfStatement(node) {
-        if (
-          comparesLanguage(node.test) &&
-          holdsWords([node.consequent, node.alternate])
-        )
-          branch(node);
-      },
-      LogicalExpression(node) {
-        if (
-          node.operator !== "??" &&
-          comparesLanguage(node.left) &&
-          holdsWords(node.right)
-        )
-          branch(node);
-      },
-      SwitchStatement(node) {
-        const onLanguage = node.cases.some(
-          ({ test }) => isCode(textOf(test)) || comparesLanguage(test),
-        );
-        if (onLanguage && holdsWords(node.cases.map((c) => c.consequent)))
-          branch(node);
-      },
-    };
+      (node) => context.report({ node: node as never, messageId: "branch" }),
+    );
   },
 } satisfies Rule;
 
