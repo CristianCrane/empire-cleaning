@@ -562,7 +562,9 @@ describe("sending a Quote", () => {
     expect(sent.text).toContain("Deep Clean (recommended)");
     // the only link is to the Quote's page, with no token on it
     expect(sent.text.match(/https?:\/\/\S+/g)).toEqual([
-      expect.stringMatching(new RegExp(`/portal/quotes/${quote.id}$`)),
+      expect.stringMatching(
+        new RegExp(`/portal/quotes/${quote.id}\\?lang=en$`),
+      ),
     ]);
   });
 
