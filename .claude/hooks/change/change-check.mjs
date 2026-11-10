@@ -4,7 +4,8 @@
 // the default branch. Each time the count crosses another 25, the agent is
 // told once to step back and compare with the survey's Expected files.
 // Changes made before the survey and its plan review (a Bash edit slips
-// past the survey gate) are pointed out once per commit. A nudge, never a
+// past the survey gate), or a dictated change grown past its limits, are
+// pointed out once per commit. A nudge, never a
 // block.
 import { readFileSync, writeFileSync } from "node:fs";
 import { beforeEdit, changedFiles, context, cwdFor, git, hook, stateFile, workOf } from "./lib.mjs";
@@ -22,7 +23,7 @@ hook((input) => {
   if (!work) return;
   const { branch } = work;
 
-  const { survey: found, missing } = beforeEdit(cwd, work);
+  const { survey: found, missing } = beforeEdit(cwd, work, input);
   const files = changedFiles(cwd);
   if (files.size === 0) return;
 
