@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useRouter } from "@tanstack/react-router";
-import { CalendarX } from "lucide-react";
 import {
   CANCELLATION_CUTOFF_HOURS,
   cancelCostForOffice,
@@ -14,8 +13,6 @@ import {
   Actions,
   Button,
   Dialog,
-  DialogTrigger,
-  IconAction,
   Notice,
   Radio,
   RadioGroup,
@@ -44,7 +41,16 @@ const describeTerms = (terms: CancellationTerms, job: CostedJob) =>
 // Office Staff cancel a booked Job, for the Client (by the cancellation
 // policy) or because Empire Cleaning can't do it (always refunded in full).
 // A plan Job is skipped, and the plan carries on.
-export function CancelJob({ job }: { job: OfficeJob }) {
+export function CancelJob({
+  job,
+  isOpen,
+  onOpenChange,
+}: {
+  job: OfficeJob;
+  // whether it's open, and told when it closes
+  isOpen: boolean;
+  onOpenChange: (isOpen: boolean) => void;
+}) {
   const terms = job.cancelTerms!;
   const onPlan = job.servicePlanId !== null;
   const router = useRouter();
@@ -68,59 +74,61 @@ export function CancelJob({ job }: { job: OfficeJob }) {
   };
 
   return (
-    <DialogTrigger>
-      <IconAction icon={CalendarX} label="Cancel job" danger />
-      <Dialog title="Cancel this job?" role="alertdialog">
-        {({ close }) => (
-          <>
-            <RadioGroup
-              label="Who's cancelling?"
-              value={by}
-              onChange={(value) => setBy(value as CancelledBy)}
+    <Dialog
+      title="Cancel this job?"
+      role="alertdialog"
+      isOpen={isOpen}
+      onOpenChange={onOpenChange}
+    >
+      {({ close }) => (
+        <>
+          <RadioGroup
+            label="Who's cancelling?"
+            value={by}
+            onChange={(value) => setBy(value as CancelledBy)}
+          >
+            <Radio
+              value="client"
+              description={describeTerms(terms.client, job)}
             >
-              <Radio
-                value="client"
-                description={describeTerms(terms.client, job)}
-              >
-                The client asked
-              </Radio>
-              <Radio
-                value="empire"
-                description={describeTerms(terms.empire, job)}
-              >
-                Empire Cleaning can't do it
-              </Radio>
-            </RadioGroup>
-            {by === "empire" && (
-              <TextField
-                label="Why? (the client sees this)"
-                value={reason}
-                onChange={setReason}
-                multiline
-              />
-            )}
-            <p className="text-sm text-fg-muted">
-              It comes off the schedule.
-              {onPlan && " The cleaning plan carries on."} We email the client
-              and the cleaners.
-            </p>
-            {action.problem && <Notice tone="danger">{action.problem}</Notice>}
-            <Actions>
-              <Button variant="quiet" onPress={close}>
-                Keep it
-              </Button>
-              <Button
-                variant="danger"
-                isPending={action.isPending}
-                onPress={() => void cancel(close)}
-              >
-                Cancel job
-              </Button>
-            </Actions>
-          </>
-        )}
-      </Dialog>
-    </DialogTrigger>
+              The client asked
+            </Radio>
+            <Radio
+              value="empire"
+              description={describeTerms(terms.empire, job)}
+            >
+              Empire Cleaning can't do it
+            </Radio>
+          </RadioGroup>
+          {by === "empire" && (
+            <TextField
+              label="Why? (the client sees this)"
+              value={reason}
+              onChange={setReason}
+              multiline
+            />
+          )}
+          <p className="text-sm text-fg-muted">
+            It comes off the schedule.
+            {onPlan && " The cleaning plan carries on."} We email the client and
+            the cleaners.
+          </p>
+          {action.problem && <Notice tone="danger">{action.problem}</Notice>}
+          <Actions>
+            <Button variant="quiet" onPress={close}>
+              Keep it
+            </Button>
+            <Button
+              variant="danger"
+              isPending={action.isPending}
+              onPress={() => void cancel(close)}
+            >
+              Cancel job
+            </Button>
+          </Actions>
+        </>
+      )}
+    </Dialog>
   );
 }
 

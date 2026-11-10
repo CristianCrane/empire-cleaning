@@ -267,6 +267,19 @@ export const setGooglePicture = (email: string, picture: string) =>
     body: JSON.stringify({ email, picture }),
   });
 
+// Google's picture servers, stood in for on this page: each picture a 1 x 1
+// PNG. Before the page loads one
+export const serveGooglePictures = (page: Page) =>
+  page.route("https://lh3.googleusercontent.com/**", (route) =>
+    route.fulfill({
+      contentType: "image/png",
+      body: Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+        "base64",
+      ),
+    }),
+  );
+
 type Email = { to: string; subject: string; text: string };
 
 export const emailsTo = (address: string): Promise<Email[]> =>
@@ -419,6 +432,28 @@ export const showInMenu = async (page: Page, wanted: Locator) => {
   await menu.click();
   await expect(item).toBeVisible();
   return { item, opened: true };
+};
+
+// does one of a Job's actions on its page: from the Actions menu at the
+// end of its title row (#406)
+export const jobAction = async (page: Page, name: string) => {
+  await page.getByRole("button", { name: "Actions", exact: true }).click();
+  await page.getByRole("menuitem", { name, exact: true }).click();
+};
+
+// one of a Job's actions isn't on offer on its page: there's no Actions
+// menu, or it doesn't hold it
+export const expectNoJobAction = async (page: Page, name: string) => {
+  // the page is showing, so a missing menu isn't one still loading
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  const actions = page.getByRole("button", { name: "Actions", exact: true });
+  if ((await actions.count()) === 0) return;
+  await actions.click();
+  await expect(page.getByRole("menu")).toBeVisible();
+  await expect(page.getByRole("menuitem", { name, exact: true })).toHaveCount(
+    0,
+  );
+  await page.keyboard.press("Escape");
 };
 
 // a section in the navigation, wherever it shows

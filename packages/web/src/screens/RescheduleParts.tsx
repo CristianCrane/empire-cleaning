@@ -1,4 +1,4 @@
-import { useState, type ComponentType, type ReactElement } from "react";
+import { useState, type ComponentType } from "react";
 import type {
   OfficeJob,
   RescheduleCost,
@@ -17,7 +17,6 @@ import {
   Actions,
   Button,
   Dialog,
-  DialogTrigger,
   Notice,
   Select,
   SelectItem,
@@ -111,8 +110,7 @@ type Props = {
   // where the Job's reschedule endpoints are: /api/jobs/mine/:id for the
   // Client, /api/jobs/:id for the Office
   base: string;
-  // the trigger button's label, and what the cost reads as
-  label: string;
+  // what the cost reads as
   describeCost: (cost: RescheduleCost, feeCents: number) => string;
   done: string;
   // the calendar to pick from: the Schedule for the Office, open times for
@@ -124,8 +122,10 @@ type Props = {
   inline?: boolean;
   // the dialog's width: wide for a Picker that shows the Schedule in place
   size?: "md" | "wide";
-  // what opens it, e.g. an IconAction; a Button with the label otherwise
-  trigger?: ReactElement;
+  // whether it's open, and told when it closes: it opens from a Button in
+  // a DialogTrigger, or from code (a menu item)
+  isOpen?: boolean;
+  onOpenChange?: (isOpen: boolean) => void;
 };
 
 // a dialog to choose a new time for a Job from those on offer, and send the
@@ -133,12 +133,14 @@ type Props = {
 export function ChooseNewTime(props: Props) {
   const { pickNewTime } = useSaid(words);
   return (
-    <DialogTrigger>
-      {props.trigger ?? <Button variant="secondary">{props.label}</Button>}
-      <Dialog title={pickNewTime} size={props.size}>
-        {({ close }) => <NewTimeForm {...props} close={close} />}
-      </Dialog>
-    </DialogTrigger>
+    <Dialog
+      title={pickNewTime}
+      size={props.size}
+      isOpen={props.isOpen}
+      onOpenChange={props.onOpenChange}
+    >
+      {({ close }) => <NewTimeForm {...props} close={close} />}
+    </Dialog>
   );
 }
 

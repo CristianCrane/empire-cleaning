@@ -22,7 +22,9 @@ import {
   Send,
   Store,
   UserX,
+  X,
 } from "lucide-react";
+import { Avatar } from "./Avatar.tsx";
 import { ActionRow } from "./ActionRow.tsx";
 import { Button } from "./Button.tsx";
 import { Card } from "./Card.tsx";
@@ -36,6 +38,7 @@ import { Heading } from "./Heading.tsx";
 import { IconTile } from "./IconTile.tsx";
 import { Link } from "./Link.tsx";
 import { List, ListItem } from "./List.tsx";
+import { MenuButton, MenuItem, MenuSeparator } from "./Menu.tsx";
 import { Notice } from "./Notice.tsx";
 import { Radio, RadioGroup } from "./RadioGroup.tsx";
 import { Section } from "./Section.tsx";
@@ -566,6 +569,12 @@ function RowsOpenOneDialog() {
           done to it.
         </p>
         <p>
+          A row that opens nothing (someone on a Job's crew) can hold one action
+          instead: a quiet icon Button where the chevron would be (
+          <code>ListItem</code>'s <code>action</code>), named for screen
+          readers, opening its dialog: an ✕ takes someone off.
+        </p>
+        <p>
           A dialog ends with at most two Buttons: one filled (
           <code>primary</code>, or <code>danger</code> for something
           destructive) and one <code>quiet</code>: Cancel, or an alternative
@@ -643,8 +652,9 @@ function AllAtOnceInTwoColumns() {
           one view without scrolling: what to do in Notices on top, then two
           columns: the record, its people and its money on the left, its history
           on the right as a Timeline, with room to grow. What can be done to the
-          whole record is an <code>ActionBar</code> of icons beside its title,
-          each named in a tooltip. A home for the Office reads the same way: its
+          whole record is in a <code>MenuButton</code>, "Actions", at the end of
+          its title row, each item an icon and its words, one that undoes
+          something red and last. A home for the Office reads the same way: its
           details, Service Plan and Site Visit left, its History right. A
           details card's facts follow the card's width, not the screen's (a
           container query), so they fit the narrower column. One column on a
@@ -659,9 +669,22 @@ function AllAtOnceInTwoColumns() {
           Office's forms are one page; a Client's ask in steps.
         </p>
       </Rule>
+      <div className="flex items-start gap-2">
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <Heading level={1}>Deep Clean at 30 Pine Ave</Heading>
+          <p className="text-lg text-fg-muted">Mon, Oct 26, 9:00 AM</p>
+        </div>
+        <MenuButton label="Actions">
+          <MenuItem icon={CalendarClock}>Ask for a new time</MenuItem>
+          <MenuSeparator />
+          <MenuItem icon={CalendarX} danger>
+            Cancel job
+          </MenuItem>
+        </MenuButton>
+      </div>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_14rem]">
         <div className="flex flex-col gap-4">
-          <Section title="Job">
+          <Section title="Job details">
             <Card>
               <p>Deep Clean · 6 cleaning hours · crew of 2</p>
             </Card>
@@ -671,7 +694,17 @@ function AllAtOnceInTwoColumns() {
               <ListItem
                 id="ben"
                 title="Ben Cleaner"
-                end={<StatusBadge tone="success">Confirmed</StatusBadge>}
+                start={<Avatar />}
+                description="Confirmed Oct 21"
+                action={
+                  <Button
+                    variant="quiet"
+                    size="icon"
+                    aria-label="Remove Ben Cleaner"
+                  >
+                    <X aria-hidden size={20} className="text-fg-muted" />
+                  </Button>
+                }
               />
             </List>
           </Section>

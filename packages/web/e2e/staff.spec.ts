@@ -9,6 +9,7 @@ import {
   expectAccessible,
   offerJob,
   requestQuoteForPremises,
+  serveGooglePictures,
   setGooglePicture,
   signInWithLink,
   signedInAs,
@@ -90,16 +91,7 @@ test("each Staff member shows their Google picture, or a plain icon without one"
     cory.email,
     "https://lh3.googleusercontent.com/a/cory-photo",
   );
-  // Google's servers, stood in for: a 1 x 1 picture
-  await page.route("https://lh3.googleusercontent.com/**", (route) =>
-    route.fulfill({
-      contentType: "image/png",
-      body: Buffer.from(
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
-        "base64",
-      ),
-    }),
-  );
+  await serveGooglePictures(page);
   await page.context().clearCookies();
   await signInAsOffice(page);
 

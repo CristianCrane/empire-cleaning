@@ -1,9 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { useLoaderData, useNavigate } from "@tanstack/react-router";
 import {
-  Building2,
   CalendarCheck,
-  House,
   MapPin,
   NotebookPen,
   Sparkles,
@@ -52,7 +50,7 @@ import {
   screenWords,
 } from "../format.ts";
 import { AccessFact, ConditionFact, Fact, FloorAreaFact } from "../Fact.tsx";
-import { QuoteIcon } from "../icons.ts";
+import { homeIcon, QuoteIcon } from "../icons.ts";
 import { QuoteStatusBadge } from "../QuoteParts.tsx";
 import {
   BookSiteVisit,
@@ -548,7 +546,7 @@ function Details({
       <Card>
         <div className="flex flex-col gap-6">
           <div className="flex items-start gap-4">
-            <IconTile icon={premises ? Building2 : House} size="lg" />
+            <IconTile icon={homeIcon(home.kind)} size="lg" />
             <div className="flex min-w-0 flex-col gap-1">
               <p className="text-sm text-fg-muted">
                 {premises ? "A business" : "A home"}

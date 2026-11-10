@@ -13,6 +13,7 @@ import {
   signUp,
   test,
   addCleaner,
+  jobAction,
 } from "./harness.ts";
 
 // the API's clock is at 4am on Monday 5 January 2026 in New York. The Job
@@ -248,7 +249,7 @@ test(
     await signedInAs(page, olive.email);
     await page.goto(`/office/jobs/${job.id}`);
 
-    await page.getByRole("button", { name: "Ask for a new time" }).click();
+    await jobAction(page, "Ask for a new time");
     // the Schedule in the dialog itself, never a dialog on a dialog
     const dialog = page.getByRole("dialog", { name: "Pick a new time" });
     const schedule = dialog;
