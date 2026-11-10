@@ -571,7 +571,7 @@ const sendReceipt = async (
   if (!client.email) return;
   await email.send({
     to: client.email,
-    ...quoteReceivedEmail({
+    ...quoteReceivedEmail(client.preferredLanguage, {
       name: client.name,
       email: client.email,
       address: addressOf(property),

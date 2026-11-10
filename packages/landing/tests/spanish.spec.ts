@@ -1,6 +1,13 @@
 import { LANGUAGES } from "@empire-cleaning/models";
 import { pages, pathOf, urlOf } from "../src/routes.ts";
-import { expect, expectAccessible, test } from "./harness.ts";
+import type { Page } from "@playwright/test";
+import {
+  emailsTo,
+  expect,
+  expectAccessible,
+  newEmail,
+  test,
+} from "./harness.ts";
 
 // every page in English and in Spanish under /es/ (ADR-0025, #301): each
 // says its language, links its twin both ways, and switches to it
@@ -57,7 +64,7 @@ test("every page is in the sitemap in both languages", async ({ request }) => {
   }
 });
 
-test("the Spanish home page is in Spanish, but for the reviews and the form, and has no accessibility violations", async ({
+test("the Spanish home page is in Spanish, but for the reviews, and has no accessibility violations", async ({
   page,
 }) => {
   await page.goto("/es/");
@@ -68,19 +75,18 @@ test("the Spanish home page is in Spanish, but for the reviews and the form, and
   await expect(
     page.getByRole("heading", { level: 2, name: "Lo que limpiamos" }),
   ).toBeVisible();
-  // the reviews as their Client wrote them, and the form until #302
+  // the reviews as their Client wrote them
   await expect(page.locator("#reviews figure").first()).toHaveAttribute(
     "lang",
     "en",
   );
-  await expect(page.locator("#quote")).toContainText(
-    "Por ahora el formulario está en inglés.",
-  );
   // no "Se habla español" to someone reading Spanish
   await expect(page.getByText("Se habla español")).toHaveCount(0);
+  // the form too, with the Services' Spanish names (#302)
   await expect(
-    page.getByRole("radio", { name: /^Standard Clean/ }),
+    page.getByRole("radio", { name: /^Limpieza estándar/ }),
   ).toBeVisible();
+  await expect(page.locator("#quote")).toContainText("Paso 1 de 4");
   await expectAccessible(page);
 });
 
@@ -94,4 +100,63 @@ test("an address that isn't a page says so in Spanish too, leading to the Spanis
   ).toBeVisible();
   await page.getByRole("link", { name: "Ir a la página en español" }).click();
   await expect(page).toHaveURL(/\/es\/#quote$/);
+});
+
+// the form asks in steps; Siguiente checks the step's fields, and this waits
+// for the next one to show
+const next = async (page: Page) => {
+  const step = page.getByText(/^Paso \d de \d$/);
+  const before = await step.textContent();
+  await page.getByRole("button", { name: "Siguiente", exact: true }).click();
+  await expect(step).not.toHaveText(before!);
+};
+
+test("a Guest asks for a Quote in Spanish, sees the API's messages in Spanish, and gets the Spanish receipt (#302)", async ({
+  page,
+}) => {
+  const email = newEmail();
+  await page.goto("/es/#quote");
+
+  await page
+    .locator("form")
+    .getByText("Limpieza estándar", { exact: true })
+    .click();
+  await next(page);
+  await page.getByText("Apartamento", { exact: true }).click();
+  await page
+    .getByRole("textbox", { name: "Dirección" })
+    .fill("41-12 Austin St");
+  // four digits: only the API says what's wrong
+  await page.getByRole("textbox", { name: "Código postal" }).fill("1137");
+  await next(page);
+  await expect(
+    page.getByRole("group", { name: "¿Algún adicional?" }),
+  ).toContainText("Dentro del horno");
+  await page.getByText("Intensa", { exact: true }).click();
+  await next(page);
+  await page
+    .getByRole("textbox", { name: "Nombre completo" })
+    .fill("Casey Client");
+  await page.getByRole("textbox", { name: "Correo electrónico" }).fill(email);
+  await page.getByRole("textbox", { name: "Teléfono" }).fill("(646) 555-0100");
+  await page.getByRole("button", { name: "Pedir una cotización" }).click();
+
+  // back on the step with the field, the API's message in Spanish
+  const zip = page.getByRole("textbox", { name: "Código postal" });
+  await expect(zip).toHaveAccessibleDescription(
+    /Escriba un código postal de 5 dígitos/,
+  );
+  await expectAccessible(page);
+  await zip.fill("11375");
+  await next(page);
+  await next(page);
+  await page.getByRole("button", { name: "Pedir una cotización" }).click();
+
+  await expect(page.getByText("Gracias, recibimos su solicitud")).toBeVisible();
+  await expect(
+    page.getByText(`Le enviaremos su cotización a ${email}`),
+  ).toBeVisible();
+  const [receipt] = await emailsTo(email);
+  expect(receipt?.subject).toBe("Recibimos su solicitud de cotización");
+  expect(receipt?.text).toMatch(/^Hola, Casey:/);
 });

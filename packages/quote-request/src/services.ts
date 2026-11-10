@@ -1,10 +1,14 @@
-import type { OpenQuote, ServiceOffer } from "@empire-cleaning/models";
+import type {
+  Language,
+  OpenQuote,
+  ServiceOffer,
+} from "@empire-cleaning/models";
 import { loadList } from "./list.ts";
 
 // the Services a Quote can be asked for now. Without them (the API
 // unreachable) the form can't be filled in, and says so.
-export const loadServices = (apiUrl: string) =>
-  loadList<ServiceOffer>(`${apiUrl}/api/services/on-offer`);
+export const loadServices = (apiUrl: string, lang: Language) =>
+  loadList<ServiceOffer>(`${apiUrl}/api/services/on-offer`, lang);
 
 // whether a Service is offered for homes or business premises
 export const offeredAt = (service: ServiceOffer, premises: boolean) =>

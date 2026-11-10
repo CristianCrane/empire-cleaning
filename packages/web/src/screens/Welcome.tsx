@@ -55,6 +55,9 @@ export function Welcome() {
         <Card>
           <QuoteRequestForm
             headingLevel={2}
+            // signed up but not yet a Client, so no Preferred Language:
+            // English, as the app is until #303
+            lang="en"
             asker={{ kind: "account", email: account.email }}
             onSubmitted={async (receipt) => {
               // now a Client: the API connected this Account straight away

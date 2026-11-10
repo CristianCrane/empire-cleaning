@@ -97,6 +97,11 @@ A Quote holds what was asked for it, unchanged (ADR-0017). `POST /api/quotes/ask
 
 Validation messages are written to be shown beside the form's fields.
 
+**Language** (ADR-0025). Each request's language is the one its screen is showing, its `Accept-Language` (`languageOf`: any Spanish is Spanish; English when it names none), kept in the request context (`#services/request`, `currentLanguage()`), and every reply `Vary`s by it. Our screens always say theirs: the web app `en` until #303, the Quote form its own. A message is put into words where the reply is built, in that language: a schema's through `say(words, key)` and `keepUnder`, worked out as each request is checked; a thrown one from its catalog, `words[currentLanguage()]`. Words a screen shows too are models' (`messages[lang]`); the server's own catalogs sit beside the code that says them. Only the Quote form's messages have their Spanish so far (asking's schemas, the pickers, the refusals of a Service, extra or type of business not on offer, too many tries, a Client's clash); the portal's and the Cleaner area's come with #303 and #305, and the Office's stay English. An email goes in its reader's Preferred Language, never the request's: `Email.lang` sets its `lang` and greeting, and only the Quote receipt has one so far (#304 does the rest).
+
+- **Preferred Language** is on the Client (`preferred_language`, `en` or `es`): a Guest's or an Account's first Quote sets it from the request's language; one added to an existing Client leaves it, and an Office-entered Client gets English until the Office can set it (#306).
+- **Spanish names**: Services (name and description), Add-ons and Premises Types each have an optional Spanish one (`nameEs`, `descriptionEs`), which the Quote form's lists (`/api/services/on-offer`, `/api/price-list/add-ons`, `/api/price-list/premises-types`) give a Spanish request in place of the English (`inLanguage`). The starting ones have theirs; the Office's screens carry them through a save until #306 adds fields for them.
+
 - `GET` and `PATCH /api/clients/me` are a Client's own record and contact details.
 - `GET /api/clients/:id` (Office Staff) is any Client.
 - `PATCH /api/properties/:id/access-instructions` is open to the Client or Office Staff.

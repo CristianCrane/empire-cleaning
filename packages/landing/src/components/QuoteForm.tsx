@@ -1,13 +1,17 @@
 import { useEffect, useState } from "react";
-import { type QuoteAskReceipt, messages } from "@empire-cleaning/models";
+import {
+  type Language,
+  type QuoteAskReceipt,
+  messages,
+} from "@empire-cleaning/models";
 import { QuoteRequestForm } from "@empire-cleaning/quote-request";
 import { Notice } from "@empire-cleaning/ui";
 import { business } from "../business.ts";
 import { keepCampaign, quoteSource } from "../source.ts";
+import { words } from "../words.ts";
 
-const { quoteEmailedTo } = messages.en;
-
-// the Guest Request a Quote form (#3, ADR-0005). Its first step is drawn into
+// the Guest Request a Quote form (#3, ADR-0005), in the page's language
+// (ADR-0025). Its first step is drawn into
 // the page at build time, its tiles blank until the Services arrive, so the
 // page doesn't jump as it loads; until it has, it can't be used (inert). With
 // JavaScript off it never could be, so the section offers the phone number
@@ -17,14 +21,17 @@ const { quoteEmailedTo } = messages.en;
 // (src/monitoring.ts).
 export function QuoteForm({
   apiUrl,
+  lang,
   start,
 }: {
   apiUrl: string;
+  lang: Language;
   // a service page's Service, chosen to start with (#177)
   start?: { serviceKey: string; regular?: boolean };
 }) {
   const [ready, setReady] = useState(false);
   const [receipt, setReceipt] = useState<QuoteAskReceipt>();
+  const t = words[lang].quote;
   useEffect(() => {
     keepCampaign();
     setReady(true);
@@ -33,8 +40,8 @@ export function QuoteForm({
   if (receipt) {
     return (
       <Notice tone="success">
-        <p className="font-semibold">Thanks, we've got your request</p>
-        <p>{quoteEmailedTo(receipt.emailedTo)}</p>
+        <p className="font-semibold">{t.thanks}</p>
+        <p>{messages[lang].quoteEmailedTo(receipt.emailedTo)}</p>
       </Notice>
     );
   }
@@ -44,6 +51,7 @@ export function QuoteForm({
       <div inert={!ready} className="[@media(scripting:none)]:hidden">
         <QuoteRequestForm
           asker={{ kind: "guest" }}
+          lang={lang}
           apiUrl={apiUrl}
           start={start}
           source={quoteSource}
@@ -51,11 +59,11 @@ export function QuoteForm({
         />
       </div>
       <p className="hidden text-center text-fg-muted [@media(scripting:none)]:block">
-        Call us on{" "}
+        {t.callUs[0]}{" "}
         <a href={business.phone.href} className="font-semibold text-fg">
           {business.phone.display}
         </a>{" "}
-        and we'll put your quote together.
+        {t.callUs[1]}
       </p>
     </>
   );

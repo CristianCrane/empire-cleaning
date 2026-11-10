@@ -541,11 +541,13 @@ export const serviceKey = async (name: string) => {
 };
 
 // a Standard Clean as a Guest asks for it from the landing page, straight
-// to the e2e API of this worker (e2e/slots.ts), and the page they asked from
+// to the e2e API of this worker (e2e/slots.ts), the page they asked from, and
+// its language, which becomes the new Client's (ADR-0025)
 export const requestQuoteAsGuest = async (
   contact: { name: string; email: string },
   addOnNames: string[] = [],
   source?: QuoteSource,
+  lang: "en" | "es" = "en",
 ) => {
   const standard = await serviceKey("Standard Clean");
   // Add-ons are chosen by key, from those on offer
@@ -558,7 +560,7 @@ export const requestQuoteAsGuest = async (
 
   const res = await fetch(`${apiUrl}/api/quotes/ask`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "accept-language": lang },
     body: JSON.stringify({
       contact: { ...contact, phone: "(646) 555-0100" },
       property: {

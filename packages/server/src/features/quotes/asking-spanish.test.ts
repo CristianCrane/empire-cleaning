@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { SEEDED } from "#features/services";
 import { tooManyTries } from "#services/rate-limit";
-import { api, signIn } from "../../../tests/harness.ts";
+import { api, signIn, testEmail } from "../../../tests/harness.ts";
 import { casey, guestAsk, home, submit } from "../../../tests/fixtures.ts";
 
 // A Guest or Client asking in Spanish (ADR-0025, #302): the API answers in
@@ -112,6 +112,30 @@ describe("asking in Spanish", () => {
       guestAsk({ property: { new: { ...home, street: "7 Elm St" } } }),
     ).expect(201);
     expect(await preferredLanguageOf(casey.email)).toBe("es");
+  });
+
+  test("sends the receipt in the Client's Preferred Language", async () => {
+    await inSpanish().send(guestAsk()).expect(201);
+
+    const receipt = testEmail().lastTo(casey.email);
+    expect(receipt.subject).toBe("Recibimos su solicitud de cotización");
+    expect(receipt.text).toMatch(/^Hola, Casey:\n\n/);
+    expect(receipt.text).toContain(
+      "Gracias por pedirnos una cotización para 41-12 Austin St, 4B, 11375. Le enviaremos su cotización a casey@example.com",
+    );
+    expect(receipt.html).toContain('lang="es"');
+  });
+
+  test("sends an existing English Client their receipt in English, wherever they asked", async () => {
+    await submit(guestAsk()).expect(201);
+
+    await inSpanish()
+      .send(guestAsk({ property: { new: { ...home, street: "7 Elm St" } } }))
+      .expect(201);
+
+    expect(testEmail().lastTo(casey.email).subject).toBe(
+      "We got your request for a quote",
+    );
   });
 
   test("leaves an existing Client's Preferred Language as it is", async () => {

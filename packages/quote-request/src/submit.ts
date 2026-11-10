@@ -1,4 +1,8 @@
-import type { QuoteAskReceipt, QuoteAsk } from "@empire-cleaning/models";
+import type {
+  Language,
+  QuoteAskReceipt,
+  QuoteAsk,
+} from "@empire-cleaning/models";
 
 export type SubmitResult<R = QuoteAskReceipt> =
   | { ok: true; receipt: R }
@@ -12,7 +16,7 @@ export type SubmitResult<R = QuoteAskReceipt> =
     };
 
 // posts an ask for a Quote to `url`, and reads the API's answer: what it
-// returned, its messages for each field, or why it refused. One that can't
+// returned, its messages for each field, or why it refused, in `lang`. One that can't
 // be read (no connection, a body that isn't JSON) is a failure the form
 // says, and is reported through the host's Sentry, which drops a dropped
 // connection
@@ -20,12 +24,16 @@ export const postQuoteRequest = async <R>(
   url: string,
   body: object,
   credentials: RequestCredentials,
+  lang: Language,
 ): Promise<SubmitResult<R>> => {
   try {
     return await answerOf<R>(
       await fetch(url, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          "accept-language": lang,
+        },
         credentials,
         body: JSON.stringify(body),
       }),
@@ -69,9 +77,11 @@ export const submitQuoteRequest = (
   apiUrl: string,
   submission: QuoteAsk,
   asGuest: boolean,
+  lang: Language,
 ) =>
   postQuoteRequest<QuoteAskReceipt>(
     `${apiUrl}/api/quotes/ask`,
     submission,
     asGuest ? "omit" : "same-origin",
+    lang,
   );

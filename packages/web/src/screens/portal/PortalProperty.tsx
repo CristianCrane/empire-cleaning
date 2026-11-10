@@ -228,7 +228,7 @@ function EditAccess({ property }: { property: PropertyView }) {
               name="access"
               multiline
               autoFocus
-              description={accessHelp[property.kind]}
+              description={accessHelp.en[property.kind]}
               defaultValue={property.accessInstructions ?? ""}
             />
             {action.problem && <Notice tone="danger">{action.problem}</Notice>}

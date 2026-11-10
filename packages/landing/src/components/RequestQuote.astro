@@ -22,18 +22,9 @@ const t = words[lang].quote;
   intro={`${ASK_US} ${t.noAccount}`}
   align="center"
 >
-  {
-    /* on a Spanish page, the form is still in English (#302) and says so
-       before it */
-    t.formInEnglish && (
-      <p class="text-center text-fg-muted">{t.formInEnglish}</p>
-    )
-  }
   {/* drawn at build time, then loaded once the browser is idle after the page
       has: ready before almost anyone scrolls or jumps down to it */}
-  <div lang="en">
-    <QuoteForm client:idle apiUrl={apiUrl} start={start} />
-  </div>
+  <QuoteForm client:idle apiUrl={apiUrl} lang={lang} start={start} />
   <p class="text-center text-sm text-fg-muted">
     {t.preferToTalk}{" "}
     <a href={business.phone.href} class="font-semibold text-fg">

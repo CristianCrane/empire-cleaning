@@ -56,6 +56,9 @@ export function PortalRequest() {
       <Card>
         <QuoteRequestForm
           headingLevel={2}
+          // in their Preferred Language (ADR-0025); the rest of the portal
+          // follows it with #303
+          lang={client.preferredLanguage}
           asker={{
             kind: "client",
             properties: client.properties,

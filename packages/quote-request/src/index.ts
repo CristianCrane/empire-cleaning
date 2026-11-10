@@ -1,6 +1,5 @@
+export { accessHelp, conditions } from "./words.ts";
 export {
-  accessHelp,
-  conditions,
   QuoteRequestForm,
   type Asker,
   type QuoteRequestFormProps,
