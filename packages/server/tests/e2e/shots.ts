@@ -4,12 +4,14 @@
 //   e.g. pnpm pr:shots packages/web/e2e/bills.spec.ts "a Client pays a Bill by card"
 //
 // runs one end-to-end test, the web app's or the landing site's (the spec's
-// path from the repo root), twice, with a full-page screenshot at its end:
+// path from the repo root), twice, with a full-page screenshot at its end
+// (the web app's at rest: no focus, hover or toast, e2e/harness.ts's prShot):
 // before, on the branch's merge base with origin/main, in a worktree beside
 // this checkout; and after, in this checkout. Phone size, and desktop's too
 // with --desktop, for a screen whose larger layout differs. Each side runs with
 // its own checkout's Playwright, slots, databases and ports, through
-// shots.config.ts. A test the base doesn't have gives an after alone.
+// shots.config.ts. A test the base doesn't have gives an after alone, and a
+// project the test skips (`test.skip(isMobile, …)`) gives no shot there.
 //
 // The PNGs go to the orphan `pr-media` branch, in a folder named after this
 // branch, so a public PR's body can show them inline; it prints the table to
@@ -67,9 +69,10 @@ type Report = { suites?: Suite[]; errors?: { message?: string }[] };
 
 class Stop extends Error {}
 
-// the test's end on each project, in one checkout; null when the base has no
-// such test (a new one). Anything else that isn't a passed test with its
-// screenshot, on either side, stops the run
+// the test's end on each project it ran in, in one checkout; null when the
+// base has no such test (a new one) or skips it on every project. A project
+// it skips is left out, and said; anything else that isn't a passed test with
+// its screenshot, on either side, stops the run
 const shoot = (
   options: { spec: string; title: string; projects: string[]; dir: string },
   checkout: string,
@@ -135,8 +138,12 @@ const shoot = (
           title: [...describes, title].join(" "),
           project: test.projectName,
           status: result?.status ?? "not run",
-          path: result?.attachments.find(({ name }) => name === "screenshot")
-            ?.path,
+          // the web app's harness takes the screen at rest (pr-shot);
+          // Playwright's own is what the landing site and an older base give
+          path: (
+            result?.attachments.find(({ name }) => name === "pr-shot") ??
+            result?.attachments.find(({ name }) => name === "screenshot")
+          )?.path,
         });
       }
     }
@@ -163,7 +170,20 @@ const shoot = (
       `"${options.title}" names ${titles.size} tests in ${options.spec} (${[...titles].join("; ")}): give the one you mean in full.`,
     );
   }
-  return (titles.size > 1 ? whole : found).map(({ project, status, path }) => {
+  const ran = (titles.size > 1 ? whole : found).filter(
+    ({ project, status }) => {
+      if (status === "skipped")
+        console.log(`\n› ${side}: skipped on ${project}`);
+      return status !== "skipped";
+    },
+  );
+  if (!ran.length) {
+    if (side === "before") return null;
+    throw new Stop(
+      `The test skipped on every project, after: nothing to shoot.`,
+    );
+  }
+  return ran.map(({ project, status, path }) => {
     if (status !== "passed" || !path) {
       throw new Stop(
         `The test ${status === "passed" ? "left no screenshot" : status} on ${project}, ${side}: its output above says why. A test that stopped partway shows the wrong screen, so nothing was pushed.`,
@@ -306,7 +326,7 @@ const main = () => {
   for (const shot of after) {
     const old = before?.find(({ project }) => project === shot.project);
     console.log(
-      `${title}, ${shot.project}:\n\n| Before | After |\n| --- | --- |\n| ${old ? img(old) : "none: a new test"} | ${img(shot)} |\n`,
+      `${title}, ${shot.project}:\n\n| Before | After |\n| --- | --- |\n| ${old ? img(old) : before ? `none: skipped on ${shot.project}` : "none: a new test or skipped"} | ${img(shot)} |\n`,
     );
   }
 };
