@@ -3,7 +3,6 @@ import { apiUrl } from "../playwright.config.ts";
 import {
   completedFirstClean,
   createStaff,
-  emailsTo,
   expect,
   expectAccessible,
   signedInAs,
@@ -12,6 +11,7 @@ import {
   draftTheQuote,
   saved,
   startOn,
+  linkIn,
 } from "./harness.ts";
 
 const olive = {
@@ -56,12 +56,8 @@ const startPlan = async (page: Page) => {
 // the first Job of the plan: Monday 19 January 2026 at 9:00 AM
 const startOn19th = (page: Page) => startOn(page, page, "01192026", "0900AM");
 
-const quoteLink = async () => {
-  const sent = (await emailsTo(casey.email)).find(
-    (e) => e.subject === "Your cleaning plan quote from Empire Cleaning",
-  );
-  return new URL(sent!.text.match(/https?:\/\/\S+/)![0]).pathname;
-};
+const quoteLink = () =>
+  linkIn(casey.email, "Your cleaning plan quote from Empire Cleaning");
 
 // Casey asks about the same home again, wanting regular visits
 const askAgain = async () => {

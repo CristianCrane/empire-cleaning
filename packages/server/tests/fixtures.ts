@@ -35,7 +35,14 @@ import { lockProperty, properties } from "#features/properties";
 import { createStaff, setUsualWeek } from "#features/staff";
 import { servicePlans } from "#features/service-plans";
 import { addressKey } from "../src/features/properties/address.ts";
-import { type Agent, api, signIn, testClock, testPayments } from "./harness.ts";
+import {
+  type Agent,
+  api,
+  fillCardForm,
+  signIn,
+  testClock,
+  testPayments,
+} from "./harness.ts";
 
 // shared by the tests that need Quotes asked for to work with
 
@@ -194,7 +201,7 @@ export const acceptedJob = async ({
 
   const owner = (await findClientByEmail(client.email))!;
   const form = await startCardForm(owner);
-  await savePaymentMethod(owner, form.secret);
+  await savePaymentMethod(owner, await fillCardForm(form.secret));
   const accepted = await acceptQuote(
     quote.id,
     { revisionId: sent.offer!.id, serviceKey: serviceKey ?? SEEDED.deep },

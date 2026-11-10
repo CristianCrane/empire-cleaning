@@ -12,10 +12,36 @@ import { FakeClock } from "./fakes/clock.ts";
 import { FakePaymentGateway } from "./fakes/payment-gateway.ts";
 import { FakeEmailSender } from "./fakes/email.ts";
 import { FakeReporter } from "./fakes/monitoring.ts";
+import { StripePaymentGateway } from "../src/services/payment-gateway/stripe.ts";
+import {
+  fillCardForm as fillInSandbox,
+  PAYMENT_METHOD,
+  sandboxStripe,
+} from "./contract/stripe-sandbox.ts";
+
+// The e2e API's sandbox run (packages/web/playwright.sandbox.config.ts)
+// pays with the real Stripe adapter in a Stripe sandbox, whose keys only it
+// sets; every other run, with the fake
+const sandboxKeys = process.env.STRIPE_SANDBOX_SECRET_KEY
+  ? {
+      secretKey: process.env.STRIPE_SANDBOX_SECRET_KEY,
+      publishableKey: process.env.STRIPE_SANDBOX_PUBLISHABLE_KEY ?? "",
+    }
+  : null;
+const sandbox = sandboxKeys && {
+  stripe: sandboxStripe(sandboxKeys.secretKey),
+  gateway: new StripePaymentGateway({
+    ...sandboxKeys,
+    // the browser tells the API how each payment went, so no webhook comes
+    webhookSecret: "whsec_unused",
+  }),
+};
+export const inPaymentsSandbox = sandbox !== null;
 
 type Fakes = {
   clock: FakeClock;
-  payments: FakePaymentGateway;
+  // none in the sandbox run
+  payments: FakePaymentGateway | null;
   email: FakeEmailSender;
   monitoring: FakeReporter;
 };
@@ -26,12 +52,12 @@ let fakes: Fakes | null = null;
 export const installFakes = () => {
   fakes = {
     clock: new FakeClock(),
-    payments: new FakePaymentGateway(),
+    payments: sandbox ? null : new FakePaymentGateway(),
     email: new FakeEmailSender(),
     monitoring: new FakeReporter(),
   };
   setClock(fakes.clock);
-  setPaymentGateway(fakes.payments);
+  setPaymentGateway(fakes.payments ?? sandbox!.gateway);
   setEmailSender(fakes.email);
   setReporter(fakes.monitoring);
   // off, as in dev; limitedAs() turns a mode's limits on
@@ -49,9 +75,18 @@ const current = () => {
 };
 
 export const testClock = () => current().clock;
-export const testPayments = () => current().payments;
+export const testPayments = () => {
+  const { payments } = current();
+  if (!payments) throw new Error("no fake payments in the sandbox run");
+  return payments;
+};
 export const testEmail = () => current().email;
 export const testMonitoring = () => current().monitoring;
+
+// the token the save-only card form hands over once the Client has filled
+// it (a visa), from the form's secret: the fake takes the secret itself
+export const fillCardForm = async (secret: string) =>
+  sandbox ? fillInSandbox(sandbox.stripe, secret, PAYMENT_METHOD.visa) : secret;
 
 // Empties every table except drizzle's migration bookkeeping, before every
 // test. With DELETE, not TRUNCATE: truncating creates and syncs fresh files for

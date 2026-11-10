@@ -1,10 +1,15 @@
 name: Stripe sandbox
 
-# The Payment Gateway contract on Stripe itself, in a sandbox
-# (packages/server/tests/contract/stripe.sandbox.test.ts): it shows the fake
-# the other tests run on still does what Stripe does. Nightly, not on every
-# pull request, as Stripe asks of tests against its API; and by hand
-# (Actions → Stripe sandbox → Run workflow) when the adapter changes.
+# Payments on Stripe itself, in a sandbox, in two jobs:
+# - contract: the Payment Gateway contract on the real adapter
+#   (packages/server/tests/contract/stripe.sandbox.test.ts): it shows the
+#   fake the other tests run on still does what Stripe does
+# - card-form: the real card form, Stripe's Payment Element, in the built
+#   app in Chromium against the API on the real adapter
+#   (packages/web/e2e/card-form.sandbox.ts), which no other test runs
+# Nightly, not on every pull request, as Stripe asks of tests against its
+# API; and by hand (Actions → Stripe sandbox → Run workflow) when the adapter,
+# CardForm.tsx, Stripe.js or the Content-Security-Policy changes.
 on:
   schedule:
     - cron: "17 7 * * *"
@@ -13,7 +18,8 @@ on:
 permissions:
   contents: read
 
-# one at a time in the sandbox, whose test-mode rate limits are strict
+# one at a time in the sandbox, whose test-mode rate limits are strict: one
+# run at once, and its jobs one after the other
 concurrency:
   group: stripe-sandbox
 
@@ -28,3 +34,29 @@ jobs:
         env:
           # a sandbox's secret key (sk_test_); the tests refuse any other
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SANDBOX_SECRET_KEY }}
+
+  card-form:
+    name: Real card form on Stripe
+    # after the contract, whatever it did, so the two never share the sandbox
+    needs: contract
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup
+      - uses: ./.github/actions/playwright
+      - run: docker compose up --detach --wait postgres_test
+      - run: pnpm --filter @empire-cleaning/web stripe:sandbox
+        env:
+          # the sandbox's keys (sk_test_, pk_test_); the API and the spec
+          # refuse any other
+          STRIPE_SANDBOX_SECRET_KEY: ${{ secrets.STRIPE_SANDBOX_SECRET_KEY }}
+          STRIPE_SANDBOX_PUBLISHABLE_KEY: ${{ secrets.STRIPE_SANDBOX_PUBLISHABLE_KEY }}
+      - if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: card-form-playwright-report
+          path: |
+            packages/web/playwright-report
+            packages/web/test-results
+          retention-days: 14

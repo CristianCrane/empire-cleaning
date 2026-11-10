@@ -11,6 +11,7 @@ import {
   signUp,
   signedInAs,
   test,
+  linkIn,
 } from "./harness.ts";
 
 // Weekly Bills for commercial Clients (ADR-0016), in the Office and the
@@ -30,12 +31,6 @@ const billed = async (
   await createStaff(olive);
   await signUp(olive.email);
   return billedWeek({ officeEmail: olive.email, ...week });
-};
-
-// the link in the latest email with this subject, as the Client follows it
-const linkIn = async (to: string, subject: string) => {
-  const sent = (await emailsTo(to)).findLast((e) => e.subject === subject);
-  return new URL(sent!.text.match(/https?:\/\/\S+/)![0]).pathname;
 };
 
 const heading = (page: Page) => page.getByRole("heading", { level: 1 });
