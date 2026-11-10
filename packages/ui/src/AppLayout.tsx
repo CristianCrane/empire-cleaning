@@ -34,12 +34,18 @@ export type AppLayoutProps = {
   // on the area's home (Today, Your Jobs, Home): a phone shows the logo there,
   // unless the area has a ☰ menu, which holds it instead
   atHome?: boolean;
+  // on a phone, the account's parts at the foot of the ☰ menu, under a
+  // divider, in place of the top bar's account and theme: the top bar then
+  // holds only the ☰ and the section. Given `close` to close the menu
+  menuFoot?: (opts: { close: () => void }) => ReactNode;
   children: ReactNode;
 };
 
 // the frame around every screen. On a phone: a top bar and a bottom tab bar
 // within thumb reach, five items at most; the rest (inMenu) go in a drawer
-// opened by a ☰ in the top bar (#200). From tablet width up: a sidebar.
+// opened by a ☰ in the top bar (#200). With a menuFoot, the account's parts
+// are at the drawer's foot too, so the top bar holds only the ☰ and the
+// section (#305). From tablet width up: a sidebar.
 //
 // The logo is never shrunk to fit: the phone's top bar is too short for it,
 // so the bar names the section you're in and the logo heads the area's home
@@ -49,11 +55,14 @@ export function AppLayout({
   nav,
   account,
   atHome = false,
+  menuFoot,
   children,
 }: AppLayoutProps) {
   const section = nav.find((item) => item.isCurrent)?.label ?? area;
   const menu = nav.filter((item) => item.inMenu);
   const tabs = nav.filter((item) => !item.inMenu);
+  // the ☰ menu, for sections the tab bar can't hold or the account's foot
+  const hasMenu = menu.length > 0 || menuFoot !== undefined;
   const words = useUiWords();
   return (
     <div className="min-h-dvh md:flex">
@@ -80,7 +89,7 @@ export function AppLayout({
 
       <header className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-border bg-surface px-4 py-2 md:hidden print:hidden">
         <div className="flex min-w-0 items-center gap-1">
-          {menu.length > 0 && (
+          {hasMenu && (
             <DialogTrigger>
               <Button
                 variant="quiet"
@@ -97,9 +106,17 @@ export function AppLayout({
                       <Logo className="w-44" />
                       <span className="text-sm text-fg-muted">{area}</span>
                     </div>
-                    <nav aria-label={area} className="flex flex-col gap-4">
-                      <NavGroups items={menu} onPress={close} />
-                    </nav>
+                    {menu.length > 0 && (
+                      <nav aria-label={area} className="flex flex-col gap-4">
+                        <NavGroups items={menu} onPress={close} />
+                      </nav>
+                    )}
+                    {menuFoot && (
+                      <div className="mt-auto flex flex-col gap-3 border-t border-border pt-4">
+                        {menuFoot({ close })}
+                        <ThemeToggle />
+                      </div>
+                    )}
                   </>
                 )}
               </Drawer>
@@ -109,10 +126,12 @@ export function AppLayout({
             {section}
           </span>
         </div>
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
-          {account}
-        </div>
+        {!menuFoot && (
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            {account}
+          </div>
+        )}
       </header>
 
       <main
@@ -120,9 +139,7 @@ export function AppLayout({
         tabIndex={-1}
         className="mx-auto w-full max-w-5xl min-w-0 flex-1 px-4 pt-4 pb-28 outline-none md:px-8 md:py-8 print:max-w-none print:p-0"
       >
-        {atHome && menu.length === 0 && (
-          <Logo className="mx-auto mb-4 w-36 md:hidden" />
-        )}
+        {atHome && !hasMenu && <Logo className="mx-auto mb-4 w-36 md:hidden" />}
         {children}
       </main>
 

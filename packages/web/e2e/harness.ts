@@ -427,13 +427,34 @@ export const goTo = async (page: Page, name: string) => {
   await link.click();
 };
 
+// opens what the person can do with their Account: the Account menu, a
+// button with their name (larger screens, and the Office on a phone), or
+// else on a phone in the portal and the Cleaner area the ☰ menu, whose foot
+// holds it (#305)
+export const openAccount = async (page: Page, name: string) => {
+  const account = page
+    .getByRole("button", { name, exact: true })
+    .filter({ visible: true });
+  const menu = page.getByRole("button", { name: "Menu" });
+  await expect(account.or(menu).first()).toBeVisible();
+  if (await account.isVisible()) await account.click();
+  else await menu.click();
+};
+
+// the way into another area in the open Account menu (a row) or ☰ menu (a
+// button)
+export const switchItem = (page: Page, area: string) => {
+  const name = `Switch to ${area}`;
+  return page.getByRole("row", { name }).or(page.getByRole("button", { name }));
+};
+
 // moves to another area ("Office", "Cleaner area", "Client portal") from the
-// person's Account menu, which the test has opened, and waits until the area
-// is on screen. The URL changes at once, but until the new area is ready the
+// person's Account menu, which the test has opened (openAccount), and waits
+// until the area is on screen. The URL changes at once, but until the new area is ready the
 // old one stays, its menu open (AreaLayout's AccountMenu), so a test that went
 // on at the URL could press something in the old one, which then goes (#310)
 export const switchArea = async (page: Page, area: string) => {
-  await page.getByRole("row", { name: `Switch to ${area}` }).click();
+  await switchItem(page, area).click();
   await expect(
     page.getByRole("navigation", { name: area, exact: true }).first(),
   ).toBeVisible();

@@ -6,7 +6,9 @@ import {
   returnToTab,
   test,
   goTo,
+  openAccount,
   switchArea,
+  switchItem,
 } from "./harness.ts";
 
 const olive = {
@@ -31,7 +33,7 @@ test("coming back to the tab notices a Client record connected meanwhile", async
   await createClient({ email: olive.email, name: "Olive Owner" });
   await returnToTab(page);
 
-  await page.getByRole("button", { name: olive.name }).click();
+  await openAccount(page, olive.name);
   await switchArea(page, "Client portal");
   await expect(page).toHaveURL("/portal");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Hi, Olive");
@@ -48,14 +50,12 @@ test("switching areas notices a Client record connected meanwhile", async ({
 
   // the menu still offers only what it knew; opening it looks again, so the
   // area it switches to knows
-  await page.getByRole("button", { name: olive.name }).click();
+  await openAccount(page, olive.name);
   await switchArea(page, "Cleaner area");
   await expect(page).toHaveURL("/cleaner");
 
-  await page.getByRole("button", { name: olive.name }).click();
-  await expect(
-    page.getByRole("row", { name: "Switch to Client portal" }),
-  ).toBeVisible();
+  await openAccount(page, olive.name);
+  await expect(switchItem(page, "Client portal")).toBeVisible();
 });
 
 test("switching area once the menu has been open a moment shows it at once", async ({
@@ -68,7 +68,7 @@ test("switching area once the menu has been open a moment shows it at once", asy
 
   // opening the menu loads the portal, its Home included
   const homeLoaded = page.waitForResponse("**/api/clients/me");
-  await page.getByRole("button", { name: olive.name }).click();
+  await openAccount(page, olive.name);
   await homeLoaded;
 
   // from here the API answers nothing, so whatever shows came before the press
@@ -94,8 +94,8 @@ test("a press before the area is ready waits in the menu, then the area shows", 
   });
 
   // pressed by hand, not with switchArea, to look at the menu while it waits
-  await page.getByRole("button", { name: olive.name }).click();
-  const portal = page.getByRole("row", { name: "Switch to Client portal" });
+  await openAccount(page, olive.name);
+  const portal = switchItem(page, "Client portal");
   await portal.click();
   const menu = page.getByRole("dialog", { name: "Account" });
   await expect(portal.getByRole("status")).toHaveText("Opening");
@@ -125,7 +125,7 @@ test("signing out in another tab signs this one out when you return", async ({
 
   const other = await context.newPage();
   await other.goto("/office");
-  await other.getByRole("button", { name: olive.name }).click();
+  await openAccount(other, olive.name);
   await other.getByRole("button", { name: "Sign out" }).click();
   await expect(other).toHaveURL(/\/sign-in/);
 
@@ -169,18 +169,19 @@ test("Show tips again is in every area's menu, and brings back every tour", asyn
     );
 
   for (const area of ["Cleaner area", "Client portal"]) {
-    await page.getByRole("button", { name: olive.name }).click();
+    await openAccount(page, olive.name);
     await expect(
       page.getByRole("button", { name: "Show tips again" }),
     ).toBeVisible();
     await switchArea(page, area);
   }
   await expect(page).toHaveURL("/portal");
-  await page.getByRole("button", { name: olive.name }).click();
+  await openAccount(page, olive.name);
   await page.getByRole("button", { name: "Show tips again" }).click();
 
   await expect(page.getByText("Tips will show again")).toBeVisible();
-  await expect(page.getByRole("dialog", { name: "Account" })).toBeHidden();
+  // the menu it was in closes: in the portal on a phone, the ☰ menu
+  await expect(page.getByRole("dialog")).toBeHidden();
   const me = await (await page.request.get("/api/me")).json();
   expect(me.seenTours).toEqual([]);
 });

@@ -204,53 +204,51 @@ test("a Client reading in Spanish sees what a second late move costs", async ({
   );
 });
 
-test("a Client changes their language on Your details, and the portal follows", async ({
+// the other language, named in its own words, one press away: in the
+// sidebar on a larger screen, at the foot of the ☰ menu on a phone (#305)
+const pressLanguage = async (page: Page, name: string) => {
+  const button = page
+    .getByRole("button", { name, exact: true })
+    .filter({ visible: true });
+  const menu = page.getByRole("button", { name: /^(Menu|Menú)$/ });
+  await expect(button.or(menu).first()).toBeVisible();
+  if (!(await button.isVisible())) await menu.click();
+  await expect(button).toBeVisible();
+  await expectAccessible(page);
+  await button.click();
+};
+
+test("someone both a Client and a Cleaner changes their language in one press, and both areas follow", async ({
   page,
 }) => {
   await createStaff(olive);
   await signUp(olive.email);
-  await addCleaner("Cory Cleaner");
+  await addCleaner("Casey Client");
   await acceptedJob({ startsAt: MONDAY_9AM, officeEmail: olive.email });
   await signedInAs(page, casey.email);
 
+  await page.goto("/portal");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Hi, Casey");
+  await pressLanguage(page, "Español");
+  await expect(page.locator("html")).toHaveAttribute("lang", "es");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "Hola, Casey",
+  );
+  // no field for it on Your details any more
   await page.goto("/portal/details");
-  await expect(
-    page.getByRole("main").getByText("English", { exact: true }),
-  ).toBeVisible();
-  await page
-    .getByRole("region", { name: "Contact details" })
-    .getByRole("button", { name: "Edit" })
-    .click();
-  const dialog = page.getByRole("dialog", { name: "Your contact details" });
-  await dialog.getByRole("button", { name: /Language$/ }).click();
-  await page.getByRole("option", { name: "Español" }).click();
-  await dialog.getByRole("button", { name: "Save details" }).click();
+  await expect(page.getByRole("main")).not.toContainText("Idioma");
 
-  await expect(dialog).toBeHidden();
-  // said in the language just chosen
-  await expect(page.getByText("Datos guardados")).toBeVisible();
-  await expect(
-    page.getByRole("heading", { level: 1, name: "Sus datos" }),
-  ).toBeVisible();
+  // one person, one language: their Cleaner area is in it too
+  await page.goto("/cleaner");
   await expect(page.locator("html")).toHaveAttribute("lang", "es");
   await expect(
-    page.getByRole("main").getByText("Español", { exact: true }),
+    page.getByText("Todavía no tienes nada reservado"),
   ).toBeVisible();
-  await expectAccessible(page);
 
   // and back
-  await page
-    .getByRole("region", { name: "Datos de contacto" })
-    .getByRole("button", { name: "Editar" })
-    .click();
-  const again = page.getByRole("dialog", { name: "Sus datos de contacto" });
-  await again.getByRole("button", { name: /Idioma$/ }).click();
-  await page.getByRole("option", { name: "English" }).click();
-  await again.getByRole("button", { name: "Guardar datos" }).click();
-  await expect(again).toBeHidden();
-  await expect(
-    page.getByRole("heading", { level: 1, name: "Your details" }),
-  ).toBeVisible();
+  await pressLanguage(page, "English");
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  await expect(page.getByText("Nothing booked for you yet")).toBeVisible();
 });
 
 test("a Cleaner reading in Spanish takes an open job and marks it done, in tú", async ({

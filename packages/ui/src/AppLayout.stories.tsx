@@ -2,7 +2,9 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import {
   CalendarDays,
   ClipboardPenLine,
+  Languages,
   LayoutDashboard,
+  LogOut,
   User,
   Users,
 } from "lucide-react";
@@ -186,5 +188,62 @@ export const Groups: Story = {
   play: async ({ canvas }) => {
     const people = canvas.getByRole("group", { name: "People" });
     await expect(people).toHaveTextContent("PeopleClientsStaff");
+  },
+};
+
+// the portal and the Cleaner area on a phone: the tab bar keeps the
+// sections, and the account's parts sit at the foot of the ☰ menu, the
+// other language among them named in its own words, so the top bar holds
+// only the ☰ and the section (#305)
+export const PhoneMenuFoot: Story = {
+  globals: { viewport: { value: "phone" } },
+  args: {
+    area: "Cleaner area",
+    nav: [
+      {
+        href: "#jobs",
+        label: "Your jobs",
+        icon: CalendarDays,
+        isCurrent: true,
+      },
+      { href: "#offers", label: "Offers", icon: ClipboardPenLine },
+    ],
+    account: (
+      <Button variant="quiet" className="justify-start">
+        <User aria-hidden size={20} />
+        <span className="max-md:sr-only">Cory Cleaner</span>
+      </Button>
+    ),
+    menuFoot: () => (
+      <div className="flex flex-col gap-1">
+        <Button variant="quiet" className="justify-start">
+          <Languages aria-hidden size={20} />
+          <span lang="es">Español</span>
+        </Button>
+        <Button variant="quiet" className="justify-start">
+          <LogOut aria-hidden size={20} />
+          Sign out
+        </Button>
+      </div>
+    ),
+  },
+  play: async ({ canvas, canvasElement, userEvent }) => {
+    const bar = canvas.getByRole("navigation", { name: "Cleaner area" });
+    await expect(bar).toHaveTextContent("Your jobsOffers");
+    // nothing of the account in the top bar
+    await expect(canvasElement.querySelector("header")).not.toHaveTextContent(
+      "Cory Cleaner",
+    );
+
+    await userEvent.click(canvas.getByRole("button", { name: "Menu" }));
+    const menu = within(document.body).getByRole("dialog", { name: "Menu" });
+    await waitFor(() =>
+      expect(
+        within(menu).getByRole("button", { name: "Español" }),
+      ).toBeVisible(),
+    );
+    await expect(
+      within(menu).getByRole("button", { name: "Sign out" }),
+    ).toBeVisible();
   },
 };
