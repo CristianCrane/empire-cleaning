@@ -11,6 +11,7 @@ import {
 import type { StaffRole } from "@empire-cleaning/models";
 import { timestamps } from "../../db/timestamps.ts";
 import { accounts } from "../auth/auth.schema.ts";
+import { language } from "../clients/clients.schema.ts";
 
 // a person working for Empire Cleaning. Created only by invitation (or the
 // owner setup script), never by signing up; an Account is connected to it
@@ -28,6 +29,9 @@ export const staff = pgTable("staff", {
   roles: text("roles").$type<StaffRole>().array().notNull(),
   // a deactivated Staff member keeps their record but has no Staff access
   active: boolean("active").default(true).notNull(),
+  // the language the Cleaner area and their emails are in (ADR-0025):
+  // English until they or the Office change it (#306)
+  preferredLanguage: language("preferred_language").notNull().default("en"),
   ...timestamps,
 });
 

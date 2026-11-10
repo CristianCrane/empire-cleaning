@@ -105,7 +105,7 @@ const expectFitsEveryWidth = async (page: Page, path: string) => {
 const expectFitsInBoth = async (page: Page, path: string) => {
   await expectFitsEveryWidth(page, path);
   const me = await page.request.get("/api/me");
-  const client = me.ok() && (await me.json()).language !== null;
+  const client = me.ok() && (await me.json()).languages.portal !== null;
   if (client) {
     await setLanguage(page, "es");
     await expectFitsEveryWidth(page, path);

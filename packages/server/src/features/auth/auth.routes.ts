@@ -4,7 +4,7 @@ import { LANGUAGES, type Me } from "@empire-cleaning/models";
 import { validate } from "../../middleware/validation.ts";
 import { toursSeenBy } from "../tours/tours.ts";
 import { authorize, signedInAccount } from "./authorize.ts";
-import { languageOfAccount, setOwnLanguage } from "./language.ts";
+import { languagesOfAccount, setOwnLanguage } from "./language.ts";
 
 export const router = Router();
 
@@ -18,7 +18,7 @@ router.get("/", authorize(), async (_req, res) => {
     name,
     roles,
     seenTours: await toursSeenBy(id),
-    language: await languageOfAccount(id),
+    languages: await languagesOfAccount(id),
   };
   res.json(me);
 });

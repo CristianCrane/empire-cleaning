@@ -324,7 +324,7 @@ const peopleRoute = createRoute({
 // Language, the Office English for good, the Cleaner area English until it
 // comes in Spanish (#305)
 const areaLanguage: Record<AreaId, (account: Me) => Language> = {
-  portal: (account) => account.language ?? signedOutLanguage(),
+  portal: (account) => account.languages.portal ?? signedOutLanguage(),
   office: () => "en",
   cleaner: () => "en",
 };
