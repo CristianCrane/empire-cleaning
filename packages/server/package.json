@@ -15,6 +15,7 @@
     "dev": "tsx watch --clear-screen=false --env-file=.env src/index.ts",
     "start": "tsx --import ./src/instrument.ts src/index.ts",
     "check": "tsc -p tsconfig.json",
+    "env:check": "tsx src/env.ts",
     "db:generate": "drizzle-kit generate --config=./src/db/drizzle.config.ts",
     "db:push": "drizzle-kit push --config=./src/db/drizzle.config.ts",
     "db:migrate": "drizzle-kit migrate --config=./src/db/drizzle.config.ts",

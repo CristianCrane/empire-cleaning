@@ -35,6 +35,13 @@ jobs:
         run: pnpm format:check
       - name: Package consistency
         run: pnpm check:packages
+      # a schema change merged without its migration, or a schema file that
+      # loads the server's environment (#389): generating needs nothing set
+      - name: Migrations match the schema
+        run: |
+          pnpm db:generate
+          changed=$(git status --porcelain packages/server/drizzle)
+          if [ -n "$changed" ]; then echo "$changed"; echo "run pnpm db:generate and commit the migration"; exit 1; fi
       # our own lint rules, through oxlint's RuleTester (packages/lint)
       - name: Lint rule tests
         run: pnpm --filter @empire-cleaning/lint test
