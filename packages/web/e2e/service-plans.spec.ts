@@ -3,7 +3,6 @@ import {
   bookJob,
   completedFirstClean,
   createStaff,
-  emailsTo,
   expect,
   expectAccessible,
   generatePlanJobs,
@@ -11,6 +10,7 @@ import {
   setClock,
   signedInAs,
   test,
+  linkIn,
 } from "./harness.ts";
 
 const olive = {
@@ -40,12 +40,8 @@ const planQuoteSent = async (page: Page) => {
   return { propertyId, quote };
 };
 
-const quoteLink = async () => {
-  const sent = (await emailsTo(casey.email)).find(
-    (e) => e.subject === "Your cleaning plan quote from Empire Cleaning",
-  );
-  return new URL(sent!.text.match(/https?:\/\/\S+/)![0]).pathname;
-};
+const quoteLink = () =>
+  linkIn(casey.email, "Your cleaning plan quote from Empire Cleaning");
 
 // checked on a fresh load: announcements left over from the page before
 // aren't this page's

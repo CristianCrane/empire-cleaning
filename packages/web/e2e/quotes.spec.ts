@@ -14,6 +14,7 @@ import {
   test,
   draftTheQuote,
   addCleaner,
+  linkIn,
 } from "./harness.ts";
 
 const olive = {
@@ -55,12 +56,7 @@ const send = async (page: Page) => {
   await expect(page.getByText("Sent", { exact: true }).first()).toBeVisible();
 };
 
-const quoteLink = async () => {
-  const sent = (await emailsTo(casey.email)).find(
-    (e) => e.subject === "Your quote from Empire Cleaning",
-  );
-  return new URL(sent!.text.match(/https?:\/\/\S+/)![0]).pathname;
-};
+const quoteLink = () => linkIn(casey.email, "Your quote from Empire Cleaning");
 
 test(
   "Office Staff send a Quote, and the Client signs up from the email to see it",
@@ -335,7 +331,9 @@ test("Office Staff Turn down a Quote asked for, and the Client is told why", asy
   // the email's link shows them the same
   const client = await (await browser.newContext()).newPage();
   await signedInAs(client, casey.email);
-  await client.goto(new URL(told!.text.match(/https?:\/\/\S+/)![0]).pathname);
+  await client.goto(
+    await linkIn(casey.email, "About your quote from Empire Cleaning"),
+  );
   await expect(
     client.getByText(
       "Sorry, we can't take this one on. It's outside the area we clean.",

@@ -2,7 +2,6 @@ import type { Page } from "@playwright/test";
 import {
   completedFirstClean,
   createStaff,
-  emailsTo,
   expect,
   expectAccessible,
   requestQuoteForPremises,
@@ -12,6 +11,7 @@ import {
   recordFindingsWithoutVisit,
   saved,
   startOn,
+  linkIn,
 } from "./harness.ts";
 
 const olive = {
@@ -27,12 +27,8 @@ const casey = { name: "Casey Client", email: "casey@example.com" };
 // usual crew of 2 on Mondays at 9am from the 19th, and for one Cleaner on
 // Wednesdays at 1pm from the 21st.
 
-const quoteLink = async () => {
-  const sent = (await emailsTo(casey.email)).find(
-    (e) => e.subject === "Your cleaning plan quote from Empire Cleaning",
-  );
-  return new URL(sent!.text.match(/https?:\/\/\S+/)![0]).pathname;
-};
+const quoteLink = () =>
+  linkIn(casey.email, "Your cleaning plan quote from Empire Cleaning");
 
 const noViolations = async (page: Page) => {
   await page.reload();

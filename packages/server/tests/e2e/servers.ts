@@ -12,7 +12,10 @@
 // E2E_SLOTS: the slots, as JSON, each `{ apiUrl, controlUrl, appUrl }`, the
 // app's being the origin the API lets in. TEST_DB_URL: the database this
 // run's are named from (setup/testDatabase.ts), its copies numbered from 0.
-// LANDING_ORIGIN_URL: the landing site's origin.
+// LANDING_ORIGIN_URL: the landing site's origin. STRIPE_SANDBOX_SECRET_KEY
+// and STRIPE_SANDBOX_PUBLISHABLE_KEY, set only by the web app's sandbox run,
+// pass through to each API under names testEnv doesn't set, and make its
+// payments the real Stripe adapter (tests/harness.ts).
 import { spawn, type ChildProcess } from "node:child_process";
 import {
   claimTestDatabase,

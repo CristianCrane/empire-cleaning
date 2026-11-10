@@ -272,6 +272,14 @@ type Email = { to: string; subject: string; text: string };
 export const emailsTo = (address: string): Promise<Email[]> =>
   control(`/emails?to=${encodeURIComponent(address)}`);
 
+// the path of the link in the latest email to `address` with this subject,
+// as the person follows it
+export const linkIn = async (address: string, subject: string) => {
+  const sent = (await emailsTo(address)).findLast((e) => e.subject === subject);
+  if (!sent) throw new Error(`no "${subject}" email was sent to ${address}`);
+  return new URL(sent.text.match(/https?:\/\/\S+/)![0]).pathname;
+};
+
 // the sign-in link from the latest email to `address`, as the person would click it
 export const signInLinkFor = async (address: string) => {
   const last = (await emailsTo(address)).at(-1);

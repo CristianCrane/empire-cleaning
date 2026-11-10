@@ -11,20 +11,12 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import Stripe from "stripe";
 import env from "../../src/env.ts";
-// before stripe.ts, as in stripe.sandbox.test.ts: the gateway's index makes
-// the app's adapter on loading
-import "../../src/services/payment-gateway/index.ts";
-import {
-  API_VERSION,
-  StripePaymentGateway,
-} from "../../src/services/payment-gateway/stripe.ts";
-
-if (!env.STRIPE_SECRET_KEY.startsWith("sk_test_")) {
-  throw new Error("refusing to run: STRIPE_SECRET_KEY isn't a test-mode key");
-}
+// before stripe.ts, as the gateway's index makes the app's adapter on loading
+import { eventFor, fillCardForm, sandboxStripe } from "./stripe-sandbox.ts";
+import { StripePaymentGateway } from "../../src/services/payment-gateway/stripe.ts";
 
 const OUT = new URL("../stripe-recordings/", import.meta.url);
-const stripe = new Stripe(env.STRIPE_SECRET_KEY, { apiVersion: API_VERSION });
+const stripe = sandboxStripe(env.STRIPE_SECRET_KEY);
 const gateway = new StripePaymentGateway({
   secretKey: env.STRIPE_SECRET_KEY,
   publishableKey: "pk_test_unused",
@@ -57,7 +49,7 @@ const savedCard = async (payerId: string, card: string) => {
     usage: "off_session",
     allowed_payment_method_types: ["card"],
   });
-  await stripe.setupIntents.confirm(setup.id, { payment_method: card });
+  await fillCardForm(stripe, setup.client_secret!, card);
   return (await stripe.setupIntents.retrieve(setup.id))
     .payment_method as string;
 };
@@ -74,27 +66,6 @@ const charged = async (card: string, amount = 5000) => {
   });
   if (!result.ok) throw new Error(`not charged: ${result.reason}`);
   return result.chargeId;
-};
-
-// Stripe's event of `type` about `objectId`, once it's been sent
-const eventFor = async (
-  type: string,
-  objectId: string,
-  matches: (object: Record<string, unknown>) => boolean = () => true,
-) => {
-  for (let tries = 0; tries < 60; tries += 1) {
-    const { data } = await stripe.events.list({ type, limit: 50 });
-    const event = data.find((e) => {
-      const object = e.data.object as unknown as Record<string, unknown>;
-      return (
-        (object.id === objectId || object.payment_intent === objectId) &&
-        matches(object)
-      );
-    });
-    if (event) return event;
-    await new Promise((resolve) => setTimeout(resolve, 5000));
-  }
-  throw new Error(`no ${type} event for ${objectId} within five minutes`);
 };
 
 const onPage = async (card: string, reference: string) => {
@@ -199,7 +170,7 @@ const failing = await stripe.refunds.create({
   if (deposit.status !== "succeeded") throw new Error(deposit.status);
   save(
     "event-deposit-succeeded",
-    await eventFor("payment_intent.succeeded", deposit.chargeId!),
+    await eventFor(stripe, "payment_intent.succeeded", deposit.chargeId!),
   );
 }
 {
@@ -224,12 +195,13 @@ const failing = await stripe.refunds.create({
   });
   save(
     "event-setup-deposit-succeeded",
-    await eventFor("setup_intent.succeeded", data[0]!.id),
+    await eventFor(stripe, "setup_intent.succeeded", data[0]!.id),
   );
 }
 save(
   "event-bill-payment-succeeded",
   await eventFor(
+    stripe,
     "payment_intent.succeeded",
     await onPage("pm_card_visa", "bill-paid"),
   ),
@@ -237,16 +209,20 @@ save(
 save(
   "event-bill-payment-failed",
   await eventFor(
+    stripe,
     "payment_intent.payment_failed",
     await onPage("pm_card_chargeDeclined", "bill-declined"),
   ),
 );
-save("event-charge-refunded", await eventFor("charge.refunded", refunded));
+save(
+  "event-charge-refunded",
+  await eventFor(stripe, "charge.refunded", refunded),
+);
 {
   const disputed = await charged("pm_card_createDispute");
   save(
     "event-dispute-created",
-    await eventFor("charge.dispute.created", disputed),
+    await eventFor(stripe, "charge.dispute.created", disputed),
   );
 }
 save(
@@ -257,12 +233,16 @@ save(
 save(
   "event-refund-went-through",
   await eventFor(
+    stripe,
     "refund.updated",
     pending.id,
     (refund) => refund.status === "succeeded",
   ),
 );
-save("event-refund-failed", await eventFor("refund.failed", failing.id));
+save(
+  "event-refund-failed",
+  await eventFor(stripe, "refund.failed", failing.id),
+);
 
 // every refund kind: ours and the dashboard's gone through, one on its way
 // as it was made, and the failing one now it's failed

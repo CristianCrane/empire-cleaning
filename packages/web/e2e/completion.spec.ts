@@ -13,6 +13,7 @@ import {
   signUp,
   test,
   addCleaner,
+  linkIn,
 } from "./harness.ts";
 
 // the API's clock is at 4am on Monday 5 January 2026 in New York. The Jobs
@@ -42,11 +43,6 @@ const jobUnderway = async () => {
   await offerJob(job.id, cory.id, { confirmed: true });
   await setClock(MONDAY_11AM);
   return { job, cory };
-};
-
-const pathOfLatestEmail = async (to: string, subject: string) => {
-  const sent = (await emailsTo(to)).findLast((e) => e.subject === subject);
-  return new URL(sent!.text.match(/https?:\/\/\S+/)![0]).pathname;
 };
 
 const asCasey = async (browser: Browser) => {
@@ -151,10 +147,7 @@ test(
 
     const client = await asCasey(browser);
     await client.goto(
-      await pathOfLatestEmail(
-        casey.email,
-        "Please approve a price change on your clean",
-      ),
+      await linkIn(casey.email, "Please approve a price change on your clean"),
     );
     // an alert above the clean, answered in a dialog
     const proposal = client
@@ -197,9 +190,7 @@ test("a Job that couldn't be charged is Unpaid until the Client saves a new card
   ).toBeVisible();
 
   const client = await asCasey(browser);
-  await client.goto(
-    await pathOfLatestEmail(casey.email, "We couldn't take your payment"),
-  );
+  await client.goto(await linkIn(casey.email, "We couldn't take your payment"));
   await expect(client.getByRole("heading", { level: 1 })).toHaveText(
     "Deep Clean",
   );
@@ -211,6 +202,10 @@ test("a Job that couldn't be charged is Unpaid until the Client saves a new card
   await expect(client.getByText("Card saved")).toBeVisible();
 
   await client.goto(`/portal/jobs/${job.id}`);
+  // loaded, so the alert's absence counts (docs/testing.md)
+  await expect(client.getByRole("heading", { level: 1 })).toHaveText(
+    "Deep Clean",
+  );
   await expect(
     client.getByRole("alert").filter({ hasText: "Payment needed" }),
   ).toBeHidden();
@@ -220,6 +215,7 @@ test("a Job that couldn't be charged is Unpaid until the Client saves a new card
   await expect(client.getByText(/^We couldn't take payment/)).toHaveCount(0);
 
   await page.reload();
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await expect(
     attention.getByRole("row").filter({ hasText: "Unpaid" }),
   ).toBeHidden();
