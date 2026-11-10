@@ -21,6 +21,8 @@ import {
   Clock,
   ContactRound,
   Ellipsis,
+  EllipsisVertical,
+  ChevronDown,
   House,
   ListPlus,
   UserPlus,
@@ -43,6 +45,9 @@ import {
   Menu,
   MenuItem,
   MenuPopover as Popover,
+  MenuSeparator,
+  Tooltip,
+  TooltipTrigger,
   MenuTrigger,
   Section,
   StatusBadge,
@@ -110,6 +115,8 @@ const layouts = [
   { key: "B", name: "outlined buttons, own row" },
   { key: "C", name: "text buttons, own row" },
   { key: "D", name: "Move + More menu" },
+  { key: "E", name: "⋮ menu beside the title" },
+  { key: "F", name: "Actions ▾ menu beside the title" },
 ];
 
 export function JobPrototype() {
@@ -185,7 +192,12 @@ function Header({ layout }: { layout: string }) {
   return (
     <div className="flex flex-col gap-4">
       <Breadcrumbs trail={[{ label: "Jobs", href: jobs }, { label: "Job" }]} />
-      {layout === "A" ? (
+      {layout === "E" || layout === "F" ? (
+        <div className="flex items-start gap-2">
+          <div className="min-w-0 flex-1">{title}</div>
+          <JobMenu labelled={layout === "F"} />
+        </div>
+      ) : layout === "A" ? (
         <div className="flex flex-wrap items-start gap-3">
           {title}
           <div className="ml-auto">
@@ -203,6 +215,52 @@ function Header({ layout }: { layout: string }) {
         </>
       )}
     </div>
+  );
+}
+
+// every Job action in one menu, behind a ⋮ at the end of the title row,
+// or (labelled) an outlined "Actions ▾" Button there
+function JobMenu({ labelled = false }: { labelled?: boolean }) {
+  return (
+    <MenuTrigger>
+      {labelled ? (
+        <Button variant="secondary" className="shrink-0">
+          Actions
+          <ChevronDown aria-hidden size={18} />
+        </Button>
+      ) : (
+        <TooltipTrigger delay={300} closeDelay={0}>
+          <Button
+            variant="quiet"
+            size="icon"
+            aria-label="Job actions"
+            className="-mr-2 shrink-0"
+          >
+            <EllipsisVertical aria-hidden size={22} />
+          </Button>
+          <Tooltip
+            offset={6}
+            className="rounded-md bg-fg px-2 py-1 text-sm font-semibold text-bg shadow-overlay"
+          >
+            Job actions
+          </Tooltip>
+        </TooltipTrigger>
+      )}
+      <Popover
+        placement="bottom end"
+        offset={4}
+        className="min-w-56 overflow-auto rounded-lg border border-border bg-overlay p-1 text-fg shadow-overlay outline-none"
+      >
+        <Menu className="outline-none">
+          <Item icon={CalendarSync}>Move job</Item>
+          <Item icon={CalendarClock}>Ask for a new time</Item>
+          <MenuSeparator className="my-1 border-t border-border" />
+          <Item icon={CalendarX} danger>
+            Cancel job
+          </Item>
+        </Menu>
+      </Popover>
+    </MenuTrigger>
   );
 }
 

@@ -65,4 +65,7 @@ export {
   MenuItem,
   MenuTrigger,
   Popover as MenuPopover,
+  Separator as MenuSeparator,
+  Tooltip,
+  TooltipTrigger,
 } from "react-aria-components";
