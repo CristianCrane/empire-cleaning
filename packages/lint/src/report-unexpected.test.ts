@@ -1,14 +1,9 @@
-import { describe, it } from "vitest";
 import { RuleTester } from "oxlint/plugins-dev";
-import plugin from "./report-unexpected.ts";
-
-RuleTester.describe = describe;
-RuleTester.it = it;
+import rule from "./report-unexpected.ts";
 
 // RuleTester names the rule rule-to-test/…, so a disable comment for
 // empire/report-unexpected is shown by `pnpm lint` itself (ui stored.ts)
 
-const rule = plugin.rules["report-unexpected"];
 const options = [{ reporters: ["reportUnexpected"] }];
 const unreported = [{ messageId: "unreported" }];
 

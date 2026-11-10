@@ -9,16 +9,7 @@
 // A catch that only ever expects its throw (blocked storage) says so:
 //   // oxlint-disable-next-line empire/report-unexpected -- <why>
 
-import type { RuleTester } from "oxlint/plugins-dev";
-
-// oxlint's own types, which it exports only through RuleTester
-type Rule = Extract<Parameters<RuleTester["run"]>[1], { create: unknown }>;
-type Node = { type: string };
-
-const isNode = (value: unknown): value is Node =>
-  typeof value === "object" &&
-  value !== null &&
-  typeof (value as Node).type === "string";
+import { isNode, type Node, type Rule } from "./ast.ts";
 
 const isFunction = (node: Node) =>
   node.type === "ArrowFunctionExpression" ||
@@ -106,7 +97,4 @@ const rule = {
   },
 } satisfies Rule;
 
-export default {
-  meta: { name: "empire" },
-  rules: { "report-unexpected": rule },
-};
+export default rule;

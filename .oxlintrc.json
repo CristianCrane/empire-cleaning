@@ -6,7 +6,7 @@
   "plugins": ["typescript", "react", "oxc", "unicorn", "import"],
   // our own rules (packages/lint): JS plugins are in alpha in oxlint, and
   // packages/lint's tests run each rule through oxlint's RuleTester
-  "jsPlugins": ["./packages/lint/src/report-unexpected.ts"],
+  "jsPlugins": ["./packages/lint/src/index.ts"],
   "categories": { "correctness": "error" },
   "rules": {
     // a promise nobody awaits fails silently
