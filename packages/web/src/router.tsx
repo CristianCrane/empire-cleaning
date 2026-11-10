@@ -212,11 +212,9 @@ const rootRoute = createRootRoute({
   // the signed-out language. An area's is left as it is until its route says
   // its own: the screen on show keeps its language while the Account is
   // asked for again (returning to the tab), rather than flashing the
-  // signed-out one (#305). A preload changes nothing on screen
-  beforeLoad: ({ preload, location }) => {
-    if (!preload && !inArea(location.pathname)) {
-      setAppLanguage(signedOutLanguage());
-    }
+  // signed-out one (#305)
+  beforeLoad: ({ location }) => {
+    if (!inArea(location.pathname)) setAppLanguage(signedOutLanguage());
   },
   component: Root,
   notFoundComponent: NotFound,
@@ -348,7 +346,7 @@ const areaRoute = <Id extends AreaId>(id: Id) =>
     getParentRoute: () => rootRoute,
     // the area's own path as a literal type, so its child routes are typed
     path: areas[id].path as (typeof areas)[Id]["path"],
-    beforeLoad: async ({ location, preload }) => {
+    beforeLoad: async ({ location }) => {
       const account = await getAccount();
       if (!account) {
         throw redirect({ to: "/sign-in", search: { next: location.href } });
@@ -356,7 +354,7 @@ const areaRoute = <Id extends AreaId>(id: Id) =>
       if (!account.roles.includes(areas[id].role)) {
         throw redirect({ to: (await homeOf()) ?? "/sign-in" });
       }
-      if (!preload) setAppLanguage(areaLanguage[id](account));
+      setAppLanguage(areaLanguage[id](account));
       return { account };
     },
     component: () => <AreaLayout area={id} />,
