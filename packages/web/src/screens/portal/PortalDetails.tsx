@@ -43,7 +43,7 @@ import { Fact } from "../Fact.tsx";
 import { standingOf } from "./properties.ts";
 
 // in the Client's language (ADR-0025)
-const words = catalog({
+export const words = catalog({
   en: {
     premises: "Your premises",
     homes: "Your homes",

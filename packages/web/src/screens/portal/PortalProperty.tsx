@@ -41,7 +41,7 @@ import { ClientQuoteStatusBadge } from "../QuoteParts.tsx";
 import { requestQuoteHref } from "./whats-next.ts";
 
 // in the Client's language (ADR-0025)
-const words = catalog({
+export const words = catalog({
   en: {
     businessDetails: "Business details",
     homeDetails: "Home details",

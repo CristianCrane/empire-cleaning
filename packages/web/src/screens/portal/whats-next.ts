@@ -41,7 +41,7 @@ import {
 import { saidWith } from "../words.ts";
 
 // Home's words, in the Client's language (ADR-0025)
-const words = catalog({
+export const words = catalog({
   en: {
     needsOk: (day: string, n: number) =>
       `Your ${day} clean needs your OK on ${n === 1 ? "a price change" : `${n} price changes`}.`,

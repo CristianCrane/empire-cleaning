@@ -59,7 +59,7 @@ import { portalWords } from "./portal/words.ts";
 import { said } from "./words.ts";
 
 // the Account menu's words, in every area's language (ADR-0025)
-const words = catalog({
+export const words = catalog({
   en: {
     account: "Account",
     switchTo: "Switch to",
