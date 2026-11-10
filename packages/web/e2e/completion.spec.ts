@@ -202,6 +202,10 @@ test("a Job that couldn't be charged is Unpaid until the Client saves a new card
   await expect(client.getByText("Card saved")).toBeVisible();
 
   await client.goto(`/portal/jobs/${job.id}`);
+  // loaded, so the alert's absence counts (docs/testing.md)
+  await expect(client.getByRole("heading", { level: 1 })).toHaveText(
+    "Deep Clean",
+  );
   await expect(
     client.getByRole("alert").filter({ hasText: "Payment needed" }),
   ).toBeHidden();
@@ -211,6 +215,7 @@ test("a Job that couldn't be charged is Unpaid until the Client saves a new card
   await expect(client.getByText(/^We couldn't take payment/)).toHaveCount(0);
 
   await page.reload();
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await expect(
     attention.getByRole("row").filter({ hasText: "Unpaid" }),
   ).toBeHidden();
