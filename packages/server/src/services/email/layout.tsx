@@ -11,7 +11,13 @@ import {
   Text,
 } from "react-email";
 import type { CSSProperties } from "react";
-import { previewOf, type Block, type Email, type Row } from "./blocks.ts";
+import {
+  greetingText,
+  previewOf,
+  type Block,
+  type Email,
+  type Row,
+} from "./blocks.ts";
 
 // the brand, as hex: email clients don't know CSS variables. Keep in step with
 // packages/ui/src/tokens.css (light theme). One light design only: Gmail and
@@ -136,7 +142,7 @@ const ActionButton = ({ label, href }: { label: string; href: string }) => (
 const BlockView = ({ block }: { block: Block }) => {
   switch (block.kind) {
     case "greeting":
-      return <Text style={text}>Hi {block.name},</Text>;
+      return <Text style={text}>{greetingText(block.name)}</Text>;
     case "paragraph":
       return (
         <Text style={text}>

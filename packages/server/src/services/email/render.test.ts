@@ -57,7 +57,7 @@ describe("the blocks", () => {
   test("a greeting", async () => {
     const { html, text } = await render({ blocks: [greeting("Ana")] });
 
-    expect(html).toMatch(/Hi <!-- -->Ana<!-- -->,/);
+    expect(html).toContain(">Hi Ana,</p>");
     expect(text).toMatch(/^Hi Ana,\n\n/);
   });
 

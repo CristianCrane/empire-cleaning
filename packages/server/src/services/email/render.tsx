@@ -1,5 +1,5 @@
 import { render } from "react-email";
-import type { Block, Email, Row } from "./blocks.ts";
+import { greetingText, type Block, type Email, type Row } from "./blocks.ts";
 import { EmailLayout, footerLine } from "./layout.tsx";
 
 const lines = (rows: Row[]) =>
@@ -8,7 +8,7 @@ const lines = (rows: Row[]) =>
 const textOf = (block: Block) => {
   switch (block.kind) {
     case "greeting":
-      return `Hi ${block.name},`;
+      return greetingText(block.name);
     case "paragraph":
       return block.text;
     case "details":

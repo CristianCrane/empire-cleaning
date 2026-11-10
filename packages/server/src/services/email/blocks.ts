@@ -32,6 +32,9 @@ export type Email = {
 
 export const greeting = (name: string): Block => ({ kind: "greeting", name });
 
+// a greeting block's words, in the HTML and the text part alike
+export const greetingText = (name: string) => `Hi ${name},`;
+
 export const paragraph = (text: string): Block => ({ kind: "paragraph", text });
 
 export const details = (rows: Row[]): Block => ({ kind: "details", rows });
