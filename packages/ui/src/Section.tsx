@@ -46,8 +46,12 @@ export function Section({
         </div>
         {actions && (
           // on the title's line, as tall as it: a Button there never pushes
-          // the content down
-          <div className="flex h-7 shrink-0 items-center gap-2">{actions}</div>
+          // the content down. Wrapped under a long title (Spanish, on a
+          // small phone), a text Button's icon lines up with the title, its
+          // padding out to the left; beside it, the title only grows into it
+          <div className="-ms-3 flex h-7 shrink-0 items-center gap-2">
+            {actions}
+          </div>
         )}
       </header>
       {children}
