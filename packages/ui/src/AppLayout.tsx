@@ -34,6 +34,13 @@ export type AppLayoutProps = {
   // on the area's home (Today, Your Jobs, Home): a phone shows the logo there,
   // unless the area has a ☰ menu, which holds it instead
   atHome?: boolean;
+  // PROTOTYPE (prototype-language-control): on a phone, the account and the
+  // theme leave the top bar for the ☰ menu: menuStart heads it, under the
+  // logo; menuEnd is its foot. menuDefaultOpen opens it on first draw
+  accountInMenu?: boolean;
+  menuStart?: ReactNode;
+  menuEnd?: ReactNode | ((opts: { close: () => void }) => ReactNode);
+  menuDefaultOpen?: boolean;
   children: ReactNode;
 };
 
@@ -49,6 +56,10 @@ export function AppLayout({
   nav,
   account,
   atHome = false,
+  accountInMenu = false,
+  menuStart,
+  menuEnd,
+  menuDefaultOpen = false,
   children,
 }: AppLayoutProps) {
   const section = nav.find((item) => item.isCurrent)?.label ?? area;
@@ -81,7 +92,7 @@ export function AppLayout({
       <header className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-border bg-surface px-4 py-2 md:hidden print:hidden">
         <div className="flex min-w-0 items-center gap-1">
           {menu.length > 0 && (
-            <DialogTrigger>
+            <DialogTrigger defaultOpen={menuDefaultOpen}>
               <Button
                 variant="quiet"
                 size="icon"
@@ -97,9 +108,17 @@ export function AppLayout({
                       <Logo className="w-44" />
                       <span className="text-sm text-fg-muted">{area}</span>
                     </div>
+                    {menuStart}
                     <nav aria-label={area} className="flex flex-col gap-4">
                       <NavGroups items={menu} onPress={close} />
                     </nav>
+                    {menuEnd && (
+                      <div className="mt-auto flex flex-col gap-3 border-t border-border pt-4">
+                        {typeof menuEnd === "function"
+                          ? menuEnd({ close })
+                          : menuEnd}
+                      </div>
+                    )}
                   </>
                 )}
               </Drawer>
@@ -109,10 +128,12 @@ export function AppLayout({
             {section}
           </span>
         </div>
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
-          {account}
-        </div>
+        {!accountInMenu && (
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            {account}
+          </div>
+        )}
       </header>
 
       <main
@@ -126,14 +147,16 @@ export function AppLayout({
         {children}
       </main>
 
-      <nav
-        aria-label={area}
-        className="fixed inset-x-0 bottom-0 z-40 flex h-[calc(var(--spacing-tab-bar)+env(safe-area-inset-bottom))] border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] md:hidden print:hidden"
-      >
-        {tabs.map((item) => (
-          <TabLink key={item.label} item={item} />
-        ))}
-      </nav>
+      {tabs.length > 0 && (
+        <nav
+          aria-label={area}
+          className="fixed inset-x-0 bottom-0 z-40 flex h-[calc(var(--spacing-tab-bar)+env(safe-area-inset-bottom))] border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] md:hidden print:hidden"
+        >
+          {tabs.map((item) => (
+            <TabLink key={item.label} item={item} />
+          ))}
+        </nav>
+      )}
     </div>
   );
 }

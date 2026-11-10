@@ -11,14 +11,17 @@
 //    Your details goes.
 // C: a small Your details page in the Cleaner area, as the portal's (a third
 //    nav item); no menu control.
-// D: the other language named in its own words (Español / English), one tap,
+// D and E: the other language named in its own words (Español / English), one tap,
 //    beside the Account button in both areas, as the landing site's header
 //    switch: found by someone who can't read the language the screen is in.
 //    The field on Your details goes.
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import {
+  ArrowRightLeft,
   CalendarDays,
+  Lightbulb,
+  LogOut,
   House,
   Inbox,
   Languages,
@@ -59,6 +62,7 @@ import {
   showToast,
   StatusBadge,
   TextField,
+  ThemeToggle,
 } from "@empire-cleaning/ui";
 import { PrototypeSwitcher } from "./PrototypeSwitcher.tsx";
 import { said } from "./words.ts";
@@ -174,6 +178,14 @@ const caseList: Omit<Case, "key">[] = [
     phone: true,
     name: "Phone · Portal · Spanish · menu open",
   },
+  {
+    area: "cleaner",
+    lang: "en",
+    view: "menu",
+    both: true,
+    phone: true,
+    name: "Phone · Cleaner who's a Client too · menu open",
+  },
 ];
 const cases: Case[] = caseList.map((c, i) => ({ ...c, key: String(i + 1) }));
 
@@ -182,6 +194,7 @@ const layouts = [
   { key: "B", name: "Menu in both, field gone" },
   { key: "C", name: "Your details in the Cleaner area" },
   { key: "D", name: "Español / English beside Account" },
+  { key: "E", name: "D, and on a phone everything in ☰" },
 ];
 
 // where the control is, in each layout
@@ -189,7 +202,10 @@ const where = (layout: string, area: Area) => ({
   menu: layout === "B" || (layout === "A" && area === "cleaner"),
   details:
     area === "portal" ? layout === "A" || layout === "C" : layout === "C",
-  button: layout === "D",
+  button: layout === "D" || layout === "E",
+  // E: on a phone, no tab bar or account button: nav, language and account
+  // all in the ☰ menu, as the Office's phone menu
+  phoneMenu: layout === "E",
   cleanerDetailsPage: layout === "C",
 });
 
@@ -317,15 +333,9 @@ export function LanguagePrototype() {
     });
   const c = cases.find((x) => x.key === key) ?? cases[0]!;
 
-  // inside the phone frame: just the screen
+  // inside the phone frame (390px): just the screen
   if (search.frame)
     return <Screen key={`${key}${layout}`} c={c} layout={layout} />;
-
-  // the phone frame shows the same case without the frame, at 390px
-  const inner = cases.find(
-    (x) =>
-      !x.phone && x.area === c.area && x.lang === c.lang && x.view === c.view,
-  )!;
 
   return (
     <>
@@ -334,7 +344,7 @@ export function LanguagePrototype() {
           <iframe
             key={`${key}${layout}`}
             title="Phone"
-            src={`/prototype/language?case=${inner.key}&layout=${layout}&frame=1`}
+            src={`/prototype/language?case=${c.key}&layout=${layout}&frame=1`}
             className="h-[780px] w-[390px] rounded-[2.5rem] border-8 border-fg bg-bg shadow-xl"
           />
         </div>
@@ -403,13 +413,30 @@ function Screen({ c, layout }: { c: Case; layout: string }) {
               ]
             : []),
         ];
+  // E opens its ☰ menu in a "menu open" case, on a phone only
+  const [menuOpen] = useState(
+    () =>
+      at.phoneMenu &&
+      c.view === "menu" &&
+      window.matchMedia("(max-width: 767px)").matches,
+  );
 
   return (
     <LanguageProvider lang={lang}>
       <AppLayout
         area={c.area === "portal" ? w.portal : w.cleanerArea}
-        nav={nav}
+        nav={
+          at.phoneMenu ? nav.map((item) => ({ ...item, inMenu: true })) : nav
+        }
         atHome={!showsDetails}
+        accountInMenu={at.phoneMenu}
+        menuDefaultOpen={menuOpen}
+        menuEnd={
+          at.phoneMenu &&
+          (({ close }) => (
+            <MenuAccount c={c} lang={lang} close={close} onChange={change} />
+          ))
+        }
         account={
           <>
             {at.button && <OtherLanguage lang={lang} onChange={change} />}
@@ -468,6 +495,60 @@ function OtherLanguage({
       <Languages aria-hidden size={20} />
       <span lang={other}>{languageNames[other]}</span>
     </Button>
+  );
+}
+
+// E: the Account menu's parts at the foot of the phone's ☰ menu, the
+// other language first among them
+function MenuAccount({
+  c,
+  lang,
+  close,
+  onChange,
+}: {
+  c: Case;
+  lang: Language;
+  close: () => void;
+  onChange: (lang: Language) => void;
+}) {
+  const w = wordsFor(c.area, lang);
+  const other = LANGUAGES.find((l) => l !== lang)!;
+  const person = people[c.area];
+  return (
+    <>
+      <div className="flex items-center gap-3 px-3">
+        <User aria-hidden size={20} className="shrink-0 text-fg-muted" />
+        <div className="flex min-w-0 flex-col">
+          <span className="font-semibold">{person.name}</span>
+          <span className="truncate text-sm text-fg-muted">{person.email}</span>
+        </div>
+      </div>
+      <div className="flex flex-col gap-1">
+        {c.both && (
+          <Button variant="quiet" className="justify-start" onPress={close}>
+            <ArrowRightLeft aria-hidden size={20} />
+            {w.switchTo(words[lang].portal)}
+          </Button>
+        )}
+        <Button
+          variant="quiet"
+          className="justify-start"
+          onPress={() => onChange(other)}
+        >
+          <Languages aria-hidden size={20} />
+          <span lang={other}>{languageNames[other]}</span>
+        </Button>
+        <Button variant="quiet" className="justify-start" onPress={close}>
+          <Lightbulb aria-hidden size={20} />
+          {w.showTips}
+        </Button>
+        <Button variant="quiet" className="justify-start" onPress={close}>
+          <LogOut aria-hidden size={20} />
+          {w.signOut}
+        </Button>
+      </div>
+      <ThemeToggle />
+    </>
   );
 }
 
