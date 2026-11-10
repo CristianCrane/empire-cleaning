@@ -7,7 +7,7 @@ export default preview(
     name: client.name,
     jobId,
     clean,
-    label: "1 more hour",
+    adjustment: { kind: "extra_time", addOnName: null, hours: 1 },
     amountCents: 5988,
     totalCents: 35928,
     owedCents: 5988,

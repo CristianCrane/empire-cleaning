@@ -86,7 +86,7 @@ import { hoursOnSiteOf } from "../jobs/jobs.ts";
 // the emails' words, English until #304, the Office's and Cleaners'
 // (#305), and a Charge's item, a record the Office reads too, until it's
 // worded as it's read (#395)
-const { adjustmentItem, adjustmentLabel, NOT_ALL_CONFIRMED } = messages.en;
+const { adjustmentItem, NOT_ALL_CONFIRMED } = messages.en;
 
 const { formatMoney } = formats.en;
 
@@ -294,10 +294,7 @@ const sendReceipt = async (jobId: string, settled: Settled) => {
         jobId,
         clean: await cleanOf(job, property),
         quotedCents: payment.quotedCents,
-        adjustments: rows.filter(counts).map((a) => ({
-          label: adjustmentLabel(a),
-          totalCents: a.totalCents,
-        })),
+        adjustments: rows.filter(counts),
         totalCents: payment.totalCents,
         rescheduleFeeCents: payment.rescheduleFeeCents,
         depositCents: deposit,
@@ -522,7 +519,7 @@ const sendProposal = async (
       name: client.name,
       jobId: job.id,
       clean: await cleanOf(job, property),
-      label: adjustmentLabel(adjustment),
+      adjustment,
       reason: adjustment.reason,
       totalCents: adjustment.totalCents,
       answerBy: by,
@@ -956,7 +953,7 @@ export const answerAdjustment = async (
         name: client.name,
         jobId,
         clean: await cleanOf(job, property),
-        label: adjustmentLabel(answered),
+        adjustment: answered,
         amountCents: answered.totalCents,
         totalCents: payment.totalCents,
         owedCents: payment.owedCents,

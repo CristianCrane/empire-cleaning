@@ -13,7 +13,11 @@ import { formats, messages } from "@empire-cleaning/models";
 import { unpaidKind } from "../payments/unpaid.ts";
 import type { Settled } from "./balance.ts";
 
+// a price change, as an email names it: "1 more hour"
+type Changed = Parameters<(typeof messages.en)["adjustmentLabel"]>[0];
+
 const {
+  adjustmentLabel,
   clientFix,
   notTaken,
   PRICES_INCLUDE_TAX,
@@ -104,8 +108,8 @@ export const receiptEmail = ({
   jobId: string;
   clean: Clean;
   quotedCents: number;
-  // the Adjustments that count, each with its label
-  adjustments: { label: string; totalCents: number }[];
+  // the Adjustments that count
+  adjustments: (Changed & { totalCents: number })[];
   totalCents: number;
   rescheduleFeeCents: number;
   // the Deposit charged when it was booked
@@ -121,7 +125,10 @@ export const receiptEmail = ({
     amounts(
       [
         ["Quoted price", quotedCents],
-        ...adjustments.map((a): [string, number] => [a.label, a.totalCents]),
+        ...adjustments.map((a): [string, number] => [
+          adjustmentLabel(a),
+          a.totalCents,
+        ]),
       ],
       ["Total", totalCents],
     ),
@@ -153,7 +160,7 @@ export const proposalEmail = ({
   name,
   jobId,
   clean,
-  label,
+  adjustment,
   reason,
   totalCents,
   answerBy,
@@ -162,8 +169,7 @@ export const proposalEmail = ({
   name: string;
   jobId: string;
   clean: Clean;
-  // "1 more hour"
-  label: string;
+  adjustment: Changed;
   // the Cleaner's, e.g. "Heavy grease"
   reason: string;
   totalCents: number;
@@ -176,7 +182,7 @@ export const proposalEmail = ({
   blocks: [
     greeting(firstNameOf(name)),
     paragraph(
-      `At your clean, our team did more than was quoted: ${label} (${reason}).`,
+      `At your clean, our team did more than was quoted: ${adjustmentLabel(adjustment)} (${reason}).`,
     ),
     cleanDetails(clean),
     paragraph(
@@ -191,7 +197,7 @@ export const approvedEmail = ({
   name,
   jobId,
   clean,
-  label,
+  adjustment,
   amountCents,
   totalCents,
   owedCents,
@@ -200,7 +206,7 @@ export const approvedEmail = ({
   name: string;
   jobId: string;
   clean: Clean;
-  label: string;
+  adjustment: Changed;
   // the increase, tax included
   amountCents: number;
   // the clean's new total
@@ -212,7 +218,7 @@ export const approvedEmail = ({
   blocks: [
     greeting(firstNameOf(name)),
     paragraph(
-      `Thanks for approving ${label}: ${formatMoney(amountCents)}, tax included. The clean now comes to ${formatMoney(totalCents)}.`,
+      `Thanks for approving ${adjustmentLabel(adjustment)}: ${formatMoney(amountCents)}, tax included. The clean now comes to ${formatMoney(totalCents)}.`,
     ),
     cleanDetails(clean),
     ...moneyLines(settled, owedCents),

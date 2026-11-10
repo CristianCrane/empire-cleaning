@@ -9,8 +9,13 @@ export default preview(
     clean,
     quotedCents: 29940,
     adjustments: [
-      { label: "Inside the oven, done on the day", totalCents: 2994 },
-      { label: "1 more hour", totalCents: 5988 },
+      {
+        kind: "add_on_done",
+        addOnName: "Inside the oven",
+        hours: null,
+        totalCents: 2994,
+      },
+      { kind: "extra_time", addOnName: null, hours: 1, totalCents: 5988 },
     ],
     totalCents: 38922,
     rescheduleFeeCents: 0,

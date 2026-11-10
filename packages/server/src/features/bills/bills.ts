@@ -31,7 +31,6 @@ import {
   startOfDay,
   timeOf,
   catalog,
-  formats,
   messages,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
@@ -44,17 +43,14 @@ import {
   billEmail,
   chargedPerCleanEmail,
   creditRefundedEmail,
-  settledLines,
+  jobNamed,
   type Occasion,
+  type PlanNote,
+  type SettledJob,
 } from "./emails.ts";
 import { clients, type Client } from "../clients/clients.schema.ts";
 import { officeClientView } from "../clients/clients.ts";
-import {
-  counts,
-  paymentOf,
-  settleAfterChange,
-  type Settled,
-} from "../completion/balance.ts";
+import { counts, paymentOf, settleAfterChange } from "../completion/balance.ts";
 import { adjustments } from "../completion/completion.schema.ts";
 import { NO_QUOTE } from "../completion/pricing.ts";
 import { jobs, type Job } from "../jobs/jobs.schema.ts";
@@ -73,7 +69,6 @@ import {
 } from "../payments/payments.schema.ts";
 import { LATE, nowTheirs, unpaidKind, unpaidOf } from "../payments/unpaid.ts";
 import { properties, type Property } from "../properties/properties.schema.ts";
-import { addressOf } from "../properties/property-view.ts";
 import { jobQuotes } from "../quotes/job-quotes.ts";
 import { anyOnHold, holdOrResumePlan } from "../service-plans/on-hold.ts";
 import {
@@ -82,21 +77,17 @@ import {
 } from "../service-plans/service-plans.schema.ts";
 import { billedOf, isBilledWeekly, owesOnBill } from "./billed-weekly.ts";
 import { billLines, bills, type Bill, type BillLine } from "./bills.schema.ts";
-import { serviceNameOf } from "../services/services.ts";
+import { cleanOf } from "../services/services.ts";
 import { log, monitoring } from "../../services/monitoring/index.ts";
-
-// the emails' words, English until #304
-const { BOOKED_GO_AHEAD, PLAN_BACK_ON, PLAN_PAUSED } = messages.en;
 
 // A Bill's lines are a record, in English for now: the Office reads them
 // too, and their Client's Spanish waits for them being worded as they're
 // read (#395)
 const { adjustmentLabel, feeName, LATE_MOVE_FEE } = messages.en;
-const { formatWhen } = formats.en;
 
 // what a Job is, as its lines on a Bill name it, before what each line is
 const whatOf = async (job: Job, property: Property) =>
-  `${await serviceNameOf(job.serviceId)} at ${addressOf(property)}, ${formatWhen(job.startsAt)}`;
+  jobNamed({ clean: await cleanOf(job, property), fee: null });
 
 // a credit no Bill follows within this long is refunded (ADR-0016)
 const CREDIT_REFUND_DAYS = 30;
@@ -561,7 +552,7 @@ const issueBill = async (billId: string) => {
     await sendBill(
       billId,
       "made",
-      charged?.plan === "held" ? [PLAN_PAUSED] : [],
+      charged?.plan === "held" ? { plan: "paused" } : {},
     );
   } catch (error) {
     monitoring.error(error, { what: `Bill ${billId} not sent` });
@@ -869,16 +860,7 @@ export const voidBill = async (
     ? []
     : await settleEach(await jobsOn(billId));
   await notify(`Voided notice for Bill ${billId}`, () =>
-    sendBill(
-      billId,
-      "voided",
-      settled.length > 0
-        ? [
-            "Here's what we've done about each clean on it instead:",
-            ...settledLines(settled),
-          ]
-        : [],
-    ),
+    sendBill(billId, "voided", { settled }),
   );
   return billView(billId);
 };
@@ -1014,17 +996,6 @@ export const setBilling = async (
 
 // ---- settling per Job, once weekly billing no longer takes a Job ----
 
-// a Job settled on its own whose money moved, or couldn't be taken
-type SettledJob = {
-  job: Job;
-  property: Property;
-  // as its lines on a Bill name it
-  label: string;
-  settled: Settled;
-  // what its failed Charge left owing
-  unpaidCents: number | null;
-};
-
 // Settles each Job on its own, in order, and keeps those whose money moved
 // or couldn't be taken
 const settleEach = async (jobIds: string[]) => {
@@ -1041,9 +1012,12 @@ const settleEach = async (jobIds: string[]) => {
       .where(eq(jobs.id, jobId));
     const { job, property } = found!;
     moved.push({
-      job,
-      property,
-      label: await labelOf(job, property),
+      jobId,
+      clean: await cleanOf(job, property),
+      fee:
+        job.status === "cancelled" || job.status === "no_access"
+          ? job.status
+          : null,
       settled,
       unpaidCents: settled.failure ? (await paymentOf(job)).owedCents : null,
     });
@@ -1051,18 +1025,9 @@ const settleEach = async (jobIds: string[]) => {
   return moved;
 };
 
-// what a Job is, as an email of the Jobs it settled names it: English
-// until #304
-const labelOf = async (job: Job, property: Property) => {
-  const what = await whatOf(job, property);
-  return job.status === "cancelled" || job.status === "no_access"
-    ? `${feeName[job.status]}: ${what}`
-    : what;
-};
-
 const toSettledView = (s: SettledJob): SettledJobView => ({
-  jobId: s.job.id,
-  label: s.label,
+  jobId: s.jobId,
+  label: jobNamed(s),
   chargedCents: s.settled.chargedCents,
   refundedCents: s.settled.refundedCents,
   unpaidCents: s.unpaidCents,
@@ -1271,13 +1236,13 @@ const sendBillReminders = async () => {
       await sendBill(
         bill.id,
         "reminder",
-        !plans
-          ? []
-          : claimed.unpaidSince
-            ? [PLAN_PAUSED]
-            : [
-                `If it isn't paid by then, your cleaning plan is paused until it is. ${BOOKED_GO_AHEAD}`,
-              ],
+        {
+          plan: !plans
+            ? null
+            : claimed.unpaidSince
+              ? "paused"
+              : "pauses_if_late",
+        },
         // the Office is copied once it's late, to chase it
         claimed.unpaidSince ? env.OFFICE_EMAIL : undefined,
       );
@@ -1405,7 +1370,8 @@ export const listBills = async ({
 const sendBill = async (
   billId: string,
   occasion: Occasion,
-  extra: string[] = [],
+  // what else it says, as billEmail takes it
+  extra: { plan?: PlanNote | null; settled?: SettledJob[] } = {},
   // a copy, as for the Office
   bcc?: string,
 ) => {
@@ -1428,8 +1394,8 @@ const sendBill = async (
         lines: await linesOf(billId),
       },
       occasion,
-      extra,
-      card: method?.label ?? "card",
+      ...extra,
+      card: method?.label ?? null,
       today: dayOf(clock.now()),
       billedWeekly: client.billedWeeklyFrom !== null,
       creditRefundDays: CREDIT_REFUND_DAYS,
@@ -1439,17 +1405,17 @@ const sendBill = async (
 
 const tellPaid = (billId: string, plan: "held" | "resumed" | null) =>
   notify(`Receipt for Bill ${billId}`, () =>
-    sendBill(billId, "paid", plan === "resumed" ? [PLAN_BACK_ON] : []),
+    sendBill(billId, "paid", plan === "resumed" ? { plan: "back_on" } : {}),
   );
 
 const tellUnpaid = (billId: string, plan: "held" | "resumed" | null) =>
   notify(`Unpaid notice for Bill ${billId}`, () =>
-    sendBill(billId, "unpaid", plan === "held" ? [PLAN_PAUSED] : []),
+    sendBill(billId, "unpaid", plan === "held" ? { plan: "paused" } : {}),
   );
 
 const tellDebitFailed = (billId: string, plan: "held" | "resumed" | null) =>
   notify(`Failed bank payment notice for Bill ${billId}`, () =>
-    sendBill(billId, "debit_failed", plan === "held" ? [PLAN_PAUSED] : []),
+    sendBill(billId, "debit_failed", plan === "held" ? { plan: "paused" } : {}),
   );
 
 const tellCreditRefunded = async (billId: string, cents: number) => {

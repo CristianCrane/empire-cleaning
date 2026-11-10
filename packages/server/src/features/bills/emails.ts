@@ -4,6 +4,7 @@ import {
   details,
   greeting,
   paragraph,
+  type Clean,
   type Email,
 } from "../../services/email/blocks.ts";
 import { firstNameOf } from "../../services/email/format.ts";
@@ -17,7 +18,9 @@ import type { Settled } from "../completion/balance.ts";
 import { unpaidKind } from "../payments/unpaid.ts";
 
 const {
+  BOOKED_GO_AHEAD,
   billNotPaid,
+  feeName,
   clientFix,
   notTaken,
   PLAN_BACK_ON,
@@ -28,7 +31,14 @@ const {
   UPDATE_CARD,
 } = messages.en;
 
-const { formatLongDay, formatMoney } = formats.en;
+const { formatLongDay, formatMoney, formatWhen } = formats.en;
+
+// a card, where none is saved to name it by
+const CARD = "card";
+
+// what a Bill's Unpaid did to the Client's Service Plan, or will: paused,
+// back on, or paused if it isn't paid by its due date
+export type PlanNote = "paused" | "back_on" | "pauses_if_late";
 
 export type Occasion =
   "made" | "unpaid" | "reminder" | "paid" | "voided" | "debit_failed";
@@ -151,21 +161,38 @@ export const billEmail = ({
   name,
   bill,
   occasion,
-  extra = [],
+  plan = null,
+  settled = [],
+  card,
   ...context
 }: {
   name: string;
   bill: BillToSend;
   occasion: Occasion;
-  extra?: string[];
-  // their Payment Method's label, or "card"
-  card: string;
+  // what it did to their Service Plan
+  plan?: PlanNote | null;
+  // a voided Bill's Jobs, settled each on its own instead
+  settled?: SettledJob[];
+  // their Payment Method's label; null when none is saved
+  card: string | null;
   today: string;
   // they're billed weekly still
   billedWeekly: boolean;
   creditRefundDays: number;
 }): Email => {
-  const [subject, ...about] = aboutBill(bill, occasion, context);
+  const [subject, ...about] = aboutBill(bill, occasion, {
+    ...context,
+    card: card ?? CARD,
+  });
+  const extra = [
+    ...(settled.length > 0
+      ? [
+          "Here's what we've done about each clean on it instead:",
+          ...settledLines(settled),
+        ]
+      : []),
+    ...(plan ? [planNotes[plan]] : []),
+  ];
   return {
     subject: subject!,
     blocks: [
@@ -193,20 +220,42 @@ export const billEmail = ({
   };
 };
 
+const planNotes: Record<PlanNote, string> = {
+  paused: PLAN_PAUSED,
+  back_on: PLAN_BACK_ON,
+  pauses_if_late: `If it isn't paid by then, your cleaning plan is paused until it is. ${BOOKED_GO_AHEAD}`,
+};
+
 // a Job a Bill no longer takes, settled on its own
 export type SettledJob = {
-  // as its lines on a Bill name it
-  label: string;
+  jobId: string;
+  clean: Clean;
+  // a fee for a clean that didn't happen, named for why
+  fee: "cancelled" | "no_access" | null;
   settled: Settled;
   // what its failed Charge left owing
   unpaidCents: number | null;
 };
 
+// a Job, as its lines on a Bill name it, and a fee for one that didn't
+// happen: "Deep Clean at 41-12 Austin St, 4B, 11375, Monday, January 12 at
+// 9:00 AM"
+export const jobNamed = ({
+  clean,
+  fee,
+}: {
+  clean: Clean;
+  fee: SettledJob["fee"];
+}) => {
+  const what = `${clean.service} at ${clean.address}, ${formatWhen(clean.startsAt)}`;
+  return fee ? `${feeName[fee]}: ${what}` : what;
+};
+
 // What settling per Job moved, as lines for the Client: each Job with what
 // was charged, refunded or couldn't be, then what to do about one that
 // couldn't, and what that did to their Service Plan
-export const settledLines = (settled: SettledJob[]) => {
-  const card = settled[0]?.settled.paymentMethod ?? "card";
+const settledLines = (settled: SettledJob[]) => {
+  const card = settled[0]?.settled.paymentMethod ?? CARD;
   const lines = [
     settled
       .map((s) => {
@@ -221,7 +270,7 @@ export const settledLines = (settled: SettledJob[]) => {
             ? [`couldn't take ${formatMoney(s.unpaidCents)}`]
             : []),
         ];
-        return `${s.label}: ${moved.join(", ")}`;
+        return `${jobNamed(s)}: ${moved.join(", ")}`;
       })
       .join("\n"),
   ];
