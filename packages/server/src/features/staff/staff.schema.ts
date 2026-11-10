@@ -29,8 +29,9 @@ export const staff = pgTable("staff", {
   roles: text("roles").$type<StaffRole>().array().notNull(),
   // a deactivated Staff member keeps their record but has no Staff access
   active: boolean("active").default(true).notNull(),
-  // the language the Cleaner area and their emails are in (ADR-0025):
-  // English until they or the Office change it (#306)
+  // the language the Cleaner area and their emails are in (ADR-0025): the
+  // Office's pick as it invites them, English by default, until they or
+  // the Office change it
   preferredLanguage: language("preferred_language").notNull().default("en"),
   ...timestamps,
 });

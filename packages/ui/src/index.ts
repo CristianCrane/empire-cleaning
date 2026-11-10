@@ -29,6 +29,7 @@ export { ButtonLink, Link } from "./Link.tsx";
 export { Logo } from "./Logo.tsx";
 export { MenuButton, MenuItem, MenuSeparator } from "./Menu.tsx";
 export { useLanguage } from "./language.ts";
+export { LanguageName, LanguagePicker } from "./LanguagePicker.tsx";
 export { LanguageProvider } from "./LanguageProvider.tsx";
 export { List, ListItem } from "./List.tsx";
 export { Notice } from "./Notice.tsx";

@@ -53,6 +53,7 @@ import {
   NumberField,
   Radio,
   RadioGroup,
+  LanguagePicker,
   Segment,
   SegmentedControl,
   Select,
@@ -239,6 +240,8 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
   const firstFree = (kind: PropertyKind) =>
     ownPlaces.find((p) => p.kind === kind && !held(p.id));
   const [contact, setContact] = useState({ name: "", email: "", phone: "" });
+  // a new caller's Preferred Language, which the Office sets (ADR-0025)
+  const [callerLanguage, setCallerLanguage] = useState<Language>("en");
   const [kind, setKind] = useState<PropertyKind>("residential");
   const [place, setPlace] = useState<string>(NEW_PLACE);
   const [newHome, setNewHome] = useState<NewHome>(blankHome);
@@ -381,10 +384,10 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
   };
 
   // what was asked, or for the Office, with its Client: one they found
-  // or a new one, without an email if they gave none
+  // or a new one, without an email if they gave none, in the language set
   const submission = (): QuoteAsk & {
     clientId?: string;
-    contact?: { email?: string | null };
+    contact?: { email?: string | null; preferredLanguage?: Language };
   } => ({
     ...(asker.kind === "guest" && { contact }),
     ...(asker.kind === "guest" && source && { source: source() }),
@@ -395,7 +398,13 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
     ...(asker.kind === "office" &&
       (asker.client
         ? { clientId: asker.client.id }
-        : { contact: { ...contact, email: contact.email || null } })),
+        : {
+            contact: {
+              ...contact,
+              email: contact.email || null,
+              preferredLanguage: callerLanguage,
+            },
+          })),
     property:
       place === NEW_PLACE
         ? { new: newPlace() }
@@ -546,6 +555,9 @@ export function QuoteRequestForm<R = QuoteAskReceipt>({
         onChange={(phone) => setContact({ ...contact, phone })}
         errorMessage={error("contact.phone")}
       />
+      {asker.kind === "office" && (
+        <LanguagePicker value={callerLanguage} onChange={setCallerLanguage} />
+      )}
       {asker.kind === "guest" && (
         // a field people never see or reach, for bots that fill in every
         // field; filled, the ask is quietly dropped (#32)

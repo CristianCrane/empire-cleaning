@@ -4,6 +4,7 @@ import {
   Ban,
   ChevronLeft,
   ChevronRight,
+  Languages,
   Mail,
   SquarePen,
   UserCheck,
@@ -22,11 +23,11 @@ import {
   Button,
   ButtonLink,
   Card,
-  Checkbox,
   Dialog,
   DialogTrigger,
   Form,
   Heading,
+  LanguageName,
   Notice,
   NumberField,
   Section,
@@ -37,7 +38,7 @@ import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
 import { dayOfInstant, formatHours, roleLabel, today } from "../format.ts";
 import { Fact } from "../Fact.tsx";
-import { MemberStatus } from "./StaffScreen.tsx";
+import { MemberStatus, StaffFields } from "./StaffScreen.tsx";
 
 const {
   formatDateTime,
@@ -116,6 +117,12 @@ export function StaffMemberScreen() {
                 }
                 line="Their account"
               />
+              <Fact
+                icon={Languages}
+                label="Preferred language"
+                value={<LanguageName language={member.preferredLanguage} />}
+                line="Their screens and emails"
+              />
             </dl>
           </div>
         </Card>
@@ -126,16 +133,11 @@ export function StaffMemberScreen() {
   );
 }
 
-// their name and roles; their email is how their account connects, so it
-// stays (ADR-0006)
+// their name, roles and language, this record's alone; their email is how
+// their account connects, so it stays (ADR-0006)
 function EditStaff({ member }: { member: StaffDetail }) {
   const [roles, setRoles] = useState<StaffRole[]>(member.roles);
   const action = useAction("The changes weren't saved. Please try again.");
-
-  const toggle = (role: StaffRole, on: boolean) =>
-    setRoles((current) =>
-      on ? [...current, role] : current.filter((r) => r !== role),
-    );
 
   return (
     <DialogTrigger onOpenChange={(open) => open && setRoles(member.roles)}>
@@ -156,6 +158,7 @@ function EditStaff({ member }: { member: StaffDetail }) {
                     patchJson(`/api/staff/${member.id}`, {
                       name: form.get("name"),
                       roles,
+                      preferredLanguage: form.get("preferredLanguage"),
                     }),
                   "Changes saved",
                 )
@@ -170,24 +173,12 @@ function EditStaff({ member }: { member: StaffDetail }) {
               isRequired
               autoFocus
             />
-            <fieldset className="flex flex-col gap-1">
-              <legend className="mb-1 font-semibold">Roles</legend>
-              <Checkbox
-                isSelected={roles.includes("cleaner")}
-                onChange={(on) => toggle("cleaner", on)}
-              >
-                Cleaner: does the cleaning
-              </Checkbox>
-              <Checkbox
-                isSelected={roles.includes("office_staff")}
-                onChange={(on) => toggle("office_staff", on)}
-              >
-                Office staff: runs the business here
-              </Checkbox>
-            </fieldset>
-            {action.fieldErrors.roles && (
-              <Notice tone="danger">{action.fieldErrors.roles}</Notice>
-            )}
+            <StaffFields
+              language={member.preferredLanguage}
+              roles={roles}
+              onRolesChange={setRoles}
+              errors={action.fieldErrors}
+            />
             {action.problem && <Notice tone="danger">{action.problem}</Notice>}
             <Actions>
               <Button variant="quiet" onPress={close}>

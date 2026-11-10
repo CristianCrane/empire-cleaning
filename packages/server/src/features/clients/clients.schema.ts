@@ -40,7 +40,8 @@ export const clients = pgTable("clients", {
   // shown to the Cleaners assigned to a Job, on the day
   phone: text("phone").notNull(),
   // the language their screens and messages are in: a Guest's first Quote
-  // sets it from the page they asked on (ADR-0025)
+  // sets it from the page they asked on, the Office for a caller it enters,
+  // and the Office or the Client may change it (ADR-0025)
   preferredLanguage: language("preferred_language").notNull().default("en"),
   // weekly billing (ADR-0016), for a commercial Client only: the Monday of
   // the week it was switched on, from which their Jobs go on Bills; null

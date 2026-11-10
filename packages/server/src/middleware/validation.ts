@@ -1,6 +1,11 @@
 import type { RequestHandler } from "express";
 import { z } from "zod";
-import { type Catalog, catalog, formats } from "@empire-cleaning/models";
+import {
+  type Catalog,
+  catalog,
+  formats,
+  LANGUAGES,
+} from "@empire-cleaning/models";
 import { currentLanguage } from "#services/request";
 import {
   PathParameterError,
@@ -132,3 +137,6 @@ export const startTime = z
 
 // a route's one path param, the id of what it's about: /:id
 export const byId = z.object({ id: z.uuid() });
+
+// a Preferred Language (ADR-0025): a person's own, or one the Office sets
+export const language = z.enum(LANGUAGES);

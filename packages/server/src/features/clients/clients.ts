@@ -18,6 +18,7 @@ import {
   TooManyRequestsError,
 } from "../../middleware/errors.ts";
 import { accounts } from "../auth/auth.schema.ts";
+import { setClientLanguage } from "../auth/language.ts";
 import { currentPriceList } from "../price-list/price-list.ts";
 import { connectSignedUpAccount } from "../auth/connections.ts";
 import { properties } from "../properties/properties.schema.ts";
@@ -224,12 +225,14 @@ export const officeUpdateContactDetails = async (
     email,
     phone,
     businessName,
+    preferredLanguage,
   }: {
     name: string;
     email: string | null;
     phone: string;
-    // absent leaves it as it is
+    // absent leaves each as it is
     businessName?: string | null;
+    preferredLanguage?: Language;
   },
 ) => {
   const [client] = await db.select().from(clients).where(eq(clients.id, id));
@@ -246,6 +249,10 @@ export const officeUpdateContactDetails = async (
       }),
     })
     .where(eq(clients.id, id));
+  // on this Client alone, and their payer (ADR-0025)
+  if (preferredLanguage && preferredLanguage !== client.preferredLanguage) {
+    await setClientLanguage(id, preferredLanguage);
+  }
   if (address && address !== client.email) {
     await connectSignedUpAccount(address);
   }
@@ -309,6 +316,7 @@ export const officeClientView = async (
     businessName: client.businessName,
     email: client.email,
     phone: client.phone,
+    preferredLanguage: client.preferredLanguage,
     properties: ownProperties.map((p) => ({
       ...toPropertyView(p, list),
       status: statuses.get(p.id)!,

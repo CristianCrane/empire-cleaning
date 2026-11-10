@@ -90,9 +90,11 @@ test("Office Staff add a Service priced by area, and retire it", async ({
   await page.goto("/office/services");
   await page.getByRole("link", { name: "New service" }).click();
 
-  await page.getByRole("textbox", { name: "Name" }).fill("Window cleaning");
   await page
-    .getByRole("textbox", { name: "Description" })
+    .getByRole("textbox", { name: "Name", exact: true })
+    .fill("Window cleaning");
+  await page
+    .getByRole("textbox", { name: "Description", exact: true })
     .fill("Every window, inside and out.");
   await page.getByText("Both", { exact: true }).click();
   // only area pricing suits business premises
@@ -136,16 +138,56 @@ test("Office Staff add a Service priced by area, and retire it", async ({
   ).toBeVisible();
 });
 
+test("Office Staff give a Service its Spanish name and description, which Spanish readers get", async ({
+  page,
+}) => {
+  await signInAsOffice(page);
+  await goTo(page, "Services");
+  await page
+    .getByRole("grid", { name: "Services" })
+    .getByRole("row", { name: /Standard Clean/ })
+    .click();
+  const nameEs = page.getByRole("textbox", {
+    name: "Name in Spanish (optional)",
+  });
+  // the starting Services come with theirs
+  await expect(nameEs).toHaveValue("Limpieza estándar");
+  await nameEs.fill("Limpieza básica");
+  await page
+    .getByRole("textbox", { name: "Description in Spanish (optional)" })
+    .fill("Lo de siempre, bien hecho.");
+  await page.getByRole("button", { name: "Save service" }).click();
+  await expect(page.getByText("Service saved")).toBeVisible();
+
+  await page.reload();
+  await expect(nameEs).toHaveValue("Limpieza básica");
+
+  // what the Quote form lists, to a Spanish reader
+  const offered = (await (
+    await page.request.get("/api/services/on-offer", {
+      headers: { "accept-language": "es" },
+    })
+  ).json()) as { name: string; description: string }[];
+  expect(offered).toContainEqual(
+    expect.objectContaining({
+      name: "Limpieza básica",
+      description: "Lo de siempre, bien hecho.",
+    }),
+  );
+});
+
 test("a mistake on a Service is explained beside the field", async ({
   page,
 }) => {
   await signInAsOffice(page);
   await page.goto("/office/services/new");
 
-  await page.getByRole("textbox", { name: "Name" }).fill("Deep Clean");
+  await page
+    .getByRole("textbox", { name: "Name", exact: true })
+    .fill("Deep Clean");
   await page.getByRole("button", { name: "Add service" }).click();
 
-  const name = page.getByRole("textbox", { name: "Name" });
+  const name = page.getByRole("textbox", { name: "Name", exact: true });
   await expect(name).toHaveAttribute("aria-invalid", "true");
   await expect(name).toHaveAccessibleDescription(
     /Another service already has this name/,

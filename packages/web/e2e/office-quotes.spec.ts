@@ -39,6 +39,33 @@ const describeNewHome = async (page: Page, street = "35-06 Ditmars Blvd") => {
   await page.getByRole("textbox", { name: "ZIP code" }).fill("11105");
 };
 
+test("Office Staff set a new caller's language, see it on their page, and change it", async ({
+  page,
+}) => {
+  await startNewQuote(page);
+  await page.getByRole("button", { name: "New client" }).click();
+  await page.getByRole("textbox", { name: "Full name" }).fill("Pat Phoner");
+  await page.getByRole("textbox", { name: "Phone" }).fill("(718) 555-0123");
+  await expect(page.getByRole("radio", { name: "English" })).toBeChecked();
+  await page.getByText("Español").click();
+  await chooseService(page);
+  await describeNewHome(page);
+  await page.getByRole("button", { name: "Draft a quote" }).click();
+  await expect(page).toHaveURL(/\/office\/quotes\/[0-9a-f-]{36}\/draft$/);
+
+  await page.getByRole("link", { name: "their client page" }).click();
+  const contact = page.getByRole("region", { name: "Contact details" });
+  await expect(contact).toContainText("Preferred languageEspañol");
+  await contact.getByRole("button", { name: "Edit" }).click();
+  const dialog = page.getByRole("dialog", { name: "Edit contact details" });
+  await expect(dialog.getByRole("radio", { name: "Español" })).toBeChecked();
+  await dialog.getByText("English").click();
+  await dialog.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Contact details saved")).toBeVisible();
+  await page.reload();
+  await expect(contact).toContainText("Preferred languageEnglish");
+});
+
 test(
   "Office Staff quote a new caller without an email, adding it before sending",
   { tag: ["@smoke", "@desktop"] },

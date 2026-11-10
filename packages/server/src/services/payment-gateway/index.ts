@@ -135,7 +135,7 @@ export interface PaymentGateway {
     // follow (ADR-0025)
     language: Language;
   }): Promise<{ payerId: string }>;
-  // the Client changed their Preferred Language
+  // the Client's Preferred Language changed, by them or the Office
   setPayerLanguage(payerId: string, language: Language): Promise<void>;
   // a browser form that only saves a Payment Method, taking nothing
   startCardForm(payerId: string): Promise<CardForm>;

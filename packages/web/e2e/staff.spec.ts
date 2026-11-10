@@ -376,6 +376,49 @@ test("Office Staff change someone's name and roles", async ({ page }) => {
   );
 });
 
+test("Office Staff invite a Cleaner in Spanish, whose area and invitation are in it, and change it on its own", async ({
+  page,
+  browser,
+}) => {
+  await signInAsOffice(page);
+  await goTo(page, "Staff");
+  await page.getByRole("button", { name: "Invite staff" }).click();
+  const invite = page.getByRole("dialog", { name: "Invite staff" });
+  await invite.getByRole("textbox", { name: "Name" }).fill(cory.name);
+  await invite.getByRole("textbox", { name: "Email" }).fill(cory.email);
+  await expect(invite.getByRole("radio", { name: "English" })).toBeChecked();
+  await invite.getByText("Español").click();
+  await invite.getByRole("button", { name: "Send invitation" }).click();
+  await expect(
+    page.getByText("Invitation sent to cory@example.com"),
+  ).toBeVisible();
+  const [invitation] = await emailsTo(cory.email);
+  expect(invitation!.subject).toBe("Te invitamos a unirte a Empire Cleaning");
+
+  await page.getByRole("row", { name: /Cory Cleaner/ }).click();
+  const details = page.getByRole("region", { name: "Details" });
+  await expect(details).toContainText("Español");
+
+  const corysBrowser = await browser.newContext();
+  const corysPage = await corysBrowser.newPage();
+  await signedInAs(corysPage, cory.email);
+  await expect(corysPage).toHaveURL("/cleaner");
+  await expect(corysPage.locator("html")).toHaveAttribute("lang", "es");
+
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  const edit = page.getByRole("dialog", { name: "Edit Cory Cleaner" });
+  await expect(edit.getByRole("radio", { name: "Español" })).toBeChecked();
+  await edit.getByText("English").click();
+  await edit.getByRole("button", { name: "Save changes" }).click();
+  await expect(page.getByText("Changes saved")).toBeVisible();
+  await page.reload();
+  await expect(details).toContainText("English");
+
+  await corysPage.reload();
+  await expect(corysPage.locator("html")).toHaveAttribute("lang", "en");
+  await corysBrowser.close();
+});
+
 test("Office Staff who don't clean have no availability to set", async ({
   page,
 }) => {

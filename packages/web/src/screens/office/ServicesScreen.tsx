@@ -338,12 +338,27 @@ function ServiceForm({
               onChange={(name) => set({ name })}
             />
             <TextField
+              label="Name in Spanish (optional)"
+              name="nameEs"
+              description="Shown to clients reading in Spanish. Left blank, they see the English."
+              value={draft.nameEs ?? ""}
+              onChange={(nameEs) => set({ nameEs })}
+            />
+            <TextField
               label="Description"
               name="description"
               description="A sentence or two clients see when they ask for it"
               multiline
               value={draft.description}
               onChange={(description) => set({ description })}
+            />
+            <TextField
+              label="Description in Spanish (optional)"
+              name="descriptionEs"
+              description="Shown to clients reading in Spanish. Left blank, they see the English."
+              multiline
+              value={draft.descriptionEs ?? ""}
+              onChange={(descriptionEs) => set({ descriptionEs })}
             />
             <SegmentedControl
               label="Offered for"

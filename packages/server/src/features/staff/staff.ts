@@ -6,6 +6,7 @@ import type {
   StaffInvitation,
   StaffMember,
   StaffRole,
+  Language,
 } from "@empire-cleaning/models";
 import {
   dayOf,
@@ -49,15 +50,31 @@ import { monitoring } from "../../services/monitoring/index.ts";
 
 const { formatWhen } = formats.en;
 
-type NewStaff = { email: string; name: string; roles: StaffRole[] };
+type NewStaff = {
+  email: string;
+  name: string;
+  roles: StaffRole[];
+  // English when not given (ADR-0025)
+  preferredLanguage?: Language;
+};
 
 // adds a Staff member (the Office's invitation and the owner setup script).
 // If someone has already signed up with this email, their Account is
 // connected straight away; otherwise it connects when they sign up.
-export const createStaff = async ({ email, name, roles }: NewStaff) => {
+export const createStaff = async ({
+  email,
+  name,
+  roles,
+  preferredLanguage,
+}: NewStaff) => {
   const [member] = await db
     .insert(staff)
-    .values({ email: email.trim().toLowerCase(), name, roles })
+    .values({
+      email: email.trim().toLowerCase(),
+      name,
+      roles,
+      preferredLanguage,
+    })
     .returning();
   await connectSignedUpAccount(member!.email);
 
@@ -74,6 +91,7 @@ const toMember = (member: Staff, imageUrl: string | null): StaffMember => ({
   active: member.active,
   signedUp: member.accountId !== null,
   imageUrl,
+  preferredLanguage: member.preferredLanguage,
   createdAt: member.createdAt.toISOString(),
 });
 
@@ -99,8 +117,9 @@ const sendInvitation = async (member: Staff) => {
   });
 };
 
-// Office Staff invite someone by email. Inviting a deactivated Staff member
-// again brings them back, with the name and roles given now.
+// Office Staff invite someone by email, the invitation in the language they
+// set for them. Inviting a deactivated Staff member again brings them back,
+// with the name, roles and language given now.
 export const inviteStaff = async (
   invitation: StaffInvitation,
 ): Promise<StaffMember> => {
@@ -118,7 +137,12 @@ export const inviteStaff = async (
   } else {
     [member] = (await db
       .update(staff)
-      .set({ name: invitation.name, roles: invitation.roles, active: true })
+      .set({
+        name: invitation.name,
+        roles: invitation.roles,
+        preferredLanguage: invitation.preferredLanguage ?? "en",
+        active: true,
+      })
       .where(eq(staff.id, existing.id))
       .returning()) as [Staff];
   }
@@ -173,12 +197,23 @@ const keepAnotherOffice = async (id: string, tx: Tx | typeof db = db) => {
   }
 };
 
-// Their name and roles, as the Office corrects them; their access follows
+// Their name, roles and language, as the Office corrects them, the language
+// on this record alone (ADR-0025: a person's own change writes every record
+// they are); their access follows
 // at once. The Office keeps an active member, and a Cleaner on the crew of a
 // Job to come keeps the role until they've let it go.
 export const editStaff = async (
   id: string,
-  { name, roles }: { name: string; roles: StaffRole[] },
+  {
+    name,
+    roles,
+    preferredLanguage,
+  }: {
+    name: string;
+    roles: StaffRole[];
+    // absent leaves it as it is
+    preferredLanguage?: Language;
+  },
 ) => {
   const { member, view } = await findStaff(id);
 
@@ -212,10 +247,15 @@ export const editStaff = async (
 
   const [updated] = await db
     .update(staff)
-    .set({ name, roles })
+    .set({ name, roles, preferredLanguage })
     .where(eq(staff.id, id))
     .returning();
-  return { ...view, name: updated!.name, roles: updated!.roles };
+  return {
+    ...view,
+    name: updated!.name,
+    roles: updated!.roles,
+    preferredLanguage: updated!.preferredLanguage,
+  };
 };
 
 /**
