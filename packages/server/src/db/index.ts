@@ -1,4 +1,3 @@
-import { timestamp } from "drizzle-orm/pg-core";
 import { poolOf, samplePool } from "./pool.ts";
 
 // A transaction holds one of these connections until it ends, so inside one,
@@ -24,11 +23,3 @@ export const samplePools = () => {
 
 // what db.transaction() hands its callback
 export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
-
-export const timestamps = {
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at")
-    .defaultNow()
-    .$onUpdate(() => new Date())
-    .notNull(),
-};

@@ -9,7 +9,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import type { StaffRole } from "@empire-cleaning/models";
-import { timestamps } from "../../db/index.ts";
+import { timestamps } from "../../db/timestamps.ts";
 import { accounts } from "../auth/auth.schema.ts";
 
 // a person working for Empire Cleaning. Created only by invitation (or the

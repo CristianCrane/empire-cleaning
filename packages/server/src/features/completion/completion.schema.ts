@@ -9,7 +9,7 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
-import { timestamps } from "../../db/index.ts";
+import { timestamps } from "../../db/timestamps.ts";
 import { accounts } from "../auth/auth.schema.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
 import { staff } from "../staff/staff.schema.ts";

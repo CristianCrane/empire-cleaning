@@ -8,7 +8,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { LANGUAGES } from "@empire-cleaning/models";
-import { timestamps } from "../../db/index.ts";
+import { timestamps } from "../../db/timestamps.ts";
 import { accounts } from "../auth/auth.schema.ts";
 
 // how a Client billed weekly pays each Bill: charged to their saved Payment

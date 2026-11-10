@@ -11,7 +11,7 @@ import {
   uuid,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
-import { timestamps } from "../../db/index.ts";
+import { timestamps } from "../../db/timestamps.ts";
 import { accounts } from "../auth/auth.schema.ts";
 import { billPayment, clients } from "../clients/clients.schema.ts";
 import { jobs } from "../jobs/jobs.schema.ts";

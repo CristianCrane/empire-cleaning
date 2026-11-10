@@ -10,7 +10,7 @@ import {
   uuid,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
-import { timestamps } from "../../db/index.ts";
+import { timestamps } from "../../db/timestamps.ts";
 import { clients } from "../clients/clients.schema.ts";
 
 export const propertyType = pgEnum("property_type", [

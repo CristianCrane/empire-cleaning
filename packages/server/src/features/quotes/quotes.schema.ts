@@ -17,7 +17,7 @@ import {
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import type { HomeRooms, PriceBreakdown } from "@empire-cleaning/models";
-import { timestamps } from "../../db/index.ts";
+import { timestamps } from "../../db/timestamps.ts";
 import { accounts } from "../auth/auth.schema.ts";
 import { jobs } from "../jobs/jobs.schema.ts";
 import { services } from "../services/services.schema.ts";
