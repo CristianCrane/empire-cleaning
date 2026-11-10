@@ -1945,7 +1945,7 @@ const sendTurnDownEmail = async (
 ) => {
   await email.send({
     to: client.email,
-    ...turnDownEmail({
+    ...turnDownEmail(client.preferredLanguage, {
       name: client.name,
       address: addressOf(property),
       quoteId,
@@ -1959,7 +1959,7 @@ const sendQuoteEmail = async (client: Client, quote: OfficeQuote) => {
   if (!client.email) return;
   await email.send({
     to: client.email,
-    ...quoteEmail({
+    ...quoteEmail(client.preferredLanguage, {
       name: client.name,
       email: client.email,
       quoteId: quote.id,

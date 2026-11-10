@@ -4,13 +4,14 @@ import {
   address,
   client,
   jobId,
+  lang,
   monday,
   settled,
   wednesday,
 } from "./samples.ts";
 
 export default preview(
-  planEndedEmail({
+  planEndedEmail(lang, {
     name: client.name,
     address,
     planId: jobId,

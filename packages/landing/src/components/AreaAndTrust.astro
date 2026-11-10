@@ -3,7 +3,7 @@ import { type Catalog, formats, languageOf } from "@empire-cleaning/models";
 import { Gem, MapPin, ShieldCheck, Users } from "lucide-react";
 import { areas, type Area } from "../areas/index.ts";
 import { card } from "../band.ts";
-import { businessWords } from "../business.ts";
+import { business } from "../business.ts";
 import { pathOf } from "../routes.ts";
 import { words } from "../words.ts";
 import Section from "./Section.astro";
@@ -33,9 +33,7 @@ const areaList = formats[lang]
     >
       <MapPin aria-hidden size={28} className="shrink-0 text-primary" />
       <div class="flex flex-col gap-1">
-        <h3 class="text-lg font-semibold">
-          {t.serving(businessWords[lang].area)}
-        </h3>
+        <h3 class="text-lg font-semibold">{t.serving(business.area[lang])}</h3>
         <p class="text-fg-muted">
           {areaList.map((part) =>
             "area" in part ? (

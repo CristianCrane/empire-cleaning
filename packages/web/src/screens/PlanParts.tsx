@@ -13,6 +13,7 @@ import {
   type EndPlanTerms,
   type ServicePlanView,
   catalog,
+  oneStop,
 } from "@empire-cleaning/models";
 import {
   ActionRow,
@@ -83,11 +84,15 @@ const words = catalog({
     paused: "Su plan está en pausa.",
     couldntTake: "No pudimos cobrar ",
     cancels: (cleans: number, hours: number, when: string) =>
-      `Cancela, sin cargo, ${cleans === 1 ? "su limpieza reservada" : `sus ${cleans} limpiezas reservadas`} a más de ${hours} horas: ${when}.`,
+      oneStop(
+        `Cancela, sin cargo, ${cleans === 1 ? "su limpieza reservada" : `sus ${cleans} limpiezas reservadas`} a más de ${hours} horas: ${when}.`,
+      ),
     goesAhead: (when: string, hours: number) =>
       `Su limpieza del ${when} es en menos de ${hours} horas, así que se hace igual.`,
     comesOff: (deposit: string, final: string) =>
-      `Su depósito de ${deposit} se descuenta del precio de la limpieza del ${final}.`,
+      oneStop(
+        `Su depósito de ${deposit} se descuenta del precio de la limpieza del ${final}.`,
+      ),
     refunded: (deposit: string) => `Le devolvemos su depósito de ${deposit}.`,
     goesTowards: (deposit: string, final: string) =>
       `Su depósito de ${deposit} se aplica a la limpieza del ${final}, y le devolvemos lo que no se deba.`,

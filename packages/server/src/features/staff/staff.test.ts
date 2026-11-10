@@ -157,7 +157,8 @@ describe("inviting Staff", () => {
     );
 
     expect(link.pathname).toBe("/sign-in");
-    expect(link.search).toBe("");
+    // nothing but the language its page opens in
+    expect(link.search).toBe("?lang=en");
   });
 
   test("needs a name, an email and at least one role", async () => {

@@ -276,6 +276,7 @@ test("refunds cannot exceed the original charge, and a repeated key repeats noth
 test("emails are captured by the fake sender", async () => {
   await email.send({
     to: "client@example.com",
+    lang: "en",
     subject: "Your Quote",
     blocks: [paragraph("hello")],
   });

@@ -48,8 +48,6 @@ export const businessWords = catalog({
     // what and where, in the page's heading, under the slogan
     heading:
       "House and office cleaning in Queens, Brooklyn, Manhattan and Long Island",
-    // the area served, as printed
-    area: shared.area as string,
     hours: "Mon–Sat, 8am–6pm",
   },
   es: {
@@ -58,7 +56,6 @@ export const businessWords = catalog({
       "Limpieza de casas, oficinas y después de obras en Queens, Brooklyn, Manhattan y Long Island. Pida una cotización en minutos.",
     heading:
       "Limpieza de casas y oficinas en Queens, Brooklyn, Manhattan y Long Island",
-    area: "Queens, NYC y Long Island",
     hours: "Lun–Sáb, 8 a.m.–6 p.m.",
   },
 });

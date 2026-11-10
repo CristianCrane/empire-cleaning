@@ -1,8 +1,9 @@
 import { signInEmail } from "../src/features/auth/emails.ts";
 import { preview } from "../src/services/email/preview.tsx";
+import { lang } from "./samples.ts";
 
 export default preview(
-  signInEmail({
-    url: "http://localhost:3000/api/auth/magic-link/verify?token=sample",
+  signInEmail(lang, {
+    path: "/sign-in/link?token=sample",
   }),
 );

@@ -126,3 +126,13 @@ export const formats: Catalog<Formats> = {
   en: formatsIn("en"),
   es: formatsIn("es"),
 };
+
+// a Spanish sentence with a time in it, from the server or a screen: es-US
+// writes "9:00 a.m.", so one that ends a sentence, or a plan's days before
+// one ends, takes no second stop ("a las 9:00 a.m.", not "a.m..")
+export const oneStop = (sentence: string) => sentence.replaceAll("..", ".");
+
+// the stop after what a screen shows on its own, such as a time in bold,
+// before the sentence goes on: none after one that ends in its own
+// ("9:00 a.m."), as oneStop does within a string
+export const stopAfter = (before: string) => (before.endsWith(".") ? "" : ".");

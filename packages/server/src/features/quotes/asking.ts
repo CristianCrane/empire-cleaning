@@ -553,7 +553,7 @@ const tellOfClash = async (client: Client, { property, why }: Clash) => {
   if (!client.email) return;
   await email.send({
     to: client.email,
-    ...askClashEmail({
+    ...askClashEmail(client.preferredLanguage, {
       name: client.name,
       email: client.email,
       address: addressOf(property),

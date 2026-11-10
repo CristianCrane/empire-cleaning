@@ -230,7 +230,7 @@ const tellClientBooked = async (job: Job, property: Property) => {
       .where(eq(clients.id, property.clientId));
     await email.send({
       to: client!.email,
-      ...planCleanBookedEmail({
+      ...planCleanBookedEmail(client!.preferredLanguage, {
         name: client!.name,
         jobId: job.id,
         clean: await cleanOf(job, property),

@@ -220,7 +220,7 @@ const tellClient = async (
   await notify(`End of Service Plan ${plan.id} notice`, () =>
     email.send({
       to: client.email,
-      ...planEndedEmail({
+      ...planEndedEmail(client.preferredLanguage, {
         name: client.name,
         address: addressOf(property),
         planId: plan.id,

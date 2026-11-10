@@ -8,7 +8,7 @@ export type Routing = {
   office: string;
 };
 
-type Addressed = { to: string; bcc?: string; subject: string };
+type Addressed = { to: string; subject: string };
 
 const patternOf = (allowed: string) =>
   new RegExp(
@@ -34,16 +34,12 @@ export const routeEmail = <M extends Addressed>(
     address.toLowerCase() === office.toLowerCase() ||
     patterns.some((pattern) => pattern.test(address));
 
-  const { bcc, ...rest } = message;
-  const copy = bcc !== undefined && allows(bcc) ? { bcc } : {};
-
   if (allows(message.to)) {
-    return { ...rest, ...copy, subject: `[TEST] ${message.subject}` } as M;
+    return { ...message, subject: `[TEST] ${message.subject}` };
   }
   return {
-    ...rest,
-    ...copy,
+    ...message,
     to: office,
     subject: `[TEST → ${message.to}] ${message.subject}`,
-  } as M;
+  };
 };

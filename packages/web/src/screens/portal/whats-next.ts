@@ -26,6 +26,7 @@ import {
   type QuoteSummary,
   type ServicePlanSummary,
   catalog,
+  oneStop,
   type Language,
 } from "@empire-cleaning/models";
 import type { StatusTone } from "@empire-cleaning/ui";
@@ -121,7 +122,9 @@ const words = catalog({
       `La factura ${n}, de ${amount}, vence el ${day}.`,
     payBill: "Pagar la factura",
     askedToMove: (day: string, to: string) =>
-      `Pidió reprogramar su limpieza del ${day} para el ${to}. Se la confirmaremos, normalmente en un día hábil.`,
+      oneStop(
+        `Pidió reprogramar su limpieza del ${day} para el ${to}. Se la confirmaremos, normalmente en un día hábil.`,
+      ),
     afterThat: (what: string, when: string) => `Después: ${what}, ${when}`,
     yourSiteVisit: "su visita previa",
     today: "Hoy",

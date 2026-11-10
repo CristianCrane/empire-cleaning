@@ -68,6 +68,7 @@ describe("signals", () => {
 
     const sending = email.send({
       to: "casey@example.com",
+      lang: "en",
       subject: "Hello",
       blocks: [paragraph("Hi")],
     });

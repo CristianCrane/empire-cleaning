@@ -1,5 +1,11 @@
 import { describe, expect, test } from "vitest";
-import { testPayments, signIn } from "../../../tests/harness.ts";
+import {
+  api,
+  emailedLinkFor,
+  signIn,
+  testEmail,
+  testPayments,
+} from "../../../tests/harness.ts";
 import { casey, guestAsk, submit } from "../../../tests/fixtures.ts";
 
 // A person's Preferred Language, as their own (ADR-0025, #303): the web app
@@ -52,5 +58,33 @@ describe("a person's own language", () => {
       .put("/api/me/language")
       .send({ language: "es" })
       .expect(204);
+  });
+});
+
+describe("the sign-in link's email", () => {
+  test("is in the language of the screen that asked, as is the page its link opens (#304)", async () => {
+    const ask = (language?: string) => {
+      const request = api().post("/api/auth/sign-in/magic-link");
+      if (language) request.set("Accept-Language", language);
+      return request
+        .send({ email: "new@example.com", callbackURL: "/" })
+        .expect(200);
+    };
+
+    await ask("es-MX");
+    const es = testEmail().lastTo("new@example.com");
+    expect(es.subject).toBe("Inicie sesión en Empire Cleaning");
+    expect(es.html).toMatch(/<html[^>]* lang="es"/);
+    expect(emailedLinkFor("new@example.com").searchParams.get("lang")).toBe(
+      "es",
+    );
+
+    await ask();
+    expect(testEmail().lastTo("new@example.com").subject).toBe(
+      "Sign in to Empire Cleaning",
+    );
+    expect(emailedLinkFor("new@example.com").searchParams.get("lang")).toBe(
+      "en",
+    );
   });
 });

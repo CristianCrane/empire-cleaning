@@ -17,7 +17,7 @@ import { db } from "#db";
 import { confirmAssignment, offerAssignment } from "#features/assignments";
 import { bills, chaseBills, makeDueBills } from "#features/bills";
 import { cancelJob } from "#features/cancellation";
-import { findClientByEmail } from "#features/clients";
+import { clients, findClientByEmail } from "#features/clients";
 import {
   adjustments,
   answerAdjustment,
@@ -848,6 +848,12 @@ describe("reminders and late Bills", () => {
       .to(BILLING_EMAIL)
       .map((m) => m.subject)
       .filter((s) => s.startsWith("Bill EC-000001 is"));
+  // the Office's own copies, in English
+  const officeCopies = () =>
+    testEmail()
+      .to("office@example.com")
+      .map((m) => m.subject)
+      .filter((s) => s.startsWith("Bill EC-000001 is"));
 
   test("a Bill paid on its page is reminded 3 days before it's due, on the day, and weekly while late, each once", async () => {
     const { office, clientId } = await billedJob({ payment: "on_page" });
@@ -874,7 +880,7 @@ describe("reminders and late Bills", () => {
     expect(before.text).toContain("Due by: Monday, January 26");
     expect(before.html).toContain(`/portal/bills/${id}`);
     // the Office is copied only once it's late
-    expect(before.bcc).toBeUndefined();
+    expect(officeCopies()).toEqual([]);
 
     testClock().set(at("2026-01-26"));
     await Promise.all([chaseBills(), chaseBills()]);
@@ -893,7 +899,7 @@ describe("reminders and late Bills", () => {
     expect(testEmail().lastTo(BILLING_EMAIL).subject).toBe(
       "Bill EC-000001 is overdue",
     );
-    expect(testEmail().lastTo(BILLING_EMAIL).bcc).toBe("office@example.com");
+    expect(officeCopies()).toEqual(["Bill EC-000001 is overdue"]);
     expect((await billOf(office, id)).unpaid).toEqual({
       since: "2026-01-27T05:00:00.000Z",
       kind: "late",
@@ -921,7 +927,11 @@ describe("reminders and late Bills", () => {
     expect(testEmail().lastTo(BILLING_EMAIL).subject).toBe(
       "Bill EC-000001 is overdue",
     );
-    expect(testEmail().lastTo(BILLING_EMAIL).bcc).toBe("office@example.com");
+    expect(officeCopies()).toEqual([
+      "Bill EC-000001 is overdue",
+      "Bill EC-000001 is overdue",
+      "Bill EC-000001 is overdue",
+    ]);
 
     // none once it's paid
     const client = await signIn(casey.email);
@@ -937,6 +947,30 @@ describe("reminders and late Bills", () => {
     testClock().set(at("2026-02-16"));
     expect(await chaseBills()).toBe(0);
     expect(reminders()).toHaveLength(5);
+  });
+
+  test("a late Bill reaches a Spanish-reading Client in Spanish, and the Office's copy in English (ADR-0025)", async () => {
+    const { clientId } = await billedJob({ payment: "on_page" });
+    await db
+      .update(clients)
+      .set({ preferredLanguage: "es" })
+      .where(eq(clients.id, clientId));
+    testClock().set(NEXT_MONDAY);
+    await makeDueBills();
+
+    testClock().set(at("2026-01-27", "06:00"));
+    await chaseBills();
+    testClock().set(at("2026-01-27"));
+    expect(await chaseBills()).toBe(1);
+
+    const theirs = testEmail().lastTo(BILLING_EMAIL);
+    expect(theirs.subject).toBe("La factura EC-000001 está vencida");
+    expect(theirs.html).toMatch(/<html[^>]* lang="es"/);
+    expect(theirs.text).toContain("vencía el lunes, 26 de enero");
+    const ours = testEmail().lastTo("office@example.com");
+    expect(ours.subject).toBe("Bill EC-000001 is overdue");
+    expect(ours.html).toMatch(/<html[^>]* lang="en"/);
+    expect(ours.text).toContain("was due by Monday, January 26");
   });
 
   test("a voided Bill, or one charged automatically, is never reminded", async () => {

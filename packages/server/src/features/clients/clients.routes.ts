@@ -41,7 +41,10 @@ router.patch(
     const change = await changeOwnEmail(client, details.email);
     await updateContactDetails(client.id, details);
     if (change) {
-      await email.send({ to: change.email, ...emailChangeEmail(change) });
+      await email.send({
+        to: change.email,
+        ...emailChangeEmail(client.preferredLanguage, change),
+      });
     }
     res.json(await clientView(client.id));
   },

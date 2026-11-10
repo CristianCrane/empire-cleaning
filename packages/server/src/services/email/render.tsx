@@ -25,8 +25,8 @@ const textOf = (block: Block, lang: Language) => {
 // footer after the usual "-- " signature line
 const emailText = (email: Email) =>
   [
-    ...email.blocks.map((block) => textOf(block, email.lang ?? "en")),
-    `-- \n${footerLine}`,
+    ...email.blocks.map((block) => textOf(block, email.lang)),
+    `-- \n${footerLine(email.lang)}`,
   ].join("\n\n");
 
 // logoUrl: where the logo PNG is served (logoUrlOn the landing site)

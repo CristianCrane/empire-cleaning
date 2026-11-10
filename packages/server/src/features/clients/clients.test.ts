@@ -311,6 +311,21 @@ describe("a Client changing their email", () => {
   const confirm = (token: string) =>
     api().post("/api/clients/email-changes/confirm").send({ token });
 
+  test("asks a Spanish-reading Client in Spanish, and its link opens in Spanish (#304)", async () => {
+    await submit(guestAsk()).set("Accept-Language", "es").expect(201);
+    const agent = await signIn(casey.email);
+
+    await changeEmail(agent, dana).expect(200);
+
+    const sent = testEmail().lastTo(dana);
+    expect(sent.subject).toBe("Confirme su nuevo correo");
+    const link = new URL(
+      sent.text.match(/https?:\/\/\S+\/confirm-email\?\S+/)![0],
+    );
+    expect(link.searchParams.get("lang")).toBe("es");
+    await confirm(link.searchParams.get("token")!).expect(200);
+  });
+
   test("keeps the old email until the link sent to the new one is opened", async () => {
     const agent = await asCasey();
 

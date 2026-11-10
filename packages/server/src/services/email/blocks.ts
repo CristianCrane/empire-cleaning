@@ -1,7 +1,5 @@
 import { catalog, type Language, formats } from "@empire-cleaning/models";
 
-const { formatMoney, formatWhen } = formats.en;
-
 // what every email is written from: a builder next to its feature returns
 // blocks, and the shared layout (layout.tsx) turns them into the HTML and the
 // text part. Pure, so the preview server can import builders without the
@@ -24,11 +22,10 @@ export type Block =
   | { kind: "button"; label: string; href: string };
 
 export type Email = {
-  // the language it's written in, for its `lang` and greeting: its
-  // reader's Preferred Language (ADR-0025). English where not given: every
-  // email but the Quote receipt is English until #304, through
-  // `messages.en` and `formats.en`
-  lang?: Language;
+  // the language it's written in, for its `lang`, greeting and footer: a
+  // Client's Preferred Language (ADR-0025); English to the Office, and to
+  // Cleaners until #305, through `messages.en` and `formats.en`
+  lang: Language;
   subject: string;
   // the inbox preview line; by default the first paragraph
   preview?: string;
@@ -49,15 +46,20 @@ export const paragraph = (text: string): Block => ({ kind: "paragraph", text });
 
 export const details = (rows: Row[]): Block => ({ kind: "details", rows });
 
-// amounts in cents, e.g. amounts([["Clean", 12000]], ["Total", 12000])
+// amounts in cents, as `lang` writes money, e.g. amounts("en", [["Clean",
+// 12000]], ["Total", 12000])
 export const amounts = (
+  lang: Language,
   rows: [label: string, cents: number][],
   [totalLabel, totalCents]: [label: string, cents: number],
-): Block => ({
-  kind: "amounts",
-  rows: rows.map(([label, cents]) => ({ label, value: formatMoney(cents) })),
-  total: { label: totalLabel, value: formatMoney(totalCents) },
-});
+): Block => {
+  const { formatMoney } = formats[lang];
+  return {
+    kind: "amounts",
+    rows: rows.map(([label, cents]) => ({ label, value: formatMoney(cents) })),
+    total: { label: totalLabel, value: formatMoney(totalCents) },
+  };
+};
 
 export const button = (label: string, href: string): Block => ({
   kind: "button",
@@ -68,26 +70,44 @@ export const button = (label: string, href: string): Block => ({
 // a Job or Site Visit, as the details of an email about it
 export type Clean = { service: string; address: string; startsAt: Date };
 
+// the labels of a clean's or a visit's details, in each language
+export const detailWords = catalog({
+  en: { WHEN: "When", WAS: "Was", WHERE: "Where", SERVICE: "Service" },
+  es: {
+    WHEN: "Cuándo",
+    WAS: "Antes",
+    WHERE: "Dónde",
+    SERVICE: "Servicio",
+  },
+});
+
 // When, Where and Service; `was` is the time a move took it from
 export const cleanDetails = (
+  lang: Language,
   { service, address, startsAt }: Clean,
   was?: Date,
-): Block =>
-  details([
-    { label: "When", value: formatWhen(startsAt) },
-    ...(was ? [{ label: "Was", value: formatWhen(was) }] : []),
-    { label: "Where", value: address },
-    { label: "Service", value: service },
+): Block => {
+  const w = detailWords[lang];
+  const { formatWhen } = formats[lang];
+  return details([
+    { label: w.WHEN, value: formatWhen(startsAt) },
+    ...(was ? [{ label: w.WAS, value: formatWhen(was) }] : []),
+    { label: w.WHERE, value: address },
+    { label: w.SERVICE, value: service },
   ]);
+};
 
-// a button's path made a full URL in the web app at `appUrl`
+// a button's path made a full URL in the web app at `appUrl`, saying the
+// email's language (`lang`), so the page it opens is in it before sign-in
+// too, as the landing site's links say theirs
 export const withAppUrl = (email: Email, appUrl: string): Email => ({
   ...email,
-  blocks: email.blocks.map((block) =>
-    block.kind === "button" && block.href.startsWith("/")
-      ? { ...block, href: `${appUrl.replace(/\/$/, "")}${block.href}` }
-      : block,
-  ),
+  blocks: email.blocks.map((block) => {
+    if (block.kind !== "button" || !block.href.startsWith("/")) return block;
+    const url = new URL(`${appUrl.replace(/\/$/, "")}${block.href}`);
+    url.searchParams.set("lang", email.lang);
+    return { ...block, href: url.toString() };
+  }),
 });
 
 export const previewOf = (email: Email) =>

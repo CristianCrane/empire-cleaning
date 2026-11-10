@@ -2050,8 +2050,9 @@ export const business = {
     href: "tel:+16463209076",
     e164: "+1-646-320-9076",
   },
-  // the area served, as printed (the landing site lists it in full)
-  area: "Queens, NYC and Long Island",
+  // the area served, as printed in each language (the landing site lists
+  // it in full). The Spanish is a draft the owner checks (#206)
+  area: { en: "Queens, NYC and Long Island", es: "Queens, NYC y Long Island" },
 } as const;
 
 // the languages people read the product in, and catalogs of words in each
