@@ -15,7 +15,8 @@ const words = catalog({
 });
 
 // An icon, a value and a muted line saying what it is: every fact's shape on
-// a details card, in even columns across. Put them in a dl. (UX pass, #96)
+// a details card, in even columns across, but the Office Job's, which leads
+// each with its label (LabelledFact, #406). Put them in a dl. (UX pass, #96)
 export function Fact({
   icon: Icon,
   label,

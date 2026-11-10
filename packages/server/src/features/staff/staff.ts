@@ -81,7 +81,7 @@ const toMember = (member: Staff, imageUrl: string | null): StaffMember => ({
 // more columns asked for, of a table joined after (a Job's crew, its
 // Assignments)
 export const selectStaff = <More extends SelectedFields>(
-  more: More = {} as More,
+  more: More,
   tx: Tx | typeof db = db,
 ) =>
   tx
@@ -135,7 +135,7 @@ export const inviteStaff = async (
 
 // everyone ever invited, active first, then by name
 export const listStaff = async (): Promise<StaffMember[]> => {
-  const rows = await selectStaff().orderBy(asc(staff.name));
+  const rows = await selectStaff({}).orderBy(asc(staff.name));
   return rows
     .map(({ member, imageUrl }) => toMember(member, imageUrl))
     .sort((a, b) => Number(b.active) - Number(a.active));

@@ -332,7 +332,7 @@ const placeOf = (p: OfficeJob["property"]) =>
 function JobFacts({ job }: { job: OfficeJob }) {
   return (
     <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
-      <Fact icon={ContactRound} label="Client">
+      <LabelledFact icon={ContactRound} label="Client">
         <Link
           href={linkTo({
             to: "/office/clients/$clientId",
@@ -341,8 +341,8 @@ function JobFacts({ job }: { job: OfficeJob }) {
         >
           {clientName(job.client)}
         </Link>
-      </Fact>
-      <Fact icon={MapPin} label="Home">
+      </LabelledFact>
+      <LabelledFact icon={MapPin} label="Home">
         <Link
           href={linkTo({
             to: "/office/properties/$propertyId",
@@ -351,33 +351,34 @@ function JobFacts({ job }: { job: OfficeJob }) {
         >
           {addressOf(job.property)}
         </Link>
-      </Fact>
-      <Fact icon={CirclePlus} label="Extras">
+      </LabelledFact>
+      <LabelledFact icon={CirclePlus} label="Extras">
         {job.addOns.length > 0 ? job.addOns.join(", ") : "None"}
-      </Fact>
-      <Fact icon={Clock} label="Cleaning hours">
+      </LabelledFact>
+      <LabelledFact icon={Clock} label="Cleaning hours">
         {formatHours(job.labourHours)}
-      </Fact>
-      <Fact icon={Users} label="Cleaners">
+      </LabelledFact>
+      <LabelledFact icon={Users} label="Cleaners">
         {job.crewSize}, {formatHours(job.hoursOnSite)} on site
-      </Fact>
+      </LabelledFact>
       {job.rescheduleTerms && (
-        <Fact icon={CalendarSync} label="Moving">
+        <LabelledFact icon={CalendarSync} label="Moving">
           Free until {formatDateTime(job.rescheduleTerms.freeUntil)}
-        </Fact>
+        </LabelledFact>
       )}
       {job.cancelTerms && (
-        <Fact icon={CalendarX} label="Cancelling">
+        <LabelledFact icon={CalendarX} label="Cancelling">
           Free for the client until{" "}
           {formatDateTime(job.cancelTerms.client.freeUntil)}
-        </Fact>
+        </LabelledFact>
       )}
     </dl>
   );
 }
 
-// one of the Job's facts: its icon and label, then its value
-function Fact({
+// one of the Job's facts: its icon and label, then its value (Fact.tsx's
+// shape leads with the value instead, under it what it is)
+function LabelledFact({
   icon: Icon,
   label,
   children,

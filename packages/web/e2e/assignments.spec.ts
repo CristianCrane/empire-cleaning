@@ -118,7 +118,8 @@ test("Office Staff take someone off a Job, leaving a Cleaner Needed", async ({
   const row = page
     .getByRole("grid", { name: "Crew" })
     .getByRole("row", { name: /Cory Cleaner/ });
-  await expect(row).toContainText("Taken off");
+  // its badge, not only the line under the name ("Taken off Jan 5")
+  await expect(row.getByText("Taken off", { exact: true })).toBeVisible();
   await expect(
     row.getByRole("button", { name: "Remove Cory Cleaner" }),
   ).toHaveCount(0);
