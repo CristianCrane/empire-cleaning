@@ -13,6 +13,7 @@ import {
   setLanguage,
   signedInAs,
   signInLinkFor,
+  showInMenu,
   signUp,
   test,
 } from "./harness.ts";
@@ -207,15 +208,12 @@ test("a Client reading in Spanish sees what a second late move costs", async ({
 // the other language, named in its own words, one press away: in the
 // sidebar on a larger screen, at the foot of the ☰ menu on a phone (#305)
 const pressLanguage = async (page: Page, name: string) => {
-  const button = page
-    .getByRole("button", { name, exact: true })
-    .filter({ visible: true });
-  const menu = page.getByRole("button", { name: /^(Menu|Menú)$/ });
-  await expect(button.or(menu).first()).toBeVisible();
-  if (!(await button.isVisible())) await menu.click();
-  await expect(button).toBeVisible();
+  const { item } = await showInMenu(
+    page,
+    page.getByRole("button", { name, exact: true }),
+  );
   await expectAccessible(page);
-  await button.click();
+  await item.click();
 };
 
 test("someone both a Client and a Cleaner changes their language in one press, and both areas follow", async ({

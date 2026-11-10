@@ -324,8 +324,9 @@ export const signedInAs = async (page: Page, email: string) => {
   await page.goto("/");
 };
 
-// the signed-in person's own Preferred Language, as Your details sets it
-// (ADR-0025): the portal shows it from the next page loaded
+// the signed-in person's own Preferred Language, as the other language's
+// button sets it (ADR-0025): the portal and the Cleaner area show it from the
+// next page loaded
 export const setLanguage = async (page: Page, language: "en" | "es") => {
   const res = await page.request.put("/api/me/language", {
     data: { language },
@@ -405,20 +406,28 @@ export const test = base.extend<{
   ],
 });
 
-// a section in the navigation, wherever it shows: on a phone most of the
-// Office's sit in its ☰ menu, which is opened first (#200). Whether it opened
-// it, so a check can close it again
-const showNavLink = async (page: Page, name: string) => {
-  const link = page
-    .getByRole("navigation")
-    .getByRole("link", { name, exact: true })
-    .filter({ visible: true });
-  const menu = page.getByRole("button", { name: "Menu" });
-  await expect(link.or(menu).first()).toBeVisible();
-  if (await link.isVisible()) return { link, opened: false };
+// something in the navigation or the account's parts, wherever it shows:
+// on a phone, sections that don't fit the tab bar (#200) and, in the portal
+// and the Cleaner area, the account's parts (#305) are in the ☰ menu, in
+// either language, which is opened first. Whether it opened it, so a check
+// can close it again
+export const showInMenu = async (page: Page, wanted: Locator) => {
+  const item = wanted.filter({ visible: true });
+  const menu = page.getByRole("button", { name: /^(Menu|Menú)$/ });
+  await expect(item.or(menu).first()).toBeVisible();
+  if (await item.isVisible()) return { item, opened: false };
   await menu.click();
-  await expect(link).toBeVisible();
-  return { link, opened: true };
+  await expect(item).toBeVisible();
+  return { item, opened: true };
+};
+
+// a section in the navigation, wherever it shows
+const showNavLink = async (page: Page, name: string) => {
+  const { item, opened } = await showInMenu(
+    page,
+    page.getByRole("navigation").getByRole("link", { name, exact: true }),
+  );
+  return { link: item, opened };
 };
 
 // goes to a section through the navigation
@@ -432,13 +441,14 @@ export const goTo = async (page: Page, name: string) => {
 // else on a phone in the portal and the Cleaner area the ☰ menu, whose foot
 // holds it (#305)
 export const openAccount = async (page: Page, name: string) => {
-  const account = page
-    .getByRole("button", { name, exact: true })
-    .filter({ visible: true });
-  const menu = page.getByRole("button", { name: "Menu" });
-  await expect(account.or(menu).first()).toBeVisible();
-  if (await account.isVisible()) await account.click();
-  else await menu.click();
+  const { item, opened } = await showInMenu(
+    page,
+    page
+      .getByRole("button", { name, exact: true })
+      .or(page.getByRole("dialog").getByText(name, { exact: true })),
+  );
+  // the ☰ menu's foot is on screen; the Account menu is pressed open
+  if (!opened) await item.click();
 };
 
 // the way into another area in the open Account menu (a row) or ☰ menu (a
