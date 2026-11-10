@@ -189,7 +189,7 @@ test("a service page's only JavaScript is the theme toggle, the Quote form and t
       .evaluateAll((all) =>
         all.map((i) => i.getAttribute("component-export") ?? "").sort(),
       ),
-  ).toEqual(["QuoteForm", "ThemeToggle"]);
+  ).toEqual(["QuoteForm", "ThemeToggleIn"]);
 });
 
 test("the home page's service cards lead to their pages, all but Custom cleaning", async ({
