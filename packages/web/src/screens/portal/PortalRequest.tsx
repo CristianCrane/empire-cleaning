@@ -7,13 +7,12 @@ import {
   Link,
   Notice,
   showToast,
-  useLanguage,
 } from "@empire-cleaning/ui";
-import { catalog, messages } from "@empire-cleaning/models";
+import { catalog } from "@empire-cleaning/models";
+import { useSaid } from "../words.ts";
 import { linkTo } from "../../links.ts";
 import { addressOf } from "../format.ts";
 import { quoteRequested } from "../QuoteParts.tsx";
-import { portalWords } from "./words.ts";
 
 const words = catalog({
   en: {
@@ -31,9 +30,7 @@ export function PortalRequest() {
   const client = useLoaderData({ from: "/portal/request" });
   const navigate = useNavigate();
   const router = useRouter();
-  const lang = useLanguage();
-  const w = words[lang];
-  const { REQUEST_A_QUOTE } = messages[lang];
+  const { w, lang, p, REQUEST_A_QUOTE } = useSaid(words);
   // their open Quotes are pointed to, and a home can't be asked about for a
   // Service one of them would overlap
   const open = client.quotes.filter(
@@ -44,7 +41,7 @@ export function PortalRequest() {
     <div className="flex flex-col gap-4">
       <Breadcrumbs
         trail={[
-          { label: portalWords[lang].home, href: linkTo({ to: "/portal" }) },
+          { label: p.home, href: linkTo({ to: "/portal" }) },
           { label: REQUEST_A_QUOTE },
         ]}
       />

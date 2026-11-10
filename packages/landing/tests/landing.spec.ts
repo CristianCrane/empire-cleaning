@@ -653,7 +653,7 @@ test("the only JavaScript is the theme toggle, the Quote form and the reviews' b
     await islands.evaluateAll((all) =>
       all.map((i) => i.getAttribute("component-export") ?? "").sort(),
     ),
-  ).toEqual(["QuoteForm", "ThemeToggle"]);
+  ).toEqual(["QuoteForm", "ThemeToggleIn"]);
 });
 
 test("a chosen theme applies straight away and is remembered", async ({
@@ -662,7 +662,7 @@ test("a chosen theme applies straight away and is remembered", async ({
   await page.goto("/");
   // the toggle hydrates once the browser is idle; Astro drops "ssr" when it has
   await expect(
-    page.locator(`astro-island[component-export="ThemeToggle"]`),
+    page.locator(`astro-island[component-export="ThemeToggleIn"]`),
   ).not.toHaveAttribute("ssr");
   await page.getByRole("button", { name: "Dark theme" }).click();
 

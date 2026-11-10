@@ -194,6 +194,8 @@ test("a Client changes their language on Your details, and the portal follows", 
   await dialog.getByRole("button", { name: "Save details" }).click();
 
   await expect(dialog).toBeHidden();
+  // said in the language just chosen
+  await expect(page.getByText("Datos guardados")).toBeVisible();
   await expect(
     page.getByRole("heading", { level: 1, name: "Sus datos" }),
   ).toBeVisible();

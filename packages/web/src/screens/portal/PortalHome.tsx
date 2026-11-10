@@ -11,7 +11,8 @@ import {
   ShortcutTiles,
   useLanguage,
 } from "@empire-cleaning/ui";
-import { catalog, messages } from "@empire-cleaning/models";
+import { catalog } from "@empire-cleaning/models";
+import { useSaid } from "../words.ts";
 import { linkTo } from "../../links.ts";
 import { QuoteIcon } from "../icons.ts";
 import { requestQuoteHref, whatsNext, type Hero } from "./whats-next.ts";
@@ -35,7 +36,7 @@ const words = catalog({
 export function PortalHome() {
   const data = useLoaderData({ from: "/portal/" });
   const lang = useLanguage();
-  const w = words[lang];
+  const { w, REQUEST_A_QUOTE } = useSaid(words);
   const { notices, news, hero, after, shortcuts } = whatsNext(data, lang);
   const [firstName] = data.client.name.split(" ");
   // the hero asking for a Quote makes the header's Button a repeat
@@ -48,7 +49,7 @@ export function PortalHome() {
         {!heroAsks && (
           <ButtonLink variant="secondary" href={requestQuoteHref}>
             <QuoteIcon aria-hidden size={18} />
-            {messages[lang].REQUEST_A_QUOTE}
+            {REQUEST_A_QUOTE}
           </ButtonLink>
         )}
       </div>

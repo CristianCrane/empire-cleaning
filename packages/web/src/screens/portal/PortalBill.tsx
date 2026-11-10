@@ -37,7 +37,6 @@ const words = catalog({
     payBelow: (fix: string) => `Please pay it below, or ${fix}.`,
     pleasePay: (amount: string, day: string) =>
       `Please pay ${amount} by ${day}.`,
-    didntWork: "That didn't work. Please try again.",
     bankOnWay: "Your bank payment is on its way",
     paid: "Thank you, your bill is paid",
     payThis: "Pay this bill",
@@ -57,7 +56,6 @@ const words = catalog({
     payBelow: (fix: string) => `Páguela abajo, o ${fix}.`,
     pleasePay: (amount: string, day: string) =>
       `Pague ${amount} antes del ${day}.`,
-    didntWork: "No funcionó. Vuelva a intentarlo.",
     bankOnWay: "Su pago bancario está en camino",
     paid: "Gracias, su factura está pagada",
     payThis: "Pagar esta factura",
@@ -170,7 +168,7 @@ function Standing({ bill }: { bill: BillView }) {
 function PayBill({ bill }: { bill: BillView }) {
   const t = useSaid(words);
   const payment = useBillPaymentForm(bill.id);
-  const action = useAction(t.w.didntWork);
+  const action = useAction(t.p.didntWork);
 
   const pay = () =>
     action.run(

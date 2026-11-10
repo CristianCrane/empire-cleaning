@@ -35,7 +35,6 @@ const words = catalog({
     latest: "Latest payments",
     seeAll: (n: number) => `See all ${n} payments`,
     paymentsIn: (month: string) => `Payments, ${month}`,
-    showMore: "Show more",
     clearing: "Clearing",
   },
   es: {
@@ -50,7 +49,6 @@ const words = catalog({
     latest: "Últimos pagos",
     seeAll: (n: number) => `Ver los ${n} pagos`,
     paymentsIn: (month: string) => `Pagos, ${month}`,
-    showMore: "Mostrar más",
     clearing: "En proceso",
   },
 });
@@ -186,7 +184,7 @@ function Statement({ history }: { history: ClientPayment[] }) {
           className="self-center"
           onPress={() => setShown(shown + PAGE)}
         >
-          {t.w.showMore}
+          {t.p.showMore}
         </Button>
       )}
     </div>

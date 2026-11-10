@@ -45,9 +45,6 @@ import { JobStatusBadge } from "../JobBadges.tsx";
 // in the Client's language (ADR-0025)
 const words = catalog({
   en: {
-    yourCleans: "Your cleans",
-    unpaid: "Unpaid",
-    done: "Done",
     details: "Clean details",
     partOfPlan: "Part of your cleaning plan",
     oneOff: "One-off clean",
@@ -96,8 +93,6 @@ const words = catalog({
     askedTo: "You've asked to move it to",
     held: (when: string) =>
       `. That time is held for you while we confirm it. Until then, your clean stays booked for ${when}.`,
-    anotherTime: "Need another time?",
-    pickNew: "Pick a new time",
     sent: "Request sent",
     couldntMove: (when: string) => `We couldn't move it to ${when}.`,
     moveFreeUntil: "You can move it for free until",
@@ -106,7 +101,6 @@ const words = catalog({
     refunding: (amount: string, card: string) =>
       `We're refunding ${amount} to your ${card}.`,
     card: "card",
-    seePlan: "See your cleaning plan",
     sorry: "We're sorry, we had to cancel this clean.",
     notCharged: "You haven't been charged anything for it.",
     couldntGetIn: "We couldn't get in",
@@ -116,7 +110,6 @@ const words = catalog({
       `${carriesOn} Before your next clean, please `,
     beforeBooking: "Before booking again, please ",
     checkGetIn: "check how we get in",
-    paymentNeeded: "Payment needed.",
     answerNotSaved: "Your answer wasn't saved. Please try again.",
     approved: "Approved",
     declined: "Declined",
@@ -147,9 +140,6 @@ const words = catalog({
       `The rest, ${amount}, goes on your weekly bill.`,
   },
   es: {
-    yourCleans: "Sus limpiezas",
-    unpaid: "Sin pagar",
-    done: "Terminada",
     details: "Detalles de la limpieza",
     partOfPlan: "Parte de su plan de limpieza",
     oneOff: "Una sola limpieza",
@@ -200,8 +190,6 @@ const words = catalog({
     askedTo: "Pidió reprogramarla para el",
     held: (when: string) =>
       `. Le guardamos esa hora mientras la confirmamos. Hasta entonces, su limpieza sigue reservada para el ${when}.`,
-    anotherTime: "¿Necesita otra hora?",
-    pickNew: "Elegir otra hora",
     sent: "Solicitud enviada",
     couldntMove: (when: string) => `No pudimos reprogramarla para el ${when}.`,
     moveFreeUntil: "Puede reprogramarla sin cargo hasta el",
@@ -210,7 +198,6 @@ const words = catalog({
     refunding: (amount: string, card: string) =>
       `Le estamos devolviendo ${amount} a su ${card}.`,
     card: "tarjeta",
-    seePlan: "Ver su plan de limpieza",
     sorry: "Lo sentimos, tuvimos que cancelar esta limpieza.",
     notCharged: "No se le cobró nada por ella.",
     couldntGetIn: "No se pudo entrar",
@@ -220,7 +207,6 @@ const words = catalog({
       `${carriesOn} Antes de su próxima limpieza, por favor `,
     beforeBooking: "Antes de reservar de nuevo, por favor ",
     checkGetIn: "revise cómo entramos",
-    paymentNeeded: "Hay un pago pendiente.",
     answerNotSaved: "No se guardó su respuesta. Vuelva a intentarlo.",
     approved: "Aprobado",
     declined: "Rechazado",
@@ -267,16 +253,18 @@ export function PortalJob() {
       <div className="flex flex-col gap-4">
         <Breadcrumbs
           trail={[
-            { label: t.w.yourCleans, href: linkTo({ to: "/portal/cleans" }) },
+            { label: t.p.yourCleans, href: linkTo({ to: "/portal/cleans" }) },
             { label: t.formatDateTime(job.startsAt) },
           ]}
         />
         <div className="flex flex-wrap items-center gap-3">
           <Heading level={1}>{job.serviceName}</Heading>
           {completion?.payment.unpaid ? (
-            <StatusBadge tone="danger">{t.w.unpaid}</StatusBadge>
+            <StatusBadge tone="danger">{t.unpaid}</StatusBadge>
           ) : completion ? (
-            <StatusBadge tone="success">{t.w.done}</StatusBadge>
+            <StatusBadge tone="success">
+              {t.jobStatusLabel.completed}
+            </StatusBadge>
           ) : job.cancellation ? (
             <StatusBadge>{t.cancelledLabel(wasSkipped(job))}</StatusBadge>
           ) : job.noAccess ? (
@@ -616,13 +604,13 @@ function Reschedule({ job }: { job: ClientJobDetail }) {
   if (!terms) return null;
   return (
     <ActionCard
-      title={t.w.anotherTime}
+      title={t.p.anotherTime}
       actions={
         <ChooseNewTime
           job={job}
           terms={terms}
           base={`/api/jobs/mine/${job.id}`}
-          label={t.w.pickNew}
+          label={t.pickNewTime}
           describeCost={(cost, feeCents) =>
             costForClient(t.lang, cost, feeCents, job)
           }
@@ -676,7 +664,7 @@ function WhatNext({ job }: { job: ClientJobDetail }) {
         params: { planId: job.servicePlanId },
       })}
     >
-      {t.w.seePlan}
+      {t.p.seeYourCleaningPlan}
     </ButtonLink>
   ) : (
     <ButtonLink href={requestQuoteHref}>{t.REQUEST_A_QUOTE}</ButtonLink>
@@ -776,7 +764,7 @@ function Unpaid({ payment }: { payment: JobPayment }) {
       }
     >
       <p>
-        <strong>{t.w.paymentNeeded}</strong>{" "}
+        <strong>{t.p.paymentNeeded}</strong>{" "}
         {t.notTaken(
           t.formatMoney(payment.owedCents),
           kind === "no_card" ? null : (payment.paymentMethod ?? t.w.card),

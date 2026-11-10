@@ -23,12 +23,15 @@ export const said = { en: saidIn("en"), es: saidIn("es") };
 
 export type Said = (typeof said)["en"];
 
-// a screen's own words (`w`) and the rest of what it says, in the language
-// it's shown in
-export const useSaid = <T>(words: Catalog<T>) => {
-  const lang = useLanguage();
-  return { ...said[lang], w: words[lang] };
-};
+// a screen's own words (`w`) and the rest of what it says, in one
+// language: for what a screen works out outside React (whats-next.ts)
+export const saidWith = <T>(lang: Language, words: Catalog<T>) => ({
+  ...said[lang],
+  w: words[lang],
+});
+
+// the same, in the language the screen is shown in
+export const useSaid = <T>(words: Catalog<T>) => saidWith(useLanguage(), words);
 
 // the rest of what a screen says, for a part with no words of its own
 export const useShared = () => said[useLanguage()];

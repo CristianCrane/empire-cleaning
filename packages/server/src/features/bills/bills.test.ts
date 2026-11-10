@@ -17,7 +17,7 @@ import { db } from "#db";
 import { confirmAssignment, offerAssignment } from "#features/assignments";
 import { bills, chaseBills, makeDueBills } from "#features/bills";
 import { cancelJob } from "#features/cancellation";
-import { clients, findClientByEmail } from "#features/clients";
+import { findClientByEmail } from "#features/clients";
 import {
   adjustments,
   answerAdjustment,
@@ -193,23 +193,6 @@ describe("weekly billing settings", () => {
 });
 
 describe("making Bills", () => {
-  test("words its lines in its Client's Preferred Language (ADR-0025)", async () => {
-    const { office, clientId } = await billedJob();
-    await db
-      .update(clients)
-      .set({ preferredLanguage: "es" })
-      .where(eq(clients.id, clientId));
-
-    testClock().set(NEXT_MONDAY);
-    await makeDueBills();
-    const [summary] = await billsOf(office, clientId);
-    const bill = await billOf(office, summary!.id);
-    expect(bill.lines.map((l) => l.label)).toEqual([
-      expect.stringMatching(/^Deep Clean en 41-12 Austin St/),
-      expect.stringMatching(/^Depósito pagado: Deep Clean en /),
-    ]);
-  });
-
   test("a completed Job charges nothing, and goes on Monday's Bill less its Deposit, charged then", async () => {
     const { office, clientId, priceCents, depositCents } = await billedJob();
     // only the Deposit has been taken

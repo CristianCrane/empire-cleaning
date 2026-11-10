@@ -8,13 +8,11 @@ import { useSaid } from "./words.ts";
 const words = catalog({
   en: {
     floorArea: "Floor area",
-    notKnown: "Not known yet",
     condition: "Condition",
     notAdded: "Not added yet",
   },
   es: {
     floorArea: "Superficie",
-    notKnown: "Aún no se sabe",
     condition: "Estado",
     notAdded: "Aún no se agregó",
   },
@@ -69,7 +67,7 @@ export function FloorAreaFact({
       label={t.w.floorArea}
       value={
         property.floorArea === null
-          ? t.w.notKnown
+          ? t.notKnownYet
           : t.formatFloorArea(property.floorArea)
       }
     />

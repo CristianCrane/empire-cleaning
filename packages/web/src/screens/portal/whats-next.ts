@@ -26,7 +26,6 @@ import {
   type QuoteSummary,
   type ServicePlanSummary,
   catalog,
-  formats,
   type Language,
 } from "@empire-cleaning/models";
 import type { StatusTone } from "@empire-cleaning/ui";
@@ -38,7 +37,7 @@ import {
   formatHours,
   formatMinutes,
 } from "../format.ts";
-import { said } from "../words.ts";
+import { saidWith } from "../words.ts";
 
 // Home's words, in the Client's language (ADR-0025)
 const words = catalog({
@@ -64,7 +63,6 @@ const words = catalog({
     partOfPlan: (often: string) => `Part of your cleaning plan, ${often}`,
     crewOnSite: (cleaners: string, hours: string) =>
       `${cleaners}, about ${hours} on site`,
-    seeClean: "See the clean",
     siteVisit: "Your site visit",
     comesToSee: (visitor: string, address: string, length: string) =>
       `${visitor} comes to see ${address} for about ${length}`,
@@ -89,14 +87,12 @@ const words = catalog({
       `${service} at ${address}, asked ${day}`,
     emailIt: (withinADay: string) =>
       `We'll email it to you, ${withinADay}, and it shows here.`,
-    nextShowsHere: "Your next clean shows here once it's booked.",
     expired: "Your quote expired",
     wasOpenUntil: (day: string) =>
       `It was open until ${day}. Ask again and we'll price it afresh.`,
     askAgain: "Ask again and we'll price it afresh.",
     couldntTake: "We couldn't take this one on",
     sorry: "Sorry, we can't take this one on",
-    nothingBooked: "Nothing booked",
     changedMind: "Changed your mind?",
     declined: (service: string) =>
       `You declined our quote for ${service}. Ask for a new one any time.`,
@@ -137,7 +133,6 @@ const words = catalog({
     partOfPlan: (often: string) => `Parte de su plan de limpieza, ${often}`,
     crewOnSite: (cleaners: string, hours: string) =>
       `${cleaners}, unas ${hours} en el lugar`,
-    seeClean: "Ver la limpieza",
     siteVisit: "Su visita previa",
     comesToSee: (visitor: string, address: string, length: string) =>
       `${visitor} va a ver ${address} durante unos ${length}`,
@@ -162,14 +157,12 @@ const words = catalog({
       `${service} en ${address}, pedida el ${day}`,
     emailIt: (withinADay: string) =>
       `Se la enviaremos por correo, ${withinADay}, y aparecerá aquí.`,
-    nextShowsHere: "Su próxima limpieza aparecerá aquí cuando esté reservada.",
     expired: "Su cotización venció",
     wasOpenUntil: (day: string) =>
       `Estuvo abierta hasta el ${day}. Pídala de nuevo y le daremos un precio nuevo.`,
     askAgain: "Pídala de nuevo y le daremos un precio nuevo.",
     couldntTake: "No pudimos aceptar este trabajo",
     sorry: "Lo sentimos, no podemos aceptar este trabajo",
-    nothingBooked: "Nada reservado",
     changedMind: "¿Cambió de opinión?",
     declined: (service: string) =>
       `Rechazó nuestra cotización de ${service}. Pida una nueva cuando quiera.`,
@@ -190,14 +183,7 @@ const words = catalog({
   },
 });
 
-// all a language's words for Home
-const inLanguage = (lang: Language) => ({
-  ...said[lang],
-  w: words[lang],
-  // "Tue, Oct 20" for an instant, New York's day
-  dayOf: (iso: string) => formats[lang].formatDay(dayOfInstant(iso)),
-});
-type Said = ReturnType<typeof inLanguage>;
+type Said = ReturnType<typeof saidWith<(typeof words)["en"]>>;
 
 // The Client's Home answers one question: what's next. Its hero is the
 // soonest thing booked, or, with nothing booked, where they stand with us;
@@ -282,7 +268,7 @@ export function whatsNext(
   lang: Language,
   now = new Date(),
 ): WhatsNext {
-  const t = inLanguage(lang);
+  const t = saidWith(lang, words);
   const { w, dayOf, formatDateTime, formatDay, formatMoney } = t;
   const booked: Booked[] = [
     ...data.jobs.map((job) => ({
@@ -421,7 +407,7 @@ function heroOf(data: HomeData, t: Said, ctx: Context): Hero {
         ...(plan ? [w.partOfPlan(t.recurrence[plan.recurrence])] : []),
         w.crewOnSite(t.cleaners(job.crewSize), formatHours(job.hoursOnSite)),
       ],
-      action: { label: w.seeClean, href: jobLink(job.id) },
+      action: { label: t.p.seeTheClean, href: jobLink(job.id) },
     };
   }
 
@@ -524,7 +510,7 @@ function heroOf(data: HomeData, t: Said, ctx: Context): Hero {
       icon: Repeat,
       tone: "info",
       headline: t.planName(plan),
-      lines: [w.nextShowsHere],
+      lines: [t.p.nextShowsHere],
       action: { label: t.p.seeYourPlan, href: planLink(plan.id) },
     };
   }
@@ -557,7 +543,7 @@ function heroOf(data: HomeData, t: Said, ctx: Context): Hero {
   }
   if (last?.status === "declined") {
     return {
-      label: w.nothingBooked,
+      label: t.p.nothingBooked,
       icon: CalendarDays,
       tone: "info",
       headline: w.changedMind,
@@ -568,7 +554,7 @@ function heroOf(data: HomeData, t: Said, ctx: Context): Hero {
   const latest = data.pastJobs.find((j) => j.status === "completed");
   if (last || latest) {
     return {
-      label: w.nothingBooked,
+      label: t.p.nothingBooked,
       icon: CalendarDays,
       tone: "info",
       headline: w.wantUsBack,

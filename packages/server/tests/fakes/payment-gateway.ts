@@ -412,9 +412,7 @@ export class FakePaymentGateway implements PaymentGateway {
     this.check();
     const card = this.forms.get(token);
     if (!card) {
-      throw new PaymentMethodError(
-        "Your card wasn't set up. Please enter it again.",
-      );
+      throw new PaymentMethodError(`no test form ${token}`);
     }
     this.forms.delete(token);
     return this.save(payerId, card);

@@ -26,7 +26,6 @@ const words = catalog({
     about:
       "We take a deposit from this card when you book. Each clean is charged to it when it's done, or goes on your weekly bill if you have one. If a payment didn't go through, saving a card here tries it again.",
     tryAgain: "Try this card again",
-    paymentNeeded: "Payment needed.",
     forClean: (amount: string, day: string, more: number) =>
       `${amount} for your ${day} clean${more > 0 ? `, and ${more} more,` : ""}`,
     tryOrSave: "Try it again, or save a different card below.",
@@ -34,7 +33,6 @@ const words = catalog({
     isSaved: (card: string, day: string) =>
       `Your ${card} is saved (since ${day}).`,
     noneYet: "You haven't saved a card yet.",
-    different: "Use a different card",
     add: "Add a card",
     save: "Save card",
   },
@@ -46,7 +44,6 @@ const words = catalog({
     about:
       "Cobramos un depósito de esta tarjeta cuando reserva. Cada limpieza se cobra a ella cuando está terminada, o va en su factura semanal si tiene una. Si un pago no pasó, guardar una tarjeta aquí lo vuelve a intentar.",
     tryAgain: "Volver a intentar con esta tarjeta",
-    paymentNeeded: "Hay un pago pendiente.",
     forClean: (amount: string, day: string, more: number) =>
       `${amount} de su limpieza del ${day}${more > 0 ? `, y ${more} más,` : ""}`,
     tryOrSave: "Vuelva a intentarlo, o guarde otra tarjeta abajo.",
@@ -54,7 +51,6 @@ const words = catalog({
     isSaved: (card: string, day: string) =>
       `Su ${card} está guardada (desde el ${day}).`,
     noneYet: "Aún no ha guardado una tarjeta.",
-    different: "Usar otra tarjeta",
     add: "Agregar una tarjeta",
     save: "Guardar tarjeta",
   },
@@ -116,7 +112,7 @@ export function PortalPaymentMethod() {
           }
         >
           <p>
-            <strong>{t.w.paymentNeeded}</strong>{" "}
+            <strong>{t.p.paymentNeeded}</strong>{" "}
             {t.notTaken(
               t.w.forClean(
                 t.formatMoney(owed),
@@ -137,7 +133,7 @@ export function PortalPaymentMethod() {
         <Notice>{t.w.noneYet}</Notice>
       )}
 
-      <Section title={saved ? t.w.different : t.w.add}>
+      <Section title={saved ? t.p.differentCard : t.w.add}>
         <Card>
           {card.field}
           <ConsentNote action="saving" />

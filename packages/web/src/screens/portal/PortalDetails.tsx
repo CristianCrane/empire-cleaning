@@ -46,7 +46,6 @@ import { standingOf } from "./properties.ts";
 const words = catalog({
   en: {
     premises: "Your premises",
-    home: "Your home",
     homes: "Your homes",
     contact: "Contact details",
     emailed: (email: string) =>
@@ -73,7 +72,6 @@ const words = catalog({
   },
   es: {
     premises: "Su negocio",
-    home: "Su casa",
     homes: "Sus casas",
     contact: "Datos de contacto",
     emailed: (email: string) =>
@@ -115,7 +113,7 @@ export function PortalDetails() {
   const homes = business
     ? w.premises
     : client.properties.length === 1
-      ? w.home
+      ? t.p.yourHome
       : w.homes;
 
   return (
@@ -223,11 +221,12 @@ function EditContact({ client }: { client: ClientView }) {
         }
         return saved;
       },
-      // a new email is theirs once they open the link sent to it (#243)
+      // a new email is theirs once they open the link sent to it (#243);
+      // said in the language they chose, which the page turns to
       (saved) =>
         saved.pendingEmail && saved.pendingEmail !== client.pendingEmail
-          ? w.checkFor(saved.pendingEmail)
-          : w.saved,
+          ? words[language].checkFor(saved.pendingEmail)
+          : words[language].saved,
     );
     if (ok) close();
   };

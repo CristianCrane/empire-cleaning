@@ -32,7 +32,6 @@ import {
   timeOf,
   catalog,
   formats,
-  type Language,
   messages,
 } from "@empire-cleaning/models";
 import { db, type Tx } from "../../db/index.ts";
@@ -89,36 +88,15 @@ import { log, monitoring } from "../../services/monitoring/index.ts";
 // the emails' words, English until #304
 const { BOOKED_GO_AHEAD, PLAN_BACK_ON, PLAN_PAUSED } = messages.en;
 
-// A Bill's lines are a record, worded as they're made in their Client's
-// Preferred Language (ADR-0025)
-const lineWords = catalog({
-  en: {
-    what: (service: string, address: string, when: string) =>
-      `${service} at ${address}, ${when}`,
-    floor: "The price can't go below $0",
-    depositPaid: "Deposit paid",
-    alreadyPaid: "Already paid",
-    corrected: "Corrected",
-    creditFrom: (bill: string) => `Credit from ${bill}`,
-  },
-  es: {
-    what: (service: string, address: string, when: string) =>
-      `${service} en ${address}, ${when}`,
-    floor: "El precio no puede bajar de $0",
-    depositPaid: "Depósito pagado",
-    alreadyPaid: "Ya pagado",
-    corrected: "Corregido",
-    creditFrom: (bill: string) => `Crédito de la factura ${bill}`,
-  },
-});
+// A Bill's lines are a record, in English for now: the Office reads them
+// too, and their Client's Spanish waits for them being worded as they're
+// read (#395)
+const { adjustmentLabel, feeName, LATE_MOVE_FEE } = messages.en;
+const { formatWhen } = formats.en;
 
 // what a Job is, as its lines on a Bill name it, before what each line is
-const whatOf = async (lang: Language, job: Job, property: Property) =>
-  lineWords[lang].what(
-    await serviceNameOf(job.serviceId),
-    addressOf(property),
-    formats[lang].formatWhen(job.startsAt),
-  );
+const whatOf = async (job: Job, property: Property) =>
+  `${await serviceNameOf(job.serviceId)} at ${addressOf(property)}, ${formatWhen(job.startsAt)}`;
 
 // a credit no Bill follows within this long is refunded (ADR-0016)
 const CREDIT_REFUND_DAYS = 30;
@@ -157,13 +135,10 @@ const taxShare = (
  * completion was undone, should have billed nothing.
  */
 const partsOf = async (
-  lang: Language,
   job: Job,
   property: Property,
   tx: Tx | typeof db,
 ): Promise<Part[]> => {
-  const words = lineWords[lang];
-  const { adjustmentLabel, feeName, LATE_MOVE_FEE } = messages[lang];
   if (!owesOnBill(job)) return [];
   // one after the other, as a transaction's queries share one connection
   // (ADR-0024)
@@ -208,7 +183,7 @@ const partsOf = async (
       );
 
   const { option } = quoted;
-  const what = await whatOf(lang, job, property);
+  const what = await whatOf(job, property);
   const share = (key: string, label: string, cents: number): Part => ({
     key,
     label,
@@ -239,7 +214,7 @@ const partsOf = async (
   if (below.amountCents < 0) {
     priced.push({
       key: "floor",
-      label: `${words.floor}: ${what}`,
+      label: `The price can't go below $0: ${what}`,
       amountCents: -below.amountCents,
       taxCents: -below.taxCents,
     });
@@ -268,10 +243,9 @@ const partsOf = async (
         ];
   const deposit = net("deposit");
   if (deposit !== 0)
-    parts.push(share("deposit", `${words.depositPaid}: ${what}`, -deposit));
+    parts.push(share("deposit", `Deposit paid: ${what}`, -deposit));
   const paid = net("other");
-  if (paid !== 0)
-    parts.push(share("paid", `${words.alreadyPaid}: ${what}`, -paid));
+  if (paid !== 0) parts.push(share("paid", `Already paid: ${what}`, -paid));
   return parts;
 };
 
@@ -285,12 +259,11 @@ type NewLine = Omit<
 // is no longer owed comes off, as a correction. Nothing for a Job never
 // billed that nets to nothing, such as a fee its Deposit already covers.
 const linesFor = async (
-  lang: Language,
   job: Job,
   property: Property,
   tx: Tx | typeof db,
 ): Promise<NewLine[]> => {
-  const parts = await partsOf(lang, job, property, tx);
+  const parts = await partsOf(job, property, tx);
   const before = await tx
     .select({
       key: billLines.key,
@@ -325,7 +298,7 @@ const linesFor = async (
     lines.push({
       jobId: job.id,
       key,
-      label: was ? `${lineWords[lang].corrected}: ${label}` : label,
+      label: was ? `Corrected: ${label}` : label,
       amountCents,
       taxCents: (part?.taxCents ?? 0) - (was?.taxCents ?? 0),
     });
@@ -411,9 +384,7 @@ const makeBill = async (
     const lines: NewLine[] = [];
     for (const { job, property } of candidates) {
       if (!isBilledWeekly(job, client, await billedOf(job.id, tx))) continue;
-      lines.push(
-        ...(await linesFor(client.preferredLanguage, job, property, tx)),
-      );
+      lines.push(...(await linesFor(job, property, tx)));
     }
     if (lines.length === 0) return null;
 
@@ -422,9 +393,7 @@ const makeBill = async (
       lines.push({
         jobId: null,
         key: "credit",
-        label: lineWords[client.preferredLanguage].creditFrom(
-          billNumber(credit.bill.number),
-        ),
+        label: `Credit from ${billNumber(credit.bill.number)}`,
         amountCents: -credit.cents,
         taxCents: 0,
       });
@@ -1085,9 +1054,9 @@ const settleEach = async (jobIds: string[]) => {
 // what a Job is, as an email of the Jobs it settled names it: English
 // until #304
 const labelOf = async (job: Job, property: Property) => {
-  const what = await whatOf("en", job, property);
+  const what = await whatOf(job, property);
   return job.status === "cancelled" || job.status === "no_access"
-    ? `${messages.en.feeName[job.status]}: ${what}`
+    ? `${feeName[job.status]}: ${what}`
     : what;
 };
 

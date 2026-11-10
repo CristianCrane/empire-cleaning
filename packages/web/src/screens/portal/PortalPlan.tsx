@@ -40,7 +40,6 @@ const words = catalog({
     noneJustNow:
       "No cleans booked just now. We'll be in touch about your next one.",
     aboutOnSite: (hours: string) => `About ${hours} on site`,
-    booked: "Booked",
     didntSend: "That didn't send. Please try again.",
     sent: "Sent. We'll send you a new cleaning plan quote.",
     change: "Change your plan",
@@ -60,7 +59,6 @@ const words = catalog({
     noneJustNow:
       "Por ahora no hay limpiezas reservadas. Le contactaremos sobre la próxima.",
     aboutOnSite: (hours: string) => `Unas ${hours} en el lugar`,
-    booked: "Reservada",
     didntSend: "No se envió. Vuelva a intentarlo.",
     sent: "Enviado. Le enviaremos una nueva cotización de plan de limpieza.",
     change: "Cambiar su plan",
@@ -142,7 +140,9 @@ export function PortalPlan() {
               id={job.id}
               title={t.formatDateTime(job.startsAt)}
               description={t.w.aboutOnSite(formatHours(job.hoursOnSite))}
-              end={<StatusBadge tone="info">{t.w.booked}</StatusBadge>}
+              end={
+                <StatusBadge tone="info">{t.jobStatusLabel.booked}</StatusBadge>
+              }
             />
           ))}
         </List>

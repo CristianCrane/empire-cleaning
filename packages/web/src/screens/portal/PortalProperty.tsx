@@ -32,7 +32,7 @@ import { accessHelp } from "@empire-cleaning/quote-request";
 import { patchJson } from "../../api.ts";
 import { linkTo } from "../../links.ts";
 import { useAction } from "../action.ts";
-import { addressOf, dayOfInstant } from "../format.ts";
+import { addressOf } from "../format.ts";
 import { useSaid } from "../words.ts";
 import { AccessFact, ConditionFact, FloorAreaFact } from "../Fact.tsx";
 import { planWhen, quoteTitle, standingOf } from "./properties.ts";
@@ -46,7 +46,6 @@ const words = catalog({
     businessDetails: "Business details",
     homeDetails: "Home details",
     yourBusiness: "Your business",
-    yourHome: "Your home",
     conditionLine: "Condition, at the last visit",
     accessLine: "How we get in: only your cleaners see it",
     sizeNote:
@@ -69,7 +68,6 @@ const words = catalog({
     businessDetails: "Datos del negocio",
     homeDetails: "Datos de la casa",
     yourBusiness: "Su negocio",
-    yourHome: "Su casa",
     conditionLine: "Estado, en la última visita",
     accessLine: "Cómo entramos: solo sus limpiadores lo ven",
     sizeNote:
@@ -100,7 +98,6 @@ export function PortalProperty() {
   const navigate = useNavigate();
   const t = useSaid(words);
   const { w } = t;
-  const shortDayOf = (iso: string) => t.formatShortDay(dayOfInstant(iso));
   const standing = standingOf(t.lang, p, data);
   const premises = p.kind === "commercial";
   const plans = data.plans
@@ -137,7 +134,7 @@ export function PortalProperty() {
               <IconTile icon={premises ? Building2 : House} size="lg" />
               <div className="flex min-w-0 flex-col gap-1">
                 <p className="text-sm text-fg-muted">
-                  {premises ? w.yourBusiness : w.yourHome}
+                  {premises ? w.yourBusiness : t.p.yourHome}
                 </p>
                 <p className="text-xl font-semibold text-fg">
                   {t.propertySummary(p)}
@@ -222,8 +219,8 @@ export function PortalProperty() {
                 title={quoteTitle(t.lang, q)}
                 description={
                   q.sentAt
-                    ? w.sent(shortDayOf(q.sentAt))
-                    : w.askedFor(shortDayOf(q.createdAt))
+                    ? w.sent(t.shortDayOf(q.sentAt))
+                    : w.askedFor(t.shortDayOf(q.createdAt))
                 }
                 end={<ClientQuoteStatusBadge status={q.status} />}
               />

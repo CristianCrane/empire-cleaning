@@ -30,7 +30,6 @@ const words = catalog({
   en: {
     cancelled: "Cancelled",
     clearing: "Clearing",
-    unpaid: "Unpaid",
     due: "Due",
     credit: "Credit",
     nothingToPay: "Nothing to pay",
@@ -74,7 +73,6 @@ const words = catalog({
   es: {
     cancelled: "Cancelada",
     clearing: "En proceso",
-    unpaid: "Sin pagar",
     due: "Pendiente",
     credit: "Crédito",
     nothingToPay: "Nada que pagar",
@@ -122,11 +120,11 @@ type T = Said & { w: (typeof words)["en"] };
 
 // where a Bill stands: what's left to do about it, or how it ended
 export function BillStatusBadge({ bill }: { bill: BillSummary }) {
-  const { w } = useSaid(words);
+  const { w, unpaid } = useSaid(words);
   if (bill.status === "void") return <StatusBadge>{w.cancelled}</StatusBadge>;
   if (bill.status === "processing")
     return <StatusBadge tone="info">{w.clearing}</StatusBadge>;
-  if (bill.unpaid) return <StatusBadge tone="danger">{w.unpaid}</StatusBadge>;
+  if (bill.unpaid) return <StatusBadge tone="danger">{unpaid}</StatusBadge>;
   if (bill.status === "due")
     return <StatusBadge tone="warning">{w.due}</StatusBadge>;
   if (bill.totalCents < 0) return <StatusBadge>{w.credit}</StatusBadge>;

@@ -1,4 +1,4 @@
-import { catalog, messages } from "@empire-cleaning/models";
+import { catalog } from "@empire-cleaning/models";
 import type { ReactNode } from "react";
 import { useNavigate, useRouteContext } from "@tanstack/react-router";
 import { QuoteRequestForm } from "@empire-cleaning/quote-request";
@@ -13,6 +13,7 @@ import {
 } from "@empire-cleaning/ui";
 import { forgetAccount, signOut } from "../session.ts";
 import { quoteRequested } from "./QuoteParts.tsx";
+import { useSaid } from "./words.ts";
 
 const words = catalog({
   en: {
@@ -53,8 +54,7 @@ export function Welcome() {
   const { account } = useRouteContext({ from: "/welcome" });
   const navigate = useNavigate();
   const lang = useLanguage();
-  const { ASK_US } = messages[lang];
-  const w = words[lang];
+  const { w, ASK_US } = useSaid(words);
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-6xl flex-col gap-6 p-4 py-10">

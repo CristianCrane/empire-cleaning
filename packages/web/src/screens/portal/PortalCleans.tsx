@@ -37,18 +37,13 @@ const words = catalog({
     siteVisit: "Site visit",
     visit: (visitor: string, length: string) =>
       `${visitor}, about ${length}, free`,
-    unpaid: "Unpaid",
     needsOk: "Needs your OK",
     fee: (amount: string) => `${amount} fee`,
     noCharge: "No charge",
-    yourCleans: "Your cleans",
     upcoming: "Upcoming",
     past: "Past",
-    nothingBooked: "Nothing booked",
-    showsHere: "Your next clean shows here once it's booked.",
     noneYet: "No cleans yet",
     eachShows: "Each clean shows here once it's done, with its receipt.",
-    showMore: "Show more",
   },
   es: {
     about: (length: string) => `unas ${length}`,
@@ -56,19 +51,14 @@ const words = catalog({
     siteVisit: "Visita previa",
     visit: (visitor: string, length: string) =>
       `${visitor}, unos ${length}, gratis`,
-    unpaid: "Sin pagar",
     needsOk: "Necesita su aprobación",
     fee: (amount: string) => `cargo de ${amount}`,
     noCharge: "Sin cargo",
-    yourCleans: "Sus limpiezas",
     upcoming: "Próximas",
     past: "Pasadas",
-    nothingBooked: "Nada reservado",
-    showsHere: "Su próxima limpieza aparecerá aquí cuando esté reservada.",
     noneYet: "Aún no hay limpiezas",
     eachShows:
       "Cada limpieza aparecerá aquí cuando esté terminada, con su recibo.",
-    showMore: "Mostrar más",
   },
 });
 type T = Said & { w: (typeof words)["en"] };
@@ -129,7 +119,7 @@ const visitRow =
 
 // what's not plain about a past clean, the most pressing first
 const pastBadge = (t: T, job: ClientPastJob) => {
-  if (job.unpaid) return <StatusBadge tone="danger">{t.w.unpaid}</StatusBadge>;
+  if (job.unpaid) return <StatusBadge tone="danger">{t.unpaid}</StatusBadge>;
   if (job.awaitingAnswer > 0)
     return <StatusBadge tone="warning">{t.w.needsOk}</StatusBadge>;
   if (job.status === "no_access") return <JobStatusBadge status="no_access" />;
@@ -221,7 +211,7 @@ export function PortalCleans() {
   return (
     <div className="flex flex-col gap-6">
       <Heading level={1} inBar>
-        {w.yourCleans}
+        {t.p.yourCleans}
       </Heading>
       <Tabs
         selectedKey={tab}
@@ -233,7 +223,7 @@ export function PortalCleans() {
           })
         }
       >
-        <TabList aria-label={w.yourCleans}>
+        <TabList aria-label={t.p.yourCleans}>
           <Tab id="upcoming" count={upcoming.length}>
             {w.upcoming}
           </Tab>
@@ -245,8 +235,8 @@ export function PortalCleans() {
           {upcoming.length === 0 ? (
             <EmptyState
               icon={Sparkles}
-              title={w.nothingBooked}
-              description={w.showsHere}
+              title={t.p.nothingBooked}
+              description={t.p.nextShowsHere}
             />
           ) : (
             months(upcoming, w.upcoming)
@@ -268,7 +258,7 @@ export function PortalCleans() {
                   className="self-center"
                   onPress={() => setShown(shown + PAGE)}
                 >
-                  {w.showMore}
+                  {t.p.showMore}
                 </Button>
               )}
             </>

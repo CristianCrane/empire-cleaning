@@ -28,17 +28,10 @@ const known: Record<string, UnpaidKind> = {
   needs_approval: "declined",
 };
 
-// the few declines worth naming; any other, the fraud-type ones too, is
-// only "didn't go through", as the provider advises for what a customer sees
-const declines = [
-  "expired_card",
-  "insufficient_funds",
-  "account_closed",
-  "no_account",
-];
-
-// why, in words, in the reader's language (ADR-0025)
-const whyWords = catalog<Record<string, string>>({
+// why, in words, in the reader's language (ADR-0025): ours, and the few
+// declines worth naming; any other, the fraud-type ones too, is only
+// "didn't go through", as the provider advises for what a customer sees
+const whyWords = catalog({
   en: {
     [UNREACHABLE]: "we couldn't reach the payment service",
     processing: "the bank payment is still clearing",
@@ -75,8 +68,8 @@ export const whyNotPaid = (
 ): Omit<Unpaid, "since"> => ({
   kind: unpaidKind(reason),
   why:
-    reason in known || declines.includes(reason)
-      ? whyWords[lang][reason]!
+    reason in whyWords.en
+      ? whyWords[lang][reason as keyof (typeof whyWords)["en"]]
       : null,
 });
 

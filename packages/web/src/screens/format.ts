@@ -194,8 +194,8 @@ const words = catalog({
   en: {
     notKnownYet: "Not known yet",
     cleaner: { one: "cleaner", other: "cleaners" },
-    moreCleaners: (n: string) => `${n} more`,
-    freeCleaners: (n: string) => `${n} free`,
+    moreCleaner: { one: "more cleaner", other: "more cleaners" },
+    freeCleaner: { one: "free cleaner", other: "free cleaners" },
     sqFt: (area: string) => `${area} sq ft`,
     floorAreaNotKnown: "floor area not known yet",
     roomsNotKnown: "rooms not known yet",
@@ -232,12 +232,14 @@ const words = catalog({
       no_access: "Couldn't get in",
     } satisfies Record<JobStatus, string>,
     skipped: "Skipped",
+    unpaid: "Unpaid",
+    pickNewTime: "Pick a new time",
   },
   es: {
     notKnownYet: "Aún no se sabe",
     cleaner: { one: "limpiador", other: "limpiadores" },
-    moreCleaners: (n: string) => `${n} más`,
-    freeCleaners: (n: string) => `${n} libres`,
+    moreCleaner: { one: "limpiador más", other: "limpiadores más" },
+    freeCleaner: { one: "limpiador libre", other: "limpiadores libres" },
     sqFt: (area: string) => `${area} pies²`,
     floorAreaNotKnown: "superficie aún sin saber",
     roomsNotKnown: "habitaciones aún sin saber",
@@ -274,6 +276,8 @@ const words = catalog({
       no_access: "No se pudo entrar",
     },
     skipped: "Saltada",
+    unpaid: "Sin pagar",
+    pickNewTime: "Elegir otra hora",
   },
 });
 
@@ -323,20 +327,28 @@ const screenWordsIn = (lang: Language) => {
   };
 
   return {
+    // "Tue, Oct 20" and "Oct 20" for an instant: New York's day
+    dayOf: (iso: string) => formats[lang].formatDay(dayOfInstant(iso)),
+    shortDayOf: (iso: string) =>
+      formats[lang].formatShortDay(dayOfInstant(iso)),
+    notKnownYet: w.notKnownYet,
+    unpaid: w.unpaid,
+    pickNewTime: w.pickNewTime,
     conditionLabel,
     // business premises have none until a Site Visit records it
     conditionText: (condition: Condition | null) =>
       condition ? conditionLabel[condition] : w.notKnownYet,
     // so many cleaners, e.g. "1 cleaner", "2 more cleaners", "3 free
     // cleaners"
-    cleaners: (n: number, which?: "more" | "free") => {
-      const some = count(n, w.cleaner);
-      return which === "more"
-        ? w.moreCleaners(some)
-        : which === "free"
-          ? w.freeCleaners(some)
-          : some;
-    },
+    cleaners: (n: number, which?: "more" | "free") =>
+      count(
+        n,
+        which === "more"
+          ? w.moreCleaner
+          : which === "free"
+            ? w.freeCleaner
+            : w.cleaner,
+      ),
     formatFloorArea,
     // what a Property is: "Apartment · 2 bedrooms · 1.5 bathrooms"
     // ("Apartment · rooms not known yet" before they're given), or "Office ·

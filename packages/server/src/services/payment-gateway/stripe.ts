@@ -142,7 +142,7 @@ export class StripePaymentGateway implements PaymentGateway {
       typeof method === "string"
     ) {
       throw new PaymentMethodError(
-        "Your card wasn't set up. Please enter it again.",
+        `setup ${token} is ${setup?.status ?? "missing"}, for ${String(setup?.customer)}`,
       );
     }
     return saved(method);

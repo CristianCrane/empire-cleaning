@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { log } from "#services/monitoring";
 import { currentLanguage } from "#services/request";
 import { catalog, type PaymentMethodView } from "@empire-cleaning/models";
 import { apart, db, type Tx } from "../../db/index.ts";
@@ -119,6 +120,7 @@ export const savePaymentMethod = async (
     .savePaymentMethod({ payerId, token })
     .catch((error) => {
       if (error instanceof PaymentMethodError) {
+        log.info(`Card not saved for Client ${client.id}: ${error.message}`);
         throw new ConflictError(cardWords[currentLanguage()].NOT_SET_UP);
       }
       throw error;

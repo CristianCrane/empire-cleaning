@@ -74,7 +74,6 @@ const words = catalog({
     from: (when: string) => `From ${when}`,
     yourClean: "Your clean",
     where: "Where",
-    yourHome: "Your home",
     onSite: "On site",
     crewAbout: (cleaners: string, hours: string) =>
       `${cleaners}, about ${hours}`,
@@ -101,7 +100,6 @@ const words = catalog({
     planStarted: (when: string) =>
       `Your cleaning plan has started: its first clean is on ${when}.`,
     acceptedOn: (when: string) => `You accepted this quote on ${when}.`,
-    seePlan: "See your cleaning plan",
     booked: (service: string, when: string) =>
       `You're booked: a ${service} on ${when}.`,
     declinedOn: (when: string) => `You declined this quote on ${when}.`,
@@ -115,7 +113,6 @@ const words = catalog({
         : "The cleans you have booked from then on are cancelled, at no charge:",
     depositStays: (amount: string) =>
       `Your ${amount} deposit stays as it is, so nothing is charged now.`,
-    didntWork: "That didn't work. Please try again.",
     planStartedToast: "Your cleaning plan has started",
     bookedToast: "You're booked",
     payAndStart: "Pay and start your plan",
@@ -124,7 +121,6 @@ const words = catalog({
     useYour: (card: string) => `Use your ${card}`,
     payingWith: (card: string) => `Paying with your ${card}`,
     savedCard: "saved card",
-    differentCard: "Use a different card",
     takeAndKeep: (amount: string) =>
       `We take the ${amount} deposit now and keep it for as long as your plan runs. It comes off your last clean when the plan ends. `,
     firstOn: (when: string) => ` The first is on ${when}.`,
@@ -178,7 +174,6 @@ const words = catalog({
     from: (when: string) => `Desde el ${when}`,
     yourClean: "Su limpieza",
     where: "Dónde",
-    yourHome: "Su casa",
     onSite: "En el lugar",
     crewAbout: (cleaners: string, hours: string) =>
       `${cleaners}, unas ${hours}`,
@@ -205,7 +200,6 @@ const words = catalog({
     planStarted: (when: string) =>
       `Su plan de limpieza empezó: su primera limpieza es el ${when}.`,
     acceptedOn: (when: string) => `Aceptó esta cotización el ${when}.`,
-    seePlan: "Ver su plan de limpieza",
     booked: (service: string, when: string) =>
       `Está reservado: ${service} el ${when}.`,
     declinedOn: (when: string) => `Rechazó esta cotización el ${when}.`,
@@ -219,7 +213,6 @@ const words = catalog({
         : "Las limpiezas que tiene reservadas desde entonces se cancelan, sin cargo:",
     depositStays: (amount: string) =>
       `Su depósito de ${amount} se mantiene, así que no se cobra nada ahora.`,
-    didntWork: "No funcionó. Vuelva a intentarlo.",
     planStartedToast: "Su plan de limpieza empezó",
     bookedToast: "Está reservado",
     payAndStart: "Pagar y empezar su plan",
@@ -228,7 +221,6 @@ const words = catalog({
     useYour: (card: string) => `Usar su ${card}`,
     payingWith: (card: string) => `Paga con su ${card}`,
     savedCard: "tarjeta guardada",
-    differentCard: "Usar otra tarjeta",
     takeAndKeep: (amount: string) =>
       `Cobramos ahora el depósito de ${amount} y lo guardamos mientras dure su plan. Se descuenta de su última limpieza cuando el plan termine. `,
     firstOn: (when: string) => ` La primera es el ${when}.`,
@@ -485,7 +477,7 @@ function QuoteDetails({
                 icon={MapPin}
                 label={t.w.where}
                 value={addressOf(quote.property)}
-                line={t.w.yourHome}
+                line={t.p.yourHome}
               />
               <Fact
                 icon={Users}
@@ -665,7 +657,7 @@ function Standing({
               params: { planId: quote.servicePlanId },
             })}
           >
-            {t.w.seePlan}
+            {t.p.seeYourCleaningPlan}
           </Link>
         </Notice>
       ) : (
@@ -729,7 +721,7 @@ function Accept({
   const t = useSaid(words);
   const [newCard, setNewCard] = useState(!paymentMethod);
   // what's bookable may have changed since the page loaded
-  const action = useAction(t.w.didntWork, {
+  const action = useAction(t.p.didntWork, {
     reloadOnFailure: true,
   });
   const balance = chosen.totalCents - chosen.depositCents;
@@ -798,7 +790,7 @@ function Accept({
               {t.w.payingWith(paymentMethod?.label ?? t.w.savedCard)}
             </span>
             <Button variant="text" size="sm" onPress={() => setNewCard(true)}>
-              {t.w.differentCard}
+              {t.p.differentCard}
             </Button>
           </div>
         )}
@@ -872,7 +864,7 @@ const eachClean = (
 // plan's Deposit carries over
 function AcceptChange({ quote }: { quote: QuoteView }) {
   const t = useSaid(words);
-  const action = useAction(t.w.didntWork, {
+  const action = useAction(t.p.didntWork, {
     reloadOnFailure: true,
   });
   const [first] = quote.options;
@@ -908,7 +900,7 @@ function AcceptChange({ quote }: { quote: QuoteView }) {
 // beside accepting, quietly: they're asked once more before it's done
 function Decline({ quote }: { quote: QuoteView }) {
   const t = useSaid(words);
-  const action = useAction(t.w.didntWork);
+  const action = useAction(t.p.didntWork);
 
   const decline = async (close: () => void) => {
     const ok = await action.run(

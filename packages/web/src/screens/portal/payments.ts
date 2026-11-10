@@ -7,14 +7,12 @@ import {
   type Language,
 } from "@empire-cleaning/models";
 import { linkTo, type AppHref } from "../../links.ts";
-import { dayOfInstant } from "../format.ts";
-import { said } from "../words.ts";
+import { said, saidWith } from "../words.ts";
 
 // in the Client's language (ADR-0025)
 const words = catalog({
   en: {
     payBill: (n: string) => `Pay bill ${n}`,
-    seeClean: "See the clean",
     billDue: (n: string, day: string) => `Bill ${n} is due by ${day}`,
     andMore: (first: string, n: number) => `${first}, and ${n} more`,
     payingWith: (card: string) => `Paying with ${card}`,
@@ -42,7 +40,6 @@ const words = catalog({
   },
   es: {
     payBill: (n: string) => `Pagar la factura ${n}`,
-    seeClean: "Ver la limpieza",
     billDue: (n: string, day: string) => `La factura ${n} vence el ${day}`,
     andMore: (first: string, n: number) => `${first}, y ${n} más`,
     payingWith: (card: string) => `Paga con ${card}`,
@@ -103,12 +100,10 @@ const billLink = (billId: string) =>
   linkTo({ to: "/portal/bills/$billId", params: { billId } });
 
 // "Oct 22", New York's day
-const shortDayOf = (lang: Language, iso: string) =>
-  said[lang].formatShortDay(dayOfInstant(iso));
 
 export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
-  const w = words[lang];
-  const { billNotPaid, cleanNotPaid, formatShortDay, UPDATE_CARD } = said[lang];
+  const t = saidWith(lang, words);
+  const { w, billNotPaid, cleanNotPaid, formatShortDay, shortDayOf } = t;
   const owing: Owed[] = [
     // a Bill that couldn't be taken, or is past its due date
     ...data.bills
@@ -125,18 +120,18 @@ export function moneyNow(data: PaymentsData, lang: Language): MoneyNow {
       .map((j) => ({
         cents: j.owedCents,
         late: true,
-        text: cleanNotPaid(shortDayOf(lang, j.startsAt)),
+        text: cleanNotPaid(shortDayOf(j.startsAt)),
         // we try one waiting on the payment service again ourselves
         action:
           j.unpaid === "waiting"
             ? {
-                label: w.seeClean,
+                label: t.p.seeTheClean,
                 href: linkTo({
                   to: "/portal/jobs/$jobId",
                   params: { jobId: j.id },
                 }),
               }
-            : { label: UPDATE_CARD, href: cardLink },
+            : { label: t.UPDATE_CARD, href: cardLink },
       })),
     // a Bill to pay on its page, not yet late
     ...data.bills
@@ -191,10 +186,9 @@ export type PaymentRow = {
 
 // how one payment reads in the history: what it was for first
 export function paymentRow(p: ClientPayment, lang: Language): PaymentRow {
-  const w = words[lang];
-  const { feeName, formatShortDay } = said[lang];
-  const day = shortDayOf(lang, p.at);
-  const cleanDay = p.job ? shortDayOf(lang, p.job.startsAt) : null;
+  const { w, feeName, formatShortDay, shortDayOf } = saidWith(lang, words);
+  const day = shortDayOf(p.at);
+  const cleanDay = p.job ? shortDayOf(p.job.startsAt) : null;
   // the clean's day, only when it isn't the payment's own
   const otherDay = cleanDay !== day ? cleanDay : null;
 

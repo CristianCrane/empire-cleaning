@@ -6,8 +6,7 @@ import type {
   ServicePlanSummary,
 } from "@empire-cleaning/models";
 import type { StatusTone } from "@empire-cleaning/ui";
-import { dayOfInstant } from "../format.ts";
-import { said } from "../words.ts";
+import { said, saidWith } from "../words.ts";
 
 // in the Client's language (ADR-0025)
 const words = catalog({
@@ -16,18 +15,14 @@ const words = catalog({
     plan: "Cleaning plan",
     quote: (status: string) => `Quote ${status.toLowerCase()}`,
     sent: (service: string, day: string) => `${service}, sent ${day}`,
-    booked: "Booked",
     asked: (service: string, day: string) => `${service}, asked ${day}`,
-    nothing: "Nothing booked",
   },
   es: {
     quoteFor: (service: string) => `Cotización de ${service}`,
     plan: "Plan de limpieza",
     quote: (status: string) => `Cotización ${status.toLowerCase()}`,
     sent: (service: string, day: string) => `${service}, enviada el ${day}`,
-    booked: "Reservada",
     asked: (service: string, day: string) => `${service}, pedida el ${day}`,
-    nothing: "Nada reservado",
   },
 });
 
@@ -47,9 +42,6 @@ export type Standing = {
   line: string | null;
 };
 
-const shortDayOf = (lang: Language, iso: string) =>
-  said[lang].formatShortDay(dayOfInstant(iso));
-
 // "Mondays at 9:00 AM", or "Mondays at 9:00 AM and Thursdays at 1:00 PM"
 export const planWhen = (
   lang: Language,
@@ -60,7 +52,7 @@ export const planWhen = (
 export const quoteTitle = (lang: Language, q: QuoteSummary) =>
   q.kind === "service_plan"
     ? `${said[lang].quoteKindName(q.kind)}, ${q.service.name}`
-    : words[lang].quoteFor(q.service.name);
+    : saidWith(lang, words).w.quoteFor(q.service.name);
 
 // the most pressing thing about a home: its plan, a Quote to answer, the
 // next clean, a Quote we're preparing, or nothing
@@ -69,8 +61,8 @@ export function standingOf(
   property: Pick<PropertyView, "id">,
   data: PropertiesData,
 ): Standing {
-  const w = words[lang];
-  const { clientQuoteStatus, formatDateTime, planStatus } = said[lang];
+  const t = saidWith(lang, words);
+  const { w, clientQuoteStatus, formatDateTime, planStatus, shortDayOf } = t;
   const plan = data.plans.find(
     (p) => p.property.id === property.id && p.status !== "ended",
   );
@@ -89,7 +81,7 @@ export function standingOf(
     return {
       tone: "warning",
       label: w.quote(clientQuoteStatus.sent.label),
-      line: w.sent(sent.service.name, shortDayOf(lang, sent.sentAt!)),
+      line: w.sent(sent.service.name, shortDayOf(sent.sentAt!)),
     };
   }
   const next = data.jobs
@@ -98,7 +90,7 @@ export function standingOf(
   if (next) {
     return {
       tone: "info",
-      label: w.booked,
+      label: t.jobStatusLabel.booked,
       line: formatDateTime(next.startsAt),
     };
   }
@@ -109,8 +101,8 @@ export function standingOf(
     return {
       tone: "info",
       label: w.quote(clientQuoteStatus.requested.label),
-      line: w.asked(asked.service.name, shortDayOf(lang, asked.createdAt)),
+      line: w.asked(asked.service.name, shortDayOf(asked.createdAt)),
     };
   }
-  return { tone: "neutral", label: w.nothing, line: null };
+  return { tone: "neutral", label: t.p.nothingBooked, line: null };
 }

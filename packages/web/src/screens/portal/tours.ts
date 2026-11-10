@@ -14,7 +14,6 @@ const toursIn = (
     quoteText: string;
     payText: string;
     getInText: string;
-    anotherTime: string;
     moveText: string;
   },
 ): AreaTours => ({
@@ -57,7 +56,7 @@ const toursIn = (
         {
           // Move or cancel, or Move or skip for a clean on a Service Plan
           target: { press: w.moveOr },
-          title: t.anotherTime,
+          title: w.anotherTime,
           text: t.moveText,
         },
       ],
@@ -74,7 +73,6 @@ const words = catalog({
     payText:
       "Pick the clean you want, then pay the deposit to book it. The rest is charged once the clean is done.",
     getInText: "Tell the crew how to get in: gate codes, keys, pets.",
-    anotherTime: "Need another time?",
     moveText: "Move your clean from here.",
   },
   es: {
@@ -86,7 +84,6 @@ const words = catalog({
       "Elija la limpieza que quiere y pague el depósito para reservarla. El resto se cobra cuando la limpieza esté terminada.",
     getInText:
       "Dígale al equipo cómo entrar: códigos de la puerta, llaves, mascotas.",
-    anotherTime: "¿Necesita otra hora?",
     moveText: "Reprograme su limpieza desde aquí.",
   },
 });

@@ -33,7 +33,6 @@ import { useSaid } from "./words.ts";
 // Client's (ADR-0025)
 const words = catalog({
   en: {
-    pickNew: "Pick a new time",
     notSent: "The request wasn't sent. Please try again.",
     notLoaded: "The times didn't load. Please try again.",
     pickBoth: "Pick a day and a start time",
@@ -55,7 +54,6 @@ const words = catalog({
     send: "Send request",
   },
   es: {
-    pickNew: "Elegir otra hora",
     notSent: "No se envió la solicitud. Vuelva a intentarlo.",
     notLoaded: "No se cargaron las horas. Vuelva a intentarlo.",
     pickBoth: "Elija un día y una hora de inicio",
@@ -138,11 +136,11 @@ type Props = {
 // a dialog to choose a new time for a Job from those on offer, and send the
 // request at the cost shown
 export function ChooseNewTime(props: Props) {
-  const { w } = useSaid(words);
+  const { pickNewTime } = useSaid(words);
   return (
     <DialogTrigger>
       {props.trigger ?? <Button variant="secondary">{props.label}</Button>}
-      <Dialog title={w.pickNew} size={props.size}>
+      <Dialog title={pickNewTime} size={props.size}>
         {({ close }) => <NewTimeForm {...props} close={close} />}
       </Dialog>
     </DialogTrigger>

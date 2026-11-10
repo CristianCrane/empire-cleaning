@@ -83,7 +83,9 @@ import {
 import { monitoring } from "../../services/monitoring/index.ts";
 import { hoursOnSiteOf } from "../jobs/jobs.ts";
 
-// a record's and the Office's words: English (ADR-0025)
+// the emails' words, English until #304, the Office's and Cleaners'
+// (#305), and a Charge's item, a record the Office reads too, until it's
+// worded as it's read (#395)
 const { adjustmentItem, adjustmentLabel, NOT_ALL_CONFIRMED } = messages.en;
 
 const { formatMoney } = formats.en;
@@ -169,26 +171,6 @@ const jobWithOwner = async (jobId: string) => {
   if (!found) throw new NotFoundError("Job not found");
   return found;
 };
-
-// what a Charge or Refund for a price change is for, a record the Client
-// reads in their payments, in their Preferred Language as it's made
-// (ADR-0025)
-const clientLanguageOf = async (jobId: string) =>
-  (await jobWithOwner(jobId)).client.preferredLanguage;
-const itemWords = catalog({
-  en: {
-    corrected: (a: Parameters<typeof adjustmentItem>[0]) =>
-      `${messages.en.adjustmentItem(a)}, price corrected`,
-    takenOff: (a: Parameters<typeof adjustmentItem>[0]) =>
-      `${messages.en.adjustmentItem(a)}, taken off`,
-  },
-  es: {
-    corrected: (a: Parameters<typeof adjustmentItem>[0]) =>
-      `${messages.es.adjustmentItem(a)}, precio corregido`,
-    takenOff: (a: Parameters<typeof adjustmentItem>[0]) =>
-      `${messages.es.adjustmentItem(a)}, quitado`,
-  },
-});
 
 // tells the Client a Job they owe on couldn't be charged, the first time it
 // becomes Unpaid
@@ -665,7 +647,7 @@ export const correctAdjustment = async (
     .where(eq(adjustments.id, adjustmentId));
   await settleAfterCorrection(
     jobId,
-    itemWords[await clientLanguageOf(jobId)].corrected(adjustment),
+    `${adjustmentItem(adjustment)}, price corrected`,
   );
 };
 
@@ -676,7 +658,7 @@ export const removeAdjustment = async (jobId: string, adjustmentId: string) => {
   await db.delete(adjustments).where(eq(adjustments.id, adjustmentId));
   await settleAfterCorrection(
     jobId,
-    itemWords[await clientLanguageOf(jobId)].takenOff(adjustment),
+    `${adjustmentItem(adjustment)}, taken off`,
   );
 };
 
@@ -964,10 +946,7 @@ export const answerAdjustment = async (
   if (!answered) throw new ConflictError(words[currentLanguage()].ANSWERED);
   if (!approve) return;
 
-  const settled = await settleAfterChange(
-    jobId,
-    messages[await clientLanguageOf(jobId)].adjustmentItem(answered),
-  );
+  const settled = await settleAfterChange(jobId, adjustmentItem(answered));
   const { job, property, client } = await jobWithOwner(jobId);
   const payment = await paymentOf(job);
   await notify(`Receipt for Adjustment ${adjustmentId}`, async () =>
